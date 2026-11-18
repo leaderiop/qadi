@@ -9,6 +9,8 @@
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
+import * as Scope from "effect/Scope";
 import * as TestClock from "effect/testing/TestClock";
 import { hasPermission, hasRole, permission } from "@qadi/core";
 import type { Policy } from "@qadi/core";
@@ -304,5 +306,119 @@ describe("the gates feed", () => {
       assert.strictEqual(seen.calls, 1);
       assert.strictEqual(instancesOf(feed)?.length, 2);
       assert.strictEqual(asked.seen.calls, 1);
+    }));
+
+  it.effect("G32 (twin of M32): no registry reads Unwatched, an empty one Read of no guard, a listed one Read of its array; no thunk reads Unhanded", () =>
+    Effect.gen(function* () {
+      const none = yield* makeGatesFeed();
+      assert.strictEqual(none.getSnapshot().registry._tag, "Unwatched");
+      assert.strictEqual(none.getSnapshot().asked._tag, "Unhanded");
+
+      const empty = yield* makeGatesFeed({ gates: makeGateRegistryDouble().registry });
+      assert.deepStrictEqual(instancesOf(empty), []);
+
+      const one = makeGateRegistryDouble([guard("a", readPolicy)]);
+      const listed = yield* makeGatesFeed({ gates: one.registry });
+      assert.strictEqual(instancesOf(listed), one.registry.instances());
+      assert.strictEqual(listed.getSnapshot().asked._tag, "Unhanded");
+
+      const asked = yield* makeGatesFeed({ questions: () => [{ policy: readPolicy }] });
+      assert.strictEqual(asked.getSnapshot().registry._tag, "Unwatched");
+      assert.deepStrictEqual(questionsOf(asked), [{ policy: readPolicy }]);
+    }));
+
+  it.effect("G32 b (twin of M32 b): the feed reads a handed thunk at build, whatever the poll; withholding an unsampled answer is the model's", () =>
+    Effect.gen(function* () {
+      const feed = yield* makeGatesFeed({ questions: () => [] });
+
+      assert.deepStrictEqual(questionsOf(feed), []);
+    }));
+
+  it.effect("G33 (twin of M33): the subscription lives as long as the scope, follows a new registry, and never outlives close", () =>
+    Effect.gen(function* () {
+      const a = makeGateRegistryDouble([guard("a", readPolicy)]);
+      const b = makeGateRegistryDouble([guard("b1", writePolicy), guard("b2", readPolicy)]);
+      const scope = yield* Scope.make();
+      const feed = yield* Scope.provide(makeGatesFeed({ gates: a.registry }), scope);
+
+      assert.strictEqual(a.listeners(), 1);
+      assert.strictEqual(a.subscriptions(), 1);
+      const first = feed.getSnapshot();
+
+      feed.configure({ gates: a.registry });
+      assert.strictEqual(a.subscriptions(), 1);
+      assert.strictEqual(feed.getSnapshot(), first);
+
+      feed.configure({ gates: b.registry });
+      assert.strictEqual(a.listeners(), 0);
+      assert.strictEqual(b.listeners(), 1);
+      assert.strictEqual(instancesOf(feed), b.registry.instances());
+
+      feed.configure({});
+      assert.strictEqual(b.listeners(), 0);
+      assert.strictEqual(feed.getSnapshot().registry._tag, "Unwatched");
+
+      feed.configure({ gates: a.registry });
+      assert.strictEqual(a.listeners(), 1);
+
+      yield* Scope.close(scope, Exit.void);
+      assert.strictEqual(a.listeners(), 0);
+      assert.strictEqual(b.listeners(), 0);
+
+      const subscribed = a.subscriptions();
+      feed.configure({ gates: a.registry });
+      assert.strictEqual(a.listeners(), 0);
+      assert.strictEqual(a.subscriptions(), subscribed);
+    }));
+
+  it.effect("G34 (twin of M34): with no thunk no cadence runs, and nothing is published while time passes", () =>
+    Effect.gen(function* () {
+      const double = makeGateRegistryDouble([guard("a", readPolicy)]);
+      const feed = yield* makeGatesFeed({ gates: double.registry });
+      const first = feed.getSnapshot();
+      const seen = listen(feed);
+
+      for (let i = 0; i < 10; i++) yield* tick;
+
+      assert.strictEqual(seen.calls, 0);
+      assert.strictEqual(feed.getSnapshot(), first);
+    }));
+
+  it.effect("G35 (twin of M35): a closed feed subscribes to no registry a later configure hands it", () =>
+    Effect.gen(function* () {
+      const a = makeGateRegistryDouble([guard("a", readPolicy)]);
+      const b = makeGateRegistryDouble([guard("b", readPolicy)]);
+      const scope = yield* Scope.make();
+      const feed = yield* Scope.provide(makeGatesFeed({ gates: a.registry }), scope);
+      yield* Scope.close(scope, Exit.void);
+
+      feed.configure({ gates: b.registry });
+
+      assert.strictEqual(a.listeners(), 0);
+      assert.strictEqual(b.listeners(), 0);
+      assert.strictEqual(b.subscriptions(), 0);
+    }));
+
+  it.effect("G36 (twin of M36): a closed feed reads no registry or thunk a later configure hands it, and none it held", () =>
+    Effect.gen(function* () {
+      const a = makeGateRegistryDouble([guard("a", readPolicy)]);
+      const b = makeGateRegistryDouble([guard("b", readPolicy)]);
+      const held = counting(() => []);
+      const handed = counting(() => [{ policy: writePolicy }]);
+      const scope = yield* Scope.make();
+      const feed = yield* Scope.provide(makeGatesFeed({ gates: a.registry, questions: held.thunk }), scope);
+      yield* Scope.close(scope, Exit.void);
+      const readByA = a.reads();
+      const last = feed.getSnapshot();
+
+      feed.configure({ gates: b.registry, questions: handed.thunk });
+      feed.configure({ gates: a.registry, questions: held.thunk });
+      yield* tick;
+
+      assert.strictEqual(b.reads(), 0);
+      assert.strictEqual(a.reads(), readByA);
+      assert.strictEqual(held.seen.calls, 1);
+      assert.strictEqual(handed.seen.calls, 0);
+      assert.strictEqual(feed.getSnapshot(), last);
     }));
 });
