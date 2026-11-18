@@ -895,3 +895,16 @@ export const Dock = ({ atoms }: { readonly atoms: QadiAtoms }) => {
 ```
 
 The decision is [ADR-QD-162](https://github.com/leaderiop/qadi/blob/main/spec/decisions/162-gates-are-the-dock-models-eighth-store-and-their-states-are-stated-once.md).
+
+## 0.13: `PortActivity.port` is a `PortName`
+
+`@qadi/devtools`'s `PortActivity.port` is now `PortName`, `@qadi/core`'s union of the five registry ports, where it was `string`. `portActivity` reads each registry port's own name in the four port metrics and reports one entry per port that was reached, in the registry's order, so a word written to a port metric outside the registry is no longer reported. Nothing is renamed or removed, and no export is added: `PortActivity` is still exported and only its field's type is narrower.
+
+An entry built inline with a registry port's name still compiles, and so does every reader that treats `port` like a string. Two things a caller may need to fix:
+
+- An array literal held in an unannotated variable widens `port` to `string`, which no longer fits `PortActivity`. Annotate the variable `ReadonlyArray<PortActivity>`, and the literal is checked against the registry's names.
+- A comparison of `entry.port` with a name that is not a port, such as `"EvaluationId"`, no longer compiles, since no such entry can exist. Drop the comparison, or read the ports as strings first.
+
+The Services panel reads the same: every word, `data-testid` and attribute on the tab is unchanged, and the cards are now computed by the dock model.
+
+The decision is [ADR-QD-168](https://github.com/leaderiop/qadi/blob/main/spec/decisions/168-a-port-card-is-a-model-row.md).
