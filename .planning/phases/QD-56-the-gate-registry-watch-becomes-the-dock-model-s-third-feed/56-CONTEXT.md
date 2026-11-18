@@ -41,6 +41,12 @@ Out of scope:
 - **D-04:** `asked()` cannot be observed; it has no change signal. The feed therefore reads it on its own cadence and compares by reference, so a quiet tick publishes nothing.
   - Default cadence: `DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS`.
   - Whether it also re-reads on each registry change, and how "unsampled" is decided now that the poll no longer carries the questions, are at Claude's discretion. The bar is that `QuestionsView.Unsampled` vs `Absent` reads the same to a user as on the base.
+  - **Amended after research (orchestrator, 2026-11-18):** `asked()` returns a fresh array on every call (`packages/react/src/QuestionBook.ts:184`). A reference compare would therefore publish on every tick. The feed compares answers with `Equal.equals`, as `DiagnosticsStore`'s `keep` already does, inside the same `try` as the thunk's call. The other D-02 surface details are also settled by research, on the owner's rule that the path is complete and has no orphans:
+    - `diagnostics.intervalMillis` is forwarded to the feed's cadence.
+    - `FeedOwnedKey` becomes `"layer" | "questions"`, so passing `questions` in `extra` is a compile error.
+    - `Diagnostics`/`DiagnosticsReading.questions` stays, as stated above. Only a supplied reading carries it (research Option A).
+    - INV-QD-357 is worded by what the feed owns (registry, subscription, failure state, thunk). `DockModel` keeps `closed` and its last join.
+    - The registry is no longer re-read on a diagnostics publish that changes no question. This matches ADR-QD-162's wording and is recorded in a BEH.
 
 ### Feed shape and home
 
