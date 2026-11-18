@@ -5,16 +5,16 @@ milestone_name: Arch Wave 11
 current_phase: 56
 current_phase_name: The gate-registry watch becomes the dock model's third feed
 status: executing
-stopped_at: Completed QD-56-11-PLAN.md
-last_updated: "2026-11-18T20:45:05.896Z"
+stopped_at: Completed QD-56-12-PLAN.md
+last_updated: "2026-11-18T20:52:13.061Z"
 last_activity: 2026-11-18
 last_activity_desc: Phase QD-55 complete, transitioned to Phase 56
-state_head: 1a55d9b1c7e6fe1e7d61b87a011fe10835ad2f16
+state_head: 93ebe36c13dc70077117a359203fef768c6797cc
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 38
-  completed_plans: 36
+  completed_plans: 37
   percent: 33
 ---
 
@@ -365,6 +365,7 @@ Last activity: 2026-11-18 — Phase QD-55 complete, transitioned to Phase 56
 | Phase QD-56 P09 | 20 min | 2 tasks | 5 files |
 | Phase QD-56 P10 | 25 min | 2 tasks | 5 files |
 | Phase QD-56 P11 | 20 min | 2 tasks | 3 files |
+| Phase QD-56 P12 | 15 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -627,6 +628,7 @@ Last activity: 2026-11-18 — Phase QD-55 complete, transitioned to Phase 56
 - [Phase QD-56]: 56-09: equivalent mutants in the gates feed and the join were rewritten away (refactor), not ignored; WX-05 holds (D-11) on the final tree
 - [Phase QD-56]: 56-10: ADR-QD-169 records D-01 (one feed, one failure policy for the panel's two host inputs), applies ADR-QD-137 and leaves ADR-QD-162 intact; BEH-QD-616..620 name the GatesFeed twins and J cases, never the deleted M cases
 - [Phase QD-56]: INV-QD-357 is worded by what the gates feed owns (registry, subscription, failure state, questions input); DockModel keeps its closed flag and last join (D-04 amended)
+- [Phase QD-56]: Every id reserved for QD-56 was used, so CCR-QD-447's row ends Unused: none; both changesets are minor with one Breaking entry and nothing is versioned or released
 
 ### Pending Todos
 
@@ -686,8 +688,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-18T20:45:05.546Z
-Stopped at: Completed QD-56-11-PLAN.md
+Last session: 2026-11-18T20:52:12.908Z
+Stopped at: Completed QD-56-12-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
