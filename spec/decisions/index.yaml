@@ -510,3 +510,7 @@ entries:
     file: "165-core-owns-the-predicate-compile-shell.md"
     title: "Core owns the predicate compile shell"
     status: "Accepted — keeps ADR-QD-054, ADR-QD-079, ADR-QD-123"
+  - id: "ADR-QD-166"
+    file: "166-one-module-owns-the-value-a-leaf-compares.md"
+    title: "One module owns the value a leaf compares"
+    status: "Accepted — extends ADR-QD-091, ADR-QD-024"

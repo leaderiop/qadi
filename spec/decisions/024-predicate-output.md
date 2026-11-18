@@ -310,3 +310,7 @@ this ADR opens with, arriving by the one route the subset table does not cover: 
 an untranslatable *node*, but a translatable node whose *field set* is dropped.
 Refusing outright, conservatively, across the whole tree, is three lines and the
 only version that cannot be got wrong by a caller.
+
+## Amendment (2026-11-18, ADR-QD-166, CCR-QD-444)
+
+[ADR-QD-166](./166-one-module-owns-the-value-a-leaf-compares.md): the two walks stay two. Since that record both read a leaf's operand through `Operand.ts`, which closed a disagreement on prototype-named columns.
