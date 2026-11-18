@@ -418,10 +418,10 @@ Order: the defect first (53), then the "stated once" deepenings (54-58), then th
   4. ADR-QD-166 extends ADR-QD-091 and ADR-QD-024 (two walks stay two), INV-QD-091 is restated to cover the operand read, and the `SWITCH_BUDGET` switches in `Matcher.ts` (`judgeMatcher`, `resolveRef`) are unchanged.
 
 **Planning notes**: Re-verify the line numbers in `_WAVE11-CONTEXT.md` against `44510112`. Plan shape, RED first: the mutation base for the touched files and the RED probe, committed first; then the module with one reader converted at a time; then records. Re-run `pnpm circular` after the first move.
-**Plans**: 8 plans
+**Plans**: 1/8 plans executed
 
 Plans:
-- [ ] 53-01 (W1): Base facts, engine suites and reserved ids re-verified at `phase_base`; the scoped Stryker baseline of the eight readers and the D-14 comparer, committed alone first (WX-02, WX-05, WX-06).
+- [x] 53-01 (W1): Base facts, engine suites and reserved ids re-verified at `phase_base`; the scoped Stryker baseline of the eight readers and the D-14 comparer, committed alone first (WX-02, WX-05, WX-06).
 - [ ] 53-02 (W2): GREEN characterisation of what the move keeps, then the four RED tests (the prototype-named column, the prototype-names agreement property, both fixture builders), before any src change (OPND-01, OPND-04, WX-06).
 - [ ] 53-03 (W3): Tracer: package-private `Operand.ts` (`ownValue`, `isOwnKey`, `getByPath`) with `Matcher.ts`'s re-export and `evaluatePredicate` reading through it; then both fixture builders (OPND-01..04).
 - [ ] 53-04 (W4): FieldMatch, the walk's `HasResourceAttribute` and `readAttribute` read through `Operand.ts`; mirroring comments gone (OPND-03).
@@ -588,7 +588,7 @@ Phases execute in numeric order: 53 → 54 → 55 → 56 → 57 → 58 → 59 �
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 53. One module owns "the value a leaf compares" | 0/TBD | Not started | - |
+| 53. One module owns "the value a leaf compares" | 1/8 | In Progress | - |
 | 54. LeafNeeds turns every leaf's answer into a verdict | 0/TBD | Not started | - |
 | 55. A port card is a model row, not a view join | 0/TBD | Not started | - |
 | 56. The gate-registry watch becomes the dock model's third feed | 0/TBD | Not started | - |
