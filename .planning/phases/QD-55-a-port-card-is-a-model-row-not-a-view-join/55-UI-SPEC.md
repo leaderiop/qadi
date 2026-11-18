@@ -1,7 +1,8 @@
 ---
 phase: "QD-55"
 slug: "a-port-card-is-a-model-row-not-a-view-join"
-status: draft
+status: approved
+reviewed_at: "2026-11-18"
 shadcn_initialized: false
 preset: none
 created: "2026-11-18"
@@ -227,7 +228,7 @@ included.
 
 ## UI Considerations
 
-Applicable state considerations resolved: 8 covered, 1 backstop, 0 unresolved
+Applicable state considerations resolved (probe: 31 across 4 surfaces E1 screen, E2 port card, E3 recent calls, E4 cache card): 21 covered, 3 backstop, 7 dismissed, 0 unresolved
 
 The states below are the combinations the D-13 characterisation test must pin on the phase base and
 that must read identically after. Copy is in the Copywriting Contract, not restated here.
@@ -243,6 +244,11 @@ that must read identically after. Copy is in the Copywriting Contract, not resta
 | partial | Call row fields (attempts, interpreter, duration) | ✅ covered | `· N attempts` only when `attempts > 1`; `served` / `translation` / none; `in flight` vs `x.x ms`; unrecorded span fields read `not recorded` via `PORT_READING` |
 | populated | Cache card (`present`, `size` defined or `undefined`, absent) | ✅ covered | `N completed entries` (size `undefined` reads `0 completed entries`) vs `absent` |
 | long-text | Long port `name`, reason, resource id or attribute | 🧪 backstop | Text wraps inside the card (`flexWrap: wrap` on the header only; call rows and the consequence do not truncate). No truncation style exists today and none is added; a visual long-string check is the only evidence |
+| long-text | E3 call description, E4 cache text | 🧪 backstop | Same as the card: wraps, no truncation exists or is added; visual long-string check only |
+| populated | E1 screen, E2 card, E3 calls list (`Read` with ports, activity and calls) | ✅ covered | The normal rendering of each surface is pinned by the D-13 characterisation test |
+| overflow, zero-one-many | E4 cache card | ✅ covered | One number: `0 completed entries` (size `undefined`) and `N completed entries` pinned; no list to overflow |
+| loading | E1–E4 | ❌ dismissed | No loading state exists: before the first sample the screen hides content (unsampled), the partial case above; no spinner is added |
+| error | E2 card, E3 calls list, E4 cache card | ❌ dismissed | Errors surface only at screen level (`qadi-wiring-failed`) and in the shared `DiagnosticsNotice`; a card has no error state of its own |
 
 Attribute defaults carried by the cards (also pinned): `data-port` is the row's port name;
 `data-defaulted` is `"true"` or `"false"`, and the attribute is absent when `defaulted` is
