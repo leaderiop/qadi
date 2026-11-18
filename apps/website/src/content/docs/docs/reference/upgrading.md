@@ -908,3 +908,17 @@ An entry built inline with a registry port's name still compiles, and so does ev
 The Services panel reads the same: every word, `data-testid` and attribute on the tab is unchanged, and the cards are now computed by the dock model.
 
 The decision is [ADR-QD-168](https://github.com/leaderiop/qadi/blob/main/spec/decisions/168-a-port-card-is-a-model-row.md).
+
+## 0.13: the questions are a dock input, beside the gates
+
+Two public breaks, one per package, and both move the same field. The Questions tab reads two things a host hands the dock, a registry of live guards (`gates`) and the questions asked (`questions`), and `questions` used to travel inside the diagnostics options where `gates` did not. It is now the dock's own input, beside `gates`.
+
+`@qadi/devtools`: `questions` is no longer a field of `DiagnosticsDockOptions`, the type of the dock's `diagnostics` prop and of `useDiagnostics`'s options, or of `DiagnosticsOptions`, which `runDiagnostics` takes. It is `DevtoolsDock`'s own `questions` prop, read on the diagnostics cadence. A host that wrote `diagnostics={{ layer, collector, questions }}` writes `diagnostics={{ layer, collector }}` and `questions={…}`, the same function in the new place.
+
+`@qadi/react`: `useDevtoolsFeed()` returns `questions` (`atoms.asked`) beside `gates` and `onInvalidate`, and its `diagnostics` is your extras plus `layer` only. Code that read `feed.diagnostics.questions` reads `feed.questions`. A host that spreads the feed, `<DevtoolsDock {...feed} />`, needs no edit, and setting `layer` or `questions` in the extras is still a compile error.
+
+One behaviour changes with the move. A questions input that throws is now stated in the React panel, in one sentence with the reason, and the diagnostics poll keeps running. Before, a throwing input ended the poll, every tab's reading froze with the status `Stopped`, and the panel said nothing about its own input. The same panel states a throwing gate registry, and has since 0.13's earlier change to the gates.
+
+`DiagnosticsReading.questions` is unchanged. A reading taken in another process still carries its own questions, a list a reading supplies wins over the input, and the input's failure is then not stated. The Questions panel's markup, words and `data-testid`s are unchanged.
+
+The decision is [ADR-QD-169](https://github.com/leaderiop/qadi/blob/main/spec/decisions/169-the-questions-panels-two-host-inputs-are-one-feed.md).
