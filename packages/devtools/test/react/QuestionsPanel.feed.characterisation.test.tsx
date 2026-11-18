@@ -1,0 +1,241 @@
+/**
+ * Pins the questions panel's markup, whole, for the inputs ARCH-103 moves.
+ *
+ * Written on the phase base, before the gate registry watch and the questions thunk
+ * became the dock model's gates feed. It is needed because the panel and the dock's
+ * React files sit outside the devtools mutation glob, so no mutant catches a changed
+ * word or row there. Every cell compares the panel root's `outerHTML` whole, never by
+ * substring, through the public dock only: the thunk reaches the dock through
+ * `questionsProp` and the registry is `makeGateRegistryDouble`'s. The two Stopped cells
+ * empty the stop's reason first, because it is a stack trace naming checkout paths, and
+ * `DiagnosticsScreens.test.tsx` pins the notice and its reason.
+ *
+ * Never edited after it is written: the move changes `questionsProp`'s body and nothing
+ * here. The throwing thunk is not in this file, because it is the one deliberate
+ * behaviour change and has its own test.
+ */
+import { assert, describe, it } from "@effect/vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { vi } from "vitest";
+import type { ReactElement } from "react";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import { hasPermission, hasRole, permission } from "@qadi/core";
+import type { GateInstanceLike, PortCallCollector } from "../../src/index.ts";
+import { DevtoolsDock } from "../../src/react/index.ts";
+import type { DevtoolsDockProps, DiagnosticsDockOptions } from "../../src/react/index.ts";
+import { makeGateRegistryDouble } from "../gateRegistryDouble.ts";
+import { questionsProp } from "./questionsProp.ts";
+
+const canRead = hasPermission(permission("doc", "read"));
+const isAdmin = hasRole("admin");
+
+/** A page element a guard can be located at. It never reaches the serialised markup. */
+const marker = (): HTMLElement => {
+  const element = document.createElement("span");
+  document.body.appendChild(element);
+  return element;
+};
+
+const gate = (
+  fields: Partial<GateInstanceLike> & { readonly id: string },
+): GateInstanceLike => ({
+  kind: "Can",
+  policy: canRead,
+  state: "Allowed",
+  ...fields,
+});
+
+/** A hook asks and has no element, so it is listed and cannot be pointed at. */
+const hook = (id: string, state: string): GateInstanceLike =>
+  gate({ id, kind: "useCan", state });
+
+/** A diagnostics layer that never builds, so the feed stays `Starting`: unsampled. */
+const neverBuilt = { layer: Layer.effectDiscard(Effect.never) };
+
+const ASKED = [
+  { policy: canRead },
+  { policy: canRead, resource: { id: "doc-1" } },
+  { policy: isAdmin },
+];
+
+/** A fresh array each call, as `atoms.asked()` answers. */
+const asked = () => ASKED.map((question) => ({ ...question }));
+
+/** One identity, so a re-render restarts nothing. */
+const live: DiagnosticsDockOptions = {};
+
+/** A collector whose snapshot answers an empty log `after` times and then throws. */
+const dying = (after: number): PortCallCollector => {
+  let calls = 0;
+  return {
+    layer: Layer.empty,
+    snapshot: Effect.sync(() => {
+      calls += 1;
+      if (calls > after) throw new Error("collector down");
+      return { calls: [], dropped: 0, capacity: 10 };
+    }),
+  };
+};
+
+const a = gate({ id: "a", element: marker() });
+const b = gate({ id: "b", resource: { id: "doc-1" }, element: marker() });
+const c = { ...hook("c", "Denied"), policy: isAdmin };
+
+/** The panel root, once the dock has built its model and the React tab is open. */
+const openPanel = async (ui: ReactElement) => {
+  const view = render(ui);
+  await act(async () => {});
+  act(() => {
+    fireEvent.click(screen.getByRole("button", { name: "React" }));
+  });
+  return view;
+};
+
+const root = () => screen.getByTestId("qadi-questions");
+
+const settledAs = (status: string) =>
+  vi.waitFor(() => {
+    assert.strictEqual(root().getAttribute("data-diagnostics-status"), status);
+  });
+
+/** The panel's markup with the stop's reason emptied, for a poll that stopped. */
+const withoutReason = (): string => {
+  const clone = root().cloneNode(true);
+  assert.instanceOf(clone, HTMLElement);
+  clone.querySelector("[data-testid='qadi-diagnostics-reason']")?.replaceChildren();
+  return clone.outerHTML;
+};
+
+const GOLDEN: Readonly<Record<string, string>> = {
+  "1 thunk rows, live poll":
+    "<div data-diagnostics-status=\"Live\" tabindex=\"-1\" style=\"padding: 12px;\" data-testid=\"qadi-questions\"><div role=\"status\" data-testid=\"qadi-diagnostics-region\"></div><p style=\"color: #8b93a3; font-size: 11px; margin-top: 0px;\" data-testid=\"qadi-keying-note\">One row per <em>question</em>, not per component. Atoms are keyed structurally, so ten gates on the same policy are one atom — that is what the evaluator sees. The guards asking each question are listed underneath.</p><div style=\"margin-bottom: 6px;\"><button type=\"button\" style=\"appearance: none; background: transparent; color: #8b93a3; border: 1px solid #2a2f39; border-radius: 4px; padding: 2px 8px; font-size: 11px; cursor: pointer; font-style: inherit; font-variant: inherit; font-weight: inherit; font-stretch: inherit; line-height: inherit; font-family: inherit;\" data-testid=\"qadi-pick\">pick a control on the page</button></div><div data-testid=\"qadi-question-block\"><div style=\"display: flex; gap: 8px; align-items: baseline; padding: 3px 0px; border-bottom-width: 1px; border-bottom-style: solid; border-bottom-color: #2a2f39;\" data-testid=\"qadi-question\"><span>doc:read</span><span style=\"color: #8b93a3; font-size: 11px;\" data-testid=\"qadi-question-scope\">no resource</span><button type=\"button\" style=\"appearance: none; background: transparent; color: #8b93a3; border: 1px solid #2a2f39; border-radius: 4px; padding: 2px 8px; font-size: 11px; cursor: pointer; font-style: inherit; font-variant: inherit; font-weight: inherit; font-stretch: inherit; line-height: inherit; font-family: inherit;\" data-testid=\"qadi-highlight\">highlight 1</button></div><div data-testid=\"qadi-instance\" style=\"display: flex; gap: 8px; align-items: baseline; padding: 3px 0px 3px 14px; border-bottom-width: initial; border-bottom-style: none; border-bottom-color: none;\"><span style=\"color: #8b93a3; font-size: 11px;\">Can</span><span style=\"color: #3fb950; font-weight: 400;\" data-testid=\"qadi-instance-state\" data-treatment=\"Allow\">Allowed</span></div></div><div data-testid=\"qadi-question-block\"><div style=\"display: flex; gap: 8px; align-items: baseline; padding: 3px 0px; border-bottom-width: 1px; border-bottom-style: solid; border-bottom-color: #2a2f39;\" data-testid=\"qadi-question\"><span>doc:read</span><span style=\"color: #8b93a3; font-size: 11px;\" data-testid=\"qadi-question-scope\">doc-1</span><button type=\"button\" style=\"appearance: none; background: transparent; color: #8b93a3; border: 1px solid #2a2f39; border-radius: 4px; padding: 2px 8px; font-size: 11px; cursor: pointer; font-style: inherit; font-variant: inherit; font-weight: inherit; font-stretch: inherit; line-height: inherit; font-family: inherit;\" data-testid=\"qadi-highlight\">highlight 1</button></div><div data-testid=\"qadi-instance\" style=\"display: flex; gap: 8px; align-items: baseline; padding: 3px 0px 3px 14px; border-bottom-width: initial; border-bottom-style: none; border-bottom-color: none;\"><span style=\"color: #8b93a3; font-size: 11px;\">Can</span><span style=\"color: #3fb950; font-weight: 400;\" data-testid=\"qadi-instance-state\" data-treatment=\"Allow\">Allowed</span></div></div><div data-testid=\"qadi-question-block\"><div style=\"display: flex; gap: 8px; align-items: baseline; padding: 3px 0px; border-bottom-width: 1px; border-bottom-style: solid; border-bottom-color: #2a2f39;\" data-testid=\"qadi-question\"><span>admin</span><span style=\"color: #8b93a3; font-size: 11px;\" data-testid=\"qadi-question-scope\">no resource</span><button type=\"button\" style=\"appearance: none; background: transparent; color: #8b93a3; border: 1px solid #2a2f39; border-radius: 4px; padding: 2px 8px; font-size: 11px; cursor: pointer; font-style: inherit; font-variant: inherit; font-weight: inherit; font-stretch: inherit; line-height: inherit; font-family: inherit;\" data-testid=\"qadi-highlight\" disabled=\"\" title=\"only hooks are asking this, and a hook has no element to point at\">highlight 0</button></div><div data-testid=\"qadi-instance\" style=\"display: flex; gap: 8px; align-items: baseline; padding: 3px 0px 3px 14px; border-bottom-width: initial; border-bottom-style: none; border-bottom-color: none;\"><span style=\"color: #8b93a3; font-size: 11px;\">useCan</span><span style=\"color: #f47067; font-weight: 700;\" data-testid=\"qadi-instance-state\" data-treatment=\"Deny\">Denied</span><span style=\"color: #8b93a3; font-size: 11px;\" data-testid=\"qadi-instance-unlocatable\">no element — a hook has no node of its own</span></div></div><div style=\"margin-top: 10px;\" data-testid=\"qadi-hydration\"><div style=\"color: #8b93a3; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px;\">hydration</div><div style=\"display: flex; gap: 14px; flex-wrap: wrap; padding: 2px 0px;\"><span data-testid=\"qadi-hydration-dehydrated\"><span style=\"font-weight: 600;\">0</span><span style=\"color: #8b93a3; margin-left: 4px; font-size: 11px;\">dehydrated</span></span><span data-testid=\"qadi-hydration-seeded\"><span style=\"font-weight: 600;\">0</span><span style=\"color: #8b93a3; margin-left: 4px; font-size: 11px;\">seeded</span></span><span data-testid=\"qadi-hydration-rechecked\"><span style=\"font-weight: 600;\">0</span><span style=\"color: #8b93a3; margin-left: 4px; font-size: 11px;\">re-checked</span></span><span data-testid=\"qadi-hydration-mismatched\"><span style=\"font-weight: 600;\">0</span><span style=\"color: #8b93a3; margin-left: 4px; font-size: 11px;\">mismatched</span></span></div><div style=\"color: #8b93a3; font-size: 11px;\" data-testid=\"qadi-hydration-no-drops\">Nothing was dropped. All 9 reasons are watched.</div><div style=\"color: #8b93a3; font-size: 11px;\" data-testid=\"qadi-hydration-scope\">Process-wide totals, not this page's. 0 dehydrated entries have no seeding counted in this process.</div></div></div>",
+  "2 thunk empty, live poll":
+    "<div data-diagnostics-status=\"Live\" tabindex=\"-1\" style=\"padding: 12px;\" data-testid=\"qadi-questions\"><div role=\"status\" data-testid=\"qadi-diagnostics-region\"></div><p style=\"color: #8b93a3; font-size: 11px; margin-top: 0px;\" data-testid=\"qadi-keying-note\">One row per <em>question</em>, not per component. Atoms are keyed structurally, so ten gates on the same policy are one atom — that is what the evaluator sees. The guards asking each question are listed underneath.</p><div style=\"margin-bottom: 6px;\"><button type=\"button\" style=\"appearance: none; background: transparent; color: #8b93a3; border: 1px solid #2a2f39; border-radius: 4px; padding: 2px 8px; font-size: 11px; cursor: pointer; font-style: inherit; font-variant: inherit; font-weight: inherit; font-stretch: inherit; line-height: inherit; font-family: inherit;\" data-testid=\"qadi-pick\">pick a control on the page</button></div><p style=\"color: #8b93a3;\" data-testid=\"qadi-questions-empty\">Nothing has been asked yet. A question appears here the first time a component reads its decision.</p><div style=\"margin-top: 10px;\" data-testid=\"qadi-hydration\"><div style=\"color: #8b93a3; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px;\">hydration</div><div style=\"display: flex; gap: 14px; flex-wrap: wrap; padding: 2px 0px;\"><span data-testid=\"qadi-hydration-dehydrated\"><span style=\"font-weight: 600;\">0</span><span style=\"color: #8b93a3; margin-left: 4px; font-size: 11px;\">dehydrated</span></span><span data-testid=\"qadi-hydration-seeded\"><span style=\"font-weight: 600;\">0</span><span style=\"color: #8b93a3; margin-left: 4px; font-size: 11px;\">seeded</span></span><span data-testid=\"qadi-hydration-rechecked\"><span style=\"font-weight: 600;\">0</span><span style=\"color: #8b93a3; margin-left: 4px; font-size: 11px;\">re-checked</span></span><span data-testid=\"qadi-hydration-mismatched\"><span style=\"font-weight: 600;\">0</span><span style=\"color: #8b93a3; margin-left: 4px; font-size: 11px;\">mismatched</span></span></div><div style=\"color: #8b93a3; font-size: 11px;\" data-testid=\"qadi-hydration-no-drops\">Nothing was dropped. All 9 reasons are watched.</div><div style=\"color: #8b93a3; font-size: 11px;\" data-testid=\"qadi-hydration-scope\">Process-wide totals, not this page's. 0 dehydrated entries have no seeding counted in this process.</div></div></div>",
+  "3 thunk handed, poll starting":
+    "<div data-diagnostics-status=\"Starting\" tabindex=\"-1\" style=\"padding: 12px;\" data-testid=\"qadi-questions\"><div role=\"status\" data-testid=\"qadi-diagnostics-region\"><div data-testid=\"qadi-diagnostics-starting\" style=\"border: 1px solid #2a2f39; border-radius: 4px; padding: 8px 12px; margin-bottom: 8px; color: #8b93a3; font-size: 12px;\"><strong style=\"font-weight: 600;\">Waiting for the first sample.</strong> Diagnostics has started and has not read anything yet. This screen fills in when the first sample arrives.</div></div><p style=\"color: #8b93a3; font-size: 11px; margin-top: 0px;\" data-testid=\"qadi-keying-note\">One row per <em>question</em>, not per component. Atoms are keyed structurally, so ten gates on the same policy are one atom — that is what the evaluator sees. The guards asking each question are listed underneath.</p><div style=\"margin-bottom: 6px;\"><button type=\"button\" style=\"appearance: none; background: transparent; color: #8b93a3; border: 1px solid #2a2f39; border-radius: 4px; padding: 2px 8px; font-size: 11px; cursor: pointer; font-style: inherit; font-variant: inherit; font-weight: inherit; font-stretch: inherit; line-height: inherit; font-family: inherit;\" data-testid=\"qadi-pick\">pick a control on the page</button></div><div style=\"margin-top: 10px;\" data-testid=\"qadi-hydration\"><div style=\"color: #8b93a3; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px;\">hydration</div><span style=\"color: #8b93a3;\" data-testid=\"qadi-hydration-pending\">no counts read yet.</span></div></div>",
+  "4 no thunk, live poll":
+    "<div data-diagnostics-status=\"Live\" tabindex=\"-1\" style=\"padding: 12px;\" data-testid=\"qadi-questions\"><div role=\"status\" data-testid=\"qadi-diagnostics-region\"></div><p style=\"color: #8b93a3; font-size: 11px; margin-top: 0px;\" data-testid=\"qadi-keying-note\">One row per <em>question</em>, not per component. Atoms are keyed structurally, so ten gates on the same policy are one atom — that is what the evaluator sees. The guards asking each question are listed underneath.</p><div style=\"margin-bottom: 6px;\"><button type=\"button\" style=\"appearance: none; background: transparent; color: #8b93a3; border: 1px solid #2a2f39; border-radius: 4px; padding: 2px 8px; font-size: 11px; cursor: pointer; font-style: inherit; font-variant: inherit; font-weight: inherit; font-stretch: inherit; line-height: inherit; font-family: inherit;\" data-testid=\"qadi-pick\">pick a control on the page</button></div><p style=\"color: #8b93a3;\" data-testid=\"qadi-questions-absent\">No atom set was handed to the dock. Pass <code>questions</code> — usually <code>atoms.asked()</code> — to list what has been asked.</p><div style=\"margin-top: 10px;\" data-testid=\"qadi-hydration\"><div style=\"color: #8b93a3; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px;\">hydration</div><div style=\"display: flex; gap: 14px; flex-wrap: wrap; padding: 2px 0px;\"><span data-testid=\"qadi-hydration-dehydrated\"><span style=\"font-weight: 600;\">0</span><span style=\"color: #8b93a3; margin-left: 4px; font-size: 11px;\">dehydrated</span></span><span data-testid=\"qadi-hydration-seeded\"><span style=\"font-weight: 600;\">0</span><span style=\"color: #8b93a3; margin-left: 4px; font-size: 11px;\">seeded</span></span><span data-testid=\"qadi-hydration-rechecked\"><span style=\"font-weight: 600;\">0</span><span style=\"color: #8b93a3; margin-left: 4px; font-size: 11px;\">re-checked</span></span><span data-testid=\"qadi-hydration-mismatched\"><span style=\"font-weight: 600;\">0</span><span style=\"color: #8b93a3; margin-left: 4px; font-size: 11px;\">mismatched</span></span></div><div style=\"color: #8b93a3; font-size: 11px;\" data-testid=\"qadi-hydration-no-drops\">Nothing was dropped. All 9 reasons are watched.</div><div style=\"color: #8b93a3; font-size: 11px;\" data-testid=\"qadi-hydration-scope\">Process-wide totals, not this page's. 0 dehydrated entries have no seeding counted in this process.</div></div></div>",
+  "5 no thunk, poll starting":
+    "<div data-diagnostics-status=\"Starting\" tabindex=\"-1\" style=\"padding: 12px;\" data-testid=\"qadi-questions\"><div role=\"status\" data-testid=\"qadi-diagnostics-region\"><div data-testid=\"qadi-diagnostics-starting\" style=\"border: 1px solid #2a2f39; border-radius: 4px; padding: 8px 12px; margin-bottom: 8px; color: #8b93a3; font-size: 12px;\"><strong style=\"font-weight: 600;\">Waiting for the first sample.</strong> Diagnostics has started and has not read anything yet. This screen fills in when the first sample arrives.</div></div><p style=\"color: #8b93a3; font-size: 11px; margin-top: 0px;\" data-testid=\"qadi-keying-note\">One row per <em>question</em>, not per component. Atoms are keyed structurally, so ten gates on the same policy are one atom — that is what the evaluator sees. The guards asking each question are listed underneath.</p><div style=\"margin-bottom: 6px;\"><button type=\"button\" style=\"appearance: none; background: transparent; color: #8b93a3; border: 1px solid #2a2f39; border-radius: 4px; padding: 2px 8px; font-size: 11px; cursor: pointer; font-style: inherit; font-variant: inherit; font-weight: inherit; font-stretch: inherit; line-height: inherit; font-family: inherit;\" data-testid=\"qadi-pick\">pick a control on the page</button></div><div style=\"margin-top: 10px;\" data-testid=\"qadi-hydration\"><div style=\"color: #8b93a3; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px;\">hydration</div><span style=\"color: #8b93a3;\" data-testid=\"qadi-hydration-pending\">no counts read yet.</span></div></div>",
+  "6 thunk handed, stopped before a sample":
+    "<div data-diagnostics-status=\"Stopped\" tabindex=\"-1\" style=\"padding: 12px;\" data-testid=\"qadi-questions\"><div role=\"status\" data-testid=\"qadi-diagnostics-region\"></div><section data-testid=\"qadi-diagnostics-notice\" style=\"border: 1px solid #e3a008; border-radius: 4px; padding: 8px 12px; margin-bottom: 8px; background: rgba(227, 160, 8, 0.12); color: #e6e8ec;\"><div role=\"alert\" data-testid=\"qadi-diagnostics-stopped\" data-announce=\"alert\" data-sampled=\"false\"><strong style=\"font-weight: 600; color: #e3a008;\">Diagnostics stopped.</strong> The sampler failed with an unexpected error before it took a reading, and is no longer polling. Nothing below was sampled by this dock.</div><pre data-testid=\"qadi-diagnostics-reason\" role=\"group\" aria-label=\"Why diagnostics stopped\" tabindex=\"0\" style=\"margin: 8px 0px 0px; padding: 8px; background: #14161a; border: 1px solid #2a2f39; border-radius: 4px; font-family: inherit; font-size: 11px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 96px; overflow: auto;\"></pre><button type=\"button\" data-testid=\"qadi-diagnostics-restart\" style=\"appearance: none; background: transparent; color: #e6e8ec; border: 1px solid #e3a008; border-radius: 4px; padding: 2px 8px; font-size: 11px; cursor: pointer; margin-top: 8px; font-style: inherit; font-variant: inherit; font-weight: inherit; font-stretch: inherit; line-height: inherit; font-family: inherit;\">Restart diagnostics</button></section><p style=\"color: #8b93a3; font-size: 11px; margin-top: 0px;\" data-testid=\"qadi-keying-note\">One row per <em>question</em>, not per component. Atoms are keyed structurally, so ten gates on the same policy are one atom — that is what the evaluator sees. The guards asking each question are listed underneath.</p><div style=\"margin-bottom: 6px;\"><button type=\"button\" style=\"appearance: none; background: transparent; color: #8b93a3; border: 1px solid #2a2f39; border-radius: 4px; padding: 2px 8px; font-size: 11px; cursor: pointer; font-style: inherit; font-variant: inherit; font-weight: inherit; font-stretch: inherit; line-height: inherit; font-family: inherit;\" data-testid=\"qadi-pick\">pick a control on the page</button></div><div style=\"margin-top: 10px;\" data-testid=\"qadi-hydration\"><div style=\"color: #8b93a3; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px;\">hydration</div><span style=\"color: #8b93a3;\" data-testid=\"qadi-hydration-pending\">no counts read yet.</span></div></div>",
+  "7 thunk handed, stopped after a sample":
+    "<div data-diagnostics-status=\"Stopped\" tabindex=\"-1\" style=\"padding: 12px;\" data-testid=\"qadi-questions\"><div role=\"status\" data-testid=\"qadi-diagnostics-region\"></div><section data-testid=\"qadi-diagnostics-notice\" style=\"border: 1px solid #e3a008; border-radius: 4px; padding: 8px 12px; margin-bottom: 8px; background: rgba(227, 160, 8, 0.12); color: #e6e8ec;\"><div role=\"alert\" data-testid=\"qadi-diagnostics-stopped\" data-announce=\"alert\" data-sampled=\"true\"><strong style=\"font-weight: 600; color: #e3a008;\">Diagnostics stopped.</strong> The sampler failed with an unexpected error and is no longer polling. The reading below is the last one it took and is not updating.</div><pre data-testid=\"qadi-diagnostics-reason\" role=\"group\" aria-label=\"Why diagnostics stopped\" tabindex=\"0\" style=\"margin: 8px 0px 0px; padding: 8px; background: #14161a; border: 1px solid #2a2f39; border-radius: 4px; font-family: inherit; font-size: 11px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 96px; overflow: auto;\"></pre><button type=\"button\" data-testid=\"qadi-diagnostics-restart\" style=\"appearance: none; background: transparent; color: #e6e8ec; border: 1px solid #e3a008; border-radius: 4px; padding: 2px 8px; font-size: 11px; cursor: pointer; margin-top: 8px; font-style: inherit; font-variant: inherit; font-weight: inherit; font-stretch: inherit; line-height: inherit; font-family: inherit;\">Restart diagnostics</button></section><p style=\"color: #8b93a3; font-size: 11px; margin-top: 0px;\" data-testid=\"qadi-keying-note\">One row per <em>question</em>, not per component. Atoms are keyed structurally, so ten gates on the same policy are one atom — that is what the evaluator sees. The guards asking each question are listed underneath.</p><div style=\"margin-bottom: 6px;\"><button type=\"button\" style=\"appearance: none; background: transparent; color: #8b93a3; border: 1px solid #2a2f39; border-radius: 4px; padding: 2px 8px; font-size: 11px; cursor: pointer; font-style: inherit; font-variant: inherit; font-weight: inherit; font-stretch: inherit; line-height: inherit; font-family: inherit;\" data-testid=\"qadi-pick\">pick a control on the page</button></div><div data-testid=\"qadi-question-block\"><div style=\"display: flex; gap: 8px; align-items: baseline; padding: 3px 0px; border-bottom-width: 1px; border-bottom-style: solid; border-bottom-color: #2a2f39;\" data-testid=\"qadi-question\"><span>doc:read</span><span style=\"color: #8b93a3; font-size: 11px;\" data-testid=\"qadi-question-scope\">no resource</span><button type=\"button\" style=\"appearance: none; background: transparent; color: #8b93a3; border: 1px solid #2a2f39; border-radius: 4px; padding: 2px 8px; font-size: 11px; cursor: pointer; font-style: inherit; font-variant: inherit; font-weight: inherit; font-stretch: inherit; line-height: inherit; font-family: inherit;\" data-testid=\"qadi-highlight\">highlight 1</button></div><div data-testid=\"qadi-instance\" style=\"display: flex; gap: 8px; align-items: baseline; padding: 3px 0px 3px 14px; border-bottom-width: initial; border-bottom-style: none; border-bottom-color: none;\"><span style=\"color: #8b93a3; font-size: 11px;\">Can</span><span style=\"color: #3fb950; font-weight: 400;\" data-testid=\"qadi-instance-state\" data-treatment=\"Allow\">Allowed</span></div></div><div data-testid=\"qadi-question-block\"><div style=\"display: flex; gap: 8px; align-items: baseline; padding: 3px 0px; border-bottom-width: 1px; border-bottom-style: solid; border-bottom-color: #2a2f39;\" data-testid=\"qadi-question\"><span>doc:read</span><span style=\"color: #8b93a3; font-size: 11px;\" data-testid=\"qadi-question-scope\">doc-1</span><button type=\"button\" style=\"appearance: none; background: transparent; color: #8b93a3; border: 1px solid #2a2f39; border-radius: 4px; padding: 2px 8px; font-size: 11px; cursor: pointer; font-style: inherit; font-variant: inherit; font-weight: inherit; font-stretch: inherit; line-height: inherit; font-family: inherit;\" data-testid=\"qadi-highlight\">highlight 1</button></div><div data-testid=\"qadi-instance\" style=\"display: flex; gap: 8px; align-items: baseline; padding: 3px 0px 3px 14px; border-bottom-width: initial; border-bottom-style: none; border-bottom-color: none;\"><span style=\"color: #8b93a3; font-size: 11px;\">Can</span><span style=\"color: #3fb950; font-weight: 400;\" data-testid=\"qadi-instance-state\" data-treatment=\"Allow\">Allowed</span></div></div><div data-testid=\"qadi-question-block\"><div style=\"display: flex; gap: 8px; align-items: baseline; padding: 3px 0px; border-bottom-width: 1px; border-bottom-style: solid; border-bottom-color: #2a2f39;\" data-testid=\"qadi-question\"><span>admin</span><span style=\"color: #8b93a3; font-size: 11px;\" data-testid=\"qadi-question-scope\">no resource</span><button type=\"button\" style=\"appearance: none; background: transparent; color: #8b93a3; border: 1px solid #2a2f39; border-radius: 4px; padding: 2px 8px; font-size: 11px; cursor: pointer; font-style: inherit; font-variant: inherit; font-weight: inherit; font-stretch: inherit; line-height: inherit; font-family: inherit;\" data-testid=\"qadi-highlight\" disabled=\"\" title=\"only hooks are asking this, and a hook has no element to point at\">highlight 0</button></div><div data-testid=\"qadi-instance\" style=\"display: flex; gap: 8px; align-items: baseline; padding: 3px 0px 3px 14px; border-bottom-width: initial; border-bottom-style: none; border-bottom-color: none;\"><span style=\"color: #8b93a3; font-size: 11px;\">useCan</span><span style=\"color: #f47067; font-weight: 700;\" data-testid=\"qadi-instance-state\" data-treatment=\"Deny\">Denied</span><span style=\"color: #8b93a3; font-size: 11px;\" data-testid=\"qadi-instance-unlocatable\">no element — a hook has no node of its own</span></div></div><div style=\"margin-top: 10px;\" data-testid=\"qadi-hydration\"><div style=\"color: #8b93a3; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px;\">hydration</div><div style=\"display: flex; gap: 14px; flex-wrap: wrap; padding: 2px 0px;\"><span data-testid=\"qadi-hydration-dehydrated\"><span style=\"font-weight: 600;\">0</span><span style=\"color: #8b93a3; margin-left: 4px; font-size: 11px;\">dehydrated</span></span><span data-testid=\"qadi-hydration-seeded\"><span style=\"font-weight: 600;\">0</span><span style=\"color: #8b93a3; margin-left: 4px; font-size: 11px;\">seeded</span></span><span data-testid=\"qadi-hydration-rechecked\"><span style=\"font-weight: 600;\">0</span><span style=\"color: #8b93a3; margin-left: 4px; font-size: 11px;\">re-checked</span></span><span data-testid=\"qadi-hydration-mismatched\"><span style=\"font-weight: 600;\">0</span><span style=\"color: #8b93a3; margin-left: 4px; font-size: 11px;\">mismatched</span></span></div><div style=\"color: #8b93a3; font-size: 11px;\" data-testid=\"qadi-hydration-no-drops\">Nothing was dropped. All 9 reasons are watched.</div><div style=\"color: #8b93a3; font-size: 11px;\" data-testid=\"qadi-hydration-scope\">Process-wide totals, not this page's. 0 dehydrated entries have no seeding counted in this process.</div></div></div>",
+  "8 a supplied list wins over the thunk":
+    "<div data-diagnostics-status=\"Live\" tabindex=\"-1\" style=\"padding: 12px;\" data-testid=\"qadi-questions\"><div role=\"status\" data-testid=\"qadi-diagnostics-region\"></div><p style=\"color: #8b93a3; font-size: 11px; margin-top: 0px;\" data-testid=\"qadi-keying-note\">One row per <em>question</em>, not per component. Atoms are keyed structurally, so ten gates on the same policy are one atom — that is what the evaluator sees. The guards asking each question are listed underneath.</p><div style=\"margin-bottom: 6px;\"><button type=\"button\" style=\"appearance: none; background: transparent; color: #8b93a3; border: 1px solid #2a2f39; border-radius: 4px; padding: 2px 8px; font-size: 11px; cursor: pointer; font-style: inherit; font-variant: inherit; font-weight: inherit; font-stretch: inherit; line-height: inherit; font-family: inherit;\" data-testid=\"qadi-pick\">pick a control on the page</button></div><div data-testid=\"qadi-question-block\"><div style=\"display: flex; gap: 8px; align-items: baseline; padding: 3px 0px; border-bottom-width: 1px; border-bottom-style: solid; border-bottom-color: #2a2f39;\" data-testid=\"qadi-question\"><span>admin</span><span style=\"color: #8b93a3; font-size: 11px;\" data-testid=\"qadi-question-scope\">no resource</span><button type=\"button\" style=\"appearance: none; background: transparent; color: #8b93a3; border: 1px solid #2a2f39; border-radius: 4px; padding: 2px 8px; font-size: 11px; cursor: pointer; font-style: inherit; font-variant: inherit; font-weight: inherit; font-stretch: inherit; line-height: inherit; font-family: inherit;\" data-testid=\"qadi-highlight\" disabled=\"\" title=\"only hooks are asking this, and a hook has no element to point at\">highlight 0</button></div><div data-testid=\"qadi-instance\" style=\"display: flex; gap: 8px; align-items: baseline; padding: 3px 0px 3px 14px; border-bottom-width: initial; border-bottom-style: none; border-bottom-color: none;\"><span style=\"color: #8b93a3; font-size: 11px;\">useCan</span><span style=\"color: #f47067; font-weight: 700;\" data-testid=\"qadi-instance-state\" data-treatment=\"Deny\">Denied</span><span style=\"color: #8b93a3; font-size: 11px;\" data-testid=\"qadi-instance-unlocatable\">no element — a hook has no node of its own</span></div></div><div style=\"margin-top: 10px;\" data-testid=\"qadi-hydration\"><div style=\"color: #8b93a3; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px;\">hydration</div><div style=\"display: flex; gap: 14px; flex-wrap: wrap; padding: 2px 0px;\"><span data-testid=\"qadi-hydration-dehydrated\"><span style=\"font-weight: 600;\">0</span><span style=\"color: #8b93a3; margin-left: 4px; font-size: 11px;\">dehydrated</span></span><span data-testid=\"qadi-hydration-seeded\"><span style=\"font-weight: 600;\">0</span><span style=\"color: #8b93a3; margin-left: 4px; font-size: 11px;\">seeded</span></span><span data-testid=\"qadi-hydration-rechecked\"><span style=\"font-weight: 600;\">0</span><span style=\"color: #8b93a3; margin-left: 4px; font-size: 11px;\">re-checked</span></span><span data-testid=\"qadi-hydration-mismatched\"><span style=\"font-weight: 600;\">0</span><span style=\"color: #8b93a3; margin-left: 4px; font-size: 11px;\">mismatched</span></span></div><div style=\"color: #8b93a3; font-size: 11px;\" data-testid=\"qadi-hydration-no-drops\">Nothing was dropped. All 9 reasons are watched.</div><div style=\"color: #8b93a3; font-size: 11px;\" data-testid=\"qadi-hydration-scope\">Process-wide totals, not this page's. 0 dehydrated entries have no seeding counted in this process.</div></div></div>",
+  "9 a re-render swaps the thunk":
+    "<div data-diagnostics-status=\"Live\" tabindex=\"-1\" style=\"padding: 12px;\" data-testid=\"qadi-questions\"><div role=\"status\" data-testid=\"qadi-diagnostics-region\"></div><p style=\"color: #8b93a3; font-size: 11px; margin-top: 0px;\" data-testid=\"qadi-keying-note\">One row per <em>question</em>, not per component. Atoms are keyed structurally, so ten gates on the same policy are one atom — that is what the evaluator sees. The guards asking each question are listed underneath.</p><div style=\"margin-bottom: 6px;\"><button type=\"button\" style=\"appearance: none; background: transparent; color: #8b93a3; border: 1px solid #2a2f39; border-radius: 4px; padding: 2px 8px; font-size: 11px; cursor: pointer; font-style: inherit; font-variant: inherit; font-weight: inherit; font-stretch: inherit; line-height: inherit; font-family: inherit;\" data-testid=\"qadi-pick\">pick a control on the page</button></div><div data-testid=\"qadi-question-block\"><div style=\"display: flex; gap: 8px; align-items: baseline; padding: 3px 0px; border-bottom-width: 1px; border-bottom-style: solid; border-bottom-color: #2a2f39;\" data-testid=\"qadi-question\"><span>admin</span><span style=\"color: #8b93a3; font-size: 11px;\" data-testid=\"qadi-question-scope\">no resource</span><button type=\"button\" style=\"appearance: none; background: transparent; color: #8b93a3; border: 1px solid #2a2f39; border-radius: 4px; padding: 2px 8px; font-size: 11px; cursor: pointer; font-style: inherit; font-variant: inherit; font-weight: inherit; font-stretch: inherit; line-height: inherit; font-family: inherit;\" data-testid=\"qadi-highlight\" disabled=\"\" title=\"only hooks are asking this, and a hook has no element to point at\">highlight 0</button></div><div data-testid=\"qadi-instance\" style=\"display: flex; gap: 8px; align-items: baseline; padding: 3px 0px 3px 14px; border-bottom-width: initial; border-bottom-style: none; border-bottom-color: none;\"><span style=\"color: #8b93a3; font-size: 11px;\">useCan</span><span style=\"color: #f47067; font-weight: 700;\" data-testid=\"qadi-instance-state\" data-treatment=\"Deny\">Denied</span><span style=\"color: #8b93a3; font-size: 11px;\" data-testid=\"qadi-instance-unlocatable\">no element — a hook has no node of its own</span></div></div><div style=\"margin-top: 10px;\" data-testid=\"qadi-hydration\"><div style=\"color: #8b93a3; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px;\">hydration</div><div style=\"display: flex; gap: 14px; flex-wrap: wrap; padding: 2px 0px;\"><span data-testid=\"qadi-hydration-dehydrated\"><span style=\"font-weight: 600;\">0</span><span style=\"color: #8b93a3; margin-left: 4px; font-size: 11px;\">dehydrated</span></span><span data-testid=\"qadi-hydration-seeded\"><span style=\"font-weight: 600;\">0</span><span style=\"color: #8b93a3; margin-left: 4px; font-size: 11px;\">seeded</span></span><span data-testid=\"qadi-hydration-rechecked\"><span style=\"font-weight: 600;\">0</span><span style=\"color: #8b93a3; margin-left: 4px; font-size: 11px;\">re-checked</span></span><span data-testid=\"qadi-hydration-mismatched\"><span style=\"font-weight: 600;\">0</span><span style=\"color: #8b93a3; margin-left: 4px; font-size: 11px;\">mismatched</span></span></div><div style=\"color: #8b93a3; font-size: 11px;\" data-testid=\"qadi-hydration-no-drops\">Nothing was dropped. All 9 reasons are watched.</div><div style=\"color: #8b93a3; font-size: 11px;\" data-testid=\"qadi-hydration-scope\">Process-wide totals, not this page's. 0 dehydrated entries have no seeding counted in this process.</div></div></div>",
+  "10 a re-render removes the thunk":
+    "<div data-diagnostics-status=\"Live\" tabindex=\"-1\" style=\"padding: 12px;\" data-testid=\"qadi-questions\"><div role=\"status\" data-testid=\"qadi-diagnostics-region\"></div><p style=\"color: #8b93a3; font-size: 11px; margin-top: 0px;\" data-testid=\"qadi-keying-note\">One row per <em>question</em>, not per component. Atoms are keyed structurally, so ten gates on the same policy are one atom — that is what the evaluator sees. The guards asking each question are listed underneath.</p><div style=\"margin-bottom: 6px;\"><button type=\"button\" style=\"appearance: none; background: transparent; color: #8b93a3; border: 1px solid #2a2f39; border-radius: 4px; padding: 2px 8px; font-size: 11px; cursor: pointer; font-style: inherit; font-variant: inherit; font-weight: inherit; font-stretch: inherit; line-height: inherit; font-family: inherit;\" data-testid=\"qadi-pick\">pick a control on the page</button></div><p style=\"color: #8b93a3;\" data-testid=\"qadi-questions-absent\">No atom set was handed to the dock. Pass <code>questions</code> — usually <code>atoms.asked()</code> — to list what has been asked.</p><div style=\"margin-top: 10px;\" data-testid=\"qadi-hydration\"><div style=\"color: #8b93a3; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px;\">hydration</div><div style=\"display: flex; gap: 14px; flex-wrap: wrap; padding: 2px 0px;\"><span data-testid=\"qadi-hydration-dehydrated\"><span style=\"font-weight: 600;\">0</span><span style=\"color: #8b93a3; margin-left: 4px; font-size: 11px;\">dehydrated</span></span><span data-testid=\"qadi-hydration-seeded\"><span style=\"font-weight: 600;\">0</span><span style=\"color: #8b93a3; margin-left: 4px; font-size: 11px;\">seeded</span></span><span data-testid=\"qadi-hydration-rechecked\"><span style=\"font-weight: 600;\">0</span><span style=\"color: #8b93a3; margin-left: 4px; font-size: 11px;\">re-checked</span></span><span data-testid=\"qadi-hydration-mismatched\"><span style=\"font-weight: 600;\">0</span><span style=\"color: #8b93a3; margin-left: 4px; font-size: 11px;\">mismatched</span></span></div><div style=\"color: #8b93a3; font-size: 11px;\" data-testid=\"qadi-hydration-no-drops\">Nothing was dropped. All 9 reasons are watched.</div><div style=\"color: #8b93a3; font-size: 11px;\" data-testid=\"qadi-hydration-scope\">Process-wide totals, not this page's. 0 dehydrated entries have no seeding counted in this process.</div></div></div>",
+};
+
+const pin = (name: string, actual: string): void => {
+  assert.strictEqual(actual, GOLDEN[name]);
+};
+
+const dock = (props: DevtoolsDockProps) => <DevtoolsDock {...props} />;
+
+describe("the questions panel's moved inputs, byte for byte", () => {
+  it("1 thunk rows, live poll", async () => {
+    const guards = makeGateRegistryDouble([a, b, c]);
+    await openPanel(dock(questionsProp({ gates: guards.registry, diagnostics: live }, asked)));
+    await settledAs("Live");
+    pin("1 thunk rows, live poll", root().outerHTML);
+  });
+
+  it("2 thunk empty, live poll", async () => {
+    const guards = makeGateRegistryDouble([a]);
+    await openPanel(dock(questionsProp({ gates: guards.registry, diagnostics: live }, () => [])));
+    await settledAs("Live");
+    pin("2 thunk empty, live poll", root().outerHTML);
+  });
+
+  it("3 thunk handed, poll starting", async () => {
+    const guards = makeGateRegistryDouble([a]);
+    await openPanel(dock(questionsProp({ gates: guards.registry, diagnostics: neverBuilt }, asked)));
+    pin("3 thunk handed, poll starting", root().outerHTML);
+  });
+
+  it("4 no thunk, live poll", async () => {
+    const guards = makeGateRegistryDouble([a]);
+    await openPanel(dock({ gates: guards.registry, diagnostics: live }));
+    await settledAs("Live");
+    pin("4 no thunk, live poll", root().outerHTML);
+  });
+
+  it("5 no thunk, poll starting", async () => {
+    const guards = makeGateRegistryDouble([a]);
+    await openPanel(dock({ gates: guards.registry, diagnostics: neverBuilt }));
+    pin("5 no thunk, poll starting", root().outerHTML);
+  });
+
+  it("6 thunk handed, stopped before a sample", async () => {
+    const guards = makeGateRegistryDouble([a]);
+    await openPanel(
+      dock(questionsProp({ gates: guards.registry, diagnostics: { collector: dying(0) } }, asked)),
+    );
+    await settledAs("Stopped");
+    pin("6 thunk handed, stopped before a sample", withoutReason());
+  });
+
+  it("7 thunk handed, stopped after a sample", async () => {
+    const guards = makeGateRegistryDouble([a, b, c]);
+    await openPanel(
+      dock(
+        questionsProp(
+          { gates: guards.registry, diagnostics: { collector: dying(1), intervalMillis: 10 } },
+          asked,
+        ),
+      ),
+    );
+    await settledAs("Stopped");
+    pin("7 thunk handed, stopped after a sample", withoutReason());
+  });
+
+  it("8 a supplied list wins over the thunk", async () => {
+    const guards = makeGateRegistryDouble([a, c]);
+    await openPanel(
+      dock(
+        questionsProp(
+          {
+            gates: guards.registry,
+            diagnostics: live,
+            reading: { questions: [{ policy: isAdmin }] },
+          },
+          asked,
+        ),
+      ),
+    );
+    await settledAs("Live");
+    pin("8 a supplied list wins over the thunk", root().outerHTML);
+  });
+
+  it("9 a re-render swaps the thunk", async () => {
+    const guards = makeGateRegistryDouble([a, c]);
+    const { rerender } = await openPanel(
+      dock(questionsProp({ gates: guards.registry, diagnostics: live }, asked)),
+    );
+    await settledAs("Live");
+    await act(async () => {
+      rerender(
+        dock(questionsProp({ gates: guards.registry, diagnostics: live }, () => [{ policy: isAdmin }])),
+      );
+    });
+    await settledAs("Live");
+    pin("9 a re-render swaps the thunk", root().outerHTML);
+  });
+
+  it("10 a re-render removes the thunk", async () => {
+    const guards = makeGateRegistryDouble([a]);
+    const { rerender } = await openPanel(
+      dock(questionsProp({ gates: guards.registry, diagnostics: live }, asked)),
+    );
+    await settledAs("Live");
+    await act(async () => {
+      rerender(dock({ gates: guards.registry, diagnostics: live }));
+    });
+    await settledAs("Live");
+    pin("10 a re-render removes the thunk", root().outerHTML);
+  });
+});
