@@ -16,17 +16,20 @@
  * class: an unchanged prop must not wipe a capture or a half-filled form).
  *
  * **The model owns its lifetime.** It is built in a `Scope`. It reads its source
- * through a timeline feed and its diagnostics through a diagnostics feed, each
- * with its own handle in the model's scope; closing the scope ends both and any
- * simulation run and the registry subscription (ADR-QD-137). There is no `dispose`
- * and no `read` command.
+ * through a timeline feed, its diagnostics through a diagnostics feed and its gate
+ * registry and questions thunk through a gates feed, each with its own handle in the
+ * model's scope; closing the scope ends all three and any simulation run (ADR-QD-137).
+ * The model holds no registry subscription of its own. There is no `dispose` and no
+ * `read` command.
  *
  * **Nine stores, counted once.** Seven came first: the timeline, the dock session,
  * the explorer, the role choice, the simulation, the diagnostics reading (the poll's
  * status and the sampled reading with a supplied one laid over it) and the timeline
  * status (whether its read is running or stopped, with the one command that reads it
- * again). `questions` is the eighth: the gate registry joined to the polled questions,
- * recomputed from both in one synchronous step. `services` is the ninth (ADR-QD-168):
+ * again). `questions` is the eighth: the gates feed's snapshot (the registry, and the
+ * questions thunk the host handed) joined to the supplied reading's questions and the
+ * poll's status, recomputed from all three in one synchronous step (ADR-QD-169).
+ * `services` is the ninth (ADR-QD-168):
  * the Services tab's port cards, one pure function of the shown reading, recomputed
  * only when one of its four inputs changes identity. `sightings` is a thunk and not a
  * store. Earlier records counted the policy rail among the stores, which is why they
@@ -34,8 +37,8 @@
  *
  * Package-private (ADR-QD-099): the dock is the one thing that drives it.
  */
-import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
+import * as Match from "effect/Match";
 import type * as Scope from "effect/Scope";
 import type { Role } from "@qadi/core";
 import { catalogueOf, type Catalogue, type PolicySighting } from "./Catalogue.ts";
@@ -50,7 +53,14 @@ import { mergeReading, type DiagnosticsReading } from "./DiagnosticsStore.ts";
 import { makeDockSession, type DockSession } from "./DockSession.ts";
 import { makeExplorerSession, type ExplorerSession } from "./ExplorerSession.ts";
 import { makeExternalStore, type ExternalStore } from "./ExternalStore.ts";
-import { joinQuestions, type GateRegistryLike, type JoinInput, type QuestionsSnapshot } from "./Gates.ts";
+import {
+  joinQuestions,
+  type AskedQuestionLike,
+  type GateRegistryLike,
+  type JoinInput,
+  type QuestionsSnapshot,
+} from "./Gates.ts";
+import { makeGatesFeed, type AskedRead, type GatesSnapshot, type RegistryRead } from "./GatesFeed.ts";
 import { makeHeldChoiceStore, type HeldChoiceStore } from "./HeldChoice.ts";
 import { portCards, type ServicesInput, type ServicesView } from "./PortCards.ts";
 import { sameRole } from "./RoleTree.ts";
@@ -67,8 +77,15 @@ export interface DockModelInputs {
   readonly catalogue?: Catalogue | undefined;
   /** What to sample; compared per field, so an inline literal restarts nothing. */
   readonly diagnostics?: DiagnosticsDockOptions | undefined;
-  /** The registry of live guards; the model subscribes in its own scope. Absent: the panel says none was handed over. */
+  /** The registry of live guards; the gates feed subscribes in the model's scope. Absent: the panel says none was handed over. */
   readonly gates?: GateRegistryLike | undefined;
+  /**
+   * The questions asked so far, usually `atoms.asked`.
+   *
+   * Read by the gates feed on the diagnostics cadence and never by the poll, so a throw is stated in
+   * the panel and the poll keeps running (ADR-QD-169).
+   */
+  readonly questions?: (() => ReadonlyArray<AskedQuestionLike>) | undefined;
   /** A reading taken elsewhere: each field it carries wins; a change recomputes the merge and never restarts the poll. */
   readonly reading?: DiagnosticsReading | undefined;
   readonly ports?: EvaluationPortsLayer | undefined;
@@ -97,25 +114,51 @@ export interface DockModel {
   readonly configure: (inputs: DockModelInputs) => void;
 }
 
-/**
- * What a registry's throw is stated as: the same text `DiagnosticsStatus.Stopped` carries for a poll's defect.
- * Total: a thrown value that cannot itself be rendered (a getter that throws) must not throw out of the guard.
- */
-const reasonOf = (thrown: unknown): string => {
-  try {
-    return Cause.pretty(Cause.die(thrown));
-  } catch {
-    return "The registry threw a value that could not be described.";
-  }
-};
+/** What the join reads of the registry: its guards, or why it could not be read. */
+const registryInput: (read: RegistryRead) => Pick<JoinInput, "gates" | "failed"> = Match.type<RegistryRead>().pipe(
+  Match.tagsExhaustive({
+    Unwatched: () => ({ gates: undefined, failed: undefined }),
+    Read: ({ instances }) => ({ gates: instances, failed: undefined }),
+    Failed: ({ reason }) => ({ gates: undefined, failed: reason }),
+  }),
+);
 
-/** What two failures are compared by: an error's name and message, since the stack differs by call path. */
-const keyOf = (thrown: unknown): string => {
-  try {
-    return thrown instanceof Error ? `${thrown.name}: ${thrown.message}` : reasonOf(thrown);
-  } catch {
-    return reasonOf(thrown);
-  }
+/** What the join reads of the questions thunk: its answer, or why it threw. */
+const askedInput: (read: AskedRead) => {
+  readonly read: ReadonlyArray<AskedQuestionLike> | undefined;
+  readonly failed: string | undefined;
+} = Match.type<AskedRead>().pipe(
+  Match.tagsExhaustive({
+    Unhanded: () => ({ read: undefined, failed: undefined }),
+    Read: ({ questions }) => ({ read: questions, failed: undefined }),
+    Failed: ({ reason }) => ({ read: undefined, failed: reason }),
+  }),
+);
+
+/**
+ * The three things the join reads, compared by identity: the feed's snapshot, the supplied questions and
+ * whether the poll's lack of a sample matters, which it does only with no supplied questions.
+ */
+interface JoinKey {
+  readonly feed: GatesSnapshot;
+  readonly supplied: ReadonlyArray<AskedQuestionLike> | undefined;
+  readonly unsampled: boolean;
+}
+
+/**
+ * The join's input: supplied questions win, then the thunk's, which a poll that has not sampled withholds.
+ *
+ * A thunk's failure is stated even then, and not when a supplied list makes it moot.
+ */
+const joinInputOf = (key: JoinKey): JoinInput => {
+  const registry = registryInput(key.feed.registry);
+  const asked = askedInput(key.feed.asked);
+  return {
+    questions: key.supplied ?? (key.unsampled ? undefined : asked.read),
+    ...registry,
+    questionsFailed: key.supplied === undefined ? asked.failed : undefined,
+    unsampled: key.unsampled,
+  };
 };
 
 /** One list for every absent catalogue, so the role store keeps one identity. */
@@ -172,77 +215,37 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
   };
   diagnosticsFeed.subscribe(remerge);
 
-  // Both sources are read in the one call, so no snapshot pairs a question from one moment with
-  // a guard from another. The registry is host code and the read is guarded: react's own registry
-  // swallows a listener's throw, so an unguarded one would freeze this store silently, and a throw
-  // while building would take the host's tree with it. A throw is stated as `GatesView.Failed`.
-  let gatesNow = inputs.gates;
+  // Host code, both of it: the feed guards the registry and the thunk, and states a throw in its snapshot.
+  const gatesFeed = yield* makeGatesFeed({
+    gates: inputs.gates,
+    questions: inputs.questions,
+    intervalMillis: inputs.diagnostics?.intervalMillis,
+  });
+  // The join is pure over the feed's snapshot, the supplied questions and the poll's status, so no snapshot
+  // pairs a question from one moment with a guard from another. A closed model joins nothing further.
   let closed = false;
-  let offGates = () => {};
-  // Why `subscribe` threw, if it did: the registry's changes then may not reach the model, until `configure` watches again.
-  let watchFailure: string | undefined;
-  let watchKey: string | undefined;
-  // What `rejoin` compares of a failure: one throw reads the same from any call path, where its rendered stack does not.
-  let failureKey: string | undefined;
-  const readGates = (): Pick<JoinInput, "gates" | "failed"> => {
-    failureKey = watchKey;
-    if (watchFailure !== undefined) return { gates: undefined, failed: watchFailure };
-    try {
-      return { gates: gatesNow?.instances(), failed: undefined };
-    } catch (thrown) {
-      failureKey = keyOf(thrown);
-      return { gates: undefined, failed: reasonOf(thrown) };
-    }
-  };
-  const joinKeyNow = (): JoinInput => {
-    const { status, reading } = shownReading.getSnapshot();
+  const keyNow = (): JoinKey => {
+    const suppliedNow = inputs.reading?.questions;
     return {
-      questions: reading.questions,
-      ...readGates(),
-      // The diagnostics poll still owns the thunk in this commit, so no thunk failure reaches the model.
-      questionsFailed: undefined,
-      unsampled: reading.questions === undefined && isUnsampled(status),
+      feed: gatesFeed.getSnapshot(),
+      supplied: suppliedNow,
+      unsampled: suppliedNow === undefined && isUnsampled(shownReading.getSnapshot().status),
     };
   };
-  let lastKey = joinKeyNow();
-  let lastFailureKey = failureKey;
-  const questions = makeExternalStore<QuestionsSnapshot>(joinQuestions(lastKey));
+  let lastJoin = keyNow();
+  const questions = makeExternalStore<QuestionsSnapshot>(joinQuestions(joinInputOf(lastJoin)));
   const rejoin = () => {
-    // A closed model runs no host code: a command after close reads no registry.
     if (closed) return;
-    const key = joinKeyNow();
+    const key = keyNow();
     if (
-      key.questions === lastKey.questions &&
-      key.gates === lastKey.gates &&
-      failureKey === lastFailureKey &&
-      key.unsampled === lastKey.unsampled
+      key.feed === lastJoin.feed &&
+      key.supplied === lastJoin.supplied &&
+      key.unsampled === lastJoin.unsampled
     ) {
       return;
     }
-    lastKey = key;
-    lastFailureKey = failureKey;
-    questions.set(joinQuestions(key));
-  };
-  // Releases the held subscription and takes the new one; both are host code and both are guarded.
-  // The handle leaves the model's state before it is called, so a release that throws neither skips the
-  // new subscription nor runs again on the next `configure` or in the finalizer. A release that throws
-  // is not stated: it belongs to a registry the model no longer reads, and has nowhere honest to be shown.
-  const watchGates = (registry: GateRegistryLike | undefined) => {
-    const release = offGates;
-    offGates = () => {};
-    watchFailure = undefined;
-    watchKey = undefined;
-    try {
-      release();
-    } catch {
-      // The registry left behind may keep a listener, which only calls `rejoin`.
-    }
-    try {
-      offGates = closed || registry === undefined ? () => {} : registry.subscribe(rejoin);
-    } catch (thrown) {
-      watchFailure = reasonOf(thrown);
-      watchKey = keyOf(thrown);
-    }
+    lastJoin = key;
+    questions.set(joinQuestions(joinInputOf(key)));
   };
   // The port cards are a function of the shown reading alone: no host code is read, so nothing here is guarded.
   const servicesKeyNow = (): ServicesInput => {
@@ -257,6 +260,7 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
   let lastServices = servicesKeyNow();
   const services = makeExternalStore<ServicesView>(portCards(lastServices));
   const reservice = () => {
+    if (closed) return;
     const key = servicesKeyNow();
     if (
       key.wiring === lastServices.wiring &&
@@ -269,21 +273,13 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
     lastServices = key;
     services.set(portCards(key));
   };
-  // After `shownReading` exists and before any host listener, so the join and the cards move first.
+  // After `shownReading` and the feed exist and before any host listener, so the join and the cards move first.
+  gatesFeed.subscribe(rejoin);
   shownReading.subscribe(rejoin);
   shownReading.subscribe(reservice);
-  watchGates(gatesNow);
-  rejoin();
   yield* Effect.addFinalizer(() =>
     Effect.sync(() => {
       closed = true;
-      const release = offGates;
-      offGates = () => {};
-      try {
-        release();
-      } catch {
-        // A closing model has nowhere to state it.
-      }
     }),
   );
 
@@ -313,14 +309,14 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
       }
       // The session guards an identical layer itself, so this is not guarded again.
       simulation.setPorts(next.ports);
+      // The feed re-reads the registry and the thunk before `remerge`, whose publish joins through them: one
+      // `configure` reads no registry the host has just handed away, and publishes one join.
+      gatesFeed.configure({
+        gates: next.gates,
+        questions: next.questions,
+        intervalMillis: next.diagnostics?.intervalMillis,
+      });
       diagnosticsFeed.configure(next.diagnostics);
-      // The registry is swapped before `remerge`, whose publish joins through it: one `configure` reads
-      // no registry the host has just handed away. A watch that failed is tried again, with the same
-      // registry or another.
-      if (next.gates !== gatesNow || watchFailure !== undefined) {
-        gatesNow = next.gates;
-        watchGates(gatesNow);
-      }
       remerge();
       rejoin();
     },

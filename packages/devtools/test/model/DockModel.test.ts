@@ -870,13 +870,14 @@ describe("the diagnostics store (M18..M27)", () => {
     Effect.gen(function* () {
       const { counts, layer } = countedLayer();
       const questions = () => [];
-      const model = yield* makeDockModel({ diagnostics: { layer, questions, intervalMillis: 5_000 } });
+      const { collector } = makeCollectorDouble();
+      const model = yield* makeDockModel({ diagnostics: { layer, collector, intervalMillis: 5_000 }, questions });
       const seen = listen(model);
       model.diagnostics.subscribe(() => {
         seen.calls += 1;
       });
 
-      model.configure({ diagnostics: { layer, questions, intervalMillis: 5_000 } });
+      model.configure({ diagnostics: { layer, collector, intervalMillis: 5_000 }, questions });
       yield* step("1 second");
 
       assert.strictEqual(seen.calls, 0);
@@ -1012,57 +1013,28 @@ describe("the timeline's status (M29)", () => {
   );
 });
 
-describe("the questions store (M31, M32, M33, M36..M47, P2)", () => {
-  const guard = (
-    id: string,
-    policy: Policy,
-    fields?: { readonly state?: string; readonly resource?: Resource | undefined },
-  ): GateInstanceLike => ({ id, kind: "Can", policy, state: fields?.state ?? "Allowed", resource: fields?.resource });
+/** The ids asking each asked question, row by row; empty when the view carries no rows. */
+const askingIds = (snapshot: QuestionsSnapshot): ReadonlyArray<ReadonlyArray<string>> =>
+  snapshot.questions._tag === "Rows" ? snapshot.questions.rows.map((row) => row.asking?.map((one) => one.id) ?? []) : [];
 
-  /** The ids asking each asked question, row by row; empty when the view carries no rows. */
-  const askingIds = (snapshot: QuestionsSnapshot): ReadonlyArray<ReadonlyArray<string>> =>
-    snapshot.questions._tag === "Rows" ? snapshot.questions.rows.map((row) => row.asking?.map((one) => one.id) ?? []) : [];
+/** Settles every fiber, steps the clock one poll interval, settles again. */
+const tick = Effect.gen(function* () {
+  yield* settleTurns;
+  yield* TestClock.adjust("2 seconds");
+  yield* settleTurns;
+});
 
-  /** Settles every fiber, steps the clock one poll interval, settles again. */
-  const tick = Effect.gen(function* () {
-    yield* settleTurns;
-    yield* TestClock.adjust("2 seconds");
-    yield* settleTurns;
-  });
+/** One live guard asking `policy`, in the Allowed state unless a test says otherwise. */
+const guard = (
+  id: string,
+  policy: Policy,
+  fields?: { readonly state?: string; readonly resource?: Resource | undefined },
+): GateInstanceLike => ({ id, kind: "Can", policy, state: fields?.state ?? "Allowed", resource: fields?.resource });
 
-  it.effect("M31: rows pair each question with its guards at once on a registry change, and a quiet tick keeps the snapshot", () =>
-    Effect.gen(function* () {
-      let asked: ReadonlyArray<AskedQuestionLike> = [{ policy: readPolicy }];
-      const double = makeGateRegistryDouble([guard("a", readPolicy)]);
-      const model = yield* makeDockModel({ diagnostics: { questions: () => asked }, gates: double.registry });
-      yield* settleTurns;
-
-      const first = model.questions.getSnapshot();
-      assert.deepStrictEqual(askingIds(first), [["a"]]);
-      assert.strictEqual(first.instances, double.registry.instances());
-
-      double.add(guard("b", readPolicy));
-      const added = model.questions.getSnapshot();
-      assert.deepStrictEqual(askingIds(added), [["a", "b"]]);
-      assert.strictEqual(added.instances, double.registry.instances());
-
-      const heard = { calls: 0 };
-      model.questions.subscribe(() => {
-        heard.calls += 1;
-      });
-      yield* tick;
-      assert.strictEqual(model.questions.getSnapshot(), added);
-      assert.strictEqual(heard.calls, 0);
-
-      asked = [{ policy: readPolicy }, { policy: writePolicy }];
-      yield* tick;
-      assert.deepStrictEqual(askingIds(model.questions.getSnapshot()), [["a", "b"], []]);
-      assert.strictEqual(heard.calls, 1);
-    }));
-
+describe("the questions store (M32, M32 b, M34, M36, M47, P2)", () => {
   it.effect("M32: the gates view says absent, empty or listed, and the questions view says unsampled, absent, empty or rows", () =>
     Effect.gen(function* () {
-      const asked = { diagnostics: { questions: () => [{ policy: readPolicy }] } };
+      const asked = { diagnostics: {}, questions: () => [{ policy: readPolicy }] };
 
       const none = yield* makeDockModel(asked);
       yield* settleTurns;
@@ -1103,45 +1075,6 @@ describe("the questions store (M31, M32, M33, M36..M47, P2)", () => {
       assert.strictEqual(model.questions.getSnapshot().questions._tag, "Absent");
     }));
 
-  it.effect("M33: the registry subscription lives as long as the model's scope, follows a new registry and never outlives close", () =>
-    Effect.gen(function* () {
-      const reading = { questions: [{ policy: readPolicy }] };
-      const a = makeGateRegistryDouble([guard("a", readPolicy)]);
-      const b = makeGateRegistryDouble([guard("b1", writePolicy), guard("b2", readPolicy)]);
-      const scope = yield* Scope.make();
-      const model = yield* Scope.provide(makeDockModel({ gates: a.registry, reading }), scope);
-
-      assert.strictEqual(a.listeners(), 1);
-      assert.strictEqual(a.subscriptions(), 1);
-      const first = model.questions.getSnapshot();
-
-      model.configure({ gates: a.registry, reading });
-      assert.strictEqual(a.subscriptions(), 1);
-      assert.strictEqual(model.questions.getSnapshot(), first);
-
-      model.configure({ gates: b.registry, reading });
-      assert.strictEqual(a.listeners(), 0);
-      assert.strictEqual(b.listeners(), 1);
-      assert.deepStrictEqual(askingIds(model.questions.getSnapshot()), [["b2"]]);
-      assert.strictEqual(model.questions.getSnapshot().instances, b.registry.instances());
-
-      model.configure({ reading });
-      assert.strictEqual(b.listeners(), 0);
-      assert.strictEqual(model.questions.getSnapshot().gates._tag, "Absent");
-
-      model.configure({ gates: a.registry, reading });
-      assert.strictEqual(a.listeners(), 1);
-
-      yield* Scope.close(scope, Exit.void);
-      assert.strictEqual(a.listeners(), 0);
-      assert.strictEqual(b.listeners(), 0);
-
-      const subscribed = a.subscriptions();
-      model.configure({ gates: a.registry, reading });
-      assert.strictEqual(a.listeners(), 0);
-      assert.strictEqual(a.subscriptions(), subscribed);
-    }));
-
   it.effect("M34: a supplied question list keeps one snapshot while the poll goes from Starting to Live", () =>
     Effect.gen(function* () {
       const layer = Layer.effectDiscard(Effect.sleep("1 second"));
@@ -1163,21 +1096,6 @@ describe("the questions store (M31, M32, M33, M36..M47, P2)", () => {
       assert.strictEqual(heard.calls, 0);
     }));
 
-  it.effect("M35: a model whose scope closed subscribes to no registry a later configure hands it", () =>
-    Effect.gen(function* () {
-      const a = makeGateRegistryDouble([guard("a", readPolicy)]);
-      const b = makeGateRegistryDouble([guard("b", readPolicy)]);
-      const scope = yield* Scope.make();
-      const model = yield* Scope.provide(makeDockModel({ gates: a.registry }), scope);
-      yield* Scope.close(scope, Exit.void);
-
-      model.configure({ gates: b.registry });
-
-      assert.strictEqual(a.listeners(), 0);
-      assert.strictEqual(b.listeners(), 0);
-      assert.strictEqual(b.subscriptions(), 0);
-    }));
-
   it.effect("M36: a model whose scope closed reads no registry a later configure hands it, and none it held", () =>
     Effect.gen(function* () {
       const a = makeGateRegistryDouble([guard("a", readPolicy)]);
@@ -1195,330 +1113,6 @@ describe("the questions store (M31, M32, M33, M36..M47, P2)", () => {
       assert.strictEqual(b.reads(), 0);
       assert.strictEqual(a.reads(), readByA);
       assert.strictEqual(model.questions.getSnapshot(), last);
-    }));
-
-  const boom = new Error("registry exploded");
-
-  /** The reason a `Failed` gates view carries, or `undefined` when the view is any other. */
-  const failedReason = (snapshot: QuestionsSnapshot): string | undefined =>
-    snapshot.gates._tag === "Failed" ? snapshot.gates.reason : undefined;
-
-  /** What each row claims about who is asking; `undefined` is no claim at all. */
-  const claims = (snapshot: QuestionsSnapshot): ReadonlyArray<ReadonlyArray<GateInstanceLike> | undefined> =>
-    snapshot.questions._tag === "Rows" ? snapshot.questions.rows.map((row) => row.asking) : [];
-
-  it.effect("M37: a registry that throws while the model is built is stated, and the build does not throw", () =>
-    Effect.gen(function* () {
-      const double = makeGateRegistryDouble([guard("a", readPolicy)]);
-      double.failReads(boom);
-
-      const model = yield* makeDockModel({
-        diagnostics: { questions: () => [{ policy: readPolicy }] },
-        gates: double.registry,
-      });
-      yield* settleTurns;
-
-      const snapshot = model.questions.getSnapshot();
-      assert.include(failedReason(snapshot) ?? "", "registry exploded");
-      assert.deepStrictEqual(snapshot.instances, []);
-      assert.deepStrictEqual(claims(snapshot), [undefined]);
-      assert.strictEqual(double.listeners(), 1);
-    }));
-
-  it.effect("M38: a throw on a registry notification that the registry swallows still reaches the snapshot, and mending recovers it", () =>
-    Effect.gen(function* () {
-      const double = makeGateRegistryDouble([guard("a", readPolicy)], { swallowListenerErrors: true });
-      const model = yield* makeDockModel({
-        diagnostics: { questions: () => [{ policy: readPolicy }] },
-        gates: double.registry,
-      });
-      yield* settleTurns;
-      const heard = { calls: 0 };
-      model.questions.subscribe(() => {
-        heard.calls += 1;
-      });
-      assert.deepStrictEqual(askingIds(model.questions.getSnapshot()), [["a"]]);
-
-      double.failReads(boom);
-      const failed = model.questions.getSnapshot();
-      assert.include(failedReason(failed) ?? "", "registry exploded");
-      assert.deepStrictEqual(claims(failed), [undefined]);
-      assert.strictEqual(heard.calls, 1);
-
-      // The same failure thrown afresh, from another call site with another stack, says the same thing.
-      double.failReads(new Error("registry exploded"));
-      assert.strictEqual(model.questions.getSnapshot(), failed);
-      assert.strictEqual(heard.calls, 1);
-
-      // A different reason is a different statement, though no guard, question or flag moved with it.
-      double.failReads(new Error("registry exploded again"));
-      const again = model.questions.getSnapshot();
-      assert.include(failedReason(again) ?? "", "registry exploded again");
-      assert.strictEqual(heard.calls, 2);
-
-      // The same throw again says the same thing: nothing is published for it.
-      double.add(guard("b", readPolicy));
-      assert.strictEqual(model.questions.getSnapshot(), again);
-      assert.strictEqual(heard.calls, 2);
-
-      double.mendReads();
-      assert.strictEqual(model.questions.getSnapshot().gates._tag, "Listed");
-      assert.deepStrictEqual(askingIds(model.questions.getSnapshot()), [["a", "b"]]);
-      assert.strictEqual(heard.calls, 3);
-    }));
-
-  it.effect("M39: a registry that throws on a poll tick leaves the poll running and the other listeners called", () =>
-    Effect.gen(function* () {
-      let asked: ReadonlyArray<AskedQuestionLike> = [{ policy: readPolicy }];
-      const double = makeGateRegistryDouble([guard("a", readPolicy)], { swallowListenerErrors: true });
-      const model = yield* makeDockModel({ diagnostics: { questions: () => asked }, gates: double.registry });
-      yield* settleTurns;
-      double.failReads(boom);
-      const heard = { diagnostics: 0 };
-      model.diagnostics.subscribe(() => {
-        heard.diagnostics += 1;
-      });
-
-      asked = [{ policy: readPolicy }, { policy: writePolicy }];
-      yield* tick;
-
-      assert.isTrue(DiagnosticsStatus.$is("Live")(model.diagnostics.getSnapshot().status));
-      assert.strictEqual(heard.diagnostics, 1);
-      const snapshot = model.questions.getSnapshot();
-      assert.include(failedReason(snapshot) ?? "", "registry exploded");
-      assert.deepStrictEqual(claims(snapshot), [undefined, undefined]);
-
-      // The poll goes on: the next change in what is asked still arrives.
-      asked = [{ policy: writePolicy }];
-      yield* tick;
-      assert.deepStrictEqual(claims(model.questions.getSnapshot()), [undefined]);
-      assert.strictEqual(heard.diagnostics, 2);
-    }));
-
-  it.effect("M40: a registry whose subscribe throws is stated, and a registry that works replaces it", () =>
-    Effect.gen(function* () {
-      const reading = { questions: [{ policy: readPolicy }] };
-      const bad = makeGateRegistryDouble([guard("a", readPolicy)]);
-      bad.failSubscribe(boom);
-      const good = makeGateRegistryDouble([guard("b", readPolicy)]);
-
-      const model = yield* makeDockModel({ gates: bad.registry, reading });
-      const snapshot = model.questions.getSnapshot();
-      assert.include(failedReason(snapshot) ?? "", "registry exploded");
-      assert.deepStrictEqual(claims(snapshot), [undefined]);
-
-      model.configure({ gates: good.registry, reading });
-      assert.strictEqual(model.questions.getSnapshot().gates._tag, "Listed");
-      assert.deepStrictEqual(askingIds(model.questions.getSnapshot()), [["b"]]);
-      assert.strictEqual(good.listeners(), 1);
-    }));
-
-  it.effect("M41: configure with a throwing registry applies in full and never throws; the old subscription is released once", () =>
-    Effect.gen(function* () {
-      const reading = { questions: [{ policy: readPolicy }] };
-      const a = makeGateRegistryDouble([guard("a", readPolicy)]);
-      const reads = makeGateRegistryDouble([guard("b", readPolicy)]);
-      reads.failReads(boom);
-      const subscribes = makeGateRegistryDouble([guard("c", readPolicy)]);
-      subscribes.failSubscribe(boom);
-      const scope = yield* Scope.make();
-      const model = yield* Scope.provide(makeDockModel({ gates: a.registry, reading }), scope);
-      assert.deepStrictEqual(askingIds(model.questions.getSnapshot()), [["a"]]);
-
-      model.configure({ gates: reads.registry, reading });
-      assert.include(failedReason(model.questions.getSnapshot()) ?? "", "registry exploded");
-      assert.strictEqual(a.listeners(), 0);
-      assert.strictEqual(a.releases(), 1);
-      assert.strictEqual(reads.listeners(), 1);
-
-      model.configure({ gates: a.registry, reading });
-      assert.deepStrictEqual(askingIds(model.questions.getSnapshot()), [["a"]]);
-
-      model.configure({ gates: subscribes.registry, reading });
-      assert.include(failedReason(model.questions.getSnapshot()) ?? "", "registry exploded");
-      assert.strictEqual(a.releases(), 2);
-
-      yield* Scope.close(scope, Exit.void);
-      assert.strictEqual(a.releases(), 2);
-      assert.strictEqual(subscribes.releases(), 0);
-    }));
-
-  it.effect("M42: an unsubscribe that throws is not stated, applies the new registry in full and is not called again", () =>
-    Effect.gen(function* () {
-      const reading = { questions: [{ policy: readPolicy }] };
-      const a = makeGateRegistryDouble([guard("a", readPolicy)]);
-      const b = makeGateRegistryDouble([guard("b", readPolicy)]);
-      const scope = yield* Scope.make();
-      const model = yield* Scope.provide(makeDockModel({ gates: a.registry, reading }), scope);
-      a.failRelease(boom);
-
-      // The release belongs to a registry the model has left: the view is the new registry's listing.
-      model.configure({ gates: b.registry, reading });
-      assert.strictEqual(model.questions.getSnapshot().gates._tag, "Listed");
-      assert.deepStrictEqual(askingIds(model.questions.getSnapshot()), [["b"]]);
-      assert.strictEqual(a.releases(), 1);
-      assert.strictEqual(b.listeners(), 1);
-      b.add(guard("c", readPolicy));
-      assert.deepStrictEqual(askingIds(model.questions.getSnapshot()), [["b", "c"]]);
-
-      // The handle left the model's state before it was called: neither a swap nor the close calls it again.
-      model.configure({ gates: b.registry, reading });
-      model.configure({ gates: undefined, reading });
-      assert.strictEqual(a.releases(), 1);
-      assert.strictEqual(b.listeners(), 0);
-
-      model.configure({ gates: a.registry, reading });
-      assert.strictEqual(a.releases(), 1);
-      yield* Scope.close(scope, Exit.void);
-      assert.strictEqual(a.releases(), 2);
-    }));
-
-  it.effect("M42 b: a scope that closes over an unsubscribe that throws still closes, and calls it once", () =>
-    Effect.gen(function* () {
-      const reading = { questions: [{ policy: readPolicy }] };
-      const a = makeGateRegistryDouble([guard("a", readPolicy)]);
-      const scope = yield* Scope.make();
-      const model = yield* Scope.provide(makeDockModel({ gates: a.registry, reading }), scope);
-      a.failRelease(boom);
-
-      const closed = yield* Effect.exit(Scope.close(scope, Exit.void));
-      assert.isTrue(Exit.isSuccess(closed));
-      assert.strictEqual(a.releases(), 1);
-      model.configure({ gates: a.registry, reading });
-      assert.strictEqual(a.releases(), 1);
-    }));
-
-  it.effect("M43: a registry whose subscribe threw is subscribed again by a configure with the same registry", () =>
-    Effect.gen(function* () {
-      const reading = { questions: [{ policy: readPolicy }] };
-      const double = makeGateRegistryDouble([guard("a", readPolicy)]);
-      double.failSubscribe(boom);
-      const model = yield* makeDockModel({ gates: double.registry, reading });
-      assert.include(failedReason(model.questions.getSnapshot()) ?? "", "registry exploded");
-
-      // Still failing: tried again and stated again, with nothing held. The same failure thrown afresh,
-      // with another stack, is the same statement and publishes nothing.
-      const failed = model.questions.getSnapshot();
-      const heard = { calls: 0 };
-      model.questions.subscribe(() => {
-        heard.calls += 1;
-      });
-      double.failSubscribe(new Error("registry exploded"));
-      model.configure({ gates: double.registry, reading });
-      assert.include(failedReason(model.questions.getSnapshot()) ?? "", "registry exploded");
-      assert.strictEqual(model.questions.getSnapshot(), failed);
-      assert.strictEqual(heard.calls, 0);
-      assert.strictEqual(double.subscriptions(), 2);
-
-      double.mendSubscribe();
-      model.configure({ gates: double.registry, reading });
-      assert.deepStrictEqual(askingIds(model.questions.getSnapshot()), [["a"]]);
-      assert.strictEqual(double.listeners(), 1);
-
-      // Recovered: the same registry is not subscribed again, and its changes arrive.
-      model.configure({ gates: double.registry, reading });
-      assert.strictEqual(double.subscriptions(), 3);
-      double.add(guard("b", readPolicy));
-      assert.deepStrictEqual(askingIds(model.questions.getSnapshot()), [["a", "b"]]);
-    }));
-
-  it.effect("M44: a registry that mends without announcing stays Failed until something reads it again", () =>
-    Effect.gen(function* () {
-      let asked: ReadonlyArray<AskedQuestionLike> = [{ policy: readPolicy }];
-      const double = makeGateRegistryDouble([guard("a", readPolicy)]);
-      const questionsOf = () => asked;
-      const model = yield* makeDockModel({ diagnostics: { questions: questionsOf }, gates: double.registry });
-      yield* settleTurns;
-      double.failReads(boom);
-      assert.include(failedReason(model.questions.getSnapshot()) ?? "", "registry exploded");
-
-      double.mendReadsQuietly();
-      yield* tick;
-      assert.include(failedReason(model.questions.getSnapshot()) ?? "", "registry exploded");
-
-      // A poll that changed what is asked reads the registry again.
-      asked = [{ policy: readPolicy }, { policy: writePolicy }];
-      yield* tick;
-      assert.deepStrictEqual(askingIds(model.questions.getSnapshot()), [["a"], []]);
-
-      // So does a notification, and so does a `configure`, even with the same registry.
-      double.failReads(boom);
-      double.mendReadsQuietly();
-      double.add(guard("b", readPolicy));
-      assert.deepStrictEqual(askingIds(model.questions.getSnapshot()), [["a", "b"], []]);
-
-      double.failReads(boom);
-      double.mendReadsQuietly();
-      model.configure({ diagnostics: { questions: questionsOf }, gates: double.registry });
-      assert.strictEqual(model.questions.getSnapshot().gates._tag, "Listed");
-    }));
-
-  it.effect("M45: a thrown value that is not an error is compared by what it renders as", () =>
-    Effect.gen(function* () {
-      const double = makeGateRegistryDouble([guard("a", readPolicy)], { swallowListenerErrors: true });
-      const model = yield* makeDockModel({
-        diagnostics: { questions: () => [{ policy: readPolicy }] },
-        gates: double.registry,
-      });
-      yield* settleTurns;
-      const heard = { calls: 0 };
-      model.questions.subscribe(() => {
-        heard.calls += 1;
-      });
-
-      double.failReads("registry down");
-      const down = model.questions.getSnapshot();
-      assert.include(failedReason(down) ?? "", "registry down");
-      assert.strictEqual(heard.calls, 1);
-
-      // The same string from another path says the same thing; a different one is a different statement.
-      double.failReads("registry down");
-      assert.strictEqual(model.questions.getSnapshot(), down);
-      assert.strictEqual(heard.calls, 1);
-      double.failReads({ code: 503 });
-      assert.include(failedReason(model.questions.getSnapshot()) ?? "", "503");
-      assert.strictEqual(heard.calls, 2);
-      double.add(guard("b", readPolicy));
-      assert.strictEqual(heard.calls, 2);
-    }));
-
-  it.effect("M46: a thrown value that cannot be rendered is stated all the same, and reaches no host", () =>
-    Effect.gen(function* () {
-      const unrenderable = new Proxy(
-        {},
-        {
-          get: () => {
-            throw new Error("a getter that throws");
-          },
-          getPrototypeOf: () => {
-            throw new Error("a trap that throws");
-          },
-          ownKeys: () => {
-            throw new Error("a trap that throws");
-          },
-        },
-      );
-      const double = makeGateRegistryDouble([guard("a", readPolicy)], { swallowListenerErrors: true });
-      double.failReads(unrenderable);
-      const reading = { questions: [{ policy: readPolicy }] };
-      const model = yield* makeDockModel({ reading });
-      assert.strictEqual(model.questions.getSnapshot().gates._tag, "Absent");
-
-      // From no registry to one that throws a value nothing can render: the view moves, though no list did.
-      model.configure({ reading, gates: double.registry });
-      assert.strictEqual(model.questions.getSnapshot().gates._tag, "Failed");
-      assert.strictEqual(failedReason(model.questions.getSnapshot()), "The registry threw a value that could not be described.");
-      assert.deepStrictEqual(claims(model.questions.getSnapshot()), [undefined]);
-
-      double.mendReads();
-      double.failReads(unrenderable);
-      model.configure({ reading: { questions: [{ policy: writePolicy }] }, gates: double.registry });
-      assert.strictEqual(model.questions.getSnapshot().gates._tag, "Failed");
-
-      const bad = makeGateRegistryDouble();
-      bad.failSubscribe(unrenderable);
-      model.configure({ gates: bad.registry });
-      assert.strictEqual(model.questions.getSnapshot().gates._tag, "Failed");
     }));
 
   it.effect("M47: one configure publishes one snapshot and reads no registry the host has handed away", () =>
@@ -1587,10 +1181,19 @@ describe("the questions store (M31, M32, M33, M36..M47, P2)", () => {
       for (const sequence of sequences) {
         const where = JSON.stringify(sequence);
         let asked: ReadonlyArray<AskedQuestionLike> = [];
+        // What the thunk answered when it was last read, recorded before the feed publishes it.
+        let answered: ReadonlyArray<AskedQuestionLike> = [];
         const double = makeGateRegistryDouble();
         const scope = yield* Scope.make();
         const model = yield* Scope.provide(
-          makeDockModel({ diagnostics: { questions: () => asked }, gates: double.registry }),
+          makeDockModel({
+            diagnostics: {},
+            questions: () => {
+              answered = asked;
+              return asked;
+            },
+            gates: double.registry,
+          }),
           scope,
         );
 
@@ -1608,12 +1211,11 @@ describe("the questions store (M31, M32, M33, M36..M47, P2)", () => {
         /** What is wrong with the snapshot now, read against both sources at this very moment. */
         const disagreements = (moment: string): ReadonlyArray<string> => {
           const snapshot = model.questions.getSnapshot();
-          const polled = model.diagnostics.getSnapshot().reading.questions ?? [];
           const guards = double.registry.instances();
           const problems: Array<string> = [];
           if (snapshot.instances !== guards) problems.push(`${moment}: instances is not the registry's own array`);
           const rows = JSON.stringify(askingIds(snapshot));
-          const expected = JSON.stringify(oracle(polled, guards));
+          const expected = JSON.stringify(oracle(answered, guards));
           if (rows !== expected) problems.push(`${moment}: rows ${rows}, oracle ${expected}`);
           const gatesTag = guards.length === 0 ? "Empty" : "Listed";
           if (snapshot.gates._tag !== gatesTag) problems.push(`${moment}: gates view ${snapshot.gates._tag}, wanted ${gatesTag}`);
@@ -1664,12 +1266,6 @@ describe("the questions store (M31, M32, M33, M36..M47, P2)", () => {
 });
 
 describe("the join of the three feeds (J1..J8)", () => {
-  const guard = (id: string, policy: Policy): GateInstanceLike => ({ id, kind: "Can", policy, state: "Allowed" });
-
-  /** The ids asking each asked question, row by row; empty when the view carries no rows. */
-  const askingIds = (snapshot: QuestionsSnapshot): ReadonlyArray<ReadonlyArray<string>> =>
-    snapshot.questions._tag === "Rows" ? snapshot.questions.rows.map((row) => row.asking?.map((one) => one.id) ?? []) : [];
-
   /** What each row claims about who is asking; `undefined` is no claim at all. */
   const claims = (snapshot: QuestionsSnapshot): ReadonlyArray<ReadonlyArray<GateInstanceLike> | undefined> =>
     snapshot.questions._tag === "Rows" ? snapshot.questions.rows.map((row) => row.asking) : [];
@@ -1677,13 +1273,6 @@ describe("the join of the three feeds (J1..J8)", () => {
   /** The reason a `Failed` questions view carries, or `undefined` when the view is any other. */
   const failedReason = (snapshot: QuestionsSnapshot): string | undefined =>
     snapshot.questions._tag === "Failed" ? snapshot.questions.reason : undefined;
-
-  /** Settles every fiber, steps the clock one poll interval, settles again. */
-  const tick = Effect.gen(function* () {
-    yield* settleTurns;
-    yield* TestClock.adjust("2 seconds");
-    yield* settleTurns;
-  });
 
   const down = (): ReadonlyArray<AskedQuestionLike> => {
     throw new Error("questions down");
@@ -1820,7 +1409,7 @@ describe("the join of the three feeds (J1..J8)", () => {
 });
 
 describe("the services store", () => {
-  it.effect("M48:the services store holds the port cards of the shown reading from the first snapshot", () =>
+  it.effect("M48: the services store holds the port cards of the shown reading from the first snapshot", () =>
     Effect.gen(function* () {
       const supplied = yield* makeDockModel({
         reading: {
@@ -1914,22 +1503,25 @@ describe("the services store", () => {
   it.effect("M49: the services store keeps its reference when only the hydration or the questions move", () =>
     Effect.gen(function* () {
       let answer: ReadonlyArray<AskedQuestionLike> = [];
-      const diagnostics = { questions: () => answer };
+      const questions = () => answer;
+      const diagnostics = {};
       const reading = { wiring: wiringNamed("one"), activity: activityOf(1), portCalls: logOf("tier") };
-      const model = yield* makeDockModel({ diagnostics, reading });
+      const model = yield* makeDockModel({ diagnostics, questions, reading });
+      yield* settleTurns;
       const before = model.services.getSnapshot();
       const heard = heardOf(model);
       const polled = { calls: 0 };
-      model.diagnostics.subscribe(() => {
+      model.questions.subscribe(() => {
         polled.calls += 1;
       });
 
       answer = [{ policy: readPolicy }];
       yield* TestClock.adjust("2 seconds");
+      yield* settleTurns;
       assert.isAbove(polled.calls, 0);
       assert.strictEqual(model.services.getSnapshot(), before);
 
-      model.configure({ diagnostics, reading: { ...reading, questions: [{ policy: readPolicy }] } });
+      model.configure({ diagnostics, questions, reading: { ...reading, questions: [{ policy: readPolicy }] } });
       assert.strictEqual(model.services.getSnapshot(), before);
       assert.strictEqual(heard.calls, 0);
     }));

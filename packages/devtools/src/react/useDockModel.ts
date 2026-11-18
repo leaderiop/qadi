@@ -10,7 +10,8 @@
  * Nothing here forks a fiber or holds state: `useScoped` holds the model and its scope,
  * and the model reads the source in that scope. The host's diagnostics options and
  * supplied reading are inputs like the source: the model polls and merges them in its
- * scope, and so is the gate registry: the model subscribes to it there. A pass with no live model sees
+ * scope, and so are the gate registry and the questions source: the model's gates feed
+ * subscribes to the one and reads the other there. A pass with no live model sees
  * `undefined`, so the caller renders nothing for it and mounts every reader below
  * that branch, which is what keeps a hidden `Activity` from leaving one on a closed
  * model (ADR-QD-137).
@@ -20,7 +21,7 @@ import type { Catalogue } from "../model/Catalogue.ts";
 import type { DiagnosticsDockOptions } from "../model/DiagnosticsFeed.ts";
 import type { DiagnosticsReading } from "../model/DiagnosticsStore.ts";
 import { makeDockModel, type DockModel } from "../model/DockModel.ts";
-import type { GateRegistryLike } from "../model/Gates.ts";
+import type { AskedQuestionLike, GateRegistryLike } from "../model/Gates.ts";
 import type { EvaluationPortsLayer } from "../model/SimulationInput.ts";
 import type { Source } from "../model/Source.ts";
 import { useScoped } from "./useScoped.ts";
@@ -33,6 +34,7 @@ export interface UseDockModelInput {
   readonly diagnostics?: DiagnosticsDockOptions | undefined;
   readonly reading?: DiagnosticsReading | undefined;
   readonly gates?: GateRegistryLike | undefined;
+  readonly questions?: (() => ReadonlyArray<AskedQuestionLike>) | undefined;
 }
 
 export const useDockModel = ({
@@ -43,16 +45,17 @@ export const useDockModel = ({
   diagnostics,
   reading,
   gates,
+  questions,
 }: UseDockModelInput): DockModel | undefined => {
   // One scope per mounted dock: unmounting closes it, which interrupts the source read
   // and a simulation run in flight.
-  const model = useScoped(() => makeDockModel({ source, capacity, catalogue, ports, diagnostics, reading, gates }));
+  const model = useScoped(() => makeDockModel({ source, capacity, catalogue, ports, diagnostics, reading, gates, questions }));
 
   // The model diffs each field by identity and re-reads on a new source or capacity. It
   // runs again on the render the model appears, so a prop changed in between still lands.
   useLayoutEffect(() => {
-    if (model !== undefined) model.configure({ source, capacity, catalogue, ports, diagnostics, reading, gates });
-  }, [model, source, capacity, catalogue, ports, diagnostics, reading, gates]);
+    if (model !== undefined) model.configure({ source, capacity, catalogue, ports, diagnostics, reading, gates, questions });
+  }, [model, source, capacity, catalogue, ports, diagnostics, reading, gates, questions]);
 
   return model;
 };
