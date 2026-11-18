@@ -5,11 +5,11 @@ milestone_name: Arch Wave 11
 current_phase: 55
 current_phase_name: A port card is a model row, not a view join
 status: planning
-stopped_at: Phase QD-54 complete, ready to plan Phase 55
-last_updated: "2026-11-18T14:43:32.685Z"
+stopped_at: Phase QD-55 UI-SPEC approved
+last_updated: "2026-11-18T14:55:55.790Z"
 last_activity: 2026-11-18
 last_activity_desc: Phase QD-54 complete, transitioned to Phase 55
-state_head: 4db2f9443d94a0a2bd422450595ec0cb02aca137
+state_head: ea07ceb8bf33d57a550a9a13a77d748c5ad6d271
 progress:
   total_phases: 9
   completed_phases: 2
@@ -645,9 +645,9 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-18T14:09:54.722Z
-Stopped at: Phase QD-54 complete, ready to plan Phase 55
-Resume file: None
+Last session: 2026-11-18T14:55:55.710Z
+Stopped at: Phase QD-55 UI-SPEC approved
+Resume file: .planning/phases/QD-55-a-port-card-is-a-model-row-not-a-view-join/55-UI-SPEC.md
 
 ## Operator Next Steps
 

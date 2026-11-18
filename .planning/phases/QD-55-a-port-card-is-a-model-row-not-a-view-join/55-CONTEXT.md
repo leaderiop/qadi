@@ -40,7 +40,9 @@ Records: ARCH-102, ADR-QD-168, CCR-QD-446, BEH-QD-611..615, INV-QD-355..356, all
     - the `data-port` and `data-defaulted` values;
     - a closed calls union: `Hidden` (uncollected and unsampled), `Uncollected` (the "pass `portCalls`" note), or `Listed{calls, earlier}`.
   - The wiring-state `Match` moves into the model. The view only maps tags to JSX.
+  - **Amended after research (owner, 2026-11-18):** a fourth tag, `Withheld`, carries "no layer handed and no sample yet", which renders nothing today (the `QuestionsView.Unsampled` precedent), so the view never inspects `unsampled` itself. The calls union `Hidden` covers both "uncollected while unsampled" and "collected, none for this port", so the view never inspects an empty list.
 - **D-03:** The dock model calls it, once for each merged diagnostics snapshot, and `ServicesPanel` receives the `ServicesView`. This follows ADR-QD-162, where `joinQuestions` is a `DockModel` store. Phase 56 edits `DockModel` after this phase (soft dependency).
+  - **Amended after research (owner, 2026-11-18):** the view is held as a `services` store, the dock model's **ninth** store, recomputed only when `wiring`, `activity`, `portCalls` or the unsampled flag changes identity (the `rejoin` precedent). `ServicesPanel` takes the store and reads it with `useStoreSnapshot`, as `QuestionsPanel` does. ADR-QD-168, the `DockModel.ts` header, BEH-QD-465 and an ADR-QD-047 amendment restate the store count (ADR-QD-162 says eight).
 - **D-04:** The cache card's wording (`N completed entries` / `absent`) moves into the model. Fixed prose stays in the view, because it is text and not computation: the process-wide scope note and the no-TTL sentence.
 
 ### Keying by `PortName` (CARD-03)
@@ -80,7 +82,7 @@ Records: ARCH-102, ADR-QD-168, CCR-QD-446, BEH-QD-611..615, INV-QD-355..356, all
   - Any other drop is closed with a test, never re-baselined.
   - New `PortCards.ts` has no surviving mutant that a test could kill.
   - The view is outside the mutate glob (`packages/devtools/src/model/**/*.ts`).
-- **D-16 (WX-07):** One `@qadi/devtools` **minor** changeset with one **Breaking** entry: `PortActivity.port` is now `PortName`. The panel's wording is unchanged.
+- **D-16 (WX-07):** One `@qadi/devtools` **minor** changeset with one **Breaking** entry: `PortActivity.port` is now `PortName`. The panel's wording is unchanged. WX-07 also requires the Breaking note in `apps/website/src/content/docs/docs/reference/upgrading.md` (a 0.13 section, prose-first). The two test sites the narrowing breaks (`DockModel.test.ts:787`, `features/features/devtools-screens/devtools-screens.steps.test.ts:419`) get type-only edits in the same commit as the type change.
 - **D-17 (CARD-05, WX-02):**
   - ADR-QD-168 follows ADR-QD-162's precedent, restates ADR-QD-047's "the panel renders that model and computes nothing" for the Services tab, and keeps ADR-QD-160.
   - INV-QD-355: a port card's readings are joined by `PortName` in one pure model function.
