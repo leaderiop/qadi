@@ -5,16 +5,16 @@ milestone_name: Arch Wave 11
 current_phase: 56
 current_phase_name: The gate-registry watch becomes the dock model's third feed
 status: executing
-stopped_at: Completed QD-56-06-PLAN.md
-last_updated: "2026-11-18T20:01:17.481Z"
+stopped_at: Completed QD-56-07-PLAN.md
+last_updated: "2026-11-18T20:11:00.820Z"
 last_activity: 2026-11-18
 last_activity_desc: Phase QD-55 complete, transitioned to Phase 56
-state_head: ba7101c0302328d192a99bba42cb1f22606cd0ff
+state_head: 15a6a152a70f15891e20503797b85b8f95eea63e
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 38
-  completed_plans: 31
+  completed_plans: 32
   percent: 33
 ---
 
@@ -360,6 +360,7 @@ Last activity: 2026-11-18 — Phase QD-55 complete, transitioned to Phase 56
 | Phase QD-56 P04 | 6 min | 2 tasks | 3 files |
 | Phase QD-56 P05 | 3 min | 3 tasks | 1 files |
 | Phase QD-56 P06 | 6 min | 2 tasks | 5 files |
+| Phase QD-56 P07 | 8 min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -617,6 +618,7 @@ Last activity: 2026-11-18 — Phase QD-55 complete, transitioned to Phase 56
 - [Phase QD-56]: 56-04: the gates feed holds its previous halves in its own snapshot and keeps a failure key only beside a Failed half, so a Read keeps its reference by array identity (registry) or Equal.equals (thunk)
 - [Phase QD-56]: 56-05: GP2's oracle moves before its tick, because the gates feed notifies from inside the tick
 - [Phase QD-56]: 56-06: the join decides the questions view in one order (questions read, questionsFailed, unsampled, absent) through questionsViewOf; the two failures are independent
+- [Phase QD-56]: 56-07: the join key carries unsampled already reduced by the supplied list, so a supplied list keeps one snapshot while the poll goes from Starting to Live; the watch and the thunk moved in one commit; the unguarded reservice (IN-03) was fixed by the closed guard the composed model needs
 
 ### Pending Todos
 
@@ -676,8 +678,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-18T20:01:17.305Z
-Stopped at: Completed QD-56-06-PLAN.md
+Last session: 2026-11-18T20:11:00.684Z
+Stopped at: Completed QD-56-07-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
