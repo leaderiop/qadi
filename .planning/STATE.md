@@ -5,16 +5,16 @@ milestone_name: Arch Wave 11
 current_phase: 53
 current_phase_name: "One module owns \"the value a leaf compares\""
 status: executing
-stopped_at: Completed 53-03-PLAN.md
-last_updated: "2026-11-18T05:02:37.456Z"
+stopped_at: Completed QD-53-04-PLAN.md
+last_updated: "2026-11-18T05:04:41.380Z"
 last_activity: 2026-11-18
 last_activity_desc: Phase 53 execution started
-state_head: bfc64cec87b07b637d29fb775171d4b1d6c18571
+state_head: 2bdf1c8456ae926ebd60da8f3710faaaf3ea462c
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 8
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-18)
 ## Current Position
 
 Phase: 53 (One module owns "the value a leaf compares") — EXECUTING
-Plan: 4 of 8
+Plan: 5 of 8
 Status: Ready to execute
 Last activity: 2026-11-18 — Phase 53 execution started
 
@@ -329,6 +329,7 @@ Last activity: 2026-11-18 — Phase 53 execution started
 | Phase 53 P01 | 8 min | 2 tasks | 2 files |
 | Phase 53 P02 | 6min | 2 tasks | 6 files |
 | Phase 53 P03 | 5 min | 3 tasks | 7 files |
+| Phase QD-53 P04 | 3 min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -556,6 +557,7 @@ Last activity: 2026-11-18 — Phase 53 execution started
 - [Phase 53]: 53-01: Decision.ts isFieldOf survivor mapped via RENAMED at the close, never re-baselined
 - [Phase 53]: R2 enumerates every prototype-named leaf and samples only the tree combinations; protoLayer omits DecisionHistory because the describe-level acted shadows the module layer
 - [Phase 53]: 53-03: Operand.ts (ownValue, isOwnKey, getByPath) package-private; getByPath re-exported unchanged through Matcher.ts; hot callers use module-local bindings (getByPathLocal, ownValueLocal)
+- [Phase QD-53]: 53-04: readAttribute does isOwnKey then ownValue (two own-property checks per subject read) so an own undefined stays the subject's answer with no bare read outside Operand.ts
 
 ### Pending Todos
 
@@ -615,8 +617,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-18T05:02:37.430Z
-Stopped at: Completed 53-03-PLAN.md
+Last session: 2026-11-18T05:04:41.352Z
+Stopped at: Completed QD-53-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
