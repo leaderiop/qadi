@@ -506,11 +506,11 @@ Plans:
 
 **Planning notes**: The user decision is the first thing settled. Plan shape, RED first: the mutation base for `DockModel.ts` and the new feed, and the panel characterisation, committed first; then the feed with the watch moved out of the model; then the tests rewritten against the feed alone; then records.
 **UI hint**: yes
-**Plans**: 1/13 plans executed
+**Plans**: 2/13 plans executed
 
 Plans:
 - [x] 56-01 (W1): base facts, reserved ids and API surface base; mutation baseline for DiagnosticsFeed, DiagnosticsStore, DockModel and Gates, the phase's first commit
-- [ ] 56-02 (W2): the questionsProp seam and QuestionsPanel.feed.characterisation.test.tsx (eighteen cells) pinned through the public dock, on the base
+- [x] 56-02 (W2): the questionsProp seam and QuestionsPanel.feed.characterisation.test.tsx (eighteen cells) pinned through the public dock, on the base
 - [ ] 56-03 (W3): the D-03 test (a throwing thunk is stated, the poll lives) committed RED; collectorDouble.ts and the poll-defect cases ported off the thunk
 - [ ] 56-04 (W4): tracer — GatesFeed.ts owns the registry watch and the questions thunk (RED by import first); the lifetime and view twins
 - [ ] 56-05 (W5): the remaining twins G38..G47, G42 b and GP2 against the feed alone
@@ -627,7 +627,7 @@ Phases execute in numeric order: 53 → 54 → 55 → 56 → 57 → 58 → 59 �
 | 53. One module owns "the value a leaf compares" | 8/8 | Complete    | 2026-11-18 |
 | 54. LeafNeeds turns every leaf's answer into a verdict | 8/8 | Complete    | 2026-11-18 |
 | 55. A port card is a model row, not a view join | 9/9 | Complete    | 2026-11-18 |
-| 56. The gate-registry watch becomes the dock model's third feed | 1/13 | In Progress | - |
+| 56. The gate-registry watch becomes the dock model's third feed | 2/13 | In Progress | - |
 | 57. untrustedDecoder states the envelope's unknown-key policy | 0/TBD | Not started | - |
 | 58. A stored record is its envelope in memory too | 0/TBD | Not started | - |
 | 59. Admission produces the one walk environment | 0/TBD | Not started | - |
