@@ -235,6 +235,23 @@ describe("the audit row per policy: refuse (KEYP-05, D-11)", () => {
       assert.deepStrictEqual(rowRefusalOf({ ...row(0), record }), DecodeRefusal.Malformed({ message }));
     }
   });
+
+  it("A6 an unknown key 266 deep inside the row record -> success (D-20)", () => {
+    assert.isTrue(Result.isSuccess(decodeAuditEntry(rowWithRecord(recordWith({ traceparent: nested(OVER) })))));
+  });
+
+  it("A7 an unknown key 60,000 deep inside the row record -> success, no throw (D-20)", () => {
+    const input = rowWithRecord(recordWith({ traceparent: nested(60_000) }));
+    assert.doesNotThrow(() => {
+      assert.isTrue(Result.isSuccess(decodeAuditEntry(input)));
+    });
+  });
+
+  it("A8 a deep unknown key and version 3 inside the row record -> UnsupportedVersion carrying 3 (D-20)", () => {
+    const refusal = rowRefusalOf(rowWithRecord(recordWith({ traceparent: nested(OVER), version: 3 })));
+    assert.strictEqual(refusal?._tag, "UnsupportedVersion");
+    assert.strictEqual(refusal?._tag === "UnsupportedVersion" ? refusal.version : undefined, 3);
+  });
 });
 
 describe("the audit archive per policy: refuse (KEYP-05, D-11)", () => {
@@ -293,5 +310,10 @@ describe("the audit archive per policy: refuse (KEYP-05, D-11)", () => {
       archiveRefusalOf({}),
       ArchiveRefusal.Malformed({ message: "Missing key\n  at [\"archiveVersion\"]" }),
     );
+  });
+
+  it("V8 entry 0 whose record holds an unknown key 266 deep -> success (D-20)", () => {
+    const entries = [rowWithRecord(recordWith({ traceparent: nested(OVER) })), row(1), row(2)];
+    assert.isTrue(Result.isSuccess(readAuditArchive({ ...archive(), entries })));
   });
 });
