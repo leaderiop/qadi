@@ -1,5 +1,5 @@
 /**
- * The dock's eight stores and the rules between them, as one model a test can drive without rendering.
+ * The dock's nine stores and the rules between them, as one model a test can drive without rendering.
  *
  * The dock built the timeline, the policy rail, the explorer, the role choice, the
  * simulation and its own session in React and connected them with layout effects,
@@ -21,12 +21,14 @@
  * simulation run and the registry subscription (ADR-QD-137). There is no `dispose`
  * and no `read` command.
  *
- * **Eight stores, counted once.** Seven came first: the timeline, the dock session,
+ * **Nine stores, counted once.** Seven came first: the timeline, the dock session,
  * the explorer, the role choice, the simulation, the diagnostics reading (the poll's
  * status and the sampled reading with a supplied one laid over it) and the timeline
  * status (whether its read is running or stopped, with the one command that reads it
  * again). `questions` is the eighth: the gate registry joined to the polled questions,
- * recomputed from both in one synchronous step. `sightings` is a thunk and not a
+ * recomputed from both in one synchronous step. `services` is the ninth (ADR-QD-168):
+ * the Services tab's port cards, one pure function of the shown reading, recomputed
+ * only when one of its four inputs changes identity. `sightings` is a thunk and not a
  * store. Earlier records counted the policy rail among the stores, which is why they
  * call diagnostics the seventh store and the timeline status the eighth.
  *
@@ -50,6 +52,7 @@ import { makeExplorerSession, type ExplorerSession } from "./ExplorerSession.ts"
 import { makeExternalStore, type ExternalStore } from "./ExternalStore.ts";
 import { joinQuestions, type GateRegistryLike, type JoinInput, type QuestionsSnapshot } from "./Gates.ts";
 import { makeHeldChoiceStore, type HeldChoiceStore } from "./HeldChoice.ts";
+import { portCards, type ServicesInput, type ServicesView } from "./PortCards.ts";
 import { sameRole } from "./RoleTree.ts";
 import { makeSimulationSession, type SimulationSession } from "./SimulationSession.ts";
 import type { EvaluationPortsLayer } from "./SimulationInput.ts";
@@ -86,6 +89,8 @@ export interface DockModel {
   readonly timelineStatus: TimelineStatusReadout;
   /** The asked questions joined to the guards asking them, both read at one moment; holds guards and questions, never a verdict. */
   readonly questions: Pick<ExternalStore<QuestionsSnapshot>, "subscribe" | "getSnapshot">;
+  /** The Services tab's port cards of the shown reading, recomputed only when one of its four inputs changes identity. */
+  readonly services: Pick<ExternalStore<ServicesView>, "subscribe" | "getSnapshot">;
   /** `catalogueOf` of the shown timeline and the current catalogue, computed once per change. */
   readonly sightings: () => ReadonlyArray<PolicySighting>;
   /** Dispatches only the inputs whose identity changed. An omitted input reads as `undefined`. */
@@ -237,8 +242,34 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
       watchKey = keyOf(thrown);
     }
   };
-  // After `shownReading` exists and before any host listener, so the join moves first.
+  // The port cards are a function of the shown reading alone: no host code is read, so nothing here is guarded.
+  const servicesKeyNow = (): ServicesInput => {
+    const { status, reading } = shownReading.getSnapshot();
+    return {
+      wiring: reading.wiring,
+      activity: reading.activity,
+      portCalls: reading.portCalls,
+      unsampled: isUnsampled(status),
+    };
+  };
+  let lastServices = servicesKeyNow();
+  const services = makeExternalStore<ServicesView>(portCards(lastServices));
+  const reservice = () => {
+    const key = servicesKeyNow();
+    if (
+      key.wiring === lastServices.wiring &&
+      key.activity === lastServices.activity &&
+      key.portCalls === lastServices.portCalls &&
+      key.unsampled === lastServices.unsampled
+    ) {
+      return;
+    }
+    lastServices = key;
+    services.set(portCards(key));
+  };
+  // After `shownReading` exists and before any host listener, so the join and the cards move first.
   shownReading.subscribe(rejoin);
+  shownReading.subscribe(reservice);
   watchGates(gatesNow);
   rejoin();
   yield* Effect.addFinalizer(() =>
@@ -267,6 +298,7 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
     },
     timelineStatus: timelineFeed.status,
     questions: { subscribe: questions.subscribe, getSnapshot: questions.getSnapshot },
+    services: { subscribe: services.subscribe, getSnapshot: services.getSnapshot },
     sightings: () => rail,
 
     configure: (next) => {
