@@ -25,7 +25,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-18)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase QD-54 — LeafNeeds turns every leaf's answer into a verdict
+**Current focus:** Phase QD-55 — A port card is a model row, not a view join
 
 ## Current Position
 
@@ -585,6 +585,7 @@ Last activity: 2026-11-18 — Phase QD-54 complete, transitioned to Phase 55
 - [Phase QD-54]: ADR-QD-167 records the orchestrator-authorised D-10 static-ignored credit as its own section, open to user review
 - [Phase QD-54]: 54-07: the verdict-rows change is a @qadi/core patch changeset with no Breaking entry (no export changed, 935 across 9)
 - [Phase 54]: 54-08: phase scan's mutation-script clause narrowed to 0c917fdf alone (orchestrator D-10 ruling); check:pr green on rerun after a load-induced DockModel P2 timeout flake
+- [Phase 54]: review 0 critical/0 warning, IN-01 (long lines in Predicate.ts) skipped; verification human_needed on the D-10 credit, accepted by the owner at UAT (ADR-QD-167 Rev 1.1); passed 4/4; WX-01..07 reverted to Pending after phase.complete
 
 ### Pending Todos
 

@@ -227,9 +227,11 @@ logged, counted or spanned.
 
 - ✓ ARCH-100 One module owns "the value a leaf compares" (OPND-01..05): package-private, import-free `Operand.ts` (`ownValue`, `isOwnKey`, `getByPath`) is the one own-property read of a decoded key, and every interpreter reads through it — `Walk`, `PortAccess`, `FieldPath`, `Decision`'s projection, `Predicate`'s `evaluatePredicate` row read, and the `attributeResolverFromRecord`/`customPredicateFromRecord` fixtures; `getByPath` stays public through `Matcher.ts`'s re-export, `isFieldOf` is gone. RED on the base: `evaluatePredicate` allowed `hasResourceAttribute("constructor", neq(...))` on a row `evaluate` denied, a fixture resolver answered `toString` from the prototype, and a fixture predicate died on an inherited name. A prototype-names agreement property ties `evaluate` to `evaluatePredicate ∘ toPredicate`. Class-instance rows now read inherited getters as absent (changeset states it). Mutation Operand.ts 31/31, Matcher.ts 0.9775 → 0.9749 with survivors unchanged (D-14 holds). ADR-QD-166 (extends 091/024), CCR-QD-444, BEH-QD-601..605, INV-QD-351..352, INV-QD-091 restated; `@qadi/core` patch — Phase 53
 
+- ✓ ARCH-101 LeafNeeds turns every leaf's answer into a verdict (VERD-01..04): package-private `LEAF_VERDICTS` in `LeafNeeds.ts` is one closed per-tag record (`satisfies LeafVerdicts`, read through `isHeld`) holding every leaf's answer-to-verdict step, acted polarity included; `Walk` keeps only its deny sentences (`ACTED_DENIAL`, `RELATIONSHIP_DENIAL`, `SIGNATURE_DENIAL`) and `toPredicate` only constant folding, `AskActed` no longer carries `wanted`. Decisions and sentences byte-identical; no export changed (935) — Phase 54, ADR-QD-167
+
 ### Active
 
-- [ ] ARCH-101..108: the remaining eight candidates of the 2026-11-16 architecture review (v1.6, Phases 53–61); see `.planning/REQUIREMENTS.md`
+- [ ] ARCH-102..108: the remaining seven candidates of the 2026-11-16 architecture review (v1.6, Phases 53–61); see `.planning/REQUIREMENTS.md`
 
 ### Out of Scope
 
@@ -418,6 +420,7 @@ logged, counted or spanned.
 | Each policy tag's arity is one package-private record that `childrenOf`, `LeafPolicy`, `PolicyCases`, `TraceCases` and the trace fold are typed against or read | `Decision.ts` restated it in a hand-kept `leafTags` list tied to nothing, so moving a tag's arity in one place compiled (32 of 32 moves on the base) | Accepted (Phase 51, ADR-QD-164; record beside `Policy.ts`, not in it, to stay out of the public barrel) |
 | The predicate compile shell (defaults, renderability, outcome counting) is one core function every dialect calls with its rules, renderer and own counter series | `@qadi/predicate-sql` and `@qadi/predicate-prisma` repeated it, and had already drifted: Prisma counted `compiled` before rendering, SQL after | Accepted (Phase 52, ADR-QD-165; each package keeps its own metric declaration, ADR-QD-123; mutation judged by D-09a: a dialect's fall is only the shell's killed mutants moving to core) |
 | A decoded key is read as an own property by one package-private module that every interpreter, fixture and projection uses | `evaluatePredicate` read `row[p.column]` while `evaluate` read own properties only, so the reference interpreter could allow a row the engine denied; six hand-written `Object.hasOwn` mirrors kept the rest in step by comment | Accepted (Phase 53, ADR-QD-166; `Operand.ts` import-free and out of the barrel; `@qadi/core` patch, no Breaking) |
+| Each leaf's answer-to-verdict step is one row of a closed per-tag record that both interpreters read through `isHeld` | The walk and `toPredicate` each restated how an answer (acted polarity, relationship `Unknown`, custom, signature) becomes allow/deny, so a change to one could leave the row filter admitting what the walk denies | Accepted (Phase 54, ADR-QD-167; D-10 credits static-ignored mutants only when an `ignoreStatic:false` run kills each — accepted by the owner at UAT) |
 
 ## Evolution
 
@@ -437,4 +440,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-18 after Phase 53*
+*Last updated: 2026-11-18 after Phase 54*
