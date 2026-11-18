@@ -488,4 +488,32 @@ describe("unknownKeys (KEYP-02, D-16)", () => {
     assert.doesNotThrow(() => untrustedDecoder(Schema.Array(Schema.String), { unknownKeys: "refuse" }));
     assert.doesNotThrow(() => untrustedDecoder(Undiscriminated, { unknownKeys: "refuse" }));
   });
+
+  const ignoreNeeds = /unknownKeys "ignore" needs/;
+
+  it("U17 under ignore, a union member with no _tag literal is no discriminant (a lone tagged sibling does not make one)", () => {
+    const Untagged = Schema.Union([
+      Schema.TaggedStruct("A", { a: Schema.Number }),
+      Schema.Struct({ b: Schema.Number }),
+    ]);
+    assert.throws(() => untrustedDecoder(Untagged, { unknownKeys: "ignore" }), ignoreNeeds);
+  });
+
+  it("U18 under ignore, a non-literal _tag slot is no discriminant, and neither is a duplicated literal", () => {
+    const Loose = Schema.Union([
+      Schema.Struct({ _tag: Schema.String, a: Schema.Number }),
+      Schema.TaggedStruct("B", { b: Schema.Number }),
+    ]);
+    const Twin = Schema.Union([
+      Schema.TaggedStruct("A", { a: Schema.Number }),
+      Schema.TaggedStruct("A", { b: Schema.Number }),
+    ]);
+    assert.throws(() => untrustedDecoder(Loose, { unknownKeys: "ignore" }), ignoreNeeds);
+    assert.throws(() => untrustedDecoder(Twin, { unknownKeys: "ignore" }), ignoreNeeds);
+  });
+
+  it("U19 the _tag is read by its key, wherever it sits among the input's entries", () => {
+    const ignore = untrustedDecoder(Either(), { unknownKeys: "ignore" });
+    assert.deepStrictEqual(successOf(ignore.decode({ a: 1, _tag: "B", b: 2 })), { _tag: "B", b: 2 });
+  });
 });
