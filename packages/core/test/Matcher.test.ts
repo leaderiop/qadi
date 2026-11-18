@@ -901,38 +901,6 @@ describe("referencesResource", () => {
   });
 });
 
-describe("getByPath", () => {
-  it("returns the input for an empty path", () => {
-    assert.deepStrictEqual(M.getByPath({ a: 1 }, ""), { a: 1 });
-  });
-
-  it("walks a dot path", () => {
-    assert.strictEqual(M.getByPath({ a: { b: { c: 3 } } }, "a.b.c"), 3);
-  });
-
-  it("returns undefined at any missing step", () => {
-    assert.isUndefined(M.getByPath({ a: 1 }, "a.b.c"));
-    assert.isUndefined(M.getByPath(undefined, "a"));
-  });
-
-  // These three pin the boundaries `path.split(".")` used to produce, so the
-  // `indexOf`-based walk (added to avoid allocating a segment array on every
-  // call — the most frequently called allocator in the library) provably
-  // matches it rather than merely resembling it.
-  it("resolves a single segment with no dot at all", () => {
-    assert.strictEqual(M.getByPath({ a: 1 }, "a"), 1);
-  });
-
-  it("treats a trailing dot as an empty final segment", () => {
-    assert.strictEqual(M.getByPath({ a: { "": 5 } }, "a."), 5);
-    assert.isUndefined(M.getByPath({ a: { b: 5 } }, "a."));
-  });
-
-  it("treats a doubled dot as an empty middle segment", () => {
-    assert.strictEqual(M.getByPath({ a: { "": { b: 9 } } }, "a..b"), 9);
-  });
-});
-
 describe("evaluateMatcher, one row per arm (pinned across ARCH-02)", () => {
   const label = (level: number): { level: number; compartments: ReadonlyArray<string> } => ({
     level,

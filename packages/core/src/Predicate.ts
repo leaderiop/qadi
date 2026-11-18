@@ -30,7 +30,8 @@ import type { MissingAction } from "./Errors.ts";
 import { PolicyNotTranslatable } from "./Errors.ts";
 import { predicatesTranslatedTotal } from "./EvaluationMetrics.ts";
 import type { Matcher, MatcherContext, ValueRef } from "./Matcher.ts";
-import { evaluateMatcher, getByPath, referencesResource } from "./Matcher.ts";
+import { evaluateMatcher, referencesResource } from "./Matcher.ts";
+import { getByPath, ownValue } from "./Operand.ts";
 import { absenceOf, errorOf, holdsAction, holdsPermission, holdsRole } from "./LeafNeeds.ts";
 import type { ActionAbsence, Supplied } from "./LeafNeeds.ts";
 import { fieldsOf, foldPolicy, foldPolicyCases } from "./Policy.ts";
@@ -121,14 +122,16 @@ const negate = (predicate: Predicate): Predicate => {
 };
 
 /*
- * Module-local bindings of `Compare.ts`'s verdicts, read once at load:
- * `evaluatePredicate` runs once per node per row, and under a module runner
- * that turns imported bindings into getters a direct call pays one per leaf
- * per row (the same measurement that put them in `Matcher.ts`, ARCH-08 T8).
+ * Module-local bindings of `Compare.ts`'s verdicts and `Operand.ts`'s own-property
+ * read, read once at load: `evaluatePredicate` runs once per node per row, and
+ * under a module runner that turns imported bindings into getters a direct call
+ * pays one per leaf per row (the same measurement that put them in `Matcher.ts`,
+ * ARCH-08 T8).
  */
 const compareLocal = compareVerdict;
 const memberLocal = memberVerdict;
 const holdsLocal = holds;
+const ownValueLocal = ownValue;
 
 /**
  * The reference semantics of a predicate, applied to one row.
@@ -160,8 +163,8 @@ const dispatchPredicate: (self: Predicate) => (row: Row) => boolean = Match.type
   Match.tagsExhaustive({
     True: () => (_row: Row) => true,
     False: () => (_row: Row) => false,
-    Compare: (p) => (row: Row) => holdsLocal(compareLocal(p.op, row[p.column], p.value)),
-    MemberOf: (p) => (row: Row) => holdsLocal(memberLocal(row[p.column], p.values)),
+    Compare: (p) => (row: Row) => holdsLocal(compareLocal(p.op, ownValueLocal(row, p.column), p.value)),
+    MemberOf: (p) => (row: Row) => holdsLocal(memberLocal(ownValueLocal(row, p.column), p.values)),
     And: (p) => (row: Row) => p.predicates.every((inner) => evaluatePredicate(inner, row)),
     Or: (p) => (row: Row) => p.predicates.some((inner) => evaluatePredicate(inner, row)),
     Negate: (p) => (row: Row) => !evaluatePredicate(p.predicate, row),
