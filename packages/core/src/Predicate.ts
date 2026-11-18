@@ -29,17 +29,9 @@ import type { MissingAction } from "./Errors.ts";
 import { PolicyNotTranslatable } from "./Errors.ts";
 import { predicatesTranslatedTotal } from "./EvaluationMetrics.ts";
 import type { Matcher, MatcherContext, ValueRef } from "./Matcher.ts";
-import { evaluateMatcher, referencesResource } from "./Matcher.ts";
+import { referencesResource } from "./Matcher.ts";
 import { getByPath, ownValue } from "./Operand.ts";
-import {
-  LEAF_VERDICTS,
-  absenceOf,
-  errorOf,
-  holdsAction,
-  holdsPermission,
-  holdsRole,
-  isHeld,
-} from "./LeafNeeds.ts";
+import { LEAF_VERDICTS, absenceOf, errorOf, isHeld } from "./LeafNeeds.ts";
 import type { ActionAbsence, Supplied } from "./LeafNeeds.ts";
 import { fieldsOf, foldPolicy, foldPolicyCases } from "./Policy.ts";
 import { askActed, isAnyActedLeaf, readAttribute } from "./PortAccess.ts";
@@ -394,15 +386,15 @@ const compileTree = (admitted: Admitted): Compiled => {
    * because the arms close over the subject, the action and the matcher context.
    */
   const cases: PolicyCases<Compiled> = {
-    HasRole: (p) => planned({ _tag: "Constant", value: holdsRole(subject, p) }),
+    HasRole: (p) => planned({ _tag: "Constant", value: isHeld(LEAF_VERDICTS.HasRole(p, subject)) }),
 
-    HasPermission: (p) => planned({ _tag: "Constant", value: holdsPermission(subject, p) }),
+    HasPermission: (p) => planned({ _tag: "Constant", value: isHeld(LEAF_VERDICTS.HasPermission(p, subject)) }),
 
     HasAction: (p) => {
       const absent = absenceOf(p, supplied);
       return absent !== undefined
         ? planned({ _tag: "NeedAction", absence: absent })
-        : planned({ _tag: "Constant", value: holdsAction(p, action) });
+        : planned({ _tag: "Constant", value: isHeld(LEAF_VERDICTS.HasAction(p, action)) });
     },
 
     HasAttribute: (p) => {
@@ -588,7 +580,7 @@ const run = (
       Column: (p) => Effect.succeed(p.predicate),
       AskAttribute: (p) =>
         Effect.map(readAttribute("toPredicate", subject, p.leaf), (value) =>
-          constant(evaluateMatcher(p.leaf.matcher, value, context)),
+          constant(isHeld(LEAF_VERDICTS.HasAttribute(p.leaf, value, context))),
         ),
       AskActed: (p) =>
         Effect.map(askActed("toPredicate", subject, p.leaf, undefined), (answer) =>

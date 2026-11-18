@@ -18,24 +18,14 @@ import type { EvaluationError } from "./Errors.ts";
 import { PolicyTooDeep } from "./Errors.ts";
 import type { VisibleFields } from "./FieldLattice.ts";
 import { mergeFields } from "./FieldLattice.ts";
-import { holds } from "./Compare.ts";
 import type { Matcher, MatcherContext, Verdict } from "./Matcher.ts";
-import {
-  LEAF_VERDICTS,
-  absenceOf,
-  errorOf,
-  holdsAction,
-  holdsPermission,
-  holdsRole,
-  isHeld,
-} from "./LeafNeeds.ts";
+import { LEAF_VERDICTS, absenceOf, errorOf, isHeld } from "./LeafNeeds.ts";
 import type {
   ActedOutcome,
   RelationshipOutcome,
   SignatureOutcome,
   Supplied,
 } from "./LeafNeeds.ts";
-import { judgeMatcher } from "./Matcher.ts";
 import type { Obligation } from "./Obligation.ts";
 import { unionObligations } from "./Obligation.ts";
 import { ownValue } from "./Operand.ts";
@@ -315,7 +305,7 @@ const evaluateHasSignature = (
  * (`RolesAndDepth.test.ts` asserts the agreement in both directions).
  *
  * Not `Effect.suspend`-wrapped as a whole: a leaf tag's real comparison
- * (`subject.roles.has(...)`, `judgeMatcher`) runs immediately, as part of
+ * (its `LEAF_VERDICTS` row) runs immediately, as part of
  * building the `Effect.succeed(...)` this returns, rather than lazily when
  * that `Effect` is later run. A wrapper's *child*, though, is suspended
  * (`Not`/`Obliged`/`Labeled`): building the child's effect eagerly recursed
@@ -341,14 +331,14 @@ const evaluateNode = (
   switch (policy._tag) {
     case "HasPermission":
       return Effect.succeed(
-        holdsPermission(subject, policy)
+        isHeld(LEAF_VERDICTS.HasPermission(policy, subject))
           ? allow("HasPermission", policy.fields)
           : deny("HasPermission", `subject lacks permission '${permissionKey(policy.permission)}'`),
       );
 
     case "HasRole":
       return Effect.succeed(
-        holdsRole(subject, policy)
+        isHeld(LEAF_VERDICTS.HasRole(policy, subject))
           ? allow("HasRole", policy.fields)
           : deny("HasRole", `subject lacks role '${policy.role}'`),
       );
@@ -358,8 +348,8 @@ const evaluateNode = (
       if (absent !== undefined) return Effect.fail(errorOf(absent));
       return Effect.map(readAttribute("evaluate", subject, policy), (value) => {
         // One judgement gives both the decision and, on a denial, its reason.
-        const verdict = judgeMatcher(policy.matcher, value, matcherContext);
-        return holds(verdict)
+        const verdict = LEAF_VERDICTS.HasAttribute(policy, value, matcherContext);
+        return isHeld(verdict)
           ? allow("HasAttribute", policy.fields)
           : deny("HasAttribute", attributeReason("subject", policy.attribute, verdict, policy.matcher));
       });
@@ -371,9 +361,9 @@ const evaluateNode = (
       // `absenceOf` has ruled out an absent resource; the `??` is the type's.
       const row = resource ?? NO_RESOURCE;
       const value = ownValue(row, policy.attribute);
-      const verdict = judgeMatcher(policy.matcher, value, matcherContext);
+      const verdict = LEAF_VERDICTS.HasResourceAttribute(policy, value, matcherContext);
       return Effect.succeed(
-        holds(verdict)
+        isHeld(verdict)
           ? allow("HasResourceAttribute", policy.fields)
           : deny(
               "HasResourceAttribute",
@@ -389,7 +379,7 @@ const evaluateNode = (
       const absent = absenceOf(policy, request.supplied);
       if (absent !== undefined) return Effect.fail(errorOf(absent));
       return Effect.succeed(
-        holdsAction(policy, action)
+        isHeld(LEAF_VERDICTS.HasAction(policy, action))
           ? allow("HasAction", policy.fields)
           : deny("HasAction", `action is '${action}', not '${policy.action}'`),
       );
@@ -886,7 +876,7 @@ const evaluateRules = Effect.fnUntraced(function* (
  *
  * `Effect.suspend`, not a direct call: `evaluateNode` is a plain switch, not
  * an `Effect.gen`, so for a leaf tag (HasRole, HasPermission, …) calling it
- * does the real comparison — `subject.roles.has(...)`, `judgeMatcher` —
+ * reads its verdict row (`LEAF_VERDICTS`) —
  * immediately, as part of building the `Effect.succeed(...)` it returns,
  * not lazily when that Effect later runs. Calling it unconditionally, before
  * the cache-hit check, would pay that cost on every ask whether or not the
