@@ -55,6 +55,8 @@ import type { AskedQuestionLike, GateInstanceLike, QuestionsSnapshot } from "../
 import type { Source } from "../../src/model/Source.ts";
 import type { TimelineEntry } from "../../src/model/Timeline.ts";
 import { countsOf } from "../../src/model/Verdict.ts";
+import type { PortCardRow } from "../../src/model/PortCards.ts";
+import type { PortCallLog } from "../../src/model/PortCalls.ts";
 import type { PortActivity } from "../../src/model/Wiring.ts";
 import { allow, decisionRecord, deny, failedRecord, obligationRecord, read, readPolicy } from "../helpers.ts";
 import { settleTurns } from "../helpers.ts";
@@ -1694,5 +1696,178 @@ describe("the services store", () => {
 
       const starting = yield* makeDockModel({ diagnostics: { layer: Layer.effectDiscard(Effect.never) } });
       assert.strictEqual(starting.services.getSnapshot()._tag, "Withheld");
+    }));
+
+  /** A one-port `Read` wiring whose only row is the AttributeResolver, named `name`. */
+  const wiringNamed = (name: string): WiringRead =>
+    WiringRead.Read({
+      report: {
+        ports: [
+          {
+            port: "AttributeResolver",
+            name,
+            required: true,
+            present: true,
+            defaulted: false,
+            consequence: "an attribute policy denies",
+          },
+        ],
+        cache: { present: false, size: undefined },
+      },
+    });
+
+  const activityOf = (calls: number): ReadonlyArray<PortActivity> => [
+    { port: "AttributeResolver", calls, retries: 0, timeouts: 0, translationCalls: 0 },
+  ];
+
+  const logOf = (...attributes: ReadonlyArray<string>): PortCallLog => ({
+    calls: attributes.map((attribute, index) => ({
+      _tag: "AttributeResolver",
+      span: "qadi.attribute",
+      interpreter: undefined,
+      at: index + 1,
+      durationMillis: 1,
+      subjectId: "alice",
+      attribute,
+      resolved: true,
+    })),
+    dropped: 0,
+    capacity: 200,
+  });
+
+  /** The AttributeResolver row of the services store's current snapshot. */
+  const rowOf = (model: DockModel): PortCardRow => {
+    const view = model.services.getSnapshot();
+    if (view._tag !== "Read") return assert.fail(`expected Read, got ${view._tag}`);
+    const row = view.rows[0];
+    if (row === undefined) return assert.fail("expected a row");
+    return row;
+  };
+
+  const heardOf = (model: DockModel) => {
+    const heard = { calls: 0 };
+    model.services.subscribe(() => {
+      heard.calls += 1;
+    });
+    return heard;
+  };
+
+  it.effect("M49: the services store keeps its reference when only the hydration or the questions move", () =>
+    Effect.gen(function* () {
+      let answer: ReadonlyArray<AskedQuestionLike> = [];
+      const diagnostics = { questions: () => answer };
+      const reading = { wiring: wiringNamed("one"), activity: activityOf(1), portCalls: logOf("tier") };
+      const model = yield* makeDockModel({ diagnostics, reading });
+      const before = model.services.getSnapshot();
+      const heard = heardOf(model);
+      const polled = { calls: 0 };
+      model.diagnostics.subscribe(() => {
+        polled.calls += 1;
+      });
+
+      answer = [{ policy: readPolicy }];
+      yield* TestClock.adjust("2 seconds");
+      assert.isAbove(polled.calls, 0);
+      assert.strictEqual(model.services.getSnapshot(), before);
+
+      model.configure({ diagnostics, reading: { ...reading, questions: [{ policy: readPolicy }] } });
+      assert.strictEqual(model.services.getSnapshot(), before);
+      assert.strictEqual(heard.calls, 0);
+    }));
+
+  it.effect("M50: a new wiring alone recomputes the services view once", () =>
+    Effect.gen(function* () {
+      const diagnostics = {};
+      const reading = { wiring: wiringNamed("one"), activity: activityOf(1), portCalls: logOf("tier") };
+      const model = yield* makeDockModel({ diagnostics, reading });
+      const before = model.services.getSnapshot();
+      const heard = heardOf(model);
+
+      model.configure({ diagnostics, reading: { ...reading, wiring: wiringNamed("two") } });
+
+      assert.notStrictEqual(model.services.getSnapshot(), before);
+      assert.strictEqual(heard.calls, 1);
+      assert.strictEqual(rowOf(model).state, "two");
+    }));
+
+  it.effect("M51: a new activity list alone recomputes the services view once", () =>
+    Effect.gen(function* () {
+      const diagnostics = {};
+      const reading = { wiring: wiringNamed("one"), activity: activityOf(1), portCalls: logOf("tier") };
+      const model = yield* makeDockModel({ diagnostics, reading });
+      const before = model.services.getSnapshot();
+      const heard = heardOf(model);
+
+      model.configure({ diagnostics, reading: { ...reading, activity: activityOf(7) } });
+
+      assert.notStrictEqual(model.services.getSnapshot(), before);
+      assert.strictEqual(heard.calls, 1);
+      assert.strictEqual(rowOf(model).activity, "7 calls");
+    }));
+
+  it.effect("M52: a new call log alone recomputes the services view once", () =>
+    Effect.gen(function* () {
+      const diagnostics = {};
+      const reading = { wiring: wiringNamed("one"), activity: activityOf(1), portCalls: logOf() };
+      const model = yield* makeDockModel({ diagnostics, reading });
+      const before = model.services.getSnapshot();
+      assert.strictEqual(rowOf(model).calls._tag, "Hidden");
+      const heard = heardOf(model);
+
+      model.configure({ diagnostics, reading: { ...reading, portCalls: logOf("riskScore") } });
+
+      assert.notStrictEqual(model.services.getSnapshot(), before);
+      assert.strictEqual(heard.calls, 1);
+      const { calls } = rowOf(model);
+      if (calls._tag !== "Listed") return assert.fail(`expected Listed, got ${calls._tag}`);
+      assert.include(calls.calls[0]?.text ?? "", "riskScore");
+    }));
+
+  it.effect("M53: the Starting->Live flip recomputes the services view, with every input supplied", () =>
+    Effect.gen(function* () {
+      const layer = Layer.effectDiscard(Effect.sleep("1 second"));
+      const reading = { wiring: wiringNamed("one"), activity: [], portCalls: logOf() };
+      const model = yield* makeDockModel({ diagnostics: { layer }, reading });
+      assert.isTrue(DiagnosticsStatus.$is("Starting")(model.diagnostics.getSnapshot().status));
+      const before = model.services.getSnapshot();
+      assert.strictEqual(rowOf(model).activity, "no activity reading");
+
+      yield* settleTurns;
+      yield* TestClock.adjust("1 second");
+      yield* settleTurns;
+
+      assert.isTrue(DiagnosticsStatus.$is("Live")(model.diagnostics.getSnapshot().status));
+      assert.notStrictEqual(model.services.getSnapshot(), before);
+      assert.strictEqual(rowOf(model).activity, "never called");
+    }));
+
+  it.effect("M54: a status change that leaves the sampled flag alone keeps the services view (Live to a Stopped that had sampled, and Off to Live)", () =>
+    Effect.gen(function* () {
+      let fail = false;
+      const questions = () => {
+        if (fail) throw new Error("questions blew up");
+        return [];
+      };
+      const reading = { wiring: wiringNamed("one"), activity: activityOf(1), portCalls: logOf("tier") };
+      const model = yield* makeDockModel({ diagnostics: { questions }, reading });
+      const before = model.services.getSnapshot();
+      const heard = heardOf(model);
+
+      fail = true;
+      yield* TestClock.adjust("2 seconds");
+
+      const { status } = model.diagnostics.getSnapshot();
+      if (!DiagnosticsStatus.$is("Stopped")(status)) return assert.fail("expected Stopped");
+      assert.isTrue(status.sampled);
+      assert.strictEqual(model.services.getSnapshot(), before);
+      assert.strictEqual(heard.calls, 0);
+
+      // Off to Live passes through Starting, where the flag is set, so the reference moves; both ends read alike.
+      const off = yield* makeDockModel({ reading });
+      assert.isTrue(DiagnosticsStatus.$is("Off")(off.diagnostics.getSnapshot().status));
+      const offView = off.services.getSnapshot();
+      off.configure({ diagnostics: {}, reading });
+      assert.isTrue(DiagnosticsStatus.$is("Live")(off.diagnostics.getSnapshot().status));
+      assert.deepStrictEqual(off.services.getSnapshot(), offView);
     }));
 });
