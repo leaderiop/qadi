@@ -446,7 +446,17 @@ Plans:
   4. ADR-QD-167 extends ADR-QD-163, and `SWITCH_BUDGET` and `UNTRACED_BUDGET` are both unchanged (the AGENTS.md tables and the budgets agree).
 
 **Planning notes**: Re-verify the line numbers against the base left by Phase 53 (the cell read moved there). Plan shape, RED first: the mutation base and the verdict table on the base, then the move, then records.
-**Plans**: TBD
+**Plans**: 8 plans
+
+Plans:
+- [ ] 54-01 (W1): mutation baseline for LeafNeeds, Predicate and Walk, plus base facts, verdict-step baselines and the bench base
+- [ ] 54-02 (W2): LeafVerdict.test.ts characterises every leaf's answer through evaluate and toPredicate, on the base
+- [ ] 54-03 (W3): tracer — the LEAF_VERDICTS record (RED unit test first) and the acted path through it in Walk and Predicate; type pins
+- [ ] 54-04 (W4): every other leaf decided through its row; the walk keeps its sentences, the translator its folds
+- [ ] 54-05 (W5): bench after (information) and the Stryker after-run; D-10 comparison holds
+- [ ] 54-06 (W6): ADR-QD-167 with amendment pointers in ADR-QD-163, 020 and 024; BEH-QD-606..610
+- [ ] 54-07 (W7): INV-QD-353..354 and traceability; CCR-QD-445 and the @qadi/core patch changeset; spec gates green
+- [ ] 54-08 (W8): phase scan, verdict-step checks, check:pr, release check; VERD-01..04 complete
 
 ### Phase 55: A port card is a model row, not a view join
 

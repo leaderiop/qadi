@@ -38,22 +38,22 @@ created: "2026-11-18"
 
 ## Per-Task Verification Map
 
-Task ids are filled in by the plans. Rows are per requirement.
+Rows are per requirement; task ids name the plan task whose verify proves it.
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| — | — | — | VERD-03 | outcome treated as held | every leaf tag × answer × polarity → allow/deny, exact reason, `policyTag`, through `evaluate`; folds agree through `toPredicate` (green on base and after) | unit | `pnpm exec vitest run --project core LeafVerdict < /dev/null` | ❌ W0 | ⬜ pending |
-| — | — | — | VERD-03 | walk/translator disagree | `scope: "Any"` acted agreement stays green, unedited | property | `pnpm exec vitest run --project core Predicate -t "INV-QD-018" < /dev/null` | ✅ | ⬜ pending |
-| — | — | — | VERD-01 | — | polarity map and verdict rule written once (scoped greps under `packages/core/src`) | shell | research Pitfall 6 greps, baseline measured first | ✅ | ⬜ pending |
-| — | — | — | VERD-02 | new leaf with no row | one row per leaf tag; `isHeld` ≡ `holds`; missing row / wrong outcome refused | unit + type | `pnpm exec vitest run --project core LeafNeeds < /dev/null`; `pnpm test:tstyche` | ✅ file, ❌ new describe | ⬜ pending |
-| — | — | — | VERD-04 | — | ADR-QD-167 extends 163; budgets unchanged | gate | `pnpm spec:verify:strict`; `pnpm lint`; `git diff <base> --stat -- scripts/check-house-style.mjs AGENTS.md` empty | ✅ | ⬜ pending |
-| — | — | — | WX-01 | — | gate green | full | `pnpm check:pr < /dev/null` | ✅ | ⬜ pending |
-| — | — | — | WX-02 | — | only reserved ids; next-id never run | shell | id diff grep over added lines; reservation file unchanged | ✅ | ⬜ pending |
-| — | — | — | WX-03 | — | no export change | gate | `pnpm spec:api` | ✅ | ⬜ pending |
-| — | — | — | WX-04 | — | no forbidden construct | gate | `pnpm lint` | ✅ | ⬜ pending |
-| — | — | — | WX-05 | — | coverage ≥ 95% core; mutation not below base (D-10) | coverage + mutation | `pnpm coverage`; Stryker scoped run + `54-mutation.mjs compare` | ❌ W0 | ⬜ pending |
-| — | — | — | WX-06 | — | characterisation before change | git | first `packages/core/src` commit after base is later than the `LeafVerdict.test.ts` commit | ✅ | ⬜ pending |
-| — | — | — | WX-07 | — | patch changeset only | shell | `/usr/bin/grep -c Breaking .changeset/<new>.md` prints 0 | ✅ | ⬜ pending |
+| 54-02 T1, T2 | 54-02 | 2 | VERD-03 | outcome treated as held | every leaf tag × answer × polarity → allow/deny, exact reason, `policyTag`, through `evaluate`; folds agree through `toPredicate` (green on base and after) | unit | `pnpm exec vitest run --project core LeafVerdict < /dev/null` | ❌ W0 | ⬜ pending |
+| 54-02 T2; 54-04 T2 | 54-02, 54-04 | 2, 4 | VERD-03 | walk/translator disagree | `scope: "Any"` acted agreement stays green, unedited | property | `pnpm exec vitest run --project core Predicate -t "INV-QD-018" < /dev/null` | ✅ | ⬜ pending |
+| 54-03 T1; 54-08 T1 | 54-03, 54-08 | 3, 8 | VERD-01 | — | polarity map and verdict rule written once (scoped greps under `packages/core/src`) | shell | research Pitfall 6 greps, baseline measured first | ✅ | ⬜ pending |
+| 54-03 T1-T2; 54-04 T1-T2 | 54-03, 54-04 | 3, 4 | VERD-02 | new leaf with no row | one row per leaf tag; `isHeld` ≡ `holds`; missing row / wrong outcome refused | unit + type | `pnpm exec vitest run --project core LeafNeeds < /dev/null`; `pnpm test:tstyche` | ✅ file, ❌ new describe | ⬜ pending |
+| 54-06 T1 | 54-06 | 6 | VERD-04 | — | ADR-QD-167 extends 163; budgets unchanged | gate | `pnpm spec:verify:strict`; `pnpm lint`; `git diff <base> --stat -- scripts/check-house-style.mjs AGENTS.md` empty | ✅ | ⬜ pending |
+| 54-08 T2 | 54-08 | 8 | WX-01 | — | gate green | full | `pnpm check:pr < /dev/null` | ✅ | ⬜ pending |
+| 54-01 T1; 54-06 T1-T2; 54-07 T1-T2; 54-08 T1 | 54-01, 54-06, 54-07, 54-08 | 1, 6, 7, 8 | WX-02 | — | only reserved ids; next-id never run | shell | id diff grep over added lines; reservation file unchanged | ✅ | ⬜ pending |
+| 54-03 T1; 54-07 T2 | 54-03, 54-07 | 3, 7 | WX-03 | — | no export change | gate | `pnpm spec:api` | ✅ | ⬜ pending |
+| 54-08 T1 | 54-08 | 8 | WX-04 | — | no forbidden construct | gate | `pnpm lint` | ✅ | ⬜ pending |
+| 54-01 T2; 54-05 T1-T2 | 54-01, 54-05 | 1, 5 | WX-05 | — | coverage ≥ 95% core; mutation not below base (D-10) | coverage + mutation | `pnpm coverage`; Stryker scoped run + `54-mutation.mjs compare` | ❌ W0 | ⬜ pending |
+| 54-02 T1-T2; 54-03 T1; 54-08 T1 | 54-02, 54-03, 54-08 | 2, 3, 8 | WX-06 | — | characterisation before change | git | first `packages/core/src` commit after base is later than the `LeafVerdict.test.ts` commit | ✅ | ⬜ pending |
+| 54-07 T2; 54-08 T2 | 54-07, 54-08 | 7, 8 | WX-07 | — | patch changeset only | shell | `/usr/bin/grep -c Breaking .changeset/<new>.md` prints 0 | ✅ | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
