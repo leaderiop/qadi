@@ -10,7 +10,7 @@
  * `Decision.ts` calls, not a public surface of its own.
  *
  * A bare literal (`"title"`) is unbounded — it grants everything beneath it,
- * exactly as today's exact-match `Object.hasOwn` lookup already does, which
+ * exactly as an exact-match own-key lookup does, which
  * is what makes every existing `fields: [...]` array behave identically
  * after this module exists. `"*"` grants exactly one level down; `"**"`
  * grants every level, matching CASL's `permittedFieldsOf` semantics. See
@@ -18,9 +18,9 @@
  * produces.
  *
  * No path syntax is validated. A malformed spec — an empty segment from
- * `"a..b"`, a trailing `"."` — simply matches no real key, silently. This
- * mirrors `Matcher.ts`'s `getByPath`, the only other dot-path reader in this
- * codebase, which resolves a bad path to `undefined` rather than throwing:
+ * `"a..b"`, a trailing `"."` — simply matches no real key, silently. `getByPath`
+ * (`Operand.ts`) is the only other dot-path reader in this codebase, and it
+ * likewise resolves a bad path to `undefined` rather than throwing:
  * consistency with an already-reviewed convention beats a new failure mode
  * for a shape nothing before this ever validated either.
  *
@@ -38,6 +38,7 @@
  * wildcard" pins the behavior.
  */
 import { isPlainObject } from "./JsonShape.ts";
+import { isOwnKey, ownValue } from "./Operand.ts";
 
 // ---------------------------------------------------------------------------
 // Paths
@@ -329,9 +330,9 @@ const projectAt = (
     // Unreachable, not decoration: `cursor` is bounded by `keys.length` above,
     // and `keys` holds no holes.
     if (key === undefined) continue;
-    if (!Object.hasOwn(frame.value, key)) continue;
+    if (!isOwnKey(frame.value, key)) continue;
 
-    const child = frame.value[key];
+    const child = ownValue(frame.value, key);
     const childTails = frame.deeper.get(key);
     if (childTails === undefined) {
       // `frame.starOne` is always true here, not decoration: when it's false,
