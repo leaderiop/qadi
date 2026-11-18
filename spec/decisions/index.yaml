@@ -514,3 +514,7 @@ entries:
     file: "166-one-module-owns-the-value-a-leaf-compares.md"
     title: "One module owns the value a leaf compares"
     status: "Accepted — extends ADR-QD-091, ADR-QD-024"
+  - id: "ADR-QD-167"
+    file: "167-each-leafs-answer-becomes-a-verdict-in-one-row.md"
+    title: "Each leaf's answer becomes a verdict in one row"
+    status: "Accepted — extends ADR-QD-163; keeps ADR-QD-020, ADR-QD-024"

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-163                                   |
-> | Revision       | 1.7                                            |
+> | Revision       | 1.8                                            |
 > | Effective Date | 2026-11-16                                     |
 > | Status         | Accepted — reads ADR-QD-024, ADR-QD-100, ADR-QD-134; applies ADR-QD-152; keeps ADR-QD-034, ADR-QD-073 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.7 (2026-11-16): the leafHeavyPlain comment was corrected, comment-only (review iteration 2 IN-01)<br>1.6 (2026-11-16): a row's resourceId is classified by tag like its own, an unlisted tag gets never (review iteration 2 IN-02)<br>1.5 (2026-11-16): a leaf no own classification names has no row that compiles (review iteration 2 WR-01)<br>1.4 (2026-11-16): the leaf-heavy pair measures the table read on the present-inputs path, not a matcher-reference walk (review IN-04)<br>1.3 (2026-11-16): Context: the base's action test built MissingAction({}), its resource test MissingResource (review IN-01)<br>1.2 (2026-11-16): HasAttribute's outcome on a request missing both inputs depends on what its matcher references (review WR-03)<br>1.1 (2026-11-16): a row's own and matcher are derived from its leaf's variant (review WR-01)<br>1.0 (2026-11-16): Initial release (ARCH-97, CCR-QD-441) |
+> | Change History | 1.8 (2026-11-18): the verdict rows extend this ADR (ARCH-101, CCR-QD-445)<br>1.7 (2026-11-16): the leafHeavyPlain comment was corrected, comment-only (review iteration 2 IN-01)<br>1.6 (2026-11-16): a row's resourceId is classified by tag like its own, an unlisted tag gets never (review iteration 2 IN-02)<br>1.5 (2026-11-16): a leaf no own classification names has no row that compiles (review iteration 2 WR-01)<br>1.4 (2026-11-16): the leaf-heavy pair measures the table read on the present-inputs path, not a matcher-reference walk (review IN-04)<br>1.3 (2026-11-16): Context: the base's action test built MissingAction({}), its resource test MissingResource (review IN-01)<br>1.2 (2026-11-16): HasAttribute's outcome on a request missing both inputs depends on what its matcher references (review WR-03)<br>1.1 (2026-11-16): a row's own and matcher are derived from its leaf's variant (review WR-01)<br>1.0 (2026-11-16): Initial release (ARCH-97, CCR-QD-441) |
 
 ---
 
@@ -281,3 +281,7 @@ mutant was not done. `PortAccess.ts` and `Predicate.ts` did not fall.
 - **No public surface moved.** No export was added or removed, so `spec/overview.md` and AGENTS.md's cited locations
   (`evaluateNode`'s switch, the three untraced functions, the `PortAccess.ts` read list) are unchanged. The changeset is a
   `@qadi/core` patch.
+
+## Amendment (2026-11-18, ADR-QD-167, CCR-QD-445)
+
+[ADR-QD-167](./167-each-leafs-answer-becomes-a-verdict-in-one-row.md): the verdict step now sits beside the judgements this record placed in `LeafNeeds.ts`, as one closed row per leaf tag (`LEAF_VERDICTS`). The walk chooses a sentence from a row's outcome and `toPredicate` folds by `isHeld`; this record's `LEAF_NEEDS` rows are unchanged.
