@@ -475,7 +475,18 @@ Plans:
 
 **Planning notes**: Re-verify the evidence against the base (`ServicesPanel.tsx`, `model/Wiring.ts`, `model/PortCalls.ts`, `model/PortReading.ts`). Plan shape, RED first: the mutation base and the byte-identical characterisation first; then the model function and its tests; then the panel reads it; then records.
 **UI hint**: yes
-**Plans**: TBD
+**Plans**: 9 plans
+
+Plans:
+- [ ] 55-01 (W1): base facts, reserved ids and API surface base; mutation baseline for DockModel and Wiring, the phase's first commit
+- [ ] 55-02 (W2): ServicesPanel.characterisation.test.tsx pins every card, call list and note through the public dock, on the base
+- [ ] 55-03 (W3): tracer — PortCards.ts and the dock model's ninth store `services` (RED by import first); PortActivity.port is a PortName (RED first), with the two type-only test edits
+- [ ] 55-04 (W4): every card's recent calls as model rows (call twins RED first); PortCards.tst.ts pins the misspelt-port compile errors; D-08 grep
+- [ ] 55-05 (W5): M49..M54 pin the services store's reference; the panel renders the store and computes nothing; render cases deleted only beside green twins
+- [ ] 55-06 (W6): Stryker after-run and static evidence; D-15 comparison holds
+- [ ] 55-07 (W7): ADR-QD-168 and the ADR-QD-047 amendment; BEH-QD-611..615 and the BEH-QD-465/573/575/216 notes
+- [ ] 55-08 (W8): INV-QD-355..356 and traceability; CCR-QD-446, the @qadi/devtools minor changeset (one Breaking entry) and the upgrading.md 0.13 note; spec gates green
+- [ ] 55-09 (W9): phase scan, D-08 grep, panel scan, D-15 recheck, check:pr, release check; CARD-01..05 complete
 
 ### Phase 56: The gate-registry watch becomes the dock model's third feed
 
