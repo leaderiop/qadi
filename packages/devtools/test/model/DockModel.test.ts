@@ -46,7 +46,7 @@ import type { Policy, Resource, StoredRecord } from "@qadi/core";
 import { catalogueOf, policyLabel } from "../../src/model/Catalogue.ts";
 import type { Catalogue } from "../../src/model/Catalogue.ts";
 import { DiagnosticsStatus, diagnosticsOff } from "../../src/model/DiagnosticsFeed.ts";
-import { noDiagnostics } from "../../src/model/DiagnosticsStore.ts";
+import { WiringRead, noDiagnostics } from "../../src/model/DiagnosticsStore.ts";
 import { makeDockModel } from "../../src/model/DockModel.ts";
 import type { DockModel } from "../../src/model/DockModel.ts";
 import type { TabId } from "../../src/model/DockSession.ts";
@@ -1654,5 +1654,44 @@ describe("the questions store (M31, M32, M33, M36..M47, P2)", () => {
         yield* Scope.close(scope, Exit.void);
         assert.strictEqual(double.listeners(), 0, `closing the scope released the registry subscription: ${where}`);
       }
+    }));
+});
+
+describe("the services store", () => {
+  it.effect("M48: the services store holds the port cards of the shown reading from the first snapshot", () =>
+    Effect.gen(function* () {
+      const supplied = yield* makeDockModel({
+        reading: {
+          wiring: WiringRead.Read({
+            report: {
+              ports: [
+                {
+                  port: "AttributeResolver",
+                  name: "attributeResolverFromRecord",
+                  required: true,
+                  present: true,
+                  defaulted: false,
+                  consequence: "an attribute policy denies",
+                },
+              ],
+              cache: { present: true, size: 2 },
+            },
+          }),
+          activity: [{ port: "AttributeResolver", calls: 4, retries: 0, timeouts: 0, translationCalls: 0 }],
+        },
+      });
+      const view = supplied.services.getSnapshot();
+      assert.strictEqual(view._tag, "Read");
+      if (view._tag === "Read") {
+        assert.strictEqual(view.rows[0]?.port, "AttributeResolver");
+        assert.strictEqual(view.rows[0]?.activity, "4 calls");
+        assert.strictEqual(view.cache, "2 completed entries");
+      }
+
+      const bare = yield* makeDockModel();
+      assert.strictEqual(bare.services.getSnapshot()._tag, "NotHanded");
+
+      const starting = yield* makeDockModel({ diagnostics: { layer: Layer.effectDiscard(Effect.never) } });
+      assert.strictEqual(starting.services.getSnapshot()._tag, "Withheld");
     }));
 });
