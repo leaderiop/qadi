@@ -24,6 +24,7 @@ import { CustomPredicateError } from "./Errors.ts";
 import type { InvalidBoundedPermits } from "./Errors.ts";
 import { SubjectIdSchema } from "./Identity.ts";
 import { toJson, toJsonRecord } from "./JsonHazard.ts";
+import { ownValue } from "./Operand.ts";
 import { boundedPort, nonePort, retryingPort, timingOutPort } from "./PortDerivation.ts";
 import type { LeafOf, PortDescription, ReadSite } from "./PortDescription.ts";
 import { canonicalKey } from "./PortKey.ts";
@@ -269,7 +270,8 @@ export const CustomPredicateNone: Layer.Layer<CustomPredicate> = nonePort(custom
  * `CustomPredicateNone`'s blanket absence, a populated table missing one
  * entry is a wiring mistake — most likely a typo in `hasCustom`'s `name` —
  * and "failure is not denial" applies to a misconfigured registry exactly as
- * it does to a broken attribute lookup.
+ * it does to a broken attribute lookup. A name the table does not own, an
+ * inherited `Object.prototype` member included, is unregistered.
  */
 export const customPredicateFromRecord = (
   table: Readonly<
@@ -286,7 +288,7 @@ export const customPredicateFromRecord = (
   Layer.succeed(CustomPredicate, {
     name: "customPredicateFromRecord",
     evaluate: (name, subject, resource, params) => {
-      const registered = table[name];
+      const registered = ownValue(table, name);
       return registered === undefined
         ? Effect.fail(
             new CustomPredicateError({
