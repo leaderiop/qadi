@@ -5,16 +5,16 @@ milestone_name: Arch Wave 11
 current_phase: 57
 current_phase_name: untrustedDecoder states the envelope's unknown-key policy
 status: executing
-stopped_at: Phase 56 complete, ready to plan Phase 57
-last_updated: "2026-11-18T23:27:41.268Z"
+stopped_at: Completed QD-57-01-PLAN.md
+last_updated: "2026-11-18T23:35:12.248Z"
 last_activity: 2026-11-18
 last_activity_desc: Phase 56 complete, transitioned to Phase 57
-state_head: 4543b04492f67a96def3d9e9f6beaa0ea2e5ba0e
+state_head: 1b7c5da56d36e949cb20f0aa87c7aaa0b4a02f6a
 progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 49
-  completed_plans: 38
+  completed_plans: 39
   percent: 44
 ---
 
@@ -368,6 +368,7 @@ Last activity: 2026-11-18 — Phase 56 complete, transitioned to Phase 57
 | Phase QD-56 P11 | 20 min | 2 tasks | 3 files |
 | Phase QD-56 P12 | 15 min | 3 tasks | 8 files |
 | Phase QD-56 P13 | 25 min | 2 tasks | 2 files |
+| Phase QD-57 P01 | 9 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -631,6 +632,7 @@ Last activity: 2026-11-18 — Phase 56 complete, transitioned to Phase 57
 - [Phase QD-56]: 56-10: ADR-QD-169 records D-01 (one feed, one failure policy for the panel's two host inputs), applies ADR-QD-137 and leaves ADR-QD-162 intact; BEH-QD-616..620 name the GatesFeed twins and J cases, never the deleted M cases
 - [Phase QD-56]: INV-QD-357 is worded by what the gates feed owns (registry, subscription, failure state, questions input); DockModel keeps its closed flag and last join (D-04 amended)
 - [Phase QD-56]: Every id reserved for QD-56 was used, so CCR-QD-447's row ends Unused: none; both changesets are minor with one Breaking entry and nothing is versioned or released
+- [Phase QD-57]: 57-01: mutation base below 1 for AuditArchive (52/53), SinkCodec (159/163), UntrustedDecode (29/31); the close compares against those floors with unchanged survivor sets
 
 ### Pending Todos
 
@@ -690,8 +692,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-18T20:57:54.441Z
-Stopped at: Phase 56 complete, ready to plan Phase 57
+Last session: 2026-11-18T23:35:12.070Z
+Stopped at: Completed QD-57-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
