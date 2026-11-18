@@ -16,7 +16,7 @@ import { hasPermission, hasRole, permission } from "@qadi/core";
 import type { Policy } from "@qadi/core";
 import type { AskedQuestionLike, GateInstanceLike } from "../../src/model/Gates.ts";
 import { AskedRead, RegistryRead, makeGatesFeed } from "../../src/model/GatesFeed.ts";
-import type { GatesFeed } from "../../src/model/GatesFeed.ts";
+import type { GatesFeed, GatesSnapshot } from "../../src/model/GatesFeed.ts";
 import { makeGateRegistryDouble } from "../gateRegistryDouble.ts";
 import { readPolicy, settleTurns } from "../helpers.ts";
 
@@ -526,5 +526,196 @@ describe("the gates feed", () => {
       yield* Scope.close(scope, Exit.void);
       assert.strictEqual(a.releases(), 2);
       assert.strictEqual(subscribes.releases(), 0);
+    }));
+
+  it.effect("G42 (twin of M42): a release that throws is not stated, applies the new registry in full and is not called again", () =>
+    Effect.gen(function* () {
+      const a = makeGateRegistryDouble([guard("a", readPolicy)]);
+      const b = makeGateRegistryDouble([guard("b", readPolicy)]);
+      const scope = yield* Scope.make();
+      const feed = yield* Scope.provide(makeGatesFeed({ gates: a.registry }), scope);
+      const seen = listen(feed);
+      a.failRelease(boom);
+
+      // The release belongs to a registry the feed has left: the read is the new registry's listing.
+      feed.configure({ gates: b.registry });
+      assert.deepStrictEqual(idsOf(feed), ["b"]);
+      assert.strictEqual(a.releases(), 1);
+      assert.strictEqual(b.listeners(), 1);
+      assert.strictEqual(seen.calls, 1);
+      b.add(guard("c", readPolicy));
+      assert.deepStrictEqual(idsOf(feed), ["b", "c"]);
+      assert.strictEqual(seen.calls, 2);
+
+      // The handle left the feed's state before it was called: neither a swap nor `configure({})` calls it again.
+      feed.configure({ gates: b.registry });
+      feed.configure({});
+      assert.strictEqual(a.releases(), 1);
+      assert.strictEqual(b.listeners(), 0);
+      assert.strictEqual(feed.getSnapshot().registry._tag, "Unwatched");
+
+      feed.configure({ gates: a.registry });
+      assert.strictEqual(a.releases(), 1);
+      yield* Scope.close(scope, Exit.void);
+      assert.strictEqual(a.releases(), 2);
+    }));
+
+  it.effect("G42 b (twin of M42 b): a scope that closes over a release that throws still closes, and calls it once", () =>
+    Effect.gen(function* () {
+      const a = makeGateRegistryDouble([guard("a", readPolicy)]);
+      const scope = yield* Scope.make();
+      const feed = yield* Scope.provide(makeGatesFeed({ gates: a.registry }), scope);
+      a.failRelease(boom);
+
+      const closed = yield* Effect.exit(Scope.close(scope, Exit.void));
+      assert.isTrue(Exit.isSuccess(closed));
+      assert.strictEqual(a.releases(), 1);
+      feed.configure({ gates: a.registry });
+      assert.strictEqual(a.releases(), 1);
+    }));
+
+  it.effect("G43 (twin of M43): a registry whose subscribe threw is subscribed again by a configure with the same registry", () =>
+    Effect.gen(function* () {
+      const double = makeGateRegistryDouble([guard("a", readPolicy)]);
+      double.failSubscribe(boom);
+      const feed = yield* makeGatesFeed({ gates: double.registry });
+      assert.include(registryFailure(feed) ?? "", "registry exploded");
+
+      // Still failing: tried again and stated again, with nothing held. The same failure thrown afresh,
+      // with another stack, is the same statement and publishes nothing.
+      const failed = feed.getSnapshot();
+      const seen = listen(feed);
+      double.failSubscribe(new Error("registry exploded"));
+      feed.configure({ gates: double.registry });
+      assert.include(registryFailure(feed) ?? "", "registry exploded");
+      assert.strictEqual(feed.getSnapshot(), failed);
+      assert.strictEqual(seen.calls, 0);
+      assert.strictEqual(double.subscriptions(), 2);
+
+      double.mendSubscribe();
+      feed.configure({ gates: double.registry });
+      assert.deepStrictEqual(idsOf(feed), ["a"]);
+      assert.strictEqual(double.listeners(), 1);
+
+      // Recovered: the same registry is not subscribed again, and its changes arrive.
+      feed.configure({ gates: double.registry });
+      assert.strictEqual(double.subscriptions(), 3);
+      double.add(guard("b", readPolicy));
+      assert.deepStrictEqual(idsOf(feed), ["a", "b"]);
+    }));
+
+  it.effect("G44 (twin of M44): a registry that mends without announcing stays Failed until something reads it again", () =>
+    Effect.gen(function* () {
+      let asked: ReadonlyArray<AskedQuestionLike> = [{ policy: readPolicy }];
+      const double = makeGateRegistryDouble([guard("a", readPolicy)]);
+      const answer = () => asked;
+      const feed = yield* makeGatesFeed({ gates: double.registry, questions: answer });
+      yield* settleTurns;
+      double.failReads(boom);
+      assert.include(registryFailure(feed) ?? "", "registry exploded");
+
+      double.mendReadsQuietly();
+      yield* tick;
+      assert.include(registryFailure(feed) ?? "", "registry exploded");
+
+      // A tick whose answer changed reads the registry again.
+      asked = [{ policy: readPolicy }, { policy: writePolicy }];
+      yield* tick;
+      assert.deepStrictEqual(idsOf(feed), ["a"]);
+
+      // So does a notification, and so does a `configure`, even with the same registry.
+      double.failReads(boom);
+      double.mendReadsQuietly();
+      double.add(guard("b", readPolicy));
+      assert.deepStrictEqual(idsOf(feed), ["a", "b"]);
+
+      double.failReads(boom);
+      double.mendReadsQuietly();
+      feed.configure({ gates: double.registry, questions: answer });
+      assert.deepStrictEqual(idsOf(feed), ["a", "b"]);
+    }));
+
+  it.effect("G45 (twin of M45): a thrown value that is not an error is compared by what it renders as", () =>
+    Effect.gen(function* () {
+      const double = makeGateRegistryDouble([guard("a", readPolicy)], { swallowListenerErrors: true });
+      const feed = yield* makeGatesFeed({ gates: double.registry, questions: () => [{ policy: readPolicy }] });
+      yield* settleTurns;
+      const seen = listen(feed);
+
+      double.failReads("registry down");
+      const down = feed.getSnapshot();
+      assert.include(registryFailure(feed) ?? "", "registry down");
+      assert.strictEqual(seen.calls, 1);
+
+      // The same string from another path says the same thing; a different one is a different statement.
+      double.failReads("registry down");
+      assert.strictEqual(feed.getSnapshot(), down);
+      assert.strictEqual(seen.calls, 1);
+      double.failReads({ code: 503 });
+      assert.include(registryFailure(feed) ?? "", "503");
+      assert.strictEqual(seen.calls, 2);
+      double.add(guard("b", readPolicy));
+      assert.strictEqual(seen.calls, 2);
+    }));
+
+  it.effect("G46 (twin of M46): a thrown value that cannot be rendered is stated all the same, and reaches no host", () =>
+    Effect.gen(function* () {
+      const unrenderable = new Proxy(
+        {},
+        {
+          get: () => {
+            throw new Error("a getter that throws");
+          },
+          getPrototypeOf: () => {
+            throw new Error("a trap that throws");
+          },
+          ownKeys: () => {
+            throw new Error("a trap that throws");
+          },
+        },
+      );
+      const sentence = "The registry threw a value that could not be described.";
+      const double = makeGateRegistryDouble([guard("a", readPolicy)], { swallowListenerErrors: true });
+      double.failReads(unrenderable);
+      const feed = yield* makeGatesFeed();
+      assert.strictEqual(feed.getSnapshot().registry._tag, "Unwatched");
+
+      // From no registry to one that throws a value nothing can render: the read moves, though no list did.
+      feed.configure({ gates: double.registry });
+      assert.strictEqual(registryFailure(feed), sentence);
+
+      double.mendReads();
+      double.failReads(unrenderable);
+      feed.configure({ gates: double.registry });
+      assert.strictEqual(registryFailure(feed), sentence);
+
+      const bad = makeGateRegistryDouble();
+      bad.failSubscribe(unrenderable);
+      feed.configure({ gates: bad.registry });
+      assert.strictEqual(registryFailure(feed), sentence);
+    }));
+
+  it.effect("G47 (twin of M47): one configure publishes one snapshot and reads no registry the host has handed away", () =>
+    Effect.gen(function* () {
+      const a = makeGateRegistryDouble([guard("a", readPolicy)]);
+      const b = makeGateRegistryDouble([guard("b", readPolicy)]);
+      const feed = yield* makeGatesFeed({ gates: a.registry, questions: () => [{ policy: readPolicy }] });
+      const published: Array<GatesSnapshot> = [];
+      feed.subscribe(() => {
+        published.push(feed.getSnapshot());
+      });
+      const readByA = a.reads();
+
+      feed.configure({ gates: b.registry });
+
+      assert.strictEqual(published.length, 1);
+      assert.strictEqual(instancesOf(feed), b.registry.instances());
+      assert.strictEqual(a.reads(), readByA);
+
+      // A new registry and a new thunk together are still one snapshot.
+      feed.configure({ gates: a.registry, questions: () => [{ policy: readPolicy }, { policy: writePolicy }] });
+      assert.strictEqual(published.length, 2);
+      assert.strictEqual(instancesOf(feed), a.registry.instances());
+      assert.strictEqual(questionsOf(feed)?.length, 2);
     }));
 });
