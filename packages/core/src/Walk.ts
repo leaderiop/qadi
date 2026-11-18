@@ -27,6 +27,7 @@ import type { Supplied } from "./LeafNeeds.ts";
 import { judgeMatcher } from "./Matcher.ts";
 import type { Obligation } from "./Obligation.ts";
 import { unionObligations } from "./Obligation.ts";
+import { ownValue } from "./Operand.ts";
 import { permissionKey } from "./Permission.ts";
 import type { PortServices } from "./Ports.ts";
 import {
@@ -340,14 +341,9 @@ const evaluateNode = (
     case "HasResourceAttribute": {
       const absent = absenceOf(policy, request.supplied);
       if (absent !== undefined) return Effect.fail(errorOf(absent));
-      // `Object.hasOwn`, mirroring `readAttribute` above and `FieldPath.ts`'s
-      // `projectAt`: a decoded policy's `attribute` is untrusted input, and
-      // without this guard a name like `"toString"` or `"constructor"`
-      // resolves an inherited `Object.prototype` member instead of reporting
-      // the absence `attributeReason` already has a sentence for.
       // `absenceOf` has ruled out an absent resource; the `??` is the type's.
       const row = resource ?? NO_RESOURCE;
-      const value = Object.hasOwn(row, policy.attribute) ? row[policy.attribute] : undefined;
+      const value = ownValue(row, policy.attribute);
       const verdict = judgeMatcher(policy.matcher, value, matcherContext);
       return Effect.succeed(
         holds(verdict)
