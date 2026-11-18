@@ -5,16 +5,16 @@ milestone_name: Arch Wave 11
 current_phase: 55
 current_phase_name: A port card is a model row, not a view join
 status: executing
-stopped_at: Phase QD-55 UI-SPEC approved
-last_updated: "2026-11-18T16:06:52.670Z"
+stopped_at: Completed QD-55-01-PLAN.md
+last_updated: "2026-11-18T16:11:20.720Z"
 last_activity: 2026-11-18
-last_activity_desc: Phase QD-54 complete, transitioned to Phase 55
-state_head: 905792c0c48bffb69b7bb494b2871abfa82b0f2f
+last_activity_desc: Phase 55 execution started
+state_head: 17e733d2e7076ae87dd4bbe8c9c7cb24c4e6d06a
 progress:
   total_phases: 9
   completed_phases: 2
   total_plans: 25
-  completed_plans: 16
+  completed_plans: 17
   percent: 22
 ---
 
@@ -25,14 +25,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-18)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase QD-55 — A port card is a model row, not a view join
+**Current focus:** Phase 55 — A port card is a model row, not a view join
 
 ## Current Position
 
-Phase: 55 (A port card is a model row, not a view join) — READY TO EXECUTE
-Plan: Not started
+Phase: 55 (A port card is a model row, not a view join) — EXECUTING
+Plan: 2 of 9
 Status: Ready to execute
-Last activity: 2026-11-18 — Phase QD-54 complete, transitioned to Phase 55
+Last activity: 2026-11-18 — Phase 55 execution started
 
 
 ## Performance Metrics
@@ -344,6 +344,7 @@ Last activity: 2026-11-18 — Phase QD-54 complete, transitioned to Phase 55
 | Phase QD-54 P06 | 14 min | 2 tasks | 10 files |
 | Phase QD-54 P07 | 10 min | 2 tasks | 4 files |
 | Phase 54 P08 | 15 min | 2 tasks | 1 files |
+| Phase QD-55 P01 | 8 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -586,6 +587,7 @@ Last activity: 2026-11-18 — Phase QD-54 complete, transitioned to Phase 55
 - [Phase QD-54]: 54-07: the verdict-rows change is a @qadi/core patch changeset with no Breaking entry (no export changed, 935 across 9)
 - [Phase 54]: 54-08: phase scan's mutation-script clause narrowed to 0c917fdf alone (orchestrator D-10 ruling); check:pr green on rerun after a load-induced DockModel P2 timeout flake
 - [Phase 54]: review 0 critical/0 warning, IN-01 (long lines in Predicate.ts) skipped; verification human_needed on the D-10 credit, accepted by the owner at UAT (ADR-QD-167 Rev 1.1); passed 4/4; WX-01..07 reverted to Pending after phase.complete
+- [Phase QD-55]: 55-01: MOVED is empty; a fall in DockModel.ts or Wiring.ts at the close is closed with a test, never explained as a move. Base: DockModel 123/123, Wiring 50/50, no survivors.
 
 ### Pending Todos
 
@@ -645,9 +647,9 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-18T14:55:55.710Z
-Stopped at: Phase QD-55 UI-SPEC approved
-Resume file: .planning/phases/QD-55-a-port-card-is-a-model-row-not-a-view-join/55-UI-SPEC.md
+Last session: 2026-11-18T16:11:20.643Z
+Stopped at: Completed QD-55-01-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 
