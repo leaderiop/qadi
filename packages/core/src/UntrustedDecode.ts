@@ -1,6 +1,7 @@
 /**
- * The one way untrusted JSON is decoded: parse (for text), depth guard, an
- * optional seam-supplied preparation, strict decode.
+ * The one way untrusted JSON is decoded: parse (for text), the stated
+ * unknown-key projection, depth guard, an optional seam-supplied preparation,
+ * strict decode.
  *
  * Each untrusted seam used to assemble the guard and the strict decode by hand
  * (ADR-QD-143, INV-QD-305): a policy, a sink record, the two port wires, a
@@ -15,8 +16,8 @@
  * from {@link UntrustedRefusal} into its own error. Build each decoder once, at
  * module scope.
  *
- * A leaf: it imports `effect`, `DecodeDepthGuard.ts` and `JsonShape.ts` only, never
- * `Policy.ts` (ADR-QD-037, which counts type-only edges), so `Policy.ts` and
+ * A leaf: it imports `effect`, `DecodeDepthGuard.ts`, `EnvelopeKeys.ts` and `JsonShape.ts`
+ * only, never `Policy.ts` (ADR-QD-037, which counts type-only edges), so `Policy.ts` and
  * every other seam can import it.
  */
 import * as Data from "effect/Data";
@@ -25,6 +26,7 @@ import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import type * as SchemaAST from "effect/SchemaAST";
 import { exceedsJsonDepth } from "./DecodeDepthGuard.ts";
+import { envelopeKeysOf } from "./EnvelopeKeys.ts";
 import { isPlainObject } from "./JsonShape.ts";
 
 /**
@@ -128,16 +130,26 @@ export type UnwalkedKey<A> = {
   string;
 
 /**
+ * What an envelope does with a top-level key its schema does not declare: `refuse` it, as the strict
+ * decode does, or `ignore` it, dropped before the guard and the decode ever read it (ADR-QD-170).
+ */
+export type UnknownKeyPolicy = "refuse" | "ignore";
+
+/**
  * What a seam adds to the fixed recipe.
  *
- * `unwalked` names top-level keys the depth guard leaves out because a second
+ * `unknownKeys` is stated by every seam, never defaulted, so a seam that tolerates an unknown key says so
+ * where it is built. `ignore` keeps, of a plain object, only the top-level keys the schema's encoded side
+ * declares for the member the input's own `_tag` selects, and needs a schema that is an object or a union of
+ * objects with distinct literal tags (it throws at build otherwise). `unwalked` names top-level keys the depth guard leaves out because a second
  * decoder guards them from its own root (hydration's `entries`, the audit
  * envelope's `entries`, the audit row's `record`); each must be typed `unknown` or
  * `ReadonlyArray<unknown>` in the schema (INV-QD-306). `prepare` runs after the guard and before the
- * strict decode, and what it returns is what the decode reads; its failure is
- * returned as it is. The order is fixed: guard, prepare, decode.
+ * strict decode and receives the projection, and what it returns is what the decode reads; its failure
+ * is returned as it is. The order is fixed: project, guard, prepare, decode.
  */
 export interface UntrustedDecoderOptions<A, R extends { readonly _tag: string }> {
+  readonly unknownKeys: UnknownKeyPolicy;
   readonly unwalked?: ReadonlyArray<UnwalkedKey<A>>;
   readonly prepare?: (input: unknown) => Result.Result<unknown, R>;
 }
@@ -149,9 +161,32 @@ type FreeRefusalTag<R extends { readonly _tag: string }> = [
   ? unknown
   : never;
 
+type Projection = (input: unknown) => unknown;
+
+/** A plain object reduced to the own keys `keysOf` names for it; anything else passes through. It reads no value, so it cannot recurse. */
+const project =
+  (keysOf: (entries: ReadonlyArray<readonly [string, unknown]>) => ReadonlySet<PropertyKey>): Projection =>
+  (input) => {
+    if (!isPlainObject(input)) return input;
+    const entries = Object.entries(input);
+    const keys = keysOf(entries);
+    return Object.fromEntries(entries.filter(([key]) => keys.has(key)));
+  };
+
+const keepEverything = (input: unknown): unknown => input;
+
+/**
+ * The projection each policy builds, read by indexing and never compared with `===`: a policy outside the
+ * closed union finds no row and throws when the decoder is built, rather than reading as the other one.
+ */
+const PROJECTION: Readonly<Record<UnknownKeyPolicy, (ast: SchemaAST.AST) => Projection>> = {
+  refuse: () => keepEverything,
+  ignore: (ast) => project(envelopeKeysOf(ast)),
+};
+
 /** What {@link untrustedDecoder} builds. */
 export interface UntrustedDecoder<A, R extends { readonly _tag: string }> {
-  /** Decodes an already-parsed value: guard, `prepare`, strict decode. */
+  /** Decodes an already-parsed value: projection, guard, `prepare`, strict decode. */
   readonly decode: (input: unknown) => Result.Result<A, UntrustedValueRefusal | R>;
   /** Decodes text: `JSON.parse`, then {@link UntrustedDecoder.decode}. */
   readonly decodeText: (text: string) => Result.Result<A, UntrustedRefusal | R>;
@@ -169,11 +204,12 @@ export const untrustedDecoder = <
   R extends { readonly _tag: string } = never,
 >(
   schema: S,
-  options?: UntrustedDecoderOptions<S["Encoded"], R> & FreeRefusalTag<R>,
+  options: UntrustedDecoderOptions<S["Encoded"], R> & FreeRefusalTag<R>,
 ): UntrustedDecoder<S["Type"], R> => {
   const strict = Schema.decodeUnknownResult(schema, UNTRUSTED_DECODE_OPTIONS);
-  const unwalked: ReadonlySet<string> = new Set(options?.unwalked);
-  const prepare = options?.prepare;
+  const unwalked: ReadonlySet<string> = new Set(options.unwalked);
+  const prepare = options.prepare;
+  const projection = PROJECTION[options.unknownKeys](schema.ast);
 
   const walked = (input: unknown): unknown =>
     unwalked.size > 0 && isPlainObject(input)
@@ -181,10 +217,12 @@ export const untrustedDecoder = <
       : input;
 
   const decode = (input: unknown): Result.Result<S["Type"], UntrustedValueRefusal | R> => {
-    if (exceedsJsonDepth(walked(input), MAX_DECODE_DEPTH)) {
+    const projected = projection(input);
+    if (exceedsJsonDepth(walked(projected), MAX_DECODE_DEPTH)) {
       return Result.fail(UntrustedRefusal.TooDeep({ maxDepth: MAX_DECODE_DEPTH }));
     }
-    const prepared: Result.Result<unknown, R> = prepare === undefined ? Result.succeed(input) : prepare(input);
+    const prepared: Result.Result<unknown, R> =
+      prepare === undefined ? Result.succeed(projected) : prepare(projected);
     return Result.flatMap(prepared, (value) =>
       Result.mapError(strict(value), (error) =>
         UntrustedRefusal.Malformed({ message: error.message, error }),

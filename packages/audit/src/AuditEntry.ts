@@ -116,7 +116,7 @@ export const encodeAuditEntry = Effect.fn("qadi.audit.encodeAuditEntry")(functio
  */
 const decodeRow = untrustedDecoder(
   Schema.Struct({ record: Schema.Unknown, sequenceNumber: SequenceNumber }),
-  { unwalked: ["record"] },
+  { unknownKeys: "refuse", unwalked: ["record"] },
 ).decode;
 
 const malformed = (message: string) =>

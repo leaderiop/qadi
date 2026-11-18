@@ -255,7 +255,7 @@ const ArchiveEnvelope = Schema.Struct({
   keyMaterial: Schema.optional(Schema.Array(KeyMaterialSchema)),
 });
 
-const decodeEnvelope = untrustedDecoder(ArchiveEnvelope, { unwalked: ["entries"] }).decode;
+const decodeEnvelope = untrustedDecoder(ArchiveEnvelope, { unknownKeys: "refuse", unwalked: ["entries"] }).decode;
 
 const asArchiveRefusal: (refusal: UntrustedValueRefusal) => ArchiveRefusal = Match.type<UntrustedValueRefusal>().pipe(
   Match.tagsExhaustive({

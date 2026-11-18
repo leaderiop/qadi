@@ -114,7 +114,7 @@ describe("decodeAuditEntry's output, written out over existing fixtures", () => 
       assert.include(JSON.stringify(entry.record), '"durationMillis":2.5');
     }));
 
-  it.effect("a record nested 60,000 deep is TooDeep, and so is a value that deep under an unknown envelope key", () =>
+  it.effect("a record nested 60,000 deep is TooDeep, and a value that deep under an unknown envelope key is ignored (D-20)", () =>
     Effect.gen(function* () {
       let policy: unknown = { _tag: "HasPermission", permission: { resource: "doc", action: "read" } };
       for (let i = 0; i < 60_000; i++) policy = { _tag: "Not", policy };
@@ -125,7 +125,7 @@ describe("decodeAuditEntry's output, written out over existing fixtures", () => 
       for (let i = 0; i < 60_000; i++) nested = [nested];
       const row = yield* rowOf(decisionRecord({ evaluationId: "d1" }));
       const deepExtra = { record: { ...row.record, traceparent: nested } };
-      assert.deepStrictEqual(refusalOf(deepExtra), DecodeRefusal.TooDeep({ maxDepth: MAX_DECODE_DEPTH }));
+      assert.isUndefined(refusalOf(deepExtra));
     }), 60_000);
 
   it.effect("a pre-0.10 row and a version-3 row are UnsupportedVersion", () =>

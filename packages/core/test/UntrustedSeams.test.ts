@@ -233,8 +233,8 @@ describe("decodeSinkRecord", () => {
     assert.isTrue(Result.isSuccess(decodeSinkRecord(recordWith({ addedLater: "x" }))));
   });
 
-  it("an unknown envelope key whose value is nested past the bound -> TooDeep", () => {
-    assert.strictEqual(sinkRefusalOf(recordWith({ addedLater: nested(OVER) }))?._tag, "TooDeep");
+  it("an unknown envelope key whose value is nested past the bound -> success, not walked (D-01)", () => {
+    assert.isTrue(Result.isSuccess(decodeSinkRecord(recordWith({ addedLater: nested(OVER) }))));
   });
 
   it("an excess key inside the embedded policy -> Malformed", () => {

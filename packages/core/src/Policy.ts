@@ -959,7 +959,7 @@ export class PolicyNotJson extends Data.TaggedError("PolicyNotJson")<{
   readonly message: string;
 }> {}
 
-const policyDecoder = untrustedDecoder(Policy);
+const policyDecoder = untrustedDecoder(Policy, { unknownKeys: "refuse" });
 
 /** Text refusals, as `fromJson` reports them. */
 const textFailure = Match.type<UntrustedRefusal>().pipe(

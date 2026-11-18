@@ -424,7 +424,7 @@ import * as Schema from "effect/Schema";
 import { untrustedDecoder } from "@qadi/core";
 
 const Settings = Schema.Struct({ name: Schema.String });
-const decodeSettings = untrustedDecoder(Settings);
+const decodeSettings = untrustedDecoder(Settings, { unknownKeys: "refuse" });
 
 export const settings = decodeSettings.decodeText('{"name":"x"}');
 export const refused = Result.isFailure(settings) ? settings.failure._tag : undefined;

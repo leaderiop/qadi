@@ -120,7 +120,7 @@ const remoteFailure = <K extends PortName>(
   failure: RemotePortFailure,
 ): ErrorOf<PortTypes[K]> => d.failure(args, new RemotePortError({ failure }));
 
-const replyDecoder = untrustedDecoder(PortWireReply);
+const replyDecoder = untrustedDecoder(PortWireReply, { unknownKeys: "refuse" });
 
 /**
  * Builds the port's Shape from any `send`.

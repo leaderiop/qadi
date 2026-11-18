@@ -171,13 +171,6 @@ const SinkRecordWire = Schema.Union([
 
 type SinkRecordWire = typeof SinkRecordWire.Type;
 
-/**
- * Each member's declared top-level keys, read from the schema's own fields so
- * they cannot drift from it: the envelope {@link envelopeOf} keeps.
- */
-const DECISION_KEYS: ReadonlySet<string> = new Set(Object.keys(decisionV2Fields));
-const OBLIGATIONS_KEYS: ReadonlySet<string> = new Set(Object.keys(obligationsV2Fields));
-
 /** A record's outcome as the wire carries it. */
 const outcomeOf: (outcome: DecisionOutcome) => OutcomeWire = Match.type<DecisionOutcome>().pipe(
   Match.tagsExhaustive({
@@ -420,23 +413,6 @@ const notDecodable = (refusal: DecodeRefusal) => Result.fail(new SinkRecordNotDe
 const ownValue = (input: object, key: string): unknown => Object.getOwnPropertyDescriptor(input, key)?.value;
 
 /**
- * The input with only the top-level keys its member declares.
- *
- * `Schema`'s parse options apply to a whole decode call, not to one position,
- * so tolerating an unknown envelope key while refusing one inside the policy
- * cannot be said to the decoder; it is said here instead, by handing the
- * strict decode only what the envelope declares (ADR-QD-096 D-15-c). A newer
- * sender's additive envelope metadata then no longer refuses the whole record
- * for the length of a rolling deploy (GH-01). Nothing nested is touched. An
- * unknown `_tag` takes the decision's key set and fails in the decode, as it
- * always did.
- */
-const envelopeOf = (input: object): unknown => {
-  const keys = ownValue(input, "_tag") === "Obligations" ? OBLIGATIONS_KEYS : DECISION_KEYS;
-  return Object.fromEntries(Object.entries(input).filter(([key]) => keys.has(key)));
-};
-
-/**
  * What the strict decode accepted, as a record and as its JSON form.
  *
  * `json` is the schema's own output, in schema key order with an unknown envelope
@@ -474,21 +450,21 @@ const isReadVersion = Schema.is(Schema.Literals(WIRE_VERSIONS));
 type UnsupportedVersion = Extract<DecodeRefusal, { readonly _tag: "UnsupportedVersion" }>;
 
 /**
- * The decoder's `prepare`: the version check, then the envelope projection.
+ * The decoder's `prepare`: the version check.
  *
- * The version is read before the projection so a record of another version is
- * never decoded against this version's keys (ADR-QD-096). `version: 2` is read;
- * any other value, **or none**, is `UnsupportedVersion` rather than `Malformed`
- * (the same convention ADR-QD-078 gives the hydration payload). A value that is
- * not a JSON object passes through unchanged, so the strict decode reports it
- * `Malformed`: it is not a record of any version. Membership is tested against the
- * read set, not the write version.
+ * It reads the envelope the decoder's `ignore` projection built, so `version` is
+ * an own key of a fresh object and a deep unknown key was never in its way
+ * (ADR-QD-096, ADR-QD-170). `version: 2` is read; any other value, **or none**,
+ * is `UnsupportedVersion` rather than `Malformed` (the same convention ADR-QD-078
+ * gives the hydration payload). A value that is not a JSON object passes through
+ * unchanged, so the strict decode reports it `Malformed`: it is not a record of
+ * any version. Membership is tested against the read set, not the write version.
  */
-const versionThenEnvelope = (input: unknown): Result.Result<unknown, UnsupportedVersion> => {
+const checkVersion = (input: unknown): Result.Result<unknown, UnsupportedVersion> => {
   if (!isPlainObject(input)) return Result.succeed(input);
   const version = ownValue(input, "version");
   return isReadVersion(version)
-    ? Result.succeed(envelopeOf(input))
+    ? Result.succeed(input)
     : Result.fail(DecodeRefusal.UnsupportedVersion({ version, supported: WIRE_VERSIONS }));
 };
 
@@ -501,7 +477,7 @@ const versionThenEnvelope = (input: unknown): Result.Result<unknown, Unsupported
  * the wire type. It is a schema-level decode, so `UNTRUSTED_DECODE_BUDGET` counts
  * it, and `Schema.encodeTo` would be the same transformation written backwards
  * only to hide it from the count (ADR-QD-153). It runs only through
- * `untrustedDecoder`, after the depth guard and {@link versionThenEnvelope}.
+ * `untrustedDecoder`, after the projection, the depth guard and {@link checkVersion}.
  */
 const SinkRecordWithJson = SinkRecordJson.pipe(
   Schema.decodeTo(Schema.Struct({ json: SinkRecordJson, record: SinkRecordWire }), {
@@ -513,15 +489,17 @@ const SinkRecordWithJson = SinkRecordJson.pipe(
 /**
  * The untrusted decoder for the wire, built once (ADR-QD-143).
  *
- * `UntrustedDecode.ts` runs the depth guard, then {@link versionThenEnvelope},
+ * `UntrustedDecode.ts` projects the input onto the envelope's declared keys
+ * (`unknownKeys: "ignore"`), runs the depth guard, then {@link checkVersion},
  * then the strict decode (a typo'd field inside the embedded policy fails
- * rather than decoding with the grant silently dropped, ADR-QD-002). The
- * decode is handed the {@link envelopeOf} projection, so the one place an
- * unknown key is tolerated is the envelope's top level (GH-01, ADR-QD-096).
- * No `Result.try` around the decode: the guard is what makes it safe, and a
- * throw past it would be a library defect that should stay visible.
+ * rather than decoding with the grant silently dropped, ADR-QD-002). The one
+ * place an unknown key is tolerated is the envelope's top level, and it is
+ * tolerated however deep its value, because the projection drops it before
+ * anything walks it (GH-01, ADR-QD-096, ADR-QD-170). No `Result.try` around
+ * the decode: the guard is what makes it safe, and a throw past it would be a
+ * library defect that should stay visible.
  */
-const sinkWire = untrustedDecoder(SinkRecordWithJson, { prepare: versionThenEnvelope });
+const sinkWire = untrustedDecoder(SinkRecordWithJson, { unknownKeys: "ignore", prepare: checkVersion });
 
 /**
  * Untrusted input as a record and its JSON form, or the reason it is not one,
