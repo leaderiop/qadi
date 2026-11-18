@@ -95,6 +95,38 @@ The owner directed on 2026-11-18: "for the Phase 57, answer by the cleanest solu
   - Changesets: `@qadi/core` minor (the option, plus D-01's widening). `@qadi/audit` and `@qadi/react` get one only if their observable behaviour or API changes; stating `refuse` explicitly changes neither.
   - Nothing is released.
 
+### Settled after research (orchestrator under the owner's Phase 57 instruction, 2026-11-18)
+
+Research (57-RESEARCH.md, "Open Questions") left three items needing a decision and one report. Each is settled here by the owner's instruction for this phase: take the cleanest design, never the smallest diff.
+
+- **D-16 (Open Question 3): the policy is required on every decoder.** `untrustedDecoder(schema, options)` takes a required options object whose `unknownKeys: UnknownKeyPolicy` (`"refuse" | "ignore"`, exported) is required. This holds at every call site: the five envelope seams, `Policy.ts`, `PortWireEncode.ts`, `PortRemote.ts`, hydration's `decodePolicy` and `decodeEntry`, the bench and the tests.
+  - **Why not research's "required only when an options object is passed":** that makes one field required or defaulted depending on whether its siblings are present, which is a hidden default with an odd shape. Stating it everywhere means every untrusted seam shows its rule where it is built, and D-05 needs no gate.
+  - The policy is read through a closed `Record<UnknownKeyPolicy, …>` table (research Pitfall 6), never `=== "ignore"`.
+  - This is **Breaking** for `@qadi/core` (a required option on a public function). It is recorded in the changeset and in `upgrading.md`'s 0.13 section, with the one-line migration `{ unknownKeys: "refuse" }`.
+- **D-17 (Open Question 1): Route C.** The stored record's refusals take the strict decoder's own messages. No classifier is rebuilt in `prepare`, which would restore the hand-built reader D-08 deletes.
+  - Every tag is unchanged. The changed messages are a deliberate behaviour change. They are recorded in a BEH, pinned RED first on the phase base (WX-06), and carried in the `@qadi/core` changeset.
+  - The pins that move:
+    - `packages/core/test/SinkCodec.test.ts` (~2204–2243) and `packages/devtools/test/model/Source.test.ts` (~1050–1058) move with their source commit, after the RED test.
+    - The unreleased `.changeset/devtools-malformed-frame-is-a-decode-refusal.md` and `upgrading.md` (~631) are corrected so they stay true.
+  - "A bare record" and "environment missing" become one message. This is accepted: both mean "the envelope is not `{ environment, record }`".
+- **D-18 (Open Question 2): a deep `environment` is `TooDeep`.** `environment` is a declared, walked key. "The guard walks every declared key it does not leave unwalked" is the rule every other seam already follows, so `Malformed` was the hand-built reader's accident.
+  - This supersedes D-08's stop-and-report for this one tag. It gets a matrix row, a RED test on the base, and a sentence in the stored-record BEH.
+  - No other tag may change. Any further tag change found during execution is still a stop-and-report.
+- **D-19 (mechanism, research §1.4):** under `ignore` the input is projected onto its declared keys before the guard. The projection is a shallow own-key copy that reads no value, so it cannot overflow and changes no declared key's answer.
+  - The refusal precedence that ADR-QD-096 D-15-c fixes is kept for every declared key: `TooDeep`, then `UnsupportedVersion`, then `Malformed`.
+  - ADR-QD-170 records that the projection now runs first, and that this is what makes D-01 true. It amends D-15-c's mechanism sentence and does not rewrite the decision.
+  - `prepare` receives the projection. Under `refuse` the projection is the input, so hydration's `checkVersion` is unchanged.
+- **D-20 (research Pitfall 2): D-01 reaches the audit row and archive.** They read the record through `decodeSinkRecordWithJson`, so a deep unknown key inside a stored audit row's record, or an archive entry's record, also goes from `TooDeep` to success.
+  - This is the same decision, not a new one.
+  - `packages/audit/test/AuditEntryDifferential.test.ts` (~117–130, the `deepExtra` half) moves with the source commit after a RED test, and the audit matrix gains the rows.
+  - "Deep unknown key + version 3" goes from `TooDeep` to `UnsupportedVersion`. It is pinned the same way.
+- **D-21 (research §2, Pitfall 7): the derivation is its own leaf.** The declared keys come from `SchemaAST.toEncoded(schema.ast)` through a hoisted `Match` over `Objects`, `Union` and `Suspend`. It lives in a new package-private, import-`effect`-only module (research proposes `EnvelopeKeys.ts`), out of the barrel.
+  - A union member is selected by the input's own `_tag`. An unknown or absent `_tag` takes the first member, which is today's decision set.
+  - A schema whose keys cannot be derived under `ignore` throws when the decoder is built.
+  - The leaf-rule sentences in `UntrustedDecode.ts` and ADR-QD-143 name the new module.
+- **D-22 (research Pitfall 8): `HydrationEngine.ts` is measured with `--mutate` on the command line.** `stryker.react.mjs` stays unedited, as Phase 30 did.
+- **D-09 report (research §5): hydration has a D-15-c case for `ignore`.** A rolling deploy pairs a newer server's additive payload metadata with an older client bundle. It is **not** changed in this phase: criterion 4 holds every answer except D-01's, and ADR-QD-078 chose strict. It is raised with the owner as a follow-up (see Deferred). The audit row and archive stay `refuse`.
+
 ### Claude's Discretion
 - The option's name, spelling and type (literal union or tagged enum), and whether `unwalked` joins it.
 - How the declared key set is derived from `SchemaAST`, within D-03's bar.
@@ -146,6 +178,6 @@ The owner directed on 2026-11-18: "for the Phase 57, answer by the cleanest solu
 ## Deferred Ideas
 
 - Phase 56's review Info items IN-03..IN-06 (devtools `JoinInput` shape, the poll's dead `questions` field, long lines, the `intervalMillis` doc) wait for the next change to those files.
-- Whether the audit row, archive or hydration payload should also be `ignore` under D-15-c's argument. It is not changed here (D-09). If research finds a case for it, it is raised for the owner.
+- **For the owner:** should the hydration payload be `ignore`, by D-15-c's rolling-deploy argument (research §5)? It is not changed here (D-09). The audit row and the archive stay strict on research's reading.
 
 </deferred>
