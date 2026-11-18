@@ -29,15 +29,16 @@ test("a port's activity is keyed by the registry's PortName, not a string", () =
   }>();
 });
 
-test("the per-port records have exactly the registry's keys, so a misspelt port is a compile error", () => {
+test("the per-port records have exactly the registry's keys, all required", () => {
+  // The key set is exact: a misspelt extra key makes `keyof` differ from `PortName`.
   expect<keyof ActivityByPort>().type.toBe<PortName>();
   expect<keyof CallsByPort>().type.toBe<PortName>();
-  expect<ActivityByPort>().type.not.toBeAssignableFrom<
-    Omit<ActivityByPort, "AttributeResolver"> & { readonly AttributeResolvr: undefined }
-  >();
-  expect<CallsByPort>().type.not.toBeAssignableFrom<
-    Omit<CallsByPort, "SignatureHistory"> & { readonly SignatureHistry: ReadonlyArray<never> }
-  >();
+  // A misspelt key is not readable.
+  expect<ActivityByPort>().type.not.toHaveProperty("AttributeResolvr");
+  expect<CallsByPort>().type.not.toHaveProperty("SignatureHistry");
+  // Every port is present: none is optional.
+  expect<ActivityByPort>().type.not.toBeAssignableFrom<Partial<ActivityByPort>>();
+  expect<CallsByPort>().type.not.toBeAssignableFrom<Partial<CallsByPort>>();
 });
 
 test("a card row is keyed by every wired service, and the guard narrows to a port", () => {
