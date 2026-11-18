@@ -5,16 +5,16 @@ milestone_name: Arch Wave 11
 current_phase: 57
 current_phase_name: untrustedDecoder states the envelope's unknown-key policy
 status: executing
-stopped_at: Completed QD-57-04-PLAN.md
-last_updated: "2026-11-18T23:46:07.370Z"
+stopped_at: Completed QD-57-05-PLAN.md
+last_updated: "2026-11-18T23:54:11.915Z"
 last_activity: 2026-11-18
 last_activity_desc: Phase 56 complete, transitioned to Phase 57
-state_head: 1a826bda1a981658aacb59e2b49559e313a65e6d
+state_head: 9d109babed8dfce1d30f295b819253b2e68de8c1
 progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 49
-  completed_plans: 42
+  completed_plans: 43
   percent: 44
 ---
 
@@ -372,6 +372,7 @@ Last activity: 2026-11-18 — Phase 56 complete, transitioned to Phase 57
 | Phase QD-57 P02 | 14 min | 2 tasks | 1 files |
 | Phase QD-57 P03 | 4 min | 3 tasks | 2 files |
 | Phase QD-57 P04 | 15min | 2 tasks | 5 files |
+| Phase QD-57 P05 | 22 min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -637,6 +638,7 @@ Last activity: 2026-11-18 — Phase 56 complete, transitioned to Phase 57
 - [Phase QD-56]: Every id reserved for QD-56 was used, so CCR-QD-447's row ends Unused: none; both changesets are minor with one Breaking entry and nothing is versioned or released
 - [Phase QD-57]: 57-01: mutation base below 1 for AuditArchive (52/53), SinkCodec (159/163), UntrustedDecode (29/31); the close compares against those floors with unchanged survivor sets
 - [Phase QD-57]: 57-04: U12 pins the plain two-member union message, not the sink record's Missing key text; 57-05's build refusal must match /unknownKeys "ignore" needs/
+- [Phase QD-57]: 57-05: untrustedDecoder requires unknownKeys (refuse|ignore), read through a closed PROJECTION table; the record wire ignores, every other seam refuses; declared keys derived from SchemaAST.toEncoded in EnvelopeKeys.ts
 
 ### Pending Todos
 
@@ -696,8 +698,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-18T23:46:07.039Z
-Stopped at: Completed QD-57-04-PLAN.md
+Last session: 2026-11-18T23:54:11.760Z
+Stopped at: Completed QD-57-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
