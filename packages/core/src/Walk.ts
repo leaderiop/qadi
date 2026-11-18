@@ -15,15 +15,22 @@ import type { Concurrency } from "effect/Types";
 import { admit } from "./Admission.ts";
 import type { AuthSubject } from "./AuthSubject.ts";
 import type { Trace } from "./Decision.ts";
-import type { ActedResult } from "./DecisionHistory.ts";
 import type { EvaluationError } from "./Errors.ts";
 import { PolicyTooDeep } from "./Errors.ts";
 import type { VisibleFields } from "./FieldLattice.ts";
 import { mergeFields } from "./FieldLattice.ts";
 import { holds } from "./Compare.ts";
 import type { Matcher, MatcherContext, Verdict } from "./Matcher.ts";
-import { absenceOf, errorOf, holdsAction, holdsPermission, holdsRole } from "./LeafNeeds.ts";
-import type { Supplied } from "./LeafNeeds.ts";
+import {
+  LEAF_VERDICTS,
+  absenceOf,
+  errorOf,
+  holdsAction,
+  holdsPermission,
+  holdsRole,
+  isHeld,
+} from "./LeafNeeds.ts";
+import type { ActedOutcome, Supplied } from "./LeafNeeds.ts";
 import { judgeMatcher } from "./Matcher.ts";
 import type { Obligation } from "./Obligation.ts";
 import { unionObligations } from "./Obligation.ts";
@@ -164,36 +171,44 @@ const attributeReason = (
 // ---------------------------------------------------------------------------
 
 /**
+ * The sentence each way an acted leaf denies, keyed by the outcome that says which.
+ *
+ * `Performed` and `NotPerformed` are the answers opposite to the leaf's own: a
+ * `HasNotActed` leaf meeting an event that happened, a `HasActed` leaf meeting one
+ * that did not.
+ */
+const ACTED_DENIAL: Record<
+  Exclude<ActedOutcome, "Held">,
+  (subject: AuthSubject, event: string) => string
+> = {
+  Unknown: (_subject, event) => `no history is available for '${event}'`,
+  Performed: (subject, event) => `subject '${subject.id}' has already performed '${event}'`,
+  NotPerformed: (subject, event) => `subject '${subject.id}' has not performed '${event}'`,
+};
+
+/**
  * `HasActed`/`HasNotActed`'s arm.
  *
- * The two share every line but the wanted `ActedResult` — the `_tag` itself
- * supplies that, so there is nothing left for the two case labels in
- * `evaluateNode` to differ on. Extracted for the same reason `evaluateAllOf`
- * and friends are: `switch (policy._tag)` keeps dispatching in one glance, and
- * what a given tag actually *does* moves to a name instead of living inline in
- * the arm.
+ * The two share every line: the row for the leaf's tag decides what the answer
+ * means (`LEAF_VERDICTS`, ARCH-101), so there is nothing left for the two case
+ * labels in `evaluateNode` to differ on. This arm chooses the sentence the outcome
+ * earns. Extracted for the same reason `evaluateAllOf` and friends are:
+ * `switch (policy._tag)` keeps dispatching in one glance, and what a given tag
+ * actually *does* moves to a name instead of living inline in the arm.
  */
 const evaluateActed = (
   policy: Extract<Policy, { _tag: "HasActed" | "HasNotActed" }>,
   subject: AuthSubject,
   resource: Resource | undefined,
-) => {
-  const asked = askActed("evaluate", subject, policy, resource);
-  const wanted: ActedResult = policy._tag === "HasActed" ? "Acted" : "NotActed";
-  // `"Unknown"` matches neither, so both polarities deny under an unwired
-  // port. That is the whole reason the port is three-valued rather than
-  // boolean (ADR-QD-020).
-  return Effect.map(asked, (answer) =>
-    answer === wanted
+) =>
+  Effect.map(askActed("evaluate", subject, policy, resource), (answer) => {
+    // An `Unknown` answer is `Held` under neither row, so both polarities deny
+    // under an unwired port (ADR-QD-020).
+    const outcome = LEAF_VERDICTS[policy._tag](answer);
+    return isHeld(outcome)
       ? allow(policy._tag, policy.fields)
-      : deny(
-          policy._tag,
-          answer === "Unknown"
-            ? `no history is available for '${policy.event}'`
-            : `subject '${subject.id}' ${answer === "Acted" ? "has already" : "has not"} performed '${policy.event}'`,
-        ),
-  );
-};
+      : deny(policy._tag, ACTED_DENIAL[outcome](subject, policy.event));
+  });
 
 /** `HasRelationship`'s arm, extracted for the same reason `evaluateActed` is. */
 const evaluateHasRelationship = (

@@ -24,7 +24,6 @@ import type { CompareOp } from "./Compare.ts";
 import type { AuthSubject } from "./AuthSubject.ts";
 import { CurrentSubject } from "./CurrentSubject.ts";
 import type { DecisionHistory } from "./DecisionHistory.ts";
-import type { ActedResult } from "./DecisionHistory.ts";
 import type { AttributeResolveError, DecisionHistoryUnavailable } from "./Errors.ts";
 import type { MissingAction } from "./Errors.ts";
 import { PolicyNotTranslatable } from "./Errors.ts";
@@ -32,7 +31,15 @@ import { predicatesTranslatedTotal } from "./EvaluationMetrics.ts";
 import type { Matcher, MatcherContext, ValueRef } from "./Matcher.ts";
 import { evaluateMatcher, referencesResource } from "./Matcher.ts";
 import { getByPath, ownValue } from "./Operand.ts";
-import { absenceOf, errorOf, holdsAction, holdsPermission, holdsRole } from "./LeafNeeds.ts";
+import {
+  LEAF_VERDICTS,
+  absenceOf,
+  errorOf,
+  holdsAction,
+  holdsPermission,
+  holdsRole,
+  isHeld,
+} from "./LeafNeeds.ts";
 import type { ActionAbsence, Supplied } from "./LeafNeeds.ts";
 import { fieldsOf, foldPolicy, foldPolicyCases } from "./Policy.ts";
 import { askActed, isAnyActedLeaf, readAttribute } from "./PortAccess.ts";
@@ -304,11 +311,7 @@ type Plan =
   | { readonly _tag: "Constant"; readonly value: boolean }
   | { readonly _tag: "Column"; readonly predicate: Predicate }
   | { readonly _tag: "AskAttribute"; readonly leaf: LeafOf["HasAttribute"] }
-  | {
-      readonly _tag: "AskActed";
-      readonly wanted: ActedResult;
-      readonly leaf: AnyActedLeaf;
-    }
+  | { readonly _tag: "AskActed"; readonly leaf: AnyActedLeaf }
   | { readonly _tag: "NeedAction"; readonly absence: ActionAbsence }
   | { readonly _tag: "Conjunction"; readonly plans: ReadonlyArray<Plan> }
   | {
@@ -381,11 +384,7 @@ const compileTree = (admitted: Admitted): Compiled => {
    */
   const history = (leaf: LeafOf["HasActed"] | LeafOf["HasNotActed"]): Compiled =>
     isAnyActedLeaf(leaf)
-      ? planned({
-          _tag: "AskActed",
-          wanted: leaf._tag === "HasActed" ? "Acted" : "NotActed",
-          leaf,
-        })
+      ? planned({ _tag: "AskActed", leaf })
       : refused(leaf._tag, "a resource-scoped history question is keyed by the row");
 
   /**
@@ -593,7 +592,7 @@ const run = (
         ),
       AskActed: (p) =>
         Effect.map(askActed("toPredicate", subject, p.leaf, undefined), (answer) =>
-          constant(answer === p.wanted),
+          constant(isHeld(LEAF_VERDICTS[p.leaf._tag](answer))),
         ),
       NeedAction: (p) => Effect.fail(errorOf(p.absence)),
       // Suspended: building the child eagerly recursed natively once per `Not`
