@@ -5,16 +5,16 @@ milestone_name: Arch Wave 11
 current_phase: 56
 current_phase_name: The gate-registry watch becomes the dock model's third feed
 status: executing
-stopped_at: Completed QD-56-08-PLAN.md
-last_updated: "2026-11-18T20:13:34.655Z"
+stopped_at: Completed QD-56-09-PLAN.md
+last_updated: "2026-11-18T20:34:45.350Z"
 last_activity: 2026-11-18
 last_activity_desc: Phase QD-55 complete, transitioned to Phase 56
-state_head: 39f33df5503ef8936d0f223767aaeef6f712c339
+state_head: 308beb9486e62a3f0e6876aa0e5635ec9478db04
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 38
-  completed_plans: 33
+  completed_plans: 34
   percent: 33
 ---
 
@@ -362,6 +362,7 @@ Last activity: 2026-11-18 — Phase QD-55 complete, transitioned to Phase 56
 | Phase QD-56 P06 | 6 min | 2 tasks | 5 files |
 | Phase QD-56 P07 | 8 min | 3 tasks | 11 files |
 | Phase QD-56 P08 | 6 min | 2 tasks | 5 files |
+| Phase QD-56 P09 | 20 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -621,6 +622,7 @@ Last activity: 2026-11-18 — Phase QD-55 complete, transitioned to Phase 56
 - [Phase QD-56]: 56-06: the join decides the questions view in one order (questions read, questionsFailed, unsampled, absent) through questionsViewOf; the two failures are independent
 - [Phase QD-56]: 56-07: the join key carries unsampled already reduced by the supplied list, so a supplied list keeps one snapshot while the poll goes from Starting to Live; the watch and the thunk moved in one commit; the unguarded reservice (IN-03) was fixed by the closed guard the composed model needs
 - [Phase QD-56]: 56-08: FeedOwnedKey is the closed union layer | questions, so useDevtoolsFeed({ questions }) stays a compile error once questions leaves diagnostics
+- [Phase QD-56]: 56-09: equivalent mutants in the gates feed and the join were rewritten away (refactor), not ignored; WX-05 holds (D-11) on the final tree
 
 ### Pending Todos
 
@@ -680,8 +682,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-18T20:13:34.388Z
-Stopped at: Completed QD-56-08-PLAN.md
+Last session: 2026-11-18T20:34:45.022Z
+Stopped at: Completed QD-56-09-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
