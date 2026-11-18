@@ -39,9 +39,9 @@ const Slots = Schema.Struct({
 });
 const Needs = Schema.Struct({ a: Schema.Number });
 
-const anything = untrustedDecoder(Schema.Unknown);
-const slots = untrustedDecoder(Slots, { unwalked: ["entries", "raw"] });
-const needs = untrustedDecoder(Needs);
+const anything = untrustedDecoder(Schema.Unknown, { unknownKeys: "refuse" });
+const slots = untrustedDecoder(Slots, { unknownKeys: "refuse", unwalked: ["entries", "raw"] });
+const needs = untrustedDecoder(Needs, { unknownKeys: "refuse" });
 
 // Primitive leaves only: a container leaf would add a frame and move the bound off `depth`.
 const leaves = FastCheck.oneof(
@@ -126,11 +126,10 @@ describe("untrustedDecoder", () => {
       );
     });
 
-    it("decodes identically with options omitted, {} and { unwalked: [] }", () => {
+    it("decodes identically with { unknownKeys: refuse } and { unknownKeys: refuse, unwalked: [] }", () => {
       const variants: ReadonlyArray<UntrustedDecoder<{ readonly a: number }, never>> = [
-        untrustedDecoder(Needs),
-        untrustedDecoder(Needs, {}),
-        untrustedDecoder(Needs, { unwalked: [] }),
+        untrustedDecoder(Needs, { unknownKeys: "refuse" }),
+        untrustedDecoder(Needs, { unknownKeys: "refuse", unwalked: [] }),
       ];
       const inputs = FastCheck.oneof(
         nested.map(({ value }) => value),
@@ -157,6 +156,7 @@ describe("untrustedDecoder", () => {
     it("does not call prepare when the guard refuses", () => {
       let calls = 0;
       const decoder = untrustedDecoder(Needs, {
+        unknownKeys: "refuse",
         prepare: (input) => {
           calls++;
           return Result.succeed(input);
@@ -169,14 +169,20 @@ describe("untrustedDecoder", () => {
     });
 
     it("returns prepare's refusal unchanged, and never reaches the decode", () => {
-      const decoder = untrustedDecoder(Needs, { prepare: (): Result.Result<unknown, Bad> => Result.fail(bad) });
+      const decoder = untrustedDecoder(Needs, {
+        unknownKeys: "refuse",
+        prepare: (): Result.Result<unknown, Bad> => Result.fail(bad),
+      });
       const refused = decoder.decode({ a: "not a number" });
       assert.isTrue(Result.isFailure(refused));
       if (Result.isFailure(refused)) assert.strictEqual(refused.failure, bad);
     });
 
     it("decodes what prepare returns, not the input", () => {
-      const decoder = untrustedDecoder(Needs, { prepare: () => Result.succeed({ a: 1 }) });
+      const decoder = untrustedDecoder(Needs, {
+        unknownKeys: "refuse",
+        prepare: () => Result.succeed({ a: 1 }),
+      });
       const decoded = decoder.decode({ a: "not a number" });
       assert.isTrue(Result.isSuccess(decoded));
       if (Result.isSuccess(decoded)) assert.deepStrictEqual(decoded.success, { a: 1 });
@@ -237,7 +243,7 @@ describe("untrustedDecoder", () => {
     });
 
     it("a decoder built inside the test reads text: valid is Success, broken is NotJson", () => {
-      const fresh = untrustedDecoder(Needs);
+      const fresh = untrustedDecoder(Needs, { unknownKeys: "refuse" });
       assert.strictEqual(tagOf(fresh.decodeText('{"a":1}')), "Success");
       assert.strictEqual(tagOf(fresh.decodeText("{")), "NotJson");
     });
@@ -282,5 +288,204 @@ describe("untrustedDecoder", () => {
     it("a number JSON.parse reads as Infinity at depth 1 is not TooDeep", () => {
       assert.strictEqual(tagOf(anything.decodeText("[1e400]")), "Success");
     });
+  });
+});
+
+/** The result's kind and, when there is one, its message: what a caller can tell apart. */
+const answerOf = <A, E extends { readonly _tag: string }>(result: Result.Result<A, E>): string =>
+  Result.match(result, {
+    onSuccess: (value) => `Success ${JSON.stringify(value)}`,
+    onFailure: (error) => `${error._tag} ${"message" in error ? String(error.message) : ""}`,
+  });
+
+const successOf = <A, E>(result: Result.Result<A, E>): A => {
+  if (Result.isSuccess(result)) return result.success;
+  return assert.fail("expected a Success");
+};
+
+// Every decoder here is built inside its test: a decoder built at module scope is static to Stryker, which would hide
+// the key derivation's mutants.
+describe("unknownKeys (KEYP-02, D-16)", () => {
+  const deep = (): unknown => nest(null, MAX_DECODE_DEPTH + 1, []);
+
+  it("U1 a shallow unknown key: refuse is Malformed, ignore decodes the declared key", () => {
+    const refuse = untrustedDecoder(Needs, { unknownKeys: "refuse" });
+    const ignore = untrustedDecoder(Needs, { unknownKeys: "ignore" });
+    const input = { a: 1, extra: 2 };
+    assert.strictEqual(tagOf(refuse.decode(input)), "Malformed");
+    assert.deepStrictEqual(successOf(ignore.decode(input)), { a: 1 });
+    assert.deepStrictEqual(successOf(ignore.decodeText('{"a":1,"extra":2}')), { a: 1 });
+  });
+
+  it("U2 an unknown key past the bound: refuse is TooDeep, ignore decodes", () => {
+    const refuse = untrustedDecoder(Needs, { unknownKeys: "refuse" });
+    const ignore = untrustedDecoder(Needs, { unknownKeys: "ignore" });
+    const input = { a: 1, extra: deep() };
+    assert.strictEqual(tagOf(refuse.decode(input)), "TooDeep");
+    assert.deepStrictEqual(successOf(ignore.decode(input)), { a: 1 });
+  });
+
+  it("U3 an unknown key 60,000 deep under ignore decodes, value and text, no throw", () => {
+    const ignore = untrustedDecoder(Needs, { unknownKeys: "ignore" });
+    const value = { a: 1, extra: nest(null, 60_000, [true]) };
+    const text = '{"a":1,"extra":' + "[".repeat(60_000) + "]".repeat(60_000) + "}";
+    assert.doesNotThrow(() => ignore.decode(value));
+    assert.doesNotThrow(() => ignore.decodeText(text));
+    assert.deepStrictEqual(successOf(ignore.decode(value)), { a: 1 });
+    assert.deepStrictEqual(successOf(ignore.decodeText(text)), { a: 1 });
+  });
+
+  it("U4 an excess key inside a nested struct is Malformed under both", () => {
+    const Outer = Schema.Struct({ inner: Needs });
+    const refuse = untrustedDecoder(Outer, { unknownKeys: "refuse" });
+    const ignore = untrustedDecoder(Outer, { unknownKeys: "ignore" });
+    const input = { inner: { a: 1, extra: 2 } };
+    assert.strictEqual(tagOf(refuse.decode(input)), "Malformed");
+    assert.strictEqual(tagOf(ignore.decode(input)), "Malformed");
+    assert.strictEqual(answerOf(ignore.decode(input)), answerOf(refuse.decode(input)));
+  });
+
+  it("U5 5, null, [] and a string answer identically under both", () => {
+    const refuse = untrustedDecoder(Needs, { unknownKeys: "refuse" });
+    const ignore = untrustedDecoder(Needs, { unknownKeys: "ignore" });
+    for (const input of [5, null, [], "text"]) {
+      assert.strictEqual(tagOf(refuse.decode(input)), "Malformed");
+      assert.strictEqual(answerOf(ignore.decode(input)), answerOf(refuse.decode(input)));
+    }
+  });
+
+  it("U6 ignore with unwalked: a deep unwalked slot and a deep unknown key decode, a deep walked declared key is TooDeep", () => {
+    const refuse = untrustedDecoder(Slots, { unknownKeys: "refuse", unwalked: ["entries", "raw"] });
+    const ignore = untrustedDecoder(Slots, { unknownKeys: "ignore", unwalked: ["entries", "raw"] });
+    const tooDeepKey = { id: "x", entries: [deep()], raw: deep(), extra: deep() };
+    assert.strictEqual(tagOf(refuse.decode(tooDeepKey)), "TooDeep");
+    assert.strictEqual(tagOf(ignore.decode(tooDeepKey)), "Success");
+    const walked = { id: deep(), entries: [], raw: null };
+    assert.strictEqual(tagOf(ignore.decode(walked)), "TooDeep");
+    assert.strictEqual(tagOf(refuse.decode(walked)), "TooDeep");
+  });
+
+  it("U7 under ignore, prepare receives the projection without the unknown key", () => {
+    let seen: unknown = undefined;
+    const ignore = untrustedDecoder(Needs, {
+      unknownKeys: "ignore",
+      prepare: (input) => {
+        seen = input;
+        return Result.succeed(input);
+      },
+    });
+    assert.deepStrictEqual(successOf(ignore.decode({ a: 1, extra: 2 })), { a: 1 });
+    assert.deepStrictEqual(seen, { a: 1 });
+  });
+
+  it("U8 under ignore, prepare is not called when the guard refuses a declared key", () => {
+    let calls = 0;
+    const ignore = untrustedDecoder(Needs, {
+      unknownKeys: "ignore",
+      prepare: (input) => {
+        calls++;
+        return Result.succeed(input);
+      },
+    });
+    assert.strictEqual(tagOf(ignore.decode({ a: deep(), extra: 1 })), "TooDeep");
+    assert.strictEqual(calls, 0);
+    assert.strictEqual(tagOf(ignore.decode({ a: 1 })), "Success");
+    assert.strictEqual(calls, 1);
+  });
+
+  it("U9 under refuse, prepare receives the input itself", () => {
+    let seen: unknown = undefined;
+    const refuse = untrustedDecoder(Needs, {
+      unknownKeys: "refuse",
+      prepare: (input) => {
+        seen = input;
+        return Result.succeed(input);
+      },
+    });
+    const input = { a: 1, extra: 2 };
+    assert.strictEqual(tagOf(refuse.decode(input)), "Malformed");
+    assert.strictEqual(seen, input);
+  });
+
+  const Either = () =>
+    Schema.Union([
+      Schema.TaggedStruct("A", { a: Schema.Number }),
+      Schema.TaggedStruct("B", { b: Schema.Number }),
+    ]);
+
+  it("U10 a discriminated union keeps the keys of the member its _tag names", () => {
+    const refuse = untrustedDecoder(Either(), { unknownKeys: "refuse" });
+    const ignore = untrustedDecoder(Either(), { unknownKeys: "ignore" });
+    const sideA = { _tag: "A", a: 1, b: 2 };
+    const sideB = { _tag: "B", a: 1, b: 2 };
+    assert.strictEqual(tagOf(refuse.decode(sideA)), "Malformed");
+    assert.strictEqual(tagOf(refuse.decode(sideB)), "Malformed");
+    assert.deepStrictEqual(successOf(ignore.decode(sideA)), { _tag: "A", a: 1 });
+    assert.deepStrictEqual(successOf(ignore.decode(sideB)), { _tag: "B", b: 2 });
+  });
+
+  it("U11 an unknown _tag falls to the first member and is Malformed", () => {
+    const refuse = untrustedDecoder(Either(), { unknownKeys: "refuse" });
+    const ignore = untrustedDecoder(Either(), { unknownKeys: "ignore" });
+    const input = { _tag: "C", a: 1 };
+    assert.strictEqual(tagOf(refuse.decode(input)), "Malformed");
+    assert.strictEqual(tagOf(ignore.decode(input)), "Malformed");
+    assert.strictEqual(answerOf(ignore.decode(input)), answerOf(refuse.decode(input)));
+  });
+
+  it("U12 an absent _tag falls to the first member and is Malformed, missing _tag", () => {
+    const refuse = untrustedDecoder(Either(), { unknownKeys: "refuse" });
+    const ignore = untrustedDecoder(Either(), { unknownKeys: "ignore" });
+    const refused = ignore.decode({ a: 1 });
+    assert.isTrue(Result.isFailure(refused));
+    if (Result.isFailure(refused) && refused.failure._tag === "Malformed") {
+      // The union's own message: no member is selected, so the decode reports every member, the first one named first.
+      assert.strictEqual(refused.failure.message, 'Expected { readonly "_tag": "A", ... } | { readonly "_tag": "B", ... }');
+    } else assert.fail("an absent _tag was not Malformed");
+    assert.strictEqual(answerOf(ignore.decode({ a: 1 })), answerOf(refuse.decode({ a: 1 })));
+  });
+
+  it("U13 encodeKeys: the declared key is the encoded name", () => {
+    const Renamed = Schema.Struct({ a: Schema.Number }).pipe(Schema.encodeKeys({ a: "A" }));
+    const refuse = untrustedDecoder(Renamed, { unknownKeys: "refuse" });
+    const ignore = untrustedDecoder(Renamed, { unknownKeys: "ignore" });
+    const input = { A: 1, a: 2 };
+    assert.strictEqual(tagOf(refuse.decode(input)), "Malformed");
+    assert.deepStrictEqual(successOf(ignore.decode(input)), { a: 1 });
+  });
+
+  it("U14 a Suspend of a struct keeps its keys", () => {
+    const Lazy = Schema.suspend(() => Needs);
+    const refuse = untrustedDecoder(Lazy, { unknownKeys: "refuse" });
+    const ignore = untrustedDecoder(Lazy, { unknownKeys: "ignore" });
+    const input = { a: 1, extra: 2 };
+    assert.strictEqual(tagOf(refuse.decode(input)), "Malformed");
+    assert.deepStrictEqual(successOf(ignore.decode(input)), { a: 1 });
+    assert.strictEqual(tagOf(ignore.decode({ extra: 2 })), "Malformed");
+  });
+
+  it("U15 a one-member union needs no discriminant", () => {
+    const Only = Schema.Union([Schema.TaggedStruct("A", { a: Schema.Number })]);
+    const refuse = untrustedDecoder(Only, { unknownKeys: "refuse" });
+    const ignore = untrustedDecoder(Only, { unknownKeys: "ignore" });
+    const input = { _tag: "A", a: 1, extra: 2 };
+    assert.strictEqual(tagOf(refuse.decode(input)), "Malformed");
+    assert.deepStrictEqual(successOf(ignore.decode(input)), { _tag: "A", a: 1 });
+  });
+
+  it("U16 under ignore, Schema.Unknown, an array schema and an undiscriminated union throw at build, and under refuse they build", () => {
+    const Undiscriminated = Schema.Union([
+      Schema.Struct({ a: Schema.Number }),
+      Schema.Struct({ b: Schema.Number }),
+    ]);
+    assert.throws(() => untrustedDecoder(Schema.Unknown, { unknownKeys: "ignore" }), /unknownKeys "ignore" needs/);
+    assert.throws(
+      () => untrustedDecoder(Schema.Array(Schema.String), { unknownKeys: "ignore" }),
+      /unknownKeys "ignore" needs/,
+    );
+    assert.throws(() => untrustedDecoder(Undiscriminated, { unknownKeys: "ignore" }), /unknownKeys "ignore" needs/);
+    assert.doesNotThrow(() => untrustedDecoder(Schema.Unknown, { unknownKeys: "refuse" }));
+    assert.doesNotThrow(() => untrustedDecoder(Schema.Array(Schema.String), { unknownKeys: "refuse" }));
+    assert.doesNotThrow(() => untrustedDecoder(Undiscriminated, { unknownKeys: "refuse" }));
   });
 });

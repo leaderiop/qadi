@@ -33,7 +33,7 @@ const nested = (frames: number): unknown => {
   return policy;
 };
 
-const policyDecoder = untrustedDecoder(P.Policy);
+const policyDecoder = untrustedDecoder(P.Policy, { unknownKeys: "refuse" });
 
 // An entry as hydration reads it: scalar fields plus a `policy` the first walk leaves to the second.
 const entryDecoder = untrustedDecoder(
@@ -43,12 +43,12 @@ const entryDecoder = untrustedDecoder(
     subjectId: Schema.String,
     policy: Schema.Unknown,
   }),
-  { unwalked: ["policy"] },
+  { unknownKeys: "refuse", unwalked: ["policy"] },
 );
 
 const rowDecoder = untrustedDecoder(
   Schema.Struct({ record: Schema.Unknown, sequenceNumber: Schema.Number }),
-  { unwalked: ["record"] },
+  { unknownKeys: "refuse", unwalked: ["record"] },
 );
 
 const strictNoGuard = Schema.decodeUnknownResult(P.Policy, { onExcessProperty: "error" });

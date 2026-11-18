@@ -214,7 +214,7 @@ describe("decodeRefusalAnnotations says which refusal, never what was sent", () 
 });
 
 describe("decodeRefusalOf is the one mapping", () => {
-  const decoder = untrustedDecoder(Schema.String, {});
+  const decoder = untrustedDecoder(Schema.String, { unknownKeys: "refuse" });
 
   const refusalFrom = <A, E>(result: Result.Result<A, E>): E => {
     if (Result.isSuccess(result)) return assert.fail("expected a refusal");
