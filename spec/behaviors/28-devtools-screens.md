@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-28                                    |
-> | Revision       | 1.30                                           |
+> | Revision       | 1.31                                           |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.30 (2026-11-16): BEH-QD-583: pinned by M38 and M45, M46 (review iteration 3 IN-04, IN-06; ARCH-96, CCR-QD-440)<br>1.29 (2026-11-16): BEH-QD-584: an unsubscribe that throws is not stated; configure swaps the registry before it re-merges; the same registry is not subscribed again after a watch that worked; an unrenderable throw is a fixed sentence (review iteration 3 IN-01, IN-02, IN-05; ARCH-96, CCR-QD-440)<br>1.28 (2026-11-16): BEH-QD-584: a configure after a failed subscribe subscribes again, with the same registry or another; a silent mend stays Failed until read (review iteration 2 IN-03; ARCH-96, CCR-QD-440)<br>1.27 (2026-11-16): BEH-QD-583: the same failure is the same name and message, not the stack (review iteration 2 IN-02; ARCH-96, CCR-QD-440)<br>1.26 (2026-11-16): BEH-QD-584: an unsubscribe that throws is stated and never repeated (review iteration 2 WR-01; ARCH-96, CCR-QD-440)<br>1.25 (2026-11-16): BEH-QD-583 and BEH-QD-584: a registry that throws is stated as the Failed gates view and its rows make no claim; Listed carries nothing; a closed model reads no registry (review WR-01, IN-02, IN-03; ARCH-96, CCR-QD-440)<br>1.24 (2026-11-16): BEH-QD-581 to 585; BEH-QD-465 amended and BEH-QD-217 corrected: the gate registry is the dock model's eighth store (ARCH-96, CCR-QD-440)<br>1.23 (2026-11-16): BEH-QD-215: a defaulted port with no name reads 'defaulted — unnamed' (ARCH-94 review WR-01)<br>1.22 (2026-11-16): BEH-QD-573 and BEH-QD-575 new; BEH-QD-215's defaulted is read from isPortDefault, not a name (ARCH-94, CCR-QD-438)<br>1.21 (2026-11-14): BEH-QD-521 to BEH-QD-525 new: one module owns a run a newer run supersedes (CCR-QD-428)<br>1.20 (2026-11-12): BEH-QD-519 and BEH-QD-520 new: the timeline states a stop and restarts; BEH-QD-465 (eight readouts), BEH-QD-509 and BEH-QD-510 restated (CCR-QD-427)<br>1.19 (2026-11-12): review fixes: a closed feed and a repeated command publish nothing; the notice keeps a persistent status region, alerts once per stop and shows its focus (ARCH-82, BEH-QD-507, BEH-QD-509, INV-QD-313, CCR-QD-425)<br>1.18 (2026-11-12): BEH-QD-465 restated (seven stores) and BEH-QD-323 restated (the model polls; useDiagnostics returns { status, reading }); BEH-QD-506..510 new (ARCH-82, CCR-QD-425)<br>1.17 (2026-11-11): The one internal hook, useGates, is in useGate.ts (ARCH-76, CCR-QD-418, ADR-QD-140)<br>1.16 (2026-11-11): BEH-QD-465 — the dock is one model (makeDockModel owns the six stores and pushes the rail, one configure, the model reads its source in its own scope); BEH-QD-466 — a choice from a list has one shape (HeldChoice's three arms, one cell in both sessions); BEH-QD-389's note names the dock model, not the owned hook (ARCH-74, ADR-QD-047 amendment, CCR-QD-416)<br>1.15 (2026-11-10): BEH-QD-429 (every panel shows a verdict through one treatment) and BEH-QD-430 (a record's outcome and obligation are read once) (ARCH-67, CCR-QD-409)<br>1.14 (2026-11-10): BEH-QD-399 added: the role tree is the role walk as flat rows, keyed by identity, stack-safe at 20,000 deep, a repeated role a leaf pointing at its first occurrence; BEH-QD-214's diamond requirement amended to match (ADR-QD-128, ARCH-64, CCR-QD-406)<br>1.13 (2026-11-10): BEH-QD-389 — the dock's tab, filters, selection and replay are a session the dock owns: pair the whole timeline then filter, count the whole timeline, select opens the inspector, replay opens the simulator and re-seeds (ARCH-63, ADR-QD-047, CCR-QD-405)<br>1.12 (2026-11-09): BEH-QD-337 — what the explorer shows is a session the dock owns; BEH-QD-211 and BEH-QD-213 gain a sentence each (ARCH-58, ADR-QD-047, CCR-QD-394)<br>1.11 (2026-11-08): BEH-QD-233 — every surface registers through one internal useGates over a writer the provider resolves once (ARCH-49, ADR-QD-111, CCR-QD-388)<br>1.10 (2026-10-08): the screens' mechanics (`policiesSeen`, `PolicyTree`, the lens) are package-private; specified here because the dock relies on them (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.9 (2026-10-08): BEH-QD-323 — a reading supplied to the dock is one `reading` prop of `DiagnosticsReading`, merged field by field by `mergeReading`, replacing the five props `wiring`, `activity`, `portCalls`, `questions` and `hydration`; the superseded `hydrationMismatches` is removed from the dock and `QuestionsPanel` (**breaking**, ARCH-44, reverses the layout half of ARCH-24's D-24-c, CCR-QD-241)<br>1.8 (2026-10-08): BEH-QD-323 — under a `QadiProvider` the shared build comes from `useDevtoolsFeed()`'s layer, the provider's own build, rather than a hoisted context (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.7 (2026-10-08): BEH-QD-233 — a registry built by `makeGateRegistry` reports a colliding id by default (ARCH-43, CCR-QD-250)<br>1.6 (2026-10-08): BEH-QD-211 — two structurally equal *declared* policies are one entry under the first declared name, and the explorer and the role viewer keep what they show when their list moves (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.5 (2026-10-07): BEH-QD-233 — a hook that asks several questions (`usePolicies`, `useQuestions`) lists one instance per question, each under `<useId>/<name>`; the panel shows the new kind strings as they are (ARCH-23, ADR-QD-103, CCR-QD-201)<br>1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
+> | Change History | 1.31 (2026-11-18): BEH-QD-611..615; BEH-QD-465, 573, 575, 216 amended (ARCH-102, CCR-QD-446)<br>1.30 (2026-11-16): BEH-QD-583: pinned by M38 and M45, M46 (review iteration 3 IN-04, IN-06; ARCH-96, CCR-QD-440)<br>1.29 (2026-11-16): BEH-QD-584: an unsubscribe that throws is not stated; configure swaps the registry before it re-merges; the same registry is not subscribed again after a watch that worked; an unrenderable throw is a fixed sentence (review iteration 3 IN-01, IN-02, IN-05; ARCH-96, CCR-QD-440)<br>1.28 (2026-11-16): BEH-QD-584: a configure after a failed subscribe subscribes again, with the same registry or another; a silent mend stays Failed until read (review iteration 2 IN-03; ARCH-96, CCR-QD-440)<br>1.27 (2026-11-16): BEH-QD-583: the same failure is the same name and message, not the stack (review iteration 2 IN-02; ARCH-96, CCR-QD-440)<br>1.26 (2026-11-16): BEH-QD-584: an unsubscribe that throws is stated and never repeated (review iteration 2 WR-01; ARCH-96, CCR-QD-440)<br>1.25 (2026-11-16): BEH-QD-583 and BEH-QD-584: a registry that throws is stated as the Failed gates view and its rows make no claim; Listed carries nothing; a closed model reads no registry (review WR-01, IN-02, IN-03; ARCH-96, CCR-QD-440)<br>1.24 (2026-11-16): BEH-QD-581 to 585; BEH-QD-465 amended and BEH-QD-217 corrected: the gate registry is the dock model's eighth store (ARCH-96, CCR-QD-440)<br>1.23 (2026-11-16): BEH-QD-215: a defaulted port with no name reads 'defaulted — unnamed' (ARCH-94 review WR-01)<br>1.22 (2026-11-16): BEH-QD-573 and BEH-QD-575 new; BEH-QD-215's defaulted is read from isPortDefault, not a name (ARCH-94, CCR-QD-438)<br>1.21 (2026-11-14): BEH-QD-521 to BEH-QD-525 new: one module owns a run a newer run supersedes (CCR-QD-428)<br>1.20 (2026-11-12): BEH-QD-519 and BEH-QD-520 new: the timeline states a stop and restarts; BEH-QD-465 (eight readouts), BEH-QD-509 and BEH-QD-510 restated (CCR-QD-427)<br>1.19 (2026-11-12): review fixes: a closed feed and a repeated command publish nothing; the notice keeps a persistent status region, alerts once per stop and shows its focus (ARCH-82, BEH-QD-507, BEH-QD-509, INV-QD-313, CCR-QD-425)<br>1.18 (2026-11-12): BEH-QD-465 restated (seven stores) and BEH-QD-323 restated (the model polls; useDiagnostics returns { status, reading }); BEH-QD-506..510 new (ARCH-82, CCR-QD-425)<br>1.17 (2026-11-11): The one internal hook, useGates, is in useGate.ts (ARCH-76, CCR-QD-418, ADR-QD-140)<br>1.16 (2026-11-11): BEH-QD-465 — the dock is one model (makeDockModel owns the six stores and pushes the rail, one configure, the model reads its source in its own scope); BEH-QD-466 — a choice from a list has one shape (HeldChoice's three arms, one cell in both sessions); BEH-QD-389's note names the dock model, not the owned hook (ARCH-74, ADR-QD-047 amendment, CCR-QD-416)<br>1.15 (2026-11-10): BEH-QD-429 (every panel shows a verdict through one treatment) and BEH-QD-430 (a record's outcome and obligation are read once) (ARCH-67, CCR-QD-409)<br>1.14 (2026-11-10): BEH-QD-399 added: the role tree is the role walk as flat rows, keyed by identity, stack-safe at 20,000 deep, a repeated role a leaf pointing at its first occurrence; BEH-QD-214's diamond requirement amended to match (ADR-QD-128, ARCH-64, CCR-QD-406)<br>1.13 (2026-11-10): BEH-QD-389 — the dock's tab, filters, selection and replay are a session the dock owns: pair the whole timeline then filter, count the whole timeline, select opens the inspector, replay opens the simulator and re-seeds (ARCH-63, ADR-QD-047, CCR-QD-405)<br>1.12 (2026-11-09): BEH-QD-337 — what the explorer shows is a session the dock owns; BEH-QD-211 and BEH-QD-213 gain a sentence each (ARCH-58, ADR-QD-047, CCR-QD-394)<br>1.11 (2026-11-08): BEH-QD-233 — every surface registers through one internal useGates over a writer the provider resolves once (ARCH-49, ADR-QD-111, CCR-QD-388)<br>1.10 (2026-10-08): the screens' mechanics (`policiesSeen`, `PolicyTree`, the lens) are package-private; specified here because the dock relies on them (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.9 (2026-10-08): BEH-QD-323 — a reading supplied to the dock is one `reading` prop of `DiagnosticsReading`, merged field by field by `mergeReading`, replacing the five props `wiring`, `activity`, `portCalls`, `questions` and `hydration`; the superseded `hydrationMismatches` is removed from the dock and `QuestionsPanel` (**breaking**, ARCH-44, reverses the layout half of ARCH-24's D-24-c, CCR-QD-241)<br>1.8 (2026-10-08): BEH-QD-323 — under a `QadiProvider` the shared build comes from `useDevtoolsFeed()`'s layer, the provider's own build, rather than a hoisted context (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.7 (2026-10-08): BEH-QD-233 — a registry built by `makeGateRegistry` reports a colliding id by default (ARCH-43, CCR-QD-250)<br>1.6 (2026-10-08): BEH-QD-211 — two structurally equal *declared* policies are one entry under the first declared name, and the explorer and the role viewer keep what they show when their list moves (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.5 (2026-10-07): BEH-QD-233 — a hook that asks several questions (`usePolicies`, `useQuestions`) lists one instance per question, each under `<useId>/<name>`; the panel shows the new kind strings as they are (ARCH-23, ADR-QD-103, CCR-QD-201)<br>1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
 
 _Previous: [27 — The Devtools Timeline](./27-devtools-timeline.md)_
 
@@ -275,6 +275,11 @@ files and one of them was not checked. The wording is pinned byte for byte by
 `ServicesPanel.reading.test.tsx`, which passed unchanged on the phase base and
 after.
 
+> **Amended 2026-11-18 (CCR-QD-446).** The generic `describe` and its `attempts` suffix now live in `PortCards.ts`, which prints
+> `describeCall`'s sentence plus the suffix as a call row's text ([BEH-QD-613](#beh-qd-613-a-cards-recent-calls-are-a-closed-union-the-panel-prints)), and not in `ServicesPanel.tsx`.
+> `ServicesPanel.reading.test.tsx` keeps one case, the five consequences byte for byte, and the call readings are pinned in
+> `PortCards.test.ts`. The paragraph above is kept as written.
+
 ## BEH-QD-575: A new port asks devtools only for what the compiler names
 
 ```
@@ -296,6 +301,10 @@ a mapped type over `PortName` that is a compile error until written:
 simulation tables are there because core's `PortFixtureData` requires them;
 deriving them is out of scope, so they are two of the four lines a sixth port
 costs ([ADR-QD-160](../decisions/160-port-facts-are-read-from-the-description.md)).
+
+> **Amended 2026-11-18 (CCR-QD-446).** `PortCards.ts` needs no edit for a new port either: its activity and call records are built
+> by `tabulatePorts` over the registry and `isPortName` reads the registry, so a sixth port is still the four lines the
+> list above names ([BEH-QD-611](#beh-qd-611-a-port-card-is-one-model-row-keyed-by-its-wired-service)). The paragraph above is kept as written.
 
 ## BEH-QD-216: Port activity is a passive, process-wide aggregate
 
@@ -336,6 +345,10 @@ There is none: the bound is `capacity`, evicted by insertion order rather than
 by age. A TTL control would imply a cache design the library does not have. The
 cache card must also not be confused with the record log — a decision log has
 its own `clear`.
+
+> **Amended 2026-11-18 (CCR-QD-446).** `PortActivity.port` is a `PortName`, and `portActivity` reads one entry per registry port, so a
+> word written to a port metric outside the registry is no longer reported
+> ([BEH-QD-614](#beh-qd-614-port-activity-reads-one-entry-per-registry-port)). **Breaking** for `@qadi/devtools`. The requirements above are unchanged.
 
 ## BEH-QD-217: The React panel is keyed by question
 
@@ -903,6 +916,11 @@ Pinned by `DockSession.test.ts`, headlessly, and through the dock by
 > timeline status), `questions` the eighth, and `sightings` a thunk the model reads and not a store. The earlier ordinals
 > in this section counted the policy rail among the stores, so they called the diagnostics the seventh and the timeline
 > status the eighth readout; they are kept as written.
+>
+> **Amended 2026-11-18 (CCR-QD-446).** The Services tab's port cards are the model's ninth store, `services`: the wiring read, the
+> activity and the call log joined to one `ServicesView` at one moment
+> ([BEH-QD-615](#beh-qd-615-the-services-store-is-one-moment-and-keeps-its-reference-when-nothing-moved)). Counting as the note above does, the eight stores before it and `services` the ninth.
+> `DockModel` below lists it after `questions`.
 
 ```ts
 export interface DockModelInputs {
@@ -919,6 +937,7 @@ export interface DockModel {
   readonly diagnostics: DiagnosticsReadout;
   readonly timelineStatus: TimelineStatusReadout;
   readonly questions: Pick<ExternalStore<QuestionsSnapshot>, "subscribe" | "getSnapshot">;
+  readonly services: Pick<ExternalStore<ServicesView>, "subscribe" | "getSnapshot">;
   readonly dock: DockSession;
   readonly explorer: ExplorerSession;
   readonly roles: HeldChoiceStore<Role>;
@@ -2048,3 +2067,159 @@ guard, none otherwise), `packages/devtools/test/react/QuestionsPanel.gates.test.
 that carry the sentence), `packages/devtools/test/surface.tst.ts` (`GateRegistryLike` is the two methods react's registry
 has, and no more) and `examples/nextjs-newsroom/test/dock-wiring.test.tsx` (the dock's gate registry). Specified in
 ADR-QD-162 (CCR-QD-440, D-09, D-12a, D-18).
+
+## BEH-QD-611: A port card is one model row, keyed by its wired service
+
+> **Decision:** [ADR-QD-168](../decisions/168-a-port-card-is-a-model-row.md) ·
+> **Scope:** [ADR-QD-162](../decisions/162-gates-are-the-dock-models-eighth-store-and-their-states-are-stated-once.md) ·
+> **Invariant:** [INV-QD-355](../invariants.md#inv-qd-355-a-port-cards-readings-are-joined-by-portname-in-one-pure-model-function)
+
+The Services panel used to pair the wiring report with the activity and the call log in its render. The pairing is now
+made once, in the model, by one pure function.
+
+```ts
+export interface ServicesInput {
+  readonly wiring: WiringRead;
+  readonly activity: ReadonlyArray<PortActivity>;
+  readonly portCalls: PortCallLog | undefined;
+  readonly unsampled: boolean;
+}
+export type ServicesView = Data.TaggedEnum<{
+  Withheld: {};
+  NotHanded: {};
+  Failed: { readonly reason: string };
+  Read: { readonly rows: ReadonlyArray<PortCardRow>; readonly cache: string };
+}>;
+export const portCards: (input: ServicesInput) => ServicesView;
+```
+
+```
+REQUIREMENT: `portCards` MUST return the Services screen as one `ServicesView`:
+             `Withheld` while no layer is handed and no sample was taken,
+             `NotHanded` once a sample found no layer, `Failed` with the reason
+             the layer did not build, and `Read`. Each `Read` row MUST carry its
+             state, its activity line, its consequence and tone, its
+             `data-defaulted` value and its calls. A row that is not a registry
+             port MUST take the not-a-port branch through `isPortName`, and no
+             port MUST be compared as a string.
+```
+
+`Withheld` is a tag so that the panel never reads `unsampled` itself. The four wired services that are not ports
+(`EvaluationId`, `CurrentSubject`, `DecisionCache` and `DecisionSink`) are rows of the same view; their activity line still
+reads `never called` (or `no activity reading` while unsampled), as it always did, although no metric counts them. That is
+kept byte-identical and left for a later phase.
+
+Pinned by `packages/devtools/test/model/PortCards.test.ts` (the wiring states, the rows, the cache, `isPortName` and
+`activityByPort`, the four rows that are not ports from the real wiring report) and `packages/devtools/test/model/PortCards.tst.ts`
+(a misspelt port is a compile error in a `PortActivity` literal and in the per-port records). Specified in ADR-QD-168
+(CCR-QD-446, D-01, D-02, D-07, D-08).
+
+## BEH-QD-612: A card's wording is stated once, in the model
+
+> **Decision:** [ADR-QD-168](../decisions/168-a-port-card-is-a-model-row.md) ·
+> **Scope:** [ADR-QD-047](../decisions/047-a-headless-devtools-model.md) ·
+> **Invariant:** [INV-QD-356](../invariants.md#inv-qd-356-the-services-panel-computes-nothing)
+
+```
+REQUIREMENT: Every word a card prints MUST be written in `PortCards.ts` and printed
+             unchanged by `ServicesPanel`: the state, the activity line and
+             `no activity reading`, the consequence in its own voice (`if
+             defaulted:` for a wired port), and the cache's `N completed entries`
+             or `absent`. The fixed prose (the process-wide scope note, the cache
+             card's sentences and the two notes) MUST stay in the view.
+```
+
+The line between the two is that a word the model chooses from the reading is a rule, and a sentence that is the same for
+every reading is text. The panel's remaining code maps a tag to JSX and prints fields, through two hoisted exhaustive
+matchers and a tone table keyed by the closed `CardTone`. Every word and `data-testid` is byte-identical to the base.
+
+Pinned by `packages/devtools/test/react/ServicesPanel.characterisation.test.tsx` (sixteen cells, written on the phase base
+before any source edit and never edited), `packages/devtools/test/model/PortCards.test.ts` and
+`packages/devtools/test/react/ServicesPanel.test.tsx` (the tag-to-JSX mapping and the `data-testid`s). Specified in ADR-QD-168
+(CCR-QD-446, D-04, D-09, D-13, D-14).
+
+## BEH-QD-613: A card's recent calls are a closed union the panel prints
+
+> **Decision:** [ADR-QD-168](../decisions/168-a-port-card-is-a-model-row.md) ·
+> **Invariant:** [INV-QD-355](../invariants.md#inv-qd-355-a-port-cards-readings-are-joined-by-portname-in-one-pure-model-function)
+
+```ts
+export type CallsView = Data.TaggedEnum<{
+  Hidden: {};
+  Uncollected: {};
+  Listed: { readonly calls: ReadonlyArray<CallRow>; readonly earlier: string | undefined };
+}>;
+export interface CallRow {
+  readonly key: string;
+  readonly text: string;
+  readonly interpreter: string | undefined;
+  readonly duration: string;
+}
+```
+
+```
+REQUIREMENT: A row's calls MUST be `Hidden`, `Uncollected` or `Listed`. `Listed` MUST
+             hold the newest five calls, newest first, with `and N earlier` when
+             more are held. Each call MUST carry its text (the reading table's
+             sentence, plus ` · N attempts` only when it ran more than once), its
+             interpreter label (`translation` for a translation's read, `served`
+             for a read made to answer a remote asker, else none), its duration
+             (`in flight` when unfinished, else the milliseconds to one decimal)
+             and its React key.
+```
+
+`Hidden` covers both a collector that is not yet known (no `portCalls` while unsampled) and one that saw nothing for this
+row, and `Uncollected` is the note that the detail needs `portCalls`, so the panel never inspects an empty list or the flag.
+The key is the span, when the call started and the text, the value it had at the base. See also
+[BEH-QD-573](#beh-qd-573-each-ports-consequence-and-call-reading-are-stated-once) and
+[INV-QD-044](../invariants.md): a call row says whether a value came back and never what it was.
+
+Pinned by `packages/devtools/test/model/PortCards.test.ts` (recent calls; the calls a row holds, by collection state) and the
+characterisation. Specified in ADR-QD-168 (CCR-QD-446, D-02, D-10, D-11, D-12).
+
+## BEH-QD-614: Port activity reads one entry per registry port
+
+> **Decision:** [ADR-QD-168](../decisions/168-a-port-card-is-a-model-row.md) ·
+> **Scope:** [ADR-QD-047](../decisions/047-a-headless-devtools-model.md) ·
+> **Invariant:** [INV-QD-355](../invariants.md#inv-qd-355-a-port-cards-readings-are-joined-by-portname-in-one-pure-model-function)
+
+```
+REQUIREMENT: `PortActivity.port` MUST be a `PortName`. `portActivity` MUST read each
+             registry port's own name in the four port metrics, MUST report only
+             the ports that were reached, in the registry's order, and MUST NOT
+             report a word written to a metric outside the registry.
+```
+
+This is **Breaking** for `@qadi/devtools`, which exports `PortActivity`: a host that built one with a free-text `port` must
+use a registry name. It also changes one behaviour of the base, which iterated the metrics' own string keys and so reported
+a word the registry does not know. No card could show such a word, and a misspelt port is now a compile error in the type
+and a word nothing reads at run time. The reached filter (issue #107) is kept.
+
+Pinned by `packages/devtools/test/model/Wiring.test.ts` (a word written to a port metric outside the registry is not port
+activity; the reached ports in the registry's order, whatever order they were reached in) and
+`packages/devtools/test/model/PortCards.tst.ts`. Specified in ADR-QD-168 (CCR-QD-446, D-05, D-06, D-16).
+
+## BEH-QD-615: The services store is one moment, and keeps its reference when nothing moved
+
+> **Decision:** [ADR-QD-168](../decisions/168-a-port-card-is-a-model-row.md) ·
+> **Scope:** [ADR-QD-047](../decisions/047-a-headless-devtools-model.md) ·
+> **Invariant:** [INV-QD-355](../invariants.md#inv-qd-355-a-port-cards-readings-are-joined-by-portname-in-one-pure-model-function)
+
+```
+REQUIREMENT: `DockModel.services` MUST be computed from one shown reading, and MUST keep
+             its reference, notifying no subscriber, unless the wiring read, the
+             activity, the call log or the unsampled flag changed identity. It is
+             the dock model's ninth store.
+```
+
+As [BEH-QD-583](#beh-qd-583-the-questions-store-is-one-moment-and-keeps-its-reference-when-nothing-moved) does for the
+questions, the join is made once and a poll that changed none of its four inputs notifies nothing. The rule is the identity of
+the four inputs and not a promise about any one status transition. A feed that stops after it has sampled (`Live` to
+`Stopped`) changes only its status and keeps the view. A feed switched on (`Off` to `Live`) passes through `Starting`, which
+is unsampled, so the store notifies twice and ends on a new, structurally equal view, a re-render and not a change a card
+shows.
+
+Pinned by `packages/devtools/test/model/DockModel.test.ts` (M48 the first snapshot holds the port cards of the shown reading;
+M49 only hydration or the questions moving keeps the reference; M50, M51 and M52 a new wiring, activity or call log alone
+recomputes once; M53 the `Starting` to `Live` flip recomputes with every input supplied; M54 a status change that leaves the
+sampled flag alone keeps the view). Specified in ADR-QD-168 (CCR-QD-446, D-03).
