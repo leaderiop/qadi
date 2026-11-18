@@ -78,10 +78,10 @@
 ### Every phase (cross-cutting)
 
 - [ ] **WX-01**: `pnpm check:pr < /dev/null` is green at the end of each phase.
-- [x] **WX-02**: Each phase records its ADR (or names it "Unused" in its CCR row), its CCR row, and its BEH/INV/traceability changes, using only its reserved numbers. `node scripts/next-id.mjs` is never run.
-- [x] **WX-03**: `spec/overview.md` names every added export and drops every removed one (gate 13).
+- [ ] **WX-02**: Each phase records its ADR (or names it "Unused" in its CCR row), its CCR row, and its BEH/INV/traceability changes, using only its reserved numbers. `node scripts/next-id.mjs` is never run.
+- [ ] **WX-03**: `spec/overview.md` names every added export and drops every removed one (gate 13).
 - [ ] **WX-04**: Nothing new is added from this list: `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`, ambient `console`/`process.env`/clock. A budget changes only together with its AGENTS.md table.
-- [x] **WX-05**: Coverage thresholds hold (core at least 95%, the others at least 90%). The Stryker score of touched files does not fall:
+- [ ] **WX-05**: Coverage thresholds hold (core at least 95%, the others at least 90%). The Stryker score of touched files does not fall:
   - recorded per phase in `NN-mutation-base.json`;
   - measured with the same invocation at the phase base and at close;
   - a drop is closed with a test, never re-baselined.
@@ -152,10 +152,10 @@ The seven WX rows apply to every phase 53 to 61, so each phase's Requirements li
 | CASK-03 | Phase 61 | Pending |
 | CASK-04 | Phase 61 | Pending |
 | WX-01 | All v1.6 phases | Pending |
-| WX-02 | All v1.6 phases | Complete |
-| WX-03 | All v1.6 phases | Complete |
+| WX-02 | All v1.6 phases | Pending |
+| WX-03 | All v1.6 phases | Pending |
 | WX-04 | All v1.6 phases | Pending |
-| WX-05 | All v1.6 phases | Complete |
+| WX-05 | All v1.6 phases | Pending |
 | WX-06 | All v1.6 phases | Pending |
 | WX-07 | All v1.6 phases | Pending |
 
