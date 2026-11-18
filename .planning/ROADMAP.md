@@ -418,7 +418,7 @@ Order: the defect first (53), then the "stated once" deepenings (54-58), then th
   4. ADR-QD-166 extends ADR-QD-091 and ADR-QD-024 (two walks stay two), INV-QD-091 is restated to cover the operand read, and the `SWITCH_BUDGET` switches in `Matcher.ts` (`judgeMatcher`, `resolveRef`) are unchanged.
 
 **Planning notes**: Re-verify the line numbers in `_WAVE11-CONTEXT.md` against `44510112`. Plan shape, RED first: the mutation base for the touched files and the RED probe, committed first; then the module with one reader converted at a time; then records. Re-run `pnpm circular` after the first move.
-**Plans**: 7/8 plans executed
+**Plans**: 8/8 plans executed
 
 Plans:
 - [x] 53-01 (W1): Base facts, engine suites and reserved ids re-verified at `phase_base`; the scoped Stryker baseline of the eight readers and the D-14 comparer, committed alone first (WX-02, WX-05, WX-06).
@@ -428,7 +428,7 @@ Plans:
 - [x] 53-05 (W5): `projectAt` and `Decision.ts` read through `Operand.ts`; the eight-file OPND-03 check, engine suites, typecheck, lint, circular (OPND-03, OPND-04).
 - [x] 53-06 (W6): Stryker after-run with the same invocation plus `Operand.ts`; D-14 compare; a drop closed with a test, never re-baselined (WX-05).
 - [x] 53-07 (W7): ADR-QD-166 and the 091/024 amendments, BEH-QD-601..605, INV-QD-091 restated, INV-QD-351..352, traceability, the `getByPath` overview note (OPND-05, WX-02, WX-03).
-- [ ] 53-08 (W8): CCR-QD-444 and the `@qadi/core` patch changeset; the whole-phase scan; `pnpm check:pr`; the release check (WX-01..04, WX-06, WX-07).
+- [x] 53-08 (W8): CCR-QD-444 and the `@qadi/core` patch changeset; the whole-phase scan; `pnpm check:pr`; the release check (WX-01..04, WX-06, WX-07).
 
 ### Phase 54: LeafNeeds turns every leaf's answer into a verdict
 
@@ -588,7 +588,7 @@ Phases execute in numeric order: 53 → 54 → 55 → 56 → 57 → 58 → 59 �
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 53. One module owns "the value a leaf compares" | 7/8 | In Progress | - |
+| 53. One module owns "the value a leaf compares" | 8/8 | In Progress | - |
 | 54. LeafNeeds turns every leaf's answer into a verdict | 0/TBD | Not started | - |
 | 55. A port card is a model row, not a view join | 0/TBD | Not started | - |
 | 56. The gate-registry watch becomes the dock model's third feed | 0/TBD | Not started | - |
