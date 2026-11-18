@@ -150,6 +150,55 @@ describe("a registry that could not be read", () => {
   });
 });
 
+describe("questions that could not be read", () => {
+  const failedQuestions = (reason: string, gates: GatesView): ReturnType<typeof render> => {
+    const snapshot: QuestionsSnapshot = {
+      gates,
+      questions: QuestionsView.Failed({ reason }),
+      instances: gates._tag === "Listed" ? [gate({ id: "a" })] : [],
+    };
+    return render(
+      <QuestionsPanel
+        diagnostics={liveNotice}
+        questions={{ subscribe: () => () => {}, getSnapshot: () => snapshot }}
+      />,
+    );
+  };
+
+  it("questions that could not be read: the paragraph, alone, with the reason", () => {
+    failedQuestions("Error: questions down", GatesView.Listed());
+    const note = screen.getByTestId("qadi-questions-failed");
+
+    assert.strictEqual(
+      note.textContent,
+      "The questions handed to the dock threw, so what has been asked cannot be shown: Error: questions down",
+    );
+    assert.deepStrictEqual(note.getAttributeNames().sort(), ["data-testid", "style"]);
+    assert.isNull(screen.queryByTestId("qadi-question-block"));
+    assert.isNotNull(screen.queryByTestId("qadi-pick"));
+  });
+
+  it("both failures are stated, the registry's first", () => {
+    failedQuestions("questions down", GatesView.Failed({ reason: "registry down" }));
+    const gates = screen.getByTestId("qadi-gates-failed");
+    const questions = screen.getByTestId("qadi-questions-failed");
+
+    assert.strictEqual(
+      gates.compareDocumentPosition(questions) & Node.DOCUMENT_POSITION_FOLLOWING,
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    assert.strictEqual(gates.getAttribute("style"), questions.getAttribute("style"));
+  });
+
+  it("a reason is shown as text", () => {
+    failedQuestions("<b>x</b>", GatesView.Listed());
+    const note = screen.getByTestId("qadi-questions-failed");
+
+    assert.isNull(note.querySelector("b"));
+    assert.include(note.textContent ?? "", "<b>x</b>");
+  });
+});
+
 describe("highlight — the panel points at the page", () => {
   it("offers a highlight naming how many it can point at", () => {
     render(
