@@ -14,7 +14,7 @@
 - [x] **OPND-02**: One package-private module, beside `Compare.ts`, owns reading the value a leaf compares: a single-key cell read and a dot-path read, both own-property only.
 - [x] **OPND-03**: Every interpreter reads leaf values only through that module: the walk, the port attribute read, matcher refs (`getByPath`), FieldMatch, `evaluatePredicate`, field projection and `Decision.ts`. No other `Object.hasOwn` key read on a decoded key remains in those files, and the "mirroring" comments are gone.
 - [x] **OPND-04**: An agreement property over keys that include prototype names (`constructor`, `toString`, `__proto__`, `hasOwnProperty`, `valueOf`) shows `evaluate` ≡ `evaluatePredicate ∘ toPredicate`. The predicate-sql and predicate-prisma engine-agreement suites stay green.
-- [ ] **OPND-05**: ADR-QD-166 extends ADR-091 and ADR-024. INV-QD-091 is restated to cover the operand read.
+- [x] **OPND-05**: ADR-QD-166 extends ADR-091 and ADR-024. INV-QD-091 is restated to cover the operand read.
 
 ### LeafNeeds turns every leaf's answer into a verdict (Phase 54, ARCH-101, core)
 
@@ -78,8 +78,8 @@
 ### Every phase (cross-cutting)
 
 - [ ] **WX-01**: `pnpm check:pr < /dev/null` is green at the end of each phase.
-- [ ] **WX-02**: Each phase records its ADR (or names it "Unused" in its CCR row), its CCR row, and its BEH/INV/traceability changes, using only its reserved numbers. `node scripts/next-id.mjs` is never run.
-- [ ] **WX-03**: `spec/overview.md` names every added export and drops every removed one (gate 13).
+- [x] **WX-02**: Each phase records its ADR (or names it "Unused" in its CCR row), its CCR row, and its BEH/INV/traceability changes, using only its reserved numbers. `node scripts/next-id.mjs` is never run.
+- [x] **WX-03**: `spec/overview.md` names every added export and drops every removed one (gate 13).
 - [ ] **WX-04**: Nothing new is added from this list: `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`, ambient `console`/`process.env`/clock. A budget changes only together with its AGENTS.md table.
 - [x] **WX-05**: Coverage thresholds hold (core at least 95%, the others at least 90%). The Stryker score of touched files does not fall:
   - recorded per phase in `NN-mutation-base.json`;
@@ -115,7 +115,7 @@ The seven WX rows apply to every phase 53 to 61, so each phase's Requirements li
 | OPND-02 | Phase 53 | Complete |
 | OPND-03 | Phase 53 | Complete |
 | OPND-04 | Phase 53 | Complete |
-| OPND-05 | Phase 53 | Pending |
+| OPND-05 | Phase 53 | Complete |
 | VERD-01 | Phase 54 | Pending |
 | VERD-02 | Phase 54 | Pending |
 | VERD-03 | Phase 54 | Pending |
@@ -152,8 +152,8 @@ The seven WX rows apply to every phase 53 to 61, so each phase's Requirements li
 | CASK-03 | Phase 61 | Pending |
 | CASK-04 | Phase 61 | Pending |
 | WX-01 | All v1.6 phases | Pending |
-| WX-02 | All v1.6 phases | Pending |
-| WX-03 | All v1.6 phases | Pending |
+| WX-02 | All v1.6 phases | Complete |
+| WX-03 | All v1.6 phases | Complete |
 | WX-04 | All v1.6 phases | Pending |
 | WX-05 | All v1.6 phases | Complete |
 | WX-06 | All v1.6 phases | Pending |
