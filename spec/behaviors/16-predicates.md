@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-16                                    |
-> | Revision       | 1.7                                            |
+> | Revision       | 1.8                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.7 (2026-11-18): BEH-QD-602, BEH-QD-603 added: the reference interpreter's column read; agreement on prototype-named keys (ARCH-100, CCR-QD-444)<br>1.6 (2026-10-05): BEH-QD-122 — a `Compare`/`MemberOf` leaf is `Compare.ts`'s verdict, the function `judgeMatcher` applies (ADR-QD-091, CCR-QD-173); BEH-QD-127 — the generated rows include non-finite values, where `toPredicate` failed open until CCR-QD-172<br>1.5 (2026-10-04): BEH-QD-121/122 cross-reference BEH-QD-271 — core still emits no dialect, but now says what is renderable (`toRenderable`) (ADR-QD-079, CCR-QD-158)<br>1.4 (2026-10-04): BEH-QD-266 — an over-deep policy is `PolicyTooDeep` before the fields refusal whatever the child order, and no `maxDepth` raises a defect (ADR-QD-090, CCR-QD-170)<br>1.3 (2026-10-04): BEH-QD-123 — a failing port fails the translation with its own typed error; BEH-QD-264/265/266 — a defecting port fails typed, translation stops where the evaluator stops, a refusal depends on the tree alone; BEH-QD-127 — points at INV-QD-058 for faulty ports (CCR-QD-153, ADR-QD-077)<br>1.2 (2026-09-08): BEH-QD-123 — add missing `HasCustom`/`HasSignature` rows to the translation-subset table (CCR-QD-130)<br>1.1 (2026-08-25): BEH-QD-121 — a companion package may compile the predicate (ADR-QD-054, CCR-QD-079)<br>1.0 (2026-07-26): Initial release (CCR-QD-020) |
+> | Change History | 1.8 (2026-11-18): BEH-QD-608 (ARCH-101, CCR-QD-445)<br>1.7 (2026-11-18): BEH-QD-602, BEH-QD-603 added: the reference interpreter's column read; agreement on prototype-named keys (ARCH-100, CCR-QD-444)<br>1.6 (2026-10-05): BEH-QD-122 — a `Compare`/`MemberOf` leaf is `Compare.ts`'s verdict, the function `judgeMatcher` applies (ADR-QD-091, CCR-QD-173); BEH-QD-127 — the generated rows include non-finite values, where `toPredicate` failed open until CCR-QD-172<br>1.5 (2026-10-04): BEH-QD-121/122 cross-reference BEH-QD-271 — core still emits no dialect, but now says what is renderable (`toRenderable`) (ADR-QD-079, CCR-QD-158)<br>1.4 (2026-10-04): BEH-QD-266 — an over-deep policy is `PolicyTooDeep` before the fields refusal whatever the child order, and no `maxDepth` raises a defect (ADR-QD-090, CCR-QD-170)<br>1.3 (2026-10-04): BEH-QD-123 — a failing port fails the translation with its own typed error; BEH-QD-264/265/266 — a defecting port fails typed, translation stops where the evaluator stops, a refusal depends on the tree alone; BEH-QD-127 — points at INV-QD-058 for faulty ports (CCR-QD-153, ADR-QD-077)<br>1.2 (2026-09-08): BEH-QD-123 — add missing `HasCustom`/`HasSignature` rows to the translation-subset table (CCR-QD-130)<br>1.1 (2026-08-25): BEH-QD-121 — a companion package may compile the predicate (ADR-QD-054, CCR-QD-079)<br>1.0 (2026-07-26): Initial release (CCR-QD-020) |
 
 _Previous: [15 — Rule Tables](./15-rules.md)_
 
@@ -398,6 +398,21 @@ REQUIREMENT: For every translatable policy P and row R, evaluatePredicate(toPred
              MUST equal isAllowed(evaluate(P, { resource: R })) when P's leaves name a
              prototype-named key, whether R lacks it or owns it.
 ```
+
+## BEH-QD-608: toPredicate folds a leaf by asking its verdict row whether it holds
+
+> **Invariant:** [INV-QD-353](../invariants.md#inv-qd-353-each-leafs-answer-becomes-a-verdict-in-exactly-one-row-which-both-interpreters-read)
+> **See:** [ADR-QD-167](../decisions/167-each-leafs-answer-becomes-a-verdict-in-one-row.md), [ADR-QD-024](../decisions/024-predicate-output.md)
+
+```
+REQUIREMENT: A leaf `toPredicate` folds MUST be `True` exactly when its row's outcome is `Held`
+             (`isHeld`), and `False` otherwise. The `AskActed` plan MUST carry the leaf and no
+             wanted answer.
+```
+
+`toPredicate` keeps planning and constant folding; whether an answer holds is the row's. The two walks stay two
+(ADR-QD-024) and read the same row, so an `Unknown` acted answer is `False` for both polarities there too. Pinned by
+`LeafVerdict.test.ts` (through `evaluatePredicate` where the leaf folds) and `Predicate.test.ts`.
 
 ## BEH-QD-128: Worked example
 

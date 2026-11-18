@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-05                                    |
-> | Revision       | 1.15                                           |
+> | Revision       | 1.16                                           |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.15 (2026-11-16): a row's resourceId is classified by tag like its own, an unlisted tag gets never (review iteration 2 IN-02)<br>1.14 (2026-11-16): a leaf no own classification names has no row that compiles (review iteration 2 WR-01)<br>1.13 (2026-11-16): BEH-QD-589 pinned by an agreement property and a HasAction deny cell (review IN-03)<br>1.12 (2026-11-16): a row's own and matcher are derived from its leaf's variant (review WR-01)<br>1.11 (2026-11-16): BEH-QD-589 and BEH-QD-590 new: the port-free judgements are written once; every leaf tag has one row in the leaf-needs table (ARCH-97, CCR-QD-441)<br>1.10 (2026-10-08): BEH-QD-039 — a decision is built from a stamp and a trace (`makeDecision`), and its verdict, `visibleFields`, `obligations` and `reason` are the trace root's (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.9 (2026-10-07): BEH-QD-033 — the interpreter is the internal `walk`, `evaluate` the only public path to a decision; BEH-QD-317 added, a readiness probe asks the ports every time (ADR-QD-100, CCR-QD-189)<br>1.8 (2026-10-05): BEH-QD-035 — the stop rule reads the field lattice's `decidedByFirst` law; a strategy outside the union, prototype keys included, never stops early (ADR-QD-092, CCR-QD-174)<br>1.7 (2026-10-04): BEH-QD-038 — nesting depth is judged on the policy before any node is visited, matcher nesting counts, and no `maxDepth` raises a defect (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-261 — scope sentence: the conversion lives in `PortAccess.ts` and applies to every port read core makes, `toPredicate`'s included (BEH-QD-264); the requirement text for `evaluate` is unchanged (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-09): BEH-QD-261 — the five bare `yield*` port calls (`AttributeResolver.resolve`, `DecisionHistory.hasActed`, `RelationshipResolver.check`, `CustomPredicate.evaluate`, `SignatureHistory.signaturesFor`) now each convert a defecting implementation into their own typed `EvaluationError`, joining the four `EvaluationError` tags (`MissingAction`, `MissingResource`, `MissingResourceId`, `PolicyTooDeep`) that were already synchronous and so never at risk of dying — so a caller's `Effect.retry` around `evaluate` now sees a retryable failure at all nine tags, not just those four (issue #100, CCR-QD-142)<br>1.4 (2026-09-07): BEH-QD-033's `evaluate` signature corrected — the requirement channel omitted `CustomPredicate`/`SignatureHistory`, both joined by CCR-QD-082/CCR-QD-089 (CCR-QD-110)<br>1.3 (2026-07-26): `DecisionHistory` joins `EvaluationServices` (CCR-QD-016)<br>1.2 (2026-07-26): `Trace.obligations` (CCR-QD-015)<br>1.1 (2026-07-26): Missing-action rule cross-referenced (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.16 (2026-11-18): BEH-QD-606 (ARCH-101, CCR-QD-445)<br>1.15 (2026-11-16): a row's resourceId is classified by tag like its own, an unlisted tag gets never (review iteration 2 IN-02)<br>1.14 (2026-11-16): a leaf no own classification names has no row that compiles (review iteration 2 WR-01)<br>1.13 (2026-11-16): BEH-QD-589 pinned by an agreement property and a HasAction deny cell (review IN-03)<br>1.12 (2026-11-16): a row's own and matcher are derived from its leaf's variant (review WR-01)<br>1.11 (2026-11-16): BEH-QD-589 and BEH-QD-590 new: the port-free judgements are written once; every leaf tag has one row in the leaf-needs table (ARCH-97, CCR-QD-441)<br>1.10 (2026-10-08): BEH-QD-039 — a decision is built from a stamp and a trace (`makeDecision`), and its verdict, `visibleFields`, `obligations` and `reason` are the trace root's (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.9 (2026-10-07): BEH-QD-033 — the interpreter is the internal `walk`, `evaluate` the only public path to a decision; BEH-QD-317 added, a readiness probe asks the ports every time (ADR-QD-100, CCR-QD-189)<br>1.8 (2026-10-05): BEH-QD-035 — the stop rule reads the field lattice's `decidedByFirst` law; a strategy outside the union, prototype keys included, never stops early (ADR-QD-092, CCR-QD-174)<br>1.7 (2026-10-04): BEH-QD-038 — nesting depth is judged on the policy before any node is visited, matcher nesting counts, and no `maxDepth` raises a defect (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-261 — scope sentence: the conversion lives in `PortAccess.ts` and applies to every port read core makes, `toPredicate`'s included (BEH-QD-264); the requirement text for `evaluate` is unchanged (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-09): BEH-QD-261 — the five bare `yield*` port calls (`AttributeResolver.resolve`, `DecisionHistory.hasActed`, `RelationshipResolver.check`, `CustomPredicate.evaluate`, `SignatureHistory.signaturesFor`) now each convert a defecting implementation into their own typed `EvaluationError`, joining the four `EvaluationError` tags (`MissingAction`, `MissingResource`, `MissingResourceId`, `PolicyTooDeep`) that were already synchronous and so never at risk of dying — so a caller's `Effect.retry` around `evaluate` now sees a retryable failure at all nine tags, not just those four (issue #100, CCR-QD-142)<br>1.4 (2026-09-07): BEH-QD-033's `evaluate` signature corrected — the requirement channel omitted `CustomPredicate`/`SignatureHistory`, both joined by CCR-QD-082/CCR-QD-089 (CCR-QD-110)<br>1.3 (2026-07-26): `DecisionHistory` joins `EvaluationServices` (CCR-QD-016)<br>1.2 (2026-07-26): `Trace.obligations` (CCR-QD-015)<br>1.1 (2026-07-26): Missing-action rule cross-referenced (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -348,6 +348,26 @@ lists in which an unlisted tag gets `never` (`LeafNeedOf`), because `absenceOf`
 reads a leaf's matcher and action through guards that trust the row: a new leaf
 cannot default to reading nothing. Pinned by `LeafNeeds.test.ts`,
 `LeafNeeds.tst.ts` and the typecheck.
+
+## BEH-QD-606: Every leaf's answer becomes a verdict in one row
+
+> **Invariant:** [INV-QD-353](../invariants.md#inv-qd-353-each-leafs-answer-becomes-a-verdict-in-exactly-one-row-which-both-interpreters-read)
+> **See:** [ADR-QD-167](../decisions/167-each-leafs-answer-becomes-a-verdict-in-one-row.md),
+> [ADR-QD-163](../decisions/163-what-a-leaf-needs-from-the-request-is-stated-once.md)
+
+```
+REQUIREMENT: `LEAF_VERDICTS` MUST have exactly one row for each tag of `LeafPolicy`: a tag
+             without a row, or a row for a tag that is not a leaf, MUST be a compile error.
+             `evaluate` MUST decide whether a leaf holds only through its row, and MUST keep
+             every deny sentence byte for byte; it chooses a sentence by the outcome's kind.
+```
+
+A row takes what its verdict reads (the leaf when the verdict reads the leaf's fields, the port's answer when it
+reads only that) and returns a closed outcome: `Held` or `NotHeld` for role, permission, action and custom,
+the matcher's `Verdict` for the two attribute leaves, `Held`, `Unrelated` or `Unknown` for a relationship,
+`Held`, `Unknown`, `Performed` or `NotPerformed` for an acted leaf, and `Held`, `NoneOnFile` or `NoneMatching` for a
+signature. Rows allocate nothing. Pinned by `LeafVerdict.test.ts` (every tag, answer and polarity, with the exact
+reason), `LeafNeeds.test.ts` and the typecheck.
 
 ---
 

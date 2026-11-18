@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-12                                    |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.1 (2026-11-10): BEH-QD-092 — HasSignature reads "Any" narrower than history does: signatures on file subject-wide, and a discharge on a resource without a string id is refused (ARCH-59, ADR-QD-117, CCR-QD-395)<br>1.0 (2026-07-26): Initial release (CCR-QD-016) |
+> | Change History | 1.2 (2026-11-18): BEH-QD-607 (ARCH-101, CCR-QD-445)<br>1.1 (2026-11-10): BEH-QD-092 — HasSignature reads "Any" narrower than history does: signatures on file subject-wide, and a discharge on a resource without a string id is refused (ARCH-59, ADR-QD-117, CCR-QD-395)<br>1.0 (2026-07-26): Initial release (CCR-QD-016) |
 
 _Previous: [11 — Obligations](./11-obligations.md)_
 
@@ -149,6 +149,23 @@ engineer to audit approvals.
 
 `"Unknown"` is the other thing — nobody is wired to answer — and that *is* a
 denial, exactly as `RelationshipResolverNever` answering `false` is.
+
+## BEH-QD-607: Both acted polarities read one verdict row, and Unknown denies both
+
+> **Invariant:** [INV-QD-354](../invariants.md#inv-qd-354-an-acted-unknown-denies-both-polarities-stated-once)
+> **See:** [ADR-QD-167](../decisions/167-each-leafs-answer-becomes-a-verdict-in-one-row.md), [ADR-QD-020](../decisions/020-decision-history-port.md)
+
+```
+REQUIREMENT: The wanted answer and the `Unknown` branch of an acted leaf MUST be written once,
+             in the row `actedRow` builds for `HasActed` and `HasNotActed`. `Unknown` MUST deny
+             `HasActed` and `HasNotActed` under both scopes, in `evaluate` and in
+             `toPredicate`.
+```
+
+`HasActed` wants `"Acted"` and `HasNotActed` wants `"NotActed"`; `Unknown` is neither, so an unwired port can never
+read as an allow under negation, which is why the port is three-valued (ADR-QD-020). Before ARCH-101 the polarity map
+and the comparison were written in `Walk.ts` and again in `Predicate.ts`. Pinned by `LeafVerdict.test.ts` and
+`LeafNeeds.test.ts`, and by the existing evaluate and `toPredicate` agreement for `scope: "Any"`.
 
 ## BEH-QD-094: Chinese Wall needs nothing further
 

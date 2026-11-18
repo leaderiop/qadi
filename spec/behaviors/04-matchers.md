@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-04                                    |
-> | Revision       | 1.8                                            |
+> | Revision       | 1.9                                            |
 > | Effective Date | 2026-10-07                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.8 (2026-11-18): BEH-QD-601 added: a leaf's operand is an own-property read made in one module (ARCH-100, CCR-QD-444)<br>1.7 (2026-10-07): BEH-QD-304 gains `foldMatcherCases`, `MatcherCases`, `LeafMatcher` and `leafMatcherCases` — a wrapper arm receives its one child as `R` (ADR-QD-090 amendment, CCR-QD-190)<br>1.6 (2026-10-05): BEH-QD-027 corrected — `lt`'s value guard is load-bearing (`-Infinity < 3`), not cosmetic (CCR-QD-172); `inArray` denies an absent value; BEH-QD-028 lists `judgeMatcher` and `Verdict`; BEH-QD-305 added — comparison semantics have one owner (ADR-QD-091, CCR-QD-173)<br>1.5 (2026-10-04): BEH-QD-304 added (`foldMatcher`, `matcherDepth`) and `referencesAction`/`referencesResource` MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.4 (2026-09-08): `gte`/`lt` extended — both operands, not only the policy-authored bound, MUST be finite; the resolved value side was unguarded, so a `gte(...)` bound matched an `Infinity`-valued attribute regardless of the bound (issue #67, CCR-QD-116)<br>1.3 (2026-09-07): `Eq`/`Neq` corrected to deny on an absent operand on either side — `Neq` matched when a reference resolved to nothing, contradicting this document's own requirement; supersedes the "accepted as-is" call in commit `dab09bc`, which this document's Revision 1.2 never reflected (CCR-QD-112)<br>1.2 (2026-07-26): the `Dominates` matcher (CCR-QD-017)<br>1.1 (2026-07-26): `action()` value reference and `referencesAction` (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.9 (2026-11-18): BEH-QD-610 (ARCH-101, CCR-QD-445)<br>1.8 (2026-11-18): BEH-QD-601 added: a leaf's operand is an own-property read made in one module (ARCH-100, CCR-QD-444)<br>1.7 (2026-10-07): BEH-QD-304 gains `foldMatcherCases`, `MatcherCases`, `LeafMatcher` and `leafMatcherCases` — a wrapper arm receives its one child as `R` (ADR-QD-090 amendment, CCR-QD-190)<br>1.6 (2026-10-05): BEH-QD-027 corrected — `lt`'s value guard is load-bearing (`-Infinity < 3`), not cosmetic (CCR-QD-172); `inArray` denies an absent value; BEH-QD-028 lists `judgeMatcher` and `Verdict`; BEH-QD-305 added — comparison semantics have one owner (ADR-QD-091, CCR-QD-173)<br>1.5 (2026-10-04): BEH-QD-304 added (`foldMatcher`, `matcherDepth`) and `referencesAction`/`referencesResource` MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.4 (2026-09-08): `gte`/`lt` extended — both operands, not only the policy-authored bound, MUST be finite; the resolved value side was unguarded, so a `gte(...)` bound matched an `Infinity`-valued attribute regardless of the bound (issue #67, CCR-QD-116)<br>1.3 (2026-09-07): `Eq`/`Neq` corrected to deny on an absent operand on either side — `Neq` matched when a reference resolved to nothing, contradicting this document's own requirement; supersedes the "accepted as-is" call in commit `dab09bc`, which this document's Revision 1.2 never reflected (CCR-QD-112)<br>1.2 (2026-07-26): the `Dominates` matcher (CCR-QD-017)<br>1.1 (2026-07-26): `action()` value reference and `referencesAction` (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -359,6 +359,22 @@ REQUIREMENT: Every interpreter MUST read a decoded key only through `Operand.ts`
              and an inherited member of the value read MUST read as `undefined`,
              so a prototype-named key behaves like any missing key.
 ```
+
+## BEH-QD-610: An attribute leaf's verdict is its matcher's Verdict, read through its row
+
+> **Invariant:** [INV-QD-091](../invariants.md#inv-qd-091-a-primitive-matcher-and-its-predicate-leaf-are-one-function), [INV-QD-353](../invariants.md#inv-qd-353-each-leafs-answer-becomes-a-verdict-in-exactly-one-row-which-both-interpreters-read)
+> **See:** [ADR-QD-167](../decisions/167-each-leafs-answer-becomes-a-verdict-in-one-row.md),
+> [ADR-QD-091](../decisions/091-comparison-semantics-have-one-owner.md)
+
+```
+REQUIREMENT: The `HasAttribute` and `HasResourceAttribute` rows MUST return `judgeMatcher`'s
+             `Verdict` unchanged, and the walk's sentence MUST follow that `Verdict`. A row
+             MUST NOT compare a value itself.
+```
+
+Comparison meaning stays with ADR-QD-091 and the operand read with ADR-QD-166; the row is only where the two attribute
+leaves meet the matcher. `Matcher.ts`'s `SWITCH_BUDGET` switches are untouched. Pinned by `LeafVerdict.test.ts`
+and `LeafNeeds.test.ts`.
 
 ---
 
