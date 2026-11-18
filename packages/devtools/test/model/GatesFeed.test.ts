@@ -14,6 +14,7 @@ import * as Equal from "effect/Equal";
 import * as Exit from "effect/Exit";
 import * as Scope from "effect/Scope";
 import * as TestClock from "effect/testing/TestClock";
+import * as Tracer from "effect/Tracer";
 import * as FastCheck from "fast-check";
 import { hasPermission, hasRole, permission } from "@qadi/core";
 import type { Policy, Resource } from "@qadi/core";
@@ -371,6 +372,21 @@ describe("the gates feed", () => {
         yield* settleTurns;
         assert.strictEqual(pending.n, 0);
       }).pipe(Effect.provideService(Clock.Clock, counted));
+    }));
+
+  it.effect("T10 the feed is built under a span named for it", () =>
+    Effect.gen(function* () {
+      const names: Array<string> = [];
+      const tracer = Tracer.make({
+        span: (options) => {
+          names.push(options.name);
+          return new Tracer.NativeSpan(options);
+        },
+      });
+
+      yield* makeGatesFeed({}).pipe(Effect.provideService(Tracer.Tracer, tracer));
+
+      assert.include(names, "qadi.devtools.makeGatesFeed");
     }));
 
   it.effect("G32 (twin of M32): no registry reads Unwatched, an empty one Read of no guard, a listed one Read of its array; no thunk reads Unhanded", () =>
