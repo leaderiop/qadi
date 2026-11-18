@@ -18,10 +18,10 @@
 
 ### LeafNeeds turns every leaf's answer into a verdict (Phase 54, ARCH-101, core)
 
-- [ ] **VERD-01**: The acted leaf's polarity mapping (`HasActed` → `Acted`, `HasNotActed` → `NotActed`) and its verdict rule (`answer === wanted`, where `Unknown` denies both polarities, ADR-020) are each written once, in `LeafNeeds.ts` or a sibling, and both `Walk` and `toPredicate` read them.
-- [ ] **VERD-02**: Every leaf's answer-to-verdict step lives in that one place. The walk keeps only its reason sentence, and the translator keeps only constant folding.
-- [ ] **VERD-03**: A per-leaf verdict table test (answer × polarity → verdict) covers every leaf tag, and the existing evaluate/toPredicate agreement for `scope: "Any"` acted leaves stays green.
-- [ ] **VERD-04**: ADR-QD-167 extends ADR-163. `SWITCH_BUDGET` and `UNTRACED_BUDGET` are unchanged.
+- [x] **VERD-01**: The acted leaf's polarity mapping (`HasActed` → `Acted`, `HasNotActed` → `NotActed`) and its verdict rule (`answer === wanted`, where `Unknown` denies both polarities, ADR-020) are each written once, in `LeafNeeds.ts` or a sibling, and both `Walk` and `toPredicate` read them.
+- [x] **VERD-02**: Every leaf's answer-to-verdict step lives in that one place. The walk keeps only its reason sentence, and the translator keeps only constant folding.
+- [x] **VERD-03**: A per-leaf verdict table test (answer × polarity → verdict) covers every leaf tag, and the existing evaluate/toPredicate agreement for `scope: "Any"` acted leaves stays green.
+- [x] **VERD-04**: ADR-QD-167 extends ADR-163. `SWITCH_BUDGET` and `UNTRACED_BUDGET` are unchanged.
 
 ### A port card is a model row, not a view join (Phase 55, ARCH-102, devtools)
 
@@ -116,10 +116,10 @@ The seven WX rows apply to every phase 53 to 61, so each phase's Requirements li
 | OPND-03 | Phase 53 | Complete |
 | OPND-04 | Phase 53 | Complete |
 | OPND-05 | Phase 53 | Complete |
-| VERD-01 | Phase 54 | Pending |
-| VERD-02 | Phase 54 | Pending |
-| VERD-03 | Phase 54 | Pending |
-| VERD-04 | Phase 54 | Pending |
+| VERD-01 | Phase 54 | Complete |
+| VERD-02 | Phase 54 | Complete |
+| VERD-03 | Phase 54 | Complete |
+| VERD-04 | Phase 54 | Complete |
 | CARD-01 | Phase 55 | Pending |
 | CARD-02 | Phase 55 | Pending |
 | CARD-03 | Phase 55 | Pending |
