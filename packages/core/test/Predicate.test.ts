@@ -1023,6 +1023,153 @@ describe("INV-QD-018: a predicate admits exactly the rows the evaluator allows",
     60_000,
   );
 
+  // OPND-01, T-53-04: `row[p.column]` read an inherited member, so a column
+  // named after one made the predicate admit a row `evaluate` denies. The
+  // evaluator reads the row's own keys only.
+  it.effect("a prototype-named column denies on both sides", () =>
+    Effect.gen(function* () {
+      const policy = P.hasResourceAttribute("constructor", M.neq(M.literal("x")));
+      const row = { id: "r1" };
+      const predicate = yield* translate(policy);
+      const decision = yield* evaluate(policy, { resource: row }).pipe(Effect.provide(layer));
+      assert.isFalse(isAllowed(decision));
+      assert.isFalse(evaluatePredicate(predicate, row));
+    }));
+
+  // OPND-04 (D-11): the agreement property again, over the five names every
+  // object inherits, as columns, subject attributes, ref paths and field names,
+  // own and inherited. Fixtures are built with JSON.parse, which makes an own
+  // `__proto__` key without touching the real prototype (an object literal with
+  // a `__proto__` key sets the prototype instead). The leaves are enumerated,
+  // not sampled, so every name is compared; the tree samples combinations.
+  const PROTOTYPE_NAMES = ["constructor", "toString", "__proto__", "hasOwnProperty", "valueOf"] as const;
+  const names: ReadonlyArray<string> = [...PROTOTYPE_NAMES, "tenantId", "level", "missing"];
+  const paths: ReadonlyArray<string> = [
+    ...PROTOTYPE_NAMES,
+    "a.constructor",
+    "__proto__.x",
+    "a.b",
+    "tenantId",
+  ];
+  const columnMatchers: ReadonlyArray<M.Matcher> = [
+    M.neq(M.literal("x")),
+    M.eq(M.literal("x")),
+    M.inArray(["x", "t-1"]),
+    M.gte(0),
+    M.lt(5),
+  ];
+
+  /** Each reaches a column, a folded constant or an `AskAttribute`: translatable. */
+  const protoLeaves: ReadonlyArray<P.Policy> = [
+    ...names.flatMap((n) => [
+      ...columnMatchers.map((m) => P.hasResourceAttribute(n, m)),
+      P.hasAttribute(n, M.neq(M.literal("x"))),
+      P.hasAttribute("profile", M.fieldMatch(n, M.neq(M.literal("x")))),
+    ]),
+    ...paths.flatMap((p) => [
+      P.hasResourceAttribute("tenantId", M.eq(M.subject(p))),
+      P.hasResourceAttribute("tenantId", M.neq(M.subject(p))),
+    ]),
+  ];
+
+  /** A second column and a field of a resource attribute have no predicate form (RESEARCH Q5). */
+  const refusedLeaves: ReadonlyArray<P.Policy> = [
+    ...paths.map((p) => P.hasResourceAttribute("tenantId", M.eq(M.resource(p)))),
+    ...names.map((n) => P.hasResourceAttribute("meta", M.fieldMatch(n, M.eq(M.literal("x"))))),
+  ];
+
+  const protoTree: FastCheck.Arbitrary<P.Policy> = FastCheck.letrec<{ node: P.Policy }>((tie) => ({
+    node: FastCheck.oneof(
+      { maxDepth: 2, withCrossShrink: true },
+      FastCheck.constantFrom(...protoLeaves),
+      FastCheck.array(tie("node"), { maxLength: 3 }).map((ps) => P.allOf(ps)),
+      FastCheck.array(tie("node"), { maxLength: 3 }).map((ps) => P.anyOf(ps)),
+      tie("node").map(P.not),
+    ),
+  })).node;
+
+  const protoRows: ReadonlyArray<Row> = [
+    JSON.parse('{"id":"r1"}'),
+    JSON.parse('{"id":"r1","tenantId":"t-1","level":3}'),
+    JSON.parse(
+      '{"id":"r1","constructor":"x","toString":"x","__proto__":"x","hasOwnProperty":"x","valueOf":"x"}',
+    ),
+    JSON.parse(
+      '{"id":"r1","tenantId":"t-1","constructor":3,"__proto__":{"x":"t-1"},"a":{"b":"t-1"},"meta":{"constructor":"x"}}',
+    ),
+  ];
+
+  const protoSubject = subjectWith({
+    attributes: JSON.parse(
+      '{"constructor":"x","toString":"x","hasOwnProperty":"x","valueOf":"x","__proto__":{"x":"t-1"},"tenantId":"t-1","a":{"b":"t-1"},"profile":{"constructor":"x","level":3}}',
+    ),
+  });
+  // No `HasActed` leaf is enumerated, so this environment needs no history store.
+  const protoLayer = testLayer(protoSubject, { AttributeResolver: resolving });
+  const environments = [layer, protoLayer];
+
+  /** A refusal answers `undefined`; any other failure is a defect in the test's own premise. */
+  const translateOrRefuse = (policy: P.Policy, environment: (typeof environments)[number]) =>
+    Effect.gen(function* () {
+      const result = yield* Effect.result(toPredicate(policy).pipe(Effect.provide(environment)));
+      if (result._tag === "Success") return result.success;
+      if (result.failure instanceof PolicyNotTranslatable) return undefined;
+      return assert.fail(`translation failed on ${show(policy)}: ${String(result.failure)}`);
+    });
+
+  it.effect(
+    "PROPERTY: the two interpreters agree on prototype names, row by row",
+    () =>
+      Effect.gen(function* () {
+        // Non-vacuity first: every leaf translates (or is refused) the way the
+        // sets above claim, and every prototype name reached a column.
+        const translated: Array<readonly [P.Policy, (typeof environments)[number], Predicate]> = [];
+        const shown: Array<string> = [];
+        for (const environment of environments) {
+          for (const policy of protoLeaves) {
+            const predicate = yield* translateOrRefuse(policy, environment);
+            if (predicate === undefined) return assert.fail(`a leaf was refused: ${show(policy)}`);
+            translated.push([policy, environment, predicate]);
+            shown.push(show(predicate));
+          }
+          for (const policy of refusedLeaves) {
+            const predicate = yield* translateOrRefuse(policy, environment);
+            assert.isUndefined(predicate, `a refused leaf translated: ${show(policy)}`);
+          }
+        }
+        for (const name of PROTOTYPE_NAMES) {
+          assert.isTrue(
+            shown.some((s) => s.includes(`"column":"${name}"`)),
+            `no translated leaf reads the column ${name}`,
+          );
+        }
+
+        let skipped = 0;
+        for (const policy of FastCheck.sample(protoTree, { numRuns: 150, seed: 53 })) {
+          for (const environment of environments) {
+            const predicate = yield* translateOrRefuse(policy, environment);
+            if (predicate === undefined) skipped += 1;
+            else translated.push([policy, environment, predicate]);
+          }
+        }
+        assert.strictEqual(skipped, 0, "a sampled tree of translatable leaves was refused");
+
+        for (const [policy, environment, predicate] of translated) {
+          for (const row of protoRows) {
+            const decision = yield* evaluate(policy, { resource: row }).pipe(
+              Effect.provide(environment),
+            );
+            assert.strictEqual(
+              evaluatePredicate(predicate, row),
+              isAllowed(decision),
+              `disagreement on ${show({ policy, row, predicate })}`,
+            );
+          }
+        }
+      }),
+    60_000,
+  );
+
   // The named case the property above now samples, kept as its own test
   // because a seeded sample is not evidence a reader can check by eye
   // (CCR-QD-120, issue #65). Before the `Number.isFinite` guard in `compare`,

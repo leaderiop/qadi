@@ -85,6 +85,32 @@ describe("default layers", () => {
       assert.notStrictEqual(a, b);
       assert.isAtLeast(a.length, 8);
     }).pipe(Effect.provide(EvaluationIdLive)));
+
+  // A table is read as its own keys only: `table[name]` answers an inherited
+  // member for these five names, and `constructor` then made a `neq` allow
+  // (OPND-01, T-53-05). The own `constructor` is built with JSON.parse, the
+  // shape an untrusted decode produces.
+  it.effect("attributeResolverFromRecord answers undefined for a name the table does not own", () =>
+    Effect.gen(function* () {
+      const table = attributeResolverFromRecord({ dept: "eng" });
+      for (const name of ["constructor", "toString", "__proto__", "hasOwnProperty", "valueOf"]) {
+        assert.isUndefined(
+          yield* AttributeResolver.resolve(makeSubjectId("u"), name).pipe(Effect.provide(table)),
+          name,
+        );
+      }
+      const owned: Readonly<Record<string, unknown>> = JSON.parse('{"constructor":"c"}');
+      assert.strictEqual(
+        yield* AttributeResolver.resolve(makeSubjectId("u"), "constructor").pipe(
+          Effect.provide(attributeResolverFromRecord(owned)),
+        ),
+        "c",
+      );
+      const decision = yield* evaluate(
+        P.hasAttribute("constructor", M.neq(M.literal("x"))),
+      ).pipe(Effect.provide(testLayer(subjectWith({}), { AttributeResolver: table })));
+      assert.isFalse(isAllowed(decision));
+    }));
 });
 
 describe("field-strategy edge cases", () => {
