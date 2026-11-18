@@ -150,20 +150,23 @@ export const App = () => (
 );
 ```
 
-`useDevtoolsFeed` returns `gates` (the provider's gate registry), `onInvalidate`
-and `diagnostics`, and `diagnostics` carries your `extras` plus the two fields the feed owns: a `layer`
-that is the provider's own built services, and `questions`. Because that layer is
+`useDevtoolsFeed` returns `gates` (the provider's gate registry), `questions`
+(`atoms.asked`), `onInvalidate` and `diagnostics`, and `diagnostics` carries your
+`extras` plus the one field the feed owns there: a `layer` that is the provider's
+own built services. Because that layer is
 the registry's own build, a service that keeps state in its constructor, such as
 `decisionCacheLayer`'s cache, is one instance shared by the decisions and the
 dock; nothing needs hoisting out of the atom set. Setting `layer` or `questions`
-in your extras is a compile error.
+in your extras is still a compile error.
 
 The layer is held while the dock is mounted and released when it unmounts, a
 reading keeps its identity while nothing changed, so the dock does not re-render
 on every tick, and a layer that fails to build is stated on the Services panel,
 with the other reads carrying on. Gates are not sampled: the dock subscribes to
 the registry the feed hands it, for as long as the dock is mounted, and pairs each
-asked question with the guards asking it at one moment.
+asked question with the guards asking it at one moment. The questions are read on
+the diagnostics cadence, as the dock's own `questions` prop beside `gates`: one
+that throws is stated in the React panel without stopping the samples.
 
 While the first sample is pending, the Services and React screens say so. If the
 sampler fails with an unexpected error it stops: the screens say so with the reason,

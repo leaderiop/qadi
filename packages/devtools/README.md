@@ -129,20 +129,22 @@ the sampling:
 ```ts
 import { DevtoolsDock } from "@qadi/devtools/react";
 
-// <DevtoolsDock diagnostics={{ layer: appLayer, collector, questions: () => atoms.asked() }} />
+// <DevtoolsDock diagnostics={{ layer: appLayer, collector }} questions={atoms.asked} />
 ```
 
 The layer is built once while the dock is mounted and released when it
 unmounts, a reading keeps its identity while it is unchanged, and a layer that
 fails to build is stated on the Services panel rather than leaving it blank.
+The questions are the dock's own prop, beside `gates`, read on the same cadence:
+one that throws is stated in the React panel while the sampling carries on.
 Hold the fields at module scope: the run restarts when one of them changes
 identity. `runDiagnostics` and `makeDiagnosticsStore` are the same loop without
 React, for a shell of your own.
 
 Under a `QadiProvider`, `@qadi/react` hands you all of that in one call:
 `<DevtoolsDock {...useDevtoolsFeed({ collector })} />` supplies `gates` (the
-registry the dock subscribes to), `onInvalidate` and a `diagnostics` whose layer is the provider's own build, so
-the dock reads the cache your decisions filled and nothing needs hoisting.
+registry the dock subscribes to), `questions`, `onInvalidate` and a `diagnostics`
+whose layer is the provider's own build, so the dock reads the cache your decisions filled and nothing needs hoisting.
 
 **Without a provider, the dock's build of your layer is its own build.** A
 service that keeps state in its constructor, such as `decisionCacheLayer`'s
