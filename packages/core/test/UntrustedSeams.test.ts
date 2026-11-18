@@ -364,6 +364,34 @@ describe("the record wire per policy: ignore (KEYP-05, D-11)", () => {
       assert.isUndefined(versionOf(refusal));
     }
   });
+
+  it("R3 an unknown top-level key 266 deep -> success on all three entry points (D-01)", () => {
+    const text = recordText(`"addedLater":${deepText(OVER)}`);
+    for (const refusal of wireRefusals(recordWith({ addedLater: nested(OVER) }), text)) assert.isUndefined(refusal);
+  });
+
+  it("R4 an unknown top-level key 60,000 deep -> success, no throw (D-01)", () => {
+    const text = recordText(`"addedLater":${deepText(60_000)}`);
+    let refusals: ReadonlyArray<DecodeRefusal | undefined> = [];
+    assert.doesNotThrow(() => {
+      refusals = wireRefusals(recordWith({ addedLater: nested(60_000) }), text);
+    });
+    assert.strictEqual(refusals.length, 3);
+    for (const refusal of refusals) assert.isUndefined(refusal);
+  });
+
+  it("R5 a deep unknown key and version 3 -> UnsupportedVersion carrying 3 (D-01)", () => {
+    const text = recordText(`"version":3,"addedLater":${deepText(OVER)}`);
+    for (const refusal of wireRefusals(recordWith({ version: 3, addedLater: nested(OVER) }), text)) {
+      assert.strictEqual(refusal?._tag, "UnsupportedVersion");
+      assert.strictEqual(versionOf(refusal), 3);
+    }
+  });
+
+  it("R14 an own __proto__ key holding a value 266 deep -> success (D-01)", () => {
+    const text = recordText(`"__proto__":${deepText(OVER)}`);
+    for (const refusal of wireRefusals(JSON.parse(text), text)) assert.isUndefined(refusal);
+  });
 });
 
 describe("the stored envelope per policy: ignore (KEYP-05, D-11)", () => {
@@ -438,6 +466,53 @@ describe("the stored envelope per policy: ignore (KEYP-05, D-11)", () => {
 
   it("S9 text that is not JSON -> NotJson", () => {
     assert.strictEqual(refusalIn(decodeStoredRecordString("{not json"))?._tag, "NotJson");
+  });
+
+  it("S10 5, null, [] and a string -> Malformed, expected object (D-17)", () => {
+    for (const text of ["5", "null", "[]", '"text"']) {
+      for (const refusal of storedRefusals(JSON.parse(text), text)) assert.strictEqual(messageOf(refusal), "Expected object");
+    }
+  });
+
+  it("S11 {}, { cursor } and a bare record -> Malformed, missing environment (D-17)", () => {
+    for (const text of ["{}", '{"cursor":"x"}', JSON.stringify(validRecord())]) {
+      for (const refusal of storedRefusals(JSON.parse(text), text)) {
+        assert.strictEqual(messageOf(refusal), "Missing key\n  at [\"environment\"]");
+      }
+    }
+  });
+
+  it("S12 { environment } with no record -> Malformed, missing record (D-17)", () => {
+    const text = '{"environment":"E"}';
+    for (const refusal of storedRefusals(JSON.parse(text), text)) {
+      assert.strictEqual(messageOf(refusal), "Missing key\n  at [\"record\"]");
+    }
+  });
+
+  it("S13 { record } and an inherited environment -> Malformed, missing environment (D-17)", () => {
+    const record = validRecord();
+    const text = JSON.stringify({ record });
+    for (const refusal of storedRefusals(JSON.parse(text), text)) {
+      assert.strictEqual(messageOf(refusal), "Missing key\n  at [\"environment\"]");
+    }
+    const inherited: object = Object.assign(Object.create({ environment: "E" }), { record });
+    for (const refusal of storedRefusals(inherited, undefined)) {
+      assert.strictEqual(messageOf(refusal), "Missing key\n  at [\"environment\"]");
+    }
+  });
+
+  it("S14 { environment: 1, record } -> Malformed, environment not a string (D-17)", () => {
+    const value = { environment: 1, record: validRecord() };
+    for (const refusal of storedRefusals(value, JSON.stringify(value))) {
+      assert.strictEqual(messageOf(refusal), "Expected string\n  at [\"environment\"]");
+    }
+  });
+
+  it("S15 an environment nested past the bound -> TooDeep naming 256 (D-18)", () => {
+    const value = { environment: nested(OVER), record: validRecord() };
+    for (const refusal of storedRefusals(value, JSON.stringify(value))) {
+      assert.deepStrictEqual(refusal, { _tag: "TooDeep", maxDepth: 256 });
+    }
   });
 });
 
