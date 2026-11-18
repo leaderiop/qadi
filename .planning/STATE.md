@@ -5,16 +5,16 @@ milestone_name: Arch Wave 11
 current_phase: 54
 current_phase_name: LeafNeeds turns every leaf's answer into a verdict
 status: executing
-stopped_at: Completed QD-54-02-PLAN.md
-last_updated: "2026-11-18T06:44:36.056Z"
+stopped_at: Completed QD-54-03-PLAN.md
+last_updated: "2026-11-18T06:48:39.751Z"
 last_activity: 2026-11-18
 last_activity_desc: Phase QD-54 execution started
-state_head: 688f3a4225108c0fed1d7ce123bc9eaabd34b2dd
+state_head: e1fe7c0ad044bd4415f8fd5ad9e1200ee8b1128e
 progress:
   total_phases: 9
   completed_phases: 1
   total_plans: 16
-  completed_plans: 10
+  completed_plans: 11
   percent: 11
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-18)
 ## Current Position
 
 Phase: QD-54 (LeafNeeds turns every leaf's answer into a verdict) — EXECUTING
-Plan: 3 of 8
+Plan: 4 of 8
 Status: Executing Phase QD-54
 Last activity: 2026-11-18 — Phase QD-54 execution started
 
@@ -337,6 +337,7 @@ Last activity: 2026-11-18 — Phase QD-54 execution started
 | Phase QD-53 P08 | 20min | 3 tasks | 3 files |
 | Phase QD-54 P01 | 6 min | 2 tasks | 3 files |
 | Phase QD-54 P02 | 14 min | 2 tasks | 1 files |
+| Phase QD-54 P03 | 9 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -572,6 +573,7 @@ Last activity: 2026-11-18 — Phase QD-54 execution started
 - [Phase 53]: review WR-01 fixed test-only (09f16437, `neq` makes the inherited-member ref cases fail without the own-key guard); IN-01..04 skipped (info); verification passed 4/4; phase.complete flips WX-01..07 to Complete each phase and is reverted, as they close with the milestone
 - [Phase QD-54]: 54-01: phase_base is afdd8d9c; mutation baseline (LeafNeeds 0.9811, Predicate 1, Walk 0.9481) committed alone with LN/MOVED/KILLED fixed
 - [Phase QD-54]: 54-02: LeafVerdict.test.ts imports only barrel-re-exported modules and ./helpers.ts, so the characterisation cannot agree with the code 54-03/54-04 move
+- [Phase QD-54]: 54-03: LEAF_VERDICTS is satisfies LeafVerdicts without as const; role and permission rows take (leaf, subject)
 
 ### Pending Todos
 
@@ -631,8 +633,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-18T06:44:36.022Z
-Stopped at: Completed QD-54-02-PLAN.md
+Last session: 2026-11-18T06:48:39.668Z
+Stopped at: Completed QD-54-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
