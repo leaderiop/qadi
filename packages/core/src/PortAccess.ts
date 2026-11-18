@@ -44,6 +44,7 @@ import type { AttributeResolveError, DecisionHistoryUnavailable } from "./Errors
 import type { MissingResourceId } from "./Errors.ts";
 import type { ResourceId } from "./Identity.ts";
 import { errorOf } from "./LeafNeeds.ts";
+import { isOwnKey, ownValue } from "./Operand.ts";
 import type { LeafOf } from "./PortDescription.ts";
 import { portCallsTotal, predicatePortCallsTotal, servedPortCallsTotal } from "./PortMetrics.ts";
 import type { PortName } from "./PortName.ts";
@@ -333,7 +334,9 @@ const resolveAttribute = Effect.fn(attributeResolverPort.span)(function* (
  * Reads an attribute, consulting the subject first.
  *
  * The miss-only call to the resolver is what preserves short-circuiting: a
- * branch that is never evaluated never triggers a lookup. The subject-first
+ * branch that is never evaluated never triggers a lookup. An own attribute is the
+ * subject's answer even when it holds undefined; only a name the subject does not
+ * own, an inherited member included, reaches the resolver. The subject-first
  * lookup is stated here once — both interpreters used to carry their own copy —
  * and it reads the attribute from the request `asks` built, so the subject
  * lookup and the port request cannot name different attributes.
@@ -345,8 +348,8 @@ export const readAttribute = (
 ): Effect.Effect<unknown, AttributeResolveError, AttributeResolver> => {
   const request = attributeResolverPort.asks.HasAttribute(leaf, { subject, resource: undefined });
   const [, attribute] = request;
-  return Object.hasOwn(subject.attributes, attribute)
-    ? Effect.succeed(subject.attributes[attribute])
+  return isOwnKey(subject.attributes, attribute)
+    ? Effect.succeed(ownValue(subject.attributes, attribute))
     : resolveAttribute(interpreter, request);
 };
 
