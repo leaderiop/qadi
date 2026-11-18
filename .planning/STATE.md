@@ -5,16 +5,16 @@ milestone_name: Arch Wave 11
 current_phase: 53
 current_phase_name: "One module owns \"the value a leaf compares\""
 status: executing
-stopped_at: Completed 53-05-PLAN.md
-last_updated: "2026-11-18T05:06:36.873Z"
+stopped_at: Completed 53-06-PLAN.md
+last_updated: "2026-11-18T05:10:14.338Z"
 last_activity: 2026-11-18
 last_activity_desc: Phase 53 execution started
-state_head: 3d0f1d392639281065d7a2bf86c37d21d4a233df
+state_head: 886f0dde918134123c1fb14fbe64b2a5a088b66f
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 8
-  completed_plans: 5
+  completed_plans: 6
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-18)
 ## Current Position
 
 Phase: 53 (One module owns "the value a leaf compares") — EXECUTING
-Plan: 6 of 8
+Plan: 7 of 8
 Status: Ready to execute
 Last activity: 2026-11-18 — Phase 53 execution started
 
@@ -331,6 +331,7 @@ Last activity: 2026-11-18 — Phase 53 execution started
 | Phase 53 P03 | 5 min | 3 tasks | 7 files |
 | Phase QD-53 P04 | 3 min | 3 tasks | 3 files |
 | Phase 53 P05 | 6 min | 2 tasks | 2 files |
+| Phase QD-53 P06 | 12 min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -560,6 +561,7 @@ Last activity: 2026-11-18 — Phase 53 execution started
 - [Phase 53]: 53-03: Operand.ts (ownValue, isOwnKey, getByPath) package-private; getByPath re-exported unchanged through Matcher.ts; hot callers use module-local bindings (getByPathLocal, ownValueLocal)
 - [Phase QD-53]: 53-04: readAttribute does isOwnKey then ownValue (two own-property checks per subject read) so an own undefined stays the subject's answer with no bare read outside Operand.ts
 - [Phase 53]: isFieldOf deleted; Decision.ts projection asks isOwnKey from Operand.ts (53-05)
+- [Phase QD-53]: 53-06: WX-05 holds (D-14) on the first compare; only Matcher.ts fell (217->194 detected, survivors unchanged), Operand.ts detects 31/31, no test added
 
 ### Pending Todos
 
@@ -619,8 +621,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-18T05:06:36.847Z
-Stopped at: Completed 53-05-PLAN.md
+Last session: 2026-11-18T05:10:14.312Z
+Stopped at: Completed 53-06-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
