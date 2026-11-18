@@ -393,7 +393,7 @@ Order: the defect first (53), then the "stated once" deepenings (54-58), then th
 - [x] **Phase 53: One module owns "the value a leaf compares"** - One own-property-only operand read for every interpreter; `evaluatePredicate` can no longer allow a row `evaluate` denies (ARCH-100, core; live defect) (completed 2026-11-18)
 - [x] **Phase 54: LeafNeeds turns every leaf's answer into a verdict** - The acted leaf's polarity map and verdict rule, and every other leaf's answer-to-verdict step, written once and read by `Walk` and `toPredicate` (ARCH-101, core) (completed 2026-11-18)
 - [x] **Phase 55: A port card is a model row, not a view join** - One pure model function returns a row per `PortName`; `ServicesPanel` renders rows only (ARCH-102, devtools) (completed 2026-11-18)
-- [ ] **Phase 56: The gate-registry watch becomes the dock model's third feed** - Opens on a user decision; one scoped feed module owns the watch and `DockModel` composes three feeds (ARCH-103, devtools)
+- [x] **Phase 56: The gate-registry watch becomes the dock model's third feed** - Opens on a user decision; one scoped feed module owns the watch and `DockModel` composes three feeds (ARCH-103, devtools) (completed 2026-11-18)
 - [ ] **Phase 57: untrustedDecoder states the envelope's unknown-key policy** - Opens on a user decision; one stated option (refuse | ignore without walking) for both `SinkCodec` envelopes and the audit and hydration seams (ARCH-104, core, audit, react)
 - [ ] **Phase 58: A stored record is its envelope in memory too** - The in-memory stored record is the producer's `environment` next to a `SinkRecord`; two classes and two stamp functions are deleted (ARCH-105, Breaking, core, http, devtools)
 - [ ] **Phase 59: Admission produces the one walk environment** - Opens on a benchmark; recursion passes `(policy, env, depth)`, or a recorded rejection (ARCH-106, core)
@@ -506,7 +506,7 @@ Plans:
 
 **Planning notes**: The user decision is the first thing settled. Plan shape, RED first: the mutation base for `DockModel.ts` and the new feed, and the panel characterisation, committed first; then the feed with the watch moved out of the model; then the tests rewritten against the feed alone; then records.
 **UI hint**: yes
-**Plans**: 13/13 plans executed
+**Plans**: 13/13 plans complete
 
 Plans:
 - [x] 56-01 (W1): base facts, reserved ids and API surface base; mutation baseline for DiagnosticsFeed, DiagnosticsStore, DockModel and Gates, the phase's first commit
@@ -627,7 +627,7 @@ Phases execute in numeric order: 53 → 54 → 55 → 56 → 57 → 58 → 59 �
 | 53. One module owns "the value a leaf compares" | 8/8 | Complete    | 2026-11-18 |
 | 54. LeafNeeds turns every leaf's answer into a verdict | 8/8 | Complete    | 2026-11-18 |
 | 55. A port card is a model row, not a view join | 9/9 | Complete    | 2026-11-18 |
-| 56. The gate-registry watch becomes the dock model's third feed | 13/13 | In Progress | - |
+| 56. The gate-registry watch becomes the dock model's third feed | 13/13 | Complete    | 2026-11-18 |
 | 57. untrustedDecoder states the envelope's unknown-key policy | 0/TBD | Not started | - |
 | 58. A stored record is its envelope in memory too | 0/TBD | Not started | - |
 | 59. Admission produces the one walk environment | 0/TBD | Not started | - |

@@ -2,20 +2,20 @@
 gsd_state_version: "1.0"
 milestone: v1.6
 milestone_name: Arch Wave 11
-current_phase: 56
-current_phase_name: The gate-registry watch becomes the dock model's third feed
-status: executing
-stopped_at: Completed 56-13-PLAN.md
-last_updated: "2026-11-18T20:57:54.596Z"
+current_phase: 57
+current_phase_name: untrustedDecoder states the envelope's unknown-key policy
+status: planning
+stopped_at: Phase 56 complete, ready to plan Phase 57
+last_updated: "2026-11-18T21:09:29.712Z"
 last_activity: 2026-11-18
-last_activity_desc: Phase QD-55 complete, transitioned to Phase 56
-state_head: 18acb17dcd1446bf62981bee8371b1924836c933
+last_activity_desc: Phase 56 complete, transitioned to Phase 57
+state_head: c434e30ecf13ababad1822ddeabcb3ac072ef63e
 progress:
   total_phases: 9
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 38
   completed_plans: 38
-  percent: 33
+  percent: 44
 ---
 
 # Project State
@@ -29,16 +29,16 @@ See: .planning/PROJECT.md (updated 2026-11-18)
 
 ## Current Position
 
-Phase: 56 (The gate-registry watch becomes the dock model's third feed) — READY TO EXECUTE
+Phase: 57 — untrustedDecoder states the envelope's unknown-key policy
 Plan: Not started
-Status: Ready to execute
-Last activity: 2026-11-18 — Phase QD-55 complete, transitioned to Phase 56
+Status: Ready to plan
+Last activity: 2026-11-18 — Phase 56 complete, transitioned to Phase 57
 
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 261
+- Total plans completed: 274
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -91,6 +91,7 @@ Last activity: 2026-11-18 — Phase QD-55 complete, transitioned to Phase 56
 | 53 | 8 | - | - |
 | QD-54 | 8 | - | - |
 | QD-55 | 9 | - | - |
+| 56 | 13 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -690,7 +691,7 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 ## Session Continuity
 
 Last session: 2026-11-18T20:57:54.441Z
-Stopped at: Completed 56-13-PLAN.md
+Stopped at: Phase 56 complete, ready to plan Phase 57
 Resume file: None
 
 ## Operator Next Steps
