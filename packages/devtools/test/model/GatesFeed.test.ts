@@ -8,6 +8,7 @@
  * cadence lives.
  */
 import { assert, describe, it } from "@effect/vitest";
+import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
 import * as Equal from "effect/Equal";
 import * as Exit from "effect/Exit";
@@ -314,6 +315,64 @@ describe("the gates feed", () => {
       assert.strictEqual(asked.seen.calls, 1);
     }));
 
+  it.effect("T8 configure with the thunk and the interval the feed already has reads nothing; a new interval reads at once and re-times the cadence", () =>
+    Effect.gen(function* () {
+      const asked = counting(() => []);
+      const feed = yield* makeGatesFeed({ questions: asked.thunk, intervalMillis: 2000 });
+      yield* settleTurns;
+      assert.strictEqual(asked.seen.calls, 1);
+      const built = feed.getSnapshot();
+
+      feed.configure({ questions: asked.thunk, intervalMillis: 2000 });
+      assert.strictEqual(asked.seen.calls, 1);
+      assert.strictEqual(feed.getSnapshot(), built);
+
+      feed.configure({ questions: asked.thunk, intervalMillis: 500 });
+      assert.strictEqual(asked.seen.calls, 2);
+      yield* TestClock.adjust("499 millis");
+      yield* settleTurns;
+      assert.strictEqual(asked.seen.calls, 2);
+      yield* TestClock.adjust("1 millis");
+      yield* settleTurns;
+      assert.strictEqual(asked.seen.calls, 3);
+    }));
+
+  it.effect("T9 a feed with no thunk holds no pending sleep, and handing it none ends the cadence it had", () =>
+    Effect.gen(function* () {
+      const clock = yield* Clock.Clock;
+      const pending = { n: 0 };
+      // The test clock, counting the sleeps still waiting: a stopped cadence is a sleep that is gone.
+      const counted: Clock.Clock = {
+        ...clock,
+        sleep: (duration) =>
+          Effect.suspend(() => {
+            pending.n += 1;
+            return clock.sleep(duration).pipe(
+              Effect.ensuring(
+                Effect.sync(() => {
+                  pending.n -= 1;
+                }),
+              ),
+            );
+          }),
+      };
+      yield* Effect.gen(function* () {
+        const bare = yield* makeGatesFeed({});
+        yield* settleTurns;
+        assert.strictEqual(pending.n, 0);
+        bare.configure({ gates: undefined });
+        yield* settleTurns;
+        assert.strictEqual(pending.n, 0);
+
+        const feed = yield* makeGatesFeed({ questions: () => [] });
+        yield* settleTurns;
+        assert.strictEqual(pending.n, 1);
+        feed.configure({});
+        yield* settleTurns;
+        assert.strictEqual(pending.n, 0);
+      }).pipe(Effect.provideService(Clock.Clock, counted));
+    }));
+
   it.effect("G32 (twin of M32): no registry reads Unwatched, an empty one Read of no guard, a listed one Read of its array; no thunk reads Unhanded", () =>
     Effect.gen(function* () {
       const none = yield* makeGatesFeed();
@@ -578,6 +637,26 @@ describe("the gates feed", () => {
       assert.strictEqual(a.releases(), 1);
       feed.configure({ gates: a.registry });
       assert.strictEqual(a.releases(), 1);
+    }));
+
+  it.effect("G42 c: a notification that still reaches a closed feed reads no registry and publishes nothing", () =>
+    Effect.gen(function* () {
+      const a = makeGateRegistryDouble([guard("a", readPolicy)]);
+      const scope = yield* Scope.make();
+      const feed = yield* Scope.provide(makeGatesFeed({ gates: a.registry }), scope);
+      // The release throws, so the closed feed's listener stays live on the registry.
+      a.failRelease(boom);
+      yield* Scope.close(scope, Exit.void);
+      assert.strictEqual(a.listeners(), 1);
+      const read = a.reads();
+      const last = feed.getSnapshot();
+      const seen = listen(feed);
+
+      a.add(guard("b", readPolicy));
+
+      assert.strictEqual(a.reads(), read);
+      assert.strictEqual(feed.getSnapshot(), last);
+      assert.strictEqual(seen.calls, 0);
     }));
 
   it.effect("G43 (twin of M43): a registry whose subscribe threw is subscribed again by a configure with the same registry", () =>

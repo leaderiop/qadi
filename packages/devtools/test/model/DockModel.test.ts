@@ -1621,4 +1621,19 @@ describe("the services store", () => {
       assert.isTrue(DiagnosticsStatus.$is("Live")(off.diagnostics.getSnapshot().status));
       assert.deepStrictEqual(off.services.getSnapshot(), offView);
     }));
+
+  it.effect("M55: a model whose scope closed recomputes no services view for a reading a later configure hands it", () =>
+    Effect.gen(function* () {
+      const reading = { wiring: wiringNamed("one"), activity: activityOf(1), portCalls: logOf("tier") };
+      const scope = yield* Scope.make();
+      const model = yield* Scope.provide(makeDockModel({ reading }), scope);
+      yield* Scope.close(scope, Exit.void);
+      const before = model.services.getSnapshot();
+      const heard = heardOf(model);
+
+      model.configure({ reading: { ...reading, wiring: wiringNamed("two") } });
+
+      assert.strictEqual(model.services.getSnapshot(), before);
+      assert.strictEqual(heard.calls, 0);
+    }));
 });
