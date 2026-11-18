@@ -96,6 +96,8 @@ const stated = (thrown: unknown, fallback: string): Stated => {
 const UNWATCHED = RegistryRead.Unwatched();
 const UNHANDED = AskedRead.Unhanded();
 
+const snapshotOf = (registry: RegistryRead, asked: AskedRead): GatesSnapshot => ({ registry, asked });
+
 /** Builds the feed in the caller's scope; closing it releases the subscription and interrupts the cadence. */
 export const makeGatesFeed = Effect.fn("qadi.devtools.makeGatesFeed")(function* (
   init?: GatesFeedInputs,
@@ -107,7 +109,7 @@ export const makeGatesFeed = Effect.fn("qadi.devtools.makeGatesFeed")(function* 
   let watchFailure: Stated | undefined;
   let registryKey: string | undefined;
   let askedKey: string | undefined;
-  const store = makeExternalStore<GatesSnapshot>({ registry: UNWATCHED, asked: UNHANDED });
+  const store = makeExternalStore<GatesSnapshot>(snapshotOf(UNWATCHED, UNHANDED));
 
   // Registered before the run, so on close the run's finalizer (interrupt, `closed()` true) runs first.
   yield* Effect.addFinalizer(() =>
@@ -127,9 +129,10 @@ export const makeGatesFeed = Effect.fn("qadi.devtools.makeGatesFeed")(function* 
     const previous = store.getSnapshot().registry;
     const previousKey = registryKey;
     registryKey = undefined;
-    if (registryNow === undefined) return UNWATCHED;
+    // A watch failure always names a registry, so with none handed there is none to read.
     let failure = watchFailure;
     if (failure === undefined) {
+      if (registryNow === undefined) return UNWATCHED;
       try {
         const instances = registryNow.instances();
         return RegistryRead.$is("Read")(previous) && previous.instances === instances
@@ -168,7 +171,7 @@ export const makeGatesFeed = Effect.fn("qadi.devtools.makeGatesFeed")(function* 
   const publish = (registry: RegistryRead, asked: AskedRead) => {
     const current = store.getSnapshot();
     if (current.registry === registry && current.asked === asked) return;
-    store.set({ registry, asked });
+    store.set(snapshotOf(registry, asked));
   };
 
   // A closed feed runs no host code: a notification after close reads no registry.
@@ -198,8 +201,8 @@ export const makeGatesFeed = Effect.fn("qadi.devtools.makeGatesFeed")(function* 
     }
   };
 
+  // Only the cadence's run calls it, and closing the scope interrupts that run: a closed feed never ticks.
   const tick = () => {
-    if (runs.closed()) return;
     const asked = readAsked();
     if (asked === store.getSnapshot().asked) return;
     publish(readRegistry(), asked);

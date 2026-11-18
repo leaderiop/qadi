@@ -117,21 +117,21 @@ export interface DockModel {
 /** What the join reads of the registry: its guards, or why it could not be read. */
 const registryInput: (read: RegistryRead) => Pick<JoinInput, "gates" | "failed"> = Match.type<RegistryRead>().pipe(
   Match.tagsExhaustive({
-    Unwatched: () => ({ gates: undefined, failed: undefined }),
-    Read: ({ instances }) => ({ gates: instances, failed: undefined }),
-    Failed: ({ reason }) => ({ gates: undefined, failed: reason }),
+    Unwatched: () => ({}),
+    Read: ({ instances }) => ({ gates: instances }),
+    Failed: ({ reason }) => ({ failed: reason }),
   }),
 );
 
 /** What the join reads of the questions thunk: its answer, or why it threw. */
 const askedInput: (read: AskedRead) => {
-  readonly read: ReadonlyArray<AskedQuestionLike> | undefined;
-  readonly failed: string | undefined;
+  readonly read?: ReadonlyArray<AskedQuestionLike> | undefined;
+  readonly failed?: string | undefined;
 } = Match.type<AskedRead>().pipe(
   Match.tagsExhaustive({
-    Unhanded: () => ({ read: undefined, failed: undefined }),
-    Read: ({ questions }) => ({ read: questions, failed: undefined }),
-    Failed: ({ reason }) => ({ read: undefined, failed: reason }),
+    Unhanded: () => ({}),
+    Read: ({ questions }) => ({ read: questions }),
+    Failed: ({ reason }) => ({ failed: reason }),
   }),
 );
 
@@ -148,7 +148,8 @@ interface JoinKey {
 /**
  * The join's input: supplied questions win, then the thunk's, which a poll that has not sampled withholds.
  *
- * A thunk's failure is stated even then, and not when a supplied list makes it moot.
+ * A thunk's failure is carried even then; the view states it only when no questions are read, so a
+ * supplied list makes it moot.
  */
 const joinInputOf = (key: JoinKey): JoinInput => {
   const registry = registryInput(key.feed.registry);
@@ -156,7 +157,7 @@ const joinInputOf = (key: JoinKey): JoinInput => {
   return {
     questions: key.supplied ?? (key.unsampled ? undefined : asked.read),
     ...registry,
-    questionsFailed: key.supplied === undefined ? asked.failed : undefined,
+    questionsFailed: asked.failed,
     unsampled: key.unsampled,
   };
 };
@@ -317,8 +318,8 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
         intervalMillis: next.diagnostics?.intervalMillis,
       });
       diagnosticsFeed.configure(next.diagnostics);
+      // A reading that moved is a new merged snapshot, which rejoins through its own subscription.
       remerge();
-      rejoin();
     },
   };
 });

@@ -304,9 +304,9 @@ export interface QuestionsSnapshot {
 /** What `joinQuestions` reads: both sources, taken at one moment. */
 export interface JoinInput {
   readonly questions: ReadonlyArray<AskedQuestionLike> | undefined;
-  readonly gates: ReadonlyArray<GateInstanceLike> | undefined;
+  readonly gates?: ReadonlyArray<GateInstanceLike> | undefined;
   /** Why the registry could not be read; when set it wins, and `gates` is ignored. */
-  readonly failed: string | undefined;
+  readonly failed?: string | undefined;
   /** Why the questions could not be read; stated when no questions are, before unsampled and absent. */
   readonly questionsFailed: string | undefined;
   /** Already reduced to "no sample yet and no questions": the only case the view needs. */
