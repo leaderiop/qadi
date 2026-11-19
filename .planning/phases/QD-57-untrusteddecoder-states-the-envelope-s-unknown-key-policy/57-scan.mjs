@@ -142,7 +142,9 @@ const f5 = idx(/^feat\(57-05\)!: /);
 const f6 = idx(/^feat\(57-06\): /);
 if (f5 < 0 || f6 < 0 || f6 < f5) bad.push("feat(57-06) does not follow feat(57-05)!");
 for (const i of all(/^test\(57-0[234]\): RED/)) if (i > f5) bad.push('"' + L[i].s + '" does not precede "' + (L[f5] || {}).s + '"');
-const c7 = idx(/^chore\(57-07\): /);
+// The evidence is the LAST commit touching 57-mutation-after.json (57-07's, or the review round's redo after it).
+const lastAfter = lines(g("log", "--format=%H", "-1", B + "..HEAD", "--", D + "57-mutation-after.json"))[0];
+const c7 = idx(/^chore\(57-07\): /) < 0 ? -1 : L.findIndex((c) => c.h === lastAfter);
 const lastCode = lines(g("log", "--format=%H", "-1", B + "..HEAD", "--", ...CODE))[0];
 if (c7 < 0 || L.findIndex((c) => c.h === lastCode) > c7) bad.push("57-mutation-after.json does not follow the last commit touching src, tests or bench");
 for (const c of plan) {
