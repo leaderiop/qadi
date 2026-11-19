@@ -571,10 +571,10 @@ Plans:
   4. ADR-QD-171 makes ADR-QD-097 D-11-e true in memory as well as on the wire, and the break is recorded as **Breaking** in each affected package's changeset and in `upgrading.md`.
 
 **Planning notes**: Re-verify the 11 `src` files that name `StoredRecord` against the base Phase 57 leaves. Plan shape, RED first: the mutation base and the characterisation tests (stored round trip, backlog stamping, order, byte goldens) first; then core's envelope; then http and devtools; then records and changesets.
-**Plans**: 9 plans
+**Plans**: 1/9 plans executed
 
 Plans:
-- [ ] 58-01 (W1): base facts, reserved ids and API surface base; mutation baseline for the eight stored-record files, the phase's first commit
+- [x] 58-01 (W1): base facts, reserved ids and API surface base; mutation baseline for the eight stored-record files, the phase's first commit
 - [ ] 58-02 (W2): core's stored bytes, the log's build and the order characterised green on the base; the envelope's shape and the unread getter committed RED
 - [ ] 58-03 (W3): devtools' merged and timeline order (D-13's orphan rows) and the http encoders' bytes characterised green on the base
 - [ ] 58-04 (W4): tracer — `StoredRecord` as one `Data.Class`, `sinkRecordOrder`, the log without `isolate`, the codec without a stamp, the timeline over the envelope; every shape-reaching test, `features/`, gate 14 and `overview.md` (933) in one `feat(58-04)!` commit
@@ -653,7 +653,7 @@ Phases execute in numeric order: 53 → 54 → 55 → 56 → 57 → 58 → 59 �
 | 55. A port card is a model row, not a view join | 9/9 | Complete    | 2026-11-18 |
 | 56. The gate-registry watch becomes the dock model's third feed | 13/13 | Complete    | 2026-11-18 |
 | 57. untrustedDecoder states the envelope's unknown-key policy | 11/11 | Complete    | 2026-11-19 |
-| 58. A stored record is its envelope in memory too | 0/TBD | Not started | - |
+| 58. A stored record is its envelope in memory too | 1/9 | In Progress | - |
 | 59. Admission produces the one walk environment | 0/TBD | Not started | - |
 | 60. Devtools' headless interface is the feeds | 0/TBD | Not started | - |
 | 61. DecisionCache is asked only the question | 0/TBD | Not started | - |
