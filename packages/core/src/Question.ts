@@ -65,8 +65,8 @@ export interface EvaluateOptions extends QuestionOptions {
    * the decisive one ([ADR-QD-026](../../../spec/decisions/026-concurrent-evaluation.md)).
    *
    * Not part of the `Question`: it does not change the answer (ADR-QD-026).
-   * It reaches the walk through `DecisionCacheShape.getOrCompute`'s second
-   * parameter, never the key (ADR-QD-174).
+   * It reaches the walk directly, or through `DecisionCacheShape.getOrCompute`'s
+   * second parameter when a cache is wired, and never the key (ADR-QD-174).
    */
   readonly concurrency?: Concurrency;
   /**
