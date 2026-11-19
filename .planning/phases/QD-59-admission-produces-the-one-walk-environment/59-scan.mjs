@@ -51,6 +51,11 @@ const ALLOWED = new Set([
 for (const c of lines(g("log", "--format=%H %s", B + "..HEAD")).filter((x) => / test\(59-06\): /.test(x)))
   for (const f of lines(g("diff-tree", "--no-commit-id", "--name-only", "-r", c.slice(0, 40))))
     if (/^packages\/core\/test\//.test(f)) ALLOWED.add(f);
+// Review iteration 2 (IN-01) corrected one stale comment in Evaluate.test.ts; that file may change by comment lines only.
+const REVIEW_COMMENT_ONLY = "packages/core/test/Evaluate.test.ts";
+ALLOWED.add(REVIEW_COMMENT_ONLY);
+for (const l of g("diff", "-U0", B, "HEAD", "--", REVIEW_COMMENT_ONLY).split("\n"))
+  if (/^[+-](?![+-]{2} )/.test(l) && l.slice(1).trim() !== "" && !/^\s*(\*|\/\*\*|\/\/|\*\/)/.test(l.slice(1))) bad.push(REVIEW_COMMENT_ONLY + " changed beyond comments: " + l.slice(0, 120));
 for (const f of lines(g("diff", "--name-only", B, "HEAD")))
   if (!f.startsWith(".planning/") && !ALLOWED.has(f)) bad.push("outside the phase scope: " + f);
 
