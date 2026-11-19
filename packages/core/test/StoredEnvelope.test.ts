@@ -21,6 +21,7 @@ import * as Option from "effect/Option";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
+import { DecisionRecord } from "../src/DecisionRecord.ts";
 import {
   ObligationRecord,
   decodeDecisionStream,
@@ -31,6 +32,7 @@ import {
   makeDecisionLog,
 } from "../src/index.ts";
 import type { ReceivedFrame, SinkRecord, StoredRecord } from "../src/index.ts";
+import { collectingLogger } from "./helpers.ts";
 import * as V2 from "./fixtures/sinkWireV2.ts";
 
 /** The label every log here carries itself, so an ingest's own label is told from it. */
@@ -221,4 +223,52 @@ describe("one order, read through the log and the stream (STOR-03, INV-QD-039, D
         assert.deepStrictEqual((read.backlog ?? []).map(idOf), ["t1", "t2", "t3", "u1", "u2"]);
       }),
     ));
+});
+
+describe("the stored record is the envelope (STOR-01, RED on the base)", () => {
+  it.effect("N1 the stored record holds the very record ingested (D-01)", () =>
+    Effect.gen(function* () {
+      const original = obligations("a", 1);
+      const stored = yield* storedOf(original, "Server");
+      assert.isTrue("record" in stored, "the stored record has a `record` field");
+      assert.isTrue("record" in stored && stored.record === original, "`record` is the record ingested");
+    }));
+
+  it.effect("N2 a decoded envelope holds a DecisionRecord equal to the record decoded alone (D-01)", () =>
+    Effect.gen(function* () {
+      const back = Result.getOrElse(decodeStoredRecordString(composed("Server", V2.V2_DECIDED_ALLOW)), () =>
+        assert.fail("the Server golden did not decode"));
+      assert.isTrue("record" in back, "the decoded envelope has a `record` field");
+      assert.isTrue("record" in back && back.record instanceof DecisionRecord, "`record` is a DecisionRecord");
+      assert.isTrue(
+        "record" in back && Equal.equals(back.record, recordOf(V2.V2_DECIDED_ALLOW)),
+        "`record` equals the record decoded alone",
+      );
+    }));
+
+  it.effect("N3 a stored record owns exactly the keys environment and record (D-01)", () =>
+    Effect.gen(function* () {
+      const stored = yield* storedOf(obligations("a", 1), "Server");
+      assert.deepStrictEqual(Object.keys(stored), ["environment", "record"]);
+    }));
+
+  it.effect("N4 a record with an enumerable throwing getter is retained and nothing is logged (D-12)", () =>
+    Effect.gen(function* () {
+      const record = recordOf(V2.V2_DECIDED_ALLOW);
+      // Enumerable, so anything that copies the record's own properties reads it and throws.
+      Object.defineProperty(record, "trap", {
+        enumerable: true,
+        get: (): unknown => {
+          throw new Error("append trap");
+        },
+      });
+      const logs = collectingLogger();
+      const log = yield* makeDecisionLog({ environment: LOG_OWN });
+      yield* log.ingest(record).pipe(Effect.provide(logs.layer));
+      const snapshot = yield* log.snapshot;
+      assert.strictEqual(snapshot.length, 1, "the record is retained");
+      const first = snapshot[0];
+      assert.isTrue(first !== undefined && "record" in first && first.record === record, "the retained record is the one ingested");
+      assert.strictEqual(logs.lines.length, 0, "nothing is logged");
+    }));
 });
