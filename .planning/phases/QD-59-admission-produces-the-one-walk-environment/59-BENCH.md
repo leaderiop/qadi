@@ -222,7 +222,7 @@ Decision statistic: median of per-run minima (ns). Delta is final over base.
 
 ## After-fix run (review round)
 
-The review-fixed source (`4da12142`) against `phase_base` with the same harness, in its own directory so the after-run above stands as it was: `bench/ab.sh bench/after-fix/to-base.patch bench/after-fix 3 final base`, interleaved 3 + 3. The load before the run was ``. The analysis's summary lines, copied from `bench/after-fix/analysis.tsv`:
+The review-fixed source (`4da12142`) against `phase_base` with the same harness, in its own directory so the after-run above stands as it was: `bench/ab.sh bench/after-fix/to-base.patch bench/after-fix 3 final base`, interleaved 3 + 3. The 1-minute load average was 24.05 when the run started (5- and 15-minute 52.84 and 56.97); each run's load is in `bench/after-fix/*.load-before` and `*.load-after`. The analysis's summary lines, copied from `bench/after-fix/analysis.tsv`:
 
 ```
 # workloads: 35
