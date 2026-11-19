@@ -231,3 +231,15 @@ The review-fixed source (`4da12142`) against `phase_base` with the same harness,
 # worst_d_min: 7.5 evaluate — width scaling :: width 32
 # gate: pass
 ```
+
+## After-fix-2 run (review iteration 2)
+
+The iteration-2 source (`1ac8bccc`, the one typed `SUPPLIED` table) against `phase_base`, in its own directory: `bench/ab.sh bench/after-fix-2/to-base.patch bench/after-fix-2 3 final base`, interleaved 3 + 3. The 1-minute load average was 23.45 when the run started (5- and 15-minute 45.28 and 43.13); each run's load is in `bench/after-fix-2/*.load-before` and `*.load-after`. The summary lines, copied from `bench/after-fix-2/analysis.tsv`:
+
+```
+# workloads: 35
+# slower: 0
+# geomean_d_min_pct: -0.75
+# worst_d_min: 9.0 evaluate :: field-heavy — allOf of 8 under Intersection
+# gate: pass
+```

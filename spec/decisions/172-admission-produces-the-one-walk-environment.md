@@ -187,10 +187,12 @@ Median of per-run minima (ns); delta is final over base.
 | filter — 500 items, concurrency :: concurrency: unbounded | 4,331,792 | 4,324,042 | -0.2% | 5.3% | 10.0% | ok |
 | filter — 500 items, concurrency :: sequential (default) | 4,297,666 | 4,212,459 | -2.0% | 0.4% | 10.0% | ok |
 
-The positive geomean and worst delta are inside every workload's 10% band. The after-run measured the code as it stood
-after review iteration 1, whose `supplied` rule was a table (`RESOURCE_SUPPLIED`) behind an overload. Iteration 2 merged
-it into the one typed table `SUPPLIED` and dropped the overload; that is the same single lookup per admission and was
-not re-benched.
+The positive geomean and worst delta are inside every workload's 10% band. The after-run measured 59-04's code. Each review
+round that changed source was measured again against the phase base with the same harness, in its own directory, so no run
+replaces another. The after-fix run (`bench/after-fix/`) measured iteration 1's fix, `Admitted` carrying its row source and
+policy: slower 0 of 35, geomean +0.90%, worst +7.5%, **gate: pass**. The after-fix-2 run (`bench/after-fix-2/`) measured
+iteration 2's fix, the one typed `SUPPLIED` table with no overload. It started at a 1-minute load of 23: slower 0 of 35;
+geomean -0.75%; worst +9.0% (evaluate :: field-heavy — allOf of 8 under Intersection), inside its 10% band; **gate: pass**.
 
 ## Alternatives rejected
 
