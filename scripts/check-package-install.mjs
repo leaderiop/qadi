@@ -422,7 +422,7 @@ import {
 import { makeQadi } from "@qadi/promise";
 import { qadiTestLayer } from "@qadi/testing";
 import { QadiProvider } from "@qadi/react";
-import { emptyTimeline, ingest, verdictOf } from "@qadi/devtools";
+import { emptyTimeline, ingest, makeTimelineFeed, sourceFromRecords, verdictOf } from "@qadi/devtools";
 import { DevtoolsDock } from "@qadi/devtools/react";
 import { compileSql } from "@qadi/predicate-sql";
 import { compilePrismaWhere } from "@qadi/predicate-prisma";
@@ -482,23 +482,33 @@ expect("react provider", typeof QadiProvider, "function");
 // @qadi/devtools ships TWO entry points, and check 3's import probe only
 // reaches package roots — so the second one is exercised here or nowhere.
 const decided = await decide(hasPermission(read));
-const timeline = ingest(
-  emptyTimeline(),
-  new StoredRecord({
-    environment: "Server",
-    record: new DecisionRecord({
-      evaluationId: decided.evaluationId,
-      at: 0,
-      subjectId: decided.subjectId,
-      policy: hasPermission(read),
-      outcome: new Decided({ decision: decided }),
-    }),
+const stored = new StoredRecord({
+  environment: "Server",
+  record: new DecisionRecord({
+    evaluationId: decided.evaluationId,
+    at: 0,
+    subjectId: decided.subjectId,
+    policy: hasPermission(read),
+    outcome: new Decided({ decision: decided }),
   }),
-);
+});
+const timeline = ingest(emptyTimeline(), stored);
 const [only] = timeline.entries;
 expect("devtools timeline", timeline.entries.length, 1);
 expect("devtools verdict", only === undefined ? "missing" : verdictOf(only), "Allow");
 expect("devtools dock", typeof DevtoolsDock, "function");
+
+// The feeds are the headless interface (ADR-QD-099's closed map still reaches them from the root). A feed only
+// forks its read, so the status the build sets is what is asserted, not a sampled value.
+const fedStatus = await Effect.runPromise(
+  Effect.scoped(
+    Effect.gen(function* () {
+      const feed = yield* makeTimelineFeed({ source: sourceFromRecords([stored]) });
+      return feed.status.getSnapshot()._tag;
+    }),
+  ),
+);
+expect("devtools feed", fedStatus, "Reading");
 
 // @qadi/predicate-sql and @qadi/predicate-prisma compile what toPredicate
 // emits — a held permission folds to True, so both compile to their own
