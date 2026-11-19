@@ -505,6 +505,123 @@ describe("DecisionCache", () => {
       assert.deepStrictEqual(calls, ["u-1:clearance", "u-1:other"]);
     }));
 
+  it.effect("the same question asked with two concurrencies is one entry, in both orders", () =>
+    Effect.gen(function* () {
+      // `concurrency` is how the walk runs, not what it answers (ADR-QD-031,
+      // INV-QD-020), so it never splits an entry, whichever ask comes first.
+      const policy = P.allOf([needsLookup, P.hasAttribute("other", M.gte(1))]);
+      const unbounded = { concurrency: "unbounded" } as const;
+      const orders = [
+        [undefined, unbounded],
+        [unbounded, undefined],
+      ] as const;
+      for (const [first, second] of orders) {
+        const calls: Array<string> = [];
+        const seen = yield* isolatedMetrics(
+          Effect.gen(function* () {
+            const earlier = yield* evaluate(policy, first);
+            const later = yield* evaluate(policy, second);
+            return {
+              earlier,
+              later,
+              size: yield* DecisionCache.use((c) => c.size),
+              lookups: yield* Metric.value(decisionCacheLookupsTotal),
+            };
+          }).pipe(
+            Effect.provide(
+              Layer.mergeAll(
+                testLayer(alice, { AttributeResolver: counting(calls) }),
+                decisionCacheLayer(),
+              ),
+            ),
+          ),
+        );
+
+        assert.deepStrictEqual(seen.later.trace, seen.earlier.trace);
+        assert.strictEqual(seen.size, 1);
+        assert.strictEqual(seen.lookups.occurrences.get("miss"), 1);
+        assert.strictEqual(seen.lookups.occurrences.get("hit"), 1);
+        assert.deepStrictEqual(calls, ["u-1:clearance", "u-1:other"]);
+      }
+    }));
+
+  it.effect("concurrency crosses the cache into the walk; a sequential ask then hits", () =>
+    Effect.gen(function* () {
+      // The first child denies, so a sequential walk asks only `a` and an
+      // unbounded one asks both (INV-QD-005, ADR-QD-026): `b` being asked shows
+      // the caller's `concurrency` crossed the cache into the walk.
+      const policy = P.allOf([P.hasAttribute("a", M.gte(1)), P.hasAttribute("b", M.gte(1))]);
+      const calls: Array<string> = [];
+
+      const seen = yield* Effect.gen(function* () {
+        yield* evaluate(policy, { concurrency: "unbounded" });
+        const walked = calls.toSorted();
+        yield* evaluate(policy);
+        return { walked, size: yield* DecisionCache.use((c) => c.size) };
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(alice, { AttributeResolver: counting(calls, 0) }),
+            decisionCacheLayer(),
+          ),
+        ),
+      );
+
+      assert.deepStrictEqual(seen.walked, ["u-1:a", "u-1:b"]);
+      // The sequential ask after it is a hit: no lookup, and still one entry.
+      assert.deepStrictEqual(calls.toSorted(), ["u-1:a", "u-1:b"]);
+      assert.strictEqual(seen.size, 1);
+    }));
+
+  it.effect(
+    "a coalesced joiner's concurrency is unused: the claimant's governs the one walk, in both orders",
+    () =>
+      Effect.gen(function* () {
+        // `concurrency` cannot change the answer (INV-QD-020), so a joiner shares
+        // the claimant's walk, run with the claimant's option.
+        const policy = P.allOf([P.hasAttribute("a", M.gte(1)), P.hasAttribute("b", M.gte(1))]);
+        const unbounded = { concurrency: "unbounded" } as const;
+        const cases = [
+          { claimant: unbounded, joiner: undefined, asked: ["u-1:a", "u-1:b"] },
+          { claimant: undefined, joiner: unbounded, asked: ["u-1:a"] },
+        ];
+        for (const { claimant, joiner, asked } of cases) {
+          const calls: Array<string> = [];
+          const gate = yield* Deferred.make<void>();
+          // Every lookup waits on one gate, so the joiner arrives while the
+          // claimant's walk is in flight; the first child then denies.
+          const latched = Layer.succeed(AttributeResolver, {
+            resolve: (id: string, attribute: string) =>
+              Effect.sync(() => calls.push(`${id}:${attribute}`)).pipe(
+                Effect.flatMap(() => Deferred.await(gate)),
+                Effect.as(0),
+              ),
+          });
+
+          const lookups = yield* isolatedMetrics(
+            Effect.gen(function* () {
+              const claiming = yield* forkAllAndSettle([evaluate(policy, claimant)]);
+              const joining = yield* forkAllAndSettle([evaluate(policy, joiner)]);
+              yield* Deferred.succeed(gate, undefined);
+              yield* Effect.forEach([...claiming, ...joining], Fiber.join);
+              return yield* Metric.value(decisionCacheLookupsTotal);
+            }).pipe(
+              Effect.provide(
+                Layer.mergeAll(
+                  testLayer(alice, { AttributeResolver: latched }),
+                  decisionCacheLayer(),
+                ),
+              ),
+            ),
+          );
+
+          assert.deepStrictEqual(calls.toSorted(), asked);
+          assert.strictEqual(lookups.occurrences.get("miss"), 1);
+          assert.strictEqual(lookups.occurrences.get("coalesced"), 1);
+        }
+      }),
+  );
+
   it.effect(
     "N concurrent identical asks coalesce into one compute — the resolver is invoked once",
     () =>
