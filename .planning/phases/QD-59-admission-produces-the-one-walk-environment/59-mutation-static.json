@@ -1,11 +1,11 @@
 {
  "packages/core/src/Admission.ts": [
   {
-   "key": "ObjectLiteral | {} | { maxDepth: question.maxDepth } | ? Result.fail(new PolicyTooDeep({ maxDepth: question.maxDepth }))",
+   "key": "BooleanLiteral | false | true | row: () => true,",
    "status": "Killed"
   },
   {
-   "key": "BooleanLiteral | false | true | row: () => true,",
+   "key": "ObjectLiteral | {} | { maxDepth: question.maxDepth } | ? Result.fail(new PolicyTooDeep({ maxDepth: question.maxDepth }))",
    "status": "Killed"
   },
   {
@@ -13,27 +13,7 @@
    "status": "Killed"
   },
   {
-   "key": "BlockStatement | {} | { return policyDepth(question.policy) > question.maxDepth ? Result.fail(new PolicyTooDeep({ maxDepth: question.maxDepth })) : Result.succeed( new Admitted( question.subject, { action: question.action !== undefined, resource: RESOURCE_SUPPLIED[rowSource](question), }, { subject: question.subject.attributes, subjectId: question.subject.id, resource: question.resource, action: question.action, }, question.maxDepth, ), ); } | ): Result.Result<Admitted, PolicyTooDeep> {",
-   "status": "Killed"
-  },
-  {
    "key": "EqualityOperator | question.resource === undefined | question.resource !== undefined | asked: (question) => question.resource !== undefined,",
-   "status": "Killed"
-  },
-  {
-   "key": "ConditionalExpression | false | policyDepth(question.policy) > question.maxDepth | return policyDepth(question.policy) > question.maxDepth",
-   "status": "Killed"
-  },
-  {
-   "key": "EqualityOperator | policyDepth(question.policy) >= question.maxDepth | policyDepth(question.policy) > question.maxDepth | return policyDepth(question.policy) > question.maxDepth",
-   "status": "Killed"
-  },
-  {
-   "key": "ConditionalExpression | true | policyDepth(question.policy) > question.maxDepth | return policyDepth(question.policy) > question.maxDepth",
-   "status": "Killed"
-  },
-  {
-   "key": "EqualityOperator | policyDepth(question.policy) <= question.maxDepth | policyDepth(question.policy) > question.maxDepth | return policyDepth(question.policy) > question.maxDepth",
    "status": "Killed"
   },
   {
@@ -41,7 +21,27 @@
    "status": "Killed"
   },
   {
-   "key": "EqualityOperator | question.action === undefined | question.action !== undefined | action: question.action !== undefined,",
+   "key": "BlockStatement | {} | { return policyDepth(question.policy) > question.maxDepth ? Result.fail(new PolicyTooDeep({ maxDepth: question.maxDepth })) : Result.succeed( new Admitted( rowSource, question.policy, question.subject, { action: question.action !== undefined, resource: RESOURCE_SUPPLIED[rowSource](question), }, { subject: question.subject.attributes, subjectId: question.subject.id, resource: question.resource, action: question.action, }, question.maxDepth, ), ); } | ): Result.Result<Admitted, PolicyTooDeep> {",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | policyDepth(question.policy) >= question.maxDepth | policyDepth(question.policy) > question.maxDepth | return policyDepth(question.policy) > question.maxDepth",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | policyDepth(question.policy) <= question.maxDepth | policyDepth(question.policy) > question.maxDepth | return policyDepth(question.policy) > question.maxDepth",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | policyDepth(question.policy) > question.maxDepth | return policyDepth(question.policy) > question.maxDepth",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | policyDepth(question.policy) > question.maxDepth | return policyDepth(question.policy) > question.maxDepth",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | question.action !== undefined | action: question.action !== undefined,",
    "status": "Killed"
   },
   {
@@ -49,7 +49,7 @@
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | false | question.action !== undefined | action: question.action !== undefined,",
+   "key": "EqualityOperator | question.action === undefined | question.action !== undefined | action: question.action !== undefined,",
    "status": "Killed"
   },
   {
@@ -111,6 +111,10 @@
    "status": "Killed"
   },
   {
+   "key": "CallExpression | ; | kept.push(p); | kept.push(p);",
+   "status": "Killed"
+  },
+  {
    "key": "ConditionalExpression | true | first === undefined | if (first === undefined) return TRUE;",
    "status": "Killed"
   },
@@ -123,23 +127,15 @@
    "status": "Killed"
   },
   {
-   "key": "EqualityOperator | kept.length !== 1 | kept.length === 1 | return kept.length === 1 ? first : { _tag: \"And\", predicates: kept };",
-   "status": "Killed"
-  },
-  {
-   "key": "CallExpression | ; | kept.push(p); | kept.push(p);",
-   "status": "Killed"
-  },
-  {
    "key": "ConditionalExpression | true | kept.length === 1 | return kept.length === 1 ? first : { _tag: \"And\", predicates: kept };",
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | false | kept.length === 1 | return kept.length === 1 ? first : { _tag: \"And\", predicates: kept };",
+   "key": "EqualityOperator | kept.length !== 1 | kept.length === 1 | return kept.length === 1 ? first : { _tag: \"And\", predicates: kept };",
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | false | p._tag === \"False\" | if (p._tag === \"False\") return FALSE;",
+   "key": "ConditionalExpression | false | kept.length === 1 | return kept.length === 1 ? first : { _tag: \"And\", predicates: kept };",
    "status": "Killed"
   },
   {
@@ -155,11 +151,19 @@
    "status": "Killed"
   },
   {
-   "key": "BlockStatement | {} | { if (p._tag === \"True\") return TRUE; if (p._tag === \"False\") continue; kept.push(p); } | for (const p of predicates) {",
+   "key": "ConditionalExpression | false | p._tag === \"False\" | if (p._tag === \"False\") return FALSE;",
    "status": "Killed"
   },
   {
    "key": "ArrayDeclaration | [\"Stryker was here\"] | [] | const kept: Array<Predicate> = [];",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { if (p._tag === \"True\") return TRUE; if (p._tag === \"False\") continue; kept.push(p); } | for (const p of predicates) {",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | p._tag !== \"True\" | p._tag === \"True\" | if (p._tag === \"True\") return TRUE;",
    "status": "Killed"
   },
   {
@@ -171,7 +175,7 @@
    "status": "Killed"
   },
   {
-   "key": "EqualityOperator | p._tag !== \"True\" | p._tag === \"True\" | if (p._tag === \"True\") return TRUE;",
+   "key": "ConditionalExpression | true | p._tag === \"False\" | if (p._tag === \"False\") continue;",
    "status": "Killed"
   },
   {
@@ -183,15 +187,11 @@
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | true | p._tag === \"False\" | if (p._tag === \"False\") continue;",
+   "key": "StringLiteral | \"\" | \"False\" | if (p._tag === \"False\") continue;",
    "status": "Killed"
   },
   {
    "key": "CallExpression | ; | kept.push(p); | kept.push(p);",
-   "status": "Killed"
-  },
-  {
-   "key": "StringLiteral | \"\" | \"False\" | if (p._tag === \"False\") continue;",
    "status": "Killed"
   },
   {
@@ -203,19 +203,11 @@
    "status": "Killed"
   },
   {
-   "key": "EqualityOperator | first !== undefined | first === undefined | if (first === undefined) return FALSE;",
-   "status": "Killed"
-  },
-  {
-   "key": "EqualityOperator | kept.length !== 1 | kept.length === 1 | return kept.length === 1 ? first : { _tag: \"Or\", predicates: kept };",
-   "status": "Killed"
-  },
-  {
-   "key": "ConditionalExpression | false | kept.length === 1 | return kept.length === 1 ? first : { _tag: \"Or\", predicates: kept };",
-   "status": "Killed"
-  },
-  {
    "key": "ConditionalExpression | true | kept.length === 1 | return kept.length === 1 ? first : { _tag: \"Or\", predicates: kept };",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | first !== undefined | first === undefined | if (first === undefined) return FALSE;",
    "status": "Killed"
   },
   {
@@ -223,7 +215,15 @@
    "status": "Killed"
   },
   {
+   "key": "ConditionalExpression | false | kept.length === 1 | return kept.length === 1 ? first : { _tag: \"Or\", predicates: kept };",
+   "status": "Killed"
+  },
+  {
    "key": "ObjectLiteral | {} | { _tag: \"Or\", predicates: kept } | return kept.length === 1 ? first : { _tag: \"Or\", predicates: kept };",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | kept.length !== 1 | kept.length === 1 | return kept.length === 1 ? first : { _tag: \"Or\", predicates: kept };",
    "status": "Killed"
   },
   {
@@ -239,15 +239,15 @@
    "status": "Killed"
   },
   {
+   "key": "StringLiteral | \"\" | \"True\" | if (p._tag === \"True\") return TRUE;",
+   "status": "Killed"
+  },
+  {
    "key": "StringLiteral | \"\" | \"True\" | if (predicate._tag === \"True\") return FALSE;",
    "status": "Killed"
   },
   {
-   "key": "EqualityOperator | predicate._tag !== \"False\" | predicate._tag === \"False\" | if (predicate._tag === \"False\") return TRUE;",
-   "status": "Killed"
-  },
-  {
-   "key": "StringLiteral | \"\" | \"True\" | if (p._tag === \"True\") return TRUE;",
+   "key": "ConditionalExpression | false | predicate._tag === \"False\" | if (predicate._tag === \"False\") return TRUE;",
    "status": "Killed"
   },
   {
@@ -255,7 +255,7 @@
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | false | predicate._tag === \"False\" | if (predicate._tag === \"False\") return TRUE;",
+   "key": "EqualityOperator | predicate._tag !== \"False\" | predicate._tag === \"False\" | if (predicate._tag === \"False\") return TRUE;",
    "status": "Killed"
   },
   {
@@ -275,23 +275,7 @@
    "status": "Killed"
   },
   {
-   "key": "BooleanLiteral | true | false | False: () => (_row: Row) => false,",
-   "status": "Killed"
-  },
-  {
-   "key": "ConditionalExpression | true | predicate._tag === \"True\" | if (predicate._tag === \"True\") return FALSE;",
-   "status": "Killed"
-  },
-  {
    "key": "ArrowFunction | () => undefined | (_row: Row) => false | False: () => (_row: Row) => false,",
-   "status": "Killed"
-  },
-  {
-   "key": "ArrowFunction | () => undefined | (row: Row) => holdsLocal(compareLocal(p.op, ownValueLocal(row, p.column), p.value)) | Compare: (p) => (row: Row) => holdsLocal(compareLocal(p.op, ownValueLocal(row, p.column), p.value)),",
-   "status": "Killed"
-  },
-  {
-   "key": "ArrowFunction | () => undefined | (row: Row) => holdsLocal(memberLocal(ownValueLocal(row, p.column), p.values)) | MemberOf: (p) => (row: Row) => holdsLocal(memberLocal(ownValueLocal(row, p.column), p.values)),",
    "status": "Killed"
   },
   {
@@ -299,11 +283,39 @@
    "status": "Killed"
   },
   {
-   "key": "ArrowFunction | () => undefined | (row: Row) => p.predicates.every((inner) => evaluatePredicate(inner, row)) | And: (p) => (row: Row) => p.predicates.every((inner) => evaluatePredicate(inner, row)),",
+   "key": "ConditionalExpression | true | predicate._tag === \"True\" | if (predicate._tag === \"True\") return FALSE;",
+   "status": "Killed"
+  },
+  {
+   "key": "BooleanLiteral | true | false | False: () => (_row: Row) => false,",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (row: Row) => holdsLocal(memberLocal(ownValueLocal(row, p.column), p.values)) | MemberOf: (p) => (row: Row) => holdsLocal(memberLocal(ownValueLocal(row, p.column), p.values)),",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (row: Row) => holdsLocal(compareLocal(p.op, ownValueLocal(row, p.column), p.value)) | Compare: (p) => (row: Row) => holdsLocal(compareLocal(p.op, ownValueLocal(row, p.column), p.value)),",
    "status": "Killed"
   },
   {
    "key": "MethodExpression | p.predicates.some(inner => evaluatePredicate(inner, row)) | p.predicates.every((inner) => evaluatePredicate(inner, row)) | And: (p) => (row: Row) => p.predicates.every((inner) => evaluatePredicate(inner, row)),",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (row: Row) => p.predicates.every((inner) => evaluatePredicate(inner, row)) | And: (p) => (row: Row) => p.predicates.every((inner) => evaluatePredicate(inner, row)),",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (row: Row) => !evaluatePredicate(p.predicate, row) | Negate: (p) => (row: Row) => !evaluatePredicate(p.predicate, row),",
+   "status": "Killed"
+  },
+  {
+   "key": "MethodExpression | p.predicates.every(inner => evaluatePredicate(inner, row)) | p.predicates.some((inner) => evaluatePredicate(inner, row)) | Or: (p) => (row: Row) => p.predicates.some((inner) => evaluatePredicate(inner, row)),",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (inner) => evaluatePredicate(inner, row) | Or: (p) => (row: Row) => p.predicates.some((inner) => evaluatePredicate(inner, row)),",
    "status": "Killed"
   },
   {
@@ -315,15 +327,7 @@
    "status": "Killed"
   },
   {
-   "key": "ArrowFunction | () => undefined | (inner) => evaluatePredicate(inner, row) | Or: (p) => (row: Row) => p.predicates.some((inner) => evaluatePredicate(inner, row)),",
-   "status": "Killed"
-  },
-  {
-   "key": "MethodExpression | p.predicates.every(inner => evaluatePredicate(inner, row)) | p.predicates.some((inner) => evaluatePredicate(inner, row)) | Or: (p) => (row: Row) => p.predicates.some((inner) => evaluatePredicate(inner, row)),",
-   "status": "Killed"
-  },
-  {
-   "key": "ArrowFunction | () => undefined | (row: Row) => !evaluatePredicate(p.predicate, row) | Negate: (p) => (row: Row) => !evaluatePredicate(p.predicate, row),",
+   "key": "ObjectLiteral | {} | { policyTag, reason } | Effect.fail(new PolicyNotTranslatable({ policyTag, reason }));",
    "status": "Killed"
   },
   {
@@ -335,19 +339,11 @@
    "status": "Killed"
   },
   {
-   "key": "ObjectLiteral | {} | { policyTag, reason } | Effect.fail(new PolicyNotTranslatable({ policyTag, reason }));",
-   "status": "Killed"
-  },
-  {
    "key": "ArrowFunction | () => undefined | (r): Folded => ({ value: getByPath(context.subject, r.path) }) | SubjectRef: (r): Folded => ({ value: getByPath(context.subject, r.path) }),",
    "status": "Killed"
   },
   {
    "key": "ObjectLiteral | {} | { value: getByPath(context.subject, r.path) } | SubjectRef: (r): Folded => ({ value: getByPath(context.subject, r.path) }),",
-   "status": "Killed"
-  },
-  {
-   "key": "ArrowFunction | () => undefined | (r): Folded => ({ value: r.value }) | LiteralRef: (r): Folded => ({ value: r.value }),",
    "status": "Killed"
   },
   {
@@ -363,15 +359,19 @@
    "status": "Killed"
   },
   {
-   "key": "ObjectLiteral | {} | { value: context.action } | ActionRef: (): Folded => ({ value: context.action }),",
-   "status": "Killed"
-  },
-  {
    "key": "ArrowFunction | () => undefined | (): Folded => ({ value: context.action }) | ActionRef: (): Folded => ({ value: context.action }),",
    "status": "Killed"
   },
   {
+   "key": "ObjectLiteral | {} | { value: context.action } | ActionRef: (): Folded => ({ value: context.action }),",
+   "status": "Killed"
+  },
+  {
    "key": "ObjectLiteral | {} | { value: r.value } | LiteralRef: (r): Folded => ({ value: r.value }),",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (r): Folded => ({ value: r.value }) | LiteralRef: (r): Folded => ({ value: r.value }),",
    "status": "Killed"
   },
   {
@@ -391,7 +391,7 @@
    "status": "Killed"
   },
   {
-   "key": "ObjectLiteral | {} | { _tag: \"Compare\", column, op, value: other.value } | return other === undefined ? undefined : { _tag: \"Compare\", column, op, value: other.value };",
+   "key": "StringLiteral | \"\" | \"Compare\" | return other === undefined ? undefined : { _tag: \"Compare\", column, op, value: other.value };",
    "status": "Killed"
   },
   {
@@ -399,11 +399,7 @@
    "status": "Killed"
   },
   {
-   "key": "ArrowFunction | () => undefined | (m) => comparison(\"Eq\", m.ref) | Eq: (m) => comparison(\"Eq\", m.ref),",
-   "status": "Killed"
-  },
-  {
-   "key": "StringLiteral | \"\" | \"Compare\" | return other === undefined ? undefined : { _tag: \"Compare\", column, op, value: other.value };",
+   "key": "ObjectLiteral | {} | { _tag: \"Compare\", column, op, value: other.value } | return other === undefined ? undefined : { _tag: \"Compare\", column, op, value: other.value };",
    "status": "Killed"
   },
   {
@@ -411,15 +407,11 @@
    "status": "Killed"
   },
   {
+   "key": "ArrowFunction | () => undefined | (m) => comparison(\"Eq\", m.ref) | Eq: (m) => comparison(\"Eq\", m.ref),",
+   "status": "Killed"
+  },
+  {
    "key": "StringLiteral | \"\" | \"Eq\" | Eq: (m) => comparison(\"Eq\", m.ref),",
-   "status": "Killed"
-  },
-  {
-   "key": "StringLiteral | \"\" | \"Compare\" | Gte: (m): Predicate => ({ _tag: \"Compare\", column, op: \"Gte\", value: m.value }),",
-   "status": "Killed"
-  },
-  {
-   "key": "ArrowFunction | () => undefined | (m) => comparison(\"Neq\", m.ref) | Neq: (m) => comparison(\"Neq\", m.ref),",
    "status": "Killed"
   },
   {
@@ -427,7 +419,7 @@
    "status": "Killed"
   },
   {
-   "key": "ArrowFunction | () => undefined | (m): Predicate => ({ _tag: \"Compare\", column, op: \"Gte\", value: m.value }) | Gte: (m): Predicate => ({ _tag: \"Compare\", column, op: \"Gte\", value: m.value }),",
+   "key": "ArrowFunction | () => undefined | (m) => comparison(\"Neq\", m.ref) | Neq: (m) => comparison(\"Neq\", m.ref),",
    "status": "Killed"
   },
   {
@@ -435,11 +427,19 @@
    "status": "Killed"
   },
   {
+   "key": "ArrowFunction | () => undefined | (m): Predicate => ({ _tag: \"Compare\", column, op: \"Gte\", value: m.value }) | Gte: (m): Predicate => ({ _tag: \"Compare\", column, op: \"Gte\", value: m.value }),",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Compare\" | Gte: (m): Predicate => ({ _tag: \"Compare\", column, op: \"Gte\", value: m.value }),",
+   "status": "Killed"
+  },
+  {
    "key": "StringLiteral | \"\" | \"Gte\" | Gte: (m): Predicate => ({ _tag: \"Compare\", column, op: \"Gte\", value: m.value }),",
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | \"\" | \"Compare\" | Lt: (m): Predicate => ({ _tag: \"Compare\", column, op: \"Lt\", value: m.value }),",
+   "key": "ArrowFunction | () => undefined | (m): Predicate => ({ _tag: \"Compare\", column, op: \"Lt\", value: m.value }) | Lt: (m): Predicate => ({ _tag: \"Compare\", column, op: \"Lt\", value: m.value }),",
    "status": "Killed"
   },
   {
@@ -451,11 +451,11 @@
    "status": "Killed"
   },
   {
-   "key": "ArrowFunction | () => undefined | (m): Predicate => ({ _tag: \"MemberOf\", column, values: m.values }) | In: (m): Predicate => ({ _tag: \"MemberOf\", column, values: m.values }),",
+   "key": "StringLiteral | \"\" | \"Compare\" | Lt: (m): Predicate => ({ _tag: \"Compare\", column, op: \"Lt\", value: m.value }),",
    "status": "Killed"
   },
   {
-   "key": "ArrowFunction | () => undefined | (m): Predicate => ({ _tag: \"Compare\", column, op: \"Lt\", value: m.value }) | Lt: (m): Predicate => ({ _tag: \"Compare\", column, op: \"Lt\", value: m.value }),",
+   "key": "ArrowFunction | () => undefined | (m): Predicate => ({ _tag: \"MemberOf\", column, values: m.values }) | In: (m): Predicate => ({ _tag: \"MemberOf\", column, values: m.values }),",
    "status": "Killed"
   },
   {
@@ -483,11 +483,7 @@
    "status": "Killed"
   },
   {
-   "key": "EqualityOperator | fieldsOf(node) === undefined | fieldsOf(node) !== undefined | (node, children) => fieldsOf(node) !== undefined || children.some(isTrue),",
-   "status": "Killed"
-  },
-  {
-   "key": "BlockStatement | {} | { const { subject, supplied, matcherContext: context } = admitted; const { action } = context; /** Plans every folded child in order, stopping at the first refusal. */ const plansOf = (folded: ReadonlyArray<Compiled>): ReadonlyArray<Plan> | Refusal => { const plans: Array<Plan> = []; for (const compiled of folded) { if (compiled instanceof Refusal) return compiled; plans.push(compiled); } return plans; }; /** * The scope is what decides a history question. `\"Any\"` asks about the * subject and folds; `\"Resource\"` asks once per row, which is the cost a * predicate exists to avoid. */ const history = (leaf: LeafOf[\"HasActed\"] | LeafOf[\"HasNotActed\"]): Compiled => isAnyActedLeaf(leaf) ? planned({ _tag: \"AskActed\", leaf }) : refused(leaf._tag, \"a resource-scoped history question is keyed by the row\"); /** * One node's plan, from its already-compiled children, each arm receiving * them in the tag's own shape (`PolicyCases`): a wrapper its one child, a * `Rules` table one `{ rule, result }` per row (ARCH-17). Built per call * because the arms close over the subject, the action and the matcher context. */ const cases: PolicyCases<Compiled> = { HasRole: (p) => planned({ _tag: \"Constant\", value: isHeld(LEAF_VERDICTS.HasRole(p, subject)) }), HasPermission: (p) => planned({ _tag: \"Constant\", value: isHeld(LEAF_VERDICTS.HasPermission(p, subject)) }), HasAction: (p) => { const absent = absenceOf(p, supplied); return absent !== undefined ? planned({ _tag: \"NeedAction\", absence: absent }) : planned({ _tag: \"Constant\", value: isHeld(LEAF_VERDICTS.HasAction(p, action)) }); }, HasAttribute: (p) => { // Folds against the subject — but only if it does not reach for a column // on the other side of the comparison. if (referencesResource(p.matcher)) { return refused( \"HasAttribute\", \"the matcher compares against the resource, which is a column\", ); } const absent = absenceOf(p, supplied); if (absent !== undefined) return planned({ _tag: \"NeedAction\", absence: absent }); return planned({ _tag: \"AskAttribute\", leaf: p }); }, HasResourceAttribute: (p) => { const absent = absenceOf(p, supplied); if (absent !== undefined) return planned({ _tag: \"NeedAction\", absence: absent }); const column = columnPredicate(p.attribute, p.matcher, context); return column === undefined ? refused( \"HasResourceAttribute\", `matcher '${p.matcher._tag}' on column '${p.attribute}' has no predicate form`, ) : planned({ _tag: \"Column\", predicate: column }); }, HasActed: history, HasNotActed: history, HasRelationship: () => refused(\"HasRelationship\", \"a relationship is keyed by the row's id and cannot fold\"), // Opaque, externally-registered logic — there is nothing here to fold, // and approximating it would be exactly the failure mode ADR-QD-024 // refuses (ADR-QD-055). HasCustom: (p) => refused( \"HasCustom\", `'${p.name}' is opaque, externally-registered logic and cannot be reduced to a resource-independent expression`, ), // Looked up through an external port (SignatureHistory), keyed by // subject/resource — not a column any row carries, the same reason // HasRelationship refuses rather than HasCustom's opacity reason // (INV-QD-056). HasSignature: () => refused( \"HasSignature\", \"a signature is looked up through an external port and cannot fold into a resource-independent expression\", ), // INV-QD-013 reaching a construct it could not otherwise reach: a // predicate has no channel to carry a duty, so rows selected by one would // be handed over with a condition nobody was told about. Obliged: () => refused( \"Obliged\", \"a predicate cannot carry an obligation, and rows would be handed over with it unmet\", ), AllOf: (_p, folded) => { const plans = plansOf(folded); return plans instanceof Refusal ? plans : planned({ _tag: \"Conjunction\", plans }); }, AnyOf: (p, folded) => { const plans = plansOf(folded); return plans instanceof Refusal ? plans : planned({ _tag: \"Disjunction\", plans, stopsAtTrue: anyOfStopsAtAllow(p.fieldStrategy), }); }, Not: (_p, plan) => (plan instanceof Refusal ? plan : planned({ _tag: \"Negation\", plan })), // Transparent. The label survives only in the caller's own logging; a // predicate has no trace to put it on. Labeled: (_p, plan) => plan, Rules: (p, rows) => { // Walks the rows once, in row order: the first refusal wins, and each // plan is carried with its own row's effect, so a reorder-one-without-the- // other bug is unrepresentable rather than merely unlikely. const rules: Array<{ readonly effect: RuleEffect; readonly plan: Plan }> = []; for (const { rule, result } of rows) { if (result instanceof Refusal) return result; rules.push({ effect: rule.effect, plan: result }); } // The effective algorithm, not the raw field: a value outside the union // walks and translates as `DenyOverrides`, as the evaluator decides it // (`ShortCircuit.ts`), rather than reaching `formulaFor`'s // `Match.exhaustive` and throwing (CCR-QD-174). return planned({ _tag: \"RuleTable\", rules, combining: effectiveCombining(p.combining) }); }, }; // Folded through `foldPolicyCases`, not recursed natively: a caller-held policy has // no decode bound and `maxDepth` is the caller's to set arbitrarily high. Every // child is compiled before its parent, which is harmless because compiling is // pure, and the first refusal in declaration order still wins because // `plansOf` takes the first one it meets in `childrenOf`'s order. return foldPolicyCases(policy, cases); } | const compileTree = (policy: Policy, admitted: Admitted<true>): Compiled => {",
+   "key": "BlockStatement | {} | { const plans: Array<Plan> = []; for (const compiled of folded) { if (compiled instanceof Refusal) return compiled; plans.push(compiled); } return plans; } | const plansOf = (folded: ReadonlyArray<Compiled>): ReadonlyArray<Plan> | Refusal => {",
    "status": "Killed"
   },
   {
@@ -495,7 +491,7 @@
    "status": "Killed"
   },
   {
-   "key": "BlockStatement | {} | { const plans: Array<Plan> = []; for (const compiled of folded) { if (compiled instanceof Refusal) return compiled; plans.push(compiled); } return plans; } | const plansOf = (folded: ReadonlyArray<Compiled>): ReadonlyArray<Plan> | Refusal => {",
+   "key": "BlockStatement | {} | { const { subject, supplied, matcherContext: context } = admitted; const { action } = context; /** Plans every folded child in order, stopping at the first refusal. */ const plansOf = (folded: ReadonlyArray<Compiled>): ReadonlyArray<Plan> | Refusal => { const plans: Array<Plan> = []; for (const compiled of folded) { if (compiled instanceof Refusal) return compiled; plans.push(compiled); } return plans; }; /** * The scope is what decides a history question. `\"Any\"` asks about the * subject and folds; `\"Resource\"` asks once per row, which is the cost a * predicate exists to avoid. */ const history = (leaf: LeafOf[\"HasActed\"] | LeafOf[\"HasNotActed\"]): Compiled => isAnyActedLeaf(leaf) ? planned({ _tag: \"AskActed\", leaf }) : refused(leaf._tag, \"a resource-scoped history question is keyed by the row\"); /** * One node's plan, from its already-compiled children, each arm receiving * them in the tag's own shape (`PolicyCases`): a wrapper its one child, a * `Rules` table one `{ rule, result }` per row (ARCH-17). Built per call * because the arms close over the subject, the action and the matcher context. */ const cases: PolicyCases<Compiled> = { HasRole: (p) => planned({ _tag: \"Constant\", value: isHeld(LEAF_VERDICTS.HasRole(p, subject)) }), HasPermission: (p) => planned({ _tag: \"Constant\", value: isHeld(LEAF_VERDICTS.HasPermission(p, subject)) }), HasAction: (p) => { const absent = absenceOf(p, supplied); return absent !== undefined ? planned({ _tag: \"NeedAction\", absence: absent }) : planned({ _tag: \"Constant\", value: isHeld(LEAF_VERDICTS.HasAction(p, action)) }); }, HasAttribute: (p) => { // Folds against the subject — but only if it does not reach for a column // on the other side of the comparison. if (referencesResource(p.matcher)) { return refused( \"HasAttribute\", \"the matcher compares against the resource, which is a column\", ); } const absent = absenceOf(p, supplied); if (absent !== undefined) return planned({ _tag: \"NeedAction\", absence: absent }); return planned({ _tag: \"AskAttribute\", leaf: p }); }, HasResourceAttribute: (p) => { const absent = absenceOf(p, supplied); if (absent !== undefined) return planned({ _tag: \"NeedAction\", absence: absent }); const column = columnPredicate(p.attribute, p.matcher, context); return column === undefined ? refused( \"HasResourceAttribute\", `matcher '${p.matcher._tag}' on column '${p.attribute}' has no predicate form`, ) : planned({ _tag: \"Column\", predicate: column }); }, HasActed: history, HasNotActed: history, HasRelationship: () => refused(\"HasRelationship\", \"a relationship is keyed by the row's id and cannot fold\"), // Opaque, externally-registered logic — there is nothing here to fold, // and approximating it would be exactly the failure mode ADR-QD-024 // refuses (ADR-QD-055). HasCustom: (p) => refused( \"HasCustom\", `'${p.name}' is opaque, externally-registered logic and cannot be reduced to a resource-independent expression`, ), // Looked up through an external port (SignatureHistory), keyed by // subject/resource — not a column any row carries, the same reason // HasRelationship refuses rather than HasCustom's opacity reason // (INV-QD-056). HasSignature: () => refused( \"HasSignature\", \"a signature is looked up through an external port and cannot fold into a resource-independent expression\", ), // INV-QD-013 reaching a construct it could not otherwise reach: a // predicate has no channel to carry a duty, so rows selected by one would // be handed over with a condition nobody was told about. Obliged: () => refused( \"Obliged\", \"a predicate cannot carry an obligation, and rows would be handed over with it unmet\", ), AllOf: (_p, folded) => { const plans = plansOf(folded); return plans instanceof Refusal ? plans : planned({ _tag: \"Conjunction\", plans }); }, AnyOf: (p, folded) => { const plans = plansOf(folded); return plans instanceof Refusal ? plans : planned({ _tag: \"Disjunction\", plans, stopsAtTrue: anyOfStopsAtAllow(p.fieldStrategy), }); }, Not: (_p, plan) => (plan instanceof Refusal ? plan : planned({ _tag: \"Negation\", plan })), // Transparent. The label survives only in the caller's own logging; a // predicate has no trace to put it on. Labeled: (_p, plan) => plan, Rules: (p, rows) => { // Walks the rows once, in row order: the first refusal wins, and each // plan is carried with its own row's effect, so a reorder-one-without-the- // other bug is unrepresentable rather than merely unlikely. const rules: Array<{ readonly effect: RuleEffect; readonly plan: Plan }> = []; for (const { rule, result } of rows) { if (result instanceof Refusal) return result; rules.push({ effect: rule.effect, plan: result }); } // The effective algorithm, not the raw field: a value outside the union // walks and translates as `DenyOverrides`, as the evaluator decides it // (`ShortCircuit.ts`), rather than reaching `formulaFor`'s // `Match.exhaustive` and throwing (CCR-QD-174). return planned({ _tag: \"RuleTable\", rules, combining: effectiveCombining(p.combining) }); }, }; // Folded through `foldPolicyCases`, not recursed natively: a caller-held policy has // no decode bound and `maxDepth` is the caller's to set arbitrarily high. Every // child is compiled before its parent, which is harmless because compiling is // pure, and the first refusal in declaration order still wins because // `plansOf` takes the first one it meets in `childrenOf`'s order. return foldPolicyCases(admitted.policy, cases); } | const compileTree = (admitted: Admitted<\"row\">): Compiled => {",
    "status": "Killed"
   },
   {
@@ -503,11 +499,15 @@
    "status": "Killed"
   },
   {
-   "key": "ArrayDeclaration | [\"Stryker was here\"] | [] | const plans: Array<Plan> = [];",
+   "key": "EqualityOperator | fieldsOf(node) === undefined | fieldsOf(node) !== undefined | (node, children) => fieldsOf(node) !== undefined || children.some(isTrue),",
    "status": "Killed"
   },
   {
    "key": "BlockStatement | {} | { if (compiled instanceof Refusal) return compiled; plans.push(compiled); } | for (const compiled of folded) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrayDeclaration | [\"Stryker was here\"] | [] | const plans: Array<Plan> = [];",
    "status": "Killed"
   },
   {
@@ -519,7 +519,7 @@
    "status": "Killed"
   },
   {
-   "key": "ObjectLiteral | {} | { _tag: \"AskActed\", leaf } | ? planned({ _tag: \"AskActed\", leaf })",
+   "key": "CallExpression | ; | plans.push(compiled); | plans.push(compiled);",
    "status": "Killed"
   },
   {
@@ -527,7 +527,7 @@
    "status": "Killed"
   },
   {
-   "key": "CallExpression | ; | plans.push(compiled); | plans.push(compiled);",
+   "key": "ObjectLiteral | {} | { _tag: \"AskActed\", leaf } | ? planned({ _tag: \"AskActed\", leaf })",
    "status": "Killed"
   },
   {
@@ -535,15 +535,11 @@
    "status": "Killed"
   },
   {
+   "key": "StringLiteral | \"\" | \"Constant\" | HasRole: (p) => planned({ _tag: \"Constant\", value: isHeld(LEAF_VERDICTS.HasRole(p, subject)) }),",
+   "status": "Killed"
+  },
+  {
    "key": "StringLiteral | \"\" | \"a resource-scoped history question is keyed by the row\" | : refused(leaf._tag, \"a resource-scoped history question is keyed by the row\");",
-   "status": "Killed"
-  },
-  {
-   "key": "ObjectLiteral | {} | { HasRole: (p) => planned({ _tag: \"Constant\", value: isHeld(LEAF_VERDICTS.HasRole(p, subject)) }), HasPermission: (p) => planned({ _tag: \"Constant\", value: isHeld(LEAF_VERDICTS.HasPermission(p, subject)) }), HasAction: (p) => { const absent = absenceOf(p, supplied); return absent !== undefined ? planned({ _tag: \"NeedAction\", absence: absent }) : planned({ _tag: \"Constant\", value: isHeld(LEAF_VERDICTS.HasAction(p, action)) }); }, HasAttribute: (p) => { // Folds against the subject — but only if it does not reach for a column // on the other side of the comparison. if (referencesResource(p.matcher)) { return refused( \"HasAttribute\", \"the matcher compares against the resource, which is a column\", ); } const absent = absenceOf(p, supplied); if (absent !== undefined) return planned({ _tag: \"NeedAction\", absence: absent }); return planned({ _tag: \"AskAttribute\", leaf: p }); }, HasResourceAttribute: (p) => { const absent = absenceOf(p, supplied); if (absent !== undefined) return planned({ _tag: \"NeedAction\", absence: absent }); const column = columnPredicate(p.attribute, p.matcher, context); return column === undefined ? refused( \"HasResourceAttribute\", `matcher '${p.matcher._tag}' on column '${p.attribute}' has no predicate form`, ) : planned({ _tag: \"Column\", predicate: column }); }, HasActed: history, HasNotActed: history, HasRelationship: () => refused(\"HasRelationship\", \"a relationship is keyed by the row's id and cannot fold\"), // Opaque, externally-registered logic — there is nothing here to fold, // and approximating it would be exactly the failure mode ADR-QD-024 // refuses (ADR-QD-055). HasCustom: (p) => refused( \"HasCustom\", `'${p.name}' is opaque, externally-registered logic and cannot be reduced to a resource-independent expression`, ), // Looked up through an external port (SignatureHistory), keyed by // subject/resource — not a column any row carries, the same reason // HasRelationship refuses rather than HasCustom's opacity reason // (INV-QD-056). HasSignature: () => refused( \"HasSignature\", \"a signature is looked up through an external port and cannot fold into a resource-independent expression\", ), // INV-QD-013 reaching a construct it could not otherwise reach: a // predicate has no channel to carry a duty, so rows selected by one would // be handed over with a condition nobody was told about. Obliged: () => refused( \"Obliged\", \"a predicate cannot carry an obligation, and rows would be handed over with it unmet\", ), AllOf: (_p, folded) => { const plans = plansOf(folded); return plans instanceof Refusal ? plans : planned({ _tag: \"Conjunction\", plans }); }, AnyOf: (p, folded) => { const plans = plansOf(folded); return plans instanceof Refusal ? plans : planned({ _tag: \"Disjunction\", plans, stopsAtTrue: anyOfStopsAtAllow(p.fieldStrategy), }); }, Not: (_p, plan) => (plan instanceof Refusal ? plan : planned({ _tag: \"Negation\", plan })), // Transparent. The label survives only in the caller's own logging; a // predicate has no trace to put it on. Labeled: (_p, plan) => plan, Rules: (p, rows) => { // Walks the rows once, in row order: the first refusal wins, and each // plan is carried with its own row's effect, so a reorder-one-without-the- // other bug is unrepresentable rather than merely unlikely. const rules: Array<{ readonly effect: RuleEffect; readonly plan: Plan }> = []; for (const { rule, result } of rows) { if (result instanceof Refusal) return result; rules.push({ effect: rule.effect, plan: result }); } // The effective algorithm, not the raw field: a value outside the union // walks and translates as `DenyOverrides`, as the evaluator decides it // (`ShortCircuit.ts`), rather than reaching `formulaFor`'s // `Match.exhaustive` and throwing (CCR-QD-174). return planned({ _tag: \"RuleTable\", rules, combining: effectiveCombining(p.combining) }); }, } | const cases: PolicyCases<Compiled> = {",
-   "status": "Killed"
-  },
-  {
-   "key": "ArrowFunction | () => undefined | (p) => planned({ _tag: \"Constant\", value: isHeld(LEAF_VERDICTS.HasRole(p, subject)) }) | HasRole: (p) => planned({ _tag: \"Constant\", value: isHeld(LEAF_VERDICTS.HasRole(p, subject)) }),",
    "status": "Killed"
   },
   {
@@ -551,7 +547,11 @@
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | \"\" | \"Constant\" | HasRole: (p) => planned({ _tag: \"Constant\", value: isHeld(LEAF_VERDICTS.HasRole(p, subject)) }),",
+   "key": "ArrowFunction | () => undefined | (p) => planned({ _tag: \"Constant\", value: isHeld(LEAF_VERDICTS.HasRole(p, subject)) }) | HasRole: (p) => planned({ _tag: \"Constant\", value: isHeld(LEAF_VERDICTS.HasRole(p, subject)) }),",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { HasRole: (p) => planned({ _tag: \"Constant\", value: isHeld(LEAF_VERDICTS.HasRole(p, subject)) }), HasPermission: (p) => planned({ _tag: \"Constant\", value: isHeld(LEAF_VERDICTS.HasPermission(p, subject)) }), HasAction: (p) => { const absent = absenceOf(p, supplied); return absent !== undefined ? planned({ _tag: \"NeedAction\", absence: absent }) : planned({ _tag: \"Constant\", value: isHeld(LEAF_VERDICTS.HasAction(p, action)) }); }, HasAttribute: (p) => { // Folds against the subject — but only if it does not reach for a column // on the other side of the comparison. if (referencesResource(p.matcher)) { return refused( \"HasAttribute\", \"the matcher compares against the resource, which is a column\", ); } const absent = absenceOf(p, supplied); if (absent !== undefined) return planned({ _tag: \"NeedAction\", absence: absent }); return planned({ _tag: \"AskAttribute\", leaf: p }); }, HasResourceAttribute: (p) => { const absent = absenceOf(p, supplied); if (absent !== undefined) return planned({ _tag: \"NeedAction\", absence: absent }); const column = columnPredicate(p.attribute, p.matcher, context); return column === undefined ? refused( \"HasResourceAttribute\", `matcher '${p.matcher._tag}' on column '${p.attribute}' has no predicate form`, ) : planned({ _tag: \"Column\", predicate: column }); }, HasActed: history, HasNotActed: history, HasRelationship: () => refused(\"HasRelationship\", \"a relationship is keyed by the row's id and cannot fold\"), // Opaque, externally-registered logic — there is nothing here to fold, // and approximating it would be exactly the failure mode ADR-QD-024 // refuses (ADR-QD-055). HasCustom: (p) => refused( \"HasCustom\", `'${p.name}' is opaque, externally-registered logic and cannot be reduced to a resource-independent expression`, ), // Looked up through an external port (SignatureHistory), keyed by // subject/resource — not a column any row carries, the same reason // HasRelationship refuses rather than HasCustom's opacity reason // (INV-QD-056). HasSignature: () => refused( \"HasSignature\", \"a signature is looked up through an external port and cannot fold into a resource-independent expression\", ), // INV-QD-013 reaching a construct it could not otherwise reach: a // predicate has no channel to carry a duty, so rows selected by one would // be handed over with a condition nobody was told about. Obliged: () => refused( \"Obliged\", \"a predicate cannot carry an obligation, and rows would be handed over with it unmet\", ), AllOf: (_p, folded) => { const plans = plansOf(folded); return plans instanceof Refusal ? plans : planned({ _tag: \"Conjunction\", plans }); }, AnyOf: (p, folded) => { const plans = plansOf(folded); return plans instanceof Refusal ? plans : planned({ _tag: \"Disjunction\", plans, stopsAtTrue: anyOfStopsAtAllow(p.fieldStrategy), }); }, Not: (_p, plan) => (plan instanceof Refusal ? plan : planned({ _tag: \"Negation\", plan })), // Transparent. The label survives only in the caller's own logging; a // predicate has no trace to put it on. Labeled: (_p, plan) => plan, Rules: (p, rows) => { // Walks the rows once, in row order: the first refusal wins, and each // plan is carried with its own row's effect, so a reorder-one-without-the- // other bug is unrepresentable rather than merely unlikely. const rules: Array<{ readonly effect: RuleEffect; readonly plan: Plan }> = []; for (const { rule, result } of rows) { if (result instanceof Refusal) return result; rules.push({ effect: rule.effect, plan: result }); } // The effective algorithm, not the raw field: a value outside the union // walks and translates as `DenyOverrides`, as the evaluator decides it // (`ShortCircuit.ts`), rather than reaching `formulaFor`'s // `Match.exhaustive` and throwing (CCR-QD-174). return planned({ _tag: \"RuleTable\", rules, combining: effectiveCombining(p.combining) }); }, } | const cases: PolicyCases<Compiled> = {",
    "status": "Killed"
   },
   {
@@ -567,7 +567,7 @@
    "status": "Killed"
   },
   {
-   "key": "BlockStatement | {} | { const absent = absenceOf(p, supplied); return absent !== undefined ? planned({ _tag: \"NeedAction\", absence: absent }) : planned({ _tag: \"Constant\", value: isHeld(LEAF_VERDICTS.HasAction(p, action)) }); } | HasAction: (p) => {",
+   "key": "ConditionalExpression | false | absent !== undefined | return absent !== undefined",
    "status": "Killed"
   },
   {
@@ -575,23 +575,7 @@
    "status": "Killed"
   },
   {
-   "key": "ObjectLiteral | {} | { _tag: \"NeedAction\", absence: absent } | ? planned({ _tag: \"NeedAction\", absence: absent })",
-   "status": "Killed"
-  },
-  {
-   "key": "ConditionalExpression | false | absent !== undefined | return absent !== undefined",
-   "status": "Killed"
-  },
-  {
-   "key": "StringLiteral | \"\" | \"NeedAction\" | ? planned({ _tag: \"NeedAction\", absence: absent })",
-   "status": "Killed"
-  },
-  {
-   "key": "ObjectLiteral | {} | { _tag: \"Constant\", value: isHeld(LEAF_VERDICTS.HasAction(p, action)) } | : planned({ _tag: \"Constant\", value: isHeld(LEAF_VERDICTS.HasAction(p, action)) });",
-   "status": "Killed"
-  },
-  {
-   "key": "StringLiteral | \"\" | \"Constant\" | : planned({ _tag: \"Constant\", value: isHeld(LEAF_VERDICTS.HasAction(p, action)) });",
+   "key": "BlockStatement | {} | { const absent = absenceOf(p, supplied); return absent !== undefined ? planned({ _tag: \"NeedAction\", absence: absent }) : planned({ _tag: \"Constant\", value: isHeld(LEAF_VERDICTS.HasAction(p, action)) }); } | HasAction: (p) => {",
    "status": "Killed"
   },
   {
@@ -599,7 +583,19 @@
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | true | referencesResource(p.matcher) | if (referencesResource(p.matcher)) {",
+   "key": "ObjectLiteral | {} | { _tag: \"NeedAction\", absence: absent } | ? planned({ _tag: \"NeedAction\", absence: absent })",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"NeedAction\" | ? planned({ _tag: \"NeedAction\", absence: absent })",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Constant\" | : planned({ _tag: \"Constant\", value: isHeld(LEAF_VERDICTS.HasAction(p, action)) });",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { _tag: \"Constant\", value: isHeld(LEAF_VERDICTS.HasAction(p, action)) } | : planned({ _tag: \"Constant\", value: isHeld(LEAF_VERDICTS.HasAction(p, action)) });",
    "status": "Killed"
   },
   {
@@ -607,7 +603,7 @@
    "status": "Killed"
   },
   {
-   "key": "BlockStatement | {} | { return refused( \"HasAttribute\", \"the matcher compares against the resource, which is a column\", ); } | if (referencesResource(p.matcher)) {",
+   "key": "ConditionalExpression | true | referencesResource(p.matcher) | if (referencesResource(p.matcher)) {",
    "status": "Killed"
   },
   {
@@ -615,7 +611,7 @@
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | \"\" | \"HasAttribute\" | \"HasAttribute\",",
+   "key": "BlockStatement | {} | { return refused( \"HasAttribute\", \"the matcher compares against the resource, which is a column\", ); } | if (referencesResource(p.matcher)) {",
    "status": "Killed"
   },
   {
@@ -623,11 +619,11 @@
    "status": "Killed"
   },
   {
-   "key": "ObjectLiteral | {} | { _tag: \"NeedAction\", absence: absent } | if (absent !== undefined) return planned({ _tag: \"NeedAction\", absence: absent });",
+   "key": "ConditionalExpression | true | absent !== undefined | if (absent !== undefined) return planned({ _tag: \"NeedAction\", absence: absent });",
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | true | absent !== undefined | if (absent !== undefined) return planned({ _tag: \"NeedAction\", absence: absent });",
+   "key": "StringLiteral | \"\" | \"NeedAction\" | if (absent !== undefined) return planned({ _tag: \"NeedAction\", absence: absent });",
    "status": "Killed"
   },
   {
@@ -635,11 +631,15 @@
    "status": "Killed"
   },
   {
-   "key": "EqualityOperator | absent === undefined | absent !== undefined | if (absent !== undefined) return planned({ _tag: \"NeedAction\", absence: absent });",
+   "key": "StringLiteral | \"\" | \"HasAttribute\" | \"HasAttribute\",",
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | \"\" | \"NeedAction\" | if (absent !== undefined) return planned({ _tag: \"NeedAction\", absence: absent });",
+   "key": "ObjectLiteral | {} | { _tag: \"NeedAction\", absence: absent } | if (absent !== undefined) return planned({ _tag: \"NeedAction\", absence: absent });",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | absent === undefined | absent !== undefined | if (absent !== undefined) return planned({ _tag: \"NeedAction\", absence: absent });",
    "status": "Killed"
   },
   {
@@ -651,15 +651,7 @@
    "status": "Killed"
   },
   {
-   "key": "EqualityOperator | absent === undefined | absent !== undefined | if (absent !== undefined) return planned({ _tag: \"NeedAction\", absence: absent });",
-   "status": "Killed"
-  },
-  {
    "key": "ConditionalExpression | true | absent !== undefined | if (absent !== undefined) return planned({ _tag: \"NeedAction\", absence: absent });",
-   "status": "Killed"
-  },
-  {
-   "key": "ConditionalExpression | false | absent !== undefined | if (absent !== undefined) return planned({ _tag: \"NeedAction\", absence: absent });",
    "status": "Killed"
   },
   {
@@ -667,7 +659,11 @@
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | \"\" | \"NeedAction\" | if (absent !== undefined) return planned({ _tag: \"NeedAction\", absence: absent });",
+   "key": "EqualityOperator | absent === undefined | absent !== undefined | if (absent !== undefined) return planned({ _tag: \"NeedAction\", absence: absent });",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | absent !== undefined | if (absent !== undefined) return planned({ _tag: \"NeedAction\", absence: absent });",
    "status": "Killed"
   },
   {
@@ -675,11 +671,15 @@
    "status": "Killed"
   },
   {
+   "key": "ConditionalExpression | true | column === undefined | return column === undefined",
+   "status": "Killed"
+  },
+  {
    "key": "ConditionalExpression | false | column === undefined | return column === undefined",
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | true | column === undefined | return column === undefined",
+   "key": "StringLiteral | \"\" | \"NeedAction\" | if (absent !== undefined) return planned({ _tag: \"NeedAction\", absence: absent });",
    "status": "Killed"
   },
   {
@@ -691,7 +691,7 @@
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | \"\" | \"HasRelationship\" | refused(\"HasRelationship\", \"a relationship is keyed by the row's id and cannot fold\"),",
+   "key": "ObjectLiteral | {} | { _tag: \"Column\", predicate: column } | : planned({ _tag: \"Column\", predicate: column });",
    "status": "Killed"
   },
   {
@@ -699,15 +699,7 @@
    "status": "Killed"
   },
   {
-   "key": "ObjectLiteral | {} | { _tag: \"Column\", predicate: column } | : planned({ _tag: \"Column\", predicate: column });",
-   "status": "Killed"
-  },
-  {
-   "key": "ArrowFunction | () => undefined | () => refused(\"HasRelationship\", \"a relationship is keyed by the row's id and cannot fold\") | HasRelationship: () =>",
-   "status": "Killed"
-  },
-  {
-   "key": "StringLiteral | \"\" | \"HasCustom\" | \"HasCustom\",",
+   "key": "StringLiteral | \"\" | \"HasRelationship\" | refused(\"HasRelationship\", \"a relationship is keyed by the row's id and cannot fold\"),",
    "status": "Killed"
   },
   {
@@ -715,11 +707,19 @@
    "status": "Killed"
   },
   {
-   "key": "ArrowFunction | () => undefined | (p) => refused( \"HasCustom\", `'${p.name}' is opaque, externally-registered logic and cannot be reduced to a resource-independent expression`, ) | HasCustom: (p) =>",
+   "key": "ArrowFunction | () => undefined | () => refused(\"HasRelationship\", \"a relationship is keyed by the row's id and cannot fold\") | HasRelationship: () =>",
    "status": "Killed"
   },
   {
    "key": "StringLiteral | `` | `'${p.name}' is opaque, externally-registered logic and cannot be reduced to a resource-independent expression` | `'${p.name}' is opaque, externally-registered logic and cannot be reduced to a resource-independent expression`,",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"HasCustom\" | \"HasCustom\",",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (p) => refused( \"HasCustom\", `'${p.name}' is opaque, externally-registered logic and cannot be reduced to a resource-independent expression`, ) | HasCustom: (p) =>",
    "status": "Killed"
   },
   {
@@ -731,7 +731,7 @@
    "status": "Killed"
   },
   {
-   "key": "ArrowFunction | () => undefined | () => refused( \"Obliged\", \"a predicate cannot carry an obligation, and rows would be handed over with it unmet\", ) | Obliged: () =>",
+   "key": "StringLiteral | \"\" | \"Obliged\" | \"Obliged\",",
    "status": "Killed"
   },
   {
@@ -739,19 +739,7 @@
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | \"\" | \"Obliged\" | \"Obliged\",",
-   "status": "Killed"
-  },
-  {
    "key": "StringLiteral | \"\" | \"a predicate cannot carry an obligation, and rows would be handed over with it unmet\" | \"a predicate cannot carry an obligation, and rows would be handed over with it unmet\",",
-   "status": "Killed"
-  },
-  {
-   "key": "ObjectLiteral | {} | { _tag: \"Conjunction\", plans } | return plans instanceof Refusal ? plans : planned({ _tag: \"Conjunction\", plans });",
-   "status": "Killed"
-  },
-  {
-   "key": "BlockStatement | {} | { const plans = plansOf(folded); return plans instanceof Refusal ? plans : planned({ _tag: \"Conjunction\", plans }); } | AllOf: (_p, folded) => {",
    "status": "Killed"
   },
   {
@@ -759,11 +747,23 @@
    "status": "Killed"
   },
   {
-   "key": "BlockStatement | {} | { const plans = plansOf(folded); return plans instanceof Refusal ? plans : planned({ _tag: \"Disjunction\", plans, stopsAtTrue: anyOfStopsAtAllow(p.fieldStrategy), }); } | AnyOf: (p, folded) => {",
+   "key": "ArrowFunction | () => undefined | () => refused( \"Obliged\", \"a predicate cannot carry an obligation, and rows would be handed over with it unmet\", ) | Obliged: () =>",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const plans = plansOf(folded); return plans instanceof Refusal ? plans : planned({ _tag: \"Conjunction\", plans }); } | AllOf: (_p, folded) => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { _tag: \"Conjunction\", plans } | return plans instanceof Refusal ? plans : planned({ _tag: \"Conjunction\", plans });",
    "status": "Killed"
   },
   {
    "key": "StringLiteral | \"\" | \"Conjunction\" | return plans instanceof Refusal ? plans : planned({ _tag: \"Conjunction\", plans });",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const plans = plansOf(folded); return plans instanceof Refusal ? plans : planned({ _tag: \"Disjunction\", plans, stopsAtTrue: anyOfStopsAtAllow(p.fieldStrategy), }); } | AnyOf: (p, folded) => {",
    "status": "Killed"
   },
   {
@@ -775,7 +775,7 @@
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | \"\" | \"Negation\" | Not: (_p, plan) => (plan instanceof Refusal ? plan : planned({ _tag: \"Negation\", plan })),",
+   "key": "BlockStatement | {} | { // Walks the rows once, in row order: the first refusal wins, and each // plan is carried with its own row's effect, so a reorder-one-without-the- // other bug is unrepresentable rather than merely unlikely. const rules: Array<{ readonly effect: RuleEffect; readonly plan: Plan }> = []; for (const { rule, result } of rows) { if (result instanceof Refusal) return result; rules.push({ effect: rule.effect, plan: result }); } // The effective algorithm, not the raw field: a value outside the union // walks and translates as `DenyOverrides`, as the evaluator decides it // (`ShortCircuit.ts`), rather than reaching `formulaFor`'s // `Match.exhaustive` and throwing (CCR-QD-174). return planned({ _tag: \"RuleTable\", rules, combining: effectiveCombining(p.combining) }); } | Rules: (p, rows) => {",
    "status": "Killed"
   },
   {
@@ -783,19 +783,15 @@
    "status": "Killed"
   },
   {
-   "key": "ArrowFunction | () => undefined | (_p, plan) => (plan instanceof Refusal ? plan : planned({ _tag: \"Negation\", plan })) | Not: (_p, plan) => (plan instanceof Refusal ? plan : planned({ _tag: \"Negation\", plan })),",
-   "status": "Killed"
-  },
-  {
-   "key": "BlockStatement | {} | { // Walks the rows once, in row order: the first refusal wins, and each // plan is carried with its own row's effect, so a reorder-one-without-the- // other bug is unrepresentable rather than merely unlikely. const rules: Array<{ readonly effect: RuleEffect; readonly plan: Plan }> = []; for (const { rule, result } of rows) { if (result instanceof Refusal) return result; rules.push({ effect: rule.effect, plan: result }); } // The effective algorithm, not the raw field: a value outside the union // walks and translates as `DenyOverrides`, as the evaluator decides it // (`ShortCircuit.ts`), rather than reaching `formulaFor`'s // `Match.exhaustive` and throwing (CCR-QD-174). return planned({ _tag: \"RuleTable\", rules, combining: effectiveCombining(p.combining) }); } | Rules: (p, rows) => {",
-   "status": "Killed"
-  },
-  {
    "key": "ArrayDeclaration | [\"Stryker was here\"] | [] | const rules: Array<{ readonly effect: RuleEffect; readonly plan: Plan }> = [];",
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | true | result instanceof Refusal | if (result instanceof Refusal) return result;",
+   "key": "StringLiteral | \"\" | \"Negation\" | Not: (_p, plan) => (plan instanceof Refusal ? plan : planned({ _tag: \"Negation\", plan })),",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (_p, plan) => (plan instanceof Refusal ? plan : planned({ _tag: \"Negation\", plan })) | Not: (_p, plan) => (plan instanceof Refusal ? plan : planned({ _tag: \"Negation\", plan })),",
    "status": "Killed"
   },
   {
@@ -803,23 +799,15 @@
    "status": "Killed"
   },
   {
-   "key": "ObjectLiteral | {} | { _tag: \"RuleTable\", rules, combining: effectiveCombining(p.combining) } | return planned({ _tag: \"RuleTable\", rules, combining: effectiveCombining(p.combining) });",
-   "status": "Killed"
-  },
-  {
-   "key": "StringLiteral | \"\" | \"RuleTable\" | return planned({ _tag: \"RuleTable\", rules, combining: effectiveCombining(p.combining) });",
-   "status": "Killed"
-  },
-  {
    "key": "ObjectLiteral | {} | { effect: rule.effect, plan: result } | rules.push({ effect: rule.effect, plan: result });",
    "status": "Killed"
   },
   {
-   "key": "BlockStatement | {} | { const permits = translated .filter(({ effect }) => effect === \"Permit\") .map(({ condition }) => condition); const denies = translated .filter(({ effect }) => effect === \"Deny\") .map(({ condition }) => condition); return Match.value(combining).pipe( // A Permit anywhere decides; otherwise a Deny does, or nothing applied. // Both remaining cases refuse. Match.when(\"PermitOverrides\", () => or(permits)), Match.when(\"DenyOverrides\", () => and([negate(or(denies)), or(permits)])), Match.when(\"FirstApplicable\", () => or( translated.map(({ effect, condition }, index) => effect === \"Permit\" ? and([ ...translated.slice(0, index).map(({ condition: c }) => negate(c)), condition, ]) : FALSE, ), ), ), Match.exhaustive, ); } | ): Predicate => {",
+   "key": "ConditionalExpression | true | result instanceof Refusal | if (result instanceof Refusal) return result;",
    "status": "Killed"
   },
   {
-   "key": "MethodExpression | translated | translated .filter(({ effect }) => effect === \"Permit\") | const permits = translated",
+   "key": "ObjectLiteral | {} | { _tag: \"RuleTable\", rules, combining: effectiveCombining(p.combining) } | return planned({ _tag: \"RuleTable\", rules, combining: effectiveCombining(p.combining) });",
    "status": "Killed"
   },
   {
@@ -827,7 +815,19 @@
    "status": "Killed"
   },
   {
+   "key": "BlockStatement | {} | { const permits = translated .filter(({ effect }) => effect === \"Permit\") .map(({ condition }) => condition); const denies = translated .filter(({ effect }) => effect === \"Deny\") .map(({ condition }) => condition); return Match.value(combining).pipe( // A Permit anywhere decides; otherwise a Deny does, or nothing applied. // Both remaining cases refuse. Match.when(\"PermitOverrides\", () => or(permits)), Match.when(\"DenyOverrides\", () => and([negate(or(denies)), or(permits)])), Match.when(\"FirstApplicable\", () => or( translated.map(({ effect, condition }, index) => effect === \"Permit\" ? and([ ...translated.slice(0, index).map(({ condition: c }) => negate(c)), condition, ]) : FALSE, ), ), ), Match.exhaustive, ); } | ): Predicate => {",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"RuleTable\" | return planned({ _tag: \"RuleTable\", rules, combining: effectiveCombining(p.combining) });",
+   "status": "Killed"
+  },
+  {
    "key": "ConditionalExpression | true | effect === \"Permit\" | .filter(({ effect }) => effect === \"Permit\")",
+   "status": "Killed"
+  },
+  {
+   "key": "MethodExpression | translated | translated .filter(({ effect }) => effect === \"Permit\") | const permits = translated",
    "status": "Killed"
   },
   {
@@ -835,15 +835,11 @@
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | \"\" | \"Permit\" | .filter(({ effect }) => effect === \"Permit\")",
-   "status": "Killed"
-  },
-  {
    "key": "EqualityOperator | effect !== \"Permit\" | effect === \"Permit\" | .filter(({ effect }) => effect === \"Permit\")",
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | true | effect === \"Deny\" | .filter(({ effect }) => effect === \"Deny\")",
+   "key": "StringLiteral | \"\" | \"Permit\" | .filter(({ effect }) => effect === \"Permit\")",
    "status": "Killed"
   },
   {
@@ -851,15 +847,15 @@
    "status": "Killed"
   },
   {
-   "key": "ArrowFunction | () => undefined | ({ condition }) => condition | .map(({ condition }) => condition);",
-   "status": "Killed"
-  },
-  {
    "key": "ArrowFunction | () => undefined | ({ effect }) => effect === \"Deny\" | .filter(({ effect }) => effect === \"Deny\")",
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | false | effect === \"Deny\" | .filter(({ effect }) => effect === \"Deny\")",
+   "key": "ConditionalExpression | true | effect === \"Deny\" | .filter(({ effect }) => effect === \"Deny\")",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | ({ condition }) => condition | .map(({ condition }) => condition);",
    "status": "Killed"
   },
   {
@@ -871,6 +867,10 @@
    "status": "Killed"
   },
   {
+   "key": "ConditionalExpression | false | effect === \"Deny\" | .filter(({ effect }) => effect === \"Deny\")",
+   "status": "Killed"
+  },
+  {
    "key": "ArrowFunction | () => undefined | ({ condition }) => condition | .map(({ condition }) => condition);",
    "status": "Killed"
   },
@@ -879,7 +879,7 @@
    "status": "Killed"
   },
   {
-   "key": "ArrowFunction | () => undefined | () => or(permits) | Match.when(\"PermitOverrides\", () => or(permits)),",
+   "key": "StringLiteral | \"\" | \"DenyOverrides\" | Match.when(\"DenyOverrides\", () => and([negate(or(denies)), or(permits)])),",
    "status": "Killed"
   },
   {
@@ -887,19 +887,11 @@
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | \"\" | \"DenyOverrides\" | Match.when(\"DenyOverrides\", () => and([negate(or(denies)), or(permits)])),",
-   "status": "Killed"
-  },
-  {
-   "key": "StringLiteral | \"\" | \"FirstApplicable\" | Match.when(\"FirstApplicable\", () =>",
-   "status": "Killed"
-  },
-  {
-   "key": "ArrayDeclaration | [] | [negate(or(denies)), or(permits)] | Match.when(\"DenyOverrides\", () => and([negate(or(denies)), or(permits)])),",
-   "status": "Killed"
-  },
-  {
    "key": "ConditionalExpression | false | result instanceof Refusal | if (result instanceof Refusal) return result;",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => or(permits) | Match.when(\"PermitOverrides\", () => or(permits)),",
    "status": "Killed"
   },
   {
@@ -907,7 +899,15 @@
    "status": "Killed"
   },
   {
+   "key": "ArrayDeclaration | [] | [negate(or(denies)), or(permits)] | Match.when(\"DenyOverrides\", () => and([negate(or(denies)), or(permits)])),",
+   "status": "Killed"
+  },
+  {
    "key": "ArrowFunction | () => undefined | ({ effect, condition }, index) => effect === \"Permit\" ? and([ ...translated.slice(0, index).map(({ condition: c }) => negate(c)), condition, ]) : FALSE | translated.map(({ effect, condition }, index) =>",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"FirstApplicable\" | Match.when(\"FirstApplicable\", () =>",
    "status": "Killed"
   },
   {
@@ -935,15 +935,11 @@
    "status": "Killed"
   },
   {
-   "key": "ArrowFunction | () => undefined | ({ condition: c }) => negate(c) | ...translated.slice(0, index).map(({ condition: c }) => negate(c)),",
-   "status": "Killed"
-  },
-  {
-   "key": "ObjectLiteral | {} | { Constant: (p) => Effect.succeed(constant(p.value)), Column: (p) => Effect.succeed(p.predicate), AskAttribute: (p) => Effect.map(readAttribute(\"toPredicate\", subject, p.leaf), (value) => constant(isHeld(LEAF_VERDICTS.HasAttribute(p.leaf, value, context))), ), AskActed: (p) => Effect.map(askActed(\"toPredicate\", subject, p.leaf, undefined), (answer) => constant(isHeld(LEAF_VERDICTS[p.leaf._tag](answer))), ), NeedAction: (p) => Effect.fail(errorOf(p.absence)), // Suspended: building the child eagerly recursed natively once per `Not` // level, so a deep chain under a large `maxDepth` overflowed the stack. Negation: (p) => Effect.map(Effect.suspend(() => run(p.plan, subject, context)), negate), Conjunction: (p) => Effect.gen(function* () { const collected: Array<Predicate> = []; for (const inner of p.plans) { const result = yield* run(inner, subject, context); // `False` settles an `and`: nothing after it can matter. if (result._tag === \"False\") return FALSE; collected.push(result); } return and(collected); }), Disjunction: (p) => Effect.gen(function* () { const collected: Array<Predicate> = []; for (const inner of p.plans) { const result = yield* run(inner, subject, context); if (p.stopsAtTrue && result._tag === \"True\") return TRUE; collected.push(result); } return or(collected); }), RuleTable: (p) => Effect.gen(function* () { const decisive = rulesDecisiveEffect(p.combining); const translated: Array<{ readonly effect: RuleEffect; readonly condition: Predicate }> = []; for (const rule of p.rules) { const condition = yield* run(rule.plan, subject, context); translated.push({ effect: rule.effect, condition }); // A condition that holds for every row settles the walk when the // evaluator would stop there: any applying rule under // `FirstApplicable`, the overriding effect under the others. if (condition._tag === \"True\" && (decisive === undefined || rule.effect === decisive)) { break; } } return formulaFor(p.combining, translated); }), } | Match.tagsExhaustive({",
-   "status": "Killed"
-  },
-  {
    "key": "ArrowFunction | () => undefined | (_p, plan) => plan | Labeled: (_p, plan) => plan,",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | ({ condition: c }) => negate(c) | ...translated.slice(0, index).map(({ condition: c }) => negate(c)),",
    "status": "Killed"
   },
   {
@@ -955,15 +951,11 @@
    "status": "Killed"
   },
   {
+   "key": "ObjectLiteral | {} | { Constant: (p) => Effect.succeed(constant(p.value)), Column: (p) => Effect.succeed(p.predicate), AskAttribute: (p) => Effect.map(readAttribute(\"toPredicate\", subject, p.leaf), (value) => constant(isHeld(LEAF_VERDICTS.HasAttribute(p.leaf, value, context))), ), AskActed: (p) => Effect.map(askActed(\"toPredicate\", subject, p.leaf, undefined), (answer) => constant(isHeld(LEAF_VERDICTS[p.leaf._tag](answer))), ), NeedAction: (p) => Effect.fail(errorOf(p.absence)), // Suspended: building the child eagerly recursed natively once per `Not` // level, so a deep chain under a large `maxDepth` overflowed the stack. Negation: (p) => Effect.map(Effect.suspend(() => run(p.plan, subject, context)), negate), Conjunction: (p) => Effect.gen(function* () { const collected: Array<Predicate> = []; for (const inner of p.plans) { const result = yield* run(inner, subject, context); // `False` settles an `and`: nothing after it can matter. if (result._tag === \"False\") return FALSE; collected.push(result); } return and(collected); }), Disjunction: (p) => Effect.gen(function* () { const collected: Array<Predicate> = []; for (const inner of p.plans) { const result = yield* run(inner, subject, context); if (p.stopsAtTrue && result._tag === \"True\") return TRUE; collected.push(result); } return or(collected); }), RuleTable: (p) => Effect.gen(function* () { const decisive = rulesDecisiveEffect(p.combining); const translated: Array<{ readonly effect: RuleEffect; readonly condition: Predicate }> = []; for (const rule of p.rules) { const condition = yield* run(rule.plan, subject, context); translated.push({ effect: rule.effect, condition }); // A condition that holds for every row settles the walk when the // evaluator would stop there: any applying rule under // `FirstApplicable`, the overriding effect under the others. if (condition._tag === \"True\" && (decisive === undefined || rule.effect === decisive)) { break; } } return formulaFor(p.combining, translated); }), } | Match.tagsExhaustive({",
+   "status": "Killed"
+  },
+  {
    "key": "ArrowFunction | () => undefined | (p) => Effect.map(readAttribute(\"toPredicate\", subject, p.leaf), (value) => constant(isHeld(LEAF_VERDICTS.HasAttribute(p.leaf, value, context))), ) | AskAttribute: (p) =>",
-   "status": "Killed"
-  },
-  {
-   "key": "ArrowFunction | () => undefined | (value) => constant(isHeld(LEAF_VERDICTS.HasAttribute(p.leaf, value, context))) | Effect.map(readAttribute(\"toPredicate\", subject, p.leaf), (value) =>",
-   "status": "Killed"
-  },
-  {
-   "key": "StringLiteral | \"\" | \"toPredicate\" | Effect.map(askActed(\"toPredicate\", subject, p.leaf, undefined), (answer) =>",
    "status": "Killed"
   },
   {
@@ -971,7 +963,19 @@
    "status": "Killed"
   },
   {
+   "key": "StringLiteral | \"\" | \"toPredicate\" | Effect.map(askActed(\"toPredicate\", subject, p.leaf, undefined), (answer) =>",
+   "status": "Killed"
+  },
+  {
    "key": "ArrowFunction | () => undefined | (p) => Effect.map(askActed(\"toPredicate\", subject, p.leaf, undefined), (answer) => constant(isHeld(LEAF_VERDICTS[p.leaf._tag](answer))), ) | AskActed: (p) =>",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (value) => constant(isHeld(LEAF_VERDICTS.HasAttribute(p.leaf, value, context))) | Effect.map(readAttribute(\"toPredicate\", subject, p.leaf), (value) =>",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (p) => Effect.fail(errorOf(p.absence)) | NeedAction: (p) => Effect.fail(errorOf(p.absence)),",
    "status": "Killed"
   },
   {
@@ -987,11 +991,7 @@
    "status": "Killed"
   },
   {
-   "key": "ArrowFunction | () => undefined | (p) => Effect.fail(errorOf(p.absence)) | NeedAction: (p) => Effect.fail(errorOf(p.absence)),",
-   "status": "Killed"
-  },
-  {
-   "key": "BlockStatement | {} | { const result = yield* run(inner, subject, context); // `False` settles an `and`: nothing after it can matter. if (result._tag === \"False\") return FALSE; collected.push(result); } | for (const inner of p.plans) {",
+   "key": "BlockStatement | {} | { const collected: Array<Predicate> = []; for (const inner of p.plans) { const result = yield* run(inner, subject, context); // `False` settles an `and`: nothing after it can matter. if (result._tag === \"False\") return FALSE; collected.push(result); } return and(collected); } | Effect.gen(function* () {",
    "status": "Killed"
   },
   {
@@ -999,7 +999,7 @@
    "status": "Killed"
   },
   {
-   "key": "BlockStatement | {} | { const collected: Array<Predicate> = []; for (const inner of p.plans) { const result = yield* run(inner, subject, context); // `False` settles an `and`: nothing after it can matter. if (result._tag === \"False\") return FALSE; collected.push(result); } return and(collected); } | Effect.gen(function* () {",
+   "key": "BlockStatement | {} | { const result = yield* run(inner, subject, context); // `False` settles an `and`: nothing after it can matter. if (result._tag === \"False\") return FALSE; collected.push(result); } | for (const inner of p.plans) {",
    "status": "Killed"
   },
   {
@@ -1047,10 +1047,6 @@
    "status": "Killed"
   },
   {
-   "key": "BlockStatement | {} | { const decisive = rulesDecisiveEffect(p.combining); const translated: Array<{ readonly effect: RuleEffect; readonly condition: Predicate }> = []; for (const rule of p.rules) { const condition = yield* run(rule.plan, subject, context); translated.push({ effect: rule.effect, condition }); // A condition that holds for every row settles the walk when the // evaluator would stop there: any applying rule under // `FirstApplicable`, the overriding effect under the others. if (condition._tag === \"True\" && (decisive === undefined || rule.effect === decisive)) { break; } } return formulaFor(p.combining, translated); } | Effect.gen(function* () {",
-   "status": "Killed"
-  },
-  {
    "key": "ConditionalExpression | false | result._tag === \"False\" | if (result._tag === \"False\") return FALSE;",
    "status": "Killed"
   },
@@ -1059,7 +1055,15 @@
    "status": "Killed"
   },
   {
+   "key": "BlockStatement | {} | { const decisive = rulesDecisiveEffect(p.combining); const translated: Array<{ readonly effect: RuleEffect; readonly condition: Predicate }> = []; for (const rule of p.rules) { const condition = yield* run(rule.plan, subject, context); translated.push({ effect: rule.effect, condition }); // A condition that holds for every row settles the walk when the // evaluator would stop there: any applying rule under // `FirstApplicable`, the overriding effect under the others. if (condition._tag === \"True\" && (decisive === undefined || rule.effect === decisive)) { break; } } return formulaFor(p.combining, translated); } | Effect.gen(function* () {",
+   "status": "Killed"
+  },
+  {
    "key": "BlockStatement | {} | { const condition = yield* run(rule.plan, subject, context); translated.push({ effect: rule.effect, condition }); // A condition that holds for every row settles the walk when the // evaluator would stop there: any applying rule under // `FirstApplicable`, the overriding effect under the others. if (condition._tag === \"True\" && (decisive === undefined || rule.effect === decisive)) { break; } } | for (const rule of p.rules) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | p.stopsAtTrue && result._tag === \"True\" | if (p.stopsAtTrue && result._tag === \"True\") return TRUE;",
    "status": "Killed"
   },
   {
@@ -1072,10 +1076,6 @@
   },
   {
    "key": "ConditionalExpression | true | condition._tag === \"True\" && (decisive === undefined || rule.effect === decisive) | if (condition._tag === \"True\" && (decisive === undefined || rule.effect === decisive)) {",
-   "status": "Killed"
-  },
-  {
-   "key": "ConditionalExpression | false | p.stopsAtTrue && result._tag === \"True\" | if (p.stopsAtTrue && result._tag === \"True\") return TRUE;",
    "status": "Killed"
   },
   {
@@ -1095,15 +1095,7 @@
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | false | condition._tag === \"True\" && (decisive === undefined || rule.effect === decisive) | if (condition._tag === \"True\" && (decisive === undefined || rule.effect === decisive)) {",
-   "status": "Killed"
-  },
-  {
    "key": "ArrowFunction | () => undefined | (p) => Effect.gen(function* () { const collected: Array<Predicate> = []; for (const inner of p.plans) { const result = yield* run(inner, subject, context); // `False` settles an `and`: nothing after it can matter. if (result._tag === \"False\") return FALSE; collected.push(result); } return and(collected); }) | Conjunction: (p) =>",
-   "status": "Killed"
-  },
-  {
-   "key": "ArrowFunction | () => undefined | (p) => Effect.gen(function* () { const collected: Array<Predicate> = []; for (const inner of p.plans) { const result = yield* run(inner, subject, context); if (p.stopsAtTrue && result._tag === \"True\") return TRUE; collected.push(result); } return or(collected); }) | Disjunction: (p) =>",
    "status": "Killed"
   },
   {
@@ -1111,7 +1103,11 @@
    "status": "Killed"
   },
   {
-   "key": "EqualityOperator | decisive !== undefined | decisive === undefined | if (condition._tag === \"True\" && (decisive === undefined || rule.effect === decisive)) {",
+   "key": "ConditionalExpression | false | condition._tag === \"True\" && (decisive === undefined || rule.effect === decisive) | if (condition._tag === \"True\" && (decisive === undefined || rule.effect === decisive)) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (p) => Effect.gen(function* () { const collected: Array<Predicate> = []; for (const inner of p.plans) { const result = yield* run(inner, subject, context); if (p.stopsAtTrue && result._tag === \"True\") return TRUE; collected.push(result); } return or(collected); }) | Disjunction: (p) =>",
    "status": "Killed"
   },
   {
@@ -1119,7 +1115,7 @@
    "status": "Killed"
   },
   {
-   "key": "EqualityOperator | rule.effect !== decisive | rule.effect === decisive | if (condition._tag === \"True\" && (decisive === undefined || rule.effect === decisive)) {",
+   "key": "EqualityOperator | decisive !== undefined | decisive === undefined | if (condition._tag === \"True\" && (decisive === undefined || rule.effect === decisive)) {",
    "status": "Killed"
   },
   {
@@ -1127,7 +1123,15 @@
    "status": "Killed"
   },
   {
-   "key": "BlockStatement | {} | { const subject = yield* CurrentSubject; // Translation answers for rows not yet loaded, so its question has no // resource — explicitly, even if a caller's untyped options carried one. const question: Question = { ...questionOf(subject, policy, options), resource: undefined }; // Admission first, and from the policy alone: a policy that is both too deep // and field-restricting is always `PolicyTooDeep`, independent of child order // (ARCH-02 D-02-e, N4; INV-QD-037). Shared with `walk` (`Admission.ts`). const admitted = admit(question, \"row\"); if (Result.isFailure(admitted)) return yield* Effect.fail(admitted.failure); if (restrictsFields(policy)) { return yield* untranslatable( policy._tag, \"the policy restricts visible fields, and a predicate selects rows rather than columns\", ); } // Refusals first, and from the tree alone: they cannot depend on the subject // or on what any port answers (BEH-QD-266). Only then does anything run. const compiled = compileTree(policy, admitted.success); if (compiled instanceof Refusal) { return yield* untranslatable(compiled.policyTag, compiled.reason); } const predicate = yield* run(compiled, subject, admitted.success.matcherContext); yield* Effect.annotateCurrentSpan({ \"qadi.subject_id\": subject.id, \"qadi.policy_tag\": policy._tag, \"qadi.predicate_tag\": predicate._tag, }); yield* Metric.update(predicatesTranslatedTotal, 1); return predicate; } | ) {",
+   "key": "BlockStatement | {} | { const subject = yield* CurrentSubject; // Translation answers for rows not yet loaded, so its question has no // resource — explicitly, even if a caller's untyped options carried one. const question: Question = { ...questionOf(subject, policy, options), resource: undefined }; // Admission first, and from the policy alone: a policy that is both too deep // and field-restricting is always `PolicyTooDeep`, independent of child order // (ARCH-02 D-02-e, N4; INV-QD-037). Shared with `walk` (`Admission.ts`). const admitted = admit(question, \"row\"); if (Result.isFailure(admitted)) return yield* Effect.fail(admitted.failure); if (restrictsFields(policy)) { return yield* untranslatable( policy._tag, \"the policy restricts visible fields, and a predicate selects rows rather than columns\", ); } // Refusals first, and from the tree alone: they cannot depend on the subject // or on what any port answers (BEH-QD-266). Only then does anything run. const compiled = compileTree(admitted.success); if (compiled instanceof Refusal) { return yield* untranslatable(compiled.policyTag, compiled.reason); } const predicate = yield* run(compiled, subject, admitted.success.matcherContext); yield* Effect.annotateCurrentSpan({ \"qadi.subject_id\": subject.id, \"qadi.policy_tag\": policy._tag, \"qadi.predicate_tag\": predicate._tag, }); yield* Metric.update(predicatesTranslatedTotal, 1); return predicate; } | ) {",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | rule.effect !== decisive | rule.effect === decisive | if (condition._tag === \"True\" && (decisive === undefined || rule.effect === decisive)) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { ...questionOf(subject, policy, options), resource: undefined } | const question: Question = { ...questionOf(subject, policy, options), resource: undefined };",
    "status": "Killed"
   },
   {
@@ -1139,7 +1143,7 @@
    "status": "Killed"
   },
   {
-   "key": "ObjectLiteral | {} | { ...questionOf(subject, policy, options), resource: undefined } | const question: Question = { ...questionOf(subject, policy, options), resource: undefined };",
+   "key": "BlockStatement | {} | { break; } | if (condition._tag === \"True\" && (decisive === undefined || rule.effect === decisive)) {",
    "status": "Killed"
   },
   {
@@ -1155,15 +1159,7 @@
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | false | Result.isFailure(admitted) | if (Result.isFailure(admitted)) return yield* Effect.fail(admitted.failure);",
-   "status": "Killed"
-  },
-  {
    "key": "ConditionalExpression | true | restrictsFields(policy) | if (restrictsFields(policy)) {",
-   "status": "Killed"
-  },
-  {
-   "key": "ConditionalExpression | false | restrictsFields(policy) | if (restrictsFields(policy)) {",
    "status": "Killed"
   },
   {
@@ -1171,7 +1167,11 @@
    "status": "Killed"
   },
   {
-   "key": "BlockStatement | {} | { break; } | if (condition._tag === \"True\" && (decisive === undefined || rule.effect === decisive)) {",
+   "key": "ConditionalExpression | false | Result.isFailure(admitted) | if (Result.isFailure(admitted)) return yield* Effect.fail(admitted.failure);",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | restrictsFields(policy) | if (restrictsFields(policy)) {",
    "status": "Killed"
   },
   {
@@ -1195,15 +1195,11 @@
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | \"\" | \"True\" | const TRUE: Predicate = { _tag: \"True\" };",
-   "status": "Killed"
-  },
-  {
    "key": "ObjectLiteral | {} | { _tag: \"True\" } | const TRUE: Predicate = { _tag: \"True\" };",
    "status": "Killed"
   },
   {
-   "key": "ObjectLiteral | {} | { _tag: \"False\" } | const FALSE: Predicate = { _tag: \"False\" };",
+   "key": "StringLiteral | \"\" | \"True\" | const TRUE: Predicate = { _tag: \"True\" };",
    "status": "Killed"
   },
   {
@@ -1211,11 +1207,11 @@
    "status": "Killed"
   },
   {
-   "key": "ArrowFunction | () => undefined | (value: boolean): Predicate => (value ? TRUE : FALSE) | const constant = (value: boolean): Predicate => (value ? TRUE : FALSE);",
+   "key": "ObjectLiteral | {} | { _tag: \"False\" } | const FALSE: Predicate = { _tag: \"False\" };",
    "status": "Killed"
   },
   {
-   "key": "ObjectLiteral | {} | { True: () => (_row: Row) => true, False: () => (_row: Row) => false, Compare: (p) => (row: Row) => holdsLocal(compareLocal(p.op, ownValueLocal(row, p.column), p.value)), MemberOf: (p) => (row: Row) => holdsLocal(memberLocal(ownValueLocal(row, p.column), p.values)), And: (p) => (row: Row) => p.predicates.every((inner) => evaluatePredicate(inner, row)), Or: (p) => (row: Row) => p.predicates.some((inner) => evaluatePredicate(inner, row)), Negate: (p) => (row: Row) => !evaluatePredicate(p.predicate, row), } | Match.tagsExhaustive({",
+   "key": "ArrowFunction | () => undefined | (value: boolean): Predicate => (value ? TRUE : FALSE) | const constant = (value: boolean): Predicate => (value ? TRUE : FALSE);",
    "status": "Killed"
   },
   {
@@ -1223,11 +1219,15 @@
    "status": "Killed"
   },
   {
-   "key": "ArrowFunction | () => undefined | (p) => (row: Row) => holdsLocal(compareLocal(p.op, ownValueLocal(row, p.column), p.value)) | Compare: (p) => (row: Row) => holdsLocal(compareLocal(p.op, ownValueLocal(row, p.column), p.value)),",
+   "key": "ObjectLiteral | {} | { True: () => (_row: Row) => true, False: () => (_row: Row) => false, Compare: (p) => (row: Row) => holdsLocal(compareLocal(p.op, ownValueLocal(row, p.column), p.value)), MemberOf: (p) => (row: Row) => holdsLocal(memberLocal(ownValueLocal(row, p.column), p.values)), And: (p) => (row: Row) => p.predicates.every((inner) => evaluatePredicate(inner, row)), Or: (p) => (row: Row) => p.predicates.some((inner) => evaluatePredicate(inner, row)), Negate: (p) => (row: Row) => !evaluatePredicate(p.predicate, row), } | Match.tagsExhaustive({",
    "status": "Killed"
   },
   {
    "key": "ArrowFunction | () => undefined | () => (_row: Row) => false | False: () => (_row: Row) => false,",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (p) => (row: Row) => holdsLocal(compareLocal(p.op, ownValueLocal(row, p.column), p.value)) | Compare: (p) => (row: Row) => holdsLocal(compareLocal(p.op, ownValueLocal(row, p.column), p.value)),",
    "status": "Killed"
   },
   {
@@ -1239,11 +1239,11 @@
    "status": "Killed"
   },
   {
-   "key": "ArrowFunction | () => undefined | (p) => (row: Row) => !evaluatePredicate(p.predicate, row) | Negate: (p) => (row: Row) => !evaluatePredicate(p.predicate, row),",
+   "key": "ArrowFunction | () => undefined | (p) => (row: Row) => p.predicates.some((inner) => evaluatePredicate(inner, row)) | Or: (p) => (row: Row) => p.predicates.some((inner) => evaluatePredicate(inner, row)),",
    "status": "Killed"
   },
   {
-   "key": "ArrowFunction | () => undefined | (p) => (row: Row) => p.predicates.some((inner) => evaluatePredicate(inner, row)) | Or: (p) => (row: Row) => p.predicates.some((inner) => evaluatePredicate(inner, row)),",
+   "key": "ArrowFunction | () => undefined | (p) => (row: Row) => !evaluatePredicate(p.predicate, row) | Negate: (p) => (row: Row) => !evaluatePredicate(p.predicate, row),",
    "status": "Killed"
   },
   {
@@ -1251,15 +1251,19 @@
    "status": "Killed"
   },
   {
-   "key": "ArrowFunction | () => undefined | (ref: ValueRef, context: MatcherContext): Folded => Match.value(ref).pipe( Match.tagsExhaustive({ SubjectRef: (r): Folded => ({ value: getByPath(context.subject, r.path) }), SubjectIdRef: (): Folded => ({ value: context.subjectId }), ActionRef: (): Folded => ({ value: context.action }), LiteralRef: (r): Folded => ({ value: r.value }), // A second column. `column op column` is the one comparison `Predicate` // cannot express, and a dotted path names a column no schema has. ResourceRef: (): Folded => undefined, }), ) | const constantRef = (ref: ValueRef, context: MatcherContext): Folded =>",
-   "status": "Killed"
-  },
-  {
    "key": "ArrowFunction | () => undefined | ( policyTag: string, reason: string, ): Effect.Effect<never, PolicyNotTranslatable> => Effect.fail(new PolicyNotTranslatable({ policyTag, reason })) | const untranslatable = (",
    "status": "Killed"
   },
   {
+   "key": "ArrowFunction | () => undefined | (ref: ValueRef, context: MatcherContext): Folded => Match.value(ref).pipe( Match.tagsExhaustive({ SubjectRef: (r): Folded => ({ value: getByPath(context.subject, r.path) }), SubjectIdRef: (): Folded => ({ value: context.subjectId }), ActionRef: (): Folded => ({ value: context.action }), LiteralRef: (r): Folded => ({ value: r.value }), // A second column. `column op column` is the one comparison `Predicate` // cannot express, and a dotted path names a column no schema has. ResourceRef: (): Folded => undefined, }), ) | const constantRef = (ref: ValueRef, context: MatcherContext): Folded =>",
+   "status": "Killed"
+  },
+  {
    "key": "ArrowFunction | () => undefined | (value: boolean): boolean => value | const isTrue = (value: boolean): boolean => value;",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | ( plan: Plan, subject: AuthSubject, context: MatcherContext, ): Effect.Effect<Predicate, RunError, AttributeResolver | DecisionHistory> => Match.value(plan).pipe( Match.tagsExhaustive({ Constant: (p) => Effect.succeed(constant(p.value)), Column: (p) => Effect.succeed(p.predicate), AskAttribute: (p) => Effect.map(readAttribute(\"toPredicate\", subject, p.leaf), (value) => constant(isHeld(LEAF_VERDICTS.HasAttribute(p.leaf, value, context))), ), AskActed: (p) => Effect.map(askActed(\"toPredicate\", subject, p.leaf, undefined), (answer) => constant(isHeld(LEAF_VERDICTS[p.leaf._tag](answer))), ), NeedAction: (p) => Effect.fail(errorOf(p.absence)), // Suspended: building the child eagerly recursed natively once per `Not` // level, so a deep chain under a large `maxDepth` overflowed the stack. Negation: (p) => Effect.map(Effect.suspend(() => run(p.plan, subject, context)), negate), Conjunction: (p) => Effect.gen(function* () { const collected: Array<Predicate> = []; for (const inner of p.plans) { const result = yield* run(inner, subject, context); // `False` settles an `and`: nothing after it can matter. if (result._tag === \"False\") return FALSE; collected.push(result); } return and(collected); }), Disjunction: (p) => Effect.gen(function* () { const collected: Array<Predicate> = []; for (const inner of p.plans) { const result = yield* run(inner, subject, context); if (p.stopsAtTrue && result._tag === \"True\") return TRUE; collected.push(result); } return or(collected); }), RuleTable: (p) => Effect.gen(function* () { const decisive = rulesDecisiveEffect(p.combining); const translated: Array<{ readonly effect: RuleEffect; readonly condition: Predicate }> = []; for (const rule of p.rules) { const condition = yield* run(rule.plan, subject, context); translated.push({ effect: rule.effect, condition }); // A condition that holds for every row settles the walk when the // evaluator would stop there: any applying rule under // `FirstApplicable`, the overriding effect under the others. if (condition._tag === \"True\" && (decisive === undefined || rule.effect === decisive)) { break; } } return formulaFor(p.combining, translated); }), }), ) | const run = (",
    "status": "Killed"
   },
   {
@@ -1268,10 +1272,6 @@
   },
   {
    "key": "ArrowFunction | () => undefined | (plan: Plan): Compiled => plan | const planned = (plan: Plan): Compiled => plan;",
-   "status": "Killed"
-  },
-  {
-   "key": "ArrowFunction | () => undefined | ( plan: Plan, subject: AuthSubject, context: MatcherContext, ): Effect.Effect<Predicate, RunError, AttributeResolver | DecisionHistory> => Match.value(plan).pipe( Match.tagsExhaustive({ Constant: (p) => Effect.succeed(constant(p.value)), Column: (p) => Effect.succeed(p.predicate), AskAttribute: (p) => Effect.map(readAttribute(\"toPredicate\", subject, p.leaf), (value) => constant(isHeld(LEAF_VERDICTS.HasAttribute(p.leaf, value, context))), ), AskActed: (p) => Effect.map(askActed(\"toPredicate\", subject, p.leaf, undefined), (answer) => constant(isHeld(LEAF_VERDICTS[p.leaf._tag](answer))), ), NeedAction: (p) => Effect.fail(errorOf(p.absence)), // Suspended: building the child eagerly recursed natively once per `Not` // level, so a deep chain under a large `maxDepth` overflowed the stack. Negation: (p) => Effect.map(Effect.suspend(() => run(p.plan, subject, context)), negate), Conjunction: (p) => Effect.gen(function* () { const collected: Array<Predicate> = []; for (const inner of p.plans) { const result = yield* run(inner, subject, context); // `False` settles an `and`: nothing after it can matter. if (result._tag === \"False\") return FALSE; collected.push(result); } return and(collected); }), Disjunction: (p) => Effect.gen(function* () { const collected: Array<Predicate> = []; for (const inner of p.plans) { const result = yield* run(inner, subject, context); if (p.stopsAtTrue && result._tag === \"True\") return TRUE; collected.push(result); } return or(collected); }), RuleTable: (p) => Effect.gen(function* () { const decisive = rulesDecisiveEffect(p.combining); const translated: Array<{ readonly effect: RuleEffect; readonly condition: Predicate }> = []; for (const rule of p.rules) { const condition = yield* run(rule.plan, subject, context); translated.push({ effect: rule.effect, condition }); // A condition that holds for every row settles the walk when the // evaluator would stop there: any applying rule under // `FirstApplicable`, the overriding effect under the others. if (condition._tag === \"True\" && (decisive === undefined || rule.effect === decisive)) { break; } } return formulaFor(p.combining, translated); }), }), ) | const run = (",
    "status": "Killed"
   },
   {
@@ -1297,10 +1297,6 @@
    "status": "Killed"
   },
   {
-   "key": "ObjectLiteral | {} | { policyTag, label, allowed: false, reason, children, visibleFields: undefined, // A denial permits nothing, so it conditions nothing. obligations: NO_OBLIGATIONS, } | ): Trace => ({",
-   "status": "Killed"
-  },
-  {
    "key": "BooleanLiteral | true | false | allowed: false,",
    "status": "Killed"
   },
@@ -1309,19 +1305,15 @@
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | `` | `${side} attribute '${attribute}' ${DENIAL_TEXT[verdict](matcher)}` | ): string => `${side} attribute '${attribute}' ${DENIAL_TEXT[verdict](matcher)}`;",
-   "status": "Killed"
-  },
-  {
    "key": "StringLiteral | \"\" | \"has no reference value to compare against\" | ReferenceAbsent: () => \"has no reference value to compare against\",",
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | \"\" | \"matched an excluded value\" | NotHeld: (matcher) => (matcher._tag === \"Neq\" ? \"matched an excluded value\" : \"did not match\"),",
+   "key": "ConditionalExpression | true | matcher._tag === \"Neq\" | NotHeld: (matcher) => (matcher._tag === \"Neq\" ? \"matched an excluded value\" : \"did not match\"),",
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | `` | `no history is available for '${event}'` | Unknown: (_subject, event) => `no history is available for '${event}'`,",
+   "key": "ObjectLiteral | {} | { policyTag, label, allowed: false, reason, children, visibleFields: undefined, // A denial permits nothing, so it conditions nothing. obligations: NO_OBLIGATIONS, } | ): Trace => ({",
    "status": "Killed"
   },
   {
@@ -1333,15 +1325,7 @@
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | \"\" | \"is not a value this matcher can compare\" | Incomparable: () => \"is not a value this matcher can compare\",",
-   "status": "Killed"
-  },
-  {
-   "key": "ConditionalExpression | true | matcher._tag === \"Neq\" | NotHeld: (matcher) => (matcher._tag === \"Neq\" ? \"matched an excluded value\" : \"did not match\"),",
-   "status": "Killed"
-  },
-  {
-   "key": "ConditionalExpression | false | matcher._tag === \"Neq\" | NotHeld: (matcher) => (matcher._tag === \"Neq\" ? \"matched an excluded value\" : \"did not match\"),",
+   "key": "StringLiteral | \"\" | \"matched an excluded value\" | NotHeld: (matcher) => (matcher._tag === \"Neq\" ? \"matched an excluded value\" : \"did not match\"),",
    "status": "Killed"
   },
   {
@@ -1349,19 +1333,7 @@
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | \"\" | \"evaluate\" | Effect.map(askActed(\"evaluate\", subject, policy, resource), (answer) => {",
-   "status": "Killed"
-  },
-  {
-   "key": "BlockStatement | {} | { // An `Unknown` answer is `Held` under neither row, so both polarities deny // under an unwired port (ADR-QD-020). const outcome = LEAF_VERDICTS[policy._tag](answer); return isHeld(outcome) ? allow(policy._tag, policy.fields) : deny(policy._tag, ACTED_DENIAL[outcome](subject, policy.event)); } | Effect.map(askActed(\"evaluate\", subject, policy, resource), (answer) => {",
-   "status": "Killed"
-  },
-  {
-   "key": "StringLiteral | \"\" | \"has no value\" | ValueAbsent: () => \"has no value\",",
-   "status": "Killed"
-  },
-  {
-   "key": "StringLiteral | `` | `subject '${subject.id}' has already performed '${event}'` | Performed: (subject, event) => `subject '${subject.id}' has already performed '${event}'`,",
+   "key": "ConditionalExpression | false | matcher._tag === \"Neq\" | NotHeld: (matcher) => (matcher._tag === \"Neq\" ? \"matched an excluded value\" : \"did not match\"),",
    "status": "Killed"
   },
   {
@@ -1369,7 +1341,19 @@
    "status": "Killed"
   },
   {
+   "key": "StringLiteral | \"\" | \"has no value\" | ValueAbsent: () => \"has no value\",",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"evaluate\" | Effect.map(askActed(\"evaluate\", subject, policy, resource), (answer) => {",
+   "status": "Killed"
+  },
+  {
    "key": "StringLiteral | `` | `no relationship resolver could confirm the '${policy.relation}' relation to '${resourceId}'` | `no relationship resolver could confirm the '${policy.relation}' relation to '${resourceId}'`,",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { // An `Unknown` answer is `Held` under neither row, so both polarities deny // under an unwired port (ADR-QD-020). const outcome = LEAF_VERDICTS[policy._tag](answer); return isHeld(outcome) ? allow(policy._tag, policy.fields) : deny(policy._tag, ACTED_DENIAL[outcome](subject, policy.event)); } | Effect.map(askActed(\"evaluate\", subject, policy, resource), (answer) => {",
    "status": "Killed"
   },
   {
@@ -1377,11 +1361,23 @@
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | true | policy.signerRole === undefined | (policy.signerRole === undefined ? \"\" : ` and signer role '${policy.signerRole}'`),",
+   "key": "StringLiteral | \"\" | \"is not a value this matcher can compare\" | Incomparable: () => \"is not a value this matcher can compare\",",
    "status": "Killed"
   },
   {
    "key": "StringLiteral | `` | `subject '${subject.id}' has no signature matching meaning '${policy.meaning}'` | `subject '${subject.id}' has no signature matching meaning '${policy.meaning}'` +",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | `` | `subject '${subject.id}' has already performed '${event}'` | Performed: (subject, event) => `subject '${subject.id}' has already performed '${event}'`,",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | policy.signerRole === undefined | (policy.signerRole === undefined ? \"\" : ` and signer role '${policy.signerRole}'`),",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | policy.signerRole === undefined | (policy.signerRole === undefined ? \"\" : ` and signer role '${policy.signerRole}'`),",
    "status": "Killed"
   },
   {
@@ -1393,10 +1389,6 @@
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | false | policy.signerRole === undefined | (policy.signerRole === undefined ? \"\" : ` and signer role '${policy.signerRole}'`),",
-   "status": "Killed"
-  },
-  {
    "key": "StringLiteral | `` | ` and signer role '${policy.signerRole}'` | (policy.signerRole === undefined ? \"\" : ` and signer role '${policy.signerRole}'`),",
    "status": "Killed"
   },
@@ -1405,7 +1397,15 @@
    "status": "Killed"
   },
   {
+   "key": "StringLiteral | `` | `subject '${subject.id}' has not performed '${event}'` | NotPerformed: (subject, event) => `subject '${subject.id}' has not performed '${event}'`,",
+   "status": "Killed"
+  },
+  {
    "key": "BlockStatement | {} | { const outcome = LEAF_VERDICTS.HasRelationship(related); return isHeld(outcome) ? allow(\"HasRelationship\", policy.fields) : deny(\"HasRelationship\", RELATIONSHIP_DENIAL[outcome](subject, policy, resourceId)); } | return Effect.map(askRelationship(subject, policy, resource), (related) => {",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | `` | `no history is available for '${event}'` | Unknown: (_subject, event) => `no history is available for '${event}'`,",
    "status": "Killed"
   },
   {
@@ -1413,19 +1413,7 @@
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | \"\" | \"HasRelationship\" | : deny(\"HasRelationship\", RELATIONSHIP_DENIAL[outcome](subject, policy, resourceId));",
-   "status": "Killed"
-  },
-  {
-   "key": "StringLiteral | `` | `subject '${subject.id}' has not performed '${event}'` | NotPerformed: (subject, event) => `subject '${subject.id}' has not performed '${event}'`,",
-   "status": "Killed"
-  },
-  {
-   "key": "StringLiteral | \"\" | \"HasCustom\" | : deny(\"HasCustom\", `custom predicate '${policy.name}' returned false`),",
-   "status": "Killed"
-  },
-  {
-   "key": "StringLiteral | `` | `custom predicate '${policy.name}' returned false` | : deny(\"HasCustom\", `custom predicate '${policy.name}' returned false`),",
+   "key": "StringLiteral | `` | `${side} attribute '${attribute}' ${DENIAL_TEXT[verdict](matcher)}` | ): string => `${side} attribute '${attribute}' ${DENIAL_TEXT[verdict](matcher)}`;",
    "status": "Killed"
   },
   {
@@ -1433,15 +1421,27 @@
    "status": "Killed"
   },
   {
+   "key": "StringLiteral | \"\" | \"HasRelationship\" | : deny(\"HasRelationship\", RELATIONSHIP_DENIAL[outcome](subject, policy, resourceId));",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"HasCustom\" | : deny(\"HasCustom\", `custom predicate '${policy.name}' returned false`),",
+   "status": "Killed"
+  },
+  {
    "key": "BlockStatement | {} | { const outcome = LEAF_VERDICTS.HasSignature(answer); return isHeld(outcome) ? allow(\"HasSignature\", policy.fields) : deny(\"HasSignature\", SIGNATURE_DENIAL[outcome](subject, policy)); } | Effect.map(askSignature(subject, policy, resource), (answer) => {",
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | \"\" | \"HasSignature\" | ? allow(\"HasSignature\", policy.fields)",
+   "key": "StringLiteral | `` | `custom predicate '${policy.name}' returned false` | : deny(\"HasCustom\", `custom predicate '${policy.name}' returned false`),",
    "status": "Killed"
   },
   {
    "key": "StringLiteral | \"\" | \"HasSignature\" | : deny(\"HasSignature\", SIGNATURE_DENIAL[outcome](subject, policy));",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"HasSignature\" | ? allow(\"HasSignature\", policy.fields)",
    "status": "Killed"
   },
   {
@@ -1457,11 +1457,11 @@
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | case \"HasPermission\": | case \"HasPermission\": return Effect.succeed( isHeld(LEAF_VERDICTS.HasPermission(policy, subject)) ? allow(\"HasPermission\", policy.fields) : deny(\"HasPermission\", `subject lacks permission '${permissionKey(policy.permission)}'`), ); | case \"HasPermission\":",
+   "key": "ConditionalExpression | true | depth > maxDepth | if (depth > maxDepth) return Effect.fail(new PolicyTooDeep({ maxDepth }));",
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | true | depth > maxDepth | if (depth > maxDepth) return Effect.fail(new PolicyTooDeep({ maxDepth }));",
+   "key": "ConditionalExpression | case \"HasPermission\": | case \"HasPermission\": return Effect.succeed( isHeld(LEAF_VERDICTS.HasPermission(policy, subject)) ? allow(\"HasPermission\", policy.fields) : deny(\"HasPermission\", `subject lacks permission '${permissionKey(policy.permission)}'`), ); | case \"HasPermission\":",
    "status": "Killed"
   },
   {
@@ -1481,15 +1481,7 @@
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | \"\" | \"HasRole\" | ? allow(\"HasRole\", policy.fields)",
-   "status": "Killed"
-  },
-  {
    "key": "ConditionalExpression | case \"HasAttribute\": | case \"HasAttribute\": { const absent = absenceOf(policy, supplied); if (absent !== undefined) return Effect.fail(errorOf(absent)); return Effect.map(readAttribute(\"evaluate\", subject, policy), (value) => { // One judgement gives both the decision and, on a denial, its reason. const verdict = LEAF_VERDICTS.HasAttribute(policy, value, matcherContext); return isHeld(verdict) ? allow(\"HasAttribute\", policy.fields) : deny(\"HasAttribute\", attributeReason(\"subject\", policy.attribute, verdict, policy.matcher)); }); } | case \"HasAttribute\": {",
-   "status": "Killed"
-  },
-  {
-   "key": "BlockStatement | {} | { const absent = absenceOf(policy, supplied); if (absent !== undefined) return Effect.fail(errorOf(absent)); return Effect.map(readAttribute(\"evaluate\", subject, policy), (value) => { // One judgement gives both the decision and, on a denial, its reason. const verdict = LEAF_VERDICTS.HasAttribute(policy, value, matcherContext); return isHeld(verdict) ? allow(\"HasAttribute\", policy.fields) : deny(\"HasAttribute\", attributeReason(\"subject\", policy.attribute, verdict, policy.matcher)); }); } | case \"HasAttribute\": {",
    "status": "Killed"
   },
   {
@@ -1497,35 +1489,11 @@
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | true | absent !== undefined | if (absent !== undefined) return Effect.fail(errorOf(absent));",
-   "status": "Killed"
-  },
-  {
-   "key": "EqualityOperator | absent === undefined | absent !== undefined | if (absent !== undefined) return Effect.fail(errorOf(absent));",
-   "status": "Killed"
-  },
-  {
-   "key": "StringLiteral | \"\" | \"evaluate\" | return Effect.map(readAttribute(\"evaluate\", subject, policy), (value) => {",
-   "status": "Killed"
-  },
-  {
-   "key": "BlockStatement | {} | { // One judgement gives both the decision and, on a denial, its reason. const verdict = LEAF_VERDICTS.HasAttribute(policy, value, matcherContext); return isHeld(verdict) ? allow(\"HasAttribute\", policy.fields) : deny(\"HasAttribute\", attributeReason(\"subject\", policy.attribute, verdict, policy.matcher)); } | return Effect.map(readAttribute(\"evaluate\", subject, policy), (value) => {",
-   "status": "Killed"
-  },
-  {
    "key": "StringLiteral | \"\" | \"HasPermission\" | : deny(\"HasPermission\", `subject lacks permission '${permissionKey(policy.permission)}'`),",
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | false | absent !== undefined | if (absent !== undefined) return Effect.fail(errorOf(absent));",
-   "status": "Killed"
-  },
-  {
-   "key": "StringLiteral | \"\" | \"HasAttribute\" | ? allow(\"HasAttribute\", policy.fields)",
-   "status": "Killed"
-  },
-  {
-   "key": "StringLiteral | `` | `subject lacks permission '${permissionKey(policy.permission)}'` | : deny(\"HasPermission\", `subject lacks permission '${permissionKey(policy.permission)}'`),",
+   "key": "BlockStatement | {} | { const absent = absenceOf(policy, supplied); if (absent !== undefined) return Effect.fail(errorOf(absent)); return Effect.map(readAttribute(\"evaluate\", subject, policy), (value) => { // One judgement gives both the decision and, on a denial, its reason. const verdict = LEAF_VERDICTS.HasAttribute(policy, value, matcherContext); return isHeld(verdict) ? allow(\"HasAttribute\", policy.fields) : deny(\"HasAttribute\", attributeReason(\"subject\", policy.attribute, verdict, policy.matcher)); }); } | case \"HasAttribute\": {",
    "status": "Killed"
   },
   {
@@ -1533,7 +1501,15 @@
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | case \"HasResourceAttribute\": | case \"HasResourceAttribute\": { const absent = absenceOf(policy, supplied); if (absent !== undefined) return Effect.fail(errorOf(absent)); // `absenceOf` has ruled out an absent resource; the `??` is the type's. const row = resource ?? NO_RESOURCE; const value = ownValue(row, policy.attribute); const verdict = LEAF_VERDICTS.HasResourceAttribute(policy, value, matcherContext); return Effect.succeed( isHeld(verdict) ? allow(\"HasResourceAttribute\", policy.fields) : deny( \"HasResourceAttribute\", attributeReason(\"resource\", policy.attribute, verdict, policy.matcher), ), ); } | case \"HasResourceAttribute\": {",
+   "key": "ConditionalExpression | true | absent !== undefined | if (absent !== undefined) return Effect.fail(errorOf(absent));",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | `` | `subject lacks permission '${permissionKey(policy.permission)}'` | : deny(\"HasPermission\", `subject lacks permission '${permissionKey(policy.permission)}'`),",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | absent !== undefined | if (absent !== undefined) return Effect.fail(errorOf(absent));",
    "status": "Killed"
   },
   {
@@ -1541,7 +1517,7 @@
    "status": "Killed"
   },
   {
-   "key": "BlockStatement | {} | { const absent = absenceOf(policy, supplied); if (absent !== undefined) return Effect.fail(errorOf(absent)); // `absenceOf` has ruled out an absent resource; the `??` is the type's. const row = resource ?? NO_RESOURCE; const value = ownValue(row, policy.attribute); const verdict = LEAF_VERDICTS.HasResourceAttribute(policy, value, matcherContext); return Effect.succeed( isHeld(verdict) ? allow(\"HasResourceAttribute\", policy.fields) : deny( \"HasResourceAttribute\", attributeReason(\"resource\", policy.attribute, verdict, policy.matcher), ), ); } | case \"HasResourceAttribute\": {",
+   "key": "StringLiteral | \"\" | \"HasRole\" | ? allow(\"HasRole\", policy.fields)",
    "status": "Killed"
   },
   {
@@ -1549,7 +1525,35 @@
    "status": "Killed"
   },
   {
+   "key": "EqualityOperator | depth >= maxDepth | depth > maxDepth | if (depth > maxDepth) return Effect.fail(new PolicyTooDeep({ maxDepth }));",
+   "status": "Killed"
+  },
+  {
    "key": "StringLiteral | \"\" | \"HasRole\" | : deny(\"HasRole\", `subject lacks role '${policy.role}'`),",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"evaluate\" | return Effect.map(readAttribute(\"evaluate\", subject, policy), (value) => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | case \"HasResourceAttribute\": | case \"HasResourceAttribute\": { const absent = absenceOf(policy, supplied); if (absent !== undefined) return Effect.fail(errorOf(absent)); // `absenceOf` has ruled out an absent resource; the `??` is the type's. const row = resource ?? NO_RESOURCE; const value = ownValue(row, policy.attribute); const verdict = LEAF_VERDICTS.HasResourceAttribute(policy, value, matcherContext); return Effect.succeed( isHeld(verdict) ? allow(\"HasResourceAttribute\", policy.fields) : deny( \"HasResourceAttribute\", attributeReason(\"resource\", policy.attribute, verdict, policy.matcher), ), ); } | case \"HasResourceAttribute\": {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { // One judgement gives both the decision and, on a denial, its reason. const verdict = LEAF_VERDICTS.HasAttribute(policy, value, matcherContext); return isHeld(verdict) ? allow(\"HasAttribute\", policy.fields) : deny(\"HasAttribute\", attributeReason(\"subject\", policy.attribute, verdict, policy.matcher)); } | return Effect.map(readAttribute(\"evaluate\", subject, policy), (value) => {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const absent = absenceOf(policy, supplied); if (absent !== undefined) return Effect.fail(errorOf(absent)); // `absenceOf` has ruled out an absent resource; the `??` is the type's. const row = resource ?? NO_RESOURCE; const value = ownValue(row, policy.attribute); const verdict = LEAF_VERDICTS.HasResourceAttribute(policy, value, matcherContext); return Effect.succeed( isHeld(verdict) ? allow(\"HasResourceAttribute\", policy.fields) : deny( \"HasResourceAttribute\", attributeReason(\"resource\", policy.attribute, verdict, policy.matcher), ), ); } | case \"HasResourceAttribute\": {",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"HasResourceAttribute\" | case \"HasResourceAttribute\": {",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | absent === undefined | absent !== undefined | if (absent !== undefined) return Effect.fail(errorOf(absent));",
    "status": "Killed"
   },
   {
@@ -1573,15 +1577,7 @@
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | \"\" | \"HasAction\" | case \"HasAction\": {",
-   "status": "Killed"
-  },
-  {
    "key": "BlockStatement | {} | { const absent = absenceOf(policy, supplied); if (absent !== undefined) return Effect.fail(errorOf(absent)); return Effect.succeed( isHeld(LEAF_VERDICTS.HasAction(policy, action)) ? allow(\"HasAction\", policy.fields) : deny(\"HasAction\", `action is '${action}', not '${policy.action}'`), ); } | case \"HasAction\": {",
-   "status": "Killed"
-  },
-  {
-   "key": "ConditionalExpression | true | absent !== undefined | if (absent !== undefined) return Effect.fail(errorOf(absent));",
    "status": "Killed"
   },
   {
@@ -1589,11 +1585,23 @@
    "status": "Killed"
   },
   {
-   "key": "EqualityOperator | absent === undefined | absent !== undefined | if (absent !== undefined) return Effect.fail(errorOf(absent));",
+   "key": "ConditionalExpression | true | absent !== undefined | if (absent !== undefined) return Effect.fail(errorOf(absent));",
    "status": "Killed"
   },
   {
    "key": "StringLiteral | \"\" | \"HasAttribute\" | : deny(\"HasAttribute\", attributeReason(\"subject\", policy.attribute, verdict, policy.matcher));",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"HasAttribute\" | ? allow(\"HasAttribute\", policy.fields)",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"HasAction\" | case \"HasAction\": {",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | absent === undefined | absent !== undefined | if (absent !== undefined) return Effect.fail(errorOf(absent));",
    "status": "Killed"
   },
   {
@@ -1605,23 +1613,11 @@
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | \"\" | \"resource\" | attributeReason(\"resource\", policy.attribute, verdict, policy.matcher),",
-   "status": "Killed"
-  },
-  {
-   "key": "StringLiteral | \"\" | \"HasAction\" | ? allow(\"HasAction\", policy.fields)",
-   "status": "Killed"
-  },
-  {
    "key": "StringLiteral | \"\" | \"HasResourceAttribute\" | \"HasResourceAttribute\",",
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | case \"HasNotActed\": | case \"HasNotActed\": return evaluateActed(policy, subject, resource); | case \"HasNotActed\":",
-   "status": "Killed"
-  },
-  {
-   "key": "ConditionalExpression | case \"HasCustom\": | case \"HasCustom\": return evaluateHasCustom(policy, subject, resource); | case \"HasCustom\":",
+   "key": "StringLiteral | \"\" | \"resource\" | attributeReason(\"resource\", policy.attribute, verdict, policy.matcher),",
    "status": "Killed"
   },
   {
@@ -1629,7 +1625,19 @@
    "status": "Killed"
   },
   {
+   "key": "ConditionalExpression | case \"HasNotActed\": | case \"HasNotActed\": return evaluateActed(policy, subject, resource); | case \"HasNotActed\":",
+   "status": "Killed"
+  },
+  {
    "key": "StringLiteral | \"\" | \"HasAction\" | : deny(\"HasAction\", `action is '${action}', not '${policy.action}'`),",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | case \"HasCustom\": | case \"HasCustom\": return evaluateHasCustom(policy, subject, resource); | case \"HasCustom\":",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"HasAction\" | ? allow(\"HasAction\", policy.fields)",
    "status": "Killed"
   },
   {
@@ -1637,7 +1645,7 @@
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | case \"AllOf\": | case \"AllOf\": return evaluateAllOf(policy, request, depth); | case \"AllOf\":",
+   "key": "StringLiteral | \"\" | \"HasRelationship\" | case \"HasRelationship\":",
    "status": "Killed"
   },
   {
@@ -1645,7 +1653,7 @@
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | \"\" | \"AllOf\" | case \"AllOf\":",
+   "key": "ConditionalExpression | case \"AllOf\": | case \"AllOf\": return evaluateAllOf(policy, request, depth); | case \"AllOf\":",
    "status": "Killed"
   },
   {
@@ -1653,15 +1661,7 @@
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | \"\" | \"AnyOf\" | case \"AnyOf\":",
-   "status": "Killed"
-  },
-  {
-   "key": "StringLiteral | \"\" | \"HasNotActed\" | case \"HasNotActed\":",
-   "status": "Killed"
-  },
-  {
-   "key": "StringLiteral | \"\" | \"HasResourceAttribute\" | case \"HasResourceAttribute\": {",
+   "key": "StringLiteral | \"\" | \"AllOf\" | case \"AllOf\":",
    "status": "Killed"
   },
   {
@@ -1669,7 +1669,15 @@
    "status": "Killed"
   },
   {
-   "key": "EqualityOperator | depth >= maxDepth | depth > maxDepth | if (depth > maxDepth) return Effect.fail(new PolicyTooDeep({ maxDepth }));",
+   "key": "StringLiteral | \"\" | \"AnyOf\" | case \"AnyOf\":",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Rules\" | case \"Rules\":",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"HasNotActed\" | case \"HasNotActed\":",
    "status": "Killed"
   },
   {
@@ -1681,15 +1689,11 @@
    "status": "Killed"
   },
   {
-   "key": "ArrowFunction | () => undefined | (child) => child.allowed ? deny(\"Not\", \"negated policy allowed\", [child]) : // Negation carries no field visibility of its own: knowing a // policy did *not* hold says nothing about which fields are safe. // It carries no obligations either, and needs no rule to say so: // the child denied, so it contributed none (ADR-QD-019). allow(\"Not\", undefined, [child]) | (child) =>",
-   "status": "Killed"
-  },
-  {
    "key": "ConditionalExpression | case \"Not\": | case \"Not\": return Effect.map( Effect.suspend(() => evaluateNode(policy.policy, request, depth + 1), ), (child) => child.allowed ? deny(\"Not\", \"negated policy allowed\", [child]) : // Negation carries no field visibility of its own: knowing a // policy did *not* hold says nothing about which fields are safe. // It carries no obligations either, and needs no rule to say so: // the child denied, so it contributed none (ADR-QD-019). allow(\"Not\", undefined, [child]), ); | case \"Not\":",
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | \"\" | \"Rules\" | case \"Rules\":",
+   "key": "ArrowFunction | () => undefined | (child) => child.allowed ? deny(\"Not\", \"negated policy allowed\", [child]) : // Negation carries no field visibility of its own: knowing a // policy did *not* hold says nothing about which fields are safe. // It carries no obligations either, and needs no rule to say so: // the child denied, so it contributed none (ADR-QD-019). allow(\"Not\", undefined, [child]) | (child) =>",
    "status": "Killed"
   },
   {
@@ -1697,11 +1701,7 @@
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | \"\" | \"Obliged\" | case \"Obliged\":",
-   "status": "Killed"
-  },
-  {
-   "key": "StringLiteral | \"\" | \"Not\" | ? deny(\"Not\", \"negated policy allowed\", [child])",
+   "key": "StringLiteral | \"\" | \"HasCustom\" | case \"HasCustom\":",
    "status": "Killed"
   },
   {
@@ -1709,7 +1709,7 @@
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | \"\" | \"HasRelationship\" | case \"HasRelationship\":",
+   "key": "StringLiteral | \"\" | \"HasSignature\" | case \"HasSignature\":",
    "status": "Killed"
   },
   {
@@ -1717,11 +1717,19 @@
    "status": "Killed"
   },
   {
+   "key": "StringLiteral | \"\" | \"Not\" | ? deny(\"Not\", \"negated policy allowed\", [child])",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Obliged\" | case \"Obliged\":",
+   "status": "Killed"
+  },
+  {
    "key": "StringLiteral | \"\" | \"Obliged\" | \"Obliged\",",
    "status": "Killed"
   },
   {
-   "key": "ArrayDeclaration | [] | [child] | ? deny(\"Not\", \"negated policy allowed\", [child])",
+   "key": "ArrayDeclaration | [] | [child] | [child],",
    "status": "Killed"
   },
   {
@@ -1729,7 +1737,7 @@
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | \"\" | \"Obliged\" | : deny(\"Obliged\", child.reason ?? \"the obliged policy denied\", [child]),",
+   "key": "ArrayDeclaration | [] | [child] | ? deny(\"Not\", \"negated policy allowed\", [child])",
    "status": "Killed"
   },
   {
@@ -1737,15 +1745,11 @@
    "status": "Killed"
   },
   {
-   "key": "ArrayDeclaration | [] | [policy.obligation] | unionObligations([policy.obligation], child.obligations),",
-   "status": "Killed"
-  },
-  {
    "key": "ArrayDeclaration | [] | [child] | allow(\"Not\", undefined, [child]),",
    "status": "Killed"
   },
   {
-   "key": "LogicalOperator | child.reason && \"the obliged policy denied\" | child.reason ?? \"the obliged policy denied\" | : deny(\"Obliged\", child.reason ?? \"the obliged policy denied\", [child]),",
+   "key": "ArrayDeclaration | [] | [policy.obligation] | unionObligations([policy.obligation], child.obligations),",
    "status": "Killed"
   },
   {
@@ -1757,15 +1761,15 @@
    "status": "Killed"
   },
   {
-   "key": "ArrayDeclaration | [] | [child] | [child],",
-   "status": "Killed"
-  },
-  {
    "key": "StringLiteral | \"\" | \"Labeled\" | case \"Labeled\":",
    "status": "Killed"
   },
   {
-   "key": "ArrowFunction | () => undefined | (child) => ({ policyTag: \"Labeled\" as const, label: policy.label, allowed: child.allowed, reason: child.reason, children: [child], visibleFields: child.visibleFields, obligations: child.obligations, }) | (child) => ({",
+   "key": "StringLiteral | \"\" | \"Obliged\" | : deny(\"Obliged\", child.reason ?? \"the obliged policy denied\", [child]),",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | child.reason && \"the obliged policy denied\" | child.reason ?? \"the obliged policy denied\" | : deny(\"Obliged\", child.reason ?? \"the obliged policy denied\", [child]),",
    "status": "Killed"
   },
   {
@@ -1773,11 +1777,11 @@
    "status": "Killed"
   },
   {
-   "key": "ObjectLiteral | {} | { policyTag: \"Labeled\" as const, label: policy.label, allowed: child.allowed, reason: child.reason, children: [child], visibleFields: child.visibleFields, obligations: child.obligations, } | (child) => ({",
+   "key": "ArrowFunction | () => undefined | (child) => ({ policyTag: \"Labeled\" as const, label: policy.label, allowed: child.allowed, reason: child.reason, children: [child], visibleFields: child.visibleFields, obligations: child.obligations, }) | (child) => ({",
    "status": "Killed"
   },
   {
-   "key": "ArrayDeclaration | [] | [child] | children: [child],",
+   "key": "ObjectLiteral | {} | { policyTag: \"Labeled\" as const, label: policy.label, allowed: child.allowed, reason: child.reason, children: [child], visibleFields: child.visibleFields, obligations: child.obligations, } | (child) => ({",
    "status": "Killed"
   },
   {
@@ -1785,15 +1789,7 @@
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | \"\" | \"HasCustom\" | case \"HasCustom\":",
-   "status": "Killed"
-  },
-  {
    "key": "ArrayDeclaration | [\"Stryker was here\"] | [] | fieldSets: [],",
-   "status": "Killed"
-  },
-  {
-   "key": "CallExpression | ; | fold.children.push(trace); | fold.children.push(trace);",
    "status": "Killed"
   },
   {
@@ -1801,15 +1797,7 @@
    "status": "Killed"
   },
   {
-   "key": "ArrayDeclaration | [\"Stryker was here\"] | [] | children: [],",
-   "status": "Killed"
-  },
-  {
    "key": "BooleanLiteral | trace.allowed | !trace.allowed | if (!trace.allowed) {",
-   "status": "Killed"
-  },
-  {
-   "key": "StringLiteral | \"\" | \"HasSignature\" | case \"HasSignature\":",
    "status": "Killed"
   },
   {
@@ -1817,11 +1805,19 @@
    "status": "Killed"
   },
   {
+   "key": "BlockStatement | {} | { return deny(\"AllOf\", trace.reason ?? \"a required policy denied\", fold.children); } | if (!trace.allowed) {",
+   "status": "Killed"
+  },
+  {
    "key": "ConditionalExpression | false | !trace.allowed | if (!trace.allowed) {",
    "status": "Killed"
   },
   {
-   "key": "BlockStatement | {} | { return deny(\"AllOf\", trace.reason ?? \"a required policy denied\", fold.children); } | if (!trace.allowed) {",
+   "key": "ArrayDeclaration | [] | [child] | children: [child],",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrayDeclaration | [\"Stryker was here\"] | [] | children: [],",
    "status": "Killed"
   },
   {
@@ -1829,11 +1825,7 @@
    "status": "Killed"
   },
   {
-   "key": "LogicalOperator | trace.reason && \"a required policy denied\" | trace.reason ?? \"a required policy denied\" | return deny(\"AllOf\", trace.reason ?? \"a required policy denied\", fold.children);",
-   "status": "Killed"
-  },
-  {
-   "key": "StringLiteral | \"\" | \"AllOf\" | \"AllOf\",",
+   "key": "CallExpression | ; | fold.children.push(trace); | fold.children.push(trace);",
    "status": "Killed"
   },
   {
@@ -1841,7 +1833,27 @@
    "status": "Killed"
   },
   {
+   "key": "LogicalOperator | trace.reason && \"a required policy denied\" | trace.reason ?? \"a required policy denied\" | return deny(\"AllOf\", trace.reason ?? \"a required policy denied\", fold.children);",
+   "status": "Killed"
+  },
+  {
    "key": "BlockStatement | {} | { for (const child of policy.policies) { const verdict = stepAllOf( fold, yield* evaluateNode(child, request, depth + 1), ); if (verdict !== undefined) return verdict; } } | if (request.concurrency === undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | request.concurrency === undefined | if (request.concurrency === undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | request.concurrency !== undefined | request.concurrency === undefined | if (request.concurrency === undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | fold.fieldSets.push(trace.visibleFields); | fold.fieldSets.push(trace.visibleFields);",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"AllOf\" | \"AllOf\",",
    "status": "Killed"
   },
   {
@@ -1857,11 +1869,11 @@
    "status": "Killed"
   },
   {
-   "key": "EqualityOperator | verdict === undefined | verdict !== undefined | if (verdict !== undefined) return verdict;",
+   "key": "BlockStatement | {} | { // `Effect.exit` per child, not a bare `evaluateNode` — `Effect.forEach`'s // default (fail-fast) error mode would abort the whole dispatch the // instant any child failed, so a later-indexed sibling's failure could // pre-empt an earlier-indexed sibling's `Deny` that a sequential walk // would have already returned. Exiting every child instead means every // child still runs (losing nothing the concurrent path evaluated before), // and the exits arrive in input order regardless of completion order, so // walking them below reproduces the sequential fold exactly: the first // index that is either a `Deny` or a failure wins, matching what // sequential evaluation would have reached that index with (ADR-QD-026). // Children after the decisive index are dropped either way: the work was // speculative, and keeping it would make the trace (or which error // surfaces) depend on a performance switch. const exits = yield* Effect.forEach( policy.policies, (child) => Effect.exit(evaluateNode(child, request, depth + 1)), { concurrency: request.concurrency }, ); for (const exit of exits) { if (Exit.isFailure(exit)) { return yield* Effect.failCause(exit.cause); } const verdict = stepAllOf(fold, exit.value); if (verdict !== undefined) return verdict; } } | } else {",
    "status": "Killed"
   },
   {
-   "key": "BlockStatement | {} | { // `Effect.exit` per child, not a bare `evaluateNode` — `Effect.forEach`'s // default (fail-fast) error mode would abort the whole dispatch the // instant any child failed, so a later-indexed sibling's failure could // pre-empt an earlier-indexed sibling's `Deny` that a sequential walk // would have already returned. Exiting every child instead means every // child still runs (losing nothing the concurrent path evaluated before), // and the exits arrive in input order regardless of completion order, so // walking them below reproduces the sequential fold exactly: the first // index that is either a `Deny` or a failure wins, matching what // sequential evaluation would have reached that index with (ADR-QD-026). // Children after the decisive index are dropped either way: the work was // speculative, and keeping it would make the trace (or which error // surfaces) depend on a performance switch. const exits = yield* Effect.forEach( policy.policies, (child) => Effect.exit(evaluateNode(child, request, depth + 1)), { concurrency: request.concurrency }, ); for (const exit of exits) { if (Exit.isFailure(exit)) { return yield* Effect.failCause(exit.cause); } const verdict = stepAllOf(fold, exit.value); if (verdict !== undefined) return verdict; } } | } else {",
+   "key": "EqualityOperator | verdict === undefined | verdict !== undefined | if (verdict !== undefined) return verdict;",
    "status": "Killed"
   },
   {
@@ -1869,31 +1881,7 @@
    "status": "Killed"
   },
   {
-   "key": "CallExpression | ; | fold.fieldSets.push(trace.visibleFields); | fold.fieldSets.push(trace.visibleFields);",
-   "status": "Killed"
-  },
-  {
-   "key": "ConditionalExpression | false | request.concurrency === undefined | if (request.concurrency === undefined) {",
-   "status": "Killed"
-  },
-  {
    "key": "ConditionalExpression | true | request.concurrency === undefined | if (request.concurrency === undefined) {",
-   "status": "Killed"
-  },
-  {
-   "key": "ArithmeticOperator | depth - 1 | depth + 1 | evaluateNode(policy.policy, request, depth + 1),",
-   "status": "Survived"
-  },
-  {
-   "key": "ArithmeticOperator | depth - 1 | depth + 1 | evaluateNode(policy.policy, request, depth + 1),",
-   "status": "Survived"
-  },
-  {
-   "key": "EqualityOperator | request.concurrency !== undefined | request.concurrency === undefined | if (request.concurrency === undefined) {",
-   "status": "Killed"
-  },
-  {
-   "key": "BlockStatement | {} | { if (Exit.isFailure(exit)) { return yield* Effect.failCause(exit.cause); } const verdict = stepAllOf(fold, exit.value); if (verdict !== undefined) return verdict; } | for (const exit of exits) {",
    "status": "Killed"
   },
   {
@@ -1901,11 +1889,11 @@
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | true | verdict !== undefined | if (verdict !== undefined) return verdict;",
+   "key": "ConditionalExpression | false | Exit.isFailure(exit) | if (Exit.isFailure(exit)) {",
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | false | Exit.isFailure(exit) | if (Exit.isFailure(exit)) {",
+   "key": "BlockStatement | {} | { if (Exit.isFailure(exit)) { return yield* Effect.failCause(exit.cause); } const verdict = stepAllOf(fold, exit.value); if (verdict !== undefined) return verdict; } | for (const exit of exits) {",
    "status": "Killed"
   },
   {
@@ -1913,11 +1901,15 @@
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | false | verdict !== undefined | if (verdict !== undefined) return verdict;",
+   "key": "ConditionalExpression | true | verdict !== undefined | if (verdict !== undefined) return verdict;",
    "status": "Killed"
   },
   {
    "key": "EqualityOperator | verdict === undefined | verdict !== undefined | if (verdict !== undefined) return verdict;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | verdict !== undefined | if (verdict !== undefined) return verdict;",
    "status": "Killed"
   },
   {
@@ -1933,23 +1925,15 @@
    "status": "Survived"
   },
   {
-   "key": "ConditionalExpression | true | trace.allowed | if (trace.allowed) {",
+   "key": "ObjectLiteral | {} | { concurrency: request.concurrency } | { concurrency: request.concurrency },",
    "status": "Killed"
+  },
+  {
+   "key": "ArithmeticOperator | depth - 1 | depth + 1 | evaluateNode(policy.policy, request, depth + 1),",
+   "status": "Survived"
   },
   {
    "key": "BlockStatement | {} | { fold.children.push(trace); if (trace.allowed) { fold.allowingFieldSets.push(trace.visibleFields); fold.obligations = unionObligations(fold.obligations, trace.obligations); if (!fold.exhaustive) { // Under `First` the obligations are the winning branch's, so the set // depends on the order the author wrote the branches in. Accepted, and // stated: collecting from every branch would force exhaustive // evaluation and repeal INV-QD-005 for any tree carrying a duty. // // Returning `trace.visibleFields` *is* the merge: `!exhaustive` means // `FieldLattice.ts`'s `decidedByFirst` law holds, so `merge(sets)` is // `sets[0]`. Not a `mergeFields` call — that would allocate a one-element // array on the hot path for the same answer. return allow(\"AnyOf\", trace.visibleFields, fold.children, undefined, fold.obligations); } } else { fold.lastReason = trace.reason; } return undefined; } | const stepAnyOf = (fold: AnyOfFold, trace: Trace): Trace | undefined => {",
-   "status": "Killed"
-  },
-  {
-   "key": "BlockStatement | {} | { fold.allowingFieldSets.push(trace.visibleFields); fold.obligations = unionObligations(fold.obligations, trace.obligations); if (!fold.exhaustive) { // Under `First` the obligations are the winning branch's, so the set // depends on the order the author wrote the branches in. Accepted, and // stated: collecting from every branch would force exhaustive // evaluation and repeal INV-QD-005 for any tree carrying a duty. // // Returning `trace.visibleFields` *is* the merge: `!exhaustive` means // `FieldLattice.ts`'s `decidedByFirst` law holds, so `merge(sets)` is // `sets[0]`. Not a `mergeFields` call — that would allocate a one-element // array on the hot path for the same answer. return allow(\"AnyOf\", trace.visibleFields, fold.children, undefined, fold.obligations); } } | if (trace.allowed) {",
-   "status": "Killed"
-  },
-  {
-   "key": "ConditionalExpression | false | trace.allowed | if (trace.allowed) {",
-   "status": "Killed"
-  },
-  {
-   "key": "ObjectLiteral | {} | { concurrency: request.concurrency } | { concurrency: request.concurrency },",
    "status": "Killed"
   },
   {
@@ -1957,11 +1941,23 @@
    "status": "Survived"
   },
   {
-   "key": "BooleanLiteral | anyOfStopsAtAllow(policy.fieldStrategy) | !anyOfStopsAtAllow(policy.fieldStrategy) | exhaustive: !anyOfStopsAtAllow(policy.fieldStrategy),",
+   "key": "ConditionalExpression | true | trace.allowed | if (trace.allowed) {",
    "status": "Killed"
   },
   {
-   "key": "ArrayDeclaration | [\"Stryker was here\"] | [] | children: [],",
+   "key": "ConditionalExpression | false | trace.allowed | if (trace.allowed) {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { fold.allowingFieldSets.push(trace.visibleFields); fold.obligations = unionObligations(fold.obligations, trace.obligations); if (!fold.exhaustive) { // Under `First` the obligations are the winning branch's, so the set // depends on the order the author wrote the branches in. Accepted, and // stated: collecting from every branch would force exhaustive // evaluation and repeal INV-QD-005 for any tree carrying a duty. // // Returning `trace.visibleFields` *is* the merge: `!exhaustive` means // `FieldLattice.ts`'s `decidedByFirst` law holds, so `merge(sets)` is // `sets[0]`. Not a `mergeFields` call — that would allocate a one-element // array on the hot path for the same answer. return allow(\"AnyOf\", trace.visibleFields, fold.children, undefined, fold.obligations); } } | if (trace.allowed) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ArithmeticOperator | depth - 1 | depth + 1 | evaluateNode(policy.policy, request, depth + 1),",
+   "status": "Survived"
+  },
+  {
+   "key": "BooleanLiteral | anyOfStopsAtAllow(policy.fieldStrategy) | !anyOfStopsAtAllow(policy.fieldStrategy) | exhaustive: !anyOfStopsAtAllow(policy.fieldStrategy),",
    "status": "Killed"
   },
   {
@@ -1969,19 +1965,19 @@
    "status": "Killed"
   },
   {
+   "key": "ConditionalExpression | true | !fold.exhaustive | if (!fold.exhaustive) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrayDeclaration | [\"Stryker was here\"] | [] | children: [],",
+   "status": "Killed"
+  },
+  {
    "key": "BooleanLiteral | fold.exhaustive | !fold.exhaustive | if (!fold.exhaustive) {",
    "status": "Killed"
   },
   {
-   "key": "CallExpression | ; | fold.children.push(trace); | fold.children.push(trace);",
-   "status": "Killed"
-  },
-  {
    "key": "ConditionalExpression | false | !fold.exhaustive | if (!fold.exhaustive) {",
-   "status": "Killed"
-  },
-  {
-   "key": "ConditionalExpression | true | !fold.exhaustive | if (!fold.exhaustive) {",
    "status": "Killed"
   },
   {
@@ -2009,7 +2005,7 @@
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | false | fold.allowingFieldSets.length > 0 | if (fold.allowingFieldSets.length > 0) {",
+   "key": "CallExpression | ; | fold.children.push(trace); | fold.children.push(trace);",
    "status": "Killed"
   },
   {
@@ -2017,7 +2013,11 @@
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | \"\" | \"AnyOf\" | \"AnyOf\",",
+   "key": "BlockStatement | {} | { fold.lastReason = trace.reason; } | } else {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | fold.allowingFieldSets.length > 0 | if (fold.allowingFieldSets.length > 0) {",
    "status": "Killed"
   },
   {
@@ -2025,7 +2025,7 @@
    "status": "Killed"
   },
   {
-   "key": "BlockStatement | {} | { fold.lastReason = trace.reason; } | } else {",
+   "key": "StringLiteral | \"\" | \"AnyOf\" | \"AnyOf\",",
    "status": "Killed"
   },
   {
@@ -2037,14 +2037,6 @@
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | false | request.concurrency === undefined | if (request.concurrency === undefined) {",
-   "status": "Killed"
-  },
-  {
-   "key": "EqualityOperator | request.concurrency !== undefined | request.concurrency === undefined | if (request.concurrency === undefined) {",
-   "status": "Killed"
-  },
-  {
    "key": "ConditionalExpression | true | verdict !== undefined | if (verdict !== undefined) return verdict;",
    "status": "Killed"
   },
@@ -2053,11 +2045,19 @@
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | \"\" | \"no alternative policy allowed\" | return deny(\"AnyOf\", fold.lastReason ?? \"no alternative policy allowed\", fold.children);",
+   "key": "LogicalOperator | fold.lastReason && \"no alternative policy allowed\" | fold.lastReason ?? \"no alternative policy allowed\" | return deny(\"AnyOf\", fold.lastReason ?? \"no alternative policy allowed\", fold.children);",
    "status": "Killed"
   },
   {
-   "key": "BlockStatement | {} | { // `Effect.exit` per child — see `evaluateAllOf`'s matching branch above for // why: `Effect.forEach`'s default fail-fast mode would let a later-indexed // sibling's failure pre-empt an earlier-indexed sibling's decisive `Allow` // (under `First`) that a sequential walk would already have returned. The // exits arrive in input order regardless of completion order, and walking // them below reproduces the sequential fold exactly: the first index that // is either decisive or a failure wins (ADR-QD-026). const exits = yield* Effect.forEach( policy.policies, (child) => Effect.exit(evaluateNode(child, request, depth + 1)), { concurrency: request.concurrency }, ); for (const exit of exits) { if (Exit.isFailure(exit)) { return yield* Effect.failCause(exit.cause); } const verdict = stepAnyOf(fold, exit.value); if (verdict !== undefined) return verdict; } } | } else {",
+   "key": "EqualityOperator | request.concurrency !== undefined | request.concurrency === undefined | if (request.concurrency === undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | request.concurrency === undefined | if (request.concurrency === undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"no alternative policy allowed\" | return deny(\"AnyOf\", fold.lastReason ?? \"no alternative policy allowed\", fold.children);",
    "status": "Killed"
   },
   {
@@ -2065,7 +2065,11 @@
    "status": "Killed"
   },
   {
-   "key": "LogicalOperator | fold.lastReason && \"no alternative policy allowed\" | fold.lastReason ?? \"no alternative policy allowed\" | return deny(\"AnyOf\", fold.lastReason ?? \"no alternative policy allowed\", fold.children);",
+   "key": "ConditionalExpression | true | request.concurrency === undefined | if (request.concurrency === undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { // `Effect.exit` per child — see `evaluateAllOf`'s matching branch above for // why: `Effect.forEach`'s default fail-fast mode would let a later-indexed // sibling's failure pre-empt an earlier-indexed sibling's decisive `Allow` // (under `First`) that a sequential walk would already have returned. The // exits arrive in input order regardless of completion order, and walking // them below reproduces the sequential fold exactly: the first index that // is either decisive or a failure wins (ADR-QD-026). const exits = yield* Effect.forEach( policy.policies, (child) => Effect.exit(evaluateNode(child, request, depth + 1)), { concurrency: request.concurrency }, ); for (const exit of exits) { if (Exit.isFailure(exit)) { return yield* Effect.failCause(exit.cause); } const verdict = stepAnyOf(fold, exit.value); if (verdict !== undefined) return verdict; } } | } else {",
    "status": "Killed"
   },
   {
@@ -2073,7 +2077,11 @@
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | true | request.concurrency === undefined | if (request.concurrency === undefined) {",
+   "key": "ConditionalExpression | false | verdict !== undefined | if (verdict !== undefined) return verdict;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | Exit.isFailure(exit) | if (Exit.isFailure(exit)) {",
    "status": "Killed"
   },
   {
@@ -2085,19 +2093,7 @@
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | false | Exit.isFailure(exit) | if (Exit.isFailure(exit)) {",
-   "status": "Killed"
-  },
-  {
    "key": "BlockStatement | {} | { return yield* Effect.failCause(exit.cause); } | if (Exit.isFailure(exit)) {",
-   "status": "Killed"
-  },
-  {
-   "key": "ConditionalExpression | false | verdict !== undefined | if (verdict !== undefined) return verdict;",
-   "status": "Killed"
-  },
-  {
-   "key": "ConditionalExpression | false | verdict !== undefined | if (verdict !== undefined) return verdict;",
    "status": "Killed"
   },
   {
@@ -2105,7 +2101,7 @@
    "status": "Killed"
   },
   {
-   "key": "EqualityOperator | verdict === undefined | verdict !== undefined | if (verdict !== undefined) return verdict;",
+   "key": "ConditionalExpression | false | verdict !== undefined | if (verdict !== undefined) return verdict;",
    "status": "Killed"
   },
   {
@@ -2117,12 +2113,16 @@
    "status": "Killed"
   },
   {
-   "key": "ArithmeticOperator | depth - 1 | depth + 1 | (child) => Effect.exit(evaluateNode(child, request, depth + 1)),",
-   "status": "Survived"
+   "key": "EqualityOperator | verdict === undefined | verdict !== undefined | if (verdict !== undefined) return verdict;",
+   "status": "Killed"
   },
   {
    "key": "BooleanLiteral | trace.allowed | !trace.allowed | if (!trace.allowed) return false;",
    "status": "Killed"
+  },
+  {
+   "key": "ArithmeticOperator | depth - 1 | depth + 1 | (child) => Effect.exit(evaluateNode(child, request, depth + 1)),",
+   "status": "Survived"
   },
   {
    "key": "ConditionalExpression | true | !trace.allowed | if (!trace.allowed) return false;",
@@ -2137,15 +2137,15 @@
    "status": "Survived"
   },
   {
+   "key": "BooleanLiteral | true | false | if (!trace.allowed) return false;",
+   "status": "Killed"
+  },
+  {
    "key": "ObjectLiteral | {} | { index, rule, trace } | const applied: Applied = { index, rule, trace };",
    "status": "Killed"
   },
   {
    "key": "AssignmentOperator | firstApplying &&= applied | firstApplying ??= applied | firstApplying ??= applied;",
-   "status": "Killed"
-  },
-  {
-   "key": "BooleanLiteral | true | false | if (!trace.allowed) return false;",
    "status": "Killed"
   },
   {
@@ -2169,10 +2169,6 @@
    "status": "Killed"
   },
   {
-   "key": "ArrayDeclaration | [\"Stryker was here\"] | [] | const children: Array<Trace> = [];",
-   "status": "Killed"
-  },
-  {
    "key": "EqualityOperator | rule.effect !== decisiveEffect | rule.effect === decisiveEffect | if (rule.effect === decisiveEffect) {",
    "status": "Killed"
   },
@@ -2181,7 +2177,7 @@
    "status": "Killed"
   },
   {
-   "key": "BlockStatement | {} | { firstDecisive = applied; return true; } | if (rule.effect === decisiveEffect) {",
+   "key": "ArrayDeclaration | [\"Stryker was here\"] | [] | const children: Array<Trace> = [];",
    "status": "Killed"
   },
   {
@@ -2189,11 +2185,11 @@
    "status": "Killed"
   },
   {
-   "key": "BooleanLiteral | true | false | return false;",
+   "key": "BlockStatement | {} | { firstDecisive = applied; return true; } | if (rule.effect === decisiveEffect) {",
    "status": "Killed"
   },
   {
-   "key": "BlockStatement | {} | { // The condition answers *does this rule apply*, never *is this permitted*. const trace = yield* evaluateNode(rule.condition, request, depth + 1); if (step(index, rule, trace)) break; } | for (const [index, rule] of policy.rules.entries()) {",
+   "key": "BooleanLiteral | true | false | return false;",
    "status": "Killed"
   },
   {
@@ -2201,7 +2197,15 @@
    "status": "Killed"
   },
   {
+   "key": "BlockStatement | {} | { // The condition answers *does this rule apply*, never *is this permitted*. const trace = yield* evaluateNode(rule.condition, request, depth + 1); if (step(index, rule, trace)) break; } | for (const [index, rule] of policy.rules.entries()) {",
+   "status": "Killed"
+  },
+  {
    "key": "BooleanLiteral | false | true | return true;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | step(index, rule, trace) | if (step(index, rule, trace)) break;",
    "status": "Killed"
   },
   {
@@ -2210,10 +2214,6 @@
   },
   {
    "key": "ConditionalExpression | false | request.concurrency === undefined | if (request.concurrency === undefined) {",
-   "status": "Killed"
-  },
-  {
-   "key": "ConditionalExpression | true | step(index, rule, trace) | if (step(index, rule, trace)) break;",
    "status": "Killed"
   },
   {
@@ -2229,11 +2229,11 @@
    "status": "Killed"
   },
   {
-   "key": "ArrowFunction | () => undefined | (trace) => ({ index, rule, trace }) | (trace) => ({ index, rule, trace }),",
+   "key": "ObjectLiteral | {} | { index, rule, trace } | (trace) => ({ index, rule, trace }),",
    "status": "Killed"
   },
   {
-   "key": "ObjectLiteral | {} | { index, rule, trace } | (trace) => ({ index, rule, trace }),",
+   "key": "ConditionalExpression | true | request.concurrency === undefined | if (request.concurrency === undefined) {",
    "status": "Killed"
   },
   {
@@ -2241,11 +2241,11 @@
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | true | Exit.isFailure(exit) | if (Exit.isFailure(exit)) {",
+   "key": "ArrowFunction | () => undefined | (trace) => ({ index, rule, trace }) | (trace) => ({ index, rule, trace }),",
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | true | request.concurrency === undefined | if (request.concurrency === undefined) {",
+   "key": "ConditionalExpression | true | Exit.isFailure(exit) | if (Exit.isFailure(exit)) {",
    "status": "Killed"
   },
   {
@@ -2257,11 +2257,11 @@
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | false | Exit.isFailure(exit) | if (Exit.isFailure(exit)) {",
+   "key": "ConditionalExpression | false | step(index, rule, trace) | if (step(index, rule, trace)) break;",
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | false | step(index, rule, trace) | if (step(index, rule, trace)) break;",
+   "key": "ConditionalExpression | false | Exit.isFailure(exit) | if (Exit.isFailure(exit)) {",
    "status": "Killed"
   },
   {
@@ -2273,19 +2273,19 @@
    "status": "Survived"
   },
   {
-   "key": "ObjectLiteral | {} | { concurrency: request.concurrency } | { concurrency: request.concurrency },",
-   "status": "Survived"
-  },
-  {
    "key": "ConditionalExpression | true | decidingRule === undefined | if (decidingRule === undefined) {",
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | false | decidingRule === undefined | if (decidingRule === undefined) {",
-   "status": "Killed"
+   "key": "ObjectLiteral | {} | { concurrency: request.concurrency } | { concurrency: request.concurrency },",
+   "status": "Survived"
   },
   {
    "key": "EqualityOperator | decidingRule !== undefined | decidingRule === undefined | if (decidingRule === undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | decidingRule === undefined | if (decidingRule === undefined) {",
    "status": "Killed"
   },
   {
@@ -2297,19 +2297,15 @@
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | false | decidingRule.rule.effect === \"Deny\" | if (decidingRule.rule.effect === \"Deny\") {",
-   "status": "Killed"
-  },
-  {
    "key": "EqualityOperator | decidingRule.rule.effect !== \"Deny\" | decidingRule.rule.effect === \"Deny\" | if (decidingRule.rule.effect === \"Deny\") {",
    "status": "Killed"
   },
   {
-   "key": "StringLiteral | \"\" | \"Deny\" | if (decidingRule.rule.effect === \"Deny\") {",
+   "key": "ConditionalExpression | false | decidingRule.rule.effect === \"Deny\" | if (decidingRule.rule.effect === \"Deny\") {",
    "status": "Killed"
   },
   {
-   "key": "ConditionalExpression | false | depth > maxDepth | if (depth > maxDepth) return Effect.fail(new PolicyTooDeep({ maxDepth }));",
+   "key": "StringLiteral | \"\" | \"Deny\" | if (decidingRule.rule.effect === \"Deny\") {",
    "status": "Killed"
   },
   {
@@ -2325,18 +2321,6 @@
    "status": "Killed"
   },
   {
-   "key": "BlockStatement | {} | { // Admission is shared with `toPredicate` (`Admission.ts`): the depth gate, // judged on the policy before any node, and the walk environment, built once. const admitted = admit(question, \"asked\"); if (Result.isFailure(admitted)) return Effect.fail(admitted.failure); return evaluateNode(question.policy, { admitted: admitted.success, concurrency }, 0); } | Effect.suspend(() => {",
-   "status": "Killed"
-  },
-  {
-   "key": "StringLiteral | \"\" | \"asked\" | const admitted = admit(question, \"asked\");",
-   "status": "Killed"
-  },
-  {
-   "key": "ConditionalExpression | true | Result.isFailure(admitted) | if (Result.isFailure(admitted)) return Effect.fail(admitted.failure);",
-   "status": "Killed"
-  },
-  {
    "key": "StringLiteral | \"\" | \"Rules\" | return deny(\"Rules\", \"no rule applied\", children);",
    "status": "Killed"
   },
@@ -2345,15 +2329,19 @@
    "status": "Killed"
   },
   {
-   "key": "ArithmeticOperator | depth - 1 | depth + 1 | yield* evaluateNode(child, request, depth + 1),",
-   "status": "Survived"
+   "key": "BlockStatement | {} | { // Admission is shared with `toPredicate` (`Admission.ts`): the depth gate, // judged on the policy before any node, and the walk environment, built once. const admitted = admit(question, \"asked\"); if (Result.isFailure(admitted)) return Effect.fail(admitted.failure); return evaluateNode(admitted.success.policy, { admitted: admitted.success, concurrency }, 0); } | Effect.suspend(() => {",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"asked\" | const admitted = admit(question, \"asked\");",
+   "status": "Killed"
   },
   {
    "key": "StringLiteral | \"\" | \"Rules\" | return deny(\"Rules\", `rules[${decidingRule.index}] denied`, children);",
    "status": "Killed"
   },
   {
-   "key": "ObjectLiteral | {} | { admitted: admitted.success, concurrency } | return evaluateNode(question.policy, { admitted: admitted.success, concurrency }, 0);",
+   "key": "ConditionalExpression | true | Result.isFailure(admitted) | if (Result.isFailure(admitted)) return Effect.fail(admitted.failure);",
    "status": "Killed"
   },
   {
@@ -2365,12 +2353,24 @@
    "status": "Killed"
   },
   {
+   "key": "ObjectLiteral | {} | { admitted: admitted.success, concurrency } | return evaluateNode(admitted.success.policy, { admitted: admitted.success, concurrency }, 0);",
+   "status": "Killed"
+  },
+  {
    "key": "ArithmeticOperator | depth - 1 | depth + 1 | yield* evaluateNode(child, request, depth + 1),",
    "status": "Survived"
   },
   {
-   "key": "ArrowFunction | () => undefined | ( policyTag: Policy[\"_tag\"], reason: string, children: ReadonlyArray<Trace> = NO_CHILDREN, label?: string, ): Trace => ({ policyTag, label, allowed: false, reason, children, visibleFields: undefined, // A denial permits nothing, so it conditions nothing. obligations: NO_OBLIGATIONS, }) | const deny = (",
+   "key": "ConditionalExpression | false | depth > maxDepth | if (depth > maxDepth) return Effect.fail(new PolicyTooDeep({ maxDepth }));",
    "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | Result.isFailure(admitted) | if (Result.isFailure(admitted)) return Effect.fail(admitted.failure);",
+   "status": "Killed"
+  },
+  {
+   "key": "ArithmeticOperator | depth - 1 | depth + 1 | yield* evaluateNode(child, request, depth + 1),",
+   "status": "Survived"
   },
   {
    "key": "ArrowFunction | () => undefined | ( policyTag: Policy[\"_tag\"], fields: VisibleFields, children: ReadonlyArray<Trace> = NO_CHILDREN, label?: string, obligations: ReadonlyArray<Obligation> = NO_OBLIGATIONS, ): Trace => ({ policyTag, label, allowed: true, reason: undefined, children, visibleFields: fields, obligations, }) | const allow = (",
@@ -2381,15 +2381,15 @@
    "status": "Killed"
   },
   {
+   "key": "ArrowFunction | () => undefined | ( policyTag: Policy[\"_tag\"], reason: string, children: ReadonlyArray<Trace> = NO_CHILDREN, label?: string, ): Trace => ({ policyTag, label, allowed: false, reason, children, visibleFields: undefined, // A denial permits nothing, so it conditions nothing. obligations: NO_OBLIGATIONS, }) | const deny = (",
+   "status": "Killed"
+  },
+  {
    "key": "ArithmeticOperator | depth - 1 | depth + 1 | const trace = yield* evaluateNode(rule.condition, request, depth + 1);",
    "status": "Survived"
   },
   {
-   "key": "ConditionalExpression | false | Result.isFailure(admitted) | if (Result.isFailure(admitted)) return Effect.fail(admitted.failure);",
-   "status": "Killed"
-  },
-  {
-   "key": "ArrayDeclaration | [\"Stryker was here\"] | [] | const NO_CHILDREN: ReadonlyArray<Trace> = [];",
+   "key": "ArrayDeclaration | [\"Stryker was here\"] | [] | const NO_OBLIGATIONS: ReadonlyArray<Obligation> = [];",
    "status": "Killed"
   },
   {
@@ -2397,7 +2397,47 @@
    "status": "Killed"
   },
   {
-   "key": "ArrayDeclaration | [\"Stryker was here\"] | [] | const NO_OBLIGATIONS: ReadonlyArray<Obligation> = [];",
+   "key": "ArrowFunction | () => undefined | () => \"has no value\" | ValueAbsent: () => \"has no value\",",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrayDeclaration | [\"Stryker was here\"] | [] | const NO_CHILDREN: ReadonlyArray<Trace> = [];",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => \"has no reference value to compare against\" | ReferenceAbsent: () => \"has no reference value to compare against\",",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => \"is not a value this matcher can compare\" | Incomparable: () => \"is not a value this matcher can compare\",",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { Unknown: (_subject, event) => `no history is available for '${event}'`, Performed: (subject, event) => `subject '${subject.id}' has already performed '${event}'`, NotPerformed: (subject, event) => `subject '${subject.id}' has not performed '${event}'`, } | > = {",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | ( side: \"subject\" | \"resource\", attribute: string, verdict: Exclude<Verdict, \"Held\">, matcher: Matcher, ): string => `${side} attribute '${attribute}' ${DENIAL_TEXT[verdict](matcher)}` | const attributeReason = (",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (subject, event) => `subject '${subject.id}' has already performed '${event}'` | Performed: (subject, event) => `subject '${subject.id}' has already performed '${event}'`,",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (_subject, event) => `no history is available for '${event}'` | Unknown: (_subject, event) => `no history is available for '${event}'`,",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (subject, event) => `subject '${subject.id}' has not performed '${event}'` | NotPerformed: (subject, event) => `subject '${subject.id}' has not performed '${event}'`,",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (): AllOfFold => ({ children: [], fieldSets: [], obligations: NO_OBLIGATIONS, }) | const beginAllOf = (): AllOfFold => ({",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { NoneOnFile: (subject) => `no signatures are on file for subject '${subject.id}'`, NoneMatching: (subject, policy) => `subject '${subject.id}' has no signature matching meaning '${policy.meaning}'` + (policy.signerRole === undefined ? \"\" : ` and signer role '${policy.signerRole}'`), } | > = {",
    "status": "Killed"
   },
   {
@@ -2409,7 +2449,7 @@
    "status": "Killed"
   },
   {
-   "key": "ArrowFunction | () => undefined | (subject, policy, resourceId) => `subject '${subject.id}' has no '${policy.relation}' relation to '${resourceId}'` | Unrelated: (subject, policy, resourceId) =>",
+   "key": "ArrowFunction | () => undefined | ( policy: Extract<Policy, { _tag: \"AllOf\" }>, fold: AllOfFold, ): Trace => allow( \"AllOf\", mergeFields(policy.fieldStrategy, fold.fieldSets), fold.children, undefined, fold.obligations, ) | const finishAllOf = (",
    "status": "Killed"
   },
   {
@@ -2417,23 +2457,19 @@
    "status": "Killed"
   },
   {
-   "key": "ObjectLiteral | {} | { NoneOnFile: (subject) => `no signatures are on file for subject '${subject.id}'`, NoneMatching: (subject, policy) => `subject '${subject.id}' has no signature matching meaning '${policy.meaning}'` + (policy.signerRole === undefined ? \"\" : ` and signer role '${policy.signerRole}'`), } | > = {",
+   "key": "ArrowFunction | () => undefined | (subject, policy, resourceId) => `subject '${subject.id}' has no '${policy.relation}' relation to '${resourceId}'` | Unrelated: (subject, policy, resourceId) =>",
    "status": "Killed"
   },
   {
-   "key": "ArrowFunction | () => undefined | () => \"has no value\" | ValueAbsent: () => \"has no value\",",
+   "key": "ArrowFunction | () => undefined | ( question: Question, concurrency: Concurrency | undefined, ): Effect.Effect<Trace, EvaluationError, PortServices> => Effect.suspend(() => { // Admission is shared with `toPredicate` (`Admission.ts`): the depth gate, // judged on the policy before any node, and the walk environment, built once. const admitted = admit(question, \"asked\"); if (Result.isFailure(admitted)) return Effect.fail(admitted.failure); return evaluateNode(admitted.success.policy, { admitted: admitted.success, concurrency }, 0); }) | export const walk = (",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (policy: Extract<Policy, { _tag: \"AnyOf\" }>): AnyOfFold => ({ children: [], allowingFieldSets: [], exhaustive: !anyOfStopsAtAllow(policy.fieldStrategy), obligations: NO_OBLIGATIONS, lastReason: undefined, }) | const beginAnyOf = (policy: Extract<Policy, { _tag: \"AnyOf\" }>): AnyOfFold => ({",
    "status": "Killed"
   },
   {
    "key": "ArrowFunction | () => undefined | (subject) => `no signatures are on file for subject '${subject.id}'` | NoneOnFile: (subject) => `no signatures are on file for subject '${subject.id}'`,",
-   "status": "Killed"
-  },
-  {
-   "key": "ArrowFunction | () => undefined | (subject, policy) => `subject '${subject.id}' has no signature matching meaning '${policy.meaning}'` + (policy.signerRole === undefined ? \"\" : ` and signer role '${policy.signerRole}'`) | NoneMatching: (subject, policy) =>",
-   "status": "Killed"
-  },
-  {
-   "key": "ObjectLiteral | {} | { Unknown: (_subject, event) => `no history is available for '${event}'`, Performed: (subject, event) => `subject '${subject.id}' has already performed '${event}'`, NotPerformed: (subject, event) => `subject '${subject.id}' has not performed '${event}'`, } | > = {",
    "status": "Killed"
   },
   {
@@ -2445,43 +2481,7 @@
    "status": "Killed"
   },
   {
-   "key": "ArrowFunction | () => undefined | (): AllOfFold => ({ children: [], fieldSets: [], obligations: NO_OBLIGATIONS, }) | const beginAllOf = (): AllOfFold => ({",
-   "status": "Killed"
-  },
-  {
-   "key": "ArrowFunction | () => undefined | ( policy: Extract<Policy, { _tag: \"AllOf\" }>, fold: AllOfFold, ): Trace => allow( \"AllOf\", mergeFields(policy.fieldStrategy, fold.fieldSets), fold.children, undefined, fold.obligations, ) | const finishAllOf = (",
-   "status": "Killed"
-  },
-  {
-   "key": "ArrowFunction | () => undefined | () => \"has no reference value to compare against\" | ReferenceAbsent: () => \"has no reference value to compare against\",",
-   "status": "Killed"
-  },
-  {
-   "key": "ArrowFunction | () => undefined | ( question: Question, concurrency: Concurrency | undefined, ): Effect.Effect<Trace, EvaluationError, PortServices> => Effect.suspend(() => { // Admission is shared with `toPredicate` (`Admission.ts`): the depth gate, // judged on the policy before any node, and the walk environment, built once. const admitted = admit(question, \"asked\"); if (Result.isFailure(admitted)) return Effect.fail(admitted.failure); return evaluateNode(question.policy, { admitted: admitted.success, concurrency }, 0); }) | export const walk = (",
-   "status": "Killed"
-  },
-  {
-   "key": "ArrowFunction | () => undefined | () => \"is not a value this matcher can compare\" | Incomparable: () => \"is not a value this matcher can compare\",",
-   "status": "Killed"
-  },
-  {
-   "key": "ArrowFunction | () => undefined | ( side: \"subject\" | \"resource\", attribute: string, verdict: Exclude<Verdict, \"Held\">, matcher: Matcher, ): string => `${side} attribute '${attribute}' ${DENIAL_TEXT[verdict](matcher)}` | const attributeReason = (",
-   "status": "Killed"
-  },
-  {
-   "key": "ArrowFunction | () => undefined | (subject, event) => `subject '${subject.id}' has not performed '${event}'` | NotPerformed: (subject, event) => `subject '${subject.id}' has not performed '${event}'`,",
-   "status": "Killed"
-  },
-  {
-   "key": "ArrowFunction | () => undefined | (policy: Extract<Policy, { _tag: \"AnyOf\" }>): AnyOfFold => ({ children: [], allowingFieldSets: [], exhaustive: !anyOfStopsAtAllow(policy.fieldStrategy), obligations: NO_OBLIGATIONS, lastReason: undefined, }) | const beginAnyOf = (policy: Extract<Policy, { _tag: \"AnyOf\" }>): AnyOfFold => ({",
-   "status": "Killed"
-  },
-  {
-   "key": "ArrowFunction | () => undefined | (_subject, event) => `no history is available for '${event}'` | Unknown: (_subject, event) => `no history is available for '${event}'`,",
-   "status": "Killed"
-  },
-  {
-   "key": "ArrowFunction | () => undefined | (subject, event) => `subject '${subject.id}' has already performed '${event}'` | Performed: (subject, event) => `subject '${subject.id}' has already performed '${event}'`,",
+   "key": "ArrowFunction | () => undefined | (subject, policy) => `subject '${subject.id}' has no signature matching meaning '${policy.meaning}'` + (policy.signerRole === undefined ? \"\" : ` and signer role '${policy.signerRole}'`) | NoneMatching: (subject, policy) =>",
    "status": "Killed"
   }
  ]
