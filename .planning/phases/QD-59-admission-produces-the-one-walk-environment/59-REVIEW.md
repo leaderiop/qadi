@@ -1,9 +1,9 @@
 ---
 phase: QD-59-admission-produces-the-one-walk-environment
-reviewed: 2026-11-19T06:00:32Z
+reviewed: 2026-11-19T06:18:41Z
 depth: standard
-iteration: 2
-files_reviewed: 6
+iteration: 3
+files_reviewed: 7
 files_reviewed_list:
   - packages/core/src/Admission.ts
   - packages/core/src/Walk.ts
@@ -11,119 +11,123 @@ files_reviewed_list:
   - packages/core/test/Admission.test.ts
   - packages/core/test/WalkDepthGuard.test.ts
   - packages/core/test/WalkEnvironment.tst.ts
+  - packages/core/test/Evaluate.test.ts
 findings:
   critical: 0
-  warning: 1
-  info: 2
+  warning: 2
+  info: 1
   total: 3
   necessity: 0
 status: issues_found
 ---
 
-# Phase 59: Code Review Report (iteration 2)
+# Phase 59: Code Review Report (iteration 3)
 
-**Reviewed:** 2026-11-19T06:00:32Z
+**Reviewed:** 2026-11-19T06:18:41Z
 **Depth:** standard
-**Files Reviewed:** 6
+**Files Reviewed:** 7 (`Evaluate.test.ts` for its one changed comment only)
 **Status:** issues_found
 
 ## Summary
 
-I reviewed `git diff 83cbd5c5 HEAD` for the six files, and fix commit `4da12142` on its own.
+I reviewed `git diff 83cbd5c5 HEAD` for each file, and fix commit `1ac8bccc` on its own. I also re-ran the tests:
+- `vitest --project core` on `Admission.test.ts`, `WalkDepthGuard.test.ts` and `RolesAndDepth.test.ts`: 52 of 52 pass.
+- `tstyche` on `WalkEnvironment.tst.ts`: 4 tests and 18 assertions pass.
+- `oxlint` on the changed files: clean.
 
-**The iteration-1 fixes hold.**
-- **WR-01 is fixed.** `Admitted<Source extends RowSource>` stores `source: Source`, so `Admitted<"row">` is not assignable to `Evaluation.admitted: Admitted<"asked">`. The tstyche negatives pin both directions. `WalkDepthGuard.test.ts` now admits with `"asked"`.
-- **WR-02 is fixed.** `Admitted.policy` is set from `question.policy`. `walk` starts from `admitted.success.policy`, and `compileTree(admitted: Admitted<"row">)` folds `admitted.policy`. Neither interpreter takes a policy separately from the proof any more. As instructed, no brand was added.
-- **IN-01 is fixed.** `Result.getOrThrow` gives one failure path. If admission failed, the throw would become a defect inside `Effect.gen`, which `Effect.flip` does not turn into a pass. So the helper cannot hide a failure. Both tests pass (`vitest --project core`: 15 of 15 across the two files).
-- **IN-02 is fixed.** `Environment["admitted"]` is pinned to the named `Admitted<"asked">`, not compared with itself.
+**The iteration-2 fixes hold.**
+- **WR-01 is fixed.** `RESOURCE_SUPPLIED` and the overload are gone. `SUPPLIED` is typed `{ [Source in RowSource]: (question) => SuppliedBy[Source] }`, and `admit` is one generic signature. I compiled a standalone reproduction with `tsc --strict`: a `row` entry returning `resource: false` fails with TS2322, as claimed.
+- **IN-01 is fixed.** The `Evaluate.test.ts:1448-1451` comment now says the context is built by `admit` and read from `request.admitted`.
+- **IN-02 is fixed.** The `Admission.ts` header lists "the policy it admitted". The tstyche title names all six fields.
 
 **Clean on the points in the brief.**
-- **Fail-open.** Under `"asked"`, `supplied.resource` is `question.resource !== undefined`, and `matcherContext.resource` is `question.resource`. The two agree at runtime, and Admission.test.ts E1–E4 pin it.
-- **Divergence.** Depth, action and resource come from one `admit` in both interpreters.
-- **Hot path.** `admit` runs once per walk, inside `Effect.suspend`. A cache hit never runs it.
-- **Stale docs in the six files.** None mention the six-argument tuple or `Admitted.question`.
-- **House rules.** No `as`, `!`, `any`, new `switch` or `Record<string, unknown>`. `effect` imports are namespace imports.
+- **Divergence.** Depth, action, subject and resource come from one `admit` in both interpreters. `compileTree` walks `admitted.policy`. `toPredicate` still sets `resource: undefined` before admitting (`Predicate.ts:660`).
+- **Hot path.** `admit` runs once per walk, inside `Effect.suspend` (`Walk.ts:876-880`). A cache hit never reaches it.
+- **Stale docs in the source files.** Nothing still mentions the six-argument tuple, `Admitted.question` or a `supplied` built in `walk` or `compileTree`.
+- **The `WalkDepthGuard.test.ts` helper.** If admission fails, `Result.getOrThrow` throws a defect, which `Effect.flip` does not turn into a pass. So the helper cannot hide a failure. The `> ` to `>=` mutant is killed by the at-the-bound test.
+- **House rules.** No `as`, `!`, `any`, new `switch` or `Record<string, unknown>`. `effect` imports are namespace imports, and type-only imports use `import type`.
 
-**One new weakness, and it comes from the fix itself (WR-01).** The fix made `admit` a generic overload over a wider implementation signature. That overload is the only thing that turns a runtime `boolean` into the type `Supplied<true>`. So the type-level proof is now an unchecked assertion. I compiled a direct, checked alternative.
+**What is left.** Both warnings are about claims rather than behaviour.
+- **WR-01.** The iteration-2 fix states a type guarantee in two places that holds in only one direction, and the missing direction is the fail-open case.
+- **WR-02.** The fix renamed the table and removed the overload, but the normative spec documents outside ADR-QD-172 still name both.
 
-I read `necessity-review.md`. No finding qualifies. `source` is never read at runtime, but it does real work: it is the discriminant that keeps the two environments apart.
+I read `necessity-review.md`. No finding qualifies.
 
 ## Narrative Findings (AI reviewer)
 
 ## Warnings
 
-### WR-01: `admit`'s generic overload asserts `Supplied<true>` without checking it, and the fact lives in two unconnected tables
+### WR-01: The fail-open direction, an `"asked"` row claiming a resource, is not type-checked, though the source doc and ADR-QD-172 say it is
 
-**File:** `packages/core/src/Admission.ts:49-52`, `packages/core/src/Admission.ts:58-61`, `packages/core/src/Admission.ts:91-119`
+**File:** `packages/core/src/Admission.ts:54-63`, `packages/core/src/Admission.ts:104-112`, `spec/decisions/172-admission-produces-the-one-walk-environment.md:55-57`
 
 **Issue:**
-- **The overload is unchecked.** The public signature returns `Result<Admitted<Source>, PolicyTooDeep>`. The implementation signature returns the wider `Result<Admitted, PolicyTooDeep>`, which is `Admitted<RowSource>`. TypeScript checks an implementation only against that wider signature. So nothing checks that `"row"` really produces `supplied.resource === true`, or that `source` equals the `Source` the caller passed. The overload works as a cast, which AGENTS.md §6 forbids. ADR-QD-160 rejects the same pattern as R7: "an overload whose implementation widens … dodges `as` by widening the implementation type".
-- **The fact is stated twice, and the two statements are not connected.**
-  - `SuppliedBy` (lines 58-61) states the type: `row: Supplied<true>`.
-  - `RESOURCE_SUPPLIED` (lines 49-52) states the value, and its rows are typed `(question) => boolean`.
-  - Nothing ties the two together. If `row: () => true` became `() => false`, or `asked` became `() => true` (the fail-open case in the brief), the code would still compile. `admit(q, "row").success.supplied.resource` would still be typed `true`.
-  - Today only the runtime tests catch this (Admission.test.ts E1–E5).
-- **Confirmed by compiling.** I built a standalone reproduction with the same types and ran the repo's `tsc --strict`. With `row: () => false` behind the overload, it compiles, and `const r: true = admit({}, "row").supplied.resource` typechecks.
-- **The ADR overclaims.**
-  - ADR-QD-172 Decision 3 says `toPredicate`'s `Supplied<true>` "stays precise without `as`".
-  - Its Consequences say "a new row source is one more row in `RESOURCE_SUPPLIED`, which does not compile without it". In fact a new row source needs a row in two tables, and the value row is not checked against the type row.
-  - Line 200 still refers to "the `"row"` overload", which no longer exists. There is now one generic overload.
+- **The two claims.**
+  - `SUPPLIED`'s doc says: "Each row is checked against its `SuppliedBy` type, so a row that claims a resource it does not have does not compile."
+  - ADR-QD-172 Decision 3 says: "a `"row"` row that stops supplying the resource, or an `"asked"` row that claims one, fails with TS2322."
+- **The second half of the ADR claim is false.** `SuppliedBy.asked` is `Supplied`, whose `resource` is `boolean`, and the literal `true` is assignable to `boolean`. I compiled the following with the repo's `tsc --strict`, and it exits 0. I also bound `asked: SUPPLIED.row`, and that compiles too.
+  ```ts
+  asked: (question) => ({ action: question.action !== undefined, resource: true }),
+  ```
+- **This is exactly the fail-open case in the brief.**
+  - `supplied.resource` is computed in `SUPPLIED.asked` (line 60).
+  - `matcherContext.resource` is copied from `question.resource` separately (line 110).
+  - If the two disagree, `absenceOf` passes a `HasResourceAttribute` leaf, and `Walk.ts:359` reads `resource ?? NO_RESOURCE`. The leaf then judges `{}` instead of failing with `MissingResource`.
+  - The type system does not guard this. Only runtime tests do: `Admission.test.ts` E2 and E4, and `LeafMatrix.test.ts`. They do catch it today, but the docs tell a maintainer the compiler is the guard.
+- **The type pins do not cover it either.** `WalkEnvironment.tst.ts` checks that an asked `supplied.resource` is `boolean`. It cannot tell a correct row from one that always says `true`.
 
-**Fix:** Merge the two tables into one table typed by `SuppliedBy`, then drop the overload. Indexing a mapped type with a generic key resolves to `SuppliedBy[Source]`. I checked with `tsc --strict` that the version below compiles, and that a `row` entry returning `resource: false` fails with TS2322:
+**Fix:** At minimum, make the claims true.
+- Change the `SUPPLIED` doc to: "Each row is checked against its `SuppliedBy` type, so a `"row"` row that stops supplying the resource, or a row source without a row, does not compile. The `"asked"` row's boolean is a runtime fact, pinned by `Admission.test.ts` E1–E4."
+- Change ADR-QD-172 Decision 3 to drop "or an `"asked"` row that claims one".
+
+Optionally, remove the second source of truth, so that `supplied.resource` and `matcherContext.resource` cannot disagree. Build the context first and derive the asked row from the stored value:
 
 ```ts
-/** What a request supplied, one row per row source; each row is checked against its type. */
-const SUPPLIED: { readonly [Source in RowSource]: (question: Question) => SuppliedBy[Source] } = {
-  asked: (question) => ({
-    action: question.action !== undefined,
-    resource: question.resource !== undefined,
-  }),
-  row: (question) => ({ action: question.action !== undefined, resource: true }),
+const SUPPLIED: { readonly [Source in RowSource]: (context: MatcherContext) => SuppliedBy[Source] } = {
+  asked: (context) => ({ action: context.action !== undefined, resource: context.resource !== undefined }),
+  row: (context) => ({ action: context.action !== undefined, resource: true }),
 };
-
-export const admit = <Source extends RowSource>(
-  question: Question,
-  rowSource: Source,
-): Result.Result<Admitted<Source>, PolicyTooDeep> =>
-  policyDepth(question.policy) > question.maxDepth
-    ? Result.fail(new PolicyTooDeep({ maxDepth: question.maxDepth }))
-    : Result.succeed(
-        new Admitted(
-          rowSource,
-          question.policy,
-          question.subject,
-          SUPPLIED[rowSource](question),
-          { subject: question.subject.attributes, subjectId: question.subject.id,
-            resource: question.resource, action: question.action },
-          question.maxDepth,
-        ),
-      );
+// in admit: const matcherContext = { … }; … SUPPLIED[rowSource](matcherContext), matcherContext, …
 ```
 
-Then delete `RESOURCE_SUPPLIED`, and update ADR-QD-172 Decision 3, line 200 and the Consequences bullet to name `SUPPLIED`. The tstyche pins in `WalkEnvironment.tst.ts` stay as they are.
+### WR-02: `spec/invariants.md`, `spec/traceability.md` and ADR-QD-163 still name `RESOURCE_SUPPLIED` and the `"row"` overload, which iteration 2 removed
+
+**File:** `spec/invariants.md:4239`, `spec/invariants.md:4241`, `spec/traceability.md:58`, `spec/traceability.md:196`, `spec/decisions/163-what-a-leaf-needs-from-the-request-is-stated-once.md:292`, `spec/decisions/163-what-a-leaf-needs-from-the-request-is-stated-once.md:294`
+
+**Issue:** Fix commit `1ac8bccc` renamed `RESOURCE_SUPPLIED` to `SUPPLIED` and deleted the `"row"` overload, but it updated only ADR-QD-172. The other spec documents still name both:
+- **INV-QD-364.** The statement says "`admit` computes both from one closed table, `RESOURCE_SUPPLIED`". Its **Source** line names `RESOURCE_SUPPLIED`, a symbol that no longer exists in `Admission.ts`.
+- **`traceability.md`.** Row 58 names "`RESOURCE_SUPPLIED`'s `"row"`" for BEH-QD-633. Row 196 says "`RESOURCE_SUPPLIED` is one closed row per `RowSource`".
+- **ADR-QD-163's 2026-11-19 amendment.** It says "`admit` builds `supplied` once from the row source (`RESOURCE_SUPPLIED`)". It also says the resource is supplied "through `admit`'s `"row"` overload". That is the cast pattern ADR-QD-172 now lists as rejected.
+
+`spec/` is normative (AGENTS.md §11), and an invariant's Source line that points at a nonexistent symbol is the drift this repo gates against elsewhere.
+
+**Fix:**
+- In `invariants.md:4239,4241` and `traceability.md:58,196`, replace `RESOURCE_SUPPLIED` with `SUPPLIED`.
+- In ADR-QD-163:292, do the same. In ADR-QD-163:294, change "through `admit`'s `"row"` overload (`Admitted<"row">`)" to "through `admit`'s `"row"` row source (`Admitted<"row">`, `SUPPLIED`'s `row` row typed `Supplied<true>`)".
+
+To confirm nothing else is left:
+
+```
+/usr/bin/grep -rn "RESOURCE_SUPPLIED\|\"row\"\` overload" spec packages
+```
 
 ## Info
 
-### IN-01: A comment in `Evaluate.test.ts` still says the matcher context is "threaded as a parameter" through `evaluateNode`
+### IN-01: "Only `admit` builds one" is a convention, and the public six-field constructor makes the proof's invariants easy to break
 
-**File:** `packages/core/test/Evaluate.test.ts:1448-1451`
-
-**Issue:** The comment says "`matcherContext` is now built once, in `evaluate`'s `Effect.suspend`, and threaded as a parameter through `evaluateNode` and its `AllOf`/`Rules` helpers". After this phase, the matcher context is not a parameter. It is `request.admitted.matcherContext`, built by `admit`. The test still exercises the right thing. Only the prose is stale. This file is outside the six in scope, but this phase made the comment stale.
-
-**Fix:** Reword it, for example: "`matcherContext` is built once by `admit` and read from the walk environment (`request.admitted`) at every node; this exercises every shape the environment has to survive…".
-
-### IN-02: The module doc and a test title still list four parts of the environment after WR-02 added `policy`
-
-**File:** `packages/core/src/Admission.ts:20-24`, `packages/core/test/WalkEnvironment.tst.ts:27`
+**File:** `packages/core/src/Admission.ts:66-87`
 
 **Issue:**
-- **The module doc.** `Admission.ts`'s header describes the walk environment as "the subject, what the request supplied, what its matchers see and the depth bound". It leaves out the admitted policy, which is now the field that ties the depth proof to the tree being walked. The class doc, by contrast, is correct.
-- **The test title.** The tstyche test is titled "the environment holds the subject, what was supplied, the matcher context and the bound", but its pin now lists `source` and `policy` as well.
+- **The claim.** `Admitted`'s doc says "Only `admit` builds one, so holding one is the proof, and the policy rides with it so the proof cannot be paired with a deeper tree."
+- **Nothing enforces it.** The constructor is public. Any module in core can write `new Admitted("asked", deeperPolicy, subject, { action: false, resource: true }, ctxWithoutResource, 1)`, and it typechecks.
+  - That breaks the depth proof: `policy` and `maxDepth` are independent arguments.
+  - It also breaks the supplied-versus-context agreement from WR-01.
+- **This is not a regression.** The public constructor dates from before this phase, the module is package-private, and today the only `new Admitted` is inside `admit`. But the phase raised the stakes, from two fields to six independently settable ones, and WR-02 of iteration 1 added `policy` precisely to make the pairing unforgeable.
 
-**Fix:** Add "the policy it admitted" to the header sentence, and retitle the test, for example "the environment holds its row source, the admitted policy, the subject, what was supplied, the matcher context and the bound".
+**Fix:** Make the constructor private and build through a static factory inside the class, so the claim is enforced rather than remembered. `admit` would then call `Admitted.make(...)`, or become that static. Alternatively, soften the doc to "by convention only `admit` builds one".
 
 ---
 
-_Reviewed: 2026-11-19T06:00:32Z_
+_Reviewed: 2026-11-19T06:18:41Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
