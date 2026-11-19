@@ -328,7 +328,7 @@ for (const f of [P + "test/model/TimelineFeed.test.ts", P + "test/model/Diagnost
 // The docs (D-06, D-13, D-17) and the record of the break (WX-07).
 const rd = read(README);
 if (!rd.includes("makeDiagnosticsFeed") || /same loop without/.test(rd)) bad.push(README + " does not use the feeds, or keeps the false same-loop claim");
-if (!/must not (be sent|cross)/.test(rd)) bad.push(README + " does not say a stop's reason must not cross a trust boundary (D-17)");
+if (!/must not\s+(be sent|cross)/.test(rd)) bad.push(README + " does not say a stop's reason must not cross a trust boundary (D-17)");
 const up = read(UPGRADING);
 if (/import type \{ DiagnosticsDockOptions \} from "@qadi\/devtools\/react";/.test(up) || /const sampling: DiagnosticsDockOptions/.test(up)) bad.push(UPGRADING + " still compiles a DiagnosticsDockOptions fence (D-13)");
 if (up.split("\n").filter((l) => l === "## 0.13: the feeds are devtools' headless interface").length !== 1) bad.push(UPGRADING + " lacks one 0.13 headless-interface section");
