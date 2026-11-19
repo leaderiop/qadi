@@ -514,12 +514,13 @@ export const decodeSinkRecordWithJson = (input: unknown): Result.Result<DecodedS
 /**
  * Untrusted input as a record, or the reason it is not one.
  *
- * The depth guard runs first, so the schema's recursion through `Policy` and
- * `Trace` cannot overflow, then the version, then the projection onto the
- * envelope's declared keys, then the strict decode, all inside the decoder
- * ({@link sinkWire}); the result is rebuilt into record classes. A record with
- * no `version` is a pre-0.10 record — wire version 1, whose reader 0.11.0
- * removed (ADR-QD-096's 2026-10-06 amendment) — and is reported as
+ * The projection onto the envelope's declared keys runs first, so an unknown
+ * key never reaches the guard or the decode, then the depth guard, so the
+ * schema's recursion through `Policy` and `Trace` cannot overflow, then the
+ * version, then the strict decode, all inside the decoder ({@link sinkWire});
+ * the result is rebuilt into record classes. A record with no `version` is a
+ * pre-0.10 record — wire version 1, whose reader 0.11.0 removed (ADR-QD-096's
+ * 2026-10-06 amendment) — and is reported as
  * `UnsupportedVersion` with `version: undefined`, never upgraded and never
  * given a fabricated outcome or subject. It accepts whatever
  * {@link encodeSinkRecord} emits (INV-QD-096). It reads through the same decoder
