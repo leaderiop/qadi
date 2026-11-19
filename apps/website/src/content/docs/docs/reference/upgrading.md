@@ -538,9 +538,8 @@ After:
 ```typescript
 import type { HydrationActivity } from "@qadi/devtools";
 import { DiagnosticsStatus, useDiagnostics } from "@qadi/devtools/react";
-import type { DiagnosticsDockOptions } from "@qadi/devtools/react";
 
-const sampling: DiagnosticsDockOptions = { intervalMillis: 1_000 };
+const sampling = { intervalMillis: 1_000 };
 
 export const useHydration = (): HydrationActivity | undefined =>
   useDiagnostics(sampling).reading.hydration;
@@ -1018,3 +1017,47 @@ The decision log's two warnings, `qadi: a decision log's append half failed` and
 `@qadi/http`'s routes take a `DecisionLogReader` whose element type is `StoredRecord`, so a reader built from flat records no longer typechecks; no `@qadi/http` source changed and the routes write the same bytes. `@qadi/devtools`' `ingest` takes the envelope, and a `Source`'s backlog and live stream carry envelopes, so code that built a flat record for them builds `new StoredRecord({ environment, record })`.
 
 The decision is [ADR-QD-171](https://github.com/leaderiop/qadi/blob/main/spec/decisions/171-a-stored-record-is-its-envelope-in-memory-too.md).
+
+## 0.13: the feeds are devtools' headless interface
+
+`@qadi/devtools`' root now exports `makeTimelineFeed`, `makeDiagnosticsFeed` and `makeGatesFeed`, each built in a scope. A handle names what a shell reads: the timeline feed's `timeline` and `status` stores, the diagnostics feed's snapshot (its `reading` and a `status` that is `Off`, `Starting`, `Live` or `Stopped`), and the gates feed's snapshot. A feed that stops says so, with a restart, where the runners left a dead fiber.
+
+`makeTimelineStore`, `runSource`, `makeDiagnosticsStore`, `runDiagnostics`, `noDiagnostics` and the `DiagnosticsStore` type are no longer importable. `DiagnosticsDockOptions` is now `DiagnosticsOptions`, on both entries, and `DiagnosticsOptions` is not generic and takes `intervalMillis` where it took a `schedule`. A hand-fed timeline is `makeTimelineFeed()` and its `accept`; `useTimelineStore` is unchanged.
+
+Before:
+
+```ts
+import { makeDiagnosticsStore, makeTimelineStore, runDiagnostics, runSource } from "@qadi/devtools";
+
+const diagnostics = makeDiagnosticsStore();
+yield* Effect.forkChild(runDiagnostics(diagnostics, { layer, schedule: Schedule.spaced("1 second") }));
+
+const timeline = makeTimelineStore();
+yield* Effect.forkChild(runSource(timeline, source));
+```
+
+After:
+
+```typescript
+import * as Effect from "effect/Effect";
+import { makeDecisionLog } from "@qadi/core";
+import { makeDiagnosticsFeed, makeTimelineFeed, type DiagnosticsOptions } from "@qadi/devtools";
+
+const sampling: DiagnosticsOptions = { intervalMillis: 1_000 };
+
+export const statuses = Effect.scoped(
+  Effect.gen(function* () {
+    const log = yield* makeDecisionLog({ environment: "Server", capacity: 512 });
+    const timeline = yield* makeTimelineFeed({ source: log });
+    const diagnostics = yield* makeDiagnosticsFeed(sampling);
+    return {
+      timeline: timeline.status.getSnapshot()._tag,
+      diagnostics: diagnostics.getSnapshot().status._tag,
+    };
+  }),
+);
+```
+
+A stop's `reason` is a `Cause.pretty` trace, with stack frames and checkout paths, for a developer in the host's own process. It must not cross a trust boundary: a shell that forwards status to a remote viewer sends the tag, not the reason.
+
+The decision is [ADR-QD-173](https://github.com/leaderiop/qadi/blob/main/spec/decisions/173-the-devtools-headless-interface-is-its-feeds.md).
