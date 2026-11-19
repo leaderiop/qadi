@@ -64,7 +64,7 @@ export interface TimelineFeed {
   readonly timeline: TimelineStore;
   /** Where the read stands. */
   readonly status: TimelineStatusReadout;
-  /** Re-reads only when the capacity or the source moved. An omitted input reads as `undefined`. */
+  /** Re-reads only when the capacity or the source moved. An omitted input reads as `undefined`. Does nothing once the feed's scope has closed. */
   readonly configure: (inputs: TimelineFeedInputs) => void;
 }
 
@@ -148,6 +148,8 @@ export const makeTimelineFeed = Effect.fn("qadi.devtools.makeTimelineFeed")(func
     timeline,
     status: { subscribe: status.subscribe, getSnapshot: status.getSnapshot, restart },
     configure: (next) => {
+      // A command on a closed feed would publish a state nothing follows.
+      if (reads.closed()) return;
       const before = inputs;
       inputs = next;
       const resized = next.capacity !== before.capacity;
