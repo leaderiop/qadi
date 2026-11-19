@@ -1068,9 +1068,9 @@ The decision is [ADR-QD-173](https://github.com/leaderiop/qadi/blob/main/spec/de
 
 `concurrency` is still not part of the key. One question asked with two concurrencies is one entry, and an ask that joins a walk already in flight shares that walk, run with the first asker's `concurrency`.
 
-Callers of `evaluate` and of the enforcing entry points see no change. A hand-written `DecisionCacheShape` must now produce its own trace for the question it is handed, and core does not export the walk, so wrap `decisionCacheLayer()` and delegate to it.
+Callers of `evaluate` and of the enforcing entry points see no change. A hand-written `DecisionCacheShape` must now produce its own trace for the question it is handed, and core does not export the walk, so wrap `decisionCacheLayer()` and delegate to it. At runtime the `options` a cache receives is the options object the decision was asked with, passed through without a copy, so it can carry more keys than `concurrency`; read only `concurrency`, and do not log or retain the rest.
 
-An implementation written as below no longer compiles where it runs `compute` (TS2345), or where it annotates it (TS2322).
+An implementation written as below no longer compiles where it runs `compute` (TS2345), where it annotates it (TS2322), or, written as a class that `implements DecisionCacheShape`, at the method (TS2416).
 
 Before:
 

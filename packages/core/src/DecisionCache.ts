@@ -53,9 +53,11 @@ export interface DecisionCacheShape {
    * `concurrency` is unused: the claimant's governs. That is safe because
    * `concurrency` changes lookups, never answers (INV-QD-020).
    *
-   * At runtime `options` is the caller's own options object, passed through by
-   * reference with no copy (ADR-QD-174 decision 4), so it may carry more keys
-   * than this type names: `resource`, `action`, `maxDepth`, `evaluationId`.
+   * At runtime `options` is the options object the decision was asked with,
+   * passed through by reference with no copy per lookup (ADR-QD-174 decision
+   * 4), so it may carry more keys than this type names: `resource`, `action`,
+   * `maxDepth`, `evaluationId`, and on the enforcing entry points
+   * `onObligations`.
    * An implementation reads only `concurrency`, and does not log or retain the
    * rest.
    *

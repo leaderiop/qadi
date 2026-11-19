@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-174                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-19                                     |
 > | Status         | Accepted — amends ADR-QD-031; reads ADR-QD-132, ADR-QD-100 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-19): Consequences name both parties: an implementer gets TS2345 or TS2322, a caller TS2559 or TS2554 (review WR-03)<br>1.0 (2026-11-19): Initial release (ARCH-108, CCR-QD-452) |
+> | Change History | 1.2 (2026-11-19): Consequences name TS2416 for a class-based implementer (review iteration 2, IN-02)<br>1.1 (2026-11-19): Consequences name both parties: an implementer gets TS2345 or TS2322, a caller TS2559 or TS2554 (review WR-03)<br>1.0 (2026-11-19): Initial release (ARCH-108, CCR-QD-452) |
 
 ---
 
@@ -69,8 +69,8 @@ cache.
 ## Consequences
 
 - **Breaking** for `DecisionCacheShape` implementers. An implementation that still takes and runs a `compute` no longer
-  type-checks: its second parameter is now the options, so running it as an `Effect` is TS2345, and annotating it as one
-  is TS2322 (both probed against `tsc`). A caller who passes a `compute`, or a function returning one, gets TS2559
+  type-checks: its second parameter is now the options, so running it as an `Effect` is TS2345, annotating it as one
+  is TS2322, and a class that `implements DecisionCacheShape` gets TS2416 at the method (all probed against `tsc`). A caller who passes a `compute`, or a function returning one, gets TS2559
   (TypeScript's weak-type rule: the options type has only optional properties, and an `Effect` shares none of them),
   and a third argument gets TS2554. The change is a `@qadi/core` minor changeset, and the upgrade guide's 0.13 section shows the delegation route in a compiled example.
   Callers of `evaluate` and of the enforcing entry points see no change.
