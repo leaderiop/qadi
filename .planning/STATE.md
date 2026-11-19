@@ -2,20 +2,20 @@
 gsd_state_version: "1.0"
 milestone: v1.6
 milestone_name: Arch Wave 11
-current_phase: 57
-current_phase_name: untrustedDecoder states the envelope's unknown-key policy
-status: executing
-stopped_at: Completed QD-57-11-PLAN.md
-last_updated: "2026-11-19T00:18:18.243Z"
-last_activity: 2026-11-18
-last_activity_desc: Phase 56 complete, transitioned to Phase 57
-state_head: 78e02170daa0ed1c9bf24125b219ea10cdbc8cf6
+current_phase: 58
+current_phase_name: A stored record is its envelope in memory too
+status: planning
+stopped_at: Phase QD-57 complete, ready to plan Phase 58
+last_updated: "2026-11-19T00:37:19.219Z"
+last_activity: 2026-11-19
+last_activity_desc: Phase QD-57 complete, transitioned to Phase 58
+state_head: f7e849b24b63f54f5f5c504bbf9e5f6217fac81a
 progress:
   total_phases: 9
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 49
   completed_plans: 49
-  percent: 44
+  percent: 56
 ---
 
 # Project State
@@ -29,16 +29,16 @@ See: .planning/PROJECT.md (updated 2026-11-18)
 
 ## Current Position
 
-Phase: QD-57 (untrustedDecoder states the envelope's unknown-key policy) — READY TO EXECUTE
+Phase: 58 — A stored record is its envelope in memory too
 Plan: Not started
-Status: Ready to execute
-Last activity: 2026-11-18 — Phase 56 complete, transitioned to Phase 57
+Status: Ready to plan
+Last activity: 2026-11-19 — Phase QD-57 complete, transitioned to Phase 58
 
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 274
+- Total plans completed: 285
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -92,6 +92,7 @@ Last activity: 2026-11-18 — Phase 56 complete, transitioned to Phase 57
 | QD-54 | 8 | - | - |
 | QD-55 | 9 | - | - |
 | 56 | 13 | - | - |
+| QD-57 | 11 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -710,7 +711,7 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 ## Session Continuity
 
 Last session: 2026-11-19T00:18:18.072Z
-Stopped at: Completed QD-57-11-PLAN.md
+Stopped at: Phase QD-57 complete, ready to plan Phase 58
 Resume file: None
 
 ## Operator Next Steps

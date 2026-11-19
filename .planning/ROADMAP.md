@@ -394,7 +394,7 @@ Order: the defect first (53), then the "stated once" deepenings (54-58), then th
 - [x] **Phase 54: LeafNeeds turns every leaf's answer into a verdict** - The acted leaf's polarity map and verdict rule, and every other leaf's answer-to-verdict step, written once and read by `Walk` and `toPredicate` (ARCH-101, core) (completed 2026-11-18)
 - [x] **Phase 55: A port card is a model row, not a view join** - One pure model function returns a row per `PortName`; `ServicesPanel` renders rows only (ARCH-102, devtools) (completed 2026-11-18)
 - [x] **Phase 56: The gate-registry watch becomes the dock model's third feed** - Opens on a user decision; one scoped feed module owns the watch and `DockModel` composes three feeds (ARCH-103, devtools) (completed 2026-11-18)
-- [ ] **Phase 57: untrustedDecoder states the envelope's unknown-key policy** - Opens on a user decision; one stated option (refuse | ignore without walking) for both `SinkCodec` envelopes and the audit and hydration seams (ARCH-104, core, audit, react)
+- [x] **Phase 57: untrustedDecoder states the envelope's unknown-key policy** - Opens on a user decision; one stated option (refuse | ignore without walking) for both `SinkCodec` envelopes and the audit and hydration seams (ARCH-104, core, audit, react) (completed 2026-11-19)
 - [ ] **Phase 58: A stored record is its envelope in memory too** - The in-memory stored record is the producer's `environment` next to a `SinkRecord`; two classes and two stamp functions are deleted (ARCH-105, Breaking, core, http, devtools)
 - [ ] **Phase 59: Admission produces the one walk environment** - Opens on a benchmark; recursion passes `(policy, env, depth)`, or a recorded rejection (ARCH-106, core)
 - [ ] **Phase 60: Devtools' headless interface is the feeds** - Opens on a human checkpoint; the feeds replace the store/runner pairs in the barrel, or a recorded rejection (ARCH-107, Breaking, devtools)
@@ -540,7 +540,7 @@ Plans:
   4. The `UntrustedSeams` matrix runs per policy (a shallow unknown key, a deep unknown key, an excess key inside the payload, non-object input). Every seam's answer is unchanged except where the decision in criterion 1 changed it, and each changed answer has a RED test written on the phase base.
 
 **Planning notes**: The user decision is the first thing settled. Plan shape, RED first: the mutation base for `SinkCodec.ts`, `UntrustedDecode.ts`, `AuditEntry.ts`, `AuditArchive.ts` and `HydrationEngine.ts`, and the per-policy matrix characterised on the base; then the option; then each envelope converted; then records. Keep ADR-QD-096 D-15-c's order (guard, version, project, decode).
-**Plans**: 11/11 plans executed
+**Plans**: 11/11 plans complete
 
 Plans:
 - [x] 57-01 (W1): base facts, reserved ids and API surface base; mutation baseline for the five envelope files, the phase's first commit
@@ -641,7 +641,7 @@ Phases execute in numeric order: 53 → 54 → 55 → 56 → 57 → 58 → 59 �
 | 54. LeafNeeds turns every leaf's answer into a verdict | 8/8 | Complete    | 2026-11-18 |
 | 55. A port card is a model row, not a view join | 9/9 | Complete    | 2026-11-18 |
 | 56. The gate-registry watch becomes the dock model's third feed | 13/13 | Complete    | 2026-11-18 |
-| 57. untrustedDecoder states the envelope's unknown-key policy | 11/11 | In Progress | - |
+| 57. untrustedDecoder states the envelope's unknown-key policy | 11/11 | Complete    | 2026-11-19 |
 | 58. A stored record is its envelope in memory too | 0/TBD | Not started | - |
 | 59. Admission produces the one walk environment | 0/TBD | Not started | - |
 | 60. Devtools' headless interface is the feeds | 0/TBD | Not started | - |
