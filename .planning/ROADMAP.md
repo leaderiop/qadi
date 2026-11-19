@@ -571,7 +571,18 @@ Plans:
   4. ADR-QD-171 makes ADR-QD-097 D-11-e true in memory as well as on the wire, and the break is recorded as **Breaking** in each affected package's changeset and in `upgrading.md`.
 
 **Planning notes**: Re-verify the 11 `src` files that name `StoredRecord` against the base Phase 57 leaves. Plan shape, RED first: the mutation base and the characterisation tests (stored round trip, backlog stamping, order, byte goldens) first; then core's envelope; then http and devtools; then records and changesets.
-**Plans**: TBD
+**Plans**: 9 plans
+
+Plans:
+- [ ] 58-01 (W1): base facts, reserved ids and API surface base; mutation baseline for the eight stored-record files, the phase's first commit
+- [ ] 58-02 (W2): core's stored bytes, the log's build and the order characterised green on the base; the envelope's shape and the unread getter committed RED
+- [ ] 58-03 (W3): devtools' merged and timeline order (D-13's orphan rows) and the http encoders' bytes characterised green on the base
+- [ ] 58-04 (W4): tracer — `StoredRecord` as one `Data.Class`, `sinkRecordOrder`, the log without `isolate`, the codec without a stamp, the timeline over the envelope; every shape-reaching test, `features/`, gate 14 and `overview.md` (933) in one `feat(58-04)!` commit
+- [ ] 58-05 (W5): the doc-only `Source.ts`/`AuditArchive.ts` sentences; the three after-runs and any static evidence; D-16 applied
+- [ ] 58-06 (W6): ADR-QD-171; the ADR-QD-097, ADR-QD-135 and ADR-QD-159 amendments
+- [ ] 58-07 (W7): INV-QD-361..362, BEH-QD-626..630, the BEH-QD-185/188/569 and INV-QD-039 amendments, the traceability rows
+- [ ] 58-08 (W8): the core, http and devtools Breaking changesets, the upgrade guide's 0.13 section, CCR-QD-449; strict traceability green
+- [ ] 58-09 (W9): the phase scan, `check:pr`, the release check; STOR-01..04 complete
 
 ### Phase 59: Admission produces the one walk environment
 
