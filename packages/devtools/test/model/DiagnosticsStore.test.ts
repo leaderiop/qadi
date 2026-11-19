@@ -11,6 +11,7 @@ import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
 import * as Schedule from "effect/Schedule";
 import * as TestClock from "effect/testing/TestClock";
+import * as Tracer from "effect/Tracer";
 import {
   AttributeResolver,
   decisionCacheLayer,
@@ -151,6 +152,24 @@ describe("runDiagnostics", () => {
       yield* TestClock.adjust(`${DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS} millis`);
       assert.strictEqual(state.reads, 3);
       yield* Fiber.interrupt(fiber);
+    }),
+  );
+
+  it.effect("opens the poll's two spans", () =>
+    Effect.gen(function* () {
+      const names: Array<string> = [];
+      const tracer = Tracer.make({
+        span: (options) => {
+          names.push(options.name);
+          return new Tracer.NativeSpan(options);
+        },
+      });
+      const fiber = yield* start(makeDiagnosticsStore()).pipe(
+        Effect.provideService(Tracer.Tracer, tracer),
+      );
+      yield* Fiber.interrupt(fiber);
+      assert.include(names, "qadi.devtools.runDiagnostics");
+      assert.include(names, "qadi.devtools.wiringReader");
     }),
   );
 
