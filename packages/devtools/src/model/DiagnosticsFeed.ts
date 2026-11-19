@@ -94,6 +94,7 @@ export const isUnsampled: (status: DiagnosticsStatus) => boolean = Match.type<Di
 
 /** What a panel reads: a snapshot, and the command that starts the poll again. */
 export interface DiagnosticsReadout {
+  /** Registers a listener, and returns the function that removes it. A listener must not throw: it is not isolated, and a throw during a publish from the poll is stated as the poll's stop. */
   readonly subscribe: (listener: () => void) => () => void;
   readonly getSnapshot: () => DiagnosticsSnapshot;
   /** Starts the poll again with the options it holds; nothing when it holds none. */

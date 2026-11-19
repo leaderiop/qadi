@@ -54,6 +54,7 @@ const READING: TimelineStatus = TimelineStatus.Reading();
  * dedupe keeps each entry single. It does nothing once the feed's scope has closed.
  */
 export interface TimelineStatusReadout {
+  /** Registers a listener, and returns the function that removes it. A listener must not throw: it is not isolated. */
   readonly subscribe: (listener: () => void) => () => void;
   readonly getSnapshot: () => TimelineStatus;
   readonly restart: () => void;
