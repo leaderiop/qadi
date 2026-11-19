@@ -80,8 +80,9 @@ export interface DecisionCacheShape {
    * answer every other coalesced caller is still waiting on. Only once the
    * last waiter detaches does the shared walk itself get interrupted,
    * so an evaluation nobody wants any more does not keep running for no one.
-   * `DecisionCache.test.ts`'s "one caller interrupted, the other still gets
-   * a result" pins this.
+   * `DecisionCache.test.ts`'s "a coalesced waiter's interruption does not
+   * interrupt the shared compute — the other waiter still gets a result"
+   * pins this.
    *
    * A host may still write its own `DecisionCacheShape`. It is handed the same
    * question and must answer with a trace for exactly that question; core does
