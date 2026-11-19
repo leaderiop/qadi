@@ -632,11 +632,11 @@ Plans:
   4. If pursued: the feed tests run against the public entry, and `surface.test.ts`, `spec/overview.md` (gate 13), ADR-QD-047 amendment 1.6 and ADR-QD-099's entry list are updated; the break is **Breaking** in the changeset and in `upgrading.md`.
 
 **Planning notes**: **The checkpoint is the first thing settled, before any plan.** If pursued, plan shape, RED first: the mutation base and the public-entry tests (`TimelineFeed.test.ts`, `DiagnosticsFeed.test.ts` moved to the root export) first; then the export change and the option shape; then README, docs and records. Check the packed `exports` map (gate 14).
-**Plans**: 1/8 plans executed
+**Plans**: 2/8 plans executed
 
 Plans:
 - [x] 60-01 (W1): phase_base, the mutation harness and the baseline of the five devtools model files on the untouched base
-- [ ] 60-02 (W2): RED, the span pin green on the base, the surface lists, the feed suites through the root, one option shape
+- [x] 60-02 (W2): RED, the span pin green on the base, the surface lists, the feed suites through the root, one option shape
 - [ ] 60-03 (W3): GREEN, the feeds are the root's interface, one `DiagnosticsOptions` (tracer first; one `feat(60-03)!` commit)
 - [ ] 60-04 (W4): gate 14's packed consumer builds a timeline feed
 - [ ] 60-05 (W5): the mutation after-run, static evidence and compare (D-10)
@@ -677,5 +677,5 @@ Phases execute in numeric order: 53 → 54 → 55 → 56 → 57 → 58 → 59 �
 | 57. untrustedDecoder states the envelope's unknown-key policy | 11/11 | Complete    | 2026-11-19 |
 | 58. A stored record is its envelope in memory too | 9/9 | Complete    | 2026-11-19 |
 | 59. Admission produces the one walk environment | 10/10 | Complete    | 2026-11-19 |
-| 60. Devtools' headless interface is the feeds | 1/8 | In Progress | - |
+| 60. Devtools' headless interface is the feeds | 2/8 | In Progress | - |
 | 61. DecisionCache is asked only the question | 0/TBD | Not started | - |
