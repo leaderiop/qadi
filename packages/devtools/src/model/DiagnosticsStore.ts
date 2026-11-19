@@ -60,7 +60,10 @@ import { portActivity, wiringReport, type PortActivity, type WiringReport } from
 export type WiringRead = Data.TaggedEnum<{
   /** No layer was handed over, so there is nothing to read the wiring from. */
   NotHanded: {};
-  /** The handed layer failed to build; the other reads keep sampling. */
+  /**
+   * The handed layer failed to build; the other reads keep sampling. `reason` is `Cause.pretty`
+   * of the build failure, a trace for the host's own process: it must not cross a trust boundary.
+   */
   Failed: { readonly reason: string };
   /** The report, read from the built layer. */
   Read: { readonly report: WiringReport };

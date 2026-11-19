@@ -238,9 +238,11 @@ omitted input as `undefined`, and `diagnostics.configure(undefined)` ends the po
 and resets it to `Off`. A shell lays a reading of its own over the feed's with
 `mergeReading`, the dock's `reading` rule.
 
-A stop's `reason` is a `Cause.pretty` trace, with stack frames and checkout paths,
-for a developer in the host's own process. It must not cross a trust boundary: a
-shell that forwards status to a remote viewer sends the tag, not the reason.
+A stop's or a failed read's `reason` (`Stopped`, `WiringRead.Failed`,
+`RegistryRead.Failed`, `AskedRead.Failed`) is a `Cause.pretty` trace, with stack
+frames and checkout paths, for a developer in the host's own process. It must not
+cross a trust boundary: a shell that forwards a feed's readings to a remote viewer
+sends the tag, not the reason.
 
 ## Environments
 

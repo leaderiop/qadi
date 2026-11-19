@@ -224,10 +224,11 @@ simulation session, the wiring the dock takes, and the readings of a timeline.
   scope and state a stop; `makeSimulationSession` holds the simulator.
   `@qadi/devtools/react` has the React half of each (`useTimeline`,
   `useSimulationSession`, `useDiagnostics`). `useDiagnostics` and the dock
-  share one feed. A stop's `reason` is a `Cause.pretty` trace, with stack frames and
-  checkout paths, for a developer in the host's own process. It must not cross a
-  trust boundary: a shell that forwards status to a remote viewer sends the tag,
-  not the reason.
+  share one feed. A stop's or a failed read's `reason` (`Stopped`, `WiringRead.Failed`,
+  `RegistryRead.Failed`, `AskedRead.Failed`) is a `Cause.pretty` trace, with stack
+  frames and checkout paths, for a developer in the host's own process. It must not
+  cross a trust boundary: a shell that forwards a feed's readings to a remote
+  viewer sends the tag, not the reason.
 - **Inspection** (`inspect`, `flattenTree`) — walking a decision's evaluation
   tree, including nodes that never resolved or were truncated; with verdict
   classification (`verdictOf`), pairing, filters and selection.
