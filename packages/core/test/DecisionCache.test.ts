@@ -12,8 +12,8 @@ import { AttributeResolver, attributeResolverPort } from "../src/AttributeResolv
 import type { AuthSubject } from "../src/AuthSubject.ts";
 import { DecisionCache, decisionCacheLayer } from "../src/DecisionCache.ts";
 import { isAllowed } from "../src/Decision.ts";
-import type { Trace } from "../src/Decision.ts";
 import { questionOf } from "../src/Question.ts";
+import type { Question } from "../src/Question.ts";
 import { AttributeResolveError } from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import { decisionCacheLookupsTotal } from "../src/EvaluationMetrics.ts";
@@ -22,6 +22,7 @@ import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
+import { walk } from "../src/Walk.ts";
 import { forkAllAndSettle, isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
 import { scriptedPort } from "../src/PortDoubles.ts";
 import { PortReply } from "../src/PortDescription.ts";
@@ -1218,9 +1219,16 @@ describe("DecisionCache", () => {
     /**
      * ARCH-45 I5. A joiner that checks `entries` (a miss), is preempted, and then
      * finds the owner finished (`entries[K]` set, `inFlight[K]` gone) used to claim
-     * `K` afresh: `K` computed twice, appended to `insertionOrder` twice, and a
-     * later pop of the stale copy evicted a freshly recomputed `K`. The fix makes
+     * `K` afresh: `K` walked twice, appended to `insertionOrder` twice, and a
+     * later pop of the stale copy evicted a freshly walked `K`. The fix makes
      * hit check, join and claim one synchronous step.
+     *
+     * The cache is asked each question alone, as every caller asks it
+     * (ADR-QD-174). The owner's walk spins in its resolver, which also counts the
+     * walks of `K`. A walk puts more steps between claim and completion than a
+     * bare computation did, so the sweep is wide enough that at every budget some
+     * joiners land while the owner is in flight (`coalesced`) and some after it
+     * finished (`hit`), and the test asserts both: it cannot pass without racing.
      *
      * The red is scheduler-dependent (it needs the run loop to yield in a window
      * a few turns wide, so it appears only under a small `MaxOpsBeforeYield`),
@@ -1232,58 +1240,73 @@ describe("DecisionCache", () => {
       () =>
         Effect.gen(function* () {
           const subject = subjectWith({ id: "u-1" });
-          const K = questionOf(subject, P.hasRole("k"));
-          const X = questionOf(subject, P.hasRole("x"));
-          const Y = questionOf(subject, P.hasRole("y"));
-          const trace = (label: string): Trace => ({
-            policyTag: "HasRole",
-            allowed: true,
-            reason: label,
-            children: [],
-            obligations: [],
-          });
+          const K = questionOf(subject, P.hasAttribute("k", M.gte(1)));
+          const X = questionOf(subject, P.hasAttribute("x", M.gte(1)));
+          const Y = questionOf(subject, P.hasAttribute("y", M.gte(1)));
           const raced: Array<string> = [];
+          const sides: Array<string> = [];
 
           for (const budget of [3, 4, 5, 6]) {
-            for (let gap = 0; gap <= 12; gap++) {
+            for (let gap = 0; gap <= 48; gap++) {
+              // Each walk records the attribute it asks; only the owner's walk of
+              // `K` spins, so it finishes a few yields after it claims.
+              const walks: Array<string> = [];
+              let ownerSpin = 3;
+              const spinning = Layer.succeed(AttributeResolver, {
+                resolve: (_id: string, attribute: string) =>
+                  Effect.gen(function* () {
+                    walks.push(attribute);
+                    const spin = attribute === "k" ? ownerSpin : 0;
+                    ownerSpin = 0;
+                    for (let i = 0; i < spin; i++) yield* Effect.yieldNow;
+                    return 5;
+                  }),
+              });
               const outcomes = yield* Effect.gen(function* () {
                 const cache = yield* DecisionCache;
-                const computes: Array<string> = [];
-                const compute = (label: string, spin: number) =>
-                  Effect.gen(function* () {
-                    computes.push(label);
-                    for (let i = 0; i < spin; i++) yield* Effect.yieldNow;
-                    return trace(label);
-                  });
+                const lookup = (question: Question) =>
+                  cache.getOrCompute(question, walk(question, undefined));
                 // The owner claims K and finishes after a few yields.
-                const owner = yield* Effect.forkChild(cache.getOrCompute(K, compute("K", 3)));
+                const owner = yield* Effect.forkChild(lookup(K));
                 for (let i = 0; i < gap; i++) yield* Effect.yieldNow;
                 // The joiner asks K while the owner is (maybe) still in flight.
-                const joiner = yield* Effect.forkChild(cache.getOrCompute(K, compute("K", 0)));
+                const joiner = yield* Effect.forkChild(lookup(K));
                 yield* Fiber.join(owner);
-                yield* Fiber.join(joiner);
-                const kComputes = computes.filter((c) => c === "K").length;
+                const joined = (yield* Fiber.join(joiner)).outcome;
+                const kWalks = walks.filter((attribute) => attribute === "k").length;
                 const followOn = [
-                  (yield* cache.getOrCompute(X, compute("X", 0))).outcome,
-                  (yield* cache.getOrCompute(Y, compute("Y", 0))).outcome,
-                  (yield* cache.getOrCompute(K, compute("K", 0))).outcome,
-                  (yield* cache.getOrCompute(K, compute("K", 0))).outcome,
+                  (yield* lookup(X)).outcome,
+                  (yield* lookup(Y)).outcome,
+                  (yield* lookup(K)).outcome,
+                  (yield* lookup(K)).outcome,
                 ];
-                return { kComputes, followOn };
+                return { joined, kWalks, followOn };
               }).pipe(
                 Effect.provide(
-                  Layer.mergeAll(testLayer(subject), decisionCacheLayer({ capacity: 2 })),
+                  Layer.mergeAll(
+                    testLayer(subject, { AttributeResolver: spinning }),
+                    decisionCacheLayer({ capacity: 2 }),
+                  ),
                 ),
                 Effect.provideService(Scheduler.MaxOpsBeforeYield, budget),
               );
+              sides.push(`${budget}:${outcomes.joined}`);
               // Capacity 2: X, Y evict K (FIFO), so K misses, then hits.
-              if (outcomes.kComputes !== 1 || outcomes.followOn.join(",") !== "miss,miss,miss,hit") {
+              if (outcomes.kWalks !== 1 || outcomes.followOn.join(",") !== "miss,miss,miss,hit") {
                 raced.push(`budget ${budget} gap ${gap}: ${JSON.stringify(outcomes)}`);
               }
             }
           }
           assert.deepStrictEqual(raced, []);
+          // The sweep lands on both sides of the owner's completion, at every budget.
+          const oneSided = [3, 4, 5, 6].filter(
+            (budget) => !sides.includes(`${budget}:coalesced`) || !sides.includes(`${budget}:hit`),
+          );
+          assert.deepStrictEqual(oneSided, []);
         }),
+      // 196 runs, each building its own layers, can outlast vitest's default
+      // 5 s on a loaded runner with no bug present.
+      30_000,
     );
   });
 
