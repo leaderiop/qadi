@@ -6,14 +6,36 @@
  * name from each private module is refused, since out of the barrel means not
  * importable (ADR-QD-099). The values are pinned by `surface.test.ts`.
  */
+import type * as Effect from "effect/Effect";
+import type * as Layer from "effect/Layer";
+import type * as Scope from "effect/Scope";
 import { expect, test } from "tstyche";
-import type { AskedQuestionLike, GateInstanceLike, GateRegistryLike } from "../src/index.ts";
-import type { AskedQuestionLike as ReactAskedQuestionLike } from "../src/react/index.ts";
+import {
+  makeDiagnosticsFeed,
+  makeGatesFeed,
+  makeTimelineFeed,
+  type AskedQuestionLike,
+  type DiagnosticsFeed,
+  type DiagnosticsOptions,
+  type DiagnosticsReadout,
+  type GateInstanceLike,
+  type GateRegistryLike,
+  type GatesFeed,
+  type GatesSnapshot,
+  type PortCallCollector,
+  type TimelineFeed,
+  type TimelineStatusReadout,
+} from "../src/index.ts";
+import type {
+  AskedQuestionLike as ReactAskedQuestionLike,
+  DiagnosticsOptions as ReactDiagnosticsOptions,
+} from "../src/react/index.ts";
 
 export type {
   ActedCall,
   Answer,
   AskedQuestionLike,
+  AskedRead,
   AttributeCall,
   Baseline,
   BaselineCaveat,
@@ -30,9 +52,12 @@ export type {
   CustomPredicateCall,
   DecisionEventSource,
   Diagnostics,
+  DiagnosticsFeed,
   DiagnosticsOptions,
   DiagnosticsReading,
-  DiagnosticsStore,
+  DiagnosticsReadout,
+  DiagnosticsSnapshot,
+  DiagnosticsStatus,
   EditDirection,
   EditKind,
   EvaluationPorts,
@@ -41,6 +66,9 @@ export type {
   Filters,
   GateInstanceLike,
   GateRegistryLike,
+  GatesFeed,
+  GatesFeedInputs,
+  GatesSnapshot,
   HeldChoice,
   HydrationActivity,
   HydrationDrops,
@@ -64,6 +92,7 @@ export type {
   PortReport,
   RecordOutcome,
   Recovered,
+  RegistryRead,
   RelationshipCall,
   ResourceText,
   RunKind,
@@ -89,6 +118,10 @@ export type {
   SweepPlan,
   Timeline,
   TimelineEntry,
+  TimelineFeed,
+  TimelineFeedInputs,
+  TimelineStatus,
+  TimelineStatusReadout,
   TimelineStore,
   UnseededField,
   Verdict,
@@ -99,13 +132,14 @@ export type {
   WiringReport,
 } from "../src/index.ts";
 
+// The root now exports four of these names too; aliasing keeps both lists in one module.
 export type {
   DevtoolsDockProps,
-  DiagnosticsDockOptions,
-  DiagnosticsSnapshot,
-  DiagnosticsStatus,
+  DiagnosticsOptions as ReactDiagnosticsOptions,
+  DiagnosticsSnapshot as ReactDiagnosticsSnapshot,
+  DiagnosticsStatus as ReactDiagnosticsStatus,
   SimulationSessionView,
-  TimelineStatus,
+  TimelineStatus as ReactTimelineStatus,
   UseSimulationSessionInput,
   UseTimeline,
 } from "../src/react/index.ts";
@@ -195,14 +229,45 @@ export { PolicyTree } from "../src/react/index.ts";
 // @ts-expect-error no exported member
 export { drawLens } from "../src/react/index.ts";
 
-// @ts-expect-error no exported member
-export { makeDiagnosticsFeed } from "../src/index.ts";
+// The stores' runners and the feeds' private readouts are package-private (ADR-QD-173):
+// a host builds a feed, it does not run a store.
 
 // @ts-expect-error no exported member
-export { makeGatesFeed } from "../src/index.ts";
+export { makeTimelineStore } from "../src/index.ts";
 
 // @ts-expect-error no exported member
-export { makeTimelineFeed } from "../src/index.ts";
+export { runSource } from "../src/index.ts";
+
+// @ts-expect-error no exported member
+export { makeDiagnosticsStore } from "../src/index.ts";
+
+// @ts-expect-error no exported member
+export { runDiagnostics } from "../src/index.ts";
+
+// @ts-expect-error no exported member
+export { noDiagnostics } from "../src/index.ts";
+
+// @ts-expect-error no exported member
+export { idleTimeline } from "../src/index.ts";
+
+// @ts-expect-error no exported member
+export { idleTimelineStatus } from "../src/index.ts";
+
+// @ts-expect-error no exported member
+export { idleDiagnostics } from "../src/index.ts";
+
+// @ts-expect-error no exported member
+export { isUnsampled } from "../src/index.ts";
+
+// @ts-expect-error no exported member
+export type { DiagnosticsStore } from "../src/index.ts";
+
+// One option shape, `DiagnosticsOptions`; the dock-only name is gone from both entries.
+// @ts-expect-error no exported member
+export type { DiagnosticsDockOptions } from "../src/index.ts";
+
+// @ts-expect-error no exported member
+export type { DiagnosticsDockOptions as ReactDiagnosticsDockOptions } from "../src/react/index.ts";
 
 // @ts-expect-error no exported member
 export { useStoreSnapshot } from "../src/react/index.ts";
@@ -219,4 +284,29 @@ test("GateRegistryLike is the two methods react's registry has, and no more", ()
     readonly instances: () => ReadonlyArray<GateInstanceLike>;
     readonly subscribe: (listener: () => void) => () => void;
   }>();
+});
+
+test("React's DiagnosticsOptions is the root's", () => {
+  expect<ReactDiagnosticsOptions>().type.toBe<DiagnosticsOptions>();
+});
+
+test("DiagnosticsOptions is a layer, a collector and an interval, and nothing else", () => {
+  expect<DiagnosticsOptions>().type.toBe<{
+    readonly layer?: Layer.Layer<never, unknown>;
+    readonly collector?: PortCallCollector;
+    readonly intervalMillis?: number;
+  }>();
+});
+
+test("each feed is built in a scope and fails with nothing", () => {
+  expect(makeTimelineFeed()).type.toBe<Effect.Effect<TimelineFeed, never, Scope.Scope>>();
+  expect(makeDiagnosticsFeed()).type.toBe<Effect.Effect<DiagnosticsFeed, never, Scope.Scope>>();
+  expect(makeGatesFeed()).type.toBe<Effect.Effect<GatesFeed, never, Scope.Scope>>();
+  expect(makeDiagnosticsFeed).type.toBeCallableWith({ intervalMillis: 1_000 });
+});
+
+test("a handle's parts are nameable (TS2883)", () => {
+  expect<TimelineFeed["status"]>().type.toBe<TimelineStatusReadout>();
+  expect<DiagnosticsFeed>().type.toBeAssignableTo<DiagnosticsReadout>();
+  expect<ReturnType<GatesFeed["getSnapshot"]>>().type.toBe<GatesSnapshot>();
 });

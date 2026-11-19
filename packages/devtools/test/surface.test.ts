@@ -2,11 +2,11 @@
  * The interface of `@qadi/devtools`, as a list (ARCH-40, ADR-QD-047's amendment).
  *
  * The barrels name their exports, so the list of values below *is* the
- * interface a host crosses: the three stores (`TimelineStore`,
- * `SimulationSession`, `DiagnosticsStore`) with their runners, the host wiring
- * the dock takes, and the timeline readings ADR-QD-047 lists. A screen's
- * mechanics (form codecs, sweep planning, remedies, capture, replay, role
- * trees, gate grouping, lens geometry) are package-private.
+ * interface a host crosses: the three feeds a shell builds in a scope, the
+ * simulation session, the host wiring the dock takes, and the timeline
+ * readings. The stores' engines and a screen's mechanics (form codecs, sweep
+ * planning, remedies, capture, replay, role trees, gate grouping, lens
+ * geometry) are package-private.
  *
  * Changing the list is three deliberate edits, not one: the barrel line, a
  * `spec/overview.md` row (gate 13), and this file. The types are pinned by
@@ -17,14 +17,18 @@ import * as ReactEntry from "../src/react/index.ts";
 import * as Root from "../src/index.ts";
 
 const ROOT_VALUES: ReadonlyArray<string> = [
+  "AskedRead",
   "DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS",
   "DEFAULT_PORT_CALL_CAPACITY",
   "DEFAULT_TIMELINE_CAPACITY",
+  "DiagnosticsStatus",
   "Evicted",
   "NoSelection",
+  "RegistryRead",
   "Selected",
   "TimelineDecision",
   "TimelineOrphan",
+  "TimelineStatus",
   "WiringRead",
   "applyFilters",
   "catalogueOf",
@@ -44,18 +48,16 @@ const ROOT_VALUES: ReadonlyArray<string> = [
   "isNeverResolved",
   "isTruncated",
   "isUnfiltered",
-  "makeDiagnosticsStore",
+  "makeDiagnosticsFeed",
+  "makeGatesFeed",
   "makeSimulationSession",
-  "makeTimelineStore",
+  "makeTimelineFeed",
   "mergeReading",
   "mergeSources",
-  "noDiagnostics",
   "noFilters",
   "pairedEntries",
   "pairsOf",
   "portActivity",
-  "runDiagnostics",
-  "runSource",
   "searchTextOf",
   "selectionOf",
   "sourceFromEventSource",
@@ -78,7 +80,7 @@ const REACT_VALUES: ReadonlyArray<string> = [
 ];
 
 describe("@qadi/devtools' interface (ADR-QD-047, ADR-QD-099)", () => {
-  it("the root exports exactly the stores, the host wiring and the timeline readings", () => {
+  it("the root exports exactly the feeds, the session, the host wiring and the timeline readings", () => {
     assert.deepStrictEqual(Object.keys(Root).sort(), [...ROOT_VALUES].sort());
   });
 
