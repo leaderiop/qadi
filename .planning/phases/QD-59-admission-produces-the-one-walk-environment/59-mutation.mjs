@@ -28,7 +28,9 @@ const MOVED = [PR, WK];
 // Declared before the change (D-13, D-15, D-16): code the change deletes. None may remain in the after file's code.
 const DELETED = {
   [AD]: ["readonly question: Question"],
-  [PR]: ["const supplied: Supplied<true> =", "admitted.question", "compileTree(admitted.success)"],
+  // "compileTree(admitted.success)" was declared here too; review fix WR-02 (4da12142, owner-approved 2026-11-19)
+  // made `Admitted` carry its policy again, which restored that exact base call, so it is no longer a deletion.
+  [PR]: ["const supplied: Supplied<true> =", "admitted.question"],
   [WK]: [
     "const request: Evaluation = {",
     "supplied: { action: question.action !== undefined, resource: question.resource !== undefined }",
