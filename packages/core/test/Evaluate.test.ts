@@ -1445,10 +1445,10 @@ describe("the action dimension", () => {
     "subject, resource and action references all resolve correctly through Not/Rules/Labeled",
     () =>
       Effect.gen(function* () {
-        // `matcherContext` is now built once, in `evaluate`'s `Effect.suspend`,
-        // and threaded as a parameter through `evaluateNode` and its
-        // `AllOf`/`Rules` helpers rather than rebuilt inside every
-        // `evaluateNode` call. This exercises every shape that threading has
+        // `matcherContext` is built once by `admit`, in `evaluate`'s
+        // `Effect.suspend`, and read from the walk environment
+        // (`request.admitted`) at every node rather than rebuilt inside every
+        // `evaluateNode` call. This exercises every shape that reading has
         // to survive in one tree: two nested `Not`s (each a `depth + 1`
         // recursive call), a `Rules` table's sequential walk, and `Labeled`'s
         // wrapper — with a leaf under each reading a different one of

@@ -17,11 +17,12 @@
  * evaluation this is a lookup. `evaluateNode` keeps its own per-node guard as
  * defense in depth.
  *
- * The walk environment (the subject, what the request supplied, what its
- * matchers see and the depth bound) depends only on the question and on where
- * the interpreter's resource comes from, both invariant across the whole
- * recursive walk, so it is built here once rather than at every node; each
- * interpreter states only its row source (ADR-QD-172). Callers must call
+ * The walk environment (the row source, the policy it admitted, the subject,
+ * what the request supplied, what its matchers see and the depth bound) depends
+ * only on the question and on where the interpreter's resource comes from, both
+ * invariant across the whole recursive walk, so it is built here once rather
+ * than at every node; each interpreter states only its row source
+ * (ADR-QD-172). Callers must call
  * {@link admit} lazily (inside `Effect.suspend`), so a cache hit never builds an
  * environment it would not use.
  */
@@ -42,16 +43,6 @@ import type { Question } from "./Question.ts";
 export type RowSource = "asked" | "row";
 
 /**
- * Whether the resource is supplied, one row per row source: the asked resource
- * when the question has one, and the row always. A row source without a row
- * here does not compile.
- */
-const RESOURCE_SUPPLIED: { readonly [Source in RowSource]: (question: Question) => boolean } = {
-  asked: (question) => question.resource !== undefined,
-  row: () => true,
-};
-
-/**
  * What a request supplied, per row source: the asked resource may be absent, and
  * a row is always there. A row source without an entry here does not compile.
  */
@@ -59,6 +50,19 @@ interface SuppliedBy {
   readonly asked: Supplied;
   readonly row: Supplied<true>;
 }
+
+/**
+ * What a request supplied, one row per row source. Each row is checked against
+ * its {@link SuppliedBy} type, so a row that claims a resource it does not have
+ * does not compile, and a row source without a row here does not compile either.
+ */
+const SUPPLIED: { readonly [Source in RowSource]: (question: Question) => SuppliedBy[Source] } = {
+  asked: (question) => ({
+    action: question.action !== undefined,
+    resource: question.resource !== undefined,
+  }),
+  row: (question) => ({ action: question.action !== undefined, resource: true }),
+};
 
 /**
  * A question shown to be no deeper than its `maxDepth`, and everything both
@@ -88,25 +92,18 @@ export class Admitted<Source extends RowSource = RowSource> {
  * Depth is judged on the policy alone (INV-QD-037); what the request supplied
  * is a function of the row source and the question (INV-QD-364).
  */
-export function admit<Source extends RowSource>(
+export const admit = <Source extends RowSource>(
   question: Question,
   rowSource: Source,
-): Result.Result<Admitted<Source>, PolicyTooDeep>;
-export function admit(
-  question: Question,
-  rowSource: RowSource,
-): Result.Result<Admitted, PolicyTooDeep> {
-  return policyDepth(question.policy) > question.maxDepth
+): Result.Result<Admitted<Source>, PolicyTooDeep> =>
+  policyDepth(question.policy) > question.maxDepth
     ? Result.fail(new PolicyTooDeep({ maxDepth: question.maxDepth }))
     : Result.succeed(
         new Admitted(
           rowSource,
           question.policy,
           question.subject,
-          {
-            action: question.action !== undefined,
-            resource: RESOURCE_SUPPLIED[rowSource](question),
-          },
+          SUPPLIED[rowSource](question),
           {
             subject: question.subject.attributes,
             subjectId: question.subject.id,
@@ -116,4 +113,3 @@ export function admit(
           question.maxDepth,
         ),
       );
-}

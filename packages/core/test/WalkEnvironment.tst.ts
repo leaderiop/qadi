@@ -24,7 +24,7 @@ test("recursion passes the policy, the environment and one depth, in that order"
   expect<Environment>().type.not.toBeAssignableTo<number>();
 });
 
-test("the environment holds the subject, what was supplied, the matcher context and the bound", () => {
+test("the environment holds its row source, the admitted policy, the subject, what was supplied, the matcher context and the bound", () => {
   expect<keyof Admitted>().type.toBe<
     "source" | "policy" | "subject" | "supplied" | "matcherContext" | "maxDepth"
   >();

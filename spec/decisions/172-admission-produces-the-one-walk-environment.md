@@ -52,7 +52,10 @@ Each item cites the phase decision it records.
    its matcher context holds none, so it cannot reach the walk: `Evaluation.admitted` is `Admitted<"asked">`, and
    `compileTree` takes `Admitted<"row">`. The environment also carries the policy it admitted, which both interpreters
    walk from, so the depth proof cannot be paired with a deeper tree (recursion still passes each child node).
-   `RESOURCE_SUPPLIED` is one closed row per row source: a row source without a row does not compile.
+   `SUPPLIED` is one closed table with a row per row source, typed `{ [Source in RowSource]: (question) =>
+   SuppliedBy[Source] }`, so each row is checked against its own type: a row source without a row does not compile, and
+   a `"row"` row that stops supplying the resource, or an `"asked"` row that claims one, fails with TS2322.
+   `admit` is one generic signature with no overload and no wider implementation signature.
 4. **D-03 and D-16: recursion passes `(policy, request, depth)`.** `maxDepth` moved into the environment, so the
    recursion carries one number and a depth cannot land where the bound belongs and compile. All 13 sites use the new
    shape (D-16), and `WalkEnvironment.tst.ts` pins it with a negative (WENV-03).
@@ -184,8 +187,10 @@ Median of per-run minima (ns); delta is final over base.
 | filter — 500 items, concurrency :: concurrency: unbounded | 4,331,792 | 4,324,042 | -0.2% | 5.3% | 10.0% | ok |
 | filter — 500 items, concurrency :: sequential (default) | 4,297,666 | 4,212,459 | -2.0% | 0.4% | 10.0% | ok |
 
-The positive geomean and worst delta are inside every workload's 10% band. The after-run measured the final code, whose
-`supplied` rule is a table (`RESOURCE_SUPPLIED`) rather than the prototype's inline conditional.
+The positive geomean and worst delta are inside every workload's 10% band. The after-run measured the code as it stood
+after review iteration 1, whose `supplied` rule was a table (`RESOURCE_SUPPLIED`) behind an overload. Iteration 2 merged
+it into the one typed table `SUPPLIED` and dropped the overload; that is the same single lookup per admission and was
+not re-benched.
 
 ## Alternatives rejected
 
@@ -197,7 +202,8 @@ The positive geomean and worst delta are inside every workload's 10% band. The a
   return with a different pair of numbers.
 - **The prototype's inline `supplied` conditional.** A mutant replacing `"asked"` survived as equivalent, which D-15
   refuses. The table kills it and makes a missing row source a compile error.
-- **A cast to `Supplied<true>` in `toPredicate`.** `as` is forbidden (AGENTS.md §6); the `"row"` overload says it.
+- **A cast to `Supplied<true>` in `toPredicate`.** `as` is forbidden (AGENTS.md §6). An overload over a wider implementation signature is the same cast
+  (ADR-QD-160 R7), so `admit` is one generic function whose body typechecks as `Admitted<Source>` through `SUPPLIED`.
 
 ## Mutation
 
@@ -248,7 +254,8 @@ its 10% band; **gate: pass**.
   state the two properties and BEH-QD-631..635 the behaviours, and INV-QD-037 names the environment. They are written
   with the specification, not here.
 - **A new request-supplied fact has one home.** It is added to the environment and `admit`'s one construction site, and
-  both interpreters read it; a new row source is one more row in `RESOURCE_SUPPLIED`, which does not compile without it.
+  both interpreters read it; a new row source is one more row in `SUPPLIED`, which does not compile without it, and each row
+  is checked against its `SuppliedBy` type.
 - **ADR-QD-024, ADR-QD-100 and ADR-QD-163 are amended**, each with a pointer here, not rewritten: the two walks stay two,
   and what changed is where each reads its environment from.
 
