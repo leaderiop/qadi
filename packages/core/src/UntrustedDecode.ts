@@ -176,8 +176,10 @@ const project =
 const keepEverything = (input: unknown): unknown => input;
 
 /**
- * The projection each policy builds, read by indexing and never compared with `===`: a policy outside the
- * closed union finds no row and throws when the decoder is built, rather than reading as the other one.
+ * The projection each policy builds, read through its own keys and never compared with `===`: a policy
+ * outside the closed union finds no row and throws when the decoder is built, rather than reading as the
+ * other one. `Object.hasOwn`, not a bare index (`FieldLattice.ts`'s law table does the same): a name such as
+ * `constructor` is inherited from `Object.prototype` and would otherwise read as a row.
  */
 const PROJECTION: Readonly<Record<UnknownKeyPolicy, (ast: SchemaAST.AST) => Projection>> = {
   refuse: () => keepEverything,
@@ -209,6 +211,13 @@ export const untrustedDecoder = <
   const strict = Schema.decodeUnknownResult(schema, UNTRUSTED_DECODE_OPTIONS);
   const unwalked: ReadonlySet<string> = new Set(options.unwalked);
   const prepare = options.prepare;
+  if (!Object.hasOwn(PROJECTION, options.unknownKeys)) {
+    throw new Error(
+      `untrustedDecoder: unknownKeys must be ${Object.keys(PROJECTION)
+        .map((policy) => `"${policy}"`)
+        .join(" or ")}, got ${String(options.unknownKeys)}`,
+    );
+  }
   const projection = PROJECTION[options.unknownKeys](schema.ast);
 
   const walked = (input: unknown): unknown =>
