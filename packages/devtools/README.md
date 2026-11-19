@@ -206,10 +206,15 @@ export const watch = Effect.fn("example.watch")(function* (report: (line: string
   const diagnostics = yield* makeDiagnosticsFeed({ intervalMillis: 1_000 });
   const gates = yield* makeGatesFeed(host);
 
-  timeline.timeline.subscribe(() => report(`${timeline.timeline.getSnapshot().entries.length} entries`));
-  timeline.status.subscribe(() => report(timelineLine(timeline.status.getSnapshot())));
-  diagnostics.subscribe(() => report(diagnosticsLine(diagnostics.getSnapshot().status)));
-  gates.subscribe(() => report(`gates: ${gates.getSnapshot().registry._tag}`));
+  // A feed can already be Live or Stopped when its build returns, so say where it is once, then every change.
+  const follow = (subscribe: (listener: () => void) => () => void, line: () => string) => {
+    report(line());
+    subscribe(() => report(line()));
+  };
+  follow(timeline.timeline.subscribe, () => `${timeline.timeline.getSnapshot().entries.length} entries`);
+  follow(timeline.status.subscribe, () => timelineLine(timeline.status.getSnapshot()));
+  follow(diagnostics.subscribe, () => diagnosticsLine(diagnostics.getSnapshot().status));
+  follow(gates.subscribe, () => `gates: ${gates.getSnapshot().registry._tag}`);
 
   return { log, timeline, diagnostics, gates };
 });
@@ -218,6 +223,10 @@ export const watch = Effect.fn("example.watch")(function* (report: (line: string
 export const run = (report: (line: string) => void, host: HostInputs = {}) =>
   Effect.scoped(Effect.andThen(watch(report, host), Effect.never));
 ```
+
+Read `getSnapshot()` once after subscribing, as `follow` does: a feed can already
+be `Live` or `Stopped` when its build returns, and a subscription hears only what
+changes after it.
 
 `log.layer` is the application's sink, the `DecisionSink` for the code that
 evaluates. `timeline.status.restart()` and `diagnostics.restart()` restart a stopped
