@@ -628,7 +628,7 @@ The headless model that decides this is [ADR-QD-047](https://github.com/leaderio
 | `unsupported-version` | `UnsupportedVersion` |
 | `inconsistent` | `Inconsistent` |
 
-`not-a-record` named both a bare record and a record the wire does not describe; both are now `Malformed`, and its `message` tells them apart. Before:
+`not-a-record` named both a bare record and a record the wire does not describe; both are now `Malformed`. A bare record's `message` is the decoder's own, a missing `environment`, and a record the wire does not describe carries the record decoder's. Before:
 
 ```ts
 import { sourceFromEventSource } from "@qadi/devtools";
@@ -922,3 +922,45 @@ One behaviour changes with the move. A questions input that throws is now stated
 `DiagnosticsReading.questions` is unchanged. A reading taken in another process still carries its own questions, a list a reading supplies wins over the input, and the input's failure is then not stated. The Questions panel's markup, words and `data-testid`s are unchanged.
 
 The decision is [ADR-QD-169](https://github.com/leaderiop/qadi/blob/main/spec/decisions/169-the-questions-panels-two-host-inputs-are-one-feed.md).
+
+## 0.13: untrustedDecoder states the envelope's unknown-key policy
+
+`@qadi/core`'s `untrustedDecoder` now takes a required options object, and its `unknownKeys` is required: `UnknownKeyPolicy`, a new export, is `"refuse" | "ignore"`. It says what the decoder does with a top-level key its schema does not declare. A call that passed no options passes `{ unknownKeys: "refuse" }`, and a call that passed `unwalked` or `prepare` adds `unknownKeys: "refuse"` beside it. Both keep every answer they gave. Before:
+
+```ts
+import { untrustedDecoder } from "@qadi/core";
+
+export const decodeSettings = untrustedDecoder(Settings);
+```
+
+After:
+
+```typescript
+import * as Result from "effect/Result";
+import * as Schema from "effect/Schema";
+import { untrustedDecoder } from "@qadi/core";
+
+const Settings = Schema.Struct({ name: Schema.String });
+const decodeSettings = untrustedDecoder(Settings, { unknownKeys: "refuse" });
+
+export const settings = decodeSettings.decodeText('{"name":"x"}');
+export const refused = Result.isFailure(settings) ? settings.failure._tag : undefined;
+```
+
+`"ignore"` is for a versioned envelope a newer producer may extend, and the library states it twice: the decision record's wire and the stored `{ environment, record }` envelope.
+
+Two answers widen. A record, and so an audit row or an archive entry that carries one, whose record has an unknown top-level key nested past the decode bound now decodes (`decodeSinkRecord`, `decodeSinkRecordString`, `decodeSinkRecordWithJson`, `decodeAuditEntry` and `readAuditArchive`). It was `TooDeep`. With `version: 3` it is `UnsupportedVersion`. An unknown key inside the policy, and the audit row's and the archive's own unknown keys, are still refused.
+
+`decodeStoredRecord` and `decodeStoredRecordString` keep every refusal tag and carry the strict decoder's messages:
+
+| Input | Before | After |
+| ----- | ------ | ----- |
+| not an object | `a stored record is a JSON object { environment, record }` | `Expected object` |
+| no `environment`, and no `record` (a bare record, `{}`) | `a bare record, not a stored-record envelope { environment, record }` | `Missing key` at `["environment"]` |
+| `record` and no `environment` | `a stored record's environment is not a string` | `Missing key` at `["environment"]` |
+| `environment` not a string | `a stored record's environment is not a string` | `Expected string` at `["environment"]` |
+| `environment` and no `record` | `a stored record names no record` | `Missing key` at `["record"]` |
+
+An `environment` nested past the decode bound is now `TooDeep`, where it was `Malformed`. A caller that matches `_tag` is unaffected; a caller that matched on a message reads the new ones.
+
+The decision is [ADR-QD-170](https://github.com/leaderiop/qadi/blob/main/spec/decisions/170-an-envelope-states-its-unknown-key-policy-at-its-decoder.md).
