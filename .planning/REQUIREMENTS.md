@@ -63,10 +63,10 @@
 
 ### Devtools' headless interface is the feeds (Phase 60, ARCH-107, devtools; human checkpoint, Breaking)
 
-- [ ] **HDLS-01**: The user decides at a checkpoint before planning whether to make the feeds the headless interface. "No" ends the phase with a recorded rejection in ADR-QD-173, and HDLS-02 to HDLS-04 are marked "Not pursued (decided)".
-- [ ] **HDLS-02**: The timeline and diagnostics feeds (and the gate feed, if the user chooses) are exported from devtools' root. `makeTimelineStore`/`runSource` and `makeDiagnosticsStore`/`runDiagnostics` are retired from the barrel.
-- [ ] **HDLS-03**: One option shape configures the diagnostics poll, and the README's headless example uses the feeds.
-- [ ] **HDLS-04**: The feed tests run against the public entry. `surface.test.ts`, `spec/overview.md` (gate 13) and ADR-047 amendment 1.6 / ADR-099 are updated. **Breaking** in the changeset and in `upgrading.md`.
+- [x] **HDLS-01**: The user decides at a checkpoint before planning whether to make the feeds the headless interface. "No" ends the phase with a recorded rejection in ADR-QD-173, and HDLS-02 to HDLS-04 are marked "Not pursued (decided)".
+- [x] **HDLS-02**: The timeline and diagnostics feeds (and the gate feed, if the user chooses) are exported from devtools' root. `makeTimelineStore`/`runSource` and `makeDiagnosticsStore`/`runDiagnostics` are retired from the barrel.
+- [x] **HDLS-03**: One option shape configures the diagnostics poll, and the README's headless example uses the feeds.
+- [x] **HDLS-04**: The feed tests run against the public entry. `surface.test.ts`, `spec/overview.md` (gate 13) and ADR-047 amendment 1.6 / ADR-099 are updated. **Breaking** in the changeset and in `upgrading.md`.
 
 ### DecisionCache is asked only the question (Phase 61, ARCH-108, core; human checkpoint)
 
@@ -143,10 +143,10 @@ The seven WX rows apply to every phase 53 to 61, so each phase's Requirements li
 | WENV-02 | Phase 59 | Complete |
 | WENV-03 | Phase 59 | Complete |
 | WENV-04 | Phase 59 | Complete |
-| HDLS-01 | Phase 60 | Pending |
-| HDLS-02 | Phase 60 | Pending |
-| HDLS-03 | Phase 60 | Pending |
-| HDLS-04 | Phase 60 | Pending |
+| HDLS-01 | Phase 60 | Complete |
+| HDLS-02 | Phase 60 | Complete |
+| HDLS-03 | Phase 60 | Complete |
+| HDLS-04 | Phase 60 | Complete |
 | CASK-01 | Phase 61 | Pending |
 | CASK-02 | Phase 61 | Pending |
 | CASK-03 | Phase 61 | Pending |
