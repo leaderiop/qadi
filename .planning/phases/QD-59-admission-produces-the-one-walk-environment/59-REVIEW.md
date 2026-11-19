@@ -1,7 +1,8 @@
 ---
 phase: QD-59-admission-produces-the-one-walk-environment
-reviewed: 2026-11-19T05:37:36Z
+reviewed: 2026-11-19T06:00:32Z
 depth: standard
+iteration: 2
 files_reviewed: 6
 files_reviewed_list:
   - packages/core/src/Admission.ts
@@ -12,126 +13,117 @@ files_reviewed_list:
   - packages/core/test/WalkEnvironment.tst.ts
 findings:
   critical: 0
-  warning: 2
+  warning: 1
   info: 2
-  total: 4
+  total: 3
   necessity: 0
 status: issues_found
 ---
 
-# Phase 59: Code Review Report
+# Phase 59: Code Review Report (iteration 2)
 
-**Reviewed:** 2026-11-19T05:37:36Z
+**Reviewed:** 2026-11-19T06:00:32Z
 **Depth:** standard
 **Files Reviewed:** 6
 **Status:** issues_found
 
 ## Summary
 
-I reviewed the diff from `83cbd5c5` to `HEAD` for the six files in scope.
+I reviewed `git diff 83cbd5c5 HEAD` for the six files, and fix commit `4da12142` on its own.
 
-**Clean on the points I was asked to check:**
-- **`"asked"` path.** `walk` admits with `"asked"`. `supplied.resource` is `question.resource !== undefined`, and `matcherContext.resource` is `question.resource`, so the two agree. A resource leaf with no resource fails `MissingResource` (confirmed by running it).
-- **Divergence.** Both interpreters read `maxDepth`, `action` and `supplied` from the one `admit`.
-- **Hot path.** The environment is built once per walk, inside `Effect.suspend`, so a cache hit never runs `admit`.
-- **Stale docs.** No comment in the six files still describes the six-argument tuple or `Admitted.question`. A grep of `packages/` and `spec/` found none either.
-- **House rules.** No `as`, `!`, `any` or new `switch` was added. Type-only imports use `import type`.
+**The iteration-1 fixes hold.**
+- **WR-01 is fixed.** `Admitted<Source extends RowSource>` stores `source: Source`, so `Admitted<"row">` is not assignable to `Evaluation.admitted: Admitted<"asked">`. The tstyche negatives pin both directions. `WalkDepthGuard.test.ts` now admits with `"asked"`.
+- **WR-02 is fixed.** `Admitted.policy` is set from `question.policy`. `walk` starts from `admitted.success.policy`, and `compileTree(admitted: Admitted<"row">)` folds `admitted.policy`. Neither interpreter takes a policy separately from the proof any more. As instructed, no brand was added.
+- **IN-01 is fixed.** `Result.getOrThrow` gives one failure path. If admission failed, the throw would become a defect inside `Effect.gen`, which `Effect.flip` does not turn into a pass. So the helper cannot hide a failure. Both tests pass (`vitest --project core`: 15 of 15 across the two files).
+- **IN-02 is fixed.** `Environment["admitted"]` is pinned to the named `Admitted<"asked">`, not compared with itself.
 
-**Two weaknesses are new in this phase.** Both concern the claim "holding an `Admitted` is the proof":
-- **WR-01.** Under `"row"`, the environment stores two facts about the resource that disagree: `supplied.resource` is `true`, but `matcherContext.resource` is `undefined`. The walk's parameter type accepts this row environment. Fed to `evaluateNode`, `not(hasResourceAttribute(...))` returns **allow** instead of `MissingResource`; I confirmed this by running it. The only caller that does this today is a test, `WalkDepthGuard.test.ts`.
-- **WR-02.** `Admitted` no longer carries the policy it admitted. The depth proof therefore no longer covers the policy each interpreter walks, and a comment in `Predicate.ts` still says it does.
+**Clean on the points in the brief.**
+- **Fail-open.** Under `"asked"`, `supplied.resource` is `question.resource !== undefined`, and `matcherContext.resource` is `question.resource`. The two agree at runtime, and Admission.test.ts E1–E4 pin it.
+- **Divergence.** Depth, action and resource come from one `admit` in both interpreters.
+- **Hot path.** `admit` runs once per walk, inside `Effect.suspend`. A cache hit never runs it.
+- **Stale docs in the six files.** None mention the six-argument tuple or `Admitted.question`.
+- **House rules.** No `as`, `!`, `any`, new `switch` or `Record<string, unknown>`. `effect` imports are namespace imports.
 
-I read `necessity-review.md`. No finding qualifies as a necessity finding. The walk's own depth guard is deliberate defence in depth (ADR-QD-172), and `RESOURCE_SUPPLIED` has two rows.
+**One new weakness, and it comes from the fix itself (WR-01).** The fix made `admit` a generic overload over a wider implementation signature. That overload is the only thing that turns a runtime `boolean` into the type `Supplied<true>`. So the type-level proof is now an unchecked assertion. I compiled a direct, checked alternative.
+
+I read `necessity-review.md`. No finding qualifies. `source` is never read at runtime, but it does real work: it is the discriminant that keeps the two environments apart.
 
 ## Narrative Findings (AI reviewer)
 
 ## Warnings
 
-### WR-01: A row-sourced environment typechecks as a walk environment, and the walk then fails open on a resource leaf
+### WR-01: `admit`'s generic overload asserts `Supplied<true>` without checking it, and the fact lives in two unconnected tables
 
-**File:** `packages/core/src/Walk.ts:62-63`, `packages/core/src/Walk.ts:356-359`, `packages/core/src/Admission.ts:59-64`, `packages/core/src/Admission.ts:88-99`, `packages/core/test/WalkDepthGuard.test.ts:19`
+**File:** `packages/core/src/Admission.ts:49-52`, `packages/core/src/Admission.ts:58-61`, `packages/core/src/Admission.ts:91-119`
 
 **Issue:**
-- **Two facts that disagree.** `admit(question, "row")` sets `supplied.resource: true`. `matcherContext.resource` is still `question.resource`, and `toPredicate` sets that to `undefined` (`Predicate.ts:659`). So an `Admitted<true>` stores two facts about the resource that disagree. This contradicts ADR-QD-172 D-02: "each fact is stored once and nowhere else".
-- **The type lets it into the walk.** `Evaluation.admitted` is typed `Admitted`, which is `Admitted<boolean>`, and `Admitted<true>` is assignable to it. Nothing stops a row environment from entering `evaluateNode`.
-- **What the walk does with it.** In `HasResourceAttribute`, `absenceOf(policy, supplied)` passes because `supplied.resource` is `true`. Then `resource ?? NO_RESOURCE` reads `{}`. The comment there, "`absenceOf` has ruled out an absent resource; the `??` is the type's", is false for this environment.
-- **Reproduced.** I ran `evaluateNode(not(hasResourceAttribute("owner", eq(literal("u7")))), { admitted: <admit(q, "row")>, concurrency: undefined }, 0)` through tsx against the committed source:
-  - With `"asked"`: `Fail(MissingResource)`.
-  - With `"row"`: `{ allowed: true }`.
-- **The fail-open case from the brief.** This is exactly "a resource leaf must fail `MissingResource`, never read `{}`", reached through a `supplied` that reads true when the question lacks a resource.
-- **Who reaches it today.** `walk` is correct, because it passes `"asked"`. But `evaluateNode` is now exported (D-14). The repo's own new test, `WalkDepthGuard.test.ts:19`, already builds the walk's environment with `"row"`, and the types did not object.
+- **The overload is unchecked.** The public signature returns `Result<Admitted<Source>, PolicyTooDeep>`. The implementation signature returns the wider `Result<Admitted, PolicyTooDeep>`, which is `Admitted<RowSource>`. TypeScript checks an implementation only against that wider signature. So nothing checks that `"row"` really produces `supplied.resource === true`, or that `source` equals the `Source` the caller passed. The overload works as a cast, which AGENTS.md §6 forbids. ADR-QD-160 rejects the same pattern as R7: "an overload whose implementation widens … dodges `as` by widening the implementation type".
+- **The fact is stated twice, and the two statements are not connected.**
+  - `SuppliedBy` (lines 58-61) states the type: `row: Supplied<true>`.
+  - `RESOURCE_SUPPLIED` (lines 49-52) states the value, and its rows are typed `(question) => boolean`.
+  - Nothing ties the two together. If `row: () => true` became `() => false`, or `asked` became `() => true` (the fail-open case in the brief), the code would still compile. `admit(q, "row").success.supplied.resource` would still be typed `true`.
+  - Today only the runtime tests catch this (Admission.test.ts E1–E5).
+- **Confirmed by compiling.** I built a standalone reproduction with the same types and ran the repo's `tsc --strict`. With `row: () => false` behind the overload, it compiles, and `const r: true = admit({}, "row").supplied.resource` typechecks.
+- **The ADR overclaims.**
+  - ADR-QD-172 Decision 3 says `toPredicate`'s `Supplied<true>` "stays precise without `as`".
+  - Its Consequences say "a new row source is one more row in `RESOURCE_SUPPLIED`, which does not compile without it". In fact a new row source needs a row in two tables, and the value row is not checked against the type row.
+  - Line 200 still refers to "the `"row"` overload", which no longer exists. There is now one generic overload.
 
-**Fix:** Index the environment by its row source, not by a boolean, so the walk's parameter names the one source it accepts. Also make the leaf fail closed instead of defaulting to `{}`:
+**Fix:** Merge the two tables into one table typed by `SuppliedBy`, then drop the overload. Indexing a mapped type with a generic key resolves to `SuppliedBy[Source]`. I checked with `tsc --strict` that the version below compiles, and that a `row` entry returning `resource: false` fails with TS2322:
 
 ```ts
-// Admission.ts
-export class Admitted<Source extends RowSource = RowSource> {
-  constructor(
-    readonly source: Source,
-    readonly subject: AuthSubject,
-    readonly supplied: Supplied<Source extends "row" ? true : boolean>,
-    readonly matcherContext: MatcherContext,
-    readonly maxDepth: number,
-  ) {}
-}
-// overloads: "row" -> Admitted<"row">, "asked" -> Admitted<"asked">
+/** What a request supplied, one row per row source; each row is checked against its type. */
+const SUPPLIED: { readonly [Source in RowSource]: (question: Question) => SuppliedBy[Source] } = {
+  asked: (question) => ({
+    action: question.action !== undefined,
+    resource: question.resource !== undefined,
+  }),
+  row: (question) => ({ action: question.action !== undefined, resource: true }),
+};
 
-// Walk.ts
-interface Evaluation {
-  readonly admitted: Admitted<"asked">;
-  readonly concurrency: Concurrency | undefined;
-}
-
-// Walk.ts, HasResourceAttribute: no `{}` default
-if (resource === undefined) return Effect.fail(new MissingResource({ attribute: policy.attribute }));
+export const admit = <Source extends RowSource>(
+  question: Question,
+  rowSource: Source,
+): Result.Result<Admitted<Source>, PolicyTooDeep> =>
+  policyDepth(question.policy) > question.maxDepth
+    ? Result.fail(new PolicyTooDeep({ maxDepth: question.maxDepth }))
+    : Result.succeed(
+        new Admitted(
+          rowSource,
+          question.policy,
+          question.subject,
+          SUPPLIED[rowSource](question),
+          { subject: question.subject.attributes, subjectId: question.subject.id,
+            resource: question.resource, action: question.action },
+          question.maxDepth,
+        ),
+      );
 ```
 
-Then change `WalkDepthGuard.test.ts:19` to `"asked"`, and add a tstyche negative showing that `admit(q, "row").success` is not assignable to `Parameters<typeof evaluateNode>[1]["admitted"]`. If the `source` field is unwanted, a phantom brand per source does the same job.
-
-### WR-02: `Admitted` no longer binds the policy it admitted, so the "proof" no longer covers what is walked
-
-**File:** `packages/core/src/Admission.ts:53-64`, `packages/core/src/Predicate.ts:345-346`, `packages/core/src/Predicate.ts:360`, `packages/core/src/Walk.ts:880`
-
-**Issue:**
-- **What the proof used to cover.** At the base, `Admitted.question.policy` was the policy whose depth `admit` had checked. `compileTree` and `walk` both walked that policy, so holding an `Admitted` proved that the tree being walked was no deeper than `maxDepth`.
-- **What changed.** The `question` field is gone (D-13). The policy now travels beside the proof, as `compileTree(policy, admitted)` and `evaluateNode(question.policy, ...)`. Nothing ties the two together.
-  - Today both call sites pass the policy they admitted (`Predicate.ts:659,674`, `Walk.ts:878-880`), so the behaviour is correct.
-  - But nothing in the types stops an `Admitted` from one policy being paired with a deeper one.
-- **Why it matters for `compileTree`.** It has no per-node depth guard; it relies on admission. A mismatched pair would recurse without bound on hostile decoded input, the exact case `maxDepth` exists for.
-- **The proof is also only structural.** `Admitted` has no private member or brand, and its constructor is public. So any object literal `{ subject, supplied, matcherContext, maxDepth }` typechecks as an `Admitted`. "Only `admit` builds one, so holding one is the proof" (`Admission.ts:57`) is therefore not enforced. This was already true at the base, but the claim matters more now that `supplied` and `maxDepth` live in the class.
-- **A stale comment.** `compileTree`'s doc (`Predicate.ts:345-346`) still says the tree's depth is decided "by the `{@link Admitted}` proof it demands". It no longer is.
-
-**Fix:**
-- **Bind the policy back in.** Give `Admitted` a `readonly policy: Policy`, the root policy, which is not the question. Have `walk` start from `admitted.policy` and `compileTree` read `admitted.policy`, so the depth proof and the tree it covers cannot be separated. Recursion keeps passing child policies, so the hot path is unchanged.
-- **Make the proof nominal.** Add a module-private brand so a structural literal no longer typechecks:
-  ```ts
-  declare const admittedBrand: unique symbol;
-  export class Admitted<...> { declare private readonly [admittedBrand]: true; ... }
-  ```
-- **If the owner keeps the four-field shape (D-13).** At minimum, correct `Predicate.ts:345-346` to say that depth is proved for the policy passed to `admit`, and that callers must pass that same policy.
+Then delete `RESOURCE_SUPPLIED`, and update ADR-QD-172 Decision 3, line 200 and the Consequences bullet to name `SUPPLIED`. The tstyche pins in `WalkEnvironment.tst.ts` stay as they are.
 
 ## Info
 
-### IN-01: Unreachable `throw` in the `WalkDepthGuard.test.ts` environment helper
+### IN-01: A comment in `Evaluate.test.ts` still says the matcher context is "threaded as a parameter" through `evaluateNode`
 
-**File:** `packages/core/test/WalkDepthGuard.test.ts:20-21`
+**File:** `packages/core/test/Evaluate.test.ts:1448-1451`
 
-**Issue:** `assert.isTrue(Result.isSuccess(admitted))` throws an `AssertionError` before the next line runs, so `if (Result.isFailure(admitted)) throw admitted.failure;` never executes. It serves only to narrow the type. It does not hide a failure, because the assertion fires first. But it is a second, unreachable failure path, and it throws a domain error rather than an assertion error.
+**Issue:** The comment says "`matcherContext` is now built once, in `evaluate`'s `Effect.suspend`, and threaded as a parameter through `evaluateNode` and its `AllOf`/`Rules` helpers". After this phase, the matcher context is not a parameter. It is `request.admitted.matcherContext`, built by `admit`. The test still exercises the right thing. Only the prose is stale. This file is outside the six in scope, but this phase made the comment stale.
 
-**Fix:** Use the narrowing form the sibling test already uses (`Admission.test.ts`: `return Result.isSuccess(admitted) ? admitted.success : undefined`), or keep just one of the two lines. Switch the row source to `"asked"` as WR-01 describes.
+**Fix:** Reword it, for example: "`matcherContext` is built once by `admit` and read from the walk environment (`request.admitted`) at every node; this exercises every shape the environment has to survive…".
 
-### IN-02: The tstyche tuple pin is partly tautological, and nothing pins which row source the walk accepts
+### IN-02: The module doc and a test title still list four parts of the environment after WR-02 added `policy`
 
-**File:** `packages/core/test/WalkEnvironment.tst.ts:13-22`
+**File:** `packages/core/src/Admission.ts:20-24`, `packages/core/test/WalkEnvironment.tst.ts:27`
 
 **Issue:**
-- **The tautology.** `Environment` is defined as `Recursion[1]`. So in `toBe<[policy: Policy, request: Environment, depth: number]>()`, the middle position compares the parameter with itself. The useful pins are the length (`3`), `number` not assignable both ways, and `Environment["admitted"]` being `Admitted`.
-- **The missing pin.** No assertion stops a row-sourced environment (`Admitted<true>`) from entering the walk. That is the gap WR-01 exploits.
+- **The module doc.** `Admission.ts`'s header describes the walk environment as "the subject, what the request supplied, what its matchers see and the depth bound". It leaves out the admitted policy, which is now the field that ties the depth proof to the tree being walked. The class doc, by contrast, is correct.
+- **The test title.** The tstyche test is titled "the environment holds the subject, what was supplied, the matcher context and the bound", but its pin now lists `source` and `policy` as well.
 
-**Fix:** Pin the environment against a named type, not against itself, for example `expect<Environment>().type.toBe<{ readonly admitted: Admitted<"asked">; readonly concurrency: Concurrency | undefined }>()` once WR-01 lands. Then add `expect<Admitted<"row">>().type.not.toBeAssignableTo<Environment["admitted"]>()`.
+**Fix:** Add "the policy it admitted" to the header sentence, and retitle the test, for example "the environment holds its row source, the admitted policy, the subject, what was supplied, the matcher context and the bound".
 
 ---
 
-_Reviewed: 2026-11-19T05:37:36Z_
+_Reviewed: 2026-11-19T06:00:32Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
