@@ -61,6 +61,32 @@ describe("ask — one question, built once", () => {
       assert.strictEqual(record.action, asked.question.action);
     }).pipe(Effect.provide(testLayer(alice))));
 
+  it.effect("the cache is handed the caller's own options object, not a copy of it", () =>
+    Effect.gen(function* () {
+      const seen: Array<object | undefined> = [];
+      const cache = Layer.effect(
+        DecisionCache,
+        Effect.gen(function* () {
+          const inner = yield* DecisionCache;
+          return DecisionCache.of({
+            ...inner,
+            getOrCompute: (key, options) => {
+              seen.push(options);
+              return inner.getOrCompute(key, options);
+            },
+          });
+        }),
+      ).pipe(Layer.provide(decisionCacheLayer()));
+      // Held, so the assertion is identity: a fresh `{ concurrency }` per lookup would
+      // read the same value and still be a copy (BEH-QD-644, ADR-QD-174 decision 4).
+      const options = { resource: doc, action: "read" };
+
+      yield* ask(policy, options).pipe(Effect.provide(cache));
+
+      assert.strictEqual(seen.length, 1);
+      assert.strictEqual(seen[0], options);
+    }).pipe(Effect.provide(testLayer(alice))));
+
   it.effect("an unset action and resource are undefined on the question, not absent", () =>
     Effect.gen(function* () {
       const asked = yield* ask(policy);
