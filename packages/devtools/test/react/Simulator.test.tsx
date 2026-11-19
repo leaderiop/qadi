@@ -8,7 +8,7 @@
  *
  * The session owns every run and the view forks nothing: a click hands the run to
  * the session, which settles it a few scheduler ticks later (`DecisionCache`
- * computes on a detached fiber), so `run` below waits on real ticks and each test
+ * walks on a detached fiber), so `run` below waits on real ticks and each test
  * reads the settled screen.
  */
 import { afterEach, assert, describe, it } from "@effect/vitest";
@@ -105,7 +105,7 @@ const chip = (label: string, value: string) => {
 /**
  * Clicks the run button and lets a real async tick pass before returning.
  *
- * `DecisionCache.getOrCompute` forks `compute` onto a detached fiber (H2,
+ * `DecisionCache.getOrCompute` forks its walk onto a detached fiber (H2,
  * ticket #46) so a coalesced waiter's own interruption never cancels
  * everyone else's answer — but forking always schedules through a real
  * microtask boundary, even for an otherwise fully-synchronous evaluation
