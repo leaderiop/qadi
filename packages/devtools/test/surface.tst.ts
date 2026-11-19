@@ -302,7 +302,9 @@ test("each feed is built in a scope and fails with nothing", () => {
   expect(makeTimelineFeed()).type.toBe<Effect.Effect<TimelineFeed, never, Scope.Scope>>();
   expect(makeDiagnosticsFeed()).type.toBe<Effect.Effect<DiagnosticsFeed, never, Scope.Scope>>();
   expect(makeGatesFeed()).type.toBe<Effect.Effect<GatesFeed, never, Scope.Scope>>();
-  expect(makeDiagnosticsFeed).type.toBeCallableWith({ intervalMillis: 1_000 });
+  expect(makeDiagnosticsFeed({ intervalMillis: 1_000 })).type.toBe<
+    Effect.Effect<DiagnosticsFeed, never, Scope.Scope>
+  >();
 });
 
 test("a handle's parts are nameable (TS2883)", () => {

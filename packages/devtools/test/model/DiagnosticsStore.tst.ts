@@ -48,7 +48,9 @@ test("the poll takes no questions thunk: the gates feed reads it", () => {
 
 test("the poll takes an interval, not a schedule", () => {
   expect(runDiagnostics).type.not.toBeCallableWith(store, { schedule: spaced });
-  expect(runDiagnostics).type.toBeCallableWith(store, { intervalMillis: 500 });
+  expect(runDiagnostics(store, { intervalMillis: 500 })).type.toBe<
+    Effect.Effect<void, never, never>
+  >();
 });
 
 test("a layer whose requirement is unmet is refused", () => {
