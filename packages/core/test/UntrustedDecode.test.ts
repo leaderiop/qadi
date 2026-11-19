@@ -516,4 +516,32 @@ describe("unknownKeys (KEYP-02, D-16)", () => {
     const ignore = untrustedDecoder(Either(), { unknownKeys: "ignore" });
     assert.deepStrictEqual(successOf(ignore.decode({ a: 1, _tag: "B", b: 2 })), { _tag: "B", b: 2 });
   });
+
+  it("U20 under ignore, an index signature or a rest declares no key list, so the build refuses it, whole or as a union member", () => {
+    const Rest = Schema.StructWithRest(Schema.Struct({ a: Schema.Number }), [
+      Schema.Record(Schema.String, Schema.Number),
+    ]);
+    assert.throws(
+      () => untrustedDecoder(Schema.Record(Schema.String, Schema.Number), { unknownKeys: "ignore" }),
+      ignoreNeeds,
+    );
+    assert.throws(() => untrustedDecoder(Rest, { unknownKeys: "ignore" }), ignoreNeeds);
+    assert.throws(
+      () =>
+        untrustedDecoder(
+          Schema.Union([
+            Schema.TaggedStruct("A", { a: Schema.Number }),
+            Schema.StructWithRest(Schema.TaggedStruct("B", {}), [Schema.Record(Schema.String, Schema.Number)]),
+          ]),
+          { unknownKeys: "ignore" },
+        ),
+      ignoreNeeds,
+    );
+    assert.doesNotThrow(() => untrustedDecoder(Schema.Record(Schema.String, Schema.Number), { unknownKeys: "refuse" }));
+    assert.doesNotThrow(() => untrustedDecoder(Rest, { unknownKeys: "refuse" }));
+    assert.deepStrictEqual(
+      successOf(untrustedDecoder(Needs, { unknownKeys: "ignore" }).decode({ a: 1, extra: 2 })),
+      { a: 1 },
+    );
+  });
 });
