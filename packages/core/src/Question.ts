@@ -1,10 +1,13 @@
 /**
  * The question: the one value a decision is asked, cached and recorded under.
  *
- * Public because a hand-written `DecisionCacheShape` receives it; everything
- * that builds one goes through {@link questionOf}, so the defaults live in
- * one place. Sits below `Evaluate.ts` and `Walk.ts` in the import graph
- * (ADR-QD-037): it imports no evaluation code.
+ * Public because a hand-written `DecisionCacheShape` is handed it in place of
+ * any computation, so such a cache must answer with a trace for exactly that
+ * question; wrapping `decisionCacheLayer()` is the supported way to write one
+ * (ADR-QD-174). Everything that builds a question goes through
+ * {@link questionOf}, so the defaults live in one place. Sits below
+ * `Evaluate.ts` and `Walk.ts` in the import graph (ADR-QD-037): it imports no
+ * evaluation code.
  *
  * Also declares {@link EvaluateOptions} beside {@link QuestionOptions}, so
  * `Evaluate.ts` and `Lifecycle.ts` both read the options from below them.
@@ -62,6 +65,8 @@ export interface EvaluateOptions extends QuestionOptions {
    * the decisive one ([ADR-QD-026](../../../spec/decisions/026-concurrent-evaluation.md)).
    *
    * Not part of the `Question`: it does not change the answer (ADR-QD-026).
+   * It reaches the walk through `DecisionCacheShape.getOrCompute`'s second
+   * parameter, never the key (ADR-QD-174).
    */
   readonly concurrency?: Concurrency;
   /**

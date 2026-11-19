@@ -22,7 +22,6 @@ import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
-import { walk } from "../src/Walk.ts";
 import { forkAllAndSettle, isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
 import { scriptedPort } from "../src/PortDoubles.ts";
 import { PortReply } from "../src/PortDescription.ts";
@@ -1247,6 +1246,7 @@ describe("DecisionCache", () => {
           const sides: Array<string> = [];
 
           for (const budget of [3, 4, 5, 6]) {
+            // Measured coalesced→hit switch-over: gap 38/22/15/13 at budget 3/4/5/6; if an effect upgrade moves it, re-measure rather than retry.
             for (let gap = 0; gap <= 48; gap++) {
               // Each walk records the attribute it asks; only the owner's walk of
               // `K` spins, so it finishes a few yields after it claims.
@@ -1264,8 +1264,7 @@ describe("DecisionCache", () => {
               });
               const outcomes = yield* Effect.gen(function* () {
                 const cache = yield* DecisionCache;
-                const lookup = (question: Question) =>
-                  cache.getOrCompute(question, walk(question, undefined));
+                const lookup = (question: Question) => cache.getOrCompute(question);
                 // The owner claims K and finishes after a few yields.
                 const owner = yield* Effect.forkChild(lookup(K));
                 for (let i = 0; i < gap; i++) yield* Effect.yieldNow;

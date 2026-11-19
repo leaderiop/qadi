@@ -3,7 +3,7 @@ import * as Effect from "effect/Effect";
 import * as Equal from "effect/Equal";
 import * as Layer from "effect/Layer";
 import type { Question } from "../src/Question.ts";
-import { DecisionCache } from "../src/DecisionCache.ts";
+import { DecisionCache, decisionCacheLayer } from "../src/DecisionCache.ts";
 import type { SinkRecord } from "../src/DecisionRecord.ts";
 import { DecisionSink } from "../src/DecisionSink.ts";
 import { ask } from "../src/Lifecycle.ts";
@@ -21,14 +21,21 @@ describe("ask — one question, built once", () => {
     Effect.gen(function* () {
       const keys: Array<Question> = [];
       const records: Array<SinkRecord> = [];
-      const cache = Layer.succeed(DecisionCache, {
-        getOrCompute: (key, compute) => {
-          keys.push(key);
-          return Effect.map(compute, (trace) => ({ trace, outcome: "miss" as const }));
-        },
-        size: Effect.succeed(0),
-        clear: Effect.void,
-      });
+      // A host cache wraps core's, which walks the question it is given
+      // (ADR-QD-174); this one records each key it is asked.
+      const cache = Layer.effect(
+        DecisionCache,
+        Effect.gen(function* () {
+          const inner = yield* DecisionCache;
+          return DecisionCache.of({
+            ...inner,
+            getOrCompute: (key, options) => {
+              keys.push(key);
+              return inner.getOrCompute(key, options);
+            },
+          });
+        }),
+      ).pipe(Layer.provide(decisionCacheLayer()));
       const sink = Layer.succeed(DecisionSink, {
         record: (record) =>
           Effect.sync(() => {
