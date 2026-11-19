@@ -85,8 +85,10 @@ export const decideQuestion = Effect.fn("qadi.evaluate")(function* (
 
   // The question was built once by the caller: the cache key, the walk's input
   // and the record's request half all read it. The cache is handed the question
-  // and `options` and walks the question itself (ADR-QD-174), so the key and the
-  // walk's input are one value, and `options` reaches the walk, never the key.
+  // and `options`, never a computation (ADR-QD-174). Core's `decisionCacheLayer`
+  // walks that question itself, so for it the key and the walk's input are one
+  // value and `options` reaches the walk, never the key; a host cache must
+  // answer for the question it is handed (BEH-QD-645).
   //
   // The TRACE is cached, never the `Decision`. A cached decision would carry a
   // duplicate `evaluationId`, so two log lines would claim to be the same event and

@@ -40,8 +40,9 @@ export interface DecisionCacheShape {
    * The trace for this exact question: from a completed walk of it, from
    * another fiber's walk of it still in flight, or from a walk run here.
    *
-   * The cache walks the question it is given, so a trace it stores answers its
-   * own key, and no caller can pair a key with an unrelated computation
+   * `decisionCacheLayer` walks the question it is given, so a trace it stores
+   * answers its own key, and no caller can pair a key with an unrelated
+   * computation, since this signature takes none
    * ([ADR-QD-174](../../../spec/decisions/174-a-decision-cache-is-asked-the-question.md)).
    * The key is the security boundary
    * ([ADR-QD-031](../../../spec/decisions/031-decision-cache.md)), and the pairing
