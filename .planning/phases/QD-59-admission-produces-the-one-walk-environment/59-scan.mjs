@@ -176,20 +176,21 @@ else {
     if (!/^head_label: final$/m.test(meta) || !/^patched_label: base$/m.test(meta) || !/^rounds: 3$/m.test(meta)) bad.push("bench/after/meta.txt is not final/base over 3 rounds");
     const patch = g("diff", H, B, "--", "packages/core/src") + "\n";
     if (fs.readFileSync(AFTER + "to-base.patch", "utf8") !== patch) bad.push("bench/after/to-base.patch is not git diff <measured head> phase_base -- packages/core/src");
-    // A review round that changed src adds bench/after-fix/ (never a re-run of bench/after/), which must pass,
-    // be its own single chore(59) commit, and have measured HEAD's source.
-    const FIX = D + "bench/after-fix/";
-    const fixed = lines(g("log", "--format=%H %s", B + "..HEAD", "--", FIX + "analysis.tsv"));
+    // Each review round that changed src adds its own bench/after-fix*/ directory (never a re-run of an earlier one);
+    // each must pass and be its own single chore(59) commit, and the newest must have measured HEAD's source.
     let measured = H;
-    if (fixed.length) {
-      if (fixed.length !== 1 || !/ chore\(59\): /.test(fixed[0])) bad.push("bench/after-fix/analysis.tsv commits: " + fixed.join("; "));
+    const rounds = fs.existsSync(D + "bench") ? fs.readdirSync(D + "bench").filter((x) => /^after-fix(-\d+)?$/.test(x)).sort((x, y) => (Number(x.split("-")[2]) || 1) - (Number(y.split("-")[2]) || 1)) : [];
+    for (const r of rounds) {
+      const FIX = D + "bench/" + r + "/";
+      const fixed = lines(g("log", "--format=%H %s", B + "..HEAD", "--", FIX + "analysis.tsv"));
+      if (fixed.length !== 1 || !/ chore\(59\): /.test(fixed[0])) bad.push("bench/" + r + "/analysis.tsv commits: " + fixed.join("; "));
       const ft = fs.readFileSync(FIX + "analysis.tsv", "utf8").trimEnd().split("\n");
-      if (ft[ft.length - 1] !== "# gate: pass") bad.push("bench/after-fix/analysis.tsv does not end with # gate: pass");
-      if (!fs.existsSync(FIX + "done.txt")) bad.push("bench/after-fix/done.txt is missing (src was not restored)");
+      if (ft[ft.length - 1] !== "# gate: pass") bad.push("bench/" + r + "/analysis.tsv does not end with # gate: pass");
+      if (!fs.existsSync(FIX + "done.txt")) bad.push("bench/" + r + "/done.txt is missing (src was not restored)");
       const FH = (/^head: ([0-9a-f]{40})$/m.exec(fs.readFileSync(FIX + "meta.txt", "utf8")) || [])[1];
-      if (!FH) bad.push("bench/after-fix/meta.txt names no head");
+      if (!FH) bad.push("bench/" + r + "/meta.txt names no head");
       else {
-        if (fs.readFileSync(FIX + "to-base.patch", "utf8") !== g("diff", FH, B, "--", "packages/core/src") + "\n") bad.push("bench/after-fix/to-base.patch is not git diff <measured head> phase_base -- packages/core/src");
+        if (fs.readFileSync(FIX + "to-base.patch", "utf8") !== g("diff", FH, B, "--", "packages/core/src") + "\n") bad.push("bench/" + r + "/to-base.patch is not git diff <measured head> phase_base -- packages/core/src");
         measured = FH;
       }
     }
@@ -245,15 +246,15 @@ const PROMISE = {
       'export type RowSource = "asked" | "row";',
       "export class Admitted<Source extends RowSource = RowSource> {",
       "constructor(readonly source: Source, readonly policy: Policy, readonly subject: AuthSubject, readonly supplied: SuppliedBy[Source], readonly matcherContext: MatcherContext, readonly maxDepth: number) {}",
-      "const RESOURCE_SUPPLIED: { readonly [Source in RowSource]: (question: Question) => boolean } = {",
-      "asked: (question) => question.resource !== undefined,",
-      "row: () => true,",
-      "export function admit<Source extends RowSource>(question: Question, rowSource: Source): Result.Result<Admitted<Source>, PolicyTooDeep>;",
-      "export function admit(question: Question, rowSource: RowSource): Result.Result<Admitted, PolicyTooDeep> {",
+      "const SUPPLIED: { readonly [Source in RowSource]: (question: Question) => SuppliedBy[Source] } = {",
+      "resource: question.resource !== undefined,",
+      "row: (question) => ({ action: question.action !== undefined, resource: true }),",
+      "export const admit = <Source extends RowSource>(question: Question, rowSource: Source): Result.Result<Admitted<Source>, PolicyTooDeep> =>",
+      "SUPPLIED[rowSource](question),",
       "action: question.action !== undefined,",
-      "resource: RESOURCE_SUPPLIED[rowSource](question),",
+      "question.maxDepth,",
     ],
-    not: [/readonly question\b/, /rowSource === /, /Resource extends boolean/],
+    not: [/readonly question\b/, /rowSource === /, /Resource extends boolean/, /RESOURCE_SUPPLIED/, /export function admit/],
   },
   [WK]: {
     has: [
