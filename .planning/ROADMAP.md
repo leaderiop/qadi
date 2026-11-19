@@ -395,7 +395,7 @@ Order: the defect first (53), then the "stated once" deepenings (54-58), then th
 - [x] **Phase 55: A port card is a model row, not a view join** - One pure model function returns a row per `PortName`; `ServicesPanel` renders rows only (ARCH-102, devtools) (completed 2026-11-18)
 - [x] **Phase 56: The gate-registry watch becomes the dock model's third feed** - Opens on a user decision; one scoped feed module owns the watch and `DockModel` composes three feeds (ARCH-103, devtools) (completed 2026-11-18)
 - [x] **Phase 57: untrustedDecoder states the envelope's unknown-key policy** - Opens on a user decision; one stated option (refuse | ignore without walking) for both `SinkCodec` envelopes and the audit and hydration seams (ARCH-104, core, audit, react) (completed 2026-11-19)
-- [ ] **Phase 58: A stored record is its envelope in memory too** - The in-memory stored record is the producer's `environment` next to a `SinkRecord`; two classes and two stamp functions are deleted (ARCH-105, Breaking, core, http, devtools)
+- [x] **Phase 58: A stored record is its envelope in memory too** - The in-memory stored record is the producer's `environment` next to a `SinkRecord`; two classes and two stamp functions are deleted (ARCH-105, Breaking, core, http, devtools) (completed 2026-11-19)
 - [ ] **Phase 59: Admission produces the one walk environment** - Opens on a benchmark; recursion passes `(policy, env, depth)`, or a recorded rejection (ARCH-106, core)
 - [ ] **Phase 60: Devtools' headless interface is the feeds** - Opens on a human checkpoint; the feeds replace the store/runner pairs in the barrel, or a recorded rejection (ARCH-107, Breaking, devtools)
 - [ ] **Phase 61: DecisionCache is asked only the question** - Opens on a human checkpoint; core supplies the matching walk so no caller can pair a key with an unrelated computation, or a recorded rejection (ARCH-108, core)
@@ -571,7 +571,7 @@ Plans:
   4. ADR-QD-171 makes ADR-QD-097 D-11-e true in memory as well as on the wire, and the break is recorded as **Breaking** in each affected package's changeset and in `upgrading.md`.
 
 **Planning notes**: Re-verify the 11 `src` files that name `StoredRecord` against the base Phase 57 leaves. Plan shape, RED first: the mutation base and the characterisation tests (stored round trip, backlog stamping, order, byte goldens) first; then core's envelope; then http and devtools; then records and changesets.
-**Plans**: 9/9 plans executed
+**Plans**: 9/9 plans complete
 
 Plans:
 - [x] 58-01 (W1): base facts, reserved ids and API surface base; mutation baseline for the eight stored-record files, the phase's first commit
@@ -653,7 +653,7 @@ Phases execute in numeric order: 53 → 54 → 55 → 56 → 57 → 58 → 59 �
 | 55. A port card is a model row, not a view join | 9/9 | Complete    | 2026-11-18 |
 | 56. The gate-registry watch becomes the dock model's third feed | 13/13 | Complete    | 2026-11-18 |
 | 57. untrustedDecoder states the envelope's unknown-key policy | 11/11 | Complete    | 2026-11-19 |
-| 58. A stored record is its envelope in memory too | 9/9 | In Progress | - |
+| 58. A stored record is its envelope in memory too | 9/9 | Complete    | 2026-11-19 |
 | 59. Admission produces the one walk environment | 0/TBD | Not started | - |
 | 60. Devtools' headless interface is the feeds | 0/TBD | Not started | - |
 | 61. DecisionCache is asked only the question | 0/TBD | Not started | - |
