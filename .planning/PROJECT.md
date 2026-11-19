@@ -1,4 +1,4 @@
-# Qadi — Architecture Waves (current: v1.6 Arch Wave 11)
+# Qadi — Architecture Waves (last completed: v1.6 Arch Wave 11)
 
 ## What This Is
 
@@ -13,7 +13,7 @@ module was a shallow pass-through.
 The review is at https://claude.ai/artifact/LH5dLGadz28NyzmZez9jcX, with a local copy at
 `/tmp/claude-1002/-home-yopu-Project-Perso-qadi/588341bb-9f42-4e6e-b1a3-ed991ed47acf/scratchpad/qadi-architecture-review.html`.
 
-## Current Milestone: v1.6 Arch Wave 11
+## Previous Milestone: v1.6 Arch Wave 11 (completed 2026-11-19; not released)
 
 **Goal:** Resolve all nine candidates of the 2026-11-16 architecture review, closing the live fail-open in the predicate
 reference interpreter first, then the "stated once" deepenings, then one benchmark-gated and two speculative phases.
@@ -32,6 +32,15 @@ reference interpreter first, then the "stated once" deepenings, then one benchma
 
 **Source review and evidence:** `.planning/phases/_WAVE11-CONTEXT.md` (the review HTML is session-scoped and may be gone).
 Branch `arch-wave-11`, based on `main` at `44510112` (v1.5 merged as #162). No merge, no release.
+
+v1.6 Arch Wave 11 completed 2026-11-19 on branch `arch-wave-11` (436 commits, 190 files, +12,895 / −3,178
+outside `.planning`): ARCH-100 to ARCH-108, ADR-QD-166..174, CCR-QD-444..452. All 9 phases `passed`, every phase
+Nyquist-compliant and secured, every review converged within three iterations. The three human checkpoints (59, 60, 61)
+were all decided "pursue". The milestone audit is `tech_debt`, accepted by the user: 49/49 requirements, 5/5
+integration seams, 4/4 flows. `check:pr` exited 0 at the end of every phase, and each phase's scoped mutation compare
+held. Breaking changes in `@qadi/core`, `@qadi/http`, `@qadi/react`, `@qadi/audit` and `@qadi/devtools`, pending as
+changesets. **Not merged and not released.** Archive: `.planning/milestones/v1.6-ROADMAP.md`, `v1.6-REQUIREMENTS.md`,
+`v1.6-MILESTONE-AUDIT.md`.
 
 ## Previous Milestone: v1.5 Arch Wave 10 (completed 2026-11-16; merged as #162; not released)
 
@@ -56,6 +65,12 @@ threshold that never opens, a failing user sink that loses records unlogged), th
 `arch-wave-9` at `ba0d0615` (v1.4 is not merged). No merge, no release.
 
 ## Current State
+
+v1.6 Arch Wave 11 completed 2026-11-19 on branch `arch-wave-11` (see the v1.6 entry above): the predicate
+interpreter's own-property fail-open is closed (Phase 53), leaf verdicts, port cards, the gates feed, the envelope's
+unknown-key policy, the stored envelope and the walk environment are each stated once, devtools' headless interface is
+its three feeds, and a `DecisionCache` is asked only the question. Nothing is merged or released; the next milestone
+is not yet defined.
 
 v1.5 Arch Wave 10 completed 2026-11-16 on branch `arch-wave-10` (510 commits, 198 files, +14,406 / −1,559
 outside `.planning`): ARCH-90 to ARCH-99, ADR-QD-156..165, CCR-QD-434..443. All 10 phases `passed`; 43, 44, 45, 46
@@ -240,7 +255,7 @@ logged, counted or spanned.
 
 ### Active
 
-- [ ] v1.6 close: WX-01..07 (wave-wide rules) are confirmed by the milestone audit, then the milestone is archived (no release)
+- None. The next milestone is defined with `/gsd-new-milestone`.
 
 ### Out of Scope
 
@@ -297,6 +312,19 @@ logged, counted or spanned.
   - ADR Document IDs must equal the file number (`verify-traceability.sh`, gate 10).
 - **Hot spots** (churn over the last 15 commits): react `QadiAtoms`/`Hydration`/`hooks`; http
   `RequirePermission`/`DecisionStreamRoute`; core `SinkCodec`/`Evaluate`/`PortAccess`.
+
+### Known Issues (carried forward from v1.6)
+
+- The v1.6 audit (`.planning/milestones/v1.6-MILESTONE-AUDIT.md`) is `tech_debt`, accepted by the user:
+  - gate 14 (`check-package-install.mjs`) probes only `makeTimelineFeed` of the new public names; `makeGatesFeed`,
+    `makeDiagnosticsFeed` and the type-only `DecisionCacheShape` are not compiled through the packed `exports` map;
+  - a throwing `subscribe` listener is not isolated in devtools' `ExternalStore` (shared with the React dock), and
+    `packages/core/test/DecisionLog.tst.ts:30` may carry a type pin that cannot fail (Phase 60);
+  - Phase 59 follow-ups: derive the `"asked"` row's resource flag from the matcher context, and a private `Admitted`
+    constructor so only `admit` can build one;
+  - Phase 57's D-09 hydration ignore and IN-01, and Phase 58's over-width lines and test-title wording;
+  - Phase 61: two pre-existing surviving mutants (`DecisionCache.ts` eviction, `SharedComputation.ts` `"Claimed"`) and
+    the I5 race test's `gap <= 48` bound, which depends on `walk`'s step count.
 
 ### Known Issues (carried forward from v1.5)
 
@@ -456,4 +484,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-19 after Phase 61*
+*Last updated: 2026-11-19 after v1.6 milestone*

@@ -1,5 +1,38 @@
 # Milestones
 
+## v1.6 Arch Wave 11 (Phases 53-61) (Completed: 2026-11-19; not released)
+
+**Phases completed:** 9 phases, 83 plans
+**Closeout:** verified_closeout. All 9 phases `passed`, Nyquist-compliant and secured; every code review converged
+within three iterations. The three human checkpoints (59 benchmark gate, 60, 61) were all decided "pursue". Milestone
+audit: `tech_debt`, accepted by the user (49/49 requirements, 9/9 phases, 5/5 integration seams, 4/4 flows, Nyquist
+9/9 after correcting three stale `nyquist_compliant` seeds). Archived as `milestones/v1.6-MILESTONE-AUDIT.md`.
+**Known verification overrides:** 0 (2 items acknowledged at an earlier close still suppressed).
+**Git range:** `44510112` (v1.5 merged as #162) → this archive commit on `arch-wave-11` (436 commits before the
+archive, 2026-11-18 → 2026-11-19); 190 files changed outside `.planning`, +12,895 / −3,178.
+**Merge gate:** `pnpm check:pr` exit 0 at the end of every phase and after every review round; each phase's scoped
+Stryker compare held (no touched file's score fell).
+**Records:** ARCH-100..108, ADR-QD-166..174, CCR-QD-444..452.
+**Release:** none. The branch is not merged and nothing was published. Changesets are pending, unconsumed:
+`@qadi/core` minor (**Breaking**: Phases 57, 58, 61) and patch (53, 54), `@qadi/devtools` minor (**Breaking**:
+Phases 55, 56, 58, 60), `@qadi/http` minor (**Breaking**: Phase 58), `@qadi/react` minor (**Breaking**: Phase 56),
+`@qadi/audit` patch (Phase 57).
+
+**Key accomplishments:**
+- **ARCH-100 (Phase 53):** one package-private `Operand.ts` owns the own-property read, closing the predicate
+  reference interpreter's fail-open (a row `evaluate` denies was allowed through `row[p.column]`) (ADR-QD-166).
+- **ARCH-101 (Phase 54):** `LeafNeeds` turns every leaf's answer into a verdict, finishing ADR-QD-163 (ADR-QD-167).
+- **ARCH-102/103 (Phases 55, 56):** a port card is a model row keyed by one `PortName`; the gate-registry watch is
+  the dock model's third scoped feed (ADR-QD-168, 169).
+- **ARCH-104/105 (Phases 57, 58):** `untrustedDecoder` takes a required unknown-key policy, and a stored record is
+  its envelope in memory too, one `StoredRecord` (ADR-QD-170, 171).
+- **ARCH-106 (Phase 59):** admission produces the one walk environment both interpreters read, typed by its row
+  source; the benchmark gate passed (0 of 35 workloads slower beyond their band) (ADR-QD-172).
+- **ARCH-107/108 (Phases 60, 61):** devtools' headless interface is its three feeds; a `DecisionCache` is asked
+  only the question and core's layer runs the matching walk (ADR-QD-173, 174).
+
+---
+
 ## v1.5 Arch Wave 10 (Phases 43-52) (Completed: 2026-11-16; not released)
 
 **Phases completed:** 10 phases, 71 plans
