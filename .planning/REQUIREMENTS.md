@@ -41,11 +41,11 @@
 
 ### untrustedDecoder states the envelope's unknown-key policy (Phase 57, ARCH-104, core + audit + react)
 
-- [ ] **KEYP-01**: The user decides, before planning, whether a record envelope's deep unknown key should be `TooDeep` (today) or ignored. The decision is recorded in ADR-QD-170.
-- [ ] **KEYP-02**: `untrustedDecoder` takes the envelope's unknown top-level key policy as one stated option: refuse, or ignore without walking.
-- [ ] **KEYP-03**: Both `SinkCodec` envelopes (the record wire and the stored record) decode through `untrustedDecoder`. `ownValue`, `envelopeOf` and the hand-rolled stored reader are deleted. `UNTRUSTED_DECODE_BUDGET` and AGENTS.md §7a's table move together.
-- [ ] **KEYP-04**: The audit row, the archive and hydration state their policy through the same option.
-- [ ] **KEYP-05**: The UntrustedSeams matrix runs per policy (a shallow unknown key, a deep unknown key, an excess key inside the payload, non-object input). Every seam's answer is unchanged except where KEYP-01 changed it, with a RED test.
+- [x] **KEYP-01**: The user decides, before planning, whether a record envelope's deep unknown key should be `TooDeep` (today) or ignored. The decision is recorded in ADR-QD-170.
+- [x] **KEYP-02**: `untrustedDecoder` takes the envelope's unknown top-level key policy as one stated option: refuse, or ignore without walking.
+- [x] **KEYP-03**: Both `SinkCodec` envelopes (the record wire and the stored record) decode through `untrustedDecoder`. `ownValue`, `envelopeOf` and the hand-rolled stored reader are deleted. `UNTRUSTED_DECODE_BUDGET` and AGENTS.md §7a's table move together.
+- [x] **KEYP-04**: The audit row, the archive and hydration state their policy through the same option.
+- [x] **KEYP-05**: The UntrustedSeams matrix runs per policy (a shallow unknown key, a deep unknown key, an excess key inside the payload, non-object input). Every seam's answer is unchanged except where KEYP-01 changed it, with a RED test.
 
 ### A stored record is its envelope in memory too (Phase 58, ARCH-105, core + http + devtools; Breaking)
 
@@ -130,11 +130,11 @@ The seven WX rows apply to every phase 53 to 61, so each phase's Requirements li
 | GFED-03 | Phase 56 | Complete |
 | GFED-04 | Phase 56 | Complete |
 | GFED-05 | Phase 56 | Complete |
-| KEYP-01 | Phase 57 | Pending |
-| KEYP-02 | Phase 57 | Pending |
-| KEYP-03 | Phase 57 | Pending |
-| KEYP-04 | Phase 57 | Pending |
-| KEYP-05 | Phase 57 | Pending |
+| KEYP-01 | Phase 57 | Complete |
+| KEYP-02 | Phase 57 | Complete |
+| KEYP-03 | Phase 57 | Complete |
+| KEYP-04 | Phase 57 | Complete |
+| KEYP-05 | Phase 57 | Complete |
 | STOR-01 | Phase 58 | Pending |
 | STOR-02 | Phase 58 | Pending |
 | STOR-03 | Phase 58 | Pending |
