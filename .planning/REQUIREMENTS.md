@@ -70,10 +70,10 @@
 
 ### DecisionCache is asked only the question (Phase 61, ARCH-108, core; human checkpoint)
 
-- [ ] **CASK-01**: The user decides at a checkpoint before planning whether to pursue this. "No" ends the phase with a recorded rejection in ADR-QD-174, and CASK-02 to CASK-04 are marked "Not pursued (decided)".
-- [ ] **CASK-02**: The cache's interface takes the question alone, and core supplies the matching walk, so no caller can pair a key with an unrelated computation.
-- [ ] **CASK-03**: `concurrency` reaches the walk without joining the key (ADR-031).
-- [ ] **CASK-04**: `DecisionCache.test.ts`'s coalescing and interruption tests are driven through a question alone. `SharedComputation`'s rules (ADR-132, ARCH-79) are unchanged.
+- [x] **CASK-01**: The user decides at a checkpoint before planning whether to pursue this. "No" ends the phase with a recorded rejection in ADR-QD-174, and CASK-02 to CASK-04 are marked "Not pursued (decided)".
+- [x] **CASK-02**: The cache's interface takes the question alone, and core supplies the matching walk, so no caller can pair a key with an unrelated computation.
+- [x] **CASK-03**: `concurrency` reaches the walk without joining the key (ADR-031).
+- [x] **CASK-04**: `DecisionCache.test.ts`'s coalescing and interruption tests are driven through a question alone. `SharedComputation`'s rules (ADR-132, ARCH-79) are unchanged.
 
 ### Every phase (cross-cutting)
 
@@ -147,10 +147,10 @@ The seven WX rows apply to every phase 53 to 61, so each phase's Requirements li
 | HDLS-02 | Phase 60 | Complete |
 | HDLS-03 | Phase 60 | Complete |
 | HDLS-04 | Phase 60 | Complete |
-| CASK-01 | Phase 61 | Pending |
-| CASK-02 | Phase 61 | Pending |
-| CASK-03 | Phase 61 | Pending |
-| CASK-04 | Phase 61 | Pending |
+| CASK-01 | Phase 61 | Complete |
+| CASK-02 | Phase 61 | Complete |
+| CASK-03 | Phase 61 | Complete |
+| CASK-04 | Phase 61 | Complete |
 | WX-01 | All v1.6 phases | Pending |
 | WX-02 | All v1.6 phases | Pending |
 | WX-03 | All v1.6 phases | Pending |
