@@ -85,7 +85,7 @@ Requirement → test map (from research):
 | STOR-01 | `stored.record` identity and `instanceof DecisionRecord` (RED on base) | unit | core quick run | new rows |
 | STOR-03 | devtools timeline ingests an envelope; entry key unchanged; an orphan beside decisions orders by `at` (D-13) | unit | `pnpm exec vitest run --project devtools < /dev/null` | via `helpers.ts` builders |
 | STOR-03 | D-12: `isolate` and C4 gone; a sink defect is still contained and reported once by the emitter | unit | core `ShippedSinkReports.test.ts` | rewrite |
-| WX-05 | mutation not lower (D-16) | harness | `node <phase dir>/58-mutation.mjs compare <static evidence json>` | ❌ W0 |
+| WX-05 | mutation not lower (D-16) | harness | `node <phase dir>/58-mutation.mjs compare <static evidence json>` | ✅ (58-01) |
 | WX-03 | gate 13 | gate | `pnpm -s spec:api` prints 933 | — |
 | STOR-04, WX-02, WX-07 | records, changesets, upgrading | gate | `node scripts/spec-revise.mjs --check`; `pnpm spec:verify:strict`; `pnpm -s spec:website-examples` | — |
 
