@@ -82,14 +82,14 @@ Requirement → test map (from research):
 | Req ID | Behavior | Test Type | Automated Command | File Exists? |
 |--------|----------|-----------|-------------------|-------------|
 | WENV-01 | the gate numbers (done in research: `# gate: pass` twice) | harness | `node <phase dir>/bench/analyze.mjs <dir> base proto` | ✅ `bench/gate`, `bench/gate-r2` |
-| WENV-02 | `admit(q, "asked")` gives the env; `"row"` always supplies the resource (RED on base) | unit | `pnpm exec vitest run --project core packages/core/test/Admission.test.ts < /dev/null` | rows to add |
+| WENV-02 | `admit(q, "asked")` gives the env; `"row"` always supplies the resource (RED on base) | unit | `pnpm exec vitest run --project core packages/core/test/Admission.test.ts < /dev/null` | ✅ |
 | WENV-02 | each interpreter's `supplied` outcome unchanged | unit (green on base) | `… LeafMatrix.test.ts packages/core/test/Predicate.test.ts` | ✅ |
-| WENV-03 | depth/maxDepth swap cannot compile (RED on base) | tstyche | `pnpm exec tstyche packages/core/test/WalkEnvironment.tst.ts` | ❌ W0 |
+| WENV-03 | depth/maxDepth swap cannot compile (RED on base) | tstyche | `pnpm exec tstyche packages/core/test/WalkEnvironment.tst.ts` | ✅ |
 | WENV-04 | depth agreement | unit | `… RolesAndDepth.test.ts` | ✅ |
 | WENV-04 | budgets unchanged | gate | `node scripts/check-house-style.mjs` | ✅ |
 | WENV-04 | the after-bench shows no workload slower | harness | the phase's `bench/ab.sh`, then `analyze.mjs`; the last line is `# gate: pass` | ✅ harness |
 | WX-06 | cache-hit laziness (`admit` never runs on a hit) | unit | `… DecisionCache.test.ts` | ✅ |
-| WX-05 | mutation not lower | harness | `node <phase dir>/59-mutation.mjs compare [static json]` | ❌ W0 |
+| WX-05 | mutation not lower | harness | `node <phase dir>/59-mutation.mjs compare [static json]` | ✅ |
 
 ---
 
@@ -117,3 +117,13 @@ None.
 - [x] `nyquist_compliant: true` set in frontmatter
 
 **Approval:** validated 2026-11-19
+
+## Validation Audit 2026-11-19
+
+| Metric | Count |
+|---|---|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+
+Re-run at close: 6 core test files 201/201; tstyche 3/3 (11 assertions); compare prints `WX-05 holds (D-15)`; phase scan clean; the `gate` and `gate-r2` analyses reproduce byte for byte; the after-run reads `# gate: pass`; house-style, dod-table and spec-revise are clean; 933 exports; 0 changesets; `check:pr` exit 0 (59-10, 16 of 16).
