@@ -5,16 +5,16 @@ milestone_name: Arch Wave 11
 current_phase: 59
 current_phase_name: Admission produces the one walk environment
 status: executing
-stopped_at: Completed 59-07-PLAN.md
-last_updated: "2026-11-19T05:07:07.210Z"
+stopped_at: Completed QD-59-08-PLAN.md
+last_updated: "2026-11-19T05:15:56.904Z"
 last_activity: 2026-11-19
 last_activity_desc: Phase QD-58 complete, transitioned to Phase 59
-state_head: 339d6e89425b20d95539ea5083dff3e230b3aa0d
+state_head: 291bd1ca3930e98fbc0cd2347d1a9415dcc3f738
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 68
-  completed_plans: 65
+  completed_plans: 66
   percent: 67
 ---
 
@@ -397,6 +397,7 @@ Last activity: 2026-11-19 — Phase QD-58 complete, transitioned to Phase 59
 | Phase QD-59 P05 | 12 min | 2 tasks | 24 files |
 | Phase QD-59 P06 | 7 min | 3 tasks | 3 files |
 | Phase QD-59 P07 | 8 min | 2 tasks | 5 files |
+| Phase QD-59 P08 | 22 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -683,6 +684,7 @@ Last activity: 2026-11-19 — Phase QD-58 complete, transitioned to Phase 59
 - [Phase QD-59]: 59-05: after-bench of the final source against phase_base ran once, gate pass (0 of 35 slower, geomean +1.60%, worst +7.3% within its 10% band)
 - [Phase QD-59]: 59-06: the one new survivor (Walk.ts depth > maxDepth false) closed by WalkDepthGuard.test.ts entering evaluateNode past the bound; D-15 holds, evidence committed last
 - [Phase QD-59]: 59-07: ADR-QD-172 benchmark and mutation tables are script-copied from 59-BENCH.md and the mutation JSONs; the walk's own depth guard is recorded as kept defence in depth
+- [Phase QD-59]: 59-08: BEH-QD-632 and BEH-QD-633 state the empty and adjacency edges in their REQUIREMENT blocks, so a fail-open supplied contradicts a requirement
 
 ### Pending Todos
 
@@ -742,8 +744,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-19T05:07:06.964Z
-Stopped at: Completed 59-07-PLAN.md
+Last session: 2026-11-19T05:15:56.118Z
+Stopped at: Completed QD-59-08-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
