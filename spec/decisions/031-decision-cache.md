@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-031                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-10-07                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.2 (2026-10-07): the key is the `Question` and its listing is corrected to `subject + policy + resource + action + maxDepth`; a readiness probe never consults the cache (ADR-QD-100, CCR-QD-189). 1.0 (2026-07-26): Initial release (CCR-QD-032). 1.1 (2026-08-19): `decisionCacheLayer` takes an optional `capacity`, FIFO-evicted once exceeded. |
+> | Change History | 1.3 (2026-11-19): amendment — the cache is asked the question alone and walks it itself (ARCH-108, ADR-QD-174, CCR-QD-452)<br>1.2 (2026-10-07): the key is the `Question` and its listing is corrected to `subject + policy + resource + action + maxDepth`; a readiness probe never consults the cache (ADR-QD-100, CCR-QD-189). 1.0 (2026-07-26): Initial release (CCR-QD-032). 1.1 (2026-08-19): `decisionCacheLayer` takes an optional `capacity`, FIFO-evicted once exceeded. |
 
 ---
 
@@ -73,6 +73,8 @@ subject + policy + resource + action + maxDepth
 ```
 
 > **Amended in CCR-QD-189 (ADR-QD-100).** The listing above was stale twice over (ADR-QD-043 replaced `subjectId` with the subject; CCR-QD-128 added `maxDepth`). The key is now the public `Question` value, built once by `questionOf`. A readiness probe never consults the cache: a cache with no TTL turns a probe into a constant.
+
+> **Amended in CCR-QD-452 (ADR-QD-174).** The pairing of a key with the trace stored under it used to hold only because the one caller, `decideQuestion`, handed `getOrCompute` the walk of the same question. The cache is now asked the question alone, `getOrCompute(question, options?)`, and `decisionCacheLayer` walks the question it is given, so no caller can store a trace under a key it does not answer. `concurrency` reaches the walk through `options` and is still not part of the key. The key, and why it is the security boundary, are unchanged. A host-written cache must answer for exactly the question it is given ([ADR-QD-174](./174-a-decision-cache-is-asked-the-question.md)).
 
 A cache keyed on the policy alone would serve one subject's allow to another. That is
 the same class of defect as the hydration payload
