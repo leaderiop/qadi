@@ -544,4 +544,12 @@ describe("unknownKeys (KEYP-02, D-16)", () => {
       { a: 1 },
     );
   });
+
+  it("U21 a policy outside the closed set, read off JSON by an untyped caller, throws at build naming the option, even when Object.prototype owns the name", () => {
+    for (const name of ["constructor", "toString", "nope"]) {
+      // `JSON.parse` is typed `any`, so this is how a config-driven value reaches the option without a cast.
+      const options = JSON.parse(JSON.stringify({ unknownKeys: name }));
+      assert.throws(() => untrustedDecoder(Needs, options), /unknownKeys must be "refuse" or "ignore"/);
+    }
+  });
 });
