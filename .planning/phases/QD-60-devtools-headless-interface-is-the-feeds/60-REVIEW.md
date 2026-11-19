@@ -1,9 +1,9 @@
 ---
 phase: QD-60-devtools-headless-interface-is-the-feeds
-reviewed: 2026-11-19T15:02:47Z
+reviewed: 2026-11-19T15:23:20Z
 depth: standard
-iteration: 1
-files_reviewed: 28
+iteration: 2
+files_reviewed: 29
 files_reviewed_list:
   - examples/nextjs-newsroom/src/client/Counters.tsx
   - packages/devtools/README.md
@@ -33,59 +33,68 @@ files_reviewed_list:
   - packages/devtools/src/model/ExternalStore.ts
   - packages/devtools/src/model/SupersedingRun.ts
   - packages/devtools/src/model/TimelineStore.ts
+  - spec/behaviors/28-devtools-screens.md
 findings:
   critical: 0
-  warning: 3
-  info: 4
-  total: 7
+  warning: 2
+  info: 3
+  total: 5
   necessity: 0
 status: issues_found
 ---
 
-# Phase 60: Code Review Report (iteration 1)
+# Phase 60: Code Review Report (iteration 2)
 
-**Reviewed:** 2026-11-19T15:02:47Z
+**Reviewed:** 2026-11-19T15:23:20Z
 **Depth:** standard
-**Files Reviewed:** 28 (the 25 in scope, plus `ExternalStore.ts`, `SupersedingRun.ts` and `TimelineStore.ts` read as callees)
+**Files Reviewed:** 29. These are the 25 in scope, plus three callees read for behaviour (`ExternalStore.ts`, `SupersedingRun.ts`, `TimelineStore.ts`). `spec/behaviors/28-devtools-screens.md` and `spec/overview.md` were read only where the fix commits or the feeds' claims reach them.
 **Status:** issues_found
 
 ## Summary
 
-I reviewed `git diff 35a48554 HEAD` for each file in scope and read the three callee modules the feeds are built on. I re-ran the tests:
-- `vitest --project devtools` on `DiagnosticsFeed`, `DiagnosticsStore`, `GatesFeed`, `TimelineFeed` and `surface`: 112 of 112 pass.
+I reviewed `git diff 35a48554 HEAD` for each file in scope. I also reviewed the fix commits `2a71ccc3..caa3d0e9` (`git diff 20328f67 HEAD`) as new code.
+
+**Checks I re-ran:**
+- `vitest --project devtools` on `TimelineFeed`, `DiagnosticsFeed`, `GatesFeed`, `DiagnosticsStore` and `surface`: 113 of 113 pass.
 - `tstyche` on `surface.tst.ts` and `DiagnosticsStore.tst.ts`: 15 tests and 26 assertions pass.
-- A scratch probe outside the repo built each feed from `src/index.ts` with `Effect.runSync` and exercised the edge cases below. Its results are quoted where used.
+- Two scratch probes, both outside the repo:
+  - a `tsc --strict` probe of the IN-02 pin;
+  - a `node --experimental-strip-types` probe of a gates feed with a throwing listener.
 
-**Clean on the points in the brief.**
-- **Interface.** A headless consumer can build, configure, observe, restart and tear down all three feeds from root exports alone. Every type a public signature names is exported from the root. I traced each one:
-  - `TimelineFeed` names `TimelineStore`, `TimelineStatusReadout`, `TimelineFeedInputs`, `Source` and `Timeline`.
-  - `DiagnosticsFeed` names `DiagnosticsReadout`, `DiagnosticsSnapshot`, `DiagnosticsStatus`, `Diagnostics`, `DiagnosticsOptions`, `WiringRead`, `WiringReport`, `HydrationActivity`, `PortActivity`, `PortCallLog`, `PortCallCollector` and `AskedQuestionLike`.
-  - `GatesFeed` names `GatesSnapshot`, `RegistryRead`, `AskedRead`, `GateInstanceLike`, `GateRegistryLike` and `GatesFeedInputs`.
+**I did not run:**
+- `check-doc-examples.mjs`. For the README fence compiling, I rely on the fix report.
+- Stryker, `check:pr` and `pnpm check`.
 
-  The retired names (`makeTimelineStore`, `runSource`, `makeDiagnosticsStore`, `runDiagnostics`, `noDiagnostics`, the `DiagnosticsStore` type, `DiagnosticsDockOptions`) are refused at both entries. The idle readouts and `isUnsampled` stay private. Nothing is exported that should not be.
-- **One `DiagnosticsOptions` (D-03, D-15).**
-  - It is declared once, non-generic, at `DiagnosticsStore.ts:198`, and `react/index.ts:21` re-exports that same declaration.
-  - `runDiagnostics` builds `Schedule.spaced(options?.intervalMillis ?? DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS)` (`:250`), so the default holds when the options or the field are absent.
-  - `configure` compares `layer`, `collector` and `intervalMillis` by identity against the previous options (`DiagnosticsFeed.ts:186-191`). `runOptions`, `Schedule` and the `Layer` import are gone from the feed. No translation code is left.
-- **The removed D-16 guard.** `configure(undefined)` on a feed that is already off is still silent.
-  - `off()` calls `runs.stop()`, which forks `Effect.void` under a fresh token while no run is live. It then allocates a store and calls `view.set(diagnosticsOff)`.
-  - `ExternalStore.set` returns early on the same reference, so nothing is published.
-  - The probe saw 0 notifications and the same snapshot identity across two calls on a never-configured feed, and F26 pins both cases.
-  - The only effects are a throwaway store and one `Effect.void` fiber, which nothing can observe.
-- **The `5d297faf` positive pins.** They are as strong as claimed. `expect(makeDiagnosticsFeed({ intervalMillis: 1_000 })).type.toBe<…>()` fails on an excess or mistyped option, and it also pins the result type, which `toBeCallableWith` did not. The *negative* "not generic" pin is weaker than it reads (IN-02).
-- **Re-pointed suites.** `DiagnosticsFeed.test.ts`, `GatesFeed.test.ts` and `TimelineFeed.test.ts` import every public name from `src/index.ts`. They reach into `model/` only for package-private helpers (`idleDiagnostics`, `isUnsampled`, `idleTimeline`, `noDiagnostics`). The React suites take `DiagnosticsOptions` from `src/react/index.ts`.
-  - No assertion was lost in the renames.
-  - The schedule-override test became an interval-override test with the same clock steps and read count.
-  - A span-name test was added.
-  - The characterisation file changed on exactly lines 26 and 66 (D-12).
-- **House rules.** The changed lines add no `as` cast, `!`, `any`, `switch`, `fnUntraced`, `async`/`await` (outside the `.mjs` gate script), `Record<string, unknown>` or `effect` barrel import. Every relative import carries `.ts`/`.tsx`, and both devtools barrels stay named.
-- **Retired names in docs.** None of the retired names appears in `packages/devtools/README.md`, `website/`, `examples/` or `packages/react/src`. Inside `packages/devtools/src`, the only use outside their own modules is `useTimeline.ts` calling `makeTimelineStore` internally, which is legitimate.
+**The iteration-1 fixes hold.**
+- **WR-01 (README).** `follow(subscribe, line)` reports `line()` once and then subscribes. Nothing can run between the two synchronous calls, so no state is missed. The prose under the fence says why. The four `subscribe` members are closures from `makeExternalStore`, not `this`-bound methods, so passing them unbound is correct.
+- **WR-02 (timeline `configure` after close).** `if (reads.closed()) return;` at `TimelineFeed.ts:153` runs before `inputs` is written. Without the guard, the resize path calls `push()` and then `status.set(READING)`, so the new test's `timelineHeard === 0` and `heard === []` assertions catch it. The changeset and BEH-QD-636 say so. The test reuses an existing id, which is WR-02 below.
+- **WR-03 (docs only, as scoped).**
+  - `GatesFeed.ts`'s header and the README no longer claim that listeners are isolated.
+  - The three `subscribe` docs say a listener must not throw.
+  - I checked `DiagnosticsReadout.subscribe`'s claim that "a throw during a publish from the poll is stated as the poll's stop". It is true: `view.set` writes `current` before it notifies, so the snapshot reads `Stopped` even when the listener throws again inside `onFailure`.
+  - Two normative documents that this phase wrote still carry the old, unqualified claim (WR-01 below).
+- **IN-01 (UF-1).** `WiringRead.Failed`'s doc (`DiagnosticsStore.ts:63-66`), the README and the website page now carry the trust-boundary sentence.
+- **IN-02.** Both arities are pinned, and `tsconfig.test.json` type-checks `.tst.ts` files, so an unused `@ts-expect-error` fails `pnpm typecheck`. The pin is now as strong as claimed. Its comment names the wrong line (IN-01 below).
+- **IN-03.** `Effect.yieldNow` is an `Effect<void>` value in the installed `effect` (`Effect.ts:2602`), so `yield* Effect.yieldNow` is correct. The entries assertion proves the packed feed read the record.
+- **IN-04.** The doc now names `GatesFeedInputs`, which the root exports (`index.ts:51`).
 
-**What is left.**
-- **WR-01.** The README's headless example, which is the phase's own stop-detection showcase, misses a stop or failure reached while the feed is built.
-- **WR-02.** `TimelineFeed.configure` is the one command on the three now-public feeds with no closed-scope guard, and after a close it falsely reports `Reading`.
-- **WR-03 (UF-2).** A throwing listener escapes `configure` and silently kills the gates cadence. That contradicts `GatesFeed.ts`'s own isolation claim and the README's new "a feed that stops says so".
-- **UF-1** is IN-01.
+**Clean on the brief's points**, unchanged since iteration 1 and re-checked against HEAD:
+- **The interface is complete.** Every type a public signature names is exported, the retired names are refused, and nothing private is exported.
+- **There is one `DiagnosticsOptions`.**
+  - It is declared once and is not generic (`DiagnosticsStore.ts:200`).
+  - `runDiagnostics` builds `Schedule.spaced(options?.intervalMillis ?? DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS)`.
+  - `configure` compares `layer`, `collector` and `intervalMillis` by identity.
+  - No translation code is left.
+- **The removed D-16 guard.** On an already-off feed, `configure(undefined)` is still silent. `runs.stop()` forks `Effect.void` under a fresh token, and `view.set(diagnosticsOff)` returns early on the same reference.
+- **No retired name in live docs.** None appears in the README, `examples/`, `packages/react/src`, or the website outside the 0.12 and 0.13 upgrade history. The 0.13 history includes the "Before" fence.
+- **House rules.** The phase adds no `as` cast, `!`, `any`, `switch`, `fnUntraced`, `async`/`await` in src, `Record<string, unknown>`, `effect` barrel import or `export *`, and every relative import carries `.ts`.
+
+**UF-1 and UF-2.**
+- **UF-1: Info, in scope, now closed.** The doc gap was fixed by iteration-1 IN-01.
+- **UF-2: Warning, behaviour out of this phase's scope.**
+  - A throwing listener silently ends the gates cadence. The probe confirmed it: the thunk was called once in `configure` and once on the first tick, then never again.
+  - This predates the phase. The fix belongs in `ExternalStore` or the cadence's `onFailure`, and `ExternalStore` is shared with the dock, which CONTEXT puts out of scope.
+  - What is in scope is the documentation. Two normative claims written in this phase still deny it (WR-01).
 
 I read `necessity-review.md`. No finding qualifies.
 
@@ -93,129 +102,89 @@ I read `necessity-review.md`. No finding qualifies.
 
 ## Warnings
 
-### WR-01: The README's headless example subscribes after the build, so a stop reached during the build is never reported
+### WR-01: BEH-QD-638 and the `spec/overview.md` row, both written in this phase, still say nothing the host throws leaves the gates feed
 
-**File:** `packages/devtools/README.md:160-231` (subscriptions at `:209-212`)
+**File:** `spec/behaviors/28-devtools-screens.md:2544-2545`, `spec/overview.md:915`
 
 **Issue:**
-- **The example's pattern.** It builds each feed and only then subscribes `report` to it. It never reads the current snapshot. So it reports *transitions after subscription* and nothing that happened inside `yield* makeXFeed(...)`.
-- **Each feed reaches a state synchronously, during the build.**
-  - `SupersedingRun` runs a run's synchronous prefix inside `fork` (`SupersedingRun.ts:25-27`).
-  - `TimelineFeed.test.ts` TF10 pins "a read that dies is Stopped with its reason, at once".
-  - The probe built `makeDiagnosticsFeed({ collector })` with a collector whose snapshot dies, and `getSnapshot().status._tag` was already `Stopped` when the `Effect` returned.
-  - `makeDiagnosticsFeed({})` was already `Live`.
-  - `makeGatesFeed` publishes a throwing registry's `Failed` in its build (`GatesFeed.ts:232-233`).
-- **What the example prints.** A shell copied from it says nothing about any of these states. The example's diagnostics feed reaches `Live` during the build and never notifies again (identical samples publish nothing), so its `diagnosticsLine` is never printed at all.
-- **Why this is a defect.**
-  - This is the exact silence the section opens by ruling out ("a feed that stops says so instead of leaving a dead fiber", `:163`). D-06 requires the example to show stop detection.
-  - The fence compiles, so the documentation gate cannot catch it.
+- **What the documents say.**
+  - BEH-QD-638 (added in `5321838d`) has the requirement "Nothing the host throws MUST leave the feed".
+  - The overview row (added in `67d6b335`) says "nothing the host throws leaves the feed (BEH-QD-638, ADR-QD-169)".
+- **What the code does.** A `subscribe` listener is host code, and its throw does leave the feed. My probe showed three paths:
+  1. `feed.configure({ questions, intervalMillis: 5 })` threw `boom` to the caller.
+  2. The next tick that published killed the cadence. The thunk was called 1 time, then 2, then never again, and no statement was made.
+  3. `onRegistry` (`GatesFeed.ts:187-190`) publishes unguarded, so a throw also escapes into the host registry's own `notify`.
+- **Why it matters.** Iteration 1's WR-03 narrowed exactly this claim in `GatesFeed.ts:5-9` and in the README. It missed the two normative documents. `spec/` is normative (AGENTS.md §11), so the spec now states a MUST that the code does not meet.
+- **Scope.** This is the doc half of UF-2. It is in scope because both texts are new in this phase. The behaviour fix stays deferred, as briefed.
 
-**Fix:** Have each line report the current state once after subscribing, then on every change.
-```typescript
-const say = (line: () => string) => {
-  report(line());
-  return line;
-};
-const timelineNow = say(() => timelineLine(timeline.status.getSnapshot()));
-timeline.status.subscribe(() => report(timelineNow()));
-const diagnosticsNow = say(() => diagnosticsLine(diagnostics.getSnapshot().status));
-diagnostics.subscribe(() => report(diagnosticsNow()));
-// …same for the entries count and gates
+**Fix:** Narrow both texts to match `GatesFeed.ts`'s header, and record the change in spec 28's change history (revision 1.35) and the overview's history.
 ```
-Also add one sentence to the prose: "Read `getSnapshot()` once after subscribing: a feed can already be `Live` or `Stopped` when its build returns."
+REQUIREMENT: Nothing the host throws from the registry or the questions thunk MUST leave the feed: a throw
+             from `instances`, `subscribe` or the thunk is a `Failed { reason }` in the snapshot. A `subscribe`
+             listener on the feed is the caller's and is not isolated (deferred: Phase 60 review WR-03).
+```
+In the overview row, write "…and nothing the host's registry or thunk throws leaves the feed (BEH-QD-638, ADR-QD-169)".
 
-### WR-02: `TimelineFeed.configure` has no closed-scope guard; after the scope closes it publishes `Reading` and empties the timeline
+### WR-02: The WR-02 fix's new test reuses the id TF20, so BEH-QD-636's pin names two tests
 
-**File:** `packages/devtools/src/model/TimelineFeed.ts:150-161`
+**File:** `packages/devtools/test/model/TimelineFeed.test.ts:381` and `:434`; `spec/behaviors/28-devtools-screens.md:2477`
 
 **Issue:**
-- **The two siblings are guarded.** `DiagnosticsFeed.configure` (`DiagnosticsFeed.ts:178-179`, "A command on a closed feed would publish a state nothing follows") and `GatesFeed.configure` (`GatesFeed.ts:240`) both return early once `runs.closed()`. `TimelineFeed` guards `restart` (`:143-145`, pinned by TF17/TF18) but not `configure`.
-- **What a configure after close does.**
-  - A capacity change builds a new inner store and publishes an emptied timeline (`push()`, `:156-158`).
-  - `readSource` then calls `status.set(READING)` (`:129`) before `fork` refuses the stale token. A feed that was `Stopped` now says `Reading` although nothing reads.
-- **Probe result.** I built a feed on a dying source, closed its scope, then called `configure({ capacity: 5 })`. The status went from `Stopped` to `Reading`, with 2 notifications.
-- **Why it matters now.** The feed was package-private at `phase_base`, and only `DockModel`/`useTimeline` called it inside a live scope. D-02 makes it public, so a headless shell holding the handle past its scope now gets a false "running" status. The `TimelineStatus` doc says a stop "must be stated, not left as a timeline that looks current". No test covers configure after close.
+- **The duplicate.** `2a71ccc3` added `"TF20 a configure after the scope closed …"` at `:381`. At `20328f67` the file already had `"TF20 a restart from Stopped publishes Reading before a read that dies at once publishes Stopped"` (now `:434`). `grep -o '"TF[0-9]*'` counts TF20 twice, and the highest id in use is TF23.
+- **Why it matters.**
+  - BEH-QD-636 now says "Pinned by … (TF6, TF19, TF20)". A reader, or a later edit that deletes one of the two, cannot tell which behaviour the pin means.
+  - The two tests pin different requirements: configure-after-close, and restart ordering.
+  - The spec cites TF ids by number elsewhere in the same document (`:1426`, `:1632-1634`, `:1813`, `:1848`), so the ids carry traceability weight.
 
-**Fix:** Mirror the sibling guard, and pin it beside TF17/TF18.
+**Fix:** Renumber the new test to the next free id, and update the pin.
 ```ts
-configure: (next) => {
-  // A command on a closed feed would publish a state nothing follows.
-  if (reads.closed()) return;
-  const before = inputs;
-  …
+it.effect("TF24 a configure after the scope closed reads nothing, publishes nothing and leaves a Stopped feed Stopped", () =>
 ```
-Add a test: "TF a configure after the scope closed reads nothing, publishes nothing and leaves a Stopped feed Stopped".
-
-### WR-03 (UF-2): A throwing `subscribe` listener escapes `configure` and silently ends the gates cadence
-
-**File:** `packages/devtools/src/model/ExternalStore.ts:34-36`, `packages/devtools/src/model/GatesFeed.ts:5-7`, `:211-230`, `:239-253`; `packages/devtools/README.md:163`
-
-**Issue:**
-- **No isolation.** `ExternalStore.notify` calls each listener with no isolation. For the gates feed, which phase 60 makes public, the probe showed two results.
-  - A gates feed with a 5 ms thunk and one throwing subscriber called the thunk 2 times in the first 40 ms and still 2 times at 80 ms. The cadence fiber died: `Effect.sync(tick)` threw from `store.set`, and `cadence` forks with no `onFailure` (`:223-229`), so nothing states the death. The questions panel then freezes with no word.
-  - `feed.configure({ questions: () => [] })` threw `listener boom` to the caller.
-- **Two documents now say otherwise.**
-  - `GatesFeed.ts:5-7` says "nothing the host throws leaves `makeGatesFeed`, `configure`, a registry listener or a tick". A subscriber is host code.
-  - The README section phase 60 wrote says "a feed that stops says so instead of leaving a dead fiber" (`:163`).
-- **The timeline and diagnostics feeds misattribute the throw.** In the timeline and diagnostics feeds, a listener throw inside `accept` becomes a `Stopped` whose reason blames the source or sampler.
-- **Severity and scope.**
-  - The behaviour predates the phase, and the listener is the host's own code in its own process, so this is a Warning, not Critical.
-  - The two false claims are in scope: one is in a module whose doc this phase edited, and the other is new text.
-  - Isolating `notify` changes `ExternalStore`, which the React dock shares. The phase context rules dock behaviour out of scope, so that half belongs in a follow-up.
-
-**Fix (this phase):** Make the docs true.
-- Narrow `GatesFeed.ts:5-7` to "…a registry listener or a tick; a `subscribe` listener is the caller's and must not throw: a throw escapes `configure` and ends the questions cadence".
-- Add the same sentence to the `subscribe` doc of `DiagnosticsReadout`, `TimelineStatusReadout` and `GatesFeed`, and to the README's headless section.
-
-**Follow-up (backlog):** Decide whether a listener throw is a stop to state, for example by isolating each listener in `notify` or by giving the gates cadence an `onFailure` that publishes `AskedRead.Failed`. Then pin that decision.
+```
+Pinned by `packages/devtools/test/model/TimelineFeed.test.ts`, through the root (TF6, TF19, TF24).
+```
+Also change "TF20" to "TF24" in the 1.34 amendment note if you want the history to name the test. That note currently cites only WR-02, so it can stay.
 
 ## Info
 
-### IN-01 (UF-1): `WiringRead.Failed.reason` lacks the trust-boundary sentence its four siblings gained
+### IN-01: The new "both arities" comment names the wrong line
 
-**File:** `packages/devtools/src/model/DiagnosticsStore.ts:63-64` (doc), `:268` (`Cause.pretty(built.cause)`); `packages/devtools/README.md:229-231`
-
-**Issue:**
-- **The doc gap.** This phase added "it must not cross a trust boundary" to `TimelineStatus.Stopped`, `DiagnosticsStatus.Stopped`, `RegistryRead.Failed` and `AskedRead.Failed`. `WiringRead.Failed.reason` is the same kind of `Cause.pretty` trace (a handed layer's build failure). It is public in every `DiagnosticsSnapshot.reading.wiring` and carries only "The handed layer failed to build".
-- **The README gap.** The README paragraph covers only "A stop's `reason`", so a shell forwarding readings would read the `Failed` reasons as safe.
-- **Severity and scope.** The type was already public at `phase_base`, so reachability is unchanged. Info, and in scope: a one-line doc fix in a file this phase rewrote.
-
-**Fix:** Add a sentence to the doc: "`reason` is `Cause.pretty` of the build failure, a trace for the host's own process: it must not cross a trust boundary." In the README, change "A stop's `reason`" to "A stop's or a failed read's `reason` (`Stopped`, `WiringRead.Failed`, `RegistryRead.Failed`, `AskedRead.Failed`)".
-
-### IN-02: The "not generic" type pin passes for a reintroduced one-parameter generic
-
-**File:** `packages/devtools/test/model/DiagnosticsStore.tst.ts:284-285`
+**File:** `packages/devtools/test/model/DiagnosticsStore.tst.ts:60`
 
 **Issue:**
-- **What the pin checks.** `// @ts-expect-error not generic` over `DiagnosticsOptions<never, never>` is satisfied by *any* error on that line, including "expected 0-1 type arguments".
-- **The gap.** I compiled `interface DiagnosticsOptions<ROut = never> { … }` with that line under `tsc --strict`, and it exits 0, so the pin passes. `surface.tst.ts`'s exact-shape pin compares only the default instantiation, so it passes too. A `<ROut = never>` parameter could come back with both pins green.
+- **What the comment says.** "Both arities, so a reintroduced one-parameter generic fails the second line."
+- **What happens.** I compiled `interface DiagnosticsOptions<ROut = never>` against the two directives under `tsc --strict`. The *first* directive (`NotGenericOne = DiagnosticsOptions<never>`, `:61-62`) became unused (TS2578 at line 2). The second still errors, because two type arguments is too many.
+- **Effect.** The pin is correct. Only its explanation is inverted.
 
-**Fix:** Add the one-argument form, so that every generic arity fails one of the two lines.
-```ts
-// @ts-expect-error not generic
-export type NotGenericOne = DiagnosticsOptions<never>;
-// @ts-expect-error not generic
-export type NotGenericTwo = DiagnosticsOptions<never, never>;
-```
+**Fix:** Change the comment to "Both arities: a reintroduced one-parameter generic fails the first directive, a two-parameter one fails both."
 
-### IN-03: The packed-consumer feed check asserts a status a feed that read nothing also has
+### IN-02: `GatesFeed.ts`'s new listener sentence joins two separate failures, and omits the registry-notification path
 
-**File:** `scripts/check-package-install.mjs:501-511`
+**File:** `packages/devtools/src/model/GatesFeed.ts:8-9`, `:186-190`, `:242-256`; `packages/devtools/README.md:163-166`
 
-**Issue:** `Reading` is the status a feed publishes before its read starts (`TimelineFeed.ts:123`, `:129`). It is also the status of a read that ended or never ran. The check proves the export resolves and the build runs. It does not prove the shipped feed read `sourceFromRecords([stored])`.
+**Issue:**
+- **What the doc says.** "A throw escapes `configure` and ends the questions cadence without a statement."
+- **What actually happens.**
+  - In `configure`, `cadence()` (`:253`) has already forked the new run before `publish` (`:255`) throws. So a throw in `configure` escapes to the caller, and the cadence survives.
+  - The cadence ends on the next *tick that publishes*. My probe called the thunk on that tick. A thunk whose answer never changes keeps ticking forever.
+  - A throw during a registry notification escapes into the host registry's `notify` through `onRegistry`, and the doc does not mention it.
+- **Severity.** The rule the doc states ("must not throw") is right, so this is Info.
 
-**Fix:** Inside the same `Effect.scoped`, after `yield* Effect.sleep("10 millis")`, also return `feed.timeline.getSnapshot().entries.length` and `expect("devtools feed entries", …, 1)`.
+**Fix:** Change the sentence to: "A `subscribe` listener is not guarded: it is the caller's and must not throw. A throw escapes the call that published (`configure`, or the registry's own notification), and a throw on a tick ends the questions cadence without a statement." Mirror the "on a tick" wording in the README sentence.
 
-### IN-04: The now-public `DiagnosticsOptions` doc points readers at a package-private type
+### IN-03: `TimelineStore.subscribe`, the timeline feed's busiest listener, does not carry the "must not throw" line
 
-**File:** `packages/devtools/src/model/DiagnosticsStore.ts:194-196`
+**File:** `packages/devtools/src/model/TimelineStore.ts:25`
 
-**Issue:** "They are the dock model's own inputs (`DockModelInputs.gates` and `DockModelInputs.questions`)". `DockModelInputs` is not exported from either entry, so a headless reader of the public type cannot follow the reference.
+**Issue:**
+- **The gap.** WR-03's fix added "A listener must not throw: it is not isolated" to `TimelineStatusReadout`, `DiagnosticsReadout` and `GatesFeed`. `TimelineFeed.timeline` is a `TimelineStore`, and its `subscribe` doc says only "Registers a listener…".
+- **Why that listener matters most.** `view.publish` notifies on every accepted record, so it is the listener a headless shell is most likely to attach. The README's `follow` attaches one.
+- **What a throw there does.** It becomes `TimelineStatus.Stopped` with the listener's trace as the source's reason, the same as `DiagnosticsReadout`'s documented case. A hand-fed `timeline.accept` call throws it to the caller instead.
 
-**Fix:** Change the reference to "They are the gates feed's inputs (`GatesFeedInputs.gates` and `GatesFeedInputs.questions`, `makeGatesFeed`)".
+**Fix:** Change the doc to "Registers a listener, and returns the function that removes it. A listener must not throw: it is not isolated, and a throw while a feed's read publishes is stated as that read's stop."
 
 ---
 
-_Reviewed: 2026-11-19T15:02:47Z_
+_Reviewed: 2026-11-19T15:23:20Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
