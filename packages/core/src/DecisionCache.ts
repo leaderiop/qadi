@@ -53,6 +53,12 @@ export interface DecisionCacheShape {
    * `concurrency` is unused: the claimant's governs. That is safe because
    * `concurrency` changes lookups, never answers (INV-QD-020).
    *
+   * At runtime `options` is the caller's own options object, passed through by
+   * reference with no copy (ADR-QD-174 decision 4), so it may carry more keys
+   * than this type names: `resource`, `action`, `maxDepth`, `evaluationId`.
+   * An implementation reads only `concurrency`, and does not log or retain the
+   * rest.
+   *
    * Returns the {@link CacheOutcome} alongside it. It used to return a bare
    * `Trace`, which made "was this decision cached?" answerable only as a
    * process-global frequency metric — so an operator could see a hit *rate*
