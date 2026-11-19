@@ -97,6 +97,35 @@ This phase makes admission produce the one walk environment that both interprete
   - A changeset only if public behaviour or types change.
   - Nothing is released.
 
+### Settled after research (2026-11-19)
+
+- **D-11: the gate passed (WENV-01), so the phase is pursued.** The prototype `research-probes/proto-p1.patch.txt` (SHA-256 `7cd868b6…4ee3`, applies to `e9b98bb8`) was measured against the base in two runs on a loaded host. Both runs print `# gate: pass`.
+
+  | Run | Slower | Geomean of minima | Worst |
+  |-----|--------|-------------------|-------|
+  | 3 + 3 | 0 of 35 | -1.15% | +6.7% |
+  | 5 + 5 | 0 of 35 | -0.03% | +5.6% |
+
+  The full tables are in `59-BENCH.md`, `bench/gate/` and `bench/gate-r2/`.
+- **D-12 (discretion): a Walk-private bundle carries `concurrency`.** `concurrency` stays out of the env (D-01). It travels in a private `Evaluation { admitted, concurrency }`, so recursion is `evaluateNode(policy, ev, depth)`:
+  - A fourth positional `concurrency` would typecheck when swapped with `depth`.
+  - The bundle repeats no fact and has one construction site, so D-01's objection to a second type does not apply.
+  - ADR-QD-172 states this.
+- **D-13: the env type is `Admitted<Resource extends boolean = boolean>`**, holding `{ subject, supplied, matcherContext, maxDepth }`; the old `question` field is gone. `admit` has two overloads, `"row"` → `Admitted<true>` and `RowSource` → `Admitted`, so `Supplied<true>` stays precise without `as`.
+- **D-14: `evaluateNode` is exported from the package-private `Walk.ts`** so the tstyche depth/maxDepth negative can name it. Gate 13 is unaffected, because neither `Admitted`, `admit` nor `Walk.ts` is in the barrel or `spec/overview.md`. No changeset: there is no public change.
+- **D-15: mutation (D-08).** Killed mutants on the two hand-built `supplied` literals move into `Admission.ts`: Phase 54's moved-with-receiver rule, plus Phase 58's mechanics and static credit.
+  - The base covers `Admission.ts`, `Predicate.ts` and `Walk.ts`.
+  - Keep `const { maxDepth } = admitted;` and the parameter name `request`, so the base's survivor lines stay byte-identical.
+- **D-16: tuple call sites.** There are 13: 9 recursive, 3 dispatcher hand-offs and 1 root. CONTEXT said 11.
+- **D-17: records.** Amend:
+  - ADR-QD-100 (its 2026-10-08 amendment names `Admitted` as carrying the question);
+  - ADR-QD-163 (the `supplied` object `walk` built);
+  - ADR-QD-024 (an addendum);
+  - INV-QD-037 and `spec/traceability.md`.
+
+  The BEH homes are `05-evaluator.md` and `16-predicates.md`.
+- **D-18: the after-bench (D-06)** is the same 3 + 3 harness (about 4 minutes) against the phase base, run on as quiet a host as possible, with nothing else heavy running.
+
 ### Claude's Discretion
 
 - The env's field names.
