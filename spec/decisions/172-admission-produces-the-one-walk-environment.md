@@ -54,7 +54,9 @@ Each item cites the phase decision it records.
    walk from, so the depth proof cannot be paired with a deeper tree (recursion still passes each child node).
    `SUPPLIED` is one closed table with a row per row source, typed `{ [Source in RowSource]: (question) =>
    SuppliedBy[Source] }`, so each row is checked against its own type: a row source without a row does not compile, and
-   a `"row"` row that stops supplying the resource, or an `"asked"` row that claims one, fails with TS2322.
+   a `"row"` row that stops supplying the resource fails with TS2322. The `"asked"` row's flags are `boolean`, so an
+   `"asked"` row that claims a resource it lacks still compiles; `Admission.test.ts` (E1 to E5) and `LeafMatrix.test.ts`
+   pin that direction at run time.
    `admit` is one generic signature with no overload and no wider implementation signature.
 4. **D-03 and D-16: recursion passes `(policy, request, depth)`.** `maxDepth` moved into the environment, so the
    recursion carries one number and a depth cannot land where the bound belongs and compile. All 13 sites use the new

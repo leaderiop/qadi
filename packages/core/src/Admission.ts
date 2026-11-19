@@ -53,8 +53,10 @@ interface SuppliedBy {
 
 /**
  * What a request supplied, one row per row source. Each row is checked against
- * its {@link SuppliedBy} type, so a row that claims a resource it does not have
- * does not compile, and a row source without a row here does not compile either.
+ * its {@link SuppliedBy} type: a `"row"` row that stops supplying the resource
+ * does not compile, and neither does a row source without a row here. The
+ * `"asked"` row's flags are `boolean`, so its truth (supplied exactly when the
+ * question carries the value) is pinned by the tests, not the type.
  */
 const SUPPLIED: { readonly [Source in RowSource]: (question: Question) => SuppliedBy[Source] } = {
   asked: (question) => ({

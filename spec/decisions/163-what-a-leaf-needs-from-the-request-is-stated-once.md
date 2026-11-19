@@ -289,6 +289,6 @@ mutant was not done. `PortAccess.ts` and `Predicate.ts` did not fall.
 ## Amendment (2026-11-19, ADR-QD-172, CCR-QD-450)
 
 [ADR-QD-172](./172-admission-produces-the-one-walk-environment.md): the `supplied` object `walk()` built and `compileTree`'s `Supplied<true>` literal are gone. `admit`
-builds `supplied` once from the row source (`RESOURCE_SUPPLIED`), so the mutants killed on those two literals moved to
+builds `supplied` once from the row source (`SUPPLIED`), so the mutants killed on those two literals moved to
 `Admission.ts` (ADR-QD-172's mutation table). `absenceOf(leaf, supplied)` and Decision 2's rule are unchanged, and
-`toPredicate`'s resource is still supplied by type, now through `admit`'s `"row"` overload (`Admitted<"row">`).
+`toPredicate`'s resource is still supplied by type, now through `SUPPLIED`'s `"row"` row (`Admitted<"row">`).

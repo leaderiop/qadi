@@ -4236,9 +4236,9 @@ A log's stored record and a decoded one are `StoredRecord` values whose `record`
 
 ## INV-QD-364: What a request supplied is a function of its row source and its question
 
-`supplied.action` is whether the question carries an action; `supplied.resource` is whether it carries a resource for the row source `"asked"` and `true` for `"row"`; `admit` computes both from one closed table, `RESOURCE_SUPPLIED` ([BEH-QD-632](behaviors/05-evaluator.md#beh-qd-632-an-asked-question-supplies-what-it-carries), [BEH-QD-633](behaviors/16-predicates.md#beh-qd-633-a-predicates-row-is-always-supplied)).
+`supplied.action` is whether the question carries an action; `supplied.resource` is whether it carries a resource for the row source `"asked"` and `true` for `"row"`; `admit` computes both from one closed table, `SUPPLIED`, whose rows are typed per row source ([BEH-QD-632](behaviors/05-evaluator.md#beh-qd-632-an-asked-question-supplies-what-it-carries), [BEH-QD-633](behaviors/16-predicates.md#beh-qd-633-a-predicates-row-is-always-supplied)).
 
-**Source**: `packages/core/src/Admission.ts` (`RowSource`, `RESOURCE_SUPPLIED`, `admit`).
+**Source**: `packages/core/src/Admission.ts` (`RowSource`, `SuppliedBy`, `SUPPLIED`, `admit`).
 
 **Implication**: an absent resource reported as supplied would let a resource leaf read `{}` instead of failing with `MissingResource`; a row source added without a row does not compile (ADR-QD-172).
 
