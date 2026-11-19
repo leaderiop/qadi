@@ -236,10 +236,11 @@ logged, counted or spanned.
 - ✓ ARCH-105 A stored record is its envelope in memory too (STOR-01..04): `StoredRecord` is one `Data.Class<{ environment, record: SinkRecord }>`; `Stamped`, `StoredDecisionRecord`, `StoredObligationRecord` and `stampRecord` are deleted with no alias; `sinkRecordOrder` orders a record and `storedRecordOrder` maps onto it; the stored codec is the record codec plus one field, with byte-identical goldens; the log's two unreachable `isolate` catches and test C4 are deleted (owner choice D-12); devtools' timeline ingests the envelope; Breaking in `@qadi/core`, `@qadi/http` and `@qadi/devtools` (ADR-QD-171, Phase 58)
 - ✓ ARCH-106 Admission produces the one walk environment (WENV-01..04): `admit(question, rowSource)` returns `Admitted<Source>` holding the row source, policy, subject, `supplied` (one closed `SUPPLIED` table typed per row source), matcher context and `maxDepth`; recursion is `evaluateNode(policy, request, depth)`, so a depth/maxDepth swap no longer compiles (tstyche); a `"row"` environment cannot reach the walk; four interleaved benches passed (0 of 35 slower each); mutation held (D-15); no public change — v1.6, Phase 59 (ADR-QD-172)
 - ✓ ARCH-107 Devtools' headless interface is the feeds (HDLS-01..04): `@qadi/devtools`' root exports `makeTimelineFeed`, `makeDiagnosticsFeed` and `makeGatesFeed` (owner: pursue, all three public) and retires `makeTimelineStore`/`runSource`/`makeDiagnosticsStore`/`runDiagnostics`; one non-generic `DiagnosticsOptions { layer?, collector?, intervalMillis? }` replaces both option shapes; the README's headless example uses the feeds with stop detection; **Breaking** in a changeset and `upgrading.md` 0.13 (unreleased); mutation held (D-10) — v1.6, Phase 60 (ADR-QD-173)
+- ✓ ARCH-108 A `DecisionCache` is asked only the question (CASK-01..04): `getOrCompute(question, options?)` with `options` a `Pick<EvaluateOptions, "concurrency">` replaces `getOrCompute(question, compute)`, and `decisionCacheLayer` walks the question it is given, so no caller can store a trace under a question it does not answer (owner: pursue, not sealed — the guarantee covers callers, a host cache wraps `decisionCacheLayer()`); `concurrency` reaches the walk and never the key; **Breaking** for `DecisionCacheShape` implementers in a changeset and `upgrading.md` 0.13 (unreleased); `SharedComputation` unchanged; mutation held (D-06) — v1.6, Phase 61 (ADR-QD-174)
 
 ### Active
 
-- [ ] ARCH-108: the remaining candidate of the 2026-11-16 architecture review (v1.6, Phase 61); see `.planning/REQUIREMENTS.md`
+- [ ] v1.6 close: WX-01..07 (wave-wide rules) are confirmed by the milestone audit, then the milestone is archived (no release)
 
 ### Out of Scope
 
@@ -435,6 +436,7 @@ logged, counted or spanned.
 | In memory a stored record is its envelope, the producer's label beside the record, not a flattened copy per record kind | Two stored classes, a stamp arm and a decode re-stamp translated one fact between two shapes, and every new `SinkRecord` kind needed all three; the log's `isolate` catches were reachable only through the stamp's getter-reading spread, so they were deleted rather than kept as dead code (owner choice) | Accepted, ADR-QD-171 (Phase 58) |
 | Admission produces the one walk environment both interpreters read, typed by its row source and carrying the policy it admitted | Two hand-built `supplied` objects and a six-argument recursion whose `depth` and `maxDepth` swapped silently; a benchmark gated the change (gate, then three after-runs, each 0 of 35 slower) | Accepted, ADR-QD-172 (Phase 59) |
 | Devtools' headless interface is its feeds: the root exports the three feeds and one diagnostics option shape, not the store/runner pairs | A headless shell had to pair, fork, supersede and watch each store itself, and `runDiagnostics` lacked the feeds' stop detection the README claimed it had | Accepted, ADR-QD-173 (Phase 60) |
+| A decision cache is asked only the question: the interface takes the question and a `concurrency`-only options type, and core's layer runs the matching walk | `getOrCompute(question, compute)` accepted any computation for any key, so ADR-QD-031's security-boundary key held only because one call site in `Lifecycle.ts` paired them | Accepted, ADR-QD-174 (Phase 61) |
 
 ## Evolution
 
@@ -454,4 +456,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-19 after Phase 60*
+*Last updated: 2026-11-19 after Phase 61*
