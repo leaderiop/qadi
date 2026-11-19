@@ -1064,11 +1064,13 @@ The decision is [ADR-QD-173](https://github.com/leaderiop/qadi/blob/main/spec/de
 
 ## 0.13: a DecisionCache is asked only the question
 
-`DecisionCacheShape.getOrCompute` takes the question and, optionally, how the walk runs: `getOrCompute(question, options?)`, where `options` is `{ concurrency? }`, the `concurrency` option of `evaluate` (`Pick<EvaluateOptions, "concurrency">`). It no longer takes a `compute`, and passing one is a compile error (TS2559). `decisionCacheLayer()` walks the question it is given, so no caller can store a trace under a question that trace does not answer.
+`DecisionCacheShape.getOrCompute` takes the question and, optionally, how the walk runs: `getOrCompute(question, options?)`, where `options` is `{ concurrency? }`, the `concurrency` option of `evaluate` (`Pick<EvaluateOptions, "concurrency">`). It no longer takes a `compute`, and passing one as a caller is a compile error (TS2559). `decisionCacheLayer()` walks the question it is given, so no caller can store a trace under a question that trace does not answer.
 
 `concurrency` is still not part of the key. One question asked with two concurrencies is one entry, and an ask that joins a walk already in flight shares that walk, run with the first asker's `concurrency`.
 
 Callers of `evaluate` and of the enforcing entry points see no change. A hand-written `DecisionCacheShape` must now produce its own trace for the question it is handed, and core does not export the walk, so wrap `decisionCacheLayer()` and delegate to it.
+
+An implementation written as below no longer compiles where it runs `compute` (TS2345), or where it annotates it (TS2322).
 
 Before:
 
