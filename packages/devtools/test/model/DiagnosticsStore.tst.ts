@@ -57,8 +57,11 @@ test("a layer whose requirement is unmet is refused", () => {
   expect(runDiagnostics).type.not.toBeCallableWith(store, { layer: needs });
 });
 
+// Both arities, so a reintroduced one-parameter generic fails the second line.
 // @ts-expect-error not generic
-export type NotGeneric = DiagnosticsOptions<never, never>;
+export type NotGenericOne = DiagnosticsOptions<never>;
+// @ts-expect-error not generic
+export type NotGenericTwo = DiagnosticsOptions<never, never>;
 
 test("WiringRead narrows by its tag", () => {
   const read = (self: WiringRead) => {
