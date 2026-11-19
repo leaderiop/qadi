@@ -5,8 +5,10 @@
  * throw stopped every tab (ADR-QD-169). Both are host code, so both are guarded and a
  * throw is a statement in the snapshot, never a stop: nothing the host throws from the
  * registry or the thunk leaves `makeGatesFeed`, `configure`, a registry listener or a tick.
- * A `subscribe` listener is not guarded: it is the caller's and must not throw, because a
- * throw escapes `configure` and ends the questions cadence without a statement.
+ * A listener on the feed's own `subscribe` is not guarded: it is the caller's and must not
+ * throw. Its throw escapes whatever published (`configure`, a tick, or the host registry's
+ * own notification through the registry listener), and one thrown on a tick ends the
+ * questions cadence without a statement.
  *
  * The thunk has a cadence of its own because `asked()` has no change signal. Its first
  * tick is one interval after it starts, since the build and each `configure` that hands a

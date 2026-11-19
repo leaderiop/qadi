@@ -378,7 +378,7 @@ describe("the timeline feed", () => {
       assert.deepStrictEqual(heard, []);
     }));
 
-  it.effect("TF20 a configure after the scope closed reads nothing, publishes nothing and leaves a Stopped feed Stopped", () =>
+  it.effect("TF24 a configure after the scope closed reads nothing, publishes nothing and leaves a Stopped feed Stopped", () =>
     Effect.gen(function* () {
       const a = flaky();
       const b = counting([record("b", 300)], Stream.never);

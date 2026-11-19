@@ -61,7 +61,10 @@ export interface TimelineStatusReadout {
 }
 
 export interface TimelineFeed {
-  /** Stable across a capacity change: a different bound empties it, it does not replace it. */
+  /**
+   * Stable across a capacity change: a different bound empties it, it does not replace it.
+   * A listener on its `subscribe` must not throw: it is not isolated, and it runs on every record.
+   */
   readonly timeline: TimelineStore;
   /** Where the read stands. */
   readonly status: TimelineStatusReadout;

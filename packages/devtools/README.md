@@ -161,9 +161,10 @@ a report.
 
 A shell of your own builds the three feeds in a scope. Closing the scope ends every
 read, and a read that stops is stated in its feed's status instead of leaving a dead
-fiber. A `subscribe` listener is yours and is not isolated: it must not throw, because
-a throw escapes the command that published it (`configure`) and ends the gates
-feed's questions cadence without a statement.
+fiber. A `subscribe` listener is yours and is not isolated: it must not throw. A
+throw escapes whatever published (`configure`, a tick, or the host registry's own
+notification), and one thrown on a gates tick ends that feed's questions cadence
+without a statement.
 
 ```typescript
 import * as Effect from "effect/Effect";
