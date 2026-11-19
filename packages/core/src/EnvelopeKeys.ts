@@ -19,14 +19,16 @@ import * as SchemaAST from "effect/SchemaAST";
 /** The one slot that selects a union member: `version` is shared by every member of a wire, so it never selects. */
 const TAG = "_tag";
 
-/** One object member: its declared top-level keys, and its required literal slots. */
+/** One object member: its declared top-level keys, whether an index signature or rest also admits keys it cannot name, and its required literal slots. */
 interface Member {
   readonly keys: ReadonlySet<PropertyKey>;
+  readonly open: boolean;
   readonly literals: ReadonlyMap<PropertyKey, unknown>;
 }
 
 const memberOf = (ast: SchemaAST.Objects): Member => ({
   keys: new Set(ast.propertySignatures.map((signature) => signature.name)),
+  open: ast.indexSignatures.length > 0,
   literals: new Map(
     ast.propertySignatures.flatMap((signature) =>
       SchemaAST.isLiteral(signature.type) && !SchemaAST.isOptional(signature.type)
@@ -56,8 +58,9 @@ const discriminantOf = (members: ReadonlyArray<Member>): ReadonlySet<unknown> | 
  *
  * The member is the one whose `_tag` literal equals the input's own `_tag`; an unknown or absent `_tag`
  * takes the first member and fails in the decode, as it always did. Throws, at build, for a schema
- * with no object member or with several members that `_tag` does not tell apart: both are
- * programmer errors at module scope, and a build that answered would drop keys it could not name.
+ * with no object member, with several members that `_tag` does not tell apart, or with a member that
+ * has an index signature or a rest (which declares no finite key list): all are programmer errors at
+ * module scope, and a build that answered would drop keys it could not name.
  */
 export const envelopeKeysOf = (
   ast: SchemaAST.AST,
@@ -67,6 +70,11 @@ export const envelopeKeysOf = (
   if (first === undefined || (members.length > 1 && discriminantOf(members) === undefined)) {
     throw new Error(
       'unknownKeys "ignore" needs a schema that is an object, or a union of objects each with a distinct literal _tag',
+    );
+  }
+  if (members.some((member) => member.open)) {
+    throw new Error(
+      'unknownKeys "ignore" needs objects with a closed key list: an index signature or a rest element declares none',
     );
   }
   return (entries) => {
