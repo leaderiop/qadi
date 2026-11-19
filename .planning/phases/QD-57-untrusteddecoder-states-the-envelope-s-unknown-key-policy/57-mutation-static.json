@@ -1,0 +1,403 @@
+{
+ "packages/core/src/EnvelopeKeys.ts": [
+  {
+   "mutator": "ArrayDeclaration",
+   "line": 44,
+   "column": 22,
+   "replacement": "[\"Stryker was here\"]",
+   "status": "Killed"
+  },
+  {
+   "mutator": "StringLiteral",
+   "line": 69,
+   "column": 7,
+   "replacement": "\"\"",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrayDeclaration",
+   "line": 49,
+   "column": 103,
+   "replacement": "[\"Stryker was here\"]",
+   "status": "Killed"
+  },
+  {
+   "mutator": "BlockStatement",
+   "line": 67,
+   "column": 93,
+   "replacement": "{}",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrowFunction",
+   "line": 73,
+   "column": 30,
+   "replacement": "() => undefined",
+   "status": "Killed"
+  },
+  {
+   "mutator": "EqualityOperator",
+   "line": 73,
+   "column": 41,
+   "replacement": "key !== TAG",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 73,
+   "column": 41,
+   "replacement": "false",
+   "status": "Killed"
+  },
+  {
+   "mutator": "OptionalChaining",
+   "line": 73,
+   "column": 17,
+   "replacement": "entries.find(([key]) => key === TAG)[1]",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 73,
+   "column": 41,
+   "replacement": "true",
+   "status": "Killed"
+  },
+  {
+   "mutator": "LogicalOperator",
+   "line": 74,
+   "column": 13,
+   "replacement": "members.find(member => member.literals.get(TAG) === tag) && first",
+   "status": "Killed"
+  },
+  {
+   "mutator": "BlockStatement",
+   "line": 72,
+   "column": 23,
+   "replacement": "{}",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrowFunction",
+   "line": 74,
+   "column": 26,
+   "replacement": "() => undefined",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 74,
+   "column": 38,
+   "replacement": "true",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 74,
+   "column": 38,
+   "replacement": "false",
+   "status": "Killed"
+  },
+  {
+   "mutator": "EqualityOperator",
+   "line": 74,
+   "column": 38,
+   "replacement": "member.literals.get(TAG) !== tag",
+   "status": "Killed"
+  },
+  {
+   "mutator": "StringLiteral",
+   "line": 20,
+   "column": 13,
+   "replacement": "\"\"",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrowFunction",
+   "line": 28,
+   "column": 18,
+   "replacement": "() => undefined",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrowFunction",
+   "line": 29,
+   "column": 44,
+   "replacement": "() => undefined",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ObjectLiteral",
+   "line": 28,
+   "column": 55,
+   "replacement": "{}",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrowFunction",
+   "line": 31,
+   "column": 36,
+   "replacement": "() => undefined",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 32,
+   "column": 7,
+   "replacement": "false",
+   "status": "Killed"
+  },
+  {
+   "mutator": "BooleanLiteral",
+   "line": 32,
+   "column": 46,
+   "replacement": "SchemaAST.isOptional(signature.type)",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrayDeclaration",
+   "line": 34,
+   "column": 11,
+   "replacement": "[\"Stryker was here\"]",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrowFunction",
+   "line": 41,
+   "column": 24,
+   "replacement": "() => undefined",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrayDeclaration",
+   "line": 33,
+   "column": 11,
+   "replacement": "[]",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrayDeclaration",
+   "line": 41,
+   "column": 33,
+   "replacement": "[]",
+   "status": "Killed"
+  },
+  {
+   "mutator": "StringLiteral",
+   "line": 41,
+   "column": 13,
+   "replacement": "\"\"",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 32,
+   "column": 7,
+   "replacement": "true",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrowFunction",
+   "line": 42,
+   "column": 22,
+   "replacement": "() => undefined",
+   "status": "Killed"
+  },
+  {
+   "mutator": "StringLiteral",
+   "line": 42,
+   "column": 13,
+   "replacement": "\"\"",
+   "status": "Killed"
+  },
+  {
+   "mutator": "LogicalOperator",
+   "line": 32,
+   "column": 7,
+   "replacement": "SchemaAST.isLiteral(signature.type) || !SchemaAST.isOptional(signature.type)",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrowFunction",
+   "line": 49,
+   "column": 34,
+   "replacement": "() => undefined",
+   "status": "Killed"
+  },
+  {
+   "mutator": "BlockStatement",
+   "line": 48,
+   "column": 94,
+   "replacement": "{}",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrayDeclaration",
+   "line": 49,
+   "column": 74,
+   "replacement": "[]",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 51,
+   "column": 10,
+   "replacement": "false",
+   "status": "Killed"
+  },
+  {
+   "mutator": "EqualityOperator",
+   "line": 51,
+   "column": 10,
+   "replacement": "values.length !== members.length",
+   "status": "Killed"
+  },
+  {
+   "mutator": "BlockStatement",
+   "line": 64,
+   "column": 90,
+   "replacement": "{}",
+   "status": "Killed"
+  },
+  {
+   "mutator": "StringLiteral",
+   "line": 43,
+   "column": 13,
+   "replacement": "\"\"",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrowFunction",
+   "line": 43,
+   "column": 24,
+   "replacement": "() => undefined",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 51,
+   "column": 10,
+   "replacement": "true",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrowFunction",
+   "line": 44,
+   "column": 16,
+   "replacement": "() => undefined",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 51,
+   "column": 10,
+   "replacement": "true",
+   "status": "Killed"
+  },
+  {
+   "mutator": "EqualityOperator",
+   "line": 51,
+   "column": 46,
+   "replacement": "distinct.size !== values.length",
+   "status": "Killed"
+  },
+  {
+   "mutator": "LogicalOperator",
+   "line": 51,
+   "column": 10,
+   "replacement": "values.length === members.length || distinct.size === values.length",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 67,
+   "column": 7,
+   "replacement": "true",
+   "status": "Killed"
+  },
+  {
+   "mutator": "EqualityOperator",
+   "line": 67,
+   "column": 7,
+   "replacement": "first !== undefined",
+   "status": "Killed"
+  },
+  {
+   "mutator": "LogicalOperator",
+   "line": 67,
+   "column": 31,
+   "replacement": "members.length > 1 || discriminantOf(members) === undefined",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 51,
+   "column": 46,
+   "replacement": "true",
+   "status": "Killed"
+  },
+  {
+   "mutator": "EqualityOperator",
+   "line": 67,
+   "column": 31,
+   "replacement": "members.length >= 1",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 67,
+   "column": 31,
+   "replacement": "true",
+   "status": "Killed"
+  },
+  {
+   "mutator": "EqualityOperator",
+   "line": 67,
+   "column": 31,
+   "replacement": "members.length <= 1",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 67,
+   "column": 53,
+   "replacement": "true",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 67,
+   "column": 7,
+   "replacement": "false",
+   "status": "Killed"
+  },
+  {
+   "mutator": "LogicalOperator",
+   "line": 67,
+   "column": 7,
+   "replacement": "first === undefined && members.length > 1 && discriminantOf(members) === undefined",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 67,
+   "column": 7,
+   "replacement": "false",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 67,
+   "column": 31,
+   "replacement": "false",
+   "status": "Killed"
+  },
+  {
+   "mutator": "EqualityOperator",
+   "line": 67,
+   "column": 53,
+   "replacement": "discriminantOf(members) !== undefined",
+   "status": "Killed"
+  }
+ ]
+}
