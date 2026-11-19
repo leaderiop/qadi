@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-159                                   |
-> | Revision       | 1.7                                            |
+> | Revision       | 1.8                                            |
 > | Effective Date | 2026-11-15                                     |
-> | Status         | Accepted — amends ADR-QD-044                   |
+> | Status         | Accepted — amends ADR-QD-044; amended 2026-11-19 (ADR-QD-171) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.7 (2026-11-15): The W0 row cites E1-E15, as the classification does<br>1.6 (2026-11-15): E15 is a hostile-cause regression row; E9 alone pins the rendering containment; the table's A rows are A1-A8 and W5 points at the member report<br>1.5 (2026-11-15): the exact four annotation keys are pinned; the cause-rendering clause says the rendering runs inside the report's own containment; row E15 (ARCH-93, CCR-QD-437)<br>1.4 (2026-11-15): the fan-out's member line carries the emitter's four keys, both built by one report in SinkReport.ts, which also holds sinkName (ARCH-93, CCR-QD-437)<br>1.3 (2026-11-15): the report names the tag and evaluation id read before the sink runs, and unknown when they cannot be read; rows E13, E14 (ARCH-93, CCR-QD-437)<br>1.2 (2026-11-15): The record tag literal reads Obligations, as the code emits<br>1.1 (2026-11-15): Related: BEH-QD-566 to BEH-QD-570, INV-QD-337 and INV-QD-338 (ARCH-93, CCR-QD-437)<br>1.0 (2026-11-15): Initial (ARCH-93, CCR-QD-437) |
+> | Change History | 1.8 (2026-11-19): amended: the decision log's isolate catches (W6, W7) and C4 are deleted; the emitter's containment covers the log (ADR-QD-171, CCR-QD-449)<br>1.7 (2026-11-15): The W0 row cites E1-E15, as the classification does<br>1.6 (2026-11-15): E15 is a hostile-cause regression row; E9 alone pins the rendering containment; the table's A rows are A1-A8 and W5 points at the member report<br>1.5 (2026-11-15): the exact four annotation keys are pinned; the cause-rendering clause says the rendering runs inside the report's own containment; row E15 (ARCH-93, CCR-QD-437)<br>1.4 (2026-11-15): the fan-out's member line carries the emitter's four keys, both built by one report in SinkReport.ts, which also holds sinkName (ARCH-93, CCR-QD-437)<br>1.3 (2026-11-15): the report names the tag and evaluation id read before the sink runs, and unknown when they cannot be read; rows E13, E14 (ARCH-93, CCR-QD-437)<br>1.2 (2026-11-15): The record tag literal reads Obligations, as the code emits<br>1.1 (2026-11-15): Related: BEH-QD-566 to BEH-QD-570, INV-QD-337 and INV-QD-338 (ARCH-93, CCR-QD-437)<br>1.0 (2026-11-15): Initial (ARCH-93, CCR-QD-437) |
 
 ---
 
@@ -195,3 +195,12 @@ named above.
   [BEH-QD-570](../behaviors/24-decision-sink.md#beh-qd-570-a-fan-out-names-the-member-that-failed-and-every-member-is-isolated)
 - [INV-QD-337](../invariants.md#inv-qd-337-a-contained-sink-failure-is-reported-exactly-once-per-lost-record-naming-the-sink),
   [INV-QD-338](../invariants.md#inv-qd-338-no-report-on-the-sink-path-can-change-an-outcome-or-stop-a-later-fan-out-member)
+
+## Amendment (2026-11-19, ADR-QD-171, CCR-QD-449)
+
+The decision log's two `isolate` catches (W6, W7) are deleted with test C4, the owner's choice
+([ADR-QD-171](./171-a-stored-record-is-its-envelope-in-memory-too.md) D-12). The log builds `new StoredRecord({
+environment, record })`, which reads no record field, so W6 could no longer fire and W7 was already unreachable. A defect in
+a log's `record` now propagates like any sink's, and Decision 1's containment reports it once. The classification's W6 and
+W7 rows, the bullet above that keeps them, and the "Found while planning" C4 bullet are history; BEH-QD-569's table drops
+them (the specification amendment that follows).
