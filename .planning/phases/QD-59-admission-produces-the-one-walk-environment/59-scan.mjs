@@ -128,7 +128,14 @@ else {
   if (g("diff", "--name-only", B, firstCode.h + "^", "--", ":(exclude).planning/**")) bad.push("something outside .planning/ changed before chore(59-02)");
 }
 const rebase = lines(g("log", "--format=%h %s", B + "..HEAD", "--", D + "59-mutation-base.json", D + "59-mutation.mjs"));
-if (rebase.length !== 1) bad.push("re-baselined or edited after chore(59-02): " + rebase.join("; "));
+// One later edit is allowed: the owner-approved fix(59) commit that dropped one DELETED fragment after review fix
+// WR-02 restored it (59-REVIEW-FIX.md). It must touch only 59-mutation.mjs, never the base JSON.
+const amend = rebase.filter((x) => / fix\(59\): /.test(x));
+for (const x of amend) {
+  const f = lines(g("diff-tree", "--no-commit-id", "--name-only", "-r", x.split(" ")[0])).filter((y) => y.startsWith(D + "59-mutation")).join(" ");
+  if (f !== D + "59-mutation.mjs") bad.push("the fix(59) amendment changes " + f);
+}
+if (rebase.length - amend.length !== 1 || amend.length > 1) bad.push("re-baselined or edited after chore(59-02): " + rebase.join("; "));
 const srcCommits = lines(g("log", "--reverse", "--format=%H", B + "..HEAD", "--", SRC));
 const firstSrc = srcCommits.length ? at(srcCommits[0]) : -1;
 if (firstSrc < 0 || !L[firstSrc].s.startsWith("refactor(59-04): ")) bad.push("the first src commit is not refactor(59-04)");
