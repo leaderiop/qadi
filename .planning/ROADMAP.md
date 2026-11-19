@@ -398,7 +398,7 @@ Order: the defect first (53), then the "stated once" deepenings (54-58), then th
 - [x] **Phase 58: A stored record is its envelope in memory too** - The in-memory stored record is the producer's `environment` next to a `SinkRecord`; two classes and two stamp functions are deleted (ARCH-105, Breaking, core, http, devtools) (completed 2026-11-19)
 - [x] **Phase 59: Admission produces the one walk environment** - Opens on a benchmark; recursion passes `(policy, env, depth)`, or a recorded rejection (ARCH-106, core) (completed 2026-11-19)
 - [x] **Phase 60: Devtools' headless interface is the feeds** - Opens on a human checkpoint; the feeds replace the store/runner pairs in the barrel, or a recorded rejection (ARCH-107, Breaking, devtools) (completed 2026-11-19)
-- [ ] **Phase 61: DecisionCache is asked only the question** - Opens on a human checkpoint; core supplies the matching walk so no caller can pair a key with an unrelated computation, or a recorded rejection (ARCH-108, core)
+- [x] **Phase 61: DecisionCache is asked only the question** - Opens on a human checkpoint; core supplies the matching walk so no caller can pair a key with an unrelated computation, or a recorded rejection (ARCH-108, core) (completed 2026-11-19)
 
 ### Phase Details
 
@@ -661,7 +661,7 @@ Plans:
   4. If pursued: `DecisionCache.test.ts`'s coalescing and interruption tests are driven through a question alone and stay green, and `SharedComputation`'s rules (ADR-QD-132, ARCH-79) are unchanged.
 
 **Planning notes**: **The checkpoint is the first thing settled, before any plan.** If pursued, plan shape, RED first: the mutation base for `DecisionCache.ts`, `Lifecycle.ts` and `SharedComputation.ts` and the existing coalescing and interruption tests characterised through a question alone first; then the interface; then records.
-**Plans**: 7/7 plans executed
+**Plans**: 7/7 plans complete
 
 Plans:
 - [x] 61-01 (W1): `phase_base`, base facts, reserved ids and the 939-export base; the scoped Stryker baseline of `DecisionCache.ts`, `Lifecycle.ts` and `SharedComputation.ts`, committed alone first (WX-02, WX-03, WX-05, WX-06).
@@ -687,4 +687,4 @@ Phases execute in numeric order: 53 → 54 → 55 → 56 → 57 → 58 → 59 �
 | 58. A stored record is its envelope in memory too | 9/9 | Complete    | 2026-11-19 |
 | 59. Admission produces the one walk environment | 10/10 | Complete    | 2026-11-19 |
 | 60. Devtools' headless interface is the feeds | 8/8 | Complete    | 2026-11-19 |
-| 61. DecisionCache is asked only the question | 7/7 | In Progress | - |
+| 61. DecisionCache is asked only the question | 7/7 | Complete    | 2026-11-19 |
