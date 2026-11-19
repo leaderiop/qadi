@@ -5,16 +5,16 @@ milestone_name: Arch Wave 11
 current_phase: 58
 current_phase_name: A stored record is its envelope in memory too
 status: executing
-stopped_at: Completed QD-58-01-PLAN.md
-last_updated: "2026-11-19T01:59:41.888Z"
+stopped_at: Completed 58-02-PLAN.md
+last_updated: "2026-11-19T02:07:09.640Z"
 last_activity: 2026-11-19
 last_activity_desc: Phase QD-57 complete, transitioned to Phase 58
-state_head: 3dc5af5f9d4f74fc8f6a511c7c185378a2640762
+state_head: 2dac0e69bbba8c3d7662e06341fb6d0fd716602b
 progress:
   total_phases: 9
   completed_phases: 5
   total_plans: 58
-  completed_plans: 50
+  completed_plans: 51
   percent: 56
 ---
 
@@ -381,6 +381,7 @@ Last activity: 2026-11-19 — Phase QD-57 complete, transitioned to Phase 58
 | Phase QD-57 P10 | 9 min | 2 tasks | 5 files |
 | Phase QD-57 P11 | 25 min | 2 tasks | 2 files |
 | Phase QD-58 P01 | 3 min | 2 tasks | 2 files |
+| Phase QD-58 P02 | 6 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -653,6 +654,7 @@ Last activity: 2026-11-19 — Phase QD-57 complete, transitioned to Phase 58
 - [Phase QD-57]: 57-09: BEH-QD-621..625 and INV-QD-359..360 written, BEH-QD-486/INV-QD-305/306 carve out only an undeclared top-level key under ignore
 - [Phase QD-57]: 57-10: the core changeset carries the break and both widenings; the audit entry states only the widening and points to core
 - [Phase QD-58]: 58-01: four base files are below 1 (DecisionLog 69/70, DecisionStream 70/72, SinkCodec 122/126, TimelineStore 32/33); the close compares against those floors with no new survivor
+- [Phase QD-58]: 58-02: order is read by evaluation id through the encoder (a NaN refusal carries the id), so no characterisation row reads the in-memory shape
 
 ### Pending Todos
 
@@ -712,8 +714,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-19T01:59:41.526Z
-Stopped at: Completed QD-58-01-PLAN.md
+Last session: 2026-11-19T02:07:07.988Z
+Stopped at: Completed 58-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
