@@ -530,3 +530,7 @@ entries:
     file: "170-an-envelope-states-its-unknown-key-policy-at-its-decoder.md"
     title: "An envelope states its unknown-key policy at its decoder"
     status: "Accepted — amends ADR-QD-096, ADR-QD-143; keeps ADR-QD-153"
+  - id: "ADR-QD-171"
+    file: "171-a-stored-record-is-its-envelope-in-memory-too.md"
+    title: "A stored record is its envelope in memory too"
+    status: "Accepted — amends ADR-QD-097, ADR-QD-135, ADR-QD-159"
