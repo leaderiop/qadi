@@ -1,16 +1,18 @@
 ---
 phase: QD-61-decisioncache-is-asked-only-the-question
-reviewed: 2026-11-19T19:32:39Z
+reviewed: 2026-11-19T21:09:06Z
 depth: standard
-iteration: 1
-files_reviewed: 15
+iteration: 2
+files_reviewed: 18
 files_reviewed_list:
   - packages/core/src/DecisionCache.ts
   - packages/core/src/Lifecycle.ts
   - packages/core/src/Question.ts
+  - packages/core/src/EvaluationMetrics.ts
   - packages/core/test/DecisionCache.test.ts
   - packages/core/test/DecisionCache.tst.ts
   - packages/core/test/Lifecycle.test.ts
+  - packages/devtools/test/react/Simulator.test.tsx
   - .changeset/core-decision-cache-asked-the-question.md
   - apps/website/src/content/docs/docs/reference/upgrading.md
   - spec/decisions/174-a-decision-cache-is-asked-the-question.md
@@ -20,183 +22,134 @@ files_reviewed_list:
   - spec/behaviors/25-inspection.md
   - spec/invariants.md
   - spec/README.md
+  - spec/traceability.md
 findings:
   critical: 0
-  warning: 3
-  info: 5
-  total: 8
+  warning: 0
+  info: 3
+  total: 3
   necessity: 0
 status: issues_found
 ---
 
-# Phase 61: Code Review Report (iteration 1)
+# Phase 61: Code Review Report (iteration 2)
 
-**Reviewed:** 2026-11-19T19:32:39Z
+**Reviewed:** 2026-11-19T21:09:06Z
 **Depth:** standard
-**Files Reviewed:** 15. That is the 14 in scope, plus the CCR-QD-452 row in `spec/README.md`, because it repeats the claim WR-03 corrects. Callees read for behaviour: `Walk.ts` (`walk`), `SharedComputation.ts` (`run`), `Evaluate.ts` and `Lifecycle.ts` `ask`, and `test/helpers.ts` (`forkAllAndSettle`).
-**Status:** issues_found
+**Files Reviewed:** 18. These are the files in `git diff 7d2d281d HEAD` that the brief scoped. Callees I read for behaviour: `Handover.ts` (`verdictOf`, `resourceFree`, `decidedOn`), `Qadi.ts` (`admittedOrDenied` and its five call sites), `Evaluate.ts:34` and `Lifecycle.ts` (`ask`).
+**Status:** issues_found (Info only)
 
 ## Summary
 
-I reviewed `git diff 7d2d281d HEAD` for each file in scope.
+**Iteration 1's eight findings.** All eight are fixed correctly. IN-03 was fixed through its comment only, which the finding allowed.
 
-**Checks I ran:**
-- `vitest --project core` on `DecisionCache.test.ts` and `Lifecycle.test.ts`: 44 of 44 pass.
-- `tstyche` on `DecisionCache.tst.ts`: 4 tests and 9 assertions pass, and 1 suppression matches.
-- `madge --circular` on `packages/core/src`: no cycle. `DecisionCache.ts` → `Walk.ts` is one-way, and nothing `Walk.ts` imports reaches `DecisionCache.ts`.
-- Three `tsc` probes in the scratchpad against the real `src`:
-  - **Callers.** An `Effect` gives TS2559. A thunk gives TS2559. A third argument gives TS2554. A literal with an extra key gives TS2353. A non-literal object carrying `compute` is accepted, which is UF-2 and harmless.
-  - **The `Params<F>` control.** An old-shape `(question, compute)` signature, read through `Params<F>`, accepts `(q, compute)`. So the negatives would fail on a revert, and they bite.
-  - **Implementers.** The upgrade note's own "Before" implementation gives TS2345, not TS2559 (WR-03).
-- A weak-type probe: a function is refused by a `{ name?: string }` options type (TS2559), so `Function`'s apparent members cannot weaken the thunk refusal. Only an option named like an `Effect` member, such as `pipe`, would. The ADR's caveat is exact.
+| Finding | Verdict | Evidence |
+| ------- | ------- | -------- |
+| WR-01 | Fixed | `DecisionCache.ts:43-45` now names `decisionCacheLayer`, and `Lifecycle.ts:86-91` says a host cache must answer for the question it is handed (BEH-QD-645). |
+| WR-02 | Fixed | The cited title matches `DecisionCache.test.ts:805` verbatim. |
+| WR-03 | Fixed | The ADR, the CCR-QD-452 row and the upgrade note now tell the implementer (TS2345/TS2322) apart from the caller (TS2559/TS2554). My probes confirm all four codes (below). IN-02 below records one implementer form the list leaves out. |
+| IN-01 | Fixed, with an inaccuracy | `DecisionCache.ts:56-60`. See IN-01 below. |
+| IN-02 | Fixed | See point 1 below. |
+| IN-03 | Fixed in the comment only | `DecisionCache.test.ts:1249` now names `Walk.ts` changes. The bound is still 48, so a future `Walk.ts` change can still turn the test red on `oneSided` with no cache bug present. This was accepted, so it is not a new finding. |
+| IN-04 | Fixed | `Question.ts:68-69`. |
+| IN-05 | Fixed | See point 5 below. |
 
-**I did not run** Stryker, `check:pr`, `pnpm check`, `check-website-doc-examples.mjs` or the spec gates. For those, I rely on the 61-03 to 61-07 SUMMARYs.
+**The brief's points:**
 
-**Clean on the brief's points:**
-- **The interface.**
-  - No caller can hand the cache a computation through the types (the probes above).
-  - `Pick<EvaluateOptions, "concurrency">` has no TS2883 risk: `EvaluateOptions` is exported through `export * from "./Question.ts"` (`index.ts:46`), and the annotation is written out. `index.ts` is untouched, so there is no new export.
-  - `decisionCacheLayer`'s adapter is `shared.run(key, walk(key, options?.concurrency))` (`DecisionCache.ts:284-288`). It runs one key, and the claimant's walk is of exactly that key.
-  - `options` is passed through by reference, with no per-lookup literal (`Lifecycle.ts:121`). The one `Effect.suspend` per lookup has only moved from `Lifecycle` into the adapter, so D-14 holds.
-- **`decideQuestion`.**
-  - With a cache, it hands over the same `options` object it would otherwise read `concurrency` from.
-  - Without one, it is `Effect.map(walk(question, options?.concurrency), …)` (`:122`), as before.
-  - `lookupEffect` keeps its annotated type. The `tapError` metric, the span annotation and the `Failed` record are unchanged.
-- **The tests.**
-  - The D-03 test would split into two entries and two misses if `concurrency` joined the key.
-  - The D-12 test sees `["u-1:a","u-1:a","u-1:b"]` and `miss: 2` if a joiner walked on its own. It asserts `coalesced: 1`, so a settle that fails turns red instead of passing vacuously.
-  - The I5 test keeps `kWalks === 1` and the FIFO `miss,miss,miss,hit` follow-on. It now also asserts both sides at every budget. 61-02 showed that the old `gap <= 12` sweep fails that check.
-  - No assertion was lost. The old test's trace labels were never asserted.
-  - `Lifecycle.test.ts`'s wrapper (`Layer.effect` + `DecisionCache.of({ ...inner, getOrCompute })` + `Layer.provide(decisionCacheLayer())`) is the same pattern as the upgrade note's compiled example, so it is a faithful pattern for hosts.
-  - The `.tst.ts` pins use `Params<F>` and have positive controls. The `@ts-expect-error` on `export { walk }` is message-matched (`Suppressed: 1 matched`).
-- **Every cited test title is real except one.** BEH-QD-642, BEH-QD-643 and BEH-QD-644 name seven titles, and each exists in `DecisionCache`, `Lifecycle`, `DecisionSink` or `Evaluate.test.ts`. The exception is UF-1 (WR-02).
-- **House rules.** The phase adds no `as` (only `as const`, which the house-style checker exempts), no `!`, `any`, `switch`, `fnUntraced`, `async`/`await`, `Record<string, unknown>` or `effect` barrel import. Every relative import carries `.ts`.
+1. **The IN-02 test** (`Lifecycle.test.ts:64-88`).
+   - It pins identity. `ask` hands the same object to `questionOf` and to `decideQuestion` (`Lifecycle.ts:203-204`), and `decideQuestion` hands it to `getOrCompute` (`:123`).
+   - The test holds that object and asserts `strictEqual(seen[0], options)`.
+   - It catches every mutant that breaks the pass-through:
+     - `{ concurrency: options?.concurrency }`, or any spread, is a new reference, so the test goes red;
+     - dropping the argument gives `undefined`, which also fails;
+     - a second lookup is caught by `seen.length === 1`.
+   - It is deterministic: one fiber, no clock, no race. I ran it three times in isolation, and it passed each time.
+   - It pins `ask` and `decideQuestion`, not `evaluate`. `Evaluate.ts:34` is a pass-through that this phase did not touch, so that is fine.
+2. **The TS codes**, probed with `tsc` in `scratchpad/r2/p.ts` against the real `src`:
+   - The upgrade note's "Before", verbatim, gives TS2345 (`p.ts:11`).
+   - `compute` annotated as an `Effect` inside `Layer.succeed` gives TS2322 (`:17`).
+   - The same inside `DecisionCache.of` gives TS2345 (`:24`).
+   - A class that `implements DecisionCacheShape` gives **TS2416** (`:30`), a code no document names (IN-02).
+   - A caller passing a `compute` gives TS2559 (`:39`), and so does a thunk (`:40`). A third argument gives TS2554 (`:41`).
+   - Every code the documents cite is real and attributed to the right party.
+3. **The IN-01 doc.** Its rule is right: an implementation reads only `concurrency`. Nothing contradicts it: BEH-QD-644 and ADR-QD-174 decision 4 say the same pass-through, and INV-QD-367 and BEH-QD-641 are statements about the type. Its facts are incomplete, though (IN-01).
+4. **Leftover over-promises.** I found none. Every "walks the question it is given" is now scoped to `decisionCacheLayer`:
+   - the changeset, the upgrade note, the ADR-QD-031 amendment, INV-QD-368, BEH-QD-642 and the interface doc;
+   - BEH-QD-166's note, which is about `decisionCacheLayer`'s capacity;
+   - BEH-QD-190's note, about `clear`, which holds for a host cache that wraps core's.
 
-**Security observations:**
-- **UF-1** is WR-02. It is a Warning, because the paragraph around it was rewritten in this phase and the citation names a test that does not exist.
-- **UF-3** is WR-01, together with the same sentence in `Lifecycle.ts`.
-- **UF-2 and UF-4** need no finding. IN-01 records a runtime corollary of UF-2's reasoning that UF-2 does not cover.
+   "No caller can …" is a claim about callers, as D-02 requires. A repo-wide grep finds no stale `getOrCompute(question, compute)` outside CHANGELOG history and the untracked `coverage/` HTML.
+5. **`EvaluationMetrics.ts`.**
+   - `git diff -U0` shows only lines 178-179 changed, and both are inside the JSDoc.
+   - `description: "DecisionCache.getOrCompute lookups, by outcome (hit / coalesced / miss)."` (`:187`) is unchanged, and it still matches `EvaluationMetrics.test.ts:91,210`.
+6. **House rules.** I scanned every added line under `packages/`.
+   - The only `as` hits are `as const` (`DecisionCache.test.ts`, exempt).
+   - Every `any` and `await` hit is in a comment, or is `Deferred.await`.
+   - There is no `!`, `switch`, `fnUntraced`, `async` or `Record<string, unknown>`.
+   - Every relative import carries `.ts`.
+
+**What I ran:**
+- `vitest --project core` on `DecisionCache.test.ts` and `Lifecycle.test.ts`: 45 of 45 pass.
+- `tstyche DecisionCache.tst.ts`: 4 tests, 9 assertions, and 1 suppression matched.
+- The `tsc` probe above.
+
+**What I did not run:** Stryker, `check:pr`, `pnpm check`, and the website and spec gates.
 
 I read `necessity-review.md`. No finding qualifies.
 
 ## Narrative Findings (AI reviewer)
 
-## Warnings
+## Info
 
-### WR-01: The interface doc tells a host implementer that "the cache walks the question it is given", which holds only for `decisionCacheLayer` (D-02)
+### IN-01: The IN-01 doc's list of extra keys is incomplete, and on the value-handing entry points the object is not literally "the caller's own"
 
-**File:** `packages/core/src/DecisionCache.ts:43-45`, and the same claim at `packages/core/src/Lifecycle.ts:87-89`
-
-**Issue:**
-- `DecisionCacheShape.getOrCompute`'s doc opens its rationale with "The cache walks the question it is given, so a trace it stores answers its own key". This doc sits on the public interface that a host implements.
-- D-02 and BEH-QD-645 say the opposite for a host-written cache: nothing in core makes it walk anything, and it is outside the guarantee. The qualification arrives 40 lines later (`:85-88`).
-- `Lifecycle.ts:87-89` repeats the claim: "The cache is handed the question and `options` and walks the question itself (ADR-QD-174), so the key and the walk's input are one value". Under a host cache, which `decideQuestion` reads through the same `serviceOption`, neither half is guaranteed.
-- This is the over-promise D-02 rules out, and it is the first thing a host implementer reads.
-
-**Fix:** Scope both sentences to core's layer:
-```ts
-   * `decisionCacheLayer` walks the question it is given, so a trace it stores
-   * answers its own key, and no caller can pair a key with an unrelated
-   * computation, since this signature takes none (ADR-QD-174).
-```
-In `Lifecycle.ts:87-89`, write: "The cache is handed the question and `options`, never a computation (ADR-QD-174). Core's `decisionCacheLayer` walks that question itself, and a host cache must answer for it (BEH-QD-645)."
-
-### WR-02: `getOrCompute`'s doc cites a test title that does not exist (UF-1)
-
-**File:** `packages/core/src/DecisionCache.ts:82-83`
+**File:** `packages/core/src/DecisionCache.ts:56-60`; also `apps/website/src/content/docs/docs/reference/upgrading.md:1067`
 
 **Issue:**
-- The doc reads: "`DecisionCache.test.ts`'s "one caller interrupted, the other still gets a result" pins this."
-- `grep -rF "one caller interrupted" packages spec apps` matches only this comment and its stale `lib/` copy.
-- The test that pins the rule is "a coalesced waiter's interruption does not interrupt the shared compute — the other waiter still gets a result" (`DecisionCache.test.ts:804-805`).
-- The phase rewrote both sentences on either side of the citation (`:76-81`) and left the false citation between them. A reader who follows it finds nothing.
+- The doc says `options` "may carry more keys than this type names: `resource`, `action`, `maxDepth`, `evaluationId`".
+- Every enforcing entry point decides through `verdictOf` (`Handover.ts:201-210`), which calls `ask(policy, options)` with an `EnforceOptions`. So the cache also receives **`onObligations`**, the host's obligation handler (`Handover.ts:92`). `Qadi.ts:101,123,155,187,211` all take this route.
+- On `guard`/`filter`-style entry points, the object is `decidedOn(options, value)` (`Handover.ts:240-243`, used at `:288` and `Qadi.ts:187,211`). That is a fresh spread core builds per call, with `resource` replaced by the handed-over value. It is not "the caller's own options object". It is still built once per call and never per lookup, so D-11 and D-14 hold, and ADR-QD-174 decision 4 and BEH-QD-644 are about `decideQuestion` and stay true.
+- The upgrade note is the page a host implementer actually migrates from. It describes `options` only as `{ concurrency? }` and omits the runtime caveat.
+- The rule ("reads only `concurrency`, does not log or retain the rest") already covers every case, so this is Info, not a doc that lies about behaviour.
 
 **Fix:**
 ```ts
-   * `DecisionCache.test.ts`'s "a coalesced waiter's interruption does not
-   * interrupt the shared compute — the other waiter still gets a result"
-   * pins this.
+   * At runtime `options` is whatever options object `decideQuestion` was handed,
+   * passed through by reference with no copy (ADR-QD-174 decision 4): it may carry
+   * more keys than this type names, among them `resource`, `action`, `maxDepth`,
+   * `evaluationId` and, from an enforcing entry point, `onObligations`.
+   * An implementation reads only `concurrency`, and does not log or retain the rest.
 ```
+Add one sentence to the 0.13 upgrade note: "At runtime `options` may carry the rest of the caller's options; read only `concurrency`."
 
-### WR-03: The ADR and CCR-QD-452 say implementers are broken with TS2559, but an implementer gets TS2345 or TS2322. TS2559 is what a caller gets.
+### IN-02: A class that `implements DecisionCacheShape` breaks with TS2416, which the "an implementer gets TS2345 or TS2322" summary does not name
 
 **File:**
-- `spec/decisions/174-a-decision-cache-is-asked-the-question.md:71-72`
-- `spec/README.md:389` (CCR-QD-452: "**Breaking** for `DecisionCacheShape` implementers: a `compute` or a function returning one is a compile error (TS2559), and so is a third argument (TS2554)")
-- `apps/website/src/content/docs/docs/reference/upgrading.md:1067`, whose "(TS2559)" sits directly above the implementer Before/After
+- `spec/decisions/174-a-decision-cache-is-asked-the-question.md:13` (Change History: "an implementer gets TS2345 or TS2322")
+- the same file, `:71-73`
+- `spec/README.md:389` (the CCR-QD-452 row)
+- `apps/website/src/content/docs/docs/reference/upgrading.md:1073`
 
 **Issue:**
-- TS2559 and TS2554 are the errors at a **call site** (probe: `c.getOrCompute(q, compute)` gives TS2559, and a third argument gives TS2554).
-- The party this change breaks is the **implementer**. Compiled against HEAD, the upgrade note's own "Before" cache reports:
-  `TS2345: Argument of type 'Pick<EvaluateOptions, "concurrency"> | undefined' is not assignable to parameter of type 'Effect<unknown, EvaluationError, PortServices>'`.
-  The error is at `Effect.map(compute, …)`, not at the signature. An implementer who annotated `compute: Effect.Effect<…>` explicitly gets a TS2322 assignability error on the property instead.
-- The ADR's Consequences bullet opens "Breaking for `DecisionCacheShape` implementers" and then gives the caller's code, and the CCR row says it outright. A migrator searching for TS2559 will not find their error.
-- The caller claims are correct as written, in BEH-QD-641 (`21-decision-cache.md:400`), the `.tst.ts` header and INV-QD-367.
+- The probe `scratchpad/r2/p.ts:28-33` declares `class I4 implements DecisionCacheShape { getOrCompute = (_q, compute: Effect.Effect<Trace, EvaluationError, PortServices>) => Effect.map(compute, …) … }`.
+- It reports `error TS2416` (property not assignable to the same property in the base type), not TS2345 or TS2322.
+- The ADR body ties each code to a form ("running it … TS2345, annotating it … TS2322"), so it is not false. But the Change History row reads as the complete set, and a migrator whose cache is a class searches for an error code no document gives.
 
-**Fix:** Name both parties. In ADR-QD-174 Consequences:
-```
-- **Breaking** for `DecisionCacheShape` implementers: an implementation that still takes and runs a `compute`
-  no longer type-checks, because its second parameter is now the options (TS2345 where it runs it, TS2322 where it
-  annotates it). For callers, passing a `compute` or a function returning one is TS2559 (the weak-type rule …),
-  and a third argument is TS2554.
-```
-Make the same split in the CCR-QD-452 row. In `upgrading.md:1067`, say "passing one **as a caller** is a compile error (TS2559)", and add before the "Before" fence: "An implementation written as below now fails to compile where it runs `compute` (TS2345)."
+**Fix:** In ADR-QD-174 Consequences, the CCR-QD-452 row and the upgrade note, add: "and a class that `implements DecisionCacheShape` gets TS2416." In the Change History row, write "TS2345, TS2322 or TS2416".
 
-## Info
+### IN-03: The CCR-QD-452 row's file list omits the two files the iteration-1 fixes touched
 
-### IN-01: The `options` a cache receives is, at runtime, the caller's whole `EvaluateOptions`, not just "how the walk runs"
-
-**File:** `packages/core/src/DecisionCache.ts:49-50`, `packages/core/src/Lifecycle.ts:121` and `:202`, `packages/core/src/Evaluate.ts:34`
+**File:** `spec/README.md:389`
 
 **Issue:**
-- `evaluate` passes its `options` to `ask`, `ask` passes the same object to `decideQuestion` (`Lifecycle.ts:202`), and `decideQuestion` hands that object to `getOrCompute` (`:121`).
-- So at runtime a host cache receives `resource`, `action`, `maxDepth` and `evaluationId` as well as `concurrency`, even though its static type is `Pick<…, "concurrency">`.
-- D-11 chose the pass-through for zero allocation, which is fine, and `decisionCacheLayer` reads only `concurrency`. But the doc says "`options` says how the walk runs, never what it answers". A host wrapper that logs or serializes `options` would emit the resource body.
+- The row lists "the phase's source and tests: `packages/core/src/{DecisionCache,Lifecycle,Question}.ts`, `packages/core/test/{DecisionCache,Lifecycle}.test.ts` and `packages/core/test/DecisionCache.tst.ts`".
+- Commit `d0ca3df6` (IN-05) also changed `packages/core/src/EvaluationMetrics.ts`, a shipped source file, and `packages/devtools/test/react/Simulator.test.tsx`. Both changes are comment-only.
+- Rev 1.257 updated the row for the review round, but only for BEH-QD-644 and ADR-QD-174. The row is the change record for this CCR, and it no longer names every file the change touched.
 
-**Fix:** Add one sentence to the interface doc: "At runtime `options` is the caller's own options object, passed through without a copy (ADR-QD-174 decision 4), so it may carry more keys than this type names. Read only `concurrency`, and do not log or persist it."
-
-### IN-02: BEH-QD-644's "its own options object" is not pinned by the test it cites
-
-**File:** `spec/behaviors/21-decision-cache.md:448-466`; `packages/core/test/Lifecycle.test.ts:32-35`
-
-**Issue:**
-- The requirement is that `decideQuestion` "MUST hand it the question and its own options object". The cited enforcement is `Lifecycle.test.ts`'s wrapper, which records only `key`.
-- A mutant `getOrCompute(question, { concurrency: options?.concurrency })` would pass every test. It breaks D-11/D-14's no-allocation rule silently, because the `.tst.ts` pins only the type.
-
-**Fix:** Have the wrapper record `options` too, call `ask` with a held object (`const opts = { resource: doc, action: "read" }`), and assert `assert.strictEqual(seenOptions[0], opts)`.
-
-### IN-03: The I5 race test's fixed sweep bound is coupled to `walk`'s step count
-
-**File:** `packages/core/test/DecisionCache.test.ts:1249-1250`
-
-**Issue:**
-- `gap <= 48` is sized from the measured switch-over at budget 3 (gap 38).
-- Any later change that adds Effect steps to `walk`, `admit` or the leaf read, unrelated to the cache, moves the switch-over. Past 48, the test fails on `oneSided` with no cache bug present.
-- The comment blames only "an effect upgrade". The failure is loud, not silent, so this is Info.
-
-**Fix:** Either widen the bound with margin (for example 96, with the timeout raised to match), or sweep each budget until a `hit` has been seen plus a few more gaps, with a hard cap. Name `Walk.ts` changes in the comment beside effect upgrades.
-
-### IN-04: `EvaluateOptions.concurrency`'s doc says it reaches the walk "through `getOrCompute`'s second parameter", which is true only when a cache is wired
-
-**File:** `packages/core/src/Question.ts:68-69`
-
-**Issue:** With no cache, `decideQuestion` hands `concurrency` straight to `walk` (`Lifecycle.ts:122`). This is a public doc on the option every `evaluate` caller reads.
-
-**Fix:** "With a `DecisionCache` wired, it reaches the walk through `getOrCompute`'s second parameter, never the key (ADR-QD-174)."
-
-### IN-05: The public metric doc still describes the cache's paths in terms of a caller's `compute`
-
-**File:** `packages/core/src/EvaluationMetrics.ts:176-178` (out of the listed scope, made stale by this phase); also the comment at `packages/devtools/test/react/Simulator.test.tsx:108`
-
-**Issue:**
-- `decisionCacheLookupsTotal`'s doc says "joined another fiber's in-flight `compute`" and "this fiber ran `compute` itself".
-- The phase renamed `compute` to "walk" everywhere else on the cache, in the interface doc, BEH-QD-166 and BEH-QD-190, and gave the spec renames dated notes.
-- The `description` string must not change (ADR-QD-123 registry key), but the JSDoc may.
-
-**Fix:** "`coalesced` (joined another fiber's walk of the question still in flight), or `miss` (this fiber walked it)". Make the same wording change in the Simulator test comment.
+**Fix:** Append to the file list: "and, comments only, `packages/core/src/EvaluationMetrics.ts` (`decisionCacheLookupsTotal`'s JSDoc) and `packages/devtools/test/react/Simulator.test.tsx`". Bump the README revision with a matching Change History entry.
 
 ---
 
-_Reviewed: 2026-11-19T19:32:39Z_
+_Reviewed: 2026-11-19T21:09:06Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
