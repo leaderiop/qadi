@@ -28,6 +28,19 @@ items, either with a change or with a recorded decision; none is carried forward
 - **D5 (Phase 67):** the two surviving equivalent mutants are restructured away. No `// Stryker disable` convention is
   introduced (there are none in `packages/*/src` today).
 
+## Scope decisions after research (asked once, 2026-11-20; locked)
+- **D6 (Phase 62):** fix the cause **and** the pins **and** add the gate. A tstyche-only tsconfig (a child of
+  `tsconfig.test.json`, wired through `tstyche.json`) turns `floatingEffect` off, so every present and future negative pin
+  can fail; `DecisionLog.tst.ts:30` is still rewritten through `Parameters<…>`; the 11 pins with no positive control get
+  one; `NOT_CALLABLE_PIN_BUDGET` is added.
+- **D7 (Phase 64):** the publish-between-`begin()`-and-`fork()` window (`TimelineFeed.ts:131-141`, the audit's
+  "try/finally around the publish") is **out of scope**. The CCR row says so, and the README keeps a narrowed, accurate
+  caveat.
+- **D8 (Phase 68):** fix **all** stale wording: all 10 plan-local ids in `StoredEnvelope.test.ts` (header and titles),
+  and `Source.test.ts` :186, :291 and :306 where they describe the same concept. The change is proven to touch only
+  titles and comments by a compiler-based comparison.
+- **D9 (Phase 68):** re-wrap ADR-QD-174 lines 73, 75 and 94 in one `spec-revise` bump; the Change History table row stays.
+
 ## Execution order
 Phases run strictly one at a time, in numeric order (62 → 68): every records plan edits the same spec registers, and
 `use_worktrees` is false.
