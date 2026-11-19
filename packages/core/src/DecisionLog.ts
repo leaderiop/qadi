@@ -17,9 +17,9 @@
  * at the snapshot's high-water mark: a record lands in a reader's backlog, or in
  * its live stream, never both and never neither (INV-QD-100). Sliding `publish`,
  * so the newest record wins on a full buffer and the evaluation never waits on a
- * reader. `Chunk` head-eviction by arrival. The envelope built at `append`: the producer's environment beside the record. One
- * capacity, validated once, bounding both the retained backlog and each reader's
- * lag.
+ * reader. `Chunk` head-eviction by arrival. The envelope is built at `append`: the
+ * producer's environment beside the record. One capacity, validated once, bounding
+ * both the retained backlog and each reader's lag.
  *
  * **Still an optional, write-only `DecisionSink`** (ADR-QD-044). The port does
  * not become readable; this is one implementation of it that also happens to be
@@ -122,6 +122,11 @@ export interface DecisionLog {
    * rows from several processes, and stamping them all with the aggregator's
    * label would erase the one distinction the merge exists to preserve. It falls
    * back to the log's own label for a caller ingesting its own records.
+   *
+   * A defect on this path is not contained here. A record the log's own `layer`
+   * receives comes through the sink emitter, which contains and reports a defect
+   * once; a record handed to `ingest` comes from the host's receive handler, with
+   * no emitter in front of it, so a defect reaches that handler (ADR-QD-171).
    */
   readonly ingest: (record: SinkRecord, environment?: string) => Effect.Effect<void>;
   /** The retained records, in `storedRecordOrder`. A copy, not a live view. */

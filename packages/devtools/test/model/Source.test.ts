@@ -288,7 +288,7 @@ describe("sourceFromEventSource", () => {
         assert.deepStrictEqual(got.live.map((r) => r.environment), ["Server"]);
       }));
 
-    it.effect("a bare frame — what a server older than 0.10 sends — is Malformed, never stamped", () =>
+    it.effect("a bare frame — what a server older than 0.10 sends — is Malformed, never given a label", () =>
       Effect.gen(function* () {
         const bare = Result.getOrThrow(encodeSinkRecordString(decisionRecord({ evaluationId: "old" }).record));
         const fake = fakeEventSource();

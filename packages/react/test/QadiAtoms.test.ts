@@ -567,7 +567,8 @@ describe("a DecisionSink wired into the runtime layer", () => {
     });
 
     const stored = await Effect.runPromise(log.snapshot);
-    // Stamped by the sink, not by core — which cannot know it is in a browser.
+    // Supplied by the sink as the envelope's environment, not by core — which
+    // cannot know it is in a browser.
     expect(stored[0]?.environment).toBe("Client");
     expect(stored[0]?.record._tag).toBe("Decision");
   });
