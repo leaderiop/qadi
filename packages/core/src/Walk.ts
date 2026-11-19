@@ -60,7 +60,7 @@ import type { Question } from "./Question.ts";
  * can compare against.
  */
 interface Evaluation {
-  readonly admitted: Admitted;
+  readonly admitted: Admitted<"asked">;
   readonly concurrency: Concurrency | undefined;
 }
 
@@ -877,5 +877,5 @@ export const walk = (
     // judged on the policy before any node, and the walk environment, built once.
     const admitted = admit(question, "asked");
     if (Result.isFailure(admitted)) return Effect.fail(admitted.failure);
-    return evaluateNode(question.policy, { admitted: admitted.success, concurrency }, 0);
+    return evaluateNode(admitted.success.policy, { admitted: admitted.success, concurrency }, 0);
   });

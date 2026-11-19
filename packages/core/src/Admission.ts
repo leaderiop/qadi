@@ -30,6 +30,7 @@ import type { AuthSubject } from "./AuthSubject.ts";
 import { PolicyTooDeep } from "./Errors.ts";
 import type { Supplied } from "./LeafNeeds.ts";
 import type { MatcherContext } from "./Matcher.ts";
+import type { Policy } from "./Policy.ts";
 import { policyDepth } from "./Policy.ts";
 import type { Question } from "./Question.ts";
 
@@ -51,15 +52,32 @@ const RESOURCE_SUPPLIED: { readonly [Source in RowSource]: (question: Question) 
 };
 
 /**
- * A question shown to be no deeper than its `maxDepth`, and everything both
- * interpreters read while walking it: the subject, what the request supplied,
- * what its matchers see (which also holds the resource and the action) and the
- * depth bound. Only {@link admit} builds one, so holding one is the proof.
+ * What a request supplied, per row source: the asked resource may be absent, and
+ * a row is always there. A row source without an entry here does not compile.
  */
-export class Admitted<Resource extends boolean = boolean> {
+interface SuppliedBy {
+  readonly asked: Supplied;
+  readonly row: Supplied<true>;
+}
+
+/**
+ * A question shown to be no deeper than its `maxDepth`, and everything both
+ * interpreters read while walking it: the policy it admitted, the subject, what
+ * the request supplied, what its matchers see (which also holds the resource and
+ * the action) and the depth bound. Only {@link admit} builds one, so holding one
+ * is the proof, and the policy rides with it so the proof cannot be paired with
+ * a deeper tree.
+ *
+ * The row source is part of the type: `Admitted<"row">` stores a resource as
+ * supplied while its matcher context holds none, so only `toPredicate` may read
+ * it, and the walk's parameter, `Admitted<"asked">`, refuses it.
+ */
+export class Admitted<Source extends RowSource = RowSource> {
   constructor(
+    readonly source: Source,
+    readonly policy: Policy,
     readonly subject: AuthSubject,
-    readonly supplied: Supplied<Resource>,
+    readonly supplied: SuppliedBy[Source],
     readonly matcherContext: MatcherContext,
     readonly maxDepth: number,
   ) {}
@@ -70,14 +88,10 @@ export class Admitted<Resource extends boolean = boolean> {
  * Depth is judged on the policy alone (INV-QD-037); what the request supplied
  * is a function of the row source and the question (INV-QD-364).
  */
-export function admit(
+export function admit<Source extends RowSource>(
   question: Question,
-  rowSource: "row",
-): Result.Result<Admitted<true>, PolicyTooDeep>;
-export function admit(
-  question: Question,
-  rowSource: RowSource,
-): Result.Result<Admitted, PolicyTooDeep>;
+  rowSource: Source,
+): Result.Result<Admitted<Source>, PolicyTooDeep>;
 export function admit(
   question: Question,
   rowSource: RowSource,
@@ -86,6 +100,8 @@ export function admit(
     ? Result.fail(new PolicyTooDeep({ maxDepth: question.maxDepth }))
     : Result.succeed(
         new Admitted(
+          rowSource,
+          question.policy,
           question.subject,
           {
             action: question.action !== undefined,

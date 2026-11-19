@@ -16,10 +16,8 @@ import { subjectWith } from "./helpers.ts";
 const subject = subjectWith({ id: "u7" });
 
 const environment = (policy: P.Policy, maxDepth: number) => {
-  const admitted = admit(questionOf(subject, policy, { maxDepth }), "row");
-  assert.isTrue(Result.isSuccess(admitted));
-  if (Result.isFailure(admitted)) throw admitted.failure;
-  return { admitted: admitted.success, concurrency: undefined };
+  const admitted = Result.getOrThrow(admit(questionOf(subject, policy, { maxDepth }), "asked"));
+  return { admitted, concurrency: undefined };
 };
 
 describe("evaluateNode's depth guard", () => {

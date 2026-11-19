@@ -343,7 +343,8 @@ const refused = (policyTag: string, reason: string): Compiled => new Refusal(pol
  *
  * Every property of the *tree* is decided here: whether a node is in the
  * translatable subset (`PolicyNotTranslatable`, BEH-QD-123) and, by the
- * {@link Admitted} proof it demands, whether it is too deep. None of it
+ * {@link Admitted} proof it demands (which carries the policy it admitted, and
+ * this walks that one), whether it is too deep. None of it
  * depends on the subject's attributes, the action, or what any port answers, so
  * a policy that refuses for one caller refuses for all of them — it cannot work
  * for an admin in development and fail in production. The first refusal in
@@ -353,11 +354,11 @@ const refused = (policyTag: string, reason: string): Compiled => new Refusal(pol
  * absent action becomes a `NeedAction` node and fails only if `run` reaches it
  * (INV-QD-011), exactly as the evaluator fails only on reach.
  *
- * It reads the walk environment admission built for a row (`Admitted<true>`): the
+ * It reads the walk environment admission built for a row (`Admitted<"row">`): the
  * row is the resource, so it is supplied by type rather than by a literal here
  * (ADR-QD-172).
  */
-const compileTree = (policy: Policy, admitted: Admitted<true>): Compiled => {
+const compileTree = (admitted: Admitted<"row">): Compiled => {
   const { subject, supplied, matcherContext: context } = admitted;
   const { action } = context;
 
@@ -503,7 +504,7 @@ const compileTree = (policy: Policy, admitted: Admitted<true>): Compiled => {
   // child is compiled before its parent, which is harmless because compiling is
   // pure, and the first refusal in declaration order still wins because
   // `plansOf` takes the first one it meets in `childrenOf`'s order.
-  return foldPolicyCases(policy, cases);
+  return foldPolicyCases(admitted.policy, cases);
 };
 
 /**
@@ -671,7 +672,7 @@ export const toPredicate = Effect.fn("qadi.toPredicate")(function* (
 
   // Refusals first, and from the tree alone: they cannot depend on the subject
   // or on what any port answers (BEH-QD-266). Only then does anything run.
-  const compiled = compileTree(policy, admitted.success);
+  const compiled = compileTree(admitted.success);
   if (compiled instanceof Refusal) {
     return yield* untranslatable(compiled.policyTag, compiled.reason);
   }

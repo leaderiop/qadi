@@ -421,7 +421,7 @@ REQUIREMENT: A leaf `toPredicate` folds MUST be `True` exactly when its row's ou
 
 ```
 REQUIREMENT: For `toPredicate` (row source `"row"`), `supplied.resource` MUST be `true`, by type
-             (`Admitted<true>`), whether or not the question carries a resource;
+             (`Admitted<"row">`), whether or not the question carries a resource;
              `supplied.action` MUST be true exactly when the question carries an action.
 ```
 

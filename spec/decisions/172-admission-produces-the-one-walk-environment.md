@@ -45,10 +45,14 @@ Each item cites the phase decision it records.
    their public signature, so this is not Breaking for the matcher API. The matcher context's `subject` and `subjectId`
    are a derived projection of `Admitted.subject` that `admit` builds, so WENV-03's "each carried once" holds for stored
    facts and the projection is not a second source.
-3. **D-13: the environment type is `Admitted<Resource extends boolean = boolean>`**, holding `subject`, `supplied`,
-   `matcherContext` and `maxDepth`. `admit` has two overloads, `"row"` giving `Admitted<true>` and `RowSource` giving
-   `Admitted`, so `toPredicate`'s `Supplied<true>` stays precise without `as`. `RESOURCE_SUPPLIED` is one closed row per
-   row source: a row source without a row does not compile.
+3. **D-13: the environment type is `Admitted<Source extends RowSource = RowSource>`**, holding `source`, `policy`,
+   `subject`, `supplied`, `matcherContext` and `maxDepth`. The row source is in the type: `supplied` is `Supplied<true>`
+   for `"row"` and `Supplied` for `"asked"`, and `admit` gives `Admitted<Source>` for the `Source` it is passed, so
+   `toPredicate`'s `Supplied<true>` stays precise without `as`. A `"row"` environment stores the resource as supplied while
+   its matcher context holds none, so it cannot reach the walk: `Evaluation.admitted` is `Admitted<"asked">`, and
+   `compileTree` takes `Admitted<"row">`. The environment also carries the policy it admitted, which both interpreters
+   walk from, so the depth proof cannot be paired with a deeper tree (recursion still passes each child node).
+   `RESOURCE_SUPPLIED` is one closed row per row source: a row source without a row does not compile.
 4. **D-03 and D-16: recursion passes `(policy, request, depth)`.** `maxDepth` moved into the environment, so the
    recursion carries one number and a depth cannot land where the bound belongs and compile. All 13 sites use the new
    shape (D-16), and `WalkEnvironment.tst.ts` pins it with a negative (WENV-03).
