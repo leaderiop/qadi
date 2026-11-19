@@ -103,10 +103,10 @@ export interface DecisionEventSource {
  * because the shared vocabulary is core's and the transport is this package's.
  *
  * **The environment comes off the wire.** Every frame is a stored-record
- * envelope decoded by `@qadi/core`'s `decodeStoredRecordString`, which stamps
- * the producer's label; this reader states none. A bare record — what a server
- * older than 0.10 sends — is reported as a `Malformed` refusal, never stamped with a
- * label this reader would have to make up.
+ * envelope decoded by `@qadi/core`'s `decodeStoredRecordString`, which places
+ * the producer's own label beside the record; this reader states none. A bare
+ * record — what a server older than 0.10 sends — is reported as a `Malformed`
+ * refusal, never given a label this reader would have to make up.
  *
  * **Every failure here degrades a row, never the stream.** A frame that is not
  * JSON, a frame that does not decode, a server that goes away — none of them may
@@ -223,8 +223,8 @@ export const mergeSources = (sources: ReadonlyArray<Source>): Source => ({
  * One SSE frame to one stored record, or a reported drop.
  *
  * One call to `@qadi/core`'s `decodeStoredRecordString`, which parses, reads
- * the envelope, guards depth, validates and stamps the producer's label; this
- * adds only the report.
+ * the envelope, guards depth, validates and keeps the producer's label beside
+ * the record; this adds only the report.
  *
  * A `FilterEffect` rather than a map: `Result.fail` skips the element, which is
  * exactly "this frame was not a record" without inventing a placeholder row or

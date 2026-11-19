@@ -99,7 +99,7 @@ const ARCHIVE_VERSION = "1";
  * sequenced entries by number, stably, and the (opt-in, unordered-by-definition)
  * entries carrying none after every sequenced one, in the order given rather than
  * shuffled by an incidental comparator result. Ordering them by `at` is a reader's
- * job (`storedRecordOrder`, ADR-QD-056), since the archive cannot verify a clock.
+ * job (`sinkRecordOrder`, ADR-QD-056), since the archive cannot verify a clock.
  *
  * `sequenceIntegrityVerified` is the facts' claim: true only when at least two
  * entries carry a `sequenceNumber`. The gap-and-duplicate check has nothing to
