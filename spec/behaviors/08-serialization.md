@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-08                                    |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-09-19                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.4 (2026-11-19): BEH-QD-621..623, the unknown-key policy; BEH-QD-486 takes required options (ADR-QD-170)<br>1.3 (2026-11-12): BEH-QD-057 drops PolicyFromJson and adds PolicyNotJson; BEH-QD-059 restated (the bound lives in UntrustedDecode.ts); BEH-QD-486 and BEH-QD-487 new (ARCH-78, CCR-QD-421)<br>1.2 (2026-09-19): BEH-QD-058 narrowed — the round-trip guarantee holds for policies whose segment-shaped and `HasRelationship.depth` fields already satisfy the checks decode enforces (`toJson`/`toJsonValue` do not re-run them on the way out), not for every `Policy` value the type admits; BEH-QD-059 gains a requirement that decoding reject a non-integer, negative, or out-of-`[0, DEFAULT_MAX_DEPTH]` `HasRelationship.depth` — previously a bare `Schema.Number` deferred entirely to `Evaluate.ts`'s runtime clamp (100-lens audit: BL-05, GB-02, MO-02, NW-02; GC-03, WZ-02)<br>1.1 (2026-09-08): BEH-QD-057 — `fromJson` took `json: unknown`, not `string`, and both `fromJson`/`fromJsonValue` were missing `PolicyDecodeTooDeep` from the error channel; BEH-QD-059 now names `PolicyDecodeTooDeep` as the error enforcing the recursion bound (CCR-QD-125)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.5 (2026-11-19): BEH-QD-621 refuses an open object member (an index signature or a rest element) too<br>1.4 (2026-11-19): BEH-QD-621..623, the unknown-key policy; BEH-QD-486 takes required options (ADR-QD-170)<br>1.3 (2026-11-12): BEH-QD-057 drops PolicyFromJson and adds PolicyNotJson; BEH-QD-059 restated (the bound lives in UntrustedDecode.ts); BEH-QD-486 and BEH-QD-487 new (ARCH-78, CCR-QD-421)<br>1.2 (2026-09-19): BEH-QD-058 narrowed — the round-trip guarantee holds for policies whose segment-shaped and `HasRelationship.depth` fields already satisfy the checks decode enforces (`toJson`/`toJsonValue` do not re-run them on the way out), not for every `Policy` value the type admits; BEH-QD-059 gains a requirement that decoding reject a non-integer, negative, or out-of-`[0, DEFAULT_MAX_DEPTH]` `HasRelationship.depth` — previously a bare `Schema.Number` deferred entirely to `Evaluate.ts`'s runtime clamp (100-lens audit: BL-05, GB-02, MO-02, NW-02; GC-03, WZ-02)<br>1.1 (2026-09-08): BEH-QD-057 — `fromJson` took `json: unknown`, not `string`, and both `fromJson`/`fromJsonValue` were missing `PolicyDecodeTooDeep` from the error channel; BEH-QD-059 now names `PolicyDecodeTooDeep` as the error enforcing the recursion bound (CCR-QD-125)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -236,7 +236,8 @@ REQUIREMENT: Under `ignore`, the declared keys MUST be those of the schema's
              input's own `_tag` selects; an unknown or absent `_tag` MUST take
              the first member, and the strict decode then refuses it.
 REQUIREMENT: A schema whose keys cannot be derived (one that is not an object
-             or a union of objects with distinct literal `_tag`s) MUST refuse
+             or a union of objects with distinct literal `_tag`s, or whose
+             object has an index signature or a rest element) MUST refuse
              `ignore` when the decoder is built, with a message beginning
              `unknownKeys "ignore" needs`.
 ```
