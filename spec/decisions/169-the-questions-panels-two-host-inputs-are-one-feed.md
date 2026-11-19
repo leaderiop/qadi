@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-169                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-18                                     |
 > | Status         | Accepted — amends ADR-QD-047; applies ADR-QD-137; keeps ADR-QD-162, ADR-QD-150 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-18): Initial release (ARCH-103, CCR-QD-447) |
+> | Change History | 1.1 (2026-11-19): amendment — makeGatesFeed is exported from the root (ARCH-107, ADR-QD-173, CCR-QD-451)<br>1.0 (2026-11-18): Initial release (ARCH-103, CCR-QD-447) |
 
 ---
 
@@ -103,6 +103,14 @@ code: the poll lost the thunk, `DockModel.ts` lost the watch, and `GatesFeed.ts`
 tell apart were rewritten away, not ignored. The static-ignored mutants of `GatesFeed.ts` were measured too, with
 `ignoreStatic: false`: 122 of 122 are `Killed`, the one that first lived (the span name) being pinned by T10, recorded in
 `56-mutation-static.json`. The comparison printed `WX-05 holds (D-11)`.
+
+## Amendment (2026-11-19, CCR-QD-451): `makeGatesFeed` is exported from the root
+
+Decision 1's "one package-private module, out of both barrels" is amended: `makeGatesFeed` and its snapshot and input types
+(`GatesFeed`, `GatesFeedInputs`, `GatesSnapshot`, `RegistryRead`, `AskedRead`) are exported from `@qadi/devtools`' root, not
+from the React entry, so a headless shell reads the questions' two inputs with the same failure policy the dock does. Every
+other decision here is unchanged, and so is the consequence that `spec/overview.md` changes rows
+([ADR-QD-173](./173-the-devtools-headless-interface-is-its-feeds.md)).
 
 ## Consequences
 

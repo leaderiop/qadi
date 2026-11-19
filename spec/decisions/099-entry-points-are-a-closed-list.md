@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-099                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-10-07                                     |
 > | Status         | Accepted — amends ADR-QD-033, ADR-QD-090, ADR-QD-091; amended 2026-10-08 (a barrel may name its exports) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-10-08): amendment — a barrel may name its exports when a package's interface is narrower than its modules (ARCH-40, CCR-QD-321)<br>1.0 (2026-10-07): Initial (CCR-QD-188) |
+> | Change History | 1.2 (2026-11-19): amendment — the devtools root's named list carries the feeds (ARCH-107, ADR-QD-173, CCR-QD-451)<br>1.1 (2026-10-08): amendment — a barrel may name its exports when a package's interface is narrower than its modules (ARCH-40, CCR-QD-321)<br>1.0 (2026-10-07): Initial (CCR-QD-188) |
 
 ---
 
@@ -85,6 +85,16 @@ one today (ADR-QD-047's 2026-10-08 amendment). Gate 13 (`scripts/check-api-surfa
 lines as well as on one, and the house-style rule `devtools-named-barrel` forbids `export *`
 in those two barrels and keeps their groups in module-path order. This adds no entry point
 and no row to the "Entry points" table.
+
+## Amendment (2026-11-19, CCR-QD-451): the devtools root's named list carries the feeds
+
+`@qadi/devtools`' named barrel now lists the three feeds (`makeTimelineFeed`, `makeDiagnosticsFeed`, `makeGatesFeed`) and
+the types their handles name. Three modules that were wholly package-private (`TimelineFeed.ts`, `DiagnosticsFeed.ts`,
+`GatesFeed.ts`) are part-public through named exports, and their other names stay private by the rule above. The "Entry
+points" table and the `exports` map are unchanged: the only non-root entry point is still `@qadi/devtools/react`. Gate 13
+(`scripts/check-api-surface.mjs`) checks the overview's rows against the named list, and gate 14
+(`scripts/check-package-install.mjs`) builds a feed from the packed root
+([ADR-QD-173](./173-the-devtools-headless-interface-is-its-feeds.md)).
 
 ## Alternatives considered
 
