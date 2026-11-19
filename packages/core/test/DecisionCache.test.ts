@@ -1246,7 +1246,7 @@ describe("DecisionCache", () => {
           const sides: Array<string> = [];
 
           for (const budget of [3, 4, 5, 6]) {
-            // Measured coalesced→hit switch-over: gap 38/22/15/13 at budget 3/4/5/6; if an effect upgrade moves it, re-measure rather than retry.
+            // Measured coalesced→hit switch-over: gap 38/22/15/13 at budget 3/4/5/6. It also depends on `walk`'s step count, so an effect upgrade or a `Walk.ts` change can move it; re-measure rather than retry.
             for (let gap = 0; gap <= 48; gap++) {
               // Each walk records the attribute it asks; only the owner's walk of
               // `K` spins, so it finishes a few yields after it claims.
