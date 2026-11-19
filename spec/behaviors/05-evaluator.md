@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-05                                    |
-> | Revision       | 1.16                                           |
+> | Revision       | 1.17                                           |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.16 (2026-11-18): BEH-QD-606 (ARCH-101, CCR-QD-445)<br>1.15 (2026-11-16): a row's resourceId is classified by tag like its own, an unlisted tag gets never (review iteration 2 IN-02)<br>1.14 (2026-11-16): a leaf no own classification names has no row that compiles (review iteration 2 WR-01)<br>1.13 (2026-11-16): BEH-QD-589 pinned by an agreement property and a HasAction deny cell (review IN-03)<br>1.12 (2026-11-16): a row's own and matcher are derived from its leaf's variant (review WR-01)<br>1.11 (2026-11-16): BEH-QD-589 and BEH-QD-590 new: the port-free judgements are written once; every leaf tag has one row in the leaf-needs table (ARCH-97, CCR-QD-441)<br>1.10 (2026-10-08): BEH-QD-039 — a decision is built from a stamp and a trace (`makeDecision`), and its verdict, `visibleFields`, `obligations` and `reason` are the trace root's (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.9 (2026-10-07): BEH-QD-033 — the interpreter is the internal `walk`, `evaluate` the only public path to a decision; BEH-QD-317 added, a readiness probe asks the ports every time (ADR-QD-100, CCR-QD-189)<br>1.8 (2026-10-05): BEH-QD-035 — the stop rule reads the field lattice's `decidedByFirst` law; a strategy outside the union, prototype keys included, never stops early (ADR-QD-092, CCR-QD-174)<br>1.7 (2026-10-04): BEH-QD-038 — nesting depth is judged on the policy before any node is visited, matcher nesting counts, and no `maxDepth` raises a defect (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-261 — scope sentence: the conversion lives in `PortAccess.ts` and applies to every port read core makes, `toPredicate`'s included (BEH-QD-264); the requirement text for `evaluate` is unchanged (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-09): BEH-QD-261 — the five bare `yield*` port calls (`AttributeResolver.resolve`, `DecisionHistory.hasActed`, `RelationshipResolver.check`, `CustomPredicate.evaluate`, `SignatureHistory.signaturesFor`) now each convert a defecting implementation into their own typed `EvaluationError`, joining the four `EvaluationError` tags (`MissingAction`, `MissingResource`, `MissingResourceId`, `PolicyTooDeep`) that were already synchronous and so never at risk of dying — so a caller's `Effect.retry` around `evaluate` now sees a retryable failure at all nine tags, not just those four (issue #100, CCR-QD-142)<br>1.4 (2026-09-07): BEH-QD-033's `evaluate` signature corrected — the requirement channel omitted `CustomPredicate`/`SignatureHistory`, both joined by CCR-QD-082/CCR-QD-089 (CCR-QD-110)<br>1.3 (2026-07-26): `DecisionHistory` joins `EvaluationServices` (CCR-QD-016)<br>1.2 (2026-07-26): `Trace.obligations` (CCR-QD-015)<br>1.1 (2026-07-26): Missing-action rule cross-referenced (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.17 (2026-11-19): BEH-QD-631, BEH-QD-632, BEH-QD-634 and BEH-QD-635 (ARCH-106, CCR-QD-450)<br>1.16 (2026-11-18): BEH-QD-606 (ARCH-101, CCR-QD-445)<br>1.15 (2026-11-16): a row's resourceId is classified by tag like its own, an unlisted tag gets never (review iteration 2 IN-02)<br>1.14 (2026-11-16): a leaf no own classification names has no row that compiles (review iteration 2 WR-01)<br>1.13 (2026-11-16): BEH-QD-589 pinned by an agreement property and a HasAction deny cell (review IN-03)<br>1.12 (2026-11-16): a row's own and matcher are derived from its leaf's variant (review WR-01)<br>1.11 (2026-11-16): BEH-QD-589 and BEH-QD-590 new: the port-free judgements are written once; every leaf tag has one row in the leaf-needs table (ARCH-97, CCR-QD-441)<br>1.10 (2026-10-08): BEH-QD-039 — a decision is built from a stamp and a trace (`makeDecision`), and its verdict, `visibleFields`, `obligations` and `reason` are the trace root's (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.9 (2026-10-07): BEH-QD-033 — the interpreter is the internal `walk`, `evaluate` the only public path to a decision; BEH-QD-317 added, a readiness probe asks the ports every time (ADR-QD-100, CCR-QD-189)<br>1.8 (2026-10-05): BEH-QD-035 — the stop rule reads the field lattice's `decidedByFirst` law; a strategy outside the union, prototype keys included, never stops early (ADR-QD-092, CCR-QD-174)<br>1.7 (2026-10-04): BEH-QD-038 — nesting depth is judged on the policy before any node is visited, matcher nesting counts, and no `maxDepth` raises a defect (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-261 — scope sentence: the conversion lives in `PortAccess.ts` and applies to every port read core makes, `toPredicate`'s included (BEH-QD-264); the requirement text for `evaluate` is unchanged (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-09): BEH-QD-261 — the five bare `yield*` port calls (`AttributeResolver.resolve`, `DecisionHistory.hasActed`, `RelationshipResolver.check`, `CustomPredicate.evaluate`, `SignatureHistory.signaturesFor`) now each convert a defecting implementation into their own typed `EvaluationError`, joining the four `EvaluationError` tags (`MissingAction`, `MissingResource`, `MissingResourceId`, `PolicyTooDeep`) that were already synchronous and so never at risk of dying — so a caller's `Effect.retry` around `evaluate` now sees a retryable failure at all nine tags, not just those four (issue #100, CCR-QD-142)<br>1.4 (2026-09-07): BEH-QD-033's `evaluate` signature corrected — the requirement channel omitted `CustomPredicate`/`SignatureHistory`, both joined by CCR-QD-082/CCR-QD-089 (CCR-QD-110)<br>1.3 (2026-07-26): `DecisionHistory` joins `EvaluationServices` (CCR-QD-016)<br>1.2 (2026-07-26): `Trace.obligations` (CCR-QD-015)<br>1.1 (2026-07-26): Missing-action rule cross-referenced (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -368,6 +368,70 @@ the matcher's `Verdict` for the two attribute leaves, `Held`, `Unrelated` or `Un
 `Held`, `Unknown`, `Performed` or `NotPerformed` for an acted leaf, and `Held`, `NoneOnFile` or `NoneMatching` for a
 signature. Rows allocate nothing. Pinned by `LeafVerdict.test.ts` (every tag, answer and polarity, with the exact
 reason), `LeafNeeds.test.ts` and the typecheck.
+
+## BEH-QD-631: Admission builds the one walk environment
+
+> **Invariant:** [INV-QD-363](../invariants.md#inv-qd-363-both-interpreters-read-the-environment-admission-built)
+> **See:** [ADR-QD-172](../decisions/172-admission-produces-the-one-walk-environment.md),
+> [ADR-QD-100](../decisions/100-a-question-is-asked-once.md)
+
+```
+REQUIREMENT: `admit(question, rowSource)` MUST either refuse the question with `PolicyTooDeep` or
+             return one `Admitted` holding the subject, what the request supplied, the matcher
+             context and the depth bound. `evaluate` and `toPredicate` MUST read each of these
+             only from it, and only `admit` MAY build one.
+```
+
+The matcher context carries the resource and the action, so each fact is held once and the question itself is not
+carried. Pinned by `Admission.test.ts` (E1 to E6) and `WalkEnvironment.tst.ts`.
+
+## BEH-QD-632: An asked question supplies what it carries
+
+> **Invariant:** [INV-QD-364](../invariants.md#inv-qd-364-what-a-request-supplied-is-a-function-of-its-row-source-and-its-question)
+> **See:** [ADR-QD-172](../decisions/172-admission-produces-the-one-walk-environment.md),
+> [ADR-QD-163](../decisions/163-what-a-leaf-needs-from-the-request-is-stated-once.md)
+
+```
+REQUIREMENT: For `evaluate` (row source `"asked"`), `supplied.resource` MUST be true exactly when the
+             question carries a resource and `supplied.action` exactly when it carries an action.
+             A question with neither MUST supply neither, and an absent resource
+             MUST NOT be reported as supplied.
+```
+
+The empty edge is stated because it is the one a fail-open regression would take: a question without a resource
+supplies `resource: false`, and one without an action `action: false`, so a leaf that reads the absent fact fails
+with `MissingResource` or `MissingAction` instead of reading nothing. Pinned by `Admission.test.ts` (E1 to E4) and
+`LeafMatrix.test.ts`.
+
+## BEH-QD-634: Recursion passes the policy, the environment and one depth
+
+> **Invariant:** [INV-QD-363](../invariants.md#inv-qd-363-both-interpreters-read-the-environment-admission-built)
+> **See:** [ADR-QD-172](../decisions/172-admission-produces-the-one-walk-environment.md)
+
+```
+REQUIREMENT: `evaluateNode` MUST take exactly `(policy, request, depth)`, in that order, and read the
+             bound from the environment; a number where the environment belongs, or the
+             environment where the depth belongs, MUST NOT compile. The per-node guard MUST
+             refuse `depth > maxDepth` with `PolicyTooDeep`.
+```
+
+`concurrency` travels beside the environment in the walk's own bundle, never in it, because it is not a fact about
+the question (D-12). The per-node guard is defence in depth: admission proves the bound before the walk starts, so
+`evaluate` cannot reach it. Pinned by `WalkEnvironment.tst.ts` and `RolesAndDepth.test.ts`.
+
+## BEH-QD-635: The environment is built once per evaluation, and never on a cache hit
+
+> **Invariant:** [INV-QD-363](../invariants.md#inv-qd-363-both-interpreters-read-the-environment-admission-built)
+> **See:** [ADR-QD-172](../decisions/172-admission-produces-the-one-walk-environment.md),
+> [ADR-QD-100](../decisions/100-a-question-is-asked-once.md)
+
+```
+REQUIREMENT: `walk` MUST call `admit` once per evaluation, inside its `Effect.suspend`, and pass that
+             one environment to every node by reference; a cache hit MUST NOT call `admit`.
+```
+
+Building the environment lazily is what keeps a cache hit free of it, and passing it by reference is what keeps a
+node from rebuilding it. Pinned by `DecisionCache.test.ts` ("a cache hit never runs evaluateNode at all").
 
 ---
 
