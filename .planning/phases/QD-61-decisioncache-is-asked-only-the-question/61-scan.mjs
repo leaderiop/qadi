@@ -48,7 +48,10 @@ const SPEC = [
 ];
 
 // 1. Scope: every path changed since phase_base outside .planning/ is one this phase names.
-const ALLOWED = new Set([...GREEN_SRC, ...RED, LIFE_TEST, ...DOCS, ...SPEC]);
+// Review round 1 (IN-05) adds two comment-only files: the metric's JSDoc and a devtools test's comments.
+const METRICS = C + "src/EvaluationMetrics.ts";
+const SIMULATOR_TEST = "packages/devtools/test/react/Simulator.test.tsx";
+const ALLOWED = new Set([...GREEN_SRC, ...RED, LIFE_TEST, ...DOCS, ...SPEC, METRICS, SIMULATOR_TEST]);
 // A test(61-04) gap commit may add or extend another core test file (a survivor closed by a test, D-06).
 for (const c of lines(g("log", "--format=%H %s", B + "..HEAD")).filter((x) => / test\(61-04\): /.test(x)))
   for (const f of lines(g("diff-tree", "--no-commit-id", "--name-only", "-r", c.slice(0, 40))))
@@ -112,11 +115,24 @@ const frozen = g(
   "diff", "--name-only", B, "HEAD", "--",
   ":(glob)packages/*/package.json", ":(glob)packages/*/CHANGELOG.md", "package.json", "pnpm-lock.yaml",
   "pnpm-workspace.yaml", ".oxlintrc.json", ":(glob)tsconfig*.json", ":(glob)stryker*.mjs", "tstyche.json", "AGENTS.md",
-  C + "src/index.ts", C + "src/SharedComputation.ts", C + "src/Walk.ts", C + "src/EvaluationMetrics.ts",
+  C + "src/index.ts", C + "src/SharedComputation.ts", C + "src/Walk.ts",
   C + "bench/DecisionCache.bench.ts", "spec/overview.md",
 );
 if (frozen) bad.push("changed and must not be: " + frozen.split("\n").join(" "));
-const others = g("diff", "--name-only", B, "HEAD", "--", ":(glob)packages/**", ":(glob)scripts/**", ":(exclude,glob)packages/core/**");
+// The metric's description is its registry key (ADR-QD-123), so its code stays frozen; only its comments may change
+// (IN-05). Compare every non-comment line against phase_base, strings kept whole and comments stripped from both sides.
+const noComments = (t) =>
+  t
+    .replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)|\/\*[\s\S]*?\*\/|\/\/.*$/gm, (_, str) => str ?? "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .join("\n");
+if (noComments(g("show", B + ":" + METRICS)) !== noComments(fs.readFileSync(METRICS, "utf8"))) bad.push(METRICS + " changed beyond its comments");
+const others = g(
+  "diff", "--name-only", B, "HEAD", "--", ":(glob)packages/**", ":(glob)scripts/**", ":(exclude,glob)packages/core/**",
+  ":(exclude)" + SIMULATOR_TEST,
+);
 if (others) bad.push("another package or a gate changed: " + others.split("\n").join(" "));
 const added = lines(g("diff", "--name-status", B, "HEAD", "--", ".changeset"));
 if (added.length !== 1 || added[0] !== "A\t" + CHANGESET) bad.push(".changeset since phase_base: " + added.join("; "));
@@ -273,10 +289,13 @@ const PROMISE = {
     not: [],
   },
 };
+// The one place `compute` may appear in DecisionCache.ts: the title of the test its doc cites, verbatim (review WR-02).
+const CITED_TITLE = "a coalesced waiter's interruption does not interrupt the shared compute \u2014 the other waiter still gets a result";
 for (const [f, { has, not }] of Object.entries(PROMISE)) {
   const s = read(f);
+  const whole = f === DC ? prose(f).replace(CITED_TITLE, "") : s;
   for (const re of has) if (!re.test(s)) bad.push(f + " lacks " + re.source);
-  for (const re of not) if (re.test(f === DC || f === LIFE_TEST ? s : code(f))) bad.push(f + " still holds " + re.source);
+  for (const re of not) if (re.test(f === DC || f === LIFE_TEST ? whole : code(f))) bad.push(f + " still holds " + re.source);
 }
 // One walk call in each module: the cache's own (D-01) and the lifecycle's no-cache branch.
 for (const f of [DC, LC]) {
