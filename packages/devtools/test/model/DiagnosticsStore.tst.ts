@@ -18,6 +18,14 @@ import {
 import type { HydrationActivity } from "../../src/model/Hydration.ts";
 import type { WiringReport } from "../../src/model/Wiring.ts";
 
+/**
+ * `runDiagnostics` returns an Effect, and the Effect language service reports the
+ * synthesized call of a `toBeCallableWith` on it, so a negative pin on the function itself
+ * passes whatever its parameters are (`packages/core/test/PortAccess.tst.ts`). The pins
+ * check the parameters alone, through a function that returns nothing.
+ */
+type Params<F> = F extends (...args: infer A) => unknown ? (...args: A) => void : never;
+
 declare const store: DiagnosticsStore;
 declare class MyError {
   readonly _tag: "MyError";
@@ -37,24 +45,28 @@ test("a layer's typed failure is not the run's failure", () => {
   expect(runDiagnostics(store, { layer })).type.toBe<Effect.Effect<void, never, never>>();
 });
 
+test("a valid call passes the parameter check, so the refusals below can fail", () => {
+  expect<Params<typeof runDiagnostics>>().type.toBeCallableWith(store, { intervalMillis: 500 });
+});
+
 test("a run with no options has nothing to fail with either", () => {
   expect(runDiagnostics(store)).type.toBe<Effect.Effect<void, never, never>>();
 });
 
 test("the poll takes no questions thunk: the gates feed reads it", () => {
-  expect(runDiagnostics).type.not.toBeCallableWith(store, { questions: () => [] });
+  expect<Params<typeof runDiagnostics>>().type.not.toBeCallableWith(store, { questions: () => [] });
   expect<DiagnosticsOptions>().type.not.toHaveProperty("questions");
 });
 
 test("the poll takes an interval, not a schedule", () => {
-  expect(runDiagnostics).type.not.toBeCallableWith(store, { schedule: spaced });
+  expect<Params<typeof runDiagnostics>>().type.not.toBeCallableWith(store, { schedule: spaced });
   expect(runDiagnostics(store, { intervalMillis: 500 })).type.toBe<
     Effect.Effect<void, never, never>
   >();
 });
 
 test("a layer whose requirement is unmet is refused", () => {
-  expect(runDiagnostics).type.not.toBeCallableWith(store, { layer: needs });
+  expect<Params<typeof runDiagnostics>>().type.not.toBeCallableWith(store, { layer: needs });
 });
 
 // Both arities: a reintroduced one-parameter generic fails the first line, a two-parameter one the second.

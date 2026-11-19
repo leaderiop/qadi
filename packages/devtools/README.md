@@ -162,9 +162,11 @@ a report.
 A shell of your own builds the three feeds in a scope. Closing the scope ends every
 read, and a read that stops is stated in its feed's status instead of leaving a dead
 fiber. A `subscribe` listener is yours and is not isolated: it must not throw. A
-throw escapes whatever published (`configure`, a tick, or the host registry's own
-notification), and one thrown on a gates tick ends that feed's questions cadence
-without a statement.
+throw escapes whatever published (`configure`, `restart`, a read or tick, or the
+host registry's own notification), and it can leave a feed's status wrong with
+nothing running: the gates feed's questions cadence ends, a diagnostics feed stays
+`Starting` with no poll, and a timeline restarted from `Stopped` says `Reading` with
+nothing reading.
 
 ```typescript
 import * as Effect from "effect/Effect";
@@ -218,7 +220,10 @@ export const watch = Effect.fn("example.watch")(function* (report: (line: string
   follow(timeline.timeline.subscribe, () => `${timeline.timeline.getSnapshot().entries.length} entries`);
   follow(timeline.status.subscribe, () => timelineLine(timeline.status.getSnapshot()));
   follow(diagnostics.subscribe, () => diagnosticsLine(diagnostics.getSnapshot().status));
-  follow(gates.subscribe, () => `gates: ${gates.getSnapshot().registry._tag}`);
+  follow(gates.subscribe, () => {
+    const { registry, asked } = gates.getSnapshot();
+    return `gates: ${registry._tag}, questions: ${asked._tag}`;
+  });
 
   return { log, timeline, diagnostics, gates };
 });
