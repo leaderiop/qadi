@@ -534,3 +534,7 @@ entries:
     file: "171-a-stored-record-is-its-envelope-in-memory-too.md"
     title: "A stored record is its envelope in memory too"
     status: "Accepted — amends ADR-QD-097, ADR-QD-135, ADR-QD-159"
+  - id: "ADR-QD-172"
+    file: "172-admission-produces-the-one-walk-environment.md"
+    title: "Admission produces the one walk environment"
+    status: "Accepted — amends ADR-QD-024, ADR-QD-100, ADR-QD-163"
