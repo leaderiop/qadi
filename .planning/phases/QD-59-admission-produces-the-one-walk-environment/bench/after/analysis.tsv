@@ -1,0 +1,41 @@
+workload	ref_min_ns	cand_min_ns	d_min_pct	ref_min_spread_pct	band_pct	verdict	ref_p50_ns	cand_p50_ns	d_p50_pct	ref_mean_ns	cand_mean_ns	d_mean_pct
+evaluate :: one node	6000	6000	0.0	2.1	10.0	ok	6459	6417	-0.7	8978	8130	-9.4
+evaluate :: rules DenyOverrides — 8 permits	7833	7708	-1.6	3.2	10.0	ok	8375	8333	-0.5	10009	10490	4.8
+evaluate :: rules FirstApplicable — 8, last applies	8166	7958	-2.5	3.1	10.0	ok	8667	8458	-2.4	9977	10358	3.8
+evaluate :: anyOf Union — 8	8083	8041	-0.5	2.1	10.0	ok	8708	8667	-0.5	10249	10334	0.8
+evaluate :: anyOf First — 8, last allows	8209	8208	-0.0	4.1	10.0	ok	8709	8708	-0.0	10721	10239	-4.5
+evaluate :: wrapper-heavy — 10 nested labeled/not/obliged	8500	8208	-3.4	2.9	10.0	ok	9125	8584	-5.9	12928	11048	-14.5
+evaluate :: wide — allOf of 8	8125	8042	-1.0	1.5	10.0	ok	8750	8541	-2.4	12643	11406	-9.8
+evaluate :: rules PermitOverrides — 8 denies	8792	9250	5.2	3.3	10.0	ok	9583	9834	2.6	12653	14301	13.0
+evaluate :: field-heavy — anyOf of 8 under Union	8916	8750	-1.9	2.3	10.0	ok	9459	9166	-3.1	11633	11229	-3.5
+evaluate :: leaf-heavy — allOf of 8, matchers reference action and resource	9791	10042	2.6	2.6	10.0	ok	10333	10750	4.0	12555	14615	16.4
+evaluate :: leaf-heavy — allOf of 8, matchers reference neither	9958	10125	1.7	2.9	10.0	ok	10583	10750	1.6	13479	13551	0.5
+evaluate :: deep rules — 10 nested	10292	10708	4.0	5.3	10.0	ok	11250	11333	0.7	13489	15119	12.1
+evaluate :: deep — 10 levels	10791	10333	-4.2	1.5	10.0	ok	11583	11000	-5.0	16646	13547	-18.6
+evaluate :: matcher-heavy — 3 refs	11750	11375	-3.2	1.4	10.0	ok	12584	12208	-3.0	17655	14693	-16.8
+evaluate :: obligation-heavy — allOf of 8 distinct obligations	12833	12542	-2.3	2.3	10.0	ok	13625	12959	-4.9	16645	16068	-3.5
+evaluate :: resolver miss — one port call	12291	11916	-3.1	5.1	10.0	ok	13084	12666	-3.2	17652	16241	-8.0
+evaluate :: field-heavy — allOf of 8 under Intersection	17792	17292	-2.8	4.7	10.0	ok	18542	18125	-2.2	23963	21846	-8.8
+filter — 500 items :: hasPermission	4174667	4337708	3.9	2.8	10.0	ok	4344208	4593750	5.7	4759565	5768447	21.2
+decideSubjects — 500 subjects :: hasPermission	5333750	5618500	5.3	4.7	10.0	ok	5587104	5944771	6.4	5766860	7346783	27.4
+evaluate — depth scaling :: depth 5	11833	12084	2.1	6.0	10.0	ok	12334	12833	4.0	12846	15081	17.4
+evaluate — depth scaling :: depth 10	16542	17208	4.0	4.5	10.0	ok	17334	18000	3.8	18067	20830	15.3
+evaluate — depth scaling :: depth 20	26125	26667	2.1	4.9	10.0	ok	27125	27958	3.1	27951	32904	17.7
+evaluate — depth scaling :: depth 40	44583	45459	2.0	1.5	10.0	ok	46750	47708	2.0	47925	58002	21.0
+evaluate — width scaling :: width 4	8792	9208	4.7	8.1	10.0	ok	9375	9708	3.6	11284	11732	4.0
+evaluate — width scaling :: width 8	10750	11042	2.7	9.3	10.0	ok	11209	11833	5.6	14147	13720	-3.0
+evaluate — width scaling :: width 16	14541	15125	4.0	7.2	10.0	ok	15125	16041	6.1	18340	19065	4.0
+evaluate — width scaling :: width 32	21875	22875	4.6	8.4	10.0	ok	22791	24208	6.2	28382	29482	3.9
+evaluate — wide, concurrency :: sequential (default)	7625	8167	7.1	8.2	10.0	ok	8083	8792	8.8	10059	11908	18.4
+evaluate — wide, concurrency :: concurrency: unbounded	8000	8583	7.3	7.8	10.0	ok	8417	9166	8.9	10057	12316	22.5
+evaluate — anyOf Union 8, concurrency :: sequential (default)	7708	8209	6.5	6.5	10.0	ok	8167	8792	7.7	8521	11838	38.9
+evaluate — anyOf Union 8, concurrency :: concurrency: unbounded	8125	8583	5.6	6.2	10.0	ok	8459	9250	9.4	8953	12501	39.6
+evaluate — rules DenyOverrides 8, concurrency :: sequential (default)	7458	7958	6.7	6.7	10.0	ok	7834	8542	9.0	8168	11383	39.4
+evaluate — rules DenyOverrides 8, concurrency :: concurrency: unbounded	9958	10417	4.6	5.0	10.0	ok	10541	11125	5.5	12016	14530	20.9
+filter — 500 items, concurrency :: concurrency: unbounded	4331792	4324042	-0.2	5.3	10.0	ok	4813250	4426334	-8.0	5697778	5398937	-5.2
+filter — 500 items, concurrency :: sequential (default)	4297666	4212459	-2.0	0.4	10.0	ok	4632021	4375584	-5.5	5680107	5211911	-8.2
+# workloads: 35
+# slower: 0
+# geomean_d_min_pct: 1.60
+# worst_d_min: 7.3 evaluate — wide, concurrency :: concurrency: unbounded
+# gate: pass

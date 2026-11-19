@@ -162,3 +162,60 @@ Confirmation loads are in `bench/gate-r2/*.load-before` and `*.load-after`.
 ## Verdict
 
 Pursue. No workload of 35 is slower than its band in either run. The prototype is not slower than the base on this statistic (geomean -1.15% and -0.03%); the after-run (D-06) re-measures the real implementation on the same statistic.
+
+## After-run
+
+The final source (HEAD `a49596805636a19cfd90e51aa5915c25420851a9`) measured against the phase base with the same harness as the gate (D-06, D-18): `bench/ab.sh bench/after/to-base.patch bench/after 3 final base`, interleaved 3 + 3, the base arm applying `to-base.patch` (`git diff <head> <phase_base> -- packages/core/src`, SHA-256 `e6cf4159c6986ce4f3f39c3ee9f2e7ff522a463394a5e6f53322ef2bb881550c`) and reversing it; analysed by `bench/analyze.mjs bench/after base final` (reference base, candidate final). The statistic and the slower rule are the gate ones (D-04).
+
+Host: Mac15,7, Apple M3 Pro; Node v26.13.0; started 2026-11-19T04:50:12Z.
+
+| run | load before (1, 5, 15 min) | load after |
+|---|---|---|
+| base-1 | 126.48 58.74 36.96 | 110.26 67.52 41.62 |
+| base-2 | 57.70 59.48 39.98 | 37.32 53.54 38.78 |
+| base-3 | 27.47 48.37 37.71 | 20.80 44.00 36.67 |
+| final-1 | 60.04 37.02 28.38 | 126.48 58.74 36.96 |
+| final-2 | 110.26 67.52 41.62 | 57.70 59.48 39.98 |
+| final-3 | 37.32 53.54 38.78 | 27.47 48.37 37.71 |
+
+Result: slower 0 of 35; geomean delta of minima 1.60%; worst 7.3 evaluate — wide, concurrency :: concurrency: unbounded. **gate: pass**
+
+Decision statistic: median of per-run minima (ns). Delta is final over base.
+
+| workload | base min (ns) | final min (ns) | delta | base spread | band | verdict |
+|---|---|---|---|---|---|---|
+| evaluate :: one node | 6,000 | 6,000 | 0.0% | 2.1% | 10.0% | ok |
+| evaluate :: rules DenyOverrides — 8 permits | 7,833 | 7,708 | -1.6% | 3.2% | 10.0% | ok |
+| evaluate :: rules FirstApplicable — 8, last applies | 8,166 | 7,958 | -2.5% | 3.1% | 10.0% | ok |
+| evaluate :: anyOf Union — 8 | 8,083 | 8,041 | -0.5% | 2.1% | 10.0% | ok |
+| evaluate :: anyOf First — 8, last allows | 8,209 | 8,208 | -0.0% | 4.1% | 10.0% | ok |
+| evaluate :: wrapper-heavy — 10 nested labeled/not/obliged | 8,500 | 8,208 | -3.4% | 2.9% | 10.0% | ok |
+| evaluate :: wide — allOf of 8 | 8,125 | 8,042 | -1.0% | 1.5% | 10.0% | ok |
+| evaluate :: rules PermitOverrides — 8 denies | 8,792 | 9,250 | +5.2% | 3.3% | 10.0% | ok |
+| evaluate :: field-heavy — anyOf of 8 under Union | 8,916 | 8,750 | -1.9% | 2.3% | 10.0% | ok |
+| evaluate :: leaf-heavy — allOf of 8, matchers reference action and resource | 9,791 | 10,042 | +2.6% | 2.6% | 10.0% | ok |
+| evaluate :: leaf-heavy — allOf of 8, matchers reference neither | 9,958 | 10,125 | +1.7% | 2.9% | 10.0% | ok |
+| evaluate :: deep rules — 10 nested | 10,292 | 10,708 | +4.0% | 5.3% | 10.0% | ok |
+| evaluate :: deep — 10 levels | 10,791 | 10,333 | -4.2% | 1.5% | 10.0% | ok |
+| evaluate :: matcher-heavy — 3 refs | 11,750 | 11,375 | -3.2% | 1.4% | 10.0% | ok |
+| evaluate :: obligation-heavy — allOf of 8 distinct obligations | 12,833 | 12,542 | -2.3% | 2.3% | 10.0% | ok |
+| evaluate :: resolver miss — one port call | 12,291 | 11,916 | -3.1% | 5.1% | 10.0% | ok |
+| evaluate :: field-heavy — allOf of 8 under Intersection | 17,792 | 17,292 | -2.8% | 4.7% | 10.0% | ok |
+| filter — 500 items :: hasPermission | 4,174,667 | 4,337,708 | +3.9% | 2.8% | 10.0% | ok |
+| decideSubjects — 500 subjects :: hasPermission | 5,333,750 | 5,618,500 | +5.3% | 4.7% | 10.0% | ok |
+| evaluate — depth scaling :: depth 5 | 11,833 | 12,084 | +2.1% | 6.0% | 10.0% | ok |
+| evaluate — depth scaling :: depth 10 | 16,542 | 17,208 | +4.0% | 4.5% | 10.0% | ok |
+| evaluate — depth scaling :: depth 20 | 26,125 | 26,667 | +2.1% | 4.9% | 10.0% | ok |
+| evaluate — depth scaling :: depth 40 | 44,583 | 45,459 | +2.0% | 1.5% | 10.0% | ok |
+| evaluate — width scaling :: width 4 | 8,792 | 9,208 | +4.7% | 8.1% | 10.0% | ok |
+| evaluate — width scaling :: width 8 | 10,750 | 11,042 | +2.7% | 9.3% | 10.0% | ok |
+| evaluate — width scaling :: width 16 | 14,541 | 15,125 | +4.0% | 7.2% | 10.0% | ok |
+| evaluate — width scaling :: width 32 | 21,875 | 22,875 | +4.6% | 8.4% | 10.0% | ok |
+| evaluate — wide, concurrency :: sequential (default) | 7,625 | 8,167 | +7.1% | 8.2% | 10.0% | ok |
+| evaluate — wide, concurrency :: concurrency: unbounded | 8,000 | 8,583 | +7.3% | 7.8% | 10.0% | ok |
+| evaluate — anyOf Union 8, concurrency :: sequential (default) | 7,708 | 8,209 | +6.5% | 6.5% | 10.0% | ok |
+| evaluate — anyOf Union 8, concurrency :: concurrency: unbounded | 8,125 | 8,583 | +5.6% | 6.2% | 10.0% | ok |
+| evaluate — rules DenyOverrides 8, concurrency :: sequential (default) | 7,458 | 7,958 | +6.7% | 6.7% | 10.0% | ok |
+| evaluate — rules DenyOverrides 8, concurrency :: concurrency: unbounded | 9,958 | 10,417 | +4.6% | 5.0% | 10.0% | ok |
+| filter — 500 items, concurrency :: concurrency: unbounded | 4,331,792 | 4,324,042 | -0.2% | 5.3% | 10.0% | ok |
+| filter — 500 items, concurrency :: sequential (default) | 4,297,666 | 4,212,459 | -2.0% | 0.4% | 10.0% | ok |
