@@ -174,7 +174,7 @@ keep the last reading and offer **Restart diagnostics**. A hidden-then-shown doc
 samples afresh from its first sample, and removing `diagnostics` stops sampling and
 clears the reading.
 
-**A host with no `QadiProvider`** (a shell running `runDiagnostics`) hands the
+**A host with no `QadiProvider`** (a shell running `makeDiagnosticsFeed`) hands the
 dock a layer of its own, and the dock's build of it is its own: a service that
 keeps state in its constructor is two instances if the dock and the application
 each build the layer. Build the context once and give that one value
@@ -217,14 +217,17 @@ the inspector, the policy explorer, the role viewer, the Services, Simulator and
 React panels) are what the dock draws, **not exports**: a host mounts the dock
 and hands it a `source`, a `catalogue`, `diagnostics` and `gates`, the registry (usually the feed's, or `atoms.gates`).
 
-What the headless model exports is what a shell crosses: three stores, the wiring
-the dock takes, and the readings of a timeline.
+What the headless model exports is what a shell crosses: three feeds and the
+simulation session, the wiring the dock takes, and the readings of a timeline.
 
-- **Stores.** `makeTimelineStore` and `runSource` hold the timeline;
-  `makeSimulationSession` holds the simulator; `makeDiagnosticsStore` and
-  `runDiagnostics` hold what the dock samples. `@qadi/devtools/react` has the
-  React half of each (`useTimeline`, `useSimulationSession`, `useDiagnostics`). `useDiagnostics` and the dock
-  share one feed.
+- **Feeds.** `makeTimelineFeed`, `makeDiagnosticsFeed` and `makeGatesFeed` build in a
+  scope and state a stop; `makeSimulationSession` holds the simulator.
+  `@qadi/devtools/react` has the React half of each (`useTimeline`,
+  `useSimulationSession`, `useDiagnostics`). `useDiagnostics` and the dock
+  share one feed. A stop's `reason` is a `Cause.pretty` trace, with stack frames and
+  checkout paths, for a developer in the host's own process. It must not cross a
+  trust boundary: a shell that forwards status to a remote viewer sends the tag,
+  not the reason.
 - **Inspection** (`inspect`, `flattenTree`) — walking a decision's evaluation
   tree, including nodes that never resolved or were truncated; with verdict
   classification (`verdictOf`), pairing, filters and selection.

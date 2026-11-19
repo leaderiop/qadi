@@ -752,20 +752,16 @@ Gates are not sampled. They stay a prop the host feeds from its subscription to
 
 ```typescript
 import * as Effect from "effect/Effect";
-import * as Fiber from "effect/Fiber";
 import { decisionCacheLayer } from "@qadi/core";
-import { makeDiagnosticsStore, runDiagnostics } from "@qadi/devtools";
+import { makeDiagnosticsFeed } from "@qadi/devtools";
 
-export const sampleOnce = Effect.gen(function* () {
-  const store = makeDiagnosticsStore();
-  const run = yield* Effect.forkChild(
-    runDiagnostics(store, { layer: decisionCacheLayer() }),
-    { startImmediately: true },
-  );
-  const wiring = store.getSnapshot().wiring._tag;
-  yield* Fiber.interrupt(run);
-  return wiring;
-});
+export const sampleOnce = Effect.scoped(
+  Effect.gen(function* () {
+    const feed = yield* makeDiagnosticsFeed({ layer: decisionCacheLayer() });
+    yield* Effect.yieldNow;
+    return feed.getSnapshot().reading.wiring._tag;
+  }),
+);
 ```
 
 ## BEH-QD-337: What the explorer shows is a session the dock owns
