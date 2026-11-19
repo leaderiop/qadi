@@ -141,11 +141,56 @@ Every phase runs on branch `arch-wave-12`, strictly serial.
 
 ## Traceability
 
-Filled by the roadmap.
+Which phases cover which requirements. One row per ID (`phase.complete` cannot parse grouped rows or ranges).
+The seven WX rows apply to every phase 62 to 68, so each phase's Requirements line in `ROADMAP.md` lists all seven.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| PIN-01 | Phase 62 | Pending |
+| PIN-02 | Phase 62 | Pending |
+| PIN-03 | Phase 62 | Pending |
+| PIN-04 | Phase 62 | Pending |
+| PIN-05 | Phase 62 | Pending |
+| PROBE-01 | Phase 63 | Pending |
+| PROBE-02 | Phase 63 | Pending |
+| PROBE-03 | Phase 63 | Pending |
+| PROBE-04 | Phase 63 | Pending |
+| PROBE-05 | Phase 63 | Pending |
+| LSTN-01 | Phase 64 | Pending |
+| LSTN-02 | Phase 64 | Pending |
+| LSTN-03 | Phase 64 | Pending |
+| LSTN-04 | Phase 64 | Pending |
+| ADMT-01 | Phase 65 | Pending |
+| ADMT-02 | Phase 65 | Pending |
+| ADMT-03 | Phase 65 | Pending |
+| ADMT-04 | Phase 65 | Pending |
+| DECL-01 | Phase 66 | Pending |
+| DECL-02 | Phase 66 | Pending |
+| DECL-03 | Phase 66 | Pending |
+| DECL-04 | Phase 66 | Pending |
+| MUTE-01 | Phase 67 | Pending |
+| MUTE-02 | Phase 67 | Pending |
+| MUTE-03 | Phase 67 | Pending |
+| MUTE-04 | Phase 67 | Pending |
+| HYGN-01 | Phase 68 | Pending |
+| HYGN-02 | Phase 68 | Pending |
+| HYGN-03 | Phase 68 | Pending |
+| HYGN-04 | Phase 68 | Pending |
+| HYGN-05 | Phase 68 | Pending |
+| HYGN-06 | Phase 68 | Pending |
+| WX-01 | All v1.7 phases | Pending |
+| WX-02 | All v1.7 phases | Pending |
+| WX-03 | All v1.7 phases | Pending |
+| WX-04 | All v1.7 phases | Pending |
+| WX-05 | All v1.7 phases | Pending |
+| WX-06 | All v1.7 phases | Pending |
+| WX-07 | All v1.7 phases | Pending |
 
 **Coverage:**
 - v1.7 requirements: 39 total (32 phase-specific + 7 cross-cutting)
+- Mapped to phases: 39 (32 phase-specific, each to exactly one of Phases 62 to 68; 7 cross-cutting, each applying to all seven)
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-11-20*
-*Last updated: 2026-11-20 after definition*
+*Last updated: 2026-11-20 after roadmap creation (traceability filled)*
