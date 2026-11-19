@@ -601,13 +601,13 @@ Plans:
   4. If pursued: `RolesAndDepth.test.ts`'s depth agreement test stays green, the three `Effect.fnUntraced` functions and `SWITCH_BUDGET` are unchanged (the AGENTS.md tables and the budgets agree), and `pnpm bench` after the change shows no workload regressed beyond noise against the phase base.
 
 **Planning notes**: **The benchmark is the first plan, and it gates the rest.** Prototype on a scratch branch or an unmerged commit, run `pnpm bench` against the base the way Phase 50 did, and record the table before writing any source that stays. If pursued, plan shape, RED first: the mutation base for `Walk.ts`, `Predicate.ts` and `Admission.ts` and the `admit(question)` characterisation first; then the environment; then each interpreter; then records.
-**Plans**: 3/10 plans executed
+**Plans**: 4/10 plans executed
 
 Plans:
 - [x] 59-01 (W1): `phase_base` and the gate of record (WENV-01, `# gate: pass`), base facts, reserved ids and API surface base (933)
 - [x] 59-02 (W2): the mutation script and the baseline of `Admission.ts`, `Predicate.ts` and `Walk.ts` on the untouched base, the phase's first code-free commit
 - [x] 59-03 (W3): the characterisation green on the base; `Admission.test.ts` rows E1..E6 and `WalkEnvironment.tst.ts` committed RED
-- [ ] 59-04 (W4): tracer — `admit(question, rowSource)` builds the one `Admitted` environment from the closed `RESOURCE_SUPPLIED` table; `evaluateNode(policy, request, depth)` at all 13 call sites; `compileTree` over `Admitted<true>`; one `refactor(59-04)` commit, budgets and 933 unchanged
+- [x] 59-04 (W4): tracer — `admit(question, rowSource)` builds the one `Admitted` environment from the closed `RESOURCE_SUPPLIED` table; `evaluateNode(policy, request, depth)` at all 13 call sites; `compileTree` over `Admitted<true>`; one `refactor(59-04)` commit, budgets and 933 unchanged
 - [ ] 59-05 (W5): the after-bench, the final source against the phase base, 3 + 3, `# gate: pass` required (stop-and-report on a fail)
 - [ ] 59-06 (W6): the mutation after-run and static evidence; D-15 applied; any gap test
 - [ ] 59-07 (W7): ADR-QD-172; the ADR-QD-100, ADR-QD-163 and ADR-QD-024 amendments
@@ -666,6 +666,6 @@ Phases execute in numeric order: 53 → 54 → 55 → 56 → 57 → 58 → 59 �
 | 56. The gate-registry watch becomes the dock model's third feed | 13/13 | Complete    | 2026-11-18 |
 | 57. untrustedDecoder states the envelope's unknown-key policy | 11/11 | Complete    | 2026-11-19 |
 | 58. A stored record is its envelope in memory too | 9/9 | Complete    | 2026-11-19 |
-| 59. Admission produces the one walk environment | 3/10 | In Progress | - |
+| 59. Admission produces the one walk environment | 4/10 | In Progress | - |
 | 60. Devtools' headless interface is the feeds | 0/TBD | Not started | - |
 | 61. DecisionCache is asked only the question | 0/TBD | Not started | - |
