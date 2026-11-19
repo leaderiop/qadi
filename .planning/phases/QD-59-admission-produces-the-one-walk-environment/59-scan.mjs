@@ -152,7 +152,7 @@ if (reds.length < 2) bad.push("test(59-03) RED commits: " + reds.length + ", exp
 for (const i of all(/^test\(59-03\): /)) if (firstSrc >= 0 && i > firstSrc) bad.push('"' + L[i].s + '" follows the first src commit');
 const born = lines(g("log", "--reverse", "--diff-filter=A", "--format=%s", B + "..HEAD", "--", RED[1]));
 if (born.length !== 1 || !/^test\(59-03\): .*RED/.test(born[0])) bad.push(RED[1] + " was not added by a test(59-03) RED commit");
-for (const s of lines(g("log", "--format=%s", B + "..HEAD", "--", RED[1]))) if (!/^test\(59-0[36]\): /.test(s)) bad.push(RED[1] + " was changed by " + s);
+for (const s of lines(g("log", "--format=%s", B + "..HEAD", "--", RED[1]))) if (!/^(test\(59-0[36]\)|fix\(59\)): /.test(s)) bad.push(RED[1] + " was changed by " + s);
 // Every line a RED commit added to Admission.test.ts is still in it (the src commit re-points, it never deletes a row).
 const head = new Set(fs.readFileSync(RED[0], "utf8").split("\n"));
 for (const i of reds)
@@ -176,7 +176,24 @@ else {
     if (!/^head_label: final$/m.test(meta) || !/^patched_label: base$/m.test(meta) || !/^rounds: 3$/m.test(meta)) bad.push("bench/after/meta.txt is not final/base over 3 rounds");
     const patch = g("diff", H, B, "--", "packages/core/src") + "\n";
     if (fs.readFileSync(AFTER + "to-base.patch", "utf8") !== patch) bad.push("bench/after/to-base.patch is not git diff <measured head> phase_base -- packages/core/src");
-    const late = commentOnly(H, [SRC]);
+    // A review round that changed src adds bench/after-fix/ (never a re-run of bench/after/), which must pass,
+    // be its own single chore(59) commit, and have measured HEAD's source.
+    const FIX = D + "bench/after-fix/";
+    const fixed = lines(g("log", "--format=%H %s", B + "..HEAD", "--", FIX + "analysis.tsv"));
+    let measured = H;
+    if (fixed.length) {
+      if (fixed.length !== 1 || !/ chore\(59\): /.test(fixed[0])) bad.push("bench/after-fix/analysis.tsv commits: " + fixed.join("; "));
+      const ft = fs.readFileSync(FIX + "analysis.tsv", "utf8").trimEnd().split("\n");
+      if (ft[ft.length - 1] !== "# gate: pass") bad.push("bench/after-fix/analysis.tsv does not end with # gate: pass");
+      if (!fs.existsSync(FIX + "done.txt")) bad.push("bench/after-fix/done.txt is missing (src was not restored)");
+      const FH = (/^head: ([0-9a-f]{40})$/m.exec(fs.readFileSync(FIX + "meta.txt", "utf8")) || [])[1];
+      if (!FH) bad.push("bench/after-fix/meta.txt names no head");
+      else {
+        if (fs.readFileSync(FIX + "to-base.patch", "utf8") !== g("diff", FH, B, "--", "packages/core/src") + "\n") bad.push("bench/after-fix/to-base.patch is not git diff <measured head> phase_base -- packages/core/src");
+        measured = FH;
+      }
+    }
+    const late = commentOnly(measured, [SRC]);
     if (late.length) bad.push("src changed in code after the after-bench measured it: " + late[0].slice(0, 120));
   }
   if (!fs.existsSync(AFTER + "done.txt")) bad.push("bench/after/done.txt is missing (src was not restored)");
@@ -185,7 +202,7 @@ else {
 const lastAfter = lines(g("log", "--format=%H", "-1", B + "..HEAD", "--", D + "59-mutation-after.json"))[0];
 const ev = lastAfter === undefined ? -1 : at(lastAfter);
 const lastCode = lines(g("log", "--format=%H", "-1", B + "..HEAD", "--", ...CODE))[0];
-if (ev < 0 || !/^chore\(59-06\): /.test(L[ev].s)) bad.push("the last commit touching 59-mutation-after.json is not a chore(59-06)");
+if (ev < 0 || !/^chore\(59(-06)?\): /.test(L[ev].s)) bad.push("the last commit touching 59-mutation-after.json is not a chore(59-06) or a review round's chore(59)");
 // A code commit after the evidence may stand only when it changes comment lines alone, which neither adds a mutant
 // nor changes a kill (Phase 58's review-round rule).
 const lateCode = ev < 0 ? [] : commentOnly(L[ev].h, CODE);
@@ -226,21 +243,21 @@ const PROMISE = {
   [AD]: {
     has: [
       'export type RowSource = "asked" | "row";',
-      "export class Admitted<Resource extends boolean = boolean> {",
-      "constructor(readonly subject: AuthSubject, readonly supplied: Supplied<Resource>, readonly matcherContext: MatcherContext, readonly maxDepth: number) {}",
+      "export class Admitted<Source extends RowSource = RowSource> {",
+      "constructor(readonly source: Source, readonly policy: Policy, readonly subject: AuthSubject, readonly supplied: SuppliedBy[Source], readonly matcherContext: MatcherContext, readonly maxDepth: number) {}",
       "const RESOURCE_SUPPLIED: { readonly [Source in RowSource]: (question: Question) => boolean } = {",
       "asked: (question) => question.resource !== undefined,",
       "row: () => true,",
-      'export function admit(question: Question, rowSource: "row"): Result.Result<Admitted<true>, PolicyTooDeep>;',
-      "export function admit(question: Question, rowSource: RowSource): Result.Result<Admitted, PolicyTooDeep>;",
+      "export function admit<Source extends RowSource>(question: Question, rowSource: Source): Result.Result<Admitted<Source>, PolicyTooDeep>;",
+      "export function admit(question: Question, rowSource: RowSource): Result.Result<Admitted, PolicyTooDeep> {",
       "action: question.action !== undefined,",
       "resource: RESOURCE_SUPPLIED[rowSource](question),",
     ],
-    not: [/readonly question\b/, /rowSource === /],
+    not: [/readonly question\b/, /rowSource === /, /Resource extends boolean/],
   },
   [WK]: {
     has: [
-      "readonly admitted: Admitted;",
+      'readonly admitted: Admitted<"asked">;',
       "readonly concurrency: Concurrency | undefined;",
       "export const evaluateNode = (policy: Policy, request: Evaluation, depth: number): Effect.Effect<Trace, EvaluationError, PortServices> =>",
       "const { admitted } = request;",
@@ -252,16 +269,16 @@ const PROMISE = {
       "evaluateAnyOf(policy, request, depth)",
       "evaluateRules(policy, request, depth)",
       'const admitted = admit(question, "asked");',
-      "return evaluateNode(question.policy, { admitted: admitted.success, concurrency }, 0);",
+      "return evaluateNode(admitted.success.policy, { admitted: admitted.success, concurrency }, 0);",
     ],
     not: [/matcherContext: MatcherContext/, /maxDepth: number/, /\bsupplied: \{/, /request\.supplied/, /depth \+ 1, maxDepth\)/, /\bsubject, request, matcherContext\b/],
   },
   [PR]: {
     has: [
-      "const compileTree = (policy: Policy, admitted: Admitted<true>): Compiled =>",
+      'const compileTree = (admitted: Admitted<"row">): Compiled =>',
       "const { subject, supplied, matcherContext: context } = admitted;",
       'const admitted = admit(question, "row");',
-      "const compiled = compileTree(policy, admitted.success);",
+      "const compiled = compileTree(admitted.success);",
     ],
     not: [/\bSupplied\b/, /admitted\.question/],
   },
