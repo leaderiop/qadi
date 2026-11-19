@@ -19,8 +19,10 @@ items, either with a change or with a recorded decision; none is carried forward
 - **D2 (Phase 66):** the hydration payload (`HydrationEngine.ts`) keeps `unknownKeys: "refuse"`. ADR-QD-170's D-09 report
   is resolved by recording why (same-build, version-checked payload; strict refusal catches tampering). No behaviour change.
 - **D3 (Phase 68, defaulted to the recommendation; the owner did not object):** port cards (`PortCards.ts`) stay
-  package-private. An ADR-QD-173 amendment records the reason and how a headless consumer derives the same view from the
-  timeline feed. No new public API.
+  package-private. An ADR-QD-173 amendment records the reason and what a headless consumer reads instead. Corrected by
+  research (2026-11-20): `portCards`' inputs (`wiring`, `activity`, `portCalls`) come from the **diagnostics** reading, not
+  the timeline feed, and `isUnsampled` is not exported, so the amendment names the diagnostics feed and does not promise
+  "the same view". No new public API.
 - **D4 (Phase 66):** `UntrustedDecode.ts`'s `project` is changed so its doc claim becomes true: it reads only the
   declared keys (and the `_tag` its `keysOf` needs), so an undeclared accessor is never invoked. Not a wording-only fix.
 - **D5 (Phase 67):** the two surviving equivalent mutants are restructured away. No `// Stryker disable` convention is
@@ -66,7 +68,12 @@ ADR Document IDs must equal the file number (gate 10).
   as it should.
 - **So `packages/core/test/DecisionLog.tst.ts:30`** (`expect(makeDecisionLog).type.not.toBeCallableWith({ capacity: 10 })`)
   cannot fail: making `environment` optional would leave it green.
-- **Scale:** 86 `not.toBeCallableWith` pins in 27 `*.tst.ts` files (`packages/{core,audit,devtools,http,promise,react}/test`).
+- **Scale:** 86 grep hits in 27 `*.tst.ts` files; **81 are code pins**, 5 are comments (research, 2026-11-20). Only
+  `Effect`/`Stream` subjects are affected. Exact inventory: `.planning/research/FEATURES.md`.
+- **Root cause (research, 2026-11-20):** not tstyche's matcher but `@effect/language-service`'s `floatingEffect`
+  diagnostic. tstyche rewrites the pin to a bare call `(f)(a)` and reads *any* diagnostic as "not callable"; a bare
+  Effect/Stream call is "floating". Turning `floatingEffect` off for tstyche (a tstyche-only tsconfig, or a per-file
+  `// @effect-diagnostics floatingEffect:off`) makes every existing pin able to fail. See `.planning/research/STACK.md`.
 - **Probe 2 (flip):** turning all 86 into `toBeCallableWith` made 81 fail. That does **not** clear those 81: a negative
   pin on an Effect-returning function that is genuinely not callable also flips to failing, yet the negative can never
   fail. Classification must be by the subject's return type (Effect or not), with a positive control per remaining pin.
@@ -110,7 +117,8 @@ ADR Document IDs must equal the file number (gate 10).
 - 59a: `SUPPLIED[rowSource](question)` and `matcherContext.resource` both read `question.resource` separately; agreement
   is pinned only by tests (E1–E5, `LeafMatrix.test.ts`). Derive the flag from the matcher context so they agree by
   construction.
-- 59b: private constructor; `admit` becomes the class's static method and `export const admit = Admitted.admit`, so
+- 59b: private constructor **plus a private instance member** (research: a private constructor alone still lets an
+  object literal of the right shape type-check as `Admitted`); `admit` becomes the class's static method and `export const admit = Admitted.admit`, so
   `Walk.ts:878` (`admit(question, "asked")`) is unchanged. No test does `new Admitted` today (checked 2026-11-20).
   Pin with a `@ts-expect-error` construction (not `not.toBeConstructableWith`, see Phase 62).
 - Bench gate: Phase 59's harness and bands, 3 + 3 interleaved against the phase base, on the committed source.
@@ -151,4 +159,6 @@ ADR Document IDs must equal the file number (gate 10).
 - I-b / D3: ADR-QD-173 amendment (port cards stay private; derive from the timeline feed).
 - 61d: prove `packages/devtools/test/react/Simulator.test.tsx`'s Phase 61 diff is comments-only (strip comments, diff
   empty) and record it in the Phase 61 archive. The archived `61-scan.mjs` is not edited.
+- Already settled (research, 2026-11-20): the `ingest` doc already names the uncontained defect path (`DecisionLog.ts:126-129`),
+  and 61d is evidenced: `d0ca3df6` changes only two comment lines in `Simulator.test.tsx`. Record both; no source edit.
 - Records: CCR; spec revisions; no changeset.

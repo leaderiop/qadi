@@ -1,210 +1,226 @@
 # Project Research Summary
 
-**Project:** Qadi, milestone v1.4 "Arch Wave 9" (Phases 37-42, ARCH-84..89)
-**Domain:** Effect v4 authorization library (pnpm monorepo); six internal architecture deepenings, no new features
-**Researched:** 2026-11-14 (base `637c0601`, branch `arch-wave-9`)
-**Confidence:** HIGH for Phases 37-41, MEDIUM for Phase 42 (a human decision, not a research gap)
+**Project:** Qadi (Effect-native authorization library), milestone v1.7 "Arch Wave 12"
+**Domain:** Tech-debt resolution in an existing Effect v4 monorepo (`@qadi/*`); no new features, no new public exports
+**Researched:** 2026-11-20 (base `8b22bd66`, branch `arch-wave-12`)
+**Confidence:** HIGH (repo facts read at file:line and most behaviours probed in throwaway files; unverified items are listed under Gaps)
+
+Source of truth for locked decisions: `.planning/phases/_WAVE12-CONTEXT.md` (D1-D5 are not reopened here).
 
 ## Executive Summary
 
-Wave 9 is six relocations, not six capabilities. Each phase takes one fact that is currently restated by hand and gives it one owner: the superseding-run protocol (37, devtools), the sink wire version (38, core), the hydration drop-reason set with its kinds (39, core+react), the decode-refusal vocabulary (40, core+devtools+audit), the value-to-text guard (41, devtools), and the seed-to-evaluation link (42, react). No dependency, no new Effect API, no version change: everything is expressible with what the repo already imports (`FiberHandle`, `Exit`, `Cause`, `Schema`, `Metric`, `Match`, `Atom`). The research value is the behaviour the hand copies rely on without saying so, which the shared module must keep (publish-before-fork, finalizer order, label order, wire byte order, atom subscription shape).
+This milestone closes the 13 tech-debt items from the v1.6 audit in seven strictly serial phases (62-68). Nothing is added to the public API and no dependency, tool or version changes (STACK). The work is: make type pins able to fail (62), extend the packed-install gate to three missed public names (63), make a shared store call every listener (64), make `Admitted` unforgeable and single-sourced (65), make the untrusted-input projection read only declared keys (66), restructure two equivalent mutants and a magic race bound (67), and close out hygiene and recorded decisions (68). The experts' approach in this repo is already encoded in gates: exact-count budgets checked in both directions, RED-first tests, interleaved 3+3 benches, per-file Stryker compares, and spec records edited in the same change.
 
-Keep the context's strict order 37 -> 42, with hard dependencies 38 -> 40 (shared `SinkWire.ts`/`SinkCodec.ts`) and 39 -> 42 (shared `HydrationEngine.ts`), and a soft one 37 -> 41 (both touch `SimulationSession.ts`). Two phases are really defect fixes with RED tests first: 37 (a possible stuck-on-Starting race, not yet reproduced) and 41 (a reproduced synchronous throw from `Remedies.ts:574` that escapes `SimulationSession.commit()`). Phase 40 is the only Breaking change (`@qadi/devtools` `onMalformed`/`MalformedReason`) and the only one that retires a budgeted exception (`UNTRUSTED_DECODE_BUDGET` for `AuditEntry.ts`). Phase 42 starts with a human checkpoint and may end in a rejection ADR.
+The most important research result is a root cause for Phase 62. The vacuous `not.toBeCallableWith` is not tstyche's matcher; it is `@effect/language-service`'s `floatingEffect` diagnostic on tstyche's synthesized bare call, and it affects only `Effect`/`Stream` subjects. Corrected counts: 81 code pins (86 raw greps include 5 comments); exactly 1 is vacuous today (`DecisionLog.tst.ts:30`), 12 are Effect-returning but already wrapped in `Params<F>`, 68 are honest. So Phase 62 is "fix the cause, rewrite one pin, control eleven, add a gate and a characterisation test", not an 81-pin rewrite. Other corrections that change requirement wording: D3's derivation comes from the diagnostics reading (not the timeline feed); a private constructor alone does not stop object-literal forgery of `Admitted`; the D4 claim ("reads no value") is true only for the projection under `ignore`; `DiagnosticsOptions` has no `schedule` option.
 
-Main risks are all "looks the same, behaves differently": a one-call `run` that removes the publish-before-fork gap (37), a table that reorders `preregisteredWords` or a constant that widens the wire type (38, 39), a re-encode that changes what an audit entry stores (40), one return contract flattening five deliberately different renderers (41), and a "tidier" atom construction that adds a subscription or second readable (42). Mitigation is uniform: characterise on the base first (golden bytes, written-out label lists, RED reproductions), put tests at the new seam before deleting store-level tests, measure per-file mutation with the same invocation at base and close (XC-05).
-
-## Reconciliations (where the four files disagreed, and which wins)
-
-**R1. Phase 37 stop rule: unconditional wins over the guarded form.**
-ARCHITECTURE pins the guarded form (`Option.isSome(FiberHandle.getUnsafe(...))`, ADR-QD-137 point 3) but only read `FiberHandle` and did not execute it (MEDIUM). STACK reproduced it: `fork(Effect.void)` on an empty handle completes inside `runFork`, the observer clears the slot, `getUnsafe` is `None` before and after, and on a closed handle the fork returns `constInterruptedFiber()` and never starts the body. The guard saves one throwaway fiber, no observable effect. FEATURES independently recommends unconditional. Decision: `stop` = bump generation; `fork(Effect.void)`, no guard, in the one module; `SimulationSession.ts:462`'s guard is deleted. ADR-QD-150 restates ADR-137 point 3 ("when the handle holds a fiber"). Pin on the module interface: stop with no run (not started, closed, completed) means no notification, no state change, no span, handle empty. PITFALLS' "must not allocate a fiber" is dropped as a requirement (the observable pin is no effect, not no allocation).
-
-**R2. Phase 37 module interface: two-step begin/fork, two failure hooks.**
-PITFALLS (and FEATURES C2) are right that a one-call `run(effect)` breaks all three stores: each publishes between bump and fork (`TimelineFeed` `status.set(READING)`, `DiagnosticsFeed` `show(Starting)` "before the fork: its synchronous prefix may already reach Live", `SimulationSession` `commit()` then `if (mine === generation) fork`). Interface: `begin()` bumps and returns a token; the store publishes; `fork(token, effect)` forks only while the token is still current and says whether it did; `isCurrent(token)` guards each landed write (`marking.accept`, `land`); `stop()`; `closed()`; one finalizer registered after the handle (reverse-order, sequential close). The module makes the pre-fork re-check the default, so the feeds gain what only `SimulationSession` has today (FEATURES C2: a subscriber restarting the feed inside the Starting/Reading notification leaves the older run forked last; hypothesis, RED first).
-Failure classification is not shared (PITFALLS 3, FEATURES C1): `mine === generation && Exit.isFailure && !Cause.hasInterruptsOnly` exists in two copies only (`TimelineFeed.ts:150`, `DiagnosticsFeed.ts:221`) and becomes one named hook for the feeds. `SimulationSession` has no `hasInterruptsOnly`: `land` runs `Effect.exit` inside the fiber and maps every non-success exit with a current token to `Broke`, including a self-interrupt. It keeps that rule and uses only `isCurrent`. Pin the self-interrupt row ("reads Broke, not Running") before touching it.
-Extra hazard (STACK, reproduced `exp3`): a body whose synchronous prefix calls a command that starts a newer run installs the inner fiber first, then the outer installs and interrupts it, leaving state idle with a stale generation. Decision: option A (keep synchronous start; module doc says "a body must not call a command before its first yield"; RED test that a violation is reported, not silently idle). Reject `Effect.yieldNow` first (breaks ~34 tests relying on a synchronous prefix) and `FiberHandle.run({startImmediately:false})` (needs `runSyncWith`).
-
-**R3. Phase 41 reproduction: reproduced (FEATURES wins), narrower hazard set.**
-STACK and PITFALLS only reasoned from code. FEATURES ran the real `remedyEdits` against built core: six probes (`contains(10n)`, `contains(circular)`, `inArray([1n])`, `inArray([circular])`, `eq(literal(1n))`, `eq(literal(circular))`) all throw `TypeError`. It escapes synchronously: `remedyEdits` <- `derive` (`WhatIf.ts:201`) <- `sweepPlan` (`:173`) <- `SimulationSession.build()` (`SimulationSession.ts:404`) <- `commit()` (`:447-449`), outside any Effect, so no `Broke` capture; the command's state mutation is done and its publish is not. Only `Remedies.ts:574` (`String(JSON.stringify(v))`, used at `:481`, `:496`, size `:249`) is live. `Inspect.ts:300-310` `outsideUnion` and `QuestionsPanel.tsx:388` `resourceOf` cannot throw. Phase 41 is a defect fix with RED first on `637c0601` at two levels (`remedyEdits`, and `makeSimulationSession` + `setPolicy`/`chooseSight`); "refute and downgrade" is no longer an available outcome. The uniform primitive is a total stringify returning `string | undefined`; Filters (`[]`), SimulationForm (`undefined` then round-trip check), Remedies (the word `undefined`, intended) and `outsideUnion` (own presentation) keep thin local mappings.
-
-**R4. Phase 42 options: one consolidated set for the human checkpoint.**
-FEATURES (A as-reviewed, B seed holder, C reject) and ARCHITECTURE (A extract `SeededQuestion.ts`, B first-class seed lookup, C reject) are the same three choices cut differently. Consolidated:
-- **Option 1, invert (review's shape).** `makeSeededQuestion({ policy, resource, runtime, subject, report, live })` builds its own computing atom, calls `get.addFinalizer(live())` itself (the `track` callback disappears), reads the seed via `seededIn(get.registry)` (`registry.getNodes()`, never `get`). **1a** stays in `HydrationEngine.ts` (engine gains evaluation knowledge, imports `evaluate`/`CurrentSubject`); **1b** extracts `react/src/SeededQuestion.ts` (ARCHITECTURE's recommendation). Cost either way: `DECISIONS_KEY` and `QadiRuntimeServices` must move down (importing back up from `HydrationEngine.ts` to `QadiAtoms.ts` is a madge cycle, ADR-QD-037); 1b also moves `DECISION_READ_BUDGET`/`_NAMES` file keys, AGENTS.md §13 wording and ADR-QD-149's file citation, both directions; tests need a real `Atom.runtime(Layer)` and real subject atom (four fake-`computedFor` cases replaced).
-- **Option 2, seed holder first.** A first-class `{ seededIn, hold }` created once per question, handed to both the computing atom (stays in `QadiAtoms.ts`) and `makeSeededQuestion`. Removes callback-receiving-a-callback with no layering change, no ADR reopened; ADR-149 properties become unit-testable without an atom runtime. But the seed-to-evaluation link stays split across two modules, so it only half answers the review.
-- **Option 3, reject.** ADR-QD-155 rejection, no source change; only the liveness rule is de-duplicated in prose (one statement at `QuestionBook.ts` `BookOptions.build`, pointers elsewhere). Cheapest; the fake in `HydrationEngine.test.ts` stays.
-
-The ADR conflict is narrower than `_WAVE9-CONTEXT.md` says (state at the checkpoint): ADR-QD-148 does **not** name `makeSeededQuestion`, `computedFor` or `seededIn`. ADR-QD-149 names `makeSeededQuestion` only as the home of the seed (its `WeakMap<SeedGrant,...>` survives any option); ADR-QD-103 contributes "atom set is the one adapter" and the liveness-first rule (INV-QD-105 Source cites `track`). "Go" needs INV-QD-028/105/317/318 Source/Enforcement updates plus text amendments, not an ADR reversal; "amend" only if liveness bookkeeping moves. STACK: nothing in effect 4.1.2 blocks or forces the inversion; do not present a nonexistent effect limitation. Identity trap: hand the question the final `keepAlive`/`withEquality` subject atom object, never the pre-pipe base.
-
-**R5. Phase 38: `WIRE_VERSION` is exported and public.**
-`SinkWire.ts` is `export *`'d from the core barrel (`index.ts:55`), ADR-QD-116 forbids re-exports, so any exported constant is public. The alternative (private, codec re-states it) is the defect being fixed, and `DecodeRefusal.supported` in `SinkWire.ts` cannot import the codec (ADR-QD-037). Decision: export it. Cost: gate 13 row in `spec/overview.md` (near `:518-521`), a `@qadi/core` **minor** changeset (new export), and a recorded narrowing of `WIRE_VERSIONS` to `readonly [2]` (type-only, source compatible). Form (STACK, verified under strict flags): `WIRE_VERSION = 2 as const` (bare `= 2` widens to `number` in the encoder spread, which is why the encoder has `2 as const` today); `WIRE_VERSIONS = [WIRE_VERSION] as const`; `type WireVersion = (typeof WIRE_VERSIONS)[number]`; `Schema.Literal(WIRE_VERSION)` in both field structs; encoder `version: WIRE_VERSION` after the record spread (same key order, bytes unchanged); decoder membership by `.some(v => v === version)`. Name `WIRE_VERSION` (STACK, ARCHITECTURE); PITFALLS' `CURRENT_WIRE_VERSION` is acceptable if the planner finds the pair confusable. Keep hard-coded `2` in goldens and "supported version is 2, alone". Do not touch hydration's payload `version: 2` or audit's bundle version.
-
-**R6. AGENTS.md §10 `it.scoped` does not exist (finding).**
-STACK verified in `@effect/vitest@4.1.2` (`index.ts:253-266`, `internal.ts:353`): `it.effect` is `Tester<Scope.Scope>` and already scopes the test; `it.scoped` is absent; `TimelineFeed.test.ts` already uses `it.effect`. A test that must close its scope mid-test builds `Scope.makeUnsafe()`, runs via `Scope.provide(effect, scope)` and `Scope.close(scope, Exit.void)`. Action: correct AGENTS.md §10 in Phase 37's records plan, or planners will write `it.scoped` and get a TypeError.
-
-**Smaller disagreements settled:**
-- *Phase 39 table form.* One keyed `as const` object in current order (key order is the metric's `preregisteredWords` order, observable in devtools `Hydration.ts:114` and two tests; interleaved: ForeignSubject, UnencodablePolicy, PayloadSubjectMismatch, MalformedEntry, UndecodablePolicy, EntryTooDeep, UnsupportedPayloadVersion, MalformedPayload, PayloadTooDeep). Fold `MEANINGS` into rows (two tables keyed by one union is the same defect one level down). Enumerate with a `hasOwn` predicate (STACK, no cast); ARCHITECTURE's `Struct.keys` is unverified in 4.1.2.
-- *Phase 39 length pin.* ARCHITECTURE says delete `Hydration.test.ts:109` (`length === 9`), STACK says replace; FEATURES and PITFALLS say keep. Keep it and core's written-out order lists as the independent label-set oracle (C7); the completeness proof added is a tstyche negative (a kind-less reason fails to compile).
-- *Phase 40 audit single decode.* Core returns the strict decode's already-validated JSON form with the record (new minor export, no new counted `Schema.decode*` token), proven by a differential over existing fixtures and a structural-equality/Retention check. Re-encoding (STACK's suggestion, ARCHITECTURE B) is rejected: it can fail (`SinkRecordNotEncodable` on a read path), normalise differently, and change what `Retention`'s `MutableHashMap<AuditEntry>` counts.
-- *Phase 40 reporter.* Core exports `describeDecodeRefusal` (module-scope `Match.tagsExhaustive`, bounded/safe for `unknown`) and a tag-only annotations helper (closes INV-QD-104). No reporter in core (one consumer; devtools keeps its `Effect.logWarning` adapter with `qadi.frame`). `Malformed.message` and `UnsupportedVersion.version` appear in the sentence at most, never in a default log annotation.
+The dominant risk class is "a check that cannot fail": vacuous pins, `@ts-expect-error` satisfied for the wrong reason, a budget that scans zero files (`collect()` skips `.tst.ts`), a gate-14 probe that asserts the feed's initial state, a bench band wide enough to hide a decode regression, a mutation base taken on the wrong tree. Every phase must therefore show each new check failing once, with the identical invocation measured on the base. A second class is spec drift (renames and wording updated in one record only) and stale verification at close; both are handled by a last-task stale-name sweep and a planned re-verify of Phase 62 at Phase 68.
 
 ## Key Findings
 
-### Recommended Stack
+### Recommended Stack (STACK.md)
 
-No new dependency, no version change: `effect@4.1.2` (lock-pinned), `@effect/vitest@4.1.2`, tstyche. Re-check `FiberHandle.ts:395-435` and `internal/effect.ts:592-612` if the lock moves (Phase 37's ordering facts).
+No installs. Stay on installed versions. Two TypeScripts judge a `.tst.ts` (6.0.3 under tstyche, 7.0.2 tsgo under `pnpm typecheck`); a pin must hold under both.
 
-**Core technologies (all already imported):**
-- `FiberHandle.make` + `FiberHandle.runtime(handle)<never>()`: the "one slot, newer replaces older" primitive; fork returns synchronously; the replaced fiber is interrupted inside the fork call after the new prefix runs (verified).
-- `Exit` / `Cause.hasInterruptsOnly`: failure check (`Exit.hasInterrupts` means "any", do not swap).
-- `Schema.Literal(WIRE_VERSION)` + `as const` tuple: derivation without a cast; non-widening constant required.
-- `as const` keyed table + `keyof typeof` + `ReasonOfKind<K>`: Phase 39 derivation, same shape as `ENFORCEMENT_ERROR_CLASSES`; reasons are frequency words not attributes, so the registry key (type, id, description, attributes) does not move.
-- `Match.type<DecodeRefusal>().pipe(Match.tagsExhaustive(...))`: Phase 40 mirrors `describeEncodeRefusal` (ADR-QD-116).
-- `Result.try` (or the existing try/catch precedent) for the Phase 41 guard; a throwing `toJSON`/getter is reachable, so wrap the call.
-- `Atom.runtime(...).atom`, `AtomRegistry.getNodes()`: `keepAlive`/`withEquality` return new objects (identity trap); `withReactivity` returns a second atom.
+**Core technologies (all existing):**
+- tstyche 7.2.5 (target TS 6.0.3): type pins; `toBeCallableWith` counts any diagnostic, so a third-party plugin diagnostic poisons it.
+- `@effect/language-service` 0.87.5: source of the `floatingEffect` diagnostic; configurable per tsconfig (`diagnosticSeverity`) or per file directive.
+- Stryker 10.1.1 with `ignoreStatic: true`: "static" is decided by coverage (ran at import), not syntax; module-scope decoders are `Ignored`, so build decoders inside `it` bodies and take a static-credit evidence run from an out-of-repo config.
+- Built-in `AggregateError` for D1 (available under both `lib` configs; new idiom here, no `throw` rule forbids it).
+- `Match.tagsExhaustive` for the claim dispatch (an unmatched tag throws at runtime, verified on effect 4.1.2).
 
-**Do not add:** `FiberMap`/`FiberSet`, `Effect.race*`, `Ref`, `Semaphore`/`Latch`, state-machine libs, new `Effect.fnUntraced` (budget exact 3), new `switch` (exact 3), new `Schema.TaggedError` (exact 12), `Record<string, unknown>`, `old | "New"` widening, changes to `scheduleTask`/`defaultIdleTTL`.
+### Expected Features (FEATURES.md, each phase's observable done-state)
 
-### Expected Features
+**Must have (milestone definition of done):**
+- 62: honest pins (cause fixed or pins rewritten), characterisation `.tst.ts`, `NOT_CALLABLE_PIN_BUDGET` plus AGENTS.md section 6 paragraph and table check, positive controls for the 11 uncontrolled pins.
+- 63: three probes (gates feed, diagnostics feed, typed host cache) and a derived `make*Feed` guard; deterministic; a removed probe fails the gate.
+- 64: every listener called; one error rethrown as-is, several as one `AggregateError`; all "not isolated / must not throw" texts amended.
+- 65: 59a derivation of `supplied` from the matcher context, 59b private constructor plus static `admit`, `@ts-expect-error` pin, 3+3 bench gate.
+- 66: `project` reads only declared keys (D4), hydration stays `refuse` with an ADR amendment (D2), bench and mutation held.
+- 67: two equivalent mutants restructured (D5), race loop without a magic bound.
+- 68: five close-outs recorded (58a, 58b, 61c, 61d, I-b/D3), two of them settled as no-edit confirmations.
 
-**Must have (per phase; see Requirement candidates):** 37 one run module + three adopters + stop pinned + re-entrancy RED-or-refuted; 38 one constant + compile-time pin + bytes unchanged; 39 one keyed table with kinds, all derived, label set/order unchanged; 40 core decode describer + devtools passthrough (Breaking) + audit single decode + budget row removed; 41 RED then GREEN for the Remedies throw + one primitive + one test table; 42 checkpoint with evidence and options, code only on "go".
+**Should have (in-phase if cheap):** a private instance member on `Admitted`; a margin past the first flip in Phase 67's loop; a real-feed test for D1 through the dock's subscriber; a re-runnable 61d proof recipe.
 
-**Should have:** 37 model-based property over supersede/close/stop/land interleavings (ARCH-79 pattern), ADR-137 §7 corrected (it still says `useRunningStore` "is unchanged"; deleted by ARCH-82); 38 version-indexed INV (amend INV-QD-096, do not duplicate), keep one literal `"version":2` golden; 39 public kind accessor only if a consumer reads it; 40 `decodeRefusalAnnotations` (tag only), core owns `UntrustedValueRefusal -> DecodeRefusal` (third restatement at `AuditEntry.ts:159-164` vs `SinkCodec.ts:489-498`); 42 spike evidence (Phase 35 template).
+**Defer:** upstream tstyche or language-service issue (owner OK required); any width gate or `oxfmt` in `pnpm check`; making `portCards` public; aligning `@qadi/react`'s swallowing registry with D1; releases.
 
-**Defer/exclude:** `FIXTURE_DATA` placement, `"Decision"`/`"Obligations"` literals at `DecisionRecord.ts:145/149`, `CircuitBreaker.ts` generation, `DockModel.ts` (no adopter), unread sections, `oxfmt`, other budget changes, re-opening ADRs 077-107.
+### Architecture Approach (ARCHITECTURE.md)
 
-### Architecture Approach
-
-Each phase moves one fact to one owner. 38/39/40 live in public core leaves; 37/41 are package-private devtools modules; 42 is react-internal. Imports point downward (madge counts type-only edges, ADR-QD-037); package-private modules stay out of barrels (ADR-QD-099); new core exports need a gate 13 row and changeset.
+`pnpm check` is the single definition of done; each phase plugs into one or two gates plus the same spec registers (CCR, INV, traceability, ADR index, BEH, `spec-revise`). Source touched is tiny: tests and scripts only for 62-63; `ExternalStore.ts` (13 importers) for 64; `Admission.ts` for 65; `UntrustedDecode.ts` plus `EnvelopeKeys.ts` for 66; `DecisionCache.ts` and `SharedComputation.ts` for 67; a handful of lines and records for 68. Reuse the v1.6 harnesses (`61-mutation.mjs`, Phase 59 `ab.sh`/`analyze.mjs`), copied into each phase dir.
 
 **Major components:**
-1. `devtools/src/model/SupersedingRuns.ts` (new; the planner names it): handle, generation, closed flag, finalizer order, begin/fork/isCurrent/stop/closed, feed failure hook; imports only `effect/*`; per-build closure state only (StrictMode and `<Activity>` build two scopes).
-2. `core/src/SinkWire.ts` leaf: `WIRE_VERSION`, `WIRE_VERSIONS`, `WireVersion`, `DecodeRefusal`, `describeDecodeRefusal`.
-3. `core/src/HydrationMetrics.ts`: the reason table; react's two groups derived via a generic kind-subset type (one new public type).
-4. `devtools/src/model/ValueText.ts` (new, package-private): total stringify and its one test table.
-5. `react/src/SeededQuestion.ts` (only Option 1b).
+1. House-style gate (`scripts/check-house-style.mjs`): budgets with exact counts in both directions; `collect()` excludes `.tst.ts`, so Phase 62 needs its own walk (precedents: `[no-numbering-placeholder]`, `[metric-id-literal]`).
+2. Gate 14 (`scripts/check-package-install.mjs`): packs, installs offline, compiles and runs one consumer `FIXTURE` template literal (escape backticks and `${`).
+3. Mutation and bench harnesses: per-file Stryker compare; 3+3 interleaved bench, median of per-run minima, band `max(10%, base spread)`.
+4. Spec registers: all seven phases edit the same ones, which is why execution is strictly serial and records go in each phase's last plan.
 
-Anti-patterns: unifying the lookalike (three different `version: 2` wires; five different value-to-text sites); importing up; a counted decode token outside the leaf.
+### Critical Pitfalls (PITFALLS.md, top five of sixteen)
 
-### Critical Pitfalls
+1. **A rewritten pin is vacuous in its new form (P1/P2).** Classify by subject return type, never by the flip probe. Every remaining negative gets a single-variable positive control and a recorded hand-break. A bare `@ts-expect-error` passes on any error (typecheck's tsc does not read its message).
+2. **A budget that counts zero (P4).** `.tst.ts` is excluded from `collect()`. Count stripped code tokens (multi-line pins), both directions, unique AGENTS.md table header, table check. Prove it fails four ways (add, remove, comment, line-split).
+3. **Gate-14 probes that assert the initial state or use a clock (P5).** Assert a value that differs from the feed's initial snapshot, use a bounded yield loop (no wall clock), enumerate exports from the packed install, require a call not a mention.
+4. **Behaviour change in the shared store, or decoder claims wider than true (P6/P16).** Live `Set` iteration semantics, falsy throws (`throw undefined`), reference-equal single rethrow, nested `AggregateError` via `TimelineFeed`. The "no undeclared accessor read" claim holds only under `ignore` (`walked()` and `exceedsJsonDepth` still read under `refuse`); read each declared key once.
+5. **Hot-path and mutation evidence that can be invalidated (P7/P8).** The bench harness is Evaluate-specific; any executable edit after a bench invalidates it; Stryker ids key on line text; take Phase 68's base on the post-67 tree before the first re-wrap; new static-ignored mutants need an `ignoreStatic:false` evidence run.
 
-1. **Publish-before-fork (37)**: a one-call `run` overwrites a synchronously reached Live/Stopped with Starting and loses the session's post-commit re-check. Avoid: begin/fork(token), RED re-entrancy test, per-store ordering rows.
-2. **Finalizer order and synchronous build (37)**: finalizer after the handle so it runs first; the module must build synchronously (`useScoped` uses `Effect.runSync`). Avoid: close-mid-run test with a defecting finalizer, two-instance test, state the order once. Caveat: a `Scope.make("parallel")` voids the ordering; document it.
-3. **Mutation falls when logic moves (all, 37 first)**: v1.3 saw TimelineFeed 1.0 -> 0.9194. Avoid: base all touched files at `637c0601` with the close's exact invocation (XC-05; `HydrationEngine.ts`/`QadiAtoms.ts` need `--mutate`), module tests first, delete store tests only after module tests are green, never re-baseline.
-4. **Contracts the gates do not see (38, 39)**: `ignoreStatic` hides module-scope constants from Stryker; `[metric-table]` checks id/type/file, not label values or order. Avoid: byte golden and a written-out nine-word ordered snapshot on the base; tstyche pins; scratch retype-to-3 and throwaway kind-less-reason experiments recorded.
-5. **Observable vocabulary and stored values (40)**: `qadi.reason` log string, `Dock.tsx:73`, README, website `devtools.md:108`/`upgrading.md`, `DecisionStreamRoute.ts:32`, `26-decision-stream.md`; `not-a-record` collapses into `Malformed`; the describer must be bounded for `unknown`; audit single decode must not change `AuditEntry.record`.
-6. **Seed timing contract (42)**: `get(grantAtom)` instead of `seededIn(get.registry)` adds a dependency and re-run; a second `Atom.readable` changes render sequences; `live()` must stay first; same `keepAlive` subject object; `WeakMap<SeedGrant,...>` stays the only seed holder. Only the 30 e2e and render-sequence tests see these.
-
-**Cross-cutting (every phase):**
-- *Records.* Never run `node scripts/next-id.mjs` (reserved: ADR 150-155, CCR 428-433, BEH 521-550, INV 319-330; confirm free by grep; name unused in the CCR row). CCR README row in the same plan as its first citation. Gate 13 is names-only: hand-edit overview rows/module columns. `spec-revise` with `--date` then `--check`. Prose "gate N" names its command. `typescript` fences must compile (`pnpm spec:examples`; website via `pnpm spec:website-examples`, which stdin-closed `astro check` skips).
-- *Verification hygiene.* `pnpm check:pr < /dev/null`; ten silent minutes = hung. Scope negative greps to added lines and exclude `.stryker-tmp`, `.next`, `node_modules`, `reports`; zsh aliases `grep` (use `/usr/bin/grep`); vitest from the repo root with `--project`.
-- *Budgets.* Exactly one row goes away (Phase 40 `UNTRUSTED_DECODE_BUDGET` for `AuditEntry.ts`, with the AGENTS.md §7a table and `[untrusted-decode-table]`/`[untrusted-decode-names]` in the same task); `METRIC_ID_LITERAL_BUDGET` for `HydrationMetrics.test.ts` stays 5; `DECISION_READ_BUDGET`/`_NAMES` and §13 move only under 1b. All both directions.
-- *Tests pin rules, not accidents:* each RED test names its INV/ADR.
-- *Close hygiene.* Trailer check per phase; named re-verify plan after Phase 42; explicit requirement IDs one per row (phase-complete cannot parse ranges).
-
-## Corrections to `_WAVE9-CONTEXT.md`
-- 37: the failure check is in two copies, not three; `SimulationSession` also has a post-commit `mine === generation` re-check the feeds lack; exactly three adopters (`DockModel.ts` none, `CircuitBreaker.ts` a different concern); ADR-137 §7 text is stale.
-- 38: seven edit sites, not six (`SinkWire.ts:48, :51`; `SinkCodec.ts:146, :154, :224, :226, :453`; decoder `:470`).
-- 39: completeness is not pinned only by tests (`MEANINGS` is already a mapped type; `react/test/Hydration.tst.ts:90-91` pins the partition); the written-out label lists are a deliberate contract.
-- 40: a third restatement exists (`AuditEntry.ts:159-164` vs `SinkCodec.ts:489-498`).
-- 41: only `Remedies.ts:574` is live, and it is reproduced.
-- 42: the conflict is with INV sources and text amendments, not ADR-148 (it does not name `makeSeededQuestion`; ADR-149 does, as the seed's home).
+Also standing: spec drift (P10); stale verification, `nyquist_compliant` and trailers at every close (P12); plan-local ids (D1-D5, D-NN, WX-0n) leaking into shipped titles (P13); vacuous verify commands (P15: every negative gate needs a positive twin on the base, use `/usr/bin/grep`, quote globs, `< /dev/null`).
 
 ## Implications for Roadmap
 
-Strict numeric order, one phase at a time. Hard deps 38->40, 39->42; soft 37->41 (41's RED session test goes in a new file since `SimulationSession.test.ts` is 1,809 lines). A defensible swap is 41 ahead of 40 (a reproduced throw outranks a Breaking rename, no shared file); the user fixed the order, so raise it only if the user wants defects first.
+Keep the order 62 to 68. Dependencies: 62 first (later pins use corrected forms), 63 next (62+63 are the v1.6-protecting cut, so keep both free of any dependency on 64-68 and without changesets), 64-67 behaviour phases run serially (65 and 66 each own a bench), 68 last (re-wraps lines 64-67 can shift, and its records touch the same registers).
 
-Per-phase plan shape: (1) base plan (mutation base JSON for touched files with the close's invocation; characterisation/golden/RED tests); (2) seam tests; (3) conversion plan(s); (4) records plan (ADR, CCR README row, BEH/INV, traceability, overview rows, changeset, `spec-revise --date`); (5) close plan (full gate order, mutation compare, trailer check).
+### Phase 62: Type pins that can fail (ARCH-109)
+**Rationale:** Every later phase writes pins; the vacuity must be closed first. Tests and gate only; no changeset.
+**Delivers:** characterisation `.tst.ts`; honest pins; `NOT_CALLABLE_PIN_BUDGET` with its own walk plus AGENTS.md section 6 table and `[not-callable-pin-table]` check; classification table in the phase dir; per-pin break record.
+**Addresses:** FEATURES Phase 62 inventory (81 code pins, 27 files; 80 in 26 files if only `DecisionLog.tst.ts:30` is rewritten).
+**Avoids:** P1, P2, P4, P13, P15.
+**Recommendation (opinionated):** do both halves. (a) Fix the cause with a tstyche-only tsconfig (a child of `tsconfig.test.json` that restates the whole `plugins` entry with `floatingEffect: "off"`, wired via `tstyche.json`) rather than 27 per-file directives, because a global switch means a future file cannot be silently vacuous, whereas a missing header can. (b) Still rewrite `DecisionLog.tst.ts:30` through `Parameters<...>` (it states the reason), add controls to the 11 uncontrolled pins, and add the budget the context requires. The gate should also check that the two `diagnosticSeverity` blocks agree apart from `floatingEffect`. Build order: characterisation file, classification record, rewrites package by package, gate last (adding it first turns every intermediate commit red).
 
-### Phase 37: Superseding-run module (ARCH-84, devtools, patch)
-**Rationale:** top recommendation, self-contained, practice ground for "seam tests before deleting store tests".
-**Delivers:** package-private module; the three stores shed `let generation`, `let closed`, `FiberHandle.make/runtime`, the bump-in-finalizer block and repeated `mine !== generation`; unconditional stop; ADR-QD-150 amending ADR-137 §7 and point 3; AGENTS.md §10 fix.
-**Avoids:** Pitfalls 1-5, 19, 20 (update the three "Added after the handle" comments and DiagnosticsFeed's "without a Stopped" doc).
-**Plan-shape:** RED-first. Mutation base for all three stores FIRST (DiagnosticsFeed has no recorded base; TimelineFeed 1.0, SimulationSession ~0.97); module RED tests (re-entrancy, close with defecting finalizer, stop table, two instances, self-interrupt row); convert one store at a time; delete store cases only after the module covers them; compare last.
+**Disagreements and open questions (which file says what):**
+- **Mechanism.** STACK offers three compatible routes (tstyche-only tsconfig; per-file `// @effect-diagnostics effect/floatingEffect:off`; per-pin rewrite). It says the tsconfig fixes all 81 at once with 65/65 files green. FEATURES (F4, differentiator) agrees and adds that with the config on, the characterisation positive control already guards the config, making the budget less valuable. ARCHITECTURE verified the file-level directive, found the line-level `-next-line` form does NOT work (tstyche says "has no effect"), and frames the work as per-pin classification and rewrite. PITFALLS (P1) assumes per-pin rewrite and never mentions the config route. `_WAVE12-CONTEXT.md` calls for a budget gate and leaves mechanism open. Resolution above: config plus one rewrite plus budget.
+- **Count-only budget vs per-pin marker.** ARCHITECTURE: count-only table copied from `UNTRUSTED_DECODE_BUDGET`, plus an optional mechanical check "positive `toBeCallableWith` count >= negative count per budgeted file". PITFALLS (P4.3): a count cannot check "plain-return subject with positive control"; use a reviewed reason column or a machine-readable marker comment, and do not claim the gate enforces what it only counts. FEATURES: count with a reasons table. Recommend count-only plus the positive>=negative check plus honest wording; a per-pin marker is optional, decide at plan time.
+- **Characterisation file under the config route.** STACK: the known-wrong control can only be pinned in a file that restores the rule via `// @effect-diagnostics effect/floatingEffect:error`, and whether that directive overrides a project-level `off` is UNVERIFIED. FEATURES: under the config route the file instead asserts the positive form passes on `Effect` and `Stream`. Probe this first.
+- **Replacement forms.** STACK: `@ts-expect-error <fragment>` on `void f(bad);` is reason-checked by tstyche (a wrong fragment fails); never write a bare Effect call (tsgo reports an unsuppressed TS377001). PITFALLS (P2): the directive message is "a comment, not a check" for `pnpm typecheck`'s tsc, so prefer `expect(f(bad)).type.toRaiseError(<code>)` with the observed code. Both hold, in different tools; use `toRaiseError` or a code check where the reason matters.
+- **Pin counts.** STACK says "86 pins in 27 files" and could not reproduce the context's "81 fail when flipped". FEATURES, ARCHITECTURE and PITFALLS resolve it: 86 is a raw grep, 81 are code pins, and the flip probe is not a classifier. Use 81 and count stripped code only.
+- STACK: `not.toBeConstructableWith` is reason-blind (a public constructor with wrong arity also passes); PITFALLS leaves "yieldable `Data.TaggedError` subject" unverified. Leave `Decision.tst.ts`'s 9 as they are and do not use it for Phase 65.
+- A stray untracked `packages/core/test/ZzProbe1.tst.ts` (ARCHITECTURE, PITFALLS) belonged to a research probe; it was gone by the time research finished. Never commit such a file, and measure on HEAD.
 
-### Phase 38: Wire version stated once (ARCH-85, core, minor)
-**Rationale:** smallest; settles `SinkWire.ts`/`SinkCodec.ts` before 40.
-**Delivers:** `WIRE_VERSION`, derived `WIRE_VERSIONS`/`WireVersion`; schema/encoder/decoder read them; tstyche pin; byte golden; overview row; changeset.
-**Avoids:** Pitfall 6; no new counted decode token.
-**Plan-shape:** golden and retype-to-3 scratch experiment first (mutation will not guard this phase); one plan plus records.
+### Phase 63: The packed-install gate probes every new public name (ARCH-110)
+**Rationale:** Protects what v1.6 ships; script-only; DoD table unchanged; no changeset. Pair with 62 as the cut point.
+**Delivers:** probes for `makeGatesFeed`, `makeDiagnosticsFeed`, and a typed host cache (wrap `decisionCacheLayer()`, delegate all three members `getOrCompute`/`size`/`clear`, plus a `@ts-expect-error` for the pre-0.13 `(question, compute)` shape); a derived guard that enumerates `make*Feed` names from the packed `@qadi/devtools` root and requires a call (not an import or comment) in the comment-stripped fixture.
+**Avoids:** P5, P2 (wrong-reason directive), P15.
+**Build order:** guard first (RED: two names unprobed), probes (GREEN), a recorded removed-probe failure, then records (ADR-QD-033 amendment, INV 371-372, CCR 454, one sentence each in AGENTS.md section 16 and the DoD step-14 paragraph). Any "gate 14" must name `scripts/check-package-install.mjs`. Note `check:fast` drops gate 14; `check:pr` runs it.
+**Open questions (which file says what):**
+- **Gates-feed assertion.** FEATURES: empty registry, assert `RegistryRead` `Read` with 0 instances and `AskedRead` `Unhanded`. ARCHITECTURE: `makeGatesFeed()` with no registry reads `Unwatched` (the initial value). PITFALLS (P5): hand it a registry and assert `Read`, ideally with one instance (count 1), since `Unwatched` is the initial value and asserting it is vacuous. Recommend a one-instance registry and assert `Read` with count 1.
+- **Diagnostics wording.** All four agree the context's "immediate schedule" is wrong: there is no `schedule`, only `intervalMillis` (the first read happens at once). Mechanism differs mildly: ARCHITECTURE passes a large `intervalMillis` so one sample runs inside fixed yield turns; FEATURES and PITFALLS prefer a bounded "yield until condition, cap 200, then fail with observed state" loop over a fixed 20 turns. Prefer the bounded loop, close the scope so the 2000 ms default sleep is never awaited, assert a field only a completed first read sets, and add a pin that `schedule` is refused (PITFALLS). Whether 20 turns suffices is UNVERIFIED.
+- **Host cache depth.** FEATURES evaluates twice and asserts `calls === 2` and a `hit`; ARCHITECTURE stops at compile plus delegation. Recommend running it (a type-only proof proves less).
+- ADR-QD-176 only if the derived guard is treated as a new decision (ARCHITECTURE); otherwise "Unused" in the CCR row.
+- Type-only names (`DecisionCacheShape`) have no runtime key, so the derived guard cannot cover them; the `tsc` run against the packed `.d.ts` is their guard (all files agree).
 
-### Phase 39: Hydration drop reasons stated once (ARCH-86, core minor + react patch)
-**Rationale:** core first, react derives second; must precede 42.
-**Delivers:** one keyed table with kinds and folded meanings; unions/list/`isHydrationDropReason` (`Object.hasOwn`) derived; react's two groups derived (delete the "placed by hand" doc); kind-less reason a compile error; overview rows for the new public type.
-**Avoids:** Pitfall 7; keep the `qadi_hydration_dropped_total` declaration line, id and description untouched.
-**Plan-shape:** commit a written-out ordered nine-word snapshot first; `HydrationEvent.ts` is in the react stryker list.
+### Phase 64: One throwing listener cannot silence the rest (ARCH-111, D1)
+**Rationale:** Touches the shared `ExternalStore` (13 importers), so it runs before 68's re-wrapping. `@qadi/devtools` patch changeset. The three dock `*.characterisation.test.tsx` files must pass unedited, enforced as an empty `git diff`.
+**Delivers:** `ExternalStore.notify` calls every listener, collects thrown values in an array and decides by length (never "first error truthy"; `throw undefined` must work), rethrows one as-is (reference-equal) or several as `AggregateError` with a fixed asserted message; state assigned before notify (as today); RED tests in `ExternalStore.test.ts` plus one per feed through the public root; amended texts at `TimelineFeed.ts:57,66`, `DiagnosticsFeed.ts:97` (keep the poll-stop clause), `GatesFeed.ts:7-10,77`, `devtools/README.md:162-169`, and the BEH at `spec/behaviors/28-devtools-screens.md:2547-2548`; BEH-QD-636 area amendment, INV 373-374, CCR 455, ADR-QD-177 amending ADR-QD-173 or "Unused".
+**Avoids:** P6, P8 (`ExternalStore.ts` is in the devtools mutation set, break 80, so the `AggregateError` message literal and `length` boundaries need asserts), P10, P13.
+**Disagreements and open questions (which file says what):**
+- **Is the publish-between-`begin()`-and-`fork()` guard (`TimelineFeed.ts:131-141`, the audit's "try/finally around the publish", `v1.6-MILESTONE-AUDIT.md:39`) in scope?** PITFALLS (P6.4): the audit reads it as part of 60a, the context lists only the `notify` fix, and a rethrow after the loop still escapes `status.set(READING)` before `fork`, so a restarted timeline can say `Reading` with nothing reading. It asks the planner to decide without reopening D1. FEATURES (F11) and ARCHITECTURE agree that the "status can be wrong" consequences survive D1 and the README must keep them in a weaker, accurate form. Recommendation: out of scope for this phase's code (D1 is locked as the `notify` fix), state that explicitly in the CCR row, and keep the narrowed README sentence. If the owner wants it, it is a scope addition needing its own RED test per feed.
+- **Live iteration vs snapshot.** STACK: iterating the live `Set` keeps today's semantics (removed-before-turn not called, added-during-notify visited); a `[...listeners]` snapshot changes both, so decide and pin. ARCHITECTURE, FEATURES and PITFALLS all say keep live iteration. Recommend live; pin both subscribe-during and unsubscribe-during notify.
+- **Website mirror.** PITFALLS lists `apps/website/src/content/docs/docs/packages/devtools.md:224-227` as mirroring the README, to be changed in the same commit. FEATURES and ARCHITECTURE grepped the same file and found no "must not throw / isolated" claim (line 169 is about a thunk). Re-grep before editing; do not touch `apps/website/dist/`.
+- **Nested stores.** ARCHITECTURE: `TimelineFeed.ts:115-116` makes the outer notify's error a thrown value inside the inner notify, so a nested `AggregateError` can occur; decide and pin, do not flatten.
+- React's behaviour on a snapshot error is UNVERIFIED (ARCHITECTURE); the dock characterisation tests are the evidence. A test asserting a message from a second throw in one notify may now see `AggregateError` (FEATURES, unverified, none identified).
 
-### Phase 40: Core owns describing a decode refusal (ARCH-87, core minor + devtools Breaking + audit patch)
-**Rationale:** needs 38's vocabulary; the only Breaking phase; retires one budget row.
-**Delivers:** `describeDecodeRefusal` (+ tag-only annotations) in `SinkWire.ts`; `UntrustedValueRefusal -> DecodeRefusal` once in core; devtools `onMalformed(frame, refusal: DecodeRefusal)`, `reasonOf`/`MalformedReason` deleted; audit decodes once via core's record-plus-JSON export, `recordJsonOf` and the duplicate `asDecodeRefusal` deleted; Breaking changeset, upgrading map (`not-json`->`NotJson`, `too-deep`->`TooDeep`, `not-a-record`->`Malformed`, `unsupported-version`->`UnsupportedVersion`, `inconsistent`->`Inconsistent`), README, website, `Dock.tsx`, `surface.tst.ts`, `Source.tst.ts`, `DecisionStreamRoute.ts:32`, `26-decision-stream.md`, BEH-QD-204.
-**Avoids:** Pitfalls 8, 9, 16.
-**Plan-shape:** compatibility decision plan FIRST (what `qadi.reason`/the callback carries; recommend the `_tag`, documented Breaking, since compat is never the tiebreaker) plus a table-pin of the five words on the base; then the describer; then devtools; then audit with differential rows (unknown envelope key, key-order permutation, `undefined` fields, float, 60,000-deep), Retention untouched; AGENTS.md §7a + budget in the same task.
+### Phase 65: Only `admit` builds an `Admitted` (ARCH-112)
+**Rationale:** Needs 62 (the construction pin must not be a raw negative callable form). Hot path, so it owns a bench. No changeset (`Admitted` is package-private, ADR-QD-099).
+**Delivers:**
+- 59a: `supplied` for `asked` derived from the built matcher context (`ctx.action/resource !== undefined`). `row` stays constant `true` (ARCHITECTURE: `toPredicate` builds its question with `resource: undefined` on purpose, so it cannot derive). Table shape kept so a new row source still fails to compile.
+- 59b: `private constructor`, static `admit` that names `Admitted` and never `this`, `export const admit = Admitted.admit`. STACK probed this: no TS2883, the generic survives, `Walk.ts:878` and `Predicate.ts:664` are unchanged, and the `ADMISSION_ALLOWED` count stays 1.
+- Pins: a `@ts-expect-error` construction and an object-literal-not-assignable pin; the `keyof Admitted` pin stays green.
+- Bench 3+3, slower 0 of 35. ADR-QD-172 amendment (its text that "asked flags are pinned by tests" becomes false), INV 375-376, CCR 456.
+**Avoids:** P3, P7, P2, M1.
+**Disagreements and open questions (which file says what):**
+- **Brand.** FEATURES (F8) and PITFALLS (P3) probed that a private constructor alone still lets an object literal type-check as `Admitted`; a private instance member (`declare private readonly ...`) fixes it. ARCHITECTURE does not mention it, and FEATURES marks `declare` under this repo's tsconfig as unverified. Recommend adding the brand (the context already says "plus a private instance member"), confirming no code builds a literal, and checking the `keyof` pins are unaffected (private members are excluded).
+- **Pin form.** The context fixes `@ts-expect-error`. STACK probed `// @ts-expect-error is private and only accessible within the class declaration` on a correct-argument `new Admitted(...)` (passes when private, TS2578 when public) with a positive control on `admit`. Use a short fragment such as `is private`, because only the 6.0.3 wording was observed and tsgo's text is UNVERIFIED. PITFALLS prefers `toRaiseError(2673)` (robust even with bad arguments). Both are acceptable; the context's choice wins, and a code check can be added if a second pin is wanted.
+- **59a RED feasibility is UNVERIFIED** (ARCHITECTURE, PITFALLS). Behavioural agreement already holds (E1-E5), so a pure value test cannot be RED; an accessor-counting `Question.resource` is the only candidate. The compiler does not guard 59a (`SuppliedBy.asked` has `boolean` fields), so do not word the INV as a compile-time guarantee.
+- Scope any grep or gate to `packages/core/src/Admission.ts`: `packages/audit/src/CircuitBreaker.ts:484` has an unrelated `new Admitted(...)`.
+- `ab.sh` is hard-wired to `Evaluate.bench.ts`, which is correct for this phase. Use committed source, revert as a patch, record `uptime`.
 
-### Phase 41: One guarded value-to-text primitive (ARCH-88, devtools, patch fix)
-**Rationale:** independent, cheap, reproduced defect; after 37 so RED targets the final session.
-**Delivers:** `ValueText.ts` total stringify returning `string | undefined` (bigint -> `10n`, circular -> a fixed placeholder, no content in logs); Remedies reads it (the word `undefined` preserved); Filters/SimulationForm re-pointed, outputs unchanged; one test table (bigint, circular, nested bigint, symbol, function, `undefined`, `NaN`, `-0`, null-prototype, throwing `toJSON`, throwing getter); a per-consumer pinned-output row.
-**Avoids:** Pitfalls 10, 11; no blanket catch/`orDie`; do not call `outsideUnion`/`resourceOf` defects.
-**Plan-shape:** RED-first on `637c0601` (six `remedyEdits` probes plus session level, in a new test file); the remedy is kept with a degraded label or skipped with a stated reason (decide, pin; BEH-QD-223 not weakened); mutation base for the four touched model files.
+### Phase 66: The decoder reads only what it declares; hydration's policy recorded (ARCH-113, D2, D4)
+**Rationale:** Needs 62; owns a bench; core patch changeset (an in-process accessor is no longer invoked). `HydrationEngine.ts` keeps `unknownKeys: "refuse"` (D2): records only, with `git diff -- packages/react/src` empty.
+**Delivers:**
+- `project` takes `Object.keys(input)` (names only, own enumerable), filters by the declared set, and reads each kept value exactly once.
+- `keysOf` reads `_tag` instead of taking the entries array; change `UntrustedDecode.ts` and `EnvelopeKeys.ts` in one commit.
+- RED tests in `UntrustedDecode.test.ts` and through both `ignore` seams, `sinkWire` (`SinkCodec.ts:501`) and `storedWire` (`SinkCodec.ts:603`). Build decoders inside `it` bodies.
+- ADR-QD-170 amendment (D-19 wording scoped; D-09 resolved by the same-build, version-checked, strict-refusal reasoning), INV 377-378, CCR 457.
+- `UNTRUSTED_DECODE_BUDGET` counts and the AGENTS.md section 7a table stay unchanged (no token moves).
+**Avoids:** P16, P7 (bench the changed path), P8 (static-ignored mutants; `EnvelopeKeys.ts` 58/58, `UntrustedDecode.ts` 41/43 with two pre-existing survivors), P4, and no `Record<string, unknown>` or `as`.
+**Disagreements and open questions (which file says what):**
+- **Scope of the claim.** FEATURES states the done-state as "the doc claim ... is true after the change" and the ADR wording as "reads only declared keys". ARCHITECTURE and PITFALLS (P16.1) show it is true only under `ignore`: `walked()` (`Object.entries` when `unwalked` is non-empty) and `exceedsJsonDepth` (`Object.keys` then `value[key]`) still read every own getter under `refuse`. D4 as locked says `project` reads only declared keys, so there is no code widening. The ADR amendment and doc must scope the sentence to the projection under `ignore` and state what `refuse` plus `unwalked` does, or they repeat the overclaim one level down. Do not widen the code change without the owner.
+- **Bench workloads.** ARCHITECTURE: add an `ignore` row to `UntrustedDecode.bench.ts` (105 lines, groups a-c); `ab.sh` is hard-wired to `Evaluate.bench.ts` and `analyze.mjs` refuses input missing two Evaluate keys, so parameterise a copy or interleave manually. FEATURES: run `UntrustedDecode.bench.ts` and `SinkCodec.bench.ts` before and after. PITFALLS (P7.2-7.3): the policy decoder group does not exercise `project`, so pick `decodeSinkRecord`/stored-envelope workloads and say which before running; a 10% band can hide a real 8% decode regression, so fix a tighter band or a geomean limit before the result is known. Recommend `ignore`-seam workloads only (the two `SinkCodec` seams) plus the new micro-bench row, with the tighter band decided up front.
+- **Hydration pin.** ARCHITECTURE: UNVERIFIED whether a test already pins "unknown top-level key in the hydration payload is `MalformedPayload`" (BEH-QD-488 area, `behaviors/19-hydration.md`). If none exists, add a characterisation test so the recorded D2 decision has a pin.
+- Whether a declared getter is read once today is UNVERIFIED (FEATURES); measure before stating the requirement. Do not edit `StoredEnvelope.test.ts` (pinned characterisation).
+- Static evidence run: `ignoreStatic: false` with a config kept outside the repo (STACK, PITFALLS); never edit `stryker.config.mjs`.
 
-### Phase 42: Seeded question builds its own computing atom (ARCH-89, react; human checkpoint)
-**Rationale:** speculative; depends on 39; also sweeps anything 37-41 left stale.
-**Delivers:** plan 1 is evidence and options only (R4), no code; then the chosen implementation or a rejection ADR-155 with a CCR row naming unused BEH/INV. One `AskUserQuestion`, then quiet through stop-hook repeats.
-**Avoids:** Pitfalls 12, 13, 17.
-**Plan-shape:** human checkpoint FIRST; if go: base both files with the same `--mutate` list (QadiAtoms ~0.8966, HydrationEngine ~0.9776); real-runtime seam tests before deleting fakes; SD1-SD5/HL1-HL6/eviction pins/`QadiProvider.test.tsx` render sequences untouched; RED for "no node for an unhydrated question" and "a late seed does not re-run the computation"; `pnpm example` (30 e2e); the last plan is the cross-phase stale sweep and a named milestone re-verify with a mutation re-check of every touched file.
+### Phase 67: No equivalent mutants, no magic race bound (ARCH-114, D5)
+**Rationale:** Behaviour-neutral (no changeset); needs 62 for ordering only. Holds Phase 61 scores: `DecisionCache.ts` 0.977, `SharedComputation.ts` 0.986, `Lifecycle.ts` 1.000, zero survivors on the two named mutants, no `// Stryker disable` (D5).
+**Delivers:** eviction restructured so no impossible-empty branch exists; claim dispatch closed so the `"Claimed"` tag matters; race loop replaced by "iterate until both orderings observed at every budget, cap 512, assert both seen". Records: CCR 458 (BEH 671-675, INV 379-380, ADR-QD-180 likely "Unused").
+**Avoids:** P8.6, P8.7, P9, P7.6, P2.
+**Disagreements and open questions (which file says what):**
+- **Eviction form.** ARCHITECTURE probed a loop-free, guard-free form: `Chunk.splitAt(insertionOrder, HashMap.size(entries) - capacity)` clamps negative and oversize counts, then `HashMap.removeMany`. The `import * as Option` must go in the same commit. STACK suggests `NonEmptyChunk` with `Chunk.headNonEmpty`, or an `Option` combinator, and warns not to add `Chunk.isNonEmpty(...) &&` to the loop condition (that re-creates an equivalent mutant). PITFALLS warns against `Chunk.getUnsafe` or any throwing accessor in an authorization path (AGENTS.md section 4). Recommend the `splitAt` form: no throwing accessor and no impossible branch. Stryker was not run on any form (UNVERIFIED); the compare is the check. FIFO order and capacity validation must be unchanged.
+- **Dispatch form and cost.** STACK: `Match.value(claimed).pipe(Match.tagsExhaustive(...))` per call (the matcher cannot be hoisted since `A`/`E` are generic in `run`), unbenchmarked. ARCHITECTURE: the owner arm is about 70 lines of `forkDetach`/`onExit`, so it must be extracted to a local function; alternatives are a `Match.type` hoisted per `makeSharedComputation` or an own-property arm table like `FieldLattice.ts`. FEATURES and PITFALLS: bench `DecisionCache.bench.ts` (3+3) before choosing `Match` over a closed `if`/narrowing, because AGENTS.md section 5a measured `Match.value` rebuilt per call at 3.5-7.7x a `switch`. PITFALLS: mutants of the other two tags (`"Hit"`, `"Joined"`) must also be killed. Recommend measure first; no new `switch` (not in `SWITCH_BUDGET`); keep the hit check inside the one synchronous claim step (ARCH-45 I5).
+- **Race-loop coverage margin.** FEATURES (F12): today's sweep also runs gaps 39-48 and asserts no recompute and exact FIFO on every run, so stopping at the first flip loses that; require a margin past the flip (2-3 extra gaps) or keep the full per-run assertions. ARCHITECTURE: prove the weaker loop still catches I5 by temporarily splitting the hit check from the claim (pre-I5 shape), confirming RED, then restoring; keep a bounded tail if the probe shows red needs it. PITFALLS (P9): both orderings per budget (not overall); fail loudly at the cap naming budget and counts; measure runtime (up to 2048 iterations vs 192 today, and Stryker runs this test for many mutants with `timeoutMS: 20000`); re-check kills under per-test coverage; delete the `:1248-1249` "re-measure" comment. Recommend all of these together, with the revert-the-fix probe as the acceptance test.
 
-### Requirement candidates (testable; roadmapper assigns IDs, one per row)
+### Phase 68: Hygiene and recorded close-outs (ARCH-115)
+**Rationale:** Last, because it re-wraps lines 64-67 could shift and edits the same spec registers. No changeset, no behaviour change. CCR 459 records unused ids and the no-op confirmations.
+**Delivers:**
+- 58a: re-wrap `SinkCodec.ts:616` (137 chars), `decision-log.steps.test.ts:197` (135), and the `DecisionLog.ts` IN-02 line (likely `:220`, 108 chars, an inference; locate by content from `58-REVIEW.md` IN-02).
+- 58b: `Source.test.ts:291` "never stamped" to "never given a label", plus the `StoredEnvelope.test.ts` header (lines 1-14) and the `:228` "RED on the base" title.
+- 61c: re-wrap `spec/decisions/174-...md` line 73 (189 chars) with `spec:revise`.
+- 61d: the comments-only proof.
+- I-b/D3: ADR-QD-173 amendment, no export (`pnpm spec:api` 939 unchanged, `git diff -- packages/devtools/src/index.ts` empty).
+**Avoids:** P8.1-8.2, P10, P11, P12, P13, P14, m1.
+**Settled (no edit):** the `ingest` doc already names the uncontained defect path (`DecisionLog.ts:126-129`, ADR-QD-171); `QadiAtoms.test.ts:570` is already clean; 61d is evidenced by `d0ca3df6` (two comment lines in `Simulator.test.tsx`). Record both as "confirmed, no edit".
+**Disagreements and open questions (which file says what):**
+- **`StoredEnvelope.test.ts` edit scope.** FEATURES: header and the one `describe` title only; the header must stop claiming no row reads the in-memory shape while N1-N4 do; the diff must be comments and titles only. ARCHITECTURE: reword prose only, keep every assertion. PITFALLS (P13): the file carries 10 plan-local ids (`STOR-01`, `D-01`, `D-12`, `STOR-02, D-05, D-07` in the header); decide explicitly between "header and one title" (the context's "one recorded edit") and all ten. Recommend the former, with the remainder named as remaining debt in the CCR.
+- **Possibly stale `Source.test.ts:186,306`.** The audit and context name only `:291`. FEATURES asks the planner to decide whether `:306` ("becomes a stamped record") and `:186` ("stamping") are stale; ARCHITECTURE and PITFALLS do not mention them. PITFALLS (P14) found `never stamped` cited at `spec/behaviors/26-decision-stream.md:406` (an amendment quoting the old requirement, not the title) and `packages/core/test/SinkCodec.test.ts:2233` (a different test; keep its wording unless the owner wants it changed). Read `:186,306` in context before deciding. If they describe the same concept, change them; otherwise leave them, and say which in the CCR.
+- **Proving 58b is not comments-only (PITFALLS P14).** A title is program text in a pinned characterisation file. Use a compiler-based comparison (`ts.transpileModule` with `removeComments: true`, mask the title strings, same test counts before and after), not a regex strip. 61d uses the same method, and the proof goes in a NEW file in the Phase 61 archive dir (editing a Phase 61 SUMMARY, PLAN or the archived `61-scan.mjs` stales its verification).
+- **Mutation base.** FEATURES says re-wrapping is free because Phase 58's mutant ids are archived. STACK confirms this mechanically (no `--incremental` anywhere; ids are per-run). PITFALLS (P8) adds that the harness keys ids on line text and 64-67 will have moved the files, so take a fresh per-file `68-mutation-base.json` on the post-67 tree BEFORE the first re-wrap and compare scores per file. Take PITFALLS' version.
+- **61c extent.** FEATURES: lines 75 (168) and 94 (129) of the same ADR are also long; decide whether "line 73" means those too. The 315-char Change History row at `:13` is a table row and exempt.
+- **D3 wording.** Already corrected in the context (diagnostics reading, `isUnsampled` not exported, no "same view" promise). FEATURES (F10) and PITFALLS (P11) both say write from `DockModel.ts:255-263` and `PortCards.ts:28-34` and confirm the consumer-visible types (`WiringRead`, `PortActivity`, `PortCallLog`) are root exports (UNVERIFIED). If the amendment shows code, make it a `typescript` fence so `pnpm spec:examples` compiles it. FEATURES also recommends confirming the wording with the owner before writing.
+- **Over-width scope.** Many more lines exceed 100 (SinkCodec 27, steps file 15, ADR-174 about 38) and AGENTS.md section 17 gates nothing; change only the named lines.
 
-| Phase | Candidates |
-|-------|-----------|
-| 37 | T1 module owns handle/generation/closed/finalizer order/replace-interrupt/stop/currency; stores contain none of `let generation`, `let closed`, `FiberHandle.make`, `FiberHandle.runtime`, the bump-in-finalizer block (negative grep on added lines). T2 module has its own tests (supersede, close mid-run, stop in four states, interrupt vs failure, a replaced run whose release dies never reports, two instances in two scopes). T3 all pre-existing store tests pass unchanged on day one. T4 stop unconditional, pinned once, both former call sites use it. T5 a re-entrant start from inside the Starting/Reading notification leaves the newest run live in all three stores (RED first for the feeds, or refuted with evidence); a body calling a command in its sync prefix is reported, not silently idle. T6 behaviour unchanged: `qadi.devtools.simulationSession.run` still a root span, `Stopped` never for interruption (INV-QD-313), session `Broke` on defect and self-interrupt. T7 per-file mutation >= base for the three stores, new module near 100. T8 no new `Effect.fnUntraced`, no `Context.Service`. T9 ADR-137 §7 and AGENTS.md §10 corrected. |
-| 38 | The number appears once in `packages/core/src/Sink*.ts` (scoped grep empty for `Literal(2)`, `version: 2`, `= 2`). Compile-time pin: retyping without editing the codec fails (tstyche, throwaway edit recorded). Wire bytes unchanged (golden, key order). Decoder still refuses other versions as `UnsupportedVersion({version, supported})` (`undefined` when absent, INV-QD-098). `WireVersion` still `2`; `WIRE_VERSIONS` narrowing recorded. Decoder-read set vs encoder-write set stated. Gate 13 row and changeset. |
-| 39 | One keyed table with a kind per row; unions, list, meanings, `isHydrationDropReason` derived; a kind-less reason fails to compile. List order exactly as today. Metric id, description, label set, `[metric-table]` row unchanged. React groups derived (tstyche partition pin passes). `bucketOf` and refusal maps stay exhaustive. Written-out nine lists and `length === 9` kept. A throwaway new row reaches the metric, the devtools panel at zero and react reporters with one edit. Names and runtime exports unchanged. |
-| 40 | Core exports a total `DecodeRefusal` describer (module-scope `Match.tagsExhaustive`; a sixth member is a compile error in core only). Devtools has no `reasonOf`/`MalformedReason`; `onMalformed(frame, refusal)`. INV-QD-104 on decode: annotations say which refusal, never what (sentinel-value test). Audit decodes `input.record` once, output identical (differential; 60,000-deep still `TooDeep`; unknown envelope key still dropped). `recordJsonOf` and the duplicate `asDecodeRefusal` gone. `UNTRUSTED_DECODE_BUDGET`, AGENTS.md §7a, `[untrusted-decode-table]` agree. Breaking changeset, upgrading map, README, website, example, BEH-QD-204, overview rows. |
-| 41 | RED on `637c0601`: session-level and `remedyEdits` tests with bigint and circular via `contains`, `inArray`, `eq(literal)` throw today, pass after. One package-private total primitive; one test table is the only place its rules are asserted. Filters, SimulationForm, Remedies read through it; no `JSON.stringify` of an unknown value outside it (scoped grep). Existing outputs pinned (bare strings, the word `undefined` in a remedy label, Filters `[]`, form round-trip refusal). Non-JSON witness behaviour decided and pinned; BEH-QD-223 not weakened. |
-| 42 | Plan 1 delivers evidence and options only; a recorded human decision before any code. If go: no function-receiving-a-function parameter on `makeSeededQuestion`; the seed-to-evaluation link in one module, tested through the real atom (no fake `computedFor`); the liveness rule stated once in prose; all pins untouched (render sequences, seed/lifetime/sweep suites, 30 e2e, INV-QD-028/105/317/318, no `scheduleTask`/`defaultIdleTTL`); `maxTrackedQuestions` proofs re-run (StrictMode, `<Activity>`, no leaked fibers, one sweeper per atom set). If no: rejection ADR-155, no source change. Cross-reference sweep over 37-41. |
+### Phase Ordering Rationale
+
+- 62 first because every later phase writes pins; 62+63 together protect v1.6 and the PR may be cut after 63, so neither may depend on 64-68 or carry a changeset.
+- 64-67 are independent in code but serial because they edit the same registers (`spec/README.md` at Rev 1.258, invariants, traceability, `index.yaml`), and 65 and 66 each own a bench that cannot run beside anything else. Put a phase's records in its last plan so a re-opened phase does not re-bump.
+- 68 last: it re-wraps and records after the shifts, and also owns the milestone sweep of stale verification. Re-verify Phase 62 at least; its covered set (about 27 `.tst.ts` files plus `check-house-style.mjs` and AGENTS.md) is edited by 64, 65 and 66.
+- Behaviour-neutral phases prove neutrality with frozen-file `git diff` checks (M1). A changeset is present exactly for 64 and 66, absent for 62, 63, 65, 67 and 68.
+- Cross-cutting: never run `node scripts/next-id.mjs`; use only the reserved block; name unused ids "Unused: ..." in the CCR row; check trailers and `nyquist_compliant` at each close; no D1-D5, D-NN or phase numbers in shipped titles.
 
 ### Research Flags
 
-Needs deeper research (`/gsd-plan-phase --research-phase <N>`):
-- **Phase 37:** run the two RED reproductions (feed pre-fork re-entrancy, in-prefix re-entrancy) before fixing the interface; count store tests that depend on a synchronous prefix.
-- **Phase 40:** the compatibility decision for `qadi.reason`/`onMalformed`; typing of the JSON form returned with the record (one narrow checked step, no `as`).
-- **Phase 42:** the human checkpoint is the research; spike evidence (lines moved, tests freed of fakes, render-sequence diff, mutation delta) before asking.
+Phases likely needing deeper research or probing during planning (`/gsd-plan-phase --research-phase <N>`):
+- **Phase 62:** the unverified `effect/floatingEffect:error` override in a characterisation file, the tsconfig-vs-directive-vs-rewrite choice, and the gate shape (count-only vs marker). Probe before planning.
+- **Phase 66:** bench workload and band selection for `ignore` seams, parameterising the Evaluate-specific harness, the scope of the claim under `walked()`/`exceedsJsonDepth`, and the hydration pin.
+- **Phase 67:** `Match` per-call cost on the ask path (bench first), the eviction form under Stryker, and the revert-the-fix probe for the race loop.
 
-Standard patterns (skip research-phase): **38** (one constant, verified under strict flags), **39** (`ENFORCEMENT_ERROR_CLASSES` precedent; verify `Struct.keys` only if used), **41** (language semantics settled; the work is the RED test and adapters).
+Phases with standard patterns (skip research-phase):
+- **Phase 63:** script-only; the fixture, probe and guard shapes are all specified, and only the gates-feed assertion value and the bounded-yield loop need deciding.
+- **Phase 64:** one 3-line seam with 13 importers all enumerated; RED list fixed; only the scope question (publish guard) needs a planner decision.
+- **Phase 65:** mechanics are probed (private constructor, static alias, declaration emit); only the 59a RED feasibility and the brand under this tsconfig need a quick check.
+- **Phase 68:** every item re-located by content; the work is mechanical plus records; resolve the three scope questions at plan time.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | APIs read in `node_modules/effect/src` 4.1.2; runtime behaviour run in scratch scripts; types compiled under strict flags. Phase 42 "no behaviour change" is MEDIUM (read, not executed). |
-| Features | HIGH | Read at HEAD; Phase 41 reproduced by execution. Phase 37 re-entrancy and the Phase 42 designs are hypotheses. |
-| Architecture | MEDIUM-HIGH | Every named file/ADR read; no tests, `madge` or `check:pr` run, so re-run `pnpm circular` per phase. Audit single-decode and Phase 42 are real design choices. |
-| Pitfalls | HIGH / MEDIUM | Repo mechanics HIGH; inferred items covered by STACK runs and RED tests. |
+| Stack | HIGH | Tool behaviours probed in throwaway files and source read. Unverified: `effect/floatingEffect:error` overriding a project `off`, tsgo's private-constructor wording, the Stryker effect of the restructures (not run), browser support for `AggregateError` (not targeted). |
+| Features | HIGH | Per-pin inventory classified against a green tstyche run; counts corrected (81 vs 86). Unverified: whether 20 yield turns suffice for a diagnostics first read, `declare private readonly` under this tsconfig, declared-getter read-once today. |
+| Architecture | HIGH | Every file:line read; probes for the floating-effect cause, directive forms, `Chunk.splitAt`/`HashMap.removeMany`. Unverified: React's behaviour on a thrown snapshot, 59a accessor-RED feasibility, the hydration unknown-key pin. |
+| Pitfalls | HIGH for repo history and mechanics, MEDIUM for the four tstyche/TypeScript probes (run in a scratchpad project, not through `pnpm test:tstyche`). |
 
-**Overall confidence:** HIGH for 37-41, MEDIUM for 42.
+**Overall confidence:** HIGH. The four files do not contradict each other on any fact that blocks a phase; they differ on mechanisms and scopes, all listed above with a recommendation. The planner's genuine decisions are: Phase 62 mechanism and gate shape, Phase 64 publish-guard scope, Phase 66 band and claim scope, Phase 67 dispatch form and loop margin, and Phase 68 `StoredEnvelope`/`Source.test.ts` edit scope.
 
 ### Gaps to Address
-- Phase 37 feed re-entrancy is a hypothesis: RED first; if not RED, record the evidence and keep begin/fork anyway (the session needs it).
-- `Struct.keys` in effect 4.1.2 is unverified; use the `hasOwn` predicate unless confirmed.
-- `DiagnosticsFeed.ts` has no recorded mutation base; `HydrationEngine.ts`/`QadiAtoms.ts` bases only exist for the v1.3 Phase 36 `--mutate` invocation; re-measure at `637c0601` per phase.
-- Phase 40: how core hands out the JSON form with one narrow checked step and no new counted decode token; the exact `qadi.reason` value/annotation key (decide in ADR-153).
-- Phase 41: label text for non-JSON values (`10n`, a fixed placeholder); keep-degraded vs skip-with-reason; both pinned.
-- Phase 42: Option 1a/1b/2/3 is a human decision; effect 4.1.2 neither blocks nor forces it.
-- Numbering: reserved ADR 150-155, CCR 428-433, BEH 521-550, INV 319-330; name unused ones in each CCR row.
+
+- **tstyche `floatingEffect` override semantics (Phase 62):** probe `// @effect-diagnostics effect/floatingEffect:error` against a project-level `off` before writing the characterisation file.
+- **tsgo wording of the private-constructor message (Phase 65):** use a short fragment and confirm under both TS 6.0.3 and 7.0.2.
+- **Phase 64 website claim** (`devtools.md:224-227` per PITFALLS vs none per FEATURES/ARCHITECTURE): re-grep.
+- **Phase 66 bench harness:** parameterise `ab.sh`/`analyze.mjs` for `ignore`-seam workloads and fix the band before measuring.
+- **Phase 67 Stryker outcome** of the chosen eviction and dispatch forms: only the real per-file compare settles it.
+- **Phase 68 D3 types exportability** (`WiringRead`, `PortActivity`, `PortCallLog`): check root exports before writing any fence.
+- **Process:** Stryker never beside vitest, `< /dev/null` on everything, serialise Stryker steps across plans; `grep` is aliased so use `/usr/bin/grep`; never commit a stray probe file.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- `node_modules/effect/src`: `FiberHandle.ts`, `internal/effect.ts` (`runForkWith`, `scopeCloseFinalizers`, `interruptUnsafe`), `Cause.ts`, `Exit.ts`, `Schema.ts` (`Literal`, `Literals`), `Metric.ts` (`makeKey`, `FrequencyMetric`), `reactivity/Atom.ts`, `reactivity/AtomRegistry.ts`; `@effect/vitest@4.1.2` `src/index.ts`.
-- Scratch reproductions (STACK): FiberHandle order, stop, closed handle, slow finalizer, re-entrancy; strict-flag type derivations. FEATURES: `remedyEdits` run against built `packages/core/lib` (six probes).
-- Repo at `637c0601`: devtools `model/{TimelineFeed,DiagnosticsFeed,SimulationSession,Source,Filters,Remedies,Inspect,SimulationForm,WhatIf}.ts`; core `{SinkWire,SinkCodec,HydrationMetrics,JsonRefusal,EncodeRefusalReport,Errors,Matcher}.ts`; react `{HydrationEngine,HydrationEvent,QadiAtoms,QuestionBook}.ts`; `audit/src/AuditEntry.ts`; `scripts/check-house-style.mjs`; `stryker.*.mjs`; `AGENTS.md`; ADRs 037, 039, 052, 095, 096, 099, 103, 110, 116, 123, 137, 143, 148, 149; `_WAVE9-CONTEXT.md`, `_SHARED-CONTEXT.md`; the v1.2/v1.3 milestone audits and the Phase 36 mutation base.
+- `.planning/research/STACK.md`, `FEATURES.md`, `ARCHITECTURE.md`, `PITFALLS.md` (this milestone, 2026-11-20), and `.planning/phases/_WAVE12-CONTEXT.md`, `_SHARED-CONTEXT.md`.
+- Installed source: `node_modules/tstyche/dist/api.js` (ability, suppression and matcher layers), `@effect/language-service` README (diagnostic directives), `@stryker-mutator/core` (incremental differ, test planner, coverage), effect 4.1.2 (`Chunk`, `HashMap`, `Match`).
+- Repo: `scripts/check-house-style.mjs`, `scripts/check-package-install.mjs`, `AGENTS.md` sections 4-7a, 10, 11, 15, 16, `packages/core/src/{Admission,UntrustedDecode,EnvelopeKeys,DecisionCache,SharedComputation}.ts`, `packages/devtools/src/model/{ExternalStore,TimelineFeed,GatesFeed,DiagnosticsFeed,DiagnosticsStore,DockModel,PortCards}.ts`.
+- v1.6 archives: Phase 59 `59-BENCH.md` and `bench/`, Phase 61 `61-mutation.mjs`, Phase 57 `57-RESEARCH.md` (static-mutant pitfall), `v1.6-MILESTONE-AUDIT.md`, `RETROSPECTIVE.md`.
 
 ### Secondary (MEDIUM confidence)
-- ARCHITECTURE's reading of `dist/FiberHandle.js` (superseded by STACK's execution); Phase 42 option costs (read, not run).
+- PITFALLS' four scratchpad tstyche probes (`toRaiseError` forms, private-constructor assignability, `Params<F>` on non-functions).
 
 ### Tertiary (LOW confidence)
-- Phase 37 feed re-entrancy and Phase 42 render-sequence risk: hypotheses until RED tests and the e2e say otherwise.
-
-Detail lives in `.planning/research/STACK.md`, `FEATURES.md`, `ARCHITECTURE.md`, `PITFALLS.md`.
+- Items marked UNVERIFIED above. None blocks a phase, and each has a named probe.
 
 ---
-*Research completed: 2026-11-14*
+*Research completed: 2026-11-20*
 *Ready for roadmap: yes*
