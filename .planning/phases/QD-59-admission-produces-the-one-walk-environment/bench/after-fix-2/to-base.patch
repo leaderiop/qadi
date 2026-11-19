@@ -1,0 +1,489 @@
+diff --git a/packages/core/src/Admission.ts b/packages/core/src/Admission.ts
+index 5779b63e..a88882d8 100644
+--- a/packages/core/src/Admission.ts
++++ b/packages/core/src/Admission.ts
+@@ -1,5 +1,5 @@
+ /**
+- * Admits a question to be walked: the depth gate and the walk environment,
++ * Admits a question to be walked: the depth gate and the matcher context,
+  * once, for both interpreters.
+  *
+  * `walk` (the evaluator) and `toPredicate` (the translator) each used to carry
+@@ -17,99 +17,37 @@
+  * evaluation this is a lookup. `evaluateNode` keeps its own per-node guard as
+  * defense in depth.
+  *
+- * The walk environment (the row source, the policy it admitted, the subject,
+- * what the request supplied, what its matchers see and the depth bound) depends
+- * only on the question and on where the interpreter's resource comes from, both
+- * invariant across the whole recursive walk, so it is built here once rather
+- * than at every node; each interpreter states only its row source
+- * (ADR-QD-172). Callers must call
+- * {@link admit} lazily (inside `Effect.suspend`), so a cache hit never builds an
+- * environment it would not use.
++ * The matcher context depends only on the question, which is invariant across
++ * the whole recursive walk, so it is built here once rather than at every node.
++ * Callers must call {@link admit} lazily (inside `Effect.suspend`), so a cache
++ * hit never builds a context it would not use.
+  */
+ import * as Result from "effect/Result";
+-import type { AuthSubject } from "./AuthSubject.ts";
+ import { PolicyTooDeep } from "./Errors.ts";
+-import type { Supplied } from "./LeafNeeds.ts";
+ import type { MatcherContext } from "./Matcher.ts";
+-import type { Policy } from "./Policy.ts";
+ import { policyDepth } from "./Policy.ts";
+ import type { Question } from "./Question.ts";
+ 
+ /**
+- * Where an interpreter's resource comes from: `"asked"` for `evaluate`, whose
+- * resource is supplied when the question has one, and `"row"` for `toPredicate`,
+- * whose resource is the row and so is always supplied.
++ * A question shown to be no deeper than its `maxDepth`, with what its matchers
++ * see. Only {@link admit} builds one, so holding one is the proof.
+  */
+-export type RowSource = "asked" | "row";
+-
+-/**
+- * What a request supplied, per row source: the asked resource may be absent, and
+- * a row is always there. A row source without an entry here does not compile.
+- */
+-interface SuppliedBy {
+-  readonly asked: Supplied;
+-  readonly row: Supplied<true>;
+-}
+-
+-/**
+- * What a request supplied, one row per row source. Each row is checked against
+- * its {@link SuppliedBy} type, so a row that claims a resource it does not have
+- * does not compile, and a row source without a row here does not compile either.
+- */
+-const SUPPLIED: { readonly [Source in RowSource]: (question: Question) => SuppliedBy[Source] } = {
+-  asked: (question) => ({
+-    action: question.action !== undefined,
+-    resource: question.resource !== undefined,
+-  }),
+-  row: (question) => ({ action: question.action !== undefined, resource: true }),
+-};
+-
+-/**
+- * A question shown to be no deeper than its `maxDepth`, and everything both
+- * interpreters read while walking it: the policy it admitted, the subject, what
+- * the request supplied, what its matchers see (which also holds the resource and
+- * the action) and the depth bound. Only {@link admit} builds one, so holding one
+- * is the proof, and the policy rides with it so the proof cannot be paired with
+- * a deeper tree.
+- *
+- * The row source is part of the type: `Admitted<"row">` stores a resource as
+- * supplied while its matcher context holds none, so only `toPredicate` may read
+- * it, and the walk's parameter, `Admitted<"asked">`, refuses it.
+- */
+-export class Admitted<Source extends RowSource = RowSource> {
++export class Admitted {
+   constructor(
+-    readonly source: Source,
+-    readonly policy: Policy,
+-    readonly subject: AuthSubject,
+-    readonly supplied: SuppliedBy[Source],
++    readonly question: Question,
+     readonly matcherContext: MatcherContext,
+-    readonly maxDepth: number,
+   ) {}
+ }
+ 
+-/**
+- * Admits a question for an interpreter's row source, or refuses it as too deep.
+- * Depth is judged on the policy alone (INV-QD-037); what the request supplied
+- * is a function of the row source and the question (INV-QD-364).
+- */
+-export const admit = <Source extends RowSource>(
+-  question: Question,
+-  rowSource: Source,
+-): Result.Result<Admitted<Source>, PolicyTooDeep> =>
++/** Admits a question, or refuses it as too deep. Depth is judged on the policy alone (INV-QD-037). */
++export const admit = (question: Question): Result.Result<Admitted, PolicyTooDeep> =>
+   policyDepth(question.policy) > question.maxDepth
+     ? Result.fail(new PolicyTooDeep({ maxDepth: question.maxDepth }))
+     : Result.succeed(
+-        new Admitted(
+-          rowSource,
+-          question.policy,
+-          question.subject,
+-          SUPPLIED[rowSource](question),
+-          {
+-            subject: question.subject.attributes,
+-            subjectId: question.subject.id,
+-            resource: question.resource,
+-            action: question.action,
+-          },
+-          question.maxDepth,
+-        ),
++        new Admitted(question, {
++          subject: question.subject.attributes,
++          subjectId: question.subject.id,
++          resource: question.resource,
++          action: question.action,
++        }),
+       );
+diff --git a/packages/core/src/Predicate.ts b/packages/core/src/Predicate.ts
+index 29dff9d5..8eeb378b 100644
+--- a/packages/core/src/Predicate.ts
++++ b/packages/core/src/Predicate.ts
+@@ -32,7 +32,7 @@ import type { Matcher, MatcherContext, ValueRef } from "./Matcher.ts";
+ import { referencesResource } from "./Matcher.ts";
+ import { getByPath, ownValue } from "./Operand.ts";
+ import { LEAF_VERDICTS, absenceOf, errorOf, isHeld } from "./LeafNeeds.ts";
+-import type { ActionAbsence } from "./LeafNeeds.ts";
++import type { ActionAbsence, Supplied } from "./LeafNeeds.ts";
+ import { fieldsOf, foldPolicy, foldPolicyCases } from "./Policy.ts";
+ import { askActed, isAnyActedLeaf, readAttribute } from "./PortAccess.ts";
+ import type { AnyActedLeaf } from "./PortAccess.ts";
+@@ -343,8 +343,7 @@ const refused = (policyTag: string, reason: string): Compiled => new Refusal(pol
+  *
+  * Every property of the *tree* is decided here: whether a node is in the
+  * translatable subset (`PolicyNotTranslatable`, BEH-QD-123) and, by the
+- * {@link Admitted} proof it demands (which carries the policy it admitted, and
+- * this walks that one), whether it is too deep. None of it
++ * {@link Admitted} proof it demands, whether it is too deep. None of it
+  * depends on the subject's attributes, the action, or what any port answers, so
+  * a policy that refuses for one caller refuses for all of them — it cannot work
+  * for an admin in development and fail in production. The first refusal in
+@@ -353,14 +352,12 @@ const refused = (policyTag: string, reason: string): Compiled => new Refusal(pol
+  * What is *not* decided here is what depends on the request and the stores: an
+  * absent action becomes a `NeedAction` node and fails only if `run` reaches it
+  * (INV-QD-011), exactly as the evaluator fails only on reach.
+- *
+- * It reads the walk environment admission built for a row (`Admitted<"row">`): the
+- * row is the resource, so it is supplied by type rather than by a literal here
+- * (ADR-QD-172).
+  */
+-const compileTree = (admitted: Admitted<"row">): Compiled => {
+-  const { subject, supplied, matcherContext: context } = admitted;
+-  const { action } = context;
++const compileTree = (admitted: Admitted): Compiled => {
++  const { policy, subject, action } = admitted.question;
++  const context = admitted.matcherContext;
++  // A predicate filters rows, so the resource is the row and is always present.
++  const supplied: Supplied<true> = { action: action !== undefined, resource: true };
+ 
+   /** Plans every folded child in order, stopping at the first refusal. */
+   const plansOf = (folded: ReadonlyArray<Compiled>): ReadonlyArray<Plan> | Refusal => {
+@@ -504,7 +501,7 @@ const compileTree = (admitted: Admitted<"row">): Compiled => {
+   // child is compiled before its parent, which is harmless because compiling is
+   // pure, and the first refusal in declaration order still wins because
+   // `plansOf` takes the first one it meets in `childrenOf`'s order.
+-  return foldPolicyCases(admitted.policy, cases);
++  return foldPolicyCases(policy, cases);
+ };
+ 
+ /**
+@@ -661,7 +658,7 @@ export const toPredicate = Effect.fn("qadi.toPredicate")(function* (
+   // Admission first, and from the policy alone: a policy that is both too deep
+   // and field-restricting is always `PolicyTooDeep`, independent of child order
+   // (ARCH-02 D-02-e, N4; INV-QD-037). Shared with `walk` (`Admission.ts`).
+-  const admitted = admit(question, "row");
++  const admitted = admit(question);
+   if (Result.isFailure(admitted)) return yield* Effect.fail(admitted.failure);
+   if (restrictsFields(policy)) {
+     return yield* untranslatable(
+diff --git a/packages/core/src/Walk.ts b/packages/core/src/Walk.ts
+index f3459ab5..b0771a52 100644
+--- a/packages/core/src/Walk.ts
++++ b/packages/core/src/Walk.ts
+@@ -12,19 +12,19 @@ import * as Record from "effect/Record";
+ import * as Result from "effect/Result";
+ import type { Concurrency } from "effect/Types";
+ import { admit } from "./Admission.ts";
+-import type { Admitted } from "./Admission.ts";
+ import type { AuthSubject } from "./AuthSubject.ts";
+ import type { Trace } from "./Decision.ts";
+ import type { EvaluationError } from "./Errors.ts";
+ import { PolicyTooDeep } from "./Errors.ts";
+ import type { VisibleFields } from "./FieldLattice.ts";
+ import { mergeFields } from "./FieldLattice.ts";
+-import type { Matcher, Verdict } from "./Matcher.ts";
++import type { Matcher, MatcherContext, Verdict } from "./Matcher.ts";
+ import { LEAF_VERDICTS, absenceOf, errorOf, isHeld } from "./LeafNeeds.ts";
+ import type {
+   ActedOutcome,
+   RelationshipOutcome,
+   SignatureOutcome,
++  Supplied,
+ } from "./LeafNeeds.ts";
+ import type { Obligation } from "./Obligation.ts";
+ import { unionObligations } from "./Obligation.ts";
+@@ -45,25 +45,33 @@ import { anyOfStopsAtAllow, rulesDecisiveEffect } from "./ShortCircuit.ts";
+ import type { Question } from "./Question.ts";
+ 
+ /**
+- * What a recursive call passes through unchanged: the walk environment admission
+- * built (`Admitted`), and the one setting of how the walk is performed that is
+- * not a fact about the question.
++ * Everything a recursive call passes through unchanged: the inputs a policy may
++ * read, plus the settings that govern how the walk is performed.
+  *
+- * With the depth bound in the environment, recursion passes
+- * `(policy, request, depth)`: one number, so a depth cannot land where the bound
+- * belongs and still compile (`WalkEnvironment.tst.ts`, ADR-QD-172). Before,
+- * `depth` and `maxDepth` were two adjacent positional numbers at every
+- * recursive call, and a slip between them typechecked.
++ * Bundled rather than threaded as separate parameters, and `concurrency` is the
++ * clearest case for it. `Concurrency` is `number | "unbounded" | "inherit"`, so
++ * left as its own positional parameter next to `depth` and `maxDepth` — both
++ * numbers — a slip between the three would **typecheck**. Folding `concurrency`
++ * into this bundle removes it from that adjacency at every call site.
+  *
+- * `concurrency` is deliberately here and not in `Admitted` (nor in
+- * `MatcherContext`): it is a property of the evaluation, never a value a matcher
+- * can compare against.
++ * This does not extend to `depth`/`maxDepth` themselves: `evaluateNode` and its
++ * `AllOf`/`AnyOf`/`Rules` helpers still take both as two adjacent positional
++ * numbers (`evaluateNode`'s own signature, and every recursive `depth + 1,
++ * maxDepth` call), so a slip between *those* two would still typecheck. This
++ * bundle closes the `concurrency` case, not the whole positional-parameter
++ * class of bug.
++ *
++ * `concurrency` is deliberately here and not in `MatcherContext`: it is a
++ * property of the evaluation, never a value a matcher can compare against.
+  */
+ interface Evaluation {
+-  readonly admitted: Admitted<"asked">;
++  readonly resource: Resource | undefined;
++  readonly action: string | undefined;
++  readonly supplied: Supplied;
+   readonly concurrency: Concurrency | undefined;
+ }
+ 
++
+ const NO_OBLIGATIONS: ReadonlyArray<Obligation> = [];
+ const NO_RESOURCE: Resource = {};
+ /** Shared empty children array for leaf verdicts — mirrors `NO_OBLIGATIONS`. */
+@@ -290,11 +298,6 @@ const evaluateHasSignature = (
+ /**
+  * Dispatches a single policy node to its verdict, recursing into composites.
+  *
+- * The bound is read from the walk environment, so the only number a recursive
+- * call passes is `depth`. Exported from this package-private module only so
+- * `WalkEnvironment.tst.ts` can pin its parameters; it is not in the barrel
+- * (ADR-QD-099, ADR-QD-172).
+- *
+  * `depth > maxDepth` is the per-node guard (BEH-QD-038), kept as defense in depth:
+  * the root `evaluate` has already rejected any policy whose `policyDepth`
+  * exceeds `maxDepth` before the first node, so `policyDepth(p) <= n` exactly
+@@ -313,17 +316,17 @@ const evaluateHasSignature = (
+  * that memoizes or races calls to this function directly needs the same
+  * defense.
+  */
+-export const evaluateNode = (
++const evaluateNode = (
+   policy: Policy,
++  subject: AuthSubject,
+   request: Evaluation,
++  matcherContext: MatcherContext,
+   depth: number,
++  maxDepth: number,
+ ): Effect.Effect<Trace, EvaluationError, PortServices> => {
+-  const { admitted } = request;
+-  const { maxDepth } = admitted;
+   if (depth > maxDepth) return Effect.fail(new PolicyTooDeep({ maxDepth }));
+ 
+-  const { subject, supplied, matcherContext } = admitted;
+-  const { action, resource } = matcherContext;
++  const { action, resource } = request;
+ 
+   switch (policy._tag) {
+     case "HasPermission":
+@@ -341,7 +344,7 @@ export const evaluateNode = (
+       );
+ 
+     case "HasAttribute": {
+-      const absent = absenceOf(policy, supplied);
++      const absent = absenceOf(policy, request.supplied);
+       if (absent !== undefined) return Effect.fail(errorOf(absent));
+       return Effect.map(readAttribute("evaluate", subject, policy), (value) => {
+         // One judgement gives both the decision and, on a denial, its reason.
+@@ -353,7 +356,7 @@ export const evaluateNode = (
+     }
+ 
+     case "HasResourceAttribute": {
+-      const absent = absenceOf(policy, supplied);
++      const absent = absenceOf(policy, request.supplied);
+       if (absent !== undefined) return Effect.fail(errorOf(absent));
+       // `absenceOf` has ruled out an absent resource; the `??` is the type's.
+       const row = resource ?? NO_RESOURCE;
+@@ -373,7 +376,7 @@ export const evaluateNode = (
+       return evaluateHasRelationship(policy, subject, resource);
+ 
+     case "HasAction": {
+-      const absent = absenceOf(policy, supplied);
++      const absent = absenceOf(policy, request.supplied);
+       if (absent !== undefined) return Effect.fail(errorOf(absent));
+       return Effect.succeed(
+         isHeld(LEAF_VERDICTS.HasAction(policy, action))
+@@ -393,18 +396,18 @@ export const evaluateNode = (
+       return evaluateHasSignature(policy, subject, resource);
+ 
+     case "AllOf":
+-      return evaluateAllOf(policy, request, depth);
++      return evaluateAllOf(policy, subject, request, matcherContext, depth, maxDepth);
+ 
+     case "AnyOf":
+-      return evaluateAnyOf(policy, request, depth);
++      return evaluateAnyOf(policy, subject, request, matcherContext, depth, maxDepth);
+ 
+     case "Rules":
+-      return evaluateRules(policy, request, depth);
++      return evaluateRules(policy, subject, request, matcherContext, depth, maxDepth);
+ 
+     case "Not":
+       return Effect.map(
+         Effect.suspend(() =>
+-          evaluateNode(policy.policy, request, depth + 1),
++          evaluateNode(policy.policy, subject, request, matcherContext, depth + 1, maxDepth),
+         ),
+         (child) =>
+           child.allowed
+@@ -419,7 +422,7 @@ export const evaluateNode = (
+     case "Obliged":
+       return Effect.map(
+         Effect.suspend(() =>
+-          evaluateNode(policy.policy, request, depth + 1),
++          evaluateNode(policy.policy, subject, request, matcherContext, depth + 1, maxDepth),
+         ),
+         (child) =>
+           child.allowed
+@@ -437,7 +440,7 @@ export const evaluateNode = (
+     case "Labeled":
+       return Effect.map(
+         Effect.suspend(() =>
+-          evaluateNode(policy.policy, request, depth + 1),
++          evaluateNode(policy.policy, subject, request, matcherContext, depth + 1, maxDepth),
+         ),
+         (child) => ({
+           policyTag: "Labeled" as const,
+@@ -544,8 +547,11 @@ const finishAllOf = (
+  */
+ const evaluateAllOf = Effect.fnUntraced(function* (
+   policy: Extract<Policy, { _tag: "AllOf" }>,
++  subject: AuthSubject,
+   request: Evaluation,
++  matcherContext: MatcherContext,
+   depth: number,
++  maxDepth: number,
+ ) {
+   const fold = beginAllOf();
+ 
+@@ -553,7 +559,7 @@ const evaluateAllOf = Effect.fnUntraced(function* (
+     for (const child of policy.policies) {
+       const verdict = stepAllOf(
+         fold,
+-        yield* evaluateNode(child, request, depth + 1),
++        yield* evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth),
+       );
+       if (verdict !== undefined) return verdict;
+     }
+@@ -573,7 +579,7 @@ const evaluateAllOf = Effect.fnUntraced(function* (
+     // surfaces) depend on a performance switch.
+     const exits = yield* Effect.forEach(
+       policy.policies,
+-      (child) => Effect.exit(evaluateNode(child, request, depth + 1)),
++      (child) => Effect.exit(evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth)),
+       { concurrency: request.concurrency },
+     );
+     for (const exit of exits) {
+@@ -678,8 +684,11 @@ const finishAnyOf = (
+  */
+ const evaluateAnyOf = Effect.fnUntraced(function* (
+   policy: Extract<Policy, { _tag: "AnyOf" }>,
++  subject: AuthSubject,
+   request: Evaluation,
++  matcherContext: MatcherContext,
+   depth: number,
++  maxDepth: number,
+ ) {
+   const fold = beginAnyOf(policy);
+ 
+@@ -687,7 +696,7 @@ const evaluateAnyOf = Effect.fnUntraced(function* (
+     for (const child of policy.policies) {
+       const verdict = stepAnyOf(
+         fold,
+-        yield* evaluateNode(child, request, depth + 1),
++        yield* evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth),
+       );
+       if (verdict !== undefined) return verdict;
+     }
+@@ -701,7 +710,7 @@ const evaluateAnyOf = Effect.fnUntraced(function* (
+     // is either decisive or a failure wins (ADR-QD-026).
+     const exits = yield* Effect.forEach(
+       policy.policies,
+-      (child) => Effect.exit(evaluateNode(child, request, depth + 1)),
++      (child) => Effect.exit(evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth)),
+       { concurrency: request.concurrency },
+     );
+     for (const exit of exits) {
+@@ -733,8 +742,11 @@ const evaluateAnyOf = Effect.fnUntraced(function* (
+  */
+ const evaluateRules = Effect.fnUntraced(function* (
+   policy: Extract<Policy, { _tag: "Rules" }>,
++  subject: AuthSubject,
+   request: Evaluation,
++  matcherContext: MatcherContext,
+   depth: number,
++  maxDepth: number,
+ ) {
+   const children: Array<Trace> = [];
+ 
+@@ -782,7 +794,14 @@ const evaluateRules = Effect.fnUntraced(function* (
+   if (request.concurrency === undefined) {
+     for (const [index, rule] of policy.rules.entries()) {
+       // The condition answers *does this rule apply*, never *is this permitted*.
+-      const trace = yield* evaluateNode(rule.condition, request, depth + 1);
++      const trace = yield* evaluateNode(
++        rule.condition,
++        subject,
++        request,
++        matcherContext,
++        depth + 1,
++        maxDepth,
++      );
+       if (step(index, rule, trace)) break;
+     }
+   } else {
+@@ -805,7 +824,7 @@ const evaluateRules = Effect.fnUntraced(function* (
+       (rule, index) =>
+         Effect.exit(
+           Effect.map(
+-            evaluateNode(rule.condition, request, depth + 1),
++            evaluateNode(rule.condition, subject, request, matcherContext, depth + 1, maxDepth),
+             (trace) => ({ index, rule, trace }),
+           ),
+         ),
+@@ -865,17 +884,23 @@ const evaluateRules = Effect.fnUntraced(function* (
+  * times" cost `DecisionCache`'s own doc comment exists to avoid.
+  * `Effect.suspend` defers the call itself to when the walk is actually run,
+  * so a cache hit never invokes `evaluateNode` at all — and, by the same
+- * reasoning, never runs `admit` either, so the walk environment is built only
+- * for a walk that runs.
++ * reasoning, never builds the matcher context in `admit` either.
+  */
+ export const walk = (
+   question: Question,
+   concurrency: Concurrency | undefined,
+ ): Effect.Effect<Trace, EvaluationError, PortServices> =>
+   Effect.suspend(() => {
++    const { subject, policy, maxDepth } = question;
++    const request: Evaluation = {
++      resource: question.resource,
++      action: question.action,
++      supplied: { action: question.action !== undefined, resource: question.resource !== undefined },
++      concurrency,
++    };
+     // Admission is shared with `toPredicate` (`Admission.ts`): the depth gate,
+-    // judged on the policy before any node, and the walk environment, built once.
+-    const admitted = admit(question, "asked");
++    // judged on the policy before any node, and the matcher context, built once.
++    const admitted = admit(question);
+     if (Result.isFailure(admitted)) return Effect.fail(admitted.failure);
+-    return evaluateNode(admitted.success.policy, { admitted: admitted.success, concurrency }, 0);
++    return evaluateNode(policy, subject, request, admitted.success.matcherContext, 0, maxDepth);
+   });
