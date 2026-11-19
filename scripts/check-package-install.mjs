@@ -499,16 +499,19 @@ expect("devtools verdict", only === undefined ? "missing" : verdictOf(only), "Al
 expect("devtools dock", typeof DevtoolsDock, "function");
 
 // The feeds are the headless interface (ADR-QD-099's closed map still reaches them from the root). A feed only
-// forks its read, so the status the build sets is what is asserted, not a sampled value.
-const fedStatus = await Effect.runPromise(
+// forks its read, and \`Reading\` is also what a feed that read nothing says, so the entry is asserted too:
+// the fiber is let run for fixed turns (no clock), the way the devtools suite's \`settleTurns\` does.
+const fed = await Effect.runPromise(
   Effect.scoped(
     Effect.gen(function* () {
       const feed = yield* makeTimelineFeed({ source: sourceFromRecords([stored]) });
-      return feed.status.getSnapshot()._tag;
+      for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
+      return { status: feed.status.getSnapshot()._tag, entries: feed.timeline.getSnapshot().entries.length };
     }),
   ),
 );
-expect("devtools feed", fedStatus, "Reading");
+expect("devtools feed", fed.status, "Reading");
+expect("devtools feed entries", fed.entries, 1);
 
 // @qadi/predicate-sql and @qadi/predicate-prisma compile what toPredicate
 // emits — a held permission folds to True, so both compile to their own
