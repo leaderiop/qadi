@@ -232,10 +232,11 @@ logged, counted or spanned.
 - ✓ ARCH-102 A port card is a model row, not a view join (CARD-01..05): pure `portCards` in `@qadi/devtools`' `model/PortCards.ts` returns a closed `ServicesView` (`Withheld | NotHanded | Failed | Read`), one `PortCardRow` per wired port with state, activity, consequence voice and a `CallsView` (`Hidden | Uncollected | Listed`, newest five plus `earlier`); activity and calls are `{ [K in PortName]: … }` records built by `tabulatePorts`, so a misspelt port is a compile error (`PortCards.tst.ts`). `DockModel.services` is the ninth store, recomputed only when one of its four inputs moves; `ServicesPanel.tsx` maps tags to JSX and computes nothing (INV-QD-356). Markup byte-identical (16-cell characterisation written on the base). Breaking: `PortActivity.port` is `PortName`, `portActivity` reads one entry per registry port. Mutation DockModel 145/145, Wiring 48/48, PortCards 126/126 (D-15) — Phase 55, ADR-QD-168
 
 - ✓ ARCH-103 The gate-registry watch is the dock model's third feed (GFED-01..05): package-private `GatesFeed.ts` (`makeGatesFeed`, an `Effect.fn` built in the caller's scope) owns both host inputs of the questions panel: the gate-registry watch (guarded reads, name+message failure key, re-subscribe on identity change or after a failed watch, release in a finalizer) and the `questions` thunk (read on its own cadence, compared with `Equal.equals`). `DockModel` composes three feeds through a pure `rejoin`. A throwing thunk is `QuestionsView.Failed` and the diagnostics poll stays `Live` (INV-QD-358). Breaking: `questions` is a dock input and `useDevtoolsFeed` returns it at the top level (ADR-QD-169, Phase 56)
+- ✓ ARCH-104 `untrustedDecoder` states an envelope's unknown-key policy (KEYP-01..05): a required, closed `unknownKeys: "refuse" | "ignore"` read through an own-key `PROJECTION` table; `ignore` projects the input onto its declared top-level keys (derived once from `SchemaAST.toEncoded` in package-private `EnvelopeKeys.ts`, refusing an underivable, index-signature or rest schema at build) before the depth guard, so an unknown key is never walked. Both `SinkCodec` envelopes use `ignore` and lose their hand-written readers (`UNTRUSTED_DECODE_BUDGET` 2 → 1); the audit row, archive, hydration, policy and port seams state `refuse`. A deep unknown record key now decodes (D-01, D-20), a deep `environment` is `TooDeep` (D-18), stored-envelope messages are the strict decoder's (D-17). Breaking: the option is required (ADR-QD-170, Phase 57)
 
 ### Active
 
-- [ ] ARCH-104..108: the remaining five candidates of the 2026-11-16 architecture review (v1.6, Phases 57–61); see `.planning/REQUIREMENTS.md`
+- [ ] ARCH-105..108: the remaining four candidates of the 2026-11-16 architecture review (v1.6, Phases 58–61); see `.planning/REQUIREMENTS.md`
 
 ### Out of Scope
 
@@ -427,6 +428,7 @@ logged, counted or spanned.
 | Each leaf's answer-to-verdict step is one row of a closed per-tag record that both interpreters read through `isHeld` | The walk and `toPredicate` each restated how an answer (acted polarity, relationship `Unknown`, custom, signature) becomes allow/deny, so a change to one could leave the row filter admitting what the walk denies | Accepted (Phase 54, ADR-QD-167; D-10 credits static-ignored mutants only when an `ignoreStatic:false` run kills each — accepted by the owner at UAT) |
 | A devtools tab's wording is a pure model function over closed unions; the panel renders tags | `ServicesPanel.tsx` joined three readings through three differently typed keys (`WiredServiceName`, `string`, a call `_tag`), so a renamed port rendered "never called" instead of failing to compile | Accepted (Phase 55, ADR-QD-168; follows ADR-QD-162, restates ADR-QD-047 for the Services tab) |
 | The questions panel's two host inputs are one scoped feed, and a throwing thunk is stated rather than stopping the poll (owner chose GFED-05 = Yes) | A throwing `questions` thunk was a defect in the diagnostics sample that froze every tab, while a throwing registry was only `GatesView.Failed`; one feed gives both inputs one failure policy | Accepted, ADR-QD-169 (Phase 56) |
+| An envelope states its unknown top-level key policy at its decoder, as one required closed option (owner: "answer by the cleanest solutions not the simplest") | Both `SinkCodec` envelopes hand-built "ignore unknown keys" while five seams refused them, with nothing stating which rule a seam had; one option derived from the schema removes the hand-written key lists and makes every seam say its rule | Accepted, ADR-QD-170 (Phase 57) |
 
 ## Evolution
 
@@ -446,4 +448,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-18 after Phase 56*
+*Last updated: 2026-11-19 after Phase 57*
