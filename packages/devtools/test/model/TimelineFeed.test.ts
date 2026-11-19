@@ -17,7 +17,8 @@ import * as Stream from "effect/Stream";
 import * as TestClock from "effect/testing/TestClock";
 import type { StoredRecord } from "@qadi/core";
 import { sourceFromRecords, type Source, type SourceRead } from "../../src/model/Source.ts";
-import { idleTimeline, makeTimelineFeed, type TimelineFeed } from "../../src/model/TimelineFeed.ts";
+import { makeTimelineFeed, type TimelineFeed } from "../../src/index.ts";
+import { idleTimeline } from "../../src/model/TimelineFeed.ts";
 import { decisionRecord, settleTurns } from "../helpers.ts";
 
 const flush = Effect.andThen(Effect.yieldNow, TestClock.adjust("10 millis"));

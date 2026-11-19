@@ -15,13 +15,15 @@ import * as Scope from "effect/Scope";
 import * as TestClock from "effect/testing/TestClock";
 import {
   DiagnosticsStatus,
+  makeDiagnosticsFeed,
+  type DiagnosticsOptions,
+  type DiagnosticsReadout,
+} from "../../src/index.ts";
+import {
   diagnosticsOff,
   diagnosticsStarting,
   idleDiagnostics,
   isUnsampled,
-  makeDiagnosticsFeed,
-  type DiagnosticsDockOptions,
-  type DiagnosticsReadout,
 } from "../../src/model/DiagnosticsFeed.ts";
 import { noDiagnostics } from "../../src/model/DiagnosticsStore.ts";
 import type { PortCallCollector, PortCallLog } from "../../src/model/PortCalls.ts";
@@ -295,8 +297,8 @@ describe("the diagnostics feed", () => {
     Effect.gen(function* () {
       const layer = counted().layer;
       const collector = collectorOf();
-      const base: DiagnosticsDockOptions = { layer, collector, intervalMillis: 5_000 };
-      const changes: ReadonlyArray<readonly [string, DiagnosticsDockOptions]> = [
+      const base: DiagnosticsOptions = { layer, collector, intervalMillis: 5_000 };
+      const changes: ReadonlyArray<readonly [string, DiagnosticsOptions]> = [
         ["layer", { ...base, layer: counted().layer }],
         ["collector", { ...base, collector: collectorOf() }],
         ["intervalMillis", { ...base, intervalMillis: 5_001 }],

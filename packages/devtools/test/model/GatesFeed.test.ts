@@ -19,8 +19,8 @@ import * as FastCheck from "fast-check";
 import { hasPermission, hasRole, permission } from "@qadi/core";
 import type { Policy, Resource } from "@qadi/core";
 import type { AskedQuestionLike, GateInstanceLike } from "../../src/model/Gates.ts";
-import { AskedRead, RegistryRead, makeGatesFeed } from "../../src/model/GatesFeed.ts";
-import type { GatesFeed, GatesSnapshot } from "../../src/model/GatesFeed.ts";
+import { AskedRead, RegistryRead, makeGatesFeed } from "../../src/index.ts";
+import type { GatesFeed, GatesSnapshot } from "../../src/index.ts";
 import { makeGateRegistryDouble } from "../gateRegistryDouble.ts";
 import { readPolicy, settleTurns } from "../helpers.ts";
 

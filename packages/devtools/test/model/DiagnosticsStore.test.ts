@@ -9,7 +9,6 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
-import * as Schedule from "effect/Schedule";
 import * as TestClock from "effect/testing/TestClock";
 import * as Tracer from "effect/Tracer";
 import {
@@ -53,7 +52,7 @@ const counted = (store: { readonly subscribe: (l: () => void) => () => void }) =
   return seen;
 };
 
-const start = <ROut, E>(store: DiagnosticsStore, options?: DiagnosticsOptions<ROut, E>) =>
+const start = (store: DiagnosticsStore, options?: DiagnosticsOptions) =>
   Effect.forkChild(runDiagnostics(store, options), { startImmediately: true });
 
 describe("makeDiagnosticsStore", () => {
@@ -173,12 +172,12 @@ describe("runDiagnostics", () => {
     }),
   );
 
-  it.effect("honours a schedule override", () =>
+  it.effect("honours an interval override", () =>
     Effect.gen(function* () {
       const { state, collector } = scriptedCollector();
       const fiber = yield* start(makeDiagnosticsStore(), {
         collector,
-        schedule: Schedule.spaced("500 millis"),
+        intervalMillis: 500,
       });
       yield* TestClock.adjust("1 second");
       assert.strictEqual(state.reads, 3);

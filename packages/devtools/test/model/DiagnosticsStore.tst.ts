@@ -4,16 +4,17 @@
  */
 import type * as Effect from "effect/Effect";
 import type * as Layer from "effect/Layer";
+import type * as Schedule from "effect/Schedule";
 import { expect, test } from "tstyche";
 import {
   mergeReading,
   runDiagnostics,
   type Diagnostics,
+  type DiagnosticsOptions,
   type DiagnosticsReading,
   type DiagnosticsStore,
   type WiringRead,
 } from "../../src/model/DiagnosticsStore.ts";
-import type { DiagnosticsDockOptions } from "../../src/model/DiagnosticsFeed.ts";
 import type { HydrationActivity } from "../../src/model/Hydration.ts";
 import type { WiringReport } from "../../src/model/Wiring.ts";
 
@@ -24,8 +25,13 @@ declare class MyError {
 declare class Thing {
   readonly thing: true;
 }
+declare class Other {
+  readonly other: true;
+}
 declare const wiringRead: WiringRead;
 declare const layer: Layer.Layer<Thing, MyError>;
+declare const spaced: Schedule.Schedule<unknown>;
+declare const needs: Layer.Layer<Thing, never, Other>;
 
 test("a layer's typed failure is not the run's failure", () => {
   expect(runDiagnostics(store, { layer })).type.toBe<Effect.Effect<void, never, never>>();
@@ -37,8 +43,20 @@ test("a run with no options has nothing to fail with either", () => {
 
 test("the poll takes no questions thunk: the gates feed reads it", () => {
   expect(runDiagnostics).type.not.toBeCallableWith(store, { questions: () => [] });
-  expect<DiagnosticsDockOptions>().type.not.toHaveProperty("questions");
+  expect<DiagnosticsOptions>().type.not.toHaveProperty("questions");
 });
+
+test("the poll takes an interval, not a schedule", () => {
+  expect(runDiagnostics).type.not.toBeCallableWith(store, { schedule: spaced });
+  expect(runDiagnostics).type.toBeCallableWith(store, { intervalMillis: 500 });
+});
+
+test("a layer whose requirement is unmet is refused", () => {
+  expect(runDiagnostics).type.not.toBeCallableWith(store, { layer: needs });
+});
+
+// @ts-expect-error not generic
+export type NotGeneric = DiagnosticsOptions<never, never>;
 
 test("WiringRead narrows by its tag", () => {
   const read = (self: WiringRead) => {
