@@ -22,8 +22,8 @@
  */
 import * as Data from "effect/Data";
 import * as Order from "effect/Order";
-import type { DecisionRecord, ObligationRecord, StoredRecord } from "@qadi/core";
-import { DEFAULT_LOG_CAPACITY, storedRecordOrder } from "@qadi/core";
+import type { DecisionRecord, ObligationRecord, SinkRecord, StoredRecord } from "@qadi/core";
+import { DEFAULT_LOG_CAPACITY, sinkRecordOrder } from "@qadi/core";
 
 /** One evaluation, as one process saw it. */
 export class TimelineDecision extends Data.TaggedClass("TimelineDecision")<{
@@ -108,25 +108,27 @@ export const entryKey = (entry: TimelineEntry): string =>
  * Every rejection is silent by design: a duplicate is not an error, it is the
  * ordinary consequence of a feed that replays and a client that reconnects.
  */
-export const ingest = (self: Timeline, record: StoredRecord): Timeline =>
-  record._tag === "Decision" ? ingestDecision(self, record) : ingestObligations(self, record);
+export const ingest = (self: Timeline, stored: StoredRecord): Timeline =>
+  stored.record._tag === "Decision"
+    ? ingestDecision(self, stored.environment, stored.record)
+    : ingestObligations(self, stored.environment, stored.record);
 
-const ingestDecision = (self: Timeline, record: DecisionRecord & { environment: string }): Timeline => {
+const ingestDecision = (self: Timeline, environment: string, record: DecisionRecord): Timeline => {
   // Identity is (environment, id, at). Not the id alone: a server decision and
   // its client re-check deliberately *share* one, which is the whole pairing
   // story, and collapsing them here would erase it. Not the whole record
   // either: a structural comparison would cost a deep walk of a policy tree on
   // every frame to answer a question these three fields already answer.
-  if (self.entries.some((e) => e._tag === "TimelineDecision" && sameSlot(e, record))) return self;
+  if (self.entries.some((e) => e._tag === "TimelineDecision" && sameSlot(e, environment, record))) return self;
 
   // An outcome that arrived before its decision is waiting for exactly this.
   const orphan = self.entries.find(
-    (e): e is TimelineOrphan => e._tag === "TimelineOrphan" && sameEvaluation(e, record),
+    (e): e is TimelineOrphan => e._tag === "TimelineOrphan" && sameEvaluation(e, environment, record),
   );
 
   const entry = new TimelineDecision({
     evaluationId: record.evaluationId,
-    environment: record.environment,
+    environment,
     at: record.at,
     decision: record,
     obligations: orphan?.obligations,
@@ -139,26 +141,23 @@ const ingestDecision = (self: Timeline, record: DecisionRecord & { environment: 
   return bound({ ...self, entries: insert(kept, entry) });
 };
 
-const ingestObligations = (
-  self: Timeline,
-  record: ObligationRecord & { environment: string },
-): Timeline => {
+const ingestObligations = (self: Timeline, environment: string, record: ObligationRecord): Timeline => {
   // The latest decision this process made for that evaluation. Latest rather
   // than first because a re-used id means the outcome belongs to the most
   // recent question, and `evaluate` emits at most one outcome per evaluation.
   const target = last(
     self.entries.filter(
-      (e): e is TimelineDecision => e._tag === "TimelineDecision" && sameEvaluation(e, record),
+      (e): e is TimelineDecision => e._tag === "TimelineDecision" && sameEvaluation(e, environment, record),
     ),
   );
 
   if (target === undefined) {
     // No `_tag` check: `target` being undefined means no decision entry shares
     // this evaluation, so anything matching the slot is already an orphan.
-    if (self.entries.some((e) => sameSlot(e, record))) return self;
+    if (self.entries.some((e) => sameSlot(e, environment, record))) return self;
     const entry = new TimelineOrphan({
       evaluationId: record.evaluationId,
-      environment: record.environment,
+      environment,
       at: record.at,
       obligations: record,
     });
@@ -174,19 +173,24 @@ const ingestObligations = (
 
 const sameSlot = (
   entry: TimelineEntry,
-  record: { evaluationId: string; environment: string; at: number },
-): boolean => sameEvaluation(entry, record) && entry.at === record.at;
+  environment: string,
+  record: { evaluationId: string; at: number },
+): boolean => sameEvaluation(entry, environment, record) && entry.at === record.at;
 
 const sameEvaluation = (
   entry: TimelineEntry,
-  record: { evaluationId: string; environment: string },
-): boolean =>
-  entry.evaluationId === record.evaluationId && entry.environment === record.environment;
+  environment: string,
+  record: { evaluationId: string },
+): boolean => entry.evaluationId === record.evaluationId && entry.environment === environment;
 
 const last = <A>(items: ReadonlyArray<A>): A | undefined => items[items.length - 1];
 
+const recordOf = (entry: TimelineEntry): SinkRecord =>
+  entry._tag === "TimelineDecision" ? entry.decision : entry.obligations;
+
 /**
- * True when an entry `a` must appear after one `b`, by core's `storedRecordOrder`.
+ * True when an entry `a` must appear after one `b`, by core's `sinkRecordOrder`
+ * over the record each was built from.
  *
  * The comparator is shared — it is the one order a stored record is read in
  * (INV-QD-039), so a merged backlog and this timeline cannot disagree — and this
@@ -198,7 +202,7 @@ const last = <A>(items: ReadonlyArray<A>): A | undefined => items[items.length -
  *
  * Hoisted to module scope: `insert` runs once per ingested record.
  */
-const isAfter = Order.isGreaterThan(storedRecordOrder);
+const isAfter = Order.isGreaterThan(Order.mapInput(sinkRecordOrder, recordOf));
 
 /**
  * Places one entry in an already-ordered list.

@@ -569,7 +569,7 @@ describe("a DecisionSink wired into the runtime layer", () => {
     const stored = await Effect.runPromise(log.snapshot);
     // Stamped by the sink, not by core — which cannot know it is in a browser.
     expect(stored[0]?.environment).toBe("Client");
-    expect(stored[0]?._tag).toBe("Decision");
+    expect(stored[0]?.record._tag).toBe("Decision");
   });
 
   it("an atom set with no sink is unaffected", async () => {

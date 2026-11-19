@@ -416,7 +416,7 @@ import {
   RelationshipResolverNever,
   role,
   SignatureHistoryNone,
-  stampRecord,
+  StoredRecord,
   toPredicate,
 } from "@qadi/core";
 import { makeQadi } from "@qadi/promise";
@@ -484,16 +484,16 @@ expect("react provider", typeof QadiProvider, "function");
 const decided = await decide(hasPermission(read));
 const timeline = ingest(
   emptyTimeline(),
-  stampRecord(
-    new DecisionRecord({
+  new StoredRecord({
+    environment: "Server",
+    record: new DecisionRecord({
       evaluationId: decided.evaluationId,
       at: 0,
       subjectId: decided.subjectId,
       policy: hasPermission(read),
       outcome: new Decided({ decision: decided }),
     }),
-    "Server",
-  ),
+  }),
 );
 const [only] = timeline.entries;
 expect("devtools timeline", timeline.entries.length, 1);

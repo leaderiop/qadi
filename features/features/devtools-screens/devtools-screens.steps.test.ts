@@ -23,9 +23,9 @@ import {
   makeSubjectId,
   permission,
   role,
-  stampRecord,
+  StoredRecord,
 } from "@qadi/core";
-import type { AllowingTrace, Policy, Role, StoredRecord } from "@qadi/core";
+import type { AllowingTrace, Policy, Role } from "@qadi/core";
 import {
   catalogueOf,
   emptyTimeline,
@@ -135,7 +135,7 @@ const decisionFor = (at: number, policy: Policy): StoredRecord => {
       }),
     }),
   });
-  return stampRecord(record, "Server");
+  return new StoredRecord({ environment: "Server", record });
 };
 
 /** Ingests one more decision against `policy`, refreshing the derived catalogue. */

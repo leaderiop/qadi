@@ -60,8 +60,8 @@ import * as Schema from "effect/Schema";
 import * as SchemaGetter from "effect/SchemaGetter";
 import * as Struct from "effect/Struct";
 import type { DecisionDisagreement, Trace } from "./Decision.ts";
-import type { DecisionOutcome, SinkRecord, StoredRecord } from "./DecisionRecord.ts";
-import { Decided, DecisionRecord, Failed, ObligationRecord, stampRecord } from "./DecisionRecord.ts";
+import type { DecisionOutcome, SinkRecord } from "./DecisionRecord.ts";
+import { Decided, DecisionRecord, Failed, ObligationRecord, StoredRecord } from "./DecisionRecord.ts";
 import { DecisionWire, decodeDecision, encodeDecision } from "./DecisionWire.ts";
 import {
   AttributeResolveError,
@@ -574,7 +574,7 @@ export type StoredRecordJson = typeof StoredRecordJson.Type;
 export const encodeStoredRecord = (
   stored: StoredRecord,
 ): Result.Result<StoredRecordJson, SinkRecordNotEncodable> =>
-  Result.map(encodeSinkRecord(stored), (record) => ({ environment: stored.environment, record }));
+  Result.map(encodeSinkRecord(stored.record), (record) => ({ environment: stored.environment, record }));
 
 /** A stored record as JSON text, or the reason it cannot be. Never throws. */
 export const encodeStoredRecordString = (
@@ -605,15 +605,15 @@ const storedWire = untrustedDecoder(StoredEnvelopeWire, { unknownKeys: "ignore",
 /**
  * An envelope decoder's result as a stored record, or the refusal it carries.
  *
- * The one isolated `stampRecord` call: the environment is the decoded envelope's
- * own, never the reader's.
+ * The environment is the decoded envelope's own, never the reader's, placed beside
+ * the record {@link decodeSinkRecord} built.
  */
 const fromEnvelope = (
   read: Result.Result<typeof StoredEnvelopeWire.Type, UntrustedRefusal>,
 ): Result.Result<StoredRecord, SinkRecordNotDecodable> =>
   Result.isFailure(read)
     ? notDecodable(decodeRefusalOf(read.failure))
-    : Result.map(decodeSinkRecord(read.success.record), (record) => stampRecord(record, read.success.environment));
+    : Result.map(decodeSinkRecord(read.success.record), (record) => new StoredRecord({ environment: read.success.environment, record }));
 
 /**
  * Untrusted input as a stored record, or the reason it is not one.
@@ -639,8 +639,9 @@ const fromEnvelope = (
  * for one minor (ARCH-11 D-11-e); 0.11.0 removed it (ADR-QD-097's 2026-10-06
  * amendment), and with it the only reason this function took options.
  *
- * The record is rebuilt and stamped here, with `stampRecord`, so the
- * environment is the producer's, never the reader's. Never throws.
+ * The record is rebuilt by {@link decodeSinkRecord} and the envelope's own
+ * `environment` placed beside it, so the environment is the producer's, never the
+ * reader's. Never throws.
  */
 export const decodeStoredRecord = (input: unknown): Result.Result<StoredRecord, SinkRecordNotDecodable> =>
   fromEnvelope(storedWire.decode(input));

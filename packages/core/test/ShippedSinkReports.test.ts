@@ -1,9 +1,12 @@
 /**
  * Pins that each shipped sink reports a failure exactly once, and names itself.
  *
- * The characterisation rows (C1-C4) were committed green on the phase base, so the
+ * The characterisation rows (C1-C3) were committed green on the phase base, so the
  * count of reports per failure was measured before any change; the rows below
- * them were committed in a later commit, RED on that base. Reports are counted
+ * them were committed in a later commit, RED on that base. C4, an append that dies,
+ * was deleted with the decision log's own `isolate` catches (D-12, ADR-QD-171): the
+ * log no longer reports a defect, the sink emitter does, and `StoredEnvelope.test.ts`
+ * N4 pins that a record carrying a throwing getter is now retained unread. Reports are counted
  * with `collectingLogger`, never `console`. Names are read from the shape
  * `yield* DecisionSink` returns, never through the type, so this file compiles on
  * the base, where `DecisionSinkShape` has no `name`, and its RED is the
@@ -124,38 +127,6 @@ describe("one failure, one report, before and after (EMIT-03)", () => {
       const line = assertOneLine(logs.lines, "hook exploded");
       assert.strictEqual(String(line?.message), "qadi: an encode-refusal hook threw");
       assert.isTrue(isAllowed(decision));
-    }).pipe(Effect.provide(testLayer(allowed))));
-
-  it.effect("C4: an append that dies is reported once as the append half, nothing is retained, and the next record is kept", () =>
-    Effect.gen(function* () {
-      const capture = Effect.gen(function* () {
-        const sink = recording();
-        yield* evaluate(policy).pipe(Effect.provide(sink.layer));
-        return sink.records[0];
-      });
-      const first = yield* capture;
-      const second = yield* capture;
-      assert.isDefined(first);
-      assert.isDefined(second);
-      if (first === undefined || second === undefined) return;
-      // Enumerable, so the log's copy of the record reads it and throws.
-      Object.defineProperty(first, "trap", {
-        enumerable: true,
-        get: (): unknown => {
-          throw new Error("append trap");
-        },
-      });
-
-      const log = yield* makeDecisionLog({ environment: "test" });
-      const logs = collectingLogger();
-      yield* log.ingest(first).pipe(Effect.provide(logs.layer));
-      const line = assertOneLine(logs.lines, "append trap");
-      assert.strictEqual(String(line?.message), "qadi: a decision log's append half failed");
-      assert.strictEqual((yield* log.snapshot).length, 0);
-
-      yield* log.ingest(second).pipe(Effect.provide(logs.layer));
-      assert.strictEqual(logs.lines.length, 1);
-      assert.strictEqual((yield* log.snapshot).length, 1);
     }).pipe(Effect.provide(testLayer(allowed))));
 });
 

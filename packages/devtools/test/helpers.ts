@@ -24,7 +24,7 @@ import {
   MissingResource,
   ObligationRecord,
   permission,
-  stampRecord,
+  StoredRecord,
 } from "@qadi/core";
 import type {
   AllowingTrace,
@@ -32,7 +32,6 @@ import type {
   EvaluationError,
   ObligationOutcome,
   Policy,
-  StoredRecord,
 } from "@qadi/core";
 
 export const read = permission("doc", "read");
@@ -104,8 +103,9 @@ export const decisionRecord = (options?: {
   readonly cache?: DecisionRecord["cache"];
   readonly outcome?: DecisionRecord["outcome"];
 }): StoredRecord =>
-  stampRecord(
-    new DecisionRecord({
+  new StoredRecord({
+    environment: options?.environment ?? "Server",
+    record: new DecisionRecord({
       evaluationId: options?.evaluationId ?? "ev-1",
       at: options?.at ?? 1_000,
       subjectId: makeSubjectId(options?.subjectId ?? "alice"),
@@ -116,8 +116,7 @@ export const decisionRecord = (options?: {
       outcome:
         options?.outcome ?? new Decided({ decision: allow({ evaluationId: options?.evaluationId ?? "ev-1" }) }),
     }),
-    options?.environment ?? "Server",
-  );
+  });
 
 /** A `Decision` record whose evaluation broke. Not a denial — INV-QD-006. */
 export const failedRecord = (options?: {
@@ -147,8 +146,9 @@ export const obligationRecord = (options?: {
   readonly action?: string;
   readonly resourceId?: string;
 }): StoredRecord =>
-  stampRecord(
-    new ObligationRecord({
+  new StoredRecord({
+    environment: options?.environment ?? "Server",
+    record: new ObligationRecord({
       evaluationId: options?.evaluationId ?? "ev-1",
       at: options?.at ?? 1_001,
       outcome: options?.outcome ?? "Discharged",
@@ -157,8 +157,7 @@ export const obligationRecord = (options?: {
       ...(options?.action === undefined ? {} : { action: options.action }),
       ...(options?.resourceId === undefined ? {} : { resourceId: makeResourceId(options.resourceId) }),
     }),
-    options?.environment ?? "Server",
-  );
+  });
 
 // ---------------------------------------------------------------------------
 // ARCH-02 — chain builder

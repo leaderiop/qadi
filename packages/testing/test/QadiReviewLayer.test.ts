@@ -52,8 +52,8 @@ describe("qadiReviewLayer", () => {
       }).pipe(Effect.provide(review));
       yield* underReview.pipe(Effect.provide(Layer.merge(log.layer, decisionCacheLayer())));
 
-      const answers = (yield* log.snapshot).map((record) =>
-        record._tag === "Decision" ? record.cache : undefined,
+      const answers = (yield* log.snapshot).map((stored) =>
+        stored.record._tag === "Decision" ? stored.record.cache : undefined,
       );
       assert.deepStrictEqual(answers, ["miss", "hit"]);
     }));

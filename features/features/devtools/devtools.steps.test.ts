@@ -29,9 +29,9 @@ import {
   ObligationRecord,
   permission,
   role,
-  stampRecord,
+  StoredRecord,
 } from "@qadi/core";
-import type { AllowingTrace, DenyingTrace, StoredRecord } from "@qadi/core";
+import type { AllowingTrace, DenyingTrace } from "@qadi/core";
 import {
   countsOf,
   emptyTimeline,
@@ -97,18 +97,18 @@ const buildDecision = (at: number, allowed: boolean, evaluationId?: string): Dec
 };
 
 const decisionAt = (at: number, environment: string, allowed: boolean): StoredRecord =>
-  stampRecord(buildDecision(at, allowed), environment);
+  new StoredRecord({ environment, record: buildDecision(at, allowed) });
 
 const obligationAt = (outcome: string, at: number, evaluationId: string): StoredRecord =>
-  stampRecord(
-    new ObligationRecord({
+  new StoredRecord({
+    environment: "Server",
+    record: new ObligationRecord({
       evaluationId,
       at,
       outcome: outcome === "Refused" ? "Refused" : "Discharged",
       obligationIds: ["audit.log"],
     }),
-    "Server",
-  );
+  });
 
 interface DevtoolsWorldState {
   readonly timeline: Timeline;
@@ -190,7 +190,7 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
         // Not a `Deny` with a reason: a lookup broke, so there is no verdict.
         outcome: new Failed({ error: new MissingResource({ attribute: "doc.ownerId" }) }),
       });
-      yield* accept(stampRecord(record, environment));
+      yield* accept(new StoredRecord({ environment, record }));
     },
   );
 
@@ -202,14 +202,14 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
   Given(
     "the same evaluation re-checked at {int} on {string}",
     function* (at: number, environment: string) {
-      yield* accept(stampRecord(buildDecision(at, true, "ev-100"), environment));
+      yield* accept(new StoredRecord({ environment, record: buildDecision(at, true, "ev-100") }));
     },
   );
 
   Given(
     "the same evaluation denied at {int} on {string}",
     function* (at: number, environment: string) {
-      yield* accept(stampRecord(buildDecision(at, false, "ev-100"), environment));
+      yield* accept(new StoredRecord({ environment, record: buildDecision(at, false, "ev-100") }));
     },
   );
 
@@ -241,7 +241,7 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
         policy,
         outcome: new Decided({ decision }),
       });
-      yield* accept(stampRecord(record, "Server"));
+      yield* accept(new StoredRecord({ environment: "Server", record }));
     },
   );
 

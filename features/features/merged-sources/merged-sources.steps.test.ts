@@ -33,9 +33,9 @@ import {
   makeSubject,
   ObligationRecord,
   permission,
-  stampRecord,
+  StoredRecord,
 } from "@qadi/core";
-import type { Decision, StoredRecord } from "@qadi/core";
+import type { Decision } from "@qadi/core";
 import { emptyTimeline, ingestAll, mergeSources, pairedEntries, sourceFromRecords } from "@qadi/devtools";
 import type { Source } from "@qadi/devtools";
 
@@ -59,15 +59,15 @@ const futureOnly = (records: ReadonlyArray<StoredRecord>): Source => ({
 });
 
 const stamped = (at: number, environment: string): StoredRecord =>
-  stampRecord(
-    new ObligationRecord({
+  new StoredRecord({
+    environment,
+    record: new ObligationRecord({
       evaluationId: `ev-${at}`,
       at,
       outcome: "NotRequired",
       obligationIds: [],
     }),
-    environment,
-  );
+  });
 
 /** One real evaluation, recorded by its own decision log, and the log's snapshot. */
 const decideInto = (
@@ -257,7 +257,7 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
     "the merged rows are ordered {int}, {int}, {int}",
     function* (a: number, b: number, c: number) {
       assert.deepEqual(
-        (yield* past()).map((record) => record.at),
+        (yield* past()).map((stored) => stored.record.at),
         [a, b, c],
       );
     },

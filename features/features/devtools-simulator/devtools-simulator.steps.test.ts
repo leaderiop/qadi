@@ -40,7 +40,7 @@ import {
   makeSubjectId,
   ObligationRecord,
   permission,
-  stampRecord,
+  StoredRecord,
   portsLayer,
   scriptedPort,
   PortReply,
@@ -49,7 +49,7 @@ import {
   decisionHistoryPort,
   signatureHistoryPort,
 } from "@qadi/core";
-import type { AllowingTrace, DecisionLog, DecisionOutcome, Policy, StoredRecord } from "@qadi/core";
+import type { AllowingTrace, DecisionLog, DecisionOutcome, Policy } from "@qadi/core";
 import {
   catalogueOf,
   emptyTimeline,
@@ -181,8 +181,9 @@ const decided = (self: DecisionOutcome | undefined) => {
 /** One logged allow, decided at `at`, against `policy`. */
 const decisionAt = (at: number, policy: Policy): StoredRecord => {
   const evaluationId = `ev-${at}`;
-  return stampRecord(
-    new DecisionRecord({
+  return new StoredRecord({
+    environment: "Server",
+    record: new DecisionRecord({
       evaluationId,
       at,
       subjectId: makeSubjectId("alice"),
@@ -196,8 +197,7 @@ const decisionAt = (at: number, policy: Policy): StoredRecord => {
         }),
       }),
     }),
-    "Server",
-  );
+  });
 };
 
 const entryOf = (record: StoredRecord): TimelineEntry => {
@@ -364,7 +364,7 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
           }),
         }),
       });
-      yield* patch(() => ({ entry: entryOf(stampRecord(record, "Server")) }));
+      yield* patch(() => ({ entry: entryOf(new StoredRecord({ environment: "Server", record })) }));
     },
   );
 
@@ -375,15 +375,15 @@ describeFeature(feature, World.layer, ({ Before, Given, When, Then }) => {
     Given("a logged obligation outcome {string} with no decision", function* (evaluationId: string) {
     yield* patch(() => ({
       entry: entryOf(
-        stampRecord(
-          new ObligationRecord({
+        new StoredRecord({
+          environment: "Server",
+          record: new ObligationRecord({
             evaluationId,
             at: 1_000,
             outcome: "Discharged",
             obligationIds: ["audit"],
           }),
-          "Server",
-        ),
+        }),
       ),
     }));
   });

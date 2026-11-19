@@ -26,8 +26,7 @@ import * as FastCheck from "fast-check";
 import { isAllowed } from "../src/Decision.ts";
 import { DEFAULT_LOG_CAPACITY, makeDecisionLog } from "../src/DecisionLog.ts";
 import type { DecisionLog } from "../src/DecisionLog.ts";
-import { ObligationRecord, StoredDecisionRecord, StoredObligationRecord } from "../src/DecisionRecord.ts";
-import type { StoredRecord } from "../src/DecisionRecord.ts";
+import { DecisionRecord, ObligationRecord, StoredRecord } from "../src/DecisionRecord.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import * as M from "../src/Matcher.ts";
 import { permission } from "../src/Permission.ts";
@@ -49,7 +48,7 @@ const yieldTimes = (n: number) =>
 const obligations = (evaluationId: string, at = 1) =>
   new ObligationRecord({ evaluationId, at, outcome: "Discharged", obligationIds: ["o"] });
 
-const ids = (records: ReadonlyArray<StoredRecord>) => records.map((record) => record.evaluationId);
+const ids = (records: ReadonlyArray<StoredRecord>) => records.map((stored) => stored.record.evaluationId);
 
 /** The next `n` live records, read from a stream whose records are already published. */
 const takeLive = (live: Stream.Stream<StoredRecord>, n: number) =>
@@ -66,8 +65,9 @@ describe("makeDecisionLog — stores, stamps, bounds", () => {
       assert.strictEqual(stored.length, 1);
       const first = stored[0];
       assert.strictEqual(first?.environment, "Server");
-      assert.instanceOf(first, StoredDecisionRecord);
-      if (first?._tag === "Decision") assert.strictEqual(first.outcome._tag, "Decided");
+      assert.instanceOf(first, StoredRecord);
+      assert.instanceOf(first?.record, DecisionRecord);
+      if (first?.record._tag === "Decision") assert.strictEqual(first.record.outcome._tag, "Decided");
     }).pipe(Effect.provide(testLayer(allowed))));
 
   it.effect("drops the oldest arrival once capacity is reached", () =>
@@ -123,8 +123,8 @@ describe("makeDecisionLog — stores, stamps, bounds", () => {
       );
 
       const first = (yield* log.snapshot)[0];
-      assert.strictEqual(first?._tag, "Decision");
-      if (first?._tag === "Decision") assert.strictEqual(first.outcome._tag, "Failed");
+      assert.strictEqual(first?.record._tag, "Decision");
+      if (first?.record._tag === "Decision") assert.strictEqual(first.record.outcome._tag, "Failed");
     }).pipe(
       Effect.provide(testLayer(subjectWith({}), { AttributeResolver: brokenAttributes })),
     ));
@@ -340,7 +340,7 @@ describe("makeDecisionLog — the handoff between backlog and live (C9)", () => 
                 if (signal !== undefined) yield* Deferred.succeed(signal, undefined);
                 yield* writesDone.await;
                 const live = yield* Stream.runCollect(
-                  Stream.takeUntil(reader.live, (record) => record.evaluationId === "sentinel"),
+                  Stream.takeUntil(reader.live, (stored) => stored.record.evaluationId === "sentinel"),
                 );
                 return [...ids(reader.backlog), ...ids(Array.from(live))];
               }),
@@ -376,7 +376,8 @@ describe("makeDecisionLog — ingest (C10)", () => {
           const reader = yield* log.read;
           yield* log.ingest(obligations("edge-1"), "Edge");
           const [first] = yield* takeLive(reader.live, 1);
-          assert.instanceOf(first, StoredObligationRecord);
+          assert.instanceOf(first, StoredRecord);
+          assert.instanceOf(first?.record, ObligationRecord);
           assert.strictEqual(first?.environment, "Edge");
         }),
       );
@@ -402,7 +403,8 @@ describe("makeDecisionLog — ingest (C10)", () => {
       const log = yield* makeDecisionLog({ environment: "Server" });
       yield* log.ingest(obligations("x"));
       const [stored] = yield* log.snapshot;
-      assert.instanceOf(stored, StoredObligationRecord);
+      assert.instanceOf(stored, StoredRecord);
+      assert.instanceOf(stored?.record, ObligationRecord);
       assert.strictEqual(typeof stored?.pipe, "function");
     }));
 });
@@ -470,7 +472,7 @@ describe("makeDecisionLog — cursors and resume (D-11-g)", () => {
           const next = Array.from(yield* Stream.runCollect(Stream.take(live, 1)));
           assert.deepStrictEqual(seqs(backlog), [1, 2]);
           assert.deepStrictEqual(seqs(next), [3]);
-          assert.strictEqual(next[0]?.record.evaluationId, "c");
+          assert.strictEqual(next[0]?.record.record.evaluationId, "c");
         }),
       );
     }));
@@ -484,7 +486,7 @@ describe("makeDecisionLog — cursors and resume (D-11-g)", () => {
       assert.isDefined(second);
 
       const resumed = yield* Effect.scoped(log.readEntries(second));
-      assert.deepStrictEqual(resumed.backlog.map((entry) => entry.record.evaluationId), ["c", "d"]);
+      assert.deepStrictEqual(resumed.backlog.map((entry) => entry.record.record.evaluationId), ["c", "d"]);
 
       // Resuming from the newest record misses nothing and repeats nothing.
       const last = all.backlog[3]?.cursor;

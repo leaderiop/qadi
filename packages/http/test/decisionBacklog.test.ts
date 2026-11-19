@@ -107,7 +107,7 @@ describe("/__decisions/backlog", () => {
       assert.isTrue(decoded.every(Result.isSuccess));
       // In `storedRecordOrder`, each with its producer's label.
       assert.deepStrictEqual(
-        decoded.map((r) => (Result.isSuccess(r) ? `${r.success.evaluationId}@${r.success.environment}` : "")),
+        decoded.map((r) => (Result.isSuccess(r) ? `${r.success.record.evaluationId}@${r.success.environment}` : "")),
         ["edge-1@Edge", "srv-1@Server"],
       );
     }));
