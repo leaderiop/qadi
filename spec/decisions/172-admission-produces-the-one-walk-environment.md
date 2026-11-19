@@ -210,7 +210,7 @@ no-coverage mutants (D-15). The numbers are those of `59-mutation-base.json` and
 | ---- | ---- | ----- |
 | `Admission.ts` | 1 (6/6) | 1 (15/15) |
 | `Predicate.ts` | 1 (284/284) | 1 (280/280) |
-| `Walk.ts` | 0.9498 (265/279) | 0.9524 (260/273) |
+| `Walk.ts` | 0.9498 (265/279) | 0.9560 (261/273) |
 
 Detected counts fell only where killed mutants moved out with deleted or rewritten code, and every lost killed mutant has
 its source line absent from the after file. `Walk.ts` lost 40 detected mutants (10 on deleted lines, 30 on rewritten ones) and gained 35 on the rewritten lines; `Predicate.ts` lost 7 (6 deleted,
@@ -226,6 +226,14 @@ detected at the base as a Stryker timeout, survived the first after-run. `WalkDe
 guard by entering `evaluateNode` directly with an environment one level past its bound; the guard is kept as defence in
 depth, not deleted (Decision 6). The after-run was repeated once on that tree, and the base's `{ maxDepth }` no-coverage
 literal on the same line is now covered and killed. The comparison printed `WX-05 holds (D-15)`.
+
+**The review round.** Code review found that a `"row"` environment typechecked as the walk's, and that `Admitted` no
+longer carried the policy it admitted (`59-REVIEW.md`, WR-01 and WR-02). Fix `4da12142` closed both; see Decision 3. The
+after-run and the static-evidence run were then repeated on the fixed tree, and the table above is that run. `Admission.ts`
+and `Predicate.ts` are unchanged at 15/15 and 280/280, and `Walk.ts` rose to 261 of 273. The fix restored the base's own
+`compileTree(admitted.success)` call, which `59-mutation.mjs` had declared deleted. With the owner's approval, that one
+fragment was dropped from the declaration (`0a7710d0`), and the phase scan accepts exactly that one amendment. The
+comparison then printed `WX-05 holds (D-15)` again.
 
 ## Consequences
 
