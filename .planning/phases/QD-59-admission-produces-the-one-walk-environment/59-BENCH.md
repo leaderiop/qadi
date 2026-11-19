@@ -219,3 +219,15 @@ Decision statistic: median of per-run minima (ns). Delta is final over base.
 | evaluate — rules DenyOverrides 8, concurrency :: concurrency: unbounded | 9,958 | 10,417 | +4.6% | 5.0% | 10.0% | ok |
 | filter — 500 items, concurrency :: concurrency: unbounded | 4,331,792 | 4,324,042 | -0.2% | 5.3% | 10.0% | ok |
 | filter — 500 items, concurrency :: sequential (default) | 4,297,666 | 4,212,459 | -2.0% | 0.4% | 10.0% | ok |
+
+## After-fix run (review round)
+
+The review-fixed source (`4da12142`) against `phase_base` with the same harness, in its own directory so the after-run above stands as it was: `bench/ab.sh bench/after-fix/to-base.patch bench/after-fix 3 final base`, interleaved 3 + 3. The load before the run was ``. The analysis's summary lines, copied from `bench/after-fix/analysis.tsv`:
+
+```
+# workloads: 35
+# slower: 0
+# geomean_d_min_pct: 0.90
+# worst_d_min: 7.5 evaluate — width scaling :: width 32
+# gate: pass
+```

@@ -233,7 +233,10 @@ after-run and the static-evidence run were then repeated on the fixed tree, and 
 and `Predicate.ts` are unchanged at 15/15 and 280/280, and `Walk.ts` rose to 261 of 273. The fix restored the base's own
 `compileTree(admitted.success)` call, which `59-mutation.mjs` had declared deleted. With the owner's approval, that one
 fragment was dropped from the declaration (`0a7710d0`), and the phase scan accepts exactly that one amendment. The
-comparison then printed `WX-05 holds (D-15)` again.
+comparison then printed `WX-05 holds (D-15)` again. Because the fix changed source, the after-bench was measured again on the fixed tree. It ran in its own directory,
+`bench/after-fix/`, so the after-run stands as it was. Against the phase base, 3 + 3 interleaved, with the 1-minute load
+at 24 at its start: slower 0 of 35; geomean of minima +0.90%; worst +7.5% (evaluate — width scaling :: width 32), inside
+its 10% band; **gate: pass**.
 
 ## Consequences
 
