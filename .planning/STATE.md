@@ -5,16 +5,16 @@ milestone_name: Arch Wave 11
 current_phase: 57
 current_phase_name: untrustedDecoder states the envelope's unknown-key policy
 status: executing
-stopped_at: Completed 57-07-PLAN.md
-last_updated: "2026-11-19T00:01:34.956Z"
+stopped_at: Completed 57-08-PLAN.md
+last_updated: "2026-11-19T00:05:48.042Z"
 last_activity: 2026-11-18
 last_activity_desc: Phase 56 complete, transitioned to Phase 57
-state_head: 03374795a91f06774f660768b6b3e9001b9f9fda
+state_head: f4245b39686e280e9511903737c24882f7b67d3c
 progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 49
-  completed_plans: 45
+  completed_plans: 46
   percent: 44
 ---
 
@@ -375,6 +375,7 @@ Last activity: 2026-11-18 — Phase 56 complete, transitioned to Phase 57
 | Phase QD-57 P05 | 22 min | 3 tasks | 13 files |
 | Phase QD-57 P06 | 12min | 2 tasks | 6 files |
 | Phase QD-57 P07 | 25min | 2 tasks | 3 files |
+| Phase QD-57 P08 | 10 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -643,6 +644,7 @@ Last activity: 2026-11-18 — Phase 56 complete, transitioned to Phase 57
 - [Phase QD-57]: 57-05: untrustedDecoder requires unknownKeys (refuse|ignore), read through a closed PROJECTION table; the record wire ignores, every other seam refuses; declared keys derived from SchemaAST.toEncoded in EnvelopeKeys.ts
 - [Phase QD-57]: 57-06: checkVersion reads version via an inline own-property descriptor so ownValue is deleted from SinkCodec.ts
 - [Phase QD-57]: 57-07: the five EnvelopeKeys.ts survivors were closed with tests U17..U19, never a rewrite or re-baseline; WX-05 holds (D-12)
+- [Phase QD-57]: ADR-QD-170 records the unknown-key policy (D-01, D-16..D-20) and amends ADR-QD-096 (Rev 1.6) and ADR-QD-143 (Rev 1.4); D-09 hydration report left as not acted on
 
 ### Pending Todos
 
@@ -702,8 +704,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-19T00:01:34.795Z
-Stopped at: Completed 57-07-PLAN.md
+Last session: 2026-11-19T00:05:47.874Z
+Stopped at: Completed 57-08-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
