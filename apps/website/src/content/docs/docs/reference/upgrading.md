@@ -964,3 +964,57 @@ Two answers widen. A record, and so an audit row or an archive entry that carrie
 An `environment` nested past the decode bound is now `TooDeep`, where it was `Malformed`. A caller that matches `_tag` is unaffected; a caller that matched on a message reads the new ones.
 
 The decision is [ADR-QD-170](https://github.com/leaderiop/qadi/blob/main/spec/decisions/170-an-envelope-states-its-unknown-key-policy-at-its-decoder.md).
+
+## 0.13: a stored record is its envelope in memory
+
+`@qadi/core`'s stored record is now the envelope the wire already had, `{ environment, record }`, as one class, `StoredRecord`. It was the record's own fields with the environment stamped beside them, as `StoredDecisionRecord` and `StoredObligationRecord` (the `Stamped` intersection) built by `stampRecord`, and a consumer narrowed on `stored._tag` and read `stored.evaluationId` as if the stamp were part of the record. The record is now held whole, by reference, under `stored.record`. Those four names are removed, with no alias, and the wire is unchanged byte for byte. Three migrations cover every use:
+
+- `record.environment` becomes `stored.environment`.
+- `stored._tag`, `stored.evaluationId` and every other record field become `stored.record._tag`, `stored.record.evaluationId`, and so on.
+- `stampRecord(r, e)` becomes `new StoredRecord({ environment: e, record: r })`.
+
+Before:
+
+```ts
+import { stampRecord, storedRecordOrder } from "@qadi/core";
+
+const stored = stampRecord(record, "Server");
+const kind = stored._tag;
+const where = stored.environment;
+const ordered = [a, b].toSorted(storedRecordOrder);
+```
+
+After:
+
+```typescript
+import { ObligationRecord, StoredRecord, storedRecordOrder } from "@qadi/core";
+
+const record = new ObligationRecord({
+  evaluationId: "e1",
+  at: 1,
+  outcome: "Discharged",
+  obligationIds: ["audit.log"],
+});
+const stored = new StoredRecord({ environment: "Server", record });
+const later = new StoredRecord({
+  environment: "Server",
+  record: new ObligationRecord({
+    evaluationId: "e2",
+    at: 2,
+    outcome: "Discharged",
+    obligationIds: ["audit.log"],
+  }),
+});
+
+export const kind = stored.record._tag;
+export const where = stored.environment;
+export const ordered = [later, stored].toSorted(storedRecordOrder);
+```
+
+There are now two orders, one per thing held. `storedRecordOrder` orders `StoredRecord`s and `sinkRecordOrder`, a new export, orders bare records by the same rule, for a reader that holds records without an environment, such as an archive's entries. `storedRecordOrder` reads the record each envelope holds, so the order a sorted log gives is unchanged.
+
+The decision log's two warnings, `qadi: a decision log's append half failed` and its publish twin, are gone: a defect in either half now propagates, and the sink emitter reports it once, as it reports any sink's. A log query that filtered on either message reads the emitter's report instead.
+
+`@qadi/http`'s routes take a `DecisionLogReader` whose element type is `StoredRecord`, so a reader built from flat records no longer typechecks; no `@qadi/http` source changed and the routes write the same bytes. `@qadi/devtools`' `ingest` takes the envelope, and a `Source`'s backlog and live stream carry envelopes, so code that built a flat record for them builds `new StoredRecord({ environment, record })`.
+
+The decision is [ADR-QD-171](https://github.com/leaderiop/qadi/blob/main/spec/decisions/171-a-stored-record-is-its-envelope-in-memory-too.md).
