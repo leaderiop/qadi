@@ -1,8 +1,8 @@
 ---
 phase: QD-61-decisioncache-is-asked-only-the-question
-reviewed: 2026-11-19T21:09:06Z
+reviewed: 2026-11-19T21:18:37Z
 depth: standard
-iteration: 2
+iteration: 3
 files_reviewed: 18
 files_reviewed_list:
   - packages/core/src/DecisionCache.ts
@@ -26,130 +26,91 @@ files_reviewed_list:
 findings:
   critical: 0
   warning: 0
-  info: 3
-  total: 3
+  info: 0
+  total: 0
   necessity: 0
-status: issues_found
+status: clean
 ---
 
-# Phase 61: Code Review Report (iteration 2)
+# Phase 61: Code Review Report (iteration 3)
 
-**Reviewed:** 2026-11-19T21:09:06Z
+**Reviewed:** 2026-11-19T21:18:37Z
 **Depth:** standard
-**Files Reviewed:** 18. These are the files in `git diff 7d2d281d HEAD` that the brief scoped. Callees I read for behaviour: `Handover.ts` (`verdictOf`, `resourceFree`, `decidedOn`), `Qadi.ts` (`admittedOrDenied` and its five call sites), `Evaluate.ts:34` and `Lifecycle.ts` (`ask`).
-**Status:** issues_found (Info only)
+**Files Reviewed:** 18. This is the same scope as `61-REVIEW.iter2.md`, from `git diff 7d2d281d HEAD`. Callees I read for behaviour: `Handover.ts` (`EnforceOptions`, `HandoverOptions`, `verdictOf`, `resourceFree`, `decidedOn`, `handOver`), `Qadi.ts` (`admittedOrDenied` and its `decidedOn` call sites at `:187,211,277`), `Evaluate.ts:34`, `Lifecycle.ts` (`decideQuestion`, `ask`) and `Question.ts` (`QuestionOptions`, `EvaluateOptions`).
+**Status:** clean
 
 ## Summary
 
-**Iteration 1's eight findings.** All eight are fixed correctly. IN-03 was fixed through its comment only, which the finding allowed.
+**Iteration 2's three findings.** `b2a808fd` fixes all three correctly and adds no new problem. The two commits after it (`3b9dff38`, `a63599c1`) touch only planning artifacts.
 
 | Finding | Verdict | Evidence |
 | ------- | ------- | -------- |
-| WR-01 | Fixed | `DecisionCache.ts:43-45` now names `decisionCacheLayer`, and `Lifecycle.ts:86-91` says a host cache must answer for the question it is handed (BEH-QD-645). |
-| WR-02 | Fixed | The cited title matches `DecisionCache.test.ts:805` verbatim. |
-| WR-03 | Fixed | The ADR, the CCR-QD-452 row and the upgrade note now tell the implementer (TS2345/TS2322) apart from the caller (TS2559/TS2554). My probes confirm all four codes (below). IN-02 below records one implementer form the list leaves out. |
-| IN-01 | Fixed, with an inaccuracy | `DecisionCache.ts:56-60`. See IN-01 below. |
-| IN-02 | Fixed | See point 1 below. |
-| IN-03 | Fixed in the comment only | `DecisionCache.test.ts:1249` now names `Walk.ts` changes. The bound is still 48, so a future `Walk.ts` change can still turn the test red on `oneSided` with no cache bug present. This was accepted, so it is not a new finding. |
-| IN-04 | Fixed | `Question.ts:68-69`. |
-| IN-05 | Fixed | See point 5 below. |
+| IN-01 | Fixed | `DecisionCache.ts:56-62` now reads "the options object the decision was asked with, passed through by reference with no copy per lookup", and names `onObligations` on the enforcing entry points. This is accurate on both routes. On `evaluate`/`decide`, `ask` receives the caller's object and hands it to `decideQuestion`, which hands it to `getOrCompute` (`Lifecycle.ts:123,204`). On `verdictOf`, `ask(policy, options)` receives an `EnforceOptions`, which carries `onObligations` (`Handover.ts:92,210`). On the value-handing entry points, that object is `decidedOn`'s spread (`Handover.ts:240-243`). It is built once per call, before `ask`, so it is "the options object the decision was asked with" and not a copy per lookup. The upgrade note (`upgrading.md:1071`) gained the matching sentence. |
+| IN-02 | Fixed | ADR-QD-174 Consequences (`:72-73`), its Rev 1.2 Change History, the CCR-QD-452 row and the upgrade note (`:1073`) all name TS2416 for a class-based implementer. I re-probed it in `scratchpad/r3/p.ts` with `tsc`. A class with a method-shorthand `getOrCompute(_q, compute: Effect…)` and a class with an arrow-property `getOrCompute = (…) =>` **both** give `TS2416` at the member. "At the method" therefore holds for either form. |
+| IN-03 | Fixed | The CCR-QD-452 row ends with "with comment-only edits to `packages/core/src/EvaluationMetrics.ts` and `packages/devtools/test/react/Simulator.test.tsx`". `git diff 7d2d281d HEAD` on both files shows only JSDoc and comment lines changed. |
 
-**The brief's points:**
+**The brief's focus.**
 
-1. **The IN-02 test** (`Lifecycle.test.ts:64-88`).
-   - It pins identity. `ask` hands the same object to `questionOf` and to `decideQuestion` (`Lifecycle.ts:203-204`), and `decideQuestion` hands it to `getOrCompute` (`:123`).
-   - The test holds that object and asserts `strictEqual(seen[0], options)`.
-   - It catches every mutant that breaks the pass-through:
-     - `{ concurrency: options?.concurrency }`, or any spread, is a new reference, so the test goes red;
-     - dropping the argument gives `undefined`, which also fails;
-     - a second lookup is caught by `seen.length === 1`.
-   - It is deterministic: one fiber, no clock, no race. I ran it three times in isolation, and it passed each time.
-   - It pins `ask` and `decideQuestion`, not `evaluate`. `Evaluate.ts:34` is a pass-through that this phase did not touch, so that is fine.
-2. **The TS codes**, probed with `tsc` in `scratchpad/r2/p.ts` against the real `src`:
-   - The upgrade note's "Before", verbatim, gives TS2345 (`p.ts:11`).
-   - `compute` annotated as an `Effect` inside `Layer.succeed` gives TS2322 (`:17`).
-   - The same inside `DecisionCache.of` gives TS2345 (`:24`).
-   - A class that `implements DecisionCacheShape` gives **TS2416** (`:30`), a code no document names (IN-02).
-   - A caller passing a `compute` gives TS2559 (`:39`), and so does a thunk (`:40`). A third argument gives TS2554 (`:41`).
-   - Every code the documents cite is real and attributed to the right party.
-3. **The IN-01 doc.** Its rule is right: an implementation reads only `concurrency`. Nothing contradicts it: BEH-QD-644 and ADR-QD-174 decision 4 say the same pass-through, and INV-QD-367 and BEH-QD-641 are statements about the type. Its facts are incomplete, though (IN-01).
-4. **Leftover over-promises.** I found none. Every "walks the question it is given" is now scoped to `decisionCacheLayer`:
-   - the changeset, the upgrade note, the ADR-QD-031 amendment, INV-QD-368, BEH-QD-642 and the interface doc;
-   - BEH-QD-166's note, which is about `decisionCacheLayer`'s capacity;
-   - BEH-QD-190's note, about `clear`, which holds for a host cache that wraps core's.
+1. **Do the four documents agree with each other and with the code?** Yes.
+   - **The rule.** All four say `options` is `Pick<EvaluateOptions, "concurrency">`, and that it reaches the walk, never the key:
+     - the cache's options doc (`DecisionCache.ts:43-62`);
+     - the 0.13 upgrade note;
+     - ADR-QD-174 decisions 1, 3 and 4 and its Consequences;
+     - the CCR-QD-452 row.
 
-   "No caller can …" is a claim about callers, as D-02 requires. A repo-wide grep finds no stale `getOrCompute(question, compute)` outside CHANGELOG history and the untracked `coverage/` HTML.
-5. **`EvaluationMetrics.ts`.**
-   - `git diff -U0` shows only lines 178-179 changed, and both are inside the JSDoc.
-   - `description: "DecisionCache.getOrCompute lookups, by outcome (hit / coalesced / miss)."` (`:187`) is unchanged, and it still matches `EvaluationMetrics.test.ts:91,210`.
-6. **House rules.** I scanned every added line under `packages/`.
-   - The only `as` hits are `as const` (`DecisionCache.test.ts`, exempt).
-   - Every `any` and `await` hit is in a comment, or is `Deferred.await`.
-   - There is no `!`, `switch`, `fnUntraced`, `async` or `Record<string, unknown>`.
-   - Every relative import carries `.ts`.
+     The code matches: `shared.run(key, walk(key, options?.concurrency))` (`DecisionCache.ts:294-298`), and with no cache wired, `walk(question, options?.concurrency)` (`Lifecycle.ts:124`).
+   - **The pass-through.** The documents describe it in three ways, and none contradicts the others or the code:
+     - ADR decision 4: "passes its own options object through … never builds an options value per lookup";
+     - the doc: "no copy per lookup";
+     - the note: "the options object the decision was asked with, passed through without a copy".
+   - **The extra keys.** The doc lists `resource`, `action`, `maxDepth`, `evaluationId` and `onObligations`. These are every key in `QuestionOptions`, `EvaluateOptions` and `EnforceOptions` except `concurrency` (`Question.ts:29-75`, `Handover.ts:87-93`). `HandoverOptions` only removes `resource` from that set, and `decidedOn` writes it back.
+   - **The TS codes.** All four documents give the same codes:
+     - for an implementer: TS2345 (runs `compute`), TS2322 (annotates it) and TS2416 (a class);
+     - for a caller: TS2559 (passes a `compute` or a thunk) and TS2554 (passes a third argument).
+
+     The changeset names no codes, which is consistent.
+   - **BEH-QD-644's test title.** It still reads "the caller's own options object". That is `ask`'s caller, and the test calls `ask` directly. It agrees with the reworded doc.
+2. **Are the CCR row's cited revisions current?** Yes. Each matches its document's `| Revision` header today:
+
+   | Document | Revision |
+   | -------- | -------- |
+   | ADR-QD-174 | 1.2 |
+   | ADR-QD-031 | 1.3 |
+   | ADR-QD-132 | 1.2 |
+   | `21-decision-cache.md` | 1.11 |
+   | `25-inspection.md` | 1.40 |
+   | `invariants.md` | 1.160 |
+   | `traceability.md` | 1.223 |
+   | `spec/README.md` | 1.258 |
+
+   `b2a808fd` bumped only ADR-QD-174 (1.1 to 1.2) and README (1.257 to 1.258). The row and both Change History entries were updated together.
+3. **The whole phase diff.** No Critical or Warning issue remains.
+   - The only code change in shipped source is still the signature and adapter in `DecisionCache.ts`, plus the `getOrCompute(question, options)` call site in `Lifecycle.ts`.
+   - Every other `src` delta is a comment.
+   - D-01..D-15 hold:
+     - the name stays;
+     - `walk` stays out of the barrel;
+     - `concurrency` stays out of the key;
+     - no options literal is built per lookup;
+     - none of the house-style tokens that D-09 forbids appear in added lines.
 
 **What I ran:**
-- `vitest --project core` on `DecisionCache.test.ts` and `Lifecycle.test.ts`: 45 of 45 pass.
+- `vitest --project core` on `DecisionCache.test.ts`, `Lifecycle.test.ts` and `Question.test.ts`: 55 of 55 pass.
 - `tstyche DecisionCache.tst.ts`: 4 tests, 9 assertions, and 1 suppression matched.
-- The `tsc` probe above.
+- The `tsc` probe above (`scratchpad/r3/p.ts`): TS2416 for both class forms.
 
 **What I did not run:** Stryker, `check:pr`, `pnpm check`, and the website and spec gates.
+
+**Not counted as a finding.** `b2a808fd` lengthened the hand-wrapped ADR-QD-174 Consequences line 73 to 189 columns. That is cosmetic, and AGENTS.md §17 keeps formatting out of the gate.
 
 I read `necessity-review.md`. No finding qualifies.
 
 ## Narrative Findings (AI reviewer)
 
-## Info
-
-### IN-01: The IN-01 doc's list of extra keys is incomplete, and on the value-handing entry points the object is not literally "the caller's own"
-
-**File:** `packages/core/src/DecisionCache.ts:56-60`; also `apps/website/src/content/docs/docs/reference/upgrading.md:1067`
-
-**Issue:**
-- The doc says `options` "may carry more keys than this type names: `resource`, `action`, `maxDepth`, `evaluationId`".
-- Every enforcing entry point decides through `verdictOf` (`Handover.ts:201-210`), which calls `ask(policy, options)` with an `EnforceOptions`. So the cache also receives **`onObligations`**, the host's obligation handler (`Handover.ts:92`). `Qadi.ts:101,123,155,187,211` all take this route.
-- On `guard`/`filter`-style entry points, the object is `decidedOn(options, value)` (`Handover.ts:240-243`, used at `:288` and `Qadi.ts:187,211`). That is a fresh spread core builds per call, with `resource` replaced by the handed-over value. It is not "the caller's own options object". It is still built once per call and never per lookup, so D-11 and D-14 hold, and ADR-QD-174 decision 4 and BEH-QD-644 are about `decideQuestion` and stay true.
-- The upgrade note is the page a host implementer actually migrates from. It describes `options` only as `{ concurrency? }` and omits the runtime caveat.
-- The rule ("reads only `concurrency`, does not log or retain the rest") already covers every case, so this is Info, not a doc that lies about behaviour.
-
-**Fix:**
-```ts
-   * At runtime `options` is whatever options object `decideQuestion` was handed,
-   * passed through by reference with no copy (ADR-QD-174 decision 4): it may carry
-   * more keys than this type names, among them `resource`, `action`, `maxDepth`,
-   * `evaluationId` and, from an enforcing entry point, `onObligations`.
-   * An implementation reads only `concurrency`, and does not log or retain the rest.
-```
-Add one sentence to the 0.13 upgrade note: "At runtime `options` may carry the rest of the caller's options; read only `concurrency`."
-
-### IN-02: A class that `implements DecisionCacheShape` breaks with TS2416, which the "an implementer gets TS2345 or TS2322" summary does not name
-
-**File:**
-- `spec/decisions/174-a-decision-cache-is-asked-the-question.md:13` (Change History: "an implementer gets TS2345 or TS2322")
-- the same file, `:71-73`
-- `spec/README.md:389` (the CCR-QD-452 row)
-- `apps/website/src/content/docs/docs/reference/upgrading.md:1073`
-
-**Issue:**
-- The probe `scratchpad/r2/p.ts:28-33` declares `class I4 implements DecisionCacheShape { getOrCompute = (_q, compute: Effect.Effect<Trace, EvaluationError, PortServices>) => Effect.map(compute, …) … }`.
-- It reports `error TS2416` (property not assignable to the same property in the base type), not TS2345 or TS2322.
-- The ADR body ties each code to a form ("running it … TS2345, annotating it … TS2322"), so it is not false. But the Change History row reads as the complete set, and a migrator whose cache is a class searches for an error code no document gives.
-
-**Fix:** In ADR-QD-174 Consequences, the CCR-QD-452 row and the upgrade note, add: "and a class that `implements DecisionCacheShape` gets TS2416." In the Change History row, write "TS2345, TS2322 or TS2416".
-
-### IN-03: The CCR-QD-452 row's file list omits the two files the iteration-1 fixes touched
-
-**File:** `spec/README.md:389`
-
-**Issue:**
-- The row lists "the phase's source and tests: `packages/core/src/{DecisionCache,Lifecycle,Question}.ts`, `packages/core/test/{DecisionCache,Lifecycle}.test.ts` and `packages/core/test/DecisionCache.tst.ts`".
-- Commit `d0ca3df6` (IN-05) also changed `packages/core/src/EvaluationMetrics.ts`, a shipped source file, and `packages/devtools/test/react/Simulator.test.tsx`. Both changes are comment-only.
-- Rev 1.257 updated the row for the review round, but only for BEH-QD-644 and ADR-QD-174. The row is the change record for this CCR, and it no longer names every file the change touched.
-
-**Fix:** Append to the file list: "and, comments only, `packages/core/src/EvaluationMetrics.ts` (`decisionCacheLookupsTotal`'s JSDoc) and `packages/devtools/test/react/Simulator.test.tsx`". Bump the README revision with a matching Change History entry.
+All reviewed files meet quality standards. No issues found.
 
 ---
 
-_Reviewed: 2026-11-19T21:09:06Z_
+_Reviewed: 2026-11-19T21:18:37Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
