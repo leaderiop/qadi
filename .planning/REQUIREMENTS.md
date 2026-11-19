@@ -49,10 +49,10 @@
 
 ### A stored record is its envelope in memory too (Phase 58, ARCH-105, core + http + devtools; Breaking)
 
-- [ ] **STOR-01**: In memory, the stored record is the envelope: the producer's `environment` next to a `SinkRecord`. `StoredDecisionRecord`, `StoredObligationRecord`, `stampRecord` and `stampRecordMatch` are deleted, along with the prototype-loss doc.
-- [ ] **STOR-02**: The stored codec is the record codec plus one field. The stored byte goldens are unchanged.
-- [ ] **STOR-03**: `DecisionLog`'s backlog stamping, `storedRecordOrder`, the http encoders and devtools' timeline read the envelope. Devtools' third spelling (`ObligationRecord & { environment }`) is gone.
-- [ ] **STOR-04**: ADR-QD-171 makes ADR-097 D-11-e true in memory as well as on the wire. The break is recorded as **Breaking** in each affected package's changeset and in `upgrading.md`.
+- [x] **STOR-01**: In memory, the stored record is the envelope: the producer's `environment` next to a `SinkRecord`. `StoredDecisionRecord`, `StoredObligationRecord`, `stampRecord` and `stampRecordMatch` are deleted, along with the prototype-loss doc.
+- [x] **STOR-02**: The stored codec is the record codec plus one field. The stored byte goldens are unchanged.
+- [x] **STOR-03**: `DecisionLog`'s backlog stamping, `storedRecordOrder`, the http encoders and devtools' timeline read the envelope. Devtools' third spelling (`ObligationRecord & { environment }`) is gone.
+- [x] **STOR-04**: ADR-QD-171 makes ADR-097 D-11-e true in memory as well as on the wire. The break is recorded as **Breaking** in each affected package's changeset and in `upgrading.md`.
 
 ### Admission produces the one walk environment (Phase 59, ARCH-106, core; opens on a benchmark)
 
@@ -135,10 +135,10 @@ The seven WX rows apply to every phase 53 to 61, so each phase's Requirements li
 | KEYP-03 | Phase 57 | Complete |
 | KEYP-04 | Phase 57 | Complete |
 | KEYP-05 | Phase 57 | Complete |
-| STOR-01 | Phase 58 | Pending |
-| STOR-02 | Phase 58 | Pending |
-| STOR-03 | Phase 58 | Pending |
-| STOR-04 | Phase 58 | Pending |
+| STOR-01 | Phase 58 | Complete |
+| STOR-02 | Phase 58 | Complete |
+| STOR-03 | Phase 58 | Complete |
+| STOR-04 | Phase 58 | Complete |
 | WENV-01 | Phase 59 | Pending |
 | WENV-02 | Phase 59 | Pending |
 | WENV-03 | Phase 59 | Pending |

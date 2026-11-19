@@ -5,16 +5,16 @@ milestone_name: Arch Wave 11
 current_phase: 58
 current_phase_name: A stored record is its envelope in memory too
 status: executing
-stopped_at: Completed 58-08-PLAN.md
-last_updated: "2026-11-19T02:41:59.476Z"
+stopped_at: Completed 58-09-PLAN.md
+last_updated: "2026-11-19T02:46:15.937Z"
 last_activity: 2026-11-19
 last_activity_desc: Phase QD-57 complete, transitioned to Phase 58
-state_head: d0377113c670c8eb84a9f921d161d0aebe98cb8b
+state_head: 88062d98ecd1e973b26c1930ade6516054d4b1c7
 progress:
   total_phases: 9
   completed_phases: 5
   total_plans: 58
-  completed_plans: 57
+  completed_plans: 58
   percent: 56
 ---
 
@@ -388,6 +388,7 @@ Last activity: 2026-11-19 — Phase QD-57 complete, transitioned to Phase 58
 | Phase QD-58 P06 | 6 min | 2 tasks | 5 files |
 | Phase QD-58 P07 | 22 min | 3 tasks | 6 files |
 | Phase QD-58 P08 | 10 min | 2 tasks | 5 files |
+| Phase QD-58 P09 | 6 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -666,6 +667,7 @@ Last activity: 2026-11-19 — Phase QD-57 complete, transitioned to Phase 58
 - [Phase QD-58]: ADR-QD-171 records the stored-record envelope (D-01..D-06, D-12..D-16) and amends ADR-QD-097, 135 and 159
 - [Phase QD-58]: 58-07: BEH-QD-626..630 and INV-QD-361..362 state the stored envelope; every changed requirement is quoted in an Amended in CCR-QD-449 note
 - [Phase QD-58]: 58-08: http's changeset is Breaking with no http source change, because DecisionLogReader's element type is core's StoredRecord (D-15)
+- [Phase QD-58]: 58-09: the close scan's one layout-sensitive substring check was made layout-free (orchestrator-authorised); the scan, mutation re-run, check:pr and release check are all clean
 
 ### Pending Todos
 
@@ -725,8 +727,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-19T02:41:59.222Z
-Stopped at: Completed 58-08-PLAN.md
+Last session: 2026-11-19T02:46:15.519Z
+Stopped at: Completed 58-09-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

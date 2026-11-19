@@ -571,7 +571,7 @@ Plans:
   4. ADR-QD-171 makes ADR-QD-097 D-11-e true in memory as well as on the wire, and the break is recorded as **Breaking** in each affected package's changeset and in `upgrading.md`.
 
 **Planning notes**: Re-verify the 11 `src` files that name `StoredRecord` against the base Phase 57 leaves. Plan shape, RED first: the mutation base and the characterisation tests (stored round trip, backlog stamping, order, byte goldens) first; then core's envelope; then http and devtools; then records and changesets.
-**Plans**: 8/9 plans executed
+**Plans**: 9/9 plans executed
 
 Plans:
 - [x] 58-01 (W1): base facts, reserved ids and API surface base; mutation baseline for the eight stored-record files, the phase's first commit
@@ -582,7 +582,7 @@ Plans:
 - [x] 58-06 (W6): ADR-QD-171; the ADR-QD-097, ADR-QD-135 and ADR-QD-159 amendments
 - [x] 58-07 (W7): INV-QD-361..362, BEH-QD-626..630, the BEH-QD-185/188/569 and INV-QD-039 amendments, the traceability rows
 - [x] 58-08 (W8): the core, http and devtools Breaking changesets, the upgrade guide's 0.13 section, CCR-QD-449; strict traceability green
-- [ ] 58-09 (W9): the phase scan, `check:pr`, the release check; STOR-01..04 complete
+- [x] 58-09 (W9): the phase scan, `check:pr`, the release check; STOR-01..04 complete
 
 ### Phase 59: Admission produces the one walk environment
 
@@ -653,7 +653,7 @@ Phases execute in numeric order: 53 → 54 → 55 → 56 → 57 → 58 → 59 �
 | 55. A port card is a model row, not a view join | 9/9 | Complete    | 2026-11-18 |
 | 56. The gate-registry watch becomes the dock model's third feed | 13/13 | Complete    | 2026-11-18 |
 | 57. untrustedDecoder states the envelope's unknown-key policy | 11/11 | Complete    | 2026-11-19 |
-| 58. A stored record is its envelope in memory too | 8/9 | In Progress | - |
+| 58. A stored record is its envelope in memory too | 9/9 | In Progress | - |
 | 59. Admission produces the one walk environment | 0/TBD | Not started | - |
 | 60. Devtools' headless interface is the feeds | 0/TBD | Not started | - |
 | 61. DecisionCache is asked only the question | 0/TBD | Not started | - |
