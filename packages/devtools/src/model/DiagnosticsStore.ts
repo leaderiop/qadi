@@ -194,8 +194,8 @@ export const DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS = 2_000;
  * What a host hands over to have its diagnostics sampled: things it already
  * owns, and no Effects.
  *
- * Gates and questions are not here. They are the dock model's own inputs
- * (`DockModelInputs.gates` and `DockModelInputs.questions`), read by the gates feed
+ * Gates and questions are not here. They are the gates feed's inputs
+ * (`GatesFeedInputs.gates` and `GatesFeedInputs.questions`, `makeGatesFeed`), which reads them
  * (ADR-QD-162, ADR-QD-169).
  */
 export interface DiagnosticsOptions {
