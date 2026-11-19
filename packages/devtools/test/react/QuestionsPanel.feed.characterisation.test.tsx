@@ -23,7 +23,7 @@ import * as Layer from "effect/Layer";
 import { hasPermission, hasRole, permission } from "@qadi/core";
 import type { GateInstanceLike, PortCallCollector } from "../../src/index.ts";
 import { DevtoolsDock } from "../../src/react/index.ts";
-import type { DevtoolsDockProps, DiagnosticsDockOptions } from "../../src/react/index.ts";
+import type { DevtoolsDockProps, DiagnosticsOptions } from "../../src/react/index.ts";
 import { makeGateRegistryDouble } from "../gateRegistryDouble.ts";
 import { questionsProp } from "./questionsProp.ts";
 
@@ -63,7 +63,7 @@ const ASKED = [
 const asked = () => ASKED.map((question) => ({ ...question }));
 
 /** One identity, so a re-render restarts nothing. */
-const live: DiagnosticsDockOptions = {};
+const live: DiagnosticsOptions = {};
 
 /** A collector whose snapshot answers an empty log `after` times and then throws. */
 const dying = (after: number): PortCallCollector => {

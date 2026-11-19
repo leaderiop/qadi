@@ -8,9 +8,9 @@
  * its poll is doing, and the seam does not choose for it.
  */
 import type { AskedQuestionLike } from "../../src/index.ts";
-import type { DevtoolsDockProps, DiagnosticsDockOptions } from "../../src/react/index.ts";
+import type { DevtoolsDockProps, DiagnosticsOptions } from "../../src/react/index.ts";
 
 export const questionsProp = (
-  props: DevtoolsDockProps & { readonly diagnostics: DiagnosticsDockOptions },
+  props: DevtoolsDockProps & { readonly diagnostics: DiagnosticsOptions },
   questions: () => ReadonlyArray<AskedQuestionLike>,
 ): DevtoolsDockProps => ({ ...props, questions });

@@ -18,8 +18,12 @@ import { useMemo, useRef } from "react";
 import type { Source } from "../model/Source.ts";
 import type { Verdict } from "../model/Verdict.ts";
 import type { Catalogue } from "../model/Catalogue.ts";
-import type { DiagnosticsDockOptions, DiagnosticsStatus } from "../model/DiagnosticsFeed.ts";
-import type { Diagnostics, DiagnosticsReading } from "../model/DiagnosticsStore.ts";
+import type { DiagnosticsStatus } from "../model/DiagnosticsFeed.ts";
+import type {
+  Diagnostics,
+  DiagnosticsOptions,
+  DiagnosticsReading,
+} from "../model/DiagnosticsStore.ts";
 import type { DockModel } from "../model/DockModel.ts";
 import type { DockSnapshot, TabId } from "../model/DockSession.ts";
 import type { AskedQuestionLike, GateRegistryLike } from "../model/Gates.ts";
@@ -102,7 +106,7 @@ export interface DevtoolsDockProps {
    * prop below hands over, and the questions from the `questions` prop after it,
    * both read by the dock's model in its own scope.
    */
-  readonly diagnostics?: DiagnosticsDockOptions;
+  readonly diagnostics?: DiagnosticsOptions;
   /**
    * A reading taken elsewhere, such as another process's or a fixture's.
    *

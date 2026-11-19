@@ -18,8 +18,7 @@
  */
 import { useLayoutEffect } from "react";
 import type { Catalogue } from "../model/Catalogue.ts";
-import type { DiagnosticsDockOptions } from "../model/DiagnosticsFeed.ts";
-import type { DiagnosticsReading } from "../model/DiagnosticsStore.ts";
+import type { DiagnosticsOptions, DiagnosticsReading } from "../model/DiagnosticsStore.ts";
 import { makeDockModel, type DockModel } from "../model/DockModel.ts";
 import type { AskedQuestionLike, GateRegistryLike } from "../model/Gates.ts";
 import type { EvaluationPortsLayer } from "../model/SimulationInput.ts";
@@ -31,7 +30,7 @@ export interface UseDockModelInput {
   readonly capacity?: number | undefined;
   readonly catalogue?: Catalogue | undefined;
   readonly ports?: EvaluationPortsLayer | undefined;
-  readonly diagnostics?: DiagnosticsDockOptions | undefined;
+  readonly diagnostics?: DiagnosticsOptions | undefined;
   readonly reading?: DiagnosticsReading | undefined;
   readonly gates?: GateRegistryLike | undefined;
   readonly questions?: (() => ReadonlyArray<AskedQuestionLike>) | undefined;

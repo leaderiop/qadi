@@ -45,11 +45,14 @@ import { catalogueOf, type Catalogue, type PolicySighting } from "./Catalogue.ts
 import {
   isUnsampled,
   makeDiagnosticsFeed,
-  type DiagnosticsDockOptions,
   type DiagnosticsReadout,
   type DiagnosticsSnapshot,
 } from "./DiagnosticsFeed.ts";
-import { mergeReading, type DiagnosticsReading } from "./DiagnosticsStore.ts";
+import {
+  mergeReading,
+  type DiagnosticsOptions,
+  type DiagnosticsReading,
+} from "./DiagnosticsStore.ts";
 import { makeDockSession, type DockSession } from "./DockSession.ts";
 import { makeExplorerSession, type ExplorerSession } from "./ExplorerSession.ts";
 import { makeExternalStore, type ExternalStore } from "./ExternalStore.ts";
@@ -76,7 +79,7 @@ export interface DockModelInputs {
   readonly capacity?: number | undefined;
   readonly catalogue?: Catalogue | undefined;
   /** What to sample; compared per field, so an inline literal restarts nothing. */
-  readonly diagnostics?: DiagnosticsDockOptions | undefined;
+  readonly diagnostics?: DiagnosticsOptions | undefined;
   /** The registry of live guards; the gates feed subscribes in the model's scope. Absent: the panel says none was handed over. */
   readonly gates?: GateRegistryLike | undefined;
   /**

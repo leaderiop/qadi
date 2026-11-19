@@ -7,7 +7,7 @@
  * session; the scope is the read's lifetime, so closing it interrupts the read and,
  * with an SSE source, closes its connection (ADR-QD-137).
  *
- * Package-private (ADR-QD-099).
+ * Exported from the package root (ADR-QD-173): a shell builds it in a scope it owns.
  */
 import * as Cause from "effect/Cause";
 import * as Data from "effect/Data";
@@ -34,7 +34,11 @@ export interface TimelineFeedInputs {
 export type TimelineStatus = Data.TaggedEnum<{
   /** The read has not failed: it is running, has ended by itself, or there was nothing to read. */
   Reading: {};
-  /** The read ended on a defect. `reason` is `Cause.pretty` of it; the entries it delivered stay. */
+  /**
+   * The read ended on a defect. `reason` is `Cause.pretty` of it, a trace with stack frames
+   * and checkout paths for the host's own process: it must not cross a trust boundary. The
+   * entries it delivered stay.
+   */
   Stopped: { readonly reason: string };
 }>;
 

@@ -13,7 +13,7 @@
  * error's name and message, else its rendering), because one throw reads the same from any
  * call path where its rendered stack does not.
  *
- * Package-private (ADR-QD-099).
+ * Exported from the package root (ADR-QD-173): a shell builds it in a scope it owns.
  */
 import * as Cause from "effect/Cause";
 import * as Data from "effect/Data";
@@ -32,7 +32,10 @@ export type RegistryRead = Data.TaggedEnum<{
   Unwatched: {};
   /** The registry's own array, never copied. */
   Read: { readonly instances: ReadonlyArray<GateInstanceLike> };
-  /** `instances` or `subscribe` threw. */
+  /**
+   * `instances` or `subscribe` threw. `reason` is a `Cause.pretty` trace for the host's own
+   * process: it must not cross a trust boundary.
+   */
   Failed: { readonly reason: string };
 }>;
 
@@ -43,7 +46,10 @@ export type AskedRead = Data.TaggedEnum<{
   /** No thunk was handed. */
   Unhanded: {};
   Read: { readonly questions: ReadonlyArray<AskedQuestionLike> };
-  /** The thunk, or comparing its answer, threw. */
+  /**
+   * The thunk, or comparing its answer, threw. `reason` is a `Cause.pretty` trace for the
+   * host's own process: it must not cross a trust boundary.
+   */
   Failed: { readonly reason: string };
 }>;
 
