@@ -234,10 +234,11 @@ logged, counted or spanned.
 - ✓ ARCH-103 The gate-registry watch is the dock model's third feed (GFED-01..05): package-private `GatesFeed.ts` (`makeGatesFeed`, an `Effect.fn` built in the caller's scope) owns both host inputs of the questions panel: the gate-registry watch (guarded reads, name+message failure key, re-subscribe on identity change or after a failed watch, release in a finalizer) and the `questions` thunk (read on its own cadence, compared with `Equal.equals`). `DockModel` composes three feeds through a pure `rejoin`. A throwing thunk is `QuestionsView.Failed` and the diagnostics poll stays `Live` (INV-QD-358). Breaking: `questions` is a dock input and `useDevtoolsFeed` returns it at the top level (ADR-QD-169, Phase 56)
 - ✓ ARCH-104 `untrustedDecoder` states an envelope's unknown-key policy (KEYP-01..05): a required, closed `unknownKeys: "refuse" | "ignore"` read through an own-key `PROJECTION` table; `ignore` projects the input onto its declared top-level keys (derived once from `SchemaAST.toEncoded` in package-private `EnvelopeKeys.ts`, refusing an underivable, index-signature or rest schema at build) before the depth guard, so an unknown key is never walked. Both `SinkCodec` envelopes use `ignore` and lose their hand-written readers (`UNTRUSTED_DECODE_BUDGET` 2 → 1); the audit row, archive, hydration, policy and port seams state `refuse`. A deep unknown record key now decodes (D-01, D-20), a deep `environment` is `TooDeep` (D-18), stored-envelope messages are the strict decoder's (D-17). Breaking: the option is required (ADR-QD-170, Phase 57)
 - ✓ ARCH-105 A stored record is its envelope in memory too (STOR-01..04): `StoredRecord` is one `Data.Class<{ environment, record: SinkRecord }>`; `Stamped`, `StoredDecisionRecord`, `StoredObligationRecord` and `stampRecord` are deleted with no alias; `sinkRecordOrder` orders a record and `storedRecordOrder` maps onto it; the stored codec is the record codec plus one field, with byte-identical goldens; the log's two unreachable `isolate` catches and test C4 are deleted (owner choice D-12); devtools' timeline ingests the envelope; Breaking in `@qadi/core`, `@qadi/http` and `@qadi/devtools` (ADR-QD-171, Phase 58)
+- ✓ ARCH-106 Admission produces the one walk environment (WENV-01..04): `admit(question, rowSource)` returns `Admitted<Source>` holding the row source, policy, subject, `supplied` (one closed `SUPPLIED` table typed per row source), matcher context and `maxDepth`; recursion is `evaluateNode(policy, request, depth)`, so a depth/maxDepth swap no longer compiles (tstyche); a `"row"` environment cannot reach the walk; four interleaved benches passed (0 of 35 slower each); mutation held (D-15); no public change — v1.6, Phase 59 (ADR-QD-172)
 
 ### Active
 
-- [ ] ARCH-106..108: the remaining three candidates of the 2026-11-16 architecture review (v1.6, Phases 59–61); see `.planning/REQUIREMENTS.md`
+- [ ] ARCH-107..108: the remaining two candidates of the 2026-11-16 architecture review (v1.6, Phases 60–61); see `.planning/REQUIREMENTS.md`
 
 ### Out of Scope
 
@@ -431,6 +432,7 @@ logged, counted or spanned.
 | The questions panel's two host inputs are one scoped feed, and a throwing thunk is stated rather than stopping the poll (owner chose GFED-05 = Yes) | A throwing `questions` thunk was a defect in the diagnostics sample that froze every tab, while a throwing registry was only `GatesView.Failed`; one feed gives both inputs one failure policy | Accepted, ADR-QD-169 (Phase 56) |
 | An envelope states its unknown top-level key policy at its decoder, as one required closed option (owner: "answer by the cleanest solutions not the simplest") | Both `SinkCodec` envelopes hand-built "ignore unknown keys" while five seams refused them, with nothing stating which rule a seam had; one option derived from the schema removes the hand-written key lists and makes every seam say its rule | Accepted, ADR-QD-170 (Phase 57) |
 | In memory a stored record is its envelope, the producer's label beside the record, not a flattened copy per record kind | Two stored classes, a stamp arm and a decode re-stamp translated one fact between two shapes, and every new `SinkRecord` kind needed all three; the log's `isolate` catches were reachable only through the stamp's getter-reading spread, so they were deleted rather than kept as dead code (owner choice) | Accepted, ADR-QD-171 (Phase 58) |
+| Admission produces the one walk environment both interpreters read, typed by its row source and carrying the policy it admitted | Two hand-built `supplied` objects and a six-argument recursion whose `depth` and `maxDepth` swapped silently; a benchmark gated the change (gate, then three after-runs, each 0 of 35 slower) | Accepted, ADR-QD-172 (Phase 59) |
 
 ## Evolution
 
@@ -450,4 +452,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-19 after Phase 58*
+*Last updated: 2026-11-19 after Phase 59*
