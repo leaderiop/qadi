@@ -67,6 +67,19 @@
 - **D-10:** A touched file's mutation score must not fall, under the D-15/D-16 rule with the static-ignored credit (ADR-QD-167 Rev 1.1).
 - **D-11:** Every "gate N" in spec text names its script (`check-dod-table.mjs`).
 
+### Settled after research (2026-11-19)
+
+- **D-12, owner choice: the frozen characterisation file may take a two-line type rename.** `QuestionsPanel.feed.characterisation.test.tsx` lines 26 and 66 change from `DiagnosticsDockOptions` to `DiagnosticsOptions`. No assertion and no golden changes. The exception is recorded in CCR-QD-451, and the phase scan pins it to exactly those two lines.
+- **D-13: the 0.12 upgrade "After" fence stays compiled.** In `upgrading.md` it drops the type import and the annotation, so it compiles on 0.12 and on this release. A new 0.13 entry carries the break.
+- **D-14: the input type names are kept.** `TimelineFeedInputs` and `GatesFeedInputs` stay beside `DiagnosticsOptions`.
+- **D-15: one `DiagnosticsOptions` declaration, in `DiagnosticsStore.ts`.**
+  - It sits beside the code that reads it, so no feed↔store import cycle forms.
+  - `runOptions` is deleted.
+  - `runDiagnostics` becomes non-generic and builds `Schedule.spaced(intervalMillis ?? DEFAULT)` itself.
+- **D-16: `DiagnosticsFeed.ts`'s equivalent survivor guard is removed in the same plan.** The guard is `if (before !== undefined) off();`. Test F26 already pins the behaviour it protects. This is measured against the base, not assumed.
+- **D-17: public `Stopped.reason` is a `Cause.pretty` trace.** BEH-QD-637 and the README say it must not cross a trust boundary.
+- **D-18: `check-package-install.mjs`'s consumer builds one `makeTimelineFeed` in a scope** and asserts its `Reading` status. The consumer compiles with `skipLibCheck: false`, so the shipped feed declarations are checked.
+
 ### Claude's Discretion
 - Whether the feed modules keep their file names.
 - Each feed's doc comment, written for a public reader.
