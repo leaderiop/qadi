@@ -78,3 +78,55 @@ describe("admit", () => {
     assert.strictEqual(admitted.success.question.policy._tag, "HasRole");
   });
 });
+
+describe("admit builds the walk environment", () => {
+  const resource = { id: "doc-1" };
+  const environment = (source: "asked" | "row", options: Parameters<typeof questionOf>[2]) => {
+    const admitted = admit(questionOf(subject, P.hasRole("editor"), options), source);
+    assert.isTrue(Result.isSuccess(admitted));
+    return Result.isSuccess(admitted) ? admitted.success : undefined;
+  };
+
+  it("E1 asked: a question with a resource and an action supplies both", () => {
+    assert.deepStrictEqual(environment("asked", { resource, action: "publish" })?.supplied, {
+      action: true,
+      resource: true,
+    });
+  });
+
+  it("E2 asked: a question with only an action supplies the action alone", () => {
+    assert.deepStrictEqual(environment("asked", { action: "publish" })?.supplied, {
+      action: true,
+      resource: false,
+    });
+  });
+
+  it("E3 asked: a question with only a resource supplies the resource alone", () => {
+    assert.deepStrictEqual(environment("asked", { resource })?.supplied, {
+      action: false,
+      resource: true,
+    });
+  });
+
+  it("E4 asked: a question with neither supplies neither", () => {
+    assert.deepStrictEqual(environment("asked", {})?.supplied, { action: false, resource: false });
+  });
+
+  it("E5 row: the row is always supplied, and the action follows the question", () => {
+    assert.deepStrictEqual(environment("row", {})?.supplied, { action: false, resource: true });
+    assert.deepStrictEqual(environment("row", { resource, action: "publish" })?.supplied, {
+      action: true,
+      resource: true,
+    });
+  });
+
+  it("E6 the environment holds the question's own subject and its bound", () => {
+    const question = questionOf(subject, P.hasRole("editor"), { maxDepth: 7 });
+    const admitted = admit(question, "asked");
+    assert.isTrue(Result.isSuccess(admitted));
+    if (Result.isFailure(admitted)) return;
+    assert.strictEqual(admitted.success.subject, question.subject);
+    assert.strictEqual(admitted.success.maxDepth, 7);
+    assert.strictEqual(environment("row", {})?.maxDepth, P.DEFAULT_MAX_DEPTH);
+  });
+});
