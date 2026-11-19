@@ -32,7 +32,7 @@ import type { Matcher, MatcherContext, ValueRef } from "./Matcher.ts";
 import { referencesResource } from "./Matcher.ts";
 import { getByPath, ownValue } from "./Operand.ts";
 import { LEAF_VERDICTS, absenceOf, errorOf, isHeld } from "./LeafNeeds.ts";
-import type { ActionAbsence, Supplied } from "./LeafNeeds.ts";
+import type { ActionAbsence } from "./LeafNeeds.ts";
 import { fieldsOf, foldPolicy, foldPolicyCases } from "./Policy.ts";
 import { askActed, isAnyActedLeaf, readAttribute } from "./PortAccess.ts";
 import type { AnyActedLeaf } from "./PortAccess.ts";
@@ -352,12 +352,14 @@ const refused = (policyTag: string, reason: string): Compiled => new Refusal(pol
  * What is *not* decided here is what depends on the request and the stores: an
  * absent action becomes a `NeedAction` node and fails only if `run` reaches it
  * (INV-QD-011), exactly as the evaluator fails only on reach.
+ *
+ * It reads the walk environment admission built for a row (`Admitted<true>`): the
+ * row is the resource, so it is supplied by type rather than by a literal here
+ * (ADR-QD-172).
  */
-const compileTree = (admitted: Admitted): Compiled => {
-  const { policy, subject, action } = admitted.question;
-  const context = admitted.matcherContext;
-  // A predicate filters rows, so the resource is the row and is always present.
-  const supplied: Supplied<true> = { action: action !== undefined, resource: true };
+const compileTree = (policy: Policy, admitted: Admitted<true>): Compiled => {
+  const { subject, supplied, matcherContext: context } = admitted;
+  const { action } = context;
 
   /** Plans every folded child in order, stopping at the first refusal. */
   const plansOf = (folded: ReadonlyArray<Compiled>): ReadonlyArray<Plan> | Refusal => {
@@ -658,7 +660,7 @@ export const toPredicate = Effect.fn("qadi.toPredicate")(function* (
   // Admission first, and from the policy alone: a policy that is both too deep
   // and field-restricting is always `PolicyTooDeep`, independent of child order
   // (ARCH-02 D-02-e, N4; INV-QD-037). Shared with `walk` (`Admission.ts`).
-  const admitted = admit(question);
+  const admitted = admit(question, "row");
   if (Result.isFailure(admitted)) return yield* Effect.fail(admitted.failure);
   if (restrictsFields(policy)) {
     return yield* untranslatable(
@@ -669,7 +671,7 @@ export const toPredicate = Effect.fn("qadi.toPredicate")(function* (
 
   // Refusals first, and from the tree alone: they cannot depend on the subject
   // or on what any port answers (BEH-QD-266). Only then does anything run.
-  const compiled = compileTree(admitted.success);
+  const compiled = compileTree(policy, admitted.success);
   if (compiled instanceof Refusal) {
     return yield* untranslatable(compiled.policyTag, compiled.reason);
   }

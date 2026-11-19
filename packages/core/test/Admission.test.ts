@@ -20,7 +20,10 @@ const nested = (levels: number): P.Policy => {
 };
 
 const refusal = (policy: P.Policy, maxDepth: number | undefined) => {
-  const admitted = admit(questionOf(subject, policy, maxDepth === undefined ? {} : { maxDepth }));
+  const admitted = admit(
+    questionOf(subject, policy, maxDepth === undefined ? {} : { maxDepth }),
+    "asked",
+  );
   return Result.isFailure(admitted) ? admitted.failure : undefined;
 };
 
@@ -60,6 +63,7 @@ describe("admit", () => {
     const resource = { id: "doc-1" };
     const admitted = admit(
       questionOf(subject, P.hasRole("editor"), { resource, action: "publish" }),
+      "asked",
     );
     assert.isTrue(Result.isSuccess(admitted));
     if (Result.isFailure(admitted)) return;
@@ -70,12 +74,12 @@ describe("admit", () => {
   });
 
   it("a question with no resource gives a context with resource undefined", () => {
-    const admitted = admit(questionOf(subject, P.hasRole("editor")));
+    const admitted = admit(questionOf(subject, P.hasRole("editor")), "asked");
     assert.isTrue(Result.isSuccess(admitted));
     if (Result.isFailure(admitted)) return;
     assert.isUndefined(admitted.success.matcherContext.resource);
     assert.isUndefined(admitted.success.matcherContext.action);
-    assert.strictEqual(admitted.success.question.policy._tag, "HasRole");
+    assert.deepStrictEqual(admitted.success.supplied, { action: false, resource: false });
   });
 });
 
