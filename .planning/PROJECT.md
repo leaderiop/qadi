@@ -1,4 +1,4 @@
-# Qadi — Architecture Waves (last completed: v1.6 Arch Wave 11)
+# Qadi — Architecture Waves (current: v1.7 Arch Wave 12)
 
 ## What This Is
 
@@ -12,6 +12,27 @@ module was a shallow pass-through.
 
 The review is at https://claude.ai/artifact/LH5dLGadz28NyzmZez9jcX, with a local copy at
 `/tmp/claude-1002/-home-yopu-Project-Perso-qadi/588341bb-9f42-4e6e-b1a3-ed991ed47acf/scratchpad/qadi-architecture-review.html`.
+
+## Current Milestone: v1.7 Arch Wave 12
+
+**Goal:** Resolve all 13 tech-debt items the v1.6 audit carried forward, each by a change or a recorded decision, so none
+is carried again; the vacuous type-pin class found while investigating them goes first.
+
+**Target features (Phases 62–68, ARCH-109…115, strictly serial):**
+- 62: Type pins that can fail. `not.toBeCallableWith` passes for any Effect-returning subject; 86 pins in 27 files are
+  classified, the vacuous ones rewritten and each shown failing once, and a `NOT_CALLABLE_PIN_BUDGET` gate added
+- 63: Gate 14 (`check-package-install.mjs`) compiles `makeGatesFeed`, `makeDiagnosticsFeed` and `DecisionCacheShape`
+  through the packed `exports` map, and fails if a `make*Feed` export is left unprobed
+- 64: One throwing devtools `ExternalStore` listener cannot silence the rest; errors are rethrown after every listener ran (D1)
+- 65: Only `admit` builds an `Admitted`, and the `"asked"` row's flag is derived from its matcher context (bench-gated)
+- 66: `untrustedDecoder`'s projection reads only declared keys (D4); hydration's `refuse` policy recorded (D2)
+- 67: The two equivalent surviving mutants restructured away (D5), and the I5 race test's magic bound removed
+- 68: Hygiene and recorded close-outs: over-width lines, stale titles, ADR-QD-174 line 73, port cards stay private (D3),
+  the Phase 61 scan's `Simulator.test.tsx` gap evidenced
+
+**Source and evidence:** `.planning/phases/_WAVE12-CONTEXT.md` (owner decisions D1–D5, ids reserved, per-phase evidence)
+and `.planning/milestones/v1.6-MILESTONE-AUDIT.md`. Branch `arch-wave-12`, stacked on `arch-wave-11` at `8b22bd66` (v1.6,
+not merged). No merge, no release.
 
 ## Previous Milestone: v1.6 Arch Wave 11 (completed 2026-11-19; not released)
 
@@ -255,7 +276,7 @@ logged, counted or spanned.
 
 ### Active
 
-- None. The next milestone is defined with `/gsd-new-milestone`.
+- [ ] ARCH-109..115: resolve the 13 v1.6 tech-debt items (v1.7, Phases 62–68); see `.planning/REQUIREMENTS.md`
 
 ### Out of Scope
 
@@ -484,4 +505,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-19 after v1.6 milestone*
+*Last updated: 2026-11-20 after starting v1.7 milestone*
