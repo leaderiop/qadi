@@ -5,16 +5,16 @@ milestone_name: Arch Wave 11
 current_phase: 59
 current_phase_name: Admission produces the one walk environment
 status: executing
-stopped_at: Completed 59-04-PLAN.md
-last_updated: "2026-11-19T04:49:20.946Z"
+stopped_at: Completed QD-59-05-PLAN.md
+last_updated: "2026-11-19T04:55:48.242Z"
 last_activity: 2026-11-19
 last_activity_desc: Phase QD-58 complete, transitioned to Phase 59
-state_head: ef4c403540bfb3506e6ae8d15c1aa699aa89255f
+state_head: 0691385c54a3d38bd0c84301b10c5b1ed2245d6c
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 68
-  completed_plans: 62
+  completed_plans: 63
   percent: 67
 ---
 
@@ -394,6 +394,7 @@ Last activity: 2026-11-19 — Phase QD-58 complete, transitioned to Phase 59
 | Phase QD-59 P02 | 5 min | 2 tasks | 2 files |
 | Phase QD-59 P03 | 1 min | 3 tasks | 2 files |
 | Phase QD-59 P04 | 2 min | 2 tasks | 4 files |
+| Phase QD-59 P05 | 12 min | 2 tasks | 24 files |
 
 ## Accumulated Context
 
@@ -677,6 +678,7 @@ Last activity: 2026-11-19 — Phase QD-58 complete, transitioned to Phase 59
 - [Phase QD-59]: 59-02: mutation base measured as found (Walk.ts 265/279, 14 survivors); 59-mutation.mjs and 59-mutation-base.json never edited again
 - [Phase QD-59]: 59-03: both RED files are the plan's verbatim blocks (SHA-256 pinned); no src changed; characterisation green on base (193 tests) with blob hashes recorded
 - [Phase QD-59]: 59-04: the walk environment is Admitted<Resource> built by admit(question, rowSource); supplied.resource comes from the closed RESOURCE_SUPPLIED table; evaluateNode exported from package-private Walk.ts for the type pins (no public change, gate 13 stays 933)
+- [Phase QD-59]: 59-05: after-bench of the final source against phase_base ran once, gate pass (0 of 35 slower, geomean +1.60%, worst +7.3% within its 10% band)
 
 ### Pending Todos
 
@@ -736,8 +738,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-19T04:49:20.605Z
-Stopped at: Completed 59-04-PLAN.md
+Last session: 2026-11-19T04:55:47.706Z
+Stopped at: Completed QD-59-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
