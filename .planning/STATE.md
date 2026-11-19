@@ -5,16 +5,16 @@ milestone_name: Arch Wave 11
 current_phase: 57
 current_phase_name: untrustedDecoder states the envelope's unknown-key policy
 status: executing
-stopped_at: Completed QD-57-09-PLAN.md
-last_updated: "2026-11-19T00:11:27.173Z"
+stopped_at: Completed QD-57-10-PLAN.md
+last_updated: "2026-11-19T00:14:18.921Z"
 last_activity: 2026-11-18
 last_activity_desc: Phase 56 complete, transitioned to Phase 57
-state_head: 21bab19bfae00e41ab61def6693dea61236fe919
+state_head: ae7bb1ec058eacba6d1a6096a4db25229b42800c
 progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 49
-  completed_plans: 47
+  completed_plans: 48
   percent: 44
 ---
 
@@ -377,6 +377,7 @@ Last activity: 2026-11-18 — Phase 56 complete, transitioned to Phase 57
 | Phase QD-57 P07 | 25min | 2 tasks | 3 files |
 | Phase QD-57 P08 | 10 min | 2 tasks | 4 files |
 | Phase QD-57 P09 | 14 min | 2 tasks | 6 files |
+| Phase QD-57 P10 | 9 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -647,6 +648,7 @@ Last activity: 2026-11-18 — Phase 56 complete, transitioned to Phase 57
 - [Phase QD-57]: 57-07: the five EnvelopeKeys.ts survivors were closed with tests U17..U19, never a rewrite or re-baseline; WX-05 holds (D-12)
 - [Phase QD-57]: ADR-QD-170 records the unknown-key policy (D-01, D-16..D-20) and amends ADR-QD-096 (Rev 1.6) and ADR-QD-143 (Rev 1.4); D-09 hydration report left as not acted on
 - [Phase QD-57]: 57-09: BEH-QD-621..625 and INV-QD-359..360 written, BEH-QD-486/INV-QD-305/306 carve out only an undeclared top-level key under ignore
+- [Phase QD-57]: 57-10: the core changeset carries the break and both widenings; the audit entry states only the widening and points to core
 
 ### Pending Todos
 
@@ -706,8 +708,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-19T00:11:27.010Z
-Stopped at: Completed QD-57-09-PLAN.md
+Last session: 2026-11-19T00:14:18.761Z
+Stopped at: Completed QD-57-10-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
