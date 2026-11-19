@@ -318,3 +318,7 @@ only version that cannot be got wrong by a caller.
 ## Amendment (2026-11-18, ADR-QD-167, CCR-QD-445)
 
 [ADR-QD-167](./167-each-leafs-answer-becomes-a-verdict-in-one-row.md): the two walks stay two. Since that record both read each leaf's verdict from the same row in `LeafNeeds.ts`, so the acted leaf's polarity and comparison are no longer written in each, and `Unknown` denies both polarities in both.
+
+## Amendment (2026-11-19, ADR-QD-172, CCR-QD-450)
+
+[ADR-QD-172](./172-admission-produces-the-one-walk-environment.md): the two walks stay two. Since that record both read one environment admission builds (the subject, what was supplied, the matcher context and the bound), so each interpreter states only where its resource comes from.
