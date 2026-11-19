@@ -540,7 +540,7 @@ Plans:
   4. The `UntrustedSeams` matrix runs per policy (a shallow unknown key, a deep unknown key, an excess key inside the payload, non-object input). Every seam's answer is unchanged except where the decision in criterion 1 changed it, and each changed answer has a RED test written on the phase base.
 
 **Planning notes**: The user decision is the first thing settled. Plan shape, RED first: the mutation base for `SinkCodec.ts`, `UntrustedDecode.ts`, `AuditEntry.ts`, `AuditArchive.ts` and `HydrationEngine.ts`, and the per-policy matrix characterised on the base; then the option; then each envelope converted; then records. Keep ADR-QD-096 D-15-c's order (guard, version, project, decode).
-**Plans**: 6/11 plans executed
+**Plans**: 7/11 plans executed
 
 Plans:
 - [x] 57-01 (W1): base facts, reserved ids and API surface base; mutation baseline for the five envelope files, the phase's first commit
@@ -549,7 +549,7 @@ Plans:
 - [x] 57-04 (W4): the direct decoder pair and the key derivation RED by option; D-16's type contract RED
 - [x] 57-05 (W5): tracer — the policy table, `EnvelopeKeys.ts` and the record wire stating `ignore`; every seam states its policy; one `feat(57-05)!` commit
 - [x] 57-06 (W6): the stored envelope read by `untrustedDecoder`, its hand reader deleted; `UNTRUSTED_DECODE_BUDGET` and AGENTS.md §7a move together
-- [ ] 57-07 (W7): the three after-runs and the static evidence, one at a time; D-12 applied, any gap closed with a test
+- [x] 57-07 (W7): the three after-runs and the static evidence, one at a time; D-12 applied, any gap closed with a test
 - [ ] 57-08 (W8): ADR-QD-170; the ADR-QD-096 and ADR-QD-143 amendments
 - [ ] 57-09 (W9): BEH-QD-621..625, INV-QD-359..360, the carve-outs and the traceability rows
 - [ ] 57-10 (W10): the core and audit changesets, the upgrade guide's 0.13 section, CCR-QD-448; strict traceability green
@@ -641,7 +641,7 @@ Phases execute in numeric order: 53 → 54 → 55 → 56 → 57 → 58 → 59 �
 | 54. LeafNeeds turns every leaf's answer into a verdict | 8/8 | Complete    | 2026-11-18 |
 | 55. A port card is a model row, not a view join | 9/9 | Complete    | 2026-11-18 |
 | 56. The gate-registry watch becomes the dock model's third feed | 13/13 | Complete    | 2026-11-18 |
-| 57. untrustedDecoder states the envelope's unknown-key policy | 6/11 | In Progress | - |
+| 57. untrustedDecoder states the envelope's unknown-key policy | 7/11 | In Progress | - |
 | 58. A stored record is its envelope in memory too | 0/TBD | Not started | - |
 | 59. Admission produces the one walk environment | 0/TBD | Not started | - |
 | 60. Devtools' headless interface is the feeds | 0/TBD | Not started | - |
