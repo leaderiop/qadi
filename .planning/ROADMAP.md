@@ -397,7 +397,7 @@ Order: the defect first (53), then the "stated once" deepenings (54-58), then th
 - [x] **Phase 57: untrustedDecoder states the envelope's unknown-key policy** - Opens on a user decision; one stated option (refuse | ignore without walking) for both `SinkCodec` envelopes and the audit and hydration seams (ARCH-104, core, audit, react) (completed 2026-11-19)
 - [x] **Phase 58: A stored record is its envelope in memory too** - The in-memory stored record is the producer's `environment` next to a `SinkRecord`; two classes and two stamp functions are deleted (ARCH-105, Breaking, core, http, devtools) (completed 2026-11-19)
 - [x] **Phase 59: Admission produces the one walk environment** - Opens on a benchmark; recursion passes `(policy, env, depth)`, or a recorded rejection (ARCH-106, core) (completed 2026-11-19)
-- [ ] **Phase 60: Devtools' headless interface is the feeds** - Opens on a human checkpoint; the feeds replace the store/runner pairs in the barrel, or a recorded rejection (ARCH-107, Breaking, devtools)
+- [x] **Phase 60: Devtools' headless interface is the feeds** - Opens on a human checkpoint; the feeds replace the store/runner pairs in the barrel, or a recorded rejection (ARCH-107, Breaking, devtools) (completed 2026-11-19)
 - [ ] **Phase 61: DecisionCache is asked only the question** - Opens on a human checkpoint; core supplies the matching walk so no caller can pair a key with an unrelated computation, or a recorded rejection (ARCH-108, core)
 
 ### Phase Details
@@ -632,7 +632,7 @@ Plans:
   4. If pursued: the feed tests run against the public entry, and `surface.test.ts`, `spec/overview.md` (gate 13), ADR-QD-047 amendment 1.6 and ADR-QD-099's entry list are updated; the break is **Breaking** in the changeset and in `upgrading.md`.
 
 **Planning notes**: **The checkpoint is the first thing settled, before any plan.** If pursued, plan shape, RED first: the mutation base and the public-entry tests (`TimelineFeed.test.ts`, `DiagnosticsFeed.test.ts` moved to the root export) first; then the export change and the option shape; then README, docs and records. Check the packed `exports` map (gate 14).
-**Plans**: 8/8 plans executed
+**Plans**: 8/8 plans complete
 
 Plans:
 - [x] 60-01 (W1): phase_base, the mutation harness and the baseline of the five devtools model files on the untouched base
@@ -677,5 +677,5 @@ Phases execute in numeric order: 53 → 54 → 55 → 56 → 57 → 58 → 59 �
 | 57. untrustedDecoder states the envelope's unknown-key policy | 11/11 | Complete    | 2026-11-19 |
 | 58. A stored record is its envelope in memory too | 9/9 | Complete    | 2026-11-19 |
 | 59. Admission produces the one walk environment | 10/10 | Complete    | 2026-11-19 |
-| 60. Devtools' headless interface is the feeds | 8/8 | In Progress | - |
+| 60. Devtools' headless interface is the feeds | 8/8 | Complete    | 2026-11-19 |
 | 61. DecisionCache is asked only the question | 0/TBD | Not started | - |
