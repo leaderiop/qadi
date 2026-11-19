@@ -1061,3 +1061,45 @@ export const statuses = Effect.scoped(
 A stop's `reason` is a `Cause.pretty` trace, with stack frames and checkout paths, for a developer in the host's own process. It must not cross a trust boundary: a shell that forwards status to a remote viewer sends the tag, not the reason.
 
 The decision is [ADR-QD-173](https://github.com/leaderiop/qadi/blob/main/spec/decisions/173-the-devtools-headless-interface-is-its-feeds.md).
+
+## 0.13: a DecisionCache is asked only the question
+
+`DecisionCacheShape.getOrCompute` takes the question and, optionally, how the walk runs: `getOrCompute(question, options?)`, where `options` is `{ concurrency? }`, the `concurrency` option of `evaluate` (`Pick<EvaluateOptions, "concurrency">`). It no longer takes a `compute`, and passing one is a compile error (TS2559). `decisionCacheLayer()` walks the question it is given, so no caller can store a trace under a question that trace does not answer.
+
+`concurrency` is still not part of the key. One question asked with two concurrencies is one entry, and an ask that joins a walk already in flight shares that walk, run with the first asker's `concurrency`.
+
+Callers of `evaluate` and of the enforcing entry points see no change. A hand-written `DecisionCacheShape` must now produce its own trace for the question it is handed, and core does not export the walk, so wrap `decisionCacheLayer()` and delegate to it.
+
+Before:
+
+```ts
+const cache = Layer.succeed(DecisionCache, {
+  getOrCompute: (question, compute) => Effect.map(compute, (trace) => ({ trace, outcome: "miss" })),
+  size: Effect.succeed(0),
+  clear: Effect.void,
+});
+```
+
+After:
+
+```typescript
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import { DecisionCache, decisionCacheLayer } from "@qadi/core";
+
+export const loggedCache = Layer.effect(
+  DecisionCache,
+  Effect.gen(function* () {
+    const inner = yield* DecisionCache;
+    return DecisionCache.of({
+      ...inner,
+      getOrCompute: (question, options) =>
+        inner.getOrCompute(question, options).pipe(
+          Effect.tap((lookup) => Effect.logDebug(`decision cache ${lookup.outcome}`)),
+        ),
+    });
+  }),
+).pipe(Layer.provide(decisionCacheLayer()));
+```
+
+The decision is [ADR-QD-174](https://github.com/leaderiop/qadi/blob/main/spec/decisions/174-a-decision-cache-is-asked-the-question.md).
