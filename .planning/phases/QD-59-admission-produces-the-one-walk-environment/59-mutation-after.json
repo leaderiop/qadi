@@ -1,11 +1,11 @@
 {
  "counts": {
   "packages/core/src/Admission.ts": {
-   "killed": 15,
+   "killed": 18,
    "timeout": 0,
    "survived": 0,
    "noCoverage": 0,
-   "ignored": 3
+   "ignored": 4
   },
   "packages/core/src/Predicate.ts": {
    "killed": 280,
@@ -16,27 +16,30 @@
   },
   "packages/core/src/Walk.ts": {
    "killed": 259,
-   "timeout": 2,
-   "survived": 10,
+   "timeout": 1,
+   "survived": 11,
    "noCoverage": 2,
    "ignored": 27
   }
  },
  "detected": {
   "packages/core/src/Admission.ts": [
-   "BlockStatement | {} | { return policyDepth(question.policy) > question.maxDepth ? Result.fail(new PolicyTooDeep({ maxDepth: question.maxDepth })) : Result.succeed( new Admitted( rowSource, question.policy, question.subject, { action: question.action !== undefined, resource: RESOURCE_SUPPLIED[rowSource](question), }, { subject: question.subject.attributes, subjectId: question.subject.id, resource: question.resource, action: question.action, }, question.maxDepth, ), ); } | ): Result.Result<Admitted, PolicyTooDeep> {",
-   "BooleanLiteral | false | true | row: () => true,",
-   "ConditionalExpression | false | policyDepth(question.policy) > question.maxDepth | return policyDepth(question.policy) > question.maxDepth",
+   "BooleanLiteral | false | true | row: (question) => ({ action: question.action !== undefined, resource: true }),",
+   "ConditionalExpression | false | policyDepth(question.policy) > question.maxDepth | policyDepth(question.policy) > question.maxDepth",
    "ConditionalExpression | false | question.action !== undefined | action: question.action !== undefined,",
-   "ConditionalExpression | false | question.resource !== undefined | asked: (question) => question.resource !== undefined,",
-   "ConditionalExpression | true | policyDepth(question.policy) > question.maxDepth | return policyDepth(question.policy) > question.maxDepth",
+   "ConditionalExpression | false | question.action !== undefined | row: (question) => ({ action: question.action !== undefined, resource: true }),",
+   "ConditionalExpression | false | question.resource !== undefined | resource: question.resource !== undefined,",
+   "ConditionalExpression | true | policyDepth(question.policy) > question.maxDepth | policyDepth(question.policy) > question.maxDepth",
    "ConditionalExpression | true | question.action !== undefined | action: question.action !== undefined,",
-   "ConditionalExpression | true | question.resource !== undefined | asked: (question) => question.resource !== undefined,",
-   "EqualityOperator | policyDepth(question.policy) <= question.maxDepth | policyDepth(question.policy) > question.maxDepth | return policyDepth(question.policy) > question.maxDepth",
-   "EqualityOperator | policyDepth(question.policy) >= question.maxDepth | policyDepth(question.policy) > question.maxDepth | return policyDepth(question.policy) > question.maxDepth",
+   "ConditionalExpression | true | question.action !== undefined | row: (question) => ({ action: question.action !== undefined, resource: true }),",
+   "ConditionalExpression | true | question.resource !== undefined | resource: question.resource !== undefined,",
+   "EqualityOperator | policyDepth(question.policy) <= question.maxDepth | policyDepth(question.policy) > question.maxDepth | policyDepth(question.policy) > question.maxDepth",
+   "EqualityOperator | policyDepth(question.policy) >= question.maxDepth | policyDepth(question.policy) > question.maxDepth | policyDepth(question.policy) > question.maxDepth",
    "EqualityOperator | question.action === undefined | question.action !== undefined | action: question.action !== undefined,",
-   "EqualityOperator | question.resource === undefined | question.resource !== undefined | asked: (question) => question.resource !== undefined,",
-   "ObjectLiteral | {} | { action: question.action !== undefined, resource: RESOURCE_SUPPLIED[rowSource](question), } | {",
+   "EqualityOperator | question.action === undefined | question.action !== undefined | row: (question) => ({ action: question.action !== undefined, resource: true }),",
+   "EqualityOperator | question.resource === undefined | question.resource !== undefined | resource: question.resource !== undefined,",
+   "ObjectLiteral | {} | { action: question.action !== undefined, resource: question.resource !== undefined, } | asked: (question) => ({",
+   "ObjectLiteral | {} | { action: question.action !== undefined, resource: true } | row: (question) => ({ action: question.action !== undefined, resource: true }),",
    "ObjectLiteral | {} | { maxDepth: question.maxDepth } | ? Result.fail(new PolicyTooDeep({ maxDepth: question.maxDepth }))",
    "ObjectLiteral | {} | { subject: question.subject.attributes, subjectId: question.subject.id, resource: question.resource, action: question.action, } | {"
   ],
@@ -323,7 +326,6 @@
    "StringLiteral | `` | `matcher '${p.matcher._tag}' on column '${p.attribute}' has no predicate form` | `matcher '${p.matcher._tag}' on column '${p.attribute}' has no predicate form`,"
   ],
   "packages/core/src/Walk.ts": [
-   "ArithmeticOperator | depth - 1 | depth + 1 | yield* evaluateNode(child, request, depth + 1),",
    "ArrayDeclaration | [\"Stryker was here\"] | [] | allowingFieldSets: [],",
    "ArrayDeclaration | [\"Stryker was here\"] | [] | children: [],",
    "ArrayDeclaration | [\"Stryker was here\"] | [] | children: [],",
@@ -588,9 +590,10 @@
  },
  "ignored": {
   "packages/core/src/Admission.ts": [
-   "ArrowFunction | () => undefined | () => true | row: () => true,",
-   "ArrowFunction | () => undefined | (question) => question.resource !== undefined | asked: (question) => question.resource !== undefined,",
-   "ObjectLiteral | {} | { asked: (question) => question.resource !== undefined, row: () => true, } | const RESOURCE_SUPPLIED: { readonly [Source in RowSource]: (question: Question) => boolean } = {"
+   "ArrowFunction | () => undefined | (question) => ({ action: question.action !== undefined, resource: question.resource !== undefined, }) | asked: (question) => ({",
+   "ArrowFunction | () => undefined | (question) => ({ action: question.action !== undefined, resource: true }) | row: (question) => ({ action: question.action !== undefined, resource: true }),",
+   "ArrowFunction | () => undefined | <Source extends RowSource>( question: Question, rowSource: Source, ): Result.Result<Admitted<Source>, PolicyTooDeep> => policyDepth(question.policy) > question.maxDepth ? Result.fail(new PolicyTooDeep({ maxDepth: question.maxDepth })) : Result.succeed( new Admitted( rowSource, question.policy, question.subject, SUPPLIED[rowSource](question), { subject: question.subject.attributes, subjectId: question.subject.id, resource: question.resource, action: question.action, }, question.maxDepth, ), ) | export const admit = <Source extends RowSource>(",
+   "ObjectLiteral | {} | { asked: (question) => ({ action: question.action !== undefined, resource: question.resource !== undefined, }), row: (question) => ({ action: question.action !== undefined, resource: true }), } | const SUPPLIED: { readonly [Source in RowSource]: (question: Question) => SuppliedBy[Source] } = {"
   ],
   "packages/core/src/Predicate.ts": [
    "ArrowFunction | () => undefined | ( plan: Plan, subject: AuthSubject, context: MatcherContext, ): Effect.Effect<Predicate, RunError, AttributeResolver | DecisionHistory> => Match.value(plan).pipe( Match.tagsExhaustive({ Constant: (p) => Effect.succeed(constant(p.value)), Column: (p) => Effect.succeed(p.predicate), AskAttribute: (p) => Effect.map(readAttribute(\"toPredicate\", subject, p.leaf), (value) => constant(isHeld(LEAF_VERDICTS.HasAttribute(p.leaf, value, context))), ), AskActed: (p) => Effect.map(askActed(\"toPredicate\", subject, p.leaf, undefined), (answer) => constant(isHeld(LEAF_VERDICTS[p.leaf._tag](answer))), ), NeedAction: (p) => Effect.fail(errorOf(p.absence)), // Suspended: building the child eagerly recursed natively once per `Not` // level, so a deep chain under a large `maxDepth` overflowed the stack. Negation: (p) => Effect.map(Effect.suspend(() => run(p.plan, subject, context)), negate), Conjunction: (p) => Effect.gen(function* () { const collected: Array<Predicate> = []; for (const inner of p.plans) { const result = yield* run(inner, subject, context); // `False` settles an `and`: nothing after it can matter. if (result._tag === \"False\") return FALSE; collected.push(result); } return and(collected); }), Disjunction: (p) => Effect.gen(function* () { const collected: Array<Predicate> = []; for (const inner of p.plans) { const result = yield* run(inner, subject, context); if (p.stopsAtTrue && result._tag === \"True\") return TRUE; collected.push(result); } return or(collected); }), RuleTable: (p) => Effect.gen(function* () { const decisive = rulesDecisiveEffect(p.combining); const translated: Array<{ readonly effect: RuleEffect; readonly condition: Predicate }> = []; for (const rule of p.rules) { const condition = yield* run(rule.plan, subject, context); translated.push({ effect: rule.effect, condition }); // A condition that holds for every row settles the walk when the // evaluator would stop there: any applying rule under // `FirstApplicable`, the overriding effect under the others. if (condition._tag === \"True\" && (decisive === undefined || rule.effect === decisive)) { break; } } return formulaFor(p.combining, translated); }), }), ) | const run = (",
@@ -649,7 +652,7 @@
  "measured": {
   "packages/core/src/Admission.ts": 1,
   "packages/core/src/Predicate.ts": 1,
-  "packages/core/src/Walk.ts": 0.9560439560439561
+  "packages/core/src/Walk.ts": 0.9523809523809523
  },
  "survivors": {
   "packages/core/src/Admission.ts": [],
@@ -664,6 +667,7 @@
    "Survived | ArithmeticOperator | depth - 1 | depth + 1 | evaluateNode(policy.policy, request, depth + 1),",
    "Survived | ArithmeticOperator | depth - 1 | depth + 1 | evaluateNode(policy.policy, request, depth + 1),",
    "Survived | ArithmeticOperator | depth - 1 | depth + 1 | evaluateNode(rule.condition, request, depth + 1),",
+   "Survived | ArithmeticOperator | depth - 1 | depth + 1 | yield* evaluateNode(child, request, depth + 1),",
    "Survived | ArithmeticOperator | depth - 1 | depth + 1 | yield* evaluateNode(child, request, depth + 1),",
    "Survived | ObjectLiteral | {} | { concurrency: request.concurrency } | { concurrency: request.concurrency },",
    "Survived | ObjectLiteral | {} | { concurrency: request.concurrency } | { concurrency: request.concurrency },"
