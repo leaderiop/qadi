@@ -67,6 +67,17 @@
 - **D-09:** No `as`, `!`, `any`, new `switch`, new `Effect.fnUntraced`, `async`/`await` or `Record<string, unknown>`. Unions stay closed.
 - **D-10:** `DecisionCache.bench.ts` keeps its workloads. If the hit or miss path changes shape, research says whether a bench comparison is warranted (`Lifecycle` is on the hot path).
 
+### Settled after research (2026-11-19)
+
+- **D-11: the signature.**
+  - It is `getOrCompute(question: Question, options?: Pick<EvaluateOptions, "concurrency">)`. The result type is unchanged, and no new export is added.
+  - The name `getOrCompute` stays, because the lookup metric's description names it and that description is part of the registry key (ADR-QD-123).
+  - `decideQuestion` passes its own `options` object through. It never builds `{ concurrency: … }` per lookup, so nothing extra is allocated on the hot path.
+- **D-12: a coalesced joiner's `concurrency` is ignored, and the claimant's governs.** This is true today and was written down nowhere. BEH-QD-643 states it, and a test pins it.
+- **D-13: `walk` stays private.** A host's own cache wraps `decisionCacheLayer()`, and the upgrade note documents that as the route. A wholly separate cache would have no way to produce a correct trace, which is D-02's intent.
+- **D-14: no bench A/B.** A lookup still allocates exactly one `Effect.suspend`, and the options object passes through unchanged. The research shows this per call site, and the plan forbids a per-lookup options literal.
+- **D-15: the I5 FIFO race test (`DecisionCache.test.ts:1113-1171`) moves to `hasAttribute` questions,** with a recording resolver and a wider `gap` sweep. The research gives the pattern, and it must still race on both the `coalesced` and `hit` sides.
+
 ### Claude's Discretion
 - The second parameter's name and shape, for example `{ concurrency }` or a `WalkOptions`.
 - How `decisionCacheLayer` reaches `walk` without an import cycle.
