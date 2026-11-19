@@ -56,10 +56,10 @@
 
 ### Admission produces the one walk environment (Phase 59, ARCH-106, core; opens on a benchmark)
 
-- [ ] **WENV-01**: `pnpm bench` measures a prototype in which recursion passes `(policy, env, depth)` against the phase base, using Phase 50's method (interleaved runs, median of per-run minima). The numbers go in ADR-QD-172. If any workload regresses beyond run-to-run noise, the phase ends with a recorded rejection, and WENV-02 to WENV-04 are marked "Not pursued (measured)".
-- [ ] **WENV-02**: Admission produces the one walk environment: subject, resource, action, `supplied`, matcher context and `maxDepth`. Each interpreter states only what differs (for `toPredicate`, that the row is always supplied).
-- [ ] **WENV-03**: The subject, resource and action are each carried once, and `depth` and `maxDepth` can no longer be swapped and still compile (a tstyche negative).
-- [ ] **WENV-04**: `RolesAndDepth.test.ts`'s depth agreement test stays green. The three `Effect.fnUntraced` functions and `SWITCH_BUDGET` are unchanged.
+- [x] **WENV-01**: `pnpm bench` measures a prototype in which recursion passes `(policy, env, depth)` against the phase base, using Phase 50's method (interleaved runs, median of per-run minima). The numbers go in ADR-QD-172. If any workload regresses beyond run-to-run noise, the phase ends with a recorded rejection, and WENV-02 to WENV-04 are marked "Not pursued (measured)".
+- [x] **WENV-02**: Admission produces the one walk environment: subject, resource, action, `supplied`, matcher context and `maxDepth`. Each interpreter states only what differs (for `toPredicate`, that the row is always supplied).
+- [x] **WENV-03**: The subject, resource and action are each carried once, and `depth` and `maxDepth` can no longer be swapped and still compile (a tstyche negative).
+- [x] **WENV-04**: `RolesAndDepth.test.ts`'s depth agreement test stays green. The three `Effect.fnUntraced` functions and `SWITCH_BUDGET` are unchanged.
 
 ### Devtools' headless interface is the feeds (Phase 60, ARCH-107, devtools; human checkpoint, Breaking)
 
@@ -139,10 +139,10 @@ The seven WX rows apply to every phase 53 to 61, so each phase's Requirements li
 | STOR-02 | Phase 58 | Complete |
 | STOR-03 | Phase 58 | Complete |
 | STOR-04 | Phase 58 | Complete |
-| WENV-01 | Phase 59 | Pending |
-| WENV-02 | Phase 59 | Pending |
-| WENV-03 | Phase 59 | Pending |
-| WENV-04 | Phase 59 | Pending |
+| WENV-01 | Phase 59 | Complete |
+| WENV-02 | Phase 59 | Complete |
+| WENV-03 | Phase 59 | Complete |
+| WENV-04 | Phase 59 | Complete |
 | HDLS-01 | Phase 60 | Pending |
 | HDLS-02 | Phase 60 | Pending |
 | HDLS-03 | Phase 60 | Pending |

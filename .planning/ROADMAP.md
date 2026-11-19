@@ -601,7 +601,7 @@ Plans:
   4. If pursued: `RolesAndDepth.test.ts`'s depth agreement test stays green, the three `Effect.fnUntraced` functions and `SWITCH_BUDGET` are unchanged (the AGENTS.md tables and the budgets agree), and `pnpm bench` after the change shows no workload regressed beyond noise against the phase base.
 
 **Planning notes**: **The benchmark is the first plan, and it gates the rest.** Prototype on a scratch branch or an unmerged commit, run `pnpm bench` against the base the way Phase 50 did, and record the table before writing any source that stays. If pursued, plan shape, RED first: the mutation base for `Walk.ts`, `Predicate.ts` and `Admission.ts` and the `admit(question)` characterisation first; then the environment; then each interpreter; then records.
-**Plans**: 9/10 plans executed
+**Plans**: 10/10 plans executed
 
 Plans:
 - [x] 59-01 (W1): `phase_base` and the gate of record (WENV-01, `# gate: pass`), base facts, reserved ids and API surface base (933)
@@ -613,7 +613,7 @@ Plans:
 - [x] 59-07 (W7): ADR-QD-172; the ADR-QD-100, ADR-QD-163 and ADR-QD-024 amendments
 - [x] 59-08 (W8): INV-QD-363..364, BEH-QD-631..635, the INV-QD-037 amendment, the traceability rows
 - [x] 59-09 (W9): CCR-QD-450; strict traceability green, 933 exports, no changeset
-- [ ] 59-10 (W10): the phase scan, the D-15 re-run, `check:pr`, the release check; WENV-01..04 complete
+- [x] 59-10 (W10): the phase scan, the D-15 re-run, `check:pr`, the release check; WENV-01..04 complete
 
 ### Phase 60: Devtools' headless interface is the feeds
 
@@ -666,6 +666,6 @@ Phases execute in numeric order: 53 → 54 → 55 → 56 → 57 → 58 → 59 �
 | 56. The gate-registry watch becomes the dock model's third feed | 13/13 | Complete    | 2026-11-18 |
 | 57. untrustedDecoder states the envelope's unknown-key policy | 11/11 | Complete    | 2026-11-19 |
 | 58. A stored record is its envelope in memory too | 9/9 | Complete    | 2026-11-19 |
-| 59. Admission produces the one walk environment | 9/10 | In Progress | - |
+| 59. Admission produces the one walk environment | 10/10 | In Progress | - |
 | 60. Devtools' headless interface is the feeds | 0/TBD | Not started | - |
 | 61. DecisionCache is asked only the question | 0/TBD | Not started | - |
