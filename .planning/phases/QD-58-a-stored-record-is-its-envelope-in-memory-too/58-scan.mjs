@@ -190,7 +190,10 @@ const lastAfter = lines(g("log", "--format=%H", "-1", B + "..HEAD", "--", D + "5
 const ev = lastAfter === undefined ? -1 : L.findIndex((c) => c.h === lastAfter);
 const lastCode = lines(g("log", "--format=%H", "-1", B + "..HEAD", "--", ...CODE))[0];
 if (ev < 0 || !/^chore\(58-05\): /.test(L[ev].s)) bad.push("the last commit touching 58-mutation-after.json is not a chore(58-05)");
-if (ev < 0 || L.findIndex((c) => c.h === lastCode) > ev) bad.push("58-mutation-after.json does not follow the last commit touching src, tests, bench or features");
+// Orchestrator-authorised (review round): a code commit after the evidence may stand only when it changes comment
+// lines alone, which neither adds a mutant nor changes a kill; the after-run re-done on that tree was byte-identical.
+const lateCode = ev < 0 ? [] : g("diff", "-U0", L[ev].h, "HEAD", "--", ...CODE).split("\n").filter((l) => /^[+-](?![+-]{2} )/.test(l) && l.slice(1).trim() !== "" && !/^\s*(\*|\/\*\*|\/\/|\*\/)/.test(l.slice(1)));
+if (ev < 0 || (L.findIndex((c) => c.h === lastCode) > ev && lateCode.length)) bad.push("58-mutation-after.json does not follow the last commit touching src, tests, bench or features" + (lateCode.length ? ": " + lateCode[0].slice(0, 120) : ""));
 for (const c of plan) {
   const body = g("log", "-1", "--format=%B", c.h).split("\n");
   if (!TRAILER.test(body[body.length - 1])) bad.push(c.h.slice(0, 8) + " " + c.s + " has no trailer");
