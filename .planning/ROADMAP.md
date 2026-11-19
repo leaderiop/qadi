@@ -661,10 +661,10 @@ Plans:
   4. If pursued: `DecisionCache.test.ts`'s coalescing and interruption tests are driven through a question alone and stay green, and `SharedComputation`'s rules (ADR-QD-132, ARCH-79) are unchanged.
 
 **Planning notes**: **The checkpoint is the first thing settled, before any plan.** If pursued, plan shape, RED first: the mutation base for `DecisionCache.ts`, `Lifecycle.ts` and `SharedComputation.ts` and the existing coalescing and interruption tests characterised through a question alone first; then the interface; then records.
-**Plans**: 7 plans
+**Plans**: 1/7 plans executed
 
 Plans:
-- [ ] 61-01 (W1): `phase_base`, base facts, reserved ids and the 939-export base; the scoped Stryker baseline of `DecisionCache.ts`, `Lifecycle.ts` and `SharedComputation.ts`, committed alone first (WX-02, WX-03, WX-05, WX-06).
+- [x] 61-01 (W1): `phase_base`, base facts, reserved ids and the 939-export base; the scoped Stryker baseline of `DecisionCache.ts`, `Lifecycle.ts` and `SharedComputation.ts`, committed alone first (WX-02, WX-03, WX-05, WX-06).
 - [ ] 61-02 (W2): Green characterisations (one entry for two concurrencies, `concurrency` reaching the walk, the claimant governing a joined walk), the I5 race asking each question alone, then the RED `DecisionCache.tst.ts` (CASK-02..04, WX-04, WX-06).
 - [ ] 61-03 (W3): Tracer and GREEN: `getOrCompute(question, options?)`, the layer walks the question it is given, `decideQuestion` hands over the question alone; the one `feat(61-03)!` commit; each negative pin broken once (CASK-02..04).
 - [ ] 61-04 (W4): Stryker after-run, the D-06 compare, static evidence only if asked; `chore(61-04)` (WX-05).
@@ -687,4 +687,4 @@ Phases execute in numeric order: 53 → 54 → 55 → 56 → 57 → 58 → 59 �
 | 58. A stored record is its envelope in memory too | 9/9 | Complete    | 2026-11-19 |
 | 59. Admission produces the one walk environment | 10/10 | Complete    | 2026-11-19 |
 | 60. Devtools' headless interface is the feeds | 8/8 | Complete    | 2026-11-19 |
-| 61. DecisionCache is asked only the question | 0/TBD | Not started | - |
+| 61. DecisionCache is asked only the question | 1/7 | In Progress | - |
