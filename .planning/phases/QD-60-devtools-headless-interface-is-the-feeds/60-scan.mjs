@@ -206,7 +206,8 @@ const commentOnly = (from, paths) =>
   g("diff", "-U0", from, "HEAD", "--", ...paths).split("\n").filter((l) => /^[+-](?![+-]{2} )/.test(l) && l.slice(1).trim() !== "" && !/^\s*(\*|\/\*\*|\/\/|\*\/)/.test(l.slice(1)));
 // The mutation evidence is the LAST commit touching 60-mutation-after.json (60-05's, or a review round's redo), and
 // no code line changed after it.
-const lastAfter = lines(g("log", "--format=%H", "-1", B + "..HEAD", "--", D + "60-mutation-after.json"))[0];
+// One run writes both files; a re-run whose after-scores are byte-identical leaves only 60-mutation-static.json in its commit.
+const lastAfter = lines(g("log", "--format=%H", "-1", B + "..HEAD", "--", D + "60-mutation-after.json", D + "60-mutation-static.json"))[0];
 const ev = lastAfter === undefined ? -1 : at(lastAfter);
 if (ev < 0 || !/^chore\(60(-05)?\): /.test(L[ev].s)) bad.push("the last commit touching 60-mutation-after.json is not a chore(60-05) or a review round's chore(60)");
 else {
