@@ -83,7 +83,7 @@ Requirement → test map (from research):
 | KEYP-05 | the per-policy matrix in core, audit and react: shallow unknown key, deep unknown key, excess key inside the payload, non-object input | unit | as above | ✅ (extend on the base) |
 | WX-02/03/07 | ADR-QD-170, BEH-QD-621..625, INV-QD-359/360, CCR-QD-448, overview rows, changesets, the 0.13 note | gate | `pnpm spec:verify:strict`; `pnpm spec:api` | ✅ |
 | WX-04 / D-10 | budget and §7a agree; no `as`, `!`, `any` or `switch`; no cycle; leaf rule | gate | `node scripts/check-house-style.mjs`; `pnpm lint`; `pnpm circular` | ✅ |
-| WX-05 | mutation not lower | harness | `node .planning/phases/QD-57-untrusteddecoder-states-the-envelope-s-unknown-key-policy/57-mutation.mjs compare <static evidence json>` | ❌ W0 |
+| WX-05 | mutation not lower | harness | `node .planning/phases/QD-57-untrusteddecoder-states-the-envelope-s-unknown-key-policy/57-mutation.mjs compare <static evidence json>` | ✅ W0 landed |
 
 ---
 
