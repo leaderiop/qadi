@@ -57,7 +57,8 @@ Each item cites the phase decision it records.
    typecheck when swapped with `depth`, so it travels in the bundle instead. The bundle repeats no fact and has one
    construction site, so D-01's objection to a second type does not apply to it.
 6. **D-14: `evaluateNode` is exported from the package-private `Walk.ts`**, so the type pins can name it. It is not in
-   the barrel, so gate 13 stays at 933 exports, and there is no changeset: nothing public changed. The walk's own
+   the barrel, so gate 13 (`scripts/check-api-surface.mjs`) stays at 933 exports, and there is no changeset: nothing
+   public changed. The walk's own
    `depth > maxDepth` guard is kept as defence in depth (ADR-QD-090): admission now proves the bound before the walk
    starts, so `evaluate` cannot reach it, and `WalkDepthGuard.test.ts` pins it by entering `evaluateNode` directly.
 7. **D-15: the mutation rule.** The killed mutants on the two hand-built `supplied` literals move into `Admission.ts`:
