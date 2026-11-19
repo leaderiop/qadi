@@ -378,6 +378,33 @@ describe("the timeline feed", () => {
       assert.deepStrictEqual(heard, []);
     }));
 
+  it.effect("TF20 a configure after the scope closed reads nothing, publishes nothing and leaves a Stopped feed Stopped", () =>
+    Effect.gen(function* () {
+      const a = flaky();
+      const b = counting([record("b", 300)], Stream.never);
+      const scope = yield* Scope.make();
+      const feed = yield* Scope.provide(makeTimelineFeed({ source: a.source }), scope);
+      yield* flush;
+      assert.strictEqual(feed.status.getSnapshot()._tag, "Stopped");
+      const before = feed.timeline.getSnapshot();
+      const heard = heardStatus(feed);
+      let timelineHeard = 0;
+      feed.timeline.subscribe(() => {
+        timelineHeard += 1;
+      });
+      yield* Scope.close(scope, Exit.void);
+      yield* settleTurns;
+
+      feed.configure({ capacity: 5, source: b.source });
+      yield* flush;
+
+      assert.strictEqual(feed.status.getSnapshot()._tag, "Stopped");
+      assert.strictEqual(feed.timeline.getSnapshot(), before);
+      assert.strictEqual(b.tally.reads, 0);
+      assert.deepStrictEqual(heard, []);
+      assert.strictEqual(timelineHeard, 0);
+    }));
+
   it.effect("TF19 a replaced read whose release dies while the scope closes never publishes Stopped", () =>
     Effect.gen(function* () {
       const latch = yield* Deferred.make<void>();
