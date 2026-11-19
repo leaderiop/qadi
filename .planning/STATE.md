@@ -5,16 +5,16 @@ milestone_name: Arch Wave 11
 current_phase: 58
 current_phase_name: A stored record is its envelope in memory too
 status: executing
-stopped_at: Completed QD-58-03-PLAN.md
-last_updated: "2026-11-19T02:12:34.714Z"
+stopped_at: Completed QD-58-04-PLAN.md
+last_updated: "2026-11-19T02:20:18.235Z"
 last_activity: 2026-11-19
 last_activity_desc: Phase QD-57 complete, transitioned to Phase 58
-state_head: ac9fc05cd3f25b4f41dabaa99a2d01093883e2c7
+state_head: 73232d6ad24a2e56f8b7257f1cf970b49264b80e
 progress:
   total_phases: 9
   completed_phases: 5
   total_plans: 58
-  completed_plans: 52
+  completed_plans: 53
   percent: 56
 ---
 
@@ -383,6 +383,7 @@ Last activity: 2026-11-19 — Phase QD-57 complete, transitioned to Phase 58
 | Phase QD-58 P01 | 3 min | 2 tasks | 2 files |
 | Phase QD-58 P02 | 6 min | 2 tasks | 2 files |
 | Phase QD-58 P03 | 4 min | 2 tasks | 2 files |
+| Phase QD-58 P04 | 7 min | 3 tasks | 26 files |
 
 ## Accumulated Context
 
@@ -657,6 +658,7 @@ Last activity: 2026-11-19 — Phase QD-57 complete, transitioned to Phase 58
 - [Phase QD-58]: 58-01: four base files are below 1 (DecisionLog 69/70, DecisionStream 70/72, SinkCodec 122/126, TimelineStore 32/33); the close compares against those floors with no new survivor
 - [Phase QD-58]: 58-02: order is read by evaluation id through the encoder (a NaN refusal carries the id), so no characterisation row reads the in-memory shape
 - [Phase QD-58]: 58-03: devtools/http characterisation reads order through the encoder and display rows only; http test copies core fixture texts with source named
+- [Phase QD-58]: 58-04: StoredRecord is one Data.Class { environment, record }; no alias of the four removed exports; the log's isolate catches are deleted (D-02, D-12)
 
 ### Pending Todos
 
@@ -716,8 +718,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-19T02:12:34.381Z
-Stopped at: Completed QD-58-03-PLAN.md
+Last session: 2026-11-19T02:20:17.755Z
+Stopped at: Completed QD-58-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
