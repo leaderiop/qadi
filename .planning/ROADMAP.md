@@ -661,7 +661,16 @@ Plans:
   4. If pursued: `DecisionCache.test.ts`'s coalescing and interruption tests are driven through a question alone and stay green, and `SharedComputation`'s rules (ADR-QD-132, ARCH-79) are unchanged.
 
 **Planning notes**: **The checkpoint is the first thing settled, before any plan.** If pursued, plan shape, RED first: the mutation base for `DecisionCache.ts`, `Lifecycle.ts` and `SharedComputation.ts` and the existing coalescing and interruption tests characterised through a question alone first; then the interface; then records.
-**Plans**: TBD
+**Plans**: 7 plans
+
+Plans:
+- [ ] 61-01 (W1): `phase_base`, base facts, reserved ids and the 939-export base; the scoped Stryker baseline of `DecisionCache.ts`, `Lifecycle.ts` and `SharedComputation.ts`, committed alone first (WX-02, WX-03, WX-05, WX-06).
+- [ ] 61-02 (W2): Green characterisations (one entry for two concurrencies, `concurrency` reaching the walk, the claimant governing a joined walk), the I5 race asking each question alone, then the RED `DecisionCache.tst.ts` (CASK-02..04, WX-04, WX-06).
+- [ ] 61-03 (W3): Tracer and GREEN: `getOrCompute(question, options?)`, the layer walks the question it is given, `decideQuestion` hands over the question alone; the one `feat(61-03)!` commit; each negative pin broken once (CASK-02..04).
+- [ ] 61-04 (W4): Stryker after-run, the D-06 compare, static evidence only if asked; `chore(61-04)` (WX-05).
+- [ ] 61-05 (W5): The Breaking `@qadi/core` minor changeset and the 0.13 `upgrading.md` section with a compiled fence (WX-07).
+- [ ] 61-06 (W6): ADR-QD-174 with the 031/132 amendments, BEH-QD-641..645, INV-QD-367..368, traceability and CCR-QD-452 (CASK-01, WX-02, WX-03).
+- [ ] 61-07 (W7): The phase scan, the compare at the close, `pnpm check:pr` alone, the release check, CASK-01..04 complete (WX-01..07).
 
 ### Progress (v1.6)
 
