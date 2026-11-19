@@ -1,0 +1,680 @@
+{
+ "packages/core/src/DecisionCache.ts": [
+  {
+   "key": "ConditionalExpression | true | options?.capacity !== undefined && !(Number.isInteger(options.capacity) && options.capacity >= 0) | options?.capacity !== undefined &&",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | options?.capacity !== undefined | options?.capacity !== undefined &&",
+   "status": "Killed"
+  },
+  {
+   "key": "OptionalChaining | options.capacity | options?.capacity | options?.capacity !== undefined &&",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | Number.isInteger(options.capacity) && options.capacity >= 0 | !(Number.isInteger(options.capacity) && options.capacity >= 0)",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { if ( options?.capacity !== undefined && !(Number.isInteger(options.capacity) && options.capacity >= 0) ) { throw new Error( `decisionCacheLayer: capacity must be a non-negative integer, got ${options.capacity}`, ); } let entries = HashMap.empty<Question, Trace>(); // Parallel to `entries`, in insertion order, so a bounded cache knows what // to evict without walking `entries` itself — a `HashMap` has no order to // walk. Only ever grows where `entries` does, and only ever shrinks by // eviction, so it can never hold a key `entries` does not. Left empty and // unwritten-to when `capacity` is unset — the common case, per this file's // own doc comment — since nothing would ever read it. // // A `Chunk`, not an `Array`: eviction pops from the front on every entry // over capacity, and `Array.prototype.shift` is O(n) — it re-indexes every // remaining element. `Chunk.drop(chunk, 1)` is O(1) amortized for this // access pattern (push at the tail, drop from the head), so eviction under // sustained pressure stays proportional to how much was evicted, not to // how large the cache is. let insertionOrder: Chunk.Chunk<Question> = Chunk.empty(); // Single-flight (claim, join, hit, every waiter settled, last-leaver // interrupt) and its staleness rule (a reset supersedes every in-flight // claim) live in `SharedComputation.ts`, with their own comments. What // stays here is what a settled answer does to this cache. const shared = makeSharedComputation<Question, Trace, EvaluationError>({ cached: (key) => HashMap.get(entries, key), settle: (key, exit) => { if (exit._tag === \"Success\") { entries = HashMap.set(entries, key, exit.value); // Recorded, and evicted from, only when `capacity` was given — // the unbounded default (the common case, per this file's own // doc comment) has nothing that will ever read this array, so // it stays empty rather than growing in lockstep with `entries` // for the life of the cache. if (options?.capacity === undefined) return; insertionOrder = Chunk.append(insertionOrder, key); // FIFO eviction: a `while` rather than an `if` because a caller // who lowers `capacity` between two `decisionCacheLayer()` // calls is not a case this loop should special-case to \"evict // one\" and leave still over budget. Always terminates: // `capacity` is validated non-negative-integer at construction, // so `size(entries)` — a non-negative integer that strictly // decreases each iteration — reaches it in finitely many steps. while (HashMap.size(entries) > options.capacity) { // `Chunk.size(insertionOrder) === HashMap.size(entries)` // always — every append here has exactly one corresponding // `entries` insert (a key is claimed by one fiber at a time, // and a hit never claims, so it is appended once per // completed walk nobody else answered), and eviction // always removes one of each — // so this loop's own condition (`size(entries) > capacity >= // 0`) guarantees `insertionOrder` is non-empty. The `Option` // check exists for that same reason `noUncheckedIndexedAccess` // forced a guard on the old `Array` version, not because this // can happen. const oldest = Chunk.head(insertionOrder); insertionOrder = Chunk.drop(insertionOrder, 1); if (Option.isSome(oldest)) entries = HashMap.remove(entries, oldest.value); } } }, onOutcome: (outcome) => Metric.update(decisionCacheLookupsTotal, outcome), }); const getOrCompute: DecisionCacheShape[\"getOrCompute\"] = (key, options) => Effect.map(shared.run(key, walk(key, options?.concurrency)), (found) => ({ trace: found.value, outcome: found.outcome, })); return { getOrCompute, size: Effect.sync(() => HashMap.size(entries)), clear: Effect.sync(() => { entries = HashMap.empty<Question, Trace>(); insertionOrder = Chunk.empty(); // Resetting the in-flight claims supersedes every walk already // running, so none of them writes into the emptied cache and an ask // after this claims afresh instead of coalescing onto a walk that // started before the flush. That rule is `SharedComputation`'s. shared.reset(); }), }; } | Effect.sync(() => {",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | options?.capacity !== undefined || !(Number.isInteger(options.capacity) && options.capacity >= 0) | options?.capacity !== undefined && !(Number.isInteger(options.capacity) && options.capacity >= 0) | options?.capacity !== undefined &&",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | options?.capacity === undefined | options?.capacity !== undefined | options?.capacity !== undefined &&",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | options.capacity > 0 | options.capacity >= 0 | !(Number.isInteger(options.capacity) && options.capacity >= 0)",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | `` | `decisionCacheLayer: capacity must be a non-negative integer, got ${options.capacity}` | `decisionCacheLayer: capacity must be a non-negative integer, got ${options.capacity}`,",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { cached: (key) => HashMap.get(entries, key), settle: (key, exit) => { if (exit._tag === \"Success\") { entries = HashMap.set(entries, key, exit.value); // Recorded, and evicted from, only when `capacity` was given — // the unbounded default (the common case, per this file's own // doc comment) has nothing that will ever read this array, so // it stays empty rather than growing in lockstep with `entries` // for the life of the cache. if (options?.capacity === undefined) return; insertionOrder = Chunk.append(insertionOrder, key); // FIFO eviction: a `while` rather than an `if` because a caller // who lowers `capacity` between two `decisionCacheLayer()` // calls is not a case this loop should special-case to \"evict // one\" and leave still over budget. Always terminates: // `capacity` is validated non-negative-integer at construction, // so `size(entries)` — a non-negative integer that strictly // decreases each iteration — reaches it in finitely many steps. while (HashMap.size(entries) > options.capacity) { // `Chunk.size(insertionOrder) === HashMap.size(entries)` // always — every append here has exactly one corresponding // `entries` insert (a key is claimed by one fiber at a time, // and a hit never claims, so it is appended once per // completed walk nobody else answered), and eviction // always removes one of each — // so this loop's own condition (`size(entries) > capacity >= // 0`) guarantees `insertionOrder` is non-empty. The `Option` // check exists for that same reason `noUncheckedIndexedAccess` // forced a guard on the old `Array` version, not because this // can happen. const oldest = Chunk.head(insertionOrder); insertionOrder = Chunk.drop(insertionOrder, 1); if (Option.isSome(oldest)) entries = HashMap.remove(entries, oldest.value); } } }, onOutcome: (outcome) => Metric.update(decisionCacheLookupsTotal, outcome), } | const shared = makeSharedComputation<Question, Trace, EvaluationError>({",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (key) => HashMap.get(entries, key) | cached: (key) => HashMap.get(entries, key),",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { if (exit._tag === \"Success\") { entries = HashMap.set(entries, key, exit.value); // Recorded, and evicted from, only when `capacity` was given — // the unbounded default (the common case, per this file's own // doc comment) has nothing that will ever read this array, so // it stays empty rather than growing in lockstep with `entries` // for the life of the cache. if (options?.capacity === undefined) return; insertionOrder = Chunk.append(insertionOrder, key); // FIFO eviction: a `while` rather than an `if` because a caller // who lowers `capacity` between two `decisionCacheLayer()` // calls is not a case this loop should special-case to \"evict // one\" and leave still over budget. Always terminates: // `capacity` is validated non-negative-integer at construction, // so `size(entries)` — a non-negative integer that strictly // decreases each iteration — reaches it in finitely many steps. while (HashMap.size(entries) > options.capacity) { // `Chunk.size(insertionOrder) === HashMap.size(entries)` // always — every append here has exactly one corresponding // `entries` insert (a key is claimed by one fiber at a time, // and a hit never claims, so it is appended once per // completed walk nobody else answered), and eviction // always removes one of each — // so this loop's own condition (`size(entries) > capacity >= // 0`) guarantees `insertionOrder` is non-empty. The `Option` // check exists for that same reason `noUncheckedIndexedAccess` // forced a guard on the old `Array` version, not because this // can happen. const oldest = Chunk.head(insertionOrder); insertionOrder = Chunk.drop(insertionOrder, 1); if (Option.isSome(oldest)) entries = HashMap.remove(entries, oldest.value); } } } | settle: (key, exit) => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | exit._tag === \"Success\" | if (exit._tag === \"Success\") {",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | exit._tag !== \"Success\" | exit._tag === \"Success\" | if (exit._tag === \"Success\") {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | exit._tag === \"Success\" | if (exit._tag === \"Success\") {",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Success\" | if (exit._tag === \"Success\") {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { entries = HashMap.set(entries, key, exit.value); // Recorded, and evicted from, only when `capacity` was given — // the unbounded default (the common case, per this file's own // doc comment) has nothing that will ever read this array, so // it stays empty rather than growing in lockstep with `entries` // for the life of the cache. if (options?.capacity === undefined) return; insertionOrder = Chunk.append(insertionOrder, key); // FIFO eviction: a `while` rather than an `if` because a caller // who lowers `capacity` between two `decisionCacheLayer()` // calls is not a case this loop should special-case to \"evict // one\" and leave still over budget. Always terminates: // `capacity` is validated non-negative-integer at construction, // so `size(entries)` — a non-negative integer that strictly // decreases each iteration — reaches it in finitely many steps. while (HashMap.size(entries) > options.capacity) { // `Chunk.size(insertionOrder) === HashMap.size(entries)` // always — every append here has exactly one corresponding // `entries` insert (a key is claimed by one fiber at a time, // and a hit never claims, so it is appended once per // completed walk nobody else answered), and eviction // always removes one of each — // so this loop's own condition (`size(entries) > capacity >= // 0`) guarantees `insertionOrder` is non-empty. The `Option` // check exists for that same reason `noUncheckedIndexedAccess` // forced a guard on the old `Array` version, not because this // can happen. const oldest = Chunk.head(insertionOrder); insertionOrder = Chunk.drop(insertionOrder, 1); if (Option.isSome(oldest)) entries = HashMap.remove(entries, oldest.value); } } | if (exit._tag === \"Success\") {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | options?.capacity === undefined | if (options?.capacity === undefined) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | HashMap.size(entries) > options.capacity | while (HashMap.size(entries) > options.capacity) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | options?.capacity === undefined | if (options?.capacity === undefined) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | options?.capacity !== undefined | options?.capacity === undefined | if (options?.capacity === undefined) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "OptionalChaining | options.capacity | options?.capacity | if (options?.capacity === undefined) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | HashMap.size(entries) <= options.capacity | HashMap.size(entries) > options.capacity | while (HashMap.size(entries) > options.capacity) {",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | HashMap.size(entries) >= options.capacity | HashMap.size(entries) > options.capacity | while (HashMap.size(entries) > options.capacity) {",
+   "status": "Timeout"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (outcome) => Metric.update(decisionCacheLookupsTotal, outcome) | onOutcome: (outcome) => Metric.update(decisionCacheLookupsTotal, outcome),",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (key, options) => Effect.map(shared.run(key, walk(key, options?.concurrency)), (found) => ({ trace: found.value, outcome: found.outcome, })) | const getOrCompute: DecisionCacheShape[\"getOrCompute\"] = (key, options) =>",
+   "status": "Killed"
+  },
+  {
+   "key": "OptionalChaining | options.concurrency | options?.concurrency | Effect.map(shared.run(key, walk(key, options?.concurrency)), (found) => ({",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (found) => ({ trace: found.value, outcome: found.outcome, }) | Effect.map(shared.run(key, walk(key, options?.concurrency)), (found) => ({",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { trace: found.value, outcome: found.outcome, } | Effect.map(shared.run(key, walk(key, options?.concurrency)), (found) => ({",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { getOrCompute, size: Effect.sync(() => HashMap.size(entries)), clear: Effect.sync(() => { entries = HashMap.empty<Question, Trace>(); insertionOrder = Chunk.empty(); // Resetting the in-flight claims supersedes every walk already // running, so none of them writes into the emptied cache and an ask // after this claims afresh instead of coalescing onto a walk that // started before the flush. That rule is `SharedComputation`'s. shared.reset(); }), } | return {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | Option.isSome(oldest) | if (Option.isSome(oldest)) entries = HashMap.remove(entries, oldest.value);",
+   "status": "Survived"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => HashMap.size(entries) | size: Effect.sync(() => HashMap.size(entries)),",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { // `Chunk.size(insertionOrder) === HashMap.size(entries)` // always — every append here has exactly one corresponding // `entries` insert (a key is claimed by one fiber at a time, // and a hit never claims, so it is appended once per // completed walk nobody else answered), and eviction // always removes one of each — // so this loop's own condition (`size(entries) > capacity >= // 0`) guarantees `insertionOrder` is non-empty. The `Option` // check exists for that same reason `noUncheckedIndexedAccess` // forced a guard on the old `Array` version, not because this // can happen. const oldest = Chunk.head(insertionOrder); insertionOrder = Chunk.drop(insertionOrder, 1); if (Option.isSome(oldest)) entries = HashMap.remove(entries, oldest.value); } | while (HashMap.size(entries) > options.capacity) {",
+   "status": "Timeout"
+  },
+  {
+   "key": "ConditionalExpression | false | Option.isSome(oldest) | if (Option.isSome(oldest)) entries = HashMap.remove(entries, oldest.value);",
+   "status": "Timeout"
+  },
+  {
+   "key": "BlockStatement | {} | { entries = HashMap.empty<Question, Trace>(); insertionOrder = Chunk.empty(); // Resetting the in-flight claims supersedes every walk already // running, so none of them writes into the emptied cache and an ask // after this claims afresh instead of coalescing onto a walk that // started before the flush. That rule is `SharedComputation`'s. shared.reset(); } | clear: Effect.sync(() => {",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | shared.reset(); | shared.reset();",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { throw new Error( `decisionCacheLayer: capacity must be a non-negative integer, got ${options.capacity}`, ); } | ) {",
+   "status": "Timeout"
+  },
+  {
+   "key": "BooleanLiteral | Number.isInteger(options.capacity) && options.capacity >= 0 | !(Number.isInteger(options.capacity) && options.capacity >= 0) | !(Number.isInteger(options.capacity) && options.capacity >= 0)",
+   "status": "Timeout"
+  },
+  {
+   "key": "ConditionalExpression | true | Number.isInteger(options.capacity) && options.capacity >= 0 | !(Number.isInteger(options.capacity) && options.capacity >= 0)",
+   "status": "Timeout"
+  },
+  {
+   "key": "LogicalOperator | Number.isInteger(options.capacity) || options.capacity >= 0 | Number.isInteger(options.capacity) && options.capacity >= 0 | !(Number.isInteger(options.capacity) && options.capacity >= 0)",
+   "status": "Timeout"
+  },
+  {
+   "key": "ConditionalExpression | false | options?.capacity !== undefined && !(Number.isInteger(options.capacity) && options.capacity >= 0) | options?.capacity !== undefined &&",
+   "status": "Timeout"
+  },
+  {
+   "key": "ConditionalExpression | true | options.capacity >= 0 | !(Number.isInteger(options.capacity) && options.capacity >= 0)",
+   "status": "Timeout"
+  },
+  {
+   "key": "EqualityOperator | options.capacity < 0 | options.capacity >= 0 | !(Number.isInteger(options.capacity) && options.capacity >= 0)",
+   "status": "Timeout"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (options?: { /** * The most completed entries `entries` holds at once. Once exceeded, the * oldest completed entry is evicted — never an entry with a walk still in * flight, since eviction only ever runs after a walk settles. */ readonly capacity?: number; }): Layer.Layer<DecisionCache> => Layer.effect( DecisionCache, Effect.sync(() => { if ( options?.capacity !== undefined && !(Number.isInteger(options.capacity) && options.capacity >= 0) ) { throw new Error( `decisionCacheLayer: capacity must be a non-negative integer, got ${options.capacity}`, ); } let entries = HashMap.empty<Question, Trace>(); // Parallel to `entries`, in insertion order, so a bounded cache knows what // to evict without walking `entries` itself — a `HashMap` has no order to // walk. Only ever grows where `entries` does, and only ever shrinks by // eviction, so it can never hold a key `entries` does not. Left empty and // unwritten-to when `capacity` is unset — the common case, per this file's // own doc comment — since nothing would ever read it. // // A `Chunk`, not an `Array`: eviction pops from the front on every entry // over capacity, and `Array.prototype.shift` is O(n) — it re-indexes every // remaining element. `Chunk.drop(chunk, 1)` is O(1) amortized for this // access pattern (push at the tail, drop from the head), so eviction under // sustained pressure stays proportional to how much was evicted, not to // how large the cache is. let insertionOrder: Chunk.Chunk<Question> = Chunk.empty(); // Single-flight (claim, join, hit, every waiter settled, last-leaver // interrupt) and its staleness rule (a reset supersedes every in-flight // claim) live in `SharedComputation.ts`, with their own comments. What // stays here is what a settled answer does to this cache. const shared = makeSharedComputation<Question, Trace, EvaluationError>({ cached: (key) => HashMap.get(entries, key), settle: (key, exit) => { if (exit._tag === \"Success\") { entries = HashMap.set(entries, key, exit.value); // Recorded, and evicted from, only when `capacity` was given — // the unbounded default (the common case, per this file's own // doc comment) has nothing that will ever read this array, so // it stays empty rather than growing in lockstep with `entries` // for the life of the cache. if (options?.capacity === undefined) return; insertionOrder = Chunk.append(insertionOrder, key); // FIFO eviction: a `while` rather than an `if` because a caller // who lowers `capacity` between two `decisionCacheLayer()` // calls is not a case this loop should special-case to \"evict // one\" and leave still over budget. Always terminates: // `capacity` is validated non-negative-integer at construction, // so `size(entries)` — a non-negative integer that strictly // decreases each iteration — reaches it in finitely many steps. while (HashMap.size(entries) > options.capacity) { // `Chunk.size(insertionOrder) === HashMap.size(entries)` // always — every append here has exactly one corresponding // `entries` insert (a key is claimed by one fiber at a time, // and a hit never claims, so it is appended once per // completed walk nobody else answered), and eviction // always removes one of each — // so this loop's own condition (`size(entries) > capacity >= // 0`) guarantees `insertionOrder` is non-empty. The `Option` // check exists for that same reason `noUncheckedIndexedAccess` // forced a guard on the old `Array` version, not because this // can happen. const oldest = Chunk.head(insertionOrder); insertionOrder = Chunk.drop(insertionOrder, 1); if (Option.isSome(oldest)) entries = HashMap.remove(entries, oldest.value); } } }, onOutcome: (outcome) => Metric.update(decisionCacheLookupsTotal, outcome), }); const getOrCompute: DecisionCacheShape[\"getOrCompute\"] = (key, options) => Effect.map(shared.run(key, walk(key, options?.concurrency)), (found) => ({ trace: found.value, outcome: found.outcome, })); return { getOrCompute, size: Effect.sync(() => HashMap.size(entries)), clear: Effect.sync(() => { entries = HashMap.empty<Question, Trace>(); insertionOrder = Chunk.empty(); // Resetting the in-flight claims supersedes every walk already // running, so none of them writes into the emptied cache and an ask // after this claims afresh instead of coalescing onto a walk that // started before the flush. That rule is `SharedComputation`'s. shared.reset(); }), }; }), ) | export const decisionCacheLayer = (options?: {",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"qadi/DecisionCache\" | >()(\"qadi/DecisionCache\") {}",
+   "status": "Timeout"
+  }
+ ],
+ "packages/core/src/Lifecycle.ts": [
+  {
+   "key": "BlockStatement | {} | { // A caller-supplied id names a continuation of an evaluation made elsewhere; // its absence — the default — mints a fresh one. `EvaluationId.next` is still // read either way rather than skipped, so which branch runs cannot change how // many ids a sequential generator has issued, and a test's expectations do not // depend on whether some *other* call happened to correlate. const mintedId = yield* EvaluationId.next; const evaluationId = options?.evaluationId ?? mintedId; const startedAt = yield* Clock.currentTimeMillis; // Optional by construction: `serviceOption` adds nothing to the requirements, so // `EvaluationServices` is unchanged and an application that never provides a cache // behaves exactly as it did (ADR-QD-031). const cache = yield* Effect.serviceOption(DecisionCache); // The one emitter (`SinkEmit.ts`): optional, a no-op when absent, and unable to // fail or die into the decision (INV-QD-035). const emit = yield* sinkEmitter; const stamp: Stamp = { evaluationId, at: startedAt }; // The question was built once by the caller: the cache key, the walk's input // and the record's request half all read it. The cache is handed the question // and `options` and walks the question itself (ADR-QD-174), so the key and the // walk's input are one value, and `options` reaches the walk, never the key. // // The TRACE is cached, never the `Decision`. A cached decision would carry a // duplicate `evaluationId`, so two log lines would claim to be the same event and // correlation — the one thing the identifier exists for — would stop working. The // id and the duration below are stamped per call, hit or miss, so a hit is // indistinguishable from a fresh evaluation except that it was faster. // // `getOrCompute` also coalesces concurrent identical asks into one walk // — including sharing a genuine failure with every waiter — rather than // each racing its own (ADR-QD-031's follow-up: absence is still free, since // this is still read through `serviceOption`). The key is the `Question`: see // its doc comment for why the whole subject and `maxDepth` are in it. // // `tapError`, so a failure is recorded and then propagates **unchanged**. This // is the only place an `EvaluationError` was ever observable from, and it was // not observable at all: no span attribute, no metric, no log. A consumer that // cannot see failures reports a broken attribute store as an absence of // traffic, or — worse, if it infers one — as a denial, which is the exact // confusion INV-QD-006 exists to prevent. // // `cacheOutcome` is `undefined` when no cache is wired at all, which is a // different statement from `\"miss\"` and is kept distinct on the record: a // reader seeing \"miss\" learns the cache was consulted and did not have it, // where absence means there was nothing to consult. // // Annotated rather than inferred: the two branches are `Effect<CacheLookup>` // and `Effect<{trace, outcome: undefined}>`, and TypeScript unions the two // `Effect`s rather than widening `outcome`, which then has no common `.pipe`. const lookupEffect: Effect.Effect<EvaluationLookup, EvaluationError, PortServices> = Option.isSome( cache, ) ? cache.value.getOrCompute(question, options) : Effect.map(walk(question, options?.concurrency), (trace) => ({ trace, outcome: undefined })); const lookup = yield* lookupEffect.pipe( Effect.tapError((error) => Effect.gen(function* () { yield* Metric.update(evaluationErrorsTotal, error._tag); yield* Effect.annotateCurrentSpan({ \"qadi.outcome\": \"Failed\", \"qadi.error_tag\": error._tag, }); yield* emit(decisionRecordFor(question, stamp, new Failed({ error }))); }), ), ); const trace = lookup.trace; const durationMillis = (yield* Clock.currentTimeMillis) - startedAt; const decision: Decision = makeDecision( { evaluationId, subjectId: question.subject.id, durationMillis }, trace, ); yield* Effect.annotateCurrentSpan({ \"qadi.decision\": decision._tag, \"qadi.subject_id\": question.subject.id, \"qadi.evaluation_id\": evaluationId, \"qadi.policy_tag\": question.policy._tag, // Only when supplied: an absent action must not become the string // \"undefined\" in a trace viewer, and adding a key unconditionally would // change every existing span. ...(question.action === undefined ? {} : { \"qadi.action\": question.action }), // Obligations are reported, never run. Present only when there are some, so // an evaluation that carries none looks exactly as it did before E2. ...(decision._tag === \"Allow\" && decision.obligations.length > 0 ? { \"qadi.obligations\": decision.obligations.map((o) => o.id).join(\",\") } : {}), }); yield* Metric.update(decisionsTotal[decision._tag], 1); yield* Metric.update(evaluationDurationMillis, durationMillis); if (decision._tag === \"Deny\") { yield* Metric.update(denialsByPolicyTagTotal, question.policy._tag); yield* Effect.logDebug(\"qadi: policy denied\").pipe( Effect.annotateLogs({ \"qadi.policy_tag\": question.policy._tag, \"qadi.subject_id\": question.subject.id, \"qadi.reason\": decision.reason, }), ); } // Last, after every other emission, so a sink cannot observe a decision the // metrics and span have not yet recorded — and so that nothing below it could // be skipped were the sink to misbehave. yield* emit(decisionRecordFor(question, stamp, new Decided({ decision }), lookup.outcome)); return decision; } | ) {",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | options?.evaluationId && mintedId | options?.evaluationId ?? mintedId | const evaluationId = options?.evaluationId ?? mintedId;",
+   "status": "Killed"
+  },
+  {
+   "key": "OptionalChaining | options.evaluationId | options?.evaluationId | const evaluationId = options?.evaluationId ?? mintedId;",
+   "status": "Killed"
+  },
+  {
+   "key": "OptionalChaining | options.concurrency | options?.concurrency | : Effect.map(walk(question, options?.concurrency), (trace) => ({ trace, outcome: undefined }));",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (trace) => ({ trace, outcome: undefined }) | : Effect.map(walk(question, options?.concurrency), (trace) => ({ trace, outcome: undefined }));",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { trace, outcome: undefined } | : Effect.map(walk(question, options?.concurrency), (trace) => ({ trace, outcome: undefined }));",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (error) => Effect.gen(function* () { yield* Metric.update(evaluationErrorsTotal, error._tag); yield* Effect.annotateCurrentSpan({ \"qadi.outcome\": \"Failed\", \"qadi.error_tag\": error._tag, }); yield* emit(decisionRecordFor(question, stamp, new Failed({ error }))); }) | Effect.tapError((error) =>",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { yield* Metric.update(evaluationErrorsTotal, error._tag); yield* Effect.annotateCurrentSpan({ \"qadi.outcome\": \"Failed\", \"qadi.error_tag\": error._tag, }); yield* emit(decisionRecordFor(question, stamp, new Failed({ error }))); } | Effect.gen(function* () {",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { \"qadi.outcome\": \"Failed\", \"qadi.error_tag\": error._tag, } | yield* Effect.annotateCurrentSpan({",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Failed\" | \"qadi.outcome\": \"Failed\",",
+   "status": "Killed"
+  },
+  {
+   "key": "ArithmeticOperator | (yield* Clock.currentTimeMillis) + startedAt | (yield* Clock.currentTimeMillis) - startedAt | const durationMillis = (yield* Clock.currentTimeMillis) - startedAt;",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { evaluationId, subjectId: question.subject.id, durationMillis } | { evaluationId, subjectId: question.subject.id, durationMillis },",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { \"qadi.decision\": decision._tag, \"qadi.subject_id\": question.subject.id, \"qadi.evaluation_id\": evaluationId, \"qadi.policy_tag\": question.policy._tag, // Only when supplied: an absent action must not become the string // \"undefined\" in a trace viewer, and adding a key unconditionally would // change every existing span. ...(question.action === undefined ? {} : { \"qadi.action\": question.action }), // Obligations are reported, never run. Present only when there are some, so // an evaluation that carries none looks exactly as it did before E2. ...(decision._tag === \"Allow\" && decision.obligations.length > 0 ? { \"qadi.obligations\": decision.obligations.map((o) => o.id).join(\",\") } : {}), } | yield* Effect.annotateCurrentSpan({",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | question.action === undefined | ...(question.action === undefined ? {} : { \"qadi.action\": question.action }),",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | question.action === undefined | ...(question.action === undefined ? {} : { \"qadi.action\": question.action }),",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { \"qadi.action\": question.action } | ...(question.action === undefined ? {} : { \"qadi.action\": question.action }),",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | question.action !== undefined | question.action === undefined | ...(question.action === undefined ? {} : { \"qadi.action\": question.action }),",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | decision._tag === \"Allow\" && decision.obligations.length > 0 | ...(decision._tag === \"Allow\" && decision.obligations.length > 0",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | decision._tag === \"Allow\" && decision.obligations.length > 0 | ...(decision._tag === \"Allow\" && decision.obligations.length > 0",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | decision._tag === \"Allow\" || decision.obligations.length > 0 | decision._tag === \"Allow\" && decision.obligations.length > 0 | ...(decision._tag === \"Allow\" && decision.obligations.length > 0",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | decision._tag === \"Allow\" | ...(decision._tag === \"Allow\" && decision.obligations.length > 0",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { evaluationId, at: startedAt } | const stamp: Stamp = { evaluationId, at: startedAt };",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | decision._tag !== \"Allow\" | decision._tag === \"Allow\" | ...(decision._tag === \"Allow\" && decision.obligations.length > 0",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Allow\" | ...(decision._tag === \"Allow\" && decision.obligations.length > 0",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | decision.obligations.length >= 0 | decision.obligations.length > 0 | ...(decision._tag === \"Allow\" && decision.obligations.length > 0",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | decision.obligations.length <= 0 | decision.obligations.length > 0 | ...(decision._tag === \"Allow\" && decision.obligations.length > 0",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { \"qadi.obligations\": decision.obligations.map((o) => o.id).join(\",\") } | ? { \"qadi.obligations\": decision.obligations.map((o) => o.id).join(\",\") }",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (o) => o.id | ? { \"qadi.obligations\": decision.obligations.map((o) => o.id).join(\",\") }",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \",\" | ? { \"qadi.obligations\": decision.obligations.map((o) => o.id).join(\",\") }",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { error } | yield* emit(decisionRecordFor(question, stamp, new Failed({ error })));",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | decision._tag === \"Deny\" | if (decision._tag === \"Deny\") {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | decision._tag === \"Deny\" | if (decision._tag === \"Deny\") {",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | decision._tag !== \"Deny\" | decision._tag === \"Deny\" | if (decision._tag === \"Deny\") {",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Deny\" | if (decision._tag === \"Deny\") {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | decision.obligations.length > 0 | ...(decision._tag === \"Allow\" && decision.obligations.length > 0",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { yield* Metric.update(denialsByPolicyTagTotal, question.policy._tag); yield* Effect.logDebug(\"qadi: policy denied\").pipe( Effect.annotateLogs({ \"qadi.policy_tag\": question.policy._tag, \"qadi.subject_id\": question.subject.id, \"qadi.reason\": decision.reason, }), ); } | if (decision._tag === \"Deny\") {",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"qadi: policy denied\" | yield* Effect.logDebug(\"qadi: policy denied\").pipe(",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { \"qadi.policy_tag\": question.policy._tag, \"qadi.subject_id\": question.subject.id, \"qadi.reason\": decision.reason, } | Effect.annotateLogs({",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const question = questionOf(subject, policy, options); return Effect.map(decideQuestion(question, options), (decision) => ({ question, decision })); } | CurrentSubject.use((subject) => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (decision) => ({ question, decision }) | return Effect.map(decideQuestion(question, options), (decision) => ({ question, decision }));",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { question, decision } | return Effect.map(decideQuestion(question, options), (decision) => ({ question, decision }));",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { decision } | yield* emit(decisionRecordFor(question, stamp, new Decided({ decision }), lookup.outcome));",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | ( policy: Policy, options?: EvaluateOptions, ): Effect.Effect<Asked, EvaluationError, EvaluationServices> => CurrentSubject.use((subject) => { const question = questionOf(subject, policy, options); return Effect.map(decideQuestion(question, options), (decision) => ({ question, decision })); }) | export const ask = (",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"qadi.evaluate\" | export const decideQuestion = Effect.fn(\"qadi.evaluate\")(function* (",
+   "status": "Killed"
+  }
+ ],
+ "packages/core/src/SharedComputation.ts": [
+  {
+   "key": "BlockStatement | {} | { // Keys with a `compute` currently running, so a second concurrent ask for // the same key awaits the first's result instead of starting its own. // // A plain, directly-reassigned `HashMap`, not `Ref`-wrapped: this and the // adapter's own state live inside one closure, and Effect only // reorders fiber execution at `yield*` boundaries — never mid-callback — // so a direct reassignment inside `Effect.sync` is exactly as atomic as // `Ref.modify` would be here. let inFlight = HashMap.empty<K, InFlightClaim<A, E>>(); // Removes `entry` only if it is still the claim at `key`: a `reset`, or an // abandonment, may already have let a fresh claim take the slot, and that // claim is not this one's to remove. const forget = (key: K, entry: InFlightClaim<A, E>): void => { const current = HashMap.get(inFlight, key); if (Option.isSome(current) && current.value === entry) { inFlight = HashMap.remove(inFlight, key); } }; /** * Attaches this fiber's interest in `entry`'s shared computation and * waits for it — the one path both the claimant and every coalescing * follower take, so no fiber has a privileged relationship with * `compute` any more (see `run`'s own comment on * `Effect.forkDetach` for what that privilege used to cost). * * A fiber interrupted while waiting here just detaches (`waiters -= * 1`) and stops — `compute` is unaffected, which is the fix — UNLESS * it was the last one still attached, in which case nobody is left to * want `compute`'s answer, and its fiber is interrupted along with it * so an abandoned evaluation does not keep running for no one. * * **The `waiters === 0` check and the `Fiber.interrupt` call below are * two separate steps, and in the regime this cache's `compute` actually * runs in, that is not a race** (issue #64, part of the #33 wayfinder * map — a Low/Info re-audit finding, read from source rather than * reproduced). A reader could imagine a brand-new caller for this same * key claiming or joining in the gap between them, re-incrementing * `waiters` too late to stop an interrupt that was already decided. * Verified against the installed `effect@4.0.0-rc.116` (checked * 2026-09-19; re-check on the next `effect` bump — * `FiberImpl.interruptUnsafe` in `internal/effect.ts`): it evaluates a * fiber's interrupt **synchronously, in the caller's own call stack**, * only when that fiber is both **idle** (not currently `_running`) and * **interruptible**. `awaitShared`'s own fiber, suspended in * `Deferred.await`, is always both. So for this fiber the decrement, * the decision, the nested interrupt of `entry.fiber`, and — when * `entry.fiber` is *also* idle-and-interruptible at that instant — * that fiber's own `onExit` finalizer (removing `inFlight`, settling * `claim`) all run as one uninterrupted synchronous cascade, with no * scheduler dispatch boundary inside it for another, independently * scheduled fiber's claim-or-join to land in. `DecisionCache.test.ts`'s * two \"REGRESSION PIN for issue #64\" tests race a fresh joiner against * exactly that cascade — one through nested fibers on this runtime's * own scheduler, one through fully independent `ManagedRuntime` roots * on real Node.js `setImmediate` macrotasks — and neither ever * produces the interrupted outcome the finding describes. * * **That idle-and-interruptible premise does not hold for `entry.fiber` * whenever `compute` is parked inside a caller-supplied port's * uninterruptible region** — a connection checkout, an * `Effect.acquireUseRelease` acquire, a finalizer window — which is a * real, reachable state for `AttributeResolver`/`RelationshipResolver`/ * `CustomPredicate` implementations, this cache's primary extension * points. There, `Fiber.interrupt(entry.fiber)` only *records* the * interrupt cause; delivery is deferred until `entry.fiber` next * becomes interruptible, and `compute` then exits interrupted. Before * this regime, a fresh ask for the same key could join in that * deferral window and resolve interrupted without ever having been * cancelled itself (issue #64 follow-up). * * **So a claim is joinable only while somebody waits on it.** The same * synchronous step that sees `waiters` reach 0 marks a Live claim * Abandoned and removes it from `inFlight` (by identity, through * `forget`), before `Fiber.interrupt` is called at all; a claim a * `reset` already superseded stays Superseded and is out of `inFlight` * already. A fresh ask for the same key after that claims afresh and * runs its own `compute`, so a joiner can only ever reach a claim * somebody still waits on, and never inherits an interrupt it did not * receive. Either way the compute is interrupted and its exit settles * nothing: its settle is not called, so nothing is cached from it — * nobody asked for it any more, and a fresh claim may already be * computing the same key, so writing both would be the double * insertion-order append the claim-window fix in `run` exists to * prevent. Its `Deferred.done` reaches no waiter when the claim was * abandoned, because none is left; a superseded claim's waiters are * still answered. In the idle-and-interruptible cascade above the claim * is abandoned the same way, so that cascade's `onExit` settles nothing * either, where it used to settle an interrupted exit the adapter then * ignored. * * The comment this replaces listed three ways out: fall through to a * fresh compute when a join lands on a claim whose fiber already * carries a pending interrupt; deliver the last-leaver signal as a * typed abandon failure instead of raw interruption; or pin the regime * as it stood. This is the first, taken at the moment of abandonment * rather than at the moment of joining: it needs no new error type, * changes no public type, and the join needs no knowledge of the * compute fiber's interrupt state. `SharedComputation.test.ts`'s two * \"abandon\" tests pin it with a plain key and a compute parked in * `Effect.uninterruptible`, and `DecisionCache.test.ts`'s \"issue #64, * uninterruptible regime\" test pins it through `evaluate`. * * One cost is unchanged: `Fiber.interrupt` awaits its target's exit, so * the last leaver itself still waits until a compute parked * uninterruptibly leaves that region. */ const awaitShared = (key: K, entry: InFlightClaim<A, E>): Effect.Effect<A, E> => Deferred.await(entry.claim).pipe( Effect.onInterrupt(() => Effect.sync(() => { entry.waiters -= 1; if (entry.waiters > 0) return undefined; // The last one out: nobody can join this claim from here on. entry.standing = afterLastLeave[entry.standing]; forget(key, entry); return entry.fiber; }).pipe(Effect.flatMap((fiber) => (fiber === undefined ? Effect.void : Fiber.interrupt(fiber)))), ), ); // Not an `Effect.fn`: it runs on every cached evaluation, as the arrow // returning an Effect that `getOrCompute` always was (AGENTS.md §5's // budget is untouched). const run = <R>(key: K, compute: Effect.Effect<A, E, R>): Effect.Effect<Shared<A>, E, R> => // The hit check is NOT made before the claim, but inside the // claim's own synchronous step below (ARCH-45 I5). A check made in its // own step could miss, the fiber be preempted, and the owner finish in // the gap (its answer cached, `inFlight[key]` removed): the claim would // then find nothing in flight and compute `key` a second time, appending // it to the adapter's insertion order twice, so that a later pop of the // stale copy evicted a freshly recomputed entry. Reading `cached`, then // `inFlight`, then claiming in one synchronous step leaves no gap for an // owner's `onExit` to land in. // // The claim-or-join step, the fork that starts `compute` (owner // only), and the assignment of `entry.fiber` all live inside one // `Effect.uninterruptibleMask` — not because any single step needs // it, but because the SEQUENCE does. Each is a separate `yield*`, // and Effect can act on a pending interrupt at any `yield*` // boundary; without the mask there would be a window where this // fiber could be torn down after joining/owning the entry but // before `awaitShared` (the one part of this that decrements // `waiters` again) ever ran — leaking a waiter forever, or, for the // owner, leaving `entry.fiber` `undefined` with the key stuck in // `inFlight` and nothing left to ever compute it. // // `restore` re-enables interruption only for the final // `awaitShared` call, which is the one part of this that MUST stay // interruptible: it is what lets a single coalesced waiter's own // cancellation return control to its caller instead of blocking on // someone else's answer forever. Effect.uninterruptibleMask((restore) => Effect.gen(function* () { // `Deferred.makeUnsafe` inside the same synchronous check as the // claim itself, not `yield* Deferred.make` before it: allocating a // Deferred is only useful for whichever fiber actually becomes the // owner, so it happens *inside* the \"nobody has claimed this key // yet\" branch — a follower, the common case on the concurrent-ask // path this exists for, never allocates one it will discard. // `Deferred.make` is a synchronous allocation under the hood // regardless (`effect/Deferred`'s own source defines it as // `Effect.sync(() => makeUnsafe())`); `makeUnsafe` just lets that // allocation stay inside the one atomic check instead of paying for // it up front on every ask. const claimed = yield* Effect.sync((): | { readonly _tag: \"Hit\"; readonly value: A } | { readonly _tag: \"Claimed\"; readonly entry: InFlightClaim<A, E> } | { readonly _tag: \"Joined\"; readonly entry: InFlightClaim<A, E> } => { // First, in the same step as the join and the claim: see the // comment at the top of `run`. const cached = hooks.cached(key); if (Option.isSome(cached)) return { _tag: \"Hit\", value: cached.value }; const existing = HashMap.get(inFlight, key); if (Option.isSome(existing)) { // Joining, not claiming: one more fiber now cares about // this entry's eventual answer — see `awaitShared`. existing.value.waiters += 1; return { _tag: \"Joined\", entry: existing.value }; } const entry: InFlightClaim<A, E> = { claim: Deferred.makeUnsafe<A, E>(), fiber: undefined, waiters: 1, standing: \"Live\", }; inFlight = HashMap.set(inFlight, key, entry); return { _tag: \"Claimed\", entry }; }); if (claimed._tag === \"Hit\") { yield* hooks.onOutcome(\"hit\"); const hit: Shared<A> = { value: claimed.value, outcome: \"hit\" }; return hit; } // Someone else already claimed this key — share their result, // success or failure, rather than compute a second time. if (claimed._tag === \"Joined\") { yield* hooks.onOutcome(\"coalesced\"); const joined: Shared<A> = { value: yield* restore(awaitShared(key, claimed.entry)), outcome: \"coalesced\" }; return joined; } yield* hooks.onOutcome(\"miss\"); const { entry } = claimed; // `Effect.forkDetach`, not run directly on this fiber: `compute` // now belongs to every fiber that coalesces onto `entry.claim`, // not just the one that happened to claim the key, so it must // not die because THIS fiber's own caller stopped waiting. // `forkDetach` attaches the new fiber to the global scope // rather than this one, so interrupting this fiber — which // `awaitShared`, below, is the only interruptible point where // that can happen — does not cascade into it the way a plain // `Effect.forkChild` would. This is the actual fix for // coalesced waiters inheriting the claimant's interruption: // under the previous version `compute` ran directly on the // claiming fiber, so interrupting *that one caller* interrupted // `compute` itself and every other waiter's `Deferred.await` // resolved to that same, unwanted interruption. // // `Effect.onExit`, not a plain `yield* Effect.exit(compute)` // followed by more steps: a fiber interrupted while `compute` is // running does not return control to the surrounding generator // at all — confirmed empirically, not assumed — so any // settle-and-clear logic placed *after* an `Effect.exit(compute)` // yield, even wrapped in `Effect.uninterruptible`, silently // never runs, leaving `claim` permanently unresolved and its key // permanently stuck in `inFlight`. `Effect.onExit`'s finalizer is // different: it is guaranteed to run on every path `compute` can // end on, interruption included, which is exactly the guarantee // this needs — and interruption is now a live path here again, // since the detached fiber running `compute` is itself // interruptible (`awaitShared` reaches for `Fiber.interrupt` on // it once the last waiter leaves). // // Clearing `inFlight` now happens *before* `Deferred.done`, // reversed from the order this finalizer used when it ran // directly on the claiming fiber. That version's caller only // ever resumed once the WHOLE finalizer — settle, then clear — // had finished, so nothing could observe the gap between the // two steps except a genuinely separate fiber, which the // identity check below already protects. Detaching `compute` // onto its own fiber breaks that: `Deferred.done` now resumes // the claimant's fiber concurrently with whatever the rest of // *this* finalizer still has to do, so a claimant that // immediately asks the same failed-and-not-cached (or // capacity-evicted) question again could race its own // finalizer's `inFlight` removal and wrongly coalesce onto an // entry that has already settled instead of retrying fresh. // Clearing first closes that: by the time anything can resume // from `Deferred.done`, `inFlight` no longer holds this claim. const fiber = yield* compute.pipe( Effect.onExit((exit) => Effect.sync(() => { // The adapter's settle first, so what it remembers is in place // before any waiter — or a fresh ask — can observe the answer. // Only a Live claim's exit reaches the adapter; a superseded or // abandoned claim's exit still answers every waiter through // `Deferred.done` below (see `awaitShared`). if (entry.standing === \"Live\") hooks.settle(key, exit); // A no-op when `reset` or the abandoning leave already did it. forget(key, entry); }).pipe(Effect.flatMap(() => Deferred.done(entry.claim, exit))), ), Effect.forkDetach, ); // Set before `restore`, still inside the uninterruptible part of // this mask — see the comment above this block for why. yield* Effect.sync(() => { entry.fiber = fiber; }); const missed: Shared<A> = { value: yield* restore(awaitShared(key, entry)), outcome: \"miss\" }; return missed; }), ); return { run, reset: () => { HashMap.forEach(inFlight, (entry) => { entry.standing = afterReset[entry.standing]; }); inFlight = HashMap.empty<K, InFlightClaim<A, E>>(); }, }; } | ): SharedComputation<K, A, E> => {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const current = HashMap.get(inFlight, key); if (Option.isSome(current) && current.value === entry) { inFlight = HashMap.remove(inFlight, key); } } | const forget = (key: K, entry: InFlightClaim<A, E>): void => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | Option.isSome(current) && current.value === entry | if (Option.isSome(current) && current.value === entry) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | Option.isSome(current) && current.value === entry | if (Option.isSome(current) && current.value === entry) {",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | Option.isSome(current) || current.value === entry | Option.isSome(current) && current.value === entry | if (Option.isSome(current) && current.value === entry) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | current.value === entry | if (Option.isSome(current) && current.value === entry) {",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | current.value !== entry | current.value === entry | if (Option.isSome(current) && current.value === entry) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (key: K, entry: InFlightClaim<A, E>): Effect.Effect<A, E> => Deferred.await(entry.claim).pipe( Effect.onInterrupt(() => Effect.sync(() => { entry.waiters -= 1; if (entry.waiters > 0) return undefined; // The last one out: nobody can join this claim from here on. entry.standing = afterLastLeave[entry.standing]; forget(key, entry); return entry.fiber; }).pipe(Effect.flatMap((fiber) => (fiber === undefined ? Effect.void : Fiber.interrupt(fiber)))), ), ) | const awaitShared = (key: K, entry: InFlightClaim<A, E>): Effect.Effect<A, E> =>",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { inFlight = HashMap.remove(inFlight, key); } | if (Option.isSome(current) && current.value === entry) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => Effect.sync(() => { entry.waiters -= 1; if (entry.waiters > 0) return undefined; // The last one out: nobody can join this claim from here on. entry.standing = afterLastLeave[entry.standing]; forget(key, entry); return entry.fiber; }).pipe(Effect.flatMap((fiber) => (fiber === undefined ? Effect.void : Fiber.interrupt(fiber)))) | Effect.onInterrupt(() =>",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { entry.waiters -= 1; if (entry.waiters > 0) return undefined; // The last one out: nobody can join this claim from here on. entry.standing = afterLastLeave[entry.standing]; forget(key, entry); return entry.fiber; } | Effect.sync(() => {",
+   "status": "Killed"
+  },
+  {
+   "key": "AssignmentOperator | entry.waiters += 1 | entry.waiters -= 1 | entry.waiters -= 1;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | entry.waiters > 0 | if (entry.waiters > 0) return undefined;",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | forget(key, entry); | forget(key, entry);",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | entry.waiters > 0 | if (entry.waiters > 0) return undefined;",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (fiber) => (fiber === undefined ? Effect.void : Fiber.interrupt(fiber)) | }).pipe(Effect.flatMap((fiber) => (fiber === undefined ? Effect.void : Fiber.interrupt(fiber)))),",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | fiber === undefined | }).pipe(Effect.flatMap((fiber) => (fiber === undefined ? Effect.void : Fiber.interrupt(fiber)))),",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | fiber !== undefined | fiber === undefined | }).pipe(Effect.flatMap((fiber) => (fiber === undefined ? Effect.void : Fiber.interrupt(fiber)))),",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | <R>(key: K, compute: Effect.Effect<A, E, R>): Effect.Effect<Shared<A>, E, R> => // The hit check is NOT made before the claim, but inside the // claim's own synchronous step below (ARCH-45 I5). A check made in its // own step could miss, the fiber be preempted, and the owner finish in // the gap (its answer cached, `inFlight[key]` removed): the claim would // then find nothing in flight and compute `key` a second time, appending // it to the adapter's insertion order twice, so that a later pop of the // stale copy evicted a freshly recomputed entry. Reading `cached`, then // `inFlight`, then claiming in one synchronous step leaves no gap for an // owner's `onExit` to land in. // // The claim-or-join step, the fork that starts `compute` (owner // only), and the assignment of `entry.fiber` all live inside one // `Effect.uninterruptibleMask` — not because any single step needs // it, but because the SEQUENCE does. Each is a separate `yield*`, // and Effect can act on a pending interrupt at any `yield*` // boundary; without the mask there would be a window where this // fiber could be torn down after joining/owning the entry but // before `awaitShared` (the one part of this that decrements // `waiters` again) ever ran — leaking a waiter forever, or, for the // owner, leaving `entry.fiber` `undefined` with the key stuck in // `inFlight` and nothing left to ever compute it. // // `restore` re-enables interruption only for the final // `awaitShared` call, which is the one part of this that MUST stay // interruptible: it is what lets a single coalesced waiter's own // cancellation return control to its caller instead of blocking on // someone else's answer forever. Effect.uninterruptibleMask((restore) => Effect.gen(function* () { // `Deferred.makeUnsafe` inside the same synchronous check as the // claim itself, not `yield* Deferred.make` before it: allocating a // Deferred is only useful for whichever fiber actually becomes the // owner, so it happens *inside* the \"nobody has claimed this key // yet\" branch — a follower, the common case on the concurrent-ask // path this exists for, never allocates one it will discard. // `Deferred.make` is a synchronous allocation under the hood // regardless (`effect/Deferred`'s own source defines it as // `Effect.sync(() => makeUnsafe())`); `makeUnsafe` just lets that // allocation stay inside the one atomic check instead of paying for // it up front on every ask. const claimed = yield* Effect.sync((): | { readonly _tag: \"Hit\"; readonly value: A } | { readonly _tag: \"Claimed\"; readonly entry: InFlightClaim<A, E> } | { readonly _tag: \"Joined\"; readonly entry: InFlightClaim<A, E> } => { // First, in the same step as the join and the claim: see the // comment at the top of `run`. const cached = hooks.cached(key); if (Option.isSome(cached)) return { _tag: \"Hit\", value: cached.value }; const existing = HashMap.get(inFlight, key); if (Option.isSome(existing)) { // Joining, not claiming: one more fiber now cares about // this entry's eventual answer — see `awaitShared`. existing.value.waiters += 1; return { _tag: \"Joined\", entry: existing.value }; } const entry: InFlightClaim<A, E> = { claim: Deferred.makeUnsafe<A, E>(), fiber: undefined, waiters: 1, standing: \"Live\", }; inFlight = HashMap.set(inFlight, key, entry); return { _tag: \"Claimed\", entry }; }); if (claimed._tag === \"Hit\") { yield* hooks.onOutcome(\"hit\"); const hit: Shared<A> = { value: claimed.value, outcome: \"hit\" }; return hit; } // Someone else already claimed this key — share their result, // success or failure, rather than compute a second time. if (claimed._tag === \"Joined\") { yield* hooks.onOutcome(\"coalesced\"); const joined: Shared<A> = { value: yield* restore(awaitShared(key, claimed.entry)), outcome: \"coalesced\" }; return joined; } yield* hooks.onOutcome(\"miss\"); const { entry } = claimed; // `Effect.forkDetach`, not run directly on this fiber: `compute` // now belongs to every fiber that coalesces onto `entry.claim`, // not just the one that happened to claim the key, so it must // not die because THIS fiber's own caller stopped waiting. // `forkDetach` attaches the new fiber to the global scope // rather than this one, so interrupting this fiber — which // `awaitShared`, below, is the only interruptible point where // that can happen — does not cascade into it the way a plain // `Effect.forkChild` would. This is the actual fix for // coalesced waiters inheriting the claimant's interruption: // under the previous version `compute` ran directly on the // claiming fiber, so interrupting *that one caller* interrupted // `compute` itself and every other waiter's `Deferred.await` // resolved to that same, unwanted interruption. // // `Effect.onExit`, not a plain `yield* Effect.exit(compute)` // followed by more steps: a fiber interrupted while `compute` is // running does not return control to the surrounding generator // at all — confirmed empirically, not assumed — so any // settle-and-clear logic placed *after* an `Effect.exit(compute)` // yield, even wrapped in `Effect.uninterruptible`, silently // never runs, leaving `claim` permanently unresolved and its key // permanently stuck in `inFlight`. `Effect.onExit`'s finalizer is // different: it is guaranteed to run on every path `compute` can // end on, interruption included, which is exactly the guarantee // this needs — and interruption is now a live path here again, // since the detached fiber running `compute` is itself // interruptible (`awaitShared` reaches for `Fiber.interrupt` on // it once the last waiter leaves). // // Clearing `inFlight` now happens *before* `Deferred.done`, // reversed from the order this finalizer used when it ran // directly on the claiming fiber. That version's caller only // ever resumed once the WHOLE finalizer — settle, then clear — // had finished, so nothing could observe the gap between the // two steps except a genuinely separate fiber, which the // identity check below already protects. Detaching `compute` // onto its own fiber breaks that: `Deferred.done` now resumes // the claimant's fiber concurrently with whatever the rest of // *this* finalizer still has to do, so a claimant that // immediately asks the same failed-and-not-cached (or // capacity-evicted) question again could race its own // finalizer's `inFlight` removal and wrongly coalesce onto an // entry that has already settled instead of retrying fresh. // Clearing first closes that: by the time anything can resume // from `Deferred.done`, `inFlight` no longer holds this claim. const fiber = yield* compute.pipe( Effect.onExit((exit) => Effect.sync(() => { // The adapter's settle first, so what it remembers is in place // before any waiter — or a fresh ask — can observe the answer. // Only a Live claim's exit reaches the adapter; a superseded or // abandoned claim's exit still answers every waiter through // `Deferred.done` below (see `awaitShared`). if (entry.standing === \"Live\") hooks.settle(key, exit); // A no-op when `reset` or the abandoning leave already did it. forget(key, entry); }).pipe(Effect.flatMap(() => Deferred.done(entry.claim, exit))), ), Effect.forkDetach, ); // Set before `restore`, still inside the uninterruptible part of // this mask — see the comment above this block for why. yield* Effect.sync(() => { entry.fiber = fiber; }); const missed: Shared<A> = { value: yield* restore(awaitShared(key, entry)), outcome: \"miss\" }; return missed; }), ) | const run = <R>(key: K, compute: Effect.Effect<A, E, R>): Effect.Effect<Shared<A>, E, R> =>",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (restore) => Effect.gen(function* () { // `Deferred.makeUnsafe` inside the same synchronous check as the // claim itself, not `yield* Deferred.make` before it: allocating a // Deferred is only useful for whichever fiber actually becomes the // owner, so it happens *inside* the \"nobody has claimed this key // yet\" branch — a follower, the common case on the concurrent-ask // path this exists for, never allocates one it will discard. // `Deferred.make` is a synchronous allocation under the hood // regardless (`effect/Deferred`'s own source defines it as // `Effect.sync(() => makeUnsafe())`); `makeUnsafe` just lets that // allocation stay inside the one atomic check instead of paying for // it up front on every ask. const claimed = yield* Effect.sync((): | { readonly _tag: \"Hit\"; readonly value: A } | { readonly _tag: \"Claimed\"; readonly entry: InFlightClaim<A, E> } | { readonly _tag: \"Joined\"; readonly entry: InFlightClaim<A, E> } => { // First, in the same step as the join and the claim: see the // comment at the top of `run`. const cached = hooks.cached(key); if (Option.isSome(cached)) return { _tag: \"Hit\", value: cached.value }; const existing = HashMap.get(inFlight, key); if (Option.isSome(existing)) { // Joining, not claiming: one more fiber now cares about // this entry's eventual answer — see `awaitShared`. existing.value.waiters += 1; return { _tag: \"Joined\", entry: existing.value }; } const entry: InFlightClaim<A, E> = { claim: Deferred.makeUnsafe<A, E>(), fiber: undefined, waiters: 1, standing: \"Live\", }; inFlight = HashMap.set(inFlight, key, entry); return { _tag: \"Claimed\", entry }; }); if (claimed._tag === \"Hit\") { yield* hooks.onOutcome(\"hit\"); const hit: Shared<A> = { value: claimed.value, outcome: \"hit\" }; return hit; } // Someone else already claimed this key — share their result, // success or failure, rather than compute a second time. if (claimed._tag === \"Joined\") { yield* hooks.onOutcome(\"coalesced\"); const joined: Shared<A> = { value: yield* restore(awaitShared(key, claimed.entry)), outcome: \"coalesced\" }; return joined; } yield* hooks.onOutcome(\"miss\"); const { entry } = claimed; // `Effect.forkDetach`, not run directly on this fiber: `compute` // now belongs to every fiber that coalesces onto `entry.claim`, // not just the one that happened to claim the key, so it must // not die because THIS fiber's own caller stopped waiting. // `forkDetach` attaches the new fiber to the global scope // rather than this one, so interrupting this fiber — which // `awaitShared`, below, is the only interruptible point where // that can happen — does not cascade into it the way a plain // `Effect.forkChild` would. This is the actual fix for // coalesced waiters inheriting the claimant's interruption: // under the previous version `compute` ran directly on the // claiming fiber, so interrupting *that one caller* interrupted // `compute` itself and every other waiter's `Deferred.await` // resolved to that same, unwanted interruption. // // `Effect.onExit`, not a plain `yield* Effect.exit(compute)` // followed by more steps: a fiber interrupted while `compute` is // running does not return control to the surrounding generator // at all — confirmed empirically, not assumed — so any // settle-and-clear logic placed *after* an `Effect.exit(compute)` // yield, even wrapped in `Effect.uninterruptible`, silently // never runs, leaving `claim` permanently unresolved and its key // permanently stuck in `inFlight`. `Effect.onExit`'s finalizer is // different: it is guaranteed to run on every path `compute` can // end on, interruption included, which is exactly the guarantee // this needs — and interruption is now a live path here again, // since the detached fiber running `compute` is itself // interruptible (`awaitShared` reaches for `Fiber.interrupt` on // it once the last waiter leaves). // // Clearing `inFlight` now happens *before* `Deferred.done`, // reversed from the order this finalizer used when it ran // directly on the claiming fiber. That version's caller only // ever resumed once the WHOLE finalizer — settle, then clear — // had finished, so nothing could observe the gap between the // two steps except a genuinely separate fiber, which the // identity check below already protects. Detaching `compute` // onto its own fiber breaks that: `Deferred.done` now resumes // the claimant's fiber concurrently with whatever the rest of // *this* finalizer still has to do, so a claimant that // immediately asks the same failed-and-not-cached (or // capacity-evicted) question again could race its own // finalizer's `inFlight` removal and wrongly coalesce onto an // entry that has already settled instead of retrying fresh. // Clearing first closes that: by the time anything can resume // from `Deferred.done`, `inFlight` no longer holds this claim. const fiber = yield* compute.pipe( Effect.onExit((exit) => Effect.sync(() => { // The adapter's settle first, so what it remembers is in place // before any waiter — or a fresh ask — can observe the answer. // Only a Live claim's exit reaches the adapter; a superseded or // abandoned claim's exit still answers every waiter through // `Deferred.done` below (see `awaitShared`). if (entry.standing === \"Live\") hooks.settle(key, exit); // A no-op when `reset` or the abandoning leave already did it. forget(key, entry); }).pipe(Effect.flatMap(() => Deferred.done(entry.claim, exit))), ), Effect.forkDetach, ); // Set before `restore`, still inside the uninterruptible part of // this mask — see the comment above this block for why. yield* Effect.sync(() => { entry.fiber = fiber; }); const missed: Shared<A> = { value: yield* restore(awaitShared(key, entry)), outcome: \"miss\" }; return missed; }) | Effect.uninterruptibleMask((restore) =>",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { // `Deferred.makeUnsafe` inside the same synchronous check as the // claim itself, not `yield* Deferred.make` before it: allocating a // Deferred is only useful for whichever fiber actually becomes the // owner, so it happens *inside* the \"nobody has claimed this key // yet\" branch — a follower, the common case on the concurrent-ask // path this exists for, never allocates one it will discard. // `Deferred.make` is a synchronous allocation under the hood // regardless (`effect/Deferred`'s own source defines it as // `Effect.sync(() => makeUnsafe())`); `makeUnsafe` just lets that // allocation stay inside the one atomic check instead of paying for // it up front on every ask. const claimed = yield* Effect.sync((): | { readonly _tag: \"Hit\"; readonly value: A } | { readonly _tag: \"Claimed\"; readonly entry: InFlightClaim<A, E> } | { readonly _tag: \"Joined\"; readonly entry: InFlightClaim<A, E> } => { // First, in the same step as the join and the claim: see the // comment at the top of `run`. const cached = hooks.cached(key); if (Option.isSome(cached)) return { _tag: \"Hit\", value: cached.value }; const existing = HashMap.get(inFlight, key); if (Option.isSome(existing)) { // Joining, not claiming: one more fiber now cares about // this entry's eventual answer — see `awaitShared`. existing.value.waiters += 1; return { _tag: \"Joined\", entry: existing.value }; } const entry: InFlightClaim<A, E> = { claim: Deferred.makeUnsafe<A, E>(), fiber: undefined, waiters: 1, standing: \"Live\", }; inFlight = HashMap.set(inFlight, key, entry); return { _tag: \"Claimed\", entry }; }); if (claimed._tag === \"Hit\") { yield* hooks.onOutcome(\"hit\"); const hit: Shared<A> = { value: claimed.value, outcome: \"hit\" }; return hit; } // Someone else already claimed this key — share their result, // success or failure, rather than compute a second time. if (claimed._tag === \"Joined\") { yield* hooks.onOutcome(\"coalesced\"); const joined: Shared<A> = { value: yield* restore(awaitShared(key, claimed.entry)), outcome: \"coalesced\" }; return joined; } yield* hooks.onOutcome(\"miss\"); const { entry } = claimed; // `Effect.forkDetach`, not run directly on this fiber: `compute` // now belongs to every fiber that coalesces onto `entry.claim`, // not just the one that happened to claim the key, so it must // not die because THIS fiber's own caller stopped waiting. // `forkDetach` attaches the new fiber to the global scope // rather than this one, so interrupting this fiber — which // `awaitShared`, below, is the only interruptible point where // that can happen — does not cascade into it the way a plain // `Effect.forkChild` would. This is the actual fix for // coalesced waiters inheriting the claimant's interruption: // under the previous version `compute` ran directly on the // claiming fiber, so interrupting *that one caller* interrupted // `compute` itself and every other waiter's `Deferred.await` // resolved to that same, unwanted interruption. // // `Effect.onExit`, not a plain `yield* Effect.exit(compute)` // followed by more steps: a fiber interrupted while `compute` is // running does not return control to the surrounding generator // at all — confirmed empirically, not assumed — so any // settle-and-clear logic placed *after* an `Effect.exit(compute)` // yield, even wrapped in `Effect.uninterruptible`, silently // never runs, leaving `claim` permanently unresolved and its key // permanently stuck in `inFlight`. `Effect.onExit`'s finalizer is // different: it is guaranteed to run on every path `compute` can // end on, interruption included, which is exactly the guarantee // this needs — and interruption is now a live path here again, // since the detached fiber running `compute` is itself // interruptible (`awaitShared` reaches for `Fiber.interrupt` on // it once the last waiter leaves). // // Clearing `inFlight` now happens *before* `Deferred.done`, // reversed from the order this finalizer used when it ran // directly on the claiming fiber. That version's caller only // ever resumed once the WHOLE finalizer — settle, then clear — // had finished, so nothing could observe the gap between the // two steps except a genuinely separate fiber, which the // identity check below already protects. Detaching `compute` // onto its own fiber breaks that: `Deferred.done` now resumes // the claimant's fiber concurrently with whatever the rest of // *this* finalizer still has to do, so a claimant that // immediately asks the same failed-and-not-cached (or // capacity-evicted) question again could race its own // finalizer's `inFlight` removal and wrongly coalesce onto an // entry that has already settled instead of retrying fresh. // Clearing first closes that: by the time anything can resume // from `Deferred.done`, `inFlight` no longer holds this claim. const fiber = yield* compute.pipe( Effect.onExit((exit) => Effect.sync(() => { // The adapter's settle first, so what it remembers is in place // before any waiter — or a fresh ask — can observe the answer. // Only a Live claim's exit reaches the adapter; a superseded or // abandoned claim's exit still answers every waiter through // `Deferred.done` below (see `awaitShared`). if (entry.standing === \"Live\") hooks.settle(key, exit); // A no-op when `reset` or the abandoning leave already did it. forget(key, entry); }).pipe(Effect.flatMap(() => Deferred.done(entry.claim, exit))), ), Effect.forkDetach, ); // Set before `restore`, still inside the uninterruptible part of // this mask — see the comment above this block for why. yield* Effect.sync(() => { entry.fiber = fiber; }); const missed: Shared<A> = { value: yield* restore(awaitShared(key, entry)), outcome: \"miss\" }; return missed; } | Effect.gen(function* () {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { // First, in the same step as the join and the claim: see the // comment at the top of `run`. const cached = hooks.cached(key); if (Option.isSome(cached)) return { _tag: \"Hit\", value: cached.value }; const existing = HashMap.get(inFlight, key); if (Option.isSome(existing)) { // Joining, not claiming: one more fiber now cares about // this entry's eventual answer — see `awaitShared`. existing.value.waiters += 1; return { _tag: \"Joined\", entry: existing.value }; } const entry: InFlightClaim<A, E> = { claim: Deferred.makeUnsafe<A, E>(), fiber: undefined, waiters: 1, standing: \"Live\", }; inFlight = HashMap.set(inFlight, key, entry); return { _tag: \"Claimed\", entry }; } | | { readonly _tag: \"Joined\"; readonly entry: InFlightClaim<A, E> } => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | Option.isSome(cached) | if (Option.isSome(cached)) return { _tag: \"Hit\", value: cached.value };",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | Option.isSome(cached) | if (Option.isSome(cached)) return { _tag: \"Hit\", value: cached.value };",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { _tag: \"Hit\", value: cached.value } | if (Option.isSome(cached)) return { _tag: \"Hit\", value: cached.value };",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Hit\" | if (Option.isSome(cached)) return { _tag: \"Hit\", value: cached.value };",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | Option.isSome(existing) | if (Option.isSome(existing)) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | Option.isSome(existing) | if (Option.isSome(existing)) {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { // Joining, not claiming: one more fiber now cares about // this entry's eventual answer — see `awaitShared`. existing.value.waiters += 1; return { _tag: \"Joined\", entry: existing.value }; } | if (Option.isSome(existing)) {",
+   "status": "Killed"
+  },
+  {
+   "key": "AssignmentOperator | existing.value.waiters -= 1 | existing.value.waiters += 1 | existing.value.waiters += 1;",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { _tag: \"Joined\", entry: existing.value } | return { _tag: \"Joined\", entry: existing.value };",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Joined\" | return { _tag: \"Joined\", entry: existing.value };",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { claim: Deferred.makeUnsafe<A, E>(), fiber: undefined, waiters: 1, standing: \"Live\", } | const entry: InFlightClaim<A, E> = {",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | entry.waiters >= 0 | entry.waiters > 0 | if (entry.waiters > 0) return undefined;",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Live\" | standing: \"Live\",",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | entry.waiters <= 0 | entry.waiters > 0 | if (entry.waiters > 0) return undefined;",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { _tag: \"Claimed\", entry } | return { _tag: \"Claimed\", entry };",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | claimed._tag === \"Hit\" | if (claimed._tag === \"Hit\") {",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | claimed._tag !== \"Hit\" | claimed._tag === \"Hit\" | if (claimed._tag === \"Hit\") {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | claimed._tag === \"Hit\" | if (claimed._tag === \"Hit\") {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | fiber === undefined | }).pipe(Effect.flatMap((fiber) => (fiber === undefined ? Effect.void : Fiber.interrupt(fiber)))),",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Hit\" | if (claimed._tag === \"Hit\") {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { yield* hooks.onOutcome(\"hit\"); const hit: Shared<A> = { value: claimed.value, outcome: \"hit\" }; return hit; } | if (claimed._tag === \"Hit\") {",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"hit\" | yield* hooks.onOutcome(\"hit\");",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { value: claimed.value, outcome: \"hit\" } | const hit: Shared<A> = { value: claimed.value, outcome: \"hit\" };",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"hit\" | const hit: Shared<A> = { value: claimed.value, outcome: \"hit\" };",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | claimed._tag === \"Joined\" | if (claimed._tag === \"Joined\") {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | claimed._tag === \"Joined\" | if (claimed._tag === \"Joined\") {",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | claimed._tag !== \"Joined\" | claimed._tag === \"Joined\" | if (claimed._tag === \"Joined\") {",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Joined\" | if (claimed._tag === \"Joined\") {",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"coalesced\" | yield* hooks.onOutcome(\"coalesced\");",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { value: yield* restore(awaitShared(key, claimed.entry)), outcome: \"coalesced\" } | const joined: Shared<A> = { value: yield* restore(awaitShared(key, claimed.entry)), outcome: \"coalesced\" };",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"coalesced\" | const joined: Shared<A> = { value: yield* restore(awaitShared(key, claimed.entry)), outcome: \"coalesced\" };",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { yield* hooks.onOutcome(\"coalesced\"); const joined: Shared<A> = { value: yield* restore(awaitShared(key, claimed.entry)), outcome: \"coalesced\" }; return joined; } | if (claimed._tag === \"Joined\") {",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"miss\" | yield* hooks.onOutcome(\"miss\");",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | entry.standing === \"Live\" | if (entry.standing === \"Live\") hooks.settle(key, exit);",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | entry.standing !== \"Live\" | entry.standing === \"Live\" | if (entry.standing === \"Live\") hooks.settle(key, exit);",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { // The adapter's settle first, so what it remembers is in place // before any waiter — or a fresh ask — can observe the answer. // Only a Live claim's exit reaches the adapter; a superseded or // abandoned claim's exit still answers every waiter through // `Deferred.done` below (see `awaitShared`). if (entry.standing === \"Live\") hooks.settle(key, exit); // A no-op when `reset` or the abandoning leave already did it. forget(key, entry); } | Effect.sync(() => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | entry.standing === \"Live\" | if (entry.standing === \"Live\") hooks.settle(key, exit);",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | hooks.settle(key, exit); | if (entry.standing === \"Live\") hooks.settle(key, exit);",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | forget(key, entry); | forget(key, entry);",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { HashMap.forEach(inFlight, (entry) => { entry.standing = afterReset[entry.standing]; }); inFlight = HashMap.empty<K, InFlightClaim<A, E>>(); } | reset: () => {",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Live\" | if (entry.standing === \"Live\") hooks.settle(key, exit);",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { value: yield* restore(awaitShared(key, entry)), outcome: \"miss\" } | const missed: Shared<A> = { value: yield* restore(awaitShared(key, entry)), outcome: \"miss\" };",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { run, reset: () => { HashMap.forEach(inFlight, (entry) => { entry.standing = afterReset[entry.standing]; }); inFlight = HashMap.empty<K, InFlightClaim<A, E>>(); }, } | return {",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"miss\" | const missed: Shared<A> = { value: yield* restore(awaitShared(key, entry)), outcome: \"miss\" };",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { entry.standing = afterReset[entry.standing]; } | HashMap.forEach(inFlight, (entry) => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (exit) => Effect.sync(() => { // The adapter's settle first, so what it remembers is in place // before any waiter — or a fresh ask — can observe the answer. // Only a Live claim's exit reaches the adapter; a superseded or // abandoned claim's exit still answers every waiter through // `Deferred.done` below (see `awaitShared`). if (entry.standing === \"Live\") hooks.settle(key, exit); // A no-op when `reset` or the abandoning leave already did it. forget(key, entry); }).pipe(Effect.flatMap(() => Deferred.done(entry.claim, exit))) | Effect.onExit((exit) =>",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { entry.fiber = fiber; } | yield* Effect.sync(() => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => Deferred.done(entry.claim, exit) | }).pipe(Effect.flatMap(() => Deferred.done(entry.claim, exit))),",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Claimed\" | return { _tag: \"Claimed\", entry };",
+   "status": "Survived"
+  },
+  {
+   "key": "ObjectLiteral | {} | { Live: \"Superseded\", Superseded: \"Superseded\", Abandoned: \"Abandoned\", } | const afterReset: { readonly [S in Standing]: Exclude<Standing, \"Live\"> } = {",
+   "status": "Timeout"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Superseded\" | Live: \"Superseded\",",
+   "status": "Timeout"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Superseded\" | Superseded: \"Superseded\",",
+   "status": "Timeout"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Abandoned\" | Abandoned: \"Abandoned\",",
+   "status": "Timeout"
+  },
+  {
+   "key": "ObjectLiteral | {} | { Live: \"Abandoned\", Superseded: \"Superseded\", Abandoned: \"Abandoned\", } | const afterLastLeave: { readonly [S in Standing]: Exclude<Standing, \"Live\"> } = {",
+   "status": "Timeout"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Abandoned\" | Live: \"Abandoned\",",
+   "status": "Timeout"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Superseded\" | Superseded: \"Superseded\",",
+   "status": "Timeout"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Abandoned\" | Abandoned: \"Abandoned\",",
+   "status": "Timeout"
+  }
+ ]
+}
