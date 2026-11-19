@@ -216,6 +216,48 @@
 
 ---
 
+## Milestone: v1.6 — Arch Wave 11
+
+**Completed:** 2026-11-19 (not merged, not released)
+**Phases:** 9 | **Plans:** 83 | **Sessions:** one autonomous run (`/gsd-autonomous`), with context compactions
+
+### What Was Built
+- ARCH-100: one package-private `Operand.ts` owns the own-property read. This closed a live fail-open: the predicate reference interpreter's `row[p.column]` allowed a row that `evaluate` denies.
+- ARCH-101: `LeafNeeds` turns every leaf's answer into a verdict, finishing ADR-QD-163.
+- ARCH-102/103: a port card is a model row keyed by one `PortName`, and the gate-registry watch is the dock model's third scoped feed (Breaking, devtools and react).
+- ARCH-104/105: `untrustedDecoder` takes a required unknown-key policy, and a stored record is its envelope in memory too (Breaking, core, http, devtools).
+- ARCH-106: admission produces the one walk environment, typed by its row source. The phase opened on a benchmark gate, which passed with 0 of 35 workloads slower.
+- ARCH-107/108: devtools' headless interface is its three feeds, and a `DecisionCache` is asked only the question while core runs the matching walk (Breaking, devtools and core).
+
+### What Worked
+- The three human checkpoints (59, 60, 61) were asked once each, before planning, with the evidence attached. All three were decided "pursue", and nothing was re-litigated afterwards.
+- Each phase had a verbatim scan script with its SHA pinned in the plan. It caught out-of-scope edits and stale mutation evidence mechanically. Review rounds amended the scan in a `fix(NN)` commit instead of loosening it silently.
+- Mutation evidence was dated by the newest commit touching either the after file or the static file. A re-run that leaves the after file byte-identical no longer looks stale.
+- A type pin on an Effect-returning function goes through `Params<F>`, with a positive control and one deliberate break. This was learned in Phase 60 and applied from the start in Phase 61.
+
+### What Was Inefficient
+- Every review round that touched a source comment or a test forced a fresh Stryker run, plus a static run of about 4 minutes, and a commit. Phase 60 needed three, and Phase 61 two.
+- Three phases (54, 56, 59) closed with `nyquist_compliant: false` left over from plan-phase's seed, although every row was green and the sign-off was ticked. The audit caught and corrected it.
+- A plan's commit-shape verify compared a file to `phase_base` that an earlier plan of the same phase had created (61-03). The check's intent held, but the executor had to record a deviation.
+- Gate 14's packed-install probe was extended for only one of the new public names, which is now carried as tech debt.
+
+### Patterns Established
+- Records name the party that sees each error. TS2559/TS2554 are what a caller gets, and TS2345/TS2322/TS2416 are what an implementer gets, each probed with `tsc` before it is written.
+- An "owner decision → research → post-research decisions (D-11+)" sequence in CONTEXT. Choices left to discretion are recorded as decisions before planning, not left implicit.
+- The review runs up to three iterations with a disposition file, and Info findings are fixed too when they cost no locked decision.
+
+### Key Lessons
+1. When a phase adds public names, its plan should extend gate 14's packed-install probe for every one of them, not a sample.
+2. validate-phase must flip `nyquist_compliant` itself. A green map with a `false` flag is a recording slip that only an audit notices.
+3. A commit-shape verify should compare against the commit that created the file when that commit belongs to the same phase, not against `phase_base`.
+
+### Cost Observations
+- Model mix: opus for the orchestrator, planners, research and reviewers. Sonnet for executors, fixers, auditors, verifiers and the integration check.
+- Sessions: one long autonomous run across several context compactions.
+- Notable: 436 commits in about two days. Three checkpoints and five discretionary choices were answered or recorded once. Tech debt was accepted at the audit.
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -227,6 +269,7 @@
 | v1.3 | 1 (autonomous) | 7 | A carried-debt ledger with a per-row closer; a mechanism spike with fixed criteria before a speculative phase |
 | v1.4 | 1 (autonomous) | 6 | Spike evidence for every option before a human checkpoint; a milestone-wide mutation re-check and stale sweep in the last plan |
 | v1.5 | 1 (autonomous) | 10 | Defects first with RED on base; a benchmark gate opening a phase; post-review mutation records; the audit fixes its own info findings |
+| v1.6 | 1 (autonomous) | 9 | Pinned per-phase scan scripts; three human checkpoints asked once before planning; review fixes Info findings too, with a mutation re-run per round |
 
 ### Cumulative Quality
 
@@ -237,9 +280,10 @@
 | v1.3 | vitest 200 files / 4917 tests, tstyche, e2e 30 | 99.47% statements / 99.75% lines overall; no measured file's mutation score fell | 0 |
 | v1.4 | vitest 5139 tests, tstyche, e2e 30 | core ≥95%, others ≥90% (enforced); all 15 touched files at their latest recorded mutation score | 0 |
 | v1.5 | vitest 231 files / 5656 tests (+568, +43), tstyche, e2e 30 | core ≥95%, others ≥90% (enforced); full `pnpm check` with mutation green, every Stryker run ≥ 80 | 0 |
+| v1.6 | vitest core 2649 + devtools 1647 (at audit), tstyche, e2e 30 | core ≥95%, others ≥90% (enforced); every phase's scoped Stryker compare held (no touched file's score fell) | 0 |
 
 ### Top Lessons (Verified Across Milestones)
 
-1. Re-verify at close: a later phase that touches shared files makes earlier verification stale (v1.0: 4 phases; v1.2: 3 phases; v1.3: 6 phases; v1.4: 3 phases; v1.5: 5 phases).
+1. Re-verify at close: a later phase that touches shared files makes earlier verification stale (v1.0: 4 phases; v1.2: 3 phases; v1.3: 6 phases; v1.4: 3 phases; v1.5: 5 phases). v1.6 relied on each phase's own verifier plus the milestone integration check (2649 core and 1647 devtools tests at the audit head) instead of per-phase re-verification.
 2. Run review → fix after verification passes: it found warnings verification missed in every milestone.
 3. Shape tooling inputs so tools can read them: v1.0's requirement ranges and v1.2's grouped traceability rows both forced hand edits.
