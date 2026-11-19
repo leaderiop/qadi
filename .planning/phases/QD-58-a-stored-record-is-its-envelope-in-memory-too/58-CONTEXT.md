@@ -99,6 +99,30 @@ These are the 11 `src` files that name `StoredRecord` on the Phase 57 base. Re-v
   - Add an `upgrading.md` 0.13 entry with the migration (`record.environment` becomes `stored.environment`; `stored._tag` becomes `stored.record._tag`; `stampRecord(r, e)` becomes `new StoredRecord({ environment: e, record: r })`).
   - Nothing is released.
 
+### Settled after research (2026-11-19)
+
+- **D-12 (owner choice, 2026-11-19): delete both `isolate` catches and test C4.**
+  - With D-01, `append` becomes `new StoredRecord({ environment, record })`, which reads no record field. `isolate("append")` can no longer fire: its only test, C4 (`ShippedSinkReports.test.ts:129-147`), reached it through `stampRecord`'s getter-reading spread. `isolate("publish")` was already unreachable (`DecisionLog.ts:174-176`).
+  - Delete the `isolate` helper, both call sites and C4.
+  - A real defect in a log's `record` then propagates like any other sink defect, which the sink emitter contains and reports once (`SinkEmit.ts`, ADR-QD-159).
+  - ADR-QD-171 amends ADR-QD-159 (`spec/decisions/159-…md:178-179`: "the decision log's append half is reachable … (C4)") and BEH-QD-569.
+  - `ingest` callers outside the emitter, if any, are listed in ADR-QD-171 with what now happens to a defect there.
+  - Rejected: keeping the catches as unreachable defensive code. That is dead code plus a recorded D-08 exception.
+- **D-13 (D-03 gap, Claude's discretion):**
+  - Devtools' `Timeline` orders its own `TimelineEntry` rows with `Order.mapInput(sinkRecordOrder, recordOf)`, where `recordOf` picks `entry.decision` or `entry.obligations`. No new export.
+  - A test with an orphan beside decisions of differing `at` kills both arms of `recordOf`.
+- **D-14: one atomic Breaking commit.** Core's `src` change, devtools' `Timeline.ts`, every *shape-reaching* test rewrite, `features/` and `scripts/check-package-install.mjs` land in one atomic `feat(58-NN)!` commit, so the root typecheck is green at every commit. The bulk is mechanical: devtools' `test/helpers.ts` first, then `Source.test.ts`.
+  - The characterisation commits come before it, written through the wire: `encodeStoredRecordString` and a text fixed point. That API is the same on the base and after, so they are green before and after.
+  - Shape-reading rows (`stored.record` identity, `instanceof`) are RED on the base.
+  - Run `pnpm exec tsc -b tsconfig.json` before `test:bdd`. `features/` reads `lib/`.
+- **D-15: the http Breaking changeset.** Its basis is that the http routes take a `DecisionLogReader`, whose element type `StoredRecord` changes shape, so a structural reader built from flat records no longer typechecks. `@qadi/http` has no `src` code change; doc edits only.
+- **D-16: mutation (D-08 adapted for a pure deletion).**
+  - The base records killed-mutant ids, not only scores. Configs: core `stryker.config.mjs`, devtools `stryker.devtools.mjs`, http `stryker.http.mjs`.
+  - At the close, every touched file's survivor set is unchanged. Every lost killed mutant must have its source line absent from the after file: the deleted `isolate` helper, the stamp classes and `stampRecordMatch`.
+  - Any new mutant (for example `recordOf`'s arms or `sinkRecordOrder`) is killed.
+  - `AuditArchive.ts` is touched by a comment only, so it needs no base.
+- **Gate 13:** `spec:api` goes from 936 to 933 (five drifts measured in the spike).
+
 ### Claude's Discretion
 
 - Where `sinkRecordOrder` lives (beside `at` in `DecisionRecord.ts` is the default).
