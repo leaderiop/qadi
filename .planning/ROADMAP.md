@@ -571,7 +571,21 @@ Plans:
   4. A decode benchmark of the `ignore`-seam workloads, with its band fixed before measuring, shows no regression beyond that band; `UNTRUSTED_DECODE_BUDGET` is unchanged; a `@qadi/core` patch changeset records the change.
 
 **Planning notes**: D2 and D4 bind. Research flag: probe the bench harness and the claim's scope before planning. Mechanics: `project` takes `Object.keys(input)` (names only, own enumerable), filters by the declared set and reads each kept value once; `keysOf` reads `_tag` instead of taking the entries array; change `UntrustedDecode.ts` and `EnvelopeKeys.ts` in one commit; no `Record<string, unknown>`, no `as`. Do not widen the code change to `walked()` or `exceedsJsonDepth` without the owner: the ADR amendment and the doc must instead scope the sentence and say what `refuse` plus `unwalked` do, or they repeat the overclaim one level down. Bench: `ab.sh` and `analyze.mjs` are Evaluate-specific (the analyzer refuses input missing two Evaluate keys), so parameterise a copy or interleave manually; the policy decoder group does not exercise `project`, so use the `decodeSinkRecord` and stored-envelope workloads plus a new `ignore` row in `UntrustedDecode.bench.ts`, and fix a tighter band (or a geomean limit) before the result is known, because a 10 percent band can hide a real 8 percent regression. Stryker: build decoders inside `it` bodies (module-scope decoders are `Ignored` as static); take a static evidence run with `ignoreStatic: false` from a config kept outside the repo and never edit `stryker.config.mjs`; `EnvelopeKeys.ts` is 58/58 and `UntrustedDecode.ts` 41/43 with two pre-existing survivors. Whether a declared getter is read once today is unverified: measure before stating the requirement. Check whether a test already pins an unknown top-level hydration key as `MalformedPayload` (BEH-QD-488 area, `spec/behaviors/19-hydration.md`) before adding one. Do not edit `StoredEnvelope.test.ts` (a pinned characterisation file; Phase 68 owns its wording).
-**Plans**: TBD
+**Plans**: 5 plans
+**Wave 1**
+- [ ] 66-01-PLAN.md — the mutation base, then the ignore projection's accessor reads RED on the base (8 of 127), H1 cited
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 66-02-PLAN.md — the projection reads names, then each declared value once; the sink codec's comments; the variants
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 66-03-PLAN.md — the parameterised harness, the ignore bench rows, the 3 + 3 bench of record against the phase base
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 66-04-PLAN.md — ADR-QD-170 amended, INV-QD-377, BEH-QD-666, traceability and CCR-QD-457; the `@qadi/core` patch changeset
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 66-05-PLAN.md — the Stryker close and static evidence, the close scan, `check:pr` once, DECL-01..04 complete
 
 ### Phase 67: No equivalent mutants, no magic race bound
 
