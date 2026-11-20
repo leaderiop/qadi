@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-05                                    |
-> | Revision       | 1.17                                           |
+> | Revision       | 1.18                                           |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.17 (2026-11-19): BEH-QD-631, BEH-QD-632, BEH-QD-634 and BEH-QD-635 (ARCH-106, CCR-QD-450)<br>1.16 (2026-11-18): BEH-QD-606 (ARCH-101, CCR-QD-445)<br>1.15 (2026-11-16): a row's resourceId is classified by tag like its own, an unlisted tag gets never (review iteration 2 IN-02)<br>1.14 (2026-11-16): a leaf no own classification names has no row that compiles (review iteration 2 WR-01)<br>1.13 (2026-11-16): BEH-QD-589 pinned by an agreement property and a HasAction deny cell (review IN-03)<br>1.12 (2026-11-16): a row's own and matcher are derived from its leaf's variant (review WR-01)<br>1.11 (2026-11-16): BEH-QD-589 and BEH-QD-590 new: the port-free judgements are written once; every leaf tag has one row in the leaf-needs table (ARCH-97, CCR-QD-441)<br>1.10 (2026-10-08): BEH-QD-039 — a decision is built from a stamp and a trace (`makeDecision`), and its verdict, `visibleFields`, `obligations` and `reason` are the trace root's (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.9 (2026-10-07): BEH-QD-033 — the interpreter is the internal `walk`, `evaluate` the only public path to a decision; BEH-QD-317 added, a readiness probe asks the ports every time (ADR-QD-100, CCR-QD-189)<br>1.8 (2026-10-05): BEH-QD-035 — the stop rule reads the field lattice's `decidedByFirst` law; a strategy outside the union, prototype keys included, never stops early (ADR-QD-092, CCR-QD-174)<br>1.7 (2026-10-04): BEH-QD-038 — nesting depth is judged on the policy before any node is visited, matcher nesting counts, and no `maxDepth` raises a defect (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-261 — scope sentence: the conversion lives in `PortAccess.ts` and applies to every port read core makes, `toPredicate`'s included (BEH-QD-264); the requirement text for `evaluate` is unchanged (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-09): BEH-QD-261 — the five bare `yield*` port calls (`AttributeResolver.resolve`, `DecisionHistory.hasActed`, `RelationshipResolver.check`, `CustomPredicate.evaluate`, `SignatureHistory.signaturesFor`) now each convert a defecting implementation into their own typed `EvaluationError`, joining the four `EvaluationError` tags (`MissingAction`, `MissingResource`, `MissingResourceId`, `PolicyTooDeep`) that were already synchronous and so never at risk of dying — so a caller's `Effect.retry` around `evaluate` now sees a retryable failure at all nine tags, not just those four (issue #100, CCR-QD-142)<br>1.4 (2026-09-07): BEH-QD-033's `evaluate` signature corrected — the requirement channel omitted `CustomPredicate`/`SignatureHistory`, both joined by CCR-QD-082/CCR-QD-089 (CCR-QD-110)<br>1.3 (2026-07-26): `DecisionHistory` joins `EvaluationServices` (CCR-QD-016)<br>1.2 (2026-07-26): `Trace.obligations` (CCR-QD-015)<br>1.1 (2026-07-26): Missing-action rule cross-referenced (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.18 (2026-11-20): BEH-QD-661 and BEH-QD-662 (ARCH-112, CCR-QD-456)<br>1.17 (2026-11-19): BEH-QD-631, BEH-QD-632, BEH-QD-634 and BEH-QD-635 (ARCH-106, CCR-QD-450)<br>1.16 (2026-11-18): BEH-QD-606 (ARCH-101, CCR-QD-445)<br>1.15 (2026-11-16): a row's resourceId is classified by tag like its own, an unlisted tag gets never (review iteration 2 IN-02)<br>1.14 (2026-11-16): a leaf no own classification names has no row that compiles (review iteration 2 WR-01)<br>1.13 (2026-11-16): BEH-QD-589 pinned by an agreement property and a HasAction deny cell (review IN-03)<br>1.12 (2026-11-16): a row's own and matcher are derived from its leaf's variant (review WR-01)<br>1.11 (2026-11-16): BEH-QD-589 and BEH-QD-590 new: the port-free judgements are written once; every leaf tag has one row in the leaf-needs table (ARCH-97, CCR-QD-441)<br>1.10 (2026-10-08): BEH-QD-039 — a decision is built from a stamp and a trace (`makeDecision`), and its verdict, `visibleFields`, `obligations` and `reason` are the trace root's (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.9 (2026-10-07): BEH-QD-033 — the interpreter is the internal `walk`, `evaluate` the only public path to a decision; BEH-QD-317 added, a readiness probe asks the ports every time (ADR-QD-100, CCR-QD-189)<br>1.8 (2026-10-05): BEH-QD-035 — the stop rule reads the field lattice's `decidedByFirst` law; a strategy outside the union, prototype keys included, never stops early (ADR-QD-092, CCR-QD-174)<br>1.7 (2026-10-04): BEH-QD-038 — nesting depth is judged on the policy before any node is visited, matcher nesting counts, and no `maxDepth` raises a defect (ADR-QD-090, CCR-QD-170)<br>1.6 (2026-10-04): BEH-QD-261 — scope sentence: the conversion lives in `PortAccess.ts` and applies to every port read core makes, `toPredicate`'s included (BEH-QD-264); the requirement text for `evaluate` is unchanged (ADR-QD-077, CCR-QD-153)<br>1.5 (2026-09-09): BEH-QD-261 — the five bare `yield*` port calls (`AttributeResolver.resolve`, `DecisionHistory.hasActed`, `RelationshipResolver.check`, `CustomPredicate.evaluate`, `SignatureHistory.signaturesFor`) now each convert a defecting implementation into their own typed `EvaluationError`, joining the four `EvaluationError` tags (`MissingAction`, `MissingResource`, `MissingResourceId`, `PolicyTooDeep`) that were already synchronous and so never at risk of dying — so a caller's `Effect.retry` around `evaluate` now sees a retryable failure at all nine tags, not just those four (issue #100, CCR-QD-142)<br>1.4 (2026-09-07): BEH-QD-033's `evaluate` signature corrected — the requirement channel omitted `CustomPredicate`/`SignatureHistory`, both joined by CCR-QD-082/CCR-QD-089 (CCR-QD-110)<br>1.3 (2026-07-26): `DecisionHistory` joins `EvaluationServices` (CCR-QD-016)<br>1.2 (2026-07-26): `Trace.obligations` (CCR-QD-015)<br>1.1 (2026-07-26): Missing-action rule cross-referenced (CCR-QD-012)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -432,6 +432,39 @@ REQUIREMENT: `walk` MUST call `admit` once per evaluation, inside its `Effect.su
 
 Building the environment lazily is what keeps a cache hit free of it, and passing it by reference is what keeps a
 node from rebuilding it. Pinned by `DecisionCache.test.ts` ("a cache hit never runs evaluateNode at all").
+
+## BEH-QD-661: Only `admit` builds an `Admitted`
+
+> **Invariant:** [INV-QD-375](../invariants.md#inv-qd-375-only-admit-builds-an-admitted)
+> **See:** [ADR-QD-172](../decisions/172-admission-produces-the-one-walk-environment.md)
+
+```
+REQUIREMENT: Outside `Admission.ts`, a call to `Admitted`'s constructor MUST NOT type-check, and an
+             object literal of `Admitted`'s shape MUST NOT be assignable to `Admitted`. `admit`
+             MUST be `Admitted`'s static method, exported from the module as `admit`.
+```
+
+The constructor is private, and a declared private member makes the type nominal, because a private constructor alone
+still lets a literal of the same shape type-check. Holding an `Admitted` then shows that `admit` built it, wherever
+code is type-checked. Pinned by `WalkEnvironment.tst.ts` (the constructor call refused with TS2673, the literal with
+TS2741, each beside a positive control on `admit`).
+
+## BEH-QD-662: An asked flag agrees with the matcher context
+
+> **Invariant:** [INV-QD-376](../invariants.md#inv-qd-376-the-supplied-flags-and-the-matcher-context-come-from-one-read-of-the-question)
+> **See:** [ADR-QD-172](../decisions/172-admission-produces-the-one-walk-environment.md)
+
+```
+REQUIREMENT: For every question, `supplied.resource` of an `"asked"` environment MUST be true
+             exactly when its matcher context holds a resource, and `supplied.action` of either
+             row source exactly when the context holds an action. `admit` MUST read the
+             question's resource and action once each.
+```
+
+A question whose resource or action answers differently on a second read is where two reads would disagree, so the
+cases use one: a flag that disagreed with the context would decide a leaf's missing-input answer from a value its
+matchers never see. The `"row"` row's resource stays `true` whatever the question holds (BEH-QD-633). Pinned by
+`Admission.test.ts` (E7 to E10).
 
 ---
 
