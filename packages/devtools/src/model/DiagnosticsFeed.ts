@@ -94,7 +94,14 @@ export const isUnsampled: (status: DiagnosticsStatus) => boolean = Match.type<Di
 
 /** What a panel reads: a snapshot, and the command that starts the poll again. */
 export interface DiagnosticsReadout {
-  /** Registers a listener, and returns the function that removes it. A listener must not throw: it is not isolated, and a throw during a publish from the poll is stated as the poll's stop. */
+  /**
+   * Registers a listener, and returns the function that removes it. Every listener is
+   * called, and then what they threw is rethrown out of whatever published: one value as
+   * itself, several as one `AggregateError`. A throw during a publish from the poll is
+   * stated as the poll's stop. A throw on the `Starting` that `restart` or `configure`
+   * publishes escapes before the new poll is forked, so the feed stays `Starting` and no
+   * new poll starts.
+   */
   readonly subscribe: (listener: () => void) => () => void;
   readonly getSnapshot: () => DiagnosticsSnapshot;
   /** Starts the poll again with the options it holds; nothing when it holds none. */

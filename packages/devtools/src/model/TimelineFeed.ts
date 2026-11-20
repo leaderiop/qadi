@@ -54,7 +54,13 @@ const READING: TimelineStatus = TimelineStatus.Reading();
  * dedupe keeps each entry single. It does nothing once the feed's scope has closed.
  */
 export interface TimelineStatusReadout {
-  /** Registers a listener, and returns the function that removes it. A listener must not throw: it is not isolated. */
+  /**
+   * Registers a listener, and returns the function that removes it. Every listener is
+   * called, and then what they threw is rethrown out of whatever published: one value as
+   * itself, several as one `AggregateError`. A throw on the `Reading` that `restart` or
+   * `configure` publishes over a `Stopped` escapes before the new read is started, so the
+   * status says `Reading` with nothing reading.
+   */
   readonly subscribe: (listener: () => void) => () => void;
   readonly getSnapshot: () => TimelineStatus;
   readonly restart: () => void;
@@ -63,7 +69,8 @@ export interface TimelineStatusReadout {
 export interface TimelineFeed {
   /**
    * Stable across a capacity change: a different bound empties it, it does not replace it.
-   * A listener on its `subscribe` must not throw: it is not isolated, and it runs on every record.
+   * Every listener on its `subscribe` is called, and it runs on every record; what they
+   * threw is rethrown out of whatever published, and the rest of that call does not run.
    */
   readonly timeline: TimelineStore;
   /** Where the read stands. */

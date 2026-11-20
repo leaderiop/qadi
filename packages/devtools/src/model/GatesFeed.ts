@@ -5,10 +5,12 @@
  * throw stopped every tab (ADR-QD-169). Both are host code, so both are guarded and a
  * throw is a statement in the snapshot, never a stop: nothing the host throws from the
  * registry or the thunk leaves `makeGatesFeed`, `configure`, a registry listener or a tick.
- * A listener on the feed's own `subscribe` is not guarded: it is the caller's and must not
- * throw. Its throw escapes whatever published (`configure`, a tick, or the host registry's
- * own notification through the registry listener), and one thrown on a tick ends the
- * questions cadence without a statement.
+ * Every listener on the feed's own `subscribe` is called, even when one throws. The
+ * listeners are the caller's, so what they threw is not stated but rethrown afterwards out
+ * of whatever published (`configure`, a tick, or the host registry's own notification
+ * through the registry listener), one value as itself and several as one `AggregateError`.
+ * The rest of that call does not run, so one thrown on a tick ends the questions cadence
+ * without a statement.
  *
  * The thunk has a cadence of its own because `asked()` has no change signal. Its first
  * tick is one interval after it starts, since the build and each `configure` that hands a
@@ -74,7 +76,12 @@ export interface GatesFeedInputs {
 }
 
 export interface GatesFeed {
-  /** Registers a listener, and returns the function that removes it. A listener must not throw: it is not isolated. */
+  /**
+   * Registers a listener, and returns the function that removes it. Every listener is
+   * called, and then what they threw is rethrown out of whatever published: one value as
+   * itself, several as one `AggregateError`; the rest of that call does not run (see the
+   * module doc).
+   */
   readonly subscribe: (listener: () => void) => () => void;
   readonly getSnapshot: () => GatesSnapshot;
   /** Re-reads the registry, re-subscribes when its identity moved or the last watch failed, reads a new thunk; publishes at most once. */
