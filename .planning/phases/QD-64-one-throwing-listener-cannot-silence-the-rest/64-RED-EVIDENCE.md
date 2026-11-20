@@ -34,3 +34,34 @@ Both runs are the phase-base source (no `packages/*/src` file changed) with only
 | TF25 | TF25 a timeline listener that throws does not silence the next one, and accept rethrows what it threw | failed | AssertionError: expected [] to deeply equal [ [ 'x' ] ] |
 
 The other 84 cases of the three files passed.
+
+## The seam's variants
+
+Each variant is one edit of the committed seam, run against `ExternalStore.test.ts` (14 tests), and fails exactly the store cases named for it; v0 is the unedited control and `ExternalStore.ts` equals HEAD after the run.
+
+| Variant | Edit | Tests | Failed | Result |
+| --- | --- | --- | --- | --- |
+| v0 | unedited | 14 | 0 | as expected |
+| v1 | iterate a snapshot of the set | 14 | 2 | as expected |
+| v2 | notify before the value is assigned | 14 | 1 | as expected |
+| v3 | decide by the first thrown value's truthiness | 14 | 2 | as expected |
+| v4 | flatten a nested AggregateError | 14 | 1 | as expected |
+| v5 | count in the message | 14 | 1 | as expected |
+| v6 | no early return when nothing threw | 14 | 6 | as expected |
+| v7 | swallow what a listener throws | 14 | 6 | as expected |
+| v8 | rethrow the first of several | 14 | 3 | as expected |
+
+Failed counts: v1 (C2, C3), v2 (C4), v3 (R3, R4), v4 (R5), v5 (R2), v6 (C1, C2, C3 and the three existing cases that notify with no throw), v7 (R1, R2, R3, R4, R5, C4), v8 (R2, R4, R5).
+
+What each variant breaks:
+
+- v1, iterating a snapshot of the set: live iteration (a listener removed before its turn is still called, one added during the pass is not).
+- v2, notifying before the value is assigned: the value is held before any listener runs.
+- v3, deciding by the first thrown value's truthiness: the decision is by how many threw, so a falsy thrown value still counts.
+- v4, flattening a nested `AggregateError`: a nested `AggregateError` stays one value.
+- v5, a count in the message: the message is one fixed literal.
+- v6, no early return when nothing threw: nothing is thrown when nothing threw.
+- v7, swallowing what a listener throws: nothing a listener throws is swallowed.
+- v8, rethrowing the first of several: several thrown values are never reduced to one.
+
+Run: `variants: 9 of 9 as expected`.
