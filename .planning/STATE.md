@@ -5,16 +5,16 @@ milestone_name: Arch Wave 12
 current_phase: 64
 current_phase_name: One throwing listener cannot silence the rest
 status: executing
-stopped_at: Completed QD-64-03-PLAN.md
-last_updated: "2026-11-20T14:46:58.924Z"
+stopped_at: Completed QD-64-04-PLAN.md
+last_updated: "2026-11-20T14:58:42.276Z"
 last_activity: 2026-11-20
 last_activity_desc: Phase 64 execution started
-state_head: 720ec7b0405cfa23d840d48523e919973f7c83e2
+state_head: 202161d122a8a8d955f53575f082b3d2510e7324
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 18
-  completed_plans: 16
+  completed_plans: 17
   percent: 29
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-20)
 ## Current Position
 
 Phase: 64 (One throwing listener cannot silence the rest) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-11-20 — Phase 64 execution started
 
@@ -433,6 +433,7 @@ Last activity: 2026-11-20 — Phase 64 execution started
 | Phase QD-64 P01 | 25 min | 3 tasks | 8 files |
 | Phase QD-64 P02 | 9 min | 2 tasks | 2 files |
 | Phase QD-64 P03 | 6 min | 2 tasks | 5 files |
+| Phase QD-64 P04 | 12 min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -739,6 +740,7 @@ Last activity: 2026-11-20 — Phase 64 execution started
 - [Phase QD-64]: The Stryker base of the four model files is recorded before the first red test, since a red test aborts Stryker's initial run
 - [Phase QD-64]: 64-02: notify decides by count in the order zero, one, aggregate, with the AggregateError message an inline literal so Stryker measures it
 - [Phase QD-64]: 64-03: the begin-to-fork window stays; each feed text that can meet it says so (timeline Reading, diagnostics Starting, gates cadence)
+- [Phase QD-64]: The begin-to-fork window is stated as out of scope in ADR-QD-177, BEH-QD-656 and the CCR-QD-455 row; no spec text claims it closed.
 
 ### Pending Todos
 
@@ -800,8 +802,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-20T14:46:58.809Z
-Stopped at: Completed QD-64-03-PLAN.md
+Last session: 2026-11-20T14:58:42.178Z
+Stopped at: Completed QD-64-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

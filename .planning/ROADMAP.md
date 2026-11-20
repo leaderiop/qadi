@@ -511,11 +511,11 @@ Plans:
   4. The dock's `*.characterisation.test.tsx` files pass with an empty `git diff`, and a `@qadi/devtools` patch changeset records the change.
 
 **Planning notes**: One three-line seam with all 13 importers enumerated, so no research phase is needed; the planner's one scope call is already made (D7). D1 and D7 bind. Mechanics from the research: collect thrown values in an array and decide by length, never "first error truthy" (`throw undefined` must work); rethrow a single error as the same value (reference-equal) and several as an `AggregateError` with a fixed, asserted message; iterate the live `Set` (a `[...listeners]` snapshot would change both removed-before-turn and added-during-notify behaviour) and pin both subscribe-during and unsubscribe-during; state is assigned before notify, as today. Texts to amend: `TimelineFeed.ts` `subscribe` docs, `DiagnosticsFeed.ts` (keep the poll-stop clause), `GatesFeed.ts` module doc, `devtools/README.md`, and the BEH at `spec/behaviors/28-devtools-screens.md`; re-grep the website's devtools page before editing (the research disagrees on whether it mirrors the README) and never touch `apps/website/dist/`. `TimelineFeed` nests stores, so an outer notify's error can be a thrown value inside an inner notify and a nested `AggregateError` can occur: decide, pin, do not flatten. `ExternalStore.ts` is in the devtools mutation set (break 80), so the `AggregateError` message literal and the length boundaries need asserts. React's behaviour on a thrown snapshot is unverified; the dock characterisation tests are the evidence. A test that asserts a message from a second throw may now see an `AggregateError` (none identified).
-**Plans**: 3/5 plans executed
+**Plans**: 4/5 plans executed
 - [x] 64-01-PLAN.md
 - [x] 64-02-PLAN.md
 - [x] 64-03-PLAN.md
-- [ ] 64-04-PLAN.md
+- [x] 64-04-PLAN.md
 - [ ] 64-05-PLAN.md
 
 ### Phase 65: Only `admit` builds an `Admitted`
@@ -602,7 +602,7 @@ Phases execute in numeric order: 62 → 63 → 64 → 65 → 66 → 67 → 68
 |-------|----------------|--------|-----------|
 | 62. Type pins that can fail | 8/8 | Complete    | 2026-11-20 |
 | 63. The packed-install gate probes every new public name | 5/5 | Complete    | 2026-11-20 |
-| 64. One throwing listener cannot silence the rest | 3/5 | In Progress | - |
+| 64. One throwing listener cannot silence the rest | 4/5 | In Progress | - |
 | 65. Only `admit` builds an `Admitted` | 0/TBD | Not started | - |
 | 66. The decoder reads only what it declares | 0/TBD | Not started | - |
 | 67. No equivalent mutants, no magic race bound | 0/TBD | Not started | - |
