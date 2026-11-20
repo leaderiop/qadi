@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-175                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-20                                     |
 > | Status         | Accepted — amends ADR-QD-037                   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-20): the in-file floatingEffect directive runs in pass 1 as well (review WR-01)<br>1.0 (2026-11-20): Initial release (ARCH-109, CCR-QD-453) |
+> | Change History | 1.2 (2026-11-20): the drift check holds tsconfig.tstyche.json to extends and compilerOptions.plugins (review WR-02)<br>1.1 (2026-11-20): the in-file floatingEffect directive runs in pass 1 as well (review WR-01)<br>1.0 (2026-11-20): Initial release (ARCH-109, CCR-QD-453) |
 
 ---
 
@@ -59,7 +59,8 @@ text of strings blanked (a template literal's `${…}` is read as code), on its 
 every file tstyche selects, in both directions, and AGENTS.md section 6's table is checked
 against it. `[not-callable-control]` requires each negative pin's twin by subject text, form
 and kind, and requires the twin to run: a file holding a negative pin may not use `.skip`,
-`.only` or `.todo`, nor carry a tstyche directive. `[tstyche-plugin-drift]` holds the
+`.only` or `.todo`, nor carry a tstyche directive. `[tstyche-plugin-drift]` holds
+`tsconfig.tstyche.json` to `extends` and `compilerOptions.plugins` alone, holds the
 restated entry to the base's apart from `floatingEffect`, and requires the base to leave
 `floatingEffect` on.
 

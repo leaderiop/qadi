@@ -14,7 +14,8 @@
   // `tsc -p tsconfig.test.json` does, and that compile keeps the rule on.
   //
   // `scripts/check-house-style.mjs`'s `[tstyche-plugin-drift]` fails if this
-  // entry and the base's differ by anything but `floatingEffect`.
+  // file holds anything but `extends` and `compilerOptions.plugins`, or if
+  // this entry and the base's differ by anything but `floatingEffect`.
   "extends": "./tsconfig.test.json",
   "compilerOptions": {
     "plugins": [

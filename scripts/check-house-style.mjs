@@ -2494,13 +2494,14 @@ for (const file of srcSources) {
 
 // `[tstyche-plugin-drift]`: tstyche compiles under `tsconfig.tstyche.json`, which extends
 // `tsconfig.test.json` and restates the Effect language service's plugin entry, because
-// `extends` replaces `compilerOptions.plugins` wholesale. The restated entry must stay the one
-// `tsconfig.test.json` inherits from `tsconfig.base.json`, with only `floatingEffect` off: a
-// setting changed in the base and not here would make the two compiles disagree silently. And
-// the base must keep `floatingEffect` on, since the second tstyche pass compiles under
-// `tsconfig.test.json` and catches a bare negative pin on an `Effect` only while the rule is on
-// there; comparing the entries without `floatingEffect` cannot see the base turn it off
-// (ADR-QD-175).
+// `extends` replaces `compilerOptions.plugins` wholesale. That file holds nothing but `extends`
+// and `compilerOptions.plugins`, so the two compiles differ by that one setting. The restated
+// entry must stay the one `tsconfig.test.json` inherits from `tsconfig.base.json`, with only
+// `floatingEffect` off: a setting changed in the base and not here would make the two compiles
+// disagree silently. And the base must keep `floatingEffect` on, since the second tstyche pass
+// compiles under `tsconfig.test.json` and catches a bare negative pin on an `Effect` only while
+// the rule is on there; comparing the entries without `floatingEffect` cannot see the base turn
+// it off (ADR-QD-175).
 {
   /** @param {string} file @param {string} message */
   const drift = (file, message) => {
@@ -2525,6 +2526,16 @@ for (const file of srcSources) {
   const child = readJsonc("tsconfig.tstyche.json");
   if (child.extends !== "./tsconfig.test.json") {
     drift("tsconfig.tstyche.json", `extends ${JSON.stringify(child.extends)}, not "./tsconfig.test.json".`);
+  }
+  // The file may say nothing else: a relaxed `strict`, a narrowed `include` or another compiler
+  // option would make tstyche's pins pass or fail differently from `pnpm typecheck` unseen.
+  const childKeys = Object.keys(child).sort().join();
+  if (childKeys !== "compilerOptions,extends") {
+    drift("tsconfig.tstyche.json", `has the keys ${JSON.stringify(childKeys)}; only extends and compilerOptions may be set.`);
+  }
+  const optionKeys = Object.keys(child.compilerOptions ?? {}).sort().join();
+  if (optionKeys !== "plugins") {
+    drift("tsconfig.tstyche.json", `compilerOptions holds ${JSON.stringify(optionKeys)}; only plugins may differ from tsconfig.test.json.`);
   }
   const own = child.compilerOptions?.plugins;
   const inherited = nearestPlugins("tsconfig.test.json");

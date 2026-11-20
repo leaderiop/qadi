@@ -534,8 +534,9 @@ file with a negative pin may not use `.skip`, `.only` or `.todo`, nor carry a
 tstyche directive, except `FloatingEffectPins.tst.ts`, which pins the tool with
 expected failures. It is a floor: that each twin varies only the argument under
 test is reviewed by hand. `[tstyche-plugin-drift]` requires
-`tsconfig.tstyche.json`'s plugin entry to equal the one `tsconfig.test.json`
-inherits from `tsconfig.base.json` apart from `floatingEffect`, because
+`tsconfig.tstyche.json` to hold nothing but `extends` and `compilerOptions.plugins`,
+and its plugin entry to equal the one `tsconfig.test.json` inherits from
+`tsconfig.base.json` apart from `floatingEffect`, because
 `extends` replaces `compilerOptions.plugins` wholesale and a setting changed in
 the base alone would make the two compiles disagree silently. It also requires
 the base to leave `floatingEffect` on, since the rule-on pass needs it.
