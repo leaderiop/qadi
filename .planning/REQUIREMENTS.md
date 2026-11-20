@@ -66,14 +66,14 @@ Every phase runs on branch `arch-wave-12`, strictly serial.
 
 ### The decoder reads only what it declares (Phase 66, ARCH-113, core; D2, D4)
 
-- [ ] **DECL-01**: A RED test on the phase base shows that decoding an in-process value with an undeclared throwing
+- [x] **DECL-01**: A RED test on the phase base shows that decoding an in-process value with an undeclared throwing
   getter under `unknownKeys: "ignore"` invokes that getter, directly and through both `ignore` seams in `SinkCodec.ts`.
-- [ ] **DECL-02**: The projection reads only own key names, then reads each declared key's value once (and the `_tag` its
+- [x] **DECL-02**: The projection reads only own key names, then reads each declared key's value once (and the `_tag` its
   key selection needs); the RED tests turn green, and the doc and ADR-QD-170 D-19 wording are scoped to the projection
   under `ignore`, stating what `refuse` and `unwalked` still read.
-- [ ] **DECL-03**: The hydration payload keeps `unknownKeys: "refuse"` (D2), pinned by a test that an unknown top-level key
+- [x] **DECL-03**: The hydration payload keeps `unknownKeys: "refuse"` (D2), pinned by a test that an unknown top-level key
   is refused (added if none exists), and an ADR-QD-170 amendment records why; `packages/react/src` is unchanged.
-- [ ] **DECL-04**: A decode benchmark of the `ignore`-seam workloads, with its band fixed before measuring, shows no
+- [x] **DECL-04**: A decode benchmark of the `ignore`-seam workloads, with its band fixed before measuring, shows no
   regression beyond that band; `UNTRUSTED_DECODE_BUDGET` is unchanged; a `@qadi/core` patch changeset records the change.
 
 ### No equivalent mutants, no magic race bound (Phase 67, ARCH-114, core; D5)
@@ -164,10 +164,10 @@ The seven WX rows apply to every phase 62 to 68, so each phase's Requirements li
 | ADMT-02 | Phase 65 | Complete |
 | ADMT-03 | Phase 65 | Complete |
 | ADMT-04 | Phase 65 | Complete |
-| DECL-01 | Phase 66 | Pending |
-| DECL-02 | Phase 66 | Pending |
-| DECL-03 | Phase 66 | Pending |
-| DECL-04 | Phase 66 | Pending |
+| DECL-01 | Phase 66 | Complete |
+| DECL-02 | Phase 66 | Complete |
+| DECL-03 | Phase 66 | Complete |
+| DECL-04 | Phase 66 | Complete |
 | MUTE-01 | Phase 67 | Pending |
 | MUTE-02 | Phase 67 | Pending |
 | MUTE-03 | Phase 67 | Pending |
