@@ -2,7 +2,7 @@
 phase: QD-62-type-pins-that-can-fail
 reviewed: 2026-11-20T00:00:00Z
 depth: standard
-files_reviewed: 25
+files_reviewed: 26
 files_reviewed_list:
   - AGENTS.md
   - package.json
@@ -20,6 +20,7 @@ files_reviewed_list:
   - packages/devtools/test/model/DiagnosticsStore.tst.ts
   - packages/http/test/RequirePermission.tst.ts
   - scripts/check-house-style.mjs
+  - scripts/lib/type-tests.mjs
   - scripts/run-tstyche.mjs
   - spec/README.md
   - spec/decisions/037-circular-imports-and-type-level-tests-are-gates.md
@@ -31,9 +32,9 @@ files_reviewed_list:
   - tstyche.json
 findings:
   critical: 0
-  warning: 3
-  info: 4
-  total: 7
+  warning: 0
+  info: 5
+  total: 5
   necessity: 0
 status: issues_found
 ---
@@ -42,89 +43,83 @@ status: issues_found
 
 **Reviewed:** 2026-11-20
 **Depth:** standard
-**Files Reviewed:** 25
+**Files Reviewed:** 26
 **Status:** issues_found
 
 ## Summary
 
-I reviewed the diff since `4cab2e74`. I also ran the gates and probed them on a scratch copy of the repo (the real tree was not touched).
+This is iteration 3, the last re-review, after commits 76a617e9 (WR-01, IN-05) and 1d4e9929 (IN-06). I read the changed hunks and ran the gates in the real tree, which I did not modify. I ran the fault probes in a scratch copy of the repo under the session scratchpad, since deleted.
 
-- `node scripts/check-house-style.mjs`: clean. Its walk finds 66 type-test files, the same count as `tstyche --listFiles`.
-- `node scripts/run-tstyche.mjs`: both passes green.
-- `tsc -p tsconfig.test.json`: clean.
+Gates in the real tree:
+- `node scripts/check-house-style.mjs`: clean, 560 files, 66 type-test files.
+- `node scripts/run-tstyche.mjs`: exit 0. Pass 1: 347 passed, 1 skipped. Pass 2: 346 passed, 2 skipped.
 
-The core design holds. A bare negative pin on an `Effect`-returning subject cannot keep a passing twin, because pass 2 compiles with the rule on and fails the twin. I also tried these inputs against `blankCode` and the pin and twin parse, and each was read correctly or failed closed:
-- an interpolation holding a `}` string;
-- nested generics and arrow types inside type arguments;
-- a pin split across lines;
-- a `.skip` in a file with a negative pin.
+**Verdict: WR-01 is closed. No critical findings and no warnings remain.**
 
-The budget sums match the ADR's "81 pins in 27 files" (80 outside the characterisation, plus the one `DecisionLog` pin that was rewritten).
+1. **Pass 2 fails when `tsconfig.test.json` loses the rule.** Each probe edited the scratch `tsconfig.base.json`, which `tsconfig.test.json` inherits. Pass 1 stayed green every time, because `tsconfig.tstyche.json` restates the plugin entry.
 
-I found three gate and spec defects, none blocking:
-- the characterisation file's rule-on directive is never exercised;
-- the drift check is narrower than the three places that describe it;
-- the file walk mirrors tstyche's default file match by hand, with nothing cross-checking it.
+   | Probe | Pass 1 | Pass 2 |
+   | ----- | ------ | ------ |
+   | `floatingEffect: "off"` in the base entry | green | 1 failed: the new block, all 3 pins at lines 70-72 ("Expression is callable/constructable with the given argument") |
+   | `"diagnostics": false` in the base entry | green | 2 failed: the new block and the directive block, since the whole plugin is off |
+   | `"plugins": []` in the base | green | 2 failed, same two blocks |
+   | `floatingEffect: "warning"` in the base entry | green | green, correctly: a warning is still a diagnostic, so the reading holds |
 
-The already-accepted `no-control-regex` warning at `run-tstyche.mjs:40` is not repeated.
+   The `diagnostics: false` and plugin-dropped routes are the ones `[tstyche-plugin-drift]` cannot see statically, so the new block is the only guard on them. The new block is the only one of the three that goes red in the `"off"` case.
 
-## Warnings
+2. **Each block runs in exactly the passes its title claims.** The real output gave pass 1 one skipped test and pass 2 two. That is the new block skipped in pass 1, and the rule-off block's two tests skipped in pass 2.
+   - The directive block has no skip text and runs in both passes.
+   - `"under the tstyche tsconfig"` is contained only by the rule-off describe's title. `"under tsconfig.test.json"` is contained only by the new describe's title.
+   - Neither text contains the other, and no test title contains either. The two test titles that repeat ("a negative pin on valid arguments passes, the known-wrong reading") contain neither text.
+   - `run-tstyche.mjs` also counts each text in the lower-cased whole file of every selected type test and requires exactly one holder with a count of 1. That covers comments as well as titles.
+   - A skip that stopped matching would fail closed: block 2 would run in pass 1 under the rule-off config and go red, and block 1's `fixme` pins would unexpectedly pass in pass 2 and go red.
 
-### WR-01: The in-file `floatingEffect` directive is never exercised, and the docs say it is
+3. **The budget and the table agree.** The file has 7 negative callable pins: 1 on `p`, and 2 in each of the three blocks. It has 3 negative constructable pins, one per block. `NOT_CALLABLE_PIN_BUDGET` and AGENTS.md section 6's row both say 7/3, and `[not-callable-pin]` and `[not-callable-pin-table]` pass. Every negative has a positive twin in the first block, so `[not-callable-control]` is satisfied without exempting the twin rule.
 
-**File:** `scripts/run-tstyche.mjs:36-37,119-125`, `packages/core/test/FloatingEffectPins.tst.ts:12-19,55-64`
-**Issue:** The "restored by the in-file directive" block is skipped in pass 1 (`RULE_OFF_SKIP`) and runs only in pass 2. Pass 2 already compiles under `tsconfig.test.json` with the rule on, so the `// @effect-diagnostics effect/floatingEffect:error` line is a no-op there. I confirmed by running `tstyche packages/core/test/FloatingEffectPins.tst.ts` with no `--skip`, under `tsconfig.tstyche.json`. All four tests pass, including the restored block. The skip therefore only removes the one place the directive does any work. The docs claim otherwise:
-- The file header says "the position-based language-service directive further down turns the rule back on" and "an upgrade that changes either reading turns the file red".
-- ADR-QD-175 rejects a second config because "the position-based directive turns the rule back on for the rest of the file under tstyche's TypeScript 6.0.3 and under `pnpm typecheck`'s TypeScript 7".
+4. **The five claims now say what is true.** I found no remaining "two blocks" or "pass 2 proves" wording.
+   - The `run-tstyche.mjs` header, AGENTS.md section 6, ADR-QD-175 (Rev 1.4), the DoD step 6 paragraph (Rev 1.18) and the CCR-QD-453 row all describe three blocks and which pass skips which.
+   - IN-05 and IN-06 from the previous round are fixed: the comment and message are reworded, and the CCR row cites `spec/README.md` Rev 1.261, which is the file's actual revision.
 
-If the directive stopped working, nothing would go red. The block's title also names a mechanism that is not what it tests. Only the rule-off block needs a skip, and only in pass 2.
-**Fix:** Drop `RULE_OFF_SKIP`, its `holders` uniqueness entry and the `--skip` argument in pass 1. Keep only `RULE_ON_SKIP` for pass 2. Pass 1 then proves the directive turns the rule on, and pass 2 proves `tsconfig.test.json` has it on. Update the header, the ADR, AGENTS section 6 and the definitions-of-done (DoD) paragraph, which all say "each block runs once". If the skip is kept on purpose, retitle the block ("with floatingEffect on") and delete the directive and the claims about it.
-
-### WR-02: `[tstyche-plugin-drift]` guards only `compilerOptions.plugins`, but three places say the two compiles differ by one setting
-
-**File:** `scripts/check-house-style.mjs:2519-2557`, `tsconfig.tstyche.json:1-17`, `spec/decisions/175-a-negative-type-pin-can-fail.md` (Consequences)
-**Issue:** The `tsconfig.tstyche.json` header says "and nothing else changed". ADR-QD-175 says "the drift check keeps it to one" setting. AGENTS section 6 describes the check the same way. The check compares only the plugin entry, `extends`, and the `tstyche.json` name. I added `"strict": false`, `"exactOptionalPropertyTypes": false` and a narrowed `include` to `tsconfig.tstyche.json` in a scratch copy, and `check-house-style` still printed "560 file(s) clean". A narrowed `include` would be caught later by `run-tstyche`'s "compiled under another project" check. A relaxed compiler option would not be caught. That would make tstyche's negative pins (`exactOptionalPropertyTypes` pins, for example) pass or fail differently from `pnpm typecheck` with no signal.
-**Fix:** Assert that the child holds no keys beyond `extends` and `compilerOptions`, and that `compilerOptions` holds only `plugins`:
-```js
-const childKeys = Object.keys(child).sort().join();
-if (childKeys !== "compilerOptions,extends") drift("tsconfig.tstyche.json", `has keys ${childKeys}; only extends and compilerOptions.plugins may differ.`);
-if (Object.keys(child.compilerOptions ?? {}).join() !== "plugins") drift("tsconfig.tstyche.json", "compilerOptions may hold only plugins.");
-```
-Or soften the three claims to "the plugin entry".
-
-### WR-03: `TYPE_TEST_FILE` hand-mirrors tstyche's default `testFileMatch`, and nothing detects the two diverging
-
-**File:** `scripts/check-house-style.mjs:706-709,2304-2325`
-**Issue:** The budget, the twin check and the table check all count only files from the gate's own walk. The comment says the guard against drift is "`[not-callable-pin]` fails if `tstyche.json` sets `testFileMatch`". That covers a config change. It does not cover a tstyche upgrade changing its default (`testFileMatch` is in `api.js` at `["**/*.tst.*", "**/__typetests__/*.test.*", "**/typetests/*.test.*"]` today, and `package.json` allows `^7.2.5`). A file tstyche selects and the walk misses has an uncounted, unchecked negative pin. The only guard is the "walk found zero files" check. `run-tstyche.mjs` already calls `--listFiles` and holds the selected list, but it never compares that list to the gate's walk.
-**Fix:** Have `run-tstyche.mjs` fail if `selected` is not exactly the set of `.tst.*` files it finds with the same rules. Alternatively, export the walk from a shared module and compare the two sets there. Or have the gate shell out to `tstyche --listFiles` for its file list instead of mirroring the glob.
+Carried forward from the previous review and still true: IN-01 to IN-04. One new Info, IN-05, is a wording gap in the same claims.
 
 ## Info
 
 ### IN-01: The twin check vouches per subject, not per refused argument
 
-**File:** `scripts/check-house-style.mjs:2430-2441`
-**Issue:** The key is `form kind subject`, so one positive twin covers every negative on that subject. `DiagnosticsStore.tst.ts` has three negatives (`questions`, `schedule`, `layer`) and one twin (`{ intervalMillis: 500 }`) that is valid for none of those arguments. The ADR admits this ("reviewed by hand"). A negative that refuses for the wrong reason, such as a missing required property instead of the excess property it names, still passes the gate.
-**Fix:** None required. If wanted, key the twin on the subject plus the negative's test title, or name the twin in a comment on the negative pin and check that the name resolves.
+**File:** `scripts/check-house-style.mjs:2430-2452`
+**Issue:** Carried forward, still true. The twin key is form, kind and subject text, so one positive twin covers every negative on that subject. `DiagnosticsStore.tst.ts` has three negatives and one twin that is valid for none of them. A pin that refuses for the wrong reason still passes. ADR-QD-175 admits this as "reviewed by hand".
+**Fix:** None required. If wanted, key the twin on the subject plus the negative's test title.
 
-### IN-02: `pnpm test:tstyche <path>` now ignores its arguments
+### IN-02: `pnpm test:tstyche <path>` ignores its arguments
 
-**File:** `scripts/run-tstyche.mjs:46-51,119-125`
-**Issue:** The old script was bare `tstyche`, so `pnpm test:tstyche packages/x/test/Foo.tst.ts` filtered to one file. The wrapper builds fixed argument lists and never reads `process.argv`, so every invocation runs all 66 files twice and silently drops any filter.
-**Fix:** Append `process.argv.slice(2)` to both argument lists. Keep the `--skip` texts as they are.
+**File:** `scripts/run-tstyche.mjs:128-138`
+**Issue:** Carried forward, still true. `process.argv` is never read, so a path filter is dropped and all 66 files run twice. The old script was bare `tstyche` and filtered.
+**Fix:** Append `process.argv.slice(2)` to both argument lists, or document that the wrapper takes no arguments.
 
-### IN-03: Smaller robustness gaps in the new gate code
+### IN-03: Two small robustness gaps in the gate code
 
-**File:** `scripts/check-house-style.mjs:2310,2352-2376`
-**Issue:** There are two small gaps:
-- `tstyche.json` is read here with a bare `JSON.parse`, while the drift block reads the same file through `readJsonc`. A comment added to `tstyche.json` would crash `[not-callable-pin]` with an uncaught `SyntaxError`.
-- A row listed twice in AGENTS section 6's table overwrites silently in `listed.set(...)`, so a duplicated or stale row passes `[not-callable-pin-table]`.
-**Fix:** Use `readJsonc("tstyche.json")` in both places. In the row loop, fail when `listed.has(m[1])`.
+**File:** `scripts/check-house-style.mjs:2294,2352`
+**Issue:** Carried forward, still true.
+- `tstyche.json` is read with a bare `JSON.parse` at line 2294, while `[tstyche-plugin-drift]` reads the same file with `readJsonc`. A comment added to `tstyche.json` crashes `[not-callable-pin]` with an uncaught `SyntaxError`.
+- `listed.set(m[1], …)` at line 2352 overwrites a duplicated row in AGENTS section 6's table silently, so a duplicated row passes `[not-callable-pin-table]`.
 
-### IN-04: `CHARACTERISATION` path is declared in two scripts
+**Fix:** Use `readJsonc("tstyche.json")` at line 2294. In the row loop, fail when `listed.has(m[1])`.
 
-**File:** `scripts/check-house-style.mjs:2397`, `scripts/run-tstyche.mjs:33`
-**Issue:** The path `packages/core/test/FloatingEffectPins.tst.ts` is a separate constant in each script, plus a budget key. A rename already fails loudly in both scripts, so this is only duplication. It is the same fact stated three times, which this repo's own rules discourage.
-**Fix:** Move the path into `scripts/lib/` (next to `raw-decision-read.mjs`) and import it in both scripts.
+### IN-04: The `CHARACTERISATION` path is declared in two scripts
+
+**File:** `scripts/check-house-style.mjs:2381`, `scripts/run-tstyche.mjs:41`
+**Issue:** Carried forward, still true. The same path string is a separate constant in each script, plus a budget key. Renaming the file means editing three places, and a miss in one is caught only indirectly.
+**Fix:** Export it from `scripts/lib/type-tests.mjs` and import it in both scripts.
+
+### IN-05: Three descriptions of the characterisation omit or overstate the new block
+
+**File:** `packages/core/test/FloatingEffectPins.tst.ts:27-29`, `spec/decisions/175-a-negative-type-pin-can-fail.md:38-43`, `spec/traceability.md:508`
+**Issue:** None is wrong in a way that can mislead a behaviour, but each is slightly out of step with the three-block design.
+- The file header says "Each block's title carries the text its skip uses, and the text appears once". The directive block skips in neither pass and its title carries no skip text, so "each" should be "the first two".
+- ADR-QD-175's "The tool's reading is pinned" paragraph describes only two readings (the `fixme` pins under the tstyche config, and the pins that pass below the directive). The directive-free rule-on block is described only later, in the "tstyche runs twice" paragraph.
+- The `spec/traceability.md` row for `FloatingEffectPins.tst.ts` says the negative pins pass "below the in-file directive", and does not mention the block that holds them under the config alone.
+
+**Fix:** Reword the header to "the two blocks that skip carry the text their skip uses". Add a clause to the ADR paragraph and the traceability row, with Rev bumps through `spec-revise`.
 
 ---
 
