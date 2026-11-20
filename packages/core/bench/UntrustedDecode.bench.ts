@@ -6,12 +6,15 @@
  * own root; the audit path reads a row (its `record` unwalked), then the record
  * from its own root. Each is a second walk over the part the first one left
  * out, so nothing is walked twice and no guard is dropped; this file measures
- * the price of having two decoders instead of one. Three groups:
+ * the price of having two decoders instead of one. Four groups:
  *
  * - (a) the policy decoder alone, against an entry decoder then the policy decoder;
  * - (b) `decodeSinkRecord` alone, against it then a row decoder;
  * - (c) the guard's own cost: `untrustedDecoder(Policy)` against the same strict
- *   decode with no guard (bench scope, so `[untrusted-decode]` does not apply).
+ *   decode with no guard (bench scope, so `[untrusted-decode]` does not apply);
+ * - (d) the `ignore` projection over an in-process value: `decodeStoredRecord`,
+ *   with and without an undeclared top-level key, `decodeSinkRecord` with one,
+ *   and a decoder of eight declared keys given eight undeclared ones besides.
  *
  * Throughput moves about 30% between runs (AGENTS.md §5a); read the ratio of one
  * pair within a run, not an absolute figure.
@@ -19,7 +22,7 @@
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import { test } from "vitest";
-import { decodeSinkRecord } from "../src/SinkCodec.ts";
+import { decodeSinkRecord, decodeStoredRecord } from "../src/SinkCodec.ts";
 import * as P from "../src/Policy.ts";
 import { untrustedDecoder } from "../src/UntrustedDecode.ts";
 import * as V2 from "../test/fixtures/sinkWireV2.ts";
@@ -103,3 +106,42 @@ test("audit — a decision record: one decoder or two", async ({ bench }) => {
     options,
   );
 });
+
+// The `ignore` projection over an in-process value: the stored envelope holding that record, with and without an
+// undeclared top-level key, the record with one, and an eight-key object with eight undeclared keys, decoded sixteen
+// times a call so that one call is long beside the timer's tick.
+const stored = { environment: "prod", record };
+const storedWithExtra = { environment: "prod", record, addedLater: "x" };
+const recordWithExtra = { ...record, addedLater: "x" };
+const Eight = Schema.Struct({
+  k0: Schema.Number,
+  k1: Schema.Number,
+  k2: Schema.Number,
+  k3: Schema.Number,
+  k4: Schema.Number,
+  k5: Schema.Number,
+  k6: Schema.Number,
+  k7: Schema.Number,
+});
+const eightDecoder = untrustedDecoder(Eight, { unknownKeys: "ignore" });
+const eightAndEight = {
+  k0: 0, k1: 1, k2: 2, k3: 3, k4: 4, k5: 5, k6: 6, k7: 7,
+  u0: 0, u1: 1, u2: 2, u3: 3, u4: 4, u5: 5, u6: 6, u7: 7,
+};
+
+test("ignore — the envelope projection: declared keys only, or undeclared keys besides", ({ bench }) =>
+  bench.compare(
+    bench("decodeStoredRecord", () => {
+      Result.getOrThrow(decodeStoredRecord(stored));
+    }),
+    bench("decodeStoredRecord, one undeclared key", () => {
+      Result.getOrThrow(decodeStoredRecord(storedWithExtra));
+    }),
+    bench("decodeSinkRecord, one undeclared key", () => {
+      Result.getOrThrow(decodeSinkRecord(recordWithExtra));
+    }),
+    bench("eight declared keys and eight undeclared, sixteen decodes", () => {
+      for (let i = 0; i < 16; i++) Result.getOrThrow(eightDecoder.decode(eightAndEight));
+    }),
+    options,
+  ));
