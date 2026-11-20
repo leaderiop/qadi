@@ -1,0 +1,500 @@
+{
+ "phase": "66",
+ "head": "6ace419f9b3e529ae74fdc8dfadbd6c35de1f282",
+ "invocation": "pnpm exec stryker run stryker.config.mjs --mutate packages/core/src/EnvelopeKeys.ts,packages/core/src/SinkCodec.ts,packages/core/src/UntrustedDecode.ts",
+ "files": {
+  "packages/core/src/EnvelopeKeys.ts": {
+   "killed": 57,
+   "timeout": 0,
+   "survived": 0,
+   "noCoverage": 0,
+   "ignored": 9,
+   "detected": 57,
+   "valid": 57,
+   "open": [],
+   "ignoredMutants": [
+    {
+     "status": "Ignored",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 20,
+     "text": "const TAG = \"_tag\";"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 29,
+     "text": "const memberOf = (ast: SchemaAST.Objects): Member => ({"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 43,
+     "text": "Match.tag(\"Objects\", (ast) => [memberOf(ast)]),"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 43,
+     "text": "Match.tag(\"Objects\", (ast) => [memberOf(ast)]),"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 44,
+     "text": "Match.tag(\"Union\", (ast) => ast.types.flatMap(membersOf)),"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 44,
+     "text": "Match.tag(\"Union\", (ast) => ast.types.flatMap(membersOf)),"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 45,
+     "text": "Match.tag(\"Suspend\", (ast) => membersOf(ast.thunk())),"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 45,
+     "text": "Match.tag(\"Suspend\", (ast) => membersOf(ast.thunk())),"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 46,
+     "text": "Match.orElse(() => []),"
+    }
+   ]
+  },
+  "packages/core/src/SinkCodec.ts": {
+   "killed": 122,
+   "timeout": 1,
+   "survived": 4,
+   "noCoverage": 0,
+   "ignored": 45,
+   "detected": 123,
+   "valid": 127,
+   "open": [
+    {
+     "status": "Survived",
+     "mutator": "EqualityOperator",
+     "replacement": "stack.length >= 0",
+     "line": 322,
+     "text": "while (stack.length > 0) {"
+    },
+    {
+     "status": "Survived",
+     "mutator": "ConditionalExpression",
+     "replacement": "false",
+     "line": 324,
+     "text": "if (frame === undefined) break;"
+    },
+    {
+     "status": "Survived",
+     "mutator": "ConditionalExpression",
+     "replacement": "false",
+     "line": 387,
+     "text": "if (Result.isFailure(before)) return refuse(before.failure);"
+    },
+    {
+     "status": "Survived",
+     "mutator": "ConditionalExpression",
+     "replacement": "false",
+     "line": 391,
+     "text": "if (Result.isFailure(encoded)) return refuse(encoded.failure);"
+    }
+   ],
+   "ignoredMutants": [
+    {
+     "status": "Ignored",
+     "mutator": "ArrayDeclaration",
+     "replacement": "[]",
+     "line": 113,
+     "text": "const EvaluationErrorSchema = Schema.Union(["
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrayDeclaration",
+     "replacement": "[]",
+     "line": 134,
+     "text": "const OutcomeWire = Schema.Union(["
+    },
+    {
+     "status": "Ignored",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 135,
+     "text": "Schema.TaggedStruct(\"Decided\", { decision: DecisionWire }),"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 135,
+     "text": "Schema.TaggedStruct(\"Decided\", { decision: DecisionWire }),"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 136,
+     "text": "Schema.TaggedStruct(\"Failed\", { error: EvaluationErrorSchema }),"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 136,
+     "text": "Schema.TaggedStruct(\"Failed\", { error: EvaluationErrorSchema }),"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 146,
+     "text": "const decisionV2Fields = {"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 154,
+     "text": "const obligationsV2Fields = {"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrayDeclaration",
+     "replacement": "[]",
+     "line": 168,
+     "text": "const SinkRecordWire = Schema.Union(["
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 177,
+     "text": "Match.tagsExhaustive({"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 178,
+     "text": "Decided: (outcome) => ({ _tag: \"Decided\" as const, decision: encodeDecision(outcome.decision) }),"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 179,
+     "text": "Failed: (outcome) => ({ _tag: \"Failed\" as const, error: outcome.error }),"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 218,
+     "text": "Match.tagsExhaustive({"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 219,
+     "text": "Obligations: (record) => omitUndefined({ ...record, version: WIRE_VERSION }),"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 220,
+     "text": "Decision: (record) =>"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 246,
+     "text": "Match.tagsExhaustive({"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 247,
+     "text": "Decided: (outcome) => (facts: RecordFacts): Result.Result<DecisionOutcome, DecisionDisagreement> => {"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 254,
+     "text": "Failed: (outcome) => (): Result.Result<DecisionOutcome, DecisionDisagreement> =>"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 279,
+     "text": "Match.tagsExhaustive({"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 280,
+     "text": "Obligations: (wire) =>"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 343,
+     "text": "Match.tagsExhaustive({"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 362,
+     "text": "const describeThrown = (thrown: unknown): string =>"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 368,
+     "text": "const encodeFailed = (thrown: unknown): EncodeRefusal => EncodeRefusal.EncodeFailed({ message: describeThrown(thrown) });"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 408,
+     "text": "export const encodeSinkRecordString = (record: SinkRecord): Result.Result<string, SinkRecordNotEncodable> =>"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 411,
+     "text": "const notDecodable = (refusal: DecodeRefusal) => Result.fail(new SinkRecordNotDecodable({ refusal }));"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 482,
+     "text": "Schema.decodeTo(Schema.Struct({ json: SinkRecordJson, record: SinkRecordWire }), {"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 482,
+     "text": "Schema.decodeTo(Schema.Struct({ json: SinkRecordJson, record: SinkRecordWire }), {"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 483,
+     "text": "decode: SchemaGetter.transform((json) => ({ json, record: json })),"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 484,
+     "text": "encode: SchemaGetter.transform(({ json }) => json),"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 503,
+     "text": "const sinkWire = untrustedDecoder(SinkRecordWithJson, { unknownKeys: \"ignore\", prepare: checkVersion });"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 503,
+     "text": "const sinkWire = untrustedDecoder(SinkRecordWithJson, { unknownKeys: \"ignore\", prepare: checkVersion });"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 513,
+     "text": "export const decodeSinkRecordWithJson = (input: unknown): Result.Result<DecodedSinkRecord, SinkRecordNotDecodable> =>"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 537,
+     "text": "export const decodeSinkRecord = (input: unknown): Result.Result<SinkRecord, SinkRecordNotDecodable> =>"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 546,
+     "text": "export const decodeSinkRecordString = (text: string): Result.Result<SinkRecord, SinkRecordNotDecodable> =>"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 567,
+     "text": "export const StoredRecordJson = Schema.Struct({ environment: Schema.String, record: SinkRecordJson });"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 578,
+     "text": "export const encodeStoredRecord = ("
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 584,
+     "text": "export const encodeStoredRecordString = ("
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 596,
+     "text": "const StoredEnvelopeWire = Schema.Struct({ environment: Schema.String, record: Schema.Unknown });"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 608,
+     "text": "const storedWire = untrustedDecoder(StoredEnvelopeWire, { unknownKeys: \"ignore\", unwalked: [\"record\"] });"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 608,
+     "text": "const storedWire = untrustedDecoder(StoredEnvelopeWire, { unknownKeys: \"ignore\", unwalked: [\"record\"] });"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrayDeclaration",
+     "replacement": "[]",
+     "line": 608,
+     "text": "const storedWire = untrustedDecoder(StoredEnvelopeWire, { unknownKeys: \"ignore\", unwalked: [\"record\"] });"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 608,
+     "text": "const storedWire = untrustedDecoder(StoredEnvelopeWire, { unknownKeys: \"ignore\", unwalked: [\"record\"] });"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 616,
+     "text": "const fromEnvelope = ("
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 653,
+     "text": "export const decodeStoredRecord = (input: unknown): Result.Result<StoredRecord, SinkRecordNotDecodable> =>"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 660,
+     "text": "export const decodeStoredRecordString = (text: string): Result.Result<StoredRecord, SinkRecordNotDecodable> =>"
+    }
+   ]
+  },
+  "packages/core/src/UntrustedDecode.ts": {
+   "killed": 44,
+   "timeout": 0,
+   "survived": 2,
+   "noCoverage": 0,
+   "ignored": 5,
+   "detected": 44,
+   "valid": 46,
+   "open": [
+    {
+     "status": "Survived",
+     "mutator": "EqualityOperator",
+     "replacement": "unwalked.size >= 0",
+     "line": 240,
+     "text": "unwalked.size > 0 && isPlainObject(input)"
+    },
+    {
+     "status": "Survived",
+     "mutator": "ConditionalExpression",
+     "replacement": "true",
+     "line": 240,
+     "text": "unwalked.size > 0 && isPlainObject(input)"
+    }
+   ],
+   "ignoredMutants": [
+    {
+     "status": "Ignored",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 87,
+     "text": "const UNTRUSTED_DECODE_OPTIONS: SchemaAST.ParseOptions = { onExcessProperty: \"error\" };"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 87,
+     "text": "const UNTRUSTED_DECODE_OPTIONS: SchemaAST.ParseOptions = { onExcessProperty: \"error\" };"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 192,
+     "text": "const keepEverything = (input: unknown): unknown => input;"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 200,
+     "text": "const PROJECTION: Readonly<Record<UnknownKeyPolicy, (ast: SchemaAST.AST) => Projection>> = {"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 201,
+     "text": "refuse: () => keepEverything,"
+    }
+   ]
+  }
+ }
+}
