@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-172                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-19                                     |
-> | Status         | Accepted — amends ADR-QD-024, ADR-QD-100, ADR-QD-163 |
+> | Status         | Accepted — amends ADR-QD-024, ADR-QD-100, ADR-QD-163; amended 2026-11-20 (only admit builds an Admitted; the asked flags read the matcher context) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-19): Initial release (ARCH-106, CCR-QD-450) |
+> | Change History | 1.1 (2026-11-20): amendment — only admit builds an Admitted, and the asked flags read the matcher context (ARCH-112, CCR-QD-456)<br>1.0 (2026-11-19): Initial release (ARCH-106, CCR-QD-450) |
 
 ---
 
@@ -39,7 +39,7 @@ Each item cites the phase decision it records.
    `rowSource` is a closed union: `"asked"` for `evaluate`, where the resource is supplied when the question has one, and
    `"row"` for `toPredicate`, where the row is always supplied. `supplied` is computed in one place, from `rowSource`, so
    each interpreter states only `rowSource`. Holding an `Admitted` is still the proof of admission, because only `admit`
-   builds one. The question is no longer carried.
+   builds one, which the compiler has held since the 2026-11-20 amendment. The question is no longer carried.
 2. **D-02: the environment holds the public `MatcherContext`, built once.** `admit` builds the matcher context a single
    time, and the walk reads the resource and the action from it, so each is stored once and nowhere else. Matchers keep
    their public signature, so this is not Breaking for the matcher API. The matcher context's `subject` and `subjectId`
@@ -52,11 +52,12 @@ Each item cites the phase decision it records.
    its matcher context holds none, so it cannot reach the walk: `Evaluation.admitted` is `Admitted<"asked">`, and
    `compileTree` takes `Admitted<"row">`. The environment also carries the policy it admitted, which both interpreters
    walk from, so the depth proof cannot be paired with a deeper tree (recursion still passes each child node).
-   `SUPPLIED` is one closed table with a row per row source, typed `{ [Source in RowSource]: (question) =>
-   SuppliedBy[Source] }`, so each row is checked against its own type: a row source without a row does not compile, and
-   a `"row"` row that stops supplying the resource fails with TS2322. The `"asked"` row's flags are `boolean`, so an
-   `"asked"` row that claims a resource it lacks still compiles; `Admission.test.ts` (E1 to E5) and `LeafMatrix.test.ts`
-   pin that direction at run time.
+   `SUPPLIED` is one closed table with a row per row source, typed `{ [Source in RowSource]: (context: MatcherContext)
+   => SuppliedBy[Source] }` since the 2026-11-20 amendment, so each row is checked against its own type: a row source
+   without a row does not compile, and a `"row"` row that stops supplying the resource fails with TS2322. The `"asked"`
+   row's flags are `boolean`, so an `"asked"` row that claims a resource it lacks still compiles; each row reads the
+   matcher context `admit` built once, so a flag and the value it describes come from one read of the question, and
+   `Admission.test.ts` (E1 to E5, E7 to E10) and `LeafMatrix.test.ts` pin that direction at run time.
    `admit` is one generic signature with no overload and no wider implementation signature.
 4. **D-03 and D-16: recursion passes `(policy, request, depth)`.** `maxDepth` moved into the environment, so the
    recursion carries one number and a depth cannot land where the bound belongs and compile. All 13 sites use the new
@@ -263,6 +264,36 @@ its 10% band; **gate: pass**.
 - **ADR-QD-024, ADR-QD-100 and ADR-QD-163 are amended**, each with a pointer here, not rewritten: the two walks stay two,
   and what changed is where each reads its environment from.
 
+## Amendment (2026-11-20, CCR-QD-456): only `admit` builds an `Admitted`, and the asked flags read the matcher context
+
+Two claims above were held by the tests rather than by the code, and both now hold in the code. This needs no new
+decision: the private constructor implements Decision 1's "only `admit` builds one".
+
+- **Only `admit` builds an `Admitted`.** `Admitted`'s constructor was public, so any module could build one and the
+  proof of admission rested on none doing so. The constructor is now private, and a declared private member,
+  `nominal`, makes the type nominal: TypeScript compares classes by shape, so a private constructor alone would still
+  let an object literal of the same shape type-check as an `Admitted`. `admit` is the class's static method, naming
+  `Admitted` and never `this`, and the module exports it as `admit`, so the call sites in `Walk.ts` and `Predicate.ts`
+  are unchanged. The member is declared only, so it adds no field at run time. This holds where code is type-checked:
+  at run time the constructor is an ordinary function, and a type assertion could still claim an `Admitted`, which the
+  house style forbids. `WalkEnvironment.tst.ts` pins both refusals, a call to the constructor outside the class
+  (TS2673) and an object literal of the same shape (TS2741), each beside a positive control on `admit` (INV-QD-375,
+  BEH-QD-661).
+- **The asked flags read the matcher context.** `SUPPLIED`'s rows took the question, and `admit` read the question's
+  resource and action again to build the matcher context, so the flags and the context agreed only because two reads
+  of a plain record give the same answer. `admit` now builds the matcher context once and each row reads it, so the
+  question's resource and action are each read once, and a flag and the value it describes come from that one read.
+  The compiler does not check the `"asked"` row's flags, whose type is `boolean`; `Admission.test.ts` pins the
+  agreement with a question whose resource or action answers differently on a second read, which failed before this
+  change (E7 to E9) (INV-QD-376, BEH-QD-662). The `"row"` row's resource stays the constant `true`, because
+  `toPredicate` admits a question with no resource on purpose (BEH-QD-633). Depth is judged on a separate read of the
+  question's `policy` and `maxDepth`, which this change leaves as it was.
+
+No public change: `Admission.ts` is package-private, out of the barrel (ADR-QD-099), so `spec/overview.md` and the
+export count of `node scripts/check-api-surface.mjs` (939) are unchanged, and there is no changeset. The committed
+source was measured against the phase base with this ADR's harness and bands, 3 + 3 interleaved, and no workload was
+slower beyond its band.
+
 ## Related
 
 [ADR-QD-024](./024-predicate-output.md), [ADR-QD-099](./099-entry-points-are-a-closed-list.md),
@@ -270,4 +301,5 @@ its 10% band; **gate: pass**.
 [ADR-QD-163](./163-what-a-leaf-needs-from-the-request-is-stated-once.md),
 [ADR-QD-167](./167-each-leafs-answer-becomes-a-verdict-in-one-row.md),
 [ADR-QD-171](./171-a-stored-record-is-its-envelope-in-memory-too.md),
-BEH-QD-631..635, INV-QD-037, INV-QD-363, INV-QD-364, ARCH-106, CCR-QD-450.
+BEH-QD-631..635, BEH-QD-661, BEH-QD-662, INV-QD-037, INV-QD-363, INV-QD-364, INV-QD-375, INV-QD-376, ARCH-106,
+ARCH-112, CCR-QD-450, CCR-QD-456.

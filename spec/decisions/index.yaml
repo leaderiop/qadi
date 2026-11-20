@@ -537,7 +537,7 @@ entries:
   - id: "ADR-QD-172"
     file: "172-admission-produces-the-one-walk-environment.md"
     title: "Admission produces the one walk environment"
-    status: "Accepted — amends ADR-QD-024, ADR-QD-100, ADR-QD-163"
+    status: "Accepted — amends ADR-QD-024, ADR-QD-100, ADR-QD-163; amended 2026-11-20 (only admit builds an Admitted; the asked flags read the matcher context)"
   - id: "ADR-QD-173"
     file: "173-the-devtools-headless-interface-is-its-feeds.md"
     title: "The devtools headless interface is its feeds"
