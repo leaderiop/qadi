@@ -19,10 +19,12 @@ import type { HydrationActivity } from "../../src/model/Hydration.ts";
 import type { WiringReport } from "../../src/model/Wiring.ts";
 
 /**
- * `runDiagnostics` returns an Effect, and the Effect language service reports the
- * synthesized call of a `toBeCallableWith` on it, so a negative pin on the function itself
- * passes whatever its parameters are (`packages/core/test/PortAccess.tst.ts`). The pins
- * check the parameters alone, through a function that returns nothing.
+ * `runDiagnostics` returns an Effect. tstyche compiles under `tsconfig.tstyche.json`,
+ * where `floatingEffect` is off, so a bare negative pin on the function itself could
+ * fail there. The pins check the parameters alone, through a function that returns
+ * nothing (`packages/core/test/PortAccess.tst.ts`): the refusal is stated through the
+ * parameter type, so it holds whichever way `floatingEffect` is set, including
+ * `pnpm typecheck`'s compile with the rule on.
  */
 type Params<F> = F extends (...args: infer A) => unknown ? (...args: A) => void : never;
 

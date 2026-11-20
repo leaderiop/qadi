@@ -7,10 +7,12 @@
  * rests on TypeScript's weak-type rule (TS2559), so a later option named like
  * one of `Effect`'s properties would weaken it; these pins are what catch that.
  *
- * The pins read `Params<F>`, not the method: `getOrCompute` returns an
- * `Effect`, the Effect language service reports a call to one as a floating
- * effect, and tstyche reads that as "not callable" whatever the arguments, so a
- * bare `not.toBeCallableWith` could never fail (`PortAccess.tst.ts`).
+ * The pins read `Params<F>`, not the method. tstyche compiles under
+ * `tsconfig.tstyche.json`, where `floatingEffect` is off, so a bare
+ * `not.toBeCallableWith` on `getOrCompute` could fail there; the `Params<F>` form stays
+ * because it states the refusal through the parameter type, so it holds whichever
+ * way `floatingEffect` is set, including `pnpm typecheck`'s compile with the rule on
+ * (`PortAccess.tst.ts`).
  */
 import type * as Effect from "effect/Effect";
 import { expect, test } from "tstyche";

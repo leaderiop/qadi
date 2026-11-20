@@ -168,10 +168,11 @@ test("guard refuses a second resource in its options", () => {
 });
 
 test("the collection entry points refuse a second resource in their options", () => {
-  // `Parameters<…>[2]` rather than `not.toBeCallableWith`: a call that returns an Effect or a
-  // Stream is never "callable" to tstyche under `effect(floatingEffect)`, so the callable form
-  // would pass vacuously on the base. `{ resource: undefined }` is refused only because
-  // `exactOptionalPropertyTypes` is on.
+  // `Parameters<…>[2]` rather than `not.toBeCallableWith`: tstyche compiles under
+  // `tsconfig.tstyche.json`, where `floatingEffect` is off, so the callable form could fail
+  // there; this form states the refusal through the parameter type and so holds whichever way
+  // `floatingEffect` is set, including `pnpm typecheck`'s compile with the rule on.
+  // `{ resource: undefined }` is refused only because `exactOptionalPropertyTypes` is on.
   expect<Parameters<typeof filter>[2]>().type.not.toBeAssignableFrom<SecondResource>();
   expect<Parameters<typeof filter>[2]>().type.not.toBeAssignableFrom<{
     readonly resource: undefined;
