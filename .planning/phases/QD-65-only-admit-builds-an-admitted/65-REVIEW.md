@@ -1,6 +1,6 @@
 ---
 phase: QD-65-only-admit-builds-an-admitted
-reviewed: 2026-11-20T20:30:00Z
+reviewed: 2026-11-20T21:00:00Z
 depth: standard
 files_reviewed: 9
 files_reviewed_list:
@@ -15,109 +15,65 @@ files_reviewed_list:
   - spec/README.md
 findings:
   critical: 0
-  warning: 1
-  info: 3
-  total: 4
+  warning: 0
+  info: 2
+  total: 2
   necessity: 0
-status: issues_found
+status: clean
 ---
 
-# Phase QD-65: Code Review Report
+# Phase QD-65: Code Review Report (re-review after fixes)
 
-**Reviewed:** 2026-11-20T20:30:00Z
+**Reviewed:** 2026-11-20T21:00:00Z
 **Depth:** standard
 **Files Reviewed:** 9 (plus `spec/decisions/index.yaml`, read as the 172 entry)
-**Status:** issues_found
+**Status:** clean (no Critical or Warning; two known Info items remain)
 
 ## Summary
 
-The code is correct. No Critical issue was found.
+WR-01 and IN-01 from the first review are resolved, and the two fix commits (a23dacf1, c0be0db8) introduced nothing new.
 
-Checked and clean:
+**WR-01 (resolved).**
+- No text claims `policy`, `maxDepth` or `subject` are read once. A grep of `spec/`, `Admission.ts` and the two test files finds "read once" and "one read" only where they name the question's resource and action:
+  - `Admission.ts`: the `SUPPLIED` comment (lines 60-61) and the `admit` doc (line 108);
+  - ADR-QD-172: Decision 3 (line 59) and the amendment (lines 286-287);
+  - INV-QD-376 (heading and body);
+  - BEH-QD-662;
+  - the traceability row (line 203).
+- ADR-QD-172's amendment states that depth is judged on a separate read of `policy` and `maxDepth`.
+- No text claims a compile-time guarantee. INV-QD-376's Implication says the compiler does not check the `"asked"` flags, and the ADR says the same.
+- The retitled INV-QD-376 slug is `inv-qd-376-the-supplied-flags-and-the-matcher-context-come-from-one-read-of-the-questions-resource-and-action`. It matches every link:
+  - `invariants.md` (INV-QD-375 Related);
+  - `traceability.md:203`;
+  - `05-evaluator.md:454`.
+- A grep finds no link to the old `...one-read-of-the-question` anchor left in `spec/` or `packages/`.
 
-- **Construction lock.** `admit` never uses `this`: its body names `Admitted`, `Result`, `policyDepth` and `SUPPLIED` only. So `export const admit = Admitted.admit` is safe detached. The generic signature survives the alias, and `WalkEnvironment.tst.ts` pins both return types through the alias.
-- **Private constructor and `nominal`.** A private constructor blocks `extends`. `declare private readonly nominal: never` makes the type nominal and is erased at run time.
-- **Other constructor callers.** `grep` found no `new Admitted` outside `Admission.ts` and the one pin. `Walk.ts:878` and `Predicate.ts:664` call `admit` by name.
-- **Derivation.** `SUPPLIED` now reads the `MatcherContext` that `admit` builds once. `question.resource` and `question.action` are each read exactly once.
-- **Tests.** E7 to E10 give a real read count, and they fail against the old two-read code. E10 passes both before and after, as the ADR says (E7 to E9 are the ones that failed before).
-- **House rules.** No `as`, `!`, `any`, `switch` or `async` in the changed code. The known and accepted multiple reads of `policy`, `maxDepth` and `subject` are left alone.
+**IN-01 (resolved).** `Admission.ts:108` now cites INV-QD-376.
 
-Commands run:
+**`Admission.ts` is comment-only.** `git diff` of c0be0db8~2..c0be0db8 shows two comment edits and no code line. This agrees with the fixer's token-stream proof of 364 tokens, diff empty.
 
-- `vitest run packages/core/test/Admission.test.ts`: 17 passed.
-- `tstyche packages/core/test/WalkEnvironment.tst.ts`: 6 tests, 23 assertions passed.
-- `tsc -p tsconfig.test.json --noEmit`: no diagnostics in the changed files.
-- `oxlint` on the three source and test files: clean.
-- `node scripts/check-house-style.mjs`: clean.
-- `pin-codes.mjs`: prints exactly `TS2673 62` and `TS2741 68`, which matches the spec.
+**Revisions and gates.** `node scripts/spec-revise.mjs --check` passes. The bumps agree with the change-history entries: `invariants.md` 1.163, `traceability.md` 1.230, `05-evaluator.md` 1.19, ADR-QD-172 1.2. The CCR-QD-456 row in `spec/README.md` still cites the revisions it introduced (1.1, 1.18, 1.162, 1.229). That is history, which the project exempts, so it is not a finding.
 
-The spec records agree with the code on numbers, ids and revisions. The findings below are text that says more than the code holds, plus two pin weaknesses.
+**Commands run.** `spec-revise --check`: pass. Greps and diffs as described above.
 
-## Warnings
-
-### WR-01: "One read of the question" overclaims, in the code comment and four spec records
-
-**File:** `packages/core/src/Admission.ts:60-61`
-**Issue:** The `SUPPLIED` comment says the `matcherContext` is built "from one read of the question". `admit` (lines 115-131) does not read the question once:
-
-- `question.policy` is read twice (lines 115 and 127).
-- `question.maxDepth` is read three times (lines 115, 116 and 131).
-- `question.subject` is read three times (lines 119, 120 and 128).
-
-The accepted scope is "`admit` still reads `policy`, `maxDepth` and `subject` more than once". Only `resource` and `action` are read once. Four spec texts use the broader phrase:
-
-- ADR-QD-172 line 59: "come from one read of the question".
-- ADR-QD-172 line 285: "come from that one read".
-- INV-QD-376's title and its anchor, repeated in `spec/traceability.md:203`: "come from one read of the question".
-
-The ADR amendment's own last bullet admits that depth is judged on a separate read, so the record contradicts itself. A reader taking the title at face value would think a `subject` getter is covered. It is not, and E6 pins `subject` only by reference.
-**Fix:** Say what is held. In `Admission.ts`:
-
-```ts
- * the matcher context because each row reads that context, in which `admit`
- * read the question's resource and action once each, and the tests pin it.
-```
-
-Retitle INV-QD-376 to "The supplied flags and the matcher context come from one read of the question's resource and action". Apply the same narrowing in the ADR lines above and in the `traceability.md:203` row and anchor. Update the `#inv-qd-376-...` links in `invariants.md` (INV-QD-375's Related list), `traceability.md` and BEH-QD-662, because renaming the heading changes the anchor.
+**Not re-run.** vitest, tstyche, tsc and oxlint were not re-run. The fixes touched comments and Markdown only, and the fixer's report records those runs as green.
 
 ## Info
 
-### IN-01: `Admitted.admit`'s doc cites INV-QD-364 for the read-once rule, which INV-QD-376 owns
-
-**File:** `packages/core/src/Admission.ts:108`
-**Issue:** The doc says "the question's resource and action are each read once (INV-QD-364)". INV-QD-364 states what a request supplied is a function of row source and question. The read-once property is INV-QD-376, added by this phase. The reference sends a reader to the wrong record. `Admitted`'s class doc also cites no invariant for the construction lock (INV-QD-375).
-**Fix:** `... each read once (INV-QD-376). It names `Admitted` and never `this`, ...`. Optionally add `(INV-QD-375)` to the class doc where the private constructor is described.
-
-### IN-02: The constructor pin's "positive control" is not a twin of the call it guards
+### IN-02: The constructor pin's "positive control" is not a twin of the call it guards (carried forward, unchanged)
 
 **File:** `packages/core/test/WalkEnvironment.tst.ts:60-64`
-**Issue:** `INV-QD-375`, `traceability.md` and the file comment say each pin sits "beside a positive control on `admit`". In the constructor test the control is `expect(admit(question, "asked")).type.toBe<...>()`. That line duplicates line 53 and says nothing about the `new Admitted(...)` call it follows.
+**Issue:** The control line, `expect(admit(question, "asked")).type.toBe<...>()`, duplicates the earlier `admit` pin and says nothing about the `new Admitted(...)` call it follows. A `@ts-expect-error` accepts any diagnostic on its line, so drift in the arguments (TS2345 or TS2554) would keep the pin passing. Only the manually run `pin-codes.mjs` reads the code, and `pnpm check:pr` does not run it. The file is unchanged since the first review.
+**Fix:** Soften the "each beside a positive control" wording in INV-QD-375 and BEH-QD-661, or state that `pin-codes.mjs` and not the gate checks the TS2673 reason. The literal pin (lines 66-82) is the better model. Deferred to the milestone audit.
 
-The `@ts-expect-error` swallows any diagnostic on its line. If the arguments later drift (a changed `SuppliedBy`, a new constructor parameter), TS2345 or TS2554 would satisfy the directive and the pin would go on "passing". The directive's text is a comment and is not checked. Only the manually run `pin-codes.mjs` reads the code, and `pnpm check:pr` does not run it. The literal pin (lines 66-82) is better: its control assigns `built.success` to the same declared type.
-**Fix:** Make the constructor control meaningful. For example, call the constructor with the same arguments inside a static-visible context (not possible outside the class), or assert the argument tuple against the constructor's parameter types:
-
-```ts
-type CtorArgs = ConstructorParameters<typeof Admitted<"asked">>;
-```
-
-(`ConstructorParameters` on a private constructor does not resolve, which is the weakness.) The alternative is to keep the pin and state in INV-QD-375 and BEH-QD-661 that the TS2673 reason is checked by `pin-codes.mjs` and not by the gate. The invariant already says `pnpm check:pr` does not run it, so this is a wording tightening and the claim "each beside a positive control" should be softened.
-
-### IN-03: `pin-codes.mjs` is tied to one pnpm store path and prints nothing on success
+### IN-03: `pin-codes.mjs` is tied to one pnpm store path and prints nothing on success (carried forward, unchanged)
 
 **File:** `.planning/phases/QD-65-only-admit-builds-an-admitted/pin-codes.mjs:10`
-**Issue:** The script hard-codes `node_modules/.pnpm/typescript@6.0.3/node_modules/typescript`. The next TypeScript bump makes it throw at import. The header says it uses "the TypeScript tstyche uses", but nothing ties the path to tstyche's resolution. It also prints only diagnostics. A run that finds none, for example if the directive-blanking regex stops matching, is silent and looks the same as a run where the pins held.
-**Fix:** Resolve TypeScript the way tstyche does, and print a count so an empty run is visible:
-
-```js
-const ts = createRequire(resolve("node_modules/tstyche/package.json"))("typescript");
-// ... after the loop:
-console.log(`${count} diagnostic(s)`);
-```
-
-It is a phase record and not a gate, so this is optional.
+**Issue:** The script hard-codes `node_modules/.pnpm/typescript@6.0.3/node_modules/typescript`, so the next TypeScript bump makes it throw at import. It also prints only diagnostics, so a run that finds none looks the same as a run where the pins held. The file is unchanged since the first review.
+**Fix:** Resolve TypeScript the way tstyche does (`createRequire(resolve("node_modules/tstyche/package.json"))("typescript")`) and print a diagnostic count. It is a phase record and not a gate. Deferred to the milestone audit.
 
 ---
 
-_Reviewed: 2026-11-20T20:30:00Z_
+_Reviewed: 2026-11-20T21:00:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
