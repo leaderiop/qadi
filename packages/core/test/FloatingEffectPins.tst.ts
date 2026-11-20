@@ -9,17 +9,24 @@
  * `tsconfig.tstyche.json`, which is `tsconfig.test.json` with only that rule off.
  *
  * Measured on tstyche 7.2.5 (TypeScript 6.0.3) and `@effect/language-service` 0.87.5.
- * The first block below runs under that config: its negative pins on valid arguments
- * carry tstyche's `fixme` directive, so tstyche fails the run if one of them ever
- * passes. The position-based language-service directive further down turns the rule
- * back on for the rest of the file (the next-line form has no effect on it), and the
- * block after it is the repro of the old reading: the same negative pins pass. That
- * block runs in both tstyche passes (`scripts/run-tstyche.mjs`): in the first the
- * directive is what turns the rule on, so it goes red if the directive stops working;
- * in the second `tsconfig.test.json` already has the rule on, so it goes red if that
- * stops. The first block is skipped in the second pass, where it cannot hold. If an
- * upgrade turns either block red, the tool's reading changed: revisit
- * `tsconfig.tstyche.json` and the checks AGENTS.md section 6 builds on it.
+ * Three blocks, one for each way the rule's setting reaches a pin, and each runs where
+ * it holds (`scripts/run-tstyche.mjs`).
+ *
+ * - The first runs under `tsconfig.tstyche.json`, rule off: its negative pins on valid
+ *   arguments carry tstyche's `fixme` directive, so tstyche fails the run if one of them
+ *   ever passes. Pass 2 skips it.
+ * - The second carries no directive and asserts the reading that holds only when the
+ *   config itself has the rule on: the same negative pins pass. Pass 1 skips it, and in
+ *   pass 2 it goes red if `tsconfig.test.json` (or its base) stops having the rule on,
+ *   by any route (severity, `diagnostics: false`, the plugin dropped).
+ * - The third follows the position-based language-service directive, which turns the rule
+ *   back on for the rest of the file (the next-line form has no effect on it), and asserts
+ *   the same reading. It runs in both passes: in pass 1 it goes red if the directive stops
+ *   working; in pass 2 the config and the directive agree, so it proves nothing more.
+ *
+ * Each block's title carries the text its skip uses, and the text appears once in the
+ * repository's type tests. If an upgrade turns any block red, the tool's reading changed:
+ * revisit `tsconfig.tstyche.json` and the checks AGENTS.md section 6 builds on it.
  *
  * The bare negative pins on an Effect, a Stream and a constructor here are the one
  * deliberate exception to the rule that such a pin states its reason through the
@@ -54,6 +61,14 @@ describe("under the tstyche tsconfig, floatingEffect is off", () => {
     // @tstyche fixme
     expect(s).type.not.toBeCallableWith(1);
     // @tstyche fixme
+    expect(C).type.not.toBeConstructableWith(1);
+  });
+});
+
+describe("under tsconfig.test.json, floatingEffect is on", () => {
+  test("a negative pin on valid arguments passes, the known-wrong reading", () => {
+    expect(f).type.not.toBeCallableWith(1);
+    expect(s).type.not.toBeCallableWith(1);
     expect(C).type.not.toBeConstructableWith(1);
   });
 });

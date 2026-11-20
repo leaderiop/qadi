@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-175                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-11-20                                     |
 > | Status         | Accepted — amends ADR-QD-037                   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-11-20): run-tstyche cross-checks the gate's type-test walk against tstyche --listFiles (review WR-03)<br>1.2 (2026-11-20): the drift check holds tsconfig.tstyche.json to extends and compilerOptions.plugins (review WR-02)<br>1.1 (2026-11-20): the in-file floatingEffect directive runs in pass 1 as well (review WR-01)<br>1.0 (2026-11-20): Initial release (ARCH-109, CCR-QD-453) |
+> | Change History | 1.4 (2026-11-20): Review WR-01 (iteration 2): the characterisation has a third block with no directive that holds only when the config has the rule on, skipped in pass 1, so pass 2 goes red if tsconfig.test.json loses floatingEffect.<br>1.3 (2026-11-20): run-tstyche cross-checks the gate's type-test walk against tstyche --listFiles (review WR-03)<br>1.2 (2026-11-20): the drift check holds tsconfig.tstyche.json to extends and compilerOptions.plugins (review WR-02)<br>1.1 (2026-11-20): the in-file floatingEffect directive runs in pass 1 as well (review WR-01)<br>1.0 (2026-11-20): Initial release (ARCH-109, CCR-QD-453) |
 
 ---
 
@@ -69,19 +69,21 @@ restated entry to the base's apart from `floatingEffect`, and requires the base 
 **tstyche runs twice** (`pnpm test:tstyche`, `scripts/run-tstyche.mjs`): under
 `tsconfig.tstyche.json`, then under `tsconfig.test.json` with the rule on, where a positive
 pin on an `Effect` or `Stream` subject fails whatever its arguments. So a bare negative pin on
-such a subject cannot keep a passing twin. The second pass skips the characterisation block
-that holds only with the rule off, by a title the script first checks no other type test
-contains. The other block turns the rule on with the in-file directive and runs in both passes:
-in the first the directive is what turns it on, so the file goes red if the directive stops
-working, and in the second `tsconfig.test.json` does it. Each pass also fails if tstyche
+such a subject cannot keep a passing twin. The characterisation has three blocks, each skipped
+where it cannot hold, by a title the script first checks no other type test contains. One holds
+only with the rule off and is skipped in the second pass. One carries no directive and holds only
+when the config has the rule on: it is skipped in the first pass, and in the second it goes red
+if `tsconfig.test.json` or its base loses the rule by any route, which no other block of the
+second pass would notice. The third turns the rule on with the in-file directive and runs in
+both passes, so the first goes red if the directive stops working. Each pass also fails if tstyche
 compiles any type test under another tsconfig, as it does, under its baseline options, for a
 file outside the tsconfig's `include`.
 
 **The characterisation is the one exception.** `FloatingEffectPins.tst.ts`'s bare negative
 pins on an `Effect`, a `Stream` and a constructor, its `fixme` directives and its skip
-title are deliberate: they pin the tool, not an API. The budget lists the file with that
+titles are deliberate: they pin the tool, not an API. The budget lists the file with that
 reason, the twin check exempts it by path from the run-mode refusal (its pins still need
-twins), and the skip text may appear there and nowhere else.
+twins), and each skip text may appear there and nowhere else.
 
 ## Alternatives considered
 

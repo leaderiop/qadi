@@ -694,7 +694,7 @@ const NOT_CALLABLE_PIN_BUDGET = {
   "packages/core/test/EvaluationEnvironment.tst.ts": { callable: 4, constructable: 0 },
   "packages/core/test/Explanation.tst.ts": { callable: 2, constructable: 0 },
   // The characterisation of tstyche's reading under each `floatingEffect` setting: its bare negative pins pin the tool, not an API.
-  "packages/core/test/FloatingEffectPins.tst.ts": { callable: 5, constructable: 2 },
+  "packages/core/test/FloatingEffectPins.tst.ts": { callable: 7, constructable: 3 },
   "packages/core/test/HydrationMetrics.tst.ts": { callable: 2, constructable: 0 },
   "packages/core/test/Matcher.tst.ts": { callable: 2, constructable: 0 },
   "packages/core/test/Policy.tst.ts": { callable: 2, constructable: 0 },
@@ -2376,7 +2376,7 @@ for (const file of srcSources) {
 // not carry a tstyche directive (an expected failure or a run condition), because a positive
 // pin that tstyche does not run, or runs expecting it to fail, shows nothing. The
 // characterisation is the one exception: it pins the tool with expected failures, and each
-// tstyche pass skips one of its two blocks by title.
+// tstyche pass skips one of its three blocks by title.
 {
   const CHARACTERISATION = "packages/core/test/FloatingEffectPins.tst.ts";
   const RUN_MODE = /\.\s*(skip|only|todo)\b/g;

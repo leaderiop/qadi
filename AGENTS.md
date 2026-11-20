@@ -505,7 +505,7 @@ an API.
 | `packages/core/test/DecisionCache.tst.ts` | 3 | 0 | `getOrCompute` returns an `Effect`: refused through `Params<…>` |
 | `packages/core/test/EvaluationEnvironment.tst.ts` | 4 | 0 | `evaluationEnvironment`: plain return |
 | `packages/core/test/Explanation.tst.ts` | 2 | 0 | `foldExplanationCases`: plain return |
-| `packages/core/test/FloatingEffectPins.tst.ts` | 5 | 2 | The characterisation: its bare pins on an `Effect`, a `Stream` and a constructor pin the tool |
+| `packages/core/test/FloatingEffectPins.tst.ts` | 7 | 3 | The characterisation: its bare pins on an `Effect`, a `Stream` and a constructor pin the tool |
 | `packages/core/test/HydrationMetrics.tst.ts` | 2 | 0 | `hydrationDropMeaning`: plain return |
 | `packages/core/test/Matcher.tst.ts` | 2 | 0 | `foldMatcherCases`: plain return |
 | `packages/core/test/Policy.tst.ts` | 2 | 0 | `foldPolicyCases`: plain return |
@@ -546,11 +546,13 @@ the base to leave `floatingEffect` on, since the rule-on pass needs it.
 `tsconfig.tstyche.json`, then again under `tsconfig.test.json`, where the rule is
 on. There a positive pin on an `Effect` or `Stream` subject fails whatever its
 arguments, so a bare negative pin on one cannot keep a passing twin, and a
-positive pin on one goes through the parameter type too. The second pass skips
-the block of `FloatingEffectPins.tst.ts` that holds only with the rule off, by a
-title the script first checks no other type test contains; the other block turns
-the rule on with an in-file directive and runs in both passes, so the first
-proves the directive and the second proves `tsconfig.test.json`. A pass fails if
+positive pin on one goes through the parameter type too. The characterisation
+`FloatingEffectPins.tst.ts` has three blocks, each skipped where it cannot hold, by a title the
+script first checks no other type test contains: one that holds only with the rule off
+(skipped in the second pass), one with no directive that holds only when the config has the
+rule on (skipped in the first pass, and the second pass goes red if `tsconfig.test.json` loses
+the rule), and one that turns the rule on with an in-file directive and runs in both passes,
+where the first proves the directive. A pass fails if
 tstyche compiles any type test under another tsconfig, as it does for a file
 outside the tsconfig's `include`.
 
