@@ -449,13 +449,13 @@ Order: the check that cannot fail (62), the gate that protects v1.6's new names 
   4. `NOT_CALLABLE_PIN_BUDGET` counts negative callable pins per `*.tst.ts` file in comment- and string-stripped code with its own file walk, is checked in both directions, has an AGENTS.md §6 paragraph and table the gate verifies, and is shown failing on an added pin, a removed pin, a commented pin and a line-split pin.
 
 **Planning notes**: Probe first, before planning the file layout: whether `// @effect-diagnostics effect/floatingEffect:error` overrides a project-level `off` (unverified) decides whether the known-wrong control lives in a file that restores the rule by directive or the characterisation asserts the positive form on `Effect` and `Stream`. Build order from the research: characterisation file, classification record, rewrites package by package, the gate last (adding it first turns every intermediate commit red). D6 binds: the tstyche-only tsconfig is a child of `tsconfig.test.json` that restates the whole Effect `plugins` entry with `floatingEffect: "off"`, wired through `tstyche.json`, rather than 27 per-file directives (a line-level `-next-line` directive does not work: tstyche reports it "has no effect"). Open choices left to the planner: count-only budget plus a mechanical "positive count at least the negative count per budgeted file" check (recommended, with honest wording: a count cannot check "plain-return subject with a positive control") versus a per-pin marker comment; the replacement form where a reason matters (`@ts-expect-error <fragment>` on `void f(bad);` is reason-checked by tstyche, or `expect(f(bad)).type.toRaiseError(<code>)`, because `pnpm typecheck`'s tsgo does not read the directive's message). A pin must hold under both TypeScript 6.0.3 (tstyche) and 7.0.2 (tsgo); never write a bare `Effect` call. `not.toBeConstructableWith` is reason-blind (leave `Decision.tst.ts`'s nine as they are). Precedents for the gate's own walk: `[no-numbering-placeholder]` and `[metric-id-literal]`; count stripped code tokens so a multi-line pin counts once; use a unique AGENTS.md table header. No upstream issue without the owner's explicit OK.
-**Plans**: 3/8 plans executed
+**Plans**: 4/8 plans executed
 
 Plans:
 - [x] 62-01 (W1): Characterise tstyche's reading of a negative pin under each `floatingEffect` setting, give tstyche its own tsconfig with the rule off, and reword the five comments that describe the old reading (PIN-01, PIN-02, D-01..D-04).
 - [x] 62-02 (W2): Rewrite `DecisionLog.tst.ts`'s pin through `Parameters<typeof makeDecisionLog>[0]`, shown failing with `environment` optional, and add a positive control beside each of the other ten uncontrolled negative pins (PIN-03, PIN-04).
 - [x] 62-03 (W3): Flip-sweep every remaining negative pin once and record the classification of all 88 pins in the phase directory (PIN-04).
-- [ ] 62-04 (W4): `NOT_CALLABLE_PIN_BUDGET` with its own type-test walk, comment- and string-blanked counting, both directions, and the AGENTS.md section 6 table the gate checks (PIN-05).
+- [x] 62-04 (W4): `NOT_CALLABLE_PIN_BUDGET` with its own type-test walk, comment- and string-blanked counting, both directions, and the AGENTS.md section 6 table the gate checks (PIN-05).
 - [ ] 62-05 (W5): `[not-callable-control]` requires each negative pin's positive twin, and `[tstyche-plugin-drift]` holds the restated plugin entry to the base's (PIN-02, PIN-04).
 - [ ] 62-06 (W6): `scripts/run-tstyche.mjs` runs tstyche under each `floatingEffect` setting as `pnpm test:tstyche`, with the DoD, ADR-QD-037 and AGENTS.md updated (PIN-04).
 - [ ] 62-07 (W7): ADR-QD-175 and CCR-QD-453, traceability, the ADR-QD-037 amendment and the DoD revision (WX-02, WX-03).
@@ -579,7 +579,7 @@ Phases execute in numeric order: 62 → 63 → 64 → 65 → 66 → 67 → 68
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 62. Type pins that can fail | 3/8 | In Progress | - |
+| 62. Type pins that can fail | 4/8 | In Progress | - |
 | 63. The packed-install gate probes every new public name | 0/TBD | Not started | - |
 | 64. One throwing listener cannot silence the rest | 0/TBD | Not started | - |
 | 65. Only `admit` builds an `Admitted` | 0/TBD | Not started | - |

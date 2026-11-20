@@ -5,16 +5,16 @@ milestone_name: Arch Wave 12
 current_phase: 62
 current_phase_name: Type pins that can fail
 status: executing
-stopped_at: Completed QD-62-03-PLAN.md
-last_updated: "2026-11-20T03:13:08.147Z"
+stopped_at: Completed QD-62-04-PLAN.md
+last_updated: "2026-11-20T03:16:28.010Z"
 last_activity: 2026-11-20
 last_activity_desc: Phase QD-62 execution started
-state_head: de48ee5851fbfa42b9e2a24f2edebbbb3c53eada
+state_head: 45289a7b8f654a488c678e6eae96a1e1440bb438
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 8
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-19)
 ## Current Position
 
 Phase: QD-62 (Type pins that can fail) — EXECUTING
-Plan: 4 of 8
+Plan: 5 of 8
 Status: Executing Phase QD-62
 Last activity: 2026-11-20 — Phase QD-62 execution started
 
@@ -418,6 +418,7 @@ Last activity: 2026-11-20 — Phase QD-62 execution started
 | Phase QD-62 P01 | 20min | 2 tasks | 8 files |
 | Phase QD-62 P02 | 12 min | 3 tasks | 8 files |
 | Phase QD-62 P03 | 25min | 3 tasks | 2 files |
+| Phase QD-62 P04 | 15min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -710,6 +711,7 @@ Last activity: 2026-11-20 — Phase QD-62 execution started
 - [Phase QD-62]: tstyche compiles under tsconfig.tstyche.json (floatingEffect off); an in-file position directive restores the rule for the characterisation's rule-on half
 - [Phase QD-62]: 62-02: a control is added beside its negative pin and never edits it; the DecisionLog refusal is stated on Parameters<typeof makeDecisionLog>[0]
 - [Phase QD-62]: 62-03: the flip sweep and overload inventory stay scratch scripts outside the repo; the committed record is the evidence. askActed is the one overloaded parameter-type subject, so 62-04 writes the last-overload note
+- [Phase QD-62]: 62-04: NOT_CALLABLE_PIN_BUDGET and its AGENTS.md section 6 table land in one commit; [not-callable-pin-table] follows as its own commit
 
 ### Pending Todos
 
@@ -769,8 +771,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-20T03:13:07.902Z
-Stopped at: Completed QD-62-03-PLAN.md
+Last session: 2026-11-20T03:16:27.975Z
+Stopped at: Completed QD-62-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
