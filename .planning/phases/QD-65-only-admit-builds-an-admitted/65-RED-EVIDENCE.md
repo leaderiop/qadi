@@ -48,3 +48,34 @@ exits 1 with 22 tests.
 
 The 18 other tests passed: `Admission.test.ts`'s seven depth and context cases and E1 to E6, and
 `LeafMatrix.test.ts`'s five; with E10 that is 19 passed in all.
+
+## The construction lock's halves
+
+`node <S>/variants.mjs` removes each half of the lock from the committed `Admission.ts` in turn, runs `pin-codes.mjs`,
+and puts the file back byte for byte (it refuses to start on a dirty file and checks it is clean at the end). It
+exits 0 and prints:
+
+| Variant | pin-codes.mjs reads | So |
+| ------- | ------------------- | -- |
+| public constructor | TS2741 | the literal is still refused by the brand; the constructor call compiles |
+| no nominal member | TS2673 | the constructor call is still refused; the literal passes for an Admitted |
+
+Each half is necessary: with both, `pin-codes.mjs` reads `TS2673` on the constructor call and `TS2741` on the literal.
+
+`pnpm build` (exit 0) emits the lock's two members without a run-time slot. `packages/core/lib/Admission.d.ts`
+holds:
+
+```text
+    private readonly nominal;
+    private constructor();
+export declare const admit: typeof Admitted.admit;
+```
+
+and no code line of `packages/core/lib/Admission.js` names `nominal`; its one match is the class doc the build keeps:
+
+```text
+ * `nominal` member keeps an object literal of the same shape from passing for
+```
+
+With the class alone, before the derivation, E7, E8 and E9 still fail with `AssertionError: expected undefined to
+equal` and the other 19 tests pass: the lock does not touch the double read.
