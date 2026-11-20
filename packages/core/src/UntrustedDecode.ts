@@ -168,10 +168,11 @@ type Projection = (input: unknown) => unknown;
  * A plain object reduced to the top-level keys `keysOf` names for it; anything else passes through.
  *
  * It reads the object's own enumerable key names, then each kept key's value once, into a fresh object, so
- * an undeclared key's value is never read, an accessor's included. For a union, `keysOf` reads the object's
- * own enumerable `_tag` once more, to choose the member, so a union's `_tag` is read twice. A one-object
- * schema chooses no member, so `keysOf` reads no `_tag`: a declared `_tag` is read once, as a kept value,
- * and an undeclared `_tag` accessor is never invoked. It reads nothing below the top level, so it cannot
+ * an undeclared key's value is never read, an accessor's included. When the schema flattens to more than
+ * one member, `keysOf` reads the object's own enumerable `_tag` once more, to choose the member, so that
+ * `_tag` is read twice. A schema that flattens to one member chooses no member, so `keysOf` reads no
+ * `_tag`: a declared `_tag` is read once, as a kept value, and an undeclared `_tag` accessor is never
+ * invoked. It reads nothing below the top level, so it cannot
  * recurse: the depth guard (unless the key is `unwalked`) and the strict decode read what lies under a kept
  * value, accessors included. Under `refuse` nothing is projected, and the guard (and, for `unwalked` keys,
  * `walked`) reads every own value of the input, declared or not (ADR-QD-170).
