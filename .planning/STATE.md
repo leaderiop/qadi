@@ -5,16 +5,16 @@ milestone_name: Arch Wave 12
 current_phase: 63
 current_phase_name: The packed-install gate probes every new public name
 status: executing
-stopped_at: Completed QD-63-02-PLAN.md
-last_updated: "2026-11-20T12:29:29.557Z"
+stopped_at: Completed QD-63-03-PLAN.md
+last_updated: "2026-11-20T12:33:25.608Z"
 last_activity: 2026-11-20
 last_activity_desc: Phase 63 execution started
-state_head: a4f4b6116c9034f96469db6e6197c8396b8d263b
+state_head: d857510508a3210d4266f6cae7be71ba12e2b1f3
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 13
-  completed_plans: 10
+  completed_plans: 11
   percent: 14
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-20)
 ## Current Position
 
 Phase: 63 (The packed-install gate probes every new public name) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-11-20 — Phase 63 execution started
 
@@ -426,6 +426,7 @@ Last activity: 2026-11-20 — Phase 63 execution started
 | Phase QD-62 P08 | 30min | 2 tasks | 2 files |
 | Phase QD-63 P01 | 25min | 2 tasks | 3 files |
 | Phase QD-63 P02 | 20min | 3 tasks | 1 files |
+| Phase QD-63 P03 | 15min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -726,6 +727,7 @@ Last activity: 2026-11-20 — Phase 63 execution started
 - [Phase QD-62]: review loop (3 iterations, 0 critical/0 warning left): the characterisation has three blocks (rule-off skipped in pass 2, directive-free rule-on skipped in pass 1, directive block in both) so pass 2 goes red if tsconfig.test.json loses floatingEffect; [tstyche-plugin-drift] holds tsconfig.tstyche.json to extends + compilerOptions.plugins; run-tstyche cross-checks --listFiles against the shared walk (scripts/lib/type-tests.mjs)
 - [Phase QD-63]: 63-01: the probe guard runs after the consumer's compile and run, gated on consumerReady, so a guard failure never hides a compile or runtime failure
 - [Phase QD-63]: 63-01: a refused literal is not a use; a type reference inside a refused declaration does not count toward the type-only rule
+- [Phase QD-63]: 63-03: removed-probe proof recorded from scratch copies of the committed gate (11 variants), never as a committed self-test
 
 ### Pending Todos
 
@@ -786,8 +788,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-20T12:29:29.524Z
-Stopped at: Completed QD-63-02-PLAN.md
+Last session: 2026-11-20T12:33:25.574Z
+Stopped at: Completed QD-63-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
