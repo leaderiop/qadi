@@ -880,8 +880,10 @@ after `check` has passed on a push to `main`, on that same commit, and adds no v
 
 `scripts/check-package-install.mjs` is merge gate 14: it packs each public package,
 installs it into a sandbox and makes a TypeScript consumer authorize through the
-published `exports` map. Two rules come out of it, and both are checked rather than
-remembered.
+published `exports` map. Its consumer also calls every `make*Feed` the packed
+`@qadi/devtools` root exports and compiles a host cache typed by `DecisionCacheShape`, and
+the script fails if a feed export is left uncalled. Two rules come out of it, and both are
+checked rather than remembered.
 
 **`pnpm publish`, never `npm publish`.** Dependencies use pnpm's workspace-time
 protocols — `"effect": "catalog:"` in `devDependencies` and `"effect": "catalog:peer"` in
