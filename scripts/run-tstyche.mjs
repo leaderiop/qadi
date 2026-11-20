@@ -41,8 +41,8 @@ const RULE_ON_SKIP = "under the tstyche tsconfig";
 /** The line tstyche prints each time the project changes, and a file's result line. */
 const USES = /^uses TypeScript \S+ with (.+)$/;
 const RESULT = /^(?:pass|fail) (\S+)$/;
-/** Colour codes, removed before tstyche's output is read. */
-const COLOUR = /\u001b\[[0-9;]*m/g;
+/** Colour codes, removed before tstyche's output is read; built from the ESC character, which a regex literal may not hold (`no-control-regex`). */
+const COLOUR = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
 
 /** @param {ReadonlyArray<string>} args */
 const tstyche = (args) =>
