@@ -5,6 +5,14 @@ subsystem: verification
 tags: [close, mutation, close-scan, merge-gate, devtools, listeners]
 phase_base: 8f3cb792c3a92acefadcd32be0f38b0df8f46641
 plan_head_before: a28df72f0bdc539a8174b2ef3e76370d55ffe7e5
+plan_head_after: 933291bda409a495d007b56b7784ee45606704e6
+commits: 2
+duration: 40 min
+completed: 2026-11-20
+actuals:
+  tokens: 9000
+  tasks: 2
+  commits: 2
 requires:
   - phase: QD-64-one-throwing-listener-cannot-silence-the-rest
     provides: "plans 01 to 04: the base record and RED pins, the seam, the texts and changeset, the spec records"
@@ -144,4 +152,11 @@ None.
 
 None. No network endpoint, auth path, file access or schema changed.
 
-<!-- gsd:write-continue -->
+## Merge gate
+
+- `pnpm check:pr < /dev/null`, run once, alone, in the foreground, on head `8cd28a5127536241e6b143d19bd95a7239462f27` (the tree the close scan and the compare read; the only commit after it is the requirements tick, which differs from it by `.planning/REQUIREMENTS.md` alone).
+- Exit status: `0`.
+- Steps: all 16 `[run-check N/16]` lines ran; the last line of the log: `run-check: ran 16 of 17 steps; "pnpm mutation" was skipped (release PRs run it).`
+- The dock's four characterisation and store-snapshot files ran inside it, unchanged from `phase_base`.
+- LSTN-01..04 are ticked in `.planning/REQUIREMENTS.md` after it, in `933291bd`; WX-01..07 stay Pending until the milestone audit.
+- Nothing was released, versioned, tagged or pushed; the one patch changeset is a file.
