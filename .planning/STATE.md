@@ -5,16 +5,16 @@ milestone_name: Arch Wave 12
 current_phase: 62
 current_phase_name: Type pins that can fail
 status: executing
-stopped_at: Completed QD-62-01-PLAN.md
-last_updated: "2026-11-20T02:58:04.230Z"
+stopped_at: Completed QD-62-02-PLAN.md
+last_updated: "2026-11-20T03:02:08.862Z"
 last_activity: 2026-11-20
 last_activity_desc: Phase QD-62 execution started
-state_head: e581ca07f258cc239170ede13e05946ccf331bbd
+state_head: b5f9272aac5f91c1b88ff9544ffa72d94ea9f16d
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 8
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-19)
 ## Current Position
 
 Phase: QD-62 (Type pins that can fail) — EXECUTING
-Plan: 2 of 8
+Plan: 3 of 8
 Status: Executing Phase QD-62
 Last activity: 2026-11-20 — Phase QD-62 execution started
 
@@ -416,6 +416,7 @@ Last activity: 2026-11-20 — Phase QD-62 execution started
 | Phase QD-61 P06 | 15min | 3 tasks | 9 files |
 | Phase 61 P07 | 12min | 3 tasks | 3 files |
 | Phase QD-62 P01 | 20min | 2 tasks | 8 files |
+| Phase QD-62 P02 | 12 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -706,6 +707,7 @@ Last activity: 2026-11-20 — Phase QD-62 execution started
 - [Phase QD-59]: 59-09: CCR-QD-450 names WalkDepthGuard.test.ts and the after-run numbers; Unused: none
 - [Phase QD-59]: 59-10: close check:pr first stopped at spec:gates on a bare 'gate 13' in ADR-QD-172; orchestrator fixed it in 6499d724, check:pr re-run green (16/16)
 - [Phase QD-62]: tstyche compiles under tsconfig.tstyche.json (floatingEffect off); an in-file position directive restores the rule for the characterisation's rule-on half
+- [Phase QD-62]: 62-02: a control is added beside its negative pin and never edits it; the DecisionLog refusal is stated on Parameters<typeof makeDecisionLog>[0]
 
 ### Pending Todos
 
@@ -765,8 +767,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-20T02:58:04.201Z
-Stopped at: Completed QD-62-01-PLAN.md
+Last session: 2026-11-20T03:02:08.803Z
+Stopped at: Completed QD-62-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
