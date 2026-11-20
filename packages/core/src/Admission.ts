@@ -52,18 +52,22 @@ interface SuppliedBy {
 }
 
 /**
- * What a request supplied, one row per row source. Each row is checked against
- * its {@link SuppliedBy} type: a `"row"` row that stops supplying the resource
- * does not compile, and neither does a row source without a row here. The
- * `"asked"` row's flags are `boolean`, so its truth (supplied exactly when the
- * question carries the value) is pinned by the tests, not the type.
+ * What a request supplied, one row per row source, read from the matcher
+ * context {@link Admitted.admit} builds. Each row is checked against its
+ * {@link SuppliedBy} type: a `"row"` row that stops supplying the resource does
+ * not compile, and neither does a row source without a row here. The `"asked"`
+ * row's flags are `boolean`, so the type does not check them: they agree with
+ * the matcher context because each row reads that context, which `admit` built
+ * from one read of the question, and the tests pin it.
  */
-const SUPPLIED: { readonly [Source in RowSource]: (question: Question) => SuppliedBy[Source] } = {
-  asked: (question) => ({
-    action: question.action !== undefined,
-    resource: question.resource !== undefined,
+const SUPPLIED: {
+  readonly [Source in RowSource]: (context: MatcherContext) => SuppliedBy[Source];
+} = {
+  asked: (context) => ({
+    action: context.action !== undefined,
+    resource: context.resource !== undefined,
   }),
-  row: (question) => ({ action: question.action !== undefined, resource: true }),
+  row: (context) => ({ action: context.action !== undefined, resource: true }),
 };
 
 /**
@@ -100,8 +104,9 @@ export class Admitted<Source extends RowSource = RowSource> {
   /**
    * Admits a question for an interpreter's row source, or refuses it as too deep.
    * Depth is judged on the policy alone (INV-QD-037); what the request supplied
-   * is a function of the row source and the question (INV-QD-364). It names
-   * `Admitted` and never `this`, so the module exports it detached as {@link admit}.
+   * is read from the matcher context built here, so the question's resource and
+   * action are each read once (INV-QD-364). It names `Admitted` and never `this`,
+   * so the module exports it detached as {@link admit}.
    */
   static admit<Source extends RowSource>(
     question: Question,
@@ -110,18 +115,19 @@ export class Admitted<Source extends RowSource = RowSource> {
     if (policyDepth(question.policy) > question.maxDepth) {
       return Result.fail(new PolicyTooDeep({ maxDepth: question.maxDepth }));
     }
+    const context: MatcherContext = {
+      subject: question.subject.attributes,
+      subjectId: question.subject.id,
+      resource: question.resource,
+      action: question.action,
+    };
     return Result.succeed(
       new Admitted(
         rowSource,
         question.policy,
         question.subject,
-        SUPPLIED[rowSource](question),
-        {
-          subject: question.subject.attributes,
-          subjectId: question.subject.id,
-          resource: question.resource,
-          action: question.action,
-        },
+        SUPPLIED[rowSource](context),
+        context,
         question.maxDepth,
       ),
     );
