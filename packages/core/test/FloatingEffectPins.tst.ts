@@ -13,7 +13,11 @@
  * carry tstyche's `fixme` directive, so tstyche fails the run if one of them ever
  * passes. The position-based language-service directive further down turns the rule
  * back on for the rest of the file (the next-line form has no effect on it), and the
- * block after it is the repro of the old reading: the same negative pins pass. If an
+ * block after it is the repro of the old reading: the same negative pins pass. That
+ * block runs in both tstyche passes (`scripts/run-tstyche.mjs`): in the first the
+ * directive is what turns the rule on, so it goes red if the directive stops working;
+ * in the second `tsconfig.test.json` already has the rule on, so it goes red if that
+ * stops. The first block is skipped in the second pass, where it cannot hold. If an
  * upgrade turns either block red, the tool's reading changed: revisit
  * `tsconfig.tstyche.json` and the checks AGENTS.md section 6 builds on it.
  *

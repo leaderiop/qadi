@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-175                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-20                                     |
 > | Status         | Accepted — amends ADR-QD-037                   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-20): Initial release (ARCH-109, CCR-QD-453) |
+> | Change History | 1.1 (2026-11-20): the in-file floatingEffect directive runs in pass 1 as well (review WR-01)<br>1.0 (2026-11-20): Initial release (ARCH-109, CCR-QD-453) |
 
 ---
 
@@ -66,16 +66,19 @@ restated entry to the base's apart from `floatingEffect`, and requires the base 
 **tstyche runs twice** (`pnpm test:tstyche`, `scripts/run-tstyche.mjs`): under
 `tsconfig.tstyche.json`, then under `tsconfig.test.json` with the rule on, where a positive
 pin on an `Effect` or `Stream` subject fails whatever its arguments. So a bare negative pin on
-such a subject cannot keep a passing twin. Each pass skips the characterisation block that
-holds only under the other, by a title the script first checks no other type test contains,
-so each block runs once; and each pass fails if tstyche compiles any type test under another
-tsconfig, as it does, under its baseline options, for a file outside the tsconfig's `include`.
+such a subject cannot keep a passing twin. The second pass skips the characterisation block
+that holds only with the rule off, by a title the script first checks no other type test
+contains. The other block turns the rule on with the in-file directive and runs in both passes:
+in the first the directive is what turns it on, so the file goes red if the directive stops
+working, and in the second `tsconfig.test.json` does it. Each pass also fails if tstyche
+compiles any type test under another tsconfig, as it does, under its baseline options, for a
+file outside the tsconfig's `include`.
 
 **The characterisation is the one exception.** `FloatingEffectPins.tst.ts`'s bare negative
-pins on an `Effect`, a `Stream` and a constructor, its `fixme` directives and its two skip
-titles are deliberate: they pin the tool, not an API. The budget lists the file with that
+pins on an `Effect`, a `Stream` and a constructor, its `fixme` directives and its skip
+title are deliberate: they pin the tool, not an API. The budget lists the file with that
 reason, the twin check exempts it by path from the run-mode refusal (its pins still need
-twins), and each skip text may appear there and nowhere else.
+twins), and the skip text may appear there and nowhere else.
 
 ## Alternatives considered
 

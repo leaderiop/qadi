@@ -544,11 +544,13 @@ the base to leave `floatingEffect` on, since the rule-on pass needs it.
 `tsconfig.tstyche.json`, then again under `tsconfig.test.json`, where the rule is
 on. There a positive pin on an `Effect` or `Stream` subject fails whatever its
 arguments, so a bare negative pin on one cannot keep a passing twin, and a
-positive pin on one goes through the parameter type too. Each pass skips the
-block of `FloatingEffectPins.tst.ts` that holds only under the other, by a title
-the script first checks no other type test contains, and a pass fails if tstyche
-compiles any type test under another tsconfig, as it does for a file outside the
-tsconfig's `include`.
+positive pin on one goes through the parameter type too. The second pass skips
+the block of `FloatingEffectPins.tst.ts` that holds only with the rule off, by a
+title the script first checks no other type test contains; the other block turns
+the rule on with an in-file directive and runs in both passes, so the first
+proves the directive and the second proves `tsconfig.test.json`. A pass fails if
+tstyche compiles any type test under another tsconfig, as it does for a file
+outside the tsconfig's `include`.
 
 ## 7. Schema
 

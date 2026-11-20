@@ -9,11 +9,13 @@
  * is for `pnpm typecheck`; there a positive pin on such a function fails whatever its
  * arguments, so a bare negative pin on one cannot keep a passing positive twin.
  *
- * `CHARACTERISATION` pins tstyche's reading under each setting in two blocks, and each block
- * runs in one pass only: the first pass skips the describe whose title holds `RULE_OFF_SKIP`
- * (the reading with the rule on), the second the one whose title holds `RULE_ON_SKIP` (the
- * reading with it off). tstyche's `--skip` skips every describe or test whose title contains
- * the text, ignoring case, so each text must appear once in that file and in no other type test.
+ * `CHARACTERISATION` pins tstyche's reading under each setting in two blocks. The block that
+ * holds only with the rule off (`RULE_ON_SKIP`'s title) is skipped in the second pass. The other
+ * block turns the rule on with an in-file language-service directive, so it holds in both
+ * passes, and the first is the one where the directive does any work: the second already
+ * compiles with the rule on. tstyche's `--skip` skips every describe or test whose title
+ * contains the text, ignoring case, so the text must appear once in that file and in no other
+ * type test.
  *
  * Each pass must compile every file it selects under its own tsconfig. tstyche compiles a file
  * outside that tsconfig's `include` under its baseline compiler options instead, where neither
@@ -31,7 +33,6 @@ import { fileURLToPath } from "node:url";
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const TSTYCHE = join(ROOT, "node_modules", "tstyche", "dist", "bin.js");
 const CHARACTERISATION = "packages/core/test/FloatingEffectPins.tst.ts";
-const RULE_OFF_SKIP = "restored by the in-file directive";
 const RULE_ON_SKIP = "under the tstyche tsconfig";
 /** The line tstyche prints each time the project changes, and a file's result line. */
 const USES = /^uses TypeScript \S+ with (.+)$/;
@@ -55,20 +56,15 @@ if (listed.status !== 0) {
 }
 /** @type {ReadonlyArray<string>} */
 const selected = JSON.parse(listed.stdout).map((path) => relative(ROOT, path));
-for (const [text, which] of [
-  [RULE_OFF_SKIP, "first"],
-  [RULE_ON_SKIP, "second"],
-]) {
-  const holders = selected
-    .map((file) => ({ file, count: readFileSync(join(ROOT, file), "utf8").toLowerCase().split(text).length - 1 }))
-    .filter((holder) => holder.count > 0);
-  if (holders.length !== 1 || holders[0].file !== CHARACTERISATION || holders[0].count !== 1) {
-    console.error(
-      `run-tstyche: "${text}" must appear once, in ${CHARACTERISATION}, and in no other type test, ` +
-        `because the ${which} pass skips every title that contains it; found ${JSON.stringify(holders)}.`,
-    );
-    process.exit(1);
-  }
+const holders = selected
+  .map((file) => ({ file, count: readFileSync(join(ROOT, file), "utf8").toLowerCase().split(RULE_ON_SKIP).length - 1 }))
+  .filter((holder) => holder.count > 0);
+if (holders.length !== 1 || holders[0].file !== CHARACTERISATION || holders[0].count !== 1) {
+  console.error(
+    `run-tstyche: "${RULE_ON_SKIP}" must appear once, in ${CHARACTERISATION}, and in no other type test, ` +
+      `because the second pass skips every title that contains it; found ${JSON.stringify(holders)}.`,
+  );
+  process.exit(1);
 }
 
 /**
@@ -114,9 +110,9 @@ const pass = (title, project, args) => {
 };
 
 const first = pass(
-  `pass 1 of 2, tstyche.json (tsconfig.tstyche.json, floatingEffect off), skipping "${RULE_OFF_SKIP}"`,
+  "pass 1 of 2, tstyche.json (tsconfig.tstyche.json, floatingEffect off)",
   "./tsconfig.tstyche.json",
-  ["--skip", RULE_OFF_SKIP],
+  [],
 );
 const second = pass(
   `pass 2 of 2, tsconfig.test.json (floatingEffect on), skipping "${RULE_ON_SKIP}"`,
