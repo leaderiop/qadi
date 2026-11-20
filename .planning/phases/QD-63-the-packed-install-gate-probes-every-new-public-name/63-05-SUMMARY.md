@@ -5,6 +5,7 @@ subsystem: build-gate
 tags: [gate-14, package-install, close-scan, merge-gate, requirements]
 phase_base: 11dc168f4d8a8b295aef16f2d04b762c503d1ba8
 plan_head_before: 53a12247e70d985c83116e4713edc2bc6f065cc9
+plan_head_after: f896bf47
 requires: [63-04]
 provides:
   - "close-scan.mjs: 21 of 21 cross-cutting checks green over phase_base..HEAD"
@@ -24,7 +25,13 @@ key-files:
 key-decisions:
   - "The scan's set-aside rule for the script's parser loads reads a line's trimmed form and pins the count at three"
 requirements-completed: [PROBE-01, PROBE-02, PROBE-03, PROBE-04, PROBE-05]
+completed: 2026-11-20
 status: complete
+commits: 2
+actuals:
+  tokens: 4400
+  tasks: 2
+  commits: 2
 ---
 
 # Phase QD-63 Plan 05: Close scan, merge gate, requirements Summary
@@ -137,3 +144,30 @@ None.
 ## Threat Flags
 
 None. This plan adds no code, only records.
+
+## Merge gate
+
+`pnpm check:pr < /dev/null`, run once and alone after the close scan had finished, on the tree at `a278d293`: exit status 0. The log shows `[run-check 16/16] pnpm spec:publish` as its last step and ends:
+
+```
+run-check: ran 16 of 17 steps; "pnpm mutation" was skipped (release PRs run it).
+```
+
+Its publish-status step printed `publish-status: 9 package(s) and 6 document(s) agree on version (0.12.0)`. Stryker was not run. Nothing was released, published, versioned, tagged or pushed, and no changeset was added.
+
+## Requirements
+
+`.planning/REQUIREMENTS.md`: PROBE-01..PROBE-05 are `[x]` and `Complete` (commit `f896bf47`, edited by hand rather than through `requirements mark-complete`). WX-01..WX-07 stay `[ ]` and Pending; they span every v1.7 phase and wait for the milestone audit. No WX tick had to be reverted.
+
+## Task commits
+
+| Task | Commit | Files |
+| --- | --- | --- |
+| 1 (tracer) | `a278d293` | `63-05-SUMMARY.md` |
+| 2 | `f896bf47` | `.planning/REQUIREMENTS.md` |
+
+The tracer's feedback gate was its own verify (the scan re-run end to end and the edge table counted, 23/1/5), then expansion.
+
+## Self-Check: PASSED
+
+- `63-05-SUMMARY.md` exists; commits `a278d293` and `f896bf47` are ancestors of HEAD; `git diff --quiet 11dc168f -- 'packages/*/src'` holds; `.planning/config.json` and `.planning/state.json` were never staged.

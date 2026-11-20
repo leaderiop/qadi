@@ -4,17 +4,17 @@ milestone: v1.7
 milestone_name: Arch Wave 12
 current_phase: 63
 current_phase_name: The packed-install gate probes every new public name
-status: executing
-stopped_at: Completed 63-04-PLAN.md
-last_updated: "2026-11-20T12:39:59.567Z"
+status: verifying
+stopped_at: Completed QD-63-05-PLAN.md
+last_updated: "2026-11-20T12:49:05.535Z"
 last_activity: 2026-11-20
 last_activity_desc: Phase 63 execution started
-state_head: 744d415d4553e881d61ac3d4ee5ab65efda0ae38
+state_head: f896bf47eff998892f8596506bc7f3bd7c363e6b
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 13
-  completed_plans: 12
+  completed_plans: 13
   percent: 14
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-20)
 
 Phase: 63 (The packed-install gate probes every new public name) — EXECUTING
 Plan: 5 of 5
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-20 — Phase 63 execution started
 
 
@@ -428,6 +428,7 @@ Last activity: 2026-11-20 — Phase 63 execution started
 | Phase QD-63 P02 | 20min | 3 tasks | 1 files |
 | Phase QD-63 P03 | 15min | 2 tasks | 1 files |
 | Phase QD-63 P04 | 10min | 2 tasks | 5 files |
+| Phase QD-63 P05 | 20min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -730,6 +731,7 @@ Last activity: 2026-11-20 — Phase 63 execution started
 - [Phase QD-63]: 63-01: a refused literal is not a use; a type reference inside a refused declaration does not count toward the type-only rule
 - [Phase QD-63]: 63-03: removed-probe proof recorded from scratch copies of the committed gate (11 variants), never as a committed self-test
 - [Phase QD-63]: 63-04: ADR-QD-033 amended instead of a new decision; ADR-QD-176, BEH-QD-651-655, INV-QD-371-372 stay unused, named only in the CCR-QD-454 row
+- [Phase QD-63]: Close scan's parser-load set-aside reads the trimmed line and pins the count at three (scratch only; script untouched)
 
 ### Pending Todos
 
@@ -790,8 +792,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-20T12:39:59.487Z
-Stopped at: Completed 63-04-PLAN.md
+Last session: 2026-11-20T12:49:01.738Z
+Stopped at: Completed QD-63-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
