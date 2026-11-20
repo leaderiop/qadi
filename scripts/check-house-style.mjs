@@ -2324,6 +2324,46 @@ for (const file of srcSources) {
   }
 }
 
+// AGENTS.md section 6's table is the budget stated for readers: its file column must be exactly
+// the budget's keys, with the same two counts.
+{
+  const agents = readFileSync(join(ROOT, "AGENTS.md"), "utf8").replace(/\r\n/g, "\n").split("\n");
+  const header = agents.findIndex((l) =>
+    /^\|\s*Type-test file\s*\|\s*Callable pins\s*\|\s*Constructable pins\s*\|\s*Why\s*\|/.test(l)
+  );
+  /** @type {Map<string, { readonly callable: number, readonly constructable: number }>} */
+  const listed = new Map();
+  if (header === -1) {
+    failures += 1;
+    console.error(
+      "AGENTS.md  [not-callable-pin-table] the section 6 `| Type-test file | Callable pins | Constructable pins | Why |` table was not found.",
+    );
+  } else {
+    for (let i = header + 2; i < agents.length && agents[i].startsWith("|"); i += 1) {
+      const m = /^\|\s*`([^`]+)`\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|/.exec(agents[i]);
+      if (m === null) {
+        failures += 1;
+        console.error(`AGENTS.md:${i + 1}  [not-callable-pin-table] a row that is not \`file\` | callable | constructable | why.`);
+        continue;
+      }
+      listed.set(m[1], { callable: Number(m[2]), constructable: Number(m[3]) });
+    }
+  }
+  for (const [rel, n] of listed) {
+    const budget = Object.hasOwn(NOT_CALLABLE_PIN_BUDGET, rel) ? NOT_CALLABLE_PIN_BUDGET[rel] : undefined;
+    if (budget !== undefined && budget.callable === n.callable && budget.constructable === n.constructable) continue;
+    failures += 1;
+    console.error(
+      `AGENTS.md  [not-callable-pin-table] section 6 lists ${rel} (${n.callable}, ${n.constructable}), which NOT_CALLABLE_PIN_BUDGET does not match.`,
+    );
+  }
+  for (const rel of Object.keys(NOT_CALLABLE_PIN_BUDGET)) {
+    if (listed.has(rel)) continue;
+    failures += 1;
+    console.error(`AGENTS.md  [not-callable-pin-table] ${rel} is in NOT_CALLABLE_PIN_BUDGET with no row in section 6's table.`);
+  }
+}
+
 // An exemption is a path, and a path outlives the file it named: renaming or
 // deleting the exempted module leaves a dead entry that silently ungates
 // whatever takes its place (an orphan `settled.ts` entry sat here for exactly
