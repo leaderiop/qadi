@@ -477,7 +477,7 @@ Plans:
   4. A deliberately removed probe is shown failing gate 14, and the DoD table is unchanged.
 
 **Planning notes**: Script only; this phase must not depend on Phases 64 to 68. Build order from the research: the guard first (RED: two names unprobed), then the probes (GREEN), then a recorded removed-probe failure, then records. Any "gate 14" in a record must name `scripts/check-package-install.mjs` (`scripts/check-dod-table.mjs` checks the numbers). The fixture is one `FIXTURE` template literal: escape backticks and `${`. Decisions left to the planner: the gates-feed assertion (recommended: a registry with one instance and assert `Read` with count 1; asserting `Unwatched` would be vacuous, since it is the initial value); the diagnostics loop (recommended: yield until the condition holds with a cap of 200, then fail with the observed state, close the scope so the 2000 ms default sleep is never awaited, and add a pin that `schedule` is refused; whether 20 fixed turns would suffice is unverified); host cache depth (recommended: run it twice and assert `calls` and a `hit`, delegating `getOrCompute`, `size` and `clear`, because a type-only proof proves less); and whether ADR-QD-176 is needed.
-**Plans**: 3/5 plans executed
+**Plans**: 4/5 plans executed
 
 Plans:
 **Wave 1**
@@ -490,7 +490,7 @@ Plans:
 - [x] 63-03-PLAN.md — the removed and broken probes, each shown failing gate 14 in scratch copies (the host cache and the refused pre-0.13 literal apart), the DoD table unchanged
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 63-04-PLAN.md — ADR-QD-033 amended, traced and registered as CCR-QD-454; one sentence each in AGENTS.md section 16 and the DoD
+- [x] 63-04-PLAN.md — ADR-QD-033 amended, traced and registered as CCR-QD-454; one sentence each in AGENTS.md section 16 and the DoD
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 63-05-PLAN.md — the close scan over the whole range, edge coverage, `pnpm check:pr`, PROBE-01..05 complete
@@ -596,7 +596,7 @@ Phases execute in numeric order: 62 → 63 → 64 → 65 → 66 → 67 → 68
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 62. Type pins that can fail | 8/8 | Complete    | 2026-11-20 |
-| 63. The packed-install gate probes every new public name | 3/5 | In Progress | - |
+| 63. The packed-install gate probes every new public name | 4/5 | In Progress | - |
 | 64. One throwing listener cannot silence the rest | 0/TBD | Not started | - |
 | 65. Only `admit` builds an `Admitted` | 0/TBD | Not started | - |
 | 66. The decoder reads only what it declares | 0/TBD | Not started | - |

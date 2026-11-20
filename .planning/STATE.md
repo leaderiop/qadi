@@ -5,16 +5,16 @@ milestone_name: Arch Wave 12
 current_phase: 63
 current_phase_name: The packed-install gate probes every new public name
 status: executing
-stopped_at: Completed QD-63-03-PLAN.md
-last_updated: "2026-11-20T12:33:25.608Z"
+stopped_at: Completed 63-04-PLAN.md
+last_updated: "2026-11-20T12:39:59.567Z"
 last_activity: 2026-11-20
 last_activity_desc: Phase 63 execution started
-state_head: d857510508a3210d4266f6cae7be71ba12e2b1f3
+state_head: 744d415d4553e881d61ac3d4ee5ab65efda0ae38
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 13
-  completed_plans: 11
+  completed_plans: 12
   percent: 14
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-20)
 ## Current Position
 
 Phase: 63 (The packed-install gate probes every new public name) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-11-20 — Phase 63 execution started
 
@@ -427,6 +427,7 @@ Last activity: 2026-11-20 — Phase 63 execution started
 | Phase QD-63 P01 | 25min | 2 tasks | 3 files |
 | Phase QD-63 P02 | 20min | 3 tasks | 1 files |
 | Phase QD-63 P03 | 15min | 2 tasks | 1 files |
+| Phase QD-63 P04 | 10min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -728,6 +729,7 @@ Last activity: 2026-11-20 — Phase 63 execution started
 - [Phase QD-63]: 63-01: the probe guard runs after the consumer's compile and run, gated on consumerReady, so a guard failure never hides a compile or runtime failure
 - [Phase QD-63]: 63-01: a refused literal is not a use; a type reference inside a refused declaration does not count toward the type-only rule
 - [Phase QD-63]: 63-03: removed-probe proof recorded from scratch copies of the committed gate (11 variants), never as a committed self-test
+- [Phase QD-63]: 63-04: ADR-QD-033 amended instead of a new decision; ADR-QD-176, BEH-QD-651-655, INV-QD-371-372 stay unused, named only in the CCR-QD-454 row
 
 ### Pending Todos
 
@@ -788,8 +790,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-20T12:33:25.574Z
-Stopped at: Completed QD-63-03-PLAN.md
+Last session: 2026-11-20T12:39:59.487Z
+Stopped at: Completed 63-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
