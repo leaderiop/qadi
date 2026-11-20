@@ -436,15 +436,21 @@ import * as HttpApiGroup from "effect/http-api/HttpApiGroup";
 import * as HttpRouter from "effect/http/HttpRouter";
 import * as HttpServer from "effect/http/HttpServer";
 import {
+  AttributeResolver,
   AttributeResolverNone,
   currentSubjectLayer,
   CustomPredicateNone,
   Decided,
+  DecisionCache,
+  decisionCacheLayer,
+  type DecisionCacheShape,
   DecisionHistoryUnknown,
   DecisionRecord,
   evaluate,
   EvaluationIdLive,
   fromRoles,
+  gte,
+  hasAttribute,
   hasPermission,
   permission,
   RelationshipResolverNever,
@@ -625,6 +631,63 @@ expect("diagnostics feed first read sets hydration", diagnosed.hydration, true);
 const noSchedule: DiagnosticsOptions = {
   // @ts-expect-error a cadence is a number, not a Schedule
   schedule: "immediate",
+};
+
+// @qadi/core's DecisionCacheShape is type-only, so only the compiler reaches it. A host cache wraps
+// decisionCacheLayer() and delegates; the walk runs once and the second ask is a hit.
+const cacheOutcomes: Array<string> = [];
+let resolverCalls = 0;
+const hostCache = Layer.effect(
+  DecisionCache,
+  Effect.gen(function* () {
+    const inner = yield* DecisionCache;
+    const shape: DecisionCacheShape = {
+      getOrCompute: (question, options) =>
+        inner.getOrCompute(question, options).pipe(
+          Effect.tap((lookup) =>
+            Effect.sync(() => {
+              cacheOutcomes.push(lookup.outcome);
+            }),
+          ),
+        ),
+      size: inner.size,
+      clear: inner.clear,
+    };
+    return DecisionCache.of(shape);
+  }),
+).pipe(Layer.provide(decisionCacheLayer()));
+const countingResolver = Layer.succeed(AttributeResolver, {
+  resolve: () =>
+    Effect.sync(() => {
+      resolverCalls += 1;
+      return 5;
+    }),
+});
+const needsLookup = hasAttribute("clearance", gte(1));
+const cached = await Effect.runPromise(
+  Effect.gen(function* () {
+    const first = yield* evaluate(needsLookup);
+    const second = yield* evaluate(needsLookup);
+    const cache = yield* DecisionCache;
+    return { tags: [first._tag, second._tag].join(), size: yield* cache.size };
+  }).pipe(
+    Effect.provide(hostCache),
+    Effect.provide(currentSubjectLayer(alice)),
+    Effect.provide(Layer.mergeAll(countingResolver, CustomPredicateNone, DecisionHistoryUnknown, EvaluationIdLive, RelationshipResolverNever, SignatureHistoryNone)),
+  ),
+);
+expect("host cache decisions", cached.tags, "Allow,Allow");
+expect("host cache lookups", cacheOutcomes.join(), "miss,hit");
+expect("host cache walked once", resolverCalls, 1);
+expect("host cache holds one entry", cached.size, 1);
+
+// The pre-0.13 shape took the computation and stored its result under the question. It is refused: the
+// second parameter is now the options, so running it as an Effect is TS2345.
+const preThirteen: DecisionCacheShape = {
+  // @ts-expect-error getOrCompute(question, compute) no longer exists
+  getOrCompute: (_question, compute) => Effect.map(compute, (trace) => ({ trace, outcome: "miss" })),
+  size: Effect.succeed(0),
+  clear: Effect.void,
 };
 
 // @qadi/predicate-sql and @qadi/predicate-prisma compile what toPredicate
