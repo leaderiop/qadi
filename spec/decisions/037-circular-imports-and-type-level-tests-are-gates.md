@@ -80,7 +80,7 @@ does not run the type checker — so a TypeScript version four majors newer
 changes nothing about what it can see. Confirmed by running it against this
 tree rather than assumed from the warning text.
 
-### `tstyche`, gate 6
+### `tstyche`, gate 6 (`test:tstyche`)
 
 `tstyche` is promoted from an ad hoc investigation tool (installed during
 the `packages/http` session, run via `pnpm test:tstyche`, `.tst.ts` scratch

@@ -27,7 +27,7 @@ _Previous: [Requirement Identifier Scheme](./requirement-id-scheme.md)_
 | 3 | `oxlint` | Lint clean |
 | 4 | `node scripts/check-house-style.mjs` | House rules the linter cannot express |
 | 5 | `madge --circular --extensions ts,tsx packages/*/src` | No circular imports across any package's sources |
-| 6 | `tstyche` | Type-level tests pass (`*.tst.ts`) |
+| 6 | `node scripts/run-tstyche.mjs` | Type-level tests pass (`*.tst.ts`) |
 | 7 | `vitest run --coverage` | Tests pass; thresholds met |
 | 8 | `pnpm --filter @qadi/features test` | Acceptance scenarios pass |
 | 9 | `node scripts/check-doc-examples.mjs` | Every runnable example in `spec/` compiles |
@@ -102,10 +102,15 @@ CI runs `pnpm check` and nothing else and a second list of steps would be a
 second definition of done.
 
 Steps 5 and 6 are new in CCR-QD-048 ([ADR-QD-037](../decisions/037-circular-imports-and-type-level-tests-are-gates.md)).
-Both are placed here — after the lint family, before the slower runtime
-suite — for the same reason `check-doc-examples.mjs` already sits ahead of
-mutation testing: each takes under two seconds combined, so a regression in
-either fails before anything slower even starts. Step 6 depends on
+Both are placed here, after the lint family and before the slower runtime
+suite, so a regression in either fails before anything slower even starts.
+Step 6, `pnpm test:tstyche`, is `node scripts/run-tstyche.mjs`: tstyche twice,
+first under `tsconfig.tstyche.json`, where the Effect language service's
+`floatingEffect` rule is off so that a negative `toBeCallableWith` pin can
+fail, then under `tsconfig.test.json` with the rule on. Each pass skips the
+block of `packages/core/test/FloatingEffectPins.tst.ts` that holds only under
+the other, and fails if tstyche compiles a type test under any other tsconfig.
+Each pass takes about eight seconds. Step 6 depends on
 `tstyche.json` pinning a specific TypeScript version (`6.0.3`) rather than
 the workspace's own `typescript@^7.0.0` — a real, standing gap the ADR
 records rather than hides; a `.tst.ts` assertion passing is not the same

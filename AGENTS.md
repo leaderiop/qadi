@@ -540,6 +540,16 @@ inherits from `tsconfig.base.json` apart from `floatingEffect`, because
 the base alone would make the two compiles disagree silently. It also requires
 the base to leave `floatingEffect` on, since the rule-on pass needs it.
 
+`pnpm test:tstyche` runs `scripts/run-tstyche.mjs`: tstyche under
+`tsconfig.tstyche.json`, then again under `tsconfig.test.json`, where the rule is
+on. There a positive pin on an `Effect` or `Stream` subject fails whatever its
+arguments, so a bare negative pin on one cannot keep a passing twin, and a
+positive pin on one goes through the parameter type too. Each pass skips the
+block of `FloatingEffectPins.tst.ts` that holds only under the other, by a title
+the script first checks no other type test contains, and a pass fails if tstyche
+compiles any type test under another tsconfig, as it does for a file outside the
+tsconfig's `include`.
+
 ## 7. Schema
 
 Domain types are ordinarily **hand-written interfaces** with template-literal

@@ -22,7 +22,7 @@
     "typecheck": "tsc -b tsconfig.json && tsc -p tsconfig.test.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:tstyche": "tstyche",
+    "test:tstyche": "node scripts/run-tstyche.mjs",
     "coverage": "vitest run --coverage",
     "bench": "vitest bench --run",
     "mutation": "stryker run && stryker run stryker.devtools.mjs && stryker run stryker.predicate-sql.mjs && stryker run stryker.predicate-prisma.mjs && stryker run stryker.audit.mjs && stryker run stryker.http.mjs && stryker run stryker.react.mjs",
