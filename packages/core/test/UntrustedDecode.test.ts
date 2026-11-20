@@ -407,15 +407,15 @@ describe("unknownKeys (KEYP-02, D-16)", () => {
     assert.strictEqual(seen, input);
   });
 
-  const Either = () =>
+  const TwoMembers = () =>
     Schema.Union([
       Schema.TaggedStruct("A", { a: Schema.Number }),
       Schema.TaggedStruct("B", { b: Schema.Number }),
     ]);
 
   it("U10 a discriminated union keeps the keys of the member its _tag names", () => {
-    const refuse = untrustedDecoder(Either(), { unknownKeys: "refuse" });
-    const ignore = untrustedDecoder(Either(), { unknownKeys: "ignore" });
+    const refuse = untrustedDecoder(TwoMembers(), { unknownKeys: "refuse" });
+    const ignore = untrustedDecoder(TwoMembers(), { unknownKeys: "ignore" });
     const sideA = { _tag: "A", a: 1, b: 2 };
     const sideB = { _tag: "B", a: 1, b: 2 };
     assert.strictEqual(tagOf(refuse.decode(sideA)), "Malformed");
@@ -425,8 +425,8 @@ describe("unknownKeys (KEYP-02, D-16)", () => {
   });
 
   it("U11 an unknown _tag falls to the first member and is Malformed", () => {
-    const refuse = untrustedDecoder(Either(), { unknownKeys: "refuse" });
-    const ignore = untrustedDecoder(Either(), { unknownKeys: "ignore" });
+    const refuse = untrustedDecoder(TwoMembers(), { unknownKeys: "refuse" });
+    const ignore = untrustedDecoder(TwoMembers(), { unknownKeys: "ignore" });
     const input = { _tag: "C", a: 1 };
     assert.strictEqual(tagOf(refuse.decode(input)), "Malformed");
     assert.strictEqual(tagOf(ignore.decode(input)), "Malformed");
@@ -434,8 +434,8 @@ describe("unknownKeys (KEYP-02, D-16)", () => {
   });
 
   it("U12 an absent _tag falls to the first member and is Malformed, missing _tag", () => {
-    const refuse = untrustedDecoder(Either(), { unknownKeys: "refuse" });
-    const ignore = untrustedDecoder(Either(), { unknownKeys: "ignore" });
+    const refuse = untrustedDecoder(TwoMembers(), { unknownKeys: "refuse" });
+    const ignore = untrustedDecoder(TwoMembers(), { unknownKeys: "ignore" });
     const refused = ignore.decode({ a: 1 });
     assert.isTrue(Result.isFailure(refused));
     if (Result.isFailure(refused) && refused.failure._tag === "Malformed") {
@@ -513,7 +513,7 @@ describe("unknownKeys (KEYP-02, D-16)", () => {
   });
 
   it("U19 the _tag is read by its key, wherever it sits among the input's entries", () => {
-    const ignore = untrustedDecoder(Either(), { unknownKeys: "ignore" });
+    const ignore = untrustedDecoder(TwoMembers(), { unknownKeys: "ignore" });
     assert.deepStrictEqual(successOf(ignore.decode({ a: 1, _tag: "B", b: 2 })), { _tag: "B", b: 2 });
   });
 
@@ -584,7 +584,7 @@ describe("what the ignore projection reads of an in-process value", () => {
   const throwing = (): never => {
     throw new Error("the accessor was read");
   };
-  const Either = () =>
+  const TwoMembers = () =>
     Schema.Union([
       Schema.TaggedStruct("A", { a: Schema.Number }),
       Schema.TaggedStruct("B", { b: Schema.Number }),
@@ -605,7 +605,7 @@ describe("what the ignore projection reads of an in-process value", () => {
   });
 
   it("U24 a union reads its own _tag twice, to choose the member and to copy it, the member's value once, and the other member's key never", () => {
-    const ignore = untrustedDecoder(Either(), { unknownKeys: "ignore" });
+    const ignore = untrustedDecoder(TwoMembers(), { unknownKeys: "ignore" });
     const { input, reads } = accessors([["a", throwing], ["_tag", () => "B"], ["b", () => 2]]);
     assert.deepStrictEqual(successOf(ignore.decode(input)), { _tag: "B", b: 2 });
     assert.deepStrictEqual([reads("_tag"), reads("b"), reads("a")], [2, 1, 0]);
@@ -620,7 +620,7 @@ describe("what the ignore projection reads of an in-process value", () => {
 
   it("U26 an inherited or a non-enumerable _tag chooses no member: prepare receives the first member's keys", () => {
     const seen: Array<unknown> = [];
-    const ignore = untrustedDecoder(Either(), {
+    const ignore = untrustedDecoder(TwoMembers(), {
       unknownKeys: "ignore",
       prepare: (input) => {
         seen.push(input);
