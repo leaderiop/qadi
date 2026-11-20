@@ -9,6 +9,8 @@ import { admit } from "../src/Admission.ts";
 import * as M from "../src/Matcher.ts";
 import * as P from "../src/Policy.ts";
 import { questionOf } from "../src/Question.ts";
+import type { Question } from "../src/Question.ts";
+import type { Resource } from "../src/Resource.ts";
 import { subjectWith } from "./helpers.ts";
 
 const subject = subjectWith({ id: "u7", attributes: { tier: "gold" } });
@@ -132,5 +134,80 @@ describe("admit builds the walk environment", () => {
     assert.strictEqual(admitted.success.subject, question.subject);
     assert.strictEqual(admitted.success.maxDepth, 7);
     assert.strictEqual(environment("row", {})?.maxDepth, P.DEFAULT_MAX_DEPTH);
+  });
+});
+
+describe("admit reads what the question carries once", () => {
+  const resource = { id: "doc-1" };
+  const admitted = (question: Question, source: "asked" | "row") => {
+    const result = admit(question, source);
+    assert.isTrue(Result.isSuccess(result));
+    return Result.isSuccess(result) ? result.success : undefined;
+  };
+
+  it("E7 asked: a resource that reads differently on a second read is read once, and the flag agrees with the context", () => {
+    const flipping = (first: Resource | undefined, later: Resource | undefined) => {
+      let reads = 0;
+      const question: Question = {
+        ...questionOf(subject, P.hasRole("editor")),
+        get resource() {
+          reads += 1;
+          return reads === 1 ? first : later;
+        },
+      };
+      return { question, reads: () => reads };
+    };
+    for (const [first, later] of [[resource, undefined], [undefined, resource]]) {
+      const { question, reads } = flipping(first, later);
+      const environment = admitted(question, "asked");
+      assert.strictEqual(environment?.supplied.resource, first !== undefined);
+      assert.strictEqual(environment?.matcherContext.resource, first);
+      assert.strictEqual(reads(), 1);
+    }
+  });
+
+  it("E8 asked: an action that reads differently on a second read is read once, and the flag agrees with the context", () => {
+    let reads = 0;
+    const question: Question = {
+      ...questionOf(subject, P.hasRole("editor")),
+      get action() {
+        reads += 1;
+        return reads === 1 ? "publish" : undefined;
+      },
+    };
+    const environment = admitted(question, "asked");
+    assert.strictEqual(environment?.supplied.action, true);
+    assert.strictEqual(environment?.matcherContext.action, "publish");
+    assert.strictEqual(reads, 1);
+  });
+
+  it("E9 row: the action is read once and the flag agrees with the context; the row stays supplied", () => {
+    let reads = 0;
+    const question: Question = {
+      ...questionOf(subject, P.hasRole("editor")),
+      get action() {
+        reads += 1;
+        return reads === 1 ? "publish" : undefined;
+      },
+    };
+    const environment = admitted(question, "row");
+    assert.deepStrictEqual(environment?.supplied, { action: true, resource: true });
+    assert.strictEqual(environment?.matcherContext.action, "publish");
+    assert.strictEqual(reads, 1);
+  });
+
+  it("E10 row: the row is supplied whatever the question's resource reads, and the resource is read once", () => {
+    let reads = 0;
+    const question: Question = {
+      ...questionOf(subject, P.hasRole("editor")),
+      get resource() {
+        reads += 1;
+        return undefined;
+      },
+    };
+    const environment = admitted(question, "row");
+    assert.strictEqual(environment?.supplied.resource, true);
+    assert.isUndefined(environment?.matcherContext.resource);
+    assert.strictEqual(reads, 1);
   });
 });
