@@ -535,7 +535,24 @@ Plans:
   4. A 3 + 3 interleaved benchmark of the committed source against the phase base, with Phase 59's harness and bands, shows no workload slower beyond its band.
 
 **Planning notes**: Open choices left to the planner: the pin's wording (a short fragment such as `is private`, because only the TypeScript 6.0.3 message was observed and tsgo 7.0.2's wording is unverified, or `toRaiseError(2673)`, which holds even with bad arguments; the context fixes `@ts-expect-error`, so a code check is an addition, not a replacement); whether `declare private readonly …` works under this tsconfig (unverified) and that the existing `keyof Admitted` pins stay green (private members are excluded from `keyof`). 59a's RED is unverified: behavioural agreement already holds, so a value test cannot be RED, and the only candidate is an accessor-counting `Question.resource`; the compiler does not guard it either (`SuppliedBy.asked` has `boolean` fields), so say so in the INV. Do not use `not.toBeConstructableWith` (reason-blind). Scope any grep or gate to `packages/core/src/Admission.ts`: `packages/audit/src/CircuitBreaker.ts` has an unrelated `new Admitted(...)`. Keep the table shape so a new row source still fails to compile. Plan shape, RED first: the mutation base for `Admission.ts`, `Walk.ts` and `Predicate.ts` and the construction pins first; then the class; then the derivation; then the bench on the committed source; then records.
-**Plans**: TBD
+**Plans**: 6 plans
+**Wave 1**
+- [ ] 65-01-PLAN.md — the mutation base, then both construction pins and the getter cases RED on the base
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 65-02-PLAN.md — the private constructor, the nominal member and the static `admit`; each half shown necessary
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 65-03-PLAN.md — the asked flags read from the matcher context `admit` builds once
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 65-04-PLAN.md — the 3 + 3 bench of the committed source against the phase base
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 65-05-PLAN.md — ADR-QD-172 amended, INV-QD-375/376, BEH-QD-661/662, traceability and CCR-QD-456
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 65-06-PLAN.md — the Stryker close, the close scan, `check:pr` once, ADMT-01..04 complete
 
 ### Phase 66: The decoder reads only what it declares
 
