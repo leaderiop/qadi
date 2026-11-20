@@ -83,7 +83,8 @@
  *     both hold it to its own toolchain's rules, not this library's.
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { dirname, join, relative } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import { RAW_DECISION_READ } from "./lib/raw-decision-read.mjs";
 
 const ROOT = new URL("..", import.meta.url).pathname;
@@ -804,6 +805,30 @@ const walkTypeTests = (dir) =>
   });
 
 const typeTests = walkTypeTests(ROOT);
+
+/**
+ * A JSON-with-comments file, repository-relative: comments blanked, strings kept, trailing
+ * commas dropped. The tsconfig files are JSONC.
+ *
+ * @param {string} rel
+ * @returns {{ readonly tsconfig?: unknown, readonly extends?: unknown, readonly compilerOptions?: { readonly plugins?: unknown } }}
+ */
+const readJsonc = (rel) =>
+  JSON.parse(blankCode(readFileSync(join(ROOT, rel), "utf8"), { keepStrings: true }).replace(/,(\s*[}\]])/g, "$1"));
+
+/**
+ * The `compilerOptions.plugins` a tsconfig compiles with, following a single relative `extends`
+ * to the nearest file that states them, and that file's repository-relative path.
+ *
+ * @param {string} rel
+ * @returns {{ readonly from: string, readonly plugins: unknown }}
+ */
+const nearestPlugins = (rel) => {
+  const config = readJsonc(rel);
+  if (config.compilerOptions?.plugins !== undefined) return { from: rel, plugins: config.compilerOptions.plugins };
+  if (typeof config.extends !== "string" || !config.extends.startsWith(".")) return { from: rel, plugins: undefined };
+  return nearestPlugins(join(dirname(rel), config.extends));
+};
 
 /**
  * Test files that construct a port's typed error by hand, by file and exact
@@ -2462,6 +2487,70 @@ for (const file of srcSources) {
       console.error(
         `${rel}:${p.line}  [not-callable-control] a negative pin with no positive twin (${p.key}); ` +
           "add the same subject with the arguments made valid, so the pin is seen to fail for the reason it names.",
+      );
+    }
+  }
+}
+
+// `[tstyche-plugin-drift]`: tstyche compiles under `tsconfig.tstyche.json`, which extends
+// `tsconfig.test.json` and restates the Effect language service's plugin entry, because
+// `extends` replaces `compilerOptions.plugins` wholesale. The restated entry must stay the one
+// `tsconfig.test.json` inherits from `tsconfig.base.json`, with only `floatingEffect` off: a
+// setting changed in the base and not here would make the two compiles disagree silently. And
+// the base must keep `floatingEffect` on, since the second tstyche pass compiles under
+// `tsconfig.test.json` and catches a bare negative pin on an `Effect` only while the rule is on
+// there; comparing the entries without `floatingEffect` cannot see the base turn it off
+// (ADR-QD-175).
+{
+  /** @param {string} file @param {string} message */
+  const drift = (file, message) => {
+    failures += 1;
+    console.error(`${file}  [tstyche-plugin-drift] ${message}`);
+  };
+  /** @param {unknown} plugins @returns {unknown} */
+  const withoutFloatingEffect = (plugins) => {
+    const copy = structuredClone(plugins);
+    if (Array.isArray(copy)) {
+      for (const entry of copy) {
+        const severity = typeof entry === "object" && entry !== null ? entry.diagnosticSeverity : undefined;
+        if (typeof severity === "object" && severity !== null) delete severity.floatingEffect;
+      }
+    }
+    return copy;
+  };
+  const tstyche = readJsonc("tstyche.json");
+  if (tstyche.tsconfig !== "tsconfig.tstyche.json") {
+    drift("tstyche.json", `names ${JSON.stringify(tstyche.tsconfig)}, not "tsconfig.tstyche.json"; tstyche must compile with floatingEffect off.`);
+  }
+  const child = readJsonc("tsconfig.tstyche.json");
+  if (child.extends !== "./tsconfig.test.json") {
+    drift("tsconfig.tstyche.json", `extends ${JSON.stringify(child.extends)}, not "./tsconfig.test.json".`);
+  }
+  const own = child.compilerOptions?.plugins;
+  const inherited = nearestPlugins("tsconfig.test.json");
+  if (!Array.isArray(own)) {
+    drift("tsconfig.tstyche.json", "states no compilerOptions.plugins of its own, so floatingEffect is not off.");
+  } else if (inherited.from !== "tsconfig.base.json" || !Array.isArray(inherited.plugins)) {
+    drift(
+      "tsconfig.test.json",
+      `takes its plugins from ${inherited.from}, not tsconfig.base.json; restate them in tsconfig.tstyche.json and update this check.`,
+    );
+  } else {
+    if (own.length !== 1 || own[0]?.diagnosticSeverity?.floatingEffect !== "off") {
+      drift("tsconfig.tstyche.json", `must hold one plugin entry with diagnosticSeverity.floatingEffect "off" (found ${own.length} entr(ies)).`);
+    }
+    if (!isDeepStrictEqual(withoutFloatingEffect(own), withoutFloatingEffect(inherited.plugins))) {
+      drift("tsconfig.tstyche.json", "its plugin entry differs from tsconfig.base.json's by more than floatingEffect; restate the base entry.");
+    }
+    const base = inherited.plugins.find((entry) => entry?.name === "@effect/language-service");
+    const severity = base?.diagnosticSeverity?.floatingEffect;
+    if (base === undefined) {
+      drift("tsconfig.base.json", "states no @effect/language-service plugin entry, so the second tstyche pass runs without the rule.");
+    } else if (severity !== undefined && severity !== "error") {
+      drift(
+        "tsconfig.base.json",
+        `sets floatingEffect to ${JSON.stringify(severity)}; the second tstyche pass compiles under tsconfig.test.json, ` +
+          'which inherits it, and needs the rule on: unset (its default, an error) or "error".',
       );
     }
   }

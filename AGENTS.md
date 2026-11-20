@@ -526,6 +526,20 @@ an API.
 | `packages/react/test/DevtoolsFeed.tst.ts` | 3 | 0 | `useDevtoolsFeed`: plain return |
 | `packages/react/test/Hydration.tst.ts` | 1 | 0 | `isAllowed`: plain return |
 
+Two more checks hold the rule. `[not-callable-control]` requires every negative
+pin to have a positive pin in its file with the same form, the same kind
+(`expect(x)` or `expect<T>()`) and the same subject text, whitespace collapsed,
+and fails on a pin written in a shape it cannot read. A twin must also run: a
+file with a negative pin may not use `.skip`, `.only` or `.todo`, nor carry a
+tstyche directive, except `FloatingEffectPins.tst.ts`, which pins the tool with
+expected failures. It is a floor: that each twin varies only the argument under
+test is reviewed by hand. `[tstyche-plugin-drift]` requires
+`tsconfig.tstyche.json`'s plugin entry to equal the one `tsconfig.test.json`
+inherits from `tsconfig.base.json` apart from `floatingEffect`, because
+`extends` replaces `compilerOptions.plugins` wholesale and a setting changed in
+the base alone would make the two compiles disagree silently. It also requires
+the base to leave `floatingEffect` on, since the rule-on pass needs it.
+
 ## 7. Schema
 
 Domain types are ordinarily **hand-written interfaces** with template-literal

@@ -12,6 +12,9 @@
   // from `tsconfig.base.json` is restated here; only `floatingEffect` is added.
   // `include` is inherited, so tstyche compiles exactly the files that
   // `tsc -p tsconfig.test.json` does, and that compile keeps the rule on.
+  //
+  // `scripts/check-house-style.mjs`'s `[tstyche-plugin-drift]` fails if this
+  // entry and the base's differ by anything but `floatingEffect`.
   "extends": "./tsconfig.test.json",
   "compilerOptions": {
     "plugins": [
