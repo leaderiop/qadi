@@ -426,7 +426,7 @@ Order: the check that cannot fail (62), the gate that protects v1.6's new names 
 - [x] **Phase 62: Type pins that can fail** - A negative callable pin on an `Effect`- or `Stream`-returning function can fail for valid arguments, the one vacuous pin is rewritten, every remaining pin is controlled, and a gate keeps the count exact (ARCH-109, tests and gate) (completed 2026-11-20)
 - [x] **Phase 63: The packed-install gate probes every new public name** - Gate 14's consumer compiles and runs `makeGatesFeed`, `makeDiagnosticsFeed` and a typed `DecisionCacheShape` host cache, and fails if a `make*Feed` export is left unprobed (ARCH-110, script) (completed 2026-11-20)
 - [x] **Phase 64: One throwing listener cannot silence the rest** - Devtools' `ExternalStore` calls every listener, then rethrows what was thrown (ARCH-111, devtools; D1, D7) (completed 2026-11-20)
-- [ ] **Phase 65: Only `admit` builds an `Admitted`** - A private constructor and member make `admit` the only builder, and the `"asked"` row's flags are derived from the matcher context; bench-gated (ARCH-112, core)
+- [x] **Phase 65: Only `admit` builds an `Admitted`** - A private constructor and member make `admit` the only builder, and the `"asked"` row's flags are derived from the matcher context; bench-gated (ARCH-112, core) (completed 2026-11-20)
 - [ ] **Phase 66: The decoder reads only what it declares** - Under `ignore`, `project` reads only declared keys; hydration's `refuse` policy is recorded; bench-gated (ARCH-113, core; D2, D4)
 - [ ] **Phase 67: No equivalent mutants, no magic race bound** - `DecisionCache`'s eviction and `SharedComputation`'s claim dispatch lose their equivalent mutants, and the I5 race test loses its step-count bound (ARCH-114, core; D5)
 - [ ] **Phase 68: Hygiene and recorded close-outs** - Named over-width lines, stale titles and ADR wrapping fixed; port cards recorded as private; two settled items evidenced; Phase 62 re-verified (ARCH-115; D3, D8, D9)
@@ -535,7 +535,7 @@ Plans:
   4. A 3 + 3 interleaved benchmark of the committed source against the phase base, with Phase 59's harness and bands, shows no workload slower beyond its band.
 
 **Planning notes**: Open choices left to the planner: the pin's wording (a short fragment such as `is private`, because only the TypeScript 6.0.3 message was observed and tsgo 7.0.2's wording is unverified, or `toRaiseError(2673)`, which holds even with bad arguments; the context fixes `@ts-expect-error`, so a code check is an addition, not a replacement); whether `declare private readonly …` works under this tsconfig (unverified) and that the existing `keyof Admitted` pins stay green (private members are excluded from `keyof`). 59a's RED is unverified: behavioural agreement already holds, so a value test cannot be RED, and the only candidate is an accessor-counting `Question.resource`; the compiler does not guard it either (`SuppliedBy.asked` has `boolean` fields), so say so in the INV. Do not use `not.toBeConstructableWith` (reason-blind). Scope any grep or gate to `packages/core/src/Admission.ts`: `packages/audit/src/CircuitBreaker.ts` has an unrelated `new Admitted(...)`. Keep the table shape so a new row source still fails to compile. Plan shape, RED first: the mutation base for `Admission.ts`, `Walk.ts` and `Predicate.ts` and the construction pins first; then the class; then the derivation; then the bench on the committed source; then records.
-**Plans**: 6/6 plans executed
+**Plans**: 6/6 plans complete
 **Wave 1**
 - [x] 65-01-PLAN.md — the mutation base, then both construction pins and the getter cases RED on the base
 
@@ -620,7 +620,7 @@ Phases execute in numeric order: 62 → 63 → 64 → 65 → 66 → 67 → 68
 | 62. Type pins that can fail | 8/8 | Complete    | 2026-11-20 |
 | 63. The packed-install gate probes every new public name | 5/5 | Complete    | 2026-11-20 |
 | 64. One throwing listener cannot silence the rest | 5/5 | Complete    | 2026-11-20 |
-| 65. Only `admit` builds an `Admitted` | 6/6 | In Progress | - |
+| 65. Only `admit` builds an `Admitted` | 6/6 | Complete    | 2026-11-20 |
 | 66. The decoder reads only what it declares | 0/TBD | Not started | - |
 | 67. No equivalent mutants, no magic race bound | 0/TBD | Not started | - |
 | 68. Hygiene and recorded close-outs | 0/TBD | Not started | - |
