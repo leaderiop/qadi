@@ -556,3 +556,111 @@ describe("unknownKeys (KEYP-02, D-16)", () => {
     }
   });
 });
+
+/**
+ * What the `ignore` projection reads of an in-process value, counted by accessors: the own enumerable key names, then
+ * each kept value once, and an own `_tag` once more where a union's member is chosen by it. A one-object schema chooses
+ * no member, so its `_tag`, when declared, is read once, as a kept value. The projection is the top level only: one level
+ * down the depth guard and the decode read what they walk, and under `refuse` nothing is projected, so the walk and the
+ * guard read the input's own accessors. Each input is built with `Object.defineProperty`, because a spread would run the
+ * accessors it copies.
+ */
+describe("what the ignore projection reads of an in-process value", () => {
+  /** An object of enumerable accessors, in the order given, each counting its reads and answering what `answer` returns. */
+  const accessors = (answers: ReadonlyArray<readonly [string, () => unknown]>) => {
+    const reads = new Map<string, number>();
+    const input = {};
+    for (const [key, answer] of answers) {
+      Object.defineProperty(input, key, {
+        enumerable: true,
+        get: (): unknown => {
+          reads.set(key, (reads.get(key) ?? 0) + 1);
+          return answer();
+        },
+      });
+    }
+    return { input, reads: (key: string): number => reads.get(key) ?? 0 };
+  };
+  const throwing = (): never => {
+    throw new Error("the accessor was read");
+  };
+  const Either = () =>
+    Schema.Union([
+      Schema.TaggedStruct("A", { a: Schema.Number }),
+      Schema.TaggedStruct("B", { b: Schema.Number }),
+    ]);
+
+  it("U22 an undeclared accessor that throws is never invoked, and the declared value is read once", () => {
+    const ignore = untrustedDecoder(Needs, { unknownKeys: "ignore" });
+    const { input, reads } = accessors([["a", () => 1], ["extra", throwing]]);
+    assert.deepStrictEqual(successOf(ignore.decode(input)), { a: 1 });
+    assert.deepStrictEqual([reads("a"), reads("extra")], [1, 0]);
+  });
+
+  it("U23 a one-object schema chooses no member, so an undeclared _tag accessor is never invoked", () => {
+    const ignore = untrustedDecoder(Needs, { unknownKeys: "ignore" });
+    const { input, reads } = accessors([["_tag", throwing], ["a", () => 1]]);
+    assert.deepStrictEqual(successOf(ignore.decode(input)), { a: 1 });
+    assert.deepStrictEqual([reads("_tag"), reads("a")], [0, 1]);
+  });
+
+  it("U24 a union reads its own _tag twice, to choose the member and to copy it, the member's value once, and the other member's key never", () => {
+    const ignore = untrustedDecoder(Either(), { unknownKeys: "ignore" });
+    const { input, reads } = accessors([["a", throwing], ["_tag", () => "B"], ["b", () => 2]]);
+    assert.deepStrictEqual(successOf(ignore.decode(input)), { _tag: "B", b: 2 });
+    assert.deepStrictEqual([reads("_tag"), reads("b"), reads("a")], [2, 1, 0]);
+  });
+
+  it("U25 with unwalked slots, each declared value is read once, by the projection, and an undeclared accessor never", () => {
+    const ignore = untrustedDecoder(Slots, { unknownKeys: "ignore", unwalked: ["entries", "raw"] });
+    const { input, reads } = accessors([["id", () => "x"], ["entries", () => []], ["raw", () => null], ["extra", throwing]]);
+    assert.deepStrictEqual(successOf(ignore.decode(input)), { id: "x", entries: [], raw: null });
+    assert.deepStrictEqual([reads("id"), reads("entries"), reads("raw"), reads("extra")], [1, 1, 1, 0]);
+  });
+
+  it("U26 an inherited or a non-enumerable _tag chooses no member: prepare receives the first member's keys", () => {
+    const seen: Array<unknown> = [];
+    const ignore = untrustedDecoder(Either(), {
+      unknownKeys: "ignore",
+      prepare: (input) => {
+        seen.push(input);
+        return Result.succeed(input);
+      },
+    });
+    class InheritsB {
+      get _tag(): string {
+        return "B";
+      }
+    }
+    const hidden = { a: 1, b: 2 };
+    Object.defineProperty(hidden, "_tag", { enumerable: false, value: "B" });
+    assert.strictEqual(tagOf(ignore.decode(Object.assign(new InheritsB(), { a: 1, b: 2 }))), "Malformed");
+    assert.strictEqual(tagOf(ignore.decode(hidden)), "Malformed");
+    assert.deepStrictEqual(seen, [{ a: 1 }, { a: 1 }]);
+  });
+
+  it("U27 under refuse nothing is projected: the walk and the guard read the input's own accessors, so one that throws is thrown out of the decode", () => {
+    const refuse = untrustedDecoder(Needs, { unknownKeys: "refuse" });
+    const flat = accessors([["a", () => 1], ["extra", throwing]]);
+    assert.throws(() => refuse.decode(flat.input), "the accessor was read");
+    assert.strictEqual(flat.reads("extra"), 1);
+    const refuseSlots = untrustedDecoder(Slots, { unknownKeys: "refuse", unwalked: ["entries", "raw"] });
+    const unwalked = accessors([["id", () => "x"], ["entries", () => []], ["raw", throwing]]);
+    assert.throws(() => refuseSlots.decode(unwalked.input), "the accessor was read");
+    assert.strictEqual(unwalked.reads("raw"), 1);
+  });
+
+  it("U28 the projection is the top level only: an undeclared accessor one level down is read by the depth guard", () => {
+    const ignore = untrustedDecoder(Schema.Struct({ inner: Needs }), { unknownKeys: "ignore" });
+    const inner = accessors([["a", () => 1], ["extra", throwing]]);
+    assert.throws(() => ignore.decode({ inner: inner.input }), "the accessor was read");
+    assert.strictEqual(inner.reads("extra"), 1);
+  });
+
+  it("U29 a one-object schema that declares _tag reads it once, as a kept value, and never to choose a member", () => {
+    const ignore = untrustedDecoder(Schema.TaggedStruct("A", { a: Schema.Number }), { unknownKeys: "ignore" });
+    const { input, reads } = accessors([["_tag", () => "A"], ["a", () => 1]]);
+    assert.deepStrictEqual(successOf(ignore.decode(input)), { _tag: "A", a: 1 });
+    assert.deepStrictEqual([reads("_tag"), reads("a")], [1, 1]);
+  });
+});

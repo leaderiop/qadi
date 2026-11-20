@@ -613,3 +613,101 @@ describe("askRemotely reply", () => {
       assert.strictEqual(answer, "eng");
     }));
 });
+
+/*
+ * An in-process value handed to the two `ignore` seams: an undeclared top-level accessor is never invoked, and each
+ * declared top-level value is read once (a record's `_tag` twice: once to choose the member, once to copy it), so a
+ * declared accessor that throws is thrown out of the decode. Each input is built with `Object.defineProperty`, because
+ * a spread would run the accessors it copies.
+ */
+describe("the ignore seams read an in-process value's declared keys only", () => {
+  /** An object of enumerable accessors, in the order given, each counting its reads and answering what `answer` returns. */
+  const accessors = (answers: ReadonlyArray<readonly [string, () => unknown]>) => {
+    const reads = new Map<string, number>();
+    const input = {};
+    for (const [key, answer] of answers) {
+      Object.defineProperty(input, key, {
+        enumerable: true,
+        get: (): unknown => {
+          reads.set(key, (reads.get(key) ?? 0) + 1);
+          return answer();
+        },
+      });
+    }
+    return { input, reads: (key: string): number => reads.get(key) ?? 0 };
+  };
+  const throwing = (): never => {
+    throw new Error("the accessor was read");
+  };
+  /** A valid record's keys, each an accessor answering its wire value, then `extra`. */
+  const recordAccessors = (extra: ReadonlyArray<readonly [string, () => unknown]>) =>
+    accessors([
+      ...Object.entries(validRecord()).map(([key, value]): readonly [string, () => unknown] => [key, () => value]),
+      ...extra,
+    ]);
+
+  it("R15 the record wire: an undeclared accessor that throws is never invoked, on both value entry points", () => {
+    const { input, reads } = recordAccessors([["addedLater", throwing]]);
+    let refusals: ReadonlyArray<DecodeRefusal | undefined> = [];
+    assert.doesNotThrow(() => {
+      refusals = wireRefusals(input, undefined);
+    });
+    assert.deepStrictEqual(refusals, [undefined, undefined]);
+    assert.strictEqual(reads("addedLater"), 0);
+  });
+
+  it("R16 the record wire: each declared value is read once and _tag twice, on each value entry point", () => {
+    for (const decode of [decodeSinkRecord, decodeSinkRecordWithJson]) {
+      const { input, reads } = recordAccessors([["addedLater", () => "x"]]);
+      assert.isUndefined(refusalIn(decode(input)));
+      assert.strictEqual(reads("addedLater"), 0);
+      const counts = Object.keys(validRecord()).map((key) => [key, reads(key)]);
+      assert.deepStrictEqual(counts, Object.keys(validRecord()).map((key) => [key, key === "_tag" ? 2 : 1]));
+    }
+  });
+
+  it("R17 the record wire: a declared accessor that throws is thrown out of both value entry points, because the projection reads each declared value", () => {
+    for (const decode of [decodeSinkRecord, decodeSinkRecordWithJson]) {
+      const { input } = accessors(
+        Object.entries(validRecord()).map(([key, value]): readonly [string, () => unknown] => [
+          key,
+          key === "subjectId" ? throwing : () => value,
+        ]),
+      );
+      assert.throws(() => decode(input), "the accessor was read");
+    }
+  });
+
+  it("S16 the stored envelope: an undeclared accessor and an undeclared _tag accessor are never invoked, and environment and record are read once", () => {
+    const { input, reads } = accessors([
+      ["environment", () => "prod"],
+      ["record", validRecord],
+      ["addedLater", throwing],
+      ["_tag", throwing],
+    ]);
+    let refusals: ReadonlyArray<DecodeRefusal | undefined> = [];
+    assert.doesNotThrow(() => {
+      refusals = storedRefusals(input, undefined);
+    });
+    assert.deepStrictEqual(refusals, [undefined]);
+    assert.deepStrictEqual([reads("environment"), reads("record"), reads("addedLater"), reads("_tag")], [1, 1, 0, 0]);
+  });
+
+  it("S17 the stored envelope: the record's own undeclared accessor is never invoked by the record wire it is handed to", () => {
+    const record = recordAccessors([["addedLater", throwing]]);
+    let refusals: ReadonlyArray<DecodeRefusal | undefined> = [];
+    assert.doesNotThrow(() => {
+      refusals = storedRefusals({ environment: "prod", record: record.input }, undefined);
+    });
+    assert.deepStrictEqual(refusals, [undefined]);
+    assert.strictEqual(record.reads("addedLater"), 0);
+  });
+
+  it("S18 the stored envelope: a declared accessor that throws is thrown out of it, because the projection reads each declared value", () => {
+    const { input } = accessors([
+      ["environment", throwing],
+      ["record", validRecord],
+    ]);
+    assert.throws(() => decodeStoredRecord(input), "the accessor was read");
+  });
+});
