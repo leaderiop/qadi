@@ -85,9 +85,9 @@ const fail = (message) => failures.push(message);
  *
  * A type has no runtime key, so unlike the feeds it cannot be read from the
  * artifact and is written out; deleting the whole host-cache probe would
- * otherwise leave the gate green.
+ * otherwise leave the gate green, and so would deleting only the typed literals of the gates probe.
  */
-const TYPE_ONLY_PROBES = ["DecisionCacheShape"];
+const TYPE_ONLY_PROBES = ["DecisionCacheShape", "GateInstanceLike", "GateRegistryLike"];
 
 /**
  * The type names check 4's consumer must refuse an old shape against, each
@@ -99,7 +99,10 @@ const TYPE_ONLY_PROBES = ["DecisionCacheShape"];
  * otherwise leave the gate green, and a directive on another property would
  * otherwise stand in for it.
  */
-const REFUSED_SHAPE_PROBES = new Map([["DecisionCacheShape", "getOrCompute"]]);
+const REFUSED_SHAPE_PROBES = new Map([
+  ["DecisionCacheShape", "getOrCompute"],
+  ["DiagnosticsOptions", "schedule"],
+]);
 
 /** Workspace-time protocols. Valid in a manifest, meaningless in a tarball. */
 const UNRESOLVED = /^(catalog:|workspace:|link:|file:|portal:)/;
@@ -629,7 +632,7 @@ expect("diagnostics feed first read sets hydration", diagnosed.hydration, true);
 
 // DiagnosticsOptions has a cadence in milliseconds and no \`schedule\`.
 const noSchedule: DiagnosticsOptions = {
-  // @ts-expect-error a cadence is a number, not a Schedule
+  // @ts-expect-error schedule is not an option, a cadence is a number
   schedule: "immediate",
 };
 
@@ -864,6 +867,7 @@ if (consumerReady) {
 
       const visit = (node, inRefusal) => {
         let inner = inRefusal;
+        // shortcut: a call written but never run (an uninvoked arrow, a shadowed name) passes here; the probes' own expect() assertions catch a dead probe, upgrade to reachability analysis if one slips through.
         if (isCallExpression(node) && isIdentifier(node.expression)) called.add(node.expression.text);
         if (isTypeReferenceNode(node) && isIdentifier(node.typeName) && !inRefusal) {
           typed.add(node.typeName.text);
