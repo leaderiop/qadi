@@ -493,10 +493,12 @@ const SinkRecordWithJson = SinkRecordJson.pipe(
  * then the strict decode (a typo'd field inside the embedded policy fails
  * rather than decoding with the grant silently dropped, ADR-QD-002). The one
  * place an unknown key is tolerated is the envelope's top level, and it is
- * tolerated however deep its value, because the projection drops it before
- * anything walks it (GH-01, ADR-QD-096, ADR-QD-170). No `Result.try` around
- * the decode: the guard is what makes it safe, and a throw past it would be a
- * library defect that should stay visible.
+ * tolerated however deep its value, because the projection drops it by its
+ * name before anything reads or walks its value (GH-01, ADR-QD-096,
+ * ADR-QD-170). No `Result.try` around the decode: the guard is what makes it
+ * safe for a JSON value, and a throw past it would be a library defect that
+ * should stay visible. An in-process value's accessor that the decoder reads
+ * and that throws is thrown out (INV-QD-377).
  */
 const sinkWire = untrustedDecoder(SinkRecordWithJson, { unknownKeys: "ignore", prepare: checkVersion });
 
@@ -514,8 +516,10 @@ export const decodeSinkRecordWithJson = (input: unknown): Result.Result<DecodedS
 /**
  * Untrusted input as a record, or the reason it is not one.
  *
- * The projection onto the envelope's declared keys runs first, so an unknown
- * key never reaches the guard or the decode, then the depth guard, so the
+ * The projection onto the envelope's declared keys runs first: it reads each
+ * declared value once, the union's `_tag` twice (once to choose the member,
+ * once as a kept value), and an unknown key's value never, so an unknown key
+ * never reaches the guard or the decode. Then the depth guard, so the
  * schema's recursion through `Policy` and `Trace` cannot overflow, then the
  * version, then the strict decode, all inside the decoder ({@link sinkWire});
  * the result is rebuilt into record classes. A record with no `version` is a
@@ -594,11 +598,12 @@ const StoredEnvelopeWire = Schema.Struct({ environment: Schema.String, record: S
 /**
  * The untrusted decoder for the stored envelope, built once.
  *
- * `ignore` drops an undeclared top-level key before the guard, so a newer
- * server's additive metadata is ignored however deep (ADR-QD-096 D-15-c,
- * ADR-QD-170). `record` is `unwalked`: the guard leaves it out, because
- * {@link decodeSinkRecord} guards it from its own root (INV-QD-306).
- * `environment` is declared and walked, so one nested past the bound is `TooDeep`.
+ * `ignore` drops an undeclared top-level key by its name, so its value is
+ * never read or walked and a newer server's additive metadata is ignored
+ * however deep (ADR-QD-096 D-15-c, ADR-QD-170). `record` is `unwalked`: the
+ * guard leaves it out, because {@link decodeSinkRecord} guards it from its own
+ * root (INV-QD-306). `environment` is declared and walked, so one nested past
+ * the bound is `TooDeep`.
  */
 const storedWire = untrustedDecoder(StoredEnvelopeWire, { unknownKeys: "ignore", unwalked: ["record"] });
 
@@ -622,10 +627,10 @@ const fromEnvelope = (
  * `ignore` and `record` unwalked, and `record` then goes through
  * {@link decodeSinkRecord}, so every rule about the record (depth, version,
  * strictness inside the policy) is that function's. A top-level envelope key
- * this reader does not declare is ignored however deep and never walked, as
- * {@link decodeSinkRecord} ignores one on the record (ADR-QD-096 D-15-c,
- * ADR-QD-170): a newer server's additive metadata must not refuse every frame for
- * the length of a rolling deploy.
+ * this reader does not declare is ignored however deep, its value never read
+ * or walked, as {@link decodeSinkRecord} ignores one on the record
+ * (ADR-QD-096 D-15-c, ADR-QD-170): a newer server's additive metadata must not
+ * refuse every frame for the length of a rolling deploy.
  *
  * **A refusal carries the strict decoder's message** (ADR-QD-170 D-17): `Expected
  * object` for a non-object, `Missing key` at `environment` or `record`,
@@ -641,7 +646,9 @@ const fromEnvelope = (
  *
  * The record is rebuilt by {@link decodeSinkRecord} and the envelope's own
  * `environment` placed beside it, so the environment is the producer's, never the
- * reader's. Never throws.
+ * reader's. Never throws on a JSON value; an in-process value's declared
+ * accessor that throws is thrown out of it, because the projection reads each
+ * declared value (INV-QD-377).
  */
 export const decodeStoredRecord = (input: unknown): Result.Result<StoredRecord, SinkRecordNotDecodable> =>
   fromEnvelope(storedWire.decode(input));
