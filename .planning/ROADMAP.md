@@ -477,7 +477,23 @@ Plans:
   4. A deliberately removed probe is shown failing gate 14, and the DoD table is unchanged.
 
 **Planning notes**: Script only; this phase must not depend on Phases 64 to 68. Build order from the research: the guard first (RED: two names unprobed), then the probes (GREEN), then a recorded removed-probe failure, then records. Any "gate 14" in a record must name `scripts/check-package-install.mjs` (`scripts/check-dod-table.mjs` checks the numbers). The fixture is one `FIXTURE` template literal: escape backticks and `${`. Decisions left to the planner: the gates-feed assertion (recommended: a registry with one instance and assert `Read` with count 1; asserting `Unwatched` would be vacuous, since it is the initial value); the diagnostics loop (recommended: yield until the condition holds with a cap of 200, then fail with the observed state, close the scope so the 2000 ms default sleep is never awaited, and add a pin that `schedule` is refused; whether 20 fixed turns would suffice is unverified); host cache depth (recommended: run it twice and assert `calls` and a `hit`, delegating `getOrCompute`, `size` and `clear`, because a type-only proof proves less); and whether ADR-QD-176 is needed.
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+**Wave 1**
+- [ ] 63-01-PLAN.md — the probe guard, alone and RED on the base (`makeDiagnosticsFeed, makeGatesFeed` uncalled; `DecisionCacheShape` neither typed nor refused), its fail-closed paths shown (a missing parser module included), mutation scope recorded empty
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 63-02-PLAN.md — the three probes (gates feed, diagnostics feed, `DecisionCacheShape` host cache with the pre-0.13 refusal); gate 14 green
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 63-03-PLAN.md — the removed and broken probes, each shown failing gate 14 in scratch copies (the host cache and the refused pre-0.13 literal apart), the DoD table unchanged
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 63-04-PLAN.md — ADR-QD-033 amended, traced and registered as CCR-QD-454; one sentence each in AGENTS.md section 16 and the DoD
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 63-05-PLAN.md — the close scan over the whole range, edge coverage, `pnpm check:pr`, PROBE-01..05 complete
 
 ### Phase 64: One throwing listener cannot silence the rest
 
