@@ -63,7 +63,7 @@
  * `REFUSED_SHAPE_PROBES` must annotate a literal there that holds a
  * `@ts-expect-error` naming the member paired with it. So a public name the
  * consumer never compiles cannot ship unnoticed, and a refusal cannot be deleted
- * together with its directive or stood in for by a directive on another property.
+ * together with its directive.
  * The feed set comes from the artifact, so a new feed is caught without editing
  * this file. TypeScript's parse (`typescript/unstable/*`, loaded when the check
  * runs) decides what is a call, a type use and a refusal, so a comment, a string,
@@ -85,7 +85,8 @@ const fail = (message) => failures.push(message);
  *
  * A type has no runtime key, so unlike the feeds it cannot be read from the
  * artifact and is written out; deleting the whole host-cache probe would
- * otherwise leave the gate green, and so would deleting only the typed literals of the gates probe.
+ * otherwise leave the gate green, and so would deleting only the typed literals
+ * of the gates probe.
  */
 const TYPE_ONLY_PROBES = ["DecisionCacheShape", "GateInstanceLike", "GateRegistryLike"];
 
@@ -96,8 +97,8 @@ const TYPE_ONLY_PROBES = ["DecisionCacheShape", "GateInstanceLike", "GateRegistr
  * A refusal is a literal annotated with the type that holds a `@ts-expect-error`
  * naming the refused member. The compiler fails an unused directive, but nothing
  * else keeps the literal, so deleting it together with its directive would
- * otherwise leave the gate green, and a directive on another property would
- * otherwise stand in for it.
+ * otherwise leave the gate green. The directive is matched by its text anywhere
+ * in the declaration, not attached to the refused property.
  */
 const REFUSED_SHAPE_PROBES = new Map([
   ["DecisionCacheShape", "getOrCompute"],
@@ -867,7 +868,9 @@ if (consumerReady) {
 
       const visit = (node, inRefusal) => {
         let inner = inRefusal;
-        // shortcut: a call written but never run (an uninvoked arrow, a shadowed name) passes here; the probes' own expect() assertions catch a dead probe, upgrade to reachability analysis if one slips through.
+        // shortcut: a call written but never run (an uninvoked arrow, a shadowed
+        // name) passes here, and so do the probe's expect() calls beside it, which
+        // never run either; upgrade to reachability analysis if one slips through.
         if (isCallExpression(node) && isIdentifier(node.expression)) called.add(node.expression.text);
         if (isTypeReferenceNode(node) && isIdentifier(node.typeName) && !inRefusal) {
           typed.add(node.typeName.text);
