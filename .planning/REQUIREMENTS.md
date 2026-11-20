@@ -41,16 +41,16 @@ Every phase runs on branch `arch-wave-12`, strictly serial.
 
 ### One throwing listener cannot silence the rest (Phase 64, ARCH-111, devtools; D1, D7)
 
-- [ ] **LSTN-01**: RED tests on the phase base: when one listener throws, a later listener is still called; when two
+- [x] **LSTN-01**: RED tests on the phase base: when one listener throws, a later listener is still called; when two
   throw, one `AggregateError` carrying both is thrown; a single error is rethrown as the same value (including
   `undefined`); with no throw, behaviour is unchanged; subscribe- and unsubscribe-during-notify keep today's live-iteration
   semantics.
-- [ ] **LSTN-02**: `ExternalStore`'s notify calls every listener and then rethrows as LSTN-01 states; each of the three
+- [x] **LSTN-02**: `ExternalStore`'s notify calls every listener and then rethrows as LSTN-01 states; each of the three
   feeds is tested through `@qadi/devtools`' root.
-- [ ] **LSTN-03**: Every text that says a listener must not throw or is not isolated (the three feeds' `subscribe` docs,
+- [x] **LSTN-03**: Every text that says a listener must not throw or is not isolated (the three feeds' `subscribe` docs,
   the `GatesFeed` module doc, the devtools README, BEH text in `spec/behaviors/28-devtools-screens.md`) states the new
   contract, keeps an accurate caveat for the publish-before-fork window, which stays out of scope (D7).
-- [ ] **LSTN-04**: The dock's `*.characterisation.test.tsx` files pass with an empty diff, and a `@qadi/devtools` patch
+- [x] **LSTN-04**: The dock's `*.characterisation.test.tsx` files pass with an empty diff, and a `@qadi/devtools` patch
   changeset records the change.
 
 ### Only `admit` builds an `Admitted` (Phase 65, ARCH-112, core; bench-gated)
@@ -156,10 +156,10 @@ The seven WX rows apply to every phase 62 to 68, so each phase's Requirements li
 | PROBE-03 | Phase 63 | Complete |
 | PROBE-04 | Phase 63 | Complete |
 | PROBE-05 | Phase 63 | Complete |
-| LSTN-01 | Phase 64 | Pending |
-| LSTN-02 | Phase 64 | Pending |
-| LSTN-03 | Phase 64 | Pending |
-| LSTN-04 | Phase 64 | Pending |
+| LSTN-01 | Phase 64 | Complete |
+| LSTN-02 | Phase 64 | Complete |
+| LSTN-03 | Phase 64 | Complete |
+| LSTN-04 | Phase 64 | Complete |
 | ADMT-01 | Phase 65 | Pending |
 | ADMT-02 | Phase 65 | Pending |
 | ADMT-03 | Phase 65 | Pending |
