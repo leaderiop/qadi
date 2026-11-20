@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-170                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-19                                     |
 > | Status         | Accepted — amends ADR-QD-096, ADR-QD-143; keeps ADR-QD-153; amended 2026-11-20 (the ignore projection reads only what it declares; the hydration payload stays refuse) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-20): amendment — the ignore projection reads only what it declares; the hydration payload stays refuse (ARCH-113, CCR-QD-457)<br>1.0 (2026-11-19): Initial release (ARCH-104, CCR-QD-448) |
+> | Change History | 1.2 (2026-11-20): amendment: _tag is read to choose a member only when the schema flattens to more than one; the bench gate names its statistic, the median of per-run minima (phase 66 review IN-01, IN-04)<br>1.1 (2026-11-20): amendment — the ignore projection reads only what it declares; the hydration payload stays refuse (ARCH-113, CCR-QD-457)<br>1.0 (2026-11-19): Initial release (ARCH-104, CCR-QD-448) |
 
 ---
 
@@ -55,8 +55,8 @@ happens to nest past 256 levels.
    union with no distinct literal `_tag`, throws when the decoder is built, with a message beginning
    `unknownKeys "ignore" needs`. No hand-written key set survives anywhere.
 4. **D-19: the projection runs first.** The order is project, guard, `prepare`, decode. The projection is a top-level
-   copy that reads the input's own key names, then each declared key's value once, a union's `_tag` once more to choose
-   the member, and an undeclared key's value never (since the 2026-11-20 amendment; it read every own value before), so
+   copy that reads the input's own key names, then each declared key's value once, a `_tag` once more to choose
+   the member when the schema flattens to more than one, and an undeclared key's value never (since the 2026-11-20 amendment; it read every own value before), so
    it cannot overflow and changes no declared key's answer. The precedence D-15-c
    fixes is kept for every declared key: `TooDeep`, then `UnsupportedVersion`, then `Malformed`. `prepare` receives the
    projection; under `refuse` the projection is the input, so hydration's `checkVersion` is unchanged. This amends D-15-c's
@@ -164,9 +164,9 @@ D-19 said more than the code held, and D-09 left one question open. Both are set
   `JSON.parse` result, whose values are data, but `decodeSinkRecord`, `decodeSinkRecordWithJson` and
   `decodeStoredRecord` take any value. The projection now takes the input's own enumerable key names, keeps those the
   member declares, and reads each kept value once into a fresh object, so an undeclared value is never read, an
-  accessor's included. A union's member is chosen by the input's own enumerable `_tag`, which is therefore read twice,
-  once to choose and once as a kept value. A one-object schema, such as the stored envelope, chooses no member, so no
-  `_tag` is read to choose one: a declared `_tag` is read once, as a kept value, and an undeclared `_tag` accessor is
+  accessor's included. The input's own enumerable `_tag` is read to choose a member only when the schema flattens to more than one,
+  so there it is read twice, once to choose and once as a kept value. A schema that flattens to one member, such as
+  the stored envelope or a union of one, chooses no member, so no `_tag` is read to choose one: a declared `_tag` is read once, as a kept value, and an undeclared `_tag` accessor is
   never invoked. Only the top level is projected: the depth guard and the strict decode still read what lies under a
   kept value, accessors included, and under `refuse`, where nothing is projected, every own value of the input is read,
   declared or not. Making those reads accessor-safe was weighed and left out: this amendment states them rather than
@@ -179,8 +179,10 @@ D-19 said more than the code held, and D-09 left one question open. Both are set
 
 `untrustedDecoder`'s signature, the untrusted-decode budget and every refusal are unchanged; a `@qadi/core` patch
 changeset records the change. The committed source was measured against the source before the change on the `ignore`
-seams' workloads, 3 + 3 interleaved: no workload was more than 5% slower, and the geometric mean of the deltas was no worse
-than +2%.
+seams' workloads, 3 + 3 interleaved. The gate is on the median of per-run minima: no workload was more than 5% slower
+by it, and the geometric mean of those deltas was no worse than +2%. The p50 and the mean of each workload are
+recorded beside it and decide nothing; the means are the noisier, and the phase's `66-BENCH.md` and its
+`bench/final/analysis.tsv` hold them.
 
 ## Related
 

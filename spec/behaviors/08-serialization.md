@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-08                                    |
-> | Revision       | 1.6                                            |
+> | Revision       | 1.7                                            |
 > | Effective Date | 2026-09-19                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.6 (2026-11-20): BEH-QD-666; BEH-QD-622 and BEH-QD-623 amended (ARCH-113, CCR-QD-457)<br>1.5 (2026-11-19): BEH-QD-621 refuses an open object member (an index signature or a rest element) too<br>1.4 (2026-11-19): BEH-QD-621..623, the unknown-key policy; BEH-QD-486 takes required options (ADR-QD-170)<br>1.3 (2026-11-12): BEH-QD-057 drops PolicyFromJson and adds PolicyNotJson; BEH-QD-059 restated (the bound lives in UntrustedDecode.ts); BEH-QD-486 and BEH-QD-487 new (ARCH-78, CCR-QD-421)<br>1.2 (2026-09-19): BEH-QD-058 narrowed — the round-trip guarantee holds for policies whose segment-shaped and `HasRelationship.depth` fields already satisfy the checks decode enforces (`toJson`/`toJsonValue` do not re-run them on the way out), not for every `Policy` value the type admits; BEH-QD-059 gains a requirement that decoding reject a non-integer, negative, or out-of-`[0, DEFAULT_MAX_DEPTH]` `HasRelationship.depth` — previously a bare `Schema.Number` deferred entirely to `Evaluate.ts`'s runtime clamp (100-lens audit: BL-05, GB-02, MO-02, NW-02; GC-03, WZ-02)<br>1.1 (2026-09-08): BEH-QD-057 — `fromJson` took `json: unknown`, not `string`, and both `fromJson`/`fromJsonValue` were missing `PolicyDecodeTooDeep` from the error channel; BEH-QD-059 now names `PolicyDecodeTooDeep` as the error enforcing the recursion bound (CCR-QD-125)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.7 (2026-11-20): BEH-QD-666 reads _tag to choose a member only when the schema flattens to more than one (phase 66 review IN-01)<br>1.6 (2026-11-20): BEH-QD-666; BEH-QD-622 and BEH-QD-623 amended (ARCH-113, CCR-QD-457)<br>1.5 (2026-11-19): BEH-QD-621 refuses an open object member (an index signature or a rest element) too<br>1.4 (2026-11-19): BEH-QD-621..623, the unknown-key policy; BEH-QD-486 takes required options (ADR-QD-170)<br>1.3 (2026-11-12): BEH-QD-057 drops PolicyFromJson and adds PolicyNotJson; BEH-QD-059 restated (the bound lives in UntrustedDecode.ts); BEH-QD-486 and BEH-QD-487 new (ARCH-78, CCR-QD-421)<br>1.2 (2026-09-19): BEH-QD-058 narrowed — the round-trip guarantee holds for policies whose segment-shaped and `HasRelationship.depth` fields already satisfy the checks decode enforces (`toJson`/`toJsonValue` do not re-run them on the way out), not for every `Policy` value the type admits; BEH-QD-059 gains a requirement that decoding reject a non-integer, negative, or out-of-`[0, DEFAULT_MAX_DEPTH]` `HasRelationship.depth` — previously a bare `Schema.Number` deferred entirely to `Evaluate.ts`'s runtime clamp (100-lens audit: BL-05, GB-02, MO-02, NW-02; GC-03, WZ-02)<br>1.1 (2026-09-08): BEH-QD-057 — `fromJson` took `json: unknown`, not `string`, and both `fromJson`/`fromJsonValue` were missing `PolicyDecodeTooDeep` from the error channel; BEH-QD-059 now names `PolicyDecodeTooDeep` as the error enforcing the recursion bound (CCR-QD-125)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -261,10 +261,12 @@ REQUIREMENT: Under `ignore`, the projection of a plain object MUST read its
              once. It MUST NOT read the value of an undeclared key, so an
              undeclared accessor on an in-process value is never invoked.
 REQUIREMENT: Choosing the member MUST read the object's own enumerable `_tag`
-             only for a union, once, so a union's `_tag` is read twice: once
-             to choose the member and once as a kept value. A one-object
-             schema chooses no member: a declared `_tag` MUST be read once, as
-             a kept value, and an undeclared `_tag` accessor MUST NOT be
+             to choose it only when the schema flattens to more than one
+             object member, and then the `_tag` is read twice: once to
+             choose the member and once as a kept value. A schema that
+             flattens to one member, a one-object schema or a union of one,
+             chooses no member: a declared `_tag` MUST be read once, as a
+             kept value, and an undeclared `_tag` accessor MUST NOT be
              invoked.
 ```
 
@@ -272,8 +274,9 @@ REQUIREMENT: Choosing the member MUST read the object's own enumerable `_tag`
 value, not only what `JSON.parse` returns, and an in-process value can carry
 accessors. The projection used to take the object's own entries, which read every
 own value before it kept the declared ones, so an undeclared accessor that threw
-was thrown out of the decode. A union's own enumerable `_tag` is read twice, once
-to choose the member ([BEH-QD-623](#beh-qd-623-the-declared-keys-are-read-from-the-schemas-encoded-side))
+was thrown out of the decode. Where the schema flattens to more than one member, the
+own enumerable `_tag` is read twice, once to choose the member
+([BEH-QD-623](#beh-qd-623-the-declared-keys-are-read-from-the-schemas-encoded-side))
 and once as a kept value. Only the top level is projected: below it, and
 everywhere under `refuse`, the depth guard and the strict decode still read own
 values, accessors included ([INV-QD-377](../invariants.md#inv-qd-377-the-ignore-projection-never-reads-an-undeclared-value)).
