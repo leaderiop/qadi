@@ -11,10 +11,10 @@ Every phase runs on branch `arch-wave-12`, strictly serial.
 
 ### Type pins that can fail (Phase 62, ARCH-109, tests + gate)
 
-- [ ] **PIN-01**: A characterisation `.tst.ts` pins tstyche's behaviour on this repo: with the Effect language service's
+- [x] **PIN-01**: A characterisation `.tst.ts` pins tstyche's behaviour on this repo: with the Effect language service's
   `floatingEffect` diagnostic on, a negative `not.toBeCallableWith` on an `Effect`- or `Stream`-returning subject passes for
   valid arguments; under the tstyche configuration the phase adds, the same pin fails for valid arguments.
-- [ ] **PIN-02**: tstyche runs under a tsconfig that turns `floatingEffect` off (D6). Every `*.tst.ts` stays green, and a
+- [x] **PIN-02**: tstyche runs under a tsconfig that turns `floatingEffect` off (D6). Every `*.tst.ts` stays green, and a
   check fails if that tsconfig's Effect plugin settings drift from `tsconfig.base.json`'s apart from `floatingEffect`.
 - [ ] **PIN-03**: `DecisionLog.tst.ts:30` is rewritten so that it states its reason (`Parameters<…>` or an equivalent
   reason-checked form), and the rewrite is shown failing once when `environment` is made optional.
@@ -111,15 +111,15 @@ Every phase runs on branch `arch-wave-12`, strictly serial.
   changes, using only its reserved numbers. `node scripts/next-id.mjs` is never run.
 - [ ] **WX-03**: `spec/overview.md` names every added export and drops every removed one (gate 13); this milestone expects
   none.
-- [ ] **WX-04**: Nothing new is added from this list: `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`,
+- [x] **WX-04**: Nothing new is added from this list: `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`,
   ambient `console`/`process.env`/clock, `Record<string, unknown>`, `// Stryker disable`. A budget changes only together
   with its AGENTS.md table.
-- [ ] **WX-05**: Coverage thresholds hold (core at least 95%, the others at least 90%). The Stryker score of touched files
+- [x] **WX-05**: Coverage thresholds hold (core at least 95%, the others at least 90%). The Stryker score of touched files
   does not fall: recorded per phase in `NN-mutation-base.json`, measured with the same invocation at the phase base and
   at close; a drop is closed with a test, never re-baselined.
-- [ ] **WX-06**: Every behaviour change is preceded by a characterisation or regression test written on the phase base:
+- [x] **WX-06**: Every behaviour change is preceded by a characterisation or regression test written on the phase base:
   RED for a defect, green for preserved behaviour. Every new check is shown failing once.
-- [ ] **WX-07**: No D-numbers, plan-local ids or phase numbers enter shipped source, test titles or BDD scenarios. Nothing
+- [x] **WX-07**: No D-numbers, plan-local ids or phase numbers enter shipped source, test titles or BDD scenarios. Nothing
   is released or published, and no version-packages PR is merged.
 
 ## Future Requirements
@@ -146,8 +146,8 @@ The seven WX rows apply to every phase 62 to 68, so each phase's Requirements li
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PIN-01 | Phase 62 | Pending |
-| PIN-02 | Phase 62 | Pending |
+| PIN-01 | Phase 62 | Complete |
+| PIN-02 | Phase 62 | Complete |
 | PIN-03 | Phase 62 | Pending |
 | PIN-04 | Phase 62 | Pending |
 | PIN-05 | Phase 62 | Pending |
@@ -181,10 +181,10 @@ The seven WX rows apply to every phase 62 to 68, so each phase's Requirements li
 | WX-01 | All v1.7 phases | Pending |
 | WX-02 | All v1.7 phases | Pending |
 | WX-03 | All v1.7 phases | Pending |
-| WX-04 | All v1.7 phases | Pending |
-| WX-05 | All v1.7 phases | Pending |
-| WX-06 | All v1.7 phases | Pending |
-| WX-07 | All v1.7 phases | Pending |
+| WX-04 | All v1.7 phases | Complete |
+| WX-05 | All v1.7 phases | Complete |
+| WX-06 | All v1.7 phases | Complete |
+| WX-07 | All v1.7 phases | Complete |
 
 **Coverage:**
 - v1.7 requirements: 39 total (32 phase-specific + 7 cross-cutting)

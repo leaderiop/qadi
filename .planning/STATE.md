@@ -5,16 +5,16 @@ milestone_name: Arch Wave 12
 current_phase: 62
 current_phase_name: Type pins that can fail
 status: executing
-stopped_at: Phase 62 context gathered
-last_updated: "2026-11-20T02:51:25.292Z"
+stopped_at: Completed QD-62-01-PLAN.md
+last_updated: "2026-11-20T02:58:04.230Z"
 last_activity: 2026-11-20
-last_activity_desc: Roadmap created for v1.7 Arch Wave 12 (Phases 62-68)
-state_head: c36fec8f2c8aa095236f7a69d5494a2b3d488581
+last_activity_desc: Phase QD-62 execution started
+state_head: e581ca07f258cc239170ede13e05946ccf331bbd
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 8
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
 ---
 
@@ -25,14 +25,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-19)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 62 - Type pins that can fail (v1.7 Arch Wave 12; roadmap created, ready to plan)
+**Current focus:** Phase QD-62 — Type pins that can fail
 
 ## Current Position
 
-Phase: QD-62 (Type pins that can fail) — READY TO EXECUTE
-Plan: —
-Status: Ready to execute
-Last activity: 2026-11-20 — Roadmap created for v1.7 Arch Wave 12 (Phases 62-68)
+Phase: QD-62 (Type pins that can fail) — EXECUTING
+Plan: 2 of 8
+Status: Executing Phase QD-62
+Last activity: 2026-11-20 — Phase QD-62 execution started
 
 
 ## Performance Metrics
@@ -415,6 +415,7 @@ Last activity: 2026-11-20 — Roadmap created for v1.7 Arch Wave 12 (Phases 62-6
 | Phase 61 P05 | 5min | 2 tasks | 2 files |
 | Phase QD-61 P06 | 15min | 3 tasks | 9 files |
 | Phase 61 P07 | 12min | 3 tasks | 3 files |
+| Phase QD-62 P01 | 20min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -704,6 +705,7 @@ Last activity: 2026-11-20 — Roadmap created for v1.7 Arch Wave 12 (Phases 62-6
 - [Phase QD-59]: 59-08: BEH-QD-632 and BEH-QD-633 state the empty and adjacency edges in their REQUIREMENT blocks, so a fail-open supplied contradicts a requirement
 - [Phase QD-59]: 59-09: CCR-QD-450 names WalkDepthGuard.test.ts and the after-run numbers; Unused: none
 - [Phase QD-59]: 59-10: close check:pr first stopped at spec:gates on a bare 'gate 13' in ADR-QD-172; orchestrator fixed it in 6499d724, check:pr re-run green (16/16)
+- [Phase QD-62]: tstyche compiles under tsconfig.tstyche.json (floatingEffect off); an in-file position directive restores the rule for the characterisation's rule-on half
 
 ### Pending Todos
 
@@ -763,9 +765,9 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-20T00:10:27.898Z
-Stopped at: Phase 62 context gathered
-Resume file: .planning/phases/QD-62-type-pins-that-can-fail/62-CONTEXT.md
+Last session: 2026-11-20T02:58:04.201Z
+Stopped at: Completed QD-62-01-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 
