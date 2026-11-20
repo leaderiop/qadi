@@ -105,7 +105,7 @@ export class Admitted<Source extends RowSource = RowSource> {
    * Admits a question for an interpreter's row source, or refuses it as too deep.
    * Depth is judged on the policy alone (INV-QD-037); what the request supplied
    * is read from the matcher context built here, so the question's resource and
-   * action are each read once (INV-QD-364). It names `Admitted` and never `this`,
+   * action are each read once (INV-QD-376). It names `Admitted` and never `this`,
    * so the module exports it detached as {@link admit}.
    */
   static admit<Source extends RowSource>(
