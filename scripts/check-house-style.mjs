@@ -2364,6 +2364,109 @@ for (const file of srcSources) {
   }
 }
 
+// `[not-callable-control]`: every negative pin has a positive twin in its file, with the same
+// form (callable or constructable), the same kind (a value `expect(x)` or a type `expect<T>()`)
+// and the same subject text, whitespace collapsed. A floor, not a proof: the single-variable
+// property of each twin is reviewed by hand. Every counted pin must be one the parse read, so a
+// pin written in a shape the parse cannot follow fails rather than going unchecked. And a twin
+// must run: a file holding a negative pin may not skip, focus or mark a test as to-do, and may
+// not carry a tstyche directive (an expected failure or a run condition), because a positive
+// pin that tstyche does not run, or runs expecting it to fail, shows nothing. The
+// characterisation is the one exception: it pins the tool with expected failures, and each
+// tstyche pass skips one of its two blocks by title.
+{
+  const CHARACTERISATION = "packages/core/test/FloatingEffectPins.tst.ts";
+  const RUN_MODE = /\.\s*(skip|only|todo)\b/g;
+  const DIRECTIVE = /@tstyche\b/g;
+  const MATCHER = /\s*\.\s*type\s*\.\s*(not\s*\.\s*)?(toBeCallableWith|toBeConstructableWith)\b/y;
+  /**
+   * The offset just past the bracket that closes the one at `start`, or -1. In type arguments,
+   * the `>` of an arrow `=>` does not close.
+   * @param {string} code @param {number} start @param {string} open @param {string} close
+   */
+  const closing = (code, start, open, close) => {
+    let depth = 0;
+    for (let k = start; k < code.length; k += 1) {
+      if (code[k] === open) depth += 1;
+      else if (code[k] === close && !(close === ">" && code[k - 1] === "=")) {
+        depth -= 1;
+        if (depth === 0) return k + 1;
+      }
+    }
+    return -1;
+  };
+  /** @param {string} code @param {number} k */
+  const skipSpace = (code, k) => {
+    let at = k;
+    while (at < code.length && /\s/.test(code[at])) at += 1;
+    return at;
+  };
+  /** @param {string} text @param {number} offset */
+  const lineAt = (text, offset) => text.slice(0, offset).split("\n").length;
+  for (const rel of typeTests) {
+    const raw = readFileSync(join(ROOT, rel), "utf8");
+    const code = blankCode(raw);
+    const expected = (code.match(NOT_CALLABLE_PIN) ?? []).length + (code.match(NOT_CONSTRUCTABLE_PIN) ?? []).length;
+    if (expected === 0) continue;
+    if (rel !== CHARACTERISATION) {
+      const ran =
+        "; every positive twin must run, and pass, in both tstyche passes, and only " +
+        `${CHARACTERISATION} skips a block or expects a failure.`;
+      for (const m of code.matchAll(RUN_MODE)) {
+        failures += 1;
+        console.error(`${rel}:${lineAt(code, m.index)}  [not-callable-control] \`.${m[1]}\` in a file with a negative pin${ran}`);
+      }
+      for (const m of raw.matchAll(DIRECTIVE)) {
+        failures += 1;
+        console.error(`${rel}:${lineAt(raw, m.index)}  [not-callable-control] a tstyche directive in a file with a negative pin${ran}`);
+      }
+    }
+    /** @type {Array<{ readonly line: number, readonly not: boolean, readonly key: string }>} */
+    const pins = [];
+    for (const m of code.matchAll(/\bexpect\b/g)) {
+      let at = skipSpace(code, m.index + m[0].length);
+      let typeArg = "";
+      if (code[at] === "<") {
+        const end = closing(code, at, "<", ">");
+        if (end === -1) continue;
+        typeArg = raw.slice(at + 1, end - 1);
+        at = skipSpace(code, end);
+      }
+      if (code[at] !== "(") continue;
+      const end = closing(code, at, "(", ")");
+      if (end === -1) continue;
+      const value = raw.slice(at + 1, end - 1);
+      MATCHER.lastIndex = end;
+      const tail = MATCHER.exec(code);
+      if (tail === null) continue;
+      const kind = typeArg === "" ? "value" : "type";
+      const text = (kind === "type" ? typeArg : value).replace(/\s+/g, " ").trim();
+      pins.push({
+        line: lineAt(code, m.index),
+        not: tail[1] !== undefined,
+        key: `${tail[2]} ${kind} ${text}`,
+      });
+    }
+    const negatives = pins.filter((p) => p.not);
+    if (negatives.length !== expected) {
+      failures += 1;
+      console.error(
+        `${rel}  [not-callable-control] read ${negatives.length} of ${expected} negative pin(s); ` +
+          "write each as `expect(subject)` or `expect<Type>()` followed by `.type.not.` and the matcher.",
+      );
+    }
+    const positives = new Set(pins.filter((p) => !p.not).map((p) => p.key));
+    for (const p of negatives) {
+      if (positives.has(p.key)) continue;
+      failures += 1;
+      console.error(
+        `${rel}:${p.line}  [not-callable-control] a negative pin with no positive twin (${p.key}); ` +
+          "add the same subject with the arguments made valid, so the pin is seen to fail for the reason it names.",
+      );
+    }
+  }
+}
+
 // An exemption is a path, and a path outlives the file it named: renaming or
 // deleting the exempted module leaves a dead entry that silently ungates
 // whatever takes its place (an orphan `settled.ts` entry sat here for exactly
