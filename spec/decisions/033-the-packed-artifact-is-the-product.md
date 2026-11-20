@@ -150,12 +150,12 @@ cache typed by `DecisionCacheShape`, with a `@ts-expect-error` on the pre-0.13
 keeps that list current: it reads the `make*Feed` names the packed `@qadi/devtools` root
 exports and fails unless the fixture calls each one, read from the compiler's parse of the
 fixture rather than its text. It also fails unless each name on a fixed type-only list,
-today `DecisionCacheShape`, is a type reference there outside a refused literal, and unless
-each name on a fixed refused-shape list, today `DecisionCacheShape` again, annotates a
-declaration that holds a `@ts-expect-error` naming the member the list pairs it with, today
-`getOrCompute`, inside its own text, so a directive on another property does not stand in
-for it and deleting the host cache, or the pre-0.13 literal together with its directive,
-fails the check. A load, read or parse that fails is a failure, never a pass.
+today `DecisionCacheShape`, `GateInstanceLike` and `GateRegistryLike`, is a type reference
+there outside a refused literal, and unless each name on a fixed refused-shape list, today
+`DecisionCacheShape` paired with `getOrCompute` and `DiagnosticsOptions` paired with
+`schedule`, annotates a declaration that holds a `@ts-expect-error` naming that member inside
+its own text, so deleting the host cache, the pre-0.13 literal together with its directive,
+or the `schedule` literal together with its directive, fails the check. A load, read or parse that fails is a failure, never a pass.
 
 ---
 
