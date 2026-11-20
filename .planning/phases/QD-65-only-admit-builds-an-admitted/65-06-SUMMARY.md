@@ -17,6 +17,7 @@ provides:
 affects: [v1.7 milestone audit]
 
 plan_head_before: 05b6c06ee754fa52abe273bdcd447605da01f644
+plan_head_after: 0e4a1d7acfbf3dbec54557a8b8e849e19cce7422
 commits: 2
 
 tech-stack:
