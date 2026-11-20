@@ -5,16 +5,16 @@ milestone_name: Arch Wave 12
 current_phase: 64
 current_phase_name: One throwing listener cannot silence the rest
 status: executing
-stopped_at: Phase 63 complete, ready to plan Phase 64
-last_updated: "2026-11-20T14:31:03.294Z"
+stopped_at: Completed QD-64-01-PLAN.md
+last_updated: "2026-11-20T14:42:36.898Z"
 last_activity: 2026-11-20
-last_activity_desc: Phase 63 complete, transitioned to Phase 64
-state_head: b22432bdf61a1829be1c3ba3c098410b2291c580
+last_activity_desc: Phase 64 execution started
+state_head: 9d34299a95a9e7d181f0aa438a7a7b372cf06251
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 18
-  completed_plans: 13
+  completed_plans: 14
   percent: 29
 ---
 
@@ -25,14 +25,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-20)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 63 — The packed-install gate probes every new public name
+**Current focus:** Phase 64 — One throwing listener cannot silence the rest
 
 ## Current Position
 
-Phase: 64 (One throwing listener cannot silence the rest) — READY TO EXECUTE
-Plan: Not started
+Phase: 64 (One throwing listener cannot silence the rest) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-11-20 — Phase 63 complete, transitioned to Phase 64
+Last activity: 2026-11-20 — Phase 64 execution started
 
 
 ## Performance Metrics
@@ -430,6 +430,7 @@ Last activity: 2026-11-20 — Phase 63 complete, transitioned to Phase 64
 | Phase QD-63 P03 | 15min | 2 tasks | 1 files |
 | Phase QD-63 P04 | 10min | 2 tasks | 5 files |
 | Phase QD-63 P05 | 20min | 2 tasks | 2 files |
+| Phase QD-64 P01 | 25 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -733,6 +734,7 @@ Last activity: 2026-11-20 — Phase 63 complete, transitioned to Phase 64
 - [Phase QD-63]: 63-03: removed-probe proof recorded from scratch copies of the committed gate (11 variants), never as a committed self-test
 - [Phase QD-63]: 63-04: ADR-QD-033 amended instead of a new decision; ADR-QD-176, BEH-QD-651-655, INV-QD-371-372 stay unused, named only in the CCR-QD-454 row
 - [Phase QD-63]: Close scan's parser-load set-aside reads the trimmed line and pins the count at three (scratch only; script untouched)
+- [Phase QD-64]: The Stryker base of the four model files is recorded before the first red test, since a red test aborts Stryker's initial run
 
 ### Pending Todos
 
@@ -794,8 +796,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-20T12:49:01.738Z
-Stopped at: Phase 63 complete, ready to plan Phase 64
+Last session: 2026-11-20T14:42:36.768Z
+Stopped at: Completed QD-64-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
