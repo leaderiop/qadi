@@ -2,20 +2,20 @@
 gsd_state_version: "1.0"
 milestone: v1.7
 milestone_name: Arch Wave 12
-current_phase: 63
-current_phase_name: The packed-install gate probes every new public name
-status: verifying
-stopped_at: Completed QD-63-05-PLAN.md
-last_updated: "2026-11-20T12:49:05.535Z"
+current_phase: 64
+current_phase_name: One throwing listener cannot silence the rest
+status: planning
+stopped_at: Phase 63 complete, ready to plan Phase 64
+last_updated: "2026-11-20T13:00:26.082Z"
 last_activity: 2026-11-20
-last_activity_desc: Phase 63 execution started
-state_head: f896bf47eff998892f8596506bc7f3bd7c363e6b
+last_activity_desc: Phase 63 complete, transitioned to Phase 64
+state_head: 321e213d451fd459569d178de33722e157aaff07
 progress:
   total_phases: 7
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 13
   completed_plans: 13
-  percent: 14
+  percent: 29
 ---
 
 # Project State
@@ -29,16 +29,16 @@ See: .planning/PROJECT.md (updated 2026-11-20)
 
 ## Current Position
 
-Phase: 63 (The packed-install gate probes every new public name) — EXECUTING
-Plan: 5 of 5
-Status: Phase complete — ready for verification
-Last activity: 2026-11-20 — Phase 63 execution started
+Phase: 64 — One throwing listener cannot silence the rest
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-11-20 — Phase 63 complete, transitioned to Phase 64
 
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 327
+- Total plans completed: 332
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -98,6 +98,7 @@ Last activity: 2026-11-20 — Phase 63 execution started
 | QD-60 | 8 | - | - |
 | QD-61 | 7 | - | - |
 | QD-62 | 8 | - | - |
+| 63 | 5 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -778,6 +779,7 @@ Last activity: 2026-11-20 — Phase 63 execution started
 - [Phase 51] Base experiment recorded first: all 32 single-tag arity moves compiled on the base (the existing tests caught 8, the new all-tags `TraceShape.test.ts` 32); after the change each is a compile error. Mutation: Decision.ts 0.9586→0.9639 at close, 0.9677 post-review (`51-mutation-review.json`), Policy.ts 0.9865 unchanged, `PolicyArity.ts` no mutant. Review (51-REVIEW-DISPOSITION.md): 0 open; three iterations, 15 findings fixed — notably a total per-arity dispatch (a fourth arity word does not compile), the tools' restore on every exit, and a foreign tag now throwing a TypeError before any arm (was Match's absurd; both fail-closed). The 51-05 close scan now reports three expected review-fix items.
 - [Phase 52] Characterisation first (sql 47, prisma 21 tests green on the base, byte-identical since); `compilePredicate` RED by import then GREEN; both dialects converted with `.d.ts` hash-identical to the base; gates 935/523. Mutation by D-09a (user): core 0.98148→0.98214, each dialect index.ts fell by exactly its 4 moved shell mutants, all killed in core, survivors unchanged; post-review record identical. Review: 2 iterations, WR-01 (`rules` closed against `identifiers`/`maxInValues`) and 3 info fixed, IN-03 skipped to keep the characterisation evidence byte-identical. D-06a: Prisma counts `compiled` after render.
 - [Phase 62] Review (62-REVIEW.md, 62-REVIEW-FIX.md): 0 critical, 0 warning open; three iterations fixed 4 warnings and 2 info — iteration 1 WR-01 (the in-file directive block never ran), WR-02 (plugin drift ignored other compiler options), WR-03 (the gate walk mirrored tstyche's testFileMatch by hand); iteration 2 WR-01 (pass 2 could not see tsconfig.test.json losing floatingEffect). IN-01..IN-04 open (twin keyed per subject; `pnpm test:tstyche <path>` ignores its path; bare JSON.parse of tstyche.json; CHARACTERISATION path declared twice) plus a wording IN-05; SECURITY 20/20 closed. Orchestrator reverted phase.complete's WX-* ticks twice (cross-cutting, stay Pending until the milestone audit)
+- [Phase 63] Review (63-REVIEW.md, .iter2, .iter3, 63-REVIEW-FIX.md): three iterations, clean at iteration 3. Iteration 1 WR-01 (the DiagnosticsOptions/schedule refusal and the gate Like types were not held by the guard: fixed, 81847868, prose aligned f4398b04), WR-02 (a call written but never run passes the guard: documented as a shortcut limit); iteration 2 WR-01 (that shortcut note wrongly said expect() catches a dead probe: comment fixed, b5310eb7). IN-01..IN-04 open (directive matched by text within the declaration; any type reference counts as a type use; typescript ^7 lets unstable/* move; no timeout on the guard's import or tsgo, run-varying diagnostics label). The 63-05 close scan's set-aside regex missed a multi-line destructured await import: orchestrator approved a scratch-only fix pinned to exactly three loads. Verification 4/4; check:pr green after the fixes. Orchestrator reverted phase.complete's WX-* ticks (cross-cutting, stay Pending until the milestone audit)
 - [v1.2] Phases 21, 22 and 23 report `verification.status: stale` (later phases touched covered files); re-run their verification gates (/gsd-execute-phase 21|22|23 resumes at the gates) after Phase 29, before the milestone audit. **Resolved 2026-11-12:** all three re-verified `passed` at HEAD.
 - [Phase 22] `phase.complete` cannot match REQUIREMENTS.md's grouped traceability table (one row per phase listing several IDs), so v1.2 rows stay `Pending`; update them by hand or reshape the table. **Resolved 2026-11-12:** rows updated by hand (now archived in `milestones/v1.2-REQUIREMENTS.md`).
 
@@ -793,7 +795,7 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 ## Session Continuity
 
 Last session: 2026-11-20T12:49:01.738Z
-Stopped at: Completed QD-63-05-PLAN.md
+Stopped at: Phase 63 complete, ready to plan Phase 64
 Resume file: None
 
 ## Operator Next Steps
