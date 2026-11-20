@@ -175,6 +175,16 @@ export const settleTurns = Effect.gen(function* () {
   for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
 });
 
+/** Whether `run` threw and what it threw, so a falsy thrown value (`undefined`, `null`) still counts as a throw. */
+export const thrownBy = (run: () => void): { readonly threw: boolean; readonly thrown: unknown } => {
+  try {
+    run();
+    return { threw: false, thrown: undefined };
+  } catch (thrown) {
+    return { threw: true, thrown };
+  }
+};
+
 /** The binding for a panel rendered on its own, in a live poll. */
 export const liveNotice: DiagnosticsNoticeProps = {
   status: DiagnosticsStatus.Live(),
