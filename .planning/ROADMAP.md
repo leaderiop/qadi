@@ -477,14 +477,14 @@ Plans:
   4. A deliberately removed probe is shown failing gate 14, and the DoD table is unchanged.
 
 **Planning notes**: Script only; this phase must not depend on Phases 64 to 68. Build order from the research: the guard first (RED: two names unprobed), then the probes (GREEN), then a recorded removed-probe failure, then records. Any "gate 14" in a record must name `scripts/check-package-install.mjs` (`scripts/check-dod-table.mjs` checks the numbers). The fixture is one `FIXTURE` template literal: escape backticks and `${`. Decisions left to the planner: the gates-feed assertion (recommended: a registry with one instance and assert `Read` with count 1; asserting `Unwatched` would be vacuous, since it is the initial value); the diagnostics loop (recommended: yield until the condition holds with a cap of 200, then fail with the observed state, close the scope so the 2000 ms default sleep is never awaited, and add a pin that `schedule` is refused; whether 20 fixed turns would suffice is unverified); host cache depth (recommended: run it twice and assert `calls` and a `hit`, delegating `getOrCompute`, `size` and `clear`, because a type-only proof proves less); and whether ADR-QD-176 is needed.
-**Plans**: 1/5 plans executed
+**Plans**: 2/5 plans executed
 
 Plans:
 **Wave 1**
 - [x] 63-01-PLAN.md — the probe guard, alone and RED on the base (`makeDiagnosticsFeed, makeGatesFeed` uncalled; `DecisionCacheShape` neither typed nor refused), its fail-closed paths shown (a missing parser module included), mutation scope recorded empty
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 63-02-PLAN.md — the three probes (gates feed, diagnostics feed, `DecisionCacheShape` host cache with the pre-0.13 refusal); gate 14 green
+- [x] 63-02-PLAN.md — the three probes (gates feed, diagnostics feed, `DecisionCacheShape` host cache with the pre-0.13 refusal); gate 14 green
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 63-03-PLAN.md — the removed and broken probes, each shown failing gate 14 in scratch copies (the host cache and the refused pre-0.13 literal apart), the DoD table unchanged
@@ -596,7 +596,7 @@ Phases execute in numeric order: 62 → 63 → 64 → 65 → 66 → 67 → 68
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 62. Type pins that can fail | 8/8 | Complete    | 2026-11-20 |
-| 63. The packed-install gate probes every new public name | 1/5 | In Progress | - |
+| 63. The packed-install gate probes every new public name | 2/5 | In Progress | - |
 | 64. One throwing listener cannot silence the rest | 0/TBD | Not started | - |
 | 65. Only `admit` builds an `Admitted` | 0/TBD | Not started | - |
 | 66. The decoder reads only what it declares | 0/TBD | Not started | - |
