@@ -79,3 +79,17 @@ and no code line of `packages/core/lib/Admission.js` names `nominal`; its one ma
 
 With the class alone, before the derivation, E7, E8 and E9 still fail with `AssertionError: expected undefined to
 equal` and the other 19 tests pass: the lock does not touch the double read.
+
+## The derivation's variants
+
+`node <S>/derive-variants.mjs <S>` puts the question's read back into the committed `Admission.ts`, one fact at a
+time, runs `Admission.test.ts` and puts the file back byte for byte (it refuses to start on a dirty file and checks
+it is clean at the end). It exits 0 and prints:
+
+| Variant | Failing cases | Why |
+| ------- | ------------- | --- |
+| the action read again from the question | E8 E9 | the flag reads a second answer |
+| the resource read again from the question | E7 E10 | the flag reads a second answer, and the row source's resource is read twice |
+
+With the derivation as committed, the two suites that hold the cases pass 22 of 22 (E1 to E10 among them), and the
+core project passes: 82 files, 2653 tests, 0 failed (the base's 2649 plus the four cases of 65-01).
