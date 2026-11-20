@@ -609,9 +609,9 @@ Untrusted JSON is decoded only through `@qadi/core`'s `untrustedDecoder`
 
 It runs one fixed recipe: `JSON.parse` for text, the projection the decoder's
 required `unknownKeys` states (`refuse` keeps every key, `ignore` drops an
-undeclared top-level key before the guard, so it is never walked, ADR-QD-170), the
-depth guard, an optional seam-supplied `prepare` that receives the projection,
-then a strict decode (`onExcessProperty: "error"`), and it
+undeclared top-level key by its name, so its value is never read or walked,
+ADR-QD-170), the depth guard, an optional seam-supplied `prepare` that receives
+the projection, then a strict decode (`onExcessProperty: "error"`), and it
 answers with a `Result` whose refusal is a closed `UntrustedRefusal` (`NotJson`,
 `TooDeep`, `Malformed`) that the seam maps into its own error with
 `Match.tagsExhaustive`. A top-level key a second decoder guards from its own root
