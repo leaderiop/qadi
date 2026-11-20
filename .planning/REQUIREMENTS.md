@@ -27,17 +27,17 @@ Every phase runs on branch `arch-wave-12`, strictly serial.
 
 ### The packed-install gate probes every new public name (Phase 63, ARCH-110, script)
 
-- [ ] **PROBE-01**: Gate 14 (`scripts/check-package-install.mjs`) fails when any `make*Feed` runtime export of the packed
+- [x] **PROBE-01**: Gate 14 (`scripts/check-package-install.mjs`) fails when any `make*Feed` runtime export of the packed
   `@qadi/devtools` root is not called in the consumer fixture (comments stripped); the guard is written first and shown
   RED on the phase base.
-- [ ] **PROBE-02**: The fixture runs `makeGatesFeed` over a registry with one instance and asserts a read state that
+- [x] **PROBE-02**: The fixture runs `makeGatesFeed` over a registry with one instance and asserts a read state that
   differs from the feed's initial snapshot.
-- [ ] **PROBE-03**: The fixture runs `makeDiagnosticsFeed` and asserts a field only a completed first read sets, using a
+- [x] **PROBE-03**: The fixture runs `makeDiagnosticsFeed` and asserts a field only a completed first read sets, using a
   bounded yield loop (no wall clock) and a closed scope.
-- [ ] **PROBE-04**: The fixture builds a typed host cache from the packed `DecisionCacheShape` that wraps
+- [x] **PROBE-04**: The fixture builds a typed host cache from the packed `DecisionCacheShape` that wraps
   `decisionCacheLayer()`, runs a decision twice through it and asserts a hit; a `@ts-expect-error` refuses the pre-0.13
   `(question, compute)` shape.
-- [ ] **PROBE-05**: A deliberately removed probe is shown failing gate 14, and the DoD table is unchanged.
+- [x] **PROBE-05**: A deliberately removed probe is shown failing gate 14, and the DoD table is unchanged.
 
 ### One throwing listener cannot silence the rest (Phase 64, ARCH-111, devtools; D1, D7)
 
@@ -151,11 +151,11 @@ The seven WX rows apply to every phase 62 to 68, so each phase's Requirements li
 | PIN-03 | Phase 62 | Complete |
 | PIN-04 | Phase 62 | Complete |
 | PIN-05 | Phase 62 | Complete |
-| PROBE-01 | Phase 63 | Pending |
-| PROBE-02 | Phase 63 | Pending |
-| PROBE-03 | Phase 63 | Pending |
-| PROBE-04 | Phase 63 | Pending |
-| PROBE-05 | Phase 63 | Pending |
+| PROBE-01 | Phase 63 | Complete |
+| PROBE-02 | Phase 63 | Complete |
+| PROBE-03 | Phase 63 | Complete |
+| PROBE-04 | Phase 63 | Complete |
+| PROBE-05 | Phase 63 | Complete |
 | LSTN-01 | Phase 64 | Pending |
 | LSTN-02 | Phase 64 | Pending |
 | LSTN-03 | Phase 64 | Pending |
