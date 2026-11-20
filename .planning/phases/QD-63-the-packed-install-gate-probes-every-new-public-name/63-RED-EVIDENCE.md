@@ -58,3 +58,22 @@ host cache alone (the refused literal stays), r5 the refused literal with its di
 | r2 | cut the diagnostics probe | 1 | `  the consumer fixture never calls makeDiagnosticsFeed: every make*Feed the packed @qadi/devtools root exports must be probed`; `package-install: 1 failure(s) across 9 package(s).` |
 | r4 | cut the host cache (refused literal stays) | 1 | `  the consumer fixture never uses DecisionCacheShape as a type: every type-only probe name must be a type reference outside a refused literal`; `package-install: 1 failure(s) across 9 package(s).` |
 | r5 | cut the refused literal and its directive (host cache stays) | 1 | `  the consumer fixture never refuses a literal typed DecisionCacheShape: every refused-shape probe name must annotate a declaration holding a @ts-expect-error that names its refused member`; `package-install: 1 failure(s) across 9 package(s).` |
+| r3 | drop the pre-0.13 directive alone | 1 | `  the consumer does not type-check against the shipped .d.ts:` then `consumer.ts(258,52): error TS2345: Argument of type 'Pick<EvaluateOptions, "concurrency"> \| undefined' is not assignable to parameter of type 'Effect<unknown, EvaluationError, PortServices>'.`; `  the consumer fixture never refuses a literal typed DecisionCacheShape: …` (the literal is left without its directive); `package-install: 2 failure(s) across 9 package(s).` |
+| r6 | drop the `schedule` directive | 1 | `  the consumer does not type-check against the shipped .d.ts:` then `consumer.ts(203,3): error TS2353: Object literal may only specify known properties, and 'schedule' does not exist in type 'DiagnosticsOptions'.`; `package-install: 1 failure(s) across 9 package(s).` |
+| dts | revert the sandbox's packed `DecisionCache.d.ts` `getOrCompute` to the `compute` parameter | 1 | `  the consumer does not type-check against the shipped .d.ts:` then `consumer.ts(258,3): error TS2578: Unused '@ts-expect-error' directive.`; `package-install: 1 failure(s) across 9 package(s).` |
+| m1 | `makeDiagnosticsFeed({})` becomes `makeDiagnosticsFeed()` | 1 | `  the consumer failed at runtime:` then `Error: consumer: diagnostics feed reached Live in 200 turns was Off, wanted Live`; `package-install: 1 failure(s) across 9 package(s).` |
+| m2 | the host cache clears the inner cache after each lookup | 1 | `  the consumer failed at runtime:` then `Error: consumer: host cache lookups was miss,miss, wanted miss,hit`; `package-install: 1 failure(s) across 9 package(s).` |
+| m3 | the gates registry literal reports `instances: () => []` | 1 | `  the consumer failed at runtime:` then `Error: consumer: gates feed instance count was 0, wanted 1`; `package-install: 1 failure(s) across 9 package(s).` |
+
+r3, r6 and dts break the compile and m1, m2 and m3 break the run; the guard still ran after each, so only r3 adds a
+second failure (its edit leaves the literal unrefused). The dts edit touches the sandbox's extracted copy, not
+`packages/core/lib`.
+
+### DoD table
+
+```
+$ node scripts/check-dod-table.mjs
+dod-table: 25 step(s) match pnpm check, 151 reference(s) resolve
+$ git diff --quiet 11dc168f4d8a8b295aef16f2d04b762c503d1ba8 -- spec/process/definitions-of-done.md package.json; echo $?
+0
+```
