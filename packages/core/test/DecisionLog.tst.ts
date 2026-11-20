@@ -27,5 +27,9 @@ test("ingest, snapshot and clear cannot fail and need nothing", () => {
 
 test("makeDecisionLog requires an environment and returns an Effect of a log", () => {
   expect(makeDecisionLog({ environment: "Server" })).type.toBe<Effect.Effect<DecisionLog>>();
-  expect(makeDecisionLog).type.not.toBeCallableWith({ capacity: 10 });
+  // Through the parameter type, not `toBeCallableWith`: the call returns an `Effect`, so the
+  // refusal is stated on the options it takes and holds whichever way `floatingEffect` is set.
+  type Options = Parameters<typeof makeDecisionLog>[0];
+  expect<{ readonly environment: string }>().type.toBeAssignableTo<Options>();
+  expect<{ readonly capacity: number }>().type.not.toBeAssignableTo<Options>();
 });
