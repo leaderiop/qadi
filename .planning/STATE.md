@@ -5,16 +5,16 @@ milestone_name: Arch Wave 12
 current_phase: 66
 current_phase_name: The decoder reads only what it declares
 status: executing
-stopped_at: Completed QD-66-01-PLAN.md
-last_updated: "2026-11-20T22:08:20.246Z"
+stopped_at: Completed 66-02-PLAN.md
+last_updated: "2026-11-20T22:10:48.207Z"
 last_activity: 2026-11-20
 last_activity_desc: Phase 65 complete, transitioned to Phase 66
-state_head: 8d704807b88a6a61a6db0df339e78887ab65feb4
+state_head: 43023803b5df33e7b06e74dea6a61d867a4f0901
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 29
-  completed_plans: 25
+  completed_plans: 26
   percent: 57
 ---
 
@@ -444,6 +444,7 @@ Last activity: 2026-11-20 — Phase 65 complete, transitioned to Phase 66
 | Phase QD-65 P05 | 15min | 2 tasks | 6 files |
 | Phase 65 P06 | 70 min | 2 tasks | 3 files |
 | Phase QD-66 P01 | 25 min | 3 tasks | 5 files |
+| Phase QD-66 P66-02 | 2 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -754,6 +755,7 @@ Last activity: 2026-11-20 — Phase 65 complete, transitioned to Phase 66
 - [Phase QD-64]: The close scan's source pathspec is packages/*/src/**; a bare packages/*/src lists nothing and the check could never pass.
 - [Phase 65]: Plan 65-01: construction refusals are reason-bearing @ts-expect-error pins beside positive controls, codes read by pin-codes.mjs, since toRaiseError cannot share the directive's expression
 - [Phase QD-66]: 66-01: the mutation base of EnvelopeKeys.ts, SinkCodec.ts and UntrustedDecode.ts is recorded before any test of the phase exists; the hydration pin H1 is cited, not added
+- [Phase QD-66]: The ignore projection reads Object.keys first and each kept value once into an Object.fromEntries copy; keysOf reads own enumerable _tag only for a union (a one-object schema reads none)
 
 ### Pending Todos
 
@@ -817,8 +819,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-20T22:08:20.132Z
-Stopped at: Completed QD-66-01-PLAN.md
+Last session: 2026-11-20T22:10:48.076Z
+Stopped at: Completed 66-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
