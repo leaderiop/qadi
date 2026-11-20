@@ -546,3 +546,7 @@ entries:
     file: "174-a-decision-cache-is-asked-the-question.md"
     title: "A decision cache is asked the question, and walks it itself"
     status: "Accepted — amends ADR-QD-031; reads ADR-QD-132, ADR-QD-100"
+  - id: "ADR-QD-175"
+    file: "175-a-negative-type-pin-can-fail.md"
+    title: "A negative type pin can fail"
+    status: "Accepted — amends ADR-QD-037"
