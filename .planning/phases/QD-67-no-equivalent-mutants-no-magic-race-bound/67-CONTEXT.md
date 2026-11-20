@@ -124,7 +124,7 @@ Requirements: MUTE-01..04, plus the cross-cutting WX-01..07.
 - Traceability rows for every new id.
 - AGENTS.md §5a gains a sentence only if the chosen form is a pattern §5a does not already describe. An arm table in
   the `FieldLattice.ts` style is already described.
-- Every `spec-revise.mjs` call passes `--date 2026-11-20`.
+- Every `spec-revise.mjs` call passes `--date 2026-11-21`.
 - Reserved ids only. Never run `scripts/next-id.mjs`.
 - **The Phase 65 lesson.** A review or verifier fix after the records plan must re-align the CCR-QD-458 row's cited
   revisions.
