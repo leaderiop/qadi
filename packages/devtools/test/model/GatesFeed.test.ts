@@ -22,7 +22,7 @@ import type { AskedQuestionLike, GateInstanceLike } from "../../src/model/Gates.
 import { AskedRead, RegistryRead, makeGatesFeed } from "../../src/index.ts";
 import type { GatesFeed, GatesSnapshot } from "../../src/index.ts";
 import { makeGateRegistryDouble } from "../gateRegistryDouble.ts";
-import { readPolicy, settleTurns } from "../helpers.ts";
+import { readPolicy, settleTurns, thrownBy } from "../helpers.ts";
 
 const writePolicy: Policy = hasPermission(permission("doc", "write"));
 
@@ -930,5 +930,26 @@ describe("the gates feed", () => {
         yield* Scope.close(scope, Exit.void);
         assert.strictEqual(double.listeners(), 0, `closing the scope released the registry subscription: ${where}`);
       }
+    }));
+
+  it.effect("G48 a listener that throws does not silence the next one, and configure rethrows what it threw after taking the registry", () =>
+    Effect.gen(function* () {
+      const feed = yield* makeGatesFeed();
+      const double = makeGateRegistryDouble([guard("a", readPolicy)]);
+      const boom = new Error("boom");
+      const seen: Array<string> = [];
+      feed.subscribe(() => {
+        throw boom;
+      });
+      feed.subscribe(() => {
+        seen.push(feed.getSnapshot().registry._tag);
+      });
+
+      const outcome = thrownBy(() => feed.configure({ gates: double.registry }));
+
+      assert.deepStrictEqual(seen, ["Read"]);
+      assert.isTrue(outcome.threw);
+      assert.strictEqual(outcome.thrown, boom);
+      assert.strictEqual(double.listeners(), 1);
     }));
 });

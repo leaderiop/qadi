@@ -19,7 +19,7 @@ import type { StoredRecord } from "@qadi/core";
 import { sourceFromRecords, type Source, type SourceRead } from "../../src/model/Source.ts";
 import { makeTimelineFeed, type TimelineFeed } from "../../src/index.ts";
 import { idleTimeline } from "../../src/model/TimelineFeed.ts";
-import { decisionRecord, settleTurns } from "../helpers.ts";
+import { decisionRecord, settleTurns, thrownBy } from "../helpers.ts";
 
 const flush = Effect.andThen(Effect.yieldNow, TestClock.adjust("10 millis"));
 
@@ -507,5 +507,25 @@ describe("the timeline feed", () => {
       assert.deepStrictEqual(idsOf(feed), ["retry"]);
       assert.strictEqual(tally.reads, 2);
       assert.strictEqual(feed.status.getSnapshot()._tag, "Reading");
+    }));
+
+  it.effect("TF25 a timeline listener that throws does not silence the next one, and accept rethrows what it threw", () =>
+    Effect.gen(function* () {
+      const feed = yield* makeTimelineFeed();
+      yield* settleTurns;
+      const boom = new Error("boom");
+      const seen: Array<ReadonlyArray<string>> = [];
+      feed.timeline.subscribe(() => {
+        throw boom;
+      });
+      feed.timeline.subscribe(() => {
+        seen.push(idsOf(feed));
+      });
+
+      const outcome = thrownBy(() => feed.timeline.accept(record("x", 100)));
+
+      assert.deepStrictEqual(seen, [["x"]]);
+      assert.isTrue(outcome.threw);
+      assert.strictEqual(outcome.thrown, boom);
     }));
 });

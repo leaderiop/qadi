@@ -28,7 +28,7 @@ import {
 import { noDiagnostics } from "../../src/model/DiagnosticsStore.ts";
 import type { PortCallCollector, PortCallLog } from "../../src/model/PortCalls.ts";
 import { makeCollectorDouble } from "../collectorDouble.ts";
-import { settleTurns } from "../helpers.ts";
+import { settleTurns, thrownBy } from "../helpers.ts";
 
 /** A layer that counts its builds and releases. */
 const counted = () => {
@@ -595,6 +595,28 @@ describe("the diagnostics feed", () => {
       assert.strictEqual(a.state.calls, 1);
       assert.isAtLeast(b.state.calls, 2);
       assert.isTrue(DiagnosticsStatus.$is("Live")(feed.getSnapshot().status));
+    }),
+  );
+
+  it.effect("F30 a listener that throws does not silence the next one, and configure rethrows what it threw", () =>
+    Effect.gen(function* () {
+      const feed = yield* makeDiagnosticsFeed({});
+      yield* settleTurns;
+      const boom = new Error("boom");
+      const seen: Array<string> = [];
+      feed.subscribe(() => {
+        throw boom;
+      });
+      feed.subscribe(() => {
+        seen.push(feed.getSnapshot().status._tag);
+      });
+
+      const outcome = thrownBy(() => feed.configure(undefined));
+
+      assert.deepStrictEqual(seen, ["Off"]);
+      assert.isTrue(outcome.threw);
+      assert.strictEqual(outcome.thrown, boom);
+      assert.strictEqual(feed.getSnapshot().status._tag, "Off");
     }),
   );
 });
