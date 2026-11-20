@@ -39,7 +39,9 @@ updating.
    when one throws.
 5. The window between a feed's run `begin()` and its `fork()` is out of scope. A throw on the status published there,
    the timeline's `Reading` over a `Stopped` or the diagnostics feed's `Starting`, still leaves before the new read or
-   poll is forked, and the feeds' texts say so.
+   poll is forked, and the feeds' texts say so. A throw on the timeline publish a `configure` with a new capacity makes
+   leaves earlier still, before `begin()`: no read is started, so a source handed in by that call is not read, the
+   previous read goes on, and only `restart` reads it, because the feed already holds the new inputs.
 
 ## Alternatives considered
 

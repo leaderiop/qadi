@@ -2636,7 +2636,9 @@ registry's own notification), and the rest of that call does not run. The window
 its `fork()` is out of scope: a throw on the `Reading` the timeline feed publishes over a `Stopped`, or on the
 `Starting` the diagnostics feed publishes, still leaves before the new read or poll is forked, so the timeline says
 `Reading` with nothing reading and the diagnostics feed stays `Starting` with no new poll; and a throw on a gates feed
-tick ends its questions cadence.
+tick ends its questions cadence. A throw on the timeline publish a `configure` with a new `capacity` makes leaves
+before `begin()`: no read is started, a source handed in by that call is not read, the previous read goes on, and the
+same inputs configured again do not read it, because the feed already holds them; only `restart` does.
 
 Pinned by `packages/devtools/test/model/ExternalStore.test.ts`, and through the root by
 `packages/devtools/test/model/TimelineFeed.test.ts` (TF25), `packages/devtools/test/model/DiagnosticsFeed.test.ts`

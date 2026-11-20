@@ -59,7 +59,9 @@ export interface TimelineStatusReadout {
    * called, and then what they threw is rethrown out of whatever published: one value as
    * itself, several as one `AggregateError`. A throw on the `Reading` that `restart` or
    * `configure` publishes over a `Stopped` escapes before the new read is started, so the
-   * status says `Reading` with nothing reading.
+   * status says `Reading` with nothing reading. A throw on the `configure` that changes the
+   * capacity, which publishes the emptied timeline first, leaves before any read is started:
+   * a source handed in by that call is not read, and `restart` is what reads it.
    */
   readonly subscribe: (listener: () => void) => () => void;
   readonly getSnapshot: () => TimelineStatus;
@@ -75,7 +77,12 @@ export interface TimelineFeed {
   readonly timeline: TimelineStore;
   /** Where the read stands. */
   readonly status: TimelineStatusReadout;
-  /** Re-reads only when the capacity or the source moved. An omitted input reads as `undefined`. Does nothing once the feed's scope has closed. */
+  /**
+   * Re-reads only when the capacity or the source moved. An omitted input reads as `undefined`. Does nothing once the
+   * feed's scope has closed. A listener that throws on the timeline publish a capacity change makes ends the call
+   * before the read: the previous read goes on, a new source is not read, and the same inputs configured again do
+   * not read it either. `status.restart` does.
+   */
   readonly configure: (inputs: TimelineFeedInputs) => void;
 }
 
