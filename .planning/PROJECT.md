@@ -274,9 +274,11 @@ logged, counted or spanned.
 - ✓ ARCH-107 Devtools' headless interface is the feeds (HDLS-01..04): `@qadi/devtools`' root exports `makeTimelineFeed`, `makeDiagnosticsFeed` and `makeGatesFeed` (owner: pursue, all three public) and retires `makeTimelineStore`/`runSource`/`makeDiagnosticsStore`/`runDiagnostics`; one non-generic `DiagnosticsOptions { layer?, collector?, intervalMillis? }` replaces both option shapes; the README's headless example uses the feeds with stop detection; **Breaking** in a changeset and `upgrading.md` 0.13 (unreleased); mutation held (D-10) — v1.6, Phase 60 (ADR-QD-173)
 - ✓ ARCH-108 A `DecisionCache` is asked only the question (CASK-01..04): `getOrCompute(question, options?)` with `options` a `Pick<EvaluateOptions, "concurrency">` replaces `getOrCompute(question, compute)`, and `decisionCacheLayer` walks the question it is given, so no caller can store a trace under a question it does not answer (owner: pursue, not sealed — the guarantee covers callers, a host cache wraps `decisionCacheLayer()`); `concurrency` reaches the walk and never the key; **Breaking** for `DecisionCacheShape` implementers in a changeset and `upgrading.md` 0.13 (unreleased); `SharedComputation` unchanged; mutation held (D-06) — v1.6, Phase 61 (ADR-QD-174)
 
+- ✓ ARCH-109 Type pins that can fail (PIN-01..05): tstyche compiles under its own `tsconfig.tstyche.json` (`tsconfig.test.json` with the Effect language service's `floatingEffect` off, held to only that difference by `[tstyche-plugin-drift]`), so a negative `toBeCallableWith`/`toBeConstructableWith` pin on an `Effect`- or `Stream`-returning subject can fail; `FloatingEffectPins.tst.ts` pins tstyche's reading in three blocks; the `DecisionLog` pin states its refusal through `Parameters<typeof makeDecisionLog>[0]`; every negative pin has a same-subject positive twin (`[not-callable-control]`) and a one-off flip sweep saw all 87 fail; `NOT_CALLABLE_PIN_BUDGET` counts them per file in both directions against AGENTS.md §6; `pnpm test:tstyche` runs `scripts/run-tstyche.mjs`, two passes cross-checked against `--listFiles`; no `packages/*/src` change — v1.7, Phase 62 (ADR-QD-175)
+
 ### Active
 
-- [ ] ARCH-109..115: resolve the 13 v1.6 tech-debt items (v1.7, Phases 62–68); see `.planning/REQUIREMENTS.md`
+- [ ] ARCH-110..115: resolve the remaining v1.6 tech-debt items (v1.7, Phases 63–68; ARCH-109 done in Phase 62); see `.planning/REQUIREMENTS.md`
 
 ### Out of Scope
 
@@ -340,7 +342,7 @@ logged, counted or spanned.
   - gate 14 (`check-package-install.mjs`) probes only `makeTimelineFeed` of the new public names; `makeGatesFeed`,
     `makeDiagnosticsFeed` and the type-only `DecisionCacheShape` are not compiled through the packed `exports` map;
   - a throwing `subscribe` listener is not isolated in devtools' `ExternalStore` (shared with the React dock), and
-    `packages/core/test/DecisionLog.tst.ts:30` may carry a type pin that cannot fail (Phase 60);
+    `packages/core/test/DecisionLog.tst.ts:30` may carry a type pin that cannot fail (Phase 60) — resolved in v1.7 Phase 62;
   - Phase 59 follow-ups: derive the `"asked"` row's resource flag from the matcher context, and a private `Admitted`
     constructor so only `admit` can build one;
   - Phase 57's D-09 hydration ignore and IN-01, and Phase 58's over-width lines and test-title wording;
@@ -486,6 +488,7 @@ logged, counted or spanned.
 | Admission produces the one walk environment both interpreters read, typed by its row source and carrying the policy it admitted | Two hand-built `supplied` objects and a six-argument recursion whose `depth` and `maxDepth` swapped silently; a benchmark gated the change (gate, then three after-runs, each 0 of 35 slower) | Accepted, ADR-QD-172 (Phase 59) |
 | Devtools' headless interface is its feeds: the root exports the three feeds and one diagnostics option shape, not the store/runner pairs | A headless shell had to pair, fork, supersede and watch each store itself, and `runDiagnostics` lacked the feeds' stop detection the README claimed it had | Accepted, ADR-QD-173 (Phase 60) |
 | A decision cache is asked only the question: the interface takes the question and a `concurrency`-only options type, and core's layer runs the matching walk | `getOrCompute(question, compute)` accepted any computation for any key, so ADR-QD-031's security-boundary key held only because one call site in `Lifecycle.ts` paired them | Accepted, ADR-QD-174 (Phase 61) |
+| A negative type pin must be able to fail: tstyche compiles with `floatingEffect` off, every negative pin has a passing same-subject twin, and their count is budgeted | tstyche read any diagnostic on a compiled call as "not callable", and `floatingEffect` puts one on every bare `Effect`-returning call, so a negative pin on such a subject passed whatever its arguments were | Accepted, ADR-QD-175 amends ADR-QD-037 (Phase 62; review loop added the third characterisation block and the `--listFiles` cross-check) |
 
 ## Evolution
 
@@ -505,4 +508,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-20 after starting v1.7 milestone*
+*Last updated: 2026-11-20 after Phase 62*

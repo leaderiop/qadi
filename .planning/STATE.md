@@ -22,10 +22,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-19)
+See: .planning/PROJECT.md (updated 2026-11-20)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase QD-62 — Type pins that can fail
+**Current focus:** Phase 63 — The packed-install gate probes every new public name
 
 ## Current Position
 
@@ -721,6 +721,7 @@ Last activity: 2026-11-20 — Phase QD-62 complete, transitioned to Phase 63
 - [Phase QD-62]: 62-06: each characterisation half runs in one pass; a pass fails when tstyche compiles any file under another project
 - [Phase QD-62]: 62-07: ADR-QD-175 states the tstyche checks as committed; the DoD and ADR say each pass takes about ten seconds (measured), not eight
 - [Phase QD-62]: 62-08: close scan's leak check reads added word runs (git diff --word-diff=porcelain), so a one-line edit to a long history row does not re-report its old text
+- [Phase QD-62]: review loop (3 iterations, 0 critical/0 warning left): the characterisation has three blocks (rule-off skipped in pass 2, directive-free rule-on skipped in pass 1, directive block in both) so pass 2 goes red if tsconfig.test.json loses floatingEffect; [tstyche-plugin-drift] holds tsconfig.tstyche.json to extends + compilerOptions.plugins; run-tstyche cross-checks --listFiles against the shared walk (scripts/lib/type-tests.mjs)
 
 ### Pending Todos
 
