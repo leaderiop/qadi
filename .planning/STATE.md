@@ -5,16 +5,16 @@ milestone_name: Arch Wave 12
 current_phase: 65
 current_phase_name: Only `admit` builds an `Admitted`
 status: executing
-stopped_at: Completed 65-01-PLAN.md
-last_updated: "2026-11-20T18:41:48.237Z"
+stopped_at: Completed QD-65-02-PLAN.md
+last_updated: "2026-11-20T18:45:05.985Z"
 last_activity: 2026-11-20
 last_activity_desc: Phase 64 complete, transitioned to Phase 65
-state_head: f6a8398068448f0ea8e42e902e6f358cc1b05f79
+state_head: edfb80cebe692f225e1d92fb7e95336fa1e57912
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 24
-  completed_plans: 19
+  completed_plans: 20
   percent: 43
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-20)
 ## Current Position
 
 Phase: 65 (Only `admit` builds an `Admitted`) — EXECUTING
-Plan: 2 of 6
+Plan: 3 of 6
 Status: Plan 65-01 complete, ready for 65-02
 Last activity: 2026-11-20 — Completed 65-01 (mutation base, construction pins and getter cases RED)
 
@@ -437,6 +437,7 @@ Last activity: 2026-11-20 — Completed 65-01 (mutation base, construction pins 
 | Phase QD-64 P04 | 12 min | 2 tasks | 7 files |
 | Phase QD-64 P05 | 40 min | 2 tasks | 2 files |
 | Phase 65 P01 | 15 min | 3 tasks | 6 files |
+| Phase QD-65 P02 | 10 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -808,8 +809,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-20T18:41:48.136Z
-Stopped at: Completed 65-01-PLAN.md
+Last session: 2026-11-20T18:45:05.880Z
+Stopped at: Completed QD-65-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
