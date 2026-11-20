@@ -43,3 +43,18 @@ devtools import, `type DecisionCacheShape` added to the core import.
 | g7 | `import("@qadi/devtools")` becomes `import("@qadi/devtools-absent")` | 1 | `  reading the packed @qadi/devtools exports failed:` followed by node's `ERR_MODULE_NOT_FOUND: Cannot find package '@qadi/devtools-absent' imported from …/sandbox/[eval1]`; the type-only line; the refused-shape line; `3 failure(s)` |
 
 In g3, g4 and g5 the count is 1: no name is reported unprobed when the parse yields nothing.
+
+## Removed and broken probes
+
+Every row is a scratch copy of the committed script (at `d693b2d1`, probes in place), run as the real gate with
+`ROOT` and `SANDBOX` overridden to `.scratch/qd63-red/`, and deleted after its run. Each edit asserted its anchor
+occurred exactly once. Whole-probe removals are cut by anchor: r1 the gates probe, r2 the diagnostics probe, r4 the
+host cache alone (the refused literal stays), r5 the refused literal with its directive (the host cache stays).
+
+| id | Edit | Exit | Failure lines |
+| --- | --- | --- | --- |
+| c0 | none (overrides only) | 0 | `package-install: 9 package(s) pack, resolve and authorize (524 runtime export(s))` |
+| r1 | cut the gates probe | 1 | `  the consumer fixture never calls makeGatesFeed: every make*Feed the packed @qadi/devtools root exports must be probed`; `package-install: 1 failure(s) across 9 package(s).` |
+| r2 | cut the diagnostics probe | 1 | `  the consumer fixture never calls makeDiagnosticsFeed: every make*Feed the packed @qadi/devtools root exports must be probed`; `package-install: 1 failure(s) across 9 package(s).` |
+| r4 | cut the host cache (refused literal stays) | 1 | `  the consumer fixture never uses DecisionCacheShape as a type: every type-only probe name must be a type reference outside a refused literal`; `package-install: 1 failure(s) across 9 package(s).` |
+| r5 | cut the refused literal and its directive (host cache stays) | 1 | `  the consumer fixture never refuses a literal typed DecisionCacheShape: every refused-shape probe name must annotate a declaration holding a @ts-expect-error that names its refused member`; `package-install: 1 failure(s) across 9 package(s).` |
