@@ -1,0 +1,7 @@
+23:15:46
+23:15  up 1 day,  9:16, 1 user, load averages: 29.77 23.33 25.34
+ %CPU COMM
+ 47.4 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds
+ 21.5 specforge
+  6.1 /Users/mohammadalmechkor/Applications/Herdr.app/Contents/MacOS/Herdr
+  5.7 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd

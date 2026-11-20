@@ -1,0 +1,7 @@
+23:15:55
+23:15  up 1 day,  9:16, 1 user, load averages: 27.02 22.94 25.18
+ %CPU COMM
+ 49.0 (specforge)
+ 47.4 /Users/mohammadalmechkor/Projects/Perso/SpecForge-targets/r5b/gsd/debug/deps/cli-65901c99ec5736d2
+ 45.7 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd
+ 43.3 /Users/mohammadalmechkor/Projects/Perso/SpecForge-targets/r5b/debug/specforge
