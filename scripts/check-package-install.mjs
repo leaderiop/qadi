@@ -456,7 +456,16 @@ import {
 import { makeQadi } from "@qadi/promise";
 import { qadiTestLayer } from "@qadi/testing";
 import { QadiProvider } from "@qadi/react";
-import { emptyTimeline, ingest, makeTimelineFeed, sourceFromRecords, verdictOf } from "@qadi/devtools";
+import {
+  emptyTimeline,
+  type GateInstanceLike,
+  type GateRegistryLike,
+  ingest,
+  makeGatesFeed,
+  makeTimelineFeed,
+  sourceFromRecords,
+  verdictOf,
+} from "@qadi/devtools";
 import { DevtoolsDock } from "@qadi/devtools/react";
 import { compileSql } from "@qadi/predicate-sql";
 import { compilePrismaWhere } from "@qadi/predicate-prisma";
@@ -546,6 +555,48 @@ const fed = await Effect.runPromise(
 );
 expect("devtools feed", fed.status, "Reading");
 expect("devtools feed entries", fed.entries, 1);
+
+// A feed built over a registry says what the registry holds, which is not what a feed over none says.
+// \`makeGatesFeed\` reads synchronously, so no turn is needed; the registry is a structural literal because
+// @qadi/react's real one needs a DOM. Closing the scope must release the one subscription it took.
+const gate: GateInstanceLike = { id: "gate-1", kind: "Guard", policy: hasPermission(read), state: "Allowed" };
+let registered: ReadonlyArray<GateInstanceLike> = [gate];
+const gateListeners = new Set<() => void>();
+const gateRegistry: GateRegistryLike = {
+  instances: () => registered,
+  subscribe: (listener) => {
+    gateListeners.add(listener);
+    return () => {
+      gateListeners.delete(listener);
+    };
+  },
+};
+const gated = await Effect.runPromise(
+  Effect.scoped(
+    Effect.gen(function* () {
+      const bare = yield* makeGatesFeed();
+      const feed = yield* makeGatesFeed({ gates: gateRegistry });
+      const read = feed.getSnapshot().registry;
+      const watching = gateListeners.size;
+      registered = [gate, { ...gate, id: "gate-2" }];
+      for (const listener of gateListeners) listener();
+      const changed = feed.getSnapshot().registry;
+      return {
+        initial: bare.getSnapshot().registry._tag,
+        read: read._tag,
+        count: read._tag === "Read" ? read.instances.length : -1,
+        watching,
+        changed: changed._tag === "Read" ? changed.instances.length : -1,
+      };
+    }),
+  ),
+);
+expect("gates feed with no registry", gated.initial, "Unwatched");
+expect("gates feed over one instance", gated.read, "Read");
+expect("gates feed instance count", gated.count, 1);
+expect("gates feed subscribes once", gated.watching, 1);
+expect("gates feed follows its registry", gated.changed, 2);
+expect("gates feed releases on close", gateListeners.size, 0);
 
 // @qadi/predicate-sql and @qadi/predicate-prisma compile what toPredicate
 // emits — a held permission folds to True, so both compile to their own
