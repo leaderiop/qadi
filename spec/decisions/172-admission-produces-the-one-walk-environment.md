@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-172                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-19                                     |
 > | Status         | Accepted — amends ADR-QD-024, ADR-QD-100, ADR-QD-163; amended 2026-11-20 (only admit builds an Admitted; the asked flags read the matcher context) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-20): amendment — only admit builds an Admitted, and the asked flags read the matcher context (ARCH-112, CCR-QD-456)<br>1.0 (2026-11-19): Initial release (ARCH-106, CCR-QD-450) |
+> | Change History | 1.2 (2026-11-20): Narrowed ARCH-112's read-once claim to the question's resource and action (review finding WR-01): Decision 3 and the 2026-11-20 amendment<br>1.1 (2026-11-20): amendment — only admit builds an Admitted, and the asked flags read the matcher context (ARCH-112, CCR-QD-456)<br>1.0 (2026-11-19): Initial release (ARCH-106, CCR-QD-450) |
 
 ---
 
@@ -56,8 +56,9 @@ Each item cites the phase decision it records.
    => SuppliedBy[Source] }` since the 2026-11-20 amendment, so each row is checked against its own type: a row source
    without a row does not compile, and a `"row"` row that stops supplying the resource fails with TS2322. The `"asked"`
    row's flags are `boolean`, so an `"asked"` row that claims a resource it lacks still compiles; each row reads the
-   matcher context `admit` built once, so a flag and the value it describes come from one read of the question, and
-   `Admission.test.ts` (E1 to E5, E7 to E10) and `LeafMatrix.test.ts` pin that direction at run time.
+   matcher context `admit` built once, so a flag and the resource or action it describes come from one read of the
+   question's resource or action, and `Admission.test.ts` (E1 to E5, E7 to E10) and `LeafMatrix.test.ts` pin that
+   direction at run time.
    `admit` is one generic signature with no overload and no wider implementation signature.
 4. **D-03 and D-16: recursion passes `(policy, request, depth)`.** `maxDepth` moved into the environment, so the
    recursion carries one number and a depth cannot land where the bound belongs and compile. All 13 sites use the new
@@ -282,7 +283,8 @@ decision: the private constructor implements Decision 1's "only `admit` builds o
 - **The asked flags read the matcher context.** `SUPPLIED`'s rows took the question, and `admit` read the question's
   resource and action again to build the matcher context, so the flags and the context agreed only because two reads
   of a plain record give the same answer. `admit` now builds the matcher context once and each row reads it, so the
-  question's resource and action are each read once, and a flag and the value it describes come from that one read.
+  question's resource and action are each read once, and a flag and the resource or action it describes come from that
+  one read.
   The compiler does not check the `"asked"` row's flags, whose type is `boolean`; `Admission.test.ts` pins the
   agreement with a question whose resource or action answers differently on a second read, which failed before this
   change (E7 to E9) (INV-QD-376, BEH-QD-662). The `"row"` row's resource stays the constant `true`, because

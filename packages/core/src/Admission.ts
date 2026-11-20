@@ -57,8 +57,8 @@ interface SuppliedBy {
  * {@link SuppliedBy} type: a `"row"` row that stops supplying the resource does
  * not compile, and neither does a row source without a row here. The `"asked"`
  * row's flags are `boolean`, so the type does not check them: they agree with
- * the matcher context because each row reads that context, which `admit` built
- * from one read of the question, and the tests pin it.
+ * the matcher context because each row reads that context, in which `admit`
+ * read the question's resource and action once each, and the tests pin it.
  */
 const SUPPLIED: {
   readonly [Source in RowSource]: (context: MatcherContext) => SuppliedBy[Source];
