@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-037                                   |
-> | Revision       | 1.6                                             |
+> | Revision       | 1.7                                             |
 > | Effective Date | 2026-09-19                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.6 (2026-11-14): amendment: tstyche checks a ts-expect-error fragment, replacing toRaiseError (ADR-QD-152, CCR-QD-430)<br>1.5 (2026-11-12): Revision note: the Lifecycle copy the cycle rule forced is gone (ARCH-80, CCR-QD-423)<br>1.4 (2026-11-11): Test-table row for `GuardRoute.tst.ts` now names `addGuardedRoute`, the one bare-route seam, instead of the removed `guardRoute` (ARCH-75, CCR-QD-417; phase 27 review WR-01)<br>1.3 (2026-09-19): The `"rc"` channel named by 1.2's re-check tried, not just named — `npx tstyche --target rc` fails outright (`ERR_MODULE_NOT_FOUND: .../typescript@7.0.1-rc/lib/typescript.js`), because that build is the `typescript-go`/`tsgo` native-compiler preview, which ships `dist/api/*` and no classic `lib/typescript.js` at all — a different package shape than `tstyche`'s type tester is written against, not merely a pre-release version of the shape it expects. So the gap isn't only "no stable TS 7 target yet"; the one pre-release target that exists doesn't run under this `tstyche`. Confirms 1.2's conclusion more strongly than 1.2 itself established it (100-lens audit, second batch, .issues/medium/sebastian-mckenzie-SM-01.md, .issues/medium/nathan-shively-sanders-NS-02.md, .issues/low/titian-cernicova-dragomir-TC-03.md, .issues/info/joel-spolsky-JS-07.md)<br>1.2 (2026-09-19): Dated re-check added to the TypeScript-7 revisit note — `tstyche@^7.2.5` is now installed, but `--list` shows TypeScript 7 is still pre-release (`rc`/`next` channels only), so `tstyche.json`'s `6.0.3` target remains the newest stable version and the revisit condition has not fired (100-lens audit, MO-03/OT-02/RC-03)<br>1.1 (2026-09-07): "`pnpm check` steps 5 and 6" now names `madge`/`tstyche` in the same sentence — extending `scripts/check-dod-table.mjs`'s reference check to plural forms ("steps 5 and 6", not just "step 11") turned this line's un-named pair into a real finding rather than a silent gap (CCR-QD-111)<br>1.0 (2026-08-22): Initial release (CCR-QD-048) |
+> | Change History | 1.7 (2026-11-20): amendment: tstyche compiles under tsconfig.tstyche.json and runs twice (ADR-QD-175, CCR-QD-453)<br>1.6 (2026-11-14): amendment: tstyche checks a ts-expect-error fragment, replacing toRaiseError (ADR-QD-152, CCR-QD-430)<br>1.5 (2026-11-12): Revision note: the Lifecycle copy the cycle rule forced is gone (ARCH-80, CCR-QD-423)<br>1.4 (2026-11-11): Test-table row for `GuardRoute.tst.ts` now names `addGuardedRoute`, the one bare-route seam, instead of the removed `guardRoute` (ARCH-75, CCR-QD-417; phase 27 review WR-01)<br>1.3 (2026-09-19): The `"rc"` channel named by 1.2's re-check tried, not just named — `npx tstyche --target rc` fails outright (`ERR_MODULE_NOT_FOUND: .../typescript@7.0.1-rc/lib/typescript.js`), because that build is the `typescript-go`/`tsgo` native-compiler preview, which ships `dist/api/*` and no classic `lib/typescript.js` at all — a different package shape than `tstyche`'s type tester is written against, not merely a pre-release version of the shape it expects. So the gap isn't only "no stable TS 7 target yet"; the one pre-release target that exists doesn't run under this `tstyche`. Confirms 1.2's conclusion more strongly than 1.2 itself established it (100-lens audit, second batch, .issues/medium/sebastian-mckenzie-SM-01.md, .issues/medium/nathan-shively-sanders-NS-02.md, .issues/low/titian-cernicova-dragomir-TC-03.md, .issues/info/joel-spolsky-JS-07.md)<br>1.2 (2026-09-19): Dated re-check added to the TypeScript-7 revisit note — `tstyche@^7.2.5` is now installed, but `--list` shows TypeScript 7 is still pre-release (`rc`/`next` channels only), so `tstyche.json`'s `6.0.3` target remains the newest stable version and the revisit condition has not fired (100-lens audit, MO-03/OT-02/RC-03)<br>1.1 (2026-09-07): "`pnpm check` steps 5 and 6" now names `madge`/`tstyche` in the same sentence — extending `scripts/check-dod-table.mjs`'s reference check to plural forms ("steps 5 and 6", not just "step 11") turned this line's un-named pair into a real finding rather than a silent gap (CCR-QD-111)<br>1.0 (2026-08-22): Initial release (CCR-QD-048) |
 
 ---
 
@@ -114,6 +114,10 @@ cold. `tstyche.json` also pins `"tsconfig": "tsconfig.test.json"`, so it
 resolves against this workspace's own `verbatimModuleSyntax`/
 `exactOptionalPropertyTypes` settings rather than tstyche's built-in
 baseline compiler options.
+
+> **Amended (ADR-QD-175).** `tstyche.json` now names `tsconfig.tstyche.json`, which is
+> `tsconfig.test.json` with the Effect language service's `floatingEffect` rule off; see the
+> amendment at the end of this document.
 
 **The consequence, stated plainly: a `.tst.ts` assertion passing does not
 prove the same code type-checks under TypeScript 7.** It proves the
@@ -228,6 +232,17 @@ the fragment must match the error, and an unused directive also fails `tsc -p ts
 `HydrationDropReasonOf` of an unknown kind
 ([ADR-QD-152](./152-each-hydration-drop-reason-is-stated-once-with-its-kind.md)). The directive
 stays confined to `.tst.ts` files.
+
+## Amendment (2026-11-20, ADR-QD-175, CCR-QD-453)
+
+`tstyche.json` names `tsconfig.tstyche.json`, not `tsconfig.test.json`: the same compiler
+options, with the Effect language service's `floatingEffect` rule off. With the rule on,
+tstyche read the diagnostic it puts on a bare call that returns an `Effect` or a `Stream` as
+"not callable", so a negative `toBeCallableWith` pin on such a function passed whatever its
+arguments were. `pnpm test:tstyche` runs `scripts/run-tstyche.mjs`, which runs tstyche under
+that config and again under `tsconfig.test.json` with the rule on, and a budget in
+`scripts/check-house-style.mjs` counts the negative pins
+([ADR-QD-175](./175-a-negative-type-pin-can-fail.md)).
 
 ---
 
