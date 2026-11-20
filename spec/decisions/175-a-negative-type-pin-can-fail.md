@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-175                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-11-20                                     |
 > | Status         | Accepted — amends ADR-QD-037                   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-20): the drift check holds tsconfig.tstyche.json to extends and compilerOptions.plugins (review WR-02)<br>1.1 (2026-11-20): the in-file floatingEffect directive runs in pass 1 as well (review WR-01)<br>1.0 (2026-11-20): Initial release (ARCH-109, CCR-QD-453) |
+> | Change History | 1.3 (2026-11-20): run-tstyche cross-checks the gate's type-test walk against tstyche --listFiles (review WR-03)<br>1.2 (2026-11-20): the drift check holds tsconfig.tstyche.json to extends and compilerOptions.plugins (review WR-02)<br>1.1 (2026-11-20): the in-file floatingEffect directive runs in pass 1 as well (review WR-01)<br>1.0 (2026-11-20): Initial release (ARCH-109, CCR-QD-453) |
 
 ---
 
@@ -55,9 +55,11 @@ arguments made valid.
 
 **The gate holds it.** `NOT_CALLABLE_PIN_BUDGET` in `scripts/check-house-style.mjs` counts the
 negative `toBeCallableWith` and `toBeConstructableWith` pins per file, with comments and the
-text of strings blanked (a template literal's `${…}` is read as code), on its own walk of
-every file tstyche selects, in both directions, and AGENTS.md section 6's table is checked
-against it. `[not-callable-control]` requires each negative pin's twin by subject text, form
+text of strings blanked (a template literal's `${…}` is read as code), on its own walk
+(`scripts/lib/type-tests.mjs`) of every file tstyche selects, in both directions, and AGENTS.md
+section 6's table is checked against it. The walk mirrors tstyche's default `testFileMatch` by
+hand, so `scripts/run-tstyche.mjs` fails unless `tstyche --listFiles` selects exactly the files
+the walk finds; an upgrade that changed the default would otherwise leave a file uncounted. `[not-callable-control]` requires each negative pin's twin by subject text, form
 and kind, and requires the twin to run: a file holding a negative pin may not use `.skip`,
 `.only` or `.todo`, nor carry a tstyche directive. `[tstyche-plugin-drift]` holds
 `tsconfig.tstyche.json` to `extends` and `compilerOptions.plugins` alone, holds the

@@ -489,8 +489,9 @@ in every file tstyche selects, separately, with comments and the text of strings
 blanked (a template literal's `${…}` is code, so a pin inside one counts), and
 checks the counts against this table in both directions (`[not-callable-pin]`,
 `[not-callable-pin-table]`). Test-scope, like `PORT_DOUBLE_BUDGET`, but over its
-own walk, because `collect()` skips `.tst.ts` files; a walk that finds no file
-fails. A new negative pin is a reviewed edit to the budget and this table
+own walk (`scripts/lib/type-tests.mjs`), because `collect()` skips `.tst.ts` files; a
+walk that finds no file fails, and `pnpm test:tstyche` fails unless `tstyche
+--listFiles` selects exactly the files that walk finds. A new negative pin is a reviewed edit to the budget and this table
 together. `FloatingEffectPins.tst.ts` is the one file whose bare negative pins on
 an `Effect`, a `Stream` and a constructor are deliberate: they pin the tool, not
 an API.

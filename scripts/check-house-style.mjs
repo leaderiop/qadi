@@ -86,6 +86,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { RAW_DECISION_READ } from "./lib/raw-decision-read.mjs";
+import { walkTypeTests } from "./lib/type-tests.mjs";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 
@@ -716,13 +717,6 @@ const NOT_CALLABLE_PIN_BUDGET = {
   "packages/react/test/Hydration.tst.ts": { callable: 1, constructable: 0 },
 };
 
-/**
- * tstyche's default `testFileMatch` (`**\/*.tst.*`, `**\/__typetests__/*.test.*`,
- * `**\/typetests/*.test.*`), tested against a repository-relative path. `tstyche.json` sets
- * none, and `[not-callable-pin]` fails if it ever does, so the two cannot drift apart.
- */
-const TYPE_TEST_FILE = [/(?:^|\/)[^/]*\.tst\.[^/]*$/, /(?:^|\/)(?:__typetests__|typetests)\/[^/]*\.test\.[^/]*$/];
-
 /** A negative pin in code with comments and strings blanked: global, so two on a line count two. */
 const NOT_CALLABLE_PIN = /\.\s*not\s*\.\s*toBeCallableWith\b/g;
 const NOT_CONSTRUCTABLE_PIN = /\.\s*not\s*\.\s*toBeConstructableWith\b/g;
@@ -787,22 +781,6 @@ const blankCode = (source, { keepStrings = false } = {}) => {
   }
   return out.join("");
 };
-
-/**
- * Every type-test file tstyche selects under `dir`, repository-relative: its `**` skips
- * `node_modules` and any name starting with a dot, and so does this walk.
- *
- * @param {string} dir
- * @returns {string[]}
- */
-const walkTypeTests = (dir) =>
-  readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    if (entry.name === "node_modules" || entry.name.startsWith(".")) return [];
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) return walkTypeTests(full);
-    const rel = relative(ROOT, full);
-    return entry.isFile() && TYPE_TEST_FILE.some((re) => re.test(rel)) ? [rel] : [];
-  });
 
 const typeTests = walkTypeTests(ROOT);
 
@@ -2310,13 +2288,13 @@ for (const file of srcSources) {
     failures += 1;
     console.error(
       "[not-callable-pin] found no type-test files from the repository root, so no pin was counted; " +
-        "TYPE_TEST_FILE or the walk no longer matches what tstyche selects.",
+        "scripts/lib/type-tests.mjs no longer matches what tstyche selects.",
     );
   }
   if (Object.hasOwn(JSON.parse(readFileSync(join(ROOT, "tstyche.json"), "utf8")), "testFileMatch")) {
     failures += 1;
     console.error(
-      "tstyche.json  [not-callable-pin] sets testFileMatch; TYPE_TEST_FILE mirrors tstyche's default, " +
+      "tstyche.json  [not-callable-pin] sets testFileMatch; TYPE_TEST_FILE (scripts/lib/type-tests.mjs) mirrors tstyche's default, " +
         "so update it with the same patterns before setting one.",
     );
   }

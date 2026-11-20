@@ -22,6 +22,9 @@
  * setting holds, and says so only in the `uses TypeScript … with …` line it prints when the
  * project changes; a pass whose output names any other project fails.
  *
+ * Before either pass, the files `tstyche --listFiles` selects must be exactly the files
+ * `scripts/lib/type-tests.mjs` walks, the set `check-house-style.mjs` counts pins in.
+ *
  * Both passes always run, and the exit status is non-zero if either fails. No shell: the
  * arguments are fixed, and tstyche runs on the Node binary that runs this script.
  */
@@ -29,6 +32,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { walkTypeTests } from "./lib/type-tests.mjs";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const TSTYCHE = join(ROOT, "node_modules", "tstyche", "dist", "bin.js");
@@ -56,6 +60,20 @@ if (listed.status !== 0) {
 }
 /** @type {ReadonlyArray<string>} */
 const selected = JSON.parse(listed.stdout).map((path) => relative(ROOT, path));
+// `check-house-style.mjs` counts negative pins in the files this walk finds, which mirrors
+// tstyche's default `testFileMatch` by hand; a tstyche upgrade that changes the default would
+// leave a selected file with an uncounted, unchecked pin, so the two sets must be equal.
+const walked = walkTypeTests(ROOT);
+const unwalked = selected.filter((file) => !walked.includes(file));
+const unselected = walked.filter((file) => !selected.includes(file));
+if (unwalked.length > 0 || unselected.length > 0) {
+  console.error(
+    "run-tstyche: scripts/lib/type-tests.mjs and `tstyche --listFiles` disagree, so some type test is not " +
+      `counted by check-house-style.mjs; selected by tstyche only: ${JSON.stringify(unwalked)}, ` +
+      `found by the walk only: ${JSON.stringify(unselected)}. Update TYPE_TEST_FILE to tstyche's testFileMatch.`,
+  );
+  process.exit(1);
+}
 const holders = selected
   .map((file) => ({ file, count: readFileSync(join(ROOT, file), "utf8").toLowerCase().split(RULE_ON_SKIP).length - 1 }))
   .filter((holder) => holder.count > 0);
