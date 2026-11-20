@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-033                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.1 (2026-10-07): check 3b added: the entry-point list is closed and the packed artifact is probed for it (ADR-QD-099, CCR-QD-188)<br>1.0 (2026-07-26): Initial release (CCR-QD-038) |
+> | Change History | 1.2 (2026-11-20): amendment: the consumer probes every make*Feed the packed devtools root exports and a DecisionCacheShape host cache, held by a probe guard (ARCH-110, CCR-QD-454)<br>1.1 (2026-10-07): check 3b added: the entry-point list is closed and the packed artifact is probed for it (ADR-QD-099, CCR-QD-188)<br>1.0 (2026-07-26): Initial release (CCR-QD-038) |
 
 ---
 
@@ -138,6 +138,24 @@ The gate builds before packing, so `pnpm check` now runs `tsc -b` twice — once
 typecheck graph and once for the build graph. That is a few seconds against a pipeline
 that runs mutation testing, and it is the price of the two graphs being genuinely
 different things: one includes tests and the acceptance suite, the other is what ships.
+
+## Amendment (2026-11-20, ARCH-110, CCR-QD-454)
+
+Check 4's consumer probes the names the devtools feeds and the decision cache made public,
+through the packed artifact: it runs `makeGatesFeed` over a one-instance registry typed by
+`GateRegistryLike`, runs `makeDiagnosticsFeed` to `Live` within a bounded yield loop and
+refuses a `schedule` in `DiagnosticsOptions`, and wraps `decisionCacheLayer()` in a host
+cache typed by `DecisionCacheShape`, with a `@ts-expect-error` on the pre-0.13
+`getOrCompute(question, compute)` shape. A guard in `scripts/check-package-install.mjs`
+keeps that list current: it reads the `make*Feed` names the packed `@qadi/devtools` root
+exports and fails unless the fixture calls each one, read from the compiler's parse of the
+fixture rather than its text. It also fails unless each name on a fixed type-only list,
+today `DecisionCacheShape`, is a type reference there outside a refused literal, and unless
+each name on a fixed refused-shape list, today `DecisionCacheShape` again, annotates a
+declaration that holds a `@ts-expect-error` naming the member the list pairs it with, today
+`getOrCompute`, inside its own text, so a directive on another property does not stand in
+for it and deleting the host cache, or the pre-0.13 literal together with its directive,
+fails the check. A load, read or parse that fails is a failure, never a pass.
 
 ---
 
