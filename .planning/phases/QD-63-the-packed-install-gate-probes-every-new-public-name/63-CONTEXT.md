@@ -78,6 +78,16 @@ Requirements: PROBE-01..05, plus the cross-cutting WX-01..07.
 - **Reserved ids only.** Never run `scripts/next-id.mjs`, because the whole v1.7 block is already reserved
   (`_WAVE12-CONTEXT.md`).
 
+### Owner decisions after research (asked once, 2026-11-20; locked)
+- **D-A1: the guard parses with `typescript/unstable/sync` + `typescript/unstable/ast/is`.** The repo's `typescript` is
+  7.0.2 (the native port): its root exports only `version`/`versionMajorMinor`, so "the TypeScript compiler" means the
+  `unstable` entry. Any throw from that API is caught and reported through `fail()`, so a TS upgrade that breaks it turns
+  gate 14 red, never silently green.
+- **D-SC4: the guard also requires the type-only probe names.** Besides the derived `make*Feed` set, the guard requires
+  the fixture to reference a fixed list of type-only probe names (`DecisionCacheShape`) as a type reference in the AST,
+  so deleting the whole host-cache probe fails gate 14 as well. The type-only list is explicit, because a type has no
+  runtime key to derive it from.
+
 ### Claude's Discretion
 - The exact number of `yieldNow` turns that bounds each probe, and the shape of the counting port.
 - Whether the guard's AST walk is a helper in the script or inline in check 4.
