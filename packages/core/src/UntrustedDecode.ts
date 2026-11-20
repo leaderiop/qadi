@@ -131,7 +131,8 @@ export type UnwalkedKey<A> = {
 
 /**
  * What an envelope does with a top-level key its schema does not declare: `refuse` it, as the strict
- * decode does, or `ignore` it, dropped before the guard and the decode ever read it (ADR-QD-170).
+ * decode does, or `ignore` it, dropped by its name, so neither the projection, the guard nor the decode
+ * reads its value (ADR-QD-170).
  */
 export type UnknownKeyPolicy = "refuse" | "ignore";
 
@@ -140,7 +141,7 @@ export type UnknownKeyPolicy = "refuse" | "ignore";
  *
  * `unknownKeys` is stated by every seam, never defaulted, so a seam that tolerates an unknown key says so
  * where it is built. `ignore` keeps, of a plain object, only the top-level keys the schema's encoded side
- * declares for the member the input's own `_tag` selects, and needs a schema that is an object or a union of
+ * declares for the member the input's own enumerable `_tag` selects, and needs a schema that is an object or a union of
  * objects with distinct literal tags (it throws at build otherwise). `unwalked` names top-level keys the depth guard leaves out because a second
  * decoder guards them from its own root (hydration's `entries`, the audit
  * envelope's `entries`, the audit row's `record`); each must be typed `unknown` or
@@ -163,15 +164,30 @@ type FreeRefusalTag<R extends { readonly _tag: string }> = [
 
 type Projection = (input: unknown) => unknown;
 
-/** A plain object reduced to the own keys `keysOf` names for it; anything else passes through. It reads no value, so it cannot recurse. */
-const project =
-  (keysOf: (entries: ReadonlyArray<readonly [string, unknown]>) => ReadonlySet<PropertyKey>): Projection =>
-  (input) => {
+/**
+ * A plain object reduced to the top-level keys `keysOf` names for it; anything else passes through.
+ *
+ * It reads the object's own enumerable key names, then each kept key's value once, into a fresh object, so
+ * an undeclared key's value is never read, an accessor's included. For a union, `keysOf` reads the object's
+ * own enumerable `_tag` once more, to choose the member, so a union's `_tag` is read twice. A one-object
+ * schema chooses no member, so `keysOf` reads no `_tag`: a declared `_tag` is read once, as a kept value,
+ * and an undeclared `_tag` accessor is never invoked. It reads nothing below the top level, so it cannot
+ * recurse: the depth guard (unless the key is `unwalked`) and the strict decode read what lies under a kept
+ * value, accessors included. Under `refuse` nothing is projected, and the guard (and, for `unwalked` keys,
+ * `walked`) reads every own value of the input, declared or not (ADR-QD-170).
+ */
+const project = (ast: SchemaAST.AST): Projection => {
+  const keysOf = envelopeKeysOf(ast);
+  return (input) => {
     if (!isPlainObject(input)) return input;
-    const entries = Object.entries(input);
-    const keys = keysOf(entries);
-    return Object.fromEntries(entries.filter(([key]) => keys.has(key)));
+    const keys = keysOf(input);
+    return Object.fromEntries(
+      Object.keys(input)
+        .filter((key) => keys.has(key))
+        .map((key): readonly [string, unknown] => [key, input[key]]),
+    );
   };
+};
 
 const keepEverything = (input: unknown): unknown => input;
 
@@ -183,7 +199,7 @@ const keepEverything = (input: unknown): unknown => input;
  */
 const PROJECTION: Readonly<Record<UnknownKeyPolicy, (ast: SchemaAST.AST) => Projection>> = {
   refuse: () => keepEverything,
-  ignore: (ast) => project(envelopeKeysOf(ast)),
+  ignore: project,
 };
 
 /** What {@link untrustedDecoder} builds. */

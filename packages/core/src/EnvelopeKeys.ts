@@ -56,15 +56,19 @@ const discriminantOf = (members: ReadonlyArray<Member>): ReadonlySet<unknown> | 
 /**
  * Reads, once, the declared keys of `ast`'s encoded side, and answers per input which member's keys apply.
  *
- * The member is the one whose `_tag` literal equals the input's own `_tag`; an unknown or absent `_tag`
- * takes the first member and fails in the decode, as it always did. Throws, at build, for a schema
+ * The member is the one whose `_tag` literal equals the input's own enumerable `_tag`, which this reads
+ * once, and only for a union (the projection then reads that `_tag` again as a kept value, so twice in all).
+ * A one-object schema's answer reads nothing of the input: its `_tag`, when declared, is read once, by the
+ * projection as a kept value, and an undeclared `_tag` accessor is never invoked. An unknown, absent,
+ * inherited or non-enumerable `_tag` takes the first member and fails in the decode, as it always did.
+ * Throws, at build, for a schema
  * with no object member, with several members that `_tag` does not tell apart, or with a member that
  * has an index signature or a rest (which declares no finite key list): all are programmer errors at
  * module scope, and a build that answered would drop keys it could not name.
  */
 export const envelopeKeysOf = (
   ast: SchemaAST.AST,
-): ((entries: ReadonlyArray<readonly [string, unknown]>) => ReadonlySet<PropertyKey>) => {
+): ((input: { readonly [TAG]?: unknown }) => ReadonlySet<PropertyKey>) => {
   const members = membersOf(SchemaAST.toEncoded(ast));
   const [first] = members;
   if (first === undefined || (members.length > 1 && discriminantOf(members) === undefined)) {
@@ -77,8 +81,9 @@ export const envelopeKeysOf = (
       'unknownKeys "ignore" needs objects with a closed key list: an index signature or a rest element declares none',
     );
   }
-  return (entries) => {
-    const tag = entries.find(([key]) => key === TAG)?.[1];
+  if (members.length === 1) return () => first.keys;
+  return (input) => {
+    const tag = Object.prototype.propertyIsEnumerable.call(input, TAG) ? input[TAG] : undefined;
     return (members.find((member) => member.literals.get(TAG) === tag) ?? first).keys;
   };
 };
