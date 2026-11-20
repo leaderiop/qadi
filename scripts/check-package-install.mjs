@@ -457,10 +457,12 @@ import { makeQadi } from "@qadi/promise";
 import { qadiTestLayer } from "@qadi/testing";
 import { QadiProvider } from "@qadi/react";
 import {
+  type DiagnosticsOptions,
   emptyTimeline,
   type GateInstanceLike,
   type GateRegistryLike,
   ingest,
+  makeDiagnosticsFeed,
   makeGatesFeed,
   makeTimelineFeed,
   sourceFromRecords,
@@ -597,6 +599,33 @@ expect("gates feed instance count", gated.count, 1);
 expect("gates feed subscribes once", gated.watching, 1);
 expect("gates feed follows its registry", gated.changed, 2);
 expect("gates feed releases on close", gateListeners.size, 0);
+
+// \`Live\` is set only by an accepted first sample, so a feed that read nothing stays \`Starting\`. A bounded
+// yield loop, no clock; closing the scope interrupts the poll's wait for its next sample.
+const diagnosed = await Effect.runPromise(
+  Effect.scoped(
+    Effect.gen(function* () {
+      const off = yield* makeDiagnosticsFeed();
+      const feed = yield* makeDiagnosticsFeed({});
+      let turns = 0;
+      while (feed.getSnapshot().status._tag !== "Live" && turns < 200) {
+        yield* Effect.yieldNow;
+        turns += 1;
+      }
+      const after = feed.getSnapshot();
+      return { off: off.getSnapshot().status._tag, after: after.status._tag, hydration: after.reading.hydration !== undefined, turns };
+    }),
+  ),
+);
+expect("diagnostics feed handed no options", diagnosed.off, "Off");
+expect("diagnostics feed reached Live in " + String(diagnosed.turns) + " turns", diagnosed.after, "Live");
+expect("diagnostics feed first read sets hydration", diagnosed.hydration, true);
+
+// DiagnosticsOptions has a cadence in milliseconds and no \`schedule\`.
+const noSchedule: DiagnosticsOptions = {
+  // @ts-expect-error a cadence is a number, not a Schedule
+  schedule: "immediate",
+};
 
 // @qadi/predicate-sql and @qadi/predicate-prisma compile what toPredicate
 // emits — a held permission folds to True, so both compile to their own
