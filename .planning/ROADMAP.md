@@ -425,7 +425,7 @@ Order: the check that cannot fail (62), the gate that protects v1.6's new names 
 
 - [x] **Phase 62: Type pins that can fail** - A negative callable pin on an `Effect`- or `Stream`-returning function can fail for valid arguments, the one vacuous pin is rewritten, every remaining pin is controlled, and a gate keeps the count exact (ARCH-109, tests and gate) (completed 2026-11-20)
 - [x] **Phase 63: The packed-install gate probes every new public name** - Gate 14's consumer compiles and runs `makeGatesFeed`, `makeDiagnosticsFeed` and a typed `DecisionCacheShape` host cache, and fails if a `make*Feed` export is left unprobed (ARCH-110, script) (completed 2026-11-20)
-- [ ] **Phase 64: One throwing listener cannot silence the rest** - Devtools' `ExternalStore` calls every listener, then rethrows what was thrown (ARCH-111, devtools; D1, D7)
+- [x] **Phase 64: One throwing listener cannot silence the rest** - Devtools' `ExternalStore` calls every listener, then rethrows what was thrown (ARCH-111, devtools; D1, D7) (completed 2026-11-20)
 - [ ] **Phase 65: Only `admit` builds an `Admitted`** - A private constructor and member make `admit` the only builder, and the `"asked"` row's flags are derived from the matcher context; bench-gated (ARCH-112, core)
 - [ ] **Phase 66: The decoder reads only what it declares** - Under `ignore`, `project` reads only declared keys; hydration's `refuse` policy is recorded; bench-gated (ARCH-113, core; D2, D4)
 - [ ] **Phase 67: No equivalent mutants, no magic race bound** - `DecisionCache`'s eviction and `SharedComputation`'s claim dispatch lose their equivalent mutants, and the I5 race test loses its step-count bound (ARCH-114, core; D5)
@@ -511,7 +511,7 @@ Plans:
   4. The dock's `*.characterisation.test.tsx` files pass with an empty `git diff`, and a `@qadi/devtools` patch changeset records the change.
 
 **Planning notes**: One three-line seam with all 13 importers enumerated, so no research phase is needed; the planner's one scope call is already made (D7). D1 and D7 bind. Mechanics from the research: collect thrown values in an array and decide by length, never "first error truthy" (`throw undefined` must work); rethrow a single error as the same value (reference-equal) and several as an `AggregateError` with a fixed, asserted message; iterate the live `Set` (a `[...listeners]` snapshot would change both removed-before-turn and added-during-notify behaviour) and pin both subscribe-during and unsubscribe-during; state is assigned before notify, as today. Texts to amend: `TimelineFeed.ts` `subscribe` docs, `DiagnosticsFeed.ts` (keep the poll-stop clause), `GatesFeed.ts` module doc, `devtools/README.md`, and the BEH at `spec/behaviors/28-devtools-screens.md`; re-grep the website's devtools page before editing (the research disagrees on whether it mirrors the README) and never touch `apps/website/dist/`. `TimelineFeed` nests stores, so an outer notify's error can be a thrown value inside an inner notify and a nested `AggregateError` can occur: decide, pin, do not flatten. `ExternalStore.ts` is in the devtools mutation set (break 80), so the `AggregateError` message literal and the length boundaries need asserts. React's behaviour on a thrown snapshot is unverified; the dock characterisation tests are the evidence. A test that asserts a message from a second throw may now see an `AggregateError` (none identified).
-**Plans**: 5/5 plans executed
+**Plans**: 5/5 plans complete
 - [x] 64-01-PLAN.md
 - [x] 64-02-PLAN.md
 - [x] 64-03-PLAN.md
@@ -602,7 +602,7 @@ Phases execute in numeric order: 62 → 63 → 64 → 65 → 66 → 67 → 68
 |-------|----------------|--------|-----------|
 | 62. Type pins that can fail | 8/8 | Complete    | 2026-11-20 |
 | 63. The packed-install gate probes every new public name | 5/5 | Complete    | 2026-11-20 |
-| 64. One throwing listener cannot silence the rest | 5/5 | In Progress | - |
+| 64. One throwing listener cannot silence the rest | 5/5 | Complete    | 2026-11-20 |
 | 65. Only `admit` builds an `Admitted` | 0/TBD | Not started | - |
 | 66. The decoder reads only what it declares | 0/TBD | Not started | - |
 | 67. No equivalent mutants, no magic race bound | 0/TBD | Not started | - |
