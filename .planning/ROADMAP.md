@@ -423,7 +423,7 @@ Order: the check that cannot fail (62), the gate that protects v1.6's new names 
 
 ### Phases
 
-- [ ] **Phase 62: Type pins that can fail** - A negative callable pin on an `Effect`- or `Stream`-returning function can fail for valid arguments, the one vacuous pin is rewritten, every remaining pin is controlled, and a gate keeps the count exact (ARCH-109, tests and gate)
+- [x] **Phase 62: Type pins that can fail** - A negative callable pin on an `Effect`- or `Stream`-returning function can fail for valid arguments, the one vacuous pin is rewritten, every remaining pin is controlled, and a gate keeps the count exact (ARCH-109, tests and gate) (completed 2026-11-20)
 - [ ] **Phase 63: The packed-install gate probes every new public name** - Gate 14's consumer compiles and runs `makeGatesFeed`, `makeDiagnosticsFeed` and a typed `DecisionCacheShape` host cache, and fails if a `make*Feed` export is left unprobed (ARCH-110, script)
 - [ ] **Phase 64: One throwing listener cannot silence the rest** - Devtools' `ExternalStore` calls every listener, then rethrows what was thrown (ARCH-111, devtools; D1, D7)
 - [ ] **Phase 65: Only `admit` builds an `Admitted`** - A private constructor and member make `admit` the only builder, and the `"asked"` row's flags are derived from the matcher context; bench-gated (ARCH-112, core)
@@ -449,7 +449,7 @@ Order: the check that cannot fail (62), the gate that protects v1.6's new names 
   4. `NOT_CALLABLE_PIN_BUDGET` counts negative callable pins per `*.tst.ts` file in comment- and string-stripped code with its own file walk, is checked in both directions, has an AGENTS.md §6 paragraph and table the gate verifies, and is shown failing on an added pin, a removed pin, a commented pin and a line-split pin.
 
 **Planning notes**: Probe first, before planning the file layout: whether `// @effect-diagnostics effect/floatingEffect:error` overrides a project-level `off` (unverified) decides whether the known-wrong control lives in a file that restores the rule by directive or the characterisation asserts the positive form on `Effect` and `Stream`. Build order from the research: characterisation file, classification record, rewrites package by package, the gate last (adding it first turns every intermediate commit red). D6 binds: the tstyche-only tsconfig is a child of `tsconfig.test.json` that restates the whole Effect `plugins` entry with `floatingEffect: "off"`, wired through `tstyche.json`, rather than 27 per-file directives (a line-level `-next-line` directive does not work: tstyche reports it "has no effect"). Open choices left to the planner: count-only budget plus a mechanical "positive count at least the negative count per budgeted file" check (recommended, with honest wording: a count cannot check "plain-return subject with a positive control") versus a per-pin marker comment; the replacement form where a reason matters (`@ts-expect-error <fragment>` on `void f(bad);` is reason-checked by tstyche, or `expect(f(bad)).type.toRaiseError(<code>)`, because `pnpm typecheck`'s tsgo does not read the directive's message). A pin must hold under both TypeScript 6.0.3 (tstyche) and 7.0.2 (tsgo); never write a bare `Effect` call. `not.toBeConstructableWith` is reason-blind (leave `Decision.tst.ts`'s nine as they are). Precedents for the gate's own walk: `[no-numbering-placeholder]` and `[metric-id-literal]`; count stripped code tokens so a multi-line pin counts once; use a unique AGENTS.md table header. No upstream issue without the owner's explicit OK.
-**Plans**: 8/8 plans executed
+**Plans**: 8/8 plans complete
 
 Plans:
 - [x] 62-01 (W1): Characterise tstyche's reading of a negative pin under each `floatingEffect` setting, give tstyche its own tsconfig with the rule off, and reword the five comments that describe the old reading (PIN-01, PIN-02, D-01..D-04).
@@ -579,7 +579,7 @@ Phases execute in numeric order: 62 → 63 → 64 → 65 → 66 → 67 → 68
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 62. Type pins that can fail | 8/8 | In Progress | - |
+| 62. Type pins that can fail | 8/8 | Complete    | 2026-11-20 |
 | 63. The packed-install gate probes every new public name | 0/TBD | Not started | - |
 | 64. One throwing listener cannot silence the rest | 0/TBD | Not started | - |
 | 65. Only `admit` builds an `Admitted` | 0/TBD | Not started | - |

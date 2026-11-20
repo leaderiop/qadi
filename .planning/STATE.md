@@ -2,20 +2,20 @@
 gsd_state_version: "1.0"
 milestone: v1.7
 milestone_name: Arch Wave 12
-current_phase: 62
-current_phase_name: Type pins that can fail
-status: executing
-stopped_at: Completed QD-62-08-PLAN.md
-last_updated: "2026-11-20T03:42:44.015Z"
+current_phase: 63
+current_phase_name: The packed-install gate probes every new public name
+status: planning
+stopped_at: Phase QD-62 complete, ready to plan Phase 63
+last_updated: "2026-11-20T04:18:16.793Z"
 last_activity: 2026-11-20
-last_activity_desc: Phase QD-62 execution started
-state_head: 01e1c9e4c43dd4f2fbe2f6bfd12c744508490427
+last_activity_desc: Phase QD-62 complete, transitioned to Phase 63
+state_head: 50b6f12ab4672296a83ea12ce27fdd9664182c9a
 progress:
   total_phases: 7
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 8
   completed_plans: 8
-  percent: 0
+  percent: 14
 ---
 
 # Project State
@@ -29,16 +29,16 @@ See: .planning/PROJECT.md (updated 2026-11-19)
 
 ## Current Position
 
-Phase: QD-62 (Type pins that can fail) — EXECUTING
-Plan: 8 of 8
-Status: Executing Phase QD-62
-Last activity: 2026-11-20 — Phase QD-62 execution started
+Phase: 63 — The packed-install gate probes every new public name
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-11-20 — Phase QD-62 complete, transitioned to Phase 63
 
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 319
+- Total plans completed: 327
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -97,6 +97,7 @@ Last activity: 2026-11-20 — Phase QD-62 execution started
 | QD-59 | 10 | - | - |
 | QD-60 | 8 | - | - |
 | QD-61 | 7 | - | - |
+| QD-62 | 8 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -780,7 +781,7 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 ## Session Continuity
 
 Last session: 2026-11-20T03:42:43.988Z
-Stopped at: Completed QD-62-08-PLAN.md
+Stopped at: Phase QD-62 complete, ready to plan Phase 63
 Resume file: None
 
 ## Operator Next Steps
