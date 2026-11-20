@@ -535,7 +535,7 @@ Plans:
   4. A 3 + 3 interleaved benchmark of the committed source against the phase base, with Phase 59's harness and bands, shows no workload slower beyond its band.
 
 **Planning notes**: Open choices left to the planner: the pin's wording (a short fragment such as `is private`, because only the TypeScript 6.0.3 message was observed and tsgo 7.0.2's wording is unverified, or `toRaiseError(2673)`, which holds even with bad arguments; the context fixes `@ts-expect-error`, so a code check is an addition, not a replacement); whether `declare private readonly …` works under this tsconfig (unverified) and that the existing `keyof Admitted` pins stay green (private members are excluded from `keyof`). 59a's RED is unverified: behavioural agreement already holds, so a value test cannot be RED, and the only candidate is an accessor-counting `Question.resource`; the compiler does not guard it either (`SuppliedBy.asked` has `boolean` fields), so say so in the INV. Do not use `not.toBeConstructableWith` (reason-blind). Scope any grep or gate to `packages/core/src/Admission.ts`: `packages/audit/src/CircuitBreaker.ts` has an unrelated `new Admitted(...)`. Keep the table shape so a new row source still fails to compile. Plan shape, RED first: the mutation base for `Admission.ts`, `Walk.ts` and `Predicate.ts` and the construction pins first; then the class; then the derivation; then the bench on the committed source; then records.
-**Plans**: 2/6 plans executed
+**Plans**: 3/6 plans executed
 **Wave 1**
 - [x] 65-01-PLAN.md — the mutation base, then both construction pins and the getter cases RED on the base
 
@@ -543,7 +543,7 @@ Plans:
 - [x] 65-02-PLAN.md — the private constructor, the nominal member and the static `admit`; each half shown necessary
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 65-03-PLAN.md — the asked flags read from the matcher context `admit` builds once
+- [x] 65-03-PLAN.md — the asked flags read from the matcher context `admit` builds once
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 65-04-PLAN.md — the 3 + 3 bench of the committed source against the phase base
@@ -620,7 +620,7 @@ Phases execute in numeric order: 62 → 63 → 64 → 65 → 66 → 67 → 68
 | 62. Type pins that can fail | 8/8 | Complete    | 2026-11-20 |
 | 63. The packed-install gate probes every new public name | 5/5 | Complete    | 2026-11-20 |
 | 64. One throwing listener cannot silence the rest | 5/5 | Complete    | 2026-11-20 |
-| 65. Only `admit` builds an `Admitted` | 2/6 | In Progress | - |
+| 65. Only `admit` builds an `Admitted` | 3/6 | In Progress | - |
 | 66. The decoder reads only what it declares | 0/TBD | Not started | - |
 | 67. No equivalent mutants, no magic race bound | 0/TBD | Not started | - |
 | 68. Hygiene and recorded close-outs | 0/TBD | Not started | - |
