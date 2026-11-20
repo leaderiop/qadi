@@ -56,16 +56,16 @@ const discriminantOf = (members: ReadonlyArray<Member>): ReadonlySet<unknown> | 
 /**
  * Reads, once, the declared keys of `ast`'s encoded side, and answers per input which member's keys apply.
  *
- * The member is the one whose `_tag` literal equals the input's own enumerable `_tag`, which this reads
- * once, and only when the schema flattens to more than one member (the projection then reads that `_tag`
- * again as a kept value, so twice in all). The answer for a schema that flattens to one member reads nothing
- * of the input: its `_tag`, when declared, is read once, by the
- * projection as a kept value, and an undeclared `_tag` accessor is never invoked. An unknown, absent,
- * inherited or non-enumerable `_tag` takes the first member and fails in the decode, as it always did.
- * Throws, at build, for a schema
- * with no object member, with several members that `_tag` does not tell apart, or with a member that
- * has an index signature or a rest (which declares no finite key list): all are programmer errors at
- * module scope, and a build that answered would drop keys it could not name.
+ * The member is the one whose `_tag` literal equals the input's own enumerable `_tag`, which this
+ * reads once, and only when the schema flattens to more than one member (the projection then
+ * reads that `_tag` again as a kept value, so twice in all). The answer for a schema that
+ * flattens to one member reads nothing of the input: its `_tag`, when declared, is read once, by
+ * the projection as a kept value, and an undeclared `_tag` accessor is never invoked. An
+ * unknown, absent, inherited or non-enumerable `_tag` takes the first member and fails in the
+ * decode, as it always did. Throws, at build, for a schema with no object member, with several
+ * members that `_tag` does not tell apart, or with a member that has an index signature or a
+ * rest (which declares no finite key list): all are programmer errors at module scope, and a
+ * build that answered would drop keys it could not name.
  */
 export const envelopeKeysOf = (
   ast: SchemaAST.AST,

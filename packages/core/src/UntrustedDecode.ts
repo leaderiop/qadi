@@ -139,15 +139,16 @@ export type UnknownKeyPolicy = "refuse" | "ignore";
 /**
  * What a seam adds to the fixed recipe.
  *
- * `unknownKeys` is stated by every seam, never defaulted, so a seam that tolerates an unknown key says so
- * where it is built. `ignore` keeps, of a plain object, only the top-level keys the schema's encoded side
- * declares for the member the input's own enumerable `_tag` selects, and needs a schema that is an object or a union of
- * objects with distinct literal tags (it throws at build otherwise). `unwalked` names top-level keys the depth guard leaves out because a second
- * decoder guards them from its own root (hydration's `entries`, the audit
- * envelope's `entries`, the audit row's `record`); each must be typed `unknown` or
- * `ReadonlyArray<unknown>` in the schema (INV-QD-306). `prepare` runs after the guard and before the
- * strict decode and receives the projection, and what it returns is what the decode reads; its failure
- * is returned as it is. The order is fixed: project, guard, prepare, decode.
+ * `unknownKeys` is stated by every seam, never defaulted, so a seam that tolerates an unknown key
+ * says so where it is built. `ignore` keeps, of a plain object, only the top-level keys the
+ * schema's encoded side declares for the member the input's own enumerable `_tag` selects, and
+ * needs a schema that is an object or a union of objects with distinct literal tags (it throws at
+ * build otherwise). `unwalked` names top-level keys the depth guard leaves out because a second
+ * decoder guards them from its own root (hydration's `entries`, the audit envelope's `entries`,
+ * the audit row's `record`); each must be typed `unknown` or `ReadonlyArray<unknown>` in the
+ * schema (INV-QD-306). `prepare` runs after the guard and before the strict decode and receives
+ * the projection, and what it returns is what the decode reads; its failure is returned as it
+ * is. The order is fixed: project, guard, prepare, decode.
  */
 export interface UntrustedDecoderOptions<A, R extends { readonly _tag: string }> {
   readonly unknownKeys: UnknownKeyPolicy;
@@ -167,15 +168,16 @@ type Projection = (input: unknown) => unknown;
 /**
  * A plain object reduced to the top-level keys `keysOf` names for it; anything else passes through.
  *
- * It reads the object's own enumerable key names, then each kept key's value once, into a fresh object, so
- * an undeclared key's value is never read, an accessor's included. When the schema flattens to more than
- * one member, `keysOf` reads the object's own enumerable `_tag` once more, to choose the member, so that
- * `_tag` is read twice. A schema that flattens to one member chooses no member, so `keysOf` reads no
- * `_tag`: a declared `_tag` is read once, as a kept value, and an undeclared `_tag` accessor is never
- * invoked. It reads nothing below the top level, so it cannot
- * recurse: the depth guard (unless the key is `unwalked`) and the strict decode read what lies under a kept
- * value, accessors included. Under `refuse` nothing is projected, and the guard (and, for `unwalked` keys,
- * `walked`) reads every own value of the input, declared or not (ADR-QD-170).
+ * It reads the object's own enumerable key names, then each kept key's value once, into a fresh
+ * object, so an undeclared key's value is never read, an accessor's included. When the schema
+ * flattens to more than one member, `keysOf` reads the object's own enumerable `_tag` once more,
+ * to choose the member, so that `_tag` is read twice. A schema that flattens to one member
+ * chooses no member, so `keysOf` reads no `_tag`: a declared `_tag` is read once, as a kept
+ * value, and an undeclared `_tag` accessor is never invoked. It reads nothing below the top
+ * level, so it cannot recurse: the depth guard (unless the key is `unwalked`) and the strict
+ * decode read what lies under a kept value, accessors included. Under `refuse` nothing is
+ * projected, and the guard (and, for `unwalked` keys, `walked`) reads every own value of the
+ * input, declared or not (ADR-QD-170).
  */
 const project = (ast: SchemaAST.AST): Projection => {
   const keysOf = envelopeKeysOf(ast);
