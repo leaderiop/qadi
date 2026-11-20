@@ -5,16 +5,16 @@ milestone_name: Arch Wave 12
 current_phase: 62
 current_phase_name: Type pins that can fail
 status: executing
-stopped_at: Completed QD-62-05-PLAN.md
-last_updated: "2026-11-20T03:19:55.592Z"
+stopped_at: Completed QD-62-06-PLAN.md
+last_updated: "2026-11-20T03:24:07.126Z"
 last_activity: 2026-11-20
 last_activity_desc: Phase QD-62 execution started
-state_head: 066f415f1c4c3387a91765940eebaca2f3f94162
+state_head: 1d901b0a4d7350582630bc3b68fc866b07f17f31
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 8
-  completed_plans: 5
+  completed_plans: 6
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-19)
 ## Current Position
 
 Phase: QD-62 (Type pins that can fail) — EXECUTING
-Plan: 6 of 8
+Plan: 7 of 8
 Status: Executing Phase QD-62
 Last activity: 2026-11-20 — Phase QD-62 execution started
 
@@ -420,6 +420,7 @@ Last activity: 2026-11-20 — Phase QD-62 execution started
 | Phase QD-62 P03 | 25min | 3 tasks | 2 files |
 | Phase QD-62 P04 | 15min | 2 tasks | 2 files |
 | Phase QD-62 P05 | 15min | 2 tasks | 3 files |
+| Phase QD-62 P06 | 20min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -714,6 +715,7 @@ Last activity: 2026-11-20 — Phase QD-62 execution started
 - [Phase QD-62]: 62-03: the flip sweep and overload inventory stay scratch scripts outside the repo; the committed record is the evidence. askActed is the one overloaded parameter-type subject, so 62-04 writes the last-overload note
 - [Phase QD-62]: 62-04: NOT_CALLABLE_PIN_BUDGET and its AGENTS.md section 6 table land in one commit; [not-callable-pin-table] follows as its own commit
 - [Phase QD-62]: 62-05: control check is a floor; FloatingEffectPins.tst.ts is the only file exempt from the run-mode/directive refusal
+- [Phase QD-62]: 62-06: each characterisation half runs in one pass; a pass fails when tstyche compiles any file under another project
 
 ### Pending Todos
 
@@ -773,8 +775,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-20T03:19:55.564Z
-Stopped at: Completed QD-62-05-PLAN.md
+Last session: 2026-11-20T03:24:07.075Z
+Stopped at: Completed QD-62-06-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
