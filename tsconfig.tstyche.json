@@ -1,0 +1,29 @@
+{
+  // tstyche's own compilation: `tsconfig.test.json` with the Effect language
+  // service's `floatingEffect` rule off, and nothing else changed.
+  //
+  // tstyche checks a `toBeCallableWith` pin by compiling the call and reading
+  // any diagnostic on it as "not callable". With `floatingEffect` on, a call
+  // that returns an `Effect` or a `Stream` always draws one, so a negative pin
+  // on such a function passes whatever its arguments are
+  // (`packages/core/test/FloatingEffectPins.tst.ts` pins that reading).
+  //
+  // `extends` replaces `compilerOptions.plugins` wholesale, so the whole entry
+  // from `tsconfig.base.json` is restated here; only `floatingEffect` is added.
+  // `include` is inherited, so tstyche compiles exactly the files that
+  // `tsc -p tsconfig.test.json` does, and that compile keeps the rule on.
+  "extends": "./tsconfig.test.json",
+  "compilerOptions": {
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "diagnostics": true,
+        "namespaceImportPackages": ["effect", "@effect/*", "@qadi/*", "@effect-cucumber/*"],
+        "includeSuggestionsInTsc": false,
+        "diagnosticSeverity": { "unstableApiUsage": "off", "floatingEffect": "off" },
+        "ignoreEffectWarningsInTscExitCode": true,
+        "ignoreEffectErrorsInTscExitCode": false
+      }
+    ]
+  }
+}
