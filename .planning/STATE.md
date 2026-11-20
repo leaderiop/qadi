@@ -5,16 +5,16 @@ milestone_name: Arch Wave 12
 current_phase: 62
 current_phase_name: Type pins that can fail
 status: executing
-stopped_at: Completed QD-62-06-PLAN.md
-last_updated: "2026-11-20T03:24:07.126Z"
+stopped_at: Completed QD-62-07-PLAN.md
+last_updated: "2026-11-20T03:33:42.647Z"
 last_activity: 2026-11-20
 last_activity_desc: Phase QD-62 execution started
-state_head: 1d901b0a4d7350582630bc3b68fc866b07f17f31
+state_head: 3d90ed62ee806cee69d182d04aa86f71803f7a8c
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 8
-  completed_plans: 6
+  completed_plans: 7
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-19)
 ## Current Position
 
 Phase: QD-62 (Type pins that can fail) — EXECUTING
-Plan: 7 of 8
+Plan: 8 of 8
 Status: Executing Phase QD-62
 Last activity: 2026-11-20 — Phase QD-62 execution started
 
@@ -421,6 +421,7 @@ Last activity: 2026-11-20 — Phase QD-62 execution started
 | Phase QD-62 P04 | 15min | 2 tasks | 2 files |
 | Phase QD-62 P05 | 15min | 2 tasks | 3 files |
 | Phase QD-62 P06 | 20min | 2 tasks | 5 files |
+| Phase QD-62 P07 | 15min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -716,6 +717,7 @@ Last activity: 2026-11-20 — Phase QD-62 execution started
 - [Phase QD-62]: 62-04: NOT_CALLABLE_PIN_BUDGET and its AGENTS.md section 6 table land in one commit; [not-callable-pin-table] follows as its own commit
 - [Phase QD-62]: 62-05: control check is a floor; FloatingEffectPins.tst.ts is the only file exempt from the run-mode/directive refusal
 - [Phase QD-62]: 62-06: each characterisation half runs in one pass; a pass fails when tstyche compiles any file under another project
+- [Phase QD-62]: 62-07: ADR-QD-175 states the tstyche checks as committed; the DoD and ADR say each pass takes about ten seconds (measured), not eight
 
 ### Pending Todos
 
@@ -775,8 +777,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-20T03:24:07.075Z
-Stopped at: Completed QD-62-06-PLAN.md
+Last session: 2026-11-20T03:33:42.619Z
+Stopped at: Completed QD-62-07-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
