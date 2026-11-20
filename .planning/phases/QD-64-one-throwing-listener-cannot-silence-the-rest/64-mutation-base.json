@@ -1,0 +1,63 @@
+{
+ "phase": "64",
+ "head": "8f3cb792c3a92acefadcd32be0f38b0df8f46641",
+ "invocation": "pnpm exec stryker run stryker.devtools.mjs --mutate packages/devtools/src/model/ExternalStore.ts,packages/devtools/src/model/TimelineFeed.ts,packages/devtools/src/model/DiagnosticsFeed.ts,packages/devtools/src/model/GatesFeed.ts",
+ "files": {
+  "packages/devtools/src/model/ExternalStore.ts": {
+   "killed": 29,
+   "timeout": 0,
+   "survived": 1,
+   "noCoverage": 0,
+   "ignored": 1,
+   "detected": 29,
+   "valid": 30,
+   "open": [
+    {
+     "status": "Survived",
+     "mutator": "ConditionalExpression",
+     "replacement": "false",
+     "line": 66,
+     "text": "a === b || (a.length === b.length && a.every((one, index) => one === b[index]));"
+    }
+   ]
+  },
+  "packages/devtools/src/model/TimelineFeed.ts": {
+   "killed": 49,
+   "timeout": 0,
+   "survived": 0,
+   "noCoverage": 0,
+   "ignored": 10,
+   "detected": 49,
+   "valid": 49,
+   "open": []
+  },
+  "packages/devtools/src/model/DiagnosticsFeed.ts": {
+   "killed": 72,
+   "timeout": 0,
+   "survived": 1,
+   "noCoverage": 0,
+   "ignored": 13,
+   "detected": 72,
+   "valid": 73,
+   "open": [
+    {
+     "status": "Survived",
+     "mutator": "ConditionalExpression",
+     "replacement": "false",
+     "line": 158,
+     "text": "if (!runs.isCurrent(token)) return;"
+    }
+   ]
+  },
+  "packages/devtools/src/model/GatesFeed.ts": {
+   "killed": 118,
+   "timeout": 0,
+   "survived": 0,
+   "noCoverage": 0,
+   "ignored": 4,
+   "detected": 118,
+   "valid": 118,
+   "open": []
+  }
+ }
+}
