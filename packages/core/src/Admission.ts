@@ -70,16 +70,25 @@ const SUPPLIED: { readonly [Source in RowSource]: (question: Question) => Suppli
  * A question shown to be no deeper than its `maxDepth`, and everything both
  * interpreters read while walking it: the policy it admitted, the subject, what
  * the request supplied, what its matchers see (which also holds the resource and
- * the action) and the depth bound. Only {@link admit} builds one, so holding one
- * is the proof, and the policy rides with it so the proof cannot be paired with
- * a deeper tree.
+ * the action) and the depth bound. Only {@link Admitted.admit}, exported as
+ * {@link admit}, builds one: the constructor is private, and the private
+ * `nominal` member keeps an object literal of the same shape from passing for
+ * one. Holding one shows that `admit` built it. The policy rides with it as
+ * `admit` read it from the question; the depth check reads the question's
+ * policy separately.
  *
  * The row source is part of the type: `Admitted<"row">` stores a resource as
  * supplied while its matcher context holds none, so only `toPredicate` may read
  * it, and the walk's parameter, `Admitted<"asked">`, refuses it.
  */
 export class Admitted<Source extends RowSource = RowSource> {
-  constructor(
+  /**
+   * Makes the type nominal, so an object literal of the same shape is not an
+   * `Admitted`. Declared only: it has no slot at run time.
+   */
+  declare private readonly nominal: never;
+
+  private constructor(
     readonly source: Source,
     readonly policy: Policy,
     readonly subject: AuthSubject,
@@ -87,31 +96,37 @@ export class Admitted<Source extends RowSource = RowSource> {
     readonly matcherContext: MatcherContext,
     readonly maxDepth: number,
   ) {}
+
+  /**
+   * Admits a question for an interpreter's row source, or refuses it as too deep.
+   * Depth is judged on the policy alone (INV-QD-037); what the request supplied
+   * is a function of the row source and the question (INV-QD-364). It names
+   * `Admitted` and never `this`, so the module exports it detached as {@link admit}.
+   */
+  static admit<Source extends RowSource>(
+    question: Question,
+    rowSource: Source,
+  ): Result.Result<Admitted<Source>, PolicyTooDeep> {
+    if (policyDepth(question.policy) > question.maxDepth) {
+      return Result.fail(new PolicyTooDeep({ maxDepth: question.maxDepth }));
+    }
+    return Result.succeed(
+      new Admitted(
+        rowSource,
+        question.policy,
+        question.subject,
+        SUPPLIED[rowSource](question),
+        {
+          subject: question.subject.attributes,
+          subjectId: question.subject.id,
+          resource: question.resource,
+          action: question.action,
+        },
+        question.maxDepth,
+      ),
+    );
+  }
 }
 
-/**
- * Admits a question for an interpreter's row source, or refuses it as too deep.
- * Depth is judged on the policy alone (INV-QD-037); what the request supplied
- * is a function of the row source and the question (INV-QD-364).
- */
-export const admit = <Source extends RowSource>(
-  question: Question,
-  rowSource: Source,
-): Result.Result<Admitted<Source>, PolicyTooDeep> =>
-  policyDepth(question.policy) > question.maxDepth
-    ? Result.fail(new PolicyTooDeep({ maxDepth: question.maxDepth }))
-    : Result.succeed(
-        new Admitted(
-          rowSource,
-          question.policy,
-          question.subject,
-          SUPPLIED[rowSource](question),
-          {
-            subject: question.subject.attributes,
-            subjectId: question.subject.id,
-            resource: question.resource,
-            action: question.action,
-          },
-          question.maxDepth,
-        ),
-      );
+/** {@link Admitted.admit}, the one way to build an {@link Admitted}. */
+export const admit = Admitted.admit;
