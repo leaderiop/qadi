@@ -5,16 +5,16 @@ milestone_name: Arch Wave 12
 current_phase: 65
 current_phase_name: Only `admit` builds an `Admitted`
 status: executing
-stopped_at: Phase 64 complete, ready to plan Phase 65
-last_updated: "2026-11-20T18:35:31.664Z"
+stopped_at: Completed 65-01-PLAN.md
+last_updated: "2026-11-20T18:41:48.237Z"
 last_activity: 2026-11-20
 last_activity_desc: Phase 64 complete, transitioned to Phase 65
-state_head: 88fffacc7ba72bdbe78a3cd157a344de53a67c74
+state_head: f6a8398068448f0ea8e42e902e6f358cc1b05f79
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 24
-  completed_plans: 18
+  completed_plans: 19
   percent: 43
 ---
 
@@ -29,10 +29,10 @@ See: .planning/PROJECT.md (updated 2026-11-20)
 
 ## Current Position
 
-Phase: 65 (Only `admit` builds an `Admitted`) — READY TO EXECUTE
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-11-20 — Phase 64 complete, transitioned to Phase 65
+Phase: 65 (Only `admit` builds an `Admitted`) — EXECUTING
+Plan: 2 of 6
+Status: Plan 65-01 complete, ready for 65-02
+Last activity: 2026-11-20 — Completed 65-01 (mutation base, construction pins and getter cases RED)
 
 
 ## Performance Metrics
@@ -436,6 +436,7 @@ Last activity: 2026-11-20 — Phase 64 complete, transitioned to Phase 65
 | Phase QD-64 P03 | 6 min | 2 tasks | 5 files |
 | Phase QD-64 P04 | 12 min | 2 tasks | 7 files |
 | Phase QD-64 P05 | 40 min | 2 tasks | 2 files |
+| Phase 65 P01 | 15 min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -744,6 +745,7 @@ Last activity: 2026-11-20 — Phase 64 complete, transitioned to Phase 65
 - [Phase QD-64]: 64-03: the begin-to-fork window stays; each feed text that can meet it says so (timeline Reading, diagnostics Starting, gates cadence)
 - [Phase QD-64]: The begin-to-fork window is stated as out of scope in ADR-QD-177, BEH-QD-656 and the CCR-QD-455 row; no spec text claims it closed.
 - [Phase QD-64]: The close scan's source pathspec is packages/*/src/**; a bare packages/*/src lists nothing and the check could never pass.
+- [Phase 65]: Plan 65-01: construction refusals are reason-bearing @ts-expect-error pins beside positive controls, codes read by pin-codes.mjs, since toRaiseError cannot share the directive's expression
 
 ### Pending Todos
 
@@ -806,8 +808,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-20T15:11:43.209Z
-Stopped at: Phase 64 complete, ready to plan Phase 65
+Last session: 2026-11-20T18:41:48.136Z
+Stopped at: Completed 65-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
