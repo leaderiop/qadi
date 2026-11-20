@@ -39,6 +39,8 @@ test("a row is always supplied; an asked resource is supplied when the question 
   if (Result.isSuccess(asked)) expect(asked.success.supplied.resource).type.toBe<boolean>();
   expect(admit).type.not.toBeCallableWith(question);
   expect(admit).type.not.toBeCallableWith(question, "rows");
+  expect(admit).type.toBeCallableWith(question, "asked");
+  expect(admit).type.toBeCallableWith(question, "row");
 });
 
 test("the row source is in the environment's type, so a row never reaches the walk", () => {

@@ -122,6 +122,7 @@ test("the loaded entry points refuse a second resource", () => {
   });
   expect(enforceProjected).type.toBeCallableWith(hasPermission(read), {});
   expect(enforceLoaded).type.toBeCallableWith(hasPermission(read), {});
+  expect(enforceProjectedLoaded).type.toBeCallableWith(hasPermission(read), {});
 });
 
 test("enforceProjectedLoaded returns Partial<A> and widens E and R like enforce", () => {

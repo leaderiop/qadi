@@ -36,6 +36,13 @@ test("a cases object missing an arm is a compile error", () => {
     SomeMatch: () => 0,
     EveryMatch: () => 0,
   });
+  expect(foldMatcherCases).type.toBeCallableWith(exists(), {
+    ...leafMatcherCases(() => 0),
+    FieldMatch: () => 0,
+    SomeMatch: () => 0,
+    EveryMatch: () => 0,
+    Size: () => 0,
+  });
 });
 
 test("a wrapper arm that treats its child as an array is a compile error", () => {
@@ -45,5 +52,12 @@ test("a wrapper arm that treats its child as an array is a compile error", () =>
     SomeMatch: () => 0,
     EveryMatch: () => 0,
     Size: (_n: Matcher, child: ReadonlyArray<number>) => child.length,
+  });
+  expect(foldMatcherCases).type.toBeCallableWith(exists(), {
+    ...leafMatcherCases(() => 0),
+    FieldMatch: () => 0,
+    SomeMatch: () => 0,
+    EveryMatch: () => 0,
+    Size: (_n: Matcher, child: number) => child,
   });
 });
