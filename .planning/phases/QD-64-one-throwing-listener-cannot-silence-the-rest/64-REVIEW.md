@@ -1,6 +1,6 @@
 ---
 phase: QD-64-one-throwing-listener-cannot-silence-the-rest
-reviewed: 2026-11-20T16:20:00Z
+reviewed: 2026-11-20T17:00:00Z
 depth: standard
 files_reviewed: 18
 files_reviewed_list:
@@ -24,85 +24,65 @@ files_reviewed_list:
   - spec/traceability.md
 findings:
   critical: 0
-  warning: 1
-  info: 2
+  warning: 0
+  info: 3
   total: 3
+  necessity: 0
 status: issues_found
 ---
 
 # Phase QD-64: Code Review Report
 
 **Reviewed:** 2026-11-20
-**Depth:** standard
+**Depth:** standard (iteration 2)
 **Files Reviewed:** 18
 
 ## Summary
 
-The `notify` change in `ExternalStore.ts` is correct. It iterates the live set, collects throws, rethrows by count (0 / 1 / many) and never inspects a thrown value's type. State is assigned before `notify` in both `set` and `publish`. `undefined` and `null` throws are handled by count, not truthiness. No `as`, `!`, `any`, `switch` or `async` appears in the diff, and no milestone decision numbers, plan ids or phase numbers leaked into shipped source, tests, test titles or comments. Spec ids (ADR-QD-177, BEH-QD-656, INV-QD-373) are allowed. `ARCH-111` and `CCR-QD-455` appear only in spec change history, as the repo's convention does.
+Iteration 1's WR-01 is fixed, and the fix is accurate. I traced every amended text against `TimelineFeed.ts` `configure` (lines 166-172). The texts checked are the `subscribe` and `configure` doc comments, the README listener paragraph, ADR-QD-177 decision 5, the BEH-QD-656 trailing paragraph, and the CCR-QD-455 row.
 
-I ran the four affected test files (101 tests, all pass) and `oxlint` on the store, its test and the helper (clean). I checked the tests against the code for vacuous passes:
-- The `thrownBy` helper records `threw` separately, so a falsy throw is still asserted.
-- F30, G48 and TF25 each reach a real notification, with non-empty `seen` assertions (`["Off"]`, `["Read"]`, `[["x"]]`).
-- The nested `AggregateError` test checks identity for both the alone case and the beside case.
+What the code does when a listener throws on `push()` after a capacity change:
+- `inputs = next` is already assigned.
+- `inner` is already replaced, empty.
+- `begin()` is not reached. The old token stays current, so the old read keeps writing through `timeline.accept`, which now resolves to the new `inner`.
+- `readSource` is skipped, so the new source is not read.
+- A second `configure` with the same inputs sees `resized` false and `next.source === before.source`, so it does not read either.
+- `status.restart` calls `readSource(inputs.source)`, which reads the new source.
 
-The spec claims I cross-checked all hold:
-- Every `@qadi/devtools` store (feeds, dock, sessions) is built on `makeExternalStore`.
-- The timeline feed's own store is a listener of the `inner` store under it.
-- `@qadi/react`'s gate registry swallows listener throws.
-- ADR-QD-173 named no listener rule before the amendment.
-- `begin()` fences the old run by token, so "nothing reading" is accurate.
+Each of these matches a sentence in the amended texts: "the previous read goes on", "a source handed in by that call is not read", "configuring the same inputs again does not read it", "only `restart` does", and "leaves before `begin()`". The older "between `begin()` and `fork()`" window is still stated separately and still true.
 
-One caveat in the amended texts is incomplete, and one is conditional.
-
-## Warnings
-
-### WR-01: The out-of-scope caveat omits the timeline's resize path, where a throw skips `readSource` entirely and the new source is never read
-
-**File:** `packages/devtools/src/model/TimelineFeed.ts:166-172` (text affected: `TimelineFeed.ts:56-64`, `packages/devtools/README.md:164-171`, `spec/decisions/177-one-throwing-listener-cannot-silence-the-rest.md` decision 5, `spec/behaviors/28-devtools-screens.md` BEH-QD-656 trailing paragraph, the CCR-QD-455 row in `spec/README.md`)
-
-**Issue:** Every amended text describes the escape window as "between a feed's run `begin()` and its `fork()`". It names the `Reading`-over-`Stopped` and `Starting` cases as the only examples. The timeline's `configure` has an earlier throw point that the window does not cover:
-
-```ts
-inputs = next;
-const resized = next.capacity !== before.capacity;
-if (resized) {
-  inner = bounded(next.capacity);
-  inner.subscribe(push);
-  push();            // view.publish -> notify -> may throw here
-}
-if (resized || next.source !== before.source) readSource(next.source);
-```
-
-When a capacity change comes with a source change and a listener throws on `push()`, the throw leaves before `readSource` runs. Three things follow:
-- `begin()` is never called, so the old read is not fenced and keeps writing into the new `inner`.
-- The new source is never read.
-- `inputs` already holds `next`, so a later `configure` with the same source sees `next.source === before.source` and never re-reads. Only `restart()` recovers.
-
-The result is not "`Reading` with nothing reading". Status is unchanged, and the feed reads the old source indefinitely while the host believes it handed over a new one. Because `notify` now deliberately lets the throw through, this path is the contract's main user-visible consequence. The texts say "the rest of that call does not run", but they then spell out the window as the only residue, so a reader would conclude `push()` is safe.
-
-**Fix:** State the second point in each amended text, for example in BEH-QD-656 and ADR-QD-177 decision 5:
-
-> A throw on the timeline's resize publish (`configure` with a new `capacity`) leaves before `readSource`, so a source handed in the same call is not read and the old read keeps running until `restart`.
-
-Or close it in code, which is out of this phase's scope: call `readSource` before `push()`, or wrap `push()` and rethrow after. If the code is left alone, add one test that pins the behaviour.
+Nothing else in the amended texts contradicts the code. The `ExternalStore.ts` `notify` change is unchanged from iteration 1 and still correct. The phase-closing diff adds no leaked decision numbers, plan ids, requirement ids or phase numbers to source, tests or comments. The only ids in the new spec text are ADR/BEH/INV/CCR ids, which the repo allows. The code is untouched by 87267447, so the feeds' publish ordering stays as the phase requires. No critical issues or warnings remain. IN-01 and IN-02 carry forward, and IN-03 is new.
 
 ## Info
 
-### IN-01: "A throw during a publish from the poll is stated as the poll's stop" holds only when the `Stopped` publish itself does not throw
+### IN-01: "A throw during a publish from the poll is stated as the poll's stop" holds only when the `Stopped` publish does not throw (carried forward, unchanged)
 
 **File:** `packages/devtools/src/model/DiagnosticsFeed.ts:97-105`
 
-**Issue:** This sentence was kept from the earlier text. A listener that throws on the `Live` publish is the likely one to throw again on the `Stopped` publish. `onFailure` runs inside `Effect.sync` in the run's `onExit` (`SupersedingRun.ts:118-124`). A throw there is a defect inside a finalizer, so nothing states the stop, status stays `Live`, and the poll is dead. The new "every listener is called" contract does not change this, and the doc now sits beside the new contract text, so it reads as stronger than it is.
+**Issue:** `onFailure` runs inside `Effect.sync` in the run's `onExit` (`SupersedingRun.ts:118-124`). If a listener throws on the `Live` publish, it may throw on the `Stopped` publish too. That second throw is a defect in a finalizer, so nothing states the stop, status stays `Live`, and the poll is dead. The sentence now sits beside the new contract text and reads as stronger than it is.
 
 **Fix:** Qualify it: "...is stated as the poll's stop, unless a listener throws on that `Stopped` publish too, in which case the status stays as it was."
 
-### IN-02: No test pins the `Starting` / `Reading` window claims the new doc comments make
+### IN-02: No test pins the post-throw states the doc comments claim (carried forward, now includes the resize path)
 
-**File:** `packages/devtools/test/model/DiagnosticsFeed.test.ts` (F30), `packages/devtools/test/model/TimelineFeed.test.ts` (TF25)
+**File:** `packages/devtools/test/model/TimelineFeed.test.ts` (TF25), `packages/devtools/test/model/DiagnosticsFeed.test.ts` (F30)
 
-**Issue:** The new texts assert specific post-throw states: the diagnostics feed "stays `Starting` with no new poll", and the timeline "says `Reading` with nothing reading". F30 and TF25 only cover the isolation and rethrow contract, through `configure(undefined)` and `accept`. Neither exercises the `restart` / `configure` publish of `Starting` or `Reading` that the caveats describe. These are the exact statements a previous review caught records overstating the code on, and they are currently unpinned. `ExternalStore.ts` still does the isolation correctly, so this is a documentation-risk gap, not a defect.
+**Issue:** The texts assert specific post-throw states: `Reading` with nothing reading, a diagnostics feed that stays `Starting` with no new poll, and, newly, the resize case where the old read continues and the new source is unread. TF25 and F30 cover only isolation and rethrow, through `accept` and `configure(undefined)`. A change that reordered `push()` and `readSource` would leave every test green while making the prose false.
 
-**Fix:** Add one test per feed. Subscribe a throwing listener, call `restart()` from `Live` / `Stopped`, assert the rethrow, assert the status tag is `Starting` / `Reading`, and assert no further samples or records arrive under `TestClock`.
+**Fix:** Add one test per described window. For the resize case, subscribe a throwing listener, call `configure({ source: b, capacity: 2 })` from a feed on source `a` with capacity 5, and assert:
+- the rethrow;
+- no read of `b` started;
+- `a`'s records still land in the new timeline;
+- a repeat `configure` with the same inputs reads nothing;
+- `status.restart()` reads `b`.
+
+### IN-03: The resize text speaks of a "new" source, but the skipped read also covers an unchanged one
+
+**File:** `packages/devtools/README.md:171-173`, `packages/devtools/src/model/TimelineFeed.ts:80-85`
+
+**Issue:** `configure` re-reads whenever `resized`, even when the source is the same (`if (resized || next.source !== before.source) readSource(...)`), because the emptied timeline has to be refilled. A throw on the resize publish therefore also skips that refill for a capacity-only change. The README and the `configure` doc comment say "a new `source` in the same call is not read", which describes only the source-change case. A reader with a replaying source and a capacity-only `configure` is not warned that their timeline stays empty until `restart`. The `subscribe` comment and ADR/BEH say "a source handed in by that call", which is slightly closer, but they also frame it as a new source.
+
+**Fix:** Say the read is skipped, not just a new source, for example: "ends the call before the read it would start: the previous read goes on, the emptied timeline is not refilled from the source, a new source is not read, and ...".
 
 ---
 
