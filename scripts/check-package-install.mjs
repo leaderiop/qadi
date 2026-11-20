@@ -56,6 +56,19 @@
  * keeping a `.ts` file for tsc and a `.mjs` copy for node. One source, two
  * uses — two copies of one consumer is the shape of defect this library exists
  * to remove.
+ *
+ * Check 4 then reads its own fixture. Every `make*Feed` the installed
+ * `@qadi/devtools` root exports must be called in it, every name on
+ * `TYPE_ONLY_PROBES` must be used in it as a type, and every key of
+ * `REFUSED_SHAPE_PROBES` must annotate a literal there that holds a
+ * `@ts-expect-error` naming the member paired with it. So a public name the
+ * consumer never compiles cannot ship unnoticed, and a refusal cannot be deleted
+ * together with its directive or stood in for by a directive on another property.
+ * The feed set comes from the artifact, so a new feed is caught without editing
+ * this file. TypeScript's parse (`typescript/unstable/*`, loaded when the check
+ * runs) decides what is a call, a type use and a refusal, so a comment, a string,
+ * an import or `typeof` does not count; and a failure to load or run that parse
+ * fails the gate.
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -66,6 +79,27 @@ const SANDBOX = join(ROOT, ".package-check");
 
 const failures = [];
 const fail = (message) => failures.push(message);
+
+/**
+ * The type-only names check 4's consumer must use as a type.
+ *
+ * A type has no runtime key, so unlike the feeds it cannot be read from the
+ * artifact and is written out; deleting the whole host-cache probe would
+ * otherwise leave the gate green.
+ */
+const TYPE_ONLY_PROBES = ["DecisionCacheShape"];
+
+/**
+ * The type names check 4's consumer must refuse an old shape against, each
+ * paired with the member of that shape its directive must name.
+ *
+ * A refusal is a literal annotated with the type that holds a `@ts-expect-error`
+ * naming the refused member. The compiler fails an unused directive, but nothing
+ * else keeps the literal, so deleting it together with its directive would
+ * otherwise leave the gate green, and a directive on another property would
+ * otherwise stand in for it.
+ */
+const REFUSED_SHAPE_PROBES = new Map([["DecisionCacheShape", "getOrCompute"]]);
 
 /** Workspace-time protocols. Valid in a manifest, meaningless in a tarball. */
 const UNRESOLVED = /^(catalog:|workspace:|link:|file:|portal:)/;
@@ -608,6 +642,9 @@ writeFileSync(
   )}\n`,
 );
 
+// The consumer's compile, run and probe guard read the sandbox only when the install had no failure.
+const consumerReady = failures.length === 0;
+
 if (failures.length === 0) {
   try {
     execFileSync("npx", ["tsc", "-p", join(SANDBOX, "tsconfig.json")], {
@@ -625,6 +662,126 @@ if (failures.length === 0) {
     execFileSync("node", ["out/consumer.js"], { cwd: SANDBOX, encoding: "utf8", stdio: "pipe" });
   } catch (error) {
     fail(`the consumer failed at runtime:\n${error.stdout ?? ""}${error.stderr ?? error.message}`);
+  }
+}
+
+// The probe guard checks that the fixture exercises every public name it must.
+//
+// A public name the consumer never compiles can ship broken. The feed set is read
+// from the installed artifact, so a new feed is caught without editing this
+// script, and TypeScript's parse decides what is a call, a type use or a refusal.
+// It runs after the compile and the run, so a guard failure never hides theirs.
+if (consumerReady) {
+  let feeds;
+  try {
+    const output = execFileSync(
+      "node",
+      ["--input-type=module", "-e", 'console.log(JSON.stringify(Object.keys(await import("@qadi/devtools"))))'],
+      { cwd: SANDBOX, encoding: "utf8", stdio: "pipe" },
+    );
+    feeds = JSON.parse(output.trim().split("\n").at(-1) ?? "[]").filter((key) => /^make\w*Feed$/.test(key));
+    if (feeds.length === 0) {
+      fail("the packed @qadi/devtools root exports no make*Feed; the probe guard would be vacuous");
+    }
+  } catch (error) {
+    feeds = undefined;
+    fail(`reading the packed @qadi/devtools exports failed:\n${error.stderr ?? error.message}`);
+  }
+
+  let seen;
+  try {
+    const { API } = await import("typescript/unstable/sync");
+    const { isCallExpression, isIdentifier, isTypeReferenceNode, isVariableDeclaration } =
+      await import("typescript/unstable/ast/is");
+    const { getLeadingCommentRanges } = await import("typescript/unstable/ast/scanner");
+
+    const walk = (file) => {
+      const text = file.text;
+      const called = new Set();
+      const typed = new Set();
+      const refused = new Set();
+
+      // True when a node inside the declaration carries a `// @ts-expect-error` naming the member.
+      const holdsDirective = (declaration, member) => {
+        let found = false;
+        const look = (node) => {
+          for (const range of getLeadingCommentRanges(text, node.pos) ?? []) {
+            const comment = text.slice(range.pos, range.end);
+            if (comment.startsWith("// @ts-expect-error") && comment.includes(member)) found = true;
+          }
+          node.forEachChild((child) => {
+            look(child);
+          });
+        };
+        declaration.forEachChild((child) => {
+          look(child);
+        });
+        return found;
+      };
+
+      const visit = (node, inRefusal) => {
+        let inner = inRefusal;
+        if (isCallExpression(node) && isIdentifier(node.expression)) called.add(node.expression.text);
+        if (isTypeReferenceNode(node) && isIdentifier(node.typeName) && !inRefusal) {
+          typed.add(node.typeName.text);
+        }
+        if (
+          isVariableDeclaration(node) &&
+          node.type !== undefined &&
+          isTypeReferenceNode(node.type) &&
+          isIdentifier(node.type.typeName)
+        ) {
+          const name = node.type.typeName.text;
+          const member = REFUSED_SHAPE_PROBES.get(name);
+          if (member !== undefined && holdsDirective(node, member)) {
+            refused.add(name);
+            inner = true;
+          }
+        }
+        node.forEachChild((child) => {
+          visit(child, inner);
+        });
+      };
+
+      visit(file, false);
+      return { called, typed, refused };
+    };
+
+    const api = new API({ cwd: SANDBOX });
+    try {
+      const file = api
+        .updateSnapshot({ openProject: join(SANDBOX, "tsconfig.json") })
+        .getProjects()[0]
+        ?.program.getSourceFile(join(SANDBOX, "consumer.ts"));
+      if (file === undefined) fail("the probe guard could not read consumer.ts from the sandbox project");
+      else seen = walk(file);
+    } finally {
+      api.close();
+    }
+  } catch (error) {
+    fail(`the probe guard could not load or run the TypeScript parser: ${error.message}`);
+  }
+
+  // No comparison runs against a parse that did not produce the fixture.
+  if (seen !== undefined) {
+    const unprobed = (feeds ?? []).filter((name) => !seen.called.has(name));
+    if (unprobed.length > 0) {
+      fail(
+        `the consumer fixture never calls ${unprobed.join(", ")}: every make*Feed the packed @qadi/devtools root exports must be probed`,
+      );
+    }
+    const untyped = TYPE_ONLY_PROBES.filter((name) => !seen.typed.has(name));
+    if (untyped.length > 0) {
+      fail(
+        `the consumer fixture never uses ${untyped.join(", ")} as a type: every type-only probe name must be a type reference outside a refused literal`,
+      );
+    }
+    const unrefused = [...REFUSED_SHAPE_PROBES.keys()].filter((name) => !seen.refused.has(name));
+    if (unrefused.length > 0) {
+      fail(
+        `the consumer fixture never refuses a literal typed ${unrefused.join(", ")}: every refused-shape probe name must annotate a declaration holding a @ts-expect-error that names its refused member`,
+      );
+    }
   }
 }
 
