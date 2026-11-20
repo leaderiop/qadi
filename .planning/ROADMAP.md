@@ -427,7 +427,7 @@ Order: the check that cannot fail (62), the gate that protects v1.6's new names 
 - [x] **Phase 63: The packed-install gate probes every new public name** - Gate 14's consumer compiles and runs `makeGatesFeed`, `makeDiagnosticsFeed` and a typed `DecisionCacheShape` host cache, and fails if a `make*Feed` export is left unprobed (ARCH-110, script) (completed 2026-11-20)
 - [x] **Phase 64: One throwing listener cannot silence the rest** - Devtools' `ExternalStore` calls every listener, then rethrows what was thrown (ARCH-111, devtools; D1, D7) (completed 2026-11-20)
 - [x] **Phase 65: Only `admit` builds an `Admitted`** - A private constructor and member make `admit` the only builder, and the `"asked"` row's flags are derived from the matcher context; bench-gated (ARCH-112, core) (completed 2026-11-20)
-- [ ] **Phase 66: The decoder reads only what it declares** - Under `ignore`, `project` reads only declared keys; hydration's `refuse` policy is recorded; bench-gated (ARCH-113, core; D2, D4)
+- [x] **Phase 66: The decoder reads only what it declares** - Under `ignore`, `project` reads only declared keys; hydration's `refuse` policy is recorded; bench-gated (ARCH-113, core; D2, D4) (completed 2026-11-20)
 - [ ] **Phase 67: No equivalent mutants, no magic race bound** - `DecisionCache`'s eviction and `SharedComputation`'s claim dispatch lose their equivalent mutants, and the I5 race test loses its step-count bound (ARCH-114, core; D5)
 - [ ] **Phase 68: Hygiene and recorded close-outs** - Named over-width lines, stale titles and ADR wrapping fixed; port cards recorded as private; two settled items evidenced; Phase 62 re-verified (ARCH-115; D3, D8, D9)
 
@@ -571,7 +571,7 @@ Plans:
   4. A decode benchmark of the `ignore`-seam workloads, with its band fixed before measuring, shows no regression beyond that band; `UNTRUSTED_DECODE_BUDGET` is unchanged; a `@qadi/core` patch changeset records the change.
 
 **Planning notes**: D2 and D4 bind. Research flag: probe the bench harness and the claim's scope before planning. Mechanics: `project` takes `Object.keys(input)` (names only, own enumerable), filters by the declared set and reads each kept value once; `keysOf` reads `_tag` instead of taking the entries array; change `UntrustedDecode.ts` and `EnvelopeKeys.ts` in one commit; no `Record<string, unknown>`, no `as`. Do not widen the code change to `walked()` or `exceedsJsonDepth` without the owner: the ADR amendment and the doc must instead scope the sentence and say what `refuse` plus `unwalked` do, or they repeat the overclaim one level down. Bench: `ab.sh` and `analyze.mjs` are Evaluate-specific (the analyzer refuses input missing two Evaluate keys), so parameterise a copy or interleave manually; the policy decoder group does not exercise `project`, so use the `decodeSinkRecord` and stored-envelope workloads plus a new `ignore` row in `UntrustedDecode.bench.ts`, and fix a tighter band (or a geomean limit) before the result is known, because a 10 percent band can hide a real 8 percent regression. Stryker: build decoders inside `it` bodies (module-scope decoders are `Ignored` as static); take a static evidence run with `ignoreStatic: false` from a config kept outside the repo and never edit `stryker.config.mjs`; `EnvelopeKeys.ts` is 58/58 and `UntrustedDecode.ts` 41/43 with two pre-existing survivors. Whether a declared getter is read once today is unverified: measure before stating the requirement. Check whether a test already pins an unknown top-level hydration key as `MalformedPayload` (BEH-QD-488 area, `spec/behaviors/19-hydration.md`) before adding one. Do not edit `StoredEnvelope.test.ts` (a pinned characterisation file; Phase 68 owns its wording).
-**Plans**: 5/5 plans executed
+**Plans**: 5/5 plans complete
 **Wave 1**
 - [x] 66-01-PLAN.md — the mutation base, then the ignore projection's accessor reads RED on the base (8 of 127), H1 cited
 
@@ -635,6 +635,6 @@ Phases execute in numeric order: 62 → 63 → 64 → 65 → 66 → 67 → 68
 | 63. The packed-install gate probes every new public name | 5/5 | Complete    | 2026-11-20 |
 | 64. One throwing listener cannot silence the rest | 5/5 | Complete    | 2026-11-20 |
 | 65. Only `admit` builds an `Admitted` | 6/6 | Complete    | 2026-11-20 |
-| 66. The decoder reads only what it declares | 5/5 | In Progress | - |
+| 66. The decoder reads only what it declares | 5/5 | Complete    | 2026-11-20 |
 | 67. No equivalent mutants, no magic race bound | 0/TBD | Not started | - |
 | 68. Hygiene and recorded close-outs | 0/TBD | Not started | - |

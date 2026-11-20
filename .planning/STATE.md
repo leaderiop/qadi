@@ -2,20 +2,20 @@
 gsd_state_version: "1.0"
 milestone: v1.7
 milestone_name: Arch Wave 12
-current_phase: 66
-current_phase_name: The decoder reads only what it declares
-status: executing
-stopped_at: Completed QD-66-05-PLAN.md
-last_updated: "2026-11-20T22:33:16.808Z"
+current_phase: 67
+current_phase_name: No equivalent mutants, no magic race bound
+status: planning
+stopped_at: Phase 66 complete, ready to plan Phase 67
+last_updated: "2026-11-20T22:54:31.028Z"
 last_activity: 2026-11-20
-last_activity_desc: Phase 65 complete, transitioned to Phase 66
-state_head: 3acb15692efba9716cfcb16de275cf46058f3f22
+last_activity_desc: Phase 66 complete, transitioned to Phase 67
+state_head: ba4392cfb648a141b6d9833ad3df7dc9101ab935
 progress:
   total_phases: 7
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 29
   completed_plans: 29
-  percent: 57
+  percent: 71
 ---
 
 # Project State
@@ -25,20 +25,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-20)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 66 — The decoder reads only what it declares
+**Current focus:** Phase 67 — No equivalent mutants, no magic race bound
 
 ## Current Position
 
-Phase: 66 (The decoder reads only what it declares) — READY TO EXECUTE
+Phase: 67 — No equivalent mutants, no magic race bound
 Plan: Not started
-Status: Ready to execute
-Last activity: 2026-11-20 — Phase 65 complete, transitioned to Phase 66
+Status: Ready to plan
+Last activity: 2026-11-20 — Phase 66 complete, transitioned to Phase 67
 
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 343
+- Total plans completed: 348
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -101,6 +101,7 @@ Last activity: 2026-11-20 — Phase 65 complete, transitioned to Phase 66
 | 63 | 5 | - | - |
 | 64 | 5 | - | - |
 | 65 | 6 | - | - |
+| 66 | 5 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -810,6 +811,7 @@ Last activity: 2026-11-20 — Phase 65 complete, transitioned to Phase 66
 - [Phase 63] Review (63-REVIEW.md, .iter2, .iter3, 63-REVIEW-FIX.md): three iterations, clean at iteration 3. Iteration 1 WR-01 (the DiagnosticsOptions/schedule refusal and the gate Like types were not held by the guard: fixed, 81847868, prose aligned f4398b04), WR-02 (a call written but never run passes the guard: documented as a shortcut limit); iteration 2 WR-01 (that shortcut note wrongly said expect() catches a dead probe: comment fixed, b5310eb7). IN-01..IN-04 open (directive matched by text within the declaration; any type reference counts as a type use; typescript ^7 lets unstable/* move; no timeout on the guard's import or tsgo, run-varying diagnostics label). The 63-05 close scan's set-aside regex missed a multi-line destructured await import: orchestrator approved a scratch-only fix pinned to exactly three loads. Verification 4/4; check:pr green after the fixes. Orchestrator reverted phase.complete's WX-* ticks (cross-cutting, stay Pending until the milestone audit)
 - [Phase 64] `notify` collects what listeners throw and decides by count (none / the value itself / one `AggregateError`, fixed message, nested kept, live Set); RED first on 8f3cb792 (5 store cases + TF25/F30/G48), 9 seam variants as expected; Stryker ExternalStore 29/30→41/42, feeds unchanged. Review (64-REVIEW.md, .iter1, 64-REVIEW-FIX.md): iteration 1 WR-01 (texts missed configure's resized-branch escape: fixed in texts only, 87267447, feed ordering out of scope); iteration 2 0 warnings, IN-01..03 open (DiagnosticsFeed second throw, post-throw feed states unpinned, a capacity-only configure throw leaves the timeline empty). Verification gap (spec/overview.md makeGatesFeed row still said must not throw) closed by the orchestrator in 1a800ebb; check:pr green on 1a800ebb; verification 4/4. LSTN-01..04 Complete; WX-01..07 Pending (phase.complete ticks reverted).
 - [Phase 65] `Admitted` has a private constructor and a `declare private readonly nominal: never` member; `admit` is its static method, exported as `admit` (call sites unchanged); `SUPPLIED` reads the one MatcherContext `admit` builds, so resource and action are each read once (policy/maxDepth/subject still read more than once, out of scope, flagged). RED first on d1ac1df0 (two pins TS2578, E7–E9); pin form is a reason-bearing @ts-expect-error (one expression cannot carry toRaiseError too), codes TS2673/TS2741 checked by the committed pin-codes.mjs. Stryker Admission 18/18→20/20, Walk/Predicate unchanged; bench 35 workloads 0 slower (worst +1.6%/10%). Review: WR-01 (read-once overclaim) and IN-01 fixed in comments/spec text only (a23dacf1, c0be0db8; token-identical code), IN-02/IN-03 open for the audit. Verification gap (CCR-QD-456 cited pre-fix revisions) closed in b56f32c0; check:pr green on cc7fdc37; verification 5/5. ADMT-01..04 Complete; WX-01..07 Pending (phase.complete ticks reverted).
+- [Phase 66] The `ignore` projection takes `Object.keys`, filters by the declared set and copies each kept value once (`Object.fromEntries`); `envelopeKeysOf` reads `_tag` only for a schema that flattens to more than one member (then twice), a one-member schema reads a declared `_tag` once as a kept value; an undeclared accessor is never invoked under `ignore`. `refuse`/`unwalked` (`walked()`, `exceedsJsonDepth`) still read own getters (owner kept scope); INV-QD-097 and decodeStoredRecord's never-throws scoped to JSON input. RED first on 48921088 (8 of 127: U22–U25, R15, R16, S16, S17); hydration keeps refuse, pinned by UntrustedSeams H1. Stryker UntrustedDecode 41/43→44/46, EnvelopeKeys 58/58→57/57, SinkCodec 123/127 unchanged; static run 46/48 and 66/66. Bench (parameterised Phase 59 copy, fixed 5% band + geomean ≤ +2%, median of per-run minima): 6 workloads 0 slower, geomean −2.13%, worst +3.5%, on a heavily loaded host. Review: WR-01 (INV-QD-097 self-contradiction) + IN-01/04/05/06 fixed (spec text, comments, test-helper rename; code tokens unchanged); IN-02/IN-03 open for the audit. check:pr green on 678fb6d3; verification 8/8. DECL-01..04 Complete; WX-01..07 Pending. Audit notes: 66-04/66-05 each shipped a verify with a sort/regex slip (worked around in scratch); UntrustedDecoderOptions doc says _tag selects the member without the more-than-one-member qualifier.
 - [v1.2] Phases 21, 22 and 23 report `verification.status: stale` (later phases touched covered files); re-run their verification gates (/gsd-execute-phase 21|22|23 resumes at the gates) after Phase 29, before the milestone audit. **Resolved 2026-11-12:** all three re-verified `passed` at HEAD.
 - [Phase 22] `phase.complete` cannot match REQUIREMENTS.md's grouped traceability table (one row per phase listing several IDs), so v1.2 rows stay `Pending`; update them by hand or reshape the table. **Resolved 2026-11-12:** rows updated by hand (now archived in `milestones/v1.2-REQUIREMENTS.md`).
 
@@ -825,7 +827,7 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 ## Session Continuity
 
 Last session: 2026-11-20T22:33:16.641Z
-Stopped at: Completed QD-66-05-PLAN.md
+Stopped at: Phase 66 complete, ready to plan Phase 67
 Resume file: None
 
 ## Operator Next Steps
