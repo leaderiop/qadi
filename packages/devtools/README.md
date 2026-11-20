@@ -161,12 +161,14 @@ a report.
 
 A shell of your own builds the three feeds in a scope. Closing the scope ends every
 read, and a read that stops is stated in its feed's status instead of leaving a dead
-fiber. A `subscribe` listener is yours and is not isolated: it must not throw. A
-throw escapes whatever published (`configure`, `restart`, a read or tick, or the
-host registry's own notification), and it can leave a feed's status wrong with
-nothing running: the gates feed's questions cadence ends, a diagnostics feed stays
-`Starting` with no poll, and a timeline restarted from `Stopped` says `Reading` with
-nothing reading.
+fiber. A `subscribe` listener is yours, and one that throws does not stop the others:
+every listener is called, and then what they threw is rethrown out of whatever
+published (`configure`, `restart`, a read or tick, or the host registry's own
+notification), one value as itself and several as one `AggregateError`. The rest of
+that call does not run, so a throw can still leave a feed's status wrong with nothing
+running: the gates feed's questions cadence ends, a diagnostics feed stays `Starting`
+with no new poll, and a timeline restarted from `Stopped` says `Reading` with nothing
+reading.
 
 ```typescript
 import * as Effect from "effect/Effect";
