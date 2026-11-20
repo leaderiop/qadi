@@ -5,16 +5,16 @@ milestone_name: Arch Wave 12
 current_phase: 62
 current_phase_name: Type pins that can fail
 status: executing
-stopped_at: Completed QD-62-07-PLAN.md
-last_updated: "2026-11-20T03:33:42.647Z"
+stopped_at: Completed QD-62-08-PLAN.md
+last_updated: "2026-11-20T03:42:44.015Z"
 last_activity: 2026-11-20
 last_activity_desc: Phase QD-62 execution started
-state_head: 3d90ed62ee806cee69d182d04aa86f71803f7a8c
+state_head: 01e1c9e4c43dd4f2fbe2f6bfd12c744508490427
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 8
-  completed_plans: 7
+  completed_plans: 8
   percent: 0
 ---
 
@@ -422,6 +422,7 @@ Last activity: 2026-11-20 — Phase QD-62 execution started
 | Phase QD-62 P05 | 15min | 2 tasks | 3 files |
 | Phase QD-62 P06 | 20min | 2 tasks | 5 files |
 | Phase QD-62 P07 | 15min | 2 tasks | 6 files |
+| Phase QD-62 P08 | 30min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -718,6 +719,7 @@ Last activity: 2026-11-20 — Phase QD-62 execution started
 - [Phase QD-62]: 62-05: control check is a floor; FloatingEffectPins.tst.ts is the only file exempt from the run-mode/directive refusal
 - [Phase QD-62]: 62-06: each characterisation half runs in one pass; a pass fails when tstyche compiles any file under another project
 - [Phase QD-62]: 62-07: ADR-QD-175 states the tstyche checks as committed; the DoD and ADR say each pass takes about ten seconds (measured), not eight
+- [Phase QD-62]: 62-08: close scan's leak check reads added word runs (git diff --word-diff=porcelain), so a one-line edit to a long history row does not re-report its old text
 
 ### Pending Todos
 
@@ -777,8 +779,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-20T03:33:42.619Z
-Stopped at: Completed QD-62-07-PLAN.md
+Last session: 2026-11-20T03:42:43.988Z
+Stopped at: Completed QD-62-08-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
