@@ -1,6 +1,6 @@
 ---
 phase: QD-66-the-decoder-reads-only-what-it-declares
-reviewed: 2026-11-20T23:45:00Z
+reviewed: 2026-11-20T23:55:00Z
 depth: standard
 files_reviewed: 18
 files_reviewed_list:
@@ -24,129 +24,74 @@ files_reviewed_list:
   - .changeset/core-decoder-reads-declared-keys.md
 findings:
   critical: 0
-  warning: 1
-  info: 6
-  total: 7
-status: issues_found
+  warning: 0
+  info: 2
+  total: 2
+status: clean
 ---
 
-# Phase QD-66: Code Review Report
+# Phase QD-66: Code Review Report (iteration 2)
 
 **Reviewed:** 2026-11-20
 **Depth:** standard
 **Files Reviewed:** 18
-**Status:** issues_found
+**Status:** clean
 
 ## Summary
 
-The new `ignore` projection is correct. I read it against `git diff 48921088` and checked it by running it, not only by reading. On plain data it accepts and refuses exactly what the old one did, so the only behaviour change is the intended one: an undeclared accessor is no longer invoked.
+This re-review covers the four fix commits (a25de426, 179285d1, 2b8e3249, 5435e2fc) on top of the iteration-1 review (778187a9). Every finding that was in scope is resolved, and the fixes introduced nothing new. No Critical or Warning remains. Two Info items carry forward unchanged and are deferred to the milestone audit.
 
-- **Tests and gates.** The three affected test files pass (149 tests). `StoredEnvelope.test.ts` is untouched. The two test files only have lines added. `scripts/check-house-style.mjs` is clean, and `UNTRUSTED_DECODE_BUDGET` is unchanged.
-- **House rules.** I found no `as`, `!`, `any`, `switch` or `async`, and no new `Record<string, unknown>` annotation. The one `Record<string, unknown>` reached through `isPlainObject` is pre-existing. The tests build accessor values with `Object.defineProperty`, never spread.
-- **Probes (scratch scripts run against `src` with the Node type-stripping flag, since deleted).**
-  - A `JSON.parse` result with an own `__proto__` key cannot pollute: `Object.fromEntries` creates an own property, and the probe saw no `({}).x`.
-  - An inherited `_tag` getter on a class instance and a non-enumerable `_tag` both take the first member, and U26 pins this.
-  - Symbol keys and non-enumerable declared keys are dropped by `Object.keys`, as `Object.entries` dropped them before.
-  - Arrays, primitives and `null` pass through unchanged.
-  - The single-member early return sits after both build-time throws, so the build-time refusals are intact.
-- **Measured reads.** These match the shipped text:
+Each fix was checked against the source, not against the fix report.
 
-  | Case | Reads |
-  | --- | --- |
-  | union under `ignore` | `_tag` read 2 times |
-  | one-object schema under `ignore` | declared `_tag` read once, as a kept value |
-  | unwalked slot, `refuse` | 2 |
-  | unwalked slot, `ignore` | 1 |
+| Finding | Result | Evidence |
+| --- | --- | --- |
+| WR-01 | Resolved | INV-QD-097 now says `encodeSinkRecord` and `encodeSinkRecordString` never throw whatever they are given. It says `decodeSinkRecord` and `decodeSinkRecordString` never throw on any JSON text or JSON value, and that `decodeSinkRecordString` is total because it takes text. The "no adapter lets one record end a feed" clause is now tied to "decodes what a store or a wire returned, which is JSON text or a JSON value". The closing sentence names the in-process accessor reads that are thrown out: a declared top-level one, or one the depth guard or strict decode reads under a kept value, one level down included. That matches R17 and U28. The paragraph no longer contradicts itself. No title changed, so no anchor changed. |
+| IN-01 | Resolved | BEH-QD-666, INV-QD-377, ADR-QD-170 (D-19 and the amendment), the traceability row, the CCR-QD-457 row, the changeset, and the `envelopeKeysOf` and `project` doc comments all now say the same thing. `_tag` is read to choose a member only when the schema flattens to more than one member, and then twice. A schema that flattens to one member, whether a one-object schema or a union of one, reads a declared `_tag` once as a kept value and never invokes an undeclared `_tag` accessor. This matches the `members.length === 1` gate in `EnvelopeKeys.ts`. A grep of `spec/`, `AGENTS.md`, `.changeset` and `packages/core/{src,test,bench}` finds no leftover "a union's `_tag` is read twice". The one remaining hit, `SinkCodec.ts:520`, describes the record wire, which is a true multi-member union, so it is correct. |
+| IN-04 | Resolved | The ADR and the CCR-QD-457 row name the gate as the median of per-run minima, with the 5% band and the +2% geometric mean taken over those deltas. They say the p50 and mean are recorded beside it, decide nothing, and live in `66-BENCH.md` and `bench/final/analysis.tsv`. Both files exist. `66-BENCH.md` states the same statistic (lines 5, 22, 52, 64), and `analysis.tsv` carries the p50 and mean columns. The `ab.sh` arm-order suggestion was not applied. It is a phase artifact, and the gate was fixed before the run, so I do not count it as a defect. |
+| IN-05 | Resolved | The `EnvelopeKeys.ts` doc, the `UntrustedDecoderOptions` doc and the `project` doc are re-wrapped at about 90 columns. The `git diff -U0` hunks touch only those three comment blocks. The remaining lines over 100 columns are pre-existing and outside the hunks. |
+| IN-06 | Resolved | `Either` is gone from `UntrustedDecode.test.ts` and replaced by `TwoMembers`: 11 lines changed, none added or removed. `pnpm vitest run --project core` on `UntrustedDecode`, `UntrustedSeams` and `StoredEnvelope` gives 3 files and 149 tests passed, the same count as the first review. |
 
-- **Text problems.** The remaining problems are in the spec text: one contradiction in INV-QD-097, one MUST wording that is slightly wider than the code, and a few unpinned edges. There is no Critical finding.
+**Comment-only src change.** I re-ran the token-stream comparison myself, with a TypeScript `createScanner` and `skipTrivia`. It compared `778187a9:packages/core/src/{UntrustedDecode,EnvelopeKeys}.ts` against the working tree. Both are identical (744 and 528 tokens, `cmp` clean). `SinkCodec.ts` and `packages/*/bench` are untouched since 778187a9, so the bench of record still stands.
 
-Necessity assessment (#4100) was not performed: I did not load `necessity-review.md`, so `necessity:` is omitted from the frontmatter. I found no candidate on inspection. The single-member shortcut is the point of the change, and the `propertyIsEnumerable` guard is pinned by U26.
+**CCR-QD-457 row.** It cites every revised document at the Revision on line 8 of that document today.
 
-## Warnings
+| Document | Cited | Line 8 |
+| --- | --- | --- |
+| `spec/decisions/170-…-decoder.md` | 1.2 | 1.2 |
+| `spec/behaviors/08-serialization.md` | 1.7 | 1.7 |
+| `spec/invariants.md` | 1.165 | 1.165 |
+| `spec/traceability.md` | 1.232 | 1.232 |
+| `spec/overview.md` | 1.130 | 1.130 (unchanged) |
+| `spec/README.md` | 1.268 | 1.268 |
 
-### WR-01: INV-QD-097 still opens with an unscoped "never throw, whatever they are given"
+**Gates I ran.**
+- `node scripts/spec-revise.mjs --check`: every Revision matches its newest history entry.
+- `bash spec/scripts/verify-traceability.sh --strict`: PASS 21, FAIL 0, SKIP 0.
+- Tests as above: 149 passed.
 
-**File:** `spec/invariants.md` (INV-QD-097, the paragraph starting "`encodeSinkRecord`, `encodeSinkRecordString`, `decodeSinkRecord` and `decodeSinkRecordString` never throw")
+I did not re-run the doc-example, DoD, API-surface or house-style gates. The fixer reported them clean, and the diff touches no code token, export, budget or table they read.
 
-**Issue:**
-- The phase scopes totality to JSON by appending a sentence: "The decode is total over JSON text and JSON values: an in-process value's accessor that `decodeSinkRecord` reads (INV-QD-377) and that throws is thrown out of it."
-- The first sentence is left as it was. It says `decodeSinkRecord` never throws "whatever they are given".
-- The invariant now contradicts itself. A declared accessor that throws is thrown out of `decodeSinkRecord`, and R17 pins this.
-- A depth-guard read one level down throws too (U28). That is a second case of the same family, and the new sentence names only the top-level one.
-- The "No adapter … lets one record end a feed" clause that follows depends on the unscoped claim.
-- The same pairing is what `SinkCodec.ts` got right for `decodeStoredRecord`: "Never throws on a JSON value; an in-process value's declared accessor … is thrown out".
-
-**Fix:** Scope the first sentence instead of contradicting it.
-- Make `decodeSinkRecord` and `decodeSinkRecordString` never throw "on any JSON text or JSON value".
-- Replace the trailing sentence with: "On an in-process value, an own accessor that the decoder reads (a declared top-level one, or any one under a kept value) and that throws is thrown out of `decodeSinkRecord` (INV-QD-377)."
-- Say that `decodeSinkRecordString` is total for every input, because its input is text.
+Necessity assessment (#4100) was not performed. I did not load `necessity-review.md`, so `necessity:` is omitted from the frontmatter. I found no candidate on inspection.
 
 ## Info
 
-### IN-01: BEH-QD-666 and INV-QD-377 say "a union's `_tag` is read twice", but the code gates on the flattened member count
-
-**File:** `spec/behaviors/08-serialization.md` (BEH-QD-666, second REQUIREMENT); `spec/invariants.md` (INV-QD-377); `packages/core/src/EnvelopeKeys.ts:84`
-
-**Issue:**
-- `envelopeKeysOf` returns the no-read shortcut when `members.length === 1`. That count is taken after `membersOf` flattens unions and unwraps `Suspend`.
-- So `Schema.Union([Schema.TaggedStruct("A", …)])`, a union that flattens to one member, is a union that reads its `_tag` once.
-- I measured `{"_tag":1,"a":1}` for it. BEH-QD-666 says a union's `_tag` MUST be read twice.
-- This is a degenerate case, and the reads are harmless. But the requirement is a MUST, and no test pins the degenerate case.
-
-**Fix:** Word the requirement by member count: "a schema that flattens to more than one object member reads `_tag` to choose one, so its `_tag` is read twice; one that flattens to a single member reads no `_tag` to choose". Optionally add one U-test for the one-member union.
+Both items are carried forward unchanged from iteration 1. Nothing in the four fix commits touches the code they describe, so both still hold. They are deferred to the milestone audit.
 
 ### IN-02: Two behaviour differences on non-idempotent in-process accessors are neither stated nor pinned
 
 **File:** `packages/core/src/UntrustedDecode.ts:179-190`; `packages/core/src/EnvelopeKeys.ts:85-88`
+**Issue:** Plain data and idempotent accessors behave exactly as before. Two cases differ:
+- A `_tag` that answers differently on its second read can pick one member's keys and copy a different `_tag`. The strict decode then refuses, so this fails closed.
+- An accessor that deletes a later own key leaves that key in the `Object.keys` snapshot. The copy then holds `undefined` for it, so the refusal message is "Expected number at …" where it was "Missing key". The refusal is still `Malformed`.
 
-**Issue:** For plain data and for idempotent accessors the projection behaves exactly as before. These cases differ, and I measured both:
-- **A `_tag` that answers differently on its second read.** A union's `_tag` is now read once to choose the member and once as the kept value. I measured a flip-flop `_tag` ("A", then "B") picking A's keys and copying `_tag: "B"`. The result was a `Failure`, so it fails closed: the strict decode checks the copy. The old code took one read and could not disagree with itself.
-- **An accessor that deletes a later own key.** `Object.keys` is a snapshot, so the key stays in the list. `input[key]` then returns `undefined`, and the copy holds `b: undefined`. The old `Object.entries` skipped a key that had been deleted. The refusal is still `Malformed`, but its message is "Expected number at ["b"]" where it was "Missing key".
-
-No test pins either, and the text does not mention either. This is in-process hostile input, so it is Info. The fix choices are to say so in INV-QD-377's Implication (one line each), or to read `_tag` once and reuse it for the copy.
-
-**Fix:** Add a sentence to the INV-QD-377 Implication saying a non-idempotent accessor can make the two reads disagree and the strict decode then refuses. Pin one case if you want it recorded. The cheaper code fix is for the union branch to copy `_tag` from the value it already read.
+This is in-process hostile input, and no test or text mentions either.
+**Fix:** Add one sentence to the INV-QD-377 Implication, or copy `_tag` from the value already read in the union branch.
 
 ### IN-03: Mutation scorer `compare` is weaker than its header says in two places
 
 **File:** `.planning/phases/QD-66-the-decoder-reads-only-what-it-declares/66-mutation.mjs` (`compare`, the `atBase` loop and the `known`/`wasIgnored` sets)
-
-**Issue:**
-- **The "line the phase wrote" test exempts a line by its text.** It exempts any open evidence-run mutant whose trimmed line text also appears anywhere in the base file. `(members.find((member) => member.literals.get(TAG) === tag) ?? first).keys;` exists verbatim at base and is exempt. Yet its behaviour changed: it now sits behind the new one-member shortcut and the `propertyIsEnumerable` read. A static-only survivor there would pass.
-- **Multiplicity is lost.** `known` and `wasIgnored` are `Set`s of `status`, `mutator`, `replacement` and line text. A second open mutant with the same key (identical line text appearing twice) is invisible. The two survivors at `UntrustedDecode.ts:240` are such a pair today, and they are matched as one entry.
-
-Neither affects this phase's result: close is 44/46 against 41/43, with the same two pre-existing equivalent survivors, and static is 46/48. But the scorer's claim "no mutant on a line the phase wrote is left open" is weaker than it reads.
-
-**Fix:** Match against the diff's added lines (`git diff -U0 <base>.. -- <file>` hunks) instead of the base line set, and compare counts per key (a `Map` of key to count) instead of a `Set`.
-
-### IN-04: The bench A/B always runs the same arm first in a round, and the ADR quotes the gate's statistic without naming it
-
-**File:** `.planning/phases/QD-66-the-decoder-reads-only-what-it-declares/bench/ab.sh` (the `for arm in "$HEAD_LABEL" "$PATCHED_LABEL"` loop); `spec/decisions/170-an-envelope-states-its-unknown-key-policy-at-its-decoder.md` (amendment, last paragraph)
-
-**Issue:**
-- **Fixed arm order.** `final` runs first and `base` second in each of the 3 rounds. Any thermal or cache drift favours or disfavours one arm systematically. The median of per-run minima limits the damage, but the interleave is not counterbalanced.
-- **Statistic not named.** The ADR says "no workload was more than 5% slower, and the geometric mean of the deltas was no worse than +2%". That holds only for the median of per-run minima (`analysis.tsv`). The recorded mean deltas for `decodeStoredRecord` are +15%, +11% and +27% (one-undeclared-key case). The p50 deltas (+0.8% to +2.0%) corroborate. The geometric mean is -2.13%, pulled down by one -13% workload, so it would not catch a per-workload regression under the 5% band. None of this is a bug in the gate, which was fixed before the run. It does make the ADR's sentence read stronger than the evidence.
-
-**Fix:** In the ADR, add "by the median of per-run minima; the p50 deltas agree and the noisy means are recorded in `66-BENCH.md`". In `ab.sh`, alternate the arm order by round parity.
-
-### IN-05: Comment wraps left ragged, and one comment line far over the hand-wrap width
-
-**File:** `packages/core/src/EnvelopeKeys.ts:57-68`; `packages/core/src/UntrustedDecode.ts:143-145`
-
-**Issue:**
-- In the `envelopeKeysOf` doc, the sentence "Throws, at build, for a schema" is cut after five words and the next lines are wrapped at a different width, so the paragraph reads as two wraps spliced together.
-- In `UntrustedDecoderOptions`, the line "declares for the member the input's own enumerable `_tag` selects, and needs a schema that is an object or a union of" is about 120 columns, against the file's roughly 90-column hand-wrap (AGENTS.md §17).
-- Cosmetic only.
-
-**Fix:** Re-wrap the two paragraphs to about 90 columns.
-
-### IN-06: A test helper named `Either`
-
-**File:** `packages/core/test/UntrustedDecode.test.ts` (the `const Either = () => Schema.Union([...])` inside the new `describe`)
-
-**Issue:** The house rules retired `effect/Either` for `Result` (AGENTS.md §6). A schema union named `Either` reads as a reference to the removed type and invites a grep false positive. It is a function that builds a fresh schema each call, which is fine for these tests.
-
-**Fix:** Rename it to `TwoMembers` or `AorB`.
+**Issue:** A line is exempt as "not written by the phase" when its trimmed text also appears anywhere in the base file, even if its behaviour changed. Multiplicity is lost because `known` and `wasIgnored` are `Set`s, so two identical open mutants are matched as one. Neither changes this phase's result: close is 44/46 against 41/43 at base, with the same two pre-existing equivalent survivors.
+**Fix:** Match against the diff's added lines, and compare counts per key with a `Map`.
 
 ---
 
