@@ -14,13 +14,13 @@ Every phase runs on branch `arch-wave-12`, strictly serial.
 - [x] **PIN-01**: A characterisation `.tst.ts` pins tstyche's behaviour on this repo: with the Effect language service's
   `floatingEffect` diagnostic on, a negative `not.toBeCallableWith` on an `Effect`- or `Stream`-returning subject passes for
   valid arguments; under the tstyche configuration the phase adds, the same pin fails for valid arguments.
-- [ ] **PIN-02**: tstyche runs under a tsconfig that turns `floatingEffect` off (D6). Every `*.tst.ts` stays green, and a
+- [x] **PIN-02**: tstyche runs under a tsconfig that turns `floatingEffect` off (D6). Every `*.tst.ts` stays green, and a
   check fails if that tsconfig's Effect plugin settings drift from `tsconfig.base.json`'s apart from `floatingEffect`.
-- [ ] **PIN-03**: `DecisionLog.tst.ts:30` is rewritten so that it states its reason (`Parameters<…>` or an equivalent
+- [x] **PIN-03**: `DecisionLog.tst.ts:30` is rewritten so that it states its reason (`Parameters<…>` or an equivalent
   reason-checked form), and the rewrite is shown failing once when `environment` is made optional.
-- [ ] **PIN-04**: Each of the 11 negative pins without a positive control gets a single-variable positive control in its
+- [x] **PIN-04**: Each of the 11 negative pins without a positive control gets a single-variable positive control in its
   file, and a classification of all 81 code pins (subject, return type, control) is recorded in the phase directory.
-- [ ] **PIN-05**: `NOT_CALLABLE_PIN_BUDGET` in `scripts/check-house-style.mjs` counts negative callable pins per
+- [x] **PIN-05**: `NOT_CALLABLE_PIN_BUDGET` in `scripts/check-house-style.mjs` counts negative callable pins per
   `*.tst.ts` file in comment- and string-stripped code with its own file walk, is checked in both directions, has an
   AGENTS.md §6 paragraph and table that the gate verifies, and is shown failing on an added pin, a removed pin, a
   commented pin and a line-split pin.
@@ -147,10 +147,10 @@ The seven WX rows apply to every phase 62 to 68, so each phase's Requirements li
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | PIN-01 | Phase 62 | Complete |
-| PIN-02 | Phase 62 | Pending |
-| PIN-03 | Phase 62 | Pending |
-| PIN-04 | Phase 62 | Pending |
-| PIN-05 | Phase 62 | Pending |
+| PIN-02 | Phase 62 | Complete |
+| PIN-03 | Phase 62 | Complete |
+| PIN-04 | Phase 62 | Complete |
+| PIN-05 | Phase 62 | Complete |
 | PROBE-01 | Phase 63 | Pending |
 | PROBE-02 | Phase 63 | Pending |
 | PROBE-03 | Phase 63 | Pending |
