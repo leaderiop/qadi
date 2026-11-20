@@ -55,13 +55,13 @@ Every phase runs on branch `arch-wave-12`, strictly serial.
 
 ### Only `admit` builds an `Admitted` (Phase 65, ARCH-112, core; bench-gated)
 
-- [ ] **ADMT-01**: A `@ts-expect-error` pin shows `new Admitted(…)` refused outside the class and an object literal of the
+- [x] **ADMT-01**: A `@ts-expect-error` pin shows `new Admitted(…)` refused outside the class and an object literal of the
   same shape not assignable to `Admitted`, each with a positive control on `admit`; both are RED on the phase base.
-- [ ] **ADMT-02**: `Admitted` has a private constructor and a private instance member; `admit` is its static method,
+- [x] **ADMT-02**: `Admitted` has a private constructor and a private instance member; `admit` is its static method,
   exported as `admit`, so `Walk.ts` and `Predicate.ts` call sites are unchanged.
-- [ ] **ADMT-03**: The `"asked"` row's supplied flags are derived from the matcher context `admit` builds; the `"row"` row
+- [x] **ADMT-03**: The `"asked"` row's supplied flags are derived from the matcher context `admit` builds; the `"row"` row
   stays as it is, and E1–E5 and `LeafMatrix.test.ts` pass unedited.
-- [ ] **ADMT-04**: A 3 + 3 interleaved benchmark of the committed source against the phase base, with Phase 59's harness
+- [x] **ADMT-04**: A 3 + 3 interleaved benchmark of the committed source against the phase base, with Phase 59's harness
   and bands, shows no workload slower beyond its band.
 
 ### The decoder reads only what it declares (Phase 66, ARCH-113, core; D2, D4)
@@ -160,10 +160,10 @@ The seven WX rows apply to every phase 62 to 68, so each phase's Requirements li
 | LSTN-02 | Phase 64 | Complete |
 | LSTN-03 | Phase 64 | Complete |
 | LSTN-04 | Phase 64 | Complete |
-| ADMT-01 | Phase 65 | Pending |
-| ADMT-02 | Phase 65 | Pending |
-| ADMT-03 | Phase 65 | Pending |
-| ADMT-04 | Phase 65 | Pending |
+| ADMT-01 | Phase 65 | Complete |
+| ADMT-02 | Phase 65 | Complete |
+| ADMT-03 | Phase 65 | Complete |
+| ADMT-04 | Phase 65 | Complete |
 | DECL-01 | Phase 66 | Pending |
 | DECL-02 | Phase 66 | Pending |
 | DECL-03 | Phase 66 | Pending |

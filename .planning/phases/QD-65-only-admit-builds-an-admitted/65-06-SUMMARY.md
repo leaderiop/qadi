@@ -190,3 +190,17 @@ None.
 1. **Task 1 (tracer): the Stryker close, the compare, the 30-check close scan, the summary** - the `docs(65-06): close scan, mutation compare, edge coverage and diff review` commit
 2. **Task 2: the merge gate and ADMT-01..04 complete** - the `docs(65-06): ADMT-01..04 complete` commit
 
+
+## Merge gate
+
+`pnpm check:pr < /dev/null` ran once, alone, in the foreground on head `ef97dc58174a8f8607b19798ef4b3025089e28f2` (the close commit, the tree the scan read), from 19:11:16Z to about 19:13:50Z (about 2 min 35 s). Exit status `0`. Its log's last line:
+
+```text
+run-check: ran 16 of 17 steps; "pnpm mutation" was skipped (release PRs run it).
+```
+
+The coverage step (`pnpm coverage`, 5 of 16) passed its thresholds (`All files 99.61 | 98.46 | 99.48 | 99.83`), and the traceability step printed `known, tracked gap unchanged`. The tree differs from that head only by `.planning/REQUIREMENTS.md` and this summary, which the next commit holds: ADMT-01 to ADMT-04 are ticked `[x]` and `Complete` there, and WX-01 to WX-07 stay `[ ]` and `Pending` (they span every v1.7 phase and wait for the milestone audit).
+
+## Self-Check: PASSED
+
+`65-mutation-close.json` and this summary exist; the close commit `ef97dc58` is on `arch-wave-12` after `phase_base`; the Task 1 verify exited 0 and `check:pr` exited 0.
