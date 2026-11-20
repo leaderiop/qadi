@@ -541,7 +541,7 @@ entries:
   - id: "ADR-QD-173"
     file: "173-the-devtools-headless-interface-is-its-feeds.md"
     title: "The devtools headless interface is its feeds"
-    status: "Accepted — amends ADR-QD-047, ADR-QD-099, ADR-QD-169; applies ADR-QD-137"
+    status: "Accepted — amends ADR-QD-047, ADR-QD-099, ADR-QD-169; applies ADR-QD-137; amended 2026-11-20 (ADR-QD-177: every listener is called)"
   - id: "ADR-QD-174"
     file: "174-a-decision-cache-is-asked-the-question.md"
     title: "A decision cache is asked the question, and walks it itself"

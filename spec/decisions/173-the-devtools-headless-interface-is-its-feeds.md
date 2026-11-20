@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-173                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-19                                     |
-> | Status         | Accepted — amends ADR-QD-047, ADR-QD-099, ADR-QD-169; applies ADR-QD-137 |
+> | Status         | Accepted — amends ADR-QD-047, ADR-QD-099, ADR-QD-169; applies ADR-QD-137; amended 2026-11-20 (ADR-QD-177: every listener is called) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-19): Initial release (ARCH-107, CCR-QD-451) |
+> | Change History | 1.1 (2026-11-20): amendment — every listener is called (ARCH-111, ADR-QD-177, CCR-QD-455)<br>1.0 (2026-11-19): Initial release (ARCH-107, CCR-QD-451) |
 
 ---
 
@@ -97,8 +97,18 @@ The owner decided (HDLS-01, 2026-11-19) to **pursue** the change, with **all thr
 - ADR-QD-047's amendment 1.6 and its 1.13 and 1.15 "package-private" feeds, ADR-QD-099's named list and ADR-QD-169's
   decision 1 are each amended in a dated paragraph; none is rewritten.
 
+## Amendment (2026-11-20, ADR-QD-177, CCR-QD-455): every listener is called
+
+This decision named no rule for a listener on a feed's `subscribe`. The rule lived in BEH-QD-638 and the feeds' docs,
+which asked a host's listener never to throw. [ADR-QD-177](./177-one-throwing-listener-cannot-silence-the-rest.md)
+replaces it: every listener is called, and what they threw is rethrown out of whatever published, one value as itself
+and several as one `AggregateError`
+([BEH-QD-656](../behaviors/28-devtools-screens.md#beh-qd-656-a-throwing-listener-does-not-silence-the-others)). The
+feeds, their names and their types are unchanged.
+
 ## Related
 
 [ADR-QD-047](./047-a-headless-devtools-model.md), [ADR-QD-099](./099-entry-points-are-a-closed-list.md),
 [ADR-QD-137](./137-a-devtools-session-owns-its-runs-through-a-scope.md),
-[ADR-QD-169](./169-the-questions-panels-two-host-inputs-are-one-feed.md), BEH-QD-636..640, INV-QD-365, INV-QD-366.
+[ADR-QD-169](./169-the-questions-panels-two-host-inputs-are-one-feed.md), BEH-QD-636..640, INV-QD-365, INV-QD-366,
+[ADR-QD-177](./177-one-throwing-listener-cannot-silence-the-rest.md), BEH-QD-656, INV-QD-373.
