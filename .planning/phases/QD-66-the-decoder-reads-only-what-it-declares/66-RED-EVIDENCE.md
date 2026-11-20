@@ -58,3 +58,54 @@ Under `ignore` every own accessor of the input is read once, declared or not: th
 Run: `pnpm exec vitest run --project react packages/react/test/UntrustedSeams.test.ts --reporter=json --outputFile=<S>/h1.json`, 25 tests, 0 failed, H1 passed.
 
 `HydrationEngine.ts` states `unknownKeys: "refuse"` (lines 164, 194 and 209) and is not edited, nor is anything under `packages/react`. No hydration test is added.
+
+## Reads after the change
+
+Command: `node <S>/reads.mjs` from the repository root, with the projection of the `fix(66-02)` commit applied.
+
+```text
+ignore, one object	a=1	extra=0	Success
+ignore, one object, undeclared _tag	_tag=0	a=1	Success
+ignore, one object, declared _tag	_tag=1	a=1	Success
+ignore, union	a=0	_tag=2	b=1	Success
+ignore, unwalked	id=1	entries=1	raw=1	extra=0	Success
+refuse, one object	a=2	Success
+refuse, unwalked	id=2	entries=2	raw=2	Success
+ignore, one level down	a=2	Success
+decodeSinkRecord	_tag=2	version=1	evaluationId=1	at=1	subjectId=1	policy=1	outcome=1	addedLater=0	Success
+decodeSinkRecordWithJson	_tag=2	version=1	evaluationId=1	at=1	subjectId=1	policy=1	outcome=1	addedLater=0	Success
+decodeStoredRecord	environment=1	record=1	addedLater=0	_tag=0	Success
+```
+
+Under `ignore` each declared value is read once and an undeclared one (`extra`, the other union member's `a`, the unwalked slots' `extra`, `addedLater`) never. A union's `_tag` is read twice, once to choose the member and once as a kept value (`ignore, union` and the two sink record decoders). A one-object schema's declared `_tag` is read once, as a kept value, and an undeclared `_tag` never (`ignore, one object, declared _tag` and `undeclared _tag`, and the stored envelope's `_tag=0`). The `refuse` lines and the one-level-down line are unchanged from the base: the guard and the decode still read own values there.
+
+## The projection's variants
+
+Each variant undoes one part of the change in the working tree, runs the two test files and restores the file (`python3 <S>/variants.py <S>`). Each line lists the case ids that failed, of 127.
+
+```text
+A the projection reads every own value: R15,R16,S16,S17,U22,U23,U24,U25 of 127
+B a one-object schema reads _tag: S16,U23,U29 of 127
+C an inherited _tag chooses: U26 of 127
+D a non-enumerable own _tag chooses: U26 of 127
+```
+
+- A restores `Object.entries(input)` in `project`: the names-first read is what turns the eight RED cases.
+- B removes the one-object shortcut in `envelopeKeysOf`, so a one-object schema reads `_tag` again: it fails the two undeclared-`_tag` cases and the declared-`_tag` count.
+- C replaces the own-enumerable test with `TAG in input`, so an inherited `_tag` chooses a member.
+- D replaces it with `Object.hasOwn`, so a non-enumerable own `_tag` chooses a member.
+
+## Added-lines scan
+
+Command: `node <S>/added-tokens.mjs <phase_base>`, over `git diff -U0 <phase_base> -- packages`.
+
+```text
+added-tokens: 0 hit(s)
+```
+
+Shown failing once, with the line `export const planted = (x: unknown) => x as string;` appended to `packages/core/src/EnvelopeKeys.ts` (restored with `git checkout` afterwards):
+
+```text
+packages/core/src/EnvelopeKeys.ts: export const planted = (x: unknown) => x as string;: as
+added-tokens: 1 hit(s)
+```
