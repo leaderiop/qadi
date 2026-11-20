@@ -42,6 +42,9 @@
  * The tenth, `UNTRUSTED_DECODE_BUDGET`, is `packages/*\/src` only like
  * `DECISION_READ_BUDGET`, because a test decodes on purpose to pin what the
  * untrusted decoder makes of an input (ADR-QD-143).
+ * The eleventh, `NOT_CALLABLE_PIN_BUDGET`, is test-scope over its own walk of
+ * every file tstyche selects, because `collect()` skips `.tst.ts` files; a
+ * negative type pin is counted there (ADR-QD-175).
  *
  * The three whole-file, cross-line-break checks below (`no-prefixed-error-tag`,
  * `no-catchtags-object-form`, `no-named-effect-submodule-import`) already run
@@ -664,6 +667,143 @@ const UNTRUSTED_DECODE_TOKEN = /\bonExcessProperty\b|\bexceedsJsonDepth\b|\bSche
 
 /** @type {Map<string, number[]>} */
 const UNTRUSTED_DECODE_LINES = new Map();
+
+/**
+ * Type-test files holding a negative `toBeCallableWith` or `toBeConstructableWith` pin, by
+ * file and exact count of each (ADR-QD-175).
+ *
+ * tstyche checks such a pin by compiling the call and reading any diagnostic on it as "not
+ * callable", so a pin whose subject returns an `Effect` passed whatever its arguments were
+ * while the Effect language service's `floatingEffect` rule was on in tstyche's compile.
+ * tstyche now compiles under `tsconfig.tstyche.json`, with that rule off, and this budget makes
+ * each new negative pin a reviewed edit rather than an unread one. Test-scope like
+ * `PORT_DOUBLE_BUDGET`, but over its own walk: every file tstyche selects, from the repository
+ * root. Checked in both directions, and AGENTS.md section 6's table must list exactly these
+ * files with the same counts.
+ *
+ * @type {Readonly<Record<string, { readonly callable: number, readonly constructable: number }>>}
+ */
+const NOT_CALLABLE_PIN_BUDGET = {
+  "packages/audit/test/AuditPortReply.tst.ts": { callable: 2, constructable: 0 },
+  "packages/audit/test/AuditWriteOutcome.tst.ts": { callable: 3, constructable: 0 },
+  "packages/audit/test/Retention.tst.ts": { callable: 3, constructable: 0 },
+  "packages/core/test/Decision.tst.ts": { callable: 0, constructable: 7 },
+  "packages/core/test/DecisionCache.tst.ts": { callable: 3, constructable: 0 },
+  "packages/core/test/EvaluationEnvironment.tst.ts": { callable: 4, constructable: 0 },
+  "packages/core/test/Explanation.tst.ts": { callable: 2, constructable: 0 },
+  // The characterisation of tstyche's reading under each `floatingEffect` setting: its bare negative pins pin the tool, not an API.
+  "packages/core/test/FloatingEffectPins.tst.ts": { callable: 5, constructable: 2 },
+  "packages/core/test/HydrationMetrics.tst.ts": { callable: 2, constructable: 0 },
+  "packages/core/test/Matcher.tst.ts": { callable: 2, constructable: 0 },
+  "packages/core/test/Policy.tst.ts": { callable: 2, constructable: 0 },
+  "packages/core/test/PortAccess.tst.ts": { callable: 6, constructable: 0 },
+  "packages/core/test/PortDefault.tst.ts": { callable: 1, constructable: 0 },
+  "packages/core/test/PortSpan.tst.ts": { callable: 4, constructable: 0 },
+  "packages/core/test/Ports.tst.ts": { callable: 1, constructable: 0 },
+  "packages/core/test/Qadi.tst.ts": { callable: 4, constructable: 0 },
+  "packages/core/test/UntrustedDecode.tst.ts": { callable: 9, constructable: 0 },
+  "packages/core/test/WalkEnvironment.tst.ts": { callable: 2, constructable: 0 },
+  "packages/devtools/test/model/DiagnosticsStore.tst.ts": { callable: 3, constructable: 0 },
+  "packages/http/test/DecisionLogHttp.tst.ts": { callable: 1, constructable: 0 },
+  "packages/http/test/DecisionStreamRoute.tst.ts": { callable: 4, constructable: 0 },
+  "packages/http/test/DevtoolsRouteAddress.tst.ts": { callable: 6, constructable: 0 },
+  "packages/http/test/GuardApi.tst.ts": { callable: 3, constructable: 0 },
+  "packages/http/test/GuardRoute.tst.ts": { callable: 1, constructable: 0 },
+  "packages/http/test/RequirePermission.tst.ts": { callable: 3, constructable: 0 },
+  "packages/promise/test/Facade.tst.ts": { callable: 5, constructable: 0 },
+  "packages/react/test/DevtoolsFeed.tst.ts": { callable: 3, constructable: 0 },
+  "packages/react/test/Hydration.tst.ts": { callable: 1, constructable: 0 },
+};
+
+/**
+ * tstyche's default `testFileMatch` (`**\/*.tst.*`, `**\/__typetests__/*.test.*`,
+ * `**\/typetests/*.test.*`), tested against a repository-relative path. `tstyche.json` sets
+ * none, and `[not-callable-pin]` fails if it ever does, so the two cannot drift apart.
+ */
+const TYPE_TEST_FILE = [/(?:^|\/)[^/]*\.tst\.[^/]*$/, /(?:^|\/)(?:__typetests__|typetests)\/[^/]*\.test\.[^/]*$/];
+
+/** A negative pin in code with comments and strings blanked: global, so two on a line count two. */
+const NOT_CALLABLE_PIN = /\.\s*not\s*\.\s*toBeCallableWith\b/g;
+const NOT_CONSTRUCTABLE_PIN = /\.\s*not\s*\.\s*toBeConstructableWith\b/g;
+
+/**
+ * `source` with every comment, and the text of every string and template literal, replaced
+ * by spaces. Newlines and length are kept, so an offset or a line number still points into the
+ * original. A template literal's `${…}` holds code, not text, so it is read as code: a pin
+ * written inside one is counted. With `keepStrings`, strings and template text stay as written:
+ * that is the JSONC reading.
+ * shortcut: a regex literal is read as code; none in a type test holds a quote or a pin, revisit if one does.
+ *
+ * @param {string} source
+ * @param {{ readonly keepStrings?: boolean }} [options]
+ * @returns {string}
+ */
+const blankCode = (source, { keepStrings = false } = {}) => {
+  const out = source.split("");
+  /** @param {number} from @param {number} to */
+  const blank = (from, to) => {
+    for (let k = from; k < to; k += 1) if (out[k] !== "\n") out[k] = " ";
+  };
+  // The brace depth at which each open `${` began, innermost last.
+  /** @type {number[]} */
+  const interpolations = [];
+  let depth = 0;
+  let i = 0;
+  while (i < source.length) {
+    const pair = source.slice(i, i + 2);
+    const c = source[i];
+    if (pair === "//" || pair === "/*") {
+      const end = pair === "//" ? source.indexOf("\n", i) : source.indexOf("*/", i + 2);
+      const stop = end === -1 ? source.length : pair === "//" ? end : end + 2;
+      blank(i, stop);
+      i = stop;
+    } else if (c === '"' || c === "'") {
+      let j = i + 1;
+      while (j < source.length && source[j] !== c) j += source[j] === "\\" ? 2 : 1;
+      if (!keepStrings) blank(i + 1, Math.min(j, source.length));
+      i = j + 1;
+    } else if (c === "`" || (c === "}" && interpolations.at(-1) === depth - 1)) {
+      // Template text runs to the closing backtick or to the next `${`, whose inside is code.
+      if (c === "}") {
+        interpolations.pop();
+        depth -= 1;
+      }
+      let j = i + 1;
+      while (j < source.length && source[j] !== "`" && !source.startsWith("${", j)) j += source[j] === "\\" ? 2 : 1;
+      if (!keepStrings) blank(i + 1, Math.min(j, source.length));
+      if (source.startsWith("${", j)) {
+        interpolations.push(depth);
+        depth += 1;
+        i = j + 2;
+      } else {
+        i = j + 1;
+      }
+    } else {
+      if (c === "{") depth += 1;
+      else if (c === "}") depth -= 1;
+      i += 1;
+    }
+  }
+  return out.join("");
+};
+
+/**
+ * Every type-test file tstyche selects under `dir`, repository-relative: its `**` skips
+ * `node_modules` and any name starting with a dot, and so does this walk.
+ *
+ * @param {string} dir
+ * @returns {string[]}
+ */
+const walkTypeTests = (dir) =>
+  readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    if (entry.name === "node_modules" || entry.name.startsWith(".")) return [];
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) return walkTypeTests(full);
+    const rel = relative(ROOT, full);
+    return entry.isFile() && TYPE_TEST_FILE.some((re) => re.test(rel)) ? [rel] : [];
+  });
+
+const typeTests = walkTypeTests(ROOT);
 
 /**
  * Test files that construct a port's typed error by hand, by file and exact
@@ -2136,6 +2276,54 @@ for (const file of srcSources) {
   }
 }
 
+// `[not-callable-pin]`: AGENTS.md section 6, a negative type pin is counted per file against
+// `NOT_CALLABLE_PIN_BUDGET`, in both directions (ADR-QD-175). An empty walk fails rather than
+// passing with nothing counted, and so does a `testFileMatch` that would make tstyche select
+// files the walk does not.
+{
+  if (typeTests.length === 0) {
+    failures += 1;
+    console.error(
+      "[not-callable-pin] found no type-test files from the repository root, so no pin was counted; " +
+        "TYPE_TEST_FILE or the walk no longer matches what tstyche selects.",
+    );
+  }
+  if (Object.hasOwn(JSON.parse(readFileSync(join(ROOT, "tstyche.json"), "utf8")), "testFileMatch")) {
+    failures += 1;
+    console.error(
+      "tstyche.json  [not-callable-pin] sets testFileMatch; TYPE_TEST_FILE mirrors tstyche's default, " +
+        "so update it with the same patterns before setting one.",
+    );
+  }
+  /** @type {Map<string, { readonly callable: number, readonly constructable: number }>} */
+  const found = new Map();
+  for (const rel of typeTests) {
+    const code = blankCode(readFileSync(join(ROOT, rel), "utf8"));
+    const callable = (code.match(NOT_CALLABLE_PIN) ?? []).length;
+    const constructable = (code.match(NOT_CONSTRUCTABLE_PIN) ?? []).length;
+    if (callable + constructable > 0) found.set(rel, { callable, constructable });
+  }
+  for (const [rel, n] of found) {
+    const budget = Object.hasOwn(NOT_CALLABLE_PIN_BUDGET, rel) ? NOT_CALLABLE_PIN_BUDGET[rel] : undefined;
+    if (budget !== undefined && budget.callable === n.callable && budget.constructable === n.constructable) continue;
+    failures += 1;
+    console.error(
+      `${rel}  [not-callable-pin] ${n.callable} negative callable and ${n.constructable} negative constructable pin(s); ` +
+        `NOT_CALLABLE_PIN_BUDGET says ${budget === undefined ? "none" : `${budget.callable} and ${budget.constructable}`}.\n` +
+        "    A negative pin on a function that returns an Effect states its refusal through the parameter type, " +
+        "and every negative pin has a positive twin; then update the budget and AGENTS.md section 6's table together.",
+    );
+  }
+  for (const rel of Object.keys(NOT_CALLABLE_PIN_BUDGET)) {
+    if (found.has(rel)) continue;
+    failures += 1;
+    console.error(
+      `${rel}  [not-callable-pin] is in NOT_CALLABLE_PIN_BUDGET but holds no negative pin; ` +
+        "remove its row here and in AGENTS.md section 6's table.",
+    );
+  }
+}
+
 // An exemption is a path, and a path outlives the file it named: renaming or
 // deleting the exempted module leaves a dead entry that silently ungates
 // whatever takes its place (an orphan `settled.ts` entry sat here for exactly
@@ -2162,5 +2350,5 @@ if (failures > 0) {
 
 console.log(
   `house-style: ${sources.length} file(s) clean ` +
-    `(${declaredSwitches} declared switch(es))`,
+    `(${declaredSwitches} declared switch(es), ${typeTests.length} type-test file(s))`,
 );

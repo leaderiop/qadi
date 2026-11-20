@@ -463,6 +463,69 @@ a `describe`/`it` title is a pin or a snapshot-golden row, counted per file in
 is exported as its series (a record keyed by the closed label), never as the
 untagged base, which reads zero.
 
+**A negative type pin can fail, and each one is counted: `NOT_CALLABLE_PIN_BUDGET`**
+(ADR-QD-175). tstyche checks `expect(f).type.not.toBeCallableWith(args)`, and
+`not.toBeConstructableWith` for `new`, by compiling the call and reading any
+diagnostic on it as "not callable". The Effect language service's
+`floatingEffect` rule puts a diagnostic on every bare call that returns an
+`Effect` or a `Stream`, so while that rule was on in tstyche's compile such a pin
+passed whatever its arguments were. tstyche now compiles under
+`tsconfig.tstyche.json`, which is `tsconfig.test.json` with that one rule off, and
+`packages/core/test/FloatingEffectPins.tst.ts` pins its reading under both
+settings.
+
+A bare negative pin is for a subject that returns a plain value. A pin on a
+function that returns an `Effect` or a `Stream` states its refusal through the
+parameter type, so it holds whichever way the rule is set: `Params<F>` for a
+whole call, `expect<Params<typeof f>>().type.not.toBeCallableWith(…)`
+(`PortAccess.tst.ts`), or `Parameters<typeof f>[i]` with `not.toBeAssignableTo`
+for one parameter (`DecisionLog.tst.ts`). `Params<F>` and `Parameters<F>` read
+only the last overload of an overloaded `F`, so a pin on one names the signature
+it means. Every negative pin has a positive twin in its file, the same subject
+with the arguments made valid, so the pin is seen to fail for the reason it names.
+
+The gate counts the negative `toBeCallableWith` and `toBeConstructableWith` pins
+in every file tstyche selects, separately, with comments and the text of strings
+blanked (a template literal's `${…}` is code, so a pin inside one counts), and
+checks the counts against this table in both directions (`[not-callable-pin]`,
+`[not-callable-pin-table]`). Test-scope, like `PORT_DOUBLE_BUDGET`, but over its
+own walk, because `collect()` skips `.tst.ts` files; a walk that finds no file
+fails. A new negative pin is a reviewed edit to the budget and this table
+together. `FloatingEffectPins.tst.ts` is the one file whose bare negative pins on
+an `Effect`, a `Stream` and a constructor are deliberate: they pin the tool, not
+an API.
+
+| Type-test file | Callable pins | Constructable pins | Why |
+| -------------- | ------------- | ------------------ | --- |
+| `packages/audit/test/AuditPortReply.tst.ts` | 2 | 0 | `AuditPortReply.Fail`, `AuditPortReply.Latch`: plain return |
+| `packages/audit/test/AuditWriteOutcome.tst.ts` | 3 | 0 | `AuditWriteOutcome.Written`, `.WriteFailed`, `.Skipped`: plain return |
+| `packages/audit/test/Retention.tst.ts` | 3 | 0 | `planPurge`: plain return |
+| `packages/core/test/Decision.tst.ts` | 0 | 7 | `new Allow`, `new Deny`: plain instance |
+| `packages/core/test/DecisionCache.tst.ts` | 3 | 0 | `getOrCompute` returns an `Effect`: refused through `Params<…>` |
+| `packages/core/test/EvaluationEnvironment.tst.ts` | 4 | 0 | `evaluationEnvironment`: plain return |
+| `packages/core/test/Explanation.tst.ts` | 2 | 0 | `foldExplanationCases`: plain return |
+| `packages/core/test/FloatingEffectPins.tst.ts` | 5 | 2 | The characterisation: its bare pins on an `Effect`, a `Stream` and a constructor pin the tool |
+| `packages/core/test/HydrationMetrics.tst.ts` | 2 | 0 | `hydrationDropMeaning`: plain return |
+| `packages/core/test/Matcher.tst.ts` | 2 | 0 | `foldMatcherCases`: plain return |
+| `packages/core/test/Policy.tst.ts` | 2 | 0 | `foldPolicyCases`: plain return |
+| `packages/core/test/PortAccess.tst.ts` | 6 | 0 | The five port reads return an `Effect`: refused through `Params<…>` |
+| `packages/core/test/PortDefault.tst.ts` | 1 | 0 | `isPortDefault`: plain return |
+| `packages/core/test/PortSpan.tst.ts` | 4 | 0 | `spanStruct`: plain return |
+| `packages/core/test/Ports.tst.ts` | 1 | 0 | `portsLayer`: plain return |
+| `packages/core/test/Qadi.tst.ts` | 4 | 0 | `enforceLoaded`, `enforceProjected`, `enforceProjectedLoaded`, `guard`: plain return |
+| `packages/core/test/UntrustedDecode.tst.ts` | 9 | 0 | `untrustedDecoder`: plain return |
+| `packages/core/test/WalkEnvironment.tst.ts` | 2 | 0 | `admit`: plain return |
+| `packages/devtools/test/model/DiagnosticsStore.tst.ts` | 3 | 0 | `runDiagnostics` returns an `Effect`: refused through `Params<…>` |
+| `packages/http/test/DecisionLogHttp.tst.ts` | 1 | 0 | `decisionBacklogRoute`: plain return |
+| `packages/http/test/DecisionStreamRoute.tst.ts` | 4 | 0 | `decisionStreamRoute`, `sseText`: plain return |
+| `packages/http/test/DevtoolsRouteAddress.tst.ts` | 6 | 0 | `devtoolsPath`, `devtoolsRoutes`, `decisionStreamRoute`: plain return |
+| `packages/http/test/GuardApi.tst.ts` | 3 | 0 | `guardApi`: plain return |
+| `packages/http/test/GuardRoute.tst.ts` | 1 | 0 | `addGuardedRoute`: plain return |
+| `packages/http/test/RequirePermission.tst.ts` | 3 | 0 | `requiresPermission`, `annotate`: plain return |
+| `packages/promise/test/Facade.tst.ts` | 5 | 0 | The facade's methods return a `Promise`: plain return |
+| `packages/react/test/DevtoolsFeed.tst.ts` | 3 | 0 | `useDevtoolsFeed`: plain return |
+| `packages/react/test/Hydration.tst.ts` | 1 | 0 | `isAllowed`: plain return |
+
 ## 7. Schema
 
 Domain types are ordinarily **hand-written interfaces** with template-literal
