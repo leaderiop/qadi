@@ -18,8 +18,10 @@
 // The two labels must be different and each an arm `meta.txt` names (`head_label`, `patched_label`);
 // which of them is the reference is the caller's, since Phase 68's reference is the patched arm.
 //
-// Writes <outdir>/analysis.tsv and prints it. Exits 0 whenever the analysis completed, whatever the
-// gate says; 2 on incomplete input.
+// Writes <outdir>/analysis.tsv and prints it. Exits 0 when the gate passes, 1 when it fails, and 2
+// when the analysis cannot complete: input that is incomplete or refused, a run file that is not
+// JSON among them, or any other error. `--self-test` exits 0 when every case passes and 1 at the
+// first that does not, and runs the analyzer end to end on a temporary record it removes.
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -234,6 +236,8 @@ const selfTest = () => {
   const e2e = [
     { name: "a passing gate exits 0", factor: 1, want: 0 },
     { name: "a failing gate exits 1", factor: 1.1, want: 1 },
+    { name: "a label that is neither arm exits 2", factor: 1, cand: "other", want: 2 },
+    { name: "a run file that is not JSON exits 2", factor: 1, corrupt: "final-2.json", want: 2 },
   ];
   const dir = mkdtempSync(join(tmpdir(), "analyze-self-test-"));
   let statuses;
@@ -257,12 +261,13 @@ const selfTest = () => {
           },
         ],
       });
-    statuses = e2e.map(({ factor }) => {
+    statuses = e2e.map(({ factor, cand = "final", corrupt }) => {
       for (let i = 1; i <= 3; i++) {
         writeFileSync(join(dir, `base-${i}.json`), runJson(1));
         writeFileSync(join(dir, `final-${i}.json`), runJson(factor));
       }
-      const args = [fileURLToPath(import.meta.url), dir, "base", "final", join(dir, "workloads.txt")];
+      if (corrupt) writeFileSync(join(dir, corrupt), "{not json");
+      const args = [fileURLToPath(import.meta.url), dir, "base", cand, join(dir, "workloads.txt")];
       return spawnSync(process.execPath, args, { encoding: "utf8", timeout: 60_000 }).status;
     });
   } finally {
@@ -297,9 +302,7 @@ else
   try {
     process.exitCode = main() === "pass" ? 0 : 1;
   } catch (e) {
-    if (e instanceof Refused) {
-      console.error(`analyze.mjs: ${e.message}`);
-      process.exit(2);
-    }
-    throw e;
+    // A refusal says why; anything else is shown whole, since its stack is all there is to read.
+    console.error(e instanceof Refused ? `analyze.mjs: ${e.message}` : e);
+    process.exitCode = 2;
   }
