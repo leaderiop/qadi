@@ -70,6 +70,7 @@ Requirements: MUTE-01..04, plus the cross-cutting WX-01..07.
 - The candidate benches are measurement runs, made from scratch patches kept outside the repo and committed as
   evidence. The run of record is a separate 3 + 3 run of the final committed source (eviction plus dispatch) against
   the phase base, under the same gate. It is the last executable change.
+- **The bench runs on a quiet host (owner, 2026-11-21).** The planner proposed this rule and the owner accepted it. Before each bench run, the 1-minute load average must be at most the CPU count, and no process may use more than 100% CPU. Otherwise the run does not start: the orchestrator waits up to about 30 minutes, then asks the owner to pause what is loading the host. The rule only halts before a run. It never discards a finished run and never allows a re-run. The load is still recorded before and after each run.
 - The owner arm (about 70 lines of `forkDetach`/`onExit`) moves to a local function, so every arm is a call.
 - The hit check stays inside the one synchronous claim step (ARCH-45, I5). The `Effect.sync` block itself is not
   reordered.

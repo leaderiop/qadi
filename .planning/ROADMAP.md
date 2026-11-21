@@ -603,7 +603,27 @@ Plans:
   4. The Stryker scores of `DecisionCache.ts`, `SharedComputation.ts` and `Lifecycle.ts` do not fall below Phase 61's (0.977, 0.986, 1.000), and both named survivors are gone.
 
 **Planning notes**: D5 binds. Research flag: measure before choosing a dispatch form. Eviction candidate: `Chunk.splitAt(insertionOrder, HashMap.size(entries) - capacity)` (clamps negative and oversize counts) then `HashMap.removeMany`, with `import * as Option` removed in the same commit; it has no throwing accessor and no impossible branch (a throwing accessor such as `Chunk.getUnsafe` has no place in an authorization path, AGENTS.md §4, and `Chunk.isNonEmpty(...) &&` added to the loop condition would re-create an equivalent mutant). Stryker was not run on any form, so the per-file compare is the check. Dispatch: `Match.value(claimed).pipe(Match.tagsExhaustive(...))` per call cannot be hoisted (`A` and `E` are generic in `run`) and AGENTS.md §5a measured `Match.value` rebuilt per call at 3.5 to 7.7 times a `switch`, so bench `DecisionCache.bench.ts` 3 + 3 before choosing `Match` over a closed `if` and narrowing or an own-property arm table (as `FieldLattice.ts` does); the owner arm is about 70 lines of `forkDetach`/`onExit` and must be extracted to a local function; keep the hit check inside the one synchronous claim step (ARCH-45 I5). Race loop: both orderings per budget (not overall), a cap of 512 that fails naming the budget and the counts, a margin of two or three gaps past the first flip (today's sweep also asserts no recompute and exact FIFO on every run, so stopping at the flip would lose that unless the per-run assertions are kept), the `:1248-1249` "re-measure" comment deleted, runtime measured (up to 2048 iterations against 192 today, and Stryker runs this test for many mutants with `timeoutMS: 20000`) and kills re-checked under per-test coverage. Acceptance for the loop: temporarily split the hit check from the claim (the pre-I5 shape), confirm RED, restore.
-**Plans**: TBD
+**Plans**: 7 plans
+**Wave 1**
+- [ ] 67-01-PLAN.md — the mutation base of the three files and the fixed scorer; the race test sweeps each budget until it sees both sides (cap 512, margin 3), RED with the hit check split
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 67-02-PLAN.md — the parameterised harness and a capacity-bound bench row, both dispatch candidates measured 3 + 3, and the form the fixed rule takes
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 67-03-PLAN.md — the eviction as one `Chunk.splitAt` and one `HashMap.removeMany`, with no branch, the `Option` import and the loop's comments gone
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 67-04-PLAN.md — the claim dispatched closed in the chosen form, every arm a call, the claim step unchanged; every tag mutant killed by hand
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 67-05-PLAN.md — the 3 + 3 bench of record of the final source against the phase base
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 67-06-PLAN.md — BEH-QD-166's reasons, INV-QD-379, traceability and CCR-QD-458 (ADR-QD-180 Unused), the register red then green
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 67-07-PLAN.md — the Stryker close and static evidence, the close scan, `check:pr` once, MUTE-01..04 complete
 
 ### Phase 68: Hygiene and recorded close-outs
 
