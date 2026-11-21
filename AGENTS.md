@@ -329,7 +329,10 @@ per request and is worth avoiding on a per-node evaluation path.
 A table indexed directly by a tag its own code wrote needs no `Object.hasOwn` and
 no fail-closed row, because the key cannot fall outside the union and such a row
 could never be reached: `SharedComputation.ts`'s `afterReset`, `afterLastLeave` and
-its claim arms are that shape, and a missing row is a compile error.
+its claim arms are that shape, and a missing row is a compile error. This is a third
+dispatch form, taken over the hoisted `Match` form because that form failed a gate fixed in
+advance and the table passed it; the measurement, with its noise, is in
+`spec/process/house-rules-evidence.md` §2 (CCR-QD-458).
 
 **Three switches remain unconverted**, and the exception is enforced rather than
 remembered: `scripts/check-house-style.mjs` carries a `SWITCH_BUDGET` naming each
