@@ -642,7 +642,7 @@ Plans:
   5. The milestone's stale-verification sweep re-verifies Phase 62 at least, since Phases 64 to 66 edit files it covers.
 
 **Planning notes**: D3, D8 and D9 bind. Take a fresh per-file `68-mutation-base.json` on the post-67 tree before the first re-wrap: the harness keys mutant ids on line text and Phases 64 to 67 will have moved files. Change only the named over-width lines (many more exceed 100 and AGENTS.md §17 gates nothing). `StoredEnvelope.test.ts` is a pinned characterisation file: the header (lines 1 to 14) must stop claiming no row reads the in-memory shape while N1 to N4 do, and the edit is comments and titles only with every assertion kept. Read `Source.test.ts` :186 and :306 in context before deciding; `spec/behaviors/26-decision-stream.md:406` (an amendment quoting the old requirement) and `SinkCodec.test.ts:2233` (a different test) keep their wording unless the owner says otherwise. A title is program text, so prove "titles and comments only" with a compiler-based comparison (`ts.transpileModule` with `removeComments: true`, title strings masked, same test counts before and after), not a regex strip; 61d uses the same method and its proof goes in a new file in the Phase 61 archive directory (editing a Phase 61 SUMMARY, PLAN or the archived `61-scan.mjs` would stale its verification). D3's wording is written from `DockModel.ts` (about lines 255-263) and `PortCards.ts` (about lines 28-34): the inputs come from the diagnostics reading, `isUnsampled` is not exported, no "same view" promise; confirm `WiringRead`, `PortActivity` and `PortCallLog` are root exports before writing any fence (unverified), and make any code a `typescript` fence so `pnpm spec:examples` compiles it. D9: the 315-character Change History row at ADR-QD-174's line 13 is a table row and stays. The sweep checks verification trailers and `nyquist_compliant` at close; Phase 62's covered set (about 27 `.tst.ts` files, `check-house-style.mjs` and AGENTS.md) is edited by Phases 64 to 66. Records go in the last plan.
-**Plans:** 11/15 plans executed
+**Plans:** 12/15 plans executed
 **Wave 1**
 - [x] 68-01-PLAN.md — `spec-revise` keeps its first argument (OI-18, the phase's first commit), the one shared A/B bench harness (OI-24), and the phase's mutation scorer, compiler comparison and staleness check
 
@@ -677,7 +677,7 @@ Plans:
 - [x] 68-11-PLAN.md — CCR-QD-459 (records OI-26 to OI-29), the settled items confirmed in Phase 61's archive (HYGN-05), the one `@qadi/devtools` patch changeset
 
 **Wave 12** *(blocked on Wave 11 completion)*
-- [ ] 68-12-PLAN.md — the mutation close of the six edited files against the base, and the close scan
+- [x] 68-12-PLAN.md — the mutation close of the six edited files against the base, and the close scan
 
 **Wave 13** *(blocked on Wave 12 completion)*
 - [ ] 68-13-PLAN.md — the staleness of Phases 62 to 67 recorded, and Phase 62 re-verified fully (HYGN-06)
@@ -701,4 +701,4 @@ Phases execute in numeric order: 62 → 63 → 64 → 65 → 66 → 67 → 68
 | 65. Only `admit` builds an `Admitted` | 6/6 | Complete    | 2026-11-20 |
 | 66. The decoder reads only what it declares | 5/5 | Complete    | 2026-11-20 |
 | 67. No equivalent mutants, no magic race bound | 7/7 | Complete    | 2026-11-21 |
-| 68. Hygiene and recorded close-outs | 11/15 | In Progress | - |
+| 68. Hygiene and recorded close-outs | 12/15 | In Progress | - |
