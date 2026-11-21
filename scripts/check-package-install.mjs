@@ -67,7 +67,8 @@
  * The feed set comes from the artifact, so a new feed is caught without editing
  * this file, and the run counts the calls through a module hook that wraps each
  * feed, so a call written but never run does not count. TypeScript's parse
- * (`typescript/unstable/*`, loaded when the check runs) decides what annotates a
+ * (`typescript/unstable/*`, run in a child process, `scripts/lib/probe-guard-parse.mjs`,
+ * under the same timeout as every other child) decides what annotates a
  * value and what is a refusal, so a comment, a string, an import, an alias or
  * `typeof` does not count; and a failure to load or run that parse fails the
  * gate, naming the installed TypeScript, whose unstable API a routine upgrade
@@ -85,7 +86,8 @@ const fail = (message) => failures.push(message);
 
 /**
  * A child that hangs would hang `pnpm check`; each `execFileSync` child is killed after this long, which a cold `pnpm build` stays well inside.
- * The probe guard's `API` server child has none: its calls block and the API takes no bound.
+ * The probe guard's parse is one of them (`scripts/lib/probe-guard-parse.mjs`), so a TypeScript server that stops
+ * answering ends the gate at this bound; the server that child started is not killed with it.
  */
 const CHILD_TIMEOUT_MS = 600_000;
 
@@ -913,78 +915,20 @@ if (consumerReady) {
 
   let seen;
   try {
-    const { API } = await import("typescript/unstable/sync");
-    const {
-      isIdentifier,
-      isObjectLiteralExpression,
-      isPropertyAssignment,
-      isTypeReferenceNode,
-      isVariableDeclaration,
-    } = await import("typescript/unstable/ast/is");
-    const { getLeadingCommentRanges } = await import("typescript/unstable/ast/scanner");
-    // A comment TypeScript reads as the directive: `//`, `///`, `/*` or `/**`, then `@ts-expect-error`.
-    // A wider match cannot pass a refusal the compiler does not see: the refused member then fails it.
-    const DIRECTIVE = /^(?:\/|\*)*\s*@ts-expect-error\b/;
-
-    const walk = (file) => {
-      const text = file.text;
-      const typed = new Set();
-      const refused = new Set();
-
-      // True when the declaration's object literal has a property named `member` led by the directive.
-      const holdsDirective = (declaration, member) =>
-        declaration.initializer !== undefined &&
-        isObjectLiteralExpression(declaration.initializer) &&
-        declaration.initializer.properties.some(
-          (property) =>
-            isPropertyAssignment(property) &&
-            isIdentifier(property.name) &&
-            property.name.text === member &&
-            (getLeadingCommentRanges(text, property.pos) ?? []).some((range) =>
-              DIRECTIVE.test(text.slice(range.pos, range.end)),
-            ),
-        );
-
-      const visit = (node, inRefusal) => {
-        let inner = inRefusal;
-        if (
-          isVariableDeclaration(node) &&
-          node.type !== undefined &&
-          isTypeReferenceNode(node.type) &&
-          isIdentifier(node.type.typeName)
-        ) {
-          const name = node.type.typeName.text;
-          const member = REFUSED_SHAPE_PROBES.get(name);
-          if (member !== undefined && holdsDirective(node, member)) {
-            refused.add(name);
-            inner = true;
-          } else if (!inRefusal && node.initializer !== undefined) typed.add(name);
-        }
-        node.forEachChild((child) => {
-          visit(child, inner);
-        });
-      };
-
-      visit(file, false);
-      return { typed, refused };
-    };
-
-    const api = new API({ cwd: SANDBOX });
-    try {
-      const file = api
-        .updateSnapshot({ openProject: join(SANDBOX, "tsconfig.json") })
-        .getProjects()[0]
-        ?.program.getSourceFile(join(SANDBOX, "consumer.ts"));
-      if (file === undefined) fail("the probe guard could not read consumer.ts from the sandbox project");
-      else seen = walk(file);
-    } finally {
-      api.close();
-    }
+    const parsed = JSON.parse(
+      execFileSync(
+        process.execPath,
+        [join(ROOT, "scripts", "lib", "probe-guard-parse.mjs"), SANDBOX, JSON.stringify([...REFUSED_SHAPE_PROBES])],
+        { cwd: ROOT, encoding: "utf8", stdio: "pipe", timeout: CHILD_TIMEOUT_MS },
+      ),
+    );
+    if (parsed === null) fail("the probe guard could not read consumer.ts from the sandbox project");
+    else seen = { typed: new Set(parsed.typed), refused: new Set(parsed.refused) };
   } catch (error) {
     const version = JSON.parse(readFileSync(join(ROOT, "node_modules", "typescript", "package.json"), "utf8")).version;
     fail(
       `the probe guard could not load or run the TypeScript parser, typescript@${version}'s unstable API, ` +
-        `which a TypeScript upgrade can move: ${error.message}`,
+        `which a TypeScript upgrade can move: ${why(error)}`,
     );
   }
 
