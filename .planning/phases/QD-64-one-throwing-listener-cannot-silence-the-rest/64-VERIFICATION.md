@@ -199,3 +199,34 @@ Kept whole above; recorded here, not edited.
 - The report records no validation file; none exists. Its code review items IN-02 and IN-03 are not re-judged here: IN-02, that no test pinned the post-throw feed states, is answered for the states the code now documents by TF26 to TF29 and F31 and F32, which pass.
 
 **Verdict:** passed
+
+## Re-verification (2026-11-21, after the code review's fixes)
+
+**Staleness:** `64: stale, verification 1d472db7, 26 cited, 2 changed since` (`68-stale.mjs`, run at `2367f9df`).
+
+| Cited file | Changed since `1d472db7` by |
+| --- | --- |
+| `spec/README.md` | `8c3375fb` fix(QD-68): WR-02 the timeout text claims only the execFileSync children |
+| `spec/traceability.md` | `8c3375fb` fix(QD-68): WR-02 the timeout text claims only the execFileSync children |
+
+**Trailers on this phase's commits:** 21 `Claude Opus 5.5 <noreply@anthropic.com>`, 7 none, 4 `Claude Sonnet 5.5 <noreply@anthropic.com>`.
+
+**Validation record:** no VALIDATION.md.
+
+**Digest:** `covered_digest: "v4:sha256:47f9dce0e21ab2f492a12de4095b99f3f0bf9e4a52c1f74870954cc9042d43fd"` becomes `covered_digest: "v4:sha256:47f9dce0e21ab2f492a12de4095b99f3f0bf9e4a52c1f74870954cc9042d43fd"`, over the same 16 covered files.
+
+### Spot-checks re-run (Re-verification (2026-11-21, after the code review's fixes))
+
+Every row was run on the tree at `2367f9df` (the commit `68-stale.mjs` named), one command at a time, in the foreground, with nothing else running beside it. Heavy commands were run once and their result is shared across the six phases' sections.
+
+| Behaviour | Command run now | Result now | Status |
+| --------- | --------------- | ---------- | ------ |
+| Revision headers and registers | `node scripts/spec-revise.mjs --check < /dev/null` | exit 0; `spec-revise: every Revision matches its newest Change History entry` | PASS |
+| Traceability | `bash spec/scripts/verify-traceability.sh --strict < /dev/null` | exit 0; `PASS: 21   FAIL: 0   SKIP: 0 (strict: skips count as failures)` | PASS |
+| What `8c3375fb` changed in the spec | `git show 8c3375fb -- spec` | `spec/README.md`: the Revision header (1.273 to 1.274), its Change History and the CCR-QD-459 row (ADR-QD-033 now cited at Rev 1.4). `spec/traceability.md`: the header (1.235 to 1.236), its Change History and the ADR-QD-033 row. `spec/decisions/033-*.md`: Revision 1.4 and the sentence on child timeouts. Every other row of both registers is unchanged | PASS |
+
+### Truths re-checked (Re-verification (2026-11-21, after the code review's fixes))
+
+Only `spec/README.md` and `spec/traceability.md` changed among the cited files, in the rows named in the last spot-check row. The report's cited README Revision (1.264) and rows are in Change History entries that remain; no row this phase's truths rest on was edited.
+
+**Verdict:** passed
