@@ -27,18 +27,22 @@
  * Before either pass, the files `tstyche --listFiles` selects must be exactly the files
  * `scripts/lib/type-tests.mjs` walks, the set `check-house-style.mjs` counts pins in.
  *
+ * File filters given to this script (`pnpm test:tstyche <path>`) are passed on to both passes,
+ * never to `--listFiles`, so the file-list check above always reads the whole set; an option is
+ * refused, because one such as `--tsconfig` would change what a pass compiles under.
+ *
  * Both passes always run, and the exit status is non-zero if either fails. No shell: the
- * arguments are fixed, and tstyche runs on the Node binary that runs this script.
+ * arguments are fixed but for the filters, and tstyche runs on the Node binary that runs this
+ * script.
  */
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { walkTypeTests } from "./lib/type-tests.mjs";
+import { CHARACTERISATION, walkTypeTests } from "./lib/type-tests.mjs";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const TSTYCHE = join(ROOT, "node_modules", "tstyche", "dist", "bin.js");
-const CHARACTERISATION = "packages/core/test/FloatingEffectPins.tst.ts";
 const RULE_OFF_ONLY = "under the tstyche tsconfig";
 const RULE_ON_ONLY = "under tsconfig.test.json";
 /** The line tstyche prints each time the project changes, and a file's result line. */
@@ -55,6 +59,14 @@ const tstyche = (args) =>
     encoding: "utf8",
     maxBuffer: 1 << 26,
   });
+
+/** The file filters this script was given, passed on to both passes. */
+const filters = process.argv.slice(2);
+const option = filters.find((arg) => arg.startsWith("-"));
+if (option !== undefined) {
+  console.error(`run-tstyche: takes file filters only, and ${JSON.stringify(option)} is an option.`);
+  process.exit(1);
+}
 
 const listed = tstyche(["--listFiles"]);
 if (listed.status !== 0) {
@@ -135,11 +147,11 @@ const pass = (title, project, args) => {
 const first = pass(
   `pass 1 of 2, tstyche.json (tsconfig.tstyche.json, floatingEffect off), skipping "${RULE_ON_ONLY}"`,
   "./tsconfig.tstyche.json",
-  ["--skip", RULE_ON_ONLY],
+  ["--skip", RULE_ON_ONLY, ...filters],
 );
 const second = pass(
   `pass 2 of 2, tsconfig.test.json (floatingEffect on), skipping "${RULE_OFF_ONLY}"`,
   "./tsconfig.test.json",
-  ["--tsconfig", "tsconfig.test.json", "--skip", RULE_OFF_ONLY],
+  ["--tsconfig", "tsconfig.test.json", "--skip", RULE_OFF_ONLY, ...filters],
 );
 process.exit(first && second ? 0 : 1);

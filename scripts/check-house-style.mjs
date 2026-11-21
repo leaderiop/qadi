@@ -86,7 +86,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { RAW_DECISION_READ } from "./lib/raw-decision-read.mjs";
-import { walkTypeTests } from "./lib/type-tests.mjs";
+import { CHARACTERISATION, walkTypeTests } from "./lib/type-tests.mjs";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 
@@ -694,7 +694,7 @@ const NOT_CALLABLE_PIN_BUDGET = {
   "packages/core/test/EvaluationEnvironment.tst.ts": { callable: 4, constructable: 0 },
   "packages/core/test/Explanation.tst.ts": { callable: 2, constructable: 0 },
   // The characterisation of tstyche's reading under each `floatingEffect` setting: its bare negative pins pin the tool, not an API.
-  "packages/core/test/FloatingEffectPins.tst.ts": { callable: 7, constructable: 3 },
+  [CHARACTERISATION]: { callable: 7, constructable: 3 },
   "packages/core/test/HydrationMetrics.tst.ts": { callable: 2, constructable: 0 },
   "packages/core/test/Matcher.tst.ts": { callable: 2, constructable: 0 },
   "packages/core/test/Policy.tst.ts": { callable: 2, constructable: 0 },
@@ -2291,7 +2291,7 @@ for (const file of srcSources) {
         "scripts/lib/type-tests.mjs no longer matches what tstyche selects.",
     );
   }
-  if (Object.hasOwn(JSON.parse(readFileSync(join(ROOT, "tstyche.json"), "utf8")), "testFileMatch")) {
+  if (Object.hasOwn(readJsonc("tstyche.json"), "testFileMatch")) {
     failures += 1;
     console.error(
       "tstyche.json  [not-callable-pin] sets testFileMatch; TYPE_TEST_FILE (scripts/lib/type-tests.mjs) mirrors tstyche's default, " +
@@ -2349,6 +2349,11 @@ for (const file of srcSources) {
         console.error(`AGENTS.md:${i + 1}  [not-callable-pin-table] a row that is not \`file\` | callable | constructable | why.`);
         continue;
       }
+      if (listed.has(m[1])) {
+        failures += 1;
+        console.error(`AGENTS.md:${i + 1}  [not-callable-pin-table] lists ${m[1]} a second time; one row per file.`);
+        continue;
+      }
       listed.set(m[1], { callable: Number(m[2]), constructable: Number(m[3]) });
     }
   }
@@ -2378,7 +2383,6 @@ for (const file of srcSources) {
 // characterisation is the one exception: it pins the tool with expected failures, and each
 // tstyche pass skips one of its three blocks by title.
 {
-  const CHARACTERISATION = "packages/core/test/FloatingEffectPins.tst.ts";
   const RUN_MODE = /\.\s*(skip|only|todo)\b/g;
   const DIRECTIVE = /@tstyche\b/g;
   const MATCHER = /\s*\.\s*type\s*\.\s*(not\s*\.\s*)?(toBeCallableWith|toBeConstructableWith)\b/y;

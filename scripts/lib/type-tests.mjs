@@ -2,6 +2,13 @@ import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 
 /**
+ * The type test that pins tstyche's reading of the `floatingEffect` rule (ADR-QD-175): the one
+ * file whose bare negative pins are deliberate and whose blocks each pass skips by title.
+ * `run-tstyche.mjs` and `check-house-style.mjs` both read it from here, so the path is stated once.
+ */
+export const CHARACTERISATION = "packages/core/test/FloatingEffectPins.tst.ts";
+
+/**
  * tstyche's default `testFileMatch` (`**\/*.tst.*`, `**\/__typetests__/*.test.*`,
  * `**\/typetests/*.test.*`), tested against a path relative to the repository root.
  * `tstyche.json` sets none, and `check-house-style.mjs`'s `[not-callable-pin]` fails if it ever
