@@ -694,7 +694,12 @@ describe("what the ignore projection reads of an in-process value", () => {
     const absent = ignore.decode({ a: 1 });
     const deleted = ignore.decode(input);
     assert.isTrue(Result.isFailure(absent) && Result.isFailure(deleted));
-    if (Result.isFailure(absent) && Result.isFailure(deleted)) {
+    if (
+      Result.isFailure(absent) &&
+      absent.failure._tag === "Malformed" &&
+      Result.isFailure(deleted) &&
+      deleted.failure._tag === "Malformed"
+    ) {
       assert.include(absent.failure.message, "Missing key");
       assert.notInclude(deleted.failure.message, "Missing key");
       assert.include(deleted.failure.message, "Expected number");
