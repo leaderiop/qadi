@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-033                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.3 (2026-11-21): amendment: the probe guard reads what the consumer runs, and every child has a timeout (ARCH-115, CCR-QD-459)<br>1.2 (2026-11-20): amendment: the consumer probes every make*Feed the packed devtools root exports and a DecisionCacheShape host cache, held by a probe guard (ARCH-110, CCR-QD-454)<br>1.1 (2026-10-07): check 3b added: the entry-point list is closed and the packed artifact is probed for it (ADR-QD-099, CCR-QD-188)<br>1.0 (2026-07-26): Initial release (CCR-QD-038) |
+> | Change History | 1.4 (2026-11-21): amendment: the only child without a timeout, the TypeScript server behind `typescript/unstable/sync`'s `API`, is named, and a killed child reports its cause (ARCH-115, CCR-QD-459)<br>1.3 (2026-11-21): amendment: the probe guard reads what the consumer runs, and every `execFileSync` child has a timeout (ARCH-115, CCR-QD-459)<br>1.2 (2026-11-20): amendment: the consumer probes every make*Feed the packed devtools root exports and a DecisionCacheShape host cache, held by a probe guard (ARCH-110, CCR-QD-454)<br>1.1 (2026-10-07): check 3b added: the entry-point list is closed and the packed artifact is probed for it (ADR-QD-099, CCR-QD-188)<br>1.0 (2026-07-26): Initial release (CCR-QD-038) |
 
 ---
 
@@ -165,10 +165,14 @@ hook that wraps each `make*Feed` export of the packed `@qadi/devtools` and recor
 call, so a probe that names a feed in code that never runs fails the check. A type-only name
 counts only where it annotates a declared value outside a refused literal, and a refused
 member only where the literal's own property of that name is led by the `@ts-expect-error`,
-written `//` or `/* */`. Every child process the gate starts has a timeout; the diagnostics
-probe stops at `Stopped` and the check reports its reason; and a parser that fails to load
-or run is reported naming the installed TypeScript, whose `typescript/unstable/*` entry
-points the guard reads, so an upgrade that moves them fails the gate naming that coupling.
+written `//` or `/* */`. Every `execFileSync` child the gate starts has a timeout, and one that is killed reports
+its cause, the timeout or the signal, where it once printed nothing. The one child without
+a timeout is the TypeScript server that `typescript/unstable/sync`'s `API` starts: its
+calls block the process and the API takes no bound, so a hang there still hangs the gate.
+The diagnostics probe stops at `Stopped` and the check reports its reason; and a parser
+that fails to load or run is reported naming the installed TypeScript, whose
+`typescript/unstable/*` entry points the guard reads, so an upgrade that moves them fails
+the gate naming that coupling.
 
 ---
 

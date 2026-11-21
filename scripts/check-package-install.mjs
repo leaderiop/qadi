@@ -83,7 +83,10 @@ const SANDBOX = join(ROOT, ".package-check");
 const failures = [];
 const fail = (message) => failures.push(message);
 
-/** A child that hangs would hang `pnpm check`; each is killed after this long, which a cold `pnpm build` stays well inside. */
+/**
+ * A child that hangs would hang `pnpm check`; each `execFileSync` child is killed after this long, which a cold `pnpm build` stays well inside.
+ * The probe guard's `API` server child has none: its calls block and the API takes no bound.
+ */
 const CHILD_TIMEOUT_MS = 600_000;
 
 /** What to print for a failed `execFileSync` child: a killed child's output is empty, so its cause is named, then any output. */
