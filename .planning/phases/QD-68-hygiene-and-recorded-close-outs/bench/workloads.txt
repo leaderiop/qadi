@@ -1,0 +1,35 @@
+evaluate :: one node
+evaluate :: rules DenyOverrides — 8 permits
+evaluate :: anyOf Union — 8
+evaluate :: rules FirstApplicable — 8, last applies
+evaluate :: anyOf First — 8, last allows
+evaluate :: wide — allOf of 8
+evaluate :: wrapper-heavy — 10 nested labeled/not/obliged
+evaluate :: field-heavy — anyOf of 8 under Union
+evaluate :: rules PermitOverrides — 8 denies
+evaluate :: leaf-heavy — allOf of 8, matchers reference action and resource
+evaluate :: leaf-heavy — allOf of 8, matchers reference neither
+evaluate :: deep rules — 10 nested
+evaluate :: deep — 10 levels
+evaluate :: matcher-heavy — 3 refs
+evaluate :: resolver miss — one port call
+evaluate :: obligation-heavy — allOf of 8 distinct obligations
+evaluate :: field-heavy — allOf of 8 under Intersection
+filter — 500 items :: hasPermission
+decideSubjects — 500 subjects :: hasPermission
+evaluate — depth scaling :: depth 5
+evaluate — depth scaling :: depth 10
+evaluate — depth scaling :: depth 20
+evaluate — depth scaling :: depth 40
+evaluate — width scaling :: width 4
+evaluate — width scaling :: width 8
+evaluate — width scaling :: width 16
+evaluate — width scaling :: width 32
+evaluate — wide, concurrency :: sequential (default)
+evaluate — wide, concurrency :: concurrency: unbounded
+evaluate — anyOf Union 8, concurrency :: sequential (default)
+evaluate — anyOf Union 8, concurrency :: concurrency: unbounded
+evaluate — rules DenyOverrides 8, concurrency :: sequential (default)
+evaluate — rules DenyOverrides 8, concurrency :: concurrency: unbounded
+filter — 500 items, concurrency :: sequential (default)
+filter — 500 items, concurrency :: concurrency: unbounded
