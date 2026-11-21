@@ -81,7 +81,7 @@ Run order: the owner reordered the run on 2026-11-21, so 68-06 to 68-09 ran befo
 | T-68-35 | Tampering | a digest refreshed without a re-check | medium | mitigate | each of 62 to 67 has two re-verification sections and two `passed` verdicts, and each diff removes one line (the digest) and adds 83 to 91; `68-stale.mjs` ends `redo: none`; `sweep-check.mjs` is scratch and not re-run | closed |
 | T-68-36 | Repudiation | the 63, 64 and 65 reports | medium | mitigate | same checks as T-68-35 for 63 (`510d731d`), 64 (`3b92bac7`) and 65 (`21977478`): original kept whole, `0 changed since`, verdict passed | closed |
 | T-68-37 | Repudiation | the 66 and 67 reports | medium | mitigate | same checks for 66 (`94a90d66`) and 67 (`e07ea925`): original kept whole, `0 changed since`, verdict passed | closed |
-| T-68-38 | Repudiation | a `check:pr` result that is not of the final tree | medium | mitigate | `check:pr` exit 0 is recorded at `eb6d2f12` (68-15-SUMMARY lines 110-111). After it, the review fixes changed five non-planning files (`analyze.mjs`, `check-package-install.mjs`, `spec/README.md`, ADR-QD-033, `spec/traceability.md`), and no `check:pr` run after them is recorded in 68-REVIEW-FIX, 68-REVIEW or any file I found. 68-VERIFICATION says "green twice, last after the review fixes" with no run to back it. I ran what reads those files and each passes: gate 14, `check-house-style` (560 files), `spec-revise --check`, strict traceability, `check-dod-table`, `check-devtools-claims`, `check-api-surface`, `analyze.mjs --self-test` (21), `test:tstyche`. The full `pnpm check:pr` was not re-run here | open |
+| T-68-38 | Repudiation | a `check:pr` result that is not of the final tree | medium | mitigate | `check:pr` exit 0 is recorded at `eb6d2f12` (68-15-SUMMARY lines 110-111). The review fixes after it changed five non-planning files (`analyze.mjs`, `check-package-install.mjs`, `spec/README.md`, ADR-QD-033, `spec/traceability.md`). The orchestrator then ran `pnpm check:pr < /dev/null` once, alone, in the foreground on `5ee91190` (21:09:07–21:12:04, 2026-11-21): exit 0, no `ELIFECYCLE`, ending `run-check: ran 16 of 17 steps; "pnpm mutation" was skipped (release PRs run it).`; `git diff --quiet e07ea925 5ee91190 -- . ':!.planning'` holds, so this is the final tree's code. The re-stale sweep's own run after the fixes (on `e07ea925`, exit 0) was reported but not written down; this run is the recorded one | closed |
 | T-68-39 | Elevation of privilege | a WX requirement, or a HYGN one before the gate, ticked | medium | mitigate | `git diff 3d66becb..HEAD -- .planning/REQUIREMENTS.md`: 28 changed lines, 0 naming WX-; the file holds seven `- [ ] **WX-0` lines; HYGN-01..07 were ticked in `0624aa3c`, after the `eb6d2f12` `check:pr` | closed |
 | T-68-40 | Repudiation | an open item closed by neither a fix nor a record | medium | mitigate | 68-15-SUMMARY lists OI-01..OI-29 once each (29 distinct ids), 25 fixes and 4 records; every commit it names is in `git log 3d66becb..HEAD` (e.g. `faec4fab`, `2bea33b3`, `456be457`, `0136e327`, `ca9ffb18`, `35597a5c`); OI-26..OI-29 are recorded in the CCR-QD-459 row (`spec/README.md:396`); `oi-map-check.mjs` is scratch | closed |
 | T-68-41 | Denial of service | `check:pr` run beside another heavy process | low | mitigate | 68-15-SUMMARY line 110: `pgrep -fl "vitest\|stryker run\|tstyche\|check-package-install"` printed nothing before the single foreground run | closed |
@@ -118,6 +118,7 @@ Not threats, recorded for the milestone audit:
 | Audit Date | Threats Total | Closed | Open | Run By |
 |------------|---------------|--------|------|--------|
 | 2026-11-21 | 44 | 43 | 1 | orchestrator, L1 grep verification (ASVS 1, register authored at plan time, auditor skipped by rule) |
+| 2026-11-21 | 44 | 44 | 0 | orchestrator: T-68-38 closed by `pnpm check:pr` exit 0 on `5ee91190`, the final tree's code |
 
 ---
 
@@ -125,7 +126,7 @@ Not threats, recorded for the milestone audit:
 
 - [x] All threats have a disposition (mitigate / accept / transfer)
 - [x] Accepted risks documented in Accepted Risks Log
-- [x] `threats_open: 0` confirmed (the one open threat, T-68-38, is medium, below the blocking severity)
+- [x] `threats_open: 0` confirmed (all 44 closed; T-68-38 closed by the recorded `check:pr` on `5ee91190`)
 - [x] `status: verified` set in frontmatter
 
-**Approval:** verified 2026-11-21, with T-68-38 open at medium until `pnpm check:pr` is run once on the final tree
+**Approval:** verified 2026-11-21
