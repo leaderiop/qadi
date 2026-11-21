@@ -1,0 +1,139 @@
+{
+ "phase": "67",
+ "head": "adb01b5f47629713ca33f07f41df7db725984bbd",
+ "invocation": "pnpm exec stryker run stryker.config.mjs --mutate packages/core/src/DecisionCache.ts,packages/core/src/Lifecycle.ts,packages/core/src/SharedComputation.ts",
+ "files": {
+  "packages/core/src/DecisionCache.ts": {
+   "killed": 38,
+   "timeout": 0,
+   "survived": 0,
+   "noCoverage": 0,
+   "ignored": 2,
+   "detected": 38,
+   "valid": 38,
+   "open": [],
+   "ignoredMutants": [
+    {
+     "status": "Ignored",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 141,
+     "column": 5,
+     "text": ">()(\"qadi/DecisionCache\") {}"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 215,
+     "column": 35,
+     "text": "export const decisionCacheLayer = (options?: {"
+    }
+   ]
+  },
+  "packages/core/src/Lifecycle.ts": {
+   "killed": 42,
+   "timeout": 0,
+   "survived": 0,
+   "noCoverage": 0,
+   "ignored": 2,
+   "detected": 42,
+   "valid": 42,
+   "open": [],
+   "ignoredMutants": [
+    {
+     "status": "Ignored",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 64,
+     "column": 41,
+     "text": "export const decideQuestion = Effect.fn(\"qadi.evaluate\")(function* ("
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 198,
+     "column": 20,
+     "text": "export const ask = ("
+    }
+   ]
+  },
+  "packages/core/src/SharedComputation.ts": {
+   "killed": 71,
+   "timeout": 0,
+   "survived": 0,
+   "noCoverage": 0,
+   "ignored": 8,
+   "detected": 71,
+   "valid": 71,
+   "open": [],
+   "ignoredMutants": [
+    {
+     "status": "Ignored",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 89,
+     "column": 77,
+     "text": "const afterReset: { readonly [S in Standing]: Exclude<Standing, \"Live\"> } = {"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 90,
+     "column": 9,
+     "text": "Live: \"Superseded\","
+    },
+    {
+     "status": "Ignored",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 91,
+     "column": 15,
+     "text": "Superseded: \"Superseded\","
+    },
+    {
+     "status": "Ignored",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 92,
+     "column": 14,
+     "text": "Abandoned: \"Abandoned\","
+    },
+    {
+     "status": "Ignored",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 96,
+     "column": 81,
+     "text": "const afterLastLeave: { readonly [S in Standing]: Exclude<Standing, \"Live\"> } = {"
+    },
+    {
+     "status": "Ignored",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 97,
+     "column": 9,
+     "text": "Live: \"Abandoned\","
+    },
+    {
+     "status": "Ignored",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 98,
+     "column": 15,
+     "text": "Superseded: \"Superseded\","
+    },
+    {
+     "status": "Ignored",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 99,
+     "column": 14,
+     "text": "Abandoned: \"Abandoned\","
+    }
+   ]
+  }
+ }
+}
