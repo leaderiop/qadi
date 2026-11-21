@@ -3,20 +3,19 @@ gsd_state_version: "1.0"
 milestone: v1.7
 milestone_name: Arch Wave 12
 current_phase: 68
-current_phase_name: Hygiene and recorded close-outs
-current_plan: 15
-status: verifying
-stopped_at: Completed 68-15-PLAN.md
-last_updated: "2026-11-21T13:14:22.964Z"
+current_plan: Not started
+status: completed
+stopped_at: Phase 68 complete — all phases complete
+last_updated: "2026-11-21T20:02:35.063Z"
 last_activity: 2026-11-21
-last_activity_desc: Phase 67 complete, transitioned to Phase 68
-state_head: 0624aa3c78dbb5fb832b191e1383d5ac86778eef
+last_activity_desc: Phase 68 complete
+state_head: 96e396a19a7fb9efdd4a3b659d790b6099a2b57c
 progress:
   total_phases: 7
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 51
   completed_plans: 51
-  percent: 86
+  percent: 100
 ---
 
 # Project State
@@ -26,21 +25,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-20)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 68 — Hygiene and recorded close-outs
+**Current focus:** Milestone v1.7 audit (all seven phases complete)
 
 ## Current Position
 
-Phase: 68 (Hygiene and recorded close-outs) — EXECUTING
-Current Plan: 15
+Phase: 68
+Current Plan: Not started
 Total Plans in Phase: 15
-Status: Phase complete — ready for verification
-Last activity: 2026-11-21 — Phase 67 complete, transitioned to Phase 68
+Status: All phases complete
+Last activity: 2026-11-21 — Phase 68 complete
 
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 355
+- Total plans completed: 370
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -105,6 +104,7 @@ Last activity: 2026-11-21 — Phase 67 complete, transitioned to Phase 68
 | 65 | 6 | - | - |
 | 66 | 5 | - | - |
 | 67 | 7 | - | - |
+| 68 | 15 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -856,6 +856,7 @@ Last activity: 2026-11-21 — Phase 67 complete, transitioned to Phase 68
 - [Phase 65] `Admitted` has a private constructor and a `declare private readonly nominal: never` member; `admit` is its static method, exported as `admit` (call sites unchanged); `SUPPLIED` reads the one MatcherContext `admit` builds, so resource and action are each read once (policy/maxDepth/subject still read more than once, out of scope, flagged). RED first on d1ac1df0 (two pins TS2578, E7–E9); pin form is a reason-bearing @ts-expect-error (one expression cannot carry toRaiseError too), codes TS2673/TS2741 checked by the committed pin-codes.mjs. Stryker Admission 18/18→20/20, Walk/Predicate unchanged; bench 35 workloads 0 slower (worst +1.6%/10%). Review: WR-01 (read-once overclaim) and IN-01 fixed in comments/spec text only (a23dacf1, c0be0db8; token-identical code), IN-02/IN-03 open for the audit. Verification gap (CCR-QD-456 cited pre-fix revisions) closed in b56f32c0; check:pr green on cc7fdc37; verification 5/5. ADMT-01..04 Complete; WX-01..07 Pending (phase.complete ticks reverted).
 - [Phase 66] The `ignore` projection takes `Object.keys`, filters by the declared set and copies each kept value once (`Object.fromEntries`); `envelopeKeysOf` reads `_tag` only for a schema that flattens to more than one member (then twice), a one-member schema reads a declared `_tag` once as a kept value; an undeclared accessor is never invoked under `ignore`. `refuse`/`unwalked` (`walked()`, `exceedsJsonDepth`) still read own getters (owner kept scope); INV-QD-097 and decodeStoredRecord's never-throws scoped to JSON input. RED first on 48921088 (8 of 127: U22–U25, R15, R16, S16, S17); hydration keeps refuse, pinned by UntrustedSeams H1. Stryker UntrustedDecode 41/43→44/46, EnvelopeKeys 58/58→57/57, SinkCodec 123/127 unchanged; static run 46/48 and 66/66. Bench (parameterised Phase 59 copy, fixed 5% band + geomean ≤ +2%, median of per-run minima): 6 workloads 0 slower, geomean −2.13%, worst +3.5%, on a heavily loaded host. Review: WR-01 (INV-QD-097 self-contradiction) + IN-01/04/05/06 fixed (spec text, comments, test-helper rename; code tokens unchanged); IN-02/IN-03 open for the audit. check:pr green on 678fb6d3; verification 8/8. DECL-01..04 Complete; WX-01..07 Pending. Audit notes: 66-04/66-05 each shipped a verify with a sort/regex slip (worked around in scratch); UntrustedDecoderOptions doc says _tag selects the member without the more-than-one-member qualifier.
 - [Phase 67] Eviction is `Chunk.splitAt(insertionOrder, size - capacity)` + `HashMap.removeMany` (no loop, no `Option`, no impossible branch); the claim dispatch is a closed arm table indexed directly by the tag the claim step wrote (`Claim` union, `answerHit`/`answerJoined`/`answerOwned`), claim step's `Effect.sync` byte-identical (I5). Chosen by the owner's fixed rule: Match failed (miss +7.2%, capacity-bound +7.7%, geomean +1.87%, base spreads 6–15%), table passed (geomean −4.15%, load 10→16); one run per candidate, noise stated in house-rules-evidence §2. Bench of record (eviction + table): 5 workloads 0 slower, geomean −2.51%, under the owner's quiet-host rule (2026-11-21). Race test: per budget until both sides + 3, cap 512, 196→104 iterations, RED with hit check split (kWalks 2). Stryker DecisionCache 42/43→38/38, SharedComputation 70/71→71/71, Lifecycle 42/42; both named survivors gone. Review WR-01 (scorer dirty tree) + IN-03/04 fixed; IN-01 (stale capacity-test comments), IN-02 (owner-kept oneSided), iter-2 IN-03 (refuseDirty call sites untested) for the audit. check:pr green on 76332d92; verification 6/6. MUTE-01..04 Complete; WX Pending.
+- [Phase 68] Absorbed every open item (owner 2026-11-21): OI-01..29, 25 fixed + 4 recorded (CCR-QD-459), plus HYGN-01..06. Code: `TimelineFeed.configure` is `try { push() } finally { readSource }` (a capacity change's publish stops no read; residue — a status listener's throw on the read's `Reading` replaces the timeline listener's — stated in every text, pinned by TF29 and rethrow-gate); `admit` reads policy/maxDepth/subject once. Bench of record on the new shared harness (`scripts/bench/`, alternating arm order): 35 workloads 0 slower, geomean +0.01%, worst +4.7% (field-heavy anyOf of 8), run after 68-06..09 by the owner's reorder (host busy 30 min). Stryker: no score fell; DiagnosticsFeed 72/73→73/73, TimelineFeed 49/49→50/50. Gate scripts: spec-revise keeps its first argument, test:tstyche file filters, house-style JSONC + duplicate pin row, packed-install guard reads the run and bounds every execFileSync child. One `@qadi/devtools` patch changeset. Review: 3 warnings fixed (killed-child cause, timeout text narrowed to execFileSync, analyzer label checks), 4 Info carried. Sweep: 62–67 re-verified twice (after the phase, after the review fixes), `redo: none`. check:pr green twice; verification 7/7. HYGN-01..07 Complete; WX Pending.
 - [v1.2] Phases 21, 22 and 23 report `verification.status: stale` (later phases touched covered files); re-run their verification gates (/gsd-execute-phase 21|22|23 resumes at the gates) after Phase 29, before the milestone audit. **Resolved 2026-11-12:** all three re-verified `passed` at HEAD.
 - [Phase 22] `phase.complete` cannot match REQUIREMENTS.md's grouped traceability table (one row per phase listing several IDs), so v1.2 rows stay `Pending`; update them by hand or reshape the table. **Resolved 2026-11-12:** rows updated by hand (now archived in `milestones/v1.2-REQUIREMENTS.md`).
 
@@ -871,7 +872,7 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 ## Session Continuity
 
 Last session: 2026-11-21T13:14:22.903Z
-Stopped at: Completed 68-15-PLAN.md
+Stopped at: Phase 68 complete — all phases complete
 Resume file: None
 
 ## Operator Next Steps
