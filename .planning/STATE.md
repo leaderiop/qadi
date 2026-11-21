@@ -5,16 +5,16 @@ milestone_name: Arch Wave 12
 current_phase: 67
 current_phase_name: No equivalent mutants, no magic race bound
 status: executing
-stopped_at: Phase 66 complete, ready to plan Phase 67
-last_updated: "2026-11-21T01:33:13.965Z"
+stopped_at: Completed QD-67-01-PLAN.md
+last_updated: "2026-11-21T01:38:06.107Z"
 last_activity: 2026-11-20
 last_activity_desc: Phase 66 complete, transitioned to Phase 67
-state_head: 948464cd89f3153fefefce92668da0199f14f387
+state_head: 97aa3f39af3da3cdec7edd79ddd0e15087e9bf33
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 36
-  completed_plans: 29
+  completed_plans: 30
   percent: 71
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-20)
 ## Current Position
 
 Phase: 67 (No equivalent mutants, no magic race bound) — READY TO EXECUTE
-Plan: Not started
+Plan: 2 of 7
 Status: Ready to execute
 Last activity: 2026-11-20 — Phase 66 complete, transitioned to Phase 67
 
@@ -449,6 +449,7 @@ Last activity: 2026-11-20 — Phase 66 complete, transitioned to Phase 67
 | Phase QD-66 P66-03 | 9 min | 2 tasks | 6 files |
 | Phase QD-66 P04 | 11min | 2 tasks | 9 files |
 | Phase QD-66 P05 | 20min | 3 tasks | 4 files |
+| Phase QD-67 P01 | 5 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -762,6 +763,7 @@ Last activity: 2026-11-20 — Phase 66 complete, transitioned to Phase 67
 - [Phase QD-66]: The ignore projection reads Object.keys first and each kept value once into an Object.fromEntries copy; keysOf reads own enumerable _tag only for a union (a one-object schema reads none)
 - [Phase QD-66]: The decode bench of record passes the gate fixed before it ran (3 + 3, 0 workloads slower, geomean -2.13%) on a loaded host; the harness is a parameterised copy in the phase directory and the run's .log files stay uncommitted (gitignored)
 - [Phase QD-66]: 66-04: ADR-QD-170 alone amended; the hydration payload stays refuse (same build writes and reads it, version checked, strict refusal reports tampering); ADR-QD-179, BEH-QD-667..670, INV-QD-378 named Unused in CCR-QD-457
+- [Phase QD-67]: Race loop: cap 512 and margin 3 are a cap and a margin, not measurements of walk; the 30000 ms timeout stays
 
 ### Pending Todos
 
@@ -826,8 +828,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-20T22:33:16.641Z
-Stopped at: Phase 66 complete, ready to plan Phase 67
+Last session: 2026-11-21T01:38:01.569Z
+Stopped at: Completed QD-67-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
