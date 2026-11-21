@@ -6,16 +6,16 @@ current_phase: 68
 current_plan: Not started
 status: completed
 stopped_at: Phase 68 complete — all phases complete
-last_updated: "2026-11-21T20:02:35.063Z"
+last_updated: "2026-11-21T20:20:50.080Z"
 last_activity: 2026-11-21
 last_activity_desc: Phase 68 complete
-state_head: 96e396a19a7fb9efdd4a3b659d790b6099a2b57c
+state_head: 4fc62428d83b2ff8e6b75a7de2301c80feff820f
 progress:
-  total_phases: 7
+  total_phases: 8
   completed_phases: 7
   total_plans: 51
   completed_plans: 51
-  percent: 100
+  percent: 88
 ---
 
 # Project State
@@ -859,6 +859,10 @@ Last activity: 2026-11-21 — Phase 68 complete
 - [Phase 68] Absorbed every open item (owner 2026-11-21): OI-01..29, 25 fixed + 4 recorded (CCR-QD-459), plus HYGN-01..06. Code: `TimelineFeed.configure` is `try { push() } finally { readSource }` (a capacity change's publish stops no read; residue — a status listener's throw on the read's `Reading` replaces the timeline listener's — stated in every text, pinned by TF29 and rethrow-gate); `admit` reads policy/maxDepth/subject once. Bench of record on the new shared harness (`scripts/bench/`, alternating arm order): 35 workloads 0 slower, geomean +0.01%, worst +4.7% (field-heavy anyOf of 8), run after 68-06..09 by the owner's reorder (host busy 30 min). Stryker: no score fell; DiagnosticsFeed 72/73→73/73, TimelineFeed 49/49→50/50. Gate scripts: spec-revise keeps its first argument, test:tstyche file filters, house-style JSONC + duplicate pin row, packed-install guard reads the run and bounds every execFileSync child. One `@qadi/devtools` patch changeset. Review: 3 warnings fixed (killed-child cause, timeout text narrowed to execFileSync, analyzer label checks), 4 Info carried. Sweep: 62–67 re-verified twice (after the phase, after the review fixes), `redo: none`. check:pr green twice; verification 7/7. HYGN-01..07 Complete; WX Pending.
 - [v1.2] Phases 21, 22 and 23 report `verification.status: stale` (later phases touched covered files); re-run their verification gates (/gsd-execute-phase 21|22|23 resumes at the gates) after Phase 29, before the milestone audit. **Resolved 2026-11-12:** all three re-verified `passed` at HEAD.
 - [Phase 22] `phase.complete` cannot match REQUIREMENTS.md's grouped traceability table (one row per phase listing several IDs), so v1.2 rows stay `Pending`; update them by hand or reshape the table. **Resolved 2026-11-12:** rows updated by hand (now archived in `milestones/v1.2-REQUIREMENTS.md`).
+
+### Roadmap Evolution
+
+- Phase 68.1 inserted after Phase 68: Address tech debt from the v1.7 audit (owner chose a cleanup phase before completing)
 
 ## Deferred Items
 

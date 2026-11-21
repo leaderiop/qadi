@@ -106,22 +106,37 @@ Every phase runs on branch `arch-wave-12`, strictly serial.
 - [x] **HYGN-07**: Every item still open from phases 62–67 (`68-OPEN-ITEMS.md`, OI-01..OI-29) is fixed with
   its evidence, or recorded with the reason it cannot be changed (owner decision 2026-11-21: absorb everything open).
 
+### The v1.7 audit's tech debt (Phase 68.1, inserted; owner decision 2026-11-21)
+
+- [ ] **DEBT-01**: `scripts/bench/ab.sh` refuses an odd round count, so arm order alternates evenly (review IN-01). A
+  bench already recorded keeps its record.
+- [ ] **DEBT-02**: `scripts/bench/analyze.mjs` exits non-zero when the gate fails, and its `--self-test` runs inside a
+  step `pnpm check` already runs (review IN-02).
+- [ ] **DEBT-03**: Phase 68's staleness script finds a file a later commit renamed or deleted, and paths under
+  `.changeset/`, `.github/` and root dotfiles (review IN-03); re-run, it still ends `redo: none` or the phases it names are
+  re-verified.
+- [ ] **DEBT-04**: Phase 68's comparison script compares TypeScript tokens with their types, so a type-only edit is not
+  reported as titles-and-comments-only (review IN-04); each verdict Phase 68 recorded with it is re-checked.
+- [ ] **DEBT-05**: Every child gate 14 starts has a time limit, including the probe guard's TypeScript parse
+  (AR-68-02); ADR-QD-033 and gate 14's doc comment say so.
+- [ ] **DEBT-06**: Phases 62 to 68.1 each have a validated Nyquist `VALIDATION.md` (`/gsd-validate-phase`).
+
 ### Every phase (cross-cutting)
 
-- [x] **WX-01**: `pnpm check:pr < /dev/null` is green at the end of each phase.
-- [x] **WX-02**: Each phase records its ADR (or names it "Unused" in its CCR row), its CCR row, and its BEH/INV/traceability
+- [ ] **WX-01**: `pnpm check:pr < /dev/null` is green at the end of each phase.
+- [ ] **WX-02**: Each phase records its ADR (or names it "Unused" in its CCR row), its CCR row, and its BEH/INV/traceability
   changes, using only its reserved numbers. `node scripts/next-id.mjs` is never run.
-- [x] **WX-03**: `spec/overview.md` names every added export and drops every removed one (gate 13); this milestone expects
+- [ ] **WX-03**: `spec/overview.md` names every added export and drops every removed one (gate 13); this milestone expects
   none.
-- [x] **WX-04**: Nothing new is added from this list: `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`,
+- [ ] **WX-04**: Nothing new is added from this list: `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`,
   ambient `console`/`process.env`/clock, `Record<string, unknown>`, `// Stryker disable`. A budget changes only together
   with its AGENTS.md table.
-- [x] **WX-05**: Coverage thresholds hold (core at least 95%, the others at least 90%). The Stryker score of touched files
+- [ ] **WX-05**: Coverage thresholds hold (core at least 95%, the others at least 90%). The Stryker score of touched files
   does not fall: recorded per phase in `NN-mutation-base.json`, measured with the same invocation at the phase base and
   at close; a drop is closed with a test, never re-baselined.
-- [x] **WX-06**: Every behaviour change is preceded by a characterisation or regression test written on the phase base:
+- [ ] **WX-06**: Every behaviour change is preceded by a characterisation or regression test written on the phase base:
   RED for a defect, green for preserved behaviour. Every new check is shown failing once.
-- [x] **WX-07**: No D-numbers, plan-local ids or phase numbers enter shipped source, test titles or BDD scenarios. Nothing
+- [ ] **WX-07**: No D-numbers, plan-local ids or phase numbers enter shipped source, test titles or BDD scenarios. Nothing
   is released or published, and no version-packages PR is merged.
 
 ## Future Requirements
@@ -181,19 +196,25 @@ The seven WX rows apply to every phase 62 to 68, so each phase's Requirements li
 | HYGN-05 | Phase 68 | Complete |
 | HYGN-06 | Phase 68 | Complete |
 | HYGN-07 | Phase 68 | Complete |
-| WX-01 | All v1.7 phases | Complete |
-| WX-02 | All v1.7 phases | Complete |
-| WX-03 | All v1.7 phases | Complete |
-| WX-04 | All v1.7 phases | Complete |
-| WX-05 | All v1.7 phases | Complete |
-| WX-06 | All v1.7 phases | Complete |
-| WX-07 | All v1.7 phases | Complete |
+| DEBT-01 | Phase 68.1 | Pending |
+| DEBT-02 | Phase 68.1 | Pending |
+| DEBT-03 | Phase 68.1 | Pending |
+| DEBT-04 | Phase 68.1 | Pending |
+| DEBT-05 | Phase 68.1 | Pending |
+| DEBT-06 | Phase 68.1 | Pending |
+| WX-01 | All v1.7 phases | Pending |
+| WX-02 | All v1.7 phases | Pending |
+| WX-03 | All v1.7 phases | Pending |
+| WX-04 | All v1.7 phases | Pending |
+| WX-05 | All v1.7 phases | Pending |
+| WX-06 | All v1.7 phases | Pending |
+| WX-07 | All v1.7 phases | Pending |
 
 **Coverage:**
-- v1.7 requirements: 40 total (33 phase-specific + 7 cross-cutting)
-- Mapped to phases: 40 (33 phase-specific, each to exactly one of Phases 62 to 68; 7 cross-cutting, each applying to all seven)
+- v1.7 requirements: 46 total (39 phase-specific + 7 cross-cutting)
+- Mapped to phases: 46 (39 phase-specific, each to exactly one of Phases 62 to 68.1; 7 cross-cutting, each applying to all eight)
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-11-20*
-*Last updated: 2026-11-21 HYGN-07 added (owner: Phase 68 absorbs every open item)*
+*Last updated: 2026-11-21 DEBT-01..06 added for inserted Phase 68.1 (owner chose a cleanup phase after the audit); WX back to Pending until it closes*
