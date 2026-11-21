@@ -5,16 +5,16 @@ milestone_name: Arch Wave 12
 current_phase: 67
 current_phase_name: No equivalent mutants, no magic race bound
 status: executing
-stopped_at: Completed 67-04-PLAN.md
-last_updated: "2026-11-21T01:49:02.798Z"
+stopped_at: Completed QD-67-05-PLAN.md
+last_updated: "2026-11-21T01:57:40.816Z"
 last_activity: 2026-11-20
 last_activity_desc: Phase 66 complete, transitioned to Phase 67
-state_head: d0e7f324576672d552abcd62699232e658f433f1
+state_head: b5624ca81a03a3f8100e5b33c4096d6becaa37d6
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 36
-  completed_plans: 33
+  completed_plans: 34
   percent: 71
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-20)
 ## Current Position
 
 Phase: 67 (No equivalent mutants, no magic race bound) — READY TO EXECUTE
-Plan: 5 of 7
+Plan: 6 of 7
 Status: Ready to execute
 Last activity: 2026-11-20 — Phase 66 complete, transitioned to Phase 67
 
@@ -453,6 +453,7 @@ Last activity: 2026-11-20 — Phase 66 complete, transitioned to Phase 67
 | Phase QD-67 P02 | 5 min | 2 tasks | 6 files |
 | Phase QD-67 P03 | 4 min | 2 tasks | 2 files |
 | Phase QD-67 P04 | 8min | 2 tasks | 1 files |
+| Phase QD-67 P05 | 2 min | 2 tasks | 23 files |
 
 ## Accumulated Context
 
@@ -770,6 +771,7 @@ Last activity: 2026-11-20 — Phase 66 complete, transitioned to Phase 67
 - [Phase QD-67]: 67-02: claim dispatch is the arm table (match failed the gate: 2 workloads slower, geomean +1.87%; table passed: 0 slower, geomean -4.15%)
 - [Phase QD-67]: 67-03: the eviction is Chunk.splitAt + HashMap.removeMany, straight-line; FIFO and capacity validation unchanged, no test edited
 - [Phase QD-67]: 67-04: the claim result is dispatched by the arm table indexed directly (choice: table), no Object.hasOwn row; the claim step is byte-identical to the base
+- [Phase QD-67]: 67-05: the run of record passed the fixed gate on its one run (slower 0, geomean -2.51%); the bench is the last executable change
 
 ### Pending Todos
 
@@ -834,8 +836,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-21T01:49:02.541Z
-Stopped at: Completed 67-04-PLAN.md
+Last session: 2026-11-21T01:57:40.501Z
+Stopped at: Completed QD-67-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
