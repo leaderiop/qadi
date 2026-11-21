@@ -29,7 +29,7 @@ covered_files:
   - "spec/invariants.md"
   - "spec/process/house-rules-evidence.md"
   - "spec/traceability.md"
-covered_digest: "v4:sha256:3a750fbffb7c01352689b776d2dd77bbc6bacc236789d38d96c4eb0bb76a48db"
+covered_digest: "v4:sha256:1f96d7020d59b611420d53f4332b119f71e11a976765488c0d5f0d26615539aa"
 behavior_unverified: 0
 overrides_applied: 0
 ---
@@ -130,3 +130,54 @@ No gaps. Each success criterion and MUTE-01..04 holds in the code, the race test
 
 _Verified: 2026-11-21_
 _Verifier: Claude (gsd-verifier)_
+
+## Re-verification (2026-11-21, Phase 68 sweep)
+
+**Staleness:** `67: stale, verification 4f9d906a, 30 cited, 5 changed since` (`68-stale.mjs`, run at `9214d081`).
+
+| Cited file | Changed since `4f9d906a` by |
+| --- | --- |
+| `packages/core/test/DecisionCache.test.ts` (covered) | `d06f8bc5` test(68-06): the capacity tests describe the validation, and the race test drops its redundant assertion |
+| `scripts/check-house-style.mjs` | `ec59e0ac` fix(68-08): test:tstyche takes file filters, house-style reads tstyche.json as JSONC, the characterisation is named once |
+| `spec/README.md` (covered) | `eacfeb6c` docs(68-11): CCR-QD-459, the settled items confirmed, and the devtools patch changeset |
+| `spec/invariants.md` (covered) | `5b603fea` docs(68-10): the amended decisions, behaviours and invariants say what the code holds<br>`faec4fab` docs(68-07): the characterisation's readings, the projection's accessors, the admit pins and the supplied trace |
+| `spec/traceability.md` (covered) | `5b603fea` docs(68-10): the amended decisions, behaviours and invariants say what the code holds<br>`faec4fab` docs(68-07): the characterisation's readings, the projection's accessors, the admit pins and the supplied trace |
+
+**Trailers on this phase's commits:** 35 `Claude Opus 5.5 <noreply@anthropic.com>`.
+
+**Validation record:** no VALIDATION.md.
+
+**Digest:** `covered_digest: "v4:sha256:3a750fbffb7c01352689b776d2dd77bbc6bacc236789d38d96c4eb0bb76a48db"` becomes `covered_digest: "v4:sha256:1f96d7020d59b611420d53f4332b119f71e11a976765488c0d5f0d26615539aa"`, over the same 25 covered files.
+
+### Spot-checks re-run (Phase 68 sweep)
+
+Every row below was run on the tree at `9214d081`, one command at a time, in the foreground, with nothing else running beside it. The first six rows are the report's six spot-checks; the last two re-check what its header and Truths 3 and 5 say about the tree.
+
+| Behavior | Command run now | Result now | Status |
+| -------- | --------------- | ---------- | ------ |
+| Cache and single-flight suites | `pnpm exec vitest run --project core packages/core/test/DecisionCache.test.ts packages/core/test/SharedComputation.test.ts < /dev/null` | exit 0; `Test Files  2 passed (2)`, `Tests  60 passed (60)`, the report's 60 | PASS |
+| Race test RED with the hit check split | a scratch node script moves the hit check of `SharedComputation.ts` out of the claim step into an `Effect.sync` of its own before it (each replaced text occurs once); `pnpm exec vitest run --project core packages/core/test/DecisionCache.test.ts -t "a joiner racing its owner" < /dev/null`; then `git checkout -- packages/core/src/SharedComputation.ts` | green before the plant (`Tests  1 passed \| 41 skipped (42)`); with the plant exit 1, `Tests  1 failed \| 41 skipped (42)`, the failing assertion naming `budget 3 gap 40`, `budget 4 gap 22` and `budget 6 gap 13`, each `{"joined":"miss","kWalks":2,...}`, the report's three budgets and the same `kWalks: 2`. The file's SHA-256 is the same after the restore and `git status --porcelain -- packages` is empty | PASS |
+| `Chunk.splitAt` clamping | `node -e` over `Chunk.fromIterable([1,2,3,4,5])` and `Chunk.splitAt(c, n)[0]` for `-3, NaN, 0, 0.9, 1.5, 5, Infinity` | sizes of the first part `0, 0, 0, 0, 1, 5, 5`: a negative count, `NaN`, `0` and `0.9` take nothing, `1.5` takes 1, `5` and `Infinity` take all, as BEH-QD-166 says | PASS |
+| Scorer | `node .planning/phases/QD-67-no-equivalent-mutants-no-magic-race-bound/67-mutation.mjs --self-test < /dev/null` and `... compare < /dev/null` | self-test exit 0, `self-test: 17 passed` (the report's 11, plus the dirty-tree refusal at each mode's call site and the status reader's paths that Phase 68 added to the scorer); `compare` exit 0: `DecisionCache.ts` 42/43 to 38/38, `Lifecycle.ts` 42/42 to 42/42, `SharedComputation.ts` 70/71 to 71/71, 0 new Ignored, `the close leaves no mutant open, and no mutant on a line the phase wrote is left open`, and the static run 39/40 and 71/79, the report's figures | PASS |
+| House style | `node scripts/check-house-style.mjs < /dev/null` | `house-style: 560 file(s) clean (3 declared switch(es), 66 type-test file(s))`, the report's count | PASS |
+| Spec gates | `node scripts/spec-revise.mjs --check < /dev/null`, `bash spec/scripts/verify-traceability.sh --strict < /dev/null` | `spec-revise: every Revision matches its newest Change History entry`; `PASS: 21   FAIL: 0   SKIP: 0` | PASS |
+| Race test's cap | the test file with `let ownerSpin = 3;` replaced by `let ownerSpin = 520;` (a scratch edit), `pnpm exec vitest run --project core packages/core/test/DecisionCache.test.ts -t "a joiner racing its owner" < /dev/null`, then `git checkout -- packages/core/test/DecisionCache.test.ts` | exit 1; the `capped` assertion names every budget, `budget 3: {"coalesced":512,"hit":0,"miss":0} in 512 gaps` and the same for budgets 4, 5 and 6, so the cap of 512 fails a budget that never lands on both sides. The test file's SHA-256 is the same after the restore. Phase 68 removed the sweep's separate `oneSided` assertion (a redundant check the `capped` assertion makes; the report's deferred IN-02), and this run shows the cap path still fails | PASS |
+| The report's header: the shipped source unchanged since the bench | `git diff --name-only 4f9d906a HEAD -- packages/core/src/DecisionCache.ts packages/core/src/SharedComputation.ts packages/core/src/TraceDiff.ts packages/core/bench/DecisionCache.bench.ts`, and the same for `spec/behaviors/21-decision-cache.md`, `spec/process/house-rules-evidence.md` and `AGENTS.md`; `git diff --name-only 4f9d906a HEAD -- ':(glob)packages/**/src/**'` | the first two list 0 files, so the three source files, the bench and the three documents the truths read are exactly as the report left them. The third lists six files, `Admission.ts`, `DecisionLog.ts`, `SinkCodec.ts`, `UntrustedDecode.ts`, `DiagnosticsFeed.ts` and `TimelineFeed.ts`, none of which this phase's truths read. The report's `git diff 0e3f9cbd..HEAD -- packages scripts package.json` is empty on the range it names and no longer on the tree, which Phase 68 changed | PASS |
+| Comments the report deferred | `grep -n "eviction loop" packages/core/test/DecisionCache.test.ts` | no hit: the three comments the report's IN-01 names now describe `Chunk.splitAt` (a negative capacity evicts more than the cache holds, `NaN` makes the count `NaN`, which evicts nothing) | PASS |
+
+### Changed covered files read against the truths that cite them (Phase 68 sweep)
+
+- `packages/core/test/DecisionCache.test.ts` (`d06f8bc5`): Truths 1, 3 and 5 still hold. The diff has seven hunks. Four reword the negative capacity test's title and comment and the comments of the `NaN` and fractional capacity tests so they describe the split and no longer an eviction loop, with no code token changed; the report listed this as its IN-01. Three remove the sweep's `sides` array, its `push` and the `oneSided` assertion that read it, the report's IN-02, which the owner had kept. The cap and margin, `seen`, `capped` and `raced` are untouched, and both reproductions above (the hit check split, and the owner spinning past the cap) still fail the test.
+- `spec/README.md` (`eacfeb6c`), `spec/invariants.md` (`5b603fea`, `faec4fab`) and `spec/traceability.md` (`5b603fea`, `faec4fab`): Truths 5 and 6 still hold. The three moved to Revisions 1.273, 1.168 and 1.235; the revisions the CCR-QD-458 row names (README 1.272, invariants 1.166, traceability 1.233) are entries of their Change History, dated 2026-11-21, and a CCR row records the Revision its change left. The changes since touch other rows (the INV-QD-375 to INV-QD-377 rows among them), and none touches INV-QD-379, BEH-QD-166, or the INV-QD-379 rows of traceability. ADR-QD-180, BEH-QD-671 to 675 and INV-QD-380 appear only in the CCR-QD-458 row, which says they are Unused.
+- Cited, not covered, and changed since: `scripts/check-house-style.mjs` (`ec59e0ac`) reads `tstyche.json` as JSONC and names the characterisation once; its run above is clean with the report's file count and three declared switches, and no `switch` or `Effect.fnUntraced` is added, so Truth 2's claim about declared switches holds.
+
+### Notes on the original report's evidence
+
+Kept whole above; recorded here, not edited.
+
+- The report's `git diff 0e3f9cbd..HEAD -- packages scripts package.json` and `git diff e195dd19..HEAD -- packages` use pathspecs that select every file under each directory, so neither is vacuous; both were true of the range the report names and are re-run on the files its truths cite in the last-but-one row above.
+- The report's deferred items IN-01 and IN-02 are settled by Phase 68 (the last two rows above and the first bullet). Its IN-03, that the scorer's self-test does not cover the `refuseDirty` call sites, is settled by Phase 68's scorer, whose self-test now has 17 cases, the dirty-tree refusal at each mode's call site and the status reader's paths among them.
+- Its Requirements Coverage rows for WX-01 to WX-07 describe Phase 67's own range and are not re-run here. WX-01: the report took `check:pr` from the caller. This verdict is answered by the one `check:pr` run of plan 68-15, which reads the whole tree, and stands only while that run is green. WX-05: Phase 67's scores are re-read by the scorer row above.
+- The report records no validation file; none exists.
+
+**Verdict:** passed
