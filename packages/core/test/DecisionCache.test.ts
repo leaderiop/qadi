@@ -1224,10 +1224,13 @@ describe("DecisionCache", () => {
      *
      * The cache is asked each question alone, as every caller asks it
      * (ADR-QD-174). The owner's walk spins in its resolver, which also counts the
-     * walks of `K`. A walk puts more steps between claim and completion than a
-     * bare computation did, so the sweep is wide enough that at every budget some
-     * joiners land while the owner is in flight (`coalesced`) and some after it
-     * finished (`hit`), and the test asserts both: it cannot pass without racing.
+     * walks of `K`. At each budget the joiner is forked after a gap of yields that
+     * grows from none until some joiner has landed while the owner is in flight
+     * (`coalesced`) and some after it finished (`hit`), and then for a few gaps
+     * more. The gap where the side changes is found by the loop, not written into
+     * it, so a walk that takes more or fewer steps moves it without breaking the
+     * test. Every run asserts one walk of `K` and exact FIFO, and the test asserts
+     * both sides at every budget: it cannot pass without racing.
      *
      * The red is scheduler-dependent (it needs the run loop to yield in a window
      * a few turns wide, so it appears only under a small `MaxOpsBeforeYield`),
@@ -1244,10 +1247,17 @@ describe("DecisionCache", () => {
           const Y = questionOf(subject, P.hasAttribute("y", M.gte(1)));
           const raced: Array<string> = [];
           const sides: Array<string> = [];
+          const capped: Array<string> = [];
+          // A cap and a margin, not measurements: a budget that has not landed on
+          // both sides within `cap` gaps fails, and `margin` more gaps run past the
+          // first gap at which it has.
+          const cap = 512;
+          const margin = 3;
 
           for (const budget of [3, 4, 5, 6]) {
-            // Measured coalesced→hit switch-over: gap 38/22/15/13 at budget 3/4/5/6. It also depends on `walk`'s step count, so an effect upgrade or a `Walk.ts` change can move it; re-measure rather than retry.
-            for (let gap = 0; gap <= 48; gap++) {
+            const seen = { coalesced: 0, hit: 0, miss: 0 };
+            let end = cap;
+            for (let gap = 0; gap < end; gap++) {
               // Each walk records the attribute it asks; only the owner's walk of
               // `K` spins, so it finishes a few yields after it claims.
               const walks: Array<string> = [];
@@ -1290,21 +1300,28 @@ describe("DecisionCache", () => {
                 Effect.provideService(Scheduler.MaxOpsBeforeYield, budget),
               );
               sides.push(`${budget}:${outcomes.joined}`);
+              seen[outcomes.joined] += 1;
               // Capacity 2: X, Y evict K (FIFO), so K misses, then hits.
               if (outcomes.kWalks !== 1 || outcomes.followOn.join(",") !== "miss,miss,miss,hit") {
                 raced.push(`budget ${budget} gap ${gap}: ${JSON.stringify(outcomes)}`);
               }
+              if (end === cap && seen.coalesced > 0 && seen.hit > 0) end = gap + 1 + margin;
+            }
+            if (seen.coalesced === 0 || seen.hit === 0) {
+              capped.push(`budget ${budget}: ${JSON.stringify(seen)} in ${cap} gaps`);
             }
           }
           assert.deepStrictEqual(raced, []);
+          assert.deepStrictEqual(capped, []);
           // The sweep lands on both sides of the owner's completion, at every budget.
           const oneSided = [3, 4, 5, 6].filter(
             (budget) => !sides.includes(`${budget}:coalesced`) || !sides.includes(`${budget}:hit`),
           );
           assert.deepStrictEqual(oneSided, []);
         }),
-      // 196 runs, each building its own layers, can outlast vitest's default
-      // 5 s on a loaded runner with no bug present.
+      // Up to `cap` runs a budget, each building its own layers, when a budget
+      // never lands on both sides: the timeout leaves room for that failure to be
+      // reported on a loaded runner rather than cut short.
       30_000,
     );
   });
