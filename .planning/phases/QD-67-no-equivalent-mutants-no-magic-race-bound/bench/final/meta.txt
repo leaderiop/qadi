@@ -1,0 +1,11 @@
+head: 2d81bd57f8a30ebbb562c2a682b578e5b5a462e7
+patch: /Users/mohammadalmechkor/Projects/Perso/qadi/.planning/phases/QD-67-no-equivalent-mutants-no-magic-race-bound/bench/final/to-base.patch
+patch_sha256: efcdd14f3961bf2f6363ab23b6e3e021bb19ad4f19e517900ad1241c9e51f999
+head_label: final
+patched_label: base
+rounds: 3
+bench_file: packages/core/bench/DecisionCache.bench.ts
+pattern: ^DecisionCache.getOrCompute — 
+node: v26.13.0
+cpu: Apple M3 Pro
+start: 2026-11-21T01:54:56Z
