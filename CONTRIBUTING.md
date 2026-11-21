@@ -28,19 +28,19 @@ and save the full gate for before you push:
   lockfile (offline) and builds the packages, because a new worktree has neither
   `node_modules` nor `lib/`. Idempotent.
 - `pnpm check:fast` — every cheap step of the gate in one command (typecheck,
-  lint, circular, tstyche, the tests uninstrumented, BDD and the spec gates),
-  about four minutes, one line per passing step and the tail of the failing
-  one. It is derived from `check` (`scripts/run-check.mjs --tier fast`), so it
+  lint, circular, tstyche, the tests uninstrumented, BDD, the spec gates and the
+  bench analyzer self-test), about four minutes, one line per passing step and
+  the tail of the failing one. It is derived from `check` (`scripts/run-check.mjs --tier fast`), so it
   follows `check` when `check` changes. Run it before handing work back; it is
   not the gate.
 
 None of these replaces `pnpm check` — coverage thresholds, mutation
-testing, spec traceability, and the rest of the twenty-five steps only run
+testing, spec traceability, and the rest of the twenty-six steps only run
 there — but for the common loop (edit one package, check it typechecks and
 its tests pass) they are what to reach for, and `pnpm check` is what to run
 once, before you push.
 
-Seven of those twenty-five steps are independent Stryker mutation runs,
+Seven of those twenty-six steps are independent Stryker mutation runs,
 chained by `&&` in the `mutation` script (`package.json`). They run one after
 another by decision now, not by default: ADR-QD-098 measured where the time
 goes on the 4-vCPU CI runner and found mutation testing already CPU-bound

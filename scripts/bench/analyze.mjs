@@ -20,7 +20,11 @@
 //
 // Writes <outdir>/analysis.tsv and prints it. Exits 0 whenever the analysis completed, whatever the
 // gate says; 2 on incomplete input.
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const MIN_ROUNDS = 3;
 const MAX_SLOWDOWN = 0.05;
@@ -224,6 +228,50 @@ const selfTest = () => {
     }
     fail(name, "nothing was refused");
   }
+  // End to end: the exit status of this file run on a record written to a temporary directory.
+  // `fail` exits the process and skips a pending `finally`, so the statuses are checked after the
+  // directory is removed.
+  const e2e = [
+    { name: "a passing gate exits 0", factor: 1, want: 0 },
+    { name: "a failing gate exits 1", factor: 1.1, want: 1 },
+  ];
+  const dir = mkdtempSync(join(tmpdir(), "analyze-self-test-"));
+  let statuses;
+  try {
+    const keys = ["a :: one", "b :: two"];
+    writeFileSync(join(dir, "workloads.txt"), `${keys.join("\n")}\n`);
+    writeFileSync(join(dir, "meta.txt"), META);
+    const runJson = (scale) =>
+      JSON.stringify({
+        success: true,
+        testResults: [
+          {
+            assertionResults: [
+              {
+                benchmarks: keys.map((key) => {
+                  const [name, task] = key.split(" :: ");
+                  return { name, tasks: [{ name: task, latency: { min: 1 * scale, p50: 1.1 * scale, mean: 1.2 * scale } }] };
+                }),
+              },
+            ],
+          },
+        ],
+      });
+    statuses = e2e.map(({ factor }) => {
+      for (let i = 1; i <= 3; i++) {
+        writeFileSync(join(dir, `base-${i}.json`), runJson(1));
+        writeFileSync(join(dir, `final-${i}.json`), runJson(factor));
+      }
+      const args = [fileURLToPath(import.meta.url), dir, "base", "final", join(dir, "workloads.txt")];
+      return spawnSync(process.execPath, args, { encoding: "utf8", timeout: 60_000 }).status;
+    });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+  e2e.forEach(({ name, want }, i) => {
+    if (statuses[i] !== want) fail(name, `exit ${statuses[i]}, wanted ${want}`);
+    passed++;
+  });
   console.log(`self-test: ${passed} passed`);
 };
 
@@ -237,15 +285,17 @@ const main = () => {
   if (!existsSync(metaFile)) throw new Refused(`missing ${metaFile}`);
   const rounds = readMeta(readFileSync(metaFile, "utf8"), metaFile, refLabel, candLabel);
   const load = (label) => Array.from({ length: rounds }, (_, i) => readRun(`${dir}/${label}-${i + 1}.json`));
-  const text = render(compare(named, load(refLabel), load(candLabel)));
+  const result = compare(named, load(refLabel), load(candLabel));
+  const text = render(result);
   writeFileSync(`${dir}/analysis.tsv`, `${text}\n`);
   console.log(text);
+  return result.gate;
 };
 
 if (process.argv[2] === "--self-test") selfTest();
 else
   try {
-    main();
+    process.exitCode = main() === "pass" ? 0 : 1;
   } catch (e) {
     if (e instanceof Refused) {
       console.error(`analyze.mjs: ${e.message}`);
