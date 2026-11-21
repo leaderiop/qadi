@@ -5,16 +5,16 @@ milestone_name: Arch Wave 12
 current_phase: 67
 current_phase_name: No equivalent mutants, no magic race bound
 status: executing
-stopped_at: Completed QD-67-02-PLAN.md
-last_updated: "2026-11-21T01:42:57.717Z"
+stopped_at: Completed QD-67-03-PLAN.md
+last_updated: "2026-11-21T01:45:35.453Z"
 last_activity: 2026-11-20
 last_activity_desc: Phase 66 complete, transitioned to Phase 67
-state_head: 11a16923bfbf5c93940b1f131a03019bf0809037
+state_head: eba102a7e8c5d3fba7a4c0230108a949e7850335
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 36
-  completed_plans: 31
+  completed_plans: 32
   percent: 71
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-20)
 ## Current Position
 
 Phase: 67 (No equivalent mutants, no magic race bound) — READY TO EXECUTE
-Plan: 3 of 7
+Plan: 4 of 7
 Status: Ready to execute
 Last activity: 2026-11-20 — Phase 66 complete, transitioned to Phase 67
 
@@ -451,6 +451,7 @@ Last activity: 2026-11-20 — Phase 66 complete, transitioned to Phase 67
 | Phase QD-66 P05 | 20min | 3 tasks | 4 files |
 | Phase QD-67 P01 | 5 min | 3 tasks | 4 files |
 | Phase QD-67 P02 | 5 min | 2 tasks | 6 files |
+| Phase QD-67 P03 | 4 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -766,6 +767,7 @@ Last activity: 2026-11-20 — Phase 66 complete, transitioned to Phase 67
 - [Phase QD-66]: 66-04: ADR-QD-170 alone amended; the hydration payload stays refuse (same build writes and reads it, version checked, strict refusal reports tampering); ADR-QD-179, BEH-QD-667..670, INV-QD-378 named Unused in CCR-QD-457
 - [Phase QD-67]: Race loop: cap 512 and margin 3 are a cap and a margin, not measurements of walk; the 30000 ms timeout stays
 - [Phase QD-67]: 67-02: claim dispatch is the arm table (match failed the gate: 2 workloads slower, geomean +1.87%; table passed: 0 slower, geomean -4.15%)
+- [Phase QD-67]: 67-03: the eviction is Chunk.splitAt + HashMap.removeMany, straight-line; FIFO and capacity validation unchanged, no test edited
 
 ### Pending Todos
 
@@ -830,8 +832,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-21T01:42:57.378Z
-Stopped at: Completed QD-67-02-PLAN.md
+Last session: 2026-11-21T01:45:35.310Z
+Stopped at: Completed QD-67-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

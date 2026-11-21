@@ -115,7 +115,7 @@ None.
 ## Flagged for the owner
 
 - **`TraceDiff.ts` is a fourth file** in the plan's scope: one comment dropped its comparison with a guard that no longer exists.
-- **The negative-capacity test's title is left as history**, unedited, as the plan states; its comment text and title still describe the loop's old behaviour for a negative capacity (an infinite loop), where the code now evicts every entry as it settles.
+- **The negative-capacity test's title is left as history**, unedited, as the plan states. Its title (`rejects a negative capacity rather than looping forever`, line 1052) and its comment (line 1054, "the eviction loop's own exit condition") name the loop that no longer exists; the test still passes because the capacity is rejected at construction.
 - **The `+` mutant fails two tests, one of them the race test**, so the race test is reading the eviction's count as well as the single flight.
 
 ## Known Stubs
