@@ -27,7 +27,7 @@ covered_files:
   - scripts/run-tstyche.mjs
   - tsconfig.tstyche.json
   - tstyche.json
-covered_digest: "v4:sha256:9c0d0b05bfa7a8db87fb92969521ee6e0bc95b5a91acece847a703f943de067d"
+covered_digest: "v4:sha256:7fc32fe9c4b36f13e5ed0b72e2efa0507cf37affc4c5e44c7225993e591a2aff"
 behavior_unverified: 0
 overrides_applied: 0
 ---
@@ -116,3 +116,59 @@ Not checked: the Stryker run (`pnpm mutation`), skipped by `check:pr` and irrele
 
 _Verified: 2026-11-20_
 _Verifier: Claude (gsd-verifier)_
+
+## Re-verification (2026-11-21, Phase 68 sweep)
+
+**Staleness:** `62: stale, verification b9ab1ea2, 30 cited, 9 changed since` (`68-stale.mjs`, run at `030dcae5`).
+
+| Cited file | Changed since `b9ab1ea2` by |
+| --- | --- |
+| `AGENTS.md` (covered) | `36036666` (before Phase 68) fix(67): IN-03 move the dispatch measurement into the evidence document<br>`dea2afb4` (before Phase 68) docs(67-06): BEH-QD-166's reasons and INV-QD-379, traced and registered as CCR-QD-458<br>`f62f450d` (before Phase 68) docs(66-04): ADR-QD-170 amended, BEH-QD-666 and INV-QD-377, traced and registered as CCR-QD-457<br>`744d415d` (before Phase 68) docs(63-04): AGENTS.md and the DoD say the packed consumer probes every make*Feed |
+| `packages/core/test/FloatingEffectPins.tst.ts` (covered) | `faec4fab` docs(68-07): the characterisation's readings, the projection's accessors, the admit pins and the supplied trace |
+| `scripts/check-house-style.mjs` (covered) | `ec59e0ac` fix(68-08): test:tstyche takes file filters, house-style reads tstyche.json as JSONC, the characterisation is named once |
+| `scripts/lib/type-tests.mjs` (covered) | `ec59e0ac` fix(68-08): test:tstyche takes file filters, house-style reads tstyche.json as JSONC, the characterisation is named once |
+| `scripts/run-tstyche.mjs` (covered) | `ec59e0ac` fix(68-08): test:tstyche takes file filters, house-style reads tstyche.json as JSONC, the characterisation is named once |
+| `spec/README.md` | `eacfeb6c` docs(68-11): CCR-QD-459, the settled items confirmed, and the devtools patch changeset<br>`82f87b4f` (before Phase 68) docs(67): the later bench run's miss deltas are not the dispatch's alone<br>`e5c18e6f` (before Phase 68) fix(67): IN-04 state the dispatch run's base spreads and host load beside the verdict<br>`36036666` (before Phase 68) fix(67): IN-03 move the dispatch measurement into the evidence document<br>`dea2afb4` (before Phase 68) docs(67-06): BEH-QD-166's reasons and INV-QD-379, traced and registered as CCR-QD-458<br>`a25de426` (before Phase 68) fix(66): WR-01, IN-01, IN-04 state the spec text exactly<br>`f62f450d` (before Phase 68) docs(66-04): ADR-QD-170 amended, BEH-QD-666 and INV-QD-377, traced and registered as CCR-QD-457<br>`b56f32c0` (before Phase 68) docs(65): CCR-QD-456 cites the revisions the review fix left<br>`f8f7ed70` (before Phase 68) docs(65-05): ADR-QD-172 amended; INV-QD-375 and INV-QD-376 recorded, traced and registered<br>`1a800ebb` (before Phase 68) docs(64): the overview's gates-feed row states the listener contract<br>`87267447` (before Phase 68) fix(64): WR-01 state the timeline resize publish's throw in the listener texts<br>`f348c2ea` (before Phase 68) docs(64-04): ADR-QD-177 recorded, indexed, traced and registered<br>`f4398b04` (before Phase 68) fix(63): ADR-QD-033 and CCR-QD-454 name the guard's full type-only and refused-shape lists<br>`d47102e2` (before Phase 68) docs(63-04): ADR-QD-033 amended for the probed consumer, traced and registered as CCR-QD-454 |
+| `spec/decisions/index.yaml` | `5b603fea` docs(68-10): the amended decisions, behaviours and invariants say what the code holds<br>`f62f450d` (before Phase 68) docs(66-04): ADR-QD-170 amended, BEH-QD-666 and INV-QD-377, traced and registered as CCR-QD-457<br>`f8f7ed70` (before Phase 68) docs(65-05): ADR-QD-172 amended; INV-QD-375 and INV-QD-376 recorded, traced and registered<br>`18afe3bf` (before Phase 68) docs(64-04): BEH-QD-656, INV-QD-373 and the ADR-QD-173 amendment<br>`f348c2ea` (before Phase 68) docs(64-04): ADR-QD-177 recorded, indexed, traced and registered |
+| `spec/overview.md` | `f62f450d` (before Phase 68) docs(66-04): ADR-QD-170 amended, BEH-QD-666 and INV-QD-377, traced and registered as CCR-QD-457<br>`1a800ebb` (before Phase 68) docs(64): the overview's gates-feed row states the listener contract |
+| `spec/traceability.md` | `5b603fea` docs(68-10): the amended decisions, behaviours and invariants say what the code holds<br>`faec4fab` docs(68-07): the characterisation's readings, the projection's accessors, the admit pins and the supplied trace<br>`dea2afb4` (before Phase 68) docs(67-06): BEH-QD-166's reasons and INV-QD-379, traced and registered as CCR-QD-458<br>`a25de426` (before Phase 68) fix(66): WR-01, IN-01, IN-04 state the spec text exactly<br>`f62f450d` (before Phase 68) docs(66-04): ADR-QD-170 amended, BEH-QD-666 and INV-QD-377, traced and registered as CCR-QD-457<br>`a23dacf1` (before Phase 68) fix(65): WR-01 narrow the read-once claim to the question's resource and action<br>`7e2530f1` (before Phase 68) docs(65-05): BEH-QD-661 and BEH-QD-662<br>`f8f7ed70` (before Phase 68) docs(65-05): ADR-QD-172 amended; INV-QD-375 and INV-QD-376 recorded, traced and registered<br>`18afe3bf` (before Phase 68) docs(64-04): BEH-QD-656, INV-QD-373 and the ADR-QD-173 amendment<br>`f348c2ea` (before Phase 68) docs(64-04): ADR-QD-177 recorded, indexed, traced and registered<br>`d47102e2` (before Phase 68) docs(63-04): ADR-QD-033 amended for the probed consumer, traced and registered as CCR-QD-454 |
+
+**Trailers on this phase's commits:** 35 `Claude Sonnet 5.5 <noreply@anthropic.com>`, 13 none, 4 `Claude Opus 5.5 <noreply@anthropic.com>`.
+
+**Validation record:** `62-VALIDATION.md` has status `draft` and nyquist_compliant `false`.
+
+**Digest:** `covered_digest: "v4:sha256:9c0d0b05bfa7a8db87fb92969521ee6e0bc95b5a91acece847a703f943de067d"` becomes `covered_digest: "v4:sha256:7fc32fe9c4b36f13e5ed0b72e2efa0507cf37affc4c5e44c7225993e591a2aff"`, over the same 23 covered files.
+
+### Truths re-checked (Phase 68 sweep)
+
+Every row below was read or run on the tree at the commit named above, with nothing else running beside the heavy commands.
+
+| # | Truth | What was read on the current tree | Status |
+| - | ----- | --------------------------------- | ------ |
+| 1 | A negative pin can fail for valid arguments whatever the subject returns | A scratch file `packages/core/test/ZzProbe.tst.ts` (`declare const f: (n: number) => Effect.Effect<number>; expect(f).type.not.toBeCallableWith(1)`) run under `tstyche.json`: `fail`, `Expression is callable with the given argument.`, `uses TypeScript 6.0.3 with ./tsconfig.tstyche.json`, exit 1. The probe was removed afterwards. `tsconfig.tstyche.json` still extends `./tsconfig.test.json` and holds only `extends` and the restated plugin entry with `floatingEffect` added as `"off"`; `tstyche.json` still names it. `FloatingEffectPins.tst.ts` still has its three blocks and three `// @tstyche fixme` pins; the only change to it since the report is the header comment's wording about the skip texts, no assertion. The rule-on block run under the rule-off config is red: `Assertions: 3 failed, 5 passed, 6 skipped, 14 total`. | VERIFIED |
+| 2 | Every remaining negative callable pin is reason-stated or controlled by a positive pin | A planted twin-less negative pin on a plain-return subject, with no budget row, made `node scripts/check-house-style.mjs` exit 1 with two findings, `[not-callable-pin] 1 negative callable and 0 negative constructable pin(s); NOT_CALLABLE_PIN_BUDGET says none` and `[not-callable-control] a negative pin with no positive twin (toBeCallableWith value g)`; the probe was removed. On the unmodified tree the gate prints `house-style: 560 file(s) clean (3 declared switch(es), 66 type-test file(s))` and exits 0. `[not-callable-control]` and the refusal of `.skip`, `.only`, `.todo` and `@tstyche` directives in a file with a negative pin are still in `scripts/check-house-style.mjs`. `DecisionLog.tst.ts` still states its reason through `Parameters<typeof makeDecisionLog>[0]` with a `toBeAssignableTo` pin and a `not.toBeAssignableTo` pin (now at lines 33 and 34). `62-PIN-CLASSIFICATION.md` is unchanged since the report and still has its 88 rows, P01 to P88. | VERIFIED |
+| 3 | A gate keeps the count from drifting | `NOT_CALLABLE_PIN_BUDGET` has 28 entries and AGENTS.md section 6's table has 28 rows, the same as at the verification commit (no row of the table changed since; the report's "27 files" reads as the rows besides the characterisation's), with the characterisation row at 7 callable and 3 constructable. The budget's one change since is that the characterisation's key is read from `scripts/lib/type-tests.mjs` instead of a literal; the gate also refuses a table row listed twice, and reads `tstyche.json` as JSONC. The over-budget direction fired on the probe above (`NOT_CALLABLE_PIN_BUDGET says none`); the other direction is still in the code (`is in NOT_CALLABLE_PIN_BUDGET but holds no negative pin`) and was read, not planted. `[tstyche-plugin-drift]` and `[not-callable-pin-table]` are still in the gate, and it is clean, so `tsconfig.tstyche.json` still holds only `extends` and `compilerOptions.plugins` with the entry equal to the base's apart from `floatingEffect`. | VERIFIED |
+| 4 | The runner proves both settings hold for every pin | `node scripts/run-tstyche.mjs` exit 0: pass 1 under `tsconfig.tstyche.json` reads `Test files: 66 passed, 66 total` and `Assertions: 759 passed, 3 fixme, 3 skipped, 765 total`; pass 2 under `tsconfig.test.json` reads `Test files: 66 passed, 66 total` and `Assertions: 759 passed, 6 skipped, 765 total`. With the planted rule-on probe (a positive and a bare negative pin on an Effect subject) pass 1 exited 0, pass 2 exited 1, house-style exited 1 and `run-tstyche.mjs` exited 1. With a type test outside `tsconfig.test.json`'s include, the probe passed alone (exit 0) and `run-tstyche.mjs` exited 1. Both probes were removed. The script's one change since the report, file filters, was run once: `node scripts/run-tstyche.mjs packages/core/test/FloatingEffectPins.tst.ts` exited 0 with `Test files: 1 passed, 1 total` in each pass, and `--tsconfig tsconfig.base.json` was refused with `run-tstyche: takes file filters only, and "--tsconfig" is an option.` (exit 1). | VERIFIED |
+
+### Spot-checks re-run (Phase 68 sweep)
+
+| Behaviour | Command run now | Result now | Status |
+| --------- | --------------- | ---------- | ------ |
+| Negative pin on Effect subject fails for valid args | tstyche on the scratch probe `packages/core/test/ZzProbe.tst.ts` (rebuilt as 62-01 describes it), `node node_modules/tstyche/dist/bin.js ZzProbe`, probe removed after | `fail`, `Expression is callable with the given argument.`, `Assertions: 1 failed, 1 total`, exit 1 | PASS |
+| Unbudgeted, twin-less negative pin refused | `node scripts/check-house-style.mjs` with a planted twin-less negative pin on a plain-return subject, probe removed after | `2 house-style violation(s)`: `[not-callable-pin]` and `[not-callable-control]`, exit 1 | PASS |
+| Rule-on block red when config has rule off | `node node_modules/tstyche/dist/bin.js --tsconfig tsconfig.tstyche.json --skip "under the tstyche tsconfig" FloatingEffectPins` | `Assertions: 3 failed, 5 passed, 6 skipped, 14 total`, exit 1 | PASS |
+| Both gates green on the tree | `node scripts/check-house-style.mjs`; `node scripts/run-tstyche.mjs`, one after the other | house-style `560 file(s) clean (3 declared switch(es), 66 type-test file(s))`, exit 0; tstyche `66 passed, 66 total` in each of its two passes, exit 0 | PASS |
+| Whole merge gate minus mutation | `pnpm check:pr < /dev/null` is not run here, so that the one run of the phase is the one that covers the tree its last plan leaves | Answered by the single `check:pr` run in plan 68-15, which reads the whole tree; this verdict stands only while that run is green | ANSWERED BY 68-15 |
+| API surface | `node scripts/check-api-surface.mjs` | `api-surface: 939 export(s) documented across 9 package(s)`, exit 0 | PASS |
+
+Two rows were also re-run through the planted-probe scripts 62-06 describes, which exercise `run-tstyche.mjs` as 68-08 left it: the rule-on probe (`rule-on RED: pass 1 green, control check silent, pass 2 red; probe removed`) and the baseline probe (`baseline RED: the probe passes alone, and both passes refuse it; probe removed`). `git status` showed no probe file and no change to `packages`, `scripts`, `spec` or `features` after each.
+
+### Notes on the original report's evidence
+
+Kept whole above; recorded here, not edited.
+
+- The WX-03 row's command, `git diff --quiet 4cab2e74 -- 'packages/*/src'`, matches no file: git's pathspec `packages/*/src` does not select files below `src`, and `git ls-files 'packages/*/src'` lists none, so its exit 0 proved nothing. Run with `'packages/*/src/**'`, the claim it was cited for holds: no file under `packages/*/src` changed between Phase 62's base `4cab2e74` and the verification commit `b9ab1ea2` (0 files). Later phases did change source (`packages/core/src` and `packages/devtools/src`), none of it in this phase's range, and the current export surface is the 939 exports the gate reads.
+- The report's Requirements Coverage rows WX-01 to WX-07 describe Phase 62's own range and are not re-run here; this phase's tree is covered by the rows above and by the phase's own close scan.
+- `62-VALIDATION.md` is `draft` with `nyquist_compliant` `false`: reported, not edited. A validation audit is `/gsd-validate-phase`'s.
+
+**Verdict:** passed
