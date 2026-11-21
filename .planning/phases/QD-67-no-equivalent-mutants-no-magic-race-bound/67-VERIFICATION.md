@@ -29,7 +29,7 @@ covered_files:
   - "spec/invariants.md"
   - "spec/process/house-rules-evidence.md"
   - "spec/traceability.md"
-covered_digest: "v4:sha256:1f96d7020d59b611420d53f4332b119f71e11a976765488c0d5f0d26615539aa"
+covered_digest: "v4:sha256:b9da1699f381997064b348cc8895d963c31ae48bf773f06c9d098d93669b3921"
 behavior_unverified: 0
 overrides_applied: 0
 ---
@@ -179,5 +179,36 @@ Kept whole above; recorded here, not edited.
 - The report's deferred items IN-01 and IN-02 are settled by Phase 68 (the last two rows above and the first bullet). Its IN-03, that the scorer's self-test does not cover the `refuseDirty` call sites, is settled by Phase 68's scorer, whose self-test now has 17 cases, the dirty-tree refusal at each mode's call site and the status reader's paths among them.
 - Its Requirements Coverage rows for WX-01 to WX-07 describe Phase 67's own range and are not re-run here. WX-01: the report took `check:pr` from the caller. This verdict is answered by the one `check:pr` run of plan 68-15, which reads the whole tree, and stands only while that run is green. WX-05: Phase 67's scores are re-read by the scorer row above.
 - The report records no validation file; none exists.
+
+**Verdict:** passed
+
+## Re-verification (2026-11-21, after the code review's fixes)
+
+**Staleness:** `67: stale, verification eb6d2f12, 34 cited, 2 changed since` (`68-stale.mjs`, run at `2367f9df`).
+
+| Cited file | Changed since `eb6d2f12` by |
+| --- | --- |
+| `spec/README.md` (covered) | `8c3375fb` fix(QD-68): WR-02 the timeout text claims only the execFileSync children |
+| `spec/traceability.md` (covered) | `8c3375fb` fix(QD-68): WR-02 the timeout text claims only the execFileSync children |
+
+**Trailers on this phase's commits:** 35 `Claude Opus 5.5 <noreply@anthropic.com>`.
+
+**Validation record:** no VALIDATION.md.
+
+**Digest:** `covered_digest: "v4:sha256:1f96d7020d59b611420d53f4332b119f71e11a976765488c0d5f0d26615539aa"` becomes `covered_digest: "v4:sha256:b9da1699f381997064b348cc8895d963c31ae48bf773f06c9d098d93669b3921"`, over the same 25 covered files.
+
+### Spot-checks re-run (Re-verification (2026-11-21, after the code review's fixes))
+
+Every row was run on the tree at `2367f9df` (the commit `68-stale.mjs` named), one command at a time, in the foreground, with nothing else running beside it. Heavy commands were run once and their result is shared across the six phases' sections.
+
+| Behaviour | Command run now | Result now | Status |
+| --------- | --------------- | ---------- | ------ |
+| Revision headers and registers | `node scripts/spec-revise.mjs --check < /dev/null` | exit 0; `spec-revise: every Revision matches its newest Change History entry` | PASS |
+| Traceability | `bash spec/scripts/verify-traceability.sh --strict < /dev/null` | exit 0; `PASS: 21   FAIL: 0   SKIP: 0 (strict: skips count as failures)` | PASS |
+| What `8c3375fb` changed in the spec | `git show 8c3375fb -- spec` | `spec/README.md`: the Revision header (1.273 to 1.274), its Change History and the CCR-QD-459 row (ADR-QD-033 now cited at Rev 1.4). `spec/traceability.md`: the header (1.235 to 1.236), its Change History and the ADR-QD-033 row. `spec/decisions/033-*.md`: Revision 1.4 and the sentence on child timeouts. Every other row of both registers is unchanged | PASS |
+
+### Truths re-checked (Re-verification (2026-11-21, after the code review's fixes))
+
+Only `spec/README.md` and `spec/traceability.md` changed among the cited files, both covered, in the rows named in the last spot-check row; the digest changes accordingly. The report's Revisions (traceability 1.233, README 1.272) are Change History entries that remain, and the CCR-QD-458 row is unchanged.
 
 **Verdict:** passed
