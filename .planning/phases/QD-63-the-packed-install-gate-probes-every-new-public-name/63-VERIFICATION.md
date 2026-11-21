@@ -15,7 +15,7 @@ covered_files:
   - ".planning/phases/QD-63-the-packed-install-gate-probes-every-new-public-name/63-05-PLAN.md"
   - ".planning/phases/QD-63-the-packed-install-gate-probes-every-new-public-name/63-05-SUMMARY.md"
   - "scripts/check-package-install.mjs"
-covered_digest: "v4:sha256:94bd2f022b75b791fddcf966a89e93fc8a1c68c9eddd7fd8d1f1349751e5f105"
+covered_digest: "v4:sha256:2813dd3474a5e34d463c85d8b9d03c08b2ff4a05b9b6f48c7c49c325e436acec"
 behavior_unverified: 0
 overrides_applied: 0
 ---
@@ -148,5 +148,40 @@ Kept whole above; recorded here, not edited.
 - The report's line numbers for the registrations (`spec/README.md` l.391, `spec/traceability.md` l.269) are correct only for README; traceability's row moved to l.274 when later phases added rows above it.
 - The report's merge-gate row ("reported, not re-run") is answered above by 68-15's one run, as for the other phases.
 - `63-VALIDATION.md` is `draft` with `nyquist_compliant` `false`: reported, not edited. A validation audit is `/gsd-validate-phase`'s.
+
+**Verdict:** passed
+
+## Re-verification (2026-11-21, after the code review's fixes)
+
+**Staleness:** `63: stale, verification 44a87d05, 18 cited, 4 changed since` (`68-stale.mjs`, run at `2367f9df`).
+
+| Cited file | Changed since `44a87d05` by |
+| --- | --- |
+| `scripts/check-package-install.mjs` (covered) | `8c3375fb` fix(QD-68): WR-02 the timeout text claims only the execFileSync children<br>`5d44982d` fix(QD-68): WR-01 a timed-out or killed child names its cause in the packed-install guard |
+| `spec/README.md` | `8c3375fb` fix(QD-68): WR-02 the timeout text claims only the execFileSync children |
+| `spec/decisions/033-the-packed-artifact-is-the-product.md` | `8c3375fb` fix(QD-68): WR-02 the timeout text claims only the execFileSync children |
+| `spec/traceability.md` | `8c3375fb` fix(QD-68): WR-02 the timeout text claims only the execFileSync children |
+
+**Trailers on this phase's commits:** 15 none, 14 `Claude Sonnet 5.5 <noreply@anthropic.com>`, 3 `Claude Opus 5.5 <noreply@anthropic.com>`.
+
+**Validation record:** `63-VALIDATION.md` has status `draft` and nyquist_compliant `false`.
+
+**Digest:** `covered_digest: "v4:sha256:94bd2f022b75b791fddcf966a89e93fc8a1c68c9eddd7fd8d1f1349751e5f105"` becomes `covered_digest: "v4:sha256:2813dd3474a5e34d463c85d8b9d03c08b2ff4a05b9b6f48c7c49c325e436acec"`, over the same 11 covered files.
+
+### Spot-checks re-run (Re-verification (2026-11-21, after the code review's fixes))
+
+Every row was run on the tree at `2367f9df` (the commit `68-stale.mjs` named), one command at a time, in the foreground, with nothing else running beside it. Heavy commands were run once and their result is shared across the six phases' sections.
+
+| Behaviour | Command run now | Result now | Status |
+| --------- | --------------- | ---------- | ------ |
+| Gate 14 on the tree | `node scripts/check-package-install.mjs < /dev/null`, run once, alone, in the foreground | exit 0; `package-install: 9 package(s) pack, resolve and authorize (524 runtime export(s))`, the same count as at the verification and at the earlier re-verification; 8.2 s | PASS |
+| Revision headers and registers | `node scripts/spec-revise.mjs --check < /dev/null` | exit 0; `spec-revise: every Revision matches its newest Change History entry` | PASS |
+| Traceability | `bash spec/scripts/verify-traceability.sh --strict < /dev/null` | exit 0; `PASS: 21   FAIL: 0   SKIP: 0 (strict: skips count as failures)` | PASS |
+| What `8c3375fb` changed in the spec | `git show 8c3375fb -- spec` | `spec/README.md`: the Revision header (1.273 to 1.274), its Change History and the CCR-QD-459 row (ADR-QD-033 now cited at Rev 1.4). `spec/traceability.md`: the header (1.235 to 1.236), its Change History and the ADR-QD-033 row. `spec/decisions/033-*.md`: Revision 1.4 and the sentence on child timeouts. Every other row of both registers is unchanged | PASS |
+
+### Changed cited files read against the truths that cite them (Re-verification (2026-11-21, after the code review's fixes))
+
+- `scripts/check-package-install.mjs` (`5d44982d`, `8c3375fb`): Truths 1 to 4 still hold, as the gate run above shows. WR-01 makes a timed-out or killed child name its cause; WR-02 corrects the claim in the guard's text so that it covers only the `execFileSync` children. The earlier section's remark "every child process now has a 600000 ms timeout" is therefore narrowed, not contradicted: the one child without a timeout is the TypeScript server behind `typescript/unstable/sync`'s `API`, whose calls block and take no bound. No truth of this report rests on that sentence.
+- `spec/decisions/033-the-packed-artifact-is-the-product.md` is at Revision 1.4 (`grep` of its header); the CCR-QD-454 amendment the report cites is unchanged. `spec/README.md` still registers CCR-QD-454 at line 391 and `spec/traceability.md` still traces ADR-QD-033 at line 274, both unchanged rows.
 
 **Verdict:** passed
