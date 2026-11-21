@@ -29,7 +29,7 @@ covered_files:
   - "spec/invariants.md"
   - "spec/process/house-rules-evidence.md"
   - "spec/traceability.md"
-covered_digest: "v4:sha256:b9da1699f381997064b348cc8895d963c31ae48bf773f06c9d098d93669b3921"
+covered_digest: "v4:sha256:e6fd5293aadc266e96e9a2c73b6a17bd555b99390931c628e2de265081da59cb"
 behavior_unverified: 0
 overrides_applied: 0
 ---
@@ -210,5 +210,44 @@ Every row was run on the tree at `2367f9df` (the commit `68-stale.mjs` named), o
 ### Truths re-checked (Re-verification (2026-11-21, after the code review's fixes))
 
 Only `spec/README.md` and `spec/traceability.md` changed among the cited files, both covered, in the rows named in the last spot-check row; the digest changes accordingly. The report's Revisions (traceability 1.233, README 1.272) are Change History entries that remain, and the CCR-QD-458 row is unchanged.
+
+**Verdict:** passed
+
+## Re-verification (2026-11-21, after Phase 68.1)
+
+**Staleness:** `67: stale, verification e07ea925, 34 cited, 3 changed since` (`68-stale.mjs`, run at `25c781b1`).
+
+| Cited file | Changed since `e07ea925` by |
+| --- | --- |
+| `README.md` | `ecb4ed90` fix(68.1-02): analyze.mjs exits 1 on a failed gate, and pnpm check runs its self-test |
+| `package.json` | `ecb4ed90` fix(68.1-02): analyze.mjs exits 1 on a failed gate, and pnpm check runs its self-test |
+| `spec/README.md` (covered) | `a8b36092` docs(68.1-05): ADR-QD-033 amended and CCR-QD-460 recorded |
+
+**Trailers on this phase's commits:** 35 `Claude Opus 5.5 <noreply@anthropic.com>`.
+
+**Validation record:** no VALIDATION.md.
+
+**Digest:** `covered_digest: "v4:sha256:b9da1699f381997064b348cc8895d963c31ae48bf773f06c9d098d93669b3921"` becomes `covered_digest: "v4:sha256:e6fd5293aadc266e96e9a2c73b6a17bd555b99390931c628e2de265081da59cb"`, over the same 25 covered files.
+
+**Staleness by `68.1-stale.mjs`:** `67: stale, verification e07ea925, 34 cited, 3 changed since` (run at `25c781b1`).
+
+### Spot-checks re-run (Re-verification (2026-11-21, after Phase 68.1))
+
+Every row was run on a tree whose tracked files outside the planning directory are those of `25c781b1`, one command at a time, in the foreground, with stdin closed and nothing else running beside it. The spec-revise and traceability results are shared with the other re-verifications of this phase and were taken once at `c3d8553a`; no tracked file outside the planning directory differs between that head and `25c781b1` (`git diff --quiet c3d8553a 25c781b1 -- . ':(exclude).planning'` is silent). No source, test or characterisation file of Phase 67 changed in this phase (`git diff --name-only 0e3f3438 HEAD -- packages` lists 0 files), so the report's vitest, race-test, scorer and house-style rows were not run again.
+
+| Behaviour | Command run now | Result now | Status |
+| --------- | --------------- | ---------- | ------ |
+| What the phase changed in the root readme | `git diff -U0 0e3f3438 HEAD -- README.md` | one line changed, 220: `pnpm check` is now commented `all twenty-six gates, in order` where it read twenty-five; nothing else in the file differs | PASS |
+| What the phase changed in the package manifest | `git diff -U0 0e3f3438 HEAD -- package.json` | two scripts-table changes and nothing else: `bench:self-test` is added and `check` gains ` && pnpm bench:self-test` at its end; every other script and every dependency field is unchanged | PASS |
+| What the phase changed under the paths the report's header names | `git diff --name-only 0e3f3438 HEAD -- packages`, and `git diff --name-only 0e3f3438 HEAD -- scripts package.json pnpm-lock.yaml` | 0 files under `packages`; the second lists `package.json` and four scripts (`scripts/bench/ab.sh`, `scripts/bench/analyze.mjs`, `scripts/check-package-install.mjs`, `scripts/lib/probe-guard-parse.mjs`), none of which a truth of this report reads | PASS |
+| What the phase changed in the spec register, and the revisions | `git diff -U0 0e3f3438 HEAD -- spec/README.md`, and `node scripts/spec-revise.mjs --check < /dev/null` (shared) | the Revision header (1.274 to 1.275), the Change History cell (a 1.275 entry in front) and one added row, CCR-QD-460, at line 397; no row is removed or edited, so the CCR-QD-458 row is still at line 395 as it was at the base, and the 1.272 entry the report cites is still in the cell; `spec-revise` exit 0, `spec-revise: every Revision matches its newest Change History entry` | PASS |
+| The documents Truths 5 and 6 read are unchanged | `git diff --name-only 0e3f3438 HEAD -- AGENTS.md spec/behaviors/21-decision-cache.md spec/process/house-rules-evidence.md spec/invariants.md spec/traceability.md` | 0 files, so BEH-QD-166, INV-QD-379, the rows of traceability and the house-rules section the truths read are as the earlier sections left them | PASS |
+| Traceability | `bash spec/scripts/verify-traceability.sh --strict < /dev/null` (shared) | exit 0; `PASS: 21   FAIL: 0   SKIP: 0 (strict: skips count as failures)` | PASS |
+
+### Changed cited files read against the truths that cite them (Re-verification (2026-11-21, after Phase 68.1))
+
+- `README.md` (68.1-02, `ecb4ed90`): the report does not cite the root readme; its Truth 6 writes `README.md` for the spec register (`spec/README.md`, Revision 1.272), and `68-stale.mjs` lists that bare name as the root file. The commit changes one number in a comment on the `pnpm check` line (twenty-five gates to twenty-six), which no truth of this report reads, so no truth changes.
+- `package.json` (68.1-02, `ecb4ed90`): the report names the manifest only in its header, in `git diff 0e3f9cbd..HEAD -- packages scripts package.json` being empty, which was true of the range it names and is a claim about that range, not about this tree (the earlier section on Phase 68 already says so for the same pathspec). The commit adds the `bench:self-test` script and appends it to `check`; no source, bench or script a truth reads changed (third row), so Truths 1 to 4 describe the same code as before.
+- `spec/README.md` (covered; 68.1-05, `a8b36092`): the report cites the CCR-QD-458 row and Revision 1.272 (Truth 6). The row is unedited at line 395 and the 1.272 entry remains in the Change History cell; the commit moves the revision to 1.275 and adds the CCR-QD-460 row, which no truth of this report reads. The digest changes because this file is covered, and no other covered file changed.
 
 **Verdict:** passed
