@@ -5,8 +5,10 @@
 # An interleaved A/B of one bench file, filtered by vitest's `-t <test-name-pattern>`. The head arm
 # runs the tree as committed; the patched arm runs it after `git apply <patch>`, reversed after the
 # run, with no worktree and no branch switch. The arm order alternates by round: odd rounds run the
-# head arm first, even rounds the patched arm, so neither arm always runs on a warmer or a colder
-# host. `--print-order` prints that order, one `<label>-<round>` per line, and runs nothing.
+# head arm first, even rounds the patched arm. The round count must be even, so each arm runs first
+# in exactly half the rounds and neither always runs on a warmer or a colder host; `analyze.mjs`
+# needs at least 3 rounds, so the smallest run both accept is 4. `--print-order` prints that order,
+# one `<label>-<round>` per line, and runs nothing.
 #
 # The patch may touch `packages/` only, and `packages/` must be clean at the start, after every run
 # and at exit. The run refuses to start beside another vitest bench or Stryker run, or on a busy
@@ -15,16 +17,18 @@
 # Phases 59, 66 and 67 each ran their own copy, which ran the arms in one fixed order; those copies
 # stay as the records of the runs they made.
 #
-# Exit codes: 2 usage / refused start, 3 the patch does not apply, 4 a bench run failed,
-# 5 packages/ was not restored, 6 the host is busy, 130 / 143 stopped by INT / TERM.
+# Exit codes: 2 usage / refused start (an odd round count among them), 3 the patch does not apply,
+# 4 a bench run failed, 5 packages/ was not restored, 6 the host is busy, 130 / 143 stopped by INT /
+# TERM.
 set -u
 
 usage() {
   echo "usage: ab.sh <patch> <outdir> <rounds> <head-label> <patched-label> <bench-file> <test-name-pattern>" >&2
   echo "       ab.sh --print-order <rounds> <head-label> <patched-label>" >&2
+  echo "       <rounds> must be even: odd rounds run the head arm first and even rounds the patched arm, so only an even count runs each arm first equally often" >&2
   exit 2
 }
-rounds_ok() { case "$1" in '' | *[!0-9]* | 0 | 0[0-9]*) return 1 ;; esac; }
+rounds_ok() { case "$1" in '' | *[!0-9]* | 0 | 0[0-9]* | *[13579]) return 1 ;; esac; }
 
 # The runs in order, one `<label> <round>` per line: round i runs the head arm first when i is odd,
 # the patched arm first when i is even.
