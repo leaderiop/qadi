@@ -703,7 +703,7 @@ Phases execute in numeric order: 62 → 63 → 64 → 65 → 66 → 67 → 68 �
 | 66. The decoder reads only what it declares | 5/5 | Complete    | 2026-11-20 |
 | 67. No equivalent mutants, no magic race bound | 7/7 | Complete    | 2026-11-21 |
 | 68. Hygiene and recorded close-outs | 15/15 | Complete    | 2026-11-21 |
-| 68.1. Address tech debt (INSERTED) | 0/? | Not started | - |
+| 68.1. Address tech debt (INSERTED) | 0/9 | Planned | - |
 
 ### Phase 68.1: Address tech debt (INSERTED)
 
@@ -716,7 +716,15 @@ Phases execute in numeric order: 62 → 63 → 64 → 65 → 66 → 67 → 68 �
   3. Gate 14 starts no child without a time limit, shown by a hung child being killed; ADR-QD-033 and gate 14's comment say so, recorded in CCR-QD-460.
   4. Phases 62 to 68.1 each have a `VALIDATION.md` with `status: validated`.
   5. `pnpm check:pr < /dev/null` is green on the phase's final tree; nothing is released.
-**Plans:** 0 plans
+**Plans:** 9 plans
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 68.1 to break down)
+- [ ] 68.1-01-PLAN.md — RED on the phase base 0e3f3438 for DEBT-01..05, with the probes and scratch scripts pinned by SHA
+- [ ] 68.1-02-PLAN.md — `analyze.mjs` exits 0/1/2 and its self-test is `pnpm check` step 26 (DoD table with it); `ab.sh` refuses an odd round count (DEBT-01, DEBT-02)
+- [ ] 68.1-03-PLAN.md — `68.1-stale.mjs` and `68.1-compare.mjs`, each with a self-test; Phase 68's ten comparison verdicts re-run into `68.1-RECHECK.md` (DEBT-03, DEBT-04)
+- [ ] 68.1-04-PLAN.md — the probe guard's parse moves to `scripts/lib/probe-guard-parse.mjs` under `CHILD_TIMEOUT_MS`; the hang shown killed in scratch; gate 14 once, alone (DEBT-05)
+- [ ] 68.1-05-PLAN.md — ADR-QD-033 amended (Rev 1.5, `index.yaml`), the CCR-QD-460 row, no text left claiming an unbounded child
+- [ ] 68.1-06-PLAN.md — staleness at head with both scripts; Phases 62, 63, 64 re-verified
+- [ ] 68.1-07-PLAN.md — Phases 65, 66, 67 re-verified
+- [ ] 68.1-09-PLAN.md — `68.1-reverify.mjs`; Phase 68 re-verified; both staleness scripts to `redo: none`
+- [ ] 68.1-08-PLAN.md — `pnpm check:pr` once, alone; DEBT-01..05 ticked; the phase-wide checks and `## After the sweep`
