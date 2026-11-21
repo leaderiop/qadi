@@ -20,7 +20,7 @@ covered_files:
   - "packages/devtools/src/model/GatesFeed.ts"
   - "packages/devtools/src/model/TimelineFeed.ts"
   - "spec/overview.md"
-covered_digest: "v4:sha256:01b44128d7bd707d936e93f38559b1b69dfc112b6106080b340beaa42faf10ac"
+covered_digest: "v4:sha256:47f9dce0e21ab2f492a12de4095b99f3f0bf9e4a52c1f74870954cc9042d43fd"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
@@ -141,3 +141,61 @@ None. The single gap from the first verification (`spec/overview.md:915`) was cl
 
 _Verified: 2026-11-20 (re-verification)_
 _Verifier: Claude (gsd-verifier)_
+
+## Re-verification (2026-11-21, Phase 68 sweep)
+
+**Staleness:** `64: stale, verification af3ef24e, 25 cited, 11 changed since` (`68-stale.mjs`, run at `44a87d05`).
+
+| Cited file | Changed since `af3ef24e` by |
+| --- | --- |
+| `AGENTS.md` | `36036666` (before Phase 68) fix(67): IN-03 move the dispatch measurement into the evidence document<br>`dea2afb4` (before Phase 68) docs(67-06): BEH-QD-166's reasons and INV-QD-379, traced and registered as CCR-QD-458<br>`f62f450d` (before Phase 68) docs(66-04): ADR-QD-170 amended, BEH-QD-666 and INV-QD-377, traced and registered as CCR-QD-457 |
+| `packages/devtools/README.md` (covered) | `456be457` fix(68-04): a capacity change's publish stops no read |
+| `packages/devtools/src/model/DiagnosticsFeed.ts` (covered) | `2bea33b3` docs(68-04): the diagnostics poll's stop and the ignore projection's members, as the code holds them |
+| `packages/devtools/src/model/TimelineFeed.ts` (covered) | `456be457` fix(68-04): a capacity change's publish stops no read |
+| `packages/devtools/test/model/ExternalStore.test.ts` | `2b79b7f5` test(68-03): pin the feeds' states after a listener throws, and a thrown value that throws when read |
+| `scripts/spec-revise.mjs` | `564818c0` fix(68-01): spec-revise keeps its first argument when --date is not given |
+| `spec/README.md` | `eacfeb6c` docs(68-11): CCR-QD-459, the settled items confirmed, and the devtools patch changeset<br>`82f87b4f` (before Phase 68) docs(67): the later bench run's miss deltas are not the dispatch's alone<br>`e5c18e6f` (before Phase 68) fix(67): IN-04 state the dispatch run's base spreads and host load beside the verdict<br>`36036666` (before Phase 68) fix(67): IN-03 move the dispatch measurement into the evidence document<br>`dea2afb4` (before Phase 68) docs(67-06): BEH-QD-166's reasons and INV-QD-379, traced and registered as CCR-QD-458<br>`a25de426` (before Phase 68) fix(66): WR-01, IN-01, IN-04 state the spec text exactly<br>`f62f450d` (before Phase 68) docs(66-04): ADR-QD-170 amended, BEH-QD-666 and INV-QD-377, traced and registered as CCR-QD-457<br>`b56f32c0` (before Phase 68) docs(65): CCR-QD-456 cites the revisions the review fix left<br>`f8f7ed70` (before Phase 68) docs(65-05): ADR-QD-172 amended; INV-QD-375 and INV-QD-376 recorded, traced and registered |
+| `spec/behaviors/28-devtools-screens.md` | `5b603fea` docs(68-10): the amended decisions, behaviours and invariants say what the code holds |
+| `spec/invariants.md` | `5b603fea` docs(68-10): the amended decisions, behaviours and invariants say what the code holds<br>`faec4fab` docs(68-07): the characterisation's readings, the projection's accessors, the admit pins and the supplied trace<br>`dea2afb4` (before Phase 68) docs(67-06): BEH-QD-166's reasons and INV-QD-379, traced and registered as CCR-QD-458<br>`a25de426` (before Phase 68) fix(66): WR-01, IN-01, IN-04 state the spec text exactly<br>`f62f450d` (before Phase 68) docs(66-04): ADR-QD-170 amended, BEH-QD-666 and INV-QD-377, traced and registered as CCR-QD-457<br>`a23dacf1` (before Phase 68) fix(65): WR-01 narrow the read-once claim to the question's resource and action<br>`f8f7ed70` (before Phase 68) docs(65-05): ADR-QD-172 amended; INV-QD-375 and INV-QD-376 recorded, traced and registered |
+| `spec/overview.md` (covered) | `f62f450d` (before Phase 68) docs(66-04): ADR-QD-170 amended, BEH-QD-666 and INV-QD-377, traced and registered as CCR-QD-457 |
+| `spec/traceability.md` | `5b603fea` docs(68-10): the amended decisions, behaviours and invariants say what the code holds<br>`faec4fab` docs(68-07): the characterisation's readings, the projection's accessors, the admit pins and the supplied trace<br>`dea2afb4` (before Phase 68) docs(67-06): BEH-QD-166's reasons and INV-QD-379, traced and registered as CCR-QD-458<br>`a25de426` (before Phase 68) fix(66): WR-01, IN-01, IN-04 state the spec text exactly<br>`f62f450d` (before Phase 68) docs(66-04): ADR-QD-170 amended, BEH-QD-666 and INV-QD-377, traced and registered as CCR-QD-457<br>`a23dacf1` (before Phase 68) fix(65): WR-01 narrow the read-once claim to the question's resource and action<br>`7e2530f1` (before Phase 68) docs(65-05): BEH-QD-661 and BEH-QD-662<br>`f8f7ed70` (before Phase 68) docs(65-05): ADR-QD-172 amended; INV-QD-375 and INV-QD-376 recorded, traced and registered |
+
+**Trailers on this phase's commits:** 21 `Claude Opus 5.5 <noreply@anthropic.com>`, 7 none, 4 `Claude Sonnet 5.5 <noreply@anthropic.com>`.
+
+**Validation record:** no VALIDATION.md.
+
+**Digest:** `covered_digest: "v4:sha256:01b44128d7bd707d936e93f38559b1b69dfc112b6106080b340beaa42faf10ac"` becomes `covered_digest: "v4:sha256:47f9dce0e21ab2f492a12de4095b99f3f0bf9e4a52c1f74870954cc9042d43fd"`, over the same 16 covered files.
+
+### Spot-checks re-run (Phase 68 sweep)
+
+Every row below was run on the tree at `44a87d05`, one command at a time, in the foreground, with nothing else running beside it.
+
+| Behavior | Command run now | Result now | Status |
+| -------- | --------------- | ---------- | ------ |
+| Seam, three feeds, `useStoreSnapshot`, three dock characterisation files | `pnpm exec vitest run --project devtools <the same 8 files> < /dev/null` (`ExternalStore`, `TimelineFeed`, `DiagnosticsFeed` and `GatesFeed` under `test/model`, `useStoreSnapshot` and the three `*.characterisation.test.tsx` under `test/react`) | exit 0; `Test Files  8 passed (8)`, `Tests  157 passed (157)`; the report's 150 plus the seven tests Phase 68 added (one in the seam, four in the timeline feed, two in the diagnostics feed) | PASS |
+| Gate 13 export documentation | `node scripts/check-api-surface.mjs < /dev/null` | exit 0; `api-surface: 939 export(s) documented across 9 package(s)`, the same count as at the verification | PASS |
+| Spec revisions | `node scripts/spec-revise.mjs --check < /dev/null` | exit 0; `spec-revise: every Revision matches its newest Change History entry` | PASS |
+| Seam and gates feed regression | `pnpm exec vitest run --project devtools packages/devtools/test/model/ExternalStore.test.ts packages/devtools/test/model/GatesFeed.test.ts < /dev/null` | exit 0; `Test Files  2 passed (2)`, `Tests  47 passed (47)` (the report's 46 plus one test Phase 68 added to the seam) | PASS |
+| Characterisation diff | `git diff 8f3cb792 HEAD -- '*.characterisation.test.tsx'`, after `git ls-files '*.characterisation.test.tsx'` to show the pathspec selects files | the pathspec selects the three tracked files; the diff is 0 lines and 0 files | PASS |
+| Whole-merge gate | `pnpm check:pr < /dev/null` is not run here, so that the one run of the phase is the one that covers the tree its last plan leaves | Answered by the single `check:pr` run in plan 68-15, which reads the whole tree; this verdict stands only while that run is green | ANSWERED BY 68-15 |
+
+The Stryker table above (WX-05) was not re-run here, since Stryker never runs beside another command and Phase 68's own mutation close already covers the two files it changed. That close ran at `10880abb`, and no `packages/*/src` file has changed since (`git diff --name-only 10880abb HEAD -- ':(glob)packages/**/src/**'` lists 0 files). Its recorded result for the two files, same invocation at base and close: `DiagnosticsFeed.ts` 98.63 then 100.00 (the one survivor is gone), `TimelineFeed.ts` 100.00 then 100.00. `ExternalStore.ts` and `GatesFeed.ts` did not change, so the table's two rows stand as written.
+
+### Changed covered files read against the truths that cite them (Phase 68 sweep)
+
+- `packages/devtools/README.md` (68-04, `456be457`): Truth 3 still holds. The report cites it among the texts that state the contract and keep an accurate window caveat; the caveat was rewritten because the code it described changed. It now says a `configure` with a new `capacity` publishes the emptied timeline and then starts the read that refills it, so a throw on that publish is rethrown once the read has started and stops no read, unless the timeline was `Stopped` and a status listener throws on the `Reading` that read publishes: that throw escapes, replaces the timeline listener's, and no read is started. The text the report read ("the previous read goes on, a new `source` in the same call is not read") no longer holds and is no longer in the file.
+- `packages/devtools/src/model/TimelineFeed.ts` (68-04, `456be457`): Truths 2 and 3 still hold, and the report's "narrowed resize-path caveat added in review" is superseded. `configure` now wraps the publish: `try { push() } finally { readSource(next.source) }`, so a throw from a timeline listener on the emptied timeline's publish no longer ends the call before the read. The residue is the one the new docs state: when the feed was `Stopped`, a status listener that throws on the `Reading` the read publishes escapes from the `finally` and replaces the timeline listener's throw (pinned by TF29, which runs as part of the 8 files above). The `subscribe` docs still say every listener is called and what they threw is rethrown, and the dock characterisation files are untouched.
+- `packages/devtools/src/model/DiagnosticsFeed.ts` (68-04, `2bea33b3`): Truths 2 and 3 still hold; the comment only gained the clause the code already satisfies, that the poll's `Stopped` is held even when a listener throws on that publish too. That also settles the report's review item IN-01: F32 pins it (the status ends `Stopped` with `sampled` true although the listener threw on the `Stopped` publish).
+- `spec/overview.md` (66-04, `f62f450d`, before Phase 68): Truth 3 and the gap the re-verification closed still hold. The only change since the report is Rev 1.130, which edits the `UnknownKeyPolicy` and `decodeStoredRecord` rows for another decision; the `makeGatesFeed` row (line 915) still reads "a listener on the feed's own `subscribe` that throws stops no other".
+- Cited, not covered, and changed since: `packages/devtools/test/model/ExternalStore.test.ts` gained 48 lines and no line was removed (the cases for a later listener still called, two throws as one `AggregateError`, a single value rethrown as itself, no throw unchanged, and a subscribe or unsubscribe during a notification are all still there and pass); the timeline and diagnostics feed tests gained lines only. BEH-QD-656 (Rev 1.38 of the devtools-screens behaviours) now also says the capacity change's publish stops no read and the poll's `Stopped` is held, and names TF25 to TF29 and F30 to F32; that matches the tests above. `scripts/spec-revise.mjs` changed in 68-01 (it now keeps its first argument when `--date` is not given), which does not affect the `--check` row, and the row passes.
+
+### Notes on the original report's evidence
+
+Kept whole above; recorded here, not edited.
+
+- The characterisation-diff row's pathspec `'*.characterisation.test.tsx'` was checked for being vacuous: unlike `'packages/*/src'`, git's `*` crosses directory separators, and the pathspec selects all three tracked files, so its empty diff was not vacuous then and is not now.
+- The report's wording that the characterisation files pass "with an empty diff" is a claim about Phase 64's range; the empty diff is re-measured above against the same base `8f3cb792` and still holds through Phase 68.
+- The report's merge-gate row ("reported, not re-run by design") is answered above by 68-15's one run.
+- The report records no validation file; none exists. Its code review items IN-02 and IN-03 are not re-judged here: IN-02, that no test pinned the post-throw feed states, is answered for the states the code now documents by TF26 to TF29 and F31 and F32, which pass.
+
+**Verdict:** passed
