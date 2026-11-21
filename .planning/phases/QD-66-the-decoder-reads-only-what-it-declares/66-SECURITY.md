@@ -61,7 +61,7 @@ The phase changes `@qadi/core`'s untrusted-decode projection. Under `unknownKeys
 |---------|------------|-----------|-------------|------|
 | AR-66-01 | T-66-SC | No dependency is installed, upgraded or removed in this phase | plan-time disposition (66-01..66-05) | 2026-11-20 |
 | AR-66-02 | T-66-08 | Accessors under `refuse`, for `unwalked` keys and one level down are still read; scope kept at the projection by the owner and stated in INV-QD-097 / INV-QD-377 | owner (66-CONTEXT) | 2026-11-20 |
-| AR-66-03 | T-66-13 | The bench ran on a loaded host and was not waited out | owner (66-CONTEXT) | 2026-11-20 |
+| AR-66-03 | T-66-13 | The bench ran on a loaded host and was not waited out | orchestrator, plan-time disposition (66-03); not an owner decision, although the 66-03 threat row said "(owner)" | 2026-11-20 |
 
 *Accepted risks do not resurface in future audit runs.*
 
