@@ -663,4 +663,41 @@ describe("what the ignore projection reads of an in-process value", () => {
     assert.deepStrictEqual(successOf(ignore.decode(input)), { _tag: "A", a: 1 });
     assert.deepStrictEqual([reads("_tag"), reads("a")], [1, 1]);
   });
+
+  it("U30 a union's _tag that answers differently on its second read chooses one member's keys and is copied as the other's tag, which the strict decode refuses", () => {
+    const seen: Array<unknown> = [];
+    const ignore = untrustedDecoder(TwoMembers(), {
+      unknownKeys: "ignore",
+      prepare: (input) => {
+        seen.push(input);
+        return Result.succeed(input);
+      },
+    });
+    const answers = ["B", "A"];
+    const { input, reads } = accessors([["_tag", () => answers.shift()], ["a", () => 1], ["b", () => 2]]);
+    assert.strictEqual(tagOf(ignore.decode(input)), "Malformed");
+    assert.deepStrictEqual(seen, [{ _tag: "A", b: 2 }]);
+    assert.deepStrictEqual([reads("_tag"), reads("a"), reads("b")], [2, 0, 1]);
+  });
+
+  it("U31 an accessor that deletes a later own key leaves that key in the projection with no value, so the refusal names the value's type and not a missing key", () => {
+    const ignore = untrustedDecoder(Schema.Struct({ a: Schema.Number, b: Schema.Number }), { unknownKeys: "ignore" });
+    const input: { a?: number; b?: number } = {};
+    Object.defineProperty(input, "a", {
+      enumerable: true,
+      get: (): number => {
+        delete input.b;
+        return 1;
+      },
+    });
+    input.b = 2;
+    const absent = ignore.decode({ a: 1 });
+    const deleted = ignore.decode(input);
+    assert.isTrue(Result.isFailure(absent) && Result.isFailure(deleted));
+    if (Result.isFailure(absent) && Result.isFailure(deleted)) {
+      assert.include(absent.failure.message, "Missing key");
+      assert.notInclude(deleted.failure.message, "Missing key");
+      assert.include(deleted.failure.message, "Expected number");
+    }
+  });
 });

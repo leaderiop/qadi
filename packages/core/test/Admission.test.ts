@@ -210,4 +210,59 @@ describe("admit reads what the question carries once", () => {
     assert.isUndefined(environment?.matcherContext.resource);
     assert.strictEqual(reads, 1);
   });
+
+  it("E11 a policy that reads shallow and then deep is read once: the policy admitted is the one the depth gate judged", () => {
+    const shallow = P.hasRole("editor");
+    const deep = nested(4);
+    let reads = 0;
+    const question: Question = {
+      ...questionOf(subject, shallow, { maxDepth: 3 }),
+      get policy() {
+        reads += 1;
+        return reads === 1 ? shallow : deep;
+      },
+    };
+    const environment = admitted(question, "asked");
+    assert.strictEqual(environment?.policy, shallow);
+    assert.strictEqual(reads, 1);
+  });
+
+  it("E12 a maxDepth that reads differently on a second read is read once: the refusal and the environment carry the bound the gate used", () => {
+    const flipping = (first: number, later: number) => {
+      let reads = 0;
+      const question: Question = {
+        ...questionOf(subject, nested(4)),
+        get maxDepth() {
+          reads += 1;
+          return reads === 1 ? first : later;
+        },
+      };
+      return { question, reads: () => reads };
+    };
+    const refused = flipping(3, 10);
+    const result = admit(refused.question, "asked");
+    assert.isTrue(Result.isFailure(result));
+    assert.strictEqual(Result.isFailure(result) ? result.failure.maxDepth : undefined, 3);
+    assert.strictEqual(refused.reads(), 1);
+    const kept = flipping(10, 1);
+    assert.strictEqual(admitted(kept.question, "row")?.maxDepth, 10);
+    assert.strictEqual(kept.reads(), 1);
+  });
+
+  it("E13 a subject that reads differently on a second read is read once: the subject, its attributes and its id come from one read", () => {
+    const other = subjectWith({ id: "u8", attributes: { tier: "lead" } });
+    let reads = 0;
+    const question: Question = {
+      ...questionOf(subject, P.hasRole("editor")),
+      get subject() {
+        reads += 1;
+        return reads === 1 ? subject : other;
+      },
+    };
+    const environment = admitted(question, "asked");
+    assert.strictEqual(environment?.subject, subject);
+    assert.strictEqual(environment?.matcherContext.subject, subject.attributes);
+    assert.strictEqual(environment?.matcherContext.subjectId, "u7");
+    assert.strictEqual(reads, 1);
+  });
 });

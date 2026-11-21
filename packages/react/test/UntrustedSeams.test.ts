@@ -227,4 +227,18 @@ describe("the hydration payload per policy: refuse (KEYP-05, D-11)", () => {
       expect(hydrate(payload)).toEqual({ seeded: 0, reasons: ["MalformedPayload"] });
     }
   });
+
+  it("H6 two unknown envelope keys -> MalformedPayload, nothing seeded: refusing is not refusing the first", () => {
+    expect(hydrate(payloadOf([entry], { addedLater: "x", addedSooner: "y" }))).toEqual({
+      seeded: 0,
+      reasons: ["MalformedPayload"],
+    });
+  });
+
+  it("H7 an unknown key nested under a kept value of an entry -> MalformedEntry, nothing seeded", () => {
+    expect(hydrate(payloadOf([{ policy, decision: { ...decision, addedLater: "x" } }]))).toEqual({
+      seeded: 0,
+      reasons: ["MalformedEntry"],
+    });
+  });
 });
