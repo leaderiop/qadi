@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-PROC-03                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Process Specification                          |
-> | Change History | 1.2 (2026-11-21): §2: the measurement behind AGENTS.md §5a's closed-table paragraph, with its gate verdicts, base spreads and host load (ARCH-114, CCR-QD-458)<br>1.1 (2026-11-12): §4 addendum: the atom set owns the eviction sweep; the quoted history is unchanged (ARCH-83, CCR-QD-426)<br>1.0 (2026-10-08): the measurements behind `AGENTS.md`'s rules and its "Corrected in CCR-…" blocks moved here verbatim, so `AGENTS.md` carries each rule and a pointer instead of its history (retro of the wave-4 session) |
+> | Change History | 1.3 (2026-11-21): the later run's miss deltas are not attributed to the dispatch: that run also carries the eviction rewrite (CCR-QD-458 review)<br>1.2 (2026-11-21): §2: the measurement behind AGENTS.md §5a's closed-table paragraph, with its gate verdicts, base spreads and host load (ARCH-114, CCR-QD-458)<br>1.1 (2026-11-12): §4 addendum: the atom set owns the eviction sweep; the quoted history is unchanged (ARCH-83, CCR-QD-426)<br>1.0 (2026-10-08): the measurements behind `AGENTS.md`'s rules and its "Corrected in CCR-…" blocks moved here verbatim, so `AGENTS.md` carries each rule and a pointer instead of its history (retro of the wave-4 session) |
 
 `AGENTS.md` is read in full by every agent that works in this repository. It
 states each rule, its budget table and the command that enforces it. The
@@ -136,7 +136,8 @@ than "`Match` is 7% slower":
   passed before both.
 - A later run of the committed source against the source before the change, under the same
   gate, gave `miss` +2.8% and `miss, capacity-bound` +1.0% (every workload inside the band,
-  geometric mean -2.51%): the same direction as the `Match` deltas, smaller.
+  geometric mean -2.51%). That run also carries the eviction rewrite, so its
+  miss deltas cannot be attributed to the dispatch alone.
 
 So the evidence holds that the arm table passed the gate as fixed and the `Match` form did
 not. It does not hold a figure for what the `Match` form costs. Reopening the choice needs a
