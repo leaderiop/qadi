@@ -172,3 +172,34 @@ Kept whole above; recorded here, not edited.
 - `62-VALIDATION.md` is `draft` with `nyquist_compliant` `false`: reported, not edited. A validation audit is `/gsd-validate-phase`'s.
 
 **Verdict:** passed
+
+## Re-verification (2026-11-21, after the code review's fixes)
+
+**Staleness:** `62: stale, verification abf47015, 31 cited, 2 changed since` (`68-stale.mjs`, run at `2367f9df`).
+
+| Cited file | Changed since `abf47015` by |
+| --- | --- |
+| `spec/README.md` | `8c3375fb` fix(QD-68): WR-02 the timeout text claims only the execFileSync children |
+| `spec/traceability.md` | `8c3375fb` fix(QD-68): WR-02 the timeout text claims only the execFileSync children |
+
+**Trailers on this phase's commits:** 35 `Claude Sonnet 5.5 <noreply@anthropic.com>`, 13 none, 4 `Claude Opus 5.5 <noreply@anthropic.com>`.
+
+**Validation record:** `62-VALIDATION.md` has status `draft` and nyquist_compliant `false`.
+
+**Digest:** `covered_digest: "v4:sha256:7fc32fe9c4b36f13e5ed0b72e2efa0507cf37affc4c5e44c7225993e591a2aff"` becomes `covered_digest: "v4:sha256:7fc32fe9c4b36f13e5ed0b72e2efa0507cf37affc4c5e44c7225993e591a2aff"`, over the same 23 covered files.
+
+### Spot-checks re-run (Re-verification (2026-11-21, after the code review's fixes))
+
+Every row was run on the tree at `2367f9df` (the commit `68-stale.mjs` named), one command at a time, in the foreground, with nothing else running beside it. Heavy commands were run once and their result is shared across the six phases' sections.
+
+| Behaviour | Command run now | Result now | Status |
+| --------- | --------------- | ---------- | ------ |
+| Revision headers and registers | `node scripts/spec-revise.mjs --check < /dev/null` | exit 0; `spec-revise: every Revision matches its newest Change History entry` | PASS |
+| Traceability | `bash spec/scripts/verify-traceability.sh --strict < /dev/null` | exit 0; `PASS: 21   FAIL: 0   SKIP: 0 (strict: skips count as failures)` | PASS |
+| What `8c3375fb` changed in the spec | `git show 8c3375fb -- spec` | `spec/README.md`: the Revision header (1.273 to 1.274), its Change History and the CCR-QD-459 row (ADR-QD-033 now cited at Rev 1.4). `spec/traceability.md`: the header (1.235 to 1.236), its Change History and the ADR-QD-033 row. `spec/decisions/033-*.md`: Revision 1.4 and the sentence on child timeouts. Every other row of both registers is unchanged | PASS |
+
+### Truths re-checked (Re-verification (2026-11-21, after the code review's fixes))
+
+The changed cited files are `spec/README.md` and `spec/traceability.md`. The truths that cite them rest on rows the change did not touch (last row above); only the Revision headers and the CCR-QD-459 and ADR-QD-033 rows moved, none of which this phase's truths cite. No code, script or test file this phase cites changed.
+
+**Verdict:** passed
