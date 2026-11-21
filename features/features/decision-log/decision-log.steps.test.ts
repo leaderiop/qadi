@@ -194,7 +194,8 @@ const takeLive = Effect.fn("decision-log.takeLive")(function* (count: number) {
 });
 
 /** A record's identity in a timeline: the slot it would occupy. */
-const slot = (stored: StoredRecord) => `${stored.record._tag}|${stored.environment}|${stored.record.evaluationId}|${stored.record.at}`;
+const slot = (stored: StoredRecord) =>
+  `${stored.record._tag}|${stored.environment}|${stored.record.evaluationId}|${stored.record.at}`;
 
 describeFeature(feature, World.layer, ({ After, Before, Given, When, Then }) => {
   Before(function* () {

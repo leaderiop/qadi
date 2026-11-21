@@ -119,9 +119,10 @@ export interface DecisionLog {
    * `decisionSinkForwarding`. It reaches the backlog **and** every live reader.
    *
    * `environment` is a parameter rather than the log's own: a merged log holds
-   * rows from several processes, and stamping them all with the aggregator's
-   * label would erase the one distinction the merge exists to preserve. It falls
-   * back to the log's own label for a caller ingesting its own records.
+   * rows from several processes, and an envelope carrying the aggregator's label
+   * on every one of them would erase the one distinction the merge exists to
+   * preserve. It falls back to the log's own label for a caller ingesting its own
+   * records.
    *
    * A defect on this path is not contained here. A record the log's own `layer`
    * receives comes through the sink emitter, which contains and reports a defect
@@ -217,7 +218,10 @@ export const makeDecisionLog = (options: {
 
     const append = (record: SinkRecord, environment: string): LogEntry => {
       seq += 1;
-      const entry: LogEntry = { cursor: { epoch, seq }, record: new StoredRecord({ environment, record }) };
+      const entry: LogEntry = {
+        cursor: { epoch, seq },
+        record: new StoredRecord({ environment, record }),
+      };
       entries = Chunk.append(entries, entry);
       if (Chunk.size(entries) > capacity) entries = Chunk.drop(entries, 1);
       return entry;

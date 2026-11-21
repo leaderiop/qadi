@@ -618,7 +618,10 @@ const fromEnvelope = (
 ): Result.Result<StoredRecord, SinkRecordNotDecodable> =>
   Result.isFailure(read)
     ? notDecodable(decodeRefusalOf(read.failure))
-    : Result.map(decodeSinkRecord(read.success.record), (record) => new StoredRecord({ environment: read.success.environment, record }));
+    : Result.map(
+        decodeSinkRecord(read.success.record),
+        (record) => new StoredRecord({ environment: read.success.environment, record }),
+      );
 
 /**
  * Untrusted input as a stored record, or the reason it is not one.
