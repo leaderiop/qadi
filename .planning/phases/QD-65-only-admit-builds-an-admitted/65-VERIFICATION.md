@@ -230,3 +230,41 @@ Every row was run on the tree at `2367f9df` (the commit `68-stale.mjs` named), o
 Only `spec/README.md` and `spec/traceability.md` changed among the cited files, in the rows named in the last spot-check row. The Revisions the report names (traceability 1.230, README 1.266) are Change History entries that remain; the header has moved on to 1.274 and 1.236, and a row records the Revision its change left. Truth 4 (the bench) is not touched: no `packages/*/src`, bench or `package.json` file changed.
 
 **Verdict:** passed
+
+## Re-verification (2026-11-21, after Phase 68.1)
+
+**Staleness:** `65: stale, verification 21977478, 30 cited, 3 changed since` (`68-stale.mjs`, run at `eb35816e`).
+
+| Cited file | Changed since `21977478` by |
+| --- | --- |
+| `package.json` | `ecb4ed90` fix(68.1-02): analyze.mjs exits 1 on a failed gate, and pnpm check runs its self-test |
+| `scripts/bench/ab.sh` | `c876dc54` fix(68.1-02): ab.sh refuses an odd round count |
+| `spec/README.md` | `a8b36092` docs(68.1-05): ADR-QD-033 amended and CCR-QD-460 recorded |
+
+**Trailers on this phase's commits:** 34 `Claude Opus 5.5 <noreply@anthropic.com>`, 2 none.
+
+**Validation record:** no VALIDATION.md.
+
+**Digest:** `covered_digest: "v4:sha256:34973f63d1c7418cdd77685e6b01cce1f4629f5f86f42bf878886da2ba77d65a"` becomes `covered_digest: "v4:sha256:34973f63d1c7418cdd77685e6b01cce1f4629f5f86f42bf878886da2ba77d65a"`, over the same 15 covered files.
+
+**Staleness by `68.1-stale.mjs`:** `65: stale, verification 21977478, 30 cited, 3 changed since` (run at `eb35816e`).
+
+### Spot-checks re-run (Re-verification (2026-11-21, after Phase 68.1))
+
+Every row was run on a tree whose tracked files outside the planning directory are those of `eb35816e`, one command at a time, in the foreground, with stdin closed and nothing else running beside it. The harness-order, spec-revise and traceability results are shared with the other re-verifications of this phase and were taken once at `c3d8553a`; no tracked file outside the planning directory differs between that head and `eb35816e` (`git diff --quiet c3d8553a eb35816e -- . ':(exclude).planning'` is silent). No source, test or characterisation file of Phase 65 changed in this phase, so the report's vitest, tstyche and pin-codes rows were not run again.
+
+| Behaviour | Command run now | Result now | Status |
+| --------- | --------------- | ---------- | ------ |
+| What the phase changed in the package manifest | `git diff -U0 0e3f3438 HEAD -- package.json` | two scripts-table changes and nothing else: `bench:self-test` is added (`node scripts/bench/analyze.mjs --self-test`) and `check` gains ` && pnpm bench:self-test` at its end, so it now has 18 steps where it had 17; `check:pr` (`node scripts/run-check.mjs --skip-mutation`), every other script the report cites and every dependency field are unchanged | PASS |
+| The bench harness's round order | `bash scripts/bench/ab.sh --print-order 4 final base < /dev/null` (shared) | exit 0; `final-1 base-1 base-2 final-2 final-3 base-3 base-4 final-4`, each arm first in two of the four rounds | PASS |
+| The harness refuses an odd round count | `bash scripts/bench/ab.sh --print-order 3 final base < /dev/null` (shared) | exit 2; the usage text ends `<rounds> must be even: odd rounds run the head arm first and even rounds the patched arm, so only an even count runs each arm first equally often`, and nothing is run | PASS |
+| What the phase changed in the spec register, and the revisions | `git diff -U0 0e3f3438 HEAD -- spec/README.md`, and `node scripts/spec-revise.mjs --check < /dev/null` (shared) | the Revision header (1.274 to 1.275), the Change History cell (a 1.275 entry in front) and one added row, CCR-QD-460, at line 397; no row is removed or edited, so the CCR-QD-456 row is still at line 393 as it was at the base, and the 1.266 entry the report cites is still in the cell; `spec-revise` exit 0, `spec-revise: every Revision matches its newest Change History entry` | PASS |
+| Traceability | `bash spec/scripts/verify-traceability.sh --strict < /dev/null` (shared) | exit 0; `PASS: 21   FAIL: 0   SKIP: 0 (strict: skips count as failures)` | PASS |
+
+### Changed cited files read against the truths that cite them (Re-verification (2026-11-21, after Phase 68.1))
+
+- `package.json` (68.1-02, `ecb4ed90`): the report names the manifest only in a sentence of its Phase 68 section (no `packages/*/src`, bench or manifest file changed), which describes the range of that section and is not a claim about this tree. The commit adds the `bench:self-test` script and appends it to `check`; no truth of this report reads a script that changed. The report's merge-gate row counts the steps of its own run (16 of 17, mutation being release-PR only), and that count belongs to the commit it names; `check` now has 18 steps and `check:pr` still removes only the mutation step. Truth 4 reads Phase 65's own recorded bench run, which this phase does not touch, so it is unchanged.
+- `scripts/bench/ab.sh` (68.1-02, `c876dc54`): the report cites it only in the Phase 68 section's note on Truth 4, that the harness of Phase 68's bench is not the one Phase 65 used and did not exist at the report's commit. That note holds. The commit makes the harness refuse an odd round count, which is the count Phase 68's 3-round run used; Truth 4's own measurement (3 + 3 rounds with the harness of the earlier phase, worst +1.6% against a 10% band) is Phase 65's recorded run, which this phase leaves as recorded, so Truth 4 is unchanged. Phase 68's `bench/final` is likewise left as recorded.
+- `spec/README.md` (68.1-05, `a8b36092`): the report cites the CCR-QD-456 row and Revision 1.266 (Truth 5). The row is unedited at line 393 and the 1.266 entry remains in the Change History cell; the commit moves the revision to 1.275 and adds the CCR-QD-460 row, which no truth of this report reads.
+
+**Verdict:** passed
