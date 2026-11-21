@@ -282,8 +282,7 @@ export const diffTraces = (before: Trace, after: Trace): ReadonlyArray<TraceDiff
       // The guard is `noUncheckedIndexedAccess` satisfaction, not a real
       // branch: the child-count check above continued already if the lengths
       // differed, so both are always present here. Mutation testing
-      // reports it as a survivor for that reason, as it does the identical
-      // guard in `DecisionCache`'s eviction loop.
+      // reports it as a survivor for that reason.
       if (child !== undefined && other !== undefined) {
         stack.push({ a: child, b: other, at: { parent: next.at, index: i } });
       }

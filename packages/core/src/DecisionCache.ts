@@ -19,7 +19,6 @@ import * as Effect from "effect/Effect";
 import * as HashMap from "effect/HashMap";
 import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
-import * as Option from "effect/Option";
 import type { Trace } from "./Decision.ts";
 import type { EvaluationError } from "./Errors.ts";
 import { decisionCacheLookupsTotal } from "./EvaluationMetrics.ts";
@@ -198,12 +197,13 @@ export class DecisionCache extends Context.Service<
  * nothing here claims "recently used" predicts "will be asked again" better
  * than "recently completed" does.
  *
- * `capacity`, when given, must be a non-negative integer. A negative one
- * would make the eviction loop's own exit condition (`size(entries) >
- * capacity`) unsatisfiable once `entries` empties out — an infinite loop, not
- * a small cache. A `NaN` one would make that same comparison always `false`,
- * silently turning "bounded" into unbounded instead of failing loudly. This
- * is checked here, at construction, rather than left to fail in whichever of
+ * `capacity`, when given, must be a non-negative integer. Eviction splits
+ * `size(entries) - capacity` keys off the front of the insertion order, and
+ * `Chunk.splitAt` rounds that count down to a whole number and reads a
+ * negative or `NaN` one as zero. A negative `capacity` would therefore evict
+ * every entry as it settled, a cache that silently retains nothing, and a
+ * `NaN` one would evict none, silently turning "bounded" into unbounded. This
+ * is checked here, at construction, rather than left to go wrong in either of
  * those two ways at the first eviction.
  *
  * A bad `capacity` is a defect and not a typed error, unlike a port's
@@ -240,12 +240,11 @@ export const decisionCacheLayer = (options?: {
       // unwritten-to when `capacity` is unset — the common case, per this file's
       // own doc comment — since nothing would ever read it.
       //
-      // A `Chunk`, not an `Array`: eviction pops from the front on every entry
-      // over capacity, and `Array.prototype.shift` is O(n) — it re-indexes every
-      // remaining element. `Chunk.drop(chunk, 1)` is O(1) amortized for this
-      // access pattern (push at the tail, drop from the head), so eviction under
-      // sustained pressure stays proportional to how much was evicted, not to
-      // how large the cache is.
+      // A `Chunk`, not an `Array`: eviction removes the oldest keys from the
+      // front, which `Array.prototype.shift` or `splice` does by re-indexing
+      // every key that remains. `Chunk.splitAt` is `Chunk.take` and
+      // `Chunk.drop`, and neither copies the keys it keeps: each builds a view
+      // over the chunks it already holds.
       let insertionOrder: Chunk.Chunk<Question> = Chunk.empty();
       // Single-flight (claim, join, hit, every waiter settled, last-leaver
       // interrupt) and its staleness rule (a reset supersedes every in-flight
@@ -258,34 +257,25 @@ export const decisionCacheLayer = (options?: {
             entries = HashMap.set(entries, key, exit.value);
             // Recorded, and evicted from, only when `capacity` was given —
             // the unbounded default (the common case, per this file's own
-            // doc comment) has nothing that will ever read this array, so
+            // doc comment) has nothing that will ever read this order, so
             // it stays empty rather than growing in lockstep with `entries`
             // for the life of the cache.
             if (options?.capacity === undefined) return;
             insertionOrder = Chunk.append(insertionOrder, key);
-            // FIFO eviction: a `while` rather than an `if` because a caller
-            // who lowers `capacity` between two `decisionCacheLayer()`
-            // calls is not a case this loop should special-case to "evict
-            // one" and leave still over budget. Always terminates:
-            // `capacity` is validated non-negative-integer at construction,
-            // so `size(entries)` — a non-negative integer that strictly
-            // decreases each iteration — reaches it in finitely many steps.
-            while (HashMap.size(entries) > options.capacity) {
-              // `Chunk.size(insertionOrder) === HashMap.size(entries)`
-              // always — every append here has exactly one corresponding
-              // `entries` insert (a key is claimed by one fiber at a time,
-              // and a hit never claims, so it is appended once per
-              // completed walk nobody else answered), and eviction
-              // always removes one of each —
-              // so this loop's own condition (`size(entries) > capacity >=
-              // 0`) guarantees `insertionOrder` is non-empty. The `Option`
-              // check exists for that same reason `noUncheckedIndexedAccess`
-              // forced a guard on the old `Array` version, not because this
-              // can happen.
-              const oldest = Chunk.head(insertionOrder);
-              insertionOrder = Chunk.drop(insertionOrder, 1);
-              if (Option.isSome(oldest)) entries = HashMap.remove(entries, oldest.value);
-            }
+            // FIFO eviction: the oldest keys beyond `capacity` leave together,
+            // in the step that inserted the newest. `Chunk.size(insertionOrder)
+            // === HashMap.size(entries)` always: a key is claimed by one fiber
+            // at a time and a hit never claims, so each append here has exactly
+            // one `entries` insert, and eviction removes the same keys from
+            // both. The split therefore takes exactly the overflow, and nothing
+            // when there is none: `Chunk.splitAt` takes no keys for a count of
+            // zero or below.
+            const [evicted, kept] = Chunk.splitAt(
+              insertionOrder,
+              HashMap.size(entries) - options.capacity,
+            );
+            entries = HashMap.removeMany(entries, evicted);
+            insertionOrder = kept;
           }
         },
         onOutcome: (outcome) => Metric.update(decisionCacheLookupsTotal, outcome),
