@@ -19,7 +19,7 @@ covered_files:
   - "packages/core/src/Admission.ts"
   - "packages/core/test/Admission.test.ts"
   - "packages/core/test/WalkEnvironment.tst.ts"
-covered_digest: "v4:sha256:88da6f09d5bf6a044568a9835f03e996e2606dc8739e4b59b6e999b175c3dc91"
+covered_digest: "v4:sha256:34973f63d1c7418cdd77685e6b01cce1f4629f5f86f42bf878886da2ba77d65a"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
@@ -140,3 +140,62 @@ The double reads of `policy`, `maxDepth` and `subject` (stated in the comments a
 
 _Verified: 2026-11-20_
 _Verifier: Claude (gsd-verifier)_
+
+## Re-verification (2026-11-21, Phase 68 sweep)
+
+**Staleness:** `65: stale, verification 30582032, 24 cited, 7 changed since` (`68-stale.mjs`, run at `1d472db7`).
+
+| Cited file | Changed since `30582032` by |
+| --- | --- |
+| `.planning/phases/QD-65-only-admit-builds-an-admitted/pin-codes.mjs` | `35597a5c` fix(68-09): the completed phases' record scripts fixed where their records still pass |
+| `packages/core/src/Admission.ts` (covered) | `0136e327` fix(68-04): admit reads each field of the question once |
+| `packages/core/test/Admission.test.ts` (covered) | `045b00bf` test(68-03): pin admit's single read, a second and a nested unknown key, and two accessor readings |
+| `scripts/spec-revise.mjs` | `564818c0` fix(68-01): spec-revise keeps its first argument when --date is not given |
+| `spec/README.md` | `eacfeb6c` docs(68-11): CCR-QD-459, the settled items confirmed, and the devtools patch changeset<br>`82f87b4f` (before Phase 68) docs(67): the later bench run's miss deltas are not the dispatch's alone<br>`e5c18e6f` (before Phase 68) fix(67): IN-04 state the dispatch run's base spreads and host load beside the verdict<br>`36036666` (before Phase 68) fix(67): IN-03 move the dispatch measurement into the evidence document<br>`dea2afb4` (before Phase 68) docs(67-06): BEH-QD-166's reasons and INV-QD-379, traced and registered as CCR-QD-458<br>`a25de426` (before Phase 68) fix(66): WR-01, IN-01, IN-04 state the spec text exactly<br>`f62f450d` (before Phase 68) docs(66-04): ADR-QD-170 amended, BEH-QD-666 and INV-QD-377, traced and registered as CCR-QD-457 |
+| `spec/overview.md` | `f62f450d` (before Phase 68) docs(66-04): ADR-QD-170 amended, BEH-QD-666 and INV-QD-377, traced and registered as CCR-QD-457 |
+| `spec/traceability.md` | `5b603fea` docs(68-10): the amended decisions, behaviours and invariants say what the code holds<br>`faec4fab` docs(68-07): the characterisation's readings, the projection's accessors, the admit pins and the supplied trace<br>`dea2afb4` (before Phase 68) docs(67-06): BEH-QD-166's reasons and INV-QD-379, traced and registered as CCR-QD-458<br>`a25de426` (before Phase 68) fix(66): WR-01, IN-01, IN-04 state the spec text exactly<br>`f62f450d` (before Phase 68) docs(66-04): ADR-QD-170 amended, BEH-QD-666 and INV-QD-377, traced and registered as CCR-QD-457 |
+
+**Trailers on this phase's commits:** 34 `Claude Opus 5.5 <noreply@anthropic.com>`, 2 none.
+
+**Validation record:** no VALIDATION.md.
+
+**Digest:** `covered_digest: "v4:sha256:88da6f09d5bf6a044568a9835f03e996e2606dc8739e4b59b6e999b175c3dc91"` becomes `covered_digest: "v4:sha256:34973f63d1c7418cdd77685e6b01cce1f4629f5f86f42bf878886da2ba77d65a"`, over the same 15 covered files.
+
+### Spot-checks re-run (Phase 68 sweep)
+
+Every row below was run on the tree at `1d472db7`, one command at a time, in the foreground, with nothing else running beside it.
+
+| Behavior | Command run now | Result now | Status |
+| -------- | --------------- | ---------- | ------ |
+| Admission and LeafMatrix suites | `pnpm exec vitest run packages/core/test/Admission.test.ts packages/core/test/LeafMatrix.test.ts < /dev/null` | exit 0; `Test Files  2 passed (2)`, `Tests  25 passed (25)`; the report's 22 plus the three tests Phase 68 added (E11 to E13: the policy, the bound and the subject each read once) | PASS |
+| Construction pins | `node node_modules/tstyche/dist/bin.js --config tstyche.json packages/core/test/WalkEnvironment.tst.ts < /dev/null` | exit 0; `Tests: 6 passed, 6 total`, `Assertions: 23 passed, 23 total`, `Suppressed: 2 matched, 2 total`, the same as the report | PASS |
+| Pin codes | `node .planning/phases/QD-65-only-admit-builds-an-admitted/pin-codes.mjs < /dev/null`, as 68-09 left it | exit 0; `TS2673 62: new Admitted("asked", policy, subject, ...` and `TS2741 68: const forged: Admitted<"asked"> = {`, then `pin-codes: 2 diagnostic(s) in WalkEnvironment.tst.ts under TypeScript 6.0.3`; the same two codes at the same two lines as the report, and the script now counts what it read | PASS |
+| Traceability | `bash spec/scripts/verify-traceability.sh --strict < /dev/null` | exit 0; `PASS: 21   FAIL: 0   SKIP: 0 (strict: skips count as failures)` | PASS |
+| Revision headers | `node scripts/spec-revise.mjs --check < /dev/null` | exit 0; `spec-revise: every Revision matches its newest Change History entry` | PASS |
+| Merge gate | `pnpm check:pr < /dev/null` is not run here, so that the one run of the phase is the one that covers the tree its last plan leaves | Answered by the single `check:pr` run in plan 68-15, which reads the whole tree; this verdict stands only while that run is green | ANSWERED BY 68-15 |
+| Revision headers at HEAD | the `Revision` line of each file the report names, read from its header on this tree | `spec/behaviors/05-evaluator.md` 1.21, `spec/invariants.md` 1.168, `spec/traceability.md` 1.235, ADR-QD-172 1.4, `spec/README.md` 1.273, all agreeing with their newest Change History entry (the row above). The report's 1.19, 1.163, 1.230, 1.2 and 1.266 were the headers at its commit; later phases moved each, and the CCR-QD-456 row still names the revisions it left, as a record of that change | PASS |
+| Traceability at HEAD | the Traceability row above, the same run | `PASS: 21   FAIL: 0   SKIP: 0` | PASS |
+| Code unchanged since the bench | `git diff 6c4be029 b56f32c0 -- packages`, the range the report states (`b56f32c0` is the HEAD it names), then the same against `HEAD` | on the report's range: 1 file, `Admission.ts`, 6 changed lines, all in comments, as the report says. Against `HEAD` it is not unchanged: Phase 68 changed `packages/core/src/Admission.ts` in code (see below) | PASS on the report's range; CHANGED BY 68-04 on the current tree, answered below |
+
+The two checks of Truth 2 that read the tree were also re-run on it: `admit(question, "asked")` is still at `Walk.ts` line 878 and `admit(question, "row")` at `Predicate.ts` line 664, `git diff --name-only d1ac1df0 HEAD -- ':(glob)packages/core/src/Walk.ts' ':(glob)packages/core/src/Predicate.ts'` lists 0 files, and `git grep 'new Admitted'` over `packages/*/src` finds the constructor call only in `Admission.ts` and the unrelated `packages/audit/src/CircuitBreaker.ts:484`. `Admission.ts` still holds `declare private readonly nominal: never;`, `private constructor(`, `static admit<Source extends RowSource>(` and `export const admit = Admitted.admit;`.
+
+### Changed covered files read against the truths that cite them (Phase 68 sweep)
+
+- `packages/core/src/Admission.ts` (68-04, `0136e327`): Truths 2, 3 and 5 still hold; Truth 4 is answered below. `admit` now reads `policy`, `maxDepth` and `subject` once, at its top (`const { policy, maxDepth, subject } = question;`), judges the depth on that `policy` against that `maxDepth`, and builds the matcher context from that `subject` and from the question's `resource` and `action`, each read once. The private constructor, the `nominal` member, the static method that names `Admitted` and never `this`, and the context-derived `SUPPLIED` flags are unchanged, so Truths 1 and 2 are untouched. Truth 3's claim that the flags are derived from the one context `admit` builds, and that the question's resource and action are read once, is now stronger: every field is read once. Truth 5's text-vs-code audit has rows the change makes inaccurate as written, the report's "`question.policy` is read twice and `question.maxDepth` is read twice or more, and the comment says so" and the ADR-QD-172 and INV-QD-375 wording that the depth check reads `policy` and `maxDepth` apart no longer describe the code. The texts were amended with it and now agree with the code: the doc comments in `Admission.ts`, ADR-QD-172's 2026-11-21 amendment, BEH-QD-662 (`admit` MUST read each field of the question once) and the enforcement lines of INV-QD-375 and INV-QD-376 (E11 to E13) all say each field is read once.
+- `packages/core/test/Admission.test.ts` (68-03, `045b00bf`): Truth 3 still holds. The change adds 55 lines and removes none, and the three tests it adds (E11, E12, E13) are the ones that pin the single read of the policy, the bound and the subject; E1 to E10 and `LeafMatrix.test.ts` are untouched and pass (row 1).
+- Cited, not covered, and changed since: `.planning/phases/QD-65-only-admit-builds-an-admitted/pin-codes.mjs` (68-09) reads TypeScript through tstyche's own store instead of a fixed pnpm path and counts its output; it prints the same two codes (row 3), and the report's earlier review item about the script's pnpm path is the reason it changed. `spec/README.md`, `spec/overview.md` and `spec/traceability.md` were moved on by later phases (see the revision row); the Truth 5 audit's `spec/overview.md` finding stands (the phase is package-private, no row needed) and the traceability rows for INV-QD-375/376, ADR-QD-172 and the two test files are present and pass the strict check. `scripts/spec-revise.mjs` (68-01) keeps its first argument when `--date` is not given, which the `--check` row does not use.
+
+### Truth 4 after Phase 68 changed `Admission.ts`
+
+Truth 4 as written (a 3 + 3 bench of the committed source against Phase 65's base, Phase 59's harness and bands, no workload slower beyond its band, "no code token changed after the bench") is not reproduced by the tree: the code of `Admission.ts` changed after that bench, so the sentence "no code token changed" is no longer true of the tree, and the harness Phase 68 ran is not the one Phase 65 used (`scripts/bench/ab.sh` did not exist at the report's commit; it is 68-01's shared harness). The bench of record in Phase 68 measures the tree as it is: its `final` arm is `packages/*/src` at `769bf57c`, and no `packages/*/src` file has changed since (`git diff --name-only 769bf57c HEAD -- ':(glob)packages/**/src/**'` lists 0 files); its base is Phase 68's base `3d66becb`, so it measures Phase 68's changes, not Phase 65's, over the same 35 workloads. Its gate was fixed before the run and is stricter than Phase 65's (no workload more than 5% slower, a geometric mean no worse than +2%, against Phase 65's `max(10%, the base's spread)` band) and it passed: `# slower: 0`, `# geomean_d_min_pct: 0.01`, worst `+4.7%` on `evaluate :: field-heavy — anyOf of 8 under Union`, whose reference spread was 2.1%, so that delta is above its noise and below the 5% limit; its record does not read it as zero cost. The two arms differ in six source files (`Admission.ts`, `DecisionLog.ts`, `SinkCodec.ts`, `UntrustedDecode.ts` and two devtools feed files), and the run does not attribute the delta to one. Two measurements joined are therefore what stands behind ADMT-04 now, and one thing is not measured: no single run compares today's tree with Phase 65's base `d1ac1df0`. Phase 65's own measurement (worst `+1.6%` against a 10% band) is the part taken from the report; this section does not run the bench, which is Phase 68's one run of record.
+
+### Notes on the original report's evidence
+
+Kept whole above; recorded here, not edited.
+
+- The report's `git diff d1ac1df0 HEAD -- packages` and `git diff 6c4be029 HEAD -- packages` use the pathspec `packages`, which selects every file below the directory, so neither is vacuous; both were true of the range the report names and are re-run on that range above.
+- The report's Requirements Coverage rows for WX-01 to WX-07 describe Phase 65's own range and are not re-run here. WX-05's `Admission.ts` row (18 of 18 to 20 of 20) is joined by Phase 68's own close: `Admission.ts` 20 of 20 killed or detected at both the base and the close of that phase, with no survivor.
+- The report's review items IN-02 (the constructor pin's "positive control" is not a twin of the call it guards) and IN-03 (`pin-codes.mjs` is tied to one pnpm store path and prints nothing on success) were "deferred to the milestone audit". Phase 68 settled both: the spec texts now say the `@ts-expect-error` pins are read by the gate as refused whatever the code and that only the literal pin has a positive control of its own, and `pin-codes.mjs` no longer depends on a store path and counts what it read. `WalkEnvironment.tst.ts` itself is unchanged since the report.
+- The report records no validation file; none exists.
+
+**Verdict:** passed
