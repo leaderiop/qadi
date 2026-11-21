@@ -86,6 +86,20 @@ const fail = (message) => failures.push(message);
 /** A child that hangs would hang `pnpm check`; each is killed after this long, which a cold `pnpm build` stays well inside. */
 const CHILD_TIMEOUT_MS = 600_000;
 
+/** What to print for a failed `execFileSync` child: a killed child's output is empty, so its cause is named, then any output. */
+const why = (error) =>
+  [
+    error.code === "ETIMEDOUT"
+      ? `timed out after ${CHILD_TIMEOUT_MS} ms`
+      : error.signal
+        ? `killed by ${error.signal}`
+        : undefined,
+    error.stdout,
+    error.stderr,
+  ]
+    .filter(Boolean)
+    .join("\n") || error.message;
+
 /**
  * The type-only names check 4's consumer must use as a type.
  *
@@ -182,7 +196,7 @@ for (const { dir, manifest } of publicPackages) {
 try {
   execFileSync("pnpm", ["build"], { cwd: ROOT, encoding: "utf8", stdio: "pipe", timeout: CHILD_TIMEOUT_MS });
 } catch (error) {
-  console.error(error.stdout ?? error.message);
+  console.error(why(error));
   console.error("\npackage-install: pnpm build FAILED, so there is no artifact to check.");
   process.exit(1);
 }
@@ -347,7 +361,7 @@ try {
     runtimeExports += total;
   }
 } catch (error) {
-  fail(`importing the packed packages failed:\n${error.stderr ?? error.message}`);
+  fail(`importing the packed packages failed:\n${why(error)}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -427,7 +441,7 @@ try {
   });
   for (const problem of JSON.parse(output.trim().split("\n").at(-1) ?? "[]")) fail(problem);
 } catch (error) {
-  fail(`probing the entry-point list failed:\n${error.stderr ?? error.message}`);
+  fail(`probing the entry-point list failed:\n${why(error)}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -815,7 +829,7 @@ if (failures.length === 0) {
       timeout: CHILD_TIMEOUT_MS,
     });
   } catch (error) {
-    fail(`the consumer does not type-check against the shipped .d.ts:\n${error.stdout ?? error.message}`);
+    fail(`the consumer does not type-check against the shipped .d.ts:\n${why(error)}`);
   }
 }
 
@@ -867,7 +881,7 @@ if (failures.length === 0) {
     });
     called = new Set(existsSync(FEED_CALLS) ? readFileSync(FEED_CALLS, "utf8").split("\n").filter(Boolean) : []);
   } catch (error) {
-    fail(`the consumer failed at runtime:\n${error.stdout ?? ""}${error.stderr ?? error.message}`);
+    fail(`the consumer failed at runtime:\n${why(error)}`);
   }
 }
 
@@ -891,7 +905,7 @@ if (consumerReady) {
     }
   } catch (error) {
     feeds = undefined;
-    fail(`reading the packed @qadi/devtools exports failed:\n${error.stderr ?? error.message}`);
+    fail(`reading the packed @qadi/devtools exports failed:\n${why(error)}`);
   }
 
   let seen;
