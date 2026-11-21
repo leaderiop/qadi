@@ -4,19 +4,19 @@ milestone: v1.7
 milestone_name: Arch Wave 12
 current_phase: 68
 current_phase_name: Hygiene and recorded close-outs
-current_plan: 4
+current_plan: 5
 status: executing
-stopped_at: Completed QD-68-03-PLAN.md
-last_updated: "2026-11-21T05:26:36.746Z"
+stopped_at: Completed 68-04-PLAN.md
+last_updated: "2026-11-21T05:29:59.291Z"
 last_activity: 2026-11-21
 last_activity_desc: Phase 67 complete, transitioned to Phase 68
-state_head: 884eef8f57697951b9670e08c0b1021510c2f6cd
+state_head: 17b50501f8ef035345c8fd64624b29279e3918a1
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 51
-  completed_plans: 39
-  percent: 76
+  completed_plans: 40
+  percent: 78
 ---
 
 # Project State
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-20)
 ## Current Position
 
 Phase: 68 (Hygiene and recorded close-outs) — EXECUTING
-Current Plan: 4
+Current Plan: 5
 Total Plans in Phase: 15
 Status: Ready to execute
 Last activity: 2026-11-21 — Phase 67 complete, transitioned to Phase 68
@@ -462,6 +462,7 @@ Last activity: 2026-11-21 — Phase 67 complete, transitioned to Phase 68
 | Phase QD-68 P01 | 25 min | 3 tasks | 7 files |
 | Phase QD-68 P02 | 6 min | 2 tasks | 1 files |
 | Phase QD-68 P03 | 2 min | 3 tasks | 7 files |
+| Phase QD-68 P04 | 25 min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -783,6 +784,7 @@ Last activity: 2026-11-21 — Phase 67 complete, transitioned to Phase 68
 - [Phase QD-67]: 67-06: records follow choice table; CCR-QD-458 cites Rev 1.12/1.166/1.233/1.269; ADR-QD-180, BEH-QD-671-675, INV-QD-380 Unused
 - [Phase QD-67]: 67-07: the close left no open mutant (38/38, 42/42, 71/71), so no test was appended and no spec revised; check:pr green once on dfeffed6
 - [Phase QD-68]: OI-24 fixed forward: one shared scripts/bench/ab.sh alternating arm order by round; Phase 59/66/67 harness copies stay; not wired into pnpm check
+- [Phase QD-68]: OI-09 fixed by try/finally around the emptied timeline's publish; the Stopped-feed residue (a status listener throwing on the Reading replaces the timeline listener's throw, no read started) is stated in every text and pinned by TF29. OI-03 subsumed.
 
 ### Pending Todos
 
@@ -848,8 +850,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-21T05:26:36.266Z
-Stopped at: Completed QD-68-03-PLAN.md
+Last session: 2026-11-21T05:29:58.806Z
+Stopped at: Completed 68-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
