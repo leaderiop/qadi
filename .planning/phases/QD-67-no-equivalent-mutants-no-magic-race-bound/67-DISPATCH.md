@@ -129,6 +129,16 @@ Top process above 50% CPU in 10 of 12 load files:
 - table-3.load-after: 56.2% specforge
 - table-3.load-before: 56.8% specforge
 
+## What the runs hold
+
+Added after the phase's code review (IN-04). The choice below follows the rule as fixed and is not changed by this note.
+
+- The match run's base spreads were 15.0, 12.7, 6.0, 7.6 and 6.0% (6.0% to 15.0%), above the 5% band the gate applies to the deltas. The table run's were 1.6, 1.8, 1.1, 3.1 and 1.8% (1.1% to 3.1%). The spread is recorded and decides nothing.
+- The match run started at load 3.86 and the table run at 10.22, rising to 16.09 by its last run. The two runs did not see the same host.
+- A run of the committed source against the base under the same gate (`67-BENCH.md`) gave `miss` +2.8% and `miss, capacity-bound` +1.0%: the same direction as the match deltas, smaller.
+
+So "the `Match` form failed the gate" is a verdict on one run per form, not a measured constant for what that form costs. The durable statement is `spec/process/house-rules-evidence.md` §2.
+
 ## Choice
 
 The match run fails the gate (2 workloads slower, geometric mean of the deltas +1.87%) and the table run passes it (0 workloads slower, geometric mean -4.15%), so the rule takes `table`.
