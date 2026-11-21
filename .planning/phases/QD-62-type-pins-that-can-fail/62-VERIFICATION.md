@@ -203,3 +203,40 @@ Every row was run on the tree at `2367f9df` (the commit `68-stale.mjs` named), o
 The changed cited files are `spec/README.md` and `spec/traceability.md`. The truths that cite them rest on rows the change did not touch (last row above); only the Revision headers and the CCR-QD-459 and ADR-QD-033 rows moved, none of which this phase's truths cite. No code, script or test file this phase cites changed.
 
 **Verdict:** passed
+
+## Re-verification (2026-11-21, after Phase 68.1)
+
+**Staleness:** `62: stale, verification 9a92e1d3, 33 cited, 3 changed since` (`68-stale.mjs`, run at `f91b9f4b`).
+
+| Cited file | Changed since `9a92e1d3` by |
+| --- | --- |
+| `package.json` | `ecb4ed90` fix(68.1-02): analyze.mjs exits 1 on a failed gate, and pnpm check runs its self-test |
+| `spec/README.md` | `a8b36092` docs(68.1-05): ADR-QD-033 amended and CCR-QD-460 recorded |
+| `spec/decisions/index.yaml` | `a8b36092` docs(68.1-05): ADR-QD-033 amended and CCR-QD-460 recorded |
+
+**Trailers on this phase's commits:** 35 `Claude Sonnet 5.5 <noreply@anthropic.com>`, 13 none, 4 `Claude Opus 5.5 <noreply@anthropic.com>`.
+
+**Validation record:** `62-VALIDATION.md` has status `draft` and nyquist_compliant `false`.
+
+**Digest:** `covered_digest: "v4:sha256:7fc32fe9c4b36f13e5ed0b72e2efa0507cf37affc4c5e44c7225993e591a2aff"` becomes `covered_digest: "v4:sha256:7fc32fe9c4b36f13e5ed0b72e2efa0507cf37affc4c5e44c7225993e591a2aff"`, over the same 23 covered files.
+
+**Staleness by `68.1-stale.mjs`:** `62: stale, verification 9a92e1d3, 33 cited, 3 changed since` (run at `f91b9f4b`).
+
+### Spot-checks re-run (Re-verification (2026-11-21, after Phase 68.1))
+
+Every row was run on the tree at `f91b9f4b`, one command at a time, in the foreground, with stdin closed and nothing else running beside it. The spec-revise and traceability results are shared with the Phase 63, 64, 65, 66 and 67 sections of this re-verification: each was taken once at `c3d8553a`, and no tracked file outside the planning directory differs between that head and `f91b9f4b`.
+
+| Behaviour | Command run now | Result now | Status |
+| --------- | --------------- | ---------- | ------ |
+| What the phase changed in the spec register | `git diff -U0 0e3f3438 HEAD -- spec/README.md`, and `node scripts/spec-revise.mjs --check < /dev/null` (shared) | 3 insertions and 2 deletions: the Revision header (1.274 to 1.275), the Change History cell (a 1.275 entry in front of the 1.274 one) and one added row, CCR-QD-460, at line 397; no table row is removed or edited, so CCR-QD-453's row (line 390) and every row the report cites are unchanged; `spec-revise` exit 0, `spec-revise: every Revision matches its newest Change History entry` | PASS |
+| What the phase changed in the decision index | `git diff -U0 0e3f3438 HEAD -- spec/decisions/index.yaml` | one hunk, at line 136: ADR-QD-033's `status:` line; the ADR-QD-175 entry (line 549) and every other entry are unchanged | PASS |
+| What the phase changed in the package manifest | `git diff -U0 0e3f3438 HEAD -- package.json`, and `grep -n '"test:tstyche"' package.json` | two hunks: the new `bench:self-test` script (line 28) and `check` gaining ` && pnpm bench:self-test`; `test:tstyche` is still `node scripts/run-tstyche.mjs` at line 25, as at the base; no dependency field is touched | PASS |
+| Traceability | `bash spec/scripts/verify-traceability.sh --strict < /dev/null` (shared) | exit 0; `PASS: 21   FAIL: 0   SKIP: 0 (strict: skips count as failures)` | PASS |
+
+### Changed cited files read against the truths that cite them (Re-verification (2026-11-21, after Phase 68.1))
+
+- `package.json` (`ecb4ed90`): the report cites it for Truth 4 (`test:tstyche` runs the runner) and in its artifacts table (the runner is wired through it). Both still hold: the `test:tstyche` script is unchanged, and the only changes are a new script and one more step at the end of `check`, which neither truth reads.
+- `spec/README.md` (`a8b36092`): the report cites it for the CCR-QD-453 registration (line 390), which Truth 3 and the artifacts table rely on. The row is where it was and unedited; the commit adds the CCR-QD-460 row at the end of the register and moves the revision, nothing a truth of this report reads.
+- `spec/decisions/index.yaml` (`a8b36092`): the report cites it, with ADR-QD-175, as present. ADR-QD-175's entry is unchanged; the one line that changed belongs to ADR-QD-033, which no truth of this report cites.
+
+**Verdict:** passed
