@@ -4,18 +4,19 @@ milestone: v1.7
 milestone_name: Arch Wave 12
 current_phase: 68
 current_phase_name: Hygiene and recorded close-outs
+current_plan: 2
 status: executing
-stopped_at: Phase 67 complete, ready to plan Phase 68
-last_updated: "2026-11-21T05:17:34.898Z"
+stopped_at: Completed QD-68-01-PLAN.md
+last_updated: "2026-11-21T05:20:45.222Z"
 last_activity: 2026-11-21
 last_activity_desc: Phase 67 complete, transitioned to Phase 68
-state_head: 735acfe8d18a0f5f56a23c2f93b4452cc4045551
+state_head: 804f5b49ee916b8ec612e5cc82fda55085338db3
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 51
-  completed_plans: 36
-  percent: 71
+  completed_plans: 37
+  percent: 73
 ---
 
 # Project State
@@ -29,8 +30,9 @@ See: .planning/PROJECT.md (updated 2026-11-20)
 
 ## Current Position
 
-Phase: 68 (Hygiene and recorded close-outs) — READY TO EXECUTE
-Plan: Not started
+Phase: 68 (Hygiene and recorded close-outs) — EXECUTING
+Current Plan: 2
+Total Plans in Phase: 15
 Status: Ready to execute
 Last activity: 2026-11-21 — Phase 67 complete, transitioned to Phase 68
 
@@ -457,6 +459,7 @@ Last activity: 2026-11-21 — Phase 67 complete, transitioned to Phase 68
 | Phase QD-67 P05 | 2 min | 2 tasks | 23 files |
 | Phase QD-67 P06 | 20 min | 2 tasks | 5 files |
 | Phase QD-67 P07 | 12 min | 3 tasks | 3 files |
+| Phase QD-68 P01 | 25 min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -777,6 +780,7 @@ Last activity: 2026-11-21 — Phase 67 complete, transitioned to Phase 68
 - [Phase QD-67]: 67-05: the run of record passed the fixed gate on its one run (slower 0, geomean -2.51%); the bench is the last executable change
 - [Phase QD-67]: 67-06: records follow choice table; CCR-QD-458 cites Rev 1.12/1.166/1.233/1.269; ADR-QD-180, BEH-QD-671-675, INV-QD-380 Unused
 - [Phase QD-67]: 67-07: the close left no open mutant (38/38, 42/42, 71/71), so no test was appended and no spec revised; check:pr green once on dfeffed6
+- [Phase QD-68]: OI-24 fixed forward: one shared scripts/bench/ab.sh alternating arm order by round; Phase 59/66/67 harness copies stay; not wired into pnpm check
 
 ### Pending Todos
 
@@ -842,8 +846,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-21T02:13:04.107Z
-Stopped at: Phase 67 complete, ready to plan Phase 68
+Last session: 2026-11-21T05:20:35.709Z
+Stopped at: Completed QD-68-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
