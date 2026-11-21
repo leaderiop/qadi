@@ -78,14 +78,14 @@ Every phase runs on branch `arch-wave-12`, strictly serial.
 
 ### No equivalent mutants, no magic race bound (Phase 67, ARCH-114, core; D5)
 
-- [ ] **MUTE-01**: `DecisionCache.ts`'s eviction has no branch that cannot be taken, FIFO order and capacity validation are
+- [x] **MUTE-01**: `DecisionCache.ts`'s eviction has no branch that cannot be taken, FIFO order and capacity validation are
   unchanged, and the former surviving mutant no longer exists or is killed.
-- [ ] **MUTE-02**: `SharedComputation.ts`'s claim result is dispatched closed, so mutating any of its tags is killed; the
+- [x] **MUTE-02**: `SharedComputation.ts`'s claim result is dispatched closed, so mutating any of its tags is killed; the
   form is chosen after a `DecisionCache.bench.ts` measurement, and no `switch` or `// Stryker disable` is added.
-- [ ] **MUTE-03**: The I5 race test iterates until both orderings are observed at every budget, with a cap that fails
+- [x] **MUTE-03**: The I5 race test iterates until both orderings are observed at every budget, with a cap that fails
   loudly, a margin past the first flip, and no number tied to `walk`'s step count; it is shown RED with the I5 fix
   temporarily reverted.
-- [ ] **MUTE-04**: The Stryker scores of `DecisionCache.ts`, `SharedComputation.ts` and `Lifecycle.ts` do not fall below
+- [x] **MUTE-04**: The Stryker scores of `DecisionCache.ts`, `SharedComputation.ts` and `Lifecycle.ts` do not fall below
   Phase 61's (0.977, 0.986, 1.000), and both named survivors are gone.
 
 ### Hygiene and recorded close-outs (Phase 68, ARCH-115; D3, D8, D9)
@@ -168,10 +168,10 @@ The seven WX rows apply to every phase 62 to 68, so each phase's Requirements li
 | DECL-02 | Phase 66 | Complete |
 | DECL-03 | Phase 66 | Complete |
 | DECL-04 | Phase 66 | Complete |
-| MUTE-01 | Phase 67 | Pending |
-| MUTE-02 | Phase 67 | Pending |
-| MUTE-03 | Phase 67 | Pending |
-| MUTE-04 | Phase 67 | Pending |
+| MUTE-01 | Phase 67 | Complete |
+| MUTE-02 | Phase 67 | Complete |
+| MUTE-03 | Phase 67 | Complete |
+| MUTE-04 | Phase 67 | Complete |
 | HYGN-01 | Phase 68 | Pending |
 | HYGN-02 | Phase 68 | Pending |
 | HYGN-03 | Phase 68 | Pending |
