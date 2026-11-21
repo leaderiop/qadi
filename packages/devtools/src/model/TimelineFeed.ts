@@ -59,9 +59,7 @@ export interface TimelineStatusReadout {
    * called, and then what they threw is rethrown out of whatever published: one value as
    * itself, several as one `AggregateError`. A throw on the `Reading` that `restart` or
    * `configure` publishes over a `Stopped` escapes before the new read is started, so the
-   * status says `Reading` with nothing reading. A throw on the `configure` that changes the
-   * capacity, which publishes the emptied timeline first, leaves before any read is started:
-   * a source handed in by that call is not read, and `restart` is what reads it.
+   * status says `Reading` with nothing reading.
    */
   readonly subscribe: (listener: () => void) => () => void;
   readonly getSnapshot: () => TimelineStatus;
@@ -72,16 +70,20 @@ export interface TimelineFeed {
   /**
    * Stable across a capacity change: a different bound empties it, it does not replace it.
    * Every listener on its `subscribe` is called, and it runs on every record; what they
-   * threw is rethrown out of whatever published, and the rest of that call does not run.
+   * threw is rethrown out of whatever published, and the rest of that call does not run,
+   * except that a capacity change goes on to start the read that refills it (see `configure`).
    */
   readonly timeline: TimelineStore;
   /** Where the read stands. */
   readonly status: TimelineStatusReadout;
   /**
-   * Re-reads only when the capacity or the source moved. An omitted input reads as `undefined`. Does nothing once the
-   * feed's scope has closed. A listener that throws on the timeline publish a capacity change makes ends the call
-   * before the read: the previous read goes on, a new source is not read, and the same inputs configured again do
-   * not read it either. `status.restart` does.
+   * Re-reads only when the capacity or the source moved. An omitted input reads as
+   * `undefined`. Does nothing once the feed's scope has closed. A capacity change publishes
+   * the emptied timeline and then starts the read that refills it, from the same source or
+   * a new one; what a listener throws on that publish is rethrown once the read has started,
+   * unless the feed was `Stopped` and a status listener throws on the `Reading` that read
+   * publishes: that throw escapes instead, replaces the timeline listener's, and no read is
+   * started (the window `status` describes).
    */
   readonly configure: (inputs: TimelineFeedInputs) => void;
 }
@@ -175,9 +177,16 @@ export const makeTimelineFeed = Effect.fn("qadi.devtools.makeTimelineFeed")(func
         // The old store is dropped, not unsubscribed from: nothing can reach it again.
         inner = bounded(next.capacity);
         inner.subscribe(push);
-        push();
-      }
-      if (resized || next.source !== before.source) readSource(next.source);
+        // The emptied timeline is published first; what a listener throws there is
+        // rethrown once the read that refills it has started, unless a status listener's
+        // throw on that read's `Reading` escapes from the `finally` and replaces the
+        // timeline listener's.
+        try {
+          push();
+        } finally {
+          readSource(next.source);
+        }
+      } else if (next.source !== before.source) readSource(next.source);
     },
   };
 });

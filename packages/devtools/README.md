@@ -168,10 +168,12 @@ notification), one value as itself and several as one `AggregateError`. The rest
 that call does not run, so a throw can still leave a feed's status wrong with nothing
 running: the gates feed's questions cadence ends, a diagnostics feed stays `Starting`
 with no new poll, and a timeline restarted from `Stopped` says `Reading` with nothing
-reading. A throw on the timeline publish that a `configure` with a new `capacity`
-makes ends the call before any read: the previous read goes on, a new `source` in
-the same call is not read, and configuring the same inputs again does not read it
-either; `status.restart` does.
+reading. A `configure` with a new `capacity` publishes the emptied timeline and then
+starts the read that refills it, from the same `source` or a new one, so a throw on
+that publish is rethrown once the read has started and stops no read, unless the
+timeline was `Stopped` and a status listener throws on the `Reading` that read
+publishes: that throw escapes instead, replaces the timeline listener's, and no read
+is started.
 
 ```typescript
 import * as Effect from "effect/Effect";
