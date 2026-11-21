@@ -58,17 +58,20 @@
  * to remove.
  *
  * Check 4 then reads its own fixture. Every `make*Feed` the installed
- * `@qadi/devtools` root exports must be called in it, every name on
- * `TYPE_ONLY_PROBES` must be used in it as a type, and every key of
- * `REFUSED_SHAPE_PROBES` must annotate a literal there that holds a
- * `@ts-expect-error` naming the member paired with it. So a public name the
+ * `@qadi/devtools` root exports must be called when the consumer runs, every
+ * name on `TYPE_ONLY_PROBES` must annotate a value declared in it, and every key
+ * of `REFUSED_SHAPE_PROBES` must annotate a literal there whose property named by
+ * the member paired with it carries a `@ts-expect-error`. So a public name the
  * consumer never compiles cannot ship unnoticed, and a refusal cannot be deleted
  * together with its directive.
  * The feed set comes from the artifact, so a new feed is caught without editing
- * this file. TypeScript's parse (`typescript/unstable/*`, loaded when the check
- * runs) decides what is a call, a type use and a refusal, so a comment, a string,
- * an import or `typeof` does not count; and a failure to load or run that parse
- * fails the gate.
+ * this file, and the run counts the calls through a module hook that wraps each
+ * feed, so a call written but never run does not count. TypeScript's parse
+ * (`typescript/unstable/*`, loaded when the check runs) decides what annotates a
+ * value and what is a refusal, so a comment, a string, an import, an alias or
+ * `typeof` does not count; and a failure to load or run that parse fails the
+ * gate, naming the installed TypeScript, whose unstable API a routine upgrade
+ * can move.
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -79,6 +82,9 @@ const SANDBOX = join(ROOT, ".package-check");
 
 const failures = [];
 const fail = (message) => failures.push(message);
+
+/** A child that hangs would hang `pnpm check`; each is killed after this long, which a cold `pnpm build` stays well inside. */
+const CHILD_TIMEOUT_MS = 600_000;
 
 /**
  * The type-only names check 4's consumer must use as a type.
@@ -94,11 +100,11 @@ const TYPE_ONLY_PROBES = ["DecisionCacheShape", "GateInstanceLike", "GateRegistr
  * The type names check 4's consumer must refuse an old shape against, each
  * paired with the member of that shape its directive must name.
  *
- * A refusal is a literal annotated with the type that holds a `@ts-expect-error`
- * naming the refused member. The compiler fails an unused directive, but nothing
- * else keeps the literal, so deleting it together with its directive would
- * otherwise leave the gate green. The directive is matched by its text anywhere
- * in the declaration, not attached to the refused property.
+ * A refusal is a literal annotated with the type whose property named by the
+ * refused member carries a `@ts-expect-error`, in any form TypeScript reads as
+ * one. The compiler fails an unused directive, but nothing else keeps the
+ * literal, so deleting it together with its directive would otherwise leave the
+ * gate green.
  */
 const REFUSED_SHAPE_PROBES = new Map([
   ["DecisionCacheShape", "getOrCompute"],
@@ -174,7 +180,7 @@ for (const { dir, manifest } of publicPackages) {
 // Build before packing, so the tarballs hold this commit's output rather than
 // whatever a previous command happened to leave in lib/.
 try {
-  execFileSync("pnpm", ["build"], { cwd: ROOT, encoding: "utf8", stdio: "pipe" });
+  execFileSync("pnpm", ["build"], { cwd: ROOT, encoding: "utf8", stdio: "pipe", timeout: CHILD_TIMEOUT_MS });
 } catch (error) {
   console.error(error.stdout ?? error.message);
   console.error("\npackage-install: pnpm build FAILED, so there is no artifact to check.");
@@ -195,6 +201,7 @@ for (const { dir, manifest } of publicPackages) {
   const tarball = execFileSync("pnpm", ["pack", "--pack-destination", SANDBOX], {
     cwd: dir,
     encoding: "utf8",
+    timeout: CHILD_TIMEOUT_MS,
   })
     .trim()
     .split("\n")
@@ -208,7 +215,7 @@ for (const { dir, manifest } of publicPackages) {
 
   const target = join(modules, manifest.name);
   mkdirSync(target, { recursive: true });
-  execFileSync("tar", ["xzf", tarball, "-C", target, "--strip-components=1"], { cwd: SANDBOX });
+  execFileSync("tar", ["xzf", tarball, "-C", target, "--strip-components=1"], { cwd: SANDBOX, timeout: CHILD_TIMEOUT_MS });
   installed.push({ name: manifest.name, target, source: manifest });
 }
 
@@ -329,6 +336,7 @@ try {
     cwd: SANDBOX,
     encoding: "utf8",
     stdio: "pipe",
+    timeout: CHILD_TIMEOUT_MS,
   });
   for (const line of output.trim().split("\n")) {
     const [name, count] = line.split(" ");
@@ -415,6 +423,7 @@ try {
     cwd: SANDBOX,
     encoding: "utf8",
     stdio: "pipe",
+    timeout: CHILD_TIMEOUT_MS,
   });
   for (const problem of JSON.parse(output.trim().split("\n").at(-1) ?? "[]")) fail(problem);
 } catch (error) {
@@ -611,24 +620,29 @@ expect("gates feed follows its registry", gated.changed, 2);
 expect("gates feed releases on close", gateListeners.size, 0);
 
 // \`Live\` is set only by an accepted first sample, so a feed that read nothing stays \`Starting\`. A bounded
-// yield loop, no clock; closing the scope interrupts the poll's wait for its next sample.
+// yield loop, no clock, that also ends on \`Stopped\` so its reason is reported; closing the scope interrupts
+// the poll's wait for its next sample.
+const LIVE_TURNS = 200;
 const diagnosed = await Effect.runPromise(
   Effect.scoped(
     Effect.gen(function* () {
       const off = yield* makeDiagnosticsFeed();
       const feed = yield* makeDiagnosticsFeed({});
       let turns = 0;
-      while (feed.getSnapshot().status._tag !== "Live" && turns < 200) {
+      while (!["Live", "Stopped"].includes(feed.getSnapshot().status._tag) && turns < LIVE_TURNS) {
         yield* Effect.yieldNow;
         turns += 1;
       }
       const after = feed.getSnapshot();
-      return { off: off.getSnapshot().status._tag, after: after.status._tag, hydration: after.reading.hydration !== undefined, turns };
+      const stopped = after.status._tag === "Stopped" ? after.status.reason : undefined;
+      return { off: off.getSnapshot().status._tag, after: after.status._tag, stopped, hydration: after.reading.hydration !== undefined, turns };
     }),
   ),
 );
 expect("diagnostics feed handed no options", diagnosed.off, "Off");
-expect("diagnostics feed reached Live in " + String(diagnosed.turns) + " turns", diagnosed.after, "Live");
+console.log(\`consumer: the diagnostics feed was read for \${diagnosed.turns} of at most \${LIVE_TURNS} turns\`);
+expect("diagnostics feed stop reason", diagnosed.stopped, undefined);
+expect("diagnostics feed reached Live", diagnosed.after, "Live");
 expect("diagnostics feed first read sets hydration", diagnosed.hydration, true);
 
 // DiagnosticsOptions has a cadence in milliseconds and no \`schedule\`.
@@ -798,15 +812,60 @@ if (failures.length === 0) {
       cwd: ROOT,
       encoding: "utf8",
       stdio: "pipe",
+      timeout: CHILD_TIMEOUT_MS,
     });
   } catch (error) {
     fail(`the consumer does not type-check against the shipped .d.ts:\n${error.stdout ?? error.message}`);
   }
 }
 
+// The consumer runs under a module hook that hands it `@qadi/devtools` with each make*Feed wrapped
+// to record its name when called, so the probe guard below reads the calls the run made rather
+// than the calls the fixture spells. The hook reads the feed names from the module it wraps.
+const FEED_CALLS = join(SANDBOX, "feed-calls.txt");
+writeFileSync(
+  join(SANDBOX, "feed-hooks.mjs"),
+  `const SCHEME = "qadi-feed-calls:";
+const OUT = ${JSON.stringify(new URL(`file://${join(SANDBOX, "out")}/`).href)};
+export const resolve = async (specifier, context, next) => {
+  if (specifier !== "@qadi/devtools" || !context.parentURL?.startsWith(OUT)) return next(specifier, context);
+  const real = await next(specifier, context);
+  return { url: SCHEME + encodeURIComponent(real.url), shortCircuit: true };
+};
+export const load = async (url, context, next) => {
+  if (!url.startsWith(SCHEME)) return next(url, context);
+  const real = decodeURIComponent(url.slice(SCHEME.length));
+  const feeds = Object.keys(await import(real)).filter((key) => /^make\\w*Feed$/.test(key));
+  const source = [
+    \`import * as real from \${JSON.stringify(real)};\`,
+    \`import { appendFileSync } from "node:fs";\`,
+    \`export * from \${JSON.stringify(real)};\`,
+    ...feeds.map(
+      (name) =>
+        \`export const \${name} = (...args) => { appendFileSync(\${JSON.stringify(${JSON.stringify(FEED_CALLS)})}, "\${name}\\\\n"); return real.\${name}(...args); };\`,
+    ),
+  ].join("\\n");
+  return { format: "module", source, shortCircuit: true };
+};
+`,
+);
+writeFileSync(
+  join(SANDBOX, "feed-calls.mjs"),
+  'import { register } from "node:module";\nregister("./feed-hooks.mjs", import.meta.url);\n',
+);
+
+/** The make*Feed names the consumer's run called, or undefined when it did not complete. */
+let called;
 if (failures.length === 0) {
   try {
-    execFileSync("node", ["out/consumer.js"], { cwd: SANDBOX, encoding: "utf8", stdio: "pipe" });
+    rmSync(FEED_CALLS, { force: true });
+    execFileSync("node", ["--import", "./feed-calls.mjs", "out/consumer.js"], {
+      cwd: SANDBOX,
+      encoding: "utf8",
+      stdio: "pipe",
+      timeout: CHILD_TIMEOUT_MS,
+    });
+    called = new Set(existsSync(FEED_CALLS) ? readFileSync(FEED_CALLS, "utf8").split("\n").filter(Boolean) : []);
   } catch (error) {
     fail(`the consumer failed at runtime:\n${error.stdout ?? ""}${error.stderr ?? error.message}`);
   }
@@ -824,7 +883,7 @@ if (consumerReady) {
     const output = execFileSync(
       "node",
       ["--input-type=module", "-e", 'console.log(JSON.stringify(Object.keys(await import("@qadi/devtools"))))'],
-      { cwd: SANDBOX, encoding: "utf8", stdio: "pipe" },
+      { cwd: SANDBOX, encoding: "utf8", stdio: "pipe", timeout: CHILD_TIMEOUT_MS },
     );
     feeds = JSON.parse(output.trim().split("\n").at(-1) ?? "[]").filter((key) => /^make\w*Feed$/.test(key));
     if (feeds.length === 0) {
@@ -838,43 +897,39 @@ if (consumerReady) {
   let seen;
   try {
     const { API } = await import("typescript/unstable/sync");
-    const { isCallExpression, isIdentifier, isTypeReferenceNode, isVariableDeclaration } =
-      await import("typescript/unstable/ast/is");
+    const {
+      isIdentifier,
+      isObjectLiteralExpression,
+      isPropertyAssignment,
+      isTypeReferenceNode,
+      isVariableDeclaration,
+    } = await import("typescript/unstable/ast/is");
     const { getLeadingCommentRanges } = await import("typescript/unstable/ast/scanner");
+    // A comment TypeScript reads as the directive: `//`, `///`, `/*` or `/**`, then `@ts-expect-error`.
+    // A wider match cannot pass a refusal the compiler does not see: the refused member then fails it.
+    const DIRECTIVE = /^(?:\/|\*)*\s*@ts-expect-error\b/;
 
     const walk = (file) => {
       const text = file.text;
-      const called = new Set();
       const typed = new Set();
       const refused = new Set();
 
-      // True when a node inside the declaration carries a `// @ts-expect-error` naming the member.
-      const holdsDirective = (declaration, member) => {
-        let found = false;
-        const look = (node) => {
-          for (const range of getLeadingCommentRanges(text, node.pos) ?? []) {
-            const comment = text.slice(range.pos, range.end);
-            if (comment.startsWith("// @ts-expect-error") && comment.includes(member)) found = true;
-          }
-          node.forEachChild((child) => {
-            look(child);
-          });
-        };
-        declaration.forEachChild((child) => {
-          look(child);
-        });
-        return found;
-      };
+      // True when the declaration's object literal has a property named `member` led by the directive.
+      const holdsDirective = (declaration, member) =>
+        declaration.initializer !== undefined &&
+        isObjectLiteralExpression(declaration.initializer) &&
+        declaration.initializer.properties.some(
+          (property) =>
+            isPropertyAssignment(property) &&
+            isIdentifier(property.name) &&
+            property.name.text === member &&
+            (getLeadingCommentRanges(text, property.pos) ?? []).some((range) =>
+              DIRECTIVE.test(text.slice(range.pos, range.end)),
+            ),
+        );
 
       const visit = (node, inRefusal) => {
         let inner = inRefusal;
-        // shortcut: a call written but never run (an uninvoked arrow, a shadowed
-        // name) passes here, and so do the probe's expect() calls beside it, which
-        // never run either; upgrade to reachability analysis if one slips through.
-        if (isCallExpression(node) && isIdentifier(node.expression)) called.add(node.expression.text);
-        if (isTypeReferenceNode(node) && isIdentifier(node.typeName) && !inRefusal) {
-          typed.add(node.typeName.text);
-        }
         if (
           isVariableDeclaration(node) &&
           node.type !== undefined &&
@@ -886,7 +941,7 @@ if (consumerReady) {
           if (member !== undefined && holdsDirective(node, member)) {
             refused.add(name);
             inner = true;
-          }
+          } else if (!inRefusal && node.initializer !== undefined) typed.add(name);
         }
         node.forEachChild((child) => {
           visit(child, inner);
@@ -894,7 +949,7 @@ if (consumerReady) {
       };
 
       visit(file, false);
-      return { called, typed, refused };
+      return { typed, refused };
     };
 
     const api = new API({ cwd: SANDBOX });
@@ -909,27 +964,35 @@ if (consumerReady) {
       api.close();
     }
   } catch (error) {
-    fail(`the probe guard could not load or run the TypeScript parser: ${error.message}`);
+    const version = JSON.parse(readFileSync(join(ROOT, "node_modules", "typescript", "package.json"), "utf8")).version;
+    fail(
+      `the probe guard could not load or run the TypeScript parser, typescript@${version}'s unstable API, ` +
+        `which a TypeScript upgrade can move: ${error.message}`,
+    );
   }
 
-  // No comparison runs against a parse that did not produce the fixture.
-  if (seen !== undefined) {
-    const unprobed = (feeds ?? []).filter((name) => !seen.called.has(name));
+  // The calls the run made, read only when it completed; a run that failed is reported above.
+  if (called !== undefined) {
+    const unprobed = (feeds ?? []).filter((name) => !called.has(name));
     if (unprobed.length > 0) {
       fail(
         `the consumer fixture never calls ${unprobed.join(", ")}: every make*Feed the packed @qadi/devtools root exports must be probed`,
       );
     }
+  }
+
+  // No comparison runs against a parse that did not produce the fixture.
+  if (seen !== undefined) {
     const untyped = TYPE_ONLY_PROBES.filter((name) => !seen.typed.has(name));
     if (untyped.length > 0) {
       fail(
-        `the consumer fixture never uses ${untyped.join(", ")} as a type: every type-only probe name must be a type reference outside a refused literal`,
+        `the consumer fixture never declares a value typed ${untyped.join(", ")}: every type-only probe name must annotate a declared value outside a refused literal`,
       );
     }
     const unrefused = [...REFUSED_SHAPE_PROBES.keys()].filter((name) => !seen.refused.has(name));
     if (unrefused.length > 0) {
       fail(
-        `the consumer fixture never refuses a literal typed ${unrefused.join(", ")}: every refused-shape probe name must annotate a declaration holding a @ts-expect-error that names its refused member`,
+        `the consumer fixture never refuses a literal typed ${unrefused.join(", ")}: every refused-shape probe name must annotate a literal whose property named by its refused member carries a @ts-expect-error`,
       );
     }
   }
