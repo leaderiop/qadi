@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-173                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-19                                     |
-> | Status         | Accepted — amends ADR-QD-047, ADR-QD-099, ADR-QD-169; applies ADR-QD-137; amended 2026-11-20 (ADR-QD-177: every listener is called) |
+> | Status         | Accepted — amends ADR-QD-047, ADR-QD-099, ADR-QD-169; applies ADR-QD-137; amended 2026-11-20 (ADR-QD-177: every listener is called); amended 2026-11-21 (the port cards stay package-private) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-20): amendment — every listener is called (ARCH-111, ADR-QD-177, CCR-QD-455)<br>1.0 (2026-11-19): Initial release (ARCH-107, CCR-QD-451) |
+> | Change History | 1.2 (2026-11-21): amendment: the port cards stay package-private, and a headless consumer reads the diagnostics feed's reading (ARCH-115, CCR-QD-459)<br>1.1 (2026-11-20): amendment — every listener is called (ARCH-111, ADR-QD-177, CCR-QD-455)<br>1.0 (2026-11-19): Initial release (ARCH-107, CCR-QD-451) |
 
 ---
 
@@ -105,6 +105,16 @@ replaces it: every listener is called, and what they threw is rethrown out of wh
 and several as one `AggregateError`
 ([BEH-QD-656](../behaviors/28-devtools-screens.md#beh-qd-656-a-throwing-listener-does-not-silence-the-others)). The
 feeds, their names and their types are unchanged.
+
+## Amendment (2026-11-21, ARCH-115, CCR-QD-459): the port cards stay package-private
+
+The port cards the dock's Services tab shows are not part of this interface. `portCards`, the view types it returns and
+`isUnsampled` stay package-private in `PortCards.ts`: a card is the dock's join of its inputs for one panel at one
+moment ([ADR-QD-168](./168-a-port-card-is-a-model-row.md)), so its shape is the dock's to change. A headless consumer
+reads what the cards are made from, the diagnostics feed's reading: `makeDiagnosticsFeed`'s
+`DiagnosticsSnapshot.reading` carries the wiring read (`wiring`), the port activity (`activity`) and the call log
+(`portCalls`), and `WiringRead`, `PortActivity` and `PortCallLog` are root exports. The cards are not rebuilt from it
+for the consumer, which joins those inputs as it needs. No export is added or removed.
 
 ## Related
 

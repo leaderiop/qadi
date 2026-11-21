@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-177                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-20                                     |
-> | Status         | Accepted — amends ADR-QD-173                   |
+> | Status         | Accepted — amends ADR-QD-173; amended 2026-11-21 (a capacity change's publish stops no read) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-20): Initial release (ARCH-111, CCR-QD-455) |
+> | Change History | 1.1 (2026-11-21): amendment: a capacity change's publish stops no read; decision 5 says what the code holds (ARCH-115, CCR-QD-459)<br>1.0 (2026-11-20): Initial release (ARCH-111, CCR-QD-455) |
 
 ---
 
@@ -39,9 +39,11 @@ updating.
    when one throws.
 5. The window between a feed's run `begin()` and its `fork()` is out of scope. A throw on the status published there,
    the timeline's `Reading` over a `Stopped` or the diagnostics feed's `Starting`, still leaves before the new read or
-   poll is forked, and the feeds' texts say so. A throw on the timeline publish a `configure` with a new capacity makes
-   leaves earlier still, before `begin()`: no read is started, so a source handed in by that call is not read, the
-   previous read goes on, and only `restart` reads it, because the feed already holds the new inputs.
+   poll is forked, and the feeds' texts say so. A `configure` with a new capacity publishes the emptied timeline and
+   then starts the read that refills it, from the same source or a new one, so a throw on that publish is rethrown once
+   the read has started, unless that read publishes `Reading` over a `Stopped` and a status listener throws there: that
+   throw, inside this window, escapes instead, replaces the timeline listener's, and no read is started (amended
+   2026-11-21).
 
 ## Alternatives considered
 
@@ -68,6 +70,21 @@ updating.
   [INV-QD-373](../invariants.md#inv-qd-373-every-listener-is-called-and-what-one-throws-is-never-swallowed) state the
   contract; BEH-QD-638's rule for the feed's own `subscribe` and ADR-QD-173 are amended.
 - `@qadi/react`'s own gate registry, which swallows a listener's throw, is not changed.
+
+## Amendment (2026-11-21, ARCH-115, CCR-QD-459): a capacity change's publish stops no read
+
+Decision 5 said that a throw on the timeline publish a `configure` with a new capacity makes left before `begin()`: no
+read started, a new source was not read, the previous read went on into the new store, and configuring the same inputs
+again did not read it, because the feed already held them; only `restart` did. That escape was the order of two calls,
+not a rule, and it is gone. `configure` publishes the emptied timeline inside a `try` whose `finally` starts the read,
+so what a listener throws there is rethrown once the read that refills the timeline has started, whether the source
+changed or not, unless the feed was `Stopped` and a status listener throws on the `Reading` that read publishes: that
+throw falls in the window between `begin()` and `fork()`, escapes from the `finally`, replaces the timeline listener's,
+and no read is started. The window decision 5 keeps out of scope, between a run's `begin()` and its `fork()`, is
+unchanged. `TimelineFeed.test.ts` pins the new order (TF26, TF27), the window (TF28) and the replacement (TF29), and
+`DiagnosticsFeed.test.ts` the diagnostics feed's window and its stop (F31, F32)
+([BEH-QD-656](../behaviors/28-devtools-screens.md#beh-qd-656-a-throwing-listener-does-not-silence-the-others)). The
+release note is a patch for `@qadi/devtools`.
 
 ## Related
 

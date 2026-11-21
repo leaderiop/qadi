@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-174                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-11-19                                     |
 > | Status         | Accepted — amends ADR-QD-031; reads ADR-QD-132, ADR-QD-100 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-19): Consequences name TS2416 for a class-based implementer (review iteration 2, IN-02)<br>1.1 (2026-11-19): Consequences name both parties: an implementer gets TS2345 or TS2322, a caller TS2559 or TS2554 (review WR-03)<br>1.0 (2026-11-19): Initial release (ARCH-108, CCR-QD-452) |
+> | Change History | 1.3 (2026-11-21): Consequences and Related re-wrapped to the document's width, the BEH-QD-641 link whole on its line (ARCH-115, CCR-QD-459)<br>1.2 (2026-11-19): Consequences name TS2416 for a class-based implementer (review iteration 2, IN-02)<br>1.1 (2026-11-19): Consequences name both parties: an implementer gets TS2345 or TS2322, a caller TS2559 or TS2554 (review WR-03)<br>1.0 (2026-11-19): Initial release (ARCH-108, CCR-QD-452) |
 
 ---
 
@@ -70,10 +70,11 @@ cache.
 
 - **Breaking** for `DecisionCacheShape` implementers. An implementation that still takes and runs a `compute` no longer
   type-checks: its second parameter is now the options, so running it as an `Effect` is TS2345, annotating it as one
-  is TS2322, and a class that `implements DecisionCacheShape` gets TS2416 at the method (all probed against `tsc`). A caller who passes a `compute`, or a function returning one, gets TS2559
-  (TypeScript's weak-type rule: the options type has only optional properties, and an `Effect` shares none of them),
-  and a third argument gets TS2554. The change is a `@qadi/core` minor changeset, and the upgrade guide's 0.13 section shows the delegation route in a compiled example.
-  Callers of `evaluate` and of the enforcing entry points see no change.
+  is TS2322, and a class that `implements DecisionCacheShape` gets TS2416 at the method (all probed against `tsc`). A
+  caller who passes a `compute`, or a function returning one, gets TS2559 (TypeScript's weak-type rule: the options
+  type has only optional properties, and an `Effect` shares none of them), and a third argument gets TS2554. The change
+  is a `@qadi/core` minor changeset, and the upgrade guide's 0.13 section shows the delegation route in a compiled
+  example. Callers of `evaluate` and of the enforcing entry points see no change.
 - The guarantee is about callers: no caller can pair a key with an unrelated computation
   ([INV-QD-367](../invariants.md#inv-qd-367-no-caller-can-pair-a-cache-key-with-a-computation)). A host-written
   implementation must produce its own trace for the question it is given
@@ -91,6 +92,7 @@ cache.
 - [ADR-QD-132](./132-a-shared-computation-is-joinable-only-while-awaited.md): single flight, unchanged.
 - [ADR-QD-100](./100-a-question-is-asked-once.md): the `Question` value.
 - [ADR-QD-026](./026-concurrent-evaluation.md): concurrency changes lookups, never answers.
-- [BEH-QD-641 to BEH-QD-645](../behaviors/21-decision-cache.md#beh-qd-641-the-cache-is-asked-the-question-and-how-the-walk-runs),
+- [BEH-QD-641](../behaviors/21-decision-cache.md#beh-qd-641-the-cache-is-asked-the-question-and-how-the-walk-runs)
+  to BEH-QD-645,
   [INV-QD-367](../invariants.md#inv-qd-367-no-caller-can-pair-a-cache-key-with-a-computation) and
   [INV-QD-368](../invariants.md#inv-qd-368-a-trace-the-cache-settles-under-a-question-is-the-walk-of-that-question).

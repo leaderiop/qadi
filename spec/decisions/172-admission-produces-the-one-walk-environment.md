@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-172                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-11-19                                     |
-> | Status         | Accepted — amends ADR-QD-024, ADR-QD-100, ADR-QD-163; amended 2026-11-20 (only admit builds an Admitted; the asked flags read the matcher context) |
+> | Status         | Accepted — amends ADR-QD-024, ADR-QD-100, ADR-QD-163; amended 2026-11-20 (only admit builds an Admitted; the asked flags read the matcher context); amended 2026-11-21 (admit reads each field of the question once) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-11-21): The 2026-11-20 amendment says what the gate reads of its two pins (ARCH-115, CCR-QD-459)<br>1.2 (2026-11-20): Narrowed ARCH-112's read-once claim to the question's resource and action (review finding WR-01): Decision 3 and the 2026-11-20 amendment<br>1.1 (2026-11-20): amendment — only admit builds an Admitted, and the asked flags read the matcher context (ARCH-112, CCR-QD-456)<br>1.0 (2026-11-19): Initial release (ARCH-106, CCR-QD-450) |
+> | Change History | 1.4 (2026-11-21): amendment: admit reads each field of the question once (ARCH-115, CCR-QD-459)<br>1.3 (2026-11-21): The 2026-11-20 amendment says what the gate reads of its two pins (ARCH-115, CCR-QD-459)<br>1.2 (2026-11-20): Narrowed ARCH-112's read-once claim to the question's resource and action (review finding WR-01): Decision 3 and the 2026-11-20 amendment<br>1.1 (2026-11-20): amendment — only admit builds an Admitted, and the asked flags read the matcher context (ARCH-112, CCR-QD-456)<br>1.0 (2026-11-19): Initial release (ARCH-106, CCR-QD-450) |
 
 ---
 
@@ -289,13 +289,25 @@ decision: the private constructor implements Decision 1's "only `admit` builds o
   The compiler does not check the `"asked"` row's flags, whose type is `boolean`; `Admission.test.ts` pins the
   agreement with a question whose resource or action answers differently on a second read, which failed before this
   change (E7 to E9) (INV-QD-376, BEH-QD-662). The `"row"` row's resource stays the constant `true`, because
-  `toPredicate` admits a question with no resource on purpose (BEH-QD-633). Depth is judged on a separate read of the
-  question's `policy` and `maxDepth`, which this change leaves as it was.
+  `toPredicate` admits a question with no resource on purpose (BEH-QD-633). Depth was still judged on a separate read
+  of the question's `policy` and `maxDepth`; the 2026-11-21 amendment below reads them once.
 
 No public change: `Admission.ts` is package-private, out of the barrel (ADR-QD-099), so `spec/overview.md` and the
 export count of `node scripts/check-api-surface.mjs` (939) are unchanged, and there is no changeset. The committed
 source was measured against the phase base with this ADR's harness and bands, 3 + 3 interleaved, and no workload was
 slower beyond its band.
+
+## Amendment (2026-11-21, ARCH-115, CCR-QD-459): `admit` reads each field of the question once
+
+`admit` read the question's `policy` twice, `maxDepth` three times and `subject` three times, so a question whose
+`policy` answered shallow and then deep passed the depth gate and carried the deep tree. It now reads `policy`,
+`maxDepth` and `subject` once, at its top, and the resource and action once, into the matcher context, so the policy an
+`Admitted` carries is the one the gate judged, against the bound it carries (INV-QD-375, INV-QD-376).
+`Admission.test.ts` pins it with a policy, a bound and a subject that each answer differently on a second read, which
+failed before this change (E11 to E13). No public change and no changeset: `Admission.ts` is package-private. The
+committed source was measured against the phase base, 3 + 3 interleaved with the arm order alternating by round, under
+a gate fixed before the run (no workload more than 5% slower, and a geometric mean of the deltas no worse than +2%, by
+the median of per-run minima), and passed it.
 
 ## Related
 
