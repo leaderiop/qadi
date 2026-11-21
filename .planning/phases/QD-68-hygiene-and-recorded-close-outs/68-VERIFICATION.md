@@ -49,7 +49,7 @@ covered_files:
   - "scripts/check-package-install.mjs"
   - "scripts/run-tstyche.mjs"
   - "scripts/spec-revise.mjs"
-covered_digest: "v4:sha256:1616a9cad495ab09ae99a6b8d165f00fcb1b1da61a54623744ca008bbeab6932"
+covered_digest: "v4:sha256:899612991214c021e5abd4157ceb92352b2846829a60ae74986263690d21a260"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification: null
@@ -173,3 +173,49 @@ None. Every must-have resolved to VERIFIED on commands I ran against the real tr
 
 _Verified: 2026-11-21_
 _Verifier: Claude (gsd-verifier)_
+
+## Re-verification (2026-11-21, after Phase 68.1)
+
+**Staleness:** `68: stale, verification 96e396a1, 52 cited, 5 changed since` (`68.1-stale.mjs`, run at `8af05394`).
+
+| Cited file | Changed since `96e396a1` by |
+| --- | --- |
+| `package.json` | `ecb4ed90` fix(68.1-02): analyze.mjs exits 1 on a failed gate, and pnpm check runs its self-test |
+| `scripts/bench/ab.sh` (covered) | `c876dc54` fix(68.1-02): ab.sh refuses an odd round count |
+| `scripts/bench/analyze.mjs` (covered) | `327d93ee` fix(68.1-02): analyze.mjs exits 2 on any input it cannot analyze<br>`ecb4ed90` fix(68.1-02): analyze.mjs exits 1 on a failed gate, and pnpm check runs its self-test |
+| `scripts/check-package-install.mjs` (covered) | `cc58b8e6` fix(68.1-04): the probe guard's parse runs in a child under the gate's timeout |
+| `spec/README.md` | `a8b36092` docs(68.1-05): ADR-QD-033 amended and CCR-QD-460 recorded |
+
+**Trailers on this phase's commits:** 75 `Claude Opus 5.5 <noreply@anthropic.com>`.
+
+**Validation record:** no VALIDATION.md.
+
+**Digest:** `covered_digest: "v4:sha256:1616a9cad495ab09ae99a6b8d165f00fcb1b1da61a54623744ca008bbeab6932"` becomes `covered_digest: "v4:sha256:899612991214c021e5abd4157ceb92352b2846829a60ae74986263690d21a260"`, over the same 45 covered files.
+
+**Staleness by `68.1-stale.mjs`:** `68: stale, verification 96e396a1, 52 cited, 5 changed since` (run at `8af05394`).
+
+### Spot-checks re-run (Re-verification (2026-11-21, after Phase 68.1))
+
+Every row was run on a tree whose tracked files outside the planning directory are those of `8af05394`, one command at a time, in the foreground, with stdin closed and nothing else running beside it. The spec-revise, traceability, DoD-table, analyzer self-test, bench-reproduction and `--print-order` results are shared with the other re-verifications of this phase and were taken once at `c3d8553a`; no tracked file outside the planning directory differs between that head and `8af05394` (`git diff --quiet c3d8553a 8af05394 -- . ':(exclude).planning'` is silent). The gate-14 row reads the one run of Plan 68.1-04, taken at `cc58b8e6`; nothing gate 14 reads has changed since (`git diff --quiet cc58b8e6 HEAD -- packages scripts package.json pnpm-lock.yaml` is silent). No source or test file changed in this phase (`git diff --name-only 0e3f3438 HEAD -- packages` lists 0 files), so the report's vitest, mutation and bench-run rows were not run again; Phase 68's `bench/final` is left as recorded and is read below only by re-analysing it.
+
+| Behaviour | Command run now | Result now | Status |
+| --------- | --------------- | ---------- | ------ |
+| What the phase changed in the package manifest | `git diff -U0 0e3f3438 HEAD -- package.json` | two scripts-table changes and nothing else: `bench:self-test` is added (`node scripts/bench/analyze.mjs --self-test`) and `check` gains ` && pnpm bench:self-test` at its end; every script the report cites and every dependency field is unchanged | PASS |
+| What the phase changed in the spec register, and the revisions | `git diff -U0 0e3f3438 HEAD -- spec/README.md`, and `node scripts/spec-revise.mjs --check < /dev/null` (shared) | the Revision header (1.274 to 1.275), the Change History cell (a 1.275 entry in front of the 1.274 one) and one added row, CCR-QD-460, at line 397; no row is edited or removed, so the CCR-QD-459 row is still at line 396; `spec-revise` exit 0, `spec-revise: every Revision matches its newest Change History entry` | PASS |
+| Phase 68's gate-14 truths read against the gate as it now stands | the one run of `node scripts/check-package-install.mjs < /dev/null` (Plan 68.1-04, head `cc58b8e6`: exit 0, 15 s), and `git diff --quiet cc58b8e6 HEAD -- packages scripts package.json pnpm-lock.yaml` | last line `package-install: 9 package(s) pack, resolve and authorize (524 runtime export(s))`, the count the report's Truth 6 cites; nothing gate 14 reads changed since that head | PASS |
+| Every child of gate 14 still runs under a timeout | `grep -n "CHILD_TIMEOUT_MS\|LIVE_TURNS = \|unstable API" scripts/check-package-install.mjs` | `CHILD_TIMEOUT_MS` on the nine `execFileSync` calls, at lines 202, 223, 237, 358, 445, 834, 885, 905 and the new 922; `LIVE_TURNS = 200` at 644; the message naming `typescript@${version}'s unstable API` at line 930 | PASS |
+| `ab.sh` alternates the arm order by round, and refuses an odd count | `bash scripts/bench/ab.sh --print-order 4 final base` and `--print-order 3 final base` (shared) | the first prints `final-1 base-1 base-2 final-2 final-3 base-3 base-4 final-4` (odd rounds head first); the second exits 2 with `<rounds> must be even` | PASS |
+| The analyzer, self-tested and on Phase 68's own record | `node scripts/bench/analyze.mjs --self-test < /dev/null` (shared), and Phase 68's `bench/final` copied to a scratch directory and analysed with the committed `workloads.txt`, reference `base`, then `cmp` with the committed `analysis.tsv` (shared) | `self-test: 25 passed`; the analysis exits 0 with `# workloads: 35`, `# slower: 0`, `# geomean_d_min_pct: 0.01`, `# gate: pass`, and `cmp` is silent | PASS |
+| The merge gate's step list the report's Truth 6 counts | `node scripts/check-dod-table.mjs < /dev/null` (shared) | `dod-table: 26 step(s) match pnpm check, 153 reference(s) resolve` | PASS |
+| The report's other gate runs that read scripts | `node scripts/check-house-style.mjs < /dev/null` and `node scripts/check-devtools-claims.mjs < /dev/null` | `house-style: 560 file(s) clean (3 declared switch(es), 66 type-test file(s))`; `devtools-claims: 8 claim(s) registered across 6 file(s)` | PASS |
+| Traceability | `bash spec/scripts/verify-traceability.sh --strict < /dev/null` (shared) | exit 0; `PASS: 21   FAIL: 0   SKIP: 0 (strict: skips count as failures)` | PASS |
+
+### Changed cited files read against the truths that cite them (Re-verification (2026-11-21, after Phase 68.1))
+
+- `package.json` (68.1-02, `ecb4ed90`): the report cites the manifest in Truth 3 (`package.json` has no change between the bench and the head the report was written at) and Truth 7 (`package.json`, the lockfile and the workspace file have no diff since the base). Both are claims about the ranges they name, which end at the head that report was written at, and they were true of those ranges. The commit adds the `bench:self-test` script and appends it to `check`. It changes no dependency, no version and no script the report's truths read, so the bench of record, which was taken on source this phase did not touch, still describes the code it measured. Truth 7's "nothing released" is unaffected: the phase adds no changeset, tag or version.
+- `scripts/bench/ab.sh` (covered; 68.1-02, `c876dc54`): the report cites it in OI-24 (the arm order alternates by round, odd rounds head first) and in Truth 3's bench of record. The commit makes `rounds_ok` refuse an odd count and adds the usage line and the header text saying why; the order is unchanged, so OI-24 holds (row 5). Phase 68's own bench of record took 3 rounds, the count the script now refuses. That record is left as recorded: the script change does not alter what the record measured, and the verdict, `# gate: pass`, is reproduced byte for byte by the current analyzer (row 6).
+- `scripts/bench/analyze.mjs` (covered; 68.1-02, `327d93ee` and `ecb4ed90`): the report cites it in Truth 3, through `68-BENCH.md` and `analysis.tsv` (`# gate: pass`, 35 `ok` rows). The commits change the exit status only: 1 on a failed gate, 2 on any input it cannot analyze, and a self-test that runs the file end to end. Its analysis of Phase 68's `bench/final` is byte-identical to the committed `analysis.tsv` and exits 0, so every number Truth 3 reads holds.
+- `scripts/check-package-install.mjs` (covered; 68.1-04, `cc58b8e6`): the report cites it in OI-19, OI-20 and OI-21 (a `CHILD_TIMEOUT_MS` on every `execFileSync`, `LIVE_TURNS = 200`, the message naming the unstable API) and, through its gate-14 runs, in Truth 6. The commit moves the probe guard's parse into a child run under the same timeout (`scripts/lib/probe-guard-parse.mjs`), so every child now has the bound, which strengthens OI-19; the line numbers the report gives are two lines higher now (row 4) and the message is the same text at line 930. Plan 68.1-04 showed the guard's answers identical to the base's on four sandboxes and a planted load failure, and the one gate-14 run reads 524 runtime exports as before (row 3). The bound is on the child: the TypeScript server the child starts is not killed with it, and the file's header says so.
+- `spec/README.md` (68.1-05, `a8b36092`): the report cites the CCR-QD-459 row at line 396 (Truths 1 and 7) and its revision pointers. The row is unedited and still at line 396. Its pointers (ADR-QD-033 Rev 1.4, the register's Rev 1.274) were the current revisions when the report was written, and are not now: the commit moves the register to 1.275, ADR-QD-033 is amended to 1.5, and adds the CCR-QD-460 row, which carries the later revisions. The row itself is unedited, so Truth 7 holds as a claim about what the row cited at the head the report was written at. The digest changes because this file is covered, and no other covered file changed.
+
+**Verdict:** passed
