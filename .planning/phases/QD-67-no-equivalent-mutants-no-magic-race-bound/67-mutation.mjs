@@ -36,10 +36,8 @@ const git = (...args) => execFileSync("git", args, { encoding: "utf8", maxBuffer
 
 /** Why a record may not be made: a file it reads differs from HEAD, so its line numbers belong to no commit. */
 export const dirtyReasons = (porcelain) => (porcelain.trim() === "" ? [] : [`record from a clean tree; these differ from HEAD:\n${porcelain.trimEnd()}`]);
-const refuseDirty = () => {
-  const bad = dirtyReasons(git("status", "--porcelain", "--", ...FILES));
-  if (bad.length > 0) fail(bad);
-};
+/** The porcelain status of the files a record reads. */
+const gitStatus = () => git("status", "--porcelain", "--", ...FILES);
 
 /** The hunks of a `git diff -U0` of one file: removed base lines [a, a+b) and added close lines [c, c+d). */
 export const hunks = (diffText) =>
@@ -163,7 +161,6 @@ export const judge = ({ base, close, proof, diffs }, log = console.log) => {
 };
 
 const record = async (name) => {
-  refuseDirty();
   const config = (await import(pathToFileURL(resolve(CONFIG)).href)).default;
   if (config.jsonReporter?.fileName !== REPORT) fail([`${CONFIG} no longer reports to the report this reads`]);
   if (config.ignoreStatic !== true) fail([`${CONFIG} no longer sets ignoreStatic: true`]);
@@ -176,7 +173,6 @@ const record = async (name) => {
 
 const evidence = (reportFile) => {
   if (reportFile === undefined) fail(["usage: node 67-mutation.mjs evidence <the ignoreStatic:false report>"]);
-  refuseDirty();
   if (resolve(reportFile) === resolve(REPORT)) fail([`${reportFile} is the gate run's report; the evidence is the second run's`]);
   const files = tally(reportFile, CHANGED);
   for (const file of CHANGED) if (files[file].ignored !== 0) fail([`${reportFile} ignored ${files[file].ignored} mutants of ${file}: not an ignoreStatic:false run`]);
@@ -227,6 +223,23 @@ const selfTest = () => {
   const planted = ` M ${DC}\n`;
   if (dirtyReasons(planted).length !== 1 || !dirtyReasons(planted)[0].includes(DC) || dirtyReasons("").length !== 0) fail(["self-test FAILED: a modified file does not refuse a record"]);
   passed++;
+  // The dispatcher with this file's own table, every mode's run replaced: a record or evidence from a modified tree is
+  // refused before its run, a clean one runs, and compare never reads the status.
+  for (const [mode, status, want] of [
+    ["record", planted, "refused"],
+    ["evidence", planted, "refused"],
+    ["record", "", "ran"],
+    ["evidence", "", "ran"],
+    ["compare", planted, "ran"],
+  ]) {
+    let got = "nothing";
+    const stubs = Object.fromEntries(Object.entries(MODES).map(([k, v]) => [k, { ...v, run: () => { got = "ran"; } }]));
+    dispatch(stubs, mode, [], () => status, () => { got = "refused"; });
+    if (got !== want) fail([`self-test FAILED: ${mode} on ${JSON.stringify(status)}: ${got}, wanted ${want}`]);
+    passed++;
+  }
+  if (gitStatus.toString() !== '() => git("status", "--porcelain", "--", ...FILES)') fail(["self-test FAILED: the status reader does not read the files a record reads"]);
+  passed++;
   for (const [name, input, want] of cases) {
     const got = judge(input, () => {}).length;
     if (got !== want) fail([`self-test FAILED: ${name}: ${got} reasons, wanted ${want}`]);
@@ -235,9 +248,24 @@ const selfTest = () => {
   console.log(`self-test: ${passed} passed`);
 };
 
-const [mode, name] = process.argv.slice(2);
-if (mode === "record" && (name === "base" || name === "close")) await record(name);
-else if (mode === "evidence") evidence(name);
-else if (mode === "compare") compare();
-else if (mode === "--self-test") selfTest();
-else fail(["usage: node 67-mutation.mjs record base|close, evidence <report>, compare, or --self-test"]);
+/** Each mode, whether it refuses a tree whose read files differ from HEAD, and its run (Phase 68, OI-25). */
+const MODES = {
+  record: { clean: true, run: (name) => (name === "base" || name === "close" ? record(name) : usage()) },
+  evidence: { clean: true, run: (report) => evidence(report) },
+  compare: { clean: false, run: () => compare() },
+  "--self-test": { clean: false, run: () => selfTest() },
+};
+const usage = () => fail(["usage: node 67-mutation.mjs record base|close, evidence <report>, compare, or --self-test"]);
+/** Runs `mode`, refusing first when it records and `status` shows a read file modified. */
+function dispatch(modes, mode, args, status, refuse) {
+  const entry = Object.hasOwn(modes, mode) ? modes[mode] : undefined;
+  if (entry === undefined) return usage();
+  if (entry.clean) {
+    const bad = dirtyReasons(status());
+    if (bad.length > 0) return refuse(bad);
+  }
+  return entry.run(...args);
+}
+
+const [mode, ...args] = process.argv.slice(2);
+await dispatch(MODES, mode, args, gitStatus, fail);

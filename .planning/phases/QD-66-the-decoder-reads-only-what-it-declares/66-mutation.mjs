@@ -3,8 +3,10 @@
 // ignoreStatic:false report of the two files whose code changes. `compare` fails when a file's score fell, when a file
 // has an open mutant the base did not have, when a mutant Ignored at the close and not at the base is not Killed in
 // the evidence run, or when the evidence run leaves open a mutant on a line the phase wrote. A mutant is matched by
-// status, mutator, replacement and the trimmed text of its line, never by line number. From the repository root,
-// after the run INVOCATION names (stdin closed, nothing else running):
+// status, mutator, replacement and its line number carried through `git diff -U0 <base head> <close head>`, never by
+// the text of its line, and every comparison counts mutants as a multiset, so a second copy of one is a new one
+// (Phase 66 review IN-03, ported from Phase 67's scorer by Phase 68, OI-23). From the repository root, after the run
+// INVOCATION names (stdin closed, nothing else running):
 //   node .planning/phases/QD-66-the-decoder-reads-only-what-it-declares/66-mutation.mjs record base
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -28,8 +30,55 @@ const fail = (lines) => {
 };
 const readJson = (file) => JSON.parse(readFileSync(file, "utf8"));
 const git = (...args) => execFileSync("git", args, { encoding: "utf8", maxBuffer: 1 << 26 });
-const key = (m) => [m.status, m.mutator, m.replacement, m.text].join("\u0000");
-const withStatus = (status) => (m) => key({ ...m, status });
+/** The hunks of a `git diff -U0` of one file: removed base lines [a, a+b) and added close lines [c, c+d). */
+const hunks = (diffText) =>
+  diffText
+    .split("\n")
+    .map((line) => /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/.exec(line))
+    .filter((m) => m !== null)
+    .map((m) => ({ a: Number(m[1]), b: m[2] === undefined ? 1 : Number(m[2]), c: Number(m[3]), d: m[4] === undefined ? 1 : Number(m[4]) }));
+/** The close line numbers the diff adds: the lines the phase wrote. */
+const writtenLines = (diffText) => {
+  const out = new Set();
+  for (const { c, d } of hunks(diffText)) for (let i = 0; i < d; i++) out.add(c + i);
+  return out;
+};
+/** A base line's number in the close file, or undefined when the diff removed or rewrote it. */
+const mapLine = (diffText) => {
+  const hs = hunks(diffText);
+  return (line) => {
+    let offset = 0;
+    for (const { a, b, d } of hs) {
+      if (b > 0 && line >= a && line < a + b) return undefined;
+      if (b > 0 ? line >= a + b : line > a) offset += d - b;
+      else break;
+    }
+    return line + offset;
+  };
+};
+const key = (m, line = m.line, status = m.status) => [status, m.mutator, m.replacement, line].join("\u0000");
+/** A multiset of mutant keys: key -> count. */
+const bag = (mutants, toKey) => {
+  const out = new Map();
+  for (const m of mutants) {
+    const k = toKey(m);
+    if (k !== undefined) out.set(k, (out.get(k) ?? 0) + 1);
+  }
+  return out;
+};
+/** The mutants of `mutants` beyond what `allowed` holds, copy by copy. */
+const beyond = (mutants, toKey, allowed) => {
+  const left = new Map(allowed);
+  return mutants.filter((m) => {
+    const k = toKey(m);
+    const n = left.get(k) ?? 0;
+    if (n > 0) {
+      left.set(k, n - 1);
+      return false;
+    }
+    return true;
+  });
+};
 
 /** Each file's counts and its non-Killed mutants from a Stryker JSON report holding exactly `files`. */
 const tally = (reportFile, files) => {
@@ -92,12 +141,15 @@ const compare = () => {
     }
     // Integer cross-multiplication, so no rounded float decides whether a score fell.
     if (c.detected * b.valid < b.detected * c.valid) bad.push(`${file} fell from ${b.detected}/${b.valid} to ${c.detected}/${c.valid}`);
-    const known = new Set(b.open.map(key));
-    for (const m of c.open.filter((x) => !known.has(key(x)))) bad.push(`${file}:${m.line} has a new ${m.status} mutant: ${m.mutator} -> ${m.replacement}`);
-    const wasIgnored = new Set(b.ignoredMutants.map(key));
-    const fresh = c.ignoredMutants.filter((x) => !wasIgnored.has(key(x)));
-    const killed = new Set((proof.files[file]?.detectedMutants ?? []).map(withStatus("Killed")));
-    for (const m of fresh.filter((x) => !killed.has(withStatus("Killed")(x)))) bad.push(`${file}:${m.line} has a new Ignored mutant the evidence run did not kill: ${m.mutator} -> ${m.replacement}`);
+    const map = mapLine(git("diff", "-U0", base.head, close.head, "--", file));
+    const atBase = (x) => {
+      const line = map(x.line);
+      return line === undefined ? undefined : key(x, line);
+    };
+    for (const m of beyond(c.open, (x) => key(x), bag(b.open, atBase))) bad.push(`${file}:${m.line} has a new ${m.status} mutant: ${m.mutator} -> ${m.replacement}`);
+    const fresh = beyond(c.ignoredMutants, (x) => key(x), bag(b.ignoredMutants, atBase));
+    const killed = bag(proof.files[file]?.detectedMutants ?? [], (x) => key(x, x.line, "Killed"));
+    for (const m of beyond(fresh, (x) => key(x, x.line, "Killed"), killed)) bad.push(`${file}:${m.line} has a new Ignored mutant the evidence run did not kill: ${m.mutator} -> ${m.replacement}`);
     console.log(`${file} ${b.detected}/${b.valid} -> ${c.detected}/${c.valid}, ignored ${b.ignored} -> ${c.ignored} (${fresh.length} new)`);
   }
   for (const file of CHANGED) {
@@ -106,8 +158,8 @@ const compare = () => {
       bad.push(`${file} is missing from the evidence record`);
       continue;
     }
-    const atBase = new Set(git("show", `${base.head}:${file}`).split("\n").map((line) => line.trim()));
-    for (const m of p.open.filter((x) => !atBase.has(x.text))) bad.push(`${file}:${m.line} leaves open a mutant on a line the phase wrote: ${m.status} ${m.mutator} -> ${m.replacement}`);
+    const written = writtenLines(git("diff", "-U0", base.head, close.head, "--", file));
+    for (const m of p.open.filter((x) => written.has(x.line))) bad.push(`${file}:${m.line} leaves open a mutant on a line the phase wrote: ${m.status} ${m.mutator} -> ${m.replacement}`);
     console.log(`${file} with static mutants scored ${p.detected}/${p.valid}`);
   }
   if (bad.length > 0) fail(bad);
