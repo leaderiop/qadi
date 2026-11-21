@@ -1,0 +1,7 @@
+02:39:40
+ 2:39  up 1 day, 12:40, 1 user, load averages: 3.95 7.50 20.61
+ %CPU COMM
+ 55.9 /sbin/launchd
+ 20.7 claude
+ 20.3 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer
+ 20.2 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/157.0.8103.80/Helpers/Google Chrome Helper (Aperitif Renderer).app/Contents/MacOS/Google Chrome Helper (Aperitif Renderer)

@@ -1,0 +1,11 @@
+head: 070ffb6b55db52bf8a1419badbd0539bf3681d0b
+patch: /private/var/folders/vn/44p0pxgs4z98v7cl11l4_r4c0000gp/T/qd67/cand-M.patch
+patch_sha256: a7e1116c2c997adcb133039bac6586c3d8554492a7bf161db17a3e36ff86ee36
+head_label: base
+patched_label: match
+rounds: 3
+bench_file: packages/core/bench/DecisionCache.bench.ts
+pattern: ^DecisionCache.getOrCompute — 
+node: v26.13.0
+cpu: Apple M3 Pro
+start: 2026-11-21T01:39:40Z

@@ -1,0 +1,7 @@
+02:40:18
+ 2:40  up 1 day, 12:40, 1 user, load averages: 6.90 7.81 20.19
+ %CPU COMM
+ 34.1 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer
+ 33.4 /Users/mohammadalmechkor/Applications/Herdr.app/Contents/MacOS/Herdr
+ 33.3 /Users/mohammadalmechkor/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc
+ 31.8 /Users/mohammadalmechkor/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc
