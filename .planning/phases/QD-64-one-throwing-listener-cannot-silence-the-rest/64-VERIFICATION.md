@@ -230,3 +230,38 @@ Every row was run on the tree at `2367f9df` (the commit `68-stale.mjs` named), o
 Only `spec/README.md` and `spec/traceability.md` changed among the cited files, in the rows named in the last spot-check row. The report's cited README Revision (1.264) and rows are in Change History entries that remain; no row this phase's truths rest on was edited.
 
 **Verdict:** passed
+
+## Re-verification (2026-11-21, after Phase 68.1)
+
+**Staleness:** `64: stale, verification 3b92bac7, 27 cited, 2 changed since` (`68-stale.mjs`, run at `f91b9f4b`).
+
+| Cited file | Changed since `3b92bac7` by |
+| --- | --- |
+| `README.md` | `ecb4ed90` fix(68.1-02): analyze.mjs exits 1 on a failed gate, and pnpm check runs its self-test |
+| `spec/README.md` | `a8b36092` docs(68.1-05): ADR-QD-033 amended and CCR-QD-460 recorded |
+
+**Trailers on this phase's commits:** 21 `Claude Opus 5.5 <noreply@anthropic.com>`, 7 none, 4 `Claude Sonnet 5.5 <noreply@anthropic.com>`.
+
+**Validation record:** no VALIDATION.md.
+
+**Digest:** `covered_digest: "v4:sha256:47f9dce0e21ab2f492a12de4095b99f3f0bf9e4a52c1f74870954cc9042d43fd"` becomes `covered_digest: "v4:sha256:47f9dce0e21ab2f492a12de4095b99f3f0bf9e4a52c1f74870954cc9042d43fd"`, over the same 16 covered files.
+
+**Staleness by `68.1-stale.mjs`:** `64: stale, verification 3b92bac7, 28 cited, 2 changed since` (run at `f91b9f4b`).
+
+### Spot-checks re-run (Re-verification (2026-11-21, after Phase 68.1))
+
+Every row was run on a tree whose tracked files outside the planning directory are those of `f91b9f4b`, one command at a time, in the foreground, with stdin closed and nothing else running beside it. The spec-revise and traceability results are shared with the other re-verifications of this phase and were taken once at `c3d8553a`; no tracked file outside the planning directory differs between that head and `f91b9f4b`. No source, test or characterisation file of Phase 64 changed in this phase, so the report's vitest rows were not run again.
+
+| Behaviour | Command run now | Result now | Status |
+| --------- | --------------- | ---------- | ------ |
+| What the phase changed in the root readme | `git diff -U0 0e3f3438 HEAD -- README.md` | one line changed, 220: `pnpm check` is now commented `all twenty-six gates, in order` where it read twenty-five; nothing else in the file differs | PASS |
+| The readme says nothing about a listener's throw | `grep -c -i 'listener' README.md`, and the same with `'must not throw'` | 0 and 0, so the report's repo-wide sweep for a text asking a listener not to throw still finds none in it | PASS |
+| What the phase changed in the spec register, and the revisions | `git diff -U0 0e3f3438 HEAD -- spec/README.md`, and `node scripts/spec-revise.mjs --check < /dev/null` (shared) | the Revision header (1.274 to 1.275), the Change History cell (a 1.275 entry in front) and one added row, CCR-QD-460, at line 397; no row is removed or edited, so the CCR-QD-455 row (line 392) is unchanged and the 1.264 entry the report cites is still in the cell; `spec-revise` exit 0, `spec-revise: every Revision matches its newest Change History entry` | PASS |
+| Traceability | `bash spec/scripts/verify-traceability.sh --strict < /dev/null` (shared) | exit 0; `PASS: 21   FAIL: 0   SKIP: 0 (strict: skips count as failures)` | PASS |
+
+### Changed cited files read against the truths that cite them (Re-verification (2026-11-21, after Phase 68.1))
+
+- `README.md` (68.1-02, `ecb4ed90`): the report names the root readme only in the scope of Truth 3's repo-wide sweep for a text that asks a listener not to throw. The commit changes one number in a comment on the `pnpm check` line (twenty-five gates to twenty-six) and adds no word about listeners, which the row above counts as zero occurrences, so the sweep's finding for it holds and Truth 3 is unchanged.
+- `spec/README.md` (68.1-05, `a8b36092`): the report cites the CCR-QD-455 row and Revision 1.264 (Truth 3's overview row). The row is unedited at line 392 and the 1.264 entry remains in the Change History cell; the commit moves the revision to 1.275 and adds the CCR-QD-460 row, which no truth of this report reads.
+
+**Verdict:** passed
