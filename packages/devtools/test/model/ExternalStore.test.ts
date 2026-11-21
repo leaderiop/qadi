@@ -215,4 +215,52 @@ describe("makeExternalStore", () => {
     assert.isFalse(second.threw);
     assert.strictEqual(calls, 1);
   });
+
+  it("never reads what a listener throws: a value whose every trap throws comes back by identity, alone and beside another", () => {
+    const traps: Array<string> = [];
+    const refuse = (trap: string) => () => {
+      traps.push(trap);
+      throw new Error(`read through ${trap}`);
+    };
+    const hostile = new Proxy(
+      {},
+      {
+        get: refuse("get"),
+        has: refuse("has"),
+        ownKeys: refuse("ownKeys"),
+        getOwnPropertyDescriptor: refuse("getOwnPropertyDescriptor"),
+        getPrototypeOf: refuse("getPrototypeOf"),
+        set: refuse("set"),
+        defineProperty: refuse("defineProperty"),
+        deleteProperty: refuse("deleteProperty"),
+        isExtensible: refuse("isExtensible"),
+        preventExtensions: refuse("preventExtensions"),
+        setPrototypeOf: refuse("setPrototypeOf"),
+      },
+    );
+    const alone = makeExternalStore(0);
+    alone.subscribe(() => {
+      throw hostile;
+    });
+    const one = thrownBy(() => alone.set(1));
+    assert.isTrue(one.threw);
+    assert.isTrue(one.thrown === hostile);
+
+    const beside = makeExternalStore(0);
+    const other = new Error("b failed");
+    beside.subscribe(() => {
+      throw hostile;
+    });
+    beside.subscribe(() => {
+      throw other;
+    });
+    const two = thrownBy(() => beside.set(1));
+    assert.isTrue(two.threw);
+    assert.isTrue(two.thrown instanceof AggregateError);
+    const errors = two.thrown instanceof AggregateError ? two.thrown.errors : [];
+    assert.strictEqual(errors.length, 2);
+    assert.isTrue(errors[0] === hostile);
+    assert.isTrue(errors[1] === other);
+    assert.deepStrictEqual(traps, []);
+  });
 });

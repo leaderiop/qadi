@@ -528,4 +528,109 @@ describe("the timeline feed", () => {
       assert.isTrue(outcome.threw);
       assert.strictEqual(outcome.thrown, boom);
     }));
+
+  it.effect("TF26 a listener that throws on the emptied timeline a capacity change publishes stops no read: configure rethrows, and the new source is read", () =>
+    Effect.gen(function* () {
+      const a = watched([], Stream.never);
+      const feed = yield* makeTimelineFeed({ source: a.source, capacity: 5 });
+      yield* flush;
+      const b = counting([record("from-b", 100)], Stream.never);
+      const boom = new Error("boom");
+      let throws = 1;
+      feed.timeline.subscribe(() => {
+        if (throws === 0) return;
+        throws -= 1;
+        throw boom;
+      });
+
+      const outcome = thrownBy(() => feed.configure({ source: b.source, capacity: 2 }));
+      yield* flush;
+
+      assert.isTrue(outcome.threw);
+      assert.strictEqual(outcome.thrown, boom);
+      assert.deepStrictEqual(a.tally, { started: 1, finalized: 1 });
+      assert.deepStrictEqual(b.tally, { reads: 1 });
+      assert.deepStrictEqual(idsOf(feed), ["from-b"]);
+      assert.strictEqual(feed.status.getSnapshot()._tag, "Reading");
+    }));
+
+  it.effect("TF27 a listener that throws on a capacity-only change stops no read: the emptied timeline is refilled from the same source", () =>
+    Effect.gen(function* () {
+      const a = counting([record("x", 100)], Stream.never);
+      const feed = yield* makeTimelineFeed({ source: a.source, capacity: 5 });
+      yield* flush;
+      assert.deepStrictEqual(idsOf(feed), ["x"]);
+      const boom = new Error("boom");
+      let throws = 1;
+      feed.timeline.subscribe(() => {
+        if (throws === 0) return;
+        throws -= 1;
+        throw boom;
+      });
+
+      const outcome = thrownBy(() => feed.configure({ source: a.source, capacity: 2 }));
+      yield* flush;
+
+      assert.isTrue(outcome.threw);
+      assert.strictEqual(outcome.thrown, boom);
+      assert.deepStrictEqual(a.tally, { reads: 2 });
+      assert.deepStrictEqual(idsOf(feed), ["x"]);
+      assert.strictEqual(feed.timeline.getSnapshot().capacity, 2);
+    }));
+
+  it.effect("TF28 a listener that throws on the Reading a restart publishes over a Stopped leaves the status Reading with no read started", () =>
+    Effect.gen(function* () {
+      const { source, tally } = flaky();
+      const feed = yield* makeTimelineFeed({ source });
+      yield* flush;
+      assert.strictEqual(feed.status.getSnapshot()._tag, "Stopped");
+      const boom = new Error("boom");
+      let throws = 1;
+      feed.status.subscribe(() => {
+        if (throws === 0) return;
+        throws -= 1;
+        throw boom;
+      });
+
+      const outcome = thrownBy(() => feed.status.restart());
+      yield* flush;
+
+      assert.isTrue(outcome.threw);
+      assert.strictEqual(outcome.thrown, boom);
+      assert.strictEqual(feed.status.getSnapshot()._tag, "Reading");
+      assert.strictEqual(tally.reads, 1);
+      assert.deepStrictEqual(idsOf(feed), ["x"]);
+    }));
+
+  it.effect("TF29 a status listener that throws on the Reading a capacity change publishes over a Stopped replaces the timeline listener's throw, and no read is started", () =>
+    Effect.gen(function* () {
+      const { source, tally } = flaky();
+      const feed = yield* makeTimelineFeed({ source, capacity: 5 });
+      yield* flush;
+      assert.strictEqual(feed.status.getSnapshot()._tag, "Stopped");
+      const timelineBoom = new Error("timeline boom");
+      const statusBoom = new Error("status boom");
+      let timelineThrows = 1;
+      feed.timeline.subscribe(() => {
+        if (timelineThrows === 0) return;
+        timelineThrows -= 1;
+        throw timelineBoom;
+      });
+      let statusThrows = 1;
+      feed.status.subscribe(() => {
+        if (statusThrows === 0) return;
+        statusThrows -= 1;
+        throw statusBoom;
+      });
+
+      const outcome = thrownBy(() => feed.configure({ source, capacity: 2 }));
+      yield* flush;
+
+      assert.isTrue(outcome.threw);
+      assert.strictEqual(outcome.thrown, statusBoom);
+      assert.strictEqual(feed.status.getSnapshot()._tag, "Reading");
+      assert.strictEqual(tally.reads, 1);
+      assert.deepStrictEqual(idsOf(feed), []);
+      assert.strictEqual(feed.timeline.getSnapshot().capacity, 2);
+    }));
 });

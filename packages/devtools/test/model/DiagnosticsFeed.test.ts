@@ -619,4 +619,52 @@ describe("the diagnostics feed", () => {
       assert.strictEqual(feed.getSnapshot().status._tag, "Off");
     }),
   );
+
+  it.effect("F31 a listener that throws on the Starting a configure publishes leaves the feed Starting, and no new poll starts", () =>
+    Effect.gen(function* () {
+      const a = makeCollectorDouble();
+      const b = makeCollectorDouble();
+      const feed = yield* makeDiagnosticsFeed({ collector: a.collector });
+      yield* step("4 seconds");
+      assert.isTrue(DiagnosticsStatus.$is("Live")(feed.getSnapshot().status));
+      const boom = new Error("boom");
+      let throws = 1;
+      feed.subscribe(() => {
+        if (throws === 0) return;
+        throws -= 1;
+        throw boom;
+      });
+
+      const outcome = thrownBy(() => feed.configure({ collector: b.collector }));
+      yield* step("4 seconds");
+
+      assert.isTrue(outcome.threw);
+      assert.strictEqual(outcome.thrown, boom);
+      assert.strictEqual(b.state.calls, 0);
+      assert.strictEqual(feed.getSnapshot().status._tag, "Starting");
+    }),
+  );
+
+  it.effect("F32 a listener that throws on the Live and the Stopped publishes: the poll ends on the first, and the Stopped is held although it threw", () =>
+    Effect.gen(function* () {
+      const a = makeCollectorDouble();
+      const feed = yield* makeDiagnosticsFeed();
+      const boom = new Error("boom");
+      const heard: Array<string> = [];
+      feed.subscribe(() => {
+        const tag = feed.getSnapshot().status._tag;
+        heard.push(tag);
+        if (tag !== "Starting") throw boom;
+      });
+
+      feed.configure({ collector: a.collector });
+      yield* step("4 seconds");
+
+      assert.deepStrictEqual(heard, ["Starting", "Live", "Stopped"]);
+      assert.strictEqual(a.state.calls, 1);
+      const status = feed.getSnapshot().status;
+      assert.strictEqual(status._tag, "Stopped");
+      assert.isTrue(DiagnosticsStatus.$is("Stopped")(status) && status.sampled);
+    }),
+  );
 });
