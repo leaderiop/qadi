@@ -7,19 +7,23 @@
  * figure: `Evaluate.bench.ts` measures a bare evaluation, this file measures
  * what the cache adds or saves around one.
  *
- * Two workloads, not three: a genuine `coalesced` join needs two fibers
- * racing on the same in-flight key, which is a different unit of work from a
- * single call and does not compare against `hit`/`miss` on the same axis
- * without its own separate baseline — DecisionCache.test.ts's own
+ * Five workloads over two of the three outcomes. A genuine `coalesced` join
+ * needs two fibers racing on the same in-flight key, which is a different unit
+ * of work from a single call and does not compare against `hit`/`miss` on the
+ * same axis without its own separate baseline — DecisionCache.test.ts's own
  * `coalesced join` tests already prove the mechanism works, and a benchmark
- * that cannot be read against the other two rows is not worth the words this
+ * that cannot be read against the other rows is not worth the words this
  * file's own precedent (`Evaluate.bench.ts`) would need to explain it.
  *
- *   hit    the same policy/subject/resource looked up again — every
- *          comparison the structural key does, on the shortest path through it
- *   miss   a distinct policy per call, so every lookup inserts rather than
- *          finds — the HashMap grows across the run, the way an
- *          application-scoped cache serving many distinct requests does
+ *   hit            the same policy/subject/resource looked up again — every
+ *                  comparison the structural key does, on the shortest path
+ *                  through it; once with one node, once with an eight-leaf
+ *                  tree, and once with a fresh-but-equal subject per lookup
+ *   miss           a distinct policy per call, so every lookup inserts rather
+ *                  than finds — the HashMap grows across the run, the way an
+ *                  application-scoped cache serving many distinct requests does
+ *   miss, bounded  the same, into a cache held at `capacity`, so once it is
+ *                  full every insert evicts the oldest entry
  */
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -125,6 +129,19 @@ test("DecisionCache.getOrCompute — miss", async ({ bench }) => {
   const nextPolicy = (): Policy => hasPermission(permission("document", `read-${counter++}`));
 
   await bench("distinct policy per call, cache grows across the run", () => {
+    runtime.runSync(evaluate(nextPolicy()));
+  }).run(options);
+});
+
+test("DecisionCache.getOrCompute — miss, capacity-bound", async ({ bench }) => {
+  // The `miss` workload into a bounded cache: once `capacity` entries are
+  // held, every insert evicts the oldest one, so each call pays for one
+  // eviction as well as the walk and the insert.
+  const runtime = ManagedRuntime.make(Layer.mergeAll(services, decisionCacheLayer({ capacity: 64 })));
+  let counter = 0;
+  const nextPolicy = (): Policy => hasPermission(permission("document", `read-${counter++}`));
+
+  await bench("distinct policy per call, each insert evicts the oldest", () => {
     runtime.runSync(evaluate(nextPolicy()));
   }).run(options);
 });
