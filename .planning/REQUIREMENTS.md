@@ -90,20 +90,20 @@ Every phase runs on branch `arch-wave-12`, strictly serial.
 
 ### Hygiene and recorded close-outs (Phase 68, ARCH-115; D3, D8, D9)
 
-- [ ] **HYGN-01**: The three over-width lines named by the v1.6 audit are hand-wrapped, with a per-file mutation base taken
+- [x] **HYGN-01**: The three over-width lines named by the v1.6 audit are hand-wrapped, with a per-file mutation base taken
   on the post-Phase-67 tree before the first edit and scores not falling.
-- [ ] **HYGN-02**: All stale wording is fixed (D8): the 10 plan-local ids in `StoredEnvelope.test.ts` and the "stamp"
+- [x] **HYGN-02**: All stale wording is fixed (D8): the 10 plan-local ids in `StoredEnvelope.test.ts` and the "stamp"
   wording in `Source.test.ts` where it means the same concept, proven by a compiler-based comparison to change only titles
   and comments.
-- [ ] **HYGN-03**: ADR-QD-174 lines 73, 75 and 94 are re-wrapped in one `spec-revise` bump (D9).
-- [ ] **HYGN-04**: An ADR-QD-173 amendment records that port cards stay package-private (D3) and that a headless consumer
+- [x] **HYGN-03**: ADR-QD-174 lines 73, 75 and 94 are re-wrapped in one `spec-revise` bump (D9).
+- [x] **HYGN-04**: An ADR-QD-173 amendment records that port cards stay package-private (D3) and that a headless consumer
   reads the diagnostics feed's reading; no export is added.
-- [ ] **HYGN-05**: The two settled items are recorded with evidence and no source edit: the `DecisionLog` `ingest` doc
+- [x] **HYGN-05**: The two settled items are recorded with evidence and no source edit: the `DecisionLog` `ingest` doc
   already names the uncontained defect path, and `Simulator.test.tsx`'s Phase 61 diff (`d0ca3df6`) is comments only, in a
   new file in the Phase 61 archive directory.
-- [ ] **HYGN-06**: The milestone's stale-verification sweep re-verifies Phase 62 at least, since Phases 64–66 edit files it
+- [x] **HYGN-06**: The milestone's stale-verification sweep re-verifies Phase 62 at least, since Phases 64–66 edit files it
   covers.
-- [ ] **HYGN-07**: Every item still open from phases 62–67 (`68-OPEN-ITEMS.md`, OI-01..OI-29) is fixed with
+- [x] **HYGN-07**: Every item still open from phases 62–67 (`68-OPEN-ITEMS.md`, OI-01..OI-29) is fixed with
   its evidence, or recorded with the reason it cannot be changed (owner decision 2026-11-21: absorb everything open).
 
 ### Every phase (cross-cutting)
@@ -174,13 +174,13 @@ The seven WX rows apply to every phase 62 to 68, so each phase's Requirements li
 | MUTE-02 | Phase 67 | Complete |
 | MUTE-03 | Phase 67 | Complete |
 | MUTE-04 | Phase 67 | Complete |
-| HYGN-01 | Phase 68 | Pending |
-| HYGN-02 | Phase 68 | Pending |
-| HYGN-03 | Phase 68 | Pending |
-| HYGN-04 | Phase 68 | Pending |
-| HYGN-05 | Phase 68 | Pending |
-| HYGN-06 | Phase 68 | Pending |
-| HYGN-07 | Phase 68 | Pending |
+| HYGN-01 | Phase 68 | Complete |
+| HYGN-02 | Phase 68 | Complete |
+| HYGN-03 | Phase 68 | Complete |
+| HYGN-04 | Phase 68 | Complete |
+| HYGN-05 | Phase 68 | Complete |
+| HYGN-06 | Phase 68 | Complete |
+| HYGN-07 | Phase 68 | Complete |
 | WX-01 | All v1.7 phases | Pending |
 | WX-02 | All v1.7 phases | Pending |
 | WX-03 | All v1.7 phases | Pending |
