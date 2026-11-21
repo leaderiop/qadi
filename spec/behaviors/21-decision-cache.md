@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-21                                    |
-> | Revision       | 1.11                                            |
+> | Revision       | 1.12                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.11 (2026-11-19): BEH-QD-644's enforcement names the options-identity test (review IN-02)<br>1.10 (2026-11-19): BEH-QD-641..645 — the cache is asked the question and walks it; BEH-QD-166 names the walk (ARCH-108, CCR-QD-452)<br>1.9 (2026-11-12): BEH-QD-491 — a stale answer never re-enters a cleared cache; BEH-QD-439 names the superseded state (ARCH-79, ADR-QD-132, CCR-QD-422)<br>1.8 (2026-11-10): BEH-QD-439 — a shared computation answers everyone still waiting, and nobody else: a claim is joinable only while somebody waits on it, an abandoned computation caches nothing, and the last leaver still waits for a computation parked uninterruptibly (ARCH-68, ADR-QD-132, CCR-QD-410)<br>1.7 (2026-11-10): BEH-QD-166 states why a bad `capacity` is a defect where a port's `…Bounded(permits)` is typed; no behaviour change (ARCH-61, CCR-QD-403)<br>1.6 (2026-10-08): BEH-QD-166 — a completed entry is counted once toward `capacity`; the hit check, the join and the claim are one synchronous step (ARCH-45, CCR-QD-267)<br>1.5 (2026-10-07): BEH-QD-163/168 — `DecisionCacheKey` is replaced by `Question`; the options that are part of the key are the type `QuestionOptions` (ADR-QD-100, CCR-QD-189)<br>1.4 (2026-09-08): BEH-QD-168 corrected twice — `AuthSubject.roles`/`.permissions` are the built-in JS `Set`, not `effect/HashSet` (matching `DecisionCache.ts`'s own corrected doc comment); and the `DecisionCacheKey` listing and BEH-QD-163's requirement gained the `maxDepth` field they omitted, which is in the key for the same reason `action` is (CCR-QD-128)<br>1.3 (2026-08-23): BEH-QD-168 — the key carries the subject, not its id; amends BEH-QD-163 (ADR-QD-043, INV-QD-033, CCR-QD-058)<br>1.2 (2026-08-23): BEH-QD-167 — the key identifies the question structurally; the stringified key could collide (ADR-QD-042, INV-QD-030, CCR-QD-057)<br>1.1 (2026-08-20): `decisionCacheLayer` takes an optional `capacity`; BEH-QD-166 added<br>1.0 (2026-07-26): Initial release (CCR-QD-032) |
+> | Change History | 1.12 (2026-11-21): BEH-QD-166's reasons for the validation say what an unvalidated capacity would do to the split eviction; INV-QD-379 linked (ARCH-114, CCR-QD-458)<br>1.11 (2026-11-19): BEH-QD-644's enforcement names the options-identity test (review IN-02)<br>1.10 (2026-11-19): BEH-QD-641..645 — the cache is asked the question and walks it; BEH-QD-166 names the walk (ARCH-108, CCR-QD-452)<br>1.9 (2026-11-12): BEH-QD-491 — a stale answer never re-enters a cleared cache; BEH-QD-439 names the superseded state (ARCH-79, ADR-QD-132, CCR-QD-422)<br>1.8 (2026-11-10): BEH-QD-439 — a shared computation answers everyone still waiting, and nobody else: a claim is joinable only while somebody waits on it, an abandoned computation caches nothing, and the last leaver still waits for a computation parked uninterruptibly (ARCH-68, ADR-QD-132, CCR-QD-410)<br>1.7 (2026-11-10): BEH-QD-166 states why a bad `capacity` is a defect where a port's `…Bounded(permits)` is typed; no behaviour change (ARCH-61, CCR-QD-403)<br>1.6 (2026-10-08): BEH-QD-166 — a completed entry is counted once toward `capacity`; the hit check, the join and the claim are one synchronous step (ARCH-45, CCR-QD-267)<br>1.5 (2026-10-07): BEH-QD-163/168 — `DecisionCacheKey` is replaced by `Question`; the options that are part of the key are the type `QuestionOptions` (ADR-QD-100, CCR-QD-189)<br>1.4 (2026-09-08): BEH-QD-168 corrected twice — `AuthSubject.roles`/`.permissions` are the built-in JS `Set`, not `effect/HashSet` (matching `DecisionCache.ts`'s own corrected doc comment); and the `DecisionCacheKey` listing and BEH-QD-163's requirement gained the `maxDepth` field they omitted, which is in the key for the same reason `action` is (CCR-QD-128)<br>1.3 (2026-08-23): BEH-QD-168 — the key carries the subject, not its id; amends BEH-QD-163 (ADR-QD-043, INV-QD-033, CCR-QD-058)<br>1.2 (2026-08-23): BEH-QD-167 — the key identifies the question structurally; the stringified key could collide (ADR-QD-042, INV-QD-030, CCR-QD-057)<br>1.1 (2026-08-20): `decisionCacheLayer` takes an optional `capacity`; BEH-QD-166 added<br>1.0 (2026-07-26): Initial release (CCR-QD-032) |
 
 _Previous: [20 — Policy Simplification](./20-simplification.md)_
 
@@ -160,16 +160,20 @@ REQUIREMENT: `decisionCacheLayer`'s `capacity` option, when given, MUST be a
              construction, before any evaluation runs.
 ```
 
-A negative `capacity` would make the eviction loop's own exit condition
-(`size(entries) > capacity`) unsatisfiable once `entries` empties out — an
-infinite loop, not a small cache. A `NaN` capacity would make that same
-comparison always `false`, silently turning "bounded" into unbounded instead
-of failing loudly. Both are caller misconfiguration, not a runtime condition
-to recover from, so this fails as a defect rather than a typed error. That is
+Eviction removes the oldest `size(entries) - capacity` keys in one step, and
+`Chunk.splitAt` rounds that count down to a whole number and reads a negative
+or `NaN` one as zero. A negative `capacity` would therefore evict every entry
+as it settled, a cache that silently retains nothing, and a `NaN` one would
+evict none, silently turning "bounded" into unbounded instead of failing
+loudly. Both are caller misconfiguration, not a runtime condition to recover
+from, so this fails as a defect rather than a typed error. That is
 unlike a port's `…Bounded(permits)`, whose `InvalidBoundedPermits` is typed: those
 wrappers are derived for every port by `PortDerivation.ts`, whose layers already
 carry an error channel, so a composition can report it, while the cache's and
 the decision log's `capacity` is a constant the caller wrote.
+
+> **Amended 2026-11-21 (ARCH-114, CCR-QD-458).** The paragraph above described the
+> eviction loop the cache no longer has; the requirement is unchanged.
 
 ```
 REQUIREMENT: Once the number of completed entries exceeds `capacity`, the
@@ -200,6 +204,9 @@ Eviction is FIFO (insertion order), not least-recently-used: recording an
 access on every hit would cost every lookup something to buy a policy this
 cache has no stated need for. `capacity` is unset by default — every behaviour
 above this section holds unchanged when it is absent.
+
+The bound and the order are
+[INV-QD-379](../invariants.md#inv-qd-379-a-bounded-decision-cache-holds-at-most-capacity-entries-and-evicts-the-oldest-first).
 
 ## BEH-QD-167: Two different questions never share an entry
 

@@ -326,6 +326,11 @@ inside them is fine.
 `Match.value(x)` rebuilds per call, which is fine for a translator invoked once
 per request and is worth avoiding on a per-node evaluation path.
 
+A table indexed directly by a tag its own code wrote needs no `Object.hasOwn` and
+no fail-closed row, because the key cannot fall outside the union and such a row
+could never be reached: `SharedComputation.ts`'s `afterReset`, `afterLastLeave` and
+its claim arms are that shape, and a missing row is a compile error.
+
 **Three switches remain unconverted**, and the exception is enforced rather than
 remembered: `scripts/check-house-style.mjs` carries a `SWITCH_BUDGET` naming each
 file and its exact count, and gate 4 fails on any deviation.
