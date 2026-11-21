@@ -67,7 +67,10 @@ if (args.includes("--check")) {
 
 const dateFlag = args.indexOf("--date");
 const date = dateFlag === -1 ? new Date().toISOString().slice(0, 10) : args[dateFlag + 1];
-const positional = args.filter((arg, index) => !arg.startsWith("--") && index !== dateFlag + 1);
+// Without `--date`, `dateFlag + 1` is 0: only a present flag's value is left out.
+const positional = args.filter(
+  (arg, index) => !arg.startsWith("--") && (dateFlag === -1 || index !== dateFlag + 1),
+);
 const [doc, entry] = positional;
 
 if (doc === undefined || entry === undefined || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
