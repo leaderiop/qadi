@@ -5,17 +5,17 @@ milestone_name: Arch Wave 12
 current_phase: 68
 current_phase_name: Hygiene and recorded close-outs
 current_plan: 15
-status: executing
-stopped_at: Completed 68-14-PLAN.md
-last_updated: "2026-11-21T13:02:31.370Z"
+status: verifying
+stopped_at: Completed 68-15-PLAN.md
+last_updated: "2026-11-21T13:14:22.964Z"
 last_activity: 2026-11-21
 last_activity_desc: Phase 67 complete, transitioned to Phase 68
-state_head: c13f2005332fca2b7127520beb02e75f2ae27ea2
+state_head: 0624aa3c78dbb5fb832b191e1383d5ac86778eef
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 51
-  completed_plans: 50
+  completed_plans: 51
   percent: 86
 ---
 
@@ -33,7 +33,7 @@ See: .planning/PROJECT.md (updated 2026-11-20)
 Phase: 68 (Hygiene and recorded close-outs) — EXECUTING
 Current Plan: 15
 Total Plans in Phase: 15
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-21 — Phase 67 complete, transitioned to Phase 68
 
 
@@ -473,6 +473,7 @@ Last activity: 2026-11-21 — Phase 67 complete, transitioned to Phase 68
 | Phase QD-68 P12 | 5 min | 3 tasks | 1 files |
 | Phase QD-68 P13 | 9 min | 2 tasks | 3 files |
 | Phase 68 P14 | 30 min | 3 tasks | 3 files |
+| Phase QD-68 P15 | 15 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -803,6 +804,7 @@ Last activity: 2026-11-21 — Phase 67 complete, transitioned to Phase 68
 - [Phase QD-68]: 68-12: the close scan's commit-order list is corrected in a scratch copy for the 68-06..68-09-before-68-05 reorder, and Task 2's base-file check compares against 68-02's recording commit instead of the phase base; no condition weakened
 - [Phase QD-68]: 68-13: Phase 62's merge-gate spot-check row is answered by 68-15's one check:pr run, not run here; the verdict stands only while that run is green
 - [Phase 68]: 68-14: Phase 65's bench truth is answered by Phase 68's bench of record, with the gap stated: no single run compares today's tree with Phase 65's base
+- [Phase QD-68]: 68-15: Phases 66 and 67 re-verified by re-running each check on the current tree; check:pr green once; HYGN-01..07 ticked, WX-* left Pending for the milestone audit
 
 ### Pending Todos
 
@@ -868,8 +870,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-21T13:02:31.218Z
-Stopped at: Completed 68-14-PLAN.md
+Last session: 2026-11-21T13:14:22.903Z
+Stopped at: Completed 68-15-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
