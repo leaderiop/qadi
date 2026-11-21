@@ -103,6 +103,8 @@ Every phase runs on branch `arch-wave-12`, strictly serial.
   new file in the Phase 61 archive directory.
 - [ ] **HYGN-06**: The milestone's stale-verification sweep re-verifies Phase 62 at least, since Phases 64–66 edit files it
   covers.
+- [ ] **HYGN-07**: Every item still open from phases 62–67 (`68-OPEN-ITEMS.md`, OI-01..OI-29) is fixed with
+  its evidence, or recorded with the reason it cannot be changed (owner decision 2026-11-21: absorb everything open).
 
 ### Every phase (cross-cutting)
 
@@ -178,6 +180,7 @@ The seven WX rows apply to every phase 62 to 68, so each phase's Requirements li
 | HYGN-04 | Phase 68 | Pending |
 | HYGN-05 | Phase 68 | Pending |
 | HYGN-06 | Phase 68 | Pending |
+| HYGN-07 | Phase 68 | Pending |
 | WX-01 | All v1.7 phases | Pending |
 | WX-02 | All v1.7 phases | Pending |
 | WX-03 | All v1.7 phases | Pending |
@@ -187,10 +190,10 @@ The seven WX rows apply to every phase 62 to 68, so each phase's Requirements li
 | WX-07 | All v1.7 phases | Pending |
 
 **Coverage:**
-- v1.7 requirements: 39 total (32 phase-specific + 7 cross-cutting)
-- Mapped to phases: 39 (32 phase-specific, each to exactly one of Phases 62 to 68; 7 cross-cutting, each applying to all seven)
+- v1.7 requirements: 40 total (33 phase-specific + 7 cross-cutting)
+- Mapped to phases: 40 (33 phase-specific, each to exactly one of Phases 62 to 68; 7 cross-cutting, each applying to all seven)
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-11-20*
-*Last updated: 2026-11-20 after roadmap creation (traceability filled)*
+*Last updated: 2026-11-21 HYGN-07 added (owner: Phase 68 absorbs every open item)*

@@ -629,7 +629,7 @@ Plans:
 
 **Goal**: The v1.6 audit's remaining wording and record items are fixed or recorded with evidence, and the milestone's stale verification is swept, so nothing from the audit is carried forward again.
 **Depends on**: Phases 62 to 67 (last: it re-wraps lines Phases 64 to 67 could shift, edits the same spec registers, and re-verifies Phase 62).
-**Requirements**: HYGN-01, HYGN-02, HYGN-03, HYGN-04, HYGN-05, HYGN-06, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Requirements**: HYGN-01, HYGN-02, HYGN-03, HYGN-04, HYGN-05, HYGN-06, HYGN-07, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
 **Packages**: `@qadi/core` and `@qadi/devtools` (tests, comments and one over-width source line only), `spec/`, `features/`; no changeset, no behaviour change
 **Records**: ARCH-115; ADR-QD-173 amended (D3); ADR-QD-174 re-wrapped by `spec-revise` (D9); ADR-QD-181 likely named Unused; CCR-QD-459 (records the unused ids and the two no-op confirmations); BEH-QD-676 to 680; INV-QD-381 to 382
 **Settled by research (2026-11-20)**: the `DecisionLog` `ingest` doc already names the uncontained defect path (`DecisionLog.ts:126-129`, ADR-QD-171), and `QadiAtoms.test.ts:570` is already clean; the Phase 61 `Simulator.test.tsx` diff (`d0ca3df6`) is two comment lines. Both are recorded as "confirmed, no edit". Over-width lines measured: `SinkCodec.ts:616` (137 characters) and `decision-log.steps.test.ts:197` (135); the `DecisionLog.ts` line named by 58-REVIEW IN-02 has moved and is located by content.
