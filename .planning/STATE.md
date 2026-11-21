@@ -6,17 +6,17 @@ current_phase: 68
 current_phase_name: Hygiene and recorded close-outs
 current_plan: 5
 status: executing
-stopped_at: Completed QD-68-06-PLAN.md (run before 68-05 by the owner's reorder; current plan stays 5)
-last_updated: "2026-11-21T12:19:01.250Z"
+stopped_at: Completed QD-68-07-PLAN.md (run before 68-05 by the owner's reorder; current plan stays 5)
+last_updated: "2026-11-21T12:22:09.528Z"
 last_activity: 2026-11-21
 last_activity_desc: Phase 67 complete, transitioned to Phase 68
-state_head: d4b0c9aca2671710ad49407266c17c5aabb4ad34
+state_head: edf0232b477cb82159c8014e84e48ed47829cd4f
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 51
-  completed_plans: 41
-  percent: 80
+  completed_plans: 42
+  percent: 82
 ---
 
 # Project State
@@ -464,6 +464,7 @@ Last activity: 2026-11-21 — Phase 67 complete, transitioned to Phase 68
 | Phase QD-68 P03 | 2 min | 3 tasks | 7 files |
 | Phase QD-68 P04 | 25 min | 3 tasks | 9 files |
 | Phase QD-68 P06 | 10 min | 2 tasks | 3 files |
+| Phase QD-68 P07 | 3 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -787,6 +788,7 @@ Last activity: 2026-11-21 — Phase 67 complete, transitioned to Phase 68
 - [Phase QD-68]: OI-24 fixed forward: one shared scripts/bench/ab.sh alternating arm order by round; Phase 59/66/67 harness copies stay; not wired into pnpm check
 - [Phase QD-68]: OI-09 fixed by try/finally around the emptied timeline's publish; the Stopped-feed residue (a status listener throwing on the Reading replaces the timeline listener's throw, no read started) is stated in every text and pinned by TF29. OI-03 subsumed.
 - [Phase QD-68]: 68-06: the race test keeps every per-run assertion; only sides, oneSided and their comment are deleted, capped already proves both sides
+- [Phase QD-68]: 68-07: OI-05 fixed by the wording route in INV-QD-377 (pins U30 and U31); the gate reads refusal only for the admit pins, pin-codes.mjs reads TS2673 and TS2741; CCR-QD-459 is cited before 68-11 writes its row, so verify-traceability --strict shows its one expected FAIL
 
 ### Pending Todos
 
@@ -852,8 +854,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-21T12:19:00.989Z
-Stopped at: Completed QD-68-06-PLAN.md (run before 68-05 by the owner's reorder; current plan stays 5)
+Last session: 2026-11-21T12:22:09.274Z
+Stopped at: Completed QD-68-07-PLAN.md (run before 68-05 by the owner's reorder; current plan stays 5)
 Resume file: None
 
 ## Operator Next Steps
