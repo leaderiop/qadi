@@ -154,3 +154,36 @@ Kept whole above; recorded here, not edited.
 - The report records no validation file; none exists.
 
 **Verdict:** passed
+
+## Re-verification (2026-11-21, after the code review's fixes)
+
+**Staleness:** `66: stale, verification 9214d081, 30 cited, 2 changed since` (`68-stale.mjs`, run at `2367f9df`).
+
+| Cited file | Changed since `9214d081` by |
+| --- | --- |
+| `spec/README.md` | `8c3375fb` fix(QD-68): WR-02 the timeout text claims only the execFileSync children |
+| `spec/traceability.md` | `8c3375fb` fix(QD-68): WR-02 the timeout text claims only the execFileSync children |
+
+**Trailers on this phase's commits:** 35 `Claude Opus 5.5 <noreply@anthropic.com>`.
+
+**Validation record:** no VALIDATION.md.
+
+**Digest:** `covered_digest: "v4:sha256:ff8bbd1ca720847f11e9809b8361d54adf2fe568fa79c424bb142bfeaf02cfa3"` becomes `covered_digest: "v4:sha256:ff8bbd1ca720847f11e9809b8361d54adf2fe568fa79c424bb142bfeaf02cfa3"`, over the same 16 covered files.
+
+### Spot-checks re-run (Re-verification (2026-11-21, after the code review's fixes))
+
+Every row was run on the tree at `2367f9df` (the commit `68-stale.mjs` named), one command at a time, in the foreground, with nothing else running beside it. Heavy commands were run once and their result is shared across the six phases' sections.
+
+| Behaviour | Command run now | Result now | Status |
+| --------- | --------------- | ---------- | ------ |
+| Bench analyzer self-test | `node scripts/bench/analyze.mjs --self-test < /dev/null` | `self-test: 21 passed`, exit 0 | PASS |
+| Bench analysis reproduced | a scratch copy of `.planning/phases/QD-68-*/bench/final`, then `node scripts/bench/analyze.mjs <copy> base final <bench>/workloads.txt < /dev/null`, then `cmp` of the copy's `analysis.tsv` with the committed one (the labels are the two arms `meta.txt` names, reference `base`, as WR-03 now requires) | `# slower: 0`, `# geomean_d_min_pct: 0.01`, worst `+4.7`, `# gate: pass`; `cmp` silent, so the file is byte-identical; `git status` on the bench directory is clean | PASS |
+| Revision headers and registers | `node scripts/spec-revise.mjs --check < /dev/null` | exit 0; `spec-revise: every Revision matches its newest Change History entry` | PASS |
+| Traceability | `bash spec/scripts/verify-traceability.sh --strict < /dev/null` | exit 0; `PASS: 21   FAIL: 0   SKIP: 0 (strict: skips count as failures)` | PASS |
+| What `8c3375fb` changed in the spec | `git show 8c3375fb -- spec` | `spec/README.md`: the Revision header (1.273 to 1.274), its Change History and the CCR-QD-459 row (ADR-QD-033 now cited at Rev 1.4). `spec/traceability.md`: the header (1.235 to 1.236), its Change History and the ADR-QD-033 row. `spec/decisions/033-*.md`: Revision 1.4 and the sentence on child timeouts. Every other row of both registers is unchanged | PASS |
+
+### Truths re-checked (Re-verification (2026-11-21, after the code review's fixes))
+
+Only `spec/README.md` and `spec/traceability.md` changed among the cited files, in the rows named in the last spot-check row. Truth 7's Revisions are Change History entries that remain; the headers moved from 1.273 and 1.235 to 1.274 and 1.236. `scripts/bench/analyze.mjs` changed (`7aa1150b`, WR-03) and the report cites it for Truth 4: it still fixes the 5% band and +2% geomean, and the self-test and the reproduction above pass.
+
+**Verdict:** passed
