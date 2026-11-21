@@ -5,8 +5,9 @@
 // a mutant Ignored at the close and not at the base is not Killed in the evidence run, or when the evidence run leaves
 // open a mutant on a line the phase wrote. Phase 66's scorer, with two changes: a mutant is located by its line number
 // carried through `git diff -U0 <base head> <close head>`, never by the text of its line, and every comparison counts
-// mutants as a multiset, so a second copy of one is a new one. `--self-test` drives the comparison with planted
-// records. From the repository root, after the run INVOCATION names (stdin closed, nothing else running):
+// mutants as a multiset, so a second copy of one is a new one. `record` and `evidence` refuse a tree where a file they
+// read differs from HEAD. `--self-test` drives the comparison with planted records. From the repository root, after the run
+// INVOCATION names (stdin closed, nothing else running):
 //   node .planning/phases/QD-67-no-equivalent-mutants-no-magic-race-bound/67-mutation.mjs record base
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -32,6 +33,13 @@ const fail = (lines) => {
 };
 const readJson = (file) => JSON.parse(readFileSync(file, "utf8"));
 const git = (...args) => execFileSync("git", args, { encoding: "utf8", maxBuffer: 1 << 26 });
+
+/** Why a record may not be made: a file it reads differs from HEAD, so its line numbers belong to no commit. */
+export const dirtyReasons = (porcelain) => (porcelain.trim() === "" ? [] : [`record from a clean tree; these differ from HEAD:\n${porcelain.trimEnd()}`]);
+const refuseDirty = () => {
+  const bad = dirtyReasons(git("status", "--porcelain", "--", ...FILES));
+  if (bad.length > 0) fail(bad);
+};
 
 /** The hunks of a `git diff -U0` of one file: removed base lines [a, a+b) and added close lines [c, c+d). */
 export const hunks = (diffText) =>
@@ -155,6 +163,7 @@ export const judge = ({ base, close, proof, diffs }, log = console.log) => {
 };
 
 const record = async (name) => {
+  refuseDirty();
   const config = (await import(pathToFileURL(resolve(CONFIG)).href)).default;
   if (config.jsonReporter?.fileName !== REPORT) fail([`${CONFIG} no longer reports to the report this reads`]);
   if (config.ignoreStatic !== true) fail([`${CONFIG} no longer sets ignoreStatic: true`]);
@@ -167,6 +176,7 @@ const record = async (name) => {
 
 const evidence = (reportFile) => {
   if (reportFile === undefined) fail(["usage: node 67-mutation.mjs evidence <the ignoreStatic:false report>"]);
+  refuseDirty();
   if (resolve(reportFile) === resolve(REPORT)) fail([`${reportFile} is the gate run's report; the evidence is the second run's`]);
   const files = tally(reportFile, CHANGED);
   for (const file of CHANGED) if (files[file].ignored !== 0) fail([`${reportFile} ignored ${files[file].ignored} mutants of ${file}: not an ignoreStatic:false run`]);
@@ -214,6 +224,9 @@ const selfTest = () => {
     ["a new Ignored mutant on a written line the evidence did not kill fails", { base, close: closeOf({ [SC]: file(71, 71, [], [m("Ignored", 3), m("Ignored", 9)]) }), proof: proofOf(), diffs }, 1],
   ];
   let passed = 0;
+  const planted = ` M ${DC}\n`;
+  if (dirtyReasons(planted).length !== 1 || !dirtyReasons(planted)[0].includes(DC) || dirtyReasons("").length !== 0) fail(["self-test FAILED: a modified file does not refuse a record"]);
+  passed++;
   for (const [name, input, want] of cases) {
     const got = judge(input, () => {}).length;
     if (got !== want) fail([`self-test FAILED: ${name}: ${got} reasons, wanted ${want}`]);
