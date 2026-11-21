@@ -187,3 +187,40 @@ Every row was run on the tree at `2367f9df` (the commit `68-stale.mjs` named), o
 Only `spec/README.md` and `spec/traceability.md` changed among the cited files, in the rows named in the last spot-check row. Truth 7's Revisions are Change History entries that remain; the headers moved from 1.273 and 1.235 to 1.274 and 1.236. `scripts/bench/analyze.mjs` changed (`7aa1150b`, WR-03) and the report cites it for Truth 4: it still fixes the 5% band and +2% geomean, and the self-test and the reproduction above pass.
 
 **Verdict:** passed
+
+## Re-verification (2026-11-21, after Phase 68.1)
+
+**Staleness:** `66: stale, verification 94a90d66, 31 cited, 2 changed since` (`68-stale.mjs`, run at `4790934c`).
+
+| Cited file | Changed since `94a90d66` by |
+| --- | --- |
+| `scripts/bench/analyze.mjs` | `327d93ee` fix(68.1-02): analyze.mjs exits 2 on any input it cannot analyze<br>`ecb4ed90` fix(68.1-02): analyze.mjs exits 1 on a failed gate, and pnpm check runs its self-test |
+| `spec/README.md` | `a8b36092` docs(68.1-05): ADR-QD-033 amended and CCR-QD-460 recorded |
+
+**Trailers on this phase's commits:** 35 `Claude Opus 5.5 <noreply@anthropic.com>`.
+
+**Validation record:** no VALIDATION.md.
+
+**Digest:** `covered_digest: "v4:sha256:ff8bbd1ca720847f11e9809b8361d54adf2fe568fa79c424bb142bfeaf02cfa3"` becomes `covered_digest: "v4:sha256:ff8bbd1ca720847f11e9809b8361d54adf2fe568fa79c424bb142bfeaf02cfa3"`, over the same 16 covered files.
+
+**Staleness by `68.1-stale.mjs`:** `66: stale, verification 94a90d66, 32 cited, 2 changed since` (run at `4790934c`).
+
+### Spot-checks re-run (Re-verification (2026-11-21, after Phase 68.1))
+
+Every row was run on a tree whose tracked files outside the planning directory are those of `4790934c`, one command at a time, in the foreground, with stdin closed and nothing else running beside it. The analyzer self-test, the reproduction of Phase 68's bench analysis, the spec-revise and the traceability results are shared with the other re-verifications of this phase and were taken once at `c3d8553a`; no tracked file outside the planning directory differs between that head and `4790934c` (`git diff --quiet c3d8553a 4790934c -- . ':(exclude).planning'` is silent). No source, test or characterisation file of Phase 66 changed in this phase, so the report's vitest, projection and mutation rows were not run again.
+
+| Behaviour | Command run now | Result now | Status |
+| --------- | --------------- | ---------- | ------ |
+| The analyzer's self-test | `node scripts/bench/analyze.mjs --self-test < /dev/null` (shared) | exit 0; `self-test: 25 passed`, the 21 cases of the earlier section and four end-to-end cases that run the file on a temporary record (a passing gate exits 0, a failing gate exits 1, a label that is neither arm exits 2, a run file that is not JSON exits 2) | PASS |
+| Phase 68's bench analysis reproduced | a scratch copy of Phase 68's `bench/final`, then `node scripts/bench/analyze.mjs <copy> base final <bench>/workloads.txt < /dev/null` (the labels are the two arms its `meta.txt` names, reference `base`), then `cmp` of the copy's `analysis.tsv` with the committed one (shared) | exit 0; `# workloads: 35`, `# slower: 0`, `# geomean_d_min_pct: 0.01`, `# max_slowdown_pct: 5.0`, `# max_geomean_pct: 2.0`, worst `4.7`, `# gate: pass`; `cmp` silent, so the file is byte-identical; `git diff --quiet 0e3f3438 HEAD` over Phase 68's bench directory is silent | PASS |
+| The band and the geomean limit are the same | `git diff -U0 0e3f3438 HEAD -- scripts/bench/analyze.mjs`, searched for `MAX_` | no changed line names `MAX_SLOWDOWN` or `MAX_GEOMEAN_PCT`; both constants are still declared (`0.05` and `2`) and still decide the gate (`slower === 0 && geomean <= MAX_GEOMEAN_PCT`) | PASS |
+| Phase 66's own bench record is untouched | `git diff --quiet 0e3f3438 HEAD -- .planning/phases/QD-66-the-decoder-reads-only-what-it-declares/bench` | exit 0, silent: the committed runs, its copy of the analyzer and its harness are as the report read them | PASS |
+| What the phase changed in the spec register, and the revisions | `git diff -U0 0e3f3438 HEAD -- spec/README.md`, and `node scripts/spec-revise.mjs --check < /dev/null` (shared) | the Revision header (1.274 to 1.275), the Change History cell (a 1.275 entry in front) and one added row, CCR-QD-460, at line 397; no row is removed or edited, so the CCR-QD-457 row is still at line 394 as it was at the base, and the 1.268 entry the report cites is still in the cell; `spec-revise` exit 0, `spec-revise: every Revision matches its newest Change History entry` | PASS |
+| Traceability | `bash spec/scripts/verify-traceability.sh --strict < /dev/null` (shared) | exit 0; `PASS: 21   FAIL: 0   SKIP: 0 (strict: skips count as failures)` | PASS |
+
+### Changed cited files read against the truths that cite them (Re-verification (2026-11-21, after Phase 68.1))
+
+- `scripts/bench/analyze.mjs` (68.1-02, `327d93ee` and `ecb4ed90`): Truth 4 (the bench gate passes with the band fixed before measuring) cites it, and so do the report's latest sections for the self-test and the reproduction of Phase 68's analysis. The change is the exit status only: the file now exits 1 on a failed gate (it exited 0 whatever the gate said) and 2 on input it cannot analyze (incomplete or refused input, a run file that is not JSON, any other error; it exited 2 on incomplete input before), and its self-test gains four end-to-end cases that check those statuses. The 5% per-workload band and the +2% geomean are unchanged (row 3), the analysis it computes is unchanged, and the reproduction of Phase 68's analysis is byte-identical to the committed file, with exit 0 because its gate is `pass` (row 2). Truth 4's own figures (6 workloads, 0 slower, geomean -2.13%, worst +3.5%, gate pass) come from Phase 66's own copy of the analyzer in its bench directory, which this phase did not touch (row 4), so Truth 4 holds as written. The earlier section's self-test row read `self-test: 21 passed`; it reads 25 now for the reason in row 1.
+- `spec/README.md` (68.1-05, `a8b36092`): the report cites the CCR-QD-457 row and Revision 1.268 (Truth 7). The row is unedited at line 394 and the 1.268 entry remains in the Change History cell; the commit moves the revision to 1.275 and adds the CCR-QD-460 row, which no truth of this report reads.
+
+**Verdict:** passed
