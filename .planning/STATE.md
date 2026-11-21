@@ -4,18 +4,18 @@ milestone: v1.7
 milestone_name: Arch Wave 12
 current_phase: 68
 current_phase_name: Hygiene and recorded close-outs
-current_plan: 5
+current_plan: 6
 status: executing
-stopped_at: Completed QD-68-09-PLAN.md (run before 68-05 by the owner's reorder; current plan stays 5)
-last_updated: "2026-11-21T12:27:03.882Z"
+stopped_at: Completed 68-05-PLAN.md
+last_updated: "2026-11-21T12:33:33.852Z"
 last_activity: 2026-11-21
 last_activity_desc: Phase 67 complete, transitioned to Phase 68
-state_head: 3aba5e155fbc915d22c24bccae5ad8aef278df1f
+state_head: 9fb9e4c7842d0a8f1c7af878585fb113e33d93be
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 51
-  completed_plans: 44
+  completed_plans: 45
   percent: 86
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-20)
 ## Current Position
 
 Phase: 68 (Hygiene and recorded close-outs) — EXECUTING
-Current Plan: 5
+Current Plan: 6
 Total Plans in Phase: 15
 Status: Ready to execute
 Last activity: 2026-11-21 — Phase 67 complete, transitioned to Phase 68
@@ -467,6 +467,7 @@ Last activity: 2026-11-21 — Phase 67 complete, transitioned to Phase 68
 | Phase QD-68 P07 | 3 min | 2 tasks | 6 files |
 | Phase QD-68 P08 | 12 min | 2 tasks | 4 files |
 | Phase QD-68 P09 | 6 min | 2 tasks | 3 files |
+| Phase QD-68 P05 | 7 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -793,6 +794,7 @@ Last activity: 2026-11-21 — Phase 67 complete, transitioned to Phase 68
 - [Phase QD-68]: 68-07: OI-05 fixed by the wording route in INV-QD-377 (pins U30 and U31); the gate reads refusal only for the admit pins, pin-codes.mjs reads TS2673 and TS2741; CCR-QD-459 is cited before 68-11 writes its row, so verify-traceability --strict shows its one expected FAIL
 - [Phase QD-68]: 68-08: OI-15..17 and OI-19..21 fixed, each gate change seen failing on a plant (gate 14: eight plants a b c d1 d2 e20 stop timeout) and passing on the real tree; module.register stays for the Node 22.12 floor (DEP0205 on Node 26)
 - [Phase QD-68]: 68-09: OI-22, OI-23 and OI-25 fixed in Phases 65 to 67's record scripts because each script's committed records still pass; plants p1 and p2 fail Phase 66's fixed scorer and pass its base, three plants fail Phase 67's 17-case self-test
+- [Phase QD-68]: OI-10 bench of record passed its gate: 35 workloads, 3+3 interleaved on a quiet host, no workload slower than +4.7% (limit 5%), geomean +0.01%; reference spread 0.8-11.5%, worst delta exceeds its own 2.1% spread and is recorded as such
 
 ### Pending Todos
 
@@ -858,8 +860,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-21T12:27:03.595Z
-Stopped at: Completed QD-68-09-PLAN.md (run before 68-05 by the owner's reorder; current plan stays 5)
+Last session: 2026-11-21T12:33:33.549Z
+Stopped at: Completed 68-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
