@@ -656,19 +656,19 @@ Plans:
 - [x] 68-04-PLAN.md — every source change: a capacity change's publish stops no read (OI-09, OI-03), `admit` reads each field once, the comment-only fixes (OI-02, OI-04) and the three over-width lines wrapped (HYGN-01)
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 68-05-PLAN.md — the bench of record of the committed source against the phase base on the shared harness, under the quiet-host rule (OI-10)
-
-**Wave 6** *(blocked on Wave 5 completion)*
 - [ ] 68-06-PLAN.md — the stale test wording (HYGN-02, OI-08, OI-14), each proven by compiler comparison
 
-**Wave 7** *(blocked on Wave 6 completion)*
+**Wave 6** *(blocked on Wave 5 completion)*
 - [ ] 68-07-PLAN.md — the characterisation's readings, the projection's accessors, the admit pins and the supplied trace (OI-01, OI-05, OI-06, OI-07)
 
-**Wave 8** *(blocked on Wave 7 completion)*
+**Wave 7** *(blocked on Wave 6 completion)*
 - [ ] 68-08-PLAN.md — `test:tstyche` file filters, house-style's JSONC and duplicate-row reads, and the packed-install guard (OI-15 to OI-17, OI-19 to OI-21)
 
-**Wave 9** *(blocked on Wave 8 completion)*
+**Wave 8** *(blocked on Wave 7 completion)*
 - [ ] 68-09-PLAN.md — the completed phases' record scripts fixed where their records still pass (OI-22, OI-23, OI-25)
+
+**Wave 9** *(blocked on Wave 8 completion; owner reorder 2026-11-21: the host stayed busy, so 68-06..68-09, which change no `packages/*/src` file, run before the bench)*
+- [ ] 68-05-PLAN.md — the bench of record of the committed source against the phase base on the shared harness, under the quiet-host rule (OI-10)
 
 **Wave 10** *(blocked on Wave 9 completion)*
 - [ ] 68-10-PLAN.md — ADR-QD-174 re-wrapped (HYGN-03), ADR-QD-173 amended (HYGN-04), and the decisions, behaviours, invariants and traceability the phase's code changed
