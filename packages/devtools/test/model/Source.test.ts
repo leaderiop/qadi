@@ -183,7 +183,7 @@ describe("sourceFromRecords", () => {
 
 /**
  * A `DecisionLog` is a `Source` as it is — no adapter (ARCH-11 D-11-c). Its
- * stamping, prototype preservation and handoff are tested where they live, in
+ * environment label, prototype preservation and handoff are tested where they live, in
  * `@qadi/core`'s `DecisionLog.test.ts`; this pins only that the timeline gets
  * the backlog, then the live records, each exactly once.
  */
@@ -288,7 +288,7 @@ describe("sourceFromEventSource", () => {
         assert.deepStrictEqual(got.live.map((r) => r.environment), ["Server"]);
       }));
 
-    it.effect("a bare frame — what a server older than 0.10 sends — is Malformed, never stamped", () =>
+    it.effect("a bare frame — what a server older than 0.10 sends — is Malformed, never given a label", () =>
       Effect.gen(function* () {
         const bare = Result.getOrThrow(encodeSinkRecordString(decisionRecord({ evaluationId: "old" }).record));
         const fake = fakeEventSource();
@@ -303,7 +303,7 @@ describe("sourceFromEventSource", () => {
       }));
   });
 
-  it.effect("a well-formed frame becomes a stamped record", () =>
+  it.effect("a well-formed frame becomes a stored record", () =>
     Effect.gen(function* () {
       const fake = fakeEventSource();
       const got = yield* collect(fake, [frameOf(decisionRecord({ evaluationId: "a" }))], 1);

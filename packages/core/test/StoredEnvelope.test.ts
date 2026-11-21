@@ -1,17 +1,16 @@
 /**
- * The stored record, read only through the wire and the log: its bytes, its
- * stamping and its order.
+ * The stored record, read through the wire and the log: its bytes, its envelope
+ * and its order (ADR-QD-171).
  *
- * Written on the phase base and green there, and read the same way after
- * ADR-QD-171, so the change cannot edit it: every row reaches a stored record
- * through `makeDecisionLog`, `encodeStoredRecordString`, `decodeStoredRecordString`
- * and `decodeDecisionStream`, whose signatures are the same on both sides, and none
- * reads a field of the in-memory shape. The goldens compose the hand-written `V2_*`
- * fixtures, never the encoder's own output, so the bytes are checked against the
- * ADR rather than against themselves (STOR-02, D-05, D-07).
+ * The golden, log and order rows reach a stored record only through
+ * `makeDecisionLog`, `encodeStoredRecordString`, `decodeStoredRecordString` and
+ * `decodeDecisionStream`, and read none of its fields. The goldens compose the
+ * hand-written `V2_*` fixtures, never the encoder's own output, so the bytes are
+ * checked against the ADR rather than against themselves.
  *
- * The rows at the end, `(D-01)` and `(D-12)`, are the new shape's: committed RED on
- * the base by assertion and green once the envelope is the stored record.
+ * The rows at the end, N1 to N4, read the envelope itself: the stored record is
+ * the envelope, holding the very record ingested and its environment, and nothing
+ * else.
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
@@ -108,7 +107,7 @@ const golden = (fixture: string) =>
     }
   });
 
-describe("the stored envelope through the wire (STOR-02, D-07)", () => {
+describe("the stored envelope through the wire", () => {
   it.effect("G1 V2_DECIDED_ALLOW encodes to its composed stored text under three labels", () =>
     golden(V2.V2_DECIDED_ALLOW));
   it.effect("G2 V2_DECIDED_ALLOW_ALL_FIELDS encodes to its composed stored text under three labels", () =>
@@ -137,7 +136,7 @@ describe("the stored envelope through the wire (STOR-02, D-07)", () => {
   });
 });
 
-describe("a log stamps what it ingests (STOR-03, D-07)", () => {
+describe("a log wraps what it ingests in an envelope", () => {
   it.effect("L1 each ingest's label is the envelope's environment", () =>
     Effect.gen(function* () {
       const a = yield* storedOf(obligations("a", 1), "edge-a");
@@ -182,7 +181,7 @@ describe("a log stamps what it ingests (STOR-03, D-07)", () => {
     }));
 });
 
-describe("one order, read through the log and the stream (STOR-03, INV-QD-039, D-07)", () => {
+describe("one order, read through the log and the stream (INV-QD-039)", () => {
   const mixed = [
     obligations("t3", 3),
     obligations("u1", Number.NaN),
@@ -225,8 +224,8 @@ describe("one order, read through the log and the stream (STOR-03, INV-QD-039, D
     ));
 });
 
-describe("the stored record is the envelope (STOR-01, RED on the base)", () => {
-  it.effect("N1 the stored record holds the very record ingested (D-01)", () =>
+describe("the stored record is the envelope", () => {
+  it.effect("N1 the stored record holds the very record ingested", () =>
     Effect.gen(function* () {
       const original = obligations("a", 1);
       const stored = yield* storedOf(original, "Server");
@@ -234,7 +233,7 @@ describe("the stored record is the envelope (STOR-01, RED on the base)", () => {
       assert.isTrue("record" in stored && stored.record === original, "`record` is the record ingested");
     }));
 
-  it.effect("N2 a decoded envelope holds a DecisionRecord equal to the record decoded alone (D-01)", () =>
+  it.effect("N2 a decoded envelope holds a DecisionRecord equal to the record decoded alone", () =>
     Effect.gen(function* () {
       const back = Result.getOrElse(decodeStoredRecordString(composed("Server", V2.V2_DECIDED_ALLOW)), () =>
         assert.fail("the Server golden did not decode"));
@@ -246,13 +245,13 @@ describe("the stored record is the envelope (STOR-01, RED on the base)", () => {
       );
     }));
 
-  it.effect("N3 a stored record owns exactly the keys environment and record (D-01)", () =>
+  it.effect("N3 a stored record owns exactly the keys environment and record", () =>
     Effect.gen(function* () {
       const stored = yield* storedOf(obligations("a", 1), "Server");
       assert.deepStrictEqual(Object.keys(stored), ["environment", "record"]);
     }));
 
-  it.effect("N4 a record with an enumerable throwing getter is retained and nothing is logged (D-12)", () =>
+  it.effect("N4 a record with an enumerable throwing getter is retained and nothing is logged", () =>
     Effect.gen(function* () {
       const record = recordOf(V2.V2_DECIDED_ALLOW);
       // Enumerable, so anything that copies the record's own properties reads it and throws.
