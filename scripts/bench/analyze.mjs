@@ -15,6 +15,9 @@
 // file's tasks by speed; a run missing a named workload or holding another one is refused. Phase
 // 67's analyzer with its workload set read from that file.
 //
+// The two labels must be different and each an arm `meta.txt` names (`head_label`, `patched_label`);
+// which of them is the reference is the caller's, since Phase 68's reference is the patched arm.
+//
 // Writes <outdir>/analysis.tsv and prints it. Exits 0 whenever the analysis completed, whatever the
 // gate says; 2 on incomplete input.
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -43,6 +46,25 @@ export const readWorkloads = (text) => {
     seen.add(k);
   }
   return keys;
+};
+
+/**
+ * The rounds `meta.txt` records, once its two arm labels are checked against the two the caller names.
+ * The roles are the caller's (Phase 68's reference is the patched arm), so either order passes; the same
+ * label twice, or a label `ab.sh` did not write, is refused, since either compares an arm with something
+ * that is not the other arm.
+ */
+export const readMeta = (text, where, refLabel, candLabel) => {
+  const m = /^rounds: (\d+)$/m.exec(text);
+  if (!m) throw new Refused(`no "rounds:" line in ${where}`);
+  const rounds = Number(m[1]);
+  if (rounds < MIN_ROUNDS) throw new Refused(`${where} says ${rounds} rounds; at least ${MIN_ROUNDS} are required`);
+  if (refLabel === candLabel) throw new Refused(`the reference and candidate label are both ${refLabel}`);
+  const arms = ["head_label", "patched_label"].map((key) => new RegExp(`^${key}: (.+)$`, "m").exec(text)?.[1]);
+  if (arms.includes(undefined)) throw new Refused(`no "head_label:" and "patched_label:" lines in ${where}`);
+  for (const label of [refLabel, candLabel])
+    if (!arms.includes(label)) throw new Refused(`${label} is not an arm of ${where} (${arms.join(" and ")})`);
+  return rounds;
 };
 
 /** A run is a Map: workload key -> { min, p50, mean } in ns. */
@@ -172,13 +194,24 @@ const selfTest = () => {
   const moved = compare(NAMES, base, arm([100, 100, 100], 1.06, 1, [], rotated));
   if (moved.worst.k !== NAMED || moved.slower !== 1) fail("the slower workload is found by name", `${moved.worst.k} is the worst`);
   passed++;
+  const META = "head_label: final\npatched_label: base\nrounds: 3\n";
   const refusals = [
     ["a run missing a named workload is refused", () => compare(NAMES, base, arm([100, 100, 100], 1, 1, [], NAMES.slice(1)))],
     ["a run holding a workload the gate does not name is refused", () => compare(NAMES, base, arm([100, 100, 100], 1, 1, [], [...NAMES, "f :: six"]))],
     ["two rounds are refused", () => compare(NAMES, base.slice(1), arm([100, 100]))],
     ["a workloads file naming one workload twice is refused", () => readWorkloads("a :: one\nb :: two\na :: one\n")],
     ["an empty workloads file is refused", () => readWorkloads("\n\n")],
+    ["the same label twice is refused", () => readMeta(META, "meta.txt", "final", "final")],
+    ["a label that is neither arm is refused", () => readMeta(META, "meta.txt", "final", "other")],
+    ["a reference label that is neither arm is refused", () => readMeta(META, "meta.txt", "other", "base")],
+    ["a meta.txt with no arm labels is refused", () => readMeta("rounds: 3\n", "meta.txt", "final", "base")],
+    ["a meta.txt with two rounds is refused", () => readMeta(META.replace("rounds: 3", "rounds: 2"), "meta.txt", "final", "base")],
   ];
+  // Either order of the two arms is allowed, and the rounds come back.
+  for (const [ref, cand] of [["final", "base"], ["base", "final"]]) {
+    if (readMeta(META, "meta.txt", ref, cand) !== 3) fail("the two arms in either order are read", `${ref} against ${cand}`);
+    passed++;
+  }
   for (const [name, attempt] of refusals) {
     try {
       attempt();
@@ -202,10 +235,7 @@ const main = () => {
   const named = readWorkloads(readFileSync(workloadsFile, "utf8"));
   const metaFile = `${dir}/meta.txt`;
   if (!existsSync(metaFile)) throw new Refused(`missing ${metaFile}`);
-  const m = /^rounds: (\d+)$/m.exec(readFileSync(metaFile, "utf8"));
-  if (!m) throw new Refused(`no "rounds:" line in ${metaFile}`);
-  const rounds = Number(m[1]);
-  if (rounds < MIN_ROUNDS) throw new Refused(`${metaFile} says ${rounds} rounds; at least ${MIN_ROUNDS} are required`);
+  const rounds = readMeta(readFileSync(metaFile, "utf8"), metaFile, refLabel, candLabel);
   const load = (label) => Array.from({ length: rounds }, (_, i) => readRun(`${dir}/${label}-${i + 1}.json`));
   const text = render(compare(named, load(refLabel), load(candLabel)));
   writeFileSync(`${dir}/analysis.tsv`, `${text}\n`);
