@@ -4,18 +4,18 @@ milestone: v1.7
 milestone_name: Arch Wave 12
 current_phase: 68
 current_phase_name: Hygiene and recorded close-outs
-current_plan: 14
+current_plan: 15
 status: executing
-stopped_at: Completed 68-13-PLAN.md
-last_updated: "2026-11-21T12:50:50.610Z"
+stopped_at: Completed 68-14-PLAN.md
+last_updated: "2026-11-21T13:02:31.370Z"
 last_activity: 2026-11-21
 last_activity_desc: Phase 67 complete, transitioned to Phase 68
-state_head: a527bc78cdc91f470748cb642d02ffff7b30d5e9
+state_head: c13f2005332fca2b7127520beb02e75f2ae27ea2
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 51
-  completed_plans: 49
+  completed_plans: 50
   percent: 86
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-20)
 ## Current Position
 
 Phase: 68 (Hygiene and recorded close-outs) — EXECUTING
-Current Plan: 14
+Current Plan: 15
 Total Plans in Phase: 15
 Status: Ready to execute
 Last activity: 2026-11-21 — Phase 67 complete, transitioned to Phase 68
@@ -472,6 +472,7 @@ Last activity: 2026-11-21 — Phase 67 complete, transitioned to Phase 68
 | Phase QD-68 P11 | 8 min | 2 tasks | 3 files |
 | Phase QD-68 P12 | 5 min | 3 tasks | 1 files |
 | Phase QD-68 P13 | 9 min | 2 tasks | 3 files |
+| Phase 68 P14 | 30 min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -801,6 +802,7 @@ Last activity: 2026-11-21 — Phase 67 complete, transitioned to Phase 68
 - [Phase QD-68]: OI-10 bench of record passed its gate: 35 workloads, 3+3 interleaved on a quiet host, no workload slower than +4.7% (limit 5%), geomean +0.01%; reference spread 0.8-11.5%, worst delta exceeds its own 2.1% spread and is recorded as such
 - [Phase QD-68]: 68-12: the close scan's commit-order list is corrected in a scratch copy for the 68-06..68-09-before-68-05 reorder, and Task 2's base-file check compares against 68-02's recording commit instead of the phase base; no condition weakened
 - [Phase QD-68]: 68-13: Phase 62's merge-gate spot-check row is answered by 68-15's one check:pr run, not run here; the verdict stands only while that run is green
+- [Phase 68]: 68-14: Phase 65's bench truth is answered by Phase 68's bench of record, with the gap stated: no single run compares today's tree with Phase 65's base
 
 ### Pending Todos
 
@@ -866,8 +868,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-21T12:50:43.667Z
-Stopped at: Completed 68-13-PLAN.md
+Last session: 2026-11-21T13:02:31.218Z
+Stopped at: Completed 68-14-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
