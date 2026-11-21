@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-175                                   |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-11-20                                     |
 > | Status         | Accepted — amends ADR-QD-037                   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.4 (2026-11-20): Review WR-01 (iteration 2): the characterisation has a third block with no directive that holds only when the config has the rule on, skipped in pass 1, so pass 2 goes red if tsconfig.test.json loses floatingEffect.<br>1.3 (2026-11-20): run-tstyche cross-checks the gate's type-test walk against tstyche --listFiles (review WR-03)<br>1.2 (2026-11-20): the drift check holds tsconfig.tstyche.json to extends and compilerOptions.plugins (review WR-02)<br>1.1 (2026-11-20): the in-file floatingEffect directive runs in pass 1 as well (review WR-01)<br>1.0 (2026-11-20): Initial release (ARCH-109, CCR-QD-453) |
+> | Change History | 1.5 (2026-11-21): The tool's reading names all three of the characterisation's blocks (ARCH-115, CCR-QD-459)<br>1.4 (2026-11-20): Review WR-01 (iteration 2): the characterisation has a third block with no directive that holds only when the config has the rule on, skipped in pass 1, so pass 2 goes red if tsconfig.test.json loses floatingEffect.<br>1.3 (2026-11-20): run-tstyche cross-checks the gate's type-test walk against tstyche --listFiles (review WR-03)<br>1.2 (2026-11-20): the drift check holds tsconfig.tstyche.json to extends and compilerOptions.plugins (review WR-02)<br>1.1 (2026-11-20): the in-file floatingEffect directive runs in pass 1 as well (review WR-01)<br>1.0 (2026-11-20): Initial release (ARCH-109, CCR-QD-453) |
 
 ---
 
@@ -40,11 +40,13 @@ replaces `compilerOptions.plugins` wholesale, so the entry is restated whole. `t
 names it. `pnpm typecheck` keeps the rule on.
 
 **The tool's reading is pinned.** `packages/core/test/FloatingEffectPins.tst.ts` declares an
-`Effect`, a `Stream`, a constructed-`Effect` and a plain subject. Under tstyche's config its
-negative pins on valid arguments carry tstyche's `fixme` directive, so tstyche fails the run
-if one passes; below a position-based language-service directive that turns the rule back on
-for the rest of the file, the same pins pass. An upgrade that changes either reading turns
-the file red.
+`Effect`, a `Stream`, a constructed-`Effect` and a plain subject, and reads them three ways.
+Under tstyche's config its negative pins on valid arguments carry tstyche's `fixme`
+directive, so tstyche fails the run if one passes. Under `tsconfig.test.json`, where the
+config alone turns the rule on, the same pins pass: the first pass skips that block, and the
+second goes red if that config loses the rule. Below a position-based language-service
+directive that turns the rule back on for the rest of the file, they pass in both passes. An
+upgrade that changes any of the three readings turns the file red.
 
 **A bare negative pin is for a plain-return subject.** A pin on a function that returns an
 `Effect` or a `Stream` states its refusal through the parameter type: `Params<F>` for a

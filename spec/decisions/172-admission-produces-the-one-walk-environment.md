@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-172                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-11-19                                     |
 > | Status         | Accepted — amends ADR-QD-024, ADR-QD-100, ADR-QD-163; amended 2026-11-20 (only admit builds an Admitted; the asked flags read the matcher context) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-20): Narrowed ARCH-112's read-once claim to the question's resource and action (review finding WR-01): Decision 3 and the 2026-11-20 amendment<br>1.1 (2026-11-20): amendment — only admit builds an Admitted, and the asked flags read the matcher context (ARCH-112, CCR-QD-456)<br>1.0 (2026-11-19): Initial release (ARCH-106, CCR-QD-450) |
+> | Change History | 1.3 (2026-11-21): The 2026-11-20 amendment says what the gate reads of its two pins (ARCH-115, CCR-QD-459)<br>1.2 (2026-11-20): Narrowed ARCH-112's read-once claim to the question's resource and action (review finding WR-01): Decision 3 and the 2026-11-20 amendment<br>1.1 (2026-11-20): amendment — only admit builds an Admitted, and the asked flags read the matcher context (ARCH-112, CCR-QD-456)<br>1.0 (2026-11-19): Initial release (ARCH-106, CCR-QD-450) |
 
 ---
 
@@ -278,8 +278,9 @@ decision: the private constructor implements Decision 1's "only `admit` builds o
   are unchanged. The member is declared only, so it adds no field at run time. This holds where code is type-checked:
   at run time the constructor is an ordinary function, and a type assertion could still claim an `Admitted`, which the
   house style forbids. `WalkEnvironment.tst.ts` pins both refusals, a call to the constructor outside the class
-  (TS2673) and an object literal of the same shape (TS2741), each beside a positive control on `admit` (INV-QD-375,
-  BEH-QD-661).
+  (TS2673) and an object literal of the same shape (TS2741), each under a `@ts-expect-error`, which the gate reads as
+  refused whatever the code; the codes are read by the phase-record script `pin-codes.mjs`, and the literal pin has a
+  positive control beside it (INV-QD-375, BEH-QD-661).
 - **The asked flags read the matcher context.** `SUPPLIED`'s rows took the question, and `admit` read the question's
   resource and action again to build the matcher context, so the flags and the context agreed only because two reads
   of a plain record give the same answer. `admit` now builds the matcher context once and each row reads it, so the

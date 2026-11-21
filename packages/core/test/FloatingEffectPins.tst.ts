@@ -24,8 +24,9 @@
  *   the same reading. It runs in both passes: in pass 1 it goes red if the directive stops
  *   working; in pass 2 the config and the directive agree, so it proves nothing more.
  *
- * Each block's title carries the text its skip uses, and the text appears once in the
- * repository's type tests. If an upgrade turns any block red, the tool's reading changed:
+ * The two blocks that a pass skips each carry the text their skip uses in their title,
+ * and each text appears once in the repository's type tests; the third runs in both
+ * passes and carries none. If an upgrade turns any block red, the tool's reading changed:
  * revisit `tsconfig.tstyche.json` and the checks AGENTS.md section 6 builds on it.
  *
  * The bare negative pins on an Effect, a Stream and a constructor here are the one
