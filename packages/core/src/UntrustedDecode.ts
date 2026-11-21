@@ -141,14 +141,15 @@ export type UnknownKeyPolicy = "refuse" | "ignore";
  *
  * `unknownKeys` is stated by every seam, never defaulted, so a seam that tolerates an unknown key
  * says so where it is built. `ignore` keeps, of a plain object, only the top-level keys the
- * schema's encoded side declares for the member the input's own enumerable `_tag` selects, and
- * needs a schema that is an object or a union of objects with distinct literal tags (it throws at
- * build otherwise). `unwalked` names top-level keys the depth guard leaves out because a second
- * decoder guards them from its own root (hydration's `entries`, the audit envelope's `entries`,
- * the audit row's `record`); each must be typed `unknown` or `ReadonlyArray<unknown>` in the
- * schema (INV-QD-306). `prepare` runs after the guard and before the strict decode and receives
- * the projection, and what it returns is what the decode reads; its failure is returned as it
- * is. The order is fixed: project, guard, prepare, decode.
+ * schema's encoded side declares, for a schema of more than one member those of the member the
+ * input's own enumerable `_tag` selects, and needs a schema that is an object or a union of
+ * objects with distinct literal tags (it throws at build otherwise). `unwalked` names top-level
+ * keys the depth guard leaves out because a second decoder guards them from its own root
+ * (hydration's `entries`, the audit envelope's `entries`, the audit row's `record`); each must be
+ * typed `unknown` or `ReadonlyArray<unknown>` in the schema (INV-QD-306). `prepare` runs after
+ * the guard and before the strict decode and receives the projection, and what it returns is what
+ * the decode reads; its failure is returned as it is. The order is fixed: project, guard,
+ * prepare, decode.
  */
 export interface UntrustedDecoderOptions<A, R extends { readonly _tag: string }> {
   readonly unknownKeys: UnknownKeyPolicy;
