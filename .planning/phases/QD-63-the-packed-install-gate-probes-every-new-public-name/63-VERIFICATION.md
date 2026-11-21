@@ -15,7 +15,7 @@ covered_files:
   - ".planning/phases/QD-63-the-packed-install-gate-probes-every-new-public-name/63-05-PLAN.md"
   - ".planning/phases/QD-63-the-packed-install-gate-probes-every-new-public-name/63-05-SUMMARY.md"
   - "scripts/check-package-install.mjs"
-covered_digest: "v4:sha256:2813dd3474a5e34d463c85d8b9d03c08b2ff4a05b9b6f48c7c49c325e436acec"
+covered_digest: "v4:sha256:1f5cec5eb2848bf4853bf83f1082e58ca20f09316193a38395b6299580a5cb1e"
 behavior_unverified: 0
 overrides_applied: 0
 ---
@@ -183,5 +183,50 @@ Every row was run on the tree at `2367f9df` (the commit `68-stale.mjs` named), o
 
 - `scripts/check-package-install.mjs` (`5d44982d`, `8c3375fb`): Truths 1 to 4 still hold, as the gate run above shows. WR-01 makes a timed-out or killed child name its cause; WR-02 corrects the claim in the guard's text so that it covers only the `execFileSync` children. The earlier section's remark "every child process now has a 600000 ms timeout" is therefore narrowed, not contradicted: the one child without a timeout is the TypeScript server behind `typescript/unstable/sync`'s `API`, whose calls block and take no bound. No truth of this report rests on that sentence.
 - `spec/decisions/033-the-packed-artifact-is-the-product.md` is at Revision 1.4 (`grep` of its header); the CCR-QD-454 amendment the report cites is unchanged. `spec/README.md` still registers CCR-QD-454 at line 391 and `spec/traceability.md` still traces ADR-QD-033 at line 274, both unchanged rows.
+
+**Verdict:** passed
+
+## Re-verification (2026-11-21, after Phase 68.1)
+
+**Staleness:** `63: stale, verification 510d731d, 20 cited, 5 changed since` (`68-stale.mjs`, run at `f91b9f4b`).
+
+| Cited file | Changed since `510d731d` by |
+| --- | --- |
+| `package.json` | `ecb4ed90` fix(68.1-02): analyze.mjs exits 1 on a failed gate, and pnpm check runs its self-test |
+| `scripts/check-package-install.mjs` (covered) | `cc58b8e6` fix(68.1-04): the probe guard's parse runs in a child under the gate's timeout |
+| `spec/README.md` | `a8b36092` docs(68.1-05): ADR-QD-033 amended and CCR-QD-460 recorded |
+| `spec/decisions/033-the-packed-artifact-is-the-product.md` | `a8b36092` docs(68.1-05): ADR-QD-033 amended and CCR-QD-460 recorded |
+| `spec/process/definitions-of-done.md` | `ecb4ed90` fix(68.1-02): analyze.mjs exits 1 on a failed gate, and pnpm check runs its self-test |
+
+**Trailers on this phase's commits:** 15 none, 14 `Claude Sonnet 5.5 <noreply@anthropic.com>`, 3 `Claude Opus 5.5 <noreply@anthropic.com>`.
+
+**Validation record:** `63-VALIDATION.md` has status `draft` and nyquist_compliant `false`.
+
+**Digest:** `covered_digest: "v4:sha256:2813dd3474a5e34d463c85d8b9d03c08b2ff4a05b9b6f48c7c49c325e436acec"` becomes `covered_digest: "v4:sha256:1f5cec5eb2848bf4853bf83f1082e58ca20f09316193a38395b6299580a5cb1e"`, over the same 11 covered files.
+
+**Staleness by `68.1-stale.mjs`:** `63: stale, verification 510d731d, 20 cited, 5 changed since` (run at `f91b9f4b`).
+
+### Spot-checks re-run (Re-verification (2026-11-21, after Phase 68.1))
+
+Every row was run on a tree whose tracked files outside the planning directory are those of `f91b9f4b`, one command at a time, in the foreground, with stdin closed and nothing else running beside it. Gate 14 was not run again for this section: its one run of this phase is Plan 68.1-04's, taken at `cc58b8e6` on the tree that holds every code change of the phase, and the first row shows nothing gate 14 reads has changed since. The spec-revise, DoD-table and traceability results are shared with the other re-verifications of this phase and were taken once at `c3d8553a`; no tracked file outside the planning directory differs between that head and `f91b9f4b`.
+
+| Behaviour | Command run now | Result now | Status |
+| --------- | --------------- | ---------- | ------ |
+| Gate 14 on the tree (Plan 68.1-04's one run) | `node scripts/check-package-install.mjs < /dev/null`, run once by 68.1-04 at `cc58b8e6`, foreground, nothing beside it; and `git diff --quiet cc58b8e6 HEAD -- packages scripts package.json pnpm-lock.yaml` now | exit 0 (15 s); `package-install: 9 package(s) pack, resolve and authorize (524 runtime export(s))`, the count of the verification and of both earlier re-verifications; the diff is silent (exit 0), so nothing gate 14 reads changed after that run | PASS |
+| The moved probe guard answers as the base's did | 68.1-04's parity run, compared again now with `cmp`: the guard's answers on four sandboxes (`full`, `no-registry`, `no-refusal`, `no-consumer`) and on a planted parser load failure, from the phase base's gate and from the gate at `cc58b8e6` | `cmp` is silent; both outputs are 5 lines with SHA-256 `d04ed1069682394b8fbe75a073c9b815508910c6fc2404096d7f50664075bc2d` | PASS |
+| What the phase changed in the gate | `git diff -U1 0e3f3438 HEAD -- scripts/check-package-install.mjs` | four hunks: the guard's header comment, the comment above the child timeout, the guard's parse (now a call to a child process under the same timeout, with the same failure texts) and the line reporting a parser failure (now naming its cause); the probe fixtures, the host cache, the feed set and every assertion are outside the hunks | PASS |
+| What the phase changed in the decision | `git diff -U0 0e3f3438 HEAD -- spec/decisions/033-the-packed-artifact-is-the-product.md` | the Revision (1.4 to 1.5), Status and Change History rows, one sentence of the ARCH-115 amendment put in the past tense (the unbounded server it named is now bounded), and a new amendment section after it; the earlier amendments, among them the CCR-QD-454 one this report cites, are otherwise unchanged | PASS |
+| DoD table | `node scripts/check-dod-table.mjs < /dev/null` (shared), and `git diff -U0 0e3f3438 HEAD -- spec/process/definitions-of-done.md` | exit 0; `dod-table: 26 step(s) match pnpm check, 153 reference(s) resolve`; the diff is the Revision (1.19 to 1.20), the Change History cell, one added table row (26, after row 25) and one added paragraph about it; rows 1 to 25 and the step 14 paragraph are untouched | PASS |
+| What the phase changed in the package manifest | `git diff -U0 0e3f3438 HEAD -- package.json` | the new `bench:self-test` script and ` && pnpm bench:self-test` at the end of `check`; the `spec:package` script that runs gate 14 and the `check:pr` script are unchanged; no dependency field is touched | PASS |
+| What the phase changed in the spec register, and the revisions | `git diff -U0 0e3f3438 HEAD -- spec/README.md`, and `node scripts/spec-revise.mjs --check < /dev/null` (shared) | the Revision header (1.274 to 1.275), the Change History cell and one added row, CCR-QD-460 (line 397); no row is removed or edited, so CCR-QD-454's row is still at line 391; `spec-revise` exit 0 | PASS |
+| Traceability | `bash spec/scripts/verify-traceability.sh --strict < /dev/null` (shared) | exit 0; `PASS: 21   FAIL: 0   SKIP: 0 (strict: skips count as failures)` | PASS |
+
+### Changed cited files read against the truths that cite them (Re-verification (2026-11-21, after Phase 68.1))
+
+- `scripts/check-package-install.mjs` (68.1-04, `cc58b8e6`): Truths 1 to 4 still hold. The change is the guard's TypeScript parse, which decides what annotates a value and which refusal carries the directive: it moved into a child process the gate starts with `execFileSync` under the timeout every other child has, so a TypeScript server that stops answering now ends the gate at that bound. Truth 1's feed set, its vacuous-set, missing-consumer and parser-failure refusals and its run-reading mechanism are outside the changed hunks, and the parser-failure text now also names the cause. The parity row shows the guard's answers on four sandboxes and a planted load failure equal to the base's, so each truth that reads the probes is answered as before. Truths 2 and 3 read the fixture's feed and host-cache probes and Truth 4 the removed-probe failures; no line of the fixture or of those assertions changed. The earlier plants of the Phase 68 section were not run again: the parity run is the evidence for the part that moved. The timeout bounds the child the gate starts; the TypeScript server that child started is not killed with it and may outlive a killed child, so the claim made here is that the gate no longer waits on it, not that no server process is left behind.
+- `spec/decisions/033-the-packed-artifact-is-the-product.md` (68.1-05, `a8b36092`): the report cites the CCR-QD-454 amendment, which is unchanged; the document is now at Revision 1.5, where the earlier section read 1.4. The new amendment states the bounded child, and the sentence it turns into the past tense is the one the earlier section already said no truth rests on.
+- `spec/process/definitions-of-done.md` (68.1-02, `ecb4ed90`): Truth 4 says the DoD table is unchanged over Phase 63's own range, with `25 step(s)` read at the time. That reading is now 26, because step 26 was appended after step 25 with no renumbering; the report's claim, that Phase 63 changed no row, is unaffected, and the paragraph under step 14 that Phase 63 amended is untouched.
+- `package.json` (68.1-02, `ecb4ed90`): the report cites it as wiring gate 14 into `pnpm check` and `check:pr` unchanged. Both still run gate 14 where they did: `check` only gains a final step after `spec:publish`, and the manifest's `spec:package` script is as before.
+- `spec/README.md` (68.1-05, `a8b36092`): the report cites the CCR-QD-454 registration at line 391, which is where it still is and unedited; the commit adds the CCR-QD-460 row after the other registrations and moves the revision.
 
 **Verdict:** passed
