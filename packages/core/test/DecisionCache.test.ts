@@ -1049,11 +1049,11 @@ describe("DecisionCache", () => {
   );
 
   describe("capacity", () => {
-    it.effect("rejects a negative capacity rather than looping forever", () =>
+    it.effect("rejects a negative capacity rather than retaining nothing", () =>
       Effect.gen(function* () {
-        // Regression: a negative capacity used to make the eviction loop's own
-        // exit condition unsatisfiable once `entries` ran dry — an infinite
-        // loop inside `Effect.sync`, not a small cache.
+        // Unguarded, a negative capacity asks `Chunk.splitAt` to evict more
+        // entries than the cache holds, which it reads as all of them: a cache
+        // that retains nothing, not a small one.
         const exit = yield* Effect.exit(
           evaluate(needsLookup).pipe(
             Effect.provide(
@@ -1074,8 +1074,9 @@ describe("DecisionCache", () => {
 
     it.effect("rejects a NaN capacity rather than silently disabling eviction", () =>
       Effect.gen(function* () {
-        // Regression: `size(entries) > NaN` is always false, so an unvalidated
-        // NaN capacity made eviction a silent no-op — "bounded" in name only.
+        // Unguarded, a NaN capacity makes the eviction count NaN, which
+        // `Chunk.splitAt` reads as zero: eviction a silent no-op, "bounded" in
+        // name only.
         const exit = yield* Effect.exit(
           evaluate(needsLookup).pipe(
             Effect.provide(
@@ -1093,7 +1094,7 @@ describe("DecisionCache", () => {
       Effect.gen(function* () {
         // The guard is `Number.isInteger(options.capacity) && options.capacity
         // >= 0` — one check covering two distinct reasons: NaN makes the
-        // eviction condition permanently false (above), while a genuine
+        // eviction count NaN, which evicts nothing (above), while a genuine
         // fraction like `1.5` isn't discussed by the doc comment at all, only
         // implied by `Number.isInteger`. Exercised separately so a future
         // change that narrows the guard to "finite and non-negative" (fixing
@@ -1246,7 +1247,6 @@ describe("DecisionCache", () => {
           const X = questionOf(subject, P.hasAttribute("x", M.gte(1)));
           const Y = questionOf(subject, P.hasAttribute("y", M.gte(1)));
           const raced: Array<string> = [];
-          const sides: Array<string> = [];
           const capped: Array<string> = [];
           // A cap and a margin, not measurements: a budget that has not landed on
           // both sides within `cap` gaps fails, and `margin` more gaps run past the
@@ -1299,7 +1299,6 @@ describe("DecisionCache", () => {
                 ),
                 Effect.provideService(Scheduler.MaxOpsBeforeYield, budget),
               );
-              sides.push(`${budget}:${outcomes.joined}`);
               seen[outcomes.joined] += 1;
               // Capacity 2: X, Y evict K (FIFO), so K misses, then hits.
               if (outcomes.kWalks !== 1 || outcomes.followOn.join(",") !== "miss,miss,miss,hit") {
@@ -1313,11 +1312,6 @@ describe("DecisionCache", () => {
           }
           assert.deepStrictEqual(raced, []);
           assert.deepStrictEqual(capped, []);
-          // The sweep lands on both sides of the owner's completion, at every budget.
-          const oneSided = [3, 4, 5, 6].filter(
-            (budget) => !sides.includes(`${budget}:coalesced`) || !sides.includes(`${budget}:hit`),
-          );
-          assert.deepStrictEqual(oneSided, []);
         }),
       // Up to `cap` runs a budget, each building its own layers, when a budget
       // never lands on both sides: the timeout leaves room for that failure to be
