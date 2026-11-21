@@ -1,0 +1,7 @@
+13:28:29
+13:28  up 1 day, 23:28, 1 user, load averages: 4.75 4.46 3.53
+ %CPU COMM
+ 88.6 /usr/libexec/mobileassetd
+ 63.9 /System/Library/PrivateFrameworks/CacheDelete.framework/deleted
+ 56.7 /System/Volumes/Preboot/Cryptexes/App/System/Applications/Safari.app/Contents/PlugIns/CacheDeleteExtension.appex/Contents/MacOS/CacheDeleteExtension
+ 37.4 /System/Library/PrivateFrameworks/CloudKitDaemon.framework/Support/cloudd

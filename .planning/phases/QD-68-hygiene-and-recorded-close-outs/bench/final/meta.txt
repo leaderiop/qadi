@@ -1,0 +1,13 @@
+head: 769bf57cbe71646a898b10507f5ebcec5108b164
+patch: /private/var/folders/vn/44p0pxgs4z98v7cl11l4_r4c0000gp/T/qd68/base-src.patch
+patch_sha256: c7b84bd359fb896dd817716cd892fb5404ba173782e330a9259fe34c8889f4f0
+head_label: final
+patched_label: base
+rounds: 3
+order: final-1 base-1 base-2 final-2 final-3 base-3
+bench_file: packages/core/bench/Evaluate.bench.ts
+pattern: .
+host: quiet: load 3.72 on 12 cpus, top process at 39.4%
+node: v26.13.0
+cpu: Apple M3 Pro
+start: 2026-11-21T12:27:42Z

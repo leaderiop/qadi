@@ -1,0 +1,43 @@
+workload	ref_min_ns	cand_min_ns	d_min_pct	ref_min_spread_pct	band_pct	verdict	ref_p50_ns	cand_p50_ns	d_p50_pct	ref_mean_ns	cand_mean_ns	d_mean_pct
+evaluate :: one node	5458	5584	2.3	4.6	5.0	ok	5917	6041	2.1	6059	6159	1.7
+evaluate :: rules DenyOverrides — 8 permits	7416	7166	-3.4	8.4	5.0	ok	7750	7875	1.6	10627	8228	-22.6
+evaluate :: anyOf Union — 8	7458	7458	0.0	5.0	5.0	ok	8042	8209	2.1	8250	8348	1.2
+evaluate :: rules FirstApplicable — 8, last applies	7625	7416	-2.7	3.3	5.0	ok	8000	8166	2.1	8960	8360	-6.7
+evaluate :: anyOf First — 8, last allows	7416	7417	0.0	5.6	5.0	ok	8083	8167	1.0	8255	8293	0.5
+evaluate :: wide — allOf of 8	7375	7625	3.4	7.3	5.0	ok	7959	8083	1.6	8181	8225	0.5
+evaluate :: wrapper-heavy — 10 nested labeled/not/obliged	7916	7916	0.0	2.6	5.0	ok	8375	8542	2.0	8560	8724	1.9
+evaluate :: field-heavy — anyOf of 8 under Union	8041	8416	4.7	2.1	5.0	ok	8833	9041	2.4	8967	9161	2.2
+evaluate :: rules PermitOverrides — 8 denies	8209	8375	2.0	10.7	5.0	ok	8792	8833	0.5	12970	9014	-30.5
+evaluate :: leaf-heavy — allOf of 8, matchers reference action and resource	9291	9209	-0.9	9.0	5.0	ok	9750	9750	0.0	14323	9943	-30.6
+evaluate :: leaf-heavy — allOf of 8, matchers reference neither	9333	9292	-0.4	9.4	5.0	ok	9750	9875	1.3	10640	10068	-5.4
+evaluate :: deep rules — 10 nested	9458	9792	3.5	9.7	5.0	ok	10416	10417	0.0	15013	10602	-29.4
+evaluate :: deep — 10 levels	9458	9708	2.6	5.7	5.0	ok	10500	10625	1.2	10751	10827	0.7
+evaluate :: matcher-heavy — 3 refs	10875	10917	0.4	6.1	5.0	ok	11417	11500	0.7	11636	11860	1.9
+evaluate :: resolver miss — one port call	10917	10917	0.0	0.8	5.0	ok	12167	12208	0.3	12552	12545	-0.1
+evaluate :: obligation-heavy — allOf of 8 distinct obligations	11625	11666	0.4	6.1	5.0	ok	12625	12750	1.0	12851	13058	1.6
+evaluate :: field-heavy — allOf of 8 under Intersection	16792	16667	-0.7	2.2	5.0	ok	17500	17708	1.2	17902	18000	0.5
+filter — 500 items :: hasPermission	3986375	3922000	-1.6	7.6	5.0	ok	4049021	4037250	-0.3	4455697	4055382	-9.0
+decideSubjects — 500 subjects :: hasPermission	5019000	5015375	-0.1	11.5	5.0	ok	5251729	5280292	0.5	5529648	5351960	-3.2
+evaluate — depth scaling :: depth 5	11500	11041	-4.0	10.1	5.0	ok	12208	12166	-0.3	17843	12538	-29.7
+evaluate — depth scaling :: depth 10	16333	16000	-2.0	10.5	5.0	ok	17083	16875	-1.2	20447	17506	-14.4
+evaluate — depth scaling :: depth 20	24292	25083	3.3	10.1	5.0	ok	26750	26292	-1.7	30037	26882	-10.5
+evaluate — depth scaling :: depth 40	43750	42875	-2.0	2.6	5.0	ok	45708	44792	-2.0	48702	45742	-6.1
+evaluate — width scaling :: width 4	8500	8584	1.0	6.9	5.0	ok	9083	9042	-0.5	9493	9345	-1.6
+evaluate — width scaling :: width 8	10458	10333	-1.2	5.2	5.0	ok	11000	11000	0.0	11456	11215	-2.1
+evaluate — width scaling :: width 16	14208	13875	-2.3	7.0	5.0	ok	14875	14834	-0.3	15690	15543	-0.9
+evaluate — width scaling :: width 32	20500	20917	2.0	5.9	5.0	ok	22458	22084	-1.7	23615	23887	1.2
+evaluate — wide, concurrency :: sequential (default)	7666	7458	-2.7	8.7	5.0	ok	8083	7917	-2.1	8662	8213	-5.2
+evaluate — wide, concurrency :: concurrency: unbounded	7584	7542	-0.6	8.2	5.0	ok	8416	8250	-2.0	9418	8417	-10.6
+evaluate — anyOf Union 8, concurrency :: sequential (default)	7375	7416	0.6	4.5	5.0	ok	8041	7959	-1.0	8196	8140	-0.7
+evaluate — anyOf Union 8, concurrency :: concurrency: unbounded	8000	7625	-4.7	5.7	5.0	ok	8417	8333	-1.0	8581	8489	-1.1
+evaluate — rules DenyOverrides 8, concurrency :: sequential (default)	7083	7291	2.9	5.3	5.0	ok	7834	7708	-1.6	8192	7829	-4.4
+evaluate — rules DenyOverrides 8, concurrency :: concurrency: unbounded	9500	9625	1.3	3.9	5.0	ok	10250	10125	-1.2	11095	10342	-6.8
+filter — 500 items, concurrency :: sequential (default)	4000250	4000500	0.0	2.2	5.0	ok	4083604	4071250	-0.3	4102186	4100285	-0.0
+filter — 500 items, concurrency :: concurrency: unbounded	4050458	4052000	0.0	3.6	5.0	ok	4133666	4126750	-0.2	4190426	4145752	-1.1
+# workloads: 35
+# slower: 0
+# geomean_d_min_pct: 0.01
+# max_slowdown_pct: 5.0
+# max_geomean_pct: 2.0
+# worst_d_min: 4.7 evaluate :: field-heavy — anyOf of 8 under Union
+# gate: pass
