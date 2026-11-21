@@ -77,9 +77,8 @@ const SUPPLIED: {
  * the action) and the depth bound. Only {@link Admitted.admit}, exported as
  * {@link admit}, builds one: the constructor is private, and the private
  * `nominal` member keeps an object literal of the same shape from passing for
- * one. Holding one shows that `admit` built it. The policy rides with it as
- * `admit` read it from the question; the depth check reads the question's
- * policy separately.
+ * one. Holding one shows that `admit` built it, and that its policy is the one
+ * the depth gate judged, since `admit` reads each field of the question once.
  *
  * The row source is part of the type: `Admitted<"row">` stores a resource as
  * supplied while its matcher context holds none, so only `toPredicate` may read
@@ -103,32 +102,35 @@ export class Admitted<Source extends RowSource = RowSource> {
 
   /**
    * Admits a question for an interpreter's row source, or refuses it as too deep.
-   * Depth is judged on the policy alone (INV-QD-037); what the request supplied
-   * is read from the matcher context built here, so the question's resource and
-   * action are each read once (INV-QD-376). It names `Admitted` and never `this`,
-   * so the module exports it detached as {@link admit}.
+   * Depth is judged on the policy alone (INV-QD-037). Each field of the question
+   * is read once: the policy, the bound and the subject at the top, so the gate
+   * judges the policy the environment carries against the bound it carries, and
+   * the resource and action into the matcher context, from which what the request
+   * supplied is read (INV-QD-376). It names `Admitted` and never `this`, so the
+   * module exports it detached as {@link admit}.
    */
   static admit<Source extends RowSource>(
     question: Question,
     rowSource: Source,
   ): Result.Result<Admitted<Source>, PolicyTooDeep> {
-    if (policyDepth(question.policy) > question.maxDepth) {
-      return Result.fail(new PolicyTooDeep({ maxDepth: question.maxDepth }));
+    const { policy, maxDepth, subject } = question;
+    if (policyDepth(policy) > maxDepth) {
+      return Result.fail(new PolicyTooDeep({ maxDepth }));
     }
     const context: MatcherContext = {
-      subject: question.subject.attributes,
-      subjectId: question.subject.id,
+      subject: subject.attributes,
+      subjectId: subject.id,
       resource: question.resource,
       action: question.action,
     };
     return Result.succeed(
       new Admitted(
         rowSource,
-        question.policy,
-        question.subject,
+        policy,
+        subject,
         SUPPLIED[rowSource](context),
         context,
-        question.maxDepth,
+        maxDepth,
       ),
     );
   }
