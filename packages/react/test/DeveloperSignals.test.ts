@@ -1,10 +1,12 @@
 /**
- * Every developer signal's exact console sentence, and the rule that picks it.
+ * Every developer signal's exact console sentence, the condition each default speaks
+ * under, and the facts the signal table states about where, how often and through which
+ * option each entry point resolves a reporter.
  *
- * `stryker.react.mjs` does not mutate `DeveloperSignals.ts`, so this table is
- * what pins each arm of its `Match`: a reworded sentence, or an arm that says
- * another signal's words, fails here. Consumers grep these messages, so they are
- * compared whole rather than by substring.
+ * `stryker.react.mjs` does not mutate `DeveloperSignals.ts`, so this file is what pins
+ * each arm of its `Match` and each literal of its table: a reworded sentence, an arm that
+ * says another signal's words, or a table row that says something else fails here.
+ * Consumers grep these messages, so they are compared whole rather than by substring.
  */
 import {
   Allow,
@@ -23,14 +25,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { currentDecision } from "../src/DecisionOutcome.ts";
 import { dehydrateDecisions, hydrateDecisions } from "../src/Hydration.ts";
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
+import type { SignalTag } from "../src/DeveloperSignals.ts";
 import {
-  gateIdCollisionReporter,
-  hydrationDropReporter,
-  hydrationMismatchReporter,
   providerSignalReporter,
   providerSignals,
-  saysDehydrationDropped,
-  saysHydrationDropped,
+  reporterFor,
+  SIGNALS,
 } from "../src/DeveloperSignals.ts";
 import { SeededAllow } from "../src/SeededDecision.ts";
 import { hostile, hostileError } from "./support/hostile.ts";
@@ -66,6 +66,20 @@ const said = (act: () => void): ReadonlyArray<string> => {
   }
 };
 
+type Environment = "development" | "production";
+
+const environments: ReadonlyArray<Environment> = ["development", "production"];
+
+const withEnvironment = <A,>(environment: Environment, act: () => A): A => {
+  const previous = process.env.NODE_ENV;
+  process.env.NODE_ENV = environment;
+  try {
+    return act();
+  } finally {
+    process.env.NODE_ENV = previous;
+  }
+};
+
 const useProduction = () => {
   const previous = process.env.NODE_ENV;
   process.env.NODE_ENV = "production";
@@ -74,13 +88,151 @@ const useProduction = () => {
   };
 };
 
+const threw = (reporter: string, error: string): string =>
+  `[qadi] the ${reporter} reporter you supplied threw (${error}). The outcome it was told ` +
+  "about stands — nothing was skipped, seeded differently or left uncounted. Fix the reporter.";
+
+const boom = (): never => {
+  throw new TypeError("host boom");
+};
+
+/** One entry point of one row: the option it takes a reporter under, and a call naming another subject. */
+interface EntryPoint {
+  readonly row: SignalTag;
+  readonly entry: string;
+  readonly option: string;
+  readonly call: (supplied: () => never) => void;
+}
+
+/** Every (row, entry point) pair the table states, each handed a throwing hook. */
+const entryPoints: ReadonlyArray<EntryPoint> = [
+  {
+    row: "SeedSuperseded",
+    entry: "makeQadiAtoms",
+    option: "onHydrationMismatch",
+    call: (supplied) =>
+      reporterFor(SIGNALS.SeedSuperseded, "makeQadiAtoms", supplied)?.({
+        policy: hasRole("admin"),
+        resource: undefined,
+        seeded,
+        decided,
+      }),
+  },
+  {
+    row: "GateIdCollision",
+    entry: "makeQadiAtoms",
+    option: "onGateIdCollision",
+    call: (supplied) =>
+      reporterFor(SIGNALS.GateIdCollision, "makeQadiAtoms", supplied)?.(":secret-u2:"),
+  },
+  {
+    row: "GateIdCollision",
+    entry: "makeGateRegistry",
+    option: "onIdCollision",
+    call: (supplied) =>
+      reporterFor(SIGNALS.GateIdCollision, "makeGateRegistry", supplied)?.(":secret-u2:"),
+  },
+  {
+    row: "DehydrationDropped",
+    entry: "dehydrateDecisions",
+    option: "onDropped",
+    call: (supplied) =>
+      reporterFor(SIGNALS.DehydrationDropped, "dehydrateDecisions", supplied)?.({
+        reason: "ForeignSubject",
+        entries: [{ subjectId: "secret-u2" }],
+        wholePayload: false,
+      }),
+  },
+  {
+    row: "HydrationDropped",
+    entry: "hydrateDecisions",
+    option: "onDropped",
+    call: (supplied) =>
+      reporterFor(SIGNALS.HydrationDropped, "hydrateDecisions", supplied)?.({
+        reason: "PayloadSubjectMismatch",
+        entries: [{ subjectId: "secret-u2" }],
+        wholePayload: true,
+      }),
+  },
+  {
+    row: "InstrumentedInProduction",
+    entry: "QadiProvider",
+    option: "onDeveloperSignal",
+    call: (supplied) =>
+      providerSignalReporter(supplied)(providerSignals.instrumentedInProduction()),
+  },
+  {
+    row: "AtomsReplaced",
+    entry: "QadiProvider",
+    option: "onDeveloperSignal",
+    call: (supplied) => providerSignalReporter(supplied)(providerSignals.atomsReplaced()),
+  },
+  {
+    row: "UnwritableGateRegistry",
+    entry: "QadiProvider",
+    option: "onDeveloperSignal",
+    call: (supplied) => providerSignalReporter(supplied)(providerSignals.unwritableGateRegistry()),
+  },
+];
+
+const providerEntry = { QadiProvider: { option: "onDeveloperSignal", resolved: "OnEveryReport" } };
+
+/** What the table states, written out by hand so a changed literal in the table fails here. */
+const writtenOutTable: Record<
+  SignalTag,
+  {
+    readonly speaks: string;
+    readonly often: string;
+    readonly entries: Record<string, { readonly option: string; readonly resolved: string }>;
+  }
+> = {
+  SeedSuperseded: {
+    speaks: "Development",
+    often: "PerEvent",
+    entries: { makeQadiAtoms: { option: "onHydrationMismatch", resolved: "OncePerAtomSet" } },
+  },
+  GateIdCollision: {
+    speaks: "Development",
+    often: "PerEvent",
+    entries: {
+      makeQadiAtoms: { option: "onGateIdCollision", resolved: "OncePerAtomSet" },
+      makeGateRegistry: { option: "onIdCollision", resolved: "OncePerRegistry" },
+    },
+  },
+  DehydrationDropped: {
+    speaks: "Development",
+    often: "PerEvent",
+    entries: { dehydrateDecisions: { option: "onDropped", resolved: "OncePerCall" } },
+  },
+  HydrationDropped: {
+    speaks: "Development",
+    often: "PerEvent",
+    entries: { hydrateDecisions: { option: "onDropped", resolved: "OncePerCall" } },
+  },
+  ReporterThrew: { speaks: "Everywhere", often: "PerEvent", entries: {} },
+  InstrumentedInProduction: {
+    speaks: "Production",
+    often: "OncePerProcess",
+    entries: providerEntry,
+  },
+  AtomsReplaced: { speaks: "Development", often: "PerEvent", entries: providerEntry },
+  UnwritableGateRegistry: { speaks: "Development", often: "PerEvent", entries: providerEntry },
+};
+
 describe("DeveloperSignals", () => {
   afterEach(() => vi.restoreAllMocks());
 
   describe("the sentence each signal says by default", () => {
     it("SeedSuperseded", () => {
       expect(
-        said(() => hydrationMismatchReporter(undefined)?.({ policy: hasRole("admin"), resource: undefined, seeded, decided })),
+        said(() =>
+          reporterFor(SIGNALS.SeedSuperseded, "makeQadiAtoms", undefined)?.({
+            policy: hasRole("admin"),
+            resource: undefined,
+            seeded,
+            decided,
+          }),
+        ),
       ).toEqual([
         "[qadi] hydration mismatch for HasRole: the server allowed, this client denied — " +
           "subject lacks role 'admin'. This client's answer is the one in effect.",
@@ -88,7 +240,7 @@ describe("DeveloperSignals", () => {
     });
 
     it("GateIdCollision", () => {
-      expect(said(() => gateIdCollisionReporter(undefined)?.(":r1:"))).toEqual([
+      expect(said(() => reporterFor(SIGNALS.GateIdCollision, "makeQadiAtoms", undefined)?.(":r1:"))).toEqual([
         '[qadi] two React roots minted the gate id ":r1:" for one gate registry. ' +
           "Both guards are kept, the second under a disambiguated panel id. Give each " +
           "root a distinct `identifierPrefix` in its hydrateRoot/createRoot options " +
@@ -99,7 +251,7 @@ describe("DeveloperSignals", () => {
     it("DehydrationDropped", () => {
       expect(
         said(() =>
-          hydrationDropReporter(undefined, saysDehydrationDropped)?.({
+          reporterFor(SIGNALS.DehydrationDropped, "dehydrateDecisions", undefined)?.({
             reason: "ForeignSubject",
             entries: [1, 2],
             wholePayload: false,
@@ -114,7 +266,7 @@ describe("DeveloperSignals", () => {
     it("HydrationDropped, entry by entry", () => {
       expect(
         said(() =>
-          hydrationDropReporter(undefined, saysHydrationDropped)?.({
+          reporterFor(SIGNALS.HydrationDropped, "hydrateDecisions", undefined)?.({
             reason: "UndecodablePolicy",
             entries: [1],
             wholePayload: false,
@@ -130,7 +282,7 @@ describe("DeveloperSignals", () => {
     it("HydrationDropped, the payload whole", () => {
       expect(
         said(() =>
-          hydrationDropReporter(undefined, saysHydrationDropped)?.({
+          reporterFor(SIGNALS.HydrationDropped, "hydrateDecisions", undefined)?.({
             reason: "UnsupportedPayloadVersion",
             entries: [],
             wholePayload: true,
@@ -190,10 +342,11 @@ describe("DeveloperSignals", () => {
     it("the four hydration defaults are absent in production, and a supplied reporter replaces them", () => {
       const restore = useProduction();
       try {
-        expect(hydrationMismatchReporter(undefined)).toBeUndefined();
-        expect(gateIdCollisionReporter(undefined)).toBeUndefined();
-        expect(hydrationDropReporter(undefined, saysDehydrationDropped)).toBeUndefined();
-        expect(hydrationDropReporter(undefined, saysHydrationDropped)).toBeUndefined();
+        expect(reporterFor(SIGNALS.SeedSuperseded, "makeQadiAtoms", undefined)).toBeUndefined();
+        expect(reporterFor(SIGNALS.GateIdCollision, "makeQadiAtoms", undefined)).toBeUndefined();
+        expect(reporterFor(SIGNALS.GateIdCollision, "makeGateRegistry", undefined)).toBeUndefined();
+        expect(reporterFor(SIGNALS.DehydrationDropped, "dehydrateDecisions", undefined)).toBeUndefined();
+        expect(reporterFor(SIGNALS.HydrationDropped, "hydrateDecisions", undefined)).toBeUndefined();
 
         // Contained, so not the same function: what it is handed still reaches it.
         const heard: Array<unknown> = [];
@@ -205,10 +358,10 @@ describe("DeveloperSignals", () => {
         const leftOut = { reason: "ForeignSubject" as const, entries: [1, 2], wholePayload: false };
         expect(
           said(() => {
-            hydrationMismatchReporter(mine)?.(mismatch);
-            gateIdCollisionReporter(mine)?.(":r1:");
-            hydrationDropReporter(mine, saysDehydrationDropped)?.(leftOut);
-            hydrationDropReporter(mine, saysHydrationDropped)?.(drop);
+            reporterFor(SIGNALS.SeedSuperseded, "makeQadiAtoms", mine)?.(mismatch);
+            reporterFor(SIGNALS.GateIdCollision, "makeQadiAtoms", mine)?.(":r1:");
+            reporterFor(SIGNALS.DehydrationDropped, "dehydrateDecisions", mine)?.(leftOut);
+            reporterFor(SIGNALS.HydrationDropped, "hydrateDecisions", mine)?.(drop);
           }),
         ).toEqual([]);
         expect(heard).toEqual([mismatch, ":r1:", leftOut, drop]);
@@ -244,75 +397,56 @@ describe("DeveloperSignals", () => {
       expect(seen).toEqual(["InstrumentedInProduction", "AtomsReplaced", "UnwritableGateRegistry"]);
     });
   });
+
+  describe("the developer-signal table", () => {
+    it("states, for every signal, where its default speaks, how often, and each entry point's option and resolution, written out", () => {
+      const stated = Object.fromEntries(
+        Object.entries(SIGNALS).map(([tag, { speaks, often, entries }]) => [
+          tag,
+          { speaks, often, entries },
+        ]),
+      );
+      expect(stated).toEqual(writtenOutTable);
+    });
+
+    it("contains a supplied reporter under the option of the entry point it was passed to, for every entry point of every row", () => {
+      const written = Object.entries(writtenOutTable).flatMap(([row, { entries }]) =>
+        Object.entries(entries).map(([entry, { option }]) => `${row}.${entry}.${option}`),
+      );
+      expect(
+        entryPoints.map(({ row, entry, option }) => `${row}.${entry}.${option}`).toSorted(),
+      ).toEqual(written.toSorted());
+
+      for (const environment of environments) {
+        for (const point of entryPoints) {
+          expect(withEnvironment(environment, () => said(() => point.call(boom)))).toEqual([
+            threw(point.option, "TypeError: host boom"),
+          ]);
+        }
+      }
+    });
+  });
 });
 
 describe("a supplied reporter that throws (ReporterThrew, INT-04)", () => {
   afterEach(() => vi.restoreAllMocks());
 
-  const threw = (reporter: string, error: string): string =>
-    `[qadi] the ${reporter} reporter you supplied threw (${error}). The outcome it was told ` +
-    "about stands — nothing was skipped, seeded differently or left uncounted. Fix the reporter.";
-
-  const boom = (): never => {
-    throw new TypeError("host boom");
-  };
-
   /** What each reporter case reads: the lines said when the reporter throws `thrown`. */
   const sayingFor = (thrown: unknown): ReadonlyArray<string> =>
     said(() =>
-      gateIdCollisionReporter(() => {
+      reporterFor(SIGNALS.GateIdCollision, "makeQadiAtoms", () => {
         throw thrown;
       })?.(":r1:"),
     );
 
-  /** Each resolver, handed a throwing hook, and called with a value naming another subject. */
-  const resolvers: ReadonlyArray<{ readonly name: string; readonly call: (supplied: () => never) => void }> = [
-    {
-      name: "onHydrationMismatch",
-      call: (supplied) =>
-        hydrationMismatchReporter(supplied)?.({ policy: hasRole("admin"), resource: undefined, seeded, decided }),
-    },
-    { name: "onGateIdCollision", call: (supplied) => gateIdCollisionReporter(supplied)?.(":secret-u2:") },
-    {
-      name: "onDropped",
-      call: (supplied) =>
-        hydrationDropReporter(supplied, saysDehydrationDropped)?.({
-          reason: "ForeignSubject",
-          entries: [{ subjectId: "secret-u2" }],
-          wholePayload: false,
-        }),
-    },
-    {
-      name: "onDropped",
-      call: (supplied) =>
-        hydrationDropReporter(supplied, saysHydrationDropped)?.({
-          reason: "PayloadSubjectMismatch",
-          entries: [{ subjectId: "secret-u2" }],
-          wholePayload: true,
-        }),
-    },
-    {
-      name: "onDeveloperSignal",
-      call: (supplied) => providerSignalReporter(supplied)(providerSignals.atomsReplaced()),
-    },
-  ];
-
   for (const environment of ["development", "production"] as const) {
     describe(`in ${environment}`, () => {
-      const inEnvironment = <A,>(act: () => A): A => {
-        const previous = process.env.NODE_ENV;
-        process.env.NODE_ENV = environment;
-        try {
-          return act();
-        } finally {
-          process.env.NODE_ENV = previous;
-        }
-      };
+      const inEnvironment = <A,>(act: () => A): A => withEnvironment(environment, act);
 
-      for (const { name, call } of resolvers) {
-        it(`${name}: the throw does not propagate and ReporterThrew names the hook and the error only`, () => {
+      for (const { entry, option, call } of entryPoints) {
+        it(`${entry}'s ${option}: the throw does not propagate and ReporterThrew names the hook and the error only`, () => {
           const lines = inEnvironment(() => said(() => call(boom)));
-          expect(lines).toEqual([threw(name, "TypeError: host boom")]);
+          expect(lines).toEqual([threw(option, "TypeError: host boom")]);
           for (const line of lines) {
             expect(line).not.toContain("secret-u2");
             expect(line).not.toContain("HasRole");
@@ -323,7 +457,7 @@ describe("a supplied reporter that throws (ReporterThrew, INT-04)", () => {
       it("a thrown non-Error is named by its string form", () => {
         const lines = inEnvironment(() =>
           said(() =>
-            gateIdCollisionReporter(() => {
+            reporterFor(SIGNALS.GateIdCollision, "makeQadiAtoms", () => {
               throw "plain string";
             })?.(":r1:"),
           ),

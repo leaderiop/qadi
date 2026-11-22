@@ -12,14 +12,15 @@
  * `say`, is the only `console` reference in the library. A new signal is a new
  * union member, and the compiler asks for its sentence.
  *
- * **Resolution.** {@link SIGNALS} states, once per signal, where its default
- * speaks, how often, and the option each entry point takes its reporter through;
- * {@link reporterFor} is the one function that reads a row and returns the supplied
- * reporter, contained, or else the default. A supplied reporter replaces the default
- * outright and runs in production: a caller routing signals to telemetry does not
- * also want them on the console, and one that does can call `console.warn` itself.
- * The default speaks only under its own condition, which is development for every
- * signal except `InstrumentedInProduction` and `ReporterThrew`.
+ * **Resolution.** Every reporter is resolved by {@link reporterFor} from the signal's
+ * row in {@link SIGNALS}, which states where its default speaks, how often, when the
+ * entry point resolves it and the option each entry point passes it under. A supplied
+ * reporter replaces the default outright and runs in production: a caller routing
+ * signals to telemetry does not also want them on the console, and one that does can
+ * call `console.warn` itself. The default speaks only under its own condition, which is
+ * development for every signal except `InstrumentedInProduction` and `ReporterThrew`.
+ * The one piece of process state is the latch that lets `InstrumentedInProduction`
+ * speak once per process (ADR-QD-184).
  *
  * **A supplied reporter observes; it cannot change the outcome.** Resolution
  * wraps what it is handed once, in {@link contain}, so a reporter that throws is
@@ -233,47 +234,6 @@ const contain =
       defaultOf(SIGNALS.ReporterThrew)?.(DeveloperSignal.ReporterThrew({ reporter, error }));
     }
   };
-
-/**
- * The reporter an atom set will use, or `undefined` for none.
- *
- * A supplied callback replaces the warning outright rather than adding to it: a
- * caller routing mismatches to telemetry does not also want them on the
- * console, and one that does can call `console.warn` itself.
- */
-export const hydrationMismatchReporter = (
-  supplied: HydrationMismatchReporter | undefined,
-): HydrationMismatchReporter | undefined =>
-  supplied === undefined
-    ? isDevelopment()
-      ? (mismatch) => say(DeveloperSignal.SeedSuperseded({ mismatch }))
-      : undefined
-    : contain("onHydrationMismatch", supplied);
-
-/**
- * Told when two live guards registered the same id with one gate registry.
- *
- * React's `useId` is unique within a root; two hydrated roots derive ids from
- * tree position and so collide. The registry keeps both guards (the second under
- * a disambiguated id) and says so once per id.
- */
-export type GateIdCollisionReporter = (id: string) => void;
-
-/**
- * The reporter a gate registry will use, or `undefined` for none.
- *
- * The sibling of {@link hydrationMismatchReporter}: a development-mode warning
- * by default, replaced outright by a supplied callback, which then runs in
- * production too.
- */
-export const gateIdCollisionReporter = (
-  supplied: GateIdCollisionReporter | undefined,
-): GateIdCollisionReporter | undefined =>
-  supplied === undefined
-    ? isDevelopment()
-      ? (id) => say(DeveloperSignal.GateIdCollision({ id }))
-      : undefined
-    : contain("onGateIdCollision", supplied);
 
 /**
  * Entries a payload discarded, and why: the one drop shape both ends report.
@@ -494,43 +454,6 @@ export const reporterFor = <Told, Entry extends string, A extends Told>(
   supplied === undefined ? defaultOf(row) : contain(row.entries[entry].option, supplied);
 
 /**
- * The development default for entries `dehydrateDecisions` left out.
- *
- * Counts them and says nothing about their contents, because a dropped decision
- * may belong to *another subject* and printing it would be the disclosure the
- * drop exists to prevent.
- */
-export const saysDehydrationDropped: HydrationDropReporter<unknown, DehydrationDropReason> =
-  SIGNALS.DehydrationDropped.says;
-
-/** The development default for entries, or a payload, `hydrateDecisions` did not seed. */
-export const saysHydrationDropped: HydrationDropReporter<unknown> = SIGNALS.HydrationDropped.says;
-
-/**
- * The drop reporter one end will use, or `undefined` for none.
- *
- * One of this module's reporters, deliberately the same shape as the others: a
- * development-mode warning by default, replaced outright by a supplied
- * callback, which then runs in production too. Generic in the reason so both
- * ends resolve through it; which sentence the default says is the caller's
- * `byDefault` — {@link saysDehydrationDropped} for the slot a `LeftOut` event is
- * announced to, {@link saysHydrationDropped} for the one `PayloadRefused` and
- * `EntriesDropped` are — so it is chosen by the event's tag, never by testing
- * the reason string.
- *
- * It exists because hydration had silent exits. An entry left out of a payload
- * is a bug on the server (a cache key mixing two users' decisions, a policy the
- * schema cannot carry), and a payload the client cannot verify left "hydration
- * isn't working" with no signal attached to it at all. The current reasons are
- * `HydrationDropReason` in `@qadi/core`.
- */
-export const hydrationDropReporter = <A, R extends HydrationDropReason = ClientHydrationDropReason>(
-  supplied: HydrationDropReporter<A, R> | undefined,
-  byDefault: HydrationDropReporter<A, R>,
-): HydrationDropReporter<A, R> | undefined =>
-  supplied === undefined ? (isDevelopment() ? byDefault : undefined) : contain("onDropped", supplied);
-
-/**
  * What `QadiProvider` can tell a developer.
  *
  * Closed: a fourth situation is a new member here and in {@link DeveloperSignal},
@@ -564,34 +487,16 @@ export const providerSignals = {
 };
 
 /**
- * The console default for the provider's signals, each under its own condition.
+ * The reporter `QadiProvider` will use for one signal.
  *
- * `InstrumentedInProduction` is raised by the provider only outside development,
- * so its default needs just the once-per-process latch. The other two are raised
- * in any environment (a supplied reporter hears them in production) and speak on
- * the console only in development.
+ * A projection of {@link reporterFor} over the signal's own row, read again on every
+ * report so an inline callback stays current. Unlike the entry points that resolve a
+ * reporter or nothing, it always returns a reporter: the provider detects each situation
+ * itself, and the row decides whether the default speaks. A supplied callback replaces
+ * the default outright and runs in production.
  */
-const sayProviderSignal: ProviderSignalReporter = Match.type<ProviderSignal>().pipe(
-  Match.tagsExhaustive({
-    InstrumentedInProduction: once(SIGNALS.InstrumentedInProduction.says),
-    AtomsReplaced: (signal) => {
-      if (isDevelopment()) say(signal);
-    },
-    UnwritableGateRegistry: (signal) => {
-      if (isDevelopment()) say(signal);
-    },
-  }),
-);
-
-/**
- * The reporter `QadiProvider` will use.
- *
- * Unlike the hydration resolvers this never returns `undefined`: the provider
- * detects each situation itself, and the default decides per signal whether it
- * speaks. A supplied callback replaces the default outright and runs in
- * production.
- */
-export const providerSignalReporter = (
-  supplied: ProviderSignalReporter | undefined,
-): ProviderSignalReporter =>
-  supplied === undefined ? sayProviderSignal : contain("onDeveloperSignal", supplied);
+export const providerSignalReporter =
+  (supplied: ProviderSignalReporter | undefined): ProviderSignalReporter =>
+  (signal) => {
+    reporterFor(SIGNALS[signal._tag], "QadiProvider", supplied)?.(signal);
+  };
