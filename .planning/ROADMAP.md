@@ -467,7 +467,7 @@ Order: the three live defects (69 to 71), the three deepenings (72 to 74), the c
   4. ADR-QD-182 (or an amendment of ADR-QD-154) records the rule, and the invariant states that each "never throws" function stays total when the caught value is hostile.
 
 **Planning notes**: Shape: one total function, probably beside `ValueText.ts` (ADR-QD-154 unified value to text, not thrown value to text), owning the guard on both the `message` getter and `String()`. Changing the two existing placeholder strings to one is a visible text change, and the two pins move with it. Each RED regression names its site; one table test covers the function.
-**Plans**: 5/9 plans executed
+**Plans**: 6/9 plans executed
 
 Plans:
 - [x] 69-01 (W1): Measure the phase base (gate lines, the Stryker record of every touched source file in four groups, the committed scorer that tells removed mutants from a weakened test) and pin every core throw-through RED: `toJson`, `toJsonRecord`, `canonicalKey`, a derived key, the wire's encodes, SinkCodec's non-string message, the custom predicate's failure and defect, and an evaluation whose predicate dies.
@@ -475,7 +475,7 @@ Plans:
 - [x] 69-03 (W3): Pin the devtools sites that render a cause RED on the base (the explorer's two exits, the timeline and diagnostics feeds' stop, the diagnostics store's failed wiring read) and commit the phase's RED record.
 - [x] 69-04 (W4): Land `thrownMessage` and `causeMessage` (their module, barrel line, 29-row table and overview rows) and switch all six core sites to them, with the custom predicate's defect through `causeMessage` and the one placeholder pin.
 - [x] 69-05 (W5): Switch http's `transport`, react's `errorLine` (an error named once) and devtools' `renderError` (the failure's own text) to `thrownMessage`, with the repository-wide negative gate.
-- [ ] 69-06 (W6): Switch the devtools timeline, diagnostics, explorer and gates feeds to `causeMessage`, move the gates pins and the `DiagnosticsStatus` overview row, and leave `causeMessage` the one `Cause.pretty` call in shipped code.
+- [x] 69-06 (W6): Switch the devtools timeline, diagnostics, explorer and gates feeds to `causeMessage`, move the gates pins and the `DiagnosticsStatus` overview row, and leave `causeMessage` the one `Cause.pretty` call in shipped code.
 - [ ] 69-07 (W7): Record ADR-QD-182 and CCR-QD-461, four changesets, gate 14's probes of the two new exports, and the requirement and roadmap wording for a public `thrownMessage` and `causeMessage`.
 - [ ] 69-08 (W8): Write INV-QD-383, INV-QD-384, BEH-QD-681 to 685, the BEH-QD-230 amendment and the devtools screens' stopped reasons, and bring every register to the Revision the CCR row cites.
 - [ ] 69-09 (W9): Close: the mutation close judged against the base (removed mutants recorded, any new open mutant closed with a test), the close scan of the phase's diff, `pnpm check:pr` alone, and THRW-01 to THRW-05 complete.
@@ -620,7 +620,7 @@ Phases execute in numeric order: 69 → 70 → 71 → 72 → 73 → 74 → 75 �
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 69. One total thrown-value-to-message module | 5/9 | In Progress | - |
+| 69. One total thrown-value-to-message module | 6/9 | In Progress | - |
 | 70. Hydration's drop events come from its buckets | 0/TBD | Not started | - |
 | 71. Developer-signal reporters resolved through one table | 0/TBD | Not started | - |
 | 72. A derived store behind the dock model's stores | 0/TBD | Not started | - |
