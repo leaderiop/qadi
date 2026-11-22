@@ -56,12 +56,20 @@ import type { AskedQuestionLike, GateInstanceLike, QuestionsSnapshot } from "../
 import type { Source } from "../../src/model/Source.ts";
 import type { TimelineEntry } from "../../src/model/Timeline.ts";
 import { countsOf } from "../../src/model/Verdict.ts";
-import type { PortCardRow } from "../../src/model/PortCards.ts";
-import type { PortCallLog } from "../../src/model/PortCalls.ts";
 import type { PortActivity } from "../../src/model/Wiring.ts";
 import { allow, decisionRecord, deny, failedRecord, obligationRecord, read, readPolicy } from "../helpers.ts";
 import { settleTurns } from "../helpers.ts";
 import { makeGateRegistryDouble } from "../gateRegistryDouble.ts";
+import {
+  activityOf,
+  askingIds,
+  guard,
+  heardOf,
+  logOf,
+  rowOf,
+  tick,
+  wiringNamed,
+} from "../dockModelFixtures.ts";
 
 const write = permission("doc", "write");
 const writePolicy: Policy = hasPermission(write);
@@ -1013,24 +1021,6 @@ describe("the timeline's status (M29)", () => {
   );
 });
 
-/** The ids asking each asked question, row by row; empty when the view carries no rows. */
-const askingIds = (snapshot: QuestionsSnapshot): ReadonlyArray<ReadonlyArray<string>> =>
-  snapshot.questions._tag === "Rows" ? snapshot.questions.rows.map((row) => row.asking?.map((one) => one.id) ?? []) : [];
-
-/** Settles every fiber, steps the clock one poll interval, settles again. */
-const tick = Effect.gen(function* () {
-  yield* settleTurns;
-  yield* TestClock.adjust("2 seconds");
-  yield* settleTurns;
-});
-
-/** One live guard asking `policy`, in the Allowed state unless a test says otherwise. */
-const guard = (
-  id: string,
-  policy: Policy,
-  fields?: { readonly state?: string; readonly resource?: Resource | undefined },
-): GateInstanceLike => ({ id, kind: "Can", policy, state: fields?.state ?? "Allowed", resource: fields?.resource });
-
 describe("the questions store (M32, M32 b, M34, M36, M47, P2)", () => {
   it.effect("M32: the gates view says absent, empty or listed, and the questions view says unsampled, absent, empty or rows", () =>
     Effect.gen(function* () {
@@ -1445,60 +1435,6 @@ describe("the services store", () => {
       const starting = yield* makeDockModel({ diagnostics: { layer: Layer.effectDiscard(Effect.never) } });
       assert.strictEqual(starting.services.getSnapshot()._tag, "Withheld");
     }));
-
-  /** A one-port `Read` wiring whose only row is the AttributeResolver, named `name`. */
-  const wiringNamed = (name: string): WiringRead =>
-    WiringRead.Read({
-      report: {
-        ports: [
-          {
-            port: "AttributeResolver",
-            name,
-            required: true,
-            present: true,
-            defaulted: false,
-            consequence: "an attribute policy denies",
-          },
-        ],
-        cache: { present: false, size: undefined },
-      },
-    });
-
-  const activityOf = (calls: number): ReadonlyArray<PortActivity> => [
-    { port: "AttributeResolver", calls, retries: 0, timeouts: 0, translationCalls: 0 },
-  ];
-
-  const logOf = (...attributes: ReadonlyArray<string>): PortCallLog => ({
-    calls: attributes.map((attribute, index) => ({
-      _tag: "AttributeResolver",
-      span: "qadi.attribute",
-      interpreter: undefined,
-      at: index + 1,
-      durationMillis: 1,
-      subjectId: "alice",
-      attribute,
-      resolved: true,
-    })),
-    dropped: 0,
-    capacity: 200,
-  });
-
-  /** The AttributeResolver row of the services store's current snapshot. */
-  const rowOf = (model: DockModel): PortCardRow => {
-    const view = model.services.getSnapshot();
-    if (view._tag !== "Read") return assert.fail(`expected Read, got ${view._tag}`);
-    const row = view.rows[0];
-    if (row === undefined) return assert.fail("expected a row");
-    return row;
-  };
-
-  const heardOf = (model: DockModel) => {
-    const heard = { calls: 0 };
-    model.services.subscribe(() => {
-      heard.calls += 1;
-    });
-    return heard;
-  };
 
   it.effect("M49: the services store keeps its reference when only the hydration or the questions move", () =>
     Effect.gen(function* () {
