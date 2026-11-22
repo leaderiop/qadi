@@ -573,12 +573,13 @@ tree (`scripts/lib/module-state-scan.mjs`, through `typescript`'s own parse), no
 text, so it counts `export let` and `export var`, a declaration however it is indented,
 one inside a top-level block, a loop's own `let`, and each name of `let a, b` or of a
 destructuring pattern. It counts no `const`, and with it no `const` holding a mutable
-container (`Policy.ts`'s depth memo, a `Metric`, a lookup table), no `static` class field
-and nothing a function or method declares. The binding each count belongs to is checked
-to be among those counted (`[module-state-names]`), a file no
+container (`Policy.ts`'s depth memo, a `Metric`, a lookup table), no `static` class field,
+no `declare`d binding (it states a type for a global and declares no runtime binding of
+the module) and nothing a function or method declares. The binding each count belongs to
+is checked to be among those counted (`[module-state-names]`), a file no
 `packages/*/tsconfig.src.json` contains fails (`[module-state-scan]`), and this table is
-checked against the budget (`[module-state-table]`). Test scope is exempt. A new row is a reviewed edit to the budget
-and this table together.
+checked against the budget (`[module-state-table]`). Test scope is exempt. A new row is a
+reviewed edit to the budget and this table together.
 
 | Module-scope state | Count | Why |
 | ------------------ | ----- | --- |

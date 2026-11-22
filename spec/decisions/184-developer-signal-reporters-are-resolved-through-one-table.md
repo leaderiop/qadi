@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-184                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-22                                     |
 > | Status         | Accepted — extends ADR-QD-041 and ADR-QD-052   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-22): A row's condition is read in one place, holdsHere, and a row that speaks everywhere takes no condition; the budget counts every let or var binding outside a function or class body from the syntax tree; the characterisation's rows are unchanged, not unedited (ARCH-118, CCR-QD-463)<br>1.0 (2026-11-22): Initial release (ARCH-118, CCR-QD-463) |
+> | Change History | 1.2 (2026-11-22): The module-state budget's exclusions name a declared binding, and why<br>1.1 (2026-11-22): A row's condition is read in one place, holdsHere, and a row that speaks everywhere takes no condition; the budget counts every let or var binding outside a function or class body from the syntax tree; the characterisation's rows are unchanged, not unedited (ARCH-118, CCR-QD-463)<br>1.0 (2026-11-22): Initial release (ARCH-118, CCR-QD-463) |
 
 ---
 
@@ -126,8 +126,10 @@ than the registry guessing it (decision 4).
   a function or class body, read from the file's syntax tree and not from its lines, so an
   indented declaration, `export let`, one in a top-level block and each name of `let a, b`
   all count. It counts no `const`, so a `const` holding a mutable container (`Policy.ts`'s
-  depth memo, a `Metric`), a `static` class field and what a function declares are outside
-  it. A new binding in any other file fails, and so does the count moving.
+  depth memo, a `Metric`), a `static` class field, a `declare`d binding (a type's statement
+  about a global, which declares no runtime binding of the module) and what a function
+  declares are outside it. A new binding in any other file fails, and so does the count
+  moving.
 - The only change a consumer can observe is a direct `makeGateRegistry` caller's reporter
   that throws, now announced under `onIdCollision`, so `@qadi/react` takes a patch
   changeset. No export is added or removed, and `spec/overview.md` is untouched.
