@@ -111,6 +111,35 @@ updates THRW-02/THRW-03 wording in REQUIREMENTS.md in the records plan.
   `PortWireEncode`'s lost `Error:` prefix); `@qadi/http`, `@qadi/react`, `@qadi/devtools` patch (their fixes, devtools'
   placeholder wording).
 
+### Plan-check revisions (decided autonomously, 2026-11-22, under the owner's "do not ask me; most complete and clean" instruction)
+- **D-14 One guarded cause renderer, public, beside `thrownMessage`.** The plan check probed the installed `effect`:
+  `Cause.pretty(Cause.die(h))` and `Cause.pretty(Cause.fail(h))` both throw for the hostile value. So `ThrownMessage.ts`
+  also exports `causeMessage(cause: Cause.Cause<unknown>): string`: `Cause.pretty(cause)` guarded, falling back to
+  `thrownMessage(Cause.squash(cause))` (itself guarded, then the placeholder). It is total. Every place that renders a
+  `Cause` to text uses it: `CustomPredicate`'s defect (D-05 becomes a call to it), devtools `TimelineFeed.ts:157`,
+  `DiagnosticsFeed.ts:175`, `DiagnosticsStore.ts:271`, `ExplorerSession.ts:159` and `:169`, and `GatesFeed.ts:100-111`,
+  whose hand-written guard is replaced by it (one rule, one place). Each unguarded devtools site gets a RED regression
+  through its own public entry first. Public because devtools needs it (ADR-QD-099), so it gets its overview row (gate
+  13) and is reached by gate 14. INV-QD-384 is now used: "no shipped code renders a `Cause` to text through a call that
+  can throw". The Future Requirement bullet for the devtools feeds is dropped: they are in scope. Rejected: deferring
+  (leaves the phase goal unmet in packages this phase already edits); a devtools-private copy (two rules for one
+  thing).
+- **D-15 Devtools capture keeps the failure's own text.** `renderError` reads, in order, the error's `cause`, then its
+  `reason`, then its `message` (own string message), and only then falls back to `thrownMessage(error)`; each field read
+  is guarded through one small typed field reader, never `as`. A `CustomPredicateError` is therefore captured and
+  replayed with its real `reason`, not the literal tag and not the predicate's name. A capture-and-replay RED case for a
+  failing custom predicate pins it. Rejected: `_tag` (loses the reason, replays noise); `String(error)` (today's
+  behaviour, which captured the predicate name as if it were the reason).
+- **D-16 React `errorLine` names the error once.** When the error's own `message` is a string, the line is
+  `${name}: ${message}` (D-08 holds for every normal `Error`); otherwise the line is `thrownMessage(error)` with no name
+  prefix, so a non-string message never prints a doubled `Error: Error: 42`. The name read stays guarded. A
+  non-string-message case pins it.
+- **D-17 Mutation close distinguishes removed mutants from weakened tests.** The phase's scorer reports, per file,
+  the score and also the absolute survived and no-coverage counts against the base. A score fall with no new survivor
+  or no-coverage mutant (the mutants were deleted with `describeThrown`/`renderReason`/the old devtools guard) is
+  recorded as "killed mutants removed" and passes; any new survivor or no-coverage mutant still fails the close and is
+  closed with a real test. The base record is never edited.
+
 ### Claude's Discretion
 - How `thrownMessage` is written inside (one `try` per read or a `Result.try` chain), provided D-04's order holds, no
   `as`/`!`/`any`, and the function is plain (no Effect: it is a sync total helper).
