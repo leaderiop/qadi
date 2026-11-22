@@ -49,7 +49,8 @@ const throwingProxy = new Proxy(
 const revoked = Proxy.revocable({}, {});
 revoked.revoke();
 
-const boom = new Error("boom");
+// No stack, so `Cause.pretty` renders the name and message alone, whatever the file path.
+const stackless = Object.assign(new Error("boom"), { stack: undefined });
 
 const rows: ReadonlyArray<readonly [title: string, value: unknown, text: string]> = [
   ["an Error is its message, without its name", new Error("boom"), "boom"],
@@ -101,8 +102,8 @@ describe("thrownMessage", () => {
 });
 
 const causeRows: ReadonlyArray<readonly [title: string, cause: Cause.Cause<unknown>, text: string]> = [
-  ["a defect that renders is its Cause.pretty text", Cause.die(boom), Cause.pretty(Cause.die(boom))],
-  ["a failure that renders is its Cause.pretty text", Cause.fail("plain"), Cause.pretty(Cause.fail("plain"))],
+  ["a defect that renders is its Cause.pretty text", Cause.die(stackless), "Error: boom"],
+  ["a failure that renders is its Cause.pretty text", Cause.fail("plain"), "Error: plain"],
   ["a defect with a value whose toString and message getter both throw is the placeholder", Cause.die(hostile), PLACEHOLDER],
   ["a defect with an Error whose message getter throws is the placeholder", Cause.die(hostileError), PLACEHOLDER],
   [

@@ -687,13 +687,13 @@ describe("a port wire built from a spec decodes what it is given", () => {
     assert.strictEqual(Result.getOrUndefined(wire.decodeAnswer({})), 0);
   });
 
-  it("refuses a question and an answer of another shape with a sentence", () => {
+  it("refuses a question and an answer of another shape with the schema's sentence, naming the member", () => {
     const wire = throwingWire(new Error("unused"));
     const question = wire.decodeQuestion({ subjectId: "alice" });
     const answer = wire.decodeAnswer({ n: "three" });
     assert.isTrue(Result.isFailure(question));
     assert.isTrue(Result.isFailure(answer));
-    assert.isTrue(Result.isFailure(question) && question.failure.length > 0);
-    assert.isTrue(Result.isFailure(answer) && answer.failure.length > 0);
+    assert.strictEqual(Result.isFailure(question) ? question.failure : undefined, "Missing key\n  at [\"what\"]");
+    assert.strictEqual(Result.isFailure(answer) ? answer.failure : undefined, "Expected number\n  at [\"n\"]");
   });
 });
