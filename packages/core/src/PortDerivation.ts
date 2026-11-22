@@ -79,7 +79,7 @@ export type DerivedWireSpec<
  * state one. It is derived from `PortDescription`, so a member the description
  * gains reaches every port built here without editing this type.
  * `CustomPredicate` does not use it: its key must cover the whole subject and
- * its defect renders with `Cause.pretty`, and it says so where it is declared.
+ * its defect renders with `causeMessage`, and it says so where it is declared.
  */
 export const makePortDescription = <
   N extends PortName,

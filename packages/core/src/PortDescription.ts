@@ -268,7 +268,8 @@ export interface PortDescription<
    * The port's own typed error for a call that **died** — what
    * `PortAccess.ts`'s `catchPortDefect` turns a defect into (ADR-QD-077).
    * Separate from `failure` because `CustomPredicateError` renders a defect
-   * with `Cause.pretty`, not as the squashed value (D-10-e). A port built with
+   * with `causeMessage` (`Cause.pretty` when it renders, else the squashed
+   * value's text), not as the squashed value alone (D-10-e). A port built with
    * `makePortDescription` derives it as `failure(args, Cause.squash(cause))`
    * (ADR-QD-133); `CustomPredicate` states its own.
    */

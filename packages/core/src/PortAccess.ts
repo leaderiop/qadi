@@ -451,7 +451,7 @@ export const askRelationship = Effect.fn(relationshipResolverPort.span)(function
  * `HasCustom`, ADR-QD-055).
  *
  * `CustomPredicateError` has no `cause` field, so the description renders a
- * defect into `reason` with `Cause.pretty` (`customPredicatePort.defect`).
+ * defect into `reason` with `causeMessage` (`customPredicatePort.defect`).
  */
 export const askCustom = Effect.fn(customPredicatePort.span)(function* (
   subject: AuthSubject,
