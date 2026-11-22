@@ -261,18 +261,18 @@ describe("DeveloperSignals", () => {
 
     it("InstrumentedInProduction", () => {
       inEnvironment("production", () => {
-      expect(
-        said(() => providerSignalReporter(undefined)(providerSignals.instrumentedInProduction())),
-      ).toEqual([
-        "[qadi] <QadiProvider instrument> is true outside development. This is a debug " +
-          "affordance: it registers every guarded control's policy, resource and verdict " +
-          "for @qadi/devtools, readable by any script on the page. Pass instrument only in " +
-          "development, or gate it the way you gate the devtools dock itself.",
-      ]);
-      // Once per process: the second is the same signal, not a new one.
-      expect(
-        said(() => providerSignalReporter(undefined)(providerSignals.instrumentedInProduction())),
-      ).toEqual([]);
+        expect(
+          said(() => providerSignalReporter(undefined)(providerSignals.instrumentedInProduction())),
+        ).toEqual([
+          "[qadi] <QadiProvider instrument> is true outside development. This is a debug " +
+            "affordance: it registers every guarded control's policy, resource and verdict " +
+            "for @qadi/devtools, readable by any script on the page. Pass instrument only in " +
+            "development, or gate it the way you gate the devtools dock itself.",
+        ]);
+        // Once per process: the second is the same signal, not a new one.
+        expect(
+          said(() => providerSignalReporter(undefined)(providerSignals.instrumentedInProduction())),
+        ).toEqual([]);
       });
     });
 
@@ -302,44 +302,44 @@ describe("DeveloperSignals", () => {
   describe("when the default speaks", () => {
     it("the four hydration defaults are absent in production, and a supplied reporter replaces them", () => {
       inEnvironment("production", () => {
-      expect(reporterFor(SIGNALS.SeedSuperseded, "makeQadiAtoms", undefined)).toBeUndefined();
-      expect(reporterFor(SIGNALS.GateIdCollision, "makeQadiAtoms", undefined)).toBeUndefined();
-      expect(reporterFor(SIGNALS.GateIdCollision, "makeGateRegistry", undefined)).toBeUndefined();
-      expect(
-        reporterFor(SIGNALS.DehydrationDropped, "dehydrateDecisions", undefined),
-      ).toBeUndefined();
-      expect(
-        reporterFor(SIGNALS.HydrationDropped, "hydrateDecisions", undefined),
-      ).toBeUndefined();
+        expect(reporterFor(SIGNALS.SeedSuperseded, "makeQadiAtoms", undefined)).toBeUndefined();
+        expect(reporterFor(SIGNALS.GateIdCollision, "makeQadiAtoms", undefined)).toBeUndefined();
+        expect(reporterFor(SIGNALS.GateIdCollision, "makeGateRegistry", undefined)).toBeUndefined();
+        expect(
+          reporterFor(SIGNALS.DehydrationDropped, "dehydrateDecisions", undefined),
+        ).toBeUndefined();
+        expect(
+          reporterFor(SIGNALS.HydrationDropped, "hydrateDecisions", undefined),
+        ).toBeUndefined();
 
-      // Contained, so not the same function: what it is handed still reaches it.
-      const heard: Array<unknown> = [];
-      const mine = (value: unknown) => {
-        heard.push(value);
-      };
-      const mismatch = { policy: hasRole("admin"), resource: undefined, seeded, decided };
-      const drop = { reason: "MalformedEntry" as const, entries: [1], wholePayload: false };
-      const leftOut = { reason: "ForeignSubject" as const, entries: [1, 2], wholePayload: false };
-      expect(
-        said(() => {
-          reporterFor(SIGNALS.SeedSuperseded, "makeQadiAtoms", mine)?.(mismatch);
-          reporterFor(SIGNALS.GateIdCollision, "makeQadiAtoms", mine)?.(":r1:");
-          reporterFor(SIGNALS.DehydrationDropped, "dehydrateDecisions", mine)?.(leftOut);
-          reporterFor(SIGNALS.HydrationDropped, "hydrateDecisions", mine)?.(drop);
-        }),
-      ).toEqual([]);
-      expect(heard).toEqual([mismatch, ":r1:", leftOut, drop]);
+        // Contained, so not the same function: what it is handed still reaches it.
+        const heard: Array<unknown> = [];
+        const mine = (value: unknown) => {
+          heard.push(value);
+        };
+        const mismatch = { policy: hasRole("admin"), resource: undefined, seeded, decided };
+        const drop = { reason: "MalformedEntry" as const, entries: [1], wholePayload: false };
+        const leftOut = { reason: "ForeignSubject" as const, entries: [1, 2], wholePayload: false };
+        expect(
+          said(() => {
+            reporterFor(SIGNALS.SeedSuperseded, "makeQadiAtoms", mine)?.(mismatch);
+            reporterFor(SIGNALS.GateIdCollision, "makeQadiAtoms", mine)?.(":r1:");
+            reporterFor(SIGNALS.DehydrationDropped, "dehydrateDecisions", mine)?.(leftOut);
+            reporterFor(SIGNALS.HydrationDropped, "hydrateDecisions", mine)?.(drop);
+          }),
+        ).toEqual([]);
+        expect(heard).toEqual([mismatch, ":r1:", leftOut, drop]);
       });
     });
 
     it("the two development-only provider signals are silent in production", () => {
       inEnvironment("production", () => {
-      expect(
-        said(() => {
-          providerSignalReporter(undefined)(providerSignals.atomsReplaced());
-          providerSignalReporter(undefined)(providerSignals.unwritableGateRegistry());
-        }),
-      ).toEqual([]);
+        expect(
+          said(() => {
+            providerSignalReporter(undefined)(providerSignals.atomsReplaced());
+            providerSignalReporter(undefined)(providerSignals.unwritableGateRegistry());
+          }),
+        ).toEqual([]);
       });
     });
 
