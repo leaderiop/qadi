@@ -16,7 +16,7 @@
  * is the `UnregisteredAtoms` defect ADR-QD-078 removed for hydration. See
  * [ADR-QD-080](../../../spec/decisions/080-a-gate-registry-belongs-to-its-atom-set.md).
  *
- * Below `GateRegistry.ts`, which builds its owned registry from here, and
+ * Below `GateRegistry.ts` and `QadiAtoms.ts`, which build their registries from here, and
  * React-free, so {@link reconcile} is tested without rendering. The hooks that
  * read and register through it are in `useGate.ts` (ARCH-76, ADR-QD-140).
  */
@@ -143,9 +143,90 @@ class OwnedGateRegistry implements GateRegistry {
   }
 }
 
-/** Builds a registry that owns its writer. Called by `makeGateRegistry`. */
-export const makeOwnedGateRegistry = (parts: GateRegistry & GateWriter): GateRegistry =>
-  new OwnedGateRegistry(parts);
+/**
+ * Builds an empty registry that owns its writer and reports a colliding id through
+ * the reporter it is handed.
+ *
+ * The reporter arrives already resolved, so the atom set and `makeGateRegistry` each
+ * name it by their own option and no throw is contained twice (ADR-QD-184). Out of the
+ * barrel like the rest of this module: a registry built here owns a writer only this
+ * package can reach.
+ */
+export const buildGateRegistry = (report: ((id: string) => void) | undefined): GateRegistry => {
+  const entries = new Map<string, GateInstance>();
+  const listeners = new Set<() => void>();
+  const reported = new Set<string>();
+  let collisions = 0;
+
+  // The cached array `useSyncExternalStore` compares by reference: rebuilt on
+  // the first read after a change and not before, or React re-renders forever.
+  let snapshot: ReadonlyArray<GateInstance> = [];
+  let stale = false;
+
+  const changed = (): void => {
+    stale = true;
+    // Isolated per listener: a subscriber's own bug must not stop the rest of
+    // the fan-out from being notified, and must not propagate into the guard
+    // effect that triggered it. Swallowed rather than logged: this module has no
+    // reporter of its own, and a bare `console.*` call here would be a second,
+    // undeclared confinement point alongside `DeveloperSignals.ts`'s.
+    for (const listener of listeners) {
+      try {
+        listener();
+      } catch {
+        // Intentionally ignored — see above.
+      }
+    }
+  };
+
+  const register = (instance: GateInstance): GateHandle => {
+    let key = instance.id;
+    if (entries.has(key)) {
+      key = `${instance.id}~${++collisions}`;
+      if (!reported.has(instance.id)) {
+        reported.add(instance.id);
+        report?.(instance.id);
+      }
+    }
+    entries.set(key, { ...instance, id: key });
+    changed();
+
+    // `live` and `key` are this registration's own: the handle *is* the
+    // per-registration token, so a stale cleanup can only touch the entry it made.
+    let live = true;
+    return {
+      update: (state: GateRenderState) => {
+        const existing = entries.get(key);
+        if (!live || existing === undefined || existing.state === state) return;
+        entries.set(key, { ...existing, state });
+        changed();
+      },
+      unregister: () => {
+        if (!live) return;
+        live = false;
+        entries.delete(key);
+        changed();
+      },
+    };
+  };
+
+  return new OwnedGateRegistry({
+    register,
+    instances: () => {
+      if (stale) {
+        snapshot = [...entries.values()];
+        stale = false;
+      }
+      return snapshot;
+    },
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  });
+};
 
 /**
  * The writer for a registry this package built, or `undefined` for anything else.
