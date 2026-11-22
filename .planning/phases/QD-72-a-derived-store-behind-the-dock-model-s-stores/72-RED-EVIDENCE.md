@@ -198,3 +198,24 @@ At `phase_base` it printed these 26 lines:
 ```
 
 At `c5171dd3538246fc816a6e0347012dfd38aabddc` it prints nothing (exit 1).
+
+## The store-list test shown failing
+
+The throwaway, in the working tree only and never committed: a tenth member
+`extra: { subscribe: questions.subscribe, getSnapshot: questions.getSnapshot }` added to the
+`DockModel` interface and to the model `makeDockModel` returns, in
+`packages/devtools/src/model/DockModel.ts`. The command:
+
+```
+pnpm exec vitest run --project devtools packages/devtools/test/model/DockModel.test.ts --reporter=json --outputFile=<S>/tenth-06.json
+```
+
+Exactly one test failed, `the members with subscribe and getSnapshot are the stores BEH-QD-700 names`,
+with this first failure line, verbatim:
+
+```
+AssertionError: expected [ Array(10) ] to deeply equal [ Array(9) ]
+```
+
+The throwaway was then reverted with `git checkout -- packages/devtools/src/model/DockModel.ts`, and the
+same file ran again: 61 passed, 0 failed.
