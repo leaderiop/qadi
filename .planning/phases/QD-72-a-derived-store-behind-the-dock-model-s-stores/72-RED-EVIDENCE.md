@@ -94,3 +94,59 @@ Error: Module '"../../src/model/ExternalStore.ts"' has no exported member 'makeD
 
 Also missing on the base: `DerivedStore` and `ReadableStore`. The fragments of the three directives are checked
 against the real messages once the API exists; if one is reported unmatched, 72-04's evidence records the final text.
+
+## The derived store tests green
+
+Head: `7b534b6e50a590aa97b903dc8044f2041cb2a826` (`feat(72-04): a store derived from parent stores by a key`).
+
+`pnpm exec vitest run --project devtools packages/devtools/test/model/ExternalStore.test.ts` (stdin closed):
+31 passed, 0 failed.
+
+`pnpm test:tstyche ExternalStore`: passes in both passes (4 tests, 3 suppressed errors matched in each). The three
+directive fragments matched as written. One change was needed in the type pins: `an empty parent list is refused` had a
+compute `(key) => key.a.length`, and once the parents refusal makes the call fail, `A` is inferred as `unknown`, so
+`expect(built).type.toBe<Expected>()` failed on `Effect<DerivedStore<unknown>, ...>` instead of the refusal. The compute
+there is now `() => 0`, as in the optional-field row; the directive and its fragment are unchanged.
+
+The devtools project (`pnpm exec vitest run --project devtools`) at `b5daf1bf11d55d731ed7a19eb511b83e99d69c7d`, after
+the read half was named: 1705 tests, 1704 passed, 1 failed, and the one failure is
+`a model whose scope closed merges no reading a later configure hands it`, the closed-model regression that 72-05
+turns green.
+
+## Each type guarantee gutted once
+
+Each gut is a working-tree edit to `makeDerivedStore`'s options type in `ExternalStore.ts`, run with
+`pnpm test:tstyche ExternalStore < /dev/null` and reverted with `git checkout -- packages/devtools/src/model/ExternalStore.ts`
+before the next; none was committed, and `ExternalStore.ts` has one commit since `phase_base`.
+
+### Without Required<K>
+
+Edit: the type parameter `K extends object & Required<K>` became `K extends object`. Result: exit 1, pass 1 of 2 fails
+on the directive at `ExternalStore.tst.ts:44:5`. Test title:
+`a key type with an optional field is refused`. First error line, verbatim:
+
+```
+Error: Unused '@ts-expect-error' directive. ts(2578)
+```
+
+### With a parent list that may be empty
+
+Edit: `parents: readonly [Parent, ...Array<Parent>]` became `parents: ReadonlyArray<Parent>`. Result: exit 1, pass 1 of 2
+fails at `ExternalStore.tst.ts:53:5`. Test title: `an empty parent list is refused`. First error line, verbatim:
+
+```
+Error: Unused '@ts-expect-error' directive. ts(2578)
+```
+
+### With a compute that may read outside its key
+
+Edit: `compute: (key: K) => A` became `compute: (key: K & { readonly other: unknown }) => A`. Result: exit 1, pass 1 of 2
+fails at `ExternalStore.tst.ts:65:25`, the directive of the pin titled
+`a compute reading a field outside its key is refused` (the call now resolves, so the suppressed error is the
+return-type error and not the property error). First error line, verbatim:
+
+```
+Error: The diagnostic message did not match.
+```
+
+After the three reverts `pnpm test:tstyche ExternalStore` passes again.
