@@ -5,16 +5,16 @@ milestone_name: Arch Wave 13
 current_phase: 69
 current_phase_name: One total thrown-value-to-message module
 status: executing
-stopped_at: v1.8 roadmap created (Phases 69-76); next step is /gsd-plan-phase 69
-last_updated: "2026-11-22T09:14:44.844Z"
+stopped_at: Completed 69-01-PLAN.md
+last_updated: "2026-11-22T09:32:00.462Z"
 last_activity: 2026-11-22
-last_activity_desc: Roadmap created for v1.8 Arch Wave 13 (Phases 69-76)
-state_head: 718d1e5caee309c9263cb3be251704e96f7fa57e
+last_activity_desc: Phase 69 execution started
+state_head: 51617bcb4887fee06580d2833ac9736f8e82251e
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 9
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
 ---
 
@@ -25,14 +25,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-22)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 69 - One total thrown-value-to-message module (v1.8 Arch Wave 13; roadmap created, ready to plan)
+**Current focus:** Phase 69 — One total thrown-value-to-message module
 
 ## Current Position
 
-Phase: 69 (One total thrown-value-to-message module) — READY TO EXECUTE
-Plan: —
+Phase: 69 (One total thrown-value-to-message module) — EXECUTING
+Plan: 2 of 9
 Status: Ready to execute
-Last activity: 2026-11-22 — Roadmap created for v1.8 Arch Wave 13 (Phases 69-76)
+Last activity: 2026-11-22 — Phase 69 execution started
 
 
 ## Performance Metrics
@@ -483,6 +483,7 @@ Last activity: 2026-11-22 — Roadmap created for v1.8 Arch Wave 13 (Phases 69-7
 | Phase QD-68.1 P07 | 25min | 2 tasks | 3 files |
 | Phase 68.1 P09 | 25 min | 2 tasks | 3 files |
 | Phase QD-68.1 P08 | 15 min | 2 tasks | 2 files |
+| Phase 69 P01 | 40min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -819,6 +820,7 @@ Last activity: 2026-11-22 — Roadmap created for v1.8 Arch Wave 13 (Phases 69-7
 - [Phase 68.1]: ADR-QD-033 is amended (Rev 1.5), not superseded; CCR-QD-460 is the only record number the phase adds
 - [Phase 68.1]: 68.1-06: Phase 63's gate-14 truths are read against 68.1-04's single gate-14 run plus a silent diff of what gate 14 reads since; gate 14 is not run twice
 - [Phase QD-68.1]: 68.1-08: the tick commit holds REQUIREMENTS.md and the summary only, so the tree since the green check:pr differs by exactly those; STATE and ROADMAP advance in a separate commit
+- [Phase 69]: Plan 69-01: scorer records survived and no-coverage counts per file so the close separates removed killed mutants from a weakened test; the close-only thrown group is judged by judgeNew (no base, no open mutant)
 
 ### Pending Todos
 
@@ -892,8 +894,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-22T07:09:00.000Z
-Stopped at: v1.8 roadmap created (Phases 69-76); next step is /gsd-plan-phase 69
+Last session: 2026-11-22T09:32:00.213Z
+Stopped at: Completed 69-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
