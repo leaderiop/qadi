@@ -51,7 +51,7 @@ import * as Schema from "effect/Schema";
 import * as Struct from "effect/Struct";
 import * as Atom from "effect/reactivity/Atom";
 import type { HydrationDropReporter } from "./DeveloperSignals.ts";
-import { hydrationDropReporter, saysDehydrationDropped, saysHydrationDropped } from "./DeveloperSignals.ts";
+import { reporterFor, SIGNALS } from "./DeveloperSignals.ts";
 import { dehydrationBuckets, dropEvents, entryBuckets } from "./HydrationBuckets.ts";
 import type { DecisionEntry, EntryDropReason, HydrationHooks, PayloadRefusalReason } from "./HydrationEvent.ts";
 import { HydrationEvent, emitHydration } from "./HydrationEvent.ts";
@@ -475,7 +475,9 @@ export const dehydrateWith = (
   options?: DehydrateOptions,
 ): DehydratedDecisions => {
   const plan = planDehydration(entries, options?.includeTrace ?? false);
-  emitAll(plan.events, { leftOut: hydrationDropReporter(options?.onDropped, saysDehydrationDropped) });
+  emitAll(plan.events, {
+    leftOut: reporterFor(SIGNALS.DehydrationDropped, "dehydrateDecisions", options?.onDropped),
+  });
   return plan.payload;
 };
 
@@ -660,7 +662,9 @@ export const hydrateWith = (
 ): InitialValues => {
   const plan = planHydration(seedFor, payload, subject);
   // Emitted after the whole plan, never interleaved with it.
-  emitAll(plan.events, { dropped: hydrationDropReporter(options?.onDropped, saysHydrationDropped) });
+  emitAll(plan.events, {
+    dropped: reporterFor(SIGNALS.HydrationDropped, "hydrateDecisions", options?.onDropped),
+  });
   return plan.initialValues;
 };
 
