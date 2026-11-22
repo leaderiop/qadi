@@ -108,16 +108,16 @@ Every phase runs on branch `arch-wave-12`, strictly serial.
 
 ### The v1.7 audit's tech debt (Phase 68.1, inserted; owner decision 2026-11-21)
 
-- [ ] **DEBT-01**: `scripts/bench/ab.sh` refuses an odd round count, so arm order alternates evenly (review IN-01). A
+- [x] **DEBT-01**: `scripts/bench/ab.sh` refuses an odd round count, so arm order alternates evenly (review IN-01). A
   bench already recorded keeps its record.
-- [ ] **DEBT-02**: `scripts/bench/analyze.mjs` exits non-zero when the gate fails, and its `--self-test` runs inside a
+- [x] **DEBT-02**: `scripts/bench/analyze.mjs` exits non-zero when the gate fails, and its `--self-test` runs inside a
   step `pnpm check` already runs (review IN-02).
-- [ ] **DEBT-03**: Phase 68's staleness script finds a file a later commit renamed or deleted, and paths under
+- [x] **DEBT-03**: Phase 68's staleness script finds a file a later commit renamed or deleted, and paths under
   `.changeset/`, `.github/` and root dotfiles (review IN-03); re-run, it still ends `redo: none` or the phases it names are
   re-verified.
-- [ ] **DEBT-04**: Phase 68's comparison script compares TypeScript tokens with their types, so a type-only edit is not
+- [x] **DEBT-04**: Phase 68's comparison script compares TypeScript tokens with their types, so a type-only edit is not
   reported as titles-and-comments-only (review IN-04); each verdict Phase 68 recorded with it is re-checked.
-- [ ] **DEBT-05**: Every child gate 14 starts has a time limit, including the probe guard's TypeScript parse
+- [x] **DEBT-05**: Every child gate 14 starts has a time limit, including the probe guard's TypeScript parse
   (AR-68-02); ADR-QD-033 and gate 14's doc comment say so.
 - [ ] **DEBT-06**: Phases 62 to 68.1 each have a validated Nyquist `VALIDATION.md` (`/gsd-validate-phase`).
 
@@ -196,11 +196,11 @@ The seven WX rows apply to every phase 62 to 68, so each phase's Requirements li
 | HYGN-05 | Phase 68 | Complete |
 | HYGN-06 | Phase 68 | Complete |
 | HYGN-07 | Phase 68 | Complete |
-| DEBT-01 | Phase 68.1 | Pending |
-| DEBT-02 | Phase 68.1 | Pending |
-| DEBT-03 | Phase 68.1 | Pending |
-| DEBT-04 | Phase 68.1 | Pending |
-| DEBT-05 | Phase 68.1 | Pending |
+| DEBT-01 | Phase 68.1 | Complete |
+| DEBT-02 | Phase 68.1 | Complete |
+| DEBT-03 | Phase 68.1 | Complete |
+| DEBT-04 | Phase 68.1 | Complete |
+| DEBT-05 | Phase 68.1 | Complete |
 | DEBT-06 | Phase 68.1 | Pending |
 | WX-01 | All v1.7 phases | Pending |
 | WX-02 | All v1.7 phases | Pending |
