@@ -258,6 +258,46 @@
 
 ---
 
+## Milestone: v1.7 — Arch Wave 12
+
+**Completed:** 2026-11-22 (not merged, not released)
+**Phases:** 8 (62–68 and the inserted 68.1) | **Plans:** 60 | **Sessions:** one autonomous run (`/gsd-autonomous`), with context compactions
+
+### What Was Built
+- ARCH-109: negative type pins can fail. tstyche compiles with `floatingEffect` off, every negative pin has a passing same-subject twin, and the count is budgeted (`NOT_CALLABLE_PIN_BUDGET`).
+- ARCH-110: gate 14 compiles every new public name through the packed `exports` map, and fails on an unprobed `make*Feed` or a vacuous probe.
+- ARCH-111/112/113: one throwing devtools listener no longer silences the rest; only `admit` builds an `Admitted`; the decoder's `ignore` projection reads only declared keys. Two patch changesets, no Breaking change.
+- ARCH-114/115: the two equivalent mutants and the race test's magic bound are gone, and every v1.6 close-out is a fix or a recorded decision.
+- DEBT-01..06 (Phase 68.1): the bench harness balances arm order and fails loudly, the record scripts got corrected copies that re-checked every Phase 68 verdict, gate 14 bounds every child it starts, and all eight phases carry validated Nyquist records.
+
+### What Worked
+- Asking once when blocked. The busy host (load up to 177 from another session) was one question, "keep waiting"; after that the run waited in 30-minute windows and ran `check:pr` alone each time.
+- Staleness as a script. `68-stale.mjs`/`68.1-stale.mjs` named exactly which phases a commit made stale, and a re-verify driver appended a section and replaced `covered_digest`, so the re-verification after the final inline fixes took minutes.
+- A record keeps the tool that produced it. Phase 68's scripts stayed as recorded; corrected copies in 68.1 re-ran all ten verdicts, and none flipped.
+- Nyquist validation by gate scripts and self-tests, not only vitest: all eight phases validated with zero gaps and no new tests.
+
+### What Was Inefficient
+- The first audit carried six fixable items, and fixing them took a whole inserted phase plus a second audit. The re-audit then carried five info findings that took one more inline round, `check:pr` and four re-verifications.
+- `68.1-compare.mjs`'s fix regressed in review iteration 1 and needed a correct-by-construction rewrite (a parse-tree walk), then a third iteration; the iteration-3 fix had no fourth review.
+- Long waits on a host shared with another session's vitest loop; one wait was killed by a signal with no output.
+
+### Patterns Established
+- A cross-cutting requirement (WX-*) is ticked only at the milestone audit; a phase-scoped tool (`phase.complete`) that ticks it is reverted.
+- An info finding is checked against the codebase before fixing: IN-03's "convention" was the reviewer's misreading, and it needed no change.
+- A gate's child process runs under the same timeout as every other child, with its accepted residual (a server the child started may outlive it) stated in the ADR and the code comment.
+
+### Key Lessons
+1. Write the phase's record scripts with their own self-test that plants the defect class (rename, type-only edit) before trusting their verdicts.
+2. Run the review's info findings at the end of the phase that raised them, not at the next audit; each deferral costs a `check:pr` and a re-verification sweep.
+3. Keep `check:pr` alone on a quiet host; a run beside another vitest loop is not evidence.
+
+### Cost Observations
+- Model mix: opus for the orchestrator; sonnet for executors, fixers, checkers, verifiers, validation auditors and the integration check.
+- Sessions: one long autonomous run across several context compactions.
+- Notable: 383 commits in about three days; outside `.planning` only 78 files (+4,036 / −473) changed, most of it gate, test and spec work.
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -270,6 +310,7 @@
 | v1.4 | 1 (autonomous) | 6 | Spike evidence for every option before a human checkpoint; a milestone-wide mutation re-check and stale sweep in the last plan |
 | v1.5 | 1 (autonomous) | 10 | Defects first with RED on base; a benchmark gate opening a phase; post-review mutation records; the audit fixes its own info findings |
 | v1.6 | 1 (autonomous) | 9 | Pinned per-phase scan scripts; three human checkpoints asked once before planning; review fixes Info findings too, with a mutation re-run per round |
+| v1.7 | 1 (autonomous) | 8 | Debt-only wave; an inserted cleanup phase after the first audit; staleness and re-verify as scripts; Nyquist validation by gate scripts and self-tests |
 
 ### Cumulative Quality
 
@@ -281,9 +322,10 @@
 | v1.4 | vitest 5139 tests, tstyche, e2e 30 | core ≥95%, others ≥90% (enforced); all 15 touched files at their latest recorded mutation score | 0 |
 | v1.5 | vitest 231 files / 5656 tests (+568, +43), tstyche, e2e 30 | core ≥95%, others ≥90% (enforced); full `pnpm check` with mutation green, every Stryker run ≥ 80 | 0 |
 | v1.6 | vitest core 2649 + devtools 1647 (at audit), tstyche, e2e 30 | core ≥95%, others ≥90% (enforced); every phase's scoped Stryker compare held (no touched file's score fell) | 0 |
+| v1.7 | vitest 242 files / 5985 tests, BDD 568, tstyche 759 assertions (both passes) | core ≥95%, others ≥90% (enforced); no touched file's mutation score fell in any phase | 0 |
 
 ### Top Lessons (Verified Across Milestones)
 
-1. Re-verify at close: a later phase that touches shared files makes earlier verification stale (v1.0: 4 phases; v1.2: 3 phases; v1.3: 6 phases; v1.4: 3 phases; v1.5: 5 phases). v1.6 relied on each phase's own verifier plus the milestone integration check (2649 core and 1647 devtools tests at the audit head) instead of per-phase re-verification.
+1. Re-verify at close: a later phase that touches shared files makes earlier verification stale (v1.0: 4 phases; v1.2: 3 phases; v1.3: 6 phases; v1.4: 3 phases; v1.5: 5 phases). v1.6 relied on each phase's own verifier plus the milestone integration check (2649 core and 1647 devtools tests at the audit head) instead of per-phase re-verification. v1.7 made it mechanical: a staleness script names the stale phases and a driver re-verifies them (63, 67, 68 and 68.1 after the final fixes).
 2. Run review → fix after verification passes: it found warnings verification missed in every milestone.
 3. Shape tooling inputs so tools can read them: v1.0's requirement ranges and v1.2's grouped traceability rows both forced hand edits.
