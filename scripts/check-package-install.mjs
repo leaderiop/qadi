@@ -915,13 +915,18 @@ if (consumerReady) {
 
   let seen;
   try {
-    const parsed = JSON.parse(
-      execFileSync(
-        process.execPath,
-        [join(ROOT, "scripts", "lib", "probe-guard-parse.mjs"), SANDBOX, JSON.stringify([...REFUSED_SHAPE_PROBES])],
-        { cwd: ROOT, encoding: "utf8", stdio: "pipe", timeout: CHILD_TIMEOUT_MS },
-      ),
+    const output = execFileSync(
+      process.execPath,
+      [join(ROOT, "scripts", "lib", "probe-guard-parse.mjs"), SANDBOX, JSON.stringify([...REFUSED_SHAPE_PROBES])],
+      { cwd: ROOT, encoding: "utf8", stdio: "pipe", timeout: CHILD_TIMEOUT_MS },
     );
+    let parsed;
+    try {
+      parsed = JSON.parse(output);
+    } catch (error) {
+      // A line that is not JSON is reported with what the child printed, not as a bare SyntaxError.
+      throw Object.assign(error, { stdout: `the parse printed no JSON line:\n${output}` });
+    }
     if (parsed === null) fail("the probe guard could not read consumer.ts from the sandbox project");
     else seen = { typed: new Set(parsed.typed), refused: new Set(parsed.refused) };
   } catch (error) {

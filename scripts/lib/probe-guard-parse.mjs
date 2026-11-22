@@ -8,16 +8,16 @@
  * blocks this process, and the parent kills it at the timeout and fails, naming the cause. It opens the sandbox's
  * project, reads `consumer.ts` with TypeScript's parse and prints one line of JSON, `{"typed":[…],"refused":[…]}`: the
  * probe names that annotate a declared value outside a refused literal, and the shapes whose literal leads the member
- * paired with them with a `@ts-expect-error`. It prints `null` when the project holds no `consumer.ts`. A failure to load
- * or run the parse writes the error's message to stderr and exits 1; the parent reports it naming the installed
- * TypeScript, and decides every check from what this prints.
+ * paired with them with a `@ts-expect-error`. It prints `null` when the project holds no `consumer.ts`. A failure to read
+ * its arguments, or to load or run the parse, writes the error's message to stderr and exits 1; the parent reports it
+ * naming the installed TypeScript, and decides every check from what this prints.
  */
 import { join } from "node:path";
 
 const [sandbox, probes] = process.argv.slice(2);
-const REFUSED_SHAPE_PROBES = new Map(JSON.parse(probes));
 
 try {
+  const REFUSED_SHAPE_PROBES = new Map(JSON.parse(probes));
   const { API } = await import("typescript/unstable/sync");
   const {
     isIdentifier,
@@ -85,6 +85,6 @@ try {
     api.close();
   }
 } catch (error) {
-  process.stderr.write(String(error.message));
+  process.stderr.write(String(error?.message ?? error));
   process.exitCode = 1;
 }

@@ -51,8 +51,8 @@ This table groups the **twenty-six** numbered steps of
 [the merge gate](./process/definitions-of-done.md#merge-gate) into families and
 is not a row-for-row image of it — it has no row of its own for the
 `apps/website` gates (steps 23–24, `node scripts/check-website-doc-examples.mjs` and
-`node scripts/check-website-build.mjs`, CCR-QD-090/091) or the publish-status
-document gate (CCR-QD-109), or the bench analyzer's self-test (step 26,
+`node scripts/check-website-build.mjs`, CCR-QD-090/091), the publish-status
+document gate (CCR-QD-109) or the bench analyzer's self-test (step 26,
 `node scripts/bench/analyze.mjs --self-test`, CCR-QD-460). `node
 scripts/check-dod-table.mjs` checks that table against `pnpm check`; this one
 carries measured numbers and is maintained by hand, so it is the one to

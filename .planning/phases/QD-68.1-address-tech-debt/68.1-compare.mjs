@@ -51,9 +51,17 @@ import { readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 
 const req = createRequire(`${process.cwd()}/`);
+const pnpmStore = () => {
+  try {
+    return readdirSync("node_modules/.pnpm");
+  } catch {
+    console.error("68.1-compare.mjs: run it from the repository root (no node_modules/.pnpm here)");
+    process.exit(2);
+  }
+};
 const ts = [
   "typescript",
-  ...readdirSync("node_modules/.pnpm")
+  ...pnpmStore()
     .filter((d) => /^typescript@\d/.test(d))
     .sort((x, y) => y.localeCompare(x, undefined, { numeric: true }))
     .map((d) => `./node_modules/.pnpm/${d}/node_modules/typescript`),
@@ -77,7 +85,7 @@ const root = (node) => {
 };
 
 /** The text with every titled call's string title masked, and the count of test and describe calls. */
-export const masked = (name, text) => {
+const masked = (name, text) => {
   const file = ts.createSourceFile(name, text, ts.ScriptTarget.ESNext, true, name.endsWith("x") ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
   const spans = [];
   const counts = { tests: 0, describes: 0 };
@@ -125,7 +133,7 @@ const DIRECTIVE = new RegExp(
 const NEXT_LINE = /@ts-(?:expect-error|ignore)\b|\bnext-line\b|\b(?:v8|c8|istanbul) ignore next\b/;
 
 /** JSX's own rule for text (see the header). */
-export const jsxText = (text) => {
+const jsxText = (text) => {
   const lines = text.split(/\r\n|[\n\r\u2028\u2029]/);
   return lines
     .map((l, i) => {
@@ -145,7 +153,7 @@ const parse = (name, text) =>
  * The entries of the source text, read from the parse tree (see the header): `o<Kind>` opens a node and `c` closes it, `t<text>`
  * is a token, `x<text>` is JSX text and `d<text>` is a directive. The tag keeps an entry of one origin from equalling one of another.
  */
-export const entries = (name, text) => {
+const entries = (name, text) => {
   const file = parse(name, text);
   if (!Array.isArray(file.parseDiagnostics)) throw new Error("this TypeScript has no parseDiagnostics");
   const tsx = name.endsWith("x");
@@ -232,7 +240,7 @@ const show = (list, from) => {
 };
 
 /** Why `after` is not `before` up to comments, white space, line breaks and titles; undefined when it is. */
-export const differs = (name, before, after) => {
+const differs = (name, before, after) => {
   const b = masked(name, before);
   const a = masked(name, after);
   if (b.counts.tests !== a.counts.tests || b.counts.describes !== a.counts.describes) {
