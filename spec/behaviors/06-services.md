@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-06                                    |
-> | Revision       | 1.15                                            |
+> | Revision       | 1.16                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.15 (2026-11-18): BEH-QD-609 (ARCH-101, CCR-QD-445)<br>1.14 (2026-11-18): BEH-QD-604 added: attributeResolverFromRecord answers undefined for a name its table does not own (ARCH-100, CCR-QD-444)<br>1.13 (2026-11-12): BEH-QD-501..503: one evaluation environment that states its shadowing (ARCH-81, ADR-QD-146, CCR-QD-424)<br>1.12 (2026-11-12): EvaluationServices is declared in EvaluationServices.ts (ARCH-80, CCR-QD-423)<br>1.11 (2026-11-11): the PortDescription listing gains asks and its request and asks type parameters (ARCH-70, ADR-QD-134, CCR-QD-412)<br>1.10 (2026-11-11): BEH-QD-409's key law reads over a derived port's wire question; BEH-QD-440 (a derived port states no key and no defect) and BEH-QD-441 (a port's question and span question name every member) (ARCH-69, CCR-QD-411)<br>1.9 (2026-11-10): BEH-QD-409 (a request key agrees with Equal over its domain) and BEH-QD-410 (a request the key refuses fails closed); BEH-QD-310's replyTable requirement matches by key text and fails a refused request with the port's typed error (ARCH-65, CCR-QD-407)<br>1.8 (2026-10-05): BEH-QD-043's listing gains `CustomPredicateNone` and `SignatureHistoryNone`, which it had omitted since both ports shipped, and states that each port's default is derived from its description's `none`; BEH-QD-308 (every port has the standard wrapper set), BEH-QD-309 (an environment names only what it overrides) and BEH-QD-310 (a port can be scripted) added (ADR-QD-094, CCR-QD-177)<br>1.7 (2026-10-05): BEH-QD-045's reason table is built from the matcher's `Verdict` — an `Eq` or `Dominates` against an unresolved reference reads "has no reference value to compare against" (only `Neq` did), and a value the matcher cannot compare reads "is not a value this matcher can compare" (ADR-QD-091, CCR-QD-173)<br>1.6 (2026-09-19): BEH-QD-044 gained a normative "Trust model" paragraph — `CurrentSubject`'s provenance and what the evaluator does and does not re-verify had no single stated answer anywhere in `spec/` (WD-05)<br>1.5 (2026-09-07): BEH-QD-045's denial reads corrected — "no relationship resolver is wired" claimed a fact only true of `RelationshipResolverNever`, when a wired resolver may answer `"Unknown"` too; the sentence no longer names wiring as the cause (issue 45, CCR-QD-114)<br>1.4 (2026-09-06): BEH-QD-042's table brought current — `CustomPredicate`, `SignatureHistory` and `DecisionSink` had been wired since ADR-QD-055/CCR-QD-087/ADR-QD-044 without ever reaching this table; "the six services, five required" corrected to nine and seven, matching `EvaluationServices` in `Evaluate.ts`. The website's `services-resolvers.md` had already said nine/seven and linked here for "the full service list", landing readers on a table that contradicted the page that sent them (CCR-QD-103)<br>1.3 (2026-08-23): `RelationshipResolver` is three-valued, for the sentence rather than the verdict; BEH-QD-045 added (ADR-QD-040, INV-QD-029, CCR-QD-055)<br>1.2 (2026-07-26): The sixth service, `DecisionCache`; the optionality that hid it recorded (CCR-QD-034)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.16 (2026-11-22): BEH-QD-681 and BEH-QD-682: one total rule for a caught value or a cause, and the conversions stated as total; the custom predicate defect through causeMessage (ADR-QD-182, CCR-QD-461)<br>1.15 (2026-11-18): BEH-QD-609 (ARCH-101, CCR-QD-445)<br>1.14 (2026-11-18): BEH-QD-604 added: attributeResolverFromRecord answers undefined for a name its table does not own (ARCH-100, CCR-QD-444)<br>1.13 (2026-11-12): BEH-QD-501..503: one evaluation environment that states its shadowing (ARCH-81, ADR-QD-146, CCR-QD-424)<br>1.12 (2026-11-12): EvaluationServices is declared in EvaluationServices.ts (ARCH-80, CCR-QD-423)<br>1.11 (2026-11-11): the PortDescription listing gains asks and its request and asks type parameters (ARCH-70, ADR-QD-134, CCR-QD-412)<br>1.10 (2026-11-11): BEH-QD-409's key law reads over a derived port's wire question; BEH-QD-440 (a derived port states no key and no defect) and BEH-QD-441 (a port's question and span question name every member) (ARCH-69, CCR-QD-411)<br>1.9 (2026-11-10): BEH-QD-409 (a request key agrees with Equal over its domain) and BEH-QD-410 (a request the key refuses fails closed); BEH-QD-310's replyTable requirement matches by key text and fails a refused request with the port's typed error (ARCH-65, CCR-QD-407)<br>1.8 (2026-10-05): BEH-QD-043's listing gains `CustomPredicateNone` and `SignatureHistoryNone`, which it had omitted since both ports shipped, and states that each port's default is derived from its description's `none`; BEH-QD-308 (every port has the standard wrapper set), BEH-QD-309 (an environment names only what it overrides) and BEH-QD-310 (a port can be scripted) added (ADR-QD-094, CCR-QD-177)<br>1.7 (2026-10-05): BEH-QD-045's reason table is built from the matcher's `Verdict` — an `Eq` or `Dominates` against an unresolved reference reads "has no reference value to compare against" (only `Neq` did), and a value the matcher cannot compare reads "is not a value this matcher can compare" (ADR-QD-091, CCR-QD-173)<br>1.6 (2026-09-19): BEH-QD-044 gained a normative "Trust model" paragraph — `CurrentSubject`'s provenance and what the evaluator does and does not re-verify had no single stated answer anywhere in `spec/` (WD-05)<br>1.5 (2026-09-07): BEH-QD-045's denial reads corrected — "no relationship resolver is wired" claimed a fact only true of `RelationshipResolverNever`, when a wired resolver may answer `"Unknown"` too; the sentence no longer names wiring as the cause (issue 45, CCR-QD-114)<br>1.4 (2026-09-06): BEH-QD-042's table brought current — `CustomPredicate`, `SignatureHistory` and `DecisionSink` had been wired since ADR-QD-055/CCR-QD-087/ADR-QD-044 without ever reaching this table; "the six services, five required" corrected to nine and seven, matching `EvaluationServices` in `Evaluate.ts`. The website's `services-resolvers.md` had already said nine/seven and linked here for "the full service list", landing readers on a table that contradicted the page that sent them (CCR-QD-103)<br>1.3 (2026-08-23): `RelationshipResolver` is three-valued, for the sentence rather than the verdict; BEH-QD-045 added (ADR-QD-040, INV-QD-029, CCR-QD-055)<br>1.2 (2026-07-26): The sixth service, `DecisionCache`; the optionality that hid it recorded (CCR-QD-034)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -514,7 +514,8 @@ REQUIREMENT: `defect(args, cause)` MUST be `failure(args, Cause.squash(cause))`
 REQUIREMENT: `CustomPredicate` MUST state its own `key` and `defect`: its key
              covers the whole subject (roles, permissions, attributes), the
              resource and its `params`, which its wire question does not carry,
-             and its defect renders the cause with `Cause.pretty`.
+             and its defect renders the cause with `causeMessage` (its `Cause.pretty` text
+             whenever that renders).
 ```
 
 Before ARCH-69 each of the four listed its request fields as a tuple for `key` and
@@ -660,6 +661,83 @@ export const sealed = evaluationEnvironment({
   shadow: "sinkAndCache",
 });
 ```
+
+## BEH-QD-681: One total rule turns a caught value or a cause into text
+
+> **Invariant:** [INV-QD-383](../invariants.md#inv-qd-383-a-function-stated-as-total-stays-total-whatever-value-it-caught) ·
+> [INV-QD-384](../invariants.md#inv-qd-384-no-shipped-code-renders-a-cause-to-text-through-a-call-that-can-throw)
+
+```ts
+export const thrownMessage: (thrown: unknown) => string;
+export const causeMessage: (cause: Cause.Cause<unknown>) => string;
+```
+
+```
+REQUIREMENT: `thrownMessage` MUST return a string for every value and MUST NOT
+             throw. It MUST read an `Error`'s `message` when that is a string,
+             otherwise the value's `String` form, otherwise the fixed words
+             `a value that could not be described`. A string MUST come back
+             unchanged.
+
+REQUIREMENT: `causeMessage` MUST return `Cause.pretty` of the cause when that does
+             not throw, otherwise `thrownMessage` of the squashed cause, and MUST
+             NOT throw.
+
+REQUIREMENT: Every place in Qadi that turns a caught value into text MUST read it
+             through `thrownMessage`, and every place that renders a cause to text
+             MUST read it through `causeMessage`.
+```
+
+```typescript
+import { causeMessage, thrownMessage } from "@qadi/core";
+import * as Cause from "effect/Cause";
+
+// The message alone, without the error's name.
+export const plain = thrownMessage(new Error("boom")); // "boom"
+
+// An object whose `toString` throws has no text to read.
+export const unreadable = thrownMessage({
+  toString: () => {
+    throw new Error("no text");
+  },
+}); // "a value that could not be described"
+
+// `Cause.pretty` throws for this one, so the text is the value's own: here, the placeholder.
+export const hostile = causeMessage(
+  Cause.die({
+    get message(): string {
+      throw new Error("message threw");
+    },
+    toString: () => {
+      throw new Error("toString threw");
+    },
+  }),
+); // "a value that could not be described"
+```
+
+A caller's own code decides what it throws, so a rule that reads it cannot assume it
+reads. Six places in core, and three above it, each turned a caught value into text
+with a copy of the rule, and only one copy was total: the others went through
+`Result.try`, which rethrows when its `catch` arm throws. One module now holds the
+rule, public because the packages above core need it, and the sibling of `valueText`
+([ADR-QD-182](../decisions/182-one-total-thrown-value-to-text-rule-exported-by-core.md),
+[ADR-QD-154](../decisions/154-one-value-to-text-function-exported-by-core.md)).
+
+## BEH-QD-682: A conversion stated as total refuses a hostile thrown value and never throws
+
+> **Invariant:** [INV-QD-383](../invariants.md#inv-qd-383-a-function-stated-as-total-stays-total-whatever-value-it-caught)
+
+```
+REQUIREMENT: A port's request key MUST refuse with `Unreadable` and the caught
+             value's text, and the JSON walk under a wire answer and under a sink
+             record MUST refuse with `EncodeFailed` and that text, when a getter or
+             a proxy trap throws any value. None of them MUST throw.
+```
+
+`Result.try` rethrows when its `catch` arm throws, so a getter that threw a value whose
+`toString` threw escaped the key, the wire encodes and `toJson`, each documented as a
+refusal. [BEH-QD-410](#beh-qd-410-a-request-the-key-refuses-fails-closed)'s refusal
+now holds for every thrown value, and the refusal's text is `thrownMessage`'s.
 
 ---
 
