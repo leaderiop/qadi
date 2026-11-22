@@ -57,3 +57,39 @@ the console received ["[qadi] the onGateIdCollision reporter you supplied threw 
 A direct `makeGateRegistry` caller is told about an option they never passed, while the atom set's own option is named
 correctly. The rows compare the whole line as one string and carry the received lines in the assertion message, because
 vitest's JSON report elides a whole-array diff to `[ Array(1) ]` and the received line would not be recorded.
+
+## The type pins on the base
+
+Command, from the repository root, with stdin closed, on the phase base with no `packages/*/src` file changed
+(`git diff --quiet d147287a94a3bb3cad176e4f99bad7a0b76d8939 -- packages/react/src` holds):
+
+```
+$ pnpm test:tstyche DeveloperSignals < /dev/null > <S>/tst-red.log 2>&1
+```
+
+Exit status: `1`. Both passes (`tstyche.json` with `floatingEffect` off, then `tsconfig.test.json` with it on) report
+`fail ./packages/react/test/DeveloperSignals.tst.ts`, `Test files: 1 failed, 1 total`, for the same five errors each:
+`reporterFor`, `SIGNALS`, `SignalTable` and `SignalTag` are not exported from `../src/DeveloperSignals.ts`, and
+`ReporterName` is declared there locally but not exported. The first ten lines of the log, verbatim (colour codes
+removed):
+
+```
+
+> qadi-monorepo@0.4.0 test:tstyche /Users/mohammadalmechkor/Projects/Perso/qadi
+> node scripts/run-tstyche.mjs DeveloperSignals
+
+run-tstyche: pass 1 of 2, tstyche.json (tsconfig.tstyche.json, floatingEffect off), skipping "under tsconfig.test.json"
+Error: Module '"../src/DeveloperSignals.ts"' has no exported member 'reporterFor'. ts(2305)
+
+  14 | import { expect, test } from "tstyche";
+  15 | import type { DehydrationDropReason } from "@qadi/core";
+  16 | import { reporterFor, SIGNALS } from "../src/DeveloperSignals.ts";
+```
+
+`node scripts/check-house-style.mjs` passes on the file: `house-style: 567 file(s) clean (3 declared switch(es), 68
+type-test file(s))`, the 67 type-test files of the base plus this one. The file holds no negative `toBeCallableWith` or
+`toBeConstructableWith` pin, so the budget table in `AGENTS.md` is unchanged.
+
+The table does not exist, `ReporterName` is a hand-kept list that lacks `onIdCollision`, and each resolver pairs its
+default and its name by hand. Because the exports are absent on the base, no pin is evaluated there: the failure is the
+missing API, and each pin is shown failing for the reason it names by being gutted once the table exists.
