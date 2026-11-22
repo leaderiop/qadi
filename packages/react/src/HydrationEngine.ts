@@ -202,7 +202,7 @@ const decodeEnvelope = untrustedDecoder(Envelope, {
  * refusals, by tag, or the subject check.
  *
  * Exported for `HydrationBuckets.tst.ts`; this module is package-private and out
- * of the barrel (AGENTS.md section 9, ADR-QD-099).
+ * of the barrel (AGENTS.md §9, ADR-QD-099).
  */
 export type PayloadProducer =
   | (UntrustedValueRefusal | PayloadVersionRefusal)["_tag"]
@@ -261,7 +261,7 @@ export type ReasonRaisedBy<
  * {@link PAYLOAD_PRODUCERS}, checked against it. A producer no row names, or two
  * rows name, types its slot `never`, and a decoder refusal with no slot is a
  * missing property, so the two directions cannot disagree. Indexed by the
- * refusal's own tag, so it needs no `Object.hasOwn` (AGENTS.md section 5a, as
+ * refusal's own tag, so it needs no `Object.hasOwn` (AGENTS.md §5a, as
  * `VERDICTS`).
  *
  * Exported for `HydrationBuckets.tst.ts`; this module is package-private and out

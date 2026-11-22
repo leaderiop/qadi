@@ -42,7 +42,7 @@ describe("each side's bucket constructor", () => {
       ...Object.keys(dehydrationBuckets()),
       ...Object.keys(PAYLOAD_PRODUCERS),
     ];
-    expect([...stated].sort()).toEqual([...hydrationDropReasons].sort());
+    expect(stated.sort()).toEqual([...hydrationDropReasons].sort());
   });
 });
 
