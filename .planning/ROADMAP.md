@@ -439,7 +439,7 @@ Order: the three live defects (69 to 71), the three deepenings (72 to 74), the c
 
 ### Phases
 
-- [ ] **Phase 69: One total thrown-value-to-message module** - Six inline copies of "caught value to message" become one package-private total function, so a hostile thrown value can no longer escape `JsonHazard`, `PortKey`, `PortDerivation`, `PortWireEncode` or `CustomPredicate` (ARCH-116, core; live defect)
+- [ ] **Phase 69: One total thrown-value-to-message module** - Six inline copies of "caught value to message" become one total rule exported by `@qadi/core`, so a hostile thrown value can no longer escape `JsonHazard`, `PortKey`, `PortDerivation`, `PortWireEncode` or `CustomPredicate` (ARCH-116, core; live defect)
 - [ ] **Phase 70: Hydration's drop events come from its buckets** - `EntriesDropped` and `LeftOut` events are derived from reason-keyed records on the hydrate and dehydrate sides, so a drop reason cannot gain a bucket without its event (ARCH-117, react; live defect)
 - [ ] **Phase 71: Developer-signal reporters resolved through one table** - One table states where each signal runs, how often and what it is named, and a throwing `onIdCollision` reporter is reported under that name (ARCH-118, react; live defect)
 - [ ] **Phase 72: A derived store behind the dock model's stores** - `ExternalStore` gains a store derived from parent stores that owns key equality, stop-after-close and notify-once, and the dock model's three hand-built computed stores use it (ARCH-119, devtools)
@@ -452,17 +452,17 @@ Order: the three live defects (69 to 71), the three deepenings (72 to 74), the c
 
 ### Phase 69: One total thrown-value-to-message module
 
-**Goal**: Every "never throws" function in core stays total when the value it caught is hostile, because one package-private function turns a caught value into a message and all six inline copies use it.
+**Goal**: Every "never throws" function in core stays total when the value it caught is hostile, because one total rule exported by `@qadi/core` turns a caught value or a cause into a message and every copy uses it.
 **Live defect**: yes. Five of the six copies are not total, so `toJson` and `toJsonRecord` ("Never throws") and `PortKey` and `PortDescription.key` ("a key is refused, never thrown") can throw.
 **Depends on**: Nothing in v1.8 (first phase; serial order).
 **Requirements**: THRW-01, THRW-02, THRW-03, THRW-04, THRW-05, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
-**Packages**: `@qadi/core` (`SinkCodec.ts`, `CustomPredicate.ts`, `JsonHazard.ts`, `PortKey.ts`, `PortDerivation.ts`, `PortWireEncode.ts`, and the new package-private function); no export expected
-**Records**: ARCH-116; ADR-QD-182 (new, or an amendment of ADR-QD-154 with 182 named Unused); CCR-QD-461; BEH-QD-681 to 685; INV-QD-383 to 384 (each "never throws" function stays total when the caught value is hostile)
+**Packages**: `@qadi/core` (`SinkCodec.ts`, `CustomPredicate.ts`, `JsonHazard.ts`, `PortKey.ts`, `PortDerivation.ts`, `PortWireEncode.ts`, and the new public `ThrownMessage.ts` with `thrownMessage` and `causeMessage`); `@qadi/http`, `@qadi/react`, `@qadi/devtools` (their copies, the capture and the feeds that render a cause switch to it)
+**Records**: ARCH-116; ADR-QD-182 (new); CCR-QD-461; BEH-QD-681 to 685; INV-QD-383, INV-QD-384 (each "never throws" function stays total when the caught value is hostile, and no shipped code renders a cause through a call that can throw)
 **Evidence** (`_WAVE13-CONTEXT.md`, at `2716def4`): `SinkCodec.ts:361-368` is total (both reads inside `Result.try`, placeholder `"a value that could not be described"`, pinned at `SinkCodec.test.ts:1105-1118`); `CustomPredicate.ts:89-95` guards `String()` but not `cause.message` (placeholder `"<unrenderable cause>"`, hostile-value test at `PortConformance.test.ts:743`); `JsonHazard.ts:182-183`, `PortKey.ts:197-200`, `PortDerivation.ts:113-118` and `PortWireEncode.ts:131,149` are unguarded. Probed: `Result.try({ try: () => { throw hostile }, catch: (e) => String(e) })` with a `toString` that throws throws out of `Result.try` instead of returning a failure.
 
 **Success Criteria** (what must be TRUE):
   1. Regression tests written on the phase base are RED for each unguarded site (`JsonHazard.encodeFailed`, the `PortKey` and `PortDerivation` key refusals, both `PortWireEncode` catches, `CustomPredicate.renderReason`'s `message` read): given a thrown value whose `toString` and `message` getter both throw, the documented total function throws today and returns after the phase.
-  2. One package-private function guards both the `message` getter and `String()` and owns the one placeholder wording, and a table test on it covers an `Error`, a plain value, a throwing `toString`, a throwing `message` getter, and both throwing at once.
+  2. One total rule exported by `@qadi/core` guards both the `message` getter and `String()` and owns the one placeholder wording, and a table test on it covers an `Error`, a plain value, a throwing `toString`, a throwing `message` getter, and both throwing at once.
   3. All six call sites (`SinkCodec`, `CustomPredicate`, `JsonHazard`, `PortKey`, `PortDerivation`, `PortWireEncode`) use it, `/usr/bin/grep` finds no `instanceof Error ? … .message : String(…)` in `packages/core/src`, and the `SinkCodec` and `CustomPredicate` pins assert the one placeholder.
   4. ADR-QD-182 (or an amendment of ADR-QD-154) records the rule, and the invariant states that each "never throws" function stays total when the caught value is hostile.
 
