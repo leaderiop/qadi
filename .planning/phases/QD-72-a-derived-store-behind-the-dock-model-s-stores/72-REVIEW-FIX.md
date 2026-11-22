@@ -1,10 +1,10 @@
 ---
 phase: QD-72-a-derived-store-behind-the-dock-model-s-stores
-fixed_at: 2026-11-22T22:50:00Z
+fixed_at: 2026-11-22T23:10:00Z
 review_path: .planning/phases/QD-72-a-derived-store-behind-the-dock-model-s-stores/72-REVIEW.md
-iteration: 1
-findings_in_scope: 12
-fixed: 12
+iteration: 2
+findings_in_scope: 6
+fixed: 6
 skipped: 0
 status: all_fixed
 ---
@@ -13,163 +13,91 @@ status: all_fixed
 
 **Fixed at:** 2026-11-22
 **Source review:** .planning/phases/QD-72-a-derived-store-behind-the-dock-model-s-stores/72-REVIEW.md
-**Iteration:** 1
+**Iteration:** 2
 
 **Summary:**
-- Findings in scope: 12 (5 warnings, 7 info; fix scope `all`)
-- Fixed: 12
+- Findings in scope: 6 (1 warning, 5 info; fix scope all)
+- Fixed: 6
 - Skipped: 0
 
-**Where verification ran:** the main checkout. `workflow.use_worktrees` is `false`, so no worktree, temp
-branch or recovery sentinel was created and every edit and commit landed on `arch-wave-13` directly.
-
-**Commits** (one per concern, since several findings share a file):
-
-| Commit | Findings |
-| ------ | -------- |
-| `99c1fe26` | WR-01 (code), WR-03, IN-04, IN-05, IN-06 (indentation) |
-| `133674c1` | IN-01 |
-| `bf042d19` | IN-03, WR-05 (test retitle), IN-06 (`KeyRow`, store list layout) |
-| `be8e17cc` | IN-03 and IN-07 in `DockModel.characterisation.test.ts` (own commit) |
-| `b33a5e9f` | WR-01 (spec wording), WR-02, WR-04, WR-05 (spec), IN-02 |
+Edits ran in the main checkout, not a worktree: `workflow.use_worktrees` is `false` in `.planning/config.json`.
 
 ## Fixed Issues
 
-### WR-01: `sameFields` walked inherited keys
+### WR-01: BEH-QD-698, ADR-QD-185 decision 7 and INV-QD-389 do not state what the finalizer does exactly
 
-**Files modified:** `packages/devtools/src/model/ExternalStore.ts`, `packages/devtools/test/model/ExternalStore.test.ts`,
-`spec/decisions/185-...md`, `spec/behaviors/28-devtools-screens.md`, `spec/invariants.md`, `spec/traceability.md`,
-`spec/README.md`
-**Commits:** `99c1fe26`, `b33a5e9f`
-**Status:** fixed: requires human verification (logic)
-**Applied fix:** `sameFields` compares `Object.entries(a)` against a `Map` of `Object.entries(b)`, with no cast: equal length,
-and every entry present in the other with `===`. The doc comment, ADR-QD-185 decision 2, BEH-QD-696, INV-QD-389 and its
-traceability row now all say "own enumerable string-keyed fields", and that an inherited, non-enumerable or symbol-keyed field
-is not compared. Three new `makeDerivedStore` rows: a key with an inherited enumerable field compares equal to itself (RED on
-the old loop, shown by restoring it: that row alone failed); a key differing only in a non-enumerable or symbol-keyed field does
-not recompute (pins the documented behaviour); a key that swaps a field for another holding `undefined` counts as changed
-(kills a mutant that drops the `has` check, shown by removing it: that row alone failed).
+**Files modified:** `packages/devtools/src/model/ExternalStore.ts`, `packages/devtools/test/model/ExternalStore.test.ts`, `spec/behaviors/28-devtools-screens.md` (1.46 to 1.47), `spec/decisions/185-the-dock-models-computed-stores-are-derived-stores.md` (1.1 to 1.2), `spec/invariants.md` (1.179 to 1.180), `spec/README.md` (1.292 to 1.293; CCR-QD-464 row re-cited)
+**Commit:** 6ce3e1ac
+**Status:** fixed: requires human verification (a close-path rule, not a syntactic change)
 
-### WR-02: BEH-QD-700 named the derived stores by position
+**Applied fix:**
+- The finalizer now runs every release, collects what each threw, and then throws once through a new module-scope function declaration, `throwCollected`: nothing when none threw, the value itself when one did, one `AggregateError` in release order when more did. `notify` uses the same function, so the rule is stated once in the file. A function declaration, not a `const` arrow, so it adds no Ignored static mutant.
+- Rule chosen: ADR-QD-177 (run every one, then rethrow), not the swallowing of BEH-QD-638 / `GatesFeed`. `GatesFeed` swallows a release because the registry is the host's, so a throw is the host's fault and a closing feed "has nowhere to state it". Every parent of a derived store is the package's own store, so a release that throws is a defect in the package, and the close (a defect out of `Scope.close`) is a place that can state it. Swallowing would hide it.
+- BEH-QD-698 is split into three requirements: (1) after close it reads no key, calls no compute, releases every parent, ignores `refresh` and keeps its last snapshot; (2) when a parent's `subscribe` throws while the store is built, the build fails with that throw as a defect, returns no store, and closing the scope releases every parent subscribed before it (the "keeps its last snapshot" clause for a failed build is gone); (3) closing releases every parent even when a release throws and then fails with what was thrown. "Leaves nothing subscribed" now reads "once the scope closes", and the prose says why release throws are not swallowed and that a parent's `subscribe` must return a release that cannot throw. ADR-QD-185 decision 7 and INV-QD-389 carry the same statements. The `makeDerivedStore` doc comment states both paths.
+- Two new tests pin (b), both in `ExternalStore.test.ts`: "a parent whose release throws leaves no later parent subscribed, and the close fails with it" and "two parents whose release throws fail the close with one AggregateError holding both". The first fails on the old loop. Shown once, then reverted (old `for (const release of releases) release()` restored temporarily, source restored from a copy afterwards):
+  - old loop, first test: `AssertionError: expected 1 to equal +0` (the later parent stayed subscribed);
+  - old loop, second test: `expected Error: the first parent could not release to be an instance of AggregateError`;
+  - with the fix: 37/37 pass.
+- The pin for (a) already existed ("a parent whose subscribe throws leaves no earlier parent subscribed after close").
+- The BEH-QD-698 "Pinned by" paragraph is now wrapped at the document's width and lists all four tests; this is the spec half of IN-05, applied here because the same paragraph was rewritten.
 
-**Files modified:** `spec/behaviors/28-devtools-screens.md`
-**Commit:** `b33a5e9f`
-**Applied fix:** "`diagnostics`, `questions` and `services` are derived stores (BEH-QD-699)". No ordinal.
-
-### WR-03: "each parent is released" was observed for one parent
-
-**Files modified:** `packages/devtools/test/model/ExternalStore.test.ts`
-**Commit:** `99c1fe26`
-**Applied fix:** an `observedParent()` helper (a hand-written parent exposing its `held` set), used twice. The test asserts
-both sets hold one listener before close and are empty after. Scratch mutation, shown once and reverted: replacing the
-finalizer's loop with `releases[0]?.()` fails the test, and so does `releases.at(-1)?.()`.
-
-### WR-04: BEH-QD-700 carried ordinal history in current-tense text
-
-**Files modified:** `spec/behaviors/28-devtools-screens.md`
-**Commit:** `b33a5e9f`
-**Applied fix:** the paragraph is now a `> **Noted 2026-11-22 (CCR-QD-464).**` blockquote, the spec's convention for history;
-the body states only what holds now.
-
-### WR-05: the store-list test and INV-QD-390 overclaimed
-
-**Files modified:** `packages/devtools/test/model/DockModel.test.ts` (title and file header),
-`packages/devtools/src/model/DockModel.ts` (header comment only), `spec/behaviors/28-devtools-screens.md`,
-`spec/invariants.md`, `spec/decisions/185-...md`, `spec/decisions/047-...md`, `spec/decisions/162-...md`,
-`spec/decisions/168-...md`, `spec/traceability.md`, `spec/README.md`
-**Commits:** `bf042d19`, `b33a5e9f`
-**Applied fix:** the test is retitled "a built model's members with subscribe and getSnapshot are exactly this list". BEH-QD-700,
-INV-QD-390 (Implication and Enforcement, no longer contradicting each other) and ADR-QD-185 (decision 10 and Consequences) say the
-test lists the built model's members that have both and fails when one is added or removed, and that the spec list and the test
-list are kept equal by review, not by a gate. The `DockModel.ts` header, the `DockModel.test.ts` header and the ADR-QD-047,
--162, -168 and BEH-QD-615 notes no longer say a test "checks that list".
-
-### IN-01: negative type pins did not differ from their twin in one argument
-
-**Files modified:** `packages/devtools/test/model/ExternalStore.tst.ts`
-**Commit:** `133674c1`
-**Applied fix:** `WithOptional` now has required `a` and `c` and an optional `b`, so the optional-field pin uses the twin's key
-literal and compute unchanged; only the declared key type differs. The empty-parents pin uses the twin's compute. Every call
-annotates the compute's parameter and result: with a refused argument an unannotated compute infers `unknown` for `A` and breaks
-the positive `toBe` (the 72-04 finding), and `(key): number =>` alone was not enough, so the parameter is typed too. The header
-says so. The field-outside-key pin differs from the twin only in the property read. Both tstyche passes green.
-
-### IN-02: ADR-QD-047's Status row omitted its 2026-11-19 amendment
-
-**Files modified:** `spec/decisions/047-a-headless-devtools-model.md`
-**Commit:** `b33a5e9f`
-**Applied fix:** inserted `2026-11-19 (the headless interface is the feeds, ADR-QD-173)` before the 2026-11-22 entry. Revision
-moved through `spec-revise.mjs` (1.20 to 1.21).
-
-### IN-03: duplicated test helpers
-
-**Files modified:** `packages/devtools/test/dockModelFixtures.ts`, `DockModel.test.ts`, `DockModel.characterisation.test.ts`,
-`ExternalStore.test.ts`, `GatesFeed.test.ts`
-**Commits:** `bf042d19`, `be8e17cc`
-**Applied fix:** `heardOn` (typed on `Parent`), `suppliedActivity` and `heardOf` (now `heardOn(model.services)`) are exported once
-from `dockModelFixtures.ts`. The copies in `DockModel.test.ts`, the characterisation, and `ExternalStore.test.ts` (whose `{ n }`
-counter now reads `.calls`) are gone, and `GatesFeed.test.ts` imports the fixture `tick` and `guard`. Same-named helpers in other
-files with a different shape or value (`DiagnosticsStore.test.ts`, `PortCards.test.ts`, and others) are not duplicates and are
-left alone.
-
-### IN-04: stale `ExternalStore.ts` header
+### IN-01: `sameFields` doc comment is ungrammatical and words the exclusion differently from the spec
 
 **Files modified:** `packages/devtools/src/model/ExternalStore.ts`
-**Commit:** `99c1fe26`
-**Applied fix:** "owns only the mechanics" now says it owns the mechanics and the derived store; a header paragraph names
-`makeDerivedStore` and points at its doc and BEH-QD-696 to BEH-QD-698; "the listener contract above" now reads "in the file
-header". `Parent`'s release is documented as one that must not throw.
+**Commit:** 64b8b99c
+**Applied fix:** "A field that is inherited, non-enumerable or symbol-keyed is not part of the key and is not compared", the words ADR-QD-185 decision 2, BEH-QD-696 and INV-QD-389 use.
 
-### IN-05: subscribe before the finalizer existed
+### IN-02: the fixtures header understates its readers, and `heardOn` is not a dock fixture
 
-**Files modified:** `packages/devtools/src/model/ExternalStore.ts`, `packages/devtools/test/model/ExternalStore.test.ts`,
-`spec/behaviors/28-devtools-screens.md`, `spec/decisions/185-...md`
-**Commits:** `99c1fe26`, `b33a5e9f`
-**Applied fix:** the finalizer is registered first over a `releases` array the subscribe loop fills. New test "a parent whose
-subscribe throws leaves no earlier parent subscribed after close" (a hand-written parent that throws on `subscribe`, built under
-`Scope.provide` and `Effect.exit`); it fails when the finalizer is moved back after the loop (shown, reverted). BEH-QD-698 and
-ADR-QD-185 decision 7 state it. Per-release `try` was not added: the doc states a release must not throw.
+**Files modified:** `packages/devtools/test/helpers.ts`, `packages/devtools/test/dockModelFixtures.ts`, `packages/devtools/test/model/ExternalStore.test.ts`, `packages/devtools/test/model/GatesFeed.test.ts`, `packages/devtools/test/model/DockModel.test.ts`, `packages/devtools/test/model/DockModel.characterisation.test.ts`, `spec/README.md` (1.293 to 1.294; row names `helpers.ts`)
+**Commit:** 8d754e49
+**Applied fix:** `heardOn`, `guard` and `tick` have no dock dependency, so they moved to the neutral `helpers.ts`. `ExternalStore.test.ts` and `GatesFeed.test.ts` now import only from `helpers.ts`. `dockModelFixtures.ts` keeps the dock fixtures (`rowOf`, `heardOf`, `askingIds`, `wiringNamed`, `activityOf`, `logOf`, `suppliedActivity`), its imports trimmed to what remain, and its header names its real readers (`DockModel.test.ts` and the characterisation) and where the shared helpers went. `heardOf` imports `heardOn` from `helpers.ts`.
 
-### IN-06: small cleanliness items
-
-**Files modified:** `packages/devtools/test/model/ExternalStore.test.ts`, `packages/devtools/test/model/DockModel.test.ts`
-**Commits:** `99c1fe26`, `bf042d19`
-**Applied fix:** the five-field key literal is indented; `KeyRow`'s doc says what `field` and `heard` hold; the store list is one
-name per line. **`mergedOf` stays a `function` declaration on purpose:** the owner brief rules out a module-scope `const` arrow
-because it adds an Ignored static mutant to a file scored against its base record; `sameFields` is a `function` for the same
-reason.
-
-### IN-07: characterisation title
+### IN-03: the closing-scope characterisation hand-rolls the counter `heardOn` replaced
 
 **Files modified:** `packages/devtools/test/model/DockModel.characterisation.test.ts`
-**Commit:** `be8e17cc` (its own commit)
-**Applied fix:** retitled "a guard, two moving configures and a repeat notify the stores in one fixed order". No row's inputs or
-expected values changed; the same commit swaps the file's local `heardOn` and `suppliedActivity` for the shared fixtures (IN-03).
-All its rows pass.
+**Commit:** 475fa504
+**Applied fix:** the row subscribes `heardOn(model.diagnostics)`, `heardOn(model.questions)` and `heardOn(model.services)` and asserts each `.calls` is 0. Its input and expected value (no notification during close) are unchanged. 15/15 pass.
 
-## Skipped Issues
+### IN-04: the store-list test pins insertion order, and BEH-QD-700 claims an order
 
-None.
+**Files modified:** `packages/devtools/test/model/DockModel.test.ts`, `spec/behaviors/28-devtools-screens.md` (1.47 to 1.48), `spec/README.md` (1.294 to 1.295; row cites BEH document 1.48)
+**Commit:** 5f5b9ba0
+**Applied fix:** the test compares the names with `assert.sameMembers`, so the order of the returned literal does not matter. Its title is unchanged ("... are exactly this list"), because BEH-QD-700 and INV-QD-390 quote it. Shown once on a temporary edit of the test's list, then reverted:
+- a name dropped from the list: `expected [ Array(9) ] to have the same members as [ Array(8) ]`, fails;
+- a name added: `... as [ Array(10) ]`, fails;
+- two names swapped: passes.
 
-## Gates after the last commit
+BEH-QD-700 now says "in no particular order", says the test compares "as a set", names the first five stores by name instead of "the first five", and its "Pinned by" paragraph says "whatever their order". The BEH-QD-465 listing already claims no order, so it needs no edit and stays consistent.
 
-- `npx vitest run --project devtools`: 71 files, 1708 tests passed.
-- `pnpm typecheck`, `pnpm test:tstyche` (both passes, 69 files): clean.
-- `node scripts/check-house-style.mjs` (571 files clean), `check-doc-examples.mjs` (118 blocks), `check-api-surface.mjs`
-  (941 exports, barrel unchanged), `check-devtools-claims.mjs`: clean.
-- `pnpm exec oxlint` on the touched files: no finding in a touched line (a `HeldChoice.test.ts` warning is pre-existing and
-  untouched).
-- `node scripts/spec-revise.mjs --check`: clean. `bash spec/scripts/verify-traceability.sh --strict`: PASS 21, FAIL 0, SKIP 0.
-- `/usr/bin/grep -rn "Pick<ExternalStore<" packages/devtools`: no hits.
+### IN-05: one spec line is not wrapped, and one rewrapped test header keeps phase-relative wording
 
-## For the orchestrator's mutation re-close
+**Files modified:** `packages/devtools/test/model/DockModel.test.ts` (header); the spec line was fixed under WR-01 (commit 6ce3e1ac)
+**Commit:** b5d06ec2
+**Applied fix:** "Until now those rules lived in layout effects" became "Those rules once lived in layout effects", rewrapped at 90 columns. The 150-column BEH-QD-698 line is now wrapped at the document's width (see WR-01).
 
-`ExternalStore.ts` changed in code (`sameFields`, the finalizer order) and `DockModel.ts` in a header comment only. The new
-`sameFields` mutants were reasoned through, and each one found has a killing row: `every` to `some`, the `&&` forms, the
-`has` check, the length check, the entry comparison. Not run under Stryker.
+## Verification
+
+Run in the main checkout (no worktree), one runner at a time, stdin closed, after the last commit:
+
+- `pnpm exec vitest run --project devtools`: 71 files, 1710 tests pass.
+- `pnpm typecheck`: clean.
+- `pnpm test:tstyche`: 69 files, 807 assertions pass.
+- `node scripts/check-house-style.mjs`: 571 files clean.
+- `node scripts/check-doc-examples.mjs`: 118 blocks compile.
+- `node scripts/check-api-surface.mjs`: 941 exports, barrel unchanged.
+- `node scripts/check-devtools-claims.mjs`: 8 claims registered.
+- `pnpm exec oxlint` on every touched TypeScript file: clean.
+- `node scripts/spec-revise.mjs --check`: every Revision matches its newest entry. The CCR-QD-464 row cites ADR-QD-185 1.2, ADR-QD-047 1.21, ADR-QD-162 1.7, ADR-QD-168 1.2, ADR-QD-169 1.2, BEH 28 1.48, invariants 1.180, traceability 1.252 and README 1.295, each equal to its header.
+- `bash spec/scripts/verify-traceability.sh --strict`: PASS 21, FAIL 0, SKIP 0.
+
+## Notes for the orchestrator
+
+- `ExternalStore.ts` changed (the finalizer, `throwCollected`, the doc comments), so the `store` group's mutation record needs the `--restart` re-close. `DockModel.ts` is untouched in this iteration. The new `throwCollected` is a function declaration; the moved branch logic is killed by the existing listener tests (the empty, single and aggregate cases) and the message literals by the two new tests and the existing message assertions.
+- `72-mutation-base.json`, `72-mutation-close.json` and `72-mutation.mjs` were not edited. `.planning/config.json` and the untracked `*.iter*.md` files were not staged.
 
 ---
 
 _Fixed: 2026-11-22_
 _Fixer: Claude (gsd-code-fixer)_
-_Iteration: 1_
+_Iteration: 2_
