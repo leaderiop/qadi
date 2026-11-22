@@ -4,7 +4,8 @@
  *
  * Written against the engine before its events were derived from the entries each
  * call collects. No existing row's expected values have changed since: later edits
- * only wrapped lines, derived a constant from the declared reasons and added rows.
+ * wrapped lines, retitled the order rows for what they feed, derived a constant from
+ * the declared reasons and added rows.
  * Any change to an event, an order or a count fails here, whichever way the engine
  * builds them (BEH-QD-230, BEH-QD-231, INV-QD-045). Each row pins the reporter
  * calls in order, the change in every drop count, the seeded or dehydrated change,
