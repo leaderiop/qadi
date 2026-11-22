@@ -364,9 +364,9 @@ logged, counted or spanned.
 
 - The v1.7 re-audit (`.planning/milestones/v1.7-MILESTONE-AUDIT.md`) is `passed`; it records what no change can undo or
   what was accepted:
-  - AR-68.1-01 (accepted risk, narrowed 2026-11-22): the server a killed gate-14 child started exits when the child's
-    pipe closes (measured); only a server stuck in a computation that never reads its input again outlives the run;
-  - the iteration-3 review fix to `68.1-compare.mjs` (the `@effect-diagnostics` directive) had no fourth review pass;
+  - AR-68.1-01, closed 2026-11-22: a killed gate-14 child names its TypeScript server and the gate kills it (`b45e798a`);
+  - the iteration-3 review fix had its fourth review pass on 2026-11-22: 3 warnings and 6 info, eight fixed
+    (`b45e798a`, `7923af0e`), one kept (the revision dates);
   - history: commit `0378aad7` lacks its trailer and Phases 62–64 carry Sonnet 5.5 trailers (OI-26); Phase 62 SUMMARYs
     use `requirements:`; Phase 68's bench of record ran 3 rounds (now refused).
 
