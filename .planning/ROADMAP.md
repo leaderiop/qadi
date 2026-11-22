@@ -440,7 +440,7 @@ Order: the three live defects (69 to 71), the three deepenings (72 to 74), the c
 ### Phases
 
 - [x] **Phase 69: One total thrown-value-to-message module** - Six inline copies of "caught value to message" become one total rule exported by `@qadi/core`, so a hostile thrown value can no longer escape `JsonHazard`, `PortKey`, `PortDerivation`, `PortWireEncode` or `CustomPredicate` (ARCH-116, core; live defect) (completed 2026-11-22)
-- [ ] **Phase 70: Hydration's drop events come from its buckets** - `EntriesDropped` and `LeftOut` events are derived from reason-keyed records on the hydrate and dehydrate sides, so a drop reason cannot gain a bucket without its event (ARCH-117, react; live defect)
+- [x] **Phase 70: Hydration's drop events come from its buckets** - `EntriesDropped` and `LeftOut` events are derived from reason-keyed records on the hydrate and dehydrate sides, so a drop reason cannot gain a bucket without its event (ARCH-117, react; live defect) (completed 2026-11-22)
 - [ ] **Phase 71: Developer-signal reporters resolved through one table** - One table states where each signal runs, how often and what it is named, and a throwing `onIdCollision` reporter is reported under that name (ARCH-118, react; live defect)
 - [ ] **Phase 72: A derived store behind the dock model's stores** - `ExternalStore` gains a store derived from parent stores that owns key equality, stop-after-close and notify-once, and the dock model's three hand-built computed stores use it (ARCH-119, devtools)
 - [ ] **Phase 73: One pure reconcile for gate registration** - One `reconcile` keyed by gate id registers, updates and unregisters, and `useGate` loses its state-diff effect and the index-aligned parallel arrays (ARCH-120, react)
@@ -500,7 +500,7 @@ Plans:
   4. ADR-QD-183 cites ADR-QD-152 and says why "a later phase shares the file" no longer applies, INV-QD-045's enforcement is restated, and the payload-path question is decided once and recorded.
 
 **Planning notes**: The owner decision (fold the payload path's `refuse` reasons into the same derivation, or leave it) is asked once at this phase's discuss step. This phase is about the entry path and the event emission, not ADR-QD-152's payload path unless the owner folds it in.
-**Plans**: 7/7 plans executed
+**Plans**: 7/7 plans complete
 
 Plans:
 - [x] 70-01 (W1): Record the phase base, its gate facts and the engine's Stryker base with a phase scorer whose self-test ignores close-time allowances, and pin every hydration drop event, its order, reporter call and count in a 32-row characterisation, green on the base and never edited after.
@@ -633,7 +633,7 @@ Phases execute in numeric order: 69 → 70 → 71 → 72 → 73 → 74 → 75 �
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 69. One total thrown-value-to-message module | 9/9 | Complete    | 2026-11-22 |
-| 70. Hydration's drop events come from its buckets | 7/7 | In Progress | - |
+| 70. Hydration's drop events come from its buckets | 7/7 | Complete    | 2026-11-22 |
 | 71. Developer-signal reporters resolved through one table | 0/TBD | Not started | - |
 | 72. A derived store behind the dock model's stores | 0/TBD | Not started | - |
 | 73. One pure reconcile for gate registration | 0/TBD | Not started | - |
