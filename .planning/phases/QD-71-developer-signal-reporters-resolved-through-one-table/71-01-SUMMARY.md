@@ -23,14 +23,14 @@ key-files:
   modified: []
 key-decisions:
   - "Decided autonomously: rows 12 and 18 of the plan's table carry one title, so row 12 (the dehydrating one) is titled 'a returning onDropped is told the left-out entry once in production, and nothing is written to the console'; the plan's own check needs 35 distinct titles."
-  - "Decided autonomously: both Claude trailers on every commit, the plan's Opus 5.5 line (which its verify greps for) and the harness's Sonnet 5.5 line."
+  - "Every commit ends with the run's one trailer, Co-Authored-By: Claude Opus 5.5 (a second Sonnet 5.5 line the executor first added was removed from this plan's commit messages by the orchestrator; trees unchanged)."
 requirements-completed: [SIGR-04, WX-05, WX-06, WX-07]
 duration: 9 min
 completed: 2026-11-22
 status: complete
 commits: 3
 plan_head_before: d147287a94a3bb3cad176e4f99bad7a0b76d8939
-plan_head_after: aab8dd2303dc43fe2956cde374dd94f6f2d7484b
+plan_head_after: 9046d6e703dc43fe2956cde374dd94f6f2d7484b
 actuals:
   tokens: 15500
   tasks: 2
@@ -115,7 +115,7 @@ no later plan's check should read 566 once this file exists.
   written to the console" (its entry is one the payload left out); row 18 keeps the plan's title. No expectation changed.
   Recorded in `71-RED-EVIDENCE.md`. No later plan's check reads either title.
 - **Files modified:** `packages/react/test/DeveloperSignalReporters.test.tsx`, `71-RED-EVIDENCE.md`
-- **Commit:** 3597f8e7, aab8dd23
+- **Commit:** 7d565d81, 9046d6e7
 
 **2. [Rule 3 - Blocking] A clean base-facts capture lost one line**
 - **Found during:** Task 1 step 2
@@ -142,9 +142,9 @@ commit (T-71-02).
 
 ## Commits
 
-- `67b2a143` docs(71-01): record the mutation base of the developer-signal reporters
-- `3597f8e7` test(71-01): characterise every developer-signal reporter through its entry point
-- `aab8dd23` docs(71-01): record the characterisation green on the base
+- `ce254a0a` docs(71-01): record the mutation base of the developer-signal reporters
+- `7d565d81` test(71-01): characterise every developer-signal reporter through its entry point
+- `9046d6e7` docs(71-01): record the characterisation green on the base
 
 ## Self-Check: PASSED
 
