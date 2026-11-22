@@ -15,7 +15,7 @@ covered_files:
   - ".planning/phases/QD-63-the-packed-install-gate-probes-every-new-public-name/63-05-PLAN.md"
   - ".planning/phases/QD-63-the-packed-install-gate-probes-every-new-public-name/63-05-SUMMARY.md"
   - "scripts/check-package-install.mjs"
-covered_digest: "v4:sha256:1f5cec5eb2848bf4853bf83f1082e58ca20f09316193a38395b6299580a5cb1e"
+covered_digest: "v4:sha256:19223d4351f61f0e2d0bf59d37544279b763d6801377605523fb3e0194e0482b"
 behavior_unverified: 0
 overrides_applied: 0
 ---
@@ -265,5 +265,35 @@ Every row was run on the tree at `a8eab6c9`, one command at a time, in the foreg
 
 - `spec/decisions/033-the-packed-artifact-is-the-product.md` (`79a685b4`): the report cites the CCR-QD-454 amendment, which is unchanged; the document is now at Revision 1.6, where the previous section read 1.5. The commit narrows the claim about the hang: the amendment now says what was shown is a hang planted in the child, ending the child at the timeout, and not a real stopped TypeScript server. Truths 1 to 4 read the probes (the feed set, the host cache, the removed-probe failures), not the timeout, so each still holds as worded. The previous section's sentence that a TypeScript server that stops answering now ends the gate at the bound reads stronger than the decision now states it; what the runs show is the parity of the guard's answers and a hang planted in the child, ended at the timeout, and the claim made here is that the gate no longer waits on the child, not that a real stopped server was exercised or that no server process is left behind.
 - `spec/README.md` (`79a685b4`): the report cites the CCR-QD-454 registration at line 391, which is where it still is and unedited; the commit moves the revision to 1.276, adds a Change History entry and rewrites the CCR-QD-460 row, scoping its odd-round-count and hang claims. No truth reads either.
+
+**Verdict:** passed
+
+## Re-verification (2026-11-22, after the re-audit's inline fixes)
+
+**Staleness:** `63: stale, verification a9c9c84c, 22 cited, 1 changed since` (`68.1-stale.mjs`, run at `334b014b`).
+
+| Cited file | Changed since `a9c9c84c` by |
+| --- | --- |
+| `scripts/check-package-install.mjs` (covered) | `334b014b` fix(68.1): close the re-audit's info findings inline |
+
+**Trailers on this phase's commits:** 15 none, 14 `Claude Sonnet 5.5 <noreply@anthropic.com>`, 4 `Claude Opus 5.5 <noreply@anthropic.com>`.
+
+**Validation record:** `63-VALIDATION.md` has status `validated` and nyquist_compliant `true`.
+
+**Digest:** `covered_digest: "v4:sha256:1f5cec5eb2848bf4853bf83f1082e58ca20f09316193a38395b6299580a5cb1e"` becomes `covered_digest: "v4:sha256:19223d4351f61f0e2d0bf59d37544279b763d6801377605523fb3e0194e0482b"`, over the same 11 covered files.
+
+### Spot-checks re-run (Re-verification (2026-11-22, after the re-audit's inline fixes))
+
+Run on the tree at `334b014b`, one command at a time, in the foreground, with stdin closed, on a quiet host (load 11.7, no other vitest).
+
+| Behaviour | Command run now | Result now | Status |
+| --------- | --------------- | ---------- | ------ |
+| The merge gate, gate 14 included | `NO_COLOR=1 pnpm check:pr < /dev/null` at `334b014b` | exit 0; ran 17 of 18 steps (`pnpm mutation` skipped outside release PRs); vitest 242 files, 5985 tests; BDD 34 files, 568 tests; `package-install: 9 package(s) pack, resolve and authorize (524 runtime export(s))`; traceability `PASS: 21 FAIL: 0` | PASS |
+| The probe guard's child reports a bad argument | `node scripts/lib/probe-guard-parse.mjs /nonexistent 'not json'` | exit 1; the JSON parse message on stderr | PASS |
+| What changed under the paths the report cites | `git show --stat 334b014b -- scripts` | `scripts/check-package-install.mjs` (the probe guard's call reads the child's output first and reports a non-JSON line with it) and `scripts/lib/probe-guard-parse.mjs` (arguments parsed inside the `try`; `String(error?.message ?? error)`) | PASS |
+
+### Changed cited files read against the truths that cite them (Re-verification (2026-11-22, after the re-audit's inline fixes))
+
+- `scripts/check-package-install.mjs` (`334b014b`): every check the report cites is unchanged: the refused-shape and type-only probes, the unprobed-feeds, untyped and unrefused comparisons, the `null` case and the failure naming `typescript@<version>`. Only the error path for a child line that is not JSON changed, and it still ends in that same failure, now carrying the child's output.
 
 **Verdict:** passed

@@ -49,7 +49,7 @@ covered_files:
   - "scripts/check-package-install.mjs"
   - "scripts/run-tstyche.mjs"
   - "scripts/spec-revise.mjs"
-covered_digest: "v4:sha256:5814f8faac671ad442cb38c03fa1a686dda5c5d56a16845bed7fd31a406786dd"
+covered_digest: "v4:sha256:1b4ae721cae328a194ccd47a635b4a79e83c2d5007a50c082a17568f8ca65a40"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification: null
@@ -256,5 +256,37 @@ Every row was run on the tree at `3c39c3c0`, one command at a time, in the foreg
 
 - `scripts/bench/ab.sh` (covered; `70574a33`): the report cites it in OI-24 (the arm order alternates by round, odd rounds head first) and in Truth 3's bench of record. The commit makes `rounds_ok` refuse a count below 4 as well as an odd one, and changes the usage text, the header comment and the exit-code comment to say so; the order is outside the changed lines, so OI-24 holds (rows 1 and 3). The previous section's quotation of the usage text (`<rounds> must be even`) no longer holds as worded: the text now reads `<rounds> must be even and at least 4: …` (row 2). Phase 68's own bench of record took 3 rounds, a count the script refuses (it is odd, and the previous section's script already refused it). That record is left as recorded: the script change does not alter what the record measured, and its verdict, `# gate: pass`, is reproduced byte for byte by the unchanged analyzer (row 4).
 - `spec/README.md` (`79a685b4`): the report cites the CCR-QD-459 row at line 396 (Truths 1 and 7) and its revision pointers. The row is unedited and still at line 396. Its pointers (ADR-QD-033 Rev 1.4, the register's Rev 1.274) were the current revisions when the report was written, and are not now: the commit moves the register to 1.276, the decision is at 1.6, and the CCR-QD-460 row, which carries the later revisions, is rewritten to scope two claims (the odd-round-count claim to Phase 68's bench, the hang evidence to a blocked parser call in the child, not a stopped TypeScript server). The row the report cites is unedited, so Truth 7 holds as a claim about what the row cited at the head the report was written at; OI-19 (a `CHILD_TIMEOUT_MS` on every `execFileSync`) is a reading of the gate's source, which did not change (row 5). The digest of the report's covered files is replaced because `scripts/bench/ab.sh` is covered; `spec/README.md` is not, and no other covered file changed.
+
+**Verdict:** passed
+
+## Re-verification (2026-11-22, after the re-audit's inline fixes)
+
+**Staleness:** `68: stale, verification 756e5a79, 56 cited, 2 changed since` (`68.1-stale.mjs`, run at `334b014b`).
+
+| Cited file | Changed since `756e5a79` by |
+| --- | --- |
+| `scripts/check-package-install.mjs` (covered) | `334b014b` fix(68.1): close the re-audit's info findings inline |
+| `scripts/lib/probe-guard-parse.mjs` | `334b014b` fix(68.1): close the re-audit's info findings inline |
+
+**Trailers on this phase's commits:** 76 `Claude Opus 5.5 <noreply@anthropic.com>`.
+
+**Validation record:** `68-VALIDATION.md` has status `validated` and nyquist_compliant `true`.
+
+**Digest:** `covered_digest: "v4:sha256:5814f8faac671ad442cb38c03fa1a686dda5c5d56a16845bed7fd31a406786dd"` becomes `covered_digest: "v4:sha256:1b4ae721cae328a194ccd47a635b4a79e83c2d5007a50c082a17568f8ca65a40"`, over the same 45 covered files.
+
+### Spot-checks re-run (Re-verification (2026-11-22, after the re-audit's inline fixes))
+
+Run on the tree at `334b014b`, one command at a time, in the foreground, with stdin closed, on a quiet host (load 11.7, no other vitest).
+
+| Behaviour | Command run now | Result now | Status |
+| --------- | --------------- | ---------- | ------ |
+| The merge gate, gate 14 included | `NO_COLOR=1 pnpm check:pr < /dev/null` at `334b014b` | exit 0; ran 17 of 18 steps (`pnpm mutation` skipped outside release PRs); vitest 242 files, 5985 tests; BDD 34 files, 568 tests; `package-install: 9 package(s) pack, resolve and authorize (524 runtime export(s))`; traceability `PASS: 21 FAIL: 0` | PASS |
+| The probe guard's child reports a bad argument | `node scripts/lib/probe-guard-parse.mjs /nonexistent 'not json'` | exit 1; the JSON parse message on stderr | PASS |
+| What changed under the paths the report cites | `git show --stat 334b014b -- scripts` | `scripts/check-package-install.mjs` (the probe guard's call reads the child's output first and reports a non-JSON line with it) and `scripts/lib/probe-guard-parse.mjs` (arguments parsed inside the `try`; `String(error?.message ?? error)`) | PASS |
+
+### Changed cited files read against the truths that cite them (Re-verification (2026-11-22, after the re-audit's inline fixes))
+
+- `scripts/check-package-install.mjs` (`334b014b`): every check the report cites is unchanged: the refused-shape and type-only probes, the unprobed-feeds, untyped and unrefused comparisons, the `null` case and the failure naming `typescript@<version>`. Only the error path for a child line that is not JSON changed, and it still ends in that same failure, now carrying the child's output.
+- `scripts/lib/probe-guard-parse.mjs` (`334b014b`): the parse, the `{typed, refused}`/`null` output and the exit-1 failure are unchanged; reading the arguments moved inside the `try`, so a bad argument is reported the same way as a parse failure.
 
 **Verdict:** passed

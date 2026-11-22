@@ -287,3 +287,35 @@ Every row was run on the tree at `ba47ec53`, one command at a time, in the foreg
 - `spec/README.md` (covered; `79a685b4`): the report cites the CCR-QD-458 row and Revision 1.272 (Truth 6). The row is unedited at line 395 and the 1.272 entry remains in the Change History cell; the commit moves the revision to 1.276, adds a Change History entry and rewrites the CCR-QD-460 row to scope its odd-round-count and hang claims, which no truth of this report reads. The digest changes because this file is covered, and no other covered file changed.
 
 **Verdict:** passed
+
+## Re-verification (2026-11-22, after the re-audit's inline fixes)
+
+**Staleness:** `67: stale, verification 3c39c3c0, 39 cited, 2 changed since` (`68.1-stale.mjs`, run at `334b014b`).
+
+| Cited file | Changed since `3c39c3c0` by |
+| --- | --- |
+| `scripts/check-package-install.mjs` | `334b014b` fix(68.1): close the re-audit's info findings inline |
+| `scripts/lib/probe-guard-parse.mjs` | `334b014b` fix(68.1): close the re-audit's info findings inline |
+
+**Trailers on this phase's commits:** 36 `Claude Opus 5.5 <noreply@anthropic.com>`.
+
+**Validation record:** `67-VALIDATION.md` has status `validated` and nyquist_compliant `true`.
+
+**Digest:** `covered_digest: "v4:sha256:777470267767d4ada907fcdf3120a1f26677dec9a4f5ea8650039e4496586236"` becomes `covered_digest: "v4:sha256:777470267767d4ada907fcdf3120a1f26677dec9a4f5ea8650039e4496586236"`, over the same 25 covered files.
+
+### Spot-checks re-run (Re-verification (2026-11-22, after the re-audit's inline fixes))
+
+Run on the tree at `334b014b`, one command at a time, in the foreground, with stdin closed, on a quiet host (load 11.7, no other vitest).
+
+| Behaviour | Command run now | Result now | Status |
+| --------- | --------------- | ---------- | ------ |
+| The merge gate, gate 14 included | `NO_COLOR=1 pnpm check:pr < /dev/null` at `334b014b` | exit 0; ran 17 of 18 steps (`pnpm mutation` skipped outside release PRs); vitest 242 files, 5985 tests; BDD 34 files, 568 tests; `package-install: 9 package(s) pack, resolve and authorize (524 runtime export(s))`; traceability `PASS: 21 FAIL: 0` | PASS |
+| The probe guard's child reports a bad argument | `node scripts/lib/probe-guard-parse.mjs /nonexistent 'not json'` | exit 1; the JSON parse message on stderr | PASS |
+| What changed under the paths the report cites | `git show --stat 334b014b -- scripts` | `scripts/check-package-install.mjs` (the probe guard's call reads the child's output first and reports a non-JSON line with it) and `scripts/lib/probe-guard-parse.mjs` (arguments parsed inside the `try`; `String(error?.message ?? error)`) | PASS |
+
+### Changed cited files read against the truths that cite them (Re-verification (2026-11-22, after the re-audit's inline fixes))
+
+- `scripts/check-package-install.mjs` (`334b014b`): every check the report cites is unchanged: the refused-shape and type-only probes, the unprobed-feeds, untyped and unrefused comparisons, the `null` case and the failure naming `typescript@<version>`. Only the error path for a child line that is not JSON changed, and it still ends in that same failure, now carrying the child's output.
+- `scripts/lib/probe-guard-parse.mjs` (`334b014b`): the parse, the `{typed, refused}`/`null` output and the exit-1 failure are unchanged; reading the arguments moved inside the `try`, so a bad argument is reported the same way as a parse failure.
+
+**Verdict:** passed
