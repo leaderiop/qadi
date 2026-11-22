@@ -568,6 +568,36 @@ describe("the decode and encode exits", () => {
     assert.include(textOf(Exit.die(new Error("cannot encode"))), "cannot encode");
     assert.strictEqual(textOf(Exit.failCause(Cause.fail("plain"))), Cause.pretty(Cause.fail("plain")));
   });
+
+  // A thrown value whose `toString` and `message` both throw, and an `Error` whose `message` getter throws.
+  const hostile = {
+    toString(): string {
+      throw new Error("toString threw");
+    },
+    get message(): string {
+      throw new Error("message threw");
+    },
+  };
+  const hostileError = Object.defineProperty(new Error("unread"), "message", {
+    get(): string {
+      throw new Error("message threw");
+    },
+  });
+
+  it("a defect whose value cannot be rendered is a stated refusal with the placeholder, not a throw", () => {
+    for (const value of [hostile, hostileError]) {
+      assert.strictEqual(
+        refusalOf(Exit.die(value)),
+        "the decoder failed unexpectedly: a value that could not be described",
+      );
+    }
+  });
+
+  it("the text of an encode that died with a value that cannot be rendered is the placeholder", () => {
+    for (const value of [hostile, hostileError]) {
+      assert.strictEqual(textOf(Exit.die(value)), "a value that could not be described");
+    }
+  });
 });
 
 // A reference fold: which policy should be on screen, and whether a no-op is expected.
