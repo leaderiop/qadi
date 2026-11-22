@@ -467,11 +467,11 @@ Order: the three live defects (69 to 71), the three deepenings (72 to 74), the c
   4. ADR-QD-182 (or an amendment of ADR-QD-154) records the rule, and the invariant states that each "never throws" function stays total when the caught value is hostile.
 
 **Planning notes**: Shape: one total function, probably beside `ValueText.ts` (ADR-QD-154 unified value to text, not thrown value to text), owning the guard on both the `message` getter and `String()`. Changing the two existing placeholder strings to one is a visible text change, and the two pins move with it. Each RED regression names its site; one table test covers the function.
-**Plans**: 1/9 plans executed
+**Plans**: 2/9 plans executed
 
 Plans:
 - [x] 69-01 (W1): Measure the phase base (gate lines, the Stryker record of every touched source file in four groups, the committed scorer that tells removed mutants from a weakened test) and pin every core throw-through RED: `toJson`, `toJsonRecord`, `canonicalKey`, a derived key, the wire's encodes, SinkCodec's non-string message, the custom predicate's failure and defect, and an evaluation whose predicate dies.
-- [ ] 69-02 (W2): Pin the three copies outside core RED on the base: http's transport failure, react's reporter line (a hostile value, a non-string message, two green pins), and devtools' capture (a hostile cause, a failing custom predicate captured and replayed with its reason, a failure with no text of its own).
+- [x] 69-02 (W2): Pin the three copies outside core RED on the base: http's transport failure, react's reporter line (a hostile value, a non-string message, two green pins), and devtools' capture (a hostile cause, a failing custom predicate captured and replayed with its reason, a failure with no text of its own).
 - [ ] 69-03 (W3): Pin the devtools sites that render a cause RED on the base (the explorer's two exits, the timeline and diagnostics feeds' stop, the diagnostics store's failed wiring read) and commit the phase's RED record.
 - [ ] 69-04 (W4): Land `thrownMessage` and `causeMessage` (their module, barrel line, 29-row table and overview rows) and switch all six core sites to them, with the custom predicate's defect through `causeMessage` and the one placeholder pin.
 - [ ] 69-05 (W5): Switch http's `transport`, react's `errorLine` (an error named once) and devtools' `renderError` (the failure's own text) to `thrownMessage`, with the repository-wide negative gate.
@@ -620,7 +620,7 @@ Phases execute in numeric order: 69 → 70 → 71 → 72 → 73 → 74 → 75 �
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 69. One total thrown-value-to-message module | 1/9 | In Progress | - |
+| 69. One total thrown-value-to-message module | 2/9 | In Progress | - |
 | 70. Hydration's drop events come from its buckets | 0/TBD | Not started | - |
 | 71. Developer-signal reporters resolved through one table | 0/TBD | Not started | - |
 | 72. A derived store behind the dock model's stores | 0/TBD | Not started | - |
