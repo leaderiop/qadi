@@ -329,6 +329,7 @@ logged, counted or spanned.
 - ✓ DEBT-01..06 The v1.7 audit's fixable debt (inserted Phase 68.1): `ab.sh` refuses an odd or short round count, `analyze.mjs` exits 0/1/2 with its self-test as `pnpm check` step 26, corrected staleness and type-aware comparison scripts re-checked all of Phase 68's verdicts (none flipped), gate 14's probe-guard parse runs in a time-limited child, and all eight phases carry validated Nyquist records — v1.7, Phase 68.1 (ADR-QD-033 Rev 1.6, CCR-QD-460)
 - ✓ ARCH-116 One total thrown-value-to-message module (THRW-01..05): `@qadi/core` exports `thrownMessage` and `causeMessage`, total over a hostile value (throwing getters, proxies, an unrenderable cause fall to the fixed words); six inline copies in core plus the copies in http, react and devtools read through them, one `Cause.pretty` call left; a `null` capture cause records `"null"` — v1.8, Phase 69 (ADR-QD-182, INV-QD-383/384, BEH-QD-681..685, CCR-QD-461)
 - ✓ ARCH-117 Hydration's drop events come from its buckets (DRPE-01..05): each entry drop is collected in a reason-keyed record (`DropBuckets`, total over core's reason unions, a missing key a compile error) and `EntriesDropped`/`LeftOut` are derived from it by `dropEvents`; the whole-payload refusal reason comes from a producer record and its checked inverse instead of a hand-written `Match`; events, order and counts unchanged (32-row characterisation) — v1.8, Phase 70 (ADR-QD-183, ADR-QD-152 amended, INV-QD-385/386, BEH-QD-686..690, CCR-QD-462)
+- ✓ ARCH-118 Developer-signal reporters resolved through one table (SIGR-01..05): `SIGNALS`, total over every `DeveloperSignal` tag (a missing row a compile error), states each signal's condition, frequency, per-entry-point resolution time and option name; `reporterFor` is the one resolver, `contain`, `once` and `holdsHere` each written once; a throwing `onIdCollision` reporter is now named `onIdCollision`; the process-wide latch is the one module-scope binding, held by `MODULE_STATE_BUDGET` — v1.8, Phase 71 (ADR-QD-184, ADR-QD-041/052/033 amended, INV-QD-387/388, BEH-QD-691..695, CCR-QD-463)
 
 ### Active
 
@@ -562,6 +563,7 @@ v1.8 Arch Wave 13 (Phases 69–76, ARCH-116…123): see "Current Milestone" abov
 | Fix the audit's fixable debt in an inserted phase before completing; Phase 68's record scripts stay as recorded and corrected copies re-check them | Completing with known-fixable defects in the bench harness, gate 14 and the record scripts would carry them a third time; a record keeps the tool that produced it | Accepted (Phase 68.1, ADR-QD-033 Rev 1.6, CCR-QD-460; owner chose "Insert a cleanup phase first", then "Fix inline, then complete" for the re-audit's info findings) |
 | One total rule turns a caught value or a cause into text, exported by core; `String(cause)` on an Effect `Cause` and the two `JSON.parse` catches stay as named exceptions | Six hand-copied `instanceof Error ? … : String(…)` reads each threw on a hostile value and turned a typed failure into a defect | Accepted (Phase 69, ADR-QD-182; `null` cause shown as `"null"` decided autonomously 2026-11-22) |
 | A drop event is derived from the record its drops are collected in; a payload refusal is mapped through a producer record whose inverse the compiler checks; the spec says plainly the compiler cannot check that code drops under a reason | Three drop reasons reached no event and no count when added, because each bucket and its emission line were written by hand (INV-QD-045 broken by construction) | Accepted (Phase 70, ADR-QD-183; folding the payload path in decided autonomously 2026-11-22) |
+| Every developer-signal reporter is resolved through one table; the production latch stays process-wide as the one budgeted module-scope binding | `makeGateRegistry`'s throwing reporter was announced under the atom set's option because each resolver restated the rules by hand, and AGENTS.md §13 denied the latch existed | Accepted (Phase 71, ADR-QD-184; keeping the latch process-scoped and moving the provider's environment check into the row decided autonomously 2026-11-22) |
 
 ## Evolution
 
@@ -581,4 +583,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-22 after Phase 70*
+*Last updated: 2026-11-22 after Phase 71*

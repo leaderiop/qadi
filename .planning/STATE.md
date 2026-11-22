@@ -25,7 +25,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-22)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 71 — Developer-signal reporters resolved through one table
+**Current focus:** Phase 72 — A derived store behind the dock model's stores
 
 ## Current Position
 
@@ -872,6 +872,7 @@ Last activity: 2026-11-22 — Phase 71 complete, transitioned to Phase 72
 - [Phase QD-71]: ADR-QD-184 states what the compiler refuses and what only tests hold; decided autonomously, with the table's resolved column pinned by the table-facts test because no code reads it
 - [Phase 71]: 71-07: the invariants and behaviours say which guarantees only a named test holds (resolution timing, each row's condition, the entry point's own name), decided autonomously
 - [Phase 71]: 71-08: equivalent mutants removed by changing the source (stale-free snapshot, entry read from the handle, everywhere-row overload) rather than re-baselining; table static mutants admitted via EXAMINED after a by-hand run killed all 80
+- [Phase 71]: Code review (3 iterations, 24 findings, all fixed): the InstrumentedInProduction condition is stated only in its row and QadiProvider reads it through `holdsHere`; `ReporterThrew`'s default is read through `unconditionally`; MODULE_STATE_BUDGET counts module-scope bindings through a syntax-tree scan run by the shared `scripts/lib/typescript-server-child.mjs`, which both gates use; INV-QD-064/251/388 corrected; three review-added static mutants admitted after a by-hand kill and all five groups re-closed at 43c0b44e (decided autonomously)
 
 ### Pending Todos
 
@@ -955,4 +956,4 @@ Resume file: None
 
 
 
-- Plan Phase 71 with /gsd-plan-phase 71 (Phases 75 and 76 each carry one owner question, decided autonomously in this run)
+- Plan Phase 72 with /gsd-plan-phase 72 (Phases 75 and 76 each carry one owner question, decided autonomously in this run)
