@@ -604,24 +604,6 @@ describe("what a replayed failure carries", () => {
       assert.strictEqual(recorded?._tag === "Broke" ? recorded.message : "", "connection refused");
     }));
 
-  it.effect("a cause that cannot be stringified does not take the capture down", () =>
-    Effect.gen(function* () {
-      const hostile = { toString: () => { throw new Error("no"); } };
-      const broken = portsLayer({
-        AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail(hostile), "broken").layer,
-      });
-      const capture = capturing(broken);
-      yield* simulate(hasAttribute("clearance", gte(1)), alice, { source: live(capture.layer) });
-
-      const recorded = (yield* capture.answers).AttributeResolver.get(
-        keyText(attributeResolverPort.key([makeSubjectId("alice"), "clearance"])),
-      );
-      assert.strictEqual(
-        recorded?._tag === "Broke" ? recorded.message : "",
-        "a value that could not be described",
-      );
-    }));
-
   it.effect("a cause whose toString and message cannot be read is recorded as broken with the placeholder", () =>
     Effect.gen(function* () {
       for (const value of [hostile, hostileError]) {
