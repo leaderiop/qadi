@@ -5,16 +5,16 @@ milestone_name: Arch Wave 13
 current_phase: 72
 current_phase_name: A derived store behind the dock model's stores
 status: executing
-stopped_at: Phase 71 complete, ready to plan Phase 72
-last_updated: "2026-11-22T19:51:19.644Z"
+stopped_at: Completed 72-01-PLAN.md
+last_updated: "2026-11-22T20:01:15.851Z"
 last_activity: 2026-11-22
 last_activity_desc: Phase QD-72 execution started
-state_head: 6ebc7dac3f55f621f47d9d7b83c997b63f309996
+state_head: 8bdeef0eec9b8d0b3f264f2763089b8a000da759
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 32
-  completed_plans: 24
+  completed_plans: 25
   percent: 38
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 ## Current Position
 
 Phase: QD-72 (A derived store behind the dock model's stores) — EXECUTING
-Plan: 1 of 8
+Plan: 2 of 8
 Status: Executing Phase QD-72
 Last activity: 2026-11-22 — Phase QD-72 execution started
 
@@ -510,6 +510,7 @@ Last activity: 2026-11-22 — Phase QD-72 execution started
 | Phase QD-71 P06 | 25 min | 2 tasks | 7 files |
 | Phase 71 P07 | 25 min | 2 tasks | 5 files |
 | Phase 71 P08 | 30 min | 2 tasks | 7 files |
+| Phase 72 P01 | 35 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -873,6 +874,7 @@ Last activity: 2026-11-22 — Phase QD-72 execution started
 - [Phase 71]: 71-07: the invariants and behaviours say which guarantees only a named test holds (resolution timing, each row's condition, the entry point's own name), decided autonomously
 - [Phase 71]: 71-08: equivalent mutants removed by changing the source (stale-free snapshot, entry read from the handle, everywhere-row overload) rather than re-baselining; table static mutants admitted via EXAMINED after a by-hand run killed all 80
 - [Phase 71]: Code review (3 iterations, 24 findings, all fixed): the InstrumentedInProduction condition is stated only in its row and QadiProvider reads it through `holdsHere`; `ReporterThrew`'s default is read through `unconditionally`; MODULE_STATE_BUDGET counts module-scope bindings through a syntax-tree scan run by the shared `scripts/lib/typescript-server-child.mjs`, which both gates use; INV-QD-064/251/388 corrected; three review-added static mutants admitted after a by-hand kill and all five groups re-closed at 43c0b44e (decided autonomously)
+- [Phase 72]: 72-01: mutation base measured before any phase file existed (reverses CONTEXT order); characterisation takes the base as truth, no row corrected
 
 ### Pending Todos
 
@@ -946,8 +948,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-22T16:52:18.288Z
-Stopped at: Phase 71 complete, ready to plan Phase 72
+Last session: 2026-11-22T20:01:15.468Z
+Stopped at: Completed 72-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
