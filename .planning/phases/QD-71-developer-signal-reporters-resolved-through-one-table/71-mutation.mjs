@@ -69,9 +69,14 @@ export const mapLine = (diffText) => {
 const kind = (m) => `${m.mutator} ${m.replacement}`;
 /**
  * Ignored mutants a close may hold beyond its base, per file and kind, each run by hand and Killed there: the group's
- * config spread with `ignoreStatic: false`, run with `--mutate <file>`. None yet.
+ * config spread with `ignoreStatic: false`, run with `--mutate <file>`. The developer-signal table is a module-scope
+ * literal whose mutants are static, and the ones beyond the base were run by hand with `ignoreStatic: false` and all
+ * killed by the table-facts test.
  */
-const EXAMINED = {};
+const EXAMINED = {
+  "packages/react/src/DeveloperSignals.ts": { 'StringLiteral ""': 32, "ObjectLiteral {}": 23, "ArrowFunction () => undefined": 2 },
+  "packages/react/src/GateRegistry.ts": { "ArrowFunction () => undefined": 1 },
+};
 
 const key = (m, line = m.line) => [m.status, m.mutator, m.replacement, line, m.column].join("\u0000");
 /** A multiset of mutant keys: key -> count. */
