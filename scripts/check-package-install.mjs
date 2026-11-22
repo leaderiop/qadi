@@ -460,7 +460,8 @@ try {
 // denial rather than rejecting is INV-QD-006 seen from a consumer's position.
 // ---------------------------------------------------------------------------
 
-const FIXTURE = `import * as Effect from "effect/Effect";
+const FIXTURE = `import * as Cause from "effect/Cause";
+import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as HttpApi from "effect/http-api/HttpApi";
 import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
@@ -471,6 +472,7 @@ import * as HttpServer from "effect/http/HttpServer";
 import {
   AttributeResolver,
   AttributeResolverNone,
+  causeMessage,
   currentSubjectLayer,
   CustomPredicateNone,
   Decided,
@@ -490,6 +492,7 @@ import {
   role,
   SignatureHistoryNone,
   StoredRecord,
+  thrownMessage,
   toPredicate,
 } from "@qadi/core";
 import { makeQadi } from "@qadi/promise";
@@ -562,6 +565,11 @@ await qadi.dispose();
 // declaration file in any of them is a compile error here.
 expect("testing layer", typeof qadiTestLayer, "function");
 expect("react provider", typeof QadiProvider, "function");
+// The two new public names answer in the packed artifact.
+expect("thrown message of an Error", thrownMessage(new Error("boom")), "boom");
+expect("thrown message of a value that cannot be described", thrownMessage({ toString: () => { throw new Error("no"); } }), "a value that could not be described");
+expect("cause message of a failure that renders", causeMessage(Cause.fail("plain")), Cause.pretty(Cause.fail("plain")));
+expect("cause message of a defect that cannot be rendered", causeMessage(Cause.die({ get message(): string { throw new Error("no"); }, toString: () => { throw new Error("no"); } })), "a value that could not be described");
 
 // @qadi/devtools ships TWO entry points, and check 3's import probe only
 // reaches package roots — so the second one is exercised here or nowhere.

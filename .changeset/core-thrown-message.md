@@ -1,0 +1,5 @@
+---
+"@qadi/core": minor
+---
+
+`@qadi/core` exports `thrownMessage`, a caught value as text (an `Error`'s `message` when it is a string, otherwise the value's `String` form, and where neither can be read the words `a value that could not be described`), and `causeMessage`, an Effect `Cause` as text (its `Cause.pretty` rendering when that renders, otherwise `thrownMessage` of the value it failed or died with); neither ever throws. `toJson`, `toJsonRecord`, a port's request key and a port wire's question and answer encoding refuse, as documented, instead of throwing when the value they caught has a throwing `message` getter or `toString`; a custom predicate that fails or dies with such a value ends as `CustomPredicateError` instead of a defect, its reason reading those words; a port wire whose conversion throws an `Error` refuses with the message alone, without the `Error: ` prefix; a sink record whose getter throws an `Error` with a non-string `message` is refused with that error's string form.
