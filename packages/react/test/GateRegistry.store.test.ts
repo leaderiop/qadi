@@ -12,6 +12,7 @@ import { makeGateRegistry } from "../src/GateRegistry.ts";
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 import type { GateInstance, GateRenderState } from "../src/GateRegistry.ts";
 import { gateWriterFor } from "../src/GateWriter.ts";
+import { threw } from "./support/reporterThrew.ts";
 
 const canRead = hasPermission(permission("doc", "read"));
 
@@ -263,13 +264,11 @@ describe("a throwing collision reporter is named by the option it was passed thr
     throw new Error("boom");
   };
 
-  const threw = (option: string): string =>
-    `[qadi] the ${option} reporter you supplied threw (Error: boom). The outcome it was told ` +
-    "about stands — nothing was skipped, seeded differently or left uncounted. Fix the reporter.";
-
   /** Fails with the lines the console received, which a whole-array diff would elide. */
   const saidOnly = (lines: ReadonlyArray<string>, option: string): void => {
-    expect(lines.join("\n"), `the console received ${JSON.stringify(lines)}`).toBe(threw(option));
+    expect(lines.join("\n"), `the console received ${JSON.stringify(lines)}`).toBe(
+      threw(option, "Error: boom"),
+    );
   };
 
   /** Registers `x` twice on `gates`, and returns the console lines and the listed ids. */
@@ -308,13 +307,19 @@ describe("a throwing collision reporter is named by the option it was passed thr
   });
 
   it("a throwing onGateIdCollision on makeQadiAtoms is named onGateIdCollision in development", () => {
-    const run = collide("development", () => makeQadiAtoms(EvaluationServicesNone, { onGateIdCollision: boom }).gates);
+    const run = collide(
+      "development",
+      () => makeQadiAtoms(EvaluationServicesNone, { onGateIdCollision: boom }).gates,
+    );
     saidOnly(run.lines, "onGateIdCollision");
     expect(run.ids).toEqual(["x", "x~1"]);
   });
 
   it("a throwing onGateIdCollision on makeQadiAtoms is named onGateIdCollision in production", () => {
-    const run = collide("production", () => makeQadiAtoms(EvaluationServicesNone, { onGateIdCollision: boom }).gates);
+    const run = collide(
+      "production",
+      () => makeQadiAtoms(EvaluationServicesNone, { onGateIdCollision: boom }).gates,
+    );
     saidOnly(run.lines, "onGateIdCollision");
     expect(run.ids).toEqual(["x", "x~1"]);
   });

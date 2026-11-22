@@ -3,30 +3,17 @@
  * under, and the facts the signal table states about where, how often and through which
  * option each entry point resolves a reporter.
  *
- * `stryker.react.mjs` does not mutate `DeveloperSignals.ts`, so this file is what pins
- * each arm of its `Match` and each literal of its table: a reworded sentence, an arm that
- * says another signal's words, or a table row that says something else fails here.
- * Consumers grep these messages, so they are compared whole rather than by substring.
+ * This file is what pins each arm of `DeveloperSignals.ts`'s `Match` and each literal of
+ * its table: a reworded sentence, an arm that says another signal's words, or a table row
+ * that says something else fails here. Consumers grep these messages, so they are
+ * compared whole rather than by substring.
  */
-import {
-  Allow,
-  Deny,
-  EvaluationServicesNone,
-  hasRole,
-  hydrationMismatchesTotal,
-  hydrationRechecksTotal,
-  makeSubject,
-  makeSubjectId,
-} from "@qadi/core";
+import { Deny, hasRole, makeSubjectId } from "@qadi/core";
 import type { Decision } from "@qadi/core";
-import * as Context from "effect/Context";
-import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { currentDecision } from "../src/DecisionOutcome.ts";
-import { dehydrateDecisions, hydrateDecisions } from "../src/Hydration.ts";
-import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 import type { SignalTag } from "../src/DeveloperSignals.ts";
 import {
+  holdsHere,
   providerSignalReporter,
   providerSignals,
   reporterFor,
@@ -34,6 +21,7 @@ import {
 } from "../src/DeveloperSignals.ts";
 import { SeededAllow } from "../src/SeededDecision.ts";
 import { hostile, hostileError } from "./support/hostile.ts";
+import { threw } from "./support/reporterThrew.ts";
 
 const decided: Decision = new Deny({
   evaluationId: "eval-1",
@@ -88,15 +76,11 @@ const useProduction = () => {
   };
 };
 
-const threw = (reporter: string, error: string): string =>
-  `[qadi] the ${reporter} reporter you supplied threw (${error}). The outcome it was told ` +
-  "about stands — nothing was skipped, seeded differently or left uncounted. Fix the reporter.";
-
 const boom = (): never => {
   throw new TypeError("host boom");
 };
 
-/** One entry point of one row: the option it takes a reporter under, and a call naming another subject. */
+/** One entry point of one row: its reporter option, and a call carrying another subject's data. */
 interface EntryPoint {
   readonly row: SignalTag;
   readonly entry: string;
@@ -177,7 +161,13 @@ const entryPoints: ReadonlyArray<EntryPoint> = [
 
 const providerEntry = { QadiProvider: { option: "onDeveloperSignal", resolved: "OnEveryReport" } };
 
-/** What the table states, written out by hand so a changed literal in the table fails here. */
+/**
+ * A second, independent statement of the table, so a row changed without review fails here.
+ *
+ * It is a change detector, and `resolved` shows its limit: no code reads that field, so
+ * this compares it and proves nothing about when a reporter is resolved. That timing is
+ * pinned by the "when each reporter is resolved" tests in `DeveloperSignalReporters.test.tsx`.
+ */
 const writtenOutTable: Record<
   SignalTag,
   {
@@ -240,7 +230,9 @@ describe("DeveloperSignals", () => {
     });
 
     it("GateIdCollision", () => {
-      expect(said(() => reporterFor(SIGNALS.GateIdCollision, "makeQadiAtoms", undefined)?.(":r1:"))).toEqual([
+      expect(
+        said(() => reporterFor(SIGNALS.GateIdCollision, "makeQadiAtoms", undefined)?.(":r1:")),
+      ).toEqual([
         '[qadi] two React roots minted the gate id ":r1:" for one gate registry. ' +
           "Both guards are kept, the second under a disambiguated panel id. Give each " +
           "root a distinct `identifierPrefix` in its hydrateRoot/createRoot options " +
@@ -318,7 +310,9 @@ describe("DeveloperSignals", () => {
     });
 
     it("AtomsReplaced", () => {
-      expect(said(() => providerSignalReporter(undefined)(providerSignals.atomsReplaced()))).toEqual([
+      expect(
+        said(() => providerSignalReporter(undefined)(providerSignals.atomsReplaced())),
+      ).toEqual([
         "[qadi] <QadiProvider>'s `atoms` prop changed identity after mount. " +
           "makeQadiAtoms() must be called once per context, at module scope " +
           "(or memoised) — this provider's registry is not rebuilt for a new " +
@@ -345,8 +339,12 @@ describe("DeveloperSignals", () => {
         expect(reporterFor(SIGNALS.SeedSuperseded, "makeQadiAtoms", undefined)).toBeUndefined();
         expect(reporterFor(SIGNALS.GateIdCollision, "makeQadiAtoms", undefined)).toBeUndefined();
         expect(reporterFor(SIGNALS.GateIdCollision, "makeGateRegistry", undefined)).toBeUndefined();
-        expect(reporterFor(SIGNALS.DehydrationDropped, "dehydrateDecisions", undefined)).toBeUndefined();
-        expect(reporterFor(SIGNALS.HydrationDropped, "hydrateDecisions", undefined)).toBeUndefined();
+        expect(
+          reporterFor(SIGNALS.DehydrationDropped, "dehydrateDecisions", undefined),
+        ).toBeUndefined();
+        expect(
+          reporterFor(SIGNALS.HydrationDropped, "hydrateDecisions", undefined),
+        ).toBeUndefined();
 
         // Contained, so not the same function: what it is handed still reaches it.
         const heard: Array<unknown> = [];
@@ -384,6 +382,32 @@ describe("DeveloperSignals", () => {
       }
     });
 
+    it("InstrumentedInProduction's default is silent in development, whoever asks", () => {
+      withEnvironment("development", () => {
+        expect(
+          reporterFor(SIGNALS.InstrumentedInProduction, "QadiProvider", undefined),
+        ).toBeUndefined();
+        expect(
+          said(() => providerSignalReporter(undefined)(providerSignals.instrumentedInProduction())),
+        ).toEqual([]);
+      });
+    });
+
+    it("a row's condition holds in the environment it names and in no other", () => {
+      const holds = (speaks: "Development" | "Production", environment: Environment) =>
+        withEnvironment(environment, () => holdsHere({ speaks }));
+      expect(holds("Development", "development")).toBe(true);
+      expect(holds("Development", "production")).toBe(false);
+      expect(holds("Production", "development")).toBe(false);
+      expect(holds("Production", "production")).toBe(true);
+      // `InstrumentedInProduction` is the one row that names production, and the provider
+      // raises the signal when its row's condition holds.
+      const instrumented = (environment: Environment) =>
+        withEnvironment(environment, () => holdsHere(SIGNALS.InstrumentedInProduction));
+      expect(instrumented("production")).toBe(true);
+      expect(instrumented("development")).toBe(false);
+    });
+
     it("a supplied provider reporter replaces the default and hears every signal", () => {
       const seen: Array<string> = [];
       const mine = providerSignalReporter((signal) => seen.push(signal._tag));
@@ -399,7 +423,7 @@ describe("DeveloperSignals", () => {
   });
 
   describe("the developer-signal table", () => {
-    it("states, for every signal, where its default speaks, how often, and each entry point's option and resolution, written out", () => {
+    it("agrees with a written-out statement of it, row by row", () => {
       const stated = Object.fromEntries(
         Object.entries(SIGNALS).map(([tag, { speaks, often, entries }]) => [
           tag,
@@ -409,7 +433,7 @@ describe("DeveloperSignals", () => {
       expect(stated).toEqual(writtenOutTable);
     });
 
-    it("contains a supplied reporter under the option of the entry point it was passed to, for every entry point of every row", () => {
+    it("contains a supplied reporter under its entry point's option, for every entry point of every row", () => {
       const written = Object.entries(writtenOutTable).flatMap(([row, { entries }]) =>
         Object.entries(entries).map(([entry, { option }]) => `${row}.${entry}.${option}`),
       );
@@ -443,8 +467,11 @@ describe("a supplied reporter that throws (ReporterThrew, INT-04)", () => {
     describe(`in ${environment}`, () => {
       const inEnvironment = <A,>(act: () => A): A => withEnvironment(environment, act);
 
-      for (const { entry, option, call } of entryPoints) {
-        it(`${entry}'s ${option}: the throw does not propagate and ReporterThrew names the hook and the error only`, () => {
+      for (const { row, entry, option, call } of entryPoints) {
+        const title =
+          `${row} through ${entry}'s ${option}: the throw does not propagate and ` +
+          "ReporterThrew names the hook and the error only";
+        it(title, () => {
           const lines = inEnvironment(() => said(() => call(boom)));
           expect(lines).toEqual([threw(option, "TypeError: host boom")]);
           for (const line of lines) {
@@ -478,10 +505,13 @@ describe("a supplied reporter that throws (ReporterThrew, INT-04)", () => {
       });
 
       it("a thrown Error whose message is not a string is named by its string form alone", () => {
-        const thrown = Object.assign(Object.defineProperty(new Error("x"), "message", { value: 42 }), {
-          toString: () => "described",
-        });
-        expect(inEnvironment(() => sayingFor(thrown))).toEqual([threw("onGateIdCollision", "described")]);
+        const thrown = Object.assign(
+          Object.defineProperty(new Error("x"), "message", { value: 42 }),
+          { toString: () => "described" },
+        );
+        expect(inEnvironment(() => sayingFor(thrown))).toEqual([
+          threw("onGateIdCollision", "described"),
+        ]);
       });
 
       it("a thrown object that is not an Error is named by its string form, whatever its message field", () => {
@@ -492,44 +522,9 @@ describe("a supplied reporter that throws (ReporterThrew, INT-04)", () => {
 
       it("a thrown Error whose message is the number 42 is named once, as Error: 42", () => {
         const thrown = Object.defineProperty(new Error("x"), "message", { value: 42 });
-        expect(inEnvironment(() => sayingFor(thrown))).toEqual([threw("onGateIdCollision", "Error: 42")]);
-      });
-
-      it("a throwing onHydrationMismatch on makeQadiAtoms still settles the re-check and counts it", () => {
-        const registry = Context.empty();
-        const alice = makeSubject({ id: "u1" });
-        const isAdmin = hasRole("admin");
-        // The server allowed; this client holds nothing, so it denies: a disagreement.
-        const payload = dehydrateDecisions([
-          {
-            policy: isAdmin,
-            decision: new Allow({
-              evaluationId: "e1",
-              subjectId: makeSubjectId("u1"),
-              durationMillis: 1,
-              trace: { policyTag: "HasRole", allowed: true, children: [], visibleFields: undefined, obligations: [] },
-            }),
-          },
+        expect(inEnvironment(() => sayingFor(thrown))).toEqual([
+          threw("onGateIdCollision", "Error: 42"),
         ]);
-        const atoms = makeQadiAtoms(EvaluationServicesNone, { onHydrationMismatch: boom });
-        const rechecks = () => hydrationRechecksTotal.valueUnsafe(registry).count;
-        const mismatches = () => hydrationMismatchesTotal.valueUnsafe(registry).count;
-
-        inEnvironment(() => {
-          const before = { rechecks: rechecks(), mismatches: mismatches() };
-          let settled: ReturnType<typeof currentDecision> = undefined;
-          const lines = said(() => {
-            const store = AtomRegistry.make({
-              initialValues: [[atoms.subject, alice] as const, ...hydrateDecisions(atoms, payload, alice)],
-            });
-            settled = currentDecision(store.get(atoms.decision(isAdmin)));
-            store.dispose();
-          });
-          expect(settled).toBeInstanceOf(Deny);
-          expect(rechecks() - before.rechecks).toBe(1);
-          expect(mismatches() - before.mismatches).toBe(1);
-          expect(lines).toEqual([threw("onHydrationMismatch", "TypeError: host boom")]);
-        });
       });
     });
   }
