@@ -2,17 +2,17 @@
  "phase": "70",
  "groups": {
   "react": {
-   "head": "bbabff960e7b7ec172278e76a082fa4c8b401922",
+   "head": "39d5a9de8eacc45377aed18798cdf58192fc2ddf",
    "invocation": "pnpm exec stryker run stryker.react.mjs --mutate packages/react/src/HydrationEngine.ts",
    "files": {
     "packages/react/src/HydrationEngine.ts": {
-     "killed": 125,
+     "killed": 126,
      "timeout": 0,
      "survived": 0,
      "noCoverage": 0,
      "ignored": 42,
-     "detected": 125,
-     "valid": 125,
+     "detected": 126,
+     "valid": 126,
      "open": [],
      "ignoredMutants": [
       {
@@ -110,203 +110,203 @@
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 216,
+       "line": 228,
        "column": 34
       },
       {
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 217,
+       "line": 229,
        "column": 27
       },
       {
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 218,
+       "line": 230,
        "column": 30
       },
       {
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 219,
+       "line": 231,
        "column": 21
       },
       {
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 220,
+       "line": 232,
        "column": 19
       },
       {
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 244,
-       "column": 81
+       "line": 270,
+       "column": 88
       },
       {
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 245,
+       "line": 271,
        "column": 12
       },
       {
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 246,
+       "line": 272,
        "column": 14
       },
       {
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 247,
+       "line": 273,
        "column": 30
       },
       {
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 248,
+       "line": 274,
        "column": 17
       },
       {
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 251,
+       "line": 277,
        "column": 59
       },
       {
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 251,
+       "line": 277,
        "column": 74
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 259,
+       "line": 285,
        "column": 25
       },
       {
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 325,
+       "line": 351,
        "column": 59
       },
       {
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 326,
+       "line": 352,
        "column": 10
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 327,
+       "line": 353,
        "column": 12
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 331,
+       "line": 357,
        "column": 11
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 332,
+       "line": 358,
        "column": 12
       },
       {
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 334,
+       "line": 360,
        "column": 9
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 335,
+       "line": 361,
        "column": 12
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 341,
+       "line": 367,
        "column": 11
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 342,
+       "line": 368,
        "column": 12
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 347,
+       "line": 373,
        "column": 15
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 349,
+       "line": 375,
        "column": 17
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 352,
+       "line": 378,
        "column": 16
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 355,
+       "line": 381,
        "column": 17
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 360,
+       "line": 386,
        "column": 27
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 370,
+       "line": 396,
        "column": 24
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 454,
+       "line": 482,
        "column": 17
       }
      ]
@@ -314,7 +314,7 @@
    }
   },
   "buckets": {
-   "head": "bbabff960e7b7ec172278e76a082fa4c8b401922",
+   "head": "39d5a9de8eacc45377aed18798cdf58192fc2ddf",
    "invocation": "pnpm exec stryker run stryker.react.mjs --mutate packages/react/src/HydrationBuckets.ts",
    "files": {
     "packages/react/src/HydrationBuckets.ts": {
@@ -331,21 +331,21 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 33,
+       "line": 34,
        "column": 29
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 41,
+       "line": 46,
        "column": 35
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 49,
+       "line": 57,
        "column": 27
       }
      ]
