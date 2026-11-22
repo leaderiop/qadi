@@ -23,10 +23,12 @@
  * The model holds no registry subscription of its own. There is no `dispose` and no
  * `read` command.
  *
- * **Its stores.** The stores are listed once, in BEH-QD-700, and a test of a built model
- * checks that list. The shown reading, `questions` and `services` are derived stores
- * (ADR-QD-185), each recomputed from its key when a field of it changes identity and
- * stopped with the model's scope. `sightings` is a thunk and not a store.
+ * **Its stores.** The stores are listed once, in BEH-QD-700. A test of a built model
+ * lists its members that have `subscribe` and `getSnapshot` and fails when one is added
+ * or removed, and review keeps that list equal to BEH-QD-700's. The shown reading,
+ * `questions` and `services` are derived stores (ADR-QD-185), each recomputed from its
+ * key when a field of it changes identity and stopped with the model's scope.
+ * `sightings` is a thunk and not a store.
  *
  * Package-private (ADR-QD-099): the dock is the one thing that drives it.
  */

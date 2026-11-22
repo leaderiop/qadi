@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-185                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-22                                     |
 > | Status         | Accepted — extends ADR-QD-168, amends ADR-QD-047, corrects ADR-QD-169 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-22): new — the dock model's three computed stores are derived stores (ARCH-119, CCR-QD-464) |
+> | Change History | 1.1 (2026-11-22): correction — key equality is over own enumerable string-keyed fields, the finalizer is registered before the parents are subscribed, and the store-list test lists the model's members and is kept equal to BEH-QD-700 by review (CCR-QD-464)<br>1.0 (2026-11-22): new — the dock model's three computed stores are derived stores (ARCH-119, CCR-QD-464) |
 
 ---
 
@@ -40,9 +40,10 @@ sentence in each, and the ordinals drifted from one another.
    before the feeds publish, so that one `configure` publishes one join. `compute` runs once
    at construction without notifying. `DerivedStore<A>` is the read half plus `refresh()`,
    the trigger for a key input that is not a parent.
-2. **Key equality is per-field identity** over the union of both keys' own enumerable
-   fields, by one module-private comparison, `sameFields`. A field on one side only is a
-   change, and values compare with `===`, as `set` compares them.
+2. **Key equality is per-field identity** over the own enumerable string-keyed fields of
+   both keys, by one module-private comparison, `sameFields`. A field on one side only is
+   a change, and values compare with `===`, as `set` compares them. A field that is
+   inherited, non-enumerable or symbol-keyed is not part of the key and is not compared.
 3. **What enforces what.** The compiler refuses a key type with an optional field
    (`K extends object & Required<K>`), an empty parent list, and a compute reading a field
    outside its key; a key reader typed with the compute's input type is refused when it
@@ -61,9 +62,11 @@ sentence in each, and the ordinals drifted from one another.
    restated. The store's refresh is a listener in each parent, subscribed in the listed
    order at construction, so it moves before every listener added after it, and a throw
    from its listeners enters the parent's loop as one value.
-7. **A finalizer in the caller's scope releases every parent and stops the store.** After
-   it there is no key read and no compute, `refresh` does nothing, the last snapshot is
-   kept, and `subscribe` registers but nothing notifies. The rule is the same for all
+7. **A finalizer in the caller's scope releases every parent and stops the store.** It is
+   registered before the parents are subscribed, so a parent whose `subscribe` throws
+   leaves every parent already subscribed released when the scope closes. After the scope
+   closes there is no key read and no compute, `refresh` does nothing, the last snapshot
+   is kept, and `subscribe` registers but nothing notifies. The rule is the same for all
    three stores, so a closed model's diagnostics store no longer merges a later reading:
    closing the scope ends what the model started
    ([ADR-QD-137](./137-a-devtools-session-owns-its-runs-through-a-scope.md)), and
@@ -84,8 +87,10 @@ sentence in each, and the ordinals drifted from one another.
    key and no closed state.
 10. **The store count is stated once, in
     [BEH-QD-700](../behaviors/28-devtools-screens.md#beh-qd-700-the-dock-models-stores-are-listed-once)**,
-    as the list of `DockModel` members that have `subscribe` and `getSnapshot`, and a test
-    of a built model checks that exact list. ADR-QD-047 and BEH-QD-465 get one dated
+    as the list of `DockModel` members that have `subscribe` and `getSnapshot`. A test of a
+    built model lists the members that have both and fails when one is added or removed;
+    the list there and the list in BEH-QD-700 are kept equal by review, not by a gate.
+    ADR-QD-047 and BEH-QD-465 get one dated
     amendment each pointing at it; ADR-QD-162, ADR-QD-168 and ADR-QD-169 get dated notes;
     every earlier amendment and change-history cell is kept as written (AGENTS.md §15).
 11. **The model, not a panel `useMemo`, is where a computed view lives**, as
@@ -128,7 +133,9 @@ as a thunk (decision 1) rather than held in stores `configure` sets last.
 - A closed model's diagnostics store keeps its last snapshot. No changeset: no export or
   public type changes, and a closed model is unreachable through `DevtoolsDock`, which
   never hands one.
-- The store count is a test failure and not a sentence to keep in step.
+- A store added to or removed from the model fails the store-list test until its list is
+  updated, and review keeps that list equal to BEH-QD-700's, so the count is one sentence
+  to keep in step and not five.
 - ADR-QD-169's consequence that the model keeps its closed flag and its last join is
   corrected: the model holds neither.
 - INV-QD-389 and INV-QD-390 state the rules, and BEH-QD-696 to BEH-QD-700 state what a
