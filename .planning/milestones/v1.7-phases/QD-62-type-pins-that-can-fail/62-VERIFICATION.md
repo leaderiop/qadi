@@ -4,22 +4,22 @@ verified: 2026-11-20T00:00:00Z
 status: passed
 score: 4/4 must-haves verified
 covered_files:
-  - .planning/phases/QD-62-type-pins-that-can-fail/62-01-PLAN.md
-  - .planning/phases/QD-62-type-pins-that-can-fail/62-01-SUMMARY.md
-  - .planning/phases/QD-62-type-pins-that-can-fail/62-02-PLAN.md
-  - .planning/phases/QD-62-type-pins-that-can-fail/62-02-SUMMARY.md
-  - .planning/phases/QD-62-type-pins-that-can-fail/62-03-PLAN.md
-  - .planning/phases/QD-62-type-pins-that-can-fail/62-03-SUMMARY.md
-  - .planning/phases/QD-62-type-pins-that-can-fail/62-04-PLAN.md
-  - .planning/phases/QD-62-type-pins-that-can-fail/62-04-SUMMARY.md
-  - .planning/phases/QD-62-type-pins-that-can-fail/62-05-PLAN.md
-  - .planning/phases/QD-62-type-pins-that-can-fail/62-05-SUMMARY.md
-  - .planning/phases/QD-62-type-pins-that-can-fail/62-06-PLAN.md
-  - .planning/phases/QD-62-type-pins-that-can-fail/62-06-SUMMARY.md
-  - .planning/phases/QD-62-type-pins-that-can-fail/62-07-PLAN.md
-  - .planning/phases/QD-62-type-pins-that-can-fail/62-07-SUMMARY.md
-  - .planning/phases/QD-62-type-pins-that-can-fail/62-08-PLAN.md
-  - .planning/phases/QD-62-type-pins-that-can-fail/62-08-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-62-type-pins-that-can-fail/62-01-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-62-type-pins-that-can-fail/62-01-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-62-type-pins-that-can-fail/62-02-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-62-type-pins-that-can-fail/62-02-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-62-type-pins-that-can-fail/62-03-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-62-type-pins-that-can-fail/62-03-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-62-type-pins-that-can-fail/62-04-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-62-type-pins-that-can-fail/62-04-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-62-type-pins-that-can-fail/62-05-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-62-type-pins-that-can-fail/62-05-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-62-type-pins-that-can-fail/62-06-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-62-type-pins-that-can-fail/62-06-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-62-type-pins-that-can-fail/62-07-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-62-type-pins-that-can-fail/62-07-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-62-type-pins-that-can-fail/62-08-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-62-type-pins-that-can-fail/62-08-SUMMARY.md
   - AGENTS.md
   - packages/core/test/FloatingEffectPins.tst.ts
   - scripts/check-house-style.mjs
@@ -27,7 +27,7 @@ covered_files:
   - scripts/run-tstyche.mjs
   - tsconfig.tstyche.json
   - tstyche.json
-covered_digest: "v4:sha256:7fc32fe9c4b36f13e5ed0b72e2efa0507cf37affc4c5e44c7225993e591a2aff"
+covered_digest: "v4:sha256:17e126a300b5d721d53d517204d6927a5338f4ffb49782558a0b8907cd67c2f6"
 behavior_unverified: 0
 overrides_applied: 0
 ---
@@ -272,3 +272,19 @@ Every row was run on the tree at `ae42c2b2`, one command at a time, in the foreg
 - `spec/README.md` (`79a685b4`): the report cites it for the CCR-QD-453 registration (line 390), which Truth 3 and the artifacts table rely on. The row is where it was and unedited. The commit moves the revision to 1.276, adds a Change History entry and rewrites the CCR-QD-460 row to scope two of its claims (the odd round count to Phase 68's bench, the hang evidence to a blocked parser call in the child); nothing a truth of this report reads. Every truth holds as worded.
 
 **Verdict:** passed
+
+## Re-verification (2026-11-22, after the fourth review pass and the milestone archive)
+
+**Staleness:** `62: stale, verification a8eab6c9, 34 cited, 1 changed since` (`68.1-stale.mjs`, run at `b1da4dc5`).
+
+| Cited file | Changed since `a8eab6c9` by |
+| --- | --- |
+| `spec/README.md` | `b45e798a` fix(68.1): gate 14 kills the TypeScript server a killed child started<br>`0b01b83a` docs(68.1): AR-68.1-01 re-measured and narrowed |
+
+**Trailers on this phase's commits:** 35 `Claude Sonnet 5.5 <noreply@anthropic.com>`, 13 none, 5 `Claude Opus 5.5 <noreply@anthropic.com>`.
+
+**Validation record:** `62-VALIDATION.md` has status `validated` and nyquist_compliant `true`.
+
+**Digest:** `covered_digest: "v4:sha256:7fc32fe9c4b36f13e5ed0b72e2efa0507cf37affc4c5e44c7225993e591a2aff"` becomes `covered_digest: "v4:sha256:17e126a300b5d721d53d517204d6927a5338f4ffb49782558a0b8907cd67c2f6"`, over the same 23 covered files, 16 of them declared at the place the milestone archive moved them to.
+
+**Gate:** `pnpm check:pr` exited 0 at `b1da4dc5` (17 of 18 steps, mutation skipped as on every non-release PR): 242 + 34 + 7 vitest files (5985 + 568 + 43 tests), gate 14 packed and authorized 9 packages (524 runtime exports) and left no TypeScript server running. The changes since the last re-verification touch no `packages/*/src` file.

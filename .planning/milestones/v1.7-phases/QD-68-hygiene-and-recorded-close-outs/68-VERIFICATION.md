@@ -4,52 +4,52 @@ verified: 2026-11-21T20:10:00Z
 status: passed
 score: 7/7 must-haves verified
 covered_files:
-  - ".changeset/devtools-capacity-change-reads.md"
-  - ".planning/phases/QD-68-hygiene-and-recorded-close-outs/68-01-PLAN.md"
-  - ".planning/phases/QD-68-hygiene-and-recorded-close-outs/68-01-SUMMARY.md"
-  - ".planning/phases/QD-68-hygiene-and-recorded-close-outs/68-02-PLAN.md"
-  - ".planning/phases/QD-68-hygiene-and-recorded-close-outs/68-02-SUMMARY.md"
-  - ".planning/phases/QD-68-hygiene-and-recorded-close-outs/68-03-PLAN.md"
-  - ".planning/phases/QD-68-hygiene-and-recorded-close-outs/68-03-SUMMARY.md"
-  - ".planning/phases/QD-68-hygiene-and-recorded-close-outs/68-04-PLAN.md"
-  - ".planning/phases/QD-68-hygiene-and-recorded-close-outs/68-04-SUMMARY.md"
-  - ".planning/phases/QD-68-hygiene-and-recorded-close-outs/68-05-PLAN.md"
-  - ".planning/phases/QD-68-hygiene-and-recorded-close-outs/68-05-SUMMARY.md"
-  - ".planning/phases/QD-68-hygiene-and-recorded-close-outs/68-06-PLAN.md"
-  - ".planning/phases/QD-68-hygiene-and-recorded-close-outs/68-06-SUMMARY.md"
-  - ".planning/phases/QD-68-hygiene-and-recorded-close-outs/68-07-PLAN.md"
-  - ".planning/phases/QD-68-hygiene-and-recorded-close-outs/68-07-SUMMARY.md"
-  - ".planning/phases/QD-68-hygiene-and-recorded-close-outs/68-08-PLAN.md"
-  - ".planning/phases/QD-68-hygiene-and-recorded-close-outs/68-08-SUMMARY.md"
-  - ".planning/phases/QD-68-hygiene-and-recorded-close-outs/68-09-PLAN.md"
-  - ".planning/phases/QD-68-hygiene-and-recorded-close-outs/68-09-SUMMARY.md"
-  - ".planning/phases/QD-68-hygiene-and-recorded-close-outs/68-10-PLAN.md"
-  - ".planning/phases/QD-68-hygiene-and-recorded-close-outs/68-10-SUMMARY.md"
-  - ".planning/phases/QD-68-hygiene-and-recorded-close-outs/68-11-PLAN.md"
-  - ".planning/phases/QD-68-hygiene-and-recorded-close-outs/68-11-SUMMARY.md"
-  - ".planning/phases/QD-68-hygiene-and-recorded-close-outs/68-12-PLAN.md"
-  - ".planning/phases/QD-68-hygiene-and-recorded-close-outs/68-12-SUMMARY.md"
-  - ".planning/phases/QD-68-hygiene-and-recorded-close-outs/68-13-PLAN.md"
-  - ".planning/phases/QD-68-hygiene-and-recorded-close-outs/68-13-SUMMARY.md"
-  - ".planning/phases/QD-68-hygiene-and-recorded-close-outs/68-14-PLAN.md"
-  - ".planning/phases/QD-68-hygiene-and-recorded-close-outs/68-14-SUMMARY.md"
-  - ".planning/phases/QD-68-hygiene-and-recorded-close-outs/68-15-PLAN.md"
-  - ".planning/phases/QD-68-hygiene-and-recorded-close-outs/68-15-SUMMARY.md"
-  - "packages/core/src/Admission.ts"
-  - "packages/core/src/DecisionLog.ts"
-  - "packages/core/src/SinkCodec.ts"
-  - "packages/core/src/UntrustedDecode.ts"
-  - "packages/core/test/Admission.test.ts"
-  - "packages/devtools/src/model/DiagnosticsFeed.ts"
-  - "packages/devtools/src/model/TimelineFeed.ts"
-  - "packages/devtools/test/model/TimelineFeed.test.ts"
-  - "scripts/bench/ab.sh"
-  - "scripts/bench/analyze.mjs"
-  - "scripts/check-house-style.mjs"
-  - "scripts/check-package-install.mjs"
-  - "scripts/run-tstyche.mjs"
-  - "scripts/spec-revise.mjs"
-covered_digest: "v4:sha256:1b4ae721cae328a194ccd47a635b4a79e83c2d5007a50c082a17568f8ca65a40"
+  - .changeset/devtools-capacity-change-reads.md
+  - .planning/milestones/v1.7-phases/QD-68-hygiene-and-recorded-close-outs/68-01-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-68-hygiene-and-recorded-close-outs/68-01-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-68-hygiene-and-recorded-close-outs/68-02-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-68-hygiene-and-recorded-close-outs/68-02-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-68-hygiene-and-recorded-close-outs/68-03-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-68-hygiene-and-recorded-close-outs/68-03-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-68-hygiene-and-recorded-close-outs/68-04-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-68-hygiene-and-recorded-close-outs/68-04-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-68-hygiene-and-recorded-close-outs/68-05-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-68-hygiene-and-recorded-close-outs/68-05-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-68-hygiene-and-recorded-close-outs/68-06-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-68-hygiene-and-recorded-close-outs/68-06-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-68-hygiene-and-recorded-close-outs/68-07-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-68-hygiene-and-recorded-close-outs/68-07-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-68-hygiene-and-recorded-close-outs/68-08-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-68-hygiene-and-recorded-close-outs/68-08-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-68-hygiene-and-recorded-close-outs/68-09-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-68-hygiene-and-recorded-close-outs/68-09-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-68-hygiene-and-recorded-close-outs/68-10-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-68-hygiene-and-recorded-close-outs/68-10-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-68-hygiene-and-recorded-close-outs/68-11-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-68-hygiene-and-recorded-close-outs/68-11-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-68-hygiene-and-recorded-close-outs/68-12-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-68-hygiene-and-recorded-close-outs/68-12-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-68-hygiene-and-recorded-close-outs/68-13-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-68-hygiene-and-recorded-close-outs/68-13-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-68-hygiene-and-recorded-close-outs/68-14-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-68-hygiene-and-recorded-close-outs/68-14-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-68-hygiene-and-recorded-close-outs/68-15-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-68-hygiene-and-recorded-close-outs/68-15-SUMMARY.md
+  - packages/core/src/Admission.ts
+  - packages/core/src/DecisionLog.ts
+  - packages/core/src/SinkCodec.ts
+  - packages/core/src/UntrustedDecode.ts
+  - packages/core/test/Admission.test.ts
+  - packages/devtools/src/model/DiagnosticsFeed.ts
+  - packages/devtools/src/model/TimelineFeed.ts
+  - packages/devtools/test/model/TimelineFeed.test.ts
+  - scripts/bench/ab.sh
+  - scripts/bench/analyze.mjs
+  - scripts/check-house-style.mjs
+  - scripts/check-package-install.mjs
+  - scripts/run-tstyche.mjs
+  - scripts/spec-revise.mjs
+covered_digest: "v4:sha256:48b4acf4f5e326f2b8d4e611cd2803431a853ddc948c1de732fa7e8bdf88b907"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification: null
@@ -290,3 +290,21 @@ Run on the tree at `334b014b`, one command at a time, in the foreground, with st
 - `scripts/lib/probe-guard-parse.mjs` (`334b014b`): the parse, the `{typed, refused}`/`null` output and the exit-1 failure are unchanged; reading the arguments moved inside the `try`, so a bad argument is reported the same way as a parse failure.
 
 **Verdict:** passed
+
+## Re-verification (2026-11-22, after the fourth review pass and the milestone archive)
+
+**Staleness:** `68: stale, verification dc67d99b, 56 cited, 3 changed since` (`68.1-stale.mjs`, run at `b1da4dc5`).
+
+| Cited file | Changed since `dc67d99b` by |
+| --- | --- |
+| `scripts/check-package-install.mjs` (covered) | `b45e798a` fix(68.1): gate 14 kills the TypeScript server a killed child started<br>`0b01b83a` docs(68.1): AR-68.1-01 re-measured and narrowed |
+| `scripts/lib/probe-guard-parse.mjs` | `b45e798a` fix(68.1): gate 14 kills the TypeScript server a killed child started |
+| `spec/README.md` | `b45e798a` fix(68.1): gate 14 kills the TypeScript server a killed child started<br>`0b01b83a` docs(68.1): AR-68.1-01 re-measured and narrowed |
+
+**Trailers on this phase's commits:** 76 `Claude Opus 5.5 <noreply@anthropic.com>`.
+
+**Validation record:** `68-VALIDATION.md` has status `validated` and nyquist_compliant `true`.
+
+**Digest:** `covered_digest: "v4:sha256:1b4ae721cae328a194ccd47a635b4a79e83c2d5007a50c082a17568f8ca65a40"` becomes `covered_digest: "v4:sha256:48b4acf4f5e326f2b8d4e611cd2803431a853ddc948c1de732fa7e8bdf88b907"`, over the same 45 covered files, 30 of them declared at the place the milestone archive moved them to.
+
+**Gate:** `pnpm check:pr` exited 0 at `b1da4dc5` (17 of 18 steps, mutation skipped as on every non-release PR): 242 + 34 + 7 vitest files (5985 + 568 + 43 tests), gate 14 packed and authorized 9 packages (524 runtime exports) and left no TypeScript server running. The changes since the last re-verification touch no `packages/*/src` file.

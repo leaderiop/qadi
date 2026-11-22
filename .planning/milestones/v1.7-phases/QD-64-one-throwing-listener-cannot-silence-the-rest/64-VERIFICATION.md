@@ -4,23 +4,23 @@ verified: 2026-11-20T18:30:00Z
 status: passed
 score: 4/4 must-haves verified
 covered_files:
-  - ".planning/phases/QD-64-one-throwing-listener-cannot-silence-the-rest/64-01-PLAN.md"
-  - ".planning/phases/QD-64-one-throwing-listener-cannot-silence-the-rest/64-01-SUMMARY.md"
-  - ".planning/phases/QD-64-one-throwing-listener-cannot-silence-the-rest/64-02-PLAN.md"
-  - ".planning/phases/QD-64-one-throwing-listener-cannot-silence-the-rest/64-02-SUMMARY.md"
-  - ".planning/phases/QD-64-one-throwing-listener-cannot-silence-the-rest/64-03-PLAN.md"
-  - ".planning/phases/QD-64-one-throwing-listener-cannot-silence-the-rest/64-03-SUMMARY.md"
-  - ".planning/phases/QD-64-one-throwing-listener-cannot-silence-the-rest/64-04-PLAN.md"
-  - ".planning/phases/QD-64-one-throwing-listener-cannot-silence-the-rest/64-04-SUMMARY.md"
-  - ".planning/phases/QD-64-one-throwing-listener-cannot-silence-the-rest/64-05-PLAN.md"
-  - ".planning/phases/QD-64-one-throwing-listener-cannot-silence-the-rest/64-05-SUMMARY.md"
-  - "packages/devtools/README.md"
-  - "packages/devtools/src/model/DiagnosticsFeed.ts"
-  - "packages/devtools/src/model/ExternalStore.ts"
-  - "packages/devtools/src/model/GatesFeed.ts"
-  - "packages/devtools/src/model/TimelineFeed.ts"
-  - "spec/overview.md"
-covered_digest: "v4:sha256:47f9dce0e21ab2f492a12de4095b99f3f0bf9e4a52c1f74870954cc9042d43fd"
+  - .planning/milestones/v1.7-phases/QD-64-one-throwing-listener-cannot-silence-the-rest/64-01-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-64-one-throwing-listener-cannot-silence-the-rest/64-01-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-64-one-throwing-listener-cannot-silence-the-rest/64-02-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-64-one-throwing-listener-cannot-silence-the-rest/64-02-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-64-one-throwing-listener-cannot-silence-the-rest/64-03-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-64-one-throwing-listener-cannot-silence-the-rest/64-03-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-64-one-throwing-listener-cannot-silence-the-rest/64-04-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-64-one-throwing-listener-cannot-silence-the-rest/64-04-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-64-one-throwing-listener-cannot-silence-the-rest/64-05-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-64-one-throwing-listener-cannot-silence-the-rest/64-05-SUMMARY.md
+  - packages/devtools/README.md
+  - packages/devtools/src/model/DiagnosticsFeed.ts
+  - packages/devtools/src/model/ExternalStore.ts
+  - packages/devtools/src/model/GatesFeed.ts
+  - packages/devtools/src/model/TimelineFeed.ts
+  - spec/overview.md
+covered_digest: "v4:sha256:3521faa5215241ff339a787d50f9d6185b77a80e3bf477a4c71412287a43ae3f"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
@@ -297,3 +297,19 @@ Every row was run on the tree at `a9c9c84c`, one command at a time, in the foreg
 - `spec/README.md` (`79a685b4`): the report cites the CCR-QD-455 row and Revision 1.264 (Truth 3's overview row). The row is unedited at line 392 and the 1.264 entry remains in the Change History cell; the commit moves the revision to 1.276, adds a Change History entry and rewrites the CCR-QD-460 row to scope its odd-round-count and hang claims, none of which a truth of this report reads. Every truth holds as worded.
 
 **Verdict:** passed
+
+## Re-verification (2026-11-22, after the fourth review pass and the milestone archive)
+
+**Staleness:** `64: stale, verification 74f07a36, 29 cited, 1 changed since` (`68.1-stale.mjs`, run at `b1da4dc5`).
+
+| Cited file | Changed since `74f07a36` by |
+| --- | --- |
+| `spec/README.md` | `b45e798a` fix(68.1): gate 14 kills the TypeScript server a killed child started<br>`0b01b83a` docs(68.1): AR-68.1-01 re-measured and narrowed |
+
+**Trailers on this phase's commits:** 22 `Claude Opus 5.5 <noreply@anthropic.com>`, 7 none, 4 `Claude Sonnet 5.5 <noreply@anthropic.com>`.
+
+**Validation record:** `64-VALIDATION.md` has status `validated` and nyquist_compliant `true`.
+
+**Digest:** `covered_digest: "v4:sha256:47f9dce0e21ab2f492a12de4095b99f3f0bf9e4a52c1f74870954cc9042d43fd"` becomes `covered_digest: "v4:sha256:3521faa5215241ff339a787d50f9d6185b77a80e3bf477a4c71412287a43ae3f"`, over the same 16 covered files, 10 of them declared at the place the milestone archive moved them to.
+
+**Gate:** `pnpm check:pr` exited 0 at `b1da4dc5` (17 of 18 steps, mutation skipped as on every non-release PR): 242 + 34 + 7 vitest files (5985 + 568 + 43 tests), gate 14 packed and authorized 9 packages (524 runtime exports) and left no TypeScript server running. The changes since the last re-verification touch no `packages/*/src` file.

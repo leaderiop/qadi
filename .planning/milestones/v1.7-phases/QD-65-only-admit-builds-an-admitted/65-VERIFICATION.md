@@ -4,22 +4,22 @@ verified: 2026-11-20T22:00:00Z
 status: passed
 score: 5/5 must-haves verified
 covered_files:
-  - ".planning/phases/QD-65-only-admit-builds-an-admitted/65-01-PLAN.md"
-  - ".planning/phases/QD-65-only-admit-builds-an-admitted/65-01-SUMMARY.md"
-  - ".planning/phases/QD-65-only-admit-builds-an-admitted/65-02-PLAN.md"
-  - ".planning/phases/QD-65-only-admit-builds-an-admitted/65-02-SUMMARY.md"
-  - ".planning/phases/QD-65-only-admit-builds-an-admitted/65-03-PLAN.md"
-  - ".planning/phases/QD-65-only-admit-builds-an-admitted/65-03-SUMMARY.md"
-  - ".planning/phases/QD-65-only-admit-builds-an-admitted/65-04-PLAN.md"
-  - ".planning/phases/QD-65-only-admit-builds-an-admitted/65-04-SUMMARY.md"
-  - ".planning/phases/QD-65-only-admit-builds-an-admitted/65-05-PLAN.md"
-  - ".planning/phases/QD-65-only-admit-builds-an-admitted/65-05-SUMMARY.md"
-  - ".planning/phases/QD-65-only-admit-builds-an-admitted/65-06-PLAN.md"
-  - ".planning/phases/QD-65-only-admit-builds-an-admitted/65-06-SUMMARY.md"
-  - "packages/core/src/Admission.ts"
-  - "packages/core/test/Admission.test.ts"
-  - "packages/core/test/WalkEnvironment.tst.ts"
-covered_digest: "v4:sha256:34973f63d1c7418cdd77685e6b01cce1f4629f5f86f42bf878886da2ba77d65a"
+  - .planning/milestones/v1.7-phases/QD-65-only-admit-builds-an-admitted/65-01-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-65-only-admit-builds-an-admitted/65-01-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-65-only-admit-builds-an-admitted/65-02-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-65-only-admit-builds-an-admitted/65-02-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-65-only-admit-builds-an-admitted/65-03-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-65-only-admit-builds-an-admitted/65-03-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-65-only-admit-builds-an-admitted/65-04-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-65-only-admit-builds-an-admitted/65-04-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-65-only-admit-builds-an-admitted/65-05-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-65-only-admit-builds-an-admitted/65-05-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-65-only-admit-builds-an-admitted/65-06-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-65-only-admit-builds-an-admitted/65-06-SUMMARY.md
+  - packages/core/src/Admission.ts
+  - packages/core/test/Admission.test.ts
+  - packages/core/test/WalkEnvironment.tst.ts
+covered_digest: "v4:sha256:a08f0f54cb6171775a175508e4995a68317a3f87a22bb9c8e417d3bf53cdc7ef"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
@@ -304,3 +304,19 @@ Every row was run on the tree at `74f07a36`, one command at a time, in the foreg
 - `spec/README.md` (`79a685b4`): the report cites the CCR-QD-456 row and Revision 1.266 (Truth 5). The row is unedited at line 393 and the 1.266 entry remains in the Change History cell; the commit moves the revision to 1.276, adds a Change History entry and rewrites the CCR-QD-460 row to scope its odd-round-count and hang claims, which no truth of this report reads.
 
 **Verdict:** passed
+
+## Re-verification (2026-11-22, after the fourth review pass and the milestone archive)
+
+**Staleness:** `65: stale, verification 542a82ed, 32 cited, 1 changed since` (`68.1-stale.mjs`, run at `b1da4dc5`).
+
+| Cited file | Changed since `542a82ed` by |
+| --- | --- |
+| `spec/README.md` | `b45e798a` fix(68.1): gate 14 kills the TypeScript server a killed child started<br>`0b01b83a` docs(68.1): AR-68.1-01 re-measured and narrowed |
+
+**Trailers on this phase's commits:** 35 `Claude Opus 5.5 <noreply@anthropic.com>`, 2 none.
+
+**Validation record:** `65-VALIDATION.md` has status `validated` and nyquist_compliant `true`.
+
+**Digest:** `covered_digest: "v4:sha256:34973f63d1c7418cdd77685e6b01cce1f4629f5f86f42bf878886da2ba77d65a"` becomes `covered_digest: "v4:sha256:a08f0f54cb6171775a175508e4995a68317a3f87a22bb9c8e417d3bf53cdc7ef"`, over the same 15 covered files, 12 of them declared at the place the milestone archive moved them to.
+
+**Gate:** `pnpm check:pr` exited 0 at `b1da4dc5` (17 of 18 steps, mutation skipped as on every non-release PR): 242 + 34 + 7 vitest files (5985 + 568 + 43 tests), gate 14 packed and authorized 9 packages (524 runtime exports) and left no TypeScript server running. The changes since the last re-verification touch no `packages/*/src` file.

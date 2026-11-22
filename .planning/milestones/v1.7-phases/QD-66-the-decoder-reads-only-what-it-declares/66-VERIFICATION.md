@@ -4,23 +4,23 @@ verified: 2026-11-20T23:59:00Z
 status: passed
 score: 8/8 must-haves verified
 covered_files:
-  - .planning/phases/QD-66-the-decoder-reads-only-what-it-declares/66-01-PLAN.md
-  - .planning/phases/QD-66-the-decoder-reads-only-what-it-declares/66-01-SUMMARY.md
-  - .planning/phases/QD-66-the-decoder-reads-only-what-it-declares/66-02-PLAN.md
-  - .planning/phases/QD-66-the-decoder-reads-only-what-it-declares/66-02-SUMMARY.md
-  - .planning/phases/QD-66-the-decoder-reads-only-what-it-declares/66-03-PLAN.md
-  - .planning/phases/QD-66-the-decoder-reads-only-what-it-declares/66-03-SUMMARY.md
-  - .planning/phases/QD-66-the-decoder-reads-only-what-it-declares/66-04-PLAN.md
-  - .planning/phases/QD-66-the-decoder-reads-only-what-it-declares/66-04-SUMMARY.md
-  - .planning/phases/QD-66-the-decoder-reads-only-what-it-declares/66-05-PLAN.md
-  - .planning/phases/QD-66-the-decoder-reads-only-what-it-declares/66-05-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-66-the-decoder-reads-only-what-it-declares/66-01-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-66-the-decoder-reads-only-what-it-declares/66-01-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-66-the-decoder-reads-only-what-it-declares/66-02-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-66-the-decoder-reads-only-what-it-declares/66-02-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-66-the-decoder-reads-only-what-it-declares/66-03-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-66-the-decoder-reads-only-what-it-declares/66-03-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-66-the-decoder-reads-only-what-it-declares/66-04-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-66-the-decoder-reads-only-what-it-declares/66-04-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-66-the-decoder-reads-only-what-it-declares/66-05-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-66-the-decoder-reads-only-what-it-declares/66-05-SUMMARY.md
   - packages/core/bench/UntrustedDecode.bench.ts
   - packages/core/src/EnvelopeKeys.ts
   - packages/core/src/SinkCodec.ts
   - packages/core/src/UntrustedDecode.ts
   - packages/core/test/UntrustedDecode.test.ts
   - packages/core/test/UntrustedSeams.test.ts
-covered_digest: "v4:sha256:ff8bbd1ca720847f11e9809b8361d54adf2fe568fa79c424bb142bfeaf02cfa3"
+covered_digest: "v4:sha256:5bef9252aee2f13a5e56890f3b73b589a6c209cb24f6663a140eac8be70b315c"
 behavior_unverified: 0
 overrides_applied: 0
 ---
@@ -258,3 +258,19 @@ Every row was run on the tree at `542a82ed`, one command at a time, in the foreg
 - `spec/README.md` (`79a685b4`): the report cites the CCR-QD-457 row and Revision 1.268 (Truth 7). The row is unedited at line 394 and the 1.268 entry remains in the Change History cell; the commit moves the revision to 1.276, adds a Change History entry and rewrites the CCR-QD-460 row to scope its odd-round-count and hang claims, which no truth of this report reads. `scripts/bench/analyze.mjs`, which Truth 4 cites, did not change in the code-review fixes (row 3), so the previous section's reading of it, the exit status only, stands, and the self-test and the reproduction of Phase 68's analysis give the same results as there. Every truth holds as worded.
 
 **Verdict:** passed
+
+## Re-verification (2026-11-22, after the fourth review pass and the milestone archive)
+
+**Staleness:** `66: stale, verification ba47ec53, 33 cited, 1 changed since` (`68.1-stale.mjs`, run at `b1da4dc5`).
+
+| Cited file | Changed since `ba47ec53` by |
+| --- | --- |
+| `spec/README.md` | `b45e798a` fix(68.1): gate 14 kills the TypeScript server a killed child started<br>`0b01b83a` docs(68.1): AR-68.1-01 re-measured and narrowed |
+
+**Trailers on this phase's commits:** 36 `Claude Opus 5.5 <noreply@anthropic.com>`.
+
+**Validation record:** `66-VALIDATION.md` has status `validated` and nyquist_compliant `true`.
+
+**Digest:** `covered_digest: "v4:sha256:ff8bbd1ca720847f11e9809b8361d54adf2fe568fa79c424bb142bfeaf02cfa3"` becomes `covered_digest: "v4:sha256:5bef9252aee2f13a5e56890f3b73b589a6c209cb24f6663a140eac8be70b315c"`, over the same 16 covered files, 10 of them declared at the place the milestone archive moved them to.
+
+**Gate:** `pnpm check:pr` exited 0 at `b1da4dc5` (17 of 18 steps, mutation skipped as on every non-release PR): 242 + 34 + 7 vitest files (5985 + 568 + 43 tests), gate 14 packed and authorized 9 packages (524 runtime exports) and left no TypeScript server running. The changes since the last re-verification touch no `packages/*/src` file.

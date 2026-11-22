@@ -4,18 +4,18 @@ verified: 2026-11-20T00:00:00Z
 status: passed
 score: 4/4 must-haves verified
 covered_files:
-  - ".planning/phases/QD-63-the-packed-install-gate-probes-every-new-public-name/63-01-PLAN.md"
-  - ".planning/phases/QD-63-the-packed-install-gate-probes-every-new-public-name/63-01-SUMMARY.md"
-  - ".planning/phases/QD-63-the-packed-install-gate-probes-every-new-public-name/63-02-PLAN.md"
-  - ".planning/phases/QD-63-the-packed-install-gate-probes-every-new-public-name/63-02-SUMMARY.md"
-  - ".planning/phases/QD-63-the-packed-install-gate-probes-every-new-public-name/63-03-PLAN.md"
-  - ".planning/phases/QD-63-the-packed-install-gate-probes-every-new-public-name/63-03-SUMMARY.md"
-  - ".planning/phases/QD-63-the-packed-install-gate-probes-every-new-public-name/63-04-PLAN.md"
-  - ".planning/phases/QD-63-the-packed-install-gate-probes-every-new-public-name/63-04-SUMMARY.md"
-  - ".planning/phases/QD-63-the-packed-install-gate-probes-every-new-public-name/63-05-PLAN.md"
-  - ".planning/phases/QD-63-the-packed-install-gate-probes-every-new-public-name/63-05-SUMMARY.md"
-  - "scripts/check-package-install.mjs"
-covered_digest: "v4:sha256:19223d4351f61f0e2d0bf59d37544279b763d6801377605523fb3e0194e0482b"
+  - .planning/milestones/v1.7-phases/QD-63-the-packed-install-gate-probes-every-new-public-name/63-01-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-63-the-packed-install-gate-probes-every-new-public-name/63-01-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-63-the-packed-install-gate-probes-every-new-public-name/63-02-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-63-the-packed-install-gate-probes-every-new-public-name/63-02-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-63-the-packed-install-gate-probes-every-new-public-name/63-03-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-63-the-packed-install-gate-probes-every-new-public-name/63-03-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-63-the-packed-install-gate-probes-every-new-public-name/63-04-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-63-the-packed-install-gate-probes-every-new-public-name/63-04-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-63-the-packed-install-gate-probes-every-new-public-name/63-05-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-63-the-packed-install-gate-probes-every-new-public-name/63-05-SUMMARY.md
+  - scripts/check-package-install.mjs
+covered_digest: "v4:sha256:ebe66556039f67e29d80c8706a4a47fb2edfc86ed12f11992dfcfe47623d8969"
 behavior_unverified: 0
 overrides_applied: 0
 ---
@@ -297,3 +297,22 @@ Run on the tree at `334b014b`, one command at a time, in the foreground, with st
 - `scripts/check-package-install.mjs` (`334b014b`): every check the report cites is unchanged: the refused-shape and type-only probes, the unprobed-feeds, untyped and unrefused comparisons, the `null` case and the failure naming `typescript@<version>`. Only the error path for a child line that is not JSON changed, and it still ends in that same failure, now carrying the child's output.
 
 **Verdict:** passed
+
+## Re-verification (2026-11-22, after the fourth review pass and the milestone archive)
+
+**Staleness:** `63: stale, verification dc67d99b, 23 cited, 4 changed since` (`68.1-stale.mjs`, run at `b1da4dc5`).
+
+| Cited file | Changed since `dc67d99b` by |
+| --- | --- |
+| `scripts/check-package-install.mjs` (covered) | `b45e798a` fix(68.1): gate 14 kills the TypeScript server a killed child started<br>`0b01b83a` docs(68.1): AR-68.1-01 re-measured and narrowed |
+| `scripts/lib/probe-guard-parse.mjs` | `b45e798a` fix(68.1): gate 14 kills the TypeScript server a killed child started |
+| `spec/README.md` | `b45e798a` fix(68.1): gate 14 kills the TypeScript server a killed child started<br>`0b01b83a` docs(68.1): AR-68.1-01 re-measured and narrowed |
+| `spec/decisions/033-the-packed-artifact-is-the-product.md` | `b45e798a` fix(68.1): gate 14 kills the TypeScript server a killed child started<br>`0b01b83a` docs(68.1): AR-68.1-01 re-measured and narrowed |
+
+**Trailers on this phase's commits:** 15 none, 14 `Claude Sonnet 5.5 <noreply@anthropic.com>`, 4 `Claude Opus 5.5 <noreply@anthropic.com>`.
+
+**Validation record:** `63-VALIDATION.md` has status `validated` and nyquist_compliant `true`.
+
+**Digest:** `covered_digest: "v4:sha256:19223d4351f61f0e2d0bf59d37544279b763d6801377605523fb3e0194e0482b"` becomes `covered_digest: "v4:sha256:ebe66556039f67e29d80c8706a4a47fb2edfc86ed12f11992dfcfe47623d8969"`, over the same 11 covered files, 10 of them declared at the place the milestone archive moved them to.
+
+**Gate:** `pnpm check:pr` exited 0 at `b1da4dc5` (17 of 18 steps, mutation skipped as on every non-release PR): 242 + 34 + 7 vitest files (5985 + 568 + 43 tests), gate 14 packed and authorized 9 packages (524 runtime exports) and left no TypeScript server running. The changes since the last re-verification touch no `packages/*/src` file.

@@ -4,32 +4,32 @@ verified: 2026-11-21T03:45:00Z
 status: passed
 score: 6/6 must-haves verified
 covered_files:
-  - ".planning/phases/QD-67-no-equivalent-mutants-no-magic-race-bound/67-01-PLAN.md"
-  - ".planning/phases/QD-67-no-equivalent-mutants-no-magic-race-bound/67-01-SUMMARY.md"
-  - ".planning/phases/QD-67-no-equivalent-mutants-no-magic-race-bound/67-02-PLAN.md"
-  - ".planning/phases/QD-67-no-equivalent-mutants-no-magic-race-bound/67-02-SUMMARY.md"
-  - ".planning/phases/QD-67-no-equivalent-mutants-no-magic-race-bound/67-03-PLAN.md"
-  - ".planning/phases/QD-67-no-equivalent-mutants-no-magic-race-bound/67-03-SUMMARY.md"
-  - ".planning/phases/QD-67-no-equivalent-mutants-no-magic-race-bound/67-04-PLAN.md"
-  - ".planning/phases/QD-67-no-equivalent-mutants-no-magic-race-bound/67-04-SUMMARY.md"
-  - ".planning/phases/QD-67-no-equivalent-mutants-no-magic-race-bound/67-05-PLAN.md"
-  - ".planning/phases/QD-67-no-equivalent-mutants-no-magic-race-bound/67-05-SUMMARY.md"
-  - ".planning/phases/QD-67-no-equivalent-mutants-no-magic-race-bound/67-06-PLAN.md"
-  - ".planning/phases/QD-67-no-equivalent-mutants-no-magic-race-bound/67-06-SUMMARY.md"
-  - ".planning/phases/QD-67-no-equivalent-mutants-no-magic-race-bound/67-07-PLAN.md"
-  - ".planning/phases/QD-67-no-equivalent-mutants-no-magic-race-bound/67-07-SUMMARY.md"
-  - "AGENTS.md"
-  - "packages/core/bench/DecisionCache.bench.ts"
-  - "packages/core/src/DecisionCache.ts"
-  - "packages/core/src/SharedComputation.ts"
-  - "packages/core/src/TraceDiff.ts"
-  - "packages/core/test/DecisionCache.test.ts"
-  - "spec/README.md"
-  - "spec/behaviors/21-decision-cache.md"
-  - "spec/invariants.md"
-  - "spec/process/house-rules-evidence.md"
-  - "spec/traceability.md"
-covered_digest: "v4:sha256:777470267767d4ada907fcdf3120a1f26677dec9a4f5ea8650039e4496586236"
+  - .planning/milestones/v1.7-phases/QD-67-no-equivalent-mutants-no-magic-race-bound/67-01-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-67-no-equivalent-mutants-no-magic-race-bound/67-01-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-67-no-equivalent-mutants-no-magic-race-bound/67-02-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-67-no-equivalent-mutants-no-magic-race-bound/67-02-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-67-no-equivalent-mutants-no-magic-race-bound/67-03-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-67-no-equivalent-mutants-no-magic-race-bound/67-03-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-67-no-equivalent-mutants-no-magic-race-bound/67-04-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-67-no-equivalent-mutants-no-magic-race-bound/67-04-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-67-no-equivalent-mutants-no-magic-race-bound/67-05-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-67-no-equivalent-mutants-no-magic-race-bound/67-05-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-67-no-equivalent-mutants-no-magic-race-bound/67-06-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-67-no-equivalent-mutants-no-magic-race-bound/67-06-SUMMARY.md
+  - .planning/milestones/v1.7-phases/QD-67-no-equivalent-mutants-no-magic-race-bound/67-07-PLAN.md
+  - .planning/milestones/v1.7-phases/QD-67-no-equivalent-mutants-no-magic-race-bound/67-07-SUMMARY.md
+  - AGENTS.md
+  - packages/core/bench/DecisionCache.bench.ts
+  - packages/core/src/DecisionCache.ts
+  - packages/core/src/SharedComputation.ts
+  - packages/core/src/TraceDiff.ts
+  - packages/core/test/DecisionCache.test.ts
+  - spec/README.md
+  - spec/behaviors/21-decision-cache.md
+  - spec/invariants.md
+  - spec/process/house-rules-evidence.md
+  - spec/traceability.md
+covered_digest: "v4:sha256:b547d8c748d5e9c12892a8055fd42fc66ac82d0f3a93cb816fb36264d284695e"
 behavior_unverified: 0
 overrides_applied: 0
 ---
@@ -319,3 +319,21 @@ Run on the tree at `334b014b`, one command at a time, in the foreground, with st
 - `scripts/lib/probe-guard-parse.mjs` (`334b014b`): the parse, the `{typed, refused}`/`null` output and the exit-1 failure are unchanged; reading the arguments moved inside the `try`, so a bad argument is reported the same way as a parse failure.
 
 **Verdict:** passed
+
+## Re-verification (2026-11-22, after the fourth review pass and the milestone archive)
+
+**Staleness:** `67: stale, verification dc67d99b, 39 cited, 3 changed since` (`68.1-stale.mjs`, run at `b1da4dc5`).
+
+| Cited file | Changed since `dc67d99b` by |
+| --- | --- |
+| `scripts/check-package-install.mjs` | `b45e798a` fix(68.1): gate 14 kills the TypeScript server a killed child started<br>`0b01b83a` docs(68.1): AR-68.1-01 re-measured and narrowed |
+| `scripts/lib/probe-guard-parse.mjs` | `b45e798a` fix(68.1): gate 14 kills the TypeScript server a killed child started |
+| `spec/README.md` (covered) | `b45e798a` fix(68.1): gate 14 kills the TypeScript server a killed child started<br>`0b01b83a` docs(68.1): AR-68.1-01 re-measured and narrowed |
+
+**Trailers on this phase's commits:** 36 `Claude Opus 5.5 <noreply@anthropic.com>`.
+
+**Validation record:** `67-VALIDATION.md` has status `validated` and nyquist_compliant `true`.
+
+**Digest:** `covered_digest: "v4:sha256:777470267767d4ada907fcdf3120a1f26677dec9a4f5ea8650039e4496586236"` becomes `covered_digest: "v4:sha256:b547d8c748d5e9c12892a8055fd42fc66ac82d0f3a93cb816fb36264d284695e"`, over the same 25 covered files, 14 of them declared at the place the milestone archive moved them to.
+
+**Gate:** `pnpm check:pr` exited 0 at `b1da4dc5` (17 of 18 steps, mutation skipped as on every non-release PR): 242 + 34 + 7 vitest files (5985 + 568 + 43 tests), gate 14 packed and authorized 9 packages (524 runtime exports) and left no TypeScript server running. The changes since the last re-verification touch no `packages/*/src` file.
