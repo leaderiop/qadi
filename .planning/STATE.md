@@ -5,16 +5,16 @@ milestone_name: Arch Wave 13
 current_phase: 72
 current_phase_name: A derived store behind the dock model's stores
 status: executing
-stopped_at: Completed 72-03-PLAN.md
-last_updated: "2026-11-22T20:17:21.761Z"
+stopped_at: Completed 72-04-PLAN.md
+last_updated: "2026-11-22T20:25:29.949Z"
 last_activity: 2026-11-22
 last_activity_desc: Phase QD-72 execution started
-state_head: b086c4ccf2c8d99243974f64a77cb9098ead39d6
+state_head: af6210a1cc275d143e0179e855ac3e8961a6c2bb
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 32
-  completed_plans: 27
+  completed_plans: 28
   percent: 38
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 ## Current Position
 
 Phase: QD-72 (A derived store behind the dock model's stores) — EXECUTING
-Plan: 4 of 8
+Plan: 5 of 8
 Status: Executing Phase QD-72
 Last activity: 2026-11-22 — Phase QD-72 execution started
 
@@ -513,6 +513,7 @@ Last activity: 2026-11-22 — Phase QD-72 execution started
 | Phase 72 P01 | 35 min | 2 tasks | 6 files |
 | Phase 72 P02 | 25min | 2 tasks | 4 files |
 | Phase 72 P03 | 15 min | 2 tasks | 5 files |
+| Phase 72 P04 | 30 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -879,6 +880,7 @@ Last activity: 2026-11-22 — Phase QD-72 execution started
 - [Phase 72]: 72-01: mutation base measured before any phase file existed (reverses CONTEXT order); characterisation takes the base as truth, no row corrected
 - [Phase 72]: 72-02: regression title wrapped multi-line (fixed title is 91 columns on one line); type-pin cause recorded as the missing export
 - [Phase 72]: ADR-QD-185 records the derived store and the dock model on it; CCR-QD-464 row registered before any spec text cites it
+- [Phase 72]: 72-04: the empty-parent-list type pin takes a plain compute, since a context-sensitive compute leaves A unknown once the parents refusal fails the call
 
 ### Pending Todos
 
@@ -952,8 +954,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-22T20:17:18.167Z
-Stopped at: Completed 72-03-PLAN.md
+Last session: 2026-11-22T20:25:29.822Z
+Stopped at: Completed 72-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
