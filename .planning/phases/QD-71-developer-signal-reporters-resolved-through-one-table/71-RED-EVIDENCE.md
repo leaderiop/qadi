@@ -167,3 +167,51 @@ packages/react/src/DeveloperSignals.ts(454,3): error TS2741: Property 'Throwaway
 
 A signal without a row is refused at the table, naming it. Reverted: `git diff --quiet -- packages` holds, and
 `Throwaway` is in no commit.
+
+## The module-state budget shown failing
+
+The budget passes on the committed tree (`node scripts/check-house-style.mjs < /dev/null` ends
+`house-style: 567 file(s) clean (3 declared switch(es), 68 type-test file(s))`). Each change below was made on that tree
+alone, the gate run as `node scripts/check-house-style.mjs < /dev/null > <S>/plant-<name>.out 2> <S>/plant-<name>.log`, and
+the file restored with `git checkout -- <file>` before the next; `git diff --quiet -- packages AGENTS.md scripts` held after
+each, and none is in any commit. Every plant exits with status `1`; the first stderr line of each follows.
+
+### 1. A `let` in another library file
+
+A module-scope `let plantedState = 0;` was appended to `packages/react/src/QadiAtoms.ts`.
+
+```
+packages/react/src/QadiAtoms.ts:354  [module-state] A module-scope let or var in library source.
+```
+
+### 2. A second `let` in `DeveloperSignals.ts`
+
+A second module-scope `let plantedSecond = 0;` was appended to `packages/react/src/DeveloperSignals.ts`, beside the latch.
+
+```
+packages/react/src/DeveloperSignals.ts  [module-state] declares 1 module-scope let/var declaration(s), found 2 at line(s) 339, 504.
+```
+
+### 3. The latch's `let` turned `const`
+
+Text only: `let warnedInstrumentedInProduction = false;` became `const warnedInstrumentedInProduction = false;`.
+
+```
+packages/react/src/DeveloperSignals.ts  [module-state] declares 1 module-scope let/var declaration(s), found 0.
+```
+
+### 4. The latch renamed
+
+Its declaration alone became `let warnedElsewhere = false;`, the uses left as they were.
+
+```
+packages/react/src/DeveloperSignals.ts  [module-state-names] MODULE_STATE_BUDGET's reason names `warnedInstrumentedInProduction`, but no such declaration appears in this file any more: renamed without updating the budget's names.
+```
+
+### 5. The AGENTS.md row's count changed
+
+The section 6 row's count was changed from `1` to `2`.
+
+```
+AGENTS.md  [module-state-table] section 6 lists packages/react/src/DeveloperSignals.ts (2), which MODULE_STATE_BUDGET does not match.
+```
