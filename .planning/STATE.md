@@ -4,17 +4,17 @@ milestone: v1.8
 milestone_name: Arch Wave 13
 current_phase: 71
 current_phase_name: Developer-signal reporters resolved through one table
-status: executing
-stopped_at: Completed 71-07-PLAN.md
-last_updated: "2026-11-22T16:22:18.859Z"
+status: verifying
+stopped_at: Completed 71-08-PLAN.md
+last_updated: "2026-11-22T16:52:18.467Z"
 last_activity: 2026-11-22
 last_activity_desc: Phase 71 execution started
-state_head: 35a468b147ea1138e8207aa23e02248bbf35db45
+state_head: 995a3afdfdecb673990074e5232bbd5c00a6f07d
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 24
-  completed_plans: 23
+  completed_plans: 24
   percent: 25
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 
 Phase: 71 (Developer-signal reporters resolved through one table) — EXECUTING
 Plan: 8 of 8
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-22 — Phase 71 execution started
 
 
@@ -508,6 +508,7 @@ Last activity: 2026-11-22 — Phase 71 execution started
 | Phase 71 P05 | 18 min | 2 tasks | 4 files |
 | Phase QD-71 P06 | 25 min | 2 tasks | 7 files |
 | Phase 71 P07 | 25 min | 2 tasks | 5 files |
+| Phase 71 P08 | 30 min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -869,6 +870,7 @@ Last activity: 2026-11-22 — Phase 71 execution started
 - [Phase 71]: Module-scope mutable state is counted by MODULE_STATE_BUDGET (library source, let/var only, const exempt), table in AGENTS.md section 6; decided autonomously
 - [Phase QD-71]: ADR-QD-184 states what the compiler refuses and what only tests hold; decided autonomously, with the table's resolved column pinned by the table-facts test because no code reads it
 - [Phase 71]: 71-07: the invariants and behaviours say which guarantees only a named test holds (resolution timing, each row's condition, the entry point's own name), decided autonomously
+- [Phase 71]: 71-08: equivalent mutants removed by changing the source (stale-free snapshot, entry read from the handle, everywhere-row overload) rather than re-baselining; table static mutants admitted via EXAMINED after a by-hand run killed all 80
 
 ### Pending Todos
 
@@ -942,8 +944,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-22T16:22:18.707Z
-Stopped at: Completed 71-07-PLAN.md
+Last session: 2026-11-22T16:52:18.288Z
+Stopped at: Completed 71-08-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
