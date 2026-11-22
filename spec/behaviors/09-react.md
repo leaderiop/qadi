@@ -5,12 +5,12 @@
 > | Property       | Value                                                        |
 > | -------------- | ------------------------------------------------------------ |
 > | Document ID    | QADI-BEH-09                                                  |
-> | Revision       | 3.10                                                          |
+> | Revision       | 3.11                                                          |
 > | Effective Date | 2026-10-08                                                   |
 > | Status         | Effective                                                    |
 > | Author         | Qadi Engineering                                             |
 > | Classification | Functional Specification                                     |
-> | Change History | 3.10 (2026-11-19): BEH-QD-327: DiagnosticsOptions.layer (ARCH-107, CCR-QD-451)<br>3.9 (2026-11-18): BEH-QD-327: the feed hands questions beside gates (ARCH-103, CCR-QD-447)<br>3.8 (2026-11-16): BEH-QD-327: the feed hands over the gate registry (ARCH-96, CCR-QD-440)<br>3.7 (2026-11-12): BEH-QD-516 new: the subject stays in the registry for the provider's lifetime; BEH-QD-067's later-change requirement names it (CCR-QD-427)<br>3.6 (2026-11-12): BEH-QD-512..515 new (one sweeper per atom set; the sweep after the pressure; no provider fork and no manual sweep; the bound after unmount); BEH-QD-065 restated without sweepEvictions (ARCH-83, CCR-QD-426)<br>3.5 (2026-10-08): BEH-QD-327 added — a devtools feed reads the provider's own runtime: `useDevtoolsFeed` and `runtimeLayer` (ARCH-34, ADR-QD-053 amendment, CCR-QD-240)<br>3.4 (2026-10-08): BEH-QD-067 — `onDeveloperSignal`, and the requirement that the provider never writes to the console itself (ADR-QD-041 amendment, CCR-QD-203)<br>3.3 (2026-10-07): ARCH-23 — BEH-QD-065's `QadiAtoms` listing takes `decision(policy, resource?)` (`decisionFor` is removed), `decisions`, `gates`, `sweepEvictions` and the `maxTrackedQuestions`/`onGateIdCollision` options it omitted, and "the same atom" becomes "for as long as the atom set tracks the question, whatever the garbage collector does"; BEH-QD-068 gains `useQuestions` and the grouped-registration note (ADR-QD-103, ADR-QD-053 amendment, INV-QD-105, CCR-QD-201)<br>3.2 (2026-10-06): `QadiAtoms.hydrate` takes `DehydratedDecisions` — `DehydratedPayload` is removed with the version-1 payload reader (ADR-QD-078 amendment, CCR-QD-182)<br>3.1 (2026-10-05): ARCH-14 — BEH-QD-066 gains `DecisionOutcome`/`outcomeOf`, a complete state table (`Initial` with `waiting: true`, a `Failure` being re-checked, and `previousSuccess` never read) and the requirement that every surface reads through `outcomeOf`; BEH-QD-307 added (a decision result reads as one of five outcomes); BEH-QD-068's `useCan` paragraph names `outcomeOf` (ADR-QD-093, INV-QD-094, CCR-QD-175)<br>3.0 (2026-10-04): ARCH-05 — `DecisionResult` and `currentDecision` hold a `ClientDecision` (the closed union of an evaluated or a seeded decision), `useDecisionSuspense` returns one, `DeniedNode`'s function takes `Deny | SeededDeny`, and `useProjected` projects through `permits`/`projectVisible`; `QadiAtoms` gains `hydrate`; the `subject` atom compares with `subjectEquivalence` (BEH-QD-066, BEH-QD-068, BEH-QD-065, BEH-QD-067, CCR-QD-156)<br>2.9 (2026-09-19): AC-02/EY-03 — the "depends on `effect` and `react` only" and `getServerSnapshot` paragraphs corrected for CCR-QD-150's `@effect/atom-react` reversal (2026-09-13), which this revision had missed; `useCan`'s "pending, denied and failed" corrected to the fourth state, a re-check, `hooks.ts`'s own doc comment already named<br>2.8 (2026-09-19): BEH-QD-067 — the subject-seeding requirement scoped to initial construction, and a requirement added for a later `subject` prop change: written in an effect, with an accepted one-frame stale-decision window (AC-03/EY-02)<br>2.7 (2026-09-08): The `Can` RECOMMENDED note corrected — `failure ?? fallback` could not distinguish an omitted `failure` from an explicit `failure={null}`; `Can` now renders `fallback` only when `failure` is omitted, and an explicit `null` opts out of it (issue #79, CCR-QD-138)<br>2.6 (2026-09-08): BEH-QD-065 — the `QadiAtoms` interface fence was missing `asked`, cross-referenced to its normative home at BEH-QD-198 (CCR-QD-126)<br>2.5 (2026-08-30): BEH-QD-068 — an already-settled decision MUST still resolve its suspense promise, and a re-checking one MUST still suspend (COMPAT-01, gap G-01-1)<br>2.4 (2026-08-23): BEH-QD-067 — `"use client"` per module, and the server-rendering guarantee (ADR-QD-042 companion work, CCR-QD-057)<br>2.3 (2026-08-23): BEH-QD-065 — `makeQadiAtoms` takes `QadiAtomsOptions` (ADR-QD-041, BEH-QD-152, CCR-QD-056)<br>2.2 (2026-08-23): BEH-QD-072 — a guard hands its denial to the node that replaces it (CCR-QD-054)<br>2.1 (2026-07-26): BEH-QD-071 corrected — atom keying is structural, not by reference (CCR-QD-013)<br>2.0 (2026-07-26): Rebuilt on `effect/reactivity` (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 3.11 (2026-11-22): BEH-QD-691, BEH-QD-693, BEH-QD-694: one developer-signal table, each default's condition, the once-per-process line (ARCH-118, ADR-QD-184, CCR-QD-463)<br>3.10 (2026-11-19): BEH-QD-327: DiagnosticsOptions.layer (ARCH-107, CCR-QD-451)<br>3.9 (2026-11-18): BEH-QD-327: the feed hands questions beside gates (ARCH-103, CCR-QD-447)<br>3.8 (2026-11-16): BEH-QD-327: the feed hands over the gate registry (ARCH-96, CCR-QD-440)<br>3.7 (2026-11-12): BEH-QD-516 new: the subject stays in the registry for the provider's lifetime; BEH-QD-067's later-change requirement names it (CCR-QD-427)<br>3.6 (2026-11-12): BEH-QD-512..515 new (one sweeper per atom set; the sweep after the pressure; no provider fork and no manual sweep; the bound after unmount); BEH-QD-065 restated without sweepEvictions (ARCH-83, CCR-QD-426)<br>3.5 (2026-10-08): BEH-QD-327 added — a devtools feed reads the provider's own runtime: `useDevtoolsFeed` and `runtimeLayer` (ARCH-34, ADR-QD-053 amendment, CCR-QD-240)<br>3.4 (2026-10-08): BEH-QD-067 — `onDeveloperSignal`, and the requirement that the provider never writes to the console itself (ADR-QD-041 amendment, CCR-QD-203)<br>3.3 (2026-10-07): ARCH-23 — BEH-QD-065's `QadiAtoms` listing takes `decision(policy, resource?)` (`decisionFor` is removed), `decisions`, `gates`, `sweepEvictions` and the `maxTrackedQuestions`/`onGateIdCollision` options it omitted, and "the same atom" becomes "for as long as the atom set tracks the question, whatever the garbage collector does"; BEH-QD-068 gains `useQuestions` and the grouped-registration note (ADR-QD-103, ADR-QD-053 amendment, INV-QD-105, CCR-QD-201)<br>3.2 (2026-10-06): `QadiAtoms.hydrate` takes `DehydratedDecisions` — `DehydratedPayload` is removed with the version-1 payload reader (ADR-QD-078 amendment, CCR-QD-182)<br>3.1 (2026-10-05): ARCH-14 — BEH-QD-066 gains `DecisionOutcome`/`outcomeOf`, a complete state table (`Initial` with `waiting: true`, a `Failure` being re-checked, and `previousSuccess` never read) and the requirement that every surface reads through `outcomeOf`; BEH-QD-307 added (a decision result reads as one of five outcomes); BEH-QD-068's `useCan` paragraph names `outcomeOf` (ADR-QD-093, INV-QD-094, CCR-QD-175)<br>3.0 (2026-10-04): ARCH-05 — `DecisionResult` and `currentDecision` hold a `ClientDecision` (the closed union of an evaluated or a seeded decision), `useDecisionSuspense` returns one, `DeniedNode`'s function takes `Deny | SeededDeny`, and `useProjected` projects through `permits`/`projectVisible`; `QadiAtoms` gains `hydrate`; the `subject` atom compares with `subjectEquivalence` (BEH-QD-066, BEH-QD-068, BEH-QD-065, BEH-QD-067, CCR-QD-156)<br>2.9 (2026-09-19): AC-02/EY-03 — the "depends on `effect` and `react` only" and `getServerSnapshot` paragraphs corrected for CCR-QD-150's `@effect/atom-react` reversal (2026-09-13), which this revision had missed; `useCan`'s "pending, denied and failed" corrected to the fourth state, a re-check, `hooks.ts`'s own doc comment already named<br>2.8 (2026-09-19): BEH-QD-067 — the subject-seeding requirement scoped to initial construction, and a requirement added for a later `subject` prop change: written in an effect, with an accepted one-frame stale-decision window (AC-03/EY-02)<br>2.7 (2026-09-08): The `Can` RECOMMENDED note corrected — `failure ?? fallback` could not distinguish an omitted `failure` from an explicit `failure={null}`; `Can` now renders `fallback` only when `failure` is omitted, and an explicit `null` opts out of it (issue #79, CCR-QD-138)<br>2.6 (2026-09-08): BEH-QD-065 — the `QadiAtoms` interface fence was missing `asked`, cross-referenced to its normative home at BEH-QD-198 (CCR-QD-126)<br>2.5 (2026-08-30): BEH-QD-068 — an already-settled decision MUST still resolve its suspense promise, and a re-checking one MUST still suspend (COMPAT-01, gap G-01-1)<br>2.4 (2026-08-23): BEH-QD-067 — `"use client"` per module, and the server-rendering guarantee (ADR-QD-042 companion work, CCR-QD-057)<br>2.3 (2026-08-23): BEH-QD-065 — `makeQadiAtoms` takes `QadiAtomsOptions` (ADR-QD-041, BEH-QD-152, CCR-QD-056)<br>2.2 (2026-08-23): BEH-QD-072 — a guard hands its denial to the node that replaces it (CCR-QD-054)<br>2.1 (2026-07-26): BEH-QD-071 corrected — atom keying is structural, not by reference (CCR-QD-013)<br>2.0 (2026-07-26): Rebuilt on `effect/reactivity` (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -805,6 +805,85 @@ were never swept and the book stayed over its bound.
 
 Source: `packages/react/src/QuestionBook.ts`, `packages/react/src/SweepScheduler.ts`.
 Tests: `packages/react/test/QadiProvider.test.tsx` ("returns to the bound after the provider unmounts").
+
+## BEH-QD-691: Every developer signal has one row in one table
+
+> **Invariant:** [INV-QD-387](../invariants.md#inv-qd-387-every-developer-signal-has-exactly-one-row-and-a-throwing-reporter-is-named-by-the-option-the-caller-passed)
+> **See:** [ADR-QD-184](../decisions/184-developer-signal-reporters-are-resolved-through-one-table.md)
+
+```
+REQUIREMENT: Every developer signal MUST have exactly one row stating where its
+             console default speaks, how often, when each entry point resolves its
+             reporter and the option each entry point reports it under, and every
+             reporter MUST be resolved from that row by one resolver.
+```
+
+A signal added without a row does not compile: the error is TS2741 at the table, naming
+the signal. A row for no signal, a second row that speaks once per process, an entry point
+a row does not name and the hydrate row given the dehydrate reporter do not compile
+either, and the names a `ReporterThrew` carries are read off the table rather than kept
+beside it.
+
+Pinned by `packages/react/test/DeveloperSignals.tst.ts` ("the table has one row per
+developer signal, written out", "a table missing a row is refused", "only
+InstrumentedInProduction may speak once per process", "ReporterName is every option an
+entry point reports under, written out", "a row refuses an entry point it does not name",
+"the hydrate row refuses the dehydrate reporter"). What the types do not state, each row's
+condition and when each entry point resolves, is held by the tests of BEH-QD-693 and
+BEH-QD-695, and the table describe of `packages/react/test/DeveloperSignals.test.ts`
+("states, for every signal, where its default speaks, how often, and each entry point's
+option and resolution, written out") compares the table with one written out in the test.
+
+## BEH-QD-693: Each console default speaks under the condition its row states
+
+> **Invariant:** [INV-QD-387](../invariants.md#inv-qd-387-every-developer-signal-has-exactly-one-row-and-a-throwing-reporter-is-named-by-the-option-the-caller-passed)
+> **See:** [ADR-QD-184](../decisions/184-developer-signal-reporters-are-resolved-through-one-table.md)
+
+```
+REQUIREMENT: A signal's console default MUST speak under the condition its row
+             states: in development for a superseded seed, a gate id collision, a
+             dehydration drop, a hydration drop, a replaced `atoms` prop and an
+             unwritable gate registry; in production for instrumentation in a
+             production bundle; and in every environment for a reporter that threw.
+             A supplied reporter MUST replace the default outright, MUST be called
+             in every environment and MUST leave the console unwritten.
+```
+
+A host that routes signals to telemetry does not also want them on the console, and one
+that does can call `console.warn` itself. A reporter that threw is announced in every
+environment because the host replaced the default and nothing else will say it.
+
+Pinned by the "when the default speaks" describe of `packages/react/test/DeveloperSignals.test.ts`
+("the four hydration defaults are absent in production, and a supplied reporter replaces
+them", "the two development-only provider signals are silent in production", "a supplied
+provider reporter replaces the default and hears every signal"), by its describe "a
+supplied reporter that throws (ReporterThrew, INT-04)", and by the characterisation
+`packages/react/test/DeveloperSignalReporters.test.tsx`, which reaches every row through its
+public entry point in both environments ("a superseded seed with no reporter says nothing
+in production", "a returning onHydrationMismatch is told the mismatch once in production,
+and nothing is written to the console", "an instrumented provider in development with no
+reporter writes nothing to the console"). No type checks a row's condition.
+
+## BEH-QD-694: The production-instrumentation line is printed once per process
+
+> **Invariant:** [INV-QD-388](../invariants.md#inv-qd-388-the-library-holds-one-piece-of-module-scope-mutable-state-the-production-instrumentation-latch), [INV-QD-387](../invariants.md#inv-qd-387-every-developer-signal-has-exactly-one-row-and-a-throwing-reporter-is-named-by-the-option-the-caller-passed)
+> **See:** [ADR-QD-184](../decisions/184-developer-signal-reporters-are-resolved-through-one-table.md)
+
+```
+REQUIREMENT: With no reporter supplied, an instrumented provider outside development
+             MUST print the production-instrumentation line once per process,
+             however many providers mount. A supplied `onDeveloperSignal` MUST
+             bypass that latch and be told once per mount.
+```
+
+The point of the default is one line per bundle, and an atom set or a provider is narrower
+than a process, so the latch is the one piece of module-scope mutable state in library
+source, counted by `MODULE_STATE_BUDGET` in `scripts/check-house-style.mjs`.
+
+Pinned by `packages/react/test/QadiProvider.production.test.tsx` ("warns once when
+instrument is true outside development (ticket 153)", which mounts a second instrumented
+provider and sees no second line) and `packages/react/test/QadiProvider.signals.test.tsx`
+("is told InstrumentedInProduction once per mount, and the console stays quiet").
 
 ---
 
