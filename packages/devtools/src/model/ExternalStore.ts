@@ -128,8 +128,8 @@ export type Parent = Pick<ReadableStore<unknown>, "subscribe">;
  * Per-field identity over the own enumerable string-keyed fields of two keys, the
  * same identity `set` uses.
  *
- * A field on one key only counts as a change. An inherited, a non-enumerable and a
- * symbol-keyed field is not compared.
+ * A field on one key only counts as a change. A field that is inherited,
+ * non-enumerable or symbol-keyed is not part of the key and is not compared.
  */
 function sameFields<K extends object>(a: K, b: K): boolean {
   const fromA = Object.entries(a);
