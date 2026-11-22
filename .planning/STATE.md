@@ -5,16 +5,16 @@ milestone_name: Arch Wave 13
 current_phase: 72
 current_phase_name: A derived store behind the dock model's stores
 status: executing
-stopped_at: Completed 72-07-PLAN.md
-last_updated: "2026-11-22T20:56:29.485Z"
+stopped_at: Completed 72-08-PLAN.md
+last_updated: "2026-11-22T21:07:14.929Z"
 last_activity: 2026-11-22
 last_activity_desc: Phase QD-72 execution started
-state_head: ecde0c150d783d930072609a809a13b0aaa9d367
+state_head: 5b54cf199e6b48199b8d73415c06ab5812052f91
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 32
-  completed_plans: 31
+  completed_plans: 32
   percent: 38
 ---
 
@@ -517,6 +517,7 @@ Last activity: 2026-11-22 — Phase QD-72 execution started
 | Phase 72 P05 | 11 min | 3 tasks | 10 files |
 | Phase 72 P06 | 9 min | 2 tasks | 4 files |
 | Phase 72 P07 | 25min | 2 tasks | 3 files |
+| Phase 72 P08 | 20 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -887,6 +888,7 @@ Last activity: 2026-11-22 — Phase QD-72 execution started
 - [Phase 72]: 72-05: the dock model's shownReading, questions and services are three makeDerivedStore calls; configure refreshes shownReading last; the plan-mandated M36 comment line stays at 93 columns (verification-only exception)
 - [Phase 72]: 72-06: per-store row tests pin order inside the rows (a diagnostics listener reads the recomputed store), and the store count is a test of a built model rather than a sentence
 - [Phase 72]: 72-07: BEH-QD-699 states the keys of questions and services as the code builds them; the DockModel.test.ts traceability row cites BEH-QD-699 for the diagnostics per-store test
+- [Phase 72]: 72-08: a phase decision number (D-13) in BEH-QD-700's closing sentence was removed at its cause with a revision bump; the span name's Ignored mutant is examined by hand and recorded in EXAMINED, not closed by a contrived test
 
 ### Pending Todos
 
@@ -960,8 +962,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-22T20:56:29.359Z
-Stopped at: Completed 72-07-PLAN.md
+Last session: 2026-11-22T21:07:14.789Z
+Stopped at: Completed 72-08-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
