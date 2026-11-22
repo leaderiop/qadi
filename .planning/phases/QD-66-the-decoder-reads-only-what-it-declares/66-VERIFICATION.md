@@ -224,3 +224,37 @@ Every row was run on a tree whose tracked files outside the planning directory a
 - `spec/README.md` (68.1-05, `a8b36092`): the report cites the CCR-QD-457 row and Revision 1.268 (Truth 7). The row is unedited at line 394 and the 1.268 entry remains in the Change History cell; the commit moves the revision to 1.275 and adds the CCR-QD-460 row, which no truth of this report reads.
 
 **Verdict:** passed
+
+## Re-verification (2026-11-22, after the 68.1 code-review fixes)
+
+**Staleness:** `66: stale, verification 25c781b1, 31 cited, 1 changed since` (`68-stale.mjs`, run at `542a82ed`).
+
+| Cited file | Changed since `25c781b1` by |
+| --- | --- |
+| `spec/README.md` | `79a685b4` docs(68.1): WR-02 WR-03 scope CCR-QD-460's odd-count and hang claims to what was shown |
+
+**Trailers on this phase's commits:** 35 `Claude Opus 5.5 <noreply@anthropic.com>`.
+
+**Validation record:** no VALIDATION.md.
+
+**Digest:** `covered_digest: "v4:sha256:ff8bbd1ca720847f11e9809b8361d54adf2fe568fa79c424bb142bfeaf02cfa3"` becomes `covered_digest: "v4:sha256:ff8bbd1ca720847f11e9809b8361d54adf2fe568fa79c424bb142bfeaf02cfa3"`, over the same 16 covered files.
+
+**Staleness by `68.1-stale.mjs`:** `66: stale, verification 25c781b1, 32 cited, 1 changed since` (run at `542a82ed`).
+
+### Spot-checks re-run (Re-verification (2026-11-22, after the 68.1 code-review fixes))
+
+Every row was run on the tree at `542a82ed`, one command at a time, in the foreground, with stdin closed. The analyzer self-test, the reproduction of Phase 68's bench analysis, the spec-revise and the traceability results are shared with the Phase 62 to 65, 67 and 68 sections of this re-verification: each was taken once at `ae42c2b2`, in a fresh set after the code-review fixes (the earlier set, taken at `c3d8553a`, is not reused because `scripts/bench/ab.sh` and `spec/` changed), and no tracked file outside the planning directory differs between that head and `542a82ed`. No source, test or characterisation file of Phase 66 changed, so the report's vitest, projection and mutation rows were not run again.
+
+| Behaviour | Command run now | Result now | Status |
+| --------- | --------------- | ---------- | ------ |
+| What the phase and its fixes changed in the spec register, and the revisions | `git diff -U0 0e3f3438 HEAD -- spec/README.md`, and `node scripts/spec-revise.mjs --check < /dev/null` (shared) | 3 insertions and 2 deletions: the Revision header (1.274 to 1.276), the Change History cell (the 1.276 and 1.275 entries in front) and one added row, CCR-QD-460, at line 397; no existing row is removed or edited, so the CCR-QD-457 row is still at line 394 and the 1.268 entry the report cites is still in the cell; `spec-revise` exit 0, `spec-revise: every Revision matches its newest Change History entry` | PASS |
+| What the code-review fixes changed since the previous section | `git diff -U0 25c781b1 HEAD -- spec/README.md` | 3 hunks, at lines 8 (Revision 1.275 to 1.276), 13 (Change History: a 1.276 entry in front) and 397 (the CCR-QD-460 row rewritten); no other line differs | PASS |
+| The analyzer is as the previous section read it | `git diff --quiet 25c781b1 HEAD -- scripts/bench/analyze.mjs`, and `node scripts/bench/analyze.mjs --self-test < /dev/null` (shared) | the diff is silent (exit 0), so the analyzer is unchanged since the previous section; `self-test: 25 passed`, exit 0 | PASS |
+| Phase 68's bench analysis reproduced | a scratch copy of Phase 68's `bench/final`, then `node scripts/bench/analyze.mjs <copy> base final <bench>/workloads.txt < /dev/null` (reference `base`), then `cmp` of the copy's `analysis.tsv` with the committed one (shared) | exit 0; `# max_slowdown_pct: 5.0`, `# max_geomean_pct: 2.0`, worst `4.7`, `# gate: pass`; `cmp` silent, so the file is byte-identical | PASS |
+| Traceability | `bash spec/scripts/verify-traceability.sh --strict < /dev/null` (shared) | exit 0; `PASS: 21   FAIL: 0   SKIP: 0 (strict: skips count as failures)` | PASS |
+
+### Changed cited files read against the truths that cite them (Re-verification (2026-11-22, after the 68.1 code-review fixes))
+
+- `spec/README.md` (`79a685b4`): the report cites the CCR-QD-457 row and Revision 1.268 (Truth 7). The row is unedited at line 394 and the 1.268 entry remains in the Change History cell; the commit moves the revision to 1.276, adds a Change History entry and rewrites the CCR-QD-460 row to scope its odd-round-count and hang claims, which no truth of this report reads. `scripts/bench/analyze.mjs`, which Truth 4 cites, did not change in the code-review fixes (row 3), so the previous section's reading of it, the exit status only, stands, and the self-test and the reproduction of Phase 68's analysis give the same results as there. Every truth holds as worded.
+
+**Verdict:** passed
