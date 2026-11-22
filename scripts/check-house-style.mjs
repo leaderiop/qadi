@@ -1830,28 +1830,32 @@ const MODULE_STATE_FOUND = new Map();
     for (const file of scanned.unparsed) {
       failures += 1;
       console.error(
-        `${relative(ROOT, file)}  [module-state-scan] is in no packages/*/tsconfig.src.json project, so its module-scope bindings were not read.`,
+        `${relative(ROOT, file)}  [module-state-scan] is in no packages/*/tsconfig.src.json ` +
+          `project, so its module-scope bindings were not read.`,
       );
     }
   } catch (error) {
     failures += 1;
     console.error(
-      `scripts/lib/module-state-scan.mjs  [module-state-scan] could not read library source: ${String(error).split("\n")[0]}`,
+      `scripts/lib/module-state-scan.mjs  [module-state-scan] could not read library ` +
+        `source: ${String(error).split("\n")[0]}`,
     );
   }
 }
 
 /** A file's bindings as `name (line n)`, for a failure message. */
-const describeBindings = (found) => found.map(({ name, line }) => `${name} (line ${line})`).join(", ");
+const describeBindings = (found) =>
+  found.map(({ name, line }) => `${name} (line ${line})`).join(", ");
 
 for (const [rel, budget] of Object.entries(MODULE_STATE_BUDGET)) {
   const found = MODULE_STATE_FOUND.get(rel) ?? [];
   if (found.length !== budget) {
     failures += 1;
     console.error(
-      `${rel}  [module-state] declares ${budget} module-scope let/var binding(s), found ${found.length}` +
-        `${found.length > 0 ? `: ${describeBindings(found)}` : ""}.\n` +
-        `    Update MODULE_STATE_BUDGET in scripts/check-house-style.mjs and AGENTS.md section 6's module-state table, with the reason, so they agree.`,
+      `${rel}  [module-state] declares ${budget} module-scope let/var binding(s), ` +
+        `found ${found.length}${found.length > 0 ? `: ${describeBindings(found)}` : ""}.\n` +
+        `    Update MODULE_STATE_BUDGET in scripts/check-house-style.mjs and AGENTS.md ` +
+        `section 6's module-state table, with the reason, so they agree.`,
     );
   }
 }
@@ -1860,8 +1864,10 @@ for (const [rel, found] of MODULE_STATE_FOUND) {
   if (rel in MODULE_STATE_BUDGET) continue;
   failures += 1;
   console.error(
-    `${rel}  [module-state] A module-scope let or var in library source: ${describeBindings(found)}.\n` +
-      `    Module-scope mutable state is allowed only where AGENTS.md section 6 lists it with a reason (ADR-QD-184).`,
+    `${rel}  [module-state] A module-scope let or var in library source: ` +
+      `${describeBindings(found)}.\n` +
+      `    A rebindable module-scope name is allowed only where AGENTS.md section 6 lists ` +
+      `it with a reason (ADR-QD-184).`,
   );
 }
 
@@ -1871,13 +1877,15 @@ for (const [rel, names] of Object.entries(MODULE_STATE_BUDGET_NAMES)) {
     if (counted.includes(name)) continue;
     failures += 1;
     console.error(
-      `${rel}  [module-state-names] MODULE_STATE_BUDGET's reason names \`${name}\`, but the scan counts no ` +
-        `such let or var binding in this file any more: renamed without updating the budget's names.`,
+      `${rel}  [module-state-names] MODULE_STATE_BUDGET's reason names \`${name}\`, ` +
+        `but the scan counts no such let or var binding in this file any more: renamed ` +
+        `without updating the budget's names.`,
     );
   }
 }
 
-// AGENTS.md section 6's module-state table is the budget stated for readers: its file column must be exactly the budget's keys, with the same counts.
+// AGENTS.md section 6's module-state table is the budget stated for readers: its file
+// column must be exactly the budget's keys, with the same counts.
 {
   const agents = readFileSync(join(ROOT, "AGENTS.md"), "utf8").replace(/\r\n/g, "\n").split("\n");
   const header = agents.findIndex((l) => /^\|\s*Module-scope state\s*\|\s*Count\s*\|\s*Why\s*\|/.test(l));
