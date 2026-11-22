@@ -531,7 +531,17 @@ Plans:
   4. A characterisation written on the phase base shows every existing reporter's behaviour (what fires, where, how often, with what text) unchanged apart from criterion 1, `DeveloperSignals.ts` stays the only file exempt from `no-ambient-console`, and ADR-QD-184 extends ADR-QD-041 and ADR-QD-052.
 
 **Planning notes**: Check whether the module-scope `let` behind `providerSignalReporter`'s once-per-process rule is the one exempt file's carve-out or a breach of AGENTS.md §13 ("no module-scope state is left in this package") before choosing between bringing it under the atom set and recording the exception. Each `HydrationEngine` call site pairs the right `says…` default with the right hook slot (`:408`, `:596`); the table must keep that pairing.
-**Plans**: TBD
+**Plans**: 8 plans
+
+Plans:
+- [ ] 71-01-PLAN.md — Record the phase base, its gate facts and the Stryker base of the five touched files with a scorer that gains `record close --restart`, and characterise every developer-signal reporter through its entry point in 35 rows, green on the base and never edited after.
+- [ ] 71-02-PLAN.md — Pin the option a throwing collision reporter is announced under (red on the base for `makeGateRegistry`) and the table's type guarantees in `DeveloperSignals.tst.ts`, red on the base.
+- [ ] 71-03-PLAN.md — Add `SIGNALS`, the derived `ReporterName` and `reporterFor`, move the registry closure to `buildGateRegistry` so each collision entry point names its own option, and gut each type guarantee once.
+- [ ] 71-04-PLAN.md — Resolve the hydration, mismatch and provider reporters through the table, keep the latch behind `once` alone, remove the hand-written resolvers, and pin the table's stated facts.
+- [ ] 71-05-PLAN.md — Count module-scope `let`/`var` in library source with `MODULE_STATE_BUDGET` and its AGENTS.md §6 table, shown failing on each planted change, and correct AGENTS.md §13 with the old sentence kept in the evidence document's §7.
+- [ ] 71-06-PLAN.md — Record ADR-QD-184 and CCR-QD-463, amend ADR-QD-041 and ADR-QD-052, and write the `@qadi/react` patch changeset.
+- [ ] 71-07-PLAN.md — Write INV-QD-387, INV-QD-388 and BEH-QD-691 to 695, correct the stale resolver sentence, and trace them at the revisions the CCR row cites.
+- [ ] 71-08-PLAN.md — Close: the mutation close judged against the base, the throwaway signal refused on the closed tree, the close scan, `pnpm check:pr` alone, and SIGR-01 to SIGR-05 complete.
 
 ### Phase 72: A derived store behind the dock model's stores
 
