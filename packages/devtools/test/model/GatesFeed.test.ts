@@ -227,7 +227,7 @@ describe("the gates feed", () => {
           throw unrenderable;
         },
       });
-      assert.strictEqual(askedFailure(other), "The questions threw a value that could not be described.");
+      assert.strictEqual(askedFailure(other), "a value that could not be described");
     }));
 
   it.effect("T4 a new thunk is read by configure at once and restarts the cadence; no thunk stops it", () =>
@@ -775,7 +775,7 @@ describe("the gates feed", () => {
           },
         },
       );
-      const sentence = "The registry threw a value that could not be described.";
+      const sentence = "a value that could not be described";
       const double = makeGateRegistryDouble([guard("a", readPolicy)], { swallowListenerErrors: true });
       double.failReads(unrenderable);
       const feed = yield* makeGatesFeed();

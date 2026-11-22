@@ -119,7 +119,7 @@ describe("a questions thunk that throws (D-03)", () => {
     await eventuallyFailed();
     assert.strictEqual(
       failedText(),
-      `${QUESTIONS_FAILED}The questions threw a value that could not be described.`,
+      `${QUESTIONS_FAILED}a value that could not be described`,
     );
   });
 
