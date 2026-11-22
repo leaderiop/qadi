@@ -3963,6 +3963,23 @@ describe("concurrent evaluation", () => {
  * defect — and the last test proves `Effect.retry` can actually see and
  * retry it.
  */
+/** A thrown value that can be neither stringified nor asked for its message. */
+const hostile = {
+  toString(): string {
+    throw new Error("toString threw");
+  },
+  get message(): string {
+    throw new Error("message threw");
+  },
+};
+
+/** An `Error` whose `message` getter throws, so `String` of it throws too. */
+const hostileError = Object.defineProperty(new Error("unread"), "message", {
+  get(): string {
+    throw new Error("message threw");
+  },
+});
+
 describe("port defects become typed errors", () => {
   it.effect("a dying AttributeResolver surfaces as AttributeResolveError", () =>
     Effect.gen(function* () {
@@ -4035,6 +4052,26 @@ describe("port defects become typed errors", () => {
       // under this name") — a string a reader can act on, not a fresh shape
       // invented for the defect case.
       assert.match(r.failure.reason, /boom/);
+    }));
+
+  it.effect("a CustomPredicate that dies with a value whose toString and message cannot be read surfaces as CustomPredicateError", () =>
+    Effect.gen(function* () {
+      for (const thrown of [hostile, hostileError]) {
+        const dying = scriptedPort(customPredicatePort, () => PortReply.die(thrown)).layer;
+
+        const r = yield* Effect.result(
+          evaluate(P.hasCustom("isOwner")).pipe(
+            Effect.provide(testLayer(subjectWith({}), { CustomPredicate: dying })),
+          ),
+        );
+
+        assert.strictEqual(r._tag, "Failure");
+        if (r._tag !== "Failure") return;
+        assert.instanceOf(r.failure, CustomPredicateError);
+        if (!(r.failure instanceof CustomPredicateError)) return;
+        assert.strictEqual(r.failure.name, "isOwner");
+        assert.strictEqual(r.failure.reason, "a value that could not be described");
+      }
     }));
 
   it.effect("a dying SignatureHistory surfaces as SignatureHistoryUnavailable", () =>

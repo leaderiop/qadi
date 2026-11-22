@@ -728,6 +728,23 @@ describe("every argument reaches the key", () => {
   });
 });
 
+/** A thrown value that can be neither stringified nor asked for its message. */
+const hostile = {
+  toString(): string {
+    throw new Error("toString threw");
+  },
+  get message(): string {
+    throw new Error("message threw");
+  },
+};
+
+/** An `Error` whose `message` getter throws, so `String` of it throws too. */
+const hostileError = Object.defineProperty(new Error("unread"), "message", {
+  get(): string {
+    throw new Error("message threw");
+  },
+});
+
 describe("customPredicatePort's failure reason", () => {
   const reasonFor = (cause: unknown) =>
     customPredicatePort.failure(["isOwner", alice, undefined, undefined], cause).reason;
@@ -747,11 +764,26 @@ describe("customPredicatePort's failure reason", () => {
     assert.strictEqual(reasonFor(unrenderable), "<unrenderable cause>");
   });
 
+  it("is the placeholder for a cause whose toString and message cannot be read, never a throw", () => {
+    for (const thrown of [hostile, hostileError]) {
+      assert.strictEqual(reasonFor(thrown), "a value that could not be described");
+    }
+  });
+
   it("a defect is rendered with Cause.pretty and names the same predicate", () => {
     const args: [string, typeof alice, undefined, undefined] = ["isOwner", alice, undefined, undefined];
     const cause = Cause.die(new Error("boom"));
     const defect = customPredicatePort.defect(args, cause);
     assert.strictEqual(defect.reason, Cause.pretty(cause));
     assert.strictEqual(defect.name, customPredicatePort.failure(args, new Error("boom")).name);
+  });
+
+  it("a defect whose value cannot be rendered by Cause.pretty is the placeholder, under the same predicate", () => {
+    const args: [string, typeof alice, undefined, undefined] = ["isOwner", alice, undefined, undefined];
+    for (const thrown of [hostile, hostileError]) {
+      const defect = customPredicatePort.defect(args, Cause.die(thrown));
+      assert.strictEqual(defect.reason, "a value that could not be described");
+      assert.strictEqual(defect.name, "isOwner");
+    }
   });
 });
