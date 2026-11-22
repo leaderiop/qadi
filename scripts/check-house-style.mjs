@@ -45,9 +45,12 @@
  * The eleventh, `NOT_CALLABLE_PIN_BUDGET`, is test-scope over its own walk of
  * every file tstyche selects, because `collect()` skips `.tst.ts` files; a
  * negative type pin is counted there (ADR-QD-175).
- * The twelfth, `MODULE_STATE_BUDGET`, is `packages/*\/src` only: a
- * module-scope `let` or `var` is state every caller in the process shares, and a
- * test's own is not library state (ADR-QD-184).
+ * The twelfth, `MODULE_STATE_BUDGET`, is `packages/*\/src` only: a `let` or `var`
+ * binding declared outside every function and class body is state every caller in the
+ * process shares, and a test's own is not library state (ADR-QD-184). Unlike the others
+ * it reads each file's syntax tree (`scripts/lib/module-state-scan.mjs`) and not its
+ * lines, so an indented declaration and each name of `let a, b` count; a `const` holding
+ * a mutable container, a `static` class field and anything a function declares do not.
  *
  * The three whole-file, cross-line-break checks below (`no-prefixed-error-tag`,
  * `no-catchtags-object-form`, `no-named-effect-submodule-import`) already run
@@ -85,6 +88,7 @@
  *     and `apps/website` by `node scripts/check-website-build.mjs` (step 24) —
  *     both hold it to its own toolchain's rules, not this library's.
  */
+import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -674,15 +678,21 @@ const UNTRUSTED_DECODE_TOKEN = /\bonExcessProperty\b|\bexceedsJsonDepth\b|\bSche
 const UNTRUSTED_DECODE_LINES = new Map();
 
 /**
- * Module-scope `let` and `var` declarations in library source, by file and exact
- * count (ADR-QD-184).
+ * Module-scope `let` and `var` bindings in library source, by file and exact count
+ * (ADR-QD-184).
+ *
+ * A binding is counted when a `let` or `var` declares it outside every function and class
+ * body, read from the file's syntax tree (`scripts/lib/module-state-scan.mjs`) and not from
+ * its text: `export let`, an indented declaration, one inside a top-level block, a loop's own
+ * `let`, and each name of `let a, b` or of a destructuring pattern. A `const` is not counted,
+ * and neither is a `const` holding a mutable container (`Policy.ts`'s depth memo, a metric),
+ * a `static` class field or anything a function declares: rebinding a module-scope name is
+ * what makes it state a caller cannot see.
  *
  * The production-instrumentation line is printed once per process however many
  * providers mount, so the latch that remembers it cannot live under an atom set
- * or a provider, both of which are narrower than a process. A `const` holding a
- * cache or a lookup table is not counted: rebinding is what makes a module-scope
- * name state that a caller cannot see. Checked in both directions, with a names
- * guard and a check that AGENTS.md section 6's table lists exactly these files,
+ * or a provider, both of which are narrower than a process. Checked in both directions,
+ * with a names guard and a check that AGENTS.md section 6's table lists exactly these files,
  * like `UNTRUSTED_DECODE_BUDGET`.
  *
  * @type {Readonly<Record<string, number>>}
@@ -693,8 +703,9 @@ const MODULE_STATE_BUDGET = {
 };
 
 /**
- * The declaration each `MODULE_STATE_BUDGET` file's count belongs to, checked to
- * exist verbatim (the rename guard `UNTRUSTED_DECODE_BUDGET_NAMES` gives its table).
+ * The binding each `MODULE_STATE_BUDGET` file's count belongs to, checked to be one of the
+ * bindings the scan counted there (the rename guard `UNTRUSTED_DECODE_BUDGET_NAMES` gives
+ * its table).
  *
  * @type {Readonly<Record<string, ReadonlyArray<string>>>}
  */
@@ -702,11 +713,13 @@ const MODULE_STATE_BUDGET_NAMES = {
   "packages/react/src/DeveloperSignals.ts": ["warnedInstrumentedInProduction"],
 };
 
-/** Module scope is read as a declaration at column 0, which every formatted library file keeps. */
-const MODULE_STATE_DECLARATION = /^(?:export\s+)?(?:let|var)\s/;
-
-/** @type {Map<string, number[]>} */
-const MODULE_STATE_LINES = new Map();
+/**
+ * Where the scan of module-scope bindings reads each file, and how long it may take: the
+ * TypeScript server behind it has no timeout of its own, so a call that never returns is
+ * killed here and fails the check.
+ */
+const MODULE_STATE_SCAN = join(ROOT, "scripts", "lib", "module-state-scan.mjs");
+const MODULE_STATE_SCAN_TIMEOUT_MS = 120_000;
 
 /**
  * Type-test files holding a negative `toBeCallableWith` or `toBeConstructableWith` pin, by
@@ -1302,12 +1315,6 @@ for (const file of sources) {
         UNTRUSTED_DECODE_LINES.set(rel, found);
       }
     }
-    // Library source only: a test's own module-scope state is not library state.
-    if (!isTestFile && rel.startsWith("packages/") && MODULE_STATE_DECLARATION.test(line)) {
-      const found = MODULE_STATE_LINES.get(rel) ?? [];
-      found.push(index + 1);
-      MODULE_STATE_LINES.set(rel, found);
-    }
     // Library source only: the sink is read in one place (`SinkEmit.ts`), so
     // "an observer can never deny" (INV-QD-035) has locality. A presence read
     // for reporting, not an emission, is allowlisted by file.
@@ -1795,41 +1802,77 @@ for (const [rel, names] of Object.entries(UNTRUSTED_DECODE_BUDGET_NAMES)) {
 }
 
 // ---------------------------------------------------------------------------
-// AGENTS.md section 6 / ADR-QD-184 — module-scope mutable state in library source
-// is counted per file and allowed only where the table lists it with a reason.
+// AGENTS.md section 6 / ADR-QD-184 — module-scope `let` and `var` bindings in library
+// source are counted per file and allowed only where the table lists them with a reason.
 // Checked in both directions like the budgets above: a new `let` or `var` is a
 // reviewed edit, and a count moving means the table describes code that changed.
 // ---------------------------------------------------------------------------
 
+/**
+ * The module-scope `let` and `var` bindings of every library source file, by repo-relative path,
+ * each with the line it is declared on.
+ *
+ * @type {Map<string, Array<{ name: string, line: number }>>}
+ */
+const MODULE_STATE_FOUND = new Map();
+{
+  const libraryFiles = srcSources.filter((file) => relative(ROOT, file).startsWith("packages/"));
+  try {
+    const out = execFileSync(process.execPath, [MODULE_STATE_SCAN, ROOT, ...libraryFiles], {
+      encoding: "utf8",
+      timeout: MODULE_STATE_SCAN_TIMEOUT_MS,
+      maxBuffer: 1 << 26,
+    });
+    const scanned = JSON.parse(out);
+    for (const [file, bindings] of Object.entries(scanned.bindings)) {
+      MODULE_STATE_FOUND.set(relative(ROOT, file), bindings);
+    }
+    for (const file of scanned.unparsed) {
+      failures += 1;
+      console.error(
+        `${relative(ROOT, file)}  [module-state-scan] is in no packages/*/tsconfig.src.json project, so its module-scope bindings were not read.`,
+      );
+    }
+  } catch (error) {
+    failures += 1;
+    console.error(
+      `scripts/lib/module-state-scan.mjs  [module-state-scan] could not read library source: ${String(error).split("\n")[0]}`,
+    );
+  }
+}
+
+/** A file's bindings as `name (line n)`, for a failure message. */
+const describeBindings = (found) => found.map(({ name, line }) => `${name} (line ${line})`).join(", ");
+
 for (const [rel, budget] of Object.entries(MODULE_STATE_BUDGET)) {
-  const found = MODULE_STATE_LINES.get(rel) ?? [];
+  const found = MODULE_STATE_FOUND.get(rel) ?? [];
   if (found.length !== budget) {
     failures += 1;
     console.error(
-      `${rel}  [module-state] declares ${budget} module-scope let/var declaration(s), found ${found.length}` +
-        `${found.length > 0 ? ` at line(s) ${found.join(", ")}` : ""}.\n` +
+      `${rel}  [module-state] declares ${budget} module-scope let/var binding(s), found ${found.length}` +
+        `${found.length > 0 ? `: ${describeBindings(found)}` : ""}.\n` +
         `    Update MODULE_STATE_BUDGET in scripts/check-house-style.mjs and AGENTS.md section 6's module-state table, with the reason, so they agree.`,
     );
   }
 }
 
-for (const [rel, found] of MODULE_STATE_LINES) {
+for (const [rel, found] of MODULE_STATE_FOUND) {
   if (rel in MODULE_STATE_BUDGET) continue;
   failures += 1;
   console.error(
-    `${rel}:${found.join(", ")}  [module-state] A module-scope let or var in library source.\n` +
+    `${rel}  [module-state] A module-scope let or var in library source: ${describeBindings(found)}.\n` +
       `    Module-scope mutable state is allowed only where AGENTS.md section 6 lists it with a reason (ADR-QD-184).`,
   );
 }
 
 for (const [rel, names] of Object.entries(MODULE_STATE_BUDGET_NAMES)) {
-  const content = readFileSync(join(ROOT, rel), "utf8");
+  const counted = (MODULE_STATE_FOUND.get(rel) ?? []).map(({ name }) => name);
   for (const name of names) {
-    if (new RegExp(`\\b(?:const|let|var|function)\\s+${name}\\b`).test(content)) continue;
+    if (counted.includes(name)) continue;
     failures += 1;
     console.error(
-      `${rel}  [module-state-names] MODULE_STATE_BUDGET's reason names \`${name}\`, but no ` +
-        `such declaration appears in this file any more: renamed without updating the budget's names.`,
+      `${rel}  [module-state-names] MODULE_STATE_BUDGET's reason names \`${name}\`, but the scan counts no ` +
+        `such let or var binding in this file any more: renamed without updating the budget's names.`,
     );
   }
 }

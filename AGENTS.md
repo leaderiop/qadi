@@ -564,15 +564,21 @@ where the first proves the directive. A pass fails if
 tstyche compiles any type test under another tsconfig, as it does for a file
 outside the tsconfig's `include`.
 
-**Module-scope mutable state is counted: `MODULE_STATE_BUDGET`** (ADR-QD-184). A `let`
-or `var` at module scope in `packages/*/src` is state every caller in the process
-shares, so it is counted per file and allowed only in the files below, checked in both
-directions (`[module-state]`): a new one fails, and so does a count silently moving. The
-declaration each count belongs to is checked to exist (`[module-state-names]`) and this
-table is checked against the budget (`[module-state-table]`). A module-scope `const` is
-not counted, so a cache such as `Policy.ts`'s depth memo and the read-only lookup tables
-need no row. Test scope is exempt. A new row is a reviewed edit to the budget and this
-table together.
+**A rebindable module-scope name is counted: `MODULE_STATE_BUDGET`** (ADR-QD-184). A
+`let` or `var` binding that a file declares outside every function and class body in
+`packages/*/src` is state every caller in the process shares, so it is counted per file
+and allowed only in the files below, checked in both directions (`[module-state]`): a new
+one fails, and so does a count silently moving. The count is read from the file's syntax
+tree (`scripts/lib/module-state-scan.mjs`, through `typescript`'s own parse), not from its
+text, so it counts `export let` and `export var`, a declaration however it is indented,
+one inside a top-level block, a loop's own `let`, and each name of `let a, b` or of a
+destructuring pattern. It counts no `const`, and with it no `const` holding a mutable
+container (`Policy.ts`'s depth memo, a `Metric`, a lookup table), no `static` class field
+and nothing a function or method declares. The binding each count belongs to is checked
+to be among those counted (`[module-state-names]`), a file no
+`packages/*/tsconfig.src.json` contains fails (`[module-state-scan]`), and this table is
+checked against the budget (`[module-state-table]`). Test scope is exempt. A new row is a reviewed edit to the budget
+and this table together.
 
 | Module-scope state | Count | Why |
 | ------------------ | ----- | --- |
@@ -790,8 +796,8 @@ state-management layer of its own. The rules that keep it that way:
   a retained verdict** (ADR-QD-053). Each atom set's `gates` registry
   (`makeGateRegistry`, ADR-QD-080) is what a guard writes to from an effect,
   through a handle only `@qadi/react` can reach — carrying its policy, its
-  resource, its current render state, and a ref React filled in. One piece of
-  module-scope state is left in this package, and it is counted: the latch in
+  resource, its current render state, and a ref React filled in. One rebindable
+  module-scope name is left in this package, and it is counted: the latch in
   `DeveloperSignals.ts` that prints the production-instrumentation line once per
   process however many providers mount (ADR-QD-184, `MODULE_STATE_BUDGET` in §6).
   Everything else belongs to an atom set: hydration's seed lookup is a closure the
