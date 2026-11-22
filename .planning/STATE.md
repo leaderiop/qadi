@@ -2,11 +2,16 @@
 gsd_state_version: "1.0"
 milestone: v1.8
 milestone_name: Arch Wave 13
+current_phase: 69
+current_phase_name: One total thrown-value-to-message module
 status: planning
-last_updated: "2026-11-22T07:02:33.107Z"
+stopped_at: v1.8 roadmap created (Phases 69-76); next step is /gsd-plan-phase 69
+last_updated: "2026-11-22T07:09:00.000Z"
 last_activity: 2026-11-22
+last_activity_desc: Roadmap created for v1.8 Arch Wave 13 (Phases 69-76)
+state_head: 91d1b6ed6e313dcadb68137c25d90cb380a17210
 progress:
-  total_phases: 0
+  total_phases: 8
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,14 +25,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-22)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Planning next milestone (v1.7 completed 2026-11-22; not merged, not released)
+**Current focus:** Phase 69 - One total thrown-value-to-message module (v1.8 Arch Wave 13; roadmap created, ready to plan)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 69 of 76 (One total thrown-value-to-message module)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-11-22 — Milestone v1.8 started
+Status: Ready to plan
+Last activity: 2026-11-22 — Roadmap created for v1.8 Arch Wave 13 (Phases 69-76)
 
 
 ## Performance Metrics
@@ -817,6 +822,7 @@ Last activity: 2026-11-22 — Milestone v1.8 started
 
 ### Pending Todos
 
+- v1.8: Phases 69, 70 and 71 are live defects, each opening with a regression test seen RED on its phase base; Phase 70 asks its payload-path question at the discuss step; Phase 75 opens on a human checkpoint (the outcome key and whether the old keys stay; visible to tracers; `@qadi/core` changeset); Phase 76 is speculative and may end in a recorded rejection (ADR-QD-189 and CCR-QD-468, no code change); strictly serial, 69 then 70 through 76; ids reserved (ADR-QD-182 to 189, CCR-QD-461 to 468, BEH-QD-681 to 720, INV-QD-383 to 398), never run `node scripts/next-id.mjs`; soft edges 70 to 71 (`HydrationEngine.ts`), 71 to 73 (`GateRegistry.ts`), 72 to 74 (`DockModel.test.ts`). Evidence: `.planning/phases/_WAVE13-CONTEXT.md`.
 - v1.5: Phase 43 (`@qadi/core`) and Phase 48 (`@qadi/audit`) are **Breaking**; Phase 50 opens on a `pnpm bench` measurement and may end in a recorded rejection (ADR-QD-163); Phase 48's first plan checks ADR-QD-054 and ADR-QD-056 before any code; soft edges 45 → 48, 47 → 49 and 50 → 51 (same files; serial order covers them).
 - v1.4: research-phase before planning Phases 40 and 42 (37, 38, 39, 40, 41, 42 done) (`/gsd-plan-phase --research-phase <N>`); 38, 39 and 41 are standard. Phase 40 opens on the compatibility decision for `onMalformed`/`qadi.reason`; Phase 41 opens on RED first plus the non-JSON display decision; Phase 42 opens on a human checkpoint (evidence, then one `AskUserQuestion`).
 - v1.2: phases open on a `checkpoint:decision` (23-01, 25-01, 28-01; see ROADMAP); answer each once when its phase starts. 22-01's two were already answered in `_DECISIONS-v1.2.md` (done 2026-11-11).
@@ -873,6 +879,7 @@ Last activity: 2026-11-22 — Milestone v1.8 started
 ### Roadmap Evolution
 
 - Phase 68.1 inserted after Phase 68: Address tech debt from the v1.7 audit (owner chose a cleanup phase before completing)
+- v1.8 roadmap created 2026-11-22: Phases 69-76, one per review candidate (ARCH-116 to ARCH-123), strictly serial; 47 of 47 requirements mapped (40 phase-specific, 7 cross-cutting WX-01 to WX-07 on every phase)
 
 ## Deferred Items
 
@@ -885,8 +892,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-22T00:10:06.301Z
-Stopped at: Phase 68.1 complete — all phases complete
+Last session: 2026-11-22T07:09:00.000Z
+Stopped at: v1.8 roadmap created (Phases 69-76); next step is /gsd-plan-phase 69
 Resume file: None
 
 ## Operator Next Steps
@@ -895,4 +902,4 @@ Resume file: None
 
 
 
-- Start the next milestone with /gsd-new-milestone
+- Plan Phase 69 with /gsd-plan-phase 69 (Phases 70, 75 and 76 each ask one owner question at their discuss step)

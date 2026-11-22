@@ -10,6 +10,7 @@
 - ✅ **v1.5 Arch Wave 10** — Phases 43-52 (completed 2026-11-16; not released) — [archive](milestones/v1.5-ROADMAP.md)
 - ✅ **v1.6 Arch Wave 11** — Phases 53-61 (completed 2026-11-19; not released) — [archive](milestones/v1.6-ROADMAP.md)
 - ✅ **v1.7 Arch Wave 12** — Phases 62-68.1 (completed 2026-11-22; not released) — [archive](milestones/v1.7-ROADMAP.md)
+- 🚧 **v1.8 Arch Wave 13** — Phases 69-76 (in progress)
 
 ## Phases
 
@@ -385,3 +386,231 @@ Full details: [milestones/v1.7-ROADMAP.md](milestones/v1.7-ROADMAP.md) · requir
 [milestones/v1.7-MILESTONE-AUDIT.md](milestones/v1.7-MILESTONE-AUDIT.md)
 
 </details>
+
+## 🚧 v1.8 Arch Wave 13 (Phases 69-76)
+
+### Overview
+
+Wave 13 resolves the eight candidates of the 2026-11-22 architecture review, one phase each, strictly serial, and every candidate ends in a change or a recorded decision. `.planning/phases/_WAVE13-CONTEXT.md` is authoritative for per-phase evidence (taken at `2716def4`), owner decisions and reserved ids; the review HTML is session-scoped and may be gone. **Three candidates are live defects and go first**, each opening with a regression test seen RED on its phase base. Phase 69: only one of six inline "thrown value to message" copies is total, so `JsonHazard`, `PortKey`, `PortDerivation` and `PortWireEncode` let a hostile thrown value escape functions documented as "never throws" or "refused, never thrown" (probed 2026-11-22 against the installed `effect`), and `CustomPredicate` guards only half. Phase 70: a hydration drop reason can gain a bucket and never be reported or counted, which breaks INV-QD-045 with no compile error. Phase 71: `makeGateRegistry({ onIdCollision })` with a throwing reporter reports a message naming `"onGateIdCollision"`, an option the caller never passed. Phases 72 to 74 are the three deepenings (a derived store behind the dock model's stores, one pure `reconcile` for gate registration, the simulation session's policy choice split from its runs). Phase 75 is the one change tracers will see (a declared span shape for the `qadi.evaluate` family), so it opens on a human checkpoint. Phase 76 is speculative (Remedies uses core's signature match) and may end in a recorded rejection with no code change. Branch `arch-wave-13`, based on `main` at `2716def4` (v1.6 + v1.7 merged as #163; not released); the planning base is `5e68b104`.
+
+**The eight phases and their order are fixed (2026-11-22).** Nothing is added, merged, split or reordered.
+
+**Standing direction (user, unchanged):** the cleanest design wins, not the simplest, and the project is not in production, so compatibility is never the tiebreaker. This milestone expects no public API change except Phase 75's span keys (which need a `@qadi/core` changeset) and possibly one export in Phase 76 (WX-03). Nothing is released or published, no version-packages PR is merged, and the branch is not merged.
+
+Order: the three live defects (69 to 71), the three deepenings (72 to 74), the change tracers will see (75, human checkpoint), then the speculative item (76). **Execution order: phases run strictly one at a time, in numeric order (69 → 76).** Every records plan edits the same spec registers (CCR tail, invariants, traceability, `index.yaml`, `overview.md`, behaviour docs) and `use_worktrees` is false, so each phase depends on the previous one.
+
+**Owner decisions** (`_WAVE13-CONTEXT.md`):
+
+| Decision | Phase | What it fixes |
+|----------|-------|---------------|
+| D1 | all | All eight review candidates become phases, including the speculative Phase 76 (asked 2026-11-22; locked) |
+| D2 | all | Branch `arch-wave-13` off `main` at `2716def4`; no merge, no release (asked 2026-11-22; locked) |
+| to ask | 70 | At the discuss step, once: whether the payload path (`refuse` reasons, ADR-QD-152's original subject) is folded into the same reason-keyed derivation or left as is |
+| to ask | 75 | The human checkpoint, once: the outcome key (`qadi.decision` + `qadi.outcome` becoming one key, and its name) and whether the old keys stay for one release |
+| to ask | 76 | At the discuss step, once: where core exposes "would this fixture signature satisfy this node" without exporting `SignatureMatch.ts` (ADR-QD-099), or a recorded rejection |
+
+**Every phase** carries the seven cross-cutting requirements (WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07): `pnpm check:pr < /dev/null` green at the end of each phase; its ADR (or "Unused" in its CCR row), CCR, BEH/INV and traceability records using only its reserved numbers, never `node scripts/next-id.mjs`; `spec/overview.md` names every added export and drops every removed one (gate 13; this milestone expects none, except possibly Phase 76); no new `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`, ambient `console`/`process.env`/clock, `Record<string, unknown>` or `// Stryker disable`, and a budget changes only together with its AGENTS.md table; coverage held (core at least 95 percent, the others at least 90) and the Stryker score of every touched file recorded per phase in `NN-mutation-base.json` (the same invocation at the phase base and at close), a drop closed with a test and never re-baselined; a characterisation or regression test written on the phase base before any behaviour change (RED for a defect, green for preserved behaviour) and every new check shown failing once; no D-numbers, plan-local ids or phase numbers in shipped source, test titles or BDD scenarios; nothing released or published. House rules, verify-command hygiene and the Stryker procedure are in `.planning/phases/_SHARED-CONTEXT.md`. A record's plan is the phase's last plan.
+
+**Soft edges** (from `_WAVE13-CONTEXT.md` and the files each phase edits; serial order covers all of them):
+
+| Edge | Strength | Reason |
+|------|----------|--------|
+| 69, 70, 71 first | ordering | the three live defects go before any deepening; each regression test is RED on its own phase base |
+| 70 → 71 | soft | both edit `HydrationEngine.ts`: 70 rewrites the emission at `:382-386` and `:511-557`, 71 pairs each call site's `says…` default with its hook slot at `:408` and `:596` |
+| 71 → 73 | soft | both edit `GateRegistry.ts`: 71 the `onIdCollision` option (`:57`, resolved at `:72`), 73 the equal-state check in `update` |
+| 72 → 74 | soft | `DockModel.test.ts` reads the simulation half through the session's `policyMenu`, which 74 moves |
+| 75 | checkpoint | the key change is visible to external tracers; nothing in this repo reads these spans |
+| 76 | last | speculative: it may end in a recorded rejection (ADR-QD-189 + CCR-QD-468, no code change) |
+
+**Numbering reserved for v1.8** (the whole block is held in the shared reservation file, `$(git rev-parse --git-common-dir)/qadi-reserved-ids.json`, set to CCR 468, ADR 189, BEH 720, INV 398 on 2026-11-22; never run `node scripts/next-id.mjs` while executing these phases, because every call writes a reservation; name an unused reservation "Unused:" in the phase's CCR row; an amendment of an existing ADR leaves its new ADR number unused and says so). Next free on `5e68b104`: ADR-QD-182, CCR-QD-461, BEH-QD-681, INV-QD-383. Highest ARCH is ARCH-115; ARCH ids below 116 are never reused. ADR Document IDs equal the file number (gate 10).
+
+| Phase | ARCH | ADR-QD | CCR-QD | BEH-QD | INV-QD |
+|---|---|---|---|---|---|
+| 69 | 116 | 182 | 461 | 681–685 | 383–384 |
+| 70 | 117 | 183 | 462 | 686–690 | 385–386 |
+| 71 | 118 | 184 | 463 | 691–695 | 387–388 |
+| 72 | 119 | 185 | 464 | 696–700 | 389–390 |
+| 73 | 120 | 186 | 465 | 701–705 | 391–392 |
+| 74 | 121 | 187 | 466 | 706–710 | 393–394 |
+| 75 | 122 | 188 | 467 | 711–715 | 395–396 |
+| 76 | 123 | 189 | 468 | 716–720 | 397–398 |
+
+**Out of scope** (recorded, not planned): re-opening the ADRs the review left alone (ADR-QD-106's wire duplication, ADR-QD-117's error tables, ADR-QD-156's handover shapes, ADR-QD-174's cache); exporting `SignatureMatch.ts` (ADR-QD-099); a single "deliver, contained" sink operation for `SinkEmit.ts` and `DecisionSinkForwarding.ts` (two call sites; revisit at a third); folding the audit breaker's admission into its transition function (ADR-QD-158); aligning `@qadi/react`'s swallowing gate registry with ADR-QD-177's rethrow contract and guarding the devtools feeds' publish-between-`begin()`-and-`fork()` window (both carried from v1.7); formatting with `oxfmt` (AGENTS.md §17); upgrading any dependency; merge, release or publish.
+
+### Phases
+
+- [ ] **Phase 69: One total thrown-value-to-message module** - Six inline copies of "caught value to message" become one package-private total function, so a hostile thrown value can no longer escape `JsonHazard`, `PortKey`, `PortDerivation`, `PortWireEncode` or `CustomPredicate` (ARCH-116, core; live defect)
+- [ ] **Phase 70: Hydration's drop events come from its buckets** - `EntriesDropped` and `LeftOut` events are derived from reason-keyed records on the hydrate and dehydrate sides, so a drop reason cannot gain a bucket without its event (ARCH-117, react; live defect)
+- [ ] **Phase 71: Developer-signal reporters resolved through one table** - One table states where each signal runs, how often and what it is named, and a throwing `onIdCollision` reporter is reported under that name (ARCH-118, react; live defect)
+- [ ] **Phase 72: A derived store behind the dock model's stores** - `ExternalStore` gains a store derived from parent stores that owns key equality, stop-after-close and notify-once, and the dock model's three hand-built computed stores use it (ARCH-119, devtools)
+- [ ] **Phase 73: One pure reconcile for gate registration** - One `reconcile` keyed by gate id registers, updates and unregisters, and `useGate` loses its state-diff effect and the index-aligned parallel arrays (ARCH-120, react)
+- [ ] **Phase 74: The simulation session's policy choice split from its runs** - The policy-choice and seed rules move into a pure module beside `HeldChoice.ts`, and the session keeps only runs (ARCH-121, devtools)
+- [ ] **Phase 75: A declared span shape for the evaluate family** - One question/answer span struct built with `spanStruct`, so a failed `qadi.evaluate` span carries the question and the outcome sits under one key; human checkpoint (ARCH-122, core)
+- [ ] **Phase 76: Remedies uses core's signature match** - Remedies asks core whether a fixture signature satisfies a node, or the phase ends in a recorded rejection; speculative (ARCH-123, devtools + core)
+
+### Phase Details
+
+### Phase 69: One total thrown-value-to-message module
+
+**Goal**: Every "never throws" function in core stays total when the value it caught is hostile, because one package-private function turns a caught value into a message and all six inline copies use it.
+**Live defect**: yes. Five of the six copies are not total, so `toJson` and `toJsonRecord` ("Never throws") and `PortKey` and `PortDescription.key` ("a key is refused, never thrown") can throw.
+**Depends on**: Nothing in v1.8 (first phase; serial order).
+**Requirements**: THRW-01, THRW-02, THRW-03, THRW-04, THRW-05, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Packages**: `@qadi/core` (`SinkCodec.ts`, `CustomPredicate.ts`, `JsonHazard.ts`, `PortKey.ts`, `PortDerivation.ts`, `PortWireEncode.ts`, and the new package-private function); no export expected
+**Records**: ARCH-116; ADR-QD-182 (new, or an amendment of ADR-QD-154 with 182 named Unused); CCR-QD-461; BEH-QD-681 to 685; INV-QD-383 to 384 (each "never throws" function stays total when the caught value is hostile)
+**Evidence** (`_WAVE13-CONTEXT.md`, at `2716def4`): `SinkCodec.ts:361-368` is total (both reads inside `Result.try`, placeholder `"a value that could not be described"`, pinned at `SinkCodec.test.ts:1105-1118`); `CustomPredicate.ts:89-95` guards `String()` but not `cause.message` (placeholder `"<unrenderable cause>"`, hostile-value test at `PortConformance.test.ts:743`); `JsonHazard.ts:182-183`, `PortKey.ts:197-200`, `PortDerivation.ts:113-118` and `PortWireEncode.ts:131,149` are unguarded. Probed: `Result.try({ try: () => { throw hostile }, catch: (e) => String(e) })` with a `toString` that throws throws out of `Result.try` instead of returning a failure.
+
+**Success Criteria** (what must be TRUE):
+  1. Regression tests written on the phase base are RED for each unguarded site (`JsonHazard.encodeFailed`, the `PortKey` and `PortDerivation` key refusals, both `PortWireEncode` catches, `CustomPredicate.renderReason`'s `message` read): given a thrown value whose `toString` and `message` getter both throw, the documented total function throws today and returns after the phase.
+  2. One package-private function guards both the `message` getter and `String()` and owns the one placeholder wording, and a table test on it covers an `Error`, a plain value, a throwing `toString`, a throwing `message` getter, and both throwing at once.
+  3. All six call sites (`SinkCodec`, `CustomPredicate`, `JsonHazard`, `PortKey`, `PortDerivation`, `PortWireEncode`) use it, `/usr/bin/grep` finds no `instanceof Error ? … .message : String(…)` in `packages/core/src`, and the `SinkCodec` and `CustomPredicate` pins assert the one placeholder.
+  4. ADR-QD-182 (or an amendment of ADR-QD-154) records the rule, and the invariant states that each "never throws" function stays total when the caught value is hostile.
+
+**Planning notes**: Shape: one total function, probably beside `ValueText.ts` (ADR-QD-154 unified value to text, not thrown value to text), owning the guard on both the `message` getter and `String()`. Changing the two existing placeholder strings to one is a visible text change, and the two pins move with it. Each RED regression names its site; one table test covers the function.
+**Plans**: TBD
+
+### Phase 70: Hydration's drop events come from its buckets
+
+**Goal**: Every entry hydration drops is reported and counted, because the `EntriesDropped` and `LeftOut` events are derived from reason-keyed records, so a drop reason cannot gain a bucket without its event.
+**Live defect**: yes. Nothing checks bucket to event, so a fourth reason with a bucket and no `if` compiles and its entries are never reported or counted, which breaks INV-QD-045 ("no entry leaves hydration unaccounted for") without an error.
+**Depends on**: Phase 69 (serial order only; no shared source).
+**Requirements**: DRPE-01, DRPE-02, DRPE-03, DRPE-04, DRPE-05, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Packages**: `@qadi/react` (`HydrationEngine.ts`)
+**Records**: ARCH-117; ADR-QD-183 (cites ADR-QD-152; INV-QD-045's enforcement restated; the payload-path decision recorded); CCR-QD-462; BEH-QD-686 to 690; INV-QD-385 to 386
+**Evidence** (`_WAVE13-CONTEXT.md`, at `2716def4`): `HydrationEngine.ts:511-520` holds three arrays (`tooDeep`, `malformed`, `undecodable`) and a `bucketOf: Record<EntryDropReason, Array<unknown>>` pointing at them; `:543` does `malformed.push(entry)` directly; `:550-557` writes three hand-made `if (x.length > 0) events.push(HydrationEvent.EntriesDropped({ reason: "…" }))`; `:382-386` repeats the pattern for `LeftOut` (`ForeignSubject`, `UnencodablePolicy`). ADR-QD-152 turned down a reason-keyed record in react's payload path because a later phase shared the file.
+
+**Success Criteria** (what must be TRUE):
+  1. A check written on the phase base is RED: a drop reason can be given a bucket without being reported as an event, and it compiles (for example a type pin that the event derivation is total over `EntryDropReason`); it is GREEN after the phase and shown failing once.
+  2. On the hydrate side the buckets are one record keyed by `EntryDropReason` and the `EntriesDropped` events are derived from it in one place, with no direct `malformed.push`; on the dehydrate side the `LeftOut` events are derived the same way from a record keyed by its reason.
+  3. The hydration events, their order and their counts are byte-identical to the phase base's characterisation for every existing input.
+  4. ADR-QD-183 cites ADR-QD-152 and says why "a later phase shares the file" no longer applies, INV-QD-045's enforcement is restated, and the payload-path question is decided once and recorded.
+
+**Planning notes**: The owner decision (fold the payload path's `refuse` reasons into the same derivation, or leave it) is asked once at this phase's discuss step. This phase is about the entry path and the event emission, not ADR-QD-152's payload path unless the owner folds it in.
+**Plans**: TBD
+
+### Phase 71: Developer-signal reporters resolved through one table
+
+**Goal**: Every developer-signal reporter is resolved through one table that states where it runs, how often and what it is named, so a failing reporter is reported under the option name the caller actually passed.
+**Live defect**: yes. `GateRegistryOptions.onIdCollision` (`GateRegistry.ts:57`, resolved at `:72`) is contained as `"onGateIdCollision"` (`DeveloperSignals.ts:254`), so a throwing reporter gets a message naming an option the caller never passed; `ReporterName` (`:103`) is a hand-kept list.
+**Depends on**: Phase 70 (serial order; soft edge: both edit `HydrationEngine.ts`).
+**Requirements**: SIGR-01, SIGR-02, SIGR-03, SIGR-04, SIGR-05, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Packages**: `@qadi/react` (`DeveloperSignals.ts`, `GateRegistry.ts`, `HydrationEngine.ts` call sites, `QadiProvider.tsx`); `DeveloperSignals.ts` stays the one file exempt from `no-ambient-console`
+**Records**: ARCH-118; ADR-QD-184 (extends ADR-QD-041 and ADR-QD-052); CCR-QD-463; BEH-QD-691 to 695; INV-QD-387 to 388
+**Evidence** (`_WAVE13-CONTEXT.md`, at `2716def4`): `DeveloperSignals.ts:222-254, 324-327` has `hydrationMismatchReporter`, `gateIdCollisionReporter` and `hydrationDropReporter` each restating one rule (a supplied reporter is wrapped so its throw is caught, otherwise the console default runs in development only, otherwise nothing); `providerSignalReporter` (`:382-408`) has a different rule, with the development check inside each branch and one signal firing in production once per process behind a module-scope `let`. Resolution timing varies: once per atom set, once per registry, once per call, and on every report in `QadiProvider.tsx`.
+
+**Success Criteria** (what must be TRUE):
+  1. A regression test written on the phase base is RED: `makeGateRegistry({ onIdCollision: () => { throw … } })` reports a message naming `"onGateIdCollision"`; after the phase it names `onIdCollision`, the option the caller passed.
+  2. One table states, for each developer signal, where it runs (development or production), how often (per call, once per registry, once per atom set, once per process) and the option name it is reported under; every reporter is resolved through it and the hand-kept `ReporterName` list is derived from it or gone.
+  3. `providerSignalReporter`'s production-once rule is stated in the same table, and its module-scope state is either brought under the atom set or recorded as the documented exception, consistent with AGENTS.md §13.
+  4. A characterisation written on the phase base shows every existing reporter's behaviour (what fires, where, how often, with what text) unchanged apart from criterion 1, `DeveloperSignals.ts` stays the only file exempt from `no-ambient-console`, and ADR-QD-184 extends ADR-QD-041 and ADR-QD-052.
+
+**Planning notes**: Check whether the module-scope `let` behind `providerSignalReporter`'s once-per-process rule is the one exempt file's carve-out or a breach of AGENTS.md §13 ("no module-scope state is left in this package") before choosing between bringing it under the atom set and recording the exception. Each `HydrationEngine` call site pairs the right `says…` default with the right hook slot (`:408`, `:596`); the table must keep that pairing.
+**Plans**: TBD
+
+### Phase 72: A derived store behind the dock model's stores
+
+**Goal**: `ExternalStore` offers a store derived from parent stores that owns key equality, stopping after close and notifying once, so the dock model states only each computed store's key and compute function and a key field cannot be left out of a compare.
+**Depends on**: Phase 71 (serial order only; no shared source).
+**Requirements**: DERV-01, DERV-02, DERV-03, DERV-04, DERV-05, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Packages**: `@qadi/devtools` (`ExternalStore.ts`, `DockModel.ts`)
+**Records**: ARCH-119; ADR-QD-185 (extends ADR-QD-168; the store count stated in one place); CCR-QD-464; BEH-QD-696 to 700; INV-QD-389 to 390
+**Evidence** (`_WAVE13-CONTEXT.md`, at `2716def4`): `DockModel.ts` repeats one pattern three times (a key type, a key reader, a `let` holding the last key, a field-by-field compare, a `closed` guard, `store.set(compute(key))`): `shownReading`/`remerge` at `:206-220`, `questions` (`keyNow`/`lastJoin`/`rejoin`, `:229-253`), `services` (`servicesKeyNow`/`lastServices`/`reservice`, `:254-279`), with the `closed` flag at `:230` and its finalizer at `:284-288`. A field added to `ServicesInput` or `JoinKey` and not to the compare compiles. The store count is written in four places (the `DockModel.ts` header, ADR-QD-047, BEH-QD-465 at `spec/behaviors/28-devtools-screens.md:934`, ADR-QD-168). `DockModel.test.ts` (`~:1034-1639`, 70 `makeDockModel(` calls) builds a whole scoped model to check rules such as "recompute only when a key changes".
+
+**Success Criteria** (what must be TRUE):
+  1. A characterisation of the dock model's `shownReading`, `questions` and `services` snapshots (when each recomputes, when it does not, and nothing after close) is written on the phase base and stays green.
+  2. `ExternalStore.ts` gains a store derived from parent stores that compares every key field by construction, stops after close and notifies once, and ADR-QD-177's "every listener runs, rethrow after" holds for it; its rules are tested against `ExternalStore` alone.
+  3. `DockModel.ts` builds its three computed stores with it, and `/usr/bin/grep` finds no `let last…`, field-by-field key compare or `closed` flag left in that file; `DockModel.test.ts` keeps one test per store showing its key and its order relative to host listeners.
+  4. The Stryker scores of `DockModel.ts` (1, as ADR-QD-168 records) and `ExternalStore.ts` do not fall below the phase-base record, and ADR-QD-185 extends ADR-QD-168 and states the store count in one place.
+
+**Planning notes**: ADR-QD-168 rejected a `useMemo` in the panel, not a derived store in the model. `DockModel.ts` holds a Stryker score of 1 (ADR-QD-168): record the base first, compare at close, and close any drop with a test.
+**Plans**: TBD
+
+### Phase 73: One pure reconcile for gate registration
+
+**Goal**: Gate registration (register, update and unregister) is one pure `reconcile` keyed by gate id, so `useGate` and `useGates` lose their state-diff effect and the parallel-array contract.
+**Depends on**: Phase 72 (serial order; soft edge to Phase 71: both edit `GateRegistry.ts`).
+**Requirements**: RECN-01, RECN-02, RECN-03, RECN-04, RECN-05, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Packages**: `@qadi/react` (`GateWriter.ts`, `useGate.ts`, `GateRegistry.ts`)
+**Records**: ARCH-120; ADR-QD-186 (extends ADR-QD-140 and ADR-QD-111; AGENTS.md §13 unaffected, since this is registry state, not decision state); CCR-QD-465; BEH-QD-701 to 705; INV-QD-391 to 392
+**Evidence** (`_WAVE13-CONTEXT.md`, at `2716def4`): `GateWriter.ts`'s `reconcile(writer, live, wanted, current)` handles add and remove only and takes two arrays that must line up by index; `useGate.ts`'s `useGateRegistrations` (`~:76-160`) has four refs (`stableRef`, `latest`, `statesRef`, `registered`) and three effects, the third diffing state by hand with `states.join("|")` as its key and calling `handle.update`; `useGates` (`:280-298`) calls `Record.values` twice and relies on both returning keys in the same order; `GateRegistry`'s own equal-state check in `update` is a third place. `GateWriter.reconcile.test.ts` covers add and remove without rendering, and the state half can only be tested by rendering (`GateRegistry.test.tsx`, 727 lines).
+
+**Success Criteria** (what must be TRUE):
+  1. A characterisation of `useGate` and `useGates` registration (register, state update, unregister, remount, StrictMode) is written on the phase base and stays green.
+  2. `reconcile` takes identities and states keyed by gate id and does register, update and unregister in one pure step, and no caller passes arrays that must line up by index.
+  3. `useGateRegistrations` has one effect plus the refs React needs, and `/usr/bin/grep` finds no `states.join("|")` diff or paired `Record.values` calls in `useGate.ts`.
+  4. The state-update half is tested without rendering, beside `GateWriter.reconcile.test.ts`, `GateRegistry.test.tsx` loses the cases that move, and ADR-QD-186 extends ADR-QD-140 and ADR-QD-111.
+
+**Planning notes**: AGENTS.md §13 holds: the gate registry records that a gate exists and what it renders now, never a retained verdict.
+**Plans**: TBD
+
+### Phase 74: The simulation session's policy choice split from its runs
+
+**Goal**: The simulation session's policy-choice and seed rules live in one pure module beside `HeldChoice.ts`, and the session keeps only runs.
+**Depends on**: Phase 73 (serial order; soft edge to Phase 72: `DockModel.test.ts` reads the simulation half through `policyMenu`).
+**Requirements**: CHSE-01, CHSE-02, CHSE-03, CHSE-04, CHSE-05, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Packages**: `@qadi/devtools` (`SimulationSession.ts`, `HeldChoice.ts` and the new module beside it)
+**Records**: ARCH-121; ADR-QD-187 (records the split; ADR-QD-137 and ADR-QD-150 untouched, ADR-QD-047 v1.11's menu under the session still holds); CCR-QD-466; BEH-QD-706 to 710; INV-QD-393 to 394
+**Evidence** (`_WAVE13-CONTEXT.md`, at `2716def4`): `SimulationSession.ts` (686 lines) holds three mutable values `chosen`, `seedEntry`, `seeded` (`:334-340`), `policyChoice`, `pin`, `policyOf`, `seedOf` (`:353-384`), the menu (`selectedOf`, `leading`, `policyMenuOf`, `:277-302`), `reseed` and `choosePolicy` (`:543-577`), `choosePolicyAt` (`:592-598`) and the `stale` rule (`:398-404`). Menu order is written twice (`policyMenuOf` puts the seeded or evicted entry first, `leading()` recounts how many come first); clearing the run (`supersede(); run = Idle`) is written in `reseed`, `choosePolicy` and `setPorts`; the comment at `:534` calls `edit` "the one path a draft changes by" while `editResourceText`, `renameSubject` and `reseed` write `draft` directly. About 600 of `SimulationSession.test.ts`'s 1809 lines need a scoped Effect session to test synchronous, pure rules.
+
+**Success Criteria** (what must be TRUE):
+  1. A characterisation of seeding, replaying a row, choosing a policy, the policy menu and its order, and staleness is written on the phase base and stays green.
+  2. One pure module beside `HeldChoice.ts` owns the pin-only-when-unseeded rule, the orphan rule, the menu and its reverse lookup (menu order written once) and the same-policy no-op, and its rules are tested as plain values with no scope while the session tests that only exercised them move.
+  3. `SimulationSession.ts` keeps only runs and uses that module, and "clear the run" is one operation called from `reseed`, `choosePolicy` and `setPorts`.
+  4. The `edit` comment at `:534` is true: every draft write goes through one path, or the comment is corrected to say which writes do not.
+  5. ADR-QD-187 records the split with ADR-QD-137 and ADR-QD-150 untouched and ADR-QD-047 v1.11 (the menu under the session) still holding.
+
+**Plans**: TBD
+
+### Phase 75: A declared span shape for the evaluate family
+
+**Goal**: The `qadi.evaluate` span family states its question and answer once, so a failed span carries the question and the outcome sits under one key on every path, and a tracer filtering by evaluation id or by outcome no longer misses half the evaluations.
+**Human checkpoint**: yes. The key changes are visible to external tracers (behaviour doc plus changeset); the owner decides the outcome key and whether the old keys stay for one release before any source change. Nothing in this repo reads these spans.
+**Depends on**: Phase 74 (serial order only; no shared source).
+**Requirements**: ESPN-01, ESPN-02, ESPN-03, ESPN-04, ESPN-05, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Packages**: `@qadi/core` (`Lifecycle.ts`, `Predicate.ts`, `SubjectSet.ts`, `GuardHealthCheck.ts`, and the span declaration beside `PortSpan.ts` and `PortSpanEncode.ts`); a `@qadi/core` changeset
+**Records**: ARCH-122; ADR-QD-188 (records the checkpoint decision; extends ADR-QD-051 and ADR-QD-109); CCR-QD-467; BEH-QD-711 to 715; INV-QD-395 to 396; the `@qadi/core` changeset
+**Evidence** (`_WAVE13-CONTEXT.md`, at `2716def4`): on failure `Lifecycle.ts:126-161` annotates only `qadi.outcome: "Failed"` and `qadi.error_tag`; the question keys (`qadi.subject_id`, `qadi.evaluation_id`, `qadi.policy_tag`, `qadi.action`) are annotated only after success, and the outcome uses two keys (`qadi.decision` on success, `qadi.outcome` on failure). `Evaluate.test.ts:2500-2505` pins the failed shape exactly, and the file has 114 hand-typed `"qadi.*"` strings (ADR-QD-123's literal budget covers metric ids only). The same keys are hand-typed in `Predicate.ts:681-685`, `SubjectSet.ts:176,259` and `GuardHealthCheck.ts:105-106`. Model to follow: port spans declare a question struct and an answer struct (`PortSpan.ts`, `PortSpanEncode.ts` `spanStruct`, ADR-QD-051/109) and annotate the question before the call (BEH-QD-227); the sink record made the same fix (`SinkRecordFields.ts:71-78`).
+
+**Success Criteria** (what must be TRUE):
+  1. At one checkpoint the owner decides the outcome key (`qadi.decision` and `qadi.outcome` becoming one key, and its name) and whether the old keys stay for a release, and ADR-QD-188 records the decision before any source change.
+  2. A regression test written on the phase base is RED: a failed `qadi.evaluate` span carries no `qadi.subject_id` or `qadi.evaluation_id`; after the phase the failed span carries the question (annotated before the lookup) and the outcome is under one key on Allow, Deny and Failed.
+  3. One declared question/answer struct built with `spanStruct` serves the family, `Lifecycle.ts`, `Predicate.ts` (`toPredicate`), `SubjectSet.ts` and `GuardHealthCheck.ts` write span keys only through it, and the tests read the keys from it rather than as hand-typed `"qadi.*"` strings.
+  4. The behaviour doc, the invariant, traceability and a `@qadi/core` changeset describe the span change that tracers will see, and ADR-QD-188 extends ADR-QD-051 and ADR-QD-109.
+
+**Planning notes**: Open the phase on the checkpoint: evidence first, then one `AskUserQuestion`. `decideQuestion` in `Lifecycle.ts` is exported but used only in that file; take it as a hygiene note if the file is touched anyway (the review's own footnote, not a requirement).
+**Plans**: TBD
+
+### Phase 76: Remedies uses core's signature match
+
+**Goal**: Remedies' "already met" verdict for a fixture signature is core's own answer, or the phase records why no shape fits without widening core's public surface, and either way an agreement test pins Remedies to the fixture signature port.
+**Speculative**: yes. The phase may end in a recorded rejection (ADR-QD-189 and CCR-QD-468, no code change) because `SignatureMatch.ts` is deliberately package-private (ADR-QD-099 and its own header) and the fix belongs on core's fixture or port-description side, not in a new export.
+**Depends on**: Phase 75 (serial order only; last, because it is speculative).
+**Requirements**: SIGM-01, SIGM-02, SIGM-03, SIGM-04, SIGM-05, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Packages**: `@qadi/devtools` (`Remedies.ts`, `SimulationFields.ts`) and `@qadi/core` (the fixture signature port or the port description only); `SignatureMatch.ts` stays package-private; no `packages/*/src` change at all if the phase ends in a rejection
+**Records**: ARCH-123; ADR-QD-189 (records the outcome, change or rejection); CCR-QD-468; BEH-QD-716 to 720; INV-QD-397 to 398
+**Evidence** (`_WAVE13-CONTEXT.md`, at `2716def4`): `Remedies.ts:531-545` decides whether a fixture signature meets a requirement with an inline `.some(held => held.subjectId === … && held.resourceId === … && held.meaning === … && (signerRole === undefined || held.signerRole === signerRole))`, restating core's `signatureMatches` (`SignatureMatch.ts`) and the fixture port's subject and resource scoping (`SignatureHistory.ts:332-348`). The same file avoids this for matchers (`satisfyingValue` asks `judgeMatcher`, comment at `:134-144`), and `Remedies.test.ts:590-640` checks against hand-written expected values rather than the port's answer, so drift would go unnoticed. Separately, the custom-predicate refusal is two sentences for one fact (`Remedies.ts:426`, `SimulationFields.ts:576`).
+
+**Success Criteria** (what must be TRUE):
+  1. An agreement test written on the phase base compares Remedies' "already met" verdict with the fixture signature port's own answer over subjects, resources, meanings and signer roles (including a node with no signer role), and it stays green whatever the phase decides.
+  2. Either Remedies asks core (through the fixture signature port or the port description) and the inline match at `Remedies.ts:531-545` is gone, or the phase ends in a recorded rejection (ADR-QD-189 with CCR-QD-468) that says why no shape fits without widening core's public surface.
+  3. `SignatureMatch.ts` stays package-private (ADR-QD-099): core's barrel is unchanged, or any added export is named in `spec/overview.md` (gate 13) and probed by the packed-install gate.
+  4. The custom-predicate refusal is one sentence owned in one place, and ADR-QD-189 records the outcome (change or rejection).
+
+**Planning notes**: The owner decision (where core exposes "would this fixture signature satisfy this node" without exporting `SignatureMatch.ts`, or a recorded rejection) is asked once at this phase's discuss step. The agreement test is the deliverable that survives a rejection.
+**Plans**: TBD
+
+### Progress (v1.8)
+
+**Execution Order:**
+Phases execute in numeric order: 69 → 70 → 71 → 72 → 73 → 74 → 75 → 76
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 69. One total thrown-value-to-message module | 0/TBD | Not started | - |
+| 70. Hydration's drop events come from its buckets | 0/TBD | Not started | - |
+| 71. Developer-signal reporters resolved through one table | 0/TBD | Not started | - |
+| 72. A derived store behind the dock model's stores | 0/TBD | Not started | - |
+| 73. One pure reconcile for gate registration | 0/TBD | Not started | - |
+| 74. The simulation session's policy choice split from its runs | 0/TBD | Not started | - |
+| 75. A declared span shape for the evaluate family | 0/TBD | Not started | - |
+| 76. Remedies uses core's signature match | 0/TBD | Not started | - |
