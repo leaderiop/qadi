@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
 milestone: v1.7
-milestone_name: Arch Wave 12
 status: Awaiting next milestone
 stopped_at: Phase 68.1 complete — all phases complete
-last_updated: "2026-11-22T02:50:28.770Z"
+last_updated: "2026-11-22T06:36:14.710Z"
 last_activity: 2026-11-22
-last_activity_desc: Milestone v1.7 completed and archived
-state_head: d8ce4b4e0d98938d2b03dbd5402220a187783955
+last_activity_desc: "Milestones v1.6 + v1.7 shipped as PR #163"
+state_head: fc152ff28ca98035b573997d0448bbbf75d2cf22
 progress:
   total_phases: 8
   completed_phases: 8
   total_plans: 60
   completed_plans: 60
   percent: 100
+milestone_name: Arch Wave 12
 current_phase: "68.1"
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 Phase: Milestone v1.7 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-11-22 — Milestone v1.7 completed and archived
+Last activity: 2026-11-22 -- Milestones v1.6 + v1.7 shipped as PR #163
 
 ## Performance Metrics
 
