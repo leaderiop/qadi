@@ -534,14 +534,32 @@ Plans:
 **Plans**: 8 plans
 
 Plans:
+**Wave 1**
 - [ ] 71-01-PLAN.md — Record the phase base, its gate facts and the Stryker base of the five touched files with a scorer that gains `record close --restart`, and characterise every developer-signal reporter through its entry point in 35 rows, green on the base and never edited after.
+
+**Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 71-02-PLAN.md — Pin the option a throwing collision reporter is announced under (red on the base for `makeGateRegistry`) and the table's type guarantees in `DeveloperSignals.tst.ts`, red on the base.
+
+**Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 71-03-PLAN.md — Add `SIGNALS`, the derived `ReporterName` and `reporterFor`, move the registry closure to `buildGateRegistry` so each collision entry point names its own option, and gut each type guarantee once.
+
+**Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 71-04-PLAN.md — Resolve the hydration, mismatch and provider reporters through the table, keep the latch behind `once` alone, remove the hand-written resolvers, and pin the table's stated facts.
+
+**Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 71-05-PLAN.md — Count module-scope `let`/`var` in library source with `MODULE_STATE_BUDGET` and its AGENTS.md §6 table, shown failing on each planted change, and correct AGENTS.md §13 with the old sentence kept in the evidence document's §7.
+
+**Wave 6** *(blocked on Wave 5 completion)*
 - [ ] 71-06-PLAN.md — Record ADR-QD-184 and CCR-QD-463, amend ADR-QD-041 and ADR-QD-052, and write the `@qadi/react` patch changeset.
+
+**Wave 7** *(blocked on Wave 6 completion)*
 - [ ] 71-07-PLAN.md — Write INV-QD-387, INV-QD-388 and BEH-QD-691 to 695, correct the stale resolver sentence, and trace them at the revisions the CCR row cites.
+
+**Wave 8** *(blocked on Wave 7 completion)*
 - [ ] 71-08-PLAN.md — Close: the mutation close judged against the base, the throwaway signal refused on the closed tree, the close scan, `pnpm check:pr` alone, and SIGR-01 to SIGR-05 complete.
+
+**Cross-cutting constraints:** <!-- gsd:generated -->
+- No title, helper or comment this plan adds holds a decision number, plan id, requirement id or phase number (WX-07)
 
 ### Phase 72: A derived store behind the dock model's stores
 
