@@ -24,26 +24,22 @@ import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Scope from "effect/Scope";
 import { makeDockModel } from "../../src/model/DockModel.ts";
-import type { DockModel } from "../../src/model/DockModel.ts";
 import type { HydrationActivity } from "../../src/model/Hydration.ts";
-import type { PortActivity } from "../../src/model/Wiring.ts";
 import { makeCollectorDouble } from "../collectorDouble.ts";
 import {
   activityOf,
   askingIds,
   guard,
   heardOf,
+  heardOn,
   logOf,
   rowOf,
+  suppliedActivity,
   tick,
   wiringNamed,
 } from "../dockModelFixtures.ts";
 import { makeGateRegistryDouble } from "../gateRegistryDouble.ts";
 import { readPolicy, settleTurns, thrownBy } from "../helpers.ts";
-
-const suppliedActivity: ReadonlyArray<PortActivity> = [
-  { port: "AttributeResolver", calls: 1, translationCalls: 0, retries: 0, timeouts: 0 },
-];
 
 /** A reading holding every field the services store reads. */
 const oneReading = () => ({
@@ -51,15 +47,6 @@ const oneReading = () => ({
   activity: activityOf(1),
   portCalls: logOf("tier"),
 });
-
-/** A counter of one store's notifications, subscribed from now on. */
-const heardOn = (store: Pick<DockModel["questions"], "subscribe">) => {
-  const heard = { calls: 0 };
-  store.subscribe(() => {
-    heard.calls += 1;
-  });
-  return heard;
-};
 
 describe("the diagnostics store", () => {
   it.effect("a collector answer that moves under a supplied activity notifies once", () =>
@@ -344,7 +331,7 @@ describe("the order of the stores and their listeners", () => {
   );
 
   it.effect(
-    "a guard and three reading configures notify the stores in one fixed order",
+    "a guard, two moving configures and a repeat notify the stores in one fixed order",
     () =>
       Effect.gen(function* () {
         const double = makeGateRegistryDouble();
