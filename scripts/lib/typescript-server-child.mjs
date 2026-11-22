@@ -80,7 +80,12 @@ export const runTypescriptChild = (script, args, { cwd, timeoutMs }) => {
  * What to print for a failed `execFileSync` child: a killed child's output is empty, so its
  * cause is named first (the timeout and its bound, or the signal), then its own output.
  *
- * @param {Error & { code?: string, signal?: string | null, stdout?: string, stderr?: string }} error
+ * @param {Error & {
+ *   code?: string,
+ *   signal?: string | null,
+ *   stdout?: string,
+ *   stderr?: string,
+ * }} error
  * @param {number} timeoutMs the bound the child ran under
  * @returns {string}
  */
@@ -107,7 +112,8 @@ export const failureCause = (error, timeoutMs) =>
  */
 export const installedTypescriptVersion = (root) => {
   try {
-    return JSON.parse(readFileSync(join(root, "node_modules", "typescript", "package.json"), "utf8")).version;
+    const manifest = join(root, "node_modules", "typescript", "package.json");
+    return JSON.parse(readFileSync(manifest, "utf8")).version;
   } catch {
     return "not installed";
   }

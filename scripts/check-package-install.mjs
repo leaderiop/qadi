@@ -67,17 +67,21 @@
  * The feed set comes from the artifact, so a new feed is caught without editing
  * this file, and the run counts the calls through a module hook that wraps each
  * feed, so a call written but never run does not count. TypeScript's parse
- * (`typescript/unstable/*`, run in a child process, `scripts/lib/probe-guard-parse.mjs`,
- * through `scripts/lib/typescript-server-child.mjs`, under the same timeout as every
- * other child) decides what annotates a value and what is a refusal, so a comment, a string, an import, an alias or
- * `typeof` does not count; and a failure to load or run that parse fails the
- * gate, naming the installed TypeScript, whose unstable API a routine upgrade
- * can move.
+ * (`typescript/unstable/*`) decides what annotates a value and what is a refusal, so a
+ * comment, a string, an import, an alias or `typeof` does not count. It runs in a child
+ * process, `scripts/lib/probe-guard-parse.mjs`, started through
+ * `scripts/lib/typescript-server-child.mjs` under the same timeout as every other child;
+ * a failure to load or run that parse fails the gate, naming the installed TypeScript,
+ * whose unstable API a routine upgrade can move.
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { failureCause, installedTypescriptVersion, runTypescriptChild } from "./lib/typescript-server-child.mjs";
+import {
+  failureCause,
+  installedTypescriptVersion,
+  runTypescriptChild,
+} from "./lib/typescript-server-child.mjs";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 const SANDBOX = join(ROOT, ".package-check");
