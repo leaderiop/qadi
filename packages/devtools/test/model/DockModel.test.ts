@@ -1119,7 +1119,7 @@ describe("the questions store (M32, M32 b, M34, M36, M47, P2)", () => {
       const readByA = a.reads();
       const last = model.questions.getSnapshot();
 
-      // A changed gate list, and a changed reading that reaches `rejoin` through the diagnostics store.
+      // A changed gate list and a changed reading, both handed over after the scope closed.
       model.configure({ gates: b.registry, reading: { questions: [{ policy: readPolicy }] } });
       model.configure({ gates: a.registry, reading: { questions: [{ policy: writePolicy }] } });
 
