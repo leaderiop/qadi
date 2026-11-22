@@ -12,6 +12,8 @@ import { makeGateRegistry } from "../src/GateRegistry.ts";
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 import type { GateInstance, GateRenderState } from "../src/GateRegistry.ts";
 import { gateWriterFor } from "../src/GateWriter.ts";
+import { inEnvironment, said } from "./support/environment.ts";
+import type { Environment } from "./support/environment.ts";
 import { threw } from "./support/reporterThrew.ts";
 
 const canRead = hasPermission(permission("doc", "read"));
@@ -273,25 +275,20 @@ describe("a throwing collision reporter is named by the option it was passed thr
 
   /** Registers `x` twice on `gates`, and returns the console lines and the listed ids. */
   const collide = (
-    environment: "development" | "production",
+    environment: Environment,
     build: () => { readonly instances: () => ReadonlyArray<GateInstance> },
   ) => {
-    const previous = process.env.NODE_ENV;
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    process.env.NODE_ENV = environment;
-    try {
-      const gates = build();
-      const writer = writerOf(gates);
-      writer.register(instance("x", "Allowed"));
-      writer.register(instance("x", "Denied"));
-      return {
-        lines: warn.mock.calls.map((call) => String(call[0])),
-        ids: gates.instances().map((one) => one.id),
-      };
-    } finally {
-      process.env.NODE_ENV = previous;
-      warn.mockRestore();
-    }
+    const ids: Array<string> = [];
+    const lines = inEnvironment(environment, () =>
+      said(() => {
+        const gates = build();
+        const writer = writerOf(gates);
+        writer.register(instance("x", "Allowed"));
+        writer.register(instance("x", "Denied"));
+        ids.push(...gates.instances().map((one) => one.id));
+      }),
+    );
+    return { lines, ids };
   };
 
   it("a throwing onIdCollision on makeGateRegistry is named onIdCollision in development", () => {

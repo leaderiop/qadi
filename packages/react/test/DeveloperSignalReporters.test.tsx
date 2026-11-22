@@ -55,32 +55,9 @@ import type {
 } from "../src/index.ts";
 import { gateWriterFor } from "../src/GateWriter.ts";
 import type { GateInstance, GateRenderState } from "../src/GateRegistry.ts";
+import { environments, inEnvironment, said } from "./support/environment.ts";
+import type { Environment } from "./support/environment.ts";
 import { threw } from "./support/reporterThrew.ts";
-
-type Environment = "development" | "production";
-const environments: ReadonlyArray<Environment> = ["development", "production"];
-
-/** Runs `act` with `NODE_ENV` set to `environment`, restoring it after. */
-const inEnvironment = <A,>(environment: Environment, act: () => A): A => {
-  const previous = process.env.NODE_ENV;
-  process.env.NODE_ENV = environment;
-  try {
-    return act();
-  } finally {
-    process.env.NODE_ENV = previous;
-  }
-};
-
-/** The lines `act` writes with `console.warn`, in order. */
-const said = (act: () => void): ReadonlyArray<string> => {
-  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-  try {
-    act();
-    return warn.mock.calls.map((call) => String(call[0]));
-  } finally {
-    warn.mockRestore();
-  }
-};
 
 afterEach(() => {
   cleanup();

@@ -20,6 +20,8 @@ import {
   SIGNALS,
 } from "../src/DeveloperSignals.ts";
 import { SeededAllow } from "../src/SeededDecision.ts";
+import { environments, inEnvironment, said } from "./support/environment.ts";
+import type { Environment } from "./support/environment.ts";
 import { hostile, hostileError } from "./support/hostile.ts";
 import { threw } from "./support/reporterThrew.ts";
 
@@ -43,38 +45,6 @@ const seeded = new SeededAllow({
   obligations: [],
   disclosure: { _tag: "Withheld" },
 });
-
-const said = (act: () => void): ReadonlyArray<string> => {
-  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-  try {
-    act();
-    return warn.mock.calls.map((call) => String(call[0]));
-  } finally {
-    warn.mockRestore();
-  }
-};
-
-type Environment = "development" | "production";
-
-const environments: ReadonlyArray<Environment> = ["development", "production"];
-
-const withEnvironment = <A,>(environment: Environment, act: () => A): A => {
-  const previous = process.env.NODE_ENV;
-  process.env.NODE_ENV = environment;
-  try {
-    return act();
-  } finally {
-    process.env.NODE_ENV = previous;
-  }
-};
-
-const useProduction = () => {
-  const previous = process.env.NODE_ENV;
-  process.env.NODE_ENV = "production";
-  return () => {
-    process.env.NODE_ENV = previous;
-  };
-};
 
 const boom = (): never => {
   throw new TypeError("host boom");
@@ -290,23 +260,20 @@ describe("DeveloperSignals", () => {
     });
 
     it("InstrumentedInProduction", () => {
-      const restore = useProduction();
-      try {
-        expect(
-          said(() => providerSignalReporter(undefined)(providerSignals.instrumentedInProduction())),
-        ).toEqual([
-          "[qadi] <QadiProvider instrument> is true outside development. This is a debug " +
-            "affordance: it registers every guarded control's policy, resource and verdict " +
-            "for @qadi/devtools, readable by any script on the page. Pass instrument only in " +
-            "development, or gate it the way you gate the devtools dock itself.",
-        ]);
-        // Once per process: the second is the same signal, not a new one.
-        expect(
-          said(() => providerSignalReporter(undefined)(providerSignals.instrumentedInProduction())),
-        ).toEqual([]);
-      } finally {
-        restore();
-      }
+      inEnvironment("production", () => {
+      expect(
+        said(() => providerSignalReporter(undefined)(providerSignals.instrumentedInProduction())),
+      ).toEqual([
+        "[qadi] <QadiProvider instrument> is true outside development. This is a debug " +
+          "affordance: it registers every guarded control's policy, resource and verdict " +
+          "for @qadi/devtools, readable by any script on the page. Pass instrument only in " +
+          "development, or gate it the way you gate the devtools dock itself.",
+      ]);
+      // Once per process: the second is the same signal, not a new one.
+      expect(
+        said(() => providerSignalReporter(undefined)(providerSignals.instrumentedInProduction())),
+      ).toEqual([]);
+      });
     });
 
     it("AtomsReplaced", () => {
@@ -334,56 +301,50 @@ describe("DeveloperSignals", () => {
 
   describe("when the default speaks", () => {
     it("the four hydration defaults are absent in production, and a supplied reporter replaces them", () => {
-      const restore = useProduction();
-      try {
-        expect(reporterFor(SIGNALS.SeedSuperseded, "makeQadiAtoms", undefined)).toBeUndefined();
-        expect(reporterFor(SIGNALS.GateIdCollision, "makeQadiAtoms", undefined)).toBeUndefined();
-        expect(reporterFor(SIGNALS.GateIdCollision, "makeGateRegistry", undefined)).toBeUndefined();
-        expect(
-          reporterFor(SIGNALS.DehydrationDropped, "dehydrateDecisions", undefined),
-        ).toBeUndefined();
-        expect(
-          reporterFor(SIGNALS.HydrationDropped, "hydrateDecisions", undefined),
-        ).toBeUndefined();
+      inEnvironment("production", () => {
+      expect(reporterFor(SIGNALS.SeedSuperseded, "makeQadiAtoms", undefined)).toBeUndefined();
+      expect(reporterFor(SIGNALS.GateIdCollision, "makeQadiAtoms", undefined)).toBeUndefined();
+      expect(reporterFor(SIGNALS.GateIdCollision, "makeGateRegistry", undefined)).toBeUndefined();
+      expect(
+        reporterFor(SIGNALS.DehydrationDropped, "dehydrateDecisions", undefined),
+      ).toBeUndefined();
+      expect(
+        reporterFor(SIGNALS.HydrationDropped, "hydrateDecisions", undefined),
+      ).toBeUndefined();
 
-        // Contained, so not the same function: what it is handed still reaches it.
-        const heard: Array<unknown> = [];
-        const mine = (value: unknown) => {
-          heard.push(value);
-        };
-        const mismatch = { policy: hasRole("admin"), resource: undefined, seeded, decided };
-        const drop = { reason: "MalformedEntry" as const, entries: [1], wholePayload: false };
-        const leftOut = { reason: "ForeignSubject" as const, entries: [1, 2], wholePayload: false };
-        expect(
-          said(() => {
-            reporterFor(SIGNALS.SeedSuperseded, "makeQadiAtoms", mine)?.(mismatch);
-            reporterFor(SIGNALS.GateIdCollision, "makeQadiAtoms", mine)?.(":r1:");
-            reporterFor(SIGNALS.DehydrationDropped, "dehydrateDecisions", mine)?.(leftOut);
-            reporterFor(SIGNALS.HydrationDropped, "hydrateDecisions", mine)?.(drop);
-          }),
-        ).toEqual([]);
-        expect(heard).toEqual([mismatch, ":r1:", leftOut, drop]);
-      } finally {
-        restore();
-      }
+      // Contained, so not the same function: what it is handed still reaches it.
+      const heard: Array<unknown> = [];
+      const mine = (value: unknown) => {
+        heard.push(value);
+      };
+      const mismatch = { policy: hasRole("admin"), resource: undefined, seeded, decided };
+      const drop = { reason: "MalformedEntry" as const, entries: [1], wholePayload: false };
+      const leftOut = { reason: "ForeignSubject" as const, entries: [1, 2], wholePayload: false };
+      expect(
+        said(() => {
+          reporterFor(SIGNALS.SeedSuperseded, "makeQadiAtoms", mine)?.(mismatch);
+          reporterFor(SIGNALS.GateIdCollision, "makeQadiAtoms", mine)?.(":r1:");
+          reporterFor(SIGNALS.DehydrationDropped, "dehydrateDecisions", mine)?.(leftOut);
+          reporterFor(SIGNALS.HydrationDropped, "hydrateDecisions", mine)?.(drop);
+        }),
+      ).toEqual([]);
+      expect(heard).toEqual([mismatch, ":r1:", leftOut, drop]);
+      });
     });
 
     it("the two development-only provider signals are silent in production", () => {
-      const restore = useProduction();
-      try {
-        expect(
-          said(() => {
-            providerSignalReporter(undefined)(providerSignals.atomsReplaced());
-            providerSignalReporter(undefined)(providerSignals.unwritableGateRegistry());
-          }),
-        ).toEqual([]);
-      } finally {
-        restore();
-      }
+      inEnvironment("production", () => {
+      expect(
+        said(() => {
+          providerSignalReporter(undefined)(providerSignals.atomsReplaced());
+          providerSignalReporter(undefined)(providerSignals.unwritableGateRegistry());
+        }),
+      ).toEqual([]);
+      });
     });
 
     it("InstrumentedInProduction's default is silent in development, whoever asks", () => {
-      withEnvironment("development", () => {
+      inEnvironment("development", () => {
         expect(
           reporterFor(SIGNALS.InstrumentedInProduction, "QadiProvider", undefined),
         ).toBeUndefined();
@@ -395,7 +356,7 @@ describe("DeveloperSignals", () => {
 
     it("a row's condition holds in the environment it names and in no other", () => {
       const holds = (speaks: "Development" | "Production", environment: Environment) =>
-        withEnvironment(environment, () => holdsHere({ speaks }));
+        inEnvironment(environment, () => holdsHere({ speaks }));
       expect(holds("Development", "development")).toBe(true);
       expect(holds("Development", "production")).toBe(false);
       expect(holds("Production", "development")).toBe(false);
@@ -403,7 +364,7 @@ describe("DeveloperSignals", () => {
       // `InstrumentedInProduction` is the one row that names production, and the provider
       // raises the signal when its row's condition holds.
       const instrumented = (environment: Environment) =>
-        withEnvironment(environment, () => holdsHere(SIGNALS.InstrumentedInProduction));
+        inEnvironment(environment, () => holdsHere(SIGNALS.InstrumentedInProduction));
       expect(instrumented("production")).toBe(true);
       expect(instrumented("development")).toBe(false);
     });
@@ -443,7 +404,7 @@ describe("DeveloperSignals", () => {
 
       for (const environment of environments) {
         for (const point of entryPoints) {
-          expect(withEnvironment(environment, () => said(() => point.call(boom)))).toEqual([
+          expect(inEnvironment(environment, () => said(() => point.call(boom)))).toEqual([
             threw(point.option, "TypeError: host boom"),
           ]);
         }
@@ -465,14 +426,14 @@ describe("a supplied reporter that throws (ReporterThrew, INT-04)", () => {
 
   for (const environment of ["development", "production"] as const) {
     describe(`in ${environment}`, () => {
-      const inEnvironment = <A,>(act: () => A): A => withEnvironment(environment, act);
+      const here = <A,>(act: () => A): A => inEnvironment(environment, act);
 
       for (const { row, entry, option, call } of entryPoints) {
         const title =
           `${row} through ${entry}'s ${option}: the throw does not propagate and ` +
           "ReporterThrew names the hook and the error only";
         it(title, () => {
-          const lines = inEnvironment(() => said(() => call(boom)));
+          const lines = here(() => said(() => call(boom)));
           expect(lines).toEqual([threw(option, "TypeError: host boom")]);
           for (const line of lines) {
             expect(line).not.toContain("secret-u2");
@@ -482,7 +443,7 @@ describe("a supplied reporter that throws (ReporterThrew, INT-04)", () => {
       }
 
       it("a thrown non-Error is named by its string form", () => {
-        const lines = inEnvironment(() =>
+        const lines = here(() =>
           said(() =>
             reporterFor(SIGNALS.GateIdCollision, "makeQadiAtoms", () => {
               throw "plain string";
@@ -493,13 +454,13 @@ describe("a supplied reporter that throws (ReporterThrew, INT-04)", () => {
       });
 
       it("a thrown value whose toString and message cannot be read is named by the placeholder", () => {
-        expect(inEnvironment(() => sayingFor(hostile))).toEqual([
+        expect(here(() => sayingFor(hostile))).toEqual([
           threw("onGateIdCollision", "a value that could not be described"),
         ]);
       });
 
       it("a thrown Error whose message cannot be read is named by the placeholder alone", () => {
-        expect(inEnvironment(() => sayingFor(hostileError))).toEqual([
+        expect(here(() => sayingFor(hostileError))).toEqual([
           threw("onGateIdCollision", "a value that could not be described"),
         ]);
       });
@@ -509,20 +470,20 @@ describe("a supplied reporter that throws (ReporterThrew, INT-04)", () => {
           Object.defineProperty(new Error("x"), "message", { value: 42 }),
           { toString: () => "described" },
         );
-        expect(inEnvironment(() => sayingFor(thrown))).toEqual([
+        expect(here(() => sayingFor(thrown))).toEqual([
           threw("onGateIdCollision", "described"),
         ]);
       });
 
       it("a thrown object that is not an Error is named by its string form, whatever its message field", () => {
-        expect(inEnvironment(() => sayingFor({ message: "looks like an error" }))).toEqual([
+        expect(here(() => sayingFor({ message: "looks like an error" }))).toEqual([
           threw("onGateIdCollision", "[object Object]"),
         ]);
       });
 
       it("a thrown Error whose message is the number 42 is named once, as Error: 42", () => {
         const thrown = Object.defineProperty(new Error("x"), "message", { value: 42 });
-        expect(inEnvironment(() => sayingFor(thrown))).toEqual([
+        expect(here(() => sayingFor(thrown))).toEqual([
           threw("onGateIdCollision", "Error: 42"),
         ]);
       });
