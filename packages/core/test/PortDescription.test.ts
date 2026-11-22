@@ -48,6 +48,23 @@ import { relationshipResolverPort } from "../src/RelationshipResolver.ts";
 import { signatureHistoryPort } from "../src/SignatureHistory.ts";
 import { collectingTracer, forkAllAndSettle, isolatedMetrics } from "./helpers.ts";
 
+/** A thrown value that can be neither stringified nor asked for its message. */
+const hostile = {
+  toString(): string {
+    throw new Error("toString threw");
+  },
+  get message(): string {
+    throw new Error("message threw");
+  },
+};
+
+/** An `Error` whose `message` getter throws, so `String` of it throws too. */
+const hostileError = Object.defineProperty(new Error("unread"), "message", {
+  get(): string {
+    throw new Error("message threw");
+  },
+});
+
 class ProbeError extends Data.TaggedError("ProbeError")<{
   readonly what: string;
   readonly cause: unknown;
@@ -593,6 +610,26 @@ describe("a derived port's key is its wire question's key, and its defect is its
     });
   });
 
+  it("a request whose member throws a value whose toString and message cannot be read is refused with the placeholder", () => {
+    for (const thrown of [hostile, hostileError]) {
+      const request = {
+        subjectId: makeSubjectId("alice"),
+        relation: "owner",
+        depth: undefined,
+        get resourceId(): ResourceId {
+          throw thrown;
+        },
+      };
+      const refused = relationshipResolverPort.key([request]);
+      assert.isTrue(Result.isFailure(refused));
+      assert.deepStrictEqual(Result.isFailure(refused) ? refused.failure : undefined, {
+        _tag: "Unreadable",
+        path: [],
+        message: "a value that could not be described",
+      });
+    }
+  });
+
   it("CustomPredicate states its own key: it covers the subject's roles, permissions and attributes, which its wire question does not carry", () => {
     const asEditor = makeSubject({ id: "alice", roles: ["editor"], permissions: [], attributes: {} });
     const asViewer = makeSubject({ id: "alice", roles: ["viewer"], permissions: [], attributes: {} });
@@ -610,5 +647,44 @@ describe("a derived port's key is its wire question's key, and its defect is its
       Result.getOrThrow(customPredicatePort.key(ask(asEditor))),
       Result.getOrThrow(customPredicatePort.key(ask(asViewer))),
     );
+  });
+});
+
+/** A wire whose two conversions throw `thrown`, over the probe port's question and answer shapes. */
+const throwingWire = (thrown: unknown) =>
+  portWire({
+    question: Schema.Struct({ subjectId: SubjectIdSchema, what: Schema.String }),
+    answer: Schema.Struct({ n: Schema.optionalKey(Schema.Number) }),
+    toQuestion: (_args: [who: string]) => {
+      throw thrown;
+    },
+    fromQuestion: (_question, subject): [who: string] => [subject.id],
+    toAnswer: (_answer: number) => {
+      throw thrown;
+    },
+    fromAnswer: (wire) => wire.n ?? 0,
+  });
+
+describe("a port wire refuses a conversion that throws, never throws itself", () => {
+  it("a wire whose conversion throws a value whose toString and message cannot be read refuses the question and the answer with the placeholder", () => {
+    for (const thrown of [hostile, hostileError]) {
+      const wire = throwingWire(thrown);
+      const question = wire.encodeQuestion(["alice"]);
+      const answer = wire.encodeAnswer(1);
+      assert.isTrue(Result.isFailure(question));
+      assert.isTrue(Result.isFailure(answer));
+      assert.strictEqual(Result.isFailure(question) ? question.failure : undefined, "a value that could not be described");
+      assert.strictEqual(Result.isFailure(answer) ? answer.failure : undefined, "a value that could not be described");
+    }
+  });
+
+  it("a wire whose conversion throws an Error refuses with its message, without its name", () => {
+    const wire = throwingWire(new Error("boom"));
+    const question = wire.encodeQuestion(["alice"]);
+    const answer = wire.encodeAnswer(1);
+    assert.isTrue(Result.isFailure(question));
+    assert.isTrue(Result.isFailure(answer));
+    assert.strictEqual(Result.isFailure(question) ? question.failure : undefined, "boom");
+    assert.strictEqual(Result.isFailure(answer) ? answer.failure : undefined, "boom");
   });
 });

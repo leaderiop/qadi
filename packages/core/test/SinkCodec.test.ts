@@ -1119,6 +1119,19 @@ describe("encodeSinkRecord — the outbound operation (ARCH-09)", () => {
       );
     });
 
+    it("a thrown Error whose message is not a string is EncodeFailed with its string form", () => {
+      const odd = Object.defineProperty(new Error("x"), "message", { value: 42 });
+      const hostile = {
+        get boom(): unknown {
+          throw odd;
+        },
+      };
+      assert.deepStrictEqual(
+        refusalOf(recordWith({ resource: { nested: hostile } })),
+        EncodeRefusal.EncodeFailed({ message: "Error: 42" }),
+      );
+    });
+
     it("the refusal names the record it refused", () => {
       const result = encodeSinkRecord(recordWith({ resource: { tags: new Set() } }));
       assert.isTrue(Result.isFailure(result));

@@ -14,6 +14,23 @@ import * as FastCheck from "fast-check";
 import { describeKeyRefusal, KeyRefusal } from "../src/PortDescription.ts";
 import { canonicalKey } from "../src/PortKey.ts";
 
+/** A thrown value that can be neither stringified nor asked for its message. */
+const hostile = {
+  toString(): string {
+    throw new Error("toString threw");
+  },
+  get message(): string {
+    throw new Error("message threw");
+  },
+};
+
+/** An `Error` whose `message` getter throws, so `String` of it throws too. */
+const hostileError = Object.defineProperty(new Error("unread"), "message", {
+  get(): string {
+    throw new Error("message threw");
+  },
+});
+
 /** Why the key refused `v`, asserting it did. */
 const refusalOf = (v: unknown): KeyRefusal => {
   const key = canonicalKey(v);
@@ -230,6 +247,20 @@ describe("canonicalKey — the refusals (ARCH-65)", () => {
     };
     assert.deepStrictEqual(refusalOf({ a: throwing }), KeyRefusal.Unreadable({ path: ["a", "x"], message: "boom" }));
     assert.deepStrictEqual(refusalOf(throwingText), KeyRefusal.Unreadable({ path: ["y"], message: "plain" }));
+  });
+
+  it("refuses a getter that throws a value whose toString and message cannot be read, with the placeholder", () => {
+    for (const thrown of [hostile, hostileError]) {
+      const holder = {
+        get boom(): unknown {
+          throw thrown;
+        },
+      };
+      assert.deepStrictEqual(
+        refusalOf({ a: holder }),
+        KeyRefusal.Unreadable({ path: ["a", "boom"], message: "a value that could not be described" }),
+      );
+    }
   });
 
   it("names the path through arrays, objects, Sets and Maps, past finished siblings", () => {

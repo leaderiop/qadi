@@ -13,12 +13,30 @@ import { decisionHistoryPort } from "../src/DecisionHistory.ts";
 import { makeSubject } from "../src/AuthSubject.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import { toJson, toJsonRecord } from "../src/JsonHazard.ts";
+import { EncodeRefusal } from "../src/JsonRefusal.ts";
 import { PortWireReply, RemotePortFailure } from "../src/PortWire.ts";
 import { relationshipResolverPort } from "../src/RelationshipResolver.ts";
 import { signatureHistoryPort } from "../src/SignatureHistory.ts";
 import type { SignatureQuery } from "../src/SignatureHistory.ts";
 
 const wire = attributeResolverPort.wire;
+
+/** A thrown value that can be neither stringified nor asked for its message. */
+const hostile = {
+  toString(): string {
+    throw new Error("toString threw");
+  },
+  get message(): string {
+    throw new Error("message threw");
+  },
+};
+
+/** An `Error` whose `message` getter throws, so `String` of it throws too. */
+const hostileError = Object.defineProperty(new Error("unread"), "message", {
+  get(): string {
+    throw new Error("message threw");
+  },
+});
 
 /** Any JSON value `Schema.Json` admits, as fast-check generates it. */
 const jsonValue = fc.jsonValue().map((value) => JSON.parse(JSON.stringify(value)));
@@ -71,6 +89,23 @@ describe("a value with no JSON form is refused, never thrown", () => {
       assert.isTrue(Result.isFailure(toJson(value, 64)));
     });
   }
+
+  it("a getter that throws a value whose toString and message cannot be read is EncodeFailed with the placeholder", () => {
+    const expected = EncodeRefusal.EncodeFailed({ message: "a value that could not be described" });
+    for (const thrown of [hostile, hostileError]) {
+      const holder = {
+        get boom(): unknown {
+          throw thrown;
+        },
+      };
+      const whole = toJson(holder, 64);
+      const record = toJsonRecord(holder, 64);
+      assert.isTrue(Result.isFailure(whole));
+      assert.isTrue(Result.isFailure(record));
+      assert.deepStrictEqual(Result.isFailure(whole) ? whole.failure : undefined, expected);
+      assert.deepStrictEqual(Result.isFailure(record) ? record.failure : undefined, expected);
+    }
+  });
 
   it("a custom predicate's resource and params are refused the same way", () => {
     const subject = makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} });
