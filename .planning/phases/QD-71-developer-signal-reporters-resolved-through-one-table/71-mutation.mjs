@@ -74,7 +74,7 @@ const kind = (m) => `${m.mutator} ${m.replacement}`;
  * killed by the table-facts test.
  */
 const EXAMINED = {
-  "packages/react/src/DeveloperSignals.ts": { 'StringLiteral ""': 32, "ObjectLiteral {}": 23, "ArrowFunction () => undefined": 2 },
+  "packages/react/src/DeveloperSignals.ts": { 'StringLiteral ""': 32, "ObjectLiteral {}": 24, "ArrowFunction () => undefined": 4 },
   "packages/react/src/GateRegistry.ts": { "ArrowFunction () => undefined": 1 },
 };
 
