@@ -5,16 +5,16 @@ milestone_name: Arch Wave 13
 current_phase: 69
 current_phase_name: One total thrown-value-to-message module
 status: executing
-stopped_at: Completed 69-03-PLAN.md
-last_updated: "2026-11-22T09:40:03.941Z"
+stopped_at: Completed 69-04-PLAN.md
+last_updated: "2026-11-22T09:44:13.511Z"
 last_activity: 2026-11-22
 last_activity_desc: Phase 69 execution started
-state_head: f50cf7c10fc5871c47ff5ebf291afdb66ccc7e28
+state_head: 44e2c7c1bb0e2957a334afd8d02de416483be3d8
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 9
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 ## Current Position
 
 Phase: 69 (One total thrown-value-to-message module) — EXECUTING
-Plan: 4 of 9
+Plan: 5 of 9
 Status: Ready to execute
 Last activity: 2026-11-22 — Phase 69 execution started
 
@@ -486,6 +486,7 @@ Last activity: 2026-11-22 — Phase 69 execution started
 | Phase 69 P01 | 40min | 3 tasks | 8 files |
 | Phase QD-69 P02 | 15 min | 2 tasks | 3 files |
 | Phase 69 P03 | 20min | 3 tasks | 5 files |
+| Phase QD-69 P04 | 25 min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -825,6 +826,7 @@ Last activity: 2026-11-22 — Phase 69 execution started
 - [Phase 69]: Plan 69-01: scorer records survived and no-coverage counts per file so the close separates removed killed mutants from a weakened test; the close-only thrown group is judged by judgeNew (no base, no open mutant)
 - [Phase QD-69]: 69-02: the no-cause capture case is rewritten in place to pin an empty recorded message; hostile fixtures are declared once per test file
 - [Phase 69]: 69-03: each devtools hostile case loops over both fixtures through its site's own entry; a failing build is the handed layer's own Effect.fail, no hand-written port (decided autonomously)
+- [Phase QD-69]: 69-04: causeMessage lives beside thrownMessage (one rule: what a reader sees of something that went wrong); Cause.pretty is guarded and falls back to thrownMessage of Cause.squash; describeThrown and renderReason deleted, not aliased
 
 ### Pending Todos
 
@@ -898,8 +900,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-22T09:40:03.432Z
-Stopped at: Completed 69-03-PLAN.md
+Last session: 2026-11-22T09:44:13.477Z
+Stopped at: Completed 69-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
