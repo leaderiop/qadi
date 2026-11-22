@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-183                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-11-22                                     |
 > | Status         | Accepted — amends ADR-QD-152                   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-22): the Consequences bullet says every bucket is emitted and the compiler does not check that code drops anything under a reason; 'the base' replaced by the engine before this decision (ARCH-117, CCR-QD-462)<br>1.1 (2026-11-22): the compiler's guarantee stated per kind: an entry or dehydration row needs a bucket, a payload row a named producer, and no type checks a call site raises one; the characterisation's rows are unchanged, not unedited (ARCH-117, CCR-QD-462)<br>1.0 (2026-11-22): Initial release (ARCH-117, CCR-QD-462) |
+> | Change History | 1.3 (2026-11-22): ADR-QD-183's last Consequences bullet is rewrapped to the file's width<br>1.2 (2026-11-22): the Consequences bullet says every bucket is emitted and the compiler does not check that code drops anything under a reason; 'the base' replaced by the engine before this decision (ARCH-117, CCR-QD-462)<br>1.1 (2026-11-22): the compiler's guarantee stated per kind: an entry or dehydration row needs a bucket, a payload row a named producer, and no type checks a call site raises one; the characterisation's rows are unchanged, not unedited (ARCH-117, CCR-QD-462)<br>1.0 (2026-11-22): Initial release (ARCH-117, CCR-QD-462) |
 
 ---
 
@@ -97,7 +97,8 @@ record rather than read off core's table (decision 3).
   after the change. This amends ADR-QD-152's consequence that a `payload` or `dehydration` row compiles everywhere.
 - INV-QD-045's enforcement is restated as INV-QD-385, and the emission order is INV-QD-386.
 - The events, their order and their counts are unchanged, pinned by a characterisation written against the engine
-  before its drops were collected in records, no existing row of which has had its expected values changed. No export is added or removed, so `@qadi/react` takes a patch changeset and `spec/overview.md` is untouched.
+  before its drops were collected in records, no existing row of which has had its expected values changed. No export
+  is added or removed, so `@qadi/react` takes a patch changeset and `spec/overview.md` is untouched.
 
 ## Related
 
