@@ -11,6 +11,7 @@ import { assert } from "@effect/vitest";
 import { WiringRead } from "../src/model/DiagnosticsStore.ts";
 import type { DockModel } from "../src/model/DockModel.ts";
 import type { QuestionsSnapshot } from "../src/model/Gates.ts";
+import type { HydrationActivity } from "../src/model/Hydration.ts";
 import type { PortCallLog } from "../src/model/PortCalls.ts";
 import type { PortCardRow } from "../src/model/PortCards.ts";
 import type { PortActivity } from "../src/model/Wiring.ts";
@@ -77,3 +78,19 @@ export const heardOf = (model: DockModel) => heardOn(model.services);
 
 /** The one activity a test supplies as the host's own reading. */
 export const suppliedActivity: ReadonlyArray<PortActivity> = activityOf(1);
+
+/** A reading holding every field the services store reads. */
+export const oneReading = () => ({
+  wiring: wiringNamed("one"),
+  activity: activityOf(1),
+  portCalls: logOf("tier"),
+});
+
+/** The hydration activity a test supplies as the host's own reading. */
+export const suppliedHydration: HydrationActivity = {
+  dehydrated: 2,
+  seeded: 1,
+  rechecked: 0,
+  mismatched: 0,
+  drops: [],
+};

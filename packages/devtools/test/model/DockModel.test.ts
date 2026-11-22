@@ -54,7 +54,6 @@ import type { DockModel } from "../../src/model/DockModel.ts";
 import type { TabId } from "../../src/model/DockSession.ts";
 import { noFilters } from "../../src/model/Filters.ts";
 import type { AskedQuestionLike, GateInstanceLike, QuestionsSnapshot } from "../../src/model/Gates.ts";
-import type { HydrationActivity } from "../../src/model/Hydration.ts";
 import type { Source } from "../../src/model/Source.ts";
 import type { TimelineEntry } from "../../src/model/Timeline.ts";
 import { countsOf } from "../../src/model/Verdict.ts";
@@ -77,8 +76,10 @@ import {
   askingIds,
   heardOf,
   logOf,
+  oneReading,
   rowOf,
   suppliedActivity,
+  suppliedHydration,
   wiringNamed,
 } from "../dockModelFixtures.ts";
 
@@ -1658,7 +1659,7 @@ describe("the services store", () => {
         if (fail) throw new Error("the collector blew up");
         return { calls: [], dropped: 0, capacity: 10 };
       });
-      const reading = { wiring: wiringNamed("one"), activity: activityOf(1), portCalls: logOf("tier") };
+      const reading = oneReading();
       const model = yield* makeDockModel({ diagnostics: { collector }, reading });
       const before = model.services.getSnapshot();
       const heard = heardOf(model);
@@ -1681,14 +1682,6 @@ describe("the services store", () => {
       assert.deepStrictEqual(off.services.getSnapshot(), offView);
     }));
 
-  const hydration: HydrationActivity = {
-    dehydrated: 2,
-    seeded: 1,
-    rechecked: 0,
-    mismatched: 0,
-    drops: [],
-  };
-
   /**
    * A model reading one wiring, activity and call log, handed `change` laid over it by a
    * configure: how often the services store heard. A diagnostics listener reads the
@@ -1697,11 +1690,7 @@ describe("the services store", () => {
   const heardAfter = (change: DiagnosticsReading, state?: string) =>
     Effect.gen(function* () {
       const diagnostics = {};
-      const reading = {
-        wiring: wiringNamed("one"),
-        activity: activityOf(1),
-        portCalls: logOf("tier"),
-      };
+      const reading = oneReading();
       const model = yield* makeDockModel({ diagnostics, reading });
       const heard = heardOf(model);
       const told: Array<string> = [];
@@ -1737,7 +1726,7 @@ describe("the services store", () => {
   ];
 
   const servicesQuiet: ReadonlyArray<KeyRow> = [
-    { field: "the hydration", heard: heardAfter({ hydration }) },
+    { field: "the hydration", heard: heardAfter({ hydration: suppliedHydration }) },
     {
       field: "the supplied questions",
       heard: heardAfter({ questions: [{ policy: readPolicy }] }),
