@@ -67,7 +67,7 @@ usage line at 93 was there before). `check-package-install.mjs`: header sentence
 parse, then the child it runs in, then the failure), and the import split over four lines. I left
 `CHILD_TIMEOUT_MS`'s comment alone: the review did not flag it.
 
-### IN-03: The server-pid behaviour is explained three times in `probe-guard-parse.mjs`
+### IN-03: The server-pid behaviour is explained three times in `probe-guard-parse.mjs`, with a dangling referent
 
 **Files modified:** `scripts/lib/probe-guard-parse.mjs`
 **Commit:** 44e61bb8 (the header was one rewrite for IN-02 and IN-03, so they share a commit)
