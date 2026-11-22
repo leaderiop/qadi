@@ -52,6 +52,7 @@ import * as Struct from "effect/Struct";
 import * as Atom from "effect/reactivity/Atom";
 import type { HydrationDropReporter } from "./DeveloperSignals.ts";
 import { hydrationDropReporter, saysDehydrationDropped, saysHydrationDropped } from "./DeveloperSignals.ts";
+import { dropEvents, entryBuckets } from "./HydrationBuckets.ts";
 import type { DecisionEntry, EntryDropReason, HydrationHooks, PayloadRefusalReason } from "./HydrationEvent.ts";
 import { HydrationEvent, emitHydration } from "./HydrationEvent.ts";
 import type { SeededDecision } from "./SeededDecision.ts";
@@ -474,6 +475,8 @@ interface HydrationPlan {
  *
  * Pure: writes no metric and calls no reporter, so nothing a reporter does can
  * stop an entry being seeded or counted. Private, like {@link planDehydration}.
+ * Every refused entry is collected in the side's bucket record, and the drop
+ * events come from that record alone.
  */
 const planHydration = (seedFor: HydrationSeedLookup, payload: unknown, subject: AuthSubject): HydrationPlan => {
   // The count rule — a refused payload is at least one drop — is the
@@ -509,15 +512,7 @@ const planHydration = (seedFor: HydrationSeedLookup, payload: unknown, subject: 
   if (subjectId !== subject.id) return refuse("PayloadSubjectMismatch", entries);
 
   const seeded: Array<readonly [Atom.Atom<unknown>, unknown]> = [];
-  const tooDeep: Array<unknown> = [];
-  const malformed: Array<unknown> = [];
-  const undecodable: Array<unknown> = [];
-
-  const bucketOf: Record<EntryDropReason, Array<unknown>> = {
-    EntryTooDeep: tooDeep,
-    MalformedEntry: malformed,
-    UndecodablePolicy: undecodable,
-  };
+  const drops = entryBuckets();
 
   for (const entry of entries) {
     const fields = decodeEntry(entry);
@@ -526,7 +521,7 @@ const planHydration = (seedFor: HydrationSeedLookup, payload: unknown, subject: 
     // disclosure of the wrong shape — is a different failure than a policy shape
     // this schema doesn't know, and warrants its own reason.
     if (Result.isFailure(fields)) {
-      bucketOf[entryDropReason(fields.failure, "MalformedEntry")].push(entry);
+      drops[entryDropReason(fields.failure, "MalformedEntry")].push(entry);
       continue;
     }
 
@@ -535,27 +530,22 @@ const planHydration = (seedFor: HydrationSeedLookup, payload: unknown, subject: 
     // entry of a shape undecodable, and one warning per entry would bury the
     // page's other output under a payload's worth of identical lines.
     if (Result.isFailure(decoded)) {
-      bucketOf[entryDropReason(decoded.failure, "UndecodablePolicy")].push(entry);
+      drops[entryDropReason(decoded.failure, "UndecodablePolicy")].push(entry);
       continue;
     }
 
     if (!entryAgrees(fields.success, decoded.success)) {
-      malformed.push(entry);
+      drops.MalformedEntry.push(entry);
       continue;
     }
 
     seeded.push(seedFor(decoded.success, fields.success.resource).hold(rebuild(fields.success, subject.id)));
   }
 
-  const events: Array<HydrationEvent> = [];
-  if (tooDeep.length > 0) events.push(HydrationEvent.EntriesDropped({ reason: "EntryTooDeep", entries: tooDeep }));
-  if (malformed.length > 0) {
-    events.push(HydrationEvent.EntriesDropped({ reason: "MalformedEntry", entries: malformed }));
-  }
-  if (undecodable.length > 0) {
-    events.push(HydrationEvent.EntriesDropped({ reason: "UndecodablePolicy", entries: undecodable }));
-  }
-  events.push(HydrationEvent.Seeded({ count: seeded.length }));
+  const events: ReadonlyArray<HydrationEvent> = [
+    ...dropEvents(drops, (reason, entries) => HydrationEvent.EntriesDropped({ reason, entries })),
+    HydrationEvent.Seeded({ count: seeded.length }),
+  ];
 
   return { initialValues: seeded, events };
 };
