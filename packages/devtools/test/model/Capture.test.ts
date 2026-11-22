@@ -599,7 +599,7 @@ describe("what a replayed failure carries", () => {
       );
       assert.strictEqual(
         recorded?._tag === "Broke" ? recorded.message : "",
-        "<unrenderable cause>",
+        "a value that could not be described",
       );
     }));
 
