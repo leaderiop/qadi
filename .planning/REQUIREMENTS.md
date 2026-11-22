@@ -119,7 +119,7 @@ Every phase runs on branch `arch-wave-12`, strictly serial.
   reported as titles-and-comments-only (review IN-04); each verdict Phase 68 recorded with it is re-checked.
 - [x] **DEBT-05**: Every child gate 14 starts has a time limit, including the probe guard's TypeScript parse
   (AR-68-02); ADR-QD-033 and gate 14's doc comment say so.
-- [ ] **DEBT-06**: Phases 62 to 68.1 each have a validated Nyquist `VALIDATION.md` (`/gsd-validate-phase`).
+- [x] **DEBT-06**: Phases 62 to 68.1 each have a validated Nyquist `VALIDATION.md` (`/gsd-validate-phase`).
 
 ### Every phase (cross-cutting)
 
@@ -201,7 +201,7 @@ The seven WX rows apply to every phase 62 to 68, so each phase's Requirements li
 | DEBT-03 | Phase 68.1 | Complete |
 | DEBT-04 | Phase 68.1 | Complete |
 | DEBT-05 | Phase 68.1 | Complete |
-| DEBT-06 | Phase 68.1 | Pending |
+| DEBT-06 | Phase 68.1 | Complete |
 | WX-01 | All v1.7 phases | Pending |
 | WX-02 | All v1.7 phases | Pending |
 | WX-03 | All v1.7 phases | Pending |
