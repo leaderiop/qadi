@@ -18,11 +18,11 @@
 
 ### Hydration's drop events come from its buckets (Phase 70, ARCH-117, react; live defect)
 
-- [ ] **DRPE-01**: A check written on the phase base is RED: a drop reason can be given a bucket without being reported as an event, and it compiles. It is GREEN after the change (for example, a type pin that the event derivation is total over `EntryDropReason`).
-- [ ] **DRPE-02**: On the hydrate side, the buckets are one record keyed by `EntryDropReason`, and `EntriesDropped` events are derived from it in one place. The direct `malformed.push` is gone.
-- [ ] **DRPE-03**: On the dehydrate side, `LeftOut` events are derived the same way from a record keyed by its reason.
-- [ ] **DRPE-04**: The hydration events, their order and their counts are byte-identical to the phase base's characterisation for every existing input.
-- [ ] **DRPE-05**: ADR-QD-183 cites ADR-QD-152 and says why the "a later phase shares the file" reason no longer applies. INV-QD-045's enforcement is restated. The payload-path question from `_WAVE13-CONTEXT.md` is decided once and recorded.
+- [x] **DRPE-01**: A check written on the phase base is RED: a drop reason can be given a bucket without being reported as an event, and it compiles. It is GREEN after the change (for example, a type pin that the event derivation is total over `EntryDropReason`).
+- [x] **DRPE-02**: On the hydrate side, the buckets are one record keyed by `EntryDropReason`, and `EntriesDropped` events are derived from it in one place. The direct `malformed.push` is gone.
+- [x] **DRPE-03**: On the dehydrate side, `LeftOut` events are derived the same way from a record keyed by its reason.
+- [x] **DRPE-04**: The hydration events, their order and their counts are byte-identical to the phase base's characterisation for every existing input.
+- [x] **DRPE-05**: ADR-QD-183 cites ADR-QD-152 and says why the "a later phase shares the file" reason no longer applies. INV-QD-045's enforcement is restated. The payload-path question from `_WAVE13-CONTEXT.md` is decided once and recorded.
 
 ### Developer-signal reporters resolved through one table (Phase 71, ARCH-118, react; live defect)
 
@@ -110,11 +110,11 @@ Which phases cover which requirements. One row per ID (`phase.complete` cannot p
 | THRW-03 | Phase 69 | Complete |
 | THRW-04 | Phase 69 | Complete |
 | THRW-05 | Phase 69 | Complete |
-| DRPE-01 | Phase 70 | Pending |
-| DRPE-02 | Phase 70 | Pending |
-| DRPE-03 | Phase 70 | Pending |
-| DRPE-04 | Phase 70 | Pending |
-| DRPE-05 | Phase 70 | Pending |
+| DRPE-01 | Phase 70 | Complete |
+| DRPE-02 | Phase 70 | Complete |
+| DRPE-03 | Phase 70 | Complete |
+| DRPE-04 | Phase 70 | Complete |
+| DRPE-05 | Phase 70 | Complete |
 | SIGR-01 | Phase 71 | Pending |
 | SIGR-02 | Phase 71 | Pending |
 | SIGR-03 | Phase 71 | Pending |
