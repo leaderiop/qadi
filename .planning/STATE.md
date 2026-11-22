@@ -5,16 +5,16 @@ milestone_name: Arch Wave 13
 current_phase: 69
 current_phase_name: One total thrown-value-to-message module
 status: executing
-stopped_at: Completed 69-07-PLAN.md
-last_updated: "2026-11-22T10:03:00.774Z"
+stopped_at: Completed QD-69-08-PLAN.md
+last_updated: "2026-11-22T10:17:04.341Z"
 last_activity: 2026-11-22
 last_activity_desc: Phase 69 execution started
-state_head: f95443ec0d8ac83b8092b035a5d8cbe3086f45a8
+state_head: 5c69fd51634c56203ebaa272d8f9c8f56a630477
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 9
-  completed_plans: 7
+  completed_plans: 8
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 ## Current Position
 
 Phase: 69 (One total thrown-value-to-message module) — EXECUTING
-Plan: 8 of 9
+Plan: 9 of 9
 Status: Ready to execute
 Last activity: 2026-11-22 — Phase 69 execution started
 
@@ -490,6 +490,7 @@ Last activity: 2026-11-22 — Phase 69 execution started
 | Phase 69 P05 | 15min | 3 tasks | 4 files |
 | Phase QD-69 P06 | 20min | 3 tasks | 9 files |
 | Phase 69 P07 | 35 min | 3 tasks | 11 files |
+| Phase QD-69 P08 | 30min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -833,6 +834,7 @@ Last activity: 2026-11-22 — Phase 69 execution started
 - [Phase 69]: 69-05: react errorLine is namedLine(error) ?? thrownMessage(error); devtools capture reads cause, else reason, else error through fieldOf and thrownMessage (a null cause reads as none)
 - [Phase QD-69]: 69-06: GatesFeed stated reads its reason through causeMessage(Cause.die(thrown)); its own guard is gone, key and fallback kept; a throw that cannot be rendered reads as the one placeholder (decided autonomously)
 - [Phase 69]: ADR-QD-182, CCR-QD-461 and gate 14's probes recorded: both thrownMessage and causeMessage are public @qadi/core exports; the second export, the devtools feeds in scope, the capture keeping a failure's own text and react naming an error once were decided autonomously on 2026-11-22 under the owner's instruction
+- [Phase QD-69]: 69-08: the spec states the thrown-value rule at every seam with only the reserved ids; ADR-QD-182 gate 14 mention names its script (decided autonomously)
 
 ### Pending Todos
 
@@ -906,8 +908,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-22T10:03:00.700Z
-Stopped at: Completed 69-07-PLAN.md
+Last session: 2026-11-22T10:17:04.097Z
+Stopped at: Completed QD-69-08-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
