@@ -2,7 +2,7 @@
  "phase": "72",
  "groups": {
   "model": {
-   "head": "fd0c15fb9b08de94a2a847b382efbe3273df26f5",
+   "head": "ed8d487fb6b26af4e9a21f2eaddd5cabff04aaec",
    "invocation": "pnpm exec stryker run stryker.devtools.mjs --mutate packages/devtools/src/model/DockModel.ts",
    "files": {
     "packages/devtools/src/model/DockModel.ts": {
@@ -90,7 +90,7 @@
    }
   },
   "store": {
-   "head": "fd0c15fb9b08de94a2a847b382efbe3273df26f5",
+   "head": "ed8d487fb6b26af4e9a21f2eaddd5cabff04aaec",
    "invocation": "pnpm exec stryker run stryker.devtools.mjs --mutate packages/devtools/src/model/ExternalStore.ts",
    "files": {
     "packages/devtools/src/model/ExternalStore.ts": {
