@@ -172,14 +172,22 @@ const fieldOf = (error: unknown, key: "cause" | "reason"): unknown => {
  * described is recorded with the one placeholder and the capture still records
  * that the port broke.
  *
+ * A field is absent only when it is `undefined`. A `null` cause is a value the
+ * resolver reported, so it is captured as `"null"`, as the live run carried it,
+ * and does not fall through to `reason` or to the error's own text.
+ *
  * A message string, not the cause itself: on the record wire a `cause` crosses
  * through `Schema.Defect()` (ADR-QD-060), but a capture has no wire to
  * survive, and a replay rebuilds the error class from the port, so the message
  * is all it needs. A cause is `unknown`, so it may be an `Error`, a plain
  * object, or something that cannot be stringified at all.
  */
-const renderError = (error: unknown): string =>
-  thrownMessage(fieldOf(error, "cause") ?? fieldOf(error, "reason") ?? error);
+const renderError = (error: unknown): string => {
+  const cause = fieldOf(error, "cause");
+  if (cause !== undefined) return thrownMessage(cause);
+  const reason = fieldOf(error, "reason");
+  return thrownMessage(reason !== undefined ? reason : error);
+};
 
 /**
  * The reply for a request the capture never saw: the port's own typed error,

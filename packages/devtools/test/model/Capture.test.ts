@@ -557,6 +557,24 @@ describe("what a replayed failure carries", () => {
       assert.strictEqual(recorded?._tag === "Broke" ? recorded.message : "", "");
     }));
 
+  it.effect("a null cause is a reported cause, recorded as its text and not as no cause", () =>
+    Effect.gen(function* () {
+      // `null` is a value a resolver can report by mistake. It is not absent, so it
+      // does not fall through to the reason or to the error's own text (BEH-QD-685).
+      const broken = portsLayer({
+        AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail(null), "broken").layer,
+      });
+      const capture = capturing(broken);
+      yield* simulate(hasAttribute("clearance", gte(1)), alice, { source: live(capture.layer) });
+
+      assert.deepStrictEqual(
+        (yield* capture.answers).AttributeResolver.get(
+          keyText(attributeResolverPort.key([makeSubjectId("alice"), "clearance"])),
+        ),
+        { _tag: "Broke", message: "null" },
+      );
+    }));
+
   it.effect("a port that was never reached captures nothing", () =>
     Effect.gen(function* () {
       const capture = capturing(
