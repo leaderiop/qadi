@@ -46,24 +46,7 @@ import { makeResourceId, makeSubjectId, SubjectIdSchema } from "../src/Identity.
 import type { ArgsOf, PortTypes } from "../src/Ports.ts";
 import { relationshipResolverPort } from "../src/RelationshipResolver.ts";
 import { signatureHistoryPort } from "../src/SignatureHistory.ts";
-import { collectingTracer, forkAllAndSettle, isolatedMetrics } from "./helpers.ts";
-
-/** A thrown value that can be neither stringified nor asked for its message. */
-const hostile = {
-  toString(): string {
-    throw new Error("toString threw");
-  },
-  get message(): string {
-    throw new Error("message threw");
-  },
-};
-
-/** An `Error` whose `message` getter throws, so `String` of it throws too. */
-const hostileError = Object.defineProperty(new Error("unread"), "message", {
-  get(): string {
-    throw new Error("message threw");
-  },
-});
+import { collectingTracer, forkAllAndSettle, hostile, hostileError, isolatedMetrics } from "./helpers.ts";
 
 class ProbeError extends Data.TaggedError("ProbeError")<{
   readonly what: string;

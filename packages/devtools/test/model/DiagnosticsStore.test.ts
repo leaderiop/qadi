@@ -28,6 +28,7 @@ import {
   type DiagnosticsStore,
 } from "../../src/model/DiagnosticsStore.ts";
 import type { PortCallCollector, PortCallLog } from "../../src/model/PortCalls.ts";
+import { hostile, hostileError } from "../helpers.ts";
 
 const emptyLog: PortCallLog = { calls: [], dropped: 0, capacity: 10 };
 
@@ -267,21 +268,6 @@ describe("runDiagnostics", () => {
       yield* Fiber.interrupt(fiber);
     }),
   );
-
-  // A thrown value whose `toString` and `message` both throw, and an `Error` whose `message` getter throws.
-  const hostile = {
-    toString(): string {
-      throw new Error("toString threw");
-    },
-    get message(): string {
-      throw new Error("message threw");
-    },
-  };
-  const hostileError = Object.defineProperty(new Error("unread"), "message", {
-    get(): string {
-      throw new Error("message threw");
-    },
-  });
 
   it.effect("a layer that fails to build with a value that cannot be rendered reads Failed with the placeholder", () =>
     Effect.gen(function* () {

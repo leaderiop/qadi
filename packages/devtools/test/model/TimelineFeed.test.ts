@@ -19,7 +19,7 @@ import type { StoredRecord } from "@qadi/core";
 import { sourceFromRecords, type Source, type SourceRead } from "../../src/model/Source.ts";
 import { makeTimelineFeed, type TimelineFeed } from "../../src/index.ts";
 import { idleTimeline } from "../../src/model/TimelineFeed.ts";
-import { decisionRecord, settleTurns, thrownBy } from "../helpers.ts";
+import { decisionRecord, hostile, hostileError, settleTurns, thrownBy } from "../helpers.ts";
 
 const flush = Effect.andThen(Effect.yieldNow, TestClock.adjust("10 millis"));
 
@@ -237,21 +237,6 @@ describe("the timeline feed", () => {
       assert.strictEqual(status._tag, "Stopped");
       assert.isTrue(status._tag === "Stopped" && status.reason.includes("boom"));
     }));
-
-  // A thrown value whose `toString` and `message` both throw, and an `Error` whose `message` getter throws.
-  const hostile = {
-    toString(): string {
-      throw new Error("toString threw");
-    },
-    get message(): string {
-      throw new Error("message threw");
-    },
-  };
-  const hostileError = Object.defineProperty(new Error("unread"), "message", {
-    get(): string {
-      throw new Error("message threw");
-    },
-  });
 
   it.effect("a read that dies with a value that cannot be rendered is Stopped with the placeholder", () =>
     Effect.gen(function* () {

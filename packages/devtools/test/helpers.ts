@@ -191,3 +191,26 @@ export const liveNotice: DiagnosticsNoticeProps = {
   onRestart: () => undefined,
   announced: { current: noStops },
 };
+
+/**
+ * A thrown value that can be neither stringified nor asked for its message.
+ *
+ * The one hostile value the thrown-value tests share (ADR-QD-182): both its
+ * `toString` and its `message` getter throw, so a copy of `thrownMessage` that
+ * guards only one of them fails here.
+ */
+export const hostile = {
+  toString(): string {
+    throw new Error("toString threw");
+  },
+  get message(): string {
+    throw new Error("message threw");
+  },
+};
+
+/** An `Error` whose `message` getter throws, so `String` of it throws too. */
+export const hostileError = Object.defineProperty(new Error("unread"), "message", {
+  get(): string {
+    throw new Error("message threw");
+  },
+});

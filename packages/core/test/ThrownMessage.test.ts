@@ -8,25 +8,9 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Cause from "effect/Cause";
 import { causeMessage, thrownMessage } from "../src/ThrownMessage.ts";
+import { hostile, hostileError } from "./helpers.ts";
 
 const PLACEHOLDER = "a value that could not be described";
-
-/** A thrown value that can be neither stringified nor asked for its message. */
-const hostile = {
-  toString(): string {
-    throw new Error("toString threw");
-  },
-  get message(): string {
-    throw new Error("message threw");
-  },
-};
-
-/** An `Error` whose `message` getter throws, so `String` of it throws too. */
-const hostileError = Object.defineProperty(new Error("unread"), "message", {
-  get(): string {
-    throw new Error("message threw");
-  },
-});
 
 /** An `Error` whose `message` getter throws, but that still has a string form. */
 const describedError = Object.defineProperty(new Error("unread"), "message", {

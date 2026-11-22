@@ -18,25 +18,9 @@ import { PortWireReply, RemotePortFailure } from "../src/PortWire.ts";
 import { relationshipResolverPort } from "../src/RelationshipResolver.ts";
 import { signatureHistoryPort } from "../src/SignatureHistory.ts";
 import type { SignatureQuery } from "../src/SignatureHistory.ts";
+import { hostile, hostileError } from "./helpers.ts";
 
 const wire = attributeResolverPort.wire;
-
-/** A thrown value that can be neither stringified nor asked for its message. */
-const hostile = {
-  toString(): string {
-    throw new Error("toString threw");
-  },
-  get message(): string {
-    throw new Error("message threw");
-  },
-};
-
-/** An `Error` whose `message` getter throws, so `String` of it throws too. */
-const hostileError = Object.defineProperty(new Error("unread"), "message", {
-  get(): string {
-    throw new Error("message threw");
-  },
-});
 
 /** Any JSON value `Schema.Json` admits, as fast-check generates it. */
 const jsonValue = fc.jsonValue().map((value) => JSON.parse(JSON.stringify(value)));

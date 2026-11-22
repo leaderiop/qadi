@@ -33,6 +33,7 @@ import {
   saysHydrationDropped,
 } from "../src/DeveloperSignals.ts";
 import { SeededAllow } from "../src/SeededDecision.ts";
+import { hostile, hostileError } from "./support/hostile.ts";
 
 const decided: Decision = new Deny({
   evaluationId: "eval-1",
@@ -255,23 +256,6 @@ describe("a supplied reporter that throws (ReporterThrew, INT-04)", () => {
   const boom = (): never => {
     throw new TypeError("host boom");
   };
-
-  /** A thrown value that can be neither stringified nor asked for its message. */
-  const hostile = {
-    toString(): string {
-      throw new Error("toString threw");
-    },
-    get message(): string {
-      throw new Error("message threw");
-    },
-  };
-
-  /** An `Error` whose `message` getter throws, so `String` of it throws too. */
-  const hostileError = Object.defineProperty(new Error("unread"), "message", {
-    get(): string {
-      throw new Error("message threw");
-    },
-  });
 
   /** What each reporter case reads: the lines said when the reporter throws `thrown`. */
   const sayingFor = (thrown: unknown): ReadonlyArray<string> =>

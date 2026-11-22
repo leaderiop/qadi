@@ -33,6 +33,7 @@ import {
   type ExplorerSession,
   type ExplorerSnapshot,
 } from "../../src/model/ExplorerSession.ts";
+import { hostile, hostileError } from "../helpers.ts";
 
 const read = permission("doc", "read");
 const write = permission("doc", "write");
@@ -567,21 +568,6 @@ describe("the decode and encode exits", () => {
     assert.strictEqual(textOf(Exit.succeed("{}")), "{}");
     assert.include(textOf(Exit.die(new Error("cannot encode"))), "cannot encode");
     assert.strictEqual(textOf(Exit.failCause(Cause.fail("plain"))), Cause.pretty(Cause.fail("plain")));
-  });
-
-  // A thrown value whose `toString` and `message` both throw, and an `Error` whose `message` getter throws.
-  const hostile = {
-    toString(): string {
-      throw new Error("toString threw");
-    },
-    get message(): string {
-      throw new Error("message threw");
-    },
-  };
-  const hostileError = Object.defineProperty(new Error("unread"), "message", {
-    get(): string {
-      throw new Error("message threw");
-    },
   });
 
   it("a defect whose value cannot be rendered is a stated refusal with the placeholder, not a throw", () => {

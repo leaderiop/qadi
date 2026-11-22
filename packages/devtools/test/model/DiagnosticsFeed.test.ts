@@ -28,7 +28,7 @@ import {
 import { noDiagnostics } from "../../src/model/DiagnosticsStore.ts";
 import type { PortCallCollector, PortCallLog } from "../../src/model/PortCalls.ts";
 import { makeCollectorDouble } from "../collectorDouble.ts";
-import { settleTurns, thrownBy } from "../helpers.ts";
+import { hostile, hostileError, settleTurns, thrownBy } from "../helpers.ts";
 
 /** A layer that counts its builds and releases. */
 const counted = () => {
@@ -152,21 +152,6 @@ describe("the diagnostics feed", () => {
       assert.strictEqual(state.calls, 1);
     }),
   );
-
-  // A thrown value whose `toString` and `message` both throw, and an `Error` whose `message` getter throws.
-  const hostile = {
-    toString(): string {
-      throw new Error("toString threw");
-    },
-    get message(): string {
-      throw new Error("message threw");
-    },
-  };
-  const hostileError = Object.defineProperty(new Error("unread"), "message", {
-    get(): string {
-      throw new Error("message threw");
-    },
-  });
 
   it.effect("a collector that throws a value that cannot be rendered is Stopped with the placeholder", () =>
     Effect.gen(function* () {

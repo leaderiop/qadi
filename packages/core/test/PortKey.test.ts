@@ -13,23 +13,7 @@ import * as Result from "effect/Result";
 import * as FastCheck from "fast-check";
 import { describeKeyRefusal, KeyRefusal } from "../src/PortDescription.ts";
 import { canonicalKey } from "../src/PortKey.ts";
-
-/** A thrown value that can be neither stringified nor asked for its message. */
-const hostile = {
-  toString(): string {
-    throw new Error("toString threw");
-  },
-  get message(): string {
-    throw new Error("message threw");
-  },
-};
-
-/** An `Error` whose `message` getter throws, so `String` of it throws too. */
-const hostileError = Object.defineProperty(new Error("unread"), "message", {
-  get(): string {
-    throw new Error("message threw");
-  },
-});
+import { hostile, hostileError } from "./helpers.ts";
 
 /** Why the key refused `v`, asserting it did. */
 const refusalOf = (v: unknown): KeyRefusal => {

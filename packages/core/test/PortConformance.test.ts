@@ -74,7 +74,7 @@ import {
   signatureHistoryRetrying,
   signatureHistoryTimingOut,
 } from "../src/SignatureHistory.ts";
-import { collectingTracer, forkAllAndSettle, isolatedMetrics } from "./helpers.ts";
+import { collectingTracer, forkAllAndSettle, hostile, hostileError, isolatedMetrics } from "./helpers.ts";
 
 /** What the suite needs to know about one port beyond its description. */
 interface PortCase<
@@ -726,23 +726,6 @@ describe("every argument reaches the key", () => {
     assert.isTrue(Result.isFailure(customPredicatePort.key(["isOwner", alice, circular, undefined])));
     assert.isTrue(Result.isFailure(customPredicatePort.key(["isOwner", alice, undefined, () => true])));
   });
-});
-
-/** A thrown value that can be neither stringified nor asked for its message. */
-const hostile = {
-  toString(): string {
-    throw new Error("toString threw");
-  },
-  get message(): string {
-    throw new Error("message threw");
-  },
-};
-
-/** An `Error` whose `message` getter throws, so `String` of it throws too. */
-const hostileError = Object.defineProperty(new Error("unread"), "message", {
-  get(): string {
-    throw new Error("message threw");
-  },
 });
 
 describe("customPredicatePort's failure reason", () => {

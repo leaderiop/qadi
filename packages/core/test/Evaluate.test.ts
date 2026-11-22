@@ -40,7 +40,16 @@ import {
   relationshipResolverPort,
 } from "../src/RelationshipResolver.ts";
 import { signatureHistoryFromSignatures, signatureHistoryPort } from "../src/SignatureHistory.ts";
-import { chain, collectingLogger, collectingTracer, isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
+import {
+  chain,
+  collectingLogger,
+  collectingTracer,
+  hostile,
+  hostileError,
+  isolatedMetrics,
+  subjectWith,
+  testLayer,
+} from "./helpers.ts";
 import { scriptedPort } from "../src/PortDoubles.ts";
 import { PortReply } from "../src/PortDescription.ts";
 
@@ -3963,23 +3972,6 @@ describe("concurrent evaluation", () => {
  * defect — and the last test proves `Effect.retry` can actually see and
  * retry it.
  */
-/** A thrown value that can be neither stringified nor asked for its message. */
-const hostile = {
-  toString(): string {
-    throw new Error("toString threw");
-  },
-  get message(): string {
-    throw new Error("message threw");
-  },
-};
-
-/** An `Error` whose `message` getter throws, so `String` of it throws too. */
-const hostileError = Object.defineProperty(new Error("unread"), "message", {
-  get(): string {
-    throw new Error("message threw");
-  },
-});
-
 describe("port defects become typed errors", () => {
   it.effect("a dying AttributeResolver surfaces as AttributeResolveError", () =>
     Effect.gen(function* () {

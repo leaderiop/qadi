@@ -60,6 +60,7 @@ import { simulate } from "../../src/model/Simulation.ts";
 import type { SimulationInput } from "../../src/model/SimulationInput.ts";
 import { live, snapshot } from "../../src/model/SimulationSource.ts";
 import { wiringReport } from "../../src/model/Wiring.ts";
+import { hostile, hostileError } from "../helpers.ts";
 
 /** A request key's text; a refusal fails the test, since these requests are all keyable. */
 const keyText = (key: Result.Result<string, KeyRefusal>): string => {
@@ -605,20 +606,7 @@ describe("what a replayed failure carries", () => {
 
   it.effect("a cause whose toString and message cannot be read is recorded as broken with the placeholder", () =>
     Effect.gen(function* () {
-      const unreadable = {
-        toString(): string {
-          throw new Error("toString threw");
-        },
-        get message(): string {
-          throw new Error("message threw");
-        },
-      };
-      const unreadableError = Object.defineProperty(new Error("unread"), "message", {
-        get(): string {
-          throw new Error("message threw");
-        },
-      });
-      for (const value of [unreadable, unreadableError]) {
+      for (const value of [hostile, hostileError]) {
         const broken = portsLayer({
           AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail(value), "broken").layer,
         });
