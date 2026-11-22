@@ -7,9 +7,9 @@
  *
  * The rules: a new timeline reaches every screen, a replay commands the simulation,
  * a new head does not move a held choice, an unchanged input dispatches nothing, and
- * no screen reads another timeline than the one the dock shows. Until now those
- * rules lived in layout effects and were proved only by rendering the whole dock.
- * They are stated here against `makeDockModel` and nothing is rendered.
+ * no screen reads another timeline than the one the dock shows. Those rules once
+ * lived in layout effects and were proved only by rendering the whole dock. They are
+ * stated here against `makeDockModel` and nothing is rendered.
  *
  * The model is built in a scope (ADR-QD-137): `it.effect` provides one, and a
  * test that needs to end it mid-test makes its own. A test title carries a stable
