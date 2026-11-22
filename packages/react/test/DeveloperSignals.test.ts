@@ -256,6 +256,31 @@ describe("a supplied reporter that throws (ReporterThrew, INT-04)", () => {
     throw new TypeError("host boom");
   };
 
+  /** A thrown value that can be neither stringified nor asked for its message. */
+  const hostile = {
+    toString(): string {
+      throw new Error("toString threw");
+    },
+    get message(): string {
+      throw new Error("message threw");
+    },
+  };
+
+  /** An `Error` whose `message` getter throws, so `String` of it throws too. */
+  const hostileError = Object.defineProperty(new Error("unread"), "message", {
+    get(): string {
+      throw new Error("message threw");
+    },
+  });
+
+  /** What each reporter case reads: the lines said when the reporter throws `thrown`. */
+  const sayingFor = (thrown: unknown): ReadonlyArray<string> =>
+    said(() =>
+      gateIdCollisionReporter(() => {
+        throw thrown;
+      })?.(":r1:"),
+    );
+
   /** Each resolver, handed a throwing hook, and called with a value naming another subject. */
   const resolvers: ReadonlyArray<{ readonly name: string; readonly call: (supplied: () => never) => void }> = [
     {
@@ -320,6 +345,36 @@ describe("a supplied reporter that throws (ReporterThrew, INT-04)", () => {
           ),
         );
         expect(lines).toEqual([threw("onGateIdCollision", "plain string")]);
+      });
+
+      it("a thrown value whose toString and message cannot be read is named by the placeholder", () => {
+        expect(inEnvironment(() => sayingFor(hostile))).toEqual([
+          threw("onGateIdCollision", "a value that could not be described"),
+        ]);
+      });
+
+      it("a thrown Error whose message cannot be read is named by the placeholder alone", () => {
+        expect(inEnvironment(() => sayingFor(hostileError))).toEqual([
+          threw("onGateIdCollision", "a value that could not be described"),
+        ]);
+      });
+
+      it("a thrown Error whose message is not a string is named by its string form alone", () => {
+        const thrown = Object.assign(Object.defineProperty(new Error("x"), "message", { value: 42 }), {
+          toString: () => "described",
+        });
+        expect(inEnvironment(() => sayingFor(thrown))).toEqual([threw("onGateIdCollision", "described")]);
+      });
+
+      it("a thrown object that is not an Error is named by its string form, whatever its message field", () => {
+        expect(inEnvironment(() => sayingFor({ message: "looks like an error" }))).toEqual([
+          threw("onGateIdCollision", "[object Object]"),
+        ]);
+      });
+
+      it("a thrown Error whose message is the number 42 is named once, as Error: 42", () => {
+        const thrown = Object.defineProperty(new Error("x"), "message", { value: 42 });
+        expect(inEnvironment(() => sayingFor(thrown))).toEqual([threw("onGateIdCollision", "Error: 42")]);
       });
 
       it("a throwing onHydrationMismatch on makeQadiAtoms still settles the re-check and counts it", () => {

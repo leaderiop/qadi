@@ -537,11 +537,12 @@ describe("what a replayed failure carries", () => {
       );
     }));
 
-  it.effect("a failure with no cause falls back to the error itself", () =>
+  it.effect("a failure with no cause, reason or message is recorded as broken with an empty message", () =>
     Effect.gen(function* () {
       // `cause` is typed `unknown`, so a resolver is free to give none. The
-      // capture must still record *that* it broke, rather than storing the
-      // string "undefined".
+      // capture records that the port broke, and records no text because the
+      // error carried none of its own: a replay rebuilds the error class from
+      // the port, so the tag's text would replay as noise.
       const broken = portsLayer({
         AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail(undefined), "broken").layer,
       });
@@ -552,10 +553,7 @@ describe("what a replayed failure carries", () => {
         keyText(attributeResolverPort.key([makeSubjectId("alice"), "clearance"])),
       );
       assert.strictEqual(recorded?._tag, "Broke");
-      assert.include(
-        recorded?._tag === "Broke" ? recorded.message : "",
-        "AttributeResolveError",
-      );
+      assert.strictEqual(recorded?._tag === "Broke" ? recorded.message : "", "");
     }));
 
   it.effect("a port that was never reached captures nothing", () =>
@@ -603,6 +601,37 @@ describe("what a replayed failure carries", () => {
         recorded?._tag === "Broke" ? recorded.message : "",
         "<unrenderable cause>",
       );
+    }));
+
+  it.effect("a cause whose toString and message cannot be read is recorded as broken with the placeholder", () =>
+    Effect.gen(function* () {
+      const unreadable = {
+        toString(): string {
+          throw new Error("toString threw");
+        },
+        get message(): string {
+          throw new Error("message threw");
+        },
+      };
+      const unreadableError = Object.defineProperty(new Error("unread"), "message", {
+        get(): string {
+          throw new Error("message threw");
+        },
+      });
+      for (const value of [unreadable, unreadableError]) {
+        const broken = portsLayer({
+          AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail(value), "broken").layer,
+        });
+        const capture = capturing(broken);
+        yield* simulate(hasAttribute("clearance", gte(1)), alice, { source: live(capture.layer) });
+
+        assert.deepStrictEqual(
+          (yield* capture.answers).AttributeResolver.get(
+            keyText(attributeResolverPort.key([makeSubjectId("alice"), "clearance"])),
+          ),
+          { _tag: "Broke", message: "a value that could not be described" },
+        );
+      }
     }));
 });
 
@@ -694,6 +723,43 @@ describe("custom predicate capture", () => {
           undefined,
         ]))),
         { _tag: "Answered", value: true },
+      );
+    }));
+
+  it.effect("a failing custom predicate is captured with its reason and replays with it", () =>
+    Effect.gen(function* () {
+      const broken = portsLayer({
+        AttributeResolver: attributeResolverFromRecord({}),
+        CustomPredicate: scriptedPort(customPredicatePort, () => PortReply.fail("down"), "broken").layer,
+      });
+      const capture = capturing(broken);
+      yield* simulate(hasCustom("isOwner"), alice, { source: live(capture.layer) });
+
+      assert.deepStrictEqual(
+        (yield* capture.answers).CustomPredicate.get(
+          keyText(customPredicatePort.key([
+            "isOwner",
+            makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} }),
+            { id: "doc-1" },
+            undefined,
+          ])),
+        ),
+        { _tag: "Broke", message: "down" },
+      );
+
+      const replayed = yield* simulate(hasCustom("isOwner"), alice, {
+        source: snapshot(yield* capture.answers),
+      });
+      assert.strictEqual(replayed._tag, "Failed");
+      if (replayed._tag !== "Failed") return;
+      assert.strictEqual(replayed.error._tag, "CustomPredicateError");
+      assert.strictEqual(
+        replayed.error._tag === "CustomPredicateError" ? replayed.error.reason : "",
+        "down",
+      );
+      assert.strictEqual(
+        replayed.error._tag === "CustomPredicateError" ? replayed.error.name : "",
+        "isOwner",
       );
     }));
 
