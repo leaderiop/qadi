@@ -1,4 +1,4 @@
-# Qadi — Architecture Waves (current: v1.7 Arch Wave 12)
+# Qadi — Architecture Waves (current: v1.8 Arch Wave 13)
 
 ## What This Is
 
@@ -12,6 +12,34 @@ module was a shallow pass-through.
 
 The review is at https://claude.ai/artifact/LH5dLGadz28NyzmZez9jcX, with a local copy at
 `/tmp/claude-1002/-home-yopu-Project-Perso-qadi/588341bb-9f42-4e6e-b1a3-ed991ed47acf/scratchpad/qadi-architecture-review.html`.
+
+## Current Milestone: v1.8 Arch Wave 13
+
+**Goal:** Resolve all eight candidates of the 2026-11-22 architecture review. The three live defects go first (the
+"never throws" functions that throw, the hydration drops that are never reported, the reporter that blames the wrong
+option name), then the three deepenings, then the change that tracers will see, then the speculative item.
+
+**Target features (Phases 69–76, ARCH-116…123, strictly serial):**
+- 69: One total "thrown value → message" module in core. The six inline copies use it, which closes the four
+  throw-throughs in `JsonHazard`, `PortKey`, `PortDerivation` and `PortWireEncode` (core; live defect)
+- 70: Hydration's drop events come from its reason-keyed buckets, on both the hydrate and dehydrate sides, which
+  closes the INV-QD-045 gap where an unreported bucket compiles (react; live defect; cites ADR-QD-152)
+- 71: Every developer-signal reporter is resolved through one table (where it runs, how often, what it is named), and
+  the `onIdCollision` → `"onGateIdCollision"` naming drift is fixed (react; live defect)
+- 72: `ExternalStore` gains a store derived from parent stores, used by the dock model's three hand-built stores;
+  `DockModel.ts` keeps its mutation score of 1 (devtools; ADR-QD-168)
+- 73: One pure `reconcile` keyed by id that registers, updates and unregisters; `useGate` loses its state-diff
+  effect and the parallel-array contract (react; extends ADR-QD-140)
+- 74: The simulation session's policy-choice and seed rules move into a pure module next to `HeldChoice`, and the
+  session keeps only runs (devtools; ADR-QD-137/150 untouched)
+- 75: A declared question/answer span shape for the `qadi.evaluate` family, built with `spanStruct`: a failed span
+  carries the question and the outcome uses one key. Tracers will see this, so it has a human checkpoint (core)
+- 76: Remedies uses core's signature-matching rule instead of its own copy, without exporting `SignatureMatch`
+  (ADR-QD-099); may end in a recorded rejection (devtools + core)
+
+**Source review and evidence:** `/var/folders/vn/44p0pxgs4z98v7cl11l4_r4c0000gp/T/architecture-review-20261122-075438.html`
+(session-scoped; `.planning/phases/_WAVE13-CONTEXT.md` holds everything a planner needs). Branch `arch-wave-13`, based
+on `main` at `2716def4` (v1.6 + v1.7 merged as #163). No merge, no release.
 
 ## Previous Milestone: v1.7 Arch Wave 12 (completed 2026-11-22; not released)
 
@@ -302,7 +330,7 @@ logged, counted or spanned.
 
 ### Active
 
-(None. The next milestone is not yet defined.)
+v1.8 Arch Wave 13 (Phases 69–76, ARCH-116…123): see "Current Milestone" above and `.planning/REQUIREMENTS.md`.
 
 ### Out of Scope
 
@@ -549,4 +577,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-22 after v1.7 milestone*
+*Last updated: 2026-11-22 after starting the v1.8 milestone*
