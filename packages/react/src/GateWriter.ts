@@ -160,11 +160,12 @@ export const buildGateRegistry = (report: ((id: string) => void) | undefined): G
 
   // The cached array `useSyncExternalStore` compares by reference: rebuilt on
   // the first read after a change and not before, or React re-renders forever.
-  let snapshot: ReadonlyArray<GateInstance> = [];
-  let stale = false;
+  // `undefined` is "changed since it was built", so there is no second flag to
+  // disagree with the array.
+  let snapshot: ReadonlyArray<GateInstance> | undefined;
 
   const changed = (): void => {
-    stale = true;
+    snapshot = undefined;
     // Isolated per listener: a subscriber's own bug must not stop the rest of
     // the fan-out from being notified, and must not propagate into the guard
     // effect that triggered it. Swallowed rather than logged: this module has no
@@ -188,17 +189,19 @@ export const buildGateRegistry = (report: ((id: string) => void) | undefined): G
         report?.(instance.id);
       }
     }
-    entries.set(key, { ...instance, id: key });
+    let current: GateInstance = { ...instance, id: key };
+    entries.set(key, current);
     changed();
 
-    // `live` and `key` are this registration's own: the handle *is* the
-    // per-registration token, so a stale cleanup can only touch the entry it made.
+    // `live`, `key` and `current` are this registration's own: the handle *is* the
+    // per-registration token, so a stale cleanup can only touch the entry it made,
+    // and an update reads the entry it wrote rather than looking it up again.
     let live = true;
     return {
       update: (state: GateRenderState) => {
-        const existing = entries.get(key);
-        if (!live || existing === undefined || existing.state === state) return;
-        entries.set(key, { ...existing, state });
+        if (!live || current.state === state) return;
+        current = { ...current, state };
+        entries.set(key, current);
         changed();
       },
       unregister: () => {
@@ -212,13 +215,7 @@ export const buildGateRegistry = (report: ((id: string) => void) | undefined): G
 
   return new OwnedGateRegistry({
     register,
-    instances: () => {
-      if (stale) {
-        snapshot = [...entries.values()];
-        stale = false;
-      }
-      return snapshot;
-    },
+    instances: () => (snapshot ??= [...entries.values()]),
     subscribe: (listener) => {
       listeners.add(listener);
       return () => {

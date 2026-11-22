@@ -231,7 +231,7 @@ const contain =
     try {
       supplied(value);
     } catch (error) {
-      defaultOf(SIGNALS.ReporterThrew)?.(DeveloperSignal.ReporterThrew({ reporter, error }));
+      defaultOf(SIGNALS.ReporterThrew)(DeveloperSignal.ReporterThrew({ reporter, error }));
     }
   };
 
@@ -429,13 +429,23 @@ export type ReporterName = {
 /**
  * What a row's default does here: its `says`, once per process when the row latches, and
  * nothing where the row's condition does not hold.
+ *
+ * A row that speaks everywhere always has one, so the first overload has no `undefined` for
+ * its caller to handle: `contain` reads `ReporterThrew`'s through it, and a row changed to
+ * speak under a condition fails to compile there instead of being skipped silently.
  */
-const defaultOf = <Told,>(
+function defaultOf<Told>(
+  row: Pick<SignalRow<Told, string, string>, "often" | "says"> & { readonly speaks: "Everywhere" },
+): (told: Told) => void;
+function defaultOf<Told>(
   row: Pick<SignalRow<Told, string, string>, "speaks" | "often" | "says">,
-): ((told: Told) => void) | undefined => {
+): ((told: Told) => void) | undefined;
+function defaultOf<Told>(
+  row: Pick<SignalRow<Told, string, string>, "speaks" | "often" | "says">,
+): ((told: Told) => void) | undefined {
   if (!speaksHere(row.speaks)) return undefined;
   return row.often === "OncePerProcess" ? once(row.says) : row.says;
-};
+}
 
 /**
  * The reporter one entry point will use for a signal, or `undefined` for none.
