@@ -738,15 +738,6 @@ describe("customPredicatePort's failure reason", () => {
     assert.strictEqual(reasonFor(42), "42");
   });
 
-  it("is a placeholder for a value that cannot be rendered", () => {
-    const unrenderable = {
-      toString: () => {
-        throw new Error("no");
-      },
-    };
-    assert.strictEqual(reasonFor(unrenderable), "a value that could not be described");
-  });
-
   it("is the placeholder for a cause whose toString and message cannot be read, never a throw", () => {
     for (const thrown of [hostile, hostileError]) {
       assert.strictEqual(reasonFor(thrown), "a value that could not be described");
