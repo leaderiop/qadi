@@ -1,0 +1,68 @@
+{
+ "counts": {
+  "packages/devtools/src/model/DockModel.ts": {
+   "killed": 123,
+   "timeout": 0,
+   "survived": 0,
+   "noCoverage": 0,
+   "ignored": 2
+  },
+  "packages/devtools/src/model/Wiring.ts": {
+   "killed": 50,
+   "timeout": 0,
+   "survived": 0,
+   "noCoverage": 0,
+   "ignored": 4
+  }
+ },
+ "ignored": {
+  "packages/devtools/src/model/DockModel.ts": [
+   {
+    "mutator": "ArrayDeclaration",
+    "line": 117,
+    "column": 39,
+    "replacement": "[\"Stryker was here\"]"
+   },
+   {
+    "mutator": "StringLiteral",
+    "line": 120,
+    "column": 40,
+    "replacement": "\"\""
+   }
+  ],
+  "packages/devtools/src/model/Wiring.ts": [
+   {
+    "mutator": "ArrowFunction",
+    "line": 128,
+    "column": 17,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 220,
+    "column": 16,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 223,
+    "column": 18,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 230,
+    "column": 18,
+    "replacement": "() => undefined"
+   }
+  ]
+ },
+ "measured": {
+  "packages/devtools/src/model/DockModel.ts": 1,
+  "packages/devtools/src/model/Wiring.ts": 1
+ },
+ "survivors": {
+  "packages/devtools/src/model/DockModel.ts": [],
+  "packages/devtools/src/model/Wiring.ts": []
+ }
+}

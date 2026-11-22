@@ -1,4 +1,4 @@
-# Qadi — Architecture Waves (last completed: v1.5 Arch Wave 10)
+# Qadi — Architecture Waves (current: v1.7 Arch Wave 12)
 
 ## What This Is
 
@@ -13,7 +13,66 @@ module was a shallow pass-through.
 The review is at https://claude.ai/artifact/LH5dLGadz28NyzmZez9jcX, with a local copy at
 `/tmp/claude-1002/-home-yopu-Project-Perso-qadi/588341bb-9f42-4e6e-b1a3-ed991ed47acf/scratchpad/qadi-architecture-review.html`.
 
-## Previous Milestone: v1.5 Arch Wave 10 (completed 2026-11-16; not released)
+## Previous Milestone: v1.7 Arch Wave 12 (completed 2026-11-22; not released)
+
+**Goal:** Resolve all 13 tech-debt items the v1.6 audit carried forward, each by a change or a recorded decision, so none
+is carried again; the vacuous type-pin class found while investigating them goes first.
+
+**Target features (Phases 62–68, ARCH-109…115, strictly serial):**
+- 62: Type pins that can fail. `not.toBeCallableWith` passes for any Effect-returning subject; 86 pins in 27 files are
+  classified, the vacuous ones rewritten and each shown failing once, and a `NOT_CALLABLE_PIN_BUDGET` gate added
+- 63: Gate 14 (`check-package-install.mjs`) compiles `makeGatesFeed`, `makeDiagnosticsFeed` and `DecisionCacheShape`
+  through the packed `exports` map, and fails if a `make*Feed` export is left unprobed
+- 64: One throwing devtools `ExternalStore` listener cannot silence the rest; errors are rethrown after every listener ran (D1)
+- 65: Only `admit` builds an `Admitted`, and the `"asked"` row's flag is derived from its matcher context (bench-gated)
+- 66: `untrustedDecoder`'s projection reads only declared keys (D4); hydration's `refuse` policy recorded (D2)
+- 67: The two equivalent surviving mutants restructured away (D5), and the I5 race test's magic bound removed
+- 68: Hygiene and recorded close-outs: over-width lines, stale titles, ADR-QD-174 line 73, port cards stay private (D3),
+  the Phase 61 scan's `Simulator.test.tsx` gap evidenced
+
+**Source and evidence:** `.planning/phases/_WAVE12-CONTEXT.md` (owner decisions D1–D5, ids reserved, per-phase evidence)
+and `.planning/milestones/v1.6-MILESTONE-AUDIT.md`. Branch `arch-wave-12`, stacked on `arch-wave-11` at `8b22bd66` (v1.6,
+not merged). No merge, no release.
+
+v1.7 Arch Wave 12 completed 2026-11-22 on branch `arch-wave-12` (383 commits, 78 files, +4,036 / −473 outside
+`.planning`): ARCH-109 to ARCH-115 plus the inserted Phase 68.1 (DEBT-01..06), ADR-QD-175 and ADR-QD-177 (ADR-QD-176
+and 178–181 reserved, unused), amendments to ADR-QD-033, 170, 172 and 173, CCR-QD-453..460. All 8 phases `passed`, Nyquist-compliant and
+secured (0 open threats). The first audit was `tech_debt`; the owner inserted Phase 68.1 to fix the fixable items, and
+the re-audit's info findings were then closed inline. The re-audit is `passed`: 46/46 requirements, 11/11 integration
+points, 4/4 flows. `check:pr` exited 0 at the end of every phase and last at `334b014b`. Three patch changesets
+(`@qadi/core` ×1, `@qadi/devtools` ×2); no Breaking change. **Not merged and not released.** Archive:
+`.planning/milestones/v1.7-ROADMAP.md`, `v1.7-REQUIREMENTS.md`, `v1.7-MILESTONE-AUDIT.md`.
+
+## Previous Milestone: v1.6 Arch Wave 11 (completed 2026-11-19; not released)
+
+**Goal:** Resolve all nine candidates of the 2026-11-16 architecture review, closing the live fail-open in the predicate
+reference interpreter first, then the "stated once" deepenings, then one benchmark-gated and two speculative phases.
+
+**Target features (Phases 53–61, ARCH-100…108, strictly serial):**
+- 53: One module owns "the value a leaf compares" (own-property reads only); fixes `evaluatePredicate`'s unguarded
+  `row[p.column]` that allows a row `evaluate` denies (core; live defect)
+- 54: `LeafNeeds` turns every leaf's answer into a verdict, finishing ADR-QD-163 (core)
+- 55: A port card is a model row, not a view join; one `PortName` key for all three readings (devtools)
+- 56: The gate-registry watch becomes the dock model's third scoped feed (devtools)
+- 57: `untrustedDecoder` states the envelope's unknown-key policy; both `SinkCodec` envelopes go through it (core, audit, react)
+- 58: A stored record is its envelope in memory too (core, http, devtools; Breaking)
+- 59: Admission produces the one walk environment; opens on a benchmark gate and may end in a recorded rejection (core)
+- 60: Devtools' headless interface is the feeds, not the store/runner pairs; human checkpoint, amends ADR-QD-047 1.6 (Breaking)
+- 61: `DecisionCache` is asked only the question; human checkpoint, touches ADR-QD-031
+
+**Source review and evidence:** `.planning/phases/_WAVE11-CONTEXT.md` (the review HTML is session-scoped and may be gone).
+Branch `arch-wave-11`, based on `main` at `44510112` (v1.5 merged as #162). No merge, no release.
+
+v1.6 Arch Wave 11 completed 2026-11-19 on branch `arch-wave-11` (436 commits, 190 files, +12,895 / −3,178
+outside `.planning`): ARCH-100 to ARCH-108, ADR-QD-166..174, CCR-QD-444..452. All 9 phases `passed`, every phase
+Nyquist-compliant and secured, every review converged within three iterations. The three human checkpoints (59, 60, 61)
+were all decided "pursue". The milestone audit is `tech_debt`, accepted by the user: 49/49 requirements, 5/5
+integration seams, 4/4 flows. `check:pr` exited 0 at the end of every phase, and each phase's scoped mutation compare
+held. Breaking changes in `@qadi/core`, `@qadi/http`, `@qadi/react`, `@qadi/audit` and `@qadi/devtools`, pending as
+changesets. **Not merged and not released.** Archive: `.planning/milestones/v1.6-ROADMAP.md`, `v1.6-REQUIREMENTS.md`,
+`v1.6-MILESTONE-AUDIT.md`.
+
+## Previous Milestone: v1.5 Arch Wave 10 (completed 2026-11-16; merged as #162; not released)
 
 **Goal:** Resolve all ten candidates of the 2026-11-15 architecture review, closing the four silent defects first
 (a caller's `resource` dropped by `guard`/`filter*`, a wire field dropped by hydration's `rebuild`, a `NaN` breaker
@@ -37,13 +96,26 @@ threshold that never opens, a failing user sink that loses records unlogged), th
 
 ## Current State
 
+v1.7 Arch Wave 12 completed 2026-11-22 on branch `arch-wave-12` (see the v1.7 entry above): every tech-debt item the
+v1.6 audit carried is resolved by a change or a recorded decision. Negative type pins can fail and are budgeted, gate 14
+compiles every new public name through the packed `exports` map and bounds every child it starts, one throwing devtools
+listener no longer silences the rest, only `admit` builds an `Admitted`, the decoder's `ignore` projection reads only
+declared keys, the two equivalent mutants and the race test's magic bound are gone, and the bench harness balances arm
+order and fails loudly. Nothing is merged or released; the next milestone is not yet defined.
+
+v1.6 Arch Wave 11 completed 2026-11-19 on branch `arch-wave-11` (see the v1.6 entry above): the predicate
+interpreter's own-property fail-open is closed (Phase 53), leaf verdicts, port cards, the gates feed, the envelope's
+unknown-key policy, the stored envelope and the walk environment are each stated once, devtools' headless interface is
+its three feeds, and a `DecisionCache` is asked only the question. Nothing is merged or released; the next milestone
+is not yet defined.
+
 v1.5 Arch Wave 10 completed 2026-11-16 on branch `arch-wave-10` (510 commits, 198 files, +14,406 / −1,559
 outside `.planning`): ARCH-90 to ARCH-99, ADR-QD-156..165, CCR-QD-434..443. All 10 phases `passed`; 43, 44, 45, 46
 and 48 were re-verified at the final head after later phases (and the audit's own fixes) edited files they cover. The
 milestone audit is `tech_debt`, accepted by the user: 52/52 requirements, 6/6 integration seams, 3/3 flows, Nyquist
 10/10. The full `pnpm check` (with mutation) exited 0 at the final head. Breaking changes in `@qadi/core`,
-`@qadi/promise`, `@qadi/react`, `@qadi/audit` and `@qadi/devtools`, pending as changesets. **Not merged and not
-released.** The branch builds on `arch-wave-9` (v1.4, also unmerged). Archive: `.planning/milestones/v1.5-ROADMAP.md`,
+`@qadi/promise`, `@qadi/react`, `@qadi/audit` and `@qadi/devtools`, pending as changesets. Merged to `main` as #162
+(`44510112`; v1.4 as #160) and **not released**. Archive: `.planning/milestones/v1.5-ROADMAP.md`,
 `v1.5-REQUIREMENTS.md`, `v1.5-MILESTONE-AUDIT.md`.
 
 v1.4 Arch Wave 9 completed 2026-11-14 on branch `arch-wave-9` (228 commits, 95 files, +6,124 / −1,115
@@ -205,8 +277,32 @@ logged, counted or spanned.
 - ✓ ARCH-98 Policy tag arity stated once (ARTY-01..03): one closed record, `POLICY_ARITY` in package-private `PolicyArity.ts` (not `Policy.ts`, whose exports are all public through the barrel), gives each tag Leaf, Wrapper or Many; `traceShapeOf` reads it and `leafTags` is gone; `childrenOf`'s arms are typed by arity (`{ readonly 0?: never }` refuses a Wrapper's tuple under Many), `LeafPolicy` is derived from the record and type-equal to the old one, and `PolicyCases`/`TraceCases` are tied by tstyche negatives, so all 32 single-tag moves that compiled on the base now fail; `traceChildrenOf` dispatches through a closed per-arity table; `foldTrace`, `renderTrace` and `diffTraces` keep their walks — Phase 51 (ADR-QD-164)
 - ✓ ARCH-99 Core owns the predicate compile shell (COMP-01..04): `@qadi/core`'s `compilePredicate` (beside `toRenderable`, a plain function with no span) applies the `identifiers`/`maxInValues` defaults, runs `toRenderable`, counts `refused` once on a refusal and `compiled` once after a successful render against a `CompileOutcomes` series the caller supplies; `compileSql` and `compilePrismaWhere` keep only their rules, renderer and own declared metric; `rules` refuses `identifiers`/`maxInValues` by type; outputs and refusals byte-for-byte unchanged (characterisation on the base); Prisma now counts `compiled` after render, as SQL did — Phase 52 (ADR-QD-165)
 
+- ✓ ARCH-100 One module owns "the value a leaf compares" (OPND-01..05): package-private, import-free `Operand.ts` (`ownValue`, `isOwnKey`, `getByPath`) is the one own-property read of a decoded key, and every interpreter reads through it — `Walk`, `PortAccess`, `FieldPath`, `Decision`'s projection, `Predicate`'s `evaluatePredicate` row read, and the `attributeResolverFromRecord`/`customPredicateFromRecord` fixtures; `getByPath` stays public through `Matcher.ts`'s re-export, `isFieldOf` is gone. RED on the base: `evaluatePredicate` allowed `hasResourceAttribute("constructor", neq(...))` on a row `evaluate` denied, a fixture resolver answered `toString` from the prototype, and a fixture predicate died on an inherited name. A prototype-names agreement property ties `evaluate` to `evaluatePredicate ∘ toPredicate`. Class-instance rows now read inherited getters as absent (changeset states it). Mutation Operand.ts 31/31, Matcher.ts 0.9775 → 0.9749 with survivors unchanged (D-14 holds). ADR-QD-166 (extends 091/024), CCR-QD-444, BEH-QD-601..605, INV-QD-351..352, INV-QD-091 restated; `@qadi/core` patch — Phase 53
+
+- ✓ ARCH-101 LeafNeeds turns every leaf's answer into a verdict (VERD-01..04): package-private `LEAF_VERDICTS` in `LeafNeeds.ts` is one closed per-tag record (`satisfies LeafVerdicts`, read through `isHeld`) holding every leaf's answer-to-verdict step, acted polarity included; `Walk` keeps only its deny sentences (`ACTED_DENIAL`, `RELATIONSHIP_DENIAL`, `SIGNATURE_DENIAL`) and `toPredicate` only constant folding, `AskActed` no longer carries `wanted`. Decisions and sentences byte-identical; no export changed (935) — Phase 54, ADR-QD-167
+
+- ✓ ARCH-102 A port card is a model row, not a view join (CARD-01..05): pure `portCards` in `@qadi/devtools`' `model/PortCards.ts` returns a closed `ServicesView` (`Withheld | NotHanded | Failed | Read`), one `PortCardRow` per wired port with state, activity, consequence voice and a `CallsView` (`Hidden | Uncollected | Listed`, newest five plus `earlier`); activity and calls are `{ [K in PortName]: … }` records built by `tabulatePorts`, so a misspelt port is a compile error (`PortCards.tst.ts`). `DockModel.services` is the ninth store, recomputed only when one of its four inputs moves; `ServicesPanel.tsx` maps tags to JSX and computes nothing (INV-QD-356). Markup byte-identical (16-cell characterisation written on the base). Breaking: `PortActivity.port` is `PortName`, `portActivity` reads one entry per registry port. Mutation DockModel 145/145, Wiring 48/48, PortCards 126/126 (D-15) — Phase 55, ADR-QD-168
+
+- ✓ ARCH-103 The gate-registry watch is the dock model's third feed (GFED-01..05): package-private `GatesFeed.ts` (`makeGatesFeed`, an `Effect.fn` built in the caller's scope) owns both host inputs of the questions panel: the gate-registry watch (guarded reads, name+message failure key, re-subscribe on identity change or after a failed watch, release in a finalizer) and the `questions` thunk (read on its own cadence, compared with `Equal.equals`). `DockModel` composes three feeds through a pure `rejoin`. A throwing thunk is `QuestionsView.Failed` and the diagnostics poll stays `Live` (INV-QD-358). Breaking: `questions` is a dock input and `useDevtoolsFeed` returns it at the top level (ADR-QD-169, Phase 56)
+- ✓ ARCH-104 `untrustedDecoder` states an envelope's unknown-key policy (KEYP-01..05): a required, closed `unknownKeys: "refuse" | "ignore"` read through an own-key `PROJECTION` table; `ignore` projects the input onto its declared top-level keys (derived once from `SchemaAST.toEncoded` in package-private `EnvelopeKeys.ts`, refusing an underivable, index-signature or rest schema at build) before the depth guard, so an unknown key is never walked. Both `SinkCodec` envelopes use `ignore` and lose their hand-written readers (`UNTRUSTED_DECODE_BUDGET` 2 → 1); the audit row, archive, hydration, policy and port seams state `refuse`. A deep unknown record key now decodes (D-01, D-20), a deep `environment` is `TooDeep` (D-18), stored-envelope messages are the strict decoder's (D-17). Breaking: the option is required (ADR-QD-170, Phase 57)
+- ✓ ARCH-105 A stored record is its envelope in memory too (STOR-01..04): `StoredRecord` is one `Data.Class<{ environment, record: SinkRecord }>`; `Stamped`, `StoredDecisionRecord`, `StoredObligationRecord` and `stampRecord` are deleted with no alias; `sinkRecordOrder` orders a record and `storedRecordOrder` maps onto it; the stored codec is the record codec plus one field, with byte-identical goldens; the log's two unreachable `isolate` catches and test C4 are deleted (owner choice D-12); devtools' timeline ingests the envelope; Breaking in `@qadi/core`, `@qadi/http` and `@qadi/devtools` (ADR-QD-171, Phase 58)
+- ✓ ARCH-106 Admission produces the one walk environment (WENV-01..04): `admit(question, rowSource)` returns `Admitted<Source>` holding the row source, policy, subject, `supplied` (one closed `SUPPLIED` table typed per row source), matcher context and `maxDepth`; recursion is `evaluateNode(policy, request, depth)`, so a depth/maxDepth swap no longer compiles (tstyche); a `"row"` environment cannot reach the walk; four interleaved benches passed (0 of 35 slower each); mutation held (D-15); no public change — v1.6, Phase 59 (ADR-QD-172)
+- ✓ ARCH-107 Devtools' headless interface is the feeds (HDLS-01..04): `@qadi/devtools`' root exports `makeTimelineFeed`, `makeDiagnosticsFeed` and `makeGatesFeed` (owner: pursue, all three public) and retires `makeTimelineStore`/`runSource`/`makeDiagnosticsStore`/`runDiagnostics`; one non-generic `DiagnosticsOptions { layer?, collector?, intervalMillis? }` replaces both option shapes; the README's headless example uses the feeds with stop detection; **Breaking** in a changeset and `upgrading.md` 0.13 (unreleased); mutation held (D-10) — v1.6, Phase 60 (ADR-QD-173)
+- ✓ ARCH-108 A `DecisionCache` is asked only the question (CASK-01..04): `getOrCompute(question, options?)` with `options` a `Pick<EvaluateOptions, "concurrency">` replaces `getOrCompute(question, compute)`, and `decisionCacheLayer` walks the question it is given, so no caller can store a trace under a question it does not answer (owner: pursue, not sealed — the guarantee covers callers, a host cache wraps `decisionCacheLayer()`); `concurrency` reaches the walk and never the key; **Breaking** for `DecisionCacheShape` implementers in a changeset and `upgrading.md` 0.13 (unreleased); `SharedComputation` unchanged; mutation held (D-06) — v1.6, Phase 61 (ADR-QD-174)
+
+- ✓ ARCH-109 Type pins that can fail (PIN-01..05): tstyche compiles under its own `tsconfig.tstyche.json` (`tsconfig.test.json` with the Effect language service's `floatingEffect` off, held to only that difference by `[tstyche-plugin-drift]`), so a negative `toBeCallableWith`/`toBeConstructableWith` pin on an `Effect`- or `Stream`-returning subject can fail; `FloatingEffectPins.tst.ts` pins tstyche's reading in three blocks; the `DecisionLog` pin states its refusal through `Parameters<typeof makeDecisionLog>[0]`; every negative pin has a same-subject positive twin (`[not-callable-control]`) and a one-off flip sweep saw all 87 fail; `NOT_CALLABLE_PIN_BUDGET` counts them per file in both directions against AGENTS.md §6; `pnpm test:tstyche` runs `scripts/run-tstyche.mjs`, two passes cross-checked against `--listFiles`; no `packages/*/src` change — v1.7, Phase 62 (ADR-QD-175)
+
+- ✓ ARCH-110 The packed-install gate probes every new public name (PROBE-01..05): gate 14's consumer compiles `makeGatesFeed`, `makeDiagnosticsFeed` and the type-only `DecisionCacheShape` through the packed `exports` map, calls every `make*Feed` the packed devtools root exports and fails on one left uncalled, and refuses a vacuous probe through a parse-checked guard (`REFUSED_SHAPE_PROBES`, `TYPE_ONLY_PROBES`); ADR-QD-033 amended, CCR-QD-454 — v1.7, Phase 63
+- ✓ ARCH-111 One throwing listener cannot silence the rest (LSTN-01..04): devtools' `ExternalStore` calls every listener and rethrows after the last (D1), shared by the three feeds and `useStoreSnapshot`; dock characterisation files unchanged; `@qadi/devtools` patch — v1.7, Phase 64 (ADR-QD-177, CCR-QD-455)
+- ✓ ARCH-112 Only `admit` builds an `Admitted` (ADMT-01..04): a private constructor pinned by tstyche (TS2673/TS2741), and the `"asked"` row's resource flag derived from its matcher context; bench 0 of 35 slower — v1.7, Phase 65 (ADR-QD-172 amended, CCR-QD-456)
+- ✓ ARCH-113 The decoder reads only what it declares (DECL-01..04): `untrustedDecoder`'s `ignore` projection reads only declared keys (D4, a getter on an undeclared key is never invoked), and hydration's `refuse` policy is recorded (D2); bench geomean −2.13%; `@qadi/core` patch — v1.7, Phase 66 (ADR-QD-170 amended, CCR-QD-457)
+- ✓ ARCH-114 No equivalent mutants, no magic race bound (MUTE-01..04): `DecisionCache` eviction rewritten with no branch that cannot be taken (FIFO order and capacity validation unchanged), `SharedComputation`'s claim arms a closed table (CCR-QD-458 measured it against the hoisted `Match`), and the I5 race test iterates until both orderings are seen at every budget instead of asserting `gap <= 48`; mutation held — v1.7, Phase 67 (BEH-QD-166, INV-QD-379)
+- ✓ ARCH-115 Hygiene and recorded close-outs (HYGN-01..07): over-width lines and stale titles fixed, ADR-QD-174 line 73, port cards stay package-private (D3, ADR-QD-173 amended), the Phase 61 scan's `Simulator.test.tsx` gap evidenced, OI-01..29 each closed or recorded, Phases 62–67 re-verified, bench of record vs `3d66becb` — v1.7, Phase 68 (CCR-QD-459)
+- ✓ DEBT-01..06 The v1.7 audit's fixable debt (inserted Phase 68.1): `ab.sh` refuses an odd or short round count, `analyze.mjs` exits 0/1/2 with its self-test as `pnpm check` step 26, corrected staleness and type-aware comparison scripts re-checked all of Phase 68's verdicts (none flipped), gate 14's probe-guard parse runs in a time-limited child, and all eight phases carry validated Nyquist records — v1.7, Phase 68.1 (ADR-QD-033 Rev 1.6, CCR-QD-460)
+
 ### Active
 
+(None. The next milestone is not yet defined.)
 
 ### Out of Scope
 
@@ -263,6 +359,29 @@ logged, counted or spanned.
   - ADR Document IDs must equal the file number (`verify-traceability.sh`, gate 10).
 - **Hot spots** (churn over the last 15 commits): react `QadiAtoms`/`Hydration`/`hooks`; http
   `RequirePermission`/`DecisionStreamRoute`; core `SinkCodec`/`Evaluate`/`PortAccess`.
+
+### Known Issues (carried forward from v1.7)
+
+- The v1.7 re-audit (`.planning/milestones/v1.7-MILESTONE-AUDIT.md`) is `passed`; it records what no change can undo or
+  what was accepted:
+  - AR-68.1-01, closed 2026-11-22: a killed gate-14 child names its TypeScript server and the gate kills it (`b45e798a`);
+  - the iteration-3 review fix had its fourth review pass on 2026-11-22: 3 warnings and 6 info, eight fixed
+    (`b45e798a`, `7923af0e`), one kept (the revision dates);
+  - history: commit `0378aad7` lacks its trailer and Phases 62–64 carry Sonnet 5.5 trailers (OI-26); Phase 62 SUMMARYs
+    use `requirements:`; Phase 68's bench of record ran 3 rounds (now refused).
+
+### Known Issues (carried forward from v1.6) — all resolved in v1.7 (Phases 62–68)
+
+- The v1.6 audit (`.planning/milestones/v1.6-MILESTONE-AUDIT.md`) is `tech_debt`, accepted by the user:
+  - gate 14 (`check-package-install.mjs`) probes only `makeTimelineFeed` of the new public names; `makeGatesFeed`,
+    `makeDiagnosticsFeed` and the type-only `DecisionCacheShape` are not compiled through the packed `exports` map;
+  - a throwing `subscribe` listener is not isolated in devtools' `ExternalStore` (shared with the React dock), and
+    `packages/core/test/DecisionLog.tst.ts:30` may carry a type pin that cannot fail (Phase 60) — resolved in v1.7 Phase 62;
+  - Phase 59 follow-ups: derive the `"asked"` row's resource flag from the matcher context, and a private `Admitted`
+    constructor so only `admit` can build one;
+  - Phase 57's D-09 hydration ignore and IN-01, and Phase 58's over-width lines and test-title wording;
+  - Phase 61: two pre-existing surviving mutants (`DecisionCache.ts` eviction, `SharedComputation.ts` `"Claimed"`) and
+    the I5 race test's `gap <= 48` bound, which depends on `walk`'s step count.
 
 ### Known Issues (carried forward from v1.5)
 
@@ -394,6 +513,23 @@ logged, counted or spanned.
 | What a leaf needs from the request is one package-private table that `Walk` and `Predicate` both read | Each interpreter restated INV-QD-011's absence checks and their order per leaf, and the order differed by leaf without being stated | Accepted (Phase 50, ADR-QD-163, after a measured bench gate: geomean +1.87%, worst +9.3% inside a 10% band) |
 | Each policy tag's arity is one package-private record that `childrenOf`, `LeafPolicy`, `PolicyCases`, `TraceCases` and the trace fold are typed against or read | `Decision.ts` restated it in a hand-kept `leafTags` list tied to nothing, so moving a tag's arity in one place compiled (32 of 32 moves on the base) | Accepted (Phase 51, ADR-QD-164; record beside `Policy.ts`, not in it, to stay out of the public barrel) |
 | The predicate compile shell (defaults, renderability, outcome counting) is one core function every dialect calls with its rules, renderer and own counter series | `@qadi/predicate-sql` and `@qadi/predicate-prisma` repeated it, and had already drifted: Prisma counted `compiled` before rendering, SQL after | Accepted (Phase 52, ADR-QD-165; each package keeps its own metric declaration, ADR-QD-123; mutation judged by D-09a: a dialect's fall is only the shell's killed mutants moving to core) |
+| A decoded key is read as an own property by one package-private module that every interpreter, fixture and projection uses | `evaluatePredicate` read `row[p.column]` while `evaluate` read own properties only, so the reference interpreter could allow a row the engine denied; six hand-written `Object.hasOwn` mirrors kept the rest in step by comment | Accepted (Phase 53, ADR-QD-166; `Operand.ts` import-free and out of the barrel; `@qadi/core` patch, no Breaking) |
+| Each leaf's answer-to-verdict step is one row of a closed per-tag record that both interpreters read through `isHeld` | The walk and `toPredicate` each restated how an answer (acted polarity, relationship `Unknown`, custom, signature) becomes allow/deny, so a change to one could leave the row filter admitting what the walk denies | Accepted (Phase 54, ADR-QD-167; D-10 credits static-ignored mutants only when an `ignoreStatic:false` run kills each — accepted by the owner at UAT) |
+| A devtools tab's wording is a pure model function over closed unions; the panel renders tags | `ServicesPanel.tsx` joined three readings through three differently typed keys (`WiredServiceName`, `string`, a call `_tag`), so a renamed port rendered "never called" instead of failing to compile | Accepted (Phase 55, ADR-QD-168; follows ADR-QD-162, restates ADR-QD-047 for the Services tab) |
+| The questions panel's two host inputs are one scoped feed, and a throwing thunk is stated rather than stopping the poll (owner chose GFED-05 = Yes) | A throwing `questions` thunk was a defect in the diagnostics sample that froze every tab, while a throwing registry was only `GatesView.Failed`; one feed gives both inputs one failure policy | Accepted, ADR-QD-169 (Phase 56) |
+| An envelope states its unknown top-level key policy at its decoder, as one required closed option (owner: "answer by the cleanest solutions not the simplest") | Both `SinkCodec` envelopes hand-built "ignore unknown keys" while five seams refused them, with nothing stating which rule a seam had; one option derived from the schema removes the hand-written key lists and makes every seam say its rule | Accepted, ADR-QD-170 (Phase 57) |
+| In memory a stored record is its envelope, the producer's label beside the record, not a flattened copy per record kind | Two stored classes, a stamp arm and a decode re-stamp translated one fact between two shapes, and every new `SinkRecord` kind needed all three; the log's `isolate` catches were reachable only through the stamp's getter-reading spread, so they were deleted rather than kept as dead code (owner choice) | Accepted, ADR-QD-171 (Phase 58) |
+| Admission produces the one walk environment both interpreters read, typed by its row source and carrying the policy it admitted | Two hand-built `supplied` objects and a six-argument recursion whose `depth` and `maxDepth` swapped silently; a benchmark gated the change (gate, then three after-runs, each 0 of 35 slower) | Accepted, ADR-QD-172 (Phase 59) |
+| Devtools' headless interface is its feeds: the root exports the three feeds and one diagnostics option shape, not the store/runner pairs | A headless shell had to pair, fork, supersede and watch each store itself, and `runDiagnostics` lacked the feeds' stop detection the README claimed it had | Accepted, ADR-QD-173 (Phase 60) |
+| A decision cache is asked only the question: the interface takes the question and a `concurrency`-only options type, and core's layer runs the matching walk | `getOrCompute(question, compute)` accepted any computation for any key, so ADR-QD-031's security-boundary key held only because one call site in `Lifecycle.ts` paired them | Accepted, ADR-QD-174 (Phase 61) |
+| A negative type pin must be able to fail: tstyche compiles with `floatingEffect` off, every negative pin has a passing same-subject twin, and their count is budgeted | tstyche read any diagnostic on a compiled call as "not callable", and `floatingEffect` puts one on every bare `Effect`-returning call, so a negative pin on such a subject passed whatever its arguments were | Accepted, ADR-QD-175 amends ADR-QD-037 (Phase 62; review loop added the third characterisation block and the `--listFiles` cross-check) |
+| Gate 14 compiles every new public name through the packed `exports` map and fails on an unprobed `make*Feed` or a vacuous probe | The packed-install gate probed only `makeTimelineFeed`, so a public feed or type could break in the tarball unseen | Accepted (Phase 63, ADR-QD-033 amended, CCR-QD-454) |
+| Every `ExternalStore` listener is called; the first error is rethrown after the last (owner D1) | One throwing listener stopped the rest, so a broken panel silenced the timeline, diagnostics and gates feeds alike | Accepted, ADR-QD-177 (Phase 64) |
+| Only `admit` builds an `Admitted`, and the `"asked"` row's resource flag comes from the matcher context | A hand-built `Admitted` or a restated flag could disagree with admission; bench-gated (0 of 35 slower) | Accepted (Phase 65, ADR-QD-172 amended) |
+| The `ignore` projection reads only declared keys (owner D4); hydration keeps `refuse` (D2) | Reading every key to drop it invoked an attacker's getter on an untrusted envelope | Accepted (Phase 66, ADR-QD-170 amended) |
+| Equivalent mutants are restructured away, not ignored; a race test asserts its property, not a step count | Two survivors no test could kill and a `gap <= 48` bound tied to `walk`'s step count hid regressions | Accepted (Phase 67, CCR-QD-458; claim-arm table measured against hoisted `Match`) |
+| Port cards stay package-private (owner D3); records are closed or evidenced, not carried | v1.6's close-outs were carried as prose; each became a fix or a recorded decision | Accepted (Phase 68, ADR-QD-173 amended, CCR-QD-459) |
+| Fix the audit's fixable debt in an inserted phase before completing; Phase 68's record scripts stay as recorded and corrected copies re-check them | Completing with known-fixable defects in the bench harness, gate 14 and the record scripts would carry them a third time; a record keeps the tool that produced it | Accepted (Phase 68.1, ADR-QD-033 Rev 1.6, CCR-QD-460; owner chose "Insert a cleanup phase first", then "Fix inline, then complete" for the re-audit's info findings) |
 
 ## Evolution
 
@@ -413,4 +549,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-16 after v1.5 milestone*
+*Last updated: 2026-11-22 after v1.7 milestone*

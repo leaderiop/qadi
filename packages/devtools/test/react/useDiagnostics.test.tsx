@@ -11,7 +11,9 @@ import { act, render, screen } from "@testing-library/react";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { useState } from "react";
-import { useDiagnostics, type DiagnosticsDockOptions } from "../../src/react/useDiagnostics.ts";
+import type { DiagnosticsOptions } from "../../src/react/index.ts";
+import { useDiagnostics } from "../../src/react/useDiagnostics.ts";
+import { makeCollectorDouble } from "../collectorDouble.ts";
 
 const counted = () => {
   const counts = { builds: 0, releases: 0 };
@@ -29,7 +31,7 @@ const counted = () => {
   return { counts, layer };
 };
 
-const Probe = ({ options }: { readonly options: DiagnosticsDockOptions | undefined }) => {
+const Probe = ({ options }: { readonly options: DiagnosticsOptions | undefined }) => {
   const diagnostics = useDiagnostics(options);
   return (
     <div>
@@ -62,7 +64,7 @@ describe("useDiagnostics", () => {
 
   it("runs the layer's finalizer when it unmounts", async () => {
     const { counts, layer } = counted();
-    const options: DiagnosticsDockOptions = { layer };
+    const options: DiagnosticsOptions = { layer };
     const view = render(<Probe options={options} />);
     await vi.waitFor(() => {
       assert.strictEqual(counts.builds, 1);
@@ -129,7 +131,7 @@ describe("useDiagnostics", () => {
 
   it("states Starting until an asynchronous layer's first sample, then Live", async () => {
     const layer = Layer.effectDiscard(Effect.sleep("30 millis"));
-    const options: DiagnosticsDockOptions = { layer };
+    const options: DiagnosticsOptions = { layer };
     render(<Probe options={options} />);
     assert.strictEqual(screen.getByTestId("status").textContent, "Starting");
     assert.strictEqual(screen.getByTestId("wiring").textContent, "NotHanded");
@@ -140,14 +142,12 @@ describe("useDiagnostics", () => {
   });
 
   it("reports a sampler that died as Stopped and keeps the last reading", async () => {
-    let calls = 0;
-    const options: DiagnosticsDockOptions = {
+    const options: DiagnosticsOptions = {
       intervalMillis: 10,
-      questions: () => {
-        calls += 1;
-        if (calls > 1) throw new Error("the sampler died");
-        return [];
-      },
+      collector: makeCollectorDouble((call) => {
+        if (call > 1) throw new Error("the sampler died");
+        return { calls: [], dropped: 0, capacity: 10 };
+      }).collector,
     };
     render(<Probe options={options} />);
     await vi.waitFor(() => {

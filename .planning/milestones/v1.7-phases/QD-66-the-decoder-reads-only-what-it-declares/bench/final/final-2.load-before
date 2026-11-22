@@ -1,0 +1,7 @@
+23:15:38
+23:15  up 1 day,  9:16, 1 user, load averages: 34.34 23.97 25.59
+ %CPU COMM
+417.7 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds_stores
+ 49.6 /Users/mohammadalmechkor/Projects/Perso/SpecForge-targets/r5b/gsd/debug/deps/cli-65901c99ec5736d2
+ 39.0 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/mds
+ 14.2 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd

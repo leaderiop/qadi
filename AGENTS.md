@@ -326,6 +326,14 @@ inside them is fine.
 `Match.value(x)` rebuilds per call, which is fine for a translator invoked once
 per request and is worth avoiding on a per-node evaluation path.
 
+A table indexed directly by a tag its own code wrote needs no `Object.hasOwn` and
+no fail-closed row, because the key cannot fall outside the union and such a row
+could never be reached: `SharedComputation.ts`'s `afterReset`, `afterLastLeave` and
+its claim arms are that shape, and a missing row is a compile error. This is a third
+dispatch form, taken over the hoisted `Match` form because that form failed a gate fixed in
+advance and the table passed it; the measurement, with its noise, is in
+`spec/process/house-rules-evidence.md` §2 (CCR-QD-458).
+
 **Three switches remain unconverted**, and the exception is enforced rather than
 remembered: `scripts/check-house-style.mjs` carries a `SWITCH_BUDGET` naming each
 file and its exact count, and gate 4 fails on any deviation.
@@ -463,6 +471,99 @@ a `describe`/`it` title is a pin or a snapshot-golden row, counted per file in
 is exported as its series (a record keyed by the closed label), never as the
 untagged base, which reads zero.
 
+**A negative type pin can fail, and each one is counted: `NOT_CALLABLE_PIN_BUDGET`**
+(ADR-QD-175). tstyche checks `expect(f).type.not.toBeCallableWith(args)`, and
+`not.toBeConstructableWith` for `new`, by compiling the call and reading any
+diagnostic on it as "not callable". The Effect language service's
+`floatingEffect` rule puts a diagnostic on every bare call that returns an
+`Effect` or a `Stream`, so while that rule was on in tstyche's compile such a pin
+passed whatever its arguments were. tstyche now compiles under
+`tsconfig.tstyche.json`, which is `tsconfig.test.json` with that one rule off, and
+`packages/core/test/FloatingEffectPins.tst.ts` pins its reading under both
+settings.
+
+A bare negative pin is for a subject that returns a plain value. A pin on a
+function that returns an `Effect` or a `Stream` states its refusal through the
+parameter type, so it holds whichever way the rule is set: `Params<F>` for a
+whole call, `expect<Params<typeof f>>().type.not.toBeCallableWith(…)`
+(`PortAccess.tst.ts`), or `Parameters<typeof f>[i]` with `not.toBeAssignableTo`
+for one parameter (`DecisionLog.tst.ts`). `Params<F>` and `Parameters<F>` read
+only the last overload of an overloaded `F`, so a pin on one names the signature
+it means. Every negative pin has a positive twin in its file, the same subject
+with the arguments made valid, so the pin is seen to fail for the reason it names.
+
+The gate counts the negative `toBeCallableWith` and `toBeConstructableWith` pins
+in every file tstyche selects, separately, with comments and the text of strings
+blanked (a template literal's `${…}` is code, so a pin inside one counts), and
+checks the counts against this table in both directions (`[not-callable-pin]`,
+`[not-callable-pin-table]`). Test-scope, like `PORT_DOUBLE_BUDGET`, but over its
+own walk (`scripts/lib/type-tests.mjs`), because `collect()` skips `.tst.ts` files; a
+walk that finds no file fails, and `pnpm test:tstyche` fails unless `tstyche
+--listFiles` selects exactly the files that walk finds. A new negative pin is a reviewed edit to the budget and this table
+together. `FloatingEffectPins.tst.ts` is the one file whose bare negative pins on
+an `Effect`, a `Stream` and a constructor are deliberate: they pin the tool, not
+an API.
+
+| Type-test file | Callable pins | Constructable pins | Why |
+| -------------- | ------------- | ------------------ | --- |
+| `packages/audit/test/AuditPortReply.tst.ts` | 2 | 0 | `AuditPortReply.Fail`, `AuditPortReply.Latch`: plain return |
+| `packages/audit/test/AuditWriteOutcome.tst.ts` | 3 | 0 | `AuditWriteOutcome.Written`, `.WriteFailed`, `.Skipped`: plain return |
+| `packages/audit/test/Retention.tst.ts` | 3 | 0 | `planPurge`: plain return |
+| `packages/core/test/Decision.tst.ts` | 0 | 7 | `new Allow`, `new Deny`: plain instance |
+| `packages/core/test/DecisionCache.tst.ts` | 3 | 0 | `getOrCompute` returns an `Effect`: refused through `Params<…>` |
+| `packages/core/test/EvaluationEnvironment.tst.ts` | 4 | 0 | `evaluationEnvironment`: plain return |
+| `packages/core/test/Explanation.tst.ts` | 2 | 0 | `foldExplanationCases`: plain return |
+| `packages/core/test/FloatingEffectPins.tst.ts` | 7 | 3 | The characterisation: its bare pins on an `Effect`, a `Stream` and a constructor pin the tool |
+| `packages/core/test/HydrationMetrics.tst.ts` | 2 | 0 | `hydrationDropMeaning`: plain return |
+| `packages/core/test/Matcher.tst.ts` | 2 | 0 | `foldMatcherCases`: plain return |
+| `packages/core/test/Policy.tst.ts` | 2 | 0 | `foldPolicyCases`: plain return |
+| `packages/core/test/PortAccess.tst.ts` | 6 | 0 | The five port reads return an `Effect`: refused through `Params<…>` |
+| `packages/core/test/PortDefault.tst.ts` | 1 | 0 | `isPortDefault`: plain return |
+| `packages/core/test/PortSpan.tst.ts` | 4 | 0 | `spanStruct`: plain return |
+| `packages/core/test/Ports.tst.ts` | 1 | 0 | `portsLayer`: plain return |
+| `packages/core/test/Qadi.tst.ts` | 4 | 0 | `enforceLoaded`, `enforceProjected`, `enforceProjectedLoaded`, `guard`: plain return |
+| `packages/core/test/UntrustedDecode.tst.ts` | 9 | 0 | `untrustedDecoder`: plain return |
+| `packages/core/test/WalkEnvironment.tst.ts` | 2 | 0 | `admit`: plain return |
+| `packages/devtools/test/model/DiagnosticsStore.tst.ts` | 3 | 0 | `runDiagnostics` returns an `Effect`: refused through `Params<…>` |
+| `packages/http/test/DecisionLogHttp.tst.ts` | 1 | 0 | `decisionBacklogRoute`: plain return |
+| `packages/http/test/DecisionStreamRoute.tst.ts` | 4 | 0 | `decisionStreamRoute`, `sseText`: plain return |
+| `packages/http/test/DevtoolsRouteAddress.tst.ts` | 6 | 0 | `devtoolsPath`, `devtoolsRoutes`, `decisionStreamRoute`: plain return |
+| `packages/http/test/GuardApi.tst.ts` | 3 | 0 | `guardApi`: plain return |
+| `packages/http/test/GuardRoute.tst.ts` | 1 | 0 | `addGuardedRoute`: plain return |
+| `packages/http/test/RequirePermission.tst.ts` | 3 | 0 | `requiresPermission`, `annotate`: plain return |
+| `packages/promise/test/Facade.tst.ts` | 5 | 0 | The facade's methods return a `Promise`: plain return |
+| `packages/react/test/DevtoolsFeed.tst.ts` | 3 | 0 | `useDevtoolsFeed`: plain return |
+| `packages/react/test/Hydration.tst.ts` | 1 | 0 | `isAllowed`: plain return |
+
+Two more checks hold the rule. `[not-callable-control]` requires every negative
+pin to have a positive pin in its file with the same form, the same kind
+(`expect(x)` or `expect<T>()`) and the same subject text, whitespace collapsed,
+and fails on a pin written in a shape it cannot read. A twin must also run: a
+file with a negative pin may not use `.skip`, `.only` or `.todo`, nor carry a
+tstyche directive, except `FloatingEffectPins.tst.ts`, which pins the tool with
+expected failures. It is a floor: that each twin varies only the argument under
+test is reviewed by hand. `[tstyche-plugin-drift]` requires
+`tsconfig.tstyche.json` to hold nothing but `extends` and `compilerOptions.plugins`,
+and its plugin entry to equal the one `tsconfig.test.json` inherits from
+`tsconfig.base.json` apart from `floatingEffect`, because
+`extends` replaces `compilerOptions.plugins` wholesale and a setting changed in
+the base alone would make the two compiles disagree silently. It also requires
+the base to leave `floatingEffect` on, since the rule-on pass needs it.
+
+`pnpm test:tstyche` runs `scripts/run-tstyche.mjs`: tstyche under
+`tsconfig.tstyche.json`, then again under `tsconfig.test.json`, where the rule is
+on. There a positive pin on an `Effect` or `Stream` subject fails whatever its
+arguments, so a bare negative pin on one cannot keep a passing twin, and a
+positive pin on one goes through the parameter type too. The characterisation
+`FloatingEffectPins.tst.ts` has three blocks, each skipped where it cannot hold, by a title the
+script first checks no other type test contains: one that holds only with the rule off
+(skipped in the second pass), one with no directive that holds only when the config has the
+rule on (skipped in the first pass, and the second pass goes red if `tsconfig.test.json` loses
+the rule), and one that turns the rule on with an in-file directive and runs in both passes,
+where the first proves the directive. A pass fails if
+tstyche compiles any type test under another tsconfig, as it does for a file
+outside the tsconfig's `include`.
+
 ## 7. Schema
 
 Domain types are ordinarily **hand-written interfaces** with template-literal
@@ -514,8 +615,11 @@ shared `Schema.suspend` ref; `parseJson(s)` → `fromJsonString(s)`;
 Untrusted JSON is decoded only through `@qadi/core`'s `untrustedDecoder`
 (`UntrustedDecode.ts`).
 
-It runs one fixed recipe: `JSON.parse` for text, the depth guard, an optional
-seam-supplied `prepare`, then a strict decode (`onExcessProperty: "error"`), and it
+It runs one fixed recipe: `JSON.parse` for text, the projection the decoder's
+required `unknownKeys` states (`refuse` keeps every key, `ignore` drops an
+undeclared top-level key by its name, so its value is never read or walked,
+ADR-QD-170), the depth guard, an optional seam-supplied `prepare` that receives
+the projection, then a strict decode (`onExcessProperty: "error"`), and it
 answers with a `Result` whose refusal is a closed `UntrustedRefusal` (`NotJson`,
 `TooDeep`, `Malformed`) that the seam maps into its own error with
 `Match.tagsExhaustive`. A top-level key a second decoder guards from its own root
@@ -540,7 +644,7 @@ makes of an input.
 | `packages/core/src/UntrustedDecode.ts` | 5 | The decoder itself: the depth-guard import and call, the strict option, its one `Schema.decodeUnknownResult`, and `decodeText`'s `JSON.parse`. |
 | `packages/core/src/DecodeDepthGuard.ts` | 1 | The depth walk's declaration, package-private and reached only from the decoder. |
 | `packages/core/src/PortSpanEncode.ts` | 2 | `spanStruct` reads only its own named keys, and every leaf is a `SpanValue` primitive (INV-QD-044), so there is no nesting or excess key for a guard to bound; not an untrusted seam regardless of who supplies the map. |
-| `packages/core/src/SinkCodec.ts` | 2 | `decodeStoredRecordString` parses the stored envelope itself and must not walk it: an unknown envelope key is ignored, however deep (ADR-QD-096 D-15-c). `record` reaches the guarded `decodeSinkRecord` from its own root. `SinkRecordWithJson`'s `Schema.decodeTo` is the transformation that gives `decodeSinkRecordWithJson` the record and its JSON form from one strict decode, run only through `untrustedDecoder` (ADR-QD-153). |
+| `packages/core/src/SinkCodec.ts` | 1 | `SinkRecordWithJson`'s `Schema.decodeTo` is the transformation that gives `decodeSinkRecordWithJson` the record and its JSON form from one strict decode, run only through `untrustedDecoder` (ADR-QD-153); the stored envelope is read by `untrustedDecoder` itself (ADR-QD-170). |
 | `packages/devtools/src/model/SimulationForm.ts` | 1 | `parseJson` parses the simulation form's own typed text for the form's own validation; nothing crosses a trust boundary. |
 
 Enforced by `UNTRUSTED_DECODE_BUDGET` in `scripts/check-house-style.mjs`, checked
@@ -784,8 +888,10 @@ after `check` has passed on a push to `main`, on that same commit, and adds no v
 
 `scripts/check-package-install.mjs` is merge gate 14: it packs each public package,
 installs it into a sandbox and makes a TypeScript consumer authorize through the
-published `exports` map. Two rules come out of it, and both are checked rather than
-remembered.
+published `exports` map. Its consumer also calls every `make*Feed` the packed
+`@qadi/devtools` root exports and compiles a host cache typed by `DecisionCacheShape`, and
+the script fails if a feed export is left uncalled. Two rules come out of it, and both are
+checked rather than remembered.
 
 **`pnpm publish`, never `npm publish`.** Dependencies use pnpm's workspace-time
 protocols — `"effect": "catalog:"` in `devDependencies` and `"effect": "catalog:peer"` in

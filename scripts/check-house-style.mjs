@@ -42,6 +42,9 @@
  * The tenth, `UNTRUSTED_DECODE_BUDGET`, is `packages/*\/src` only like
  * `DECISION_READ_BUDGET`, because a test decodes on purpose to pin what the
  * untrusted decoder makes of an input (ADR-QD-143).
+ * The eleventh, `NOT_CALLABLE_PIN_BUDGET`, is test-scope over its own walk of
+ * every file tstyche selects, because `collect()` skips `.tst.ts` files; a
+ * negative type pin is counted there (ADR-QD-175).
  *
  * The three whole-file, cross-line-break checks below (`no-prefixed-error-tag`,
  * `no-catchtags-object-form`, `no-named-effect-submodule-import`) already run
@@ -80,8 +83,10 @@
  *     both hold it to its own toolchain's rules, not this library's.
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { dirname, join, relative } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import { RAW_DECISION_READ } from "./lib/raw-decision-read.mjs";
+import { CHARACTERISATION, walkTypeTests } from "./lib/type-tests.mjs";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 
@@ -639,8 +644,8 @@ const UNTRUSTED_DECODE_BUDGET = {
   "packages/core/src/DecodeDepthGuard.ts": 1,
   // `spanStruct` reads only its own named keys, and every leaf is a SpanValue primitive (INV-QD-044), so there is no nesting or excess key for a guard to bound; not an untrusted seam regardless of who supplies the map.
   "packages/core/src/PortSpanEncode.ts": 2,
-  // `decodeStoredRecordString` parses the stored envelope itself and must not walk it: an unknown envelope key is ignored, however deep (ADR-QD-096 D-15-c). `record` reaches the guarded `decodeSinkRecord` from its own root. `SinkRecordWithJson`'s `Schema.decodeTo` is the transformation that gives `decodeSinkRecordWithJson` the record and its JSON form from one strict decode, run only through `untrustedDecoder` (ADR-QD-153).
-  "packages/core/src/SinkCodec.ts": 2,
+  // `SinkRecordWithJson`'s `Schema.decodeTo` is the transformation that gives `decodeSinkRecordWithJson` the record and its JSON form from one strict decode, run only through `untrustedDecoder` (ADR-QD-153); the stored envelope is read by `untrustedDecoder` itself (ADR-QD-170).
+  "packages/core/src/SinkCodec.ts": 1,
   // `parseJson` parses the simulation form's own typed text for the form's own validation; nothing crosses a trust boundary.
   "packages/devtools/src/model/SimulationForm.ts": 1,
 };
@@ -655,7 +660,7 @@ const UNTRUSTED_DECODE_BUDGET_NAMES = {
   "packages/core/src/UntrustedDecode.ts": ["untrustedDecoder"],
   "packages/core/src/DecodeDepthGuard.ts": ["exceedsJsonDepth"],
   "packages/core/src/PortSpanEncode.ts": ["spanStruct"],
-  "packages/core/src/SinkCodec.ts": ["decodeStoredRecordString", "SinkRecordWithJson"],
+  "packages/core/src/SinkCodec.ts": ["SinkRecordWithJson"],
   "packages/devtools/src/model/SimulationForm.ts": ["parseJson"],
 };
 
@@ -664,6 +669,144 @@ const UNTRUSTED_DECODE_TOKEN = /\bonExcessProperty\b|\bexceedsJsonDepth\b|\bSche
 
 /** @type {Map<string, number[]>} */
 const UNTRUSTED_DECODE_LINES = new Map();
+
+/**
+ * Type-test files holding a negative `toBeCallableWith` or `toBeConstructableWith` pin, by
+ * file and exact count of each (ADR-QD-175).
+ *
+ * tstyche checks such a pin by compiling the call and reading any diagnostic on it as "not
+ * callable", so a pin whose subject returns an `Effect` passed whatever its arguments were
+ * while the Effect language service's `floatingEffect` rule was on in tstyche's compile.
+ * tstyche now compiles under `tsconfig.tstyche.json`, with that rule off, and this budget makes
+ * each new negative pin a reviewed edit rather than an unread one. Test-scope like
+ * `PORT_DOUBLE_BUDGET`, but over its own walk: every file tstyche selects, from the repository
+ * root. Checked in both directions, and AGENTS.md section 6's table must list exactly these
+ * files with the same counts.
+ *
+ * @type {Readonly<Record<string, { readonly callable: number, readonly constructable: number }>>}
+ */
+const NOT_CALLABLE_PIN_BUDGET = {
+  "packages/audit/test/AuditPortReply.tst.ts": { callable: 2, constructable: 0 },
+  "packages/audit/test/AuditWriteOutcome.tst.ts": { callable: 3, constructable: 0 },
+  "packages/audit/test/Retention.tst.ts": { callable: 3, constructable: 0 },
+  "packages/core/test/Decision.tst.ts": { callable: 0, constructable: 7 },
+  "packages/core/test/DecisionCache.tst.ts": { callable: 3, constructable: 0 },
+  "packages/core/test/EvaluationEnvironment.tst.ts": { callable: 4, constructable: 0 },
+  "packages/core/test/Explanation.tst.ts": { callable: 2, constructable: 0 },
+  // The characterisation of tstyche's reading under each `floatingEffect` setting: its bare negative pins pin the tool, not an API.
+  [CHARACTERISATION]: { callable: 7, constructable: 3 },
+  "packages/core/test/HydrationMetrics.tst.ts": { callable: 2, constructable: 0 },
+  "packages/core/test/Matcher.tst.ts": { callable: 2, constructable: 0 },
+  "packages/core/test/Policy.tst.ts": { callable: 2, constructable: 0 },
+  "packages/core/test/PortAccess.tst.ts": { callable: 6, constructable: 0 },
+  "packages/core/test/PortDefault.tst.ts": { callable: 1, constructable: 0 },
+  "packages/core/test/PortSpan.tst.ts": { callable: 4, constructable: 0 },
+  "packages/core/test/Ports.tst.ts": { callable: 1, constructable: 0 },
+  "packages/core/test/Qadi.tst.ts": { callable: 4, constructable: 0 },
+  "packages/core/test/UntrustedDecode.tst.ts": { callable: 9, constructable: 0 },
+  "packages/core/test/WalkEnvironment.tst.ts": { callable: 2, constructable: 0 },
+  "packages/devtools/test/model/DiagnosticsStore.tst.ts": { callable: 3, constructable: 0 },
+  "packages/http/test/DecisionLogHttp.tst.ts": { callable: 1, constructable: 0 },
+  "packages/http/test/DecisionStreamRoute.tst.ts": { callable: 4, constructable: 0 },
+  "packages/http/test/DevtoolsRouteAddress.tst.ts": { callable: 6, constructable: 0 },
+  "packages/http/test/GuardApi.tst.ts": { callable: 3, constructable: 0 },
+  "packages/http/test/GuardRoute.tst.ts": { callable: 1, constructable: 0 },
+  "packages/http/test/RequirePermission.tst.ts": { callable: 3, constructable: 0 },
+  "packages/promise/test/Facade.tst.ts": { callable: 5, constructable: 0 },
+  "packages/react/test/DevtoolsFeed.tst.ts": { callable: 3, constructable: 0 },
+  "packages/react/test/Hydration.tst.ts": { callable: 1, constructable: 0 },
+};
+
+/** A negative pin in code with comments and strings blanked: global, so two on a line count two. */
+const NOT_CALLABLE_PIN = /\.\s*not\s*\.\s*toBeCallableWith\b/g;
+const NOT_CONSTRUCTABLE_PIN = /\.\s*not\s*\.\s*toBeConstructableWith\b/g;
+
+/**
+ * `source` with every comment, and the text of every string and template literal, replaced
+ * by spaces. Newlines and length are kept, so an offset or a line number still points into the
+ * original. A template literal's `${…}` holds code, not text, so it is read as code: a pin
+ * written inside one is counted. With `keepStrings`, strings and template text stay as written:
+ * that is the JSONC reading.
+ * shortcut: a regex literal is read as code; none in a type test holds a quote or a pin, revisit if one does.
+ *
+ * @param {string} source
+ * @param {{ readonly keepStrings?: boolean }} [options]
+ * @returns {string}
+ */
+const blankCode = (source, { keepStrings = false } = {}) => {
+  const out = source.split("");
+  /** @param {number} from @param {number} to */
+  const blank = (from, to) => {
+    for (let k = from; k < to; k += 1) if (out[k] !== "\n") out[k] = " ";
+  };
+  // The brace depth at which each open `${` began, innermost last.
+  /** @type {number[]} */
+  const interpolations = [];
+  let depth = 0;
+  let i = 0;
+  while (i < source.length) {
+    const pair = source.slice(i, i + 2);
+    const c = source[i];
+    if (pair === "//" || pair === "/*") {
+      const end = pair === "//" ? source.indexOf("\n", i) : source.indexOf("*/", i + 2);
+      const stop = end === -1 ? source.length : pair === "//" ? end : end + 2;
+      blank(i, stop);
+      i = stop;
+    } else if (c === '"' || c === "'") {
+      let j = i + 1;
+      while (j < source.length && source[j] !== c) j += source[j] === "\\" ? 2 : 1;
+      if (!keepStrings) blank(i + 1, Math.min(j, source.length));
+      i = j + 1;
+    } else if (c === "`" || (c === "}" && interpolations.at(-1) === depth - 1)) {
+      // Template text runs to the closing backtick or to the next `${`, whose inside is code.
+      if (c === "}") {
+        interpolations.pop();
+        depth -= 1;
+      }
+      let j = i + 1;
+      while (j < source.length && source[j] !== "`" && !source.startsWith("${", j)) j += source[j] === "\\" ? 2 : 1;
+      if (!keepStrings) blank(i + 1, Math.min(j, source.length));
+      if (source.startsWith("${", j)) {
+        interpolations.push(depth);
+        depth += 1;
+        i = j + 2;
+      } else {
+        i = j + 1;
+      }
+    } else {
+      if (c === "{") depth += 1;
+      else if (c === "}") depth -= 1;
+      i += 1;
+    }
+  }
+  return out.join("");
+};
+
+const typeTests = walkTypeTests(ROOT);
+
+/**
+ * A JSON-with-comments file, repository-relative: comments blanked, strings kept, trailing
+ * commas dropped. The tsconfig files are JSONC.
+ *
+ * @param {string} rel
+ * @returns {{ readonly tsconfig?: unknown, readonly extends?: unknown, readonly compilerOptions?: { readonly plugins?: unknown } }}
+ */
+const readJsonc = (rel) =>
+  JSON.parse(blankCode(readFileSync(join(ROOT, rel), "utf8"), { keepStrings: true }).replace(/,(\s*[}\]])/g, "$1"));
+
+/**
+ * The `compilerOptions.plugins` a tsconfig compiles with, following a single relative `extends`
+ * to the nearest file that states them, and that file's repository-relative path.
+ *
+ * @param {string} rel
+ * @returns {{ readonly from: string, readonly plugins: unknown }}
+ */
+const nearestPlugins = (rel) => {
+  const config = readJsonc(rel);
+  if (config.compilerOptions?.plugins !== undefined) return { from: rel, plugins: config.compilerOptions.plugins };
+  if (typeof config.extends !== "string" || !config.extends.startsWith(".")) return { from: rel, plugins: undefined };
+  return nearestPlugins(join(dirname(rel), config.extends));
+};
 
 /**
  * Test files that construct a port's typed error by hand, by file and exact
@@ -2136,6 +2279,276 @@ for (const file of srcSources) {
   }
 }
 
+// `[not-callable-pin]`: AGENTS.md section 6, a negative type pin is counted per file against
+// `NOT_CALLABLE_PIN_BUDGET`, in both directions (ADR-QD-175). An empty walk fails rather than
+// passing with nothing counted, and so does a `testFileMatch` that would make tstyche select
+// files the walk does not.
+{
+  if (typeTests.length === 0) {
+    failures += 1;
+    console.error(
+      "[not-callable-pin] found no type-test files from the repository root, so no pin was counted; " +
+        "scripts/lib/type-tests.mjs no longer matches what tstyche selects.",
+    );
+  }
+  if (Object.hasOwn(readJsonc("tstyche.json"), "testFileMatch")) {
+    failures += 1;
+    console.error(
+      "tstyche.json  [not-callable-pin] sets testFileMatch; TYPE_TEST_FILE (scripts/lib/type-tests.mjs) mirrors tstyche's default, " +
+        "so update it with the same patterns before setting one.",
+    );
+  }
+  /** @type {Map<string, { readonly callable: number, readonly constructable: number }>} */
+  const found = new Map();
+  for (const rel of typeTests) {
+    const code = blankCode(readFileSync(join(ROOT, rel), "utf8"));
+    const callable = (code.match(NOT_CALLABLE_PIN) ?? []).length;
+    const constructable = (code.match(NOT_CONSTRUCTABLE_PIN) ?? []).length;
+    if (callable + constructable > 0) found.set(rel, { callable, constructable });
+  }
+  for (const [rel, n] of found) {
+    const budget = Object.hasOwn(NOT_CALLABLE_PIN_BUDGET, rel) ? NOT_CALLABLE_PIN_BUDGET[rel] : undefined;
+    if (budget !== undefined && budget.callable === n.callable && budget.constructable === n.constructable) continue;
+    failures += 1;
+    console.error(
+      `${rel}  [not-callable-pin] ${n.callable} negative callable and ${n.constructable} negative constructable pin(s); ` +
+        `NOT_CALLABLE_PIN_BUDGET says ${budget === undefined ? "none" : `${budget.callable} and ${budget.constructable}`}.\n` +
+        "    A negative pin on a function that returns an Effect states its refusal through the parameter type, " +
+        "and every negative pin has a positive twin; then update the budget and AGENTS.md section 6's table together.",
+    );
+  }
+  for (const rel of Object.keys(NOT_CALLABLE_PIN_BUDGET)) {
+    if (found.has(rel)) continue;
+    failures += 1;
+    console.error(
+      `${rel}  [not-callable-pin] is in NOT_CALLABLE_PIN_BUDGET but holds no negative pin; ` +
+        "remove its row here and in AGENTS.md section 6's table.",
+    );
+  }
+}
+
+// AGENTS.md section 6's table is the budget stated for readers: its file column must be exactly
+// the budget's keys, with the same two counts.
+{
+  const agents = readFileSync(join(ROOT, "AGENTS.md"), "utf8").replace(/\r\n/g, "\n").split("\n");
+  const header = agents.findIndex((l) =>
+    /^\|\s*Type-test file\s*\|\s*Callable pins\s*\|\s*Constructable pins\s*\|\s*Why\s*\|/.test(l)
+  );
+  /** @type {Map<string, { readonly callable: number, readonly constructable: number }>} */
+  const listed = new Map();
+  if (header === -1) {
+    failures += 1;
+    console.error(
+      "AGENTS.md  [not-callable-pin-table] the section 6 `| Type-test file | Callable pins | Constructable pins | Why |` table was not found.",
+    );
+  } else {
+    for (let i = header + 2; i < agents.length && agents[i].startsWith("|"); i += 1) {
+      const m = /^\|\s*`([^`]+)`\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|/.exec(agents[i]);
+      if (m === null) {
+        failures += 1;
+        console.error(`AGENTS.md:${i + 1}  [not-callable-pin-table] a row that is not \`file\` | callable | constructable | why.`);
+        continue;
+      }
+      if (listed.has(m[1])) {
+        failures += 1;
+        console.error(`AGENTS.md:${i + 1}  [not-callable-pin-table] lists ${m[1]} a second time; one row per file.`);
+        continue;
+      }
+      listed.set(m[1], { callable: Number(m[2]), constructable: Number(m[3]) });
+    }
+  }
+  for (const [rel, n] of listed) {
+    const budget = Object.hasOwn(NOT_CALLABLE_PIN_BUDGET, rel) ? NOT_CALLABLE_PIN_BUDGET[rel] : undefined;
+    if (budget !== undefined && budget.callable === n.callable && budget.constructable === n.constructable) continue;
+    failures += 1;
+    console.error(
+      `AGENTS.md  [not-callable-pin-table] section 6 lists ${rel} (${n.callable}, ${n.constructable}), which NOT_CALLABLE_PIN_BUDGET does not match.`,
+    );
+  }
+  for (const rel of Object.keys(NOT_CALLABLE_PIN_BUDGET)) {
+    if (listed.has(rel)) continue;
+    failures += 1;
+    console.error(`AGENTS.md  [not-callable-pin-table] ${rel} is in NOT_CALLABLE_PIN_BUDGET with no row in section 6's table.`);
+  }
+}
+
+// `[not-callable-control]`: every negative pin has a positive twin in its file, with the same
+// form (callable or constructable), the same kind (a value `expect(x)` or a type `expect<T>()`)
+// and the same subject text, whitespace collapsed. A floor, not a proof: the single-variable
+// property of each twin is reviewed by hand. Every counted pin must be one the parse read, so a
+// pin written in a shape the parse cannot follow fails rather than going unchecked. And a twin
+// must run: a file holding a negative pin may not skip, focus or mark a test as to-do, and may
+// not carry a tstyche directive (an expected failure or a run condition), because a positive
+// pin that tstyche does not run, or runs expecting it to fail, shows nothing. The
+// characterisation is the one exception: it pins the tool with expected failures, and each
+// tstyche pass skips one of its three blocks by title.
+{
+  const RUN_MODE = /\.\s*(skip|only|todo)\b/g;
+  const DIRECTIVE = /@tstyche\b/g;
+  const MATCHER = /\s*\.\s*type\s*\.\s*(not\s*\.\s*)?(toBeCallableWith|toBeConstructableWith)\b/y;
+  /**
+   * The offset just past the bracket that closes the one at `start`, or -1. In type arguments,
+   * the `>` of an arrow `=>` does not close.
+   * @param {string} code @param {number} start @param {string} open @param {string} close
+   */
+  const closing = (code, start, open, close) => {
+    let depth = 0;
+    for (let k = start; k < code.length; k += 1) {
+      if (code[k] === open) depth += 1;
+      else if (code[k] === close && !(close === ">" && code[k - 1] === "=")) {
+        depth -= 1;
+        if (depth === 0) return k + 1;
+      }
+    }
+    return -1;
+  };
+  /** @param {string} code @param {number} k */
+  const skipSpace = (code, k) => {
+    let at = k;
+    while (at < code.length && /\s/.test(code[at])) at += 1;
+    return at;
+  };
+  /** @param {string} text @param {number} offset */
+  const lineAt = (text, offset) => text.slice(0, offset).split("\n").length;
+  for (const rel of typeTests) {
+    const raw = readFileSync(join(ROOT, rel), "utf8");
+    const code = blankCode(raw);
+    const expected = (code.match(NOT_CALLABLE_PIN) ?? []).length + (code.match(NOT_CONSTRUCTABLE_PIN) ?? []).length;
+    if (expected === 0) continue;
+    if (rel !== CHARACTERISATION) {
+      const ran =
+        "; every positive twin must run, and pass, in both tstyche passes, and only " +
+        `${CHARACTERISATION} skips a block or expects a failure.`;
+      for (const m of code.matchAll(RUN_MODE)) {
+        failures += 1;
+        console.error(`${rel}:${lineAt(code, m.index)}  [not-callable-control] \`.${m[1]}\` in a file with a negative pin${ran}`);
+      }
+      for (const m of raw.matchAll(DIRECTIVE)) {
+        failures += 1;
+        console.error(`${rel}:${lineAt(raw, m.index)}  [not-callable-control] a tstyche directive in a file with a negative pin${ran}`);
+      }
+    }
+    /** @type {Array<{ readonly line: number, readonly not: boolean, readonly key: string }>} */
+    const pins = [];
+    for (const m of code.matchAll(/\bexpect\b/g)) {
+      let at = skipSpace(code, m.index + m[0].length);
+      let typeArg = "";
+      if (code[at] === "<") {
+        const end = closing(code, at, "<", ">");
+        if (end === -1) continue;
+        typeArg = raw.slice(at + 1, end - 1);
+        at = skipSpace(code, end);
+      }
+      if (code[at] !== "(") continue;
+      const end = closing(code, at, "(", ")");
+      if (end === -1) continue;
+      const value = raw.slice(at + 1, end - 1);
+      MATCHER.lastIndex = end;
+      const tail = MATCHER.exec(code);
+      if (tail === null) continue;
+      const kind = typeArg === "" ? "value" : "type";
+      const text = (kind === "type" ? typeArg : value).replace(/\s+/g, " ").trim();
+      pins.push({
+        line: lineAt(code, m.index),
+        not: tail[1] !== undefined,
+        key: `${tail[2]} ${kind} ${text}`,
+      });
+    }
+    const negatives = pins.filter((p) => p.not);
+    if (negatives.length !== expected) {
+      failures += 1;
+      console.error(
+        `${rel}  [not-callable-control] read ${negatives.length} of ${expected} negative pin(s); ` +
+          "write each as `expect(subject)` or `expect<Type>()` followed by `.type.not.` and the matcher.",
+      );
+    }
+    const positives = new Set(pins.filter((p) => !p.not).map((p) => p.key));
+    for (const p of negatives) {
+      if (positives.has(p.key)) continue;
+      failures += 1;
+      console.error(
+        `${rel}:${p.line}  [not-callable-control] a negative pin with no positive twin (${p.key}); ` +
+          "add the same subject with the arguments made valid, so the pin is seen to fail for the reason it names.",
+      );
+    }
+  }
+}
+
+// `[tstyche-plugin-drift]`: tstyche compiles under `tsconfig.tstyche.json`, which extends
+// `tsconfig.test.json` and restates the Effect language service's plugin entry, because
+// `extends` replaces `compilerOptions.plugins` wholesale. That file holds nothing but `extends`
+// and `compilerOptions.plugins`, so the two compiles differ by that one setting. The restated
+// entry must stay the one `tsconfig.test.json` inherits from `tsconfig.base.json`, with only
+// `floatingEffect` off: a setting changed in the base and not here would make the two compiles
+// disagree silently. And the base must keep `floatingEffect` on, since the second tstyche pass
+// compiles under `tsconfig.test.json` and catches a bare negative pin on an `Effect` only while
+// the rule is on there; comparing the entries without `floatingEffect` cannot see the base turn
+// it off (ADR-QD-175).
+{
+  /** @param {string} file @param {string} message */
+  const drift = (file, message) => {
+    failures += 1;
+    console.error(`${file}  [tstyche-plugin-drift] ${message}`);
+  };
+  /** @param {unknown} plugins @returns {unknown} */
+  const withoutFloatingEffect = (plugins) => {
+    const copy = structuredClone(plugins);
+    if (Array.isArray(copy)) {
+      for (const entry of copy) {
+        const severity = typeof entry === "object" && entry !== null ? entry.diagnosticSeverity : undefined;
+        if (typeof severity === "object" && severity !== null) delete severity.floatingEffect;
+      }
+    }
+    return copy;
+  };
+  const tstyche = readJsonc("tstyche.json");
+  if (tstyche.tsconfig !== "tsconfig.tstyche.json") {
+    drift("tstyche.json", `names ${JSON.stringify(tstyche.tsconfig)}, not "tsconfig.tstyche.json"; tstyche must compile with floatingEffect off.`);
+  }
+  const child = readJsonc("tsconfig.tstyche.json");
+  if (child.extends !== "./tsconfig.test.json") {
+    drift("tsconfig.tstyche.json", `extends ${JSON.stringify(child.extends)}, not "./tsconfig.test.json".`);
+  }
+  // The file may say nothing else: a relaxed `strict`, a narrowed `include` or another compiler
+  // option would make tstyche's pins pass or fail differently from `pnpm typecheck` unseen.
+  const childKeys = Object.keys(child).sort().join();
+  if (childKeys !== "compilerOptions,extends") {
+    drift("tsconfig.tstyche.json", `has the keys ${JSON.stringify(childKeys)}; only extends and compilerOptions may be set.`);
+  }
+  const optionKeys = Object.keys(child.compilerOptions ?? {}).sort().join();
+  if (optionKeys !== "plugins") {
+    drift("tsconfig.tstyche.json", `compilerOptions holds ${JSON.stringify(optionKeys)}; only plugins may differ from tsconfig.test.json.`);
+  }
+  const own = child.compilerOptions?.plugins;
+  const inherited = nearestPlugins("tsconfig.test.json");
+  if (!Array.isArray(own)) {
+    drift("tsconfig.tstyche.json", "states no compilerOptions.plugins of its own, so floatingEffect is not off.");
+  } else if (inherited.from !== "tsconfig.base.json" || !Array.isArray(inherited.plugins)) {
+    drift(
+      "tsconfig.test.json",
+      `takes its plugins from ${inherited.from}, not tsconfig.base.json; restate them in tsconfig.tstyche.json and update this check.`,
+    );
+  } else {
+    if (own.length !== 1 || own[0]?.diagnosticSeverity?.floatingEffect !== "off") {
+      drift("tsconfig.tstyche.json", `must hold one plugin entry with diagnosticSeverity.floatingEffect "off" (found ${own.length} entr(ies)).`);
+    }
+    if (!isDeepStrictEqual(withoutFloatingEffect(own), withoutFloatingEffect(inherited.plugins))) {
+      drift("tsconfig.tstyche.json", "its plugin entry differs from tsconfig.base.json's by more than floatingEffect; restate the base entry.");
+    }
+    const base = inherited.plugins.find((entry) => entry?.name === "@effect/language-service");
+    const severity = base?.diagnosticSeverity?.floatingEffect;
+    if (base === undefined) {
+      drift("tsconfig.base.json", "states no @effect/language-service plugin entry, so the second tstyche pass runs without the rule.");
+    } else if (severity !== undefined && severity !== "error") {
+      drift(
+        "tsconfig.base.json",
+        `sets floatingEffect to ${JSON.stringify(severity)}; the second tstyche pass compiles under tsconfig.test.json, ` +
+          'which inherits it, and needs the rule on: unset (its default, an error) or "error".',
+      );
+    }
+  }
+}
+
 // An exemption is a path, and a path outlives the file it named: renaming or
 // deleting the exempted module leaves a dead entry that silently ungates
 // whatever takes its place (an orphan `settled.ts` entry sat here for exactly
@@ -2162,5 +2575,5 @@ if (failures > 0) {
 
 console.log(
   `house-style: ${sources.length} file(s) clean ` +
-    `(${declaredSwitches} declared switch(es))`,
+    `(${declaredSwitches} declared switch(es), ${typeTests.length} type-test file(s))`,
 );

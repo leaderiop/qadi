@@ -1,0 +1,13 @@
+workload	ref_min_ns	cand_min_ns	d_min_pct	ref_min_spread_pct	band_pct	verdict	ref_p50_ns	cand_p50_ns	d_p50_pct	ref_mean_ns	cand_mean_ns	d_mean_pct
+DecisionCache.getOrCompute — hit :: repeated lookup, same subject/policy/resource	7917	7250	-8.4	1.6	5.0	ok	8916	7958	-10.7	19861	16129	-18.8
+DecisionCache.getOrCompute — hit, realistic tree :: repeated lookup, same subject/tree/resource	9292	8708	-6.3	1.8	5.0	ok	10125	9542	-5.8	22152	17705	-20.1
+DecisionCache.getOrCompute — hit, fresh-but-equal subject per lookup :: distinct-but-equal subject object per call	15209	14166	-6.9	1.1	5.0	ok	17375	16208	-6.7	35654	30580	-14.2
+DecisionCache.getOrCompute — miss :: distinct policy per call, cache grows across the run	13333	13375	0.3	3.1	5.0	ok	15291	15583	1.9	33244	35799	7.7
+DecisionCache.getOrCompute — miss, capacity-bound :: distinct policy per call, each insert evicts the oldest	13625	13750	0.9	1.8	5.0	ok	15333	15583	1.6	31281	34319	9.7
+# workloads: 5
+# slower: 0
+# geomean_d_min_pct: -4.15
+# max_slowdown_pct: 5.0
+# max_geomean_pct: 2.0
+# worst_d_min: 0.9 DecisionCache.getOrCompute — miss, capacity-bound :: distinct policy per call, each insert evicts the oldest
+# gate: pass

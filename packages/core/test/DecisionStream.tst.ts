@@ -46,9 +46,10 @@ test("a frame a writer sends is a frame a reader receives, so the round trip nee
 });
 
 test("encodeRecord is required, and the frames cannot fail and need nothing", () => {
-  // Through the parameter type, not `toBeCallableWith`: a call that makes an Effect
-  // and discards it draws the Effect language service's floating-Effect diagnostic,
-  // which a negative `toBeCallableWith` would take for a refusal of the arguments.
+  // Through the parameter type, not `toBeCallableWith`: tstyche compiles under
+  // `tsconfig.tstyche.json`, where `floatingEffect` is off, so a negative `toBeCallableWith`
+  // could fail there; this form states the refusal through the parameter type and so holds
+  // whichever way `floatingEffect` is set, including `pnpm typecheck`'s compile with the rule on.
   type Options = Parameters<typeof encodeDecisionStream>[1];
   expect({ encodeRecord }).type.toBeAssignableTo<Options>();
   expect<{ readonly after: string }>().type.not.toBeAssignableTo<Options>();

@@ -122,9 +122,9 @@ export const portWire = <
   // Unknown, not `Q`: `presentMembers` is a generic filter, so the strict question
   // schema is what checks the member set it returns.
   const encodeQ = Schema.encodeUnknownResult(spec.question);
-  const decoderQ = untrustedDecoder(spec.question);
+  const decoderQ = untrustedDecoder(spec.question, { unknownKeys: "refuse" });
   const encodeA = Schema.encodeResult(spec.answer);
-  const decoderA = untrustedDecoder(spec.answer);
+  const decoderA = untrustedDecoder(spec.answer, { unknownKeys: "refuse" });
 
   return {
     encodeQuestion: (args) =>

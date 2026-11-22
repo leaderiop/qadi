@@ -43,6 +43,7 @@ import type { WiringReport } from "../../src/model/Wiring.ts";
 import type { GateInstanceLike } from "../../src/model/Gates.ts";
 import { makeGateRegistryDouble } from "../gateRegistryDouble.ts";
 import { decisionRecord, obligationRecord } from "../helpers.ts";
+import { questionsProp } from "./questionsProp.ts";
 
 const read = permission("doc", "read");
 const write = permission("doc", "write");
@@ -1089,8 +1090,12 @@ describe("screen 6 — the port calls the dock threads through", () => {
       assert.isEmpty(screen.queryAllByTestId("qadi-hydration-unwired"));
     });
 
-    it("samples the questions thunk, so the React panel needs no value prop", async () => {
-      render(<DevtoolsDock diagnostics={{ questions: () => [{ policy: hasPermission(read) }] }} />);
+    it("reads the questions thunk, so the React panel needs no value prop", async () => {
+      render(
+        <DevtoolsDock
+          {...questionsProp({ diagnostics: {} }, () => [{ policy: hasPermission(read) }])}
+        />,
+      );
       await act(async () => {});
       await click(screen.getByRole("button", { name: "React" }));
       await screen.findAllByTestId("qadi-question");
@@ -1174,11 +1179,13 @@ describe("screen 6 — the port calls the dock threads through", () => {
       assert.notInclude(shown.join("|"), "sampled-attr");
     });
 
-    it("an explicit questions prop wins over the sampled thunk", async () => {
+    it("a supplied reading's questions win over the thunk", async () => {
       render(
         <DevtoolsDock
-          diagnostics={{ questions: () => [{ policy: hasPermission(read) }] }}
-          reading={{ questions: [{ policy: hasPermission(write) }] }}
+          {...questionsProp(
+            { diagnostics: {}, reading: { questions: [{ policy: hasPermission(write) }] } },
+            () => [{ policy: hasPermission(read) }],
+          )}
         />,
       );
       await act(async () => {});

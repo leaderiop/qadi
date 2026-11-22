@@ -424,7 +424,7 @@ import * as Schema from "effect/Schema";
 import { untrustedDecoder } from "@qadi/core";
 
 const Settings = Schema.Struct({ name: Schema.String });
-const decodeSettings = untrustedDecoder(Settings);
+const decodeSettings = untrustedDecoder(Settings, { unknownKeys: "refuse" });
 
 export const settings = decodeSettings.decodeText('{"name":"x"}');
 export const refused = Result.isFailure(settings) ? settings.failure._tag : undefined;
@@ -538,9 +538,8 @@ After:
 ```typescript
 import type { HydrationActivity } from "@qadi/devtools";
 import { DiagnosticsStatus, useDiagnostics } from "@qadi/devtools/react";
-import type { DiagnosticsDockOptions } from "@qadi/devtools/react";
 
-const sampling: DiagnosticsDockOptions = { intervalMillis: 1_000 };
+const sampling = { intervalMillis: 1_000 };
 
 export const useHydration = (): HydrationActivity | undefined =>
   useDiagnostics(sampling).reading.hydration;
@@ -628,7 +627,7 @@ The headless model that decides this is [ADR-QD-047](https://github.com/leaderio
 | `unsupported-version` | `UnsupportedVersion` |
 | `inconsistent` | `Inconsistent` |
 
-`not-a-record` named both a bare record and a record the wire does not describe; both are now `Malformed`, and its `message` tells them apart. Before:
+`not-a-record` named both a bare record and a record the wire does not describe; both are now `Malformed`. A bare record's `message` is the decoder's own, a missing `environment`, and a record the wire does not describe carries the record decoder's. Before:
 
 ```ts
 import { sourceFromEventSource } from "@qadi/devtools";
@@ -895,3 +894,214 @@ export const Dock = ({ atoms }: { readonly atoms: QadiAtoms }) => {
 ```
 
 The decision is [ADR-QD-162](https://github.com/leaderiop/qadi/blob/main/spec/decisions/162-gates-are-the-dock-models-eighth-store-and-their-states-are-stated-once.md).
+
+## 0.13: `PortActivity.port` is a `PortName`
+
+`@qadi/devtools`'s `PortActivity.port` is now `PortName`, `@qadi/core`'s union of the five registry ports, where it was `string`. `portActivity` reads each registry port's own name in the four port metrics and reports one entry per port that was reached, in the registry's order, so a word written to a port metric outside the registry is no longer reported. Nothing is renamed or removed, and no export is added: `PortActivity` is still exported and only its field's type is narrower.
+
+An entry built inline with a registry port's name still compiles, and so does every reader that treats `port` like a string. Two things a caller may need to fix:
+
+- An array literal held in an unannotated variable widens `port` to `string`, which no longer fits `PortActivity`. Annotate the variable `ReadonlyArray<PortActivity>`, and the literal is checked against the registry's names.
+- A comparison of `entry.port` with a name that is not a port, such as `"EvaluationId"`, no longer compiles, since no such entry can exist. Drop the comparison, or read the ports as strings first.
+
+The Services panel reads the same: every word, `data-testid` and attribute on the tab is unchanged, and the cards are now computed by the dock model.
+
+The decision is [ADR-QD-168](https://github.com/leaderiop/qadi/blob/main/spec/decisions/168-a-port-card-is-a-model-row.md).
+
+## 0.13: the questions are a dock input, beside the gates
+
+Two public breaks, one per package, and both move the same field. The Questions tab reads two things a host hands the dock, a registry of live guards (`gates`) and the questions asked (`questions`), and `questions` used to travel inside the diagnostics options where `gates` did not. It is now the dock's own input, beside `gates`.
+
+`@qadi/devtools`: `questions` is no longer a field of `DiagnosticsDockOptions`, the type of the dock's `diagnostics` prop and of `useDiagnostics`'s options, or of `DiagnosticsOptions`, which `runDiagnostics` takes. It is `DevtoolsDock`'s own `questions` prop, read on the diagnostics cadence. A host that wrote `diagnostics={{ layer, collector, questions }}` writes `diagnostics={{ layer, collector }}` and `questions={…}`, the same function in the new place.
+
+`@qadi/react`: `useDevtoolsFeed()` returns `questions` (`atoms.asked`) beside `gates` and `onInvalidate`, and its `diagnostics` is your extras plus `layer` only. Code that read `feed.diagnostics.questions` reads `feed.questions`. A host that spreads the feed, `<DevtoolsDock {...feed} />`, needs no edit, and setting `layer` or `questions` in the extras is still a compile error.
+
+One behaviour changes with the move. A questions input that throws is now stated in the React panel, in one sentence with the reason, and the diagnostics poll keeps running. Before, a throwing input ended the poll, every tab's reading froze with the status `Stopped`, and the panel said nothing about its own input. The same panel states a throwing gate registry, and has since 0.13's earlier change to the gates.
+
+`DiagnosticsReading.questions` is unchanged. A reading taken in another process still carries its own questions, a list a reading supplies wins over the input, and the input's failure is then not stated. The Questions panel's markup, words and `data-testid`s are unchanged.
+
+The decision is [ADR-QD-169](https://github.com/leaderiop/qadi/blob/main/spec/decisions/169-the-questions-panels-two-host-inputs-are-one-feed.md).
+
+## 0.13: untrustedDecoder states the envelope's unknown-key policy
+
+`@qadi/core`'s `untrustedDecoder` now takes a required options object, and its `unknownKeys` is required: `UnknownKeyPolicy`, a new export, is `"refuse" | "ignore"`. It says what the decoder does with a top-level key its schema does not declare. A call that passed no options passes `{ unknownKeys: "refuse" }`, and a call that passed `unwalked` or `prepare` adds `unknownKeys: "refuse"` beside it. Both keep every answer they gave. Before:
+
+```ts
+import { untrustedDecoder } from "@qadi/core";
+
+export const decodeSettings = untrustedDecoder(Settings);
+```
+
+After:
+
+```typescript
+import * as Result from "effect/Result";
+import * as Schema from "effect/Schema";
+import { untrustedDecoder } from "@qadi/core";
+
+const Settings = Schema.Struct({ name: Schema.String });
+const decodeSettings = untrustedDecoder(Settings, { unknownKeys: "refuse" });
+
+export const settings = decodeSettings.decodeText('{"name":"x"}');
+export const refused = Result.isFailure(settings) ? settings.failure._tag : undefined;
+```
+
+`"ignore"` is for a versioned envelope a newer producer may extend, and the library states it twice: the decision record's wire and the stored `{ environment, record }` envelope.
+
+Two answers widen. A record, and so an audit row or an archive entry that carries one, whose record has an unknown top-level key nested past the decode bound now decodes (`decodeSinkRecord`, `decodeSinkRecordString`, `decodeSinkRecordWithJson`, `decodeAuditEntry` and `readAuditArchive`). It was `TooDeep`. With `version: 3` it is `UnsupportedVersion`. An unknown key inside the policy, and the audit row's and the archive's own unknown keys, are still refused.
+
+`decodeStoredRecord` and `decodeStoredRecordString` keep every refusal tag and carry the strict decoder's messages:
+
+| Input | Before | After |
+| ----- | ------ | ----- |
+| not an object | `a stored record is a JSON object { environment, record }` | `Expected object` |
+| no `environment`, and no `record` (a bare record, `{}`) | `a bare record, not a stored-record envelope { environment, record }` | `Missing key` at `["environment"]` |
+| `record` and no `environment` | `a stored record's environment is not a string` | `Missing key` at `["environment"]` |
+| `environment` not a string | `a stored record's environment is not a string` | `Expected string` at `["environment"]` |
+| `environment` and no `record` | `a stored record names no record` | `Missing key` at `["record"]` |
+
+An `environment` nested past the decode bound is now `TooDeep`, where it was `Malformed`. A caller that matches `_tag` is unaffected; a caller that matched on a message reads the new ones.
+
+The decision is [ADR-QD-170](https://github.com/leaderiop/qadi/blob/main/spec/decisions/170-an-envelope-states-its-unknown-key-policy-at-its-decoder.md).
+
+## 0.13: a stored record is its envelope in memory
+
+`@qadi/core`'s stored record is now the envelope the wire already had, `{ environment, record }`, as one class, `StoredRecord`. It was the record's own fields with the environment stamped beside them, as `StoredDecisionRecord` and `StoredObligationRecord` (the `Stamped` intersection) built by `stampRecord`, and a consumer narrowed on `stored._tag` and read `stored.evaluationId` as if the stamp were part of the record. The record is now held whole, by reference, under `stored.record`. Those four names are removed, with no alias, and the wire is unchanged byte for byte. Three migrations cover every use:
+
+- `record.environment` becomes `stored.environment`.
+- `stored._tag`, `stored.evaluationId` and every other record field become `stored.record._tag`, `stored.record.evaluationId`, and so on.
+- `stampRecord(r, e)` becomes `new StoredRecord({ environment: e, record: r })`.
+
+Before:
+
+```ts
+import { stampRecord, storedRecordOrder } from "@qadi/core";
+
+const stored = stampRecord(record, "Server");
+const kind = stored._tag;
+const where = stored.environment;
+const ordered = [a, b].toSorted(storedRecordOrder);
+```
+
+After:
+
+```typescript
+import { ObligationRecord, StoredRecord, storedRecordOrder } from "@qadi/core";
+
+const record = new ObligationRecord({
+  evaluationId: "e1",
+  at: 1,
+  outcome: "Discharged",
+  obligationIds: ["audit.log"],
+});
+const stored = new StoredRecord({ environment: "Server", record });
+const later = new StoredRecord({
+  environment: "Server",
+  record: new ObligationRecord({
+    evaluationId: "e2",
+    at: 2,
+    outcome: "Discharged",
+    obligationIds: ["audit.log"],
+  }),
+});
+
+export const kind = stored.record._tag;
+export const where = stored.environment;
+export const ordered = [later, stored].toSorted(storedRecordOrder);
+```
+
+There are now two orders, one per thing held. `storedRecordOrder` orders `StoredRecord`s and `sinkRecordOrder`, a new export, orders bare records by the same rule, for a reader that holds records without an environment, such as an archive's entries. `storedRecordOrder` reads the record each envelope holds, so the order a sorted log gives is unchanged.
+
+The decision log's two warnings, `qadi: a decision log's append half failed` and its publish twin, are gone: a defect in either half now propagates, and the sink emitter reports it once, as it reports any sink's. A log query that filtered on either message reads the emitter's report instead.
+
+`@qadi/http`'s routes take a `DecisionLogReader` whose element type is `StoredRecord`, so a reader built from flat records no longer typechecks; no `@qadi/http` source changed and the routes write the same bytes. `@qadi/devtools`' `ingest` takes the envelope, and a `Source`'s backlog and live stream carry envelopes, so code that built a flat record for them builds `new StoredRecord({ environment, record })`.
+
+The decision is [ADR-QD-171](https://github.com/leaderiop/qadi/blob/main/spec/decisions/171-a-stored-record-is-its-envelope-in-memory-too.md).
+
+## 0.13: the feeds are devtools' headless interface
+
+`@qadi/devtools`' root now exports `makeTimelineFeed`, `makeDiagnosticsFeed` and `makeGatesFeed`, each built in a scope. A handle names what a shell reads: the timeline feed's `timeline` and `status` stores, the diagnostics feed's snapshot (its `reading` and a `status` that is `Off`, `Starting`, `Live` or `Stopped`), and the gates feed's snapshot. A feed that stops says so, with a restart, where the runners left a dead fiber.
+
+`makeTimelineStore`, `runSource`, `makeDiagnosticsStore`, `runDiagnostics`, `noDiagnostics` and the `DiagnosticsStore` type are no longer importable. `DiagnosticsDockOptions` is now `DiagnosticsOptions`, on both entries, and `DiagnosticsOptions` is not generic and takes `intervalMillis` where it took a `schedule`. A hand-fed timeline is `makeTimelineFeed()` and its `accept`; `useTimelineStore` is unchanged.
+
+Before:
+
+```ts
+import { makeDiagnosticsStore, makeTimelineStore, runDiagnostics, runSource } from "@qadi/devtools";
+
+const diagnostics = makeDiagnosticsStore();
+yield* Effect.forkChild(runDiagnostics(diagnostics, { layer, schedule: Schedule.spaced("1 second") }));
+
+const timeline = makeTimelineStore();
+yield* Effect.forkChild(runSource(timeline, source));
+```
+
+After:
+
+```typescript
+import * as Effect from "effect/Effect";
+import { makeDecisionLog } from "@qadi/core";
+import { makeDiagnosticsFeed, makeTimelineFeed, type DiagnosticsOptions } from "@qadi/devtools";
+
+const sampling: DiagnosticsOptions = { intervalMillis: 1_000 };
+
+export const statuses = Effect.scoped(
+  Effect.gen(function* () {
+    const log = yield* makeDecisionLog({ environment: "Server", capacity: 512 });
+    const timeline = yield* makeTimelineFeed({ source: log });
+    const diagnostics = yield* makeDiagnosticsFeed(sampling);
+    return {
+      timeline: timeline.status.getSnapshot()._tag,
+      diagnostics: diagnostics.getSnapshot().status._tag,
+    };
+  }),
+);
+```
+
+A stop's `reason` is a `Cause.pretty` trace, with stack frames and checkout paths, for a developer in the host's own process. It must not cross a trust boundary: a shell that forwards status to a remote viewer sends the tag, not the reason.
+
+The decision is [ADR-QD-173](https://github.com/leaderiop/qadi/blob/main/spec/decisions/173-the-devtools-headless-interface-is-its-feeds.md).
+
+## 0.13: a DecisionCache is asked only the question
+
+`DecisionCacheShape.getOrCompute` takes the question and, optionally, how the walk runs: `getOrCompute(question, options?)`, where `options` is `{ concurrency? }`, the `concurrency` option of `evaluate` (`Pick<EvaluateOptions, "concurrency">`). It no longer takes a `compute`, and passing one as a caller is a compile error (TS2559). `decisionCacheLayer()` walks the question it is given, so no caller can store a trace under a question that trace does not answer.
+
+`concurrency` is still not part of the key. One question asked with two concurrencies is one entry, and an ask that joins a walk already in flight shares that walk, run with the first asker's `concurrency`.
+
+Callers of `evaluate` and of the enforcing entry points see no change. A hand-written `DecisionCacheShape` must now produce its own trace for the question it is handed, and core does not export the walk, so wrap `decisionCacheLayer()` and delegate to it. At runtime the `options` a cache receives is the options object the decision was asked with, passed through without a copy, so it can carry more keys than `concurrency`; read only `concurrency`, and do not log or retain the rest.
+
+An implementation written as below no longer compiles where it runs `compute` (TS2345), where it annotates it (TS2322), or, written as a class that `implements DecisionCacheShape`, at the method (TS2416).
+
+Before:
+
+```ts
+const cache = Layer.succeed(DecisionCache, {
+  getOrCompute: (question, compute) => Effect.map(compute, (trace) => ({ trace, outcome: "miss" })),
+  size: Effect.succeed(0),
+  clear: Effect.void,
+});
+```
+
+After:
+
+```typescript
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import { DecisionCache, decisionCacheLayer } from "@qadi/core";
+
+export const loggedCache = Layer.effect(
+  DecisionCache,
+  Effect.gen(function* () {
+    const inner = yield* DecisionCache;
+    return DecisionCache.of({
+      ...inner,
+      getOrCompute: (question, options) =>
+        inner.getOrCompute(question, options).pipe(
+          Effect.tap((lookup) => Effect.logDebug(`decision cache ${lookup.outcome}`)),
+        ),
+    });
+  }),
+).pipe(Layer.provide(decisionCacheLayer()));
+```
+
+The decision is [ADR-QD-174](https://github.com/leaderiop/qadi/blob/main/spec/decisions/174-a-decision-cache-is-asked-the-question.md).

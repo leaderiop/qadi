@@ -150,20 +150,23 @@ export const App = () => (
 );
 ```
 
-`useDevtoolsFeed` returns `gates` (the provider's gate registry), `onInvalidate`
-and `diagnostics`, and `diagnostics` carries your `extras` plus the two fields the feed owns: a `layer`
-that is the provider's own built services, and `questions`. Because that layer is
+`useDevtoolsFeed` returns `gates` (the provider's gate registry), `questions`
+(`atoms.asked`), `onInvalidate` and `diagnostics`, and `diagnostics` carries your
+`extras` plus the one field the feed owns there: a `layer` that is the provider's
+own built services. Because that layer is
 the registry's own build, a service that keeps state in its constructor, such as
 `decisionCacheLayer`'s cache, is one instance shared by the decisions and the
 dock; nothing needs hoisting out of the atom set. Setting `layer` or `questions`
-in your extras is a compile error.
+in your extras is still a compile error.
 
 The layer is held while the dock is mounted and released when it unmounts, a
 reading keeps its identity while nothing changed, so the dock does not re-render
 on every tick, and a layer that fails to build is stated on the Services panel,
 with the other reads carrying on. Gates are not sampled: the dock subscribes to
 the registry the feed hands it, for as long as the dock is mounted, and pairs each
-asked question with the guards asking it at one moment.
+asked question with the guards asking it at one moment. The questions are read on
+the diagnostics cadence, as the dock's own `questions` prop beside `gates`: one
+that throws is stated in the React panel without stopping the samples.
 
 While the first sample is pending, the Services and React screens say so. If the
 sampler fails with an unexpected error it stops: the screens say so with the reason,
@@ -171,7 +174,7 @@ keep the last reading and offer **Restart diagnostics**. A hidden-then-shown doc
 samples afresh from its first sample, and removing `diagnostics` stops sampling and
 clears the reading.
 
-**A host with no `QadiProvider`** (a shell running `runDiagnostics`) hands the
+**A host with no `QadiProvider`** (a shell running `makeDiagnosticsFeed`) hands the
 dock a layer of its own, and the dock's build of it is its own: a service that
 keeps state in its constructor is two instances if the dock and the application
 each build the layer. Build the context once and give that one value
@@ -214,14 +217,18 @@ the inspector, the policy explorer, the role viewer, the Services, Simulator and
 React panels) are what the dock draws, **not exports**: a host mounts the dock
 and hands it a `source`, a `catalogue`, `diagnostics` and `gates`, the registry (usually the feed's, or `atoms.gates`).
 
-What the headless model exports is what a shell crosses: three stores, the wiring
-the dock takes, and the readings of a timeline.
+What the headless model exports is what a shell crosses: three feeds and the
+simulation session, the wiring the dock takes, and the readings of a timeline.
 
-- **Stores.** `makeTimelineStore` and `runSource` hold the timeline;
-  `makeSimulationSession` holds the simulator; `makeDiagnosticsStore` and
-  `runDiagnostics` hold what the dock samples. `@qadi/devtools/react` has the
-  React half of each (`useTimeline`, `useSimulationSession`, `useDiagnostics`). `useDiagnostics` and the dock
-  share one feed.
+- **Feeds.** `makeTimelineFeed`, `makeDiagnosticsFeed` and `makeGatesFeed` build in a
+  scope and state a stop; `makeSimulationSession` holds the simulator.
+  `@qadi/devtools/react` has the React half of each (`useTimeline`,
+  `useSimulationSession`, `useDiagnostics`). `useDiagnostics` and the dock
+  share one feed. A stop's or a failed read's `reason` (`Stopped`, `WiringRead.Failed`,
+  `RegistryRead.Failed`, `AskedRead.Failed`) is a `Cause.pretty` trace, with stack
+  frames and checkout paths, for a developer in the host's own process. It must not
+  cross a trust boundary: a shell that forwards a feed's readings to a remote
+  viewer sends the tag, not the reason.
 - **Inspection** (`inspect`, `flattenTree`) — walking a decision's evaluation
   tree, including nodes that never resolved or were truncated; with verdict
   classification (`verdictOf`), pairing, filters and selection.

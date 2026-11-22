@@ -9,13 +9,12 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as Layer from "effect/Layer";
-import * as Schedule from "effect/Schedule";
 import * as TestClock from "effect/testing/TestClock";
+import * as Tracer from "effect/Tracer";
 import {
   AttributeResolver,
   decisionCacheLayer,
   hasRole,
-  type Policy,
 } from "@qadi/core";
 import {
   DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS,
@@ -53,7 +52,7 @@ const counted = (store: { readonly subscribe: (l: () => void) => () => void }) =
   return seen;
 };
 
-const start = <ROut, E>(store: DiagnosticsStore, options?: DiagnosticsOptions<ROut, E>) =>
+const start = (store: DiagnosticsStore, options?: DiagnosticsOptions) =>
   Effect.forkChild(runDiagnostics(store, options), { startImmediately: true });
 
 describe("makeDiagnosticsStore", () => {
@@ -155,12 +154,30 @@ describe("runDiagnostics", () => {
     }),
   );
 
-  it.effect("honours a schedule override", () =>
+  it.effect("opens the poll's two spans", () =>
+    Effect.gen(function* () {
+      const names: Array<string> = [];
+      const tracer = Tracer.make({
+        span: (options) => {
+          names.push(options.name);
+          return new Tracer.NativeSpan(options);
+        },
+      });
+      const fiber = yield* start(makeDiagnosticsStore()).pipe(
+        Effect.provideService(Tracer.Tracer, tracer),
+      );
+      yield* Fiber.interrupt(fiber);
+      assert.include(names, "qadi.devtools.runDiagnostics");
+      assert.include(names, "qadi.devtools.wiringReader");
+    }),
+  );
+
+  it.effect("honours an interval override", () =>
     Effect.gen(function* () {
       const { state, collector } = scriptedCollector();
       const fiber = yield* start(makeDiagnosticsStore(), {
         collector,
-        schedule: Schedule.spaced("500 millis"),
+        intervalMillis: 500,
       });
       yield* TestClock.adjust("1 second");
       assert.strictEqual(state.reads, 3);
@@ -267,33 +284,6 @@ describe("runDiagnostics", () => {
           : undefined;
       assert.strictEqual(row?.name, "my-resolver");
       assert.strictEqual(row?.present, true);
-      yield* Fiber.interrupt(fiber);
-    }),
-  );
-
-  it.effect("questions are re-read every tick and keep their identity while equal", () =>
-    Effect.gen(function* () {
-      const asked: Array<{ readonly policy: Policy }> = [];
-      const store = makeDiagnosticsStore();
-      const fiber = yield* start(store, {
-        // A fresh array of fresh, structurally built policies on every read,
-        // the way `atoms.asked()` answers.
-        questions: () => asked.map((question) => ({ policy: question.policy })),
-      });
-      const first = store.getSnapshot().questions;
-      assert.deepStrictEqual(first, []);
-      yield* TestClock.adjust("2 seconds");
-      assert.strictEqual(store.getSnapshot().questions, first);
-
-      asked.push({ policy: hasRole("Editor") });
-      yield* TestClock.adjust("2 seconds");
-      const second = store.getSnapshot().questions;
-      assert.notStrictEqual(second, first);
-      assert.strictEqual(second?.length, 1);
-
-      asked[0] = { policy: hasRole("Editor") };
-      yield* TestClock.adjust("2 seconds");
-      assert.strictEqual(store.getSnapshot().questions, second);
       yield* Fiber.interrupt(fiber);
     }),
   );

@@ -1,43 +1,42 @@
 ---
 gsd_state_version: "1.0"
-milestone: v1.5
+milestone: v1.7
 status: Awaiting next milestone
-stopped_at: Phase QD-52 complete — all phases complete
-last_updated: "2026-11-16T19:51:11.650Z"
-last_activity: 2026-11-16
-last_activity_desc: "Milestone v1.5 shipped as PR #162"
-state_head: 10d621c0e82d8720519b904b9beef5706e53a853
+stopped_at: Phase 68.1 complete — all phases complete
+last_updated: "2026-11-22T06:36:14.710Z"
+last_activity: 2026-11-22
+last_activity_desc: "Milestones v1.6 + v1.7 shipped as PR #163"
+state_head: fc152ff28ca98035b573997d0448bbbf75d2cf22
 progress:
-  total_phases: 10
-  completed_phases: 10
-  total_plans: 71
-  completed_plans: 71
+  total_phases: 8
+  completed_phases: 8
+  total_plans: 60
+  completed_plans: 60
   percent: 100
-milestone_name: Arch Wave 10
-current_phase: 52
+milestone_name: Arch Wave 12
+current_phase: "68.1"
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-16)
+See: .planning/PROJECT.md (updated 2026-11-22)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** v1.5 Arch Wave 10 complete and archived (2026-11-16; not merged, not released) — next: `/gsd-new-milestone`
+**Current focus:** Planning next milestone (v1.7 completed 2026-11-22; not merged, not released)
 
 ## Current Position
 
-Phase: Milestone v1.5 complete
+Phase: Milestone v1.7 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-11-16 -- Milestone v1.5 shipped as PR #162
-
+Last activity: 2026-11-22 -- Milestones v1.6 + v1.7 shipped as PR #163
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 236
+- Total plans completed: 379
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -87,6 +86,23 @@ Last activity: 2026-11-16 -- Milestone v1.5 shipped as PR #162
 | QD-50 | 8 | - | - |
 | QD-51 | 5 | - | - |
 | QD-52 | 5 | - | - |
+| 53 | 8 | - | - |
+| QD-54 | 8 | - | - |
+| QD-55 | 9 | - | - |
+| 56 | 13 | - | - |
+| QD-57 | 11 | - | - |
+| QD-58 | 9 | - | - |
+| QD-59 | 10 | - | - |
+| QD-60 | 8 | - | - |
+| QD-61 | 7 | - | - |
+| QD-62 | 8 | - | - |
+| 63 | 5 | - | - |
+| 64 | 5 | - | - |
+| 65 | 6 | - | - |
+| 66 | 5 | - | - |
+| 67 | 7 | - | - |
+| 68 | 15 | - | - |
+| 68.1 | 9 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -325,6 +341,146 @@ Last activity: 2026-11-16 -- Milestone v1.5 shipped as PR #162
 | Phase QD-52 P03 | 9min | 3 tasks | 7 files |
 | Phase QD-52 P04 | 25min | 3 tasks | 9 files |
 | Phase QD-52 P05 | 15min | 3 tasks | 2 files |
+| Phase 53 P01 | 8 min | 2 tasks | 2 files |
+| Phase 53 P02 | 6min | 2 tasks | 6 files |
+| Phase 53 P03 | 5 min | 3 tasks | 7 files |
+| Phase QD-53 P04 | 3 min | 3 tasks | 3 files |
+| Phase 53 P05 | 6 min | 2 tasks | 2 files |
+| Phase QD-53 P06 | 12 min | 2 tasks | 1 files |
+| Phase 53 P07 | 15 min | 3 tasks | 10 files |
+| Phase QD-53 P08 | 20min | 3 tasks | 3 files |
+| Phase QD-54 P01 | 6 min | 2 tasks | 3 files |
+| Phase QD-54 P02 | 14 min | 2 tasks | 1 files |
+| Phase QD-54 P03 | 9 min | 2 tasks | 5 files |
+| Phase QD-54 P04 | 8 min | 2 tasks | 2 files |
+| Phase QD-54 P05 | 11 min | 2 tasks | 4 files |
+| Phase QD-54 P06 | 14 min | 2 tasks | 10 files |
+| Phase QD-54 P07 | 10 min | 2 tasks | 4 files |
+| Phase 54 P08 | 15 min | 2 tasks | 1 files |
+| Phase QD-55 P01 | 8 min | 2 tasks | 2 files |
+| Phase QD-55 P02 | 6min | 2 tasks | 1 files |
+| Phase QD-55 P03 | 6 min | 2 tasks | 7 files |
+| Phase QD-55 P04 | 7min | 2 tasks | 3 files |
+| Phase QD-55 P05 | 9 min | 2 tasks | 6 files |
+| Phase QD-55 P06 | 6min | 2 tasks | 2 files |
+| Phase QD-55 P07 | 15 min | 2 tasks | 4 files |
+| Phase QD-55 P08 | 14 min | 2 tasks | 5 files |
+| Phase QD-55 P09 | 15 min | 2 tasks | 1 files |
+| Phase QD-56 P01 | 6 min | 2 tasks | 2 files |
+| Phase QD-56 P02 | 3 min | 2 tasks | 2 files |
+| Phase QD-56 P03 | 6 min | 3 tasks | 7 files |
+| Phase QD-56 P04 | 6 min | 2 tasks | 3 files |
+| Phase QD-56 P05 | 3 min | 3 tasks | 1 files |
+| Phase QD-56 P06 | 6 min | 2 tasks | 5 files |
+| Phase QD-56 P07 | 8 min | 3 tasks | 11 files |
+| Phase QD-56 P08 | 6 min | 2 tasks | 5 files |
+| Phase QD-56 P09 | 20 min | 2 tasks | 5 files |
+| Phase QD-56 P10 | 25 min | 2 tasks | 5 files |
+| Phase QD-56 P11 | 20 min | 2 tasks | 3 files |
+| Phase QD-56 P12 | 15 min | 3 tasks | 8 files |
+| Phase QD-56 P13 | 25 min | 2 tasks | 2 files |
+| Phase QD-57 P01 | 9 min | 2 tasks | 2 files |
+| Phase QD-57 P02 | 14 min | 2 tasks | 1 files |
+| Phase QD-57 P03 | 4 min | 3 tasks | 2 files |
+| Phase QD-57 P04 | 15min | 2 tasks | 5 files |
+| Phase QD-57 P05 | 22 min | 3 tasks | 13 files |
+| Phase QD-57 P06 | 12min | 2 tasks | 6 files |
+| Phase QD-57 P07 | 25min | 2 tasks | 3 files |
+| Phase QD-57 P08 | 10 min | 2 tasks | 4 files |
+| Phase QD-57 P09 | 14 min | 2 tasks | 6 files |
+| Phase QD-57 P10 | 9 min | 2 tasks | 5 files |
+| Phase QD-57 P11 | 25 min | 2 tasks | 2 files |
+| Phase QD-58 P01 | 3 min | 2 tasks | 2 files |
+| Phase QD-58 P02 | 6 min | 2 tasks | 2 files |
+| Phase QD-58 P03 | 4 min | 2 tasks | 2 files |
+| Phase QD-58 P04 | 7 min | 3 tasks | 26 files |
+| Phase QD-58 P05 | 8min | 3 tasks | 4 files |
+| Phase QD-58 P06 | 6 min | 2 tasks | 5 files |
+| Phase QD-58 P07 | 22 min | 3 tasks | 6 files |
+| Phase QD-58 P08 | 10 min | 2 tasks | 5 files |
+| Phase QD-58 P09 | 6 min | 2 tasks | 2 files |
+| Phase QD-59 P01 | 6 min | 2 tasks | 1 files |
+| Phase QD-59 P02 | 5 min | 2 tasks | 2 files |
+| Phase QD-59 P03 | 1 min | 3 tasks | 2 files |
+| Phase QD-59 P04 | 2 min | 2 tasks | 4 files |
+| Phase QD-59 P05 | 12 min | 2 tasks | 24 files |
+| Phase QD-59 P06 | 7 min | 3 tasks | 3 files |
+| Phase QD-59 P07 | 8 min | 2 tasks | 5 files |
+| Phase QD-59 P08 | 22 min | 3 tasks | 4 files |
+| Phase QD-59 P09 | 6 min | 2 tasks | 1 files |
+| Phase QD-59 P10 | 70 min | 2 tasks | 3 files |
+| Phase 60 P01 | 8min | 3 tasks | 3 files |
+| Phase 60 P02 | 25min | 3 tasks | 7 files |
+| Phase 60 P04 | 8min | 1 tasks | 1 files |
+| Phase 60 P07 | 25min | 3 tasks | 12 files |
+| Phase 60 P08 | 25min | 3 tasks | 2 files |
+| Phase QD-61 P01 | 8min | 3 tasks | 3 files |
+| Phase QD-61 P02 | 12min | 3 tasks | 2 files |
+| Phase QD-61 P03 | 20min | 3 tasks | 5 files |
+| Phase QD-61 P04 | 8min | 3 tasks | 3 files |
+| Phase 61 P05 | 5min | 2 tasks | 2 files |
+| Phase QD-61 P06 | 15min | 3 tasks | 9 files |
+| Phase 61 P07 | 12min | 3 tasks | 3 files |
+| Phase QD-62 P01 | 20min | 2 tasks | 8 files |
+| Phase QD-62 P02 | 12 min | 3 tasks | 8 files |
+| Phase QD-62 P03 | 25min | 3 tasks | 2 files |
+| Phase QD-62 P04 | 15min | 2 tasks | 2 files |
+| Phase QD-62 P05 | 15min | 2 tasks | 3 files |
+| Phase QD-62 P06 | 20min | 2 tasks | 5 files |
+| Phase QD-62 P07 | 15min | 2 tasks | 6 files |
+| Phase QD-62 P08 | 30min | 2 tasks | 2 files |
+| Phase QD-63 P01 | 25min | 2 tasks | 3 files |
+| Phase QD-63 P02 | 20min | 3 tasks | 1 files |
+| Phase QD-63 P03 | 15min | 2 tasks | 1 files |
+| Phase QD-63 P04 | 10min | 2 tasks | 5 files |
+| Phase QD-63 P05 | 20min | 2 tasks | 2 files |
+| Phase QD-64 P01 | 25 min | 3 tasks | 8 files |
+| Phase QD-64 P02 | 9 min | 2 tasks | 2 files |
+| Phase QD-64 P03 | 6 min | 2 tasks | 5 files |
+| Phase QD-64 P04 | 12 min | 2 tasks | 7 files |
+| Phase QD-64 P05 | 40 min | 2 tasks | 2 files |
+| Phase 65 P01 | 15 min | 3 tasks | 6 files |
+| Phase QD-65 P02 | 10 min | 2 tasks | 2 files |
+| Phase QD-65 P03 | 6 min | 2 tasks | 2 files |
+| Phase QD-65 P04 | 12min | 2 tasks | 24 files |
+| Phase QD-65 P05 | 15min | 2 tasks | 6 files |
+| Phase 65 P06 | 70 min | 2 tasks | 3 files |
+| Phase QD-66 P01 | 25 min | 3 tasks | 5 files |
+| Phase QD-66 P66-02 | 2 min | 3 tasks | 4 files |
+| Phase QD-66 P66-03 | 9 min | 2 tasks | 6 files |
+| Phase QD-66 P04 | 11min | 2 tasks | 9 files |
+| Phase QD-66 P05 | 20min | 3 tasks | 4 files |
+| Phase QD-67 P01 | 5 min | 3 tasks | 4 files |
+| Phase QD-67 P02 | 5 min | 2 tasks | 6 files |
+| Phase QD-67 P03 | 4 min | 2 tasks | 2 files |
+| Phase QD-67 P04 | 8min | 2 tasks | 1 files |
+| Phase QD-67 P05 | 2 min | 2 tasks | 23 files |
+| Phase QD-67 P06 | 20 min | 2 tasks | 5 files |
+| Phase QD-67 P07 | 12 min | 3 tasks | 3 files |
+| Phase QD-68 P01 | 25 min | 3 tasks | 7 files |
+| Phase QD-68 P02 | 6 min | 2 tasks | 1 files |
+| Phase QD-68 P03 | 2 min | 3 tasks | 7 files |
+| Phase QD-68 P04 | 25 min | 3 tasks | 9 files |
+| Phase QD-68 P06 | 10 min | 2 tasks | 3 files |
+| Phase QD-68 P07 | 3 min | 2 tasks | 6 files |
+| Phase QD-68 P08 | 12 min | 2 tasks | 4 files |
+| Phase QD-68 P09 | 6 min | 2 tasks | 3 files |
+| Phase QD-68 P05 | 7 min | 2 tasks | 3 files |
+| Phase QD-68 P10 | 20 min | 2 tasks | 10 files |
+| Phase QD-68 P11 | 8 min | 2 tasks | 3 files |
+| Phase QD-68 P12 | 5 min | 3 tasks | 1 files |
+| Phase QD-68 P13 | 9 min | 2 tasks | 3 files |
+| Phase 68 P14 | 30 min | 3 tasks | 3 files |
+| Phase QD-68 P15 | 15 min | 3 tasks | 4 files |
+| Phase QD-68.1 P01 | 12 min | 3 tasks | 1 files |
+| Phase QD-68.1 P02 | 25 min | 3 tasks | 7 files |
+| Phase QD-68.1 P03 | 15 min | 3 tasks | 3 files |
+| Phase 68.1 P04 | 12 min | 2 tasks | 2 files |
+| Phase 68.1 P05 | 25 min | 2 tasks | 3 files |
+| Phase 68.1 P06 | 35 min | 3 tasks | 4 files |
+| Phase QD-68.1 P07 | 25min | 2 tasks | 3 files |
+| Phase 68.1 P09 | 25 min | 2 tasks | 3 files |
+| Phase QD-68.1 P08 | 15 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -549,6 +705,118 @@ Last activity: 2026-11-16 -- Milestone v1.5 shipped as PR #162
 - [Phase QD-51]: ADR-QD-164: renderTrace and diffTraces keep their own walks and read no arity; foldTrace stays public and unchanged
 - [Phase QD-52]: 52-03: Prisma's D-06a rationale lives in a body comment, not the doc comment, so the emitted declaration stays byte-identical to the base
 - [Phase QD-52]: INV-QD-350 stays unused: a defect counting neither outcome is part of INV-QD-349
+- [Phase 53]: 53-01: Decision.ts isFieldOf survivor mapped via RENAMED at the close, never re-baselined
+- [Phase 53]: R2 enumerates every prototype-named leaf and samples only the tree combinations; protoLayer omits DecisionHistory because the describe-level acted shadows the module layer
+- [Phase 53]: 53-03: Operand.ts (ownValue, isOwnKey, getByPath) package-private; getByPath re-exported unchanged through Matcher.ts; hot callers use module-local bindings (getByPathLocal, ownValueLocal)
+- [Phase QD-53]: 53-04: readAttribute does isOwnKey then ownValue (two own-property checks per subject read) so an own undefined stays the subject's answer with no bare read outside Operand.ts
+- [Phase 53]: isFieldOf deleted; Decision.ts projection asks isOwnKey from Operand.ts (53-05)
+- [Phase QD-53]: 53-06: WX-05 holds (D-14) on the first compare; only Matcher.ts fell (217->194 detected, survivors unchanged), Operand.ts detects 31/31, no test added
+- [Phase 53]: ADR-QD-166 records D-02's fixture-builder probe and D-14's mutation table; BEH-QD-601..605 placed in 04/16/06/32; the CCR-QD-444 register row is left to 53-08, so spec:verify:strict fails on CCR drift until then
+- [Phase QD-53]: 53-08: CCR-QD-444 row says Unused: none; changeset is @qadi/core patch only, no Breaking; check:pr green (16 of 17 steps, mutation skipped, 53-06 is the mutation evidence)
+- [Phase 53]: review WR-01 fixed test-only (09f16437, `neq` makes the inherited-member ref cases fail without the own-key guard); IN-01..04 skipped (info); verification passed 4/4; phase.complete flips WX-01..07 to Complete each phase and is reverted, as they close with the milestone
+- [Phase QD-54]: 54-01: phase_base is afdd8d9c; mutation baseline (LeafNeeds 0.9811, Predicate 1, Walk 0.9481) committed alone with LN/MOVED/KILLED fixed
+- [Phase QD-54]: 54-02: LeafVerdict.test.ts imports only barrel-re-exported modules and ./helpers.ts, so the characterisation cannot agree with the code 54-03/54-04 move
+- [Phase QD-54]: 54-03: LEAF_VERDICTS is satisfies LeafVerdicts without as const; role and permission rows take (leaf, subject)
+- [Phase QD-54]: 54-04: custom arm keeps its one inline sentence; only relationship and signature get denial tables
+- [Phase QD-54]: 54-05: D-10's comparison credits static-ignored mutants only when an ignoreStatic:false run kills each (orchestrator ruling, not a re-baseline)
+- [Phase QD-54]: ADR-QD-167 records the orchestrator-authorised D-10 static-ignored credit as its own section, open to user review
+- [Phase QD-54]: 54-07: the verdict-rows change is a @qadi/core patch changeset with no Breaking entry (no export changed, 935 across 9)
+- [Phase 54]: 54-08: phase scan's mutation-script clause narrowed to 0c917fdf alone (orchestrator D-10 ruling); check:pr green on rerun after a load-induced DockModel P2 timeout flake
+- [Phase 54]: review 0 critical/0 warning, IN-01 (long lines in Predicate.ts) skipped; verification human_needed on the D-10 credit, accepted by the owner at UAT (ADR-QD-167 Rev 1.1); passed 4/4; WX-01..07 reverted to Pending after phase.complete
+- [Phase QD-55]: 55-01: MOVED is empty; a fall in DockModel.ts or Wiring.ts at the close is closed with a test, never explained as a move. Base: DockModel 123/123, Wiring 50/50, no survivors.
+- [Phase QD-55]: 55-02: Services panel characterisation fixtures are top-level annotated consts so PortActivity.port narrowing compiles the file unchanged
+- [Phase QD-55]: 55-03: the services store keys on four references (wiring, activity, portCalls, unsampled); isPortName lives in PortCards.ts so Wiring.ts changes only by D-05/D-06
+- [Phase QD-55]: 55-04: Hidden covers both no collector while unsampled and a collector that saw nothing for a row, so the view never inspects an empty list or the unsampled flag
+- [Phase QD-55]: 55-05: M54 pins Live to Stopped(sampled) keeping the services view; Off to Live is only structurally equal because configure publishes Starting between
+- [Phase QD-55]: 55-07: ADR-QD-168 states the services store's rule as the identity of its four inputs (Off to Live passes through Starting and notifies twice; M54 pins Live to Stopped), and records that a metric word outside the registry is no longer reported (PortActivity.port narrowing)
+- [Phase QD-55]: 55-08: INV-QD-356 enforcement is the characterisation and render test; no gate scans the panel source
+- [Phase QD-55]: 55-09: WX-01..07 stay Pending (span every v1.6 phase); only CARD-01..05 closed with phase 55
+- [Phase 55]: review WR-01 (weak misspelt-port tstyche pin) fixed 6eb2522c, IN-01..03 deferred; regression 5766/5766; verification passed 4/4; WX-01..07 reverted to Pending after phase.complete
+- [Phase QD-56]: 56-01: DiagnosticsFeed.ts base is 90/95 with five pre-existing survivors; the phase close compares against that floor with an unchanged survivor set
+- [Phase QD-56]: 56-02: the questions panel's Stopped cells empty qadi-diagnostics-reason (the stack trace), not qadi-diagnostics-region, which is already empty
+- [Phase QD-56]: 56-03: Q4 of the D-03 test flips a flag after the failure shows instead of throwing on calls 1 and 2, so a 20 ms failure cannot slip between vi.waitFor ticks
+- [Phase QD-56]: 56-04: the gates feed holds its previous halves in its own snapshot and keeps a failure key only beside a Failed half, so a Read keeps its reference by array identity (registry) or Equal.equals (thunk)
+- [Phase QD-56]: 56-05: GP2's oracle moves before its tick, because the gates feed notifies from inside the tick
+- [Phase QD-56]: 56-06: the join decides the questions view in one order (questions read, questionsFailed, unsampled, absent) through questionsViewOf; the two failures are independent
+- [Phase QD-56]: 56-07: the join key carries unsampled already reduced by the supplied list, so a supplied list keeps one snapshot while the poll goes from Starting to Live; the watch and the thunk moved in one commit; the unguarded reservice (IN-03) was fixed by the closed guard the composed model needs
+- [Phase QD-56]: 56-08: FeedOwnedKey is the closed union layer | questions, so useDevtoolsFeed({ questions }) stays a compile error once questions leaves diagnostics
+- [Phase QD-56]: 56-09: equivalent mutants in the gates feed and the join were rewritten away (refactor), not ignored; WX-05 holds (D-11) on the final tree
+- [Phase QD-56]: 56-10: ADR-QD-169 records D-01 (one feed, one failure policy for the panel's two host inputs), applies ADR-QD-137 and leaves ADR-QD-162 intact; BEH-QD-616..620 name the GatesFeed twins and J cases, never the deleted M cases
+- [Phase QD-56]: INV-QD-357 is worded by what the gates feed owns (registry, subscription, failure state, questions input); DockModel keeps its closed flag and last join (D-04 amended)
+- [Phase QD-56]: Every id reserved for QD-56 was used, so CCR-QD-447's row ends Unused: none; both changesets are minor with one Breaking entry and nothing is versioned or released
+- [Phase QD-57]: 57-01: mutation base below 1 for AuditArchive (52/53), SinkCodec (159/163), UntrustedDecode (29/31); the close compares against those floors with unchanged survivor sets
+- [Phase QD-57]: 57-04: U12 pins the plain two-member union message, not the sink record's Missing key text; 57-05's build refusal must match /unknownKeys "ignore" needs/
+- [Phase QD-57]: 57-05: untrustedDecoder requires unknownKeys (refuse|ignore), read through a closed PROJECTION table; the record wire ignores, every other seam refuses; declared keys derived from SchemaAST.toEncoded in EnvelopeKeys.ts
+- [Phase QD-57]: 57-06: checkVersion reads version via an inline own-property descriptor so ownValue is deleted from SinkCodec.ts
+- [Phase QD-57]: 57-07: the five EnvelopeKeys.ts survivors were closed with tests U17..U19, never a rewrite or re-baseline; WX-05 holds (D-12)
+- [Phase QD-57]: ADR-QD-170 records the unknown-key policy (D-01, D-16..D-20) and amends ADR-QD-096 (Rev 1.6) and ADR-QD-143 (Rev 1.4); D-09 hydration report left as not acted on
+- [Phase QD-57]: 57-09: BEH-QD-621..625 and INV-QD-359..360 written, BEH-QD-486/INV-QD-305/306 carve out only an undeclared top-level key under ignore
+- [Phase QD-57]: 57-10: the core changeset carries the break and both widenings; the audit entry states only the widening and points to core
+- [Phase QD-58]: 58-01: four base files are below 1 (DecisionLog 69/70, DecisionStream 70/72, SinkCodec 122/126, TimelineStore 32/33); the close compares against those floors with no new survivor
+- [Phase QD-58]: 58-02: order is read by evaluation id through the encoder (a NaN refusal carries the id), so no characterisation row reads the in-memory shape
+- [Phase QD-58]: 58-03: devtools/http characterisation reads order through the encoder and display rows only; http test copies core fixture texts with source named
+- [Phase QD-58]: 58-04: StoredRecord is one Data.Class { environment, record }; no alias of the four removed exports; the log's isolate catches are deleted (D-02, D-12)
+- [Phase QD-58]: ADR-QD-171 records the stored-record envelope (D-01..D-06, D-12..D-16) and amends ADR-QD-097, 135 and 159
+- [Phase QD-58]: 58-07: BEH-QD-626..630 and INV-QD-361..362 state the stored envelope; every changed requirement is quoted in an Amended in CCR-QD-449 note
+- [Phase QD-58]: 58-08: http's changeset is Breaking with no http source change, because DecisionLogReader's element type is core's StoredRecord (D-15)
+- [Phase QD-58]: 58-09: the close scan's one layout-sensitive substring check was made layout-free (orchestrator-authorised); the scan, mutation re-run, check:pr and release check are all clean
+- [Phase QD-59]: 59-01: gate of record (research 3+3, 0 of 35 slower) stands for phase_base 83cbd5c5; source byte-identical to gate head, analyses reproduce; base has 13 six-argument evaluateNode sites (D-16)
+- [Phase QD-59]: 59-02: mutation base measured as found (Walk.ts 265/279, 14 survivors); 59-mutation.mjs and 59-mutation-base.json never edited again
+- [Phase QD-59]: 59-03: both RED files are the plan's verbatim blocks (SHA-256 pinned); no src changed; characterisation green on base (193 tests) with blob hashes recorded
+- [Phase QD-59]: 59-04: the walk environment is Admitted<Resource> built by admit(question, rowSource); supplied.resource comes from the closed RESOURCE_SUPPLIED table; evaluateNode exported from package-private Walk.ts for the type pins (no public change, gate 13 stays 933)
+- [Phase QD-59]: 59-05: after-bench of the final source against phase_base ran once, gate pass (0 of 35 slower, geomean +1.60%, worst +7.3% within its 10% band)
+- [Phase QD-59]: 59-06: the one new survivor (Walk.ts depth > maxDepth false) closed by WalkDepthGuard.test.ts entering evaluateNode past the bound; D-15 holds, evidence committed last
+- [Phase QD-59]: 59-07: ADR-QD-172 benchmark and mutation tables are script-copied from 59-BENCH.md and the mutation JSONs; the walk's own depth guard is recorded as kept defence in depth
+- [Phase QD-59]: 59-08: BEH-QD-632 and BEH-QD-633 state the empty and adjacency edges in their REQUIREMENT blocks, so a fail-open supplied contradicts a requirement
+- [Phase QD-59]: 59-09: CCR-QD-450 names WalkDepthGuard.test.ts and the after-run numbers; Unused: none
+- [Phase QD-59]: 59-10: close check:pr first stopped at spec:gates on a bare 'gate 13' in ADR-QD-172; orchestrator fixed it in 6499d724, check:pr re-run green (16/16)
+- [Phase QD-62]: tstyche compiles under tsconfig.tstyche.json (floatingEffect off); an in-file position directive restores the rule for the characterisation's rule-on half
+- [Phase QD-62]: 62-02: a control is added beside its negative pin and never edits it; the DecisionLog refusal is stated on Parameters<typeof makeDecisionLog>[0]
+- [Phase QD-62]: 62-03: the flip sweep and overload inventory stay scratch scripts outside the repo; the committed record is the evidence. askActed is the one overloaded parameter-type subject, so 62-04 writes the last-overload note
+- [Phase QD-62]: 62-04: NOT_CALLABLE_PIN_BUDGET and its AGENTS.md section 6 table land in one commit; [not-callable-pin-table] follows as its own commit
+- [Phase QD-62]: 62-05: control check is a floor; FloatingEffectPins.tst.ts is the only file exempt from the run-mode/directive refusal
+- [Phase QD-62]: 62-06: each characterisation half runs in one pass; a pass fails when tstyche compiles any file under another project
+- [Phase QD-62]: 62-07: ADR-QD-175 states the tstyche checks as committed; the DoD and ADR say each pass takes about ten seconds (measured), not eight
+- [Phase QD-62]: 62-08: close scan's leak check reads added word runs (git diff --word-diff=porcelain), so a one-line edit to a long history row does not re-report its old text
+- [Phase QD-62]: review loop (3 iterations, 0 critical/0 warning left): the characterisation has three blocks (rule-off skipped in pass 2, directive-free rule-on skipped in pass 1, directive block in both) so pass 2 goes red if tsconfig.test.json loses floatingEffect; [tstyche-plugin-drift] holds tsconfig.tstyche.json to extends + compilerOptions.plugins; run-tstyche cross-checks --listFiles against the shared walk (scripts/lib/type-tests.mjs)
+- [Phase QD-63]: 63-01: the probe guard runs after the consumer's compile and run, gated on consumerReady, so a guard failure never hides a compile or runtime failure
+- [Phase QD-63]: 63-01: a refused literal is not a use; a type reference inside a refused declaration does not count toward the type-only rule
+- [Phase QD-63]: 63-03: removed-probe proof recorded from scratch copies of the committed gate (11 variants), never as a committed self-test
+- [Phase QD-63]: 63-04: ADR-QD-033 amended instead of a new decision; ADR-QD-176, BEH-QD-651-655, INV-QD-371-372 stay unused, named only in the CCR-QD-454 row
+- [Phase QD-63]: Close scan's parser-load set-aside reads the trimmed line and pins the count at three (scratch only; script untouched)
+- [Phase QD-64]: The Stryker base of the four model files is recorded before the first red test, since a red test aborts Stryker's initial run
+- [Phase QD-64]: 64-02: notify decides by count in the order zero, one, aggregate, with the AggregateError message an inline literal so Stryker measures it
+- [Phase QD-64]: 64-03: the begin-to-fork window stays; each feed text that can meet it says so (timeline Reading, diagnostics Starting, gates cadence)
+- [Phase QD-64]: The begin-to-fork window is stated as out of scope in ADR-QD-177, BEH-QD-656 and the CCR-QD-455 row; no spec text claims it closed.
+- [Phase QD-64]: The close scan's source pathspec is packages/*/src/**; a bare packages/*/src lists nothing and the check could never pass.
+- [Phase 65]: Plan 65-01: construction refusals are reason-bearing @ts-expect-error pins beside positive controls, codes read by pin-codes.mjs, since toRaiseError cannot share the directive's expression
+- [Phase QD-66]: 66-01: the mutation base of EnvelopeKeys.ts, SinkCodec.ts and UntrustedDecode.ts is recorded before any test of the phase exists; the hydration pin H1 is cited, not added
+- [Phase QD-66]: The ignore projection reads Object.keys first and each kept value once into an Object.fromEntries copy; keysOf reads own enumerable _tag only for a union (a one-object schema reads none)
+- [Phase QD-66]: The decode bench of record passes the gate fixed before it ran (3 + 3, 0 workloads slower, geomean -2.13%) on a loaded host; the harness is a parameterised copy in the phase directory and the run's .log files stay uncommitted (gitignored)
+- [Phase QD-66]: 66-04: ADR-QD-170 alone amended; the hydration payload stays refuse (same build writes and reads it, version checked, strict refusal reports tampering); ADR-QD-179, BEH-QD-667..670, INV-QD-378 named Unused in CCR-QD-457
+- [Phase QD-67]: Race loop: cap 512 and margin 3 are a cap and a margin, not measurements of walk; the 30000 ms timeout stays
+- [Phase QD-67]: 67-02: claim dispatch is the arm table (match failed the gate: 2 workloads slower, geomean +1.87%; table passed: 0 slower, geomean -4.15%)
+- [Phase QD-67]: 67-03: the eviction is Chunk.splitAt + HashMap.removeMany, straight-line; FIFO and capacity validation unchanged, no test edited
+- [Phase QD-67]: 67-04: the claim result is dispatched by the arm table indexed directly (choice: table), no Object.hasOwn row; the claim step is byte-identical to the base
+- [Phase QD-67]: 67-05: the run of record passed the fixed gate on its one run (slower 0, geomean -2.51%); the bench is the last executable change
+- [Phase QD-67]: 67-06: records follow choice table; CCR-QD-458 cites Rev 1.12/1.166/1.233/1.269; ADR-QD-180, BEH-QD-671-675, INV-QD-380 Unused
+- [Phase QD-67]: 67-07: the close left no open mutant (38/38, 42/42, 71/71), so no test was appended and no spec revised; check:pr green once on dfeffed6
+- [Phase QD-68]: OI-24 fixed forward: one shared scripts/bench/ab.sh alternating arm order by round; Phase 59/66/67 harness copies stay; not wired into pnpm check
+- [Phase QD-68]: OI-09 fixed by try/finally around the emptied timeline's publish; the Stopped-feed residue (a status listener throwing on the Reading replaces the timeline listener's throw, no read started) is stated in every text and pinned by TF29. OI-03 subsumed.
+- [Phase QD-68]: 68-06: the race test keeps every per-run assertion; only sides, oneSided and their comment are deleted, capped already proves both sides
+- [Phase QD-68]: 68-07: OI-05 fixed by the wording route in INV-QD-377 (pins U30 and U31); the gate reads refusal only for the admit pins, pin-codes.mjs reads TS2673 and TS2741; CCR-QD-459 is cited before 68-11 writes its row, so verify-traceability --strict shows its one expected FAIL
+- [Phase QD-68]: 68-08: OI-15..17 and OI-19..21 fixed, each gate change seen failing on a plant (gate 14: eight plants a b c d1 d2 e20 stop timeout) and passing on the real tree; module.register stays for the Node 22.12 floor (DEP0205 on Node 26)
+- [Phase QD-68]: 68-09: OI-22, OI-23 and OI-25 fixed in Phases 65 to 67's record scripts because each script's committed records still pass; plants p1 and p2 fail Phase 66's fixed scorer and pass its base, three plants fail Phase 67's 17-case self-test
+- [Phase QD-68]: OI-10 bench of record passed its gate: 35 workloads, 3+3 interleaved on a quiet host, no workload slower than +4.7% (limit 5%), geomean +0.01%; reference spread 0.8-11.5%, worst delta exceeds its own 2.1% spread and is recorded as such
+- [Phase QD-68]: 68-12: the close scan's commit-order list is corrected in a scratch copy for the 68-06..68-09-before-68-05 reorder, and Task 2's base-file check compares against 68-02's recording commit instead of the phase base; no condition weakened
+- [Phase QD-68]: 68-13: Phase 62's merge-gate spot-check row is answered by 68-15's one check:pr run, not run here; the verdict stands only while that run is green
+- [Phase 68]: 68-14: Phase 65's bench truth is answered by Phase 68's bench of record, with the gap stated: no single run compares today's tree with Phase 65's base
+- [Phase QD-68]: 68-15: Phases 66 and 67 re-verified by re-running each check on the current tree; check:pr green once; HYGN-01..07 ticked, WX-* left Pending for the milestone audit
+- [Phase QD-68.1]: 68.1-02: step 26 (pnpm bench:self-test) appended last to pnpm check and the DoD table; analyze.mjs exits 0/1/2 (pass/fail/cannot analyze); ab.sh refuses odd round counts
+- [Phase QD-68.1]: 68.1-stale.mjs also cites pnpm-lock.yaml and reads Phase 68's own report; 68.1-compare.mjs drops a comma before > with the other trailing commas
+- [Phase 68.1]: ADR-QD-033 is amended (Rev 1.5), not superseded; CCR-QD-460 is the only record number the phase adds
+- [Phase 68.1]: 68.1-06: Phase 63's gate-14 truths are read against 68.1-04's single gate-14 run plus a silent diff of what gate 14 reads since; gate 14 is not run twice
+- [Phase QD-68.1]: 68.1-08: the tick commit holds REQUIREMENTS.md and the summary only, so the tree since the green check:pr differs by exactly those; STATE and ROADMAP advance in a separate commit
 
 ### Pending Todos
 
@@ -594,8 +862,20 @@ Last activity: 2026-11-16 -- Milestone v1.5 shipped as PR #162
 - [Phase 50] Bench gate first (D-03a): pursue at 0/35 beyond band (geomean +2.75%); after-run of the final source 0/35 (geomean +1.87%, worst +9.3% on `anyOf First — 8, last allows`, 0.7 points inside its band). Mutation: Walk.ts 95.05→94.81% passes by D-13 (survivors identical), LeafNeeds.ts 98.11% (one equivalent survivor). Review (50-REVIEW-DISPOSITION.md): 0 open; three iterations, 13 findings, 12 fixed, IN-05 skipped by D-06 — all type-level or wording, no measured line changed (closed classification lists with `never` defaults and a disjointness check; ab.sh signal/revert handling).
 - [Phase 51] Base experiment recorded first: all 32 single-tag arity moves compiled on the base (the existing tests caught 8, the new all-tags `TraceShape.test.ts` 32); after the change each is a compile error. Mutation: Decision.ts 0.9586→0.9639 at close, 0.9677 post-review (`51-mutation-review.json`), Policy.ts 0.9865 unchanged, `PolicyArity.ts` no mutant. Review (51-REVIEW-DISPOSITION.md): 0 open; three iterations, 15 findings fixed — notably a total per-arity dispatch (a fourth arity word does not compile), the tools' restore on every exit, and a foreign tag now throwing a TypeError before any arm (was Match's absurd; both fail-closed). The 51-05 close scan now reports three expected review-fix items.
 - [Phase 52] Characterisation first (sql 47, prisma 21 tests green on the base, byte-identical since); `compilePredicate` RED by import then GREEN; both dialects converted with `.d.ts` hash-identical to the base; gates 935/523. Mutation by D-09a (user): core 0.98148→0.98214, each dialect index.ts fell by exactly its 4 moved shell mutants, all killed in core, survivors unchanged; post-review record identical. Review: 2 iterations, WR-01 (`rules` closed against `identifiers`/`maxInValues`) and 3 info fixed, IN-03 skipped to keep the characterisation evidence byte-identical. D-06a: Prisma counts `compiled` after render.
+- [Phase 62] Review (62-REVIEW.md, 62-REVIEW-FIX.md): 0 critical, 0 warning open; three iterations fixed 4 warnings and 2 info — iteration 1 WR-01 (the in-file directive block never ran), WR-02 (plugin drift ignored other compiler options), WR-03 (the gate walk mirrored tstyche's testFileMatch by hand); iteration 2 WR-01 (pass 2 could not see tsconfig.test.json losing floatingEffect). IN-01..IN-04 open (twin keyed per subject; `pnpm test:tstyche <path>` ignores its path; bare JSON.parse of tstyche.json; CHARACTERISATION path declared twice) plus a wording IN-05; SECURITY 20/20 closed. Orchestrator reverted phase.complete's WX-* ticks twice (cross-cutting, stay Pending until the milestone audit)
+- [Phase 63] Review (63-REVIEW.md, .iter2, .iter3, 63-REVIEW-FIX.md): three iterations, clean at iteration 3. Iteration 1 WR-01 (the DiagnosticsOptions/schedule refusal and the gate Like types were not held by the guard: fixed, 81847868, prose aligned f4398b04), WR-02 (a call written but never run passes the guard: documented as a shortcut limit); iteration 2 WR-01 (that shortcut note wrongly said expect() catches a dead probe: comment fixed, b5310eb7). IN-01..IN-04 open (directive matched by text within the declaration; any type reference counts as a type use; typescript ^7 lets unstable/* move; no timeout on the guard's import or tsgo, run-varying diagnostics label). The 63-05 close scan's set-aside regex missed a multi-line destructured await import: orchestrator approved a scratch-only fix pinned to exactly three loads. Verification 4/4; check:pr green after the fixes. Orchestrator reverted phase.complete's WX-* ticks (cross-cutting, stay Pending until the milestone audit)
+- [Phase 64] `notify` collects what listeners throw and decides by count (none / the value itself / one `AggregateError`, fixed message, nested kept, live Set); RED first on 8f3cb792 (5 store cases + TF25/F30/G48), 9 seam variants as expected; Stryker ExternalStore 29/30→41/42, feeds unchanged. Review (64-REVIEW.md, .iter1, 64-REVIEW-FIX.md): iteration 1 WR-01 (texts missed configure's resized-branch escape: fixed in texts only, 87267447, feed ordering out of scope); iteration 2 0 warnings, IN-01..03 open (DiagnosticsFeed second throw, post-throw feed states unpinned, a capacity-only configure throw leaves the timeline empty). Verification gap (spec/overview.md makeGatesFeed row still said must not throw) closed by the orchestrator in 1a800ebb; check:pr green on 1a800ebb; verification 4/4. LSTN-01..04 Complete; WX-01..07 Pending (phase.complete ticks reverted).
+- [Phase 65] `Admitted` has a private constructor and a `declare private readonly nominal: never` member; `admit` is its static method, exported as `admit` (call sites unchanged); `SUPPLIED` reads the one MatcherContext `admit` builds, so resource and action are each read once (policy/maxDepth/subject still read more than once, out of scope, flagged). RED first on d1ac1df0 (two pins TS2578, E7–E9); pin form is a reason-bearing @ts-expect-error (one expression cannot carry toRaiseError too), codes TS2673/TS2741 checked by the committed pin-codes.mjs. Stryker Admission 18/18→20/20, Walk/Predicate unchanged; bench 35 workloads 0 slower (worst +1.6%/10%). Review: WR-01 (read-once overclaim) and IN-01 fixed in comments/spec text only (a23dacf1, c0be0db8; token-identical code), IN-02/IN-03 open for the audit. Verification gap (CCR-QD-456 cited pre-fix revisions) closed in b56f32c0; check:pr green on cc7fdc37; verification 5/5. ADMT-01..04 Complete; WX-01..07 Pending (phase.complete ticks reverted).
+- [Phase 66] The `ignore` projection takes `Object.keys`, filters by the declared set and copies each kept value once (`Object.fromEntries`); `envelopeKeysOf` reads `_tag` only for a schema that flattens to more than one member (then twice), a one-member schema reads a declared `_tag` once as a kept value; an undeclared accessor is never invoked under `ignore`. `refuse`/`unwalked` (`walked()`, `exceedsJsonDepth`) still read own getters (owner kept scope); INV-QD-097 and decodeStoredRecord's never-throws scoped to JSON input. RED first on 48921088 (8 of 127: U22–U25, R15, R16, S16, S17); hydration keeps refuse, pinned by UntrustedSeams H1. Stryker UntrustedDecode 41/43→44/46, EnvelopeKeys 58/58→57/57, SinkCodec 123/127 unchanged; static run 46/48 and 66/66. Bench (parameterised Phase 59 copy, fixed 5% band + geomean ≤ +2%, median of per-run minima): 6 workloads 0 slower, geomean −2.13%, worst +3.5%, on a heavily loaded host. Review: WR-01 (INV-QD-097 self-contradiction) + IN-01/04/05/06 fixed (spec text, comments, test-helper rename; code tokens unchanged); IN-02/IN-03 open for the audit. check:pr green on 678fb6d3; verification 8/8. DECL-01..04 Complete; WX-01..07 Pending. Audit notes: 66-04/66-05 each shipped a verify with a sort/regex slip (worked around in scratch); UntrustedDecoderOptions doc says _tag selects the member without the more-than-one-member qualifier.
+- [Phase 67] Eviction is `Chunk.splitAt(insertionOrder, size - capacity)` + `HashMap.removeMany` (no loop, no `Option`, no impossible branch); the claim dispatch is a closed arm table indexed directly by the tag the claim step wrote (`Claim` union, `answerHit`/`answerJoined`/`answerOwned`), claim step's `Effect.sync` byte-identical (I5). Chosen by the owner's fixed rule: Match failed (miss +7.2%, capacity-bound +7.7%, geomean +1.87%, base spreads 6–15%), table passed (geomean −4.15%, load 10→16); one run per candidate, noise stated in house-rules-evidence §2. Bench of record (eviction + table): 5 workloads 0 slower, geomean −2.51%, under the owner's quiet-host rule (2026-11-21). Race test: per budget until both sides + 3, cap 512, 196→104 iterations, RED with hit check split (kWalks 2). Stryker DecisionCache 42/43→38/38, SharedComputation 70/71→71/71, Lifecycle 42/42; both named survivors gone. Review WR-01 (scorer dirty tree) + IN-03/04 fixed; IN-01 (stale capacity-test comments), IN-02 (owner-kept oneSided), iter-2 IN-03 (refuseDirty call sites untested) for the audit. check:pr green on 76332d92; verification 6/6. MUTE-01..04 Complete; WX Pending.
+- [Phase 68] Absorbed every open item (owner 2026-11-21): OI-01..29, 25 fixed + 4 recorded (CCR-QD-459), plus HYGN-01..06. Code: `TimelineFeed.configure` is `try { push() } finally { readSource }` (a capacity change's publish stops no read; residue — a status listener's throw on the read's `Reading` replaces the timeline listener's — stated in every text, pinned by TF29 and rethrow-gate); `admit` reads policy/maxDepth/subject once. Bench of record on the new shared harness (`scripts/bench/`, alternating arm order): 35 workloads 0 slower, geomean +0.01%, worst +4.7% (field-heavy anyOf of 8), run after 68-06..09 by the owner's reorder (host busy 30 min). Stryker: no score fell; DiagnosticsFeed 72/73→73/73, TimelineFeed 49/49→50/50. Gate scripts: spec-revise keeps its first argument, test:tstyche file filters, house-style JSONC + duplicate pin row, packed-install guard reads the run and bounds every execFileSync child. One `@qadi/devtools` patch changeset. Review: 3 warnings fixed (killed-child cause, timeout text narrowed to execFileSync, analyzer label checks), 4 Info carried. Sweep: 62–67 re-verified twice (after the phase, after the review fixes), `redo: none`. check:pr green twice; verification 7/7. HYGN-01..07 Complete; WX Pending.
+- [Phase 68.1] Fixed the audit's six fixable debt items (DEBT-01..05 here; DEBT-06 = Nyquist runs after close). `ab.sh` refuses a round count that is odd or below 4; `analyze.mjs` exits 0 pass / 1 fail / 2 refused and its self-test is `pnpm check` step 26; corrected copies `68.1-stale.mjs` (renames, deletions, dotfile/.changeset/.github/root paths) and `68.1-compare.mjs` (parse-tree walk keeping types, ASI structure, JSX text under the compiler's rule and comment-borne directives), Phase 68's own scripts unedited; gate 14's probe-guard parse runs in `scripts/lib/probe-guard-parse.mjs` under `CHILD_TIMEOUT_MS` (the TS server a killed child started may outlive it, stated). ADR-QD-033 Rev 1.6, CCR-QD-460 (only id used). Ten Phase 68 verdicts re-run four times, none flipped. Review: 3 iterations, 10 warnings fixed, IN-01..06 Info. Phases 62–68 re-verified twice, both staleness scripts `redo: none`. check:pr green twice (final on cd7cd3a1); verification 9/9. No packages/*/src change, no changeset. Commit 0378aad7 lacks the trailer (history, not rewritten).
 - [v1.2] Phases 21, 22 and 23 report `verification.status: stale` (later phases touched covered files); re-run their verification gates (/gsd-execute-phase 21|22|23 resumes at the gates) after Phase 29, before the milestone audit. **Resolved 2026-11-12:** all three re-verified `passed` at HEAD.
 - [Phase 22] `phase.complete` cannot match REQUIREMENTS.md's grouped traceability table (one row per phase listing several IDs), so v1.2 rows stay `Pending`; update them by hand or reshape the table. **Resolved 2026-11-12:** rows updated by hand (now archived in `milestones/v1.2-REQUIREMENTS.md`).
+
+### Roadmap Evolution
+
+- Phase 68.1 inserted after Phase 68: Address tech debt from the v1.7 audit (owner chose a cleanup phase before completing)
 
 ## Deferred Items
 
@@ -608,11 +888,12 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-16T18:33:36.630Z
-Stopped at: Phase QD-52 complete — all phases complete
+Last session: 2026-11-22T00:10:06.301Z
+Stopped at: Phase 68.1 complete — all phases complete
 Resume file: None
 
 ## Operator Next Steps
+
 
 
 

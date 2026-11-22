@@ -23,13 +23,13 @@ pulling in a UI, and `react` is an optional peer dependency for exactly that
 reason.
 
 What each exports is what a shell crosses, not everything the modules declare.
-The root has the three stores (`makeTimelineStore` and `runSource`,
-`makeSimulationSession`, `makeDiagnosticsStore` and `runDiagnostics`), the wiring
-the dock takes, the timeline readings (`verdictOf`, `pairedEntries`, `inspect`,
-`applyFilters`, `selectionOf`) and the types those name. The React entry has
-`DevtoolsDock` and the React half of the stores (`useTimeline`,
-`useSimulationSession`, `useDiagnostics`). The dock's panels and a screen's
-mechanics are package-private.
+The root has the three feeds a shell builds in a scope (`makeTimelineFeed`,
+`makeDiagnosticsFeed`, `makeGatesFeed`), the simulation session
+(`makeSimulationSession`), the wiring the dock takes, the timeline readings
+(`verdictOf`, `pairedEntries`, `inspect`, `applyFilters`, `selectionOf`) and the types
+those name. The React entry has `DevtoolsDock` and the hooks over the feeds
+(`useTimeline`, `useSimulationSession`, `useDiagnostics`). The feeds' engines, the
+dock's panels and a screen's mechanics are package-private.
 
 `useDiagnostics` returns `{ status, reading }` from the same feed the dock runs. The
 dock's Services and React screens state when sampling is starting or has stopped, and
@@ -129,20 +129,22 @@ the sampling:
 ```ts
 import { DevtoolsDock } from "@qadi/devtools/react";
 
-// <DevtoolsDock diagnostics={{ layer: appLayer, collector, questions: () => atoms.asked() }} />
+// <DevtoolsDock diagnostics={{ layer: appLayer, collector }} questions={atoms.asked} />
 ```
 
 The layer is built once while the dock is mounted and released when it
 unmounts, a reading keeps its identity while it is unchanged, and a layer that
 fails to build is stated on the Services panel rather than leaving it blank.
+The questions are the dock's own prop, beside `gates`, read on the same cadence:
+one that throws is stated in the React panel while the sampling carries on.
 Hold the fields at module scope: the run restarts when one of them changes
-identity. `runDiagnostics` and `makeDiagnosticsStore` are the same loop without
-React, for a shell of your own.
+identity. A shell without React builds the feed the dock runs, and the feed states
+a stop, as the next section shows.
 
 Under a `QadiProvider`, `@qadi/react` hands you all of that in one call:
 `<DevtoolsDock {...useDevtoolsFeed({ collector })} />` supplies `gates` (the
-registry the dock subscribes to), `onInvalidate` and a `diagnostics` whose layer is the provider's own build, so
-the dock reads the cache your decisions filled and nothing needs hoisting.
+registry the dock subscribes to), `questions`, `onInvalidate` and a `diagnostics`
+whose layer is the provider's own build, so the dock reads the cache your decisions filled and nothing needs hoisting.
 
 **Without a provider, the dock's build of your layer is its own build.** A
 service that keeps state in its constructor, such as `decisionCacheLayer`'s
@@ -154,6 +156,106 @@ fixture) as `{ wiring, activity, hydration, portCalls, questions }`: each field 
 carries wins over the sampled one, and a field it omits falls through to the
 sample. Its `wiring` is a `WiringRead`, so it can state a failed read as well as
 a report.
+
+## Without React: the feeds
+
+A shell of your own builds the three feeds in a scope. Closing the scope ends every
+read, and a read that stops is stated in its feed's status instead of leaving a dead
+fiber. A `subscribe` listener is yours, and one that throws does not stop the others:
+every listener is called, and then what they threw is rethrown out of whatever
+published (`configure`, `restart`, a read or tick, or the host registry's own
+notification), one value as itself and several as one `AggregateError`. The rest of
+that call does not run, so a throw can still leave a feed's status wrong with nothing
+running: the gates feed's questions cadence ends, a diagnostics feed stays `Starting`
+with no new poll, and a timeline restarted from `Stopped` says `Reading` with nothing
+reading. A `configure` with a new `capacity` publishes the emptied timeline and then
+starts the read that refills it, from the same `source` or a new one, so a throw on
+that publish is rethrown once the read has started and stops no read, unless the
+timeline was `Stopped` and a status listener throws on the `Reading` that read
+publishes: that throw escapes instead, replaces the timeline listener's, and no read
+is started.
+
+```typescript
+import * as Effect from "effect/Effect";
+import * as Match from "effect/Match";
+import { makeDecisionLog } from "@qadi/core";
+import {
+  makeDiagnosticsFeed,
+  makeGatesFeed,
+  makeTimelineFeed,
+  type AskedQuestionLike,
+  type DiagnosticsStatus,
+  type GateRegistryLike,
+  type TimelineStatus,
+} from "@qadi/devtools";
+
+// A stop is a state of the feed, not a silent dead fiber: say it.
+const timelineLine: (status: TimelineStatus) => string = Match.type<TimelineStatus>().pipe(
+  Match.tagsExhaustive({
+    Reading: () => "timeline: reading",
+    Stopped: ({ reason }) => `timeline: stopped (${reason})`,
+  }),
+);
+
+const diagnosticsLine: (status: DiagnosticsStatus) => string = Match.type<DiagnosticsStatus>().pipe(
+  Match.tagsExhaustive({
+    Off: () => "diagnostics: off",
+    Starting: () => "diagnostics: starting",
+    Live: () => "diagnostics: live",
+    Stopped: ({ reason, sampled }) =>
+      `diagnostics: stopped${sampled ? "" : " before its first sample"} (${reason})`,
+  }),
+);
+
+export interface HostInputs {
+  readonly gates?: GateRegistryLike | undefined;
+  readonly questions?: (() => ReadonlyArray<AskedQuestionLike>) | undefined;
+}
+
+/** Builds the three feeds in the caller's scope; closing it ends every read. */
+export const watch = Effect.fn("example.watch")(function* (report: (line: string) => void, host: HostInputs) {
+  const log = yield* makeDecisionLog({ environment: "Server", capacity: 512 });
+  const timeline = yield* makeTimelineFeed({ source: log });
+  const diagnostics = yield* makeDiagnosticsFeed({ intervalMillis: 1_000 });
+  const gates = yield* makeGatesFeed(host);
+
+  // A feed can already be Live or Stopped when its build returns, so say where it is once, then every change.
+  const follow = (subscribe: (listener: () => void) => () => void, line: () => string) => {
+    report(line());
+    subscribe(() => report(line()));
+  };
+  follow(timeline.timeline.subscribe, () => `${timeline.timeline.getSnapshot().entries.length} entries`);
+  follow(timeline.status.subscribe, () => timelineLine(timeline.status.getSnapshot()));
+  follow(diagnostics.subscribe, () => diagnosticsLine(diagnostics.getSnapshot().status));
+  follow(gates.subscribe, () => {
+    const { registry, asked } = gates.getSnapshot();
+    return `gates: ${registry._tag}, questions: ${asked._tag}`;
+  });
+
+  return { log, timeline, diagnostics, gates };
+});
+
+/** Runs until interrupted; interrupting it closes the scope, which is never reported as a stop. */
+export const run = (report: (line: string) => void, host: HostInputs = {}) =>
+  Effect.scoped(Effect.andThen(watch(report, host), Effect.never));
+```
+
+Read `getSnapshot()` once after subscribing, as `follow` does: a feed can already
+be `Live` or `Stopped` when its build returns, and a subscription hears only what
+changes after it.
+
+`log.layer` is the application's sink, the `DecisionSink` for the code that
+evaluates. `timeline.status.restart()` and `diagnostics.restart()` restart a stopped
+feed. `configure` replaces the whole input set: `TimelineFeed.configure` reads an
+omitted input as `undefined`, and `diagnostics.configure(undefined)` ends the poll
+and resets it to `Off`. A shell lays a reading of its own over the feed's with
+`mergeReading`, the dock's `reading` rule.
+
+A stop's or a failed read's `reason` (`Stopped`, `WiringRead.Failed`,
+`RegistryRead.Failed`, `AskedRead.Failed`) is a `Cause.pretty` trace, with stack
+frames and checkout paths, for a developer in the host's own process. It must not
+cross a trust boundary: a shell that forwards a feed's readings to a remote viewer
+sends the tag, not the reason.
 
 ## Environments
 

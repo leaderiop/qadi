@@ -22,9 +22,9 @@ import {
   hasPermission,
   makeSubjectId,
   permission,
-  stampRecord,
+  StoredRecord,
 } from "@qadi/core";
-import type { DecisionLogEntries, LogEntry, SinkRecordNotEncodable, StoredRecord } from "@qadi/core";
+import type { DecisionLogEntries, LogEntry, SinkRecordNotEncodable } from "@qadi/core";
 import { collectingLogger, collectingTracer } from "@qadi/testing";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -53,7 +53,7 @@ const decision = (evaluationId: string, resource?: Record<string, unknown>) =>
     }),
   });
 
-const stored = (record: DecisionRecord): StoredRecord => stampRecord(record, "Server");
+const stored = (record: DecisionRecord): StoredRecord => new StoredRecord({ environment: "Server", record });
 
 type Scenario = "all encodable" | "one refused in the middle" | "onRefused throws" | "no onRefused";
 type Framing = "json" | "sse backlog" | "sse live";
@@ -131,7 +131,7 @@ interface FramingSpec {
 }
 
 const idsOf = (decoded: ReadonlyArray<Result.Result<StoredRecord, unknown>>): ReadonlyArray<string> =>
-  decoded.flatMap((result) => (Result.isSuccess(result) ? [result.success.evaluationId] : []));
+  decoded.flatMap((result) => (Result.isSuccess(result) ? [result.success.record.evaluationId] : []));
 
 const entriesOf = (records: ReadonlyArray<StoredRecord>): ReadonlyArray<LogEntry> =>
   records.map((record, seq) => ({ cursor: { epoch: 1, seq }, record }));

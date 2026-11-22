@@ -1,0 +1,621 @@
+{
+ "counts": {
+  "packages/audit/src/AuditArchive.ts": {
+   "killed": 52,
+   "timeout": 0,
+   "survived": 1,
+   "noCoverage": 0,
+   "ignored": 13
+  },
+  "packages/audit/src/AuditEntry.ts": {
+   "killed": 17,
+   "timeout": 0,
+   "survived": 0,
+   "noCoverage": 0,
+   "ignored": 7
+  },
+  "packages/core/src/SinkCodec.ts": {
+   "killed": 158,
+   "timeout": 1,
+   "survived": 4,
+   "noCoverage": 0,
+   "ignored": 38
+  },
+  "packages/core/src/UntrustedDecode.ts": {
+   "killed": 29,
+   "timeout": 0,
+   "survived": 2,
+   "noCoverage": 0,
+   "ignored": 2
+  },
+  "packages/react/src/HydrationEngine.ts": {
+   "killed": 169,
+   "timeout": 0,
+   "survived": 0,
+   "noCoverage": 0,
+   "ignored": 31
+  }
+ },
+ "ignored": {
+  "packages/audit/src/AuditArchive.ts": [
+   {
+    "mutator": "StringLiteral",
+    "line": 83,
+    "column": 25,
+    "replacement": "\"\""
+   },
+   {
+    "mutator": "StringLiteral",
+    "line": 110,
+    "column": 44,
+    "replacement": "\"\""
+   },
+   {
+    "mutator": "StringLiteral",
+    "line": 174,
+    "column": 58,
+    "replacement": "\"\""
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 241,
+    "column": 41,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 247,
+    "column": 39,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 249,
+    "column": 27,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 258,
+    "column": 58,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ArrayDeclaration",
+    "line": 258,
+    "column": 70,
+    "replacement": "[]"
+   },
+   {
+    "mutator": "StringLiteral",
+    "line": 258,
+    "column": 71,
+    "replacement": "\"\""
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 261,
+    "column": 24,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 262,
+    "column": 14,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 263,
+    "column": 16,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 267,
+    "column": 16,
+    "replacement": "() => undefined"
+   }
+  ],
+  "packages/audit/src/AuditEntry.ts": [
+   {
+    "mutator": "ObjectLiteral",
+    "line": 80,
+    "column": 41,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "StringLiteral",
+    "line": 102,
+    "column": 43,
+    "replacement": "\"\""
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 118,
+    "column": 17,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 119,
+    "column": 3,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ArrayDeclaration",
+    "line": 119,
+    "column": 15,
+    "replacement": "[]"
+   },
+   {
+    "mutator": "StringLiteral",
+    "line": 119,
+    "column": 16,
+    "replacement": "\"\""
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 122,
+    "column": 19,
+    "replacement": "() => undefined"
+   }
+  ],
+  "packages/core/src/SinkCodec.ts": [
+   {
+    "mutator": "ArrayDeclaration",
+    "line": 112,
+    "column": 44,
+    "replacement": "[]"
+   },
+   {
+    "mutator": "ArrayDeclaration",
+    "line": 133,
+    "column": 34,
+    "replacement": "[]"
+   },
+   {
+    "mutator": "StringLiteral",
+    "line": 134,
+    "column": 23,
+    "replacement": "\"\""
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 134,
+    "column": 34,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "StringLiteral",
+    "line": 135,
+    "column": 23,
+    "replacement": "\"\""
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 135,
+    "column": 33,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 145,
+    "column": 26,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 153,
+    "column": 29,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ArrayDeclaration",
+    "line": 167,
+    "column": 37,
+    "replacement": "[]"
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 183,
+    "column": 24,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 184,
+    "column": 14,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 185,
+    "column": 13,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 224,
+    "column": 24,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 225,
+    "column": 18,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 226,
+    "column": 15,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 252,
+    "column": 26,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 253,
+    "column": 16,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 260,
+    "column": 15,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 285,
+    "column": 26,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 286,
+    "column": 20,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 349,
+    "column": 24,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 368,
+    "column": 24,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 374,
+    "column": 22,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 414,
+    "column": 39,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 417,
+    "column": 22,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 420,
+    "column": 18,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 507,
+    "column": 33,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 507,
+    "column": 84,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 508,
+    "column": 36,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 509,
+    "column": 36,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 524,
+    "column": 55,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 534,
+    "column": 41,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 555,
+    "column": 33,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 564,
+    "column": 39,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 585,
+    "column": 47,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 596,
+    "column": 35,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 602,
+    "column": 41,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 607,
+    "column": 23,
+    "replacement": "() => undefined"
+   }
+  ],
+  "packages/core/src/UntrustedDecode.ts": [
+   {
+    "mutator": "ObjectLiteral",
+    "line": 85,
+    "column": 58,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "StringLiteral",
+    "line": 85,
+    "column": 78,
+    "replacement": "\"\""
+   }
+  ],
+  "packages/react/src/HydrationEngine.ts": [
+   {
+    "mutator": "StringLiteral",
+    "line": 81,
+    "column": 40,
+    "replacement": "\"\""
+   },
+   {
+    "mutator": "StringLiteral",
+    "line": 83,
+    "column": 39,
+    "replacement": "\"\""
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 95,
+    "column": 43,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ArrayDeclaration",
+    "line": 98,
+    "column": 26,
+    "replacement": "[]"
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 107,
+    "column": 47,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 136,
+    "column": 17,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 182,
+    "column": 22,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 193,
+    "column": 51,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ArrayDeclaration",
+    "line": 193,
+    "column": 63,
+    "replacement": "[]"
+   },
+   {
+    "mutator": "StringLiteral",
+    "line": 193,
+    "column": 64,
+    "replacement": "\"\""
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 198,
+    "column": 26,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 199,
+    "column": 16,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 200,
+    "column": 18,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 201,
+    "column": 34,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 213,
+    "column": 25,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 279,
+    "column": 59,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 280,
+    "column": 10,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 281,
+    "column": 12,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 285,
+    "column": 11,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 286,
+    "column": 12,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 288,
+    "column": 9,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 289,
+    "column": 12,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 295,
+    "column": 11,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 296,
+    "column": 12,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 301,
+    "column": 15,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 303,
+    "column": 17,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 306,
+    "column": 16,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 309,
+    "column": 17,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 314,
+    "column": 27,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 324,
+    "column": 24,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 408,
+    "column": 17,
+    "replacement": "() => undefined"
+   }
+  ]
+ },
+ "measured": {
+  "packages/audit/src/AuditArchive.ts": 0.9811320754716981,
+  "packages/audit/src/AuditEntry.ts": 1,
+  "packages/core/src/SinkCodec.ts": 0.9754601226993865,
+  "packages/core/src/UntrustedDecode.ts": 0.9354838709677419,
+  "packages/react/src/HydrationEngine.ts": 1
+ },
+ "survivors": {
+  "packages/audit/src/AuditArchive.ts": [
+   "ObjectLiteral | Survived | {} | { message } | Malformed: ({ message }) => ArchiveRefusal.Malformed({ message }),"
+  ],
+  "packages/audit/src/AuditEntry.ts": [],
+  "packages/core/src/SinkCodec.ts": [
+   "ConditionalExpression | Survived | false | Result.isFailure(before) | if (Result.isFailure(before)) return refuse(before.failure);",
+   "ConditionalExpression | Survived | false | Result.isFailure(encoded) | if (Result.isFailure(encoded)) return refuse(encoded.failure);",
+   "ConditionalExpression | Survived | false | frame === undefined | if (frame === undefined) break;",
+   "EqualityOperator | Survived | stack.length >= 0 | stack.length > 0 | while (stack.length > 0) {"
+  ],
+  "packages/core/src/UntrustedDecode.ts": [
+   "ConditionalExpression | Survived | true | unwalked.size > 0 | unwalked.size > 0 && isPlainObject(input)",
+   "EqualityOperator | Survived | unwalked.size >= 0 | unwalked.size > 0 | unwalked.size > 0 && isPlainObject(input)"
+  ],
+  "packages/react/src/HydrationEngine.ts": []
+ }
+}

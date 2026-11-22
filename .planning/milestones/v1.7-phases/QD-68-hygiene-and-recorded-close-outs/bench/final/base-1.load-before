@@ -1,0 +1,7 @@
+13:28:29
+13:28  up 1 day, 23:28, 1 user, load averages: 4.75 4.46 3.53
+ %CPU COMM
+ 88.6 /usr/libexec/mobileassetd
+ 68.7 /System/Library/PrivateFrameworks/CacheDelete.framework/deleted
+ 37.4 /System/Library/PrivateFrameworks/CloudKitDaemon.framework/Support/cloudd
+ 36.3 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/157.0.8103.80/Helpers/Google Chrome Helper (Aperitif Renderer).app/Contents/MacOS/Google Chrome Helper (Aperitif Renderer)

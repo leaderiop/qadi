@@ -29,11 +29,11 @@ declare const customLeaf: LeafOf["HasCustom"];
 declare const signatureLeaf: LeafOf["HasSignature"];
 
 /**
- * A read's parameters with its result dropped. The reads return an `Effect`, and
- * the Effect language service reports a call to one as a floating effect, which
- * tstyche then reads as "not callable": a bare `toBeCallableWith` would fail on
- * the read itself whatever its parameters were, and `not.toBeCallableWith` would
- * pass.
+ * A read's parameters with its result dropped. The reads return an `Effect`.
+ * tstyche compiles under `tsconfig.tstyche.json`, where `floatingEffect` is off, so
+ * a bare `not.toBeCallableWith` on a read could fail there; the form stays because
+ * it states the refusal through the parameter type, so it holds whichever way
+ * `floatingEffect` is set, including `pnpm typecheck`'s compile with the rule on.
  */
 type Params<F> = F extends (...args: infer A) => unknown ? (...args: A) => void : never;
 

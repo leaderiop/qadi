@@ -1,0 +1,832 @@
+{
+ "phase": "66",
+ "head": "6ace419f9b3e529ae74fdc8dfadbd6c35de1f282",
+ "invocation": "pnpm exec stryker run <S>/stryker66-static.config.mjs --mutate packages/core/src/EnvelopeKeys.ts,packages/core/src/UntrustedDecode.ts",
+ "files": {
+  "packages/core/src/EnvelopeKeys.ts": {
+   "killed": 66,
+   "timeout": 0,
+   "survived": 0,
+   "noCoverage": 0,
+   "ignored": 0,
+   "detected": 66,
+   "valid": 66,
+   "open": [],
+   "ignoredMutants": [],
+   "detectedMutants": [
+    {
+     "status": "Killed",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 76,
+     "text": "'unknownKeys \"ignore\" needs a schema that is an object, or a union of objects each with a distinct literal _tag',"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrayDeclaration",
+     "replacement": "[\"Stryker was here\"]",
+     "line": 51,
+     "text": "const values = members.flatMap((member) => (member.literals.has(TAG) ? [member.literals.get(TAG)] : []));"
+    },
+    {
+     "status": "Killed",
+     "mutator": "BlockStatement",
+     "replacement": "{}",
+     "line": 79,
+     "text": "if (members.some((member) => member.open)) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrayDeclaration",
+     "replacement": "[\"Stryker was here\"]",
+     "line": 46,
+     "text": "Match.orElse(() => []),"
+    },
+    {
+     "status": "Killed",
+     "mutator": "BlockStatement",
+     "replacement": "{}",
+     "line": 74,
+     "text": "if (first === undefined || (members.length > 1 && discriminantOf(members) === undefined)) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 81,
+     "text": "'unknownKeys \"ignore\" needs objects with a closed key list: an index signature or a rest element declares none',"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "false",
+     "line": 87,
+     "text": "return (members.find((member) => member.literals.get(TAG) === tag) ?? first).keys;"
+    },
+    {
+     "status": "Killed",
+     "mutator": "EqualityOperator",
+     "replacement": "member.literals.get(TAG) !== tag",
+     "line": 87,
+     "text": "return (members.find((member) => member.literals.get(TAG) === tag) ?? first).keys;"
+    },
+    {
+     "status": "Killed",
+     "mutator": "LogicalOperator",
+     "replacement": "members.find(member => member.literals.get(TAG) === tag) && first",
+     "line": 87,
+     "text": "return (members.find((member) => member.literals.get(TAG) === tag) ?? first).keys;"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 87,
+     "text": "return (members.find((member) => member.literals.get(TAG) === tag) ?? first).keys;"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "true",
+     "line": 87,
+     "text": "return (members.find((member) => member.literals.get(TAG) === tag) ?? first).keys;"
+    },
+    {
+     "status": "Killed",
+     "mutator": "BlockStatement",
+     "replacement": "{}",
+     "line": 85,
+     "text": "return (input) => {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 30,
+     "text": "keys: new Set(ast.propertySignatures.map((signature) => signature.name)),"
+    },
+    {
+     "status": "Killed",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 20,
+     "text": "const TAG = \"_tag\";"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 29,
+     "text": "const memberOf = (ast: SchemaAST.Objects): Member => ({"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 29,
+     "text": "const memberOf = (ast: SchemaAST.Objects): Member => ({"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "true",
+     "line": 31,
+     "text": "open: ast.indexSignatures.length > 0,"
+    },
+    {
+     "status": "Killed",
+     "mutator": "EqualityOperator",
+     "replacement": "ast.indexSignatures.length >= 0",
+     "line": 31,
+     "text": "open: ast.indexSignatures.length > 0,"
+    },
+    {
+     "status": "Killed",
+     "mutator": "EqualityOperator",
+     "replacement": "ast.indexSignatures.length <= 0",
+     "line": 31,
+     "text": "open: ast.indexSignatures.length > 0,"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 33,
+     "text": "ast.propertySignatures.flatMap((signature) =>"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "false",
+     "line": 34,
+     "text": "SchemaAST.isLiteral(signature.type) && !SchemaAST.isOptional(signature.type)"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "false",
+     "line": 31,
+     "text": "open: ast.indexSignatures.length > 0,"
+    },
+    {
+     "status": "Killed",
+     "mutator": "BooleanLiteral",
+     "replacement": "SchemaAST.isOptional(signature.type)",
+     "line": 34,
+     "text": "SchemaAST.isLiteral(signature.type) && !SchemaAST.isOptional(signature.type)"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrayDeclaration",
+     "replacement": "[]",
+     "line": 35,
+     "text": "? [[signature.name, signature.type.literal] as const]"
+    },
+    {
+     "status": "Killed",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 43,
+     "text": "Match.tag(\"Objects\", (ast) => [memberOf(ast)]),"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrayDeclaration",
+     "replacement": "[\"Stryker was here\"]",
+     "line": 36,
+     "text": ": [],"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "true",
+     "line": 34,
+     "text": "SchemaAST.isLiteral(signature.type) && !SchemaAST.isOptional(signature.type)"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 43,
+     "text": "Match.tag(\"Objects\", (ast) => [memberOf(ast)]),"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrayDeclaration",
+     "replacement": "[]",
+     "line": 43,
+     "text": "Match.tag(\"Objects\", (ast) => [memberOf(ast)]),"
+    },
+    {
+     "status": "Killed",
+     "mutator": "LogicalOperator",
+     "replacement": "SchemaAST.isLiteral(signature.type) || !SchemaAST.isOptional(signature.type)",
+     "line": 34,
+     "text": "SchemaAST.isLiteral(signature.type) && !SchemaAST.isOptional(signature.type)"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 44,
+     "text": "Match.tag(\"Union\", (ast) => ast.types.flatMap(membersOf)),"
+    },
+    {
+     "status": "Killed",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 44,
+     "text": "Match.tag(\"Union\", (ast) => ast.types.flatMap(membersOf)),"
+    },
+    {
+     "status": "Killed",
+     "mutator": "BlockStatement",
+     "replacement": "{}",
+     "line": 50,
+     "text": "const discriminantOf = (members: ReadonlyArray<Member>): ReadonlySet<unknown> | undefined => {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 51,
+     "text": "const values = members.flatMap((member) => (member.literals.has(TAG) ? [member.literals.get(TAG)] : []));"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrayDeclaration",
+     "replacement": "[]",
+     "line": 51,
+     "text": "const values = members.flatMap((member) => (member.literals.has(TAG) ? [member.literals.get(TAG)] : []));"
+    },
+    {
+     "status": "Killed",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 45,
+     "text": "Match.tag(\"Suspend\", (ast) => membersOf(ast.thunk())),"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "false",
+     "line": 53,
+     "text": "return values.length === members.length && distinct.size === values.length ? distinct : undefined;"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 46,
+     "text": "Match.orElse(() => []),"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 45,
+     "text": "Match.tag(\"Suspend\", (ast) => membersOf(ast.thunk())),"
+    },
+    {
+     "status": "Killed",
+     "mutator": "EqualityOperator",
+     "replacement": "values.length !== members.length",
+     "line": 53,
+     "text": "return values.length === members.length && distinct.size === values.length ? distinct : undefined;"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "true",
+     "line": 53,
+     "text": "return values.length === members.length && distinct.size === values.length ? distinct : undefined;"
+    },
+    {
+     "status": "Killed",
+     "mutator": "BlockStatement",
+     "replacement": "{}",
+     "line": 71,
+     "text": "): ((input: { readonly [TAG]?: unknown }) => ReadonlySet<PropertyKey>) => {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "LogicalOperator",
+     "replacement": "values.length === members.length || distinct.size === values.length",
+     "line": 53,
+     "text": "return values.length === members.length && distinct.size === values.length ? distinct : undefined;"
+    },
+    {
+     "status": "Killed",
+     "mutator": "EqualityOperator",
+     "replacement": "distinct.size !== values.length",
+     "line": 53,
+     "text": "return values.length === members.length && distinct.size === values.length ? distinct : undefined;"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "true",
+     "line": 74,
+     "text": "if (first === undefined || (members.length > 1 && discriminantOf(members) === undefined)) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "true",
+     "line": 53,
+     "text": "return values.length === members.length && distinct.size === values.length ? distinct : undefined;"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "true",
+     "line": 53,
+     "text": "return values.length === members.length && distinct.size === values.length ? distinct : undefined;"
+    },
+    {
+     "status": "Killed",
+     "mutator": "EqualityOperator",
+     "replacement": "first !== undefined",
+     "line": 74,
+     "text": "if (first === undefined || (members.length > 1 && discriminantOf(members) === undefined)) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "LogicalOperator",
+     "replacement": "members.length > 1 || discriminantOf(members) === undefined",
+     "line": 74,
+     "text": "if (first === undefined || (members.length > 1 && discriminantOf(members) === undefined)) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "false",
+     "line": 74,
+     "text": "if (first === undefined || (members.length > 1 && discriminantOf(members) === undefined)) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "true",
+     "line": 74,
+     "text": "if (first === undefined || (members.length > 1 && discriminantOf(members) === undefined)) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "false",
+     "line": 74,
+     "text": "if (first === undefined || (members.length > 1 && discriminantOf(members) === undefined)) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "LogicalOperator",
+     "replacement": "first === undefined && members.length > 1 && discriminantOf(members) === undefined",
+     "line": 74,
+     "text": "if (first === undefined || (members.length > 1 && discriminantOf(members) === undefined)) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "EqualityOperator",
+     "replacement": "members.length <= 1",
+     "line": 74,
+     "text": "if (first === undefined || (members.length > 1 && discriminantOf(members) === undefined)) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "EqualityOperator",
+     "replacement": "members.length >= 1",
+     "line": 74,
+     "text": "if (first === undefined || (members.length > 1 && discriminantOf(members) === undefined)) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "true",
+     "line": 74,
+     "text": "if (first === undefined || (members.length > 1 && discriminantOf(members) === undefined)) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "false",
+     "line": 74,
+     "text": "if (first === undefined || (members.length > 1 && discriminantOf(members) === undefined)) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "EqualityOperator",
+     "replacement": "discriminantOf(members) !== undefined",
+     "line": 74,
+     "text": "if (first === undefined || (members.length > 1 && discriminantOf(members) === undefined)) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "EqualityOperator",
+     "replacement": "members.length !== 1",
+     "line": 84,
+     "text": "if (members.length === 1) return () => first.keys;"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "true",
+     "line": 84,
+     "text": "if (members.length === 1) return () => first.keys;"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "true",
+     "line": 79,
+     "text": "if (members.some((member) => member.open)) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 84,
+     "text": "if (members.length === 1) return () => first.keys;"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "false",
+     "line": 79,
+     "text": "if (members.some((member) => member.open)) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "MethodExpression",
+     "replacement": "members.every(member => member.open)",
+     "line": 79,
+     "text": "if (members.some((member) => member.open)) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 79,
+     "text": "if (members.some((member) => member.open)) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "false",
+     "line": 84,
+     "text": "if (members.length === 1) return () => first.keys;"
+    }
+   ]
+  },
+  "packages/core/src/UntrustedDecode.ts": {
+   "killed": 46,
+   "timeout": 0,
+   "survived": 2,
+   "noCoverage": 0,
+   "ignored": 0,
+   "detected": 46,
+   "valid": 48,
+   "open": [
+    {
+     "status": "Survived",
+     "mutator": "ConditionalExpression",
+     "replacement": "true",
+     "line": 240,
+     "text": "unwalked.size > 0 && isPlainObject(input)"
+    },
+    {
+     "status": "Survived",
+     "mutator": "EqualityOperator",
+     "replacement": "unwalked.size >= 0",
+     "line": 240,
+     "text": "unwalked.size > 0 && isPlainObject(input)"
+    }
+   ],
+   "ignoredMutants": [],
+   "detectedMutants": [
+    {
+     "status": "Killed",
+     "mutator": "BlockStatement",
+     "replacement": "{}",
+     "line": 181,
+     "text": "return (input) => {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "BooleanLiteral",
+     "replacement": "isPlainObject(input)",
+     "line": 182,
+     "text": "if (!isPlainObject(input)) return input;"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "true",
+     "line": 182,
+     "text": "if (!isPlainObject(input)) return input;"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "false",
+     "line": 182,
+     "text": "if (!isPlainObject(input)) return input;"
+    },
+    {
+     "status": "Killed",
+     "mutator": "MethodExpression",
+     "replacement": "Object.keys(input)",
+     "line": 185,
+     "text": "Object.keys(input)"
+    },
+    {
+     "status": "Killed",
+     "mutator": "StringLiteral",
+     "replacement": "``",
+     "line": 232,
+     "text": "`untrustedDecoder: unknownKeys must be ${Object.keys(PROJECTION)"
+    },
+    {
+     "status": "Killed",
+     "mutator": "BlockStatement",
+     "replacement": "{}",
+     "line": 230,
+     "text": "if (!Object.hasOwn(PROJECTION, options.unknownKeys)) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "StringLiteral",
+     "replacement": "``",
+     "line": 233,
+     "text": ".map((policy) => `\"${policy}\"`)"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 233,
+     "text": ".map((policy) => `\"${policy}\"`)"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 186,
+     "text": ".filter((key) => keys.has(key))"
+    },
+    {
+     "status": "Killed",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 234,
+     "text": ".join(\" or \")}, got ${String(options.unknownKeys)}`,"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 187,
+     "text": ".map((key): readonly [string, unknown] => [key, input[key]]),"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrayDeclaration",
+     "replacement": "[]",
+     "line": 187,
+     "text": ".map((key): readonly [string, unknown] => [key, input[key]]),"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "true",
+     "line": 240,
+     "text": "unwalked.size > 0 && isPlainObject(input)"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 241,
+     "text": "? Object.fromEntries(Object.entries(input).filter(([key]) => !unwalked.has(key)))"
+    },
+    {
+     "status": "Killed",
+     "mutator": "MethodExpression",
+     "replacement": "Object.entries(input)",
+     "line": 241,
+     "text": "? Object.fromEntries(Object.entries(input).filter(([key]) => !unwalked.has(key)))"
+    },
+    {
+     "status": "Killed",
+     "mutator": "BlockStatement",
+     "replacement": "{}",
+     "line": 244,
+     "text": "const decode = (input: unknown): Result.Result<S[\"Type\"], UntrustedValueRefusal | R> => {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "BooleanLiteral",
+     "replacement": "unwalked.has(key)",
+     "line": 241,
+     "text": "? Object.fromEntries(Object.entries(input).filter(([key]) => !unwalked.has(key)))"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "true",
+     "line": 246,
+     "text": "if (exceedsJsonDepth(walked(projected), MAX_DECODE_DEPTH)) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "LogicalOperator",
+     "replacement": "unwalked.size > 0 || isPlainObject(input)",
+     "line": 240,
+     "text": "unwalked.size > 0 && isPlainObject(input)"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "false",
+     "line": 246,
+     "text": "if (exceedsJsonDepth(walked(projected), MAX_DECODE_DEPTH)) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 247,
+     "text": "return Result.fail(UntrustedRefusal.TooDeep({ maxDepth: MAX_DECODE_DEPTH }));"
+    },
+    {
+     "status": "Killed",
+     "mutator": "BlockStatement",
+     "replacement": "{}",
+     "line": 246,
+     "text": "if (exceedsJsonDepth(walked(projected), MAX_DECODE_DEPTH)) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "false",
+     "line": 240,
+     "text": "unwalked.size > 0 && isPlainObject(input)"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "true",
+     "line": 250,
+     "text": "prepare === undefined ? Result.succeed(projected) : prepare(projected);"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 251,
+     "text": "return Result.flatMap(prepared, (value) =>"
+    },
+    {
+     "status": "Killed",
+     "mutator": "EqualityOperator",
+     "replacement": "prepare !== undefined",
+     "line": 250,
+     "text": "prepare === undefined ? Result.succeed(projected) : prepare(projected);"
+    },
+    {
+     "status": "Killed",
+     "mutator": "EqualityOperator",
+     "replacement": "unwalked.size <= 0",
+     "line": 240,
+     "text": "unwalked.size > 0 && isPlainObject(input)"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 252,
+     "text": "Result.mapError(strict(value), (error) =>"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 253,
+     "text": "UntrustedRefusal.Malformed({ message: error.message, error }),"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 260,
+     "text": "Result.try({"
+    },
+    {
+     "status": "Killed",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 265,
+     "text": "UntrustedRefusal.NotJson({ message: Predicate.isError(error) ? error.message : \"not JSON\" }),"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 261,
+     "text": "try: (): unknown => JSON.parse(text),"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "false",
+     "line": 250,
+     "text": "prepare === undefined ? Result.succeed(projected) : prepare(projected);"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 264,
+     "text": "catch: (error) =>"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 265,
+     "text": "UntrustedRefusal.NotJson({ message: Predicate.isError(error) ? error.message : \"not JSON\" }),"
+    },
+    {
+     "status": "Killed",
+     "mutator": "BlockStatement",
+     "replacement": "{}",
+     "line": 179,
+     "text": "const project = (ast: SchemaAST.AST): Projection => {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 87,
+     "text": "const UNTRUSTED_DECODE_OPTIONS: SchemaAST.ParseOptions = { onExcessProperty: \"error\" };"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 87,
+     "text": "const UNTRUSTED_DECODE_OPTIONS: SchemaAST.ParseOptions = { onExcessProperty: \"error\" };"
+    },
+    {
+     "status": "Killed",
+     "mutator": "BlockStatement",
+     "replacement": "{}",
+     "line": 226,
+     "text": "): UntrustedDecoder<S[\"Type\"], R> => {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 258,
+     "text": "const decodeText = (text: string): Result.Result<S[\"Type\"], UntrustedRefusal | R> =>"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 192,
+     "text": "const keepEverything = (input: unknown): unknown => input;"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 270,
+     "text": "return { decode, decodeText };"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 239,
+     "text": "const walked = (input: unknown): unknown =>"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 201,
+     "text": "refuse: () => keepEverything,"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "false",
+     "line": 230,
+     "text": "if (!Object.hasOwn(PROJECTION, options.unknownKeys)) {"
+    }
+   ]
+  }
+ }
+}

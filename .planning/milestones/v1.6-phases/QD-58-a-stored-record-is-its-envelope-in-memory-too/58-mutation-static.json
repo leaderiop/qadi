@@ -1,0 +1,1244 @@
+{
+ "packages/core/src/DecisionRecord.ts": [
+  {
+   "key": "ConditionalExpression | true | aUnknown || bUnknown | if (aUnknown || bUnknown) return aUnknown === bUnknown ? 0 : aUnknown ? 1 : -1;",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const aUnknown = Number.isNaN(a.at); const bUnknown = Number.isNaN(b.at); if (aUnknown || bUnknown) return aUnknown === bUnknown ? 0 : aUnknown ? 1 : -1; return a.at < b.at ? -1 : a.at > b.at ? 1 : 0; } | export const sinkRecordOrder: Order.Order<SinkRecord> = Order.make((a, b) => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | a.at < b.at | return a.at < b.at ? -1 : a.at > b.at ? 1 : 0;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | aUnknown === bUnknown | if (aUnknown || bUnknown) return aUnknown === bUnknown ? 0 : aUnknown ? 1 : -1;",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | aUnknown !== bUnknown | aUnknown === bUnknown | if (aUnknown || bUnknown) return aUnknown === bUnknown ? 0 : aUnknown ? 1 : -1;",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | a.at >= b.at | a.at < b.at | return a.at < b.at ? -1 : a.at > b.at ? 1 : 0;",
+   "status": "Killed"
+  },
+  {
+   "key": "UnaryOperator | +1 | -1 | if (aUnknown || bUnknown) return aUnknown === bUnknown ? 0 : aUnknown ? 1 : -1;",
+   "status": "Killed"
+  },
+  {
+   "key": "UnaryOperator | +1 | -1 | return a.at < b.at ? -1 : a.at > b.at ? 1 : 0;",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | aUnknown && bUnknown | aUnknown || bUnknown | if (aUnknown || bUnknown) return aUnknown === bUnknown ? 0 : aUnknown ? 1 : -1;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | aUnknown === bUnknown | if (aUnknown || bUnknown) return aUnknown === bUnknown ? 0 : aUnknown ? 1 : -1;",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | a.at <= b.at | a.at < b.at | return a.at < b.at ? -1 : a.at > b.at ? 1 : 0;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | aUnknown || bUnknown | if (aUnknown || bUnknown) return aUnknown === bUnknown ? 0 : aUnknown ? 1 : -1;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | a.at < b.at | return a.at < b.at ? -1 : a.at > b.at ? 1 : 0;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | a.at > b.at | return a.at < b.at ? -1 : a.at > b.at ? 1 : 0;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | a.at > b.at | return a.at < b.at ? -1 : a.at > b.at ? 1 : 0;",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | a.at >= b.at | a.at > b.at | return a.at < b.at ? -1 : a.at > b.at ? 1 : 0;",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | a.at <= b.at | a.at > b.at | return a.at < b.at ? -1 : a.at > b.at ? 1 : 0;",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Decided\" | export class Decided extends Data.TaggedClass(\"Decided\")<{",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Failed\" | export class Failed extends Data.TaggedClass(\"Failed\")<{",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (stored) => stored.record | (stored) => stored.record,",
+   "status": "Killed"
+  }
+ ],
+ "packages/core/src/SinkCodec.ts": [
+  {
+   "key": "ObjectLiteral | {} | { _tag: \"Failed\" as const, error: outcome.error } | Failed: (outcome) => ({ _tag: \"Failed\" as const, error: outcome.error }),",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { for (const key in fresh) { if (fresh[key] === undefined) delete fresh[key]; } return fresh; } | const omitUndefined = <A extends object>(fresh: A): A => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | fresh[key] === undefined | if (fresh[key] === undefined) delete fresh[key];",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | fresh[key] !== undefined | fresh[key] === undefined | if (fresh[key] === undefined) delete fresh[key];",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { ...record, version: WIRE_VERSION } | Obligations: (record) => omitUndefined({ ...record, version: WIRE_VERSION }),",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { ...record, version: WIRE_VERSION, outcome: outcomeOf(record.outcome) } | omitUndefined({ ...record, version: WIRE_VERSION, outcome: outcomeOf(record.outcome) }),",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { _tag: \"Decided\" as const, decision: encodeDecision(outcome.decision) } | Decided: (outcome) => ({ _tag: \"Decided\" as const, decision: encodeDecision(outcome.decision) }),",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const wire = outcome.decision; if (wire.evaluationId !== facts.evaluationId) return Result.fail(\"EvaluationId\"); if (wire.subjectId !== facts.subjectId) return Result.fail(\"SubjectId\"); if (wire.trace.policyTag !== facts.policyTag) return Result.fail(\"PolicyTag\"); return Result.map(decodeDecision(wire), (decision) => new Decided({ decision })); } | Decided: (outcome) => (facts: RecordFacts): Result.Result<DecisionOutcome, DecisionDisagreement> => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | wire.evaluationId !== facts.evaluationId | if (wire.evaluationId !== facts.evaluationId) return Result.fail(\"EvaluationId\");",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"EvaluationId\" | if (wire.evaluationId !== facts.evaluationId) return Result.fail(\"EvaluationId\");",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | wire.evaluationId === facts.evaluationId | wire.evaluationId !== facts.evaluationId | if (wire.evaluationId !== facts.evaluationId) return Result.fail(\"EvaluationId\");",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | wire.subjectId !== facts.subjectId | if (wire.subjectId !== facts.subjectId) return Result.fail(\"SubjectId\");",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"SubjectId\" | if (wire.subjectId !== facts.subjectId) return Result.fail(\"SubjectId\");",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | wire.subjectId === facts.subjectId | wire.subjectId !== facts.subjectId | if (wire.subjectId !== facts.subjectId) return Result.fail(\"SubjectId\");",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | wire.trace.policyTag !== facts.policyTag | if (wire.trace.policyTag !== facts.policyTag) return Result.fail(\"PolicyTag\");",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { if (fresh[key] === undefined) delete fresh[key]; } | for (const key in fresh) {",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | wire.trace.policyTag === facts.policyTag | wire.trace.policyTag !== facts.policyTag | if (wire.trace.policyTag !== facts.policyTag) return Result.fail(\"PolicyTag\");",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | fresh[key] === undefined | if (fresh[key] === undefined) delete fresh[key];",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"PolicyTag\" | if (wire.trace.policyTag !== facts.policyTag) return Result.fail(\"PolicyTag\");",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | wire.evaluationId !== facts.evaluationId | if (wire.evaluationId !== facts.evaluationId) return Result.fail(\"EvaluationId\");",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (decision) => new Decided({ decision }) | return Result.map(decodeDecision(wire), (decision) => new Decided({ decision }));",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (): Result.Result<DecisionOutcome, DecisionDisagreement> => Result.succeed(new Failed({ error: outcome.error })) | Failed: (outcome) => (): Result.Result<DecisionOutcome, DecisionDisagreement> =>",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { error: outcome.error } | Result.succeed(new Failed({ error: outcome.error })),",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { decision } | return Result.map(decodeDecision(wire), (decision) => new Decided({ decision }));",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | wire.trace.policyTag !== facts.policyTag | if (wire.trace.policyTag !== facts.policyTag) return Result.fail(\"PolicyTag\");",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | wire.subjectId !== facts.subjectId | if (wire.subjectId !== facts.subjectId) return Result.fail(\"SubjectId\");",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrayDeclaration | [] | [\"version\"] | Result.succeed(new ObligationRecord(Struct.omit(wire, [\"version\"]))),",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"version\" | Result.succeed(new ObligationRecord(Struct.omit(wire, [\"version\"]))),",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const fields = Struct.omit(wire, [\"version\"]); return Result.map( rebuildOutcome(wire.outcome)({ evaluationId: wire.evaluationId, subjectId: wire.subjectId, policyTag: wire.policy._tag, }), (outcome) => new DecisionRecord({ ...fields, outcome }), ); } | Decision: (wire) => {",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"version\" | const fields = Struct.omit(wire, [\"version\"]);",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrayDeclaration | [] | [\"version\"] | const fields = Struct.omit(wire, [\"version\"]);",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { evaluationId: wire.evaluationId, subjectId: wire.subjectId, policyTag: wire.policy._tag, } | rebuildOutcome(wire.outcome)({",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (outcome) => new DecisionRecord({ ...fields, outcome }) | (outcome) => new DecisionRecord({ ...fields, outcome }),",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { ...fields, outcome } | (outcome) => new DecisionRecord({ ...fields, outcome }),",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { node: trace, depth: 1 } | const stack: Array<{ readonly node: Trace; readonly depth: number }> = [{ node: trace, depth: 1 }];",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const stack: Array<{ readonly node: Trace; readonly depth: number }> = [{ node: trace, depth: 1 }]; while (stack.length > 0) { const frame = stack.pop(); if (frame === undefined) break; if (frame.depth > maxDepth) return true; for (const child of frame.node.children) stack.push({ node: child, depth: frame.depth + 1 }); } return false; } | const traceExceeds = (trace: Trace, maxDepth: number): boolean => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrayDeclaration | [] | [{ node: trace, depth: 1 }] | const stack: Array<{ readonly node: Trace; readonly depth: number }> = [{ node: trace, depth: 1 }];",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | stack.length > 0 | while (stack.length > 0) {",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | stack.length <= 0 | stack.length > 0 | while (stack.length > 0) {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const frame = stack.pop(); if (frame === undefined) break; if (frame.depth > maxDepth) return true; for (const child of frame.node.children) stack.push({ node: child, depth: frame.depth + 1 }); } | while (stack.length > 0) {",
+   "status": "Timeout"
+  },
+  {
+   "key": "ConditionalExpression | true | frame === undefined | if (frame === undefined) break;",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | frame !== undefined | frame === undefined | if (frame === undefined) break;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | frame.depth > maxDepth | if (frame.depth > maxDepth) return true;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | frame.depth > maxDepth | if (frame.depth > maxDepth) return true;",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | frame.depth <= maxDepth | frame.depth > maxDepth | if (frame.depth > maxDepth) return true;",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | frame.depth >= maxDepth | frame.depth > maxDepth | if (frame.depth > maxDepth) return true;",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { node: child, depth: frame.depth + 1 } | for (const child of frame.node.children) stack.push({ node: child, depth: frame.depth + 1 });",
+   "status": "Killed"
+  },
+  {
+   "key": "BooleanLiteral | false | true | if (frame.depth > maxDepth) return true;",
+   "status": "Killed"
+  },
+  {
+   "key": "ArithmeticOperator | frame.depth - 1 | frame.depth + 1 | for (const child of frame.node.children) stack.push({ node: child, depth: frame.depth + 1 });",
+   "status": "Killed"
+  },
+  {
+   "key": "BooleanLiteral | true | false | return false;",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const depth = Result.try(() => policyDepth(record.policy)); if (Result.isFailure(depth)) return EncodeRefusal.Circular({ path: [\"policy\"] }); if (depth.success > MAX_DECODE_DEPTH) { return EncodeRefusal.TooDeep({ path: [\"policy\"], maxDepth: MAX_DECODE_DEPTH }); } return record.outcome._tag === \"Decided\" && traceExceeds(record.outcome.decision.trace, MAX_DECODE_DEPTH) ? EncodeRefusal.TooDeep({ path: [\"outcome\", \"decision\", \"trace\"], maxDepth: MAX_DECODE_DEPTH }) : undefined; } | Decision: (record) => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => policyDepth(record.policy) | const depth = Result.try(() => policyDepth(record.policy));",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | Result.isFailure(depth) | if (Result.isFailure(depth)) return EncodeRefusal.Circular({ path: [\"policy\"] });",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { path: [\"policy\"] } | if (Result.isFailure(depth)) return EncodeRefusal.Circular({ path: [\"policy\"] });",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrayDeclaration | [] | [\"policy\"] | if (Result.isFailure(depth)) return EncodeRefusal.Circular({ path: [\"policy\"] });",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | Result.isFailure(depth) | if (Result.isFailure(depth)) return EncodeRefusal.Circular({ path: [\"policy\"] });",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"policy\" | if (Result.isFailure(depth)) return EncodeRefusal.Circular({ path: [\"policy\"] });",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | depth.success > MAX_DECODE_DEPTH | if (depth.success > MAX_DECODE_DEPTH) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { path: [\"policy\"], maxDepth: MAX_DECODE_DEPTH } | return EncodeRefusal.TooDeep({ path: [\"policy\"], maxDepth: MAX_DECODE_DEPTH });",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | depth.success > MAX_DECODE_DEPTH | if (depth.success > MAX_DECODE_DEPTH) {",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | depth.success >= MAX_DECODE_DEPTH | depth.success > MAX_DECODE_DEPTH | if (depth.success > MAX_DECODE_DEPTH) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrayDeclaration | [] | [\"policy\"] | return EncodeRefusal.TooDeep({ path: [\"policy\"], maxDepth: MAX_DECODE_DEPTH });",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { return EncodeRefusal.TooDeep({ path: [\"policy\"], maxDepth: MAX_DECODE_DEPTH }); } | if (depth.success > MAX_DECODE_DEPTH) {",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"policy\" | return EncodeRefusal.TooDeep({ path: [\"policy\"], maxDepth: MAX_DECODE_DEPTH });",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | depth.success <= MAX_DECODE_DEPTH | depth.success > MAX_DECODE_DEPTH | if (depth.success > MAX_DECODE_DEPTH) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | record.outcome._tag === \"Decided\" && traceExceeds(record.outcome.decision.trace, MAX_DECODE_DEPTH) | return record.outcome._tag === \"Decided\" && traceExceeds(record.outcome.decision.trace, MAX_DECODE_DEPTH)",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | record.outcome._tag === \"Decided\" && traceExceeds(record.outcome.decision.trace, MAX_DECODE_DEPTH) | return record.outcome._tag === \"Decided\" && traceExceeds(record.outcome.decision.trace, MAX_DECODE_DEPTH)",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { path: [\"outcome\", \"decision\", \"trace\"], maxDepth: MAX_DECODE_DEPTH } | ? EncodeRefusal.TooDeep({ path: [\"outcome\", \"decision\", \"trace\"], maxDepth: MAX_DECODE_DEPTH })",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | record.outcome._tag === \"Decided\" || traceExceeds(record.outcome.decision.trace, MAX_DECODE_DEPTH) | record.outcome._tag === \"Decided\" && traceExceeds(record.outcome.decision.trace, MAX_DECODE_DEPTH) | return record.outcome._tag === \"Decided\" && traceExceeds(record.outcome.decision.trace, MAX_DECODE_DEPTH)",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"outcome\" | ? EncodeRefusal.TooDeep({ path: [\"outcome\", \"decision\", \"trace\"], maxDepth: MAX_DECODE_DEPTH })",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | record.outcome._tag === \"Decided\" | return record.outcome._tag === \"Decided\" && traceExceeds(record.outcome.decision.trace, MAX_DECODE_DEPTH)",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrayDeclaration | [] | [\"outcome\", \"decision\", \"trace\"] | ? EncodeRefusal.TooDeep({ path: [\"outcome\", \"decision\", \"trace\"], maxDepth: MAX_DECODE_DEPTH })",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Decided\" | return record.outcome._tag === \"Decided\" && traceExceeds(record.outcome.decision.trace, MAX_DECODE_DEPTH)",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | record.outcome._tag !== \"Decided\" | record.outcome._tag === \"Decided\" | return record.outcome._tag === \"Decided\" && traceExceeds(record.outcome.decision.trace, MAX_DECODE_DEPTH)",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"decision\" | ? EncodeRefusal.TooDeep({ path: [\"outcome\", \"decision\", \"trace\"], maxDepth: MAX_DECODE_DEPTH })",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => (thrown instanceof Error ? thrown.message : String(thrown)) | Result.try(() => (thrown instanceof Error ? thrown.message : String(thrown))),",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"trace\" | ? EncodeRefusal.TooDeep({ path: [\"outcome\", \"decision\", \"trace\"], maxDepth: MAX_DECODE_DEPTH })",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { message: describeThrown(thrown) } | const encodeFailed = (thrown: unknown): EncodeRefusal => EncodeRefusal.EncodeFailed({ message: describeThrown(thrown) });",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"a value that could not be described\" | () => \"a value that could not be described\",",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { recordTag: record._tag, evaluationId: record.evaluationId, refusal } | Result.fail(new SinkRecordNotEncodable({ recordTag: record._tag, evaluationId: record.evaluationId, refusal }));",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => \"a value that could not be described\" | () => \"a value that could not be described\",",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const refuse = (refusal: EncodeRefusal) => Result.fail(new SinkRecordNotEncodable({ recordTag: record._tag, evaluationId: record.evaluationId, refusal })); const before = Result.try({ try: () => preEncodeHazard(record), catch: encodeFailed }); if (Result.isFailure(before)) return refuse(before.failure); if (before.success !== undefined) return refuse(before.success); const encoded = Result.try({ try: () => encodeWire(project(record)), catch: encodeFailed }); if (Result.isFailure(encoded)) return refuse(encoded.failure); if (Result.isFailure(encoded.success)) return refuse(encodeFailed(encoded.success.failure)); const json = encoded.success.success; const hazard = Result.try({ try: () => wireHazard(json, MAX_DECODE_DEPTH), catch: encodeFailed }); if (Result.isFailure(hazard)) return refuse(hazard.failure); if (hazard.success !== undefined) return refuse(hazard.success); return Result.succeed(json); } | export const encodeSinkRecord = (record: SinkRecord): Result.Result<SinkRecordJson, SinkRecordNotEncodable> => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (refusal: EncodeRefusal) => Result.fail(new SinkRecordNotEncodable({ recordTag: record._tag, evaluationId: record.evaluationId, refusal })) | const refuse = (refusal: EncodeRefusal) =>",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { try: () => preEncodeHazard(record), catch: encodeFailed } | const before = Result.try({ try: () => preEncodeHazard(record), catch: encodeFailed });",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | Result.isFailure(before) | if (Result.isFailure(before)) return refuse(before.failure);",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | before.success !== undefined | if (before.success !== undefined) return refuse(before.success);",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => preEncodeHazard(record) | const before = Result.try({ try: () => preEncodeHazard(record), catch: encodeFailed });",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | before.success !== undefined | if (before.success !== undefined) return refuse(before.success);",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | before.success === undefined | before.success !== undefined | if (before.success !== undefined) return refuse(before.success);",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { try: () => encodeWire(project(record)), catch: encodeFailed } | const encoded = Result.try({ try: () => encodeWire(project(record)), catch: encodeFailed });",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => encodeWire(project(record)) | const encoded = Result.try({ try: () => encodeWire(project(record)), catch: encodeFailed });",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | Result.isFailure(encoded) | if (Result.isFailure(encoded)) return refuse(encoded.failure);",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | Result.isFailure(encoded.success) | if (Result.isFailure(encoded.success)) return refuse(encodeFailed(encoded.success.failure));",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { try: () => wireHazard(json, MAX_DECODE_DEPTH), catch: encodeFailed } | const hazard = Result.try({ try: () => wireHazard(json, MAX_DECODE_DEPTH), catch: encodeFailed });",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => wireHazard(json, MAX_DECODE_DEPTH) | const hazard = Result.try({ try: () => wireHazard(json, MAX_DECODE_DEPTH), catch: encodeFailed });",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | Result.isFailure(hazard) | if (Result.isFailure(hazard)) return refuse(hazard.failure);",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | hazard.success !== undefined | if (hazard.success !== undefined) return refuse(hazard.success);",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | hazard.success !== undefined | if (hazard.success !== undefined) return refuse(hazard.success);",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | Result.isFailure(hazard) | if (Result.isFailure(hazard)) return refuse(hazard.failure);",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (json) => JSON.stringify(json) | Result.map(encodeSinkRecord(record), (json) => JSON.stringify(json));",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | hazard.success === undefined | hazard.success !== undefined | if (hazard.success !== undefined) return refuse(hazard.success);",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { refusal } | const notDecodable = (refusal: DecodeRefusal) => Result.fail(new SinkRecordNotDecodable({ refusal }));",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { if (Result.isFailure(wire)) return notDecodable(wire.failure); const record = rebuild(wire.success.record); return Result.isFailure(record) ? notDecodable(DecodeRefusal.Inconsistent({ disagreement: record.failure })) : Result.succeed({ record: record.success, json: wire.success.json }); } | ): Result.Result<DecodedSinkRecord, SinkRecordNotDecodable> => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { disagreement: record.failure } | ? notDecodable(DecodeRefusal.Inconsistent({ disagreement: record.failure }))",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | Result.isFailure(wire) | if (Result.isFailure(wire)) return notDecodable(wire.failure);",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | Result.isFailure(wire) | if (Result.isFailure(wire)) return notDecodable(wire.failure);",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { record: record.success, json: wire.success.json } | : Result.succeed({ record: record.success, json: wire.success.json });",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | stack.length >= 0 | stack.length > 0 | while (stack.length > 0) {",
+   "status": "Survived"
+  },
+  {
+   "key": "BlockStatement | {} | { if (!isPlainObject(input)) return Result.succeed(input); // An own property only: never one inherited from a prototype. const version = Object.getOwnPropertyDescriptor(input, \"version\")?.value; return isReadVersion(version) ? Result.succeed(input) : Result.fail(DecodeRefusal.UnsupportedVersion({ version, supported: WIRE_VERSIONS })); } | const checkVersion = (input: unknown): Result.Result<unknown, UnsupportedVersion> => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | frame === undefined | if (frame === undefined) break;",
+   "status": "Survived"
+  },
+  {
+   "key": "BooleanLiteral | isPlainObject(input) | !isPlainObject(input) | if (!isPlainObject(input)) return Result.succeed(input);",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | !isPlainObject(input) | if (!isPlainObject(input)) return Result.succeed(input);",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"version\" | const version = Object.getOwnPropertyDescriptor(input, \"version\")?.value;",
+   "status": "Killed"
+  },
+  {
+   "key": "OptionalChaining | Object.getOwnPropertyDescriptor(input, \"version\").value | Object.getOwnPropertyDescriptor(input, \"version\")?.value | const version = Object.getOwnPropertyDescriptor(input, \"version\")?.value;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | !isPlainObject(input) | if (!isPlainObject(input)) return Result.succeed(input);",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { version, supported: WIRE_VERSIONS } | : Result.fail(DecodeRefusal.UnsupportedVersion({ version, supported: WIRE_VERSIONS }));",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { json, record: json } | decode: SchemaGetter.transform((json) => ({ json, record: json })),",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (record) => ({ environment: stored.environment, record }) | Result.map(encodeSinkRecord(stored.record), (record) => ({ environment: stored.environment, record }));",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | ({ record }) => record | Result.map(decoded(Result.mapError(sinkWire.decodeText(text), decodeRefusalOf)), ({ record }) => record);",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | Result.isFailure(encoded.success) | if (Result.isFailure(encoded.success)) return refuse(encodeFailed(encoded.success.failure));",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { environment: stored.environment, record } | Result.map(encodeSinkRecord(stored.record), (record) => ({ environment: stored.environment, record }));",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | ({ record }) => record | Result.map(decodeSinkRecordWithJson(input), ({ record }) => record);",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (json) => JSON.stringify(json) | Result.map(encodeStoredRecord(stored), (json) => JSON.stringify(json));",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (record) => new StoredRecord({ environment: read.success.environment, record }) | : Result.map(decodeSinkRecord(read.success.record), (record) => new StoredRecord({ environment: read.success.environment, record }));",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { environment: read.success.environment, record } | : Result.map(decodeSinkRecord(read.success.record), (record) => new StoredRecord({ environment: read.success.environment, record }));",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrayDeclaration | [] | [ Schema.TaggedStruct(\"Decided\", { decision: DecisionWire }), Schema.TaggedStruct(\"Failed\", { error: EvaluationErrorSchema }), ] | const OutcomeWire = Schema.Union([",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrayDeclaration | [] | [ MissingResource, MissingAction, AttributeResolveError, RelationshipResolveError, MissingResourceId, DecisionHistoryUnavailable, PolicyTooDeep, CustomPredicateError, SignatureHistoryUnavailable, ] | const EvaluationErrorSchema = Schema.Union([",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { decision: DecisionWire } | Schema.TaggedStruct(\"Decided\", { decision: DecisionWire }),",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { error: EvaluationErrorSchema } | Schema.TaggedStruct(\"Failed\", { error: EvaluationErrorSchema }),",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Decided\" | Schema.TaggedStruct(\"Decided\", { decision: DecisionWire }),",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Failed\" | Schema.TaggedStruct(\"Failed\", { error: EvaluationErrorSchema }),",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { Obligations: (record) => omitUndefined({ ...record, version: WIRE_VERSION }), Decision: (record) => omitUndefined({ ...record, version: WIRE_VERSION, outcome: outcomeOf(record.outcome) }), } | Match.tagsExhaustive({",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { Decided: (outcome) => ({ _tag: \"Decided\" as const, decision: encodeDecision(outcome.decision) }), Failed: (outcome) => ({ _tag: \"Failed\" as const, error: outcome.error }), } | Match.tagsExhaustive({",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (outcome) => ({ _tag: \"Decided\" as const, decision: encodeDecision(outcome.decision) }) | Decided: (outcome) => ({ _tag: \"Decided\" as const, decision: encodeDecision(outcome.decision) }),",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (outcome) => ({ _tag: \"Failed\" as const, error: outcome.error }) | Failed: (outcome) => ({ _tag: \"Failed\" as const, error: outcome.error }),",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (record) => omitUndefined({ ...record, version: WIRE_VERSION }) | Obligations: (record) => omitUndefined({ ...record, version: WIRE_VERSION }),",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { Decided: (outcome) => (facts: RecordFacts): Result.Result<DecisionOutcome, DecisionDisagreement> => { const wire = outcome.decision; if (wire.evaluationId !== facts.evaluationId) return Result.fail(\"EvaluationId\"); if (wire.subjectId !== facts.subjectId) return Result.fail(\"SubjectId\"); if (wire.trace.policyTag !== facts.policyTag) return Result.fail(\"PolicyTag\"); return Result.map(decodeDecision(wire), (decision) => new Decided({ decision })); }, Failed: (outcome) => (): Result.Result<DecisionOutcome, DecisionDisagreement> => Result.succeed(new Failed({ error: outcome.error })), } | Match.tagsExhaustive({",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (record) => omitUndefined({ ...record, version: WIRE_VERSION, outcome: outcomeOf(record.outcome) }) | Decision: (record) =>",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { Obligations: (wire) => Result.succeed(new ObligationRecord(Struct.omit(wire, [\"version\"]))), Decision: (wire) => { const fields = Struct.omit(wire, [\"version\"]); return Result.map( rebuildOutcome(wire.outcome)({ evaluationId: wire.evaluationId, subjectId: wire.subjectId, policyTag: wire.policy._tag, }), (outcome) => new DecisionRecord({ ...fields, outcome }), ); }, } | Match.tagsExhaustive({",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (outcome) => (): Result.Result<DecisionOutcome, DecisionDisagreement> => Result.succeed(new Failed({ error: outcome.error })) | Failed: (outcome) => (): Result.Result<DecisionOutcome, DecisionDisagreement> =>",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (outcome) => (facts: RecordFacts): Result.Result<DecisionOutcome, DecisionDisagreement> => { const wire = outcome.decision; if (wire.evaluationId !== facts.evaluationId) return Result.fail(\"EvaluationId\"); if (wire.subjectId !== facts.subjectId) return Result.fail(\"SubjectId\"); if (wire.trace.policyTag !== facts.policyTag) return Result.fail(\"PolicyTag\"); return Result.map(decodeDecision(wire), (decision) => new Decided({ decision })); } | Decided: (outcome) => (facts: RecordFacts): Result.Result<DecisionOutcome, DecisionDisagreement> => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | Result.isFailure(before) | if (Result.isFailure(before)) return refuse(before.failure);",
+   "status": "Survived"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (wire) => Result.succeed(new ObligationRecord(Struct.omit(wire, [\"version\"]))) | Obligations: (wire) =>",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { Obligations: () => undefined, Decision: (record) => { const depth = Result.try(() => policyDepth(record.policy)); if (Result.isFailure(depth)) return EncodeRefusal.Circular({ path: [\"policy\"] }); if (depth.success > MAX_DECODE_DEPTH) { return EncodeRefusal.TooDeep({ path: [\"policy\"], maxDepth: MAX_DECODE_DEPTH }); } return record.outcome._tag === \"Decided\" && traceExceeds(record.outcome.decision.trace, MAX_DECODE_DEPTH) ? EncodeRefusal.TooDeep({ path: [\"outcome\", \"decision\", \"trace\"], maxDepth: MAX_DECODE_DEPTH }) : undefined; }, } | Match.tagsExhaustive({",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (thrown: unknown): string => Result.getOrElse( Result.try(() => (thrown instanceof Error ? thrown.message : String(thrown))), () => \"a value that could not be described\", ) | const describeThrown = (thrown: unknown): string =>",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (record: SinkRecord): Result.Result<string, SinkRecordNotEncodable> => Result.map(encodeSinkRecord(record), (json) => JSON.stringify(json)) | export const encodeSinkRecordString = (record: SinkRecord): Result.Result<string, SinkRecordNotEncodable> =>",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (thrown: unknown): EncodeRefusal => EncodeRefusal.EncodeFailed({ message: describeThrown(thrown) }) | const encodeFailed = (thrown: unknown): EncodeRefusal => EncodeRefusal.EncodeFailed({ message: describeThrown(thrown) });",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | Result.isFailure(encoded) | if (Result.isFailure(encoded)) return refuse(encoded.failure);",
+   "status": "Survived"
+  },
+  {
+   "key": "ObjectLiteral | {} | { json: SinkRecordJson, record: SinkRecordWire } | Schema.decodeTo(Schema.Struct({ json: SinkRecordJson, record: SinkRecordWire }), {",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { decode: SchemaGetter.transform((json) => ({ json, record: json })), encode: SchemaGetter.transform(({ json }) => json), } | Schema.decodeTo(Schema.Struct({ json: SinkRecordJson, record: SinkRecordWire }), {",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (refusal: DecodeRefusal) => Result.fail(new SinkRecordNotDecodable({ refusal })) | const notDecodable = (refusal: DecodeRefusal) => Result.fail(new SinkRecordNotDecodable({ refusal }));",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (json) => ({ json, record: json }) | decode: SchemaGetter.transform((json) => ({ json, record: json })),",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (input: unknown): Result.Result<DecodedSinkRecord, SinkRecordNotDecodable> => decoded(Result.mapError(sinkWire.decode(input), decodeRefusalOf)) | export const decodeSinkRecordWithJson = (input: unknown): Result.Result<DecodedSinkRecord, SinkRecordNotDecodable> =>",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (input: unknown): Result.Result<SinkRecord, SinkRecordNotDecodable> => Result.map(decodeSinkRecordWithJson(input), ({ record }) => record) | export const decodeSinkRecord = (input: unknown): Result.Result<SinkRecord, SinkRecordNotDecodable> =>",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (text: string): Result.Result<SinkRecord, SinkRecordNotDecodable> => Result.map(decoded(Result.mapError(sinkWire.decodeText(text), decodeRefusalOf)), ({ record }) => record) | export const decodeSinkRecordString = (text: string): Result.Result<SinkRecord, SinkRecordNotDecodable> =>",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | ( stored: StoredRecord, ): Result.Result<StoredRecordJson, SinkRecordNotEncodable> => Result.map(encodeSinkRecord(stored.record), (record) => ({ environment: stored.environment, record })) | export const encodeStoredRecord = (",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | ( stored: StoredRecord, ): Result.Result<string, SinkRecordNotEncodable> => Result.map(encodeStoredRecord(stored), (json) => JSON.stringify(json)) | export const encodeStoredRecordString = (",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { environment: Schema.String, record: Schema.Unknown } | const StoredEnvelopeWire = Schema.Struct({ environment: Schema.String, record: Schema.Unknown });",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { _tag: Schema.Literal(OBLIGATION_RECORD_TAG), version: Schema.Literal(WIRE_VERSION), ...obligationRecordFields.fields, } | const obligationsV2Fields = {",
+   "status": "RuntimeError"
+  },
+  {
+   "key": "ArrayDeclaration | [] | [ Schema.Struct(decisionV2Fields), Schema.Struct(obligationsV2Fields), ] | const SinkRecordWire = Schema.Union([",
+   "status": "RuntimeError"
+  },
+  {
+   "key": "ObjectLiteral | {} | { _tag: Schema.Literal(DECISION_RECORD_TAG), version: Schema.Literal(WIRE_VERSION), ...decisionRecordFields.fields, outcome: OutcomeWire, } | const decisionV2Fields = {",
+   "status": "RuntimeError"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | ( read: Result.Result<typeof StoredEnvelopeWire.Type, UntrustedRefusal>, ): Result.Result<StoredRecord, SinkRecordNotDecodable> => Result.isFailure(read) ? notDecodable(decodeRefusalOf(read.failure)) : Result.map(decodeSinkRecord(read.success.record), (record) => new StoredRecord({ environment: read.success.environment, record })) | const fromEnvelope = (",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (text: string): Result.Result<StoredRecord, SinkRecordNotDecodable> => fromEnvelope(storedWire.decodeText(text)) | export const decodeStoredRecordString = (text: string): Result.Result<StoredRecord, SinkRecordNotDecodable> =>",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { unknownKeys: \"ignore\", prepare: checkVersion } | const sinkWire = untrustedDecoder(SinkRecordWithJson, { unknownKeys: \"ignore\", prepare: checkVersion });",
+   "status": "RuntimeError"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"ignore\" | const sinkWire = untrustedDecoder(SinkRecordWithJson, { unknownKeys: \"ignore\", prepare: checkVersion });",
+   "status": "RuntimeError"
+  },
+  {
+   "key": "ObjectLiteral | {} | { unknownKeys: \"ignore\", unwalked: [\"record\"] } | const storedWire = untrustedDecoder(StoredEnvelopeWire, { unknownKeys: \"ignore\", unwalked: [\"record\"] });",
+   "status": "RuntimeError"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"ignore\" | const storedWire = untrustedDecoder(StoredEnvelopeWire, { unknownKeys: \"ignore\", unwalked: [\"record\"] });",
+   "status": "RuntimeError"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | ({ json }) => json | encode: SchemaGetter.transform(({ json }) => json),",
+   "status": "Survived"
+  },
+  {
+   "key": "ObjectLiteral | {} | { environment: Schema.String, record: SinkRecordJson } | export const StoredRecordJson = Schema.Struct({ environment: Schema.String, record: SinkRecordJson });",
+   "status": "Survived"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (input: unknown): Result.Result<StoredRecord, SinkRecordNotDecodable> => fromEnvelope(storedWire.decode(input)) | export const decodeStoredRecord = (input: unknown): Result.Result<StoredRecord, SinkRecordNotDecodable> =>",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrayDeclaration | [] | [\"record\"] | const storedWire = untrustedDecoder(StoredEnvelopeWire, { unknownKeys: \"ignore\", unwalked: [\"record\"] });",
+   "status": "Survived"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"record\" | const storedWire = untrustedDecoder(StoredEnvelopeWire, { unknownKeys: \"ignore\", unwalked: [\"record\"] });",
+   "status": "Survived"
+  }
+ ],
+ "packages/devtools/src/model/Timeline.ts": [
+  {
+   "key": "StringLiteral | `` | `emptyTimeline: capacity must be a non-negative integer, got ${capacity}` | throw new Error(`emptyTimeline: capacity must be a non-negative integer, got ${capacity}`);",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | target.obligations?.at !== record.at | target.obligations?.at === record.at | if (target.obligations?.at === record.at) return self;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | target.obligations?.at === record.at | if (target.obligations?.at === record.at) return self;",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { ...self, entries: self.entries.map((e) => (e === target ? merged : e)) } | return { ...self, entries: self.entries.map((e) => (e === target ? merged : e)) };",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | target.obligations?.at === record.at | if (target.obligations?.at === record.at) return self;",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { throw new Error(`emptyTimeline: capacity must be a non-negative integer, got ${capacity}`); } | if (!(Number.isInteger(capacity) && capacity >= 0)) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (e) => (e === target ? merged : e) | return { ...self, entries: self.entries.map((e) => (e === target ? merged : e)) };",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { ...target, obligations: record } | const merged = new TimelineDecision({ ...target, obligations: record });",
+   "status": "Killed"
+  },
+  {
+   "key": "OptionalChaining | target.obligations.at | target.obligations?.at | if (target.obligations?.at === record.at) return self;",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | e !== target | e === target | return { ...self, entries: self.entries.map((e) => (e === target ? merged : e)) };",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | entry.at !== record.at | entry.at === record.at | ): boolean => sameEvaluation(entry, environment, record) && entry.at === record.at;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | entry.at === record.at | ): boolean => sameEvaluation(entry, environment, record) && entry.at === record.at;",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrayDeclaration | [] | [...entries.slice(0, at), entry, ...entries.slice(at)] | : [...entries.slice(0, at), entry, ...entries.slice(at)];",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | `` | `${entry._tag}|${entry.environment}|${entry.evaluationId}|${entry.at}` | `${entry._tag}|${entry.environment}|${entry.evaluationId}|${entry.at}`;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | e === target | return { ...self, entries: self.entries.map((e) => (e === target ? merged : e)) };",
+   "status": "Killed"
+  },
+  {
+   "key": "MethodExpression | entries | entries.slice(0, at) | : [...entries.slice(0, at), entry, ...entries.slice(at)];",
+   "status": "Killed"
+  },
+  {
+   "key": "MethodExpression | entries | entries.slice(at) | : [...entries.slice(0, at), entry, ...entries.slice(at)];",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"TimelineDecision\" | export class TimelineDecision extends Data.TaggedClass(\"TimelineDecision\")<{",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"TimelineOrphan\" | export class TimelineOrphan extends Data.TaggedClass(\"TimelineOrphan\")<{",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const capacity = options?.capacity ?? DEFAULT_TIMELINE_CAPACITY; // Non-negative rather than positive, unlike the decision log's: a // zero-capacity timeline is a coherent \"keep nothing\" view, where a log's // capacity also sizes a `PubSub` that would be silently dead at zero. // Checked here for the reason the log gives // — a negative bound makes the drop loop's exit condition unsatisfiable and a // `NaN` one makes it always false, unbounding a thing asked to be bounded. if (!(Number.isInteger(capacity) && capacity >= 0)) { throw new Error(`emptyTimeline: capacity must be a non-negative integer, got ${capacity}`); } return { entries: [], capacity }; } | export const emptyTimeline = (options?: { readonly capacity?: number }): Timeline => {",
+   "status": "Killed"
+  },
+  {
+   "key": "OptionalChaining | options.capacity | options?.capacity | const capacity = options?.capacity ?? DEFAULT_TIMELINE_CAPACITY;",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | options?.capacity && DEFAULT_TIMELINE_CAPACITY | options?.capacity ?? DEFAULT_TIMELINE_CAPACITY | const capacity = options?.capacity ?? DEFAULT_TIMELINE_CAPACITY;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | Number.isInteger(capacity) && capacity >= 0 | if (!(Number.isInteger(capacity) && capacity >= 0)) {",
+   "status": "Killed"
+  },
+  {
+   "key": "BooleanLiteral | Number.isInteger(capacity) && capacity >= 0 | !(Number.isInteger(capacity) && capacity >= 0) | if (!(Number.isInteger(capacity) && capacity >= 0)) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | !(Number.isInteger(capacity) && capacity >= 0) | if (!(Number.isInteger(capacity) && capacity >= 0)) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | Number.isInteger(capacity) && capacity >= 0 | if (!(Number.isInteger(capacity) && capacity >= 0)) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | capacity >= 0 | if (!(Number.isInteger(capacity) && capacity >= 0)) {",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | Number.isInteger(capacity) || capacity >= 0 | Number.isInteger(capacity) && capacity >= 0 | if (!(Number.isInteger(capacity) && capacity >= 0)) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { entries: [], capacity } | return { entries: [], capacity };",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | capacity < 0 | capacity >= 0 | if (!(Number.isInteger(capacity) && capacity >= 0)) {",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | capacity > 0 | capacity >= 0 | if (!(Number.isInteger(capacity) && capacity >= 0)) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | !(Number.isInteger(capacity) && capacity >= 0) | if (!(Number.isInteger(capacity) && capacity >= 0)) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (self: Timeline, records: ReadonlyArray<StoredRecord>): Timeline => records.reduce(ingest, self) | export const ingestAll = (self: Timeline, records: ReadonlyArray<StoredRecord>): Timeline =>",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrayDeclaration | [\"Stryker was here\"] | [] | return { entries: [], capacity };",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | stored.record._tag === \"Decision\" | stored.record._tag === \"Decision\"",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (self: Timeline, stored: StoredRecord): Timeline => stored.record._tag === \"Decision\" ? ingestDecision(self, stored.environment, stored.record) : ingestObligations(self, stored.environment, stored.record) | export const ingest = (self: Timeline, stored: StoredRecord): Timeline =>",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | e === target | return { ...self, entries: self.entries.map((e) => (e === target ? merged : e)) };",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | stored.record._tag === \"Decision\" | stored.record._tag === \"Decision\"",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Decision\" | stored.record._tag === \"Decision\"",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | stored.record._tag !== \"Decision\" | stored.record._tag === \"Decision\" | stored.record._tag === \"Decision\"",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { // Identity is (environment, id, at). Not the id alone: a server decision and // its client re-check deliberately *share* one, which is the whole pairing // story, and collapsing them here would erase it. Not the whole record // either: a structural comparison would cost a deep walk of a policy tree on // every frame to answer a question these three fields already answer. if (self.entries.some((e) => e._tag === \"TimelineDecision\" && sameSlot(e, environment, record))) return self; // An outcome that arrived before its decision is waiting for exactly this. const orphan = self.entries.find( (e): e is TimelineOrphan => e._tag === \"TimelineOrphan\" && sameEvaluation(e, environment, record), ); const entry = new TimelineDecision({ evaluationId: record.evaluationId, environment, at: record.at, decision: record, obligations: orphan?.obligations, }); // Unconditional: when there is no orphan nothing equals `undefined`, so the // filter keeps everything. A guard for that case was dead code — the mutation // gate removed it and every test still passed. const kept = self.entries.filter((e) => e !== orphan); return bound({ ...self, entries: insert(kept, entry) }); } | const ingestDecision = (self: Timeline, environment: string, record: DecisionRecord): Timeline => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | self.entries.some((e) => e._tag === \"TimelineDecision\" && sameSlot(e, environment, record)) | if (self.entries.some((e) => e._tag === \"TimelineDecision\" && sameSlot(e, environment, record))) return self;",
+   "status": "Killed"
+  },
+  {
+   "key": "MethodExpression | self.entries.every(e => e._tag === \"TimelineDecision\" && sameSlot(e, environment, record)) | self.entries.some((e) => e._tag === \"TimelineDecision\" && sameSlot(e, environment, record)) | if (self.entries.some((e) => e._tag === \"TimelineDecision\" && sameSlot(e, environment, record))) return self;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | e._tag === \"TimelineDecision\" && sameSlot(e, environment, record) | if (self.entries.some((e) => e._tag === \"TimelineDecision\" && sameSlot(e, environment, record))) return self;",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (entry: TimelineEntry): string => `${entry._tag}|${entry.environment}|${entry.evaluationId}|${entry.at}` | export const entryKey = (entry: TimelineEntry): string =>",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | e._tag === \"TimelineDecision\" || sameSlot(e, environment, record) | e._tag === \"TimelineDecision\" && sameSlot(e, environment, record) | if (self.entries.some((e) => e._tag === \"TimelineDecision\" && sameSlot(e, environment, record))) return self;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | e._tag === \"TimelineOrphan\" && sameEvaluation(e, environment, record) | (e): e is TimelineOrphan => e._tag === \"TimelineOrphan\" && sameEvaluation(e, environment, record),",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | self.entries.some((e) => e._tag === \"TimelineDecision\" && sameSlot(e, environment, record)) | if (self.entries.some((e) => e._tag === \"TimelineDecision\" && sameSlot(e, environment, record))) return self;",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (e) => e._tag === \"TimelineDecision\" && sameSlot(e, environment, record) | if (self.entries.some((e) => e._tag === \"TimelineDecision\" && sameSlot(e, environment, record))) return self;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | e._tag === \"TimelineDecision\" && sameSlot(e, environment, record) | if (self.entries.some((e) => e._tag === \"TimelineDecision\" && sameSlot(e, environment, record))) return self;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | e._tag === \"TimelineDecision\" | if (self.entries.some((e) => e._tag === \"TimelineDecision\" && sameSlot(e, environment, record))) return self;",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"TimelineDecision\" | if (self.entries.some((e) => e._tag === \"TimelineDecision\" && sameSlot(e, environment, record))) return self;",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | e._tag !== \"TimelineDecision\" | e._tag === \"TimelineDecision\" | if (self.entries.some((e) => e._tag === \"TimelineDecision\" && sameSlot(e, environment, record))) return self;",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (e): e is TimelineOrphan => e._tag === \"TimelineOrphan\" && sameEvaluation(e, environment, record) | (e): e is TimelineOrphan => e._tag === \"TimelineOrphan\" && sameEvaluation(e, environment, record),",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | e._tag === \"TimelineOrphan\" && sameEvaluation(e, environment, record) | (e): e is TimelineOrphan => e._tag === \"TimelineOrphan\" && sameEvaluation(e, environment, record),",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { evaluationId: record.evaluationId, environment, at: record.at, decision: record, obligations: orphan?.obligations, } | const entry = new TimelineDecision({",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (e) => e !== orphan | const kept = self.entries.filter((e) => e !== orphan);",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | e !== orphan | const kept = self.entries.filter((e) => e !== orphan);",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | e === orphan | e !== orphan | const kept = self.entries.filter((e) => e !== orphan);",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { // The latest decision this process made for that evaluation. Latest rather // than first because a re-used id means the outcome belongs to the most // recent question, and `evaluate` emits at most one outcome per evaluation. const target = last( self.entries.filter( (e): e is TimelineDecision => e._tag === \"TimelineDecision\" && sameEvaluation(e, environment, record), ), ); if (target === undefined) { // No `_tag` check: `target` being undefined means no decision entry shares // this evaluation, so anything matching the slot is already an orphan. if (self.entries.some((e) => sameSlot(e, environment, record))) return self; const entry = new TimelineOrphan({ evaluationId: record.evaluationId, environment, at: record.at, obligations: record, }); return bound({ ...self, entries: insert(self.entries, entry) }); } // Same outcome delivered twice by a replaying feed. if (target.obligations?.at === record.at) return self; const merged = new TimelineDecision({ ...target, obligations: record }); return { ...self, entries: self.entries.map((e) => (e === target ? merged : e)) }; } | const ingestObligations = (self: Timeline, environment: string, record: ObligationRecord): Timeline => {",
+   "status": "Killed"
+  },
+  {
+   "key": "OptionalChaining | orphan.obligations | orphan?.obligations | obligations: orphan?.obligations,",
+   "status": "Killed"
+  },
+  {
+   "key": "MethodExpression | self.entries | self.entries.filter( (e): e is TimelineDecision => e._tag === \"TimelineDecision\" && sameEvaluation(e, environment, record), ) | self.entries.filter(",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | e._tag === \"TimelineDecision\" && sameEvaluation(e, environment, record) | (e): e is TimelineDecision => e._tag === \"TimelineDecision\" && sameEvaluation(e, environment, record),",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | e._tag === \"TimelineDecision\" || sameEvaluation(e, environment, record) | e._tag === \"TimelineDecision\" && sameEvaluation(e, environment, record) | (e): e is TimelineDecision => e._tag === \"TimelineDecision\" && sameEvaluation(e, environment, record),",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { ...self, entries: insert(kept, entry) } | return bound({ ...self, entries: insert(kept, entry) });",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (e): e is TimelineDecision => e._tag === \"TimelineDecision\" && sameEvaluation(e, environment, record) | (e): e is TimelineDecision => e._tag === \"TimelineDecision\" && sameEvaluation(e, environment, record),",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"TimelineOrphan\" | (e): e is TimelineOrphan => e._tag === \"TimelineOrphan\" && sameEvaluation(e, environment, record),",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | e._tag === \"TimelineDecision\" && sameEvaluation(e, environment, record) | (e): e is TimelineDecision => e._tag === \"TimelineDecision\" && sameEvaluation(e, environment, record),",
+   "status": "Killed"
+  },
+  {
+   "key": "MethodExpression | self.entries | self.entries.filter((e) => e !== orphan) | const kept = self.entries.filter((e) => e !== orphan);",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | e !== orphan | const kept = self.entries.filter((e) => e !== orphan);",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | e._tag !== \"TimelineDecision\" | e._tag === \"TimelineDecision\" | (e): e is TimelineDecision => e._tag === \"TimelineDecision\" && sameEvaluation(e, environment, record),",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | target !== undefined | target === undefined | if (target === undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | target === undefined | if (target === undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"TimelineDecision\" | (e): e is TimelineDecision => e._tag === \"TimelineDecision\" && sameEvaluation(e, environment, record),",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { // No `_tag` check: `target` being undefined means no decision entry shares // this evaluation, so anything matching the slot is already an orphan. if (self.entries.some((e) => sameSlot(e, environment, record))) return self; const entry = new TimelineOrphan({ evaluationId: record.evaluationId, environment, at: record.at, obligations: record, }); return bound({ ...self, entries: insert(self.entries, entry) }); } | if (target === undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | self.entries.some((e) => sameSlot(e, environment, record)) | if (self.entries.some((e) => sameSlot(e, environment, record))) return self;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | target === undefined | if (target === undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { evaluationId: record.evaluationId, environment, at: record.at, obligations: record, } | const entry = new TimelineOrphan({",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { ...self, entries: insert(self.entries, entry) } | return bound({ ...self, entries: insert(self.entries, entry) });",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | sameEvaluation(entry, environment, record) && entry.at === record.at | ): boolean => sameEvaluation(entry, environment, record) && entry.at === record.at;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | e._tag === \"TimelineDecision\" | (e): e is TimelineDecision => e._tag === \"TimelineDecision\" && sameEvaluation(e, environment, record),",
+   "status": "Killed"
+  },
+  {
+   "key": "MethodExpression | self.entries.every(e => sameSlot(e, environment, record)) | self.entries.some((e) => sameSlot(e, environment, record)) | if (self.entries.some((e) => sameSlot(e, environment, record))) return self;",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | ( entry: TimelineEntry, environment: string, record: { evaluationId: string }, ): boolean => entry.evaluationId === record.evaluationId && entry.environment === environment | const sameEvaluation = (",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | entry.evaluationId === record.evaluationId && entry.environment === environment | ): boolean => entry.evaluationId === record.evaluationId && entry.environment === environment;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | self.entries.some((e) => sameSlot(e, environment, record)) | if (self.entries.some((e) => sameSlot(e, environment, record))) return self;",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | entry.evaluationId === record.evaluationId || entry.environment === environment | entry.evaluationId === record.evaluationId && entry.environment === environment | ): boolean => entry.evaluationId === record.evaluationId && entry.environment === environment;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | entry.evaluationId === record.evaluationId | ): boolean => entry.evaluationId === record.evaluationId && entry.environment === environment;",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | ( entry: TimelineEntry, environment: string, record: { evaluationId: string; at: number }, ): boolean => sameEvaluation(entry, environment, record) && entry.at === record.at | const sameSlot = (",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (e) => sameSlot(e, environment, record) | if (self.entries.some((e) => sameSlot(e, environment, record))) return self;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | sameEvaluation(entry, environment, record) && entry.at === record.at | ): boolean => sameEvaluation(entry, environment, record) && entry.at === record.at;",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | entry.evaluationId !== record.evaluationId | entry.evaluationId === record.evaluationId | ): boolean => entry.evaluationId === record.evaluationId && entry.environment === environment;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | entry.evaluationId === record.evaluationId && entry.environment === environment | ): boolean => entry.evaluationId === record.evaluationId && entry.environment === environment;",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | sameEvaluation(entry, environment, record) || entry.at === record.at | sameEvaluation(entry, environment, record) && entry.at === record.at | ): boolean => sameEvaluation(entry, environment, record) && entry.at === record.at;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | entry._tag === \"TimelineDecision\" | entry._tag === \"TimelineDecision\" ? entry.decision : entry.obligations;",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | entry.environment !== environment | entry.environment === environment | ): boolean => entry.evaluationId === record.evaluationId && entry.environment === environment;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | entry._tag === \"TimelineDecision\" | entry._tag === \"TimelineDecision\" ? entry.decision : entry.obligations;",
+   "status": "Killed"
+  },
+  {
+   "key": "ArithmeticOperator | items.length + 1 | items.length - 1 | const last = <A>(items: ReadonlyArray<A>): A | undefined => items[items.length - 1];",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | <A>(items: ReadonlyArray<A>): A | undefined => items[items.length - 1] | const last = <A>(items: ReadonlyArray<A>): A | undefined => items[items.length - 1];",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"TimelineDecision\" | entry._tag === \"TimelineDecision\" ? entry.decision : entry.obligations;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | at === -1 | return at === -1",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | at !== -1 | at === -1 | return at === -1",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | entry.environment === environment | ): boolean => entry.evaluationId === record.evaluationId && entry.environment === environment;",
+   "status": "Killed"
+  },
+  {
+   "key": "UnaryOperator | +1 | -1 | return at === -1",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const at = entries.findIndex((existing) => isAfter(existing, entry)); // Ties place the newcomer last among its equals, which is what a log reads // like: things that happened at the same instant appear in the order they // reached the reader. return at === -1 ? [...entries, entry] : [...entries.slice(0, at), entry, ...entries.slice(at)]; } | ): ReadonlyArray<TimelineEntry> => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (entry: TimelineEntry): SinkRecord => entry._tag === \"TimelineDecision\" ? entry.decision : entry.obligations | const recordOf = (entry: TimelineEntry): SinkRecord =>",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (self: Timeline): Timeline => ({ ...self, entries: self.entries.slice(Math.max(0, self.entries.length - self.capacity)), }) | const bound = (self: Timeline): Timeline => ({",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | entry._tag !== \"TimelineDecision\" | entry._tag === \"TimelineDecision\" | entry._tag === \"TimelineDecision\" ? entry.decision : entry.obligations;",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { ...self, entries: self.entries.slice(Math.max(0, self.entries.length - self.capacity)), } | const bound = (self: Timeline): Timeline => ({",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (existing) => isAfter(existing, entry) | const at = entries.findIndex((existing) => isAfter(existing, entry));",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | at === -1 | return at === -1",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrayDeclaration | [] | [...entries, entry] | ? [...entries, entry]",
+   "status": "Killed"
+  },
+  {
+   "key": "ArithmeticOperator | self.entries.length + self.capacity | self.entries.length - self.capacity | entries: self.entries.slice(Math.max(0, self.entries.length - self.capacity)),",
+   "status": "Killed"
+  },
+  {
+   "key": "MethodExpression | self.entries | self.entries.slice(Math.max(0, self.entries.length - self.capacity)) | entries: self.entries.slice(Math.max(0, self.entries.length - self.capacity)),",
+   "status": "Killed"
+  },
+  {
+   "key": "MethodExpression | Math.min(0, self.entries.length - self.capacity) | Math.max(0, self.entries.length - self.capacity) | entries: self.entries.slice(Math.max(0, self.entries.length - self.capacity)),",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | e._tag === \"TimelineOrphan\" | (e): e is TimelineOrphan => e._tag === \"TimelineOrphan\" && sameEvaluation(e, environment, record),",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | e._tag === \"TimelineOrphan\" || sameEvaluation(e, environment, record) | e._tag === \"TimelineOrphan\" && sameEvaluation(e, environment, record) | (e): e is TimelineOrphan => e._tag === \"TimelineOrphan\" && sameEvaluation(e, environment, record),",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | e._tag !== \"TimelineOrphan\" | e._tag === \"TimelineOrphan\" | (e): e is TimelineOrphan => e._tag === \"TimelineOrphan\" && sameEvaluation(e, environment, record),",
+   "status": "Killed"
+  }
+ ]
+}

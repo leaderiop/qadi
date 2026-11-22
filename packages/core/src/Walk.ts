@@ -8,25 +8,27 @@
  */
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
-import * as Match from "effect/Match";
 import * as Record from "effect/Record";
 import * as Result from "effect/Result";
 import type { Concurrency } from "effect/Types";
 import { admit } from "./Admission.ts";
+import type { Admitted } from "./Admission.ts";
 import type { AuthSubject } from "./AuthSubject.ts";
 import type { Trace } from "./Decision.ts";
-import type { ActedResult } from "./DecisionHistory.ts";
 import type { EvaluationError } from "./Errors.ts";
 import { PolicyTooDeep } from "./Errors.ts";
 import type { VisibleFields } from "./FieldLattice.ts";
 import { mergeFields } from "./FieldLattice.ts";
-import { holds } from "./Compare.ts";
-import type { Matcher, MatcherContext, Verdict } from "./Matcher.ts";
-import { absenceOf, errorOf, holdsAction, holdsPermission, holdsRole } from "./LeafNeeds.ts";
-import type { Supplied } from "./LeafNeeds.ts";
-import { judgeMatcher } from "./Matcher.ts";
+import type { Matcher, Verdict } from "./Matcher.ts";
+import { LEAF_VERDICTS, absenceOf, errorOf, isHeld } from "./LeafNeeds.ts";
+import type {
+  ActedOutcome,
+  RelationshipOutcome,
+  SignatureOutcome,
+} from "./LeafNeeds.ts";
 import type { Obligation } from "./Obligation.ts";
 import { unionObligations } from "./Obligation.ts";
+import { ownValue } from "./Operand.ts";
 import { permissionKey } from "./Permission.ts";
 import type { PortServices } from "./Ports.ts";
 import {
@@ -43,32 +45,24 @@ import { anyOfStopsAtAllow, rulesDecisiveEffect } from "./ShortCircuit.ts";
 import type { Question } from "./Question.ts";
 
 /**
- * Everything a recursive call passes through unchanged: the inputs a policy may
- * read, plus the settings that govern how the walk is performed.
+ * What a recursive call passes through unchanged: the walk environment admission
+ * built (`Admitted`), and the one setting of how the walk is performed that is
+ * not a fact about the question.
  *
- * Bundled rather than threaded as separate parameters, and `concurrency` is the
- * clearest case for it. `Concurrency` is `number | "unbounded" | "inherit"`, so
- * left as its own positional parameter next to `depth` and `maxDepth` — both
- * numbers — a slip between the three would **typecheck**. Folding `concurrency`
- * into this bundle removes it from that adjacency at every call site.
+ * With the depth bound in the environment, recursion passes
+ * `(policy, request, depth)`: one number, so a depth cannot land where the bound
+ * belongs and still compile (`WalkEnvironment.tst.ts`, ADR-QD-172). Before,
+ * `depth` and `maxDepth` were two adjacent positional numbers at every
+ * recursive call, and a slip between them typechecked.
  *
- * This does not extend to `depth`/`maxDepth` themselves: `evaluateNode` and its
- * `AllOf`/`AnyOf`/`Rules` helpers still take both as two adjacent positional
- * numbers (`evaluateNode`'s own signature, and every recursive `depth + 1,
- * maxDepth` call), so a slip between *those* two would still typecheck. This
- * bundle closes the `concurrency` case, not the whole positional-parameter
- * class of bug.
- *
- * `concurrency` is deliberately here and not in `MatcherContext`: it is a
- * property of the evaluation, never a value a matcher can compare against.
+ * `concurrency` is deliberately here and not in `Admitted` (nor in
+ * `MatcherContext`): it is a property of the evaluation, never a value a matcher
+ * can compare against.
  */
 interface Evaluation {
-  readonly resource: Resource | undefined;
-  readonly action: string | undefined;
-  readonly supplied: Supplied;
+  readonly admitted: Admitted<"asked">;
   readonly concurrency: Concurrency | undefined;
 }
-
 
 const NO_OBLIGATIONS: ReadonlyArray<Obligation> = [];
 const NO_RESOURCE: Resource = {};
@@ -163,35 +157,85 @@ const attributeReason = (
 // ---------------------------------------------------------------------------
 
 /**
+ * The sentence each way an acted leaf denies, keyed by the outcome that says which.
+ *
+ * `Performed` and `NotPerformed` are the answers opposite to the leaf's own: a
+ * `HasNotActed` leaf meeting an event that happened, a `HasActed` leaf meeting one
+ * that did not.
+ */
+const ACTED_DENIAL: Record<
+  Exclude<ActedOutcome, "Held">,
+  (subject: AuthSubject, event: string) => string
+> = {
+  Unknown: (_subject, event) => `no history is available for '${event}'`,
+  Performed: (subject, event) => `subject '${subject.id}' has already performed '${event}'`,
+  NotPerformed: (subject, event) => `subject '${subject.id}' has not performed '${event}'`,
+};
+
+/**
  * `HasActed`/`HasNotActed`'s arm.
  *
- * The two share every line but the wanted `ActedResult` — the `_tag` itself
- * supplies that, so there is nothing left for the two case labels in
- * `evaluateNode` to differ on. Extracted for the same reason `evaluateAllOf`
- * and friends are: `switch (policy._tag)` keeps dispatching in one glance, and
- * what a given tag actually *does* moves to a name instead of living inline in
- * the arm.
+ * The two share every line: the row for the leaf's tag decides what the answer
+ * means (`LEAF_VERDICTS`, ARCH-101), so there is nothing left for the two case
+ * labels in `evaluateNode` to differ on. This arm chooses the sentence the outcome
+ * earns. Extracted for the same reason `evaluateAllOf` and friends are:
+ * `switch (policy._tag)` keeps dispatching in one glance, and what a given tag
+ * actually *does* moves to a name instead of living inline in the arm.
  */
 const evaluateActed = (
   policy: Extract<Policy, { _tag: "HasActed" | "HasNotActed" }>,
   subject: AuthSubject,
   resource: Resource | undefined,
-) => {
-  const asked = askActed("evaluate", subject, policy, resource);
-  const wanted: ActedResult = policy._tag === "HasActed" ? "Acted" : "NotActed";
-  // `"Unknown"` matches neither, so both polarities deny under an unwired
-  // port. That is the whole reason the port is three-valued rather than
-  // boolean (ADR-QD-020).
-  return Effect.map(asked, (answer) =>
-    answer === wanted
+) =>
+  Effect.map(askActed("evaluate", subject, policy, resource), (answer) => {
+    // An `Unknown` answer is `Held` under neither row, so both polarities deny
+    // under an unwired port (ADR-QD-020).
+    const outcome = LEAF_VERDICTS[policy._tag](answer);
+    return isHeld(outcome)
       ? allow(policy._tag, policy.fields)
-      : deny(
-          policy._tag,
-          answer === "Unknown"
-            ? `no history is available for '${policy.event}'`
-            : `subject '${subject.id}' ${answer === "Acted" ? "has already" : "has not"} performed '${policy.event}'`,
-        ),
-  );
+      : deny(policy._tag, ACTED_DENIAL[outcome](subject, policy.event));
+  });
+
+/**
+ * The sentence each way a relationship leaf denies, keyed by the outcome that says which.
+ *
+ * Not "has no relation" for `Unknown`: nothing confirmed one. `"Unknown"` does not
+ * mean "unwired" specifically — `RelationshipResolverNever` is the common source,
+ * but a wired resolver may answer it too (a graph store with no namespace for this
+ * relation, say; `RelationshipResolver.ts`'s `RelatedResult` doc says so). The port
+ * cannot tell the two apart, so the sentence does not claim wiring is the cause —
+ * that would be exactly the kind of unverified claim about a store INV-QD-029
+ * forbids, the same defect this arm was added to fix in the first place
+ * (BEH-QD-045).
+ */
+const RELATIONSHIP_DENIAL: Record<
+  Exclude<RelationshipOutcome, "Held">,
+  (
+    subject: AuthSubject,
+    policy: Extract<Policy, { _tag: "HasRelationship" }>,
+    resourceId: string | undefined,
+  ) => string
+> = {
+  Unrelated: (subject, policy, resourceId) =>
+    `subject '${subject.id}' has no '${policy.relation}' relation to '${resourceId}'`,
+  Unknown: (_subject, policy, resourceId) =>
+    `no relationship resolver could confirm the '${policy.relation}' relation to '${resourceId}'`,
+};
+
+/**
+ * The sentence each way a signature leaf denies, keyed by the outcome that says which.
+ *
+ * The two are told apart at no extra cost, since the port returns the full list
+ * before `askSignature` filters it.
+ */
+const SIGNATURE_DENIAL: Record<
+  Exclude<SignatureOutcome, "Held">,
+  (subject: AuthSubject, policy: Extract<Policy, { _tag: "HasSignature" }>) => string
+> = {
+  NoneOnFile: (subject) => `no signatures are on file for subject '${subject.id}'`,
+  NoneMatching: (subject, policy) =>
+    `subject '${subject.id}' has no signature matching meaning '${policy.meaning}'` +
+    (policy.signerRole === undefined ? "" : ` and signer role '${policy.signerRole}'`),
 };
 
 /** `HasRelationship`'s arm, extracted for the same reason `evaluateActed` is. */
@@ -201,36 +245,12 @@ const evaluateHasRelationship = (
   resource: Resource | undefined,
 ) => {
   const resourceId = resourceIdOf(resource);
-  return Effect.map(askRelationship(subject, policy, resource), (related) =>
-    // `Match.value` rather than a hoisted `Match.type` (§5a's preferred form):
-    // the arms close over `policy`, `subject` and `resourceId`, so there is
-    // nothing to hoist. The rebuild is also noise against the service call, which
-    // may be a graph traversal or a network round trip.
-    Match.value(related).pipe(
-      Match.when("Related", () => allow("HasRelationship", policy.fields)),
-      Match.when("Unrelated", () =>
-        deny(
-          "HasRelationship",
-          `subject '${subject.id}' has no '${policy.relation}' relation to '${resourceId}'`,
-        ),
-      ),
-      // Not "has no relation": nothing confirmed one. `"Unknown"` does not mean
-      // "unwired" specifically — `RelationshipResolverNever` is the common source,
-      // but a wired resolver may answer it too (a graph store with no namespace
-      // for this relation, say; `RelationshipResolver.ts`'s `RelatedResult` doc
-      // says so). The port cannot tell the two apart, so the sentence does not
-      // claim wiring is the cause — that would be exactly the kind of unverified
-      // claim about a store INV-QD-029 forbids, the same defect this arm was
-      // added to fix in the first place (BEH-QD-045).
-      Match.when("Unknown", () =>
-        deny(
-          "HasRelationship",
-          `no relationship resolver could confirm the '${policy.relation}' relation to '${resourceId}'`,
-        ),
-      ),
-      Match.exhaustive,
-    ),
-  );
+  return Effect.map(askRelationship(subject, policy, resource), (related) => {
+    const outcome = LEAF_VERDICTS.HasRelationship(related);
+    return isHeld(outcome)
+      ? allow("HasRelationship", policy.fields)
+      : deny("HasRelationship", RELATIONSHIP_DENIAL[outcome](subject, policy, resourceId));
+  });
 };
 
 /**
@@ -243,7 +263,7 @@ const evaluateHasCustom = (
   resource: Resource | undefined,
 ) =>
   Effect.map(askCustom(subject, policy, resource), (allowed) =>
-    allowed
+    isHeld(LEAF_VERDICTS.HasCustom(allowed))
       ? allow("HasCustom", policy.fields)
       : deny("HasCustom", `custom predicate '${policy.name}' returned false`),
   );
@@ -252,33 +272,28 @@ const evaluateHasCustom = (
  * `HasSignature`'s arm, extracted for the same reason `evaluateActed`,
  * `evaluateHasRelationship` and `evaluateHasCustom` are.
  *
- * The deny reason distinguishes "no signatures on file at all" from
- * "signatures exist but none match" at no extra cost, since the port returns the
- * full list before `askSignature` filters it.
+ * The row says whether a signature was found, and if not whether any were on file
+ * at all; this arm chooses the sentence.
  */
 const evaluateHasSignature = (
   policy: Extract<Policy, { _tag: "HasSignature" }>,
   subject: AuthSubject,
   resource: Resource | undefined,
 ) =>
-  Effect.map(
-    askSignature(subject, policy, resource),
-    ({ matched, onFile }) =>
-      matched
-        ? allow("HasSignature", policy.fields)
-        : deny(
-            "HasSignature",
-            onFile === 0
-              ? `no signatures are on file for subject '${subject.id}'`
-              : `subject '${subject.id}' has no signature matching meaning '${policy.meaning}'` +
-                (policy.signerRole === undefined
-                  ? ""
-                  : ` and signer role '${policy.signerRole}'`),
-          ),
-  );
+  Effect.map(askSignature(subject, policy, resource), (answer) => {
+    const outcome = LEAF_VERDICTS.HasSignature(answer);
+    return isHeld(outcome)
+      ? allow("HasSignature", policy.fields)
+      : deny("HasSignature", SIGNATURE_DENIAL[outcome](subject, policy));
+  });
 
 /**
  * Dispatches a single policy node to its verdict, recursing into composites.
+ *
+ * The bound is read from the walk environment, so the only number a recursive
+ * call passes is `depth`. Exported from this package-private module only so
+ * `WalkEnvironment.tst.ts` can pin its parameters; it is not in the barrel
+ * (ADR-QD-099, ADR-QD-172).
  *
  * `depth > maxDepth` is the per-node guard (BEH-QD-038), kept as defense in depth:
  * the root `evaluate` has already rejected any policy whose `policyDepth`
@@ -287,7 +302,7 @@ const evaluateHasSignature = (
  * (`RolesAndDepth.test.ts` asserts the agreement in both directions).
  *
  * Not `Effect.suspend`-wrapped as a whole: a leaf tag's real comparison
- * (`subject.roles.has(...)`, `judgeMatcher`) runs immediately, as part of
+ * (its `LEAF_VERDICTS` row) runs immediately, as part of
  * building the `Effect.succeed(...)` this returns, rather than lazily when
  * that `Effect` is later run. A wrapper's *child*, though, is suspended
  * (`Not`/`Obliged`/`Labeled`): building the child's effect eagerly recursed
@@ -298,59 +313,54 @@ const evaluateHasSignature = (
  * that memoizes or races calls to this function directly needs the same
  * defense.
  */
-const evaluateNode = (
+export const evaluateNode = (
   policy: Policy,
-  subject: AuthSubject,
   request: Evaluation,
-  matcherContext: MatcherContext,
   depth: number,
-  maxDepth: number,
 ): Effect.Effect<Trace, EvaluationError, PortServices> => {
+  const { admitted } = request;
+  const { maxDepth } = admitted;
   if (depth > maxDepth) return Effect.fail(new PolicyTooDeep({ maxDepth }));
 
-  const { action, resource } = request;
+  const { subject, supplied, matcherContext } = admitted;
+  const { action, resource } = matcherContext;
 
   switch (policy._tag) {
     case "HasPermission":
       return Effect.succeed(
-        holdsPermission(subject, policy)
+        isHeld(LEAF_VERDICTS.HasPermission(policy, subject))
           ? allow("HasPermission", policy.fields)
           : deny("HasPermission", `subject lacks permission '${permissionKey(policy.permission)}'`),
       );
 
     case "HasRole":
       return Effect.succeed(
-        holdsRole(subject, policy)
+        isHeld(LEAF_VERDICTS.HasRole(policy, subject))
           ? allow("HasRole", policy.fields)
           : deny("HasRole", `subject lacks role '${policy.role}'`),
       );
 
     case "HasAttribute": {
-      const absent = absenceOf(policy, request.supplied);
+      const absent = absenceOf(policy, supplied);
       if (absent !== undefined) return Effect.fail(errorOf(absent));
       return Effect.map(readAttribute("evaluate", subject, policy), (value) => {
         // One judgement gives both the decision and, on a denial, its reason.
-        const verdict = judgeMatcher(policy.matcher, value, matcherContext);
-        return holds(verdict)
+        const verdict = LEAF_VERDICTS.HasAttribute(policy, value, matcherContext);
+        return isHeld(verdict)
           ? allow("HasAttribute", policy.fields)
           : deny("HasAttribute", attributeReason("subject", policy.attribute, verdict, policy.matcher));
       });
     }
 
     case "HasResourceAttribute": {
-      const absent = absenceOf(policy, request.supplied);
+      const absent = absenceOf(policy, supplied);
       if (absent !== undefined) return Effect.fail(errorOf(absent));
-      // `Object.hasOwn`, mirroring `readAttribute` above and `FieldPath.ts`'s
-      // `projectAt`: a decoded policy's `attribute` is untrusted input, and
-      // without this guard a name like `"toString"` or `"constructor"`
-      // resolves an inherited `Object.prototype` member instead of reporting
-      // the absence `attributeReason` already has a sentence for.
       // `absenceOf` has ruled out an absent resource; the `??` is the type's.
       const row = resource ?? NO_RESOURCE;
-      const value = Object.hasOwn(row, policy.attribute) ? row[policy.attribute] : undefined;
-      const verdict = judgeMatcher(policy.matcher, value, matcherContext);
+      const value = ownValue(row, policy.attribute);
+      const verdict = LEAF_VERDICTS.HasResourceAttribute(policy, value, matcherContext);
       return Effect.succeed(
-        holds(verdict)
+        isHeld(verdict)
           ? allow("HasResourceAttribute", policy.fields)
           : deny(
               "HasResourceAttribute",
@@ -363,10 +373,10 @@ const evaluateNode = (
       return evaluateHasRelationship(policy, subject, resource);
 
     case "HasAction": {
-      const absent = absenceOf(policy, request.supplied);
+      const absent = absenceOf(policy, supplied);
       if (absent !== undefined) return Effect.fail(errorOf(absent));
       return Effect.succeed(
-        holdsAction(policy, action)
+        isHeld(LEAF_VERDICTS.HasAction(policy, action))
           ? allow("HasAction", policy.fields)
           : deny("HasAction", `action is '${action}', not '${policy.action}'`),
       );
@@ -383,18 +393,18 @@ const evaluateNode = (
       return evaluateHasSignature(policy, subject, resource);
 
     case "AllOf":
-      return evaluateAllOf(policy, subject, request, matcherContext, depth, maxDepth);
+      return evaluateAllOf(policy, request, depth);
 
     case "AnyOf":
-      return evaluateAnyOf(policy, subject, request, matcherContext, depth, maxDepth);
+      return evaluateAnyOf(policy, request, depth);
 
     case "Rules":
-      return evaluateRules(policy, subject, request, matcherContext, depth, maxDepth);
+      return evaluateRules(policy, request, depth);
 
     case "Not":
       return Effect.map(
         Effect.suspend(() =>
-          evaluateNode(policy.policy, subject, request, matcherContext, depth + 1, maxDepth),
+          evaluateNode(policy.policy, request, depth + 1),
         ),
         (child) =>
           child.allowed
@@ -409,7 +419,7 @@ const evaluateNode = (
     case "Obliged":
       return Effect.map(
         Effect.suspend(() =>
-          evaluateNode(policy.policy, subject, request, matcherContext, depth + 1, maxDepth),
+          evaluateNode(policy.policy, request, depth + 1),
         ),
         (child) =>
           child.allowed
@@ -427,7 +437,7 @@ const evaluateNode = (
     case "Labeled":
       return Effect.map(
         Effect.suspend(() =>
-          evaluateNode(policy.policy, subject, request, matcherContext, depth + 1, maxDepth),
+          evaluateNode(policy.policy, request, depth + 1),
         ),
         (child) => ({
           policyTag: "Labeled" as const,
@@ -534,11 +544,8 @@ const finishAllOf = (
  */
 const evaluateAllOf = Effect.fnUntraced(function* (
   policy: Extract<Policy, { _tag: "AllOf" }>,
-  subject: AuthSubject,
   request: Evaluation,
-  matcherContext: MatcherContext,
   depth: number,
-  maxDepth: number,
 ) {
   const fold = beginAllOf();
 
@@ -546,7 +553,7 @@ const evaluateAllOf = Effect.fnUntraced(function* (
     for (const child of policy.policies) {
       const verdict = stepAllOf(
         fold,
-        yield* evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth),
+        yield* evaluateNode(child, request, depth + 1),
       );
       if (verdict !== undefined) return verdict;
     }
@@ -566,7 +573,7 @@ const evaluateAllOf = Effect.fnUntraced(function* (
     // surfaces) depend on a performance switch.
     const exits = yield* Effect.forEach(
       policy.policies,
-      (child) => Effect.exit(evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth)),
+      (child) => Effect.exit(evaluateNode(child, request, depth + 1)),
       { concurrency: request.concurrency },
     );
     for (const exit of exits) {
@@ -671,11 +678,8 @@ const finishAnyOf = (
  */
 const evaluateAnyOf = Effect.fnUntraced(function* (
   policy: Extract<Policy, { _tag: "AnyOf" }>,
-  subject: AuthSubject,
   request: Evaluation,
-  matcherContext: MatcherContext,
   depth: number,
-  maxDepth: number,
 ) {
   const fold = beginAnyOf(policy);
 
@@ -683,7 +687,7 @@ const evaluateAnyOf = Effect.fnUntraced(function* (
     for (const child of policy.policies) {
       const verdict = stepAnyOf(
         fold,
-        yield* evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth),
+        yield* evaluateNode(child, request, depth + 1),
       );
       if (verdict !== undefined) return verdict;
     }
@@ -697,7 +701,7 @@ const evaluateAnyOf = Effect.fnUntraced(function* (
     // is either decisive or a failure wins (ADR-QD-026).
     const exits = yield* Effect.forEach(
       policy.policies,
-      (child) => Effect.exit(evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth)),
+      (child) => Effect.exit(evaluateNode(child, request, depth + 1)),
       { concurrency: request.concurrency },
     );
     for (const exit of exits) {
@@ -729,11 +733,8 @@ const evaluateAnyOf = Effect.fnUntraced(function* (
  */
 const evaluateRules = Effect.fnUntraced(function* (
   policy: Extract<Policy, { _tag: "Rules" }>,
-  subject: AuthSubject,
   request: Evaluation,
-  matcherContext: MatcherContext,
   depth: number,
-  maxDepth: number,
 ) {
   const children: Array<Trace> = [];
 
@@ -781,14 +782,7 @@ const evaluateRules = Effect.fnUntraced(function* (
   if (request.concurrency === undefined) {
     for (const [index, rule] of policy.rules.entries()) {
       // The condition answers *does this rule apply*, never *is this permitted*.
-      const trace = yield* evaluateNode(
-        rule.condition,
-        subject,
-        request,
-        matcherContext,
-        depth + 1,
-        maxDepth,
-      );
+      const trace = yield* evaluateNode(rule.condition, request, depth + 1);
       if (step(index, rule, trace)) break;
     }
   } else {
@@ -811,7 +805,7 @@ const evaluateRules = Effect.fnUntraced(function* (
       (rule, index) =>
         Effect.exit(
           Effect.map(
-            evaluateNode(rule.condition, subject, request, matcherContext, depth + 1, maxDepth),
+            evaluateNode(rule.condition, request, depth + 1),
             (trace) => ({ index, rule, trace }),
           ),
         ),
@@ -863,7 +857,7 @@ const evaluateRules = Effect.fnUntraced(function* (
  *
  * `Effect.suspend`, not a direct call: `evaluateNode` is a plain switch, not
  * an `Effect.gen`, so for a leaf tag (HasRole, HasPermission, …) calling it
- * does the real comparison — `subject.roles.has(...)`, `judgeMatcher` —
+ * reads its verdict row (`LEAF_VERDICTS`) —
  * immediately, as part of building the `Effect.succeed(...)` it returns,
  * not lazily when that Effect later runs. Calling it unconditionally, before
  * the cache-hit check, would pay that cost on every ask whether or not the
@@ -871,23 +865,17 @@ const evaluateRules = Effect.fnUntraced(function* (
  * times" cost `DecisionCache`'s own doc comment exists to avoid.
  * `Effect.suspend` defers the call itself to when the walk is actually run,
  * so a cache hit never invokes `evaluateNode` at all — and, by the same
- * reasoning, never builds the matcher context in `admit` either.
+ * reasoning, never runs `admit` either, so the walk environment is built only
+ * for a walk that runs.
  */
 export const walk = (
   question: Question,
   concurrency: Concurrency | undefined,
 ): Effect.Effect<Trace, EvaluationError, PortServices> =>
   Effect.suspend(() => {
-    const { subject, policy, maxDepth } = question;
-    const request: Evaluation = {
-      resource: question.resource,
-      action: question.action,
-      supplied: { action: question.action !== undefined, resource: question.resource !== undefined },
-      concurrency,
-    };
     // Admission is shared with `toPredicate` (`Admission.ts`): the depth gate,
-    // judged on the policy before any node, and the matcher context, built once.
-    const admitted = admit(question);
+    // judged on the policy before any node, and the walk environment, built once.
+    const admitted = admit(question, "asked");
     if (Result.isFailure(admitted)) return Effect.fail(admitted.failure);
-    return evaluateNode(policy, subject, request, admitted.success.matcherContext, 0, maxDepth);
+    return evaluateNode(admitted.success.policy, { admitted: admitted.success, concurrency }, 0);
   });

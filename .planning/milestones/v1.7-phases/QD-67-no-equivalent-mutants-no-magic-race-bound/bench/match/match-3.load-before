@@ -1,0 +1,7 @@
+02:40:18
+ 2:40  up 1 day, 12:40, 1 user, load averages: 6.90 7.81 20.19
+ %CPU COMM
+ 37.8 /System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer
+ 37.6 /Users/mohammadalmechkor/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc
+ 34.5 /Users/mohammadalmechkor/Applications/Herdr.app/Contents/MacOS/Herdr
+ 24.2 /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd

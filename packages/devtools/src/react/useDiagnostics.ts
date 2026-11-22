@@ -10,24 +10,22 @@ import { useLayoutEffect } from "react";
 import {
   idleDiagnostics,
   makeDiagnosticsFeed,
-  type DiagnosticsDockOptions,
   type DiagnosticsSnapshot,
 } from "../model/DiagnosticsFeed.ts";
+import type { DiagnosticsOptions } from "../model/DiagnosticsStore.ts";
 import { useScoped } from "./useScoped.ts";
 import { useStoreSnapshot } from "./useStoreSnapshot.ts";
-
-export type { DiagnosticsDockOptions } from "../model/DiagnosticsFeed.ts";
 
 /**
  * Samples the diagnostics while mounted, and returns the poll's status and its latest reading.
  *
- * With `options` absent nothing runs and the reading is `noDiagnostics`: a hook
- * that sampled by default would give every mounted dock a fiber it never asked
+ * With `options` absent nothing runs, the status is `Off` and the reading is empty: a
+ * hook that sampled by default would give every mounted dock a fiber it never asked
  * for. `{}` is the one-token opt-in for the metric reads.
  *
- * **The run restarts when one of the four fields changes identity, never when
- * the `options` object does**, so an inline literal does not tear the layer
- * down on every render. Hold the fields at module scope, or in a `useMemo`, as
+ * **The run restarts when one of the three fields (`layer`, `collector`,
+ * `intervalMillis`) changes identity, never when the `options` object does**, so
+ * an inline literal does not tear the layer down on every render. Hold the fields at module scope, or in a `useMemo`, as
  * `useTimeline` asks of a source.
  *
  * The status is `Off` with no options, `Starting` until the first sample (also on
@@ -36,7 +34,7 @@ export type { DiagnosticsDockOptions } from "../model/DiagnosticsFeed.ts";
  * a stopped sampler. A StrictMode remount or a hidden-then-shown tree starts a
  * fresh run.
  */
-export const useDiagnostics = (options?: DiagnosticsDockOptions): DiagnosticsSnapshot => {
+export const useDiagnostics = (options?: DiagnosticsOptions): DiagnosticsSnapshot => {
   const feed = useScoped(() => makeDiagnosticsFeed(options));
 
   // The feed compares each field by identity. It runs again on the render the feed

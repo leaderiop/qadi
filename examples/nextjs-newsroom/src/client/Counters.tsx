@@ -10,7 +10,7 @@
 import { useState } from "react";
 import { unaccountedEntries } from "@qadi/devtools";
 import { useDiagnostics } from "@qadi/devtools/react";
-import type { DiagnosticsDockOptions } from "@qadi/devtools/react";
+import type { DiagnosticsOptions } from "@qadi/devtools/react";
 import { button, card, colors, mono, muted, pre } from "../ui/theme.ts";
 
 interface EdgeOutcome {
@@ -19,7 +19,7 @@ interface EdgeOutcome {
 }
 
 /** Only the metric reads are wanted here, so nothing is handed over but a cadence. */
-const sampling: DiagnosticsDockOptions = { intervalMillis: 1_000 };
+const sampling: DiagnosticsOptions = { intervalMillis: 1_000 };
 
 const isEdgeOutcome = (value: unknown): value is EdgeOutcome =>
   typeof value === "object" && value !== null && "verdict" in value && "forwardFailures" in value;

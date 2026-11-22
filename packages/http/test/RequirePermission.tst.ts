@@ -64,6 +64,10 @@ test("a raw { permission, policy } literal cannot bypass requiresPermission's du
     permission: readPermission,
     policy: readPolicy,
   });
+  expect(plainEndpoint.annotate).type.toBeCallableWith(
+    RequiredPermission,
+    requiresPermission(plainEndpoint, { permission: readPermission, policy: readPolicy }),
+  );
 });
 
 test("the inline .annotate() pattern keeps the endpoint's literal identifier", () => {

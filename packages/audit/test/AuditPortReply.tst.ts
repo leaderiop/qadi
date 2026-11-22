@@ -3,10 +3,13 @@
  * a script's request types come from the port it answers (ARCH-62, D-05).
  */
 import { expect, test } from "tstyche";
+import type * as Latch from "effect/Latch";
 import type { AuditEntry } from "../src/AuditEntry.ts";
 import type { AuditCommitScript, AuditStageScript, AuditTrailScript } from "../src/AuditPortReply.ts";
 import { AuditPortReply } from "../src/AuditPortReply.ts";
 import type { AuditStagingHandle } from "../src/AuditStagingPort.ts";
+
+declare const latch: Latch.Latch;
 
 test("the reply union is exactly the six modes", () => {
   expect<AuditPortReply["_tag"]>().type.toBe<"Ok" | "Fail" | "Die" | "Interrupt" | "Never" | "Latch">();
@@ -30,4 +33,5 @@ test("Fail needs a cause and Latch needs a latch", () => {
   expect(AuditPortReply.Fail).type.not.toBeCallableWith({});
   expect(AuditPortReply.Latch).type.not.toBeCallableWith({});
   expect(AuditPortReply.Fail).type.toBeCallableWith({ cause: "down" });
+  expect(AuditPortReply.Latch).type.toBeCallableWith({ latch });
 });

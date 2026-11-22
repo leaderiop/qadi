@@ -15,9 +15,22 @@
  * when the new value is a different reference; `publish` notifies regardless,
  * for a change the value's reference cannot carry, such as a flag a second hook
  * reads.
+ *
+ * **The listener contract** (ADR-QD-177). `notify` calls every listener in the set,
+ * even when one throws, and then rethrows what they threw: nothing when none did, the
+ * thrown value itself when one did (`undefined` and `null` included), and one
+ * `AggregateError` holding every thrown value in call order when more than one did. An
+ * `AggregateError` a listener throws is one value like any other, never flattened. The
+ * loop reads the live set, so a listener removed before its turn is not called and one
+ * added during the notification is called in the same pass. The value is held before
+ * any listener runs, and stays when one throws. A host's listener that throws therefore
+ * silences no other, and its failure still reaches whatever published.
  */
 export interface ExternalStore<A> {
-  /** Registers a listener, and returns the function that removes it. */
+  /**
+   * Registers a listener, and returns the function that removes it. A listener that
+   * throws stops no other: see the listener contract above.
+   */
   readonly subscribe: (listener: () => void) => () => void;
   /** The current value. The same reference until something changed. */
   readonly getSnapshot: () => A;
@@ -32,7 +45,17 @@ export const makeExternalStore = <A>(initial: A): ExternalStore<A> => {
   const listeners = new Set<() => void>();
 
   const notify = () => {
-    for (const listener of listeners) listener();
+    const thrown: Array<unknown> = [];
+    for (const listener of listeners) {
+      try {
+        listener();
+      } catch (error) {
+        thrown.push(error);
+      }
+    }
+    if (thrown.length === 0) return;
+    if (thrown.length === 1) throw thrown[0];
+    throw new AggregateError(thrown, "More than one of the store's listeners threw.");
   };
 
   return {

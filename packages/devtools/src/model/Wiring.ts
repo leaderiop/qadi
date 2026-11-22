@@ -139,7 +139,8 @@ const portRow = (
 });
 
 export interface PortActivity {
-  readonly port: string;
+  /** A registry port's name, so a misspelt or unknown port is a compile error (ADR-QD-168). */
+  readonly port: PortName;
   /** Calls the evaluator made (`qadi_port_calls_total`). */
   readonly calls: number;
   readonly retries: number;
@@ -173,14 +174,15 @@ export interface PortActivity {
  * decision. A panel that implied otherwise would be inviting a reader to
  * attribute one number to one row.
  *
- * **Filtered to ports actually reached** (issue #107). `portCallsTotal`/
- * `portRetriesTotal` gained `preregisteredWords` — every port name is a key in
- * `occurrences` the moment either metric is first read, whether or not
- * anything ever called into it — so `calls.occurrences.keys()` alone would
- * report every port on every call to this Effect, silently widening from
- * "reached" to "known to exist". The `> 0` filter below is what keeps this
- * function's own contract (and `Wiring.test.ts`'s "reports nothing when no
- * port has been reached") true under that change.
+ * **One entry per registry port, filtered to the ports actually reached** (issue
+ * #107). `portCallsTotal`/`portRetriesTotal` gained `preregisteredWords` — every
+ * port name is a key in `occurrences` the moment either metric is first read,
+ * whether or not anything ever called into it — so an entry for every port the
+ * metrics know would silently widen "reached" to "known to exist". The `> 0`
+ * filter below is what keeps this function's own contract (and
+ * `Wiring.test.ts`'s "reports nothing when no port has been reached") true under
+ * that change. A word written to a metric outside the registry is not port
+ * activity, since no card could show it.
  */
 export const portActivity: Effect.Effect<ReadonlyArray<PortActivity>> = Effect.gen(function* () {
   // `Metric.value` rather than a scan of `Metric.snapshot` for the two ids.
@@ -194,27 +196,21 @@ export const portActivity: Effect.Effect<ReadonlyArray<PortActivity>> = Effect.g
   const timeouts = yield* Metric.value(portTimeoutsTotal);
   const translated = yield* Metric.value(predicatePortCallsTotal);
 
-  const ports = new Set([
-    ...calls.occurrences.keys(),
-    ...retries.occurrences.keys(),
-    ...timeouts.occurrences.keys(),
-    ...translated.occurrences.keys(),
-  ]);
-  return [...ports]
-    .map((port) => ({
-      port,
-      calls: calls.occurrences.get(port) ?? 0,
-      retries: retries.occurrences.get(port) ?? 0,
-      timeouts: timeouts.occurrences.get(port) ?? 0,
-      translationCalls: translated.occurrences.get(port) ?? 0,
-    }))
-    .filter(
-      (activity) =>
-        activity.calls > 0 ||
-        activity.retries > 0 ||
-        activity.timeouts > 0 ||
-        activity.translationCalls > 0,
-    );
+  return forEveryPort(
+    (d): PortActivity => ({
+      port: d.port,
+      calls: calls.occurrences.get(d.port) ?? 0,
+      retries: retries.occurrences.get(d.port) ?? 0,
+      timeouts: timeouts.occurrences.get(d.port) ?? 0,
+      translationCalls: translated.occurrences.get(d.port) ?? 0,
+    }),
+  ).filter(
+    (activity) =>
+      activity.calls > 0 ||
+      activity.retries > 0 ||
+      activity.timeouts > 0 ||
+      activity.translationCalls > 0,
+  );
 });
 
 const nameOf = (service: Option.Option<{ readonly name?: string | undefined }>): string | undefined =>

@@ -20,6 +20,7 @@ import { SubjectIdSchema } from "./Identity.ts";
 import type { SubjectId } from "./Identity.ts";
 import { toJson } from "./JsonHazard.ts";
 import type { EncodeRefusal } from "./JsonRefusal.ts";
+import { ownValue } from "./Operand.ts";
 import {
   boundedPort,
   makePortDescription,
@@ -218,13 +219,18 @@ export const attributeResolverPort: PortDescription<
  */
 export const AttributeResolverNone: Layer.Layer<AttributeResolver> = nonePort(attributeResolverPort);
 
-/** Resolves from a static table. Useful for tests and fixed configuration. */
+/**
+ * Resolves from a static table. Useful for tests and fixed configuration.
+ *
+ * A name the table does not own, including an inherited `Object.prototype`
+ * member, answers undefined.
+ */
 export const attributeResolverFromRecord = (
   table: Readonly<Record<string, unknown>>,
 ): Layer.Layer<AttributeResolver> =>
   Layer.succeed(AttributeResolver, {
     name: "attributeResolverFromRecord",
-    resolve: (_subjectId, attribute) => Effect.succeed(table[attribute]),
+    resolve: (_subjectId, attribute) => Effect.succeed(ownValue(table, attribute)),
   });
 
 /**

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-21                                    |
-> | Revision       | 1.9                                            |
+> | Revision       | 1.12                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.9 (2026-11-12): BEH-QD-491 — a stale answer never re-enters a cleared cache; BEH-QD-439 names the superseded state (ARCH-79, ADR-QD-132, CCR-QD-422)<br>1.8 (2026-11-10): BEH-QD-439 — a shared computation answers everyone still waiting, and nobody else: a claim is joinable only while somebody waits on it, an abandoned computation caches nothing, and the last leaver still waits for a computation parked uninterruptibly (ARCH-68, ADR-QD-132, CCR-QD-410)<br>1.7 (2026-11-10): BEH-QD-166 states why a bad `capacity` is a defect where a port's `…Bounded(permits)` is typed; no behaviour change (ARCH-61, CCR-QD-403)<br>1.6 (2026-10-08): BEH-QD-166 — a completed entry is counted once toward `capacity`; the hit check, the join and the claim are one synchronous step (ARCH-45, CCR-QD-267)<br>1.5 (2026-10-07): BEH-QD-163/168 — `DecisionCacheKey` is replaced by `Question`; the options that are part of the key are the type `QuestionOptions` (ADR-QD-100, CCR-QD-189)<br>1.4 (2026-09-08): BEH-QD-168 corrected twice — `AuthSubject.roles`/`.permissions` are the built-in JS `Set`, not `effect/HashSet` (matching `DecisionCache.ts`'s own corrected doc comment); and the `DecisionCacheKey` listing and BEH-QD-163's requirement gained the `maxDepth` field they omitted, which is in the key for the same reason `action` is (CCR-QD-128)<br>1.3 (2026-08-23): BEH-QD-168 — the key carries the subject, not its id; amends BEH-QD-163 (ADR-QD-043, INV-QD-033, CCR-QD-058)<br>1.2 (2026-08-23): BEH-QD-167 — the key identifies the question structurally; the stringified key could collide (ADR-QD-042, INV-QD-030, CCR-QD-057)<br>1.1 (2026-08-20): `decisionCacheLayer` takes an optional `capacity`; BEH-QD-166 added<br>1.0 (2026-07-26): Initial release (CCR-QD-032) |
+> | Change History | 1.12 (2026-11-21): BEH-QD-166's reasons for the validation say what an unvalidated capacity would do to the split eviction; INV-QD-379 linked (ARCH-114, CCR-QD-458)<br>1.11 (2026-11-19): BEH-QD-644's enforcement names the options-identity test (review IN-02)<br>1.10 (2026-11-19): BEH-QD-641..645 — the cache is asked the question and walks it; BEH-QD-166 names the walk (ARCH-108, CCR-QD-452)<br>1.9 (2026-11-12): BEH-QD-491 — a stale answer never re-enters a cleared cache; BEH-QD-439 names the superseded state (ARCH-79, ADR-QD-132, CCR-QD-422)<br>1.8 (2026-11-10): BEH-QD-439 — a shared computation answers everyone still waiting, and nobody else: a claim is joinable only while somebody waits on it, an abandoned computation caches nothing, and the last leaver still waits for a computation parked uninterruptibly (ARCH-68, ADR-QD-132, CCR-QD-410)<br>1.7 (2026-11-10): BEH-QD-166 states why a bad `capacity` is a defect where a port's `…Bounded(permits)` is typed; no behaviour change (ARCH-61, CCR-QD-403)<br>1.6 (2026-10-08): BEH-QD-166 — a completed entry is counted once toward `capacity`; the hit check, the join and the claim are one synchronous step (ARCH-45, CCR-QD-267)<br>1.5 (2026-10-07): BEH-QD-163/168 — `DecisionCacheKey` is replaced by `Question`; the options that are part of the key are the type `QuestionOptions` (ADR-QD-100, CCR-QD-189)<br>1.4 (2026-09-08): BEH-QD-168 corrected twice — `AuthSubject.roles`/`.permissions` are the built-in JS `Set`, not `effect/HashSet` (matching `DecisionCache.ts`'s own corrected doc comment); and the `DecisionCacheKey` listing and BEH-QD-163's requirement gained the `maxDepth` field they omitted, which is in the key for the same reason `action` is (CCR-QD-128)<br>1.3 (2026-08-23): BEH-QD-168 — the key carries the subject, not its id; amends BEH-QD-163 (ADR-QD-043, INV-QD-033, CCR-QD-058)<br>1.2 (2026-08-23): BEH-QD-167 — the key identifies the question structurally; the stringified key could collide (ADR-QD-042, INV-QD-030, CCR-QD-057)<br>1.1 (2026-08-20): `decisionCacheLayer` takes an optional `capacity`; BEH-QD-166 added<br>1.0 (2026-07-26): Initial release (CCR-QD-032) |
 
 _Previous: [20 — Policy Simplification](./20-simplification.md)_
 
@@ -160,22 +160,30 @@ REQUIREMENT: `decisionCacheLayer`'s `capacity` option, when given, MUST be a
              construction, before any evaluation runs.
 ```
 
-A negative `capacity` would make the eviction loop's own exit condition
-(`size(entries) > capacity`) unsatisfiable once `entries` empties out — an
-infinite loop, not a small cache. A `NaN` capacity would make that same
-comparison always `false`, silently turning "bounded" into unbounded instead
-of failing loudly. Both are caller misconfiguration, not a runtime condition
-to recover from, so this fails as a defect rather than a typed error. That is
+Eviction removes the oldest `size(entries) - capacity` keys in one step, and
+`Chunk.splitAt` rounds that count down to a whole number and reads a negative
+or `NaN` one as zero. A negative `capacity` would therefore evict every entry
+as it settled, a cache that silently retains nothing, and a `NaN` one would
+evict none, silently turning "bounded" into unbounded instead of failing
+loudly. Both are caller misconfiguration, not a runtime condition to recover
+from, so this fails as a defect rather than a typed error. That is
 unlike a port's `…Bounded(permits)`, whose `InvalidBoundedPermits` is typed: those
 wrappers are derived for every port by `PortDerivation.ts`, whose layers already
 carry an error channel, so a composition can report it, while the cache's and
 the decision log's `capacity` is a constant the caller wrote.
 
+> **Amended 2026-11-21 (ARCH-114, CCR-QD-458).** The paragraph above described the
+> eviction loop the cache no longer has; the requirement is unchanged.
+
 ```
 REQUIREMENT: Once the number of completed entries exceeds `capacity`, the
              oldest-inserted entry MUST be evicted — never an entry whose
-             `compute` is still in flight.
+             walk is still in flight.
 ```
+
+> **Amended 2026-11-19 (ARCH-108, CCR-QD-452).** This requirement said `compute`, the computation a caller used to
+> hand the cache. The cache now runs the walk of the question it is asked
+> ([BEH-QD-642](#beh-qd-642-decisioncachelayer-walks-the-question-it-is-given)); the rule is unchanged.
 
 ```
 REQUIREMENT: A completed entry MUST be counted once toward `capacity` however
@@ -196,6 +204,9 @@ Eviction is FIFO (insertion order), not least-recently-used: recording an
 access on every hit would cost every lookup something to buy a policy this
 cache has no stated need for. `capacity` is unset by default — every behaviour
 above this section holds unchanged when it is absent.
+
+The bound and the order are
+[INV-QD-379](../invariants.md#inv-qd-379-a-bounded-decision-cache-holds-at-most-capacity-entries-and-evicts-the-oldest-first).
 
 ## BEH-QD-167: Two different questions never share an entry
 
@@ -380,6 +391,115 @@ cancel" is why the waiters are answered rather than failed.
 `packages/core/test/DecisionCache.test.ts`'s
 "a clear mid-compute is not undone by that compute finishing last, with the stale answer"
 and its third-ask pin, unchanged, through `evaluate`.
+
+## BEH-QD-641: The cache is asked the question, and how the walk runs
+
+> **Invariant:** [INV-QD-367](../invariants.md#inv-qd-367-no-caller-can-pair-a-cache-key-with-a-computation)
+> **See:** [ADR-QD-174](../decisions/174-a-decision-cache-is-asked-the-question.md), [ADR-QD-031](../decisions/031-decision-cache.md)
+
+```
+REQUIREMENT: `DecisionCacheShape.getOrCompute` MUST take the `Question` and,
+             optionally, `Pick<EvaluateOptions, "concurrency">`, and nothing
+             else. An `Effect`, a function returning one, or a third argument
+             MUST be a compile error.
+```
+
+The refusal is TypeScript's weak-type rule (TS2559): the options type has only
+optional properties, and a value that shares none of them is refused. An option
+added later under a name an `Effect` also carries would weaken it, which is why
+the negatives are pinned.
+
+**Enforcement**: `packages/core/test/DecisionCache.tst.ts` (`tstyche`), read
+through `Params<F>` with positive controls, so each negative can fail.
+
+## BEH-QD-642: `decisionCacheLayer` walks the question it is given
+
+> **Invariant:** [INV-QD-368](../invariants.md#inv-qd-368-a-trace-the-cache-settles-under-a-question-is-the-walk-of-that-question)
+> **See:** [ADR-QD-174](../decisions/174-a-decision-cache-is-asked-the-question.md), [ADR-QD-132](../decisions/132-a-shared-computation-is-joinable-only-while-awaited.md)
+
+```
+REQUIREMENT: On a miss, `decisionCacheLayer` MUST run the walk of the very
+             question it was asked, so every trace it stores answers its own
+             key.
+```
+
+**Enforcement**: `packages/core/test/DecisionCache.test.ts`'s
+"concurrency and the cache compose without either changing the answer" and
+"the same question asked with two concurrencies is one entry, in both orders";
+`pnpm mutation` (`stryker.config.mjs`) mutates `DecisionCache.ts`.
+
+## BEH-QD-643: `concurrency` reaches the walk and never the key
+
+> **Invariant:** [INV-QD-368](../invariants.md#inv-qd-368-a-trace-the-cache-settles-under-a-question-is-the-walk-of-that-question), [INV-QD-020](../invariants.md#inv-qd-020-concurrency-changes-lookups-never-decisions)
+> **See:** [ADR-QD-174](../decisions/174-a-decision-cache-is-asked-the-question.md), [ADR-QD-026](../decisions/026-concurrent-evaluation.md)
+
+```
+REQUIREMENT: The same question asked with two concurrencies MUST be one cache
+             entry, and the walk MUST run with the `concurrency` of the caller
+             that claims it.
+```
+
+```
+REQUIREMENT: A caller that joins a walk already in flight MUST share it: its
+             own `concurrency` is unused, and the claimant's governs.
+```
+
+`concurrency` changes how many lookups a walk makes, never its answer, so a
+joiner loses nothing by sharing a walk run another way.
+
+**Enforcement**: `packages/core/test/DecisionCache.test.ts`'s
+"the same question asked with two concurrencies is one entry, in both orders",
+"concurrency crosses the cache into the walk; a sequential ask then hits" and
+"a coalesced joiner's concurrency is unused: the claimant's governs the one walk, in both orders".
+
+## BEH-QD-644: `decideQuestion` hands the cache the question alone
+
+> **Invariant:** [INV-QD-367](../invariants.md#inv-qd-367-no-caller-can-pair-a-cache-key-with-a-computation)
+> **See:** [ADR-QD-174](../decisions/174-a-decision-cache-is-asked-the-question.md), [BEH-QD-189](./25-inspection.md#beh-qd-189-a-lookup-reports-how-the-cache-answered)
+
+```
+REQUIREMENT: With a cache wired, `decideQuestion` MUST hand it the question and
+             its own options object, and nothing it computed. With none, it
+             MUST walk the same question with the same `concurrency`, and the
+             record's `cache` stays absent.
+```
+
+**Enforcement**: `packages/core/test/Lifecycle.test.ts`'s
+"the question it returns is the cache key and the record's request half" (a
+cache that wraps `decisionCacheLayer()` records the key it is asked) and
+"the cache is handed the caller's own options object, not a copy of it" (the
+same wrapper records `options` and asserts it is the object the caller passed);
+`packages/core/test/DecisionSink.test.ts`'s
+"no cache wired is absent, which is not the same as a miss";
+`packages/core/test/Evaluate.test.ts`'s
+"concurrency performs MORE lookups, or it is doing nothing" (no cache wired).
+
+## BEH-QD-645: A host-written cache answers with its own trace
+
+> **Invariant:** [INV-QD-367](../invariants.md#inv-qd-367-no-caller-can-pair-a-cache-key-with-a-computation)
+> **See:** [ADR-QD-174](../decisions/174-a-decision-cache-is-asked-the-question.md), [ADR-QD-099](../decisions/099-entry-points-are-a-closed-list.md)
+
+```
+REQUIREMENT: `DecisionCacheShape` stays public and unsealed. An implementation
+             a host writes MUST answer with a trace for exactly the question it
+             is given.
+```
+
+```
+REQUIREMENT: Core MUST NOT export the walk. A host cache wraps
+             `decisionCacheLayer()` and delegates to it.
+```
+
+BEH-QD-641 guarantees what a caller can hand the cache, not what an
+implementation returns. A host-written cache that answered with another
+question's trace would break ADR-QD-031's boundary, and nothing in core stops
+it: the owner chose not to seal the service (ADR-QD-174).
+
+**Enforcement**: `packages/core/test/DecisionCache.tst.ts`'s
+`@ts-expect-error` on exporting `walk` from core's barrel;
+`packages/core/test/Lifecycle.test.ts`'s cache, which wraps
+`decisionCacheLayer()`; the upgrade guide's 0.13 example, compiled by
+`check-website-doc-examples.mjs`.
 
 ---
 

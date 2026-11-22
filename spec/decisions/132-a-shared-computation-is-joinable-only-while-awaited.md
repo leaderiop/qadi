@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-132                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-10                                     |
 > | Status         | Accepted — reads ADR-QD-031                    |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-12): Amendment: a reset supersedes its claims; the staleness rule moves into SharedComputation (ARCH-79, CCR-QD-422)<br>1.0 (2026-11-10): Initial (ARCH-68, CCR-QD-410) |
+> | Change History | 1.2 (2026-11-19): amendment — the adapter hands this module the walk of its own key (ARCH-108, ADR-QD-174, CCR-QD-452)<br>1.1 (2026-11-12): Amendment: a reset supersedes its claims; the staleness rule moves into SharedComputation (ARCH-79, CCR-QD-422)<br>1.0 (2026-11-10): Initial (ARCH-68, CCR-QD-410) |
 
 ---
 
@@ -116,3 +116,15 @@ and
 A separate record, ADR-QD-144, was reserved for this and is unused: a claim stops being
 joinable and its exit stops reaching the adapter when it stops being current, and a reset is
 a second cause of that, so an amendment keeps one record.
+
+## Amendment (2026-11-19, CCR-QD-452, ARCH-108)
+
+Decision 3 said `DecisionCache`'s interface was unchanged. ADR-QD-174 changes it:
+`getOrCompute` takes the question and, optionally, how the walk runs, and the adapter hands
+this module the walk of its own key, `shared.run(key, walk(key, options?.concurrency))`.
+This module's rules and interface, the metric order, and the coalescing, failure and
+interruption tests, which already asked through `evaluate`, are unchanged. A joiner shares
+the claimant's computation, so it shares the claimant's `concurrency` too, which cannot
+change the answer
+([INV-QD-020](../invariants.md#inv-qd-020-concurrency-changes-lookups-never-decisions)).
+See [ADR-QD-174](./174-a-decision-cache-is-asked-the-question.md).

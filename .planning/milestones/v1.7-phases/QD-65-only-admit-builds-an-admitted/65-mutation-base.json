@@ -1,0 +1,129 @@
+{
+ "phase": "65",
+ "head": "d1ac1df0629e95797f406c5c46da364e6542dce2",
+ "invocation": "pnpm exec stryker run stryker.config.mjs --mutate packages/core/src/Admission.ts,packages/core/src/Predicate.ts,packages/core/src/Walk.ts",
+ "files": {
+  "packages/core/src/Admission.ts": {
+   "killed": 18,
+   "timeout": 0,
+   "survived": 0,
+   "noCoverage": 0,
+   "ignored": 4,
+   "detected": 18,
+   "valid": 18,
+   "open": []
+  },
+  "packages/core/src/Predicate.ts": {
+   "killed": 280,
+   "timeout": 0,
+   "survived": 0,
+   "noCoverage": 0,
+   "ignored": 22,
+   "detected": 280,
+   "valid": 280,
+   "open": []
+  },
+  "packages/core/src/Walk.ts": {
+   "killed": 260,
+   "timeout": 0,
+   "survived": 11,
+   "noCoverage": 2,
+   "ignored": 27,
+   "detected": 260,
+   "valid": 273,
+   "open": [
+    {
+     "status": "NoCoverage",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 434,
+     "text": ": deny(\"Obliged\", child.reason ?? \"the obliged policy denied\", [child]),"
+    },
+    {
+     "status": "NoCoverage",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 486,
+     "text": "return deny(\"AllOf\", trace.reason ?? \"a required policy denied\", fold.children);"
+    },
+    {
+     "status": "Survived",
+     "mutator": "ArithmeticOperator",
+     "replacement": "depth - 1",
+     "line": 422,
+     "text": "evaluateNode(policy.policy, request, depth + 1),"
+    },
+    {
+     "status": "Survived",
+     "mutator": "ArithmeticOperator",
+     "replacement": "depth - 1",
+     "line": 440,
+     "text": "evaluateNode(policy.policy, request, depth + 1),"
+    },
+    {
+     "status": "Survived",
+     "mutator": "ArithmeticOperator",
+     "replacement": "depth - 1",
+     "line": 407,
+     "text": "evaluateNode(policy.policy, request, depth + 1),"
+    },
+    {
+     "status": "Survived",
+     "mutator": "ArithmeticOperator",
+     "replacement": "depth - 1",
+     "line": 576,
+     "text": "(child) => Effect.exit(evaluateNode(child, request, depth + 1)),"
+    },
+    {
+     "status": "Survived",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 705,
+     "text": "{ concurrency: request.concurrency },"
+    },
+    {
+     "status": "Survived",
+     "mutator": "ArithmeticOperator",
+     "replacement": "depth - 1",
+     "line": 704,
+     "text": "(child) => Effect.exit(evaluateNode(child, request, depth + 1)),"
+    },
+    {
+     "status": "Survived",
+     "mutator": "ArithmeticOperator",
+     "replacement": "depth - 1",
+     "line": 808,
+     "text": "evaluateNode(rule.condition, request, depth + 1),"
+    },
+    {
+     "status": "Survived",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 812,
+     "text": "{ concurrency: request.concurrency },"
+    },
+    {
+     "status": "Survived",
+     "mutator": "ArithmeticOperator",
+     "replacement": "depth - 1",
+     "line": 556,
+     "text": "yield* evaluateNode(child, request, depth + 1),"
+    },
+    {
+     "status": "Survived",
+     "mutator": "ArithmeticOperator",
+     "replacement": "depth - 1",
+     "line": 690,
+     "text": "yield* evaluateNode(child, request, depth + 1),"
+    },
+    {
+     "status": "Survived",
+     "mutator": "ArithmeticOperator",
+     "replacement": "depth - 1",
+     "line": 785,
+     "text": "const trace = yield* evaluateNode(rule.condition, request, depth + 1);"
+    }
+   ]
+  }
+ }
+}

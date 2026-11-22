@@ -40,6 +40,15 @@ test("a cases object missing an arm is a compile error", () => {
     Named: () => 0,
     Owing: () => 0,
   });
+  expect(foldExplanationCases).type.toBeCallableWith(explain(hasRole("a")), {
+    Requirement: () => 0,
+    All: () => 0,
+    Any: () => 0,
+    Negated: () => 0,
+    Named: () => 0,
+    Owing: () => 0,
+    Table: () => 0,
+  });
 });
 
 test("a wrapper arm that treats its part as an array is a compile error", () => {
@@ -48,6 +57,15 @@ test("a wrapper arm that treats its part as an array is a compile error", () => 
     All: () => 0,
     Any: () => 0,
     Negated: (_n: Explanation, part: ReadonlyArray<number>) => part.length,
+    Named: () => 0,
+    Owing: () => 0,
+    Table: () => 0,
+  });
+  expect(foldExplanationCases).type.toBeCallableWith(explain(hasRole("a")), {
+    Requirement: () => 0,
+    All: () => 0,
+    Any: () => 0,
+    Negated: (_n: Explanation, part: number) => part,
     Named: () => 0,
     Owing: () => 0,
     Table: () => 0,

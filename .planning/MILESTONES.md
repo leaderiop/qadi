@@ -1,5 +1,75 @@
 # Milestones
 
+## v1.7 Arch Wave 12 (Shipped: 2026-11-22)
+
+**Phases completed:** 8 phases, 60 plans, 30 tasks
+
+**Key accomplishments:**
+- `makeExternalStore`'s `notify` now calls every listener of the live set and then rethrows what they threw, decided by count (none, the thrown value itself, or one `AggregateError` of all), with each part of that contract shown pinned by a one-edit variant.
+- Every listener text in `@qadi/devtools` now says a throwing listener no longer silences the others and what still happens to the publishing call, and one `@qadi/devtools` patch changeset records the change.
+- ADR-QD-177, BEH-QD-656, INV-QD-373, the amended BEH-QD-638 rule, the ADR-QD-173 amendment and the CCR-QD-455 register row state the every-listener-is-called contract the code holds since plan 02, with the begin-to-fork window left as out of scope.
+- The Stryker close run, the 24-check close scan and a hand review of the phase's diff show the seam, the texts and the records say what the code holds and nothing else, with no touched file's mutation score lower than at the base.
+- The mutation base of the three admission files is recorded before any test of the phase exists, and both halves of ARCH-112 (the private constructor and nominal brand refusals, and the single read of the question's resource and action, E7 to E9) are seen failing on the base for the one reason each names.
+- `Admitted` has a private constructor and a declared private `nominal` member, and `admit` is its static method exported detached as `admit`, so neither a constructor call nor a same-shape object literal compiles outside `admit` while both call sites stay as they were.
+- `Admitted.admit` builds one `MatcherContext` after the depth check and passes it to `SUPPLIED[rowSource](context)`, which stores the same object as the matcher context, so the question's resource and action are each read once and the `"asked"` flags cannot disagree with what the matchers see.
+- The committed `packages/core/src` (head `6843e25e54d4bee5d1af1c5e2ba94cd88d95b3af`) is no slower than the phase base on any of the 35 `Evaluate.bench.ts` workloads, beyond its band: Phase 59's harness, 3 + 3 interleaved, gate pass.
+- The phase is closed on one tree: the Stryker close run shows no file's score fell (`Admission.ts` rose from 18/18 to 20/20), the 30-check close scan is green over `phase_base..HEAD`, and `pnpm check:pr` ran once and alone on that tree; ADMT-01 to ADMT-04 are ticked and WX-01 to WX-07 stay Pending.
+- The ignore projection's reading of an undeclared accessor is pinned by eight cases that fail on the phase base for the reason each names, behind a mutation base of the three untrusted-decode files recorded before any test of the phase existed.
+- The `ignore` projection takes `Object.keys`, keeps the keys `keysOf` names and reads each kept value once into an `Object.fromEntries` copy, so an undeclared accessor is never invoked and the eight RED cases from 66-01 are green.
+- The committed `ignore` projection against the phase base on six decode workloads, 3 + 3 interleaved: no workload slower, geometric mean -2.13%, gate pass, measured on a loaded host and under a harness shown able to fail.
+- ADR-QD-170 amended (D-19 scoped, D-09 closed), INV-QD-377 and BEH-QD-666 added under reserved ids, the register shown red then green, and one `@qadi/core` patch changeset.
+- The Stryker close shows no touched file's score fell and no survivor on a line the phase wrote, the 12-check close scan and a single `pnpm check:pr` are green on one tree, and DECL-01 to DECL-04 are ticked.
+- The Stryker base of DecisionCache, Lifecycle and SharedComputation is recorded on the phase base by a line-mapping, multiset scorer, and the I5 race test now sweeps each budget until it has seen both orderings, with a cap of 512 that fails loudly and a margin of 3.
+- The arm table beat the Match form on the fixed gate: Match slowed both miss workloads by 7.2% and 7.7%, the table passed with a geometric mean of -4.15% and no workload slower, so 67-04 applies the table.
+- DecisionCache's eviction loop and its `Option.isSome` guard, whose mutant could not be killed, became `Chunk.splitAt` plus `HashMap.removeMany`, with every test unedited and the split's count shown to fail a test when its `-` becomes `+`.
+- `SharedComputation.run` now joins its one synchronous claim step to a row-typed arm table with `Effect.flatMap`; the owner's former 70 lines are the local function `answerOwned`, and all ten hand-applied tag mutants fail tests.
+- The final committed source (`Chunk.splitAt` and `HashMap.removeMany` eviction, claim dispatched through the arm table) was measured once, 3 + 3 interleaved, against `phase_base` and passes the fixed gate: no workload slower, geometric mean of the five deltas -2.51%.
+- INV-QD-379 for the bound and the FIFO order of the split eviction, BEH-QD-166's reasons rewritten for it, and CCR-QD-458 recording the arm-table dispatch choice, all under reserved ids and traced.
+- The Stryker close of the three single-flight files is 38/38, 42/42 and 71/71 with nothing open, both named survivors are gone, and the close scan and `pnpm check:pr` are green on one tree.
+- OI-18 fixed (spec-revise kept its first argument only when `--date` was given), OI-24 fixed forward with one shared A/B bench harness that alternates the arm order by round, and the phase's mutation scorer, compiler comparison and staleness check committed, each shown failing on planted defects.
+- Fourteen tests added on the unchanged tree: TF26, TF27, TF29 and E11 to E13 fail for the reason named, and the other eight each fail under a plant of the source they read.
+- CCR-QD-459 written after every document it cites was bumped (11 at their current Revision, README 1.273), the phase's one `@qadi/devtools` patch changeset, and Phase 61's two settled items confirmed in a new archive file with re-runnable evidence; `verify-traceability.sh --strict` is green again at 21 passes.
+- Phases 66 and 67 re-verified against the tree Phase 68 leaves, `pnpm check:pr` green once on it, HYGN-01 to HYGN-07 ticked, and OI-01 to OI-29 each mapped to the commit that fixed it or the CCR-QD-459 line that records it.
+- All five Phase 68 defects (odd bench rounds, a failing gate that exits 0, staleness blind spots, a type-blind comparison, an unbounded TypeScript parse) are recorded failing on 0e3f3438, with the base parity answers pinned for the gate fix.
+- `analyze.mjs` now exits 1 on a failed gate and 2 on any input it cannot analyze, `pnpm check` runs its end-to-end self-test as tabled step 26, and `ab.sh` refuses an odd round count.
+- `68.1-stale.mjs` sees renames, deletions and dotfile paths, `68.1-compare.mjs` compares TypeScript tokens with their types, and every verdict Phase 68 recorded with its comparison held when re-run under both.
+- Gate 14's probe guard now runs its TypeScript parse in `scripts/lib/probe-guard-parse.mjs` under `execFileSync(…, { timeout: CHILD_TIMEOUT_MS })`, so a TypeScript server that stops answering fails the gate at the bound every other child has, and every answer the guard gives is byte-identical to before.
+
+---
+
+## v1.6 Arch Wave 11 (Phases 53-61) (Completed: 2026-11-19; not released)
+
+**Phases completed:** 9 phases, 83 plans
+**Closeout:** verified_closeout. All 9 phases `passed`, Nyquist-compliant and secured; every code review converged
+within three iterations. The three human checkpoints (59 benchmark gate, 60, 61) were all decided "pursue". Milestone
+audit: `tech_debt`, accepted by the user (49/49 requirements, 9/9 phases, 5/5 integration seams, 4/4 flows, Nyquist
+9/9 after correcting three stale `nyquist_compliant` seeds). Archived as `milestones/v1.6-MILESTONE-AUDIT.md`.
+**Known verification overrides:** 0 (2 items acknowledged at an earlier close still suppressed).
+**Git range:** `44510112` (v1.5 merged as #162) → this archive commit on `arch-wave-11` (436 commits before the
+archive, 2026-11-18 → 2026-11-19); 190 files changed outside `.planning`, +12,895 / −3,178.
+**Merge gate:** `pnpm check:pr` exit 0 at the end of every phase and after every review round; each phase's scoped
+Stryker compare held (no touched file's score fell).
+**Records:** ARCH-100..108, ADR-QD-166..174, CCR-QD-444..452.
+**Release:** none. The branch is not merged and nothing was published. Changesets are pending, unconsumed:
+`@qadi/core` minor (**Breaking**: Phases 57, 58, 61) and patch (53, 54), `@qadi/devtools` minor (**Breaking**:
+Phases 55, 56, 58, 60), `@qadi/http` minor (**Breaking**: Phase 58), `@qadi/react` minor (**Breaking**: Phase 56),
+`@qadi/audit` patch (Phase 57).
+
+**Key accomplishments:**
+- **ARCH-100 (Phase 53):** one package-private `Operand.ts` owns the own-property read, closing the predicate
+  reference interpreter's fail-open (a row `evaluate` denies was allowed through `row[p.column]`) (ADR-QD-166).
+- **ARCH-101 (Phase 54):** `LeafNeeds` turns every leaf's answer into a verdict, finishing ADR-QD-163 (ADR-QD-167).
+- **ARCH-102/103 (Phases 55, 56):** a port card is a model row keyed by one `PortName`; the gate-registry watch is
+  the dock model's third scoped feed (ADR-QD-168, 169).
+- **ARCH-104/105 (Phases 57, 58):** `untrustedDecoder` takes a required unknown-key policy, and a stored record is
+  its envelope in memory too, one `StoredRecord` (ADR-QD-170, 171).
+- **ARCH-106 (Phase 59):** admission produces the one walk environment both interpreters read, typed by its row
+  source; the benchmark gate passed (0 of 35 workloads slower beyond their band) (ADR-QD-172).
+- **ARCH-107/108 (Phases 60, 61):** devtools' headless interface is its three feeds; a `DecisionCache` is asked
+  only the question and core's layer runs the matching walk (ADR-QD-173, 174).
+
+---
+
 ## v1.5 Arch Wave 10 (Phases 43-52) (Completed: 2026-11-16; not released)
 
 **Phases completed:** 10 phases, 71 plans

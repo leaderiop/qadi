@@ -1,0 +1,9 @@
+head: 6843e25e54d4bee5d1af1c5e2ba94cd88d95b3af
+patch: /Users/mohammadalmechkor/Projects/Perso/qadi/.planning/phases/QD-65-only-admit-builds-an-admitted/bench/final/to-base.patch
+patch_sha256: 20c8ce56eb40e97721f6fd1d7024fd1e5c4acbd57e81793001c6999e8f14c45e
+head_label: final
+patched_label: base
+rounds: 3
+node: v26.13.0
+cpu: Apple M3 Pro
+start: 2026-11-20T18:48:17Z

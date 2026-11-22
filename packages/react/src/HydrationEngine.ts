@@ -161,7 +161,7 @@ const encodePolicy = Schema.encodeOption(PolicySchema);
  * is deliberate and measured (ADR-QD-143), and it is why the policy decoder's
  * `TooDeep` arm is the same code the entry decoder's is.
  */
-const decodePolicy = untrustedDecoder(PolicySchema).decode;
+const decodePolicy = untrustedDecoder(PolicySchema, { unknownKeys: "refuse" }).decode;
 
 /**
  * A payload whose `version` is not {@link PAYLOAD_VERSION}, raised by the
@@ -190,7 +190,11 @@ const checkVersion = (input: unknown): Result.Result<unknown, PayloadVersionRefu
  * before the strict decode, so a version-3 payload nested past the bound is
  * `PayloadTooDeep`, not `UnsupportedPayloadVersion` (BEH-QD-488).
  */
-const decodeEnvelope = untrustedDecoder(Envelope, { unwalked: ["entries"], prepare: checkVersion }).decode;
+const decodeEnvelope = untrustedDecoder(Envelope, {
+  unknownKeys: "refuse",
+  unwalked: ["entries"],
+  prepare: checkVersion,
+}).decode;
 
 /** The decoder's refusal as the reason the payload is refused with. */
 const payloadRefusalReason: (refusal: UntrustedValueRefusal | PayloadVersionRefusal) => PayloadRefusalReason =
@@ -202,7 +206,7 @@ const payloadRefusalReason: (refusal: UntrustedValueRefusal | PayloadVersionRefu
     }),
   );
 
-const decodeEntry = untrustedDecoder(DehydratedEntryWire).decode;
+const decodeEntry = untrustedDecoder(DehydratedEntryWire, { unknownKeys: "refuse" }).decode;
 
 /**
  * Where a refused entry read lands: `TooDeep` is `EntryTooDeep` whichever read

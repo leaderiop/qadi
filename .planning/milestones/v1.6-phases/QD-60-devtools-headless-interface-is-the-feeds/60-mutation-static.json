@@ -1,0 +1,1828 @@
+{
+ "packages/devtools/src/model/DiagnosticsFeed.ts": [
+  {
+   "key": "ConditionalExpression | false | options === undefined | options === undefined ? IDLE_OFF : IDLE_STARTING;",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | options !== undefined | options === undefined | options === undefined ? IDLE_OFF : IDLE_STARTING;",
+   "status": "Killed"
+  },
+  {
+   "key": "BooleanLiteral | stopped.sampled | !stopped.sampled | Stopped: (stopped) => !stopped.sampled,",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | options === undefined | options === undefined ? IDLE_OFF : IDLE_STARTING;",
+   "status": "Killed"
+  },
+  {
+   "key": "BooleanLiteral | false | true | Starting: () => true,",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { let options = init; let store: DiagnosticsStore = makeDiagnosticsStore(); // Whether the reading shown holds an accepted sample: reset only by `Off`. let sampled = false; const view = makeExternalStore<DiagnosticsSnapshot>(diagnosticsOff); // One run at a time: a newer start supersedes and interrupts the one before it. const runs = yield* makeSupersedingRun(); // One publish per transition, carrying status and reading together. const show = (status: DiagnosticsStatus) => { const reading = store.getSnapshot(); const current = view.getSnapshot(); if (current.status === status && current.reading === reading) return; view.set({ status, reading }); }; const start = (next: DiagnosticsOptions) => { const token = runs.begin(); const target = store; // Before the fork: its synchronous prefix may already reach `Live` or `Stopped`. The one `Starting` value, so `show` drops a repeat. show(diagnosticsStarting.status); const marking: DiagnosticsStore = { subscribe: target.subscribe, getSnapshot: target.getSnapshot, accept: (reading) => { if (!runs.isCurrent(token)) return; target.accept(reading); sampled = true; // `accept` returns early on an unchanged reading, so Live is marked here, not by its notify. const current = view.getSnapshot().status; show(DiagnosticsStatus.$is(\"Live\")(current) ? current : DiagnosticsStatus.Live()); }, }; runs.fork(token, runDiagnostics(marking, next), { onFailure: (cause) => show(DiagnosticsStatus.Stopped({ reason: Cause.pretty(cause), sampled })), }); }; const off = () => { runs.stop(); store = makeDiagnosticsStore(); sampled = false; view.set(diagnosticsOff); }; const configure = (next: DiagnosticsOptions | undefined) => { // A command on a closed feed would publish a state nothing follows. if (runs.closed()) return; const before = options; options = next; if (next === undefined) { off(); return; } if ( before === undefined || next.layer !== before.layer || next.collector !== before.collector || next.intervalMillis !== before.intervalMillis ) { start(next); } }; const restart = () => { if (!runs.closed() && options !== undefined) start(options); }; if (init !== undefined) start(init); return { subscribe: view.subscribe, getSnapshot: view.getSnapshot, configure, restart }; } | ): Effect.fn.Return<DiagnosticsFeed, never, Scope.Scope> {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | current.status === status && current.reading === reading | if (current.status === status && current.reading === reading) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | current.status === status && current.reading === reading | if (current.status === status && current.reading === reading) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | current.status !== status | current.status === status | if (current.status === status && current.reading === reading) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | current.status === status | if (current.status === status && current.reading === reading) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const reading = store.getSnapshot(); const current = view.getSnapshot(); if (current.status === status && current.reading === reading) return; view.set({ status, reading }); } | const show = (status: DiagnosticsStatus) => {",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | current.reading !== reading | current.reading === reading | if (current.status === status && current.reading === reading) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "BooleanLiteral | true | false | Live: () => false,",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { status, reading } | view.set({ status, reading });",
+   "status": "Killed"
+  },
+  {
+   "key": "BooleanLiteral | true | false | Off: () => false,",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | current.reading === reading | if (current.status === status && current.reading === reading) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const token = runs.begin(); const target = store; // Before the fork: its synchronous prefix may already reach `Live` or `Stopped`. The one `Starting` value, so `show` drops a repeat. show(diagnosticsStarting.status); const marking: DiagnosticsStore = { subscribe: target.subscribe, getSnapshot: target.getSnapshot, accept: (reading) => { if (!runs.isCurrent(token)) return; target.accept(reading); sampled = true; // `accept` returns early on an unchanged reading, so Live is marked here, not by its notify. const current = view.getSnapshot().status; show(DiagnosticsStatus.$is(\"Live\")(current) ? current : DiagnosticsStatus.Live()); }, }; runs.fork(token, runDiagnostics(marking, next), { onFailure: (cause) => show(DiagnosticsStatus.Stopped({ reason: Cause.pretty(cause), sampled })), }); } | const start = (next: DiagnosticsOptions) => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { subscribe: target.subscribe, getSnapshot: target.getSnapshot, accept: (reading) => { if (!runs.isCurrent(token)) return; target.accept(reading); sampled = true; // `accept` returns early on an unchanged reading, so Live is marked here, not by its notify. const current = view.getSnapshot().status; show(DiagnosticsStatus.$is(\"Live\")(current) ? current : DiagnosticsStatus.Live()); }, } | const marking: DiagnosticsStore = {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { if (!runs.isCurrent(token)) return; target.accept(reading); sampled = true; // `accept` returns early on an unchanged reading, so Live is marked here, not by its notify. const current = view.getSnapshot().status; show(DiagnosticsStatus.$is(\"Live\")(current) ? current : DiagnosticsStatus.Live()); } | accept: (reading) => {",
+   "status": "Killed"
+  },
+  {
+   "key": "BooleanLiteral | runs.isCurrent(token) | !runs.isCurrent(token) | if (!runs.isCurrent(token)) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | !runs.isCurrent(token) | if (!runs.isCurrent(token)) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | target.accept(reading); | target.accept(reading);",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { reason: Cause.pretty(cause), sampled } | onFailure: (cause) => show(DiagnosticsStatus.Stopped({ reason: Cause.pretty(cause), sampled })),",
+   "status": "Killed"
+  },
+  {
+   "key": "BooleanLiteral | false | true | sampled = true;",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (cause) => show(DiagnosticsStatus.Stopped({ reason: Cause.pretty(cause), sampled })) | onFailure: (cause) => show(DiagnosticsStatus.Stopped({ reason: Cause.pretty(cause), sampled })),",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { onFailure: (cause) => show(DiagnosticsStatus.Stopped({ reason: Cause.pretty(cause), sampled })), } | runs.fork(token, runDiagnostics(marking, next), {",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Live\" | show(DiagnosticsStatus.$is(\"Live\")(current) ? current : DiagnosticsStatus.Live());",
+   "status": "Killed"
+  },
+  {
+   "key": "BooleanLiteral | true | false | let sampled = false;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | next === undefined | if (next === undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | next === undefined | if (next === undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { runs.stop(); store = makeDiagnosticsStore(); sampled = false; view.set(diagnosticsOff); } | const off = () => {",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | runs.stop(); | runs.stop();",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | next !== undefined | next === undefined | if (next === undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { off(); return; } | if (next === undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | off(); | off();",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | view.set(diagnosticsOff); | view.set(diagnosticsOff);",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | before === undefined || next.layer !== before.layer || next.collector !== before.collector || next.intervalMillis !== before.intervalMillis | before === undefined ||",
+   "status": "Killed"
+  },
+  {
+   "key": "BooleanLiteral | true | false | sampled = false;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | before === undefined || next.layer !== before.layer || next.collector !== before.collector || next.intervalMillis !== before.intervalMillis | before === undefined ||",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { // A command on a closed feed would publish a state nothing follows. if (runs.closed()) return; const before = options; options = next; if (next === undefined) { off(); return; } if ( before === undefined || next.layer !== before.layer || next.collector !== before.collector || next.intervalMillis !== before.intervalMillis ) { start(next); } } | const configure = (next: DiagnosticsOptions | undefined) => {",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | (before === undefined || next.layer !== before.layer || next.collector !== before.collector) && next.intervalMillis !== before.intervalMillis | before === undefined || next.layer !== before.layer || next.collector !== before.collector || next.intervalMillis !== before.intervalMillis | before === undefined ||",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | before === undefined || next.layer !== before.layer || next.collector !== before.collector | before === undefined ||",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | runs.closed() | if (runs.closed()) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | (before === undefined || next.layer !== before.layer) && next.collector !== before.collector | before === undefined || next.layer !== before.layer || next.collector !== before.collector | before === undefined ||",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | before === undefined || next.layer !== before.layer | before === undefined ||",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | before === undefined && next.layer !== before.layer | before === undefined || next.layer !== before.layer | before === undefined ||",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | before === undefined | before === undefined ||",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | runs.closed() | if (runs.closed()) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | before !== undefined | before === undefined | before === undefined ||",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | next.layer === before.layer | next.layer !== before.layer | next.layer !== before.layer ||",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | next.collector !== before.collector | next.collector !== before.collector ||",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | next.collector === before.collector | next.collector !== before.collector | next.collector !== before.collector ||",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | current.status === status || current.reading === reading | current.status === status && current.reading === reading | if (current.status === status && current.reading === reading) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { start(next); } | ) {",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | next.intervalMillis === before.intervalMillis | next.intervalMillis !== before.intervalMillis | next.intervalMillis !== before.intervalMillis",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | start(next); | start(next);",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | next.layer !== before.layer | next.layer !== before.layer ||",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { if (!runs.closed() && options !== undefined) start(options); } | const restart = () => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | !runs.isCurrent(token) | if (!runs.isCurrent(token)) return;",
+   "status": "Survived"
+  },
+  {
+   "key": "ConditionalExpression | false | !runs.closed() && options !== undefined | if (!runs.closed() && options !== undefined) start(options);",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | next.intervalMillis !== before.intervalMillis | next.intervalMillis !== before.intervalMillis",
+   "status": "Killed"
+  },
+  {
+   "key": "BooleanLiteral | runs.closed() | !runs.closed() | if (!runs.closed() && options !== undefined) start(options);",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | start(options); | if (!runs.closed() && options !== undefined) start(options);",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | show(diagnosticsStarting.status); | show(diagnosticsStarting.status);",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | options === undefined | options !== undefined | if (!runs.closed() && options !== undefined) start(options);",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | !runs.closed() && options !== undefined | if (!runs.closed() && options !== undefined) start(options);",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | init !== undefined | if (init !== undefined) start(init);",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | !runs.closed() || options !== undefined | !runs.closed() && options !== undefined | if (!runs.closed() && options !== undefined) start(options);",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | init !== undefined | if (init !== undefined) start(init);",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | start(init); | if (init !== undefined) start(init);",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | init === undefined | init !== undefined | if (init !== undefined) start(init);",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | options !== undefined | if (!runs.closed() && options !== undefined) start(options);",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { subscribe: view.subscribe, getSnapshot: view.getSnapshot, configure, restart } | return { subscribe: view.subscribe, getSnapshot: view.getSnapshot, configure, restart };",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { status: DiagnosticsStatus.Off(), reading: noDiagnostics, } | export const diagnosticsOff: DiagnosticsSnapshot = {",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { Off: () => false, Starting: () => true, Live: () => false, Stopped: (stopped) => !stopped.sampled, } | Match.tagsExhaustive({",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { status: DiagnosticsStatus.Starting(), reading: noDiagnostics, } | export const diagnosticsStarting: DiagnosticsSnapshot = {",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => true | Starting: () => true,",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => false | Live: () => false,",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (stopped) => !stopped.sampled | Stopped: (stopped) => !stopped.sampled,",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => false | Off: () => false,",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (snapshot: DiagnosticsSnapshot): DiagnosticsReadout => ({ subscribe: () => () => {}, getSnapshot: () => snapshot, restart: () => {}, }) | const idle = (snapshot: DiagnosticsSnapshot): DiagnosticsReadout => ({",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { subscribe: () => () => {}, getSnapshot: () => snapshot, restart: () => {}, } | const idle = (snapshot: DiagnosticsSnapshot): DiagnosticsReadout => ({",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => () => {} | subscribe: () => () => {},",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => snapshot | getSnapshot: () => snapshot,",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (options: DiagnosticsOptions | undefined): DiagnosticsReadout => options === undefined ? IDLE_OFF : IDLE_STARTING | export const idleDiagnostics = (options: DiagnosticsOptions | undefined): DiagnosticsReadout =>",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"qadi.devtools.makeDiagnosticsFeed\" | export const makeDiagnosticsFeed = Effect.fn(\"qadi.devtools.makeDiagnosticsFeed\")(function* (",
+   "status": "Timeout"
+  }
+ ],
+ "packages/devtools/src/model/DiagnosticsStore.ts": [
+  {
+   "key": "EqualityOperator | supplied !== undefined | supplied === undefined | supplied === undefined",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | supplied === undefined | supplied === undefined",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { wiring: supplied.wiring ?? sampled.wiring, activity: supplied.activity ?? sampled.activity, hydration: supplied.hydration ?? sampled.hydration, portCalls: supplied.portCalls ?? sampled.portCalls, questions: supplied.questions ?? sampled.questions, } | : {",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | supplied.wiring && sampled.wiring | supplied.wiring ?? sampled.wiring | wiring: supplied.wiring ?? sampled.wiring,",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | supplied === undefined | supplied === undefined",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | supplied.activity && sampled.activity | supplied.activity ?? sampled.activity | activity: supplied.activity ?? sampled.activity,",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | supplied.hydration && sampled.hydration | supplied.hydration ?? sampled.hydration | hydration: supplied.hydration ?? sampled.hydration,",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | supplied.portCalls && sampled.portCalls | supplied.portCalls ?? sampled.portCalls | portCalls: supplied.portCalls ?? sampled.portCalls,",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const current = store.getSnapshot(); const merged: Diagnostics = { wiring: keep(current.wiring, next.wiring), activity: keep(current.activity, next.activity), hydration: keep(current.hydration, next.hydration), portCalls: keep(current.portCalls, next.portCalls), questions: keep(current.questions, next.questions), }; if ( merged.wiring === current.wiring && merged.activity === current.activity && merged.hydration === current.hydration && merged.portCalls === current.portCalls && merged.questions === current.questions ) { return; } store.set(merged); } | accept: (next) => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { wiring: keep(current.wiring, next.wiring), activity: keep(current.activity, next.activity), hydration: keep(current.hydration, next.hydration), portCalls: keep(current.portCalls, next.portCalls), questions: keep(current.questions, next.questions), } | const merged: Diagnostics = {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const store = makeExternalStore(noDiagnostics); return { subscribe: store.subscribe, getSnapshot: store.getSnapshot, accept: (next) => { const current = store.getSnapshot(); const merged: Diagnostics = { wiring: keep(current.wiring, next.wiring), activity: keep(current.activity, next.activity), hydration: keep(current.hydration, next.hydration), portCalls: keep(current.portCalls, next.portCalls), questions: keep(current.questions, next.questions), }; if ( merged.wiring === current.wiring && merged.activity === current.activity && merged.hydration === current.hydration && merged.portCalls === current.portCalls && merged.questions === current.questions ) { return; } store.set(merged); }, }; } | export const makeDiagnosticsStore = (): DiagnosticsStore => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { subscribe: store.subscribe, getSnapshot: store.getSnapshot, accept: (next) => { const current = store.getSnapshot(); const merged: Diagnostics = { wiring: keep(current.wiring, next.wiring), activity: keep(current.activity, next.activity), hydration: keep(current.hydration, next.hydration), portCalls: keep(current.portCalls, next.portCalls), questions: keep(current.questions, next.questions), }; if ( merged.wiring === current.wiring && merged.activity === current.activity && merged.hydration === current.hydration && merged.portCalls === current.portCalls && merged.questions === current.questions ) { return; } store.set(merged); }, } | return {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | merged.wiring === current.wiring && merged.activity === current.activity && merged.hydration === current.hydration && merged.portCalls === current.portCalls && merged.questions === current.questions | merged.wiring === current.wiring &&",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | merged.wiring === current.wiring && merged.activity === current.activity && merged.hydration === current.hydration && merged.portCalls === current.portCalls && merged.questions === current.questions | merged.wiring === current.wiring &&",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | merged.wiring === current.wiring && merged.activity === current.activity && merged.hydration === current.hydration && merged.portCalls === current.portCalls || merged.questions === current.questions | merged.wiring === current.wiring && merged.activity === current.activity && merged.hydration === current.hydration && merged.portCalls === current.portCalls && merged.questions === current.questions | merged.wiring === current.wiring &&",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | merged.wiring === current.wiring && merged.activity === current.activity && merged.hydration === current.hydration && merged.portCalls === current.portCalls | merged.wiring === current.wiring &&",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | merged.wiring === current.wiring && merged.activity === current.activity && merged.hydration === current.hydration || merged.portCalls === current.portCalls | merged.wiring === current.wiring && merged.activity === current.activity && merged.hydration === current.hydration && merged.portCalls === current.portCalls | merged.wiring === current.wiring &&",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | merged.wiring === current.wiring && merged.activity === current.activity && merged.hydration === current.hydration | merged.wiring === current.wiring &&",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | merged.wiring === current.wiring && merged.activity === current.activity || merged.hydration === current.hydration | merged.wiring === current.wiring && merged.activity === current.activity && merged.hydration === current.hydration | merged.wiring === current.wiring &&",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | merged.wiring !== current.wiring | merged.wiring === current.wiring | merged.wiring === current.wiring &&",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | merged.activity !== current.activity | merged.activity === current.activity | merged.activity === current.activity &&",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | merged.portCalls === current.portCalls | merged.portCalls === current.portCalls &&",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | merged.portCalls !== current.portCalls | merged.portCalls === current.portCalls | merged.portCalls === current.portCalls &&",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | merged.questions !== current.questions | merged.questions === current.questions | merged.questions === current.questions",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { return; } | ) {",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | store.set(merged); | store.set(merged);",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | merged.hydration !== current.hydration | merged.hydration === current.hydration | merged.hydration === current.hydration &&",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | merged.hydration === current.hydration | merged.hydration === current.hydration &&",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { yield* Effect.scoped( Effect.gen(function* () { const wiring: Effect.Effect<WiringRead> = yield* wiringReader(options?.layer); const portCalls: Effect.Effect<PortCallLog | undefined> = options?.collector === undefined ? Effect.undefined : options.collector.snapshot; const sample = Effect.all({ wiring, activity: portActivity, hydration: hydrationActivity, portCalls, }).pipe(Effect.tap((reading) => Effect.sync(() => store.accept({ ...reading, questions: undefined })))); yield* Effect.repeat( sample, Schedule.spaced(options?.intervalMillis ?? DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS), ); }), ); } | ) {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const wiring: Effect.Effect<WiringRead> = yield* wiringReader(options?.layer); const portCalls: Effect.Effect<PortCallLog | undefined> = options?.collector === undefined ? Effect.undefined : options.collector.snapshot; const sample = Effect.all({ wiring, activity: portActivity, hydration: hydrationActivity, portCalls, }).pipe(Effect.tap((reading) => Effect.sync(() => store.accept({ ...reading, questions: undefined })))); yield* Effect.repeat( sample, Schedule.spaced(options?.intervalMillis ?? DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS), ); } | Effect.gen(function* () {",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | options?.collector !== undefined | options?.collector === undefined | options?.collector === undefined ? Effect.undefined : options.collector.snapshot;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | options?.collector === undefined | options?.collector === undefined ? Effect.undefined : options.collector.snapshot;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | options?.collector === undefined | options?.collector === undefined ? Effect.undefined : options.collector.snapshot;",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { wiring, activity: portActivity, hydration: hydrationActivity, portCalls, } | const sample = Effect.all({",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => store.accept({ ...reading, questions: undefined }) | }).pipe(Effect.tap((reading) => Effect.sync(() => store.accept({ ...reading, questions: undefined }))));",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (reading) => Effect.sync(() => store.accept({ ...reading, questions: undefined })) | }).pipe(Effect.tap((reading) => Effect.sync(() => store.accept({ ...reading, questions: undefined }))));",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { ...reading, questions: undefined } | }).pipe(Effect.tap((reading) => Effect.sync(() => store.accept({ ...reading, questions: undefined }))));",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | options?.intervalMillis && DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS | options?.intervalMillis ?? DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS | Schedule.spaced(options?.intervalMillis ?? DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS),",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | layer === undefined | if (layer === undefined) return Effect.succeed<WiringRead>(WiringRead.NotHanded());",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { if (layer === undefined) return Effect.succeed<WiringRead>(WiringRead.NotHanded()); const built = yield* Effect.exit(Layer.build(layer)); if (Exit.isFailure(built)) { const failed = WiringRead.Failed({ reason: Cause.pretty(built.cause) }); return Effect.succeed<WiringRead>(failed); } const context = built.value; return Effect.map(Effect.provideContext(wiringReport, context), (report) => WiringRead.Read({ report }), ); } | ) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | merged.questions === current.questions | merged.questions === current.questions",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | Exit.isFailure(built) | if (Exit.isFailure(built)) {",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | layer !== undefined | layer === undefined | if (layer === undefined) return Effect.succeed<WiringRead>(WiringRead.NotHanded());",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | supplied.questions && sampled.questions | supplied.questions ?? sampled.questions | questions: supplied.questions ?? sampled.questions,",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const failed = WiringRead.Failed({ reason: Cause.pretty(built.cause) }); return Effect.succeed<WiringRead>(failed); } | if (Exit.isFailure(built)) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | layer === undefined | if (layer === undefined) return Effect.succeed<WiringRead>(WiringRead.NotHanded());",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (report) => WiringRead.Read({ report }) | return Effect.map(Effect.provideContext(wiringReport, context), (report) =>",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | Exit.isFailure(built) | if (Exit.isFailure(built)) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | merged.activity === current.activity | merged.activity === current.activity &&",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { reason: Cause.pretty(built.cause) } | const failed = WiringRead.Failed({ reason: Cause.pretty(built.cause) });",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { report } | WiringRead.Read({ report }),",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | merged.wiring === current.wiring && merged.activity === current.activity | merged.wiring === current.wiring &&",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | merged.wiring === current.wiring || merged.activity === current.activity | merged.wiring === current.wiring && merged.activity === current.activity | merged.wiring === current.wiring &&",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | merged.wiring === current.wiring | merged.wiring === current.wiring &&",
+   "status": "Killed"
+  },
+  {
+   "key": "OptionalChaining | options.collector | options?.collector | options?.collector === undefined ? Effect.undefined : options.collector.snapshot;",
+   "status": "Killed"
+  },
+  {
+   "key": "OptionalChaining | options.layer | options?.layer | const wiring: Effect.Effect<WiringRead> = yield* wiringReader(options?.layer);",
+   "status": "Killed"
+  },
+  {
+   "key": "OptionalChaining | options.intervalMillis | options?.intervalMillis | Schedule.spaced(options?.intervalMillis ?? DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS),",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { wiring: WiringRead.NotHanded(), activity: [], hydration: undefined, portCalls: undefined, questions: undefined, } | export const noDiagnostics: Diagnostics = {",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | ( sampled: Diagnostics, supplied: DiagnosticsReading | undefined, ): Diagnostics => supplied === undefined ? sampled : { wiring: supplied.wiring ?? sampled.wiring, activity: supplied.activity ?? sampled.activity, hydration: supplied.hydration ?? sampled.hydration, portCalls: supplied.portCalls ?? sampled.portCalls, questions: supplied.questions ?? sampled.questions, } | export const mergeReading = (",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | <A>(previous: A, next: A): A => (Equal.equals(previous, next) ? previous : next) | const keep = <A>(previous: A, next: A): A => (Equal.equals(previous, next) ? previous : next);",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrayDeclaration | [\"Stryker was here\"] | [] | activity: [],",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"qadi.devtools.runDiagnostics\" | export const runDiagnostics = Effect.fn(\"qadi.devtools.runDiagnostics\")(function* (",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"qadi.devtools.wiringReader\" | const wiringReader = Effect.fn(\"qadi.devtools.wiringReader\")(function* (",
+   "status": "Killed"
+  }
+ ],
+ "packages/devtools/src/model/DockModel.ts": [
+  {
+   "key": "ObjectLiteral | {} | { gates: instances } | Read: ({ instances }) => ({ gates: instances }),",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { failed: reason } | Failed: ({ reason }) => ({ failed: reason }),",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { failed: reason } | Failed: ({ reason }) => ({ failed: reason }),",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { read: questions } | Read: ({ questions }) => ({ read: questions }),",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const registry = registryInput(key.feed.registry); const asked = askedInput(key.feed.asked); return { questions: key.supplied ?? (key.unsampled ? undefined : asked.read), ...registry, questionsFailed: asked.failed, unsampled: key.unsampled, }; } | const joinInputOf = (key: JoinKey): JoinInput => {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { let inputs: DockModelInputs = init ?? {}; // Reads the source in this scope; the store it hands back outlives a capacity change. const timelineFeed = yield* makeTimelineFeed({ capacity: inputs.capacity, source: inputs.source }); const timeline = timelineFeed.timeline; let shown: Timeline = timeline.getSnapshot(); let rail = catalogueOf(shown, inputs.catalogue); const simulation = yield* makeSimulationSession({ sightings: rail }); simulation.setPorts(inputs.ports); const explorer = makeExplorerSession({ sightings: rail }); const roles = makeHeldChoiceStore(inputs.catalogue?.roles ?? NO_ROLES, sameRole); const dock = makeDockSession({ timeline: shown, simulation }); const spread = () => { rail = catalogueOf(shown, inputs.catalogue); explorer.setSightings(rail); simulation.setSightings(rail); dock.setTimeline(shown); }; // Subscribed here, before any host listener, so the rail moves first. A pause toggle // publishes the same timeline, which reaches the host but not the rail. timeline.subscribe(() => { const next = timeline.getSnapshot(); if (next === shown) return; shown = next; spread(); }); // Forks the poll and never waits on it, so an asynchronous layer leaves it `Starting` after the build. const diagnosticsFeed = yield* makeDiagnosticsFeed(inputs.diagnostics); let fed = diagnosticsFeed.getSnapshot(); let supplied = inputs.reading; const mergedOf = (snapshot: DiagnosticsSnapshot, reading: DiagnosticsReading | undefined): DiagnosticsSnapshot => { const merged = mergeReading(snapshot.reading, reading); return merged === snapshot.reading ? snapshot : { status: snapshot.status, reading: merged }; }; const shownReading = makeExternalStore<DiagnosticsSnapshot>(mergedOf(fed, supplied)); const remerge = () => { const next = diagnosticsFeed.getSnapshot(); if (next === fed && inputs.reading === supplied) return; fed = next; supplied = inputs.reading; shownReading.set(mergedOf(fed, supplied)); }; diagnosticsFeed.subscribe(remerge); // Host code, both of it: the feed guards the registry and the thunk, and states a throw in its snapshot. const gatesFeed = yield* makeGatesFeed({ gates: inputs.gates, questions: inputs.questions, intervalMillis: inputs.diagnostics?.intervalMillis, }); // The join is pure over the feed's snapshot, the supplied questions and the poll's status, so no snapshot // pairs a question from one moment with a guard from another. A closed model joins nothing further. let closed = false; const keyNow = (): JoinKey => { const suppliedNow = inputs.reading?.questions; return { feed: gatesFeed.getSnapshot(), supplied: suppliedNow, unsampled: suppliedNow === undefined && isUnsampled(shownReading.getSnapshot().status), }; }; let lastJoin = keyNow(); const questions = makeExternalStore<QuestionsSnapshot>(joinQuestions(joinInputOf(lastJoin))); const rejoin = () => { if (closed) return; const key = keyNow(); if ( key.feed === lastJoin.feed && key.supplied === lastJoin.supplied && key.unsampled === lastJoin.unsampled ) { return; } lastJoin = key; questions.set(joinQuestions(joinInputOf(key))); }; // The port cards are a function of the shown reading alone: no host code is read, so nothing here is guarded. const servicesKeyNow = (): ServicesInput => { const { status, reading } = shownReading.getSnapshot(); return { wiring: reading.wiring, activity: reading.activity, portCalls: reading.portCalls, unsampled: isUnsampled(status), }; }; let lastServices = servicesKeyNow(); const services = makeExternalStore<ServicesView>(portCards(lastServices)); const reservice = () => { if (closed) return; const key = servicesKeyNow(); if ( key.wiring === lastServices.wiring && key.activity === lastServices.activity && key.portCalls === lastServices.portCalls && key.unsampled === lastServices.unsampled ) { return; } lastServices = key; services.set(portCards(key)); }; // After `shownReading` and the feed exist and before any host listener, so the join and the cards move first. gatesFeed.subscribe(rejoin); shownReading.subscribe(rejoin); shownReading.subscribe(reservice); yield* Effect.addFinalizer(() => Effect.sync(() => { closed = true; }), ); return { timeline, dock, explorer, roles, simulation, diagnostics: { subscribe: shownReading.subscribe, getSnapshot: shownReading.getSnapshot, restart: diagnosticsFeed.restart, }, timelineStatus: timelineFeed.status, questions: { subscribe: questions.subscribe, getSnapshot: questions.getSnapshot }, services: { subscribe: services.subscribe, getSnapshot: services.getSnapshot }, sightings: () => rail, configure: (next) => { const before = inputs; inputs = next; timelineFeed.configure({ capacity: next.capacity, source: next.source }); if (next.catalogue !== before.catalogue) { spread(); roles.setList(next.catalogue?.roles ?? NO_ROLES); } // The session guards an identical layer itself, so this is not guarded again. simulation.setPorts(next.ports); // The feed re-reads the registry and the thunk before `remerge`, whose publish joins through them: one // `configure` reads no registry the host has just handed away, and publishes one join. gatesFeed.configure({ gates: next.gates, questions: next.questions, intervalMillis: next.diagnostics?.intervalMillis, }); diagnosticsFeed.configure(next.diagnostics); // A reading that moved is a new merged snapshot, which rejoins through its own subscription. remerge(); }, }; } | ): Effect.fn.Return<DockModel, never, Scope.Scope> {",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | inputs.catalogue?.roles && NO_ROLES | inputs.catalogue?.roles ?? NO_ROLES | const roles = makeHeldChoiceStore(inputs.catalogue?.roles ?? NO_ROLES, sameRole);",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { questions: key.supplied ?? (key.unsampled ? undefined : asked.read), ...registry, questionsFailed: asked.failed, unsampled: key.unsampled, } | return {",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | key.supplied && (key.unsampled ? undefined : asked.read) | key.supplied ?? (key.unsampled ? undefined : asked.read) | questions: key.supplied ?? (key.unsampled ? undefined : asked.read),",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { sightings: rail } | const simulation = yield* makeSimulationSession({ sightings: rail });",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { timeline: shown, simulation } | const dock = makeDockSession({ timeline: shown, simulation });",
+   "status": "Killed"
+  },
+  {
+   "key": "OptionalChaining | inputs.catalogue.roles | inputs.catalogue?.roles | const roles = makeHeldChoiceStore(inputs.catalogue?.roles ?? NO_ROLES, sameRole);",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { sightings: rail } | const explorer = makeExplorerSession({ sightings: rail });",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { rail = catalogueOf(shown, inputs.catalogue); explorer.setSightings(rail); simulation.setSightings(rail); dock.setTimeline(shown); } | const spread = () => {",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | dock.setTimeline(shown); | dock.setTimeline(shown);",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const next = timeline.getSnapshot(); if (next === shown) return; shown = next; spread(); } | timeline.subscribe(() => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | next === shown | if (next === shown) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | explorer.setSightings(rail); | explorer.setSightings(rail);",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | simulation.setSightings(rail); | simulation.setSightings(rail);",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | next !== shown | next === shown | if (next === shown) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | spread(); | spread();",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | simulation.setPorts(inputs.ports); | simulation.setPorts(inputs.ports);",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const merged = mergeReading(snapshot.reading, reading); return merged === snapshot.reading ? snapshot : { status: snapshot.status, reading: merged }; } | const mergedOf = (snapshot: DiagnosticsSnapshot, reading: DiagnosticsReading | undefined): DiagnosticsSnapshot => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | next === shown | if (next === shown) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { status: snapshot.status, reading: merged } | return merged === snapshot.reading ? snapshot : { status: snapshot.status, reading: merged };",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const next = diagnosticsFeed.getSnapshot(); if (next === fed && inputs.reading === supplied) return; fed = next; supplied = inputs.reading; shownReading.set(mergedOf(fed, supplied)); } | const remerge = () => {",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | init && {} | init ?? {} | let inputs: DockModelInputs = init ?? {};",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | merged === snapshot.reading | return merged === snapshot.reading ? snapshot : { status: snapshot.status, reading: merged };",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | merged !== snapshot.reading | merged === snapshot.reading | return merged === snapshot.reading ? snapshot : { status: snapshot.status, reading: merged };",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | inputs.reading !== supplied | inputs.reading === supplied | if (next === fed && inputs.reading === supplied) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { capacity: inputs.capacity, source: inputs.source } | const timelineFeed = yield* makeTimelineFeed({ capacity: inputs.capacity, source: inputs.source });",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | merged === snapshot.reading | return merged === snapshot.reading ? snapshot : { status: snapshot.status, reading: merged };",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | next === fed && inputs.reading === supplied | if (next === fed && inputs.reading === supplied) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | shownReading.set(mergedOf(fed, supplied)); | shownReading.set(mergedOf(fed, supplied));",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | next === fed && inputs.reading === supplied | if (next === fed && inputs.reading === supplied) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "OptionalChaining | inputs.diagnostics.intervalMillis | inputs.diagnostics?.intervalMillis | intervalMillis: inputs.diagnostics?.intervalMillis,",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | next === fed || inputs.reading === supplied | next === fed && inputs.reading === supplied | if (next === fed && inputs.reading === supplied) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | next === fed | if (next === fed && inputs.reading === supplied) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "OptionalChaining | inputs.reading.questions | inputs.reading?.questions | const suppliedNow = inputs.reading?.questions;",
+   "status": "Killed"
+  },
+  {
+   "key": "BooleanLiteral | true | false | let closed = false;",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { feed: gatesFeed.getSnapshot(), supplied: suppliedNow, unsampled: suppliedNow === undefined && isUnsampled(shownReading.getSnapshot().status), } | return {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const suppliedNow = inputs.reading?.questions; return { feed: gatesFeed.getSnapshot(), supplied: suppliedNow, unsampled: suppliedNow === undefined && isUnsampled(shownReading.getSnapshot().status), }; } | const keyNow = (): JoinKey => {",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | next !== fed | next === fed | if (next === fed && inputs.reading === supplied) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | inputs.reading === supplied | if (next === fed && inputs.reading === supplied) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { if (closed) return; const key = keyNow(); if ( key.feed === lastJoin.feed && key.supplied === lastJoin.supplied && key.unsampled === lastJoin.unsampled ) { return; } lastJoin = key; questions.set(joinQuestions(joinInputOf(key))); } | const rejoin = () => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | suppliedNow === undefined && isUnsampled(shownReading.getSnapshot().status) | unsampled: suppliedNow === undefined && isUnsampled(shownReading.getSnapshot().status),",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | closed | if (closed) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | suppliedNow === undefined || isUnsampled(shownReading.getSnapshot().status) | suppliedNow === undefined && isUnsampled(shownReading.getSnapshot().status) | unsampled: suppliedNow === undefined && isUnsampled(shownReading.getSnapshot().status),",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | closed | if (closed) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | diagnosticsFeed.subscribe(remerge); | diagnosticsFeed.subscribe(remerge);",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | suppliedNow === undefined && isUnsampled(shownReading.getSnapshot().status) | unsampled: suppliedNow === undefined && isUnsampled(shownReading.getSnapshot().status),",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | suppliedNow === undefined | unsampled: suppliedNow === undefined && isUnsampled(shownReading.getSnapshot().status),",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | suppliedNow !== undefined | suppliedNow === undefined | unsampled: suppliedNow === undefined && isUnsampled(shownReading.getSnapshot().status),",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | key.feed === lastJoin.feed && key.supplied === lastJoin.supplied && key.unsampled === lastJoin.unsampled | key.feed === lastJoin.feed &&",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | key.feed === lastJoin.feed && key.supplied === lastJoin.supplied | key.feed === lastJoin.feed &&",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | key.feed === lastJoin.feed && key.supplied === lastJoin.supplied || key.unsampled === lastJoin.unsampled | key.feed === lastJoin.feed && key.supplied === lastJoin.supplied && key.unsampled === lastJoin.unsampled | key.feed === lastJoin.feed &&",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | key.feed === lastJoin.feed || key.supplied === lastJoin.supplied | key.feed === lastJoin.feed && key.supplied === lastJoin.supplied | key.feed === lastJoin.feed &&",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | key.supplied === lastJoin.supplied | key.supplied === lastJoin.supplied &&",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | key.feed === lastJoin.feed | key.feed === lastJoin.feed &&",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | key.supplied !== lastJoin.supplied | key.supplied === lastJoin.supplied | key.supplied === lastJoin.supplied &&",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | key.unsampled === lastJoin.unsampled | key.unsampled === lastJoin.unsampled",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { gates: inputs.gates, questions: inputs.questions, intervalMillis: inputs.diagnostics?.intervalMillis, } | const gatesFeed = yield* makeGatesFeed({",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | key.unsampled !== lastJoin.unsampled | key.unsampled === lastJoin.unsampled | key.unsampled === lastJoin.unsampled",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | key.feed === lastJoin.feed && key.supplied === lastJoin.supplied && key.unsampled === lastJoin.unsampled | key.feed === lastJoin.feed &&",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const { status, reading } = shownReading.getSnapshot(); return { wiring: reading.wiring, activity: reading.activity, portCalls: reading.portCalls, unsampled: isUnsampled(status), }; } | const servicesKeyNow = (): ServicesInput => {",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | questions.set(joinQuestions(joinInputOf(key))); | questions.set(joinQuestions(joinInputOf(key)));",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { return; } | ) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { wiring: reading.wiring, activity: reading.activity, portCalls: reading.portCalls, unsampled: isUnsampled(status), } | return {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { if (closed) return; const key = servicesKeyNow(); if ( key.wiring === lastServices.wiring && key.activity === lastServices.activity && key.portCalls === lastServices.portCalls && key.unsampled === lastServices.unsampled ) { return; } lastServices = key; services.set(portCards(key)); } | const reservice = () => {",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | key.feed !== lastJoin.feed | key.feed === lastJoin.feed | key.feed === lastJoin.feed &&",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | closed | if (closed) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | closed | if (closed) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | key.wiring === lastServices.wiring && key.activity === lastServices.activity && key.portCalls === lastServices.portCalls && key.unsampled === lastServices.unsampled | key.wiring === lastServices.wiring &&",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | key.wiring === lastServices.wiring && key.activity === lastServices.activity && key.portCalls === lastServices.portCalls && key.unsampled === lastServices.unsampled | key.wiring === lastServices.wiring &&",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | key.wiring === lastServices.wiring && key.activity === lastServices.activity && key.portCalls === lastServices.portCalls | key.wiring === lastServices.wiring &&",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | key.wiring === lastServices.wiring && key.activity === lastServices.activity && key.portCalls === lastServices.portCalls || key.unsampled === lastServices.unsampled | key.wiring === lastServices.wiring && key.activity === lastServices.activity && key.portCalls === lastServices.portCalls && key.unsampled === lastServices.unsampled | key.wiring === lastServices.wiring &&",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | key.wiring === lastServices.wiring && key.activity === lastServices.activity || key.portCalls === lastServices.portCalls | key.wiring === lastServices.wiring && key.activity === lastServices.activity && key.portCalls === lastServices.portCalls | key.wiring === lastServices.wiring &&",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | key.wiring === lastServices.wiring && key.activity === lastServices.activity | key.wiring === lastServices.wiring &&",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | key.wiring === lastServices.wiring || key.activity === lastServices.activity | key.wiring === lastServices.wiring && key.activity === lastServices.activity | key.wiring === lastServices.wiring &&",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | key.wiring === lastServices.wiring | key.wiring === lastServices.wiring &&",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | key.wiring !== lastServices.wiring | key.wiring === lastServices.wiring | key.wiring === lastServices.wiring &&",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | key.activity === lastServices.activity | key.activity === lastServices.activity &&",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | key.activity !== lastServices.activity | key.activity === lastServices.activity | key.activity === lastServices.activity &&",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | key.portCalls === lastServices.portCalls | key.portCalls === lastServices.portCalls &&",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | key.portCalls !== lastServices.portCalls | key.portCalls === lastServices.portCalls | key.portCalls === lastServices.portCalls &&",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | key.unsampled === lastServices.unsampled | key.unsampled === lastServices.unsampled",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | key.unsampled !== lastServices.unsampled | key.unsampled === lastServices.unsampled | key.unsampled === lastServices.unsampled",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { return; } | ) {",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | services.set(portCards(key)); | services.set(portCards(key));",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => Effect.sync(() => { closed = true; }) | yield* Effect.addFinalizer(() =>",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | gatesFeed.subscribe(rejoin); | gatesFeed.subscribe(rejoin);",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | shownReading.subscribe(rejoin); | shownReading.subscribe(rejoin);",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { timeline, dock, explorer, roles, simulation, diagnostics: { subscribe: shownReading.subscribe, getSnapshot: shownReading.getSnapshot, restart: diagnosticsFeed.restart, }, timelineStatus: timelineFeed.status, questions: { subscribe: questions.subscribe, getSnapshot: questions.getSnapshot }, services: { subscribe: services.subscribe, getSnapshot: services.getSnapshot }, sightings: () => rail, configure: (next) => { const before = inputs; inputs = next; timelineFeed.configure({ capacity: next.capacity, source: next.source }); if (next.catalogue !== before.catalogue) { spread(); roles.setList(next.catalogue?.roles ?? NO_ROLES); } // The session guards an identical layer itself, so this is not guarded again. simulation.setPorts(next.ports); // The feed re-reads the registry and the thunk before `remerge`, whose publish joins through them: one // `configure` reads no registry the host has just handed away, and publishes one join. gatesFeed.configure({ gates: next.gates, questions: next.questions, intervalMillis: next.diagnostics?.intervalMillis, }); diagnosticsFeed.configure(next.diagnostics); // A reading that moved is a new merged snapshot, which rejoins through its own subscription. remerge(); }, } | return {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { closed = true; } | Effect.sync(() => {",
+   "status": "Killed"
+  },
+  {
+   "key": "BooleanLiteral | false | true | closed = true;",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => rail | sightings: () => rail,",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { subscribe: shownReading.subscribe, getSnapshot: shownReading.getSnapshot, restart: diagnosticsFeed.restart, } | diagnostics: {",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { subscribe: questions.subscribe, getSnapshot: questions.getSnapshot } | questions: { subscribe: questions.subscribe, getSnapshot: questions.getSnapshot },",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const before = inputs; inputs = next; timelineFeed.configure({ capacity: next.capacity, source: next.source }); if (next.catalogue !== before.catalogue) { spread(); roles.setList(next.catalogue?.roles ?? NO_ROLES); } // The session guards an identical layer itself, so this is not guarded again. simulation.setPorts(next.ports); // The feed re-reads the registry and the thunk before `remerge`, whose publish joins through them: one // `configure` reads no registry the host has just handed away, and publishes one join. gatesFeed.configure({ gates: next.gates, questions: next.questions, intervalMillis: next.diagnostics?.intervalMillis, }); diagnosticsFeed.configure(next.diagnostics); // A reading that moved is a new merged snapshot, which rejoins through its own subscription. remerge(); } | configure: (next) => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { capacity: next.capacity, source: next.source } | timelineFeed.configure({ capacity: next.capacity, source: next.source });",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | shownReading.subscribe(reservice); | shownReading.subscribe(reservice);",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | next.catalogue !== before.catalogue | if (next.catalogue !== before.catalogue) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | next.catalogue !== before.catalogue | if (next.catalogue !== before.catalogue) {",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | next.catalogue === before.catalogue | next.catalogue !== before.catalogue | if (next.catalogue !== before.catalogue) {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { spread(); roles.setList(next.catalogue?.roles ?? NO_ROLES); } | if (next.catalogue !== before.catalogue) {",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | spread(); | spread();",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | next.catalogue?.roles && NO_ROLES | next.catalogue?.roles ?? NO_ROLES | roles.setList(next.catalogue?.roles ?? NO_ROLES);",
+   "status": "Killed"
+  },
+  {
+   "key": "OptionalChaining | next.catalogue.roles | next.catalogue?.roles | roles.setList(next.catalogue?.roles ?? NO_ROLES);",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | simulation.setPorts(next.ports); | simulation.setPorts(next.ports);",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { gates: next.gates, questions: next.questions, intervalMillis: next.diagnostics?.intervalMillis, } | gatesFeed.configure({",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { subscribe: services.subscribe, getSnapshot: services.getSnapshot } | services: { subscribe: services.subscribe, getSnapshot: services.getSnapshot },",
+   "status": "Killed"
+  },
+  {
+   "key": "OptionalChaining | next.diagnostics.intervalMillis | next.diagnostics?.intervalMillis | intervalMillis: next.diagnostics?.intervalMillis,",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | diagnosticsFeed.configure(next.diagnostics); | diagnosticsFeed.configure(next.diagnostics);",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | remerge(); | remerge();",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { Unwatched: () => ({}), Read: ({ instances }) => ({ gates: instances }), Failed: ({ reason }) => ({ failed: reason }), } | Match.tagsExhaustive({",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { Unhanded: () => ({}), Read: ({ questions }) => ({ read: questions }), Failed: ({ reason }) => ({ failed: reason }), } | Match.tagsExhaustive({",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => ({}) | Unhanded: () => ({}),",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | ({ instances }) => ({ gates: instances }) | Read: ({ instances }) => ({ gates: instances }),",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | ({ reason }) => ({ failed: reason }) | Failed: ({ reason }) => ({ failed: reason }),",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | ({ questions }) => ({ read: questions }) | Read: ({ questions }) => ({ read: questions }),",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrayDeclaration | [\"Stryker was here\"] | [] | const NO_ROLES: ReadonlyArray<Role> = [];",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | ({ reason }) => ({ failed: reason }) | Failed: ({ reason }) => ({ failed: reason }),",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => ({}) | Unwatched: () => ({}),",
+   "status": "Survived"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"qadi.devtools.makeDockModel\" | export const makeDockModel = Effect.fn(\"qadi.devtools.makeDockModel\")(function* (",
+   "status": "Survived"
+  }
+ ],
+ "packages/devtools/src/model/GatesFeed.ts": [
+  {
+   "key": "BlockStatement | {} | { let reason = fallback; try { reason = Cause.pretty(Cause.die(thrown)); } catch { // Keeps the fallback. } try { return { reason, key: thrown instanceof Error ? `${thrown.name}: ${thrown.message}` : reason }; } catch { return { reason, key: fallback }; } } | const stated = (thrown: unknown, fallback: string): Stated => {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { reason = Cause.pretty(Cause.die(thrown)); } | try {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { return { reason, key: thrown instanceof Error ? `${thrown.name}: ${thrown.message}` : reason }; } | try {",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { reason, key: thrown instanceof Error ? `${thrown.name}: ${thrown.message}` : reason } | return { reason, key: thrown instanceof Error ? `${thrown.name}: ${thrown.message}` : reason };",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { return { reason, key: fallback }; } | } catch {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { let inputs: GatesFeedInputs = init ?? {}; let registryNow = inputs.gates; let release = () => {}; // Why `subscribe` threw, if it did: the registry's changes then may not reach the feed, until `configure` watches again. let watchFailure: Stated | undefined; let registryKey: string | undefined; let askedKey: string | undefined; const store = makeExternalStore<GatesSnapshot>(snapshotOf(UNWATCHED, UNHANDED)); // Registered before the run, so on close the run's finalizer (interrupt, `closed()` true) runs first. yield* Effect.addFinalizer(() => Effect.sync(() => { const held = release; release = () => {}; try { held(); } catch { // A closing feed has nowhere to state it. } }), ); const runs = yield* makeSupersedingRun(); const readRegistry = (): RegistryRead => { const previous = store.getSnapshot().registry; const previousKey = registryKey; registryKey = undefined; // A watch failure always names a registry, so with none handed there is none to read. let failure = watchFailure; if (failure === undefined) { if (registryNow === undefined) return UNWATCHED; try { const instances = registryNow.instances(); return RegistryRead.$is(\"Read\")(previous) && previous.instances === instances ? previous : RegistryRead.Read({ instances }); } catch (thrown) { failure = stated(thrown, REGISTRY_FALLBACK); } } registryKey = failure.key; return RegistryRead.$is(\"Failed\")(previous) && previousKey === failure.key ? previous : RegistryRead.Failed({ reason: failure.reason }); }; const readAsked = (): AskedRead => { const thunk = inputs.questions; const previous = store.getSnapshot().asked; const previousKey = askedKey; askedKey = undefined; if (thunk === undefined) return UNHANDED; try { const questions = thunk(); return AskedRead.$is(\"Read\")(previous) && Equal.equals(previous.questions, questions) ? previous : AskedRead.Read({ questions }); } catch (thrown) { const failure = stated(thrown, QUESTIONS_FALLBACK); askedKey = failure.key; return AskedRead.$is(\"Failed\")(previous) && previousKey === failure.key ? previous : AskedRead.Failed({ reason: failure.reason }); } }; const publish = (registry: RegistryRead, asked: AskedRead) => { const current = store.getSnapshot(); if (current.registry === registry && current.asked === asked) return; store.set(snapshotOf(registry, asked)); }; // A closed feed runs no host code: a notification after close reads no registry. const onRegistry = () => { if (runs.closed()) return; publish(readRegistry(), store.getSnapshot().asked); }; // Releases the held subscription and takes the new one; both are host code and both are guarded. // The handle leaves the feed's state before it is called, so a release that throws neither skips the // new subscription nor runs again on the next `configure` or in the finalizer. A release that throws // is not stated: it belongs to a registry the feed no longer reads, and has nowhere honest to be shown. const watch = (registry: GateRegistryLike | undefined) => { const held = release; release = () => {}; watchFailure = undefined; try { held(); } catch { // The registry left behind may keep a listener, which only calls `onRegistry`. } if (runs.closed() || registry === undefined) return; try { release = registry.subscribe(onRegistry); } catch (thrown) { watchFailure = stated(thrown, REGISTRY_FALLBACK); } }; // Only the cadence's run calls it, and closing the scope interrupts that run: a closed feed never ticks. const tick = () => { const asked = readAsked(); if (asked === store.getSnapshot().asked) return; publish(readRegistry(), asked); }; const cadence = () => { if (inputs.questions === undefined) { runs.stop(); return; } const interval = inputs.intervalMillis ?? DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS; runs.fork( runs.begin(), Effect.sleep(interval).pipe( Effect.andThen(Effect.repeat(Effect.sync(tick), Schedule.spaced(interval))), Effect.asVoid, ), ); }; watch(registryNow); publish(readRegistry(), readAsked()); cadence(); return { subscribe: store.subscribe, getSnapshot: store.getSnapshot, configure: (next) => { if (runs.closed()) return; const before = inputs; inputs = next; if (next.gates !== registryNow || watchFailure !== undefined) { registryNow = next.gates; watch(registryNow); } let asked = store.getSnapshot().asked; if (next.questions !== before.questions || next.intervalMillis !== before.intervalMillis) { asked = readAsked(); cadence(); } publish(readRegistry(), asked); }, }; } | ): Effect.fn.Return<GatesFeed, never, Scope.Scope> {",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { reason, key: fallback } | return { reason, key: fallback };",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { registry, asked } | const snapshotOf = (registry: RegistryRead, asked: AskedRead): GatesSnapshot => ({ registry, asked });",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => Effect.sync(() => { const held = release; release = () => {}; try { held(); } catch { // A closing feed has nowhere to state it. } }) | yield* Effect.addFinalizer(() =>",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const previous = store.getSnapshot().registry; const previousKey = registryKey; registryKey = undefined; // A watch failure always names a registry, so with none handed there is none to read. let failure = watchFailure; if (failure === undefined) { if (registryNow === undefined) return UNWATCHED; try { const instances = registryNow.instances(); return RegistryRead.$is(\"Read\")(previous) && previous.instances === instances ? previous : RegistryRead.Read({ instances }); } catch (thrown) { failure = stated(thrown, REGISTRY_FALLBACK); } } registryKey = failure.key; return RegistryRead.$is(\"Failed\")(previous) && previousKey === failure.key ? previous : RegistryRead.Failed({ reason: failure.reason }); } | const readRegistry = (): RegistryRead => {",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | init && {} | init ?? {} | let inputs: GatesFeedInputs = init ?? {};",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const held = release; release = () => {}; try { held(); } catch { // A closing feed has nowhere to state it. } } | Effect.sync(() => {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { held(); } | try {",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | held(); | held();",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | failure !== undefined | failure === undefined | if (failure === undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | failure === undefined | if (failure === undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { if (registryNow === undefined) return UNWATCHED; try { const instances = registryNow.instances(); return RegistryRead.$is(\"Read\")(previous) && previous.instances === instances ? previous : RegistryRead.Read({ instances }); } catch (thrown) { failure = stated(thrown, REGISTRY_FALLBACK); } } | if (failure === undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | failure === undefined | if (failure === undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | registryNow === undefined | if (registryNow === undefined) return UNWATCHED;",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | `` | `${thrown.name}: ${thrown.message}` | return { reason, key: thrown instanceof Error ? `${thrown.name}: ${thrown.message}` : reason };",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const instances = registryNow.instances(); return RegistryRead.$is(\"Read\")(previous) && previous.instances === instances ? previous : RegistryRead.Read({ instances }); } | try {",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | registryNow !== undefined | registryNow === undefined | if (registryNow === undefined) return UNWATCHED;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | RegistryRead.$is(\"Read\")(previous) && previous.instances === instances | return RegistryRead.$is(\"Read\")(previous) && previous.instances === instances",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { failure = stated(thrown, REGISTRY_FALLBACK); } | } catch (thrown) {",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | RegistryRead.$is(\"Read\")(previous) || previous.instances === instances | RegistryRead.$is(\"Read\")(previous) && previous.instances === instances | return RegistryRead.$is(\"Read\")(previous) && previous.instances === instances",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { instances } | : RegistryRead.Read({ instances });",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | RegistryRead.$is(\"Failed\")(previous) && previousKey === failure.key | return RegistryRead.$is(\"Failed\")(previous) && previousKey === failure.key",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | previous.instances === instances | return RegistryRead.$is(\"Read\")(previous) && previous.instances === instances",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | previous.instances !== instances | previous.instances === instances | return RegistryRead.$is(\"Read\")(previous) && previous.instances === instances",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { reason: failure.reason } | : RegistryRead.Failed({ reason: failure.reason });",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | registryNow === undefined | if (registryNow === undefined) return UNWATCHED;",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const thunk = inputs.questions; const previous = store.getSnapshot().asked; const previousKey = askedKey; askedKey = undefined; if (thunk === undefined) return UNHANDED; try { const questions = thunk(); return AskedRead.$is(\"Read\")(previous) && Equal.equals(previous.questions, questions) ? previous : AskedRead.Read({ questions }); } catch (thrown) { const failure = stated(thrown, QUESTIONS_FALLBACK); askedKey = failure.key; return AskedRead.$is(\"Failed\")(previous) && previousKey === failure.key ? previous : AskedRead.Failed({ reason: failure.reason }); } } | const readAsked = (): AskedRead => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | thunk === undefined | if (thunk === undefined) return UNHANDED;",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const questions = thunk(); return AskedRead.$is(\"Read\")(previous) && Equal.equals(previous.questions, questions) ? previous : AskedRead.Read({ questions }); } | try {",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | thunk !== undefined | thunk === undefined | if (thunk === undefined) return UNHANDED;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | RegistryRead.$is(\"Failed\")(previous) && previousKey === failure.key | return RegistryRead.$is(\"Failed\")(previous) && previousKey === failure.key",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | previousKey !== failure.key | previousKey === failure.key | return RegistryRead.$is(\"Failed\")(previous) && previousKey === failure.key",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | previousKey === failure.key | return RegistryRead.$is(\"Failed\")(previous) && previousKey === failure.key",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | thunk === undefined | if (thunk === undefined) return UNHANDED;",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | RegistryRead.$is(\"Failed\")(previous) || previousKey === failure.key | RegistryRead.$is(\"Failed\")(previous) && previousKey === failure.key | return RegistryRead.$is(\"Failed\")(previous) && previousKey === failure.key",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | AskedRead.$is(\"Read\")(previous) && Equal.equals(previous.questions, questions) | return AskedRead.$is(\"Read\")(previous) && Equal.equals(previous.questions, questions)",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Failed\" | return RegistryRead.$is(\"Failed\")(previous) && previousKey === failure.key",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const failure = stated(thrown, QUESTIONS_FALLBACK); askedKey = failure.key; return AskedRead.$is(\"Failed\")(previous) && previousKey === failure.key ? previous : AskedRead.Failed({ reason: failure.reason }); } | } catch (thrown) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | AskedRead.$is(\"Failed\")(previous) && previousKey === failure.key | return AskedRead.$is(\"Failed\")(previous) && previousKey === failure.key",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { questions } | : AskedRead.Read({ questions });",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | AskedRead.$is(\"Read\")(previous) || Equal.equals(previous.questions, questions) | AskedRead.$is(\"Read\")(previous) && Equal.equals(previous.questions, questions) | return AskedRead.$is(\"Read\")(previous) && Equal.equals(previous.questions, questions)",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { reason: failure.reason } | : AskedRead.Failed({ reason: failure.reason });",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | AskedRead.$is(\"Failed\")(previous) && previousKey === failure.key | return AskedRead.$is(\"Failed\")(previous) && previousKey === failure.key",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | AskedRead.$is(\"Failed\")(previous) || previousKey === failure.key | AskedRead.$is(\"Failed\")(previous) && previousKey === failure.key | return AskedRead.$is(\"Failed\")(previous) && previousKey === failure.key",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const current = store.getSnapshot(); if (current.registry === registry && current.asked === asked) return; store.set(snapshotOf(registry, asked)); } | const publish = (registry: RegistryRead, asked: AskedRead) => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | RegistryRead.$is(\"Read\")(previous) && previous.instances === instances | return RegistryRead.$is(\"Read\")(previous) && previous.instances === instances",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | AskedRead.$is(\"Read\")(previous) && Equal.equals(previous.questions, questions) | return AskedRead.$is(\"Read\")(previous) && Equal.equals(previous.questions, questions)",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Read\" | return AskedRead.$is(\"Read\")(previous) && Equal.equals(previous.questions, questions)",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Read\" | return RegistryRead.$is(\"Read\")(previous) && previous.instances === instances",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | previousKey === failure.key | return AskedRead.$is(\"Failed\")(previous) && previousKey === failure.key",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"Failed\" | return AskedRead.$is(\"Failed\")(previous) && previousKey === failure.key",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | previousKey !== failure.key | previousKey === failure.key | return AskedRead.$is(\"Failed\")(previous) && previousKey === failure.key",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | current.registry === registry && current.asked === asked | if (current.registry === registry && current.asked === asked) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | current.registry === registry || current.asked === asked | current.registry === registry && current.asked === asked | if (current.registry === registry && current.asked === asked) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | store.set(snapshotOf(registry, asked)); | store.set(snapshotOf(registry, asked));",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { if (runs.closed()) return; publish(readRegistry(), store.getSnapshot().asked); } | const onRegistry = () => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | runs.closed() | if (runs.closed()) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | current.registry === registry | if (current.registry === registry && current.asked === asked) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | current.asked !== asked | current.asked === asked | if (current.registry === registry && current.asked === asked) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | current.asked === asked | if (current.registry === registry && current.asked === asked) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | current.registry !== registry | current.registry === registry | if (current.registry === registry && current.asked === asked) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | publish(readRegistry(), store.getSnapshot().asked); | publish(readRegistry(), store.getSnapshot().asked);",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const held = release; release = () => {}; watchFailure = undefined; try { held(); } catch { // The registry left behind may keep a listener, which only calls `onRegistry`. } if (runs.closed() || registry === undefined) return; try { release = registry.subscribe(onRegistry); } catch (thrown) { watchFailure = stated(thrown, REGISTRY_FALLBACK); } } | const watch = (registry: GateRegistryLike | undefined) => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | runs.closed() || registry === undefined | if (runs.closed() || registry === undefined) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | registry !== undefined | registry === undefined | if (runs.closed() || registry === undefined) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | runs.closed() | if (runs.closed()) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { release = registry.subscribe(onRegistry); } | try {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { watchFailure = stated(thrown, REGISTRY_FALLBACK); } | } catch (thrown) {",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | runs.closed() && registry === undefined | runs.closed() || registry === undefined | if (runs.closed() || registry === undefined) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | runs.closed() || registry === undefined | if (runs.closed() || registry === undefined) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | registry === undefined | if (runs.closed() || registry === undefined) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | publish(readRegistry(), asked); | publish(readRegistry(), asked);",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | current.registry === registry && current.asked === asked | if (current.registry === registry && current.asked === asked) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | asked !== store.getSnapshot().asked | asked === store.getSnapshot().asked | if (asked === store.getSnapshot().asked) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | asked === store.getSnapshot().asked | if (asked === store.getSnapshot().asked) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const asked = readAsked(); if (asked === store.getSnapshot().asked) return; publish(readRegistry(), asked); } | const tick = () => {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { runs.stop(); return; } | if (inputs.questions === undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { held(); } | try {",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | inputs.intervalMillis && DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS | inputs.intervalMillis ?? DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS | const interval = inputs.intervalMillis ?? DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS;",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | held(); | held();",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | inputs.questions === undefined | if (inputs.questions === undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { if (inputs.questions === undefined) { runs.stop(); return; } const interval = inputs.intervalMillis ?? DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS; runs.fork( runs.begin(), Effect.sleep(interval).pipe( Effect.andThen(Effect.repeat(Effect.sync(tick), Schedule.spaced(interval))), Effect.asVoid, ), ); } | const cadence = () => {",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | inputs.questions !== undefined | inputs.questions === undefined | if (inputs.questions === undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | asked === store.getSnapshot().asked | if (asked === store.getSnapshot().asked) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | publish(readRegistry(), readAsked()); | publish(readRegistry(), readAsked());",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | watch(registryNow); | watch(registryNow);",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { subscribe: store.subscribe, getSnapshot: store.getSnapshot, configure: (next) => { if (runs.closed()) return; const before = inputs; inputs = next; if (next.gates !== registryNow || watchFailure !== undefined) { registryNow = next.gates; watch(registryNow); } let asked = store.getSnapshot().asked; if (next.questions !== before.questions || next.intervalMillis !== before.intervalMillis) { asked = readAsked(); cadence(); } publish(readRegistry(), asked); }, } | return {",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | runs.fork( runs.begin(), Effect.sleep(interval).pipe( Effect.andThen(Effect.repeat(Effect.sync(tick), Schedule.spaced(interval))), Effect.asVoid, ), ); | runs.fork(",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | runs.stop(); | runs.stop();",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { if (runs.closed()) return; const before = inputs; inputs = next; if (next.gates !== registryNow || watchFailure !== undefined) { registryNow = next.gates; watch(registryNow); } let asked = store.getSnapshot().asked; if (next.questions !== before.questions || next.intervalMillis !== before.intervalMillis) { asked = readAsked(); cadence(); } publish(readRegistry(), asked); } | configure: (next) => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | runs.closed() | if (runs.closed()) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | runs.closed() | if (runs.closed()) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | inputs.questions === undefined | if (inputs.questions === undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | next.gates !== registryNow || watchFailure !== undefined | if (next.gates !== registryNow || watchFailure !== undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | next.gates !== registryNow || watchFailure !== undefined | if (next.gates !== registryNow || watchFailure !== undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | next.gates !== registryNow | if (next.gates !== registryNow || watchFailure !== undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | cadence(); | cadence();",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | next.gates !== registryNow && watchFailure !== undefined | next.gates !== registryNow || watchFailure !== undefined | if (next.gates !== registryNow || watchFailure !== undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { registryNow = next.gates; watch(registryNow); } | if (next.gates !== registryNow || watchFailure !== undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | next.gates === registryNow | next.gates !== registryNow | if (next.gates !== registryNow || watchFailure !== undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | next.questions !== before.questions || next.intervalMillis !== before.intervalMillis | if (next.questions !== before.questions || next.intervalMillis !== before.intervalMillis) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | next.questions !== before.questions || next.intervalMillis !== before.intervalMillis | if (next.questions !== before.questions || next.intervalMillis !== before.intervalMillis) {",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | next.questions !== before.questions && next.intervalMillis !== before.intervalMillis | next.questions !== before.questions || next.intervalMillis !== before.intervalMillis | if (next.questions !== before.questions || next.intervalMillis !== before.intervalMillis) {",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | next.questions === before.questions | next.questions !== before.questions | if (next.questions !== before.questions || next.intervalMillis !== before.intervalMillis) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | next.questions !== before.questions | if (next.questions !== before.questions || next.intervalMillis !== before.intervalMillis) {",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | watch(registryNow); | watch(registryNow);",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | watchFailure !== undefined | if (next.gates !== registryNow || watchFailure !== undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | watchFailure === undefined | watchFailure !== undefined | if (next.gates !== registryNow || watchFailure !== undefined) {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { asked = readAsked(); cadence(); } | if (next.questions !== before.questions || next.intervalMillis !== before.intervalMillis) {",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | publish(readRegistry(), asked); | publish(readRegistry(), asked);",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | next.intervalMillis === before.intervalMillis | next.intervalMillis !== before.intervalMillis | if (next.questions !== before.questions || next.intervalMillis !== before.intervalMillis) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | next.intervalMillis !== before.intervalMillis | if (next.questions !== before.questions || next.intervalMillis !== before.intervalMillis) {",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | cadence(); | cadence();",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (registry: RegistryRead, asked: AskedRead): GatesSnapshot => ({ registry, asked }) | const snapshotOf = (registry: RegistryRead, asked: AskedRead): GatesSnapshot => ({ registry, asked });",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"The registry threw a value that could not be described.\" | const REGISTRY_FALLBACK = \"The registry threw a value that could not be described.\";",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"The questions threw a value that could not be described.\" | const QUESTIONS_FALLBACK = \"The questions threw a value that could not be described.\";",
+   "status": "Killed"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"qadi.devtools.makeGatesFeed\" | export const makeGatesFeed = Effect.fn(\"qadi.devtools.makeGatesFeed\")(function* (",
+   "status": "Killed"
+  }
+ ],
+ "packages/devtools/src/model/TimelineFeed.ts": [
+  {
+   "key": "ObjectLiteral | {} | { capacity: capacity ?? DEFAULT_TIMELINE_CAPACITY } | makeTimelineStore({ capacity: capacity ?? DEFAULT_TIMELINE_CAPACITY });",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | capacity && DEFAULT_TIMELINE_CAPACITY | capacity ?? DEFAULT_TIMELINE_CAPACITY | makeTimelineStore({ capacity: capacity ?? DEFAULT_TIMELINE_CAPACITY });",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { let inputs: TimelineFeedInputs = init ?? {}; let inner = bounded(inputs.capacity); // What the host subscribes to. It outlives every `inner`, so a capacity change is a new value, not a new store. const view = makeExternalStore<Timeline>(inner.getSnapshot()); // A pause toggle changes the store's reading without moving the timeline, so it publishes too. const push = () => view.publish(inner.getSnapshot()); inner.subscribe(push); const timeline: TimelineStore = { subscribe: view.subscribe, getSnapshot: view.getSnapshot, accept: (record) => inner.accept(record), clear: () => inner.clear(), setPaused: (paused) => inner.setPaused(paused), isPaused: () => inner.isPaused(), }; const status = makeExternalStore<TimelineStatus>(READING); // One read at a time: a newer read supersedes and interrupts the one before it. const reads = yield* makeSupersedingRun(); // A source that went away is replaced by an empty one. const readSource = (source: Source | undefined) => { const token = reads.begin(); status.set(READING); const marking: Pick<TimelineStore, \"accept\"> = { accept: (record) => { if (!reads.isCurrent(token)) return; timeline.accept(record); }, }; reads.fork(token, runSource(marking, source ?? NO_SOURCE), { onFailure: (cause) => status.set(TimelineStatus.Stopped({ reason: Cause.pretty(cause) })), }); }; readSource(inputs.source); // A restart on a closed feed would publish a state nothing follows. const restart = () => { if (!reads.closed()) readSource(inputs.source); }; return { timeline, status: { subscribe: status.subscribe, getSnapshot: status.getSnapshot, restart }, configure: (next) => { // A command on a closed feed would publish a state nothing follows. if (reads.closed()) return; const before = inputs; inputs = next; const resized = next.capacity !== before.capacity; if (resized) { // The old store is dropped, not unsubscribed from: nothing can reach it again. inner = bounded(next.capacity); inner.subscribe(push); push(); } if (resized || next.source !== before.source) readSource(next.source); }, }; } | ): Effect.fn.Return<TimelineFeed, never, Scope.Scope> {",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | inner.subscribe(push); | inner.subscribe(push);",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (record) => inner.accept(record) | accept: (record) => inner.accept(record),",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { subscribe: view.subscribe, getSnapshot: view.getSnapshot, accept: (record) => inner.accept(record), clear: () => inner.clear(), setPaused: (paused) => inner.setPaused(paused), isPaused: () => inner.isPaused(), } | const timeline: TimelineStore = {",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => view.publish(inner.getSnapshot()) | const push = () => view.publish(inner.getSnapshot());",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => inner.clear() | clear: () => inner.clear(),",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (paused) => inner.setPaused(paused) | setPaused: (paused) => inner.setPaused(paused),",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => inner.isPaused() | isPaused: () => inner.isPaused(),",
+   "status": "Killed"
+  },
+  {
+   "key": "BooleanLiteral | true | false | isPaused: () => false,",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { accept: (record) => { if (!reads.isCurrent(token)) return; timeline.accept(record); }, } | const marking: Pick<TimelineStore, \"accept\"> = {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { const token = reads.begin(); status.set(READING); const marking: Pick<TimelineStore, \"accept\"> = { accept: (record) => { if (!reads.isCurrent(token)) return; timeline.accept(record); }, }; reads.fork(token, runSource(marking, source ?? NO_SOURCE), { onFailure: (cause) => status.set(TimelineStatus.Stopped({ reason: Cause.pretty(cause) })), }); } | const readSource = (source: Source | undefined) => {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { if (!reads.isCurrent(token)) return; timeline.accept(record); } | accept: (record) => {",
+   "status": "Killed"
+  },
+  {
+   "key": "BooleanLiteral | reads.isCurrent(token) | !reads.isCurrent(token) | if (!reads.isCurrent(token)) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | !reads.isCurrent(token) | if (!reads.isCurrent(token)) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | timeline.accept(record); | timeline.accept(record);",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | source && NO_SOURCE | source ?? NO_SOURCE | reads.fork(token, runSource(marking, source ?? NO_SOURCE), {",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { if (!reads.closed()) readSource(inputs.source); } | const restart = () => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { reason: Cause.pretty(cause) } | onFailure: (cause) => status.set(TimelineStatus.Stopped({ reason: Cause.pretty(cause) })),",
+   "status": "Killed"
+  },
+  {
+   "key": "BooleanLiteral | reads.closed() | !reads.closed() | if (!reads.closed()) readSource(inputs.source);",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | !reads.closed() | if (!reads.closed()) readSource(inputs.source);",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | readSource(inputs.source); | readSource(inputs.source);",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | readSource(inputs.source); | if (!reads.closed()) readSource(inputs.source);",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | !reads.closed() | if (!reads.closed()) readSource(inputs.source);",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { timeline, status: { subscribe: status.subscribe, getSnapshot: status.getSnapshot, restart }, configure: (next) => { // A command on a closed feed would publish a state nothing follows. if (reads.closed()) return; const before = inputs; inputs = next; const resized = next.capacity !== before.capacity; if (resized) { // The old store is dropped, not unsubscribed from: nothing can reach it again. inner = bounded(next.capacity); inner.subscribe(push); push(); } if (resized || next.source !== before.source) readSource(next.source); }, } | return {",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { subscribe: status.subscribe, getSnapshot: status.getSnapshot, restart } | status: { subscribe: status.subscribe, getSnapshot: status.getSnapshot, restart },",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | status.set(READING); | status.set(READING);",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | resized | if (resized) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { onFailure: (cause) => status.set(TimelineStatus.Stopped({ reason: Cause.pretty(cause) })), } | reads.fork(token, runSource(marking, source ?? NO_SOURCE), {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | resized | if (resized) {",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (cause) => status.set(TimelineStatus.Stopped({ reason: Cause.pretty(cause) })) | onFailure: (cause) => status.set(TimelineStatus.Stopped({ reason: Cause.pretty(cause) })),",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { // A command on a closed feed would publish a state nothing follows. if (reads.closed()) return; const before = inputs; inputs = next; const resized = next.capacity !== before.capacity; if (resized) { // The old store is dropped, not unsubscribed from: nothing can reach it again. inner = bounded(next.capacity); inner.subscribe(push); push(); } if (resized || next.source !== before.source) readSource(next.source); } | configure: (next) => {",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | reads.closed() | if (reads.closed()) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "BlockStatement | {} | { // The old store is dropped, not unsubscribed from: nothing can reach it again. inner = bounded(next.capacity); inner.subscribe(push); push(); } | if (resized) {",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | inner.subscribe(push); | inner.subscribe(push);",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | push(); | push();",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | init && {} | init ?? {} | let inputs: TimelineFeedInputs = init ?? {};",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | !reads.isCurrent(token) | if (!reads.isCurrent(token)) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | next.capacity !== before.capacity | const resized = next.capacity !== before.capacity;",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | next.capacity === before.capacity | next.capacity !== before.capacity | const resized = next.capacity !== before.capacity;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | next.capacity !== before.capacity | const resized = next.capacity !== before.capacity;",
+   "status": "Killed"
+  },
+  {
+   "key": "CallExpression | ; | readSource(next.source); | if (resized || next.source !== before.source) readSource(next.source);",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | reads.closed() | if (reads.closed()) return;",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | resized || next.source !== before.source | if (resized || next.source !== before.source) readSource(next.source);",
+   "status": "Killed"
+  },
+  {
+   "key": "LogicalOperator | resized && next.source !== before.source | resized || next.source !== before.source | if (resized || next.source !== before.source) readSource(next.source);",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | false | next.source !== before.source | if (resized || next.source !== before.source) readSource(next.source);",
+   "status": "Killed"
+  },
+  {
+   "key": "EqualityOperator | next.source === before.source | next.source !== before.source | if (resized || next.source !== before.source) readSource(next.source);",
+   "status": "Killed"
+  },
+  {
+   "key": "ConditionalExpression | true | resized || next.source !== before.source | if (resized || next.source !== before.source) readSource(next.source);",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | (capacity: number | undefined): TimelineStore => makeTimelineStore({ capacity: capacity ?? DEFAULT_TIMELINE_CAPACITY }) | const bounded = (capacity: number | undefined): TimelineStore =>",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { subscribe: () => () => {}, getSnapshot: () => IDLE_TIMELINE, accept: () => {}, clear: () => {}, setPaused: () => {}, isPaused: () => false, } | export const idleTimeline: TimelineStore = {",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrayDeclaration | [\"Stryker was here\"] | [] | const NO_SOURCE: Source = sourceFromRecords([]);",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => IDLE_TIMELINE | getSnapshot: () => IDLE_TIMELINE,",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => () => {} | subscribe: () => () => {},",
+   "status": "Killed"
+  },
+  {
+   "key": "ObjectLiteral | {} | { subscribe: () => () => {}, getSnapshot: () => READING, restart: () => {}, } | export const idleTimelineStatus: TimelineStatusReadout = {",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => false | isPaused: () => false,",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => READING | getSnapshot: () => READING,",
+   "status": "Killed"
+  },
+  {
+   "key": "ArrowFunction | () => undefined | () => () => {} | subscribe: () => () => {},",
+   "status": "Survived"
+  },
+  {
+   "key": "StringLiteral | \"\" | \"qadi.devtools.makeTimelineFeed\" | export const makeTimelineFeed = Effect.fn(\"qadi.devtools.makeTimelineFeed\")(function* (",
+   "status": "Survived"
+  }
+ ]
+}

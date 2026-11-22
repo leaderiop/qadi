@@ -81,8 +81,8 @@ it arrives.
 
 `useDevtoolsFeed(extra)` returns what `@qadi/devtools`' dock reads from this
 provider: `gates` (the provider's gate registry, which the dock subscribes to),
-`onInvalidate`, and a `diagnostics` whose `layer` is the
-provider's own built services and whose `questions` is `atoms.asked`.
+`onInvalidate`, `questions` (`atoms.asked`), and a `diagnostics` whose `layer` is
+the provider's own built services.
 
 ```ts
 // const feed = useDevtoolsFeed({ collector });   // `collector` at module scope

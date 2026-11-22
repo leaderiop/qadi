@@ -10,30 +10,33 @@
  * so a backend aggregator can consume the model without pulling in a UI.
  *
  * **The list below is the interface** (ADR-QD-047's amendment, ARCH-40): the
- * three stores a shell runs (`TimelineStore`, `SimulationSession`,
- * `DiagnosticsStore`) with their runners, the host wiring the dock takes, the
- * timeline readings ADR-QD-047 lists, and the types those name. A screen's
+ * three feeds a shell builds in a scope (`makeTimelineFeed`,
+ * `makeDiagnosticsFeed`, `makeGatesFeed`) with the statuses and types their
+ * handles name, the simulation session, the host wiring the dock takes, and the
+ * timeline readings ADR-QD-047 lists. The feeds' engines and a screen's
  * mechanics (form codecs, sweep planning, remedies, capture, replay, role trees,
  * gate grouping) are reachable inside the package only: out of the barrel means
- * not importable (ADR-QD-099). Adding a name is a line here, a row in
+ * not importable (ADR-QD-099, ADR-QD-173). Adding a name is a line here, a row in
  * `spec/overview.md` and a line in `test/surface.test.ts`, which is deliberate.
  */
 export type { Answer, CapturedAnswers } from "./model/Capture.ts";
 export { catalogueOf } from "./model/Catalogue.ts";
 export type { Catalogue, PolicySighting } from "./model/Catalogue.ts";
+export { DiagnosticsStatus, makeDiagnosticsFeed } from "./model/DiagnosticsFeed.ts";
+export type {
+  DiagnosticsFeed,
+  DiagnosticsReadout,
+  DiagnosticsSnapshot,
+} from "./model/DiagnosticsFeed.ts";
 export {
   DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS,
   WiringRead,
-  makeDiagnosticsStore,
   mergeReading,
-  noDiagnostics,
-  runDiagnostics,
 } from "./model/DiagnosticsStore.ts";
 export type {
   Diagnostics,
   DiagnosticsOptions,
   DiagnosticsReading,
-  DiagnosticsStore,
 } from "./model/DiagnosticsStore.ts";
 export {
   applyFilters,
@@ -44,6 +47,8 @@ export {
 } from "./model/Filters.ts";
 export type { Filters } from "./model/Filters.ts";
 export type { AskedQuestionLike, GateInstanceLike, GateRegistryLike } from "./model/Gates.ts";
+export { AskedRead, RegistryRead, makeGatesFeed } from "./model/GatesFeed.ts";
+export type { GatesFeed, GatesFeedInputs, GatesSnapshot } from "./model/GatesFeed.ts";
 export type { HeldChoice } from "./model/HeldChoice.ts";
 export { hasHydrated, hydrationActivity, unaccountedEntries } from "./model/Hydration.ts";
 export type { HydrationActivity, HydrationDrops } from "./model/Hydration.ts";
@@ -122,7 +127,12 @@ export {
   ingestAll,
 } from "./model/Timeline.ts";
 export type { Timeline, TimelineEntry } from "./model/Timeline.ts";
-export { makeTimelineStore, runSource } from "./model/TimelineStore.ts";
+export { TimelineStatus, makeTimelineFeed } from "./model/TimelineFeed.ts";
+export type {
+  TimelineFeed,
+  TimelineFeedInputs,
+  TimelineStatusReadout,
+} from "./model/TimelineFeed.ts";
 export type { TimelineStore } from "./model/TimelineStore.ts";
 export { countsOf, verdictOf, verdictOfOutcome } from "./model/Verdict.ts";
 export type { Counts, Verdict } from "./model/Verdict.ts";

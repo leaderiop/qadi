@@ -217,7 +217,7 @@ pnpm spec:claims   # spec/devtools-spec says why each absence still holds
 pnpm spec:publish  # publish-status prose in README/CONTRIBUTING/roadmap/website matches package.json
 pnpm bench         # dispatch and evaluation throughput (measurement, not a gate)
 pnpm mutation      # Stryker on core, the devtools model, predicate-sql, predicate-prisma, audit, http, react's decision read
-pnpm check         # all twenty-five gates, in order
+pnpm check         # all twenty-six gates, in order
 ```
 
 `pnpm install` runs the root `prepare` script, `effect-tsgo patch`. That command

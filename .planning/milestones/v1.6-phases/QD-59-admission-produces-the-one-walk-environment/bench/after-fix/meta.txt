@@ -1,0 +1,9 @@
+head: 76cefa4c4ee9426e97c8be377f353f43b4b7f908
+patch: /Users/mohammadalmechkor/Projects/Perso/qadi/.planning/phases/QD-59-admission-produces-the-one-walk-environment/bench/after-fix/to-base.patch
+patch_sha256: 578c78315d27ba8898a1a11d7fa4156f991bf38b70bbad18a2cf15973730fb9e
+head_label: final
+patched_label: base
+rounds: 3
+node: v26.13.0
+cpu: Apple M3 Pro
+start: 2026-11-19T05:52:43Z

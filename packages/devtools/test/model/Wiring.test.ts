@@ -396,4 +396,27 @@ describe("portActivity", () => {
         assert.deepStrictEqual(yield* portActivity, []);
       }),
     ));
+
+  // Issue #107's contract, kept by reading the registry's ports and not the metrics' own keys.
+  it.effect("a word written to a port metric outside the registry is not port activity", () =>
+    isolatedMetrics(
+      Effect.gen(function* () {
+        yield* Metric.update(portCallsTotal, "NotAPort");
+
+        assert.deepStrictEqual(yield* portActivity, []);
+      }),
+    ));
+
+  it.effect("reports the reached ports in the registry's order, whatever order they were reached in", () =>
+    isolatedMetrics(
+      Effect.gen(function* () {
+        yield* Metric.update(portCallsTotal, "SignatureHistory");
+        yield* Metric.update(portCallsTotal, "AttributeResolver");
+
+        assert.deepStrictEqual(
+          (yield* portActivity).map((entry) => entry.port),
+          ["AttributeResolver", "SignatureHistory"],
+        );
+      }),
+    ));
 });

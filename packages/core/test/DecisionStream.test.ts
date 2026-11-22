@@ -45,7 +45,7 @@ import {
   makeSubjectId,
   parseLogCursor,
   permission,
-  stampRecord,
+  StoredRecord,
 } from "../src/index.ts";
 import type {
   DecisionLog,
@@ -56,20 +56,21 @@ import type {
   LogEntry,
   ReceivedFrame,
   SinkRecord,
-  StoredRecord,
 } from "../src/index.ts";
 
 const entry = (seq: number, evaluationId = `r${seq}`): LogEntry => ({
   cursor: { epoch: 7, seq },
-  record: stampRecord(
-    new ObligationRecord({ evaluationId, at: 100 - seq, outcome: "Discharged", obligationIds: ["o"] }),
-    "Server",
-  ),
+  record: new StoredRecord({
+    environment: "Server",
+    record: new ObligationRecord({ evaluationId, at: 100 - seq, outcome: "Discharged", obligationIds: ["o"] }),
+  }),
 });
 
 /** Every record's data is its evaluation id; an id starting with `refused` is dropped. */
 const byId = (record: StoredRecord): Effect.Effect<Option.Option<string>> =>
-  Effect.succeed(record.evaluationId.startsWith("refused") ? Option.none() : Option.some(record.evaluationId));
+  Effect.succeed(
+    record.record.evaluationId.startsWith("refused") ? Option.none() : Option.some(record.record.evaluationId),
+  );
 
 /** A log that answers every read with `read`, and remembers each cursor it was asked after. */
 const fakeLog = (read: DecisionLogEntries) => {
@@ -189,7 +190,7 @@ const viaCodec = (record: StoredRecord): Effect.Effect<Option.Option<string>> =>
 const fromCodec = (data: string): Effect.Effect<Option.Option<StoredRecord>> =>
   Effect.succeed(Result.getSuccess(decodeStoredRecordString(data)));
 
-const labelOf = (record: StoredRecord): string => `${record.evaluationId}@${record.environment}`;
+const labelOf = (record: StoredRecord): string => `${record.record.evaluationId}@${record.environment}`;
 
 const labels = (records: ReadonlyArray<StoredRecord> | undefined): ReadonlyArray<string> =>
   (records ?? []).map(labelOf);
@@ -198,7 +199,10 @@ describe("decodeDecisionStream — the prelude (ADR-QD-097)", () => {
   const data = (evaluationId: string, at = 1): string =>
     Result.getOrElse(
       encodeStoredRecordString(
-        stampRecord(new ObligationRecord({ evaluationId, at, outcome: "Discharged", obligationIds: ["o"] }), "Server"),
+        new StoredRecord({
+          environment: "Server",
+          record: new ObligationRecord({ evaluationId, at, outcome: "Discharged", obligationIds: ["o"] }),
+        }),
       ),
       () => assert.fail(`${evaluationId} did not encode`),
     );
@@ -206,7 +210,7 @@ describe("decodeDecisionStream — the prelude (ADR-QD-097)", () => {
   const message = (evaluationId: string, at = 1): ReceivedFrame => ({ event: "message", data: data(evaluationId, at) });
   const synced = (n: number): ReceivedFrame => ({ event: "synced", data: `{"backlog":${n}}` });
 
-  const ids = (records: ReadonlyArray<StoredRecord> | undefined) => (records ?? []).map((r) => r.evaluationId);
+  const ids = (records: ReadonlyArray<StoredRecord> | undefined) => (records ?? []).map((r) => r.record.evaluationId);
 
   /** A `decodeRecord` over the codec that also remembers every data it was offered. */
   const recording = () => {

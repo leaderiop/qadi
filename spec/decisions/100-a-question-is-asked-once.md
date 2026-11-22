@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-100                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-10-07                                     |
-> | Status         | Accepted — amends ADR-QD-031, ADR-QD-044, ADR-QD-073 |
+> | Status         | Accepted — amends ADR-QD-031, ADR-QD-044, ADR-QD-073; amended 2026-11-19 (ADR-QD-172) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-11-09): amended — the obligation projection is curried and made once before the duty handler runs (ARCH-54, CCR-QD-393)<br>1.2 (2026-11-09): amended — obligationRecord joins failedRecord/decidedRecord: SinkEmit.ts projects all three records from the question (ARCH-54, CCR-QD-393)<br>1.1 (2026-10-08): Amendment, `toPredicate` admits through `Question` (CCR-QD-205)<br>1.0 (2026-10-07): Initial (CCR-QD-189) |
+> | Change History | 1.4 (2026-11-19): amended: Admitted is the walk environment and admit takes the row source (ADR-QD-172, ARCH-106, CCR-QD-450)<br>1.3 (2026-11-09): amended — the obligation projection is curried and made once before the duty handler runs (ARCH-54, CCR-QD-393)<br>1.2 (2026-11-09): amended — obligationRecord joins failedRecord/decidedRecord: SinkEmit.ts projects all three records from the question (ARCH-54, CCR-QD-393)<br>1.1 (2026-10-08): Amendment, `toPredicate` admits through `Question` (CCR-QD-205)<br>1.0 (2026-10-07): Initial (CCR-QD-189) |
 
 ---
 
@@ -92,3 +92,12 @@ makes it once, before the duty handler runs, as it did before the move: the ques
 is the caller's own object, so reading its id after the handler would let a handler that
 reassigns it make the row disagree with the decision row, and a throwing read there would be a
 defect after the duty had already run (INV-QD-035).
+
+## Amendment (2026-11-19, ADR-QD-172, CCR-QD-450)
+
+[ADR-QD-172](./172-admission-produces-the-one-walk-environment.md): the ARCH-41 amendment's "`Admitted` proof carrying the question and its matcher context" is now the
+walk environment. `admit(question, rowSource)` returns an `Admitted` holding the subject, what the request supplied, the
+matcher context and the depth bound, and no longer the question. Each interpreter states only its row source (`"asked"` for
+`walk`, `"row"` for `toPredicate`), and the environment's `supplied` is decided in one place from it. Holding an
+`Admitted` is still the proof of admission, and `admit` still runs once, lazily, before any node is visited, so a cache hit
+never builds one.

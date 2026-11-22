@@ -51,7 +51,7 @@ describe("decisionSinkForwarding", () => {
       if (stored === undefined) return;
       assert.deepStrictEqual(
         sent[0],
-        Result.match(encodeSinkRecord(stored), { onSuccess: (json) => json, onFailure: () => "refused" }),
+        Result.match(encodeSinkRecord(stored.record), { onSuccess: (json) => json, onFailure: () => "refused" }),
       );
     }).pipe(Effect.provide(testLayer(allowed))));
 
@@ -489,8 +489,8 @@ describe("forward and ingest, end to end", () => {
       const stored = yield* aggregator.snapshot;
       assert.strictEqual(stored.length, 1);
       assert.strictEqual(stored[0]?.environment, "Replica-3");
-      assert.strictEqual(stored[0]?._tag, "Decision");
-      const first = stored[0];
+      assert.strictEqual(stored[0]?.record._tag, "Decision");
+      const first = stored[0]?.record;
       if (first?._tag === "Decision") {
         assert.strictEqual(first.action, "read");
         assert.deepStrictEqual(first.resource, { id: "doc-1" });
@@ -532,7 +532,7 @@ describe("forward and ingest, end to end", () => {
       // One bound for both paths — an aggregator taking records from n replicas
       // is exactly where an unbounded log would hurt most.
       assert.deepStrictEqual(
-        (yield* ring.snapshot).map((r) => r.evaluationId),
+        (yield* ring.snapshot).map((r) => r.record.evaluationId),
         ["b", "c"],
       );
     }));

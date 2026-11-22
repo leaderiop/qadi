@@ -1,0 +1,987 @@
+{
+ "phase": "67",
+ "head": "adb01b5f47629713ca33f07f41df7db725984bbd",
+ "invocation": "pnpm exec stryker run <S>/stryker67-static.config.mjs --mutate packages/core/src/DecisionCache.ts,packages/core/src/SharedComputation.ts",
+ "files": {
+  "packages/core/src/DecisionCache.ts": {
+   "killed": 39,
+   "timeout": 0,
+   "survived": 1,
+   "noCoverage": 0,
+   "ignored": 0,
+   "detected": 39,
+   "valid": 40,
+   "open": [
+    {
+     "status": "Survived",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 141,
+     "column": 5,
+     "text": ">()(\"qadi/DecisionCache\") {}"
+    }
+   ],
+   "ignoredMutants": [],
+   "detectedMutants": [
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "true",
+     "line": 228,
+     "column": 11,
+     "text": "!(Number.isInteger(options.capacity) && options.capacity >= 0)"
+    },
+    {
+     "status": "Killed",
+     "mutator": "EqualityOperator",
+     "replacement": "options?.capacity === undefined",
+     "line": 227,
+     "column": 9,
+     "text": "options?.capacity !== undefined &&"
+    },
+    {
+     "status": "Killed",
+     "mutator": "LogicalOperator",
+     "replacement": "Number.isInteger(options.capacity) || options.capacity >= 0",
+     "line": 228,
+     "column": 11,
+     "text": "!(Number.isInteger(options.capacity) && options.capacity >= 0)"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "true",
+     "line": 227,
+     "column": 9,
+     "text": "options?.capacity !== undefined &&"
+    },
+    {
+     "status": "Killed",
+     "mutator": "BooleanLiteral",
+     "replacement": "Number.isInteger(options.capacity) && options.capacity >= 0",
+     "line": 228,
+     "column": 9,
+     "text": "!(Number.isInteger(options.capacity) && options.capacity >= 0)"
+    },
+    {
+     "status": "Killed",
+     "mutator": "BlockStatement",
+     "replacement": "{}",
+     "line": 225,
+     "column": 23,
+     "text": "Effect.sync(() => {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "LogicalOperator",
+     "replacement": "options?.capacity !== undefined || !(Number.isInteger(options.capacity) && options.capacity >= 0)",
+     "line": 227,
+     "column": 9,
+     "text": "options?.capacity !== undefined &&"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "true",
+     "line": 227,
+     "column": 9,
+     "text": "options?.capacity !== undefined &&"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "false",
+     "line": 228,
+     "column": 11,
+     "text": "!(Number.isInteger(options.capacity) && options.capacity >= 0)"
+    },
+    {
+     "status": "Killed",
+     "mutator": "OptionalChaining",
+     "replacement": "options.capacity",
+     "line": 227,
+     "column": 9,
+     "text": "options?.capacity !== undefined &&"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "false",
+     "line": 227,
+     "column": 9,
+     "text": "options?.capacity !== undefined &&"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "true",
+     "line": 228,
+     "column": 49,
+     "text": "!(Number.isInteger(options.capacity) && options.capacity >= 0)"
+    },
+    {
+     "status": "Killed",
+     "mutator": "EqualityOperator",
+     "replacement": "options.capacity > 0",
+     "line": 228,
+     "column": 49,
+     "text": "!(Number.isInteger(options.capacity) && options.capacity >= 0)"
+    },
+    {
+     "status": "Killed",
+     "mutator": "StringLiteral",
+     "replacement": "``",
+     "line": 231,
+     "column": 11,
+     "text": "`decisionCacheLayer: capacity must be a non-negative integer, got ${options.capacity}`,"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 253,
+     "column": 78,
+     "text": "const shared = makeSharedComputation<Question, Trace, EvaluationError>({"
+    },
+    {
+     "status": "Killed",
+     "mutator": "BlockStatement",
+     "replacement": "{}",
+     "line": 229,
+     "column": 9,
+     "text": ") {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 254,
+     "column": 17,
+     "text": "cached: (key) => HashMap.get(entries, key),"
+    },
+    {
+     "status": "Killed",
+     "mutator": "EqualityOperator",
+     "replacement": "options.capacity < 0",
+     "line": 228,
+     "column": 49,
+     "text": "!(Number.isInteger(options.capacity) && options.capacity >= 0)"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "false",
+     "line": 256,
+     "column": 15,
+     "text": "if (exit._tag === \"Success\") {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "BlockStatement",
+     "replacement": "{}",
+     "line": 255,
+     "column": 32,
+     "text": "settle: (key, exit) => {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "EqualityOperator",
+     "replacement": "exit._tag !== \"Success\"",
+     "line": 256,
+     "column": 15,
+     "text": "if (exit._tag === \"Success\") {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "true",
+     "line": 256,
+     "column": 15,
+     "text": "if (exit._tag === \"Success\") {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "BlockStatement",
+     "replacement": "{}",
+     "line": 256,
+     "column": 40,
+     "text": "if (exit._tag === \"Success\") {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 256,
+     "column": 29,
+     "text": "if (exit._tag === \"Success\") {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 281,
+     "column": 20,
+     "text": "onOutcome: (outcome) => Metric.update(decisionCacheLookupsTotal, outcome),"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArithmeticOperator",
+     "replacement": "HashMap.size(entries) + options.capacity",
+     "line": 275,
+     "column": 15,
+     "text": "HashMap.size(entries) - options.capacity,"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 284,
+     "column": 64,
+     "text": "const getOrCompute: DecisionCacheShape[\"getOrCompute\"] = (key, options) =>"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "true",
+     "line": 263,
+     "column": 17,
+     "text": "if (options?.capacity === undefined) return;"
+    },
+    {
+     "status": "Killed",
+     "mutator": "OptionalChaining",
+     "replacement": "options.concurrency",
+     "line": 285,
+     "column": 46,
+     "text": "Effect.map(shared.run(key, walk(key, options?.concurrency)), (found) => ({"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 285,
+     "column": 70,
+     "text": "Effect.map(shared.run(key, walk(key, options?.concurrency)), (found) => ({"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 285,
+     "column": 82,
+     "text": "Effect.map(shared.run(key, walk(key, options?.concurrency)), (found) => ({"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 290,
+     "column": 14,
+     "text": "return {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 292,
+     "column": 27,
+     "text": "size: Effect.sync(() => HashMap.size(entries)),"
+    },
+    {
+     "status": "Killed",
+     "mutator": "EqualityOperator",
+     "replacement": "options?.capacity !== undefined",
+     "line": 263,
+     "column": 17,
+     "text": "if (options?.capacity === undefined) return;"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "false",
+     "line": 263,
+     "column": 17,
+     "text": "if (options?.capacity === undefined) return;"
+    },
+    {
+     "status": "Killed",
+     "mutator": "OptionalChaining",
+     "replacement": "options.capacity",
+     "line": 263,
+     "column": 17,
+     "text": "if (options?.capacity === undefined) return;"
+    },
+    {
+     "status": "Killed",
+     "mutator": "CallExpression",
+     "replacement": ";",
+     "line": 300,
+     "column": 11,
+     "text": "shared.reset();"
+    },
+    {
+     "status": "Killed",
+     "mutator": "BlockStatement",
+     "replacement": "{}",
+     "line": 293,
+     "column": 34,
+     "text": "clear: Effect.sync(() => {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 215,
+     "column": 35,
+     "text": "export const decisionCacheLayer = (options?: {"
+    }
+   ]
+  },
+  "packages/core/src/SharedComputation.ts": {
+   "killed": 71,
+   "timeout": 0,
+   "survived": 8,
+   "noCoverage": 0,
+   "ignored": 0,
+   "detected": 71,
+   "valid": 79,
+   "open": [
+    {
+     "status": "Survived",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 91,
+     "column": 15,
+     "text": "Superseded: \"Superseded\","
+    },
+    {
+     "status": "Survived",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 89,
+     "column": 77,
+     "text": "const afterReset: { readonly [S in Standing]: Exclude<Standing, \"Live\"> } = {"
+    },
+    {
+     "status": "Survived",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 92,
+     "column": 14,
+     "text": "Abandoned: \"Abandoned\","
+    },
+    {
+     "status": "Survived",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 90,
+     "column": 9,
+     "text": "Live: \"Superseded\","
+    },
+    {
+     "status": "Survived",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 96,
+     "column": 81,
+     "text": "const afterLastLeave: { readonly [S in Standing]: Exclude<Standing, \"Live\"> } = {"
+    },
+    {
+     "status": "Survived",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 98,
+     "column": 15,
+     "text": "Superseded: \"Superseded\","
+    },
+    {
+     "status": "Survived",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 97,
+     "column": 9,
+     "text": "Live: \"Abandoned\","
+    },
+    {
+     "status": "Survived",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 99,
+     "column": 14,
+     "text": "Abandoned: \"Abandoned\","
+    }
+   ],
+   "ignoredMutants": [],
+   "detectedMutants": [
+    {
+     "status": "Killed",
+     "mutator": "BlockStatement",
+     "replacement": "{}",
+     "line": 150,
+     "column": 34,
+     "text": "): SharedComputation<K, A, E> => {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "BlockStatement",
+     "replacement": "{}",
+     "line": 164,
+     "column": 64,
+     "text": "const forget = (key: K, entry: InFlightClaim<A, E>): void => {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "true",
+     "line": 166,
+     "column": 9,
+     "text": "if (Option.isSome(current) && current.value === entry) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "false",
+     "line": 166,
+     "column": 9,
+     "text": "if (Option.isSome(current) && current.value === entry) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "LogicalOperator",
+     "replacement": "Option.isSome(current) || current.value === entry",
+     "line": 166,
+     "column": 9,
+     "text": "if (Option.isSome(current) && current.value === entry) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "EqualityOperator",
+     "replacement": "current.value !== entry",
+     "line": 166,
+     "column": 35,
+     "text": "if (Option.isSome(current) && current.value === entry) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "true",
+     "line": 166,
+     "column": 35,
+     "text": "if (Option.isSome(current) && current.value === entry) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 259,
+     "column": 23,
+     "text": "const awaitShared = (key: K, entry: InFlightClaim<A, E>): Effect.Effect<A, E> =>"
+    },
+    {
+     "status": "Killed",
+     "mutator": "BlockStatement",
+     "replacement": "{}",
+     "line": 166,
+     "column": 60,
+     "text": "if (Option.isSome(current) && current.value === entry) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "false",
+     "line": 264,
+     "column": 15,
+     "text": "if (entry.waiters > 0) return undefined;"
+    },
+    {
+     "status": "Killed",
+     "mutator": "CallExpression",
+     "replacement": ";",
+     "line": 267,
+     "column": 11,
+     "text": "forget(key, entry);"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 269,
+     "column": 32,
+     "text": "}).pipe(Effect.flatMap((fiber) => (fiber === undefined ? Effect.void : Fiber.interrupt(fiber)))),"
+    },
+    {
+     "status": "Killed",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 276,
+     "column": 31,
+     "text": "Effect.as(hooks.onOutcome(\"hit\"), { value, outcome: \"hit\" });"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 275,
+     "column": 21,
+     "text": "const answerHit = (value: A): Effect.Effect<Shared<A>> =>"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 276,
+     "column": 39,
+     "text": "Effect.as(hooks.onOutcome(\"hit\"), { value, outcome: \"hit\" });"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "false",
+     "line": 269,
+     "column": 44,
+     "text": "}).pipe(Effect.flatMap((fiber) => (fiber === undefined ? Effect.void : Fiber.interrupt(fiber)))),"
+    },
+    {
+     "status": "Killed",
+     "mutator": "BlockStatement",
+     "replacement": "{}",
+     "line": 262,
+     "column": 27,
+     "text": "Effect.sync(() => {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "EqualityOperator",
+     "replacement": "fiber !== undefined",
+     "line": 269,
+     "column": 44,
+     "text": "}).pipe(Effect.flatMap((fiber) => (fiber === undefined ? Effect.void : Fiber.interrupt(fiber)))),"
+    },
+    {
+     "status": "Killed",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 276,
+     "column": 57,
+     "text": "Effect.as(hooks.onOutcome(\"hit\"), { value, outcome: \"hit\" });"
+    },
+    {
+     "status": "Killed",
+     "mutator": "AssignmentOperator",
+     "replacement": "entry.waiters += 1",
+     "line": 263,
+     "column": 11,
+     "text": "entry.waiters -= 1;"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "true",
+     "line": 264,
+     "column": 15,
+     "text": "if (entry.waiters > 0) return undefined;"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 261,
+     "column": 26,
+     "text": "Effect.onInterrupt(() =>"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 280,
+     "column": 24,
+     "text": "const answerJoined = (key: K, entry: InFlightClaim<A, E>, restore: Restore): Effect.Effect<Shared<A>, E> =>"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 283,
+     "column": 33,
+     "text": "const joined: Shared<A> = { value: yield* restore(awaitShared(key, entry)), outcome: \"coalesced\" };"
+    },
+    {
+     "status": "Killed",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 282,
+     "column": 30,
+     "text": "yield* hooks.onOutcome(\"coalesced\");"
+    },
+    {
+     "status": "Killed",
+     "mutator": "EqualityOperator",
+     "replacement": "entry.waiters >= 0",
+     "line": 264,
+     "column": 15,
+     "text": "if (entry.waiters > 0) return undefined;"
+    },
+    {
+     "status": "Killed",
+     "mutator": "BlockStatement",
+     "replacement": "{}",
+     "line": 281,
+     "column": 29,
+     "text": "Effect.gen(function* () {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 283,
+     "column": 92,
+     "text": "const joined: Shared<A> = { value: yield* restore(awaitShared(key, entry)), outcome: \"coalesced\" };"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 288,
+     "column": 23,
+     "text": "const answerOwned = <R>("
+    },
+    {
+     "status": "Killed",
+     "mutator": "BlockStatement",
+     "replacement": "{}",
+     "line": 294,
+     "column": 29,
+     "text": "Effect.gen(function* () {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 295,
+     "column": 30,
+     "text": "yield* hooks.onOutcome(\"miss\");"
+    },
+    {
+     "status": "Killed",
+     "mutator": "BlockStatement",
+     "replacement": "{}",
+     "line": 345,
+     "column": 29,
+     "text": "Effect.sync(() => {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 351,
+     "column": 36,
+     "text": "if (entry.standing === \"Live\") hooks.settle(key, exit);"
+    },
+    {
+     "status": "Killed",
+     "mutator": "EqualityOperator",
+     "replacement": "entry.waiters <= 0",
+     "line": 264,
+     "column": 15,
+     "text": "if (entry.waiters > 0) return undefined;"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "true",
+     "line": 351,
+     "column": 17,
+     "text": "if (entry.standing === \"Live\") hooks.settle(key, exit);"
+    },
+    {
+     "status": "Killed",
+     "mutator": "EqualityOperator",
+     "replacement": "entry.standing !== \"Live\"",
+     "line": 351,
+     "column": 17,
+     "text": "if (entry.standing === \"Live\") hooks.settle(key, exit);"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "false",
+     "line": 351,
+     "column": 17,
+     "text": "if (entry.standing === \"Live\") hooks.settle(key, exit);"
+    },
+    {
+     "status": "Killed",
+     "mutator": "CallExpression",
+     "replacement": ";",
+     "line": 351,
+     "column": 44,
+     "text": "if (entry.standing === \"Live\") hooks.settle(key, exit);"
+    },
+    {
+     "status": "Killed",
+     "mutator": "CallExpression",
+     "replacement": ";",
+     "line": 353,
+     "column": 13,
+     "text": "forget(key, entry);"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 364,
+     "column": 33,
+     "text": "const missed: Shared<A> = { value: yield* restore(awaitShared(key, entry)), outcome: \"miss\" };"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 372,
+     "column": 10,
+     "text": "Hit: (claim) => answerHit(claim.value),"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 373,
+     "column": 13,
+     "text": "Joined: (claim, key, _compute, restore) => answerJoined(key, claim.entry, restore),"
+    },
+    {
+     "status": "Killed",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 364,
+     "column": 92,
+     "text": "const missed: Shared<A> = { value: yield* restore(awaitShared(key, entry)), outcome: \"miss\" };"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 371,
+     "column": 79,
+     "text": "const arms: { readonly [T in Claim<A, E>[\"_tag\"]]: ClaimArm<K, A, E, T> } = {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 374,
+     "column": 14,
+     "text": "Claimed: (claim, key, compute, restore) => answerOwned(key, claim.entry, compute, restore),"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 377,
+     "column": 18,
+     "text": "const answer = <T extends Claim<A, E>[\"_tag\"], R>("
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 387,
+     "column": 15,
+     "text": "const run = <R>(key: K, compute: Effect.Effect<A, E, R>): Effect.Effect<Shared<A>, E, R> =>"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "true",
+     "line": 433,
+     "column": 15,
+     "text": "if (Option.isSome(cached)) return { _tag: \"Hit\", value: cached.value };"
+    },
+    {
+     "status": "Killed",
+     "mutator": "BlockStatement",
+     "replacement": "{}",
+     "line": 429,
+     "column": 40,
+     "text": "Effect.sync((): Claim<A, E> => {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 416,
+     "column": 32,
+     "text": "Effect.uninterruptibleMask((restore) =>"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "false",
+     "line": 433,
+     "column": 15,
+     "text": "if (Option.isSome(cached)) return { _tag: \"Hit\", value: cached.value };"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 433,
+     "column": 45,
+     "text": "if (Option.isSome(cached)) return { _tag: \"Hit\", value: cached.value };"
+    },
+    {
+     "status": "Killed",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 433,
+     "column": 53,
+     "text": "if (Option.isSome(cached)) return { _tag: \"Hit\", value: cached.value };"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "false",
+     "line": 435,
+     "column": 15,
+     "text": "if (Option.isSome(existing)) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "AssignmentOperator",
+     "replacement": "existing.value.waiters -= 1",
+     "line": 438,
+     "column": 13,
+     "text": "existing.value.waiters += 1;"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "true",
+     "line": 435,
+     "column": 15,
+     "text": "if (Option.isSome(existing)) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 439,
+     "column": 20,
+     "text": "return { _tag: \"Joined\", entry: existing.value };"
+    },
+    {
+     "status": "Killed",
+     "mutator": "BlockStatement",
+     "replacement": "{}",
+     "line": 435,
+     "column": 40,
+     "text": "if (Option.isSome(existing)) {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 439,
+     "column": 28,
+     "text": "return { _tag: \"Joined\", entry: existing.value };"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 448,
+     "column": 18,
+     "text": "return { _tag: \"Claimed\", entry };"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 441,
+     "column": 46,
+     "text": "const entry: InFlightClaim<A, E> = {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 445,
+     "column": 23,
+     "text": "standing: \"Live\","
+    },
+    {
+     "status": "Killed",
+     "mutator": "StringLiteral",
+     "replacement": "\"\"",
+     "line": 448,
+     "column": 26,
+     "text": "return { _tag: \"Claimed\", entry };"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 450,
+     "column": 9,
+     "text": "(claimed) => answer(claimed, key, compute, restore),"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ObjectLiteral",
+     "replacement": "{}",
+     "line": 454,
+     "column": 10,
+     "text": "return {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "BlockStatement",
+     "replacement": "{}",
+     "line": 456,
+     "column": 18,
+     "text": "reset: () => {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "BlockStatement",
+     "replacement": "{}",
+     "line": 457,
+     "column": 44,
+     "text": "HashMap.forEach(inFlight, (entry) => {"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ConditionalExpression",
+     "replacement": "true",
+     "line": 269,
+     "column": 44,
+     "text": "}).pipe(Effect.flatMap((fiber) => (fiber === undefined ? Effect.void : Fiber.interrupt(fiber)))),"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 344,
+     "column": 23,
+     "text": "Effect.onExit((exit) =>"
+    },
+    {
+     "status": "Killed",
+     "mutator": "ArrowFunction",
+     "replacement": "() => undefined",
+     "line": 354,
+     "column": 34,
+     "text": "}).pipe(Effect.flatMap(() => Deferred.done(entry.claim, exit))),"
+    },
+    {
+     "status": "Killed",
+     "mutator": "BlockStatement",
+     "replacement": "{}",
+     "line": 360,
+     "column": 32,
+     "text": "yield* Effect.sync(() => {"
+    }
+   ]
+  }
+ }
+}

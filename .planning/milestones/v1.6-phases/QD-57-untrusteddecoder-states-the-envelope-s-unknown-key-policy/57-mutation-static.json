@@ -1,0 +1,473 @@
+{
+ "packages/core/src/EnvelopeKeys.ts": [
+  {
+   "mutator": "ArrayDeclaration",
+   "line": 46,
+   "column": 22,
+   "replacement": "[\"Stryker was here\"]",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrayDeclaration",
+   "line": 51,
+   "column": 103,
+   "replacement": "[\"Stryker was here\"]",
+   "status": "Killed"
+  },
+  {
+   "mutator": "StringLiteral",
+   "line": 72,
+   "column": 7,
+   "replacement": "\"\"",
+   "status": "Killed"
+  },
+  {
+   "mutator": "BlockStatement",
+   "line": 75,
+   "column": 46,
+   "replacement": "{}",
+   "status": "Killed"
+  },
+  {
+   "mutator": "StringLiteral",
+   "line": 77,
+   "column": 7,
+   "replacement": "\"\"",
+   "status": "Killed"
+  },
+  {
+   "mutator": "BlockStatement",
+   "line": 70,
+   "column": 93,
+   "replacement": "{}",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 81,
+   "column": 41,
+   "replacement": "false",
+   "status": "Killed"
+  },
+  {
+   "mutator": "BlockStatement",
+   "line": 80,
+   "column": 23,
+   "replacement": "{}",
+   "status": "Killed"
+  },
+  {
+   "mutator": "OptionalChaining",
+   "line": 81,
+   "column": 17,
+   "replacement": "entries.find(([key]) => key === TAG)[1]",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrowFunction",
+   "line": 81,
+   "column": 30,
+   "replacement": "() => undefined",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 81,
+   "column": 41,
+   "replacement": "true",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 82,
+   "column": 38,
+   "replacement": "true",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrowFunction",
+   "line": 82,
+   "column": 26,
+   "replacement": "() => undefined",
+   "status": "Killed"
+  },
+  {
+   "mutator": "EqualityOperator",
+   "line": 81,
+   "column": 41,
+   "replacement": "key !== TAG",
+   "status": "Killed"
+  },
+  {
+   "mutator": "LogicalOperator",
+   "line": 82,
+   "column": 13,
+   "replacement": "members.find(member => member.literals.get(TAG) === tag) && first",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 82,
+   "column": 38,
+   "replacement": "false",
+   "status": "Killed"
+  },
+  {
+   "mutator": "EqualityOperator",
+   "line": 82,
+   "column": 38,
+   "replacement": "member.literals.get(TAG) !== tag",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrowFunction",
+   "line": 30,
+   "column": 44,
+   "replacement": "() => undefined",
+   "status": "Killed"
+  },
+  {
+   "mutator": "StringLiteral",
+   "line": 20,
+   "column": 13,
+   "replacement": "\"\"",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ObjectLiteral",
+   "line": 29,
+   "column": 55,
+   "replacement": "{}",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrowFunction",
+   "line": 29,
+   "column": 18,
+   "replacement": "() => undefined",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 31,
+   "column": 9,
+   "replacement": "true",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrowFunction",
+   "line": 33,
+   "column": 36,
+   "replacement": "() => undefined",
+   "status": "Killed"
+  },
+  {
+   "mutator": "EqualityOperator",
+   "line": 31,
+   "column": 9,
+   "replacement": "ast.indexSignatures.length >= 0",
+   "status": "Killed"
+  },
+  {
+   "mutator": "EqualityOperator",
+   "line": 31,
+   "column": 9,
+   "replacement": "ast.indexSignatures.length <= 0",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 34,
+   "column": 7,
+   "replacement": "false",
+   "status": "Killed"
+  },
+  {
+   "mutator": "BooleanLiteral",
+   "line": 34,
+   "column": 46,
+   "replacement": "SchemaAST.isOptional(signature.type)",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrayDeclaration",
+   "line": 35,
+   "column": 11,
+   "replacement": "[]",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrayDeclaration",
+   "line": 36,
+   "column": 11,
+   "replacement": "[\"Stryker was here\"]",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 31,
+   "column": 9,
+   "replacement": "false",
+   "status": "Killed"
+  },
+  {
+   "mutator": "StringLiteral",
+   "line": 43,
+   "column": 13,
+   "replacement": "\"\"",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 34,
+   "column": 7,
+   "replacement": "true",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrayDeclaration",
+   "line": 43,
+   "column": 33,
+   "replacement": "[]",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrowFunction",
+   "line": 43,
+   "column": 24,
+   "replacement": "() => undefined",
+   "status": "Killed"
+  },
+  {
+   "mutator": "StringLiteral",
+   "line": 44,
+   "column": 13,
+   "replacement": "\"\"",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrowFunction",
+   "line": 44,
+   "column": 22,
+   "replacement": "() => undefined",
+   "status": "Killed"
+  },
+  {
+   "mutator": "LogicalOperator",
+   "line": 34,
+   "column": 7,
+   "replacement": "SchemaAST.isLiteral(signature.type) || !SchemaAST.isOptional(signature.type)",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrayDeclaration",
+   "line": 51,
+   "column": 74,
+   "replacement": "[]",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrowFunction",
+   "line": 51,
+   "column": 34,
+   "replacement": "() => undefined",
+   "status": "Killed"
+  },
+  {
+   "mutator": "BlockStatement",
+   "line": 50,
+   "column": 94,
+   "replacement": "{}",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 53,
+   "column": 10,
+   "replacement": "false",
+   "status": "Killed"
+  },
+  {
+   "mutator": "EqualityOperator",
+   "line": 53,
+   "column": 10,
+   "replacement": "values.length !== members.length",
+   "status": "Killed"
+  },
+  {
+   "mutator": "BlockStatement",
+   "line": 67,
+   "column": 90,
+   "replacement": "{}",
+   "status": "Killed"
+  },
+  {
+   "mutator": "StringLiteral",
+   "line": 45,
+   "column": 13,
+   "replacement": "\"\"",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrowFunction",
+   "line": 46,
+   "column": 16,
+   "replacement": "() => undefined",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrowFunction",
+   "line": 45,
+   "column": 24,
+   "replacement": "() => undefined",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 53,
+   "column": 10,
+   "replacement": "true",
+   "status": "Killed"
+  },
+  {
+   "mutator": "EqualityOperator",
+   "line": 53,
+   "column": 46,
+   "replacement": "distinct.size !== values.length",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 70,
+   "column": 7,
+   "replacement": "true",
+   "status": "Killed"
+  },
+  {
+   "mutator": "LogicalOperator",
+   "line": 53,
+   "column": 10,
+   "replacement": "values.length === members.length || distinct.size === values.length",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 53,
+   "column": 10,
+   "replacement": "true",
+   "status": "Killed"
+  },
+  {
+   "mutator": "EqualityOperator",
+   "line": 70,
+   "column": 7,
+   "replacement": "first !== undefined",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 53,
+   "column": 46,
+   "replacement": "true",
+   "status": "Killed"
+  },
+  {
+   "mutator": "LogicalOperator",
+   "line": 70,
+   "column": 31,
+   "replacement": "members.length > 1 || discriminantOf(members) === undefined",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 70,
+   "column": 31,
+   "replacement": "true",
+   "status": "Killed"
+  },
+  {
+   "mutator": "EqualityOperator",
+   "line": 70,
+   "column": 31,
+   "replacement": "members.length >= 1",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 70,
+   "column": 7,
+   "replacement": "false",
+   "status": "Killed"
+  },
+  {
+   "mutator": "EqualityOperator",
+   "line": 70,
+   "column": 31,
+   "replacement": "members.length <= 1",
+   "status": "Killed"
+  },
+  {
+   "mutator": "LogicalOperator",
+   "line": 70,
+   "column": 7,
+   "replacement": "first === undefined && members.length > 1 && discriminantOf(members) === undefined",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 70,
+   "column": 7,
+   "replacement": "false",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 70,
+   "column": 53,
+   "replacement": "true",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 75,
+   "column": 7,
+   "replacement": "true",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 70,
+   "column": 31,
+   "replacement": "false",
+   "status": "Killed"
+  },
+  {
+   "mutator": "EqualityOperator",
+   "line": 70,
+   "column": 53,
+   "replacement": "discriminantOf(members) !== undefined",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ConditionalExpression",
+   "line": 75,
+   "column": 7,
+   "replacement": "false",
+   "status": "Killed"
+  },
+  {
+   "mutator": "MethodExpression",
+   "line": 75,
+   "column": 7,
+   "replacement": "members.every(member => member.open)",
+   "status": "Killed"
+  },
+  {
+   "mutator": "ArrowFunction",
+   "line": 75,
+   "column": 20,
+   "replacement": "() => undefined",
+   "status": "Killed"
+  }
+ ]
+}

@@ -181,6 +181,12 @@ const questionsBlock: (view: QuestionsView) => (lens: Lens) => ReactNode = Match
       view.rows.map((entry, index) => (
         <Question key={`${policyLabel(entry.question.policy)}-${index}`} entry={entry} lens={lens} />
       )),
+    // The sibling of `gatesBlock`'s `qadi-gates-failed`: same style, same shape of sentence.
+    Failed: ({ reason }) => () => (
+      <p style={{ ...muted, color: colors.error }} data-testid="qadi-questions-failed">
+        The questions handed to the dock threw, so what has been asked cannot be shown: {reason}
+      </p>
+    ),
   }),
 );
 

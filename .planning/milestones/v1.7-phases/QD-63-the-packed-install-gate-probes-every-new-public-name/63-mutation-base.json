@@ -1,0 +1,7 @@
+{
+  "phase": "63",
+  "base": "11dc168f4d8a8b295aef16f2d04b762c503d1ba8",
+  "counts": {},
+  "touched": [],
+  "note": "No packages/*/src file is in this phase's scope (one script and spec records), so no file is in mutation scope and Stryker is not run; the close plan checks the scope stayed empty."
+}

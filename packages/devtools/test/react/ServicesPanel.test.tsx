@@ -1,110 +1,105 @@
 /**
- * JOB 4 ledger, rendered half.
+ * The Services panel's markup: what each view of the services store renders.
  *
- * The wording is the feature. "Unwired" is a category error for the five
- * services in `EvaluationServices` — a program that has not provided them does
- * not run — and a TTL control would imply a cache design the library does not
- * have. Both are asserted as *absences of words*, because that is what they are.
+ * The words are `PortCards.test.ts`'s: which state a port reads, what its activity says, what
+ * being defaulted costs and how a call row is worded are decided in the model, and every case
+ * that pinned one moved there with its title (ARCH-102). This file pins what the panel does with
+ * a view it is handed: the tag each view renders, the warning colour, the attribute a card
+ * carries, the notes, the overflow row and the order of a card's parts. The views are written out
+ * through `servicesInput.ts` and never joined, so a defect in the join is not input here.
  */
 import { assert, describe, it } from "@effect/vitest";
 import { render, screen, within } from "@testing-library/react";
-import { WiringRead } from "../../src/model/DiagnosticsStore.ts";
+import { CallsView, ServicesView } from "../../src/model/PortCards.ts";
+import type { CallRow } from "../../src/model/PortCards.ts";
 import { ServicesPanel } from "../../src/react/ServicesPanel.tsx";
-import type { PortCall, PortCallLog } from "../../src/model/PortCalls.ts";
-import type { PortActivity, WiringReport } from "../../src/model/Wiring.ts";
 import { liveNotice } from "../helpers.ts";
+import { cardRow, servicesInput } from "./servicesInput.ts";
 
-/** The state the dock hands the panel when a report was read. */
-const read = (report: WiringReport): WiringRead => WiringRead.Read({ report });
+const ATTRIBUTE_CONSEQUENCE =
+  "a missing attribute resolves to undefined, so an attribute policy denies";
 
-const wiring: WiringReport = {
-  ports: [
-    {
-      port: "AttributeResolver",
-      name: "attributeResolverFromRecord",
-      required: true,
-      present: true,
-      defaulted: undefined,
-      consequence: "a missing attribute resolves to undefined, so an attribute policy denies",
-    },
-    {
-      port: "RelationshipResolver",
-      name: undefined,
-      required: true,
-      present: true,
-      defaulted: undefined,
-      consequence: "an unanswered relationship denies",
-    },
-    {
-      port: "DecisionCache",
-      name: undefined,
-      required: false,
-      present: false,
-      defaulted: undefined,
-      consequence: "every evaluation is computed",
-    },
-  ],
-  cache: { present: false, size: undefined },
+const fail = (): never => {
+  throw new Error("expected an element");
 };
-
-const logOf = (calls: ReadonlyArray<PortCall>): PortCallLog => ({
-  calls,
-  dropped: 0,
-  capacity: 200,
-});
 
 const cardFor = (port: string) =>
   screen.getAllByTestId("qadi-port").find((card) => card.getAttribute("data-port") === port);
 
+const callOf = (text: string, interpreter?: string): CallRow => ({
+  key: text,
+  text,
+  interpreter,
+  duration: "1.0 ms",
+});
+
 describe("the services panel", () => {
-  // E4.1
-  it("names a wired implementation", () => {
-    render(<ServicesPanel diagnostics={liveNotice} wiring={read(wiring)} activity={[]} />);
-    assert.strictEqual(
-      within(cardFor("AttributeResolver") ?? fail()).getByTestId("qadi-port-state").textContent,
-      "attributeResolverFromRecord",
+  it("renders each services view: nothing while withheld, the absent note, the failure in the warning colour, and a card per row", () => {
+    const withheld = render(
+      <ServicesPanel {...servicesInput(ServicesView.Withheld())} diagnostics={liveNotice} />,
     );
-  });
+    assert.isNotNull(screen.getByTestId("qadi-services"));
+    assert.isEmpty(screen.queryAllByTestId("qadi-wiring-absent"));
+    assert.isEmpty(screen.queryAllByTestId("qadi-wiring-failed"));
+    assert.isEmpty(screen.queryAllByTestId("qadi-port"));
+    assert.isEmpty(screen.queryAllByTestId("qadi-cache-card"));
+    withheld.unmount();
 
-  // E4.2 — the distinction the whole card exists for.
-  it("an unnamed but present port says 'wired, unnamed', never 'unwired'", () => {
-    render(<ServicesPanel diagnostics={liveNotice} wiring={read(wiring)} activity={[]} />);
-    const card = cardFor("RelationshipResolver") ?? fail();
-
-    assert.strictEqual(within(card).getByTestId("qadi-port-state").textContent, "wired, unnamed");
-    assert.notInclude(card.textContent ?? "", "unwired");
-  });
-
-  // E4.3 — the word must not appear for a required port at all.
-  it("never uses the word 'unwired' anywhere", () => {
-    render(<ServicesPanel diagnostics={liveNotice} wiring={read(wiring)} activity={[]} />);
-    assert.notInclude(screen.getByTestId("qadi-services").textContent ?? "", "unwired");
-  });
-
-  it("states what being defaulted costs", () => {
-    render(<ServicesPanel diagnostics={liveNotice} wiring={read(wiring)} activity={[]} />);
-    assert.include(
-      cardFor("AttributeResolver")?.textContent ?? "",
-      "an attribute policy denies",
+    const absent = render(
+      <ServicesPanel {...servicesInput(ServicesView.NotHanded())} diagnostics={liveNotice} />,
     );
+    assert.isNotNull(screen.getByTestId("qadi-wiring-absent"));
+    assert.isEmpty(screen.queryAllByTestId("qadi-port"));
+    absent.unmount();
+
+    const failed = render(
+      <ServicesPanel
+        {...servicesInput(ServicesView.Failed({ reason: "the layer blew up" }))}
+        diagnostics={liveNotice}
+      />,
+    );
+    const note = screen.getByTestId("qadi-wiring-failed");
+    assert.include(note.textContent ?? "", "the layer blew up");
+    assert.notStrictEqual(note.style.color, "");
+    assert.isEmpty(screen.queryAllByTestId("qadi-port"));
+    failed.unmount();
+
+    render(
+      <ServicesPanel
+        {...servicesInput(
+          ServicesView.Read({
+            rows: [cardRow("AttributeResolver"), cardRow("RelationshipResolver")],
+            cache: "absent",
+          }),
+        )}
+        diagnostics={liveNotice}
+      />,
+    );
+    assert.strictEqual(screen.getAllByTestId("qadi-port").length, 2);
+    assert.strictEqual(screen.getAllByTestId("qadi-cache-card").length, 1);
   });
 
   // C7 — a fail-closed default must not read as just another implementation.
   it("a defaulted port says so, in the warning tone, with its cost", () => {
-    const defaulted: WiringReport = {
-      ports: [
-        {
-          port: "AttributeResolver",
-          name: "AttributeResolverNone",
-          required: true,
-          present: true,
-          defaulted: true,
-          consequence: "a missing attribute resolves to undefined, so an attribute policy denies",
-        },
-      ],
-      cache: { present: false, size: undefined },
-    };
-    render(<ServicesPanel diagnostics={liveNotice} wiring={read(defaulted)} activity={[]} />);
+    render(
+      <ServicesPanel
+        {...servicesInput(
+          ServicesView.Read({
+            rows: [
+              cardRow("AttributeResolver", {
+                defaulted: "true",
+                state: "defaulted — AttributeResolverNone",
+                consequence: ATTRIBUTE_CONSEQUENCE,
+                tone: "Warning",
+              }),
+              cardRow("RelationshipResolver", { consequence: "an unanswered relationship denies" }),
+            ],
+            cache: "absent",
+          }),
+        )}
+        diagnostics={liveNotice}
+      />,
+    );
     const card = cardFor("AttributeResolver") ?? fail();
 
     assert.strictEqual(card.getAttribute("data-defaulted"), "true");
@@ -113,190 +108,35 @@ describe("the services panel", () => {
     const consequence = within(card).getByTestId("qadi-port-consequence");
     assert.include(consequence.textContent ?? "", "an attribute policy denies");
     assert.notInclude(consequence.textContent ?? "", "if defaulted");
-  });
-
-  // ARCH-94 review WR-01: `defaulted` no longer depends on the name, so an unnamed default exists.
-  it("a defaulted port with no name still says it is defaulted", () => {
-    const unnamed: WiringReport = {
-      ports: [
-        {
-          port: "AttributeResolver",
-          name: undefined,
-          required: true,
-          present: true,
-          defaulted: true,
-          consequence: "a missing attribute resolves to undefined, so an attribute policy denies",
-        },
-      ],
-      cache: { present: false, size: undefined },
-    };
-    render(<ServicesPanel diagnostics={liveNotice} wiring={read(unnamed)} activity={[]} />);
-    const card = cardFor("AttributeResolver") ?? fail();
-
-    assert.strictEqual(card.getAttribute("data-defaulted"), "true");
-    assert.strictEqual(within(card).getByTestId("qadi-port-state").textContent, "defaulted — unnamed");
-  });
-
-  it("a wired port says what being defaulted would cost, as a condition", () => {
-    const real: WiringReport = {
-      ports: [
-        {
-          port: "AttributeResolver",
-          name: "attributeResolverFromRecord",
-          required: true,
-          present: true,
-          defaulted: false,
-          consequence: "a missing attribute resolves to undefined, so an attribute policy denies",
-        },
-      ],
-      cache: { present: false, size: undefined },
-    };
-    render(<ServicesPanel diagnostics={liveNotice} wiring={read(real)} activity={[]} />);
-    const card = cardFor("AttributeResolver") ?? fail();
-
-    assert.strictEqual(card.getAttribute("data-defaulted"), "false");
-    assert.notInclude(within(card).getByTestId("qadi-port-state").textContent ?? "", "defaulted");
-    assert.include(
-      within(card).getByTestId("qadi-port-consequence").textContent ?? "",
-      "if defaulted: a missing attribute",
-    );
+    // The warning is a colour of its own on the defaulted card: another card keeps the muted one.
+    const plain = within(cardFor("RelationshipResolver") ?? fail()).getByTestId("qadi-port-consequence");
+    assert.notStrictEqual(consequence.style.color, "");
+    assert.notStrictEqual(consequence.style.color, plain.style.color);
   });
 
   it("says nothing about defaulting for a row that is not a port", () => {
-    render(<ServicesPanel diagnostics={liveNotice} wiring={read(wiring)} activity={[]} />);
-    assert.isNull(cardFor("DecisionCache")?.getAttribute("data-defaulted") ?? null);
-  });
-
-  // C4/C5 — the facts that were written on the span and never shown.
-  it("a signature call says which resource it was about, or that it was about any", () => {
-    const sigWiring: WiringReport = {
-      ports: [
-        {
-          port: "SignatureHistory",
-          name: undefined,
-          required: true,
-          present: true,
-          defaulted: undefined,
-          consequence: "denies",
-        },
-      ],
-      cache: { present: false, size: undefined },
-    };
     render(
-      <ServicesPanel diagnostics={liveNotice}
-        wiring={read(sigWiring)}
-        activity={[]}
-        portCalls={logOf([
-          {
-            _tag: "SignatureHistory",
-            span: "qadi.hasSignature",
-            at: 1,
-            durationMillis: 0.1,
-            meaning: "approve",
-            scope: "Resource",
-            resourceId: "doc-1",
-            matched: true,
-          },
-          {
-            _tag: "SignatureHistory",
-            span: "qadi.hasSignature",
-            at: 2,
-            durationMillis: 0.1,
-            meaning: "approve",
-            scope: "Any",
-            matched: false,
-          },
-        ])}
+      <ServicesPanel
+        {...servicesInput(
+          ServicesView.Read({
+            rows: [cardRow("DecisionCache", { defaulted: undefined })],
+            cache: "absent",
+          }),
+        )}
+        diagnostics={liveNotice}
       />,
     );
 
-    const texts = within(cardFor("SignatureHistory") ?? fail())
-      .getAllByTestId("qadi-port-call")
-      .map((row) => row.textContent ?? "");
-    assert.isTrue(texts.some((t) => t.includes("approve on doc-1 → matched")));
-    assert.isTrue(texts.some((t) => t.includes("approve anywhere → no match")));
-  });
-
-  it("a call that ran more than once says how many times", () => {
-    render(
-      <ServicesPanel diagnostics={liveNotice}
-        wiring={read(wiring)}
-        activity={[]}
-        portCalls={logOf([
-          {
-            _tag: "AttributeResolver",
-            span: "qadi.attribute",
-            at: 1,
-            durationMillis: 0.1,
-            attribute: "tier",
-            resolved: true,
-            attempts: 3,
-          },
-          {
-            _tag: "AttributeResolver",
-            span: "qadi.attribute",
-            at: 2,
-            durationMillis: 0.1,
-            attribute: "level",
-            resolved: true,
-            attempts: 1,
-          },
-        ])}
-      />,
-    );
-
-    const texts = within(cardFor("AttributeResolver") ?? fail())
-      .getAllByTestId("qadi-port-call")
-      .map((row) => row.textContent ?? "");
-    assert.isTrue(texts.some((t) => t.includes("tier → a value · 3 attempts")));
-    assert.isFalse(texts.some((t) => t.includes("level") && t.includes("attempts")));
-  });
-
-  // E4.7 — the two facts that look like one.
-  it("distinguishes a port never called from one that is absent", () => {
-    const activity: ReadonlyArray<PortActivity> = [
-      { port: "AttributeResolver", calls: 12, retries: 2, timeouts: 0, translationCalls: 0 },
-    ];
-    render(<ServicesPanel diagnostics={liveNotice} wiring={read(wiring)} activity={activity} />);
-
-    assert.include(
-      within(cardFor("AttributeResolver") ?? fail()).getByTestId("qadi-port-activity")
-        .textContent ?? "",
-      "12 calls · 2 retried",
-    );
-    // Wired, and nothing reached it — a different problem with the same symptom.
-    assert.strictEqual(
-      within(cardFor("RelationshipResolver") ?? fail()).getByTestId("qadi-port-activity")
-        .textContent,
-      "never called",
-    );
-  });
-
-  it("does not mention retries when there were none", () => {
-    render(
-      <ServicesPanel diagnostics={liveNotice} wiring={read(wiring)} activity={[{ port: "AttributeResolver", calls: 1, retries: 0, timeouts: 0, translationCalls: 0 }]} />,
-    );
-    assert.strictEqual(
-      within(cardFor("AttributeResolver") ?? fail()).getByTestId("qadi-port-activity").textContent,
-      "1 call",
-    );
-  });
-
-  it("shows the timeouts beside the retries", () => {
-    render(
-      <ServicesPanel diagnostics={liveNotice}
-        wiring={read(wiring)}
-        activity={[{ port: "AttributeResolver", calls: 3, retries: 2, timeouts: 1, translationCalls: 0 }]}
-      />,
-    );
-    assert.strictEqual(
-      within(cardFor("AttributeResolver") ?? fail()).getByTestId("qadi-port-activity").textContent,
-      "3 calls · 2 retried · 1 timed out",
-    );
+    assert.isNull((cardFor("DecisionCache") ?? fail()).getAttribute("data-defaulted"));
   });
 
   it("says the counts are process-wide, not per decision", () => {
-    render(<ServicesPanel diagnostics={liveNotice} wiring={read(wiring)} activity={[]} />);
+    render(
+      <ServicesPanel
+        {...servicesInput(ServicesView.Read({ rows: [], cache: "absent" }))}
+        diagnostics={liveNotice}
+      />,
+    );
     // A reader who attributed one of these numbers to one row would be wrong,
     // and nothing else on the screen would tell them.
     assert.include(
@@ -307,7 +147,7 @@ describe("the services panel", () => {
 
   // E4.6
   it("with no layer handed to it, still renders the metrics and says why the rest is missing", () => {
-    render(<ServicesPanel diagnostics={liveNotice} wiring={WiringRead.NotHanded()} activity={[]} />);
+    render(<ServicesPanel {...servicesInput(ServicesView.NotHanded())} diagnostics={liveNotice} />);
 
     assert.include(screen.getByTestId("qadi-wiring-absent").textContent ?? "", "wiring");
     assert.deepStrictEqual(screen.queryAllByTestId("qadi-port"), []);
@@ -315,25 +155,14 @@ describe("the services panel", () => {
     assert.isNotNull(screen.getByTestId("qadi-activity-scope"));
   });
 
-  // E4.4 and E4.9
-  it("an absent cache says absent", () => {
-    render(<ServicesPanel diagnostics={liveNotice} wiring={read(wiring)} activity={[]} />);
-    assert.strictEqual(screen.getByTestId("qadi-cache-size").textContent, "absent");
-  });
-
-  it("a wired cache reports its completed entries", () => {
-    render(
-      <ServicesPanel diagnostics={liveNotice}
-        wiring={read({ ...wiring, cache: { present: true, size: 7 } })}
-        activity={[]}
-      />,
-    );
-    assert.strictEqual(screen.getByTestId("qadi-cache-size").textContent, "7 completed entries");
-  });
-
   // E4.10 — two different buttons for two different things.
   it("says a cache flush is not the same as clearing the log", () => {
-    render(<ServicesPanel diagnostics={liveNotice} wiring={read(wiring)} activity={[]} />);
+    render(
+      <ServicesPanel
+        {...servicesInput(ServicesView.Read({ rows: [], cache: "absent" }))}
+        diagnostics={liveNotice}
+      />,
+    );
     assert.include(
       screen.getByTestId("qadi-cache-card").textContent ?? "",
       "differs from clearing",
@@ -342,92 +171,31 @@ describe("the services panel", () => {
 
   // E4.11 — the bound is capacity, evicted by insertion order.
   it("offers no TTL, and says the bound is capacity", () => {
-    render(<ServicesPanel diagnostics={liveNotice} wiring={read(wiring)} activity={[]} />);
+    render(
+      <ServicesPanel
+        {...servicesInput(ServicesView.Read({ rows: [], cache: "absent" }))}
+        diagnostics={liveNotice}
+      />,
+    );
     const card = screen.getByTestId("qadi-cache-card").textContent ?? "";
 
     assert.include(card.replace(/\s+/g, " "), "there is no time-to-live");
     assert.include(card, "Bounded by capacity");
   });
-});
-
-const fail = (): never => {
-  throw new Error("expected an element");
-};
-
-/**
- * JOB 3's ledger — the calls beneath each card.
- *
- * These rows are the point of the whole increment: a count says a store was
- * asked, and a row says what it was asked and what it said. The panel's job is
- * to keep the blanks legible — a field a span did not record must read as *not
- * recorded*, because a reader chasing a wiring problem needs to tell "it said
- * nothing" from "nobody asked".
- */
-describe("recent port calls", () => {
-  const attributeCall = (over?: Partial<Extract<PortCall, { _tag: "AttributeResolver" }>>) => ({
-    _tag: "AttributeResolver" as const,
-    span: "qadi.attribute",
-    interpreter: undefined,
-    at: 1_000,
-    durationMillis: 1.25,
-    subjectId: "alice",
-    attribute: "clearance",
-    resolved: true,
-    ...over,
-  });
-
-  it("labels a call the translation made, and leaves the evaluator's unlabelled", () => {
-    render(
-      <ServicesPanel diagnostics={liveNotice}
-        wiring={read(wiring)}
-        activity={[]}
-        portCalls={logOf([
-          attributeCall({ interpreter: "toPredicate", attribute: "riskScore" }),
-          attributeCall({ interpreter: "evaluate", attribute: "clearance", at: 2_000 }),
-          attributeCall({ interpreter: undefined, attribute: "tier", at: 3_000 }),
-        ])}
-      />,
-    );
-
-    const labels = screen.queryAllByTestId("qadi-port-call-interpreter");
-    assert.strictEqual(labels.length, 1);
-    assert.strictEqual(labels[0]?.textContent, "translation");
-  });
-
-  it("labels a read the host made to answer a remote asker", () => {
-    render(
-      <ServicesPanel diagnostics={liveNotice}
-        wiring={read(wiring)}
-        activity={[]}
-        portCalls={logOf([
-          attributeCall({ interpreter: "remote", attribute: "clearance" }),
-          attributeCall({ interpreter: "evaluate", attribute: "tier", at: 2_000 }),
-        ])}
-      />,
-    );
-
-    const labels = screen.queryAllByTestId("qadi-port-call-interpreter");
-    assert.strictEqual(labels.length, 1);
-    assert.strictEqual(labels[0]?.textContent, "served");
-  });
-
-  it("counts the translation's calls beside the evaluator's", () => {
-    render(
-      <ServicesPanel diagnostics={liveNotice}
-        wiring={read(wiring)}
-        activity={[{ port: "AttributeResolver", calls: 2, retries: 0, timeouts: 0, translationCalls: 3 }]}
-      />,
-    );
-
-    assert.include(
-      within(cardFor("AttributeResolver") ?? fail()).getByTestId("qadi-port-activity").textContent ?? "",
-      "2 calls · 3 from translation",
-    );
-  });
 
   // E3.1 — a card with no list looks exactly like a port nothing asked.
   it("says what the detail would take when no collector is wired", () => {
-    render(<ServicesPanel diagnostics={liveNotice} wiring={read(wiring)} activity={[]} />);
+    render(
+      <ServicesPanel
+        {...servicesInput(
+          ServicesView.Read({
+            rows: [cardRow("AttributeResolver", { calls: CallsView.Uncollected() })],
+            cache: "absent",
+          }),
+        )}
+        diagnostics={liveNotice}
+      />,
+    );
 
     assert.include(
       within(cardFor("AttributeResolver") ?? fail()).getByTestId("qadi-calls-uncollected")
@@ -437,101 +205,49 @@ describe("recent port calls", () => {
     assert.isEmpty(screen.queryAllByTestId("qadi-port-call"));
   });
 
-  it("puts each call under the port that made it", () => {
+  it("renders an interpreter label only when the call row carries one", () => {
     render(
-      <ServicesPanel diagnostics={liveNotice}
-        wiring={read(wiring)}
-        activity={[]}
-        portCalls={logOf([
-          attributeCall(),
-          {
-            _tag: "RelationshipResolver",
-            span: "qadi.hasRelationship",
-            interpreter: undefined,
-            at: 1_001,
-            durationMillis: 0.5,
-            subjectId: "alice",
-            relation: "owner",
-            resourceId: "doc-1",
-            depth: undefined,
-            answer: "Related",
-          },
-        ])}
+      <ServicesPanel
+        {...servicesInput(
+          ServicesView.Read({
+            rows: [
+              cardRow("AttributeResolver", {
+                calls: CallsView.Listed({
+                  calls: [callOf("a → a value", "translation"), callOf("b → a value")],
+                  earlier: undefined,
+                }),
+              }),
+            ],
+            cache: "absent",
+          }),
+        )}
+        diagnostics={liveNotice}
       />,
     );
 
-    const attributes = within(cardFor("AttributeResolver") ?? fail());
-    assert.strictEqual(attributes.getAllByTestId("qadi-port-call").length, 1);
-    assert.include(attributes.getByTestId("qadi-port-call").textContent ?? "", "clearance");
-
-    const relationships = within(cardFor("RelationshipResolver") ?? fail());
-    assert.include(relationships.getByTestId("qadi-port-call").textContent ?? "", "owner on doc-1");
-    assert.include(relationships.getByTestId("qadi-port-call").textContent ?? "", "Related");
-  });
-
-  it("says whether a value came back, and never what it was", () => {
-    render(
-      <ServicesPanel diagnostics={liveNotice}
-        wiring={read(wiring)}
-        activity={[]}
-        portCalls={logOf([
-          attributeCall({ attribute: "a", resolved: true }),
-          attributeCall({ attribute: "b", resolved: false }),
-          attributeCall({ attribute: "c", resolved: undefined }),
-        ])}
-      />,
-    );
-
-    const rows = within(cardFor("AttributeResolver") ?? fail())
-      .getAllByTestId("qadi-port-call")
-      .map((row) => row.textContent ?? "");
-
-    // Newest first.
-    assert.include(rows[0] ?? "", "c → no answer");
-    assert.include(rows[1] ?? "", "b → nothing");
-    assert.include(rows[2] ?? "", "a → a value");
-  });
-
-  it("reads an unrecorded field as not recorded, rather than blank", () => {
-    render(
-      <ServicesPanel diagnostics={liveNotice}
-        wiring={read(wiring)}
-        activity={[]}
-        portCalls={logOf([attributeCall({ attribute: undefined })])}
-      />,
-    );
-
-    assert.include(
-      within(cardFor("AttributeResolver") ?? fail()).getByTestId("qadi-port-call").textContent ?? "",
-      "not recorded",
-    );
-  });
-
-  // E2.4's rendered half: never a zero, which is a call that finished instantly.
-  it("marks a call still in flight rather than timing it at zero", () => {
-    render(
-      <ServicesPanel diagnostics={liveNotice}
-        wiring={read(wiring)}
-        activity={[]}
-        portCalls={logOf([attributeCall({ durationMillis: undefined })])}
-      />,
-    );
-
-    assert.strictEqual(
-      within(cardFor("AttributeResolver") ?? fail()).getByTestId("qadi-port-call-duration")
-        .textContent,
-      "in flight",
-    );
+    const labels = screen.queryAllByTestId("qadi-port-call-interpreter");
+    assert.strictEqual(labels.length, 1);
+    assert.strictEqual(labels[0]?.textContent, "translation");
+    assert.strictEqual(screen.getAllByTestId("qadi-port-call").length, 2);
   });
 
   it("shows a handful and says how many it did not", () => {
     render(
-      <ServicesPanel diagnostics={liveNotice}
-        wiring={read(wiring)}
-        activity={[]}
-        portCalls={logOf(
-          Array.from({ length: 8 }, (_, index) => attributeCall({ attribute: `a${index}` })),
+      <ServicesPanel
+        {...servicesInput(
+          ServicesView.Read({
+            rows: [
+              cardRow("AttributeResolver", {
+                calls: CallsView.Listed({
+                  calls: [1, 2, 3, 4, 5].map((n) => callOf(`a${n} → a value`)),
+                  earlier: "and 3 earlier",
+                }),
+              }),
+            ],
+            cache: "absent",
+          }),
         )}
+        diagnostics={liveNotice}
       />,
     );
 
@@ -540,24 +256,24 @@ describe("recent port calls", () => {
     assert.include(card.getByTestId("qadi-port-calls-more").textContent ?? "", "3 earlier");
   });
 
-  it("adds nothing to a port that was never called", () => {
-    render(
-      <ServicesPanel diagnostics={liveNotice} wiring={read(wiring)} activity={[]} portCalls={logOf([attributeCall()])} />,
-    );
-
-    assert.isEmpty(
-      within(cardFor("RelationshipResolver") ?? fail()).queryAllByTestId("qadi-port-call"),
-    );
-  });
-
   // E3.2 / E3.4 — the counts and the calls are differently scoped, and the
   // footer now says which is which rather than describing only the first.
   it("keeps the counts and the calls apart in words", () => {
-    const activity: ReadonlyArray<PortActivity> = [
-      { port: "AttributeResolver", calls: 91, retries: 0, timeouts: 0, translationCalls: 0 },
-    ];
     render(
-      <ServicesPanel diagnostics={liveNotice} wiring={read(wiring)} activity={activity} portCalls={logOf([attributeCall()])} />,
+      <ServicesPanel
+        {...servicesInput(
+          ServicesView.Read({
+            rows: [
+              cardRow("AttributeResolver", {
+                activity: "91 calls",
+                calls: CallsView.Listed({ calls: [callOf("clearance → a value")], earlier: undefined }),
+              }),
+            ],
+            cache: "absent",
+          }),
+        )}
+        diagnostics={liveNotice}
+      />,
     );
 
     const card = within(cardFor("AttributeResolver") ?? fail());
@@ -569,124 +285,40 @@ describe("recent port calls", () => {
     assert.include(footer, "read from spans");
   });
 
-  // Closes the branches `describe`'s RelationshipResolver arm leaves untested
-  // above — a depth-bearing call and an unanswered one, the two ternaries the
-  // "owner on doc-1" / "Related" case above does not exercise.
-  it("names the depth when one was asked, and says 'no answer' when none came back", () => {
+  it("renders a card's parts in order: name, state, activity, consequence, calls", () => {
     render(
-      <ServicesPanel diagnostics={liveNotice}
-        wiring={read(wiring)}
-        activity={[]}
-        portCalls={logOf([
-          {
-            _tag: "RelationshipResolver",
-            span: "qadi.hasRelationship",
-            interpreter: undefined,
-            at: 1_002,
-            durationMillis: 0.4,
-            subjectId: "alice",
-            relation: "member",
-            resourceId: "team-1",
-            depth: 2,
-            answer: undefined,
-          },
-        ])}
+      <ServicesPanel
+        {...servicesInput(
+          ServicesView.Read({
+            rows: [
+              cardRow("AttributeResolver", {
+                state: "attributeResolverFromRecord",
+                activity: "2 calls",
+                consequence: "a consequence",
+                calls: CallsView.Listed({ calls: [callOf("tier → a value")], earlier: undefined }),
+              }),
+            ],
+            cache: "absent",
+          }),
+        )}
+        diagnostics={liveNotice}
       />,
     );
+    const card = cardFor("AttributeResolver") ?? fail();
+    const [header, consequence, calls] = Array.from(card.children);
 
-    const relationships = within(cardFor("RelationshipResolver") ?? fail());
-    const text = relationships.getByTestId("qadi-port-call").textContent ?? "";
-    assert.include(text, "(depth 2)");
-    assert.include(text, "no answer");
-  });
-
-  // CustomPredicate and SignatureHistory are otherwise untested arms of the
-  // same `describe` matcher — a distinct wiring fixture because the shared
-  // one above only wires AttributeResolver/RelationshipResolver/DecisionCache.
-  it("describes CustomPredicate and SignatureHistory calls, recorded and not", () => {
-    const customAndSignatureWiring: WiringReport = {
-      ports: [
-        {
-          port: "CustomPredicate",
-          name: "customPredicateFromRecord",
-          required: false,
-          present: true,
-          defaulted: undefined,
-          consequence: "an unregistered predicate name is an error, never a denial",
-        },
-        {
-          port: "SignatureHistory",
-          name: undefined,
-          required: false,
-          present: true,
-          defaulted: undefined,
-          consequence: "a hasSignature node is never compiled to a Predicate",
-        },
-      ],
-      cache: { present: false, size: undefined },
-    };
-
-    render(
-      <ServicesPanel diagnostics={liveNotice}
-        wiring={read(customAndSignatureWiring)}
-        activity={[]}
-        portCalls={logOf([
-          {
-            _tag: "CustomPredicate",
-            span: "qadi.hasCustom",
-            interpreter: undefined,
-            at: 1_003,
-            durationMillis: 0.2,
-            subjectId: "alice",
-            name: "isBusinessHours",
-            answer: true,
-          },
-          {
-            _tag: "CustomPredicate",
-            span: "qadi.hasCustom",
-            interpreter: undefined,
-            at: 1_004,
-            durationMillis: 0.2,
-            subjectId: "alice",
-            name: undefined,
-            answer: undefined,
-          },
-          {
-            _tag: "SignatureHistory",
-            span: "qadi.hasSignature",
-            interpreter: undefined,
-            at: 1_005,
-            durationMillis: 0.3,
-            subjectId: "alice",
-            meaning: "approval",
-            signerRole: "manager",
-            matched: false,
-          },
-          {
-            _tag: "SignatureHistory",
-            span: "qadi.hasSignature",
-            interpreter: undefined,
-            at: 1_006,
-            durationMillis: 0.3,
-            subjectId: "alice",
-            meaning: undefined,
-            signerRole: undefined,
-            matched: undefined,
-          },
-        ])}
-      />,
+    assert.strictEqual(card.children.length, 3);
+    assert.deepStrictEqual(
+      Array.from(header?.children ?? []).map((part) => part.getAttribute("data-testid")),
+      [null, "qadi-port-state", "qadi-port-activity"],
     );
-
-    const customRows = within(cardFor("CustomPredicate") ?? fail())
-      .getAllByTestId("qadi-port-call")
-      .map((row) => row.textContent ?? "");
-    assert.include(customRows[1] ?? "", "isBusinessHours → true");
-    assert.include(customRows[0] ?? "", "not recorded → no answer");
-
-    const signatureRows = within(cardFor("SignatureHistory") ?? fail())
-      .getAllByTestId("qadi-port-call")
-      .map((row) => row.textContent ?? "");
-    assert.include(signatureRows[1] ?? "", "approval from a 'manager' → no match");
-    assert.include(signatureRows[0] ?? "", "not recorded → no answer");
+    assert.strictEqual(header?.firstElementChild?.tagName, "STRONG");
+    assert.deepStrictEqual(
+      Array.from(header?.children ?? []).map((part) => part.textContent),
+      ["AttributeResolver", "attributeResolverFromRecord", "2 calls"],
+    );
+    assert.strictEqual(consequence?.getAttribute("data-testid"), "qadi-port-consequence");
+    assert.strictEqual(consequence?.textContent, "a consequence");
+    assert.strictEqual(calls?.getAttribute("data-testid"), "qadi-port-calls");
   });
 });

@@ -1,0 +1,133 @@
+{
+ "counts": {
+  "packages/core/src/AttributeResolver.ts": {
+   "killed": 22,
+   "timeout": 0,
+   "survived": 0,
+   "noCoverage": 0,
+   "ignored": 35
+  },
+  "packages/core/src/CustomPredicate.ts": {
+   "killed": 36,
+   "timeout": 0,
+   "survived": 1,
+   "noCoverage": 0,
+   "ignored": 34
+  },
+  "packages/core/src/Decision.ts": {
+   "killed": 148,
+   "timeout": 2,
+   "survived": 5,
+   "noCoverage": 0,
+   "ignored": 17
+  },
+  "packages/core/src/FieldPath.ts": {
+   "killed": 167,
+   "timeout": 5,
+   "survived": 12,
+   "noCoverage": 0,
+   "ignored": 6
+  },
+  "packages/core/src/Matcher.ts": {
+   "killed": 194,
+   "timeout": 0,
+   "survived": 5,
+   "noCoverage": 0,
+   "ignored": 93
+  },
+  "packages/core/src/Operand.ts": {
+   "killed": 30,
+   "timeout": 1,
+   "survived": 0,
+   "noCoverage": 0,
+   "ignored": 3
+  },
+  "packages/core/src/PortAccess.ts": {
+   "killed": 47,
+   "timeout": 0,
+   "survived": 0,
+   "noCoverage": 0,
+   "ignored": 17
+  },
+  "packages/core/src/Predicate.ts": {
+   "killed": 293,
+   "timeout": 0,
+   "survived": 0,
+   "noCoverage": 0,
+   "ignored": 22
+  },
+  "packages/core/src/Walk.ts": {
+   "killed": 292,
+   "timeout": 0,
+   "survived": 13,
+   "noCoverage": 3,
+   "ignored": 16
+  }
+ },
+ "measured": {
+  "packages/core/src/AttributeResolver.ts": 1,
+  "packages/core/src/CustomPredicate.ts": 0.972972972972973,
+  "packages/core/src/Decision.ts": 0.967741935483871,
+  "packages/core/src/FieldPath.ts": 0.9347826086956522,
+  "packages/core/src/Matcher.ts": 0.9748743718592965,
+  "packages/core/src/Operand.ts": 1,
+  "packages/core/src/PortAccess.ts": 1,
+  "packages/core/src/Predicate.ts": 1,
+  "packages/core/src/Walk.ts": 0.948051948051948
+ },
+ "survivors": {
+  "packages/core/src/AttributeResolver.ts": [],
+  "packages/core/src/CustomPredicate.ts": [
+   "StringLiteral | Survived | \"\" | \"customPredicateFromRecord\" | name: \"customPredicateFromRecord\","
+  ],
+  "packages/core/src/Decision.ts": [
+   "ArithmeticOperator | Survived | node.children.length + 1 | node.children.length - 1 | for (let i = node.children.length - 1; i >= 0; i--) {",
+   "BooleanLiteral | Survived | false | true | configurable: true,",
+   "BooleanLiteral | Survived | false | true | writable: true,",
+   "ConditionalExpression | Survived | true | child !== undefined | if (child !== undefined) pending.push({ node: child, depth: depth + 1 });",
+   "ConditionalExpression | Survived | true | isOwnKey(data, field) | if (isOwnKey(data, field)) {"
+  ],
+  "packages/core/src/FieldPath.ts": [
+   "ConditionalExpression | Survived | false | frame === undefined | if (frame === undefined) break;",
+   "ConditionalExpression | Survived | false | head === undefined | if (head === undefined) continue;",
+   "ConditionalExpression | Survived | false | key === undefined | if (key === undefined) continue;",
+   "ConditionalExpression | Survived | false | tail[0] === \"**\" | tails.filter((tail) => !(tail.length === 1 && (tail[0] === \"*\" || tail[0] === \"**\"))),",
+   "ConditionalExpression | Survived | true | shorter.length < longer.length | shorter.length < longer.length && shorter.every((segment, i) => segment === longer[i]);",
+   "ConditionalExpression | Survived | true | tail.length === 1 | tails.filter((tail) => !(tail.length === 1 && (tail[0] === \"*\" || tail[0] === \"**\"))),",
+   "EqualityOperator | Survived | a.reach <= b.reach | a.reach < b.reach | return a.reach < b.reach ? \"ALessB\" : \"BLessA\";",
+   "EqualityOperator | Survived | frame.cursor > frame.keys.length | frame.cursor >= frame.keys.length | if (frame.cursor >= frame.keys.length) {",
+   "EqualityOperator | Survived | shorter.length <= longer.length | shorter.length < longer.length | shorter.length < longer.length && shorter.every((segment, i) => segment === longer[i]);",
+   "EqualityOperator | Survived | stack.length >= 0 | stack.length > 0 | while (stack.length > 0) {",
+   "StringLiteral | Survived | \"\" | \"**\" | tails.filter((tail) => !(tail.length === 1 && (tail[0] === \"*\" || tail[0] === \"**\"))),",
+   "StringLiteral | Survived | \"Stryker was here!\" | \"\" | const stack: Array<Frame> = [makeFrame(root, rootTails, undefined, \"\")];"
+  ],
+  "packages/core/src/Matcher.ts": [
+   "BlockStatement | Survived | {} | { // Unreachable from TypeScript and from decoded JSON (`Schema.Union` // rejects an unknown tag at the boundary), but not merely decorative: // a hand-built, in-process `ValueRef` can still reach it (the vector // `Predicate.ts` itself calls out as real), and `const exhaustive: never // = ref` alone does NOT make that safe — `never`-typing a `const` // changes nothing about what it holds at runtime, so `return exhaustive` // would return the bogus `ref` object itself: truthy and never // `undefined`. `Eq`/`Neq`'s absent-operand guard (CCR-QD-112) checks // `other !== undefined`, which that object always satisfies — so // `Neq` would ALLOW for any resolved value that wasn't that exact // object, the identical fail-open shape CCR-QD-112 closed for an // unresolved *known* ref, reopened for an unrecognized one. Found by a // test forcing this branch (CM-07), not by inspection: the `never` // typing reads as a runtime guarantee it isn't. `void`ing the // exhaustiveness check and explicitly returning `undefined` keeps the // ONE thing `never`-typing genuinely buys — a new `ValueRef` tag still // fails to compile here — while making the actual runtime fallback // match what every doc comment on this function already claims it is. const exhaustive: never = ref; void exhaustive; return undefined; } | default: {",
+   "ConditionalExpression | Survived | default: | default: { // Unreachable from TypeScript and from decoded JSON (`Schema.Union` // rejects an unknown tag at the boundary), but not merely decorative: // a hand-built, in-process `ValueRef` can still reach it (the vector // `Predicate.ts` itself calls out as real), and `const exhaustive: never // = ref` alone does NOT make that safe — `never`-typing a `const` // changes nothing about what it holds at runtime, so `return exhaustive` // would return the bogus `ref` object itself: truthy and never // `undefined`. `Eq`/`Neq`'s absent-operand guard (CCR-QD-112) checks // `other !== undefined`, which that object always satisfies — so // `Neq` would ALLOW for any resolved value that wasn't that exact // object, the identical fail-open shape CCR-QD-112 closed for an // unresolved *known* ref, reopened for an unrecognized one. Found by a // test forcing this branch (CM-07), not by inspection: the `never` // typing reads as a runtime guarantee it isn't. `void`ing the // exhaustiveness check and explicitly returning `undefined` keeps the // ONE thing `never`-typing genuinely buys — a new `ValueRef` tag still // fails to compile here — while making the actual runtime fallback // match what every doc comment on this function already claims it is. const exhaustive: never = ref; void exhaustive; return undefined; } | default: {",
+   "ConditionalExpression | Survived | true | depth > deepest | for (const depth of children) if (depth > deepest) deepest = depth;",
+   "ConditionalExpression | Survived | true | typeof value === \"string\" | if (typeof value === \"string\" && typeof needle === \"string\") return value.includes(needle);",
+   "EqualityOperator | Survived | depth >= deepest | depth > deepest | for (const depth of children) if (depth > deepest) deepest = depth;"
+  ],
+  "packages/core/src/Operand.ts": [],
+  "packages/core/src/PortAccess.ts": [],
+  "packages/core/src/Predicate.ts": [],
+  "packages/core/src/Walk.ts": [
+   "ArithmeticOperator | Survived | depth - 1 | depth + 1 | (child) => Effect.exit(evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth)),",
+   "ArithmeticOperator | Survived | depth - 1 | depth + 1 | (child) => Effect.exit(evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth)),",
+   "ArithmeticOperator | Survived | depth - 1 | depth + 1 | depth + 1,",
+   "ArithmeticOperator | Survived | depth - 1 | depth + 1 | evaluateNode(policy.policy, subject, request, matcherContext, depth + 1, maxDepth),",
+   "ArithmeticOperator | Survived | depth - 1 | depth + 1 | evaluateNode(policy.policy, subject, request, matcherContext, depth + 1, maxDepth),",
+   "ArithmeticOperator | Survived | depth - 1 | depth + 1 | evaluateNode(policy.policy, subject, request, matcherContext, depth + 1, maxDepth),",
+   "ArithmeticOperator | Survived | depth - 1 | depth + 1 | evaluateNode(rule.condition, subject, request, matcherContext, depth + 1, maxDepth),",
+   "ArithmeticOperator | Survived | depth - 1 | depth + 1 | yield* evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth),",
+   "ArithmeticOperator | Survived | depth - 1 | depth + 1 | yield* evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth),",
+   "ConditionalExpression | Survived | false | depth > maxDepth | if (depth > maxDepth) return Effect.fail(new PolicyTooDeep({ maxDepth }));",
+   "ObjectLiteral | NoCoverage | {} | { maxDepth } | if (depth > maxDepth) return Effect.fail(new PolicyTooDeep({ maxDepth }));",
+   "ObjectLiteral | Survived | {} | { concurrency: request.concurrency } | { concurrency: request.concurrency },",
+   "ObjectLiteral | Survived | {} | { concurrency: request.concurrency } | { concurrency: request.concurrency },",
+   "StringLiteral | NoCoverage | \"\" | \"a required policy denied\" | return deny(\"AllOf\", trace.reason ?? \"a required policy denied\", fold.children);",
+   "StringLiteral | NoCoverage | \"\" | \"the obliged policy denied\" | : deny(\"Obliged\", child.reason ?? \"the obliged policy denied\", [child]),",
+   "StringLiteral | Survived | \"\" | \"HasCustom\" | ? allow(\"HasCustom\", policy.fields)"
+  ]
+ }
+}

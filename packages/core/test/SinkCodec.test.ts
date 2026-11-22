@@ -12,9 +12,7 @@ import {
   DecisionRecord,
   Failed,
   ObligationRecord,
-  stampRecord,
-  StoredDecisionRecord,
-  StoredObligationRecord,
+  StoredRecord,
 } from "../src/DecisionRecord.ts";
 import { makeDecisionLog } from "../src/DecisionLog.ts";
 import { evaluate } from "../src/Evaluate.ts";
@@ -2097,8 +2095,9 @@ describe("decodeSinkRecord reads wire version 2, and only it", () => {
 
 describe("the stored-record envelope (ARCH-11 D-11-e)", () => {
   const decision = (environment: string) =>
-    stampRecord(
-      new DecisionRecord({
+    new StoredRecord({
+      environment,
+      record: new DecisionRecord({
         evaluationId: "e-1",
         at: 1,
         subjectId: makeSubjectId("u1"),
@@ -2112,24 +2111,23 @@ describe("the stored-record envelope (ARCH-11 D-11-e)", () => {
           }),
         }),
       }),
-      environment,
-    );
+    });
   const failed = (environment: string) =>
-    stampRecord(
-      new DecisionRecord({
+    new StoredRecord({
+      environment,
+      record: new DecisionRecord({
         evaluationId: "e-2",
         at: 2,
         subjectId: makeSubjectId("u1"),
         policy: P.hasPermission(read),
         outcome: new Failed({ error: new MissingResource({ attribute: "owner" }) }),
       }),
-      environment,
-    );
+    });
   const obligations = (environment: string) =>
-    stampRecord(
-      new ObligationRecord({ evaluationId: "e-3", at: 3, outcome: "Discharged", obligationIds: ["o"] }),
+    new StoredRecord({
       environment,
-    );
+      record: new ObligationRecord({ evaluationId: "e-3", at: 3, outcome: "Discharged", obligationIds: ["o"] }),
+    });
 
   const roundTrip = (stored: ReturnType<typeof decision>) =>
     Result.flatMap(encodeStoredRecordString(stored), (text) =>
@@ -2145,27 +2143,32 @@ describe("the stored-record envelope (ARCH-11 D-11-e)", () => {
       assert.isTrue(Result.isSuccess(back), environment);
       if (Result.isSuccess(back)) {
         assert.strictEqual(back.success.environment, environment);
-        assert.strictEqual(back.success._tag, stored._tag);
-        assert.strictEqual(back.success.evaluationId, stored.evaluationId);
+        assert.strictEqual(back.success.record._tag, stored.record._tag);
+        assert.strictEqual(back.success.record.evaluationId, stored.record.evaluationId);
       }
     }
   });
 
   it("the rebuilt record keeps its class, and a failure's cause is preserved", () => {
     const back = Result.getOrThrow(decodeStoredRecordString(Result.getOrThrow(encodeStoredRecordString(failed("S")))));
-    assert.instanceOf(back, StoredDecisionRecord);
-    assert.isTrue(back._tag === "Decision" && back.outcome._tag === "Failed");
+    assert.instanceOf(back, StoredRecord);
+    assert.instanceOf(back.record, DecisionRecord);
+    assert.isTrue(back.record._tag === "Decision" && back.record.outcome._tag === "Failed");
     const withCause = Result.getOrThrow(
       decodeStoredRecord({ environment: "S", record: JSON.parse(V2.V2_FAILED_ATTRIBUTE_ERROR_CAUSE) }),
     );
-    const error = withCause._tag === "Decision" && withCause.outcome._tag === "Failed" ? withCause.outcome.error : undefined;
+    const error =
+      withCause.record._tag === "Decision" && withCause.record.outcome._tag === "Failed"
+        ? withCause.record.outcome.error
+        : undefined;
     assert.strictEqual(error?._tag, "AttributeResolveError");
     if (error?._tag === "AttributeResolveError") {
       assert.instanceOf(error.cause, Error);
       assert.strictEqual(error.cause instanceof Error ? error.cause.message : "", "db down");
     }
     const ob = Result.getOrThrow(decodeStoredRecord(Result.getOrThrow(encodeStoredRecord(obligations("E")))));
-    assert.instanceOf(ob, StoredObligationRecord);
+    assert.instanceOf(ob, StoredRecord);
+    assert.instanceOf(ob.record, ObligationRecord);
   });
 
   it("the environment is the producer's and survives unchanged, whatever it says", () => {
@@ -2208,15 +2211,13 @@ describe("the stored-record envelope (ARCH-11 D-11-e)", () => {
       return Result.isFailure(back) && back.failure.refusal._tag === "Malformed" ? back.failure.refusal.message : undefined;
     };
     for (const input of ["text", [1], null]) {
-      assert.strictEqual(reasonOf(input), "a stored record is a JSON object { environment, record }");
+      assert.strictEqual(reasonOf(input), "Expected object");
     }
-    for (const input of [{}, { cursor: "x" }]) {
-      assert.strictEqual(reasonOf(input), "a bare record, not a stored-record envelope { environment, record }");
+    for (const input of [{}, { cursor: "x" }, { record }]) {
+      assert.strictEqual(reasonOf(input), 'Missing key\n  at ["environment"]');
     }
-    for (const input of [{ environment: 1, record }, { record }]) {
-      assert.strictEqual(reasonOf(input), "a stored record's environment is not a string");
-    }
-    assert.strictEqual(reasonOf({ environment: "Edge" }), "a stored record names no record");
+    assert.strictEqual(reasonOf({ environment: 1, record }), 'Expected string\n  at ["environment"]');
+    assert.strictEqual(reasonOf({ environment: "Edge" }), 'Missing key\n  at ["record"]');
   });
 
   it("a record the envelope carries is decoded by decodeSinkRecord's rules", () => {
@@ -2235,7 +2236,7 @@ describe("the stored-record envelope (ARCH-11 D-11-e)", () => {
       assert.isTrue(Result.isFailure(refused) && refused.failure.refusal._tag === "Malformed", JSON.stringify(bare));
       assert.include(
         Result.isFailure(refused) && refused.failure.refusal._tag === "Malformed" ? refused.failure.refusal.message : "",
-        "bare record",
+        'Missing key\n  at ["environment"]',
       );
     }
     const viaText = decodeStoredRecordString(V2.V2_OBLIGATIONS);
@@ -2243,8 +2244,9 @@ describe("the stored-record envelope (ARCH-11 D-11-e)", () => {
   });
 
   it("a non-JSON-safe resource is refused, not thrown", () => {
-    const stored = stampRecord(
-      new DecisionRecord({
+    const stored = new StoredRecord({
+      environment: "Server",
+      record: new DecisionRecord({
         evaluationId: "e-4",
         at: 4,
         subjectId: makeSubjectId("u1"),
@@ -2252,8 +2254,7 @@ describe("the stored-record envelope (ARCH-11 D-11-e)", () => {
         resource: { id: "r", tags: new Set(["x"]) },
         outcome: new Failed({ error: new MissingResource({ attribute: "owner" }) }),
       }),
-      "Server",
-    );
+    });
     const refused = encodeStoredRecord(stored);
     assert.isTrue(Result.isFailure(refused) && refused.failure.refusal._tag === "Opaque");
   });

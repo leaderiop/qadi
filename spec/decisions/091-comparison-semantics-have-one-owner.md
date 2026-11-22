@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-091                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Accepted — amends ADR-QD-079, ADR-QD-040       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-10-07): `Compare.ts` is not reachable from outside `@qadi/core` (ADR-QD-099, CCR-QD-188)<br>1.0 (2026-10-05): Initial release (CCR-QD-172, CCR-QD-173) |
+> | Change History | 1.2 (2026-11-18): Amendment: the operand read has one owner, Operand.ts (ARCH-100, CCR-QD-444)<br>1.1 (2026-10-07): `Compare.ts` is not reachable from outside `@qadi/core` (ADR-QD-099, CCR-QD-188)<br>1.0 (2026-10-05): Initial release (CCR-QD-172, CCR-QD-173) |
 
 ---
 
@@ -115,3 +115,10 @@ witness before offering it, so BEH-QD-223 holds by construction whatever the com
   `judgeMatcher` kills all 192 mutants.
 - A future comparison rule is one edit in `Compare.ts`, seen by both interpreters, the renderable classifier
   (through `evaluatePredicate`), the denial reason and devtools at once.
+
+## Amendment (2026-11-18, ADR-QD-166, CCR-QD-444)
+
+[ADR-QD-166](./166-one-module-owns-the-value-a-leaf-compares.md) gives the value a comparison reads one owner, `Operand.ts`.
+This record gave a comparison's meaning one owner and left the operand read out: `evaluatePredicate` read a row's column
+bare while `judgeMatcher` read it as an own property, so the two disagreed on a column named `constructor`. Both now read
+the operand through `Operand.ts`, and INV-QD-091 covers it.

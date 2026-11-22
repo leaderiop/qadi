@@ -1,0 +1,270 @@
+{
+ "counts": {
+  "packages/devtools/src/model/DiagnosticsFeed.ts": {
+   "killed": 90,
+   "timeout": 0,
+   "survived": 5,
+   "noCoverage": 0,
+   "ignored": 13
+  },
+  "packages/devtools/src/model/DiagnosticsStore.ts": {
+   "killed": 60,
+   "timeout": 0,
+   "survived": 0,
+   "noCoverage": 0,
+   "ignored": 6
+  },
+  "packages/devtools/src/model/DockModel.ts": {
+   "killed": 145,
+   "timeout": 0,
+   "survived": 0,
+   "noCoverage": 0,
+   "ignored": 2
+  },
+  "packages/devtools/src/model/Gates.ts": {
+   "killed": 66,
+   "timeout": 0,
+   "survived": 0,
+   "noCoverage": 0,
+   "ignored": 14
+  }
+ },
+ "ignored": {
+  "packages/devtools/src/model/DiagnosticsFeed.ts": [
+   {
+    "mutator": "ObjectLiteral",
+    "line": 101,
+    "column": 52,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 107,
+    "column": 57,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 119,
+    "column": 24,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 120,
+    "column": 10,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 121,
+    "column": 15,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 122,
+    "column": 11,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 123,
+    "column": 14,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 143,
+    "column": 14,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 143,
+    "column": 70,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 144,
+    "column": 14,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 145,
+    "column": 16,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 157,
+    "column": 32,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "StringLiteral",
+    "line": 161,
+    "column": 46,
+    "replacement": "\"\""
+   }
+  ],
+  "packages/devtools/src/model/DiagnosticsStore.ts": [
+   {
+    "mutator": "ObjectLiteral",
+    "line": 82,
+    "column": 43,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ArrayDeclaration",
+    "line": 84,
+    "column": 13,
+    "replacement": "[\"Stryker was here\"]"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 123,
+    "column": 29,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 152,
+    "column": 14,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "StringLiteral",
+    "line": 214,
+    "column": 41,
+    "replacement": "\"\""
+   },
+   {
+    "mutator": "StringLiteral",
+    "line": 249,
+    "column": 32,
+    "replacement": "\"\""
+   }
+  ],
+  "packages/devtools/src/model/DockModel.ts": [
+   {
+    "mutator": "ArrayDeclaration",
+    "line": 122,
+    "column": 39,
+    "replacement": "[\"Stryker was here\"]"
+   },
+   {
+    "mutator": "StringLiteral",
+    "line": 125,
+    "column": 40,
+    "replacement": "\"\""
+   }
+  ],
+  "packages/devtools/src/model/Gates.ts": [
+   {
+    "mutator": "ObjectLiteral",
+    "line": 80,
+    "column": 67,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "StringLiteral",
+    "line": 81,
+    "column": 11,
+    "replacement": "\"\""
+   },
+   {
+    "mutator": "StringLiteral",
+    "line": 82,
+    "column": 11,
+    "replacement": "\"\""
+   },
+   {
+    "mutator": "StringLiteral",
+    "line": 83,
+    "column": 15,
+    "replacement": "\"\""
+   },
+   {
+    "mutator": "StringLiteral",
+    "line": 84,
+    "column": 12,
+    "replacement": "\"\""
+   },
+   {
+    "mutator": "StringLiteral",
+    "line": 85,
+    "column": 12,
+    "replacement": "\"\""
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 104,
+    "column": 35,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 128,
+    "column": 28,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 131,
+    "column": 22,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 141,
+    "column": 18,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 216,
+    "column": 29,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 228,
+    "column": 32,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrayDeclaration",
+    "line": 312,
+    "column": 55,
+    "replacement": "[\"Stryker was here\"]"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 321,
+    "column": 21,
+    "replacement": "() => undefined"
+   }
+  ]
+ },
+ "measured": {
+  "packages/devtools/src/model/DiagnosticsFeed.ts": 0.9473684210526315,
+  "packages/devtools/src/model/DiagnosticsStore.ts": 1,
+  "packages/devtools/src/model/DockModel.ts": 1,
+  "packages/devtools/src/model/Gates.ts": 1
+ },
+ "survivors": {
+  "packages/devtools/src/model/DiagnosticsFeed.ts": [
+   "ConditionalExpression | Survived | false | !runs.isCurrent(token) | if (!runs.isCurrent(token)) return;",
+   "ConditionalExpression | Survived | false | next.collector === undefined | ...(next.collector === undefined ? {} : { collector: next.collector }),",
+   "ConditionalExpression | Survived | false | next.layer === undefined | ...(next.layer === undefined ? {} : { layer: next.layer }),",
+   "ConditionalExpression | Survived | false | next.questions === undefined | ...(next.questions === undefined ? {} : { questions: next.questions }),",
+   "ConditionalExpression | Survived | true | before !== undefined | if (before !== undefined) off();"
+  ],
+  "packages/devtools/src/model/DiagnosticsStore.ts": [],
+  "packages/devtools/src/model/DockModel.ts": [],
+  "packages/devtools/src/model/Gates.ts": []
+ }
+}

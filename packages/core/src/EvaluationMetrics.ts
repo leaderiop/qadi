@@ -175,7 +175,8 @@ const CACHE_OUTCOMES: ReadonlyArray<CacheOutcome> = Record.keys(CACHE_OUTCOMES_B
 /**
  * Every `getOrCompute` lookup, by which of the cache's three documented paths
  * it took: `hit` (an already-completed entry), `coalesced` (joined another
- * fiber's in-flight `compute`), or `miss` (this fiber ran `compute` itself).
+ * fiber's walk of the question, still in flight), or `miss` (this fiber walked
+ * it itself).
  *
  * The metric a caller needs to answer "is this cache earning its keep" —
  * `hit / (hit + coalesced + miss)` — without instrumenting their own call

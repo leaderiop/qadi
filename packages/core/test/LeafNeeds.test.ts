@@ -12,15 +12,22 @@ import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Core from "../src/index.ts";
 import { MissingAction, MissingResource, MissingResourceId } from "../src/Errors.ts";
+import { holds } from "../src/Compare.ts";
 import { evaluate } from "../src/Evaluate.ts";
+import { makeSubjectId } from "../src/Identity.ts";
 import {
   LEAF_NEEDS,
+  LEAF_VERDICTS,
   absenceOf,
   errorOf,
   holdsAction,
   holdsPermission,
   holdsRole,
+  isHeld,
 } from "../src/LeafNeeds.ts";
+import type { LeafOutcome } from "../src/LeafNeeds.ts";
+import * as M from "../src/Matcher.ts";
+import type { MatcherContext, Verdict } from "../src/Matcher.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
 import {
@@ -33,6 +40,7 @@ import {
   oracle,
   predicateLabel,
 } from "./LeafFixtures.ts";
+import { subjectWith } from "./helpers.ts";
 
 const ALL = Object.values(FIXTURES).flat();
 
@@ -231,6 +239,110 @@ describe("evaluate and toPredicate agree where both apply (D-11)", () => {
   );
 });
 
+describe("LEAF_VERDICTS", () => {
+  const context: MatcherContext = {
+    subject: {},
+    subjectId: makeSubjectId("u-1"),
+    resource: { state: "open" },
+    action: "read",
+  };
+  // One matcher and value per verdict, in the order the comparison reports them.
+  const VERDICT_CELLS: ReadonlyArray<readonly [Verdict, M.Matcher, unknown]> = [
+    ["Held", M.eq(M.literal("a")), "a"],
+    ["NotHeld", M.eq(M.literal("a")), "b"],
+    ["ValueAbsent", M.eq(M.literal("a")), undefined],
+    ["ReferenceAbsent", M.eq(M.subject("missing")), "a"],
+    ["Incomparable", M.gte(3), "5"],
+  ];
+
+  it("has one row per leaf tag (a missing row is TS2741, an extra one TS2353)", () => {
+    assert.deepStrictEqual(Object.keys(LEAF_VERDICTS).sort(), Object.keys(LEAF_NEEDS).sort());
+    assert.strictEqual(Object.keys(LEAF_VERDICTS).length, 10);
+  });
+
+  it("gives the two acted rows opposite polarities, and Unknown is never Held (ADR-QD-020)", () => {
+    // All six cells, so a reordered check that moved any outcome is seen.
+    assert.strictEqual(LEAF_VERDICTS.HasActed("Acted"), "Held");
+    assert.strictEqual(LEAF_VERDICTS.HasActed("NotActed"), "NotPerformed");
+    assert.strictEqual(LEAF_VERDICTS.HasActed("Unknown"), "Unknown");
+    assert.strictEqual(LEAF_VERDICTS.HasNotActed("NotActed"), "Held");
+    assert.strictEqual(LEAF_VERDICTS.HasNotActed("Acted"), "Performed");
+    assert.strictEqual(LEAF_VERDICTS.HasNotActed("Unknown"), "Unknown");
+  });
+
+  it("answers a relationship, a custom predicate and a signature", () => {
+    assert.strictEqual(LEAF_VERDICTS.HasRelationship("Related"), "Held");
+    assert.strictEqual(LEAF_VERDICTS.HasRelationship("Unrelated"), "Unrelated");
+    assert.strictEqual(LEAF_VERDICTS.HasRelationship("Unknown"), "Unknown");
+    assert.strictEqual(LEAF_VERDICTS.HasCustom(true), "Held");
+    assert.strictEqual(LEAF_VERDICTS.HasCustom(false), "NotHeld");
+    assert.strictEqual(LEAF_VERDICTS.HasSignature({ matched: true, onFile: 1 }), "Held");
+    assert.strictEqual(LEAF_VERDICTS.HasSignature({ matched: true, onFile: 0 }), "Held");
+    assert.strictEqual(LEAF_VERDICTS.HasSignature({ matched: false, onFile: 0 }), "NoneOnFile");
+    assert.strictEqual(LEAF_VERDICTS.HasSignature({ matched: false, onFile: 2 }), "NoneMatching");
+  });
+
+  it("answers a role, a permission and an action from the subject and the request", () => {
+    const subject = subjectWith({ roles: ["editor"], permissions: ["doc:read"] });
+    const role = P.hasRole("editor");
+    const noRole = P.hasRole("admin");
+    const perm = P.hasPermission(permission("doc", "read"));
+    const noPerm = P.hasPermission(permission("doc", "write"));
+    const act = P.hasAction("read");
+    if (
+      role._tag !== "HasRole" ||
+      noRole._tag !== "HasRole" ||
+      perm._tag !== "HasPermission" ||
+      noPerm._tag !== "HasPermission" ||
+      act._tag !== "HasAction"
+    ) {
+      return assert.fail("not the leaves built");
+    }
+    assert.strictEqual(LEAF_VERDICTS.HasRole(role, subject), "Held");
+    assert.strictEqual(LEAF_VERDICTS.HasRole(noRole, subject), "NotHeld");
+    assert.strictEqual(LEAF_VERDICTS.HasPermission(perm, subject), "Held");
+    assert.strictEqual(LEAF_VERDICTS.HasPermission(noPerm, subject), "NotHeld");
+    assert.strictEqual(LEAF_VERDICTS.HasAction(act, "read"), "Held");
+    assert.strictEqual(LEAF_VERDICTS.HasAction(act, "write"), "NotHeld");
+    assert.strictEqual(LEAF_VERDICTS.HasAction(act, undefined), "NotHeld");
+  });
+
+  it("gives the two attribute rows the matcher's own verdict (D-04)", () => {
+    for (const [want, matcher, value] of VERDICT_CELLS) {
+      const own = P.hasAttribute("department", matcher);
+      const res = P.hasResourceAttribute("state", matcher);
+      if (own._tag !== "HasAttribute" || res._tag !== "HasResourceAttribute") {
+        return assert.fail("not the leaves built");
+      }
+      assert.strictEqual(LEAF_VERDICTS.HasAttribute(own, value, context), want, `own ${want}`);
+      assert.strictEqual(LEAF_VERDICTS.HasResourceAttribute(res, value, context), want, `resource ${want}`);
+      assert.strictEqual(
+        LEAF_VERDICTS.HasAttribute(own, value, context),
+        M.judgeMatcher(matcher, value, context),
+        `judged ${want}`,
+      );
+    }
+  });
+
+  it("isHeld is true for Held only, and agrees with holds over the five verdicts", () => {
+    const every: ReadonlyArray<LeafOutcome> = [
+      "Held",
+      "NotHeld",
+      "ValueAbsent",
+      "ReferenceAbsent",
+      "Incomparable",
+      "Unrelated",
+      "Unknown",
+      "Performed",
+      "NotPerformed",
+      "NoneOnFile",
+      "NoneMatching",
+    ];
+    for (const outcome of every) assert.strictEqual(isHeld(outcome), outcome === "Held", outcome);
+    for (const [verdict] of VERDICT_CELLS) assert.strictEqual(isHeld(verdict), holds(verdict), verdict);
+  });
+});
+
 describe("the barrel", () => {
   it("does not export the table, the check or the judgements (ADR-QD-099)", () => {
     for (const name of [
@@ -240,6 +352,8 @@ describe("the barrel", () => {
       "holdsRole",
       "holdsPermission",
       "holdsAction",
+      "LEAF_VERDICTS",
+      "isHeld",
     ]) {
       assert.isFalse(Object.hasOwn(Core, name), name);
     }

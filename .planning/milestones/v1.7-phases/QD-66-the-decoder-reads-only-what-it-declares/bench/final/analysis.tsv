@@ -1,0 +1,14 @@
+workload	ref_min_ns	cand_min_ns	d_min_pct	ref_min_spread_pct	band_pct	verdict	ref_p50_ns	cand_p50_ns	d_p50_pct	ref_mean_ns	cand_mean_ns	d_mean_pct
+audit — a decision record: one decoder or two :: row decoder, then decodeSinkRecord	19416	19125	-1.5	9.0	5.0	ok	20875	20125	-3.6	35520	31958	-10.0
+audit — a decision record: one decoder or two :: decodeSinkRecord alone	18542	18083	-2.5	7.4	5.0	ok	20166	19458	-3.5	38072	36118	-5.1
+ignore — the envelope projection: declared keys only, or undeclared keys besides :: decodeSinkRecord, one undeclared key	18458	18458	-0.0	4.7	5.0	ok	19708	19541	-0.8	31626	35156	11.2
+ignore — the envelope projection: declared keys only, or undeclared keys besides :: decodeStoredRecord, one undeclared key	19000	19667	3.5	5.3	5.0	ok	20583	21000	2.0	30796	39131	27.1
+ignore — the envelope projection: declared keys only, or undeclared keys besides :: decodeStoredRecord	19458	19792	1.7	5.1	5.0	ok	20708	20875	0.8	27552	31689	15.0
+ignore — the envelope projection: declared keys only, or undeclared keys besides :: eight declared keys and eight undeclared, sixteen decodes	27917	24250	-13.1	12.1	5.0	ok	29209	25458	-12.8	49540	39734	-19.8
+# workloads: 6
+# slower: 0
+# geomean_d_min_pct: -2.13
+# max_slowdown_pct: 5.0
+# max_geomean_pct: 2.0
+# worst_d_min: 3.5 ignore — the envelope projection: declared keys only, or undeclared keys besides :: decodeStoredRecord, one undeclared key
+# gate: pass

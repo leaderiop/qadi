@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-096                                   |
-> | Revision       | 1.5                                            |
+> | Revision       | 1.6                                            |
 > | Effective Date | 2026-10-08                                     |
-> | Status         | Accepted — amends ADR-QD-002, ADR-QD-056, ADR-QD-060; D-15-d reversed 2026-10-06 (version 2 only) |
+> | Status         | Accepted — amends ADR-QD-002, ADR-QD-056, ADR-QD-060; D-15-d reversed 2026-10-06 (version 2 only); amended 2026-11-19 (ADR-QD-170) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.5 (2026-11-14): amendment: the version is stated once, in SinkWire.ts (ADR-QD-151, ARCH-85, CCR-QD-429)<br>1.4 (2026-11-12): D-15-c's projection is the untrusted decoder's prepare step (ADR-QD-143, ARCH-78, CCR-QD-421)<br>1.3 (2026-10-08): amended — a version-2 decision whose copies disagree is refused as `Inconsistent`, and the duplicated fields are queued for the next version (ADR-QD-106, CCR-QD-301)<br>1.2 (2026-10-08): Document ID corrected from `QADI-ADR-903` to `QADI-ADR-096`; `verify-traceability.sh` now refuses an ADR whose Document ID disagrees with its file number (ARCH-45, CCR-QD-268)<br>1.1 (2026-10-06): amended — 0.11.0 reads version 2 only; D-15-d ("the v1 reader is permanent") reversed at the maintainer's direction, D-15-g/h/i withdrawn with it, INV-QD-099 retired, the migration path stated (CCR-QD-182)<br>1.0 (2026-10-05): Initial release (ARCH-15, CCR-QD-180) |
+> | Change History | 1.6 (2026-11-19): amendment: D-15-c's projection is the decoder's stated unknownKeys policy, run before the guard (ADR-QD-170, ARCH-104, CCR-QD-448)<br>1.5 (2026-11-14): amendment: the version is stated once, in SinkWire.ts (ADR-QD-151, ARCH-85, CCR-QD-429)<br>1.4 (2026-11-12): D-15-c's projection is the untrusted decoder's prepare step (ADR-QD-143, ARCH-78, CCR-QD-421)<br>1.3 (2026-10-08): amended — a version-2 decision whose copies disagree is refused as `Inconsistent`, and the duplicated fields are queued for the next version (ADR-QD-106, CCR-QD-301)<br>1.2 (2026-10-08): Document ID corrected from `QADI-ADR-903` to `QADI-ADR-096`; `verify-traceability.sh` now refuses an ADR whose Document ID disagrees with its file number (ARCH-45, CCR-QD-268)<br>1.1 (2026-10-06): amended — 0.11.0 reads version 2 only; D-15-d ("the v1 reader is permanent") reversed at the maintainer's direction, D-15-g/h/i withdrawn with it, INV-QD-099 retired, the migration path stated (CCR-QD-182)<br>1.0 (2026-10-05): Initial release (ARCH-15, CCR-QD-180) |
 
 ---
 
@@ -308,3 +308,7 @@ D-15-c's projection now runs as the untrusted decoder's `prepare` step in `SinkC
 ## Amendment (2026-11-14, ADR-QD-151, CCR-QD-429)
 
 The version is now stated once, as `WIRE_VERSION` in `SinkWire.ts`; `WIRE_VERSIONS` and `WireVersion` derive from it, and the read set is a separate idea from the write version. The 2026-10-06 amendment's "full-union edit" now means an edit to that one constant, plus the read set and a schema when an older version stays readable. The bytes are unchanged, and the original text above stands as written. See [ADR-QD-151](151-the-sink-wire-version-is-stated-once.md).
+
+## Amendment (2026-11-19, ADR-QD-170, CCR-QD-448)
+
+D-15-c's projection is now the untrusted decoder's own step, stated at the record wire as `unknownKeys: "ignore"` and run before the depth guard, so the order is project, guard, version, decode: a deep unknown top-level key is ignored and never walked, and the record wire no longer refuses it as `TooDeep`. The refusal precedence (`TooDeep`, `UnsupportedVersion`, `Malformed`) is unchanged for every declared key. The 2026-11-12 amendment's `prepare` now holds only the version check (`checkVersion`), and the stored-record envelope is read by the decoder too (`unknownKeys: "ignore"`, `record` unwalked), so `decodeStoredRecord` no longer reads it with `ownValue`. The original text above stands as written. See [ADR-QD-170](170-an-envelope-states-its-unknown-key-policy-at-its-decoder.md).

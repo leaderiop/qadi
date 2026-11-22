@@ -194,7 +194,8 @@ const takeLive = Effect.fn("decision-log.takeLive")(function* (count: number) {
 });
 
 /** A record's identity in a timeline: the slot it would occupy. */
-const slot = (record: StoredRecord) => `${record._tag}|${record.environment}|${record.evaluationId}|${record.at}`;
+const slot = (stored: StoredRecord) =>
+  `${stored.record._tag}|${stored.environment}|${stored.record.evaluationId}|${stored.record.at}`;
 
 describeFeature(feature, World.layer, ({ After, Before, Given, When, Then }) => {
   Before(function* () {
@@ -298,10 +299,10 @@ describeFeature(feature, World.layer, ({ After, Before, Given, When, Then }) => 
     );
     const sse = yield* theRead();
     const live = Array.from(
-      yield* Stream.runCollect(Stream.takeUntil(sse.live, (record) => record.evaluationId === "sentinel")),
+      yield* Stream.runCollect(Stream.takeUntil(sse.live, (stored) => stored.record.evaluationId === "sentinel")),
     );
     const held = [...(backlog ?? []), ...live]
-      .map((record) => record.evaluationId)
+      .map((stored) => stored.record.evaluationId)
       .filter((id) => id !== "sentinel")
       .sort();
     assert.deepEqual(held, Array.from({ length: count }, (_, i) => `back-${i}`));

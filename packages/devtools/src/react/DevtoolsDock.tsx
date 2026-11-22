@@ -18,11 +18,15 @@ import { useMemo, useRef } from "react";
 import type { Source } from "../model/Source.ts";
 import type { Verdict } from "../model/Verdict.ts";
 import type { Catalogue } from "../model/Catalogue.ts";
-import type { DiagnosticsDockOptions, DiagnosticsStatus } from "../model/DiagnosticsFeed.ts";
-import type { Diagnostics, DiagnosticsReading } from "../model/DiagnosticsStore.ts";
+import type { DiagnosticsStatus } from "../model/DiagnosticsFeed.ts";
+import type {
+  Diagnostics,
+  DiagnosticsOptions,
+  DiagnosticsReading,
+} from "../model/DiagnosticsStore.ts";
 import type { DockModel } from "../model/DockModel.ts";
 import type { DockSnapshot, TabId } from "../model/DockSession.ts";
-import type { GateRegistryLike } from "../model/Gates.ts";
+import type { AskedQuestionLike, GateRegistryLike } from "../model/Gates.ts";
 import type { EvaluationPortsLayer } from "../model/SimulationInput.ts";
 import type { TimelineStatus } from "../model/TimelineFeed.ts";
 import { DecisionLog } from "./DecisionLog.tsx";
@@ -87,8 +91,8 @@ export interface DevtoolsDockProps {
    */
   readonly catalogue?: Catalogue;
   /**
-   * What to sample while the dock is mounted: the application's layer, the
-   * port-call collector and a question source, each optional.
+   * What to sample while the dock is mounted: the application's layer and the
+   * port-call collector, each optional.
    *
    * The way to keep the Services and React panels current without writing the
    * loop: the dock samples on a schedule, keeps a reading's identity while it is
@@ -98,10 +102,11 @@ export interface DevtoolsDockProps {
    * them changes identity. The dock's model polls in its own scope, so a
    * hidden-then-shown dock samples afresh, from its first sample.
    *
-   * Gates are not in it: they come from the registry the `gates` prop below
-   * hands over, which the dock's model subscribes to in its own scope.
+   * Gates and questions are not in it: the gates come from the registry the `gates`
+   * prop below hands over, and the questions from the `questions` prop after it,
+   * both read by the dock's model in its own scope.
    */
-  readonly diagnostics?: DiagnosticsDockOptions;
+  readonly diagnostics?: DiagnosticsOptions;
   /**
    * A reading taken elsewhere, such as another process's or a fixture's.
    *
@@ -124,6 +129,14 @@ export interface DevtoolsDockProps {
    * re-render when a guard mounts or goes (ADR-QD-162).
    */
   readonly gates?: GateRegistryLike;
+  /**
+   * The questions asked so far, usually the feed's `questions` or `atoms.asked` from `@qadi/react`.
+   *
+   * Read by the dock's model on the diagnostics cadence, never by the poll: a throw is stated in
+   * the React panel while the poll keeps running (ADR-QD-169). Hold it at module scope or in a
+   * `useMemo`, since the model reads it again when its identity changes.
+   */
+  readonly questions?: () => ReadonlyArray<AskedQuestionLike>;
   /** Parent names `resolveRoleGraph` dropped. */
   readonly unknownParents?: ReadonlyArray<string>;
   /** Usually `useInvalidate()`. */
@@ -149,6 +162,7 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
   reading,
   ports,
   gates,
+  questions,
   ...host
 }) => {
   /**
@@ -161,7 +175,7 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
    * It is built in a scope this component owns, so it does not exist on the first
    * pass, and the frame below, whose hooks read it once, is not rendered until it does.
    */
-  const model = useDockModel({ source, capacity, catalogue, ports, diagnostics, reading, gates });
+  const model = useDockModel({ source, capacity, catalogue, ports, diagnostics, reading, gates, questions });
 
   return model === undefined ? null : <DockFrame model={model} host={host} />;
 };
@@ -328,12 +342,7 @@ const Screen: FC<{
       <RoleViewer choice={props.model.roles} unknownParents={props.host.unknownParents} />
     ),
     services: () => (
-      <ServicesPanel
-        wiring={props.shown.wiring}
-        activity={props.shown.activity}
-        portCalls={props.shown.portCalls}
-        diagnostics={notice}
-      />
+      <ServicesPanel services={props.model.services} diagnostics={notice} />
     ),
     simulator: () => <Simulator session={props.model.simulation} />,
     questions: () => (

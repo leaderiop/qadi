@@ -127,7 +127,7 @@ describe("decodeDecision refuses a wire decision that contradicts its trace (ARC
 });
 
 describe("DecisionWire is a tagged union", () => {
-  const { decode } = untrustedDecoder(DecisionWire);
+  const { decode } = untrustedDecoder(DecisionWire, { unknownKeys: "refuse" });
   const base = {
     evaluationId: "e",
     subjectId: "u1",

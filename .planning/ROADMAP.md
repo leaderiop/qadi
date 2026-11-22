@@ -8,6 +8,8 @@
 - ✅ **v1.3 Arch Wave 8** — Phases 30-36 (completed 2026-11-13; not released) — [archive](milestones/v1.3-ROADMAP.md)
 - ✅ **v1.4 Arch Wave 9** — Phases 37-42 (completed 2026-11-14; not released) — [archive](milestones/v1.4-ROADMAP.md)
 - ✅ **v1.5 Arch Wave 10** — Phases 43-52 (completed 2026-11-16; not released) — [archive](milestones/v1.5-ROADMAP.md)
+- ✅ **v1.6 Arch Wave 11** — Phases 53-61 (completed 2026-11-19; not released) — [archive](milestones/v1.6-ROADMAP.md)
+- ✅ **v1.7 Arch Wave 12** — Phases 62-68.1 (completed 2026-11-22; not released) — [archive](milestones/v1.7-ROADMAP.md)
 
 ## Phases
 
@@ -344,5 +346,42 @@ Full details: [milestones/v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) · requir
 Full details: [milestones/v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) · requirements:
 [milestones/v1.5-REQUIREMENTS.md](milestones/v1.5-REQUIREMENTS.md) · audit:
 [milestones/v1.5-MILESTONE-AUDIT.md](milestones/v1.5-MILESTONE-AUDIT.md)
+
+</details>
+
+<details>
+<summary>✅ v1.6 Arch Wave 11 (Phases 53-61) — COMPLETED 2026-11-19 (not released)</summary>
+
+- [x] Phase 53: One module owns "the value a leaf compares", ARCH-100 (core; closes the predicate interpreter's own-property fail-open) (8/8 plans) — completed 2026-11-18
+- [x] Phase 54: LeafNeeds turns every leaf's answer into a verdict, ARCH-101 (8/8 plans) — completed 2026-11-18
+- [x] Phase 55: A port card is a model row, not a view join, ARCH-102 (devtools) (9/9 plans) — completed 2026-11-18
+- [x] Phase 56: The gate-registry watch becomes the dock model's third feed, ARCH-103 (devtools) (13/13 plans) — completed 2026-11-18
+- [x] Phase 57: untrustedDecoder states the envelope's unknown-key policy, ARCH-104 (Breaking, core, audit, react) (11/11 plans) — completed 2026-11-19
+- [x] Phase 58: A stored record is its envelope in memory too, ARCH-105 (Breaking, core, http, devtools) (9/9 plans) — completed 2026-11-19
+- [x] Phase 59: Admission produces the one walk environment, ARCH-106 (benchmark gate passed) (10/10 plans) — completed 2026-11-19
+- [x] Phase 60: Devtools' headless interface is the feeds, ARCH-107 (Breaking, devtools) (8/8 plans) — completed 2026-11-19
+- [x] Phase 61: DecisionCache is asked only the question, ARCH-108 (Breaking, core) (7/7 plans) — completed 2026-11-19
+
+Full details: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · requirements:
+[milestones/v1.6-REQUIREMENTS.md](milestones/v1.6-REQUIREMENTS.md) · audit:
+[milestones/v1.6-MILESTONE-AUDIT.md](milestones/v1.6-MILESTONE-AUDIT.md)
+
+</details>
+
+<details>
+<summary>✅ v1.7 Arch Wave 12 (Phases 62-68.1) — COMPLETED 2026-11-22 (not released)</summary>
+
+- [x] Phase 62: Type pins that can fail, ARCH-109 (8/8 plans) — completed 2026-11-20
+- [x] Phase 63: The packed-install gate probes every new public name, ARCH-110 (5/5 plans) — completed 2026-11-20
+- [x] Phase 64: One throwing listener cannot silence the rest, ARCH-111 (devtools patch) (5/5 plans) — completed 2026-11-20
+- [x] Phase 65: Only `admit` builds an `Admitted`, ARCH-112 (benchmark gate passed) (6/6 plans) — completed 2026-11-20
+- [x] Phase 66: The decoder reads only what it declares, ARCH-113 (core patch; benchmark gate passed) (5/5 plans) — completed 2026-11-20
+- [x] Phase 67: No equivalent mutants, no magic race bound, ARCH-114 (7/7 plans) — completed 2026-11-21
+- [x] Phase 68: Hygiene and recorded close-outs, ARCH-115 (15/15 plans) — completed 2026-11-21
+- [x] Phase 68.1: Address tech debt, DEBT-01..06 (INSERTED after the first audit) (9/9 plans) — completed 2026-11-22
+
+Full details: [milestones/v1.7-ROADMAP.md](milestones/v1.7-ROADMAP.md) · requirements:
+[milestones/v1.7-REQUIREMENTS.md](milestones/v1.7-REQUIREMENTS.md) · audit:
+[milestones/v1.7-MILESTONE-AUDIT.md](milestones/v1.7-MILESTONE-AUDIT.md)
 
 </details>

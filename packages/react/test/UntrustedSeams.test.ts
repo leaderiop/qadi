@@ -193,3 +193,52 @@ describe("hydrateDecisions", () => {
     });
   });
 });
+
+/*
+ * The per-policy matrix (KEYP-05, D-11): the hydration payload stays `refuse` (D-09), so each
+ * answer an unknown key or a non-object can draw holds before and after the policy is stated.
+ * Nothing here is deeper than `OVER`: `hydrate` round-trips its payload through JSON.
+ */
+describe("the hydration payload per policy: refuse (KEYP-05, D-11)", () => {
+  it("H1 a shallow unknown envelope key -> MalformedPayload, nothing seeded", () => {
+    expect(hydrate(payloadOf([entry], { addedLater: "x" }))).toEqual({ seeded: 0, reasons: ["MalformedPayload"] });
+  });
+
+  it("H2 an unknown envelope key 266 deep -> PayloadTooDeep, nothing seeded", () => {
+    expect(hydrate(payloadOf([entry], { addedLater: nested(OVER) }))).toEqual({
+      seeded: 0,
+      reasons: ["PayloadTooDeep"],
+    });
+  });
+
+  it("H3 an excess key inside an entry -> MalformedEntry", () => {
+    expect(hydrate(payloadOf([{ ...entry, addedLater: "x" }]))).toEqual({ seeded: 0, reasons: ["MalformedEntry"] });
+  });
+
+  it("H4 an excess key inside an entry policy -> UndecodablePolicy", () => {
+    expect(hydrate(payloadOf([{ policy: { ...policy, addedLater: "x" }, decision }]))).toEqual({
+      seeded: 0,
+      reasons: ["UndecodablePolicy"],
+    });
+  });
+
+  it("H5 5, null and [] -> MalformedPayload", () => {
+    for (const payload of [5, null, []]) {
+      expect(hydrate(payload)).toEqual({ seeded: 0, reasons: ["MalformedPayload"] });
+    }
+  });
+
+  it("H6 two unknown envelope keys -> MalformedPayload, nothing seeded: refusing is not refusing the first", () => {
+    expect(hydrate(payloadOf([entry], { addedLater: "x", addedSooner: "y" }))).toEqual({
+      seeded: 0,
+      reasons: ["MalformedPayload"],
+    });
+  });
+
+  it("H7 an unknown key nested under a kept value of an entry -> MalformedEntry, nothing seeded", () => {
+    expect(hydrate(payloadOf([{ policy, decision: { ...decision, addedLater: "x" } }]))).toEqual({
+      seeded: 0,
+      reasons: ["MalformedEntry"],
+    });
+  });
+});

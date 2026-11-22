@@ -222,3 +222,7 @@ to answer `"NotActed"` kills four tests; changing it to `"Acted"` kills four.
 That is the argument of this ADR reduced to two experiments, and it is worth
 more than the paragraph making it, because the paragraph would survive a
 refactor and the tests would not.
+
+## Amendment (2026-11-18, ADR-QD-167, CCR-QD-445)
+
+[ADR-QD-167](./167-each-leafs-answer-becomes-a-verdict-in-one-row.md): the rule above, that `Unknown` is neither wanted answer and so denies both polarities, is now written once, in `actedRow` in `LeafNeeds.ts`; `evaluate` and `toPredicate` both read it. The port stays three-valued and the decision stands.

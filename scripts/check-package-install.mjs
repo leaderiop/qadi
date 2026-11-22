@@ -56,6 +56,23 @@
  * keeping a `.ts` file for tsc and a `.mjs` copy for node. One source, two
  * uses — two copies of one consumer is the shape of defect this library exists
  * to remove.
+ *
+ * Check 4 then reads its own fixture. Every `make*Feed` the installed
+ * `@qadi/devtools` root exports must be called when the consumer runs, every
+ * name on `TYPE_ONLY_PROBES` must annotate a value declared in it, and every key
+ * of `REFUSED_SHAPE_PROBES` must annotate a literal there whose property named by
+ * the member paired with it carries a `@ts-expect-error`. So a public name the
+ * consumer never compiles cannot ship unnoticed, and a refusal cannot be deleted
+ * together with its directive.
+ * The feed set comes from the artifact, so a new feed is caught without editing
+ * this file, and the run counts the calls through a module hook that wraps each
+ * feed, so a call written but never run does not count. TypeScript's parse
+ * (`typescript/unstable/*`, run in a child process, `scripts/lib/probe-guard-parse.mjs`,
+ * under the same timeout as every other child) decides what annotates a
+ * value and what is a refusal, so a comment, a string, an import, an alias or
+ * `typeof` does not count; and a failure to load or run that parse fails the
+ * gate, naming the installed TypeScript, whose unstable API a routine upgrade
+ * can move.
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -66,6 +83,53 @@ const SANDBOX = join(ROOT, ".package-check");
 
 const failures = [];
 const fail = (message) => failures.push(message);
+
+/**
+ * A child that hangs would hang `pnpm check`; each `execFileSync` child is killed after this long, which a cold `pnpm build` stays well inside.
+ * The probe guard's parse is one of them (`scripts/lib/probe-guard-parse.mjs`), so a TypeScript server that stops
+ * answering ends the gate at this bound. That server works on a request without reading its pipe, so it does not die
+ * with the child; the child names it on stderr and the gate kills it when the child is killed (ADR-QD-033).
+ */
+const CHILD_TIMEOUT_MS = 600_000;
+
+/** What to print for a failed `execFileSync` child: a killed child's output is empty, so its cause is named, then any output. */
+const why = (error) =>
+  [
+    error.code === "ETIMEDOUT"
+      ? `timed out after ${CHILD_TIMEOUT_MS} ms`
+      : error.signal
+        ? `killed by ${error.signal}`
+        : undefined,
+    error.stdout,
+    error.stderr,
+  ]
+    .filter(Boolean)
+    .join("\n") || error.message;
+
+/**
+ * The type-only names check 4's consumer must use as a type.
+ *
+ * A type has no runtime key, so unlike the feeds it cannot be read from the
+ * artifact and is written out; deleting the whole host-cache probe would
+ * otherwise leave the gate green, and so would deleting only the typed literals
+ * of the gates probe.
+ */
+const TYPE_ONLY_PROBES = ["DecisionCacheShape", "GateInstanceLike", "GateRegistryLike"];
+
+/**
+ * The type names check 4's consumer must refuse an old shape against, each
+ * paired with the member of that shape its directive must name.
+ *
+ * A refusal is a literal annotated with the type whose property named by the
+ * refused member carries a `@ts-expect-error`, in any form TypeScript reads as
+ * one. The compiler fails an unused directive, but nothing else keeps the
+ * literal, so deleting it together with its directive would otherwise leave the
+ * gate green.
+ */
+const REFUSED_SHAPE_PROBES = new Map([
+  ["DecisionCacheShape", "getOrCompute"],
+  ["DiagnosticsOptions", "schedule"],
+]);
 
 /** Workspace-time protocols. Valid in a manifest, meaningless in a tarball. */
 const UNRESOLVED = /^(catalog:|workspace:|link:|file:|portal:)/;
@@ -136,9 +200,9 @@ for (const { dir, manifest } of publicPackages) {
 // Build before packing, so the tarballs hold this commit's output rather than
 // whatever a previous command happened to leave in lib/.
 try {
-  execFileSync("pnpm", ["build"], { cwd: ROOT, encoding: "utf8", stdio: "pipe" });
+  execFileSync("pnpm", ["build"], { cwd: ROOT, encoding: "utf8", stdio: "pipe", timeout: CHILD_TIMEOUT_MS });
 } catch (error) {
-  console.error(error.stdout ?? error.message);
+  console.error(why(error));
   console.error("\npackage-install: pnpm build FAILED, so there is no artifact to check.");
   process.exit(1);
 }
@@ -157,6 +221,7 @@ for (const { dir, manifest } of publicPackages) {
   const tarball = execFileSync("pnpm", ["pack", "--pack-destination", SANDBOX], {
     cwd: dir,
     encoding: "utf8",
+    timeout: CHILD_TIMEOUT_MS,
   })
     .trim()
     .split("\n")
@@ -170,7 +235,7 @@ for (const { dir, manifest } of publicPackages) {
 
   const target = join(modules, manifest.name);
   mkdirSync(target, { recursive: true });
-  execFileSync("tar", ["xzf", tarball, "-C", target, "--strip-components=1"], { cwd: SANDBOX });
+  execFileSync("tar", ["xzf", tarball, "-C", target, "--strip-components=1"], { cwd: SANDBOX, timeout: CHILD_TIMEOUT_MS });
   installed.push({ name: manifest.name, target, source: manifest });
 }
 
@@ -291,6 +356,7 @@ try {
     cwd: SANDBOX,
     encoding: "utf8",
     stdio: "pipe",
+    timeout: CHILD_TIMEOUT_MS,
   });
   for (const line of output.trim().split("\n")) {
     const [name, count] = line.split(" ");
@@ -301,7 +367,7 @@ try {
     runtimeExports += total;
   }
 } catch (error) {
-  fail(`importing the packed packages failed:\n${error.stderr ?? error.message}`);
+  fail(`importing the packed packages failed:\n${why(error)}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -377,10 +443,11 @@ try {
     cwd: SANDBOX,
     encoding: "utf8",
     stdio: "pipe",
+    timeout: CHILD_TIMEOUT_MS,
   });
   for (const problem of JSON.parse(output.trim().split("\n").at(-1) ?? "[]")) fail(problem);
 } catch (error) {
-  fail(`probing the entry-point list failed:\n${error.stderr ?? error.message}`);
+  fail(`probing the entry-point list failed:\n${why(error)}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -402,27 +469,44 @@ import * as HttpApiGroup from "effect/http-api/HttpApiGroup";
 import * as HttpRouter from "effect/http/HttpRouter";
 import * as HttpServer from "effect/http/HttpServer";
 import {
+  AttributeResolver,
   AttributeResolverNone,
   currentSubjectLayer,
   CustomPredicateNone,
   Decided,
+  DecisionCache,
+  decisionCacheLayer,
+  type DecisionCacheShape,
   DecisionHistoryUnknown,
   DecisionRecord,
   evaluate,
   EvaluationIdLive,
   fromRoles,
+  gte,
+  hasAttribute,
   hasPermission,
   permission,
   RelationshipResolverNever,
   role,
   SignatureHistoryNone,
-  stampRecord,
+  StoredRecord,
   toPredicate,
 } from "@qadi/core";
 import { makeQadi } from "@qadi/promise";
 import { qadiTestLayer } from "@qadi/testing";
 import { QadiProvider } from "@qadi/react";
-import { emptyTimeline, ingest, verdictOf } from "@qadi/devtools";
+import {
+  type DiagnosticsOptions,
+  emptyTimeline,
+  type GateInstanceLike,
+  type GateRegistryLike,
+  ingest,
+  makeDiagnosticsFeed,
+  makeGatesFeed,
+  makeTimelineFeed,
+  sourceFromRecords,
+  verdictOf,
+} from "@qadi/devtools";
 import { DevtoolsDock } from "@qadi/devtools/react";
 import { compileSql } from "@qadi/predicate-sql";
 import { compilePrismaWhere } from "@qadi/predicate-prisma";
@@ -482,23 +566,167 @@ expect("react provider", typeof QadiProvider, "function");
 // @qadi/devtools ships TWO entry points, and check 3's import probe only
 // reaches package roots — so the second one is exercised here or nowhere.
 const decided = await decide(hasPermission(read));
-const timeline = ingest(
-  emptyTimeline(),
-  stampRecord(
-    new DecisionRecord({
-      evaluationId: decided.evaluationId,
-      at: 0,
-      subjectId: decided.subjectId,
-      policy: hasPermission(read),
-      outcome: new Decided({ decision: decided }),
-    }),
-    "Server",
-  ),
-);
+const stored = new StoredRecord({
+  environment: "Server",
+  record: new DecisionRecord({
+    evaluationId: decided.evaluationId,
+    at: 0,
+    subjectId: decided.subjectId,
+    policy: hasPermission(read),
+    outcome: new Decided({ decision: decided }),
+  }),
+});
+const timeline = ingest(emptyTimeline(), stored);
 const [only] = timeline.entries;
 expect("devtools timeline", timeline.entries.length, 1);
 expect("devtools verdict", only === undefined ? "missing" : verdictOf(only), "Allow");
 expect("devtools dock", typeof DevtoolsDock, "function");
+
+// The feeds are the headless interface (ADR-QD-099's closed map still reaches them from the root). A feed only
+// forks its read, and \`Reading\` is also what a feed that read nothing says, so the entry is asserted too:
+// the fiber is let run for fixed turns (no clock), the way the devtools suite's \`settleTurns\` does.
+const fed = await Effect.runPromise(
+  Effect.scoped(
+    Effect.gen(function* () {
+      const feed = yield* makeTimelineFeed({ source: sourceFromRecords([stored]) });
+      for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
+      return { status: feed.status.getSnapshot()._tag, entries: feed.timeline.getSnapshot().entries.length };
+    }),
+  ),
+);
+expect("devtools feed", fed.status, "Reading");
+expect("devtools feed entries", fed.entries, 1);
+
+// A feed built over a registry says what the registry holds, which is not what a feed over none says.
+// \`makeGatesFeed\` reads synchronously, so no turn is needed; the registry is a structural literal because
+// @qadi/react's real one needs a DOM. Closing the scope must release the one subscription it took.
+const gate: GateInstanceLike = { id: "gate-1", kind: "Guard", policy: hasPermission(read), state: "Allowed" };
+let registered: ReadonlyArray<GateInstanceLike> = [gate];
+const gateListeners = new Set<() => void>();
+const gateRegistry: GateRegistryLike = {
+  instances: () => registered,
+  subscribe: (listener) => {
+    gateListeners.add(listener);
+    return () => {
+      gateListeners.delete(listener);
+    };
+  },
+};
+const gated = await Effect.runPromise(
+  Effect.scoped(
+    Effect.gen(function* () {
+      const bare = yield* makeGatesFeed();
+      const feed = yield* makeGatesFeed({ gates: gateRegistry });
+      const read = feed.getSnapshot().registry;
+      const watching = gateListeners.size;
+      registered = [gate, { ...gate, id: "gate-2" }];
+      for (const listener of gateListeners) listener();
+      const changed = feed.getSnapshot().registry;
+      return {
+        initial: bare.getSnapshot().registry._tag,
+        read: read._tag,
+        count: read._tag === "Read" ? read.instances.length : -1,
+        watching,
+        changed: changed._tag === "Read" ? changed.instances.length : -1,
+      };
+    }),
+  ),
+);
+expect("gates feed with no registry", gated.initial, "Unwatched");
+expect("gates feed over one instance", gated.read, "Read");
+expect("gates feed instance count", gated.count, 1);
+expect("gates feed subscribes once", gated.watching, 1);
+expect("gates feed follows its registry", gated.changed, 2);
+expect("gates feed releases on close", gateListeners.size, 0);
+
+// \`Live\` is set only by an accepted first sample, so a feed that read nothing stays \`Starting\`. A bounded
+// yield loop, no clock, that also ends on \`Stopped\` so its reason is reported; closing the scope interrupts
+// the poll's wait for its next sample.
+const LIVE_TURNS = 200;
+const diagnosed = await Effect.runPromise(
+  Effect.scoped(
+    Effect.gen(function* () {
+      const off = yield* makeDiagnosticsFeed();
+      const feed = yield* makeDiagnosticsFeed({});
+      let turns = 0;
+      while (!["Live", "Stopped"].includes(feed.getSnapshot().status._tag) && turns < LIVE_TURNS) {
+        yield* Effect.yieldNow;
+        turns += 1;
+      }
+      const after = feed.getSnapshot();
+      const stopped = after.status._tag === "Stopped" ? after.status.reason : undefined;
+      return { off: off.getSnapshot().status._tag, after: after.status._tag, stopped, hydration: after.reading.hydration !== undefined, turns };
+    }),
+  ),
+);
+expect("diagnostics feed handed no options", diagnosed.off, "Off");
+console.log(\`consumer: the diagnostics feed was read for \${diagnosed.turns} of at most \${LIVE_TURNS} turns\`);
+expect("diagnostics feed stop reason", diagnosed.stopped, undefined);
+expect("diagnostics feed reached Live", diagnosed.after, "Live");
+expect("diagnostics feed first read sets hydration", diagnosed.hydration, true);
+
+// DiagnosticsOptions has a cadence in milliseconds and no \`schedule\`.
+const noSchedule: DiagnosticsOptions = {
+  // @ts-expect-error schedule is not an option, a cadence is a number
+  schedule: "immediate",
+};
+
+// @qadi/core's DecisionCacheShape is type-only, so only the compiler reaches it. A host cache wraps
+// decisionCacheLayer() and delegates; the walk runs once and the second ask is a hit.
+const cacheOutcomes: Array<string> = [];
+let resolverCalls = 0;
+const hostCache = Layer.effect(
+  DecisionCache,
+  Effect.gen(function* () {
+    const inner = yield* DecisionCache;
+    const shape: DecisionCacheShape = {
+      getOrCompute: (question, options) =>
+        inner.getOrCompute(question, options).pipe(
+          Effect.tap((lookup) =>
+            Effect.sync(() => {
+              cacheOutcomes.push(lookup.outcome);
+            }),
+          ),
+        ),
+      size: inner.size,
+      clear: inner.clear,
+    };
+    return DecisionCache.of(shape);
+  }),
+).pipe(Layer.provide(decisionCacheLayer()));
+const countingResolver = Layer.succeed(AttributeResolver, {
+  resolve: () =>
+    Effect.sync(() => {
+      resolverCalls += 1;
+      return 5;
+    }),
+});
+const needsLookup = hasAttribute("clearance", gte(1));
+const cached = await Effect.runPromise(
+  Effect.gen(function* () {
+    const first = yield* evaluate(needsLookup);
+    const second = yield* evaluate(needsLookup);
+    const cache = yield* DecisionCache;
+    return { tags: [first._tag, second._tag].join(), size: yield* cache.size };
+  }).pipe(
+    Effect.provide(hostCache),
+    Effect.provide(currentSubjectLayer(alice)),
+    Effect.provide(Layer.mergeAll(countingResolver, CustomPredicateNone, DecisionHistoryUnknown, EvaluationIdLive, RelationshipResolverNever, SignatureHistoryNone)),
+  ),
+);
+expect("host cache decisions", cached.tags, "Allow,Allow");
+expect("host cache lookups", cacheOutcomes.join(), "miss,hit");
+expect("host cache walked once", resolverCalls, 1);
+expect("host cache holds one entry", cached.size, 1);
+
+// The pre-0.13 shape took the computation and stored its result under the question. It is refused: the
+// second parameter is now the options, so running it as an Effect is TS2345.
+const preThirteen: DecisionCacheShape = {
+  // @ts-expect-error getOrCompute(question, compute) no longer exists
+  getOrCompute: (_question, compute) => Effect.map(compute, (trace) => ({ trace, outcome: "miss" })),
+  size: Effect.succeed(0),
+  clear: Effect.void,
+};
 
 // @qadi/predicate-sql and @qadi/predicate-prisma compile what toPredicate
 // emits — a held permission folds to True, so both compile to their own
@@ -595,23 +823,154 @@ writeFileSync(
   )}\n`,
 );
 
+// The consumer's compile, run and probe guard read the sandbox only when the install had no failure.
+const consumerReady = failures.length === 0;
+
 if (failures.length === 0) {
   try {
     execFileSync("npx", ["tsc", "-p", join(SANDBOX, "tsconfig.json")], {
       cwd: ROOT,
       encoding: "utf8",
       stdio: "pipe",
+      timeout: CHILD_TIMEOUT_MS,
     });
   } catch (error) {
-    fail(`the consumer does not type-check against the shipped .d.ts:\n${error.stdout ?? error.message}`);
+    fail(`the consumer does not type-check against the shipped .d.ts:\n${why(error)}`);
   }
 }
 
+// The consumer runs under a module hook that hands it `@qadi/devtools` with each make*Feed wrapped
+// to record its name when called, so the probe guard below reads the calls the run made rather
+// than the calls the fixture spells. The hook reads the feed names from the module it wraps.
+const FEED_CALLS = join(SANDBOX, "feed-calls.txt");
+writeFileSync(
+  join(SANDBOX, "feed-hooks.mjs"),
+  `const SCHEME = "qadi-feed-calls:";
+const OUT = ${JSON.stringify(new URL(`file://${join(SANDBOX, "out")}/`).href)};
+export const resolve = async (specifier, context, next) => {
+  if (specifier !== "@qadi/devtools" || !context.parentURL?.startsWith(OUT)) return next(specifier, context);
+  const real = await next(specifier, context);
+  return { url: SCHEME + encodeURIComponent(real.url), shortCircuit: true };
+};
+export const load = async (url, context, next) => {
+  if (!url.startsWith(SCHEME)) return next(url, context);
+  const real = decodeURIComponent(url.slice(SCHEME.length));
+  const feeds = Object.keys(await import(real)).filter((key) => /^make\\w*Feed$/.test(key));
+  const source = [
+    \`import * as real from \${JSON.stringify(real)};\`,
+    \`import { appendFileSync } from "node:fs";\`,
+    \`export * from \${JSON.stringify(real)};\`,
+    ...feeds.map(
+      (name) =>
+        \`export const \${name} = (...args) => { appendFileSync(\${JSON.stringify(${JSON.stringify(FEED_CALLS)})}, "\${name}\\\\n"); return real.\${name}(...args); };\`,
+    ),
+  ].join("\\n");
+  return { format: "module", source, shortCircuit: true };
+};
+`,
+);
+writeFileSync(
+  join(SANDBOX, "feed-calls.mjs"),
+  'import { register } from "node:module";\nregister("./feed-hooks.mjs", import.meta.url);\n',
+);
+
+/** The make*Feed names the consumer's run called, or undefined when it did not complete. */
+let called;
 if (failures.length === 0) {
   try {
-    execFileSync("node", ["out/consumer.js"], { cwd: SANDBOX, encoding: "utf8", stdio: "pipe" });
+    rmSync(FEED_CALLS, { force: true });
+    execFileSync("node", ["--import", "./feed-calls.mjs", "out/consumer.js"], {
+      cwd: SANDBOX,
+      encoding: "utf8",
+      stdio: "pipe",
+      timeout: CHILD_TIMEOUT_MS,
+    });
+    called = new Set(existsSync(FEED_CALLS) ? readFileSync(FEED_CALLS, "utf8").split("\n").filter(Boolean) : []);
   } catch (error) {
-    fail(`the consumer failed at runtime:\n${error.stdout ?? ""}${error.stderr ?? error.message}`);
+    fail(`the consumer failed at runtime:\n${why(error)}`);
+  }
+}
+
+// The probe guard checks that the fixture exercises every public name it must.
+//
+// A public name the consumer never compiles can ship broken. The feed set is read
+// from the installed artifact, so a new feed is caught without editing this
+// script, and TypeScript's parse decides what is a call, a type use or a refusal.
+// It runs after the compile and the run, so a guard failure never hides theirs.
+if (consumerReady) {
+  let feeds;
+  try {
+    const output = execFileSync(
+      "node",
+      ["--input-type=module", "-e", 'console.log(JSON.stringify(Object.keys(await import("@qadi/devtools"))))'],
+      { cwd: SANDBOX, encoding: "utf8", stdio: "pipe", timeout: CHILD_TIMEOUT_MS },
+    );
+    feeds = JSON.parse(output.trim().split("\n").at(-1) ?? "[]").filter((key) => /^make\w*Feed$/.test(key));
+    if (feeds.length === 0) {
+      fail("the packed @qadi/devtools root exports no make*Feed; the probe guard would be vacuous");
+    }
+  } catch (error) {
+    feeds = undefined;
+    fail(`reading the packed @qadi/devtools exports failed:\n${why(error)}`);
+  }
+
+  let seen;
+  try {
+    const output = execFileSync(
+      process.execPath,
+      [join(ROOT, "scripts", "lib", "probe-guard-parse.mjs"), SANDBOX, JSON.stringify([...REFUSED_SHAPE_PROBES])],
+      { cwd: ROOT, encoding: "utf8", stdio: "pipe", timeout: CHILD_TIMEOUT_MS },
+    );
+    let parsed;
+    try {
+      parsed = JSON.parse(output);
+    } catch {
+      fail(`the probe guard's parse printed something other than one line of JSON:\n${output}`);
+    }
+    if (parsed === null) fail("the probe guard could not read consumer.ts from the sandbox project");
+    else if (parsed !== undefined) seen = { typed: new Set(parsed.typed), refused: new Set(parsed.refused) };
+  } catch (error) {
+    // A child killed by a signal never closed its TypeScript server, which may still be working on a request; kill the
+    // servers it named. A child that exited on its own closed its server first, so no pid it named is reused here.
+    const killed = typeof error.signal === "string";
+    for (const pid of killed ? (/^server pids: (.+)$/m.exec(error.stderr ?? "")?.[1].split(" ") ?? []) : []) {
+      try {
+        process.kill(Number(pid), "SIGKILL");
+      } catch {
+        // already gone
+      }
+    }
+    const version = JSON.parse(readFileSync(join(ROOT, "node_modules", "typescript", "package.json"), "utf8")).version;
+    fail(
+      `the probe guard could not load or run the TypeScript parser, typescript@${version}'s unstable API, ` +
+        `which a TypeScript upgrade can move: ${why(error)}`,
+    );
+  }
+
+  // The calls the run made, read only when it completed; a run that failed is reported above.
+  if (called !== undefined) {
+    const unprobed = (feeds ?? []).filter((name) => !called.has(name));
+    if (unprobed.length > 0) {
+      fail(
+        `the consumer fixture never calls ${unprobed.join(", ")}: every make*Feed the packed @qadi/devtools root exports must be probed`,
+      );
+    }
+  }
+
+  // No comparison runs against a parse that did not produce the fixture.
+  if (seen !== undefined) {
+    const untyped = TYPE_ONLY_PROBES.filter((name) => !seen.typed.has(name));
+    if (untyped.length > 0) {
+      fail(
+        `the consumer fixture never declares a value typed ${untyped.join(", ")}: every type-only probe name must annotate a declared value outside a refused literal`,
+      );
+    }
+    const unrefused = [...REFUSED_SHAPE_PROBES.keys()].filter((name) => !seen.refused.has(name));
+    if (unrefused.length > 0) {
+      fail(
+        `the consumer fixture never refuses a literal typed ${unrefused.join(", ")}: every refused-shape probe name must annotate a literal whose property named by its refused member carries a @ts-expect-error`,
+      );
+    }
   }
 }
 

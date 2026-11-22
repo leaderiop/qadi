@@ -1,0 +1,41 @@
+workload	ref_min_ns	cand_min_ns	d_min_pct	ref_min_spread_pct	band_pct	verdict	ref_p50_ns	cand_p50_ns	d_p50_pct	ref_mean_ns	cand_mean_ns	d_mean_pct
+evaluate :: one node	5833	5708	-2.1	5.0	10.0	ok	6375	6333	-0.7	6364	6351	-0.2
+evaluate :: rules DenyOverrides — 8 permits	7541	7541	-0.0	5.0	10.0	ok	8167	8250	1.0	8233	8382	1.8
+evaluate :: anyOf Union — 8	7958	7792	-2.1	10.5	10.5	ok	8542	8500	-0.5	10050	8634	-14.1
+evaluate :: rules FirstApplicable — 8, last applies	7916	7791	-1.6	4.7	10.0	ok	8459	8542	1.0	8677	8621	-0.7
+evaluate :: anyOf First — 8, last allows	7916	7792	-1.6	14.7	14.7	ok	8459	8500	0.5	19593	8597	-56.1
+evaluate :: wide — allOf of 8	7750	7666	-1.1	5.4	10.0	ok	8333	8333	-0.0	8515	8447	-0.8
+evaluate :: wrapper-heavy — 10 nested labeled/not/obliged	8166	8125	-0.5	3.1	10.0	ok	8708	8834	1.4	8822	8940	1.3
+evaluate :: field-heavy — anyOf of 8 under Union	8541	8500	-0.5	6.3	10.0	ok	9250	9209	-0.4	9320	9343	0.2
+evaluate :: rules PermitOverrides — 8 denies	8500	8416	-1.0	3.4	10.0	ok	9167	9209	0.5	9228	9325	1.1
+evaluate :: leaf-heavy — allOf of 8, matchers reference action and resource	9417	9333	-0.9	7.1	10.0	ok	10250	10166	-0.8	10184	10232	0.5
+evaluate :: leaf-heavy — allOf of 8, matchers reference neither	9541	9458	-0.9	7.0	10.0	ok	10083	10167	0.8	10283	10292	0.1
+evaluate :: deep rules — 10 nested	10000	10041	0.4	4.6	10.0	ok	10875	11000	1.1	10930	11029	0.9
+evaluate :: deep — 10 levels	10125	10041	-0.8	4.9	10.0	ok	11000	11000	0.0	11027	11116	0.8
+evaluate :: matcher-heavy — 3 refs	11042	11084	0.4	1.5	10.0	ok	12000	11875	-1.0	12081	12147	0.5
+evaluate :: resolver miss — one port call	11792	11750	-0.4	4.6	10.0	ok	12791	12917	1.0	20656	13237	-35.9
+evaluate :: obligation-heavy — allOf of 8 distinct obligations	12417	12250	-1.3	3.4	10.0	ok	13042	13291	1.9	13457	13287	-1.3
+evaluate :: field-heavy — allOf of 8 under Intersection	17042	17166	0.7	5.6	10.0	ok	17833	18917	6.1	18348	18738	2.1
+filter — 500 items :: hasPermission	4002541	3945250	-1.4	2.2	10.0	ok	4171667	4188229	0.4	4160716	4187304	0.6
+decideSubjects — 500 subjects :: hasPermission	5143625	5191333	0.9	0.9	10.0	ok	5424750	5474375	0.9	5402945	5468071	1.2
+evaluate — depth scaling :: depth 5	11500	11666	1.4	2.2	10.0	ok	12334	12667	2.7	12584	12845	2.1
+evaluate — depth scaling :: depth 10	16208	16208	0.0	1.5	10.0	ok	17541	17625	0.5	17696	17800	0.6
+evaluate — depth scaling :: depth 20	25500	25042	-1.8	0.8	10.0	ok	27042	27416	1.4	27637	27858	0.8
+evaluate — depth scaling :: depth 40	43291	42750	-1.2	2.0	10.0	ok	46875	46708	-0.4	47373	47677	0.6
+evaluate — width scaling :: width 4	8583	8625	0.5	2.9	10.0	ok	9125	9375	2.7	9383	9503	1.3
+evaluate — width scaling :: width 8	10375	10541	1.6	2.0	10.0	ok	11250	11459	1.9	11413	11573	1.4
+evaluate — width scaling :: width 16	14084	14084	0.0	2.4	10.0	ok	14917	15334	2.8	15247	15549	2.0
+evaluate — width scaling :: width 32	21458	21333	-0.6	2.5	10.0	ok	22667	23208	2.4	23047	23471	1.8
+evaluate — wide, concurrency :: sequential (default)	7625	7541	-1.1	2.2	10.0	ok	8167	8250	1.0	8325	8352	0.3
+evaluate — wide, concurrency :: concurrency: unbounded	7958	7958	-0.0	2.1	10.0	ok	8584	8625	0.5	8654	8690	0.4
+evaluate — anyOf Union 8, concurrency :: sequential (default)	7583	7584	0.0	2.8	10.0	ok	8208	8167	-0.5	8299	8299	0.0
+evaluate — anyOf Union 8, concurrency :: concurrency: unbounded	7916	7958	0.5	2.6	10.0	ok	8541	8667	1.5	8670	8733	0.7
+evaluate — rules DenyOverrides 8, concurrency :: sequential (default)	7250	7250	0.0	4.6	10.0	ok	7833	7875	0.5	7957	7952	-0.1
+evaluate — rules DenyOverrides 8, concurrency :: concurrency: unbounded	9708	9625	-0.9	5.6	10.0	ok	10250	10375	1.2	10569	10474	-0.9
+filter — 500 items, concurrency :: sequential (default)	4021208	3942916	-1.9	9.5	10.0	ok	4186333	4147167	-0.9	4329300	4160207	-3.9
+filter — 500 items, concurrency :: concurrency: unbounded	4059125	4037166	-0.5	6.1	10.0	ok	4220125	4271813	1.2	5281891	4222232	-20.1
+# workloads: 35
+# slower: 0
+# geomean_d_min_pct: -0.51
+# worst_d_min: 1.6 evaluate — width scaling :: width 8
+# gate: pass

@@ -183,7 +183,7 @@ describe("sourceFromRecords", () => {
 
 /**
  * A `DecisionLog` is a `Source` as it is — no adapter (ARCH-11 D-11-c). Its
- * stamping, prototype preservation and handoff are tested where they live, in
+ * environment label, prototype preservation and handoff are tested where they live, in
  * `@qadi/core`'s `DecisionLog.test.ts`; this pins only that the timeline gets
  * the backlog, then the live records, each exactly once.
  */
@@ -191,11 +191,11 @@ describe("a DecisionLog used as a source", () => {
   it.effect("hands the timeline its backlog then its live records, exactly once", () =>
     Effect.gen(function* () {
       const log = yield* makeDecisionLog({ environment: "Client" });
-      yield* log.ingest(obligationRecord({ evaluationId: "past", at: 1 }));
+      yield* log.ingest(obligationRecord({ evaluationId: "past", at: 1 }).record);
 
       const store = makeTimelineStore();
       const running = yield* Effect.forkChild(runSource(store, log), { startImmediately: true });
-      yield* log.ingest(obligationRecord({ evaluationId: "next", at: 2 }));
+      yield* log.ingest(obligationRecord({ evaluationId: "next", at: 2 }).record);
       // The live half is pulled on the running fiber; let it drain.
       yield* Effect.yieldNow;
       yield* Effect.yieldNow;
@@ -222,7 +222,7 @@ describe("sourceFromEventSource", () => {
         return { hasBacklog: "backlog" in read, backlog: read.backlog, live };
       }),
     );
-  const ids = (records: ReadonlyArray<StoredRecord> | undefined) => (records ?? []).map((r) => r.evaluationId);
+  const ids = (records: ReadonlyArray<StoredRecord> | undefined) => (records ?? []).map((r) => r.record.evaluationId);
 
   describe("the prelude (ADR-QD-097)", () => {
     // The prelude's rules are `@qadi/core`'s `decodeDecisionStream` now (ARCH-60), and
@@ -288,9 +288,9 @@ describe("sourceFromEventSource", () => {
         assert.deepStrictEqual(got.live.map((r) => r.environment), ["Server"]);
       }));
 
-    it.effect("a bare frame — what a server older than 0.10 sends — is Malformed, never stamped", () =>
+    it.effect("a bare frame — what a server older than 0.10 sends — is Malformed, never given a label", () =>
       Effect.gen(function* () {
-        const bare = Result.getOrThrow(encodeSinkRecordString(decisionRecord({ evaluationId: "old" })));
+        const bare = Result.getOrThrow(encodeSinkRecordString(decisionRecord({ evaluationId: "old" }).record));
         const fake = fakeEventSource();
         const reported: Array<readonly [string, DecodeRefusal]> = [];
         fake.queueEvent("synced", '{"backlog":0}');
@@ -303,16 +303,16 @@ describe("sourceFromEventSource", () => {
       }));
   });
 
-  it.effect("a well-formed frame becomes a stamped record", () =>
+  it.effect("a well-formed frame becomes a stored record", () =>
     Effect.gen(function* () {
       const fake = fakeEventSource();
       const got = yield* collect(fake, [frameOf(decisionRecord({ evaluationId: "a" }))], 1);
 
       assert.strictEqual(got.length, 1);
-      assert.strictEqual(got[0]?.evaluationId, "a");
+      assert.strictEqual(got[0]?.record.evaluationId, "a");
       assert.strictEqual(got[0]?.environment, "Server");
-      // Stamped by core's `stampRecord` inside the decode: a
-      // `{ ...record, environment }` spread would silently drop `.pipe`.
+      // Built by the decode as one `StoredRecord` (a `Data.Class`), so `.pipe`
+      // is there on the envelope and not lost to a spread.
       assert.strictEqual(typeof got[0]?.pipe, "function");
     }));
 
@@ -330,7 +330,7 @@ describe("sourceFromEventSource", () => {
       );
 
       assert.deepStrictEqual(reported, [["}{ not json", DecodeRefusal.NotJson()]]);
-      assert.strictEqual(got[0]?.evaluationId, "after");
+      assert.strictEqual(got[0]?.record.evaluationId, "after");
     }));
 
   // E1.2 — well-formed JSON that is not a record: a protocol mismatch.
@@ -355,7 +355,7 @@ describe("sourceFromEventSource", () => {
       // debugs the wrong one.
       assert.strictEqual(reported.length, 1);
       assert.strictEqual(reported[0]?.[1]._tag, "Malformed");
-      assert.strictEqual(got[0]?.evaluationId, "after");
+      assert.strictEqual(got[0]?.record.evaluationId, "after");
     }));
 
   /**
@@ -406,7 +406,7 @@ describe("sourceFromEventSource", () => {
 
         assert.strictEqual(reported.length, 1);
         assert.deepStrictEqual(reported[0]?.[1], DecodeRefusal.TooDeep({ maxDepth: MAX_DECODE_DEPTH }));
-        assert.strictEqual(got[0]?.evaluationId, "after");
+        assert.strictEqual(got[0]?.record.evaluationId, "after");
       }),
   );
 
@@ -432,7 +432,7 @@ describe("sourceFromEventSource", () => {
       assert.strictEqual(reported.length, 1);
       assert.strictEqual(reported[0]?.[0], frame);
       assert.strictEqual(reported[0]?.[1]._tag, "Malformed");
-      assert.strictEqual(got[0]?.evaluationId, "after");
+      assert.strictEqual(got[0]?.record.evaluationId, "after");
     }));
 
   // ARCH-32: a well-formed record whose decision says allow beside a trace
@@ -466,7 +466,7 @@ describe("sourceFromEventSource", () => {
       });
 
       assert.deepStrictEqual(reported, [[frame, DecodeRefusal.Inconsistent({ disagreement: "Verdict" })]]);
-      assert.strictEqual(got[0]?.evaluationId, "after");
+      assert.strictEqual(got[0]?.record.evaluationId, "after");
     }));
 
   /**
@@ -491,13 +491,13 @@ describe("sourceFromEventSource", () => {
     it.effect("a v2 frame decodes to the record", () =>
       Effect.gen(function* () {
         const got = yield* collect(fakeEventSource(), [framed], 1);
-        assert.strictEqual(got[0]?.evaluationId, "versioned");
+        assert.strictEqual(got[0]?.record.evaluationId, "versioned");
       }));
 
     it.effect("a frame with an unknown envelope key decodes (a newer server's additive metadata)", () =>
       Effect.gen(function* () {
         const got = yield* collect(fakeEventSource(), [withField("traceparent", "00-abc")], 1);
-        assert.strictEqual(got[0]?.evaluationId, "versioned");
+        assert.strictEqual(got[0]?.record.evaluationId, "versioned");
       }));
 
     it.effect("a pre-0.10 (version-1) record is dropped as UnsupportedVersion, never upgraded", () =>
@@ -509,7 +509,7 @@ describe("sourceFromEventSource", () => {
         assert.strictEqual(reported.length, 1);
         assert.strictEqual(reported[0]?.[0], pre010);
         assert.strictEqual(reported[0]?.[1]._tag, "UnsupportedVersion");
-        assert.strictEqual(got[0]?.evaluationId, "versioned");
+        assert.strictEqual(got[0]?.record.evaluationId, "versioned");
       }));
 
     it.effect("a version-3 frame is dropped as UnsupportedVersion, not as Malformed", () =>
@@ -520,7 +520,7 @@ describe("sourceFromEventSource", () => {
           onMalformed: (frame, refusal) => reported.push([frame, refusal]),
         });
         assert.deepStrictEqual(reported, [[newer, DecodeRefusal.UnsupportedVersion({ version: 3, supported: WIRE_VERSIONS })]]);
-        assert.strictEqual(got[0]?.evaluationId, "versioned");
+        assert.strictEqual(got[0]?.record.evaluationId, "versioned");
       }));
   });
 
@@ -547,7 +547,7 @@ describe("sourceFromEventSource", () => {
         ),
       );
 
-      assert.strictEqual(got[0]?.evaluationId, "after");
+      assert.strictEqual(got[0]?.record.evaluationId, "after");
       assert.strictEqual(logs.length, 1);
       assert.include(String(logs[0]?.message), "not a decision record");
       assert.include(String(annotationOf(logs[0]?.annotations, "qadi.frame")), "not json");
@@ -595,7 +595,7 @@ describe("sourceFromEventSource", () => {
         },
       }).pipe(Effect.provide(logger));
 
-      assert.strictEqual(got[0]?.evaluationId, "after");
+      assert.strictEqual(got[0]?.record.evaluationId, "after");
       assert.strictEqual(logs.length, 1);
       assert.strictEqual(String(logs[0]?.message), "qadi/devtools: onMalformed threw");
       assert.strictEqual(annotationOf(logs[0]?.annotations, "qadi.thrown"), "RangeError");
@@ -614,7 +614,7 @@ describe("sourceFromEventSource", () => {
         },
       }).pipe(Effect.provide(logger));
 
-      assert.strictEqual(got[0]?.evaluationId, "after");
+      assert.strictEqual(got[0]?.record.evaluationId, "after");
       assert.strictEqual(annotationOf(logs[0]?.annotations, "qadi.thrown"), "string");
       assert.isFalse(JSON.stringify(logs[0]).includes("secret sender text"));
     }));
@@ -663,7 +663,7 @@ describe("sourceFromEventSource", () => {
           onMalformed: thrower,
         }).pipe(Effect.provide(logger));
 
-        assert.strictEqual(got[0]?.evaluationId, "after");
+        assert.strictEqual(got[0]?.record.evaluationId, "after");
         assert.strictEqual(logs.length, 1);
         assert.strictEqual(annotationOf(logs[0]?.annotations, "qadi.thrown"), expected);
         assert.isFalse(JSON.stringify(logs[0]).includes("secret sender text"));
@@ -684,7 +684,7 @@ describe("sourceFromEventSource", () => {
       });
 
       assert.strictEqual(disconnects, 1);
-      assert.strictEqual(got[0]?.evaluationId, "a");
+      assert.strictEqual(got[0]?.record.evaluationId, "a");
     }));
 
   it.effect("a connection error with no handler is not a crash", () =>
@@ -693,7 +693,7 @@ describe("sourceFromEventSource", () => {
       const got = yield* collect(fake, [frameOf(decisionRecord({ evaluationId: "a" }))], 1, {
         failFirst: true,
       });
-      assert.strictEqual(got[0]?.evaluationId, "a");
+      assert.strictEqual(got[0]?.record.evaluationId, "a");
     }));
 
   it.effect("the connection is closed when the stream's scope ends", () =>
@@ -773,7 +773,7 @@ describe("the default EventSource", () => {
       assert.isDefined(instance);
       assert.strictEqual(instance?.url, "/__decisions");
       assert.strictEqual(instance?.options?.withCredentials, true);
-      assert.strictEqual(got[0]?.evaluationId, "viaGlobal");
+      assert.strictEqual(got[0]?.record.evaluationId, "viaGlobal");
       // The frame's label, not one this reader stated.
       assert.strictEqual(got[0]?.environment, "Edge");
       assert.strictEqual(closed, 1);
@@ -902,7 +902,7 @@ describe("mergeSources", () => {
       const got = yield* allLiveOf(mergeSources([slow, fast]));
 
       // Second producer, first record.
-      assert.deepStrictEqual(got.map((record) => record.evaluationId), ["fast", "slow"]);
+      assert.deepStrictEqual(got.map((stored) => stored.record.evaluationId), ["fast", "slow"]);
     }));
 
   it.effect("orders the merged backlog by time, not by source", () =>
@@ -920,7 +920,7 @@ describe("mergeSources", () => {
       const got = backlog ?? [];
 
       assert.deepStrictEqual(
-        got.map((record) => record.evaluationId),
+        got.map((stored) => stored.record.evaluationId),
         ["first", "second", "third"],
       );
     }));
@@ -943,7 +943,7 @@ describe("mergeSources", () => {
       const got = backlog ?? [];
 
       assert.deepStrictEqual(
-        got.map((record) => record.evaluationId),
+        got.map((stored) => stored.record.evaluationId),
         ["first", "third", "unknown"],
       );
     }));
@@ -971,7 +971,7 @@ describe("mergeSources", () => {
 
       // Exactly one, not three: a producer with no backlog contributes nothing
       // rather than an empty run the reader would have to distinguish.
-      assert.deepStrictEqual(got.map((r) => r.evaluationId), ["kept"]);
+      assert.deepStrictEqual(got.map((r) => r.record.evaluationId), ["kept"]);
     }));
 
   it.effect("merging nothing answers nothing, and does not pretend to", () =>
@@ -1018,7 +1018,7 @@ describe("what onMalformed receives, one frame per drop", () => {
         1,
         { onMalformed: (bad, refusal) => reported.push([bad, refusal]) },
       );
-      return { reported, delivered: got[0]?.evaluationId };
+      return { reported, delivered: got[0]?.record.evaluationId };
     });
 
   it.effect("a frame that is not JSON: NotJson", () =>
@@ -1049,10 +1049,10 @@ describe("what onMalformed receives, one frame per drop", () => {
 
   it.effect("a bare record, not an envelope: Malformed", () =>
     Effect.gen(function* () {
-      const frame = Result.getOrThrow(encodeSinkRecordString(decisionRecord({ evaluationId: "old" })));
+      const frame = Result.getOrThrow(encodeSinkRecordString(decisionRecord({ evaluationId: "old" }).record));
       const { reported, delivered } = yield* droppedFrame(frame);
       assert.deepStrictEqual(reported, [
-        [frame, DecodeRefusal.Malformed({ message: "a bare record, not a stored-record envelope { environment, record }" })],
+        [frame, DecodeRefusal.Malformed({ message: 'Missing key\n  at ["environment"]' })],
       ]);
       assert.strictEqual(delivered, "after");
     }));

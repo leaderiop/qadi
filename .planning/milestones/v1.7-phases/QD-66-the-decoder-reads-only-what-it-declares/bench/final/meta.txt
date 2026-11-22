@@ -1,0 +1,11 @@
+head: b7fad179c3170b2b1a33f1ed6ef45fcbf828d963
+patch: /Users/mohammadalmechkor/Projects/Perso/qadi/.planning/phases/QD-66-the-decoder-reads-only-what-it-declares/bench/final/to-base.patch
+patch_sha256: 4a809df0c80678c0c5054b98b95b7cba94f64dc67a54c8344ea6c50fc4f77098
+head_label: final
+patched_label: base
+rounds: 3
+bench_file: packages/core/bench/UntrustedDecode.bench.ts
+pattern: ^(audit|ignore) — 
+node: v26.13.0
+cpu: Apple M3 Pro
+start: 2026-11-20T22:15:19Z

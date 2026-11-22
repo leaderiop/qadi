@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-PROC-03                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Process Specification                          |
-> | Change History | 1.1 (2026-11-12): §4 addendum: the atom set owns the eviction sweep; the quoted history is unchanged (ARCH-83, CCR-QD-426)<br>1.0 (2026-10-08): the measurements behind `AGENTS.md`'s rules and its "Corrected in CCR-…" blocks moved here verbatim, so `AGENTS.md` carries each rule and a pointer instead of its history (retro of the wave-4 session) |
+> | Change History | 1.3 (2026-11-21): the later run's miss deltas are not attributed to the dispatch: that run also carries the eviction rewrite (CCR-QD-458 review)<br>1.2 (2026-11-21): §2: the measurement behind AGENTS.md §5a's closed-table paragraph, with its gate verdicts, base spreads and host load (ARCH-114, CCR-QD-458)<br>1.1 (2026-11-12): §4 addendum: the atom set owns the eviction sweep; the quoted history is unchanged (ARCH-83, CCR-QD-426)<br>1.0 (2026-10-08): the measurements behind `AGENTS.md`'s rules and its "Corrected in CCR-…" blocks moved here verbatim, so `AGENTS.md` carries each rule and a pointer instead of its history (retro of the wave-4 session) |
 
 `AGENTS.md` is read in full by every agent that works in this repository. It
 states each rule, its budget table and the command that enforces it. The
@@ -88,6 +88,60 @@ current, measured boundary, not a fourth site still under discussion.
 The port reads in `PortAccess.ts`, and the root `evaluate`, stay
 `Effect.fn` and traced on purpose, per ADR-QD-051's reasoning in §5 — the
 open question this paragraph used to describe is the one §5's table closed.
+
+### A closed arm table against the hoisted `Match` form (CCR-QD-458, ARCH-114)
+
+`AGENTS.md` §5a says a table indexed by a tag its own code wrote needs no `Object.hasOwn`
+and no fail-closed row, and that `SharedComputation.ts`'s claim arms are that shape. That
+is a third dispatch form beside `switch` and `Match`, and this is the measurement it was
+chosen on. The claim result was dispatched by two `_tag` checks with `Claimed` falling
+through. Two candidates were built from that source: the hoisted `Match.type` form, and
+the arm table.
+
+**The rule, fixed on 2026-11-20 before any candidate run.** Per workload, the statistic is
+the median over three runs of each arm's per-run minimum (`latency.min`). A workload is
+slower when the candidate's delta over the source before the change is more than 5%. The
+gate passes only when no workload is slower and the geometric mean of the five deltas is
+at most +2%. Take the `Match` form if its run passes; otherwise take the arm table if its
+run passes the same gate; if neither passes, stop. No candidate is re-run. The five
+workloads are the four `DecisionCache.getOrCompute — ` workloads of `DecisionCache.bench.ts`
+and the bounded `miss, capacity-bound` workload added in the same phase. Each run was 3 + 3
+interleaved, base arm against candidate arm, on the bench commit.
+
+| Workload | `Match` delta | table delta |
+| -------- | ------------- | ----------- |
+| `hit` | -3.6% | -8.4% |
+| `hit, realistic tree` | -0.5% | -6.3% |
+| `hit, fresh-but-equal subject per lookup` | -0.9% | -6.9% |
+| `miss` | +7.2% | +0.3% |
+| `miss, capacity-bound` | +7.7% | +0.9% |
+| Workloads slower | 2 | 0 |
+| Geometric mean of the deltas | +1.87% | -4.15% |
+| Gate | fail | pass |
+
+The `Match` form failed and the arm table passed, so the rule takes the arm table.
+
+**What the runs do not hold.** The gate was followed as fixed, and the numbers are thinner
+than "`Match` is 7% slower":
+
+- The base arm's spread (largest minus smallest of its three per-run minima, over their
+  median) was **6.0% to 15.0%** in the `Match` run (15.0, 12.7, 6.0, 7.6 and 6.0% in the
+  table's order), above the 5% band the gate applies to the deltas. In the table run it was
+  1.1% to 3.1%. The fixed band is never widened by a spread, so the spread decides nothing;
+  it limits what the deltas can be read to say.
+- The two runs did not see the same host. The `Match` run started at load 3.86 on 12 CPUs,
+  with Spotlight indexing (`mds`) at 207.9% in a sample between two of its runs. The table
+  run started at load 10.22 and rose to 16.09 by its last run, with another project's build
+  the top process in most of its samples. The rule halts only before a run, and its check
+  passed before both.
+- A later run of the committed source against the source before the change, under the same
+  gate, gave `miss` +2.8% and `miss, capacity-bound` +1.0% (every workload inside the band,
+  geometric mean -2.51%). That run also carries the eviction rewrite, so its
+  miss deltas cannot be attributed to the dispatch alone.
+
+So the evidence holds that the arm table passed the gate as fixed and the `Match` form did
+not. It does not hold a figure for what the `Match` form costs. Reopening the choice needs a
+new measurement under a quiet host, not a new argument.
 
 ## 3. Correction: the `Context.Service` example (AGENTS.md §2)
 

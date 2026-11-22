@@ -7,7 +7,7 @@
  * session; the scope is the read's lifetime, so closing it interrupts the read and,
  * with an SSE source, closes its connection (ADR-QD-137).
  *
- * Package-private (ADR-QD-099).
+ * Exported from the package root (ADR-QD-173): a shell builds it in a scope it owns.
  */
 import * as Cause from "effect/Cause";
 import * as Data from "effect/Data";
@@ -34,7 +34,11 @@ export interface TimelineFeedInputs {
 export type TimelineStatus = Data.TaggedEnum<{
   /** The read has not failed: it is running, has ended by itself, or there was nothing to read. */
   Reading: {};
-  /** The read ended on a defect. `reason` is `Cause.pretty` of it; the entries it delivered stay. */
+  /**
+   * The read ended on a defect. `reason` is `Cause.pretty` of it, a trace with stack frames
+   * and checkout paths for the host's own process: it must not cross a trust boundary. The
+   * entries it delivered stay.
+   */
   Stopped: { readonly reason: string };
 }>;
 
@@ -50,17 +54,37 @@ const READING: TimelineStatus = TimelineStatus.Reading();
  * dedupe keeps each entry single. It does nothing once the feed's scope has closed.
  */
 export interface TimelineStatusReadout {
+  /**
+   * Registers a listener, and returns the function that removes it. Every listener is
+   * called, and then what they threw is rethrown out of whatever published: one value as
+   * itself, several as one `AggregateError`. A throw on the `Reading` that `restart` or
+   * `configure` publishes over a `Stopped` escapes before the new read is started, so the
+   * status says `Reading` with nothing reading.
+   */
   readonly subscribe: (listener: () => void) => () => void;
   readonly getSnapshot: () => TimelineStatus;
   readonly restart: () => void;
 }
 
 export interface TimelineFeed {
-  /** Stable across a capacity change: a different bound empties it, it does not replace it. */
+  /**
+   * Stable across a capacity change: a different bound empties it, it does not replace it.
+   * Every listener on its `subscribe` is called, and it runs on every record; what they
+   * threw is rethrown out of whatever published, and the rest of that call does not run,
+   * except that a capacity change goes on to start the read that refills it (see `configure`).
+   */
   readonly timeline: TimelineStore;
   /** Where the read stands. */
   readonly status: TimelineStatusReadout;
-  /** Re-reads only when the capacity or the source moved. An omitted input reads as `undefined`. */
+  /**
+   * Re-reads only when the capacity or the source moved. An omitted input reads as
+   * `undefined`. Does nothing once the feed's scope has closed. A capacity change publishes
+   * the emptied timeline and then starts the read that refills it, from the same source or
+   * a new one; what a listener throws on that publish is rethrown once the read has started,
+   * unless the feed was `Stopped` and a status listener throws on the `Reading` that read
+   * publishes: that throw escapes instead, replaces the timeline listener's, and no read is
+   * started (the window `status` describes).
+   */
   readonly configure: (inputs: TimelineFeedInputs) => void;
 }
 
@@ -144,6 +168,8 @@ export const makeTimelineFeed = Effect.fn("qadi.devtools.makeTimelineFeed")(func
     timeline,
     status: { subscribe: status.subscribe, getSnapshot: status.getSnapshot, restart },
     configure: (next) => {
+      // A command on a closed feed would publish a state nothing follows.
+      if (reads.closed()) return;
       const before = inputs;
       inputs = next;
       const resized = next.capacity !== before.capacity;
@@ -151,9 +177,16 @@ export const makeTimelineFeed = Effect.fn("qadi.devtools.makeTimelineFeed")(func
         // The old store is dropped, not unsubscribed from: nothing can reach it again.
         inner = bounded(next.capacity);
         inner.subscribe(push);
-        push();
-      }
-      if (resized || next.source !== before.source) readSource(next.source);
+        // The emptied timeline is published first; what a listener throws there is
+        // rethrown once the read that refills it has started, unless a status listener's
+        // throw on that read's `Reading` escapes from the `finally` and replaces the
+        // timeline listener's.
+        try {
+          push();
+        } finally {
+          readSource(next.source);
+        }
+      } else if (next.source !== before.source) readSource(next.source);
     },
   };
 });

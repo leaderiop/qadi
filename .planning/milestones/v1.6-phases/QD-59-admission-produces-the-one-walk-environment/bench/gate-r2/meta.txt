@@ -1,0 +1,9 @@
+head: e9b98bb8e2b3d43ccae6801704a24a7cea3e10c1
+patch: /Users/mohammadalmechkor/Projects/Perso/qadi/.planning/phases/QD-59-admission-produces-the-one-walk-environment/research-probes/proto-p1.patch.txt
+patch_sha256: 7cd868b63554766fe928355e9d4478a166df91fc12d20ec6ad40b7015b144ee3
+head_label: base
+patched_label: proto
+rounds: 5
+node: v26.13.0
+cpu: Apple M3 Pro
+start: 2026-11-19T03:25:10Z

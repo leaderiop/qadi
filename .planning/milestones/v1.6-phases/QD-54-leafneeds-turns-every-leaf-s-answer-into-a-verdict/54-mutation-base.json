@@ -1,0 +1,54 @@
+{
+ "counts": {
+  "packages/core/src/LeafNeeds.ts": {
+   "killed": 52,
+   "timeout": 0,
+   "survived": 1,
+   "noCoverage": 0,
+   "ignored": 7
+  },
+  "packages/core/src/Predicate.ts": {
+   "killed": 293,
+   "timeout": 0,
+   "survived": 0,
+   "noCoverage": 0,
+   "ignored": 22
+  },
+  "packages/core/src/Walk.ts": {
+   "killed": 292,
+   "timeout": 0,
+   "survived": 13,
+   "noCoverage": 3,
+   "ignored": 16
+  }
+ },
+ "measured": {
+  "packages/core/src/LeafNeeds.ts": 0.9811320754716981,
+  "packages/core/src/Predicate.ts": 1,
+  "packages/core/src/Walk.ts": 0.948051948051948
+ },
+ "survivors": {
+  "packages/core/src/LeafNeeds.ts": [
+   "ConditionalExpression | Survived | true | LEAF_NEEDS[leaf._tag].own === \"Action\" | const isActionLeaf = (leaf: LeafPolicy): leaf is ActionLeaf => LEAF_NEEDS[leaf._tag].own === \"Action\";"
+  ],
+  "packages/core/src/Predicate.ts": [],
+  "packages/core/src/Walk.ts": [
+   "ArithmeticOperator | Survived | depth - 1 | depth + 1 | (child) => Effect.exit(evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth)),",
+   "ArithmeticOperator | Survived | depth - 1 | depth + 1 | (child) => Effect.exit(evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth)),",
+   "ArithmeticOperator | Survived | depth - 1 | depth + 1 | depth + 1,",
+   "ArithmeticOperator | Survived | depth - 1 | depth + 1 | evaluateNode(policy.policy, subject, request, matcherContext, depth + 1, maxDepth),",
+   "ArithmeticOperator | Survived | depth - 1 | depth + 1 | evaluateNode(policy.policy, subject, request, matcherContext, depth + 1, maxDepth),",
+   "ArithmeticOperator | Survived | depth - 1 | depth + 1 | evaluateNode(policy.policy, subject, request, matcherContext, depth + 1, maxDepth),",
+   "ArithmeticOperator | Survived | depth - 1 | depth + 1 | evaluateNode(rule.condition, subject, request, matcherContext, depth + 1, maxDepth),",
+   "ArithmeticOperator | Survived | depth - 1 | depth + 1 | yield* evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth),",
+   "ArithmeticOperator | Survived | depth - 1 | depth + 1 | yield* evaluateNode(child, subject, request, matcherContext, depth + 1, maxDepth),",
+   "ConditionalExpression | Survived | false | depth > maxDepth | if (depth > maxDepth) return Effect.fail(new PolicyTooDeep({ maxDepth }));",
+   "ObjectLiteral | NoCoverage | {} | { maxDepth } | if (depth > maxDepth) return Effect.fail(new PolicyTooDeep({ maxDepth }));",
+   "ObjectLiteral | Survived | {} | { concurrency: request.concurrency } | { concurrency: request.concurrency },",
+   "ObjectLiteral | Survived | {} | { concurrency: request.concurrency } | { concurrency: request.concurrency },",
+   "StringLiteral | NoCoverage | \"\" | \"a required policy denied\" | return deny(\"AllOf\", trace.reason ?? \"a required policy denied\", fold.children);",
+   "StringLiteral | NoCoverage | \"\" | \"the obliged policy denied\" | : deny(\"Obliged\", child.reason ?? \"the obliged policy denied\", [child]),",
+   "StringLiteral | Survived | \"\" | \"HasCustom\" | ? allow(\"HasCustom\", policy.fields)"
+  ]
+ }
+}

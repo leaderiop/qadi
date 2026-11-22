@@ -280,13 +280,15 @@ export const GatesView = Data.taggedEnum<GatesView>();
  *
  * `Unsampled` is the case where no sample has been taken yet, which the panel
  * renders as nothing at all; `Absent` is a sample that was taken and carried no
- * question source.
+ * question source. `Failed` is a question source that threw: stated with its reason, as
+ * `GatesView.Failed` states the registry's, and no row is claimed.
  */
 export type QuestionsView = Data.TaggedEnum<{
   Unsampled: {};
   Absent: {};
   Empty: {};
   Rows: { readonly rows: ReadonlyArray<QuestionRow> };
+  Failed: { readonly reason: string };
 }>;
 
 export const QuestionsView = Data.taggedEnum<QuestionsView>();
@@ -302,9 +304,11 @@ export interface QuestionsSnapshot {
 /** What `joinQuestions` reads: both sources, taken at one moment. */
 export interface JoinInput {
   readonly questions: ReadonlyArray<AskedQuestionLike> | undefined;
-  readonly gates: ReadonlyArray<GateInstanceLike> | undefined;
+  readonly gates?: ReadonlyArray<GateInstanceLike> | undefined;
   /** Why the registry could not be read; when set it wins, and `gates` is ignored. */
-  readonly failed: string | undefined;
+  readonly failed?: string | undefined;
+  /** Why the questions could not be read; stated when no questions are, before unsampled and absent. */
+  readonly questionsFailed: string | undefined;
   /** Already reduced to "no sample yet and no questions": the only case the view needs. */
   readonly unsampled: boolean;
 }
@@ -316,6 +320,18 @@ const GATES_LISTED = GatesView.Listed();
 const QUESTIONS_UNSAMPLED = QuestionsView.Unsampled();
 const QUESTIONS_ABSENT = QuestionsView.Absent();
 const QUESTIONS_EMPTY = QuestionsView.Empty();
+
+/** The questions view: questions read, then a failed read, then no sample yet, then absent. */
+const questionsViewOf = (input: JoinInput, rowOf: (question: AskedQuestionLike) => QuestionRow): QuestionsView =>
+  input.questions !== undefined
+    ? Arr.isReadonlyArrayNonEmpty(input.questions)
+      ? QuestionsView.Rows({ rows: input.questions.map(rowOf) })
+      : QUESTIONS_EMPTY
+    : input.questionsFailed !== undefined
+      ? QuestionsView.Failed({ reason: input.questionsFailed })
+      : input.unsampled
+        ? QUESTIONS_UNSAMPLED
+        : QUESTIONS_ABSENT;
 
 /** The registry's view: a failed read first, then absent, empty or listed. */
 const gatesViewOf = (input: JoinInput): GatesView =>
@@ -335,6 +351,10 @@ const gatesViewOf = (input: JoinInput): GatesView =>
  * reads both sources in the same step. A failed read leaves each row's `asking`
  * undefined and lists no guard, so no row claims "nothing mounted" about a registry
  * nobody could read.
+ *
+ * The questions view is decided in one order: questions read (rows or none), then
+ * `questionsFailed`, then `unsampled`, then absent. The two failures are independent: each
+ * view states its own reason, and a failed questions read leaves the registry's view alone.
  */
 export const joinQuestions = (input: JoinInput): QuestionsSnapshot => {
   const instances = input.failed === undefined ? (input.gates ?? NO_INSTANCES) : NO_INSTANCES;
@@ -346,14 +366,7 @@ export const joinQuestions = (input: JoinInput): QuestionsSnapshot => {
   });
   return {
     gates: gatesViewOf(input),
-    questions:
-      input.questions === undefined
-        ? input.unsampled
-          ? QUESTIONS_UNSAMPLED
-          : QUESTIONS_ABSENT
-        : Arr.isReadonlyArrayNonEmpty(input.questions)
-          ? QuestionsView.Rows({ rows: input.questions.map(rowOf) })
-          : QUESTIONS_EMPTY,
+    questions: questionsViewOf(input, rowOf),
     instances,
   };
 };

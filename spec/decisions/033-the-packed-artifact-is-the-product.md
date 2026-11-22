@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-033                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.8                                            |
 > | Effective Date | 2026-07-26                                     |
-> | Status         | Accepted                                       |
+> | Status         | Accepted; amended 2026-11-21 (every child the gate starts has a timeout) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.1 (2026-10-07): check 3b added: the entry-point list is closed and the packed artifact is probed for it (ADR-QD-099, CCR-QD-188)<br>1.0 (2026-07-26): Initial release (CCR-QD-038) |
+> | Change History | 1.8 (2026-11-21): A killed child's TypeScript server, busy on a request, outlives it, so the child names its server's process id and the gate kills that server when the child is killed by a signal (CCR-QD-460)<br>1.7 (2026-11-21): The killed child's TypeScript server exits when its pipe closes, shown on typescript@7.0.2; only a server that never reads its input again outlives the run, and the process-group kill is declined because Ctrl-C would no longer reach the child (CCR-QD-460)<br>1.6 (2026-11-21): amendment: the hang evidence is a blocked parser call in the child killed at the timeout, not a stopped TypeScript server (CCR-QD-460)<br>1.5 (2026-11-21): amendment: the probe guard's parse runs in a child under the gate's timeout, so every child the gate starts has one (CCR-QD-460)<br>1.4 (2026-11-21): amendment: the only child without a timeout, the TypeScript server behind `typescript/unstable/sync`'s `API`, is named, and a killed child reports its cause (ARCH-115, CCR-QD-459)<br>1.3 (2026-11-21): amendment: the probe guard reads what the consumer runs, and every `execFileSync` child has a timeout (ARCH-115, CCR-QD-459)<br>1.2 (2026-11-20): amendment: the consumer probes every make*Feed the packed devtools root exports and a DecisionCacheShape host cache, held by a probe guard (ARCH-110, CCR-QD-454)<br>1.1 (2026-10-07): check 3b added: the entry-point list is closed and the packed artifact is probed for it (ADR-QD-099, CCR-QD-188)<br>1.0 (2026-07-26): Initial release (CCR-QD-038) |
 
 ---
 
@@ -138,6 +138,66 @@ The gate builds before packing, so `pnpm check` now runs `tsc -b` twice — once
 typecheck graph and once for the build graph. That is a few seconds against a pipeline
 that runs mutation testing, and it is the price of the two graphs being genuinely
 different things: one includes tests and the acceptance suite, the other is what ships.
+
+## Amendment (2026-11-20, ARCH-110, CCR-QD-454)
+
+Check 4's consumer probes the names the devtools feeds and the decision cache made public,
+through the packed artifact: it runs `makeGatesFeed` over a one-instance registry typed by
+`GateRegistryLike`, runs `makeDiagnosticsFeed` to `Live` within a bounded yield loop and
+refuses a `schedule` in `DiagnosticsOptions`, and wraps `decisionCacheLayer()` in a host
+cache typed by `DecisionCacheShape`, with a `@ts-expect-error` on the pre-0.13
+`getOrCompute(question, compute)` shape. A guard in `scripts/check-package-install.mjs`
+keeps that list current: it reads the `make*Feed` names the packed `@qadi/devtools` root
+exports and fails unless the fixture calls each one, read from the compiler's parse of the
+fixture rather than its text. It also fails unless each name on a fixed type-only list,
+today `DecisionCacheShape`, `GateInstanceLike` and `GateRegistryLike`, is a type reference
+there outside a refused literal, and unless each name on a fixed refused-shape list, today
+`DecisionCacheShape` paired with `getOrCompute` and `DiagnosticsOptions` paired with
+`schedule`, annotates a declaration that holds a `@ts-expect-error` naming that member inside
+its own text, so deleting the host cache, the pre-0.13 literal together with its directive,
+or the `schedule` literal together with its directive, fails the check. A load, read or parse that fails is a failure, never a pass.
+
+## Amendment (2026-11-21, ARCH-115, CCR-QD-459)
+
+The probe guard reads what the consumer does, not only what its text names. A `make*Feed`
+name counts as called when the consumer's run calls it: the consumer runs under a module
+hook that wraps each `make*Feed` export of the packed `@qadi/devtools` and records each
+call, so a probe that names a feed in code that never runs fails the check. A type-only name
+counts only where it annotates a declared value outside a refused literal, and a refused
+member only where the literal's own property of that name is led by the `@ts-expect-error`,
+written `//` or `/* */`. Every `execFileSync` child the gate starts has a timeout, and one that is killed reports
+its cause, the timeout or the signal, where it once printed nothing. When this amendment
+was written, the one process the gate waited on without a timeout was the TypeScript server
+that `typescript/unstable/sync`'s `API` starts: its calls block the process and the API
+accepts no timeout, so a hang there hung the gate. The amendment below bounds it.
+The diagnostics probe stops at `Stopped` and the check reports its reason; and a parser
+that fails to load or run is reported naming the installed TypeScript, whose
+`typescript/unstable/*` entry points the guard reads, so an upgrade that moves them fails
+the gate naming that coupling.
+
+## Amendment (2026-11-21, CCR-QD-460)
+
+The probe guard's parse runs in a child process, `scripts/lib/probe-guard-parse.mjs`,
+which the gate starts with `execFileSync` under the same timeout as every other child, so
+every child the gate starts has a timeout. The child opens the sandbox's project with
+`typescript/unstable/sync`'s `API`, reads `consumer.ts` and prints the probe names it found
+as JSON; the gate decides every check from that, with the same failure texts as before, and
+a child that fails, is killed or times out is reported naming the installed TypeScript and
+the cause. A parser call that blocks, as a TypeScript server that stops answering would
+make it, now ends the gate at the timeout instead of hanging it. What was shown is a hang
+planted in the child (a blocked `API` constructor) ending the child at the timeout and being
+reported, not a real stopped server.
+
+Killing the child does not end the TypeScript server it started. The server exits when its
+input pipe closes, but only once it reads that pipe again, and at the timeout it is normally in
+the middle of a request: with typescript@7.0.2, a child killed while its server loaded a
+1,500-file project left that server running at full CPU until the request ended. So the child
+writes its server's process id to stderr once the `API` has started it, and when the child is
+killed by a signal the gate kills each server it named. A child that exits on its own has closed
+its server already, so the gate kills nothing then. The child stays in the terminal's process
+group, so a Ctrl-C still reaches the child and its server; a detached child killed as a group
+would have ended the server as well, but would not have received a Ctrl-C. Shown: with the kill,
+the same timed-out child left no server running, checked at once and 1.5 seconds later.
 
 ---
 

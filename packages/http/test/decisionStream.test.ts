@@ -32,12 +32,12 @@ import {
   scriptedPort,
   PortReply,
   attributeResolverPort,
-  stampRecord,
+  StoredRecord,
   decodeStoredRecordString,
   DecisionStreamSynced,
   encodeDecisionStream,
 } from "@qadi/core";
-import type { AuthSubject, DecisionLog, DecisionLogEntries, DecisionLogReader, SinkRecord, SinkRecordNotEncodable, StoredRecord, AllowingTrace } from "@qadi/core";
+import type { AuthSubject, DecisionLog, DecisionLogEntries, DecisionLogReader, SinkRecord, SinkRecordNotEncodable, AllowingTrace } from "@qadi/core";
 import { collectingLogger } from "@qadi/testing";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
@@ -138,7 +138,7 @@ const httpClientError = (): Error => {
 const EvaluationServicesTest = EvaluationServicesNone;
 
 /** A record as a log on this server would hold it. */
-const stored = (record: SinkRecord, environment = "Server"): StoredRecord => stampRecord(record, environment);
+const stored = (record: SinkRecord, environment = "Server"): StoredRecord => new StoredRecord({ environment, record });
 
 /** A reader that holds nothing and streams nothing: for routes this file only constructs. */
 const emptyReader: DecisionLogReader = {
@@ -927,7 +927,7 @@ describe("the backlog travels on the stream", () => {
 
   const environmentOf = (framed: string) =>
     Result.match(decodeStoredRecordString(dataOf(framed)), {
-      onSuccess: (record) => `${record.evaluationId}@${record.environment}`,
+      onSuccess: (record) => `${record.record.evaluationId}@${record.environment}`,
       onFailure: (error) => `refused:${error.refusal._tag}`,
     });
 
@@ -1066,7 +1066,7 @@ describe("resume with Last-Event-ID", () => {
     );
 
   const evaluationIdOf = (framed: string): string | undefined =>
-    Result.getOrUndefined(Result.map(decodeStoredRecordString(dataOf(framed)), (r) => r.evaluationId));
+    Result.getOrUndefined(Result.map(decodeStoredRecordString(dataOf(framed)), (r) => r.record.evaluationId));
 
   const idOf = (framed: string): string | undefined =>
     framed.split("\n").find((line) => line.startsWith("id: "))?.slice(4);
@@ -1098,7 +1098,7 @@ describe("resume with Last-Event-ID", () => {
 
       assert.deepStrictEqual(resumed.map(eventOf), ["backlog", "backlog", "synced"]);
       assert.deepStrictEqual(
-        resumed.slice(0, 2).map((f) => Result.getOrUndefined(Result.map(decodeStoredRecordString(dataOf(f)), (r) => r.evaluationId))),
+        resumed.slice(0, 2).map((f) => Result.getOrUndefined(Result.map(decodeStoredRecordString(dataOf(f)), (r) => r.record.evaluationId))),
         ["missed-1", "missed-2"],
       );
       assert.strictEqual(dataOf(resumed[2] ?? ""), '{"backlog":2}');

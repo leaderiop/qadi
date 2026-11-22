@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-143                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-11-12                                     |
-> | Status         | Accepted — amends ADR-QD-096, ADR-QD-107       |
+> | Status         | Accepted — amends ADR-QD-096, ADR-QD-107; amended 2026-11-19 (ADR-QD-170) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-11-14): amendment: the audit row reads one strict decode, recordJsonOf retired, SinkCodec.ts counts 2 (ADR-QD-153, CCR-QD-431)<br>1.2 (2026-11-12): the one package-private isPlainObject lives in JsonShape.ts, shared by the decoder family and FieldPath.ts (ARCH-78, CCR-QD-421)<br>1.1 (2026-11-12): Budget exceptions: PortSpanEncode.ts reason states the property that holds (named keys, SpanValue leaves); JSON.parse is counted, adding SinkCodec.ts and SimulationForm.ts rows.<br>1.0 (2026-11-12): Initial (ARCH-78, CCR-QD-421) |
+> | Change History | 1.4 (2026-11-19): amendment: a required unknownKeys policy, the stored envelope a seam, SinkCodec.ts counts 1 (ADR-QD-170, ARCH-104, CCR-QD-448)<br>1.3 (2026-11-14): amendment: the audit row reads one strict decode, recordJsonOf retired, SinkCodec.ts counts 2 (ADR-QD-153, CCR-QD-431)<br>1.2 (2026-11-12): the one package-private isPlainObject lives in JsonShape.ts, shared by the decoder family and FieldPath.ts (ARCH-78, CCR-QD-421)<br>1.1 (2026-11-12): Budget exceptions: PortSpanEncode.ts reason states the property that holds (named keys, SpanValue leaves); JSON.parse is counted, adding SinkCodec.ts and SimulationForm.ts rows.<br>1.0 (2026-11-12): Initial (ARCH-78, CCR-QD-421) |
 
 ---
 
@@ -237,3 +237,7 @@ inside the strict decode's own schema rather than a second decode of the input. 
 Audit's copy of the refusal mapping is gone too: the row's refusal is read from core's `decodeRefusalOf`
 ([ADR-QD-153](153-core-owns-describing-a-decode-refusal.md),
 [INV-QD-325](../invariants.md#inv-qd-325-an-audit-entrys-record-is-the-json-form-of-the-record-the-strict-decode-accepted)).
+
+## Amendment (2026-11-19, ADR-QD-170, CCR-QD-448)
+
+`untrustedDecoder(schema, options)` takes a required `unknownKeys` policy (`"refuse" | "ignore"`), so the recipe is `JSON.parse` (text), the stated projection, the guard, `prepare`, the strict decode. The seam table's policies are: `decodeSinkRecord`, `decodeSinkRecordString` and the stored envelope `ignore`; `Policy.fromJson`, the port wires, the hydration payload, the archive envelope and the audit row `refuse`. The stored-record non-seam bullet retires: the envelope is a seam now, read by `untrustedDecoder(StoredEnvelopeWire, { unknownKeys: "ignore", unwalked: ["record"] })`. `SinkCodec.ts` counts 1 (`SinkRecordWithJson`'s `Schema.decodeTo`) and the total is 10. The leaf sentence now names `effect`, `DecodeDepthGuard.ts`, `EnvelopeKeys.ts` and `JsonShape.ts`. [ADR-QD-153](153-core-owns-describing-a-decode-refusal.md) is kept. The original text above stands as written. See [ADR-QD-170](170-an-envelope-states-its-unknown-key-policy-at-its-decoder.md).

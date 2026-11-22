@@ -4,17 +4,29 @@
  */
 import type * as Effect from "effect/Effect";
 import type * as Layer from "effect/Layer";
+import type * as Schedule from "effect/Schedule";
 import { expect, test } from "tstyche";
 import {
   mergeReading,
   runDiagnostics,
   type Diagnostics,
+  type DiagnosticsOptions,
   type DiagnosticsReading,
   type DiagnosticsStore,
   type WiringRead,
 } from "../../src/model/DiagnosticsStore.ts";
 import type { HydrationActivity } from "../../src/model/Hydration.ts";
 import type { WiringReport } from "../../src/model/Wiring.ts";
+
+/**
+ * `runDiagnostics` returns an Effect. tstyche compiles under `tsconfig.tstyche.json`,
+ * where `floatingEffect` is off, so a bare negative pin on the function itself could
+ * fail there. The pins check the parameters alone, through a function that returns
+ * nothing (`packages/core/test/PortAccess.tst.ts`): the refusal is stated through the
+ * parameter type, so it holds whichever way `floatingEffect` is set, including
+ * `pnpm typecheck`'s compile with the rule on.
+ */
+type Params<F> = F extends (...args: infer A) => unknown ? (...args: A) => void : never;
 
 declare const store: DiagnosticsStore;
 declare class MyError {
@@ -23,16 +35,47 @@ declare class MyError {
 declare class Thing {
   readonly thing: true;
 }
+declare class Other {
+  readonly other: true;
+}
 declare const wiringRead: WiringRead;
 declare const layer: Layer.Layer<Thing, MyError>;
+declare const spaced: Schedule.Schedule<unknown>;
+declare const needs: Layer.Layer<Thing, never, Other>;
 
 test("a layer's typed failure is not the run's failure", () => {
   expect(runDiagnostics(store, { layer })).type.toBe<Effect.Effect<void, never, never>>();
 });
 
+test("a valid call passes the parameter check, so the refusals below can fail", () => {
+  expect<Params<typeof runDiagnostics>>().type.toBeCallableWith(store, { intervalMillis: 500 });
+});
+
 test("a run with no options has nothing to fail with either", () => {
   expect(runDiagnostics(store)).type.toBe<Effect.Effect<void, never, never>>();
 });
+
+test("the poll takes no questions thunk: the gates feed reads it", () => {
+  expect<Params<typeof runDiagnostics>>().type.not.toBeCallableWith(store, { questions: () => [] });
+  expect<DiagnosticsOptions>().type.not.toHaveProperty("questions");
+});
+
+test("the poll takes an interval, not a schedule", () => {
+  expect<Params<typeof runDiagnostics>>().type.not.toBeCallableWith(store, { schedule: spaced });
+  expect(runDiagnostics(store, { intervalMillis: 500 })).type.toBe<
+    Effect.Effect<void, never, never>
+  >();
+});
+
+test("a layer whose requirement is unmet is refused", () => {
+  expect<Params<typeof runDiagnostics>>().type.not.toBeCallableWith(store, { layer: needs });
+});
+
+// Both arities: a reintroduced one-parameter generic fails the first line, a two-parameter one the second.
+// @ts-expect-error not generic
+export type NotGenericOne = DiagnosticsOptions<never>;
+// @ts-expect-error not generic
+export type NotGenericTwo = DiagnosticsOptions<never, never>;
 
 test("WiringRead narrows by its tag", () => {
   const read = (self: WiringRead) => {

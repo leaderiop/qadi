@@ -19,14 +19,14 @@ import * as Effect from "effect/Effect";
 import * as HashMap from "effect/HashMap";
 import * as Layer from "effect/Layer";
 import * as Metric from "effect/Metric";
-import * as Option from "effect/Option";
 import type { Trace } from "./Decision.ts";
 import type { EvaluationError } from "./Errors.ts";
 import { decisionCacheLookupsTotal } from "./EvaluationMetrics.ts";
 import type { CacheOutcome } from "./EvaluationMetrics.ts";
 import type { PortServices } from "./Ports.ts";
-import type { Question } from "./Question.ts";
+import type { EvaluateOptions, Question } from "./Question.ts";
 import { makeSharedComputation } from "./SharedComputation.ts";
+import { walk } from "./Walk.ts";
 
 /** A trace, and how the cache came by it. */
 export interface CacheLookup {
@@ -36,9 +36,29 @@ export interface CacheLookup {
 
 export interface DecisionCacheShape {
   /**
-   * The trace for this exact question — from a prior call's completed
-   * `compute`, from another fiber's currently-running `compute`, or freshly
-   * computed by running `compute` here.
+   * The trace for this exact question: from a completed walk of it, from
+   * another fiber's walk of it still in flight, or from a walk run here.
+   *
+   * `decisionCacheLayer` walks the question it is given, so a trace it stores
+   * answers its own key, and no caller can pair a key with an unrelated
+   * computation, since this signature takes none
+   * ([ADR-QD-174](../../../spec/decisions/174-a-decision-cache-is-asked-the-question.md)).
+   * The key is the security boundary
+   * ([ADR-QD-031](../../../spec/decisions/031-decision-cache.md)), and the pairing
+   * used to hold only because the lifecycle passed in the walk of that same
+   * question. `options` says how the walk runs, never what it answers, so it is
+   * not part of the key: one question asked with two concurrencies is one entry.
+   * A caller that joins a walk already in flight shares it, so a joiner's
+   * `concurrency` is unused: the claimant's governs. That is safe because
+   * `concurrency` changes lookups, never answers (INV-QD-020).
+   *
+   * At runtime `options` is the options object the decision was asked with,
+   * passed through by reference with no copy per lookup (ADR-QD-174 decision
+   * 4), so it may carry more keys than this type names: `resource`, `action`,
+   * `maxDepth`, `evaluationId`, and on the enforcing entry points
+   * `onObligations`.
+   * An implementation reads only `concurrency`, and does not log or retain the
+   * rest.
    *
    * Returns the {@link CacheOutcome} alongside it. It used to return a bare
    * `Trace`, which made "was this decision cached?" answerable only as a
@@ -53,26 +73,32 @@ export interface DecisionCacheShape {
    * `durationMillis` and the evaluation id, which already differ between a hit
    * and a miss by design.
    *
-   * Concurrent calls for the **same key** share one `compute` run: the first
-   * caller runs it, every other caller concurrently asking the same question
-   * awaits that caller's result instead of running its own — a genuine
-   * failure included, per the fail-shared design of `DecisionCache.test.ts`'s
-   * concurrency tests. `compute` failing does not poison the cache: the next
-   * call for that key, once nothing is in flight for it, runs fresh.
+   * Concurrent calls for the **same key** share one walk: the first caller
+   * runs it, every other caller concurrently asking the same question awaits
+   * that caller's result instead of running its own — a genuine failure
+   * included, per the fail-shared design of `DecisionCache.test.ts`'s
+   * concurrency tests. A walk that fails does not poison the cache: the next
+   * call for that key, once nothing is in flight for it, walks afresh.
    *
    * **One caller's interruption is not every caller's interruption.**
-   * `compute` runs on a fiber of its own — detached from whichever caller
+   * The walk runs on a fiber of its own — detached from whichever caller
    * happened to claim the key — so a caller who stops waiting (a timeout, a
    * cancelled request) only ever detaches itself; it does not cancel the
    * answer every other coalesced caller is still waiting on. Only once the
-   * last waiter detaches does the shared `compute` itself get interrupted,
+   * last waiter detaches does the shared walk itself get interrupted,
    * so an evaluation nobody wants any more does not keep running for no one.
-   * `DecisionCache.test.ts`'s "one caller interrupted, the other still gets
-   * a result" pins this.
+   * `DecisionCache.test.ts`'s "a coalesced waiter's interruption does not
+   * interrupt the shared compute — the other waiter still gets a result"
+   * pins this.
+   *
+   * A host may still write its own `DecisionCacheShape`. It is handed the same
+   * question and must answer with a trace for exactly that question; core does
+   * not export the walk, so such a cache wraps `decisionCacheLayer()` and
+   * delegates to it.
    */
   readonly getOrCompute: (
     question: Question,
-    compute: Effect.Effect<Trace, EvaluationError, PortServices>,
+    options?: Pick<EvaluateOptions, "concurrency">,
   ) => Effect.Effect<CacheLookup, EvaluationError, PortServices>;
   /**
    * How many completed entries are held. For tests and for a caller
@@ -89,12 +115,12 @@ export interface DecisionCacheShape {
    * invalidates *atoms*, and an invalidated atom that re-evaluates through a
    * warm cache gets the same cached trace back.
    *
-   * A `compute` already in flight keeps answering the fibers already
-   * awaiting it — cancelling those would turn a housekeeping action into a
-   * source of failures, and they are answering questions asked before the
-   * flush. This call supersedes it, so its answer never re-enters the cache
-   * this call just emptied, and a *new* ask for the same key arriving after
-   * this call computes afresh rather than joining it. That rule lives in
+   * A walk already in flight keeps answering the fibers already awaiting
+   * it — cancelling those would turn a housekeeping action into a source of
+   * failures, and they are answering questions asked before the flush. This
+   * call supersedes it, so its answer never re-enters the cache this call
+   * just emptied, and a *new* ask for the same key arriving after this call
+   * walks afresh rather than joining it. That rule lives in
    * `SharedComputation`'s `reset`.
    */
   readonly clear: Effect.Effect<void>;
@@ -171,12 +197,13 @@ export class DecisionCache extends Context.Service<
  * nothing here claims "recently used" predicts "will be asked again" better
  * than "recently completed" does.
  *
- * `capacity`, when given, must be a non-negative integer. A negative one
- * would make the eviction loop's own exit condition (`size(entries) >
- * capacity`) unsatisfiable once `entries` empties out — an infinite loop, not
- * a small cache. A `NaN` one would make that same comparison always `false`,
- * silently turning "bounded" into unbounded instead of failing loudly. This
- * is checked here, at construction, rather than left to fail in whichever of
+ * `capacity`, when given, must be a non-negative integer. Eviction splits
+ * `size(entries) - capacity` keys off the front of the insertion order, and
+ * `Chunk.splitAt` rounds that count down to a whole number and reads a
+ * negative or `NaN` one as zero. A negative `capacity` would therefore evict
+ * every entry as it settled, a cache that silently retains nothing, and a
+ * `NaN` one would evict none, silently turning "bounded" into unbounded. This
+ * is checked here, at construction, rather than left to go wrong in either of
  * those two ways at the first eviction.
  *
  * A bad `capacity` is a defect and not a typed error, unlike a port's
@@ -188,8 +215,8 @@ export class DecisionCache extends Context.Service<
 export const decisionCacheLayer = (options?: {
   /**
    * The most completed entries `entries` holds at once. Once exceeded, the
-   * oldest completed entry is evicted — never an entry with a `compute` still
-   * in flight, since eviction only ever runs after a `compute` settles.
+   * oldest completed entry is evicted — never an entry with a walk still in
+   * flight, since eviction only ever runs after a walk settles.
    */
   readonly capacity?: number;
 }): Layer.Layer<DecisionCache> =>
@@ -213,12 +240,11 @@ export const decisionCacheLayer = (options?: {
       // unwritten-to when `capacity` is unset — the common case, per this file's
       // own doc comment — since nothing would ever read it.
       //
-      // A `Chunk`, not an `Array`: eviction pops from the front on every entry
-      // over capacity, and `Array.prototype.shift` is O(n) — it re-indexes every
-      // remaining element. `Chunk.drop(chunk, 1)` is O(1) amortized for this
-      // access pattern (push at the tail, drop from the head), so eviction under
-      // sustained pressure stays proportional to how much was evicted, not to
-      // how large the cache is.
+      // A `Chunk`, not an `Array`: eviction removes the oldest keys from the
+      // front, which `Array.prototype.shift` or `splice` does by re-indexing
+      // every key that remains. `Chunk.splitAt` is `Chunk.take` and
+      // `Chunk.drop`, and neither copies the keys it keeps: each builds a view
+      // over the chunks it already holds.
       let insertionOrder: Chunk.Chunk<Question> = Chunk.empty();
       // Single-flight (claim, join, hit, every waiter settled, last-leaver
       // interrupt) and its staleness rule (a reset supersedes every in-flight
@@ -231,41 +257,35 @@ export const decisionCacheLayer = (options?: {
             entries = HashMap.set(entries, key, exit.value);
             // Recorded, and evicted from, only when `capacity` was given —
             // the unbounded default (the common case, per this file's own
-            // doc comment) has nothing that will ever read this array, so
+            // doc comment) has nothing that will ever read this order, so
             // it stays empty rather than growing in lockstep with `entries`
             // for the life of the cache.
             if (options?.capacity === undefined) return;
             insertionOrder = Chunk.append(insertionOrder, key);
-            // FIFO eviction: a `while` rather than an `if` because a caller
-            // who lowers `capacity` between two `decisionCacheLayer()`
-            // calls is not a case this loop should special-case to "evict
-            // one" and leave still over budget. Always terminates:
-            // `capacity` is validated non-negative-integer at construction,
-            // so `size(entries)` — a non-negative integer that strictly
-            // decreases each iteration — reaches it in finitely many steps.
-            while (HashMap.size(entries) > options.capacity) {
-              // `Chunk.size(insertionOrder) === HashMap.size(entries)`
-              // always — every append here has exactly one corresponding
-              // `entries` insert (a key is claimed by one fiber at a time,
-              // and a hit never claims, so it is appended once per
-              // completed compute nobody else answered), and eviction
-              // always removes one of each —
-              // so this loop's own condition (`size(entries) > capacity >=
-              // 0`) guarantees `insertionOrder` is non-empty. The `Option`
-              // check exists for that same reason `noUncheckedIndexedAccess`
-              // forced a guard on the old `Array` version, not because this
-              // can happen.
-              const oldest = Chunk.head(insertionOrder);
-              insertionOrder = Chunk.drop(insertionOrder, 1);
-              if (Option.isSome(oldest)) entries = HashMap.remove(entries, oldest.value);
-            }
+            // FIFO eviction: the oldest keys beyond `capacity` leave together,
+            // in the step that inserted the newest. `Chunk.size(insertionOrder)
+            // === HashMap.size(entries)` always: a key is claimed by one fiber
+            // at a time and a hit never claims, so each append here has exactly
+            // one `entries` insert, and eviction removes the same keys from
+            // both. The split therefore takes exactly the overflow, and nothing
+            // when there is none: `Chunk.splitAt` takes no keys for a count of
+            // zero or below.
+            const [evicted, kept] = Chunk.splitAt(
+              insertionOrder,
+              HashMap.size(entries) - options.capacity,
+            );
+            entries = HashMap.removeMany(entries, evicted);
+            insertionOrder = kept;
           }
         },
         onOutcome: (outcome) => Metric.update(decisionCacheLookupsTotal, outcome),
       });
 
-      const getOrCompute: DecisionCacheShape["getOrCompute"] = (key, compute) =>
-        Effect.map(shared.run(key, compute), (found) => ({ trace: found.value, outcome: found.outcome }));
+      const getOrCompute: DecisionCacheShape["getOrCompute"] = (key, options) =>
+        Effect.map(shared.run(key, walk(key, options?.concurrency)), (found) => ({
+          trace: found.value,
+          outcome: found.outcome,
+        }));
 
       return {
         getOrCompute,
@@ -273,9 +293,9 @@ export const decisionCacheLayer = (options?: {
         clear: Effect.sync(() => {
           entries = HashMap.empty<Question, Trace>();
           insertionOrder = Chunk.empty();
-          // Resetting the in-flight claims supersedes every compute already
+          // Resetting the in-flight claims supersedes every walk already
           // running, so none of them writes into the emptied cache and an ask
-          // after this claims afresh instead of coalescing onto a compute that
+          // after this claims afresh instead of coalescing onto a walk that
           // started before the flush. That rule is `SharedComputation`'s.
           shared.reset();
         }),

@@ -259,7 +259,13 @@ describe("displayOfNodeStatus and displayOfVerdict", () => {
 
 describe("joinQuestions: the panel's rows, decided once", () => {
   const canWrite = hasPermission(permission("doc", "write"));
-  const noQuestions = { questions: undefined, gates: undefined, failed: undefined, unsampled: false };
+  const noQuestions = {
+    questions: undefined,
+    gates: undefined,
+    failed: undefined,
+    questionsFailed: undefined,
+    unsampled: false,
+  };
 
   /** The ids asking each question, row by row; `undefined` when the view is not `Rows`. */
   const askingIds = (snapshot: QuestionsSnapshot): ReadonlyArray<ReadonlyArray<string> | undefined> | undefined =>
@@ -317,7 +323,7 @@ describe("joinQuestions: the panel's rows, decided once", () => {
       instance({ id: "d", policy: canRead, resource: { id: "x" } }),
     ];
 
-    const snapshot = joinQuestions({ questions, gates: guards, failed: undefined, unsampled: false });
+    const snapshot = joinQuestions({ questions, gates: guards, failed: undefined, questionsFailed: undefined, unsampled: false });
 
     assert.deepStrictEqual(askingIds(snapshot), [["a", "b"], ["c"], ["d"], []]);
     if (snapshot.questions._tag === "Rows") {
@@ -329,14 +335,26 @@ describe("joinQuestions: the panel's rows, decided once", () => {
   });
 
   it("a question with no registry is a row asked by nobody", () => {
-    const snapshot = joinQuestions({ questions: [{ policy: canRead }], gates: undefined, failed: undefined, unsampled: false });
+    const snapshot = joinQuestions({
+      questions: [{ policy: canRead }],
+      gates: undefined,
+      failed: undefined,
+      questionsFailed: undefined,
+      unsampled: false,
+    });
 
     assert.deepStrictEqual(askingIds(snapshot), [[]]);
   });
 
   it("a registry that could not be read is Failed with its reason, lists no guard and makes no claim in any row", () => {
     const guards = [instance({ id: "a" })];
-    const snapshot = joinQuestions({ questions: [{ policy: canRead }], gates: guards, failed: "boom", unsampled: false });
+    const snapshot = joinQuestions({
+      questions: [{ policy: canRead }],
+      gates: guards,
+      failed: "boom",
+      questionsFailed: undefined,
+      unsampled: false,
+    });
 
     assert.strictEqual(snapshot.gates._tag, "Failed");
     if (snapshot.gates._tag === "Failed") assert.strictEqual(snapshot.gates.reason, "boom");
@@ -347,5 +365,42 @@ describe("joinQuestions: the panel's rows, decided once", () => {
   it("a failed read keeps the questions view as it is", () => {
     assert.strictEqual(joinQuestions({ ...noQuestions, failed: "boom" }).questions._tag, "Absent");
     assert.strictEqual(joinQuestions({ ...noQuestions, failed: "boom", questions: [] }).questions._tag, "Empty");
+  });
+
+  it("a thunk's failure is stated when no questions are read, before unsampled and absent", () => {
+    const failed = joinQuestions({ ...noQuestions, questionsFailed: "boom" });
+    const failedUnsampled = joinQuestions({ ...noQuestions, questionsFailed: "boom", unsampled: true });
+
+    for (const snapshot of [failed, failedUnsampled]) {
+      assert.strictEqual(snapshot.questions._tag, "Failed");
+      if (snapshot.questions._tag === "Failed") assert.strictEqual(snapshot.questions.reason, "boom");
+    }
+  });
+
+  it("questions read win over a thunk's failure", () => {
+    // The failure alone is stated, so the two reads below are won by the questions and not by its absence.
+    assert.strictEqual(joinQuestions({ ...noQuestions, questionsFailed: "boom" }).questions._tag, "Failed");
+    assert.strictEqual(joinQuestions({ ...noQuestions, questions: [], questionsFailed: "boom" }).questions._tag, "Empty");
+    assert.strictEqual(
+      joinQuestions({ ...noQuestions, questions: [{ policy: canRead }], questionsFailed: "boom" }).questions._tag,
+      "Rows",
+    );
+  });
+
+  it("the two failures are independent", () => {
+    const guards = [instance({ id: "a" })];
+    const onlyQuestions = joinQuestions({ ...noQuestions, gates: guards, questionsFailed: "no questions" });
+
+    assert.strictEqual(onlyQuestions.gates._tag, "Listed");
+    assert.strictEqual(onlyQuestions.instances, guards);
+    assert.strictEqual(onlyQuestions.questions._tag, "Failed");
+
+    const both = joinQuestions({ ...noQuestions, gates: guards, failed: "no registry", questionsFailed: "no questions" });
+
+    assert.strictEqual(both.gates._tag, "Failed");
+    if (both.gates._tag === "Failed") assert.strictEqual(both.gates.reason, "no registry");
+    assert.strictEqual(both.questions._tag, "Failed");
+    if (both.questions._tag === "Failed") assert.strictEqual(both.questions.reason, "no questions");
+    assert.deepStrictEqual(both.instances, []);
   });
 });

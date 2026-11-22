@@ -2,13 +2,13 @@
 /**
  * The dock, wired the way a host would copy it.
  *
- * `DevtoolsDockProps` has nine optional fields and a dock mounted with none
+ * `DevtoolsDockProps` has ten optional fields and a dock mounted with none
  * of them still renders every tab — each empty screen saying why it is empty
  * ([BEH-QD-218](../../../../spec/behaviors/28-devtools-screens.md)). That is the
  * right default and it is not what this example is for: the point here is to
  * wire the ones a host supplies — `source`, `catalogue`, `unknownParents` and
  * `ports`, and, from one call to `useDevtoolsFeed`, the atom set's `gates`,
- * `onInvalidate` and `diagnostics` — because the wiring is the part no unit test
+ * `onInvalidate`, `questions` and `diagnostics` — because the wiring is the part no unit test
  * can prove and the part a reader actually has to copy. `capacity` has a
  * sensible default. `reading` is deliberately **not** passed: it carries a
  * reading taken *elsewhere* (another process, a fixture), and `diagnostics`
@@ -101,15 +101,15 @@ void Effect.runSync(
  * The dock runs that pull on a two-second schedule, builds `layer` once while
  * it is mounted and keeps a reading's identity while nothing changed.
  *
- * The feed supplies `layer` (the provider's own built services, so the wiring
- * read sees **the atoms' cache** and not a throwaway) and `questions` (read off
- * the atom set on the same schedule rather than subscribed to, for the reason
- * `asked()` documents: the list changes whenever a question is first asked or
- * swept, and a panel that re-rendered on every question would re-render on every
- * guard's first mount). What is left to the host is the one thing the feed
- * cannot know: the collector that recorded this browser's port calls. It is at
- * module scope, because the dock's run restarts when the object's identity
- * changes.
+ * The feed supplies `layer` in `diagnostics` (the provider's own built services,
+ * so the wiring read sees **the atoms' cache** and not a throwaway) and
+ * `questions` beside `gates`, which the dock reads on the diagnostics schedule
+ * rather than subscribing to, for the reason `asked()` documents: the list
+ * changes whenever a question is first asked or swept, and a panel that
+ * re-rendered on every question would re-render on every guard's first mount.
+ * What is left to the host is the one thing the feed cannot know: the collector
+ * that recorded this browser's port calls. It is at module scope, because the
+ * dock's run restarts when the object's identity changes.
  */
 const dockExtras = { collector: clientPortCalls };
 

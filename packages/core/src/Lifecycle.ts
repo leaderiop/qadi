@@ -84,9 +84,12 @@ export const decideQuestion = Effect.fn("qadi.evaluate")(function* (
   const stamp: Stamp = { evaluationId, at: startedAt };
 
   // The question was built once by the caller: the cache key, the walk's input
-  // and the record's request half all read it, never `options` again.
-  const answer = walk(question, options?.concurrency);
-
+  // and the record's request half all read it. The cache is handed the question
+  // and `options`, never a computation (ADR-QD-174). Core's `decisionCacheLayer`
+  // walks that question itself, so for it the key and the walk's input are one
+  // value and `options` reaches the walk, never the key; a host cache must
+  // answer for the question it is handed (BEH-QD-645).
+  //
   // The TRACE is cached, never the `Decision`. A cached decision would carry a
   // duplicate `evaluationId`, so two log lines would claim to be the same event and
   // correlation — the one thing the identifier exists for — would stop working. The
@@ -117,8 +120,8 @@ export const decideQuestion = Effect.fn("qadi.evaluate")(function* (
   const lookupEffect: Effect.Effect<EvaluationLookup, EvaluationError, PortServices> = Option.isSome(
     cache,
   )
-    ? cache.value.getOrCompute(question, answer)
-    : Effect.map(answer, (trace) => ({ trace, outcome: undefined }));
+    ? cache.value.getOrCompute(question, options)
+    : Effect.map(walk(question, options?.concurrency), (trace) => ({ trace, outcome: undefined }));
 
   const lookup = yield* lookupEffect.pipe(
     Effect.tapError((error) =>

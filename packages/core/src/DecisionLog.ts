@@ -17,9 +17,9 @@
  * at the snapshot's high-water mark: a record lands in a reader's backlog, or in
  * its live stream, never both and never neither (INV-QD-100). Sliding `publish`,
  * so the newest record wins on a full buffer and the evaluation never waits on a
- * reader. `Chunk` head-eviction by arrival. The prototype-preserving stamp. One
- * capacity, validated once, bounding both the retained backlog and each reader's
- * lag.
+ * reader. `Chunk` head-eviction by arrival. The envelope is built at `append`: the
+ * producer's environment beside the record. One capacity, validated once, bounding
+ * both the retained backlog and each reader's lag.
  *
  * **Still an optional, write-only `DecisionSink`** (ADR-QD-044). The port does
  * not become readable; this is one implementation of it that also happens to be
@@ -35,8 +35,8 @@ import * as Layer from "effect/Layer";
 import * as PubSub from "effect/PubSub";
 import type * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
-import { stampRecord, storedRecordOrder } from "./DecisionRecord.ts";
-import type { SinkRecord, StoredRecord } from "./DecisionRecord.ts";
+import { StoredRecord, storedRecordOrder } from "./DecisionRecord.ts";
+import type { SinkRecord } from "./DecisionRecord.ts";
 import { DecisionSink } from "./DecisionSink.ts";
 
 /**
@@ -119,9 +119,15 @@ export interface DecisionLog {
    * `decisionSinkForwarding`. It reaches the backlog **and** every live reader.
    *
    * `environment` is a parameter rather than the log's own: a merged log holds
-   * rows from several processes, and stamping them all with the aggregator's
-   * label would erase the one distinction the merge exists to preserve. It falls
-   * back to the log's own label for a caller ingesting its own records.
+   * rows from several processes, and an envelope carrying the aggregator's label
+   * on every one of them would erase the one distinction the merge exists to
+   * preserve. It falls back to the log's own label for a caller ingesting its own
+   * records.
+   *
+   * A defect on this path is not contained here. A record the log's own `layer`
+   * receives comes through the sink emitter, which contains and reports a defect
+   * once; a record handed to `ingest` comes from the host's receive handler, with
+   * no emitter in front of it, so a defect reaches that handler (ADR-QD-171).
    */
   readonly ingest: (record: SinkRecord, environment?: string) => Effect.Effect<void>;
   /** The retained records, in `storedRecordOrder`. A copy, not a live view. */
@@ -161,28 +167,6 @@ const byRecord = (a: LogEntry, b: LogEntry) => storedRecordOrder(a.record, b.rec
 
 const presented = (entries: Chunk.Chunk<LogEntry>): ReadonlyArray<LogEntry> =>
   Chunk.toReadonlyArray(entries).toSorted(byRecord);
-
-/**
- * Reports which half of a log's record path failed, and swallows it (INV-QD-035).
- *
- * It does not let the other half run: `isolate("publish")` sits inside
- * `isolate("append")`, so an append defect skips the publish and a publish defect
- * comes after the append. Neither half can fail by its type, so this catches only
- * a defect — a library bug — that would otherwise end the evaluation that called
- * `record`.
- *
- * The publish half is reachable by no test (`PubSub.publish` on the sliding pubsub
- * this module builds neither fails nor dies) and is kept because without it the
- * append half's catch would report a publish defect as the append half. The half's
- * name is what the emitter cannot say, which is why these catches stay when the
- * emitter reports everything else (ADR-QD-159).
- */
-const isolate = (half: "append" | "publish") =>
-  Effect.catchCause((cause) =>
-    Effect.logWarning(`qadi: a decision log's ${half} half failed`).pipe(
-      Effect.annotateLogs({ "qadi.cause": String(cause) }),
-    ),
-  );
 
 /**
  * A fresh decision log.
@@ -234,7 +218,10 @@ export const makeDecisionLog = (options: {
 
     const append = (record: SinkRecord, environment: string): LogEntry => {
       seq += 1;
-      const entry: LogEntry = { cursor: { epoch, seq }, record: stampRecord(record, environment) };
+      const entry: LogEntry = {
+        cursor: { epoch, seq },
+        record: new StoredRecord({ environment, record }),
+      };
       entries = Chunk.append(entries, entry);
       if (Chunk.size(entries) > capacity) entries = Chunk.drop(entries, 1);
       return entry;
@@ -248,6 +235,9 @@ export const makeDecisionLog = (options: {
     //
     // Plain closures returning `Effect`, not `Effect.fn`: this runs once per
     // decision, and a named span here costs ≈2.8 µs a call (ADR-QD-073).
+    //
+    // The log has no catch of its own: a defect propagates, and the sink emitter
+    // contains it and reports it once (ADR-QD-159, ADR-QD-171).
     const accept = (record: SinkRecord, environment: string): Effect.Effect<void> =>
       Effect.sync(() => append(record, environment)).pipe(
         Effect.flatMap((entry) =>
@@ -262,9 +252,8 @@ export const makeDecisionLog = (options: {
           // builds — `handleSurplus` is `Effect.sync` all the way down
           // (`slidingPublishUnsafe` evicts and republishes synchronously), so
           // switching to the awaited form costs nothing.
-          PubSub.publish(pubsub, entry).pipe(Effect.asVoid, isolate("publish")),
+          PubSub.publish(pubsub, entry).pipe(Effect.asVoid),
         ),
-        isolate("append"),
       );
 
     const readEntries = (after?: LogCursor): Effect.Effect<DecisionLogEntries, never, Scope.Scope> =>

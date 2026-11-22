@@ -55,7 +55,7 @@ describe("evaluationEnvironment", () => {
 
       const records = yield* log.snapshot;
       assert.deepStrictEqual(
-        records.map((record) => (record._tag === "Decision" ? record.cache : undefined)),
+        records.map((stored) => (stored.record._tag === "Decision" ? stored.record.cache : undefined)),
         ["miss", "hit"],
       );
       assert.strictEqual(outcome.outerCacheSize, 1);

@@ -12,8 +12,8 @@ import { AttributeResolver, attributeResolverPort } from "../src/AttributeResolv
 import type { AuthSubject } from "../src/AuthSubject.ts";
 import { DecisionCache, decisionCacheLayer } from "../src/DecisionCache.ts";
 import { isAllowed } from "../src/Decision.ts";
-import type { Trace } from "../src/Decision.ts";
 import { questionOf } from "../src/Question.ts";
+import type { Question } from "../src/Question.ts";
 import { AttributeResolveError } from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import { decisionCacheLookupsTotal } from "../src/EvaluationMetrics.ts";
@@ -505,6 +505,123 @@ describe("DecisionCache", () => {
       assert.deepStrictEqual(calls, ["u-1:clearance", "u-1:other"]);
     }));
 
+  it.effect("the same question asked with two concurrencies is one entry, in both orders", () =>
+    Effect.gen(function* () {
+      // `concurrency` is how the walk runs, not what it answers (ADR-QD-031,
+      // INV-QD-020), so it never splits an entry, whichever ask comes first.
+      const policy = P.allOf([needsLookup, P.hasAttribute("other", M.gte(1))]);
+      const unbounded = { concurrency: "unbounded" } as const;
+      const orders = [
+        [undefined, unbounded],
+        [unbounded, undefined],
+      ] as const;
+      for (const [first, second] of orders) {
+        const calls: Array<string> = [];
+        const seen = yield* isolatedMetrics(
+          Effect.gen(function* () {
+            const earlier = yield* evaluate(policy, first);
+            const later = yield* evaluate(policy, second);
+            return {
+              earlier,
+              later,
+              size: yield* DecisionCache.use((c) => c.size),
+              lookups: yield* Metric.value(decisionCacheLookupsTotal),
+            };
+          }).pipe(
+            Effect.provide(
+              Layer.mergeAll(
+                testLayer(alice, { AttributeResolver: counting(calls) }),
+                decisionCacheLayer(),
+              ),
+            ),
+          ),
+        );
+
+        assert.deepStrictEqual(seen.later.trace, seen.earlier.trace);
+        assert.strictEqual(seen.size, 1);
+        assert.strictEqual(seen.lookups.occurrences.get("miss"), 1);
+        assert.strictEqual(seen.lookups.occurrences.get("hit"), 1);
+        assert.deepStrictEqual(calls, ["u-1:clearance", "u-1:other"]);
+      }
+    }));
+
+  it.effect("concurrency crosses the cache into the walk; a sequential ask then hits", () =>
+    Effect.gen(function* () {
+      // The first child denies, so a sequential walk asks only `a` and an
+      // unbounded one asks both (INV-QD-005, ADR-QD-026): `b` being asked shows
+      // the caller's `concurrency` crossed the cache into the walk.
+      const policy = P.allOf([P.hasAttribute("a", M.gte(1)), P.hasAttribute("b", M.gte(1))]);
+      const calls: Array<string> = [];
+
+      const seen = yield* Effect.gen(function* () {
+        yield* evaluate(policy, { concurrency: "unbounded" });
+        const walked = calls.toSorted();
+        yield* evaluate(policy);
+        return { walked, size: yield* DecisionCache.use((c) => c.size) };
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(alice, { AttributeResolver: counting(calls, 0) }),
+            decisionCacheLayer(),
+          ),
+        ),
+      );
+
+      assert.deepStrictEqual(seen.walked, ["u-1:a", "u-1:b"]);
+      // The sequential ask after it is a hit: no lookup, and still one entry.
+      assert.deepStrictEqual(calls.toSorted(), ["u-1:a", "u-1:b"]);
+      assert.strictEqual(seen.size, 1);
+    }));
+
+  it.effect(
+    "a coalesced joiner's concurrency is unused: the claimant's governs the one walk, in both orders",
+    () =>
+      Effect.gen(function* () {
+        // `concurrency` cannot change the answer (INV-QD-020), so a joiner shares
+        // the claimant's walk, run with the claimant's option.
+        const policy = P.allOf([P.hasAttribute("a", M.gte(1)), P.hasAttribute("b", M.gte(1))]);
+        const unbounded = { concurrency: "unbounded" } as const;
+        const cases = [
+          { claimant: unbounded, joiner: undefined, asked: ["u-1:a", "u-1:b"] },
+          { claimant: undefined, joiner: unbounded, asked: ["u-1:a"] },
+        ];
+        for (const { claimant, joiner, asked } of cases) {
+          const calls: Array<string> = [];
+          const gate = yield* Deferred.make<void>();
+          // Every lookup waits on one gate, so the joiner arrives while the
+          // claimant's walk is in flight; the first child then denies.
+          const latched = Layer.succeed(AttributeResolver, {
+            resolve: (id: string, attribute: string) =>
+              Effect.sync(() => calls.push(`${id}:${attribute}`)).pipe(
+                Effect.flatMap(() => Deferred.await(gate)),
+                Effect.as(0),
+              ),
+          });
+
+          const lookups = yield* isolatedMetrics(
+            Effect.gen(function* () {
+              const claiming = yield* forkAllAndSettle([evaluate(policy, claimant)]);
+              const joining = yield* forkAllAndSettle([evaluate(policy, joiner)]);
+              yield* Deferred.succeed(gate, undefined);
+              yield* Effect.forEach([...claiming, ...joining], Fiber.join);
+              return yield* Metric.value(decisionCacheLookupsTotal);
+            }).pipe(
+              Effect.provide(
+                Layer.mergeAll(
+                  testLayer(alice, { AttributeResolver: latched }),
+                  decisionCacheLayer(),
+                ),
+              ),
+            ),
+          );
+
+          assert.deepStrictEqual(calls.toSorted(), asked);
+          assert.strictEqual(lookups.occurrences.get("miss"), 1);
+          assert.strictEqual(lookups.occurrences.get("coalesced"), 1);
+        }
+      }),
+  );
+
   it.effect(
     "N concurrent identical asks coalesce into one compute — the resolver is invoked once",
     () =>
@@ -932,11 +1049,11 @@ describe("DecisionCache", () => {
   );
 
   describe("capacity", () => {
-    it.effect("rejects a negative capacity rather than looping forever", () =>
+    it.effect("rejects a negative capacity rather than retaining nothing", () =>
       Effect.gen(function* () {
-        // Regression: a negative capacity used to make the eviction loop's own
-        // exit condition unsatisfiable once `entries` ran dry — an infinite
-        // loop inside `Effect.sync`, not a small cache.
+        // Unguarded, a negative capacity asks `Chunk.splitAt` to evict more
+        // entries than the cache holds, which it reads as all of them: a cache
+        // that retains nothing, not a small one.
         const exit = yield* Effect.exit(
           evaluate(needsLookup).pipe(
             Effect.provide(
@@ -957,8 +1074,9 @@ describe("DecisionCache", () => {
 
     it.effect("rejects a NaN capacity rather than silently disabling eviction", () =>
       Effect.gen(function* () {
-        // Regression: `size(entries) > NaN` is always false, so an unvalidated
-        // NaN capacity made eviction a silent no-op — "bounded" in name only.
+        // Unguarded, a NaN capacity makes the eviction count NaN, which
+        // `Chunk.splitAt` reads as zero: eviction a silent no-op, "bounded" in
+        // name only.
         const exit = yield* Effect.exit(
           evaluate(needsLookup).pipe(
             Effect.provide(
@@ -976,7 +1094,7 @@ describe("DecisionCache", () => {
       Effect.gen(function* () {
         // The guard is `Number.isInteger(options.capacity) && options.capacity
         // >= 0` — one check covering two distinct reasons: NaN makes the
-        // eviction condition permanently false (above), while a genuine
+        // eviction count NaN, which evicts nothing (above), while a genuine
         // fraction like `1.5` isn't discussed by the doc comment at all, only
         // implied by `Number.isInteger`. Exercised separately so a future
         // change that narrows the guard to "finite and non-negative" (fixing
@@ -1101,9 +1219,19 @@ describe("DecisionCache", () => {
     /**
      * ARCH-45 I5. A joiner that checks `entries` (a miss), is preempted, and then
      * finds the owner finished (`entries[K]` set, `inFlight[K]` gone) used to claim
-     * `K` afresh: `K` computed twice, appended to `insertionOrder` twice, and a
-     * later pop of the stale copy evicted a freshly recomputed `K`. The fix makes
+     * `K` afresh: `K` walked twice, appended to `insertionOrder` twice, and a
+     * later pop of the stale copy evicted a freshly walked `K`. The fix makes
      * hit check, join and claim one synchronous step.
+     *
+     * The cache is asked each question alone, as every caller asks it
+     * (ADR-QD-174). The owner's walk spins in its resolver, which also counts the
+     * walks of `K`. At each budget the joiner is forked after a gap of yields that
+     * grows from none until some joiner has landed while the owner is in flight
+     * (`coalesced`) and some after it finished (`hit`), and then for a few gaps
+     * more. The gap where the side changes is found by the loop, not written into
+     * it, so a walk that takes more or fewer steps moves it without breaking the
+     * test. Every run asserts one walk of `K` and exact FIFO, and the test asserts
+     * both sides at every budget: it cannot pass without racing.
      *
      * The red is scheduler-dependent (it needs the run loop to yield in a window
      * a few turns wide, so it appears only under a small `MaxOpsBeforeYield`),
@@ -1115,58 +1243,80 @@ describe("DecisionCache", () => {
       () =>
         Effect.gen(function* () {
           const subject = subjectWith({ id: "u-1" });
-          const K = questionOf(subject, P.hasRole("k"));
-          const X = questionOf(subject, P.hasRole("x"));
-          const Y = questionOf(subject, P.hasRole("y"));
-          const trace = (label: string): Trace => ({
-            policyTag: "HasRole",
-            allowed: true,
-            reason: label,
-            children: [],
-            obligations: [],
-          });
+          const K = questionOf(subject, P.hasAttribute("k", M.gte(1)));
+          const X = questionOf(subject, P.hasAttribute("x", M.gte(1)));
+          const Y = questionOf(subject, P.hasAttribute("y", M.gte(1)));
           const raced: Array<string> = [];
+          const capped: Array<string> = [];
+          // A cap and a margin, not measurements: a budget that has not landed on
+          // both sides within `cap` gaps fails, and `margin` more gaps run past the
+          // first gap at which it has.
+          const cap = 512;
+          const margin = 3;
 
           for (const budget of [3, 4, 5, 6]) {
-            for (let gap = 0; gap <= 12; gap++) {
+            const seen = { coalesced: 0, hit: 0, miss: 0 };
+            let end = cap;
+            for (let gap = 0; gap < end; gap++) {
+              // Each walk records the attribute it asks; only the owner's walk of
+              // `K` spins, so it finishes a few yields after it claims.
+              const walks: Array<string> = [];
+              let ownerSpin = 3;
+              const spinning = Layer.succeed(AttributeResolver, {
+                resolve: (_id: string, attribute: string) =>
+                  Effect.gen(function* () {
+                    walks.push(attribute);
+                    const spin = attribute === "k" ? ownerSpin : 0;
+                    ownerSpin = 0;
+                    for (let i = 0; i < spin; i++) yield* Effect.yieldNow;
+                    return 5;
+                  }),
+              });
               const outcomes = yield* Effect.gen(function* () {
                 const cache = yield* DecisionCache;
-                const computes: Array<string> = [];
-                const compute = (label: string, spin: number) =>
-                  Effect.gen(function* () {
-                    computes.push(label);
-                    for (let i = 0; i < spin; i++) yield* Effect.yieldNow;
-                    return trace(label);
-                  });
+                const lookup = (question: Question) => cache.getOrCompute(question);
                 // The owner claims K and finishes after a few yields.
-                const owner = yield* Effect.forkChild(cache.getOrCompute(K, compute("K", 3)));
+                const owner = yield* Effect.forkChild(lookup(K));
                 for (let i = 0; i < gap; i++) yield* Effect.yieldNow;
                 // The joiner asks K while the owner is (maybe) still in flight.
-                const joiner = yield* Effect.forkChild(cache.getOrCompute(K, compute("K", 0)));
+                const joiner = yield* Effect.forkChild(lookup(K));
                 yield* Fiber.join(owner);
-                yield* Fiber.join(joiner);
-                const kComputes = computes.filter((c) => c === "K").length;
+                const joined = (yield* Fiber.join(joiner)).outcome;
+                const kWalks = walks.filter((attribute) => attribute === "k").length;
                 const followOn = [
-                  (yield* cache.getOrCompute(X, compute("X", 0))).outcome,
-                  (yield* cache.getOrCompute(Y, compute("Y", 0))).outcome,
-                  (yield* cache.getOrCompute(K, compute("K", 0))).outcome,
-                  (yield* cache.getOrCompute(K, compute("K", 0))).outcome,
+                  (yield* lookup(X)).outcome,
+                  (yield* lookup(Y)).outcome,
+                  (yield* lookup(K)).outcome,
+                  (yield* lookup(K)).outcome,
                 ];
-                return { kComputes, followOn };
+                return { joined, kWalks, followOn };
               }).pipe(
                 Effect.provide(
-                  Layer.mergeAll(testLayer(subject), decisionCacheLayer({ capacity: 2 })),
+                  Layer.mergeAll(
+                    testLayer(subject, { AttributeResolver: spinning }),
+                    decisionCacheLayer({ capacity: 2 }),
+                  ),
                 ),
                 Effect.provideService(Scheduler.MaxOpsBeforeYield, budget),
               );
+              seen[outcomes.joined] += 1;
               // Capacity 2: X, Y evict K (FIFO), so K misses, then hits.
-              if (outcomes.kComputes !== 1 || outcomes.followOn.join(",") !== "miss,miss,miss,hit") {
+              if (outcomes.kWalks !== 1 || outcomes.followOn.join(",") !== "miss,miss,miss,hit") {
                 raced.push(`budget ${budget} gap ${gap}: ${JSON.stringify(outcomes)}`);
               }
+              if (end === cap && seen.coalesced > 0 && seen.hit > 0) end = gap + 1 + margin;
+            }
+            if (seen.coalesced === 0 || seen.hit === 0) {
+              capped.push(`budget ${budget}: ${JSON.stringify(seen)} in ${cap} gaps`);
             }
           }
           assert.deepStrictEqual(raced, []);
+          assert.deepStrictEqual(capped, []);
         }),
+      // Up to `cap` runs a budget, each building its own layers, when a budget
+      // never lands on both sides: the timeout leaves room for that failure to be
+      // reported on a loaded runner rather than cut short.
+      30_000,
     );
   });
 

@@ -17,4 +17,5 @@ test("an entry that was not written cannot report a commit", () => {
   expect(AuditWriteOutcome.Skipped).type.not.toBeCallableWith({ entry, staging: WrittenStaging.Committed() });
   expect(AuditWriteOutcome.WriteFailed).type.not.toBeCallableWith({ entry, staging: WrittenStaging.Committed() });
   expect(AuditWriteOutcome.Skipped).type.toBeCallableWith({ entry, staging: UnwrittenStaging.Staged() });
+  expect(AuditWriteOutcome.WriteFailed).type.toBeCallableWith({ entry, staging: UnwrittenStaging.Staged() });
 });

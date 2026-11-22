@@ -23,9 +23,9 @@ import {
   makeSubjectId,
   permission,
   role,
-  stampRecord,
+  StoredRecord,
 } from "@qadi/core";
-import type { AllowingTrace, Policy, Role, StoredRecord } from "@qadi/core";
+import type { AllowingTrace, Policy, Role } from "@qadi/core";
 import {
   catalogueOf,
   emptyTimeline,
@@ -135,7 +135,7 @@ const decisionFor = (at: number, policy: Policy): StoredRecord => {
       }),
     }),
   });
-  return stampRecord(record, "Server");
+  return new StoredRecord({ environment: "Server", record });
 };
 
 /** Ingests one more decision against `policy`, refreshing the derived catalogue. */
@@ -415,9 +415,7 @@ describeFeature(feature, World.layer, ({ AfterAllScenarios, Before, Given, When,
     // scenarios in this suite have already counted calls into it. A test that
     // assumed an empty registry would be asserting the opposite of the
     // documented behaviour.
-    assert.equal(
-      activity.find((entry) => entry.port === "EvaluationId"),
-      undefined,
-    );
+    const ports: ReadonlyArray<string> = activity.map((entry) => entry.port);
+    assert.equal(ports.includes("EvaluationId"), false);
   });
 });

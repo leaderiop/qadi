@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-135                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-11                                     |
-> | Status         | Accepted — amends ADR-QD-095; reads ADR-QD-002, ADR-QD-060, ADR-QD-096, ADR-QD-100, ADR-QD-106 |
+> | Status         | Accepted — amends ADR-QD-095; reads ADR-QD-002, ADR-QD-060, ADR-QD-096, ADR-QD-100, ADR-QD-106; amended 2026-11-19 (ADR-QD-171) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-11): Initial (ARCH-71, CCR-QD-413) |
+> | Change History | 1.1 (2026-11-19): amended: Alternative B's StoredDecisionRecord is gone; its other reasons stand (ADR-QD-171, CCR-QD-449)<br>1.0 (2026-11-11): Initial (ARCH-71, CCR-QD-413) |
 
 ---
 
@@ -224,3 +224,10 @@ Amends [ADR-QD-095](./095-sinkcodec-owns-both-directions.md). Reads
 [BEH-QD-199](../behaviors/25-inspection.md#beh-qd-199-a-record-has-a-wire-form-encoded-and-decoded-by-one-operation-each-way),
 [BEH-QD-450](../behaviors/25-inspection.md#beh-qd-450-a-records-wire-envelope-is-its-fields-plus-a-version-stated-once),
 [BEH-QD-451](../behaviors/24-decision-sink.md#beh-qd-451-an-absent-optional-is-an-absent-key-on-every-record-core-emits).
+
+## Amendment (2026-11-19, ADR-QD-171, CCR-QD-449)
+
+Alternative B's `StoredDecisionRecord` no longer exists
+([ADR-QD-171](./171-a-stored-record-is-its-envelope-in-memory-too.md)): a stored record holds its `DecisionRecord` by
+reference, in `StoredRecord`'s `record` field, instead of extending the record's constructor parameter type. B's other
+reasons, the cost per record on the evaluation path and a constructor that can throw there, stand.

@@ -15,11 +15,11 @@
  *
  * **No `environment` field.** Core cannot know whether it is running in a
  * browser, on a server, or in an edge worker, and a field it would have to guess
- * at is a field that is wrong somewhere. The environment is stamped by the sink
- * implementation, which does know.
+ * at is a field that is wrong somewhere. The sink implementation does know, so
+ * it supplies the environment, and it sits beside the record in
+ * {@link StoredRecord}, never inside it.
  */
 import * as Data from "effect/Data";
-import * as Match from "effect/Match";
 import * as Order from "effect/Order";
 import type { Decision } from "./Decision.ts";
 import type { EvaluationError } from "./Errors.ts";
@@ -114,8 +114,17 @@ export type ObligationOutcome = typeof ObligationOutcomeSchema.Type;
 /** Anything `evaluate` or an enforcing entry point hands a sink. */
 export type SinkRecord = DecisionRecord | ObligationRecord;
 
-/** Where an evaluation ran. Stamped by the sink, never claimed by core. */
-export interface Stamped {
+/**
+ * A record as a decision log stores it: the producer's environment beside the
+ * record core reported.
+ *
+ * It is the wire's `{ environment, record }` (ADR-QD-097), true in memory too
+ * (ADR-QD-171): one `Data.Class`, so `Equal`, `Hash` and `.pipe` come with it, and
+ * a reader narrows on `stored.record._tag` to reach `policy` on a decision or
+ * `obligationIds` on an obligation gate. The record is held by reference, never
+ * copied or read, so nothing is lost to a spread and nothing fires on the way in.
+ */
+export class StoredRecord extends Data.Class<{
   /**
    * Where this evaluation happened — `"Server"`, `"Client"`, whatever a caller
    * names its runtime.
@@ -127,64 +136,9 @@ export interface Stamped {
    * answer. Closed unions are reserved here for values that decide something.
    */
   readonly environment: string;
-}
-
-/**
- * A record as this sink stores it: whatever core reported, plus where it ran.
- *
- * Two sibling `Data.TaggedClass`es reusing `DecisionRecord`/`ObligationRecord`'s
- * own constructor parameter types, rather than one flat interface or a
- * `SinkRecord & Stamped` intersection: a consumer still narrows on `_tag` and
- * gets `policy` on a `Decision` and `obligationIds` on an `Obligations` — a
- * widened struct carrying both as optional would hand every reader a "cannot
- * happen" branch — and a plain `{ ...record, environment }` spread of a
- * `Data.TaggedClass` instance would silently place the result on
- * `Object.prototype`, losing `.pipe`/`Equal.equals`/`Hash`. `new` always sets
- * the correct prototype, so a real class per tag needs no such spread at all.
- */
-export class StoredDecisionRecord extends Data.TaggedClass("Decision")<
-  ConstructorParameters<typeof DecisionRecord>[0] & Stamped
-> {}
-
-export class StoredObligationRecord extends Data.TaggedClass("Obligations")<
-  ConstructorParameters<typeof ObligationRecord>[0] & Stamped
-> {}
-
-export type StoredRecord = StoredDecisionRecord | StoredObligationRecord;
-
-/**
- * Stamps a record with where it ran, preserving the record's own prototype.
- *
- * A plain `{ ...record, environment }` spread would place the result on
- * `Object.prototype`: `DecisionRecord`/`ObligationRecord` are `Data.TaggedClass`
- * instances, and spread only copies own enumerable keys, not the prototype
- * chain those classes hang `.pipe`, `Equal.equals` and `Hash.hash` from.
- * TypeScript does not catch this — the spread's type-level operator carries
- * `.pipe`'s signature into the result type regardless of whether the runtime
- * value has a working `.pipe` — so a `StoredRecord` built that way would
- * quietly stop honestly satisfying its own type. Spreading `record`'s fields
- * into a fresh class's constructor, below, is a different operation: `new`
- * builds a genuinely new instance with the right prototype, so nothing is lost.
- *
- * A module-scope `Match.type<SinkRecord>()`, built once (AGENTS.md §5a),
- * rather than `Match.value(record)` rebuilt on every call — `stampRecord` runs
- * once per record a decision log's `record`/`ingest` accept, i.e. per
- * authorization decision whenever a `DecisionSink` is wired, the exact
- * per-call dispatch shape §5a's hoisted form exists for. Both arms close only
- * over `environment` (the per-call argument), not over anything from the
- * matcher's own construction, so hoisting needs no extra plumbing.
- */
-const stampRecordMatch: (
-  record: SinkRecord,
-) => (environment: string) => StoredRecord = Match.type<SinkRecord>().pipe(
-  Match.tagsExhaustive({
-    Decision: (r) => (environment: string) => new StoredDecisionRecord({ ...r, environment }),
-    Obligations: (r) => (environment: string) => new StoredObligationRecord({ ...r, environment }),
-  }),
-);
-
-export const stampRecord = (record: SinkRecord, environment: string): StoredRecord =>
-  stampRecordMatch(record)(environment);
+  /** What core reported, unchanged. */
+  readonly record: SinkRecord;
+}> {}
 
 /**
  * The one order a stored record is read in (INV-QD-039): by `at`, an unknown
@@ -201,10 +155,18 @@ export const stampRecord = (record: SinkRecord, environment: string): StoredReco
  * and `isAfter` for the timeline's insertion — linked only by a comment saying
  * they agreed. Both now read this one, and so does the decision log's own
  * `snapshot`, which is why it lives in core beside the `at` field it orders.
+ * Each reader orders what it holds: a record by this, a {@link StoredRecord}
+ * by {@link storedRecordOrder}.
  */
-export const storedRecordOrder: Order.Order<{ readonly at: number }> = Order.make((a, b) => {
+export const sinkRecordOrder: Order.Order<SinkRecord> = Order.make((a, b) => {
   const aUnknown = Number.isNaN(a.at);
   const bUnknown = Number.isNaN(b.at);
   if (aUnknown || bUnknown) return aUnknown === bUnknown ? 0 : aUnknown ? 1 : -1;
   return a.at < b.at ? -1 : a.at > b.at ? 1 : 0;
 });
+
+/** {@link sinkRecordOrder} over the record a {@link StoredRecord} holds. */
+export const storedRecordOrder: Order.Order<StoredRecord> = Order.mapInput(
+  sinkRecordOrder,
+  (stored) => stored.record,
+);

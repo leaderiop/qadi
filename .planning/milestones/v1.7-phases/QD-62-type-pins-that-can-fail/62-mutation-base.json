@@ -1,0 +1,7 @@
+{
+  "phase": "62",
+  "base": "4cab2e74afd9487e19d9f025dd7a6436e459ba5c",
+  "counts": {},
+  "touched": [],
+  "note": "No packages/*/src file changed between phase_base and close, so no file is in mutation scope and Stryker was not run (WX-05)."
+}

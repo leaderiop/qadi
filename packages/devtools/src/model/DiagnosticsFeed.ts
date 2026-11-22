@@ -1,7 +1,7 @@
 /**
  * One diagnostics poll, owned by a scope, with a closed status a panel can state.
  *
- * A sample that dies (a throwing `questions`) ends the poll fiber, and a fiber
+ * A sample that dies (a collector whose snapshot throws) ends the poll fiber, and a fiber
  * handle drops a dead fiber without a word, so the panel used to freeze on its
  * last reading with nothing said. The feed watches its own run's exit, states
  * the stop with its reason, keeps the last reading, and restarts on a changed
@@ -16,26 +16,22 @@
  * `Effect.runSync` cannot throw for an asynchronous layer: the feed is `Starting`
  * until the first sample lands.
  *
- * Package-private (ADR-QD-099).
+ * Exported from the package root (ADR-QD-173): a shell builds it in a scope it owns.
  */
 import * as Cause from "effect/Cause";
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
-import type * as Layer from "effect/Layer";
 import * as Match from "effect/Match";
-import * as Schedule from "effect/Schedule";
 import type * as Scope from "effect/Scope";
 import {
-  DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS,
   makeDiagnosticsStore,
   noDiagnostics,
   runDiagnostics,
   type Diagnostics,
+  type DiagnosticsOptions,
   type DiagnosticsStore,
 } from "./DiagnosticsStore.ts";
 import { makeExternalStore } from "./ExternalStore.ts";
-import type { AskedQuestionLike } from "./Gates.ts";
-import type { PortCallCollector } from "./PortCalls.ts";
 import { makeSupersedingRun } from "./SupersedingRun.ts";
 
 /**
@@ -53,8 +49,10 @@ export type DiagnosticsStatus = Data.TaggedEnum<{
   /** A sample has been accepted by the current run. */
   Live: {};
   /**
-   * The run ended on a defect. `reason` is `Cause.pretty` of it; `sampled` says
-   * whether the reading shown holds an accepted sample.
+   * The run ended on a defect. `reason` is `Cause.pretty` of it, a trace with stack
+   * frames and checkout paths for a developer in the host's own process: it must not
+   * cross a trust boundary. `sampled` says whether the reading shown holds an accepted
+   * sample.
    */
   Stopped: { readonly reason: string; readonly sampled: boolean };
 }>;
@@ -65,36 +63,6 @@ export const DiagnosticsStatus = Data.taggedEnum<DiagnosticsStatus>();
 export interface DiagnosticsSnapshot {
   readonly status: DiagnosticsStatus;
   readonly reading: Diagnostics;
-}
-
-/**
- * What a host hands over to have its diagnostics sampled: things it already
- * owns, and no Effects.
- *
- * Gates are not here. They are the dock model's own input (`DockModelInputs.gates`),
- * a registry the model subscribes to (ADR-QD-162).
- */
-export interface DiagnosticsDockOptions {
-  /**
-   * The application's layer, read for the wiring report.
-   *
-   * Built once while the dock is mounted, and released on unmount. It is its
-   * own build, so a service that keeps state in its constructor is shared with
-   * the application only if the host shares it by value: build its context once
-   * and pass that context here and to the atoms as one value. Under a
-   * `QadiProvider`, hand `useDevtoolsFeed()`'s `diagnostics` from `@qadi/react`
-   * instead: its layer is the provider's own build, so nothing needs sharing.
-   *
-   * Typed `Layer<never, unknown>` because `Layer` is contravariant in what it
-   * provides: that is the one type every layer is assignable to.
-   */
-  readonly layer?: Layer.Layer<never, unknown>;
-  /** The collector whose `layer` is wired where evaluations run, for the recent port calls. */
-  readonly collector?: PortCallCollector;
-  /** Where the questions asked so far come from, usually `() => atoms.asked()`. */
-  readonly questions?: () => ReadonlyArray<AskedQuestionLike>;
-  /** How often to sample, in milliseconds. Defaults to `DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS`. */
-  readonly intervalMillis?: number;
 }
 
 /** Nothing runs and nothing was sampled. A constant, so it keeps its identity. */
@@ -126,6 +94,15 @@ export const isUnsampled: (status: DiagnosticsStatus) => boolean = Match.type<Di
 
 /** What a panel reads: a snapshot, and the command that starts the poll again. */
 export interface DiagnosticsReadout {
+  /**
+   * Registers a listener, and returns the function that removes it. Every listener is
+   * called, and then what they threw is rethrown out of whatever published: one value as
+   * itself, several as one `AggregateError`. A throw during a publish from the poll is
+   * stated as the poll's stop, and the `Stopped` is held even when a listener throws on
+   * that publish too. A throw on the `Starting` that `restart` or `configure` publishes
+   * escapes before the new poll is forked, so the feed stays `Starting` and no new poll
+   * starts.
+   */
   readonly subscribe: (listener: () => void) => () => void;
   readonly getSnapshot: () => DiagnosticsSnapshot;
   /** Starts the poll again with the options it holds; nothing when it holds none. */
@@ -137,7 +114,7 @@ export interface DiagnosticsFeed extends DiagnosticsReadout {
    * Compared per field: an options object equal field by field to the previous
    * one restarts nothing. `undefined` ends the run and resets the reading.
    */
-  readonly configure: (options: DiagnosticsDockOptions | undefined) => void;
+  readonly configure: (options: DiagnosticsOptions | undefined) => void;
 }
 
 const idle = (snapshot: DiagnosticsSnapshot): DiagnosticsReadout => ({
@@ -154,12 +131,12 @@ const IDLE_STARTING = idle(diagnosticsStarting);
  *
  * Two constants, so a reader's first pass keeps one identity whatever it was handed.
  */
-export const idleDiagnostics = (options: DiagnosticsDockOptions | undefined): DiagnosticsReadout =>
+export const idleDiagnostics = (options: DiagnosticsOptions | undefined): DiagnosticsReadout =>
   options === undefined ? IDLE_OFF : IDLE_STARTING;
 
 /** Builds the feed in the caller's scope; closing it interrupts the run, and an interruption is never a `Stopped`. */
 export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed")(function* (
-  init?: DiagnosticsDockOptions,
+  init?: DiagnosticsOptions,
 ): Effect.fn.Return<DiagnosticsFeed, never, Scope.Scope> {
   let options = init;
   let store: DiagnosticsStore = makeDiagnosticsStore();
@@ -177,14 +154,7 @@ export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed"
     view.set({ status, reading });
   };
 
-  const runOptions = (next: DiagnosticsDockOptions) => ({
-    ...(next.layer === undefined ? {} : { layer: next.layer }),
-    ...(next.collector === undefined ? {} : { collector: next.collector }),
-    ...(next.questions === undefined ? {} : { questions: next.questions }),
-    schedule: Schedule.spaced(next.intervalMillis ?? DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS),
-  });
-
-  const start = (next: DiagnosticsDockOptions) => {
+  const start = (next: DiagnosticsOptions) => {
     const token = runs.begin();
     const target = store;
     // Before the fork: its synchronous prefix may already reach `Live` or `Stopped`. The one `Starting` value, so `show` drops a repeat.
@@ -201,7 +171,7 @@ export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed"
         show(DiagnosticsStatus.$is("Live")(current) ? current : DiagnosticsStatus.Live());
       },
     };
-    runs.fork(token, runDiagnostics(marking, runOptions(next)), {
+    runs.fork(token, runDiagnostics(marking, next), {
       onFailure: (cause) => show(DiagnosticsStatus.Stopped({ reason: Cause.pretty(cause), sampled })),
     });
   };
@@ -213,21 +183,19 @@ export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed"
     view.set(diagnosticsOff);
   };
 
-  const configure = (next: DiagnosticsDockOptions | undefined) => {
+  const configure = (next: DiagnosticsOptions | undefined) => {
     // A command on a closed feed would publish a state nothing follows.
     if (runs.closed()) return;
     const before = options;
     options = next;
     if (next === undefined) {
-      // Already off: a second `undefined` must not bump the token, fork or build a store.
-      if (before !== undefined) off();
+      off();
       return;
     }
     if (
       before === undefined ||
       next.layer !== before.layer ||
       next.collector !== before.collector ||
-      next.questions !== before.questions ||
       next.intervalMillis !== before.intervalMillis
     ) {
       start(next);

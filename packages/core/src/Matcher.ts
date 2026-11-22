@@ -23,6 +23,7 @@ import {
   memberVerdict,
 } from "./Compare.ts";
 import type { Verdict } from "./Compare.ts";
+import { getByPath, ownValue } from "./Operand.ts";
 import { foldTree, foldTreeBy } from "./TreeFold.ts";
 
 // ---------------------------------------------------------------------------
@@ -315,45 +316,6 @@ export const size = (matcher: Matcher): Matcher => ({ _tag: "Size", matcher });
 const isObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null;
 
-/**
- * Reads a dot-path out of a value, returning undefined at any missing step.
- *
- * `Object.hasOwn` rather than `current[part]` alone: `path` comes off a
- * `SubjectRef`/`ResourceRef` in a decoded `Policy`, which `Policy.ts`
- * documents as re-parsed from untrusted JSON. Without the own-property guard,
- * a path like `__proto__.constructor` resolves prototype-chain members
- * instead of `undefined` — a read, not a write, but it breaks the isolation
- * every other matcher branch assumes. `readAttribute` (`PortAccess.ts`) and
- * `FieldPath.ts` both already guard the same way; this closed the one place
- * that hadn't.
- *
- * Walks `path` with `indexOf` rather than `path.split(".")`: this is the most
- * frequently called allocator in the library — once per `SubjectRef`/
- * `ResourceRef` resolution, per matcher node, per evaluation, and once more
- * per element under `filter`/`decideSubjects` — and `split` pays for an
- * intermediate segment array on every call in addition to the per-segment
- * substrings, which are unavoidable since a property lookup needs an actual
- * string key. Same segments, same order, same behavior at every boundary
- * `split` produced (a trailing dot's empty final segment, a doubled dot's
- * empty middle segment, a single segment with no dot at all) — pinned in
- * `Matcher.test.ts` rather than merely asserted here.
- */
-export const getByPath = (input: unknown, path: string): unknown => {
-  if (path === "") return input;
-  let current: unknown = input;
-  let start = 0;
-  const length = path.length;
-  for (;;) {
-    const dot = path.indexOf(".", start);
-    const end = dot === -1 ? length : dot;
-    const part = path.slice(start, end);
-    if (!isObject(current) || !Object.hasOwn(current, part)) return undefined;
-    current = current[part];
-    if (dot === -1) return current;
-    start = dot + 1;
-  }
-};
-
 const lengthOf = (value: unknown): number | undefined => {
   if (Array.isArray(value)) return value.length;
   if (typeof value === "string") return value.length;
@@ -372,6 +334,12 @@ const containsValue = (value: unknown, needle: unknown): boolean => {
  * is nameable.
  */
 export type { Verdict } from "./Compare.ts";
+
+/**
+ * Reads a dot-path out of a value. Declared in `Operand.ts` (internal),
+ * re-exported here as its public home so `getByPath` stays where it always was.
+ */
+export { getByPath } from "./Operand.ts";
 
 /** The subject, resource and action a matcher may reference. */
 export interface MatcherContext {
@@ -409,11 +377,11 @@ export interface MatcherContext {
 const resolveRef = (ref: ValueRef, context: MatcherContext): unknown => {
   switch (ref._tag) {
     case "SubjectRef":
-      return getByPath(context.subject, ref.path);
+      return getByPathLocal(context.subject, ref.path);
     case "SubjectIdRef":
       return context.subjectId;
     case "ResourceRef":
-      return getByPath(context.resource, ref.path);
+      return getByPathLocal(context.resource, ref.path);
     case "ActionRef":
       return context.action;
     case "LiteralRef":
@@ -654,8 +622,8 @@ export const referencesAction: (self: Matcher) => boolean = referencesRef("Actio
 export const referencesResource: (self: Matcher) => boolean = referencesRef("ResourceRef");
 
 /*
- * Module-local bindings of `Compare.ts`'s verdicts, read once at load. The
- * matcher switch runs once per node per evaluation, and under a module runner
+ * Module-local bindings of `Compare.ts`'s verdicts and `Operand.ts`'s reads, read
+ * once at load. The matcher switch runs once per node per evaluation, and under a module runner
  * that turns each imported binding into a getter (vitest's, which `pnpm bench`
  * uses) a direct call paid that getter on every node: `Compare.bench.ts`
  * measured `judgeMatcher` at ~2.4x the old `evaluateMatcher` per leaf until these
@@ -669,6 +637,8 @@ const memberLocal = memberVerdict;
 const atLeastLocal = atLeastVerdict;
 const belowLocal = belowVerdict;
 const holdsLocal = holds;
+const getByPathLocal = getByPath;
+const ownValueLocal = ownValue;
 
 /**
  * How a matcher came out against a value: a `Verdict`, not just whether it held.
@@ -722,12 +692,6 @@ export const judgeMatcher = (self: Matcher, value: unknown, context: MatcherCont
           : containsValue(value, self.value)
             ? "Held"
             : "NotHeld";
-    // `Object.hasOwn` rather than `value[self.field]` alone, for the same
-    // reason `getByPath` above needs it: `field` is attacker-writable in a
-    // decoded policy, and without the guard `self.field` naming
-    // `__proto__`/`constructor`/etc. would read the prototype chain instead
-    // of reporting the field absent. A genuinely missing own property still
-    // evaluates the inner matcher against `undefined`, exactly as before.
     case "FieldMatch":
       return value === undefined
         ? "ValueAbsent"
@@ -735,11 +699,7 @@ export const judgeMatcher = (self: Matcher, value: unknown, context: MatcherCont
           ? "Incomparable"
           : heldOrNot(
               holdsLocal(
-                judgeMatcher(
-                  self.matcher,
-                  Object.hasOwn(value, self.field) ? value[self.field] : undefined,
-                  context,
-                ),
+                judgeMatcher(self.matcher, ownValueLocal(value, self.field), context),
               ),
             );
     case "SomeMatch":

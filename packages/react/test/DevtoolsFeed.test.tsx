@@ -147,7 +147,7 @@ describe("the feed's layer is the provider's own build", () => {
 });
 
 describe("what the feed forwards", () => {
-  it("questions is atoms.asked, and lists what a guard asked", async () => {
+  it("questions is atoms.asked, beside gates, and lists what a guard asked", async () => {
     const atoms = unhoisted();
     const seen: Seen<typeof noExtra> = { renders: [] };
     const Probe = makeProbe(seen, () => useDevtoolsFeed(noExtra));
@@ -160,8 +160,9 @@ describe("what the feed forwards", () => {
     await waitFor(() => expect(screen.getByText("yes")).toBeDefined());
 
     const feed = required(seen.feed, "the feed");
-    expect(feed.diagnostics.questions).toBe(atoms.asked);
-    expect(feed.diagnostics.questions()).toHaveLength(1);
+    expect(feed.questions).toBe(atoms.asked);
+    expect(feed.questions()).toHaveLength(1);
+    expect("questions" in feed.diagnostics).toBe(false);
   });
 
   it("gates are the provider's effective registry: one per instrumented guard, none otherwise", async () => {

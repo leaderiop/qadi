@@ -9,6 +9,8 @@ import { admit } from "../src/Admission.ts";
 import * as M from "../src/Matcher.ts";
 import * as P from "../src/Policy.ts";
 import { questionOf } from "../src/Question.ts";
+import type { Question } from "../src/Question.ts";
+import type { Resource } from "../src/Resource.ts";
 import { subjectWith } from "./helpers.ts";
 
 const subject = subjectWith({ id: "u7", attributes: { tier: "gold" } });
@@ -20,7 +22,10 @@ const nested = (levels: number): P.Policy => {
 };
 
 const refusal = (policy: P.Policy, maxDepth: number | undefined) => {
-  const admitted = admit(questionOf(subject, policy, maxDepth === undefined ? {} : { maxDepth }));
+  const admitted = admit(
+    questionOf(subject, policy, maxDepth === undefined ? {} : { maxDepth }),
+    "asked",
+  );
   return Result.isFailure(admitted) ? admitted.failure : undefined;
 };
 
@@ -60,6 +65,7 @@ describe("admit", () => {
     const resource = { id: "doc-1" };
     const admitted = admit(
       questionOf(subject, P.hasRole("editor"), { resource, action: "publish" }),
+      "asked",
     );
     assert.isTrue(Result.isSuccess(admitted));
     if (Result.isFailure(admitted)) return;
@@ -70,11 +76,193 @@ describe("admit", () => {
   });
 
   it("a question with no resource gives a context with resource undefined", () => {
-    const admitted = admit(questionOf(subject, P.hasRole("editor")));
+    const admitted = admit(questionOf(subject, P.hasRole("editor")), "asked");
     assert.isTrue(Result.isSuccess(admitted));
     if (Result.isFailure(admitted)) return;
     assert.isUndefined(admitted.success.matcherContext.resource);
     assert.isUndefined(admitted.success.matcherContext.action);
-    assert.strictEqual(admitted.success.question.policy._tag, "HasRole");
+    assert.deepStrictEqual(admitted.success.supplied, { action: false, resource: false });
+  });
+});
+
+describe("admit builds the walk environment", () => {
+  const resource = { id: "doc-1" };
+  const environment = (source: "asked" | "row", options: Parameters<typeof questionOf>[2]) => {
+    const admitted = admit(questionOf(subject, P.hasRole("editor"), options), source);
+    assert.isTrue(Result.isSuccess(admitted));
+    return Result.isSuccess(admitted) ? admitted.success : undefined;
+  };
+
+  it("E1 asked: a question with a resource and an action supplies both", () => {
+    assert.deepStrictEqual(environment("asked", { resource, action: "publish" })?.supplied, {
+      action: true,
+      resource: true,
+    });
+  });
+
+  it("E2 asked: a question with only an action supplies the action alone", () => {
+    assert.deepStrictEqual(environment("asked", { action: "publish" })?.supplied, {
+      action: true,
+      resource: false,
+    });
+  });
+
+  it("E3 asked: a question with only a resource supplies the resource alone", () => {
+    assert.deepStrictEqual(environment("asked", { resource })?.supplied, {
+      action: false,
+      resource: true,
+    });
+  });
+
+  it("E4 asked: a question with neither supplies neither", () => {
+    assert.deepStrictEqual(environment("asked", {})?.supplied, { action: false, resource: false });
+  });
+
+  it("E5 row: the row is always supplied, and the action follows the question", () => {
+    assert.deepStrictEqual(environment("row", {})?.supplied, { action: false, resource: true });
+    assert.deepStrictEqual(environment("row", { resource, action: "publish" })?.supplied, {
+      action: true,
+      resource: true,
+    });
+  });
+
+  it("E6 the environment holds the question's own subject and its bound", () => {
+    const question = questionOf(subject, P.hasRole("editor"), { maxDepth: 7 });
+    const admitted = admit(question, "asked");
+    assert.isTrue(Result.isSuccess(admitted));
+    if (Result.isFailure(admitted)) return;
+    assert.strictEqual(admitted.success.subject, question.subject);
+    assert.strictEqual(admitted.success.maxDepth, 7);
+    assert.strictEqual(environment("row", {})?.maxDepth, P.DEFAULT_MAX_DEPTH);
+  });
+});
+
+describe("admit reads what the question carries once", () => {
+  const resource = { id: "doc-1" };
+  const admitted = (question: Question, source: "asked" | "row") => {
+    const result = admit(question, source);
+    assert.isTrue(Result.isSuccess(result));
+    return Result.isSuccess(result) ? result.success : undefined;
+  };
+
+  it("E7 asked: a resource that reads differently on a second read is read once, and the flag agrees with the context", () => {
+    const flipping = (first: Resource | undefined, later: Resource | undefined) => {
+      let reads = 0;
+      const question: Question = {
+        ...questionOf(subject, P.hasRole("editor")),
+        get resource() {
+          reads += 1;
+          return reads === 1 ? first : later;
+        },
+      };
+      return { question, reads: () => reads };
+    };
+    for (const [first, later] of [[resource, undefined], [undefined, resource]]) {
+      const { question, reads } = flipping(first, later);
+      const environment = admitted(question, "asked");
+      assert.strictEqual(environment?.supplied.resource, first !== undefined);
+      assert.strictEqual(environment?.matcherContext.resource, first);
+      assert.strictEqual(reads(), 1);
+    }
+  });
+
+  it("E8 asked: an action that reads differently on a second read is read once, and the flag agrees with the context", () => {
+    let reads = 0;
+    const question: Question = {
+      ...questionOf(subject, P.hasRole("editor")),
+      get action() {
+        reads += 1;
+        return reads === 1 ? "publish" : undefined;
+      },
+    };
+    const environment = admitted(question, "asked");
+    assert.strictEqual(environment?.supplied.action, true);
+    assert.strictEqual(environment?.matcherContext.action, "publish");
+    assert.strictEqual(reads, 1);
+  });
+
+  it("E9 row: the action is read once and the flag agrees with the context; the row stays supplied", () => {
+    let reads = 0;
+    const question: Question = {
+      ...questionOf(subject, P.hasRole("editor")),
+      get action() {
+        reads += 1;
+        return reads === 1 ? "publish" : undefined;
+      },
+    };
+    const environment = admitted(question, "row");
+    assert.deepStrictEqual(environment?.supplied, { action: true, resource: true });
+    assert.strictEqual(environment?.matcherContext.action, "publish");
+    assert.strictEqual(reads, 1);
+  });
+
+  it("E10 row: the row is supplied whatever the question's resource reads, and the resource is read once", () => {
+    let reads = 0;
+    const question: Question = {
+      ...questionOf(subject, P.hasRole("editor")),
+      get resource() {
+        reads += 1;
+        return undefined;
+      },
+    };
+    const environment = admitted(question, "row");
+    assert.strictEqual(environment?.supplied.resource, true);
+    assert.isUndefined(environment?.matcherContext.resource);
+    assert.strictEqual(reads, 1);
+  });
+
+  it("E11 a policy that reads shallow and then deep is read once: the policy admitted is the one the depth gate judged", () => {
+    const shallow = P.hasRole("editor");
+    const deep = nested(4);
+    let reads = 0;
+    const question: Question = {
+      ...questionOf(subject, shallow, { maxDepth: 3 }),
+      get policy() {
+        reads += 1;
+        return reads === 1 ? shallow : deep;
+      },
+    };
+    const environment = admitted(question, "asked");
+    assert.strictEqual(environment?.policy, shallow);
+    assert.strictEqual(reads, 1);
+  });
+
+  it("E12 a maxDepth that reads differently on a second read is read once: the refusal and the environment carry the bound the gate used", () => {
+    const flipping = (first: number, later: number) => {
+      let reads = 0;
+      const question: Question = {
+        ...questionOf(subject, nested(4)),
+        get maxDepth() {
+          reads += 1;
+          return reads === 1 ? first : later;
+        },
+      };
+      return { question, reads: () => reads };
+    };
+    const refused = flipping(3, 10);
+    const result = admit(refused.question, "asked");
+    assert.isTrue(Result.isFailure(result));
+    assert.strictEqual(Result.isFailure(result) ? result.failure.maxDepth : undefined, 3);
+    assert.strictEqual(refused.reads(), 1);
+    const kept = flipping(10, 1);
+    assert.strictEqual(admitted(kept.question, "row")?.maxDepth, 10);
+    assert.strictEqual(kept.reads(), 1);
+  });
+
+  it("E13 a subject that reads differently on a second read is read once: the subject, its attributes and its id come from one read", () => {
+    const other = subjectWith({ id: "u8", attributes: { tier: "lead" } });
+    let reads = 0;
+    const question: Question = {
+      ...questionOf(subject, P.hasRole("editor")),
+      get subject() {
+        reads += 1;
+        return reads === 1 ? subject : other;
+      },
+    };
+    const environment = admitted(question, "asked");
+    assert.strictEqual(environment?.subject, subject);
+    assert.strictEqual(environment?.matcherContext.subject, subject.attributes);
+    assert.strictEqual(environment?.matcherContext.subjectId, "u7");
+    assert.strictEqual(reads, 1);
   });
 });

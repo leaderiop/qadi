@@ -12,7 +12,9 @@
  * `TestLayers.test.ts` had it, which core's own `stryker` run cannot see.
  */
 import { assert, describe, it } from "@effect/vitest";
+import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
 import { makeSubject } from "../src/AuthSubject.ts";
 import {
   CustomPredicate,
@@ -20,6 +22,7 @@ import {
   customPredicateFromRecord,
 } from "../src/CustomPredicate.ts";
 import { CustomPredicateError } from "../src/Errors.ts";
+import { evaluate } from "../src/Evaluate.ts";
 import { hasCustom } from "../src/Policy.ts";
 import { enforceProjected, enforceProjectedLoaded } from "../src/Qadi.ts";
 import { subjectWith, testLayer } from "./helpers.ts";
@@ -81,6 +84,37 @@ describe("customPredicateFromRecord", () => {
 
       assert.strictEqual(error._tag, "CustomPredicateError");
       assert.strictEqual(error.name, "noSuchPredicate");
+    }));
+
+  // `table[name]` answers an inherited member for these five names: the call
+  // then dies or crashes the fiber instead of failing as unregistered
+  // (OPND-01, T-53-06). Both entry points are asked: the port directly and
+  // `evaluate`'s `HasCustom` leaf.
+  it.effect("fails as unregistered, never dies, on a name the table does not own", () =>
+    Effect.gen(function* () {
+      const layer = customPredicateFromRecord({ isOwner: () => Effect.succeed(true) });
+      for (const name of ["constructor", "toString", "__proto__", "hasOwnProperty", "valueOf"]) {
+        const exits: ReadonlyArray<Exit.Exit<unknown, unknown>> = [
+          yield* Effect.exit(
+            CustomPredicate.evaluate(name, alice, undefined, undefined).pipe(Effect.provide(layer)),
+          ),
+          yield* Effect.exit(
+            evaluate(hasCustom(name)).pipe(
+              Effect.provide(testLayer(subjectWith({}), { CustomPredicate: layer })),
+            ),
+          ),
+        ];
+        for (const exit of exits) {
+          assert.isTrue(Exit.isFailure(exit), name);
+          if (!Exit.isFailure(exit)) continue;
+          assert.isFalse(Cause.hasDies(exit.cause), name);
+          const error = Cause.squash(exit.cause);
+          assert.instanceOf(error, CustomPredicateError, name);
+          if (!(error instanceof CustomPredicateError)) continue;
+          assert.strictEqual(error.name, name);
+          assert.strictEqual(error.reason, "no predicate is registered under this name");
+        }
+      }
     }));
 
   it.effect("forwards the registered predicate's own failure unchanged", () =>

@@ -24,15 +24,15 @@ import type { CompareOp } from "./Compare.ts";
 import type { AuthSubject } from "./AuthSubject.ts";
 import { CurrentSubject } from "./CurrentSubject.ts";
 import type { DecisionHistory } from "./DecisionHistory.ts";
-import type { ActedResult } from "./DecisionHistory.ts";
 import type { AttributeResolveError, DecisionHistoryUnavailable } from "./Errors.ts";
 import type { MissingAction } from "./Errors.ts";
 import { PolicyNotTranslatable } from "./Errors.ts";
 import { predicatesTranslatedTotal } from "./EvaluationMetrics.ts";
 import type { Matcher, MatcherContext, ValueRef } from "./Matcher.ts";
-import { evaluateMatcher, getByPath, referencesResource } from "./Matcher.ts";
-import { absenceOf, errorOf, holdsAction, holdsPermission, holdsRole } from "./LeafNeeds.ts";
-import type { ActionAbsence, Supplied } from "./LeafNeeds.ts";
+import { referencesResource } from "./Matcher.ts";
+import { getByPath, ownValue } from "./Operand.ts";
+import { LEAF_VERDICTS, absenceOf, errorOf, isHeld } from "./LeafNeeds.ts";
+import type { ActionAbsence } from "./LeafNeeds.ts";
 import { fieldsOf, foldPolicy, foldPolicyCases } from "./Policy.ts";
 import { askActed, isAnyActedLeaf, readAttribute } from "./PortAccess.ts";
 import type { AnyActedLeaf } from "./PortAccess.ts";
@@ -121,14 +121,16 @@ const negate = (predicate: Predicate): Predicate => {
 };
 
 /*
- * Module-local bindings of `Compare.ts`'s verdicts, read once at load:
- * `evaluatePredicate` runs once per node per row, and under a module runner
- * that turns imported bindings into getters a direct call pays one per leaf
- * per row (the same measurement that put them in `Matcher.ts`, ARCH-08 T8).
+ * Module-local bindings of `Compare.ts`'s verdicts and `Operand.ts`'s own-property
+ * read, read once at load: `evaluatePredicate` runs once per node per row, and
+ * under a module runner that turns imported bindings into getters a direct call
+ * pays one per leaf per row (the same measurement that put them in `Matcher.ts`,
+ * ARCH-08 T8).
  */
 const compareLocal = compareVerdict;
 const memberLocal = memberVerdict;
 const holdsLocal = holds;
+const ownValueLocal = ownValue;
 
 /**
  * The reference semantics of a predicate, applied to one row.
@@ -160,8 +162,8 @@ const dispatchPredicate: (self: Predicate) => (row: Row) => boolean = Match.type
   Match.tagsExhaustive({
     True: () => (_row: Row) => true,
     False: () => (_row: Row) => false,
-    Compare: (p) => (row: Row) => holdsLocal(compareLocal(p.op, row[p.column], p.value)),
-    MemberOf: (p) => (row: Row) => holdsLocal(memberLocal(row[p.column], p.values)),
+    Compare: (p) => (row: Row) => holdsLocal(compareLocal(p.op, ownValueLocal(row, p.column), p.value)),
+    MemberOf: (p) => (row: Row) => holdsLocal(memberLocal(ownValueLocal(row, p.column), p.values)),
     And: (p) => (row: Row) => p.predicates.every((inner) => evaluatePredicate(inner, row)),
     Or: (p) => (row: Row) => p.predicates.some((inner) => evaluatePredicate(inner, row)),
     Negate: (p) => (row: Row) => !evaluatePredicate(p.predicate, row),
@@ -301,11 +303,7 @@ type Plan =
   | { readonly _tag: "Constant"; readonly value: boolean }
   | { readonly _tag: "Column"; readonly predicate: Predicate }
   | { readonly _tag: "AskAttribute"; readonly leaf: LeafOf["HasAttribute"] }
-  | {
-      readonly _tag: "AskActed";
-      readonly wanted: ActedResult;
-      readonly leaf: AnyActedLeaf;
-    }
+  | { readonly _tag: "AskActed"; readonly leaf: AnyActedLeaf }
   | { readonly _tag: "NeedAction"; readonly absence: ActionAbsence }
   | { readonly _tag: "Conjunction"; readonly plans: ReadonlyArray<Plan> }
   | {
@@ -345,7 +343,8 @@ const refused = (policyTag: string, reason: string): Compiled => new Refusal(pol
  *
  * Every property of the *tree* is decided here: whether a node is in the
  * translatable subset (`PolicyNotTranslatable`, BEH-QD-123) and, by the
- * {@link Admitted} proof it demands, whether it is too deep. None of it
+ * {@link Admitted} proof it demands (which carries the policy it admitted, and
+ * this walks that one), whether it is too deep. None of it
  * depends on the subject's attributes, the action, or what any port answers, so
  * a policy that refuses for one caller refuses for all of them — it cannot work
  * for an admin in development and fail in production. The first refusal in
@@ -354,12 +353,14 @@ const refused = (policyTag: string, reason: string): Compiled => new Refusal(pol
  * What is *not* decided here is what depends on the request and the stores: an
  * absent action becomes a `NeedAction` node and fails only if `run` reaches it
  * (INV-QD-011), exactly as the evaluator fails only on reach.
+ *
+ * It reads the walk environment admission built for a row (`Admitted<"row">`): the
+ * row is the resource, so it is supplied by type rather than by a literal here
+ * (ADR-QD-172).
  */
-const compileTree = (admitted: Admitted): Compiled => {
-  const { policy, subject, action } = admitted.question;
-  const context = admitted.matcherContext;
-  // A predicate filters rows, so the resource is the row and is always present.
-  const supplied: Supplied<true> = { action: action !== undefined, resource: true };
+const compileTree = (admitted: Admitted<"row">): Compiled => {
+  const { subject, supplied, matcherContext: context } = admitted;
+  const { action } = context;
 
   /** Plans every folded child in order, stopping at the first refusal. */
   const plansOf = (folded: ReadonlyArray<Compiled>): ReadonlyArray<Plan> | Refusal => {
@@ -378,11 +379,7 @@ const compileTree = (admitted: Admitted): Compiled => {
    */
   const history = (leaf: LeafOf["HasActed"] | LeafOf["HasNotActed"]): Compiled =>
     isAnyActedLeaf(leaf)
-      ? planned({
-          _tag: "AskActed",
-          wanted: leaf._tag === "HasActed" ? "Acted" : "NotActed",
-          leaf,
-        })
+      ? planned({ _tag: "AskActed", leaf })
       : refused(leaf._tag, "a resource-scoped history question is keyed by the row");
 
   /**
@@ -392,15 +389,15 @@ const compileTree = (admitted: Admitted): Compiled => {
    * because the arms close over the subject, the action and the matcher context.
    */
   const cases: PolicyCases<Compiled> = {
-    HasRole: (p) => planned({ _tag: "Constant", value: holdsRole(subject, p) }),
+    HasRole: (p) => planned({ _tag: "Constant", value: isHeld(LEAF_VERDICTS.HasRole(p, subject)) }),
 
-    HasPermission: (p) => planned({ _tag: "Constant", value: holdsPermission(subject, p) }),
+    HasPermission: (p) => planned({ _tag: "Constant", value: isHeld(LEAF_VERDICTS.HasPermission(p, subject)) }),
 
     HasAction: (p) => {
       const absent = absenceOf(p, supplied);
       return absent !== undefined
         ? planned({ _tag: "NeedAction", absence: absent })
-        : planned({ _tag: "Constant", value: holdsAction(p, action) });
+        : planned({ _tag: "Constant", value: isHeld(LEAF_VERDICTS.HasAction(p, action)) });
     },
 
     HasAttribute: (p) => {
@@ -507,7 +504,7 @@ const compileTree = (admitted: Admitted): Compiled => {
   // child is compiled before its parent, which is harmless because compiling is
   // pure, and the first refusal in declaration order still wins because
   // `plansOf` takes the first one it meets in `childrenOf`'s order.
-  return foldPolicyCases(policy, cases);
+  return foldPolicyCases(admitted.policy, cases);
 };
 
 /**
@@ -586,11 +583,11 @@ const run = (
       Column: (p) => Effect.succeed(p.predicate),
       AskAttribute: (p) =>
         Effect.map(readAttribute("toPredicate", subject, p.leaf), (value) =>
-          constant(evaluateMatcher(p.leaf.matcher, value, context)),
+          constant(isHeld(LEAF_VERDICTS.HasAttribute(p.leaf, value, context))),
         ),
       AskActed: (p) =>
         Effect.map(askActed("toPredicate", subject, p.leaf, undefined), (answer) =>
-          constant(answer === p.wanted),
+          constant(isHeld(LEAF_VERDICTS[p.leaf._tag](answer))),
         ),
       NeedAction: (p) => Effect.fail(errorOf(p.absence)),
       // Suspended: building the child eagerly recursed natively once per `Not`
@@ -664,7 +661,7 @@ export const toPredicate = Effect.fn("qadi.toPredicate")(function* (
   // Admission first, and from the policy alone: a policy that is both too deep
   // and field-restricting is always `PolicyTooDeep`, independent of child order
   // (ARCH-02 D-02-e, N4; INV-QD-037). Shared with `walk` (`Admission.ts`).
-  const admitted = admit(question);
+  const admitted = admit(question, "row");
   if (Result.isFailure(admitted)) return yield* Effect.fail(admitted.failure);
   if (restrictsFields(policy)) {
     return yield* untranslatable(

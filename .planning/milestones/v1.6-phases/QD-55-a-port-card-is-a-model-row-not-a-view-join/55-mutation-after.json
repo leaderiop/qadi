@@ -1,0 +1,163 @@
+{
+ "counts": {
+  "packages/devtools/src/model/DockModel.ts": {
+   "killed": 145,
+   "timeout": 0,
+   "survived": 0,
+   "noCoverage": 0,
+   "ignored": 2
+  },
+  "packages/devtools/src/model/PortCards.ts": {
+   "killed": 126,
+   "timeout": 0,
+   "survived": 0,
+   "noCoverage": 0,
+   "ignored": 14
+  },
+  "packages/devtools/src/model/Wiring.ts": {
+   "killed": 48,
+   "timeout": 0,
+   "survived": 0,
+   "noCoverage": 0,
+   "ignored": 4
+  }
+ },
+ "ignored": {
+  "packages/devtools/src/model/DockModel.ts": [
+   {
+    "mutator": "ArrayDeclaration",
+    "line": 122,
+    "column": 39,
+    "replacement": "[\"Stryker was here\"]"
+   },
+   {
+    "mutator": "StringLiteral",
+    "line": 125,
+    "column": 40,
+    "replacement": "\"\""
+   }
+  ],
+  "packages/devtools/src/model/PortCards.ts": [
+   {
+    "mutator": "StringLiteral",
+    "line": 111,
+    "column": 29,
+    "replacement": "\"\""
+   },
+   {
+    "mutator": "ArrayDeclaration",
+    "line": 118,
+    "column": 43,
+    "replacement": "[\"Stryker was here\"]"
+   },
+   {
+    "mutator": "StringLiteral",
+    "line": 130,
+    "column": 16,
+    "replacement": "\"\""
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 130,
+    "column": 31,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "StringLiteral",
+    "line": 131,
+    "column": 16,
+    "replacement": "\"\""
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 131,
+    "column": 26,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "StringLiteral",
+    "line": 132,
+    "column": 16,
+    "replacement": "\"\""
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 142,
+    "column": 27,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 240,
+    "column": 15,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ObjectLiteral",
+    "line": 260,
+    "column": 24,
+    "replacement": "{}"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 261,
+    "column": 16,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 262,
+    "column": 13,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 264,
+    "column": 7,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 278,
+    "column": 26,
+    "replacement": "() => undefined"
+   }
+  ],
+  "packages/devtools/src/model/Wiring.ts": [
+   {
+    "mutator": "ArrowFunction",
+    "line": 128,
+    "column": 17,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 216,
+    "column": 16,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 219,
+    "column": 18,
+    "replacement": "() => undefined"
+   },
+   {
+    "mutator": "ArrowFunction",
+    "line": 226,
+    "column": 18,
+    "replacement": "() => undefined"
+   }
+  ]
+ },
+ "measured": {
+  "packages/devtools/src/model/DockModel.ts": 1,
+  "packages/devtools/src/model/PortCards.ts": 1,
+  "packages/devtools/src/model/Wiring.ts": 1
+ },
+ "survivors": {
+  "packages/devtools/src/model/DockModel.ts": [],
+  "packages/devtools/src/model/PortCards.ts": [],
+  "packages/devtools/src/model/Wiring.ts": []
+ }
+}

@@ -5,14 +5,32 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-097                                   |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-10-08                                     |
-> | Status         | Accepted — amends ADR-QD-045, ADR-QD-046, ADR-QD-047, ADR-QD-050; amended 2026-10-06 (bare frames refused); amended 2026-10-07 (the protocol words are core's); amended 2026-11-10 (the stream's order and cursor are core's) |
+> | Status         | Accepted — amends ADR-QD-045, ADR-QD-046, ADR-QD-047, ADR-QD-050; amended 2026-10-06 (bare frames refused); amended 2026-10-07 (the protocol words are core's); amended 2026-11-10 (the stream's order and cursor are core's); amended 2026-11-19 (a stored record is its envelope in memory too) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.4 (2026-11-10): amended — the stream's order and cursor are @qadi/core's codec-free DecisionStream.ts (encodeDecisionStream, decodeDecisionStream); backlog frames travel in cursor order; @qadi/http's frame, syncedFrame and decisionFrames removed (ARCH-60, BEH-QD-349, INV-QD-250, CCR-QD-397)<br>1.3 (2026-10-08): Document ID corrected from `QADI-ADR-904` to `QADI-ADR-097`; `verify-traceability.sh` now refuses an ADR whose Document ID disagrees with its file number (ARCH-45, CCR-QD-268)<br>1.2 (2026-10-07): amended — the protocol words D-11-f names are declared in `@qadi/core` (ARCH-28, CCR-QD-195)<br>1.1 (2026-10-06): amended — 0.11.0 reads only `{ environment, record }` envelopes: `legacyEnvironment` and `DecodeStoredRecordOptions` removed as D-11-e scheduled, and `sourceFromEventSource` no longer treats a `message` before `synced` as an older server (CCR-QD-182)<br>1.0 (2026-10-05): Initial release (ARCH-11, CCR-QD-181) |
+> | Change History | 1.5 (2026-11-19): amended: a stored record is its envelope in memory too; the stamp, stampRecord and the Stored* classes are removed (ADR-QD-171, ARCH-105, CCR-QD-449)<br>1.4 (2026-11-10): amended — the stream's order and cursor are @qadi/core's codec-free DecisionStream.ts (encodeDecisionStream, decodeDecisionStream); backlog frames travel in cursor order; @qadi/http's frame, syncedFrame and decisionFrames removed (ARCH-60, BEH-QD-349, INV-QD-250, CCR-QD-397)<br>1.3 (2026-10-08): Document ID corrected from `QADI-ADR-904` to `QADI-ADR-097`; `verify-traceability.sh` now refuses an ADR whose Document ID disagrees with its file number (ARCH-45, CCR-QD-268)<br>1.2 (2026-10-07): amended — the protocol words D-11-f names are declared in `@qadi/core` (ARCH-28, CCR-QD-195)<br>1.1 (2026-10-06): amended — 0.11.0 reads only `{ environment, record }` envelopes: `legacyEnvironment` and `DecodeStoredRecordOptions` removed as D-11-e scheduled, and `sourceFromEventSource` no longer treats a `message` before `synced` as an older server (CCR-QD-182)<br>1.0 (2026-10-05): Initial release (ARCH-11, CCR-QD-181) |
 
 ---
+
+> **Amendment (2026-11-19, a stored record is its envelope in memory too — ARCH-105,
+> CCR-QD-449):** [ADR-QD-171](./171-a-stored-record-is-its-envelope-in-memory-too.md)
+> makes D-11-e true in memory as well as on the wire. The sections below stay as
+> history; what is now true of four of them:
+>
+> - **D-11-a:** the "prototype-preserving stamp" is the envelope `append` builds,
+>   `new StoredRecord({ environment, record })`. There is no stamp, and nothing
+>   spreads a record, so there is no prototype to preserve.
+> - **D-11-b:** `stampRecord` and the `Stored*` types are removed, not kept.
+>   `StoredRecord` is the envelope class, and `StoredDecisionRecord`,
+>   `StoredObligationRecord` and `Stamped` are gone with no alias.
+> - **D-11-e:** the decode places the producer's label beside the record, in a
+>   `StoredRecord`, and devtools states none. It no longer stamps a flattened
+>   record.
+> - **D-11-h:** `DecisionRecord.ts` holds `StoredRecord`, `sinkRecordOrder` and
+>   `storedRecordOrder`: the INV-QD-039 rule over a record and the same rule over
+>   an envelope (`Order.mapInput` of the first), each reader ordering what it holds.
 
 > **Amendment (2026-11-10, the stream's order and cursor are core's — ARCH-60,
 > CCR-QD-397):** the order D-11-f gives the stream — `backlog` frames, one

@@ -8,7 +8,9 @@
  * `Effect.runSync`, and the only host that did wrote it twice and got the
  * stateful read wrong. It lives here, in the headless model, for the reason
  * `TimelineStore.ts` gives for the decision log: held to the model's coverage
- * bar and mutated by the gate, and available to any shell that is not React.
+ * bar and mutated by the gate. It is the engine the diagnostics feed runs,
+ * package-private (ADR-QD-099): a shell builds `makeDiagnosticsFeed`, which
+ * watches the run and states a stop (ADR-QD-173).
  *
  * **Pull, not push.** Nothing here adds a write to the evaluation's hot path
  * for a debug view (BEH-QD-216, ADR-QD-052). The metrics and the context are
@@ -58,7 +60,10 @@ import { portActivity, wiringReport, type PortActivity, type WiringReport } from
 export type WiringRead = Data.TaggedEnum<{
   /** No layer was handed over, so there is nothing to read the wiring from. */
   NotHanded: {};
-  /** The handed layer failed to build; the other reads keep sampling. */
+  /**
+   * The handed layer failed to build; the other reads keep sampling. `reason` is `Cause.pretty`
+   * of the build failure, a trace for the host's own process: it must not cross a trust boundary.
+   */
   Failed: { readonly reason: string };
   /** The report, read from the built layer. */
   Read: { readonly report: WiringReport };
@@ -74,7 +79,10 @@ export interface Diagnostics {
   readonly hydration: HydrationActivity | undefined;
   /** `undefined` when no collector was handed over. */
   readonly portCalls: PortCallLog | undefined;
-  /** `undefined` when no question source was handed over. */
+  /**
+   * `undefined` unless a supplied reading carries questions: the poll samples none, since the
+   * gates feed reads the questions thunk (ADR-QD-169).
+   */
   readonly questions: ReadonlyArray<AskedQuestionLike> | undefined;
 }
 
@@ -182,59 +190,67 @@ export const makeDiagnosticsStore = (): DiagnosticsStore => {
 /** How often the dock samples by default: a debug affordance's refresh rate. */
 export const DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS = 2_000;
 
-export interface DiagnosticsOptions<ROut = never, E = never> {
+/**
+ * What a host hands over to have its diagnostics sampled: things it already
+ * owns, and no Effects.
+ *
+ * Gates and questions are not here. They are the gates feed's inputs
+ * (`GatesFeedInputs.gates` and `GatesFeedInputs.questions`, `makeGatesFeed`), which reads them
+ * (ADR-QD-162, ADR-QD-169).
+ */
+export interface DiagnosticsOptions {
   /**
    * The application's layer, read for the wiring report.
    *
-   * Built once per run. See the module comment for what that does not share.
+   * Built once while the poll runs, and released when it stops. It is its own
+   * build, so a service that keeps state in its constructor is shared with
+   * the application only if the host shares it by value: build its context once
+   * and pass that context here and to the atoms as one value. Under a
+   * `QadiProvider`, hand `useDevtoolsFeed()`'s `diagnostics` from `@qadi/react`
+   * instead: its layer is the provider's own build, so nothing needs sharing.
+   *
+   * Typed `Layer<never, unknown>` because `Layer` is contravariant in what it
+   * provides: that is the one type every layer is assignable to.
    */
-  readonly layer?: Layer.Layer<ROut, E>;
-  /** The collector whose `layer` is wired where evaluations run. Absent: no calls are read. */
+  readonly layer?: Layer.Layer<never, unknown>;
+  /** The collector whose `layer` is wired where evaluations run, for the recent port calls. */
   readonly collector?: PortCallCollector;
   /**
-   * Where the questions asked so far come from, usually `() => atoms.asked()`.
+   * How often to sample, in milliseconds. Defaults to `DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS`.
    *
-   * A plain function, so a host needs no dependency on `@qadi/react` to pass it,
-   * and anything that can list its questions can satisfy it.
+   * A changed value restarts the poll, which is why a cadence is a number and not a `Schedule`.
    */
-  readonly questions?: () => ReadonlyArray<AskedQuestionLike>;
-  /** The cadence. Defaults to `Schedule.spaced(DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS)`. */
-  readonly schedule?: Schedule.Schedule<unknown>;
+  readonly intervalMillis?: number;
 }
 
 /**
  * Samples the diagnostics into a store until interrupted.
  *
- * Reads once at the start and then once per schedule step. The error channel is
+ * Reads once at the start and then once per `intervalMillis`. The error channel is
  * `never`: a layer that fails to build is reported as `WiringRead.Failed` while
  * the other reads carry on, because a run that died would leave every panel
- * blank. A defect in a sample, such as a throwing `questions`, ends the run as
- * it ends `runSource`.
+ * blank. A defect in a sample, such as a collector whose snapshot throws, ends the
+ * run as it ends `runSource`.
  */
-export const runDiagnostics = Effect.fn("qadi.devtools.runDiagnostics")(function* <
-  ROut = never,
-  E = never,
->(store: DiagnosticsStore, options?: DiagnosticsOptions<ROut, E>) {
+export const runDiagnostics = Effect.fn("qadi.devtools.runDiagnostics")(function* (
+  store: DiagnosticsStore,
+  options?: DiagnosticsOptions,
+) {
   yield* Effect.scoped(
     Effect.gen(function* () {
       const wiring: Effect.Effect<WiringRead> = yield* wiringReader(options?.layer);
       const portCalls: Effect.Effect<PortCallLog | undefined> =
         options?.collector === undefined ? Effect.undefined : options.collector.snapshot;
-      const questionsThunk = options?.questions;
-      const questions: Effect.Effect<ReadonlyArray<AskedQuestionLike> | undefined> =
-        questionsThunk === undefined ? Effect.undefined : Effect.sync(questionsThunk);
-
       const sample = Effect.all({
         wiring,
         activity: portActivity,
         hydration: hydrationActivity,
         portCalls,
-        questions,
-      }).pipe(Effect.tap((reading) => Effect.sync(() => store.accept(reading))));
+      }).pipe(Effect.tap((reading) => Effect.sync(() => store.accept({ ...reading, questions: undefined }))));
 
       yield* Effect.repeat(
         sample,
-        options?.schedule ?? Schedule.spaced(DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS),
+        Schedule.spaced(options?.intervalMillis ?? DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS),
       );
     }),
   );
@@ -246,8 +262,8 @@ export const runDiagnostics = Effect.fn("qadi.devtools.runDiagnostics")(function
  * A build that failed is a constant `Failed` reading, so every sample states
  * the same reason instead of retrying a build the host did not ask to retry.
  */
-const wiringReader = Effect.fn("qadi.devtools.wiringReader")(function* <ROut, E>(
-  layer: Layer.Layer<ROut, E> | undefined,
+const wiringReader = Effect.fn("qadi.devtools.wiringReader")(function* (
+  layer: Layer.Layer<never, unknown> | undefined,
 ) {
   if (layer === undefined) return Effect.succeed<WiringRead>(WiringRead.NotHanded());
   const built = yield* Effect.exit(Layer.build(layer));

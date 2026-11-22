@@ -6,11 +6,18 @@
  * variant's shape. So
  * a row that disagrees with its leaf does not compile, and neither does any row for
  * a leaf no list names yet. `absenceOf`'s guards trust the table; without this a
- * wrong row compiled and failed open.
+ * wrong row compiled and failed open. The verdict rows are pinned the same way.
  */
 import { expect, test } from "tstyche";
-import { LEAF_NEEDS } from "../src/LeafNeeds.ts";
-import type { LeafNeedOf, LeafNeedOfVariant } from "../src/LeafNeeds.ts";
+import type { ActedResult } from "../src/DecisionHistory.ts";
+import { LEAF_NEEDS, LEAF_VERDICTS } from "../src/LeafNeeds.ts";
+import type {
+  ActedOutcome,
+  LeafNeedOf,
+  LeafNeedOfVariant,
+  LeafVerdictOf,
+  LeafVerdicts,
+} from "../src/LeafNeeds.ts";
 import type { Matcher } from "../src/Matcher.ts";
 
 test("own is the classification of the variant's tag", () => {
@@ -101,4 +108,27 @@ test("a leaf no classification names has no row", () => {
     matcher: true,
     resourceId: "Never",
   } as const);
+});
+
+test("the two acted rows have one type, and an acted row cannot answer NotHeld", () => {
+  expect<LeafVerdictOf<"HasActed">>().type.toBe<(answer: ActedResult) => ActedOutcome>();
+  expect<LeafVerdictOf<"HasNotActed">>().type.toBe<LeafVerdictOf<"HasActed">>();
+  expect<LeafVerdictOf<"HasActed">>().type.not.toBeAssignableFrom(
+    (_answer: ActedResult) => "NotHeld" as const,
+  );
+});
+
+test("an attribute row returns a verdict, not a boolean", () => {
+  expect<LeafVerdictOf<"HasAttribute">>().type.not.toBeAssignableFrom(
+    (_leaf: unknown, _value: unknown, _context: unknown) => true,
+  );
+});
+
+test("a tag that is not a leaf has no row", () => {
+  expect<LeafVerdictOf<"NotALeaf">>().type.toBe<never>();
+});
+
+test("a record missing a row is refused, and the record is one", () => {
+  expect<LeafVerdicts>().type.not.toBeAssignableFrom<Omit<LeafVerdicts, "HasCustom">>();
+  expect<typeof LEAF_VERDICTS>().type.toBeAssignableTo<LeafVerdicts>();
 });
