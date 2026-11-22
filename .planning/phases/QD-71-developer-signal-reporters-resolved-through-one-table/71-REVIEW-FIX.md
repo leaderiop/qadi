@@ -1,276 +1,106 @@
 ---
 phase: QD-71-developer-signal-reporters-resolved-through-one-table
-fixed_at: 2026-11-22T19:05:00Z
+fixed_at: 2026-11-22T21:00:00Z
 review_path: .planning/phases/QD-71-developer-signal-reporters-resolved-through-one-table/71-REVIEW.md
-iteration: 1
-findings_in_scope: 13
-fixed: 13
+iteration: 2
+findings_in_scope: 6
+fixed: 6
 skipped: 0
 status: all_fixed
 ---
 
-# Phase QD-71: Code Review Fix Report
+# Phase QD-71: Code Review Fix Report (iteration 2)
 
-**Fixed at:** 2026-11-22T19:05:00Z
-**Source review:** `.planning/phases/QD-71-developer-signal-reporters-resolved-through-one-table/71-REVIEW.md`
-**Iteration:** 1
+**Fixed at:** 2026-11-22T21:00:00Z
+**Source review:** .planning/phases/QD-71-developer-signal-reporters-resolved-through-one-table/71-REVIEW.md
+**Iteration:** 2
 
 **Summary:**
-- Findings in scope: 13 (7 warnings, 6 info, `fix_scope: all`; IN-05 is the necessity finding)
-- Fixed: 13
+- Findings in scope: 6 (fix scope `all`)
+- Fixed: 6
 - Skipped: 0
 
-**Where verification ran:** the main checkout. `workflow.use_worktrees` is `false` in
-`.planning/config.json`, so no worktree, temp branch or recovery sentinel was created and the
-commits are on `arch-wave-13` directly.
-
-**Gates after the last commit (`9fd8b58b`), all green:** `vitest run --project react` (625
-passed), `pnpm typecheck`, `pnpm test:tstyche` (68 files, 366 passed, 2 skipped),
-`node scripts/check-house-style.mjs` (568 files clean), `node scripts/check-doc-examples.mjs`
-(118 blocks), `node scripts/check-api-surface.mjs` (941 exports, barrel unchanged),
-`node scripts/spec-revise.mjs --check`, `bash spec/scripts/verify-traceability.sh --strict`
-(PASS 21, FAIL 0, SKIP 0, run after the spec edits and before the last two style commits,
-which touch no spec file), and `pnpm exec oxlint` on every touched file. The one oxlint
-warning is `QadiAtoms.ts:325` (`no-unused-vars` on `_`), which is not in any line this loop
-touched.
-
-Mutation was not run (the orchestrator re-closes it). Every change in `DeveloperSignals.ts`,
-`GateRegistry.ts`, `GateWriter.ts`, `QadiAtoms.ts` and `HydrationEngine.ts` was checked for a
-mutant no test can kill; see WR-01 and IN-02. `71-mutation-base.json`,
-`71-mutation-close.json` and `71-mutation.mjs` are untouched.
+Edits and commits ran in the main checkout: `workflow.use_worktrees` is `false`.
 
 ## Fixed Issues
 
-### WR-01: The environment gate for `InstrumentedInProduction` was written twice
+### WR-01: A timed-out scan leaves its TypeScript server running
 
-**Status:** fixed: requires human verification (a condition, not syntax)
-**Files modified:** `packages/react/src/DeveloperSignals.ts`, `packages/react/src/QadiProvider.tsx`,
-`packages/react/test/DeveloperSignals.tst.ts`, `packages/react/test/DeveloperSignals.test.ts`
-**Commits:** `6c22f886` (source and type pins), `fa0807d5` (run-time tests)
-**Applied fix:** one function reads a row's environment condition, `holdsHere(row)`, exported
-from `DeveloperSignals.ts` (the module stays out of the barrel). `reporterFor` asks it whether a
-default speaks, and `QadiProvider` asks it of `SIGNALS.InstrumentedInProduction`, so the
-provider no longer imports `isDevelopment` or writes `!isDevelopment()`. `isDevelopment` is
-un-exported. Behaviour is as the characterisation pins it: raised only in production, a supplied
-`onDeveloperSignal` told once per mount and only then, the console default latched once per
-process.
+**Files modified:** `scripts/lib/typescript-server-child.mjs` (new), `scripts/lib/probe-guard-parse.mjs`, `scripts/lib/module-state-scan.mjs`, `scripts/check-package-install.mjs`, `scripts/check-house-style.mjs`, `spec/decisions/033-the-packed-artifact-is-the-product.md` (Rev 1.9)
+**Commit:** c67231d8
+**Applied fix:** Per the owner's direction the precedent's machinery is extracted, not copied. `scripts/lib/typescript-server-child.mjs` exports `nameServerPids()` (child side: `pgrep -P`, writes `server pids: …` to stderr), `runTypescriptChild(script, args, { cwd, timeoutMs })` (parent side: `execFileSync` with `stdio: "pipe"`, and on a signal-killed child it SIGKILLs the pids named on stderr, then rethrows), `failureCause(error, timeoutMs)` (the old `why()`) and `installedTypescriptVersion(root)`. `probe-guard-parse.mjs` and the new `module-state-scan.mjs` call `nameServerPids()` after `new API(...)`; `check-package-install.mjs` (`why` is now a one-line delegate, the probe-guard call and its inline kill loop are replaced) and `check-house-style.mjs` both call `runTypescriptChild`. Both gates still fail closed. ADR-QD-033's CCR-QD-460 amendment gained a paragraph saying the start, kill and failure text are one module shared with the scan, so the text stays accurate; CCR-QD-460's own row is history and is unchanged.
 
-**Design choice (no second condition in the table).** The table did not need a second field to
-separate "where the signal is raised" from "where the default speaks": for this row they are one
-condition, because the situation (instrumentation reaching a production bundle) exists only
-where the default speaks. Two fields would have been the rule written twice again, so the
-`speaks` doc now says that `QadiProvider` also reads it for this row.
+### WR-02: A failed scan reports a command line, not its cause
 
-**New run-time pins:** "InstrumentedInProduction's default is silent in development, whoever
-asks" and "a row's condition holds in the environment it names and in no other", both in
-`DeveloperSignals.test.ts`. The provider-level "does not call InstrumentedInProduction in
-development" already existed in `QadiProvider.signals.test.tsx`.
+**Files modified:** same commit as WR-01 (`scripts/check-house-style.mjs`, `scripts/lib/typescript-server-child.mjs`)
+**Commit:** c67231d8
+**Applied fix:** The scan's `catch` now prints `could not read library source with typescript@<installed>'s unstable API, which a TypeScript upgrade can move: <cause>`, where the cause is `failureCause`: `timed out after <bound> ms` (or `killed by <signal>`), then the child's stdout and stderr (the `server pids:` line is stripped), falling back to the error's message. `installedTypescriptVersion` returns `"not installed"` rather than throwing, so naming the version cannot itself fail.
 
-**The row changed to `Everywhere` on a scratch edit, then reverted** (`git status` clean after):
-- `pnpm exec vitest run --project react`: 63 failed, 562 passed, 9 test files failed. Cause:
-  `TypeError: CONDITIONS[row.speaks] is not a function`. Failing tests include
-  `DeveloperSignalReporters.test.tsx` > "an instrumented provider in development with no
-  reporter writes nothing to the console", `QadiProvider.production.test.tsx` > "warns once
-  when instrument is true outside development (ticket 153)" and `QadiProvider.signals.test.tsx`
-  > "is told InstrumentedInProduction once per mount, and the console stays quiet".
-- `pnpm typecheck`: `DeveloperSignals.ts(555,17): error TS2345` and
-  `QadiProvider.tsx(274,17): error TS2345`, because `holdsHere` and `reporterFor` take only a
-  row that has a condition.
+### IN-01: The environment swap is written three times, and `said` twice
 
-### WR-02: INV-QD-064's Source and its traceability row located the registry closure in `GateRegistry.ts`
+**Files modified:** `packages/react/test/support/environment.ts` (new), `packages/react/test/DeveloperSignals.test.ts`, `packages/react/test/DeveloperSignalReporters.test.tsx`, `packages/react/test/GateRegistry.store.test.ts`
+**Commit:** 721ccf7e
+**Applied fix:** `Environment`, `environments`, `inEnvironment` and `said` live in `support/environment.ts` beside `reporterThrew.ts`. All three files import them. `GateRegistry.store.test.ts`'s `collide` is now `inEnvironment` plus `said`, and `DeveloperSignals.test.ts`'s `useProduction` (a fourth copy of the swap, three call sites) became `inEnvironment("production", …)`; its local partial application, which would have shadowed the import, is renamed `here`. `saidOnly` in the store test is an assertion helper, not a spy, and stays.
 
-**Files modified:** `spec/invariants.md`, `spec/traceability.md`
-**Commit:** `f1626bdc`
-**Applied fix:** INV-QD-064's Source names `buildGateRegistry` in `GateWriter.ts` and says
-`makeGateRegistry` and the atom set both build through it. Traceability row 240 matches. Revisions
-bumped through `scripts/spec-revise.mjs --date 2026-11-22`.
+### IN-02: `maxBuffer: 1 << 26` is an unexplained 64 MiB bound
 
-### WR-03: INV-QD-251 and its traceability row said "every resolver" and omitted `onIdCollision`
+**Files modified:** `scripts/check-house-style.mjs`
+**Commit:** c67231d8
+**Applied fix:** Deleted. The shared module passes no `maxBuffer` (Node's default); an overflow would surface as `ENOBUFS` through `failureCause`'s message fallback.
 
-**Files modified:** `spec/invariants.md`, `spec/traceability.md`
-**Commit:** `f1626bdc`
-**Applied fix:** the Source and the traceability row say the one resolver `reporterFor` wraps a
-supplied reporter once (`contain`); the list of reporters includes `onIdCollision`; the Enforcement
-says "every entry point of every row". Because IN-06 removed the older re-check probe from
-`DeveloperSignals.test.ts`, the Enforcement now points the probe at
-`DeveloperSignalReporters.test.tsx`, with its two exact titles.
+### IN-03: Lines the phase wrote past the width the codebase keeps
 
-### WR-04: `MODULE_STATE_BUDGET` read module scope as column 0
+**Files modified:** `AGENTS.md`, `scripts/check-house-style.mjs`
+**Commits:** b87e59fb (AGENTS.md), c67231d8 (the script's lines, which sit in the file commit WR-01/WR-02 edits)
+**Applied fix:** AGENTS.md section 6's module-state paragraph is rewrapped at the surrounding width (the joined sentence is split again). The four `[module-state-table]` `console.error` calls and the header-row `findIndex` are wrapped like the `[module-state]` ones above them.
 
-**Status:** fixed: requires human verification (new scan logic, checked by the plants below)
-**Files modified:** `scripts/check-house-style.mjs`, `scripts/lib/module-state-scan.mjs` (new),
-`AGENTS.md`, `spec/decisions/184-...md`, `spec/invariants.md` (INV-QD-388),
-`spec/traceability.md`
-**Commits:** `45f60628` (scan and AGENTS.md), `9fd8b58b` (wrapping), `f1626bdc` (spec)
-**Applied fix:** the line scan is gone. Every `packages/*/src` file is parsed and each `let` or
-`var` binding declared outside a function or class body is counted: `export let`, an indented
-declaration, one inside a top-level block, a loop's own `let`, and each name of `let a, b` or of a
-destructuring pattern. A `const`, a `static` field and anything a function or method declares are
-not counted, and neither is a `declare`d binding. Checked in both directions as before;
-`[module-state-names]` now requires the budgeted name to be one of the counted bindings (a latch
-turned into a `const` fails it), `[module-state-table]` is unchanged, and a file in no
-`packages/*/tsconfig.src.json` project fails `[module-state-scan]`. The script header, AGENTS.md
-section 6, ADR-QD-184 and INV-QD-388 say exactly what is counted and that `const`-held mutable
-objects are outside it.
+### IN-04: The scan skips `declare`d bindings, and no spec text says so
 
-**A deviation from the review's snippet, and why.** The review used `ts.createSourceFile`. The
-repository's `typescript` is 7.0.2 (the native port): the in-process `createSourceFile` does not
-exist, and the only JS parse is `typescript/unstable/sync`'s `API`, which starts a server and has
-no timeout of its own. The scan therefore follows `scripts/lib/probe-guard-parse.mjs`'s
-precedent: a child process under a 120 s timeout, started by `execFileSync`. It opens the nine
-`packages/*/tsconfig.src.json` projects and parses the listed files. The gate now takes about
-3.6 s instead of 0.6 s. If TypeScript later brings a standalone parser back, only
-`module-state-scan.mjs` changes.
+**Files modified:** `AGENTS.md` (section 6), `spec/decisions/184-developer-signal-reporters-are-resolved-through-one-table.md` (Rev 1.2), `spec/invariants.md` (Rev 1.176, INV-QD-388 Enforcement), `spec/README.md` (Rev 1.288, CCR-QD-463's row), `scripts/lib/module-state-scan.mjs` and `scripts/check-house-style.mjs` (comments)
+**Commits:** b87e59fb (docs), c67231d8 (script comments)
+**Applied fix:** Each of the three statements lists "no `declare`d binding" among the exclusions with the reason: it states a type for a global and declares no runtime binding of the module. The scan's header also now says a `let` in a `namespace` body counts. Revisions bumped only through `scripts/spec-revise.mjs --date 2026-11-22`; CCR-QD-463's row cites ADR-184 1.2, invariants 1.176, ADR-033 1.9 (added), README 1.288, and lists the new shared module, `check-package-install.mjs`, `probe-guard-parse.mjs` and `support/environment.ts`. No id was invented.
 
-**Plants, each run against a scratch edit of `packages/core/src/Errors.ts` or
-`packages/react/src/DeveloperSignals.ts`, reverted with `git checkout --` and never committed
-(`git status` clean after each):**
+## Failure path, shown (scratch edits, all reverted, none committed)
 
-| Plant | Exit | First stderr line |
-| ----- | ---- | ----------------- |
-| indented module-scope `  let planted = 0;` | 1 | `packages/core/src/Errors.ts  [module-state] A module-scope let or var in library source: planted (line 627).` |
-| `let planted = 0;` inside a top-level `{ }` block | 1 | same, `planted (line 628)` |
-| `let planted = 0, other = 1;` (two bindings) | 1 | `... in library source: planted (line 627), other (line 627).` |
-| `export var planted = 0;` | 1 | `... in library source: planted (line 627).` |
-| column-0 `let planted = 0;` (the old plant) | 1 | `... in library source: planted (line 627).` |
-| `let [first, second] = [1, 2];` | 1 | `... in library source: first (line 627), second (line 627).` |
-| `const planted = new Map<string, number>();` (must not count) | 0 | `house-style: 568 file(s) clean ...` |
-| a `let` inside an exported arrow function (must not count) | 0 | `house-style: 568 file(s) clean ...` |
-| budgeted file gains `  let planted = 0, other = 1;` (1 becomes 3) | 1 | `packages/react/src/DeveloperSignals.ts  [module-state] declares 1 module-scope let/var binding(s), found 3: warnedInstrumentedInProduction (line 379), planted (line 557), other (line 557).` |
-| budgeted latch changed to `const` (count drops to 0) | 1 | `packages/react/src/DeveloperSignals.ts  [module-state] declares 1 module-scope let/var binding(s), found 0.`, then `[module-state-names]` |
-| budgeted latch renamed | 1 | `packages/react/src/DeveloperSignals.ts  [module-state-names] MODULE_STATE_BUDGET's reason names \`warnedInstrumentedInProduction\`, but the scan counts no such let or var binding ...` |
+Server process in this install: `.../@typescript/typescript-darwin-arm64/lib/tsc --api --cwd <repo>`. `ps` below filtered on that command line.
 
-### WR-05: INV-QD-388 contradicted itself and claimed more than the gate or the code supports
+**Forced timeout** (`MODULE_STATE_SCAN_TIMEOUT_MS` set to 1000, and in a second run a `while (true) {}` placed after `nameServerPids()`, bound 3000):
 
-**Files modified:** `spec/invariants.md`, `spec/traceability.md`, `spec/behaviors/09-react.md`
-**Commit:** `f1626bdc`
-**Applied fix:** INV-QD-388 now says the latch is the one rebindable (`let` or `var`) module-scope
-binding in library source, that it is process-wide on purpose (two providers in one process do share
-it, and it holds whether the line has been printed and no tenant or render data), and plainly that a
-module-scope `const` holding mutable state (`Policy.ts`'s depth memo, a `Metric`) is outside the
-budget's scope and outside the invariant. It is retitled to "The library holds one rebindable
-module-scope binding, the production-instrumentation latch", so its anchor changed:
-`spec/invariants.md` (INV-QD-387's Related), `spec/traceability.md` (row 211 and ADR-QD-184's row)
-and `spec/behaviors/09-react.md` (BEH-QD-694) follow it. ADR-QD-041's and ADR-QD-184's "the one
-piece of module-scope state", and AGENTS.md section 13's, say "rebindable module-scope binding" too.
+```
+scripts/lib/module-state-scan.mjs  [module-state-scan] could not read library source with typescript@7.0.2's unstable API, which a TypeScript upgrade can move: timed out after 1000 ms
+scripts/lib/module-state-scan.mjs  [module-state-scan] could not read library source with typescript@7.0.2's unstable API, which a TypeScript upgrade can move: timed out after 3000 ms
+```
+The gate exited 1 both times, and `ps` after one second showed no `tsc --api` process and no `module-state-scan` process.
 
-### WR-06: Phase-relative claims ("never edited after", "written before the table existed")
+**Missing API** (scratch: `API` read as `Api.renamedInANewRelease`):
 
-**Files modified:** `packages/react/test/DeveloperSignalReporters.test.tsx`,
-`spec/decisions/184-...md`, `spec/invariants.md` (INV-QD-387), `spec/traceability.md` (row 650)
-**Commits:** `375ef883` (the test file, in its own commit), `f1626bdc` (spec)
-**Applied fix:** the test header now says what the file pins ("Pins every reporter through its
-public entry point ... its expected values do not depend on how the resolvers are built") and that
-its rows are unchanged by ARCH-118. ADR-QD-184, INV-QD-387 and traceability row 650 say the same,
-following ADR-QD-183's "unchanged, not unedited". ADR-QD-184's Context keeps the history, where it
-belongs. In `DeveloperSignalReporters.test.tsx` no expected value changed: 33 `it(` blocks and 60
-`expect(` calls before and after, and all 35 tests pass.
+```
+scripts/lib/module-state-scan.mjs  [module-state-scan] could not read library source with typescript@7.0.2's unstable API, which a TypeScript upgrade can move: TypeError: API is not a constructor
+```
+Gate exit 1, no `tsc --api` process left. (The `[module-state] ... found 0` line that follows is the budget check running over an empty scan, as before.)
 
-### WR-07: Three tests per environment shared one title
+**Limit of that evidence, stated plainly:** this scan's request lasts about 0.5 s, and with the kill deliberately disabled no server survived a timed-out scan at any bound I tried (350 to 750 ms, and the 120 000 ms bound's behaviour is the same code path). The server only outlives its child when it is busy on a long request, which is what CCR-QD-460 saw with a 1,500-file project. So the real server cannot demonstrate that the kill matters for this scan today. What proves the kill code is a stand-in: a child that starts `sleep 300`, names its pid through `nameServerPids()` and then spins, run through `runTypescriptChild` at 1500 ms. With the shared module, no `sleep 300` survived (`ps`: 0). With the `process.kill` line disabled in a scratch copy, one survived (`ps`: 1). Failure text for that child: `timed out after 1500 ms`.
 
-**Files modified:** `packages/react/test/DeveloperSignals.test.ts`
-**Commit:** `fa0807d5`
-**Applied fix:** the title is `${row} through ${entry}'s ${option}: the throw does not propagate and
-ReporterThrew names the hook and the error only`, so `InstrumentedInProduction`, `AtomsReplaced`
-and `UnwritableGateRegistry` each have their own in both environments.
+## Verification
 
-### IN-01: `isDevelopment`'s doc comment described a mechanism that no longer exists
+Run in the main checkout (not a worktree), after the edits:
 
-**Files modified:** `packages/react/src/DeveloperSignals.ts`
-**Commit:** `6c22f886`
-**Applied fix:** the `define`-substitution reasoning for the literal `process.env.NODE_ENV` text
-and the `typeof` guard stay; the elimination claim is replaced by the fact that the condition is
-read at run time by the table, so the sentences stay in a production bundle.
+- `npx vitest run --project react`: 37 files, 625 tests pass.
+- `pnpm typecheck`: clean. `pnpm test:tstyche`: 68 files pass.
+- `node scripts/check-house-style.mjs`: clean (569 files). `node scripts/check-doc-examples.mjs`: 118 blocks compile. `node scripts/check-api-surface.mjs`: 941 exports.
+- `pnpm exec oxlint` on every touched file: only the one pre-existing `prefer-string-starts-ends-with` warning at `scripts/check-house-style.mjs:1090`, not from this phase.
+- `node scripts/spec-revise.mjs --check`: every Revision matches.
+- `bash spec/scripts/verify-traceability.sh --strict`: PASS 21, FAIL 0, SKIP 0.
+- `node scripts/check-package-install.mjs` (the full gate, run to completion, exit 0): "9 package(s) pack, resolve and authorize (526 runtime export(s))". It runs the probe-guard child through the new shared module, so the extraction is exercised end to end, not only by the scan.
 
-### IN-02: `defaultOf`'s first overload was a trusted promise; `speaksHere` was cryptic
+## Notes for the caller
 
-**Status:** fixed: requires human verification
-**Files modified:** `packages/react/src/DeveloperSignals.ts`, `packages/react/test/DeveloperSignals.tst.ts`
-**Commit:** `6c22f886`
-**Applied fix:** no overload remains, so nothing is trusted. The sound link the review asked for did
-not exist for an overload (an implementation returning `boolean` satisfies a `true` overload), so
-the condition and the "no condition" case are separated by type instead. `Speaks` is `Gated |
-"Everywhere"`. `holdsHere` and the resolver take only a `Gated` row, read through a table with
-three explicit meanings (`Development: isDevelopment`, `Production: () => !isDevelopment()`), and
-`ReporterThrew`'s default is read through `unconditionally`, whose parameter type demands
-`speaks: "Everywhere"`. A row changed to speak under a condition fails to compile in `contain`; a
-row with a condition given to `unconditionally`, or a row that speaks everywhere given to
-`holdsHere`, fails likewise.
-
-**Pin:** `DeveloperSignals.tst.ts` > "only a row with a condition is asked whether it holds":
-`@ts-expect-error holdsHere(SIGNALS.ReporterThrew)`, the positive twins on
-`InstrumentedInProduction` and `AtomsReplaced`, and the written-out `speaks` of `ReporterThrew`
-(`"Everywhere"`) and `InstrumentedInProduction` (`"Production"`). Seen failing once by editing
-`ReporterThrew`'s row to `speaks: "Development"` on a scratch edit (`Unused '@ts-expect-error'
-directive`, file `fail`), then reverted. No negative `toBeCallableWith` pin was added, so
-`NOT_CALLABLE_PIN_BUDGET` and AGENTS.md section 6's pin table are unchanged.
-
-**Mutation:** the `Everywhere` meaning is no longer a run-time arm no test reaches. A row's
-`speaks` string is read by `holdsHere` (killed by the condition tests) or compared by the
-written-out table test (`ReporterThrew`'s, which `unconditionally` does not read).
-
-### IN-03: The registry's contract paragraphs did not move with the code
-
-**Files modified:** `packages/react/src/GateRegistry.ts`, `packages/react/src/GateWriter.ts`
-**Commit:** `e6212874`
-**Applied fix:** the ordering and synchrony paragraphs are `buildGateRegistry`'s doc, where a
-yield point would be introduced; `GateWriter.ts`'s header names the builder; `GateRegistry.ts` keeps
-what documents `makeGateRegistry` and the public types, and says where the rest lives. A doubled
-blank line in `GateWriter.ts` is gone. Comments only; no code token changed.
-
-### IN-04: Lines well past the codebase's hand-wrapped width
-
-**Files modified:** `packages/react/src/DeveloperSignals.ts`, `GateRegistry.ts`, `QadiAtoms.ts`,
-`HydrationEngine.ts`, `packages/react/test/DeveloperSignalReporters.test.tsx`,
-`DeveloperSignals.test.ts`, `GateRegistry.store.test.ts`, `scripts/check-house-style.mjs`,
-`scripts/lib/module-state-scan.mjs`
-**Commits:** `6c22f886`, `fa0807d5`, `375ef883`, `e6212874`, `42396c33`, `9fd8b58b`
-**Applied fix:** every line the phase added past 100 columns, outside a test or a string title that
-cannot be wrapped, is wrapped. The characterisation was laid out with `oxfmt` at a 90-column
-`printWidth` from a scratch config (nothing under the repository changed), then its prose
-comments and header were wrapped by hand; only layout moved, in its own commit.
-
-### IN-05: The table-facts test compares the table with a verbatim copy, and `resolved` has no reader
-
-**Category:** necessity
-**Files modified:** `packages/react/test/DeveloperSignals.test.ts`, `spec/decisions/184-...md`,
-`spec/invariants.md`, `spec/behaviors/09-react.md`, `spec/behaviors/19-hydration.md`
-**Commits:** `fa0807d5`, `f1626bdc`
-**Applied fix:** `resolved` stays (locked by D-02). The test is titled "agrees with a written-out
-statement of it, row by row", and a comment on the written-out table says it is a change detector
-and that `resolved` proves nothing about timing, which "when each reporter is resolved" pins. BEH-QD-691
-and BEH-QD-695, INV-QD-387 and ADR-QD-184 say the same and quote the new titles.
-
-### IN-06: The same probe and the `threw` sentence written in more than one test file
-
-**Files modified:** `packages/react/test/support/reporterThrew.ts` (new),
-`packages/react/test/DeveloperSignals.test.ts`, `GateRegistry.store.test.ts`,
-`DeveloperSignalReporters.test.tsx`
-**Commits:** `fa0807d5`, `375ef883`
-**Applied fix:** `threw(reporter, error)` is written once, in `test/support/reporterThrew.ts`
-beside `hostile.ts`, and the three files import it (the characterisation and the store test wrap it
-as `threwBoom`/with `"Error: boom"`). The older "a throwing onHydrationMismatch on makeQadiAtoms
-still settles the re-check and counts it" probe is removed from `DeveloperSignals.test.ts`: the
-characterisation pins it in both environments, so one definition of the probe remains.
-INV-QD-251's Enforcement and traceability follow.
-
-## Notes for the orchestrator
-
-- Commits that group more than one finding, because the edits share a file: `fa0807d5` (WR-07,
-  IN-05, IN-06 and the WR-01 run-time tests in `DeveloperSignals.test.ts`) and `f1626bdc` (every
-  spec edit, which share `invariants.md` and `traceability.md`).
-- `QadiProvider.tsx` is not among the five mutation-scored files. In the five that are, the only
-  non-comment changes are `DeveloperSignals.ts` (WR-01, IN-02) and whitespace in `QadiAtoms.ts`,
-  `HydrationEngine.ts` and `GateRegistry.ts`; `GateWriter.ts` is comments only.
-- The mutation re-close should expect new mutants in `DeveloperSignals.ts` from `CONDITIONS`,
-  `holdsHere`, `unconditionally` and `defaultOf`. Each is read by a test that fails without it
-  (production silence and development silence of the defaults, the `holdsHere` truth table,
-  `ReporterThrew` announced in both environments).
-- Files not staged, per the instructions: `.planning/config.json`, `.agents/`, `.codex/`,
-  `.planning/state.json`, `*.iter*.md`. `71-REVIEW-FIX.md` is not committed.
+- Mutation: no change to `DeveloperSignals.ts`, `GateRegistry.ts`, `GateWriter.ts`, `QadiAtoms.ts` or `HydrationEngine.ts`; `71-mutation-*.json` and `71-mutation.mjs` untouched. The only test-side change is moving helpers, which adds no mutant.
+- IN-02 and IN-03's script edits are in the WR-01/WR-02 commit because they are edits to the same two files; the findings list them under their own ids above.
+- Staged nothing of `.planning/config.json`, `.agents/`, `.codex/`, `.planning/state.json` or `*.iter*.md`. REVIEW-FIX.md is not committed.
 
 ---
 
-_Fixed: 2026-11-22T19:05:00Z_
+_Fixed: 2026-11-22T21:00:00Z_
 _Fixer: Claude (gsd-code-fixer)_
-_Iteration: 1_
+_Iteration: 2_
