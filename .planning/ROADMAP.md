@@ -439,7 +439,7 @@ Order: the three live defects (69 to 71), the three deepenings (72 to 74), the c
 
 ### Phases
 
-- [ ] **Phase 69: One total thrown-value-to-message module** - Six inline copies of "caught value to message" become one total rule exported by `@qadi/core`, so a hostile thrown value can no longer escape `JsonHazard`, `PortKey`, `PortDerivation`, `PortWireEncode` or `CustomPredicate` (ARCH-116, core; live defect)
+- [x] **Phase 69: One total thrown-value-to-message module** - Six inline copies of "caught value to message" become one total rule exported by `@qadi/core`, so a hostile thrown value can no longer escape `JsonHazard`, `PortKey`, `PortDerivation`, `PortWireEncode` or `CustomPredicate` (ARCH-116, core; live defect) (completed 2026-11-22)
 - [ ] **Phase 70: Hydration's drop events come from its buckets** - `EntriesDropped` and `LeftOut` events are derived from reason-keyed records on the hydrate and dehydrate sides, so a drop reason cannot gain a bucket without its event (ARCH-117, react; live defect)
 - [ ] **Phase 71: Developer-signal reporters resolved through one table** - One table states where each signal runs, how often and what it is named, and a throwing `onIdCollision` reporter is reported under that name (ARCH-118, react; live defect)
 - [ ] **Phase 72: A derived store behind the dock model's stores** - `ExternalStore` gains a store derived from parent stores that owns key equality, stop-after-close and notify-once, and the dock model's three hand-built computed stores use it (ARCH-119, devtools)
@@ -467,7 +467,7 @@ Order: the three live defects (69 to 71), the three deepenings (72 to 74), the c
   4. ADR-QD-182 (or an amendment of ADR-QD-154) records the rule, and the invariant states that each "never throws" function stays total when the caught value is hostile.
 
 **Planning notes**: Shape: one total function, probably beside `ValueText.ts` (ADR-QD-154 unified value to text, not thrown value to text), owning the guard on both the `message` getter and `String()`. Changing the two existing placeholder strings to one is a visible text change, and the two pins move with it. Each RED regression names its site; one table test covers the function.
-**Plans**: 9/9 plans executed
+**Plans**: 9/9 plans complete
 
 Plans:
 - [x] 69-01 (W1): Measure the phase base (gate lines, the Stryker record of every touched source file in four groups, the committed scorer that tells removed mutants from a weakened test) and pin every core throw-through RED: `toJson`, `toJsonRecord`, `canonicalKey`, a derived key, the wire's encodes, SinkCodec's non-string message, the custom predicate's failure and defect, and an evaluation whose predicate dies.
@@ -620,7 +620,7 @@ Phases execute in numeric order: 69 → 70 → 71 → 72 → 73 → 74 → 75 �
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 69. One total thrown-value-to-message module | 9/9 | In Progress | - |
+| 69. One total thrown-value-to-message module | 9/9 | Complete    | 2026-11-22 |
 | 70. Hydration's drop events come from its buckets | 0/TBD | Not started | - |
 | 71. Developer-signal reporters resolved through one table | 0/TBD | Not started | - |
 | 72. A derived store behind the dock model's stores | 0/TBD | Not started | - |
