@@ -359,7 +359,8 @@ const preEncodeHazard: (record: SinkRecord) => EncodeRefusal | undefined = Match
 /** The wire schema's encoder, built once. It writes version 2, the one version there is. */
 const encodeWire = Schema.encodeResult(SinkRecordWire);
 
-const encodeFailed = (thrown: unknown): EncodeRefusal => EncodeRefusal.EncodeFailed({ message: thrownMessage(thrown) });
+const encodeFailed = (thrown: unknown): EncodeRefusal =>
+  EncodeRefusal.EncodeFailed({ message: thrownMessage(thrown) });
 
 /**
  * A record as a verified JSON wire value, or the reason it cannot be one.

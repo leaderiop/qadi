@@ -36,7 +36,11 @@ export interface RemotePortsOptions {
   readonly prefix?: `/${string}` | undefined;
 }
 
-/** A client failure as the port's own typed error; its message is `thrownMessage`'s, so one that cannot be read still comes back typed. */
+/**
+ * A client failure as the port's own typed error.
+ *
+ * Its message is `thrownMessage`'s, so a failure that cannot be read still comes back typed.
+ */
 const transport = (error: unknown): RemotePortFailure =>
   RemotePortFailure.Transport({ message: thrownMessage(error) });
 
