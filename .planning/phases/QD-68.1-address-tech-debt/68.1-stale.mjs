@@ -6,7 +6,7 @@
 // VERIFICATION.md, the repository files that document cites (a path-shaped token naming a file that existed at that
 // commit, its `covered_files` among them), and those of them a later commit changed, plus any <extra file> named, for a
 // prediction before the changes land. A rename counts as a change to its old path as well as its new one
-// (`git diff --no-renames`), and a path under `.changeset/` or `.github/`, a root dotfile and `pnpm-lock.yaml` count as
+// (`git diff --no-renames`), and a path under `.changeset/` or `.github/`, a root dotfile (a trailing `.` or `-` is not part of its name) and `pnpm-lock.yaml` count as
 // cited when the document names them. A phase is stale when that intersection is not empty; the files its
 // `covered_files` declares are marked `(covered)`. Prints one line per phase, one line per stale file, and last
 // `redo: <phases>` (`redo: none` when every report is current); exits 0 whatever it finds. `--self-test` plants each
@@ -20,7 +20,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const PATH =
-  /(?:packages|scripts|spec|features|examples|apps|\.planning|\.changeset|\.github)\/[A-Za-z0-9_./@-]+\.[A-Za-z0-9]+|(?:AGENTS|README|CONTRIBUTING)\.md|stryker[a-z.-]*\.mjs|tstyche\.json|tsconfig[a-z.-]*\.json|package\.json|pnpm-workspace\.yaml|pnpm-lock\.yaml|(?<![A-Za-z0-9_./@-])\.[A-Za-z][A-Za-z0-9_.-]*/g;
+  /(?:packages|scripts|spec|features|examples|apps|\.planning|\.changeset|\.github)\/[A-Za-z0-9_./@-]+\.[A-Za-z0-9]+|(?:AGENTS|README|CONTRIBUTING)\.md|stryker[a-z.-]*\.mjs|tstyche\.json|tsconfig[a-z.-]*\.json|package\.json|pnpm-workspace\.yaml|pnpm-lock\.yaml|(?<![A-Za-z0-9_./@-])\.[A-Za-z](?:[A-Za-z0-9_.-]*[A-Za-z0-9])?/g;
 
 const main = (extra) => {
   const git = (...args) => execFileSync("git", args, { encoding: "utf8", maxBuffer: 1 << 26 });
@@ -60,11 +60,13 @@ const selfTest = () => {
   const original = fileURLToPath(new URL("../QD-68-hygiene-and-recorded-close-outs/68-stale.mjs", import.meta.url));
   const files = {
     ".planning/phases/QD-62-x/62-VERIFICATION.md":
-      "---\ncovered_files:\n  - scripts/cited.mjs\n---\nCites `scripts/cited.mjs`, `.changeset/c.md`, `.github/workflows/check.yml` and `.oxlintrc.json`.\n",
+      "---\ncovered_files:\n  - scripts/cited.mjs\n---\nCites `scripts/cited.mjs`, `.changeset/c.md`, `.github/workflows/check.yml` and `.oxlintrc.json`. See .dotend.json. Or .dashend.json- here.\n",
     "scripts/cited.mjs": "export const cited = 1;\n",
     ".changeset/c.md": "one\n",
     ".github/workflows/check.yml": "name: one\n",
     ".oxlintrc.json": "{}\n",
+    ".dotend.json": "{}\n",
+    ".dashend.json": "{}\n",
     "src/other.ts": "export const other = 1;\n",
   };
   // The change, what this script must read Phase 62 as, and what 68-stale.mjs reads it as: its defect, but for a deletion.
@@ -73,6 +75,8 @@ const selfTest = () => {
     ["an edited .changeset file is stale", (_git, put) => put(".changeset/c.md", "two\n"), "stale", "current"],
     ["an edited .github file is stale", (_git, put) => put(".github/workflows/check.yml", "name: two\n"), "stale", "current"],
     ["an edited root dotfile is stale", (_git, put) => put(".oxlintrc.json", '{ "rules": {} }\n'), "stale", "current"],
+    ["an edited dotfile cited before a sentence-final period is stale", (_git, put) => put(".dotend.json", '{ "a": 1 }\n'), "stale", "current"],
+    ["an edited dotfile cited before a trailing hyphen is stale", (_git, put) => put(".dashend.json", '{ "a": 1 }\n'), "stale", "current"],
     ["a deleted cited file is stale", (git) => git("rm", "-q", "scripts/cited.mjs"), "stale", "stale"],
     ["an edit to an uncited file is current", (_git, put) => put("src/other.ts", "export const other = 2;\n"), "current", "current"],
   ];
