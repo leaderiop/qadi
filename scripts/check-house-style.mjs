@@ -45,6 +45,9 @@
  * The eleventh, `NOT_CALLABLE_PIN_BUDGET`, is test-scope over its own walk of
  * every file tstyche selects, because `collect()` skips `.tst.ts` files; a
  * negative type pin is counted there (ADR-QD-175).
+ * The twelfth, `MODULE_STATE_BUDGET`, is `packages/*\/src` only: a
+ * module-scope `let` or `var` is state every caller in the process shares, and a
+ * test's own is not library state (ADR-QD-184).
  *
  * The three whole-file, cross-line-break checks below (`no-prefixed-error-tag`,
  * `no-catchtags-object-form`, `no-named-effect-submodule-import`) already run
@@ -671,6 +674,41 @@ const UNTRUSTED_DECODE_TOKEN = /\bonExcessProperty\b|\bexceedsJsonDepth\b|\bSche
 const UNTRUSTED_DECODE_LINES = new Map();
 
 /**
+ * Module-scope `let` and `var` declarations in library source, by file and exact
+ * count (ADR-QD-184).
+ *
+ * The production-instrumentation line is printed once per process however many
+ * providers mount, so the latch that remembers it cannot live under an atom set
+ * or a provider, both of which are narrower than a process. A `const` holding a
+ * cache or a lookup table is not counted: rebinding is what makes a module-scope
+ * name state that a caller cannot see. Checked in both directions, with a names
+ * guard and a check that AGENTS.md section 6's table lists exactly these files,
+ * like `UNTRUSTED_DECODE_BUDGET`.
+ *
+ * @type {Readonly<Record<string, number>>}
+ */
+const MODULE_STATE_BUDGET = {
+  // The latch that lets the production-instrumentation default speak once per process.
+  "packages/react/src/DeveloperSignals.ts": 1,
+};
+
+/**
+ * The declaration each `MODULE_STATE_BUDGET` file's count belongs to, checked to
+ * exist verbatim (the rename guard `UNTRUSTED_DECODE_BUDGET_NAMES` gives its table).
+ *
+ * @type {Readonly<Record<string, ReadonlyArray<string>>>}
+ */
+const MODULE_STATE_BUDGET_NAMES = {
+  "packages/react/src/DeveloperSignals.ts": ["warnedInstrumentedInProduction"],
+};
+
+/** Module scope is read as a declaration at column 0, which every formatted library file keeps. */
+const MODULE_STATE_DECLARATION = /^(?:export\s+)?(?:let|var)\s/;
+
+/** @type {Map<string, number[]>} */
+const MODULE_STATE_LINES = new Map();
+
+/**
  * Type-test files holding a negative `toBeCallableWith` or `toBeConstructableWith` pin, by
  * file and exact count of each (ADR-QD-175).
  *
@@ -1264,6 +1302,12 @@ for (const file of sources) {
         UNTRUSTED_DECODE_LINES.set(rel, found);
       }
     }
+    // Library source only: a test's own module-scope state is not library state.
+    if (!isTestFile && rel.startsWith("packages/") && MODULE_STATE_DECLARATION.test(line)) {
+      const found = MODULE_STATE_LINES.get(rel) ?? [];
+      found.push(index + 1);
+      MODULE_STATE_LINES.set(rel, found);
+    }
     // Library source only: the sink is read in one place (`SinkEmit.ts`), so
     // "an observer can never deny" (INV-QD-035) has locality. A presence read
     // for reporting, not an emission, is allowlisted by file.
@@ -1747,6 +1791,74 @@ for (const [rel, names] of Object.entries(UNTRUSTED_DECODE_BUDGET_NAMES)) {
     if (listed.has(rel)) continue;
     failures += 1;
     console.error(`AGENTS.md  [untrusted-decode-table] ${rel} is in UNTRUSTED_DECODE_BUDGET with no row in section 7a's table.`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// AGENTS.md section 6 / ADR-QD-184 — module-scope mutable state in library source
+// is counted per file and allowed only where the table lists it with a reason.
+// Checked in both directions like the budgets above: a new `let` or `var` is a
+// reviewed edit, and a count moving means the table describes code that changed.
+// ---------------------------------------------------------------------------
+
+for (const [rel, budget] of Object.entries(MODULE_STATE_BUDGET)) {
+  const found = MODULE_STATE_LINES.get(rel) ?? [];
+  if (found.length !== budget) {
+    failures += 1;
+    console.error(
+      `${rel}  [module-state] declares ${budget} module-scope let/var declaration(s), found ${found.length}` +
+        `${found.length > 0 ? ` at line(s) ${found.join(", ")}` : ""}.\n` +
+        `    Update MODULE_STATE_BUDGET in scripts/check-house-style.mjs and AGENTS.md section 6's module-state table, with the reason, so they agree.`,
+    );
+  }
+}
+
+for (const [rel, found] of MODULE_STATE_LINES) {
+  if (rel in MODULE_STATE_BUDGET) continue;
+  failures += 1;
+  console.error(
+    `${rel}:${found.join(", ")}  [module-state] A module-scope let or var in library source.\n` +
+      `    Module-scope mutable state is allowed only where AGENTS.md section 6 lists it with a reason (ADR-QD-184).`,
+  );
+}
+
+for (const [rel, names] of Object.entries(MODULE_STATE_BUDGET_NAMES)) {
+  const content = readFileSync(join(ROOT, rel), "utf8");
+  for (const name of names) {
+    if (new RegExp(`\\b(?:const|let|var|function)\\s+${name}\\b`).test(content)) continue;
+    failures += 1;
+    console.error(
+      `${rel}  [module-state-names] MODULE_STATE_BUDGET's reason names \`${name}\`, but no ` +
+        `such declaration appears in this file any more: renamed without updating the budget's names.`,
+    );
+  }
+}
+
+// AGENTS.md section 6's module-state table is the budget stated for readers: its file column must be exactly the budget's keys, with the same counts.
+{
+  const agents = readFileSync(join(ROOT, "AGENTS.md"), "utf8").replace(/\r\n/g, "\n").split("\n");
+  const header = agents.findIndex((l) => /^\|\s*Module-scope state\s*\|\s*Count\s*\|\s*Why\s*\|/.test(l));
+  /** @type {Map<string, number>} */
+  const listed = new Map();
+  if (header !== -1) {
+    for (let i = header + 2; i < agents.length && agents[i].startsWith("|"); i += 1) {
+      const m = /^\|\s*`([^`]+)`\s*\|\s*`?(\d+)`?\s*\|/.exec(agents[i]);
+      if (m !== null) listed.set(m[1], Number(m[2]));
+    }
+  }
+  if (header === -1) {
+    failures += 1;
+    console.error("AGENTS.md  [module-state-table] the section 6 `| Module-scope state | Count | Why |` table was not found.");
+  }
+  for (const [rel, count] of listed) {
+    if (rel in MODULE_STATE_BUDGET && MODULE_STATE_BUDGET[rel] === count) continue;
+    failures += 1;
+    console.error(`AGENTS.md  [module-state-table] section 6 lists ${rel} (${count}), which MODULE_STATE_BUDGET does not match.`);
+  }
+  for (const rel of Object.keys(MODULE_STATE_BUDGET)) {
+    if (listed.has(rel)) continue;
+    failures += 1;
+    console.error(`AGENTS.md  [module-state-table] ${rel} is in MODULE_STATE_BUDGET with no row in section 6's table.`);
   }
 }
 

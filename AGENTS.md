@@ -564,6 +564,20 @@ where the first proves the directive. A pass fails if
 tstyche compiles any type test under another tsconfig, as it does for a file
 outside the tsconfig's `include`.
 
+**Module-scope mutable state is counted: `MODULE_STATE_BUDGET`** (ADR-QD-184). A `let`
+or `var` at module scope in `packages/*/src` is state every caller in the process
+shares, so it is counted per file and allowed only in the files below, checked in both
+directions (`[module-state]`): a new one fails, and so does a count silently moving. The
+declaration each count belongs to is checked to exist (`[module-state-names]`) and this
+table is checked against the budget (`[module-state-table]`). A module-scope `const` is
+not counted, so a cache such as `Policy.ts`'s depth memo and the read-only lookup tables
+need no row. Test scope is exempt. A new row is a reviewed edit to the budget and this
+table together.
+
+| Module-scope state | Count | Why |
+| ------------------ | ----- | --- |
+| `packages/react/src/DeveloperSignals.ts` | 1 | `warnedInstrumentedInProduction`: the production-instrumentation line is printed once per process however many providers mount, and an atom set or a provider is narrower than a process (ADR-QD-184). |
+
 ## 7. Schema
 
 Domain types are ordinarily **hand-written interfaces** with template-literal
