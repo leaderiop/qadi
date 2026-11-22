@@ -2,7 +2,7 @@
 // node .planning/milestones/v1.7-phases/QD-68.1-address-tech-debt/68.1-stale.mjs --self-test
 //
 // Phase 68's staleness check (`68-stale.mjs`, kept as recorded) with two corrections, reading Phase 68's own report as
-// well (`68-stale.mjs` reads Phases 62 to 67). For each of Phases 62 to 68: the commit that last changed its
+// well (`68-stale.mjs` reads Phases 62 to 67). For each of Phases 62 to 68 and 68.1: the commit that last changed its
 // VERIFICATION.md, the repository files that document cites (a path-shaped token naming a file that existed at that
 // commit, its `covered_files` among them), and those of them a later commit changed, plus any <extra file> named, for a
 // prediction before the changes land. A rename counts as a change to its old path as well as its new one
@@ -46,7 +46,7 @@ export const lastEdit = (git, path) => {
 const main = (extra) => {
   const git = (...args) => execFileSync("git", args, { encoding: "utf8", maxBuffer: 1 << 26 });
   const redo = [];
-  for (const phase of [62, 63, 64, 65, 66, 67, 68]) {
+  for (const phase of ["62", "63", "64", "65", "66", "67", "68", "68.1"]) {
     const dir = phaseDir(phase);
     if (dir === undefined) {
       console.log(`${phase}: no phase directory`);

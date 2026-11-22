@@ -1,4 +1,4 @@
-// node .planning/milestones/v1.7-phases/QD-68.1-address-tech-debt/68.1-reverify.mjs <62..68> <phase_base> <heading>, from the
+// node .planning/milestones/v1.7-phases/QD-68.1-address-tech-debt/68.1-reverify.mjs <62..68 | 68.1> <phase_base> <heading>, from the
 // repository root, once the changes a re-verification answers are committed and before that re-verification of Phase
 // <phase> is. Phase 68's re-verification driver (`68-reverify.mjs`, kept as recorded), which can also re-verify Phase 68's
 // own report. It differs from the original only in what that needs: the phase filter and the usage line accept 68, and
@@ -8,16 +8,18 @@
 // Otherwise it prints what the original prints: `## <heading>`, the phase's staleness line, each changed cited file with
 // the commits since the verification that changed it (those before <phase_base> marked), the Co-Authored-By trailers on
 // the phase's own commits, its VALIDATION.md status, and the covered_digest line before and after, recomputed over the
-// same covered_files by GSD's `verification.fingerprint`; its last line is the new `covered_digest:` line, written as
-// the file writes it. A phase record, not run by `pnpm check:pr`.
+// same covered_files by GSD's `verification.fingerprint` (a covered path the milestone archive moved read at its new
+// place, and the new `covered_files:` block printed before the last line); its last line is the new `covered_digest:`
+// line, written as the file writes it. A phase record, not run by `pnpm check:pr`.
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
+import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { lastEdit, phaseDir } from "./68.1-stale.mjs";
 
 const [phase, base, heading] = process.argv.slice(2);
-if (!/^6[2-8]$/.test(phase ?? "") || base === undefined || heading === undefined) {
-  console.error("usage: 68.1-reverify.mjs <62..68> <phase_base> <heading>");
+if (!/^(?:6[2-8]|68\.1)$/.test(phase ?? "") || base === undefined || heading === undefined) {
+  console.error("usage: 68.1-reverify.mjs <62..68 | 68.1> <phase_base> <heading>");
   process.exit(2);
 }
 const git = (...args) => execFileSync("git", args, { encoding: "utf8", maxBuffer: 1 << 26 });
@@ -69,7 +71,10 @@ const covered = (/^covered_files:\n((?: {2}- .+\n)+)/m.exec(text)?.[1] ?? "")
   .filter(Boolean);
 const oldLine = /^covered_digest: .*$/m.exec(text)?.[0];
 if (covered.length === 0 || oldLine === undefined) throw new Error(`${doc} has no covered_files or covered_digest`);
-let out = execFileSync("node", [".claude/gsd-core/bin/gsd-tools.cjs", "query", "verification.fingerprint", dir, ...covered], {
+// A covered path the milestone archive moved is read, and declared, at its archived place.
+const moved = covered.map((p) => (existsSync(p) ? p : p.replace(/^\.planning\/phases\//, `${dirname(dir)}/`)));
+const remapped = moved.filter((p, i) => p !== covered[i]).length;
+let out = execFileSync("node", [".claude/gsd-core/bin/gsd-tools.cjs", "query", "verification.fingerprint", dir, ...moved], {
   encoding: "utf8",
 });
 if (out.startsWith("@file:")) out = readFileSync(out.slice(6).trim(), "utf8");
@@ -89,5 +94,7 @@ ${rows.join("\n")}
 
 **Validation record:** ${validation}.
 
-**Digest:** \`${oldLine}\` becomes \`${newLine}\`, over the same ${covered.length} covered files.
-${newLine}`);
+**Digest:** \`${oldLine}\` becomes \`${newLine}\`, over the same ${covered.length} covered files${
+  remapped === 0 ? "" : `, ${remapped} of them declared at the place the milestone archive moved them to`
+}.
+${remapped === 0 ? "" : `covered_files:\n${moved.map((p) => `  - ${p}`).join("\n")}\n`}${newLine}`);
