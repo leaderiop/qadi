@@ -4,9 +4,10 @@
  *
  * The engine used to keep named arrays and write one emission line per reason, so
  * a reason given a bucket and no line compiled, and its entries were never
- * reported or counted, against INV-QD-045. The record is now the only place a
- * drop is collected and the only source of its event (ADR-QD-183, which amends
- * ADR-QD-152).
+ * reported or counted, against INV-QD-045. The record is now the only place an
+ * entry drop is collected and the only source of its event (ADR-QD-183, which
+ * amends ADR-QD-152). A payload refused whole has no bucket: the engine reports it
+ * from `PAYLOAD_REASONS`, one event carrying the entries it was handed.
  *
  * Package-private, and out of the barrel on purpose (AGENTS.md §9, ADR-QD-099).
  */
