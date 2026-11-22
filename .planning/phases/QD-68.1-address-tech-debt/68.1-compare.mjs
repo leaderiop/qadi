@@ -22,10 +22,11 @@
 // its own, in order and in place, so a directive deleted, changed, or moved onto a different token differs: `@ts-expect-error`,
 // `@ts-ignore`, `@ts-nocheck`, `@ts-check`, `@jsx*` pragmas (with their argument), a triple-slash directive
 // (`/// <reference ... />`, `/// <amd-module ... />`), `@vitest-*` (`@vitest-environment jsdom`), `@tstyche` (with the rest of
-// its line), `v8 ignore`, `c8 ignore` and `istanbul ignore` (with the rest of the comment), `Stryker disable` and `Stryker
+// its line), `@effect-diagnostics` and `@effect-diagnostics-next-line` (the Effect language service's, with their rule
+// arguments, the rest of the line), `v8 ignore`, `c8 ignore` and `istanbul ignore` (with the rest of the comment), `Stryker disable` and `Stryker
 // restore` (up to a `:`), `eslint-disable*`, `eslint-enable`, `eslint-env`, `oxlint-disable*`, `oxlint-enable` (up to a
 // `--`), `prettier-ignore`, `#__PURE__` style annotations, and a shebang. The reason text after a directive word is not
-// compared. A directive that covers the next line (`@ts-expect-error`, `@ts-ignore`, `*-next-line`, `Stryker disable
+// compared. A directive that covers the next line (`@ts-expect-error`, `@ts-ignore`, `*-next-line` (`@effect-diagnostics-next-line` too), `Stryker disable
 // next-line`, `* ignore next`) is paired with the tokens on the first line of code after it, so reflowing the statement it
 // covers is a difference too (as is any other reformatting of that one line).
 //
@@ -34,7 +35,10 @@
 // (`webpackChunkName`), `sourceMappingURL`, an ESLint inline configuration comment (`/* eslint rule: "off" */`,
 // `/* global x */`) and any other tool's directive are ordinary comments; `eslint-disable-line` and `oxlint-disable-line`
 // (which cover the line they are on) and a `v8 ignore next N` beyond its first line are kept as entries but not paired
-// with a line, so reflowing the code they cover is not seen. Also: a comment that only mentions an instruction (the match
+// with a line, so reflowing the code they cover is not seen; only the first line of a directive comment that runs over
+// several lines is compared (`/* eslint-disable\n a,\n b */` against the same with `c` for `b` reads `same`); and a line break
+// that is a grammar error the type checker reports but the parser does not (`const f = (a)\n=> a;`) reads `same`, because only
+// the parser's diagnostics are consulted. Also: a comment that only mentions an instruction (the match
 // is anywhere in the comment) reads as carrying it, so editing it is a difference; and this compares what the file says,
 // not what it compiles to, so it reports a difference for some edits that compile the same (quote style, parentheses, a
 // braced and an unbraced `if`). It does not run the compiler, the type checker or any test. The root's `typescript` is the
@@ -107,6 +111,7 @@ const DIRECTIVE = new RegExp(
     String.raw`@jsx\w*\b(?:[ \t]+[^\s*]+)?`,
     String.raw`@vitest-[\w-]+\b[ \t]*[^\s*]*`,
     String.raw`@tstyche\b[^\r\n*]*`,
+    String.raw`@effect-diagnostics[\w-]*\b[^\r\n*]*`,
     String.raw`\/\/\/[ \t]*<[\w-]+[^>]*>`,
     String.raw`\b(?:v8|c8|istanbul) ignore\b[^\r\n*]*`,
     String.raw`\bStryker (?:disable|restore)\b[^:\r\n*]*`,
@@ -340,6 +345,14 @@ const cases = [
   ["the same wrap without a directive passes", 'f(1, "a");\nfoo(1, "a");', 'f(1, "a");\nfoo(\n  1,\n  "a",\n);', true],
   ["a blank line after a directive passes", directive, directive.replace("\n", "\n\n"), true],
   ["a comment between a directive and its line passes", directive, directive.replace("\n", "\n// why\n"), true],
+  // the Effect language service's directives (review WR-01)
+  ["a deleted @effect-diagnostics directive fails", "// @effect-diagnostics effect/floatingEffect:error\nconst a = 1;", "const a = 1;", false],
+  ["a changed @effect-diagnostics rule argument fails", "// @effect-diagnostics effect/floatingEffect:error\nconst a = 1;", "// @effect-diagnostics effect/floatingEffect:off\nconst a = 1;", false],
+  ["a deleted @effect-diagnostics-next-line directive fails", "// @effect-diagnostics-next-line effect/floatingEffect:off\nf();", "f();", false],
+  ["a changed @effect-diagnostics-next-line rule argument fails", "// @effect-diagnostics-next-line effect/floatingEffect:off\nf();", "// @effect-diagnostics-next-line effect/floatingEffect:warning\nf();", false],
+  ["a @effect-diagnostics-next-line moved onto a different statement fails", "// @effect-diagnostics-next-line effect/floatingEffect:off\nf();\ng();", "f();\n// @effect-diagnostics-next-line effect/floatingEffect:off\ng();", false],
+  ["a wrap of the line a @effect-diagnostics-next-line covers fails", '// @effect-diagnostics-next-line effect/floatingEffect:off\nfoo(1, "a");', '// @effect-diagnostics-next-line effect/floatingEffect:off\nfoo(\n  1,\n  "a",\n);', false],
+  ["a blank line after a @effect-diagnostics-next-line passes", "// @effect-diagnostics-next-line effect/floatingEffect:off\nf();", "// @effect-diagnostics-next-line effect/floatingEffect:off\n\nf();", true],
   ["a comment that mentions a tool in prose passes", "// the v8 report is read by CI\nconst a = 1;", "// the report is read by CI\nconst a = 1;", true],
   ["an edit to an ordinary block comment passes", "/**\n * Adds one.\n */\nconst a = 1;", "/**\n * Adds two.\n */\nconst a = 1;", true],
 ];
