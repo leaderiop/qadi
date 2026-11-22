@@ -2,7 +2,7 @@
  "phase": "69",
  "groups": {
   "core": {
-   "head": "2d57f922363d52cbe6fd3fc1e16cf8c94912e466",
+   "head": "aef2862942ea91692b753807a95cc9270d0b525b",
    "invocation": "pnpm exec stryker run stryker.config.mjs --mutate packages/core/src/CustomPredicate.ts,packages/core/src/JsonHazard.ts,packages/core/src/PortDerivation.ts,packages/core/src/PortKey.ts,packages/core/src/PortWireEncode.ts,packages/core/src/SinkCodec.ts",
    "files": {
     "packages/core/src/CustomPredicate.ts": {
@@ -309,6 +309,20 @@
       },
       {
        "status": "Survived",
+       "mutator": "BlockStatement",
+       "replacement": "{}",
+       "line": 69,
+       "column": 51
+      },
+      {
+       "status": "Survived",
+       "mutator": "ConditionalExpression",
+       "replacement": "false",
+       "line": 71,
+       "column": 10
+      },
+      {
+       "status": "Survived",
        "mutator": "LogicalOperator",
        "replacement": "proto === Object.prototype && proto === null",
        "line": 71,
@@ -320,20 +334,6 @@
        "replacement": "false",
        "line": 71,
        "column": 10
-      },
-      {
-       "status": "Survived",
-       "mutator": "ConditionalExpression",
-       "replacement": "false",
-       "line": 71,
-       "column": 10
-      },
-      {
-       "status": "Survived",
-       "mutator": "BlockStatement",
-       "replacement": "{}",
-       "line": 69,
-       "column": 51
       },
       {
        "status": "Survived",
@@ -381,15 +381,15 @@
        "status": "Survived",
        "mutator": "ConditionalExpression",
        "replacement": "false",
-       "line": 139,
-       "column": 9
+       "line": 166,
+       "column": 25
       },
       {
        "status": "Survived",
        "mutator": "ConditionalExpression",
        "replacement": "false",
-       "line": 166,
-       "column": 25
+       "line": 139,
+       "column": 9
       },
       {
        "status": "Survived",
@@ -858,12 +858,12 @@
     },
     "packages/core/src/PortKey.ts": {
      "killed": 164,
-     "timeout": 4,
+     "timeout": 2,
      "survived": 0,
      "noCoverage": 0,
      "ignored": 4,
-     "detected": 168,
-     "valid": 168,
+     "detected": 166,
+     "valid": 166,
      "open": [],
      "ignoredMutants": [
       {
@@ -1013,14 +1013,14 @@
        "status": "Survived",
        "mutator": "ConditionalExpression",
        "replacement": "false",
-       "line": 381,
+       "line": 382,
        "column": 7
       },
       {
        "status": "Survived",
        "mutator": "ConditionalExpression",
        "replacement": "false",
-       "line": 385,
+       "line": 386,
        "column": 7
       }
      ],
@@ -1183,36 +1183,29 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 402,
+       "line": 403,
        "column": 39
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 405,
+       "line": 406,
        "column": 22
       },
       {
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 476,
+       "line": 477,
        "column": 33
       },
       {
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 476,
-       "column": 84
-      },
-      {
-       "status": "Ignored",
-       "mutator": "ArrowFunction",
-       "replacement": "() => undefined",
        "line": 477,
-       "column": 36
+       "column": 84
       },
       {
        "status": "Ignored",
@@ -1223,122 +1216,154 @@
       },
       {
        "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 479,
+       "column": 36
+      },
+      {
+       "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 497,
+       "line": 498,
        "column": 55
       },
       {
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 497,
+       "line": 498,
        "column": 70
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 507,
+       "line": 508,
        "column": 41
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 531,
+       "line": 532,
        "column": 33
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 540,
+       "line": 541,
        "column": 39
       },
       {
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 561,
+       "line": 562,
        "column": 47
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 572,
+       "line": 573,
        "column": 35
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 578,
+       "line": 579,
        "column": 41
       },
       {
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 590,
+       "line": 591,
        "column": 42
       },
       {
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 602,
+       "line": 603,
        "column": 57
       },
       {
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 602,
+       "line": 603,
        "column": 72
       },
       {
        "status": "Ignored",
        "mutator": "ArrayDeclaration",
        "replacement": "[]",
-       "line": 602,
+       "line": 603,
        "column": 92
       },
       {
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 602,
+       "line": 603,
        "column": 93
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 610,
+       "line": 611,
        "column": 22
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 650,
+       "line": 651,
        "column": 35
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 657,
+       "line": 658,
        "column": 41
       }
      ]
     }
    }
   },
+  "thrown": {
+   "head": "aef2862942ea91692b753807a95cc9270d0b525b",
+   "invocation": "pnpm exec stryker run stryker.config.mjs --mutate packages/core/src/ThrownMessage.ts",
+   "files": {
+    "packages/core/src/ThrownMessage.ts": {
+     "killed": 12,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 1,
+     "detected": 12,
+     "valid": 12,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 4,
+       "column": 23
+      }
+     ]
+    }
+   }
+  },
   "http": {
-   "head": "2d57f922363d52cbe6fd3fc1e16cf8c94912e466",
+   "head": "aef2862942ea91692b753807a95cc9270d0b525b",
    "invocation": "pnpm exec stryker run stryker.http.mjs --mutate packages/http/src/RemotePorts.ts",
    "files": {
     "packages/http/src/RemotePorts.ts": {
@@ -1355,14 +1380,14 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 40,
+       "line": 44,
        "column": 19
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 49,
+       "line": 53,
        "column": 33
       }
      ]
@@ -1370,17 +1395,17 @@
    }
   },
   "devtools": {
-   "head": "2d57f922363d52cbe6fd3fc1e16cf8c94912e466",
+   "head": "aef2862942ea91692b753807a95cc9270d0b525b",
    "invocation": "pnpm exec stryker run stryker.devtools.mjs --mutate packages/devtools/src/model/Capture.ts,packages/devtools/src/model/DiagnosticsFeed.ts,packages/devtools/src/model/DiagnosticsStore.ts,packages/devtools/src/model/ExplorerSession.ts,packages/devtools/src/model/GatesFeed.ts,packages/devtools/src/model/TimelineFeed.ts",
    "files": {
     "packages/devtools/src/model/Capture.ts": {
-     "killed": 47,
+     "killed": 52,
      "timeout": 0,
      "survived": 0,
      "noCoverage": 0,
-     "ignored": 6,
-     "detected": 47,
-     "valid": 47,
+     "ignored": 5,
+     "detected": 52,
+     "valid": 52,
      "open": [],
      "ignoredMutants": [
       {
@@ -1408,21 +1433,14 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 181,
+       "line": 212,
        "column": 21
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 200,
-       "column": 21
-      },
-      {
-       "status": "Ignored",
-       "mutator": "ArrowFunction",
-       "replacement": "() => undefined",
-       "line": 219,
+       "line": 231,
        "column": 28
       }
      ]
@@ -1618,15 +1636,15 @@
        "status": "Survived",
        "mutator": "ConditionalExpression",
        "replacement": "true",
-       "line": 266,
-       "column": 9
+       "line": 246,
+       "column": 12
       },
       {
        "status": "Survived",
        "mutator": "ConditionalExpression",
        "replacement": "true",
-       "line": 246,
-       "column": 12
+       "line": 266,
+       "column": 9
       },
       {
        "status": "Survived",
@@ -1686,7 +1704,7 @@
      "timeout": 0,
      "survived": 0,
      "noCoverage": 0,
-     "ignored": 4,
+     "ignored": 3,
      "detected": 117,
      "valid": 117,
      "open": [],
@@ -1695,28 +1713,21 @@
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 95,
-       "column": 27
-      },
-      {
-       "status": "Ignored",
-       "mutator": "StringLiteral",
-       "replacement": "\"\"",
-       "line": 96,
-       "column": 28
+       "line": 99,
+       "column": 24
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 122,
+       "line": 125,
        "column": 20
       },
       {
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 125,
+       "line": 128,
        "column": 40
       }
      ]
@@ -1806,7 +1817,7 @@
    }
   },
   "react": {
-   "head": "2d57f922363d52cbe6fd3fc1e16cf8c94912e466",
+   "head": "aef2862942ea91692b753807a95cc9270d0b525b",
    "invocation": "pnpm exec stryker run stryker.react.mjs --mutate packages/react/src/DeveloperSignals.ts",
    "files": {
     "packages/react/src/DeveloperSignals.ts": {
@@ -1822,15 +1833,8 @@
        "status": "Survived",
        "mutator": "StringLiteral",
        "replacement": "\"Stryker was here!\"",
-       "line": 159,
+       "line": 160,
        "column": 78
-      },
-      {
-       "status": "Survived",
-       "mutator": "StringLiteral",
-       "replacement": "\"\"",
-       "line": 75,
-       "column": 22
       },
       {
        "status": "Survived",
@@ -1838,6 +1842,13 @@
        "replacement": "true",
        "line": 75,
        "column": 3
+      },
+      {
+       "status": "Survived",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 75,
+       "column": 22
       }
      ],
      "ignoredMutants": [
@@ -1859,173 +1870,148 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 137,
+       "line": 138,
        "column": 19
       },
       {
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 153,
+       "line": 154,
        "column": 24
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 171,
+       "line": 172,
        "column": 22
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 176,
+       "line": 177,
        "column": 25
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 190,
+       "line": 191,
        "column": 20
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 194,
+       "line": 195,
        "column": 31
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 199,
+       "line": 200,
        "column": 20
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 206,
+       "line": 207,
        "column": 29
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 227,
+       "line": 228,
        "column": 3
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 243,
+       "line": 244,
        "column": 42
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 268,
+       "line": 269,
        "column": 40
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 318,
+       "line": 319,
        "column": 94
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 324,
+       "line": 325,
        "column": 69
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 345,
+       "line": 346,
        "column": 38
       },
       {
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 378,
+       "line": 379,
        "column": 32
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 379,
+       "line": 380,
        "column": 29
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 380,
+       "line": 381,
        "column": 18
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 381,
+       "line": 382,
        "column": 27
       },
       {
        "status": "Ignored",
        "mutator": "BooleanLiteral",
        "replacement": "true",
-       "line": 393,
+       "line": 394,
        "column": 38
       },
       {
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 404,
+       "line": 405,
        "column": 24
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 427,
+       "line": 428,
        "column": 39
-      }
-     ]
-    }
-   }
-  },
-  "thrown": {
-   "head": "2d57f922363d52cbe6fd3fc1e16cf8c94912e466",
-   "invocation": "pnpm exec stryker run stryker.config.mjs --mutate packages/core/src/ThrownMessage.ts",
-   "files": {
-    "packages/core/src/ThrownMessage.ts": {
-     "killed": 12,
-     "timeout": 0,
-     "survived": 0,
-     "noCoverage": 0,
-     "ignored": 1,
-     "detected": 12,
-     "valid": 12,
-     "open": [],
-     "ignoredMutants": [
-      {
-       "status": "Ignored",
-       "mutator": "StringLiteral",
-       "replacement": "\"\"",
-       "line": 4,
-       "column": 23
       }
      ]
     }
