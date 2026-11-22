@@ -52,7 +52,7 @@ import * as Struct from "effect/Struct";
 import * as Atom from "effect/reactivity/Atom";
 import type { HydrationDropReporter } from "./DeveloperSignals.ts";
 import { hydrationDropReporter, saysDehydrationDropped, saysHydrationDropped } from "./DeveloperSignals.ts";
-import { dropEvents, entryBuckets } from "./HydrationBuckets.ts";
+import { dehydrationBuckets, dropEvents, entryBuckets } from "./HydrationBuckets.ts";
 import type { DecisionEntry, EntryDropReason, HydrationHooks, PayloadRefusalReason } from "./HydrationEvent.ts";
 import { HydrationEvent, emitHydration } from "./HydrationEvent.ts";
 import type { SeededDecision } from "./SeededDecision.ts";
@@ -349,7 +349,8 @@ const emitAll = (events: ReadonlyArray<HydrationEvent>, hooks: HydrationHooks): 
  * it is **dropped**, because a payload mixing subjects is a bug whose only safe
  * reading is to trust none of it. Of the rest, an entry whose policy does not
  * encode is left out as `UnencodablePolicy`, so the call is total: one
- * `LeftOut` per non-empty reason, then `Dehydrated` for what was written.
+ * `LeftOut` per non-empty reason, then `Dehydrated` for what was written. The
+ * left-out events come from the side's bucket record.
  */
 const planDehydration = (
   entries: ReadonlyArray<DecisionEntry>,
@@ -358,21 +359,22 @@ const planDehydration = (
   // `undefined`, not `""` (EC-06): an empty `entries` names no subject at
   // all, and `""` is not a value `SubjectId` can actually hold, so it read as
   // data rather than as "nothing here." `subjectId` is `undefined` only when
-  // `entries` is already empty, so the filter below still reduces to `[]`
-  // in that case with no special-casing needed.
+  // `entries` is already empty, so the loop below sees no entry in that case
+  // and needs no special-casing.
   const subjectId = entries[0]?.decision.subjectId;
-
-  const own = entries.filter((e) => e.decision.subjectId === subjectId);
-  const foreign = entries.filter((e) => e.decision.subjectId !== subjectId);
 
   // The subject filter first, so a foreign entry is never encoded and an entry
   // both foreign and unencodable is `ForeignSubject`.
+  const drops = dehydrationBuckets();
   const written: Array<DehydratedEntry> = [];
-  const unencodable: Array<DecisionEntry> = [];
-  for (const entry of own) {
+  for (const entry of entries) {
+    if (entry.decision.subjectId !== subjectId) {
+      drops.ForeignSubject.push(entry);
+      continue;
+    }
     const encoded = dehydrateEntry(entry, includeTrace);
     if (Option.isSome(encoded)) written.push(encoded.value);
-    else unencodable.push(entry);
+    else drops.UnencodablePolicy.push(entry);
   }
 
   // Said, not merely done. Dropping is correct and specified; doing it in
@@ -380,12 +382,10 @@ const planDehydration = (
   // and see nothing wrong. And counted: `qadi_hydration_seeded_total` next to the
   // dehydrated count is the difference between "hydration ran" and "hydration
   // ran and did nothing".
-  const events: Array<HydrationEvent> = [];
-  if (foreign.length > 0) events.push(HydrationEvent.LeftOut({ reason: "ForeignSubject", entries: foreign }));
-  if (unencodable.length > 0) {
-    events.push(HydrationEvent.LeftOut({ reason: "UnencodablePolicy", entries: unencodable }));
-  }
-  events.push(HydrationEvent.Dehydrated({ count: written.length }));
+  const events: ReadonlyArray<HydrationEvent> = [
+    ...dropEvents(drops, (reason, entries) => HydrationEvent.LeftOut({ reason, entries })),
+    HydrationEvent.Dehydrated({ count: written.length }),
+  ];
 
   return { payload: { version: PAYLOAD_VERSION, subjectId, entries: written }, events };
 };
