@@ -381,17 +381,15 @@ describe("closing the scope", () => {
           scope,
         );
         yield* settleTurns;
-        const heard = { calls: 0 };
-        const hear = () => {
-          heard.calls += 1;
-        };
-        model.diagnostics.subscribe(hear);
-        model.questions.subscribe(hear);
-        model.services.subscribe(hear);
+        const diagnostics = heardOn(model.diagnostics);
+        const questions = heardOn(model.questions);
+        const services = heardOn(model.services);
 
         yield* Scope.close(scope, Exit.void);
 
-        assert.strictEqual(heard.calls, 0);
+        assert.strictEqual(diagnostics.calls, 0);
+        assert.strictEqual(questions.calls, 0);
+        assert.strictEqual(services.calls, 0);
       }),
   );
 });
