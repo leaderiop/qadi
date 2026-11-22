@@ -268,3 +268,39 @@ Every row was run on a tree whose tracked files outside the planning directory a
 - `spec/README.md` (68.1-05, `a8b36092`): the report cites the CCR-QD-456 row and Revision 1.266 (Truth 5). The row is unedited at line 393 and the 1.266 entry remains in the Change History cell; the commit moves the revision to 1.275 and adds the CCR-QD-460 row, which no truth of this report reads.
 
 **Verdict:** passed
+
+## Re-verification (2026-11-22, after the 68.1 code-review fixes)
+
+**Staleness:** `65: stale, verification 4790934c, 32 cited, 2 changed since` (`68-stale.mjs`, run at `74f07a36`).
+
+| Cited file | Changed since `4790934c` by |
+| --- | --- |
+| `scripts/bench/ab.sh` | `70574a33` fix(68.1): WR-06 ab.sh refuses a round count below 4 in both modes |
+| `spec/README.md` | `79a685b4` docs(68.1): WR-02 WR-03 scope CCR-QD-460's odd-count and hang claims to what was shown |
+
+**Trailers on this phase's commits:** 34 `Claude Opus 5.5 <noreply@anthropic.com>`, 2 none.
+
+**Validation record:** no VALIDATION.md.
+
+**Digest:** `covered_digest: "v4:sha256:34973f63d1c7418cdd77685e6b01cce1f4629f5f86f42bf878886da2ba77d65a"` becomes `covered_digest: "v4:sha256:34973f63d1c7418cdd77685e6b01cce1f4629f5f86f42bf878886da2ba77d65a"`, over the same 15 covered files.
+
+**Staleness by `68.1-stale.mjs`:** `65: stale, verification 4790934c, 32 cited, 2 changed since` (run at `74f07a36`).
+
+### Spot-checks re-run (Re-verification (2026-11-22, after the 68.1 code-review fixes))
+
+Every row was run on the tree at `74f07a36`, one command at a time, in the foreground, with stdin closed. The harness-order, spec-revise and traceability results are shared with the Phase 62 to 64 and 66 to 68 sections of this re-verification: each was taken once at `ae42c2b2`, in a fresh set after the code-review fixes (the earlier set, taken at `c3d8553a`, is not reused because `scripts/bench/ab.sh` and `spec/` changed), and no tracked file outside the planning directory differs between that head and `74f07a36`. No source, test or characterisation file of Phase 65 changed, so the report's vitest, tstyche and pin-codes rows were not run again.
+
+| Behaviour | Command run now | Result now | Status |
+| --------- | --------------- | ---------- | ------ |
+| The bench harness's round order | `bash scripts/bench/ab.sh --print-order 4 final base < /dev/null` and `--print-order 6 final base` (shared) | exit 0; at 4, `final-1 base-1 base-2 final-2 final-3 base-3 base-4 final-4`, each arm first in two of the four rounds; at 6 the same pattern continues (`final-5 base-5 base-6 final-6`), each arm first in three of the six | PASS |
+| The harness refuses an odd round count, and now one below 4 | `bash scripts/bench/ab.sh --print-order 3 final base < /dev/null` and `--print-order 2 final base < /dev/null` (shared) | both exit 2 and nothing is run; the usage text now ends `<rounds> must be even and at least 4: odd rounds run the head arm first and even rounds the patched arm, so only an even count runs each arm first equally often, and analyze.mjs refuses fewer than 3 rounds`, where the previous section quoted `<rounds> must be even: …` | PASS |
+| What the code-review fixes changed in the harness since the previous section | `git diff -U0 4790934c HEAD -- scripts/bench/ab.sh` | the header comment (the smallest run both tools accept is 4, and a count below 4 is refused in both modes), the exit-code comment, the usage text above, and the `rounds_ok` pattern, which gains `2`; nothing else in the script differs | PASS |
+| What the phase and its fixes changed in the spec register, and the revisions | `git diff -U0 0e3f3438 HEAD -- spec/README.md`, and `node scripts/spec-revise.mjs --check < /dev/null` (shared) | 3 insertions and 2 deletions: the Revision header (1.274 to 1.276), the Change History cell (the 1.276 and 1.275 entries in front) and one added row, CCR-QD-460, at line 397; no existing row is removed or edited, so the CCR-QD-456 row is still at line 393 and the 1.266 entry the report cites is still in the cell; `spec-revise` exit 0, `spec-revise: every Revision matches its newest Change History entry` | PASS |
+| Traceability | `bash spec/scripts/verify-traceability.sh --strict < /dev/null` (shared) | exit 0; `PASS: 21   FAIL: 0   SKIP: 0 (strict: skips count as failures)` | PASS |
+
+### Changed cited files read against the truths that cite them (Re-verification (2026-11-22, after the 68.1 code-review fixes))
+
+- `scripts/bench/ab.sh` (`70574a33`): the report cites it only in the Phase 68 section's note on Truth 4, that the harness of Phase 68's bench is not the one Phase 65 used and did not exist at the report's commit. That note holds. The previous section quoted the harness's usage text as `<rounds> must be even: …`; that wording no longer holds as quoted. The harness now refuses a round count below 4 as well as an odd one, and its usage text reads `<rounds> must be even and at least 4: …`, as the row above shows. No truth rests on that text. Truth 4's own measurement (3 + 3 rounds with the harness of the earlier phase, worst +1.6% against a 10% band) is Phase 65's recorded run, made with that earlier harness and not with this script, which this phase leaves as recorded, so Truth 4 is unchanged. Phase 68's `bench/final`, run with 3 rounds, is likewise left as recorded.
+- `spec/README.md` (`79a685b4`): the report cites the CCR-QD-456 row and Revision 1.266 (Truth 5). The row is unedited at line 393 and the 1.266 entry remains in the Change History cell; the commit moves the revision to 1.276, adds a Change History entry and rewrites the CCR-QD-460 row to scope its odd-round-count and hang claims, which no truth of this report reads.
+
+**Verdict:** passed
