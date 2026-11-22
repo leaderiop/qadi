@@ -1,0 +1,275 @@
+{
+ "phase": "70",
+ "groups": {
+  "react": {
+   "head": "3630e29865bbaed49126b214f0f6cc7006b6f4bc",
+   "invocation": "pnpm exec stryker run stryker.react.mjs --mutate packages/react/src/HydrationEngine.ts",
+   "files": {
+    "packages/react/src/HydrationEngine.ts": {
+     "killed": 169,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 36,
+     "detected": 169,
+     "valid": 169,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 81,
+       "column": 40
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 83,
+       "column": 39
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 95,
+       "column": 43
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrayDeclaration",
+       "replacement": "[]",
+       "line": 98,
+       "column": 26
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 107,
+       "column": 47
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 136,
+       "column": 17
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 164,
+       "column": 53
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 164,
+       "column": 68
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 182,
+       "column": 22
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 193,
+       "column": 51
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 194,
+       "column": 16
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrayDeclaration",
+       "replacement": "[]",
+       "line": 195,
+       "column": 13
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 195,
+       "column": 14
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 202,
+       "column": 26
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 203,
+       "column": 16
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 204,
+       "column": 18
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 205,
+       "column": 34
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 209,
+       "column": 59
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 209,
+       "column": 74
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 217,
+       "column": 25
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 283,
+       "column": 59
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 284,
+       "column": 10
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 285,
+       "column": 12
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 289,
+       "column": 11
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 290,
+       "column": 12
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 292,
+       "column": 9
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 293,
+       "column": 12
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 299,
+       "column": 11
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 300,
+       "column": 12
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 305,
+       "column": 15
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 307,
+       "column": 17
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 310,
+       "column": 16
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 313,
+       "column": 17
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 318,
+       "column": 27
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 328,
+       "column": 24
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 412,
+       "column": 17
+      }
+     ]
+    }
+   }
+  }
+ }
+}
