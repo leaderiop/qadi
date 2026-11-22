@@ -476,7 +476,11 @@ export const dehydrateWith = (
 ): DehydratedDecisions => {
   const plan = planDehydration(entries, options?.includeTrace ?? false);
   emitAll(plan.events, {
-    leftOut: reporterFor(SIGNALS.DehydrationDropped, "dehydrateDecisions", options?.onDropped),
+    leftOut: reporterFor(
+      SIGNALS.DehydrationDropped,
+      "dehydrateDecisions",
+      options?.onDropped,
+    ),
   });
   return plan.payload;
 };

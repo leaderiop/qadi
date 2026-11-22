@@ -243,7 +243,11 @@ export const makeQadiAtoms = (
   );
   // Resolved once per atom set and handed to every question, so the
   // development-mode default is decided at construction.
-  const report = reporterFor(SIGNALS.SeedSuperseded, "makeQadiAtoms", options?.onHydrationMismatch);
+  const report = reporterFor(
+    SIGNALS.SeedSuperseded,
+    "makeQadiAtoms",
+    options?.onHydrationMismatch,
+  );
   const gates = buildGateRegistry(
     reporterFor(SIGNALS.GateIdCollision, "makeQadiAtoms", options?.onGateIdCollision),
   );
