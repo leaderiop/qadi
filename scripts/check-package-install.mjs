@@ -87,8 +87,8 @@ const fail = (message) => failures.push(message);
 /**
  * A child that hangs would hang `pnpm check`; each `execFileSync` child is killed after this long, which a cold `pnpm build` stays well inside.
  * The probe guard's parse is one of them (`scripts/lib/probe-guard-parse.mjs`), so a TypeScript server that stops
- * answering ends the gate at this bound. The server reads from that child's pipe and exits when the child is killed;
- * only a server stuck in a computation that never reads its input again outlives the run (ADR-QD-033).
+ * answering ends the gate at this bound. That server works on a request without reading its pipe, so it does not die
+ * with the child; the child names it on stderr and the gate kills it when the child is killed (ADR-QD-033).
  */
 const CHILD_TIMEOUT_MS = 600_000;
 
@@ -924,13 +924,22 @@ if (consumerReady) {
     let parsed;
     try {
       parsed = JSON.parse(output);
-    } catch (error) {
-      // A line that is not JSON is reported with what the child printed, not as a bare SyntaxError.
-      throw Object.assign(error, { stdout: `the parse printed no JSON line:\n${output}` });
+    } catch {
+      fail(`the probe guard's parse printed something other than one line of JSON:\n${output}`);
     }
     if (parsed === null) fail("the probe guard could not read consumer.ts from the sandbox project");
-    else seen = { typed: new Set(parsed.typed), refused: new Set(parsed.refused) };
+    else if (parsed !== undefined) seen = { typed: new Set(parsed.typed), refused: new Set(parsed.refused) };
   } catch (error) {
+    // A child killed by a signal never closed its TypeScript server, which may still be working on a request; kill the
+    // servers it named. A child that exited on its own closed its server first, so no pid it named is reused here.
+    const killed = typeof error.signal === "string";
+    for (const pid of killed ? (/^server pids: (.+)$/m.exec(error.stderr ?? "")?.[1].split(" ") ?? []) : []) {
+      try {
+        process.kill(Number(pid), "SIGKILL");
+      } catch {
+        // already gone
+      }
+    }
     const version = JSON.parse(readFileSync(join(ROOT, "node_modules", "typescript", "package.json"), "utf8")).version;
     fail(
       `the probe guard could not load or run the TypeScript parser, typescript@${version}'s unstable API, ` +
