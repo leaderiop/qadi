@@ -5,10 +5,11 @@
  * the point of ADR-QD-080. The render-level behaviour is in `GateRegistry.test.tsx`
  * and `GateWriter.test.tsx`.
  */
-import { hasPermission, permission } from "@qadi/core";
+import { EvaluationServicesNone, hasPermission, permission } from "@qadi/core";
 import * as FastCheck from "fast-check";
 import { describe, expect, it, vi } from "vitest";
 import { makeGateRegistry } from "../src/GateRegistry.ts";
+import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 import type { GateInstance, GateRenderState } from "../src/GateRegistry.ts";
 import { gateWriterFor } from "../src/GateWriter.ts";
 
@@ -254,6 +255,68 @@ describe("scope and collisions", () => {
     expect(Object.getOwnPropertyNames(registry).sort()).toEqual(["instances", "subscribe"]);
     expect(Object.getOwnPropertySymbols(registry)).toEqual([]);
     expect(gateWriterFor({ ...registry })).toBeUndefined();
+  });
+});
+
+describe("a throwing collision reporter is named by the option it was passed through", () => {
+  const boom = (): never => {
+    throw new Error("boom");
+  };
+
+  const threw = (option: string): string =>
+    `[qadi] the ${option} reporter you supplied threw (Error: boom). The outcome it was told ` +
+    "about stands — nothing was skipped, seeded differently or left uncounted. Fix the reporter.";
+
+  /** Fails with the lines the console received, which a whole-array diff would elide. */
+  const saidOnly = (lines: ReadonlyArray<string>, option: string): void => {
+    expect(lines.join("\n"), `the console received ${JSON.stringify(lines)}`).toBe(threw(option));
+  };
+
+  /** Registers `x` twice on `gates`, and returns the console lines and the listed ids. */
+  const collide = (
+    environment: "development" | "production",
+    build: () => { readonly instances: () => ReadonlyArray<GateInstance> },
+  ) => {
+    const previous = process.env.NODE_ENV;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    process.env.NODE_ENV = environment;
+    try {
+      const gates = build();
+      const writer = writerOf(gates);
+      writer.register(instance("x", "Allowed"));
+      writer.register(instance("x", "Denied"));
+      return {
+        lines: warn.mock.calls.map((call) => String(call[0])),
+        ids: gates.instances().map((one) => one.id),
+      };
+    } finally {
+      process.env.NODE_ENV = previous;
+      warn.mockRestore();
+    }
+  };
+
+  it("a throwing onIdCollision on makeGateRegistry is named onIdCollision in development", () => {
+    const run = collide("development", () => makeGateRegistry({ onIdCollision: boom }));
+    saidOnly(run.lines, "onIdCollision");
+    expect(run.ids).toEqual(["x", "x~1"]);
+  });
+
+  it("a throwing onIdCollision on makeGateRegistry is named onIdCollision in production", () => {
+    const run = collide("production", () => makeGateRegistry({ onIdCollision: boom }));
+    saidOnly(run.lines, "onIdCollision");
+    expect(run.ids).toEqual(["x", "x~1"]);
+  });
+
+  it("a throwing onGateIdCollision on makeQadiAtoms is named onGateIdCollision in development", () => {
+    const run = collide("development", () => makeQadiAtoms(EvaluationServicesNone, { onGateIdCollision: boom }).gates);
+    saidOnly(run.lines, "onGateIdCollision");
+    expect(run.ids).toEqual(["x", "x~1"]);
+  });
+
+  it("a throwing onGateIdCollision on makeQadiAtoms is named onGateIdCollision in production", () => {
+    const run = collide("production", () => makeQadiAtoms(EvaluationServicesNone, { onGateIdCollision: boom }).gates);
+    saidOnly(run.lines, "onGateIdCollision");
+    expect(run.ids).toEqual(["x", "x~1"]);
   });
 });
 
