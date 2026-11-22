@@ -1,16 +1,13 @@
 /**
  * The dock's cross-store rules, tested with no DOM (ARCH-74, DMOD-02).
  *
- * The dock owns eight stores and the rules that connect them. Seven came first: the
- * timeline, the dock session, the explorer, the role viewer's held choice, the
- * simulation session, the diagnostics reading and the timeline status. `questions`,
- * the gate registry joined to the polled questions, is the eighth. The policy rail,
- * `sightings`, is a thunk and not a store, though earlier records counted it. The
- * rules: a new timeline reaches every screen, a replay commands the simulation, a
- * new head does not move a held choice, an unchanged input dispatches nothing, and no
- * screen reads another timeline than the one the dock shows. Until now those
- * rules lived in layout effects and were proved only by rendering the whole dock.
- * They are stated here against `makeDockModel` and nothing is rendered.
+ * The dock owns stores, listed once in BEH-QD-700 and checked by the store-list test
+ * below, and the rules that connect them. The rules: a new timeline reaches every
+ * screen, a replay commands the simulation, a new head does not move a held choice,
+ * an unchanged input dispatches nothing, and no screen reads another timeline than
+ * the one the dock shows. Until now those rules lived in layout effects and were
+ * proved only by rendering the whole dock. They are stated here against
+ * `makeDockModel` and nothing is rendered.
  *
  * The model is built in a scope (ADR-QD-137): `it.effect` provides one, and a
  * test that needs to end it mid-test makes its own. A test title carries a stable
@@ -23,6 +20,7 @@ import * as Effect from "effect/Effect";
 import * as Equal from "effect/Equal";
 import * as Exit from "effect/Exit";
 import * as Layer from "effect/Layer";
+import * as Predicate from "effect/Predicate";
 import * as Queue from "effect/Queue";
 import * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
@@ -48,11 +46,13 @@ import { catalogueOf, policyLabel } from "../../src/model/Catalogue.ts";
 import type { Catalogue } from "../../src/model/Catalogue.ts";
 import { DiagnosticsStatus, diagnosticsOff } from "../../src/model/DiagnosticsFeed.ts";
 import { WiringRead, noDiagnostics } from "../../src/model/DiagnosticsStore.ts";
+import type { DiagnosticsReading } from "../../src/model/DiagnosticsStore.ts";
 import { makeDockModel } from "../../src/model/DockModel.ts";
 import type { DockModel } from "../../src/model/DockModel.ts";
 import type { TabId } from "../../src/model/DockSession.ts";
 import { noFilters } from "../../src/model/Filters.ts";
 import type { AskedQuestionLike, GateInstanceLike, QuestionsSnapshot } from "../../src/model/Gates.ts";
+import type { HydrationActivity } from "../../src/model/Hydration.ts";
 import type { Source } from "../../src/model/Source.ts";
 import type { TimelineEntry } from "../../src/model/Timeline.ts";
 import { countsOf } from "../../src/model/Verdict.ts";
@@ -100,6 +100,21 @@ const listen = (model: DockModel) => {
   model.simulation.subscribe(hear);
   return seen;
 };
+
+/** A counter of one store's notifications, subscribed from now on. */
+const heardOn = (store: Pick<DockModel["questions"], "subscribe">) => {
+  const heard = { calls: 0 };
+  store.subscribe(() => {
+    heard.calls += 1;
+  });
+  return heard;
+};
+
+/** One input of a computed store, moved or left alone in a fresh model: its count. */
+interface KeyRow {
+  readonly field: string;
+  readonly heard: Effect.Effect<number, never, Scope.Scope>;
+}
 
 /** What the simulator's policy dropdown shows, as the text a reviewer reads. */
 const shownLabel = (model: DockModel): string | undefined => {
@@ -988,6 +1003,86 @@ describe("the diagnostics store (M18..M27)", () => {
         assert.strictEqual(heard, 0);
       }),
   );
+
+  const diagnosticsMoves: ReadonlyArray<KeyRow> = [
+    {
+      field: "the feed's snapshot",
+      heard: Effect.gen(function* () {
+        const { collector } = makeCollectorDouble((call) => ({
+          calls: [],
+          dropped: call,
+          capacity: 10,
+        }));
+        const model = yield* makeDockModel({ diagnostics: { collector } });
+        yield* settleTurns;
+        const heard = heardOn(model.diagnostics);
+
+        yield* tick;
+
+        return heard.calls;
+      }),
+    },
+    {
+      field: "the supplied reading",
+      heard: Effect.gen(function* () {
+        const diagnostics = {};
+        const model = yield* makeDockModel({
+          diagnostics,
+          reading: { activity: activityOf(1) },
+        });
+        const heard = heardOn(model.diagnostics);
+
+        model.configure({ diagnostics, reading: { activity: activityOf(2) } });
+
+        return heard.calls;
+      }),
+    },
+  ];
+
+  const diagnosticsQuiet: ReadonlyArray<KeyRow> = [
+    {
+      field: "a guard added to the registry",
+      heard: Effect.gen(function* () {
+        const double = makeGateRegistryDouble();
+        const model = yield* makeDockModel({ diagnostics: {}, gates: double.registry });
+        yield* settleTurns;
+        const heard = heardOn(model.diagnostics);
+
+        double.add(guard("a", readPolicy));
+        yield* settleTurns;
+
+        return heard.calls;
+      }),
+    },
+    {
+      field: "a new questions input",
+      heard: Effect.gen(function* () {
+        const diagnostics = {};
+        const reading = { activity: activityOf(1) };
+        const model = yield* makeDockModel({ diagnostics, reading });
+        const heard = heardOn(model.diagnostics);
+
+        const questions = () => [{ policy: readPolicy }];
+        model.configure({ diagnostics, questions, reading });
+        yield* settleTurns;
+
+        return heard.calls;
+      }),
+    },
+  ];
+
+  it.effect(
+    "the diagnostics store moves once per key field and not for gates or questions",
+    () =>
+      Effect.gen(function* () {
+        for (const row of diagnosticsMoves) {
+          assert.strictEqual(yield* row.heard, 1, row.field);
+        }
+        for (const row of diagnosticsQuiet) {
+          assert.strictEqual(yield* row.heard, 0, row.field);
+        }
+      }),
+  );
 });
 
 describe("the timeline's status (M29)", () => {
@@ -1117,15 +1212,14 @@ describe("the questions store (M32, M32 b, M34, M36, M47, P2)", () => {
       const model = yield* Scope.provide(makeDockModel({ gates: a.registry, reading: { questions: [] } }), scope);
       yield* Scope.close(scope, Exit.void);
       const readByA = a.reads();
-      const last = model.questions.getSnapshot();
 
-      // A changed gate list and a changed reading, both handed over after the scope closed.
+      // A changed gate list and a changed reading, both handed over after the scope
+      // closed.
       model.configure({ gates: b.registry, reading: { questions: [{ policy: readPolicy }] } });
       model.configure({ gates: a.registry, reading: { questions: [{ policy: writePolicy }] } });
 
       assert.strictEqual(b.reads(), 0);
       assert.strictEqual(a.reads(), readByA);
-      assert.strictEqual(model.questions.getSnapshot(), last);
     }));
 
   it.effect("M47: one configure publishes one snapshot and reads no registry the host has handed away", () =>
@@ -1276,6 +1370,85 @@ describe("the questions store (M32, M32 b, M34, M36, M47, P2)", () => {
         assert.strictEqual(double.listeners(), 0, `closing the scope released the registry subscription: ${where}`);
       }
     }));
+
+  const questionsMoves: ReadonlyArray<KeyRow> = [
+    {
+      field: "the gates feed's snapshot",
+      heard: Effect.gen(function* () {
+        const double = makeGateRegistryDouble();
+        const model = yield* makeDockModel({
+          gates: double.registry,
+          reading: { questions: [{ policy: readPolicy }] },
+        });
+        const heard = heardOn(model.questions);
+
+        double.add(guard("a", readPolicy));
+
+        return heard.calls;
+      }),
+    },
+    {
+      field: "the supplied questions",
+      heard: Effect.gen(function* () {
+        const model = yield* makeDockModel({ reading: { questions: [] } });
+        const heard = heardOn(model.questions);
+        const told: Array<string> = [];
+        model.diagnostics.subscribe(() => {
+          told.push(model.questions.getSnapshot().questions._tag);
+        });
+
+        model.configure({ reading: { questions: [{ policy: readPolicy }] } });
+
+        assert.deepStrictEqual(told, ["Rows"]);
+        return heard.calls;
+      }),
+    },
+    {
+      field: "the unsampled flag",
+      heard: Effect.gen(function* () {
+        const layer = Layer.effectDiscard(Effect.sleep("1 second"));
+        const model = yield* makeDockModel({ diagnostics: { layer } });
+        const heard = heardOn(model.questions);
+
+        yield* settleTurns;
+        yield* TestClock.adjust("1 second");
+        yield* settleTurns;
+
+        return heard.calls;
+      }),
+    },
+  ];
+
+  const questionsQuiet: ReadonlyArray<KeyRow> = [
+    {
+      field: "the wiring",
+      heard: Effect.gen(function* () {
+        const diagnostics = {};
+        const model = yield* makeDockModel({
+          diagnostics,
+          reading: { wiring: wiringNamed("one") },
+        });
+        const heard = heardOn(model.questions);
+
+        model.configure({ diagnostics, reading: { wiring: wiringNamed("two") } });
+
+        return heard.calls;
+      }),
+    },
+  ];
+
+  it.effect(
+    "the questions store moves once per key field, before a diagnostics listener",
+    () =>
+      Effect.gen(function* () {
+        for (const row of questionsMoves) {
+          assert.strictEqual(yield* row.heard, 1, row.field);
+        }
+        for (const row of questionsQuiet) {
+          assert.strictEqual(yield* row.heard, 0, row.field);
+        }
+      }),
+  );
 });
 
 describe("the join of the three feeds (J1..J8)", () => {
@@ -1459,80 +1632,6 @@ describe("the services store", () => {
       assert.strictEqual(starting.services.getSnapshot()._tag, "Withheld");
     }));
 
-  it.effect("M49: the services store keeps its reference when only the hydration or the questions move", () =>
-    Effect.gen(function* () {
-      let answer: ReadonlyArray<AskedQuestionLike> = [];
-      const questions = () => answer;
-      const diagnostics = {};
-      const reading = { wiring: wiringNamed("one"), activity: activityOf(1), portCalls: logOf("tier") };
-      const model = yield* makeDockModel({ diagnostics, questions, reading });
-      yield* settleTurns;
-      const before = model.services.getSnapshot();
-      const heard = heardOf(model);
-      const polled = { calls: 0 };
-      model.questions.subscribe(() => {
-        polled.calls += 1;
-      });
-
-      answer = [{ policy: readPolicy }];
-      yield* TestClock.adjust("2 seconds");
-      yield* settleTurns;
-      assert.isAbove(polled.calls, 0);
-      assert.strictEqual(model.services.getSnapshot(), before);
-
-      model.configure({ diagnostics, questions, reading: { ...reading, questions: [{ policy: readPolicy }] } });
-      assert.strictEqual(model.services.getSnapshot(), before);
-      assert.strictEqual(heard.calls, 0);
-    }));
-
-  it.effect("M50: a new wiring alone recomputes the services view once", () =>
-    Effect.gen(function* () {
-      const diagnostics = {};
-      const reading = { wiring: wiringNamed("one"), activity: activityOf(1), portCalls: logOf("tier") };
-      const model = yield* makeDockModel({ diagnostics, reading });
-      const before = model.services.getSnapshot();
-      const heard = heardOf(model);
-
-      model.configure({ diagnostics, reading: { ...reading, wiring: wiringNamed("two") } });
-
-      assert.notStrictEqual(model.services.getSnapshot(), before);
-      assert.strictEqual(heard.calls, 1);
-      assert.strictEqual(rowOf(model).state, "two");
-    }));
-
-  it.effect("M51: a new activity list alone recomputes the services view once", () =>
-    Effect.gen(function* () {
-      const diagnostics = {};
-      const reading = { wiring: wiringNamed("one"), activity: activityOf(1), portCalls: logOf("tier") };
-      const model = yield* makeDockModel({ diagnostics, reading });
-      const before = model.services.getSnapshot();
-      const heard = heardOf(model);
-
-      model.configure({ diagnostics, reading: { ...reading, activity: activityOf(7) } });
-
-      assert.notStrictEqual(model.services.getSnapshot(), before);
-      assert.strictEqual(heard.calls, 1);
-      assert.strictEqual(rowOf(model).activity, "7 calls");
-    }));
-
-  it.effect("M52: a new call log alone recomputes the services view once", () =>
-    Effect.gen(function* () {
-      const diagnostics = {};
-      const reading = { wiring: wiringNamed("one"), activity: activityOf(1), portCalls: logOf() };
-      const model = yield* makeDockModel({ diagnostics, reading });
-      const before = model.services.getSnapshot();
-      assert.strictEqual(rowOf(model).calls._tag, "Hidden");
-      const heard = heardOf(model);
-
-      model.configure({ diagnostics, reading: { ...reading, portCalls: logOf("riskScore") } });
-
-      assert.notStrictEqual(model.services.getSnapshot(), before);
-      assert.strictEqual(heard.calls, 1);
-      const { calls } = rowOf(model);
-      if (calls._tag !== "Listed") return assert.fail(`expected Listed, got ${calls._tag}`);
-      assert.include(calls.calls[0]?.text ?? "", "riskScore");
-    }));
-
   it.effect("M53: the Starting->Live flip recomputes the services view, with every input supplied", () =>
     Effect.gen(function* () {
       const layer = Layer.effectDiscard(Effect.sleep("1 second"));
@@ -1581,18 +1680,103 @@ describe("the services store", () => {
       assert.deepStrictEqual(off.services.getSnapshot(), offView);
     }));
 
-  it.effect("M55: a model whose scope closed recomputes no services view for a reading a later configure hands it", () =>
+  const hydration: HydrationActivity = {
+    dehydrated: 2,
+    seeded: 1,
+    rechecked: 0,
+    mismatched: 0,
+    drops: [],
+  };
+
+  /**
+   * A model reading one wiring, activity and call log, handed `change` laid over it by a
+   * configure: how often the services store heard. A diagnostics listener reads the
+   * wiring's state when `state` is given, and must read the new one.
+   */
+  const heardAfter = (change: DiagnosticsReading, state?: string) =>
     Effect.gen(function* () {
-      const reading = { wiring: wiringNamed("one"), activity: activityOf(1), portCalls: logOf("tier") };
-      const scope = yield* Scope.make();
-      const model = yield* Scope.provide(makeDockModel({ reading }), scope);
-      yield* Scope.close(scope, Exit.void);
-      const before = model.services.getSnapshot();
+      const diagnostics = {};
+      const reading = {
+        wiring: wiringNamed("one"),
+        activity: activityOf(1),
+        portCalls: logOf("tier"),
+      };
+      const model = yield* makeDockModel({ diagnostics, reading });
       const heard = heardOf(model);
+      const told: Array<string> = [];
+      model.diagnostics.subscribe(() => {
+        told.push(rowOf(model).state);
+      });
 
-      model.configure({ reading: { ...reading, wiring: wiringNamed("two") } });
+      model.configure({ diagnostics, reading: { ...reading, ...change } });
 
-      assert.strictEqual(model.services.getSnapshot(), before);
-      assert.strictEqual(heard.calls, 0);
-    }));
+      if (state !== undefined) assert.deepStrictEqual(told, [state]);
+      return heard.calls;
+    });
+
+  const servicesMoves: ReadonlyArray<KeyRow> = [
+    { field: "the wiring", heard: heardAfter({ wiring: wiringNamed("two") }, "two") },
+    { field: "the activity", heard: heardAfter({ activity: activityOf(7) }) },
+    { field: "the call log", heard: heardAfter({ portCalls: logOf("riskScore") }) },
+    {
+      field: "the unsampled flag",
+      heard: Effect.gen(function* () {
+        const layer = Layer.effectDiscard(Effect.sleep("1 second"));
+        const reading = { wiring: wiringNamed("one"), activity: [], portCalls: logOf() };
+        const model = yield* makeDockModel({ diagnostics: { layer }, reading });
+        const heard = heardOf(model);
+
+        yield* settleTurns;
+        yield* TestClock.adjust("1 second");
+        yield* settleTurns;
+
+        return heard.calls;
+      }),
+    },
+  ];
+
+  const servicesQuiet: ReadonlyArray<KeyRow> = [
+    { field: "the hydration", heard: heardAfter({ hydration }) },
+    {
+      field: "the supplied questions",
+      heard: heardAfter({ questions: [{ policy: readPolicy }] }),
+    },
+  ];
+
+  it.effect(
+    "the services store moves once per key field, before a diagnostics listener",
+    () =>
+      Effect.gen(function* () {
+        for (const row of servicesMoves) {
+          assert.strictEqual(yield* row.heard, 1, row.field);
+        }
+        for (const row of servicesQuiet) {
+          assert.strictEqual(yield* row.heard, 0, row.field);
+        }
+      }),
+  );
+});
+
+describe("the stores of the model", () => {
+  it.effect(
+    "the members with subscribe and getSnapshot are the stores BEH-QD-700 names",
+    () =>
+      Effect.gen(function* () {
+        const model = yield* makeDockModel();
+        const members: ReadonlyArray<readonly [string, unknown]> = Object.entries(model);
+
+        const stores = members
+          .filter(
+            ([, member]) =>
+              Predicate.hasProperty(member, "subscribe") &&
+              Predicate.hasProperty(member, "getSnapshot"),
+          )
+          .map(([name]) => name);
+
+        assert.deepStrictEqual(stores, [
+          "timeline", "dock", "explorer", "roles", "simulation", "diagnostics",
+          "timelineStatus", "questions", "services",
+        ]);
+      }),
+  );
 });
