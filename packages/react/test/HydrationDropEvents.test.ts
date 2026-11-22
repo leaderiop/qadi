@@ -1,12 +1,15 @@
 /**
- * Pins every drop event the hydration engine emits, its order and its counts, through `hydrateWith` and
- * `dehydrateWith`.
+ * Pins every drop event the hydration engine emits, its order and its counts,
+ * through `hydrateWith` and `dehydrateWith`.
  *
- * Written against the engine before its events were derived from the entries each call collects, and never edited
- * after: any change to an event, an order or a count fails here, whichever way the engine builds them (BEH-QD-230,
- * BEH-QD-231, INV-QD-045). Each row pins the reporter calls in order, the change in all nine drop counts, the seeded
- * or dehydrated change, and, inside each reporter call, that its reason is already counted and what was seeded or
- * written has not been yet.
+ * Written against the engine before its events were derived from the entries each
+ * call collects. No existing row's expected values have changed since: later edits
+ * only wrapped lines, derived a constant from the declared reasons and added rows.
+ * Any change to an event, an order or a count fails here, whichever way the engine
+ * builds them (BEH-QD-230, BEH-QD-231, INV-QD-045). Each row pins the reporter
+ * calls in order, the change in every drop count, the seeded or dehydrated change,
+ * and, inside each reporter call, that its reason is already counted and what was
+ * seeded or written has not been yet.
  *
  * Every count read is a delta of the default registry, which a test cannot scope.
  */
@@ -78,7 +81,10 @@ const good = (evaluationId: string) => ({
   },
 });
 const malformed = (evaluationId: string) => ({ ...good(evaluationId), extra: true });
-const undecodable = (evaluationId: string) => ({ ...good(evaluationId), policy: { _tag: "NotAPolicy" } });
+const undecodable = (evaluationId: string) => ({
+  ...good(evaluationId),
+  policy: { _tag: "NotAPolicy" },
+});
 const tooDeep = (evaluationId: string) => ({ ...good(evaluationId), policy: deepPolicy(OVER) });
 
 /** An entry whose disclosed trace is rooted at `HasPermission` on a `HasRole` policy, as JSON. */
@@ -122,9 +128,14 @@ interface Observed<A> {
   readonly movedDelta: number;
 }
 
-/** Watches one engine call: `moved` reads the count that must still be unmoved while a reporter runs. */
+/** Watches one engine call: `moved` reads the count that stays unmoved while a reporter runs. */
 const watch = <A>(moved: () => number) => {
-  const before = new Map(hydrationDropReasons.map((reason): [HydrationDropReason, number] => [reason, dropCount(reason)]));
+  const before = new Map(
+    hydrationDropReasons.map((reason): [HydrationDropReason, number] => [
+      reason,
+      dropCount(reason),
+    ]),
+  );
   const movedBefore = moved();
   const observed: Array<Observed<A>> = [];
   return {
@@ -145,8 +156,11 @@ const watch = <A>(moved: () => number) => {
   };
 };
 
-/** Asserts the reporter calls in order, each with its reason already counted and nothing yet seeded or written. */
-const assertCalls = <A>(observed: ReadonlyArray<Observed<A>>, calls: ReadonlyArray<Expected<A>>): void => {
+/** Asserts the reporter calls in order: each reason already counted, nothing yet moved. */
+const assertCalls = <A>(
+  observed: ReadonlyArray<Observed<A>>,
+  calls: ReadonlyArray<Expected<A>>,
+): void => {
   assert.strictEqual(observed.length, calls.length);
   calls.forEach((call, index) => {
     const seen = observed[index];
@@ -156,17 +170,20 @@ const assertCalls = <A>(observed: ReadonlyArray<Observed<A>>, calls: ReadonlyArr
     assert.strictEqual(seen.drop.wholePayload, call.wholePayload);
     assert.strictEqual(seen.drop.entries.length, call.entries.length);
     call.entries.forEach((entry, at) => assert.strictEqual(seen.drop.entries[at], entry));
-    assert.strictEqual(seen.reasonDelta, call.wholePayload ? Math.max(1, call.entries.length) : call.entries.length);
+    assert.strictEqual(
+      seen.reasonDelta,
+      call.wholePayload ? Math.max(1, call.entries.length) : call.entries.length,
+    );
     assert.strictEqual(seen.movedDelta, 0);
   });
 };
 
-/** Asserts the change in all nine drop counts: the listed ones as given, every other reason unmoved. */
+/** Asserts the change in every drop count: the listed ones as given, the rest unmoved. */
 const assertDeltas = (
   actual: ReadonlyArray<readonly [HydrationDropReason, number]>,
   expected: ReadonlyArray<readonly [HydrationDropReason, number]>,
 ): void => {
-  assert.strictEqual(actual.length, 9);
+  assert.strictEqual(actual.length, hydrationDropReasons.length);
   for (const [reason, delta] of actual) {
     const want = expected.find(([listed]) => listed === reason);
     assert.strictEqual(delta, want === undefined ? 0 : want[1], reason);
@@ -217,7 +234,11 @@ const g2 = good("g2");
 const rowH9: HydrateRow = {
   title: "all three entry reasons beside a good entry are three events in the declared order",
   payload: envelope([u1, m1, g1, t1]),
-  calls: [dropped("EntryTooDeep", t1), dropped("MalformedEntry", m1), dropped("UndecodablePolicy", u1)],
+  calls: [
+    dropped("EntryTooDeep", t1),
+    dropped("MalformedEntry", m1),
+    dropped("UndecodablePolicy", u1),
+  ],
   drops: [
     ["EntryTooDeep", 1],
     ["MalformedEntry", 1],
@@ -264,7 +285,7 @@ const entryRows: ReadonlyArray<HydrateRow> = [
     seeded: 0,
   },
   {
-    title: "EntryTooDeep is reported before UndecodablePolicy whatever the input order",
+    title: "EntryTooDeep precedes UndecodablePolicy when the input lists UndecodablePolicy first",
     payload: envelope([u1, t1]),
     calls: [dropped("EntryTooDeep", t1), dropped("UndecodablePolicy", u1)],
     drops: [
@@ -274,7 +295,17 @@ const entryRows: ReadonlyArray<HydrateRow> = [
     seeded: 0,
   },
   {
-    title: "MalformedEntry is reported before UndecodablePolicy whatever the input order",
+    title: "EntryTooDeep precedes UndecodablePolicy when the input lists EntryTooDeep first",
+    payload: envelope([t1, u1]),
+    calls: [dropped("EntryTooDeep", t1), dropped("UndecodablePolicy", u1)],
+    drops: [
+      ["EntryTooDeep", 1],
+      ["UndecodablePolicy", 1],
+    ],
+    seeded: 0,
+  },
+  {
+    title: "MalformedEntry precedes UndecodablePolicy when the input lists UndecodablePolicy first",
     payload: envelope([u1, m1]),
     calls: [dropped("MalformedEntry", m1), dropped("UndecodablePolicy", u1)],
     drops: [
@@ -284,8 +315,28 @@ const entryRows: ReadonlyArray<HydrateRow> = [
     seeded: 0,
   },
   {
-    title: "EntryTooDeep is reported before MalformedEntry whatever the input order",
+    title: "MalformedEntry precedes UndecodablePolicy when the input lists MalformedEntry first",
+    payload: envelope([m1, u1]),
+    calls: [dropped("MalformedEntry", m1), dropped("UndecodablePolicy", u1)],
+    drops: [
+      ["MalformedEntry", 1],
+      ["UndecodablePolicy", 1],
+    ],
+    seeded: 0,
+  },
+  {
+    title: "EntryTooDeep precedes MalformedEntry when the input lists MalformedEntry first",
     payload: envelope([m1, t1]),
+    calls: [dropped("EntryTooDeep", t1), dropped("MalformedEntry", m1)],
+    drops: [
+      ["EntryTooDeep", 1],
+      ["MalformedEntry", 1],
+    ],
+    seeded: 0,
+  },
+  {
+    title: "EntryTooDeep precedes MalformedEntry when the input lists EntryTooDeep first",
+    payload: envelope([t1, m1]),
     calls: [dropped("EntryTooDeep", t1), dropped("MalformedEntry", m1)],
     drops: [
       ["EntryTooDeep", 1],
@@ -295,7 +346,7 @@ const entryRows: ReadonlyArray<HydrateRow> = [
   },
   rowH9,
   {
-    title: "a malformed entry and a disagreeing entry share one MalformedEntry event in input order",
+    title: "a malformed and a disagreeing entry share one MalformedEntry event in input order",
     payload: envelope([m1, disagreeing, m2]),
     calls: [dropped("MalformedEntry", m1, disagreeing, m2)],
     drops: [["MalformedEntry", 3]],
@@ -390,7 +441,7 @@ const payloadRows: ReadonlyArray<HydrateRow> = [
   },
 ];
 
-describe("hydrateWith reports every dropped entry once, in the declared order, before it counts what it seeded", () => {
+describe("hydrateWith reports each entry drop once and in declared order", () => {
   for (const row of entryRows) it(row.title, () => runHydrate(row));
 });
 
@@ -457,7 +508,16 @@ const leaveOutUnencodable: DehydrateRun = {
 const dehydrateRows: ReadonlyArray<DehydrateRow> = [
   {
     title: "entries of one subject that all encode report nothing and write every entry",
-    runs: [{ entries: [own1, own2], calls: [], drops: [], dehydrated: 2, written: ["e1", "e2"], subjectId: "u1" }],
+    runs: [
+      {
+        entries: [own1, own2],
+        calls: [],
+        drops: [],
+        dehydrated: 2,
+        written: ["e1", "e2"],
+        subjectId: "u1",
+      },
+    ],
   },
   {
     title: "an entry for another subject is one ForeignSubject event",
@@ -472,7 +532,10 @@ const dehydrateRows: ReadonlyArray<DehydrateRow> = [
       },
     ],
   },
-  { title: "an entry whose policy does not encode is one UnencodablePolicy event", runs: [leaveOutUnencodable] },
+  {
+    title: "an entry whose policy does not encode is one UnencodablePolicy event",
+    runs: [leaveOutUnencodable],
+  },
   {
     title: "ForeignSubject is reported before UnencodablePolicy whatever the input order",
     runs: [leaveOutBoth, { ...leaveOutBoth, entries: [own1, foreign1, unenc1] }],
@@ -496,15 +559,26 @@ const dehydrateRows: ReadonlyArray<DehydrateRow> = [
   },
   {
     title: "no entries writes an empty payload and reports nothing",
-    runs: [{ entries: [], calls: [], drops: [], dehydrated: 0, written: [], subjectId: undefined }],
+    runs: [
+      { entries: [], calls: [], drops: [], dehydrated: 0, written: [], subjectId: undefined },
+    ],
   },
   {
     title: "a single foreign-looking entry names its own subject and is written",
-    runs: [{ entries: [foreign1], calls: [], drops: [], dehydrated: 1, written: ["e3"], subjectId: "u2" }],
+    runs: [
+      {
+        entries: [foreign1],
+        calls: [],
+        drops: [],
+        dehydrated: 1,
+        written: ["e3"],
+        subjectId: "u2",
+      },
+    ],
   },
 ];
 
-describe("dehydrateWith reports every entry it left out once, in the declared order, before it counts what it wrote", () => {
+describe("dehydrateWith reports each left-out entry once and in declared order", () => {
   for (const row of dehydrateRows) it(row.title, () => row.runs.forEach(runDehydrate));
 });
 
