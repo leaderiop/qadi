@@ -5,16 +5,16 @@ milestone_name: Arch Wave 13
 current_phase: 70
 current_phase_name: Hydration's drop events come from its buckets
 status: executing
-stopped_at: Completed 70-03-PLAN.md
-last_updated: "2026-11-22T12:50:59.497Z"
+stopped_at: Completed QD-70-04-PLAN.md
+last_updated: "2026-11-22T12:55:42.058Z"
 last_activity: 2026-11-22
 last_activity_desc: Phase 70 execution started
-state_head: 89cbf10ded295c21610940bb59507023109f9ad3
+state_head: 11c3ac6f7a266f04381f2030f95c196159976e1d
 progress:
   total_phases: 8
   completed_phases: 1
   total_plans: 16
-  completed_plans: 12
+  completed_plans: 13
   percent: 13
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 ## Current Position
 
 Phase: 70 (Hydration's drop events come from its buckets) — EXECUTING
-Plan: 4 of 7
+Plan: 5 of 7
 Status: Ready to execute
 Last activity: 2026-11-22 — Phase 70 execution started
 
@@ -496,6 +496,7 @@ Last activity: 2026-11-22 — Phase 70 execution started
 | Phase QD-70 P01 | 10 min | 2 tasks | 3 files |
 | Phase 70 P02 | 15 min | 3 tasks | 2 files |
 | Phase 70 P03 | 12 min | 2 tasks | 2 files |
+| Phase QD-70 P04 | 20 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -845,6 +846,7 @@ Last activity: 2026-11-22 — Phase 70 execution started
 - [Phase QD-70]: 70-01: characterisation compares reporter entries by reference identity; base measured at 3630e298 (HydrationEngine.ts 169/169, 36 Ignored)
 - [Phase 70]: 70-02: the base experiment and type pins are recorded RED; a throwaway entry row is refused only at the engine's bucket record and, once bucketed, reaches no event or count; payload and dehydration rows compile with nothing producing them (decided autonomously)
 - [Phase 70]: 70-03: bucket records are per-call mapped-type records whose key order is the emission order; one generic dropEvents serves both sides (autonomous)
+- [Phase QD-70]: 70-04: PAYLOAD_PRODUCERS (reason to producer) stays in HydrationEngine.ts beside the decoder; PAYLOAD_REASONS is its compile-checked inverse, replacing the Match dispatcher (autonomous)
 
 ### Pending Todos
 
@@ -918,8 +920,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-22T12:50:59.452Z
-Stopped at: Completed 70-03-PLAN.md
+Last session: 2026-11-22T12:55:42.017Z
+Stopped at: Completed QD-70-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
