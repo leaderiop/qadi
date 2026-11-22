@@ -10,7 +10,7 @@
 
 ### One total "thrown value → message" module (Phase 69, ARCH-116, core; live defect)
 
-- [x] **THRW-01**: A regression test written on the phase base is RED for each unguarded site (`JsonHazard.encodeFailed`, the `PortKey` and `PortDerivation` key refusals, both `PortWireEncode` catches, and `CustomPredicate.renderReason`'s `message` read): given a thrown value whose `toString` and `message` getter both throw, the documented total function throws. It is GREEN after the change.
+- [ ] **THRW-01**: A regression test written on the phase base is RED for each unguarded site (`JsonHazard.encodeFailed`, the `PortKey` and `PortDerivation` key refusals, both `PortWireEncode` catches, and `CustomPredicate.renderReason`'s `message` read): given a thrown value whose `toString` and `message` getter both throw, the documented total function throws. It is GREEN after the change.
 - [ ] **THRW-02**: One package-private total function in core turns a caught value into a message. It guards both the `message` getter and `String()`, and owns the one placeholder wording.
 - [ ] **THRW-03**: All six call sites (`SinkCodec`, `CustomPredicate`, `JsonHazard`, `PortKey`, `PortDerivation`, `PortWireEncode`) use it, and no `instanceof Error ? … .message : String(…)` remains in `packages/core/src`.
 - [ ] **THRW-04**: A table test on the function covers an `Error`, a plain value, a throwing `toString`, a throwing `message` getter, and both throwing at once. The existing `SinkCodec` and `CustomPredicate` pins move to the one placeholder.
@@ -78,9 +78,9 @@
 - [ ] **WX-02**: Each phase records its ADR (or names it "Unused" in its CCR row), its CCR row, and its BEH/INV/traceability changes, using only its reserved numbers. `node scripts/next-id.mjs` is never run.
 - [ ] **WX-03**: `spec/overview.md` names every added export and drops every removed one (gate 13). This milestone expects none, except possibly Phase 76.
 - [ ] **WX-04**: Nothing new is added from this list: `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`, ambient `console`/`process.env`/clock, `Record<string, unknown>`, `// Stryker disable`. A budget changes only together with its AGENTS.md table.
-- [x] **WX-05**: Coverage thresholds hold (core at least 95%, the others at least 90%). The Stryker score of touched files does not fall: recorded per phase in `NN-mutation-base.json`, measured with the same invocation at the phase base and at close. A drop is closed with a test, never re-baselined.
-- [x] **WX-06**: Every behaviour change is preceded by a characterisation or regression test written on the phase base: RED for a defect, green for preserved behaviour. Every new check is shown failing once.
-- [x] **WX-07**: No D-numbers, plan-local ids or phase numbers enter shipped source, test titles or BDD scenarios. Nothing is released or published, and no version-packages PR is merged.
+- [ ] **WX-05**: Coverage thresholds hold (core at least 95%, the others at least 90%). The Stryker score of touched files does not fall: recorded per phase in `NN-mutation-base.json`, measured with the same invocation at the phase base and at close. A drop is closed with a test, never re-baselined.
+- [ ] **WX-06**: Every behaviour change is preceded by a characterisation or regression test written on the phase base: RED for a defect, green for preserved behaviour. Every new check is shown failing once.
+- [ ] **WX-07**: No D-numbers, plan-local ids or phase numbers enter shipped source, test titles or BDD scenarios. Nothing is released or published, and no version-packages PR is merged.
 
 ## Future Requirements
 
@@ -105,7 +105,7 @@ Which phases cover which requirements. One row per ID (`phase.complete` cannot p
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| THRW-01 | Phase 69 | Complete |
+| THRW-01 | Phase 69 | Pending |
 | THRW-02 | Phase 69 | Pending |
 | THRW-03 | Phase 69 | Pending |
 | THRW-04 | Phase 69 | Pending |
@@ -149,9 +149,9 @@ Which phases cover which requirements. One row per ID (`phase.complete` cannot p
 | WX-02 | All v1.8 phases | Pending |
 | WX-03 | All v1.8 phases | Pending |
 | WX-04 | All v1.8 phases | Pending |
-| WX-05 | All v1.8 phases | Complete |
-| WX-06 | All v1.8 phases | Complete |
-| WX-07 | All v1.8 phases | Complete |
+| WX-05 | All v1.8 phases | Pending |
+| WX-06 | All v1.8 phases | Pending |
+| WX-07 | All v1.8 phases | Pending |
 
 **Coverage:**
 - v1.8 requirements: 47 total (40 phase-specific + 7 cross-cutting)
