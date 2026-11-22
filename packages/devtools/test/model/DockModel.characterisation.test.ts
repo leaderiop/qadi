@@ -24,15 +24,16 @@ import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Scope from "effect/Scope";
 import { makeDockModel } from "../../src/model/DockModel.ts";
-import type { HydrationActivity } from "../../src/model/Hydration.ts";
 import { makeCollectorDouble } from "../collectorDouble.ts";
 import {
   activityOf,
   askingIds,
   heardOf,
   logOf,
+  oneReading,
   rowOf,
   suppliedActivity,
+  suppliedHydration,
   wiringNamed,
 } from "../dockModelFixtures.ts";
 import { makeGateRegistryDouble } from "../gateRegistryDouble.ts";
@@ -44,13 +45,6 @@ import {
   thrownBy,
   tick,
 } from "../helpers.ts";
-
-/** A reading holding every field the services store reads. */
-const oneReading = () => ({
-  wiring: wiringNamed("one"),
-  activity: activityOf(1),
-  portCalls: logOf("tier"),
-});
 
 describe("the diagnostics store", () => {
   it.effect("a collector answer that moves under a supplied activity notifies once", () =>
@@ -224,18 +218,14 @@ describe("the services store", () => {
       Effect.gen(function* () {
         const diagnostics = {};
         const reading = oneReading();
-        const hydration: HydrationActivity = {
-          dehydrated: 2,
-          seeded: 1,
-          rechecked: 0,
-          mismatched: 0,
-          drops: [],
-        };
         const model = yield* makeDockModel({ diagnostics, reading });
         const before = model.services.getSnapshot();
         const heard = heardOf(model);
 
-        model.configure({ diagnostics, reading: { ...reading, hydration } });
+        model.configure({
+          diagnostics,
+          reading: { ...reading, hydration: suppliedHydration },
+        });
 
         assert.strictEqual(model.services.getSnapshot(), before);
         assert.strictEqual(heard.calls, 0);
