@@ -5,16 +5,16 @@ milestone_name: Arch Wave 13
 current_phase: 70
 current_phase_name: Hydration's drop events come from its buckets
 status: executing
-stopped_at: Phase 69 complete, ready to plan Phase 70
-last_updated: "2026-11-22T12:38:31.602Z"
+stopped_at: Completed QD-70-01-PLAN.md
+last_updated: "2026-11-22T12:44:41.018Z"
 last_activity: 2026-11-22
 last_activity_desc: Phase 70 execution started
-state_head: 2ce41b8ef1b9669ba8e1b7eee1eb1eac61ec253c
+state_head: cf26b81fa49bca7ccee704eda456a6b24043646c
 progress:
   total_phases: 8
   completed_phases: 1
   total_plans: 16
-  completed_plans: 9
+  completed_plans: 10
   percent: 13
 ---
 
@@ -30,8 +30,8 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 ## Current Position
 
 Phase: 70 (Hydration's drop events come from its buckets) — EXECUTING
-Plan: 1 of 7
-Status: Executing Phase 70
+Plan: 2 of 7
+Status: Ready to execute
 Last activity: 2026-11-22 — Phase 70 execution started
 
 
@@ -493,6 +493,7 @@ Last activity: 2026-11-22 — Phase 70 execution started
 | Phase 69 P07 | 35 min | 3 tasks | 11 files |
 | Phase QD-69 P08 | 30min | 2 tasks | 9 files |
 | Phase 69 P09 | 75min | 2 tasks | 4 files |
+| Phase QD-70 P01 | 10 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -839,6 +840,7 @@ Last activity: 2026-11-22 — Phase 70 execution started
 - [Phase QD-69]: 69-08: the spec states the thrown-value rule at every seam with only the reserved ids; ADR-QD-182 gate 14 mention names its script (decided autonomously)
 - [Phase 69]: 69-09: an Ignored (static) mutant is judged by kind per file with one examined allowance, since no test can kill a static mutant; base record untouched (decided autonomously)
 - [Phase 69]: Code review (3 iterations, 13 findings, all fixed): a capture field is absent only when `undefined`, so a `null` cause records `"null"` (supersedes 69-05's "a null cause reads as none"); hostile fixtures live once per package's test helpers; the examined Capture allowance went with the `fieldOf` it covered and the mutation record was re-closed on all five groups at the fixed head (decided autonomously)
+- [Phase QD-70]: 70-01: characterisation compares reporter entries by reference identity; base measured at 3630e298 (HydrationEngine.ts 169/169, 36 Ignored)
 
 ### Pending Todos
 
@@ -912,8 +914,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-22T10:43:09.146Z
-Stopped at: Phase 69 complete, ready to plan Phase 70
+Last session: 2026-11-22T12:44:40.915Z
+Stopped at: Completed QD-70-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
