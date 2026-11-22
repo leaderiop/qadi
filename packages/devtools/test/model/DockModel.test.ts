@@ -1033,9 +1033,14 @@ describe("the diagnostics store (M18..M27)", () => {
           reading: { activity: activityOf(1) },
         });
         const heard = heardOn(model.diagnostics);
+        const told: Array<unknown> = [];
+        model.diagnostics.subscribe(() => {
+          told.push(model.diagnostics.getSnapshot().reading.activity);
+        });
 
         model.configure({ diagnostics, reading: { activity: activityOf(2) } });
 
+        assert.deepStrictEqual(told, [activityOf(2)]);
         return heard.calls;
       }),
     },
