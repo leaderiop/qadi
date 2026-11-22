@@ -966,25 +966,28 @@ describe("the diagnostics store (M18..M27)", () => {
       assert.strictEqual(model.diagnostics.getSnapshot(), diagnosticsOff);
     }));
 
-  it.effect("a model whose scope closed merges no reading a later configure hands it", () =>
-    Effect.gen(function* () {
-      const scope = yield* Scope.make();
-      const model = yield* Scope.provide(
-        makeDockModel({ reading: { activity: suppliedActivity } }),
-        scope,
-      );
-      yield* Scope.close(scope, Exit.void);
-      const before = model.diagnostics.getSnapshot();
-      let heard = 0;
-      model.diagnostics.subscribe(() => {
-        heard += 1;
-      });
+  it.effect(
+    "a model whose scope closed merges no reading a later configure hands it",
+    () =>
+      Effect.gen(function* () {
+        const scope = yield* Scope.make();
+        const model = yield* Scope.provide(
+          makeDockModel({ reading: { activity: suppliedActivity } }),
+          scope,
+        );
+        yield* Scope.close(scope, Exit.void);
+        const before = model.diagnostics.getSnapshot();
+        let heard = 0;
+        model.diagnostics.subscribe(() => {
+          heard += 1;
+        });
 
-      model.configure({ reading: { activity: activityOf(7) } });
+        model.configure({ reading: { activity: activityOf(7) } });
 
-      assert.strictEqual(model.diagnostics.getSnapshot(), before);
-      assert.strictEqual(heard, 0);
-    }));
+        assert.strictEqual(model.diagnostics.getSnapshot(), before);
+        assert.strictEqual(heard, 0);
+      }),
+  );
 });
 
 describe("the timeline's status (M29)", () => {
