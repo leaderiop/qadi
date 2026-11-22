@@ -118,6 +118,7 @@ const namedLine = (error: unknown): string | undefined => {
   try {
     if (error instanceof Error) {
       const message: unknown = error.message;
+      // `thrownMessage` is the guarded string conversion of the name (a name need not be a string).
       if (typeof message === "string") return `${thrownMessage(error.name)}: ${message}`;
     }
   } catch {
