@@ -200,18 +200,30 @@ const decodeEnvelope = untrustedDecoder(Envelope, {
 /**
  * What raises a whole-payload refusal: one of the payload decoder's own
  * refusals, by tag, or the subject check.
+ *
+ * Exported for `HydrationBuckets.tst.ts`; this module is package-private and out
+ * of the barrel (AGENTS.md section 9, ADR-QD-099).
  */
-type PayloadProducer = (UntrustedValueRefusal | PayloadVersionRefusal)["_tag"] | "SubjectCheck";
+export type PayloadProducer =
+  | (UntrustedValueRefusal | PayloadVersionRefusal)["_tag"]
+  | "SubjectCheck";
 
 /**
  * Each whole-payload refusal reason, and the producer that raises it.
  *
  * One row per reason of core's drop-reason table of kind `payload`, so a
  * `payload` row the table gains does not compile here until its producer is
- * stated: the guarantee the two bucket records give the other two kinds
- * (ADR-QD-183, amending ADR-QD-152's consequence that such a row compiled
- * everywhere). Exported only for its conformance test, the module being
- * package-private.
+ * stated, and a new producer then needs its slot in {@link PAYLOAD_REASONS}. That
+ * is the whole of what the compiler checks: it cannot check that a call site
+ * raises the producer. A reason with a new producer and no use of its slot
+ * compiles, and the conformance test is what drives each row (ADR-QD-183,
+ * amending ADR-QD-152's consequence that such a row compiled everywhere).
+ *
+ * A runtime value on purpose, though the engine reads it only as a type
+ * (`typeof PAYLOAD_PRODUCERS`): it is the record that conformance test drives,
+ * one refusal per row, and the source of truth {@link PAYLOAD_REASONS} is checked
+ * against. Exported for that test and for `HydrationBuckets.tst.ts`; this module
+ * is package-private and out of the barrel.
  */
 export const PAYLOAD_PRODUCERS = {
   PayloadSubjectMismatch: "SubjectCheck",
@@ -220,17 +232,28 @@ export const PAYLOAD_PRODUCERS = {
   PayloadTooDeep: "TooDeep",
 } satisfies { readonly [R in PayloadRefusalReason]: PayloadProducer };
 
-/** The union itself when it has exactly one member, `never` otherwise. */
-type OnlyMember<U, All = U> = U extends unknown ? ([All] extends [U] ? U : never) : never;
+/**
+ * The union itself when it has exactly one member, `never` otherwise.
+ *
+ * Exported for `HydrationBuckets.tst.ts`; this module is package-private and out
+ * of the barrel.
+ */
+export type OnlyMember<U, All = U> = U extends unknown ? ([All] extends [U] ? U : never) : never;
 
 /**
- * The one reason whose row in {@link PAYLOAD_PRODUCERS} names `P`, and `never`
- * when no row does or two rows do.
+ * The one reason whose row in `Rows` names `P`, and `never` when no row does or
+ * two rows do.
+ *
+ * `Rows` is {@link PAYLOAD_PRODUCERS} unless a type pin supplies another record
+ * to show what a doubled or an unnamed producer types its slot. Exported for
+ * `HydrationBuckets.tst.ts`; this module is package-private and out of the
+ * barrel.
  */
-type ReasonRaisedBy<P extends PayloadProducer> = OnlyMember<
-  {
-    readonly [R in PayloadRefusalReason]: (typeof PAYLOAD_PRODUCERS)[R] extends P ? R : never;
-  }[PayloadRefusalReason]
+export type ReasonRaisedBy<
+  P extends PayloadProducer,
+  Rows extends { readonly [R in PayloadRefusalReason]: PayloadProducer } = typeof PAYLOAD_PRODUCERS,
+> = OnlyMember<
+  { readonly [R in PayloadRefusalReason]: Rows[R] extends P ? R : never }[PayloadRefusalReason]
 >;
 
 /**
@@ -240,8 +263,11 @@ type ReasonRaisedBy<P extends PayloadProducer> = OnlyMember<
  * missing property, so the two directions cannot disagree. Indexed by the
  * refusal's own tag, so it needs no `Object.hasOwn` (AGENTS.md section 5a, as
  * `VERDICTS`).
+ *
+ * Exported for `HydrationBuckets.tst.ts`; this module is package-private and out
+ * of the barrel.
  */
-const PAYLOAD_REASONS: { readonly [P in PayloadProducer]: ReasonRaisedBy<P> } = {
+export const PAYLOAD_REASONS: { readonly [P in PayloadProducer]: ReasonRaisedBy<P> } = {
   TooDeep: "PayloadTooDeep",
   Malformed: "MalformedPayload",
   UnsupportedPayloadVersion: "UnsupportedPayloadVersion",
