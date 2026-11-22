@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-152                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-14                                     |
 > | Status         | Accepted — amends ADR-QD-123 and ADR-QD-037    |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-14): Initial (ARCH-86, CCR-QD-430) |
+> | Change History | 1.1 (2026-11-22): amendment — every drop reason is a compile error until it is produced and reported (ARCH-117, ADR-QD-183, CCR-QD-462)<br>1.0 (2026-11-14): Initial (ARCH-86, CCR-QD-430) |
 
 ---
 
@@ -80,6 +80,16 @@ it.** (ARCH-86, CCR-QD-430.)
 - **A reason-keyed record in react's payload path, so a new payload row fails to compile.** It
   would reshape `HydrationEngine.ts`, which a later phase shares, and the reporters already read a
   new reason's meaning from its row.
+
+## Amendment (2026-11-22, CCR-QD-462): every drop reason is a compile error until it is produced and reported
+
+The alternative this decision turned down, a reason-keyed record in react's payload path, is taken by
+[ADR-QD-183](./183-hydration-drop-events-are-derived-from-their-buckets.md), because the reason given, a later phase
+sharing `HydrationEngine.ts`, no longer holds. The consequence below that a `payload` or `dehydration` row compiles
+everywhere is amended: an `entry` row is a compile error at the hydrate side's bucket constructor in
+`HydrationBuckets.ts`, a `dehydration` row at the dehydrate side's, and a `payload` row at `HydrationEngine.ts`'s
+`PAYLOAD_PRODUCERS`, each until the reason is collected or produced and reported. Every other decision here is
+unchanged.
 
 ## Consequences
 
