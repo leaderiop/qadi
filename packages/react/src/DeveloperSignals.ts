@@ -41,7 +41,7 @@ import type {
   Policy,
   Resource,
 } from "@qadi/core";
-import { hydrationDropMeaning } from "@qadi/core";
+import { hydrationDropMeaning, thrownMessage } from "@qadi/core";
 import * as Data from "effect/Data";
 import * as Match from "effect/Match";
 import type { SeededDecision } from "./SeededDecision.ts";
@@ -108,12 +108,33 @@ const verdict = (decision: Decision | SeededDecision): string =>
   permits(decision) ? "allowed" : "denied";
 
 /**
- * An error as one short line: `name: message` for an `Error`, else its string
- * form. Only the error: never the value the reporter was handed, which may be
- * another subject's decision.
+ * The `name: message` form of an `Error` whose own `message` reads as a string.
+ *
+ * Anything else, a value that is not an `Error` or an `Error` whose `message` is not
+ * a string or whose getter throws, is `undefined` here and `errorLine` writes it
+ * through `thrownMessage`, so the name is never printed twice (ADR-QD-182).
  */
-const errorLine = (error: unknown): string =>
-  error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+const namedLine = (error: unknown): string | undefined => {
+  try {
+    if (error instanceof Error) {
+      const message: unknown = error.message;
+      if (typeof message === "string") return `${thrownMessage(error.name)}: ${message}`;
+    }
+  } catch {
+    // The `message` getter threw, or a proxy's prototype trap did.
+  }
+  return undefined;
+};
+
+/**
+ * An error as one short line: `name: message` for an `Error` whose message reads
+ * as a string, else `thrownMessage`'s text.
+ *
+ * Only the error: never the value the reporter was handed, which may be another
+ * subject's decision. No value the reporter threw can make this line throw, so the
+ * containment holds whatever was thrown.
+ */
+const errorLine = (error: unknown): string => namedLine(error) ?? thrownMessage(error);
 
 /**
  * What to say about each signal.
