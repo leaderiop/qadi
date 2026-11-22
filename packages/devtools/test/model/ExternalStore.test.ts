@@ -1,5 +1,10 @@
 import { assert, describe, it } from "@effect/vitest";
-import { makeExternalStore } from "../../src/model/ExternalStore.ts";
+import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
+import * as Scope from "effect/Scope";
+import * as Tracer from "effect/Tracer";
+import { makeDerivedStore, makeExternalStore } from "../../src/model/ExternalStore.ts";
+import type { Parent } from "../../src/model/ExternalStore.ts";
 import { thrownBy } from "../helpers.ts";
 
 describe("makeExternalStore", () => {
@@ -263,4 +268,502 @@ describe("makeExternalStore", () => {
     assert.isTrue(errors[1] === other);
     assert.deepStrictEqual(traps, []);
   });
+});
+
+/** A counter of how often a store told the listener it holds. */
+const heardOn = (store: { readonly subscribe: (listener: () => void) => () => void }) => {
+  const heard = { n: 0 };
+  store.subscribe(() => {
+    heard.n += 1;
+  });
+  return heard;
+};
+
+describe("makeDerivedStore", () => {
+  it.effect("the first compute runs at construction and notifies no listener", () =>
+    Effect.gen(function* () {
+      const parent = makeExternalStore({ n: 1 });
+      const keys: Array<{ readonly value: { readonly n: number } }> = [];
+      const results: Array<{ readonly seen: number }> = [];
+      const store = yield* makeDerivedStore({
+        parents: [parent],
+        key: () => ({ value: parent.getSnapshot() }),
+        compute: (key) => {
+          keys.push(key);
+          const result = { seen: key.value.n };
+          results.push(result);
+          return result;
+        },
+      });
+      const heard = heardOn(store);
+
+      assert.strictEqual(keys.length, 1);
+      assert.strictEqual(keys[0]?.value, parent.getSnapshot());
+      assert.strictEqual(store.getSnapshot(), results[0]);
+      assert.strictEqual(heard.n, 0);
+    }));
+
+  it.effect(
+    "each field of a three-field key moved alone recomputes and notifies once",
+    () =>
+      Effect.gen(function* () {
+        const parent = makeExternalStore(0);
+        let a = 1;
+        let b = "x";
+        let c = false;
+        let computed = 0;
+        const store = yield* makeDerivedStore({
+          parents: [parent],
+          key: () => ({ a, b, c }),
+          compute: (key) => {
+            computed += 1;
+            return { key };
+          },
+        });
+        const heard = heardOn(store);
+        const moves: ReadonlyArray<() => void> = [
+          () => {
+            a += 1;
+          },
+          () => {
+            b += "y";
+          },
+          () => {
+            c = !c;
+          },
+        ];
+
+        for (const move of moves) {
+          const computedBefore = computed;
+          const heardBefore = heard.n;
+          move();
+          store.refresh();
+          assert.strictEqual(computed, computedBefore + 1);
+          assert.strictEqual(heard.n, heardBefore + 1);
+        }
+      }),
+  );
+
+  it.effect(
+    "a one-field and a five-field key each recompute once when one field moves",
+    () =>
+      Effect.gen(function* () {
+        const parent = makeExternalStore(0);
+        let one = 1;
+        let fifth = 5;
+        let computedOne = 0;
+        let computedFive = 0;
+        const small = yield* makeDerivedStore({
+          parents: [parent],
+          key: () => ({ one }),
+          compute: (key) => {
+            computedOne += 1;
+            return { key };
+          },
+        });
+        const large = yield* makeDerivedStore({
+          parents: [parent],
+          key: () => ({
+          first: parent.getSnapshot(),
+          second: 2,
+          third: 3,
+          fourth: 4,
+          fifth,
+        }),
+          compute: (key) => {
+            computedFive += 1;
+            return { key };
+          },
+        });
+        const heardSmall = heardOn(small);
+        const heardLarge = heardOn(large);
+
+        one += 1;
+        small.refresh();
+        fifth += 1;
+        large.refresh();
+
+        assert.strictEqual(computedOne, 2);
+        assert.strictEqual(heardSmall.n, 1);
+        assert.strictEqual(computedFive, 2);
+        assert.strictEqual(heardLarge.n, 1);
+      }),
+  );
+
+  it.effect("an unchanged key calls neither the compute nor any listener", () =>
+    Effect.gen(function* () {
+      const parent = makeExternalStore({ n: 1 });
+      let computed = 0;
+      const store = yield* makeDerivedStore({
+        parents: [parent],
+        key: () => ({ value: parent.getSnapshot() }),
+        compute: (key) => {
+          computed += 1;
+          return { key };
+        },
+      });
+      const heard = heardOn(store);
+
+      parent.publish(parent.getSnapshot());
+
+      assert.strictEqual(computed, 1);
+      assert.strictEqual(heard.n, 0);
+    }));
+
+  it.effect(
+    "a repeat trigger after a change calls neither the compute nor a listener",
+    () =>
+      Effect.gen(function* () {
+        const parent = makeExternalStore({ n: 1 });
+        let computed = 0;
+        const store = yield* makeDerivedStore({
+          parents: [parent],
+          key: () => ({ value: parent.getSnapshot() }),
+          compute: (key) => {
+            computed += 1;
+            return { key };
+          },
+        });
+        const heard = heardOn(store);
+        const next = { n: 2 };
+
+        parent.set(next);
+        parent.publish(next);
+
+        assert.strictEqual(computed, 2);
+        assert.strictEqual(heard.n, 1);
+      }),
+  );
+
+  it.effect("a key that loses a field holding undefined counts as changed", () =>
+    Effect.gen(function* () {
+      type Lossy = { readonly a: number; readonly b: undefined } | { readonly a: number };
+      const parent = makeExternalStore(0);
+      let whole = true;
+      let computed = 0;
+      const store = yield* makeDerivedStore({
+        parents: [parent],
+        key: (): Lossy => (whole ? { a: 1, b: undefined } : { a: 1 }),
+        compute: (key) => {
+          computed += 1;
+          return { key };
+        },
+      });
+      const heard = heardOn(store);
+
+      whole = false;
+      store.refresh();
+
+      assert.strictEqual(computed, 2);
+      assert.strictEqual(heard.n, 1);
+    }));
+
+  it.effect("a key that gains a field counts as changed", () =>
+    Effect.gen(function* () {
+      type Gaining = { readonly a: number } | { readonly a: number; readonly b: number };
+      const parent = makeExternalStore(0);
+      let grown = false;
+      let computed = 0;
+      const store = yield* makeDerivedStore({
+        parents: [parent],
+        key: (): Gaining => (grown ? { a: 1, b: 2 } : { a: 1 }),
+        compute: (key) => {
+          computed += 1;
+          return { key };
+        },
+      });
+      const heard = heardOn(store);
+
+      grown = true;
+      store.refresh();
+
+      assert.strictEqual(computed, 2);
+      assert.strictEqual(heard.n, 1);
+    }));
+
+  it.effect("a compute that returns the held reference notifies nothing", () =>
+    Effect.gen(function* () {
+      const parent = makeExternalStore(0);
+      const held = { constant: true };
+      let n = 1;
+      let computed = 0;
+      const store = yield* makeDerivedStore({
+        parents: [parent],
+        key: () => ({ n }),
+        compute: () => {
+          computed += 1;
+          return held;
+        },
+      });
+      const heard = heardOn(store);
+
+      n += 1;
+      store.refresh();
+
+      assert.strictEqual(computed, 2);
+      assert.strictEqual(heard.n, 0);
+      assert.strictEqual(store.getSnapshot(), held);
+    }));
+
+  it.effect("a throwing compute commits nothing and the next trigger recomputes", () =>
+    Effect.gen(function* () {
+      const parent = makeExternalStore(0);
+      const boom = new Error("the compute failed");
+      let n = 1;
+      let failing = false;
+      let computed = 0;
+      const store = yield* makeDerivedStore({
+        parents: [parent],
+        key: () => ({ n }),
+        compute: (key) => {
+          computed += 1;
+          if (failing) throw boom;
+          return { key };
+        },
+      });
+      const heard = heardOn(store);
+      const before = store.getSnapshot();
+
+      n += 1;
+      failing = true;
+      const first = thrownBy(() => store.refresh());
+      assert.isTrue(first.threw);
+      assert.strictEqual(first.thrown, boom);
+      assert.strictEqual(store.getSnapshot(), before);
+      assert.strictEqual(heard.n, 0);
+
+      failing = false;
+      store.refresh();
+
+      assert.strictEqual(computed, 3);
+      assert.notStrictEqual(store.getSnapshot(), before);
+      assert.strictEqual(heard.n, 1);
+    }));
+
+  it.effect("a listener that calls refresh during its notification hears it once", () =>
+    Effect.gen(function* () {
+      const parent = makeExternalStore(0);
+      let n = 1;
+      let computed = 0;
+      const store = yield* makeDerivedStore({
+        parents: [parent],
+        key: () => ({ n }),
+        compute: (key) => {
+          computed += 1;
+          return { key };
+        },
+      });
+      let heard = 0;
+      store.subscribe(() => {
+        heard += 1;
+        store.refresh();
+      });
+
+      n += 1;
+      store.refresh();
+
+      assert.strictEqual(heard, 1);
+      assert.strictEqual(computed, 2);
+    }));
+
+  it.effect("refresh recomputes once for a key input that is not a parent", () =>
+    Effect.gen(function* () {
+      const parent = makeExternalStore(0);
+      let outside = 1;
+      let computed = 0;
+      const store = yield* makeDerivedStore({
+        parents: [parent],
+        key: () => ({ outside }),
+        compute: (key) => {
+          computed += 1;
+          return { key };
+        },
+      });
+      const heard = heardOn(store);
+
+      outside += 1;
+      store.refresh();
+      store.refresh();
+
+      assert.strictEqual(computed, 2);
+      assert.strictEqual(heard.n, 1);
+    }));
+
+  it.effect(
+    "a listener added to either parent after construction reads the new value",
+    () =>
+      Effect.gen(function* () {
+        const first = makeExternalStore(1);
+        const second = makeExternalStore(10);
+        const store = yield* makeDerivedStore({
+          parents: [first, second],
+          key: () => ({ one: first.getSnapshot(), two: second.getSnapshot() }),
+          compute: (key) => ({ sum: key.one + key.two }),
+        });
+        const pushed: Array<{ readonly sum: number }> = [];
+        first.subscribe(() => pushed.push(store.getSnapshot()));
+        second.subscribe(() => pushed.push(store.getSnapshot()));
+        const initial = store.getSnapshot();
+
+        first.set(2);
+        const afterFirst = store.getSnapshot();
+        second.set(20);
+        const afterSecond = store.getSnapshot();
+
+        assert.strictEqual(pushed.length, 2);
+        assert.strictEqual(pushed[0], afterFirst);
+        assert.notStrictEqual(afterFirst, initial);
+        assert.strictEqual(pushed[1], afterSecond);
+        assert.notStrictEqual(afterSecond, afterFirst);
+      }),
+  );
+
+  it.effect(
+    "one throwing listener: the rest run and the parent rethrows that value",
+    () =>
+      Effect.gen(function* () {
+        const parent = makeExternalStore(0);
+        const boom = new Error("a listener failed");
+        const store = yield* makeDerivedStore({
+          parents: [parent],
+          key: () => ({ value: parent.getSnapshot() }),
+          compute: (key) => ({ key }),
+        });
+        let counted = 0;
+        let parentHeard = 0;
+        const before = store.getSnapshot();
+        store.subscribe(() => {
+          throw boom;
+        });
+        store.subscribe(() => {
+          counted += 1;
+        });
+        parent.subscribe(() => {
+          parentHeard += 1;
+        });
+
+        const outcome = thrownBy(() => parent.set(1));
+
+        assert.isTrue(outcome.threw);
+        assert.strictEqual(outcome.thrown, boom);
+        assert.strictEqual(counted, 1);
+        assert.strictEqual(parentHeard, 1);
+        assert.notStrictEqual(store.getSnapshot(), before);
+      }),
+  );
+
+  it.effect(
+    "two throwing listeners: the rest run and the parent rethrows one AggregateError",
+    () =>
+      Effect.gen(function* () {
+        const parent = makeExternalStore(0);
+        const first = new Error("the first listener failed");
+        const second = new Error("the second listener failed");
+        const store = yield* makeDerivedStore({
+          parents: [parent],
+          key: () => ({ value: parent.getSnapshot() }),
+          compute: (key) => ({ key }),
+        });
+        let counted = 0;
+        let parentHeard = 0;
+        store.subscribe(() => {
+          throw first;
+        });
+        store.subscribe(() => {
+          throw second;
+        });
+        store.subscribe(() => {
+          counted += 1;
+        });
+        parent.subscribe(() => {
+          parentHeard += 1;
+        });
+
+        const outcome = thrownBy(() => parent.set(1));
+
+        assert.isTrue(outcome.threw);
+        assert.instanceOf(outcome.thrown, AggregateError);
+        assert.strictEqual(outcome.thrown.errors.length, 2);
+        assert.strictEqual(outcome.thrown.errors[0], first);
+        assert.strictEqual(outcome.thrown.errors[1], second);
+        assert.strictEqual(
+          outcome.thrown.message,
+          "More than one of the store's listeners threw.",
+        );
+        assert.strictEqual(counted, 1);
+        assert.strictEqual(parentHeard, 1);
+      }),
+  );
+
+  it.effect(
+    "after the scope closes nothing is read or computed and each parent is released",
+    () =>
+      Effect.gen(function* () {
+        const held = new Set<() => void>();
+        const handWritten: Parent = {
+          subscribe: (listener) => {
+            held.add(listener);
+            return () => {
+              held.delete(listener);
+            };
+          },
+        };
+        const other = makeExternalStore(0);
+        let moved = 1;
+        let reads = 0;
+        let computed = 0;
+        const scope = yield* Scope.make();
+        const store = yield* Scope.provide(
+          makeDerivedStore({
+            parents: [handWritten, other],
+            key: () => {
+              reads += 1;
+              return { moved, other: other.getSnapshot() };
+            },
+            compute: (key) => {
+              computed += 1;
+              return { key };
+            },
+          }),
+          scope,
+        );
+        const before = held.size;
+        yield* Scope.close(scope, Exit.void);
+        const readsAtClose = reads;
+        const computedAtClose = computed;
+        const last = store.getSnapshot();
+        const heard = heardOn(store);
+
+        moved += 1;
+        store.refresh();
+        other.set(1);
+
+        assert.strictEqual(before, 1);
+        assert.strictEqual(held.size, 0);
+        assert.strictEqual(reads, readsAtClose);
+        assert.strictEqual(computed, computedAtClose);
+        assert.strictEqual(store.getSnapshot(), last);
+        assert.strictEqual(heard.n, 0);
+      }),
+  );
+
+  it.effect("makeDerivedStore is built under a span named for it", () =>
+    Effect.gen(function* () {
+      const names: Array<string> = [];
+      const tracer = Tracer.make({
+        span: (options) => {
+          names.push(options.name);
+          return new Tracer.NativeSpan(options);
+        },
+      });
+      const parent = makeExternalStore(0);
+
+      yield* makeDerivedStore({
+        parents: [parent],
+        key: () => ({ value: parent.getSnapshot() }),
+        compute: (key) => ({ key }),
+      }).pipe(Effect.provideService(Tracer.Tracer, tracer));
+
+      assert.include(names, "qadi.devtools.makeDerivedStore");
+    }));
 });
