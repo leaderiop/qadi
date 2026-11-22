@@ -562,3 +562,7 @@ entries:
     file: "183-hydration-drop-events-are-derived-from-their-buckets.md"
     title: "Hydration drop events are derived from their buckets"
     status: "Accepted — amends ADR-QD-152"
+  - id: "ADR-QD-184"
+    file: "184-developer-signal-reporters-are-resolved-through-one-table.md"
+    title: "Developer-signal reporters are resolved through one table"
+    status: "Accepted — extends ADR-QD-041 and ADR-QD-052"
