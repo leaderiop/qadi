@@ -327,6 +327,7 @@ logged, counted or spanned.
 - ✓ ARCH-114 No equivalent mutants, no magic race bound (MUTE-01..04): `DecisionCache` eviction rewritten with no branch that cannot be taken (FIFO order and capacity validation unchanged), `SharedComputation`'s claim arms a closed table (CCR-QD-458 measured it against the hoisted `Match`), and the I5 race test iterates until both orderings are seen at every budget instead of asserting `gap <= 48`; mutation held — v1.7, Phase 67 (BEH-QD-166, INV-QD-379)
 - ✓ ARCH-115 Hygiene and recorded close-outs (HYGN-01..07): over-width lines and stale titles fixed, ADR-QD-174 line 73, port cards stay package-private (D3, ADR-QD-173 amended), the Phase 61 scan's `Simulator.test.tsx` gap evidenced, OI-01..29 each closed or recorded, Phases 62–67 re-verified, bench of record vs `3d66becb` — v1.7, Phase 68 (CCR-QD-459)
 - ✓ DEBT-01..06 The v1.7 audit's fixable debt (inserted Phase 68.1): `ab.sh` refuses an odd or short round count, `analyze.mjs` exits 0/1/2 with its self-test as `pnpm check` step 26, corrected staleness and type-aware comparison scripts re-checked all of Phase 68's verdicts (none flipped), gate 14's probe-guard parse runs in a time-limited child, and all eight phases carry validated Nyquist records — v1.7, Phase 68.1 (ADR-QD-033 Rev 1.6, CCR-QD-460)
+- ✓ ARCH-116 One total thrown-value-to-message module (THRW-01..05): `@qadi/core` exports `thrownMessage` and `causeMessage`, total over a hostile value (throwing getters, proxies, an unrenderable cause fall to the fixed words); six inline copies in core plus the copies in http, react and devtools read through them, one `Cause.pretty` call left; a `null` capture cause records `"null"` — v1.8, Phase 69 (ADR-QD-182, INV-QD-383/384, BEH-QD-681..685, CCR-QD-461)
 
 ### Active
 
@@ -558,6 +559,7 @@ v1.8 Arch Wave 13 (Phases 69–76, ARCH-116…123): see "Current Milestone" abov
 | Equivalent mutants are restructured away, not ignored; a race test asserts its property, not a step count | Two survivors no test could kill and a `gap <= 48` bound tied to `walk`'s step count hid regressions | Accepted (Phase 67, CCR-QD-458; claim-arm table measured against hoisted `Match`) |
 | Port cards stay package-private (owner D3); records are closed or evidenced, not carried | v1.6's close-outs were carried as prose; each became a fix or a recorded decision | Accepted (Phase 68, ADR-QD-173 amended, CCR-QD-459) |
 | Fix the audit's fixable debt in an inserted phase before completing; Phase 68's record scripts stay as recorded and corrected copies re-check them | Completing with known-fixable defects in the bench harness, gate 14 and the record scripts would carry them a third time; a record keeps the tool that produced it | Accepted (Phase 68.1, ADR-QD-033 Rev 1.6, CCR-QD-460; owner chose "Insert a cleanup phase first", then "Fix inline, then complete" for the re-audit's info findings) |
+| One total rule turns a caught value or a cause into text, exported by core; `String(cause)` on an Effect `Cause` and the two `JSON.parse` catches stay as named exceptions | Six hand-copied `instanceof Error ? … : String(…)` reads each threw on a hostile value and turned a typed failure into a defect | Accepted (Phase 69, ADR-QD-182; `null` cause shown as `"null"` decided autonomously 2026-11-22) |
 
 ## Evolution
 
@@ -577,4 +579,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-22 after starting the v1.8 milestone*
+*Last updated: 2026-11-22 after Phase 69*

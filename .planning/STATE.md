@@ -25,7 +25,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-22)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 69 — One total thrown-value-to-message module
+**Current focus:** Phase 70 — Hydration's drop events come from its buckets
 
 ## Current Position
 
@@ -838,6 +838,7 @@ Last activity: 2026-11-22 — Phase 69 complete, transitioned to Phase 70
 - [Phase 69]: ADR-QD-182, CCR-QD-461 and gate 14's probes recorded: both thrownMessage and causeMessage are public @qadi/core exports; the second export, the devtools feeds in scope, the capture keeping a failure's own text and react naming an error once were decided autonomously on 2026-11-22 under the owner's instruction
 - [Phase QD-69]: 69-08: the spec states the thrown-value rule at every seam with only the reserved ids; ADR-QD-182 gate 14 mention names its script (decided autonomously)
 - [Phase 69]: 69-09: an Ignored (static) mutant is judged by kind per file with one examined allowance, since no test can kill a static mutant; base record untouched (decided autonomously)
+- [Phase 69]: Code review (3 iterations, 13 findings, all fixed): a capture field is absent only when `undefined`, so a `null` cause records `"null"` (supersedes 69-05's "a null cause reads as none"); hostile fixtures live once per package's test helpers; the examined Capture allowance went with the `fieldOf` it covered and the mutation record was re-closed on all five groups at the fixed head (decided autonomously)
 
 ### Pending Todos
 
@@ -921,4 +922,4 @@ Resume file: None
 
 
 
-- Plan Phase 69 with /gsd-plan-phase 69 (Phases 70, 75 and 76 each ask one owner question at their discuss step)
+- Plan Phase 70 with /gsd-plan-phase 70 (Phases 70, 75 and 76 each carry one owner question, decided autonomously in this run)
