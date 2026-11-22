@@ -10,11 +10,11 @@
 
 ### One total "thrown value → message" module (Phase 69, ARCH-116, core; live defect)
 
-- [ ] **THRW-01**: A regression test written on the phase base is RED for each unguarded site (`JsonHazard.encodeFailed`, the `PortKey` and `PortDerivation` key refusals, both `PortWireEncode` catches, and `CustomPredicate.renderReason`'s `message` read): given a thrown value whose `toString` and `message` getter both throw, the documented total function throws. It is GREEN after the change.
-- [ ] **THRW-02**: One total rule, exported by `@qadi/core` (ADR-QD-099): `thrownMessage` turns a caught value into a message and `causeMessage` an Effect `Cause`. It guards the `message` getter, `String()` and `Cause.pretty`, and owns the one placeholder wording.
-- [ ] **THRW-03**: All six core call sites (`SinkCodec`, `CustomPredicate`, `JsonHazard`, `PortKey`, `PortDerivation`, `PortWireEncode`), the three copies outside core (`@qadi/http`'s transport failure, `@qadi/react`'s reporter line, `@qadi/devtools`' capture) and every devtools site that renders a `Cause` use it, and no inline rendering of a caught value or a cause remains in `packages/*/src`.
-- [ ] **THRW-04**: A table test on the function covers an `Error`, a plain value, a throwing `toString`, a throwing `message` getter, and both throwing at once. The existing `SinkCodec` and `CustomPredicate` pins move to the one placeholder.
-- [ ] **THRW-05**: ADR-QD-182 (or an amendment of ADR-QD-154) records the rule. An invariant states that each "never throws" function stays total when the caught value is hostile.
+- [x] **THRW-01**: A regression test written on the phase base is RED for each unguarded site (`JsonHazard.encodeFailed`, the `PortKey` and `PortDerivation` key refusals, both `PortWireEncode` catches, and `CustomPredicate.renderReason`'s `message` read): given a thrown value whose `toString` and `message` getter both throw, the documented total function throws. It is GREEN after the change.
+- [x] **THRW-02**: One total rule, exported by `@qadi/core` (ADR-QD-099): `thrownMessage` turns a caught value into a message and `causeMessage` an Effect `Cause`. It guards the `message` getter, `String()` and `Cause.pretty`, and owns the one placeholder wording.
+- [x] **THRW-03**: All six core call sites (`SinkCodec`, `CustomPredicate`, `JsonHazard`, `PortKey`, `PortDerivation`, `PortWireEncode`), the three copies outside core (`@qadi/http`'s transport failure, `@qadi/react`'s reporter line, `@qadi/devtools`' capture) and every devtools site that renders a `Cause` use it, and no inline rendering of a caught value or a cause remains in `packages/*/src`.
+- [x] **THRW-04**: A table test on the function covers an `Error`, a plain value, a throwing `toString`, a throwing `message` getter, and both throwing at once. The existing `SinkCodec` and `CustomPredicate` pins move to the one placeholder.
+- [x] **THRW-05**: ADR-QD-182 (or an amendment of ADR-QD-154) records the rule. An invariant states that each "never throws" function stays total when the caught value is hostile.
 
 ### Hydration's drop events come from its buckets (Phase 70, ARCH-117, react; live defect)
 
@@ -105,11 +105,11 @@ Which phases cover which requirements. One row per ID (`phase.complete` cannot p
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| THRW-01 | Phase 69 | Pending |
-| THRW-02 | Phase 69 | Pending |
-| THRW-03 | Phase 69 | Pending |
-| THRW-04 | Phase 69 | Pending |
-| THRW-05 | Phase 69 | Pending |
+| THRW-01 | Phase 69 | Complete |
+| THRW-02 | Phase 69 | Complete |
+| THRW-03 | Phase 69 | Complete |
+| THRW-04 | Phase 69 | Complete |
+| THRW-05 | Phase 69 | Complete |
 | DRPE-01 | Phase 70 | Pending |
 | DRPE-02 | Phase 70 | Pending |
 | DRPE-03 | Phase 70 | Pending |
