@@ -9,10 +9,10 @@
  *
  * Exported from the package root (ADR-QD-173): a shell builds it in a scope it owns.
  */
-import * as Cause from "effect/Cause";
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import type * as Scope from "effect/Scope";
+import { causeMessage } from "@qadi/core";
 import { makeExternalStore } from "./ExternalStore.ts";
 import { sourceFromRecords, type Source } from "./Source.ts";
 import { makeSupersedingRun } from "./SupersedingRun.ts";
@@ -35,9 +35,10 @@ export type TimelineStatus = Data.TaggedEnum<{
   /** The read has not failed: it is running, has ended by itself, or there was nothing to read. */
   Reading: {};
   /**
-   * The read ended on a defect. `reason` is `Cause.pretty` of it, a trace with stack frames
-   * and checkout paths for the host's own process: it must not cross a trust boundary. The
-   * entries it delivered stay.
+   * The read ended on a defect. `reason` is `causeMessage`'s text of it: a `Cause.pretty`
+   * trace with stack frames and checkout paths whenever one renders, and the one placeholder
+   * when the died value cannot be read, so the feed always states that it stopped. It is for
+   * the host's own process and must not cross a trust boundary. The entries it delivered stay.
    */
   Stopped: { readonly reason: string };
 }>;
@@ -154,7 +155,7 @@ export const makeTimelineFeed = Effect.fn("qadi.devtools.makeTimelineFeed")(func
       },
     };
     reads.fork(token, runSource(marking, source ?? NO_SOURCE), {
-      onFailure: (cause) => status.set(TimelineStatus.Stopped({ reason: Cause.pretty(cause) })),
+      onFailure: (cause) => status.set(TimelineStatus.Stopped({ reason: causeMessage(cause) })),
     });
   };
   readSource(inputs.source);
