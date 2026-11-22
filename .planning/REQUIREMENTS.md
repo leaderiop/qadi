@@ -26,11 +26,11 @@
 
 ### Developer-signal reporters resolved through one table (Phase 71, ARCH-118, react; live defect)
 
-- [ ] **SIGR-01**: A regression test written on the phase base is RED: `makeGateRegistry({ onIdCollision })` with a reporter that throws reports a message naming `"onGateIdCollision"`. It is GREEN after the change, naming the option the caller passed.
-- [ ] **SIGR-02**: One table states, for each developer signal, where it runs (development or production), how often (per call, once per registry, once per atom set, once per process), and the option name it is reported under. Every reporter is resolved through it, and the hand-kept `ReporterName` list is derived from it or gone.
-- [ ] **SIGR-03**: `providerSignalReporter`'s production-once rule is stated in the same table. Its module-scope state is either brought under the atom set or recorded as the documented exception, consistent with AGENTS.md §13.
-- [ ] **SIGR-04**: Every existing reporter's observable behaviour (what fires, where, how often, with what text) is unchanged apart from SIGR-01, pinned by characterisation on the phase base. `DeveloperSignals.ts` stays the only file exempt from `no-ambient-console`.
-- [ ] **SIGR-05**: ADR-QD-184 extends ADR-QD-041 and ADR-QD-052.
+- [x] **SIGR-01**: A regression test written on the phase base is RED: `makeGateRegistry({ onIdCollision })` with a reporter that throws reports a message naming `"onGateIdCollision"`. It is GREEN after the change, naming the option the caller passed.
+- [x] **SIGR-02**: One table states, for each developer signal, where it runs (development or production), how often (per call, once per registry, once per atom set, once per process), and the option name it is reported under. Every reporter is resolved through it, and the hand-kept `ReporterName` list is derived from it or gone.
+- [x] **SIGR-03**: `providerSignalReporter`'s production-once rule is stated in the same table. Its module-scope state is either brought under the atom set or recorded as the documented exception, consistent with AGENTS.md §13.
+- [x] **SIGR-04**: Every existing reporter's observable behaviour (what fires, where, how often, with what text) is unchanged apart from SIGR-01, pinned by characterisation on the phase base. `DeveloperSignals.ts` stays the only file exempt from `no-ambient-console`.
+- [x] **SIGR-05**: ADR-QD-184 extends ADR-QD-041 and ADR-QD-052.
 
 ### A derived store behind the dock model's stores (Phase 72, ARCH-119, devtools)
 
@@ -115,11 +115,11 @@ Which phases cover which requirements. One row per ID (`phase.complete` cannot p
 | DRPE-03 | Phase 70 | Complete |
 | DRPE-04 | Phase 70 | Complete |
 | DRPE-05 | Phase 70 | Complete |
-| SIGR-01 | Phase 71 | Pending |
-| SIGR-02 | Phase 71 | Pending |
-| SIGR-03 | Phase 71 | Pending |
-| SIGR-04 | Phase 71 | Pending |
-| SIGR-05 | Phase 71 | Pending |
+| SIGR-01 | Phase 71 | Complete |
+| SIGR-02 | Phase 71 | Complete |
+| SIGR-03 | Phase 71 | Complete |
+| SIGR-04 | Phase 71 | Complete |
+| SIGR-05 | Phase 71 | Complete |
 | DERV-01 | Phase 72 | Pending |
 | DERV-02 | Phase 72 | Pending |
 | DERV-03 | Phase 72 | Pending |
