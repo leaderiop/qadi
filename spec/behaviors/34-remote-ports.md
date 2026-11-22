@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-34                                    |
-> | Revision       | 1.7                                            |
+> | Revision       | 1.8                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.7 (2026-11-11): BEH-QD-331 — which leaves ask a port, and the request each asks, are the description's asks; BEH-QD-446 (the request a policy leaf asks a port is stated once, and servingFor serves exactly the names those requests ask) (ARCH-70, ADR-QD-134, CCR-QD-412)<br>1.6 (2026-11-10): The unguarded port routes' once-at-construction warning is stated here, agreeing with ADR-QD-107 (ARCH-61, CCR-QD-402)<br>1.5 (2026-11-08): BEH-QD-331 — a required allowlist that is missing or not a list is refused `NotServed` at run time, the store never read (code review WR-01)<br>1.4 (2026-11-08): BEH-QD-331 — the serving facts are stated once on the port's description, PortDescription.serving (ARCH-53, ADR-QD-114, CCR-QD-392)<br>1.3 (2026-11-08): BEH-QD-333 points to BEH-QD-338, where the port route address and the reply-body contract are defined once (ARCH-52, CCR-QD-391)<br>1.2 (2026-11-08): BEH-QD-332 — an answer the span's `disclose` cannot read is the port's typed error, answered `Unavailable`, never a defect (code review WR-01)<br>1.1 (2026-11-08): BEH-QD-332 — a served span equals a local one through pose and disclose, carries a signature asker's requirement, and a store that throws is the port's typed error (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.0 (2026-10-08): Initial (ARCH-31, CCR-QD-382) |
+> | Change History | 1.8 (2026-11-22): BEH-QD-684: the port wire and the HTTP transport refuse a hostile thrown value with its message (ADR-QD-182, CCR-QD-461)<br>1.7 (2026-11-11): BEH-QD-331 — which leaves ask a port, and the request each asks, are the description's asks; BEH-QD-446 (the request a policy leaf asks a port is stated once, and servingFor serves exactly the names those requests ask) (ARCH-70, ADR-QD-134, CCR-QD-412)<br>1.6 (2026-11-10): The unguarded port routes' once-at-construction warning is stated here, agreeing with ADR-QD-107 (ARCH-61, CCR-QD-402)<br>1.5 (2026-11-08): BEH-QD-331 — a required allowlist that is missing or not a list is refused `NotServed` at run time, the store never read (code review WR-01)<br>1.4 (2026-11-08): BEH-QD-331 — the serving facts are stated once on the port's description, PortDescription.serving (ARCH-53, ADR-QD-114, CCR-QD-392)<br>1.3 (2026-11-08): BEH-QD-333 points to BEH-QD-338, where the port route address and the reply-body contract are defined once (ARCH-52, CCR-QD-391)<br>1.2 (2026-11-08): BEH-QD-332 — an answer the span's `disclose` cannot read is the port's typed error, answered `Unavailable`, never a defect (code review WR-01)<br>1.1 (2026-11-08): BEH-QD-332 — a served span equals a local one through pose and disclose, carries a signature asker's requirement, and a store that throws is the port's typed error (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.0 (2026-10-08): Initial (ARCH-31, CCR-QD-382) |
 
 _Previous: [33 — Audit Pipeline](./33-audit-pipeline.md)_
 
@@ -151,3 +151,23 @@ rebuilt as a detached copy. Every HTTP reply is JSON, carries `Cache-Control: no
 decoded by a client whatever its status.
 The address both adapters use, and this status contract, are defined once
 ([BEH-QD-338](./23-http.md#beh-qd-338-the-port-routes-and-their-client-share-one-address)).
+
+## BEH-QD-684: The port wire and the HTTP transport refuse a hostile thrown value with its message
+
+> **Invariant:** [INV-QD-383](../invariants.md#inv-qd-383-a-function-stated-as-total-stays-total-whatever-value-it-caught)
+
+```
+REQUIREMENT: A wire conversion that throws MUST be refused with `thrownMessage` of
+             what it threw, so an `Error` reads as its message alone (`boom`, not
+             `Error: boom`) and a value that cannot be described reads as
+             `a value that could not be described`.
+
+REQUIREMENT: A client failure MUST reach the asker as the port's own error carrying
+             `RemotePortFailure.Transport` with `thrownMessage` of the failure,
+             never as a defect.
+```
+
+[BEH-QD-333](#beh-qd-333-an-answer-with-no-json-form-must-be-refused-never-thrown)'s
+refusal covers a conversion that throws as well as a value with no JSON form, and a
+client whose failure carried a value that cannot be read used to throw out of the
+transport's own message, which turned an outage into a defect.

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-32                                    |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-08-25                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.2 (2026-11-18): BEH-QD-605 added: customPredicateFromRecord fails on a name its table does not own, never dies (ARCH-100, CCR-QD-444)<br>1.1 (2026-10-08): the worked example decides against the draft it returns (CCR-QD-207)<br>1.0 (2026-08-25): Initial release (CCR-QD-082) |
+> | Change History | 1.3 (2026-11-22): BEH-QD-683: a custom predicate failure or defect ends as its typed error whatever it carries (ADR-QD-182, CCR-QD-461)<br>1.2 (2026-11-18): BEH-QD-605 added: customPredicateFromRecord fails on a name its table does not own, never dies (ARCH-100, CCR-QD-444)<br>1.1 (2026-10-08): the worked example decides against the draft it returns (CCR-QD-207)<br>1.0 (2026-08-25): Initial release (CCR-QD-082) |
 
 _Previous: [31 — Predicate Compilation](./31-predicate-compilation.md)_
 
@@ -160,6 +160,28 @@ denied — one interpreter further from the AST than the nodes that motivated
 that decision. `@qadi/predicate-sql` and `@qadi/predicate-prisma` never see a
 `HasCustom` node at all: the refusal happens in `toPredicate`, before a
 `Predicate` is ever produced.
+
+## BEH-QD-683: A custom predicate failure or defect ends as its typed error whatever it carries
+
+> **Invariant:** [INV-QD-383](../invariants.md#inv-qd-383-a-function-stated-as-total-stays-total-whatever-value-it-caught), [INV-QD-384](../invariants.md#inv-qd-384-no-shipped-code-renders-a-cause-to-text-through-a-call-that-can-throw)
+> **See:** [ADR-QD-182](../decisions/182-one-total-thrown-value-to-text-rule-exported-by-core.md)
+
+```
+REQUIREMENT: A custom predicate failure's reason MUST be `thrownMessage` of its
+             cause, and a defect's reason MUST be `causeMessage` of its cause (its
+             `Cause.pretty` text whenever that renders). An evaluation whose custom
+             predicate fails or dies with any value MUST end as
+             `CustomPredicateError`, never as a defect.
+```
+
+A predicate is the caller's code, so what it throws is the caller's choice, and
+[BEH-QD-247](#beh-qd-247-a-registered-predicates-own-failure-and-an-unrecognised-name-are-errors--never-denials)'s
+typed error must hold for every value. `Cause.pretty` throws for a cause that died with a
+value whose `message` getter and `toString` both throw, so a predicate that died with one
+used to turn the evaluation into a defect, which AGENTS.md section 4 forbids for an
+authorization decision. The reason for a cause that cannot be read is now
+`a value that could not be described`, where an angle-bracketed placeholder stood before
+the one rule ([BEH-QD-681](./06-services.md#beh-qd-681-one-total-rule-turns-a-caught-value-or-a-cause-into-text)).
 
 ---
 
