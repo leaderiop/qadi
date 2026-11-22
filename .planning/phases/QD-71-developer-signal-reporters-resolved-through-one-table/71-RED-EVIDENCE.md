@@ -93,3 +93,77 @@ type-test file(s))`, the 67 type-test files of the base plus this one. The file 
 The table does not exist, `ReporterName` is a hand-kept list that lacks `onIdCollision`, and each resolver pairs its
 default and its name by hand. Because the exports are absent on the base, no pin is evaluated there: the failure is the
 missing API, and each pin is shown failing for the reason it names by being gutted once the table exists.
+
+## The regression pair and the type pins after the change
+
+The fix is commit `9b8645ee721b37b989caf4a678d998c6cc559bf5` (`fix(71-03): name a throwing collision reporter by the
+option it was passed through`). On it, from the repository root with stdin closed:
+
+```
+$ pnpm exec vitest run --project react packages/react/test/GateRegistry.store.test.ts < /dev/null
+$ pnpm test:tstyche DeveloperSignals < /dev/null
+```
+
+Both exit `0`. The first reports `Tests 26 passed (26)`, the two `makeGateRegistry` rows that were red on the base
+included; the second passes both passes (`tstyche.json`, then `tsconfig.test.json` with `floatingEffect` on), `Tests: 6
+passed, 6 total`, `Assertions: 11 passed, 11 total`. The whole react project reads `617 passed, 0 failed`, the 35
+characterisation rows among them. Each `makeGateRegistry` row now asserts the whole line, with the option the caller
+passed:
+
+```
+[qadi] the onIdCollision reporter you supplied threw (Error: boom). The outcome it was told about stands — nothing was skipped, seeded differently or left uncounted. Fix the reporter.
+```
+
+and the two `makeQadiAtoms` rows still assert `the onGateIdCollision reporter you supplied threw`.
+
+## Each type guarantee gutted once
+
+Each gut is a working-tree edit of `packages/react/src/DeveloperSignals.ts` only, run, then reverted with `git checkout --
+packages/react/src/DeveloperSignals.ts` and confirmed by `git diff --quiet -- packages` before the next. None is
+committed. Command for the five: `pnpm test:tstyche DeveloperSignals < /dev/null > <S>/gut-<n>.log 2>&1`; each exits
+`1` in both passes, with `Tests: 1 failed, 5 passed, 6 total`, and marks exactly the pin named for it with `×`. The
+statuses and logs are `<S>/gut-<n>.status` and `<S>/gut-<n>.log`.
+
+### 1. The table made optional
+
+`SignalTable`'s mapped key was made optional (`[T in SignalTag]?:`), so a table with a row left out is accepted. Status
+`1`. Failing pin: `× a table missing a row is refused`, with `Error: Unused '@ts-expect-error' directive. ts(2578)` on
+the `takeTable(withoutAtomsReplaced)` statement.
+
+### 2. `OftenOf` made `Often` for every tag
+
+`OftenOf<T>` was replaced by `T extends SignalTag ? Often : Often`, so any row may speak once per process. Status `1`.
+Failing pin: `× only InstrumentedInProduction may speak once per process`, with `Unused '@ts-expect-error' directive`
+on `takeTable(latchedTwice)`.
+
+### 3. `ReporterName` made `string`
+
+`ReporterName` was replaced by `string`. Status `1`. Failing pin: `× ReporterName is every option an entry point reports
+under, written out`, with `Error: Type 'string' is not the same as type '"onHydrationMismatch" | "onGateIdCollision" |
+"onIdCollision" | "onDropped" | "onDeveloperSignal"'.`
+
+### 4. A foreign entry point on the `GateIdCollision` row
+
+An entry `dehydrateDecisions: { option: "onIdCollision", resolved: "OncePerCall" }` was added to the `GateIdCollision`
+row, so the row names an entry point it should not. Status `1`. Failing pin: `× a row refuses an entry point it does not
+name`, with `Unused '@ts-expect-error' directive` on `reporterFor(SIGNALS.GateIdCollision, "dehydrateDecisions",
+onIdCollision)`.
+
+### 5. The hydrate row told the dehydrate reason
+
+The `HydrationDropped` row's `says` parameter was widened to `HydrationDrop<unknown, HydrationDropReason>`, its body
+building the signal with `reason: "MalformedEntry"` so the file still compiled. Status `1`. Failing pin: `× the hydrate
+row refuses the dehydrate reporter`, with `Unused '@ts-expect-error' directive` on
+`reporterFor(SIGNALS.HydrationDropped, "hydrateDecisions", leftOut)`.
+
+### The throwaway signal
+
+A member `Throwaway: {};` was added to the developer-signal union and `pnpm typecheck < /dev/null >
+<S>/gut-throwaway.log 2>&1` run. Status `2`. The first line of the error, shortened where it lists the table's rows:
+
+```
+packages/react/src/DeveloperSignals.ts(454,3): error TS2741: Property 'Throwaway' is missing in type '{ SeedSuperseded: { speaks: "Development"; ... }; ... }' but required in type 'SignalTable'.
+```
+
+A signal without a row is refused at the table, naming it. Reverted: `git diff --quiet -- packages` holds, and
+`Throwaway` is in no commit.
