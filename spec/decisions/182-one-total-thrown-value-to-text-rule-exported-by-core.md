@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-182                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-22                                     |
 > | Status         | Accepted — reads ADR-QD-154, ADR-QD-099        |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-22): Initial release (ARCH-116, CCR-QD-461) |
+> | Change History | 1.1 (2026-11-22): A `null` cause is captured as `null`, a field being absent only when `undefined`; the reads outside the rule are named (code review WR-03, IN-02, CCR-QD-461)<br>1.0 (2026-11-22): Initial release (ARCH-116, CCR-QD-461) |
 
 ---
 
@@ -54,12 +54,17 @@ the predicate's name, so a replay carried a name where the port had reported a r
 8. `@qadi/react`'s reporter line is `name: message` only for an `Error` whose own `message` is a string, and
    `thrownMessage(error)` for anything else, so no error is named twice.
 9. The devtools capture keeps a failure's own text: its `cause`, else its `reason`, else its own string message through
-   `thrownMessage(error)`, each field read through one typed, guarded reader. A replay carries what the port reported.
+   `thrownMessage(error)`, each field read through one typed, guarded reader. A field is absent only when it is
+   `undefined`, so a `null` cause is captured as `null`, the cause the resolver reported. A replay carries what the
+   port reported.
 10. The devtools timeline feed, diagnostics feed, diagnostics wiring read and policy explorer render a run's cause with
     `causeMessage`, and the gates feed does too, in place of its own guard.
 11. The `String(cause)` calls on an Effect `Cause` (`DecisionSinkForwarding.ts`, `EncodeRefusalReport.ts`,
     `SinkReport.ts`) were checked and are left alone: Effect already guards that string form, and `String(Cause.die(hostile))`
     returns `Cause([Die([toString threw])])`.
+12. Two more reads stay outside the rule, and each is safe for its own reason: the `JSON.parse` catches in
+    `UntrustedDecode.decodeText` and `SimulationForm.parseJson`, because `JSON.parse` throws only its own
+    `SyntaxError`, and devtools' `Source.thrownName`, which reads a thrown value's name alone, inside its own guard.
 
 This rule and its public surface were decided autonomously on 2026-11-22 under the owner's instruction to take the most
 complete, clean option: the cause renderer as a second public export (decision 4), the devtools feeds in scope
@@ -88,7 +93,7 @@ complete, clean option: the cause renderer as a second public export (decision 4
 
 - Visible text changes: a wire conversion's refusal loses its `Error: ` prefix; the old angle-bracketed placeholder is
   replaced in custom predicate reasons and captures; a custom predicate failure is captured and replayed with its
-  reason; a failure with no text of its own is captured with an empty message and a `null` cause reads as no cause; a
+  reason; a failure with no text of its own is captured with an empty message; a
   run the devtools feeds cannot render is stated as stopped or failed with the placeholder; a throw the gates feed
   cannot render reads as the placeholder, not a sentence of its own; react names an `Error` with a non-string message
   by its string form; a sink record's non-string `message` is refused with its `String` form.
