@@ -531,7 +531,9 @@ const planHydration = (seedFor: HydrationSeedLookup, payload: unknown, subject: 
     Predicate.isObject(payload) && Array.isArray(payload["entries"]) ? payload["entries"] : [];
 
   const envelope = decodeEnvelope(payload);
-  if (Result.isFailure(envelope)) return refuse(PAYLOAD_REASONS[envelope.failure._tag], visible);
+  if (Result.isFailure(envelope)) {
+    return refuse(PAYLOAD_REASONS[envelope.failure._tag], visible);
+  }
   const { subjectId, entries } = envelope.success;
 
   // `undefined` names an empty payload (EC-06), not a subject that failed to
@@ -542,7 +544,9 @@ const planHydration = (seedFor: HydrationSeedLookup, payload: unknown, subject: 
   // way a real mismatch drops them, just without asserting a wrong id that was
   // never named.
   if (subjectId === undefined) {
-    return entries.length > 0 ? refuse(PAYLOAD_REASONS.SubjectCheck, entries) : { initialValues: [], events: [] };
+    return entries.length > 0
+      ? refuse(PAYLOAD_REASONS.SubjectCheck, entries)
+      : { initialValues: [], events: [] };
   }
 
   // The whole payload is rejected on a subject mismatch, not entry by entry: the

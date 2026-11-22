@@ -30,7 +30,11 @@ export type DropBuckets<R extends string, T> = { readonly [K in R]: Array<T> };
  * deliberately not core's table order; changing either would change what a
  * reporter sees first.
  */
-export const entryBuckets = (): DropBuckets<EntryDropReason, unknown> => ({ EntryTooDeep: [], MalformedEntry: [], UndecodablePolicy: [] });
+export const entryBuckets = (): DropBuckets<EntryDropReason, unknown> => ({
+  EntryTooDeep: [],
+  MalformedEntry: [],
+  UndecodablePolicy: [],
+});
 
 /**
  * A fresh, empty bucket record for the dehydrate side, one per call so two calls
@@ -38,7 +42,10 @@ export const entryBuckets = (): DropBuckets<EntryDropReason, unknown> => ({ Entr
  *
  * Its key order is the side's emission order, stated here once.
  */
-export const dehydrationBuckets = (): DropBuckets<DehydrationDropReason, DecisionEntry> => ({ ForeignSubject: [], UnencodablePolicy: [] });
+export const dehydrationBuckets = (): DropBuckets<DehydrationDropReason, DecisionEntry> => ({
+  ForeignSubject: [],
+  UnencodablePolicy: [],
+});
 
 /**
  * One event per non-empty bucket, in the record's key order.
