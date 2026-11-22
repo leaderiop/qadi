@@ -467,7 +467,16 @@ Order: the three live defects (69 to 71), the three deepenings (72 to 74), the c
   4. ADR-QD-182 (or an amendment of ADR-QD-154) records the rule, and the invariant states that each "never throws" function stays total when the caught value is hostile.
 
 **Planning notes**: Shape: one total function, probably beside `ValueText.ts` (ADR-QD-154 unified value to text, not thrown value to text), owning the guard on both the `message` getter and `String()`. Changing the two existing placeholder strings to one is a visible text change, and the two pins move with it. Each RED regression names its site; one table test covers the function.
-**Plans**: TBD
+**Plans**: 7 plans
+
+Plans:
+- [ ] 69-01 (W1): Measure the phase base (gate lines, the Stryker record of the eight touched files in four groups, the committed scorer) and pin every core throw-through RED: `toJson`, `toJsonRecord`, `canonicalKey`, a derived key, the wire's encodes, SinkCodec's non-string message, the custom predicate's failure and defect, and an evaluation whose predicate dies.
+- [ ] 69-02 (W2): Pin the three copies outside core RED on the base (http's transport failure, react's reporter containment, devtools' capture) and commit the phase's RED record.
+- [ ] 69-03 (W3): Land `thrownMessage` (its module, barrel line, 22-row table and overview row) and switch all six core sites to it, with the custom predicate's defect guarded and the one placeholder pin.
+- [ ] 69-04 (W4): Switch http's `transport`, react's `errorLine` and devtools' `renderError` to `thrownMessage`, with the repository-wide negative gate.
+- [ ] 69-05 (W5): Record ADR-QD-182 and CCR-QD-461, four changesets, gate 14's probe of the new export, and the requirement and roadmap wording for a public `thrownMessage`.
+- [ ] 69-06 (W6): Write INV-QD-383, BEH-QD-681 to 685 and the BEH-QD-230 amendment, and bring every register to the Revision the CCR row cites.
+- [ ] 69-07 (W7): Close: the mutation close judged against the base, the close scan of the phase's diff, `pnpm check:pr` alone, and THRW-01 to THRW-05 complete.
 
 ### Phase 70: Hydration's drop events come from its buckets
 
