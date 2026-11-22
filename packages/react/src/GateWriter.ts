@@ -1,6 +1,7 @@
 /**
  * The write side of a gate registry: the types a registry holds, the private
- * writer slot, and how a set of registrations is reconciled.
+ * writer slot, the store that builds one (`buildGateRegistry`), and how a set of
+ * registrations is reconciled.
  *
  * Out of the barrel (AGENTS.md §9): the writer is not a consumer's, and one able
  * to register an instance could list a `<Can>` that does not exist (ADR-QD-080).
@@ -32,7 +33,6 @@ export type GateKind =
   | "usePolicies"
   | "useProjected"
   | "useQuestions";
-
 
 /**
  * What the instance rendered, at the moment it last rendered.
@@ -151,6 +151,21 @@ class OwnedGateRegistry implements GateRegistry {
  * name it by their own option and no throw is contained twice (ADR-QD-184). Out of the
  * barrel like the rest of this module: a registry built here owns a writer only this
  * package can reach.
+ *
+ * **Ordering is whatever React's effects give it, and that is enough.**
+ * `register` and the handle it returns apply in the order they happen to fire.
+ * There is no sequence number and no guarantee that one component's effects run
+ * before or after another's. The registry is eventually consistent, and it only
+ * ever feeds a devtools panel (ADR-QD-053), so a brief, self-correcting glitch is
+ * nothing a consumer can observe. What is guaranteed is that two live
+ * registrations never overwrite each other: a colliding id is disambiguated, and
+ * the reporter hears about it once per id (React's `useId` is unique within a root,
+ * and two *hydrated* roots derive ids from tree position, so they collide).
+ *
+ * **Every mutation is synchronous; nothing here ever yields.** A listener added
+ * *during* a notification is visited in the same pass, because that is what
+ * iterating a `Set` one is still adding to does. A future change that introduces
+ * a yield point would change this and needs to say so here first.
  */
 export const buildGateRegistry = (report: ((id: string) => void) | undefined): GateRegistry => {
   const entries = new Map<string, GateInstance>();

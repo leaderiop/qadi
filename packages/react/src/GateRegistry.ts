@@ -25,24 +25,10 @@
  * and without it no guard registers, no marker element is rendered, and a
  * registry stays empty for the life of its atom set.
  *
- * **Ordering is whatever React's effects give it, and that is enough.**
- * `register` and the handle it returns apply in the order they happen to fire.
- * There is no sequence number and no guarantee that one component's effects run
- * before or after another's. The registry is eventually consistent, and it only
- * ever feeds a devtools panel (ADR-QD-053), so a brief, self-correcting glitch is
- * nothing a consumer can observe. What is guaranteed is that two live
- * registrations never overwrite each other: a colliding id is disambiguated, and
- * `onIdCollision` hears about it once (React's `useId` is unique within a root,
- * and two *hydrated* roots derive ids from tree position, so they collide).
- *
- * **Every mutation is synchronous; nothing here ever yields.** A listener added
- * *during* a notification is visited in the same pass, because that is what
- * iterating a `Set` one is still adding to does. A future change that introduces
- * a yield point would change this and needs to say so here first.
- *
- * The closure is `buildGateRegistry` in `GateWriter.ts`, so an atom set hands it a
- * collision reporter resolved under its own option, `makeGateRegistry` one resolved
- * under `onIdCollision`.
+ * The store itself is `buildGateRegistry` in `GateWriter.ts`, which is where its contract
+ * lives (ordering, synchrony, how a colliding id is disambiguated). `makeGateRegistry` hands
+ * it a collision reporter resolved under `onIdCollision`, and an atom set hands it one
+ * resolved under its own option, so each names the option its caller passed.
  */
 import { reporterFor, SIGNALS } from "./DeveloperSignals.ts";
 import { buildGateRegistry } from "./GateWriter.ts";
@@ -69,4 +55,6 @@ export interface GateRegistryOptions {
  * module scope, like `makeQadiAtoms`.
  */
 export const makeGateRegistry = (options?: GateRegistryOptions): GateRegistry =>
-  buildGateRegistry(reporterFor(SIGNALS.GateIdCollision, "makeGateRegistry", options?.onIdCollision));
+  buildGateRegistry(
+    reporterFor(SIGNALS.GateIdCollision, "makeGateRegistry", options?.onIdCollision),
+  );
