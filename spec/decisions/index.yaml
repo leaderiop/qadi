@@ -566,3 +566,7 @@ entries:
     file: "184-developer-signal-reporters-are-resolved-through-one-table.md"
     title: "Developer-signal reporters are resolved through one table"
     status: "Accepted — extends ADR-QD-041 and ADR-QD-052"
+  - id: "ADR-QD-185"
+    file: "185-the-dock-models-computed-stores-are-derived-stores.md"
+    title: "The dock model's computed stores are derived stores"
+    status: "Accepted — extends ADR-QD-168, amends ADR-QD-047, corrects ADR-QD-169"
