@@ -240,3 +240,35 @@ Every row was run on the tree at `f91b9f4b`, one command at a time, in the foreg
 - `spec/decisions/index.yaml` (`a8b36092`): the report cites it, with ADR-QD-175, as present. ADR-QD-175's entry is unchanged; the one line that changed belongs to ADR-QD-033, which no truth of this report cites.
 
 **Verdict:** passed
+
+## Re-verification (2026-11-22, after the 68.1 code-review fixes)
+
+**Staleness:** `62: stale, verification 5000af5d, 33 cited, 1 changed since` (`68-stale.mjs`, run at `ae42c2b2`).
+
+| Cited file | Changed since `5000af5d` by |
+| --- | --- |
+| `spec/README.md` | `79a685b4` docs(68.1): WR-02 WR-03 scope CCR-QD-460's odd-count and hang claims to what was shown |
+
+**Trailers on this phase's commits:** 35 `Claude Sonnet 5.5 <noreply@anthropic.com>`, 13 none, 4 `Claude Opus 5.5 <noreply@anthropic.com>`.
+
+**Validation record:** `62-VALIDATION.md` has status `draft` and nyquist_compliant `false`.
+
+**Digest:** `covered_digest: "v4:sha256:7fc32fe9c4b36f13e5ed0b72e2efa0507cf37affc4c5e44c7225993e591a2aff"` becomes `covered_digest: "v4:sha256:7fc32fe9c4b36f13e5ed0b72e2efa0507cf37affc4c5e44c7225993e591a2aff"`, over the same 23 covered files.
+
+**Staleness by `68.1-stale.mjs`:** `62: stale, verification 5000af5d, 33 cited, 1 changed since` (run at `ae42c2b2`).
+
+### Spot-checks re-run (Re-verification (2026-11-22, after the 68.1 code-review fixes))
+
+Every row was run on the tree at `ae42c2b2`, one command at a time, in the foreground, with stdin closed. The spec-revise and traceability results are shared with the Phase 63 to 68 sections of this re-verification: each was taken once at `ae42c2b2`, in a fresh set after the code-review fixes (the earlier set, taken at `c3d8553a`, is not reused because `scripts/bench/ab.sh` and `spec/` changed), and no tracked file outside the planning directory differs between that head and the head each section was run at.
+
+| Behaviour | Command run now | Result now | Status |
+| --------- | --------------- | ---------- | ------ |
+| What the phase and its fixes changed in the spec register | `git diff -U0 0e3f3438 HEAD -- spec/README.md`, and `node scripts/spec-revise.mjs --check < /dev/null` (shared) | 3 insertions and 2 deletions: the Revision header (1.274 to 1.276), the Change History cell (the 1.276 and 1.275 entries in front of the 1.274 one) and one added row, CCR-QD-460, at line 397; no existing row is removed or edited, so CCR-QD-453's row (line 390) and every row the report cites are unchanged; `spec-revise` exit 0, `spec-revise: every Revision matches its newest Change History entry` | PASS |
+| What the code-review fixes changed since the previous section | `git diff -U0 5000af5d HEAD -- spec/README.md` | 3 hunks, at lines 8 (Revision 1.275 to 1.276), 13 (Change History: a 1.276 entry in front) and 397 (the CCR-QD-460 row rewritten); no other line differs | PASS |
+| Traceability | `bash spec/scripts/verify-traceability.sh --strict < /dev/null` (shared) | exit 0; `PASS: 21   FAIL: 0   SKIP: 0 (strict: skips count as failures)` | PASS |
+
+### Changed cited files read against the truths that cite them (Re-verification (2026-11-22, after the 68.1 code-review fixes))
+
+- `spec/README.md` (`79a685b4`): the report cites it for the CCR-QD-453 registration (line 390), which Truth 3 and the artifacts table rely on. The row is where it was and unedited. The commit moves the revision to 1.276, adds a Change History entry and rewrites the CCR-QD-460 row to scope two of its claims (the odd round count to Phase 68's bench, the hang evidence to a blocked parser call in the child); nothing a truth of this report reads. Every truth holds as worded.
+
+**Verdict:** passed
