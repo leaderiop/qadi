@@ -167,10 +167,14 @@ const fieldOf = (error: unknown, key: "cause" | "reason"): unknown => {
  * `message`, which `thrownMessage` reads first. `String(error)` is not that
  * text: every port error is a `Data.TaggedError`, so it stringifies to its tag
  * (`"AttributeResolveError"`), and a `CustomPredicateError` to the predicate's
- * name. A failure with none of the three records the empty string. Every read
- * goes through `fieldOf` and `thrownMessage`, so a cause that cannot be
- * described is recorded with the one placeholder and the capture still records
- * that the port broke.
+ * name. The third read exists for an error class that sets its own `message`;
+ * no shipped port error does (each is a `Schema.TaggedError` that declares
+ * none), so for them it reads `""`, and a failure with no `cause` and no
+ * `reason` records the empty string. A value that is not an error at all, a
+ * plain object say, records what `thrownMessage` makes of it (`"[object
+ * Object]"`), not the empty string. Every read goes through `fieldOf` and
+ * `thrownMessage`, so a cause that cannot be described is recorded with the one
+ * placeholder and the capture still records that the port broke.
  *
  * A field is absent only when it is `undefined`. A `null` cause is a value the
  * resolver reported, so it is captured as `"null"`, as the live run carried it,
