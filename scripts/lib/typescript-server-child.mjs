@@ -78,11 +78,14 @@ export const runTypescriptChild = (script, args, { cwd, timeoutMs }) => {
 
 /**
  * What to print for a failed `execFileSync` child: a killed child's output is empty, so its
- * cause is named first (the timeout and its bound, or the signal), then its own output.
+ * cause is named first (the timeout and its bound, or the signal), then its own output. A
+ * child that printed nothing says its exit status, or why it did not start: never the
+ * command line, which `error.message` carries.
  *
  * @param {Error & {
  *   code?: string,
  *   signal?: string | null,
+ *   status?: number | null,
  *   stdout?: string,
  *   stderr?: string,
  * }} error
@@ -100,7 +103,10 @@ export const failureCause = (error, timeoutMs) =>
     error.stderr?.replace(SERVER_PIDS_LINE, "").trim(),
   ]
     .filter(Boolean)
-    .join("\n") || error.message;
+    .join("\n") ||
+  (typeof error.status === "number"
+    ? `exited with status ${error.status}`
+    : `did not run: ${error.code}`);
 
 /**
  * The version of the `typescript` installed under `root`, whose unstable API a routine
