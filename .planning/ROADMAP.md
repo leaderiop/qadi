@@ -500,7 +500,7 @@ Plans:
   4. ADR-QD-183 cites ADR-QD-152 and says why "a later phase shares the file" no longer applies, INV-QD-045's enforcement is restated, and the payload-path question is decided once and recorded.
 
 **Planning notes**: The owner decision (fold the payload path's `refuse` reasons into the same derivation, or leave it) is asked once at this phase's discuss step. This phase is about the entry path and the event emission, not ADR-QD-152's payload path unless the owner folds it in.
-**Plans**: 5/7 plans executed
+**Plans**: 6/7 plans executed
 
 Plans:
 - [x] 70-01 (W1): Record the phase base, its gate facts and the engine's Stryker base with a phase scorer whose self-test ignores close-time allowances, and pin every hydration drop event, its order, reporter call and count in a 32-row characterisation, green on the base and never edited after.
@@ -508,7 +508,7 @@ Plans:
 - [x] 70-03 (W3): Add the package-private `HydrationBuckets.ts` (`DropBuckets`, `entryBuckets`, `dehydrationBuckets`, `dropEvents`) and derive the hydrate side's `EntriesDropped` and the dehydrate side's `LeftOut` events from one record each, in the base's order, with the characterisation unchanged.
 - [x] 70-04 (W4): State each whole-payload refusal reason's producer in `PAYLOAD_PRODUCERS` with its compile-checked inverse in place of the `Match` dispatcher, add its conformance test, and re-run the experiment: each throwaway row now fails to compile at the record that lacks it.
 - [x] 70-05 (W5): Record ADR-QD-183 (citing ADR-QD-152, its file-sharing reason stated truthfully), amend ADR-QD-152 to Revision 1.1, add CCR-QD-462 and the `@qadi/react` patch changeset.
-- [ ] 70-06 (W6): Write INV-QD-385, INV-QD-386 and BEH-QD-686 to 690, restate INV-QD-045's enforcement and correct INV-QD-323's, and trace them at the revisions the CCR row cites.
+- [x] 70-06 (W6): Write INV-QD-385, INV-QD-386 and BEH-QD-686 to 690, restate INV-QD-045's enforcement and correct INV-QD-323's, and trace them at the revisions the CCR row cites.
 - [ ] 70-07 (W7): Close: the mutation close judged against the base (static mutants of the payload records run by hand), the close scan of the phase's diff, `pnpm check:pr` alone, and DRPE-01 to DRPE-05 complete.
 
 **Cross-cutting constraints:** <!-- gsd:generated -->
@@ -633,7 +633,7 @@ Phases execute in numeric order: 69 → 70 → 71 → 72 → 73 → 74 → 75 �
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 69. One total thrown-value-to-message module | 9/9 | Complete    | 2026-11-22 |
-| 70. Hydration's drop events come from its buckets | 5/7 | In Progress | - |
+| 70. Hydration's drop events come from its buckets | 6/7 | In Progress | - |
 | 71. Developer-signal reporters resolved through one table | 0/TBD | Not started | - |
 | 72. A derived store behind the dock model's stores | 0/TBD | Not started | - |
 | 73. One pure reconcile for gate registration | 0/TBD | Not started | - |

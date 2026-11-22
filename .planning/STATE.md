@@ -5,16 +5,16 @@ milestone_name: Arch Wave 13
 current_phase: 70
 current_phase_name: Hydration's drop events come from its buckets
 status: executing
-stopped_at: Completed 70-05-PLAN.md
-last_updated: "2026-11-22T13:01:39.164Z"
+stopped_at: Completed 70-06-PLAN.md
+last_updated: "2026-11-22T13:08:28.241Z"
 last_activity: 2026-11-22
 last_activity_desc: Phase 70 execution started
-state_head: 6c7d1a903ad266956416e8dc9546a299fe75e076
+state_head: 19daf2ba6c3f16c1eb32d8dacac100b1e8b3d26a
 progress:
   total_phases: 8
   completed_phases: 1
   total_plans: 16
-  completed_plans: 14
+  completed_plans: 15
   percent: 13
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 ## Current Position
 
 Phase: 70 (Hydration's drop events come from its buckets) — EXECUTING
-Plan: 6 of 7
+Plan: 7 of 7
 Status: Ready to execute
 Last activity: 2026-11-22 — Phase 70 execution started
 
@@ -498,6 +498,7 @@ Last activity: 2026-11-22 — Phase 70 execution started
 | Phase 70 P03 | 12 min | 2 tasks | 2 files |
 | Phase QD-70 P04 | 20 min | 2 tasks | 4 files |
 | Phase QD-70 P05 | 35 min | 2 tasks | 6 files |
+| Phase QD-70 P06 | 30 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -849,6 +850,7 @@ Last activity: 2026-11-22 — Phase 70 execution started
 - [Phase 70]: 70-03: bucket records are per-call mapped-type records whose key order is the emission order; one generic dropEvents serves both sides (autonomous)
 - [Phase QD-70]: 70-04: PAYLOAD_PRODUCERS (reason to producer) stays in HydrationEngine.ts beside the decoder; PAYLOAD_REASONS is its compile-checked inverse, replacing the Match dispatcher (autonomous)
 - [Phase QD-70]: 70-05: ADR-QD-183 states ADR-QD-152's file-sharing reason is gone truthfully (ARCH-118 edits only the two reporter call sites, not the planners or records); ADR-QD-152 amended to Rev 1.1
+- [Phase QD-70]: 70-06: INV-QD-385/386 and BEH-QD-686..690 name their enforcement by real test titles; the behaviours describe the shipped code (autonomous)
 
 ### Pending Todos
 
@@ -922,8 +924,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-22T13:01:39.120Z
-Stopped at: Completed 70-05-PLAN.md
+Last session: 2026-11-22T13:08:28.188Z
+Stopped at: Completed 70-06-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
