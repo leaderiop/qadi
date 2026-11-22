@@ -441,7 +441,7 @@ Order: the three live defects (69 to 71), the three deepenings (72 to 74), the c
 
 - [x] **Phase 69: One total thrown-value-to-message module** - Six inline copies of "caught value to message" become one total rule exported by `@qadi/core`, so a hostile thrown value can no longer escape `JsonHazard`, `PortKey`, `PortDerivation`, `PortWireEncode` or `CustomPredicate` (ARCH-116, core; live defect) (completed 2026-11-22)
 - [x] **Phase 70: Hydration's drop events come from its buckets** - `EntriesDropped` and `LeftOut` events are derived from reason-keyed records on the hydrate and dehydrate sides, so a drop reason cannot gain a bucket without its event (ARCH-117, react; live defect) (completed 2026-11-22)
-- [ ] **Phase 71: Developer-signal reporters resolved through one table** - One table states where each signal runs, how often and what it is named, and a throwing `onIdCollision` reporter is reported under that name (ARCH-118, react; live defect)
+- [x] **Phase 71: Developer-signal reporters resolved through one table** - One table states where each signal runs, how often and what it is named, and a throwing `onIdCollision` reporter is reported under that name (ARCH-118, react; live defect) (completed 2026-11-22)
 - [ ] **Phase 72: A derived store behind the dock model's stores** - `ExternalStore` gains a store derived from parent stores that owns key equality, stop-after-close and notify-once, and the dock model's three hand-built computed stores use it (ARCH-119, devtools)
 - [ ] **Phase 73: One pure reconcile for gate registration** - One `reconcile` keyed by gate id registers, updates and unregisters, and `useGate` loses its state-diff effect and the index-aligned parallel arrays (ARCH-120, react)
 - [ ] **Phase 74: The simulation session's policy choice split from its runs** - The policy-choice and seed rules move into a pure module beside `HeldChoice.ts`, and the session keeps only runs (ARCH-121, devtools)
@@ -531,7 +531,7 @@ Plans:
   4. A characterisation written on the phase base shows every existing reporter's behaviour (what fires, where, how often, with what text) unchanged apart from criterion 1, `DeveloperSignals.ts` stays the only file exempt from `no-ambient-console`, and ADR-QD-184 extends ADR-QD-041 and ADR-QD-052.
 
 **Planning notes**: Check whether the module-scope `let` behind `providerSignalReporter`'s once-per-process rule is the one exempt file's carve-out or a breach of AGENTS.md §13 ("no module-scope state is left in this package") before choosing between bringing it under the atom set and recording the exception. Each `HydrationEngine` call site pairs the right `says…` default with the right hook slot (`:408`, `:596`); the table must keep that pairing.
-**Plans**: 8/8 plans executed
+**Plans**: 8/8 plans complete
 
 Plans:
 **Wave 1**
@@ -662,7 +662,7 @@ Phases execute in numeric order: 69 → 70 → 71 → 72 → 73 → 74 → 75 �
 |-------|----------------|--------|-----------|
 | 69. One total thrown-value-to-message module | 9/9 | Complete    | 2026-11-22 |
 | 70. Hydration's drop events come from its buckets | 7/7 | Complete    | 2026-11-22 |
-| 71. Developer-signal reporters resolved through one table | 8/8 | In Progress | - |
+| 71. Developer-signal reporters resolved through one table | 8/8 | Complete    | 2026-11-22 |
 | 72. A derived store behind the dock model's stores | 0/TBD | Not started | - |
 | 73. One pure reconcile for gate registration | 0/TBD | Not started | - |
 | 74. The simulation session's policy choice split from its runs | 0/TBD | Not started | - |

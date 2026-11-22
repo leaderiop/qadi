@@ -2,20 +2,20 @@
 gsd_state_version: "1.0"
 milestone: v1.8
 milestone_name: Arch Wave 13
-current_phase: 71
-current_phase_name: Developer-signal reporters resolved through one table
-status: verifying
-stopped_at: Completed 71-08-PLAN.md
-last_updated: "2026-11-22T16:52:18.467Z"
+current_phase: 72
+current_phase_name: A derived store behind the dock model's stores
+status: planning
+stopped_at: Phase 71 complete, ready to plan Phase 72
+last_updated: "2026-11-22T18:26:08.970Z"
 last_activity: 2026-11-22
-last_activity_desc: Phase 71 execution started
-state_head: 995a3afdfdecb673990074e5232bbd5c00a6f07d
+last_activity_desc: Phase 71 complete, transitioned to Phase 72
+state_head: a9b2207093660cded5465820e07a8c428c281f63
 progress:
   total_phases: 8
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 24
   completed_plans: 24
-  percent: 25
+  percent: 38
 ---
 
 # Project State
@@ -29,16 +29,16 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 
 ## Current Position
 
-Phase: 71 (Developer-signal reporters resolved through one table) — EXECUTING
-Plan: 8 of 8
-Status: Phase complete — ready for verification
-Last activity: 2026-11-22 — Phase 71 execution started
+Phase: 72 — A derived store behind the dock model's stores
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-11-22 — Phase 71 complete, transitioned to Phase 72
 
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 395
+- Total plans completed: 403
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -107,6 +107,7 @@ Last activity: 2026-11-22 — Phase 71 execution started
 | 68.1 | 9 | - | - |
 | 69 | 9 | - | - |
 | 70 | 7 | - | - |
+| 71 | 8 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -945,7 +946,7 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 ## Session Continuity
 
 Last session: 2026-11-22T16:52:18.288Z
-Stopped at: Completed 71-08-PLAN.md
+Stopped at: Phase 71 complete, ready to plan Phase 72
 Resume file: None
 
 ## Operator Next Steps
