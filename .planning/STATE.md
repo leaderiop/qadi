@@ -5,16 +5,16 @@ milestone_name: Arch Wave 13
 current_phase: 71
 current_phase_name: Developer-signal reporters resolved through one table
 status: executing
-stopped_at: Completed 71-02-PLAN.md
-last_updated: "2026-11-22T15:38:54.109Z"
+stopped_at: Completed 71-03-PLAN.md
+last_updated: "2026-11-22T15:48:33.330Z"
 last_activity: 2026-11-22
 last_activity_desc: Phase 71 execution started
-state_head: 459f57e8bdec02bfb3fad2ecbc9e55400ddf8289
+state_head: 5e6200a5d1ca2ed8962b37736c0c268ce824676e
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 24
-  completed_plans: 18
+  completed_plans: 19
   percent: 25
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 ## Current Position
 
 Phase: 71 (Developer-signal reporters resolved through one table) — EXECUTING
-Plan: 3 of 8
+Plan: 4 of 8
 Status: Ready to execute
 Last activity: 2026-11-22 — Phase 71 execution started
 
@@ -503,6 +503,7 @@ Last activity: 2026-11-22 — Phase 71 execution started
 | Phase QD-70 P07 | 30 min | 2 tasks | 3 files |
 | Phase 71 P01 | 9 min | 2 tasks | 4 files |
 | Phase QD-71 P02 | 12 min | 2 tasks | 3 files |
+| Phase 71 P03 | 28 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -859,6 +860,7 @@ Last activity: 2026-11-22 — Phase 71 execution started
 - [Phase 70]: Code review (3 iterations, every finding fixed): the payload-producer type machinery is exported from the package-private engine and pinned (a gutted `OnlyMember` turns pins red); the spec states per kind what the compiler enforces and that it cannot check code drops under a reason or raises a producer; the characterisation gained reverse-order rows with no expected value changed; mutation re-closed on both groups at the fixed head (decided autonomously)
 - [Phase 71]: 71-01: rows 12 and 18 of the characterisation shared one title; row 12 is titled 'a returning onDropped is told the left-out entry once in production, and nothing is written to the console' so the 35 titles are distinct (decided autonomously)
 - [Phase QD-71]: 71-02: the regression rows compare the console as one joined string and carry the received lines in the assertion message, so the JSON report shows the received line; the missing-row and second-latch pins refuse through a call helper, so their directive fragment is "is not assignable to" (decided autonomously)
+- [Phase 71]: 71-03: defaultOf reads only speaks/often/says (a Pick of SignalRow) so ReporterThrew's entry-less row passes without a cast; the latch has one writer (once) and sayProviderSignal reads it through the table
 
 ### Pending Todos
 
@@ -932,8 +934,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-22T15:38:53.555Z
-Stopped at: Completed 71-02-PLAN.md
+Last session: 2026-11-22T15:48:33.087Z
+Stopped at: Completed 71-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
