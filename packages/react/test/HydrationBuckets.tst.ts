@@ -25,20 +25,24 @@ import type {
 
 // The reasons written out, so a reason core's table gains fails these pins rather than
 // following the union silently. `DropBuckets` is a mapped type, so each array is its key's.
+// Each `expect` below compares a subject to one of these, never to its own annotation.
+type EntryBucketRecord = {
+  readonly EntryTooDeep: Array<unknown>;
+  readonly MalformedEntry: Array<unknown>;
+  readonly UndecodablePolicy: Array<unknown>;
+};
+type DehydrationBucketRecord = {
+  readonly ForeignSubject: Array<DecisionEntry>;
+  readonly UnencodablePolicy: Array<DecisionEntry>;
+};
+
 test("the entry buckets hold one array per entry reason, written out", () => {
-  expect(entryBuckets()).type.toBe<{
-    readonly EntryTooDeep: Array<unknown>;
-    readonly MalformedEntry: Array<unknown>;
-    readonly UndecodablePolicy: Array<unknown>;
-  }>();
+  expect(entryBuckets()).type.toBe<EntryBucketRecord>();
   expect<EntryDropReason>().type.toBe<"EntryTooDeep" | "MalformedEntry" | "UndecodablePolicy">();
 });
 
 test("the dehydration buckets hold one array per dehydration reason, written out", () => {
-  expect(dehydrationBuckets()).type.toBe<{
-    readonly ForeignSubject: Array<DecisionEntry>;
-    readonly UnencodablePolicy: Array<DecisionEntry>;
-  }>();
+  expect(dehydrationBuckets()).type.toBe<DehydrationBucketRecord>();
   expect<DehydrationDropReason>().type.toBe<"ForeignSubject" | "UnencodablePolicy">();
 });
 
@@ -48,7 +52,7 @@ test("an entry bucket record missing a reason or naming an unknown one is refuse
     EntryTooDeep: [],
     MalformedEntry: [],
   };
-  expect(missing).type.toBe<DropBuckets<EntryDropReason, unknown>>();
+  expect(missing).type.toBe<EntryBucketRecord>();
   const excess: DropBuckets<EntryDropReason, unknown> = {
     EntryTooDeep: [],
     MalformedEntry: [],
@@ -56,31 +60,31 @@ test("an entry bucket record missing a reason or naming an unknown one is refuse
     // @ts-expect-error does not exist in type
     Unknown: [],
   };
-  expect(excess).type.toBe<DropBuckets<EntryDropReason, unknown>>();
+  expect(excess).type.toBe<EntryBucketRecord>();
   const whole: DropBuckets<EntryDropReason, unknown> = {
     EntryTooDeep: [],
     MalformedEntry: [],
     UndecodablePolicy: [],
   };
-  expect(whole).type.toBe<DropBuckets<EntryDropReason, unknown>>();
+  expect(whole).type.toBe<EntryBucketRecord>();
 });
 
 test("a dehydration bucket record missing a reason or naming an unknown one is refused", () => {
   // @ts-expect-error is missing in type
   const missing: DropBuckets<DehydrationDropReason, DecisionEntry> = { ForeignSubject: [] };
-  expect(missing).type.toBe<DropBuckets<DehydrationDropReason, DecisionEntry>>();
+  expect(missing).type.toBe<DehydrationBucketRecord>();
   const excess: DropBuckets<DehydrationDropReason, DecisionEntry> = {
     ForeignSubject: [],
     UnencodablePolicy: [],
     // @ts-expect-error does not exist in type
     Unknown: [],
   };
-  expect(excess).type.toBe<DropBuckets<DehydrationDropReason, DecisionEntry>>();
+  expect(excess).type.toBe<DehydrationBucketRecord>();
   const whole: DropBuckets<DehydrationDropReason, DecisionEntry> = {
     ForeignSubject: [],
     UnencodablePolicy: [],
   };
-  expect(whole).type.toBe<DropBuckets<DehydrationDropReason, DecisionEntry>>();
+  expect(whole).type.toBe<DehydrationBucketRecord>();
 });
 
 // What it pins is the callback's types and the result's element type; that it calls the
@@ -154,7 +158,12 @@ test("an inverse over a record that names a producer twice or not at all is refu
     // @ts-expect-error is not assignable to type 'never'
     SubjectCheck: "PayloadSubjectMismatch",
   };
-  expect(refused).type.toBe<{ readonly [P in PayloadProducer]: ReasonRaisedBy<P, NamedTwice> }>();
+  expect(refused).type.toBe<{
+    readonly TooDeep: never;
+    readonly Malformed: "MalformedPayload";
+    readonly UnsupportedPayloadVersion: "UnsupportedPayloadVersion";
+    readonly SubjectCheck: never;
+  }>();
   // The same shape over the real record is accepted.
   const accepted: { readonly [P in PayloadProducer]: ReasonRaisedBy<P> } = {
     TooDeep: "PayloadTooDeep",
@@ -162,5 +171,10 @@ test("an inverse over a record that names a producer twice or not at all is refu
     UnsupportedPayloadVersion: "UnsupportedPayloadVersion",
     SubjectCheck: "PayloadSubjectMismatch",
   };
-  expect(accepted).type.toBe<{ readonly [P in PayloadProducer]: ReasonRaisedBy<P> }>();
+  expect(accepted).type.toBe<{
+    readonly TooDeep: "PayloadTooDeep";
+    readonly Malformed: "MalformedPayload";
+    readonly UnsupportedPayloadVersion: "UnsupportedPayloadVersion";
+    readonly SubjectCheck: "PayloadSubjectMismatch";
+  }>();
 });
