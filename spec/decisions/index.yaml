@@ -554,3 +554,7 @@ entries:
     file: "177-one-throwing-listener-cannot-silence-the-rest.md"
     title: "One throwing listener cannot silence the rest"
     status: "Accepted — amends ADR-QD-173; amended 2026-11-21 (a capacity change's publish stops no read)"
+  - id: "ADR-QD-182"
+    file: "182-one-total-thrown-value-to-text-rule-exported-by-core.md"
+    title: "One total thrown-value-to-text rule, exported by core"
+    status: "Accepted — reads ADR-QD-154, ADR-QD-099"
