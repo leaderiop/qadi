@@ -25,7 +25,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-22)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 70 — Hydration's drop events come from its buckets
+**Current focus:** Phase 71 — Developer-signal reporters resolved through one table
 
 ## Current Position
 
@@ -854,6 +854,7 @@ Last activity: 2026-11-22 — Phase 70 complete, transitioned to Phase 71
 - [Phase QD-70]: 70-05: ADR-QD-183 states ADR-QD-152's file-sharing reason is gone truthfully (ARCH-118 edits only the two reporter call sites, not the planners or records); ADR-QD-152 amended to Rev 1.1
 - [Phase QD-70]: 70-06: INV-QD-385/386 and BEH-QD-686..690 name their enforcement by real test titles; the behaviours describe the shipped code (autonomous)
 - [Phase QD-70]: 70-07: a by-hand static mutant the entry decoder's construction guard refuses (RuntimeError) counts as detected; EXAMINED admits 8 StringLiteral and 1 ObjectLiteral in HydrationEngine.ts. Decided autonomously.
+- [Phase 70]: Code review (3 iterations, every finding fixed): the payload-producer type machinery is exported from the package-private engine and pinned (a gutted `OnlyMember` turns pins red); the spec states per kind what the compiler enforces and that it cannot check code drops under a reason or raises a producer; the characterisation gained reverse-order rows with no expected value changed; mutation re-closed on both groups at the fixed head (decided autonomously)
 
 ### Pending Todos
 
@@ -937,4 +938,4 @@ Resume file: None
 
 
 
-- Plan Phase 70 with /gsd-plan-phase 70 (Phases 70, 75 and 76 each carry one owner question, decided autonomously in this run)
+- Plan Phase 71 with /gsd-plan-phase 71 (Phases 75 and 76 each carry one owner question, decided autonomously in this run)
