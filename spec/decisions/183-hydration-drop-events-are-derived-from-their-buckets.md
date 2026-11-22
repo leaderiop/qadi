@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-183                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-22                                     |
 > | Status         | Accepted — amends ADR-QD-152                   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-22): the compiler's guarantee stated per kind: an entry or dehydration row needs a bucket, a payload row a named producer, and no type checks a call site raises one; the characterisation's rows are unchanged, not unedited (ARCH-117, CCR-QD-462)<br>1.0 (2026-11-22): Initial release (ARCH-117, CCR-QD-462) |
+> | Change History | 1.2 (2026-11-22): the Consequences bullet says every bucket is emitted and the compiler does not check that code drops anything under a reason; 'the base' replaced by the engine before this decision (ARCH-117, CCR-QD-462)<br>1.1 (2026-11-22): the compiler's guarantee stated per kind: an entry or dehydration row needs a bucket, a payload row a named producer, and no type checks a call site raises one; the characterisation's rows are unchanged, not unedited (ARCH-117, CCR-QD-462)<br>1.0 (2026-11-22): Initial release (ARCH-117, CCR-QD-462) |
 
 ---
 
@@ -20,8 +20,8 @@
 the entry whose fields disagree with its policy to one of those arrays directly, and wrote one emission line per
 reason. The dehydrate side repeated the pattern with two filters and two lines. Nothing tied a bucket to its event, so a
 fourth entry reason given a bucket and no line compiled, and its entries were never reported or counted, against
-[INV-QD-045](../invariants.md#inv-qd-045-no-entry-leaves-hydration-unaccounted-for). A throwaway row added on the base
-the change started from showed it: the tree compiled clean, and every runtime test stayed green.
+[INV-QD-045](../invariants.md#inv-qd-045-no-entry-leaves-hydration-unaccounted-for). A throwaway row added to the code
+before this decision showed it: the tree compiled clean, and every runtime test stayed green.
 
 The whole-payload path had the same gap one step earlier. A `payload` row of `@qadi/core`'s drop-reason table, or a
 `dehydration` row, compiled with nothing producing it, which [ADR-QD-152](./152-each-hydration-drop-reason-is-stated-once-with-its-kind.md)
@@ -37,10 +37,10 @@ the record would reshape `HydrationEngine.ts`, "which a later phase shares".
 2. **One generic function, `dropEvents`, derives each side's events from its record**: one event per non-empty bucket,
    in the record's key order. The planner appends `Seeded` or `Dehydrated`. The function visits every key, so no bucket
    can be skipped, and a key added to a record is reported by the same call.
-3. **The constructors' key order is the emission order, stated once per side.** It is the base's order:
-   `EntryTooDeep`, `MalformedEntry`, `UndecodablePolicy` on the hydrate side, then `ForeignSubject`,
-   `UnencodablePolicy` on the dehydrate side. It is not read off core's table, whose entry order differs
-   (`MalformedEntry`, `UndecodablePolicy`, `EntryTooDeep`), because the events a reporter sees must stay
+3. **The constructors' key order is the emission order, stated once per side.** It is the order the engine
+   emitted before this decision: `EntryTooDeep`, `MalformedEntry`, `UndecodablePolicy` on the hydrate side, then
+   `ForeignSubject`, `UnencodablePolicy` on the dehydrate side. It is not read off core's table, whose entry order
+   differs (`MalformedEntry`, `UndecodablePolicy`, `EntryTooDeep`), because the events a reporter sees must stay
    byte-identical.
 4. **The payload path is folded in without buckets.** `PAYLOAD_PRODUCERS` in `HydrationEngine.ts` names, for every
    whole-payload reason, what raises it: one of the payload decoder's refusals, by tag, or the subject check. The
@@ -88,16 +88,16 @@ record rather than read off core's table (decision 3).
 
 - What the compiler enforces differs by kind. An `entry` row is a compile error in `@qadi/react` until it has a bucket
   in `entryBuckets`, and a `dehydration` row until it has one in `dehydrationBuckets`; a bucket has its event, because
-  `dropEvents` derives every event from its record, so for these two kinds a reason with a source cannot go
-  unreported or uncounted. A `payload` row is a compile error until its producer is named in `PAYLOAD_PRODUCERS`, and
-  a new producer is a compile error until it has its slot in `PAYLOAD_REASONS`. The compiler cannot check that a call
-  site raises that producer, so a payload reason with a new producer and no use of its slot compiles and is raised
-  nowhere; the conformance test is what shows each row's producer refuses under it. Each compile error was shown by
-  the same throwaway-row experiment after the change. This amends ADR-QD-152's consequence that a `payload` or
-  `dehydration` row compiles everywhere.
+  `dropEvents` derives every event from its record, so every bucket is emitted and an entry dropped under any reason
+  of these two kinds is reported and counted. The compiler does not check that code drops anything under a reason. A
+  `payload` row is a compile error until its producer is named in `PAYLOAD_PRODUCERS`, and a new producer is a compile
+  error until it has its slot in `PAYLOAD_REASONS`. The compiler cannot check that a call site raises that producer, so
+  a payload reason with a new producer and no use of its slot compiles and is raised nowhere; the conformance test is
+  what shows each row's producer refuses under it. Each compile error was shown by the same throwaway-row experiment
+  after the change. This amends ADR-QD-152's consequence that a `payload` or `dehydration` row compiles everywhere.
 - INV-QD-045's enforcement is restated as INV-QD-385, and the emission order is INV-QD-386.
-- The events, their order and their counts are unchanged, pinned by a characterisation written on the base, no
-  existing row of which has had its expected values changed. No export is added or removed, so `@qadi/react` takes a patch changeset and `spec/overview.md` is untouched.
+- The events, their order and their counts are unchanged, pinned by a characterisation written against the engine
+  before its drops were collected in records, no existing row of which has had its expected values changed. No export is added or removed, so `@qadi/react` takes a patch changeset and `spec/overview.md` is untouched.
 
 ## Related
 
