@@ -852,7 +852,11 @@ describe("makeDerivedStore", () => {
         const heldBefore = first.held.size;
         yield* Scope.close(scope, Exit.void);
 
-        assert.isTrue(Exit.isFailure(exit));
+        assert.isTrue(Exit.isFailure(exit) && Cause.hasDies(exit.cause));
+        assert.strictEqual(
+          Exit.isFailure(exit) ? Cause.squash(exit.cause) : undefined,
+          refused,
+        );
         assert.strictEqual(heldBefore, 1);
         assert.strictEqual(first.held.size, 0);
       }),
