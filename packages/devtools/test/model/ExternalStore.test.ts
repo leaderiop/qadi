@@ -1,4 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
+import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Scope from "effect/Scope";
@@ -855,6 +856,74 @@ describe("makeDerivedStore", () => {
         assert.isTrue(Exit.isFailure(exit));
         assert.strictEqual(heldBefore, 1);
         assert.strictEqual(first.held.size, 0);
+      }),
+  );
+
+  it.effect(
+    "a parent whose release throws leaves no later parent subscribed, and the close fails with it",
+    () =>
+      Effect.gen(function* () {
+        const refused = new Error("the parent could not release");
+        const throwing: Parent = {
+          subscribe: () => () => {
+            throw refused;
+          },
+        };
+        const later = observedParent();
+        const scope = yield* Scope.make();
+        yield* Scope.provide(
+          makeDerivedStore({
+            parents: [throwing, later.parent],
+            key: () => ({ moved: 1 }),
+            compute: (key) => ({ key }),
+          }),
+          scope,
+        );
+        const heldBefore = later.held.size;
+        const exit = yield* Effect.exit(Scope.close(scope, Exit.void));
+
+        assert.strictEqual(heldBefore, 1);
+        assert.strictEqual(later.held.size, 0);
+        assert.isTrue(Exit.isFailure(exit));
+        assert.strictEqual(
+          Exit.isFailure(exit) ? Cause.squash(exit.cause) : undefined,
+          refused,
+        );
+      }),
+  );
+
+  it.effect(
+    "two parents whose release throws fail the close with one AggregateError holding both",
+    () =>
+      Effect.gen(function* () {
+        const first = new Error("the first parent could not release");
+        const second = new Error("the second parent could not release");
+        const releasing = (error: Error): Parent => ({
+          subscribe: () => () => {
+            throw error;
+          },
+        });
+        const scope = yield* Scope.make();
+        yield* Scope.provide(
+          makeDerivedStore({
+            parents: [releasing(first), releasing(second)],
+            key: () => ({ moved: 1 }),
+            compute: (key) => ({ key }),
+          }),
+          scope,
+        );
+        const exit = yield* Effect.exit(Scope.close(scope, Exit.void));
+        const thrown = Exit.isFailure(exit) ? Cause.squash(exit.cause) : undefined;
+
+        assert.instanceOf(thrown, AggregateError);
+        assert.deepStrictEqual(thrown instanceof AggregateError ? thrown.errors : [], [
+          first,
+          second,
+        ]);
+        assert.strictEqual(
+          thrown instanceof AggregateError ? thrown.message : undefined,
+          "More than one of the store's parent releases threw.",
+        );
       }),
   );
 

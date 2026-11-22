@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-185                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-22                                     |
 > | Status         | Accepted — extends ADR-QD-168, amends ADR-QD-047, corrects ADR-QD-169 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-22): correction — key equality is over own enumerable string-keyed fields, the finalizer is registered before the parents are subscribed, and the store-list test lists the model's members and is kept equal to BEH-QD-700 by review (CCR-QD-464)<br>1.0 (2026-11-22): new — the dock model's three computed stores are derived stores (ARCH-119, CCR-QD-464) |
+> | Change History | 1.2 (2026-11-22): decision 7 states what a parent whose subscribe throws and a release that throws each do (CCR-QD-464)<br>1.1 (2026-11-22): correction — key equality is over own enumerable string-keyed fields, the finalizer is registered before the parents are subscribed, and the store-list test lists the model's members and is kept equal to BEH-QD-700 by review (CCR-QD-464)<br>1.0 (2026-11-22): new — the dock model's three computed stores are derived stores (ARCH-119, CCR-QD-464) |
 
 ---
 
@@ -63,12 +63,18 @@ sentence in each, and the ordinals drifted from one another.
    order at construction, so it moves before every listener added after it, and a throw
    from its listeners enters the parent's loop as one value.
 7. **A finalizer in the caller's scope releases every parent and stops the store.** It is
-   registered before the parents are subscribed, so a parent whose `subscribe` throws
-   leaves every parent already subscribed released when the scope closes. After the scope
-   closes there is no key read and no compute, `refresh` does nothing, the last snapshot
-   is kept, and `subscribe` registers but nothing notifies. The rule is the same for all
-   three stores, so a closed model's diagnostics store no longer merges a later reading:
-   closing the scope ends what the model started
+   registered before the parents are subscribed. A parent whose `subscribe` throws while
+   the store is built fails the build with that throw as a defect and returns no store, and
+   closing the scope releases every parent subscribed before it. After the scope closes
+   there is no key read and no compute, `refresh` does nothing, the last snapshot is kept,
+   and `subscribe` registers but nothing notifies. The finalizer releases every parent even
+   when a release throws, and then fails the close with what was thrown, one value as itself
+   and more than one as one `AggregateError`: ADR-QD-177's rule for listeners, chosen over
+   the gates feed's swallowing of a release because the gates feed's registry is the host's
+   and every parent here is the package's own store, so a release that throws is a defect
+   the close can state. A parent's `subscribe` must return a release that cannot throw. The
+   rule is the same for all three stores, so a closed model's diagnostics store no longer
+   merges a later reading: closing the scope ends what the model started
    ([ADR-QD-137](./137-a-devtools-session-owns-its-runs-through-a-scope.md)), and
    `DiagnosticsFeed`'s `configure` already refuses a command on a closed feed. The dock
    never hands a closed model, so nothing it shows changes.

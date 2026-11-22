@@ -55,6 +55,17 @@ export interface ExternalStore<A> extends ReadableStore<A> {
   readonly publish: (next: A) => void;
 }
 
+/**
+ * Throws what a run of calls threw once every call ran: nothing when none threw, the
+ * thrown value itself when one did and one `AggregateError` holding every one when more
+ * did.
+ */
+function throwCollected(thrown: ReadonlyArray<unknown>, message: string): void {
+  if (thrown.length === 0) return;
+  if (thrown.length === 1) throw thrown[0];
+  throw new AggregateError(thrown, message);
+}
+
 export const makeExternalStore = <A>(initial: A): ExternalStore<A> => {
   let current = initial;
   const listeners = new Set<() => void>();
@@ -68,9 +79,7 @@ export const makeExternalStore = <A>(initial: A): ExternalStore<A> => {
         thrown.push(error);
       }
     }
-    if (thrown.length === 0) return;
-    if (thrown.length === 1) throw thrown[0];
-    throw new AggregateError(thrown, "More than one of the store's listeners threw.");
+    throwCollected(thrown, "More than one of the store's listeners threw.");
   };
 
   return {
@@ -146,9 +155,13 @@ function sameFields<K extends object>(a: K, b: K): boolean {
  * What enforces what: the compiler refuses a key type with an optional field, an
  * empty parent list and a compute reading a field outside its key. A test pins that
  * each field moved alone recomputes once and that keys of other shapes compare the
- * same way. A compute that reads state outside its key is checked by neither. A
- * parent's `subscribe` may throw, which releases every parent already subscribed
- * when the scope closes; the function it returns must not.
+ * same way. A compute that reads state outside its key is checked by neither.
+ *
+ * A parent's `subscribe` that throws while the store is built fails the build with
+ * that throw as a defect and returns no store; closing the scope releases every
+ * parent subscribed before it. Closing releases every parent even when a release
+ * throws, as the listener contract runs every listener, and then fails the close with
+ * what was thrown, one value as itself and more than one as an `AggregateError`.
  */
 export const makeDerivedStore = Effect.fn("qadi.devtools.makeDerivedStore")(function* <
   K extends object & Required<K>,
@@ -175,7 +188,15 @@ export const makeDerivedStore = Effect.fn("qadi.devtools.makeDerivedStore")(func
   yield* Effect.addFinalizer(() =>
     Effect.sync(() => {
       stopped = true;
-      for (const release of releases) release();
+      const thrown: Array<unknown> = [];
+      for (const release of releases) {
+        try {
+          release();
+        } catch (error) {
+          thrown.push(error);
+        }
+      }
+      throwCollected(thrown, "More than one of the store's parent releases threw.");
     }),
   );
   for (const parent of options.parents) releases.push(parent.subscribe(refresh));
