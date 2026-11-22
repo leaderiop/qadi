@@ -238,6 +238,32 @@ describe("the timeline feed", () => {
       assert.isTrue(status._tag === "Stopped" && status.reason.includes("boom"));
     }));
 
+  // A thrown value whose `toString` and `message` both throw, and an `Error` whose `message` getter throws.
+  const hostile = {
+    toString(): string {
+      throw new Error("toString threw");
+    },
+    get message(): string {
+      throw new Error("message threw");
+    },
+  };
+  const hostileError = Object.defineProperty(new Error("unread"), "message", {
+    get(): string {
+      throw new Error("message threw");
+    },
+  });
+
+  it.effect("a read that dies with a value that cannot be rendered is Stopped with the placeholder", () =>
+    Effect.gen(function* () {
+      for (const value of [hostile, hostileError]) {
+        const feed = yield* makeTimelineFeed({ source: { read: Effect.die(value) } });
+
+        const status = feed.status.getSnapshot();
+        if (status._tag !== "Stopped") return assert.fail("expected Stopped");
+        assert.strictEqual(status.reason, "a value that could not be described");
+      }
+    }));
+
   it.effect("TF11 a live stream that dies after its backlog is Stopped and keeps the entries; a new source reads again", () =>
     Effect.gen(function* () {
       const feed = yield* makeTimelineFeed({

@@ -268,6 +268,36 @@ describe("runDiagnostics", () => {
     }),
   );
 
+  // A thrown value whose `toString` and `message` both throw, and an `Error` whose `message` getter throws.
+  const hostile = {
+    toString(): string {
+      throw new Error("toString threw");
+    },
+    get message(): string {
+      throw new Error("message threw");
+    },
+  };
+  const hostileError = Object.defineProperty(new Error("unread"), "message", {
+    get(): string {
+      throw new Error("message threw");
+    },
+  });
+
+  it.effect("a layer that fails to build with a value that cannot be rendered reads Failed with the placeholder", () =>
+    Effect.gen(function* () {
+      for (const value of [hostile, hostileError]) {
+        const { collector } = scriptedCollector();
+        const store = makeDiagnosticsStore();
+        const layer = Layer.effect(AttributeResolver, Effect.fail(value));
+        const fiber = yield* start(store, { layer, collector });
+        const reading = store.getSnapshot().wiring;
+        if (reading._tag !== "Failed") return assert.fail("expected Failed");
+        assert.strictEqual(reading.reason, "a value that could not be described");
+        yield* Fiber.interrupt(fiber);
+      }
+    }),
+  );
+
   it.effect("the wiring read sees the services the layer built", () =>
     Effect.gen(function* () {
       const store = makeDiagnosticsStore();

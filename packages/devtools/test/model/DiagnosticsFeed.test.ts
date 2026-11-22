@@ -153,6 +153,37 @@ describe("the diagnostics feed", () => {
     }),
   );
 
+  // A thrown value whose `toString` and `message` both throw, and an `Error` whose `message` getter throws.
+  const hostile = {
+    toString(): string {
+      throw new Error("toString threw");
+    },
+    get message(): string {
+      throw new Error("message threw");
+    },
+  };
+  const hostileError = Object.defineProperty(new Error("unread"), "message", {
+    get(): string {
+      throw new Error("message threw");
+    },
+  });
+
+  it.effect("a collector that throws a value that cannot be rendered is Stopped with the placeholder", () =>
+    Effect.gen(function* () {
+      for (const value of [hostile, hostileError]) {
+        const { collector } = makeCollectorDouble(() => {
+          throw value;
+        });
+        const feed = yield* makeDiagnosticsFeed({ collector });
+
+        const { status } = feed.getSnapshot();
+        if (!DiagnosticsStatus.$is("Stopped")(status)) return assert.fail("expected Stopped");
+        assert.isFalse(status.sampled);
+        assert.strictEqual(status.reason, "a value that could not be described");
+      }
+    }),
+  );
+
   it.effect("F5 a collector that throws on its second call is Stopped with the earlier reading kept, and is not called again", () =>
     Effect.gen(function* () {
       const { state, collector } = makeCollectorDouble((call) => {
