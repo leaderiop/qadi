@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-033                                   |
-> | Revision       | 1.5                                            |
+> | Revision       | 1.6                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Accepted; amended 2026-11-21 (every child the gate starts has a timeout) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.5 (2026-11-21): amendment: the probe guard's parse runs in a child under the gate's timeout, so every child the gate starts has one (CCR-QD-460)<br>1.4 (2026-11-21): amendment: the only child without a timeout, the TypeScript server behind `typescript/unstable/sync`'s `API`, is named, and a killed child reports its cause (ARCH-115, CCR-QD-459)<br>1.3 (2026-11-21): amendment: the probe guard reads what the consumer runs, and every `execFileSync` child has a timeout (ARCH-115, CCR-QD-459)<br>1.2 (2026-11-20): amendment: the consumer probes every make*Feed the packed devtools root exports and a DecisionCacheShape host cache, held by a probe guard (ARCH-110, CCR-QD-454)<br>1.1 (2026-10-07): check 3b added: the entry-point list is closed and the packed artifact is probed for it (ADR-QD-099, CCR-QD-188)<br>1.0 (2026-07-26): Initial release (CCR-QD-038) |
+> | Change History | 1.6 (2026-11-21): amendment: the hang evidence is a blocked parser call in the child killed at the timeout, not a stopped TypeScript server (CCR-QD-460)<br>1.5 (2026-11-21): amendment: the probe guard's parse runs in a child under the gate's timeout, so every child the gate starts has one (CCR-QD-460)<br>1.4 (2026-11-21): amendment: the only child without a timeout, the TypeScript server behind `typescript/unstable/sync`'s `API`, is named, and a killed child reports its cause (ARCH-115, CCR-QD-459)<br>1.3 (2026-11-21): amendment: the probe guard reads what the consumer runs, and every `execFileSync` child has a timeout (ARCH-115, CCR-QD-459)<br>1.2 (2026-11-20): amendment: the consumer probes every make*Feed the packed devtools root exports and a DecisionCacheShape host cache, held by a probe guard (ARCH-110, CCR-QD-454)<br>1.1 (2026-10-07): check 3b added: the entry-point list is closed and the packed artifact is probed for it (ADR-QD-099, CCR-QD-188)<br>1.0 (2026-07-26): Initial release (CCR-QD-038) |
 
 ---
 
@@ -183,9 +183,11 @@ every child the gate starts has a timeout. The child opens the sandbox's project
 `typescript/unstable/sync`'s `API`, reads `consumer.ts` and prints the probe names it found
 as JSON; the gate decides every check from that, with the same failure texts as before, and
 a child that fails, is killed or times out is reported naming the installed TypeScript and
-the cause. A TypeScript server that stops answering now ends the gate at the timeout
-instead of hanging it. The gate kills only the child, so the server that child started is
-not killed with it and may outlive the run.
+the cause. A parser call that blocks, as a TypeScript server that stops answering would
+make it, now ends the gate at the timeout instead of hanging it. What was shown is a hang
+planted in the child (a blocked `API` constructor) ending the child at the timeout and being
+reported, not a real stopped server. The gate kills only the child, so the server that child
+started is not killed with it and may outlive the run.
 
 ---
 
