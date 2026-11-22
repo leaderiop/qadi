@@ -123,20 +123,20 @@ Every phase runs on branch `arch-wave-12`, strictly serial.
 
 ### Every phase (cross-cutting)
 
-- [ ] **WX-01**: `pnpm check:pr < /dev/null` is green at the end of each phase.
-- [ ] **WX-02**: Each phase records its ADR (or names it "Unused" in its CCR row), its CCR row, and its BEH/INV/traceability
+- [x] **WX-01**: `pnpm check:pr < /dev/null` is green at the end of each phase.
+- [x] **WX-02**: Each phase records its ADR (or names it "Unused" in its CCR row), its CCR row, and its BEH/INV/traceability
   changes, using only its reserved numbers. `node scripts/next-id.mjs` is never run.
-- [ ] **WX-03**: `spec/overview.md` names every added export and drops every removed one (gate 13); this milestone expects
+- [x] **WX-03**: `spec/overview.md` names every added export and drops every removed one (gate 13); this milestone expects
   none.
-- [ ] **WX-04**: Nothing new is added from this list: `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`,
+- [x] **WX-04**: Nothing new is added from this list: `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`,
   ambient `console`/`process.env`/clock, `Record<string, unknown>`, `// Stryker disable`. A budget changes only together
   with its AGENTS.md table.
-- [ ] **WX-05**: Coverage thresholds hold (core at least 95%, the others at least 90%). The Stryker score of touched files
+- [x] **WX-05**: Coverage thresholds hold (core at least 95%, the others at least 90%). The Stryker score of touched files
   does not fall: recorded per phase in `NN-mutation-base.json`, measured with the same invocation at the phase base and
   at close; a drop is closed with a test, never re-baselined.
-- [ ] **WX-06**: Every behaviour change is preceded by a characterisation or regression test written on the phase base:
+- [x] **WX-06**: Every behaviour change is preceded by a characterisation or regression test written on the phase base:
   RED for a defect, green for preserved behaviour. Every new check is shown failing once.
-- [ ] **WX-07**: No D-numbers, plan-local ids or phase numbers enter shipped source, test titles or BDD scenarios. Nothing
+- [x] **WX-07**: No D-numbers, plan-local ids or phase numbers enter shipped source, test titles or BDD scenarios. Nothing
   is released or published, and no version-packages PR is merged.
 
 ## Future Requirements
@@ -202,13 +202,13 @@ The seven WX rows apply to every phase 62 to 68, so each phase's Requirements li
 | DEBT-04 | Phase 68.1 | Complete |
 | DEBT-05 | Phase 68.1 | Complete |
 | DEBT-06 | Phase 68.1 | Complete |
-| WX-01 | All v1.7 phases | Pending |
-| WX-02 | All v1.7 phases | Pending |
-| WX-03 | All v1.7 phases | Pending |
-| WX-04 | All v1.7 phases | Pending |
-| WX-05 | All v1.7 phases | Pending |
-| WX-06 | All v1.7 phases | Pending |
-| WX-07 | All v1.7 phases | Pending |
+| WX-01 | All v1.7 phases | Complete |
+| WX-02 | All v1.7 phases | Complete |
+| WX-03 | All v1.7 phases | Complete |
+| WX-04 | All v1.7 phases | Complete |
+| WX-05 | All v1.7 phases | Complete |
+| WX-06 | All v1.7 phases | Complete |
+| WX-07 | All v1.7 phases | Complete |
 
 **Coverage:**
 - v1.7 requirements: 46 total (39 phase-specific + 7 cross-cutting)
