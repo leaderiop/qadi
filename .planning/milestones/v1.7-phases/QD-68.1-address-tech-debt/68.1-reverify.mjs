@@ -1,16 +1,19 @@
-// node .planning/phases/QD-68.1-address-tech-debt/68.1-reverify.mjs <62..68> <phase_base> <heading>, from the
+// node .planning/milestones/v1.7-phases/QD-68.1-address-tech-debt/68.1-reverify.mjs <62..68> <phase_base> <heading>, from the
 // repository root, once the changes a re-verification answers are committed and before that re-verification of Phase
 // <phase> is. Phase 68's re-verification driver (`68-reverify.mjs`, kept as recorded), which can also re-verify Phase 68's
 // own report. It differs from the original only in what that needs: the phase filter and the usage line accept 68, and
 // the staleness line comes from `68.1-stale.mjs`, which reads Phase 68, where `68-stale.mjs` reads Phases 62 to 67;
-// the heading is required, and a commit before <phase_base> is marked with that base's short hash, not "Phase 68".
+// the heading is required, a commit before <phase_base> is marked with that base's short hash (resolved, so a ref
+// such as `HEAD~3` reads as its commit), not "Phase 68", and the phase is found live or archived, as `68.1-stale.mjs` finds it.
 // Otherwise it prints what the original prints: `## <heading>`, the phase's staleness line, each changed cited file with
 // the commits since the verification that changed it (those before <phase_base> marked), the Co-Authored-By trailers on
 // the phase's own commits, its VALIDATION.md status, and the covered_digest line before and after, recomputed over the
 // same covered_files by GSD's `verification.fingerprint`; its last line is the new `covered_digest:` line, written as
 // the file writes it. A phase record, not run by `pnpm check:pr`.
 import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { lastEdit, phaseDir } from "./68.1-stale.mjs";
 
 const [phase, base, heading] = process.argv.slice(2);
 if (!/^6[2-8]$/.test(phase ?? "") || base === undefined || heading === undefined) {
@@ -19,11 +22,13 @@ if (!/^6[2-8]$/.test(phase ?? "") || base === undefined || heading === undefined
 }
 const git = (...args) => execFileSync("git", args, { encoding: "utf8", maxBuffer: 1 << 26 });
 const cell = (text) => text.replace(/\|/g, "\\|");
-const dir = `.planning/phases/${readdirSync(".planning/phases").find((d) => d.startsWith(`QD-${phase}-`))}`;
+const dir = phaseDir(phase);
+if (dir === undefined) throw new Error(`no directory for Phase ${phase}, live or archived`);
 const doc = `${dir}/${phase}-VERIFICATION.md`;
-const vcommit = git("log", "-1", "--format=%H", "--", doc).trim();
+const vcommit = lastEdit(git, doc).commit;
+const baseLabel = git("rev-parse", "--short=8", base).trim();
 
-const stale = execFileSync("node", [".planning/phases/QD-68.1-address-tech-debt/68.1-stale.mjs"], {
+const stale = execFileSync("node", [fileURLToPath(new URL("./68.1-stale.mjs", import.meta.url))], {
   encoding: "utf8",
 }).split("\n");
 const at = stale.findIndex((line) => line.startsWith(`${phase}: `));
@@ -37,7 +42,7 @@ const rows = listed.map((entry) => {
   const by = git("log", "--format=%H %s", `${vcommit}..HEAD`, "--", path)
     .split("\n")
     .filter(Boolean)
-    .map((line) => `\`${line.slice(0, 8)}\` ${before.has(line.slice(0, 40)) ? `(before ${base.slice(0, 8)}) ` : ""}${line.slice(41)}`);
+    .map((line) => `\`${line.slice(0, 8)}\` ${before.has(line.slice(0, 40)) ? `(before ${baseLabel}) ` : ""}${line.slice(41)}`);
   return `| \`${path}\`${path === entry ? "" : " (covered)"} | ${cell(by.join("<br>"))} |`;
 });
 

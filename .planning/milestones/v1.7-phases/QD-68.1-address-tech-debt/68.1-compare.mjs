@@ -1,5 +1,5 @@
-// node .planning/phases/QD-68.1-address-tech-debt/68.1-compare.mjs <base-ref> <file>...
-// node .planning/phases/QD-68.1-address-tech-debt/68.1-compare.mjs --self-test
+// node .planning/milestones/v1.7-phases/QD-68.1-address-tech-debt/68.1-compare.mjs <base-ref> <file>...
+// node .planning/milestones/v1.7-phases/QD-68.1-address-tech-debt/68.1-compare.mjs --self-test
 //
 // Phase 68's comparison (`68-compare.mjs`, kept as recorded) read from the TypeScript source instead of the JavaScript
 // `transpileModule` emits, so a type-only edit is a difference. Shows two versions of a file differ only in comments, white
@@ -119,7 +119,7 @@ const DIRECTIVE = new RegExp(
     String.raw`@jsx\w*\b(?:[ \t]+[^\s*]+)?`,
     String.raw`@vitest-[\w-]+\b[ \t]*[^\s*]*`,
     String.raw`@tstyche\b[^\r\n*]*`,
-    String.raw`@effect-diagnostics[\w-]*\b[^\r\n*]*`,
+    String.raw`@effect-diagnostics[\w-]*\b(?:[^\r\n*]|\*(?!\/))*`,
     String.raw`\/\/\/[ \t]*<[\w-]+[^>]*>`,
     String.raw`\b(?:v8|c8|istanbul) ignore\b[^\r\n*]*`,
     String.raw`\bStryker (?:disable|restore)\b[^:\r\n*]*`,
@@ -176,7 +176,8 @@ const entries = (name, text) => {
       if (k === K.ShebangTrivia) out.push(`d${comment.trim()}`);
       else if (k === K.SingleLineCommentTrivia || k === K.MultiLineCommentTrivia) {
         for (const m of comment.matchAll(DIRECTIVE)) {
-          const d = m[0].replace(/\s+/g, " ").trim();
+          // The Effect language service reads its directive with exact spacing, so its text is kept as written.
+          const d = m[0].startsWith("@effect-diagnostics") ? m[0].trimEnd() : m[0].replace(/\s+/g, " ").trim();
           if (NEXT_LINE.test(d)) {
             covering.push({ at: out.length, d, after: lineOf(scanner.getTokenEnd()), line: -1, parts: [] });
             out.push("d");
@@ -360,6 +361,11 @@ const cases = [
   ["a changed @effect-diagnostics-next-line rule argument fails", "// @effect-diagnostics-next-line effect/floatingEffect:off\nf();", "// @effect-diagnostics-next-line effect/floatingEffect:warning\nf();", false],
   ["a @effect-diagnostics-next-line moved onto a different statement fails", "// @effect-diagnostics-next-line effect/floatingEffect:off\nf();\ng();", "f();\n// @effect-diagnostics-next-line effect/floatingEffect:off\ng();", false],
   ["a wrap of the line a @effect-diagnostics-next-line covers fails", '// @effect-diagnostics-next-line effect/floatingEffect:off\nfoo(1, "a");', '// @effect-diagnostics-next-line effect/floatingEffect:off\nfoo(\n  1,\n  "a",\n);', false],
+  ["a changed @effect-diagnostics wildcard level fails", "// @effect-diagnostics *:off\nconst a = 1;", "// @effect-diagnostics *:error\nconst a = 1;", false],
+  ["a wildcard removed from an @effect-diagnostics line fails", "// @effect-diagnostics floatingEffect:off *:off\nconst a = 1;", "// @effect-diagnostics floatingEffect:off\nconst a = 1;", false],
+  ["a changed @effect-diagnostics-next-line wildcard fails", "// @effect-diagnostics-next-line *:off\nf();", "// @effect-diagnostics-next-line *:warning\nf();", false],
+  ["a block-comment @effect-diagnostics still ends at its close", "/* @effect-diagnostics floatingEffect:off */\nconst a = 1;", "/* @effect-diagnostics floatingEffect:off */\nconst a = 1;", true],
+  ["a doubled space in an @effect-diagnostics directive fails", "// @effect-diagnostics floatingEffect:off\nconst a = 1;", "// @effect-diagnostics  floatingEffect:off\nconst a = 1;", false],
   ["a blank line after a @effect-diagnostics-next-line passes", "// @effect-diagnostics-next-line effect/floatingEffect:off\nf();", "// @effect-diagnostics-next-line effect/floatingEffect:off\n\nf();", true],
   ["a comment that mentions a tool in prose passes", "// the v8 report is read by CI\nconst a = 1;", "// the report is read by CI\nconst a = 1;", true],
   ["an edit to an ordinary block comment passes", "/**\n * Adds one.\n */\nconst a = 1;", "/**\n * Adds two.\n */\nconst a = 1;", true],
