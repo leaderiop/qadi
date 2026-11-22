@@ -531,14 +531,14 @@ Plans:
   4. A characterisation written on the phase base shows every existing reporter's behaviour (what fires, where, how often, with what text) unchanged apart from criterion 1, `DeveloperSignals.ts` stays the only file exempt from `no-ambient-console`, and ADR-QD-184 extends ADR-QD-041 and ADR-QD-052.
 
 **Planning notes**: Check whether the module-scope `let` behind `providerSignalReporter`'s once-per-process rule is the one exempt file's carve-out or a breach of AGENTS.md §13 ("no module-scope state is left in this package") before choosing between bringing it under the atom set and recording the exception. Each `HydrationEngine` call site pairs the right `says…` default with the right hook slot (`:408`, `:596`); the table must keep that pairing.
-**Plans**: 1/8 plans executed
+**Plans**: 2/8 plans executed
 
 Plans:
 **Wave 1**
 - [x] 71-01-PLAN.md — Record the phase base, its gate facts and the Stryker base of the five touched files with a scorer that gains `record close --restart`, and characterise every developer-signal reporter through its entry point in 35 rows, green on the base and never edited after.
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 71-02-PLAN.md — Pin the option a throwing collision reporter is announced under (red on the base for `makeGateRegistry`) and the table's type guarantees in `DeveloperSignals.tst.ts`, red on the base.
+- [x] 71-02-PLAN.md — Pin the option a throwing collision reporter is announced under (red on the base for `makeGateRegistry`) and the table's type guarantees in `DeveloperSignals.tst.ts`, red on the base.
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 71-03-PLAN.md — Add `SIGNALS`, the derived `ReporterName` and `reporterFor`, move the registry closure to `buildGateRegistry` so each collision entry point names its own option, and gut each type guarantee once.
@@ -662,7 +662,7 @@ Phases execute in numeric order: 69 → 70 → 71 → 72 → 73 → 74 → 75 �
 |-------|----------------|--------|-----------|
 | 69. One total thrown-value-to-message module | 9/9 | Complete    | 2026-11-22 |
 | 70. Hydration's drop events come from its buckets | 7/7 | Complete    | 2026-11-22 |
-| 71. Developer-signal reporters resolved through one table | 1/8 | In Progress | - |
+| 71. Developer-signal reporters resolved through one table | 2/8 | In Progress | - |
 | 72. A derived store behind the dock model's stores | 0/TBD | Not started | - |
 | 73. One pure reconcile for gate registration | 0/TBD | Not started | - |
 | 74. The simulation session's policy choice split from its runs | 0/TBD | Not started | - |
