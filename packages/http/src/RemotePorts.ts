@@ -20,7 +20,7 @@ import * as Layer from "effect/Layer";
 import * as HttpClient from "effect/http/HttpClient";
 import * as HttpClientRequest from "effect/http/HttpClientRequest";
 import type { PortName, PortServices } from "@qadi/core";
-import { RemotePortFailure, remotePorts } from "@qadi/core";
+import { RemotePortFailure, remotePorts, thrownMessage } from "@qadi/core";
 import { portPath } from "./PortRouteAddress.ts";
 
 /** Where the answering side's port routes are, and which ports to ask them. */
@@ -36,8 +36,9 @@ export interface RemotePortsOptions {
   readonly prefix?: `/${string}` | undefined;
 }
 
+/** A client failure as the port's own typed error; its message is `thrownMessage`'s, so one that cannot be read still comes back typed. */
 const transport = (error: unknown): RemotePortFailure =>
-  RemotePortFailure.Transport({ message: error instanceof Error ? error.message : String(error) });
+  RemotePortFailure.Transport({ message: thrownMessage(error) });
 
 /**
  * The ports `options` names, asked of the answering side over `HttpClient`.
