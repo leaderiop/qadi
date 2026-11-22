@@ -10,17 +10,17 @@
 while instrumentation is on (ADR-QD-053, ADR-QD-080). Today registration is split across three places that each hold a
 piece of one rule. Line numbers are from HEAD (`49b92e64`):
 
-- `packages/react/src/GateWriter.ts` `reconcile(writer, live, wanted, current)` (`:293-334`) registers and
+- `packages/react/src/GateWriter.ts` `reconcile(writer, live, wanted, current)` (`:304-334`) registers and
   unregisters, and takes two arrays, `wanted: ReadonlyArray<GateIdentity>` and
   `current: ReadonlyArray<GateCurrent | undefined>`, that must line up by index. It does no update.
-- `packages/react/src/useGate.ts` `useGateRegistrations(writer, identities, states)` (`:76-151`) keeps four refs
+- `packages/react/src/useGate.ts` `useGateRegistrations(writer, identities, states)` (`:76-152`) keeps four refs
   (`stableRef` `:90`, `latest` `:102`, `statesRef` `:104`, `registered` `:106`) and three effects:
   - the teardown (`:109`, keyed on `writer`);
   - the identity reconcile (`:124`, keyed on a hand-compared `stable` array);
   - a third effect (`:145`) that diffs state by hand, keyed on `states.join("|")` (`:144`), and calls `handle.update`.
-- `useGates` (`:242-301`) passes `Record.values(identities)` and `Record.values(entries).map(…)` (`:297-298`) and
+- `useGates` (`:244-302`) passes `Record.values(identities)` and `Record.values(entries).map(…)` (`:297-298`) and
   relies on the two calls returning keys in the same order.
-- `buildGateRegistry`'s handle (`GateWriter.ts:228-233`) has its own equal-state check in `update`
+- `buildGateRegistry`'s handle (`GateWriter.ts:217`) has its own equal-state check in `update`
   (`current.state === state`). That is the third place the "did the state change" rule is written.
 
 Tests today: `GateWriter.reconcile.test.ts` (232 lines) covers register and unregister without rendering. The state
@@ -233,7 +233,7 @@ and clean solutions… Qadi should be very clean".
 - `GateWriter.reconcile.test.ts`'s fake writer (records `register`/`unregister` calls). Extend it with `update`.
 - `GateRegistry.test.tsx` and `GateWriter.useGates.test.tsx` render helpers (instrumented provider, `gates` prop).
   Reuse them in the characterisation.
-- `buildGateRegistry` (`GateWriter.ts:203`) and `gateWriterFor` (`:268`). A real registry is usable in the
+- `buildGateRegistry` (`GateWriter.ts:170`) and `gateWriterFor` (`:250`). A real registry is usable in the
   non-rendered tests.
 
 ### Established Patterns
