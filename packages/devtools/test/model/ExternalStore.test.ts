@@ -279,6 +279,20 @@ const heardOn = (store: { readonly subscribe: (listener: () => void) => () => vo
   return heard;
 };
 
+/** A parent that exposes the listeners it currently holds. */
+const observedParent = () => {
+  const held = new Set<() => void>();
+  const parent: Parent = {
+    subscribe: (listener) => {
+      held.add(listener);
+      return () => {
+        held.delete(listener);
+      };
+    },
+  };
+  return { parent, held };
+};
+
 describe("makeDerivedStore", () => {
   it.effect("the first compute runs at construction and notifies no listener", () =>
     Effect.gen(function* () {
@@ -364,12 +378,12 @@ describe("makeDerivedStore", () => {
         const large = yield* makeDerivedStore({
           parents: [parent],
           key: () => ({
-          first: parent.getSnapshot(),
-          second: 2,
-          third: 3,
-          fourth: 4,
-          fifth,
-        }),
+            first: parent.getSnapshot(),
+            second: 2,
+            third: 3,
+            fourth: 4,
+            fifth,
+          }),
           compute: (key) => {
             computedFive += 1;
             return { key };
@@ -480,6 +494,88 @@ describe("makeDerivedStore", () => {
       assert.strictEqual(computed, 2);
       assert.strictEqual(heard.n, 1);
     }));
+
+  it.effect(
+    "a key that swaps a field for another holding undefined counts as changed",
+    () =>
+      Effect.gen(function* () {
+        type Swapping = { readonly a: undefined } | { readonly b: undefined };
+        const parent = makeExternalStore(0);
+        let swapped = false;
+        let computed = 0;
+        const store = yield* makeDerivedStore({
+          parents: [parent],
+          key: (): Swapping => (swapped ? { b: undefined } : { a: undefined }),
+          compute: (key) => {
+            computed += 1;
+            return { key };
+          },
+        });
+        const heard = heardOn(store);
+
+        swapped = true;
+        store.refresh();
+
+        assert.strictEqual(computed, 2);
+        assert.strictEqual(heard.n, 1);
+      }),
+  );
+
+  it.effect("a key with an inherited enumerable field compares equal to itself", () =>
+    Effect.gen(function* () {
+      const parent = makeExternalStore(0);
+      const inherited: { readonly inheritedField: number } = Object.create({
+        inheritedField: 1,
+      });
+      let computed = 0;
+      const store = yield* makeDerivedStore({
+        parents: [parent],
+        key: () => inherited,
+        compute: (key) => {
+          computed += 1;
+          return { key };
+        },
+      });
+      const heard = heardOn(store);
+
+      parent.publish(1);
+      store.refresh();
+
+      assert.strictEqual(computed, 1);
+      assert.strictEqual(heard.n, 0);
+    }));
+
+  it.effect(
+    "a key differing only in a non-enumerable or symbol-keyed field does not recompute",
+    () =>
+      Effect.gen(function* () {
+        const parent = makeExternalStore(0);
+        const symbol = Symbol("hidden");
+        let moved = 1;
+        let computed = 0;
+        const store = yield* makeDerivedStore({
+          parents: [parent],
+          key: () => {
+            const key = { shown: 1, [symbol]: moved };
+            return Object.defineProperty(key, "concealed", {
+              value: moved,
+              enumerable: false,
+            });
+          },
+          compute: (key) => {
+            computed += 1;
+            return { key };
+          },
+        });
+        const heard = heardOn(store);
+
+        moved += 1;
+        store.refresh();
+
+        assert.strictEqual(computed, 1);
+        assert.strictEqual(heard.n, 0);
+      }),
+  );
 
   it.effect("a compute that returns the held reference notifies nothing", () =>
     Effect.gen(function* () {
@@ -699,26 +795,18 @@ describe("makeDerivedStore", () => {
     "after the scope closes nothing is read or computed and each parent is released",
     () =>
       Effect.gen(function* () {
-        const held = new Set<() => void>();
-        const handWritten: Parent = {
-          subscribe: (listener) => {
-            held.add(listener);
-            return () => {
-              held.delete(listener);
-            };
-          },
-        };
-        const other = makeExternalStore(0);
+        const first = observedParent();
+        const second = observedParent();
         let moved = 1;
         let reads = 0;
         let computed = 0;
         const scope = yield* Scope.make();
         const store = yield* Scope.provide(
           makeDerivedStore({
-            parents: [handWritten, other],
+            parents: [first.parent, second.parent],
             key: () => {
               reads += 1;
-              return { moved, other: other.getSnapshot() };
+              return { moved };
             },
             compute: (key) => {
               computed += 1;
@@ -727,7 +815,7 @@ describe("makeDerivedStore", () => {
           }),
           scope,
         );
-        const before = held.size;
+        const heldBefore = [first.held.size, second.held.size];
         yield* Scope.close(scope, Exit.void);
         const readsAtClose = reads;
         const computedAtClose = computed;
@@ -736,14 +824,45 @@ describe("makeDerivedStore", () => {
 
         moved += 1;
         store.refresh();
-        other.set(1);
 
-        assert.strictEqual(before, 1);
-        assert.strictEqual(held.size, 0);
+        assert.deepStrictEqual(heldBefore, [1, 1]);
+        assert.strictEqual(first.held.size, 0);
+        assert.strictEqual(second.held.size, 0);
         assert.strictEqual(reads, readsAtClose);
         assert.strictEqual(computed, computedAtClose);
         assert.strictEqual(store.getSnapshot(), last);
         assert.strictEqual(heard.n, 0);
+      }),
+  );
+
+  it.effect(
+    "a parent whose subscribe throws leaves no earlier parent subscribed after close",
+    () =>
+      Effect.gen(function* () {
+        const first = observedParent();
+        const refused = new Error("the parent refused the listener");
+        const throwing: Parent = {
+          subscribe: () => {
+            throw refused;
+          },
+        };
+        const scope = yield* Scope.make();
+        const exit = yield* Effect.exit(
+          Scope.provide(
+            makeDerivedStore({
+              parents: [first.parent, throwing],
+              key: () => ({ moved: 1 }),
+              compute: (key) => ({ key }),
+            }),
+            scope,
+          ),
+        );
+        const heldBefore = first.held.size;
+        yield* Scope.close(scope, Exit.void);
+
+        assert.isTrue(Exit.isFailure(exit));
+        assert.strictEqual(heldBefore, 1);
+        assert.strictEqual(first.held.size, 0);
       }),
   );
 

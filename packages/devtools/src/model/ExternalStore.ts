@@ -7,7 +7,8 @@
  * three copies of a contract is where one of them drifts. What stays in each
  * store is its *policy*: the timeline's `ingest` identity, the session's
  * rebuild-per-command, the diagnostics' per-field `Equal.equals`. This file owns
- * only the mechanics (ADR-QD-047's split, one level down).
+ * the mechanics and the derived store built on them (ADR-QD-047's split, one level
+ * down).
  *
  * **The identity contract.** `getSnapshot` returns the same reference until the
  * value changed, because `useSyncExternalStore` compares snapshots by identity
@@ -25,6 +26,11 @@
  * added during the notification is called in the same pass. The value is held before
  * any listener runs, and stays when one throws. A host's listener that throws therefore
  * silences no other, and its failure still reaches whatever published.
+ *
+ * **The derived store.** `makeDerivedStore` builds a store computed from a key on top
+ * of `makeExternalStore`, so it holds both contracts above. Its own rules, when it
+ * recomputes, the order it moves in and how it stops, are stated in its doc comment
+ * and in BEH-QD-696 to BEH-QD-698.
  */
 import * as Effect from "effect/Effect";
 import type * as Scope from "effect/Scope";
@@ -33,7 +39,8 @@ import type * as Scope from "effect/Scope";
 export interface ReadableStore<A> {
   /**
    * Registers a listener, and returns the function that removes it. A listener that
-   * throws stops no other: see the listener contract above.
+   * throws stops no other: see the listener contract in the file header. The
+   * function it returns must not throw.
    */
   readonly subscribe: (listener: () => void) => () => void;
   /** The current value. The same reference until something changed. */
@@ -109,17 +116,19 @@ export interface DerivedStore<A> extends ReadableStore<A> {
 export type Parent = Pick<ReadableStore<unknown>, "subscribe">;
 
 /**
- * Per-field identity over the union of both keys' own fields, the same identity
- * `set` uses.
+ * Per-field identity over the own enumerable string-keyed fields of two keys, the
+ * same identity `set` uses.
+ *
+ * A field on one key only counts as a change. An inherited, a non-enumerable and a
+ * symbol-keyed field is not compared.
  */
 function sameFields<K extends object>(a: K, b: K): boolean {
-  for (const field in a) {
-    if (!Object.hasOwn(b, field) || a[field] !== b[field]) return false;
-  }
-  for (const field in b) {
-    if (!Object.hasOwn(a, field)) return false;
-  }
-  return true;
+  const fromA = Object.entries(a);
+  const fromB = new Map<string, unknown>(Object.entries(b));
+  return (
+    fromA.length === fromB.size &&
+    fromA.every(([field, value]) => fromB.has(field) && fromB.get(field) === value)
+  );
 }
 
 /**
@@ -131,13 +140,15 @@ function sameFields<K extends object>(a: K, b: K): boolean {
  * a compute returning the held reference notifies nothing. Its refresh is subscribed
  * to the parents in the order listed, when the store is built, so it moves before
  * every listener subscribed after it. Its listeners follow the listener contract
- * above. After the scope closes nothing is read or computed, `refresh` does nothing
- * and the last snapshot stays.
+ * in the file header. After the scope closes nothing is read or computed, `refresh`
+ * does nothing and the last snapshot stays.
  *
  * What enforces what: the compiler refuses a key type with an optional field, an
  * empty parent list and a compute reading a field outside its key. A test pins that
  * each field moved alone recomputes once and that keys of other shapes compare the
- * same way. A compute that reads state outside its key is checked by neither.
+ * same way. A compute that reads state outside its key is checked by neither. A
+ * parent's `subscribe` may throw, which releases every parent already subscribed
+ * when the scope closes; the function it returns must not.
  */
 export const makeDerivedStore = Effect.fn("qadi.devtools.makeDerivedStore")(function* <
   K extends object & Required<K>,
@@ -160,13 +171,14 @@ export const makeDerivedStore = Effect.fn("qadi.devtools.makeDerivedStore")(func
     store.set(value);
   };
 
-  const releases = options.parents.map((parent) => parent.subscribe(refresh));
+  const releases: Array<() => void> = [];
   yield* Effect.addFinalizer(() =>
     Effect.sync(() => {
       stopped = true;
       for (const release of releases) release();
     }),
   );
+  for (const parent of options.parents) releases.push(parent.subscribe(refresh));
 
   return { subscribe: store.subscribe, getSnapshot: store.getSnapshot, refresh };
 });
