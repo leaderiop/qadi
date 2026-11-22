@@ -55,7 +55,7 @@ export const dehydrationBuckets = (): DropBuckets<DehydrationDropReason, Decisio
  */
 export const dropEvents = <R extends string, T, E>(
   buckets: DropBuckets<R, T>,
-  event: (reason: R, entries: ReadonlyArray<T>) => E,
+  event: (reason: R, bucket: ReadonlyArray<T>) => E,
 ): ReadonlyArray<E> =>
   Record.keys(buckets)
     .filter((reason) => buckets[reason].length > 0)

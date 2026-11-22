@@ -424,7 +424,9 @@ const planDehydration = (
   // dehydrated count is the difference between "hydration ran" and "hydration
   // ran and did nothing".
   const events: ReadonlyArray<HydrationEvent> = [
-    ...dropEvents(drops, (reason, entries) => HydrationEvent.LeftOut({ reason, entries })),
+    ...dropEvents(drops, (reason, dropped) =>
+      HydrationEvent.LeftOut({ reason, entries: dropped }),
+    ),
     HydrationEvent.Dehydrated({ count: written.length }),
   ];
 
@@ -588,7 +590,9 @@ const planHydration = (seedFor: HydrationSeedLookup, payload: unknown, subject: 
   }
 
   const events: ReadonlyArray<HydrationEvent> = [
-    ...dropEvents(drops, (reason, entries) => HydrationEvent.EntriesDropped({ reason, entries })),
+    ...dropEvents(drops, (reason, dropped) =>
+      HydrationEvent.EntriesDropped({ reason, entries: dropped }),
+    ),
     HydrationEvent.Seeded({ count: seeded.length }),
   ];
 
