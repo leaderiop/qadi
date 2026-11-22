@@ -53,7 +53,7 @@ test("an empty parent list is refused", () => {
     // @ts-expect-error but target requires 1
     parents: [],
     key: (): Three => ({ a: parent.getSnapshot(), b: undefined, c: true }),
-    compute: (key) => key.a.length,
+    compute: () => 0,
   });
   expect(built).type.toBe<Expected>();
 });
