@@ -538,7 +538,7 @@ describe("makeDerivedStore", () => {
     }));
 
   it.effect(
-    "a key differing only in a non-enumerable or symbol-keyed field does not recompute",
+    "a key differing only in an inherited, non-enumerable or symbol-keyed field is equal",
     () =>
       Effect.gen(function* () {
         const parent = makeExternalStore(0);
@@ -547,8 +547,11 @@ describe("makeDerivedStore", () => {
         let computed = 0;
         const store = yield* makeDerivedStore({
           parents: [parent],
-          key: () => {
-            const key = { shown: 1, [symbol]: moved };
+          key: (): { readonly shown: number; readonly inheritedField: number } => {
+            const key = Object.assign(Object.create({ inheritedField: moved }), {
+              shown: 1,
+              [symbol]: moved,
+            });
             return Object.defineProperty(key, "concealed", {
               value: moved,
               enumerable: false,
