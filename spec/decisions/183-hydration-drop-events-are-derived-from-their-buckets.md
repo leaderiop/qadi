@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-183                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-22                                     |
 > | Status         | Accepted — amends ADR-QD-152                   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-22): Initial release (ARCH-117, CCR-QD-462) |
+> | Change History | 1.1 (2026-11-22): the compiler's guarantee stated per kind: an entry or dehydration row needs a bucket, a payload row a named producer, and no type checks a call site raises one; the characterisation's rows are unchanged, not unedited (ARCH-117, CCR-QD-462)<br>1.0 (2026-11-22): Initial release (ARCH-117, CCR-QD-462) |
 
 ---
 
@@ -47,6 +47,11 @@ the record would reshape `HydrationEngine.ts`, "which a later phase shares".
    refusal-to-reason direction, `PAYLOAD_REASONS`, is typed against it, so a producer named by two rows or by none
    does not compile, and a new decoder refusal is a missing property (TS2741). A refused payload is still one
    `PayloadRefused` event. The path has no buckets, because its refusal is exclusive: one reason, never a partition.
+   The compiler checks that each reason names a producer and that each producer has its slot in the inverse. It
+   cannot check that a call site raises a producer: a reason with a new producer and no use of its slot compiles, and
+   the conformance test, which drives one refusal per row, is what shows a row's producer refuses under its reason.
+   `PAYLOAD_PRODUCERS` is a runtime value for that reason. The engine reads it only as a type, but that test drives
+   it and the inverse is checked against it.
 5. **The dehydrate side still runs the subject check first**, so an entry that is both foreign and unencodable is
    `ForeignSubject` and is never encoded.
 6. **ADR-QD-152's reason for turning down the payload record no longer applies.** The phases in flight when it was
@@ -81,13 +86,18 @@ record rather than read off core's table (decision 3).
 
 ## Consequences
 
-- Every kind is a compile error in `@qadi/react` until it is collected or produced and reported: an `entry` row at
-  `entryBuckets`, a `dehydration` row at `dehydrationBuckets`, a `payload` row at `PAYLOAD_PRODUCERS`, each shown by the
-  same throwaway-row experiment after the change. This amends ADR-QD-152's consequence that a `payload` or
+- What the compiler enforces differs by kind. An `entry` row is a compile error in `@qadi/react` until it has a bucket
+  in `entryBuckets`, and a `dehydration` row until it has one in `dehydrationBuckets`; a bucket has its event, because
+  `dropEvents` derives every event from its record, so for these two kinds a reason with a source cannot go
+  unreported or uncounted. A `payload` row is a compile error until its producer is named in `PAYLOAD_PRODUCERS`, and
+  a new producer is a compile error until it has its slot in `PAYLOAD_REASONS`. The compiler cannot check that a call
+  site raises that producer, so a payload reason with a new producer and no use of its slot compiles and is raised
+  nowhere; the conformance test is what shows each row's producer refuses under it. Each compile error was shown by
+  the same throwaway-row experiment after the change. This amends ADR-QD-152's consequence that a `payload` or
   `dehydration` row compiles everywhere.
 - INV-QD-045's enforcement is restated as INV-QD-385, and the emission order is INV-QD-386.
-- The events, their order and their counts are unchanged, pinned by a characterisation written on the base and never
-  edited. No export is added or removed, so `@qadi/react` takes a patch changeset and `spec/overview.md` is untouched.
+- The events, their order and their counts are unchanged, pinned by a characterisation written on the base, no
+  existing row of which has had its expected values changed. No export is added or removed, so `@qadi/react` takes a patch changeset and `spec/overview.md` is untouched.
 
 ## Related
 
