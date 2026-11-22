@@ -511,6 +511,9 @@ Plans:
 - [ ] 70-06 (W6): Write INV-QD-385, INV-QD-386 and BEH-QD-686 to 690, restate INV-QD-045's enforcement and correct INV-QD-323's, and trace them at the revisions the CCR row cites.
 - [ ] 70-07 (W7): Close: the mutation close judged against the base (static mutants of the payload records run by hand), the close scan of the phase's diff, `pnpm check:pr` alone, and DRPE-01 to DRPE-05 complete.
 
+**Cross-cutting constraints:** <!-- gsd:generated -->
+- No title, helper or comment this plan adds holds a decision number, plan id, requirement id or phase number (WX-07)
+
 ### Phase 71: Developer-signal reporters resolved through one table
 
 **Goal**: Every developer-signal reporter is resolved through one table that states where it runs, how often and what it is named, so a failing reporter is reported under the option name the caller actually passed.
