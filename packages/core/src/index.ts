@@ -55,6 +55,7 @@ export * from "./Simplify.ts";
 export * from "./SinkCodec.ts";
 export * from "./SinkWire.ts";
 export * from "./SubjectSet.ts";
+export * from "./ThrownMessage.ts";
 export * from "./TraceDiff.ts";
 export * from "./UntrustedDecode.ts";
 export * from "./ValueText.ts";
