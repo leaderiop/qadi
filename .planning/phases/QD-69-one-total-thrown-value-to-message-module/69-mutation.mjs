@@ -86,6 +86,17 @@ export const mapLine = (diffText) => {
   };
 };
 
+/** An Ignored mutant's kind: what it replaces and with what, not where. */
+const kind = (m) => `${m.mutator} ${m.replacement}`;
+/**
+ * Ignored mutants a close may hold beyond its base, per file and kind, each run by hand and Killed there: the group's
+ * config spread with `ignoreStatic: false`, run with `--mutate <file>`. Capture.ts's new module-scope helper `fieldOf`
+ * is the one: that run holds all 53 of its mutants Killed.
+ */
+const EXAMINED = {
+  [`${V}Capture.ts`]: { "ArrowFunction () => undefined": 1 },
+};
+
 const key = (m, line = m.line) => [m.status, m.mutator, m.replacement, line, m.column].join("\u0000");
 /** A multiset of mutant keys: key -> count. */
 const bag = (mutants, toKey) => {
@@ -138,7 +149,7 @@ const tally = (reportFile, files) => {
  * A fall in the score is a reason only when the file also has a new open mutant: a score that fell because the code
  * holding killed mutants was deleted passes, and any new Survived or NoCoverage mutant fails.
  */
-export const judge = ({ base, close, diffs }, files, log = console.log) => {
+export const judge = ({ base, close, diffs }, files, log = console.log, examined = EXAMINED) => {
   const bad = [];
   for (const file of files) {
     const b = base.files[file];
@@ -157,8 +168,17 @@ export const judge = ({ base, close, diffs }, files, log = console.log) => {
     const open = beyond(c.open, (x) => key(x), bag(b.open, atBase));
     if (fell && open.length > 0) bad.push(`${file} fell from ${b.detected}/${b.valid} to ${c.detected}/${c.valid}`);
     for (const m of open) bad.push(`${file}:${m.line} has a new ${m.status} mutant: ${m.mutator} -> ${m.replacement}`);
-    const fresh = beyond(c.ignoredMutants, (x) => key(x), bag(b.ignoredMutants, atBase));
+    // An Ignored (static) mutant never runs, so where it sits tests nothing: a line the phase rewrites moves its static
+    // arrow without adding a mutant, and no test can kill one. The rule is per kind: a file holds no more Ignored
+    // mutants of a kind than its base did, plus what EXAMINED records as run by hand.
+    const allowed = bag(b.ignoredMutants, kind);
+    for (const [k, n] of Object.entries(examined[file] ?? {})) allowed.set(k, (allowed.get(k) ?? 0) + n);
+    const fresh = beyond(c.ignoredMutants, kind, allowed);
     for (const m of fresh) bad.push(`${file}:${m.line} has a new Ignored mutant: ${m.mutator} -> ${m.replacement}`);
+    for (const [k, n] of Object.entries(examined[file] ?? {})) {
+      const grew = c.ignoredMutants.filter((x) => kind(x) === k).length - b.ignoredMutants.filter((x) => kind(x) === k).length;
+      if (grew < n) bad.push(`${file} no longer holds the ${n} examined Ignored ${k} mutant(s) EXAMINED allows: remove the entry`);
+    }
     log(`${file} ${b.detected}/${b.valid} -> ${c.detected}/${c.valid}, survived ${b.survived} -> ${c.survived}, no coverage ${b.noCoverage} -> ${c.noCoverage}, ignored ${b.ignored} -> ${c.ignored} (${fresh.length} new)${fell && open.length === 0 ? ", killed mutants removed" : ""}`);
   }
   return bad;
@@ -252,6 +272,7 @@ const selfTest = () => {
     ["a second copy of the base survivor fails", closeOf(file(84, 86, [m("Survived", 19), m("Survived", 19)], [m("Ignored", 3)])), 1],
     ["a second copy of a base Ignored mutant fails", closeOf(file(42, 43, [m("Survived", 19)], [m("Ignored", 3), m("Ignored", 3)])), 1],
     ["a new Ignored mutant fails", closeOf(file(42, 43, [m("Survived", 19)], [m("Ignored", 3), m("Ignored", 9)])), 1],
+    ["an Ignored mutant moved by a rewrite is not new", closeOf(file(42, 43, [m("Survived", 19)], [m("Ignored", 9)])), 0],
     ["a file missing from the close fails", { files: {} }, 1],
     ["a new NoCoverage mutant fails while the score holds", closeOf(file(85, 87, [m("Survived", 19), m("NoCoverage", 30)], [m("Ignored", 3)])), 1],
   ];
@@ -261,6 +282,16 @@ const selfTest = () => {
   passed++;
   for (const [name, close, want] of cases) {
     const got = judge({ base, close, diffs }, [F], () => {}).length;
+    if (got !== want) fail([`self-test FAILED: ${name}: ${got} reasons, wanted ${want}`]);
+    passed++;
+  }
+  // An examined allowance admits exactly its count of Ignored mutants of its kind, and a stale one fails.
+  for (const [name, close, want] of [
+    ["an examined Ignored mutant is not new", closeOf(file(42, 43, [m("Survived", 19)], [m("Ignored", 3), m("Ignored", 9)])), 0],
+    ["a second Ignored mutant beyond the examined one fails", closeOf(file(42, 43, [m("Survived", 19)], [m("Ignored", 3), m("Ignored", 9), m("Ignored", 11)])), 1],
+    ["an examined allowance the close no longer needs fails", closeOf(file(42, 43, [m("Survived", 19)], [m("Ignored", 3)])), 1],
+  ]) {
+    const got = judge({ base, close, diffs }, [F], () => {}, { [F]: { [kind(m("Ignored", 3))]: 1 } }).length;
     if (got !== want) fail([`self-test FAILED: ${name}: ${got} reasons, wanted ${want}`]);
     passed++;
   }
