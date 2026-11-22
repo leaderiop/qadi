@@ -5,16 +5,16 @@ milestone_name: Arch Wave 13
 current_phase: 70
 current_phase_name: Hydration's drop events come from its buckets
 status: executing
-stopped_at: Completed 70-02-PLAN.md
-last_updated: "2026-11-22T12:48:39.534Z"
+stopped_at: Completed 70-03-PLAN.md
+last_updated: "2026-11-22T12:50:59.497Z"
 last_activity: 2026-11-22
 last_activity_desc: Phase 70 execution started
-state_head: 51faaa9d0bb8431760cab32cecd8eae85c75c730
+state_head: 89cbf10ded295c21610940bb59507023109f9ad3
 progress:
   total_phases: 8
   completed_phases: 1
   total_plans: 16
-  completed_plans: 11
+  completed_plans: 12
   percent: 13
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 ## Current Position
 
 Phase: 70 (Hydration's drop events come from its buckets) — EXECUTING
-Plan: 3 of 7
+Plan: 4 of 7
 Status: Ready to execute
 Last activity: 2026-11-22 — Phase 70 execution started
 
@@ -495,6 +495,7 @@ Last activity: 2026-11-22 — Phase 70 execution started
 | Phase 69 P09 | 75min | 2 tasks | 4 files |
 | Phase QD-70 P01 | 10 min | 2 tasks | 3 files |
 | Phase 70 P02 | 15 min | 3 tasks | 2 files |
+| Phase 70 P03 | 12 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -843,6 +844,7 @@ Last activity: 2026-11-22 — Phase 70 execution started
 - [Phase 69]: Code review (3 iterations, 13 findings, all fixed): a capture field is absent only when `undefined`, so a `null` cause records `"null"` (supersedes 69-05's "a null cause reads as none"); hostile fixtures live once per package's test helpers; the examined Capture allowance went with the `fieldOf` it covered and the mutation record was re-closed on all five groups at the fixed head (decided autonomously)
 - [Phase QD-70]: 70-01: characterisation compares reporter entries by reference identity; base measured at 3630e298 (HydrationEngine.ts 169/169, 36 Ignored)
 - [Phase 70]: 70-02: the base experiment and type pins are recorded RED; a throwaway entry row is refused only at the engine's bucket record and, once bucketed, reaches no event or count; payload and dehydration rows compile with nothing producing them (decided autonomously)
+- [Phase 70]: 70-03: bucket records are per-call mapped-type records whose key order is the emission order; one generic dropEvents serves both sides (autonomous)
 
 ### Pending Todos
 
@@ -916,8 +918,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-22T12:48:39.441Z
-Stopped at: Completed 70-02-PLAN.md
+Last session: 2026-11-22T12:50:59.452Z
+Stopped at: Completed 70-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
