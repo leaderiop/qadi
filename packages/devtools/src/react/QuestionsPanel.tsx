@@ -27,7 +27,7 @@ import { useEffect, useRef } from "react";
 import type { Resource } from "@qadi/core";
 import { policyLabel } from "../model/Catalogue.ts";
 import { isUnsampled } from "../model/DiagnosticsFeed.ts";
-import type { ExternalStore } from "../model/ExternalStore.ts";
+import type { ReadableStore } from "../model/ExternalStore.ts";
 import type {
   GateInstanceLike,
   GatesView,
@@ -58,7 +58,7 @@ export interface QuestionsPanelProps {
    * distinguished because one is a missing prop and the other a missing prop
    * **on the provider**, with different fixes.
    */
-  readonly questions: Pick<ExternalStore<QuestionsSnapshot>, "subscribe" | "getSnapshot">;
+  readonly questions: ReadableStore<QuestionsSnapshot>;
   /**
    * Read with `hydrationActivity`, which needs no wiring at all.
    *

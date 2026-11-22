@@ -55,7 +55,7 @@ import {
 } from "./DiagnosticsStore.ts";
 import { makeDockSession, type DockSession } from "./DockSession.ts";
 import { makeExplorerSession, type ExplorerSession } from "./ExplorerSession.ts";
-import { makeExternalStore, type ExternalStore } from "./ExternalStore.ts";
+import { makeExternalStore, type ReadableStore } from "./ExternalStore.ts";
 import {
   joinQuestions,
   type AskedQuestionLike,
@@ -108,9 +108,9 @@ export interface DockModel {
   /** The timeline read's status and its restart, passed through from the timeline feed; not merged. */
   readonly timelineStatus: TimelineStatusReadout;
   /** The asked questions joined to the guards asking them, both read at one moment; holds guards and questions, never a verdict. */
-  readonly questions: Pick<ExternalStore<QuestionsSnapshot>, "subscribe" | "getSnapshot">;
+  readonly questions: ReadableStore<QuestionsSnapshot>;
   /** The Services tab's port cards of the shown reading, recomputed only when one of its four inputs changes identity. */
-  readonly services: Pick<ExternalStore<ServicesView>, "subscribe" | "getSnapshot">;
+  readonly services: ReadableStore<ServicesView>;
   /** `catalogueOf` of the shown timeline and the current catalogue, computed once per change. */
   readonly sightings: () => ReadonlyArray<PolicySighting>;
   /** Dispatches only the inputs whose identity changed. An omitted input reads as `undefined`. */
