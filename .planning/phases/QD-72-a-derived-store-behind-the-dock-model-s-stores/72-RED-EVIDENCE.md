@@ -150,3 +150,51 @@ Error: The diagnostic message did not match.
 ```
 
 After the three reverts `pnpm test:tstyche ExternalStore` passes again.
+
+## The closed-model regression green
+
+Head: `c5171dd3538246fc816a6e0347012dfd38aabddc` (the `refactor(72-05)` commit).
+
+Test: `a model whose scope closed merges no reading a later configure hands it` passes.
+
+The devtools project (`pnpm exec vitest run --project devtools`): 1705 passed, 0 failed, among them the 15
+characterisation rows (unchanged) and M47, J1 and J8.
+
+The proving grep, verbatim:
+
+```
+/usr/bin/grep -nE "let (last|fed|supplied|closed)|closed|remerge|rejoin|reservice|key\.[A-Za-z]+ === " packages/devtools/src/model/DockModel.ts
+```
+
+At `phase_base` it printed these 26 lines:
+
+```
+206:  let fed = diagnosticsFeed.getSnapshot();
+207:  let supplied = inputs.reading;
+213:  const remerge = () => {
+220:  diagnosticsFeed.subscribe(remerge);
+229:  // pairs a question from one moment with a guard from another. A closed model joins nothing further.
+230:  let closed = false;
+239:  let lastJoin = keyNow();
+241:  const rejoin = () => {
+242:    if (closed) return;
+245:      key.feed === lastJoin.feed &&
+246:      key.supplied === lastJoin.supplied &&
+247:      key.unsampled === lastJoin.unsampled
+264:  let lastServices = servicesKeyNow();
+266:  const reservice = () => {
+267:    if (closed) return;
+270:      key.wiring === lastServices.wiring &&
+271:      key.activity === lastServices.activity &&
+272:      key.portCalls === lastServices.portCalls &&
+273:      key.unsampled === lastServices.unsampled
+281:  gatesFeed.subscribe(rejoin);
+282:  shownReading.subscribe(rejoin);
+283:  shownReading.subscribe(reservice);
+286:      closed = true;
+316:      // The feed re-reads the registry and the thunk before `remerge`, whose publish joins through them: one
+324:      // A reading that moved is a new merged snapshot, which rejoins through its own subscription.
+325:      remerge();
+```
+
+At `c5171dd3538246fc816a6e0347012dfd38aabddc` it prints nothing (exit 1).
