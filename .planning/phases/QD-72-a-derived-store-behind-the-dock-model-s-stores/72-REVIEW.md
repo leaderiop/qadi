@@ -1,8 +1,9 @@
 ---
 phase: QD-72-a-derived-store-behind-the-dock-model-s-stores
-reviewed: 2026-11-22T22:30:00Z
+reviewed: 2026-11-22T23:30:00Z
 depth: standard
-files_reviewed: 22
+iteration: 2
+files_reviewed: 24
 files_reviewed_list:
   - packages/devtools/src/model/ExternalStore.ts
   - packages/devtools/src/model/DockModel.ts
@@ -14,6 +15,7 @@ files_reviewed_list:
   - packages/devtools/test/model/DockModel.test.ts
   - packages/devtools/test/model/ExternalStore.test.ts
   - packages/devtools/test/model/ExternalStore.tst.ts
+  - packages/devtools/test/model/GatesFeed.test.ts
   - spec/decisions/185-the-dock-models-computed-stores-are-derived-stores.md
   - spec/decisions/047-a-headless-devtools-model.md
   - spec/decisions/162-gates-are-the-dock-models-eighth-store-and-their-states-are-stated-once.md
@@ -24,261 +26,133 @@ files_reviewed_list:
   - spec/invariants.md
   - spec/traceability.md
   - spec/README.md
-  - AGENTS.md
-  - .planning/phases/QD-72-a-derived-store-behind-the-dock-model-s-stores/72-CONTEXT.md
 findings:
   critical: 0
-  warning: 5
-  info: 7
-  total: 12
+  warning: 1
+  info: 5
+  total: 6
+  necessity: 0
 status: issues_found
 ---
 
-# Phase QD-72: Code Review Report
+# Phase QD-72: Code Review Report (iteration 2)
 
 **Reviewed:** 2026-11-22
 **Depth:** standard
-**Files Reviewed:** 22
+**Files Reviewed:** 21 (the three React panels and hooks count as one rename)
 **Status:** issues_found
 
 ## Summary
 
-`makeDerivedStore` is correct on every path the brief asked about, and `DockModel.ts` restates
-none of its logic. I verified:
+All 12 findings of iteration 1 are fixed correctly and completely. I re-verified each against source rather than the fix
+report, and I ran the gates that bear on this change. Results: `check-house-style.mjs` clean (571 files), the devtools model
+vitest suite 1326/1326, `run-tstyche.mjs` green in both passes (69 files, 807 assertions, 71 suppressed matched),
+`tsc -p tsconfig.test.json` clean, `spec:verify:strict` 21/21, `spec:examples` 118 blocks compile, and `oxlint` reports
+nothing in any phase file.
 
-- Compute, then commit the key, then `set`: a throwing compute leaves `held` and the store
-  untouched. A re-entrant `refresh` from a listener sees the committed key, so it does nothing.
-  A throwing key thunk throws before anything is read or written.
-- No parent notification can arrive during construction, because the parents are subscribed
-  after the first compute and nothing runs between the subscription and the return.
-- `stopped` and the parent release are both needed. The release stops parent-driven triggers.
-  `stopped` stops the public `refresh`, which a parent release cannot reach. Nothing stays
-  subscribed after close.
-- ADR-QD-177's contract holds. The refresh is one listener in the parent's set, so a throw
-  from the store's listeners enters the parent's loop as one value.
-- The three derived stores are built in the order the spec states, and `configure` refreshes
-  the shown reading after both feeds. The characterisation file passes against the new code
-  (107 tests across the three DockModel and ExternalStore files). `oxlint` and
-  `scripts/check-house-style.mjs` are clean. No added line in the seven code files passes 90
-  characters. Every test title quoted in BEH-QD-696 to BEH-QD-699 exists verbatim in the files
-  it names, and every Source line names code that exists.
+What I checked and found sound:
 
-The real defects are one behavioural gap in `sameFields` (its own-fields claim is repeated in
-four documents), two false or overstated statements in the spec, one test whose title claims
-more than it can fail on, and history written as current-tense normative text in BEH-QD-700.
-The rest is duplication and small cleanliness items.
+- `sameFields` is exactly own enumerable string-keyed identity. `Object.entries` plus a `Map` has no cast, handles a
+  field present on one side only, and treats `undefined` versus absent as a change. The three new rows can each fail for the
+  reason their title names. The "gains/loses/swaps" rows kill the `has` check, and the inherited row exercises a key whose
+  prototype carries an enumerable field.
+- The finalizer is registered before the parents are subscribed, and the throwing-`subscribe` test proves close releases the
+  earlier parent. The effect dies, so no half-built store is ever returned.
+- Each negative pin in `ExternalStore.tst.ts` differs from its twin in one thing. `WithOptional` now differs from `Three`
+  only by the `?`, and the `@ts-expect-error` fragments (`is optional in type`, `but target requires 1`,
+  `does not exist on type`) are the reasons the pins name. The annotations stop the refusals from passing through an
+  `unknown` result.
+- No `as`, `!`, `any`, `switch` or `Record<string, unknown>` in anything the phase wrote. No phase-written code line is
+  past 90 columns (measured by character).
+- Every "Pinned by" title quoted in BEH-QD-696 to BEH-QD-700 exists verbatim in the test files. The CCR-QD-464 row's cited
+  revisions equal each document's header (185 at 1.1, 047 at 1.21, 162 at 1.7, 168 at 1.2, 169 at 1.2, BEH-28 at 1.46,
+  invariants 1.179, traceability 1.252, README 1.292), and its file list equals the phase's changed files.
+- No duplicate of a moved helper remains in the devtools tests. The same-named `logOf`, `activityOf`, `rowOf` and `guard`
+  elsewhere differ in shape or value, and `Gates.test.ts`'s `askingIds` returns a different type.
 
-I did not load `necessity-review.md`, so the necessity category was not assessed and no
-`necessity:` count is emitted.
+One warning remains (the spec text for the finalizer change is not exact), and five small cleanliness items.
 
 ## Warnings
 
-### WR-01: `sameFields` walks inherited keys, so a key with an inherited enumerable field is never equal, even to itself
+### WR-01: BEH-QD-698, ADR-QD-185 decision 7 and INV-QD-389 do not state what the finalizer does exactly
 
-**File:** `packages/devtools/src/model/ExternalStore.ts:115-122`
-(documented at `:111-114`, ADR-QD-185 decision 2, BEH-QD-696, INV-QD-389 and its traceability
-row, all of which say "own fields")
-**Issue:** `for (const field in a)` enumerates inherited enumerable keys as well as own ones,
-and the guard is `Object.hasOwn(b, field)`. For a key whose enumerable field lives on its
-prototype, `hasOwn` is false on both sides. I ran it: `sameFields(a, a)` returns `false` for
-`a = Object.create({ x: 1 })`. The store then recomputes and notifies on every trigger.
-`makeDerivedStore` exists to prevent exactly that, and nothing pins or forbids the shape.
+**File:** `spec/behaviors/28-devtools-screens.md:2813-2832` (BEH-QD-698), `spec/decisions/185-the-dock-models-computed-stores-are-derived-stores.md` (decision 7), `spec/invariants.md` (INV-QD-389)
+**Issue:** Three statements differ from what `ExternalStore.ts:174-181` does.
 
-The mirror case is a non-enumerable own field, which `for…in` never visits. Two such keys
-with different values compare equal, so a stale store is possible. A symbol-keyed own field is
-skipped the same way. The dock's three keys are plain literals, so nothing breaks today. The
-documents claim "own fields" and "own enumerable fields" for a function that does not
-implement that. The ADR says "own enumerable"; the code walks more than that on one side and
-does not check enumerability on the other.
+1. The BEH-QD-698 requirement says the store MUST "keep its last snapshot, including when a parent's `subscribe` threw
+   while the store was being built". A store whose `subscribe` threw is never returned: `makeDerivedStore` dies, so there is
+   no store and no snapshot to keep. The clause cannot be observed, and the requirement reads as though a usable store
+   exists after a failed build.
+2. The sentence "a store that failed to build leaves nothing subscribed" is only true once the scope has closed. Until
+   then every parent before the throwing one is still subscribed. The test pins exactly this (`heldBefore` is 1, then 0
+   after close). ADR-QD-185 decision 7 words it correctly ("released when the scope closes"), so the two texts disagree.
+3. None of the three says what a release that throws does, which the owner brief required them to state. The code loops
+   `for (const release of releases) release()` inside one `Effect.sync`. A throwing release aborts the loop, so the parents
+   after it stay subscribed, and the throw surfaces as a defect from `Scope.close`. The code comment and `ReadableStore`'s
+   doc say "must not throw", but the spec is silent. Elsewhere BEH-QD-638 and `GatesFeed` swallow a release that throws, so
+   a reader of the spec would assume the same here.
 
-**Fix:** Compare own enumerable string keys explicitly, with no cast:
-```ts
-function sameFields<K extends object>(a: K, b: K): boolean {
-  const fromB = new Map(Object.entries(b));
-  const fromA = Object.entries(a);
-  return (
-    fromA.length === fromB.size &&
-    fromA.every(([field, value]) => fromB.has(field) && fromB.get(field) === value)
-  );
-}
+**Fix:** Split the requirement and state the precondition.
 ```
-Add a row to the `makeDerivedStore` tests for a key whose field is inherited, which must
-compare equal to itself and recompute nothing. Alternatively, keep the loop and weaken every
-"own fields" sentence to say what it does. The first option is shorter than the second.
-
-### WR-02: BEH-QD-700 says "the last three" stores are derived; they are `timelineStatus`, `questions` and `services`
-
-**File:** `spec/behaviors/28-devtools-screens.md:1088` (the BEH-QD-700 body, "The last three are derived stores")
-**Issue:** The section lists the stores "in the order `DockModel` lists them": timeline, dock,
-explorer, roles, simulation, diagnostics, timelineStatus, questions, services. The derived
-stores are the shown reading (`diagnostics`), `questions` and `services` (BEH-QD-699).
-`timelineStatus` is passed through from the timeline feed and is not derived. The sentence
-names the wrong set. The section exists to be the one place that states the stores
-correctly.
-**Fix:** Name them: "`diagnostics`, `questions` and `services` are derived stores
-([BEH-QD-699](#...))". Do not describe them by position.
-
-### WR-03: "each parent is released" is pinned for one parent only
-
-**File:** `packages/devtools/test/model/ExternalStore.test.ts:698-740`
-(title at `:699`; BEH-QD-698 quotes it; INV-QD-389 and traceability repeat the claim)
-**Issue:** The test has two parents. The hand-written one exposes a `held` set, so its release
-is observed (`before === 1`, `held.size === 0`). The second parent is a `makeExternalStore`,
-and its listener count is unobservable. `other.set(1)` after close cannot discriminate
-anything, because `refresh` returns at `stopped` whether or not the second subscription was
-released. A mutation that releases only `releases[0]` passes this test. Neither the title nor
-BEH-QD-698's "release every parent" is pinned for every parent.
-**Fix:** Make both parents hand-written (`held` sets, one per parent), and assert both sizes
-before (1 each) and after (0 each). Or build one `handWritten` helper and use it twice.
-
-### WR-04: BEH-QD-700 carries ordinal history in current-tense normative text
-
-**File:** `spec/behaviors/28-devtools-screens.md:1092-1094`
-("Earlier records counted the policy rail among the stores. They call the diagnostics the
-seventh store, the timeline status the eighth readout, `questions` the eighth store and
-`services` the ninth; those ordinals stay as written where they appear, and none of them is
-this list.")
-**Issue:** Item 3(c) of the brief is confirmed. This is a plain paragraph in the body of the
-current requirement, not a dated amendment or blockquote. AGENTS.md §15 and the owner's bar
-put history in dated amendments and notes. The sentence also says the opposite of what the
-phase set out to do, which was to keep ordinals out of current text. A section that is
-supposed to be the one statement of the store list should not itself recount the old counts.
-**Fix:** Move the paragraph into a dated blockquote under the section ("**Noted 2026-11-22
-(CCR-QD-464).**"), as the BEH-QD-583, BEH-QD-615 and BEH-QD-616 amendments in the same file do.
-Or delete it. The ADR-QD-047 note already says the same thing.
-
-### WR-05: the store-list test is described as checking BEH-QD-700, and INV-QD-390 claims a prevention nothing enforces
-
-**File:** `packages/devtools/test/model/DockModel.test.ts:1760-1782` (title "…are the stores BEH-QD-700 names"),
-`spec/behaviors/28-devtools-screens.md` BEH-QD-700 ("a test of a built model fails on any store added without it"),
-`spec/invariants.md` INV-QD-390 Implication, `spec/decisions/185-…md` decision 10 and Consequences
-**Issue:** Three overclaims, all in the territory the owner asked me to check:
-1. The test hard-codes its own array. It does not read BEH-QD-700, and nothing, whether the
-   `check-*` gates or a test, ties the spec's list to the test's. The title and BEH-QD-700
-   say the test checks "that exact list". It checks the test's own copy of it. The two can
-   drift without anything failing, which is the defect class the phase set out to remove.
-2. INV-QD-390 Implication says "a computed store cannot keep a compare or a closed flag of its
-   own, because the constructor holds both". Nothing prevents a new hand-written computed
-   store built on `makeExternalStore`. The same invariant's Enforcement paragraph admits this
-   ("checked by no test or gate"), which contradicts the Implication two paragraphs above it.
-3. The test discriminates by the two property names only. A store-shaped member under another
-   shape (a getter, a function pair) is invisible to it. That is acceptable, but "fails on
-   any store added" is wider than that.
-**Fix:** Soften BEH-QD-700 and INV-QD-390 to "a test of a built model lists the members that
-have `subscribe` and `getSnapshot`, and fails when one is added; the list here and the list
-there are kept equal by review". Retitle the test to describe its input, for example "a
-built model's members with subscribe and getSnapshot are the nine stores named below". Rewrite
-the Implication to match the Enforcement paragraph.
+REQUIREMENT: After the scope that built a derived store closes, it MUST read no key, call
+             no compute, release every parent, ignore `refresh` and keep its last snapshot.
+REQUIREMENT: When a parent's `subscribe` throws while the store is being built, the build
+             MUST fail with that throw as a defect and return no store, and closing the
+             scope MUST release every parent subscribed before it.
+```
+Add one sentence to the prose and to ADR decision 7: "A parent's release is not guarded. One that throws stops the
+releases after it and fails the close, so a parent's `subscribe` must return a release that cannot throw; every parent here
+is an `ExternalStore`, whose release is a `Set` delete." Reword "leaves nothing subscribed" to "leaves nothing subscribed once
+the scope closes". Bump the revisions through `spec-revise.mjs` and re-cite them in the CCR-QD-464 row.
 
 ## Info
 
-### IN-01: negative type pins do not differ from their twin in the argument under test alone
+### IN-01: `sameFields` doc comment is ungrammatical and words the exclusion differently from the spec
 
-**File:** `packages/devtools/test/model/ExternalStore.tst.ts:42-61`
-**Issue:** Item 3(b) is confirmed in part. The positive twin uses `key: (): Three`, a
-key-reading `compute: (key) => key.a.length`. The empty-parent-list pin changes `parents` and
-also `compute: () => 0`, so two arguments differ. The optional-field pin changes the key type,
-which is the argument under test, and also `compute`. AGENTS.md §6 says a twin "varies only
-the argument under test", reviewed by hand. Today each refusal is traceable to the
-`@ts-expect-error` text fragment, which names the actual diagnostic, so the pins do fail for
-the stated reason. They still do not meet the written bar. The compute reading the key is
-irrelevant to those two pins.
-**Fix:** Keep the twin's `compute: (key) => key.a.length` in the empty-parents pin. For the
-optional-field pin, use a twin with `WithOptional`-shaped key that reads nothing, or state in
-the header that the key type is the argument under test and `compute` is free.
+**File:** `packages/devtools/src/model/ExternalStore.ts:122-123`
+**Issue:** "An inherited, a non-enumerable and a symbol-keyed field is not compared." The singular verb with three subjects
+reads as a typo. ADR-QD-185 decision 2, BEH-QD-696 and INV-QD-389 all say "A field that is inherited, non-enumerable or
+symbol-keyed is not part of the key and is not compared", so the source is the one place that words it differently.
+**Fix:** "A field that is inherited, non-enumerable or symbol-keyed is not part of the key and is not compared."
 
-### IN-02: ADR-QD-047's Status row omits its 2026-11-19 amendment (pre-existing, now extended past it)
+### IN-02: the fixtures header understates its readers, and `heardOn` is not a dock fixture
 
-**File:** `spec/decisions/047-a-headless-devtools-model.md:8` (Status), against `:9` (Change History) and the 2026-11-19 note at the end of the file
-**Issue:** Item 3(d) is confirmed. The Status row lists amendments through 2026-11-18 and now
-appends 2026-11-22. Change History has `1.19 (2026-11-19)`, the file has the dated note, and
-`spec/decisions/index.yaml` lists "amended 2026-11-19 (ADR-QD-173…)". Only the file's own
-Status row misses it. This phase edited that cell, so it was the moment to fix it, and the
-`index.yaml` row (which has it) and the file now disagree.
-**Fix:** Insert `2026-11-19 (the headless interface is the feeds, ADR-QD-173)` between the
-2026-11-18 and 2026-11-22 entries.
+**File:** `packages/devtools/test/dockModelFixtures.ts:1-7`, `packages/devtools/test/model/ExternalStore.test.ts:8`
+**Issue:** The header says `DockModel.test.ts` and the characterisation share these fixtures. `GatesFeed.test.ts` imports
+`guard` and `tick`, and `ExternalStore.test.ts` imports `heardOn`. `heardOn` depends only on `Parent`, nothing of the dock.
+A unit test of the package-private store primitive importing from a file named for the dock model, which pulls in
+`DiagnosticsStore`, `Wiring`, `PortCards` and `DockModel`, couples the lowest-level test to the highest-level fixtures.
+**Fix:** Name the real readers in the header ("the dock model's tests, the gates feed's and the store's"), or move
+`heardOn` to `test/helpers.ts` beside `settleTurns` and `thrownBy` and have `heardOf` import it from there.
 
-### IN-03: duplicated test helpers, in the files this phase created to remove duplication
+### IN-03: the closing-scope characterisation hand-rolls the counter `heardOn` replaced
 
-**File:** `packages/devtools/test/model/DockModel.test.ts:104-111` and
-`packages/devtools/test/model/DockModel.characterisation.test.ts:56-62` (`heardOn`, identical);
-`DockModel.test.ts:814-816` and `DockModel.characterisation.test.ts:43-45` (`suppliedActivity`,
-identical); `packages/devtools/test/model/ExternalStore.test.ts:273-280` (a third `heardOn`,
-returning `{ n }` instead of `{ calls }`); `packages/devtools/test/dockModelFixtures.ts:97-103`
-(`heardOf` is `heardOn(model.services)`); `packages/devtools/test/model/GatesFeed.test.ts:36-40`
-(`tick`, identical to the fixture's)
-**Issue:** `dockModelFixtures.ts` was created so that "a fixture fixed in one file is fixed in
-every file". It moved `tick`, `guard`, `wiringNamed` and the others, and left a two-file copy
-of `heardOn` and `suppliedActivity` beside it. `heardOf` is a special case of `heardOn`. The
-characterisation file may not change its expected values, but its imports and local helpers
-can. The `GatesFeed.test.ts` `tick` predates the phase but is now a third copy of a fixture
-with a shared home.
-**Fix:** Export `heardOn` and `suppliedActivity` from `dockModelFixtures.ts`, define `heardOf`
-as `(model) => heardOn(model.services)` or inline it, and import them. Move `tick` out of
-`GatesFeed.test.ts` too.
+**File:** `packages/devtools/test/model/DockModel.characterisation.test.ts:366-392`
+**Issue:** This phase moved every other hand-written counter into `heardOn`, but this test keeps `const heard = { calls: 0 }`
+and a `hear` closure subscribed to three stores. It is the same pattern the duplication fix removed.
+**Fix:** Use `heardOn(model.diagnostics)`, `heardOn(model.questions)` and `heardOn(model.services)`, and assert each
+`.calls` is 0 (this also names which store notified when it fails).
 
-### IN-04: `ExternalStore.ts` header is now stale for the derived store; the brief's placement suspicion is refuted
+### IN-04: the store-list test pins the returned literal's insertion order, and BEH-QD-700's claim about order is not true of the spec's own listing
 
-**File:** `packages/devtools/src/model/ExternalStore.ts:1-26`, `:31-52`
-**Issue:** Item 3(a): the header sitting above the imports is the codebase's convention
-(`DiagnosticsFeed.ts`, `TimelineStore.ts` and `HeldChoice.ts` all open with a file header, then
-their imports), and the one-line comment on `ExternalStore` follows the AGENTS.md doc shape.
-Placement is not a defect. The content is stale: the header describes only "the mechanics every
-store shares: a current value, a listener set, and the subscribe / getSnapshot pair" and says
-"This file owns only the mechanics", then the file gains `ReadableStore`, `sameElements`,
-`DerivedStore`, `sameFields` and `makeDerivedStore`. A reader skimming the header will not
-learn that a derived store lives here, or where its contract is. The header's `notify` and
-"listener contract above" references also now point at a header, not at `ExternalStore`'s own
-doc.
-**Fix:** Add one paragraph to the header: the derived store is built on `makeExternalStore`
-and its rules are in `makeDerivedStore`'s doc and BEH-QD-696 to BEH-QD-698. Change "owns only
-the mechanics" to say it owns the mechanics and the derived store.
+**File:** `packages/devtools/test/model/DockModel.test.ts:1753-1778`, `spec/behaviors/28-devtools-screens.md` (BEH-QD-700 prose, BEH-QD-465 listing)
+**Issue:** The test compares `Object.entries(model)` order with `deepStrictEqual`, so reordering the returned object literal
+in `DockModel.ts` fails it while the member set is unchanged. BEH-QD-700 says the nine are listed "in the order `DockModel`
+lists them". The source interface and literal do list them that way (`timeline`, `dock`, `explorer`, `roles`, `simulation`,
+`diagnostics`, ...). The `DockModel` block in BEH-QD-465 of the same document lists `diagnostics`, `timelineStatus`,
+`questions` and `services` before `dock`.
+**Fix:** Compare sorted names (`stores.toSorted()` against the sorted list, or an `assert.sameMembers`), so the test fails
+for a member added or removed and for nothing else. Say "in the order the source interface lists them", or drop the order
+claim from BEH-QD-700.
 
-### IN-05: `makeDerivedStore` subscribes to the parents before the finalizer exists
+### IN-05: one spec line the phase wrote is not wrapped, and one rewrapped test header keeps phase-relative wording
 
-**File:** `packages/devtools/src/model/ExternalStore.ts:163-170`
-**Issue:** `options.parents.map((parent) => parent.subscribe(refresh))` runs before
-`Effect.addFinalizer`. If the second parent's `subscribe` throws, the first subscription stays
-in the first parent's listener set with no finalizer to release it and `stopped` still false,
-so a half-built store keeps recomputing. The finalizer's `for (const release of releases)` also
-stops at the first release that throws, leaving the rest subscribed. Every parent today is an
-in-package store whose `subscribe` is a `Set.add`, so neither can happen. `Parent` is an
-exported type that any `{ subscribe }` satisfies, so the constructor takes more than it
-defends. Info, not a bug.
-**Fix:** Register the finalizer first over a `const releases: Array<() => void> = []` that
-the subscribe loop fills as it goes, and run each release inside its own `try`, rethrowing after
-the loop as `notify` does. Or leave it and state in the doc that `Parent.subscribe` must not
-throw.
-
-### IN-06: small cleanliness items in the new tests and `DockModel.ts`
-
-**File:** `packages/devtools/test/model/ExternalStore.test.ts:365-373` (the five-field key's
-object literal sits one level left of its `key:` line, which hand-wrapping would indent),
-`packages/devtools/test/model/DockModel.test.ts:113-118` (the `KeyRow` doc comment, "One input of
-a computed store, moved or left alone in a fresh model: its count", does not say what `field`
-and `heard` are), `packages/devtools/src/model/DockModel.ts:171` (`function mergedOf`, where
-the sibling helpers `registryInput`, `askedInput` and `joinInputOf` are arrow consts; in
-`ExternalStore.ts` `sameFields` is a `function` beside arrow exports),
-`packages/devtools/test/model/DockModel.test.ts:1776-1779` (three or four string literals per
-line in the expected store list, against the file's one-element-per-line arrays)
-**Issue:** Four layout and naming nits, none a behaviour defect.
-**Fix:** Indent the literal; reword `KeyRow` as "A key field and the number of notifications a
-fresh model's store heard when the field moved or was left alone"; use `const mergedOf =
-(key: MergeKey): DiagnosticsSnapshot =>` or note why the declaration form is chosen; put one
-store name per line.
-
-### IN-07: a characterisation title does not say its fourth step is a repeat
-
-**File:** `packages/devtools/test/model/DockModel.characterisation.test.ts:346-375`
-(title "a guard and three reading configures notify the stores in one fixed order")
-**Issue:** I do not propose any change to the expected values. The title says three reading
-configures, but the third and the fourth step pass the same `third` reading object, so the
-fourth is an identical repeat that notifies nothing, and only two configures move anything.
-The title also does not say that the recorded order includes a deliberate absence. A reader
-sizing the five-entry array against "three configures" will count wrong. The file is frozen
-at the phase base, so a rename is the only change available, and it is optional.
-**Fix:** If a rename is allowed: "a guard, two moving configures and one repeated configure
-notify the stores in one fixed order".
+**File:** `spec/behaviors/28-devtools-screens.md:2832` (BEH-QD-698), `packages/devtools/test/model/DockModel.test.ts:8`
+**Issue:** BEH-QD-698's last "Pinned by" line is 150 columns, while the paragraph above it and the other `Pinned by`
+paragraphs in this phase wrap at about 120. `DockModel.test.ts`'s header still says "Until now those rules lived in layout
+effects"; the phase rewrapped that paragraph and left a phase-relative phrase in it.
+**Fix:** Wrap the BEH-QD-698 line at the file's width. Reword the header to "Those rules once lived in layout effects and
+were proved only by rendering the whole dock", or drop the sentence.
 
 ---
 
