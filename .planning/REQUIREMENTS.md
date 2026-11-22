@@ -34,11 +34,11 @@
 
 ### A derived store behind the dock model's stores (Phase 72, ARCH-119, devtools)
 
-- [ ] **DERV-01**: A characterisation of the dock model's `shownReading`, `questions` and `services` snapshots (when each recomputes, when it does not, and nothing after close) is written on the phase base and stays green.
-- [ ] **DERV-02**: `ExternalStore.ts` gains a store derived from parent stores. It owns key equality over every key field (a field added to the key and not compared is impossible by construction), stopping after close, and notifying once. ADR-QD-177's "every listener runs, rethrow after" holds for it.
-- [ ] **DERV-03**: `DockModel.ts` builds its three computed stores with it. No `let last…`, field-by-field key compare or `closed` flag is left in that file.
-- [ ] **DERV-04**: The derived store's rules are tested against `ExternalStore` alone. `DockModel.test.ts` keeps one test per store showing its key and its order relative to host listeners.
-- [ ] **DERV-05**: `DockModel.ts` and `ExternalStore.ts` keep their Stryker scores (`DockModel.ts` at 1, as ADR-QD-168 records). ADR-QD-185 extends ADR-QD-168, and the store count is stated in one place.
+- [x] **DERV-01**: A characterisation of the dock model's `shownReading`, `questions` and `services` snapshots (when each recomputes, when it does not, and nothing after close) is written on the phase base and stays green.
+- [x] **DERV-02**: `ExternalStore.ts` gains a store derived from parent stores. It owns key equality over every key field (a field added to the key and not compared is impossible by construction), stopping after close, and notifying once. ADR-QD-177's "every listener runs, rethrow after" holds for it.
+- [x] **DERV-03**: `DockModel.ts` builds its three computed stores with it. No `let last…`, field-by-field key compare or `closed` flag is left in that file.
+- [x] **DERV-04**: The derived store's rules are tested against `ExternalStore` alone. `DockModel.test.ts` keeps one test per store showing its key and its order relative to host listeners.
+- [x] **DERV-05**: `DockModel.ts` and `ExternalStore.ts` keep their Stryker scores (`DockModel.ts` at 1, as ADR-QD-168 records). ADR-QD-185 extends ADR-QD-168, and the store count is stated in one place.
 
 ### One pure reconcile for gate registration (Phase 73, ARCH-120, react)
 
@@ -120,11 +120,11 @@ Which phases cover which requirements. One row per ID (`phase.complete` cannot p
 | SIGR-03 | Phase 71 | Complete |
 | SIGR-04 | Phase 71 | Complete |
 | SIGR-05 | Phase 71 | Complete |
-| DERV-01 | Phase 72 | Pending |
-| DERV-02 | Phase 72 | Pending |
-| DERV-03 | Phase 72 | Pending |
-| DERV-04 | Phase 72 | Pending |
-| DERV-05 | Phase 72 | Pending |
+| DERV-01 | Phase 72 | Complete |
+| DERV-02 | Phase 72 | Complete |
+| DERV-03 | Phase 72 | Complete |
+| DERV-04 | Phase 72 | Complete |
+| DERV-05 | Phase 72 | Complete |
 | RECN-01 | Phase 73 | Pending |
 | RECN-02 | Phase 73 | Pending |
 | RECN-03 | Phase 73 | Pending |
