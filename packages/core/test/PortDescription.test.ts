@@ -688,3 +688,29 @@ describe("a port wire refuses a conversion that throws, never throws itself", ()
     assert.strictEqual(Result.isFailure(answer) ? answer.failure : undefined, "boom");
   });
 });
+
+describe("a port wire built from a spec decodes what it is given", () => {
+  const alice = makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} });
+
+  it("reads a question into its subject and the request it asks for, and an answer into its value", () => {
+    const wire = throwingWire(new Error("unused"));
+    const question = wire.decodeQuestion({ subjectId: "alice", what: "level" });
+    assert.isTrue(Result.isSuccess(question));
+    if (Result.isSuccess(question)) {
+      assert.strictEqual(question.success.subjectId, "alice");
+      assert.deepStrictEqual(question.success.args(alice), ["alice"]);
+    }
+    assert.strictEqual(Result.getOrUndefined(wire.decodeAnswer({ n: 3 })), 3);
+    assert.strictEqual(Result.getOrUndefined(wire.decodeAnswer({})), 0);
+  });
+
+  it("refuses a question and an answer of another shape with a sentence", () => {
+    const wire = throwingWire(new Error("unused"));
+    const question = wire.decodeQuestion({ subjectId: "alice" });
+    const answer = wire.decodeAnswer({ n: "three" });
+    assert.isTrue(Result.isFailure(question));
+    assert.isTrue(Result.isFailure(answer));
+    assert.isTrue(Result.isFailure(question) && question.failure.length > 0);
+    assert.isTrue(Result.isFailure(answer) && answer.failure.length > 0);
+  });
+});
