@@ -102,3 +102,33 @@ and `git status --porcelain -- packages` printed nothing.
 
 Reading: it compiles, and nothing in `@qadi/react` names the reason, so no refusal or entry can ever be reported or
 counted under it.
+
+## Type pins on the base
+
+The type pins in `packages/react/test/HydrationBuckets.tst.ts` were written with no `packages/*/src` file changed
+from `phase_base` and `HydrationBuckets.ts` absent:
+
+```
+$ pnpm test:tstyche HydrationBuckets < /dev/null > tst-red.log 2>&1; echo $?
+1
+
+> qadi-monorepo@0.4.0 test:tstyche /Users/mohammadalmechkor/Projects/Perso/qadi
+> node scripts/run-tstyche.mjs HydrationBuckets
+
+run-tstyche: pass 1 of 2, tstyche.json (tsconfig.tstyche.json, floatingEffect off), skipping "under tsconfig.test.json"
+Error: Cannot find module '../src/HydrationBuckets.ts' or its corresponding type declarations. ts(2307)
+
+  10 | import { expect, test } from "tstyche";
+  11 | import type { DehydrationDropReason } from "@qadi/core";
+  12 | import type { DropBuckets } from "../src/HydrationBuckets.ts";
+```
+
+A second error in the same log, further down: `Module '"../src/HydrationEngine.ts"' has no exported member 'PAYLOAD_PRODUCERS'. ts(2305)`.
+
+`node scripts/check-house-style.mjs` passes on the tree with the file in it; its last line:
+
+```
+house-style: 564 file(s) clean (3 declared switch(es), 67 type-test file(s))
+```
+
+Reading: the module and the record do not exist, and the hand-written emission lines are total over nothing.
