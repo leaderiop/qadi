@@ -49,7 +49,7 @@ covered_files:
   - "scripts/check-package-install.mjs"
   - "scripts/run-tstyche.mjs"
   - "scripts/spec-revise.mjs"
-covered_digest: "v4:sha256:899612991214c021e5abd4157ceb92352b2846829a60ae74986263690d21a260"
+covered_digest: "v4:sha256:5814f8faac671ad442cb38c03fa1a686dda5c5d56a16845bed7fd31a406786dd"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification: null
@@ -217,5 +217,44 @@ Every row was run on a tree whose tracked files outside the planning directory a
 - `scripts/bench/analyze.mjs` (covered; 68.1-02, `327d93ee` and `ecb4ed90`): the report cites it in Truth 3, through `68-BENCH.md` and `analysis.tsv` (`# gate: pass`, 35 `ok` rows). The commits change the exit status only: 1 on a failed gate, 2 on any input it cannot analyze, and a self-test that runs the file end to end. Its analysis of Phase 68's `bench/final` is byte-identical to the committed `analysis.tsv` and exits 0, so every number Truth 3 reads holds.
 - `scripts/check-package-install.mjs` (covered; 68.1-04, `cc58b8e6`): the report cites it in OI-19, OI-20 and OI-21 (a `CHILD_TIMEOUT_MS` on every `execFileSync`, `LIVE_TURNS = 200`, the message naming the unstable API) and, through its gate-14 runs, in Truth 6. The commit moves the probe guard's parse into a child run under the same timeout (`scripts/lib/probe-guard-parse.mjs`), so every child now has the bound, which strengthens OI-19; the line numbers the report gives are two lines higher now (row 4) and the message is the same text at line 930. Plan 68.1-04 showed the guard's answers identical to the base's on four sandboxes and a planted load failure, and the one gate-14 run reads 524 runtime exports as before (row 3). The bound is on the child: the TypeScript server the child starts is not killed with it, and the file's header says so.
 - `spec/README.md` (68.1-05, `a8b36092`): the report cites the CCR-QD-459 row at line 396 (Truths 1 and 7) and its revision pointers. The row is unedited and still at line 396. Its pointers (ADR-QD-033 Rev 1.4, the register's Rev 1.274) were the current revisions when the report was written, and are not now: the commit moves the register to 1.275, ADR-QD-033 is amended to 1.5, and adds the CCR-QD-460 row, which carries the later revisions. The row itself is unedited, so Truth 7 holds as a claim about what the row cited at the head the report was written at. The digest changes because this file is covered, and no other covered file changed.
+
+**Verdict:** passed
+
+## Re-verification (2026-11-22, after the 68.1 code-review fixes)
+
+**Staleness:** `68: stale, verification 97a2ca68, 56 cited, 2 changed since` (`68.1-stale.mjs`, run at `3c39c3c0`).
+
+| Cited file | Changed since `97a2ca68` by |
+| --- | --- |
+| `scripts/bench/ab.sh` (covered) | `70574a33` fix(68.1): WR-06 ab.sh refuses a round count below 4 in both modes |
+| `spec/README.md` | `79a685b4` docs(68.1): WR-02 WR-03 scope CCR-QD-460's odd-count and hang claims to what was shown |
+
+**Trailers on this phase's commits:** 75 `Claude Opus 5.5 <noreply@anthropic.com>`.
+
+**Validation record:** no VALIDATION.md.
+
+**Digest:** `covered_digest: "v4:sha256:899612991214c021e5abd4157ceb92352b2846829a60ae74986263690d21a260"` becomes `covered_digest: "v4:sha256:5814f8faac671ad442cb38c03fa1a686dda5c5d56a16845bed7fd31a406786dd"`, over the same 45 covered files.
+
+**Staleness by `68.1-stale.mjs`:** `68: stale, verification 97a2ca68, 56 cited, 2 changed since` (run at `3c39c3c0`).
+
+### Spot-checks re-run (Re-verification (2026-11-22, after the 68.1 code-review fixes))
+
+Every row was run on the tree at `3c39c3c0`, one command at a time, in the foreground, with stdin closed. The spec-revise, traceability, DoD-table, analyzer self-test, bench-reproduction and `--print-order` results are shared with the Phase 62 to 67 sections of this re-verification: each was taken once at `ae42c2b2`, in a fresh set after the code-review fixes (the earlier set, taken at `c3d8553a`, is not reused because `scripts/bench/ab.sh` and `spec/` changed), and no tracked file outside the planning directory differs between that head and `3c39c3c0`. Gate 14 was not run again: the gate-14 row reads the one run of Plan 68.1-04, taken at `cc58b8e6`, and shows that nothing gate 14 reads has changed since. No source or test file changed (`git diff --name-only 0e3f3438 HEAD -- packages` lists 0 files), so the report's vitest, mutation and bench-run rows were not run again; Phase 68's `bench/final` and `68-BENCH.md` are left as recorded (`git diff --quiet 0e3f3438 HEAD` over them is silent) and are read below only by re-analysing the former.
+
+| Behaviour | Command run now | Result now | Status |
+| --------- | --------------- | ---------- | ------ |
+| `ab.sh` alternates the arm order by round | `bash scripts/bench/ab.sh --print-order 4 final base` and `--print-order 6 final base` (shared) | exit 0; at 4, `final-1 base-1 base-2 final-2 final-3 base-3 base-4 final-4` (odd rounds head first); at 6 the same pattern continues (`final-5 base-5 base-6 final-6`), so OI-24's order is as the previous section read it | PASS |
+| `ab.sh` refuses an odd count, and now one below 4 | `bash scripts/bench/ab.sh --print-order 3 final base` and `--print-order 2 final base` (shared) | both exit 2 and run nothing; the usage text now ends `<rounds> must be even and at least 4: odd rounds run the head arm first and even rounds the patched arm, so only an even count runs each arm first equally often, and analyze.mjs refuses fewer than 3 rounds`, where the previous section quoted `<rounds> must be even` | PASS |
+| What the code-review fixes changed in the harness since the previous section | `git diff -U0 97a2ca68 HEAD -- scripts/bench/ab.sh` | four hunks, at lines 10 (header comment: a count below 4 is refused in both modes), 20 (the exit-code comment), 28 (the usage text above) and 31 (the `rounds_ok` pattern, which gains `2`); the arm order is outside the hunks | PASS |
+| The analyzer is unchanged, self-tested, and on Phase 68's own record | `git diff --quiet 97a2ca68 HEAD -- scripts/bench/analyze.mjs`; `node scripts/bench/analyze.mjs --self-test < /dev/null` (shared); Phase 68's `bench/final` copied to a scratch directory and analysed with the committed `workloads.txt`, reference `base`, then `cmp` with the committed `analysis.tsv` (shared) | the diff is silent (exit 0); `self-test: 25 passed`; the analysis exits 0 with `# max_slowdown_pct: 5.0`, `# max_geomean_pct: 2.0`, worst `4.7` and `# gate: pass`, and `cmp` is silent, so the file is byte-identical | PASS |
+| Phase 68's gate-14 truths read against the gate as it now stands | the one run of `node scripts/check-package-install.mjs < /dev/null` (Plan 68.1-04, head `cc58b8e6`: exit 0, 15 s), and `git diff --quiet cc58b8e6 HEAD -- packages scripts/check-package-install.mjs scripts/lib package.json pnpm-lock.yaml 'tsconfig*.json'` now | last line `package-install: 9 package(s) pack, resolve and authorize (524 runtime export(s))`, the count the report's Truth 6 cites; the diff is silent (exit 0), so none of what gate 14 reads changed after that run; the gate and its library are also unchanged since the previous section (`git diff --quiet 97a2ca68 HEAD -- scripts/check-package-install.mjs scripts/lib package.json` is silent) | PASS |
+| The merge gate's step list the report's Truth 6 counts | `node scripts/check-dod-table.mjs < /dev/null` (shared) | `dod-table: 26 step(s) match pnpm check, 153 reference(s) resolve` | PASS |
+| What the phase and its fixes changed in the spec register, and the revisions | `git diff -U0 0e3f3438 HEAD -- spec/README.md`, and `node scripts/spec-revise.mjs --check < /dev/null` (shared) | 3 insertions and 2 deletions: the Revision header (1.274 to 1.276), the Change History cell (the 1.276 and 1.275 entries in front) and one added row, CCR-QD-460, at line 397; no existing row is removed or edited, so the CCR-QD-459 row is still at line 396; `spec-revise` exit 0, `spec-revise: every Revision matches its newest Change History entry` | PASS |
+| Traceability | `bash spec/scripts/verify-traceability.sh --strict < /dev/null` (shared) | exit 0; `PASS: 21   FAIL: 0   SKIP: 0 (strict: skips count as failures)` | PASS |
+
+### Changed cited files read against the truths that cite them (Re-verification (2026-11-22, after the 68.1 code-review fixes))
+
+- `scripts/bench/ab.sh` (covered; `70574a33`): the report cites it in OI-24 (the arm order alternates by round, odd rounds head first) and in Truth 3's bench of record. The commit makes `rounds_ok` refuse a count below 4 as well as an odd one, and changes the usage text, the header comment and the exit-code comment to say so; the order is outside the changed lines, so OI-24 holds (rows 1 and 3). The previous section's quotation of the usage text (`<rounds> must be even`) no longer holds as worded: the text now reads `<rounds> must be even and at least 4: …` (row 2). Phase 68's own bench of record took 3 rounds, a count the script refuses (it is odd, and the previous section's script already refused it). That record is left as recorded: the script change does not alter what the record measured, and its verdict, `# gate: pass`, is reproduced byte for byte by the unchanged analyzer (row 4).
+- `spec/README.md` (`79a685b4`): the report cites the CCR-QD-459 row at line 396 (Truths 1 and 7) and its revision pointers. The row is unedited and still at line 396. Its pointers (ADR-QD-033 Rev 1.4, the register's Rev 1.274) were the current revisions when the report was written, and are not now: the commit moves the register to 1.276, the decision is at 1.6, and the CCR-QD-460 row, which carries the later revisions, is rewritten to scope two claims (the odd-round-count claim to Phase 68's bench, the hang evidence to a blocked parser call in the child, not a stopped TypeScript server). The row the report cites is unedited, so Truth 7 holds as a claim about what the row cited at the head the report was written at; OI-19 (a `CHILD_TIMEOUT_MS` on every `execFileSync`) is a reading of the gate's source, which did not change (row 5). The digest of the report's covered files is replaced because `scripts/bench/ab.sh` is covered; `spec/README.md` is not, and no other covered file changed.
 
 **Verdict:** passed
