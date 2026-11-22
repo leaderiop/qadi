@@ -6,8 +6,7 @@ import * as Scope from "effect/Scope";
 import * as Tracer from "effect/Tracer";
 import { makeDerivedStore, makeExternalStore } from "../../src/model/ExternalStore.ts";
 import type { Parent } from "../../src/model/ExternalStore.ts";
-import { heardOn } from "../dockModelFixtures.ts";
-import { thrownBy } from "../helpers.ts";
+import { heardOn, thrownBy } from "../helpers.ts";
 
 describe("makeExternalStore", () => {
   it("returns the initial value, and the same reference until something changes", () => {

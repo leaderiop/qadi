@@ -21,9 +21,8 @@ import type { Policy, Resource } from "@qadi/core";
 import type { AskedQuestionLike, GateInstanceLike } from "../../src/model/Gates.ts";
 import { AskedRead, RegistryRead, makeGatesFeed } from "../../src/index.ts";
 import type { GatesFeed, GatesSnapshot } from "../../src/index.ts";
-import { guard, tick } from "../dockModelFixtures.ts";
 import { makeGateRegistryDouble } from "../gateRegistryDouble.ts";
-import { readPolicy, settleTurns, thrownBy } from "../helpers.ts";
+import { guard, readPolicy, settleTurns, thrownBy, tick } from "../helpers.ts";
 
 const writePolicy: Policy = hasPermission(permission("doc", "write"));
 

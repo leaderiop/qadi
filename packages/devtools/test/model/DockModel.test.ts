@@ -58,19 +58,27 @@ import type { HydrationActivity } from "../../src/model/Hydration.ts";
 import type { Source } from "../../src/model/Source.ts";
 import type { TimelineEntry } from "../../src/model/Timeline.ts";
 import { countsOf } from "../../src/model/Verdict.ts";
-import { allow, decisionRecord, deny, failedRecord, obligationRecord, read, readPolicy } from "../helpers.ts";
-import { settleTurns } from "../helpers.ts";
+import {
+  allow,
+  decisionRecord,
+  deny,
+  failedRecord,
+  guard,
+  heardOn,
+  obligationRecord,
+  read,
+  readPolicy,
+  settleTurns,
+  tick,
+} from "../helpers.ts";
 import { makeGateRegistryDouble } from "../gateRegistryDouble.ts";
 import {
   activityOf,
   askingIds,
-  guard,
   heardOf,
-  heardOn,
   logOf,
   rowOf,
   suppliedActivity,
-  tick,
   wiringNamed,
 } from "../dockModelFixtures.ts";
 

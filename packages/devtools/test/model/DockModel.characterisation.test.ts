@@ -29,17 +29,21 @@ import { makeCollectorDouble } from "../collectorDouble.ts";
 import {
   activityOf,
   askingIds,
-  guard,
   heardOf,
-  heardOn,
   logOf,
   rowOf,
   suppliedActivity,
-  tick,
   wiringNamed,
 } from "../dockModelFixtures.ts";
 import { makeGateRegistryDouble } from "../gateRegistryDouble.ts";
-import { readPolicy, settleTurns, thrownBy } from "../helpers.ts";
+import {
+  guard,
+  heardOn,
+  readPolicy,
+  settleTurns,
+  thrownBy,
+  tick,
+} from "../helpers.ts";
 
 /** A reading holding every field the services store reads. */
 const oneReading = () => ({

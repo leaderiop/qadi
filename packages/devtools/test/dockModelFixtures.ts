@@ -1,22 +1,20 @@
 /**
- * The dock model fixtures that more than one test file reads.
+ * The fixtures of a built dock model, read by `DockModel.test.ts` and by the
+ * characterisation of the model's computed stores.
  *
- * One copy, so a fixture fixed in one file is fixed in every file that reads it:
- * `DockModel.test.ts` and the characterisation of the model's computed stores
- * build the same guards, the same one-port wiring and the same reading.
+ * One copy, so a fixture fixed in one file is fixed in the other: both build the
+ * same one-port wiring, the same activity and call log, and read the same rows.
+ * What a test of a store or a feed reads too (`heardOn`, `guard`, `tick`) lives in
+ * `helpers.ts`.
  */
 import { assert } from "@effect/vitest";
-import * as Effect from "effect/Effect";
-import * as TestClock from "effect/testing/TestClock";
-import type { Policy, Resource } from "@qadi/core";
 import { WiringRead } from "../src/model/DiagnosticsStore.ts";
 import type { DockModel } from "../src/model/DockModel.ts";
-import type { Parent } from "../src/model/ExternalStore.ts";
-import type { GateInstanceLike, QuestionsSnapshot } from "../src/model/Gates.ts";
+import type { QuestionsSnapshot } from "../src/model/Gates.ts";
 import type { PortCallLog } from "../src/model/PortCalls.ts";
 import type { PortCardRow } from "../src/model/PortCards.ts";
 import type { PortActivity } from "../src/model/Wiring.ts";
-import { settleTurns } from "./helpers.ts";
+import { heardOn } from "./helpers.ts";
 
 /** The ids asking each asked question, row by row; empty with no rows. */
 export const askingIds = (
@@ -25,26 +23,6 @@ export const askingIds = (
   snapshot.questions._tag === "Rows"
     ? snapshot.questions.rows.map((row) => row.asking?.map((one) => one.id) ?? [])
     : [];
-
-/** Settles every fiber, steps the clock one poll interval, settles again. */
-export const tick = Effect.gen(function* () {
-  yield* settleTurns;
-  yield* TestClock.adjust("2 seconds");
-  yield* settleTurns;
-});
-
-/** One live guard asking `policy`, in the Allowed state unless a test says otherwise. */
-export const guard = (
-  id: string,
-  policy: Policy,
-  fields?: { readonly state?: string; readonly resource?: Resource | undefined },
-): GateInstanceLike => ({
-  id,
-  kind: "Can",
-  policy,
-  state: fields?.state ?? "Allowed",
-  resource: fields?.resource,
-});
 
 /** A one-port `Read` wiring whose only row is the AttributeResolver, named `name`. */
 export const wiringNamed = (name: string): WiringRead =>
@@ -92,15 +70,6 @@ export const rowOf = (model: DockModel): PortCardRow => {
   const row = view.rows[0];
   if (row === undefined) return assert.fail("expected a row");
   return row;
-};
-
-/** A counter of one store's notifications, subscribed from now on. */
-export const heardOn = (store: Parent) => {
-  const heard = { calls: 0 };
-  store.subscribe(() => {
-    heard.calls += 1;
-  });
-  return heard;
 };
 
 /** A counter of the services store's notifications, subscribed from now on. */
