@@ -5,16 +5,16 @@ milestone_name: Arch Wave 13
 current_phase: 72
 current_phase_name: A derived store behind the dock model's stores
 status: executing
-stopped_at: Completed 72-02-PLAN.md
-last_updated: "2026-11-22T20:07:34.451Z"
+stopped_at: Completed 72-03-PLAN.md
+last_updated: "2026-11-22T20:17:21.761Z"
 last_activity: 2026-11-22
 last_activity_desc: Phase QD-72 execution started
-state_head: 6fc8ab8c40941389a2c3bd775dc4e5795525c800
+state_head: b086c4ccf2c8d99243974f64a77cb9098ead39d6
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 32
-  completed_plans: 26
+  completed_plans: 27
   percent: 38
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 ## Current Position
 
 Phase: QD-72 (A derived store behind the dock model's stores) — EXECUTING
-Plan: 3 of 8
+Plan: 4 of 8
 Status: Executing Phase QD-72
 Last activity: 2026-11-22 — Phase QD-72 execution started
 
@@ -512,6 +512,7 @@ Last activity: 2026-11-22 — Phase QD-72 execution started
 | Phase 71 P08 | 30 min | 2 tasks | 7 files |
 | Phase 72 P01 | 35 min | 2 tasks | 6 files |
 | Phase 72 P02 | 25min | 2 tasks | 4 files |
+| Phase 72 P03 | 15 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -877,6 +878,7 @@ Last activity: 2026-11-22 — Phase QD-72 execution started
 - [Phase 71]: Code review (3 iterations, 24 findings, all fixed): the InstrumentedInProduction condition is stated only in its row and QadiProvider reads it through `holdsHere`; `ReporterThrew`'s default is read through `unconditionally`; MODULE_STATE_BUDGET counts module-scope bindings through a syntax-tree scan run by the shared `scripts/lib/typescript-server-child.mjs`, which both gates use; INV-QD-064/251/388 corrected; three review-added static mutants admitted after a by-hand kill and all five groups re-closed at 43c0b44e (decided autonomously)
 - [Phase 72]: 72-01: mutation base measured before any phase file existed (reverses CONTEXT order); characterisation takes the base as truth, no row corrected
 - [Phase 72]: 72-02: regression title wrapped multi-line (fixed title is 91 columns on one line); type-pin cause recorded as the missing export
+- [Phase 72]: ADR-QD-185 records the derived store and the dock model on it; CCR-QD-464 row registered before any spec text cites it
 
 ### Pending Todos
 
@@ -950,8 +952,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-22T20:07:33.897Z
-Stopped at: Completed 72-02-PLAN.md
+Last session: 2026-11-22T20:17:18.167Z
+Stopped at: Completed 72-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
