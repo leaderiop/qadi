@@ -531,7 +531,7 @@ Plans:
   4. A characterisation written on the phase base shows every existing reporter's behaviour (what fires, where, how often, with what text) unchanged apart from criterion 1, `DeveloperSignals.ts` stays the only file exempt from `no-ambient-console`, and ADR-QD-184 extends ADR-QD-041 and ADR-QD-052.
 
 **Planning notes**: Check whether the module-scope `let` behind `providerSignalReporter`'s once-per-process rule is the one exempt file's carve-out or a breach of AGENTS.md §13 ("no module-scope state is left in this package") before choosing between bringing it under the atom set and recording the exception. Each `HydrationEngine` call site pairs the right `says…` default with the right hook slot (`:408`, `:596`); the table must keep that pairing.
-**Plans**: 5/8 plans executed
+**Plans**: 6/8 plans executed
 
 Plans:
 **Wave 1**
@@ -550,7 +550,7 @@ Plans:
 - [x] 71-05-PLAN.md — Count module-scope `let`/`var` in library source with `MODULE_STATE_BUDGET` and its AGENTS.md §6 table, shown failing on each planted change, and correct AGENTS.md §13 with the old sentence kept in the evidence document's §7.
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 71-06-PLAN.md — Record ADR-QD-184 and CCR-QD-463, amend ADR-QD-041 and ADR-QD-052, and write the `@qadi/react` patch changeset.
+- [x] 71-06-PLAN.md — Record ADR-QD-184 and CCR-QD-463, amend ADR-QD-041 and ADR-QD-052, and write the `@qadi/react` patch changeset.
 
 **Wave 7** *(blocked on Wave 6 completion)*
 - [ ] 71-07-PLAN.md — Write INV-QD-387, INV-QD-388 and BEH-QD-691 to 695, correct the stale resolver sentence, and trace them at the revisions the CCR row cites.
@@ -662,7 +662,7 @@ Phases execute in numeric order: 69 → 70 → 71 → 72 → 73 → 74 → 75 �
 |-------|----------------|--------|-----------|
 | 69. One total thrown-value-to-message module | 9/9 | Complete    | 2026-11-22 |
 | 70. Hydration's drop events come from its buckets | 7/7 | Complete    | 2026-11-22 |
-| 71. Developer-signal reporters resolved through one table | 5/8 | In Progress | - |
+| 71. Developer-signal reporters resolved through one table | 6/8 | In Progress | - |
 | 72. A derived store behind the dock model's stores | 0/TBD | Not started | - |
 | 73. One pure reconcile for gate registration | 0/TBD | Not started | - |
 | 74. The simulation session's policy choice split from its runs | 0/TBD | Not started | - |
