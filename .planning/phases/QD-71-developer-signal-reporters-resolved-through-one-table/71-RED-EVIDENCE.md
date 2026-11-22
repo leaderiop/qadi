@@ -215,3 +215,35 @@ The section 6 row's count was changed from `1` to `2`.
 ```
 AGENTS.md  [module-state-table] section 6 lists packages/react/src/DeveloperSignals.ts (2), which MODULE_STATE_BUDGET does not match.
 ```
+
+## The throwaway signal on the closed tree
+
+On the closed tree (the commit that holds the mutation close record, with no `packages/*/src` file changed since
+`9a480334`), one member was added to the developer-signal union in `packages/react/src/DeveloperSignals.ts`, after
+`UnwritableGateRegistry: {};`:
+
+```
+  Throwaway: {};
+```
+
+and, from the repository root with stdin closed:
+
+```
+$ pnpm typecheck < /dev/null > <S>/close-throwaway.log 2>&1; echo $? > <S>/close-throwaway.status
+```
+
+Status `2`. The line that names it at the table (shortened where it lists the table's rows):
+
+```
+packages/react/src/DeveloperSignals.ts(414,3): error TS2741: Property 'Throwaway' is missing in type '{ SeedSuperseded: { speaks: "Development"; ... }; ... }' but required in type 'SignalTable'.
+```
+
+A signal without a row is refused at the table, naming it, which is the phase's success test. The file was then restored with
+`git checkout -- packages/react/src/DeveloperSignals.ts`, `git diff --quiet -- packages` holds, and `Throwaway` is in no
+commit.
+
+The other half of the test is the regression row that the phase's fix turned green: "a throwing onIdCollision on
+makeGateRegistry is named onIdCollision in development" in `packages/react/test/GateRegistry.store.test.ts`. A signal
+cannot be added without a row, and a reporter cannot be named by the wrong option, so the two defects the phase removed
+are each refused by something that runs.
+
