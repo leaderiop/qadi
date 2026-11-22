@@ -213,11 +213,11 @@ export type PayloadProducer =
  *
  * One row per reason of core's drop-reason table of kind `payload`, so a
  * `payload` row the table gains does not compile here until its producer is
- * stated, and a new producer then needs its slot in {@link PAYLOAD_REASONS}. That
- * is the whole of what the compiler checks: it cannot check that a call site
- * raises the producer. A reason with a new producer and no use of its slot
- * compiles, and the conformance test is what drives each row (ADR-QD-183,
- * amending ADR-QD-152's consequence that such a row compiled everywhere).
+ * stated (ADR-QD-183, amending ADR-QD-152's consequence that such a row compiled
+ * everywhere), and a new producer then needs its slot in {@link PAYLOAD_REASONS}.
+ * That is the whole of what the compiler checks: it cannot check that a call site
+ * raises the producer. A producer given a slot and never raised compiles, and the
+ * conformance test is what drives each row.
  *
  * A runtime value on purpose, though the engine reads it only as a type
  * (`typeof PAYLOAD_PRODUCERS`): it is the record that conformance test drives,
