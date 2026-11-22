@@ -544,8 +544,10 @@ interface HydrationPlan {
  *
  * Pure: writes no metric and calls no reporter, so nothing a reporter does can
  * stop an entry being seeded or counted. Private, like {@link planDehydration}.
- * Every refused entry is collected in the side's bucket record, and the drop
- * events come from that record alone.
+ * Every refused entry is collected in the entry bucket record, and the
+ * entry-drop events come from that record alone; a refused payload is one
+ * `PayloadRefused` event, raised under the reason its producer's row names
+ * (`PAYLOAD_REASONS`), with no bucket.
  */
 const planHydration = (seedFor: HydrationSeedLookup, payload: unknown, subject: AuthSubject): HydrationPlan => {
   // The count rule — a refused payload is at least one drop — is the
