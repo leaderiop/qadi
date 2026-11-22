@@ -1440,7 +1440,7 @@ describe("the questions store (M32, M32 b, M34, M36, M47, P2)", () => {
   ];
 
   it.effect(
-    "the questions store moves once per key field, before a diagnostics listener",
+    "the questions store moves once per key field",
     () =>
       Effect.gen(function* () {
         for (const row of questionsMoves) {
@@ -1734,7 +1734,7 @@ describe("the services store", () => {
   ];
 
   it.effect(
-    "the services store moves once per key field, before a diagnostics listener",
+    "the services store moves once per key field",
     () =>
       Effect.gen(function* () {
         for (const row of servicesMoves) {
