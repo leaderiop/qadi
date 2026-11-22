@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-184                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-22                                     |
 > | Status         | Accepted — extends ADR-QD-041 and ADR-QD-052   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-22): Initial release (ARCH-118, CCR-QD-463) |
+> | Change History | 1.1 (2026-11-22): A row's condition is read in one place, holdsHere, and a row that speaks everywhere takes no condition; the budget counts every let or var binding outside a function or class body from the syntax tree; the characterisation's rows are unchanged, not unedited (ARCH-118, CCR-QD-463)<br>1.0 (2026-11-22): Initial release (ARCH-118, CCR-QD-463) |
 
 ---
 
@@ -51,6 +51,13 @@ production-instrumentation line's once-per-process latch was exactly that.
    containment rule is written once and read from a row like any other. `providerSignalReporter`
    is a projection of it over the signal's own row; it never returns `undefined`, because
    the provider detects each situation itself and the row decides whether the default speaks.
+   **A row's condition is read in one place, `holdsHere`**, which the resolver asks whether a
+   default speaks and `QadiProvider` asks of `InstrumentedInProduction`'s row whether the
+   situation exists at all, so the provider carries no environment check of its own. A row
+   that speaks everywhere has no condition: `holdsHere` and the resolver take only the rows
+   that have one, and `ReporterThrew`'s default is read through a function that takes only a
+   row that speaks everywhere, so a row changed to speak under a condition fails to compile
+   at the function that announced it rather than being skipped.
 4. **The entry point decides the name.** The registry closure is `buildGateRegistry` in the
    package-private `GateWriter.ts`, handed a reporter that is already resolved. The atom set
    resolves its own reporter under `makeQadiAtoms` and `makeGateRegistry` resolves its own
@@ -62,8 +69,8 @@ production-instrumentation line's once-per-process latch was exactly that.
 6. **Every reporter is resolved where it was, and the table says when**: once per atom set,
    once per registry, once per call, and on every report for `QadiProvider`, which reads
    its reporter through a ref so that an inline callback stays current.
-7. **The production-instrumentation latch stays process-scoped**, as the one piece of
-   module-scope state in library source. Several providers can share a process and the
+7. **The production-instrumentation latch stays process-scoped**, as the one rebindable
+   module-scope binding in library source. Several providers can share a process and the
    point of the default is one line per bundle. It is counted by `MODULE_STATE_BUDGET` in
    `scripts/check-house-style.mjs`, with its table in AGENTS.md §6, and AGENTS.md §13 is
    corrected in place, the sentence it once had kept in
@@ -101,20 +108,26 @@ than the registry guessing it (decision 4).
 - What the compiler refuses, each with a type pin in `packages/react/test/DeveloperSignals.tst.ts`
   that was seen failing when its guarantee was removed: a signal without a row (TS2741 at
   the table, naming it); a second row that speaks once per process; an entry point a row
-  does not name; the hydrate row given the dehydrate reporter; and a `ReporterName` that is
-  not the union of the table's option names, written out in the pin. A row for no signal
-  fails the pin that writes the tags out, which was not gutted.
+  does not name; the hydrate row given the dehydrate reporter; a `ReporterName` that is
+  not the union of the table's option names, written out in the pin; and a row that speaks
+  everywhere asked whether its condition holds. A row for no signal fails the pin that
+  writes the tags out, which was not gutted.
 - What it does not, and what pins each instead. When each reporter is resolved: `resolved`
   is read by no code, so the table-facts test in `DeveloperSignals.test.ts` compares it
-  with a written-out table, and the timing itself is held by `DeveloperSignalReporters.test.tsx`,
-  a characterisation written against the code before this decision and not edited since.
-  The sentences and each row's condition are held by that characterisation and by the
-  sentence tests, not by a type. That an entry point passes its own name is held by the
-  regression pair in `GateRegistry.store.test.ts`: a call site could name another entry
-  point of the same row, which compiles.
-- `MODULE_STATE_BUDGET` reads module scope as a `let` or `var` at the start of a line, which
-  every hand-wrapped library file keeps, so an indented module-scope declaration is outside
-  its scan. A new one in any other file fails, and so does the count moving.
+  with a written-out table, which detects a row changed without review and is no evidence
+  of when a reporter is resolved; the timing itself is held by `DeveloperSignalReporters.test.tsx`,
+  which pins every reporter through its public entry point, its rows unchanged by this
+  decision. The sentences and each row's condition are held by that characterisation and by
+  the sentence tests, not by a type; a row changed to the wrong condition fails
+  `InstrumentedInProduction`'s tests in development, and `holdsHere`'s own. That an entry
+  point passes its own name is held by the regression pair in `GateRegistry.store.test.ts`:
+  a call site could name another entry point of the same row, which compiles.
+- `MODULE_STATE_BUDGET` counts every `let` or `var` binding a library file declares outside
+  a function or class body, read from the file's syntax tree and not from its lines, so an
+  indented declaration, `export let`, one in a top-level block and each name of `let a, b`
+  all count. It counts no `const`, so a `const` holding a mutable container (`Policy.ts`'s
+  depth memo, a `Metric`), a `static` class field and what a function declares are outside
+  it. A new binding in any other file fails, and so does the count moving.
 - The only change a consumer can observe is a direct `makeGateRegistry` caller's reporter
   that throws, now announced under `onIdCollision`, so `@qadi/react` takes a patch
   changeset. No export is added or removed, and `spec/overview.md` is untouched.
