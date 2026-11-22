@@ -219,3 +219,49 @@ AssertionError: expected [ Array(10) ] to deeply equal [ Array(9) ]
 
 The throwaway was then reverted with `git checkout -- packages/devtools/src/model/DockModel.ts`, and the
 same file ran again: 61 passed, 0 failed.
+
+## The success test on the closed tree
+
+Both throwaways were made on the closed tree (head `8d3dabc1061105277bbe1cf335bc4ab8515a2694`, no `packages/*/src`
+file differing from it), in the working tree only, never committed, and each reverted with
+`git checkout -- <file>` before the next.
+
+### A field added to the services compute's input
+
+The throwaway: `readonly extra: boolean;` added to `ServicesInput` in `packages/devtools/src/model/PortCards.ts`,
+a field the services key reader in `DockModel.ts` does not write. The command (stdin closed):
+
+```
+pnpm typecheck
+```
+
+It exited 2, and the one error names the reader in `DockModel.ts` and the field, first line (cut at the type
+that follows):
+
+```
+packages/devtools/src/model/DockModel.ts(252,7): error TS2741: Property 'extra' is missing in type '{ wiring: { readonly
+```
+
+The compiler refuses the field at the reader that builds the key. Reverted with
+`git checkout -- packages/devtools/src/model/PortCards.ts`.
+
+### A tenth store
+
+The throwaway: a tenth member `extra: { subscribe: services.subscribe, getSnapshot: services.getSnapshot }` added to
+the `DockModel` interface and to the model `makeDockModel` returns, in `packages/devtools/src/model/DockModel.ts`.
+The command (stdin closed):
+
+```
+pnpm exec vitest run --project devtools packages/devtools/test/model/DockModel.test.ts --reporter=json --outputFile=<S>/success-tenth.json
+```
+
+Result: `60 passed, 1 failed`. The failing title is
+`the members with subscribe and getSnapshot are the stores BEH-QD-700 names`, with this first failure line,
+verbatim:
+
+```
+AssertionError: expected [ Array(10) ] to deeply equal [ Array(9) ]
+```
+
+Reverted with `git checkout -- packages/devtools/src/model/DockModel.ts`; the same file ran again: 61 passed,
+0 failed, and `git status --porcelain -- packages spec` printed nothing.
