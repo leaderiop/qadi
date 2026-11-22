@@ -87,7 +87,8 @@ const fail = (message) => failures.push(message);
 /**
  * A child that hangs would hang `pnpm check`; each `execFileSync` child is killed after this long, which a cold `pnpm build` stays well inside.
  * The probe guard's parse is one of them (`scripts/lib/probe-guard-parse.mjs`), so a TypeScript server that stops
- * answering ends the gate at this bound; the server that child started is not killed with it.
+ * answering ends the gate at this bound. The server reads from that child's pipe and exits when the child is killed;
+ * only a server stuck in a computation that never reads its input again outlives the run (ADR-QD-033).
  */
 const CHILD_TIMEOUT_MS = 600_000;
 

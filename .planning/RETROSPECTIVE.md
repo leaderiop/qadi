@@ -284,7 +284,7 @@
 ### Patterns Established
 - A cross-cutting requirement (WX-*) is ticked only at the milestone audit; a phase-scoped tool (`phase.complete`) that ticks it is reverted.
 - An info finding is checked against the codebase before fixing: IN-03's "convention" was the reviewer's misreading, and it needed no change.
-- A gate's child process runs under the same timeout as every other child, with its accepted residual (a server the child started may outlive it) stated in the ADR and the code comment.
+- A gate's child process runs under the same timeout as every other child, with its residual stated in the ADR and the code comment, then measured: the server exits when the child's pipe closes, so only a server that never reads its input again outlives the run.
 
 ### Key Lessons
 1. Write the phase's record scripts with their own self-test that plants the defect class (rename, type-only edit) before trusting their verdicts.
