@@ -500,11 +500,11 @@ Plans:
   4. ADR-QD-183 cites ADR-QD-152 and says why "a later phase shares the file" no longer applies, INV-QD-045's enforcement is restated, and the payload-path question is decided once and recorded.
 
 **Planning notes**: The owner decision (fold the payload path's `refuse` reasons into the same derivation, or leave it) is asked once at this phase's discuss step. This phase is about the entry path and the event emission, not ADR-QD-152's payload path unless the owner folds it in.
-**Plans**: 1/7 plans executed
+**Plans**: 2/7 plans executed
 
 Plans:
 - [x] 70-01 (W1): Record the phase base, its gate facts and the engine's Stryker base with a phase scorer whose self-test ignores close-time allowances, and pin every hydration drop event, its order, reporter call and count in a 32-row characterisation, green on the base and never edited after.
-- [ ] 70-02 (W2): Record the base experiment (an `entry` row given a bucket and no event compiles and its entries reach no event and no count; a `payload` and a `dehydration` row compile with nothing producing them) and the type pins of the bucket records and the payload producer record, red on the base.
+- [x] 70-02 (W2): Record the base experiment (an `entry` row given a bucket and no event compiles and its entries reach no event and no count; a `payload` and a `dehydration` row compile with nothing producing them) and the type pins of the bucket records and the payload producer record, red on the base.
 - [ ] 70-03 (W3): Add the package-private `HydrationBuckets.ts` (`DropBuckets`, `entryBuckets`, `dehydrationBuckets`, `dropEvents`) and derive the hydrate side's `EntriesDropped` and the dehydrate side's `LeftOut` events from one record each, in the base's order, with the characterisation unchanged.
 - [ ] 70-04 (W4): State each whole-payload refusal reason's producer in `PAYLOAD_PRODUCERS` with its compile-checked inverse in place of the `Match` dispatcher, add its conformance test, and re-run the experiment: each throwaway row now fails to compile at the record that lacks it.
 - [ ] 70-05 (W5): Record ADR-QD-183 (citing ADR-QD-152, its file-sharing reason stated truthfully), amend ADR-QD-152 to Revision 1.1, add CCR-QD-462 and the `@qadi/react` patch changeset.
@@ -633,7 +633,7 @@ Phases execute in numeric order: 69 → 70 → 71 → 72 → 73 → 74 → 75 �
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 69. One total thrown-value-to-message module | 9/9 | Complete    | 2026-11-22 |
-| 70. Hydration's drop events come from its buckets | 1/7 | In Progress | - |
+| 70. Hydration's drop events come from its buckets | 2/7 | In Progress | - |
 | 71. Developer-signal reporters resolved through one table | 0/TBD | Not started | - |
 | 72. A derived store behind the dock model's stores | 0/TBD | Not started | - |
 | 73. One pure reconcile for gate registration | 0/TBD | Not started | - |
