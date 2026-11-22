@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-PROC-03                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Process Specification                          |
-> | Change History | 1.3 (2026-11-21): the later run's miss deltas are not attributed to the dispatch: that run also carries the eviction rewrite (CCR-QD-458 review)<br>1.2 (2026-11-21): §2: the measurement behind AGENTS.md §5a's closed-table paragraph, with its gate verdicts, base spreads and host load (ARCH-114, CCR-QD-458)<br>1.1 (2026-11-12): §4 addendum: the atom set owns the eviction sweep; the quoted history is unchanged (ARCH-83, CCR-QD-426)<br>1.0 (2026-10-08): the measurements behind `AGENTS.md`'s rules and its "Corrected in CCR-…" blocks moved here verbatim, so `AGENTS.md` carries each rule and a pointer instead of its history (retro of the wave-4 session) |
+> | Change History | 1.4 (2026-11-22): §7: the superseded AGENTS.md §13 sentence on module-scope state, and the budget that replaced it (ARCH-118, ADR-QD-184)<br>1.3 (2026-11-21): the later run's miss deltas are not attributed to the dispatch: that run also carries the eviction rewrite (CCR-QD-458 review)<br>1.2 (2026-11-21): §2: the measurement behind AGENTS.md §5a's closed-table paragraph, with its gate verdicts, base spreads and host load (ARCH-114, CCR-QD-458)<br>1.1 (2026-11-12): §4 addendum: the atom set owns the eviction sweep; the quoted history is unchanged (ARCH-83, CCR-QD-426)<br>1.0 (2026-10-08): the measurements behind `AGENTS.md`'s rules and its "Corrected in CCR-…" blocks moved here verbatim, so `AGENTS.md` carries each rule and a pointer instead of its history (retro of the wave-4 session) |
 
 `AGENTS.md` is read in full by every agent that works in this repository. It
 states each rule, its budget table and the command that enforces it. The
@@ -264,5 +264,21 @@ quoted above: they reroute dispatch and dropped a required render. The quoted hi
 > note already carries the same dated figure. If this drifts again, re-run
 > `pnpm format:check` and replace both counts here together, in place, rather
 > than adding another correction paragraph.
+
+## 7. The one piece of module-scope state (AGENTS.md §13)
+
+> The sentence `AGENTS.md` §13's bullet on the gate registry used to carry: "No module-scope
+> state is left in this package: hydration's seed lookup is a closure the atom set owns
+> (`QadiAtoms.hydrate`, ADR-QD-078) and so is this."
+
+It was false from the moment a reporter's console default had to speak once per process: the
+latch that lets the production-instrumentation line print once had been in `DeveloperSignals.ts`
+since that signal moved there. It cannot move under an atom set or a provider without changing
+what a page prints, because both are narrower than a process and a provider can be handed atom
+sets it did not build, so several of them in one bundle would each print the line.
+
+The sentence now names the exception, and `MODULE_STATE_BUDGET` in `scripts/check-house-style.mjs`
+counts every module-scope `let` or `var` in library source, so the next one is a reviewed edit to
+the budget and the table in `AGENTS.md` §6 together (ADR-QD-184).
 
 _Previous: [Definitions of Done](./definitions-of-done.md)_

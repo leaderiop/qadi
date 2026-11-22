@@ -790,10 +790,14 @@ state-management layer of its own. The rules that keep it that way:
   a retained verdict** (ADR-QD-053). Each atom set's `gates` registry
   (`makeGateRegistry`, ADR-QD-080) is what a guard writes to from an effect,
   through a handle only `@qadi/react` can reach — carrying its policy, its
-  resource, its current render state, and a ref React filled in. No module-scope
-  state is left in this package: hydration's seed lookup is a closure the atom set
-  owns (`QadiAtoms.hydrate`, ADR-QD-078) and so is this. Nothing re-renders because a guard registered, and nothing in
-  that file can affect what one renders.
+  resource, its current render state, and a ref React filled in. One piece of
+  module-scope state is left in this package, and it is counted: the latch in
+  `DeveloperSignals.ts` that prints the production-instrumentation line once per
+  process however many providers mount (ADR-QD-184, `MODULE_STATE_BUDGET` in §6).
+  Everything else belongs to an atom set: hydration's seed lookup is a closure the
+  atom set owns (`QadiAtoms.hydrate`, ADR-QD-078) and so is this registry. Nothing
+  re-renders because a guard registered, and nothing in that file can affect what
+  one renders.
 
   This section previously read as forbidding it, and `@qadi/devtools`'s React
   panel said so on screen: *"an instance registry would breach AGENTS.md §13
@@ -805,6 +809,8 @@ state-management layer of its own. The rules that keep it that way:
   purpose this bullet describes.
 
   The wording this bullet once had, and two corrections to it: `spec/process/house-rules-evidence.md` §5.
+  The sentence it once had about module-scope state, and why it changed:
+  `spec/process/house-rules-evidence.md` §7.
 - **Instrumentation is opt-in, and off means absent.** `QadiProvider`'s
   `instrument` defaults to `false`, and with it off no guard registers and no
   marker element is rendered — not a wrapper that does nothing, no wrapper. A
