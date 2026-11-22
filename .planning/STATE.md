@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 milestone: v1.7
 milestone_name: Arch Wave 12
 current_phase: "68.1"
-current_plan: 9
-status: executing
-stopped_at: Completed 68.1-08-PLAN.md
-last_updated: "2026-11-22T00:10:06.415Z"
-last_activity: 2026-11-21
-last_activity_desc: Phase 68.1 plan 01 complete (RED evidence)
-state_head: a73b9a86d9565ebb408f501a3e7eba5b2d899741
+current_plan: Not started
+status: completed
+stopped_at: Phase 68.1 complete — all phases complete
+last_updated: "2026-11-22T01:02:09.267Z"
+last_activity: 2026-11-22
+last_activity_desc: Phase 68.1 complete
+state_head: 2aa5dd1791158c2b1a68166cb6e013e7e53f2e73
 progress:
   total_phases: 8
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 60
   completed_plans: 60
-  percent: 88
+  percent: 100
 ---
 
 # Project State
@@ -25,21 +25,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-20)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 68.1 — address the v1.7 audit's tech debt (inserted)
+**Current focus:** Milestone v1.7 — Nyquist validation of Phases 62–68.1 (DEBT-06), then re-audit
 
 ## Current Position
 
 Phase: 68.1
-Current Plan: 9
+Current Plan: Not started
 Total Plans in Phase: 9
-Status: Ready to execute
-Last activity: 2026-11-21 — Phase 68.1 plan 01 complete (RED evidence)
+Status: All phases complete
+Last activity: 2026-11-22 — Phase 68.1 complete
 
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 370
+- Total plans completed: 379
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -105,6 +105,7 @@ Last activity: 2026-11-21 — Phase 68.1 plan 01 complete (RED evidence)
 | 66 | 5 | - | - |
 | 67 | 7 | - | - |
 | 68 | 15 | - | - |
+| 68.1 | 9 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -871,6 +872,7 @@ Last activity: 2026-11-21 — Phase 68.1 plan 01 complete (RED evidence)
 - [Phase 66] The `ignore` projection takes `Object.keys`, filters by the declared set and copies each kept value once (`Object.fromEntries`); `envelopeKeysOf` reads `_tag` only for a schema that flattens to more than one member (then twice), a one-member schema reads a declared `_tag` once as a kept value; an undeclared accessor is never invoked under `ignore`. `refuse`/`unwalked` (`walked()`, `exceedsJsonDepth`) still read own getters (owner kept scope); INV-QD-097 and decodeStoredRecord's never-throws scoped to JSON input. RED first on 48921088 (8 of 127: U22–U25, R15, R16, S16, S17); hydration keeps refuse, pinned by UntrustedSeams H1. Stryker UntrustedDecode 41/43→44/46, EnvelopeKeys 58/58→57/57, SinkCodec 123/127 unchanged; static run 46/48 and 66/66. Bench (parameterised Phase 59 copy, fixed 5% band + geomean ≤ +2%, median of per-run minima): 6 workloads 0 slower, geomean −2.13%, worst +3.5%, on a heavily loaded host. Review: WR-01 (INV-QD-097 self-contradiction) + IN-01/04/05/06 fixed (spec text, comments, test-helper rename; code tokens unchanged); IN-02/IN-03 open for the audit. check:pr green on 678fb6d3; verification 8/8. DECL-01..04 Complete; WX-01..07 Pending. Audit notes: 66-04/66-05 each shipped a verify with a sort/regex slip (worked around in scratch); UntrustedDecoderOptions doc says _tag selects the member without the more-than-one-member qualifier.
 - [Phase 67] Eviction is `Chunk.splitAt(insertionOrder, size - capacity)` + `HashMap.removeMany` (no loop, no `Option`, no impossible branch); the claim dispatch is a closed arm table indexed directly by the tag the claim step wrote (`Claim` union, `answerHit`/`answerJoined`/`answerOwned`), claim step's `Effect.sync` byte-identical (I5). Chosen by the owner's fixed rule: Match failed (miss +7.2%, capacity-bound +7.7%, geomean +1.87%, base spreads 6–15%), table passed (geomean −4.15%, load 10→16); one run per candidate, noise stated in house-rules-evidence §2. Bench of record (eviction + table): 5 workloads 0 slower, geomean −2.51%, under the owner's quiet-host rule (2026-11-21). Race test: per budget until both sides + 3, cap 512, 196→104 iterations, RED with hit check split (kWalks 2). Stryker DecisionCache 42/43→38/38, SharedComputation 70/71→71/71, Lifecycle 42/42; both named survivors gone. Review WR-01 (scorer dirty tree) + IN-03/04 fixed; IN-01 (stale capacity-test comments), IN-02 (owner-kept oneSided), iter-2 IN-03 (refuseDirty call sites untested) for the audit. check:pr green on 76332d92; verification 6/6. MUTE-01..04 Complete; WX Pending.
 - [Phase 68] Absorbed every open item (owner 2026-11-21): OI-01..29, 25 fixed + 4 recorded (CCR-QD-459), plus HYGN-01..06. Code: `TimelineFeed.configure` is `try { push() } finally { readSource }` (a capacity change's publish stops no read; residue — a status listener's throw on the read's `Reading` replaces the timeline listener's — stated in every text, pinned by TF29 and rethrow-gate); `admit` reads policy/maxDepth/subject once. Bench of record on the new shared harness (`scripts/bench/`, alternating arm order): 35 workloads 0 slower, geomean +0.01%, worst +4.7% (field-heavy anyOf of 8), run after 68-06..09 by the owner's reorder (host busy 30 min). Stryker: no score fell; DiagnosticsFeed 72/73→73/73, TimelineFeed 49/49→50/50. Gate scripts: spec-revise keeps its first argument, test:tstyche file filters, house-style JSONC + duplicate pin row, packed-install guard reads the run and bounds every execFileSync child. One `@qadi/devtools` patch changeset. Review: 3 warnings fixed (killed-child cause, timeout text narrowed to execFileSync, analyzer label checks), 4 Info carried. Sweep: 62–67 re-verified twice (after the phase, after the review fixes), `redo: none`. check:pr green twice; verification 7/7. HYGN-01..07 Complete; WX Pending.
+- [Phase 68.1] Fixed the audit's six fixable debt items (DEBT-01..05 here; DEBT-06 = Nyquist runs after close). `ab.sh` refuses a round count that is odd or below 4; `analyze.mjs` exits 0 pass / 1 fail / 2 refused and its self-test is `pnpm check` step 26; corrected copies `68.1-stale.mjs` (renames, deletions, dotfile/.changeset/.github/root paths) and `68.1-compare.mjs` (parse-tree walk keeping types, ASI structure, JSX text under the compiler's rule and comment-borne directives), Phase 68's own scripts unedited; gate 14's probe-guard parse runs in `scripts/lib/probe-guard-parse.mjs` under `CHILD_TIMEOUT_MS` (the TS server a killed child started may outlive it, stated). ADR-QD-033 Rev 1.6, CCR-QD-460 (only id used). Ten Phase 68 verdicts re-run four times, none flipped. Review: 3 iterations, 10 warnings fixed, IN-01..06 Info. Phases 62–68 re-verified twice, both staleness scripts `redo: none`. check:pr green twice (final on cd7cd3a1); verification 9/9. No packages/*/src change, no changeset. Commit 0378aad7 lacks the trailer (history, not rewritten).
 - [v1.2] Phases 21, 22 and 23 report `verification.status: stale` (later phases touched covered files); re-run their verification gates (/gsd-execute-phase 21|22|23 resumes at the gates) after Phase 29, before the milestone audit. **Resolved 2026-11-12:** all three re-verified `passed` at HEAD.
 - [Phase 22] `phase.complete` cannot match REQUIREMENTS.md's grouped traceability table (one row per phase listing several IDs), so v1.2 rows stay `Pending`; update them by hand or reshape the table. **Resolved 2026-11-12:** rows updated by hand (now archived in `milestones/v1.2-REQUIREMENTS.md`).
 
@@ -890,7 +892,7 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 ## Session Continuity
 
 Last session: 2026-11-22T00:10:06.301Z
-Stopped at: Completed 68.1-08-PLAN.md
+Stopped at: Phase 68.1 complete — all phases complete
 Resume file: None
 
 ## Operator Next Steps

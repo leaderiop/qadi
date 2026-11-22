@@ -430,7 +430,7 @@ Order: the check that cannot fail (62), the gate that protects v1.6's new names 
 - [x] **Phase 66: The decoder reads only what it declares** - Under `ignore`, `project` reads only declared keys; hydration's `refuse` policy is recorded; bench-gated (ARCH-113, core; D2, D4) (completed 2026-11-20)
 - [x] **Phase 67: No equivalent mutants, no magic race bound** - `DecisionCache`'s eviction and `SharedComputation`'s claim dispatch lose their equivalent mutants, and the I5 race test loses its step-count bound (ARCH-114, core; D5) (completed 2026-11-21)
 - [x] **Phase 68: Hygiene and recorded close-outs** - Named over-width lines, stale titles and ADR wrapping fixed; port cards recorded as private; two settled items evidenced; Phase 62 re-verified (ARCH-115; D3, D8, D9) (completed 2026-11-21)
-- [ ] **Phase 68.1: Address tech debt** - Bench harness balance and exit code, Phase 68's record scripts, gate 14's last unbounded child, and the Nyquist records (INSERTED after the v1.7 audit)
+- [x] **Phase 68.1: Address tech debt** - Bench harness balance and exit code, Phase 68's record scripts, gate 14's last unbounded child, and the Nyquist records (INSERTED after the v1.7 audit) (completed 2026-11-22)
 
 ### Phase Details
 
@@ -703,12 +703,12 @@ Phases execute in numeric order: 62 → 63 → 64 → 65 → 66 → 67 → 68 �
 | 66. The decoder reads only what it declares | 5/5 | Complete    | 2026-11-20 |
 | 67. No equivalent mutants, no magic race bound | 7/7 | Complete    | 2026-11-21 |
 | 68. Hygiene and recorded close-outs | 15/15 | Complete    | 2026-11-21 |
-| 68.1. Address tech debt (INSERTED) | 9/9 | In Progress | - |
+| 68.1. Address tech debt (INSERTED) | 9/9 | Complete    | 2026-11-22 |
 
 ### Phase 68.1: Address tech debt (INSERTED)
 
 **Goal:** The fixable items the v1.7 audit carried are fixed: the shared bench harness balances arm order and fails loudly, Phase 68's record scripts see renames and types, every child gate 14 starts is time-limited, and every v1.7 phase has a validated Nyquist record.
-**Requirements**: DEBT-01, DEBT-02, DEBT-03, DEBT-04, DEBT-05, DEBT-06, WX-01..07
+**Requirements**: DEBT-01, DEBT-02, DEBT-03, DEBT-04, DEBT-05, DEBT-06, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
 **Depends on:** Phase 68
 **Success Criteria** (what must be TRUE):
   1. `ab.sh` refuses an odd round count and `analyze.mjs` exits non-zero on a failing gate, each shown failing on the base first; the analyzer's self-test runs inside `pnpm check`.
@@ -716,7 +716,7 @@ Phases execute in numeric order: 62 → 63 → 64 → 65 → 66 → 67 → 68 �
   3. Gate 14 starts no child without a time limit, shown by a hung child being killed; ADR-QD-033 and gate 14's comment say so, recorded in CCR-QD-460.
   4. Phases 62 to 68.1 each have a `VALIDATION.md` with `status: validated`.
   5. `pnpm check:pr < /dev/null` is green on the phase's final tree; nothing is released.
-**Plans:** 9/9 plans executed
+**Plans:** 9/9 plans complete
 
 Plans:
 - [x] 68.1-01-PLAN.md — RED on the phase base 0e3f3438 for DEBT-01..05, with the probes and scratch scripts pinned by SHA
