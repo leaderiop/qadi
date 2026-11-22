@@ -480,6 +480,9 @@ Plans:
 - [ ] 69-08 (W8): Write INV-QD-383, INV-QD-384, BEH-QD-681 to 685, the BEH-QD-230 amendment and the devtools screens' stopped reasons, and bring every register to the Revision the CCR row cites.
 - [ ] 69-09 (W9): Close: the mutation close judged against the base (removed mutants recorded, any new open mutant closed with a test), the close scan of the phase's diff, `pnpm check:pr` alone, and THRW-01 to THRW-05 complete.
 
+**Cross-cutting constraints:** <!-- gsd:generated -->
+- No test title, helper or comment this plan adds holds a decision, plan, requirement or phase id (WX-07)
+
 ### Phase 70: Hydration's drop events come from its buckets
 
 **Goal**: Every entry hydration drops is reported and counted, because the `EntriesDropped` and `LeftOut` events are derived from reason-keyed records, so a drop reason cannot gain a bucket without its event.
