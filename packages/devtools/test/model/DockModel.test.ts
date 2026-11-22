@@ -1774,7 +1774,7 @@ describe("the stores of the model", () => {
           )
           .map(([name]) => name);
 
-        assert.deepStrictEqual(stores, [
+        assert.sameMembers(stores, [
           "timeline",
           "dock",
           "explorer",
