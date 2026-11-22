@@ -21,23 +21,11 @@ import type { Policy, Resource } from "@qadi/core";
 import type { AskedQuestionLike, GateInstanceLike } from "../../src/model/Gates.ts";
 import { AskedRead, RegistryRead, makeGatesFeed } from "../../src/index.ts";
 import type { GatesFeed, GatesSnapshot } from "../../src/index.ts";
+import { guard, tick } from "../dockModelFixtures.ts";
 import { makeGateRegistryDouble } from "../gateRegistryDouble.ts";
 import { readPolicy, settleTurns, thrownBy } from "../helpers.ts";
 
 const writePolicy: Policy = hasPermission(permission("doc", "write"));
-
-const guard = (
-  id: string,
-  policy: Policy,
-  fields?: { readonly state?: string; readonly resource?: Resource | undefined },
-): GateInstanceLike => ({ id, kind: "Can", policy, state: fields?.state ?? "Allowed", resource: fields?.resource });
-
-/** Settles every fiber, steps the clock one default interval, settles again. */
-const tick = Effect.gen(function* () {
-  yield* settleTurns;
-  yield* TestClock.adjust("2 seconds");
-  yield* settleTurns;
-});
 
 /** Counts every notification of the feed, so "publishes nothing" is an observation. */
 const listen = (feed: GatesFeed) => {

@@ -11,6 +11,7 @@ import * as TestClock from "effect/testing/TestClock";
 import type { Policy, Resource } from "@qadi/core";
 import { WiringRead } from "../src/model/DiagnosticsStore.ts";
 import type { DockModel } from "../src/model/DockModel.ts";
+import type { Parent } from "../src/model/ExternalStore.ts";
 import type { GateInstanceLike, QuestionsSnapshot } from "../src/model/Gates.ts";
 import type { PortCallLog } from "../src/model/PortCalls.ts";
 import type { PortCardRow } from "../src/model/PortCards.ts";
@@ -93,11 +94,17 @@ export const rowOf = (model: DockModel): PortCardRow => {
   return row;
 };
 
-/** A counter of the services store's notifications, subscribed from now on. */
-export const heardOf = (model: DockModel) => {
+/** A counter of one store's notifications, subscribed from now on. */
+export const heardOn = (store: Parent) => {
   const heard = { calls: 0 };
-  model.services.subscribe(() => {
+  store.subscribe(() => {
     heard.calls += 1;
   });
   return heard;
 };
+
+/** A counter of the services store's notifications, subscribed from now on. */
+export const heardOf = (model: DockModel) => heardOn(model.services);
+
+/** The one activity a test supplies as the host's own reading. */
+export const suppliedActivity: ReadonlyArray<PortActivity> = activityOf(1);

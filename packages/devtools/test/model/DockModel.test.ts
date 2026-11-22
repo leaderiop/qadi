@@ -1,13 +1,15 @@
 /**
  * The dock's cross-store rules, tested with no DOM (ARCH-74, DMOD-02).
  *
- * The dock owns stores, listed once in BEH-QD-700 and checked by the store-list test
- * below, and the rules that connect them. The rules: a new timeline reaches every
- * screen, a replay commands the simulation, a new head does not move a held choice,
- * an unchanged input dispatches nothing, and no screen reads another timeline than
- * the one the dock shows. Until now those rules lived in layout effects and were
- * proved only by rendering the whole dock. They are stated here against
- * `makeDockModel` and nothing is rendered.
+ * The dock owns stores, which BEH-QD-700 lists, and the rules that connect them. The
+ * store-list test below lists the built model's own and fails when one is added or
+ * removed; review keeps its list equal to BEH-QD-700's.
+ *
+ * The rules: a new timeline reaches every screen, a replay commands the simulation,
+ * a new head does not move a held choice, an unchanged input dispatches nothing, and
+ * no screen reads another timeline than the one the dock shows. Until now those
+ * rules lived in layout effects and were proved only by rendering the whole dock.
+ * They are stated here against `makeDockModel` and nothing is rendered.
  *
  * The model is built in a scope (ADR-QD-137): `it.effect` provides one, and a
  * test that needs to end it mid-test makes its own. A test title carries a stable
@@ -56,7 +58,6 @@ import type { HydrationActivity } from "../../src/model/Hydration.ts";
 import type { Source } from "../../src/model/Source.ts";
 import type { TimelineEntry } from "../../src/model/Timeline.ts";
 import { countsOf } from "../../src/model/Verdict.ts";
-import type { PortActivity } from "../../src/model/Wiring.ts";
 import { allow, decisionRecord, deny, failedRecord, obligationRecord, read, readPolicy } from "../helpers.ts";
 import { settleTurns } from "../helpers.ts";
 import { makeGateRegistryDouble } from "../gateRegistryDouble.ts";
@@ -65,8 +66,10 @@ import {
   askingIds,
   guard,
   heardOf,
+  heardOn,
   logOf,
   rowOf,
+  suppliedActivity,
   tick,
   wiringNamed,
 } from "../dockModelFixtures.ts";
@@ -101,16 +104,10 @@ const listen = (model: DockModel) => {
   return seen;
 };
 
-/** A counter of one store's notifications, subscribed from now on. */
-const heardOn = (store: Pick<DockModel["questions"], "subscribe">) => {
-  const heard = { calls: 0 };
-  store.subscribe(() => {
-    heard.calls += 1;
-  });
-  return heard;
-};
-
-/** One input of a computed store, moved or left alone in a fresh model: its count. */
+/**
+ * A key field and the number of notifications a fresh model's store heard when the
+ * field moved or was left alone.
+ */
 interface KeyRow {
   readonly field: string;
   readonly heard: Effect.Effect<number, never, Scope.Scope>;
@@ -810,10 +807,6 @@ describe("the diagnostics store (M18..M27)", () => {
     });
     return seen;
   };
-
-  const suppliedActivity: ReadonlyArray<PortActivity> = [
-    { port: "AttributeResolver", calls: 1, translationCalls: 0, retries: 0, timeouts: 0 },
-  ];
 
   it.effect("M19: an empty options object is Live at once with hydration read, and no options is Off", () =>
     Effect.gen(function* () {
@@ -1759,7 +1752,7 @@ describe("the services store", () => {
 
 describe("the stores of the model", () => {
   it.effect(
-    "the members with subscribe and getSnapshot are the stores BEH-QD-700 names",
+    "a built model's members with subscribe and getSnapshot are exactly this list",
     () =>
       Effect.gen(function* () {
         const model = yield* makeDockModel();
@@ -1774,8 +1767,15 @@ describe("the stores of the model", () => {
           .map(([name]) => name);
 
         assert.deepStrictEqual(stores, [
-          "timeline", "dock", "explorer", "roles", "simulation", "diagnostics",
-          "timelineStatus", "questions", "services",
+          "timeline",
+          "dock",
+          "explorer",
+          "roles",
+          "simulation",
+          "diagnostics",
+          "timelineStatus",
+          "questions",
+          "services",
         ]);
       }),
   );

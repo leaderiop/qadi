@@ -5,6 +5,7 @@ import * as Scope from "effect/Scope";
 import * as Tracer from "effect/Tracer";
 import { makeDerivedStore, makeExternalStore } from "../../src/model/ExternalStore.ts";
 import type { Parent } from "../../src/model/ExternalStore.ts";
+import { heardOn } from "../dockModelFixtures.ts";
 import { thrownBy } from "../helpers.ts";
 
 describe("makeExternalStore", () => {
@@ -270,15 +271,6 @@ describe("makeExternalStore", () => {
   });
 });
 
-/** A counter of how often a store told the listener it holds. */
-const heardOn = (store: { readonly subscribe: (listener: () => void) => () => void }) => {
-  const heard = { n: 0 };
-  store.subscribe(() => {
-    heard.n += 1;
-  });
-  return heard;
-};
-
 /** A parent that exposes the listeners it currently holds. */
 const observedParent = () => {
   const held = new Set<() => void>();
@@ -314,7 +306,7 @@ describe("makeDerivedStore", () => {
       assert.strictEqual(keys.length, 1);
       assert.strictEqual(keys[0]?.value, parent.getSnapshot());
       assert.strictEqual(store.getSnapshot(), results[0]);
-      assert.strictEqual(heard.n, 0);
+      assert.strictEqual(heard.calls, 0);
     }));
 
   it.effect(
@@ -349,11 +341,11 @@ describe("makeDerivedStore", () => {
 
         for (const move of moves) {
           const computedBefore = computed;
-          const heardBefore = heard.n;
+          const heardBefore = heard.calls;
           move();
           store.refresh();
           assert.strictEqual(computed, computedBefore + 1);
-          assert.strictEqual(heard.n, heardBefore + 1);
+          assert.strictEqual(heard.calls, heardBefore + 1);
         }
       }),
   );
@@ -398,9 +390,9 @@ describe("makeDerivedStore", () => {
         large.refresh();
 
         assert.strictEqual(computedOne, 2);
-        assert.strictEqual(heardSmall.n, 1);
+        assert.strictEqual(heardSmall.calls, 1);
         assert.strictEqual(computedFive, 2);
-        assert.strictEqual(heardLarge.n, 1);
+        assert.strictEqual(heardLarge.calls, 1);
       }),
   );
 
@@ -421,7 +413,7 @@ describe("makeDerivedStore", () => {
       parent.publish(parent.getSnapshot());
 
       assert.strictEqual(computed, 1);
-      assert.strictEqual(heard.n, 0);
+      assert.strictEqual(heard.calls, 0);
     }));
 
   it.effect(
@@ -445,7 +437,7 @@ describe("makeDerivedStore", () => {
         parent.publish(next);
 
         assert.strictEqual(computed, 2);
-        assert.strictEqual(heard.n, 1);
+        assert.strictEqual(heard.calls, 1);
       }),
   );
 
@@ -469,7 +461,7 @@ describe("makeDerivedStore", () => {
       store.refresh();
 
       assert.strictEqual(computed, 2);
-      assert.strictEqual(heard.n, 1);
+      assert.strictEqual(heard.calls, 1);
     }));
 
   it.effect("a key that gains a field counts as changed", () =>
@@ -492,7 +484,7 @@ describe("makeDerivedStore", () => {
       store.refresh();
 
       assert.strictEqual(computed, 2);
-      assert.strictEqual(heard.n, 1);
+      assert.strictEqual(heard.calls, 1);
     }));
 
   it.effect(
@@ -517,7 +509,7 @@ describe("makeDerivedStore", () => {
         store.refresh();
 
         assert.strictEqual(computed, 2);
-        assert.strictEqual(heard.n, 1);
+        assert.strictEqual(heard.calls, 1);
       }),
   );
 
@@ -542,7 +534,7 @@ describe("makeDerivedStore", () => {
       store.refresh();
 
       assert.strictEqual(computed, 1);
-      assert.strictEqual(heard.n, 0);
+      assert.strictEqual(heard.calls, 0);
     }));
 
   it.effect(
@@ -573,7 +565,7 @@ describe("makeDerivedStore", () => {
         store.refresh();
 
         assert.strictEqual(computed, 1);
-        assert.strictEqual(heard.n, 0);
+        assert.strictEqual(heard.calls, 0);
       }),
   );
 
@@ -597,7 +589,7 @@ describe("makeDerivedStore", () => {
       store.refresh();
 
       assert.strictEqual(computed, 2);
-      assert.strictEqual(heard.n, 0);
+      assert.strictEqual(heard.calls, 0);
       assert.strictEqual(store.getSnapshot(), held);
     }));
 
@@ -626,14 +618,14 @@ describe("makeDerivedStore", () => {
       assert.isTrue(first.threw);
       assert.strictEqual(first.thrown, boom);
       assert.strictEqual(store.getSnapshot(), before);
-      assert.strictEqual(heard.n, 0);
+      assert.strictEqual(heard.calls, 0);
 
       failing = false;
       store.refresh();
 
       assert.strictEqual(computed, 3);
       assert.notStrictEqual(store.getSnapshot(), before);
-      assert.strictEqual(heard.n, 1);
+      assert.strictEqual(heard.calls, 1);
     }));
 
   it.effect("a listener that calls refresh during its notification hears it once", () =>
@@ -682,7 +674,7 @@ describe("makeDerivedStore", () => {
       store.refresh();
 
       assert.strictEqual(computed, 2);
-      assert.strictEqual(heard.n, 1);
+      assert.strictEqual(heard.calls, 1);
     }));
 
   it.effect(
@@ -831,7 +823,7 @@ describe("makeDerivedStore", () => {
         assert.strictEqual(reads, readsAtClose);
         assert.strictEqual(computed, computedAtClose);
         assert.strictEqual(store.getSnapshot(), last);
-        assert.strictEqual(heard.n, 0);
+        assert.strictEqual(heard.calls, 0);
       }),
   );
 
