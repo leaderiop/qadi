@@ -50,12 +50,18 @@ try {
     SyntaxKind.ClassStaticBlockDeclaration,
   ]);
 
-  /** The identifiers a binding name declares: itself, or each name of a destructuring pattern. */
+  /**
+   * The identifiers a binding name declares: itself, or each name of a destructuring
+   * pattern.
+   *
+   * A hole in an array pattern (`[a, , b]`) is a `BindingElement` with no `name` in
+   * typescript 7, not an `OmittedExpression`.
+   */
   const namesOf = (name) =>
     name.kind === SyntaxKind.Identifier
       ? [name.text]
       : name.elements.flatMap((element) =>
-          element.kind === SyntaxKind.OmittedExpression ? [] : namesOf(element.name),
+          element.name === undefined ? [] : namesOf(element.name),
         );
 
   const lineOf = (file, position) => file.text.slice(0, position).split("\n").length;
