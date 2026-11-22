@@ -13,7 +13,7 @@ module was a shallow pass-through.
 The review is at https://claude.ai/artifact/LH5dLGadz28NyzmZez9jcX, with a local copy at
 `/tmp/claude-1002/-home-yopu-Project-Perso-qadi/588341bb-9f42-4e6e-b1a3-ed991ed47acf/scratchpad/qadi-architecture-review.html`.
 
-## Current Milestone: v1.7 Arch Wave 12
+## Previous Milestone: v1.7 Arch Wave 12 (completed 2026-11-22; not released)
 
 **Goal:** Resolve all 13 tech-debt items the v1.6 audit carried forward, each by a change or a recorded decision, so none
 is carried again; the vacuous type-pin class found while investigating them goes first.
@@ -33,6 +33,15 @@ is carried again; the vacuous type-pin class found while investigating them goes
 **Source and evidence:** `.planning/phases/_WAVE12-CONTEXT.md` (owner decisions D1–D5, ids reserved, per-phase evidence)
 and `.planning/milestones/v1.6-MILESTONE-AUDIT.md`. Branch `arch-wave-12`, stacked on `arch-wave-11` at `8b22bd66` (v1.6,
 not merged). No merge, no release.
+
+v1.7 Arch Wave 12 completed 2026-11-22 on branch `arch-wave-12` (383 commits, 78 files, +4,036 / −473 outside
+`.planning`): ARCH-109 to ARCH-115 plus the inserted Phase 68.1 (DEBT-01..06), ADR-QD-175 and ADR-QD-177 (ADR-QD-176
+and 178–181 reserved, unused), amendments to ADR-QD-033, 170, 172 and 173, CCR-QD-453..460. All 8 phases `passed`, Nyquist-compliant and
+secured (0 open threats). The first audit was `tech_debt`; the owner inserted Phase 68.1 to fix the fixable items, and
+the re-audit's info findings were then closed inline. The re-audit is `passed`: 46/46 requirements, 11/11 integration
+points, 4/4 flows. `check:pr` exited 0 at the end of every phase and last at `334b014b`. Three patch changesets
+(`@qadi/core` ×1, `@qadi/devtools` ×2); no Breaking change. **Not merged and not released.** Archive:
+`.planning/milestones/v1.7-ROADMAP.md`, `v1.7-REQUIREMENTS.md`, `v1.7-MILESTONE-AUDIT.md`.
 
 ## Previous Milestone: v1.6 Arch Wave 11 (completed 2026-11-19; not released)
 
@@ -86,6 +95,13 @@ threshold that never opens, a failing user sink that loses records unlogged), th
 `arch-wave-9` at `ba0d0615` (v1.4 is not merged). No merge, no release.
 
 ## Current State
+
+v1.7 Arch Wave 12 completed 2026-11-22 on branch `arch-wave-12` (see the v1.7 entry above): every tech-debt item the
+v1.6 audit carried is resolved by a change or a recorded decision. Negative type pins can fail and are budgeted, gate 14
+compiles every new public name through the packed `exports` map and bounds every child it starts, one throwing devtools
+listener no longer silences the rest, only `admit` builds an `Admitted`, the decoder's `ignore` projection reads only
+declared keys, the two equivalent mutants and the race test's magic bound are gone, and the bench harness balances arm
+order and fails loudly. Nothing is merged or released; the next milestone is not yet defined.
 
 v1.6 Arch Wave 11 completed 2026-11-19 on branch `arch-wave-11` (see the v1.6 entry above): the predicate
 interpreter's own-property fail-open is closed (Phase 53), leaf verdicts, port cards, the gates feed, the envelope's
@@ -276,9 +292,17 @@ logged, counted or spanned.
 
 - ✓ ARCH-109 Type pins that can fail (PIN-01..05): tstyche compiles under its own `tsconfig.tstyche.json` (`tsconfig.test.json` with the Effect language service's `floatingEffect` off, held to only that difference by `[tstyche-plugin-drift]`), so a negative `toBeCallableWith`/`toBeConstructableWith` pin on an `Effect`- or `Stream`-returning subject can fail; `FloatingEffectPins.tst.ts` pins tstyche's reading in three blocks; the `DecisionLog` pin states its refusal through `Parameters<typeof makeDecisionLog>[0]`; every negative pin has a same-subject positive twin (`[not-callable-control]`) and a one-off flip sweep saw all 87 fail; `NOT_CALLABLE_PIN_BUDGET` counts them per file in both directions against AGENTS.md §6; `pnpm test:tstyche` runs `scripts/run-tstyche.mjs`, two passes cross-checked against `--listFiles`; no `packages/*/src` change — v1.7, Phase 62 (ADR-QD-175)
 
+- ✓ ARCH-110 The packed-install gate probes every new public name (PROBE-01..05): gate 14's consumer compiles `makeGatesFeed`, `makeDiagnosticsFeed` and the type-only `DecisionCacheShape` through the packed `exports` map, calls every `make*Feed` the packed devtools root exports and fails on one left uncalled, and refuses a vacuous probe through a parse-checked guard (`REFUSED_SHAPE_PROBES`, `TYPE_ONLY_PROBES`); ADR-QD-033 amended, CCR-QD-454 — v1.7, Phase 63
+- ✓ ARCH-111 One throwing listener cannot silence the rest (LSTN-01..04): devtools' `ExternalStore` calls every listener and rethrows after the last (D1), shared by the three feeds and `useStoreSnapshot`; dock characterisation files unchanged; `@qadi/devtools` patch — v1.7, Phase 64 (ADR-QD-177, CCR-QD-455)
+- ✓ ARCH-112 Only `admit` builds an `Admitted` (ADMT-01..04): a private constructor pinned by tstyche (TS2673/TS2741), and the `"asked"` row's resource flag derived from its matcher context; bench 0 of 35 slower — v1.7, Phase 65 (ADR-QD-172 amended, CCR-QD-456)
+- ✓ ARCH-113 The decoder reads only what it declares (DECL-01..04): `untrustedDecoder`'s `ignore` projection reads only declared keys (D4, a getter on an undeclared key is never invoked), and hydration's `refuse` policy is recorded (D2); bench geomean −2.13%; `@qadi/core` patch — v1.7, Phase 66 (ADR-QD-170 amended, CCR-QD-457)
+- ✓ ARCH-114 No equivalent mutants, no magic race bound (MUTE-01..04): `DecisionCache` eviction rewritten with no branch that cannot be taken (FIFO order and capacity validation unchanged), `SharedComputation`'s claim arms a closed table (CCR-QD-458 measured it against the hoisted `Match`), and the I5 race test iterates until both orderings are seen at every budget instead of asserting `gap <= 48`; mutation held — v1.7, Phase 67 (BEH-QD-166, INV-QD-379)
+- ✓ ARCH-115 Hygiene and recorded close-outs (HYGN-01..07): over-width lines and stale titles fixed, ADR-QD-174 line 73, port cards stay package-private (D3, ADR-QD-173 amended), the Phase 61 scan's `Simulator.test.tsx` gap evidenced, OI-01..29 each closed or recorded, Phases 62–67 re-verified, bench of record vs `3d66becb` — v1.7, Phase 68 (CCR-QD-459)
+- ✓ DEBT-01..06 The v1.7 audit's fixable debt (inserted Phase 68.1): `ab.sh` refuses an odd or short round count, `analyze.mjs` exits 0/1/2 with its self-test as `pnpm check` step 26, corrected staleness and type-aware comparison scripts re-checked all of Phase 68's verdicts (none flipped), gate 14's probe-guard parse runs in a time-limited child, and all eight phases carry validated Nyquist records — v1.7, Phase 68.1 (ADR-QD-033 Rev 1.6, CCR-QD-460)
+
 ### Active
 
-- [ ] ARCH-110..115: resolve the remaining v1.6 tech-debt items (v1.7, Phases 63–68; ARCH-109 done in Phase 62); see `.planning/REQUIREMENTS.md`
+(None. The next milestone is not yet defined.)
 
 ### Out of Scope
 
@@ -336,7 +360,16 @@ logged, counted or spanned.
 - **Hot spots** (churn over the last 15 commits): react `QadiAtoms`/`Hydration`/`hooks`; http
   `RequirePermission`/`DecisionStreamRoute`; core `SinkCodec`/`Evaluate`/`PortAccess`.
 
-### Known Issues (carried forward from v1.6)
+### Known Issues (carried forward from v1.7)
+
+- The v1.7 re-audit (`.planning/milestones/v1.7-MILESTONE-AUDIT.md`) is `passed`; it records what no change can undo or
+  what was accepted:
+  - AR-68.1-01 (accepted risk): the TypeScript server a killed gate-14 child started may outlive it;
+  - the iteration-3 review fix to `68.1-compare.mjs` (the `@effect-diagnostics` directive) had no fourth review pass;
+  - history: commit `0378aad7` lacks its trailer and Phases 62–64 carry Sonnet 5.5 trailers (OI-26); Phase 62 SUMMARYs
+    use `requirements:`; Phase 68's bench of record ran 3 rounds (now refused).
+
+### Known Issues (carried forward from v1.6) — all resolved in v1.7 (Phases 62–68)
 
 - The v1.6 audit (`.planning/milestones/v1.6-MILESTONE-AUDIT.md`) is `tech_debt`, accepted by the user:
   - gate 14 (`check-package-install.mjs`) probes only `makeTimelineFeed` of the new public names; `makeGatesFeed`,
@@ -489,6 +522,13 @@ logged, counted or spanned.
 | Devtools' headless interface is its feeds: the root exports the three feeds and one diagnostics option shape, not the store/runner pairs | A headless shell had to pair, fork, supersede and watch each store itself, and `runDiagnostics` lacked the feeds' stop detection the README claimed it had | Accepted, ADR-QD-173 (Phase 60) |
 | A decision cache is asked only the question: the interface takes the question and a `concurrency`-only options type, and core's layer runs the matching walk | `getOrCompute(question, compute)` accepted any computation for any key, so ADR-QD-031's security-boundary key held only because one call site in `Lifecycle.ts` paired them | Accepted, ADR-QD-174 (Phase 61) |
 | A negative type pin must be able to fail: tstyche compiles with `floatingEffect` off, every negative pin has a passing same-subject twin, and their count is budgeted | tstyche read any diagnostic on a compiled call as "not callable", and `floatingEffect` puts one on every bare `Effect`-returning call, so a negative pin on such a subject passed whatever its arguments were | Accepted, ADR-QD-175 amends ADR-QD-037 (Phase 62; review loop added the third characterisation block and the `--listFiles` cross-check) |
+| Gate 14 compiles every new public name through the packed `exports` map and fails on an unprobed `make*Feed` or a vacuous probe | The packed-install gate probed only `makeTimelineFeed`, so a public feed or type could break in the tarball unseen | Accepted (Phase 63, ADR-QD-033 amended, CCR-QD-454) |
+| Every `ExternalStore` listener is called; the first error is rethrown after the last (owner D1) | One throwing listener stopped the rest, so a broken panel silenced the timeline, diagnostics and gates feeds alike | Accepted, ADR-QD-177 (Phase 64) |
+| Only `admit` builds an `Admitted`, and the `"asked"` row's resource flag comes from the matcher context | A hand-built `Admitted` or a restated flag could disagree with admission; bench-gated (0 of 35 slower) | Accepted (Phase 65, ADR-QD-172 amended) |
+| The `ignore` projection reads only declared keys (owner D4); hydration keeps `refuse` (D2) | Reading every key to drop it invoked an attacker's getter on an untrusted envelope | Accepted (Phase 66, ADR-QD-170 amended) |
+| Equivalent mutants are restructured away, not ignored; a race test asserts its property, not a step count | Two survivors no test could kill and a `gap <= 48` bound tied to `walk`'s step count hid regressions | Accepted (Phase 67, CCR-QD-458; claim-arm table measured against hoisted `Match`) |
+| Port cards stay package-private (owner D3); records are closed or evidenced, not carried | v1.6's close-outs were carried as prose; each became a fix or a recorded decision | Accepted (Phase 68, ADR-QD-173 amended, CCR-QD-459) |
+| Fix the audit's fixable debt in an inserted phase before completing; Phase 68's record scripts stay as recorded and corrected copies re-check them | Completing with known-fixable defects in the bench harness, gate 14 and the record scripts would carry them a third time; a record keeps the tool that produced it | Accepted (Phase 68.1, ADR-QD-033 Rev 1.6, CCR-QD-460; owner chose "Insert a cleanup phase first", then "Fix inline, then complete" for the re-audit's info findings) |
 
 ## Evolution
 
@@ -508,4 +548,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-20 after Phase 62*
+*Last updated: 2026-11-22 after v1.7 milestone*
