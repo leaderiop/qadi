@@ -87,6 +87,7 @@ import {
   obligationRecordFields,
 } from "./SinkRecordFields.ts";
 import { DecodeRefusal, decodeRefusalOf, WIRE_VERSION, WIRE_VERSIONS } from "./SinkWire.ts";
+import { thrownMessage } from "./ThrownMessage.ts";
 import type { UntrustedRefusal } from "./UntrustedDecode.ts";
 import { MAX_DECODE_DEPTH, untrustedDecoder } from "./UntrustedDecode.ts";
 
@@ -358,14 +359,7 @@ const preEncodeHazard: (record: SinkRecord) => EncodeRefusal | undefined = Match
 /** The wire schema's encoder, built once. It writes version 2, the one version there is. */
 const encodeWire = Schema.encodeResult(SinkRecordWire);
 
-/** A thrown value's message, without letting a hostile `toString` throw again. */
-const describeThrown = (thrown: unknown): string =>
-  Result.getOrElse(
-    Result.try(() => (thrown instanceof Error ? thrown.message : String(thrown))),
-    () => "a value that could not be described",
-  );
-
-const encodeFailed = (thrown: unknown): EncodeRefusal => EncodeRefusal.EncodeFailed({ message: describeThrown(thrown) });
+const encodeFailed = (thrown: unknown): EncodeRefusal => EncodeRefusal.EncodeFailed({ message: thrownMessage(thrown) });
 
 /**
  * A record as a verified JSON wire value, or the reason it cannot be one.

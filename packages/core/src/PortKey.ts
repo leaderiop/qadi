@@ -55,6 +55,7 @@ import * as Equal from "effect/Equal";
 import * as Result from "effect/Result";
 import { KeyRefusal } from "./PortDescription.ts";
 import type { UnkeyableKind } from "./PortDescription.ts";
+import { thrownMessage } from "./ThrownMessage.ts";
 
 /** One child of a container: where it sits, and how to read it when its turn comes. */
 type Child = readonly [segment: string | number, read: () => unknown];
@@ -196,7 +197,6 @@ export const canonicalKey = (value: unknown): Result.Result<string, KeyRefusal> 
 
   return Result.try({
     try: walk,
-    catch: (error) =>
-      KeyRefusal.Unreadable({ path: [...path], message: error instanceof Error ? error.message : String(error) }),
+    catch: (error) => KeyRefusal.Unreadable({ path: [...path], message: thrownMessage(error) }),
   }).pipe(Result.flatMap((walked) => walked));
 };

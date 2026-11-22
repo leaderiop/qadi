@@ -41,6 +41,7 @@ import type { PortName } from "./PortName.ts";
 import type { PortSpanAttributesLike } from "./PortSpan.ts";
 import { portWire, presentMembers } from "./PortWireEncode.ts";
 import type { PortWireSpec, QuestionOf } from "./PortWireEncode.ts";
+import { thrownMessage } from "./ThrownMessage.ts";
 
 /**
  * What a derived port states about its wire: a {@link PortWireSpec} whose
@@ -111,11 +112,7 @@ export const makePortDescription = <
     key: (args) =>
       Result.try({
         try: () => presentMembers(wire.toQuestion(args)),
-        catch: (error) =>
-          KeyRefusal.Unreadable({
-            path: [],
-            message: error instanceof Error ? error.message : String(error),
-          }),
+        catch: (error) => KeyRefusal.Unreadable({ path: [], message: thrownMessage(error) }),
       }).pipe(Result.flatMap(canonicalKey)),
     defect: (args, cause) => spec.failure(args, Cause.squash(cause)),
   };

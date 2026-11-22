@@ -21,6 +21,7 @@ import { toJson } from "./JsonHazard.ts";
 import { describeEncodeRefusal } from "./JsonRefusal.ts";
 import type { EncodeRefusal } from "./JsonRefusal.ts";
 import type { PortWire } from "./PortWire.ts";
+import { thrownMessage } from "./ThrownMessage.ts";
 import { MAX_DECODE_DEPTH, untrustedDecoder } from "./UntrustedDecode.ts";
 import type { UntrustedValueRefusal } from "./UntrustedDecode.ts";
 
@@ -128,7 +129,7 @@ export const portWire = <
 
   return {
     encodeQuestion: (args) =>
-      Result.try({ try: () => spec.toQuestion(args), catch: (error) => String(error) }).pipe(
+      Result.try({ try: () => spec.toQuestion(args), catch: thrownMessage }).pipe(
         Result.flatMap((converted) => Result.mapError(converted, refusal)),
         Result.flatMap((question) =>
           Result.mapError(encodeQ(presentMembers(question)), (error) => error.message),
@@ -146,7 +147,7 @@ export const portWire = <
         }),
       ),
     encodeAnswer: (answer) =>
-      Result.try({ try: () => spec.toAnswer(answer), catch: (error) => String(error) }).pipe(
+      Result.try({ try: () => spec.toAnswer(answer), catch: thrownMessage }).pipe(
         Result.flatMap((converted) => Result.mapError(converted, refusal)),
         Result.flatMap((wire) => Result.mapError(encodeA(wire), (error) => error.message)),
         Result.flatMap((encoded) =>
