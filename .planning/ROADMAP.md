@@ -577,13 +577,13 @@ Plans:
   4. The Stryker scores of `DockModel.ts` (1, as ADR-QD-168 records) and `ExternalStore.ts` do not fall below the phase-base record, and ADR-QD-185 extends ADR-QD-168 and states the store count in one place.
 
 **Planning notes**: ADR-QD-168 rejected a `useMemo` in the panel, not a derived store in the model. `DockModel.ts` holds a Stryker score of 1 (ADR-QD-168): record the base first, compare at close, and close any drop with a test.
-**Plans**: 5/8 plans executed
+**Plans**: 6/8 plans executed
 - [x] 72-01-PLAN.md
 - [x] 72-02-PLAN.md
 - [x] 72-03-PLAN.md
 - [x] 72-04-PLAN.md
 - [x] 72-05-PLAN.md
-- [ ] 72-06-PLAN.md
+- [x] 72-06-PLAN.md
 - [ ] 72-07-PLAN.md
 - [ ] 72-08-PLAN.md
 
@@ -671,7 +671,7 @@ Phases execute in numeric order: 69 → 70 → 71 → 72 → 73 → 74 → 75 �
 | 69. One total thrown-value-to-message module | 9/9 | Complete    | 2026-11-22 |
 | 70. Hydration's drop events come from its buckets | 7/7 | Complete    | 2026-11-22 |
 | 71. Developer-signal reporters resolved through one table | 8/8 | Complete    | 2026-11-22 |
-| 72. A derived store behind the dock model's stores | 5/8 | In Progress | - |
+| 72. A derived store behind the dock model's stores | 6/8 | In Progress | - |
 | 73. One pure reconcile for gate registration | 0/TBD | Not started | - |
 | 74. The simulation session's policy choice split from its runs | 0/TBD | Not started | - |
 | 75. A declared span shape for the evaluate family | 0/TBD | Not started | - |

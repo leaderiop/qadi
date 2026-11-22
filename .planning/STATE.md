@@ -5,16 +5,16 @@ milestone_name: Arch Wave 13
 current_phase: 72
 current_phase_name: A derived store behind the dock model's stores
 status: executing
-stopped_at: Completed 72-05-PLAN.md
-last_updated: "2026-11-22T20:37:42.271Z"
+stopped_at: Completed 72-06-PLAN.md
+last_updated: "2026-11-22T20:47:59.979Z"
 last_activity: 2026-11-22
 last_activity_desc: Phase QD-72 execution started
-state_head: f9a9b19232c41cd443d6ae1096f020f1cb95d6ea
+state_head: d39ed57be3ad8b9d3eb3453107d49c70e755a6f3
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 32
-  completed_plans: 29
+  completed_plans: 30
   percent: 38
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 ## Current Position
 
 Phase: QD-72 (A derived store behind the dock model's stores) — EXECUTING
-Plan: 6 of 8
+Plan: 7 of 8
 Status: Executing Phase QD-72
 Last activity: 2026-11-22 — Phase QD-72 execution started
 
@@ -515,6 +515,7 @@ Last activity: 2026-11-22 — Phase QD-72 execution started
 | Phase 72 P03 | 15 min | 2 tasks | 5 files |
 | Phase 72 P04 | 30 min | 3 tasks | 8 files |
 | Phase 72 P05 | 11 min | 3 tasks | 10 files |
+| Phase 72 P06 | 9 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -883,6 +884,7 @@ Last activity: 2026-11-22 — Phase QD-72 execution started
 - [Phase 72]: ADR-QD-185 records the derived store and the dock model on it; CCR-QD-464 row registered before any spec text cites it
 - [Phase 72]: 72-04: the empty-parent-list type pin takes a plain compute, since a context-sensitive compute leaves A unknown once the parents refusal fails the call
 - [Phase 72]: 72-05: the dock model's shownReading, questions and services are three makeDerivedStore calls; configure refreshes shownReading last; the plan-mandated M36 comment line stays at 93 columns (verification-only exception)
+- [Phase 72]: 72-06: per-store row tests pin order inside the rows (a diagnostics listener reads the recomputed store), and the store count is a test of a built model rather than a sentence
 
 ### Pending Todos
 
@@ -956,8 +958,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-22T20:37:41.607Z
-Stopped at: Completed 72-05-PLAN.md
+Last session: 2026-11-22T20:47:57.005Z
+Stopped at: Completed 72-06-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
