@@ -4,17 +4,17 @@ milestone: v1.8
 milestone_name: Arch Wave 13
 current_phase: 70
 current_phase_name: Hydration's drop events come from its buckets
-status: executing
-stopped_at: Completed 70-06-PLAN.md
-last_updated: "2026-11-22T13:08:28.241Z"
+status: verifying
+stopped_at: Completed 70-07-PLAN.md
+last_updated: "2026-11-22T13:19:09.666Z"
 last_activity: 2026-11-22
 last_activity_desc: Phase 70 execution started
-state_head: 19daf2ba6c3f16c1eb32d8dacac100b1e8b3d26a
+state_head: 3880e04c02e33924c6c39e135ce9fba95459ce13
 progress:
   total_phases: 8
   completed_phases: 1
   total_plans: 16
-  completed_plans: 15
+  completed_plans: 16
   percent: 13
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 
 Phase: 70 (Hydration's drop events come from its buckets) — EXECUTING
 Plan: 7 of 7
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-22 — Phase 70 execution started
 
 
@@ -499,6 +499,7 @@ Last activity: 2026-11-22 — Phase 70 execution started
 | Phase QD-70 P04 | 20 min | 2 tasks | 4 files |
 | Phase QD-70 P05 | 35 min | 2 tasks | 6 files |
 | Phase QD-70 P06 | 30 min | 2 tasks | 3 files |
+| Phase QD-70 P07 | 30 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -851,6 +852,7 @@ Last activity: 2026-11-22 — Phase 70 execution started
 - [Phase QD-70]: 70-04: PAYLOAD_PRODUCERS (reason to producer) stays in HydrationEngine.ts beside the decoder; PAYLOAD_REASONS is its compile-checked inverse, replacing the Match dispatcher (autonomous)
 - [Phase QD-70]: 70-05: ADR-QD-183 states ADR-QD-152's file-sharing reason is gone truthfully (ARCH-118 edits only the two reporter call sites, not the planners or records); ADR-QD-152 amended to Rev 1.1
 - [Phase QD-70]: 70-06: INV-QD-385/386 and BEH-QD-686..690 name their enforcement by real test titles; the behaviours describe the shipped code (autonomous)
+- [Phase QD-70]: 70-07: a by-hand static mutant the entry decoder's construction guard refuses (RuntimeError) counts as detected; EXAMINED admits 8 StringLiteral and 1 ObjectLiteral in HydrationEngine.ts. Decided autonomously.
 
 ### Pending Todos
 
@@ -924,8 +926,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-22T13:08:28.188Z
-Stopped at: Completed 70-06-PLAN.md
+Last session: 2026-11-22T13:19:09.527Z
+Stopped at: Completed 70-07-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
