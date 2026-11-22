@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-19                                    |
-> | Revision       | 1.23                                           |
+> | Revision       | 1.24                                           |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.23 (2026-11-22): BEH-QD-230 amended: a reporter's thrown value is named through thrownMessage, once, so the containment holds whatever was thrown (ADR-QD-182, CCR-QD-461)<br>1.22 (2026-11-15): BEH-QD-556 added; BEH-QD-148 amended: a seed's fields are the wire's (ADR-QD-157, CCR-QD-435)<br>1.21 (2026-11-14): BEH-QD-151 amended: the announced guard is in SeededQuestion.ts (ADR-QD-155, CCR-QD-433)<br>1.20 (2026-11-14): BEH-QD-517 and BEH-QD-518: Source names SeededQuestion.ts (ADR-QD-155, CCR-QD-433)<br>1.19 (2026-11-14): BEH-QD-230 and BEH-QD-231 amended: each drop reason is a row with its kind; four payload-level reasons (ADR-QD-152, CCR-QD-430)<br>1.18 (2026-11-12): BEH-QD-517 and BEH-QD-518 new; BEH-QD-149, BEH-QD-151 and BEH-QD-152 restated: a seed is held by its question (ADR-QD-149, CCR-QD-427); BEH-QD-151's second requirement reads "a re-check" as the Success(previous, waiting) result of an invalidation, a seed still covering any Initial result until this client answers<br>1.17 (2026-11-12): BEH-QD-230 and BEH-QD-269 decode through untrustedDecoder; BEH-QD-259 restated (exceedsJsonDepth is no longer barrel-reachable); the ninth reason PayloadTooDeep; BEH-QD-488 new (ARCH-78, CCR-QD-421)<br>1.16 (2026-11-10): BEH-QD-146 — dehydrateDecisions never throws: an unencodable policy is left out as UnencodablePolicy; DehydrateOptions.onDropped takes the one HydrationDrop shape; BEH-QD-152 — a throwing onHydrationMismatch is contained; BEH-QD-230 — HydrationDrop gains its reason parameter, eight reasons, a supplied reporter cannot change the outcome (ReporterThrew, every environment); BEH-QD-231 — a refused payload is counted at least once, including with no entries (ARCH-60, CCR-QD-398)<br>1.15 (2026-11-08): BEH-QD-146 — the subject filter, its count, its report and the envelope are one engine function, dehydrateWith, which dehydrateDecisions delegates to; the payload builders are reachable by no other path (ARCH-51, ADR-QD-078 amendment, CCR-QD-390)<br>1.14 (2026-10-08): BEH-QD-151 — a re-check's ports may be remote; links behaviour 34 (ARCH-31, CCR-QD-382)<br>1.13 (2026-10-08): BEH-QD-148 — a `Disclosed` seed that contradicts its own trace (verdict, `visibleFields`, `obligations` or a denial's `reason`) is dropped as `MalformedEntry`, by `@qadi/core's` `decisionDisagreement` (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.12 (2026-10-08): BEH-QD-231 — hydration counts are written to and read from the default registry, by construction (ARCH-45, CCR-QD-269)<br>1.11 (2026-10-08): BEH-QD-230 — a refusal of the whole payload is announced as a refusal (`HydrationDrop.wholePayload`), the "two whole-payload refusals" count is corrected to the three it names, and each reason's meaning is `hydrationDropMeaning(reason)`; BEH-QD-231/232 name the panel's sentence as its `summary` (ADR-QD-041 amendment, CCR-QD-203)<br>1.10 (2026-10-06): BEH-QD-268 — the version-1 payload reader is removed as scheduled: only `version: 2` is read, and a payload with no `version` is dropped whole as `UnsupportedPayloadVersion`; `DehydratedDecisionsV1`, `DehydratedEntryV1` and `DehydratedPayload` removed, so BEH-QD-145's `hydrateDecisions` takes `DehydratedDecisions` (ADR-QD-078 amendment, CCR-QD-182)<br>1.9 (2026-10-05): references to `SinkCodec.ts`'s retired `decodeRecordWire`/`decodeSinkRecordWireUnknown` now name `decodeSinkRecord` (ADR-QD-095, CCR-QD-179)<br>1.8 (2026-10-04): ARCH-05 — hydration is one module. BEH-QD-147: withholding is a tagged `Withheld` disclosure on the wire, not a reduced trace and a stand-in "hydrated" reason. BEH-QD-148/149: a hydrated decision is a `SeededAllow`/`SeededDeny`, a type of its own, and a seed reads as a non-`waiting` success holding a `SeededDecision`. BEH-QD-152: `HydrationMismatch.seeded` is a `SeededDecision`; the "stand-in naming nothing" reason for naming the policy from `decided.trace` was wrong (a default payload named the real root) and is replaced by the true one. BEH-QD-230: `UnregisteredAtoms` removed (the atom set owns the capability, so the situation cannot arise), `UnsupportedPayloadVersion` and `MalformedPayload` added, and `hydrateDecisions` never throws. New BEH-QD-268 (the payload is versioned) and BEH-QD-269 (a malformed envelope is dropped, never thrown on). `BEH-QD-145`'s `hydrateDecisions` takes `DehydratedPayload` (CCR-QD-156)<br>1.7 (2026-09-09): BEH-QD-230 gains an explicit requirement that `decodeEntryFields`/`decodePolicy` reject an excess property in an entry or its embedded `Policy` — both called `Schema.decodeUnknownOption` with no `ParseOptions` at all, unlike every one of `Policy.ts`'s own untrusted entry points and `SinkCodec.ts`'s `decodeSinkRecordWireUnknown` (CCR-QD-139); an excess-carrying entry now decodes with `UNTRUSTED_DECODE_OPTIONS` and is refused rather than silently accepted with the extra key dropped (issue #105, CCR-QD-144)<br>1.6 (2026-09-08): BEH-QD-259 — a fifth hydrate-side drop reason, `EntryTooDeep`: `hydrateDecisions` now runs `exceedsJsonDepth` ahead of any recursive `Schema` decode, closing the one recursive decode boundary left unguarded; the total across both ends is six, not five (issue #78, CCR-QD-139)<br>1.5 (2026-09-08): BEH-QD-230 corrected — a fourth hydrate-side silent exit, `MalformedEntry` (a field other than `policy` failing `DehydratedEntry`'s shape check, before `decodePolicy` runs), was missing from the enumeration and the "three" count; the total across both ends is five, not four (CCR-QD-129)<br>1.4 (2026-08-24): BEH-QD-230–232 — hydration's three remaining silent exits announced and every entry counted; INV-QD-045, ADR-QD-052. BEH-QD-146's claim to have closed "the last quiet failure" corrected (CCR-QD-072)<br>1.3 (2026-08-23): BEH-QD-146 — `dehydrateDecisions` reports what it dropped (ADR-QD-041 shape, CCR-QD-057)<br>1.2 (2026-08-23): BEH-QD-152 added — a superseded seed is announced (ADR-QD-041, CCR-QD-056)<br>1.1 (2026-08-23): BEH-QD-151 added — a seed is superseded by this client's own answer; BEH-QD-148 scoped and BEH-QD-149 restated (ADR-QD-039, INV-QD-028, CCR-QD-052)<br>1.0 (2026-07-26): Initial release (CCR-QD-029) |
+> | Change History | 1.24 (2026-11-22): BEH-QD-686 to BEH-QD-690: each side's drop events come from one record of buckets, every whole-payload reason has a stated producer, the order is declared once per side and every bucketed entry is counted once (ADR-QD-183, CCR-QD-462)<br>1.23 (2026-11-22): BEH-QD-230 amended: a reporter's thrown value is named through thrownMessage, once, so the containment holds whatever was thrown (ADR-QD-182, CCR-QD-461)<br>1.22 (2026-11-15): BEH-QD-556 added; BEH-QD-148 amended: a seed's fields are the wire's (ADR-QD-157, CCR-QD-435)<br>1.21 (2026-11-14): BEH-QD-151 amended: the announced guard is in SeededQuestion.ts (ADR-QD-155, CCR-QD-433)<br>1.20 (2026-11-14): BEH-QD-517 and BEH-QD-518: Source names SeededQuestion.ts (ADR-QD-155, CCR-QD-433)<br>1.19 (2026-11-14): BEH-QD-230 and BEH-QD-231 amended: each drop reason is a row with its kind; four payload-level reasons (ADR-QD-152, CCR-QD-430)<br>1.18 (2026-11-12): BEH-QD-517 and BEH-QD-518 new; BEH-QD-149, BEH-QD-151 and BEH-QD-152 restated: a seed is held by its question (ADR-QD-149, CCR-QD-427); BEH-QD-151's second requirement reads "a re-check" as the Success(previous, waiting) result of an invalidation, a seed still covering any Initial result until this client answers<br>1.17 (2026-11-12): BEH-QD-230 and BEH-QD-269 decode through untrustedDecoder; BEH-QD-259 restated (exceedsJsonDepth is no longer barrel-reachable); the ninth reason PayloadTooDeep; BEH-QD-488 new (ARCH-78, CCR-QD-421)<br>1.16 (2026-11-10): BEH-QD-146 — dehydrateDecisions never throws: an unencodable policy is left out as UnencodablePolicy; DehydrateOptions.onDropped takes the one HydrationDrop shape; BEH-QD-152 — a throwing onHydrationMismatch is contained; BEH-QD-230 — HydrationDrop gains its reason parameter, eight reasons, a supplied reporter cannot change the outcome (ReporterThrew, every environment); BEH-QD-231 — a refused payload is counted at least once, including with no entries (ARCH-60, CCR-QD-398)<br>1.15 (2026-11-08): BEH-QD-146 — the subject filter, its count, its report and the envelope are one engine function, dehydrateWith, which dehydrateDecisions delegates to; the payload builders are reachable by no other path (ARCH-51, ADR-QD-078 amendment, CCR-QD-390)<br>1.14 (2026-10-08): BEH-QD-151 — a re-check's ports may be remote; links behaviour 34 (ARCH-31, CCR-QD-382)<br>1.13 (2026-10-08): BEH-QD-148 — a `Disclosed` seed that contradicts its own trace (verdict, `visibleFields`, `obligations` or a denial's `reason`) is dropped as `MalformedEntry`, by `@qadi/core's` `decisionDisagreement` (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.12 (2026-10-08): BEH-QD-231 — hydration counts are written to and read from the default registry, by construction (ARCH-45, CCR-QD-269)<br>1.11 (2026-10-08): BEH-QD-230 — a refusal of the whole payload is announced as a refusal (`HydrationDrop.wholePayload`), the "two whole-payload refusals" count is corrected to the three it names, and each reason's meaning is `hydrationDropMeaning(reason)`; BEH-QD-231/232 name the panel's sentence as its `summary` (ADR-QD-041 amendment, CCR-QD-203)<br>1.10 (2026-10-06): BEH-QD-268 — the version-1 payload reader is removed as scheduled: only `version: 2` is read, and a payload with no `version` is dropped whole as `UnsupportedPayloadVersion`; `DehydratedDecisionsV1`, `DehydratedEntryV1` and `DehydratedPayload` removed, so BEH-QD-145's `hydrateDecisions` takes `DehydratedDecisions` (ADR-QD-078 amendment, CCR-QD-182)<br>1.9 (2026-10-05): references to `SinkCodec.ts`'s retired `decodeRecordWire`/`decodeSinkRecordWireUnknown` now name `decodeSinkRecord` (ADR-QD-095, CCR-QD-179)<br>1.8 (2026-10-04): ARCH-05 — hydration is one module. BEH-QD-147: withholding is a tagged `Withheld` disclosure on the wire, not a reduced trace and a stand-in "hydrated" reason. BEH-QD-148/149: a hydrated decision is a `SeededAllow`/`SeededDeny`, a type of its own, and a seed reads as a non-`waiting` success holding a `SeededDecision`. BEH-QD-152: `HydrationMismatch.seeded` is a `SeededDecision`; the "stand-in naming nothing" reason for naming the policy from `decided.trace` was wrong (a default payload named the real root) and is replaced by the true one. BEH-QD-230: `UnregisteredAtoms` removed (the atom set owns the capability, so the situation cannot arise), `UnsupportedPayloadVersion` and `MalformedPayload` added, and `hydrateDecisions` never throws. New BEH-QD-268 (the payload is versioned) and BEH-QD-269 (a malformed envelope is dropped, never thrown on). `BEH-QD-145`'s `hydrateDecisions` takes `DehydratedPayload` (CCR-QD-156)<br>1.7 (2026-09-09): BEH-QD-230 gains an explicit requirement that `decodeEntryFields`/`decodePolicy` reject an excess property in an entry or its embedded `Policy` — both called `Schema.decodeUnknownOption` with no `ParseOptions` at all, unlike every one of `Policy.ts`'s own untrusted entry points and `SinkCodec.ts`'s `decodeSinkRecordWireUnknown` (CCR-QD-139); an excess-carrying entry now decodes with `UNTRUSTED_DECODE_OPTIONS` and is refused rather than silently accepted with the extra key dropped (issue #105, CCR-QD-144)<br>1.6 (2026-09-08): BEH-QD-259 — a fifth hydrate-side drop reason, `EntryTooDeep`: `hydrateDecisions` now runs `exceedsJsonDepth` ahead of any recursive `Schema` decode, closing the one recursive decode boundary left unguarded; the total across both ends is six, not five (issue #78, CCR-QD-139)<br>1.5 (2026-09-08): BEH-QD-230 corrected — a fourth hydrate-side silent exit, `MalformedEntry` (a field other than `policy` failing `DehydratedEntry`'s shape check, before `decodePolicy` runs), was missing from the enumeration and the "three" count; the total across both ends is five, not four (CCR-QD-129)<br>1.4 (2026-08-24): BEH-QD-230–232 — hydration's three remaining silent exits announced and every entry counted; INV-QD-045, ADR-QD-052. BEH-QD-146's claim to have closed "the last quiet failure" corrected (CCR-QD-072)<br>1.3 (2026-08-23): BEH-QD-146 — `dehydrateDecisions` reports what it dropped (ADR-QD-041 shape, CCR-QD-057)<br>1.2 (2026-08-23): BEH-QD-152 added — a superseded seed is announced (ADR-QD-041, CCR-QD-056)<br>1.1 (2026-08-23): BEH-QD-151 added — a seed is superseded by this client's own answer; BEH-QD-148 scoped and BEH-QD-149 restated (ADR-QD-039, INV-QD-028, CCR-QD-052)<br>1.0 (2026-07-26): Initial release (CCR-QD-029) |
 
 _Previous: [18 — Policy Explanation](./18-explanation.md)_
 
@@ -1080,6 +1080,106 @@ deep. The guard runs before `prepare`, so a payload that is both too deep and of
 the wrong version is `PayloadTooDeep`, and a shallow array is still
 `MalformedPayload`. The reason is a whole-payload one, so it is counted at least
 once even when the payload shows no entries (BEH-QD-269).
+
+## BEH-QD-686: The hydrate side reports its drops from one record of buckets
+
+> **Invariant:** [INV-QD-385](../invariants.md#inv-qd-385-every-hydration-drop-reason-has-one-stated-source-and-one-reporting-path), [INV-QD-045](../invariants.md#inv-qd-045-no-entry-leaves-hydration-unaccounted-for)
+> **See:** [ADR-QD-183](../decisions/183-hydration-drop-events-are-derived-from-their-buckets.md)
+
+```
+REQUIREMENT: `hydrateDecisions` MUST collect every entry it drops into one
+             record keyed by every entry drop reason and built for that call,
+             and MUST report and count each non-empty bucket as exactly one
+             `EntriesDropped` event carrying that bucket's entries, followed
+             by one `Seeded` event. An entry whose fields disagree with its
+             policy MUST be collected under `MalformedEntry`.
+```
+
+The engine used to keep one named array per reason and write one emission line for
+each, so a reason given an array and no line compiled, and its entries reached no
+event and no count. A record keyed by the reason union cannot be built without a
+bucket for every reason, and the events are derived from it by one function, so a
+bucket without its event does not exist. An entry whose fields disagree with its
+policy goes through the same key as any other malformed entry, so it is neither
+a special case nor a second path to the event.
+
+## BEH-QD-687: The dehydrate side reports what it left out from one record of buckets
+
+> **Invariant:** [INV-QD-385](../invariants.md#inv-qd-385-every-hydration-drop-reason-has-one-stated-source-and-one-reporting-path), [INV-QD-045](../invariants.md#inv-qd-045-no-entry-leaves-hydration-unaccounted-for)
+> **See:** [ADR-QD-183](../decisions/183-hydration-drop-events-are-derived-from-their-buckets.md)
+
+```
+REQUIREMENT: `dehydrateDecisions` MUST check each entry's subject before it
+             encodes the entry: an entry for another subject MUST be collected
+             under `ForeignSubject` and never encoded, and one whose policy
+             cannot be encoded MUST be collected under `UnencodablePolicy`.
+             Each non-empty bucket MUST be exactly one `LeftOut` event,
+             followed by one `Dehydrated` event counting the entries written.
+```
+
+The subject check runs first, so an entry that is both foreign and unencodable is
+`ForeignSubject` and is never handed to the encoder. The entries it writes are the
+ones in neither bucket, in their input order, and the subject of the payload is the
+subject of the first entry offered.
+
+## BEH-QD-688: Every whole-payload refusal reason has one stated producer
+
+> **Invariant:** [INV-QD-385](../invariants.md#inv-qd-385-every-hydration-drop-reason-has-one-stated-source-and-one-reporting-path), [INV-QD-323](../invariants.md#inv-qd-323-each-hydration-drop-reason-has-exactly-one-kind-and-the-kinds-partition-the-reasons)
+> **See:** [ADR-QD-183](../decisions/183-hydration-drop-events-are-derived-from-their-buckets.md)
+
+```
+REQUIREMENT: Every reason that refuses a payload whole MUST name what raises
+             it, one of the payload decoder's refusals or the subject check.
+             `hydrateDecisions` MUST refuse a payload under the reason its
+             producer's row names, as exactly one `PayloadRefused` event with
+             no buckets. A whole-payload reason with no producer MUST NOT
+             compile.
+```
+
+A payload refusal is exclusive: one reason, never a partition of entries, so it has
+no bucket and its source is a row of the payload producer record. The inverse
+direction, from a decoder refusal to its reason, is typed against that record, so a
+producer named by two rows or by none does not compile, and a refusal the decoder
+gains is a missing property.
+
+## BEH-QD-689: Drop events are emitted in an order declared once per side
+
+> **Invariant:** [INV-QD-386](../invariants.md#inv-qd-386-each-side-declares-its-drop-event-order-once-and-the-order-is-total)
+> **See:** [ADR-QD-183](../decisions/183-hydration-drop-events-are-derived-from-their-buckets.md)
+
+```
+REQUIREMENT: `hydrateDecisions` MUST emit its drop events in the order
+             `EntryTooDeep`, `MalformedEntry`, `UndecodablePolicy`, then
+             `Seeded`; `dehydrateDecisions` MUST emit `ForeignSubject`,
+             `UnencodablePolicy`, then `Dehydrated`; whatever order the entries
+             were refused in.
+```
+
+The order is react's own, stated once per side as the key order of the side's bucket
+constructor, and it is not the order of `@qadi/core`'s reason table
+(`MalformedEntry`, `UndecodablePolicy`, `EntryTooDeep`): a reporter sees the events
+in the order it always has. A bucket that is empty gives no event, and entries
+within one event keep the order they were offered in.
+
+## BEH-QD-690: Every bucketed entry is counted once under its reason
+
+> **Invariant:** [INV-QD-045](../invariants.md#inv-qd-045-no-entry-leaves-hydration-unaccounted-for), [INV-QD-385](../invariants.md#inv-qd-385-every-hydration-drop-reason-has-one-stated-source-and-one-reporting-path)
+> **See:** [ADR-QD-183](../decisions/183-hydration-drop-events-are-derived-from-their-buckets.md)
+
+```
+REQUIREMENT: Every entry collected in a bucket MUST be counted exactly once,
+             under that bucket's reason, and reported once, in that bucket's
+             event. The events, their order and their counts MUST equal those
+             the engine gave before its drops were collected in records, for
+             every input.
+```
+
+The change that collected the drops in records was a refactoring, not a behaviour
+change: a characterisation of every drop event, written against the engine as it was
+and never edited, passes on both sides of it. It pins each reason alone, every pair
+and all three, the entries that disagree with their policy, each whole-payload
+reason and each dehydration reason alone and together, with the exact events, the
+reporter calls and the metric deltas.
 
 ---
 
