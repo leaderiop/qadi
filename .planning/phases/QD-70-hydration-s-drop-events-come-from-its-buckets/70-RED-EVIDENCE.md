@@ -132,3 +132,98 @@ house-style: 564 file(s) clean (3 declared switch(es), 67 type-test file(s))
 ```
 
 Reading: the module and the record do not exist, and the hand-written emission lines are total over nothing.
+
+## After the change: an entry reason without a bucket does not compile, and with one it is reported
+
+The same experiment as the base entry one, run on the tree after the change (HEAD `40ce1237`). The `EntryProbe` row alone,
+appended last to `HYDRATION_DROP_TABLE`:
+
+```
+$ pnpm exec tsc -b tsconfig.json < /dev/null > exp-after-entry-1.log 2>&1; echo $?
+2
+$ head -6 exp-after-entry-1.log
+packages/react/src/HydrationBuckets.ts(33,75): error TS2741: Property 'EntryProbe' is missing in type '{ EntryTooDeep: never[]; MalformedEntry: never[]; UndecodablePolicy: never[]; }' but required in type 'DropBuckets<EntryDropReason, unknown>'.
+```
+
+Then the one edit that gives it a bucket (the key `EntryProbe: []` in `entryBuckets`) and routes the trace-disagreement push
+through `drops.EntryProbe` in `HydrationEngine.ts`, and no emission line, because there is none to write:
+
+```
+$ pnpm exec tsc -b tsconfig.json < /dev/null > exp-after-entry-2.log 2>&1; echo $?
+0
+$ head -6 exp-after-entry-2.log
+(empty)
+```
+
+The after-change probe (`packages/react/test/BaseExperimentProbe.test.ts`, the base probe with its assertions inverted:
+exactly one reporter call, `{ reason: "EntryProbe", entries: [disagreeing], wholePayload: false }`, a seeded delta of 1, a
+delta of 1 under `EntryProbe` and 0 under every other reason):
+
+```
+$ pnpm exec vitest run --project react packages/react/test/BaseExperimentProbe.test.ts --reporter=json --outputFile=exp-after-entry-probe.json < /dev/null; echo $?
+0
+report: success true; 1 assertion result
+  title:  a probe bucket's entries are reported and counted
+  status: passed
+```
+
+Restored: the probe deleted, `git checkout -- packages/core/src/HydrationMetrics.ts packages/react/src/HydrationBuckets.ts
+packages/react/src/HydrationEngine.ts`; `git status --porcelain -- packages` printed nothing.
+
+Reading: on the base the same two edits compiled and the entry reached no event and no count. Now the row is refused at the
+record that lacks it, and once the record has it the entry is reported and counted with no other edit.
+
+## After the change: a payload reason without a producer does not compile
+
+The `PayloadProbe` row alone:
+
+```
+$ pnpm exec tsc -b tsconfig.json < /dev/null > exp-after-payload.log 2>&1; echo $?
+2
+$ head -6 exp-after-payload.log
+packages/react/src/HydrationEngine.ts(221,3): error TS2741: Property 'PayloadProbe' is missing in type '{ PayloadSubjectMismatch: "SubjectCheck"; UnsupportedPayloadVersion: "UnsupportedPayloadVersion"; MalformedPayload: "Malformed"; PayloadTooDeep: "TooDeep"; }' but required in type '{ readonly MalformedPayload: PayloadProducer; readonly PayloadProbe: PayloadProducer; readonly PayloadSubjectMismatch: PayloadProducer; readonly PayloadTooDeep: PayloadProducer; readonly UnsupportedPayloadVersion: PayloadProducer; }'.
+packages/react/src/HydrationEngine.ts(232,43): error TS2536: Type 'R' cannot be used to index type '{ PayloadSubjectMismatch: "SubjectCheck"; UnsupportedPayloadVersion: "UnsupportedPayloadVersion"; MalformedPayload: "Malformed"; PayloadTooDeep: "TooDeep"; }'.
+```
+
+Restored with `git checkout -- packages/core/src/HydrationMetrics.ts`.
+
+Reading: refused at `PAYLOAD_PRODUCERS`, naming the row. A second error follows from the first (the `ReasonRaisedBy` index no
+longer type-checks against the record that lacks the row); the plan predicted only the TS2741, and the extra TS2536 is the
+same fault seen from the inverse record's type, so it disappears when the row is given its producer.
+
+## After the change: a dehydration reason without a bucket does not compile
+
+The `DehydrationProbe` row alone:
+
+```
+$ pnpm exec tsc -b tsconfig.json < /dev/null > exp-after-dehydration.log 2>&1; echo $?
+2
+$ head -6 exp-after-dehydration.log
+packages/react/src/HydrationBuckets.ts(41,93): error TS2741: Property 'DehydrationProbe' is missing in type '{ ForeignSubject: never[]; UnencodablePolicy: never[]; }' but required in type 'DropBuckets<DehydrationDropReason, DecisionEntry>'.
+```
+
+Restored with `git checkout -- packages/core/src/HydrationMetrics.ts`; then:
+
+```
+$ git status --porcelain -- packages
+(empty)
+$ pnpm exec tsc -b tsconfig.json < /dev/null > exp-restore-3.log 2>&1; echo $?
+0
+```
+
+## Type pins after the change
+
+```
+$ pnpm test:tstyche HydrationBuckets < /dev/null > tst-green.log 2>&1; echo $?
+0
+$ tail -6 tst-green.log
+Targets:    1 passed, 1 total
+Test files: 1 passed, 1 total
+Tests:      6 passed, 6 total
+Assertions: 12 passed, 12 total
+Suppressed: 2 matched, 2 total
+Duration:   2.1s
+```
+
+The whole `pnpm test:tstyche` run (both passes) passed after the payload-record commit: 67 test files, 354 tests passed
+(2 skipped), 771 assertions passed (6 skipped). `HydrationBuckets.tst.ts`, red on the base, is green.
