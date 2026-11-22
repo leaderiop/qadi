@@ -1,0 +1,133 @@
+{
+ "phase": "72",
+ "groups": {
+  "model": {
+   "head": "27dc2f0384f12ef1b4ba97cecad277bfdde15b8c",
+   "invocation": "pnpm exec stryker run stryker.devtools.mjs --mutate packages/devtools/src/model/DockModel.ts",
+   "files": {
+    "packages/devtools/src/model/DockModel.ts": {
+     "killed": 70,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 10,
+     "detected": 70,
+     "valid": 70,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 115,
+       "column": 24
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 116,
+       "column": 16
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 117,
+       "column": 11
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 118,
+       "column": 13
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 127,
+       "column": 24
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 128,
+       "column": 15
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 129,
+       "column": 11
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 130,
+       "column": 13
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrayDeclaration",
+       "replacement": "[\"Stryker was here\"]",
+       "line": 178,
+       "column": 39
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 181,
+       "column": 40
+      }
+     ]
+    }
+   }
+  },
+  "store": {
+   "head": "27dc2f0384f12ef1b4ba97cecad277bfdde15b8c",
+   "invocation": "pnpm exec stryker run stryker.devtools.mjs --mutate packages/devtools/src/model/ExternalStore.ts",
+   "files": {
+    "packages/devtools/src/model/ExternalStore.ts": {
+     "killed": 70,
+     "timeout": 0,
+     "survived": 1,
+     "noCoverage": 0,
+     "ignored": 2,
+     "detected": 70,
+     "valid": 71,
+     "open": [
+      {
+       "status": "Survived",
+       "mutator": "ConditionalExpression",
+       "replacement": "false",
+       "line": 97,
+       "column": 3
+      }
+     ],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 96,
+       "column": 29
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 142,
+       "column": 43
+      }
+     ]
+    }
+   }
+  }
+ }
+}
