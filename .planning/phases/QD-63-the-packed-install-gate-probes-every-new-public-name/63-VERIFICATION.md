@@ -230,3 +230,40 @@ Every row was run on a tree whose tracked files outside the planning directory a
 - `spec/README.md` (68.1-05, `a8b36092`): the report cites the CCR-QD-454 registration at line 391, which is where it still is and unedited; the commit adds the CCR-QD-460 row after the other registrations and moves the revision.
 
 **Verdict:** passed
+
+## Re-verification (2026-11-22, after the 68.1 code-review fixes)
+
+**Staleness:** `63: stale, verification d6bf41e3, 20 cited, 2 changed since` (`68-stale.mjs`, run at `a8eab6c9`).
+
+| Cited file | Changed since `d6bf41e3` by |
+| --- | --- |
+| `spec/README.md` | `79a685b4` docs(68.1): WR-02 WR-03 scope CCR-QD-460's odd-count and hang claims to what was shown |
+| `spec/decisions/033-the-packed-artifact-is-the-product.md` | `79a685b4` docs(68.1): WR-02 WR-03 scope CCR-QD-460's odd-count and hang claims to what was shown |
+
+**Trailers on this phase's commits:** 15 none, 14 `Claude Sonnet 5.5 <noreply@anthropic.com>`, 3 `Claude Opus 5.5 <noreply@anthropic.com>`.
+
+**Validation record:** `63-VALIDATION.md` has status `draft` and nyquist_compliant `false`.
+
+**Digest:** `covered_digest: "v4:sha256:1f5cec5eb2848bf4853bf83f1082e58ca20f09316193a38395b6299580a5cb1e"` becomes `covered_digest: "v4:sha256:1f5cec5eb2848bf4853bf83f1082e58ca20f09316193a38395b6299580a5cb1e"`, over the same 11 covered files.
+
+**Staleness by `68.1-stale.mjs`:** `63: stale, verification d6bf41e3, 21 cited, 2 changed since` (run at `a8eab6c9`).
+
+### Spot-checks re-run (Re-verification (2026-11-22, after the 68.1 code-review fixes))
+
+Every row was run on the tree at `a8eab6c9`, one command at a time, in the foreground, with stdin closed. Gate 14 was not run again for this section: its one run of this phase is Plan 68.1-04's, taken at `cc58b8e6`, and the first row shows nothing gate 14 reads has changed since. The spec-revise and traceability results are shared with the Phase 62 and 64 to 68 sections of this re-verification: each was taken once at `ae42c2b2`, in a fresh set after the code-review fixes (the earlier set, taken at `c3d8553a`, is not reused because `scripts/bench/ab.sh` and `spec/` changed), and no tracked file outside the planning directory differs between that head and `a8eab6c9`.
+
+| Behaviour | Command run now | Result now | Status |
+| --------- | --------------- | ---------- | ------ |
+| Gate 14 on the tree (Plan 68.1-04's one run) | `node scripts/check-package-install.mjs < /dev/null`, run once by 68.1-04 at `cc58b8e6`, foreground, nothing beside it; and `git diff --quiet cc58b8e6 HEAD -- packages scripts/check-package-install.mjs scripts/lib package.json pnpm-lock.yaml 'tsconfig*.json'` now | exit 0 (15 s); `package-install: 9 package(s) pack, resolve and authorize (524 runtime export(s))`, the count of the verification and of the earlier re-verifications; the diff is silent (exit 0), so none of what gate 14 reads (the packages, the gate and its library, the manifest, the lockfile, the tsconfigs) changed after that run. The code-review fixes changed `scripts/bench/ab.sh` and files under `spec/` and the planning directory, which gate 14 does not read | PASS |
+| The moved probe guard answers as the base's did | 68.1-04's parity run, compared again now with `cmp`: the guard's answers on four sandboxes (`full`, `no-registry`, `no-refusal`, `no-consumer`) and on a planted parser load failure, from the phase base's gate and from the gate at `cc58b8e6` | `cmp` is silent; both outputs are 5 lines with SHA-256 `d04ed1069682394b8fbe75a073c9b815508910c6fc2404096d7f50664075bc2d` | PASS |
+| What the phase and its fixes changed in the decision | `git diff -U0 0e3f3438 HEAD -- spec/decisions/033-the-packed-artifact-is-the-product.md` | five hunks: the Revision (1.4 to 1.6), Status and Change History rows; the ARCH-115 amendment's sentence on the server put in the past tense (it hung the gate when the amendment was written; the amendment below bounds it); and a new amendment section after it, which says a blocked parser call now ends the gate at the timeout, that what was shown is a hang planted in the child (a blocked `API` constructor), not a real stopped server, and that the server the child started may outlive the run. The earlier amendments, among them the CCR-QD-454 one this report cites, are otherwise unchanged | PASS |
+| What the code-review fixes changed in the decision since the previous section | `git diff -U0 d6bf41e3 HEAD -- spec/decisions/033-the-packed-artifact-is-the-product.md` | the Revision (1.5 to 1.6), a 1.6 Change History entry and the new amendment's sentences on the hang evidence (a blocked parser call in the child, not a stopped server); nothing else | PASS |
+| What the phase and its fixes changed in the spec register, and the revisions | `git diff -U0 0e3f3438 HEAD -- spec/README.md`, and `node scripts/spec-revise.mjs --check < /dev/null` (shared) | 3 insertions and 2 deletions: the Revision header (1.274 to 1.276), the Change History cell and one added row, CCR-QD-460 (line 397); no existing row is removed or edited, so CCR-QD-454's row is still at line 391; `spec-revise` exit 0, `spec-revise: every Revision matches its newest Change History entry` | PASS |
+| Traceability | `bash spec/scripts/verify-traceability.sh --strict < /dev/null` (shared) | exit 0; `PASS: 21   FAIL: 0   SKIP: 0 (strict: skips count as failures)` | PASS |
+
+### Changed cited files read against the truths that cite them (Re-verification (2026-11-22, after the 68.1 code-review fixes))
+
+- `spec/decisions/033-the-packed-artifact-is-the-product.md` (`79a685b4`): the report cites the CCR-QD-454 amendment, which is unchanged; the document is now at Revision 1.6, where the previous section read 1.5. The commit narrows the claim about the hang: the amendment now says what was shown is a hang planted in the child, ending the child at the timeout, and not a real stopped TypeScript server. Truths 1 to 4 read the probes (the feed set, the host cache, the removed-probe failures), not the timeout, so each still holds as worded. The previous section's sentence that a TypeScript server that stops answering now ends the gate at the bound reads stronger than the decision now states it; what the runs show is the parity of the guard's answers and a hang planted in the child, ended at the timeout, and the claim made here is that the gate no longer waits on the child, not that a real stopped server was exercised or that no server process is left behind.
+- `spec/README.md` (`79a685b4`): the report cites the CCR-QD-454 registration at line 391, which is where it still is and unedited; the commit moves the revision to 1.276, adds a Change History entry and rewrites the CCR-QD-460 row, scoping its odd-round-count and hang claims. No truth reads either.
+
+**Verdict:** passed
