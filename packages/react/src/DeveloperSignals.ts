@@ -18,9 +18,11 @@
  * reporter replaces the default outright and runs in production: a caller routing
  * signals to telemetry does not also want them on the console, and one that does can
  * call `console.warn` itself. The default speaks only under its own condition, which is
- * development for every signal except `InstrumentedInProduction` and `ReporterThrew`.
- * The one piece of process state is the latch that lets `InstrumentedInProduction`
- * speak once per process (ADR-QD-184).
+ * development for every signal except `InstrumentedInProduction` and `ReporterThrew`. The
+ * environment is read in one place, {@link holdsHere}, which `QadiProvider` also asks of
+ * `InstrumentedInProduction`'s row to decide whether to raise it. The one piece of process
+ * state is the latch that lets `InstrumentedInProduction` speak once per process
+ * (ADR-QD-184).
  *
  * **A supplied reporter observes; it cannot change the outcome.** Resolution
  * wraps what it is handed once, in {@link contain}, so a reporter that throws is
@@ -64,17 +66,20 @@ export interface HydrationMismatch {
 export type HydrationMismatchReporter = (mismatch: HydrationMismatch) => void;
 
 /**
- * Whether to warn by default.
+ * Whether the code is running in a development build, as far as it can tell.
  *
  * The literal `process.env.NODE_ENV` text is load-bearing rather than
  * idiomatic: esbuild and Vite `define` substitute exactly that member
- * expression, so a production build folds this to `false` and eliminates the
- * `console.warn` below with it. `globalThis.process?.env?.["NODE_ENV"]` would
- * be tidier and would not be substituted, which is why it is not used. The
- * `typeof` guard is what keeps unbundled ESM from throwing `ReferenceError` in
- * a browser, where `process` does not exist at all.
+ * expression, so a production build compares a constant here.
+ * `globalThis.process?.env?.["NODE_ENV"]` would be tidier and would not be
+ * substituted, which is why it is not used. The `typeof` guard is what keeps
+ * unbundled ESM from throwing `ReferenceError` in a browser, where `process`
+ * does not exist at all.
+ *
+ * Read at run time, by the table's conditions, so the sentences and the table
+ * stay in a production bundle: substituting the text does not remove them.
  */
-export const isDevelopment = (): boolean =>
+const isDevelopment = (): boolean =>
   typeof process !== "undefined" && process.env.NODE_ENV !== "production";
 
 /**
@@ -175,7 +180,8 @@ const describeSignal: (signal: DeveloperSignal) => string = Match.type<Developer
       `root a distinct \`identifierPrefix\` in its hydrateRoot/createRoot options ` +
       `to fix the cause.`,
     DehydrationDropped: ({ reason, count }) =>
-      `[qadi] dehydrateDecisions dropped ${count} decision(s): ${hydrationDropMeaning(reason).remedy}.`,
+      `[qadi] dehydrateDecisions dropped ${count} decision(s): ` +
+      `${hydrationDropMeaning(reason).remedy}.`,
     HydrationDropped: ({ reason, count, wholePayload }) => {
       // A refusal of the payload whole is not "zero decisions lost" when the
       // payload carried none, so it is announced as a refusal and the count is
@@ -222,8 +228,8 @@ const say = (signal: DeveloperSignal): void => {
  * swallowed, so the caller carries on exactly as if the reporter had returned.
  * Said in **every** environment, because the host replaced the default and
  * nothing else will ever say it (BEH-QD-230's reason for announcing a drop at
- * all); that rule is `ReporterThrew`'s own row, read like any other. The library's
- * own defaults are not wrapped: `say` does not throw.
+ * all); that rule is `ReporterThrew`'s own row, read through {@link unconditionally}. The
+ * library's own defaults are not wrapped: `say` does not throw.
  */
 const contain =
   <A,>(reporter: ReporterName, supplied: (value: A) => void) =>
@@ -231,7 +237,7 @@ const contain =
     try {
       supplied(value);
     } catch (error) {
-      defaultOf(SIGNALS.ReporterThrew)(DeveloperSignal.ReporterThrew({ reporter, error }));
+      unconditionally(SIGNALS.ReporterThrew)(DeveloperSignal.ReporterThrew({ reporter, error }));
     }
   };
 
@@ -269,11 +275,16 @@ export type HydrationDropReporter<A, R extends HydrationDropReason = ClientHydra
   drop: HydrationDrop<A, R>,
 ) => void;
 
+/** The environments a default's condition is read against: one build, and not the other. */
+type Gated = "Development" | "Production";
+
 /**
- * Where a signal's console default speaks: a development build, a production build, or
- * both.
+ * Where a signal's console default speaks: in one build, or in every environment.
+ *
+ * Only a {@link Gated} condition is read at run time ({@link holdsHere}). A row that
+ * speaks everywhere has none to read, and the types say so rather than a branch.
  */
-type Speaks = "Development" | "Production" | "Everywhere";
+type Speaks = Gated | "Everywhere";
 
 /** How often a default speaks once its condition holds. */
 type Often = "PerEvent" | "OncePerProcess";
@@ -281,7 +292,7 @@ type Often = "PerEvent" | "OncePerProcess";
 /** When an entry point resolves the reporter it was handed. */
 type Resolution = "OncePerAtomSet" | "OncePerRegistry" | "OncePerCall" | "OnEveryReport";
 
-/** What one entry point states about a signal: the option it takes a reporter under, and when it reads it. */
+/** What one entry point states about a signal: its reporter option, and when it reads it. */
 interface EntryFacts<Option extends string> {
   readonly option: Option;
   readonly resolved: Resolution;
@@ -292,11 +303,22 @@ interface EntryFacts<Option extends string> {
  * take a reporter for it.
  *
  * `Told` is what the default (and a reporter) is told, `Entry` the entry points the row
- * names, `Option` the names a reporter can be passed under. `often` is a type parameter
- * so a table can state which one row may speak once per process.
+ * names, `Option` the names a reporter can be passed under. `often` and `speaks` are type
+ * parameters so a table can state which one row may speak once per process, and a resolver
+ * can ask for the rows whose default has a condition to read.
+ *
+ * `speaks` is read by {@link holdsHere}, and by nothing else: it is where the default
+ * speaks, and for `InstrumentedInProduction`, whose situation exists only in production, it
+ * is also where `QadiProvider` raises the signal at all.
  */
-interface SignalRow<Told, Entry extends string, Option extends string, O extends Often = Often> {
-  readonly speaks: Speaks;
+interface SignalRow<
+  Told,
+  Entry extends string,
+  Option extends string,
+  O extends Often = Often,
+  S extends Speaks = Speaks,
+> {
+  readonly speaks: S;
   readonly often: O;
   readonly says: (told: Told) => void;
   readonly entries: { readonly [E in Entry]: EntryFacts<Option> };
@@ -322,9 +344,27 @@ export type SignalTable = {
   readonly [T in SignalTag]: SignalRow<never, string, `on${string}`, OftenOf<T>>;
 };
 
-/** Whether a default with this condition speaks in the environment the code runs in. */
-const speaksHere = (speaks: Speaks): boolean =>
-  speaks === "Everywhere" || (speaks === "Development") === isDevelopment();
+/**
+ * How each environment condition reads where the code runs.
+ *
+ * The one place the environment is checked. `Everywhere` is not a key: it has no
+ * condition, and {@link holdsHere} and {@link unconditionally} refuse it by type.
+ */
+const CONDITIONS: { readonly [S in Gated]: () => boolean } = {
+  Development: isDevelopment,
+  Production: () => !isDevelopment(),
+};
+
+/**
+ * Whether a row's condition holds in the environment the code runs in.
+ *
+ * The one reader of a row's `speaks`, so the condition is written once, in the row.
+ * {@link reporterFor} asks it whether a default speaks, and `QadiProvider` asks it of
+ * `InstrumentedInProduction`'s row whether the situation exists to be raised, so the
+ * provider carries no environment check of its own.
+ */
+export const holdsHere = (row: { readonly speaks: Gated }): boolean =>
+  CONDITIONS[row.speaks]();
 
 /**
  * Whether the production-instrumentation warning has already fired.
@@ -427,25 +467,28 @@ export type ReporterName = {
 }[SignalTag];
 
 /**
- * What a row's default does here: its `says`, once per process when the row latches, and
- * nothing where the row's condition does not hold.
+ * A default with no condition to read.
  *
- * A row that speaks everywhere always has one, so the first overload has no `undefined` for
- * its caller to handle: `contain` reads `ReporterThrew`'s through it, and a row changed to
- * speak under a condition fails to compile there instead of being skipped silently.
+ * Takes only a row that speaks everywhere, so a row changed to speak under a condition
+ * fails to compile at its caller instead of being announced when it should be silent.
+ * Nothing is checked at run time because nothing is left to check: the type is the whole
+ * statement, and the row's `says` is what runs.
  */
-function defaultOf<Told>(
-  row: Pick<SignalRow<Told, string, string>, "often" | "says"> & { readonly speaks: "Everywhere" },
-): (told: Told) => void;
-function defaultOf<Told>(
-  row: Pick<SignalRow<Told, string, string>, "speaks" | "often" | "says">,
-): ((told: Told) => void) | undefined;
-function defaultOf<Told>(
-  row: Pick<SignalRow<Told, string, string>, "speaks" | "often" | "says">,
-): ((told: Told) => void) | undefined {
-  if (!speaksHere(row.speaks)) return undefined;
+const unconditionally = <Told,>(row: {
+  readonly speaks: "Everywhere";
+  readonly says: (told: Told) => void;
+}): ((told: Told) => void) => row.says;
+
+/**
+ * What a conditional row's default does here: its `says`, once per process when the row
+ * latches, and nothing where the row's condition does not hold.
+ */
+const defaultOf = <Told,>(
+  row: Pick<SignalRow<Told, string, string, Often, Gated>, "speaks" | "often" | "says">,
+): ((told: Told) => void) | undefined => {
+  if (!holdsHere(row)) return undefined;
   return row.often === "OncePerProcess" ? once(row.says) : row.says;
-}
+};
 
 /**
  * The reporter one entry point will use for a signal, or `undefined` for none.
@@ -454,10 +497,11 @@ function defaultOf<Told>(
  * {@link contain} under the option the row gives that entry point, so a throw is
  * announced under the name the caller passed; with none, the row's default under its own
  * condition. `entry` must be one the row names and `supplied` must be told what the row's
- * default is told, so a slot paired with the wrong row does not compile.
+ * default is told, so a slot paired with the wrong row does not compile. A row that speaks
+ * everywhere is refused: it takes no supplied reporter and has no condition to read.
  */
 export const reporterFor = <Told, Entry extends string, A extends Told>(
-  row: SignalRow<Told, Entry, ReporterName>,
+  row: SignalRow<Told, Entry, ReporterName, Often, Gated>,
   entry: NoInfer<Entry>,
   supplied: ((told: A) => void) | undefined,
 ): ((told: A) => void) | undefined =>

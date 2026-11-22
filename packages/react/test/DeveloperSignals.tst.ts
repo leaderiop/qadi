@@ -1,8 +1,8 @@
 /**
  * Pins that the developer-signal table has exactly one row per signal, that only the
  * production-instrumentation row speaks once per process, that `ReporterName` is derived
- * from the table, and that a call site cannot pair a row with an entry point or a reporter
- * slot it lacks.
+ * from the table, that a call site cannot pair a row with an entry point or a reporter
+ * slot it lacks, and that only a row with a condition is asked whether it holds.
  *
  * Each signal's console default, its condition, the option a host passes its reporter
  * through and the entry points that resolve it are stated once, in one row, so a signal
@@ -13,7 +13,7 @@
  */
 import { expect, test } from "tstyche";
 import type { DehydrationDropReason } from "@qadi/core";
-import { reporterFor, SIGNALS } from "../src/DeveloperSignals.ts";
+import { holdsHere, reporterFor, SIGNALS } from "../src/DeveloperSignals.ts";
 import type {
   HydrationDropReporter,
   ReporterName,
@@ -103,4 +103,15 @@ test("the hydrate row refuses the dehydrate reporter", () => {
   expect(reporterFor(SIGNALS.HydrationDropped, "hydrateDecisions", dropped)).type.toBe<
     HydrationDropReporter<unknown> | undefined
   >();
+});
+
+test("only a row with a condition is asked whether it holds", () => {
+  // @ts-expect-error is not assignable to
+  holdsHere(SIGNALS.ReporterThrew);
+  // `ReporterThrew` is the one row that speaks everywhere, and the rows that do have a
+  // condition are accepted, the production-instrumentation row among them.
+  expect<(typeof SIGNALS)["ReporterThrew"]["speaks"]>().type.toBe<"Everywhere">();
+  expect<(typeof SIGNALS)["InstrumentedInProduction"]["speaks"]>().type.toBe<"Production">();
+  expect(holdsHere(SIGNALS.InstrumentedInProduction)).type.toBe<boolean>();
+  expect(holdsHere(SIGNALS.AtomsReplaced)).type.toBe<boolean>();
 });

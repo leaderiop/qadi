@@ -37,7 +37,12 @@ import {
 import type { GateRegistry } from "./GateRegistry.ts";
 import { gateWriterFor } from "./GateWriter.ts";
 import type { InitialValues } from "./HydrationEngine.ts";
-import { isDevelopment, providerSignalReporter, providerSignals } from "./DeveloperSignals.ts";
+import {
+  holdsHere,
+  providerSignalReporter,
+  providerSignals,
+  SIGNALS,
+} from "./DeveloperSignals.ts";
 import type { ProviderSignal, ProviderSignalReporter } from "./DeveloperSignals.ts";
 import { MissingQadiProviderError } from "./MissingQadiProviderError.ts";
 import type { QadiAtoms } from "./QadiAtoms.ts";
@@ -260,10 +265,15 @@ export const QadiProvider = ({
 
   // Told once per mount: the ref keeps a re-render, or `instrument` toggling off
   // and on, from telling a reporter twice. The console default is latched once
-  // per process by `DeveloperSignals.ts`.
+  // per process by `DeveloperSignals.ts`, which also says where the situation
+  // exists: the signal's own row, not a check written here.
   const reportedInstrumented = useRef(false);
   useEffect(() => {
-    if (instrument && !isDevelopment() && !reportedInstrumented.current) {
+    if (
+      instrument &&
+      holdsHere(SIGNALS.InstrumentedInProduction) &&
+      !reportedInstrumented.current
+    ) {
       reportedInstrumented.current = true;
       report(providerSignals.instrumentedInProduction());
     }
