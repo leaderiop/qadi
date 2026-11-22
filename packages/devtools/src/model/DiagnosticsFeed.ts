@@ -18,11 +18,11 @@
  *
  * Exported from the package root (ADR-QD-173): a shell builds it in a scope it owns.
  */
-import * as Cause from "effect/Cause";
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import type * as Scope from "effect/Scope";
+import { causeMessage } from "@qadi/core";
 import {
   makeDiagnosticsStore,
   noDiagnostics,
@@ -49,10 +49,11 @@ export type DiagnosticsStatus = Data.TaggedEnum<{
   /** A sample has been accepted by the current run. */
   Live: {};
   /**
-   * The run ended on a defect. `reason` is `Cause.pretty` of it, a trace with stack
-   * frames and checkout paths for a developer in the host's own process: it must not
-   * cross a trust boundary. `sampled` says whether the reading shown holds an accepted
-   * sample.
+   * The run ended on a defect. `reason` is `causeMessage`'s text of it: a `Cause.pretty`
+   * trace with stack frames and checkout paths whenever one renders, and the one
+   * placeholder when the died value cannot be read. It is for a developer in the host's
+   * own process and must not cross a trust boundary. `sampled` says whether the reading
+   * shown holds an accepted sample.
    */
   Stopped: { readonly reason: string; readonly sampled: boolean };
 }>;
@@ -172,7 +173,7 @@ export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed"
       },
     };
     runs.fork(token, runDiagnostics(marking, next), {
-      onFailure: (cause) => show(DiagnosticsStatus.Stopped({ reason: Cause.pretty(cause), sampled })),
+      onFailure: (cause) => show(DiagnosticsStatus.Stopped({ reason: causeMessage(cause), sampled })),
     });
   };
 

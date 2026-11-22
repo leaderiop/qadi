@@ -29,7 +29,7 @@ import * as Exit from "effect/Exit";
 import * as Match from "effect/Match";
 import type * as Schema from "effect/Schema";
 import * as SchemaIssue from "effect/SchemaIssue";
-import { DEFAULT_MAX_DEPTH, fromJson, policyDepth, simplify, toJson } from "@qadi/core";
+import { DEFAULT_MAX_DEPTH, causeMessage, fromJson, policyDepth, simplify, toJson } from "@qadi/core";
 import type { Policy, PolicyDecodeTooDeep, PolicyNotJson } from "@qadi/core";
 import { sameSighting, sightingFor, type PolicySighting } from "./Catalogue.ts";
 import { makeExternalStore } from "./ExternalStore.ts";
@@ -147,7 +147,8 @@ const formatDecodeFailure = Match.type<PolicyDecodeTooDeep | PolicyNotJson | Sch
  *
  * A defect inside the decoder is a stated refusal rather than a throw out of a
  * click handler: a paste box that crashes the panel is a worse way to learn a
- * payload is malformed than any sentence.
+ * payload is malformed than any sentence. The unexpected arm's text is
+ * `causeMessage`'s, so a defect it cannot render is stated too, never thrown.
  */
 export const refusalOf = (
   exit: Exit.Exit<Policy, PolicyDecodeTooDeep | PolicyNotJson | Schema.SchemaError>,
@@ -156,17 +157,18 @@ export const refusalOf = (
   const failure = Cause.findErrorOption(exit.cause);
   return failure._tag === "Some"
     ? formatDecodeFailure(failure.value)
-    : `the decoder failed unexpectedly: ${Cause.pretty(exit.cause)}`;
+    : `the decoder failed unexpectedly: ${causeMessage(exit.cause)}`;
 };
 
 /**
  * Reads an encode's exit as the text to show: the encoding, or why there is none.
  *
  * Encoding a policy is synchronous and total for any policy the library built,
- * so the second arm is a policy built by hand against the types.
+ * so the second arm is a policy built by hand against the types. Its text is
+ * `causeMessage`'s, so a defect it cannot render is stated, never thrown.
  */
 export const textOf = (exit: Exit.Exit<string, unknown>): string =>
-  Exit.isSuccess(exit) ? exit.value : Cause.pretty(exit.cause);
+  Exit.isSuccess(exit) ? exit.value : causeMessage(exit.cause);
 
 /** One remembered answer per pure reading: the policy is a reference that changes only when a newer sighting replaces it. */
 const memo = <A>(read: (policy: Policy) => A): ((policy: Policy) => A) => {

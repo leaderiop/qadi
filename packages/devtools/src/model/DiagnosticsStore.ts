@@ -36,13 +36,13 @@
  * Gates are deliberately not here. They are the dock model's own input
  * (`DockModelInputs.gates`), a registry the model subscribes to (ADR-QD-162).
  */
-import * as Cause from "effect/Cause";
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Equal from "effect/Equal";
 import * as Exit from "effect/Exit";
 import * as Layer from "effect/Layer";
 import * as Schedule from "effect/Schedule";
+import { causeMessage } from "@qadi/core";
 import { makeExternalStore } from "./ExternalStore.ts";
 import type { AskedQuestionLike } from "./Gates.ts";
 import { hydrationActivity, type HydrationActivity } from "./Hydration.ts";
@@ -61,8 +61,9 @@ export type WiringRead = Data.TaggedEnum<{
   /** No layer was handed over, so there is nothing to read the wiring from. */
   NotHanded: {};
   /**
-   * The handed layer failed to build; the other reads keep sampling. `reason` is `Cause.pretty`
-   * of the build failure, a trace for the host's own process: it must not cross a trust boundary.
+   * The handed layer failed to build; the other reads keep sampling. `reason` is
+   * `causeMessage`'s text of the build failure, a `Cause.pretty` trace whenever one renders,
+   * for the host's own process: it must not cross a trust boundary.
    */
   Failed: { readonly reason: string };
   /** The report, read from the built layer. */
@@ -268,7 +269,7 @@ const wiringReader = Effect.fn("qadi.devtools.wiringReader")(function* (
   if (layer === undefined) return Effect.succeed<WiringRead>(WiringRead.NotHanded());
   const built = yield* Effect.exit(Layer.build(layer));
   if (Exit.isFailure(built)) {
-    const failed = WiringRead.Failed({ reason: Cause.pretty(built.cause) });
+    const failed = WiringRead.Failed({ reason: causeMessage(built.cause) });
     return Effect.succeed<WiringRead>(failed);
   }
   const context = built.value;
