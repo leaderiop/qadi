@@ -23,18 +23,40 @@ import type {
   PayloadRefusalReason,
 } from "../src/HydrationEvent.ts";
 
-test("the entry buckets are one record keyed by every entry reason", () => {
-  expect(entryBuckets()).type.toBe<DropBuckets<EntryDropReason, unknown>>();
-  expect<keyof DropBuckets<EntryDropReason, unknown>>().type.toBe<EntryDropReason>();
+// The reasons written out, so a reason core's table gains fails these pins rather than
+// following the union silently. `DropBuckets` is a mapped type, so each array is its key's.
+test("the entry buckets hold one array per entry reason, written out", () => {
+  expect(entryBuckets()).type.toBe<{
+    readonly EntryTooDeep: Array<unknown>;
+    readonly MalformedEntry: Array<unknown>;
+    readonly UndecodablePolicy: Array<unknown>;
+  }>();
+  expect<EntryDropReason>().type.toBe<"EntryTooDeep" | "MalformedEntry" | "UndecodablePolicy">();
 });
 
-test("an entry bucket record missing a reason is refused", () => {
+test("the dehydration buckets hold one array per dehydration reason, written out", () => {
+  expect(dehydrationBuckets()).type.toBe<{
+    readonly ForeignSubject: Array<DecisionEntry>;
+    readonly UnencodablePolicy: Array<DecisionEntry>;
+  }>();
+  expect<DehydrationDropReason>().type.toBe<"ForeignSubject" | "UnencodablePolicy">();
+});
+
+test("an entry bucket record missing a reason or naming an unknown one is refused", () => {
   // @ts-expect-error is missing in type
   const missing: DropBuckets<EntryDropReason, unknown> = {
     EntryTooDeep: [],
     MalformedEntry: [],
   };
   expect(missing).type.toBe<DropBuckets<EntryDropReason, unknown>>();
+  const excess: DropBuckets<EntryDropReason, unknown> = {
+    EntryTooDeep: [],
+    MalformedEntry: [],
+    UndecodablePolicy: [],
+    // @ts-expect-error does not exist in type
+    Unknown: [],
+  };
+  expect(excess).type.toBe<DropBuckets<EntryDropReason, unknown>>();
   const whole: DropBuckets<EntryDropReason, unknown> = {
     EntryTooDeep: [],
     MalformedEntry: [],
@@ -43,17 +65,17 @@ test("an entry bucket record missing a reason is refused", () => {
   expect(whole).type.toBe<DropBuckets<EntryDropReason, unknown>>();
 });
 
-test("the dehydration buckets are one record keyed by every dehydration reason", () => {
-  expect(dehydrationBuckets()).type.toBe<DropBuckets<DehydrationDropReason, DecisionEntry>>();
-  expect<
-    keyof DropBuckets<DehydrationDropReason, DecisionEntry>
-  >().type.toBe<DehydrationDropReason>();
-});
-
-test("a dehydration bucket record missing a reason is refused", () => {
+test("a dehydration bucket record missing a reason or naming an unknown one is refused", () => {
   // @ts-expect-error is missing in type
   const missing: DropBuckets<DehydrationDropReason, DecisionEntry> = { ForeignSubject: [] };
   expect(missing).type.toBe<DropBuckets<DehydrationDropReason, DecisionEntry>>();
+  const excess: DropBuckets<DehydrationDropReason, DecisionEntry> = {
+    ForeignSubject: [],
+    UnencodablePolicy: [],
+    // @ts-expect-error does not exist in type
+    Unknown: [],
+  };
+  expect(excess).type.toBe<DropBuckets<DehydrationDropReason, DecisionEntry>>();
   const whole: DropBuckets<DehydrationDropReason, DecisionEntry> = {
     ForeignSubject: [],
     UnencodablePolicy: [],
@@ -61,7 +83,9 @@ test("a dehydration bucket record missing a reason is refused", () => {
   expect(whole).type.toBe<DropBuckets<DehydrationDropReason, DecisionEntry>>();
 });
 
-test("the derivation hands every reason of a record to its event", () => {
+// What it pins is the callback's types and the result's element type; that it calls the
+// event once per non-empty bucket is a runtime fact, pinned in `HydrationBuckets.test.ts`.
+test("the event function is handed its record's reason union and bucket type", () => {
   expect(dropEvents(entryBuckets(), (reason, bucket) => ({ reason, bucket }))).type.toBe<
     ReadonlyArray<{ reason: EntryDropReason; bucket: ReadonlyArray<unknown> }>
   >();

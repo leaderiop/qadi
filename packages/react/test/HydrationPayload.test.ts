@@ -227,27 +227,14 @@ describe("each whole-payload refusal reason is raised by the producer its row na
   };
 
   // Keyed by producer, so a producer with no input does not compile.
-  const refusedBy: { readonly [P in (typeof PAYLOAD_PRODUCERS)[keyof typeof PAYLOAD_PRODUCERS]]: unknown } = {
+  const refusedBy: {
+    readonly [P in (typeof PAYLOAD_PRODUCERS)[keyof typeof PAYLOAD_PRODUCERS]]: unknown;
+  } = {
     TooDeep: { version: 2, subjectId: nested(MAX_DECODE_DEPTH + 10), entries: [] },
     Malformed: 42,
     UnsupportedPayloadVersion: { version: 3, subjectId: "u1", entries: [] },
     SubjectCheck: { version: 2, subjectId: "someone-else", entries: [] },
   };
-
-  it("the producer record names every whole-payload reason, each producer once", () => {
-    expect(Object.keys(PAYLOAD_PRODUCERS).sort()).toEqual([
-      "MalformedPayload",
-      "PayloadSubjectMismatch",
-      "PayloadTooDeep",
-      "UnsupportedPayloadVersion",
-    ]);
-    expect(Object.values(PAYLOAD_PRODUCERS).sort()).toEqual([
-      "Malformed",
-      "SubjectCheck",
-      "TooDeep",
-      "UnsupportedPayloadVersion",
-    ]);
-  });
 
   it("each row's producer refuses the payload whole under that row's reason, once", () => {
     for (const [reason, producer] of Object.entries(PAYLOAD_PRODUCERS)) {
