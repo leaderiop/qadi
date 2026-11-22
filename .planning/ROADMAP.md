@@ -703,7 +703,7 @@ Phases execute in numeric order: 62 → 63 → 64 → 65 → 66 → 67 → 68 �
 | 66. The decoder reads only what it declares | 5/5 | Complete    | 2026-11-20 |
 | 67. No equivalent mutants, no magic race bound | 7/7 | Complete    | 2026-11-21 |
 | 68. Hygiene and recorded close-outs | 15/15 | Complete    | 2026-11-21 |
-| 68.1. Address tech debt (INSERTED) | 8/9 | In Progress | - |
+| 68.1. Address tech debt (INSERTED) | 9/9 | In Progress | - |
 
 ### Phase 68.1: Address tech debt (INSERTED)
 
@@ -716,7 +716,7 @@ Phases execute in numeric order: 62 → 63 → 64 → 65 → 66 → 67 → 68 �
   3. Gate 14 starts no child without a time limit, shown by a hung child being killed; ADR-QD-033 and gate 14's comment say so, recorded in CCR-QD-460.
   4. Phases 62 to 68.1 each have a `VALIDATION.md` with `status: validated`.
   5. `pnpm check:pr < /dev/null` is green on the phase's final tree; nothing is released.
-**Plans:** 8/9 plans executed
+**Plans:** 9/9 plans executed
 
 Plans:
 - [x] 68.1-01-PLAN.md — RED on the phase base 0e3f3438 for DEBT-01..05, with the probes and scratch scripts pinned by SHA
@@ -727,4 +727,4 @@ Plans:
 - [x] 68.1-06-PLAN.md — staleness at head with both scripts; Phases 62, 63, 64 re-verified
 - [x] 68.1-07-PLAN.md — Phases 65, 66, 67 re-verified
 - [x] 68.1-09-PLAN.md — `68.1-reverify.mjs`; Phase 68 re-verified; both staleness scripts to `redo: none`
-- [ ] 68.1-08-PLAN.md — `pnpm check:pr` once, alone; DEBT-01..05 ticked; the phase-wide checks and `## After the sweep`
+- [x] 68.1-08-PLAN.md — `pnpm check:pr` once, alone; DEBT-01..05 ticked; the phase-wide checks and `## After the sweep`
