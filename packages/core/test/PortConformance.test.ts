@@ -761,7 +761,7 @@ describe("customPredicatePort's failure reason", () => {
         throw new Error("no");
       },
     };
-    assert.strictEqual(reasonFor(unrenderable), "<unrenderable cause>");
+    assert.strictEqual(reasonFor(unrenderable), "a value that could not be described");
   });
 
   it("is the placeholder for a cause whose toString and message cannot be read, never a throw", () => {
