@@ -863,7 +863,7 @@ describe("makeDerivedStore", () => {
   );
 
   it.effect(
-    "a parent whose release throws leaves no later parent subscribed, and the close fails with it",
+    "a release that throws leaves no later parent subscribed and fails the close",
     () =>
       Effect.gen(function* () {
         const refused = new Error("the parent could not release");
@@ -896,7 +896,7 @@ describe("makeDerivedStore", () => {
   );
 
   it.effect(
-    "two parents whose release throws fail the close with one AggregateError holding both",
+    "two throwing releases fail the close with one AggregateError holding both",
     () =>
       Effect.gen(function* () {
         const first = new Error("the first parent could not release");
