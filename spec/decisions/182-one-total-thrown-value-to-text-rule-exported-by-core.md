@@ -92,7 +92,7 @@ complete, clean option: the cause renderer as a second public export (decision 4
   run the devtools feeds cannot render is stated as stopped or failed with the placeholder; a throw the gates feed
   cannot render reads as the placeholder, not a sentence of its own; react names an `Error` with a non-string message
   by its string form; a sink record's non-string `message` is refused with its `String` form.
-- The exports cost two overview rows, gate 14's probes of both in the packed consumer, and a minor changeset for
+- The exports cost two overview rows, probes of both in the packed consumer (`scripts/check-package-install.mjs`, gate 14), and a minor changeset for
   `@qadi/core` with patch changesets for `@qadi/http`, `@qadi/react` and `@qadi/devtools`.
 - Two invariants state the rule: a "never throws" function stays total when the value it caught is hostile
   (INV-QD-383), and no shipped code renders a cause through a call that can throw (INV-QD-384).
