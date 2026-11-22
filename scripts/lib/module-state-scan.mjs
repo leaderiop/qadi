@@ -12,19 +12,24 @@
  *
  * What it counts is every binding of a `let` or `var` declaration, wherever the
  * statement that holds it sits once a function or class body is left out: `export let`,
- * an indented declaration, one inside a top-level block, a loop's own `let`, and each
- * name of `let a, b` or of a destructuring pattern. It does not count a `const` (or a
- * `using`), because a name that cannot be rebound is not what the budget is about. A
- * `const` holding a mutable container is outside it, and so is a `static` class field
- * and anything a function or method declares.
+ * an indented declaration, one inside a top-level block or a `namespace` body, a loop's
+ * own `let`, and each name of `let a, b` or of a destructuring pattern. It does not count
+ * a `const` (or a `using`), because a name that cannot be rebound is not what the budget
+ * is about. A `const` holding a mutable container is outside it, and so is a `static`
+ * class field and anything a function or method declares. A `declare`d binding, or
+ * anything inside a `declare namespace`, is outside it too: it states a type for a global
+ * and declares no runtime binding of this module.
  *
- * The parent starts this under a timeout, because the TypeScript server behind
- * `typescript/unstable/sync`'s `API` has no timeout of its own: a call that never
- * returns blocks this process, and the parent kills it. A failure to read its
- * arguments, or to load or run the parse, writes the error to stderr and exits 1.
+ * The parent starts this through `scripts/lib/typescript-server-child.mjs` under a
+ * timeout, because the TypeScript server behind `typescript/unstable/sync`'s `API` has
+ * no timeout of its own: a call that never returns blocks this process, and the parent
+ * kills it and the server, which this process names on stderr once it has started. A
+ * failure to read its arguments, or to load or run the parse, writes the error to stderr
+ * and exits 1.
  */
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { nameServerPids } from "./typescript-server-child.mjs";
 
 const [root, ...files] = process.argv.slice(2);
 
@@ -84,6 +89,7 @@ try {
     .filter((config) => existsSync(config));
 
   const api = new API({ cwd: root });
+  nameServerPids();
   try {
     const snapshot = api.updateSnapshot({ openProjects: projects });
     const programs = snapshot.getProjects().map((project) => project.program);

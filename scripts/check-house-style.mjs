@@ -50,7 +50,8 @@
  * process shares, and a test's own is not library state (ADR-QD-184). Unlike the others
  * it reads each file's syntax tree (`scripts/lib/module-state-scan.mjs`) and not its
  * lines, so an indented declaration and each name of `let a, b` count; a `const` holding
- * a mutable container, a `static` class field and anything a function declares do not.
+ * a mutable container, a `static` class field, a `declare`d binding and anything a
+ * function declares do not.
  *
  * The three whole-file, cross-line-break checks below (`no-prefixed-error-tag`,
  * `no-catchtags-object-form`, `no-named-effect-submodule-import`) already run
@@ -88,12 +89,16 @@
  *     and `apps/website` by `node scripts/check-website-build.mjs` (step 24) —
  *     both hold it to its own toolchain's rules, not this library's.
  */
-import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { RAW_DECISION_READ } from "./lib/raw-decision-read.mjs";
 import { CHARACTERISATION, walkTypeTests } from "./lib/type-tests.mjs";
+import {
+  failureCause,
+  installedTypescriptVersion,
+  runTypescriptChild,
+} from "./lib/typescript-server-child.mjs";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 
@@ -686,8 +691,9 @@ const UNTRUSTED_DECODE_LINES = new Map();
  * its text: `export let`, an indented declaration, one inside a top-level block, a loop's own
  * `let`, and each name of `let a, b` or of a destructuring pattern. A `const` is not counted,
  * and neither is a `const` holding a mutable container (`Policy.ts`'s depth memo, a metric),
- * a `static` class field or anything a function declares: rebinding a module-scope name is
- * what makes it state a caller cannot see.
+ * a `static` class field, a `declare`d binding (a type's statement about a global, no
+ * runtime binding of the module) or anything a function declares: rebinding a module-scope
+ * name is what makes it state a caller cannot see.
  *
  * The production-instrumentation line is printed once per process however many
  * providers mount, so the latch that remembers it cannot live under an atom set
@@ -716,7 +722,8 @@ const MODULE_STATE_BUDGET_NAMES = {
 /**
  * Where the scan of module-scope bindings reads each file, and how long it may take: the
  * TypeScript server behind it has no timeout of its own, so a call that never returns is
- * killed here and fails the check.
+ * killed here, with that server (`scripts/lib/typescript-server-child.mjs`), and fails the
+ * check.
  */
 const MODULE_STATE_SCAN = join(ROOT, "scripts", "lib", "module-state-scan.mjs");
 const MODULE_STATE_SCAN_TIMEOUT_MS = 120_000;
@@ -1818,10 +1825,8 @@ const MODULE_STATE_FOUND = new Map();
 {
   const libraryFiles = srcSources.filter((file) => relative(ROOT, file).startsWith("packages/"));
   try {
-    const out = execFileSync(process.execPath, [MODULE_STATE_SCAN, ROOT, ...libraryFiles], {
-      encoding: "utf8",
-      timeout: MODULE_STATE_SCAN_TIMEOUT_MS,
-      maxBuffer: 1 << 26,
+    const out = runTypescriptChild(MODULE_STATE_SCAN, [ROOT, ...libraryFiles], {
+      timeoutMs: MODULE_STATE_SCAN_TIMEOUT_MS,
     });
     const scanned = JSON.parse(out);
     for (const [file, bindings] of Object.entries(scanned.bindings)) {
@@ -1837,8 +1842,9 @@ const MODULE_STATE_FOUND = new Map();
   } catch (error) {
     failures += 1;
     console.error(
-      `scripts/lib/module-state-scan.mjs  [module-state-scan] could not read library ` +
-        `source: ${String(error).split("\n")[0]}`,
+      `scripts/lib/module-state-scan.mjs  [module-state-scan] could not read library source ` +
+        `with typescript@${installedTypescriptVersion(ROOT)}'s unstable API, which a ` +
+        `TypeScript upgrade can move: ${failureCause(error, MODULE_STATE_SCAN_TIMEOUT_MS)}`,
     );
   }
 }
@@ -1888,7 +1894,9 @@ for (const [rel, names] of Object.entries(MODULE_STATE_BUDGET_NAMES)) {
 // column must be exactly the budget's keys, with the same counts.
 {
   const agents = readFileSync(join(ROOT, "AGENTS.md"), "utf8").replace(/\r\n/g, "\n").split("\n");
-  const header = agents.findIndex((l) => /^\|\s*Module-scope state\s*\|\s*Count\s*\|\s*Why\s*\|/.test(l));
+  const header = agents.findIndex((l) =>
+    /^\|\s*Module-scope state\s*\|\s*Count\s*\|\s*Why\s*\|/.test(l),
+  );
   /** @type {Map<string, number>} */
   const listed = new Map();
   if (header !== -1) {
@@ -1899,17 +1907,26 @@ for (const [rel, names] of Object.entries(MODULE_STATE_BUDGET_NAMES)) {
   }
   if (header === -1) {
     failures += 1;
-    console.error("AGENTS.md  [module-state-table] the section 6 `| Module-scope state | Count | Why |` table was not found.");
+    console.error(
+      "AGENTS.md  [module-state-table] the section 6 `| Module-scope state | Count | Why |` " +
+        "table was not found.",
+    );
   }
   for (const [rel, count] of listed) {
     if (rel in MODULE_STATE_BUDGET && MODULE_STATE_BUDGET[rel] === count) continue;
     failures += 1;
-    console.error(`AGENTS.md  [module-state-table] section 6 lists ${rel} (${count}), which MODULE_STATE_BUDGET does not match.`);
+    console.error(
+      `AGENTS.md  [module-state-table] section 6 lists ${rel} (${count}), ` +
+        `which MODULE_STATE_BUDGET does not match.`,
+    );
   }
   for (const rel of Object.keys(MODULE_STATE_BUDGET)) {
     if (listed.has(rel)) continue;
     failures += 1;
-    console.error(`AGENTS.md  [module-state-table] ${rel} is in MODULE_STATE_BUDGET with no row in section 6's table.`);
+    console.error(
+      `AGENTS.md  [module-state-table] ${rel} is in MODULE_STATE_BUDGET ` +
+        `with no row in section 6's table.`,
+    );
   }
 }
 

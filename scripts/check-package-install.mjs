@@ -68,8 +68,8 @@
  * this file, and the run counts the calls through a module hook that wraps each
  * feed, so a call written but never run does not count. TypeScript's parse
  * (`typescript/unstable/*`, run in a child process, `scripts/lib/probe-guard-parse.mjs`,
- * under the same timeout as every other child) decides what annotates a
- * value and what is a refusal, so a comment, a string, an import, an alias or
+ * through `scripts/lib/typescript-server-child.mjs`, under the same timeout as every
+ * other child) decides what annotates a value and what is a refusal, so a comment, a string, an import, an alias or
  * `typeof` does not count; and a failure to load or run that parse fails the
  * gate, naming the installed TypeScript, whose unstable API a routine upgrade
  * can move.
@@ -77,6 +77,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { failureCause, installedTypescriptVersion, runTypescriptChild } from "./lib/typescript-server-child.mjs";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 const SANDBOX = join(ROOT, ".package-check");
@@ -88,23 +89,13 @@ const fail = (message) => failures.push(message);
  * A child that hangs would hang `pnpm check`; each `execFileSync` child is killed after this long, which a cold `pnpm build` stays well inside.
  * The probe guard's parse is one of them (`scripts/lib/probe-guard-parse.mjs`), so a TypeScript server that stops
  * answering ends the gate at this bound. That server works on a request without reading its pipe, so it does not die
- * with the child; the child names it on stderr and the gate kills it when the child is killed (ADR-QD-033).
+ * with the child; the child names it on stderr and `scripts/lib/typescript-server-child.mjs` kills it when the child
+ * is killed (ADR-QD-033), the same way for the module-state scan of `scripts/check-house-style.mjs`.
  */
 const CHILD_TIMEOUT_MS = 600_000;
 
-/** What to print for a failed `execFileSync` child: a killed child's output is empty, so its cause is named, then any output. */
-const why = (error) =>
-  [
-    error.code === "ETIMEDOUT"
-      ? `timed out after ${CHILD_TIMEOUT_MS} ms`
-      : error.signal
-        ? `killed by ${error.signal}`
-        : undefined,
-    error.stdout,
-    error.stderr,
-  ]
-    .filter(Boolean)
-    .join("\n") || error.message;
+/** What to print for a failed `execFileSync` child (`scripts/lib/typescript-server-child.mjs`). */
+const why = (error) => failureCause(error, CHILD_TIMEOUT_MS);
 
 /**
  * The type-only names check 4's consumer must use as a type.
@@ -924,10 +915,10 @@ if (consumerReady) {
 
   let seen;
   try {
-    const output = execFileSync(
-      process.execPath,
-      [join(ROOT, "scripts", "lib", "probe-guard-parse.mjs"), SANDBOX, JSON.stringify([...REFUSED_SHAPE_PROBES])],
-      { cwd: ROOT, encoding: "utf8", stdio: "pipe", timeout: CHILD_TIMEOUT_MS },
+    const output = runTypescriptChild(
+      join(ROOT, "scripts", "lib", "probe-guard-parse.mjs"),
+      [SANDBOX, JSON.stringify([...REFUSED_SHAPE_PROBES])],
+      { cwd: ROOT, timeoutMs: CHILD_TIMEOUT_MS },
     );
     let parsed;
     try {
@@ -938,17 +929,7 @@ if (consumerReady) {
     if (parsed === null) fail("the probe guard could not read consumer.ts from the sandbox project");
     else if (parsed !== undefined) seen = { typed: new Set(parsed.typed), refused: new Set(parsed.refused) };
   } catch (error) {
-    // A child killed by a signal never closed its TypeScript server, which may still be working on a request; kill the
-    // servers it named. A child that exited on its own closed its server first, so no pid it named is reused here.
-    const killed = typeof error.signal === "string";
-    for (const pid of killed ? (/^server pids: (.+)$/m.exec(error.stderr ?? "")?.[1].split(" ") ?? []) : []) {
-      try {
-        process.kill(Number(pid), "SIGKILL");
-      } catch {
-        // already gone
-      }
-    }
-    const version = JSON.parse(readFileSync(join(ROOT, "node_modules", "typescript", "package.json"), "utf8")).version;
+    const version = installedTypescriptVersion(ROOT);
     fail(
       `the probe guard could not load or run the TypeScript parser, typescript@${version}'s unstable API, ` +
         `which a TypeScript upgrade can move: ${why(error)}`,

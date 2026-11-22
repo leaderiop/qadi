@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-033                                   |
-> | Revision       | 1.8                                            |
+> | Revision       | 1.9                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Accepted; amended 2026-11-21 (every child the gate starts has a timeout) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.8 (2026-11-21): A killed child's TypeScript server, busy on a request, outlives it, so the child names its server's process id and the gate kills that server when the child is killed by a signal (CCR-QD-460)<br>1.7 (2026-11-21): The killed child's TypeScript server exits when its pipe closes, shown on typescript@7.0.2; only a server that never reads its input again outlives the run, and the process-group kill is declined because Ctrl-C would no longer reach the child (CCR-QD-460)<br>1.6 (2026-11-21): amendment: the hang evidence is a blocked parser call in the child killed at the timeout, not a stopped TypeScript server (CCR-QD-460)<br>1.5 (2026-11-21): amendment: the probe guard's parse runs in a child under the gate's timeout, so every child the gate starts has one (CCR-QD-460)<br>1.4 (2026-11-21): amendment: the only child without a timeout, the TypeScript server behind `typescript/unstable/sync`'s `API`, is named, and a killed child reports its cause (ARCH-115, CCR-QD-459)<br>1.3 (2026-11-21): amendment: the probe guard reads what the consumer runs, and every `execFileSync` child has a timeout (ARCH-115, CCR-QD-459)<br>1.2 (2026-11-20): amendment: the consumer probes every make*Feed the packed devtools root exports and a DecisionCacheShape host cache, held by a probe guard (ARCH-110, CCR-QD-454)<br>1.1 (2026-10-07): check 3b added: the entry-point list is closed and the packed artifact is probed for it (ADR-QD-099, CCR-QD-188)<br>1.0 (2026-07-26): Initial release (CCR-QD-038) |
+> | Change History | 1.9 (2026-11-22): The probe guard's child and the module-state scan's share one module that starts, names and kills the TypeScript server (CCR-QD-463)<br>1.8 (2026-11-21): A killed child's TypeScript server, busy on a request, outlives it, so the child names its server's process id and the gate kills that server when the child is killed by a signal (CCR-QD-460)<br>1.7 (2026-11-21): The killed child's TypeScript server exits when its pipe closes, shown on typescript@7.0.2; only a server that never reads its input again outlives the run, and the process-group kill is declined because Ctrl-C would no longer reach the child (CCR-QD-460)<br>1.6 (2026-11-21): amendment: the hang evidence is a blocked parser call in the child killed at the timeout, not a stopped TypeScript server (CCR-QD-460)<br>1.5 (2026-11-21): amendment: the probe guard's parse runs in a child under the gate's timeout, so every child the gate starts has one (CCR-QD-460)<br>1.4 (2026-11-21): amendment: the only child without a timeout, the TypeScript server behind `typescript/unstable/sync`'s `API`, is named, and a killed child reports its cause (ARCH-115, CCR-QD-459)<br>1.3 (2026-11-21): amendment: the probe guard reads what the consumer runs, and every `execFileSync` child has a timeout (ARCH-115, CCR-QD-459)<br>1.2 (2026-11-20): amendment: the consumer probes every make*Feed the packed devtools root exports and a DecisionCacheShape host cache, held by a probe guard (ARCH-110, CCR-QD-454)<br>1.1 (2026-10-07): check 3b added: the entry-point list is closed and the packed artifact is probed for it (ADR-QD-099, CCR-QD-188)<br>1.0 (2026-07-26): Initial release (CCR-QD-038) |
 
 ---
 
@@ -198,6 +198,13 @@ its server already, so the gate kills nothing then. The child stays in the termi
 group, so a Ctrl-C still reaches the child and its server; a detached child killed as a group
 would have ended the server as well, but would not have received a Ctrl-C. Shown: with the kill,
 the same timed-out child left no server running, checked at once and 1.5 seconds later.
+
+The child's start, the kill of the servers it named and the text of its failure are one module,
+`scripts/lib/typescript-server-child.mjs`, so the module-state scan of
+`scripts/check-house-style.mjs` (`scripts/lib/module-state-scan.mjs`, ADR-QD-184), the second
+child that reads source through the same `API`, starts and kills its server the same way and
+cannot drift from this one. Each child's failure names its cause, the timeout and its bound
+or the signal, then the installed TypeScript, and never its command line.
 
 ---
 
