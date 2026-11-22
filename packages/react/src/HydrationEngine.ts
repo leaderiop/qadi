@@ -197,15 +197,56 @@ const decodeEnvelope = untrustedDecoder(Envelope, {
   prepare: checkVersion,
 }).decode;
 
-/** The decoder's refusal as the reason the payload is refused with. */
-const payloadRefusalReason: (refusal: UntrustedValueRefusal | PayloadVersionRefusal) => PayloadRefusalReason =
-  Match.type<UntrustedValueRefusal | PayloadVersionRefusal>().pipe(
-    Match.tagsExhaustive({
-      TooDeep: (): PayloadRefusalReason => "PayloadTooDeep",
-      Malformed: (): PayloadRefusalReason => "MalformedPayload",
-      UnsupportedPayloadVersion: (): PayloadRefusalReason => "UnsupportedPayloadVersion",
-    }),
-  );
+/**
+ * What raises a whole-payload refusal: one of the payload decoder's own
+ * refusals, by tag, or the subject check.
+ */
+type PayloadProducer = (UntrustedValueRefusal | PayloadVersionRefusal)["_tag"] | "SubjectCheck";
+
+/**
+ * Each whole-payload refusal reason, and the producer that raises it.
+ *
+ * One row per reason of core's drop-reason table of kind `payload`, so a
+ * `payload` row the table gains does not compile here until its producer is
+ * stated: the guarantee the two bucket records give the other two kinds
+ * (ADR-QD-183, amending ADR-QD-152's consequence that such a row compiled
+ * everywhere). Exported only for its conformance test, the module being
+ * package-private.
+ */
+export const PAYLOAD_PRODUCERS = {
+  PayloadSubjectMismatch: "SubjectCheck",
+  UnsupportedPayloadVersion: "UnsupportedPayloadVersion",
+  MalformedPayload: "Malformed",
+  PayloadTooDeep: "TooDeep",
+} satisfies { readonly [R in PayloadRefusalReason]: PayloadProducer };
+
+/** The union itself when it has exactly one member, `never` otherwise. */
+type OnlyMember<U, All = U> = U extends unknown ? ([All] extends [U] ? U : never) : never;
+
+/**
+ * The one reason whose row in {@link PAYLOAD_PRODUCERS} names `P`, and `never`
+ * when no row does or two rows do.
+ */
+type ReasonRaisedBy<P extends PayloadProducer> = OnlyMember<
+  {
+    readonly [R in PayloadRefusalReason]: (typeof PAYLOAD_PRODUCERS)[R] extends P ? R : never;
+  }[PayloadRefusalReason]
+>;
+
+/**
+ * Each producer, and the reason its refusal is reported under: the inverse of
+ * {@link PAYLOAD_PRODUCERS}, checked against it. A producer no row names, or two
+ * rows name, types its slot `never`, and a decoder refusal with no slot is a
+ * missing property, so the two directions cannot disagree. Indexed by the
+ * refusal's own tag, so it needs no `Object.hasOwn` (AGENTS.md section 5a, as
+ * `VERDICTS`).
+ */
+const PAYLOAD_REASONS: { readonly [P in PayloadProducer]: ReasonRaisedBy<P> } = {
+  TooDeep: "PayloadTooDeep",
+  Malformed: "MalformedPayload",
+  UnsupportedPayloadVersion: "UnsupportedPayloadVersion",
+  SubjectCheck: "PayloadSubjectMismatch",
+};
 
 const decodeEntry = untrustedDecoder(DehydratedEntryWire, { unknownKeys: "refuse" }).decode;
 
@@ -490,7 +531,7 @@ const planHydration = (seedFor: HydrationSeedLookup, payload: unknown, subject: 
     Predicate.isObject(payload) && Array.isArray(payload["entries"]) ? payload["entries"] : [];
 
   const envelope = decodeEnvelope(payload);
-  if (Result.isFailure(envelope)) return refuse(payloadRefusalReason(envelope.failure), visible);
+  if (Result.isFailure(envelope)) return refuse(PAYLOAD_REASONS[envelope.failure._tag], visible);
   const { subjectId, entries } = envelope.success;
 
   // `undefined` names an empty payload (EC-06), not a subject that failed to
@@ -501,7 +542,7 @@ const planHydration = (seedFor: HydrationSeedLookup, payload: unknown, subject: 
   // way a real mismatch drops them, just without asserting a wrong id that was
   // never named.
   if (subjectId === undefined) {
-    return entries.length > 0 ? refuse("PayloadSubjectMismatch", entries) : { initialValues: [], events: [] };
+    return entries.length > 0 ? refuse(PAYLOAD_REASONS.SubjectCheck, entries) : { initialValues: [], events: [] };
   }
 
   // The whole payload is rejected on a subject mismatch, not entry by entry: the
@@ -509,7 +550,7 @@ const planHydration = (seedFor: HydrationSeedLookup, payload: unknown, subject: 
   // entries are handed back whole; unlike the dehydrate side this discloses
   // nothing new — they are the caller's own argument, returned to them — so only
   // the *default* reporter withholds them.
-  if (subjectId !== subject.id) return refuse("PayloadSubjectMismatch", entries);
+  if (subjectId !== subject.id) return refuse(PAYLOAD_REASONS.SubjectCheck, entries);
 
   const seeded: Array<readonly [Atom.Atom<unknown>, unknown]> = [];
   const drops = entryBuckets();

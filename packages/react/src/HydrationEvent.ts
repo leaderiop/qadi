@@ -88,16 +88,18 @@ export interface DecisionEntry {
  * is not an envelope has no entries to speak of, so there is nothing to seed.
  * Read off core's drop-reason table by kind, so with {@link EntryDropReason} it
  * partitions `ClientHydrationDropReason`, and a new payload reason joins this
- * group from its row alone (ADR-QD-152).
+ * group from its row. It does not compile until `HydrationEngine.ts`'s producer
+ * record states what raises it (ADR-QD-183).
  */
 export type PayloadRefusalReason = HydrationDropReasonOf<"payload">;
 
 /**
  * The reasons that drop some entries of a payload and seed the rest.
  *
- * Read off core's table by kind; the engine buckets refused entries in a record
- * keyed by every one of these reasons, so a new entry reason does not compile
- * until it has a bucket there (ADR-QD-152).
+ * Read off core's table by kind; the engine collects refused entries in the
+ * record `HydrationBuckets.ts` builds, keyed by every one of these reasons, so a
+ * new entry reason does not compile until it has a bucket there and is reported
+ * from it (ADR-QD-152, ADR-QD-183).
  */
 export type EntryDropReason = HydrationDropReasonOf<"entry">;
 
