@@ -24,6 +24,10 @@
  * and the replay decode are the module's, and the session keeps its runs and its form
  * (ADR-QD-187).
  *
+ * Once the session is built, `writeDraft` is the one place the draft and its
+ * resource text are assigned, and `clearRun` is the one operation that stops the run
+ * in flight and sets it `Idle`, called from `reseed`, `choosePolicy` and `setPorts`.
+ *
  * The store is a closure over `makeExternalStore`, the mechanics
  * `TimelineStore.ts` shares; commands are synchronous and notify once.
  *
@@ -353,6 +357,12 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
     runs.stop();
   };
 
+  /** Stops the run in flight and sets the run `Idle`. */
+  const clearRun = () => {
+    supersede();
+    run = { _tag: "Idle" };
+  };
+
   const program = (
     question: SimulationQuestion,
     kind: RunKind,
@@ -434,22 +444,36 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
     runs.fork(mine, land(mine, question, kind, prepared, runClock, pairs));
   };
 
-  /** The one path a draft changes by: the same no-op rule and resource text for every command. */
-  const edit = (next: SimulationInput) => {
-    if (next === draft) return;
-    if (next.resource !== draft.resource) resourceText = resourceTextOf(next);
+  /**
+   * Assigns the draft and its resource text, answering whether it wrote anything.
+   *
+   * Given `text`, it is written as given, so `editResourceText` keeps what was typed
+   * and `reseed` writes the text it re-encoded. Without it the text is re-encoded
+   * only when the resource changed, and the draft already held writes nothing.
+   */
+  const writeDraft = (next: SimulationInput, text?: ResourceText): boolean => {
+    if (text === undefined && next === draft) return false;
+    const kept = next.resource === draft.resource;
+    resourceText = text ?? (kept ? resourceText : resourceTextOf(next));
     draft = next;
-    commit();
+    return true;
+  };
+
+  /**
+   * Writes `next` through `writeDraft` and publishes; the draft already held
+   * publishes nothing.
+   */
+  const edit = (next: SimulationInput) => {
+    if (writeDraft(next)) commit();
   };
 
   /** Seeds from `entry` unconditionally: `seed` guards it, `replay` does not. */
   const reseed = (entry: TimelineEntry | undefined): void => {
     const seeding = seedFrom(choice, entry);
     choice = seeding.choice;
-    draft = seeding.input ?? draft;
-    resourceText = resourceTextOf(draft);
-    supersede();
-    run = { _tag: "Idle" };
+    const next = seeding.input ?? draft;
+    writeDraft(next, resourceTextOf(next));
+    clearRun();
     commit();
   };
 
@@ -459,8 +483,7 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
     const next = choose(choice, policy);
     if (next === choice && run._tag === "Idle") return;
     choice = next;
-    supersede();
-    run = { _tag: "Idle" };
+    clearRun();
     commit();
   };
 
@@ -495,10 +518,7 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
       ports = next;
       // A capture is the answers of the environment it came from.
       capture = undefined;
-      if (run._tag === "Running") {
-        supersede();
-        run = { _tag: "Idle" };
-      }
+      if (run._tag === "Running") clearRun();
       commit();
     },
 
@@ -541,18 +561,16 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
         // Reported inline, and the previous resource is left alone: clearing it
         // on every keystroke that is not yet valid JSON would make the form
         // unusable halfway through typing one.
-        resourceText = { text, error: decoded.reason };
+        writeDraft(draft, { text, error: decoded.reason });
       } else {
-        resourceText = { text, error: undefined };
-        draft = withResource(draft, decoded.value);
+        writeDraft(withResource(draft, decoded.value), { text, error: undefined });
       }
       commit();
     },
 
     renameSubject: (to) => {
       if (to === draft.subject.id) return;
-      draft = renameSubject(draft, draft.subject.id, to);
-      commit();
+      edit(renameSubject(draft, draft.subject.id, to));
     },
 
     setAction: (text) => {
