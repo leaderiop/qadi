@@ -154,3 +154,87 @@ AssertionError: expected [ …(2) ] to deeply equal [ …(2) ]
 ```
 
 Each received record holds one key more than the contract's, the old one.
+
+## Each translation and probe rule and the outcome tie gutted once
+
+Each gut edited one source file on the working tree, ran its check, and was reverted with `git checkout -- <file>`;
+none was committed. They ran on `683ee88a` (`packages/core/test/EvaluationSpan.test.ts` and `EvaluationSpan.tst.ts` are
+its two files). The contract runs used:
+
+```
+pnpm exec vitest run --project core packages/core/test/EvaluationSpan.contract.test.ts --reporter=json --outputFile=<S>/gut-<name>.json < /dev/null
+```
+
+### translation-failure
+
+Edit: removed the `Effect.tapError` pipeable (and its comment) from the end of `toPredicate` in
+`packages/core/src/Predicate.ts`, so a failure no longer annotates `qadi.error_tag`.
+
+Command: the contract run above, `<S>/gut-translation-failure.json`. Exactly four rows failed and the other 29 passed:
+
+- `a policy too deep to translate carries exactly its question and PolicyTooDeep` (C9)
+- `a fields restriction carries exactly its question and PolicyNotTranslatable` (C10)
+- `an untranslatable node carries exactly its question and PolicyNotTranslatable` (C11)
+- `a port failure in translation carries exactly its question and error tag` (C12)
+
+First failure line of each:
+
+```
+AssertionError: expected { 'qadi.subject_id': 'u9', …(1) } to deeply equal { 'qadi.subject_id': 'u9', …(2) }
+```
+
+### probe-question
+
+Edit: removed the `yield* annotateSpan(guardHealthCheckSpan.question, …)` statement from `createGuardHealthCheck` in
+`packages/core/src/GuardHealthCheck.ts`, so the probe span carries no question.
+
+Command: the contract run above, `<S>/gut-probe-question.json`. Exactly three rows failed and the other 30 passed:
+
+- `a healthy probe carries exactly its question and qadi.healthy true` (C13)
+- `an unhealthy probe carries exactly its question, healthy false and error tag` (C14)
+- `a probe with an action carries exactly its question and qadi.healthy` (C15)
+
+First failure lines:
+
+```
+a healthy probe carries exactly its question and qadi.healthy true
+AssertionError: expected { 'qadi.healthy': true } to deeply equal { 'qadi.subject_id': 'u5', …(2) }
+an unhealthy probe carries exactly its question, healthy false and error tag
+AssertionError: expected { 'qadi.healthy': false, …(1) } to deeply equal { 'qadi.subject_id': 'u5', …(3) }
+a probe with an action carries exactly its question and qadi.healthy
+AssertionError: expected { 'qadi.healthy': true } to deeply equal { 'qadi.subject_id': 'u5', …(3) }
+```
+
+### tie-extra
+
+Edit: added `"Abstain"` to the `outcomes` list in `packages/core/src/EvaluationSpan.ts`, a fourth outcome literal that
+`Decision["_tag"] | "Failed"` does not hold.
+
+Commands: `pnpm typecheck < /dev/null > <S>/gut-tie-extra.typecheck.log 2>&1` exited non-zero (2), and
+`pnpm test:tstyche < /dev/null > <S>/gut-tie-extra.tstyche.log 2>&1` exited non-zero (1).
+
+```
+packages/core/src/EvaluationSpan.ts(75,3): error TS2322: Type '"Abstain"' is not assignable to type 'SpanOutcome'.
+```
+
+```
+Error: Type 'NonNullable<"Deny" | "Allow" | "Failed" | "Abstain" | undefined>' is not the same as type '"Deny" | "Allow" | "Failed"'.
+  at ./packages/core/test/EvaluationSpan.tst.ts:28:54 ❭ the outcome is a decision tag or Failed
+```
+
+### tie-missing
+
+Edit: removed `"Deny"` from the `outcomes` list in `packages/core/src/EvaluationSpan.ts`, so a decision the evaluator
+can reach is no longer an outcome.
+
+Commands: `pnpm typecheck < /dev/null > <S>/gut-tie-missing.typecheck.log 2>&1` exited non-zero (2), and
+`pnpm test:tstyche < /dev/null > <S>/gut-tie-missing.tstyche.log 2>&1` exited non-zero (1).
+
+```
+packages/core/src/Lifecycle.ts(159,5): error TS2322: Type '"Allow" | "Deny"' is not assignable to type '"Allow" | "Failed" | undefined'.
+```
+
+```
+Error: Type 'NonNullable<"Allow" | "Failed" | undefined>' is not the same as type '"Deny" | "Allow" | "Failed"'.
+  at ./packages/core/test/EvaluationSpan.tst.ts:28:54 ❭ the outcome is a decision tag or Failed
+```
