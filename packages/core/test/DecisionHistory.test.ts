@@ -496,8 +496,8 @@ what was thrown",
       }),
   );
 
-  it("a site subject that cannot be read fails the judgement with no event, \
-naming the site", () => {
+  it("a site subject that cannot be read fails the judgement with the leaf's \
+event, naming the site", () => {
     for (const [name, build] of Object.entries(HOSTILE_RECORDS)) {
       const subject = build(JSON.stringify(alice), "id", "boom");
       const judged = actedAnswerFromEvents([typed], anyLeaf, {
@@ -508,7 +508,7 @@ naming the site", () => {
       if (judged.failure._tag !== "DecisionHistoryUnavailable") {
         return assert.fail(`${name}: ${judged.failure._tag}`);
       }
-      assert.isFalse(Object.hasOwn(judged.failure, "event"), name);
+      assert.strictEqual(judged.failure.event, "approved", name);
       assert.match(causeText(judged.failure), /^site: reading it threw: /, name);
     }
   });
@@ -524,6 +524,7 @@ naming the site", () => {
         if (refused.failure._tag !== "DecisionHistoryUnavailable") {
           return assert.fail(refused.failure._tag);
         }
+        assert.strictEqual(refused.failure.event, "approved");
         assert.strictEqual(causeText(refused.failure), "site: reading it threw: boom");
         const answered = actedAnswerFromEvents([typed], anyLeaf, site);
         assert.isTrue(Result.isSuccess(answered));

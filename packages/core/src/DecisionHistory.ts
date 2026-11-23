@@ -366,8 +366,9 @@ export const decisionHistoryFromEvents = (
  * It never throws, whatever a row, the site's subject or the site's resource holds
  * (BEH-QD-410): a `null` row, a getter or a proxy that throws is a refusal. A row's
  * is the lookup's, naming the field. The site is read once, through `readGuarded`,
- * where the request is built, so a subject or resource that throws fails with no
- * `event`, as no request exists to name one from. The agreement with `askActed`
+ * where the request is built, so a subject or resource that throws fails with the
+ * leaf's own `event`, which the site does not decide, and the refusal's sentence.
+ * The agreement with `askActed`
  * over the fixture layer is pinned by `DecisionHistory.test.ts`.
  */
 export const actedAnswerFromEvents = (
@@ -382,7 +383,10 @@ export const actedAnswerFromEvents = (
     const [query] = yield* Result.mapError(
       readGuarded(["site"], () => decisionHistoryPort.asks.HasActed(leaf, site)),
       (refusal) =>
-        new DecisionHistoryUnavailable({ cause: describeKeyRefusal(refusal) }),
+        new DecisionHistoryUnavailable({
+          ...(isEvent(leaf.event) ? { event: leaf.event } : {}),
+          cause: describeKeyRefusal(refusal),
+        }),
     );
     yield* requireResourceId(leaf, query.resourceId, leaf.event);
     return yield* Result.mapError(actedLookup(events)(query), (refusal) =>

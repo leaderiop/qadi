@@ -116,10 +116,10 @@ export class MissingResourceId extends Schema.TaggedError<MissingResourceId>()(
 /**
  * A wired history store could not be reached. Distinct from it saying "Unknown".
  *
- * The event is absent exactly when the request's event is not a string, whether
- * or not the key refuses it. The cause is `describeKeyRefusal`'s sentence when the
- * key refuses the request, and the store's own cause when the key admits it
- * (BEH-QD-410).
+ * The event is absent exactly when the request's event is unreadable or is not a
+ * string, whether or not the key refuses it. The cause is `describeKeyRefusal`'s
+ * sentence when the key refuses the request, and the store's own cause when the key
+ * admits it (BEH-QD-410).
  */
 export class DecisionHistoryUnavailable extends Schema.TaggedError<DecisionHistoryUnavailable>()(
   "DecisionHistoryUnavailable",
@@ -133,8 +133,8 @@ export class DecisionHistoryUnavailable extends Schema.TaggedError<DecisionHisto
  * A wired `SignatureHistory` store could not be reached. Distinct from it
  * legitimately answering "no matching signatures" — see `SignatureHistory.ts`.
  *
- * The subject id is absent exactly when the request's subject id is not a
- * string, whether or not the key refuses it. The cause is
+ * The subject id is absent exactly when the request's subject id is unreadable or
+ * is not a string, whether or not the key refuses it. The cause is
  * `describeKeyRefusal`'s sentence when the key refuses the request, and the
  * store's own cause when the key admits it (BEH-QD-410).
  */

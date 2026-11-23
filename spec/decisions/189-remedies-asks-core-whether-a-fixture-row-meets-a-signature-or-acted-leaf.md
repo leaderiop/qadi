@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-189                                   |
-> | Revision       | 1.6                                            |
+> | Revision       | 1.7                                            |
 > | Effective Date | 2026-11-23                                     |
 > | Status         | Accepted — amends ADR-QD-058 and ADR-QD-094   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.6 (2026-11-23): decision 4: the list of rows is read through readRows, and its pins are named (code review iteration 2 WR-01, CCR-QD-468)<br>1.5 (2026-11-23): decisions 1 and 7 state the decision and its reason in the spec's own terms (code review IN-05, CCR-QD-468)<br>1.4 (2026-11-23): enforcement: the custom-predicate sentence, each fact checked once (code review IN-06, CCR-QD-468)<br>1.3 (2026-11-23): decision 4: a member is absent exactly when its schema refuses the value, and the cause is the store's own when the key admits it (code review WR-02, CCR-QD-468)<br>1.2 (2026-11-23): decision 4 and 5: the refusal is total over a row, a subject and a resource that throw, through one guarded read (code review WR-01, CCR-QD-468)<br>1.1 (2026-11-23): what enforces it: the compiler, the scripts, the tests by title and what review keeps; the acted evidence (ARCH-123, CCR-QD-468)<br>1.0 (2026-11-23): Initial release (ARCH-123, CCR-QD-468) |
+> | Change History | 1.7 (2026-11-23): decision 4: the absent member is stated as unreadable or refused by its schema, and the acted judgement's site failure carries the leaf's event (code review iteration 2 IN-02, CCR-QD-468)<br>1.6 (2026-11-23): decision 4: the list of rows is read through readRows, and its pins are named (code review iteration 2 WR-01, CCR-QD-468)<br>1.5 (2026-11-23): decisions 1 and 7 state the decision and its reason in the spec's own terms (code review IN-05, CCR-QD-468)<br>1.4 (2026-11-23): enforcement: the custom-predicate sentence, each fact checked once (code review IN-06, CCR-QD-468)<br>1.3 (2026-11-23): decision 4: a member is absent exactly when its schema refuses the value, and the cause is the store's own when the key admits it (code review WR-02, CCR-QD-468)<br>1.2 (2026-11-23): decision 4 and 5: the refusal is total over a row, a subject and a resource that throw, through one guarded read (code review WR-01, CCR-QD-468)<br>1.1 (2026-11-23): what enforces it: the compiler, the scripts, the tests by title and what review keeps; the acted evidence (ARCH-123, CCR-QD-468)<br>1.0 (2026-11-23): Initial release (ARCH-123, CCR-QD-468) |
 
 ---
 
@@ -86,14 +86,15 @@ leaves were the two it did not ask.
    sentence is built without reading a `name` that cannot be written as text. A row's
    fields are read once, where its lookup key
    is built; the site is read once, where the judgement builds the request, and a subject or
-   resource that throws is named as the site. The evaluator's own read of its site is not
-   guarded: it holds a subject `evaluate` already read.
+   resource that throws is named as the site, and the acted judgement's failure for it still
+   carries the leaf's own `event`, which the site does not decide. The evaluator's own read of
+   its site is not guarded: it holds a subject `evaluate` already read.
    `SignatureHistoryUnavailable.subjectId` and `DecisionHistoryUnavailable.event` become
    optional, and each description's `failure` sets a member only when the member's own schema
    admits the request's value (`Schema.is`), as it already did for `resourceId`. An absent member
-   says the request held a value the member's schema refuses, whether or not the key refuses it,
-   so a subject id that is an object, which the key admits, leaves it absent too. The cause is
-   `describeKeyRefusal`'s sentence when the key refuses the request,
+   says the request's value for it was unreadable or one the member's schema refuses, whether
+   or not the key refuses it, so a subject id that is an object, which the key admits, leaves it
+   absent too. The cause is `describeKeyRefusal`'s sentence when the key refuses the request,
    which names the value, and
    the store's own cause when the key admits it. The
    representation is the error class itself, so `SinkCodec` and `@qadi/http`'s response body
@@ -219,7 +220,7 @@ unchanged because no error class is added or removed: two gain an optional membe
   "a fixture row whose subject id is a symbol fails every read, never answering NotActed",
   "a fixture row whose event cannot be read fails every read, never throwing",
   "a fixture row that cannot be read fails every read, naming the field and what was thrown",
-  "a site subject that cannot be read fails the judgement with no event, naming the site",
+  "a site subject that cannot be read fails the judgement with the leaf's event, naming the site",
   "a resource id that throws fails a Resource leaf, which an Any leaf never reads",
   "a list that cannot be read fails every read, naming the list and what was thrown",
   "a row and a site fail with a sentence that names the class generically",
