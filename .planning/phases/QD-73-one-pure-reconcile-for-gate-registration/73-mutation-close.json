@@ -2,39 +2,39 @@
  "phase": "73",
  "groups": {
   "writer": {
-   "head": "86032b43e7510a912df2d47d5c168d80f152c463",
+   "head": "9d328b2694e7295ecb3d9c11a482e806582ec98b",
    "invocation": "pnpm exec stryker run stryker.react.mjs --mutate packages/react/src/GateWriter.ts",
    "files": {
     "packages/react/src/GateWriter.ts": {
-     "killed": 97,
+     "killed": 83,
      "timeout": 0,
      "survived": 0,
      "noCoverage": 0,
      "ignored": 2,
-     "detected": 97,
-     "valid": 97,
+     "detected": 83,
+     "valid": 83,
      "open": [],
      "ignoredMutants": [
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 251,
+       "line": 262,
        "column": 30
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 281,
-       "column": 29
+       "line": 293,
+       "column": 22
       }
      ]
     }
    }
   },
   "hook": {
-   "head": "86032b43e7510a912df2d47d5c168d80f152c463",
+   "head": "9d328b2694e7295ecb3d9c11a482e806582ec98b",
    "invocation": "pnpm exec stryker run stryker.react.mjs --mutate packages/react/src/useGate.ts",
    "files": {
     "packages/react/src/useGate.ts": {
@@ -50,7 +50,7 @@
        "status": "Survived",
        "mutator": "ConditionalExpression",
        "replacement": "false",
-       "line": 96,
+       "line": 98,
        "column": 9
       }
      ],
