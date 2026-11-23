@@ -679,6 +679,8 @@ Exit status 1. The failing line: `packages/core/src/SignatureHistory.ts  [missin
 
 ## The mutation close of the remedy and fixture files
 
+*Superseded (2026-11-23): the close after code review, the last section of this document, measures the tree the review left and replaces the figures here.*
+
 The three groups are measured on one head, `7fe825414c699d9f2e52c52d58ca20d7750dfbec` (`<scratch>/stryker-close-{core,devtools,http}.log`), each by the invocation of `76-mutation-base.json`, and `record close <group>` wrote them into `76-mutation-close.json`. The first close was measured on `0bdfe042`; it showed two new survivors in `QadiHttpError.ts` (below), a `test(76-06)` commit (`7fe82541`) killed them, and every group was re-measured with `record close core --restart` on the new head, so the close and the tree share one head. No file under `packages/` changes after it.
 
 | Group / file | Base (`phase_base`) | Close | Survived | Ignored |
@@ -705,6 +707,8 @@ The first close, on `0bdfe042`, held `QadiHttpError.ts` at 32/34 with two new su
 The base survivor `SignatureHistory.ts:366` `ConditionalExpression -> false` is still the file's one survivor, now at line 362 (`compare` carries it through `git diff -U0`). It is **equivalent**, so no test can kill it and it is explained rather than gone: `input.resourceId === undefined ? undefined : makeResourceId(input.resourceId)` guards only the type, because `makeResourceId` is `Brand.nominal<ResourceId>()`, the identity at run time, so forcing the condition false calls `makeResourceId(undefined)`, which returns `undefined`, the very value the true branch gives. The line is not one the phase wrote (it is not among the written ranges of the file below, and its text is the base's).
 
 ## Static mutants run by hand
+
+*Superseded (2026-11-23): the close after code review, the last section of this document, measures the tree the review left and replaces the figures here.*
 
 Each group's config spread with `ignoreStatic: false`, with its `jsonReporter` and `htmlReporter` redirected to the scratch folder (`<scratch>/stryker.examined-<group>.mjs`), run from the repository root with stdin closed, on the close head, over every file of the group (not only those whose Ignored count grew):
 
@@ -953,6 +957,8 @@ Mutants on a written line: 18 (Killed 18).
 
 ## The close on the final tree
 
+*Superseded (2026-11-23): the close after code review, the last section of this document, measures the tree the review left and replaces the figures here.*
+
 Measured by `76-08` on the final tree, one scan at a time, stdin closed, nothing else running. The tree: the last
 `packages/` commit is `43e83c50` (a width fix, below); the mutation close was re-measured on it; no later commit
 touches `packages`, `spec`, `scripts`, `apps`, `AGENTS.md`, `.changeset` or a manifest.
@@ -1094,3 +1100,71 @@ files; a diff of the two declarations shows only the surrounding `describe` titl
 what it closes over: each copy reads its own file's `LEAVES`, `LISTS` and `mismatchOf`, so moving it to the shared
 module would change what it reads, and a frozen statement with it. `refusalOf` does differ by one string, the error tag.
 Both stay in place, as the note says; only the reason given for `agreeAt` was wrong.
+
+## The close after code review
+
+Measured 2026-11-23 on `e2260f94c92916e54c4d96dbc0724b3c8255040d`, after the code review loop changed runtime code that the close of `43e83c50` had not measured: `DecisionHistory.ts`, `Errors.ts`, `PortAccess.ts` and `SignatureHistory.ts` (core group), `Remedies.ts` (devtools group), and four core files no group held (`PortKey.ts`, `ScopedLeaf.ts`, `LeafNeeds.ts`, `PortDerivation.ts`). The close of `76-06` and `76-08` above is superseded by this one. `packages/` does not change after this head except through the commits named here (two test rows, no source).
+
+### The keys group, and why it is close-only
+
+`76-mutation.mjs` gained one group, `keys`, for the four files above, through `stryker.config.mjs` (the core test project). It is close-only: the phase changed those files only in the code review (the guarded read `readGuarded`, `readRows`, `unreadable`, a total `brandOf`, the one resource-id check `requireResourceId`, an absence removed from `LeafNeeds.ts`, `PortDerivation.ts`'s `key` through the guarded read), so the base record does not hold them and there is nothing to compare with. Its rule is that every valid mutant is killed and every Ignored mutant is admitted through `EXAMINED`, as the `span` group of the earlier phase did. It is mutated only where the phase wrote: the `+` side of `git diff -U0 bf339146 HEAD -- <file>` (`PortKey.ts` 56, 79-84, 87-90, 134-137, 212, 215-246; `ScopedLeaf.ts` 2-3, 5-6, 14-19, 24-25, 47-75; `LeafNeeds.ts` 22, 199, 240-248; `PortDerivation.ts` 36, 111-113). Stryker keeps a mutant only when its whole node lies inside a range, so `LeafNeeds.ts`'s range runs to the end of `errorOf`, whose body block starts on written line 241 (with `240-241` the file held no mutant and its report entry was missing). The by-hand run of `keys` is over the whole of each file.
+
+### The survivors the first re-close showed, and their kills
+
+The first re-close (on `fe8b814c` and again on `5f22308a`, packages identical) held 13 Survived mutants, all on lines the review wrote:
+
+- `SignatureHistory.ts` 369, 371, 372, 373, 374: the path argument of `readGuarded([...], () => input.<field>)` for `resourceId`, `signerRole`, `signedAt`, `algorithm` and `keyId`, each `ArrayDeclaration -> []` and `StringLiteral -> ""`; `DecisionHistory.ts` 299: the same for `resourceId`. No row named the field a refusal reports for those fields (`meaning`, `subjectId` and `event` were pinned).
+- `SignatureHistory.ts:380`, `ConditionalExpression -> false` (below).
+
+`772e0b90` adds one new top-level `describe` to each of `SignatureHistory.test.ts` and `DecisionHistory.test.ts` (added lines only, the agreement check passing): a row per field whose getter throws while every other field is valid, asserting the whole sentence `<field>: reading it threw: boom` for the fixture layer's read and for the judgement. Signature: `subjectId`, `resourceId`, `signerRole`, `signedAt`, `algorithm`, `keyId`; history: `subjectId`, `resourceId`. After it the core group reads 109/110 and 64/64 with the single survivor at line 380.
+
+**The Timeout cluster.** In the by-hand run (`ignoreStatic: false`) before those rows the same mutants read Timeout, 28 on `SignatureHistory.ts` and 2 on `DecisionHistory.ts` written lines, reproduced by a second run limited to those lines, while the scorer's own run (`ignoreStatic: true`) read them Survived. A Timeout is not a kill for admission, and these were not: they were mutants no test pinned, which only showed as slow under the by-hand configuration. With the rows in, the by-hand run reads every one of them Killed and the scorer's run Killed too; no Timeout remains on a written line of any file.
+
+### Line 380: the equivalent survivor, paired through MOVED
+
+`SignatureHistory.ts:380` `ConditionalExpression -> false` is the base's one survivor (base line 366, now rewritten by the review, which put the row's fields behind one guarded read). `row.resourceId === undefined ? undefined : makeResourceId(row.resourceId)` guards only the type: `makeResourceId` is `Brand.nominal<ResourceId>()`, the identity at run time, so forcing the test false calls it on `undefined` and returns `undefined`, the value the true branch gives. It cannot be removed cleanly: `pairKey` takes a `ResourceId | undefined`, `makeResourceId` accepts no `undefined`, and a cast-free read cannot hand the field's `string | undefined` to it. So it stays and `compare` pairs it through a `MOVED` entry (`76-mutation.mjs`) that names the base survivor (366:11) on a line the diff rewrote and the close survivor (380:17); the self-test gained four cases (the entry names a survivor the base record holds, admits its close survivor, fails without the entry, admits no other survivor), `self-test: 42 passed`. Not a line a test can kill.
+
+### The close
+
+All four groups were recorded on one head (`record close core --restart`, then devtools, http, keys), each after its own Stryker run, stdin closed, nothing else running, by the base's invocations (`keys`: `stryker.config.mjs` with the sixteen ranges above). `compare` prints `no file has an open or Ignored mutant its base did not have, and every score that fell lost only killed mutants`.
+
+| File | Base (`phase_base`) | Close of `76-06`/`76-08` | This close | Survived | Ignored (base to close) |
+| ---- | ------------------- | ------------------------ | ---------- | -------- | ----------------------- |
+| core `SignatureHistory.ts` | 71/72 | 87/88 | 109/110 | 1 (line 380, MOVED) | 36 to 37 |
+| core `SignatureMatch.ts` | 13/13 | 14/14 | 14/14 | 0 | 1 to 2 |
+| core `PortAccess.ts` | 47/47 | 46/46 | 43/43 | 0 | 17 to 17 |
+| core `DecisionHistory.ts` | 32/32 | 52/52 | 64/64 | 0 | 41 to 42 |
+| core `Errors.ts` | 1/1 | 1/1 | 1/1 | 0 | 35 to 35 |
+| devtools `Remedies.ts` | 297/297 | 277/277 | 288/288 | 0 | 48 to 65 |
+| devtools `SimulationFields.ts` | 190/190 | 190/190 | 190/190 | 0 | 108 to 108 |
+| http `QadiHttpError.ts` | 26/26 | 34/34 | 34/34 | 0 | 45 to 45 |
+| keys `PortKey.ts` | none | none | 21/21 | 0 | 3 |
+| keys `ScopedLeaf.ts` | none | none | 7/7 | 0 | 0 |
+| keys `LeafNeeds.ts` | none | none | 9/9 | 0 | 0 |
+| keys `PortDerivation.ts` | none | none | 2/2 | 0 | 0 |
+
+No file's score fell against its base (the valid count of `PortAccess.ts` and `Remedies.ts` rose or fell with the code, every remaining mutant killed).
+
+### Static mutants run by hand
+
+Each group's config spread with `ignoreStatic: false`, its reports redirected to the scratch folder, run from the repository root with stdin closed on the close head over every file of the group (`keys`: the four files whole), in the background, alone. Per file: the written lines are the `+` lines of `git diff -U0 bf339146 e2260f94 -- <file>`; every mutant on one is Killed, except `SignatureHistory.ts:380` above.
+
+- `SignatureHistory.ts`: 68 mutants on written lines (`34, 45-46, 55, 57, 207-209, 289-290, 293-294, 339-340, 342-345, 353-356, 358, 360, 363-393, 408-438, 445-449, 453-491`), 67 Killed, 1 Survived (380, the equivalent, MOVED). Whole file: 141 Killed, 3 Survived (95, 136, 380), 3 RuntimeError (239, 261, 288).
+- `SignatureMatch.ts`: 2 on written lines (`12-14, 29-46`), both Killed. `PortAccess.ts`: 3 (`37, 53, 67, 249-251, 272-273, 275-276, 290-291, 297, 299-300, 479-483, 499-503`), all Killed. `DecisionHistory.ts`: 45 (`20, 24-30, 39-41, 50, 180-181, 233-239, 270-271, 273-286, 288-314, 316-322, 330-335, 340, 344-348, 352-396`), all Killed; whole file 99 Killed, 3 Survived (64, 101, 113) and 4 RuntimeError (173, 200, 212, 232), none on a written line. `Errors.ts`: 0 on written lines (`116-123, 127, 135-139, 144`).
+- `Remedies.ts`: 94 on written lines (`22, 24, 33-35, 39-40, 44, 48-49, 53-54, 83-96, 107, 334-335, 368-370, 380-382, 438-503, 552, 565, 569, 583, 590-593, 595-615, 618-623, 625-655, 659-660, 664-678`), all Killed; whole file 353 Killed. `SimulationFields.ts`: 3 on written lines (`549-560, 573-574, 578-579, 586`), all Killed; whole file 298 Killed.
+- `QadiHttpError.ts`: 18 on written lines (`206-214, 278-284, 294, 297-301`), all Killed; whole file 77 Killed, 2 RuntimeError (177, 251), neither on a written line.
+- `PortKey.ts`: 24 (`56, 79-84, 87-90, 134-137, 212, 215-246`), all Killed; whole file 180 Killed, 4 Timeout, none on a written line. `ScopedLeaf.ts`: 7 (`2-3, 5-6, 14-19, 24-25, 47-75`), all Killed. `LeafNeeds.ts`: 1 (the `errorOf` body block, line 241; `22, 199, 240-241`), Killed; whole file 99 Killed, 1 Survived (203, not written). `PortDerivation.ts`: 2 (`36, 111-113`), Killed; whole file 57 Killed, 1 Survived (167) and 3 RuntimeError (100, 102, 104), none on a written line.
+
+No Timeout and no RuntimeError sits on a written line anywhere. The Survived and RuntimeError mutants on lines the phase did not write are the static kinds the base already held (the RuntimeErrors are module-import crashes: every importing test file fails to load), and `compare` finds none new.
+
+### What `EXAMINED` admits
+
+`EXAMINED` in `76-mutation.mjs` is rewritten on one line to the Ignored mutants the close holds beyond its base, by file and kind; the stale entries of the earlier close (`SignatureMatch.ts`'s unchanged one stays, `Remedies.ts`'s `StringLiteral ""`, whose line is gone, goes) are replaced. Each admitted count is no more than the by-hand kills of its kind on that file's written lines, and each is Killed there:
+
+- `SignatureHistory.ts` `ArrowFunction () => undefined` 1: line 474, the expression-bodied export `signatureAnswerFromSignatures`.
+- `SignatureMatch.ts` `ArrowFunction () => undefined` 1: line 39, `signatureAnswerOf`.
+- `DecisionHistory.ts` `ArrowFunction () => undefined` 1: of lines 235 (the port's `failure`) and 374 (the expression-bodied export `actedAnswerFromEvents`).
+- `Remedies.ts` `ArrowFunction () => undefined` 16 and `ObjectLiteral {}` 2: the written-line static mutants are the arrows at 370, 382, 446, 462, 468 to 476, 493, 494, 495, 500, 659, 670 and the object literals at 467 and 492 (the refusal sentences, `remedyFor`'s dispatch table and its arm closures); the base held fewer of those kinds, so the growth over the base is 16 and 2, and all are Killed by hand.
+- `PortKey.ts` (the close-only group) `ArrowFunction () => undefined` 3: lines 135 (`unreadable`), 229 (`readGuarded`) and 243 (`readRows`), each Killed by hand.
+
+The self-test reads `self-test: 42 passed`.
