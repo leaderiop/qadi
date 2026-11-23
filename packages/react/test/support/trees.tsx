@@ -4,8 +4,7 @@
  * The registry tests and the registration characterisation ask the same questions of the
  * same subject and resources, mount them under the same `QadiProvider`, and read the same
  * projection of what registered, so those fixtures and trees are written once here and
- * every file that renders a guard shares them, and so does the error boundary the tests
- * that watch a throw render under.
+ * every file that renders a guard shares them.
  */
 import {
   EvaluationServicesNone,
@@ -16,7 +15,7 @@ import {
 } from "@qadi/core";
 import { render } from "@testing-library/react";
 import type { RenderResult } from "@testing-library/react";
-import { Component, StrictMode } from "react";
+import { StrictMode } from "react";
 import type { ReactElement, ReactNode } from "react";
 import type {
   GateInstance,
@@ -128,17 +127,3 @@ export const snapshotOf = (instances: ReadonlyArray<GateInstance>) =>
     resource: one.resource,
     element: one.element !== undefined,
   }));
-
-/** An error boundary that shows `boundary` once a child throws. */
-export class Boundary extends Component<
-  { readonly children: ReactNode },
-  { readonly failed: boolean }
-> {
-  override state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-  override render() {
-    return this.state.failed ? <span>boundary</span> : this.props.children;
-  }
-}

@@ -21,7 +21,7 @@ import {
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import { StrictMode, Suspense } from "react";
+import { Component, StrictMode, Suspense, type ReactNode } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import {
@@ -33,7 +33,6 @@ import {
   useInvalidate,
   useSubject,
 } from "../src/index.ts";
-import { Boundary } from "./support/trees.tsx";
 
 const needsClearance = hasAttribute("clearance", gte(1));
 const canRead = hasPermission(permission("doc", "read"));
@@ -49,6 +48,16 @@ const broken = makeQadiAtoms(
     EvaluationIdLive,
   ),
 );
+
+class Boundary extends Component<{ readonly children: ReactNode }, { readonly failed: boolean }> {
+  override state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  override render() {
+    return this.state.failed ? <span>boundary</span> : this.props.children;
+  }
+}
 
 afterEach(() => {
   document.body.innerHTML = "";
