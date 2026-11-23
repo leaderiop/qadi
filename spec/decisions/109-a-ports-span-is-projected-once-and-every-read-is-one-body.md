@@ -5,12 +5,12 @@
 > | Property       | Value                                                                    |
 > | -------------- | ------------------------------------------------------------------------ |
 > | Document ID    | QADI-ADR-109                                                             |
-> | Revision       | 1.7                                                                      |
+> | Revision       | 1.8                                                                      |
 > | Effective Date | 2026-11-08                                                               |
 > | Status         | Accepted — amends ADR-QD-077, ADR-QD-094, ADR-QD-107, ADR-QD-058         |
 > | Author         | Qadi Engineering                                                         |
 > | Classification | Architecture Decision Record                                             |
-> | Change History | 1.7 (2026-11-23): The 2026-11-23 amendment claims exactly what carries over: the struct pattern and a question written whole through PoseOf (code review, ADR-QD-188, CCR-QD-467)<br>1.6 (2026-11-23): amendment — the question and answer structs are applied outside the port registry, by the evaluate family's own declaration (ARCH-122, ADR-QD-188, CCR-QD-467)<br>1.5 (2026-11-11): amendment — ARCH-70: the accepted duplicate early annotation is retired; readScoped annotates early only when the id is missing (ADR-QD-134, CCR-QD-412)<br>1.4 (2026-11-08): Consequences — an unseen signature requirement replays as `SignatureHistoryUnavailable`, not an empty list; the replay fails closed rather than accepting the regression (code review WR-04)<br>1.3 (2026-11-08): Consequences — correct the claim that over-keying can only deny: an unseen requirement replays as an empty list, which `not(hasSignature)` grants, in devtools' what-if (code review WR-03)<br>1.2 (2026-11-08): Alternatives — the annotate-before-validate question is derived from the description's `pose`, not hand-written in the three resource-scoped reads (code review WR-02)<br>1.1 (2026-11-08): Decision 3 — `disclose` runs under the defect mapping, so a malformed store answer is the port's typed error, never a defect (code review WR-01)<br>1.0 (2026-11-08): Initial (ARCH-47, CCR-QD-386)                          |
+> | Change History | 1.8 (2026-11-23): The ADR-QD-188 amendment: a batch span's question is built from its policy and options, not from a built question (code review, CCR-QD-467)<br>1.7 (2026-11-23): The 2026-11-23 amendment claims exactly what carries over: the struct pattern and a question written whole through PoseOf (code review, ADR-QD-188, CCR-QD-467)<br>1.6 (2026-11-23): amendment — the question and answer structs are applied outside the port registry, by the evaluate family's own declaration (ARCH-122, ADR-QD-188, CCR-QD-467)<br>1.5 (2026-11-11): amendment — ARCH-70: the accepted duplicate early annotation is retired; readScoped annotates early only when the id is missing (ADR-QD-134, CCR-QD-412)<br>1.4 (2026-11-08): Consequences — an unseen signature requirement replays as `SignatureHistoryUnavailable`, not an empty list; the replay fails closed rather than accepting the regression (code review WR-04)<br>1.3 (2026-11-08): Consequences — correct the claim that over-keying can only deny: an unseen requirement replays as an empty list, which `not(hasSignature)` grants, in devtools' what-if (code review WR-03)<br>1.2 (2026-11-08): Alternatives — the annotate-before-validate question is derived from the description's `pose`, not hand-written in the three resource-scoped reads (code review WR-02)<br>1.1 (2026-11-08): Decision 3 — `disclose` runs under the defect mapping, so a malformed store answer is the port's typed error, never a defect (code review WR-01)<br>1.0 (2026-11-08): Initial (ARCH-47, CCR-QD-386)                          |
 
 ---
 
@@ -167,9 +167,11 @@ own).
 > (`sharedQuestionKeys`), in a package-private module of its own, `EvaluationSpan.ts`. Two things
 > carry over to `qadi.evaluate`, `qadi.toPredicate`, `qadi.guardHealthCheck` and the two batch
 > spans: the struct pattern, a question and an answer built with `spanStruct` and written through
-> `encodeSpan`; and the rule that a question is written whole, held by the same `PoseOf` type a
+> the encoding body port spans use; and the rule that a question is written whole, held by the same `PoseOf` type a
 > port's `pose` returns ([ADR-QD-133](133-a-port-request-is-derived-from-its-wire-question.md)), so a
 > question that leaves a member out fails to compile where it is written. A family span has no
-> `pose` and no `disclose`: its writer builds the question from the built question it decides. See
+> `pose` and no `disclose`: its writer builds the question from what it decides, the built question
+> for `qadi.evaluate`, `qadi.toPredicate` and the probe (`askedOf`), and the policy and options for
+> the two batch spans (`batchAskedOf`). See
 > [ADR-QD-188](188-the-evaluate-familys-spans-are-declared-once-and-a-failed-span-says-what-was-asked.md) and
 > [INV-QD-396](../invariants.md#inv-qd-396-one-fact-has-one-key-across-the-evaluate-family).
