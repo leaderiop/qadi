@@ -445,7 +445,7 @@ Order: the three live defects (69 to 71), the three deepenings (72 to 74), the c
 - [x] **Phase 72: A derived store behind the dock model's stores** - `ExternalStore` gains a store derived from parent stores that owns key equality, stop-after-close and notify-once, and the dock model's three hand-built computed stores use it (ARCH-119, devtools) (completed 2026-11-22)
 - [x] **Phase 73: One pure reconcile for gate registration** - One `reconcile` keyed by gate id registers, updates and unregisters, and `useGate` loses its state-diff effect and the index-aligned parallel arrays (ARCH-120, react) (completed 2026-11-23)
 - [x] **Phase 74: The simulation session's policy choice split from its runs** - The policy-choice and seed rules move into a pure module beside `HeldChoice.ts`, and the session keeps only runs (ARCH-121, devtools) (completed 2026-11-23)
-- [ ] **Phase 75: A declared span shape for the evaluate family** - One question/answer span struct built with `spanStruct`, so a failed `qadi.evaluate` span carries the question and the outcome sits under one key; human checkpoint (ARCH-122, core)
+- [x] **Phase 75: A declared span shape for the evaluate family** - One question/answer span struct built with `spanStruct`, so a failed `qadi.evaluate` span carries the question and the outcome sits under one key; human checkpoint (ARCH-122, core) (completed 2026-11-23)
 - [ ] **Phase 76: Remedies uses core's signature match** - Remedies asks core whether a fixture signature satisfies a node, or the phase ends in a recorded rejection; speculative (ARCH-123, devtools + core)
 
 ### Phase Details
@@ -684,7 +684,7 @@ Plans:
   4. The behaviour doc, the invariant, traceability and a `@qadi/core` changeset describe the span change that tracers will see, and ADR-QD-188 extends ADR-QD-051 and ADR-QD-109.
 
 **Planning notes**: Open the phase on the checkpoint: evidence first, then one `AskUserQuestion`. `decideQuestion` in `Lifecycle.ts` is exported but used only in that file; take it as a hygiene note if the file is touched anyway (the review's own footnote, not a requirement).
-**Plans**: 9/9 plans executed (strictly serial, waves 1 to 9)
+**Plans**: 9/9 plans complete (strictly serial, waves 1 to 9)
 
 Plans:
 **Wave 1**
@@ -746,5 +746,5 @@ Phases execute in numeric order: 69 → 70 → 71 → 72 → 73 → 74 → 75 �
 | 72. A derived store behind the dock model's stores | 8/8 | Complete    | 2026-11-22 |
 | 73. One pure reconcile for gate registration | 7/7 | Complete    | 2026-11-23 |
 | 74. The simulation session's policy choice split from its runs | 7/7 | Complete    | 2026-11-23 |
-| 75. A declared span shape for the evaluate family | 9/9 | In Progress | - |
+| 75. A declared span shape for the evaluate family | 9/9 | Complete    | 2026-11-23 |
 | 76. Remedies uses core's signature match | 0/TBD | Not started | - |

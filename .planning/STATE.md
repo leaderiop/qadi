@@ -2,21 +2,21 @@
 gsd_state_version: "1.0"
 milestone: v1.8
 milestone_name: Arch Wave 13
-current_phase: 75
-current_phase_name: A declared span shape for the evaluate family
-current_plan: 9
-status: verifying
-stopped_at: Completed 75-09-PLAN.md
-last_updated: "2026-11-23T09:28:52.583Z"
+current_phase: 76
+current_phase_name: Remedies uses core's signature match
+current_plan: Not started
+status: planning
+stopped_at: Phase 75 complete, ready to plan Phase 76
+last_updated: "2026-11-23T11:54:34.306Z"
 last_activity: 2026-11-23
-last_activity_desc: Phase 74 complete, transitioned to Phase 75
-state_head: b957a1555b9d0bcb4a6aeef7824a321bd451d897
+last_activity_desc: Phase 75 complete, transitioned to Phase 76
+state_head: 447fad5d2b7090f52af4585e40e25570aadc708e
 progress:
   total_phases: 8
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 55
   completed_plans: 55
-  percent: 75
+  percent: 88
 ---
 
 # Project State
@@ -30,17 +30,17 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 
 ## Current Position
 
-Phase: QD-75 (A declared span shape for the evaluate family) — EXECUTING
-Current Plan: 9
+Phase: 76 — Remedies uses core's signature match
+Current Plan: Not started
 Total Plans in Phase: 9
-Status: Phase complete — ready for verification
-Last activity: 2026-11-23 — Phase 74 complete, transitioned to Phase 75
+Status: Ready to plan
+Last activity: 2026-11-23 — Phase 75 complete, transitioned to Phase 76
 
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 425
+- Total plans completed: 434
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -113,6 +113,7 @@ Last activity: 2026-11-23 — Phase 74 complete, transitioned to Phase 75
 | 72 | 8 | - | - |
 | 73 | 7 | - | - |
 | 74 | 7 | - | - |
+| 75 | 9 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -1020,7 +1021,7 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 ## Session Continuity
 
 Last session: 2026-11-23T09:28:52.280Z
-Stopped at: Completed 75-09-PLAN.md
+Stopped at: Phase 75 complete, ready to plan Phase 76
 Resume file: None
 
 ## Operator Next Steps
