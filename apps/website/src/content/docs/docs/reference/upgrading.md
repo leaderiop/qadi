@@ -1105,3 +1105,23 @@ export const loggedCache = Layer.effect(
 ```
 
 The decision is [ADR-QD-174](https://github.com/leaderiop/qadi/blob/main/spec/decisions/174-a-decision-cache-is-asked-the-question.md).
+
+## 0.13: the evaluate spans answer under `qadi.outcome` and a failed span says what was asked
+
+The `qadi.evaluate` span's outcome is one key on every path: `qadi.outcome`, with the values `Allow`, `Deny` and `Failed`. The key `qadi.decision`, which carried `Allow` or `Deny`, is removed, and nothing is written under both keys, so a tracer query or a dashboard on `qadi.decision` must move to `qadi.outcome`. A failed evaluation was never under `qadi.decision`; it was `qadi.outcome` with the value `Failed`, so a query that already read `qadi.outcome` for failures now finds the allows and denials under it too.
+
+A failed `qadi.evaluate` span used to carry only `qadi.outcome` and `qadi.error_tag`, because its question was annotated after the decision was made. The question is now annotated first, on every path, so a query by `qadi.subject_id` or by `qadi.evaluation_id` finds the evaluations that failed as well as the ones that decided. The other spans of the family say what they were asked too, and `qadi.toPredicate` says why a translation failed.
+
+| Span | Before | After |
+| ---- | ------ | ----- |
+| `qadi.evaluate`, an allow or a denial | `qadi.decision` (`Allow` or `Deny`), `qadi.subject_id`, `qadi.evaluation_id`, `qadi.policy_tag`, `qadi.action` when supplied, `qadi.obligations` on an allow that owes some | `qadi.outcome` (`Allow` or `Deny`) in place of `qadi.decision`; the other keys as before |
+| `qadi.evaluate`, a failure | `qadi.outcome` (`Failed`) and `qadi.error_tag` | `qadi.subject_id`, `qadi.evaluation_id`, `qadi.policy_tag`, `qadi.action` when supplied, `qadi.outcome` (`Failed`) and `qadi.error_tag` |
+| `qadi.toPredicate`, a translation | `qadi.subject_id`, `qadi.policy_tag` and `qadi.predicate_tag` | the same, and `qadi.action` when supplied |
+| `qadi.toPredicate`, a failed translation | no key | `qadi.subject_id`, `qadi.policy_tag`, `qadi.action` when supplied and `qadi.error_tag` |
+| `qadi.guardHealthCheck` | `qadi.healthy`, and `qadi.error_tag` when unhealthy | `qadi.subject_id`, `qadi.policy_tag` and `qadi.action` when supplied, then `qadi.healthy`, and `qadi.error_tag` when unhealthy |
+| `qadi.decideSubjects` | `qadi.subject_count` and `qadi.policy_tag` | the same, and `qadi.action` when supplied |
+| `qadi.decideSubjectsStream` | `qadi.policy_tag` | the same, and `qadi.action` when supplied |
+
+Every evaluation now annotates its span twice, the question and then the answer, where it annotated once. The cost is recorded in the decision.
+
+The decision is [ADR-QD-188](https://github.com/leaderiop/qadi/blob/main/spec/decisions/188-the-evaluate-familys-spans-are-declared-once-and-a-failed-span-says-what-was-asked.md).
