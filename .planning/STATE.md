@@ -4,18 +4,18 @@ milestone: v1.8
 milestone_name: Arch Wave 13
 current_phase: 76
 current_phase_name: Remedies uses core's signature match
-current_plan: 4
+current_plan: 5
 status: executing
-stopped_at: Completed 76-03-PLAN.md
-last_updated: "2026-11-23T15:55:48.161Z"
+stopped_at: Completed 76-04-PLAN.md
+last_updated: "2026-11-23T16:02:19.913Z"
 last_activity: 2026-11-23
 last_activity_desc: Phase 75 complete, transitioned to Phase 76
-state_head: 04b5c1bade2bbd9b496349417e9cae91bbe05f42
+state_head: ac781ae0c7ebd62d1d1030e3a24a98ae62fd7655
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 63
-  completed_plans: 58
+  completed_plans: 59
   percent: 88
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 ## Current Position
 
 Phase: 76 (Remedies uses core's signature match) — READY TO EXECUTE
-Current Plan: 4
+Current Plan: 5
 Total Plans in Phase: 8
 Status: Ready to execute
 Last activity: 2026-11-23 — Phase 75 complete, transitioned to Phase 76
@@ -550,6 +550,7 @@ Last activity: 2026-11-23 — Phase 75 complete, transitioned to Phase 76
 | Phase 76 P01 | 30 min | 2 tasks | 5 files |
 | Phase 76 P02 | 12 min | 2 tasks | 7 files |
 | Phase 76 P03 | 35 min | 3 tasks | 11 files |
+| Phase 76 P04 | 15 min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -955,6 +956,7 @@ Last activity: 2026-11-23 — Phase 75 complete, transitioned to Phase 76
 - [Phase 76]: Site-subject refusal rows give core an empty fixture, not the port default: the default port never reads the request, so no fixture change could make core fail there
 - [Phase 76]: Over-long test titles stay one string literal continued by a backslash, broken after an as, because house-style reads one physical line at a time
 - [Phase 76]: 76-03: signatureHistoryPort.failure sets subjectId and resourceId only when their schemas admit the request's value, and SignatureHistoryUnavailable.subjectId is optional, so a refused signature request fails typed and never dies (ADR-QD-189 decision 4); signatureAnswerFromSignatures answers fixture rows from the shared lookup and answer rule
+- [Phase 76]: 76-04: the history fixture keys rows and requests through decisionHistoryPort.key; DecisionHistoryUnavailable.event optional; actedAnswerFromEvents added; ActedEvent, ActedAnywhere, ActedAnywhereInput removed (api-surface 940, ADR-QD-189)
 
 ### Pending Todos
 
@@ -1028,8 +1030,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-23T15:55:47.784Z
-Stopped at: Completed 76-03-PLAN.md
+Last session: 2026-11-23T16:02:19.524Z
+Stopped at: Completed 76-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
