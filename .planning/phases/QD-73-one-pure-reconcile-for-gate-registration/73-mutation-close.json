@@ -2,7 +2,7 @@
  "phase": "73",
  "groups": {
   "writer": {
-   "head": "9d328b2694e7295ecb3d9c11a482e806582ec98b",
+   "head": "37e85311037992797383d30ffe36d3b8c2bd5a3f",
    "invocation": "pnpm exec stryker run stryker.react.mjs --mutate packages/react/src/GateWriter.ts",
    "files": {
     "packages/react/src/GateWriter.ts": {
@@ -34,7 +34,7 @@
    }
   },
   "hook": {
-   "head": "9d328b2694e7295ecb3d9c11a482e806582ec98b",
+   "head": "37e85311037992797383d30ffe36d3b8c2bd5a3f",
    "invocation": "pnpm exec stryker run stryker.react.mjs --mutate packages/react/src/useGate.ts",
    "files": {
     "packages/react/src/useGate.ts": {

@@ -47,8 +47,8 @@ The threats are:
 | T-73-10 | Denial of service | the hook holding handles after a throwing reconcile | medium | mitigate | closed by the same writer contract as T-73-06. Teardown still ends every registration: pinned by `GateWriter.test.tsx`'s writer-undefined and unmount rows and by the characterisation's unmount rows. | closed |
 | T-73-11 | Repudiation | rendered cases deleted without a replacement | low | mitigate | `GateRegistry.test.tsx` lost exactly three titles, each replaced in the characterisation and pinned without rendering in `GateWriter.reconcile.test.ts`. The two reconcile tests later removed in review name their survivors (`73-REVIEW-FIX.iter1.md`, IN-06). | closed |
 | T-73-12 | Repudiation | Pinned-by titles that do not exist | medium | mitigate | every title quoted in BEH-QD-701..705 (36) and INV-QD-391/392 (15) resolves verbatim in the file it names | closed |
-| T-73-13 | Repudiation | CCR row omitting a file or citing a wrong revision | medium | mitigate | CCR-QD-465's file list equals the 20 files changed outside `.planning/` since `phase_base`. Its cited revisions equal the headers: ADR-186 1.5, ADR-140 1.4, ADR-111 1.2, ADR-103 1.5, behaviors/09 3.16, invariants 1.186, traceability 1.260, README 1.313. | closed |
-| T-73-14 | Tampering | close measured on a tree that later changed | medium | mitigate | both close groups are on one head, `9d328b26`, and `packages/` has not changed since. `compare` exits 0: GateWriter.ts 83/83, useGate.ts 44/45, no new open or Ignored mutant. | closed |
+| T-73-13 | Repudiation | CCR row omitting a file or citing a wrong revision | medium | mitigate | CCR-QD-465's file list equals the 20 files changed outside `.planning/` since `phase_base`. Its cited revisions equal the headers: ADR-186 1.5, ADR-140 1.4, ADR-111 1.2, ADR-103 1.5, behaviors/09 3.17, invariants 1.186, traceability 1.260, README 1.314. | closed |
+| T-73-14 | Tampering | close measured on a tree that later changed | medium | mitigate | both close groups are on one head, `37e85311`, the final tree after validation added one test (re-recorded from `9d328b26`), and `packages/` has not changed since. `compare` exits 0: GateWriter.ts 83/83, useGate.ts 44/45, no new open or Ignored mutant. | closed |
 | T-73-15 | Repudiation | static mutant waved through as Ignored | medium | mitigate | `EXAMINED` is `{}`; `compare` reports 0 new Ignored | closed |
 | T-73-16 | Elevation of privilege | requirement status flipped early or too widely | low | mitigate | `ee8b6200`, the only commit touching `REQUIREMENTS.md`, flips RECN-01..05 only; WX-01..07 stay Pending | closed |
 | T-73-17 | Tampering | expected values changed while moving tests onto shared helpers | medium | mitigate | Titles, `expect` counts and matcher lines are identical across the move. Later edits removed only the three moved cases' 8 assertions and rewired helpers. The characterisation's inputs, titles and expected values are unchanged since `2680ab4d`. | closed |
@@ -98,7 +98,7 @@ Not threats, recorded for the milestone audit:
 
 | Audit Date | Threats Total | Closed | Open | Run By |
 |------------|---------------|--------|------|--------|
-| 2026-11-23 | 18 | 18 | 0 | gsd-security-auditor at 86ce0b65 (ASVS 1, block on high; register authored at plan time, judged against the post-review code). Checks: `compare`, revisions and file list, every Pinned-by title, the characterisation diff since its first commit. `check:pr` exit 0 on 86ce0b65, 17/18 steps, mutation skipped by design. |
+| 2026-11-23 | 18 | 18 | 0 | gsd-security-auditor at 86ce0b65 (ASVS 1, block on high; register authored at plan time, judged against the post-review code). Checks: `compare`, revisions and file list, every Pinned-by title, the characterisation diff since its first commit. `check:pr` exit 0 on 86ce0b65 and again on 37e85311 after validation, 17/18 steps, mutation skipped by design. |
 
 ---
 
