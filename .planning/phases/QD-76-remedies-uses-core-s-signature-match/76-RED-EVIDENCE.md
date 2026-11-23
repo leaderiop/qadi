@@ -1088,3 +1088,9 @@ module gained that no mover named fail. `BASE` is unchanged, so the rows still c
 `agreeAt` and `refusalOf` stay in both files: `agreeAt` closes over the file's own `LEAVES`, `LISTS` and `mismatchOf`, and
 `refusalOf` checks a different error tag in each, so no declaration of either is identical across the pair, and moving
 one would change a statement that the rule compares whole.
+
+Correction (2026-11-23, code review IN-05): the note above is wrong for `agreeAt`. Its text is identical in the two
+files; a diff of the two declarations shows only the surrounding `describe` titles and constants differ. What differs is
+what it closes over: each copy reads its own file's `LEAVES`, `LISTS` and `mismatchOf`, so moving it to the shared
+module would change what it reads, and a frozen statement with it. `refusalOf` does differ by one string, the error tag.
+Both stay in place, as the note says; only the reason given for `agreeAt` was wrong.
