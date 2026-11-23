@@ -1,9 +1,14 @@
 // The mutation record over the source files the remedy table's use of core's signature and acted judgements touches,
 // one Stryker group per package: `core` (`SignatureHistory.ts`, `SignatureMatch.ts`, `PortAccess.ts`,
 // `DecisionHistory.ts`, `Errors.ts`, through `stryker.config.mjs`), `devtools` (`Remedies.ts`, `SimulationFields.ts`,
-// through `stryker.devtools.mjs`) and `http` (`QadiHttpError.ts`, through `stryker.http.mjs`). Each group has a base,
-// so none is close-only. `Errors.ts` and `QadiHttpError.ts` are measured because the signature and history errors gain
-// optional members there, which is how a refused request fails typed rather than throwing (ADR-QD-189).
+// through `stryker.devtools.mjs`) and `http` (`QadiHttpError.ts`, through `stryker.http.mjs`). Each of those three has a
+// base. The fourth group, `keys`, is close-only: `PortKey.ts`, `ScopedLeaf.ts`, `LeafNeeds.ts` and `PortDerivation.ts` were
+// not in the base record, because the phase changed them only after the code review (the guarded read, the one
+// resource-id check), so there is no base for them to be compared with. It is measured through `stryker.config.mjs`,
+// the core test project, over the lines the phase changed in them, and its rule is that every valid mutant is killed and
+// every Ignored mutant is admitted through `EXAMINED`. `Errors.ts` and `QadiHttpError.ts` are measured because the
+// signature and history errors gain optional members there, which is how a refused request fails typed rather than
+// throwing (ADR-QD-189).
 // `record base|close <group>`
 // reads the group's report and writes, under that group in `76-mutation-base.json` or `76-mutation-close.json`, each
 // file's counts and its open (Survived, NoCoverage) and Ignored mutants; every group of one record is measured on one
@@ -41,6 +46,36 @@ const GROUPS = {
     config: "stryker.http.mjs",
     report: "reports/mutation-http/mutation.json",
     files: [`${H}QadiHttpError.ts`],
+  },
+  keys: {
+    config: "stryker.config.mjs",
+    report: "reports/mutation/mutation.json",
+    files: [`${R}PortKey.ts`, `${R}ScopedLeaf.ts`, `${R}LeafNeeds.ts`, `${R}PortDerivation.ts`],
+    // Each file is mutated only where this phase wrote it: the `+` side of `git diff -U0 bf339146 HEAD -- <file>`
+    // (`PortKey.ts` 56, 79-84, 87-90, 134-137, 212 and 215-246; `ScopedLeaf.ts` 2-3, 5-6, 14-19, 24-25 and 47-75;
+    // `LeafNeeds.ts` 22, 199 and 240-241; `PortDerivation.ts` 36 and 111-113). These ranges must follow the file if it
+    // changes: re-derive them from that diff, never by editing a range to cover a line that survives. Stryker keeps a
+    // mutant only when its whole node lies inside a range, so a node that starts on a written line and runs past it
+    // (a function body, an overload's implementation) is left to the by-hand run over the whole file.
+    mutate: [
+      `${R}PortKey.ts:56-56`,
+      `${R}PortKey.ts:79-84`,
+      `${R}PortKey.ts:87-90`,
+      `${R}PortKey.ts:134-137`,
+      `${R}PortKey.ts:212-212`,
+      `${R}PortKey.ts:215-246`,
+      `${R}ScopedLeaf.ts:2-3`,
+      `${R}ScopedLeaf.ts:5-6`,
+      `${R}ScopedLeaf.ts:14-19`,
+      `${R}ScopedLeaf.ts:24-25`,
+      `${R}ScopedLeaf.ts:47-75`,
+      `${R}LeafNeeds.ts:22-22`,
+      `${R}LeafNeeds.ts:199-199`,
+      `${R}LeafNeeds.ts:240-241`,
+      `${R}PortDerivation.ts:36-36`,
+      `${R}PortDerivation.ts:111-113`,
+    ],
+    closeOnly: true,
   },
 };
 const invocation = (group) => `pnpm exec stryker run ${GROUPS[group].config} --mutate ${(GROUPS[group].mutate ?? GROUPS[group].files).join(",")}`;
@@ -410,7 +445,7 @@ const MODES = {
   compare: { clean: false, run: () => compare() },
   "--self-test": { clean: false, run: () => selfTest() },
 };
-const usage = () => fail(["usage: node 76-mutation.mjs record base|close core|devtools|http [--restart], compare, or --self-test"]);
+const usage = () => fail(["usage: node 76-mutation.mjs record base|close core|devtools|http|keys [--restart] (keys has no base), compare, or --self-test"]);
 /** Runs `mode`, refusing first when it records and `status` shows a read file modified. */
 function dispatch(modes, mode, args, status, refuse) {
   const entry = Object.hasOwn(modes, mode) ? modes[mode] : undefined;
