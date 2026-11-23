@@ -643,7 +643,29 @@ Plans:
   4. The `edit` comment at `:534` is true: every draft write goes through one path, or the comment is corrected to say which writes do not.
   5. ADR-QD-187 records the split with ADR-QD-137 and ADR-QD-150 untouched and ADR-QD-047 v1.11 (the menu under the session) still holding.
 
-**Plans**: TBD
+**Plans**: 7 plans (strictly serial, waves 1 to 7)
+
+Plans:
+**Wave 1**
+- [ ] 74-01-PLAN.md — base facts, the mutation base of the session and the held choice, the shared simulation test helpers, the 35-row characterisation green on the base
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 74-02-PLAN.md — ADR-QD-187 with its five rule sentences, its index entry and §3 row, CCR-QD-466, and the dated amendments to BEH-QD-466, BEH-QD-460 and INV-QD-107
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 74-03-PLAN.md — `SeededChoice.ts` as a pure module, the three types moved through the barrel and the overview, its rules as plain values, its type pins, each rule gutted once
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 74-04-PLAN.md — the session on one seeded choice, `writeDraft` and `clearRun`, each gutted once against the characterisation
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 74-05-PLAN.md — the 18 choice-rule session tests leave `SimulationSession.test.ts`, each named with its survivors
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 74-06-PLAN.md — BEH-QD-706 to BEH-QD-710, INV-QD-393, INV-QD-394, their traceability, and the completed CCR-QD-466 row
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 74-07-PLAN.md — the mutation close, every close scan, `pnpm check:pr`, and CHSE-01 to CHSE-05 complete
 
 ### Phase 75: A declared span shape for the evaluate family
 
