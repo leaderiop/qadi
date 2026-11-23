@@ -35,13 +35,12 @@ import type { EvaluationError } from "./Errors.ts";
 import { evaluate } from "./Evaluate.ts";
 import type { StandingEvaluationServices } from "./EvaluationServices.ts";
 import {
-  annotateAsked,
   decideSubjectSpan,
   decideSubjectsSpan,
   decideSubjectsStreamSpan,
 } from "./EvaluationSpan.ts";
 import type { Policy } from "./Policy.ts";
-import { encodeSpan } from "./PortSpanEncode.ts";
+import { annotateAsked, encodeSpan } from "./PortSpanEncode.ts";
 import type { PoseOf } from "./PortSpanEncode.ts";
 import type { EvaluateOptions } from "./Question.ts";
 

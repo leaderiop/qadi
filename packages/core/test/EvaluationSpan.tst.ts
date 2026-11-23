@@ -12,7 +12,6 @@
 import { expect, test } from "tstyche";
 import type { Decision } from "../src/Decision.ts";
 import {
-  annotateAsked,
   decideSubjectSpan,
   decideSubjectsSpan,
   decideSubjectsStreamSpan,
@@ -24,6 +23,7 @@ import {
 import type { SpanOutcome } from "../src/EvaluationSpan.ts";
 import type { Policy } from "../src/Policy.ts";
 import type { SpanKey, SpanType, SpanValue } from "../src/PortSpan.ts";
+import { annotateAsked } from "../src/PortSpanEncode.ts";
 
 type Answer = SpanType<typeof evaluateSpan.answer>;
 type Question = SpanType<typeof evaluateSpan.question>;

@@ -29,8 +29,6 @@ import { Decided, Failed } from "./DecisionRecord.ts";
 import type { EvaluationError } from "./Errors.ts";
 import { EvaluationId } from "./EvaluationId.ts";
 import {
-  annotateAsked,
-  annotateSpan,
   askedOf,
   denialEvent,
   evaluateSpan,
@@ -45,7 +43,7 @@ import type { CacheOutcome } from "./EvaluationMetrics.ts";
 import type { EvaluationServices } from "./EvaluationServices.ts";
 import type { Policy } from "./Policy.ts";
 import type { PortServices } from "./Ports.ts";
-import { encodeSpan } from "./PortSpanEncode.ts";
+import { annotateAsked, annotateSpan, encodeSpan } from "./PortSpanEncode.ts";
 import { questionOf } from "./Question.ts";
 import type { EvaluateOptions, Question, QuestionOptions } from "./Question.ts";
 import { decisionRecordFor, sinkEmitter } from "./SinkEmit.ts";

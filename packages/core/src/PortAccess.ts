@@ -61,7 +61,7 @@ import type {
   ServiceOf,
 } from "./Ports.ts";
 import type { PortInterpreter, SpanFields, SpanStruct, SpanType } from "./PortSpan.ts";
-import { encodeSpan } from "./PortSpanEncode.ts";
+import { annotateSpan } from "./PortSpanEncode.ts";
 import type { SignatureAnswer } from "./SignatureHistory.ts";
 import { signatureHistoryPort } from "./SignatureHistory.ts";
 import { signatureMatches } from "./SignatureMatch.ts";
@@ -93,7 +93,7 @@ type Interpreter = Exclude<PortInterpreter, "remote">;
 const annotateQuestion = <Q extends SpanFields>(
   d: { readonly attributes: { readonly question: SpanStruct<Q> } },
   question: SpanType<SpanStruct<Q>>,
-): Effect.Effect<void> => Effect.annotateCurrentSpan(encodeSpan(d.attributes.question, question));
+): Effect.Effect<void> => annotateSpan(d.attributes.question, question);
 
 /**
  * Annotates the current span with a port's **answer**, as its description's
@@ -108,7 +108,7 @@ const annotateQuestion = <Q extends SpanFields>(
 const annotateAnswer = <Ans extends SpanFields>(
   d: { readonly attributes: { readonly answer: SpanStruct<Ans> } },
   disclosed: SpanType<SpanStruct<Ans>>,
-): Effect.Effect<void> => Effect.annotateCurrentSpan(encodeSpan(d.attributes.answer, disclosed));
+): Effect.Effect<void> => annotateSpan(d.attributes.answer, disclosed);
 
 /**
  * Converts a port call's defect into its own typed error, leaving an

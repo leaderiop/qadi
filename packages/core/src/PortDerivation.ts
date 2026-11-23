@@ -35,7 +35,7 @@ import { carryDefault, markDefault } from "./PortDefault.ts";
 import { KeyRefusal } from "./PortDescription.ts";
 import type { LeafRequests, PortDescription, PortShape } from "./PortDescription.ts";
 import { canonicalKey } from "./PortKey.ts";
-import { attemptsStruct, encodeSpan } from "./PortSpanEncode.ts";
+import { annotateSpan, attemptsStruct } from "./PortSpanEncode.ts";
 import { portRetriesTotal, portTimeoutsTotal } from "./PortMetrics.ts";
 import type { PortName } from "./PortName.ts";
 import type { PortSpanAttributesLike } from "./PortSpan.ts";
@@ -207,7 +207,7 @@ export const retryCountingAttempts = <A, E>(
       Effect.retry(schedule),
       Effect.ensuring(
         Effect.flatMap(Ref.get(attempts), (n) =>
-          Effect.annotateCurrentSpan(encodeSpan(attemptsStruct, { attempts: n })),
+          annotateSpan(attemptsStruct, { attempts: n }),
         ),
       ),
     );

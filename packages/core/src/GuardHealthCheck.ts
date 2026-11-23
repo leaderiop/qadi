@@ -28,13 +28,9 @@ import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Result from "effect/Result";
 import { CurrentSubject } from "./CurrentSubject.ts";
-import {
-  annotateAsked,
-  annotateSpan,
-  askedOf,
-  guardHealthCheckSpan,
-} from "./EvaluationSpan.ts";
+import { askedOf, guardHealthCheckSpan } from "./EvaluationSpan.ts";
 import type { Policy } from "./Policy.ts";
+import { annotateAsked, annotateSpan } from "./PortSpanEncode.ts";
 import { questionOf } from "./Question.ts";
 import type { EvaluateOptions } from "./Question.ts";
 import { walk } from "./Walk.ts";

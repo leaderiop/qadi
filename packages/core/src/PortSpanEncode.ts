@@ -22,13 +22,14 @@
  * `PortSpanDecode.ts` (the decoder).
  *
  * The evaluate family builds its spans with the same machinery, in
- * `EvaluationSpan.ts` (ADR-QD-188).
+ * `EvaluationSpan.ts`, and writes them through the same annotator (ADR-QD-188).
  *
  * Not a Schema `Struct` + `encodeKeys` whole: that measured ≈1.1 µs per encode
  * and fails a whole row on one wrong-typed attribute, which BEH-QD-228 forbids.
  * Encoding here is a walk over the value's own entries; decoding takes each
  * field alone, so a wrong-typed value reads as absent and the rest are kept.
  */
+import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import { portInterpreter } from "./PortInterpreter.ts";
@@ -85,6 +86,20 @@ export const encodeSpan = <Fields extends SpanFields>(
 };
 
 /**
+ * Annotates the current span with one struct's attributes, any member left out.
+ *
+ * The one body that writes a struct to a span: a port's question and answer
+ * (`PortAccess.ts`), a retried call's attempts (`PortDerivation.ts`) and the
+ * evaluate family's answers all go through it. A plain function: it opens no span,
+ * it writes to the one the caller opened. A family question, which must name every
+ * member, is written with {@link annotateAsked}.
+ */
+export const annotateSpan = <Fields extends SpanFields>(
+  struct: SpanStruct<Fields>,
+  value: SpanType<SpanStruct<Fields>>,
+): Effect.Effect<void> => Effect.annotateCurrentSpan(encodeSpan(struct, value));
+
+/**
  * What a port's `pose` must return: every member of its span question but
  * `interpreter`, each a required key that may be `undefined`.
  *
@@ -99,6 +114,21 @@ export type PoseOf<S> =
   S extends SpanStruct<infer Fields>
     ? { readonly [K in Exclude<keyof Fields, "interpreter">]-?: Fields[K]["Type"] | undefined }
     : never;
+
+/**
+ * Annotates the current span with an evaluate family span's question, every member
+ * named.
+ *
+ * The value is a {@link PoseOf} the question, so a writer that leaves a member out,
+ * such as the evaluation id or the policy's tag, fails to compile where it writes,
+ * as a port's `pose` does (ADR-QD-133, ADR-QD-188). A member that is absent this
+ * time, such as an action not supplied, is named with `undefined`. An answer, which
+ * names only what its ending says, is written with {@link annotateSpan}.
+ */
+export const annotateAsked = <Fields extends SpanFields>(
+  struct: SpanStruct<Fields>,
+  value: PoseOf<SpanStruct<Fields>>,
+): Effect.Effect<void> => annotateSpan<SpanFields>(struct, value);
 
 /**
  * A port's span attributes, with `pose` held to {@link PoseOf} its question.

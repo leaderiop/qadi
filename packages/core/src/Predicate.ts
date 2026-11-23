@@ -28,12 +28,7 @@ import type { AttributeResolveError, DecisionHistoryUnavailable } from "./Errors
 import type { MissingAction } from "./Errors.ts";
 import { PolicyNotTranslatable } from "./Errors.ts";
 import { predicatesTranslatedTotal } from "./EvaluationMetrics.ts";
-import {
-  annotateAsked,
-  annotateSpan,
-  askedOf,
-  toPredicateSpan,
-} from "./EvaluationSpan.ts";
+import { askedOf, toPredicateSpan } from "./EvaluationSpan.ts";
 import type { Matcher, MatcherContext, ValueRef } from "./Matcher.ts";
 import { referencesResource } from "./Matcher.ts";
 import { getByPath, ownValue } from "./Operand.ts";
@@ -43,6 +38,7 @@ import { fieldsOf, foldPolicy, foldPolicyCases } from "./Policy.ts";
 import { askActed, isAnyActedLeaf, readAttribute } from "./PortAccess.ts";
 import type { AnyActedLeaf } from "./PortAccess.ts";
 import type { LeafOf } from "./PortDescription.ts";
+import { annotateAsked, annotateSpan } from "./PortSpanEncode.ts";
 import { questionOf } from "./Question.ts";
 import type { Question, QuestionOptions } from "./Question.ts";
 import type { Combining, Policy, PolicyCases, RuleEffect } from "./Policy.ts";
