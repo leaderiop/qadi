@@ -32,8 +32,8 @@ import { createContext, useContext, useEffect, useId, useMemo, useRef } from "re
 import type { RefObject } from "react";
 import type { DecisionOutcome, DecisionResult } from "./DecisionOutcome.ts";
 import { outcomeOf } from "./DecisionOutcome.ts";
-import { reconcile, sameIdentity } from "./GateWriter.ts";
-import type { GateIdentity, GateKind, GateRenderState, GateWriter, Registered } from "./GateWriter.ts";
+import { reconcile } from "./GateWriter.ts";
+import type { GateKind, GateWanted, GateWriter, Registered } from "./GateWriter.ts";
 import { MissingQadiProviderError } from "./MissingQadiProviderError.ts";
 import type { QadiAtoms } from "./QadiAtoms.ts";
 import type { AskedQuestion } from "./QuestionBook.ts";
@@ -62,47 +62,33 @@ const KIND_FACTS: Readonly<
 };
 
 /**
- * Registers a set of guards with `writer` for as long as they are mounted.
+ * Registers a guard's wanted registrations with `writer` while it is mounted.
  *
- * One hook asking several questions (`usePolicies`, `useQuestions`) registers one
- * instance per question, each under its own `id`; a single-question guard passes
- * one identity, so there is one lifecycle implementation and not two.
+ * `wanted` is keyed by gate id, so an id is stated once and cannot repeat. One hook
+ * asking several questions (`usePolicies`, `useQuestions`) registers one instance per
+ * question, each under its own id; a single-question guard passes a map of one, so
+ * there is one lifecycle implementation and not two.
+ *
+ * The registration effect runs after every commit with that commit's own `wanted`, and
+ * `reconcile` registers what is new, unregisters what is gone or changed, and tells
+ * what it keeps its state: an unchanged identity and an unchanged state make no
+ * notifying call, because the handle decides equality. The teardown keyed on `writer`
+ * is declared first and is the one place registrations end on unmount or a writer
+ * change, because an effect's cleanup is React's only unmount signal and also runs
+ * before every re-run, so folding it into the registration effect would re-register on
+ * every commit.
  *
  * `writer` is `undefined` when instrumentation is off, and then every effect
  * returns immediately: the hooks run unconditionally because the rules of hooks
  * do not bend for a debug feature, and what the flag changes is what they do.
- * `identities` and `states` are index-aligned, and `id`s are unique within a call.
+ *
+ * The hook keeps `registered` and nothing else between commits; only tests check that
+ * it holds no other copy of identities or states.
  */
 export const useGateRegistrations = (
   writer: GateWriter | undefined,
-  identities: ReadonlyArray<GateIdentity>,
-  states: ReadonlyArray<GateRenderState>,
+  wanted: ReadonlyMap<string, GateWanted>,
 ): void => {
-  // The identities as they last *changed*, so the effect below keys on "did the
-  // set of questions this hook asks actually change" and not on "did the caller
-  // build a new array or a new policy object this render". `policy` and `resource`
-  // compare by reference, and AGENTS.md §13 blesses passing them inline in render;
-  // depending on them directly would unregister and re-register every instance on
-  // every render of a caller doing exactly that. `atom` is what makes that safe:
-  // the book keys it structurally, so it is the same reference across renders for
-  // an equal policy and resource. `latest` still lets the effect body report the
-  // current policy and resource.
-  const stableRef = useRef(identities);
-  const previous = stableRef.current;
-  if (
-    previous.length !== identities.length ||
-    !identities.every((identity, i) => {
-      const before = previous[i];
-      return before !== undefined && sameIdentity(identity, before);
-    })
-  ) {
-    stableRef.current = identities;
-  }
-  const stable = stableRef.current;
-  const latest = useRef(identities);
-  latest.current = identities;
-  const statesRef = useRef(states);
-  statesRef.current = states;
   const registered = useRef<ReadonlyMap<string, Registered>>(new Map());
 
   // The writer going away, or the hook unmounting, ends every registration.
@@ -116,39 +102,12 @@ export const useGateRegistrations = (
     };
   }, [writer]);
 
-  // Identity lifecycle only: an instance that is new, or whose question changed,
-  // registers; one that is gone unregisters; one that is unchanged is left alone.
-  // `state` is deliberately not here — see the effect below. Re-registering is the
-  // right cost only when what is being asked has actually changed, not on every
-  // answer to the same question.
+  // After every commit, with no dependency list: what to register, update or end is
+  // decided by `reconcile` from this commit's `wanted` and the registrations held.
   useEffect(() => {
     if (writer === undefined) return;
-    registered.current = reconcile(
-      writer,
-      registered.current,
-      stable,
-      stable.map((_, i) => {
-        const now = latest.current[i];
-        return now === undefined
-          ? undefined
-          : { policy: now.policy, resource: now.resource, state: statesRef.current[i] ?? "Pending" };
-      }),
-    );
-  }, [writer, stable]);
-
-  // The per-render state update, split from the effect above (AGENTS.md §13
-  // still holds: this mutates the registered instance's `state` field and
-  // notifies at most once, it does not decide what anything renders). Without
-  // this split every decision state transition tore the instance down and
-  // rebuilt it — two notifications where one update is enough.
-  const stateKey = states.join("|");
-  useEffect(() => {
-    if (writer === undefined) return;
-    stable.forEach((identity, i) => {
-      const state = statesRef.current[i];
-      if (state !== undefined) registered.current.get(identity.id)?.handle.update(state);
-    });
-  }, [writer, stable, stateKey]);
+    registered.current = reconcile(writer, registered.current, wanted);
+  });
 };
 
 /**
@@ -235,7 +194,7 @@ const useGateScope = (kind: GateKind): GateScope => {
  * `Cannot` wrap a marker, the marker ref, and registration. A one-question
  * surface passes a record of one. Every hook runs unconditionally, because the
  * rules of hooks do not bend for a debug feature; what the flag changes is what
- * the registration effects *do*, which is nothing when the writer is `undefined`.
+ * the effects *do*, which is nothing when the writer is `undefined`.
  *
  * Each entry's result is read once, with `outcomeOf`, and that one object is both
  * what the registry records (`outcome._tag`) and what the surface renders from,
@@ -267,36 +226,44 @@ export const useGates = <K extends string>(
     [scope.atoms, group],
   );
 
-  const entries = Record.map(
+  // One pass over the questions: each name yields what the surface reads and what the
+  // registry is asked to hold, both built from the same values.
+  const asked = Record.map(
     questions,
-    (_question, name): GateRead => {
+    (question, name): { readonly entry: GateRead; readonly want: GateWanted } => {
       const result = results[name] ?? NOT_YET;
+      const outcome = outcomeOf(result);
+      const id = grouped ? `${base}/${name}` : base;
       return {
-        atom: atomOf[name],
-        result,
-        outcome: outcomeOf(result),
-        id: grouped ? `${base}/${name}` : base,
-        ref: scope.writer !== undefined && wraps ? marker : undefined,
+        entry: {
+          atom: atomOf[name],
+          result,
+          outcome,
+          id,
+          ref: scope.writer !== undefined && wraps ? marker : undefined,
+        },
+        want: {
+          identity: {
+            kind,
+            atom: atomOf[name],
+            wraps,
+            policy: question.policy,
+            resource: question.resource,
+            marker,
+          },
+          state: outcome._tag,
+        },
       };
     },
   );
-  const identities = Record.map(
-    questions,
-    (question, name): GateIdentity => ({
-      id: entries[name].id,
-      kind,
-      atom: atomOf[name],
-      wraps,
-      policy: question.policy,
-      resource: question.resource,
-      marker,
-    }),
+  const entries = Record.map(asked, (gate) => gate.entry);
+  const wanted = new Map(
+    Record.collect(asked, (_name, gate): readonly [string, GateWanted] => [
+      gate.entry.id,
+      gate.want,
+    ]),
   );
-  useGateRegistrations(
-    scope.writer,
-    Record.values(identities),
-    Record.values(entries).map((entry) => entry.outcome._tag),
-  );
+  useGateRegistrations(scope.writer, wanted);
 
   return { results, entries };
 };

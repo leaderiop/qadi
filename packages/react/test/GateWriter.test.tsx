@@ -12,7 +12,7 @@ import { makeGateRegistry } from "../src/GateRegistry.ts";
 import type { GateRenderState } from "../src/GateRegistry.ts";
 import { gateWriterFor } from "../src/GateWriter.ts";
 import { useGateRegistrations } from "../src/useGate.ts";
-import type { GateIdentity, GateWriter } from "../src/GateWriter.ts";
+import type { GateIdentity, GateWanted, GateWriter } from "../src/GateWriter.ts";
 
 const canRead = () => hasPermission(permission("doc", "read"));
 
@@ -21,7 +21,6 @@ const canRead = () => hasPermission(permission("doc", "read"));
 const marker = createRef<HTMLSpanElement>();
 
 const identityFor = (atom: object, overrides?: Partial<GateIdentity>): GateIdentity => ({
-  id: "g1",
   kind: "useCan",
   atom,
   wraps: false,
@@ -48,8 +47,11 @@ interface Props {
   readonly state: GateRenderState;
 }
 
+const wantedOf = (p: Props): ReadonlyMap<string, GateWanted> =>
+  new Map([["g1", { identity: p.identity, state: p.state }]]);
+
 const run = (props: Props, wrapper?: typeof StrictMode) =>
-  renderHook((p: Props) => useGateRegistrations(p.writer, [p.identity], [p.state]), {
+  renderHook((p: Props) => useGateRegistrations(p.writer, wantedOf(p)), {
     initialProps: props,
     wrapper,
   });

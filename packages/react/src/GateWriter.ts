@@ -1,7 +1,8 @@
 /**
  * The write side of a gate registry: the types a registry holds, the private
- * writer slot, the store that builds one (`buildGateRegistry`), and how a set of
- * registrations is reconciled.
+ * writer slot, the store that builds one (`buildGateRegistry`), and the one step
+ * that brings a guard's wanted registrations, keyed by gate id, in line with the
+ * live ones.
  *
  * Out of the barrel (AGENTS.md §9): the writer is not a consumer's, and one able
  * to register an instance could list a `<Can>` that does not exist (ADR-QD-080).
@@ -250,14 +251,18 @@ export const buildGateRegistry = (report: ((id: string) => void) | undefined): G
 export const gateWriterFor = (registry: object): GateWriter | undefined =>
   OwnedGateRegistry.writerOf(registry);
 
-/** What one guard is, as it renders. */
+/**
+ * What one guard is, as it renders.
+ *
+ * It has no id: the gate id is the key a {@link GateWanted} or a {@link Registered}
+ * is stored under, so a key and an id cannot disagree.
+ */
 export interface GateIdentity {
-  readonly id: string;
   readonly kind: GateKind;
   /**
    * The memoised decision atom for this question, looked up by `useGates` in
-   * `useGate.ts`. Effects key on it, not on the raw policy and resource, so an
-   * inline policy does not churn registration.
+   * `useGate.ts`. {@link sameIdentity} compares it rather than the raw policy and
+   * resource, so an inline policy does not churn registration.
    */
   readonly atom: object;
   readonly wraps: boolean;
@@ -266,13 +271,15 @@ export interface GateIdentity {
   readonly marker: { readonly current: HTMLSpanElement | null };
 }
 
-/** Whether two identities register as the same instance: everything but policy and resource. */
+/**
+ * Whether two identities register as the same instance: `kind`, `atom`, `wraps` and
+ * `marker`.
+ *
+ * `policy` and `resource` are left out because the atom changes with the question,
+ * so a different question is a different atom.
+ */
 export const sameIdentity = (a: GateIdentity, b: GateIdentity): boolean =>
-  a.id === b.id &&
-  a.kind === b.kind &&
-  a.atom === b.atom &&
-  a.wraps === b.wraps &&
-  a.marker === b.marker;
+  a.kind === b.kind && a.atom === b.atom && a.wraps === b.wraps && a.marker === b.marker;
 
 /** One live registration: the identity it was made for, and the handle that ends it. */
 export interface Registered {
@@ -280,55 +287,92 @@ export interface Registered {
   readonly handle: GateHandle;
 }
 
-/** What a guard asks right now, index-aligned with the identities being reconciled. */
-export interface GateCurrent {
-  readonly policy: Policy;
-  readonly resource: Resource | undefined;
+/**
+ * One guard as the committed render wants it registered.
+ *
+ * Its gate id is the key it is stored under.
+ */
+export interface GateWanted {
+  readonly identity: GateIdentity;
   readonly state: GateRenderState;
 }
 
 /**
- * Brings `live` in line with `wanted` and returns the next live registrations.
+ * Brings `live` in line with `wanted` in one step and returns the next live
+ * registrations.
  *
- * An id that is gone, or whose identity changed, unregisters; an id that is new,
- * or was just unregistered, registers with `current`'s policy, resource and
- * state; an unchanged id is left alone and keeps its entry. It calls only
- * `writer.register` and `handle.unregister`, and returns a new `Map` rather than
- * mutating `live`.
+ * Each live id is visited in `live` order: one that `wanted` holds with the same
+ * identity is kept, the same {@link Registered} object, and its handle is told the
+ * wanted state; any other unregisters. Then each wanted id that was not kept
+ * registers, in `wanted` order, with its identity's kind, policy and resource, the
+ * wanted state and the marker's element. Unregistering runs before registering, so a
+ * changed identity re-registers under its own id without colliding with itself.
  *
- * ARCH-76: the rules are model logic and imports nothing from React, so they are
- * tested against a fake writer without rendering. An unchanged identity is left
- * alone because re-registering on every answer cost two notifications per
- * transition; only a changed question earns a new registration.
+ * It tells every kept handle its state and compares nothing: whether the state
+ * changed is decided once, in the handle's `update` (`buildGateRegistry`). It acts
+ * only through the writer and the handles it is handed, and returns a new `Map`.
+ *
+ * **When a step throws**, the steps after it do not run, and every registration this
+ * call made is unregistered, each in turn, a throwing one not stopping the rest. Then
+ * `reconcile` throws by ADR-QD-177's count rule: the one value as it is, more than one
+ * as one `AggregateError` holding them in the order thrown. `reconcile` never mutates
+ * `live`: if a step throws after an earlier step unregistered an entry, `live` still
+ * holds that entry, its handle already unregistered, and unregistering that handle
+ * again is a no-op. That second unregister being a no-op is the registry's (a handle
+ * from `buildGateRegistry` is idempotent), and the caller's teardown relies on it. A
+ * handle from `buildGateRegistry` never throws, so with the package's registry
+ * nothing stays registered that the caller's map does not hold. A handle that itself
+ * throws on unregister can leave its registration standing; nothing here prevents it.
+ *
+ * Model logic that imports nothing from React, so it is tested against a fake writer
+ * without rendering (ARCH-76, ADR-QD-140). See ADR-QD-186.
  */
 export const reconcile = (
   writer: GateWriter,
   live: ReadonlyMap<string, Registered>,
-  wanted: ReadonlyArray<GateIdentity>,
-  current: ReadonlyArray<GateCurrent | undefined>,
+  wanted: ReadonlyMap<string, GateWanted>,
 ): Map<string, Registered> => {
   const next = new Map<string, Registered>();
-  for (const [id, entry] of live) {
-    const identity = wanted.find((one) => one.id === id);
-    if (identity !== undefined && sameIdentity(identity, entry.identity)) next.set(id, entry);
-    else entry.handle.unregister();
-  }
-  wanted.forEach((identity, i) => {
-    if (next.has(identity.id)) return;
-    const now = current[i];
-    next.set(identity.id, {
-      identity,
-      handle: writer.register({
-        id: identity.id,
+  const made: Array<GateHandle> = [];
+  try {
+    for (const [id, entry] of live) {
+      const want = wanted.get(id);
+      if (want !== undefined && sameIdentity(want.identity, entry.identity)) {
+        next.set(id, entry);
+        entry.handle.update(want.state);
+      } else {
+        entry.handle.unregister();
+      }
+    }
+    for (const [id, { identity, state }] of wanted) {
+      if (next.has(id)) continue;
+      const handle = writer.register({
+        id,
         kind: identity.kind,
-        policy: now?.policy ?? identity.policy,
-        resource: now === undefined ? identity.resource : now.resource,
-        state: now?.state ?? "Pending",
+        policy: identity.policy,
+        resource: identity.resource,
+        state,
         // Read when React has attached it. `?? undefined` because a ref holds
         // `null` and the registry's type says absent.
         element: identity.wraps ? (identity.marker.current ?? undefined) : undefined,
-      }),
-    });
-  });
+      });
+      made.push(handle);
+      next.set(id, { identity, handle });
+    }
+  } catch (error) {
+    const thrown: Array<unknown> = [error];
+    for (const handle of made) {
+      try {
+        handle.unregister();
+      } catch (rollback) {
+        thrown.push(rollback);
+      }
+    }
+    if (thrown.length === 1) throw error;
+    throw new AggregateError(
+      thrown,
+      "A gate reconcile step threw, and so did its rollback.",
+    );
+  }
   return next;
 };
