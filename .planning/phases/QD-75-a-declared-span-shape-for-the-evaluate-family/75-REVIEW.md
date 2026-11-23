@@ -1,377 +1,283 @@
 ---
 phase: QD-75-a-declared-span-shape-for-the-evaluate-family
-reviewed: 2026-11-23T09:37:28Z
+reviewed: 2026-11-23T10:24:16Z
 depth: standard
-files_reviewed: 26
+iteration: 2
+files_reviewed: 35
 files_reviewed_list:
+  - .changeset/core-evaluate-span-declared.md
+  - AGENTS.md
+  - apps/website/src/content/docs/docs/reference/upgrading.md
   - packages/core/src/EvaluationSpan.ts
-  - packages/core/src/Lifecycle.ts
-  - packages/core/src/Predicate.ts
   - packages/core/src/GuardHealthCheck.ts
-  - packages/core/src/SubjectSet.ts
+  - packages/core/src/Lifecycle.ts
+  - packages/core/src/PortAccess.ts
+  - packages/core/src/PortDerivation.ts
   - packages/core/src/PortSpanEncode.ts
+  - packages/core/src/Predicate.ts
+  - packages/core/src/SubjectSet.ts
+  - packages/core/test/Evaluate.test.ts
   - packages/core/test/EvaluationSpan.contract.test.ts
   - packages/core/test/EvaluationSpan.test.ts
   - packages/core/test/EvaluationSpan.tst.ts
-  - packages/core/test/Evaluate.test.ts
-  - packages/core/test/Predicate.test.ts
   - packages/core/test/GuardHealthCheck.test.ts
+  - packages/core/test/PortAccess.test.ts
+  - packages/core/test/PortConformance.test.ts
+  - packages/core/test/PortDescription.test.ts
+  - packages/core/test/PortRemote.test.ts
+  - packages/core/test/PortServe.test.ts
+  - packages/core/test/Predicate.test.ts
   - packages/core/test/SubjectSet.test.ts
+  - packages/core/test/helpers.ts
   - scripts/check-house-style.mjs
-  - AGENTS.md
-  - spec/decisions/188-the-evaluate-familys-spans-are-declared-once-and-a-failed-span-says-what-was-asked.md
+  - spec/README.md
+  - spec/behaviors/05-evaluator.md
+  - spec/behaviors/30-port-calls.md
   - spec/decisions/051-a-span-says-what-was-asked.md
   - spec/decisions/109-a-ports-span-is-projected-once-and-every-read-is-one-body.md
+  - spec/decisions/188-the-evaluate-familys-spans-are-declared-once-and-a-failed-span-says-what-was-asked.md
   - spec/decisions/index.yaml
-  - spec/behaviors/30-port-calls.md
-  - spec/behaviors/05-evaluator.md
   - spec/invariants.md
   - spec/traceability.md
-  - spec/README.md
-  - .changeset/core-evaluate-span-declared.md
-  - apps/website/src/content/docs/docs/reference/upgrading.md
+  - .planning/phases/QD-75-a-declared-span-shape-for-the-evaluate-family/75-contract-check.mjs
 findings:
   critical: 0
-  warning: 6
-  info: 9
-  total: 15
-  necessity: 1
+  warning: 2
+  info: 11
+  total: 13
+  necessity: 0
 status: issues_found
 ---
 
-# Phase 75: Code Review Report
+# Phase 75: Code Review Report (iteration 2)
 
-**Reviewed:** 2026-11-23T09:37:28Z
+**Reviewed:** 2026-11-23T10:24:16Z
 **Depth:** standard
-**Files Reviewed:** 26
+**Files Reviewed:** 35
 **Status:** issues_found
 
 ## Summary
 
-Scope: the phase diff `c054c2b1..HEAD` across the 26 files the phase changed. The CCR-QD-467
-file list matches `git diff --name-only` exactly, and every cited revision matches its document
-header. Before writing anything I checked the following:
+**Scope.** The phase diff `git diff --name-only c054c2b1 HEAD -- packages spec scripts AGENTS.md apps .changeset features` has 34 files. The review also covered `75-contract-check.mjs`, including its `--self-test`.
 
-- `node scripts/check-house-style.mjs` exits clean.
-- `check-api-surface` reports 941 exports, as ADR-QD-188 and CCR-QD-467 state.
-- The four new or changed span test files pass under vitest (92 tests).
-- A script compared every test title quoted in a "Pinned by" or Enforcement line of the changed
-  spec text against the named files. All of them exist verbatim. The one miss it found is an
-  older INV entry and outside this phase.
-- `qadi.decision` appears nowhere outside spec text, the changeset and the upgrade guide.
-- No added line is longer than 90 characters.
+**Fixes from iteration 1.** I re-checked all 15 iteration-1 findings against the source. Each fix is in place.
 
-The regression fix is correct for every typed failure. `decideQuestion` annotates its question
-before the lookup (`Lifecycle.ts:80-85`). `toPredicate`'s `tapError` pipeable runs inside the
-span, and the four failure rows prove it. The probe and the batches annotate first. Obligations
-are written only on an Allow. The denial event carries exactly `policy_tag`, `subject_id` and
-`reason`.
+**What I ran on HEAD (`bd499c9c`):**
+- `node scripts/check-house-style.mjs`: clean, 581 files.
+- The six span test files under vitest: 423 tests pass.
+- `75-contract-check.mjs`: 33 rows and 20 statements, exit 0.
+- `75-contract-check.mjs --self-test`: 25 cases pass.
+- A script checked every test title quoted in a Pinned-by or Enforcement line of the changed spec text. All 53 exist verbatim in the files they name.
+- The CCR-QD-467 row: every cited revision equals its document's header (ADR-QD-188 1.6, ADR-QD-051 1.6, ADR-QD-109 1.7, `30-port-calls.md` 1.16, `05-evaluator.md` 1.23, `invariants.md` 1.195, `traceability.md` 1.271, `README.md` 1.332). Its file list, with brace groups expanded, is exactly the 34-file diff.
 
-There are no blockers. The main concerns:
+**Focus 1: WR-02, IN-01, IN-02.** I compiled a probe file in the scratchpad against `tsconfig.base.json`. Every writer call relies on inference, and inference works. The compiler refuses all of these:
+- a question with `evaluationId` left out (TS2741);
+- an extra member, or a member that belongs to another span (TS2353);
+- a policy tag outside `POLICY_TAGS`;
+- `denialEvent` passed to `annotateSpan` or to `annotateAsked`.
 
-1. The spec, the declaration's doc and the changeset all promise `qadi.outcome` "on every path".
-   That is false for an interrupted or defected evaluation (WR-01).
-2. A question's completeness is held only by the contract rows, not by the compiler. This is
-   the same gap ADR-QD-133's `PoseOf` closed for port spans (WR-02).
-3. The asked projection is restated in three writers (WR-03).
-4. The new house-style rules have scope gaps (WR-04).
-5. The spec text has two stale passages (WR-05, WR-06).
+Complete questions compile. No call site uses `as`.
 
-On the static mutants in `75-RED-EVIDENCE.md`, mutating `declareSpan` or `askedFields` crashes
-the import. That does not point to dead code: both are values every writer reads at import, so
-a crash is the mutant being detected. Item 6 (cheaper annotation) is recorded as IN-07, with
-the code evidence and no measured claim. `necessity-review.md` was read. One necessity finding
-is recorded (IN-04).
+`annotateSpan<SpanFields>(struct, value)` inside `annotateAsked` widens only that function's own body. The external signature still enforces `PoseOf`.
+
+Exactly one `Effect.annotateCurrentSpan(encodeSpan(…))` body remains in `packages/*/src`: `PortSpanEncode.ts:123`. `PortAccess.ts`'s question and answer helpers, and `PortDerivation.ts`'s retry, now call it with identical arguments. So no port span's attributes changed, and `PortConformance`'s attempts rows still pass.
+
+What remains: the type only stops a log event at the two annotators, and three texts claim more than that (WR-01).
+
+**Focus 2: WR-01 (iteration 1).** Both new rows compare the whole attribute map with `deepStrictEqual` against `encodeSpan(evaluateSpan.question, …)`. So each row fails if an outcome is written, and fails if a question member is missing. Each also asserts the span's exit (`hasInterrupts` / `hasDies`). The scoped wording ("on every path that ends in a decision or a typed failure", with interrupted or defected carrying the question and no outcome) is the same in substance in all of these:
+- BEH-QD-712, INV-QD-395 and INV-QD-396;
+- ADR-QD-188 decision 1 and the ADR-QD-051 amendment;
+- `EvaluationSpan.ts:103-106` and `Lifecycle.ts:64-69`;
+- the changeset, the upgrade guide and CCR-QD-467.
+
+**Focus 3: WR-03 and WR-06.** Every family span name comes from the declaration, including `decideSubjectSpan`. Every span question that has a built `Question` reads it through `askedOf`. The health check's span still states its question before the walk (`GuardHealthCheck.ts:104`). The denial log line and the two batch writers still build their fields by hand (IN-03).
+
+**Focus 4: WR-04.** The budget (9 rows), the AGENTS.md table and the script header agree. The `features/features` walk and the tstyche type-test walk run inside `node scripts/check-house-style.mjs`, which `pnpm lint` runs, so they are part of `pnpm check`. Two evasion paths remain: a narrow lookbehind gap (IN-10), and concatenation or interpolation, which is known.
+
+**Focus 5: IN-09 and the contract check.** The check parses the real files, both at `ecb0256f` and in the working tree. It compares every `it`/`it.<member>` call text and every other top-level statement. "Exact" is exact except for whitespace runs inside string literals (IN-08).
+
+I read the nine test files that moved onto `attributesOf`/`allAttributesOf` line by line:
+- the expected values are unchanged;
+- six lookups that used to fall back to `{}` when a span was missing now assert the span exists. Those tests are now stricter, never looser;
+- the `PortServe` SECRET row could pass on a missing span before, and now cannot.
+
+**Focus 6: pins.** `NOT_CALLABLE_PIN_BUDGET` lists `EvaluationSpan.tst.ts` with 2 callable pins and 0 constructable pins, and the AGENTS.md table agrees. Each negative pin has a positive twin with the same subject text. The pins have one gap (IN-01).
+
+**Findings.** Two warnings:
+- WR-01: compile-time claims about the denial reason that go further than the type does.
+- WR-02: the phase's mutation close record predates the fix loop, whose new code includes `PortSpanEncode.ts` code under D-15's own trigger.
+
+The info items are small accuracy, duplication and pin-coverage points. `necessity-review.md` was read, and no necessity finding applies: `logEvent: true` is the runtime half of a brand that has no cast-free type-only form.
 
 ## Warnings
 
-### WR-01: "Outcome on every path" is false for an interrupted or defected evaluation, and the "abandoned part way" claim is unpinned
+### WR-01: The compiler is said to keep the denial reason off a span, but it only refuses the two annotators, and `annotateSpan` is called "the one body" that writes a struct to a span
 
-**File:** `packages/core/src/Lifecycle.ts:137-148` (and `packages/core/src/EvaluationSpan.ts:85`, `spec/behaviors/30-port-calls.md` BEH-QD-712 REQUIREMENT, `spec/decisions/051-a-span-says-what-was-asked.md` amendment, ADR-QD-188 decision 1, `.changeset/core-evaluate-span-declared.md:5`, `spec/invariants.md` INV-QD-395)
-**Issue:** Only two places write the answer:
+**File:** `packages/core/src/PortSpanEncode.ts:75-78`, `:88-123`; `packages/core/src/SubjectSet.ts:266-274`; `spec/README.md:404` (CCR-QD-467); `spec/behaviors/30-port-calls.md` (BEH-QD-715 prose); `packages/core/src/EvaluationSpan.ts:226-227`
 
-- the `Effect.tapError` on the lookup, which sees typed failures only;
-- the success annotation at `:158-166`.
+**Issue:** `encodeSpan` takes any `SpanStruct<Fields>`, and `LogEventStruct` extends `SpanStruct`. So each of these compiles with the reason on it (confirmed with the probe):
+- `Stream.withSpan(name, { attributes: encodeSpan(denialEvent, …) })`. This is the third write form, the one the stream span already uses.
+- `Effect.annotateCurrentSpan(encodeSpan(denialEvent, …))`.
+- An upcast (`const s: SpanStruct<typeof denialEvent.fields> = denialEvent; annotateSpan(s, …)`).
 
-An interrupted evaluation never reaches either one. That covers a caller's `Effect.timeout`
-around `evaluate`, a `decideSubjects` fiber interrupted when it races another, and a host
-`DecisionCache.getOrCompute` that dies. In each case the span ends with its question and **no
-`qadi.outcome`**.
+ADR-QD-188's What-enforces-it is accurate: "cannot be written to a span **through them**". Three other texts claim more:
+- CCR-QD-467 says "the compiler holds … the denial reason off a span, its struct being a log event the span annotators refuse".
+- BEH-QD-715 says "so the reason sentence is not copied onto a span's attributes: `denialEvent` is a log event … and the two span annotators refuse it".
+- `EvaluationSpan.ts:226-227` says "so the span annotators refuse it and the reason stays on the log line".
 
-Yet several texts state the outcome as one of Allow/Deny/Failed "on every path":
+Separately, `annotateSpan`'s doc (`PortSpanEncode.ts:114`) calls it "The one body that writes a struct to a span". `SubjectSet.ts:273` writes `decideSubjectsStreamSpan.question` to a span through `Stream.withSpan` attributes, without it.
 
-- BEH-QD-712's REQUIREMENT ("MUST be `qadi.outcome` … on every path");
-- the declaration's doc ("The answer is the outcome on every path", `EvaluationSpan.ts:85`);
-- ADR-QD-188 decision 1;
-- the ADR-QD-051 amendment;
-- the changeset.
+These are claims of compiler or structural enforcement that the code does not give. A later reader will trust them.
 
-INV-QD-395 also says "a span that … is abandoned part way, still says what was asked". That is
-true by construction, but no row pins it: every failed-span row in the contract file uses a
-typed port failure.
-
-**Fix:** Scope the claim to what the code does, and pin the interrupted case once outside the
-locked contract file. For example, in `EvaluationSpan.test.ts` or `Evaluate.test.ts`:
+**Fix:** Scope the three texts to what the type does, and fix the "one body" sentence. For example:
 
 ```ts
-// BEH-QD-712 REQUIREMENT, reworded:
-// The outcome of `qadi.evaluate` MUST be `qadi.outcome`, one of `Allow`, `Deny` and
-// `Failed`, on every path that ends in a decision or a typed failure. An interrupted or
-// defected evaluation carries its question and no outcome; the span's status says why.
-
-it.effect("an interrupted evaluation carries its question and no outcome", () =>
-  Effect.gen(function* () {
-    const spans: Array<Tracer.Span> = [];
-    yield* Effect.exit(evaluate(clearance).pipe(Effect.timeout("1 millis"))).pipe(
-      Effect.provide(Layer.mergeAll(testLayer(u3, { AttributeResolver: hanging }),
-        collectingTracer(spans))),
-    );
-    assert.deepStrictEqual(Object.fromEntries(named(spans, evaluateSpan.name)!.attributes),
-      encodeSpan(evaluateSpan.question, { subjectId: "u3", evaluationId: "eval-1",
-        policyTag: "HasAttribute" }));
-  }));
+// PortSpanEncode.ts:114
+ * The one body that annotates the current span with a struct: a port's question and
+ * answer (`PortAccess.ts`), … The stream span's `Stream.withSpan` attributes are the
+ * one struct written to a span without it (`SubjectSet.ts`).
 ```
 
-(Use a `scriptedPort` latch or `PortReply` that never answers for `hanging`, and narrow
-instead of using `!`.)
-
-### WR-02: A question's completeness is not compiler-held, which is the gap `PoseOf` closed for port spans
-
-**File:** `packages/core/src/EvaluationSpan.ts:214-217` (writers: `Lifecycle.ts:80`, `Predicate.ts:665`, `GuardHealthCheck.ts:103`, `SubjectSet.ts:180`, `SubjectSet.ts:267`)
-**Issue:** `annotateSpan` takes `SpanType<SpanStruct<F>>`, in which every member is optional
-(`PortSpan.ts`, `SpanType`). A writer that drops `evaluationId` or `policyTag` from its question
-therefore compiles and ships a span that says less than was asked.
-
-`PortSpanEncode.ts:87-101` documents this exact defect class: "`SpanType` makes every member
-optional, so a `pose` that forgot one compiled and the span said less than was asked — the
-shape of the ADR-QD-109 defect". It introduced `PoseOf` to make that a compile error. The
-port path enforces it through `portSpan`. The family path does not.
-
-Today only the contract rows catch an omission, and only on the paths they exercise. The
-ADR-QD-109 amendment says "the projection this decision states once for a port's span is
-applied to `qadi.evaluate` … too", which claims more than the code gives. ADR-QD-188's "What
-enforces it" does not list question completeness at all.
-
-**Fix:** Hold every question to `PoseOf`. No family question has an `interpreter` field, so it
-fits as is:
-
-```ts
-/** Annotates the current span with a family span's question; every member must be named. */
-export const annotateQuestion = <F extends SpanFields>(
-  struct: SpanStruct<F>,
-  value: PoseOf<SpanStruct<F>>,
-): Effect.Effect<void> => Effect.annotateCurrentSpan(encodeSpan(struct, value));
+```text
+CCR-QD-467:  "... and the denial reason off a span through the two annotators, its struct
+              being a log event they refuse; the stream span's attributes and a raw
+              Effect.annotateCurrentSpan are kept by review"
+BEH-QD-715:  "... and the two span annotators refuse it; `encodeSpan`, which builds the line's
+              annotations and the stream span's attributes, does not, so that the reason stays
+              off a span written another way is kept by review."
 ```
 
-Keep `annotateSpan` for answers, which legitimately omit members (for example
-`{ outcome: "Failed", errorTag }`). Build the stream attributes from a `PoseOf`-typed value too.
+To make the stream path compiler-held too, the cleanest option is two functions:
+- `encodeSpan(struct: SpanCarried<F>, …)` for span attributes;
+- `encodeLogEvent(struct: LogEventStruct<F>, …)` for the denial line, with the same body.
 
-### WR-03: The asked projection is restated in three writers, from different sources
+The `Stream.withSpan` path then refuses a log event as well. A raw `Effect.annotateCurrentSpan` of a log record would still be review-held.
 
-**File:** `packages/core/src/Lifecycle.ts:80-85`, `packages/core/src/Predicate.ts:665-669`, `packages/core/src/GuardHealthCheck.ts:103-107`
-**Issue:** Three writers build the same `{ subjectId, policyTag, action }` value by hand, each
-from a different place:
+### WR-02: The phase's mutation close record predates the fix loop, and `PortSpanEncode.ts` gained code without joining a group (D-15)
 
-| Writer | `subjectId` | `policyTag` | `action` |
-| ------ | ----------- | ----------- | -------- |
-| `decideQuestion` | `question.subject.id` | `question.policy._tag` | `question.action` |
-| `toPredicate` | `subject.id` | `policy._tag` | `question.action` |
-| the probe | `subject.id` | `canaryPolicy._tag` | `question.action` |
+**File:** `.planning/phases/QD-75-a-declared-span-shape-for-the-evaluate-family/75-mutation-close.json:5`, `:268` (`"head": "a61a47c4…"`); `packages/core/src/PortSpanEncode.ts:88-154`; `packages/core/src/Predicate.ts:639-650`; `packages/core/src/EvaluationSpan.ts:71-84`, `:170-181`
 
-The phase's goal is that one fact is stated once. Here the projection from a `Question` to the
-asked fields is written three times, and the copies can drift. A writer could read `options`
-instead of the built question, for example. Nothing would notice except a contract row.
+**Issue:** Both groups of the close record (`core` and `span`) were recorded at `a61a47c4`. The fix loop then changed runtime code in every mutated file:
+- `askedOf`, `decideSubjectSpan` and the `logEventStruct` use in `EvaluationSpan.ts`;
+- `answerFailure` in `Predicate.ts`;
+- the `annotateAsked` rewiring in `Lifecycle.ts`, `GuardHealthCheck.ts` and `SubjectSet.ts`.
 
-**Fix:** Declare the projection once in `EvaluationSpan.ts` and spread it:
+It also added runtime code to `PortSpanEncode.ts`: `annotateSpan`, `logEventStruct` and `annotateAsked`. D-15 is a locked decision that says `PortSpanEncode.ts` "joins `core` only if a plan changes its code". That code changed here, so D-15's trigger has fired. It was not acted on, and nothing records this as an accepted exception.
 
-```ts
-/** What a question asks, as the family's shared question fields. */
-export const askedOf = (question: Question) => ({
-  subjectId: question.subject.id,
-  policyTag: question.policy._tag,
-  action: question.action,
-});
-// Lifecycle.ts:   annotateQuestion(evaluateSpan.question, { ...askedOf(question), evaluationId })
-// Predicate.ts:   annotateQuestion(toPredicateSpan.question, askedOf(question))
-// GuardHealthCheck.ts: annotateQuestion(guardHealthCheckSpan.question, askedOf(question))
-```
+The fix report itself notes "The phase's mutation record may need re-recording for these files". ESPN-05's closing claim (every mutant killed or examined) therefore describes a tree that is no longer HEAD.
 
-### WR-04: `[span-key-literal]` / `[span-key-source]` have scope gaps and a narrow key extraction
-
-**File:** `scripts/check-house-style.mjs:2475-2477`, `:2487-2499`, `:2557-2571` (and `AGENTS.md:474-486`)
-**Issue:** The rules can be evaded in four ways besides concatenation and template
-interpolation, which no line-regex rule can catch:
-
-1. **The BDD tests are unscanned.** `[span-key-literal]` walks `testSourceSet` (`packages/*/test`
-   and `bench`). `[span-key-source]` walks `srcSources`, and `collect()` drops `*.test.ts`
-   there. So `features/features/**/*.steps.test.ts` is scanned by neither rule.
-   `port-calls.steps.test.ts:392` already reads span output, so a hand-typed
-   `"qadi.outcome"` there passes the gate.
-2. **`.tst.ts` files are unscanned.** `collect()` skips them (`:1093`), and
-   `EvaluationSpan.tst.ts` lives there.
-3. **Extraction misses some spellings.** The declared-key extraction matches only
-   double-quoted keys of the form `[a-z][a-z_]*` (`SPAN_KEY_LITERAL_SHAPE`, `:2475`). A key
-   written `'qadi.foo'`, or one containing a digit, in `EvaluationSpan.ts` drops out of the key
-   set. It is then neither checked for one spelling nor refused elsewhere. No formatter gate
-   (AGENTS.md §17) forces double quotes.
-4. **The scope is described two ways.** AGENTS.md calls the budget "Test-scope, like
-   `PORT_DOUBLE_BUDGET`", but `PORT_DOUBLE_BUDGET`'s test scope includes
-   `features/step-definitions` (script header `:33-36`) and this rule's does not. The script
-   header says "like `METRIC_ID_LITERAL_BUDGET`", which is the accurate comparison.
-
-**Fix:**
-- Add `features/features` (with `.test.ts` kept) and the `.tst.ts` files to the
-  `[span-key-literal]` walk. The tstyche walk in `scripts/lib/type-tests.mjs` already exists.
-- Widen the extraction to `/(["'`])(qadi\.[a-z][a-z0-9_]*)\1/g`, so the declaration cannot
-  hold a key the rule does not see.
-- Make AGENTS.md say "Test-scope, like `METRIC_ID_LITERAL_BUDGET`", and name the walked
-  directories.
-
-### WR-05: ADR-QD-188 states in current tense two things its own revision 1.1 has since done
-
-**File:** `spec/decisions/188-the-evaluate-familys-spans-are-declared-once-and-a-failed-span-says-what-was-asked.md:89-91`, `:110-111`
-**Issue:** Two sentences describe work as still to come, but the same document already holds
-it:
-
-- Decision 8 ends "A What-enforces-it section names the rule when it is added." The rule is
-  added and named at `:124-126`.
-- Consequences says "The cost is measured and recorded in a later revision of this decision."
-  The cost is recorded at `:138-171` in this same revision (1.1).
-
-Both are history written as current text, and both now misstate the document.
-
-**Fix:** Replace them with pointers. For decision 8: "`[span-key-source]` and
-`[span-key-literal]`; see What enforces it." For Consequences: "The cost is recorded under The
-cost, measured: +6.79% geomean on a settled host, about 0.4–1.1 µs per call." The change
-history already records when each was added.
-
-### WR-06: BEH-QD-714's listing attributes `qadi.decideSubject` to `EvaluationSpan.ts`, which does not declare it
-
-**File:** `spec/behaviors/30-port-calls.md` (BEH-QD-714 listing), `packages/core/src/SubjectSet.ts:126`
-**Issue:** The BEH-QD-714 listing is headed `// packages/core/src/EvaluationSpan.ts —
-package-private` and lists `"qadi.decideSubject"  // keyless …`. `EvaluationSpan.ts` declares no
-such span, and its name is still spelled by hand at `SubjectSet.ts:126`
-(`Effect.fn("qadi.decideSubject")`). It is the one span of the family (BEH-QD-714 counts it as
-one) whose name is not read from the declaration. A reader following the listing looks for it
-in the wrong file.
-
-**Fix:** Either declare it, which keeps "span names come from the declaration" true for the
-whole family:
-
-```ts
-/** The `qadi.decideSubject` span: keyless, because the `qadi.evaluate` it opens asks. */
-export const decideSubjectSpan = declareSpan({
-  name: "qadi.decideSubject",
-  question: answersNothing,
-  answer: answersNothing,
-});
-```
-
-Or move the line out of the listing, with its own `// packages/core/src/SubjectSet.ts` source
-comment.
+**Fix:** Re-record the close on HEAD: `node 75-mutation.mjs record close core --restart` and `record close span --restart`. Add `PortSpanEncode.ts` to the `core` group as D-15 requires (it has no phase base, so close-only, like `span`). Close any new survivor with a test, never by re-baselining (D-15). If re-recording is deliberately deferred, state that in the phase's SUMMARY/VERIFICATION rather than leaving the stale `head` to stand as the close.
 
 ## Info
 
-### IN-01: `annotateSpan` duplicates the port path's two annotators and is not family-specific
+### IN-01: The log-event refusal of `annotateAsked` is unpinned, and both annotator pins use an explicit instantiation rather than the inference writers rely on
 
-**File:** `packages/core/src/EvaluationSpan.ts:214-217`; `packages/core/src/PortAccess.ts:93-96`, `:108-111`; `packages/core/src/PortDerivation.ts:210`
-**Issue:** `annotateSpan`'s body, `Effect.annotateCurrentSpan(encodeSpan(struct, value))`, is
-the same expression as `PortAccess.ts`'s `annotateQuestion` and `annotateAnswer`, and as the
-retrying wrapper's attempts write. Nothing in it belongs to the evaluate family.
-**Fix:** Move it beside `encodeSpan` in `PortSpanEncode.ts`. Then `PortAccess`'s two helpers
-become `annotateSpan(d.attributes.question, …)`, and the family reads it from the same place.
+**File:** `packages/core/test/EvaluationSpan.tst.ts:84-123`
 
-### IN-02: Doc and spec text claim `annotateSpan` is the only write path, and that the reason is "never" copied to a span
+**Issue:** "the denial event's struct cannot annotate a span" pins `annotateSpan` only (`DenialParams`). `annotateAsked`'s refusal of `denialEvent` is asserted by `PortSpanEncode.ts:92-93` and by ADR-QD-188 ("which `annotateSpan` and `annotateAsked` refuse"), but no pin holds it.
 
-**File:** `packages/core/src/EvaluationSpan.ts:7-8`, `:194`; `spec/behaviors/30-port-calls.md` BEH-QD-715 listing ("the one way a writer annotates a struct")
-**Issue:** Two of the family's writes do not go through `annotateSpan`: the denial log
-(`Lifecycle.ts:175`) and the stream span's attributes (`SubjectSet.ts:267`). Both call
-`encodeSpan` directly. Separately, "The reason stays on the log line and is never copied to a
-span" is enforced by nothing: `annotateSpan(denialEvent, …)` compiles and passes every rule.
-**Fix:** Say "writes from the declaration (`annotateSpan` on a span, `encodeSpan` for log
-annotations and `Stream.withSpan` attributes)". Make the reason sentence "is not copied to a
-span (kept by review)".
+Both `AskedParams` and `DenialParams` also instantiate the generic explicitly (`annotateAsked<typeof evaluateSpan.question.fields>`). Every writer calls `annotateAsked(struct, value)` and relies on `Fields` being inferred from `SpanCarried<Fields>`. Suppose an edit made that inference fall back to the constraint `SpanFields`. Then `PoseOf` would accept any record at the call sites, and these pins would still pass. Today inference is correct (the probe confirms it).
 
-### IN-03: `toPredicate`'s pipeable argument has a layout found nowhere else in `packages/*/src`
+**Fix:** Add a negative pin and its twin on `Params<typeof annotateAsked>` with `denialEvent`. Also add one inference-shaped pin, for example:
 
-**File:** `packages/core/src/Predicate.ts:695-701`
-**Issue:** The generator body closes with `},` at column 0, and the second argument to the
-`Effect.fn(...)` call follows at 2-space indent with a comment between. This is the only
-occurrence of that shape in library source, and the pipeable is easy to miss as part of the
-call.
-**Fix:** Indent both arguments one level inside `Effect.fn(toPredicateSpan.name)(`, or state the
-pipeable in the doc comment and keep a one-line `Effect.tapError(annotateFailure)` with a
-named local.
+```ts
+expect(annotateAsked).type.not.toBeCallableWith(...)
+```
 
-### IN-04: Generality without instantiation — `answersNothing` on the two batch spans
+that goes through a non-generic wrapper `(s: typeof evaluateSpan.question, v: …) => void` built by `Parameters`. Alternatively, pin a `@ts-expect-error` on an uninstantiated `annotateAsked(evaluateSpan.question, { subjectId: "u1", policyTag: "HasRole", action: undefined })` assigned to a `declare`d `Effect` value, which `typecheck` checks with the rule off. Update `NOT_CALLABLE_PIN_BUDGET` and the AGENTS.md row together.
 
-**File:** `packages/core/src/EvaluationSpan.ts:149`, `:171`, `:187`; `packages/core/test/EvaluationSpan.test.ts:168-171`
-**Category:** necessity
-**Issue:** No source file reads `decideSubjectsSpan.answer` or `decideSubjectsStreamSpan.answer`
-(`grep` over `packages/*/src` finds nothing). The empty struct exists only to satisfy
-`declareSpan`'s required `answer`. One test pins that the placeholder is a single shared
-object, which is an implementation detail and not a behaviour. Whether the uniform shape is
-worth keeping is a judgment call.
-**Fix:** Make `answer` optional in `declareSpan` and drop `answersNothing` and its identity
-test. Or keep it, and replace the identity test with one stating that the batch spans write
-nothing after their question.
+### IN-02: A second assertion in "the batch spans write nothing after their question" cannot fail
 
-### IN-05: The contract's "cache hit" rows cannot fail for the cache-hit reason their titles name
+**File:** `packages/core/test/EvaluationSpan.test.ts:190`
 
-**File:** `packages/core/test/EvaluationSpan.contract.test.ts:132-145`, `:252-269` (cited by BEH-QD-711)
-**Issue:** Nothing in either row shows that the second `evaluate` was served from the cache.
-If `decisionCacheLayer()` missed, both rows would pass unchanged. Because the question is
-annotated before the lookup, hit and miss cannot differ on the span. That makes the row's
-"cache hit" evidence nominal, even though BEH-QD-711 cites it as pinning the hit path. (The
-contract's inputs and titles are locked; no edit to them is proposed.)
-**Fix:** Outside the contract file (for example in `Evaluate.test.ts`), add a row with the same
-setup. It should assert the second decision record's `cacheOutcome` is `"hit"` alongside the
-span, and BEH-QD-711 should cite it.
+**Issue:** `encodeSpan(span.answer, {})` walks the entries of the empty value, so it returns `{}` for every struct whatever its keys. The `lengthOf(Object.keys(span.answer.keys), 0)` line above carries the whole test.
 
-### IN-06: Files the phase rewrote still find spans by literal names beside the declared ones
+**Fix:** Drop the line, or replace it with an assertion that depends on the struct. For example, assert that `decodeSpan(span.answer, new Map([[evaluateSpan.answer.keys.outcome, "Allow"]]))` is `{}`.
 
-**File:** `packages/core/test/Evaluate.test.ts:2667`, `:2729`, `:3303`; `packages/core/test/Predicate.test.ts:1668`
-**Issue:** The same `describe("observability")` block now uses `named(spans, evaluateSpan.name)`
-in some rows and `named(spans, "qadi.evaluate")` in neighbouring ones. D-09 leaves untouched
-tests as they are, so this is not a breach. Still, a reader of one file sees two conventions.
-**Fix:** Optionally convert these four lines to `evaluateSpan.name` / `toPredicateSpan.name` in
-a follow-up, so each rewritten file uses one convention.
+### IN-03: The asked projection is still restated by hand in the denial log line and in the two batch writers
 
-### IN-07: Each annotation walks its record twice and allocates one intermediate object (cost note, no measured alternative)
+**File:** `packages/core/src/Lifecycle.ts:176-180`; `packages/core/src/SubjectSet.ts:181-185`, `:266-269`
 
-**File:** `packages/core/src/EvaluationSpan.ts:217`; `packages/core/src/PortSpanEncode.ts:74-85`; `node_modules/effect/src/internal/effect.ts:6337-6350`
-**Issue:** Each annotation does the following:
+**Issue:**
+- The denial line builds `policyTag: question.policy._tag, subjectId: question.subject.id` two statements after the same writer called `askedOf(question)`. That is the projection WR-03 put in one place.
+- `decideSubjects` and `decideSubjectsStream` each restate `{ policyTag: policy._tag, action: options?.action }`.
 
-1. `encodeSpan` runs `Object.entries(value)` and builds a fresh record.
-2. `Effect.annotateCurrentSpan(record)` runs `Object.entries` on that record again.
-3. It then calls `span.attribute` for each entry.
+Small, but these are the remaining second statements of one projection inside the writers this phase owns.
 
-Every evaluation now does this twice. Before the phase it did one walk of a literal. This is
-one concrete contributor to the +6.79% recorded in ADR-QD-188. It is probably not the main
-one: the extra `withFiber` step likely costs more.
-**Fix:** None proposed without a measurement. A single-pass writer would have to read
-`Effect.currentSpan`, which has a `NoSuchElementError` channel, so the saving is not obvious.
-If the cost is ever revisited, benchmark a one-walk `annotateSpan` against the current one
-first.
+**Fix:** Denial line: `encodeSpan(denialEvent, { ...askedOf(question), reason: decision.reason })`. `encodeSpan` drops `action`, which has no key in `denialEvent`. If the extra member reads as a smell, add a `pick`-style narrowing instead. Batches: one local `batchAsked(policy, options)` in `SubjectSet.ts` that both writers spread.
 
-### IN-08: The changeset says "the benchmark records the cost"
+### IN-04: The ADR-QD-109 amendment says every family writer builds its question from a built question, which is false for the two batch spans
 
-**File:** `.changeset/core-evaluate-span-declared.md:9`
-**Issue:** The figure is recorded in ADR-QD-188's "The cost, measured" section, not by the
-benchmark. The upgrade guide says it correctly ("The cost is recorded in the decision").
-**Fix:** "… and ADR-QD-188 records the measured cost (about 0.4–1.1 µs per call)."
+**File:** `spec/decisions/109-a-ports-span-is-projected-once-and-every-read-is-one-body.md:173`
 
-### IN-09: A third copy of the find-a-span-by-name test helper
+**Issue:** The amendment names the two batch spans, then says "its writer builds the question from the built question it decides". Neither `decideSubjects` nor `decideSubjectsStream` builds a `Question`. Both read `policy` and `options` (`SubjectSet.ts:181-185`, `:266-269`).
 
-**File:** `packages/core/test/EvaluationSpan.contract.test.ts:63-71`; `packages/core/test/Evaluate.test.ts:2442-2443`; inline `spans.find((s) => s.name === …)` in `GuardHealthCheck.test.ts`, `SubjectSet.test.ts`, `Predicate.test.ts`
-**Issue:** `attributesOf` and `allAttributesOf` restate `named` plus `Object.fromEntries`, which
-the other span tests already write by hand.
-**Fix:** One `spanAttributes(spans, name)` / `allSpanAttributes(spans, name)` in
-`packages/core/test/helpers.ts`, beside `collectingTracer`. This changes the helper layout
-only, not the contract's inputs, titles or expected values.
+**Fix:** "… its writer builds the question from what it decides: the built question for `qadi.evaluate`, `qadi.toPredicate` and the probe (`askedOf`), the policy and options for the two batch spans." Revise through `spec-revise.mjs` and update the CCR-QD-467 row's revision.
+
+### IN-05: Two traceability rows do not name `PortSpanEncode.ts`, which the documents they trace now cite
+
+**File:** `spec/traceability.md:72`, `:219`
+
+**Issue:**
+- Row 72 (30 — Port Calls) lists `EvaluationSpan.ts` and the four writers as the source of BEH-QD-711–715. BEH-QD-715's listing names `packages/core/src/PortSpanEncode.ts` (`annotateAsked`, `annotateSpan`, `encodeSpan`, `logEventStruct`).
+- Row 219 (INV-QD-396) says "the subject id read from `sharedQuestionKeys`" without its file, and omits the `PoseOf` compile hold. INV-QD-396 1.192 and 1.194 added both to the invariant's own Source and Enforcement.
+
+**Fix:** Add `` `packages/core/src/PortSpanEncode.ts` (`annotateAsked`, `annotateSpan`, `logEventStruct`) `` to row 72's source. Make row 219's source "…, the subject id read from `sharedQuestionKeys` in `PortSpanEncode.ts`; each question held whole by `annotateAsked`'s `PoseOf`".
+
+### IN-06: An AGENTS.md line the phase wrote is 129 characters wide
+
+**File:** `AGENTS.md:474`
+
+**Issue:** `**A span key of the evaluate family is declared once, and read through its declaration: `SPAN_KEY_LITERAL_BUDGET`** (ADR-QD-188).` runs to 129 characters. Every neighbouring budget heading (`METRIC_ID_LITERAL_BUDGET`, `NOT_CALLABLE_PIN_BUDGET`, `MODULE_STATE_BUDGET`) wraps at about 85–90 (§17: hand-wrapping at about ninety columns).
+
+**Fix:** Wrap after "declared once," or before "(ADR-QD-188)".
+
+### IN-07: `EvaluationSpan.tst.ts` inlines the `Params` conditional twice instead of the file-local `Params<F>` the other type tests declare
+
+**File:** `packages/core/test/EvaluationSpan.tst.ts:84-88`, `:108-112`
+
+**Issue:** `AskedParams` and `DenialParams` each restate `F extends (...args: infer A) => unknown ? (...args: A) => void : never`. `DecisionCache.tst.ts:30`, `PortAccess.tst.ts:38` and `DiagnosticsStore.tst.ts:29` declare it once as `type Params<F>`, which is the form AGENTS.md §6 names ("`Params<F>` for a whole call").
+
+**Fix:** Write `type Params<F> = …` once, then `Params<typeof annotateAsked<typeof evaluateSpan.question.fields>>` and `Params<typeof annotateSpan<typeof denialEvent.fields>>`.
+
+### IN-08: The contract check's "exact" text comparison collapses whitespace inside string literals
+
+**File:** `.planning/phases/QD-75-a-declared-span-shape-for-the-evaluate-family/75-contract-check.mjs:63`, `:169`, `:218`
+
+**Issue:** `collapse` runs `replace(/\s+/g, " ")` over the whole source text of a row, statement or helper. That includes the inside of string and template literals. So a title or an expected value changed from `"a  b"` to `"a b"` passes. The header (`:18-21`) says "its text … is the first commit's text exactly". No contract string holds a whitespace run today, so nothing is hidden.
+
+**Fix:** Compare token streams rather than collapsed text, for example by walking `getChildren()` and joining token texts. Or collapse only trivia between tokens. Add a self-test case that changes the whitespace inside a title.
+
+### IN-09: The recorded cost was measured before the fix loop changed the hot path
+
+**File:** `spec/decisions/188-the-evaluate-familys-spans-are-declared-once-and-a-failed-span-says-what-was-asked.md` (The cost, measured); `packages/core/src/Lifecycle.ts:86`
+
+**Issue:** The +6.79% / 0.4–1.1 µs figure was measured on the 75-07 tree. Since then, `decideQuestion` builds `askedOf(question)` and spreads it into a second object, and annotates through `annotateAsked → annotateSpan → Effect.annotateCurrentSpan`, one extra call frame on each of its two annotations. The section does not name the commit it measured, so a later comparison cannot tell which tree the number describes. That is the use the section states for itself ("so that a later change which moves it is compared with a number").
+
+**Fix:** Name the measured commit in the section. Either re-run the same `ab.sh` / `analyze.mjs` pair on HEAD and record it as a third column, or state that the figure predates the code-review rewiring.
+
+### IN-10: `[span-key-literal]`'s title lookbehind also exempts a key passed to any `.test(`, `.it(` or `.describe(` method call
+
+**File:** `scripts/check-house-style.mjs:2588-2591`
+
+**Issue:** The exemption is `(?<!\b(?:describe|it|test|…)\(\s*)`. `\b` holds between `.` and a word character, so `pattern.test("qadi.outcome")` or `x.it("qadi.outcome")` is read as a test title and is not counted. The cost is narrow, but this is a way past the rule that AGENTS.md and the script header do not mention.
+
+**Fix:** Require that the callee is not a member access: `(?<![.\w$]\s*)` in front of the name alternation. For example, `(?<!(?:^|[^.\w$])(?:describe|it|test|it\.effect|…)\(\s*)`. Add the plant to the WR-04 plant list.
+
+### IN-11: Current-tense spec text the phase wrote narrates the old behaviour, and BEH-QD-712's title says "on every path" unscoped
+
+**File:** `spec/behaviors/30-port-calls.md:165-170`, `:174`, `:197`, `:230`, `:263`; `spec/invariants.md:4551`
+
+**Issue:** The rationale paragraphs of these entries describe what changed, not what holds:
+- BEH-QD-711–714: "A failed evaluation used to carry …", "The question is now annotated first", "The outcome sat under two keys", "`toPredicate` annotated nothing … It now answers", "A probe never said …";
+- INV-QD-395's Implication: "… used to carry only its outcome and its error tag".
+
+The pattern is common in this repo's spec (for example `19-hydration.md` and many INV Implications), so this follows convention. It is still history inside normative text, which the owner's bar asks to flag. Separately, BEH-QD-712's title ("The outcome of an evaluation is one key on every path") still claims every path, while its REQUIREMENT now scopes the claim to a decision or a typed failure.
+
+**Fix:** Optional. State each rationale as what holds ("A failed evaluation carries its question, so a tracer filtering by subject or evaluation id sees it"), and leave the history to ADR-QD-188's Context and the CCR row. For the title, "…is one key on every decided or failed path". That changes the anchor, so update the links in ADR-QD-051, INV-QD-396 and `traceability.md` in the same revision.
 
 ---
 
-_Reviewed: 2026-11-23T09:37:28Z_
+_Reviewed: 2026-11-23T10:24:16Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
