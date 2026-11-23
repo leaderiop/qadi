@@ -7,6 +7,7 @@
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Brand from "effect/Brand";
+import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
@@ -246,5 +247,33 @@ describe("effect v4 API canary", () => {
       );
       assert.strictEqual(inFresh, 0);
       assert.strictEqual((yield* Metric.value(counter)).count, before + 3);
+    }));
+
+  // Three report sites render a caught cause with `String(cause)` and rely on Effect to
+  // guard that string form against a value whose inspection throws (ADR-QD-182).
+  it.effect("String of a Die or Fail cause never throws for a value whose inspection throws", () =>
+    Effect.sync(() => {
+      const revocable = Proxy.revocable({}, {});
+      revocable.revoke();
+      const trap = (): never => {
+        throw new Error("trap");
+      };
+      const hostile: ReadonlyArray<unknown> = [
+        new Proxy({}, { get: trap, getPrototypeOf: trap, ownKeys: trap }),
+        {
+          get message(): string {
+            return trap();
+          },
+          toString: trap,
+          [Symbol.toPrimitive]: trap,
+        },
+        revocable.proxy,
+        Symbol("hostile"),
+      ];
+      for (const value of hostile) {
+        for (const cause of [Cause.die(value), Cause.fail(value)]) {
+          assert.match(String(cause), /^Cause\(\[(Die|Fail)\(/);
+        }
+      }
     }));
 });
