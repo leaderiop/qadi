@@ -28,7 +28,7 @@ import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Result from "effect/Result";
 import { CurrentSubject } from "./CurrentSubject.ts";
-import { annotateSpan, guardHealthCheckSpan } from "./EvaluationSpan.ts";
+import { annotateAsked, annotateSpan, guardHealthCheckSpan } from "./EvaluationSpan.ts";
 import type { Policy } from "./Policy.ts";
 import { questionOf } from "./Question.ts";
 import type { EvaluateOptions } from "./Question.ts";
@@ -100,7 +100,7 @@ export const createGuardHealthCheck = Effect.fn(guardHealthCheckSpan.name)(funct
   const subject = yield* CurrentSubject;
   const question = questionOf(subject, canaryPolicy, options);
   // Before the walk, so a probe that fails still says what it asked.
-  yield* annotateSpan(guardHealthCheckSpan.question, {
+  yield* annotateAsked(guardHealthCheckSpan.question, {
     subjectId: subject.id,
     policyTag: canaryPolicy._tag,
     action: question.action,

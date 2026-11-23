@@ -35,12 +35,13 @@ import type { EvaluationError } from "./Errors.ts";
 import { evaluate } from "./Evaluate.ts";
 import type { StandingEvaluationServices } from "./EvaluationServices.ts";
 import {
-  annotateSpan,
+  annotateAsked,
   decideSubjectsSpan,
   decideSubjectsStreamSpan,
 } from "./EvaluationSpan.ts";
 import type { Policy } from "./Policy.ts";
 import { encodeSpan } from "./PortSpanEncode.ts";
+import type { PoseOf } from "./PortSpanEncode.ts";
 import type { EvaluateOptions } from "./Question.ts";
 
 /**
@@ -177,7 +178,7 @@ export const decideSubjects = Effect.fn(decideSubjectsSpan.name)(function* (
   subjects: ReadonlyArray<AuthSubject>,
   options?: EvaluateOptions,
 ) {
-  yield* annotateSpan(decideSubjectsSpan.question, {
+  yield* annotateAsked(decideSubjectsSpan.question, {
     subjectCount: subjects.length,
     policyTag: policy._tag,
     action: options?.action,
@@ -260,16 +261,19 @@ export const decideSubjectsStream = <E2 = never, R2 = never>(
   policy: Policy,
   subjects: Stream.Stream<AuthSubject, E2, R2>,
   options?: EvaluateOptions,
-): Stream.Stream<SubjectOutcome, E2, SubjectSetServices | R2> =>
-  subjects.pipe(
+): Stream.Stream<SubjectOutcome, E2, SubjectSetServices | R2> => {
+  // Every member named, as `annotateAsked` holds every other question of the family.
+  const asked: PoseOf<typeof decideSubjectsStreamSpan.question> = {
+    policyTag: policy._tag,
+    action: options?.action,
+  };
+  return subjects.pipe(
     Stream.mapEffect((subject) => decideSubject(policy, subject, options)),
     Stream.withSpan(decideSubjectsStreamSpan.name, {
-      attributes: encodeSpan(decideSubjectsStreamSpan.question, {
-        policyTag: policy._tag,
-        action: options?.action,
-      }),
+      attributes: encodeSpan(decideSubjectsStreamSpan.question, asked),
     }),
   );
+};
 
 /** One outcome as `filterSubjectsStream` reports it: allowed, failed, or nothing for a denial. */
 const toFilteredOutcome: (outcome: SubjectOutcome) => Option.Option<FilteredSubjectOutcome> =

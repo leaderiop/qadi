@@ -28,7 +28,7 @@ import type { AttributeResolveError, DecisionHistoryUnavailable } from "./Errors
 import type { MissingAction } from "./Errors.ts";
 import { PolicyNotTranslatable } from "./Errors.ts";
 import { predicatesTranslatedTotal } from "./EvaluationMetrics.ts";
-import { annotateSpan, toPredicateSpan } from "./EvaluationSpan.ts";
+import { annotateAsked, annotateSpan, toPredicateSpan } from "./EvaluationSpan.ts";
 import type { Matcher, MatcherContext, ValueRef } from "./Matcher.ts";
 import { referencesResource } from "./Matcher.ts";
 import { getByPath, ownValue } from "./Operand.ts";
@@ -662,7 +662,7 @@ export const toPredicate = Effect.fn(toPredicateSpan.name)(function* (
   // Translation answers for rows not yet loaded, so its question has no
   // resource — explicitly, even if a caller's untyped options carried one.
   const question: Question = { ...questionOf(subject, policy, options), resource: undefined };
-  yield* annotateSpan(toPredicateSpan.question, {
+  yield* annotateAsked(toPredicateSpan.question, {
     subjectId: subject.id,
     policyTag: policy._tag,
     action: question.action,

@@ -4,8 +4,9 @@
  *
  * Each key is spelled once, in this file, and the subject id is the port spans'
  * own (`sharedQuestionKeys`), so a trace reads one fact under one key whichever
- * span carries it. A writer annotates through {@link annotateSpan}, so the question
- * and the answer are written from the declaration, and a failed span still
+ * span carries it. A writer annotates its question through {@link annotateAsked},
+ * which must name every member, and its answer through {@link annotateSpan}, so both
+ * are written from the declaration, and a failed span still
  * carries its question because that is annotated before the work, not after it
  * (ADR-QD-188, extending ADR-QD-051 and ADR-QD-109).
  *
@@ -26,6 +27,7 @@ import * as Schema from "effect/Schema";
 import type { Decision } from "./Decision.ts";
 import { POLICY_TAGS } from "./Policy.ts";
 import type { SpanFields, SpanKey, SpanStruct, SpanType } from "./PortSpan.ts";
+import type { PoseOf } from "./PortSpanEncode.ts";
 import {
   encodeSpan,
   sharedQuestionFields,
@@ -208,11 +210,27 @@ export const denialEvent = spanStruct(
 );
 
 /**
- * Annotates the current span with one struct of the family.
+ * Annotates the current span with one struct of the family, any member left out.
  *
- * A plain function: it opens no span, it writes to the one the caller opened.
+ * A plain function: it opens no span, it writes to the one the caller opened. It
+ * writes answers, each naming only what its ending says; a question is written with
+ * {@link annotateAsked}.
  */
 export const annotateSpan = <F extends SpanFields>(
   struct: SpanStruct<F>,
   value: SpanType<SpanStruct<F>>,
 ): Effect.Effect<void> => Effect.annotateCurrentSpan(encodeSpan(struct, value));
+
+/**
+ * Annotates the current span with a family span's question, every member named.
+ *
+ * The value is a {@link PoseOf} the question, so a writer that leaves a member out,
+ * such as the evaluation id or the policy's tag, fails to compile where it writes,
+ * as a port's `pose` does (ADR-QD-133). A member that is absent this time, such as
+ * an action not supplied, is named with `undefined`. An answer, which names only
+ * what this ending says, is written with {@link annotateSpan}.
+ */
+export const annotateAsked = <F extends SpanFields>(
+  struct: SpanStruct<F>,
+  value: PoseOf<SpanStruct<F>>,
+): Effect.Effect<void> => annotateSpan<SpanFields>(struct, value);

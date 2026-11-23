@@ -28,7 +28,12 @@ import { makeDecision } from "./Decision.ts";
 import { Decided, Failed } from "./DecisionRecord.ts";
 import type { EvaluationError } from "./Errors.ts";
 import { EvaluationId } from "./EvaluationId.ts";
-import { annotateSpan, denialEvent, evaluateSpan } from "./EvaluationSpan.ts";
+import {
+  annotateAsked,
+  annotateSpan,
+  denialEvent,
+  evaluateSpan,
+} from "./EvaluationSpan.ts";
 import {
   decisionsTotal,
   denialsByPolicyTagTotal,
@@ -79,7 +84,7 @@ export const decideQuestion = Effect.fn(evaluateSpan.name)(function* (
   const mintedId = yield* EvaluationId.next;
   const evaluationId = options?.evaluationId ?? mintedId;
   // Before the lookup, so a span that ends in a failure still carries its question.
-  yield* annotateSpan(evaluateSpan.question, {
+  yield* annotateAsked(evaluateSpan.question, {
     subjectId: question.subject.id,
     evaluationId,
     policyTag: question.policy._tag,

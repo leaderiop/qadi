@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-188                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-11-23                                     |
 > | Status         | Accepted — extends ADR-QD-051 and ADR-QD-109   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-23): Decision 1 scopes the outcome to a path that ends in a decision or a typed failure; an interrupted or defected evaluation carries no outcome (code review, CCR-QD-467)<br>1.1 (2026-11-23): What enforces it (the compiler, the rule, the tests, review) and the measured cost of the second annotation; related records INV-QD-395, INV-QD-396, BEH-QD-711 to BEH-QD-715 (ARCH-122, CCR-QD-467)<br>1.0 (2026-11-23): Initial release (ARCH-122, CCR-QD-467) |
+> | Change History | 1.3 (2026-11-23): What enforces it: the compiler holds each question whole through annotateAsked's PoseOf (code review, CCR-QD-467)<br>1.2 (2026-11-23): Decision 1 scopes the outcome to a path that ends in a decision or a typed failure; an interrupted or defected evaluation carries no outcome (code review, CCR-QD-467)<br>1.1 (2026-11-23): What enforces it (the compiler, the rule, the tests, review) and the measured cost of the second annotation; related records INV-QD-395, INV-QD-396, BEH-QD-711 to BEH-QD-715 (ARCH-122, CCR-QD-467)<br>1.0 (2026-11-23): Initial release (ARCH-122, CCR-QD-467) |
 
 ---
 
@@ -122,8 +122,13 @@ The decision is held by four things, and the last of them is not a machine.
 - **The compiler.** Every field of every struct in `EvaluationSpan.ts` is a `SpanValue`, so a field
   that could hold a resolved attribute, a resource or a policy body does not compile. The outcome is
   tied to the decision's tags plus `Failed`, the policy tag to the policy tags, and each span name to
-  a `SpanKey`, so every name is a `qadi.` key. `packages/core/test/EvaluationSpan.tst.ts` pins each
-  tie ([INV-QD-396](../invariants.md#inv-qd-396-one-fact-has-one-key-across-the-evaluate-family)).
+  a `SpanKey`, so every name is a `qadi.` key. Each question is written whole: `annotateAsked` takes
+  a `PoseOf` the question, the type a port's `pose` returns
+  ([ADR-QD-133](./133-a-port-request-is-derived-from-its-wire-question.md)), and the stream span's
+  attributes are built from a value of that type, so a writer that leaves out a member, the
+  evaluation id or the policy's tag, does not compile. `packages/core/test/EvaluationSpan.tst.ts`
+  pins each tie and the refusal of a question with a member left out
+  ([INV-QD-396](../invariants.md#inv-qd-396-one-fact-has-one-key-across-the-evaluate-family)).
 - **The rule.** `[span-key-source]` and `[span-key-literal]` in `scripts/check-house-style.mjs`, run
   by `pnpm lint`, read the key set from the declaration. The first refuses a family key spelled in
   library source outside it; the second refuses one typed by hand in a test outside its counted goldens.

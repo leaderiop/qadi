@@ -1,15 +1,18 @@
 /**
  * Pins what the compiler guarantees about the evaluate family's declaration: the
- * outcome tie, the policy tag, the leaf-only fields and the span names.
+ * outcome tie, the policy tag, the leaf-only fields, the span names and a question
+ * written whole.
  *
  * Each refusal is an expect-error directive checked twice, as in
  * `CompilePredicate.tst.ts`: under `pnpm typecheck` an unused directive is TS2578,
  * and under `pnpm test:tstyche` the text after it is a fragment of the one
- * suppressed error's message.
+ * suppressed error's message. The question annotator returns an `Effect`, so its
+ * refusal is a negative pin through its parameter type, with its positive twin.
  */
 import { expect, test } from "tstyche";
 import type { Decision } from "../src/Decision.ts";
 import {
+  annotateAsked,
   decideSubjectsSpan,
   decideSubjectsStreamSpan,
   denialEvent,
@@ -70,4 +73,31 @@ test("obligations are one joined string, not a list", () => {
   // @ts-expect-error Type 'string[]' is not assignable to type 'string'
   const listed: Answer = { outcome: "Allow", obligations: ["a", "b"] };
   expect(listed).type.toBe<Answer>();
+});
+
+/**
+ * The question annotator's parameters at the evaluate span's question, with its
+ * `Effect` dropped, so the pin holds whichever way `floatingEffect` is set.
+ */
+type AskedParams = typeof annotateAsked<typeof evaluateSpan.question.fields> extends (
+  ...args: infer A
+) => unknown
+  ? (...args: A) => void
+  : never;
+
+test("a question that leaves a member out is refused", () => {
+  expect<AskedParams>().type.not.toBeCallableWith(evaluateSpan.question, {
+    subjectId: "u1",
+    policyTag: "HasRole",
+    action: undefined,
+  });
+});
+
+test("a question that names every member is accepted", () => {
+  expect<AskedParams>().type.toBeCallableWith(evaluateSpan.question, {
+    subjectId: "u1",
+    evaluationId: "eval-1",
+    policyTag: "HasRole",
+    action: undefined,
+  });
 });
