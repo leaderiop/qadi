@@ -87,7 +87,7 @@ describe("reconcile: registering", () => {
     expect(next.get("a")?.identity).toBe(a);
   });
 
-  it("registers a new id and calls nothing else", () => {
+  it("keeps a live entry, updates it, and registers an id that was not live", () => {
     const { writer, log } = fakeWriter();
     const a = identity();
     const first = reconcile(writer, nothing, new Map([["a", want(a)]]));

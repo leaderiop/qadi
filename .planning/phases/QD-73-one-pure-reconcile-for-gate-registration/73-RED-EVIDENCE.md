@@ -291,3 +291,10 @@ throw of the step in one AggregateError`, `a throw leaves an unregistered entry 
 no-op`) and the hook row `a reconcile that throws leaves nothing registered once the hook unmounts`. The gut rows above
 that name `a throw leaves an unregistered entry in live; its second unregister is a no-op` describe a test that no
 longer exists. The contract is pinned on the real registry in `GateRegistry.store.test.ts`.
+
+### A retitled test
+
+The test quoted above as `registers a new id and calls nothing else` is now titled `keeps a live entry, updates it, and
+registers an id that was not live`. Its expected log, `update a` then `register b`, always showed an update of the kept
+entry, so the old title described the `reconcile` that did no update. Only the title changed; the sections above quote
+the old one.
