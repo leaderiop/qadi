@@ -433,19 +433,24 @@ const skip = (requirement: string, reason: string): Built => ({
 });
 
 const NO_RESOURCE_ID = "the check names no resource id";
-const SIGNATURE_PORT_REFUSED =
-  "the signature port refuses this check, so no added row would be answered: ";
-const HISTORY_PORT_REFUSED =
-  "the history port refuses this check, so no added row would be answered: ";
 
 /**
- * Why a remedy core's fixture judgement failed for is skipped.
+ * The sentence for a check that `who` refuses, so no added row would be answered.
  *
- * A check the port refuses (a form row or the form's subject its key cannot
- * read) is skipped with the port's refusal rather than offered a row, because
- * the port would refuse the check whatever row were added, so the row would not
- * remedy it (BEH-QD-222). Both judgements read this one dispatcher, each failing
- * with `MissingResourceId` or its own port's error.
+ * One sentence for every refusal, with the refuser and what it said in it. A check the
+ * port refuses is refused whatever row were added, so the row would not remedy it,
+ * and a remedy row that does not remedy is worse than an absent one (BEH-QD-222).
+ */
+const refusal = (who: string, cause: unknown): string =>
+  `the ${who} refuses this check, so no added row would be answered: ` +
+  thrownMessage(cause);
+
+/**
+ * The reason a check that core's fixture judgement failed for is skipped.
+ *
+ * Both judgements read this one dispatcher, each failing with `MissingResourceId` or
+ * its own port's error, which carries the refusal of a form row or of the form's
+ * subject the port's key cannot read.
  */
 const skipReason: (
   failure: MissingResourceId | SignatureHistoryUnavailable | DecisionHistoryUnavailable,
@@ -454,10 +459,8 @@ const skipReason: (
 >().pipe(
   Match.tagsExhaustive({
     MissingResourceId: () => NO_RESOURCE_ID,
-    SignatureHistoryUnavailable: (failure) =>
-      `${SIGNATURE_PORT_REFUSED}${thrownMessage(failure.cause)}`,
-    DecisionHistoryUnavailable: (failure) =>
-      `${HISTORY_PORT_REFUSED}${thrownMessage(failure.cause)}`,
+    SignatureHistoryUnavailable: (failure) => refusal("signature port", failure.cause),
+    DecisionHistoryUnavailable: (failure) => refusal("history port", failure.cause),
   }),
 );
 
