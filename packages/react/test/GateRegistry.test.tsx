@@ -14,9 +14,7 @@ import {
   eq,
   hasAttribute,
   hasPermission,
-  hasRole,
   literal,
-  makeSubject,
   permission,
   portsLayer,
 } from "@qadi/core";
@@ -35,38 +33,28 @@ import {
   useDecision,
   useGateInstances,
   useInvalidate,
-  usePolicies,
   useProjected,
   useQuestions,
 } from "../src/hooks.ts";
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
-import type { QadiAtoms } from "../src/QadiAtoms.ts";
 import { MissingQadiProviderError } from "../src/QadiProvider.tsx";
 import { QadiProvider } from "../src/QadiProvider.tsx";
+import {
+  alice,
+  atoms,
+  canRead,
+  canWrite,
+  docA,
+  docB,
+  Group,
+  guardTrees,
+  isAdmin,
+  listed,
+  providerTree,
+} from "./support/trees.tsx";
 
-const canRead = hasPermission(permission("doc", "read"));
-const canWrite = hasPermission(permission("doc", "write"));
-const isAdmin = hasRole("admin");
-
-const alice = makeSubject({ id: "u1", permissions: ["doc:read"] });
-const docA = { type: "doc", id: "a" };
-const docB = { type: "doc", id: "b" };
-
-const atoms = () => makeQadiAtoms(EvaluationServicesNone);
-
-// Each mount builds its own atom set, so its registry is its own: no test reads
-// another's guards, and nothing needs resetting between them (ADR-QD-080).
-let current: QadiAtoms = atoms();
-
-const mount = (children: ReactNode, instrument: boolean) => {
-  const set = atoms();
-  current = set;
-  return render(
-    <QadiProvider atoms={set} subject={alice} instrument={instrument}>
-      {children}
-    </QadiProvider>,
-  );
-};
+const trees = guardTrees();
+const mount = trees.mount;
 
 /**
  * Mounts `first`, rerenders `second`, and reports the registry's notifications
@@ -78,14 +66,8 @@ const rerenderedGate = (strict: boolean, first: ReactNode, second: ReactNode) =>
   set.gates.subscribe(() => {
     told += 1;
   });
-  const tree = (child: ReactNode) => {
-    const provider = (
-      <QadiProvider atoms={set} subject={alice} instrument>
-        {child}
-      </QadiProvider>
-    );
-    return strict ? <StrictMode>{provider}</StrictMode> : provider;
-  };
+  const tree = (child: ReactNode) =>
+    providerTree(set, child, { instrument: true, strict });
   const view = render(tree(first));
   const idAtMount = set.gates.instances()[0]?.id;
   const afterMount = told;
@@ -97,7 +79,7 @@ const rerenderedGate = (strict: boolean, first: ReactNode, second: ReactNode) =>
 };
 
 /** The guards listed by the most recent `mount`'s atom set. */
-const gateInstances = () => current.gates.instances();
+const gateInstances = trees.instances;
 
 afterEach(() => {
   document.body.innerHTML = "";
@@ -118,9 +100,9 @@ describe("uninstrumented, nothing changes", () => {
   });
 
   it("is the default", () => {
-    current = atoms();
+    const set = trees.adopt(atoms());
     render(
-      <QadiProvider atoms={current} subject={alice}>
+      <QadiProvider atoms={set} subject={alice}>
         <Can policy={canRead}>allowed</Can>
       </QadiProvider>,
     );
@@ -177,8 +159,7 @@ describe("instrumented, a guard says it exists", () => {
       }),
       EvaluationIdLive,
     );
-    const set = makeQadiAtoms(controlled);
-    current = set;
+    const set = trees.adopt(makeQadiAtoms(controlled));
     const standing = hasAttribute("standing", eq(literal("good")));
 
     const Invalidate = () => {
@@ -629,26 +610,11 @@ describe("useGateInstances", () => {
 });
 
 describe("grouped reads register per question", () => {
-  const policies = { read: canRead, admin: isAdmin };
-
-  const Group = ({ only }: { readonly only?: ReadonlyArray<"read" | "admin"> }) => {
-    const wanted: Record<string, typeof canRead> = {};
-    for (const name of only ?? ["read", "admin"]) wanted[name] = policies[name];
-    usePolicies(wanted);
-    return null;
-  };
-
-  /** Instances as `[name, kind, state]`, the name being what follows the hook's own id. */
-  const listed = () =>
-    gateInstances()
-      .map((one) => [one.id.slice(one.id.indexOf("/") + 1), one.kind, one.state] as const)
-      .sort((a, b) => a[0].localeCompare(b[0]));
-
   it("lists one instance per named policy, each following its own decision", async () => {
     mount(<Group />, true);
 
     await waitFor(() =>
-      expect(listed()).toEqual([
+      expect(listed(gateInstances())).toEqual([
         ["admin", "usePolicies", "Denied"],
         ["read", "usePolicies", "Allowed"],
       ]),
@@ -662,11 +628,10 @@ describe("grouped reads register per question", () => {
   });
 
   it("unregisters exactly the instance whose key was removed", async () => {
-    const set = atoms();
-    current = set;
+    const set = trees.adopt(atoms());
     const tree = (only: ReadonlyArray<"read" | "admin">) => (
       <QadiProvider atoms={set} subject={alice} instrument>
-        <Group only={only} />
+        <Group names={only} />
       </QadiProvider>
     );
     const view = render(tree(["read", "admin"]));
@@ -689,8 +654,7 @@ describe("grouped reads register per question", () => {
   });
 
   it("does not re-register when an equal record is rebuilt each render", async () => {
-    const set = atoms();
-    current = set;
+    const set = trees.adopt(atoms());
     let notified = 0;
     set.gates.subscribe(() => {
       notified += 1;
@@ -702,7 +666,8 @@ describe("grouped reads register per question", () => {
       </QadiProvider>
     );
     const view = render(tree(0));
-    await waitFor(() => expect(listed().map((x) => x[2])).toEqual(["Denied", "Allowed"]));
+    await waitFor(() =>
+      expect(listed(gateInstances()).map((x) => x[2])).toEqual(["Denied", "Allowed"]));
     const settled = notified;
 
     view.rerender(tree(1));
