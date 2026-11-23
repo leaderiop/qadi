@@ -603,7 +603,29 @@ Plans:
   4. The state-update half is tested without rendering, beside `GateWriter.reconcile.test.ts`, `GateRegistry.test.tsx` loses the cases that move, and ADR-QD-186 extends ADR-QD-140 and ADR-QD-111.
 
 **Planning notes**: AGENTS.md §13 holds: the gate registry records that a gate exists and what it renders now, never a retained verdict.
-**Plans**: TBD
+**Plans**: 7 plans (strictly serial, waves 1 to 7)
+
+Plans:
+**Wave 1**
+- [ ] 73-01-PLAN.md — base facts, the mutation base, the shared gate test helpers, the rendered characterisation green, the update half red
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 73-02-PLAN.md — ADR-QD-186, its index entry and §3 row, CCR-QD-465, and the dated amendments to ADR-QD-140, ADR-QD-111 and ADR-QD-103
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 73-03-PLAN.md — the keyed `reconcile` and the one-effect hook, with the update half, call order and failure rule pinned
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 73-04-PLAN.md — the type pins, the shared error boundary, the equal-state and no-leak rows, and each guarantee gutted once
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 73-05-PLAN.md — the three reconcile-rule cases leave `GateRegistry.test.tsx`, each pinned twice elsewhere
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 73-06-PLAN.md — BEH-QD-701 to BEH-QD-705, INV-QD-391, INV-QD-392, their traceability, and CCR-QD-465 in its final form
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 73-07-PLAN.md — the mutation close, every close scan, `pnpm check:pr`, and RECN-01 to RECN-05 complete
 
 ### Phase 74: The simulation session's policy choice split from its runs
 
