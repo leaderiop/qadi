@@ -26,11 +26,6 @@
  * replayed row gives. A transition that changes nothing answers its input object,
  * inside the `Seeding` for `seedFrom`, so a caller detects a no-op with `===`.
  *
- * It relies on two contracts it does not check: `replayInput` is total over a
- * `TimelineEntry`, so `seedFrom` decodes a row once and never refuses one, and
- * `sightingFor` always answers a sighting, so `choose` holds a value for a policy the
- * rail lists and for one it does not.
- *
  * Package-private, out of the barrel except its three types (ADR-QD-099, ADR-QD-187).
  */
 import * as Equal from "effect/Equal";
@@ -102,7 +97,7 @@ export interface ReplayedPolicy {
  *
  * The policy is held with the row it came from, so neither exists without the other.
  * It is absent for an orphan row, which has no policy to replay, and once the reviewer
- * has chosen another policy.
+ * has chosen a policy.
  */
 export interface SeedRow {
   readonly entry: TimelineEntry;
@@ -194,8 +189,8 @@ export const withSightings = (
  * Chooses a policy, held by value from here on.
  *
  * A policy the rail does not list is held as chosen, so it reads as `Evicted` at once.
- * Choosing leaves a replayed row behind: the row stays the seed it was, but its policy
- * is no longer the running one.
+ * Choosing leaves a replayed row behind: the row stays the one it was seeded from
+ * (`seededFrom`), but its policy is no longer the running one.
  */
 export const choose = (choice: SeededChoice, policy: Policy): SeededChoice => {
   const same = choice.held !== undefined && Equal.equals(choice.held.policy, policy);
