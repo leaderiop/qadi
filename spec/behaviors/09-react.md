@@ -5,12 +5,12 @@
 > | Property       | Value                                                        |
 > | -------------- | ------------------------------------------------------------ |
 > | Document ID    | QADI-BEH-09                                                  |
-> | Revision       | 3.13                                                          |
+> | Revision       | 3.14                                                          |
 > | Effective Date | 2026-10-08                                                   |
 > | Status         | Effective                                                    |
 > | Author         | Qadi Engineering                                             |
 > | Classification | Functional Specification                                     |
-> | Change History | 3.13 (2026-11-22): BEH-QD-701 to BEH-QD-705: gate registration as one keyed reconcile (ARCH-120, CCR-QD-465)<br>3.12 (2026-11-22): BEH-QD-691, BEH-QD-693 and BEH-QD-694: the table-facts test detects a changed row and is no evidence of timing; the provider reads InstrumentedInProduction's condition through holdsHere; the latch is the one rebindable module-scope binding (ARCH-118, CCR-QD-463)<br>3.11 (2026-11-22): BEH-QD-691, BEH-QD-693, BEH-QD-694: one developer-signal table, each default's condition, the once-per-process line (ARCH-118, ADR-QD-184, CCR-QD-463)<br>3.10 (2026-11-19): BEH-QD-327: DiagnosticsOptions.layer (ARCH-107, CCR-QD-451)<br>3.9 (2026-11-18): BEH-QD-327: the feed hands questions beside gates (ARCH-103, CCR-QD-447)<br>3.8 (2026-11-16): BEH-QD-327: the feed hands over the gate registry (ARCH-96, CCR-QD-440)<br>3.7 (2026-11-12): BEH-QD-516 new: the subject stays in the registry for the provider's lifetime; BEH-QD-067's later-change requirement names it (CCR-QD-427)<br>3.6 (2026-11-12): BEH-QD-512..515 new (one sweeper per atom set; the sweep after the pressure; no provider fork and no manual sweep; the bound after unmount); BEH-QD-065 restated without sweepEvictions (ARCH-83, CCR-QD-426)<br>3.5 (2026-10-08): BEH-QD-327 added — a devtools feed reads the provider's own runtime: `useDevtoolsFeed` and `runtimeLayer` (ARCH-34, ADR-QD-053 amendment, CCR-QD-240)<br>3.4 (2026-10-08): BEH-QD-067 — `onDeveloperSignal`, and the requirement that the provider never writes to the console itself (ADR-QD-041 amendment, CCR-QD-203)<br>3.3 (2026-10-07): ARCH-23 — BEH-QD-065's `QadiAtoms` listing takes `decision(policy, resource?)` (`decisionFor` is removed), `decisions`, `gates`, `sweepEvictions` and the `maxTrackedQuestions`/`onGateIdCollision` options it omitted, and "the same atom" becomes "for as long as the atom set tracks the question, whatever the garbage collector does"; BEH-QD-068 gains `useQuestions` and the grouped-registration note (ADR-QD-103, ADR-QD-053 amendment, INV-QD-105, CCR-QD-201)<br>3.2 (2026-10-06): `QadiAtoms.hydrate` takes `DehydratedDecisions` — `DehydratedPayload` is removed with the version-1 payload reader (ADR-QD-078 amendment, CCR-QD-182)<br>3.1 (2026-10-05): ARCH-14 — BEH-QD-066 gains `DecisionOutcome`/`outcomeOf`, a complete state table (`Initial` with `waiting: true`, a `Failure` being re-checked, and `previousSuccess` never read) and the requirement that every surface reads through `outcomeOf`; BEH-QD-307 added (a decision result reads as one of five outcomes); BEH-QD-068's `useCan` paragraph names `outcomeOf` (ADR-QD-093, INV-QD-094, CCR-QD-175)<br>3.0 (2026-10-04): ARCH-05 — `DecisionResult` and `currentDecision` hold a `ClientDecision` (the closed union of an evaluated or a seeded decision), `useDecisionSuspense` returns one, `DeniedNode`'s function takes `Deny | SeededDeny`, and `useProjected` projects through `permits`/`projectVisible`; `QadiAtoms` gains `hydrate`; the `subject` atom compares with `subjectEquivalence` (BEH-QD-066, BEH-QD-068, BEH-QD-065, BEH-QD-067, CCR-QD-156)<br>2.9 (2026-09-19): AC-02/EY-03 — the "depends on `effect` and `react` only" and `getServerSnapshot` paragraphs corrected for CCR-QD-150's `@effect/atom-react` reversal (2026-09-13), which this revision had missed; `useCan`'s "pending, denied and failed" corrected to the fourth state, a re-check, `hooks.ts`'s own doc comment already named<br>2.8 (2026-09-19): BEH-QD-067 — the subject-seeding requirement scoped to initial construction, and a requirement added for a later `subject` prop change: written in an effect, with an accepted one-frame stale-decision window (AC-03/EY-02)<br>2.7 (2026-09-08): The `Can` RECOMMENDED note corrected — `failure ?? fallback` could not distinguish an omitted `failure` from an explicit `failure={null}`; `Can` now renders `fallback` only when `failure` is omitted, and an explicit `null` opts out of it (issue #79, CCR-QD-138)<br>2.6 (2026-09-08): BEH-QD-065 — the `QadiAtoms` interface fence was missing `asked`, cross-referenced to its normative home at BEH-QD-198 (CCR-QD-126)<br>2.5 (2026-08-30): BEH-QD-068 — an already-settled decision MUST still resolve its suspense promise, and a re-checking one MUST still suspend (COMPAT-01, gap G-01-1)<br>2.4 (2026-08-23): BEH-QD-067 — `"use client"` per module, and the server-rendering guarantee (ADR-QD-042 companion work, CCR-QD-057)<br>2.3 (2026-08-23): BEH-QD-065 — `makeQadiAtoms` takes `QadiAtomsOptions` (ADR-QD-041, BEH-QD-152, CCR-QD-056)<br>2.2 (2026-08-23): BEH-QD-072 — a guard hands its denial to the node that replaces it (CCR-QD-054)<br>2.1 (2026-07-26): BEH-QD-071 corrected — atom keying is structural, not by reference (CCR-QD-013)<br>2.0 (2026-07-26): Rebuilt on `effect/reactivity` (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 3.14 (2026-11-22): BEH-QD-702: the writer's contract replaces the failure rule (CCR-QD-465)<br>3.13 (2026-11-22): BEH-QD-701 to BEH-QD-705: gate registration as one keyed reconcile (ARCH-120, CCR-QD-465)<br>3.12 (2026-11-22): BEH-QD-691, BEH-QD-693 and BEH-QD-694: the table-facts test detects a changed row and is no evidence of timing; the provider reads InstrumentedInProduction's condition through holdsHere; the latch is the one rebindable module-scope binding (ARCH-118, CCR-QD-463)<br>3.11 (2026-11-22): BEH-QD-691, BEH-QD-693, BEH-QD-694: one developer-signal table, each default's condition, the once-per-process line (ARCH-118, ADR-QD-184, CCR-QD-463)<br>3.10 (2026-11-19): BEH-QD-327: DiagnosticsOptions.layer (ARCH-107, CCR-QD-451)<br>3.9 (2026-11-18): BEH-QD-327: the feed hands questions beside gates (ARCH-103, CCR-QD-447)<br>3.8 (2026-11-16): BEH-QD-327: the feed hands over the gate registry (ARCH-96, CCR-QD-440)<br>3.7 (2026-11-12): BEH-QD-516 new: the subject stays in the registry for the provider's lifetime; BEH-QD-067's later-change requirement names it (CCR-QD-427)<br>3.6 (2026-11-12): BEH-QD-512..515 new (one sweeper per atom set; the sweep after the pressure; no provider fork and no manual sweep; the bound after unmount); BEH-QD-065 restated without sweepEvictions (ARCH-83, CCR-QD-426)<br>3.5 (2026-10-08): BEH-QD-327 added — a devtools feed reads the provider's own runtime: `useDevtoolsFeed` and `runtimeLayer` (ARCH-34, ADR-QD-053 amendment, CCR-QD-240)<br>3.4 (2026-10-08): BEH-QD-067 — `onDeveloperSignal`, and the requirement that the provider never writes to the console itself (ADR-QD-041 amendment, CCR-QD-203)<br>3.3 (2026-10-07): ARCH-23 — BEH-QD-065's `QadiAtoms` listing takes `decision(policy, resource?)` (`decisionFor` is removed), `decisions`, `gates`, `sweepEvictions` and the `maxTrackedQuestions`/`onGateIdCollision` options it omitted, and "the same atom" becomes "for as long as the atom set tracks the question, whatever the garbage collector does"; BEH-QD-068 gains `useQuestions` and the grouped-registration note (ADR-QD-103, ADR-QD-053 amendment, INV-QD-105, CCR-QD-201)<br>3.2 (2026-10-06): `QadiAtoms.hydrate` takes `DehydratedDecisions` — `DehydratedPayload` is removed with the version-1 payload reader (ADR-QD-078 amendment, CCR-QD-182)<br>3.1 (2026-10-05): ARCH-14 — BEH-QD-066 gains `DecisionOutcome`/`outcomeOf`, a complete state table (`Initial` with `waiting: true`, a `Failure` being re-checked, and `previousSuccess` never read) and the requirement that every surface reads through `outcomeOf`; BEH-QD-307 added (a decision result reads as one of five outcomes); BEH-QD-068's `useCan` paragraph names `outcomeOf` (ADR-QD-093, INV-QD-094, CCR-QD-175)<br>3.0 (2026-10-04): ARCH-05 — `DecisionResult` and `currentDecision` hold a `ClientDecision` (the closed union of an evaluated or a seeded decision), `useDecisionSuspense` returns one, `DeniedNode`'s function takes `Deny | SeededDeny`, and `useProjected` projects through `permits`/`projectVisible`; `QadiAtoms` gains `hydrate`; the `subject` atom compares with `subjectEquivalence` (BEH-QD-066, BEH-QD-068, BEH-QD-065, BEH-QD-067, CCR-QD-156)<br>2.9 (2026-09-19): AC-02/EY-03 — the "depends on `effect` and `react` only" and `getServerSnapshot` paragraphs corrected for CCR-QD-150's `@effect/atom-react` reversal (2026-09-13), which this revision had missed; `useCan`'s "pending, denied and failed" corrected to the fourth state, a re-check, `hooks.ts`'s own doc comment already named<br>2.8 (2026-09-19): BEH-QD-067 — the subject-seeding requirement scoped to initial construction, and a requirement added for a later `subject` prop change: written in an effect, with an accepted one-frame stale-decision window (AC-03/EY-02)<br>2.7 (2026-09-08): The `Can` RECOMMENDED note corrected — `failure ?? fallback` could not distinguish an omitted `failure` from an explicit `failure={null}`; `Can` now renders `fallback` only when `failure` is omitted, and an explicit `null` opts out of it (issue #79, CCR-QD-138)<br>2.6 (2026-09-08): BEH-QD-065 — the `QadiAtoms` interface fence was missing `asked`, cross-referenced to its normative home at BEH-QD-198 (CCR-QD-126)<br>2.5 (2026-08-30): BEH-QD-068 — an already-settled decision MUST still resolve its suspense promise, and a re-checking one MUST still suspend (COMPAT-01, gap G-01-1)<br>2.4 (2026-08-23): BEH-QD-067 — `"use client"` per module, and the server-rendering guarantee (ADR-QD-042 companion work, CCR-QD-057)<br>2.3 (2026-08-23): BEH-QD-065 — `makeQadiAtoms` takes `QadiAtomsOptions` (ADR-QD-041, BEH-QD-152, CCR-QD-056)<br>2.2 (2026-08-23): BEH-QD-072 — a guard hands its denial to the node that replaces it (CCR-QD-054)<br>2.1 (2026-07-26): BEH-QD-071 corrected — atom keying is structural, not by reference (CCR-QD-013)<br>2.0 (2026-07-26): Rebuilt on `effect/reactivity` (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -923,37 +923,42 @@ every wanted entry in map order, with its identity and its state").
 REQUIREMENT: One step MUST keep each live registration whose wanted entry under the
              same id has the same kind, atom, wraps and marker, and MUST tell its
              handle the wanted state. It MUST unregister every other live
-             registration, and then register each wanted entry that was not kept. A
-             step that throws MUST roll back what it registered and rethrow, one
-             value as it is and more than one as an `AggregateError`. The step MUST
-             NOT mutate the live registrations it is handed: after a throw that
-             follows an unregister they still hold that entry, and unregistering its
-             handle again MUST change nothing.
+             registration, and then register each wanted entry that was not kept. The
+             step MUST NOT mutate the live registrations it is handed. A writer's
+             `register` and a handle's `update` and `unregister` MUST NOT throw, and
+             the step handles no throw of its own.
 ```
 
 Unregistering runs before registering, so a changed identity registers again under its own
 id without colliding with itself. A changed policy or resource alone keeps the entry,
 because the atom changes with the question, and its handle is told the new state. The
-step's rules, its call order and its failure rule are held by tests only: no type states
-them. `reconcile` never mutates `live`: if a step throws after an earlier step unregistered
-an entry, `live` still holds that entry, its handle already unregistered, and unregistering
-that handle again is a no-op. That second unregister being a no-op is the registry's own
-rule (`packages/react/test/GateRegistry.store.test.ts`), which the hook's teardown relies
-on. A handle that itself throws on unregister can leave its registration standing, and
-nothing here prevents it.
+step's rules and its call order are held by tests only: no type states them.
+
+A writer's `register` and a handle's `update` and `unregister` do not throw.
+`buildGateRegistry` keeps that contract: a listener's throw is isolated per listener, its
+collision reporter arrives already contained by `reporterFor`, and its handles are
+idempotent. `reconcile` relies on the contract and handles no throw of its own: a writer
+that breaks it propagates the throw part-way, with the steps before it applied.
+`reconcile` never mutates `live` and returns a new `Map`. The registry's side of the
+contract is held by tests; that `reconcile` adds no handler of its own is kept by review
+and not by a test or a gate.
 
 Pinned by `packages/react/test/GateWriter.reconcile.test.ts` ("tells the handle of a kept
 entry the wanted state", "keeps the entry when only the policy or the resource changed",
 "re-registers when only atom, kind, wraps or marker changed, updating its sibling",
 "unregisters a dropped id and registers nothing", "calls each live update or unregister in
-order, then each registration", "on a real registry a changed identity keeps its id and
-reports no collision", "a register that throws rolls back what the call registered, then
-rethrows it", "a throwing unregister or update stops the steps after it and rethrows it",
-"a rollback that also throws joins the throw of the step in one AggregateError", "a throw
-leaves an unregistered entry in live; its second unregister is a no-op"),
-`packages/react/test/GateWriter.test.tsx` ("a reconcile that throws leaves nothing
-registered once the hook unmounts") and `packages/react/test/GateRegistry.store.test.ts`
-("unregister is idempotent").
+order, then each registration", "returns a fresh map and does not mutate the live map it
+is given", "on a real registry a changed identity keeps its id and reports no collision")
+and, for the registry's side of the contract,
+`packages/react/test/GateRegistry.store.test.ts` ("a listener that throws makes none of
+register, update or unregister throw", "unregister is idempotent", "an update firing after
+the matching unregister stays a no-op", and the four collision-reporter tests that throw
+through `makeGateRegistry` and `makeQadiAtoms`, each of which registers the colliding id
+after the reporter threw and lists both ids: "a throwing onIdCollision on makeGateRegistry
+is named onIdCollision in development", "a throwing onIdCollision on makeGateRegistry is
+named onIdCollision in production", "a throwing onGateIdCollision on makeQadiAtoms is
+named onGateIdCollision in development", "a throwing onGateIdCollision on makeQadiAtoms is
+named onGateIdCollision in production").
 
 ## BEH-QD-703: A state change notifies once, and an unchanged commit not at all
 

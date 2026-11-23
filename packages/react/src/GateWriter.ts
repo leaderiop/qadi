@@ -310,19 +310,15 @@ export interface GateWanted {
  *
  * It tells every kept handle its state and compares nothing: whether the state
  * changed is decided once, in the handle's `update` (`buildGateRegistry`). It acts
- * only through the writer and the handles it is handed, and returns a new `Map`.
+ * only through the writer and the handles it is handed.
  *
- * **When a step throws**, the steps after it do not run, and every registration this
- * call made is unregistered, each in turn, a throwing one not stopping the rest. Then
- * `reconcile` throws by ADR-QD-177's count rule: the one value as it is, more than one
- * as one `AggregateError` holding them in the order thrown. `reconcile` never mutates
- * `live`: if a step throws after an earlier step unregistered an entry, `live` still
- * holds that entry, its handle already unregistered, and unregistering that handle
- * again is a no-op. That second unregister being a no-op is the registry's (a handle
- * from `buildGateRegistry` is idempotent), and the caller's teardown relies on it. A
- * handle from `buildGateRegistry` never throws, so with the package's registry
- * nothing stays registered that the caller's map does not hold. A handle that itself
- * throws on unregister can leave its registration standing; nothing here prevents it.
+ * **The writer's contract.** A writer's `register` and a handle's `update` and
+ * `unregister` do not throw. `buildGateRegistry` keeps that contract: a listener's
+ * throw is isolated per listener, its collision reporter arrives already contained by
+ * `reporterFor`, and its handles are idempotent. `reconcile` relies on the contract and
+ * handles no throw of its own: a writer that breaks it propagates the throw part-way,
+ * with the steps before it applied. `reconcile` never mutates `live` and returns a new
+ * `Map`.
  *
  * Model logic that imports nothing from React, so it is tested against a fake writer
  * without rendering (ARCH-76, ADR-QD-140). See ADR-QD-186.
@@ -333,46 +329,28 @@ export const reconcile = (
   wanted: ReadonlyMap<string, GateWanted>,
 ): Map<string, Registered> => {
   const next = new Map<string, Registered>();
-  const made: Array<GateHandle> = [];
-  try {
-    for (const [id, entry] of live) {
-      const want = wanted.get(id);
-      if (want !== undefined && sameIdentity(want.identity, entry.identity)) {
-        next.set(id, entry);
-        entry.handle.update(want.state);
-      } else {
-        entry.handle.unregister();
-      }
+  for (const [id, entry] of live) {
+    const want = wanted.get(id);
+    if (want !== undefined && sameIdentity(want.identity, entry.identity)) {
+      next.set(id, entry);
+      entry.handle.update(want.state);
+    } else {
+      entry.handle.unregister();
     }
-    for (const [id, { identity, state }] of wanted) {
-      if (next.has(id)) continue;
-      const handle = writer.register({
-        id,
-        kind: identity.kind,
-        policy: identity.policy,
-        resource: identity.resource,
-        state,
-        // Read when React has attached it. `?? undefined` because a ref holds
-        // `null` and the registry's type says absent.
-        element: identity.wraps ? (identity.marker.current ?? undefined) : undefined,
-      });
-      made.push(handle);
-      next.set(id, { identity, handle });
-    }
-  } catch (error) {
-    const thrown: Array<unknown> = [error];
-    for (const handle of made) {
-      try {
-        handle.unregister();
-      } catch (rollback) {
-        thrown.push(rollback);
-      }
-    }
-    if (thrown.length === 1) throw error;
-    throw new AggregateError(
-      thrown,
-      "A gate reconcile step threw, and so did its rollback.",
-    );
+  }
+  for (const [id, { identity, state }] of wanted) {
+    if (next.has(id)) continue;
+    const handle = writer.register({
+      id,
+      kind: identity.kind,
+      policy: identity.policy,
+      resource: identity.resource,
+      state,
+      // Read when React has attached it. `?? undefined` because a ref holds
+      // `null` and the registry's type says absent.
+      element: identity.wraps ? (identity.marker.current ?? undefined) : undefined,
+    });
+    next.set(id, { identity, handle });
   }
   return next;
 };

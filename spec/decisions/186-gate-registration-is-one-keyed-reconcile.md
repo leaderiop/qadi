@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-186                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-22                                     |
 > | Status         | Accepted — extends ADR-QD-140 and ADR-QD-111   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-22): new — gate registration is one keyed reconcile (ARCH-120, CCR-QD-465) |
+> | Change History | 1.1 (2026-11-22): Decision 6 is the writer's contract, not a failure rule: reconcile handles no throw of its own (CCR-QD-465)<br>1.0 (2026-11-22): new — gate registration is one keyed reconcile (ARCH-120, CCR-QD-465) |
 
 ---
 
@@ -54,17 +54,14 @@ rule could not be tested beside the rest of `reconcile`.
 5. **Pure means what ADR-QD-140 made it mean.** `GateWriter.ts` imports nothing from React.
    `reconcile` is deterministic in its arguments, acts only through the writer and the
    handles it is handed, and returns a fresh map.
-6. **The failure rule.** If a step throws, the steps after it do not run; every
-   registration this call made is unregistered, each in turn, a throwing one not stopping
-   the rest; then `reconcile` throws by
-   [ADR-QD-177](./177-one-throwing-listener-cannot-silence-the-rest.md)'s count rule: one
-   value is thrown as it is, more than one as one `AggregateError` holding them in the
-   order thrown. `reconcile` never mutates `live`: if a step throws after an earlier step
-   unregistered an entry, `live` still holds that entry, its handle already unregistered,
-   and unregistering that handle again is a no-op. A handle from `buildGateRegistry` never
-   throws, so with the package's registry nothing stays registered that the caller's map
-   does not hold, and the caller's teardown, unregistering every handle its map holds, ends
-   with nothing registered.
+6. **The writer's contract.** A writer's `register` and a handle's `update` and
+   `unregister` do not throw. `buildGateRegistry` keeps that contract: a listener's throw
+   is isolated per listener (the registry's own swallow, which
+   [ADR-QD-177](./177-one-throwing-listener-cannot-silence-the-rest.md) leaves as it is), its
+   collision reporter arrives already contained by `reporterFor` ([ADR-QD-184](./184-developer-signal-reporters-are-resolved-through-one-table.md)),
+   and its handles are idempotent. `reconcile` relies on the contract and handles no throw
+   of its own: a writer that breaks it propagates the throw part-way, with the steps before
+   it applied. `reconcile` never mutates `live` and returns a new `Map`.
 7. **`useGateRegistrations(writer, wanted)` keeps one ref, `registered`, and one
    registration effect with no dependency list**, which calls `reconcile` with the committed
    render's own `wanted`. Beside it stays the teardown keyed on `writer`, declared first,
@@ -84,8 +81,8 @@ rule could not be tested beside the rest of `reconcile`.
 This decision and its shape were decided autonomously on 2026-11-22 under the owner's
 instruction to take the most complete, clean option: the id stated once by its key
 (decision 1) rather than beside it, the update done in the one step (decision 2) rather than
-in a second effect, and the throwing rule stated in full (decision 6) rather than left to
-the caller.
+in a second effect, and the writer's contract stated once (decision 6) rather than guarded
+again in the step.
 
 ## What enforces it
 
@@ -93,14 +90,19 @@ The compiler enforces: `wanted` is a `ReadonlyMap` (an array is refused), `GateI
 no `id`, `GateCurrent` does not exist, and `Registered` has only `identity` and `handle`. The
 pins are in `GateWriter.reconcile.tst.ts`.
 
-Tests alone enforce: the step's rules and its call order, and the failure rule, including a
-second unregister of an entry left in `live` (`GateWriter.reconcile.test.ts`, and the
-registry's own "unregister is idempotent" in `GateRegistry.store.test.ts`); the equal-state
-no-op (`GateRegistry.store.test.ts`, `GateWriter.test.tsx`); and behaviour preserved, which
-is what registers, under which id, in what state and with how many notifications
+Tests alone enforce: the step's rules and its call order
+(`GateWriter.reconcile.test.ts`); the writer's contract on the registry this package
+builds, in `GateRegistry.store.test.ts`: a throwing subscriber makes none of `register`,
+`update` and `unregister` throw while the other subscribers still hear each, a handle is
+idempotent (a second `unregister`, and an `update` after one, change nothing), and a
+throwing collision reporter, supplied through `makeQadiAtoms` or `makeGateRegistry`, does
+not make `register` throw; the equal-state no-op (`GateRegistry.store.test.ts`,
+`GateWriter.test.tsx`); and behaviour preserved, which is what registers, under which id,
+in what state and with how many notifications
 (`GateRegistration.characterisation.test.tsx`).
 
-Neither enforces that no other module diffs states. Review and the behaviours below do.
+Neither enforces that no other module diffs states, or that `reconcile` adds no handler
+for a throw its writer's contract rules out. Review and the behaviours below do.
 
 ## Alternatives considered
 
@@ -118,8 +120,10 @@ Neither enforces that no other module diffs states. Review and the behaviours be
   adds a union and an interpreter and removes nothing.
 - **Folding the teardown into the registration effect.** Rejected: it re-registers on every
   commit or leaks on unmount (decision 7).
-- **A best-effort step that keeps going after a throw.** Rejected: it leaves a half-applied
-  step whose throw is lost.
+- **A rollback, and a count rule for the throws, inside `reconcile`.** Rejected: no writer
+  this package builds throws (decision 6), so the rule would defend a state nothing can
+  reach, and the half-applied step it would leave behind after an earlier unregister is no
+  better than letting the throw propagate.
 
 ## Consequences
 

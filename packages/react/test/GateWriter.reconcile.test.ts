@@ -19,54 +19,29 @@ import type {
 } from "../src/GateWriter.ts";
 import { makeGateRegistry } from "../src/GateRegistry.ts";
 import type { GateRenderState } from "../src/GateRegistry.ts";
-import { notificationsOf } from "./support/gates.ts";
 
 type Call =
   | readonly ["register", string, GateRenderState, Element | undefined]
   | readonly ["unregister", string]
   | readonly ["update", string, GateRenderState];
 
-/**
- * A writer that logs every call before it acts, and throws an `Error` named
- * `${op} ${id}` for each of those the caller lists in `throwsOn`; `thrown` holds the
- * errors it made, in order, so a test can tell one from another by identity.
- */
-const fakeWriter = (throwsOn: ReadonlySet<string> = new Set()) => {
+/** A writer that logs every call it is made, and never throws. */
+const fakeWriter = () => {
   const log: Array<Call> = [];
-  const thrown: Array<Error> = [];
-  const hit = (op: string, id: string): void => {
-    if (!throwsOn.has(`${op} ${id}`)) return;
-    const failure = new Error(`${op} ${id}`);
-    thrown.push(failure);
-    throw failure;
-  };
   const writer: GateWriter = {
     register: (instance) => {
       log.push(["register", instance.id, instance.state, instance.element]);
-      hit("register", instance.id);
       return {
         update: (state) => {
           log.push(["update", instance.id, state]);
-          hit("update", instance.id);
         },
         unregister: () => {
           log.push(["unregister", instance.id]);
-          hit("unregister", instance.id);
         },
       };
     },
   };
-  return { writer, log, thrown };
-};
-
-/** What `act` throws; fails the test when it throws nothing. */
-const thrownBy = (act: () => unknown): unknown => {
-  try {
-    act();
-  } catch (error) {
-    return error;
-  }
-  throw new Error("expected the call to throw");
+  return { writer, log };
 };
 
 const canRead = () => hasPermission(permission("doc", "read"));
@@ -418,131 +393,6 @@ describe("reconcile: unregistering", () => {
         expect(next.get("a")?.identity, what).toBe(changed);
         expect(next.get("b"), what).toBe(first.get("b"));
       }
-    },
-  );
-});
-
-describe("reconcile: when a step throws", () => {
-  it(
-    "a register that throws rolls back what the call registered, then rethrows it",
-    () => {
-      const { writer, log, thrown } = fakeWriter(new Set(["register c"]));
-      const caught = thrownBy(() =>
-        reconcile(
-          writer,
-          nothing,
-          new Map([
-            ["a", want(identity())],
-            ["b", want(identity())],
-            ["c", want(identity())],
-          ]),
-        ),
-      );
-      expect(log).toEqual([
-        ["register", "a", "Pending", undefined],
-        ["register", "b", "Pending", undefined],
-        ["register", "c", "Pending", undefined],
-        ["unregister", "a"],
-        ["unregister", "b"],
-      ]);
-      expect(caught).toBe(thrown[0]);
-      expect(nothing.size).toBe(0);
-    },
-  );
-
-  it("a throwing unregister or update stops the steps after it and rethrows it", () => {
-    const cases: ReadonlyArray<readonly [string, string, boolean, Call]> = [
-      ["unregister", "unregister a", false, ["unregister", "a"]],
-      ["update", "update a", true, ["update", "a", "Pending"]],
-    ];
-    for (const [what, throwing, keepsBoth, call] of cases) {
-      const { writer, log, thrown } = fakeWriter(new Set([throwing]));
-      const atom = {};
-      const marker = markerOf();
-      const both = new Map([
-        ["a", want(identity({ atom, marker }))],
-        ["b", want(identity({ atom, marker }))],
-      ]);
-      const first = reconcile(writer, nothing, both);
-      const before = [...first];
-      log.length = 0;
-      const wanted = keepsBoth ? both : new Map();
-      const caught = thrownBy(() => reconcile(writer, first, wanted));
-      expect(log, what).toEqual([call]);
-      expect(caught, what).toBe(thrown[0]);
-      expect([...first], what).toEqual(before);
-    }
-  });
-
-  it(
-    "a rollback that also throws joins the throw of the step in one AggregateError",
-    () => {
-      const { writer, log, thrown } = fakeWriter(new Set(["register c", "unregister a"]));
-      const caught = thrownBy(() =>
-        reconcile(
-          writer,
-          nothing,
-          new Map([
-            ["a", want(identity())],
-            ["b", want(identity())],
-            ["c", want(identity())],
-          ]),
-        ),
-      );
-      if (!(caught instanceof AggregateError)) {
-      throw new Error("expected an AggregateError");
-    }
-      expect(caught.message).toBe(
-      "A gate reconcile step threw, and so did its rollback.",
-    );
-      expect(caught.errors).toHaveLength(2);
-      expect(caught.errors[0]).toBe(thrown[0]);
-      expect(caught.errors[1]).toBe(thrown[1]);
-      expect(thrown.map((one) => one.message)).toEqual(["register c", "unregister a"]);
-      expect(log.slice(-2)).toEqual([
-        ["unregister", "a"],
-        ["unregister", "b"],
-      ]);
-    },
-  );
-
-  it(
-    "a throw leaves an unregistered entry in live; its second unregister is a no-op",
-    () => {
-      const registry = makeGateRegistry();
-      const real = gateWriterFor(registry);
-      if (real === undefined) throw new Error("registry has no writer");
-      const failure = new Error("register c");
-      const writer: GateWriter = {
-        register: (instance) => {
-          if (instance.id === "c") throw failure;
-          return real.register(instance);
-        },
-      };
-      const held = reconcile(
-        real,
-        nothing,
-        new Map([
-          ["a", want(identity())],
-          ["b", want(identity())],
-        ]),
-      );
-      const entryA = held.get("a");
-      const entryB = held.get("b");
-
-      const caught = thrownBy(() =>
-        reconcile(writer, held, new Map([["c", want(identity())]])),
-      );
-
-      expect(caught).toBe(failure);
-      expect([...held.keys()]).toEqual(["a", "b"]);
-      expect(held.get("a")).toBe(entryA);
-      expect(held.get("b")).toBe(entryB);
-      expect(registry.instances()).toEqual([]);
-      const told = notificationsOf(registry);
-      for (const { handle } of held.values()) handle.unregister();
-      expect(told()).toBe(0);
-      expect(registry.instances()).toEqual([]);
     },
   );
 });

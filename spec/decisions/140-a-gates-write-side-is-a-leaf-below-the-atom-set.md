@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-140                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-11-11                                     |
 > | Status         | Accepted — amends ADR-QD-111, ADR-QD-080; amended 2026-11-22 (ADR-QD-186) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-11-22): Amendment: reconcile is keyed by gate id and updates each kept handle; the hook registers from one effect beside its teardown (ADR-QD-186, CCR-QD-465)<br>1.2 (2026-11-14): Amendment: the atom set's import edges gain SeededQuestion.ts and SweepScheduler.ts (ADR-QD-155, CCR-QD-433)<br>1.1 (2026-11-12): Consequences amended: the test-edit count describes the split alone (CCR-QD-427)<br>1.0 (2026-11-11): Initial (ARCH-76, CCR-QD-418) |
+> | Change History | 1.4 (2026-11-22): Amendment item 2: reconcile relies on the writer's contract and handles no throw of its own (ADR-QD-186, CCR-QD-465)<br>1.3 (2026-11-22): Amendment: reconcile is keyed by gate id and updates each kept handle; the hook registers from one effect beside its teardown (ADR-QD-186, CCR-QD-465)<br>1.2 (2026-11-14): Amendment: the atom set's import edges gain SeededQuestion.ts and SweepScheduler.ts (ADR-QD-155, CCR-QD-433)<br>1.1 (2026-11-12): Consequences amended: the test-edit count describes the split alone (CCR-QD-427)<br>1.0 (2026-11-11): Initial (ARCH-76, CCR-QD-418) |
 
 ---
 
@@ -158,8 +158,9 @@ follows now.
   each kept handle its wanted state, so there is no array of current entries and no
   fallback to `Pending`. A changed `atom`, `kind`, `wraps` or `marker` still unregisters
   then re-registers, a dropped id only unregisters and a new id only registers. It never
-  mutates the live map, and a step that throws stops the rest, unregisters what the call
-  registered and throws by ADR-QD-177's count rule.
+  mutates the live map. It relies on the writer's contract, that a writer's `register` and
+  a handle's `update` and `unregister` do not throw, and handles no throw of its own
+  ([ADR-QD-186](./186-gate-registration-is-one-keyed-reconcile.md) decision 6).
 - **Item 3.** `useGateRegistrations(writer, wanted)` keeps one ref and calls `reconcile`
   from one registration effect, beside the teardown keyed on `writer`; the state diff
   that was a third effect is gone.

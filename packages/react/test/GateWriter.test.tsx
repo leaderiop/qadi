@@ -7,14 +7,13 @@
 import { hasPermission, permission } from "@qadi/core";
 import { renderHook } from "@testing-library/react";
 import { createRef, StrictMode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { makeGateRegistry } from "../src/GateRegistry.ts";
 import type { GateRenderState } from "../src/GateRegistry.ts";
 import { gateWriterFor } from "../src/GateWriter.ts";
 import { useGateRegistrations } from "../src/useGate.ts";
 import type { GateIdentity, GateWanted, GateWriter } from "../src/GateWriter.ts";
 import { notificationsOf } from "./support/gates.ts";
-import { Boundary } from "./support/trees.tsx";
 
 const canRead = () => hasPermission(permission("doc", "read"));
 
@@ -155,52 +154,5 @@ describe("useGateRegistrations (one identity)", () => {
     const { registry } = setup();
     run({ writer: undefined, identity: identityFor({}), state: "Allowed" });
     expect(registry.instances()).toEqual([]);
-  });
-});
-
-describe("useGateRegistrations (several identities)", () => {
-  it("a reconcile that throws leaves nothing registered once the hook unmounts", () => {
-    const { registry, writer, notifications } = setup();
-    const failure = new Error("register c is refused");
-    const throwing: GateWriter = {
-      register: (instance) => {
-        if (instance.id === "c") throw failure;
-        return writer.register(instance);
-      },
-    };
-    const a = identityFor({});
-    const wantedA: ReadonlyMap<string, GateWanted> = new Map([
-      ["a", { identity: a, state: "Allowed" }],
-    ]);
-    const wantedAll: ReadonlyMap<string, GateWanted> = new Map([
-      ["a", { identity: a, state: "Allowed" }],
-      ["b", { identity: identityFor({}), state: "Allowed" }],
-      ["c", { identity: identityFor({}), state: "Allowed" }],
-    ]);
-    const caught: Array<unknown> = [];
-    const report = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    try {
-      const view = renderHook(
-        (p: { readonly wanted: ReadonlyMap<string, GateWanted> }) =>
-          useGateRegistrations(throwing, p.wanted),
-        {
-          initialProps: { wanted: wantedA },
-          wrapper: ({ children }) => (
-            <Boundary onCaught={(error) => caught.push(error)}>{children}</Boundary>
-          ),
-        },
-      );
-      expect(registry.instances().map((one) => one.id)).toEqual(["a"]);
-
-      view.rerender({ wanted: wantedAll });
-
-      expect(caught).toHaveLength(1);
-      expect(caught[0]).toBe(failure);
-      expect(registry.instances()).toEqual([]);
-      // Register a, register b, the rollback of b, then the teardown of a.
-      expect(notifications()).toBe(4);
-    } finally {
-      report.mockRestore();
-    }
   });
 });

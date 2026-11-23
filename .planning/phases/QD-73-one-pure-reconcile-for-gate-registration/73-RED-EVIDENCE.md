@@ -271,3 +271,23 @@ Titles added since `<phase_base>`, each unique in its file, at most 90 character
 | `GateRegistry.test.tsx` | 0 (37 titles, three moved out) | none |
 
 RECN-03 is closed under the reading of ADR-QD-186: one registration effect beside the writer-keyed teardown (Decision item 7).
+
+## Review amendments (2026-11-23)
+
+Earlier sections above are the record as it stood when written. Code review changed the following, and the sections
+above are left as they were.
+
+### The rollback was removed in code review
+
+`reconcile` no longer carries the rollback, the `made` list or the `AggregateError`. No writer this package builds can
+throw: `buildGateRegistry`'s `changed()` isolates every listener, `update` and `unregister` are idempotent plain `Map`
+and `Set` writes, and both callers (`QadiAtoms.ts` and `makeGateRegistry`) hand it a reporter resolved through
+`reporterFor`, which contains a supplied reporter's throw. The rule defended a state nothing can reach, and it was not
+the atomic rule ADR-QD-186 said it was, because a throw after an earlier unregister left that unregister applied.
+ADR-QD-186 decision 6 is now the writer's contract. Its tests went with it: the four reconcile tests under
+`reconcile: when a step throws` (`a register that throws rolls back what the call registered, then rethrows it`,
+`a throwing unregister or update stops the steps after it and rethrows it`, `a rollback that also throws joins the
+throw of the step in one AggregateError`, `a throw leaves an unregistered entry in live; its second unregister is a
+no-op`) and the hook row `a reconcile that throws leaves nothing registered once the hook unmounts`. The gut rows above
+that name `a throw leaves an unregistered entry in live; its second unregister is a no-op` describe a test that no
+longer exists. The contract is pinned on the real registry in `GateRegistry.store.test.ts`.

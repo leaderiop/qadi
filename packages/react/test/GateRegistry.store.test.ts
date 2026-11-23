@@ -92,17 +92,23 @@ describe("subscribing", () => {
     expect(notified).toBe(0);
   });
 
-  it("a listener that throws does not stop the fan-out", () => {
+  it("a listener that throws makes none of register, update or unregister throw", () => {
     const registry = makeGateRegistry();
-    let reached = false;
     registry.subscribe(() => {
       throw new Error("subscriber bug");
     });
+    const heard: Array<number> = [];
     registry.subscribe(() => {
-      reached = true;
+      heard.push(registry.instances().length);
     });
-    expect(() => writerOf(registry).register(instance("a", "Pending"))).not.toThrow();
-    expect(reached).toBe(true);
+
+    // A throw out of `register` fails the test where it is raised.
+    const handle = writerOf(registry).register(instance("a", "Pending"));
+    expect(() => handle.update("Allowed")).not.toThrow();
+    expect(() => handle.unregister()).not.toThrow();
+
+    // The subscriber after the throwing one still heard each of the three.
+    expect(heard).toEqual([1, 1, 0]);
   });
 });
 

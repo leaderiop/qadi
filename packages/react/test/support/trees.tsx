@@ -129,23 +129,14 @@ export const snapshotOf = (instances: ReadonlyArray<GateInstance>) =>
     element: one.element !== undefined,
   }));
 
-/**
- * An error boundary that shows `boundary` once a child throws and hands the caught value
- * to `onCaught`.
- *
- * React reports a caught error to the console as well, so a test that expects a throw
- * mocks `console.error` around the render and restores it.
- */
+/** An error boundary that shows `boundary` once a child throws. */
 export class Boundary extends Component<
-  { readonly children: ReactNode; readonly onCaught?: (error: unknown) => void },
+  { readonly children: ReactNode },
   { readonly failed: boolean }
 > {
   override state = { failed: false };
   static getDerivedStateFromError() {
     return { failed: true };
-  }
-  override componentDidCatch(error: Error) {
-    this.props.onCaught?.(error);
   }
   override render() {
     return this.state.failed ? <span>boundary</span> : this.props.children;
