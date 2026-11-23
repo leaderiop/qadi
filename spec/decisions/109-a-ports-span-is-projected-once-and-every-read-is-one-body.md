@@ -5,12 +5,12 @@
 > | Property       | Value                                                                    |
 > | -------------- | ------------------------------------------------------------------------ |
 > | Document ID    | QADI-ADR-109                                                             |
-> | Revision       | 1.5                                                                      |
+> | Revision       | 1.6                                                                      |
 > | Effective Date | 2026-11-08                                                               |
 > | Status         | Accepted — amends ADR-QD-077, ADR-QD-094, ADR-QD-107, ADR-QD-058         |
 > | Author         | Qadi Engineering                                                         |
 > | Classification | Architecture Decision Record                                             |
-> | Change History | 1.5 (2026-11-11): amendment — ARCH-70: the accepted duplicate early annotation is retired; readScoped annotates early only when the id is missing (ADR-QD-134, CCR-QD-412)<br>1.4 (2026-11-08): Consequences — an unseen signature requirement replays as `SignatureHistoryUnavailable`, not an empty list; the replay fails closed rather than accepting the regression (code review WR-04)<br>1.3 (2026-11-08): Consequences — correct the claim that over-keying can only deny: an unseen requirement replays as an empty list, which `not(hasSignature)` grants, in devtools' what-if (code review WR-03)<br>1.2 (2026-11-08): Alternatives — the annotate-before-validate question is derived from the description's `pose`, not hand-written in the three resource-scoped reads (code review WR-02)<br>1.1 (2026-11-08): Decision 3 — `disclose` runs under the defect mapping, so a malformed store answer is the port's typed error, never a defect (code review WR-01)<br>1.0 (2026-11-08): Initial (ARCH-47, CCR-QD-386)                          |
+> | Change History | 1.6 (2026-11-23): amendment — the question and answer structs are applied outside the port registry, by the evaluate family's own declaration (ARCH-122, ADR-QD-188, CCR-QD-467)<br>1.5 (2026-11-11): amendment — ARCH-70: the accepted duplicate early annotation is retired; readScoped annotates early only when the id is missing (ADR-QD-134, CCR-QD-412)<br>1.4 (2026-11-08): Consequences — an unseen signature requirement replays as `SignatureHistoryUnavailable`, not an empty list; the replay fails closed rather than accepting the regression (code review WR-04)<br>1.3 (2026-11-08): Consequences — correct the claim that over-keying can only deny: an unseen requirement replays as an empty list, which `not(hasSignature)` grants, in devtools' what-if (code review WR-03)<br>1.2 (2026-11-08): Alternatives — the annotate-before-validate question is derived from the description's `pose`, not hand-written in the three resource-scoped reads (code review WR-02)<br>1.1 (2026-11-08): Decision 3 — `disclose` runs under the defect mapping, so a malformed store answer is the port's typed error, never a defect (code review WR-01)<br>1.0 (2026-11-08): Initial (ARCH-47, CCR-QD-386)                          |
 
 ---
 
@@ -161,3 +161,11 @@ own).
 > unchanged. The cost this ADR accepted is gone, and the rule it protected (a span recording a
 > `MissingResourceId` says what the id was wanted for) is kept. See
 > [ADR-QD-134](134-a-resource-scoped-port-read-is-one-read.md).
+
+> **Amended (2026-11-23, ADR-QD-188, CCR-QD-467): the question and answer structs are applied outside the port registry.**
+> The evaluate family declares its own spans with `spanStruct`, sharing the port spans' subject key
+> (`sharedQuestionKeys`), in a package-private module of its own, `EvaluationSpan.ts`, so the
+> projection this decision states once for a port's span is applied to `qadi.evaluate`,
+> `qadi.toPredicate`, `qadi.guardHealthCheck` and the two batch spans too. See
+> [ADR-QD-188](188-the-evaluate-familys-spans-are-declared-once-and-a-failed-span-says-what-was-asked.md) and
+> [INV-QD-396](../invariants.md#inv-qd-396-one-fact-has-one-key-across-the-evaluate-family).

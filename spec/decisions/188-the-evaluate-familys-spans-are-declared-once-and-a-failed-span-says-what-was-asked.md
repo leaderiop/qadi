@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-188                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-23                                     |
 > | Status         | Accepted — extends ADR-QD-051 and ADR-QD-109   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-23): Initial release (ARCH-122, CCR-QD-467) |
+> | Change History | 1.1 (2026-11-23): What enforces it (the compiler, the rule, the tests, review) and the measured cost of the second annotation; related records INV-QD-395, INV-QD-396, BEH-QD-711 to BEH-QD-715 (ARCH-122, CCR-QD-467)<br>1.0 (2026-11-23): Initial release (ARCH-122, CCR-QD-467) |
 
 ---
 
@@ -112,6 +112,64 @@ Nothing outside `packages/core/test` reads these keys: not `@qadi/devtools`, `@q
 - `decideQuestion` stays exported, package-private, because its type test pins its options.
 - No public name changes, so `check-api-surface` stays at 941 exports.
 
+## What enforces it
+
+The decision is held by four things, and the last of them is not a machine.
+
+- **The compiler.** Every field of every struct in `EvaluationSpan.ts` is a `SpanValue`, so a field
+  that could hold a resolved attribute, a resource or a policy body does not compile. The outcome is
+  tied to the decision's tags plus `Failed`, the policy tag to the policy tags, and each span name to
+  a `SpanKey`, so every name is a `qadi.` key. `packages/core/test/EvaluationSpan.tst.ts` pins each
+  tie ([INV-QD-396](../invariants.md#inv-qd-396-one-fact-has-one-key-across-the-evaluate-family)).
+- **The rule.** `[span-key-source]` and `[span-key-literal]` in `scripts/check-house-style.mjs`, run
+  by `pnpm lint`, read the key set from the declaration. The first refuses a family key spelled in
+  library source outside it; the second refuses one typed by hand in a test outside its counted goldens.
+- **The tests.** `packages/core/test/EvaluationSpan.contract.test.ts` pins what a tracer receives from
+  each span, the whole record, written with literal keys, so it reads the same whichever way the
+  writers change. `packages/core/test/EvaluationSpan.test.ts` holds the declaration's rules as plain
+  values: no key shared between a question and its answer, one shared subject, policy tag and action
+  field, one error tag, each field read back.
+- **Review alone.** That each question is annotated before the work that can fail, inside its writer,
+  is kept by review and by the contract rows that read a failed span; no rule checks the position of
+  a statement. The rows were seen failing once: moving the annotation after the work turned the failed-span
+  rows red
+  ([INV-QD-395](../invariants.md#inv-qd-395-a-span-of-the-evaluate-family-carries-its-question-on-every-path-that-reaches-its-work)).
+
+## The cost, measured
+
+Every evaluation annotates twice, the question and then the answer, where it annotated once. The
+price was measured against the writers this decision replaced: the tree with the declaration
+(`close`) and the same tree with `packages/core/src` patched back to the earlier writers (`base`),
+interleaved so each arm runs first in half the rounds.
+
+```
+bash scripts/bench/ab.sh <patch back to the earlier writers> <out> 6 close base packages/core/bench/Evaluate.bench.ts "^evaluate$" < /dev/null
+node scripts/bench/analyze.mjs <out> base close <the 17 workloads of the evaluate bench> < /dev/null
+```
+
+Six rounds, twelve runs, on an Apple M3 Pro with node v26.13.0. The first run began while the
+machine was still shedding the load of an earlier run (a falling load is not a steady one), so it
+was repeated on a host that had settled. Both are recorded, and they agree. Each cell is the median of
+the per-run minima, in ns, as `base -> close, delta, spread`, the spread being the reference arm's
+across the six runs.
+
+| Workload | First run (load falling) | Second run (settled) |
+| -------- | ------------------------ | -------------------- |
+| `one node` | 5687 -> 6375, +12.1%, 11.7% | 5833 -> 6479, +11.1%, 10.0% |
+| `resolver miss — one port call` | 11041 -> 11958, +8.3%, 13.6% | 11833 -> 12209, +3.2%, 9.2% |
+| `wide — allOf of 8` | 7584 -> 8250, +8.8%, 11.0% | 7750 -> 8438, +8.9%, 9.1% |
+
+The geometric mean over all 17 workloads is +7.83% in the first run and +6.79% in the second, with
+15 and 14 of the 17 over the analyzer's 5% band. The analyzer's verdict was a failure in both runs.
+The absolute cost is about 0.4 to 1.1 µs per `evaluate` call, one more annotation and its encode,
+so the percentage is lowest where the work is most expensive: `field-heavy — allOf of 8 under
+Intersection` is +2.2% and +2.3%.
+
+The figure is a record and not a gate, in the habit of [ADR-QD-034](./034-the-switch-exception-is-measured.md), which measures a cost
+and does not make a benchmark a merge gate: the second annotation is the price of annotating the question before the work, so that a failed span
+says what was asked, and a decision to pay it is not reversed by a percentage. It is stated here so
+that a later change which moves it is compared with a number, not with a memory.
+
 ## Related
 
 [ADR-QD-051](./051-a-span-says-what-was-asked.md),
@@ -120,3 +178,7 @@ Nothing outside `packages/core/test` reads these keys: not `@qadi/devtools`, `@q
 [ADR-QD-094](./094-a-port-is-described-once.md),
 [ADR-QD-123](./123-a-metric-is-declared-once.md) (the metric-literal budget this rule's shape
 follows), BEH-QD-227 and INV-QD-044.
+
+Added in revision 1.1: [INV-QD-395](../invariants.md#inv-qd-395-a-span-of-the-evaluate-family-carries-its-question-on-every-path-that-reaches-its-work),
+[INV-QD-396](../invariants.md#inv-qd-396-one-fact-has-one-key-across-the-evaluate-family) and BEH-QD-711 to BEH-QD-715
+([30 — Port Calls](../behaviors/30-port-calls.md)).
