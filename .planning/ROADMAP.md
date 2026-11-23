@@ -684,7 +684,35 @@ Plans:
   4. The behaviour doc, the invariant, traceability and a `@qadi/core` changeset describe the span change that tracers will see, and ADR-QD-188 extends ADR-QD-051 and ADR-QD-109.
 
 **Planning notes**: Open the phase on the checkpoint: evidence first, then one `AskUserQuestion`. `decideQuestion` in `Lifecycle.ts` is exported but used only in that file; take it as a hygiene note if the file is touched anyway (the review's own footnote, not a requirement).
-**Plans**: TBD
+**Plans**: 9 plans (strictly serial, waves 1 to 9)
+
+Plans:
+**Wave 1**
+- [ ] 75-01-PLAN.md — base facts, the scorer and the core mutation base, and ADR-QD-188 recording the checkpoint decision before anything under `packages/` changes
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 75-02-PLAN.md — the 33-row contract test on the base: 15 kept rows green, 18 changed rows RED, the failed span's missing question first
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 75-03-PLAN.md — `EvaluationSpan.ts` with the evaluate span and the denial event; `decideQuestion` annotates its question before the lookup and the outcome under `qadi.outcome`
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 75-04-PLAN.md — the translation, health-check and two batch spans written only through the declaration; all 33 contract rows green
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 75-05-PLAN.md — the declaration's own tests and type pins, each guarantee gutted once
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 75-06-PLAN.md — `[span-key-source]`, `[span-key-literal]` and its table with `SPAN_KEY_LITERAL_BUDGET`, and the AGENTS.md §6 paragraph and table
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 75-07-PLAN.md — the mutation close of the four writers and the declaration, coverage, and the measured cost of annotating the question first
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 75-08-PLAN.md — BEH-QD-711 to BEH-QD-715, INV-QD-395, INV-QD-396, ADR-QD-188 finished and ADR-QD-051/109 amended, the `@qadi/core` changeset, the 0.13 upgrade section and CCR-QD-467
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [ ] 75-09-PLAN.md — every close scan on the final tree, `pnpm check:pr`, and ESPN-01 to ESPN-05 complete
 
 ### Phase 76: Remedies uses core's signature match
 
