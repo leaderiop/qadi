@@ -35,7 +35,7 @@ key-files:
 key-decisions:
   - "ESPN-01 to ESPN-05 were marked by hand on the commit check:pr passed on (086a19ba), in one commit that touches ten lines of REQUIREMENTS.md and nothing else; WX-01 to WX-07 stay Pending (no plan marks a WX row)"
 
-requirements-completed: []  # ESPN-01..05 were marked by hand in b957a155 (the plan forbids requirements.mark-complete); WX-01..07 stay Pending
+requirements-completed: [ESPN-01, ESPN-02, ESPN-03, ESPN-04, ESPN-05]  # marked by hand in b957a155 (the plan forbids requirements.mark-complete); WX-01..07 stay Pending
 
 duration: 4 min
 completed: 2026-11-23
