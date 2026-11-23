@@ -56,7 +56,7 @@ Requirements: AROW-01..06, plus the cross-cutting WX-01..07.
   that instruction**, after the probes it cites. Rejected options are recorded with each decision.
 
 ### The row (AROW-02)
-- **D-01, the brand.** `AuditEntry` becomes a module-local class:
+- **D-01: the brand.** `AuditEntry` becomes a module-local class:
   - It is `class AuditEntry extends Data.Class<{ readonly record: SinkRecordJson; readonly sequenceNumber: number | undefined }>`.
   - It carries `declare private readonly nominal: never`, the `Admitted` idiom at `packages/core/src/Admission.ts:87-92`.
   - It is exported **type-only** (`export type { AuditEntry }`), so only `AuditEntry.ts` can construct one.
@@ -82,7 +82,7 @@ Requirements: AROW-01..06, plus the cross-cutting WX-01..07.
     construction. That cost was measured and rejected for the record class (ADR-QD-135).
   - A `VerifiedArchive`-style `AuditEntryImpl` plus an alias: it works, but diagnostics and hovers would name
     `AuditEntryImpl`. It is the fallback only if a gate cannot read a type-only class export.
-- **D-02, the schema value.** The exported `AuditEntry` schema value is **removed**, and `AuditEntry` names only the
+- **D-02: the schema value.** The exported `AuditEntry` schema value is **removed**, and `AuditEntry` names only the
   type. The row's envelope struct stays module-private, as `decodeAuditEntry`'s row decoder.
 
   Rejected:
@@ -92,7 +92,7 @@ Requirements: AROW-01..06, plus the cross-cutting WX-01..07.
 
   `AuditEntry.test.ts:310-320` and `:358` decode through `Schema.decodeUnknownEffect(AuditEntry)`. They are deleted, or
   re-pointed at `decodeAuditEntry` where the case they pin still exists.
-- **D-03, the store's sequence number (AROW-03).** A sequence number reaches a row only through `decodeAuditEntry`.
+- **D-03: the store's sequence number (AROW-03).** A sequence number reaches a row only through `decodeAuditEntry`.
   There is no setter and no encode option.
   - The number is a fact of the host's store, and it reaches a row when the store returns the row
     (`decodeAuditEntry({ record, sequenceNumber })`). This is the documented flow at `AuditEntry.ts:72-78`.
@@ -110,7 +110,7 @@ Requirements: AROW-01..06, plus the cross-cutting WX-01..07.
   stays as written.
 
 ### Dead checks (AROW-05)
-- **D-04, sequence numbers.** The safe-integer rule is stated once, in `AuditEntry.ts`'s row schema
+- **D-04: sequence numbers.** The safe-integer rule is stated once, in `AuditEntry.ts`'s row schema
   (`Schema.optional(Schema.Int)`). These are removed (Breaking):
   - `ArchiveFacts.ts`'s `isSequenceNumber`;
   - the `invalidSequenceNumber` fact;
@@ -123,7 +123,7 @@ Requirements: AROW-01..06, plus the cross-cutting WX-01..07.
   Rejected: keeping the check as defence in depth. Only a cast can put a non-safe-integer on an `AuditEntry`, the house
   forbids `as`, and an unreachable check is an unkillable mutant that the per-file mutation bar would count against the
   file.
-- **D-05, `undated`.** Removed: the branch, and the `undated` field on both `RetentionPlan` and `PurgePlan` (Breaking).
+- **D-05: `undated`.** Removed: the branch, and the `undated` field on both `RetentionPlan` and `PurgePlan` (Breaking).
   - An `AuditEntry`'s `at` is finite by construction. `encodeAuditEntry` refuses NaN/±Infinity (probed), and
     `decodeAuditEntry` reads `at` as `Schema.Finite`.
   - The purge guarantee never leaned on the branch. `planPurge` selects only rows the `VerifiedArchive` holds. Every
@@ -145,7 +145,7 @@ Requirements: AROW-01..06, plus the cross-cutting WX-01..07.
   - Keeping `undated` as an always-empty report: a member every caller must learn that never carries anything.
 
 ### Decode order (AROW-04)
-- **D-06, envelope first.** `decodeAuditEntry` runs the existing module-private row decoder
+- **D-06: envelope first.** `decodeAuditEntry` runs the existing module-private row decoder
   (`untrustedDecoder(Schema.Struct({ record: Schema.Unknown, sequenceNumber }), { unknownKeys: "refuse", unwalked: ["record"] })`)
   **first**. Then it runs `decodeSinkRecordWithJson(row.record)`, as `decodeStoredRecord` does
   (`packages/core/src/SinkCodec.ts:616-651`).
@@ -167,7 +167,7 @@ Requirements: AROW-01..06, plus the cross-cutting WX-01..07.
   Today (probed): `null` and `{ sequenceNumber: 1 }` read `Malformed "an audit row has no record"`, and
   `{ record: { version: 2 }, sequenceNumber: 1.5, extra: 1 }` reads the record's
   `Malformed "Missing key at ["_tag"]…"`. After the change, the envelope's refusal wins on the both-bad row.
-- **D-07, `unknownKeys` for the row stays `refuse`.** ADR-QD-170 assigned it, and it is not re-litigated. A row's
+- **D-07: `unknownKeys` for the row stays `refuse`.** ADR-QD-170 assigned it, and it is not re-litigated. A row's
   decoded fields are its identity for `holds()` and `planPurge`. Ignoring an undeclared top-level key would make two
   different stored rows decode equal. The archive envelope refuses as well.
 
@@ -175,7 +175,7 @@ Requirements: AROW-01..06, plus the cross-cutting WX-01..07.
   a live stream; an audit row is evidence.
 
 ### The writer (AROW-01)
-- **D-08, every writer input, enumerated.** Each row below is probed on the base (2026-11-23):
+- **D-08: every writer input, enumerated.** Each row below is probed on the base (2026-11-23):
 
   | Writer input | Base | After |
   |---|---|---|
@@ -206,7 +206,7 @@ Requirements: AROW-01..06, plus the cross-cutting WX-01..07.
   The existing sequence-number property moves from the writer to the reader. `decodeAuditEntry({ record, sequenceNumber: n })`
   refuses a non-safe-integer `n` as `Malformed`. Every set of decoded rows otherwise archives, or fails
   `SequenceIntegrityError`, and reads back.
-- **D-09, `now`.** `now` stays a parameter, because the package is "parameterized on `now`" (`Retention.ts:5-8`).
+- **D-09: `now`.** `now` stays a parameter, because the package is "parameterized on `now`" (`Retention.ts:5-8`).
   - A non-finite `now` is refused by a new `Data.TaggedError`, `ArchiveInputInvalid` `{ field: "now"; value: number }`.
     It is shaped like `RetentionInputInvalid`, so a host handles both the same way.
   - It is checked before the sequence facts.
@@ -217,7 +217,7 @@ Requirements: AROW-01..06, plus the cross-cutting WX-01..07.
   - Reading `Clock` inside: it breaks the package's documented convention, and it still trusts a host's `Clock`.
   - Reusing `RetentionInputInvalid`: it is named for retention, and its `field` union would claim `maxAgeMs`.
   - Letting `createdAt` be `null`: out of scope, since `ArchiveRefusal` and `ARCHIVE_VERSION` do not change.
-- **D-10, `keyMaterial`.** `archiveAuditTrail` writes each item as a fresh `{ keyId, algorithm, publicKey }`. An extra
+- **D-10: `keyMaterial`.** `archiveAuditTrail` writes each item as a fresh `{ keyId, algorithm, publicKey }`. An extra
   property of a structurally wider value is not part of the declared shape and is not carried. Values are still never
   judged.
 
@@ -226,7 +226,7 @@ Requirements: AROW-01..06, plus the cross-cutting WX-01..07.
   - Widening the reader: nested excess keys are refused by the strict decode everywhere, which is ADR-QD-143's ground.
 
 ### Tests and records
-- **D-11, type pins.** A new `packages/audit/test/AuditEntry.tst.ts` uses the house idiom of `PolicyArity.tst.ts`.
+- **D-11: type pins.** A new `packages/audit/test/AuditEntry.tst.ts` uses the house idiom of `PolicyArity.tst.ts`.
   Each negative is a `@ts-expect-error <message fragment>` on a line holding exactly one erroring expression:
   - `tsc` reports TS2578 if the directive is unused;
   - tstyche's `checkSuppressedErrors` checks the fragment.
@@ -247,7 +247,7 @@ Requirements: AROW-01..06, plus the cross-cutting WX-01..07.
   AGENTS.md §6 table move with it. Existing type-pin files that build rows by literal are re-pointed, and their counts
   stay or move with the table: `Retention.tst.ts`, `AuditArchive.tst.ts`, `AuditPortReply.tst.ts`,
   `AuditWriteOutcome.tst.ts` and `AuditRefusal.tst.ts`.
-- **D-12, records (AROW-06).**
+- **D-12: records (AROW-06).**
   - **ADR-QD-190** (new) is "An audit row is a value only its codec makes". It records D-01 to D-10, with the probes,
     the decode refusal table, and the writer-input table.
   - **Dated amendments:**
@@ -279,13 +279,13 @@ Requirements: AROW-01..06, plus the cross-cutting WX-01..07.
     - `packages/audit/README.md` (`:136-153`);
     - `apps/website/src/content/docs/docs/packages/audit/capabilities.md` (`:25`, `:125-178`);
     - the `ts` signature listing in `spec/behaviors/33-audit-pipeline.md:66`.
-- **D-13, mutation (WX-05).**
+- **D-13: mutation (WX-05).**
   - Per-file Stryker baselines are taken at the phase base for `AuditEntry.ts`, `ArchiveFacts.ts`, `AuditArchive.ts`
     and `Retention.ts`, using `stryker.audit.mjs` and the `NN-mutation.mjs` pattern of earlier phases.
   - They are committed alone and first, as `77-mutation-base.json`.
   - They are re-measured at close with the same invocation.
   - A drop is closed with a test, never by re-baselining.
-- **D-14, a measured claim.** `planPurge`'s doc says "about 25 µs measured" (`Retention.ts:127`). It is re-measured
+- **D-14: a measured claim.** `planPurge`'s doc says "about 25 µs measured" (`Retention.ts:127`). It is re-measured
   with the row now a class, or reworded if the original method cannot be reproduced. A stale number does not ship.
 
 ### Claude's Discretion

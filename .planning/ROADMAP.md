@@ -483,12 +483,25 @@ Order: the live defect (77), then the three devtools deepenings (78, 79, 80). **
 **Plans**: 7 plans (waves 1 to 7, strictly serial)
 
 Plans:
+**Wave 1**
 - [ ] 77-01-PLAN.md — record the phase base and the per-file mutation base of the four audit files, committed alone and first
+
+**Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 77-02-PLAN.md — on the base: the writer-input regression tests seen RED, the decode/bytes/equality characterisation, and gate 13 taught a local export list
+
+**Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 77-03-PLAN.md — the one change: the codec-made row, envelope-first decode, `ArchiveInputInvalid` and the `keyMaterial` projection, dead checks removed, test churn and overview rows
+
+**Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 77-04-PLAN.md — type pins that only the codec makes a row, the whole-archive and record-domain properties, the writer-guard assertions, and the re-measured purge cost
+
+**Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 77-05-PLAN.md — ADR-QD-190 with its index entry and trace row, dated amendments to ADR-QD-110 and ADR-QD-056, and the CCR-QD-469 row
+
+**Wave 6** *(blocked on Wave 5 completion)*
 - [ ] 77-06-PLAN.md — BEH-QD-721/722 and INV-QD-399/400, the restated audit behaviours and invariants, the Breaking changeset, the upgrade guide and audit prose
+
+**Wave 7** *(blocked on Wave 6 completion)*
 - [ ] 77-07-PLAN.md — mutation close against the base, close scans, `pnpm check:pr` green, AROW-01 to AROW-06 complete
 
 ### Phase 78: `TimelineStore` owns its capacity
