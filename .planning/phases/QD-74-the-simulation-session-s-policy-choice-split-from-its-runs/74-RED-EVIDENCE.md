@@ -430,3 +430,42 @@ pass or fail. The reviewer's three edits, made on the working tree and reverted 
 
 A fourth, `settled`'s idle test changed in the fixtures, reports `settled in the fixtures is not its first commit's
 text`.
+
+## The characterisation check reads every import and every fixtures statement (2026-11-23, code review, third pass)
+
+The third review found edits the check above passed: a namespace, default or side-effect import, which it never read;
+an import's exported name, which it never compared (`counted as slow`); and a top-level statement of the fixtures that
+is not a declaration, or a new declaration whose initialiser calls something (a `beforeEach`, a mutation of a compared
+helper's value), which run in the characterisation's module graph before its rows. `74-characterisation-check.mjs`
+now reads an import in every form, each binding by its local name, the name it imports, its module and whether it
+imports a type, and fails unless, besides the rules above:
+
+- every binding the characterisation imports is the first commit's in all four, save the moved helpers (imported
+  under their own names from `../simulationFixtures.ts`) and `IMPORT_MOVES`, and its imports that bind no name are the
+  first commit's, in order;
+- every other name a moved or fixture helper reads is provided by the fixtures as the first commit provided it: an
+  import alike in name, module and kind, a name that was neither imported nor declared still neither, and never a name
+  the characterisation still declares, however the fixtures provide it;
+- a fixture helper keeps its first text with its `export`, which absorbs the old "imported … but not exported" rule;
+- every top-level statement of the fixtures is an import or a declaration of one name (a `const`, a function, a type
+  or an interface); a `const` no rule compares runs nothing as the module loads; and every module the fixtures load is
+  one the two files loaded at the first commit.
+
+The check no longer has a branch for a fixture helper its first commit's fixtures do not declare (the fixed `BASE`
+compiled), nor the "imported … but not exported" message. On the tree it prints `characterisation-check: 35 rows and
+29 statements as at e25c8cfd; 21 helpers kept, 13 moved (…)`. Its `--self-test` prints `self-test: 49 passed`; every
+message the check can give has a case asserting it exactly. Each edit below, made on the working tree and reverted with
+`git checkout --`, exits 1 with exactly the problems shown:
+
+| Edit | Problems reported |
+| ---- | ----------------- |
+| characterisation: `TestClock` imported from `../fakeClock.ts` | `` TestClock was imported as `* as TestClock from effect/testing/TestClock` and is imported as `* as TestClock from packages/devtools/test/fakeClock.ts` here `` |
+| fixtures: `TestClock` imported from `./fakeClock.ts` | `` TestClock, which startRun reads, was imported as `* as TestClock from effect/testing/TestClock` and the fixtures import it as `* as TestClock from packages/devtools/test/fakeClock.ts` ``; `the fixtures load packages/devtools/test/fakeClock.ts, which neither file loaded at the first commit` |
+| characterisation: `import "../setup.ts";` added | `the imports that bind no name were none and are packages/devtools/test/setup.ts here` |
+| characterisation: `import * as Extra from "./extra.ts";` added | `Extra is imported here, and the first commit neither imports nor declares it` |
+| fixtures: `import "./setup.ts";` added | `the fixtures load packages/devtools/test/setup.ts, which neither file loaded at the first commit` |
+| characterisation: `counted as slow` in the fixtures import | `` slow was imported as `{ slow } from packages/devtools/test/simulationFixtures.ts` and is imported as `{ counted as slow } from packages/devtools/test/simulationFixtures.ts` here `` |
+| fixtures: `emptyTimeline as ingestAll` | `` ingestAll, which entryOf reads, was imported as `{ ingestAll } from packages/devtools/src/model/Timeline.ts` and the fixtures import it as `{ emptyTimeline as ingestAll } from packages/devtools/src/model/Timeline.ts` `` |
+| fixtures: `beforeEach(() => {});` appended | `a top-level statement of the fixtures is not an import or a declaration of one name: «beforeEach(() => {});»` |
+| fixtures: `Object.assign(carolDraft, { action: "write" });` appended | `a top-level statement of the fixtures is not an import or a declaration of one name: «Object.assign(carolDraft, { action: "write" });»` |
+| fixtures: `export const hook = beforeEach(() => {});` appended | `hook in the fixtures runs code as the module loads, and no first commit's text pins it` |
