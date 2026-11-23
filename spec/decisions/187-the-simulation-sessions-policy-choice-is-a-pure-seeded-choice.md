@@ -91,14 +91,20 @@ than at its callers, and the draft's one path made true rather than its comment 
 
 ## What enforces it
 
-The compiler enforces: `PolicyChoice`'s first three arms equal `HeldChoice<PolicySighting>`,
-and the menu option's shape is the one `PolicyMenuOption` states. Each is pinned in
-`SeededChoice.tst.ts`.
+The compiler enforces: `PolicyChoice`'s first three arms equal
+`HeldChoice<PolicySighting>`, the menu option's shape is the one `PolicyMenuOption`
+states, and each transition answers what decision 1 says, a `SeededChoice` from
+`withSightings` and `choose` and a `Seeding` from `seededChoice` and `seedFrom`. Each is
+pinned in `SeededChoice.tst.ts`, the last by "choose and withSightings answer a
+SeededChoice; seededChoice and seedFrom a Seeding".
 
-Tests alone enforce: the rules of decisions 2 to 6, as plain values with no scope in
-`SeededChoice.test.ts`, each no-op row asserting that the same object came back; and
-behaviour preserved, which is every snapshot, no-op and notification count of the session,
-in `SimulationSession.characterisation.test.ts`.
+Tests alone enforce: decision 1's no-op rule and the rules of decisions 2 to 6, as plain
+values with no scope in `SeededChoice.test.ts`, each no-op row asserting that the same
+object came back, decision 1's by "withSightings with the same elements in a new array
+returns the same choice", "seedFrom the row a choice holds answers the same choice and
+the row decoded" and "seedFrom(undefined) on a choice with no seed answers the same
+choice"; and behaviour preserved, which is every snapshot, no-op and notification count
+of the session, in `SimulationSession.characterisation.test.ts`.
 
 Neither enforces that the draft and its resource text are assigned only in `writeDraft`, or
 that the run is set `Idle` only in `clearRun`. Review does, and no gate counts the
