@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-06                                    |
-> | Revision       | 1.17                                            |
+> | Revision       | 1.18                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.17 (2026-11-22): BEH-QD-681: the one rule covers every value a caller's code threw and every `Cause.pretty` call, and names its exceptions (code review IN-02, ADR-QD-182, CCR-QD-461)<br>1.16 (2026-11-22): BEH-QD-681 and BEH-QD-682: one total rule for a caught value or a cause, and the conversions stated as total; the custom predicate defect through causeMessage (ADR-QD-182, CCR-QD-461)<br>1.15 (2026-11-18): BEH-QD-609 (ARCH-101, CCR-QD-445)<br>1.14 (2026-11-18): BEH-QD-604 added: attributeResolverFromRecord answers undefined for a name its table does not own (ARCH-100, CCR-QD-444)<br>1.13 (2026-11-12): BEH-QD-501..503: one evaluation environment that states its shadowing (ARCH-81, ADR-QD-146, CCR-QD-424)<br>1.12 (2026-11-12): EvaluationServices is declared in EvaluationServices.ts (ARCH-80, CCR-QD-423)<br>1.11 (2026-11-11): the PortDescription listing gains asks and its request and asks type parameters (ARCH-70, ADR-QD-134, CCR-QD-412)<br>1.10 (2026-11-11): BEH-QD-409's key law reads over a derived port's wire question; BEH-QD-440 (a derived port states no key and no defect) and BEH-QD-441 (a port's question and span question name every member) (ARCH-69, CCR-QD-411)<br>1.9 (2026-11-10): BEH-QD-409 (a request key agrees with Equal over its domain) and BEH-QD-410 (a request the key refuses fails closed); BEH-QD-310's replyTable requirement matches by key text and fails a refused request with the port's typed error (ARCH-65, CCR-QD-407)<br>1.8 (2026-10-05): BEH-QD-043's listing gains `CustomPredicateNone` and `SignatureHistoryNone`, which it had omitted since both ports shipped, and states that each port's default is derived from its description's `none`; BEH-QD-308 (every port has the standard wrapper set), BEH-QD-309 (an environment names only what it overrides) and BEH-QD-310 (a port can be scripted) added (ADR-QD-094, CCR-QD-177)<br>1.7 (2026-10-05): BEH-QD-045's reason table is built from the matcher's `Verdict` — an `Eq` or `Dominates` against an unresolved reference reads "has no reference value to compare against" (only `Neq` did), and a value the matcher cannot compare reads "is not a value this matcher can compare" (ADR-QD-091, CCR-QD-173)<br>1.6 (2026-09-19): BEH-QD-044 gained a normative "Trust model" paragraph — `CurrentSubject`'s provenance and what the evaluator does and does not re-verify had no single stated answer anywhere in `spec/` (WD-05)<br>1.5 (2026-09-07): BEH-QD-045's denial reads corrected — "no relationship resolver is wired" claimed a fact only true of `RelationshipResolverNever`, when a wired resolver may answer `"Unknown"` too; the sentence no longer names wiring as the cause (issue 45, CCR-QD-114)<br>1.4 (2026-09-06): BEH-QD-042's table brought current — `CustomPredicate`, `SignatureHistory` and `DecisionSink` had been wired since ADR-QD-055/CCR-QD-087/ADR-QD-044 without ever reaching this table; "the six services, five required" corrected to nine and seven, matching `EvaluationServices` in `Evaluate.ts`. The website's `services-resolvers.md` had already said nine/seven and linked here for "the full service list", landing readers on a table that contradicted the page that sent them (CCR-QD-103)<br>1.3 (2026-08-23): `RelationshipResolver` is three-valued, for the sentence rather than the verdict; BEH-QD-045 added (ADR-QD-040, INV-QD-029, CCR-QD-055)<br>1.2 (2026-07-26): The sixth service, `DecisionCache`; the optionality that hid it recorded (CCR-QD-034)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 1.18 (2026-11-23): BEH-QD-716 and BEH-QD-717: the fixture judgements and their one lookup; BEH-QD-410 names the history fixture and the judgements as consumers of the key and notes that the refusal is total (ARCH-123, ADR-QD-189, CCR-QD-468)<br>1.17 (2026-11-22): BEH-QD-681: the one rule covers every value a caller's code threw and every `Cause.pretty` call, and names its exceptions (code review IN-02, ADR-QD-182, CCR-QD-461)<br>1.16 (2026-11-22): BEH-QD-681 and BEH-QD-682: one total rule for a caught value or a cause, and the conversions stated as total; the custom predicate defect through causeMessage (ADR-QD-182, CCR-QD-461)<br>1.15 (2026-11-18): BEH-QD-609 (ARCH-101, CCR-QD-445)<br>1.14 (2026-11-18): BEH-QD-604 added: attributeResolverFromRecord answers undefined for a name its table does not own (ARCH-100, CCR-QD-444)<br>1.13 (2026-11-12): BEH-QD-501..503: one evaluation environment that states its shadowing (ARCH-81, ADR-QD-146, CCR-QD-424)<br>1.12 (2026-11-12): EvaluationServices is declared in EvaluationServices.ts (ARCH-80, CCR-QD-423)<br>1.11 (2026-11-11): the PortDescription listing gains asks and its request and asks type parameters (ARCH-70, ADR-QD-134, CCR-QD-412)<br>1.10 (2026-11-11): BEH-QD-409's key law reads over a derived port's wire question; BEH-QD-440 (a derived port states no key and no defect) and BEH-QD-441 (a port's question and span question name every member) (ARCH-69, CCR-QD-411)<br>1.9 (2026-11-10): BEH-QD-409 (a request key agrees with Equal over its domain) and BEH-QD-410 (a request the key refuses fails closed); BEH-QD-310's replyTable requirement matches by key text and fails a refused request with the port's typed error (ARCH-65, CCR-QD-407)<br>1.8 (2026-10-05): BEH-QD-043's listing gains `CustomPredicateNone` and `SignatureHistoryNone`, which it had omitted since both ports shipped, and states that each port's default is derived from its description's `none`; BEH-QD-308 (every port has the standard wrapper set), BEH-QD-309 (an environment names only what it overrides) and BEH-QD-310 (a port can be scripted) added (ADR-QD-094, CCR-QD-177)<br>1.7 (2026-10-05): BEH-QD-045's reason table is built from the matcher's `Verdict` — an `Eq` or `Dominates` against an unresolved reference reads "has no reference value to compare against" (only `Neq` did), and a value the matcher cannot compare reads "is not a value this matcher can compare" (ADR-QD-091, CCR-QD-173)<br>1.6 (2026-09-19): BEH-QD-044 gained a normative "Trust model" paragraph — `CurrentSubject`'s provenance and what the evaluator does and does not re-verify had no single stated answer anywhere in `spec/` (WD-05)<br>1.5 (2026-09-07): BEH-QD-045's denial reads corrected — "no relationship resolver is wired" claimed a fact only true of `RelationshipResolverNever`, when a wired resolver may answer `"Unknown"` too; the sentence no longer names wiring as the cause (issue 45, CCR-QD-114)<br>1.4 (2026-09-06): BEH-QD-042's table brought current — `CustomPredicate`, `SignatureHistory` and `DecisionSink` had been wired since ADR-QD-055/CCR-QD-087/ADR-QD-044 without ever reaching this table; "the six services, five required" corrected to nine and seven, matching `EvaluationServices` in `Evaluate.ts`. The website's `services-resolvers.md` had already said nine/seven and linked here for "the full service list", landing readers on a table that contradicted the page that sent them (CCR-QD-103)<br>1.3 (2026-08-23): `RelationshipResolver` is three-valued, for the sentence rather than the verdict; BEH-QD-045 added (ADR-QD-040, INV-QD-029, CCR-QD-055)<br>1.2 (2026-07-26): The sixth service, `DecisionCache`; the optionality that hid it recorded (CCR-QD-034)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -472,12 +472,15 @@ REQUIREMENT: A request holding a value outside the key's domain — a cycle, a
              MUST get a typed `KeyRefusal` naming where it sits, never a throw and
              never a key it shares with another request.
 
-REQUIREMENT: Every consumer of a key MUST fail closed on a refusal: `replyTable`
-             and the signature fixture (`signatureHistoryFromSignatures`) MUST
-             fail the request with the port's own typed error, whose cause is
-             `describeKeyRefusal`'s sentence; devtools' capture MUST pass the
-             request to the live port unrecorded, and a replay MUST fail it with
-             the port's own typed error (BEH-QD-221).
+REQUIREMENT: Every consumer of a key MUST fail closed on a refusal: `replyTable`,
+             the signature fixture (`signatureHistoryFromSignatures`), the
+             history fixture (`decisionHistoryFromEvents`) and the two fixture
+             judgements (`signatureAnswerFromSignatures`,
+             `actedAnswerFromEvents`) MUST fail the request with the port's own
+             typed error, whose cause is `describeKeyRefusal`'s sentence;
+             devtools' capture MUST pass the request to the live port
+             unrecorded, and a replay MUST fail it with the port's own typed
+             error (BEH-QD-221).
 ```
 
 A refusal is a fact about the request, not an outage of the port, but answering
@@ -485,6 +488,116 @@ it from a table or a capture would hand one request another's answer, and a
 `none` would grant under `not(...)` ([INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed)).
 From typed input the signature fixture never sees a refusal, since its key is two
 strings and a requirement; its branch is kept for an untyped caller.
+
+> **Note (2026-11-23, ADR-QD-189):** the refusal is total. Every value a request
+> member or a fixture row field holds that reaches one of these consumers fails
+> typed, never a throw and never an answer. The port's error leaves absent the
+> member a refused request could not fill (`SignatureHistoryUnavailable.subjectId`,
+> `DecisionHistoryUnavailable.event`), because its schema refuses the value and the
+> cause already names it. The history fixture keys its rows and its requests
+> through the port's key, where it had matched them structurally, so a refused one
+> fails rather than answering `"NotActed"`, which `hasNotActed` reads as an allow.
+> A record whose own property read throws is outside the domain, as for every
+> reader of a plain record. Pinned by `packages/core/test/SignatureHistory.test.ts`
+> ("fails as SignatureHistoryUnavailable with no subject id and the refusal as its cause, never dying"),
+> `packages/core/test/DecisionHistory.test.ts` ("a subject whose id is a symbol fails as DecisionHistoryUnavailable, never answering NotActed",
+> "an event that is a symbol fails with no event and the refusal as its cause, never answering NotActed",
+> "a fixture row whose subject id is a symbol fails every read, never answering NotActed",
+> "a fixture row whose event cannot be read fails every read, never throwing")
+> and `packages/core/test/SinkCodec.test.ts` ("a SignatureHistoryUnavailable with no subject id round-trips without one",
+> "a DecisionHistoryUnavailable with no event round-trips without one").
+
+## BEH-QD-716: A fixture judgement answers what the port read answers
+
+> **Invariant:** [INV-QD-398](../invariants.md#inv-qd-398-core-states-once-which-signature-or-event-on-file-meets-a-leaf-at-a-site)
+> **See:** [ADR-QD-189](../decisions/189-remedies-asks-core-whether-a-fixture-row-meets-a-signature-or-acted-leaf.md)
+
+```ts
+export const signatureAnswerFromSignatures: (
+  signatures: ReadonlyArray<SignatureInput>,
+  leaf: LeafOf["HasSignature"],
+  site: ReadSite,
+) => Result.Result<SignatureAnswer, MissingResourceId | SignatureHistoryUnavailable>;
+
+export const actedAnswerFromEvents: (
+  events: ReadonlyArray<ActedEventInput>,
+  leaf: LeafOf["HasActed"],
+  site: ReadSite,
+) => Result.Result<"Acted" | "NotActed", MissingResourceId | DecisionHistoryUnavailable>;
+```
+
+```
+REQUIREMENT: `signatureAnswerFromSignatures(signatures, leaf, site)` MUST answer
+             what `askSignature` answers over
+             `signatureHistoryFromSignatures(signatures)` for that leaf at that
+             site, with no Effect: `{ matched, onFile }` by the rule `askSignature`
+             uses. A resource-scoped leaf at a site with no usable resource id MUST
+             fail with `MissingResourceId` before any row is read. A row or a
+             request the key refuses MUST fail with `SignatureHistoryUnavailable`
+             carrying `describeKeyRefusal`'s sentence, with no subject id when the
+             query's own was refused, and MUST NOT answer `matched: false`.
+
+REQUIREMENT: `actedAnswerFromEvents(events, leaf, site)` MUST answer what
+             `askActed` answers over `decisionHistoryFromEvents(events)` for that
+             leaf at that site, with no Effect: `"Acted"` or `"NotActed"`, never
+             `"Unknown"`, because the fixture is a closed world. It MUST ask the
+             description's own request, so an `Any`-scoped leaf asks about no
+             resource even where the site has one, and a resource-scoped leaf at a
+             site with no usable resource id MUST fail with `MissingResourceId`
+             before any event is read. A row or a request the key refuses MUST fail
+             with `DecisionHistoryUnavailable` carrying `describeKeyRefusal`'s
+             sentence, and MUST NOT answer `"NotActed"`.
+```
+
+`matched: false` would deny `hasSignature` and grant `not(hasSignature(...))`, and
+`"NotActed"` would grant `hasNotActed`, so a refusal is a typed failure
+([INV-QD-007](../invariants.md#inv-qd-007-defaults-fail-closed)). Only an untyped
+caller reaches one, since a typed row or request always has a key, and every
+refusal fails typed for any value the rows or the site hold, never a throw,
+because each error's member a refused request could not fill is absent
+([BEH-QD-410](#beh-qd-410-a-request-the-key-refuses-fails-closed)).
+
+Pinned by `packages/core/test/SignatureHistory.test.ts`
+("answers as askSignature over the fixture layer does, on every case of the product",
+"a refused fixture row fails as the read does, with the refusal and never matched: false",
+"at a Resource site with no id, the missing id is answered before any row is read",
+"a refused query key fails as the read does, with no subject id and never matched: false",
+"fails as SignatureHistoryUnavailable with no subject id and the refusal as its cause, never dying"),
+`packages/core/test/DecisionHistory.test.ts`
+("answers as askActed over the fixture layer does, on every case of the product",
+"a refused subject or event row fails as the read does, with the refusal and never NotActed",
+"a refused event fails as the read does, with no event and never NotActed",
+"a subject whose id is a symbol fails as DecisionHistoryUnavailable, never answering NotActed",
+"an event that is a symbol fails with no event and the refusal as its cause, never answering NotActed",
+"a fixture row whose subject id is a symbol fails every read, never answering NotActed",
+"a fixture row whose event cannot be read fails every read, never throwing")
+and the two type tests, `packages/core/test/SignatureHistory.tst.ts`
+("signatureAnswerFromSignatures answers a SignatureAnswer or exactly its two failures") and
+`packages/core/test/DecisionHistory.tst.ts`
+("actedAnswerFromEvents answers Acted or NotActed, or fails as the history read fails").
+The compiler holds the result types through the type tests; the tests hold the
+agreement and the refusals.
+
+## BEH-QD-717: A fixture layer and its judgement read one lookup
+
+> **Invariant:** [INV-QD-398](../invariants.md#inv-qd-398-core-states-once-which-signature-or-event-on-file-meets-a-leaf-at-a-site)
+> **See:** [ADR-QD-189](../decisions/189-remedies-asks-core-whether-a-fixture-row-meets-a-signature-or-acted-leaf.md)
+
+```
+REQUIREMENT: Each fixture's layer and its judgement MUST read one module-private
+             lookup, keyed by its port's `key`, and `askSignature` and
+             `signatureAnswerFromSignatures` MUST build `{ matched, onFile }` with
+             one rule, `signatureAnswerOf` in `SignatureMatch.ts`, which stays out
+             of the barrel.
+```
+
+A change to scoping or matching reaches both sides. The conformance rows compare
+the judgement with the read on every case of a closed product, so a copy that
+drifts fails them. That the pieces are read and not restated is kept by review,
+since no script counts the reads. Pinned by `packages/core/test/SignatureHistory.test.ts`
+("answers as askSignature over the fixture layer does, on every case of the product") and
+`packages/core/test/DecisionHistory.test.ts`
+("answers as askActed over the fixture layer does, on every case of the product").
 
 ## BEH-QD-440: A derived port states no key and no defect
 

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-12                                    |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.2 (2026-11-18): BEH-QD-607 (ARCH-101, CCR-QD-445)<br>1.1 (2026-11-10): BEH-QD-092 — HasSignature reads "Any" narrower than history does: signatures on file subject-wide, and a discharge on a resource without a string id is refused (ARCH-59, ADR-QD-117, CCR-QD-395)<br>1.0 (2026-07-26): Initial release (CCR-QD-016) |
+> | Change History | 1.3 (2026-11-23): BEH-QD-093: the event is optional, and the fixture fails a row or request the key refuses (ARCH-123, ADR-QD-189, CCR-QD-468)<br>1.2 (2026-11-18): BEH-QD-607 (ARCH-101, CCR-QD-445)<br>1.1 (2026-11-10): BEH-QD-092 — HasSignature reads "Any" narrower than history does: signatures on file subject-wide, and a discharge on a resource without a string id is refused (ARCH-59, ADR-QD-117, CCR-QD-395)<br>1.0 (2026-07-26): Initial release (CCR-QD-016) |
 
 _Previous: [11 — Obligations](./11-obligations.md)_
 
@@ -132,7 +132,7 @@ REQUIREMENT: `scope: "Resource"` without `resource.id` MUST fail with
 export class DecisionHistoryUnavailable extends Data.TaggedError(
   "DecisionHistoryUnavailable",
 )<{
-  readonly event: string;
+  readonly event?: string | undefined;
   readonly cause: unknown;
 }> {}
 ```
@@ -149,6 +149,20 @@ engineer to audit approvals.
 
 `"Unknown"` is the other thing — nobody is wired to answer — and that *is* a
 denial, exactly as `RelationshipResolverNever` answering `false` is.
+
+> **Note (2026-11-23, ADR-QD-189):** the event is absent exactly when the request's
+> event is not a string, which only a request the port's key refuses can hold, and
+> the cause then carries `describeKeyRefusal`'s sentence, which names it
+> ([BEH-QD-410](06-services.md#beh-qd-410-a-request-the-key-refuses-fails-closed)).
+> `decisionHistoryFromEvents` keys its rows and its requests through
+> `decisionHistoryPort.key`, so a row or a request the key refuses fails with this
+> error and never answers `"NotActed"`, which `hasNotActed` would read as an allow.
+> The closed world of [BEH-QD-095](#beh-qd-095-layers) is unchanged for every typed
+> row. Pinned by `packages/core/test/DecisionHistory.test.ts`
+> ("a subject whose id is a symbol fails as DecisionHistoryUnavailable, never answering NotActed",
+> "an event that is a symbol fails with no event and the refusal as its cause, never answering NotActed",
+> "a fixture row whose subject id is a symbol fails every read, never answering NotActed",
+> "a fixture row whose event cannot be read fails every read, never throwing").
 
 ## BEH-QD-607: Both acted polarities read one verdict row, and Unknown denies both
 
