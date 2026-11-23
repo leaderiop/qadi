@@ -359,6 +359,17 @@ describe("ENFORCEMENT_ERROR_WIRE", () => {
     expect("resourceId" in unscoped).toBe(false);
   });
 
+  it("DecisionHistoryUnavailable's projection and response body carry the event when the error had one", () => {
+    // `JSON.parse` returns `any`, so the request needs no `as`; the port builds its own error.
+    const error = decisionHistoryPort.failure(
+      [JSON.parse('{"subjectId":"alice","event":"approved"}')],
+      "store down",
+    );
+    const named = { _tag: "DecisionHistoryUnavailable", event: "approved" };
+    expect(projectHttpEnforcementFailure(error)).toEqual(named);
+    expect(Schema.encodeSync(DecisionHistoryUnavailableResponse)(error)).toEqual(named);
+  });
+
   it(
     "the SignatureHistoryUnavailable projection and response body carry no \
 subject id when the error has none",
