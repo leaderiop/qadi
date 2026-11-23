@@ -574,3 +574,7 @@ entries:
     file: "186-gate-registration-is-one-keyed-reconcile.md"
     title: "Gate registration is one keyed reconcile"
     status: "Accepted — extends ADR-QD-140 and ADR-QD-111"
+  - id: "ADR-QD-187"
+    file: "187-the-simulation-sessions-policy-choice-is-a-pure-seeded-choice.md"
+    title: "The simulation session's policy choice is a pure seeded choice"
+    status: "Accepted — extends ADR-QD-047"
