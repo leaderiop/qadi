@@ -466,6 +466,7 @@ import * as HttpApiGroup from "effect/http-api/HttpApiGroup";
 import * as HttpRouter from "effect/http/HttpRouter";
 import * as HttpServer from "effect/http/HttpServer";
 import {
+  actedAnswerFromEvents,
   AttributeResolver,
   AttributeResolverNone,
   causeMessage,
@@ -481,6 +482,7 @@ import {
   EvaluationIdLive,
   fromRoles,
   gte,
+  hasActed,
   hasAttribute,
   hasPermission,
   hasSignature,
@@ -594,6 +596,32 @@ expect(
 expect(
   "signature answer of a Resource leaf at a site with no resource",
   Result.match(signatureAnswerFromSignatures([], resourceLeaf, noResource), answered),
+  "MissingResourceId",
+);
+const actedAny = hasActed("approved", { scope: "Any" });
+const actedResource = hasActed("approved", { scope: "Resource" });
+if (actedAny._tag !== "HasActed" || actedResource._tag !== "HasActed") {
+  throw new Error("consumer: hasActed built another node");
+}
+const actedOf = {
+  onSuccess: (answer: string) => answer,
+  onFailure: (failure: { readonly _tag: string }) => failure._tag,
+};
+expect(
+  "acted answer of an Any leaf over an event on another resource",
+  Result.match(
+    actedAnswerFromEvents(
+      [{ subjectId: "alice", event: "approved", resourceId: "doc-9" }],
+      actedAny,
+      { subject: alice, resource: { id: "doc-1" } },
+    ),
+    actedOf,
+  ),
+  "Acted",
+);
+expect(
+  "acted answer of a Resource leaf at a site with no resource",
+  Result.match(actedAnswerFromEvents([], actedResource, noResource), actedOf),
   "MissingResourceId",
 );
 
