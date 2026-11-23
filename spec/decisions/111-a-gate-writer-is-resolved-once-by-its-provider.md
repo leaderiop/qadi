@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-111                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-08                                     |
-> | Status         | Accepted — amends ADR-QD-053, ADR-QD-080; amended by ADR-QD-140 |
+> | Status         | Accepted — amends ADR-QD-053, ADR-QD-080; amended by ADR-QD-140; amended 2026-11-22 (ADR-QD-186) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-11): Amendment (ARCH-76, CCR-QD-418): the hooks moved to useGate.ts; amended by ADR-QD-140<br>1.0 (2026-11-08): Initial (ARCH-49, CCR-QD-388) |
+> | Change History | 1.2 (2026-11-22): Amendment: a guard passes its wanted registrations keyed by gate id (ADR-QD-186, CCR-QD-465)<br>1.1 (2026-11-11): Amendment (ARCH-76, CCR-QD-418): the hooks moved to useGate.ts; amended by ADR-QD-140<br>1.0 (2026-11-08): Initial (ARCH-49, CCR-QD-388) |
 
 ---
 
@@ -147,3 +147,17 @@ each place it puts a hook in `GateWriter.ts` reads as follows now.
 
 `useGateRegistration`, the one-element wrapper, is removed; a single-question guard
 passes one identity to `useGateRegistrations`.
+
+## Amendment (2026-11-22, ADR-QD-186, CCR-QD-465)
+
+[ADR-QD-186](./186-gate-registration-is-one-keyed-reconcile.md) replaces the identity-lifecycle rules the amendment above puts in `reconcile`
+with one keyed step, and changes what a guard hands to registration. The text above is
+history and stays as written.
+
+- **The `useGates` bullet and row D-49-b:** `useGates` builds the wanted registrations as
+  a map keyed by gate id, from one keyed pass over the questions, and
+  `useGateRegistrations` registers them through one registration effect beside its
+  teardown. The identity-lifecycle rules are the one step of [ADR-QD-186](./186-gate-registration-is-one-keyed-reconcile.md), which also
+  tells each kept handle its state.
+- **The removal note above:** a single-question guard passes one wanted entry keyed by
+  its gate id to `useGateRegistrations`, not one identity.
