@@ -53,8 +53,9 @@
  * a mutable container, a `static` class field, a `declare`d binding and anything a
  * function declares do not.
  * The thirteenth, `SPAN_KEY_LITERAL_BUDGET`, is test-scope like
- * `METRIC_ID_LITERAL_BUDGET`; it and `[span-key-source]` are described where they run,
- * below (ADR-QD-188).
+ * `METRIC_ID_LITERAL_BUDGET` (`packages/<pkg>/test` and `bench`), and also walks
+ * `features/features` and every type-test file tstyche selects; it and
+ * `[span-key-source]` are described where they run, below (ADR-QD-188).
  *
  * The three whole-file, cross-line-break checks below (`no-prefixed-error-tag`,
  * `no-catchtags-object-form`, `no-named-effect-submodule-import`) already run
@@ -2424,7 +2425,9 @@ for (const file of srcSources) {
 //     list of this script's own, and no other library file spells or mentions a key.
 //   [span-key-literal]  SPAN_KEY_LITERAL_BUDGET: a test builds a record with
 //     `encodeSpan` and reads one with `decodeSpan`, and a key typed by hand belongs
-//     in a golden, counted per file.
+//     in a golden, counted per file. It walks `packages/<pkg>/test` and `bench`,
+//     `features/features` (its `.test.ts` step files included) and every type-test
+//     file tstyche selects (`scripts/lib/type-tests.mjs`).
 //   [span-key-literal-table]  AGENTS.md section 6's table and the budget agree.
 // ---------------------------------------------------------------------------
 
@@ -2472,14 +2475,21 @@ const SPAN_KEY_LITERAL_BUDGET = {
   "packages/testing/test/CollectingTracer.test.ts": 2,
 };
 
-const SPAN_KEY_LITERAL_SHAPE = /"(qadi\.[a-z][a-z_]*)"/g;
+// A key in any quote form, double, single or backtick, with digits allowed after its
+// first letter, so the declaration cannot hold a key this script does not see.
+const SPAN_KEY_LITERAL_SHAPE = /(["'`])(qadi\.[a-z][a-z0-9_]*)\1/g;
 const SPAN_KEY_SHARED_SHAPE =
-  /sharedQuestionKeys[^{]*\{[^}]*\bsubjectId:\s*"(qadi\.[a-z][a-z_]*)"/;
+  /sharedQuestionKeys[^{]*\{[^}]*\bsubjectId:\s*(["'`])(qadi\.[a-z][a-z0-9_]*)\1/;
 
 // The key set is read from the declaration: every quoted key on a line that is neither a
-// comment nor a `name:` line (the span names), plus the shared subject id key.
+// comment nor a `name:` line (the span names), plus the shared subject id key. Any other
+// `qadi.` on such a line is one the extraction cannot read (a key built from parts, an
+// interpolated template, a capital letter), and is refused, so a declaration the rule
+// reads only partly fails rather than shrinking the key set.
 /** @type {Map<string, number[]>} */
 const declaredSpanKeys = new Map();
+/** @type {Array<{ readonly line: number, readonly text: string }>} */
+const unreadSpanKeys = [];
 /** @type {string | undefined} */
 let sharedSpanKey;
 {
@@ -2489,10 +2499,14 @@ let sharedSpanKey;
     .forEach((line, index) => {
       if (isCommentLine(line) || /^\s*name:/.test(line)) return;
       for (const m of line.matchAll(SPAN_KEY_LITERAL_SHAPE)) {
-        declaredSpanKeys.set(m[1], [...(declaredSpanKeys.get(m[1]) ?? []), index + 1]);
+        declaredSpanKeys.set(m[2], [...(declaredSpanKeys.get(m[2]) ?? []), index + 1]);
+      }
+      const rest = line.replace(SPAN_KEY_LITERAL_SHAPE, "");
+      if (/qadi\./.test(rest)) {
+        unreadSpanKeys.push({ line: index + 1, text: line.trim() });
       }
     });
-  sharedSpanKey = SPAN_KEY_SHARED_SHAPE.exec(read(SPAN_KEY_SHARED))?.[1];
+  sharedSpanKey = SPAN_KEY_SHARED_SHAPE.exec(read(SPAN_KEY_SHARED))?.[2];
 }
 const spanKeys = new Set(declaredSpanKeys.keys());
 if (sharedSpanKey !== undefined) spanKeys.add(sharedSpanKey);
@@ -2508,6 +2522,14 @@ const spanKeyAlternation = [...spanKeys]
     console.error(
       `${SPAN_KEY_SHARED}  [span-key-source] \`sharedQuestionKeys.subjectId\` ` +
         "cannot be read, so the key set is incomplete.",
+    );
+  }
+  for (const { line, text } of unreadSpanKeys) {
+    failures += 1;
+    console.error(
+      `${SPAN_KEY_DECLARATION}:${line}  [span-key-source] holds a \`qadi.\` the key ` +
+        "extraction cannot read; spell each key whole, as one quoted literal of " +
+        `lower-case letters, digits and underscores.\n    ${text}`,
     );
   }
   if (!spanKeyRule) {
@@ -2568,7 +2590,13 @@ if (spanKeyRule) {
   );
   /** @type {Map<string, number>} */
   const literalCounts = new Map();
-  for (const file of testSourceSet) {
+  // A set: `collect` keeps a `.tst.tsx` file, which the type-test walk finds too.
+  const spanKeyTestFiles = new Set([
+    ...testSourceSet,
+    ...collect(join(ROOT, "features", "features"), { includeTests: true }),
+    ...typeTests.map((rel) => join(ROOT, rel)),
+  ]);
+  for (const file of spanKeyTestFiles) {
     const rel = relative(ROOT, file);
     const text = readFileSync(file, "utf8")
       .replace(/\r\n/g, "\n")

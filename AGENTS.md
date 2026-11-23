@@ -476,13 +476,16 @@ The family's spans and the denial log line take their keys from
 `packages/core/src/EvaluationSpan.ts`, which spells each once and reads `qadi.subject_id`
 from `PortSpanEncode.ts`'s `sharedQuestionKeys`. `[span-key-source]` in
 `scripts/check-house-style.mjs` reads the key set from that declaration, never from a
-list of its own (an extraction that finds fewer than `SPAN_KEY_MIN` keys fails, so a
-moved or emptied declaration cannot make the rule pass with nothing to check), refuses a
-key spelled twice there, and refuses any mention of a key in `packages/*/src` or
+list of its own: a key in any quote form, digits allowed (an extraction that finds fewer
+than `SPAN_KEY_MIN` keys fails, so a moved or emptied declaration cannot make the rule
+pass with nothing to check, and a `qadi.` there the extraction cannot read fails too). It
+refuses a key spelled twice there, and any mention of a key in `packages/*/src` or
 `features/step-definitions` outside the two files. A test builds an expected record with
 `encodeSpan` and reads a value with `decodeSpan` or `struct.keys`; an exact quoted key
 outside a title is a golden row, counted per file against the budget in both directions
-(`[span-key-literal]`). Test-scope, like `PORT_DOUBLE_BUDGET`. The table is checked
+(`[span-key-literal]`). Test-scope, like `METRIC_ID_LITERAL_BUDGET`: it walks
+`packages/*/test` and `packages/*/bench`, and also `features/features` (its `.test.ts`
+step files included) and every type-test file tstyche selects. The table is checked
 against the budget (`[span-key-literal-table]`), and a new row is a reviewed edit to both
 together.
 
