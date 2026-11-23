@@ -10,10 +10,8 @@
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as FastCheck from "fast-check";
-import { hasCustom } from "@qadi/core";
 import type { PortName } from "@qadi/core";
 import { singleEdits } from "../../src/model/Edits.ts";
-import { remedyEdits } from "../../src/model/Remedies.ts";
 import {
   FIELD_ORDER,
   FIXTURE_DATA,
@@ -143,17 +141,8 @@ describe("what the ports are fed from", () => {
     });
   });
 
-  it("the custom-predicate cell is the value whose reason the remedy table gives", () => {
+  it("the custom-predicate cell is the one shared no-vocabulary value", () => {
     assert.strictEqual(FIXTURE_DATA.CustomPredicate, NO_CUSTOM_PREDICATE_FIELD);
-    assert.deepStrictEqual(
-      remedyEdits(hasCustom("isOwner"), { subject: { id: "alice" } }).skipped,
-      [
-        {
-          requirement: "custom predicate isOwner",
-          reason: NO_CUSTOM_PREDICATE_FIELD.reason,
-        },
-      ],
-    );
   });
 });
 

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-189                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-11-23                                     |
 > | Status         | Accepted — amends ADR-QD-058 and ADR-QD-094   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-11-23): decision 4: a member is absent exactly when its schema refuses the value, and the cause is the store's own when the key admits it (code review WR-02, CCR-QD-468)<br>1.2 (2026-11-23): decision 4 and 5: the refusal is total over a row, a subject and a resource that throw, through one guarded read (code review WR-01, CCR-QD-468)<br>1.1 (2026-11-23): what enforces it: the compiler, the scripts, the tests by title and what review keeps; the acted evidence (ARCH-123, CCR-QD-468)<br>1.0 (2026-11-23): Initial release (ARCH-123, CCR-QD-468) |
+> | Change History | 1.4 (2026-11-23): enforcement: the custom-predicate sentence, each fact checked once (code review IN-06, CCR-QD-468)<br>1.3 (2026-11-23): decision 4: a member is absent exactly when its schema refuses the value, and the cause is the store's own when the key admits it (code review WR-02, CCR-QD-468)<br>1.2 (2026-11-23): decision 4 and 5: the refusal is total over a row, a subject and a resource that throw, through one guarded read (code review WR-01, CCR-QD-468)<br>1.1 (2026-11-23): what enforces it: the compiler, the scripts, the tests by title and what review keeps; the acted evidence (ARCH-123, CCR-QD-468)<br>1.0 (2026-11-23): Initial release (ARCH-123, CCR-QD-468) |
 
 ---
 
@@ -235,8 +235,11 @@ unchanged because no error class is added or removed: two gain an optional membe
   ("the product holds 144 cases over four sites, two leaves and 18 lists",
   "a fixture row it cannot key is skipped with its refusal and offered no row, while core fails the read",
   "a site whose subject id it cannot key is skipped with its refusal and offered no row, while core fails the read").
-- The custom-cell identity row: `packages/devtools/test/model/SimulationFields.test.ts`
-  ("the custom-predicate cell is the value whose reason the remedy table gives").
+- The custom-predicate sentence, each fact checked once: the field table's cell is the one shared
+  value, `packages/devtools/test/model/SimulationFields.test.ts`
+  ("the custom-predicate cell is the one shared no-vocabulary value"), and the remedy table's skip
+  gives that value's reason, `packages/devtools/test/model/Remedies.test.ts`
+  ("names a custom predicate it cannot remedy, rather than staying silent").
 
 **The totality's mechanism** is `Schema.is` on each member before `failure` sets it, the history fixture
 keyed through the port's key, and `readGuarded` on every field a row or a site is read for, so a refused
