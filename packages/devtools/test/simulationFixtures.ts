@@ -43,6 +43,42 @@ export const entryOf = (
   return entry;
 };
 
+/** A resolver that takes a second, and counts how it ended. No error is constructed. */
+export const slow = () => {
+  const tally = { started: 0, finished: 0, interrupted: 0 };
+  const ports = portsLayer({
+    AttributeResolver: Layer.succeed(AttributeResolver, {
+      name: "slow",
+      resolve: () =>
+        Effect.sync(() => {
+          tally.started += 1;
+        }).pipe(
+          Effect.andThen(Effect.sleep("1 second")),
+          Effect.onInterrupt(() =>
+            Effect.sync(() => {
+              tally.interrupted += 1;
+            }),
+          ),
+          Effect.andThen(
+            Effect.sync(() => {
+              tally.finished += 1;
+              return 9;
+            }),
+          ),
+        ),
+    }),
+  });
+  return { tally, ports };
+};
+
+export const counted = (session: SimulationSession) => {
+  const seen = { notified: 0 };
+  session.subscribe(() => {
+    seen.notified += 1;
+  });
+  return seen;
+};
+
 // Two logged rows, the form a replay of one fills in, and a policy choice and a menu
 // as a row compares them.
 
@@ -136,42 +172,6 @@ export const evictedEntry = (sighting: PolicySighting): readonly [string, string
   "evicted",
   `${sighting.label} — no longer in the log`,
 ];
-
-/** A resolver that takes a second, and counts how it ended. No error is constructed. */
-export const slow = () => {
-  const tally = { started: 0, finished: 0, interrupted: 0 };
-  const ports = portsLayer({
-    AttributeResolver: Layer.succeed(AttributeResolver, {
-      name: "slow",
-      resolve: () =>
-        Effect.sync(() => {
-          tally.started += 1;
-        }).pipe(
-          Effect.andThen(Effect.sleep("1 second")),
-          Effect.onInterrupt(() =>
-            Effect.sync(() => {
-              tally.interrupted += 1;
-            }),
-          ),
-          Effect.andThen(
-            Effect.sync(() => {
-              tally.finished += 1;
-              return 9;
-            }),
-          ),
-        ),
-    }),
-  });
-  return { tally, ports };
-};
-
-export const counted = (session: SimulationSession) => {
-  const seen = { notified: 0 };
-  session.subscribe(() => {
-    seen.notified += 1;
-  });
-  return seen;
-};
 
 // The helpers below drive the scoped interface (ARCH-73, ADR-QD-137): `run` is a
 // command that forks into the session's own handle, so a test starts one and then
