@@ -71,3 +71,142 @@ The two update-half cases that were red on the base, `tells the handle of a kept
 `tells a kept handle its state even when unchanged, leaving equality to it`, now pass: the keyed `reconcile` calls
 `update` on the kept handle with the wanted state, so the log reads `["update", "a", "Allowed"]` and
 `["update", "a", "Pending"]` where the base's log was empty.
+
+## Each type guarantee and rule gutted once
+
+Each gut is a scratch edit to `packages/react/src/GateWriter.ts`, applied alone, run, saved, and reverted with
+`git checkout -- packages/react/src/GateWriter.ts` before the next; `git status --porcelain -- packages` printed nothing
+after each revert and after the last. None was committed. The type pins and the hook rows were committed and green
+before the first gut (head `b162f6a8ae4ad4b52de4c913a4facaa75311dc33`). The tstyche guts fail under both compiles; the
+first failure line below is the first one of the first pass.
+
+### With the wanted map widened to an array
+
+Edit: `reconcile`'s `wanted` parameter also accepts `ReadonlyArray<GateWanted>`, read through
+`"get" in wantedIn ? wantedIn : new Map<string, GateWanted>()`, so the source compiles.
+
+```
+pnpm test:tstyche GateWriter.reconcile
+```
+
+Result: `1 failed, 4 passed` (the title `an array of wanted registrations is refused`). First failure line, verbatim:
+
+```
+Error: Unused '@ts-expect-error' directive. ts(2578)
+```
+
+at `./packages/react/test/GateWriter.reconcile.tst.ts:48:5`, the directive above `wantedArray`.
+
+### With an id on the identity
+
+Edit: `readonly id: string;` added to `GateIdentity`.
+
+```
+pnpm test:tstyche GateWriter.reconcile
+```
+
+Fails three pins. First failure line, verbatim:
+
+```
+Error: Property 'id' is missing in type '{ kind: "Can"; atom: {}; wraps: true; policy: Policy; resource: undefined; marker: { readonly current: HTMLSpanElement | null; }; }' but required in type 'GateIdentity'. ts(2741)
+```
+
+The other two: `Unused '@ts-expect-error' directive. ts(2578)` at `:74:5` (the id-literal directive), and
+`Type 'keyof GateIdentity' is not the same as type '"kind" | "atom" | "wraps" | "policy" | "resource" | "marker"'.`
+
+### With the index-aligned type exported again
+
+Edit: an exported interface named `GateCurrent` appended to `GateWriter.ts`.
+
+```
+pnpm test:tstyche GateWriter.reconcile
+```
+
+Fails the module-level directive. First failure line, verbatim:
+
+```
+Error: Unused '@ts-expect-error' directive. ts(2578)
+```
+
+at `./packages/react/test/GateWriter.reconcile.tst.ts:27:1`, the directive above the re-export of `GateCurrent`.
+
+### With a state on Registered
+
+Edit: an optional `readonly state?: GateRenderState;` added to `Registered`, optional so the body compiles.
+
+```
+pnpm test:tstyche GateWriter.reconcile
+```
+
+Fails the field-set title `GateIdentity, GateWanted and Registered hold exactly their fields`. First failure line,
+verbatim:
+
+```
+Error: Type 'keyof Registered' is not the same as type '"identity" | "handle"'.
+```
+
+at `:85:40`.
+
+### Without the rollback
+
+Edit: the `catch` of `reconcile` is `throw error;` and nothing else, so a throw leaves what the call registered.
+
+```
+pnpm exec vitest run --project react packages/react/test/GateWriter.reconcile.test.ts packages/react/test/GateWriter.test.tsx --reporter=json --outputFile=<scratch>/gut-rollback.json
+```
+
+Result: `29 passed, 3 failed`, exactly these titles, each with its first failure line:
+
+- `a register that throws rolls back what the call registered, then rethrows it`:
+  `AssertionError: expected [ [ 'register', 'a', …(2) ], …(2) ] to deeply equal [ [ 'register', 'a', …(2) ], …(4) ]`
+- `a rollback that also throws joins the throw of the step in one AggregateError`:
+  `Error: expected an AggregateError`
+- `a reconcile that throws leaves nothing registered once the hook unmounts`:
+  `AssertionError: expected [ { id: 'b', kind: 'useCan', …(4) } ] to deeply equal []`
+
+The third is the hook-level row: without the rollback, `b` stays registered after the boundary unmounts the hook,
+because the hook never held a handle for it.
+
+### With registration before unregistration
+
+Edit: the pass that registers the wanted ids with a changed or new identity runs before the pass over `live`, which
+then updates or unregisters.
+
+```
+pnpm exec vitest run --project react packages/react/test/GateWriter.reconcile.test.ts packages/react/test/GateWriter.test.tsx --reporter=json --outputFile=<scratch>/gut-order.json
+```
+
+Result: `27 passed, 5 failed`, these titles, each with its first failure line:
+
+- `on a real registry a changed identity keeps its id and reports no collision`:
+  `AssertionError: expected [ [ 'a~1', 'Allowed' ] ] to deeply equal [ [ 'a', 'Allowed' ] ]`
+- `registers a new id and calls nothing else`:
+  `AssertionError: expected [ [ 'register', 'b', …(2) ], …(1) ] to deeply equal [ [ 'update', 'a', 'Pending' ], …(1) ]`
+- `calls each live update or unregister in order, then each registration`:
+  `AssertionError: expected [ [ 'register', 'd', …(2) ], …(4) ] to deeply equal [ [ 'update', 'a', 'Pending' ], …(4) ]`
+- `re-registers when only atom, kind, wraps or marker changed, updating its sibling`:
+  `AssertionError: atom: expected [ [ 'register', 'a', …(2) ], …(2) ] to deeply equal [ [ 'unregister', 'a' ], …(2) ]`
+- `a throw leaves an unregistered entry in live; its second unregister is a no-op`:
+  `AssertionError: expected [ …(2) ] to deeply equal []`
+
+The first is the one the guarantee is about: registering first collides with the entry about to be unregistered, so the
+registry disambiguates the id to `a~1`.
+
+## The type pins and the hook rows green
+
+Commands, from the repository root with stdin closed, on the clean tree (head
+`b162f6a8ae4ad4b52de4c913a4facaa75311dc33`, `git status --porcelain -- packages` empty):
+
+```
+pnpm test:tstyche GateWriter.reconcile
+```
+
+Result: both passes, `5 passed` tests, `7 passed` assertions, `3 matched` suppressed errors.
+
+```
+pnpm exec vitest run --project react packages/react/test/GateWriter.reconcile.test.ts packages/react/test/GateWriter.test.tsx
+```
+
+Result: `2 files passed, 32 tests passed` (22 in the reconcile file, 10 in `GateWriter.test.tsx`).
+
+`pnpm typecheck` clean; `node scripts/check-house-style.mjs` reads `70 type-test file(s)`; no budget changed.
