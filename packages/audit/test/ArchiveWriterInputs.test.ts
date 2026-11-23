@@ -5,10 +5,8 @@
  * a type admits or a codec makes. The writer either fails with a typed error, which
  * passes, or returns a bundle that `readAuditArchive` reads back from its JSON text, the
  * form a store gives it. A bundle the reader refuses is the defect: an archive this
- * package wrote and cannot itself read.
- *
- * The hostile rows are built from a spread held in a variable first, so the type admits
- * them without a cast.
+ * package wrote and cannot itself read. A row is only ever one the codec made, so no
+ * hostile row is built here.
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
@@ -42,28 +40,6 @@ const entryOf = (options?: Parameters<typeof decisionRecord>[0]): AuditEntry =>
 
 const row = entryOf({ evaluationId: "w-0" });
 const archivedOnlyWhenRead = "is archived only when its reader reads it back";
-
-describe("a row the type admits", () => {
-  it("a record with at NaN " + archivedOnlyWhenRead, () => {
-    const hostile = { ...row, record: { ...row.record, at: Number.NaN } };
-    writtenIsRead([hostile], 1_000);
-  });
-
-  it("a row with an extra top-level key " + archivedOnlyWhenRead, () => {
-    const hostile = { ...row, extra: 1 };
-    writtenIsRead([hostile], 1_000);
-  });
-
-  it("a row whose record disagrees with its own decision " + archivedOnlyWhenRead, () => {
-    const hostile = { ...row, record: { ...row.record, evaluationId: "elsewhere" } };
-    writtenIsRead([hostile], 1_000);
-  });
-
-  it("a row with sequenceNumber 1.5 " + archivedOnlyWhenRead, () => {
-    const hostile = { ...row, sequenceNumber: 1.5 };
-    writtenIsRead([hostile], 1_000);
-  });
-});
 
 describe("a now the type admits", () => {
   it("now NaN " + archivedOnlyWhenRead, () => {

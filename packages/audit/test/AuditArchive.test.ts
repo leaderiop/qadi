@@ -3,7 +3,7 @@ import * as Effect from "effect/Effect";
 import * as Result from "effect/Result";
 import { encodeAuditEntry } from "../src/AuditEntry.ts";
 import { archiveAuditTrail, readAuditArchive } from "../src/AuditArchive.ts";
-import { decisionRecord, failedWithCause, httpClientError } from "./helpers.ts";
+import { decisionRecord, failedWithCause, httpClientError, numbered } from "./helpers.ts";
 
 describe("archiveAuditTrail", () => {
   it.effect("bundles a chain-intact set of entries with metadata", () =>
@@ -11,8 +11,8 @@ describe("archiveAuditTrail", () => {
       const a = yield* encodeAuditEntry(decisionRecord({ evaluationId: "a" }));
       const b = yield* encodeAuditEntry(decisionRecord({ evaluationId: "b" }));
       const entries = [
-        { ...a, sequenceNumber: 1 },
-        { ...b, sequenceNumber: 2 },
+        numbered(a, 1),
+        numbered(b, 2),
       ];
 
       const archive = yield* archiveAuditTrail(entries, 5_000);
@@ -40,8 +40,8 @@ describe("archiveAuditTrail", () => {
       const a = yield* encodeAuditEntry(decisionRecord({ evaluationId: "a" }));
       const b = yield* encodeAuditEntry(decisionRecord({ evaluationId: "b" }));
       const entries = [
-        { ...a, sequenceNumber: 1 },
-        { ...b, sequenceNumber: 3 },
+        numbered(a, 1),
+        numbered(b, 3),
       ];
 
       const result = yield* Effect.result(archiveAuditTrail(entries, 0));
@@ -61,9 +61,9 @@ describe("archiveAuditTrail", () => {
       // tolerates this; the stored archive must not just claim to be
       // verified, it must actually be ordered.
       const outOfOrder = [
-        { ...c, sequenceNumber: 3 },
-        { ...a, sequenceNumber: 1 },
-        { ...b, sequenceNumber: 2 },
+        numbered(c, 3),
+        numbered(a, 1),
+        numbered(b, 2),
       ];
 
       const archive = yield* archiveAuditTrail(outOfOrder, 0);
@@ -95,7 +95,7 @@ describe("archiveAuditTrail", () => {
       const s1 = yield* encodeAuditEntry(decisionRecord({ evaluationId: "s1", at: 150 }));
 
       const archive = yield* archiveAuditTrail(
-        [uLate, { ...s2, sequenceNumber: 2 }, uEarly, { ...s1, sequenceNumber: 1 }],
+        [uLate, numbered(s2, 2), uEarly, numbered(s1, 1)],
         0,
       );
 
@@ -112,7 +112,7 @@ describe("archiveAuditTrail", () => {
       const b = yield* encodeAuditEntry(decisionRecord({ evaluationId: "b" }));
       const c = yield* encodeAuditEntry(decisionRecord({ evaluationId: "c" }));
 
-      const archive = yield* archiveAuditTrail([a, b, { ...c, sequenceNumber: 7 }], 0);
+      const archive = yield* archiveAuditTrail([a, b, numbered(c, 7)], 0);
 
       assert.deepStrictEqual(
         archive.entries.map((e) => e.record.evaluationId),
@@ -144,7 +144,7 @@ describe("archiveAuditTrail", () => {
       const a = yield* encodeAuditEntry(decisionRecord({ evaluationId: "a" }));
       const b = yield* encodeAuditEntry(decisionRecord({ evaluationId: "b" }));
 
-      const archive = yield* archiveAuditTrail([{ ...a, sequenceNumber: 1 }, b], 0);
+      const archive = yield* archiveAuditTrail([numbered(a, 1), b], 0);
 
       assert.isFalse(archive.metadata.sequenceIntegrityVerified);
     }));
@@ -158,7 +158,7 @@ describe("archiveAuditTrail", () => {
       // A mix of sequenced and unsequenced entries — the two sequenced ones
       // are contiguous, which is enough to actually verify something.
       const archive = yield* archiveAuditTrail(
-        [{ ...a, sequenceNumber: 1 }, b, { ...c, sequenceNumber: 2 }],
+        [numbered(a, 1), b, numbered(c, 2)],
         0,
       );
 
@@ -184,11 +184,7 @@ const sequencedEntries = Effect.gen(function* () {
   const a = yield* encodeAuditEntry(decisionRecord({ evaluationId: "a" }));
   const b = yield* encodeAuditEntry(decisionRecord({ evaluationId: "b" }));
   const c = yield* encodeAuditEntry(decisionRecord({ evaluationId: "c" }));
-  return [
-    { ...a, sequenceNumber: 1 },
-    { ...b, sequenceNumber: 2 },
-    { ...c, sequenceNumber: 3 },
-  ];
+  return [numbered(a, 1), numbered(b, 2), numbered(c, 3)];
 });
 
 const refusalOf = (input: unknown) => {
@@ -210,7 +206,8 @@ describe("readAuditArchive", () => {
       assert.isTrue(read.sequenceIntegrityVerified);
       assert.isUndefined(read.keyMaterial);
       for (const entry of entries) assert.strictEqual(read.holds(entry), 1);
-      const renumbered = { ...(yield* encodeAuditEntry(decisionRecord({ evaluationId: "a" }))), sequenceNumber: 9 };
+      const again = yield* encodeAuditEntry(decisionRecord({ evaluationId: "a" }));
+      const renumbered = numbered(again, 9);
       assert.strictEqual(read.holds(renumbered), 0);
     }));
 

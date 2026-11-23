@@ -1,6 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
-import * as Schema from "effect/Schema";
 import * as Predicate from "effect/Predicate";
 import * as Result from "effect/Result";
 import {
@@ -16,7 +15,7 @@ import {
   SinkRecordNotEncodable,
   WIRE_VERSIONS,
 } from "@qadi/core";
-import { AuditEntry, decodeAuditEntry, encodeAuditEntry } from "../src/AuditEntry.ts";
+import { decodeAuditEntry, encodeAuditEntry } from "../src/AuditEntry.ts";
 import {
   decisionRecord,
   failedRecord,
@@ -237,8 +236,7 @@ describe("decodeAuditEntry — the guarded reader (ARCH-09)", () => {
       if (Result.isSuccess(result)) {
         assert.deepStrictEqual(result.success.record, original);
         assert.strictEqual(result.success.entry.record.evaluationId, "e1");
-        // Absent, not present-and-undefined — `Schema.optional` drops an
-        // explicitly-undefined key, the same normalisation the record codec applies.
+        // Present and `undefined`, so a row read back has the keys of an encoded one.
         assert.isUndefined(result.success.entry.sequenceNumber);
       }
     }));
@@ -306,22 +304,14 @@ describe("decodeAuditEntry — the guarded reader (ARCH-09)", () => {
       const result = decodeAuditEntry({ ...JSON.parse(JSON.stringify(entry)), sequenceNumber: "7" });
       assert.strictEqual(Result.isFailure(result) ? result.failure.refusal._tag : undefined, "Malformed");
     }));
-
-  it.effect("the row schema is the encoded wire: Schema.decodeUnknownEffect(AuditEntry) accepts a stored row", () =>
-    Effect.gen(function* () {
-      const entry = yield* encodeAuditEntry(decisionRecord({ evaluationId: "e1" }));
-      const decoded = yield* Schema.decodeUnknownEffect(AuditEntry)(JSON.parse(JSON.stringify(entry)));
-      assert.strictEqual(decoded.record.evaluationId, "e1");
-    }));
 });
 
 /**
- * What the row schema alone, under `Schema`'s default options, accepts and
- * `decodeAuditEntry` refuses: the reason a stored row is read back through
- * the guarded reader and never through `Schema.decodeUnknown(AuditEntry)`
- * (ARCH-15 C10).
+ * What a decode of the row's own shape alone would accept and `decodeAuditEntry`
+ * refuses: the reason a stored row is read back through the guarded reader, whose
+ * record read is core's strict one (ARCH-15 C10).
  */
-describe("decodeAuditEntry refuses what the row schema alone would accept", () => {
+describe("decodeAuditEntry reads the record strictly", () => {
   const policy = { _tag: "HasPermission", permission: { resource: "doc", action: "read" } };
   const envelope = { _tag: "Decision", version: 2, evaluationId: "g", at: 1, subjectId: "u1", policy };
   const outcome = {
@@ -351,17 +341,6 @@ describe("decodeAuditEntry refuses what the row schema alone would accept", () =
     const result = decodeAuditEntry({ record: { ...envelope, policy: { ...policy, permision: "x" }, outcome } });
     assert.include(Result.isFailure(result) && result.failure.refusal._tag === "Malformed" ? result.failure.refusal.message : "", "permision");
   });
-
-  it.effect("the row schema alone, by contrast, drops the same typo silently — so it is not a reader", () =>
-    Effect.gen(function* () {
-      const result = yield* Effect.result(
-        Schema.decodeUnknownEffect(AuditEntry)({ record: { ...envelope, policy: { ...policy, permision: "x" }, outcome } }),
-      );
-      assert.isTrue(Result.isSuccess(result));
-      if (Result.isSuccess(result) && result.success.record._tag === "Decision") {
-        assert.isFalse(Predicate.hasProperty(result.success.record.policy, "permision"));
-      }
-    }));
 });
 
 /**

@@ -9,16 +9,10 @@ import { decodeAuditEntry, encodeAuditEntry } from "../src/AuditEntry.ts";
 import type { AuditEntry } from "../src/AuditEntry.ts";
 import { planPurge, planRetention } from "../src/Retention.ts";
 import type { RetentionPolicy } from "../src/Retention.ts";
-import { decisionRecord, obligationRecord } from "./helpers.ts";
+import { decisionRecord, numbered, obligationRecord } from "./helpers.ts";
 
 const entryAt = (at: number) =>
   Effect.runSync(encodeAuditEntry(decisionRecord({ evaluationId: `e-${at}`, at })));
-
-/** An entry whose stored `at` is whatever a hand-built or mis-decoded row holds. */
-const entryWithAt = (at: number): AuditEntry => {
-  const e = entryAt(1_000);
-  return { ...e, record: { ...e.record, at } };
-};
 
 /**
  * The archive a store hands back: bundled, serialized, parsed, read — the real
@@ -68,17 +62,12 @@ describe("an impossible age is never selected (INV-QD-101)", () => {
       assert.deepStrictEqual(age.success.expired, []);
       assert.deepStrictEqual(age.success.retained, entries);
     }
-    const finite = entries.filter((e) => Number.isFinite(e.record.at));
-    const purge = planPurge(entries, p, now, archiveOf(finite));
+    const purge = planPurge(entries, p, now, archiveOf(entries));
     if (Result.isSuccess(purge)) {
       assert.deepStrictEqual(purge.success.purge, []);
       assert.deepStrictEqual(purge.success.retain, entries);
     }
   };
-
-  it("at = -Infinity (a stored -1e400) is retained, not purged at once", () => {
-    neverSelected([entryWithAt(Number.NEGATIVE_INFINITY)], policy, 2_000);
-  });
 
   it("now = +Infinity purges nothing", () => {
     neverSelected([entryAt(0), entryAt(1_000)], policy, Number.POSITIVE_INFINITY);
@@ -90,14 +79,6 @@ describe("an impossible age is never selected (INV-QD-101)", () => {
 
   it("maxAgeMs = -Infinity purges nothing", () => {
     neverSelected([entryAt(0)], { maxAgeMs: Number.NEGATIVE_INFINITY }, 2_000);
-  });
-
-  it("at = NaN is retained", () => {
-    neverSelected([entryWithAt(Number.NaN)], policy, 2_000);
-  });
-
-  it("at = +Infinity is retained", () => {
-    neverSelected([entryWithAt(Number.POSITIVE_INFINITY)], policy, 2_000);
   });
 
   it("now = NaN purges nothing", () => {
@@ -112,15 +93,12 @@ describe("an impossible age is never selected (INV-QD-101)", () => {
 describe("planRetention", () => {
   const old = entryAt(0);
   const young = entryAt(1_500);
-  const nan = entryWithAt(Number.NaN);
-  const negInf = entryWithAt(Number.NEGATIVE_INFINITY);
-  const entries = [old, young, nan, negInf];
+  const entries = [old, young];
 
-  it("splits expired, retained and undated; undated rows are retained", () => {
+  it("splits the rows into expired and retained", () => {
     const result = plan(entries, { maxAgeMs: 1_000 }, 2_000);
     assert.deepStrictEqual(result.expired, [old]);
-    assert.deepStrictEqual(result.retained, [young, nan, negInf]);
-    assert.deepStrictEqual(result.undated, [nan, negInf]);
+    assert.deepStrictEqual(result.retained, [young]);
   });
 
   it("maxAgeMs = +Infinity is valid and expires nothing", () => {
@@ -195,16 +173,17 @@ describe("planPurge", () => {
   });
 
   it("a row edited after archiving is retained", () => {
-    const original = { ...entryAt(0), sequenceNumber: 1 };
-    const edited: AuditEntry = { ...original, record: { ...original.record, at: 1 } };
+    const original = numbered(entryAt(0), 1);
+    const record = decisionRecord({ evaluationId: "e-0", at: 1 });
+    const edited = numbered(Effect.runSync(encodeAuditEntry(record)), 1);
     const result = purgePlan([edited], archiveOf([original]));
     assert.deepStrictEqual(result.purge, []);
     assert.deepStrictEqual(result.unarchived, [edited]);
   });
 
   it("a row renumbered after archiving is retained", () => {
-    const original = { ...entryAt(0), sequenceNumber: 1 };
-    const renumbered: AuditEntry = { ...original, sequenceNumber: 2 };
+    const original = numbered(entryAt(0), 1);
+    const renumbered = numbered(original, 2);
     const result = purgePlan([renumbered], archiveOf([original]));
     assert.deepStrictEqual(result.purge, []);
     assert.deepStrictEqual(result.unarchived, [renumbered]);
@@ -212,7 +191,7 @@ describe("planPurge", () => {
 
   it("two identical rows need two archived copies", () => {
     const first = entryAt(0);
-    const second: AuditEntry = { ...first };
+    const second = entryAt(0);
     const one = purgePlan([first, second], archiveOf([first]));
     assert.deepStrictEqual(one.purge, [first]);
     assert.deepStrictEqual(one.unarchived, [second]);
@@ -222,7 +201,7 @@ describe("planPurge", () => {
   });
 
   it("a round-tripped archive matches rows read back from a store", () => {
-    const entries = [{ ...entryAt(0), sequenceNumber: 1 }, { ...entryAt(100), sequenceNumber: 2 }];
+    const entries = [numbered(entryAt(0), 1), numbered(entryAt(100), 2)];
     const archive = archiveOf(entries);
     const stored = entries.map(fromStore);
     assert.isTrue(stored.every((row, i) => row !== entries[i]));
@@ -239,19 +218,8 @@ describe("planPurge", () => {
     assert.deepStrictEqual(result.unarchived, [sibling]);
   });
 
-  it("an undated row is retained even when its archive holds it, and is not unarchived", () => {
-    const nan = entryWithAt(Number.NaN);
-    const result = purgePlan([nan], archiveOf([]));
-    assert.deepStrictEqual(result.purge, []);
-    assert.deepStrictEqual(result.undated, [nan]);
-    assert.deepStrictEqual(result.unarchived, []);
-  });
-
   it("copies the archive's sequenceIntegrityVerified onto the plan", () => {
-    const sequenced = [
-      { ...entryAt(0), sequenceNumber: 1 },
-      { ...entryAt(100), sequenceNumber: 2 },
-    ];
+    const sequenced = [numbered(entryAt(0), 1), numbered(entryAt(100), 2)];
     assert.isTrue(purgePlan(sequenced, archiveOf(sequenced)).sequenceIntegrityVerified);
     assert.isFalse(purgePlan([entryAt(0)], archiveOf([entryAt(0)])).sequenceIntegrityVerified);
   });
@@ -266,35 +234,33 @@ describe("planPurge", () => {
 
 describe("PROPERTY: retained and expired partition entries", () => {
   it("retained ∪ expired = entries, retained ∩ expired = ∅, and an expiry has a provable age", () => {
-    const number = FastCheck.oneof(
+    const at = FastCheck.oneof(
       FastCheck.integer({ min: 0, max: 200_000 }),
       FastCheck.integer({ min: -1_000, max: -1 }),
+    );
+    const number = FastCheck.oneof(
+      at,
       FastCheck.constantFrom(Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY),
     );
-    const arb = FastCheck.tuple(FastCheck.array(number, { maxLength: 30 }), number, number);
+    const arb = FastCheck.tuple(FastCheck.array(at, { maxLength: 30 }), number, number);
 
     FastCheck.assert(
       FastCheck.property(arb, ([timestamps, maxAgeMs, now]) => {
-        const entries = timestamps.map((at) => entryWithAt(at));
+        const entries = timestamps.map((time) => entryAt(time));
         const result = planRetention(entries, { maxAgeMs }, now);
         if (Result.isFailure(result)) return true;
-        const { retained, expired, undated } = result.success;
+        const { retained, expired } = result.success;
 
         const union = new Set<AuditEntry>([...retained, ...expired]);
         const intersection = retained.filter((e) => expired.includes(e));
         const provable = expired.every(
-          (e) =>
-            Number.isFinite(e.record.at) &&
-            Number.isFinite(now) &&
-            maxAgeMs >= 0 &&
-            now - e.record.at > maxAgeMs,
+          (e) => Number.isFinite(now) && maxAgeMs >= 0 && now - e.record.at > maxAgeMs,
         );
         return (
           union.size === entries.length &&
           retained.length + expired.length === entries.length &&
           intersection.length === 0 &&
-          provable &&
-          undated.every((e) => retained.includes(e))
+          provable
         );
       }),
       { numRuns: 500 },
@@ -303,13 +269,18 @@ describe("PROPERTY: retained and expired partition entries", () => {
 });
 
 describe("PROPERTY: a purge never selects a row its archive does not hold (INV-QD-130)", () => {
-  const number = FastCheck.oneof(
+  const at = FastCheck.oneof(
     FastCheck.integer({ min: 0, max: 40 }),
     FastCheck.integer({ min: -10, max: -1 }),
+  );
+  const number = FastCheck.oneof(
+    at,
     FastCheck.constantFrom(Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY),
   );
   const arb = FastCheck.tuple(
-    FastCheck.array(FastCheck.record({ at: number, archived: FastCheck.boolean() }), { maxLength: 24 }),
+    FastCheck.array(FastCheck.record({ at, archived: FastCheck.boolean() }), {
+      maxLength: 24,
+    }),
     number,
     number,
   );
@@ -317,15 +288,15 @@ describe("PROPERTY: a purge never selects a row its archive does not hold (INV-Q
   it("purge is a sub-multiset of the archive; every other expired row is retained and unarchived", () => {
     FastCheck.assert(
       FastCheck.property(arb, ([rows, maxAgeMs, now]) => {
-        const entries = rows.map(({ at }) => entryWithAt(at));
-        // Only rows with a finite `at` survive JSON; the archive is a random sub-multiset of them.
-        const archive = archiveOf(rows.flatMap(({ at, archived }, i) => {
+        const entries = rows.map((row) => entryAt(row.at));
+        // The archive is a random sub-multiset of the rows.
+        const archive = archiveOf(rows.flatMap(({ archived }, i) => {
           const entry = entries[i];
-          return archived && entry !== undefined && Number.isFinite(at) ? [entry] : [];
+          return archived && entry !== undefined ? [entry] : [];
         }));
         const result = planPurge(entries, { maxAgeMs }, now, archive);
         if (Result.isFailure(result)) return true;
-        const { purge, retain, undated, unarchived } = result.success;
+        const { purge, retain, unarchived } = result.success;
 
         const age = planRetention(entries, { maxAgeMs }, now);
         if (Result.isFailure(age)) return false;
@@ -346,15 +317,9 @@ describe("PROPERTY: a purge never selects a row its archive does not hold (INV-Q
           return purgedCopies <= archive.holds(p) && purgedCopies === Math.min(eligibleCopies, archive.holds(p));
         });
         const waiting = eligible.every((e) => purgeRefs.has(e) || (retainRefs.has(e) && unarchived.includes(e)));
-        const contained =
-          undated.every((e) => retainRefs.has(e)) &&
-          unarchived.every((e) => retainRefs.has(e) && !purgeRefs.has(e));
+        const contained = unarchived.every((e) => retainRefs.has(e) && !purgeRefs.has(e));
         const provable = purge.every(
-          (e) =>
-            Number.isFinite(e.record.at) &&
-            Number.isFinite(now) &&
-            maxAgeMs >= 0 &&
-            now - e.record.at > maxAgeMs,
+          (e) => Number.isFinite(now) && maxAgeMs >= 0 && now - e.record.at > maxAgeMs,
         );
         return partition && multiset && waiting && contained && provable;
       }),

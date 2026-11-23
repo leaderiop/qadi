@@ -8,10 +8,12 @@
  * (AGENTS.md §6), so a caller decides when and how often retention runs.
  *
  * **A row is selected for deletion only with a finite age past a valid limit
- * and only when its archive holds it.** `at` and `now` are finite, `maxAgeMs
- * >= 0`, and `now - at > maxAgeMs` (the age rule, in {@link planRetention});
- * and a {@link VerifiedArchive} read back from storage holds the row
- * ({@link planPurge}). Fail-closed for a deletion selector means retaining,
+ * and only when its archive holds it.** `now` is finite, `maxAgeMs >= 0`, and
+ * `now - at > maxAgeMs` (the age rule, in {@link planRetention}); and a
+ * {@link VerifiedArchive} read back from storage holds the row
+ * ({@link planPurge}). A row's `at` is finite because only the codec makes a
+ * row and its decode refuses any other (ADR-QD-190), so the rule has no case
+ * for an unknown age. Fail-closed for a deletion selector means retaining,
  * never expiring: a wrong retain keeps a row too long, a wrong purge destroys
  * evidence that may never have been archived. {@link planPurge} is the only
  * function here that returns rows to delete (INV-QD-101, INV-QD-130).
@@ -43,14 +45,11 @@ export class RetentionInputInvalid extends Data.TaggedError("RetentionInputInval
  * `retained` and `expired` partition the input — `retained ∪ expired =
  * entries`, `retained ∩ expired = ∅` (INV-QD-053). `expired` is rows past
  * their age; it is a report, **not a purge selection** — nothing here knows
- * whether a row was archived (see {@link planPurge}). `undated` is the part of
- * `retained` whose `at` is not a finite number (`NaN`, `±Infinity`): such a
- * row's age is unknown, so it is kept, and reported here rather than silently.
+ * whether a row was archived (see {@link planPurge}).
  */
 export interface RetentionPlan {
   readonly retained: ReadonlyArray<AuditEntry>;
   readonly expired: ReadonlyArray<AuditEntry>;
-  readonly undated: ReadonlyArray<AuditEntry>;
 }
 
 /**
@@ -58,10 +57,9 @@ export interface RetentionPlan {
  *
  * Refuses `RetentionInputInvalid` when `now` is not finite or `maxAgeMs` is
  * `NaN` or negative (`+Infinity` is valid and means "retain forever").
- * Otherwise one pass: a row with a non-finite `at` is retained and `undated`;
- * one with `now - at > maxAgeMs` is expired; the rest are retained. Use it to
- * see what would expire before an archive exists; to select rows for deletion
- * use {@link planPurge}, which needs the archive.
+ * Otherwise one pass: a row with `now - at > maxAgeMs` is expired and the rest
+ * are retained. Use it to see what would expire before an archive exists; to
+ * select rows for deletion use {@link planPurge}, which needs the archive.
  */
 export const planRetention = (
   entries: ReadonlyArray<AuditEntry>,
@@ -76,19 +74,14 @@ export const planRetention = (
   }
   const retained: Array<AuditEntry> = [];
   const expired: Array<AuditEntry> = [];
-  const undated: Array<AuditEntry> = [];
   for (const entry of entries) {
-    const at = entry.record.at;
-    if (!Number.isFinite(at)) {
-      retained.push(entry);
-      undated.push(entry);
-    } else if (now - at > policy.maxAgeMs) {
+    if (now - entry.record.at > policy.maxAgeMs) {
       expired.push(entry);
     } else {
       retained.push(entry);
     }
   }
-  return Result.succeed({ retained, expired, undated });
+  return Result.succeed({ retained, expired });
 };
 
 /**
@@ -97,14 +90,13 @@ export const planRetention = (
  * `purge` and `retain` partition the input. `purge` holds only rows past their
  * age that the archive also holds; `unarchived` is the age-expired rows the
  * archive does not hold (they are in `retain`, so the caller can see what is
- * waiting on an archive); `undated` is as in {@link RetentionPlan}.
+ * waiting on an archive).
  * `sequenceIntegrityVerified` is the archive's own flag, copied for the
  * caller — an unsequenced trail can still be purged.
  */
 export interface PurgePlan {
   readonly purge: ReadonlyArray<AuditEntry>;
   readonly retain: ReadonlyArray<AuditEntry>;
-  readonly undated: ReadonlyArray<AuditEntry>;
   readonly unarchived: ReadonlyArray<AuditEntry>;
   readonly sequenceIntegrityVerified: boolean;
 }
@@ -155,7 +147,6 @@ export const planPurge = (
     return {
       purge,
       retain,
-      undated: age.undated,
       unarchived,
       sequenceIntegrityVerified: archive.sequenceIntegrityVerified,
     };

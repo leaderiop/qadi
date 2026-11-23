@@ -56,6 +56,12 @@ const recordWith = (extra: Record<string, unknown>): Record<string, unknown> => 
 const archiveRefusalOf = (input: unknown) =>
   Result.match(readAuditArchive(input), { onSuccess: () => undefined, onFailure: (error) => error.refusal });
 
+/** The row decoder's refusals for a row that is not an object, or has no record. */
+const missingRecord = DecodeRefusal.Malformed({
+  message: 'Missing key\n  at ["record"]',
+});
+const notAnObject = DecodeRefusal.Malformed({ message: "Expected object" });
+
 /** The refusal `decodeAuditEntry` gives, or `undefined` when it accepts. */
 const rowRefusalOf = (input: unknown) =>
   Result.match(decodeAuditEntry(input), { onSuccess: () => undefined, onFailure: (error) => error.refusal });
@@ -138,8 +144,8 @@ describe("decodeAuditEntry", () => {
     assert.isTrue(Result.isSuccess(decodeAuditEntry(row(0))));
   });
 
-  it("no record -> Malformed with the message `an audit row has no record`", () => {
-    assert.deepStrictEqual(rowRefusalOf({}), DecodeRefusal.Malformed({ message: "an audit row has no record" }));
+  it("no record -> Malformed naming the missing key", () => {
+    assert.deepStrictEqual(rowRefusalOf({}), missingRecord);
   });
 
   it("a record nested past the bound -> TooDeep naming 256", () => {
@@ -222,10 +228,11 @@ describe("the audit row per policy: refuse (KEYP-05, D-11)", () => {
     );
   });
 
-  it("A11 5, null, [] and {} -> Malformed, the row has no record", () => {
-    for (const input of [5, null, [], {}]) {
-      assert.deepStrictEqual(rowRefusalOf(input), DecodeRefusal.Malformed({ message: "an audit row has no record" }));
+  it("A11 5, null and [] -> not an object; {} -> the missing record", () => {
+    for (const input of [5, null, []]) {
+      assert.deepStrictEqual(rowRefusalOf(input), notAnObject);
     }
+    assert.deepStrictEqual(rowRefusalOf({}), missingRecord);
   });
 
   it("A12 record 5 and record null -> Malformed", () => {

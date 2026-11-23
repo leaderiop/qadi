@@ -40,6 +40,21 @@ export interface ArchivalOptions {
 }
 
 /**
+ * {@link archiveAuditTrail} refused its input: `now` is not a finite number.
+ * `value` is the offending number.
+ *
+ * A non-finite `createdAt` is a bundle {@link readAuditArchive} refuses as
+ * `Malformed`, so the writer refuses it first rather than hand a store an
+ * archive that blocks every purge needing it. Shaped like `RetentionInputInvalid`
+ * (`Retention.ts`), and a different error, because `field` names which call
+ * refused (ADR-QD-190).
+ */
+export class ArchiveInputInvalid extends Data.TaggedError("ArchiveInputInvalid")<{
+  readonly field: "now";
+  readonly value: number;
+}> {}
+
+/**
  * The bundle {@link archiveAuditTrail} builds. **Not tamper-evident** (WD-07,
  * see the package README's own "Not tamper-evident" section) — `keyMaterial`
  * is carried, never used to sign or verify anything, and
@@ -84,11 +99,16 @@ const ARCHIVE_VERSION = "1";
 
 /**
  * Builds the bundle from the entries' facts (`archiveFacts`, ADR-QD-110). Fails
- * with `SequenceNumberInvalid` for a `sequenceNumber` that is not a safe integer
- * (one `readAuditArchive` could not decode), and with `SequenceIntegrityError`
- * rather than archiving a set of rows already known to have a gap or a
- * duplicate — an archive exists to be trusted later, so it refuses to be built
- * on a foundation this package can already tell is broken.
+ * with `ArchiveInputInvalid` for a `now` that is not finite, before the entries
+ * are read, and otherwise only with `SequenceIntegrityError`, rather than
+ * archiving a set of rows already known to have a gap or a duplicate. An archive
+ * exists to be trusted later, so it refuses to be built on a foundation this
+ * package can already tell is broken, or one its own reader would refuse.
+ *
+ * The rows are made by the codec, so each is one `readAuditArchive` decodes back
+ * (ADR-QD-190). Each `keyMaterial` item is written as its three declared fields,
+ * never judged and never carried with an extra property of a wider value, so a
+ * private key or a secret on the object a host passes does not reach the archive.
  *
  * The sequence check tolerates and is tested against entries arriving out of
  * write order — it checks the *sequence numbers*, not array order.
@@ -112,7 +132,13 @@ export const archiveAuditTrail = Effect.fn("qadi.audit.archiveAuditTrail")(funct
   now: number,
   options?: ArchivalOptions,
 ) {
+  if (!Number.isFinite(now)) {
+    return yield* Effect.fail(new ArchiveInputInvalid({ field: "now", value: now }));
+  }
   const facts = yield* verifiedArchiveFacts(entries);
+  const keyMaterial = options?.keyMaterial?.map(
+    ({ keyId, algorithm, publicKey }) => ({ keyId, algorithm, publicKey }),
+  );
 
   const archive: AuditArchive = {
     archiveVersion: ARCHIVE_VERSION,
@@ -122,7 +148,7 @@ export const archiveAuditTrail = Effect.fn("qadi.audit.archiveAuditTrail")(funct
       sequenceIntegrityVerified: facts.sequenceIntegrityVerified,
     },
     entries: facts.ordered,
-    ...(options?.keyMaterial === undefined ? {} : { keyMaterial: options.keyMaterial }),
+    ...(keyMaterial === undefined ? {} : { keyMaterial }),
   };
   return archive;
 });

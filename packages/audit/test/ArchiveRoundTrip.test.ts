@@ -7,17 +7,17 @@
  * ({@link readAuditArchive}) order, claim rule and sequence-break check into it
  * had to leave every behavior here unchanged; the file imports only the public
  * modules for that reason. The last property, over the whole `number` domain,
- * was added after code review found the writer archiving sequence numbers the
- * reader refuses (WR-01, ADR-QD-110).
+ * reads the safe-integer rule at the codec, where it is stated once, and holds
+ * the writer to the reader on every row the codec makes (ADR-QD-110, ADR-QD-190).
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Result from "effect/Result";
 import * as FastCheck from "fast-check";
 import { ArchiveRefusal, archiveAuditTrail, readAuditArchive } from "../src/AuditArchive.ts";
-import { encodeAuditEntry } from "../src/AuditEntry.ts";
+import { decodeAuditEntry, encodeAuditEntry } from "../src/AuditEntry.ts";
 import type { AuditEntry } from "../src/AuditEntry.ts";
-import { decisionRecord } from "./helpers.ts";
+import { decisionRecord, numbered } from "./helpers.ts";
 
 /** Twelve structurally distinct rows, each encoded once: the evaluationIds differ. */
 const pool: ReadonlyArray<AuditEntry> = Array.from({ length: 12 }, (_, i) =>
@@ -50,7 +50,9 @@ const intactInput = FastCheck.tuple(
   FastCheck.integer({ min: 0, max: 6 }),
   FastCheck.integer({ min: 0, max: 6 }),
 ).chain(([start, k, u]) => {
-  const rows = pool.slice(0, k + u).map((entry, i) => (i < k ? { ...entry, sequenceNumber: start + i } : entry));
+  const rows = pool
+    .slice(0, k + u)
+    .map((entry, i) => (i < k ? numbered(entry, start + i) : entry));
   return FastCheck.shuffledSubarray(rows, { minLength: k + u, maxLength: k + u }).map((input) => ({
     start,
     k,
@@ -233,7 +235,7 @@ describe("PROPERTY: the writer refuses exactly the inputs the reader reports as 
         const entries = numbers.flatMap((sequenceNumber, i) => {
           const entry = pool[i];
           if (entry === undefined) return [];
-          return [sequenceNumber === undefined ? entry : { ...entry, sequenceNumber }];
+          return [sequenceNumber === undefined ? entry : numbered(entry, sequenceNumber)];
         });
         const writer = Effect.runSync(Effect.result(archiveAuditTrail(entries, 0)));
         const read = readAuditArchive({
@@ -256,13 +258,15 @@ describe("PROPERTY: the writer refuses exactly the inputs the reader reports as 
   });
 });
 
-describe("PROPERTY: over any number, the writer refuses what the reader would refuse, and the reader accepts the rest", () => {
+describe("PROPERTY: over any number, the codec sets the domain and the writer", () => {
   // Small integers to make contiguous runs likely, and every kind of number the
   // TypeScript type admits but the AuditEntry codec does not.
   const anyNumber = FastCheck.oneof(
     FastCheck.integer({ min: 0, max: 4 }),
     FastCheck.double(),
     FastCheck.constantFrom(
+      Number.MAX_SAFE_INTEGER,
+      -Number.MAX_SAFE_INTEGER,
       2 ** 53,
       2 ** 53 + 2,
       -(2 ** 53),
@@ -274,31 +278,61 @@ describe("PROPERTY: over any number, the writer refuses what the reader would re
       1.5,
     ),
   );
-  const maybeNumbered = FastCheck.array(FastCheck.option(anyNumber, { nil: undefined }), { maxLength: 8 });
+  const safeNumber = FastCheck.oneof(
+    FastCheck.integer({ min: 0, max: 4 }),
+    FastCheck.constantFrom(
+      Number.MAX_SAFE_INTEGER,
+      Number.MAX_SAFE_INTEGER - 1,
+      -Number.MAX_SAFE_INTEGER,
+    ),
+  );
+  const optional = FastCheck.option(safeNumber, { nil: undefined });
+  const maybeNumbered = FastCheck.array(optional, { maxLength: 8 });
 
-  it("fails SequenceNumberInvalid at the first non-safe-integer, and otherwise writes only readable bundles", () => {
+  it("decodeAuditEntry reads a safe integer, and refuses any other as Malformed", () => {
+    const record = pool[0]?.record ?? assert.fail("the pool is empty");
+    FastCheck.assert(
+      FastCheck.property(anyNumber, (sequenceNumber) => {
+        const decoded = decodeAuditEntry({ record, sequenceNumber });
+        if (Number.isSafeInteger(sequenceNumber)) {
+          assert.isTrue(Result.isSuccess(decoded));
+          return;
+        }
+        if (!Result.isFailure(decoded)) return assert.fail("an unsafe number was read");
+        assert.strictEqual(decoded.failure.refusal._tag, "Malformed");
+      }),
+      { numRuns: 500 },
+    );
+  });
+
+  it("fails as the reader reads, and otherwise writes a readable bundle", () => {
     FastCheck.assert(
       FastCheck.property(maybeNumbered, (numbers) => {
         const entries = numbers.flatMap((sequenceNumber, i) => {
           const entry = pool[i];
           if (entry === undefined) return [];
-          return [sequenceNumber === undefined ? entry : { ...entry, sequenceNumber }];
+          return [sequenceNumber === undefined ? entry : numbered(entry, sequenceNumber)];
         });
-        // The test's own oracle for the domain, stated independently of the source.
-        const firstInvalid = entries.findIndex(
-          (entry) => entry.sequenceNumber !== undefined && !Number.isSafeInteger(entry.sequenceNumber),
-        );
         const writer = Effect.runSync(Effect.result(archiveAuditTrail(entries, 0)));
 
-        if (firstInvalid !== -1) {
-          if (!Result.isFailure(writer)) return assert.fail("the writer archived a non-safe-integer sequence number");
-          if (writer.failure._tag !== "SequenceNumberInvalid") return assert.fail("expected SequenceNumberInvalid");
-          assert.strictEqual(writer.failure.index, firstInvalid);
-          assert.isTrue(Object.is(writer.failure.sequenceNumber, entries[firstInvalid]?.sequenceNumber));
-          return;
-        }
         if (Result.isFailure(writer)) {
-          assert.strictEqual(writer.failure._tag, "SequenceIntegrityError");
+          if (writer.failure._tag !== "SequenceIntegrityError") {
+            return assert.fail("expected SequenceIntegrityError");
+          }
+          const read = readAuditArchive({
+            archiveVersion: "1",
+            metadata: {
+              createdAt: 0,
+              entryCount: entries.length,
+              sequenceIntegrityVerified: false,
+            },
+            entries: stored(entries),
+          });
+          if (!Result.isFailure(read)) return assert.fail("a refused bundle was read");
+          const refusal = read.failure.refusal;
+          if (refusal._tag !== "SequenceBroken") return assert.fail(refusal._tag);
+          assert.strictEqual(writer.failure.expectedSequence, refusal.expectedSequence);
+          assert.strictEqual(writer.failure.actualSequence, refusal.actualSequence);
           return;
         }
         assert.isTrue(Result.isSuccess(readAuditArchive(stored(writer.success))));

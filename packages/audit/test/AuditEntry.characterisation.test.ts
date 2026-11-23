@@ -54,7 +54,8 @@ const refusalOf = (input: unknown) =>
   });
 
 const malformed = (message: string) => DecodeRefusal.Malformed({ message });
-const noRecord = malformed("an audit row has no record");
+const notAnObject = malformed("Expected object");
+const noRecord = malformed('Missing key\n  at ["record"]');
 const notAnInteger = malformed('Expected an integer\n  at ["sequenceNumber"]');
 
 interface MatrixRow {
@@ -64,10 +65,10 @@ interface MatrixRow {
 }
 
 const matrix: ReadonlyArray<MatrixRow> = [
-  { name: "null", input: null, refusal: noRecord },
-  { name: "a string", input: "a row", refusal: noRecord },
-  { name: "a number", input: 5, refusal: noRecord },
-  { name: "an array", input: [], refusal: noRecord },
+  { name: "null", input: null, refusal: notAnObject },
+  { name: "a string", input: "a row", refusal: notAnObject },
+  { name: "a number", input: 5, refusal: notAnObject },
+  { name: "an array", input: [], refusal: notAnObject },
   { name: "an empty object", input: {}, refusal: noRecord },
   {
     name: "a record that is undefined",
@@ -128,7 +129,7 @@ const matrix: ReadonlyArray<MatrixRow> = [
   {
     name: "a bad record, a bad sequence number and an extra key",
     input: { record: { version: 2 }, sequenceNumber: 1.5, extra: 1 },
-    refusal: malformed('Missing key\n  at ["_tag"]\nMissing key\n  at ["_tag"]'),
+    refusal: malformed('Expected no excess property\n  at ["extra"]'),
   },
 ];
 
