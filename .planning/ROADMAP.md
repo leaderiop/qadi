@@ -643,14 +643,14 @@ Plans:
   4. The `edit` comment at `:534` is true: every draft write goes through one path, or the comment is corrected to say which writes do not.
   5. ADR-QD-187 records the split with ADR-QD-137 and ADR-QD-150 untouched and ADR-QD-047 v1.11 (the menu under the session) still holding.
 
-**Plans**: 1/7 plans executed (strictly serial, waves 1 to 7)
+**Plans**: 2/7 plans executed (strictly serial, waves 1 to 7)
 
 Plans:
 **Wave 1**
 - [x] 74-01-PLAN.md — base facts, the mutation base of the session and the held choice, the shared simulation test helpers, the 35-row characterisation green on the base
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 74-02-PLAN.md — ADR-QD-187 with its five rule sentences, its index entry and §3 row, CCR-QD-466, and the dated amendments to BEH-QD-466, BEH-QD-460 and INV-QD-107
+- [x] 74-02-PLAN.md — ADR-QD-187 with its five rule sentences, its index entry and §3 row, CCR-QD-466, and the dated amendments to BEH-QD-466, BEH-QD-460 and INV-QD-107
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 74-03-PLAN.md — `SeededChoice.ts` as a pure module, the three types moved through the barrel and the overview, its rules as plain values, its type pins, each rule gutted once
@@ -717,6 +717,6 @@ Phases execute in numeric order: 69 → 70 → 71 → 72 → 73 → 74 → 75 �
 | 71. Developer-signal reporters resolved through one table | 8/8 | Complete    | 2026-11-22 |
 | 72. A derived store behind the dock model's stores | 8/8 | Complete    | 2026-11-22 |
 | 73. One pure reconcile for gate registration | 7/7 | Complete    | 2026-11-23 |
-| 74. The simulation session's policy choice split from its runs | 1/7 | In Progress | - |
+| 74. The simulation session's policy choice split from its runs | 2/7 | In Progress | - |
 | 75. A declared span shape for the evaluate family | 0/TBD | Not started | - |
 | 76. Remedies uses core's signature match | 0/TBD | Not started | - |

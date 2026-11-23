@@ -4,18 +4,18 @@ milestone: v1.8
 milestone_name: Arch Wave 13
 current_phase: 74
 current_phase_name: The simulation session's policy choice split from its runs
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: Completed 74-01-PLAN.md
-last_updated: "2026-11-23T03:56:37.985Z"
+stopped_at: Completed 74-02-PLAN.md
+last_updated: "2026-11-23T04:03:57.894Z"
 last_activity: 2026-11-23
 last_activity_desc: Phase 73 complete, transitioned to Phase 74
-state_head: f0464081b3dd3d31ba4780fba3fc81f389cefabe
+state_head: b68006b846341c859b79d0b1286854cef23475e0
 progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 46
-  completed_plans: 40
+  completed_plans: 41
   percent: 63
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 ## Current Position
 
 Phase: 74 (The simulation session's policy choice split from its runs) — READY TO EXECUTE
-Current Plan: 2
+Current Plan: 3
 Total Plans in Phase: 7
 Status: Ready to execute
 Last activity: 2026-11-23 — Phase 73 complete, transitioned to Phase 74
@@ -530,6 +530,7 @@ Last activity: 2026-11-23 — Phase 73 complete, transitioned to Phase 74
 | Phase 73 P06 | 25 min | 2 tasks | 4 files |
 | Phase 73 P07 | 30 min | 3 tasks | 4 files |
 | Phase 74 P01 | 20 min | 2 tasks | 7 files |
+| Phase 74 P02 | 10 min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -913,6 +914,7 @@ Last activity: 2026-11-23 — Phase 73 complete, transitioned to Phase 74
 - [Phase 73]: 73-07: the mutation close held every base score (GateWriter.ts 97/97, useGate.ts 44/45, no new open or Ignored mutant), so no test was added and EXAMINED stays empty; RECN-01 to RECN-05 marked complete after a green check:pr; RECN-03 is closed under the reading of ADR-QD-186 (one registration effect beside the writer-keyed teardown)
 - [Phase 74]: The mutation base was measured with the helper move kept out of the tree, so no phase test or fixtures file existed while Stryker ran
 - [Phase 74]: judgeNew of a close-only file reports an Ignored mutant as unexamined unless EXAMINED admits its kind, and a stale EXAMINED entry as removable
+- [Phase 74]: 74-02: ADR-QD-187 written with the five rule sentences verbatim; the CCR-QD-466 row names only files that exist at plan end, 74-06 adds code and test files
 
 ### Pending Todos
 
@@ -986,8 +988,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-23T03:56:30.152Z
-Stopped at: Completed 74-01-PLAN.md
+Last session: 2026-11-23T04:03:57.547Z
+Stopped at: Completed 74-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
