@@ -140,7 +140,7 @@ const evictedEntry = (sighting: PolicySighting): readonly [string, string] => [
   `${sighting.label} — no longer in the log`,
 ];
 
-/** The choice of row 15: sB was chosen, then the rail dropped it. */
+/** A choice that held sB and then lost it from the rail, so it reads as Evicted. */
 const evictedBeyondRail = () =>
   withSightings(choose(start([named, sB]), roleB), [named]);
 
