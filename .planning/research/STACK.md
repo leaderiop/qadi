@@ -1,211 +1,209 @@
-# Stack Research: v1.7 Arch Wave 12 (Phases 62-68)
+# Stack Research: v1.9 Arch Wave 14 (Phases 77-80)
 
-**Domain:** tech-debt resolution in an existing Effect v4 library (no new features)
-**Researched:** 2026-11-20
-**Confidence:** HIGH. Every behaviour below was either probed with a throwaway file (deleted afterwards; `git status` shows no probe file left) or read from the installed source. Anything not verified is marked **unverified**.
+**Domain:** internal architecture deepening in an existing Effect v4 monorepo (no new features, no new dependencies)
+**Researched:** 2026-11-23
+**Confidence:** HIGH. Versions come from `node_modules/*/package.json` and `pnpm-lock.yaml`. The brand behaviour was probed with a throwaway typechecked file (compiled under `tsconfig.base.json` with `@ts-expect-error` on both negative cases, run once with `tsx`, then deleted; `git status packages/audit` shows no leftover). Everything else was read from the files cited.
 
-**Bottom line: add no dependency, change no version, add no tool.** The one real finding is a root cause for Phase 62, and it has a fix that needs no pin rewrite (a tsconfig line), plus the rewrite forms the context already planned.
+## Verdict
 
-## Installed versions (what the claims are about)
+**Add nothing. Upgrade nothing. Every phase is served by APIs already installed and already used in the repo.** The only decision a roadmapper needs is which brand idiom Phase 77 uses (below); the rest is wiring existing pieces.
 
-| Tool | Version | Evidence |
-|------|---------|----------|
-| tstyche | 7.2.5 (npm `latest`; `next` is 8.0.0-beta.0, not evaluated) | `node_modules/tstyche/package.json`; `npm view tstyche dist-tags` |
-| TypeScript **tstyche runs on** | 6.0.3 (JS compiler API, fetched into tstyche's store) | `tstyche.json` `"target": "6.0.3"`; run header "uses TypeScript 6.0.3 with ./tsconfig.test.json" |
-| TypeScript **the `typecheck` gate runs on** | 7.0.2 native (`tsgo`) patched by `@effect/tsgo` 0.67.5 | `node_modules/.bin/tsc --version` prints `Version 7.0.2+effect-tsgo.0.67.5`; `pnpm-workspace.yaml:32` `typescript: ^7.0.0` |
-| @effect/language-service (plugin tstyche loads) | 0.87.5 | `node_modules/@effect/language-service/package.json` |
-| effect | 4.1.2 | `node_modules/effect/package.json` |
-| vitest / @effect/vitest | 5.1.0 / 4.1.2 | their `package.json` |
-| Stryker core / vitest-runner | 10.1.1 / 10.1.1 | their `package.json` |
-| Node | engines `>=22.12.0` (local 26.13.0) | `package.json:75` |
+## Installed Versions (read, not remembered)
 
-Two TypeScripts matter: a `.tst.ts` is judged by 6.0.3 under tstyche and by 7.0.2 under `pnpm typecheck` (`tsconfig.test.json` includes `packages/*/test/**/*.ts`). A pin must hold under both.
+| Package | Version | Source |
+|---------|---------|--------|
+| `effect` | 4.1.2 | `node_modules/effect/package.json`; `pnpm-lock.yaml` (`effect@4.1.2`); catalog `effect: latest` in `pnpm-workspace.yaml`, peer range `^4.0.0` |
+| `@effect/atom-react` | 4.1.2 | `node_modules/@effect/atom-react/package.json`; `@qadi/react` only |
+| `react` / `react-dom` | 19.3.1 | `node_modules/react/package.json`, `packages/devtools/node_modules/react/package.json`; catalog pins `19.3.1`; peer range `>=19.2.4` (`packages/devtools/package.json`, `packages/react/package.json`) |
+| `@types/react` / `@types/react-dom` | 19.3.0 | `pnpm-workspace.yaml` catalog |
+| `typescript` | `^7.0.0` | `pnpm-workspace.yaml` catalog |
+| `vitest` / `@effect/vitest` | 5.1.0 / 4.1.2 | `pnpm-workspace.yaml`, `pnpm-lock.yaml` |
+| `@testing-library/react` | `^16.3.3` | `pnpm-workspace.yaml` |
 
----
+`@qadi/devtools` has `react` as a peer only (`packages/devtools/package.json:51`); it does not depend on `@effect/atom-react`. Phase 80 touches `@qadi/react` only to delete a field, so no cross-package dependency changes.
 
-## 1. Why `expect(f).type.not.toBeCallableWith(args)` passes for any Effect-returning `f` (Phase 62)
+## Recommended Stack per Phase
 
-### Root cause (HIGH, probed + source)
+### Phase 77: `AuditEntry` as a value only its codec makes (`@qadi/audit`)
 
-It is not tstyche's matcher and not the Effect type. It is the **`floatingEffect` diagnostic of `@effect/language-service`**, which tstyche loads because `tsconfig.test.json` (via `tsconfig.base.json` `compilerOptions.plugins`) names the plugin with `"diagnostics": true`.
+| API | Where it lives | Purpose | Why |
+|-----|----------------|---------|-----|
+| `effect/Brand` `Brand.nominal<T>()` and `Brand.Brand<"X">` | `node_modules/effect/dist/Brand.d.ts`; used at `packages/audit/src/SignatureLedger.ts:46-48`, `packages/core/src/Identity.ts:44-51`, `packages/core/src/Qadi.ts:276` | Mint the branded row inside `encodeAuditEntry`/`decodeAuditEntry` | The house idiom for "a value only this module makes" and what `SignatureLedgerKey` already does in the same package. Zero runtime cost: `Brand.nominal` returns its argument unchanged (probe printed the plain object back). No new import style, no new dependency. |
+| `effect/Schema` `Schema.brand("AuditEntry")` | `node_modules/effect/dist/Schema.d.ts:4374-4398`; used at `packages/core/src/Policy.ts:155-167` | Only if the row's own struct stays a public schema | Narrows `Type` to `S["Type"] & Brand.Brand<B>`. Adds no runtime check and does not change the encoded side (doc at `Schema.d.ts:4386`). |
+| `untrustedDecoder` with `unwalked` | `packages/core/src/UntrustedDecode.ts:154-158, 224-275` | Envelope-first row decode | Already supports exactly what Phase 77 asks (details below). |
 
-Mechanism, from `node_modules/tstyche/dist/api.js`:
+**Recommendation: `Brand.nominal`, not `Schema.brand`.** Reasons, in order:
 
-1. `AbilityLayer.visitExpect` (line ~3488) rewrites `expect(f).type.toBeCallableWith(a)` into the expression statement `;(f)(a)` in an edited copy of the file (`update(expectStart, expectExpressionEnd, ";")` and `erase(expectEnd, matcherNameEnd)`). `toBeConstructableWith` is rewritten to `new(f)(a)` the same way (line ~3508).
-2. `Layers.close` (line ~3764) asks the project service for the diagnostics of that edited text, and `AbilityLayer.close` (line ~3412) attaches every one that lands on the matcher or its source to `expectNode.abilityDiagnostics`.
-3. `ToBeCallableWith.match` (line 5390-5393) is `isMatch: expectNode.abilityDiagnostics.size === 0`. Any diagnostic at all, of any code, means "not callable".
-4. A bare call whose result is an Effect or a Stream is an expression statement that is "neither yielded nor used in an assignment", so the plugin adds `effect(floatingEffect)` to it. That diagnostic is there for valid arguments too.
+1. The row's decoded `record` is not produced by a schema at all. `decodeAuditEntry` builds `{ record: decoded.success.json, sequenceNumber }` by hand from `decodeSinkRecordWithJson`'s JSON form (`packages/audit/src/AuditEntry.ts:157`), and the envelope schema types `record` as `Schema.Unknown` (`AuditEntry.ts:118`). A `Schema.brand` on that struct would brand a value whose `record` is `unknown`, not the `SinkRecordJson` the type promises. The brand has to be applied where the finished row is assembled, and `Brand.nominal` is the tool for "tag a value you have already built".
+2. `Schema.brand` on the exported `AuditEntry` schema would leave `Schema.decodeUnknown(AuditEntry)` as a second, unguarded way to mint a branded row. That is the defect the brand exists to prevent (the doc comment at `AuditEntry.ts:21-24` already warns against reading a row "with this schema alone"). If the roadmap keeps the schema public, it must be the **unbranded** struct, with the brand applied only inside the two codec functions.
+3. `AGENTS.md` §6 forbids `as`. `Brand.nominal<AuditEntry>()({...})` is the sanctioned cast-free constructor.
 
-Consequence: for an Effect or Stream returning subject, `not.toBeCallableWith` is `true` always (vacuous, silent), and the positive `toBeCallableWith` is `false` always (loud, spurious failure).
+**Verified by probe** (`tsc` clean, `tsx` ran):
+- `Row.pipe(Schema.brand("AuditEntry"))` gives `Type = {...} & Brand<"AuditEntry">`; the decode success value is assignable to it; a plain literal `{ record: 1, sequenceNumber: undefined }` is **not** assignable (negative `@ts-expect-error` held).
+- `Brand.nominal<Nom>()` accepts an object type (not only primitives): `mk({...})` returns the same object; a bare literal is not assignable to `Nom`.
+- `Schema.brand` identifier must be a single string literal (`EnsureSingleBrandKey`, `Schema.d.ts:4353`; same note at `packages/core/src/Policy.ts:149`).
 
-Probe, same file, default config (`ZzProbe1.tst.ts`, deleted):
+**What the brand does and does not guarantee.** Both brands are compile-time only. `Brand.nominal` is publicly exported, so another module can mint one (`packages/core/src/Qadi.ts:256-270` documents the same forgeability for `Authorized`). Phase 77's claim must be worded "archive, retention and the archive facts trust a row without re-checking it", not "unforgeable". Do not export a `makeAuditEntry` or the brand constructor from the barrel (`packages/audit/src/index.ts:3` is `export * from "./AuditEntry.ts"`, so anything exported from `AuditEntry.ts` is public; keep the minting constructor module-private, or move it to a non-barrel file as `PortDerivation.ts`-style scaffolding is, AGENTS.md §9).
 
-| Subject | Pin | Should | Got |
-|---------|-----|--------|-----|
-| `(n: number) => Effect<number>` | `toBeCallableWith(1)` | pass | **fail** |
-| same | `toBeCallableWith("x")` | fail | fail |
-| same | `not.toBeCallableWith(1)` | fail | **pass (vacuous)** |
-| same | `not.toBeCallableWith("x")` | pass | pass |
-| `(n: number) => number` | all four | as stated | all correct |
-| `Effect<_, never, Scope>`, `Stream` | `toBeCallableWith(1)` | pass | **fail** |
-| `Stream` | `not.toBeCallableWith(1)` | fail | **pass (vacuous)** |
-| `Layer`, `Option` returning | positive and negative | as stated | **correct** (not affected) |
+**Envelope-first decode: no new stack, one behavioural difference to settle.**
+- `untrustedDecoder(schema, { unknownKeys, unwalked })` already takes `unwalked: ReadonlyArray<UnwalkedKey<A>>`, where a key is allowed only if its `Encoded` type is `unknown` or `ReadonlyArray<unknown>` (`UntrustedDecode.ts:121-130, 154-158`). The audit row already uses it: `Schema.Struct({ record: Schema.Unknown, sequenceNumber })` with `unwalked: ["record"]` (`AuditEntry.ts:117-120`), and the archive envelope does the same with `entries` (`AuditArchive.ts:258`).
+- The fixed order inside the decoder is project, guard (skipping unwalked keys), `prepare`, strict decode (`UntrustedDecode.ts:152-153, 248-260`).
+- Core's stored-record read is the model: `storedWire = untrustedDecoder(StoredEnvelopeWire, { unknownKeys: "ignore", unwalked: ["record"] })`, then `decodeSinkRecord(read.success.record)` on the already-decoded `record` (`packages/core/src/SinkCodec.ts:589-603, 612-621`).
+- **The audit row today runs the opposite order**: `decodeSinkRecordWithJson(input.record)` first, then `decodeRow(input)` (`AuditEntry.ts:152-156`), and it uses `unknownKeys: "refuse"` where core's stored envelope uses `"ignore"` (`AuditEntry.ts:119` vs `SinkCodec.ts:603`). Phase 77 flips the order by calling `decodeRow` first and passing `row.success.record` to `decodeSinkRecordWithJson`. The `Predicate.hasProperty(input, "record")` pre-check at `AuditEntry.ts:152` reads `input.record` before any guard and goes away with the flip (the schema's own `Missing key` refusal replaces it, as the stored read documents at `SinkCodec.ts:618-620`).
+- **Decision for the planner, not a stack question:** `refuse` versus `ignore` on the row's top level. `refuse` keeps today's behaviour; `ignore` matches core and the additive-metadata argument at `SinkCodec.ts:594-598` but changes what `decodeAuditEntry` accepts and therefore the writer/reader agreement (`ArchiveFacts.ts:56-57`, ADR-QD-110). Either is expressible with the existing option; the choice is a spec/ADR call.
+- If `ignore` is chosen, the schema must be an object or a union of objects with distinct literal tags, or the decoder throws at build time (`UntrustedDecode.ts:149-151`). A plain `Struct` qualifies.
+- The shared constant `SequenceNumber = Schema.optional(Schema.Int)` (`AuditEntry.ts:56`) and `ArchiveFacts.ts`'s own `Schema.Int` must stay in agreement (`ArchiveFacts.ts:56-57`); a RED test for the unreadable archive should be written against that pair.
 
-So the blind spot affects Effect and Stream subjects only. `PortAccess.tst.ts` and `Qadi.tst.ts:172` already carry a comment naming `effect(floatingEffect)` for `Stream`; `Facade.tst.ts:9` correctly says a `Promise` return is fine. The repo had the cause on three comments but not as a rule.
+**Budget interactions** (`AGENTS.md` §7a): `UNTRUSTED_DECODE_BUDGET` counts `onExcessProperty`, `exceedsJsonDepth`, `Schema.decode*` and `JSON.parse` tokens in `packages/*/src`. `AuditEntry.ts` is not on that table today (it goes through `untrustedDecoder`), so the flip must introduce none of those tokens; use `untrustedDecoder` only. `Schema.brand` is not a counted token. Test churn: about 36 `sequenceNumber:` / literal-row sites in `packages/audit/test` (16 in `AuditArchive.test.ts`, 8 in `Retention.test.ts`) and one in `features/features/wire-versions/wire-versions.steps.test.ts` will need to build rows through `encodeAuditEntry`/`decodeAuditEntry` (already the pattern at `packages/audit/test/Retention.test.ts:15, 34`) instead of literals; type pins `AuditArchive.tst.ts`, `Retention.tst.ts`, `AuditRefusal.tst.ts`, `AuditWriteOutcome.tst.ts` and `AuditPortReply.tst.ts` mention the type and may need a positive/negative pair (the `NOT_CALLABLE_PIN_BUDGET` rules, `AGENTS.md` §6, apply to any new `not.toBeCallableWith`).
 
-The positive form does **not** share the silent blind spot: it fails loudly on Effect and Stream, so a positive pin on such a subject can never be green. Consistent with that, no passing positive pin in the suite has an Effect or Stream subject (the suite is green).
+### Phase 78: `TimelineStore` owns capacity via a resize command (`@qadi/devtools`)
 
-### Replacement pin forms: which DO fail when broken (all probed under the default config)
+| API | Where | Purpose | Why |
+|-----|-------|---------|-----|
+| `makeExternalStore` (`set`, `publish`) | `packages/devtools/src/model/ExternalStore.ts:76-107` | The store's single view | Already what `makeTimelineStore` uses (`TimelineStore.ts:50`). `publish` notifies without a reference change, which a resize that empties the buffer needs. |
+| `emptyTimeline(options)` | `packages/devtools/src/model/Timeline.ts` (imported at `TimelineStore.ts:30`) | Rebuild the buffer at a new capacity | `makeTimelineStore` already calls it for `clear` (`TimelineStore.ts:80-85`); a resize is `clear` with a different `options.capacity`. |
 
-| Form | Holds when true | Fails when broken | Notes |
-|------|-----------------|-------------------|-------|
-| `expect<Parameters<typeof f>>().type.toBe<[n: number]>()` | yes | **yes** (`Type '[n: number]' is not the same as type '[n: string]'`) | Strongest: states the exact signature. |
-| `expect<Parameters<typeof f>[0]>().type.not.toBeAssignableFrom<X>()` | yes | **yes** (flipped to a member of the param type, it failed) | Pins one refused value. Must carry a positive control (`toBeAssignableFrom<ok>`), else a typo passes. |
-| `// @ts-expect-error <fragment>` then `void f(bad);` (or `const _x = f(bad); void _x;`) | yes | **yes**, three ways (below) | Pins the exact refusal text. |
-| `expect(f).type.toBeCallableWith(args)` positive, **non-Effect/Stream subject** | yes | **yes** | Fine on plain returns, `Layer`, `Option`, `Promise`. |
-| `expect(f).type.toBeCallableWith(args)` positive, **Effect/Stream subject** | **never** | n/a | Unusable. |
-| `expect(f).type.not.toBeCallableWith(args)`, Effect/Stream subject | always | **never** | The vacuous pin. |
-| `expect(C).type.not.toBeConstructableWith(args)` | yes | **yes** for a public constructor (`Expression is constructable with the given arguments`) | Works because a class instance is not an Effect. But it cannot name the reason (below). |
+No new API. The change is shape only: `TimelineStore.timeline`/`options` become mutable inside the closure and a command (name is the planner's) replaces `emptyTimeline(options)` with `emptyTimeline({ capacity })`, clears `frozen`, and `publish`es. `TimelineFeed.ts` then deletes `inner`, `view`, `push`, the six-member forwarder `timeline` object and `bounded` (`TimelineFeed.ts:111-146`), returns the one store, and `configure`'s resize branch calls the new command (`TimelineFeed.ts:176-190`).
 
-`// @ts-expect-error` inside a `.tst.ts` is **not** plain TypeScript. tstyche 7 erases the directive from the edited text and matches it itself (`SuppressedLayer`, api.js:3587; `SuppressedService.match`, api.js:4300). What I observed:
+Things to carry over, because they are behaviour not plumbing:
+- A capacity change today **drops** the old inner store without unsubscribing (`TimelineFeed.ts:178-180`) and the pause state goes with it (`frozen` lives in the old store). A resize command that empties the buffer must decide whether it also unfreezes; `clear` does (`TimelineStore.ts:83`). Keep that behaviour unless an ADR amends it (ADR-QD-137 is kept, per `PROJECT.md`).
+- The throw-ordering contract on `configure` (`TimelineFeed.ts:97-103`, `175-190`, the `try { push() } finally { readSource(...) }`) rests on `notify` rethrowing after all listeners run (ADR-QD-177, `ExternalStore.ts:21-31`). With one store the publish is `store.resize(...)`; the `try/finally` stays so a throwing timeline listener still cannot prevent the refill read.
+- `idleTimeline` (`TimelineFeed.ts:76-83`) is a literal `TimelineStore`; adding a member to the interface adds a no-op member there too, and `useTimelineStore`'s hand-fed store (`useTimeline.ts:92-101`) gets it free from `makeTimelineStore`.
+- `TimelineStore` is a public type (`packages/devtools/src/index.ts:134`) and `spec/overview.md` must name every export (gate 13, `AGENTS.md` §15), so a new member of the interface needs its row or the gate fails.
 
-- **A fragment is required**: `// @ts-expect-error not assignable to parameter of type 'number'`. A bare directive that suppresses something fails with "Directive requires an argument". The fragment is matched as a substring, `...` allowed (api.js:4342).
-- **Wrong reason fails**: fragment `expected 2 arguments` against an arity-vs-type mismatch gave "The diagnostic message did not match" and exit code 1; the summary prints `Suppressed: 1 failed`. This is the guard `not.toBeCallableWith` lacks (it accepts any diagnostic).
-- **Broken (valid) call fails twice**: tstyche reports `Unused '@ts-expect-error' directive. ts(2578)` and so does `tsc -p` (tsgo reports TS2578). Probed with both a `void`-prefixed and an assigned valid call.
-- **Only one error may sit on the line**: a bare `eff("x");` produces two diagnostics (`floatingEffect` and the real TS2345), so tstyche says "Only a single error can be suppressed".
-- **Do not write a bare Effect call.** `// @ts-expect-error` does not suppress the plugin's diagnostic under tsgo: `tsc -p` reported `TS377001 ... effect(floatingEffect)` as an **error** on the bare call lines, so `pnpm typecheck` would fail. `void f(bad);` and `const _x = f(bad); void _x;` are clean in both tools (probed; `noUnusedLocals` is satisfied by the `void _x`).
+### Phase 79: feeds and the dock model take inputs only through `configure` (`@qadi/devtools`)
 
-`not.toBeConstructableWith` details (probed with a generic class `Admitted<S extends Src = Src>` with a `private constructor` and a static factory, same shape as Phase 65):
+| API | Where | Purpose | Why |
+|-----|-------|---------|-----|
+| `sameFields` (module-private function) | `packages/devtools/src/model/ExternalStore.ts:146-153` | The per-field identity rule | Own enumerable string keys compared with `===`, an extra field counts as a change. It is the exact rule `makeDerivedStore.refresh` uses (`ExternalStore.ts:176-181`). Export it from the file (not the barrel) and have the feeds and `DockModel` call it. |
+| `useScoped(make)` | `packages/devtools/src/react/useScoped.ts:20-47` | Scope and build in a layout effect | Already the "scope" half. Built in `useLayoutEffect(..., [])`, closes on cleanup, `setValue(() => built)` so a function value is not taken for an updater, clears state on cleanup for hidden `Activity`. |
+| `useLayoutEffect` with a dependency list | `useDockModel.ts:55-59`, `useTimeline.ts:62-64`, `useDiagnostics.ts:42-44` | The "configure" half | Three copies of the same shape today; this is the duplication the new hook removes. |
+| `useSyncExternalStore` | `packages/devtools/src/react/useStoreSnapshot.ts:14` | Reads | Unchanged. The one call site stays the one call site. |
 
-- private constructor, right arguments: `not.toBeConstructableWith` passes; positive form fails with "Constructor of class 'Admitted<S>' is private and only accessible within the class declaration." Both are correct.
-- public constructor, right arguments: the negative form **fails** (so it is not vacuous).
-- **Reason-blind**: `expect(Open).type.not.toBeConstructableWith("asked")` (public constructor, wrong arity) passes. A negative pin cannot tell "private" from "wrong arguments". For `Admitted`, prefer `// @ts-expect-error is private and only accessible within the class declaration` on a `new Admitted(...)` line with correct arguments (probed: passes when private, fails with TS2578 when the constructor is public). Add `expect(Admitted.admit).type.toBeCallableWith(...)` as the positive control (probed OK; a static method on a class is not an Effect).
+**The per-field rule, written down from the code.** Today three different rules exist:
+1. `makeDerivedStore`: `sameFields` over the key (`ExternalStore.ts:146-153`).
+2. `makeDiagnosticsFeed.configure`: hand-written `next.layer !== before.layer || next.collector !== before.collector || next.intervalMillis !== before.intervalMillis` (`DiagnosticsFeed.ts:187-206`), so a field added to `DiagnosticsOptions` is silently not compared.
+3. `makeTimelineFeed.configure`: `next.capacity !== before.capacity`, then `next.source !== before.source` (`TimelineFeed.ts:176-190`); `makeGatesFeed.configure`: `next.gates !== registryNow`, `next.questions !== before.questions || next.intervalMillis !== before.intervalMillis` (`GatesFeed.ts:259-275`).
+4. `DockModel.configure`: `next.catalogue !== before.catalogue`, plus feed-by-feed forwarding (`DockModel.ts:275-302`).
 
-### Does a tstyche option, version or matcher fix it without rewriting pins? (report only, nothing upgraded)
+`sameFields`' own contract (`ExternalStore.ts:136-145`) is the one to adopt: `===` per own enumerable string-keyed field, fields on one side only count as a change, inherited/non-enumerable/symbol keys are ignored. Phase 72 already established that `makeDerivedStore` requires `K extends object & Required<K>` so the compiler refuses an optional field (`ExternalStore.ts:164-167`); a feed input type with optional members (`TimelineFeedInputs`, `DiagnosticsOptions`, `GatesFeedInputs`) cannot reuse that constraint directly. Two ways to compare an optional-field input: compare the object through `sameFields` (works for any `object`; `sameFields<K extends object>` has no `Required` bound, the bound is on `makeDerivedStore` only), or normalise each input to a `Required` shape with explicit `undefined`s. The first needs no new API. Note `exactOptionalPropertyTypes`: the inputs are declared `?: T | undefined`, which is why an omitted input "reads as `undefined`" (`TimelineFeed.ts:93-95`). `sameFields` treats a missing key and a key holding `undefined` as **different** (`fromB.has(field)`), so every `configure` caller must pass the full key set, or the rule must normalise first. That is precisely the "omitted reads as undefined" contract, so normalisation belongs in the shared rule.
 
-**Yes, by configuration of the plugin, not of tstyche.** tstyche has no matcher or option for this: `toBeCallableWith` always counts every diagnostic. Two verified ways to turn the plugin's rule off for the synthesized statement:
+**Constructor inputs go away.** Today each of `makeTimelineFeed(init?)`, `makeDiagnosticsFeed(init?)`, `makeGatesFeed(init?)`, `makeDockModel(init?)` takes the same inputs as `configure` (`TimelineFeed.ts:150-153`, `DiagnosticsFeed.ts:150-153`, `GatesFeed.ts:121-124`, `DockModel.ts:176-179`), and `useDockModel` writes the field list **three times** (`UseDockModelInput`, the `makeDockModel({...})` call, the `configure({...})` call and the dependency array: four counts in `useDockModel.ts:29-59`). The roadmap's "dock's input type is stated once" is satisfied by exporting `DockModelInputs` (already declared at `DockModel.ts:80-98`) and deleting `UseDockModelInput`, which is the same eight fields as `DockModelInputs`.
 
-1. **A tstyche-only tsconfig** (`tstyche.json` already has a `tsconfig` key; the CLI also accepts `--tsconfig`). A child config that extends `tsconfig.test.json` and **restates the whole `plugins` entry** with `"diagnosticSeverity": { "unstableApiUsage": "off", "floatingEffect": "off" }`. Restating is required because a child's `plugins` array replaces the parent's; the repo's current entry is `tsconfig.base.json` (plugins block, lines ~50-65). Verified: with it, A2, A3, S3, L3, O3 above fail as they should and A1, R1, S1, L1, O1 pass.
-2. **A per-file header** `// @effect-diagnostics effect/floatingEffect:off` as the first line of a `.tst.ts` (documented in `node_modules/@effect/language-service/README.md:369`). Verified in the same probe; identical results. 27 files hold the 86 pins, so this is 27 one-line edits, but nothing else about a pin changes.
+**The one hook, "scope, then configure".** Shape, using only what is installed:
 
-**Measured effect of route 1 on the existing suite** (a full `tstyche --tsconfig <override>` run, 66 files with my probe file): all 65 real files passed; the only failures were the five deliberate "should fail" tests in my probe. So all 86 `not.toBeCallableWith` pins are **true today** (the functions really do refuse those arguments) and become **able to fail** with no rewrite. Run time was 9 s, the same as the default. This does not clear "wrong reason": a negative pin still passes on any diagnostic, so a pin whose arguments are wrong for an unrelated reason stays green. The flip probe in `_WAVE12-CONTEXT.md` ("81 of 86 fail when turned positive") is consistent with this, and I did not reproduce its 81 (**unverified**: whether 5 pins differ by being multi-line or by something else).
+```ts
+// package-private, react/useScoped.ts or a sibling; effect imports as namespaces (AGENTS.md §1)
+export const useConfigured = <A extends { readonly configure: (inputs: I) => void }, I>(
+  make: () => Effect.Effect<A, never, Scope.Scope>,
+  inputs: I,
+): A | undefined => {
+  const value = useScoped(make);
+  useLayoutEffect(() => {
+    if (value !== undefined) value.configure(inputs);
+  }, [value, inputs]);
+  return value;
+};
+```
 
-Trade-offs for the planner (decision belongs to Phase 62, which is not locked on mechanism):
+Two constraints the existing code already teaches:
+- **The dependency list cannot be `[value, inputs]` on an inline object.** `useDockModel` lists each field separately so a fresh literal each render does not re-run the effect; `useDiagnostics`' doc says the run restarts when a field changes "never when the `options` object does" (`useDiagnostics.ts:27-31`). But `configure` itself already diffs per field, so depending on the object only costs one idempotent `configure` call per render, not a restart. A hook that must avoid even that needs `useMemo` on a per-field key or a ref compared with `sameFields`; both are plain React 19.3.1 APIs. Pick one rule and state it, which is exactly the "one per-field identity rule" item.
+- **The layout effect runs again on the render the value appears** (`useDockModel.ts:53-54` comment). Keep that: it is what lets a prop changed between `useScoped`'s build and its `setValue` land. The first-render sequence for diagnostics is the thing Phase 79's opening characterisation test must pin (`useDiagnostics.ts:38-45`: `useScoped(() => makeDiagnosticsFeed(options))`, then `configure(options)` immediately on the same pass the feed appears, then `idleDiagnostics(options)` is read on the pass before the feed exists, `Starting` vs `Off` per `DiagnosticsFeed.ts:134-142`). Dropping `init` means the build no longer starts the first poll; the first `configure` does, so the sequence "idle `Starting` -> feed built `Off` -> configured `Starting`" must be checked for a flash of `Off` that `idleDiagnostics` hid.
+- **StrictMode / hidden `Activity`:** `useScoped` clears its state in cleanup and rebuilds in the next effect; `configure` must therefore run on every new value, not once per mount. The `[value, ...]` dependency does that.
 
-| Route | Fixes all 86 at once | Rewrites pins | Risk |
-|-------|----------------------|---------------|------|
-| Override tsconfig for tstyche | yes | none | The plugin entry is duplicated, so it can drift from `tsconfig.base.json`. A one-line `NOT_CALLABLE_PIN_BUDGET`-style check that the two `diagnosticSeverity` blocks agree apart from `floatingEffect` would remove that. A global switch also means a future pin cannot be vacuous this way, which a per-pin rewrite cannot promise. |
-| Per-file header | yes (27 lines) | none | A file added later without the header is vacuous again; needs the same gate. |
-| Rewrite pins to `Parameters<F>` / `@ts-expect-error` | per pin | 86 | Strongest per-pin (reason-checked) but the largest diff, and the form most likely to be mis-copied. |
+**Amends ADR-QD-137/173.** `makeTimelineFeed` is exported from the package root (`TimelineFeed.ts:1-11`, ADR-QD-173) and `makeGatesFeed`/`makeDiagnosticsFeed` are probed by gate 14 (`scripts/check-package-install.mjs`, per `PROJECT.md` v1.7 Phase 63), so removing their `init` parameter is a public Breaking change: the packed-install consumer must be updated in the same phase or `pnpm check` fails at gate 14.
 
-The three are compatible: fix the cause with route 1 or 2, then rewrite only the pins that name no reason where a reason matters. The characterisation `.tst.ts` the context asks for can pin the known-wrong control **only with the plugin rule on**, i.e. in a file that restores it with `// @effect-diagnostics effect/floatingEffect:error` (**unverified**: I did not probe that this directive overrides a project-level `off`; the README says rule-specific comments win over the wildcard, and a project default is plausibly overridden the same way). If route 2 is chosen instead, the characterisation file simply omits the header and asserts the vacuous result.
+### Phase 80: highlight lens as a headless session (`@qadi/devtools` + `@qadi/react`)
 
-**What not to do:** do not file an upstream tstyche issue (owner rule), and note it would be the wrong project anyway: the behaviour is tstyche counting a third-party plugin's diagnostics, so any upstream conversation would be with `@effect/language-service`. Do not upgrade to tstyche 8 beta to look for a fix.
+| API | Where | Purpose | Why |
+|-----|-------|---------|-----|
+| `makeExternalStore` / `ReadableStore` | `ExternalStore.ts:60-107` | Session state and its `subscribe`/`getSnapshot` | Same mechanics as `DockSession` (`DockSession.ts:43-47`) and `HeldChoiceStore`. |
+| `makeDockSession` pattern | `packages/devtools/src/model/DockSession.ts:63-` | Template for a pure session with commands | Plain closure, no scope needed: `makeDockSession` is not an `Effect`. |
+| `useStoreSnapshot` | `react/useStoreSnapshot.ts:13-14` | Read the session | The dock's one `useSyncExternalStore` call. |
+| `Lens.ts` (`boxesOf`, `clearLens`, `drawLens`, `gateIdAt`) | `packages/devtools/src/react/Lens.ts` | The DOM adapter | Already pure DOM operations; stays in `react/`. |
 
----
+The three `useState`s (`highlighted`, `picking`, `picked`) and four commands (`highlight`, `clear`, `togglePicking`, plus the internal `setPicking(false); setHighlighted([]); setPicked(id)` transitions on pick and `Escape`) at `useLens.ts:46-120` become one pure state machine in `model/`: state `{ highlighted, picking, picked }`, commands `highlight(ids)`, `clear()`, `togglePicking()`, `hover(id | undefined)`, `pick(id)`, `cancel()`. The transitions are already written down by the effects (`useLens.ts:63-86, 112-120`), and they are pure.
 
-## 3. Stryker 10.1.1: how mutants are keyed, and `ignoreStatic` (Phases 66, 67, 68)
+- **Model owns, React adapts.** What stays in `useLens.ts` (renamed or not) after the move: the effect that draws and clears (`useLens.ts:49-62`, keyed on `[highlighted, instances]`) and the effect that registers `pointermove`/`click`(capture)/`keydown` listeners while `picking` (`useLens.ts:64-98`), each reading `document` inside an effect only. This keeps `AGENTS.md` §13's "no DOM API in `@qadi/react`" and the file's own server-render rule (`useLens.ts:10-12`).
+- **Ownership by the dock model.** Add the session as a field of `DockModel` built in `makeDockModel`'s scope next to `dock` and `explorer` (`DockModel.ts:186-197`). It needs **no** `Scope` of its own (no fibers), so use a plain `make…` function, not `Effect.fn`, as `makeDockSession` does. `instances` (`GateInstanceLike`) is DOM-adjacent input read by `useLens`; keep it an argument to the DOM adapter, not session state, because it changes per render from `snapshot.instances` (`QuestionsPanel.tsx:106`) and `gateIdAt` needs it only at event time. If the session needs the registry's instance list, `DockModel` already has it through the gates feed (`GatesFeed.ts` `GatesSnapshot.registry`), but state that need explicitly in the plan rather than copying it into the session.
+- **Mutation score.** `DockModel.ts` keeps a mutation score of 1 (ADR-QD-168, per `PROJECT.md` v1.8 Phase 72). Adding a field and a pass-through to `DockModel` adds mutants; a test of the built model that lists its members with `subscribe` and `getSnapshot` fails when one is added (`DockModel.ts:26-30`), so the BEH-QD-700 list and that test change in the same commit.
+- **`QadiContextValue.instrument` (`packages/react/src/QadiProvider.tsx:62, 307-308`).** The context value is built `{ atoms, registry, instrument, gates }`. The repo's only readers destructure `atoms`, `registry` and `gates` (`DevtoolsFeed.ts:126`, `hooks.ts:22, 155, 174`); none reads `instrument` from the context. `QadiProvider` itself uses its own `instrument` prop (`QadiProvider.tsx:196-208, 266-286`) for the gate writer and the production signal, so the **prop stays**; only the context member is unread. Removing it is a type-only Breaking change to a public type (`spec/overview.md:570` lists `QadiContextValue`), and `useMemo` dependency `[atoms, registry, instrument, gates]` shrinks. The doc comment at `QadiProvider.tsx:91` ("through `useQadiContext` only for other fields (`atoms`, `instrument`)") also names it and needs editing. The alternative the milestone allows, keeping it and recording why, is only worth it if a downstream (outside this repo) reads it; nothing here shows one.
 
-### Keying
+## Alternatives Considered
 
-- **Within a run** a mutant is a numeric id Stryker hands out in instrumentation order. It is not stable across edits. The `reports/mutation/mutation.json` ids you archive are only meaningful for the run that wrote them.
-- **Across runs** only the incremental feature carries results over, and it keys a mutant by file name, mutator name, **location (line and column) and replacement**, relocating locations through a diff-match-patch of the old and new source (`node_modules/@stryker-mutator/core/dist/src/mutants/incremental-differ.js`, header comment and `mutantToIdentifyingKey`). It is a position key plus a text diff, not a line-text key. A re-wrapped line moves the position, and the differ relocates or drops the mutant.
-- **This repo does not use incremental.** `grep` finds no `--incremental` in `package.json` (`mutation` script, line 28), any `stryker*.mjs`, `scripts/` or `.github`. So "Phase 58's mutant ids are archived, so re-wrapping is free" (`_WAVE12-CONTEXT.md`, Phase 68) is correct for a mechanical reason: every `pnpm mutation` run mutates from scratch and nothing reads the old ids. The only cost of re-wrapping is that a before/after comparison harness (XC-05's `NN-mutation-base.json`, compared per file) must compare scores per file, not by mutant id.
+| Recommended | Alternative | Why Not |
+|-------------|-------------|---------|
+| `Brand.nominal` minted inside the two codec functions | `Schema.brand("AuditEntry")` on the exported row schema | Leaves `Schema.decodeUnknown(AuditEntry)` as a second, guard-free way to mint a branded row, defeating the point; and the decode of `record` is by hand, not by the schema (`AuditEntry.ts:157`). |
+| `Brand.nominal` | `Schema.Class` / `Schema.TaggedClass` | Adds a runtime class and a constructor; `ADR-QD-135` already measured and rejected a `Schema.TaggedClass` on a hot path, and an `AuditEntry` must still `JSON.stringify` to exactly the stored bytes (`AuditEntry.ts:13-20`). A class instance serialises its own prototype members differently. |
+| `Brand.nominal` | A `unique symbol` field, as `RunToken` does (`SupersedingRun.ts:42-47`) | A symbol-keyed property would be a real runtime field; `JSON.stringify` skips symbol keys, but `Equal`/spread/structured-clone behaviour then differs between a decoded row and a hand-written one. `Brand` has no runtime footprint. |
+| Existing `sameFields` as the one rule | A new `Equal.equals`-based deep compare | `Equal.equals` on a `Layer`, a `Source` or a thunk would compare structurally where identity is wanted; `DiagnosticsStore` already used per-field `Equal.equals` for a different job (`ExternalStore.ts:12-14`). Phase 79's whole point is `===` per field. |
+| A plain closure session for the lens | `Effect.Service` / `Context.Service` for the session | No dependency to provide, no scope to hold; every sibling (`DockSession`, `ExplorerSession`, `HeldChoiceStore`) is a plain `make…` function returned through `DockModel`. A service would add a `Layer` with no consumer (`AGENTS.md` §2-3). |
+| `useLayoutEffect` for "configure" | `useEffect` | A pass between layout and passive effects would paint with stale inputs. Every existing site is a layout effect, and `useScoped` is one (`useScoped.ts:21-47`); the first paint seeing the right inputs is a stated property (`useScoped.ts:8-10`). |
+| `useSyncExternalStore` through `useStoreSnapshot` | `@effect/atom-react` for the lens | `AGENTS.md` §13: that is `@qadi/react`'s binding, and `@qadi/devtools` does not depend on it (`packages/devtools/package.json`). The dock's models are plain external stores. |
 
-### `ignoreStatic: true` (set in `stryker.config.mjs:` `ignoreStatic: true`, ADR-QD-076)
+## What NOT to Add or Do
 
-"Static" is decided **dynamically by coverage, not by the syntax of the line**. `mutant-test-planner.js:56` calls `testCoverage.hasStaticCoverage(mutant.id)`, which is true when the mutant's code ran while **no test was active** (i.e. at module import; the instrumenter's coverage object has `{ static, perTest }` buckets, `instrumenter/dist/src/util/syntax-helpers.js:30`). Then (`mutant-test-planner.js:71-90`):
-
-| Coverage of the mutant | `ignoreStatic: true` result |
-|------------------------|------------------------------|
-| only per-test (ran inside a test) | tested normally, only against the tests that covered it |
-| both static and per-test ("hybrid") | **tested**, against its per-test tests only |
-| static only (ran at import, never inside a test) | `Ignored`, "Static mutant (and ignoreStatic was enabled)"; it does **not** count against the score |
-
-What that means for Phase 66 (module-scope decoders), from `packages/core/src/UntrustedDecode.ts`:
-
-- `untrustedDecoder(schema, options)` runs `PROJECTION[options.unknownKeys](schema.ast)` and `Schema.decodeUnknownResult(...)` at **build time** (lines ~191-205). Every decoder in `SinkCodec.ts`, the audit files and `HydrationEngine.ts` is built at import, so those build-time mutants (including everything in `EnvelopeKeys.ts` reached from `envelopeKeysOf`) are static-only unless a test also builds a decoder inside an `it`. They show as `Ignored`, and a file can read near 100% with half of it unmeasured. Phase 57 already hit this (`57-RESEARCH.md` Pitfall 5, `.planning/milestones/v1.6-phases/QD-57-*/57-RESEARCH.md:543`).
-- The code Phase 66 changes, `project`'s returned function (`UntrustedDecode.ts:166-175`), runs only when `decode` is called, i.e. **inside tests**, so its mutants are per-test and are measured. The build-time lines around it (`project(keysOf)` itself, the `PROJECTION` row) are static-only.
-- Phase 57's recipe still applies: build decoders **inside `it` bodies** in the new tests for the derivation and the `ignore` path, and, for evidence that static-only mutants are killed, run once with `ignoreStatic: false` using a config kept **outside the repository** (`56-09-PLAN.md` rule, quoted in 57-RESEARCH). Do not edit `stryker.config.mjs` to flip it.
-
-Phase 67 note (`DecisionCache.ts` eviction guard, `SharedComputation.ts` claim tag): both bodies run inside a test (inside `Effect.sync` and the layer's `onAnswered`), so their mutants are per-test and the two named survivors are real, not static artefacts.
-
-### Restructuring forms, with what each does to the mutant set (reasoned from Stryker's mutators; **unverified by a Stryker run**, because running Stryker is forbidden here)
-
-- `while (HashMap.size(entries) > capacity) { const oldest = Chunk.head(...); if (Option.isSome(oldest)) ... }` has an equivalent mutant because the `if` can never be false. **Do not "fix" it by adding `Chunk.isNonEmpty(insertionOrder) &&` to the loop condition**: the type guard then becomes a left operand that is always true, and Stryker's logical-operator and conditional-expression mutants of it are equivalent again. A restructure with no impossible branch in the source is what D5 asks for. Candidates that have no branch to mutate: thread a `NonEmptyChunk` and use `Chunk.headNonEmpty` (exists in 4.1.2, `Chunk.d.ts:2069`, with `isNonEmpty` at `:1997`), or fold the eviction through an `Option` combinator so the branch lives in the library, not the source. Pick by the type that `HashMap`/`Chunk` can actually give without `as` (house rule).
-- `Match.tagsExhaustive` on `{_tag: "Hit"|"Claimed"|"Joined"}` fixes the `"Claimed"` string-literal survivor. Probed at runtime in effect 4.1.2: an unmatched tag **throws** `Error effect/match/Match/exhaustive: absurd`, so a mutated tag becomes a defect that fails the test that claimed. Because `A` and `E` are generic inside `run`, the matcher cannot be hoisted to module scope with `Match.type`; use `Match.value(claimed).pipe(Match.tagsExhaustive({...}))` per call. `AGENTS.md` §5a measured `Match.value` at 3.5-7.7x a `switch` per dispatch; this runs once per cache ask, not per policy node, so it needs no benchmark but should be named in the CCR row (**unverified**: not benchmarked).
-
----
-
-## 4. `AggregateError` and `throw` in devtools model code (Phase 64)
-
-- **Available, no setup.** `tsconfig.base.json` has `lib: ["ESNext"]`, `target: "ESNext"`; `tsconfig.react-base.json` (what `@qadi/devtools` extends via `packages/devtools/tsconfig.src.json`) has `lib: ["ESNext", "DOM"]`. Probed with tsgo 7.0.2: a file using `new AggregateError(errors, "msg")` and `e.errors` compiled clean under **both** the devtools config and plain `tsconfig.base.json`. Runtime: `engines.node >=22.12.0`; `new AggregateError([a, b], "m")` gives `name === "AggregateError"`, `errors.length === 2` on the local Node 26.13.0 (AggregateError has been in Node since 15 and in all evergreen browsers; the dock is a browser panel, **unverified** for old browsers, which the repo does not target).
-- **No existing use**: `grep AggregateError packages/*/src packages/*/test` is empty. It is a new idiom here, a platform feature, not a new dependency.
-- **House rules allow `throw` in devtools model code.** `AGENTS.md` §6 forbids `async`/`await`, `Promise`, ambient `console`/`process.env`/`Date`, `as`/`any`/`!`, `Effect.either`, `switch` on `_tag`; §4 forbids `Effect.orDie` "in evaluation or enforcement paths". None forbids `throw`. `.oxlintrc.json` turns on no throw rule, and `scripts/check-house-style.mjs` has no throw rule (its only hit is a comment). Existing devtools `throw`s: `packages/devtools/src/model/Source.ts:143` (`new Error`, construction guard), `PortCalls.ts:194`, `Timeline.ts:85`, and a **rethrow** `throw error` at `react/useScoped.ts:32`. D1's "one error rethrown as-is, several as one `AggregateError`" is a rethrow plus a throw of a built-in; both are within the house rules. `ExternalStore.ts` is plain synchronous code with no Effect in it, so Effect's `Cause` is not in play there.
-- Phase 64 mechanics to keep in mind (read from `ExternalStore.ts:34-47`): `listeners` is a `Set`, and `notify` iterates it live, so an unsubscribe during notify mutates the set being iterated. A `Set` iteration is defined for deletion of a visited or unvisited element (a deleted unvisited element is simply not visited), and an element added during iteration **is** visited. If the new RED test "unsubscribe during notify still safe" is meant to keep today's semantics, iterate the same set; if D1's implementation snapshots (`[...listeners]`) first, a listener removed mid-notify would still be called once. Decide that deliberately and pin it; this is not a library bug.
-
----
-
-## 5. TS private constructor + static factory on a generic class under `verbatimModuleSyntax` and declaration emit (Phase 65)
-
-Probed with a throwaway copy of `Admission.ts` (private constructor, `static admit<S extends RowSource>(question, rowSource: S): Result<Admitted<S>, PolicyTooDeep>` holding the `new Admitted(...)`, and `export const admit = Admitted.admit;`) plus a consumer file shaped like `Walk.ts` (`admit(question, "asked")`, a function annotated `Admitted<"asked">`, an `import type { Admitted }`), emitted with `tsc --emitDeclarationOnly` under the real `tsconfig.base.json` options (`declaration`, `verbatimModuleSyntax`, `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`):
-
-- **No diagnostics, no TS2883.** Emitted: `private constructor();`, `static admit<S extends RowSource>(question: Question, rowSource: S): Result.Result<Admitted<S>, PolicyTooDeep>;` and `export declare const admit: typeof Admitted.admit;`. The consumer's inferred return type printed as `Result<Admitted<"asked">, PolicyTooDeep>` with `import("effect/Result")` and `import("./Errors.ts").PolicyTooDeep` inlined, so nothing unnameable.
-- **The generic survives the alias.** `typeof Admitted.admit` keeps the `S extends RowSource` signature, so `admit(question, "asked")` still returns `Admitted<"asked">` and `Walk.ts:878` needs no edit.
-- **Unbound static is safe here** because the body names `Admitted` and never `this`. If the factory ever used `this.x`, `export const admit = Admitted.admit` would break at runtime and no compiler rule would say so. Name it in the doc comment or write `export const admit = <S extends RowSource>(q, s: S) => Admitted.admit(q, s)` only if that is wanted; the alias form is what the context fixes.
-- **Non-exported `SuppliedBy`** appears in the class's public `supplied: SuppliedBy[Source]`. Emit is fine today (TS declares it locally with `export {}`); the change does not alter that.
-- **`oxlint`** run on the probe: no findings. **`scripts/check-house-style.mjs`** run on the probe: two findings, both of mine and neither a rule against the shape: `[no-type-assertion]` on an `as` I used in the probe, and `[admission-once]` because the probe file was not named `Admission.ts`. The gate `ADMISSION_ALLOWED` (`check-house-style.mjs:587`) counts `new PolicyTooDeep` in `packages/core/src/Admission.ts` and expects exactly **1**; moving `admit` into the class keeps it at 1, so no budget edit is needed as long as the construction is not duplicated.
-- **Pin it with the probed forms in section 1**: `// @ts-expect-error is private and only accessible within the class declaration` on a `new Admitted(...)` line with correct arguments, in a `.tst.ts` or a `.test.ts`. `new Admitted` in a `.tst.ts` is compiled by tsgo too, and the message text is TS's; if tsgo and 6.0.3 word it differently, the fragment must be a substring of both. I only observed the 6.0.3 wording (`Constructor of class 'Admitted<S>' is private and only accessible within the class declaration.`); tsgo reported only TS2578 for the broken case, so **unverified** whether its text is identical. Use a short fragment such as `is private`.
-
----
-
-## What NOT to add
-
-| Avoid | Why | Use instead |
+| Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| Any new dependency (tstyche plugin, `expect-type`, `tsd`, an `aggregate-error` package, a Stryker plugin) | Every phase is expressible in what is installed; `AggregateError` is built in. | Existing tstyche + the plugin config above. |
-| `not.toBeCallableWith` on an Effect- or Stream-returning subject, positive `toBeCallableWith` on one | Vacuous / always-failing under the default config (probed). | `Parameters<F>` pins, `@ts-expect-error <fragment>`, or fix the cause (section 1). |
-| A bare `// @ts-expect-error` (no fragment) in a `.tst.ts` | tstyche refuses it ("Directive requires an argument"). | Always give a message fragment. |
-| A bare Effect call under `@ts-expect-error` | Two diagnostics (tstyche) and an unsuppressed `TS377001` error (tsgo). | `void f(bad);` or `const _x = f(bad); void _x;`. |
-| `not.toBeConstructableWith` as the only pin for a private constructor | Reason-blind: a public constructor with wrong arity also passes. | `@ts-expect-error is private ...` plus a positive control on the static factory. |
-| `// Stryker disable` comments | D5; none exist in `packages/*/src`; `stryker.config.mjs` says "no ignore list". | Restructure so no equivalent mutant exists. |
-| Editing `stryker.config.mjs` to set `ignoreStatic: false`, or enabling `--incremental` | ADR-QD-076 fixed it for all six configs; the evidence run belongs in a scratch config outside the repo. | Decoders built inside `it` bodies; an out-of-repo evidence config. |
-| `Chunk.isNonEmpty(...) &&` added to the eviction loop condition | Re-creates an equivalent mutant on an always-true operand. | A structure with no impossible branch (section 3). |
-| `switch` for the `Claimed`/`Hit`/`Joined` dispatch | `SharedComputation.ts` is not in `SWITCH_BUDGET`; a new `switch` fails the gate. | `Match.value(...).pipe(Match.tagsExhaustive({...}))`. |
-| `node scripts/next-id.mjs`, `pnpm check`, running Stryker during research | Reservation file / forbidden for this research run. | The reserved block in `_WAVE12-CONTEXT.md`. |
-| Upgrading tstyche (`next` is 8.0.0-beta.0), TypeScript, effect, Stryker | Out of scope; no fix there was evidenced. | Stay on the installed versions. |
+| Any new dependency (zustand, immer, xstate, ts-brand, type-fest `Tagged`) | Nothing in the four phases needs one; `AGENTS.md` §13 allows exactly one deliberate dependency exception in `@qadi/react` | `effect/Brand`, `effect/Schema`, `makeExternalStore` |
+| `as AuditEntry` or `as unknown as AuditEntry` | `AGENTS.md` §6 forbids `as`; it also silently voids the brand | `Brand.nominal<AuditEntry>()(...)` inside the codec only |
+| `Schema.brand` on a schema that is still publicly decodable | Second minting path | Keep the public schema unbranded, brand in `encode/decodeAuditEntry` |
+| Exporting the brand constructor from `@qadi/audit`'s barrel | `export *` makes it public (`packages/audit/src/index.ts:3`); gate 13 also demands an `overview.md` row | Module-private const, or a non-barrel file (`AGENTS.md` §9) |
+| A `switch` on a lens state tag | `AGENTS.md` §5a: `Match`, and `SWITCH_BUDGET` fails any new `switch` | `Match.type<…>().pipe(Match.tagsExhaustive(…))` at module scope if the session is a tagged state |
+| `Record<string, unknown>` as a widened input type for the shared identity rule | Rejected in project memory: monomorphise or use a predicate | `sameFields<K extends object>` as written |
+| `useState` + `useEffect` holding lens state in `@qadi/react` | `AGENTS.md` §13; Phase 80's whole point is that the model owns it | A model session read through `useStoreSnapshot` |
+| A second `useSyncExternalStore` call site | `useStoreSnapshot.ts:5-8` warns a second copy once produced a constant-`undefined` run | `useStoreSnapshot` |
+| `console.*`, `Date.now`, `performance.now`, `crypto.randomUUID` in the session | `AGENTS.md` §6; `no-ambient-console` is enforced | Not needed: the lens session is pure |
+| New module-scope `let` for a lens "last picked" or a hook latch | `MODULE_STATE_BUDGET` allows exactly one (`DeveloperSignals.ts`) | State in the session closure |
+| `Effect.fnUntraced` or a new `Effect.fn` per transition | `UNTRACED_BUDGET` counts exactly three; session transitions are plain functions | Plain functions; `Effect.fn` only where a scope is built (`makeDockModel` is already one) |
+| `Schema.TaggedErrorClass` for any new refusal | `AGENTS.md` §4, `SCHEMA_ERROR_BUDGET` | Reuse core's `SinkRecordNotDecodable` (ADR-QD-161); no new error is needed |
 
-## Alternatives considered
+## Stack Patterns by Variant
 
-| Category | Recommended | Alternative | Why not |
-|----------|-------------|-------------|---------|
-| Make `not.toBeCallableWith` honest | Turn `floatingEffect` off for tstyche only (tsconfig override or file header) | Rewrite all 86 pins | Larger diff, same truth; keep rewrites for pins that need a reason. |
-| Pin "this is refused" | `@ts-expect-error <fragment>` on `void f(bad)` | `not.toBeCallableWith` | Reason-blind; the fragment checks why. |
-| Pin an exact signature | `Parameters<F>` + `toBe` | `toBeCallableWith` | Never usable on Effect/Stream subjects. |
-| Aggregate several listener errors | built-in `AggregateError` | `Cause`/`Effect` aggregation | `ExternalStore` is synchronous non-Effect code; the owner chose `AggregateError` (D1). |
-| Prove a private constructor | `@ts-expect-error` fragment | `not.toBeConstructableWith` | Reason-blind (above). |
+**If Phase 77 keeps `AuditEntry` as an exported schema value:**
+- Export the unbranded struct under the existing name and the branded `type AuditEntry`; mint only in `encodeAuditEntry`/`decodeAuditEntry`.
+- Because `export type AuditEntry = typeof AuditEntry.Type` is the current pairing (`AuditEntry.ts:84`) and a type/const pair of one name cannot differ in brand without a second declaration. If that proves awkward, rename the struct (for example `AuditRow`) and record it in `spec/overview.md`, which is allowed to change in a Breaking phase.
 
-## Version compatibility
+**If Phase 77 chooses `unknownKeys: "ignore"` on the row:**
+- Use `untrustedDecoder(…, { unknownKeys: "ignore", unwalked: ["record"] })` exactly as `storedWire` does.
+- Because that is the one rule core already states for an envelope with a nested record (`SinkCodec.ts:589-603`), and the `ignore` projection reads only declared keys (INV-QD-306/377).
 
-| Pair | Note |
-|------|------|
-| tstyche 7.2.5 target 6.0.3 vs `pnpm typecheck` TS 7.0.2 tsgo | A `.tst.ts` is checked by both. Fragments must match 6.0.3's wording (tstyche) and compile clean under 7.0.2 (TS2578 for an unused directive is reported by both). The plugin is loaded in both, as the JS plugin (6.0.3) and as the `effect-tsgo` patch (7.0.2); `floatingEffect` fires in both (TS377001 under tsgo). |
-| `@effect/language-service` 0.87.5 `diagnosticSeverity` | Read by tstyche's project service from the tsconfig; a child tsconfig's `plugins` replaces, not merges. |
-| Stryker 10.1.1 + `typescript ^7` | Already handled: `tsconfigFile: "tsconfig.stryker-disabled.json"` (a path that does not exist, because `ts.parseConfigFileTextToJson` is gone in TS 7). Do not "fix" it. |
+**If Phase 79's shared rule must also cover `K` with optional fields:**
+- Normalise inputs to explicit-`undefined` objects before `sameFields`, or compare fields through the input type's own key list.
+- Because `sameFields` distinguishes a missing key from a key holding `undefined` (`ExternalStore.ts:146-153`), and `exactOptionalPropertyTypes` plus the `?: T | undefined` convention means callers may pass either.
 
-## Installation
+## Version Compatibility
 
-None. This milestone installs and upgrades nothing.
+| Package A | Compatible With | Notes |
+|-----------|-----------------|-------|
+| `effect@4.1.2` | `Brand.nominal`, `Schema.brand`, `Schema.optional(Schema.Int)`, `Result`, `Effect.fn`, `Match` | All used in `packages/` today; `Schema.brand` still requires one string-literal key (`Schema.d.ts:4353`). `packages/core/test/v4-api-smoke.test.ts` pins the v4 APIs the repo depends on; add a pin there only if Phase 77 adopts an API not already covered. |
+| `react@19.3.1` | `useSyncExternalStore`, `useLayoutEffect`, `useState` updater form | Peer range `>=19.2.4`; no React 19.3-only API is needed. Keep `setValue(() => built)` (`useScoped.ts:36-37`). |
+| `typescript@^7` | `Brand.nominal<T>()` on an object intersection | Probe compiled clean under `tsconfig.base.json`; negative assignment errors held. |
+| `@qadi/audit` -> `@qadi/core` | `untrustedDecoder`, `decodeSinkRecordWithJson`, `SinkRecordJson`, `decodeRefusalOf`, `DecodeRefusal`, `SinkRecordNotDecodable` | All already imported at `AuditEntry.ts:38-46`; no `@qadi/core` change is required for Phase 77. |
+| `@qadi/devtools` | `@qadi/core` (`causeMessage`, `StoredRecord`) | `workspace:^`; no change. |
+
+## Gates a Stack Change Would Trip (none are triggered if the above is followed)
+
+- Gate 13, `scripts/check-api-surface.mjs`: any new or renamed export (the lens session's factory if exported from the root, the `TimelineStore` resize member, `DockModelInputs`) needs a `spec/overview.md` row or a "Not listed above" reason (`AGENTS.md` §15).
+- Gate 14, `scripts/check-package-install.mjs`: removing the `init` parameter from an exported `make*Feed` is observable through the packed `exports` map; the consumer fixture must be updated (`PROJECT.md` v1.7 Phase 63).
+- `UNTRUSTED_DECODE_BUDGET`: no `Schema.decode*`, `JSON.parse`, `onExcessProperty` or `exceedsJsonDepth` token may appear in `packages/audit/src/AuditEntry.ts`; go through `untrustedDecoder`.
+- `NOT_CALLABLE_PIN_BUDGET` and `[not-callable-control]`: a new negative type pin ("a literal is not an `AuditEntry`" is better written as `expect<AuditEntry>().type.not.toBeAssignableTo…` / `toBeAssignableFrom`-style on a plain value, not `not.toBeCallableWith` on an Effect-returning function) needs its positive twin in the same file.
+- `SWITCH_BUDGET`, `UNTRACED_BUDGET`, `ANY_BUDGET`, `MODULE_STATE_BUDGET`, `HAS_CUSTOM_BUDGET`: no change expected.
 
 ## Sources
 
-- `node_modules/tstyche/dist/api.js` lines 3404-3530 (`AbilityLayer`), 3587-3666 (`SuppressedLayer`), 3747-3787 (`Layers`), 4281-4358 (`SuppressedService`), 5370-5422 (`ToBeCallableWith`, `ToBeConstructableWith`). HIGH (read, then confirmed by probe).
-- `node_modules/@effect/language-service/README.md:369-395` (diagnostic directives and `diagnosticSeverity`). HIGH.
-- `node_modules/@stryker-mutator/core/dist/src/mutants/{incremental-differ.js,mutant-test-planner.js,test-coverage.js}`, `instrumenter/dist/src/util/syntax-helpers.js:30`. HIGH (read; no Stryker run, which is forbidden).
-- Probes (all deleted; `git status` shows no `Zz*` file or probe tsconfig): tstyche on `.tst.ts` files under `packages/core/test/` with the default config, with `--tsconfig <override>`, and with the file directive; the full tstyche suite under the override; `tsc -p` (tsgo 7.0.2) on a probe `.tst.ts`; `tsc --emitDeclarationOnly` on a copy of `Admission.ts`; `tsc -p` on an `AggregateError` file under two configs; a Node script for `Match.tagsExhaustive`'s unmatched-tag behaviour. HIGH.
-- Repo: `tstyche.json`, `tsconfig.base.json`, `tsconfig.react-base.json`, `tsconfig.test.json`, `stryker.config.mjs`, `.oxlintrc.json`, `scripts/check-house-style.mjs:587`, `packages/core/src/Admission.ts`, `UntrustedDecode.ts`, `DecisionCache.ts:270-290`, `SharedComputation.ts:296-335`, `packages/devtools/src/model/ExternalStore.ts`, `packages/core/test/{Qadi,DecisionLog}.tst.ts`, `packages/promise/test/Facade.tst.ts`. HIGH.
-- Not consulted online: tstyche 8 beta release notes (**unverified**). npm registry used only for dist-tags.
+- `node_modules/effect/package.json` (4.1.2); `pnpm-lock.yaml` (`effect@4.1.2`, `@effect/atom-react@4.1.2`, `react@19.3.1`, `vitest@5.1.0`) — HIGH
+- `pnpm-workspace.yaml` catalogs — HIGH
+- `node_modules/effect/dist/Schema.d.ts:4353-4421` (`brand`, `fromBrand`, `EnsureSingleBrandKey`) and `node_modules/effect/dist/Brand.d.ts` — HIGH (installed declarations)
+- Throwaway probe in `packages/audit` (typecheck under `tsconfig.base.json` plus one `tsx` run; deleted) — HIGH for the behaviours stated
+- `packages/audit/src/AuditEntry.ts`, `AuditArchive.ts`, `SignatureLedger.ts`, `index.ts`; `packages/core/src/UntrustedDecode.ts`, `SinkCodec.ts:312-318, 556-640`, `Policy.ts:125-198`, `Identity.ts`, `Qadi.ts:245-285` — HIGH (read)
+- `packages/devtools/src/model/ExternalStore.ts`, `TimelineStore.ts`, `TimelineFeed.ts`, `DiagnosticsFeed.ts`, `GatesFeed.ts`, `DockModel.ts`, `DockSession.ts`, `SupersedingRun.ts`; `react/useScoped.ts`, `useDockModel.ts`, `useTimeline.ts`, `useDiagnostics.ts`, `useStoreSnapshot.ts`, `useLens.ts` — HIGH (read)
+- `packages/react/src/QadiProvider.tsx:40-100, 190-310`; grep of `useQadiContext` readers across `packages/*/src` and `packages/*/test` — HIGH
+- `AGENTS.md` (house rules §1-§17) and `.planning/PROJECT.md` (v1.9 scope) — HIGH
+- Not consulted: Context7 and web search. Every API in scope is already vendored in `node_modules` and was read there, which outranks documentation for the pinned build.
+
+**Unverified:** (1) whether `Brand.nominal`'s `Constructor` type interacts badly with `readonly` fields under `exactOptionalPropertyTypes` for the exact `AuditEntry` shape (the probe used `number | undefined`, matching `Schema.optional(Schema.Int)`'s type; it passed, but the real row has `record: SinkRecordJson`); (2) the exact line numbers of `Timeline.ts`'s `emptyTimeline` options type; (3) whether `packages/audit/test/_probe.test.ts` (untracked, predates this research) is an intended file; it uses `encodeAuditEntry` and is not mine.
 
 ---
-*Stack research for: v1.7 Arch Wave 12 (Phases 62-68)*
-*Researched: 2026-11-20*
+*Stack research for: Qadi v1.9 Arch Wave 14 (Phases 77-80)*
+*Researched: 2026-11-23*
