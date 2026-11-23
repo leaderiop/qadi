@@ -4,6 +4,8 @@
  * evaluator to get a record, since the pipeline's whole contract is that it
  * consumes `SinkRecord`s.
  */
+import { assert } from "@effect/vitest";
+import * as Result from "effect/Result";
 import {
   Allow,
   AttributeResolveError,
@@ -17,6 +19,8 @@ import {
   permission,
 } from "@qadi/core";
 import type { AllowingTrace, ObligationOutcome, Policy, SinkRecord } from "@qadi/core";
+import { decodeAuditEntry } from "../src/AuditEntry.ts";
+import type { AuditEntry } from "../src/AuditEntry.ts";
 
 export const read = permission("doc", "read");
 export const readPolicy: Policy = hasPermission(read);
@@ -103,3 +107,16 @@ export const obligationRecord = (options?: {
     outcome: options?.outcome ?? "Discharged",
     obligationIds: ["audit.log"],
   });
+
+/**
+ * The row `entry` is once a store has assigned it `sequenceNumber`.
+ *
+ * A number reaches a row by the route a store's number takes in production: the
+ * store hands the row back with its number, and `decodeAuditEntry` reads it. A
+ * number the decode refuses fails the test rather than building a row.
+ */
+export const numbered = (entry: AuditEntry, sequenceNumber: number): AuditEntry => {
+  const decoded = decodeAuditEntry({ record: entry.record, sequenceNumber });
+  if (Result.isFailure(decoded)) return assert.fail(decoded.failure.refusal._tag);
+  return decoded.success.entry;
+};
