@@ -34,11 +34,11 @@ const GROUPS = {
     report: "reports/mutation/mutation.json",
     files: [`${R}EvaluationSpan.ts`, `${R}PortSpanEncode.ts`],
     // `PortSpanEncode.ts` is mutated only where this phase added runtime code: `logEventStruct` to `annotateSpan`
-    // (lines 90-153) and `annotateAsked` to `askedAttributes` (lines 170-197). `spanStruct`'s `decode` and the rest are
+    // (lines 90-156) and `annotateAsked` to `askedAttributes` (lines 173-200). `spanStruct`'s `decode` and the rest are
     // older and outside the phase. These ranges must follow the file if it changes: re-derive them with
     // `git diff -U0 c054c2b1 HEAD -- packages/core/src/PortSpanEncode.ts` (the `+` side of each hunk that adds a
     // declaration), never by editing a range to cover a line that survives.
-    mutate: [`${R}EvaluationSpan.ts`, `${R}PortSpanEncode.ts:90-153`, `${R}PortSpanEncode.ts:170-197`],
+    mutate: [`${R}EvaluationSpan.ts`, `${R}PortSpanEncode.ts:90-156`, `${R}PortSpanEncode.ts:173-200`],
     closeOnly: true,
   },
 };
