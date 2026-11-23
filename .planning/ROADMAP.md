@@ -480,7 +480,16 @@ Order: the live defect (77), then the three devtools deepenings (78, 79, 80). **
   5. ADR-QD-190 records the brand, the decode order and the refusal table and amends ADR-QD-110; INV-QD-101, BEH-QD-253 and the affected `spec/overview.md` rows move with it; a `@qadi/audit` changeset marks the change Breaking, with an upgrade-guide entry.
 
 **Planning notes**: **Research flag: a pre-plan probe is required** (`/gsd-plan-phase --research-phase 77`). (a) Compile each candidate brand form under the audit tsconfig and probe its `Equal`, `Hash` and `JSON.stringify` behaviour: the researchers disagree (a type-level `Brand.nominal` on a plain object keeps structural equality but survives a spread, so `{...entry, sequenceNumber: 1.5}` still type-checks; a private-constructor class with a `declare private readonly` marker does not survive one but its `Equal`/`Hash` and the marker compile in audit are unverified), and an exported decodable schema value is a second way to mint. (b) Enumerate whole-archive writer inputs (entries, `now`, `keyMaterial`) through `readAuditArchive(JSON.parse(JSON.stringify(archive)))`; the `now: NaN` and `keyMaterial` variants are reasoned, not run, and any that does not reproduce is recorded "refuted at the base". The open decisions in the owner table above are asked once at the discuss step, after the probe. Test churn: about 35 literal or spread row sites in 9 audit test files, 5 type-pin files and one features step file; a `numbered(entry, n)` helper that goes through the codec avoids hand-built rows. Commit the per-file Stryker baselines (`AuditEntry.ts`, `ArchiveFacts.ts`, `AuditArchive.ts`, `Retention.ts`) alone and first, and re-close them after the review fixes. Do not delete a check the type cannot prove.
-**Plans**: TBD
+**Plans**: 7 plans (waves 1 to 7, strictly serial)
+
+Plans:
+- [ ] 77-01-PLAN.md — record the phase base and the per-file mutation base of the four audit files, committed alone and first
+- [ ] 77-02-PLAN.md — on the base: the writer-input regression tests seen RED, the decode/bytes/equality characterisation, and gate 13 taught a local export list
+- [ ] 77-03-PLAN.md — the one change: the codec-made row, envelope-first decode, `ArchiveInputInvalid` and the `keyMaterial` projection, dead checks removed, test churn and overview rows
+- [ ] 77-04-PLAN.md — type pins that only the codec makes a row, the whole-archive and record-domain properties, the writer-guard assertions, and the re-measured purge cost
+- [ ] 77-05-PLAN.md — ADR-QD-190 with its index entry and trace row, dated amendments to ADR-QD-110 and ADR-QD-056, and the CCR-QD-469 row
+- [ ] 77-06-PLAN.md — BEH-QD-721/722 and INV-QD-399/400, the restated audit behaviours and invariants, the Breaking changeset, the upgrade guide and audit prose
+- [ ] 77-07-PLAN.md — mutation close against the base, close scans, `pnpm check:pr` green, AROW-01 to AROW-06 complete
 
 ### Phase 78: `TimelineStore` owns its capacity
 
