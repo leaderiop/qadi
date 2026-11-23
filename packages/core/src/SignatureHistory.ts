@@ -43,6 +43,7 @@ import {
 } from "./PortDerivation.ts";
 import { describeKeyRefusal } from "./PortDescription.ts";
 import type { KeyRefusal, LeafOf, PortDescription, ReadSite } from "./PortDescription.ts";
+import { readGuarded } from "./PortKey.ts";
 import {
   portSpan,
   sharedQuestionFields,
@@ -348,6 +349,10 @@ export interface SignatureInput {
  * not a filter, so they must not split one pair's rows. The group is the key's
  * text, which is injective over the pair (`PortKey.ts`), so `["a:b", "c"]` and
  * `["a", "b:c"]` never share one. The fixture and the port spell the pair once.
+ *
+ * Every field of a row is read through `readGuarded`, so a row that is `null` or
+ * `undefined`, or whose property read throws, is a refused entry like one the key
+ * refuses and not a throw.
  */
 const signatureLookup = (
   signatures: ReadonlyArray<SignatureInput>,
@@ -356,22 +361,34 @@ const signatureLookup = (
     signatureHistoryPort.key([{ subjectId, resourceId }]);
   const keyed = Result.all(
     signatures.map((input) =>
-      Result.map(
-        pairKey(
-          makeSubjectId(input.subjectId),
-          input.resourceId === undefined ? undefined : makeResourceId(input.resourceId),
-        ),
-        (key): [string, Signature] => [
-          key,
-          {
-            signerId: makeSubjectId(input.subjectId),
-            meaning: input.meaning,
-            signedAt: input.signedAt ?? 0,
-            ...(input.signerRole === undefined ? {} : { signerRole: input.signerRole }),
-            ...(input.algorithm === undefined ? {} : { algorithm: input.algorithm }),
-            ...(input.keyId === undefined ? {} : { keyId: input.keyId }),
-          },
-        ],
+      Result.flatMap(
+        Result.all({
+          subjectId: readGuarded(["subjectId"], () => input.subjectId),
+          resourceId: readGuarded(["resourceId"], () => input.resourceId),
+          meaning: readGuarded(["meaning"], () => input.meaning),
+          signerRole: readGuarded(["signerRole"], () => input.signerRole),
+          signedAt: readGuarded(["signedAt"], () => input.signedAt),
+          algorithm: readGuarded(["algorithm"], () => input.algorithm),
+          keyId: readGuarded(["keyId"], () => input.keyId),
+        }),
+        (row) =>
+          Result.map(
+            pairKey(
+              makeSubjectId(row.subjectId),
+              row.resourceId === undefined ? undefined : makeResourceId(row.resourceId),
+            ),
+            (key): [string, Signature] => [
+              key,
+              {
+                signerId: makeSubjectId(row.subjectId),
+                meaning: row.meaning,
+                signedAt: row.signedAt ?? 0,
+                ...(row.signerRole === undefined ? {} : { signerRole: row.signerRole }),
+                ...(row.algorithm === undefined ? {} : { algorithm: row.algorithm }),
+                ...(row.keyId === undefined ? {} : { keyId: row.keyId }),
+              },
+            ],
+          ),
       ),
     ),
   );
@@ -441,26 +458,33 @@ export const signatureHistoryFromSignatures = (
  * onFile }` by the rule `askSignature` uses (`signatureAnswerOf`). A row or a
  * request the key refuses fails with `SignatureHistoryUnavailable` carrying
  * `describeKeyRefusal`'s sentence, never `matched: false`, which would deny
- * `hasSignature` and grant `not(hasSignature(…))` (INV-QD-007), and never a
- * throw, for any value the rows or the site hold (BEH-QD-410). The agreement
- * with `askSignature` over the fixture layer is pinned by
+ * `hasSignature` and grant `not(hasSignature(…))` (INV-QD-007).
+ *
+ * It never throws, whatever a row, the site's subject or the site's resource holds
+ * (BEH-QD-410): a `null` row, a getter or a proxy that throws is a refusal. A row's
+ * is the lookup's, naming the field. The site is read once, through `readGuarded`,
+ * where the request is built, so a subject or resource that throws fails with no
+ * `subjectId` and no `resourceId`, as no request exists to name them from. The
+ * agreement with `askSignature` over the fixture layer is pinned by
  * `SignatureHistory.test.ts`.
  */
 export const signatureAnswerFromSignatures = (
   signatures: ReadonlyArray<SignatureInput>,
   leaf: LeafOf["HasSignature"],
   site: ReadSite,
-): Result.Result<SignatureAnswer, MissingResourceId | SignatureHistoryUnavailable> => {
-  const [query] = signatureHistoryPort.asks.HasSignature(leaf, site);
-  return Result.flatMap(requireResourceId(leaf, query.resourceId, leaf.meaning), () =>
-    Result.match(signatureLookup(signatures)(query), {
-      onFailure: (refusal) =>
-        Result.fail(signatureHistoryPort.failure([query], describeKeyRefusal(refusal))),
-      onSuccess: (rows) =>
-        Result.succeed(signatureAnswerOf(rows, leaf.meaning, leaf.signerRole)),
-    }),
-  );
-};
+): Result.Result<SignatureAnswer, MissingResourceId | SignatureHistoryUnavailable> =>
+  Result.gen(function* () {
+    const [query] = yield* Result.mapError(
+      readGuarded(["site"], () => signatureHistoryPort.asks.HasSignature(leaf, site)),
+      (refusal) =>
+        new SignatureHistoryUnavailable({ cause: describeKeyRefusal(refusal) }),
+    );
+    yield* requireResourceId(leaf, query.resourceId, leaf.meaning);
+    const rows = yield* Result.mapError(signatureLookup(signatures)(query), (refusal) =>
+      signatureHistoryPort.failure([query], describeKeyRefusal(refusal)),
+    );
+    return signatureAnswerOf(rows, leaf.meaning, leaf.signerRole);
+  });
 
 /**
  * Wraps a signature-history layer so every `signaturesFor` call retries on

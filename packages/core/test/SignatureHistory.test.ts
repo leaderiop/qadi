@@ -25,7 +25,10 @@ import {
 } from "../src/SignatureHistory.ts";
 import type { SignatureAnswer, SignatureInput } from "../src/SignatureHistory.ts";
 import {
+  alice,
+  causeText,
   disagreement,
+  HOSTILE_RECORDS,
   leafOf,
   SITES,
   unkeyableRow,
@@ -545,6 +548,103 @@ the read does, with no subject id and never matched: false",
             assert.isFalse(Object.hasOwn(judged.failure, "subjectId"));
           }
         }
+      }),
+  );
+});
+
+/**
+ * A fixture row, a site subject or a site resource that cannot be read is a refusal,
+ * never a throw: the layer, the read over it and the judgement fail typed.
+ *
+ * The three records an untyped caller can hand over that no typed signature admits
+ * are `null`, an object with a getter that throws, and a proxy whose trap throws
+ * (`HOSTILE_RECORDS`). A row's refusal names the field that was read, a site's
+ * names the site, and both carry what was thrown.
+ */
+describe("a signature fixture whose rows or site cannot be read", () => {
+  const typed = { subjectId: "alice", meaning: "approved" };
+  const anyLeaf = leafOf("HasSignature", hasSignature("approved", { scope: "Any" }));
+  const resourceLeaf = leafOf(
+    "HasSignature",
+    hasSignature("approved", { scope: "Resource" }),
+  );
+
+  /** Each hostile row, and its refusal: the field read and what it threw. */
+  const ROWS = {
+    nullRecord: {
+      row: HOSTILE_RECORDS.nullRecord("{}", "meaning", "boom"),
+      cause: /^subjectId: reading it threw: .*null/,
+    },
+    throwingGetter: {
+      row: HOSTILE_RECORDS.throwingGetter('{"subjectId":"alice"}', "meaning", "boom"),
+      cause: /^meaning: reading it threw: boom$/,
+    },
+    throwingProxy: {
+      row: HOSTILE_RECORDS.throwingProxy("{}", "meaning", "boom"),
+      cause: /^subjectId: reading it threw: boom$/,
+    },
+  };
+
+  it.effect(
+    "a fixture row that cannot be read fails every read, naming the field and \
+what was thrown",
+    () =>
+      Effect.gen(function* () {
+        for (const [name, { row, cause }] of Object.entries(ROWS)) {
+          const rows = [typed, row];
+          const layer = signatureHistoryFromSignatures(rows);
+          const direct = yield* Effect.result(query(layer, "alice", "doc-1"));
+          const read = yield* readOf(rows, anyLeaf, SITES.withId);
+          const judged = signatureAnswerFromSignatures(rows, anyLeaf, SITES.withId);
+          const results: ReadonlyArray<
+            Result.Result<unknown, MissingResourceId | SignatureHistoryUnavailable>
+          > = [direct, read, judged];
+          for (const result of results) {
+            if (Result.isSuccess(result)) return assert.fail(`${name}: answered`);
+            if (result.failure._tag !== "SignatureHistoryUnavailable") {
+              return assert.fail(`${name}: ${result.failure._tag}`);
+            }
+            assert.match(causeText(result.failure), cause, name);
+          }
+          assert.deepStrictEqual(answerOf(judged), answerOf(read), name);
+        }
+      }),
+  );
+
+  it("a site subject that cannot be read fails the judgement with no subject id, \
+naming the site", () => {
+    for (const [name, build] of Object.entries(HOSTILE_RECORDS)) {
+      const subject = build(JSON.stringify(alice), "id", "boom");
+      const judged = signatureAnswerFromSignatures([typed], anyLeaf, {
+        subject,
+        resource: undefined,
+      });
+      if (Result.isSuccess(judged)) return assert.fail(`${name}: answered`);
+      if (judged.failure._tag !== "SignatureHistoryUnavailable") {
+        return assert.fail(`${name}: ${judged.failure._tag}`);
+      }
+      assert.isFalse(Object.hasOwn(judged.failure, "subjectId"), name);
+      assert.match(causeText(judged.failure), /^site: reading it threw: /, name);
+    }
+  });
+
+  it.effect(
+    "a resource id that throws fails a Resource leaf, which an Any leaf never reads",
+    () =>
+      Effect.gen(function* () {
+        const resource = HOSTILE_RECORDS.throwingGetter("{}", "id", "boom");
+        const site: ReadSite = { subject: alice, resource };
+        const refused = signatureAnswerFromSignatures([typed], resourceLeaf, site);
+        if (Result.isSuccess(refused)) return assert.fail("answered");
+        if (refused.failure._tag !== "SignatureHistoryUnavailable") {
+          return assert.fail(refused.failure._tag);
+        }
+        assert.isFalse(Object.hasOwn(refused.failure, "resourceId"));
+        assert.strictEqual(causeText(refused.failure), "site: reading it threw: boom");
+        const answered = signatureAnswerFromSignatures([typed], anyLeaf, site);
+        assert.isTrue(Result.isSuccess(answered));
+        const read = yield* readOf([typed], anyLeaf, site);
+        assert.deepStrictEqual(answerOf(answered), answerOf(read));
       }),
   );
 });

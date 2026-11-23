@@ -38,6 +38,7 @@ import {
 } from "./PortDerivation.ts";
 import { describeKeyRefusal } from "./PortDescription.ts";
 import type { KeyRefusal, LeafOf, PortDescription, ReadSite } from "./PortDescription.ts";
+import { readGuarded } from "./PortKey.ts";
 import {
   portSpan,
   sharedQuestionFields,
@@ -276,6 +277,10 @@ export interface ActedEventInput {
  * key of its `Any` request. A row or a query the key refuses fails rather than
  * answering `"NotActed"`, which `hasNotActed` would read as an allow.
  *
+ * Every field of a row is read through `readGuarded`, so a row that is `null` or
+ * `undefined`, or whose property read throws, is a refused entry like one the key
+ * refuses and not a throw.
+ *
  * `decisionHistoryFromEvents` and `actedAnswerFromEvents` both read it, so the
  * layer and the judgement cannot answer differently.
  */
@@ -284,15 +289,25 @@ const actedLookup = (
 ): ((query: ActedQuery) => Result.Result<"Acted" | "NotActed", KeyRefusal>) => {
   const keyed = Result.map(
     Result.all(
-      events.flatMap(({ subjectId, event, resourceId }) => {
-        const asked = { subjectId: makeSubjectId(subjectId), event };
-        return [
-          decisionHistoryPort.key([{ ...asked, resourceId: makeResourceId(resourceId) }]),
-          decisionHistoryPort.key([{ ...asked, resourceId: undefined }]),
-        ];
-      }),
+      events.map((event) =>
+        Result.flatMap(
+          Result.all({
+            subjectId: readGuarded(["subjectId"], () => event.subjectId),
+            event: readGuarded(["event"], () => event.event),
+            resourceId: readGuarded(["resourceId"], () => event.resourceId),
+          }),
+          (row) => {
+            const asked = { subjectId: makeSubjectId(row.subjectId), event: row.event };
+            const resourceId = makeResourceId(row.resourceId);
+            return Result.all([
+              decisionHistoryPort.key([{ ...asked, resourceId }]),
+              decisionHistoryPort.key([{ ...asked, resourceId: undefined }]),
+            ]);
+          },
+        ),
+      ),
     ),
-    (keys) => new Set(keys),
+    (keys) => new Set(keys.flat()),
   );
 
   return (query) =>
@@ -340,12 +355,17 @@ export const decisionHistoryFromEvents = (
  * resource-scoped leaf at a site with no usable resource id fails with
  * `MissingResourceId`, before any event is read (`requireResourceId`). Otherwise
  * it reads the lookup `decisionHistoryFromEvents` reads. The fixture is a closed
- * world, so it never answers `"Unknown"`, and its type says so. A row or a
- * request the key refuses fails with `DecisionHistoryUnavailable` carrying
+ * world, so it never answers `"Unknown"`, and its type says so. A row or a request
+ * the key refuses fails with `DecisionHistoryUnavailable` carrying
  * `describeKeyRefusal`'s sentence, never `"NotActed"`, which `hasNotActed` would
- * read as an allow, and never a throw, for any value the rows or the site hold
- * (BEH-QD-410). The agreement with `askActed` over the fixture layer is pinned
- * by `DecisionHistory.test.ts`.
+ * read as an allow.
+ *
+ * It never throws, whatever a row, the site's subject or the site's resource holds
+ * (BEH-QD-410): a `null` row, a getter or a proxy that throws is a refusal. A row's
+ * is the lookup's, naming the field. The site is read once, through `readGuarded`,
+ * where the request is built, so a subject or resource that throws fails with no
+ * `event`, as no request exists to name one from. The agreement with `askActed`
+ * over the fixture layer is pinned by `DecisionHistory.test.ts`.
  */
 export const actedAnswerFromEvents = (
   events: ReadonlyArray<ActedEventInput>,
@@ -354,16 +374,18 @@ export const actedAnswerFromEvents = (
 ): Result.Result<
   "Acted" | "NotActed",
   MissingResourceId | DecisionHistoryUnavailable
-> => {
-  const [query] = decisionHistoryPort.asks.HasActed(leaf, site);
-  return Result.flatMap(requireResourceId(leaf, query.resourceId, leaf.event), () =>
-    Result.match(actedLookup(events)(query), {
-      onSuccess: Result.succeed,
-      onFailure: (refusal) =>
-        Result.fail(decisionHistoryPort.failure([query], describeKeyRefusal(refusal))),
-    }),
-  );
-};
+> =>
+  Result.gen(function* () {
+    const [query] = yield* Result.mapError(
+      readGuarded(["site"], () => decisionHistoryPort.asks.HasActed(leaf, site)),
+      (refusal) =>
+        new DecisionHistoryUnavailable({ cause: describeKeyRefusal(refusal) }),
+    );
+    yield* requireResourceId(leaf, query.resourceId, leaf.event);
+    return yield* Result.mapError(actedLookup(events)(query), (refusal) =>
+      decisionHistoryPort.failure([query], describeKeyRefusal(refusal)),
+    );
+  });
 
 /**
  * Wraps a history layer so every `hasActed` call retries on

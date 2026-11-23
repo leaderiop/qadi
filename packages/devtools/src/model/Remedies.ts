@@ -85,10 +85,12 @@ export interface RemedySweep {
  * For events and signatures it is core's answer (`actedAnswerFromEvents`,
  * `signatureAnswerFromSignatures`), because the leaf's scope decides which row
  * answers and that rule is the port's. A check the port refuses is skipped with
- * the port's refusal, never offered a row and never thrown, for any value a form
- * row or the form's subject holds, and the two agreement tests
+ * the port's refusal, never offered a row, and the two agreement tests
  * (`RemedySignatureConformance.test.ts`, `RemedyActedConformance.test.ts`)
- * compare the table with core's evaluation. Attributes get no such check — a
+ * compare the table with core's evaluation. Those two checks never throw, for
+ * any value a signature row, an event row, the form's subject or the form's
+ * resource holds: a row or a site that cannot be read is a skip naming what was
+ * thrown. Attributes get no such check — a
  * key present with the wrong value is precisely the case worth a row — so a
  * remedy that changes nothing is offered, and the sweep reports it as *no
  * change*. That is a finding too: it says the attribute was never the problem.
@@ -446,6 +448,17 @@ const refusal = (who: string, cause: unknown): string =>
   thrownMessage(cause);
 
 /**
+ * A read of the form's own subject or resource, or the skip reason its throw is.
+ *
+ * The form holds what a person typed and what a host handed over, so reading its
+ * subject or its resource may throw (a getter, a proxy, a `null`). The two arms that
+ * ask core read the form only through this, so such a check is skipped with what was
+ * thrown and never throws out of `remedyEdits`, which `whatIf` calls from `derive`.
+ */
+const readForm = <A>(read: () => A): Result.Result<A, string> =>
+  Result.try({ try: read, catch: (thrown) => refusal("form", thrown) });
+
+/**
  * The reason a check that core's fixture judgement failed for is skipped.
  *
  * Both judgements read this one dispatcher, each failing with `MissingResourceId` or
@@ -560,18 +573,27 @@ const remedyFor: (self: Requirement) => (input: SimulationInput) => Built | unde
       // site's resource id for its row, because an event record carries one and
       // `Any` widens the question, not the fixture.
       Acted: (self) => (input: SimulationInput) => {
-        const { event } = self.leaf;
-        const rows = fieldOps("history").elements(input);
-        return Result.match(actedAnswerFromEvents(rows, self.leaf, siteOf(input)), {
-          onFailure: (failure) => skip(`event ${event}`, skipReason(failure)),
-          onSuccess: (answer) => {
+        const { leaf } = self;
+        const { event } = leaf;
+        return Result.match(
+          Result.gen(function* () {
+            const site = yield* readForm(() => siteOf(input));
+            const rows = fieldOps("history").elements(input);
+            const answer = yield* Result.mapError(
+              actedAnswerFromEvents(rows, leaf, site),
+              skipReason,
+            );
             if (answer === "Acted") return undefined;
-            const resourceId = resourceIdOf(input.resource);
-            if (resourceId === undefined) return skip(`event ${event}`, NO_RESOURCE_ID);
-            const row = { subjectId: input.subject.id, event, resourceId };
+            const resourceId = yield* readForm(() => resourceIdOf(input.resource));
+            if (resourceId === undefined) return yield* Result.fail(NO_RESOURCE_ID);
+            const row = { subjectId: site.subject.id, event, resourceId };
             return edit(grant("history", row, `with event ${event} on ${resourceId}`));
+          }),
+          {
+            onFailure: (reason) => skip(`event ${event}`, reason),
+            onSuccess: (built) => built,
           },
-        });
+        );
       },
 
       // Met is core's answer for this node at this site over the form's rows, not
@@ -582,21 +604,26 @@ const remedyFor: (self: Requirement) => (input: SimulationInput) => Built | unde
       // why this is not `sameSignature`'s full equality, the form's duplicate check.
       Signature: (self) => (input: SimulationInput) => {
         const { leaf } = self;
-        const site = siteOf(input);
-        const rows = fieldOps("signatures").elements(input);
-        return Result.match(signatureAnswerFromSignatures(rows, leaf, site), {
-          onFailure: (failure) => skip(`signature ${leaf.meaning}`, skipReason(failure)),
-          onSuccess: (answer) => {
+        const { meaning, signerRole } = leaf;
+        return Result.match(
+          Result.gen(function* () {
+            const site = yield* readForm(() => siteOf(input));
+            const rows = fieldOps("signatures").elements(input);
+            const answer = yield* Result.mapError(
+              signatureAnswerFromSignatures(rows, leaf, site),
+              skipReason,
+            );
             if (answer.matched) return undefined;
-            const [{ resourceId }] = signatureHistoryPort.asks.HasSignature(leaf, site);
-            const { meaning, signerRole } = leaf;
+            const [{ resourceId }] = yield* readForm(() =>
+              signatureHistoryPort.asks.HasSignature(leaf, site),
+            );
             const on = resourceId === undefined ? "" : ` on ${resourceId}`;
             const as = signerRole === undefined ? "" : ` as ${signerRole}`;
             return edit(
               grant(
                 "signatures",
                 {
-                  subjectId: input.subject.id,
+                  subjectId: site.subject.id,
                   meaning,
                   ...(signerRole === undefined ? {} : { signerRole }),
                   ...(resourceId === undefined ? {} : { resourceId }),
@@ -604,8 +631,12 @@ const remedyFor: (self: Requirement) => (input: SimulationInput) => Built | unde
                 `with signature ${meaning}${on}${as}`,
               ),
             );
+          }),
+          {
+            onFailure: (reason) => skip(`signature ${meaning}`, reason),
+            onSuccess: (built) => built,
           },
-        });
+        );
       },
 
       Custom: (self) => () =>

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-189                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-23                                     |
 > | Status         | Accepted — amends ADR-QD-058 and ADR-QD-094   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-23): what enforces it: the compiler, the scripts, the tests by title and what review keeps; the acted evidence (ARCH-123, CCR-QD-468)<br>1.0 (2026-11-23): Initial release (ARCH-123, CCR-QD-468) |
+> | Change History | 1.2 (2026-11-23): decision 4 and 5: the refusal is total over a row, a subject and a resource that throw, through one guarded read (code review WR-01, CCR-QD-468)<br>1.1 (2026-11-23): what enforces it: the compiler, the scripts, the tests by title and what review keeps; the acted evidence (ARCH-123, CCR-QD-468)<br>1.0 (2026-11-23): Initial release (ARCH-123, CCR-QD-468) |
 
 ---
 
@@ -40,6 +40,9 @@ move them.
 - The history fixture keyed its rows by structural hashing, so a row or request member whose
   read throws, a revoked proxy, threw out of the fixture, and a member no key admits, a
   symbol, answered `"NotActed"`, which `hasNotActed` reads as an allow.
+- The refusal claimed every value and held only for the values a typed caller can build. A
+  `null` row, a getter that throws and a proxy whose trap throws still threw out of the
+  fixture, the judgement and the remedy table, so the claim is made true rather than narrowed.
 - The custom-predicate refusal was two sentences for one fact, one in the remedy table and one
   in the simulation field table.
 
@@ -71,17 +74,23 @@ leaves were the two it did not ask.
    fixture keys its rows and its requests through `decisionHistoryPort.key`, as the signature
    fixture keys through `signatureHistoryPort.key`, so both fixtures read one key text per pair
    and fail closed on one refusal (BEH-QD-410).
-4. **The refusal is total.** For every value a request member or a fixture row field holds, the
-   port read, the fixture layer and the judgement answer or fail with the port's own typed
-   error and never throw or die. `SignatureHistoryUnavailable.subjectId` and
+4. **The refusal is total.** For every value a request member, a fixture row, the site's subject
+   or the site's resource holds, including `null` or `undefined`, a getter that throws and a
+   proxy whose trap throws, the fixture layer, the read over it and the judgement answer or
+   fail with the port's own typed error and never throw or die. Each untrusted field is read
+   through one guarded read, `readGuarded` in `PortKey.ts`, which turns a throw into
+   `KeyRefusal.Unreadable` with the field's path and `thrownMessage` of what was thrown, so
+   the refusal sentence names the field. A row's fields are read once, where its lookup key
+   is built; the site is read once, where the judgement builds the request, and a subject or
+   resource that throws is named as the site. The evaluator's own read of its site is not
+   guarded: it holds a subject `evaluate` already read. `SignatureHistoryUnavailable.subjectId` and
    `DecisionHistoryUnavailable.event` become optional, and each description's `failure` sets a
    member only when the member's own schema admits the request's value (`Schema.is`), as it
    already did for `resourceId`. An absent member says the request held a value the wire cannot
    carry, and the cause carries `describeKeyRefusal`'s sentence, which names it. The
    representation is the error class itself, so `SinkCodec` and `@qadi/http`'s response body
    carry an absent member with no second schema (ADR-QD-060), and the response body's two
-   members become optional with it. A record whose own property read throws is outside the
-   domain, as for every reader of a plain record.
+   members become optional with it.
 5. **The remedy table asks.** The site is `subjectOf`'s subject and the form's resource. For a
    signature, met is no row, unmet is one `AddSignature` row whose resource id is the request's
    (from the description's `asks`), `MissingResourceId` is skipped with "the check names no
@@ -148,7 +157,8 @@ absent when the request held a value the wire cannot carry.
 
 `@qadi/devtools` changes only where the old arms diverged, a patch changeset: no redundant or
 falsely skipped `Any`-scope event row, and a refused signature or event fixture, or a site the
-key refuses, is skipped with the refusal's sentence rather than offered a row or thrown. The
+key refuses or that cannot be read, is skipped with the refusal's sentence rather than offered a
+row or thrown, and a form subject or resource that throws is skipped with what it threw. The
 history fixture's rows are keyed by the port's key text.
 
 `sameSignature` stays, because the form's duplicate check compares every field and the port's
@@ -186,14 +196,25 @@ unchanged because no error class is added or removed: two gain an optional membe
   `packages/core/test/SignatureHistory.test.ts`
   ("a refused fixture row fails as the read does, with the refusal and never matched: false",
   "a refused query key fails as the read does, with no subject id and never matched: false",
-  "fails as SignatureHistoryUnavailable with no subject id and the refusal as its cause, never dying") and
+  "fails as SignatureHistoryUnavailable with no subject id and the refusal as its cause, never dying",
+  "a fixture row that cannot be read fails every read, naming the field and what was thrown",
+  "a site subject that cannot be read fails the judgement with no subject id, naming the site",
+  "a resource id that throws fails a Resource leaf, which an Any leaf never reads") and
   `packages/core/test/DecisionHistory.test.ts`
-  ("a refused subject or event row fails as the read does, with the refusal and never NotActed",
+  ("a site whose subject id is a symbol fails as the read does, with the refusal and never NotActed",
+  "an event row whose subject id is a symbol fails as the read does, with the refusal and never NotActed",
   "a refused event fails as the read does, with no event and never NotActed",
   "a subject whose id is a symbol fails as DecisionHistoryUnavailable, never answering NotActed",
   "an event that is a symbol fails with no event and the refusal as its cause, never answering NotActed",
   "a fixture row whose subject id is a symbol fails every read, never answering NotActed",
-  "a fixture row whose event cannot be read fails every read, never throwing").
+  "a fixture row whose event cannot be read fails every read, never throwing",
+  "a fixture row that cannot be read fails every read, naming the field and what was thrown",
+  "a site subject that cannot be read fails the judgement with no event, naming the site",
+  "a resource id that throws fails a Resource leaf, which an Any leaf never reads").
+- The remedy table over a row or site it cannot read:
+  `packages/devtools/test/model/RemedyTotality.test.ts` (each of a null row, a row whose getter
+  throws and a row that is a throwing proxy, for a signature leaf and an event leaf, and a form
+  subject or resource that cannot be read, each skipped with its sentence).
 - The `SinkCodec` round trips for an absent member: `packages/core/test/SinkCodec.test.ts`
   ("a SignatureHistoryUnavailable with no subject id round-trips without one",
   "a DecisionHistoryUnavailable with no event round-trips without one"), and the response body for it:
@@ -212,8 +233,9 @@ unchanged because no error class is added or removed: two gain an optional membe
 - The custom-cell identity row: `packages/devtools/test/model/SimulationFields.test.ts`
   ("the custom-predicate cell is the value whose reason the remedy table gives").
 
-**The totality's mechanism** is `Schema.is` on each member before `failure` sets it, and the history fixture
-keyed through the port's key, so a refused request has no path to a throw or to `"NotActed"`.
+**The totality's mechanism** is `Schema.is` on each member before `failure` sets it, the history fixture
+keyed through the port's key, and `readGuarded` on every field a row or a site is read for, so a refused
+request has no path to a throw or to `"NotActed"`.
 
 **What review keeps.** That each lookup and the answer rule are read and not restated is kept by review, since
 no script counts the reads; it was seen failing once, when a copy of the lookup drifted and the conformance

@@ -53,6 +53,7 @@
  */
 import * as Equal from "effect/Equal";
 import * as Result from "effect/Result";
+import type { WirePath } from "./JsonRefusal.ts";
 import { KeyRefusal } from "./PortDescription.ts";
 import type { UnkeyableKind } from "./PortDescription.ts";
 import { thrownMessage } from "./ThrownMessage.ts";
@@ -200,3 +201,24 @@ export const canonicalKey = (value: unknown): Result.Result<string, KeyRefusal> 
     catch: (error) => KeyRefusal.Unreadable({ path: [...path], message: thrownMessage(error) }),
   }).pipe(Result.flatMap((walked) => walked));
 };
+
+/**
+ * `read()`, or the refusal that its throw is.
+ *
+ * The one place a fixture's rows and a site's fields are read from a value a caller
+ * may have built wrongly: a getter that throws, a proxy whose trap throws, a `null`
+ * or `undefined` row. The throw becomes a {@link KeyRefusal.Unreadable} naming
+ * `path` and carrying what was thrown, which `describeKeyRefusal` writes as a
+ * sentence, so a fixture's lookup and a fixture judgement refuse such a value as
+ * they refuse one the key cannot read, and neither throws (BEH-QD-410). Reads go
+ * through it so that no caller writes a `try` of its own.
+ */
+export const readGuarded = <A>(
+  path: WirePath,
+  read: () => A,
+): Result.Result<A, KeyRefusal> =>
+  Result.try({
+    try: read,
+    catch: (error) =>
+      KeyRefusal.Unreadable({ path: [...path], message: thrownMessage(error) }),
+  });

@@ -421,3 +421,34 @@ export const unkeyableRow = (json: string) =>
 /** A site subject whose id is a symbol, which no request key admits. */
 export const unkeyableSubject = () =>
   untypedWith(JSON.stringify(alice), "id", Symbol("alice"));
+
+/**
+ * The three ways a record can fail to be read: it is `null`, one property's getter
+ * throws, a proxy's every trap throws.
+ *
+ * Each is built from `JSON.parse`, so it is an untyped value (no `as`), what a typed
+ * signature refuses and an untyped caller hands over. Each is given the record's
+ * JSON, the field that throws and what it throws; `nullRecord` ignores all three, and
+ * `throwingProxy` reads nothing.
+ */
+export const HOSTILE_RECORDS = {
+  nullRecord: (_json: string, _field: string, _message: string) => JSON.parse("null"),
+  throwingGetter: (json: string, field: string, message: string) =>
+    Object.defineProperty(JSON.parse(json), field, {
+      get: () => {
+        throw new Error(message);
+      },
+    }),
+  throwingProxy: (_json: string, _field: string, message: string) =>
+    new Proxy(JSON.parse("{}"), {
+      get: () => {
+        throw new Error(message);
+      },
+    }),
+};
+
+/** A port failure's cause as its sentence, or a failed assertion when it is not text. */
+export const causeText = (failure: { readonly cause: unknown }): string =>
+  typeof failure.cause === "string"
+    ? failure.cause
+    : assert.fail(`the cause is not a sentence: ${String(failure.cause)}`);
