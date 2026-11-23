@@ -166,8 +166,11 @@ describe("pinning the head", () => {
   it("a replayed seed pins nothing and answers the row decoded", () => {
     const s = seededChoice([sA], rowRead);
     const expected = seededOf(rowRead, hasPermission(read));
+    const grown = withSightings(s.choice, [sB, sA]);
     assert.deepStrictEqual(pc(s.choice), expected);
-    assert.deepStrictEqual(pc(withSightings(s.choice, [sB, sA])), expected);
+    assert.deepStrictEqual(pc(grown), expected);
+    assert.strictEqual(s.choice.held, undefined);
+    assert.strictEqual(grown.held, undefined);
     assert.deepStrictEqual(s.input, carolInput);
   });
 
@@ -182,8 +185,9 @@ describe("pinning the head", () => {
     const c = start([], rowRead);
     const grown = withSightings(c, [sA]);
     assert.strictEqual(pc(grown)._tag, "Seeded");
-    const left = seedFrom(grown, undefined).choice;
-    assert.deepStrictEqual(pc(withSightings(left, [sB, sA])), listed(sA, 1));
+    assert.strictEqual(grown.held, undefined);
+    const left = seedFrom(withSightings(grown, [sB, sA]), undefined).choice;
+    assert.deepStrictEqual(pc(left), listed(sB, 0));
   });
 
   it("leaving a replayed policy pins the head of that moment, not an earlier one", () => {
