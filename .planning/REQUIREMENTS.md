@@ -50,11 +50,11 @@
 
 ### The simulation session's policy choice split from its runs (Phase 74, ARCH-121, devtools)
 
-- [ ] **CHSE-01**: A characterisation of seeding, replaying a row, choosing a policy, the policy menu and its order, and staleness is written on the phase base and stays green.
-- [ ] **CHSE-02**: One pure module beside `HeldChoice.ts` owns the seeded choice: the pin-only-when-unseeded rule, the orphan rule, the menu and its reverse lookup (menu order written once), and the same-policy no-op.
-- [ ] **CHSE-03**: `SimulationSession.ts` keeps only runs and uses that module. "Clear the run" is one operation, called from `reseed`, `choosePolicy` and `setPorts`.
-- [ ] **CHSE-04**: The choice rules are tested as plain values with no scope, and the session tests that only exercised those rules move. The `edit` comment at `:534` is made true: every draft write goes through one path, or the comment is corrected.
-- [ ] **CHSE-05**: ADR-QD-187 records the split. ADR-QD-137 and ADR-QD-150 are untouched, and ADR-QD-047 v1.11 (the menu under the session) still holds.
+- [x] **CHSE-01**: A characterisation of seeding, replaying a row, choosing a policy, the policy menu and its order, and staleness is written on the phase base and stays green.
+- [x] **CHSE-02**: One pure module beside `HeldChoice.ts` owns the seeded choice: the pin-only-when-unseeded rule, the orphan rule, the menu and its reverse lookup (menu order written once), and the same-policy no-op.
+- [x] **CHSE-03**: `SimulationSession.ts` keeps only runs and uses that module. "Clear the run" is one operation, called from `reseed`, `choosePolicy` and `setPorts`.
+- [x] **CHSE-04**: The choice rules are tested as plain values with no scope, and the session tests that only exercised those rules move. The `edit` comment at `:534` is made true: every draft write goes through one path, or the comment is corrected.
+- [x] **CHSE-05**: ADR-QD-187 records the split. ADR-QD-137 and ADR-QD-150 are untouched, and ADR-QD-047 v1.11 (the menu under the session) still holds.
 
 ### A declared span shape for the evaluate family (Phase 75, ARCH-122, core; human checkpoint)
 
@@ -130,11 +130,11 @@ Which phases cover which requirements. One row per ID (`phase.complete` cannot p
 | RECN-03 | Phase 73 | Complete |
 | RECN-04 | Phase 73 | Complete |
 | RECN-05 | Phase 73 | Complete |
-| CHSE-01 | Phase 74 | Pending |
-| CHSE-02 | Phase 74 | Pending |
-| CHSE-03 | Phase 74 | Pending |
-| CHSE-04 | Phase 74 | Pending |
-| CHSE-05 | Phase 74 | Pending |
+| CHSE-01 | Phase 74 | Complete |
+| CHSE-02 | Phase 74 | Complete |
+| CHSE-03 | Phase 74 | Complete |
+| CHSE-04 | Phase 74 | Complete |
+| CHSE-05 | Phase 74 | Complete |
 | ESPN-01 | Phase 75 | Pending |
 | ESPN-02 | Phase 75 | Pending |
 | ESPN-03 | Phase 75 | Pending |
