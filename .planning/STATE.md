@@ -4,18 +4,18 @@ milestone: v1.8
 milestone_name: Arch Wave 13
 current_phase: 74
 current_phase_name: The simulation session's policy choice split from its runs
-current_plan: 6
+current_plan: 7
 status: executing
-stopped_at: Completed 74-05-PLAN.md
-last_updated: "2026-11-23T04:27:29.620Z"
+stopped_at: Completed 74-06-PLAN.md
+last_updated: "2026-11-23T04:38:03.476Z"
 last_activity: 2026-11-23
 last_activity_desc: Phase 73 complete, transitioned to Phase 74
-state_head: 210c9f5baa5f01b282c26291ad9de7f1c4f5d0b6
+state_head: 8989b740b0e439d49bdaf6c0dbe6b97a251b8ea0
 progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 46
-  completed_plans: 44
+  completed_plans: 45
   percent: 63
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 ## Current Position
 
 Phase: 74 (The simulation session's policy choice split from its runs) — READY TO EXECUTE
-Current Plan: 6
+Current Plan: 7
 Total Plans in Phase: 7
 Status: Ready to execute
 Last activity: 2026-11-23 — Phase 73 complete, transitioned to Phase 74
@@ -534,6 +534,7 @@ Last activity: 2026-11-23 — Phase 73 complete, transitioned to Phase 74
 | Phase 74 P03 | 45min | 3 tasks | 8 files |
 | Phase 74 P04 | 12 min | 3 tasks | 4 files |
 | Phase 74 P05 | 10 min | 2 tasks | 2 files |
+| Phase 74 P06 | 25 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -921,6 +922,8 @@ Last activity: 2026-11-23 — Phase 73 complete, transitioned to Phase 74
 - [Phase 74]: 74-03: SimulationSession re-exports PolicyChoice, PolicyMenu and PolicyMenuOption from ./SeededChoice.ts so the unedited characterisation still resolves them; the barrel names them from the new module
 - [Phase 74]: 74-04: the session's second home for the choice types is removed; the characterisation imports them from SeededChoice.ts (decided autonomously)
 - [Phase 74]: 74-05: simulationFixtures.ts needed no change after the removal; every export keeps two importers or a caller in the module (settled, called by ran)
+- [Phase 74]: 74-06: INV-QD-393 Enforcement cites eleven SeededChoice.test.ts titles (the pin, orphan, menu-list and no-op titles BEH-QD-706 to 709 cite), not every title in the file (decided autonomously)
+- [Phase 74]: 74-06: the CCR-QD-466 prose names BEH-QD-706 to 710, INV-QD-393/394 and the three dated amendments (decided autonomously)
 
 ### Pending Todos
 
@@ -994,8 +997,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-23T04:27:29.299Z
-Stopped at: Completed 74-05-PLAN.md
+Last session: 2026-11-23T04:38:03.259Z
+Stopped at: Completed 74-06-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
