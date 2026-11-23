@@ -21,6 +21,9 @@
  * closed. The public half is `PortSpan.ts` (the types a description names) and
  * `PortSpanDecode.ts` (the decoder).
  *
+ * The evaluate family builds its spans with the same machinery, in
+ * `EvaluationSpan.ts` (ADR-QD-188).
+ *
  * Not a Schema `Struct` + `encodeKeys` whole: that measured ≈1.1 µs per encode
  * and fails a whole row on one wrong-typed attribute, which BEH-QD-228 forbids.
  * Encoding here is a walk over the value's own entries; decoding takes each

@@ -29,6 +29,7 @@ import {
   SignatureHistoryUnavailable,
 } from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
+import { denialEvent, evaluateSpan } from "../src/EvaluationSpan.ts";
 import { decisionsTotal, denialsByPolicyTagTotal, evaluationDurationMillis } from "../src/EvaluationMetrics.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
@@ -52,6 +53,7 @@ import {
 } from "./helpers.ts";
 import { scriptedPort } from "../src/PortDoubles.ts";
 import { PortReply } from "../src/PortDescription.ts";
+import { decodeSpan, encodeSpan } from "../src/PortSpanEncode.ts";
 
 const read = permission("doc", "read");
 const write = permission("doc", "write");
@@ -2453,16 +2455,18 @@ describe("observability", () => {
         ),
       );
 
-      const span = named(spans, "qadi.evaluate");
+      const span = named(spans, evaluateSpan.name);
       assert.isDefined(span);
       if (span === undefined) return;
       // The identifier is deterministic because EvaluationId is a service —
       // ADR-QD-012. Under crypto.randomUUID this assertion could not exist.
       assert.deepStrictEqual(Object.fromEntries(span.attributes), {
-        "qadi.decision": "Allow",
-        "qadi.subject_id": "u1",
-        "qadi.evaluation_id": "eval-1",
-        "qadi.policy_tag": "HasRole",
+        ...encodeSpan(evaluateSpan.question, {
+          subjectId: "u1",
+          evaluationId: "eval-1",
+          policyTag: "HasRole",
+        }),
+        ...encodeSpan(evaluateSpan.answer, { outcome: "Allow" }),
       });
     }));
 
@@ -2479,41 +2483,55 @@ describe("observability", () => {
         ),
       );
 
-      const span = named(spans, "qadi.evaluate");
+      const span = named(spans, evaluateSpan.name);
       assert.isDefined(span);
       if (span === undefined) return;
       assert.deepStrictEqual(Object.fromEntries(span.attributes), {
-        "qadi.decision": "Deny",
-        "qadi.subject_id": "u2",
-        "qadi.evaluation_id": "eval-1",
-        "qadi.policy_tag": "HasPermission",
+        ...encodeSpan(evaluateSpan.question, {
+          subjectId: "u2",
+          evaluationId: "eval-1",
+          policyTag: "HasPermission",
+        }),
+        ...encodeSpan(evaluateSpan.answer, { outcome: "Deny" }),
       });
     }));
 
-  it.effect("a failed evaluation annotates qadi.evaluate as Failed, with its error tag", () =>
-    Effect.gen(function* () {
-      // Before this, a store outage left the span with no attribute at all, so a
-      // trace could not tell a failed evaluation from one still running.
-      const spans: Array<Tracer.Span> = [];
-      const down = scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer;
+  it.effect(
+    "a failed evaluation annotates qadi.evaluate with its question and error tag",
+    () =>
+      Effect.gen(function* () {
+        // The question is on the span, not only the failure: a trace tells a failed
+        // evaluation from one still running, and says by whom it was asked.
+        const spans: Array<Tracer.Span> = [];
+        const down = scriptedPort(attributeResolverPort, () =>
+          PortReply.fail("down"),
+        ).layer;
 
-      yield* Effect.result(evaluate(P.hasAttribute("clearance", M.gte(1)))).pipe(
-        Effect.provide(
-          Layer.mergeAll(
-            testLayer(subjectWith({ id: "u3" }), { AttributeResolver: down }),
-            collectingTracer(spans),
+        yield* Effect.result(evaluate(P.hasAttribute("clearance", M.gte(1)))).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              testLayer(subjectWith({ id: "u3" }), { AttributeResolver: down }),
+              collectingTracer(spans),
+            ),
           ),
-        ),
-      );
+        );
 
-      const span = named(spans, "qadi.evaluate");
-      assert.isDefined(span);
-      if (span === undefined) return;
-      assert.deepStrictEqual(Object.fromEntries(span.attributes), {
-        "qadi.outcome": "Failed",
-        "qadi.error_tag": "AttributeResolveError",
-      });
-    }));
+        const span = named(spans, evaluateSpan.name);
+        assert.isDefined(span);
+        if (span === undefined) return;
+        assert.deepStrictEqual(Object.fromEntries(span.attributes), {
+          ...encodeSpan(evaluateSpan.question, {
+            subjectId: "u3",
+            evaluationId: "eval-1",
+            policyTag: "HasAttribute",
+          }),
+          ...encodeSpan(evaluateSpan.answer, {
+            outcome: "Failed",
+            errorTag: "AttributeResolveError",
+          }),
+        });
+      }),
+  );
 
   it.effect("the action appears on the span only when one was supplied", () =>
     Effect.gen(function* () {
@@ -2530,15 +2548,17 @@ describe("observability", () => {
         ),
       );
 
-      const span = named(spans, "qadi.evaluate");
+      const span = named(spans, evaluateSpan.name);
       assert.isDefined(span);
       if (span === undefined) return;
       assert.deepStrictEqual(Object.fromEntries(span.attributes), {
-        "qadi.decision": "Allow",
-        "qadi.subject_id": "u1",
-        "qadi.evaluation_id": "eval-1",
-        "qadi.policy_tag": "HasAction",
-        "qadi.action": "write",
+        ...encodeSpan(evaluateSpan.question, {
+          subjectId: "u1",
+          evaluationId: "eval-1",
+          policyTag: "HasAction",
+          action: "write",
+        }),
+        ...encodeSpan(evaluateSpan.answer, { outcome: "Allow" }),
       });
     }));
 
@@ -2557,10 +2577,13 @@ describe("observability", () => {
         ),
       );
 
-      const span = named(spans, "qadi.evaluate");
+      const span = named(spans, evaluateSpan.name);
       assert.isDefined(span);
       if (span === undefined) return;
-      assert.notProperty(Object.fromEntries(span.attributes), "qadi.action");
+      assert.notProperty(
+        Object.fromEntries(span.attributes),
+        evaluateSpan.question.keys.action,
+      );
     }));
 
   it.effect("obligations are reported on the span, by id, only when present", () =>
@@ -2583,11 +2606,11 @@ describe("observability", () => {
         ),
       );
 
-      const span = named(spans, "qadi.evaluate");
+      const span = named(spans, evaluateSpan.name);
       assert.isDefined(span);
       if (span === undefined) return;
       assert.strictEqual(
-        Object.fromEntries(span.attributes)["qadi.obligations"],
+        decodeSpan(evaluateSpan.answer, span.attributes).obligations,
         "log-access,notify-dpo",
       );
     }));
@@ -2605,10 +2628,13 @@ describe("observability", () => {
         ),
       );
 
-      const span = named(spans, "qadi.evaluate");
+      const span = named(spans, evaluateSpan.name);
       assert.isDefined(span);
       if (span === undefined) return;
-      assert.notProperty(Object.fromEntries(span.attributes), "qadi.obligations");
+      assert.notProperty(
+        Object.fromEntries(span.attributes),
+        evaluateSpan.answer.keys.obligations,
+      );
     }));
 
   /**
@@ -3416,11 +3442,14 @@ describe("qadi.evaluate Debug log on denial", () => {
       // `Effect.log*` is variadic (`...message`), so a single-argument call
       // still arrives as a one-element array.
       assert.deepStrictEqual(logs[0]?.message, ["qadi: policy denied"]);
-      assert.deepStrictEqual(logs[0]?.annotations, {
-        "qadi.policy_tag": "HasPermission",
-        "qadi.subject_id": "u2",
-        "qadi.reason": "subject lacks permission 'doc:write'",
-      });
+      assert.deepStrictEqual(
+        logs[0]?.annotations,
+        encodeSpan(denialEvent, {
+          policyTag: "HasPermission",
+          subjectId: "u2",
+          reason: "subject lacks permission 'doc:write'",
+        }),
+      );
     }));
 
   it.effect("an allow logs nothing", () =>
