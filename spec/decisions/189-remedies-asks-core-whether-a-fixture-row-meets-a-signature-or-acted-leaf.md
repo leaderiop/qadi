@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-189                                   |
-> | Revision       | 1.8                                            |
+> | Revision       | 1.9                                            |
 > | Effective Date | 2026-11-23                                     |
 > | Status         | Accepted — amends ADR-QD-058 and ADR-QD-094   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.8 (2026-11-23): decision 4: the refusal sentence names the member and the kind of value, never the value itself (code review iteration 2 IN-03, CCR-QD-468)<br>1.7 (2026-11-23): decision 4: the absent member is stated as unreadable or refused by its schema, and the acted judgement's site failure carries the leaf's event (code review iteration 2 IN-02, CCR-QD-468)<br>1.6 (2026-11-23): decision 4: the list of rows is read through readRows, and its pins are named (code review iteration 2 WR-01, CCR-QD-468)<br>1.5 (2026-11-23): decisions 1 and 7 state the decision and its reason in the spec's own terms (code review IN-05, CCR-QD-468)<br>1.4 (2026-11-23): enforcement: the custom-predicate sentence, each fact checked once (code review IN-06, CCR-QD-468)<br>1.3 (2026-11-23): decision 4: a member is absent exactly when its schema refuses the value, and the cause is the store's own when the key admits it (code review WR-02, CCR-QD-468)<br>1.2 (2026-11-23): decision 4 and 5: the refusal is total over a row, a subject and a resource that throw, through one guarded read (code review WR-01, CCR-QD-468)<br>1.1 (2026-11-23): what enforces it: the compiler, the scripts, the tests by title and what review keeps; the acted evidence (ARCH-123, CCR-QD-468)<br>1.0 (2026-11-23): Initial release (ARCH-123, CCR-QD-468) |
+> | Change History | 1.9 (2026-11-23): Decision 1 states that the change was decided autonomously under the owner's standing instruction, not chosen by the owner at the time<br>1.8 (2026-11-23): decision 4: the refusal sentence names the member and the kind of value, never the value itself (code review iteration 2 IN-03, CCR-QD-468)<br>1.7 (2026-11-23): decision 4: the absent member is stated as unreadable or refused by its schema, and the acted judgement's site failure carries the leaf's event (code review iteration 2 IN-02, CCR-QD-468)<br>1.6 (2026-11-23): decision 4: the list of rows is read through readRows, and its pins are named (code review iteration 2 WR-01, CCR-QD-468)<br>1.5 (2026-11-23): decisions 1 and 7 state the decision and its reason in the spec's own terms (code review IN-05, CCR-QD-468)<br>1.4 (2026-11-23): enforcement: the custom-predicate sentence, each fact checked once (code review IN-06, CCR-QD-468)<br>1.3 (2026-11-23): decision 4: a member is absent exactly when its schema refuses the value, and the cause is the store's own when the key admits it (code review WR-02, CCR-QD-468)<br>1.2 (2026-11-23): decision 4 and 5: the refusal is total over a row, a subject and a resource that throw, through one guarded read (code review WR-01, CCR-QD-468)<br>1.1 (2026-11-23): what enforces it: the compiler, the scripts, the tests by title and what review keeps; the acted evidence (ARCH-123, CCR-QD-468)<br>1.0 (2026-11-23): Initial release (ARCH-123, CCR-QD-468) |
 
 ---
 
@@ -55,7 +55,9 @@ leaves were the two it did not ask.
 1. **A change, not a recorded rejection.** Whether a fixture row meets a `hasSignature` or a
    `hasActed` leaf is core's answer, and `SignatureMatch.ts` stays package-private. The
    alternative, recording a rejection, keeps two statements of one rule and leaves the refusals
-   below in place. The owner chose the change, for the most complete and clean result.
+   below in place. The change was decided autonomously on 2026-11-23 under the owner's
+   standing instruction to take the most complete and clean solution, and it was recorded here
+   before any source change.
 2. **Core gains two pure, synchronous judgements on its fixture side.**
    `signatureAnswerFromSignatures(signatures, leaf, site)` sits beside
    `signatureHistoryFromSignatures` and answers
