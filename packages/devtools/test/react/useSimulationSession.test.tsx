@@ -30,7 +30,6 @@ const sightings = [sighting(clearance)];
 /** One empty source, so `configure` sees one identity per field however often a case renders. */
 const source = sourceFromRecords([]);
 
-
 describe("the component that owns a session's scope", () => {
   it("keeps a run alive through StrictMode's double mount, and stops it on unmount", async () => {
     const { tally, ports } = slow();
