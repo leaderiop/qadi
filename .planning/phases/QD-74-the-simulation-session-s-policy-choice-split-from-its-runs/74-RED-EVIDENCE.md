@@ -398,3 +398,35 @@ The tables above name tests by the titles they had when they were written. In co
   already holds changes nothing and notifies no one`), and `every no-op command leaves the snapshot and the subscribers
   alone` became `a no-op seed, ports, source, clock, pairs or chip command leaves the snapshot alone`, without the four
   commands the characterisation's no-op rows pin. The session tests hold 80.
+
+## The characterisation check hardened (2026-11-23, code review, second pass)
+
+The second review found three edits that change what a row asserts or runs and that the check above passed: a
+declaration added inside a `describe` body (the rows' own text is unchanged), a fixture helper the first commit
+already imported (`sighting`) changed in `simulationFixtures.ts`, and one of those imports re-pointed to another
+module. `74-characterisation-check.mjs` now also reads `simulationFixtures.ts` as `e25c8cfd` holds it, and fails unless:
+
+- every top-level statement of the characterisation other than its imports is, whitespace collapsed and in order, the
+  first commit's, once the 13 moved helpers are left out (29 statements), so a `describe` body and any new statement
+  are compared whole; the row multiset is still compared, so a changed row is named;
+- each fixture helper the first commit imported (`counted`, `entryOf`, `ran`, `sighting`, `slow`, `startRun`), each a
+  moved helper reads, and each those read (`settled`, under `ran`) keeps its first text in the fixtures, and each name
+  such a helper imports comes from the module it came from then;
+- every name the characterisation imports keeps its first commit's module, save `PolicyChoice` and `PolicyMenu`, which
+  its `IMPORT_MOVES` table moves from `SimulationSession.ts` to `SeededChoice.ts`; a name no longer imported is one a
+  moved helper reads, imported by the fixtures from the same module; a newly imported name is a moved helper; and an
+  unused `IMPORT_MOVES` entry fails.
+
+`REVIEWED` still holds one entry, `PolicyView`, and the vacuous "declared nowhere else" clause is gone. On the tree it
+prints `characterisation-check: 35 rows and 29 statements as at e25c8cfd; 21 helpers kept, 13 moved (…)`. Its
+`--self-test` prints `self-test: 23 passed`, and each case now asserts the exact list of problems it expects, not only
+pass or fail. The reviewer's three edits, made on the working tree and reverted with `git checkout --`, each exit 1:
+
+| Edit | Problem reported |
+| ---- | ---------------- |
+| `const listed = …index: index + 1…` added under `describe("seeding")` | `statement 22 after the imports is not the first commit's: …` |
+| `sighting`'s `count: 1` made `count: 2` in the fixtures | `sighting in the fixtures is not its first commit's text` |
+| `slow` imported from `./elsewhere.ts` | `slow came from ../simulationFixtures.ts and is imported from ./elsewhere.ts here` |
+
+A fourth, `settled`'s idle test changed in the fixtures, reports `settled in the fixtures is not its first commit's
+text`.
