@@ -2794,7 +2794,7 @@ describe("observability", () => {
         ),
       );
 
-      assert.isDefined(named(spans, "qadi.evaluate"));
+      assert.isDefined(named(spans, evaluateSpan.name));
       assert.isUndefined(named(spans, "qadi.allOf"));
       assert.isUndefined(named(spans, "qadi.anyOf"));
       assert.isUndefined(named(spans, "qadi.rules"));
@@ -2856,7 +2856,7 @@ describe("observability", () => {
 
         // No span for any of the three combinators this ticket converted —
         // only the root, which stays traced per ADR-QD-051.
-        assert.isDefined(named(spans, "qadi.evaluate"));
+        assert.isDefined(named(spans, evaluateSpan.name));
         assert.isUndefined(named(spans, "qadi.allOf"));
         assert.isUndefined(named(spans, "qadi.anyOf"));
         assert.isUndefined(named(spans, "qadi.rules"));
@@ -3430,7 +3430,7 @@ describe("observability", () => {
         ),
       );
 
-      const span = named(spans, "qadi.evaluate");
+      const span = named(spans, evaluateSpan.name);
       assert.isDefined(span);
       if (span === undefined) return;
       assert.notStrictEqual(span.status._tag, "Started");

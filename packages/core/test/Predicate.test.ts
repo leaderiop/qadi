@@ -1665,7 +1665,7 @@ describe("BEH-QD-267: translation's port reads are spans", () => {
       );
 
       const span = named(spans, "qadi.attribute");
-      const root = named(spans, "qadi.toPredicate");
+      const root = named(spans, toPredicateSpan.name);
       assert.isDefined(span);
       assert.isDefined(root);
       assert.deepStrictEqual(attributesOf(span), {
