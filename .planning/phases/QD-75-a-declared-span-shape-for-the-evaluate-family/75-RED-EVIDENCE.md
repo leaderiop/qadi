@@ -427,3 +427,48 @@ pnpm coverage < /dev/null > <S>/coverage-07.log 2>&1
 Exit status 0 (`<S>/coverage-07.status`), run alone on the close tree before the bench: statements 99.64% (7539/7566),
 branches 98.68% (3231/3274), functions 99.55% (2928/2941), lines 99.81% (6653/6665), so `packages/core`'s 95% and every
 other package's 90% hold. `packages/` was unchanged by the run.
+
+## The close on the final tree
+
+Run on the tree at 44ec969f81a52b7aa5cc8adc6f7e4d32850e93ce (`<S>/start-75-09`), after every source, test and record
+commit of the phase, with no vitest, bench or Stryker process running.
+
+Span keys, counted over `git grep -nE` of the twelve `qadi.<key>` names, per file:
+
+| File | Lines | Expected |
+| ---- | ----- | -------- |
+| `packages/core/src/Lifecycle.ts` | 0 | 0 |
+| `packages/core/src/Predicate.ts` | 0 | 0 |
+| `packages/core/src/SubjectSet.ts` | 0 | 0 |
+| `packages/core/src/GuardHealthCheck.ts` | 0 | 0 |
+| `packages/core/test/Evaluate.test.ts` | 12 | 12 |
+| `packages/core/test/Predicate.test.ts` | 3 | 3 |
+| `packages/core/test/SubjectSet.test.ts` | 0 | 0 |
+| `packages/core/test/GuardHealthCheck.test.ts` | 0 | 0 |
+
+`qadi.decision` appears in no file under `packages/` outside Markdown, so it is held by the contract's rows and by no
+second spelling. `qadi.subject_id` is spelled once in `packages/*/src`, in `packages/core/src/PortSpanEncode.ts`.
+
+The contract `packages/core/test/EvaluationSpan.contract.test.ts` has exactly one commit since `phase_base`, ecb0256f.
+It was run alone three times (`<S>/contract-final-1.json` to `-3.json`): 33 tests, 33 passed, 0 failed each time, and
+every row of 75-02's table passed once by title.
+
+`packages/core/src/index.ts`, `spec/overview.md`, `spec/process/definitions-of-done.md`, `package.json` and
+`pnpm-lock.yaml` equal `phase_base`. `node scripts/check-api-surface.mjs` ends `api-surface: 941 export(s) documented
+across 9 package(s)`. The close record `75-mutation-close.json` holds both groups on one head, a61a47c4, and no
+`packages/` file differs between that head and this tree.
+
+Over every added line of `packages/core/src` since `phase_base` (comments, imports and re-exports excluded for code
+constructs): no `as` assertion, non-null `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`, `console.`,
+`process.env`, `Date.now`, `new Date`, `performance.now` or `Record<string, unknown>`. The same scan over the added
+lines of `packages/core/test` (without the runtime-API tokens) is empty. No added `packages/` line holds a Stryker
+disable or restore comment, and none passes 90 columns, counted in characters (`perl -CS`). No added line of
+`packages/`, `spec/`, `scripts/`, `AGENTS.md`, `.changeset/` or `apps/` holds a decision number, plan id, requirement id,
+phase wording or placeholder. Every added test title in a changed test file is unique within its file, at most 90
+characters, and free of a label. `node scripts/check-house-style.mjs` exits 0.
+
+Each earlier section is present once: `## The contract on the base`, `## Each evaluate span rule gutted once`,
+`## Each translation and probe rule and the outcome tie gutted once`, `## Each span-key check planted once`,
+`## Static mutants run by hand`, `## The cost, measured` and `## Coverage on the close tree`.
+
+Every scan holds on the final tree.
