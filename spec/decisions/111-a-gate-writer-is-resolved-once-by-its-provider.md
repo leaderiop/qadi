@@ -154,7 +154,7 @@ passes one identity to `useGateRegistrations`.
 with one keyed step, and changes what a guard hands to registration. The text above is
 history and stays as written.
 
-- **The `useGates` bullet and row D-49-b:** `useGates` builds the wanted registrations as
+- **The `useGates` bullet and its row in the table above:** `useGates` builds the wanted registrations as
   a map keyed by gate id, from one keyed pass over the questions, and
   `useGateRegistrations` registers them through one registration effect beside its
   teardown. The identity-lifecycle rules are the one step of [ADR-QD-186](./186-gate-registration-is-one-keyed-reconcile.md), which also
