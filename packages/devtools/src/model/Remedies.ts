@@ -19,6 +19,7 @@
  * absent one, because the reviewer reads it as "and even that would not help".
  */
 import * as Match from "effect/Match";
+import * as Result from "effect/Result";
 import {
   foldMatcherCases,
   foldPolicyCases,
@@ -28,20 +29,29 @@ import {
   makeSubjectId,
   permissionKey,
   resourceIdOf,
+  signatureAnswerFromSignatures,
+  signatureHistoryPort,
+  thrownMessage,
   valueLabel,
 } from "@qadi/core";
 import type {
+  DecisionHistoryUnavailable,
   HistoryScope,
+  LeafOf,
   Matcher,
   MatcherCases,
   MatcherContext,
+  MissingResourceId,
   Permission,
   Policy,
   PolicyCases,
+  ReadSite,
+  SignatureHistoryUnavailable,
   ValueRef,
 } from "@qadi/core";
 import type { SimulationEdit } from "./SimulationEdit.ts";
 import { fieldOps, grant } from "./SimulationFields.ts";
+import { subjectOf } from "./SimulationInput.ts";
 import type { SimulationInput } from "./SimulationInput.ts";
 
 /**
@@ -70,9 +80,14 @@ export interface RemedySweep {
  * One edit per requirement the policy names that the input does not already meet.
  *
  * "Does not already meet" is a **syntactic** check, and deliberately so for
- * roles, permissions, edges and events: those are set membership, and asking
- * the evaluator would cost one run per candidate to learn what a lookup
- * answers. Attributes get no such check — a key present with the wrong value is
+ * roles, permissions and edges: those are set membership, and asking the
+ * evaluator would cost one run per candidate to learn what a lookup answers.
+ * For signatures it is core's answer (`signatureAnswerFromSignatures`), because
+ * the leaf's scope decides which row answers and that rule is the port's. A
+ * check the port refuses is skipped with the port's refusal, never offered a row
+ * and never thrown, for any value a form row or the form's subject holds, and
+ * `RemedySignatureConformance.test.ts` compares the table with core's
+ * evaluation. Attributes get no such check — a key present with the wrong value is
  * precisely the case worth a row — so a remedy that changes nothing is offered,
  * and the sweep reports it as *no change*. That is a finding too: it says the
  * attribute was never the problem.
@@ -314,12 +329,7 @@ type Requirement =
   | { readonly _tag: "Relationship"; readonly relation: string }
   | { readonly _tag: "Action"; readonly action: string }
   | { readonly _tag: "Acted"; readonly event: string; readonly scope: HistoryScope }
-  | {
-      readonly _tag: "Signature";
-      readonly meaning: string;
-      readonly signerRole: string | undefined;
-      readonly scope: HistoryScope;
-    }
+  | { readonly _tag: "Signature"; readonly leaf: LeafOf["HasSignature"] }
   | { readonly _tag: "Custom"; readonly name: string };
 
 /** Joins requirement lists in order, with a loop so a very wide node is never spread into arguments. */
@@ -362,12 +372,9 @@ const requirementCases: PolicyCases<ReadonlyArray<Requirement>> = {
   // than passed over, because a requirement no remedy could be built for must
   // be said so (BEH-QD-222).
   HasCustom: (p) => [{ _tag: "Custom" as const, name: p.name }],
-  // The node carries everything `askSignature` matches on - the meaning, the
-  // signer role when it names one, and the scope - so the remedy is built from
-  // it exactly as `AddEvent` is built from `HasActed`.
-  HasSignature: (p) => [
-    { _tag: "Signature" as const, meaning: p.meaning, signerRole: p.signerRole, scope: p.scope },
-  ],
+  // The node itself goes to core, which answers whether the form's rows meet it
+  // at the site, so the remedy reads the port's own scoping and match.
+  HasSignature: (p) => [{ _tag: "Signature" as const, leaf: p }],
   AllOf: (_p, children) => concat(children),
   AnyOf: (_p, children) => concat(children),
   // Only `Permit` rows: a rule's `condition` is evaluated for applicability,
@@ -423,8 +430,41 @@ const skip = (requirement: string, reason: string): Built => ({
 });
 
 const NO_RESOURCE_ID = "the check names no resource id";
+const SIGNATURE_PORT_REFUSED =
+  "the signature port refuses this check, so no added row would be answered: ";
+const HISTORY_PORT_REFUSED =
+  "the history port refuses this check, so no added row would be answered: ";
 const CUSTOM_HAS_NO_FIELD =
   "a custom predicate's answer has no form field; run against Snapshot or Live";
+
+/**
+ * Why a remedy core's fixture judgement failed for is skipped.
+ *
+ * A check the port refuses (a form row or the form's subject its key cannot
+ * read) is skipped with the port's refusal rather than offered a row, because
+ * the port would refuse the check whatever row were added, so the row would not
+ * remedy it (BEH-QD-222). Both judgements read this one dispatcher, each failing
+ * with `MissingResourceId` or its own port's error.
+ */
+const skipReason: (
+  failure: MissingResourceId | SignatureHistoryUnavailable | DecisionHistoryUnavailable,
+) => string = Match.type<
+  MissingResourceId | SignatureHistoryUnavailable | DecisionHistoryUnavailable
+>().pipe(
+  Match.tagsExhaustive({
+    MissingResourceId: () => NO_RESOURCE_ID,
+    SignatureHistoryUnavailable: (failure) =>
+      `${SIGNATURE_PORT_REFUSED}${thrownMessage(failure.cause)}`,
+    DecisionHistoryUnavailable: (failure) =>
+      `${HISTORY_PORT_REFUSED}${thrownMessage(failure.cause)}`,
+  }),
+);
+
+/** Where the simulated check is made, as core's fixture judgements take it. */
+const siteOf = (input: SimulationInput): ReadSite => ({
+  subject: subjectOf(input.subject),
+  resource: input.resource,
+});
 
 /** A built edit, for the arms that take a field's grant from the table. */
 const edit = (self: SimulationEdit): Built => ({ _tag: "Edit", edit: self });
@@ -522,42 +562,38 @@ const remedyFor: (self: Requirement) => (input: SimulationInput) => Built | unde
           : edit(grant("history", event, `with event ${self.event} on ${resourceId}`));
       },
 
-      // `Resource` scope is answered from a row stored with that resource id; `Any`
-      // only from a subject-global row, which has none (`askSignature`,
-      // INV-QD-120). So the remedy's row carries the resource id exactly when the
-      // question does, and is "already met" only by a row that would answer it —
-      // a node naming no signer role is met by a row with any role, so this is
-      // the port's match rather than `sameSignature`'s equality.
+      // Met is core's answer for this node at this site over the form's rows, not
+      // a restated match. An unmet node is one row whose resource id is the
+      // request's own, so the row carries the id exactly when the question does.
+      // A failure, a refusal included, is skipped with `skipReason`. The port's
+      // match ignores `signedAt`, `algorithm` and `keyId` (ADR-QD-058), which is
+      // why this is not `sameSignature`'s full equality, the form's duplicate check.
       Signature: (self) => (input: SimulationInput) => {
-        const resourceId = self.scope === "Resource" ? resourceIdOf(input.resource) : undefined;
-        if (self.scope === "Resource" && resourceId === undefined) {
-          return skip(`signature ${self.meaning}`, NO_RESOURCE_ID);
-        }
-        const met = fieldOps("signatures")
-          .elements(input)
-          .some(
-            (held) =>
-              held.subjectId === input.subject.id &&
-              held.resourceId === resourceId &&
-              held.meaning === self.meaning &&
-              (self.signerRole === undefined || held.signerRole === self.signerRole),
-          );
-        if (met) return undefined;
-        const signature = {
-          subjectId: input.subject.id,
-          meaning: self.meaning,
-          ...(self.signerRole === undefined ? {} : { signerRole: self.signerRole }),
-          ...(resourceId === undefined ? {} : { resourceId }),
-        };
-        return edit(
-          grant(
-            "signatures",
-            signature,
-            `with signature ${self.meaning}${resourceId === undefined ? "" : ` on ${resourceId}`}${
-              self.signerRole === undefined ? "" : ` as ${self.signerRole}`
-            }`,
-          ),
-        );
+        const { leaf } = self;
+        const site = siteOf(input);
+        const rows = fieldOps("signatures").elements(input);
+        return Result.match(signatureAnswerFromSignatures(rows, leaf, site), {
+          onFailure: (failure) => skip(`signature ${leaf.meaning}`, skipReason(failure)),
+          onSuccess: (answer) => {
+            if (answer.matched) return undefined;
+            const [{ resourceId }] = signatureHistoryPort.asks.HasSignature(leaf, site);
+            const { meaning, signerRole } = leaf;
+            const on = resourceId === undefined ? "" : ` on ${resourceId}`;
+            const as = signerRole === undefined ? "" : ` as ${signerRole}`;
+            return edit(
+              grant(
+                "signatures",
+                {
+                  subjectId: input.subject.id,
+                  meaning,
+                  ...(signerRole === undefined ? {} : { signerRole }),
+                  ...(resourceId === undefined ? {} : { resourceId }),
+                },
+                `with signature ${meaning}${on}${as}`,
+              ),
+            );
+          },
+        });
       },
 
       Custom: (self) => () => skip(`custom predicate ${self.name}`, CUSTOM_HAS_NO_FIELD),
