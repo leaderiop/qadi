@@ -238,3 +238,31 @@ packages/core/src/Lifecycle.ts(159,5): error TS2322: Type '"Allow" | "Deny"' is 
 Error: Type 'NonNullable<"Allow" | "Failed" | undefined>' is not the same as type '"Deny" | "Allow" | "Failed"'.
   at ./packages/core/test/EvaluationSpan.tst.ts:28:54 ❭ the outcome is a decision tag or Failed
 ```
+
+## Each span-key check planted once
+
+Each plant was applied to the working tree, `node scripts/check-house-style.mjs < /dev/null` was run with its output and exit status saved to `<S>/plant-<id>.log` and `<S>/plant-<id>.status`, and the file was restored with `git checkout -- <file>`; the tree under `packages`, `features`, `AGENTS.md` and `scripts` was empty between plants and no plant was committed. Each of M1 to M14 printed exactly one violation, the one named.
+
+| Plant | File | Edit | Exit status | Rule line printed |
+| ----- | ---- | ---- | ----------- | ----------------- |
+| M1 | `packages/core/test/SubjectSet.test.ts` | append a const holding the double-quoted key qadi.outcome | 1 | `packages/core/test/SubjectSet.test.ts  [span-key-literal] 1 quoted span key literal(s) outside a test title.` |
+| M2 | `packages/core/test/GuardHealthCheck.test.ts` | append a const holding the single-quoted key qadi.policy_tag | 1 | `packages/core/test/GuardHealthCheck.test.ts  [span-key-literal] 1 quoted span key literal(s) outside a test title.` |
+| M3 | `packages/core/bench/Evaluate.bench.ts` | append a const holding the key qadi.error_tag in backticks | 1 | `packages/core/bench/Evaluate.bench.ts  [span-key-literal] 1 quoted span key literal(s) outside a test title.` |
+| M4 | `packages/core/test/Evaluate.test.ts` | append a const holding the double-quoted key qadi.subject_id (13, budget 12) | 1 | `packages/core/test/Evaluate.test.ts  [span-key-literal] declares 12 quoted span key literal(s), found 13.` |
+| M5 | `packages/core/test/PortAccess.test.ts` | rename the first qadi.subject_id key literal to qadi.subject (2, budget 3) | 1 | `packages/core/test/PortAccess.test.ts  [span-key-literal] declares 3 quoted span key literal(s), found 2.` |
+| M6 | `packages/core/src/Lifecycle.ts` | append a const holding the double-quoted key qadi.outcome | 1 | `packages/core/src/Lifecycle.ts:213  [span-key-source] mentions the span key qadi.outcome; read it through EvaluationSpan.ts (ADR-QD-188).` |
+| M7 | `packages/core/src/GuardHealthCheck.ts` | append a comment line that mentions qadi.healthy | 1 | `packages/core/src/GuardHealthCheck.ts:126  [span-key-source] mentions the span key qadi.healthy; read it through EvaluationSpan.ts (ADR-QD-188).` |
+| M8 | `features/step-definitions/AccessThenSteps.ts` | append a const holding the double-quoted key qadi.action | 1 | `features/step-definitions/AccessThenSteps.ts:17  [span-key-source] mentions the span key qadi.action; read it through EvaluationSpan.ts (ADR-QD-188).` |
+| M9 | `packages/react/src/QadiProvider.tsx` | append a const holding the double-quoted key qadi.reason | 1 | `packages/react/src/QadiProvider.tsx:323  [span-key-source] mentions the span key qadi.reason; read it through EvaluationSpan.ts (ADR-QD-188).` |
+| M10 | `packages/core/src/EvaluationSpan.ts` | append a const holding the double-quoted key qadi.outcome (spelled twice) | 1 | `packages/core/src/EvaluationSpan.ts:101,218  [span-key-source] qadi.outcome is spelled more than once; a key is spelled once and every field reads it.` |
+| M11 | `packages/core/src/EvaluationSpan.ts` | replace every qadi. prefix in quotes with qadx. (an emptied key set) | 1 | `packages/core/src/EvaluationSpan.ts  [span-key-source] the key set holds 1 key(s), fewer than SPAN_KEY_MIN (11); the declaration moved or was emptied, so no key is checked.` |
+| M12 | `packages/core/src/EvaluationSpan.ts` | append a const holding the double-quoted shared key qadi.subject_id | 1 | `packages/core/src/EvaluationSpan.ts:218  [span-key-source] spells the shared key qadi.subject_id; read it from sharedQuestionKeys in packages/core/src/PortSpanEncode.ts.` |
+| M13 | `AGENTS.md` | change the Evaluate.test.ts row count from 12 to 11 | 1 | `AGENTS.md  [span-key-literal-table] section 6 lists packages/core/test/Evaluate.test.ts (11), which SPAN_KEY_LITERAL_BUDGET does not match.` |
+| M14 | `AGENTS.md` | delete the PortSpan.test.ts row | 1 | `AGENTS.md  [span-key-literal-table] packages/core/test/PortSpan.test.ts is in SPAN_KEY_LITERAL_BUDGET with no row in section 6's table.` |
+| N1 | `packages/core/test/SubjectSet.test.ts` | append an empty describe block whose title is the key qadi.outcome | 0 | clean |
+| N2 | `packages/core/test/SubjectSet.test.ts` | append a comment line holding the double-quoted key qadi.outcome | 0 | clean |
+| N3 | `packages/core/test/SubjectSet.test.ts` | append a const holding the double-quoted port key qadi.attribute | 0 | clean |
+| N4 | `packages/core/test/SubjectSet.test.ts` | append a const holding the double-quoted span name qadi.evaluate | 0 | clean |
+| N5 | `packages/core/test/SubjectSet.test.ts` | append a const holding the double-quoted longer name qadi.actions | 0 | clean |
+
+Every plant failed with its rule or passed as stated.
