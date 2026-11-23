@@ -37,7 +37,7 @@ import {
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 import { MissingQadiProviderError } from "../src/QadiProvider.tsx";
 import { QadiProvider } from "../src/QadiProvider.tsx";
-import { notificationsOf } from "./support/gates.ts";
+import { listenTo, notificationsOf } from "./support/gates.ts";
 import {
   alice,
   atoms,
@@ -329,21 +329,18 @@ describe("what the page still renders", () => {
 describe("the registry, read from a host", () => {
   it("tells a subscribed host on mount, and not after it unsubscribed", () => {
     const set = atoms();
-    let notified = 0;
-    const unsubscribe = set.gates.subscribe(() => {
-      notified += 1;
-    });
+    const { told, unsubscribe } = listenTo(set.gates);
     const view = render(
       <QadiProvider atoms={set} subject={alice} instrument>
         <Can policy={canRead}>allowed</Can>
       </QadiProvider>,
     );
-    expect(notified).toBeGreaterThan(0);
+    expect(told()).toBeGreaterThan(0);
 
     unsubscribe();
-    const settled = notified;
+    const settled = told();
     view.unmount();
-    expect(notified).toBe(settled);
+    expect(told()).toBe(settled);
   });
 });
 

@@ -14,6 +14,7 @@ import type { GateInstance, GateRenderState } from "../src/GateRegistry.ts";
 import { gateWriterFor } from "../src/GateWriter.ts";
 import { inEnvironment, said } from "./support/environment.ts";
 import type { Environment } from "./support/environment.ts";
+import { listenTo, notificationsOf } from "./support/gates.ts";
 import { threw } from "./support/reporterThrew.ts";
 
 const canRead = hasPermission(permission("doc", "read"));
@@ -58,38 +59,29 @@ describe("the snapshot", () => {
 describe("subscribing", () => {
   it("tells a subscriber on register, update and unregister", () => {
     const registry = makeGateRegistry();
-    let notified = 0;
-    registry.subscribe(() => {
-      notified += 1;
-    });
+    const told = notificationsOf(registry);
     const handle = writerOf(registry).register(instance("a", "Pending"));
-    expect(notified).toBe(1);
+    expect(told()).toBe(1);
     handle.update("Allowed");
-    expect(notified).toBe(2);
+    expect(told()).toBe(2);
     handle.unregister();
-    expect(notified).toBe(3);
+    expect(told()).toBe(3);
   });
 
   it("does not notify for an unchanged state", () => {
     const registry = makeGateRegistry();
-    let notified = 0;
     const handle = writerOf(registry).register(instance("a", "Pending"));
-    registry.subscribe(() => {
-      notified += 1;
-    });
+    const told = notificationsOf(registry);
     handle.update("Pending");
-    expect(notified).toBe(0);
+    expect(told()).toBe(0);
   });
 
   it("stops telling a subscriber that unsubscribed", () => {
     const registry = makeGateRegistry();
-    let notified = 0;
-    const unsubscribe = registry.subscribe(() => {
-      notified += 1;
-    });
+    const { told, unsubscribe } = listenTo(registry);
     unsubscribe();
     writerOf(registry).register(instance("a", "Pending"));
-    expect(notified).toBe(0);
+    expect(told()).toBe(0);
   });
 
   it("a listener that throws makes none of register, update or unregister throw", () => {

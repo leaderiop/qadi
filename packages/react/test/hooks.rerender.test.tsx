@@ -35,6 +35,7 @@ import { usePolicies } from "../src/hooks.ts";
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 import type { QadiAtoms } from "../src/QadiAtoms.ts";
 import { QadiProvider } from "../src/QadiProvider.tsx";
+import { notificationsOf } from "./support/gates.ts";
 
 const alice = makeSubject({ id: "u1", permissions: ["doc:read"] });
 
@@ -85,10 +86,7 @@ const Consumer = ({ tick }: { readonly tick: number }) => {
 describe("usePolicies across equal re-renders (D-07)", () => {
   it("instrumented: no second group atom, no further decision lookup, no registry notification", async () => {
     const { real, copy, groups, calls } = counting();
-    let notified = 0;
-    real.gates.subscribe(() => {
-      notified += 1;
-    });
+    const told = notificationsOf(real.gates);
     const tree = (tick: number) => (
       <QadiProvider atoms={copy} subject={alice} instrument>
         <Consumer tick={tick} />
@@ -104,7 +102,7 @@ describe("usePolicies across equal re-renders (D-07)", () => {
       ).toEqual(["Allowed", "Denied"]),
     );
     const opened = calls.opened;
-    const settled = notified;
+    const settled = told();
     const ids = real.gates.instances().map((one) => one.id);
 
     for (const tick of [1, 2, 3]) {
@@ -114,7 +112,7 @@ describe("usePolicies across equal re-renders (D-07)", () => {
 
     expect(groups.size).toBe(1);
     expect(calls.opened).toBe(opened);
-    expect(notified).toBe(settled);
+    expect(told()).toBe(settled);
     expect(real.gates.instances().map((one) => one.id)).toEqual(ids);
   });
 

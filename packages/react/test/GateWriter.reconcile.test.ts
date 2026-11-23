@@ -8,7 +8,6 @@
  * and what is new registers. The render-level behaviour is in `GateWriter.test.tsx`
  * and `GateRegistration.characterisation.test.tsx`.
  */
-import { hasPermission, permission } from "@qadi/core";
 import { describe, expect, it } from "vitest";
 import { gateWriterFor, reconcile } from "../src/GateWriter.ts";
 import type {
@@ -19,6 +18,7 @@ import type {
 } from "../src/GateWriter.ts";
 import { makeGateRegistry } from "../src/GateRegistry.ts";
 import type { GateRenderState } from "../src/GateRegistry.ts";
+import { newCanRead, newCanWrite } from "./support/gates.ts";
 
 type Call =
   | readonly ["register", string, GateRenderState, Element | undefined]
@@ -44,16 +44,13 @@ const fakeWriter = () => {
   return { writer, log };
 };
 
-const canRead = () => hasPermission(permission("doc", "read"));
-const canWrite = () => hasPermission(permission("doc", "write"));
-
 const markerOf = (element: HTMLSpanElement | null = null) => ({ current: element });
 
 const identity = (overrides?: Partial<GateIdentity>): GateIdentity => ({
   kind: "useCan",
   atom: {},
   wraps: false,
-  policy: canRead(),
+  policy: newCanRead(),
   resource: undefined,
   marker: markerOf(),
   ...overrides,
@@ -69,7 +66,7 @@ const nothing: ReadonlyMap<string, Registered> = new Map();
 describe("reconcile: registering", () => {
   it("registers every wanted entry in map order, with its identity and its state", () => {
     const { writer, log } = fakeWriter();
-    const a = identity({ policy: canWrite(), resource: { type: "doc", id: "1" } });
+    const a = identity({ policy: newCanWrite(), resource: { type: "doc", id: "1" } });
     const b = identity();
     const next = reconcile(
       writer,
@@ -121,7 +118,7 @@ describe("reconcile: registering", () => {
         return { update: () => undefined, unregister: () => undefined };
       },
     };
-    const policy = canWrite();
+    const policy = newCanWrite();
     const resource = { type: "doc", id: "new" };
     reconcile(writer, nothing, new Map([["a", want(identity({ policy, resource }))]]));
     expect(registered).toEqual([{ policy, resource }]);
@@ -175,7 +172,7 @@ describe("reconcile: keeping and updating", () => {
 
   it("keeps the entry when only the policy or the resource changed", () => {
     const moved: ReadonlyArray<readonly [string, Partial<GateIdentity>]> = [
-      ["policy", { policy: canWrite() }],
+      ["policy", { policy: newCanWrite() }],
       ["resource", { resource: { type: "doc", id: "r2" } }],
     ];
     for (const [what, change] of moved) {
@@ -232,7 +229,7 @@ describe("reconcile: keeping and updating", () => {
       writer,
       first,
       new Map([
-        ["a", want(identity({ atom, marker, policy: canWrite() }))],
+        ["a", want(identity({ atom, marker, policy: newCanWrite() }))],
         ["b", want(identity({ atom, marker, resource: { type: "doc", id: "2" } }))],
       ]),
     );

@@ -4,7 +4,6 @@
  * The lifecycle wiring `useGate` delegates to, tested against a bare registry:
  * the narrower surface the old module-scope design could not offer.
  */
-import { hasPermission, permission } from "@qadi/core";
 import { renderHook } from "@testing-library/react";
 import { createRef, StrictMode } from "react";
 import { describe, expect, it } from "vitest";
@@ -13,9 +12,7 @@ import type { GateRenderState } from "../src/GateRegistry.ts";
 import { gateWriterFor } from "../src/GateWriter.ts";
 import { useGateRegistrations } from "../src/useGate.ts";
 import type { GateIdentity, GateWanted, GateWriter } from "../src/GateWriter.ts";
-import { notificationsOf } from "./support/gates.ts";
-
-const canRead = () => hasPermission(permission("doc", "read"));
+import { newCanRead, notificationsOf } from "./support/gates.ts";
 
 // One marker ref per hook instance, as `useGate` has: a fresh ref per render
 // would be a changed identity.
@@ -25,7 +22,7 @@ const identityFor = (atom: object, overrides?: Partial<GateIdentity>): GateIdent
   kind: "useCan",
   atom,
   wraps: false,
-  policy: canRead(),
+  policy: newCanRead(),
   resource: undefined,
   marker,
   ...overrides,
@@ -101,7 +98,7 @@ describe("useGateRegistrations (one identity)", () => {
 
     view.rerender({
       writer,
-      identity: identityFor(atom, { policy: canRead(), resource: { id: "doc-1" } }),
+      identity: identityFor(atom, { policy: newCanRead(), resource: { id: "doc-1" } }),
       state: "Allowed",
     });
 
