@@ -469,3 +469,21 @@ message the check can give has a case asserting it exactly. Each edit below, mad
 | fixtures: `beforeEach(() => {});` appended | `a top-level statement of the fixtures is not an import or a declaration of one name: «beforeEach(() => {});»` |
 | fixtures: `Object.assign(carolDraft, { action: "write" });` appended | `a top-level statement of the fixtures is not an import or a declaration of one name: «Object.assign(carolDraft, { action: "write" });»` |
 | fixtures: `export const hook = beforeEach(() => {});` appended | `hook in the fixtures runs code as the module loads, and no first commit's text pins it` |
+
+## The mutation close re-recorded after code review (2026-11-23)
+
+The review loop changed `SimulationSession.ts` (comments around `stale`) and `SeededChoice.ts` (`seedFrom`'s no-op
+rule), so all three groups were re-measured on one head, `1ae6035b49a5ccb4f7534374fd70a52ce2abbeea`, the tree after the review disposition, with
+`record close session --restart`, then `held` and `choice`:
+
+- `SimulationSession.ts` 244/248, 4 survived (base 325/331, 6): the review's tests kill two base survivors.
+- `HeldChoice.ts` 63/63, as at the base.
+- `SeededChoice.ts` 122/122 (close-only), 11 Ignored.
+
+`compare` first reported the `MOVED` entry's close position stale (313) and the seed disjunct's survivor at 319:9 as
+new: the review's comment on `stale` moved it six lines. The entry now names 319:9; `--self-test` ends
+`self-test: 37 passed` and `compare` exits 0.
+
+The 11 static mutants of `SeededChoice.ts` were run by hand again on this tree, `stryker.devtools.mjs` spread with
+`ignoreStatic: false`, `--mutate packages/devtools/src/model/SeededChoice.ts`: 133 mutants, 133 Killed, so
+`EXAMINED`'s 10 `ArrowFunction () => undefined` and 1 `ObjectLiteral {}` still hold.

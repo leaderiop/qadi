@@ -80,7 +80,7 @@ const MOVED = {
   "packages/devtools/src/model/SimulationSession.ts": [
     {
       base: { status: "Survived", mutator: "ConditionalExpression", replacement: "false", line: 404, column: 9 },
-      close: { status: "Survived", mutator: "ConditionalExpression", replacement: "false", line: 313, column: 9 },
+      close: { status: "Survived", mutator: "ConditionalExpression", replacement: "false", line: 319, column: 9 },
       why: "question.seed !== seed: reseed and choosePolicy, the only commands that move the seed, both clear the run",
     },
   ],
