@@ -6,19 +6,24 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Match from "effect/Match";
 import * as Result from "effect/Result";
 import {
   DecisionHistory,
   DecisionHistoryUnknown,
+  actedAnswerFromEvents,
   decisionHistoryFromEvents,
   decisionHistoryPort,
 } from "../src/DecisionHistory.ts";
+import type { ActedEventInput, ActedResult } from "../src/DecisionHistory.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import { makeSubject } from "../src/AuthSubject.ts";
 import type { DecisionHistoryUnavailable, MissingResourceId } from "../src/Errors.ts";
 import { hasActed, hasNotActed } from "../src/Policy.ts";
 import { askActed } from "../src/PortAccess.ts";
 import { describeKeyRefusal } from "../src/PortDescription.ts";
+import type { ReadSite } from "../src/PortDescription.ts";
+import { resourceIdOf } from "../src/Resource.ts";
 import { leafOf } from "./helpers.ts";
 
 const query = (
@@ -225,6 +230,192 @@ NotActed",
         const failure = unavailable(result);
         assert.strictEqual(failure.event, "approved");
         assert.strictEqual(failure.cause, refusalSentence([row]));
+      }),
+  );
+});
+
+describe("actedAnswerFromEvents", () => {
+  // `JSON.parse` returns `any`, which is what an untyped JavaScript caller hands
+  // over (no `as`); a symbol is the one value it cannot carry, so it is set on the
+  // parsed object afterwards.
+  const alice = makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} });
+
+  const untypedSubject = () => {
+    const untyped = JSON.parse(JSON.stringify(alice));
+    untyped.id = Symbol("alice");
+    return untyped;
+  };
+
+  const untypedEvent = () => {
+    const untyped = JSON.parse('{"event":"approved","resourceId":"doc-1"}');
+    untyped.subjectId = Symbol("alice");
+    return untyped;
+  };
+
+  const untypedLeaf = (scope: "Any" | "Resource") => {
+    const untyped = JSON.parse('{"event":"approved"}');
+    untyped.event = Symbol("approved");
+    return leafOf("HasActed", hasActed(untyped.event, { scope }));
+  };
+
+  const SUBJECTS = ["alice", "bob"];
+  const EVENTS = ["approved", "reviewed"];
+  const RESOURCE_IDS = ["doc-1", "doc-2"];
+
+  const SINGLES = SUBJECTS.flatMap((subjectId) =>
+    EVENTS.flatMap((event) =>
+      RESOURCE_IDS.map((resourceId) => ({
+        name: `${subjectId} ${event} ${resourceId}`,
+        row: { subjectId, event, resourceId } satisfies ActedEventInput,
+      })),
+    ),
+  );
+
+  const DECOY: ActedEventInput = {
+    subjectId: "alice",
+    event: "reviewed",
+    resourceId: "doc-1",
+  };
+
+  const LISTS: ReadonlyArray<{
+    readonly name: string;
+    readonly rows: ReadonlyArray<ActedEventInput>;
+  }> = [
+    { name: "an empty list", rows: [] },
+    ...SINGLES.map(({ name, row }) => ({ name, rows: [row] })),
+    ...SINGLES.map(({ name, row }) => ({
+      name: `the decoy, then ${name}`,
+      rows: [DECOY, row],
+    })),
+  ];
+
+  const LEAVES = (["Resource", "Any"] as const).map((scope) => ({
+    name: `hasActed approved at scope ${scope}`,
+    leaf: leafOf("HasActed", hasActed("approved", { scope })),
+  }));
+
+  const SITES: ReadonlyArray<{ readonly name: string; readonly site: ReadSite }> = [
+    { name: "resource id doc-1", site: { subject: alice, resource: { id: "doc-1" } } },
+    { name: "resource with no id", site: { subject: alice, resource: {} } },
+    { name: "resource id not a string", site: { subject: alice, resource: { id: 7 } } },
+    { name: "no resource", site: { subject: alice, resource: undefined } },
+  ];
+
+  type Judged = Result.Result<
+    ActedResult,
+    MissingResourceId | DecisionHistoryUnavailable
+  >;
+
+  const failureOf = Match.type<MissingResourceId | DecisionHistoryUnavailable>().pipe(
+    Match.tagsExhaustive({
+      MissingResourceId: (failure) => ({
+        _tag: failure._tag,
+        relation: failure.relation,
+      }),
+      DecisionHistoryUnavailable: (failure) => ({
+        _tag: failure._tag,
+        hasEvent: Object.hasOwn(failure, "event"),
+        event: failure.event,
+        cause: failure.cause,
+      }),
+    }),
+  );
+
+  const answerOf = (result: Judged) =>
+    Result.match(result, {
+      onSuccess: (answer) => ({ _tag: "Answered", answer }) as const,
+      onFailure: failureOf,
+    });
+
+  const readOf = (
+    events: ReadonlyArray<ActedEventInput>,
+    leaf: (typeof LEAVES)[number]["leaf"],
+    site: ReadSite,
+  ) =>
+    Effect.result(askActed("evaluate", site.subject, leaf, site.resource)).pipe(
+      Effect.provide(decisionHistoryFromEvents(events)),
+    );
+
+  it.effect(
+    "answers as \
+askActed over the fixture layer does, on every case of the product",
+    () =>
+      Effect.gen(function* () {
+        assert.strictEqual(SINGLES.length, 8);
+        assert.strictEqual(LISTS.length, 17);
+        assert.strictEqual(SITES.length * LEAVES.length * LISTS.length, 136);
+        const mismatches: Array<string> = [];
+        let compared = 0;
+        for (const { name: siteName, site } of SITES) {
+          for (const { name: leafName, leaf } of LEAVES) {
+            for (const { name: listName, rows } of LISTS) {
+              compared += 1;
+              const judged = answerOf(actedAnswerFromEvents(rows, leaf, site));
+              const read = answerOf(yield* readOf(rows, leaf, site));
+              if (JSON.stringify(judged) !== JSON.stringify(read)) {
+                mismatches.push(
+                  `${siteName} | ${leafName} | ${listName} | ` +
+                    `judged ${JSON.stringify(judged)} | read ${JSON.stringify(read)}`,
+                );
+              }
+            }
+          }
+        }
+        assert.strictEqual(compared, 136);
+        assert.deepStrictEqual(mismatches, [], mismatches.join("\n"));
+      }),
+  );
+
+  it.effect(
+    "a refused subject or event row fails as \
+the read does, with the refusal and never NotActed",
+    () =>
+      Effect.gen(function* () {
+        const typed = [{ subjectId: "alice", event: "approved", resourceId: "doc-1" }];
+        for (const { site } of SITES) {
+          const cases: ReadonlyArray<
+            readonly [ReadSite, ReadonlyArray<ActedEventInput>]
+          > = [
+            [{ ...site, subject: untypedSubject() }, typed],
+            [site, [untypedEvent()]],
+          ];
+          for (const [at, rows] of cases) {
+            for (const { leaf } of LEAVES) {
+              const judged = answerOf(actedAnswerFromEvents(rows, leaf, at));
+              const read = answerOf(yield* readOf(rows, leaf, at));
+              assert.deepStrictEqual(judged, read);
+              const missing =
+                leaf.scope === "Resource" && resourceIdOf(at.resource) === undefined;
+              assert.strictEqual(
+                judged._tag,
+                missing ? "MissingResourceId" : "DecisionHistoryUnavailable",
+              );
+              if (judged._tag === "DecisionHistoryUnavailable") {
+                assert.strictEqual(judged.event, "approved");
+              }
+            }
+          }
+        }
+      }),
+  );
+
+  it.effect(
+    "a refused event fails as \
+the read does, with no event and never NotActed",
+    () =>
+      Effect.gen(function* () {
+        const site: ReadSite = { subject: alice, resource: { id: "doc-1" } };
+        const rows = [{ subjectId: "alice", event: "approved", resourceId: "doc-1" }];
+        for (const scope of ["Any", "Resource"] as const) {
+          const leaf = untypedLeaf(scope);
+          const judged = answerOf(actedAnswerFromEvents(rows, leaf, site));
+          const read = answerOf(yield* readOf(rows, leaf, site));
+          assert.deepStrictEqual(judged, read);
+          assert.strictEqual(judged._tag, "DecisionHistoryUnavailable");
+          if (judged._tag === "DecisionHistoryUnavailable") {
+            assert.isFalse(judged.hasEvent);
+          }
+        }
       }),
   );
 });

@@ -400,10 +400,9 @@ const signatureLookup = (
  * because this layer *is* the store and it does know — the same distinction
  * `decisionHistoryFromEvents` draws. A resource-scoped query only ever sees
  * rows stored with that same `resourceId`, and a subject-global query
- * (`resourceId` absent) only ever sees rows stored with none — the same
- * separation `ActedEvent`/`ActedAnywhere` keep, expressed here as a keyed
- * group rather than a `HashSet`, since the answer to one key is a *list* of
- * signatures rather than one membership bit.
+ * (`resourceId` absent) only ever sees rows stored with none. Both fixtures key
+ * a pair or a request by their port's key text; this one groups a list per pair
+ * because its answer is a list of signatures rather than one membership bit.
  *
  * A pair with no key fails closed: a refused fixture entry fails every read,
  * and a refused query fails its own, with `SignatureHistoryUnavailable` carrying

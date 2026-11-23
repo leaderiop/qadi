@@ -14,14 +14,13 @@
  * record accesses that never happened.
  */
 import * as Context from "effect/Context";
-import * as Data from "effect/Data";
 import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Result from "effect/Result";
 import type * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
-import { DecisionHistoryUnavailable } from "./Errors.ts";
+import { DecisionHistoryUnavailable, MissingResourceId } from "./Errors.ts";
 import type { InvalidBoundedPermits } from "./Errors.ts";
 import {
   makeResourceId,
@@ -47,7 +46,7 @@ import {
 } from "./PortSpanEncode.ts";
 import type { PortServingFacet } from "./PortServing.ts";
 import { sameAnswer } from "./PortWireEncode.ts";
-import { scopedResourceIdOf } from "./ScopedLeaf.ts";
+import { isResourceScoped, scopedResourceIdOf } from "./ScopedLeaf.ts";
 
 /**
  * What the port can say about a past event.
@@ -266,29 +265,6 @@ export interface ActedEventInput {
   readonly resourceId: string;
 }
 
-/** `(subjectId, event)` only — no resource, for an "ever, at all" question. */
-export interface ActedAnywhereInput {
-  readonly subjectId: string;
-  readonly event: string;
-}
-
-/**
- * One `(subjectId, event, resourceId)` triple and one `(subjectId, event)`
- * pair, compared structurally rather than by a joined string key — a naive
- * `${a} ${b} ${c}` join collides whenever a segment itself contains the
- * delimiter. `Data.Class` gives per-field `Equal`/`Hash`, so `HashSet`
- * membership compares each field independently and the collision is
- * unrepresentable, not just harder to hit.
- *
- * Exported, as `RelationshipEdge` in `RelationshipResolver.ts` is: a value
- * class with no behaviour beyond structural equality has nothing to leak, and
- * a consumer building its own history fixture reuses these exact classes
- * rather than pasting identical ones.
- */
-export class ActedEvent extends Data.Class<ActedEventInput> {}
-
-export class ActedAnywhere extends Data.Class<ActedAnywhereInput> {}
-
 /**
  * Whether the listed events hold the one a query names: on its resource, or on
  * any resource when it names none.
@@ -352,6 +328,40 @@ export const decisionHistoryFromEvents = (
         onFailure: (refusal) =>
           Effect.fail(decisionHistoryPort.failure([query], describeKeyRefusal(refusal))),
       }),
+  });
+};
+
+/**
+ * What the history port, read for a `hasActed` leaf at `site` over these fixture
+ * events, answers, with no Effect.
+ *
+ * It asks the description's own request (`decisionHistoryPort.asks`), so an
+ * `Any`-scoped leaf asks about no resource even where the site has one. A
+ * resource-scoped leaf at a site with no usable resource id fails with
+ * `MissingResourceId`, before any event is read. Otherwise it reads the lookup
+ * `decisionHistoryFromEvents` reads. The fixture is a closed world, so it never
+ * answers `"Unknown"`, and its type says so. A row or a request the key refuses
+ * fails with `DecisionHistoryUnavailable` carrying `describeKeyRefusal`'s sentence,
+ * never `"NotActed"`, which `hasNotActed` would read as an allow, and never a
+ * throw, for any value the rows or the site hold (BEH-QD-410). The agreement with
+ * `askActed` over the fixture layer is pinned by `DecisionHistory.test.ts`.
+ */
+export const actedAnswerFromEvents = (
+  events: ReadonlyArray<ActedEventInput>,
+  leaf: LeafOf["HasActed"],
+  site: ReadSite,
+): Result.Result<
+  "Acted" | "NotActed",
+  MissingResourceId | DecisionHistoryUnavailable
+> => {
+  const [query] = decisionHistoryPort.asks.HasActed(leaf, site);
+  if (isResourceScoped(leaf) && query.resourceId === undefined) {
+    return Result.fail(new MissingResourceId({ relation: leaf.event }));
+  }
+  return Result.match(actedLookup(events)(query), {
+    onSuccess: Result.succeed,
+    onFailure: (refusal) =>
+      Result.fail(decisionHistoryPort.failure([query], describeKeyRefusal(refusal))),
   });
 };
 
