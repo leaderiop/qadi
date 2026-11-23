@@ -637,6 +637,19 @@ const run = (
   );
 
 /**
+ * Annotates a failed translation's span with the error's tag, and fails unchanged.
+ *
+ * `toPredicate`'s pipeable: `Effect.fn` runs it inside the span, so it covers every
+ * way a translation fails, too deep, fields, untranslatable or a port.
+ */
+const answerFailure = <A, E extends { readonly _tag: string }, R>(
+  translation: Effect.Effect<A, E, R>,
+): Effect.Effect<A, E, R> =>
+  Effect.tapError(translation, (error) =>
+    annotateSpan(toPredicateSpan.answer, { errorTag: error._tag }),
+  );
+
+/**
  * Compiles a policy into a filter over rows the caller has not loaded.
  *
  * Fails rather than approximates. A node outside the translatable subset
@@ -653,7 +666,8 @@ const run = (
  * with `decide` and `project`.
  *
  * Its span (`toPredicateSpan`, `EvaluationSpan.ts`) says what was asked before
- * translating and, when translation fails, the error's tag (ADR-QD-188).
+ * translating and, when translation fails, the error's tag (ADR-QD-188). The tag
+ * is written by {@link answerFailure}, a pipeable `Effect.fn` runs inside the span.
  */
 export const toPredicate = Effect.fn(toPredicateSpan.name)(function* (
   policy: Policy,
@@ -689,10 +703,4 @@ export const toPredicate = Effect.fn(toPredicateSpan.name)(function* (
   yield* Metric.update(predicatesTranslatedTotal, 1);
 
   return predicate;
-},
-  // Inside the span, so any failure says its tag: too deep, fields, untranslatable
-  // or a port.
-  Effect.tapError((error) =>
-    annotateSpan(toPredicateSpan.answer, { errorTag: error._tag }),
-  ),
-);
+}, answerFailure);
