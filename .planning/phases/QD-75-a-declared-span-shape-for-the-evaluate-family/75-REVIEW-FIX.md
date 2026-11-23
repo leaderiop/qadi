@@ -25,7 +25,7 @@ worktree was created. The final pass ran on `e9ebfe90`.
 
 ## Fixed Issues
 
-### WR-01: `logAnnotations`'s doc comment says a log event cannot reach a span through it
+### WR-01: `logAnnotations`'s doc comment says a log event cannot reach a span through it, but its output annotates a span with no error
 
 **Files modified:** `packages/core/src/PortSpanEncode.ts`
 **Commit:** `02682925`
@@ -40,7 +40,7 @@ group's ranges moved (see "The GROUPS ranges" below).
 **How checked:** Tier 1 re-read. `pnpm typecheck` and the core vitest project pass. No spec text quoted the old sentence
 (grep over `packages`, `spec`, `apps` and `AGENTS.md`; the only hits are stale `lib/` build output).
 
-### WR-02: The 75-07 and 75-08 summaries still state the superseded close and cost as current
+### WR-02: The 75-07 and 75-08 summaries still state the superseded close and cost as current, with nothing marking them superseded
 
 **Files modified:** `75-07-SUMMARY.md`, `75-08-SUMMARY.md`
 **Commit:** `916d18f8`
@@ -64,7 +64,7 @@ Where the notes went:
 
 **How checked:** Both frontmatters parse with `yaml` (19 keys each, `superseded` present). Re-read.
 
-### IN-01: `decideSubjectsStream` keeps a block body whose only statement is `return`
+### IN-01: `decideSubjectsStream` keeps a block body whose only statement is `return`, left over from a removed local
 
 **Files modified:** `packages/core/src/SubjectSet.ts`
 **Commit:** `b4cf04d3`
@@ -72,7 +72,7 @@ Where the notes went:
 **How checked:** `tsc --noEmit -p packages/core/tsconfig.src.json` is clean. In the final pass, the core vitest project
 (including `SubjectSet.test.ts` and the contract) and the contract check pass.
 
-### IN-02: ADR-QD-188's cost section says the rewiring "adds a call frame to each annotation"
+### IN-02: ADR-QD-188's cost section says the rewiring "adds a call frame to each annotation", which is not what changed on the evaluate path
 
 **Files modified:** `spec/decisions/188-…-says-what-was-asked.md` (Rev 1.9 to 1.10), `spec/README.md` (Rev 1.340 to
 1.341), `75-RED-EVIDENCE.md`
@@ -101,7 +101,7 @@ figure") was corrected to the same list, in that one sentence only.
 a failed translation's error tag, Killed by hand". No `EXAMINED` count changed.
 **How checked:** `75-mutation.mjs --self-test`: 36 passed.
 
-### IN-04: AGENTS.md §6 does not name the `paramsOf` pin form
+### IN-04: AGENTS.md §6 does not name the `paramsOf` pin form that `EvaluationSpan.tst.ts` introduces
 
 **Files modified:** `AGENTS.md`
 **Commit:** `cd71008b`
