@@ -128,7 +128,10 @@ export const encodeSpan: <Fields extends SpanFields>(
  * The annotations of a log line, from a {@link LogEventStruct} and nothing else.
  *
  * The encoding body under a type that takes only a log event, so a span's struct
- * cannot be written to a log line through it, nor a log event's to a span.
+ * cannot be encoded as a log line's annotations through it, and the span-writing
+ * functions here refuse the event itself. What it returns is a plain record, so a
+ * raw `Effect.annotateCurrentSpan` of it is not refused; review keeps that, as
+ * {@link LogEventStruct} says.
  */
 export const logAnnotations: <Fields extends SpanFields>(
   event: LogEventStruct<Fields>,
