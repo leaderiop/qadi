@@ -458,6 +458,7 @@ try {
 const FIXTURE = `import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Result from "effect/Result";
 import * as HttpApi from "effect/http-api/HttpApi";
 import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
 import * as HttpApiEndpoint from "effect/http-api/HttpApiEndpoint";
@@ -482,9 +483,11 @@ import {
   gte,
   hasAttribute,
   hasPermission,
+  hasSignature,
   permission,
   RelationshipResolverNever,
   role,
+  signatureAnswerFromSignatures,
   SignatureHistoryNone,
   StoredRecord,
   thrownMessage,
@@ -565,6 +568,34 @@ expect("thrown message of an Error", thrownMessage(new Error("boom")), "boom");
 expect("thrown message of a value that cannot be described", thrownMessage({ toString: () => { throw new Error("no"); } }), "a value that could not be described");
 expect("cause message of a failure that renders", causeMessage(Cause.fail("plain")), Cause.pretty(Cause.fail("plain")));
 expect("cause message of a defect that cannot be rendered", causeMessage(Cause.die({ get message(): string { throw new Error("no"); }, toString: () => { throw new Error("no"); } })), "a value that could not be described");
+// The fixture judgements answer in the packed artifact.
+const anyLeaf = hasSignature("approved", { scope: "Any" });
+const resourceLeaf = hasSignature("approved", { scope: "Resource" });
+if (anyLeaf._tag !== "HasSignature" || resourceLeaf._tag !== "HasSignature") {
+  throw new Error("consumer: hasSignature built another node");
+}
+const noResource = { subject: alice, resource: undefined };
+const answered = {
+  onSuccess: (answer: { readonly matched: boolean }) => answer.matched,
+  onFailure: (failure: { readonly _tag: string }) => failure._tag,
+};
+expect(
+  "signature answer of a matching Any row",
+  Result.match(
+    signatureAnswerFromSignatures(
+      [{ subjectId: "alice", meaning: "approved" }],
+      anyLeaf,
+      noResource,
+    ),
+    answered,
+  ),
+  true,
+);
+expect(
+  "signature answer of a Resource leaf at a site with no resource",
+  Result.match(signatureAnswerFromSignatures([], resourceLeaf, noResource), answered),
+  "MissingResourceId",
+);
 
 // @qadi/devtools ships TWO entry points, and check 3's import probe only
 // reaches package roots — so the second one is exercised here or nowhere.
