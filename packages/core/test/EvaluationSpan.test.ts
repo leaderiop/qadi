@@ -6,6 +6,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import {
   askedOf,
+  batchAskedOf,
   decideSubjectSpan,
   decideSubjectsSpan,
   decideSubjectsStreamSpan,
@@ -186,6 +187,15 @@ describe("the declaration of the evaluate family", () => {
       action: "read",
     });
     assert.isUndefined(askedOf(questionOf(subject, policy)).action);
+  });
+
+  it("a batch asks its own policy tag and action", () => {
+    const policy = P.hasRole("editor");
+    assert.deepStrictEqual(batchAskedOf(policy, { action: "read" }), {
+      policyTag: "HasRole",
+      action: "read",
+    });
+    assert.isUndefined(batchAskedOf(policy).action);
   });
 
   it("the batch spans write nothing after their question", () => {

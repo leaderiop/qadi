@@ -35,6 +35,7 @@ import type { EvaluationError } from "./Errors.ts";
 import { evaluate } from "./Evaluate.ts";
 import type { StandingEvaluationServices } from "./EvaluationServices.ts";
 import {
+  batchAskedOf,
   decideSubjectSpan,
   decideSubjectsSpan,
   decideSubjectsStreamSpan,
@@ -179,8 +180,7 @@ export const decideSubjects = Effect.fn(decideSubjectsSpan.name)(function* (
 ) {
   yield* annotateAsked(decideSubjectsSpan.question, {
     subjectCount: subjects.length,
-    policyTag: policy._tag,
-    action: options?.action,
+    ...batchAskedOf(policy, options),
   });
 
   // Sequential: `Effect.forEach` with no `concurrency` runs one element at a time.
@@ -264,10 +264,10 @@ export const decideSubjectsStream = <E2 = never, R2 = never>(
   return subjects.pipe(
     Stream.mapEffect((subject) => decideSubject(policy, subject, options)),
     Stream.withSpan(decideSubjectsStreamSpan.name, {
-      attributes: askedAttributes(decideSubjectsStreamSpan.question, {
-        policyTag: policy._tag,
-        action: options?.action,
-      }),
+      attributes: askedAttributes(
+        decideSubjectsStreamSpan.question,
+        batchAskedOf(policy, options),
+      ),
     }),
   );
 };

@@ -83,7 +83,8 @@ export const decideQuestion = Effect.fn(evaluateSpan.name)(function* (
   const mintedId = yield* EvaluationId.next;
   const evaluationId = options?.evaluationId ?? mintedId;
   // Before the lookup, so a span that ends in a failure still carries its question.
-  yield* annotateAsked(evaluateSpan.question, { ...askedOf(question), evaluationId });
+  const asked = askedOf(question);
+  yield* annotateAsked(evaluateSpan.question, { ...asked, evaluationId });
   const startedAt = yield* Clock.currentTimeMillis;
 
   // Optional by construction: `serviceOption` adds nothing to the requirements, so
@@ -174,8 +175,8 @@ export const decideQuestion = Effect.fn(evaluateSpan.name)(function* (
     yield* Effect.logDebug("qadi: policy denied").pipe(
       Effect.annotateLogs(
         logAnnotations(denialEvent, {
-          policyTag: question.policy._tag,
-          subjectId: question.subject.id,
+          policyTag: asked.policyTag,
+          subjectId: asked.subjectId,
           reason: decision.reason,
         }),
       ),

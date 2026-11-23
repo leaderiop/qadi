@@ -27,9 +27,10 @@
 import * as Schema from "effect/Schema";
 import type { Decision } from "./Decision.ts";
 import { POLICY_TAGS } from "./Policy.ts";
+import type { Policy } from "./Policy.ts";
 import type { SpanFields, SpanKey, SpanStruct } from "./PortSpan.ts";
 import type { PoseOf } from "./PortSpanEncode.ts";
-import type { Question } from "./Question.ts";
+import type { EvaluateOptions, Question } from "./Question.ts";
 import {
   logEventStruct,
   sharedQuestionFields,
@@ -82,6 +83,26 @@ export const askedOf = (
   subjectId: question.subject.id,
   policyTag: question.policy._tag,
   action: question.action,
+});
+
+/** What a batch asks of every subject: the policy's tag and the action. */
+const batchAskedFields = { policyTag: askedFields.policyTag, action: askedFields.action };
+
+/** Their keys. */
+const batchAskedKeys = { policyTag: askedKeys.policyTag, action: askedKeys.action };
+
+/**
+ * What a batch asks: its policy's tag and its action.
+ *
+ * The one projection to the batch spans' shared question fields, read by both batch
+ * writers, which hold a policy and options rather than a built {@link Question}.
+ */
+export const batchAskedOf = (
+  policy: Policy,
+  options?: EvaluateOptions,
+): PoseOf<SpanStruct<typeof batchAskedFields>> => ({
+  policyTag: policy._tag,
+  action: options?.action,
 });
 
 /** The tag of the failure a span ended on. */
@@ -190,16 +211,8 @@ export const decideSubjectSpan = declareSpan({
 export const decideSubjectsSpan = declareSpan({
   name: "qadi.decideSubjects",
   question: spanStruct(
-    {
-      subjectCount: Schema.optionalKey(Schema.Number),
-      policyTag: askedFields.policyTag,
-      action: askedFields.action,
-    },
-    {
-      subjectCount: "qadi.subject_count",
-      policyTag: askedKeys.policyTag,
-      action: askedKeys.action,
-    },
+    { subjectCount: Schema.optionalKey(Schema.Number), ...batchAskedFields },
+    { subjectCount: "qadi.subject_count", ...batchAskedKeys },
   ),
   answer: answersNothing,
 });
@@ -213,10 +226,7 @@ export const decideSubjectsSpan = declareSpan({
  */
 export const decideSubjectsStreamSpan = declareSpan({
   name: "qadi.decideSubjectsStream",
-  question: spanStruct(
-    { policyTag: askedFields.policyTag, action: askedFields.action },
-    { policyTag: askedKeys.policyTag, action: askedKeys.action },
-  ),
+  question: spanStruct(batchAskedFields, batchAskedKeys),
   answer: answersNothing,
 });
 
