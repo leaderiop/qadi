@@ -117,13 +117,3 @@ export const listed = (instances: ReadonlyArray<GateInstance>) =>
       one.state,
     ])
     .sort((a, b) => a[0].localeCompare(b[0]));
-
-/** What each instance is, in registry order, and whether it has an element. */
-export const snapshotOf = (instances: ReadonlyArray<GateInstance>) =>
-  instances.map((one) => ({
-    id: one.id,
-    kind: one.kind,
-    state: one.state,
-    resource: one.resource,
-    element: one.element !== undefined,
-  }));

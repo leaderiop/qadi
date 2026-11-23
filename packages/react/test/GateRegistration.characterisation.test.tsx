@@ -31,7 +31,7 @@ import * as Layer from "effect/Layer";
 import { describe, expect, it } from "vitest";
 import { Can } from "../src/components.tsx";
 import { makeGateRegistry } from "../src/GateRegistry.ts";
-import type { GateRegistry } from "../src/GateRegistry.ts";
+import type { GateInstance, GateRegistry } from "../src/GateRegistry.ts";
 import { useCan, useQuestions } from "../src/hooks.ts";
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 import { notificationsOf } from "./support/gates.ts";
@@ -44,7 +44,6 @@ import {
   Group,
   isAdmin,
   providerTree,
-  snapshotOf,
 } from "./support/trees.tsx";
 
 /** Waits until no guard is still `Pending`, so a count is read between settled points. */
@@ -52,6 +51,16 @@ const settled = (registry: GateRegistry) =>
   waitFor(() =>
     expect(registry.instances().some((one) => one.state === "Pending")).toBe(false),
   );
+
+/** What each instance is, in registry order, and whether it has an element. */
+const snapshotOf = (instances: ReadonlyArray<GateInstance>) =>
+  instances.map((one) => ({
+    id: one.id,
+    kind: one.kind,
+    state: one.state,
+    resource: one.resource,
+    element: one.element !== undefined,
+  }));
 
 /** The id of the first guard the registry lists. */
 const firstId = (registry: GateRegistry) => registry.instances()[0]?.id;
