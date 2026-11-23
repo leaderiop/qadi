@@ -7,8 +7,9 @@
  * `CompilePredicate.tst.ts`: under `pnpm typecheck` an unused directive is TS2578,
  * and under `pnpm test:tstyche` the text after it is a fragment of the one
  * suppressed error's message. The span annotators return an `Effect`, so each of
- * their refusals is a negative pin through the parameter type, with its positive twin;
- * the attribute and annotation builders return a plain record and are pinned bare.
+ * their refusals is a negative pin through `paramsOf`, with its positive twin; the
+ * attribute and annotation builders return a plain record and are pinned bare. Every
+ * pin's arguments are inferred at the call, as a writer's are.
  */
 import { expect, test } from "tstyche";
 import type { Decision } from "../src/Decision.ts";
@@ -85,17 +86,18 @@ test("obligations are one joined string, not a list", () => {
 });
 
 /**
- * The question annotator's parameters at the evaluate span's question, with its
- * `Effect` dropped, so the pin holds whichever way `floatingEffect` is set.
+ * A function's call with its result dropped and its type parameters kept.
+ *
+ * The span annotators return an `Effect`, so a pin on one goes through this and holds
+ * whichever way `floatingEffect` is set. Their type parameters survive it, so each
+ * pin's arguments are inferred at the call as a writer's are, with no type argument.
  */
-type AskedParams = typeof annotateAsked<typeof evaluateSpan.question.fields> extends (
-  ...args: infer A
-) => unknown
-  ? (...args: A) => void
-  : never;
+declare const paramsOf: <A extends ReadonlyArray<unknown>>(
+  f: (...args: A) => unknown,
+) => (...args: A) => void;
 
 test("a question that leaves a member out is refused", () => {
-  expect<AskedParams>().type.not.toBeCallableWith(evaluateSpan.question, {
+  expect(paramsOf(annotateAsked)).type.not.toBeCallableWith(evaluateSpan.question, {
     subjectId: "u1",
     policyTag: "HasRole",
     action: undefined,
@@ -103,7 +105,7 @@ test("a question that leaves a member out is refused", () => {
 });
 
 test("a question that names every member is accepted", () => {
-  expect<AskedParams>().type.toBeCallableWith(evaluateSpan.question, {
+  expect(paramsOf(annotateAsked)).type.toBeCallableWith(evaluateSpan.question, {
     subjectId: "u1",
     evaluationId: "eval-1",
     policyTag: "HasRole",
@@ -111,22 +113,35 @@ test("a question that names every member is accepted", () => {
   });
 });
 
-/** The answer annotator's parameters at the denial event's fields, `Effect` dropped. */
-type DenialParams = typeof annotateSpan<typeof denialEvent.fields> extends (
-  ...args: infer A
-) => unknown
-  ? (...args: A) => void
-  : never;
-
 /** A span struct of the denial event's own fields, which a span may carry. */
 declare const spanOfDenialFields: SpanStruct<typeof denialEvent.fields>;
 
 test("the denial event's struct cannot annotate a span", () => {
-  expect<DenialParams>().type.not.toBeCallableWith(denialEvent, { reason: "r" });
+  expect(paramsOf(annotateSpan)).type.not.toBeCallableWith(denialEvent, {
+    reason: "r",
+  });
 });
 
 test("a span struct of the same fields can annotate a span", () => {
-  expect<DenialParams>().type.toBeCallableWith(spanOfDenialFields, { reason: "r" });
+  expect(paramsOf(annotateSpan)).type.toBeCallableWith(spanOfDenialFields, {
+    reason: "r",
+  });
+});
+
+test("the denial event's struct cannot annotate a span as its question", () => {
+  expect(paramsOf(annotateAsked)).type.not.toBeCallableWith(denialEvent, {
+    policyTag: "HasRole",
+    subjectId: "u1",
+    reason: "r",
+  });
+});
+
+test("a span struct of the same fields can annotate a span as its question", () => {
+  expect(paramsOf(annotateAsked)).type.toBeCallableWith(spanOfDenialFields, {
+    policyTag: "HasRole",
+    subjectId: "u1",
+    reason: "r",
+  });
 });
 
 test("the denial event's struct cannot build a span's attributes", () => {
