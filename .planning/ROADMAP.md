@@ -446,7 +446,7 @@ Order: the three live defects (69 to 71), the three deepenings (72 to 74), the c
 - [x] **Phase 73: One pure reconcile for gate registration** - One `reconcile` keyed by gate id registers, updates and unregisters, and `useGate` loses its state-diff effect and the index-aligned parallel arrays (ARCH-120, react) (completed 2026-11-23)
 - [x] **Phase 74: The simulation session's policy choice split from its runs** - The policy-choice and seed rules move into a pure module beside `HeldChoice.ts`, and the session keeps only runs (ARCH-121, devtools) (completed 2026-11-23)
 - [x] **Phase 75: A declared span shape for the evaluate family** - One question/answer span struct built with `spanStruct`, so a failed `qadi.evaluate` span carries the question and the outcome sits under one key; human checkpoint (ARCH-122, core) (completed 2026-11-23)
-- [ ] **Phase 76: Remedies uses core's signature match** - Remedies asks core whether a fixture signature satisfies a node, or the phase ends in a recorded rejection; speculative (ARCH-123, devtools + core)
+- [x] **Phase 76: Remedies uses core's signature match** - Remedies asks core whether a fixture signature satisfies a node, or the phase ends in a recorded rejection; speculative (ARCH-123, devtools + core) (completed 2026-11-23)
 
 ### Phase Details
 
@@ -731,7 +731,7 @@ Plans:
   4. The custom-predicate refusal is one sentence owned in one place, and ADR-QD-189 records the outcome (change or rejection).
 
 **Planning notes**: The owner decision (where core exposes "would this fixture signature satisfy this node" without exporting `SignatureMatch.ts`, or a recorded rejection) is asked once at this phase's discuss step. The agreement test is the deliverable that survives a rejection.
-**Plans**: 8/8 plans executed (strictly serial, waves 1 to 8)
+**Plans**: 8/8 plans complete (strictly serial, waves 1 to 8)
 
 Plans:
 **Wave 1**
@@ -772,4 +772,4 @@ Phases execute in numeric order: 69 → 70 → 71 → 72 → 73 → 74 → 75 �
 | 73. One pure reconcile for gate registration | 7/7 | Complete    | 2026-11-23 |
 | 74. The simulation session's policy choice split from its runs | 7/7 | Complete    | 2026-11-23 |
 | 75. A declared span shape for the evaluate family | 9/9 | Complete    | 2026-11-23 |
-| 76. Remedies uses core's signature match | 8/8 | In Progress | - |
+| 76. Remedies uses core's signature match | 8/8 | Complete    | 2026-11-23 |
