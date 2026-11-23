@@ -22,26 +22,28 @@ status: all_fixed
 
 Verification ran in the main checkout (`workflow.use_worktrees` is `false`), so the numbers reproduce from the tree.
 
-## WR-01: BEH-QD-719 and ADR-QD-189 decision 5 say `remedyEdits` never throws for any value the form's subject or resource holds; it throws for a `hasRelationship` leaf and for a subject-attribute leaf
+## Fixed Issues
+
+### WR-01: BEH-QD-719 and ADR-QD-189 decision 5 say `remedyEdits` never throws for any value the form's subject or resource holds; it throws for a `hasRelationship` leaf and for a subject-attribute leaf
 
 **Files modified:** `packages/devtools/src/model/Remedies.ts`, `packages/devtools/test/model/RemedyTotality.test.ts`
 **Commit:** 028faf3f
 **Applied fix:** The widened claim was kept and made true. `remedyEdits` now calls every requirement through one `remedyGuarded`, which runs the arm inside the one devtools guarded read (`readForm`). So no arm reads the raw form (the subject, its id, roles, permissions and attributes, the resource, its id and attributes, the action, the lists, `contextOf`'s reads, the Relationship arm and every other arm). A throw is a skip with the form's refusal sentence, named by one `requirementLabel` that every arm and the guard share. The Acted and Signature arms lost their separate `readForm` calls, since the outer guard covers them. `Remedies.ts`'s doc now states the total rule instead of "those two checks". `RemedyTotality.test.ts` gained a `describe` that pins a throwing getter for each field a requirement reads: subject roles, permissions, attributes and id (for `hasRelationship`); resource id (`hasRelationship`) and a resource attribute; the action; the relationships list; and a mixed policy where the readable requirement keeps its row beside the skipped one. The four new tests fail on the previous `Remedies.ts` and pass now.
 **Status:** fixed: requires human verification (logic of the guard's scope)
 
-## IN-01: `canonicalKey` writes the same `Unreadable` mapping as `readGuarded`, and `readGuarded`'s comment says no caller writes a `try`
+### IN-01: `canonicalKey` writes the same `Unreadable` mapping as `readGuarded`, and `readGuarded`'s comment says no caller writes a `try`
 
 **Files modified:** `packages/core/src/PortKey.ts`
 **Commit:** 474303fd
 **Applied fix:** One module-private `unreadable(path, error)` builds the refusal (copying the path, since a walk moves it on) and both `canonicalKey`'s catch and `readGuarded` use it. `readGuarded`'s comment now says it is the one guarded read callers use, so no caller outside the module writes a `try`, and that `canonicalKey` guards its own walk (its path is live where `readGuarded` copies it) and `thrownMessage` guards its own renderings.
 
-## IN-02: `RemedyTotality.test.ts` documents the list tests above a helper and its header still says "a row or a site"
+### IN-02: `RemedyTotality.test.ts` documents the list tests above a helper and its header still says "a row or a site"
 
 **Files modified:** `packages/devtools/test/model/RemedyTotality.test.ts`
 **Commit:** 028faf3f (the same file as WR-01, so the same commit)
 **Applied fix:** The list `describe`'s doc block moved to sit directly above that `describe`. The file header now names everything the file pins: rows, lists of rows, sites, the non-text class name, and the form fields the WR-01 arms read.
 
-## IN-03: BEH-QD-445's current-tense paragraph still says the check is `readScoped`, against the dated note under it
+### IN-03: BEH-QD-445's current-tense paragraph still says the check is `readScoped`, against the dated note under it
 
 **Files modified:** `spec/behaviors/30-port-calls.md` (Rev 1.25 through `spec-revise`), `spec/README.md` (Rev 1.346, last)
 **Commit:** 01676245
