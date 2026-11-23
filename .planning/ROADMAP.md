@@ -603,7 +603,7 @@ Plans:
   4. The state-update half is tested without rendering, beside `GateWriter.reconcile.test.ts`, `GateRegistry.test.tsx` loses the cases that move, and ADR-QD-186 extends ADR-QD-140 and ADR-QD-111.
 
 **Planning notes**: AGENTS.md §13 holds: the gate registry records that a gate exists and what it renders now, never a retained verdict.
-**Plans**: 3/7 plans executed (strictly serial, waves 1 to 7)
+**Plans**: 4/7 plans executed (strictly serial, waves 1 to 7)
 
 Plans:
 **Wave 1**
@@ -616,7 +616,7 @@ Plans:
 - [x] 73-03-PLAN.md — the keyed `reconcile` and the one-effect hook, with the update half, call order and failure rule pinned
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 73-04-PLAN.md — the type pins, the shared error boundary, the equal-state and no-leak rows, and each guarantee gutted once
+- [x] 73-04-PLAN.md — the type pins, the shared error boundary, the equal-state and no-leak rows, and each guarantee gutted once
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 73-05-PLAN.md — the three reconcile-rule cases leave `GateRegistry.test.tsx`, each pinned twice elsewhere
@@ -694,7 +694,7 @@ Phases execute in numeric order: 69 → 70 → 71 → 72 → 73 → 74 → 75 �
 | 70. Hydration's drop events come from its buckets | 7/7 | Complete    | 2026-11-22 |
 | 71. Developer-signal reporters resolved through one table | 8/8 | Complete    | 2026-11-22 |
 | 72. A derived store behind the dock model's stores | 8/8 | Complete    | 2026-11-22 |
-| 73. One pure reconcile for gate registration | 3/7 | In Progress | - |
+| 73. One pure reconcile for gate registration | 4/7 | In Progress | - |
 | 74. The simulation session's policy choice split from its runs | 0/TBD | Not started | - |
 | 75. A declared span shape for the evaluate family | 0/TBD | Not started | - |
 | 76. Remedies uses core's signature match | 0/TBD | Not started | - |

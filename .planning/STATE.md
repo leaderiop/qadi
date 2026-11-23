@@ -4,18 +4,18 @@ milestone: v1.8
 milestone_name: Arch Wave 13
 current_phase: 73
 current_phase_name: One pure reconcile for gate registration
-current_plan: 4
+current_plan: 5
 status: executing
-stopped_at: Completed 73-03-PLAN.md
-last_updated: "2026-11-23T00:46:20.003Z"
+stopped_at: Completed 73-04-PLAN.md
+last_updated: "2026-11-23T00:53:30.824Z"
 last_activity: 2026-11-22
 last_activity_desc: Phase 72 complete, transitioned to Phase 73
-state_head: 0026e3f04340329ff25f800953adb01d9ccc4968
+state_head: 08cfd9135b611a99de3b462121a228799c34764e
 progress:
   total_phases: 8
   completed_phases: 4
   total_plans: 39
-  completed_plans: 35
+  completed_plans: 36
   percent: 50
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 ## Current Position
 
 Phase: 73 (One pure reconcile for gate registration) — EXECUTING
-Current Plan: 4
+Current Plan: 5
 Total Plans in Phase: 7
 Status: Ready to execute
 Last activity: 2026-11-22 — Phase 72 complete, transitioned to Phase 73
@@ -524,6 +524,7 @@ Last activity: 2026-11-22 — Phase 72 complete, transitioned to Phase 73
 | Phase 73 P01 | 20 min | 3 tasks | 7 files |
 | Phase 73 P02 | 15 min | 2 tasks | 7 files |
 | Phase QD-73 P03 | 25 min | 2 tasks | 4 files |
+| Phase QD-73 P04 | 20 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -900,6 +901,7 @@ Last activity: 2026-11-22 — Phase 72 complete, transitioned to Phase 73
 - [Phase 73]: 73-01: the gate-registration characterisation (19 rows) is green on the base with no row corrected; guardTrees returns a named GuardTrees interface (TS2883)
 - [Phase 73]: ADR-QD-186 records gate registration as one keyed reconcile: failure-rule sentence verbatim, sameIdentity compares exactly kind/atom/wraps/marker, ADR-QD-053 unchanged
 - [Phase QD-73]: 73-03: a kept handle is told its state on every reconcile; the equal-state rule stays only in GateHandle.update
+- [Phase QD-73]: The type pins use three @ts-expect-error directives and no negative callable or constructable pin, so NOT_CALLABLE_PIN_BUDGET is unchanged
 
 ### Pending Todos
 
@@ -973,8 +975,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-23T00:46:19.170Z
-Stopped at: Completed 73-03-PLAN.md
+Last session: 2026-11-23T00:53:30.412Z
+Stopped at: Completed 73-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
