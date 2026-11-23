@@ -113,14 +113,19 @@ describe("absenceOf", () => {
     });
   });
 
-  it("never asks about the resource id", () => {
+  it("asks for exactly the inputs its own read and its matcher reference", () => {
     for (const f of ALL) {
+      const asked = new Set<string>();
       for (const action of [false, true]) {
         for (const resource of [false, true]) {
           const absent = absenceOf(f.policy, { action, resource });
-          assert.notStrictEqual(absent?._tag, "ResourceId", f.label);
+          if (absent !== undefined) asked.add(absent._tag);
         }
       }
+      const needed = new Set<string>();
+      if (f.own === "Action" || f.refs === "action") needed.add("Action");
+      if (f.own === "Resource" || f.refs === "resource") needed.add("Resource");
+      assert.deepStrictEqual([...asked].sort(), [...needed].sort(), f.label);
     }
   });
 });
