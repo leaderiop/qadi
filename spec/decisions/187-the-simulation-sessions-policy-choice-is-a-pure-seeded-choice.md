@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-187                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-23                                     |
 > | Status         | Accepted — extends ADR-QD-047                  |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-23): corrected in code review: what each transition answers, the draft's one path and the clear, and the overview's row (CCR-QD-466)<br>1.0 (2026-11-23): new — the simulation session's policy choice is a pure seeded choice (ARCH-121, CCR-QD-466) |
+> | Change History | 1.2 (2026-11-23): corrected in code review: What enforces it names the transition pin and decision 1's no-op rows (CCR-QD-466)<br>1.1 (2026-11-23): corrected in code review: what each transition answers, the draft's one path and the clear, and the overview's row (CCR-QD-466)<br>1.0 (2026-11-23): new — the simulation session's policy choice is a pure seeded choice (ARCH-121, CCR-QD-466) |
 
 ---
 
