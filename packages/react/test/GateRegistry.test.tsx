@@ -35,6 +35,7 @@ import {
   useQuestions,
 } from "../src/hooks.ts";
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
+import type { QadiAtoms } from "../src/QadiAtoms.ts";
 import { MissingQadiProviderError } from "../src/QadiProvider.tsx";
 import { QadiProvider } from "../src/QadiProvider.tsx";
 import { listenTo, notificationsOf } from "./support/gates.ts";
@@ -46,14 +47,19 @@ import {
   docA,
   docB,
   Group,
-  guardTrees,
   isAdmin,
-  listed,
   providerTree,
 } from "./support/trees.tsx";
 
-const trees = guardTrees();
-const mount = trees.mount;
+// Each mount builds its own atom set, so its registry is its own: no test reads
+// another's guards, and nothing needs resetting between them (ADR-QD-080).
+let current: QadiAtoms = atoms();
+
+const mount = (children: ReactNode, instrument: boolean) => {
+  const set = atoms();
+  current = set;
+  return render(providerTree(set, children, { instrument }));
+};
 
 /**
  * Mounts `first`, rerenders `second`, and reports the registry's notifications
@@ -75,7 +81,7 @@ const rerenderedGate = (strict: boolean, first: ReactNode, second: ReactNode) =>
 };
 
 /** The guards listed by the most recent `mount`'s atom set. */
-const gateInstances = trees.instances;
+const gateInstances = () => current.gates.instances();
 
 afterEach(() => {
   document.body.innerHTML = "";
@@ -96,9 +102,9 @@ describe("uninstrumented, nothing changes", () => {
   });
 
   it("is the default", () => {
-    const set = trees.adopt(atoms());
+    current = atoms();
     render(
-      <QadiProvider atoms={set} subject={alice}>
+      <QadiProvider atoms={current} subject={alice}>
         <Can policy={canRead}>allowed</Can>
       </QadiProvider>,
     );
@@ -155,7 +161,8 @@ describe("instrumented, a guard says it exists", () => {
       }),
       EvaluationIdLive,
     );
-    const set = trees.adopt(makeQadiAtoms(controlled));
+    const set = makeQadiAtoms(controlled);
+    current = set;
     const standing = hasAttribute("standing", eq(literal("good")));
 
     const Invalidate = () => {
@@ -558,11 +565,17 @@ describe("useGateInstances", () => {
 });
 
 describe("grouped reads register per question", () => {
+  /** Instances as `[name, kind, state]`, the name being what follows the hook's own id. */
+  const listed = () =>
+    gateInstances()
+      .map((one) => [one.id.slice(one.id.indexOf("/") + 1), one.kind, one.state] as const)
+      .sort((a, b) => a[0].localeCompare(b[0]));
+
   it("lists one instance per named policy, each following its own decision", async () => {
     mount(<Group />, true);
 
     await waitFor(() =>
-      expect(listed(gateInstances())).toEqual([
+      expect(listed()).toEqual([
         ["admin", "usePolicies", "Denied"],
         ["read", "usePolicies", "Allowed"],
       ]),

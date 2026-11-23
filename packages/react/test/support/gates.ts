@@ -1,7 +1,6 @@
 /**
  * What the gate tests share: the count of notifications a gate registry makes
- * (`listenTo`, `notificationsOf`), and policies that are new on every call
- * (`newCanRead`, `newCanWrite`).
+ * (`listenTo`, `notificationsOf`), and a policy that is new on every call (`newCanRead`).
  *
  * Tests that state how many times a registry told its subscribers share this one
  * counter, so the subscription and the running count are written once and every test
@@ -11,7 +10,7 @@ import { hasPermission, permission } from "@qadi/core";
 import type { GateRegistry } from "../../src/GateRegistry.ts";
 
 /** What one subscription to a registry has heard, and the way to end it. */
-export interface Notifications {
+interface Notifications {
   /** The count of notifications heard since the subscription. */
   readonly told: () => number;
   readonly unsubscribe: () => void;
@@ -35,6 +34,3 @@ export const notificationsOf = (registry: GateRegistry): (() => number) =>
  * same one.
  */
 export const newCanRead = () => hasPermission(permission("doc", "read"));
-
-/** A new `doc:write` policy on every call, as {@link newCanRead}. */
-export const newCanWrite = () => hasPermission(permission("doc", "write"));

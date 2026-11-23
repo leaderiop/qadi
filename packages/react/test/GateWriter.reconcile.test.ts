@@ -8,6 +8,7 @@
  * and what is new registers. The render-level behaviour is in `GateWriter.test.tsx`
  * and `GateRegistration.characterisation.test.tsx`.
  */
+import { hasPermission, permission } from "@qadi/core";
 import { describe, expect, it } from "vitest";
 import { gateWriterFor, reconcile } from "../src/GateWriter.ts";
 import type {
@@ -18,7 +19,10 @@ import type {
 } from "../src/GateWriter.ts";
 import { makeGateRegistry } from "../src/GateRegistry.ts";
 import type { GateRenderState } from "../src/GateRegistry.ts";
-import { newCanRead, newCanWrite } from "./support/gates.ts";
+import { newCanRead } from "./support/gates.ts";
+
+/** A new `doc:write` policy on every call, as `newCanRead`. */
+const newCanWrite = () => hasPermission(permission("doc", "write"));
 
 type Call =
   | readonly ["register", string, GateRenderState, Element | undefined]
