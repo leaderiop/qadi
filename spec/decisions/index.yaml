@@ -578,3 +578,7 @@ entries:
     file: "187-the-simulation-sessions-policy-choice-is-a-pure-seeded-choice.md"
     title: "The simulation session's policy choice is a pure seeded choice"
     status: "Accepted — extends ADR-QD-047"
+  - id: "ADR-QD-188"
+    file: "188-the-evaluate-familys-spans-are-declared-once-and-a-failed-span-says-what-was-asked.md"
+    title: "The evaluate family's spans are declared once, and a failed span says what was asked"
+    status: "Accepted — extends ADR-QD-051 and ADR-QD-109"
