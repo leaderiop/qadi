@@ -13,7 +13,7 @@ module was a shallow pass-through.
 The review is at https://claude.ai/artifact/LH5dLGadz28NyzmZez9jcX, with a local copy at
 `/tmp/claude-1002/-home-yopu-Project-Perso-qadi/588341bb-9f42-4e6e-b1a3-ed991ed47acf/scratchpad/qadi-architecture-review.html`.
 
-## Current Milestone: v1.8 Arch Wave 13
+## Previous Milestone: v1.8 Arch Wave 13 (completed 2026-11-23; not released)
 
 **Goal:** Resolve all eight candidates of the 2026-11-22 architecture review. The three live defects go first (the
 "never throws" functions that throw, the hydration drops that are never reported, the reporter that blames the wrong
@@ -40,6 +40,21 @@ option name), then the three deepenings, then the change that tracers will see, 
 **Source review and evidence:** `/var/folders/vn/44p0pxgs4z98v7cl11l4_r4c0000gp/T/architecture-review-20261122-075438.html`
 (session-scoped; `.planning/phases/_WAVE13-CONTEXT.md` holds everything a planner needs). Branch `arch-wave-13`, based
 on `main` at `2716def4` (v1.6 + v1.7 merged as #163). No merge, no release.
+
+v1.8 Arch Wave 13 completed 2026-11-23 on branch `arch-wave-13` (630 commits; 198 files, +17,915 / −2,874 outside
+`.planning`): ARCH-116 to ARCH-123, ADR-QD-182 to ADR-QD-189, amendments to ADR-QD-033, 041, 047, 051, 052, 058, 094,
+103, 109, 111, 140, 152, 162, 163, 168 and 169, and CCR-QD-461..468. All 8 phases `passed`, Nyquist-compliant and
+secured (0 open threats). Each phase ran a three-iteration code review and re-closed its mutation measurement after it.
+Every choice was decided autonomously under the owner's standing instruction (take the most complete, clean solution),
+including Phase 75's checkpoint (one outcome key, `qadi.outcome`) and Phase 76's owner question (a change, not a recorded
+rejection). The audit is `passed`: 47/47 requirements, 14/14 integration points, 4/4 flows. It added a canary pinning
+Effect's `String(cause)` totality and moved the fixture-judgement helpers out of the file the span contract imports. It
+then re-verified the six phases that later work had made stale. `check:pr` exited 0 at the end of every phase and last at
+`5640572d`. Ten changesets: three Breaking minors (`@qadi/core` ×2: `qadi.decision` → `qadi.outcome`, the removed
+`ActedEvent`/`ActedAnywhere`/`ActedAnywhereInput` and the optional error members; `@qadi/http` ×1: the optional
+members on the wire), one non-breaking `@qadi/core` minor (`thrownMessage`, `causeMessage`) and six patches. A 0.13
+upgrade-guide section. **Not merged and not released.** Archive: `.planning/milestones/v1.8-ROADMAP.md`,
+`v1.8-REQUIREMENTS.md`, `v1.8-MILESTONE-AUDIT.md`.
 
 ## Previous Milestone: v1.7 Arch Wave 12 (completed 2026-11-22; not released)
 
@@ -123,6 +138,21 @@ threshold that never opens, a failing user sink that loses records unlogged), th
 `arch-wave-9` at `ba0d0615` (v1.4 is not merged). No merge, no release.
 
 ## Current State
+
+v1.8 Arch Wave 13 completed 2026-11-23 on branch `arch-wave-13` (see the v1.8 entry above). All eight candidates of the
+2026-11-22 architecture review are resolved:
+- every "never throws" function in core stays total for a hostile value, through one exported rule (`thrownMessage`,
+  `causeMessage`);
+- hydration's drop events come from its reason-keyed buckets;
+- every developer-signal reporter is resolved through one table, with the option-name drift fixed;
+- the dock model's computed stores are derived stores;
+- gate registration is one pure `reconcile`;
+- the simulation session's policy choice is a pure seeded choice beside its runs;
+- the evaluate family's spans are declared once, with one outcome key and a failed span that says what was asked;
+- whether a fixture row meets a signature or acted leaf is core's own answer, and a refused value fails typed wherever it
+  is read.
+
+Nothing is merged or released, and the next milestone is not yet defined.
 
 v1.7 Arch Wave 12 completed 2026-11-22 on branch `arch-wave-12` (see the v1.7 entry above): every tech-debt item the
 v1.6 audit carried is resolved by a change or a recorded decision. Negative type pins can fail and are budgeted, gate 14
@@ -338,7 +368,7 @@ logged, counted or spanned.
 
 ### Active
 
-v1.8 Arch Wave 13 (Phases 69–76, ARCH-116…123): see "Current Milestone" above and `.planning/REQUIREMENTS.md`.
+(None. The next milestone is not yet defined.)
 
 ### Out of Scope
 
@@ -396,7 +426,19 @@ v1.8 Arch Wave 13 (Phases 69–76, ARCH-116…123): see "Current Milestone" abov
 - **Hot spots** (churn over the last 15 commits): react `QadiAtoms`/`Hydration`/`hooks`; http
   `RequirePermission`/`DecisionStreamRoute`; core `SinkCodec`/`Evaluate`/`PortAccess`.
 
-### Known Issues (carried forward from v1.7)
+### Known Issues (carried forward from v1.8)
+
+- The v1.8 audit (`.planning/milestones/v1.8-MILESTONE-AUDIT.md`) is `passed`. It records what no change can undo or what
+  was left by decision:
+  - a policy leaf built untyped with a symbol event would throw in Remedies' `requirementLabel`, outside `readForm`; a
+    decoded policy cannot hold one, and the totality rule (BEH-QD-719) covers form values;
+  - the sibling fixture ports (attribute, relationship, custom predicate) may carry the same latent throw for values
+    only an untyped caller can pass; the rule for them is decided where their fixtures live;
+  - history: three commits that opened the milestone (`5e68b104`, `91d1b6ed`, `1666b620`) lack the trailer; the two
+    milestone-close test changes (`a4741601`, `5640572d`) sit outside any phase's CCR row, and the audit is their
+    record.
+
+### Known Issues (carried forward from v1.7) — unchanged in v1.8
 
 - The v1.7 re-audit (`.planning/milestones/v1.7-MILESTONE-AUDIT.md`) is `passed`; it records what no change can undo or
   what was accepted:
@@ -593,4 +635,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-23 after Phase 76*
+*Last updated: 2026-11-23 after the v1.8 milestone*

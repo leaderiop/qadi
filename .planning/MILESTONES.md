@@ -1,5 +1,27 @@
 # Milestones
 
+## v1.8 Arch Wave 13 (Shipped: 2026-11-23)
+
+**Delivered:** all eight candidates of the 2026-11-22 architecture review, on branch `arch-wave-13`. Not merged, not released.
+
+**Phases completed:** 8 phases (69–76), 63 plans. 630 commits; 198 files, +17,915 / −2,874 outside `.planning`.
+
+**Key accomplishments:**
+- 69: one total thrown-value-to-message rule exported by `@qadi/core` (`thrownMessage`, `causeMessage`). Every "never throws" copy uses it, closing the four throw-throughs in `JsonHazard`, `PortKey`, `PortDerivation` and `PortWireEncode` (ADR-QD-182).
+- 70: hydration's drop events come from its reason-keyed buckets on both sides, so a bucket no event reports no longer compiles (ADR-QD-183).
+- 71: every developer-signal reporter is resolved through one table (where it runs, how often, what it is named), and the `onGateIdCollision` naming drift is fixed (ADR-QD-184).
+- 72: the dock model's three computed stores are derived stores built by `makeDerivedStore` (ADR-QD-185).
+- 73: gate registration is one pure, id-keyed `reconcile`; `useGate` lost its state-diff effect and the parallel-array contract (ADR-QD-186).
+- 74: the simulation session's policy choice is a pure seeded choice beside `HeldChoice`, and the session keeps only runs (ADR-QD-187).
+- 75: the evaluate family's spans are declared once. A failed span carries its question, and the outcome has one key, `qadi.outcome` (Breaking; ADR-QD-188).
+- 76: whether a fixture row meets a signature or acted leaf is core's answer (`signatureAnswerFromSignatures`, `actedAnswerFromEvents`). Remedies asks core, a refused value fails typed wherever it is read, and three unused classes are removed (Breaking; ADR-QD-189).
+
+**Quality:** each phase was code-reviewed in three iterations, mutation re-closed, secured (0 open threats) and Nyquist-validated. The audit is `passed` (47/47 requirements, 14/14 integration points, 4/4 flows). `check:pr` was last green at `5640572d`.
+
+**Known verification overrides:** none. The audit-open scan was clear, with 2 items acknowledged in an earlier milestone and still suppressed.
+
+---
+
 ## v1.7 Arch Wave 12 (Shipped: 2026-11-22)
 
 **Phases completed:** 8 phases, 60 plans, 30 tasks
