@@ -46,25 +46,16 @@ import { readOutcome } from "../../src/model/Inspect.ts";
 import type { SimulationInput } from "../../src/model/SimulationInput.ts";
 import { makeSimulationSession } from "../../src/model/SimulationSession.ts";
 import type { SimulationSession } from "../../src/model/SimulationSession.ts";
-import { emptyTimeline, ingestAll } from "../../src/model/Timeline.ts";
-import type { TimelineEntry } from "../../src/model/Timeline.ts";
 import { allow, decisionRecord, deny, failedRecord, obligationRecord, read } from "../helpers.ts";
-
-const sighting = (policy: Policy): PolicySighting => ({
-  policy,
-  label: policyLabel(policy),
-  count: 1,
-  allows: 1,
-  denies: 0,
-  errors: 0,
-  lastAt: 100,
-});
-
-const entryOf = (record: Parameters<typeof ingestAll>[1][number]): TimelineEntry => {
-  const [entry] = ingestAll(emptyTimeline(), [record]).entries;
-  if (entry === undefined) throw new Error("expected an entry");
-  return entry;
-};
+import {
+  counted,
+  entryOf,
+  ran,
+  settled,
+  sighting,
+  slow,
+  startRun,
+} from "../simulationFixtures.ts";
 
 const clearance = hasAttribute("clearance", gte(5));
 /** What a fixture answers: enough that `clearance` allows, so a wrong source would show. */
@@ -82,82 +73,12 @@ const otherBrokenPorts = portsLayer({
   AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("also down"), "broken").layer,
 });
 
-/** A resolver that takes a second, and counts how it ended. No error is constructed. */
-const slow = () => {
-  const tally = { started: 0, finished: 0, interrupted: 0 };
-  const ports = portsLayer({
-    AttributeResolver: Layer.succeed(AttributeResolver, {
-      name: "slow",
-      resolve: () =>
-        Effect.sync(() => {
-          tally.started += 1;
-        }).pipe(
-          Effect.andThen(Effect.sleep("1 second")),
-          Effect.onInterrupt(() =>
-            Effect.sync(() => {
-              tally.interrupted += 1;
-            }),
-          ),
-          Effect.andThen(
-            Effect.sync(() => {
-              tally.finished += 1;
-              return 9;
-            }),
-          ),
-        ),
-    }),
-  });
-  return { tally, ports };
-};
-
 /** A session over one policy, built in the test's scope, with `input` as its form. */
 const sessionWith = (policy: Policy, input: SimulationInput = withClearance) =>
   Effect.gen(function* () {
     const session = yield* makeSimulationSession({ sightings: [sighting(policy)] });
     session.edit(input);
     return session;
-  });
-
-const counted = (session: SimulationSession) => {
-  const seen = { notified: 0 };
-  session.subscribe(() => {
-    seen.notified += 1;
-  });
-  return seen;
-};
-
-// The helpers below drive the scoped interface (ARCH-73, ADR-QD-137): `run` is a
-// command that forks into the session's own handle, so a test starts one and then
-// waits on the snapshot rather than joining a fiber it was handed.
-
-/** Starts a run, and lets its program reach the sleeping port. */
-const startRun = (session: SimulationSession, kind: "Run" | "Sweep" = "Run") =>
-  Effect.gen(function* () {
-    session.run(kind);
-    yield* TestClock.adjust("10 millis");
-  });
-
-/** Resumes once no run is in flight: at once when none is, else on the notification that ends it. */
-const settled = (session: SimulationSession) =>
-  Effect.callback<void>((resume) => {
-    const idle = () => session.getSnapshot().run._tag !== "Running";
-    if (idle()) {
-      resume(Effect.void);
-      return;
-    }
-    const off = session.subscribe(() => {
-      if (!idle()) return;
-      off();
-      resume(Effect.void);
-    });
-    return Effect.sync(off);
-  });
-
-/** One run or sweep, waited for. */
-const ran = (session: SimulationSession, kind: "Run" | "Sweep" = "Run") =>
-  Effect.suspend(() => {
-    session.run(kind);
-    return settled(session);
   });
 
 describe("choosing a source that cannot be honoured — C2", () => {

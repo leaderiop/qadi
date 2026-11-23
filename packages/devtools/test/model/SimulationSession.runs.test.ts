@@ -17,24 +17,12 @@ import * as Scope from "effect/Scope";
 import type * as Tracer from "effect/Tracer";
 import * as TestClock from "effect/testing/TestClock";
 import { AttributeResolver, gte, hasAttribute, portsLayer } from "@qadi/core";
-import type { Policy } from "@qadi/core";
 import { collectingTracer } from "@qadi/testing";
-import { policyLabel } from "../../src/model/Catalogue.ts";
-import type { PolicySighting } from "../../src/model/Catalogue.ts";
 import type { SimulationInput } from "../../src/model/SimulationInput.ts";
 import { makeSimulationSession } from "../../src/model/SimulationSession.ts";
 import type { SimulationSession } from "../../src/model/SimulationSession.ts";
 import { settleTurns } from "../helpers.ts";
-
-const sighting = (policy: Policy): PolicySighting => ({
-  policy,
-  label: policyLabel(policy),
-  count: 1,
-  allows: 1,
-  denies: 0,
-  errors: 0,
-  lastAt: 100,
-});
+import { counted, sighting, slow } from "../simulationFixtures.ts";
 
 const clearance = hasAttribute("clearance", gte(5));
 const lowClearance = hasAttribute("clearance", gte(1));
@@ -45,45 +33,9 @@ const withClearance: SimulationInput = {
   attributes: { clearance: 9 },
 };
 
-/** A resolver that takes a second, and counts how it ended. No error is constructed. */
-const slow = () => {
-  const tally = { started: 0, finished: 0, interrupted: 0 };
-  const ports = portsLayer({
-    AttributeResolver: Layer.succeed(AttributeResolver, {
-      name: "slow",
-      resolve: () =>
-        Effect.sync(() => {
-          tally.started += 1;
-        }).pipe(
-          Effect.andThen(Effect.sleep("1 second")),
-          Effect.onInterrupt(() =>
-            Effect.sync(() => {
-              tally.interrupted += 1;
-            }),
-          ),
-          Effect.andThen(
-            Effect.sync(() => {
-              tally.finished += 1;
-              return 9;
-            }),
-          ),
-        ),
-    }),
-  });
-  return { tally, ports };
-};
-
 /** How many run spans a tracer collected. */
 const runSpans = (spans: ReadonlyArray<Tracer.Span>): number =>
   spans.filter((s) => s.name === "qadi.devtools.simulationSession.run").length;
-
-const counted = (session: SimulationSession) => {
-  const seen = { notified: 0 };
-  session.subscribe(() => {
-    seen.notified += 1;
-  });
-  return seen;
-};
 
 /** A Live session over two sightings with the slow resolver, built under a collecting tracer. */
 const liveSession = (spans: Array<Tracer.Span>, scope?: Scope.Scope) =>
