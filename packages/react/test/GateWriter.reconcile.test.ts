@@ -19,7 +19,7 @@ import type {
 } from "../src/GateWriter.ts";
 import { makeGateRegistry } from "../src/GateRegistry.ts";
 import type { GateRenderState } from "../src/GateRegistry.ts";
-import { newCanRead } from "./support/gates.ts";
+import { newCanRead, notificationsOf } from "./support/gates.ts";
 
 /** A new `doc:write` policy on every call, as `newCanRead`. */
 const newCanWrite = () => hasPermission(permission("doc", "write"));
@@ -206,6 +206,25 @@ describe("reconcile: keeping and updating", () => {
     expect(second.get("a")).toBe(first.get("a"));
     expect(second.get("b")).toBe(first.get("b"));
   });
+
+  it(
+    "on a real registry a kept entry notifies once for a new state and not for the same",
+    () => {
+      const registry = makeGateRegistry();
+      const writer = gateWriterFor(registry);
+      if (writer === undefined) throw new Error("registry has no writer");
+      const a = identity();
+      const first = reconcile(writer, nothing, new Map([["a", want(a, "Pending")]]));
+      const told = notificationsOf(registry);
+      const same = reconcile(writer, first, new Map([["a", want(a, "Pending")]]));
+      expect(told()).toBe(0);
+      reconcile(writer, same, new Map([["a", want(a, "Allowed")]]));
+      expect(told()).toBe(1);
+      expect(registry.instances().map((one) => [one.id, one.state])).toEqual([
+        ["a", "Allowed"],
+      ]);
+    },
+  );
 
   it("returns a fresh map and does not mutate the live map it is given", () => {
     const { writer } = fakeWriter();
