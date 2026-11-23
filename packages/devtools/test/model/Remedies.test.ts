@@ -53,6 +53,7 @@ import {
 } from "@qadi/core";
 import type { Matcher, MatcherContext } from "@qadi/core";
 import { remedyEdits, satisfyingValue } from "../../src/model/Remedies.ts";
+import { NO_CUSTOM_PREDICATE_FIELD } from "../../src/model/SimulationFields.ts";
 import type { SimulationInput } from "../../src/model/SimulationInput.ts";
 import { chain } from "../helpers.ts";
 
@@ -576,7 +577,7 @@ describe("remedyEdits — walking the tree", () => {
   });
 
   it("names a custom predicate it cannot remedy, rather than staying silent", () => {
-    const reason = "a custom predicate's answer has no form field; run against Snapshot or Live";
+    const reason = NO_CUSTOM_PREDICATE_FIELD.reason;
 
     assert.deepStrictEqual(labels(hasCustom("isOwner")), []);
     assert.deepStrictEqual(remedyEdits(hasCustom("isOwner"), alice).skipped, [

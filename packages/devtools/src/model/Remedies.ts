@@ -50,7 +50,7 @@ import type {
   ValueRef,
 } from "@qadi/core";
 import type { SimulationEdit } from "./SimulationEdit.ts";
-import { fieldOps, grant } from "./SimulationFields.ts";
+import { NO_CUSTOM_PREDICATE_FIELD, fieldOps, grant } from "./SimulationFields.ts";
 import { subjectOf } from "./SimulationInput.ts";
 import type { SimulationInput } from "./SimulationInput.ts";
 
@@ -437,8 +437,6 @@ const SIGNATURE_PORT_REFUSED =
   "the signature port refuses this check, so no added row would be answered: ";
 const HISTORY_PORT_REFUSED =
   "the history port refuses this check, so no added row would be answered: ";
-const CUSTOM_HAS_NO_FIELD =
-  "a custom predicate's answer has no form field; run against Snapshot or Live";
 
 /**
  * Why a remedy core's fixture judgement failed for is skipped.
@@ -607,7 +605,8 @@ const remedyFor: (self: Requirement) => (input: SimulationInput) => Built | unde
         });
       },
 
-      Custom: (self) => () => skip(`custom predicate ${self.name}`, CUSTOM_HAS_NO_FIELD),
+      Custom: (self) => () =>
+        skip(`custom predicate ${self.name}`, NO_CUSTOM_PREDICATE_FIELD.reason),
     }),
   );
 

@@ -546,6 +546,18 @@ export interface NoFormVocabulary {
   readonly reason: string;
 }
 
+/**
+ * Why the form has no cell for a custom predicate.
+ *
+ * The field table's custom-predicate cell is this value, and the remedy table's
+ * skip for a `hasCustom` node reads its `reason`, so the sentence is written once.
+ */
+export const NO_CUSTOM_PREDICATE_FIELD: NoFormVocabulary = {
+  _tag: "NoFormVocabulary",
+  reason:
+    "a custom predicate's answer has no form field; run against Snapshot or Live",
+};
+
 /** One port's fixture data from an input: the data, nothing, or the statement that the form has none. */
 export type FixtureCell<K extends PortName> =
   | ((input: SimulationInput) => PortFixtureData[K] | undefined)
@@ -558,23 +570,20 @@ export type FixtureCell<K extends PortName> =
  *
  * `CustomPredicate` is a typed cell with its reason rather than a comment:
  * `SimulationInput` has no vocabulary for a custom predicate's answer - unlike an
- * attribute or an edge, there is no small typed value a reviewer could type in
- * that stands for arbitrary registered logic - so Fixtures mode leaves it at its
+ * attribute or an edge, there is no value a reviewer could type in that stands
+ * for arbitrary registered logic - so Fixtures mode leaves it at its
  * default and a `HasCustom` node always denies, the fail-closed answer a real
  * deployment gets from an unwired registry. Core's fixture table does have a
  * vocabulary for it (fixed answers by name); building the form that feeds it is
- * devtools UI work, not a gap in the table.
+ * devtools UI work, not a gap in the table. The remedy table reads this cell's
+ * reason, through `NO_CUSTOM_PREDICATE_FIELD`.
  */
 export const FIXTURE_DATA: { readonly [K in PortName]: FixtureCell<K> } = {
   AttributeResolver: (input) => input.attributes,
   RelationshipResolver: (input) => input.relationships,
   DecisionHistory: (input) => input.history,
   SignatureHistory: (input) => input.signatures,
-  CustomPredicate: {
-    _tag: "NoFormVocabulary",
-    reason:
-      "a custom predicate's answer has no small typed value to type in; it answers from Snapshot or Live",
-  },
+  CustomPredicate: NO_CUSTOM_PREDICATE_FIELD,
 };
 
 /** One port's fixture data from an input: what the cell reads, or nothing for a port the form has no vocabulary for. */

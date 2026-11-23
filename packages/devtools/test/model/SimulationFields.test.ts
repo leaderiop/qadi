@@ -10,12 +10,15 @@
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as FastCheck from "fast-check";
+import { hasCustom } from "@qadi/core";
 import type { PortName } from "@qadi/core";
 import { singleEdits } from "../../src/model/Edits.ts";
+import { remedyEdits } from "../../src/model/Remedies.ts";
 import {
   FIELD_ORDER,
   FIXTURE_DATA,
   GRANT_KINDS,
+  NO_CUSTOM_PREDICATE_FIELD,
   SIMULATION_FIELDS,
   fieldOps,
   fixtureData,
@@ -133,11 +136,24 @@ describe("what the ports are fed from", () => {
   });
 
   it("says why a custom predicate has no cell", () => {
-    assert.deepStrictEqual(FIXTURE_DATA.CustomPredicate, {
+    assert.deepStrictEqual(NO_CUSTOM_PREDICATE_FIELD, {
       _tag: "NoFormVocabulary",
       reason:
-        "a custom predicate's answer has no small typed value to type in; it answers from Snapshot or Live",
+        "a custom predicate's answer has no form field; run against Snapshot or Live",
     });
+  });
+
+  it("the custom-predicate cell is the value whose reason the remedy table gives", () => {
+    assert.strictEqual(FIXTURE_DATA.CustomPredicate, NO_CUSTOM_PREDICATE_FIELD);
+    assert.deepStrictEqual(
+      remedyEdits(hasCustom("isOwner"), { subject: { id: "alice" } }).skipped,
+      [
+        {
+          requirement: "custom predicate isOwner",
+          reason: NO_CUSTOM_PREDICATE_FIELD.reason,
+        },
+      ],
+    );
   });
 });
 
