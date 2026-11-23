@@ -1065,3 +1065,26 @@ key is skipped with its refusal and offered no row, while core fails the read`, 
 verification-only deviation recorded in the summary; every other added title is at most 90 characters.
 
 Every scan holds on the final tree.
+
+## Note (2026-11-23, code review): the agreement check gained a rule for a moved helper
+
+`76-agreement-check.mjs` held the two agreement tests and `remedyAgreement.ts` to the statements of the first commit, in
+number, order and text, so the three helpers both agreement files declared whole (`gave`, `unkeyableRow` and
+`unkeyableSubject`) could not move into the shared module that already held the rest of what the two files share. Review
+IN-02 found them copied, and the check, as written, refused the one change that removes the copy.
+
+The check now lets a top-level `const` the first commit's file declared leave that file when the file imports it from the
+shared module of its pair (`remedyAgreement.ts` for the two agreement files, the core test helpers for the two core
+history tests) under its own name, and the shared module exports a declaration whose text is the first commit's, with
+whitespace collapsed and its `export` dropped. Equivalent means identical text and nothing wider, so a helper that
+changes while it moves is named, and a title, an input and an expected value, which sit in the `describe` and `it`
+statements that stay whole, cannot move with it. A name only the moved helper read may be dropped from the mover's
+imports once no statement left reads it, and the shared module must import that same binding. `--self-test` gained ten
+cases: an identical move and a move with other whitespace pass, with the import move that goes with them, and a moved
+helper whose text changed, one the shared module does not export, one whose imports the shared module lacks, a changed
+title, a changed expected value, a deleted helper, an import dropped though the helper stayed, and a statement the shared
+module gained that no mover named fail. `BASE` is unchanged, so the rows still compare with `22d5b10c`.
+
+`agreeAt` and `refusalOf` stay in both files: `agreeAt` closes over the file's own `LEAVES`, `LISTS` and `mismatchOf`, and
+`refusalOf` checks a different error tag in each, so no declaration of either is identical across the pair, and moving
+one would change a statement that the rule compares whole.

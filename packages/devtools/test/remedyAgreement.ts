@@ -7,6 +7,9 @@
  * fixture data given and sequential evaluation ids, so each agreement compares the
  * remedy table with core actually run and shares no code with the simulator it
  * checks. `SITES` holds the four sites both tests walk, one site row each.
+ * `gave` prints a sweep, and `unkeyableRow` and `unkeyableSubject` build the two
+ * values no request key admits, which both tests' refusal rows hand to the table
+ * and to core.
  */
 import {
   currentSubjectLayer,
@@ -25,6 +28,7 @@ import type {
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import type * as Result from "effect/Result";
+import type { RemedySweep } from "../src/model/Remedies.ts";
 import type { SimulationInput } from "../src/model/SimulationInput.ts";
 
 /** The subject every product case asks as. */
@@ -64,3 +68,22 @@ export const outcomeOf = (
       ),
     ),
   );
+
+export const gave = (sweep: RemedySweep): string =>
+  `edits [${sweep.edits.map((e) => e.label).join(", ")}], ` +
+  `skipped [${sweep.skipped.map((s) => `${s.requirement}: ${s.reason}`).join(", ")}]`;
+
+// `JSON.parse` returns `any`, which is what an untyped JavaScript caller hands
+// over (no `as`); a symbol is the one value it cannot carry, so it is set on the
+// parsed object afterwards.
+export const unkeyableRow = (json: string) => {
+  const untyped = JSON.parse(json);
+  untyped.subjectId = Symbol("alice");
+  return untyped;
+};
+
+export const unkeyableSubject = () => {
+  const untyped = JSON.parse("{}");
+  untyped.id = Symbol("alice");
+  return untyped;
+};

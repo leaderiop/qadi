@@ -15,6 +15,19 @@
 // `NO_CUSTOM_PREDICATE_FIELD.reason` is read as the string literal it replaces before comparing, because replacing
 // that literal with the export of the identical value changes no row's expected value.
 //
+// One rule moves a helper (code review, after the first commit): a top-level `const NAME = ...;` the first commit's file
+// declared may leave a frozen or append-only file, and the file's statements are then the first commit's less that one,
+// when the file imports `NAME` as a value from the shared module of SHARED, under the same local name, and the shared
+// module declares `export const NAME = ...` with an equivalent declaration. Equivalent means this and no more: its
+// text, whitespace collapsed and with its leading `export` dropped, is the first commit's text exactly, so no
+// parameter, annotation or body may change, and a title, an input and an expected value that a helper holds cannot
+// move with it. What the helper reads must come as it came: a name the moving file imported that the helper reads, and
+// that no statement left in the file reads, may be dropped from the file's imports, and the shared module must import
+// the same binding; no other import changes. A shared module that is itself frozen (`remedyAgreement.ts`) may hold,
+// beside the first commit's statements in order, exactly the exports its movers name, and the imports they need. Every
+// `describe` and `it` stays a statement of its file whole, so its title, inputs and expected values are compared as
+// before. A helper that reads something only its own file declares, or that differs between two files, stays.
+//
 // Whitespace collapsed means each run of whitespace between two tokens reads as one space; the text of a string,
 // template or regular-expression literal is compared exactly, so a title or a value whose own spacing changed is
 // named. Leading comments, the header among them, are not compared. An import binding is its local name, the name it
@@ -133,6 +146,7 @@ const readAll = async (texts) => {
       const file = program.getSourceFile(`${dir}/${name}.ts`);
       const statements = [];
       const imports = new Set();
+      const locals = new Map();
       for (const statement of file.statements) {
         if (statement.kind !== SyntaxKind.ImportDeclaration) {
           statements.push(exact(file, statement));
@@ -143,7 +157,11 @@ const readAll = async (texts) => {
         const typeOnly = clause?.phaseModifier === SyntaxKind.TypeKeyword;
         const bindings = clause?.namedBindings;
         const elements = bindings?.kind === SyntaxKind.NamedImports ? bindings.elements : [];
-        const bind = (local, imported, type) => imports.add(shown(local, { module, imported, type: typeOnly || type }));
+        const bind = (local, imported, type) => {
+          const binding = shown(local, { module, imported, type: typeOnly || type });
+          imports.add(binding);
+          locals.set(binding, local);
+        };
         if (clause?.name !== undefined) bind(clause.name.text, "default", false);
         if (bindings?.kind === SyntaxKind.NamespaceImport) bind(bindings.name.text, "*", false);
         for (const element of elements) {
@@ -151,12 +169,64 @@ const readAll = async (texts) => {
         }
         if (clause?.name === undefined && bindings === undefined) imports.add(shown("", { module }));
       }
-      facts[name] = { statements, imports };
+      facts[name] = { statements, imports, locals };
     }
     return facts;
   } finally {
     api.close();
   }
+};
+
+/** The shared module a helper that left a file of the first commit may have moved to. */
+const SHARED = new Map([
+  ["packages/devtools/test/model/RemedySignatureConformance.test.ts", "packages/devtools/test/remedyAgreement.ts"],
+  ["packages/devtools/test/model/RemedyActedConformance.test.ts", "packages/devtools/test/remedyAgreement.ts"],
+  ["packages/core/test/SignatureHistory.test.ts", "packages/core/test/helpers.ts"],
+  ["packages/core/test/DecisionHistory.test.ts", "packages/core/test/helpers.ts"],
+]);
+
+/** Each `const` a statement list declares at top level, by name, with its text and whether it is exported. */
+const declaredIn = (statements) => {
+  const declared = new Map();
+  for (const text of statements) {
+    const match = /^(export )?const ([\w$]+)\b/.exec(text);
+    if (match !== null) declared.set(match[2], { text: text.replace(/^export /, ""), exported: match[1] !== undefined });
+  }
+  return declared;
+};
+
+/** Whether `name` is read as an identifier in `text`. */
+const reads = (name, text) => new RegExp(`(^|[^\\w$])${name.replace(/\$/g, "\\$")}($|[^\\w$])`).test(text);
+
+/**
+ * The helpers `path` moved to its shared module, as name to the first commit's text, and what is wrong with each.
+ *
+ * A helper moved when the first commit declared it, the file no longer does, and the file imports it from the shared
+ * module as a value under its own name. `sharedHead` is the shared module's checked-out facts, or `undefined`.
+ */
+const movesOf = (path, base, head, sharedHead) => {
+  const moved = new Map();
+  const problems = [];
+  const shared = SHARED.get(path);
+  if (head === undefined || shared === undefined) return { moved, problems };
+  const there = declaredIn(sharedHead?.statements ?? []);
+  for (const [name, { text }] of declaredIn(base.statements)) {
+    if (head.statements.includes(text)) continue;
+    if (!head.imports.has(shown(name, { module: shared, imported: name, type: false }))) continue;
+    moved.set(name, text);
+    const found = there.get(name);
+    if (found === undefined || !found.exported) {
+      problems.push(`${path}: helper ${name} is imported from ${shared}, which does not export it`);
+    } else if (found.text !== text) {
+      problems.push(`${path}: helper ${name} moved to ${shared} with other text than the first commit's`);
+    }
+    for (const [binding, local] of base.locals) {
+      if (reads(local, text) && !(sharedHead?.imports.has(binding) ?? false)) {
+        problems.push(`${path}: helper ${name} reads ${local}, which ${shared} does not import as ${binding}`);
+      }
+    }
+  }
+  return { moved, problems };
 };
 
 /**
@@ -165,35 +235,68 @@ const readAll = async (texts) => {
  * `head` is `undefined` for a file that is not there. A frozen file holds the first commit's statements and imports
  * exactly; an append-only file holds the first commit's statements as a prefix and every one of its imports.
  */
-const problemsOf = (path, base, head) => {
+const problemsOf = (path, base, head, { moved = new Map(), into = new Map() } = {}) => {
   if (head === undefined) return [`${path}: does not exist`];
   const frozen = FROZEN.includes(path);
   const problems = [];
-  const held = head.statements.length;
-  const first = base.statements.length;
+  const left = new Set(moved.values());
+  const taken = new Set(into.values());
+  const expected = base.statements.filter((statement) => !left.has(statement));
+  const headStatements = head.statements.filter((statement) => !taken.has(statement.replace(/^export /, "")));
+  const held = headStatements.length;
+  const first = expected.length;
   if (frozen ? held !== first : held < first) {
     problems.push(
       `${path}: holds ${held} top-level statements other than imports, ` +
         `${frozen ? "the first commit held" : "fewer than the first commit's"} ${first}`,
     );
   } else {
-    base.statements.forEach((statement, index) => {
-      if (head.statements[index] !== statement) {
+    expected.forEach((statement, index) => {
+      if (headStatements[index] !== statement) {
         problems.push(
-          `${path}: statement ${index + 1} differs from the first commit: «${head.statements[index].slice(0, 80)}»`,
+          `${path}: statement ${index + 1} differs from the first commit: «${headStatements[index].slice(0, 80)}»`,
         );
       }
     });
   }
+  const movedText = [...left, ...taken];
+  const stillRead = (local) => headStatements.some((statement) => reads(local, statement));
   for (const binding of base.imports) {
-    if (!head.imports.has(binding)) problems.push(`${path}: the first commit's import ${binding} is gone`);
+    if (head.imports.has(binding)) continue;
+    const local = base.locals.get(binding);
+    const dropped = left.size > 0 && local !== undefined && movedText.some((text) => reads(local, text)) && !stillRead(local);
+    if (!dropped) problems.push(`${path}: the first commit's import ${binding} is gone`);
   }
   if (frozen) {
     for (const binding of head.imports) {
-      if (!base.imports.has(binding)) problems.push(`${path}: import ${binding} is not the first commit's`);
+      if (base.imports.has(binding)) continue;
+      const local = head.locals.get(binding);
+      const name = [...moved.keys()].find((one) => binding === shown(one, { module: SHARED.get(path), imported: one, type: false }));
+      const needed = taken.size > 0 && local !== undefined && [...taken].some((text) => reads(local, text));
+      if (name === undefined && !needed) problems.push(`${path}: import ${binding} is not the first commit's`);
     }
   }
   return problems;
+};
+
+/**
+ * Every problem of the checked files, with the helpers each moved to its shared module.
+ *
+ * `entries` lists each checked file with its first commit's facts and its checked-out facts; `extras` lists a shared
+ * module the check does not freeze, with its checked-out facts, so a helper moved to it can be compared.
+ */
+const checkAll = (entries, extras = []) => {
+  const heads = new Map([...extras, ...entries].map((one) => [one.path, one.head]));
+  const moves = entries.map(({ path, base, head }) => movesOf(path, base, head, heads.get(SHARED.get(path))));
+  const into = new Map();
+  entries.forEach(({ path }, index) => {
+    const shared = SHARED.get(path);
+    if (shared !== undefined) into.set(shared, new Map([...(into.get(shared) ?? []), ...moves[index].moved]));
+  });
+  return entries.flatMap(({ path, base, head }, index) => [
+    ...moves[index].problems,
+    ...problemsOf(path, base, head, { moved: moves[index].moved, into: into.get(path) }),
+  ]);
 };
 
 const selfTest = async () => {
@@ -339,16 +442,118 @@ describe("s", () => {
   });
   const facts = await readAll(texts);
   const failed = cases.flatMap((one, index) => {
-    const problems = problemsOf(one.path, facts[`base${index}`], facts[`head${index}`]);
+    const problems = checkAll([{ path: one.path, base: facts[`base${index}`], head: facts[`head${index}`] }]);
     const same =
       problems.length === one.problems.length && problems.every((problem, at) => problem === one.problems[at]);
     return same ? [] : [`${one.title}: expected ${JSON.stringify(one.problems)}, got ${JSON.stringify(problems)}`];
   });
+  // A helper that moved from a frozen test file to the frozen shared module: `M` is the mover, `S` the shared module.
+  const M = FROZEN[2];
+  const S = FROZEN[0];
+  const moverBase = `import { assert } from "@effect/vitest";
+import type { RemedySweep } from "../../src/model/Remedies.ts";
+import { asker } from "../remedyAgreement.ts";
+
+const gave = (sweep: RemedySweep): string => \`edits \${sweep.edits}\`;
+
+describe("s", () => {
+  it("a", () => {
+    assert(gave(x), "edits");
+  });
+});
+`;
+  const sharedBase = `export const asker = 1;
+`;
+  const moverMoved = moverBase
+    .replace('import type { RemedySweep } from "../../src/model/Remedies.ts";\n', "")
+    .replace("{ asker }", "{ asker, gave }")
+    .replace(/const gave = .*\n\n/, "");
+  const sharedMoved = `import type { RemedySweep } from "../src/model/Remedies.ts";
+export const asker = 1;
+export const gave = (sweep: RemedySweep): string => \`edits \${sweep.edits}\`;
+`;
+  const moves = [
+    { title: "moved: an identical move, with the import only it read, none", head: [sharedMoved, moverMoved], problems: [] },
+    {
+      title: "moved: the same text with other whitespace, none",
+      head: [sharedMoved.replace("(sweep: RemedySweep): string =>", "(sweep:   RemedySweep):   string  =>"), moverMoved],
+      problems: [],
+    },
+    {
+      title: "moved: the moved helper's text changed",
+      head: [sharedMoved.replace("`edits ${sweep.edits}`", "`edits: ${sweep.edits}`"), moverMoved],
+      problems: [
+        `${S}: holds 2 top-level statements other than imports, the first commit held 1`,
+        `${M}: helper gave moved to ${S} with other text than the first commit's`,
+      ],
+    },
+    {
+      title: "moved: the shared module does not export it",
+      head: [sharedMoved.replace("export const gave", "const gave"), moverMoved],
+      problems: [`${M}: helper gave is imported from ${S}, which does not export it`],
+    },
+    {
+      title: "moved: the shared module lacks what it reads",
+      head: [sharedMoved.replace(/import type .*\n/, ""), moverMoved],
+      problems: [
+        `${M}: helper gave reads RemedySweep, which ${S} does not import as ` +
+          "type { RemedySweep } from packages/devtools/src/model/Remedies.ts",
+      ],
+    },
+    {
+      title: "moved: a title changed",
+      head: [sharedMoved, moverMoved.replace('it("a"', 'it("b"')],
+      problems: [`${M}: statement 1 differs from the first commit: «describe("s", () => { it("b", () => { assert(gave(x), "edits"); }); });»`],
+    },
+    {
+      title: "moved: an expected value changed",
+      head: [sharedMoved, moverMoved.replace('"edits");', '"other");')],
+      problems: [`${M}: statement 1 differs from the first commit: «describe("s", () => { it("a", () => { assert(gave(x), "other"); }); });»`],
+    },
+    {
+      title: "moved: the helper deleted, neither kept nor imported",
+      head: [sharedBase, moverMoved.replace("{ asker, gave }", "{ asker }")],
+      problems: [
+        `${M}: holds 1 top-level statements other than imports, the first commit held 2`,
+        `${M}: the first commit's import type { RemedySweep } from packages/devtools/src/model/Remedies.ts is gone`,
+      ],
+    },
+    {
+      title: "moved: an import dropped though the helper stayed",
+      head: [sharedBase, moverBase.replace('import type { RemedySweep } from "../../src/model/Remedies.ts";\n', "")],
+      problems: [
+        `${M}: the first commit's import type { RemedySweep } from packages/devtools/src/model/Remedies.ts is gone`,
+      ],
+    },
+    {
+      title: "moved: the shared module gains a statement no mover named",
+      head: [`${sharedMoved}export const other = 2;\n`, moverMoved],
+      problems: [`${S}: holds 2 top-level statements other than imports, the first commit held 1`],
+    },
+  ];
+  const moveTexts = {};
+  moves.forEach((one, index) => {
+    moveTexts[`baseM${index}`] = { path: M, text: moverBase };
+    moveTexts[`baseS${index}`] = { path: S, text: sharedBase };
+    moveTexts[`headS${index}`] = { path: S, text: one.head[0] };
+    moveTexts[`headM${index}`] = { path: M, text: one.head[1] };
+  });
+  const moveFacts = await readAll(moveTexts);
+  const failedMoves = moves.flatMap((one, index) => {
+    const problems = checkAll([
+      { path: S, base: moveFacts[`baseS${index}`], head: moveFacts[`headS${index}`] },
+      { path: M, base: moveFacts[`baseM${index}`], head: moveFacts[`headM${index}`] },
+    ]);
+    const same =
+      problems.length === one.problems.length && problems.every((problem, at) => problem === one.problems[at]);
+    return same ? [] : [`${one.title}: expected ${JSON.stringify(one.problems)}, got ${JSON.stringify(problems)}`];
+  });
+  failed.push(...failedMoves);
   if (failed.length > 0) {
     console.error(`self-test: ${failed.length} failed\n${failed.join("\n")}`);
     process.exit(1);
   }
-  console.log(`self-test: ${cases.length} passed`);
+  console.log(`self-test: ${cases.length + moves.length} passed`);
 };
 
 const main = async () => {
@@ -362,8 +567,15 @@ const main = async () => {
       texts[`head${index}`] = { path, text: prepared(path, readFileSync(join(root, path), "utf8")) };
     }
   });
+  const sharedOnly = [...new Set(SHARED.values())].filter((path) => !paths.includes(path));
+  sharedOnly.forEach((path, index) => {
+    texts[`shared${index}`] = { path, text: readFileSync(join(root, path), "utf8") };
+  });
   const facts = await readAll(texts);
-  const problems = paths.flatMap((path, index) => problemsOf(path, facts[`base${index}`], facts[`head${index}`]));
+  const problems = checkAll(
+    paths.map((path, index) => ({ path, base: facts[`base${index}`], head: facts[`head${index}`] })),
+    sharedOnly.map((path, index) => ({ path, head: facts[`shared${index}`] })),
+  );
   if (problems.length > 0) {
     console.error(`agreement-check: ${problems.length} problem(s)\n${problems.join("\n")}`);
     process.exit(1);

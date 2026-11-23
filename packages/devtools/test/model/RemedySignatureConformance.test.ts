@@ -25,9 +25,15 @@ import type {
 import * as Effect from "effect/Effect";
 import * as Result from "effect/Result";
 import { remedyEdits } from "../../src/model/Remedies.ts";
-import type { RemedySweep } from "../../src/model/Remedies.ts";
 import type { SimulationInput } from "../../src/model/SimulationInput.ts";
-import { asker, outcomeOf, SITES } from "../remedyAgreement.ts";
+import {
+  asker,
+  gave,
+  outcomeOf,
+  SITES,
+  unkeyableRow,
+  unkeyableSubject,
+} from "../remedyAgreement.ts";
 
 const SUBJECTS = ["alice", "bob"];
 const RESOURCE_IDS = [undefined, "doc-1", "doc-2"];
@@ -90,10 +96,6 @@ const LEAVES: ReadonlyArray<{ readonly name: string; readonly policy: Policy }> 
 const NO_RESOURCE_ID = [
   { requirement: "signature approved", reason: "the check names no resource id" },
 ];
-
-const gave = (sweep: RemedySweep): string =>
-  `edits [${sweep.edits.map((e) => e.label).join(", ")}], ` +
-  `skipped [${sweep.skipped.map((s) => `${s.requirement}: ${s.reason}`).join(", ")}]`;
 
 /** The one line a case that disagrees prints, or `undefined` when it agrees. */
 const mismatchOf = (
@@ -174,21 +176,6 @@ describe("the remedy table and the fixture signature port agree on every case", 
   );
   it.effect("at a site with no resource", () => agreeAt(SITES.withoutResource));
 });
-
-// `JSON.parse` returns `any`, which is what an untyped JavaScript caller hands
-// over (no `as`); a symbol is the one value it cannot carry, so it is set on the
-// parsed object afterwards.
-const unkeyableRow = (json: string) => {
-  const untyped = JSON.parse(json);
-  untyped.subjectId = Symbol("alice");
-  return untyped;
-};
-
-const unkeyableSubject = () => {
-  const untyped = JSON.parse("{}");
-  untyped.id = Symbol("alice");
-  return untyped;
-};
 
 const refusalOf = (core: Result.Result<Decision, EvaluationError>) => {
   if (Result.isSuccess(core)) return assert.fail("core decided, not failed");

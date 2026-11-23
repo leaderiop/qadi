@@ -39,7 +39,7 @@ const skipFor = (who: string, cause: string) =>
   `the ${who} refuses this check, so no added row would be answered: ${cause}`;
 
 /** What `remedyEdits` gave: the edit labels, and each skip as `requirement: reason`. */
-const gave = (policy: Policy, input: SimulationInput) => {
+const swept = (policy: Policy, input: SimulationInput) => {
   const sweep = remedyEdits(policy, input);
   return {
     edits: sweep.edits.map((edit) => edit.label),
@@ -64,7 +64,7 @@ describe("remedyEdits over a signature row or a site it cannot read", () => {
   });
 
   it("a row that is null is skipped, naming the field and what was thrown", () => {
-    const sweep = gave(signatureLeaf, withRows([nullRecord()]));
+    const sweep = swept(signatureLeaf, withRows([nullRecord()]));
     assert.deepStrictEqual(sweep.edits, []);
     assert.match(sweep.skipped.join("\n"), /^signature approved: the signature port /);
     assert.match(sweep.skipped.join("\n"), NULL_ROW);
@@ -73,14 +73,14 @@ describe("remedyEdits over a signature row or a site it cannot read", () => {
   it("a row whose getter throws is skipped, naming the field and what was thrown", () => {
     const row = throwingGetter('{"subjectId":"alice"}', "meaning", "boom");
     assert.deepStrictEqual(
-      gave(signatureLeaf, withRows([row])),
+      swept(signatureLeaf, withRows([row])),
       skipped("meaning: reading it threw: boom"),
     );
   });
 
   it("a row that is a throwing proxy is skipped, naming the field and the throw", () => {
     assert.deepStrictEqual(
-      gave(signatureLeaf, withRows([throwingProxy("boom")])),
+      swept(signatureLeaf, withRows([throwingProxy("boom")])),
       skipped("subjectId: reading it threw: boom"),
     );
   });
@@ -90,22 +90,25 @@ describe("remedyEdits over a signature row or a site it cannot read", () => {
       throwingGetter('{"roles":[]}', "id", "boom"),
       throwingProxy("boom"),
     ]) {
-      assert.deepStrictEqual(gave(signatureLeaf, { subject, resource: SITES.withId }), {
+      assert.deepStrictEqual(swept(signatureLeaf, { subject, resource: SITES.withId }), {
         edits: [],
         skipped: [`signature approved: ${skipFor("form", "boom")}`],
       });
     }
-    const sweep = gave(signatureLeaf, { subject: nullRecord(), resource: SITES.withId });
+    const sweep = swept(signatureLeaf, { subject: nullRecord(), resource: SITES.withId });
     assert.match(sweep.skipped.join("\n"), /^signature approved: the form refuses /);
   });
 
   it("a resource id that throws skips a Resource leaf and not an Any leaf", () => {
     const resource = throwingGetter("{}", "id", "boom");
     assert.deepStrictEqual(
-      gave(hasSignature("approved", { scope: "Resource" }), { subject: asker, resource }),
+      swept(hasSignature("approved", { scope: "Resource" }), {
+        subject: asker,
+        resource,
+      }),
       skipped("site: reading it threw: boom"),
     );
-    assert.deepStrictEqual(gave(signatureLeaf, { subject: asker, resource }), {
+    assert.deepStrictEqual(swept(signatureLeaf, { subject: asker, resource }), {
       edits: ["with signature approved"],
       skipped: [],
     });
@@ -125,7 +128,7 @@ describe("remedyEdits over an event row or a site it cannot read", () => {
   });
 
   it("a row that is null is skipped, naming the field and what was thrown", () => {
-    const sweep = gave(eventLeaf, withRows([nullRecord()]));
+    const sweep = swept(eventLeaf, withRows([nullRecord()]));
     assert.deepStrictEqual(sweep.edits, []);
     assert.match(sweep.skipped.join("\n"), /^event approved: the history port /);
     assert.match(sweep.skipped.join("\n"), NULL_ROW);
@@ -134,14 +137,14 @@ describe("remedyEdits over an event row or a site it cannot read", () => {
   it("a row whose getter throws is skipped, naming the field and what was thrown", () => {
     const row = throwingGetter('{"subjectId":"alice"}', "event", "boom");
     assert.deepStrictEqual(
-      gave(eventLeaf, withRows([row])),
+      swept(eventLeaf, withRows([row])),
       skipped("history port", "event: reading it threw: boom"),
     );
   });
 
   it("a row that is a throwing proxy is skipped, naming the field and the throw", () => {
     assert.deepStrictEqual(
-      gave(eventLeaf, withRows([throwingProxy("boom")])),
+      swept(eventLeaf, withRows([throwingProxy("boom")])),
       skipped("history port", "subjectId: reading it threw: boom"),
     );
   });
@@ -152,7 +155,7 @@ describe("remedyEdits over an event row or a site it cannot read", () => {
       throwingProxy("boom"),
     ]) {
       assert.deepStrictEqual(
-        gave(eventLeaf, { subject, resource: SITES.withId }),
+        swept(eventLeaf, { subject, resource: SITES.withId }),
         skipped("form", "boom"),
       );
     }
@@ -161,11 +164,11 @@ describe("remedyEdits over an event row or a site it cannot read", () => {
   it("a resource id that throws skips a Resource leaf, and an Any leaf's row", () => {
     const resource = throwingGetter("{}", "id", "boom");
     assert.deepStrictEqual(
-      gave(hasActed("approved", { scope: "Resource" }), { subject: asker, resource }),
+      swept(hasActed("approved", { scope: "Resource" }), { subject: asker, resource }),
       skipped("history port", "site: reading it threw: boom"),
     );
     assert.deepStrictEqual(
-      gave(eventLeaf, { subject: asker, resource }),
+      swept(eventLeaf, { subject: asker, resource }),
       skipped("form", "boom"),
     );
   });
