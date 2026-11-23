@@ -5,17 +5,17 @@ milestone_name: Arch Wave 13
 current_phase: 74
 current_phase_name: The simulation session's policy choice split from its runs
 current_plan: 7
-status: executing
-stopped_at: Completed 74-06-PLAN.md
-last_updated: "2026-11-23T04:38:03.476Z"
+status: verifying
+stopped_at: Completed 74-07-PLAN.md
+last_updated: "2026-11-23T04:55:51.021Z"
 last_activity: 2026-11-23
 last_activity_desc: Phase 73 complete, transitioned to Phase 74
-state_head: 8989b740b0e439d49bdaf6c0dbe6b97a251b8ea0
+state_head: 2a03fc6f408f616305a5db674387b5ed7279a161
 progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 46
-  completed_plans: 45
+  completed_plans: 46
   percent: 63
 ---
 
@@ -33,7 +33,7 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 Phase: 74 (The simulation session's policy choice split from its runs) — READY TO EXECUTE
 Current Plan: 7
 Total Plans in Phase: 7
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-23 — Phase 73 complete, transitioned to Phase 74
 
 
@@ -535,6 +535,7 @@ Last activity: 2026-11-23 — Phase 73 complete, transitioned to Phase 74
 | Phase 74 P04 | 12 min | 3 tasks | 4 files |
 | Phase 74 P05 | 10 min | 2 tasks | 2 files |
 | Phase 74 P06 | 25 min | 2 tasks | 4 files |
+| Phase 74 P07 | 75 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -924,6 +925,7 @@ Last activity: 2026-11-23 — Phase 73 complete, transitioned to Phase 74
 - [Phase 74]: 74-05: simulationFixtures.ts needed no change after the removal; every export keeps two importers or a caller in the module (settled, called by ran)
 - [Phase 74]: 74-06: INV-QD-393 Enforcement cites eleven SeededChoice.test.ts titles (the pin, orphan, menu-list and no-op titles BEH-QD-706 to 709 cite), not every title in the file (decided autonomously)
 - [Phase 74]: 74-06: the CCR-QD-466 prose names BEH-QD-706 to 710, INV-QD-393/394 and the three dated amendments (decided autonomously)
+- [Phase 74]: 74-07: compare is red on SimulationSession.ts:313, a base survivor (redundant seed disjunct of stale) relocated by a rewritten line; recorded as equivalent, not closed outside the plan's drop-closing paths
 
 ### Pending Todos
 
@@ -997,8 +999,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-23T04:38:03.259Z
-Stopped at: Completed 74-06-PLAN.md
+Last session: 2026-11-23T04:55:50.736Z
+Stopped at: Completed 74-07-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

@@ -643,7 +643,7 @@ Plans:
   4. The `edit` comment at `:534` is true: every draft write goes through one path, or the comment is corrected to say which writes do not.
   5. ADR-QD-187 records the split with ADR-QD-137 and ADR-QD-150 untouched and ADR-QD-047 v1.11 (the menu under the session) still holding.
 
-**Plans**: 6/7 plans executed (strictly serial, waves 1 to 7)
+**Plans**: 7/7 plans executed (strictly serial, waves 1 to 7)
 
 Plans:
 **Wave 1**
@@ -665,7 +665,7 @@ Plans:
 - [x] 74-06-PLAN.md — BEH-QD-706 to BEH-QD-710, INV-QD-393, INV-QD-394, their traceability, and the completed CCR-QD-466 row
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 74-07-PLAN.md — the mutation close, every close scan, `pnpm check:pr`, and CHSE-01 to CHSE-05 complete
+- [x] 74-07-PLAN.md — the mutation close, every close scan, `pnpm check:pr`, and CHSE-01 to CHSE-05 complete
 
 ### Phase 75: A declared span shape for the evaluate family
 
@@ -717,6 +717,6 @@ Phases execute in numeric order: 69 → 70 → 71 → 72 → 73 → 74 → 75 �
 | 71. Developer-signal reporters resolved through one table | 8/8 | Complete    | 2026-11-22 |
 | 72. A derived store behind the dock model's stores | 8/8 | Complete    | 2026-11-22 |
 | 73. One pure reconcile for gate registration | 7/7 | Complete    | 2026-11-23 |
-| 74. The simulation session's policy choice split from its runs | 6/7 | In Progress | - |
+| 74. The simulation session's policy choice split from its runs | 7/7 | In Progress | - |
 | 75. A declared span shape for the evaluate family | 0/TBD | Not started | - |
 | 76. Remedies uses core's signature match | 0/TBD | Not started | - |
