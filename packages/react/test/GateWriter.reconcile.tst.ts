@@ -27,8 +27,8 @@ import type {
 
 export type { GateWanted } from "../src/GateWriter.ts";
 
-// The registry takes no index-aligned type any more, so naming the one it had is refused.
-// This is a pin on the name `GateCurrent` only.
+// No index-aligned type is exported, so naming `GateCurrent` is refused. A pin on that
+// name alone.
 // @ts-expect-error has no exported member 'GateCurrent'
 export type { GateCurrent } from "../src/GateWriter.ts";
 
