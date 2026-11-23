@@ -5,17 +5,17 @@ milestone_name: Arch Wave 13
 current_phase: 76
 current_phase_name: Remedies uses core's signature match
 current_plan: 8
-status: executing
-stopped_at: Completed 76-07-PLAN.md
-last_updated: "2026-11-23T16:43:29.795Z"
+status: verifying
+stopped_at: Completed 76-08-PLAN.md
+last_updated: "2026-11-23T16:52:32.204Z"
 last_activity: 2026-11-23
 last_activity_desc: Phase 75 complete, transitioned to Phase 76
-state_head: 64882d191f7d7a0087bdb502e5b9d7318ce98ea5
+state_head: b803091eb9dd2e64fcd9ade3fa5adadc1f6c7f4c
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 63
-  completed_plans: 62
+  completed_plans: 63
   percent: 88
 ---
 
@@ -33,7 +33,7 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 Phase: 76 (Remedies uses core's signature match) — READY TO EXECUTE
 Current Plan: 8
 Total Plans in Phase: 8
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-23 — Phase 75 complete, transitioned to Phase 76
 
 
@@ -554,6 +554,7 @@ Last activity: 2026-11-23 — Phase 75 complete, transitioned to Phase 76
 | Phase 76 P05 | 20 min | 3 tasks | 4 files |
 | Phase 76 P06 | 40 min | 3 tasks | 4 files |
 | Phase 76 P07 | 35 min | 3 tasks | 16 files |
+| Phase QD-76 P08 | 45 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -963,6 +964,8 @@ Last activity: 2026-11-23 — Phase 75 complete, transitioned to Phase 76
 - [Phase 76]: 76-05: the remedy table asks core (signatureAnswerFromSignatures, actedAnswerFromEvents) and skips refused checks with the port's refusal; the custom-predicate sentence is NO_CUSTOM_PREDICATE_FIELD, owned by SimulationFields.ts
 - [Phase 76]: 76-06: 19 guts seen red and recorded; mutation close on one head (core 200/201, devtools 467/467, http 34/34), every written-line mutant Killed by hand; two http response-body rows strengthened and one added; the base survivor SignatureHistory.ts:362 is equivalent (Brand.nominal is the identity)
 - [Phase 76]: 76-07: BEH-QD-717 and INV-QD-398 cite the core conformance rows; the dated notes are additions and BEH-QD-410's older last paragraph is left as written
+- [Phase QD-76]: 76-08: a close scan found four over-wide added lines in QadiHttpError.test.ts; fixed and the whole mutation close re-measured on the new head rather than waived (WX-04, 90 columns)
+- [Phase QD-76]: 76-08: SIGM-01..05 marked complete by hand after check:pr exited 0 on 446f0b27; WX-01..07 stay Pending until the milestone closes
 
 ### Pending Todos
 
@@ -1036,8 +1039,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-23T16:43:29.402Z
-Stopped at: Completed 76-07-PLAN.md
+Last session: 2026-11-23T16:52:31.825Z
+Stopped at: Completed 76-08-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
