@@ -70,7 +70,7 @@ const kind = (m) => `${m.mutator} ${m.replacement}`;
  * Ignored mutants a close may hold beyond its base, per file and kind, each run by hand and Killed there: the group's
  * config spread with `ignoreStatic: false`, run with `--mutate <file>`. Empty until a close needs one.
  */
-const EXAMINED = {};
+const EXAMINED = { "packages/devtools/src/model/SeededChoice.ts": { 'ArrowFunction () => undefined': 10, 'ObjectLiteral {}': 1 } };
 
 const key = (m, line = m.line) => [m.status, m.mutator, m.replacement, line, m.column].join("\u0000");
 /** A multiset of mutant keys: key -> count. */

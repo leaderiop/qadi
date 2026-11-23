@@ -267,3 +267,63 @@ Each removed session test is survived by a `SeededChoice.test.ts` test at the sa
 | leaving a seed with seed(undefined) clears the replayed policy | seedFrom(undefined) drops the replayed policy, holding the head or nothing | built with a replayable row, a session holds its policy unpinned |
 
 They were removed by commit `81972903` (`test(74-05): drop the session tests whose rules the seeded choice tests pin`). The session tests held 100 before and hold 82 after (100 - 18).
+
+## The mutation close
+
+The three groups were measured on `b212d96e28d487637300a8875af1e02c75d3f7cd` (the head of plan 74-06), each alone with
+stdin closed, by the invocation of the base (`pnpm exec stryker run stryker.devtools.mjs --mutate <file>`), then recorded
+with `node 74-mutation.mjs record close <group>`, the first with `--restart`. Nothing under `packages/` changed after it.
+
+| File | Base detected/valid | Close detected/valid | Survived (base to close) | Ignored (base to close) |
+| ---- | ------------------- | -------------------- | ------------------------ | ----------------------- |
+| `SimulationSession.ts` | 325/331 | 242/248 | 6 to 6 | 11 to 4, 0 new |
+| `HeldChoice.ts` | 63/63 | 63/63 | 0 to 0 | 3 to 3, 0 new |
+| `SeededChoice.ts` (close-only) | none | 100/100 | 0 | 11, all examined below |
+
+The session score fell only because the phase removed 83 killed mutants with the code it moved out. The six survivors are
+the six of the base: lines 304, 307 (two), 311, 396 are the base's 395, 398 (two), 402 and 482 carried through the diff,
+and the sixth, now on line 313, is the base's line 404.
+
+## Static mutants run by hand
+
+`SeededChoice.ts` holds 11 Ignored (static) mutants, each an arrow function or object literal evaluated when a module
+const is built. They were run with `ignoreStatic: false`, by the group's own configuration spread:
+
+```
+pnpm exec stryker run <S>/stryker.examined.mjs --mutate packages/devtools/src/model/SeededChoice.ts < /dev/null
+```
+
+where `<S>/stryker.examined.mjs` is `export default { ...base, ignoreStatic: false, jsonReporter: { fileName:
+"<S>/examined/mutation.json" }, htmlReporter: { fileName: "<S>/examined/index.html" } }` over `stryker.devtools.mjs`, run on
+the same head. Result: 111 mutants, 111 Killed, 0 Survived, 0 NoCoverage, 0 Timeout, final score 100.00. Counts by kind,
+which is what `EXAMINED` now admits: `ArrowFunction () => undefined` 10, `ObjectLiteral {}` 1.
+
+| Line | Mutator | Replacement | Status |
+| ---- | ------- | ----------- | ------ |
+| 125 | ArrowFunction | `() => undefined` | Killed |
+| 166 | ArrowFunction | `() => undefined` | Killed |
+| 172 | ArrowFunction | `() => undefined` | Killed |
+| 205 | ArrowFunction | `() => undefined` | Killed |
+| 238 | ArrowFunction | `() => undefined` | Killed |
+| 256 | ObjectLiteral | `{}` | Killed |
+| 257 | ArrowFunction | `() => undefined` | Killed |
+| 258 | ArrowFunction | `() => undefined` | Killed |
+| 259 | ArrowFunction | `() => undefined` | Killed |
+| 270 | ArrowFunction | `() => undefined` | Killed |
+| 307 | ArrowFunction | `() => undefined` | Killed |
+
+## A base survivor the phase moved
+
+`compare` exits 1 on one line only: `SimulationSession.ts:313 has a new Survived mutant: ConditionalExpression -> false`.
+It is not a new survivor. It is the base's line 404, `question.seed !== seedOf(policy)`, one of the six base survivors,
+now `question.seed !== seed` after the phase hoisted `seedOf(choice)` into one `seed` const (the rewrite changes the
+text of the line, so the scorer, which carries a base mutant to the close by its line number through the diff and
+treats a rewritten line as removed, cannot pair it with its base).
+
+No test can kill it, and none was added: a run's `question.seed` is `seedOf(choice)` at the moment the run starts, and
+the only two commands that change `seedOf(choice)` are `reseed` (`seed`, `replay`) and `choosePolicy`, and each one ends in
+`clearRun()`, which stops the run and sets it `Idle`, so no `Ran` or `Running` result ever holds a question whose seed
+differs from the current one. The disjunct is a redundant guard, the same reason it survived at the base. Closing it
+needs either the removal of that disjunct and of the question's `seed` field (a change to `SimulationSession.ts`, to the
+exported `SimulationQuestion` type and to BEH-QD-322's "stale covers all three"), or a scorer rule that pairs a
+rewritten line's survivor with its base; neither is a drop-closing path this plan allows, and neither was taken.
