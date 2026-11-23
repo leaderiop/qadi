@@ -4,18 +4,18 @@ milestone: v1.8
 milestone_name: Arch Wave 13
 current_phase: 76
 current_phase_name: Remedies uses core's signature match
-current_plan: 7
+current_plan: 8
 status: executing
-stopped_at: Completed 76-06-PLAN.md
-last_updated: "2026-11-23T16:31:34.297Z"
+stopped_at: Completed 76-07-PLAN.md
+last_updated: "2026-11-23T16:43:29.795Z"
 last_activity: 2026-11-23
 last_activity_desc: Phase 75 complete, transitioned to Phase 76
-state_head: 4d8ad74d670f6ff461a83743c6739e09e9faef36
+state_head: 64882d191f7d7a0087bdb502e5b9d7318ce98ea5
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 63
-  completed_plans: 61
+  completed_plans: 62
   percent: 88
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 ## Current Position
 
 Phase: 76 (Remedies uses core's signature match) — READY TO EXECUTE
-Current Plan: 7
+Current Plan: 8
 Total Plans in Phase: 8
 Status: Ready to execute
 Last activity: 2026-11-23 — Phase 75 complete, transitioned to Phase 76
@@ -553,6 +553,7 @@ Last activity: 2026-11-23 — Phase 75 complete, transitioned to Phase 76
 | Phase 76 P04 | 15 min | 3 tasks | 9 files |
 | Phase 76 P05 | 20 min | 3 tasks | 4 files |
 | Phase 76 P06 | 40 min | 3 tasks | 4 files |
+| Phase 76 P07 | 35 min | 3 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -961,6 +962,7 @@ Last activity: 2026-11-23 — Phase 75 complete, transitioned to Phase 76
 - [Phase 76]: 76-04: the history fixture keys rows and requests through decisionHistoryPort.key; DecisionHistoryUnavailable.event optional; actedAnswerFromEvents added; ActedEvent, ActedAnywhere, ActedAnywhereInput removed (api-surface 940, ADR-QD-189)
 - [Phase 76]: 76-05: the remedy table asks core (signatureAnswerFromSignatures, actedAnswerFromEvents) and skips refused checks with the port's refusal; the custom-predicate sentence is NO_CUSTOM_PREDICATE_FIELD, owned by SimulationFields.ts
 - [Phase 76]: 76-06: 19 guts seen red and recorded; mutation close on one head (core 200/201, devtools 467/467, http 34/34), every written-line mutant Killed by hand; two http response-body rows strengthened and one added; the base survivor SignatureHistory.ts:362 is equivalent (Brand.nominal is the identity)
+- [Phase 76]: 76-07: BEH-QD-717 and INV-QD-398 cite the core conformance rows; the dated notes are additions and BEH-QD-410's older last paragraph is left as written
 
 ### Pending Todos
 
@@ -1034,8 +1036,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-23T16:31:33.887Z
-Stopped at: Completed 76-06-PLAN.md
+Last session: 2026-11-23T16:43:29.402Z
+Stopped at: Completed 76-07-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
