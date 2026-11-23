@@ -771,3 +771,54 @@ describe("a signature store that fails on a subject id the key admits", () => {
     }),
   );
 });
+
+/**
+ * Each field of a signature row is read through the one guarded read, and the
+ * refusal names that field, whichever one it is.
+ *
+ * One getter throws on one field and every other field is valid, so the sentence can
+ * only have come from that field's own path.
+ */
+describe("a signature row with one field that cannot be read", () => {
+  const ROW =
+    '{"subjectId":"alice","resourceId":"doc-1","meaning":"approved",' +
+    '"signerRole":"reviewer","signedAt":1,"algorithm":"ed25519","keyId":"k1"}';
+  const anyLeaf = leafOf("HasSignature", hasSignature("approved", { scope: "Any" }));
+
+  const refusesNaming = (field: string) =>
+    Effect.gen(function* () {
+      const rows = [HOSTILE_RECORDS.throwingGetter(ROW, field, "boom")];
+      const layer = signatureHistoryFromSignatures(rows);
+      const read = yield* Effect.result(query(layer, "alice", "doc-1"));
+      const judged = signatureAnswerFromSignatures(rows, anyLeaf, SITES.withId);
+      const results: ReadonlyArray<
+        Result.Result<unknown, MissingResourceId | SignatureHistoryUnavailable>
+      > = [read, judged];
+      for (const result of results) {
+        if (Result.isSuccess(result)) return assert.fail(`${field}: answered`);
+        if (result.failure._tag !== "SignatureHistoryUnavailable") {
+          return assert.fail(`${field}: ${result.failure._tag}`);
+        }
+        assert.strictEqual(causeText(result.failure), `${field}: reading it threw: boom`);
+      }
+    });
+
+  it.effect("a row whose subjectId cannot be read is refused naming subjectId", () =>
+    refusesNaming("subjectId"),
+  );
+  it.effect("a row whose resourceId cannot be read is refused naming resourceId", () =>
+    refusesNaming("resourceId"),
+  );
+  it.effect("a row whose signerRole cannot be read is refused naming signerRole", () =>
+    refusesNaming("signerRole"),
+  );
+  it.effect("a row whose signedAt cannot be read is refused naming signedAt", () =>
+    refusesNaming("signedAt"),
+  );
+  it.effect("a row whose algorithm cannot be read is refused naming algorithm", () =>
+    refusesNaming("algorithm"),
+  );
+  it.effect("a row whose keyId cannot be read is refused naming keyId", () =>
+    refusesNaming("keyId"),
+  );
+});

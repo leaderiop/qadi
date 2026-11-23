@@ -653,3 +653,40 @@ describe("a history store that fails on an event the key admits", () => {
     }),
   );
 });
+
+/**
+ * Each field of an event row is read through the one guarded read, and the refusal
+ * names that field, whichever one it is.
+ *
+ * One getter throws on one field and every other field is valid, so the sentence can
+ * only have come from that field's own path.
+ */
+describe("a history row with one field that cannot be read", () => {
+  const ROW = '{"subjectId":"alice","event":"approved","resourceId":"doc-1"}';
+  const anyLeaf = leafOf("HasActed", hasActed("approved", { scope: "Any" }));
+
+  const refusesNaming = (field: string) =>
+    Effect.gen(function* () {
+      const rows = [HOSTILE_RECORDS.throwingGetter(ROW, field, "boom")];
+      const layer = decisionHistoryFromEvents(rows);
+      const read = yield* Effect.result(query(layer, "approved", "doc-1", "alice"));
+      const judged = actedAnswerFromEvents(rows, anyLeaf, SITES.withId);
+      const results: ReadonlyArray<
+        Result.Result<unknown, MissingResourceId | DecisionHistoryUnavailable>
+      > = [read, judged];
+      for (const result of results) {
+        if (Result.isSuccess(result)) return assert.fail(`${field}: answered`);
+        if (result.failure._tag !== "DecisionHistoryUnavailable") {
+          return assert.fail(`${field}: ${result.failure._tag}`);
+        }
+        assert.strictEqual(causeText(result.failure), `${field}: reading it threw: boom`);
+      }
+    });
+
+  it.effect("a row whose subjectId cannot be read is refused naming subjectId", () =>
+    refusesNaming("subjectId"),
+  );
+  it.effect("a row whose resourceId cannot be read is refused naming resourceId", () =>
+    refusesNaming("resourceId"),
+  );
+});
