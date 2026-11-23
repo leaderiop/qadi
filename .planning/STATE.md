@@ -4,17 +4,18 @@ milestone: v1.8
 milestone_name: Arch Wave 13
 current_phase: 73
 current_phase_name: One pure reconcile for gate registration
+current_plan: 2
 status: executing
-stopped_at: Phase 72 complete, ready to plan Phase 73
-last_updated: "2026-11-23T00:10:48.699Z"
+stopped_at: Completed 73-01-PLAN.md
+last_updated: "2026-11-23T00:27:13.194Z"
 last_activity: 2026-11-22
 last_activity_desc: Phase 72 complete, transitioned to Phase 73
-state_head: b87a0a619781bfe1537c7b138b195a1ef4d446cf
+state_head: 7cea6ac6deaf4498977ff5fd4fe77742bbc11e2a
 progress:
   total_phases: 8
   completed_phases: 4
   total_plans: 39
-  completed_plans: 32
+  completed_plans: 33
   percent: 50
 ---
 
@@ -29,8 +30,9 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 
 ## Current Position
 
-Phase: 73 (One pure reconcile for gate registration) — READY TO EXECUTE
-Plan: Not started
+Phase: 73 (One pure reconcile for gate registration) — EXECUTING
+Current Plan: 2
+Total Plans in Phase: 7
 Status: Ready to execute
 Last activity: 2026-11-22 — Phase 72 complete, transitioned to Phase 73
 
@@ -519,6 +521,7 @@ Last activity: 2026-11-22 — Phase 72 complete, transitioned to Phase 73
 | Phase 72 P06 | 9 min | 2 tasks | 4 files |
 | Phase 72 P07 | 25min | 2 tasks | 3 files |
 | Phase 72 P08 | 20 min | 3 tasks | 5 files |
+| Phase 73 P01 | 20 min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -891,6 +894,8 @@ Last activity: 2026-11-22 — Phase 72 complete, transitioned to Phase 73
 - [Phase 72]: 72-06: per-store row tests pin order inside the rows (a diagnostics listener reads the recomputed store), and the store count is a test of a built model rather than a sentence
 - [Phase 72]: 72-07: BEH-QD-699 states the keys of questions and services as the code builds them; the DockModel.test.ts traceability row cites BEH-QD-699 for the diagnostics per-store test
 - [Phase 72]: 72-08: a phase decision number (D-13) in BEH-QD-700's closing sentence was removed at its cause with a revision bump; the span name's Ignored mutant is examined by hand and recorded in EXAMINED, not closed by a contrived test
+- [Phase 73]: 73-01: the mutation base was measured before any phase file existed; GateWriter.ts 95/96, useGate.ts 62/74 at phase_base 1dbaf1a9
+- [Phase 73]: 73-01: the gate-registration characterisation (19 rows) is green on the base with no row corrected; guardTrees returns a named GuardTrees interface (TS2883)
 
 ### Pending Todos
 
@@ -964,8 +969,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-22T21:07:14.789Z
-Stopped at: Phase 72 complete, ready to plan Phase 73
+Last session: 2026-11-23T00:27:03.140Z
+Stopped at: Completed 73-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
