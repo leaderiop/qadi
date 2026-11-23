@@ -40,3 +40,24 @@ Each row passes on the base: the writer fails a typed error, or its bundle reads
 - refuted: a resource holding an own __proto__ key is archived only when its reader reads it back
 - refuted: a resource holding a Date is archived only when its reader reads it back
 - refuted: two rows encoded from one record are archived and read back in the order given
+
+## The api-surface gate reads a local export list
+
+A local export list in a barrel-reachable module was refused by the gate as unsupported. The gate was run with two
+lines appended to `packages/audit/src/AuditEntry.ts`, `type GateProbe = string;` and `export type { GateProbe };`,
+once before the change and once after. The plant was removed before the commit, and `packages/audit/src` equals
+`phase_base`.
+
+Before the change (`node scripts/check-api-surface.mjs`, exit 1):
+
+```
+packages/audit/src/AuditEntry.ts:161  [unsupported] this checker only understands declaration-form exports; teach it this form rather than letting it under-report: export type { GateProbe };
+```
+
+After the change (exit 1; the name is read and is not yet in `spec/overview.md`):
+
+```
+packages/audit/src/AuditEntry.ts  [missing] `GateProbe` is exported by @qadi/audit and is not named in spec/overview.md's Public API surface section. Add it to a table, or to "Not listed above" with a reason.
+```
+
+Without the plant the gate prints `api-surface: 940 export(s) documented across 9 package(s)`.
