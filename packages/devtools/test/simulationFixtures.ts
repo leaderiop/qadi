@@ -2,7 +2,8 @@
  * The helpers the simulation session's tests share.
  *
  * Read by `SimulationSession.test.ts`, `SimulationSession.runs.test.ts`,
- * `SimulationSession.characterisation.test.ts` and `SeededChoice.test.ts`, so a
+ * `SimulationSession.characterisation.test.ts`, `SeededChoice.test.ts`,
+ * `react/Simulator.test.tsx` and `react/useSimulationSession.test.tsx`, so a
  * sighting, a timeline entry, two logged rows and the form a replay fills in, the
  * policy and menu projections a row compares, a slow resolver and the commands that
  * drive a run are one definition rather than a copy a file keeps beside its own
