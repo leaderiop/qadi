@@ -1,16 +1,36 @@
 /**
- * `remedyEdits` never throws for a row or a site that cannot be read: it skips the
- * check with what was thrown, and offers no row.
+ * `remedyEdits` never throws for a row, a list of rows, a site or a form field that
+ * cannot be read: it skips the requirement with what was thrown, and offers no row.
  *
  * The three records an untyped caller can hand over that no typed signature admits
  * are `null`, an object with a getter that throws, and a proxy whose trap throws.
  * Each is a signature row, an event row, the form's subject or the form's resource
- * in turn, for a `hasSignature` leaf and a `hasActed` leaf, and each case pins the
- * sentence it skips with. Core's own judgements are pinned the same way in
- * `packages/core/test` (`SignatureHistory.test.ts`, `DecisionHistory.test.ts`).
+ * in turn, for a `hasSignature` leaf and a `hasActed` leaf. A list of rows that is a
+ * revoked proxy, has a `length` that throws or is a getter that throws is pinned the
+ * same way, and so is a row holding an object whose class name is not text. Every
+ * other field a requirement reads (the subject's id, roles, permissions and
+ * attributes, the resource's id and attributes, the action and the relationship
+ * list) is pinned for the requirement that reads it, and one whose form is fine
+ * keeps its row beside a skipped one. Each case pins the sentence it skips with.
+ * Core's own judgements are pinned the same way in `packages/core/test`
+ * (`SignatureHistory.test.ts`, `DecisionHistory.test.ts`).
  */
 import { assert, describe, it } from "@effect/vitest";
-import { hasActed, hasSignature } from "@qadi/core";
+import {
+  allOf,
+  eq,
+  hasAction,
+  hasActed,
+  hasAttribute,
+  hasPermission,
+  hasRelationship,
+  hasResourceAttribute,
+  hasRole,
+  hasSignature,
+  literal,
+  permission,
+  resource,
+} from "@qadi/core";
 import type { Policy } from "@qadi/core";
 import { remedyEdits } from "../../src/model/Remedies.ts";
 import type { SimulationInput } from "../../src/model/SimulationInput.ts";
@@ -174,15 +194,6 @@ describe("remedyEdits over an event row or a site it cannot read", () => {
   });
 });
 
-/**
- * `remedyEdits` never throws for a list of rows it cannot read, nor for an object whose
- * class name is not text.
- *
- * The list is the form's own `signatures` or `history`: a getter that throws is the form
- * refusing, a revoked proxy or a `length` that throws is the port refusing, each skipped
- * with what was thrown. An object a row holds whose constructor `name` is a symbol, or an
- * object whose `toString` throws, is named generically in the sentence.
- */
 const withList = (field: "signatures" | "history", list: unknown): SimulationInput =>
   Object.defineProperty({ subject: asker, resource: SITES.withId }, field, {
     value: list,
@@ -214,6 +225,15 @@ const unnamedInstance = (name: unknown) =>
 
 const UNKEYABLE = "subjectId: an unkeyable instance (Object) has no request key";
 
+/**
+ * `remedyEdits` never throws for a list of rows it cannot read, nor for an object whose
+ * class name is not text.
+ *
+ * The list is the form's own `signatures` or `history`: a getter that throws is the form
+ * refusing, a revoked proxy or a `length` that throws is the port refusing, each skipped
+ * with what was thrown. An object a row holds whose constructor `name` is a symbol, or an
+ * object whose `toString` throws, is named generically in the sentence.
+ */
 describe("remedyEdits over a list of rows it cannot read", () => {
   const signature = (cause: string, who = "signature port") => ({
     edits: [],
@@ -277,5 +297,73 @@ describe("remedyEdits over a list of rows it cannot read", () => {
         event(UNKEYABLE),
       );
     }
+  });
+});
+
+describe("remedyEdits over a form field a requirement reads and cannot", () => {
+  type Where = "subject" | "resource" | "form";
+  const form = (where: Where, field: string): SimulationInput => {
+    const held = JSON.parse('{"subject":{"id":"alice"},"resource":{"id":"doc-1"}}');
+    Object.defineProperty(where === "form" ? held : held[where], field, {
+      get: () => {
+        throw new Error("boom");
+      },
+    });
+    return held;
+  };
+  const refused = (requirement: string) => ({
+    edits: [],
+    skipped: [`${requirement}: ${skipFor("form", "boom")}`],
+  });
+
+  it("a subject field is skipped for the requirement that reads it", () => {
+    assert.deepStrictEqual(
+      swept(hasRole("editor"), form("subject", "roles")),
+      refused("role editor"),
+    );
+    assert.deepStrictEqual(
+      swept(hasPermission(permission("doc", "read")), form("subject", "permissions")),
+      refused("permission doc:read"),
+    );
+    assert.deepStrictEqual(
+      swept(hasAttribute("k", eq(literal(1))), form("subject", "attributes")),
+      refused("subject attribute k"),
+    );
+    assert.deepStrictEqual(
+      swept(hasRelationship("owner"), form("subject", "id")),
+      refused("relationship owner"),
+    );
+  });
+
+  it("a resource field is skipped for the requirement that reads it", () => {
+    assert.deepStrictEqual(
+      swept(hasRelationship("owner"), form("resource", "id")),
+      refused("relationship owner"),
+    );
+    assert.deepStrictEqual(
+      swept(hasResourceAttribute("k", eq(resource("owner"))), form("resource", "owner")),
+      refused("resource attribute k"),
+    );
+  });
+
+  it("an action or a relationship list that throws is skipped, naming the form", () => {
+    assert.deepStrictEqual(
+      swept(hasAction("write"), form("form", "action")),
+      refused("action write"),
+    );
+    assert.deepStrictEqual(
+      swept(hasRelationship("owner"), form("form", "relationships")),
+      refused("relationship owner"),
+    );
+  });
+
+  it("a requirement whose form can be read keeps its row beside a skipped one", () => {
+    assert.deepStrictEqual(
+      swept(allOf([hasRole("editor"), hasRelationship("owner")]), form("resource", "id")),
+      {
+        edits: ["with role editor"],
+        skipped: [`relationship owner: ${skipFor("form", "boom")}`],
+      },
+    );
   });
 });

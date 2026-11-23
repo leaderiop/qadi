@@ -87,13 +87,13 @@ export interface RemedySweep {
  * answers and that rule is the port's. A check the port refuses is skipped with
  * the port's refusal, never offered a row, and the two agreement tests
  * (`RemedySignatureConformance.test.ts`, `RemedyActedConformance.test.ts`)
- * compare the table with core's evaluation. Those two checks never throw, for
- * any value a signature row, an event row, the list of them, the form's subject
- * or the form's resource holds: a row, a list or a site that cannot be read is a
- * skip naming what was thrown. Attributes get no such check — a
- * key present with the wrong value is precisely the case worth a row — so a
- * remedy that changes nothing is offered, and the sweep reports it as *no
- * change*. That is a finding too: it says the attribute was never the problem.
+ * compare the table with core's evaluation. `remedyEdits` never throws, for any
+ * value a signature row, an event row, the list of them, the form's subject or
+ * the form's resource holds: a requirement whose form cannot be read is a skip
+ * naming what was thrown, whichever kind of requirement it is. Attributes get no
+ * such check — a key present with the wrong value is precisely the case worth a
+ * row — so a remedy that changes nothing is offered, and the sweep reports it as
+ * *no change*. That is a finding too: it says the attribute was never the problem.
  *
  * **`Not` is not descended into**, and neither is a `Rules` row whose `effect`
  * is `"Deny"`. Satisfying a requirement under a negation, or under a deny row's
@@ -104,7 +104,7 @@ export interface RemedySweep {
  */
 export const remedyEdits = (policy: Policy, input: SimulationInput): RemedySweep => {
   const built = requirementsOf(policy)
-    .map((requirement) => remedyFor(requirement)(input))
+    .map((requirement) => remedyGuarded(requirement, input))
     .filter((one): one is Built => one !== undefined);
 
   return {
@@ -448,18 +448,34 @@ const refusal = (who: string, cause: unknown): string =>
   thrownMessage(cause);
 
 /**
- * A read of the form's own subject, resource or row list, or the skip reason its
- * throw is.
+ * A read of the form, or the skip reason its throw is.
  *
  * The form holds what a person typed and what a host handed over, so reading its
- * subject, its resource or its list of rows may throw (a getter, a proxy, a `null`).
- * The two arms that ask core read the form only through this, so such a check is
+ * subject, its id or attributes, its resource, its id or attributes, its action or
+ * any of its lists may throw (a getter, a proxy, a `null`). Every arm of
+ * {@link remedyFor} reads the form, so every arm runs inside this one read, through
+ * {@link remedyGuarded}: no arm reads the form outside it, and such a requirement is
  * skipped with what was thrown and never throws out of `remedyEdits`, which `whatIf`
  * calls from `derive`. The rows themselves reach core as they are, and core reads
  * them through its own guarded read.
  */
 const readForm = <A>(read: () => A): Result.Result<A, string> =>
   Result.try({ try: read, catch: (thrown) => refusal("form", thrown) });
+
+/** What a requirement is called in the sweep's skips, said once for arms and guard. */
+const requirementLabel: (self: Requirement) => string = Match.type<Requirement>().pipe(
+  Match.tagsExhaustive({
+    Role: (self) => `role ${self.role}`,
+    Permission: (self) => `permission ${permissionKey(self.permission)}`,
+    Action: (self) => `action ${self.action}`,
+    SubjectAttribute: (self) => `subject attribute ${self.attribute}`,
+    ResourceAttribute: (self) => `resource attribute ${self.attribute}`,
+    Relationship: (self) => `relationship ${self.relation}`,
+    Acted: (self) => `event ${self.leaf.event}`,
+    Signature: (self) => `signature ${self.leaf.meaning}`,
+    Custom: (self) => `custom predicate ${self.name}`,
+  }),
+);
 
 /**
  * The reason a check that core's fixture judgement failed for is skipped.
@@ -533,7 +549,7 @@ const remedyFor: (self: Requirement) => (input: SimulationInput) => Built | unde
       SubjectAttribute: (self) => (input: SimulationInput) => {
         const witnessed = satisfyingValue(self.matcher, input);
         if (witnessed._tag === "Unsynthesisable") {
-          return skip(`subject attribute ${self.attribute}`, witnessed.reason);
+          return skip(requirementLabel(self), witnessed.reason);
         }
         return edit(
           grant(
@@ -546,11 +562,11 @@ const remedyFor: (self: Requirement) => (input: SimulationInput) => Built | unde
 
       ResourceAttribute: (self) => (input: SimulationInput) => {
         if (input.resource === undefined) {
-          return skip(`resource attribute ${self.attribute}`, "the check names no resource");
+          return skip(requirementLabel(self), "the check names no resource");
         }
         const witnessed = satisfyingValue(self.matcher, input);
         if (witnessed._tag === "Unsynthesisable") {
-          return skip(`resource attribute ${self.attribute}`, witnessed.reason);
+          return skip(requirementLabel(self), witnessed.reason);
         }
         return strengthen(
           "SetResourceAttribute",
@@ -564,7 +580,7 @@ const remedyFor: (self: Requirement) => (input: SimulationInput) => Built | unde
 
       Relationship: (self) => (input: SimulationInput) => {
         const resourceId = resourceIdOf(input.resource);
-        if (resourceId === undefined) return skip(`relationship ${self.relation}`, NO_RESOURCE_ID);
+        if (resourceId === undefined) return skip(requirementLabel(self), NO_RESOURCE_ID);
         const edge = { subjectId: input.subject.id, relation: self.relation, resourceId };
         return fieldOps("relationships").holds(input, edge)
           ? undefined
@@ -580,20 +596,20 @@ const remedyFor: (self: Requirement) => (input: SimulationInput) => Built | unde
         const { event } = leaf;
         return Result.match(
           Result.gen(function* () {
-            const site = yield* readForm(() => siteOf(input));
-            const rows = yield* readForm(() => fieldOps("history").elements(input));
+            const site = siteOf(input);
+            const rows = fieldOps("history").elements(input);
             const answer = yield* Result.mapError(
               actedAnswerFromEvents(rows, leaf, site),
               skipReason,
             );
             if (answer === "Acted") return undefined;
-            const resourceId = yield* readForm(() => resourceIdOf(input.resource));
+            const resourceId = resourceIdOf(input.resource);
             if (resourceId === undefined) return yield* Result.fail(NO_RESOURCE_ID);
             const row = { subjectId: site.subject.id, event, resourceId };
             return edit(grant("history", row, `with event ${event} on ${resourceId}`));
           }),
           {
-            onFailure: (reason) => skip(`event ${event}`, reason),
+            onFailure: (reason) => skip(requirementLabel(self), reason),
             onSuccess: (built) => built,
           },
         );
@@ -610,16 +626,14 @@ const remedyFor: (self: Requirement) => (input: SimulationInput) => Built | unde
         const { meaning, signerRole } = leaf;
         return Result.match(
           Result.gen(function* () {
-            const site = yield* readForm(() => siteOf(input));
-            const rows = yield* readForm(() => fieldOps("signatures").elements(input));
+            const site = siteOf(input);
+            const rows = fieldOps("signatures").elements(input);
             const answer = yield* Result.mapError(
               signatureAnswerFromSignatures(rows, leaf, site),
               skipReason,
             );
             if (answer.matched) return undefined;
-            const [{ resourceId }] = yield* readForm(() =>
-              signatureHistoryPort.asks.HasSignature(leaf, site),
-            );
+            const [{ resourceId }] = signatureHistoryPort.asks.HasSignature(leaf, site);
             const on = resourceId === undefined ? "" : ` on ${resourceId}`;
             const as = signerRole === undefined ? "" : ` as ${signerRole}`;
             return edit(
@@ -636,15 +650,30 @@ const remedyFor: (self: Requirement) => (input: SimulationInput) => Built | unde
             );
           }),
           {
-            onFailure: (reason) => skip(`signature ${meaning}`, reason),
+            onFailure: (reason) => skip(requirementLabel(self), reason),
             onSuccess: (built) => built,
           },
         );
       },
 
       Custom: (self) => () =>
-        skip(`custom predicate ${self.name}`, NO_CUSTOM_PREDICATE_FIELD.reason),
+        skip(requirementLabel(self), NO_CUSTOM_PREDICATE_FIELD.reason),
     }),
+  );
+
+/**
+ * One requirement's remedy, with every read of the form inside {@link readForm}.
+ *
+ * The one place an arm of {@link remedyFor} is called, so a requirement whose form
+ * cannot be read is a skip naming the form and what it threw, whatever its kind.
+ */
+const remedyGuarded = (self: Requirement, input: SimulationInput): Built | undefined =>
+  Result.match(
+    readForm(() => remedyFor(self)(input)),
+    {
+      onFailure: (reason) => skip(requirementLabel(self), reason),
+      onSuccess: (built) => built,
+    },
   );
 
 /**
