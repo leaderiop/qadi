@@ -6,14 +6,37 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Match from "effect/Match";
 import * as Result from "effect/Result";
 import {
   DecisionHistory,
   DecisionHistoryUnknown,
+  actedAnswerFromEvents,
   decisionHistoryFromEvents,
   decisionHistoryPort,
 } from "../src/DecisionHistory.ts";
+import type { ActedEventInput, ActedResult } from "../src/DecisionHistory.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
+import { makeSubject } from "../src/AuthSubject.ts";
+import type { DecisionHistoryUnavailable, MissingResourceId } from "../src/Errors.ts";
+import { hasActed, hasNotActed } from "../src/Policy.ts";
+import { askActed } from "../src/PortAccess.ts";
+import { scriptedPort } from "../src/PortDoubles.ts";
+import { describeKeyRefusal, PortReply } from "../src/PortDescription.ts";
+import type { LeafOf, ReadSite } from "../src/PortDescription.ts";
+import {
+  alice,
+  causeText,
+  disagreement,
+  HOSTILE_LISTS,
+  HOSTILE_RECORDS,
+  SITES,
+  unkeyableRow,
+  unkeyableSubject,
+  unnamedInstance,
+  untypedWith,
+} from "./fixtureJudgement.ts";
+import { leafOf } from "./helpers.ts";
 
 const query = (
   layer: Layer.Layer<DecisionHistory>,
@@ -91,4 +114,579 @@ describe("decisionHistoryPort's wire", () => {
     if (Result.isFailure(encoded)) return assert.fail(encoded.failure);
     assert.deepStrictEqual(encoded.success, { subjectId: "alice", event: "approved" });
   });
+});
+
+describe("a history read whose request or fixture row the key refuses", () => {
+  // `JSON.parse` returns `any`, which is what an untyped JavaScript caller hands
+  // over (no `as`); a symbol or a revoked proxy is what it cannot carry, so it is
+  // set on the parsed object afterwards.
+  const alice = makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} });
+  const approved = leafOf("HasActed", hasActed("approved", { scope: "Any" }));
+  const approvedOnDoc = leafOf("HasActed", hasActed("approved", { scope: "Resource" }));
+
+  const unkeyableSubject = () => {
+    const untyped = JSON.parse('{"roles":[],"permissions":[],"attributes":{}}');
+    untyped.id = Symbol("alice");
+    return makeSubject(untyped);
+  };
+
+  const unkeyableRow = (json: string) => {
+    const untyped = JSON.parse(json);
+    untyped.subjectId = Symbol("alice");
+    return untyped;
+  };
+
+  /** The sentence the description's key gives for a request it refuses. */
+  const refusalSentence = (request: Parameters<typeof decisionHistoryPort.key>[0]) => {
+    const refusal = decisionHistoryPort.key(request);
+    if (Result.isSuccess(refusal)) return assert.fail("the key admitted the request");
+    return describeKeyRefusal(refusal.failure);
+  };
+
+  /** A read, as a result, so that a defect fails the row rather than being caught. */
+  const unavailable = (
+    result: Result.Result<unknown, DecisionHistoryUnavailable | MissingResourceId>,
+  ) => {
+    if (Result.isSuccess(result)) return assert.fail("the read answered");
+    if (result.failure._tag !== "DecisionHistoryUnavailable") {
+      return assert.fail(result.failure._tag);
+    }
+    return result.failure;
+  };
+
+  it.effect(
+    "a subject whose id is a symbol fails as \
+DecisionHistoryUnavailable, never answering NotActed",
+    () =>
+      Effect.gen(function* () {
+        const subject = unkeyableSubject();
+        const leaf = leafOf("HasNotActed", hasNotActed("approved", { scope: "Any" }));
+        const [request] = decisionHistoryPort.asks.HasNotActed(leaf, {
+          subject,
+          resource: undefined,
+        });
+        const result = yield* Effect.result(
+          askActed("evaluate", subject, leaf, undefined).pipe(
+            Effect.provide(decisionHistoryFromEvents([])),
+          ),
+        );
+        const failure = unavailable(result);
+        assert.strictEqual(failure.event, "approved");
+        assert.strictEqual(failure.cause, refusalSentence([request]));
+      }),
+  );
+
+  it.effect(
+    "an event that is a symbol fails with no event and the refusal as \
+its cause, never answering NotActed",
+    () =>
+      Effect.gen(function* () {
+        const untyped = JSON.parse('{"_tag":"HasActed","event":"x","scope":"Any"}');
+        untyped.event = Symbol("approved");
+        const leaf = leafOf("HasActed", untyped);
+        const [request] = decisionHistoryPort.asks.HasActed(leaf, {
+          subject: alice,
+          resource: undefined,
+        });
+        const result = yield* Effect.result(
+          askActed("evaluate", alice, leaf, undefined).pipe(
+            Effect.provide(decisionHistoryFromEvents([])),
+          ),
+        );
+        const failure = unavailable(result);
+        assert.isFalse(Object.hasOwn(failure, "event"));
+        assert.strictEqual(failure.cause, refusalSentence([request]));
+      }),
+  );
+
+  it.effect(
+    "a fixture row whose subject id is a symbol fails every read, never answering \
+NotActed",
+    () =>
+      Effect.gen(function* () {
+        const row = unkeyableRow('{"event":"approved","resourceId":"doc-1"}');
+        const layer = decisionHistoryFromEvents([
+          { subjectId: "bob", event: "approved", resourceId: "doc-2" },
+          row,
+        ]);
+        const sentence = refusalSentence([row]);
+        for (const [leaf, resource] of [
+          [approvedOnDoc, { id: "doc-1" }],
+          [approved, undefined],
+        ] as const) {
+          const result = yield* Effect.result(
+            askActed("evaluate", alice, leaf, resource).pipe(Effect.provide(layer)),
+          );
+          const failure = unavailable(result);
+          assert.strictEqual(failure.event, "approved");
+          assert.strictEqual(failure.cause, sentence);
+        }
+      }),
+  );
+
+  it.effect(
+    "a fixture row whose event cannot be read fails every read, never throwing",
+    () =>
+      Effect.gen(function* () {
+        const row = JSON.parse('{"subjectId":"alice","resourceId":"doc-1"}');
+        const revoked = Proxy.revocable({}, {});
+        revoked.revoke();
+        row.event = revoked.proxy;
+        const result = yield* Effect.result(
+          Effect.suspend(() =>
+            askActed("evaluate", alice, approvedOnDoc, { id: "doc-1" }).pipe(
+              Effect.provide(decisionHistoryFromEvents([row])),
+            ),
+          ),
+        );
+        const failure = unavailable(result);
+        assert.strictEqual(failure.event, "approved");
+        assert.strictEqual(failure.cause, refusalSentence([row]));
+      }),
+  );
+});
+
+/** What a judgement or a read gave: an answer, or one of the two failures. */
+type Judged = Result.Result<ActedResult, MissingResourceId | DecisionHistoryUnavailable>;
+
+const failureOf = Match.type<MissingResourceId | DecisionHistoryUnavailable>().pipe(
+  Match.tagsExhaustive({
+    MissingResourceId: (failure) => ({
+      _tag: failure._tag,
+      relation: failure.relation,
+    }),
+    DecisionHistoryUnavailable: (failure) => ({
+      _tag: failure._tag,
+      hasEvent: Object.hasOwn(failure, "event"),
+      event: failure.event,
+      cause: failure.cause,
+    }),
+  }),
+);
+
+const answerOf = (result: Judged) =>
+  Result.match(result, {
+    onSuccess: (answer) => ({ _tag: "Answered", answer }) as const,
+    onFailure: failureOf,
+  });
+
+const readOf = (
+  events: ReadonlyArray<ActedEventInput>,
+  leaf: LeafOf["HasActed"],
+  site: ReadSite,
+) =>
+  Effect.result(askActed("evaluate", site.subject, leaf, site.resource)).pipe(
+    Effect.provide(decisionHistoryFromEvents(events)),
+  );
+
+describe("actedAnswerFromEvents", () => {
+  // `JSON.parse` returns `any`, which is what an untyped JavaScript caller hands
+  // over (no `as`); a symbol is the one value it cannot carry, so it is set on the
+  // parsed object afterwards.
+  const untypedLeaf = (scope: "Any" | "Resource") => {
+    const untyped = JSON.parse('{"event":"approved"}');
+    untyped.event = Symbol("approved");
+    return leafOf("HasActed", hasActed(untyped.event, { scope }));
+  };
+
+  const SUBJECTS = ["alice", "bob"];
+  const EVENTS = ["approved", "reviewed"];
+  const RESOURCE_IDS = ["doc-1", "doc-2"];
+
+  const SINGLES = SUBJECTS.flatMap((subjectId) =>
+    EVENTS.flatMap((event) =>
+      RESOURCE_IDS.map((resourceId) => ({
+        name: `${subjectId} ${event} ${resourceId}`,
+        row: { subjectId, event, resourceId } satisfies ActedEventInput,
+      })),
+    ),
+  );
+
+  const DECOY: ActedEventInput = {
+    subjectId: "alice",
+    event: "reviewed",
+    resourceId: "doc-1",
+  };
+
+  const LISTS: ReadonlyArray<{
+    readonly name: string;
+    readonly rows: ReadonlyArray<ActedEventInput>;
+  }> = [
+    { name: "an empty list", rows: [] },
+    ...SINGLES.map(({ name, row }) => ({ name, rows: [row] })),
+    ...SINGLES.map(({ name, row }) => ({
+      name: `the decoy, then ${name}`,
+      rows: [DECOY, row],
+    })),
+  ];
+
+  /** The two leaves, named by their scope, so a test picks one by what it is. */
+  const LEAVES = {
+    resource: {
+      name: "hasActed approved at scope Resource",
+      leaf: leafOf("HasActed", hasActed("approved", { scope: "Resource" })),
+    },
+    any: {
+      name: "hasActed approved at scope Any",
+      leaf: leafOf("HasActed", hasActed("approved", { scope: "Any" })),
+    },
+  };
+
+  it.effect(
+    "answers as \
+askActed over the fixture layer does, on every case of the product",
+    () =>
+      Effect.gen(function* () {
+        const sites = Object.entries(SITES);
+        const leaves = Object.values(LEAVES);
+        assert.strictEqual(SINGLES.length, 8);
+        assert.strictEqual(LISTS.length, 17);
+        assert.strictEqual(sites.length * leaves.length * LISTS.length, 136);
+        const mismatches: Array<string> = [];
+        let compared = 0;
+        for (const [siteName, site] of sites) {
+          for (const { name: leafName, leaf } of leaves) {
+            for (const { name: listName, rows } of LISTS) {
+              compared += 1;
+              const found = disagreement(
+                `${siteName} | ${leafName} | ${listName}`,
+                answerOf(actedAnswerFromEvents(rows, leaf, site)),
+                answerOf(yield* readOf(rows, leaf, site)),
+              );
+              if (found !== undefined) mismatches.push(found);
+            }
+          }
+        }
+        assert.strictEqual(compared, 136);
+        assert.deepStrictEqual(mismatches, [], mismatches.join("\n"));
+      }),
+  );
+
+  /**
+   * What each site gives each leaf when the check is refused: a Resource leaf with
+   * no usable resource id fails for want of one, and the rest fail as the history
+   * port does.
+   */
+  const UNAVAILABLE = "DecisionHistoryUnavailable";
+  const REFUSED = [
+    { site: SITES.withId, Resource: "DecisionHistoryUnavailable", Any: UNAVAILABLE },
+    { site: SITES.withoutId, Resource: "MissingResourceId", Any: UNAVAILABLE },
+    { site: SITES.withNonStringId, Resource: "MissingResourceId", Any: UNAVAILABLE },
+    { site: SITES.withoutResource, Resource: "MissingResourceId", Any: UNAVAILABLE },
+  ] as const;
+
+  it.effect(
+    "a site whose subject id is a symbol fails as \
+the read does, with the refusal and never NotActed",
+    () =>
+      Effect.gen(function* () {
+        const rows = [{ subjectId: "alice", event: "approved", resourceId: "doc-1" }];
+        for (const { site, ...tags } of REFUSED) {
+          const at = { ...site, subject: unkeyableSubject() };
+          for (const [scope, { leaf }] of [
+            ["Resource", LEAVES.resource],
+            ["Any", LEAVES.any],
+          ] as const) {
+            const judged = answerOf(actedAnswerFromEvents(rows, leaf, at));
+            assert.deepStrictEqual(judged, answerOf(yield* readOf(rows, leaf, at)));
+            assert.strictEqual(judged._tag, tags[scope]);
+            if (judged._tag === "DecisionHistoryUnavailable") {
+              assert.strictEqual(judged.event, "approved");
+            }
+          }
+        }
+      }),
+  );
+
+  it.effect(
+    "an event row whose subject id is a symbol fails as \
+the read does, with the refusal and never NotActed",
+    () =>
+      Effect.gen(function* () {
+        const rows = [unkeyableRow('{"event":"approved","resourceId":"doc-1"}')];
+        for (const { site, ...tags } of REFUSED) {
+          for (const [scope, { leaf }] of [
+            ["Resource", LEAVES.resource],
+            ["Any", LEAVES.any],
+          ] as const) {
+            const judged = answerOf(actedAnswerFromEvents(rows, leaf, site));
+            assert.deepStrictEqual(judged, answerOf(yield* readOf(rows, leaf, site)));
+            assert.strictEqual(judged._tag, tags[scope]);
+            if (judged._tag === "DecisionHistoryUnavailable") {
+              assert.strictEqual(judged.event, "approved");
+            }
+          }
+        }
+      }),
+  );
+
+  it.effect(
+    "a refused event fails as \
+the read does, with no event and never NotActed",
+    () =>
+      Effect.gen(function* () {
+        const rows = [{ subjectId: "alice", event: "approved", resourceId: "doc-1" }];
+        for (const scope of ["Any", "Resource"] as const) {
+          const leaf = untypedLeaf(scope);
+          const judged = answerOf(actedAnswerFromEvents(rows, leaf, SITES.withId));
+          const read = answerOf(yield* readOf(rows, leaf, SITES.withId));
+          assert.deepStrictEqual(judged, read);
+          assert.strictEqual(judged._tag, "DecisionHistoryUnavailable");
+          if (judged._tag === "DecisionHistoryUnavailable") {
+            assert.isFalse(judged.hasEvent);
+          }
+        }
+      }),
+  );
+});
+
+/**
+ * A fixture row, a site subject or a site resource that cannot be read is a refusal,
+ * never a throw: the layer, the read over it and the judgement fail typed.
+ *
+ * The three records an untyped caller can hand over that no typed signature admits
+ * are `null`, an object with a getter that throws, and a proxy whose trap throws
+ * (`HOSTILE_RECORDS`). A row's refusal names the field that was read, a site's
+ * names the site, and both carry what was thrown.
+ */
+describe("a history fixture whose rows or site cannot be read", () => {
+  const typed = { subjectId: "alice", event: "approved", resourceId: "doc-1" };
+  const anyLeaf = leafOf("HasActed", hasActed("approved", { scope: "Any" }));
+  const resourceLeaf = leafOf("HasActed", hasActed("approved", { scope: "Resource" }));
+
+  /** Each hostile row, and its refusal: the field read and what it threw. */
+  const ROWS = {
+    nullRecord: {
+      row: HOSTILE_RECORDS.nullRecord("{}", "event", "boom"),
+      cause: /^subjectId: reading it threw: .*null/,
+    },
+    throwingGetter: {
+      row: HOSTILE_RECORDS.throwingGetter('{"subjectId":"alice"}', "event", "boom"),
+      cause: /^event: reading it threw: boom$/,
+    },
+    throwingProxy: {
+      row: HOSTILE_RECORDS.throwingProxy("{}", "event", "boom"),
+      cause: /^subjectId: reading it threw: boom$/,
+    },
+  };
+
+  it.effect(
+    "a fixture row that cannot be read fails every read, naming the field and \
+what was thrown",
+    () =>
+      Effect.gen(function* () {
+        for (const [name, { row, cause }] of Object.entries(ROWS)) {
+          const rows = [typed, row];
+          const layer = decisionHistoryFromEvents(rows);
+          const direct = yield* Effect.result(query(layer, "approved", "doc-1", "alice"));
+          const read = yield* readOf(rows, anyLeaf, SITES.withId);
+          const judged = actedAnswerFromEvents(rows, anyLeaf, SITES.withId);
+          const results: ReadonlyArray<
+            Result.Result<unknown, MissingResourceId | DecisionHistoryUnavailable>
+          > = [direct, read, judged];
+          for (const result of results) {
+            if (Result.isSuccess(result)) return assert.fail(`${name}: answered`);
+            if (result.failure._tag !== "DecisionHistoryUnavailable") {
+              return assert.fail(`${name}: ${result.failure._tag}`);
+            }
+            assert.match(causeText(result.failure), cause, name);
+          }
+          assert.deepStrictEqual(answerOf(judged), answerOf(read), name);
+        }
+      }),
+  );
+
+  it("a site subject that cannot be read fails the judgement with the leaf's \
+event, naming the site", () => {
+    for (const [name, build] of Object.entries(HOSTILE_RECORDS)) {
+      const subject = build(JSON.stringify(alice), "id", "boom");
+      const judged = actedAnswerFromEvents([typed], anyLeaf, {
+        subject,
+        resource: undefined,
+      });
+      if (Result.isSuccess(judged)) return assert.fail(`${name}: answered`);
+      if (judged.failure._tag !== "DecisionHistoryUnavailable") {
+        return assert.fail(`${name}: ${judged.failure._tag}`);
+      }
+      assert.strictEqual(judged.failure.event, "approved", name);
+      assert.match(causeText(judged.failure), /^site: reading it threw: /, name);
+    }
+  });
+
+  it.effect(
+    "a resource id that throws fails a Resource leaf, which an Any leaf never reads",
+    () =>
+      Effect.gen(function* () {
+        const resource = HOSTILE_RECORDS.throwingGetter("{}", "id", "boom");
+        const site: ReadSite = { subject: alice, resource };
+        const refused = actedAnswerFromEvents([typed], resourceLeaf, site);
+        if (Result.isSuccess(refused)) return assert.fail("answered");
+        if (refused.failure._tag !== "DecisionHistoryUnavailable") {
+          return assert.fail(refused.failure._tag);
+        }
+        assert.strictEqual(refused.failure.event, "approved");
+        assert.strictEqual(causeText(refused.failure), "site: reading it threw: boom");
+        const answered = actedAnswerFromEvents([typed], anyLeaf, site);
+        assert.isTrue(Result.isSuccess(answered));
+        const read = yield* readOf([typed], anyLeaf, site);
+        assert.deepStrictEqual(answerOf(answered), answerOf(read));
+      }),
+  );
+});
+
+/**
+ * A list of rows that cannot be read is a refusal, never a throw, for the layer, the
+ * read over it and the judgement alike.
+ *
+ * The list is read before any row (`HOSTILE_LISTS`): a revoked proxy, a `length` or
+ * an element getter that throws, a value that is not iterable. Its refusal names the
+ * list and carries what was thrown.
+ */
+describe("a history fixture whose list of rows cannot be read", () => {
+  const anyLeaf = leafOf("HasActed", hasActed("approved", { scope: "Any" }));
+  /** Each hostile list, and its refusal: the list and what it threw. */
+  const LISTS = {
+    revokedProxy: {
+      build: HOSTILE_LISTS.revokedProxy,
+      cause: /^events: reading it threw: .*revoked/,
+    },
+    throwingLength: {
+      build: HOSTILE_LISTS.throwingLength,
+      cause: /^events: reading it threw: boom$/,
+    },
+    throwingElement: {
+      build: HOSTILE_LISTS.throwingElement,
+      cause: /^events: reading it threw: boom$/,
+    },
+    notIterable: {
+      build: HOSTILE_LISTS.notIterable,
+      cause: /^events: reading it threw: /,
+    },
+  };
+
+  it.effect(
+    "a list that cannot be read fails every read, naming the list and what was thrown",
+    () =>
+      Effect.gen(function* () {
+        for (const [name, { build, cause }] of Object.entries(LISTS)) {
+          const rows = build("boom");
+          const layer = decisionHistoryFromEvents(rows);
+          const direct = yield* Effect.result(query(layer, "approved", "doc-1", "alice"));
+          const read = yield* readOf(rows, anyLeaf, SITES.withId);
+          const judged = actedAnswerFromEvents(rows, anyLeaf, SITES.withId);
+          const results: ReadonlyArray<
+            Result.Result<unknown, MissingResourceId | DecisionHistoryUnavailable>
+          > = [direct, read, judged];
+          for (const result of results) {
+            if (Result.isSuccess(result)) return assert.fail(`${name}: answered`);
+            if (result.failure._tag !== "DecisionHistoryUnavailable") {
+              return assert.fail(`${name}: ${result.failure._tag}`);
+            }
+            assert.match(causeText(result.failure), cause, name);
+          }
+        }
+      }),
+  );
+});
+
+/**
+ * A row or a site holding an unkeyable object whose class `name` is not a string is a
+ * refusal that names the class generically, never a throw.
+ *
+ * The refusal's sentence names the class of what it refused, and a `name` that is a
+ * symbol, or an object whose `toString` throws, cannot be interpolated, so the sentence
+ * must be built without reading one.
+ */
+describe("a history fixture holding an object whose class name is not text", () => {
+  const anyLeaf = leafOf("HasActed", hasActed("approved", { scope: "Any" }));
+  const UNKEYABLE = /an unkeyable instance \(Object\) has no request key/;
+  const NAMES = {
+    symbol: Symbol("odd"),
+    throwingToString: {
+      toString: () => {
+        throw new Error("ts");
+      },
+    },
+  };
+
+  it("a row and a site fail with a sentence that names the class generically", () => {
+    for (const [name, className] of Object.entries(NAMES)) {
+      const odd = unnamedInstance(className);
+      const json = '{"event":"approved","resourceId":"doc-1"}';
+      const row = untypedWith(json, "subjectId", odd);
+      const subject = untypedWith(JSON.stringify(alice), "id", odd);
+      for (const judged of [
+        actedAnswerFromEvents([row], anyLeaf, SITES.withId),
+        actedAnswerFromEvents([], anyLeaf, { subject, resource: undefined }),
+      ]) {
+        if (Result.isSuccess(judged)) return assert.fail(`${name}: answered`);
+        if (judged.failure._tag !== "DecisionHistoryUnavailable") {
+          return assert.fail(`${name}: ${judged.failure._tag}`);
+        }
+        assert.match(causeText(judged.failure), UNKEYABLE, name);
+      }
+    }
+  });
+});
+
+/**
+ * A request or a store the history port fails on carries `event` exactly when the
+ * schema admits the request's value, whether or not the key refuses it.
+ *
+ * An event that is a number is a value the key admits and the schema refuses, so a
+ * failing store gives a member-less error whose cause is the store's own, not a
+ * refusal sentence.
+ */
+describe("a history store that fails on an event the key admits", () => {
+  it.effect("the error has no event and the cause is the store's own", () =>
+    Effect.gen(function* () {
+      const request = JSON.parse('{"subjectId":"alice","event":5}');
+      assert.isTrue(Result.isSuccess(decisionHistoryPort.key([request])));
+      const broken = scriptedPort(decisionHistoryPort, () =>
+        PortReply.fail("down"),
+      ).layer;
+      const failure = yield* Effect.flip(
+        DecisionHistory.hasActed(request).pipe(Effect.provide(broken)),
+      );
+      assert.isFalse(Object.hasOwn(failure, "event"));
+      assert.strictEqual(failure.cause, "down");
+    }),
+  );
+});
+
+/**
+ * Each field of an event row is read through the one guarded read, and the refusal
+ * names that field, whichever one it is.
+ *
+ * One getter throws on one field and every other field is valid, so the sentence can
+ * only have come from that field's own path.
+ */
+describe("a history row with one field that cannot be read", () => {
+  const ROW = '{"subjectId":"alice","event":"approved","resourceId":"doc-1"}';
+  const anyLeaf = leafOf("HasActed", hasActed("approved", { scope: "Any" }));
+
+  const refusesNaming = (field: string) =>
+    Effect.gen(function* () {
+      const rows = [HOSTILE_RECORDS.throwingGetter(ROW, field, "boom")];
+      const layer = decisionHistoryFromEvents(rows);
+      const read = yield* Effect.result(query(layer, "approved", "doc-1", "alice"));
+      const judged = actedAnswerFromEvents(rows, anyLeaf, SITES.withId);
+      const results: ReadonlyArray<
+        Result.Result<unknown, MissingResourceId | DecisionHistoryUnavailable>
+      > = [read, judged];
+      for (const result of results) {
+        if (Result.isSuccess(result)) return assert.fail(`${field}: answered`);
+        if (result.failure._tag !== "DecisionHistoryUnavailable") {
+          return assert.fail(`${field}: ${result.failure._tag}`);
+        }
+        assert.strictEqual(causeText(result.failure), `${field}: reading it threw: boom`);
+      }
+    });
+
+  it.effect("a row whose subjectId cannot be read is refused naming subjectId", () =>
+    refusesNaming("subjectId"),
+  );
+  it.effect("a row whose resourceId cannot be read is refused naming resourceId", () =>
+    refusesNaming("resourceId"),
+  );
 });

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-169                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-18                                     |
-> | Status         | Accepted — amends ADR-QD-047; applies ADR-QD-137; keeps ADR-QD-162, ADR-QD-150 |
+> | Status         | Accepted — amends ADR-QD-047; applies ADR-QD-137; keeps ADR-QD-162, ADR-QD-150; corrected 2026-11-22 (ADR-QD-185: the model keeps no closed flag and no last join) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-19): amendment — makeGatesFeed is exported from the root (ARCH-107, ADR-QD-173, CCR-QD-451)<br>1.0 (2026-11-18): Initial release (ARCH-103, CCR-QD-447) |
+> | Change History | 1.2 (2026-11-22): notes — the store is a derived store and the count is BEH-QD-700's (ARCH-119, CCR-QD-464)<br>1.1 (2026-11-19): amendment — makeGatesFeed is exported from the root (ARCH-107, ADR-QD-173, CCR-QD-451)<br>1.0 (2026-11-18): Initial release (ARCH-103, CCR-QD-447) |
 
 ---
 
@@ -56,6 +56,10 @@ The owner decided (D-01) that one feed owns both inputs, taking the complete des
 7. **`DockModel`'s join is pure** over the feed's snapshot, the supplied reading's questions and the poll's status, and
    `configure` reconfigures the feed before it re-merges the reading, so one `configure` publishes one snapshot. The model
    keeps its closed flag and its last join and holds no gate-watch state beyond them.
+
+> **Corrected 2026-11-22 (CCR-QD-464).** The model keeps no closed flag and no last join: the join is a derived store that holds its key and
+> stops with the scope ([ADR-QD-185](./185-the-dock-models-computed-stores-are-derived-stores.md)).
+
 8. **`questions` is a dock input**: `DockModelInputs.questions` and `DevtoolsDockProps.questions`. It is gone from
    `DiagnosticsDockOptions` and `DiagnosticsOptions`, and `runDiagnostics` takes no thunk (**Breaking** for `@qadi/devtools`).
 9. **`useDevtoolsFeed` returns `questions`** beside `gates` and `onInvalidate`, and `FeedOwnedKey` is the closed union
@@ -116,6 +120,10 @@ other decision here is unchanged, and so is the consequence that `spec/overview.
 
 - The dock model's store count is unchanged: nine. `DockModel.ts` keeps its closed flag and its last join, and the watch's
   state lives in the feed.
+
+> **Corrected 2026-11-22 (CCR-QD-464).** The model keeps no closed flag and no last join: the join is a derived store that holds its key and
+> stops with the scope, and the count is BEH-QD-700's ([ADR-QD-185](./185-the-dock-models-computed-stores-are-derived-stores.md)).
+
 - A questions input that throws is stated in the Questions tab, and the diagnostics poll keeps running: wiring, activity and
   calls stay current on every tab.
 - A poll that stops still shows the questions, which the feed reads on its own cadence.

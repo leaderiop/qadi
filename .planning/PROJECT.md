@@ -1,4 +1,4 @@
-# Qadi — Architecture Waves (current: v1.7 Arch Wave 12)
+# Qadi — Architecture Waves (current: v1.8 Arch Wave 13)
 
 ## What This Is
 
@@ -12,6 +12,49 @@ module was a shallow pass-through.
 
 The review is at https://claude.ai/artifact/LH5dLGadz28NyzmZez9jcX, with a local copy at
 `/tmp/claude-1002/-home-yopu-Project-Perso-qadi/588341bb-9f42-4e6e-b1a3-ed991ed47acf/scratchpad/qadi-architecture-review.html`.
+
+## Previous Milestone: v1.8 Arch Wave 13 (completed 2026-11-23; not released)
+
+**Goal:** Resolve all eight candidates of the 2026-11-22 architecture review. The three live defects go first (the
+"never throws" functions that throw, the hydration drops that are never reported, the reporter that blames the wrong
+option name), then the three deepenings, then the change that tracers will see, then the speculative item.
+
+**Target features (Phases 69–76, ARCH-116…123, strictly serial):**
+- 69: One total "thrown value → message" module in core. The six inline copies use it, which closes the four
+  throw-throughs in `JsonHazard`, `PortKey`, `PortDerivation` and `PortWireEncode` (core; live defect)
+- 70: Hydration's drop events come from its reason-keyed buckets, on both the hydrate and dehydrate sides, which
+  closes the INV-QD-045 gap where an unreported bucket compiles (react; live defect; cites ADR-QD-152)
+- 71: Every developer-signal reporter is resolved through one table (where it runs, how often, what it is named), and
+  the `onIdCollision` → `"onGateIdCollision"` naming drift is fixed (react; live defect)
+- 72: `ExternalStore` gains a store derived from parent stores, used by the dock model's three hand-built stores;
+  `DockModel.ts` keeps its mutation score of 1 (devtools; ADR-QD-168)
+- 73: One pure `reconcile` keyed by id that registers, updates and unregisters; `useGate` loses its state-diff
+  effect and the parallel-array contract (react; extends ADR-QD-140)
+- 74: The simulation session's policy-choice and seed rules move into a pure module next to `HeldChoice`, and the
+  session keeps only runs (devtools; ADR-QD-137/150 untouched)
+- 75: A declared question/answer span shape for the `qadi.evaluate` family, built with `spanStruct`: a failed span
+  carries the question and the outcome uses one key. Tracers will see this, so it has a human checkpoint (core)
+- 76: Remedies uses core's signature-matching rule instead of its own copy, without exporting `SignatureMatch`
+  (ADR-QD-099); may end in a recorded rejection (devtools + core)
+
+**Source review and evidence:** `/var/folders/vn/44p0pxgs4z98v7cl11l4_r4c0000gp/T/architecture-review-20261122-075438.html`
+(session-scoped; `.planning/phases/_WAVE13-CONTEXT.md` holds everything a planner needs). Branch `arch-wave-13`, based
+on `main` at `2716def4` (v1.6 + v1.7 merged as #163). No merge, no release.
+
+v1.8 Arch Wave 13 completed 2026-11-23 on branch `arch-wave-13` (630 commits; 198 files, +17,915 / −2,874 outside
+`.planning`): ARCH-116 to ARCH-123, ADR-QD-182 to ADR-QD-189, amendments to ADR-QD-033, 041, 047, 051, 052, 058, 094,
+103, 109, 111, 140, 152, 162, 163, 168 and 169, and CCR-QD-461..468. All 8 phases `passed`, Nyquist-compliant and
+secured (0 open threats). Each phase ran a three-iteration code review and re-closed its mutation measurement after it.
+Every choice was decided autonomously under the owner's standing instruction (take the most complete, clean solution),
+including Phase 75's checkpoint (one outcome key, `qadi.outcome`) and Phase 76's owner question (a change, not a recorded
+rejection). The audit is `passed`: 47/47 requirements, 14/14 integration points, 4/4 flows. It added a canary pinning
+Effect's `String(cause)` totality and moved the fixture-judgement helpers out of the file the span contract imports. It
+then re-verified the six phases that later work had made stale. `check:pr` exited 0 at the end of every phase and last at
+`5640572d`. Ten changesets: three Breaking minors (`@qadi/core` ×2: `qadi.decision` → `qadi.outcome`, the removed
+`ActedEvent`/`ActedAnywhere`/`ActedAnywhereInput` and the optional error members; `@qadi/http` ×1: the optional
+members on the wire), one non-breaking `@qadi/core` minor (`thrownMessage`, `causeMessage`) and six patches. A 0.13
+upgrade-guide section. **Not merged and not released.** Archive: `.planning/milestones/v1.8-ROADMAP.md`,
+`v1.8-REQUIREMENTS.md`, `v1.8-MILESTONE-AUDIT.md`.
 
 ## Previous Milestone: v1.7 Arch Wave 12 (completed 2026-11-22; not released)
 
@@ -95,6 +138,21 @@ threshold that never opens, a failing user sink that loses records unlogged), th
 `arch-wave-9` at `ba0d0615` (v1.4 is not merged). No merge, no release.
 
 ## Current State
+
+v1.8 Arch Wave 13 completed 2026-11-23 on branch `arch-wave-13` (see the v1.8 entry above). All eight candidates of the
+2026-11-22 architecture review are resolved:
+- every "never throws" function in core stays total for a hostile value, through one exported rule (`thrownMessage`,
+  `causeMessage`);
+- hydration's drop events come from its reason-keyed buckets;
+- every developer-signal reporter is resolved through one table, with the option-name drift fixed;
+- the dock model's computed stores are derived stores;
+- gate registration is one pure `reconcile`;
+- the simulation session's policy choice is a pure seeded choice beside its runs;
+- the evaluate family's spans are declared once, with one outcome key and a failed span that says what was asked;
+- whether a fixture row meets a signature or acted leaf is core's own answer, and a refused value fails typed wherever it
+  is read.
+
+Nothing is merged or released, and the next milestone is not yet defined.
 
 v1.7 Arch Wave 12 completed 2026-11-22 on branch `arch-wave-12` (see the v1.7 entry above): every tech-debt item the
 v1.6 audit carried is resolved by a change or a recorded decision. Negative type pins can fail and are budgeted, gate 14
@@ -299,6 +357,14 @@ logged, counted or spanned.
 - ✓ ARCH-114 No equivalent mutants, no magic race bound (MUTE-01..04): `DecisionCache` eviction rewritten with no branch that cannot be taken (FIFO order and capacity validation unchanged), `SharedComputation`'s claim arms a closed table (CCR-QD-458 measured it against the hoisted `Match`), and the I5 race test iterates until both orderings are seen at every budget instead of asserting `gap <= 48`; mutation held — v1.7, Phase 67 (BEH-QD-166, INV-QD-379)
 - ✓ ARCH-115 Hygiene and recorded close-outs (HYGN-01..07): over-width lines and stale titles fixed, ADR-QD-174 line 73, port cards stay package-private (D3, ADR-QD-173 amended), the Phase 61 scan's `Simulator.test.tsx` gap evidenced, OI-01..29 each closed or recorded, Phases 62–67 re-verified, bench of record vs `3d66becb` — v1.7, Phase 68 (CCR-QD-459)
 - ✓ DEBT-01..06 The v1.7 audit's fixable debt (inserted Phase 68.1): `ab.sh` refuses an odd or short round count, `analyze.mjs` exits 0/1/2 with its self-test as `pnpm check` step 26, corrected staleness and type-aware comparison scripts re-checked all of Phase 68's verdicts (none flipped), gate 14's probe-guard parse runs in a time-limited child, and all eight phases carry validated Nyquist records — v1.7, Phase 68.1 (ADR-QD-033 Rev 1.6, CCR-QD-460)
+- ✓ ARCH-116 One total thrown-value-to-message module (THRW-01..05): `@qadi/core` exports `thrownMessage` and `causeMessage`, total over a hostile value (throwing getters, proxies, an unrenderable cause fall to the fixed words); six inline copies in core plus the copies in http, react and devtools read through them, one `Cause.pretty` call left; a `null` capture cause records `"null"` — v1.8, Phase 69 (ADR-QD-182, INV-QD-383/384, BEH-QD-681..685, CCR-QD-461)
+- ✓ ARCH-117 Hydration's drop events come from its buckets (DRPE-01..05): each entry drop is collected in a reason-keyed record (`DropBuckets`, total over core's reason unions, a missing key a compile error) and `EntriesDropped`/`LeftOut` are derived from it by `dropEvents`; the whole-payload refusal reason comes from a producer record and its checked inverse instead of a hand-written `Match`; events, order and counts unchanged (32-row characterisation) — v1.8, Phase 70 (ADR-QD-183, ADR-QD-152 amended, INV-QD-385/386, BEH-QD-686..690, CCR-QD-462)
+- ✓ ARCH-118 Developer-signal reporters resolved through one table (SIGR-01..05): `SIGNALS`, total over every `DeveloperSignal` tag (a missing row a compile error), states each signal's condition, frequency, per-entry-point resolution time and option name; `reporterFor` is the one resolver, `contain`, `once` and `holdsHere` each written once; a throwing `onIdCollision` reporter is now named `onIdCollision`; the process-wide latch is the one module-scope binding, held by `MODULE_STATE_BUDGET` — v1.8, Phase 71 (ADR-QD-184, ADR-QD-041/052/033 amended, INV-QD-387/388, BEH-QD-691..695, CCR-QD-463)
+- ✓ ARCH-119 A derived store behind the dock model's stores (DERV-01..05): `ExternalStore.ts`'s package-private `makeDerivedStore` owns key equality over every own enumerable string-keyed key field (an optional key field and a compute reading outside its key refused by type), commits the key only after compute returns, notifies once, stops when its scope closes and on close releases every parent even when a release throws, then rethrows; the dock model's diagnostics, questions and services stores are built with it and `DockModel.ts` keeps no last key or closed flag; the store list is stated once in BEH-QD-700 and pinned by a set test; `DockModel.ts` mutation score stays 1 — v1.8, Phase 72 (ADR-QD-185, ADR-QD-047/162/168/169 amended, INV-QD-389/390, BEH-QD-696..700, CCR-QD-464)
+- ✓ ARCH-120 One pure reconcile for gate registration (RECN-01..05): `GateWriter.ts`'s package-private `reconcile` takes the live registrations and the wanted identities and states as maps keyed by gate id and makes every register, update and unregister call in one pass (live pass first, so a changed identity keeps its id); it never mutates `live` and relies on the writer contract stated on `GateWriter` (`register`, `update`, `unregister` do not throw), which `buildGateRegistry` keeps and tests on the real registry pin; `useGateRegistrations` keeps one ref, the writer-keyed teardown and one registration effect, with no `states.join` diff and no paired `Record.values`; the update half is tested without rendering; 19-row characterisation unchanged — v1.8, Phase 73 (ADR-QD-186, ADR-QD-140/111/103 amended, INV-QD-391/392, BEH-QD-701..705, CCR-QD-465)
+- ✓ ARCH-121 The simulation session's policy choice split from its runs (CHSE-01..05): `@qadi/devtools`' package-private `SeededChoice.ts` is a pure, immutable module that owns the seeded choice — the pin-only-when-unseeded rule, the orphan rule, one menu list its reverse lookup reads (menu order written once) and the same-policy no-op; a transition that changes nothing answers its input reference; `SimulationSession.ts` keeps one `let choice`, its form and its runs, writes the draft only in `writeDraft`, and clears the run only in `clearRun`, called from `reseed`, `choosePolicy` and `setPorts`; `PolicyChoice`, `PolicyMenu` and `PolicyMenuOption` are declared there with names and shapes unchanged; the choice rules are tested as plain values; 35-row characterisation unchanged, held to its first commit by a script — v1.8, Phase 74 (ADR-QD-187, BEH-QD-460/466 and INV-QD-107 amended, INV-QD-393/394, BEH-QD-706..710, CCR-QD-466)
+- ✓ ARCH-122 A declared span shape for the evaluate family (ESPN-01..05): `@qadi/core`'s package-private `EvaluationSpan.ts` declares every span of the family once — `qadi.evaluate`, `qadi.toPredicate`, `qadi.guardHealthCheck`, `qadi.decideSubject`, `qadi.decideSubjects`, `qadi.decideSubjectsStream` — with its name, question and answer built by `spanStruct`, and the denial log line as a log event no span-writing function accepts; a failed evaluate span carries its question (annotated before the lookup), and the outcome sits under one key, `qadi.outcome` (`Allow`/`Deny`/`Failed`), on every decided or typed-failure path, with `qadi.decision` removed (breaking, `@qadi/core` minor changeset, 0.13 upgrade section); an interrupted or defected evaluation carries its question and no outcome; the four writers hold no hand-typed key, and `[span-key-source]`/`[span-key-literal]` with `SPAN_KEY_LITERAL_BUDGET` keep test literals to budgeted goldens; 33-row contract held to its first commit by a script; cost +9.17% geometric mean (about 0.3–0.9 µs per call), recorded, not gated — v1.8, Phase 75 (ADR-QD-188, ADR-QD-051 and ADR-QD-109 amended, INV-QD-395/396, BEH-QD-711..715, CCR-QD-467)
+- ✓ ARCH-123 Remedies uses core's signature match (SIGM-01..05): whether a fixture row meets a `hasSignature` or `hasActed` leaf is `@qadi/core`'s answer — `signatureAnswerFromSignatures` and `actedAnswerFromEvents` share one lookup and one answer rule with the fixture port read, and `SignatureMatch.ts` stays package-private; devtools' remedy table asks core instead of restating the match, and runs every requirement through one guard so it skips with a sentence for any form value; the fixture lookups, both judgements and the port reads over them fail typed for any value (one guarded read in core, `readGuarded`/`readRows`, a total `brandOf`), with `SignatureHistoryUnavailable.subjectId` and `DecisionHistoryUnavailable.event` optional (breaking, `@qadi/core` and `@qadi/http` minor changesets, 0.13 upgrade section); `ActedEvent`, `ActedAnywhere` and `ActedAnywhereInput` removed; the custom-predicate refusal is one sentence, `NO_CUSTOM_PREDICATE_FIELD`; agreement tests (1184 signature, 144 acted cases) held to their first commit by a script; api-surface 940 — v1.8, Phase 76 (ADR-QD-189, ADR-QD-058 and ADR-QD-094 amended, INV-QD-397/398, BEH-QD-716..720, CCR-QD-468)
 
 ### Active
 
@@ -360,7 +426,19 @@ logged, counted or spanned.
 - **Hot spots** (churn over the last 15 commits): react `QadiAtoms`/`Hydration`/`hooks`; http
   `RequirePermission`/`DecisionStreamRoute`; core `SinkCodec`/`Evaluate`/`PortAccess`.
 
-### Known Issues (carried forward from v1.7)
+### Known Issues (carried forward from v1.8)
+
+- The v1.8 audit (`.planning/milestones/v1.8-MILESTONE-AUDIT.md`) is `passed`. It records what no change can undo or what
+  was left by decision:
+  - a policy leaf built untyped with a symbol event would throw in Remedies' `requirementLabel`, outside `readForm`; a
+    decoded policy cannot hold one, and the totality rule (BEH-QD-719) covers form values;
+  - the sibling fixture ports (attribute, relationship, custom predicate) may carry the same latent throw for values
+    only an untyped caller can pass; the rule for them is decided where their fixtures live;
+  - history: three commits that opened the milestone (`5e68b104`, `91d1b6ed`, `1666b620`) lack the trailer; the two
+    milestone-close test changes (`a4741601`, `5640572d`) sit outside any phase's CCR row, and the audit is their
+    record.
+
+### Known Issues (carried forward from v1.7) — unchanged in v1.8
 
 - The v1.7 re-audit (`.planning/milestones/v1.7-MILESTONE-AUDIT.md`) is `passed`; it records what no change can undo or
   what was accepted:
@@ -530,6 +608,14 @@ logged, counted or spanned.
 | Equivalent mutants are restructured away, not ignored; a race test asserts its property, not a step count | Two survivors no test could kill and a `gap <= 48` bound tied to `walk`'s step count hid regressions | Accepted (Phase 67, CCR-QD-458; claim-arm table measured against hoisted `Match`) |
 | Port cards stay package-private (owner D3); records are closed or evidenced, not carried | v1.6's close-outs were carried as prose; each became a fix or a recorded decision | Accepted (Phase 68, ADR-QD-173 amended, CCR-QD-459) |
 | Fix the audit's fixable debt in an inserted phase before completing; Phase 68's record scripts stay as recorded and corrected copies re-check them | Completing with known-fixable defects in the bench harness, gate 14 and the record scripts would carry them a third time; a record keeps the tool that produced it | Accepted (Phase 68.1, ADR-QD-033 Rev 1.6, CCR-QD-460; owner chose "Insert a cleanup phase first", then "Fix inline, then complete" for the re-audit's info findings) |
+| One total rule turns a caught value or a cause into text, exported by core; `String(cause)` on an Effect `Cause` and the two `JSON.parse` catches stay as named exceptions | Six hand-copied `instanceof Error ? … : String(…)` reads each threw on a hostile value and turned a typed failure into a defect | Accepted (Phase 69, ADR-QD-182; `null` cause shown as `"null"` decided autonomously 2026-11-22) |
+| A drop event is derived from the record its drops are collected in; a payload refusal is mapped through a producer record whose inverse the compiler checks; the spec says plainly the compiler cannot check that code drops under a reason | Three drop reasons reached no event and no count when added, because each bucket and its emission line were written by hand (INV-QD-045 broken by construction) | Accepted (Phase 70, ADR-QD-183; folding the payload path in decided autonomously 2026-11-22) |
+| Every developer-signal reporter is resolved through one table; the production latch stays process-wide as the one budgeted module-scope binding | `makeGateRegistry`'s throwing reporter was announced under the atom set's option because each resolver restated the rules by hand, and AGENTS.md §13 denied the latch existed | Accepted (Phase 71, ADR-QD-184; keeping the latch process-scoped and moving the provider's environment check into the row decided autonomously 2026-11-22) |
+| A computed dock store is a scoped derived store that owns its key comparison, stop-after-close and notify-once; a closed model's diagnostics store now stops too; a throwing parent release does not stop the others and the close rethrows | Three hand-built stores each restated a last key, a field-by-field compare and a closed flag, so a key field could be left out of a compare and the diagnostics store kept publishing after close | Accepted (Phase 72, ADR-QD-185; per-field identity over own enumerable string-keyed fields, the store list pinned in-test and compared as a set, and the ADR-QD-177 rethrow-after rule for releases decided autonomously 2026-11-22) |
+| Gate registration is one pure keyed `reconcile`; it handles no throw and relies on a stated writer contract that the real registry keeps and tests pin | The hook diffed state by hand with four refs and three effects over two arrays that had to line up by index, and the registry's equal-state check was a third place deciding the same thing | Accepted (Phase 73, ADR-QD-186; removing the unreachable rollback in favour of the writer contract, the two-effect reading of "one effect", and one-consumer test helpers living in their consumer decided autonomously 2026-11-22) |
+| The simulation session's policy choice is a pure seeded choice beside `HeldChoice.ts`; the session keeps one choice, its form and its runs, with one draft writer and one clear-the-run | The session restated the pin rule, the orphan rule and the menu order in several commands, cleared the run by hand in three places, and wrote the draft outside the one path its `edit` comment claimed | Accepted (Phase 74, ADR-QD-187; a no-op transition answering its input reference, keeping both staleness disjuncts to state BEH-QD-322, a script holding the characterisation to its first commit, and folding every copied devtools test helper onto the shared fixtures decided autonomously 2026-11-23) |
+| The evaluate family's spans are declared once, a failed span says what was asked, and the outcome has one key, `qadi.outcome` | A failed `qadi.evaluate` span carried only its outcome and error tag, the outcome used two keys, and the same keys were hand-typed in four writers and over a hundred test strings, so a tracer filtering by evaluation id or outcome missed half the evaluations | Accepted (Phase 75, ADR-QD-188; one key with no dual write as the checkpoint decision, a family question held to `PoseOf`, a log event refused by every span-writing function, an interrupted evaluation carrying no outcome, a script holding the contract to its first commit, and measuring `PortSpanEncode.ts` only over the lines the phase added decided autonomously 2026-11-23) |
+| Whether a fixture row meets a signature or acted leaf is core's answer, and a refused value fails typed everywhere it is read | Remedies restated core's signature match and the fixture port's scoping inline, diverged from the port on 14 `Any`-scoped acted cases, and a refused fixture row or request died or was answered `NotActed` (an allow) | Accepted (Phase 76, ADR-QD-189; a change rather than a recorded rejection as the owner decision, the two judgements beside their fixture layers, the two error members made optional, the three unused classes removed, and the totality rule extended to every fixture read and to `remedyEdits` in code review, decided autonomously 2026-11-23) |
 
 ## Evolution
 
@@ -549,4 +635,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-22 after v1.7 milestone*
+*Last updated: 2026-11-23 after the v1.8 milestone*

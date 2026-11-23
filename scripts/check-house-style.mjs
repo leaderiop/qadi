@@ -45,6 +45,17 @@
  * The eleventh, `NOT_CALLABLE_PIN_BUDGET`, is test-scope over its own walk of
  * every file tstyche selects, because `collect()` skips `.tst.ts` files; a
  * negative type pin is counted there (ADR-QD-175).
+ * The twelfth, `MODULE_STATE_BUDGET`, is `packages/*\/src` only: a `let` or `var`
+ * binding declared outside every function and class body is state every caller in the
+ * process shares, and a test's own is not library state (ADR-QD-184). Unlike the others
+ * it reads each file's syntax tree (`scripts/lib/module-state-scan.mjs`) and not its
+ * lines, so an indented declaration and each name of `let a, b` count; a `const` holding
+ * a mutable container, a `static` class field, a `declare`d binding and anything a
+ * function declares do not.
+ * The thirteenth, `SPAN_KEY_LITERAL_BUDGET`, is test-scope like
+ * `METRIC_ID_LITERAL_BUDGET` (`packages/<pkg>/test` and `bench`), and also walks
+ * `features/features` and every type-test file tstyche selects; it and
+ * `[span-key-source]` are described where they run, below (ADR-QD-188).
  *
  * The three whole-file, cross-line-break checks below (`no-prefixed-error-tag`,
  * `no-catchtags-object-form`, `no-named-effect-submodule-import`) already run
@@ -87,6 +98,11 @@ import { dirname, join, relative } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { RAW_DECISION_READ } from "./lib/raw-decision-read.mjs";
 import { CHARACTERISATION, walkTypeTests } from "./lib/type-tests.mjs";
+import {
+  failureCause,
+  installedTypescriptVersion,
+  runTypescriptChild,
+} from "./lib/typescript-server-child.mjs";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 
@@ -671,6 +687,52 @@ const UNTRUSTED_DECODE_TOKEN = /\bonExcessProperty\b|\bexceedsJsonDepth\b|\bSche
 const UNTRUSTED_DECODE_LINES = new Map();
 
 /**
+ * Module-scope `let` and `var` bindings in library source, by file and exact count
+ * (ADR-QD-184).
+ *
+ * A binding is counted when a `let` or `var` declares it outside every function and class
+ * body, read from the file's syntax tree (`scripts/lib/module-state-scan.mjs`) and not from
+ * its text: `export let`, an indented declaration, one inside a top-level block, a loop's own
+ * `let`, and each name of `let a, b` or of a destructuring pattern. A `const` is not counted,
+ * and neither is a `const` holding a mutable container (`Policy.ts`'s depth memo, a metric),
+ * a `static` class field, a `declare`d binding (a type's statement about a global, no
+ * runtime binding of the module) or anything a function declares: rebinding a module-scope
+ * name is what makes it state a caller cannot see.
+ *
+ * The production-instrumentation line is printed once per process however many
+ * providers mount, so the latch that remembers it cannot live under an atom set
+ * or a provider, both of which are narrower than a process. Checked in both directions,
+ * with a names guard and a check that AGENTS.md section 6's table lists exactly these files,
+ * like `UNTRUSTED_DECODE_BUDGET`.
+ *
+ * @type {Readonly<Record<string, number>>}
+ */
+const MODULE_STATE_BUDGET = {
+  // The latch that lets the production-instrumentation default speak once per process.
+  "packages/react/src/DeveloperSignals.ts": 1,
+};
+
+/**
+ * The binding each `MODULE_STATE_BUDGET` file's count belongs to, checked to be one of the
+ * bindings the scan counted there (the rename guard `UNTRUSTED_DECODE_BUDGET_NAMES` gives
+ * its table).
+ *
+ * @type {Readonly<Record<string, ReadonlyArray<string>>>}
+ */
+const MODULE_STATE_BUDGET_NAMES = {
+  "packages/react/src/DeveloperSignals.ts": ["warnedInstrumentedInProduction"],
+};
+
+/**
+ * Where the scan of module-scope bindings reads each file, and how long it may take: the
+ * TypeScript server behind it has no timeout of its own, so a call that never returns is
+ * killed here, with that server (`scripts/lib/typescript-server-child.mjs`), and fails the
+ * check.
+ */
+const MODULE_STATE_SCAN = join(ROOT, "scripts", "lib", "module-state-scan.mjs");
+const MODULE_STATE_SCAN_TIMEOUT_MS = 120_000;
+
+/**
  * Type-test files holding a negative `toBeCallableWith` or `toBeConstructableWith` pin, by
  * file and exact count of each (ADR-QD-175).
  *
@@ -692,6 +754,7 @@ const NOT_CALLABLE_PIN_BUDGET = {
   "packages/core/test/Decision.tst.ts": { callable: 0, constructable: 7 },
   "packages/core/test/DecisionCache.tst.ts": { callable: 3, constructable: 0 },
   "packages/core/test/EvaluationEnvironment.tst.ts": { callable: 4, constructable: 0 },
+  "packages/core/test/EvaluationSpan.tst.ts": { callable: 6, constructable: 0 },
   "packages/core/test/Explanation.tst.ts": { callable: 2, constructable: 0 },
   // The characterisation of tstyche's reading under each `floatingEffect` setting: its bare negative pins pin the tool, not an API.
   [CHARACTERISATION]: { callable: 7, constructable: 3 },
@@ -1751,6 +1814,128 @@ for (const [rel, names] of Object.entries(UNTRUSTED_DECODE_BUDGET_NAMES)) {
 }
 
 // ---------------------------------------------------------------------------
+// AGENTS.md section 6 / ADR-QD-184 — module-scope `let` and `var` bindings in library
+// source are counted per file and allowed only where the table lists them with a reason.
+// Checked in both directions like the budgets above: a new `let` or `var` is a
+// reviewed edit, and a count moving means the table describes code that changed.
+// ---------------------------------------------------------------------------
+
+/**
+ * The module-scope `let` and `var` bindings of every library source file, by repo-relative path,
+ * each with the line it is declared on.
+ *
+ * @type {Map<string, Array<{ name: string, line: number }>>}
+ */
+const MODULE_STATE_FOUND = new Map();
+{
+  const libraryFiles = srcSources.filter((file) => relative(ROOT, file).startsWith("packages/"));
+  try {
+    const out = runTypescriptChild(MODULE_STATE_SCAN, [ROOT, ...libraryFiles], {
+      timeoutMs: MODULE_STATE_SCAN_TIMEOUT_MS,
+    });
+    const scanned = JSON.parse(out);
+    for (const [file, bindings] of Object.entries(scanned.bindings)) {
+      MODULE_STATE_FOUND.set(relative(ROOT, file), bindings);
+    }
+    for (const file of scanned.unparsed) {
+      failures += 1;
+      console.error(
+        `${relative(ROOT, file)}  [module-state-scan] is in no packages/*/tsconfig.src.json ` +
+          `project, so its module-scope bindings were not read.`,
+      );
+    }
+  } catch (error) {
+    failures += 1;
+    console.error(
+      `scripts/lib/module-state-scan.mjs  [module-state-scan] could not read library source ` +
+        `with typescript@${installedTypescriptVersion(ROOT)}'s unstable API, which a ` +
+        `TypeScript upgrade can move: ${failureCause(error, MODULE_STATE_SCAN_TIMEOUT_MS)}`,
+    );
+  }
+}
+
+/** A file's bindings as `name (line n)`, for a failure message. */
+const describeBindings = (found) =>
+  found.map(({ name, line }) => `${name} (line ${line})`).join(", ");
+
+for (const [rel, budget] of Object.entries(MODULE_STATE_BUDGET)) {
+  const found = MODULE_STATE_FOUND.get(rel) ?? [];
+  if (found.length !== budget) {
+    failures += 1;
+    console.error(
+      `${rel}  [module-state] declares ${budget} module-scope let/var binding(s), ` +
+        `found ${found.length}${found.length > 0 ? `: ${describeBindings(found)}` : ""}.\n` +
+        `    Update MODULE_STATE_BUDGET in scripts/check-house-style.mjs and AGENTS.md ` +
+        `section 6's module-state table, with the reason, so they agree.`,
+    );
+  }
+}
+
+for (const [rel, found] of MODULE_STATE_FOUND) {
+  if (rel in MODULE_STATE_BUDGET) continue;
+  failures += 1;
+  console.error(
+    `${rel}  [module-state] A module-scope let or var in library source: ` +
+      `${describeBindings(found)}.\n` +
+      `    A rebindable module-scope name is allowed only where AGENTS.md section 6 lists ` +
+      `it with a reason (ADR-QD-184).`,
+  );
+}
+
+for (const [rel, names] of Object.entries(MODULE_STATE_BUDGET_NAMES)) {
+  const counted = (MODULE_STATE_FOUND.get(rel) ?? []).map(({ name }) => name);
+  for (const name of names) {
+    if (counted.includes(name)) continue;
+    failures += 1;
+    console.error(
+      `${rel}  [module-state-names] MODULE_STATE_BUDGET's reason names \`${name}\`, ` +
+        `but the scan counts no such let or var binding in this file any more: renamed ` +
+        `without updating the budget's names.`,
+    );
+  }
+}
+
+// AGENTS.md section 6's module-state table is the budget stated for readers: its file
+// column must be exactly the budget's keys, with the same counts.
+{
+  const agents = readFileSync(join(ROOT, "AGENTS.md"), "utf8").replace(/\r\n/g, "\n").split("\n");
+  const header = agents.findIndex((l) =>
+    /^\|\s*Module-scope state\s*\|\s*Count\s*\|\s*Why\s*\|/.test(l),
+  );
+  /** @type {Map<string, number>} */
+  const listed = new Map();
+  if (header !== -1) {
+    for (let i = header + 2; i < agents.length && agents[i].startsWith("|"); i += 1) {
+      const m = /^\|\s*`([^`]+)`\s*\|\s*`?(\d+)`?\s*\|/.exec(agents[i]);
+      if (m !== null) listed.set(m[1], Number(m[2]));
+    }
+  }
+  if (header === -1) {
+    failures += 1;
+    console.error(
+      "AGENTS.md  [module-state-table] the section 6 `| Module-scope state | Count | Why |` " +
+        "table was not found.",
+    );
+  }
+  for (const [rel, count] of listed) {
+    if (rel in MODULE_STATE_BUDGET && MODULE_STATE_BUDGET[rel] === count) continue;
+    failures += 1;
+    console.error(
+      `AGENTS.md  [module-state-table] section 6 lists ${rel} (${count}), ` +
+        `which MODULE_STATE_BUDGET does not match.`,
+    );
+  }
+  for (const rel of Object.keys(MODULE_STATE_BUDGET)) {
+    if (listed.has(rel)) continue;
+    failures += 1;
+    console.error(
+      `AGENTS.md  [module-state-table] ${rel} is in MODULE_STATE_BUDGET ` +
+        `with no row in section 6's table.`,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // §4 — Data.TaggedError tags carry no "qadi/" prefix, checked across line
 // breaks. A per-line regex here would miss `Data.TaggedError(\n  "qadi/X",\n)`
 // — most of Errors.ts's classes are written exactly that way — so this reads
@@ -2227,6 +2412,284 @@ for (const file of srcSources) {
       `${rel}  [metric-id-literal] ${found} \`"qadi_…"\` id literal(s) outside a test title.\n` +
         `    A test reads a metric through its export (\`Metric.value(decisionsTotal.Allow)\`); a literal id ` +
         `belongs in a pin, added to METRIC_ID_LITERAL_BUDGET with its exact count (ADR-QD-123).`,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ADR-QD-188 — a span key of the evaluate family is declared once, in
+// `EvaluationSpan.ts`, and read through that declaration. Three rules, none of
+// which is a new gate number (they run inside this script, which `pnpm lint` runs):
+//
+//   [span-key-source]  the key set is read from the declaration, never from a
+//     list of this script's own, and no other library file spells or mentions a key.
+//   [span-key-literal]  SPAN_KEY_LITERAL_BUDGET: a test builds a record with
+//     `encodeSpan` (a log line's with `logAnnotations`) and reads one with
+//     `decodeSpan`, and a key typed by hand belongs in a golden, counted per file. A
+//     key that opens the title of a `describe`, `it`, `it.<effect|scoped|live|layer>`
+//     or `test` call is not counted; one passed to a method call is. It walks
+//     `packages/<pkg>/test` and `bench`, `features/features` (its `.test.ts` step
+//     files included) and every type-test file tstyche selects
+//     (`scripts/lib/type-tests.mjs`).
+//   [span-key-literal-table]  AGENTS.md section 6's table and the budget agree.
+// ---------------------------------------------------------------------------
+
+/** The one file that spells each key of the family. */
+const SPAN_KEY_DECLARATION = "packages/core/src/EvaluationSpan.ts";
+
+/** The file whose `sharedQuestionKeys.subjectId` is the family's subject id key. */
+const SPAN_KEY_SHARED = "packages/core/src/PortSpanEncode.ts";
+
+/**
+ * The size of the family's key set when the rule was written.
+ *
+ * An extraction that finds fewer fails, so renaming the declaration cannot empty the
+ * rule and let every check below pass with nothing to compare.
+ */
+const SPAN_KEY_MIN = 11;
+
+/**
+ * The exact count of quoted family-key literals per test file, outside a
+ * `describe(`/`it(`/`test(` title. Each is a golden row: the one place a test
+ * restates a key (ADR-QD-188). Checked in both directions like
+ * `METRIC_ID_LITERAL_BUDGET`, so a key typed anywhere else fails until it is written
+ * down with its reason.
+ *
+ * @type {Readonly<Record<string, number>>}
+ */
+const SPAN_KEY_LITERAL_BUDGET = {
+  // The port-span golden: it pins the shared subject id key of the port spans.
+  "packages/core/test/Evaluate.test.ts": 12,
+  // The tracer-facing golden: it writes every key literally on purpose.
+  "packages/core/test/EvaluationSpan.contract.test.ts": 96,
+  // The port-span golden for the attribute read: the shared subject id key.
+  "packages/core/test/PortAccess.test.ts": 3,
+  // The port-span golden for a served port: the shared subject id key.
+  "packages/core/test/PortServe.test.ts": 5,
+  // The port-span golden for the span struct: the shared subject id key.
+  "packages/core/test/PortSpan.test.ts": 9,
+  // The port-span golden for a translation: the shared subject id key.
+  "packages/core/test/Predicate.test.ts": 3,
+  // It pins the shared subject id key on a port call.
+  "packages/devtools/test/model/PortCalls.test.ts": 1,
+  // It pins that devtools' own log line carries no reason key.
+  "packages/devtools/test/model/Source.test.ts": 2,
+  // An arbitrary attribute in a tracer test.
+  "packages/testing/test/CollectingTracer.test.ts": 2,
+};
+
+// A key in any quote form, double, single or backtick, with digits allowed after its
+// first letter, so the declaration cannot hold a key this script does not see.
+const SPAN_KEY_LITERAL_SHAPE = /(["'`])(qadi\.[a-z][a-z0-9_]*)\1/g;
+const SPAN_KEY_SHARED_SHAPE =
+  /sharedQuestionKeys[^{]*\{[^}]*\bsubjectId:\s*(["'`])(qadi\.[a-z][a-z0-9_]*)\1/;
+
+// The key set is read from the declaration: every quoted key on a line that is neither a
+// comment nor a `name:` line (the span names), plus the shared subject id key. Any other
+// `qadi.` on such a line is one the extraction cannot read (a key built from parts, an
+// interpolated template, a capital letter), and is refused, so a declaration the rule
+// reads only partly fails rather than shrinking the key set.
+/** @type {Map<string, number[]>} */
+const declaredSpanKeys = new Map();
+/** @type {Array<{ readonly line: number, readonly text: string }>} */
+const unreadSpanKeys = [];
+/** @type {string | undefined} */
+let sharedSpanKey;
+{
+  const read = (rel) => readFileSync(join(ROOT, rel), "utf8").replace(/\r\n/g, "\n");
+  read(SPAN_KEY_DECLARATION)
+    .split("\n")
+    .forEach((line, index) => {
+      if (isCommentLine(line) || /^\s*name:/.test(line)) return;
+      for (const m of line.matchAll(SPAN_KEY_LITERAL_SHAPE)) {
+        declaredSpanKeys.set(m[2], [...(declaredSpanKeys.get(m[2]) ?? []), index + 1]);
+      }
+      const rest = line.replace(SPAN_KEY_LITERAL_SHAPE, "");
+      if (/qadi\./.test(rest)) {
+        unreadSpanKeys.push({ line: index + 1, text: line.trim() });
+      }
+    });
+  sharedSpanKey = SPAN_KEY_SHARED_SHAPE.exec(read(SPAN_KEY_SHARED))?.[2];
+}
+const spanKeys = new Set(declaredSpanKeys.keys());
+if (sharedSpanKey !== undefined) spanKeys.add(sharedSpanKey);
+const spanKeyRule = spanKeys.size >= SPAN_KEY_MIN;
+const spanKeyAlternation = [...spanKeys]
+  .map((k) => k.replaceAll(".", "\\."))
+  .join("|");
+
+{
+  const through = "read it through EvaluationSpan.ts (ADR-QD-188)";
+  if (sharedSpanKey === undefined) {
+    failures += 1;
+    console.error(
+      `${SPAN_KEY_SHARED}  [span-key-source] \`sharedQuestionKeys.subjectId\` ` +
+        "cannot be read, so the key set is incomplete.",
+    );
+  }
+  for (const { line, text } of unreadSpanKeys) {
+    failures += 1;
+    console.error(
+      `${SPAN_KEY_DECLARATION}:${line}  [span-key-source] holds a \`qadi.\` the key ` +
+        "extraction cannot read; spell each key whole, as one quoted literal of " +
+        `lower-case letters, digits and underscores.\n    ${text}`,
+    );
+  }
+  if (!spanKeyRule) {
+    failures += 1;
+    console.error(
+      `${SPAN_KEY_DECLARATION}  [span-key-source] the key set holds ${spanKeys.size} ` +
+        `key(s), fewer than SPAN_KEY_MIN (${SPAN_KEY_MIN}); the declaration moved or ` +
+        "was emptied, so no key is checked.",
+    );
+  }
+  for (const [key, lines] of declaredSpanKeys) {
+    if (lines.length > 1) {
+      failures += 1;
+      console.error(
+        `${SPAN_KEY_DECLARATION}:${lines.join(",")}  [span-key-source] \`${key}\` is ` +
+          "spelled more than once; a key is spelled once and every field reads it.",
+      );
+    }
+    if (key === sharedSpanKey) {
+      failures += 1;
+      console.error(
+        `${SPAN_KEY_DECLARATION}:${lines.join(",")}  [span-key-source] spells the ` +
+          `shared key \`${key}\`; read it from sharedQuestionKeys in ${SPAN_KEY_SHARED}.`,
+      );
+    }
+  }
+  if (spanKeys.size > 0) {
+    const mention = new RegExp(
+      `(?<![A-Za-z0-9_.$])(?:${spanKeyAlternation})(?![A-Za-z0-9_.])`,
+    );
+    for (const file of srcSources) {
+      const rel = relative(ROOT, file);
+      if (rel === SPAN_KEY_DECLARATION) continue;
+      const lines = readFileSync(file, "utf8").replace(/\r\n/g, "\n").split("\n");
+      let shared = 0;
+      lines.forEach((raw, index) => {
+        const m = mention.exec(raw);
+        if (m === null) return;
+        if (rel === SPAN_KEY_SHARED && m[0] === sharedSpanKey) {
+          shared += 1;
+          if (shared === 1) return;
+        }
+        failures += 1;
+        console.error(
+          `${rel}:${index + 1}  [span-key-source] mentions the span key \`${m[0]}\`; ` +
+            `${through}.\n    ${raw.trim()}`,
+        );
+      });
+    }
+  }
+}
+
+if (spanKeyRule) {
+  // A title is the first argument of a test call head, never of a method call: the head
+  // follows neither a `.` nor a name character, so `pattern.test("qadi.…")` is counted.
+  const literal = new RegExp(
+    "(?<!(?:^|[^.\\w$])(?:describe|it|test|it\\.effect|it\\.scoped|it\\.live|it\\.layer)" +
+      `\\(\\s*)(["'\`])(?:${spanKeyAlternation})\\1`,
+    "g",
+  );
+  /** @type {Map<string, number>} */
+  const literalCounts = new Map();
+  // A set: `collect` keeps a `.tst.tsx` file, which the type-test walk finds too.
+  const spanKeyTestFiles = new Set([
+    ...testSourceSet,
+    ...collect(join(ROOT, "features", "features"), { includeTests: true }),
+    ...typeTests.map((rel) => join(ROOT, rel)),
+  ]);
+  for (const file of spanKeyTestFiles) {
+    const rel = relative(ROOT, file);
+    const text = readFileSync(file, "utf8")
+      .replace(/\r\n/g, "\n")
+      .split("\n")
+      .map((l) => (isCommentLine(l) ? "" : l))
+      .join("\n");
+    const n = (text.match(literal) ?? []).length;
+    if (n > 0) literalCounts.set(rel, n);
+  }
+  for (const [rel, budget] of Object.entries(SPAN_KEY_LITERAL_BUDGET)) {
+    const found = literalCounts.get(rel) ?? 0;
+    if (found !== budget) {
+      failures += 1;
+      console.error(
+        `${rel}  [span-key-literal] declares ${budget} quoted span key literal(s), ` +
+          `found ${found}.\n    Update SPAN_KEY_LITERAL_BUDGET in ` +
+          "scripts/check-house-style.mjs and AGENTS.md section 6's table so they agree.",
+      );
+    }
+  }
+  for (const [rel, found] of literalCounts) {
+    if (rel in SPAN_KEY_LITERAL_BUDGET) continue;
+    failures += 1;
+    console.error(
+      `${rel}  [span-key-literal] ${found} quoted span key literal(s) outside a test ` +
+        "title.\n    A test builds a record with `encodeSpan` and reads a value with " +
+        "`decodeSpan` or `struct.keys`; a literal key belongs in a golden, added to " +
+        "SPAN_KEY_LITERAL_BUDGET with its exact count (ADR-QD-188).",
+    );
+  }
+}
+
+// AGENTS.md section 6's table is the budget stated for readers: its file column must be
+// exactly the budget's keys, with the same count.
+{
+  const agents = readFileSync(join(ROOT, "AGENTS.md"), "utf8")
+    .replace(/\r\n/g, "\n")
+    .split("\n");
+  const header = agents.findIndex((l) =>
+    /^\|\s*Test file\s*\|\s*Span-key literals\s*\|\s*Why\s*\|/.test(l)
+  );
+  /** @type {Map<string, number>} */
+  const listed = new Map();
+  if (header === -1) {
+    failures += 1;
+    console.error(
+      "AGENTS.md  [span-key-literal-table] the section 6 " +
+        "`| Test file | Span-key literals | Why |` table was not found.",
+    );
+  } else {
+    for (let i = header + 2; i < agents.length && agents[i].startsWith("|"); i += 1) {
+      const m = /^\|\s*`([^`]+)`\s*\|\s*(\d+)\s*\|\s*\S/.exec(agents[i]);
+      if (m === null) {
+        failures += 1;
+        console.error(
+          `AGENTS.md:${i + 1}  [span-key-literal-table] a row that is not ` +
+            "`file` | count | why.",
+        );
+        continue;
+      }
+      if (listed.has(m[1])) {
+        failures += 1;
+        console.error(
+          `AGENTS.md:${i + 1}  [span-key-literal-table] lists ${m[1]} a second time; ` +
+            "one row per file.",
+        );
+        continue;
+      }
+      listed.set(m[1], Number(m[2]));
+    }
+  }
+  for (const [rel, n] of listed) {
+    const budget = Object.hasOwn(SPAN_KEY_LITERAL_BUDGET, rel)
+      ? SPAN_KEY_LITERAL_BUDGET[rel]
+      : undefined;
+    if (budget === n) continue;
+    failures += 1;
+    console.error(
+      `AGENTS.md  [span-key-literal-table] section 6 lists ${rel} (${n}), which ` +
+        "SPAN_KEY_LITERAL_BUDGET does not match.",
+    );
+  }
+  for (const rel of Object.keys(SPAN_KEY_LITERAL_BUDGET)) {
+    if (listed.has(rel)) continue;
+    failures += 1;
+    console.error(
+      `AGENTS.md  [span-key-literal-table] ${rel} is in SPAN_KEY_LITERAL_BUDGET with ` +
+        "no row in section 6's table.",
     );
   }
 }

@@ -16,6 +16,7 @@ import {
   FIELD_ORDER,
   FIXTURE_DATA,
   GRANT_KINDS,
+  NO_CUSTOM_PREDICATE_FIELD,
   SIMULATION_FIELDS,
   fieldOps,
   fixtureData,
@@ -133,11 +134,15 @@ describe("what the ports are fed from", () => {
   });
 
   it("says why a custom predicate has no cell", () => {
-    assert.deepStrictEqual(FIXTURE_DATA.CustomPredicate, {
+    assert.deepStrictEqual(NO_CUSTOM_PREDICATE_FIELD, {
       _tag: "NoFormVocabulary",
       reason:
-        "a custom predicate's answer has no small typed value to type in; it answers from Snapshot or Live",
+        "a custom predicate's answer has no form field; run against Snapshot or Live",
     });
+  });
+
+  it("the custom-predicate cell is the one shared no-vocabulary value", () => {
+    assert.strictEqual(FIXTURE_DATA.CustomPredicate, NO_CUSTOM_PREDICATE_FIELD);
   });
 });
 

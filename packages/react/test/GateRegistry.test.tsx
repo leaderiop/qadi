@@ -13,11 +13,7 @@ import {
   EvaluationServicesNone,
   eq,
   hasAttribute,
-  hasPermission,
-  hasRole,
   literal,
-  makeSubject,
-  permission,
   portsLayer,
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
@@ -35,7 +31,6 @@ import {
   useDecision,
   useGateInstances,
   useInvalidate,
-  usePolicies,
   useProjected,
   useQuestions,
 } from "../src/hooks.ts";
@@ -43,16 +38,18 @@ import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 import type { QadiAtoms } from "../src/QadiAtoms.ts";
 import { MissingQadiProviderError } from "../src/QadiProvider.tsx";
 import { QadiProvider } from "../src/QadiProvider.tsx";
-
-const canRead = hasPermission(permission("doc", "read"));
-const canWrite = hasPermission(permission("doc", "write"));
-const isAdmin = hasRole("admin");
-
-const alice = makeSubject({ id: "u1", permissions: ["doc:read"] });
-const docA = { type: "doc", id: "a" };
-const docB = { type: "doc", id: "b" };
-
-const atoms = () => makeQadiAtoms(EvaluationServicesNone);
+import { listenTo, notificationsOf } from "./support/gates.ts";
+import {
+  alice,
+  atoms,
+  canRead,
+  canWrite,
+  docA,
+  docB,
+  Group,
+  isAdmin,
+  providerTree,
+} from "./support/trees.tsx";
 
 // Each mount builds its own atom set, so its registry is its own: no test reads
 // another's guards, and nothing needs resetting between them (ADR-QD-080).
@@ -61,11 +58,7 @@ let current: QadiAtoms = atoms();
 const mount = (children: ReactNode, instrument: boolean) => {
   const set = atoms();
   current = set;
-  return render(
-    <QadiProvider atoms={set} subject={alice} instrument={instrument}>
-      {children}
-    </QadiProvider>,
-  );
+  return render(providerTree(set, children, { instrument }));
 };
 
 /**
@@ -74,24 +67,15 @@ const mount = (children: ReactNode, instrument: boolean) => {
  */
 const rerenderedGate = (strict: boolean, first: ReactNode, second: ReactNode) => {
   const set = atoms();
-  let told = 0;
-  set.gates.subscribe(() => {
-    told += 1;
-  });
-  const tree = (child: ReactNode) => {
-    const provider = (
-      <QadiProvider atoms={set} subject={alice} instrument>
-        {child}
-      </QadiProvider>
-    );
-    return strict ? <StrictMode>{provider}</StrictMode> : provider;
-  };
+  const told = notificationsOf(set.gates);
+  const tree = (child: ReactNode) =>
+    providerTree(set, child, { instrument: true, strict });
   const view = render(tree(first));
   const idAtMount = set.gates.instances()[0]?.id;
-  const afterMount = told;
+  const afterMount = told();
   view.rerender(tree(second));
   const instances = set.gates.instances();
-  const notifications = told - afterMount;
+  const notifications = told() - afterMount;
   view.unmount();
   return { idAtMount, instances, notifications, left: set.gates.instances() };
 };
@@ -278,51 +262,6 @@ describe("instrumented, a guard says it exists", () => {
     expect(gateInstances()[0]?.resource).toBe(resource);
   });
 
-  it("does NOT re-register on a render with a fresh, structurally equal policy and resource (ticket 141)", () => {
-    // AGENTS.md §13 blesses passing an inline policy/resource literal — a fresh
-    // object every render — and relies on `Atom.family`'s structural keying to
-    // share the underlying atom anyway. Before the fix, the registration
-    // effect's dependency array compared `policy`/`resource` by reference, so
-    // this exact pattern unregistered and re-registered the instance (two
-    // `changed()` notifications) on every single render, even though nothing
-    // about the question or its answer changed.
-    const shared = atoms();
-    let notified = 0;
-    const unsubscribe = shared.gates.subscribe(() => {
-      notified += 1;
-    });
-
-    const Wrapper = ({ tick }: { tick: number }) => (
-      <Can policy={hasPermission(permission("doc", "read"))} resource={{ id: "doc-1" }}>
-        {`allowed-${tick}`}
-      </Can>
-    );
-
-    const view = render(
-      <QadiProvider atoms={shared} subject={alice} instrument>
-        <Wrapper tick={0} />
-      </QadiProvider>,
-    );
-
-    const idBefore = shared.gates.instances()[0]?.id;
-    const notifiedAfterMount = notified;
-
-    view.rerender(
-      <QadiProvider atoms={shared} subject={alice} instrument>
-        <Wrapper tick={1} />
-      </QadiProvider>,
-    );
-
-    expect(shared.gates.instances()).toHaveLength(1);
-    // The SAME instance, not one torn down and rebuilt.
-    expect(shared.gates.instances()[0]?.id).toBe(idBefore);
-    // No unregister/re-register churn from the re-render.
-    expect(notified).toBe(notifiedAfterMount);
-
-    unsubscribe();
-    view.unmount();
-  });
-
   it("drops an instance when it unmounts", () => {
     const view = mount(<Can policy={canRead}>allowed</Can>, true);
     expect(gateInstances()).toHaveLength(1);
@@ -397,21 +336,18 @@ describe("what the page still renders", () => {
 describe("the registry, read from a host", () => {
   it("tells a subscribed host on mount, and not after it unsubscribed", () => {
     const set = atoms();
-    let notified = 0;
-    const unsubscribe = set.gates.subscribe(() => {
-      notified += 1;
-    });
+    const { told, unsubscribe } = listenTo(set.gates);
     const view = render(
       <QadiProvider atoms={set} subject={alice} instrument>
         <Can policy={canRead}>allowed</Can>
       </QadiProvider>,
     );
-    expect(notified).toBeGreaterThan(0);
+    expect(told()).toBeGreaterThan(0);
 
     unsubscribe();
-    const settled = notified;
+    const settled = told();
     view.unmount();
-    expect(notified).toBe(settled);
+    expect(told()).toBe(settled);
   });
 });
 
@@ -629,15 +565,6 @@ describe("useGateInstances", () => {
 });
 
 describe("grouped reads register per question", () => {
-  const policies = { read: canRead, admin: isAdmin };
-
-  const Group = ({ only }: { readonly only?: ReadonlyArray<"read" | "admin"> }) => {
-    const wanted: Record<string, typeof canRead> = {};
-    for (const name of only ?? ["read", "admin"]) wanted[name] = policies[name];
-    usePolicies(wanted);
-    return null;
-  };
-
   /** Instances as `[name, kind, state]`, the name being what follows the hook's own id. */
   const listed = () =>
     gateInstances()
@@ -661,24 +588,6 @@ describe("grouped reads register per question", () => {
     expect(gateInstances()).toEqual([]);
   });
 
-  it("unregisters exactly the instance whose key was removed", async () => {
-    const set = atoms();
-    current = set;
-    const tree = (only: ReadonlyArray<"read" | "admin">) => (
-      <QadiProvider atoms={set} subject={alice} instrument>
-        <Group only={only} />
-      </QadiProvider>
-    );
-    const view = render(tree(["read", "admin"]));
-    await waitFor(() => expect(gateInstances().length).toBe(2));
-    const readId = gateInstances().find((one) => one.id.endsWith("/read"))?.id;
-
-    view.rerender(tree(["read"]));
-
-    await waitFor(() => expect(gateInstances().length).toBe(1));
-    expect(gateInstances()[0]?.id).toBe(readId);
-  });
-
   it("unregisters every instance on unmount", async () => {
     const view = mount(<Group />, true);
     await waitFor(() => expect(gateInstances().length).toBe(2));
@@ -686,29 +595,6 @@ describe("grouped reads register per question", () => {
     view.unmount();
 
     expect(gateInstances()).toEqual([]);
-  });
-
-  it("does not re-register when an equal record is rebuilt each render", async () => {
-    const set = atoms();
-    current = set;
-    let notified = 0;
-    set.gates.subscribe(() => {
-      notified += 1;
-    });
-    const tree = (tick: number) => (
-      <QadiProvider atoms={set} subject={alice} instrument>
-        <span data-tick={tick} />
-        <Group />
-      </QadiProvider>
-    );
-    const view = render(tree(0));
-    await waitFor(() => expect(listed().map((x) => x[2])).toEqual(["Denied", "Allowed"]));
-    const settled = notified;
-
-    view.rerender(tree(1));
-    view.rerender(tree(2));
-
-    expect(notified).toBe(settled);
   });
 
   it("registers a resource-scoped entry from useQuestions, carrying its resource", async () => {

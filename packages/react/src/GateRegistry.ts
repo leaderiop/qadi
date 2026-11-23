@@ -25,24 +25,14 @@
  * and without it no guard registers, no marker element is rendered, and a
  * registry stays empty for the life of its atom set.
  *
- * **Ordering is whatever React's effects give it, and that is enough.**
- * `register` and the handle it returns apply in the order they happen to fire.
- * There is no sequence number and no guarantee that one component's effects run
- * before or after another's. The registry is eventually consistent, and it only
- * ever feeds a devtools panel (ADR-QD-053), so a brief, self-correcting glitch is
- * nothing a consumer can observe. What is guaranteed is that two live
- * registrations never overwrite each other: a colliding id is disambiguated, and
- * `onIdCollision` hears about it once (React's `useId` is unique within a root,
- * and two *hydrated* roots derive ids from tree position, so they collide).
- *
- * **Every mutation is synchronous; nothing here ever yields.** A listener added
- * *during* a notification is visited in the same pass, because that is what
- * iterating a `Set` one is still adding to does. A future change that introduces
- * a yield point would change this and needs to say so here first.
+ * The store itself is `buildGateRegistry` in `GateWriter.ts`, which is where its contract
+ * lives (ordering, synchrony, how a colliding id is disambiguated). `makeGateRegistry` hands
+ * it a collision reporter resolved under `onIdCollision`, and an atom set hands it one
+ * resolved under its own option, so each names the option its caller passed.
  */
-import { gateIdCollisionReporter } from "./DeveloperSignals.ts";
-import { makeOwnedGateRegistry } from "./GateWriter.ts";
-import type { GateHandle, GateInstance, GateRegistry, GateRenderState } from "./GateWriter.ts";
+import { reporterFor, SIGNALS } from "./DeveloperSignals.ts";
+import { buildGateRegistry } from "./GateWriter.ts";
+import type { GateRegistry } from "./GateWriter.ts";
 
 export type { GateInstance, GateKind, GateRegistry, GateRenderState } from "./GateWriter.ts";
 
@@ -64,79 +54,7 @@ export interface GateRegistryOptions {
  * hand `QadiProvider` one registry for several atom sets, and build it once, at
  * module scope, like `makeQadiAtoms`.
  */
-export const makeGateRegistry = (options?: GateRegistryOptions): GateRegistry => {
-  const entries = new Map<string, GateInstance>();
-  const listeners = new Set<() => void>();
-  const reported = new Set<string>();
-  let collisions = 0;
-  const report = gateIdCollisionReporter(options?.onIdCollision);
-
-  // The cached array `useSyncExternalStore` compares by reference: rebuilt on
-  // the first read after a change and not before, or React re-renders forever.
-  let snapshot: ReadonlyArray<GateInstance> = [];
-  let stale = false;
-
-  const changed = (): void => {
-    stale = true;
-    // Isolated per listener: a subscriber's own bug must not stop the rest of
-    // the fan-out from being notified, and must not propagate into the guard
-    // effect that triggered it. Swallowed rather than logged: this module has no
-    // reporter of its own, and a bare `console.*` call here would be a second,
-    // undeclared confinement point alongside `DeveloperSignals.ts`'s.
-    for (const listener of listeners) {
-      try {
-        listener();
-      } catch {
-        // Intentionally ignored — see above.
-      }
-    }
-  };
-
-  const register = (instance: GateInstance): GateHandle => {
-    let key = instance.id;
-    if (entries.has(key)) {
-      key = `${instance.id}~${++collisions}`;
-      if (!reported.has(instance.id)) {
-        reported.add(instance.id);
-        report?.(instance.id);
-      }
-    }
-    entries.set(key, { ...instance, id: key });
-    changed();
-
-    // `live` and `key` are this registration's own: the handle *is* the
-    // per-registration token, so a stale cleanup can only touch the entry it made.
-    let live = true;
-    return {
-      update: (state: GateRenderState) => {
-        const existing = entries.get(key);
-        if (!live || existing === undefined || existing.state === state) return;
-        entries.set(key, { ...existing, state });
-        changed();
-      },
-      unregister: () => {
-        if (!live) return;
-        live = false;
-        entries.delete(key);
-        changed();
-      },
-    };
-  };
-
-  return makeOwnedGateRegistry({
-    register,
-    instances: () => {
-      if (stale) {
-        snapshot = [...entries.values()];
-        stale = false;
-      }
-      return snapshot;
-    },
-    subscribe: (listener) => {
-      listeners.add(listener);
-      return () => {
-        listeners.delete(listener);
-      };
-    },
-  });
-};
+export const makeGateRegistry = (options?: GateRegistryOptions): GateRegistry =>
+  buildGateRegistry(
+    reporterFor(SIGNALS.GateIdCollision, "makeGateRegistry", options?.onIdCollision),
+  );

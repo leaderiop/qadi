@@ -19,7 +19,6 @@
  */
 import * as Effect from "effect/Effect";
 import type * as Layer from "effect/Layer";
-import * as Predicate from "effect/Predicate";
 import * as Record from "effect/Record";
 import * as Result from "effect/Result";
 import {
@@ -30,6 +29,7 @@ import {
   mergePorts,
   scriptedPort,
   tabulatePorts,
+  thrownMessage,
 } from "@qadi/core";
 import type { AnswerOf, PortName, PortTypes } from "@qadi/core";
 import type { EvaluationPorts } from "./SimulationInput.ts";
@@ -145,13 +145,40 @@ const record = <A, E>(
   );
 
 /**
+ * One guarded read of a named field of a value whose shape is unknown.
+ *
+ * A getter, or a proxy trap, on the value may throw; that reads as no field.
+ */
+const fieldOf = (error: unknown, key: "cause" | "reason"): unknown => {
+  try {
+    return Reflect.get(Object(error), key);
+  } catch {
+    // A getter or a proxy trap on the error threw.
+  }
+  return undefined;
+};
+
+/**
  * The part of a port failure worth keeping.
  *
- * `String(error)` alone is nearly useless here: every port error is a
- * `Data.TaggedError`, so it stringifies to its tag — `"AttributeResolveError"` —
- * and the `cause` a resolver actually reported is dropped. A replay
- * reconstructs the error *class* from which port it was, so the class is
- * already known and the cause is the only thing a capture has to carry.
+ * A replay rebuilds the error class from which port it was, so the capture
+ * carries only the failure's own text: its `cause` (what a resolver reported),
+ * else its `reason` (a custom predicate's), else the error's own string
+ * `message`, which `thrownMessage` reads first. `String(error)` is not that
+ * text: every port error is a `Data.TaggedError`, so it stringifies to its tag
+ * (`"AttributeResolveError"`), and a `CustomPredicateError` to the predicate's
+ * name. The third read exists for an error class that sets its own `message`;
+ * no shipped port error does (each is a `Schema.TaggedError` that declares
+ * none), so for them it reads `""`, and a failure with no `cause` and no
+ * `reason` records the empty string. A value that is not an error at all, a
+ * plain object say, records what `thrownMessage` makes of it (`"[object
+ * Object]"`), not the empty string. Every read goes through `fieldOf` and
+ * `thrownMessage`, so a cause that cannot be described is recorded with the one
+ * placeholder and the capture still records that the port broke.
+ *
+ * A field is absent only when it is `undefined`. A `null` cause is a value the
+ * resolver reported, so it is captured as `"null"`, as the live run carried it,
+ * and does not fall through to `reason` or to the error's own text.
  *
  * A message string, not the cause itself: on the record wire a `cause` crosses
  * through `Schema.Defect()` (ADR-QD-060), but a capture has no wire to
@@ -160,14 +187,10 @@ const record = <A, E>(
  * object, or something that cannot be stringified at all.
  */
 const renderError = (error: unknown): string => {
-  const cause = Predicate.hasProperty(error, "cause") ? error.cause : undefined;
-  if (cause === undefined) return String(error);
-  if (cause instanceof Error) return cause.message;
-  try {
-    return String(cause);
-  } catch {
-    return "<unrenderable cause>";
-  }
+  const cause = fieldOf(error, "cause");
+  if (cause !== undefined) return thrownMessage(cause);
+  const reason = fieldOf(error, "reason");
+  return thrownMessage(reason !== undefined ? reason : error);
 };
 
 /**

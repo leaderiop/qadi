@@ -1,0 +1,267 @@
+# Phase 72 — RED and characterisation evidence
+
+This file records the evidence the phase's tests rest on: the characterisation of the dock model's three computed
+stores shown green on the base, each RED test shown failing once on the base, each type guarantee gutted once and
+shown failing, and their greens. The characterisation's expected values are fixed for the rest of the phase.
+
+## The characterisation on the base
+
+Command (from the repository root, stdin closed):
+
+```
+pnpm exec vitest run --project devtools packages/devtools/test/model/DockModel.characterisation.test.ts --reporter=json --outputFile=<scratch>/char-01.json
+```
+
+Phase base: `74f631ada0e04a6003e4dbf959db93ca161f6136` (no `packages/*/src` file differs from it when the run was made).
+
+Result: `15 passed, 0 failed`.
+
+No row was corrected. Rows 13 and 14, which the plan reasoned from the code rather than ran, hold the values the plan
+gave: a throwing questions listener lets the services store recompute and the diagnostics listener run, and
+`configure` rethrows that very value; a guard and three reading configures notify `questions`, `services`,
+`diagnostics`, `questions`, `diagnostics`, in that order.
+
+## The closed-model regression on the base
+
+Command (from the repository root, stdin closed):
+
+```
+pnpm exec vitest run --project devtools packages/devtools/test/model/DockModel.test.ts --reporter=json --outputFile=<scratch>/red-01.json
+```
+
+Head: `060735e1777efd08544df9cb2387101d820d1c02` (the regression test's commit; no `packages/*/src` file differs from
+the phase base `74f631ada0e04a6003e4dbf959db93ca161f6136`).
+
+Result: `61 passed, 1 failed` (62 distinct titles).
+
+Failing title: `a model whose scope closed merges no reading a later configure hands it`
+
+First failure line, verbatim:
+
+```
+AssertionError: expected { status: { _tag: 'Off' }, …(1) } to equal { status: { _tag: 'Off' }, …(1) }
+```
+
+The base merges the reading a later `configure` hands a closed model into the diagnostics store and tells its listener.
+
+## The derived store rules on the base
+
+Command (from the repository root, stdin closed):
+
+```
+pnpm exec vitest run --project devtools packages/devtools/test/model/ExternalStore.test.ts --reporter=json --outputFile=<scratch>/red-02.json
+```
+
+Head: `37fe4c60` (the rules' commit; no `packages/*/src` file differs from the phase base
+`74f631ada0e04a6003e4dbf959db93ca161f6136`).
+
+Result: `15 passed, 16 failed` (31 distinct tests): the 15 of `describe("makeExternalStore")` pass and all 16 of
+`describe("makeDerivedStore")` fail, because `makeDerivedStore` is not exported.
+
+First failing row: `the first compute runs at construction and notifies no listener`; its first failure line, verbatim:
+
+```
+TypeError: yield* (intermediate value)(intermediate value)(intermediate value)(intermediate value)(intermediate value)(intermediate value) is not iterable
+```
+
+(The engine words the call of the missing export this way when the call is the operand of `yield*`; the row that does
+not `yield*` the call, `makeDerivedStore is built under a span named for it`, reports
+`TypeError: (0 , __vite_ssr_import_5__.makeDerivedStore) is not a function`.)
+
+## The derived store type pins on the base
+
+Command (from the repository root, stdin closed):
+
+```
+pnpm test:tstyche ExternalStore
+```
+
+Head: `c819095473f9350cc6ac1107c2a5c650a7d26fd3` (the type pins' commit). Result: exit 1, pass 1 of 2 (the floating-Effect
+rule off) fails on `packages/devtools/test/model/ExternalStore.tst.ts`; the second pass is not reached.
+
+First error line, verbatim:
+
+```
+Error: The diagnostic message did not match.
+```
+
+(it concerns the compute refusal's `@ts-expect-error` at `ExternalStore.tst.ts:65`, whose suppressed error is not yet
+the property error, because the call itself does not resolve), and the line that names the cause:
+
+```
+Error: Module '"../../src/model/ExternalStore.ts"' has no exported member 'makeDerivedStore'. ts(2305)
+```
+
+Also missing on the base: `DerivedStore` and `ReadableStore`. The fragments of the three directives are checked
+against the real messages once the API exists; if one is reported unmatched, 72-04's evidence records the final text.
+
+## The derived store tests green
+
+Head: `7b534b6e50a590aa97b903dc8044f2041cb2a826` (`feat(72-04): a store derived from parent stores by a key`).
+
+`pnpm exec vitest run --project devtools packages/devtools/test/model/ExternalStore.test.ts` (stdin closed):
+31 passed, 0 failed.
+
+`pnpm test:tstyche ExternalStore`: passes in both passes (4 tests, 3 suppressed errors matched in each). The three
+directive fragments matched as written. One change was needed in the type pins: `an empty parent list is refused` had a
+compute `(key) => key.a.length`, and once the parents refusal makes the call fail, `A` is inferred as `unknown`, so
+`expect(built).type.toBe<Expected>()` failed on `Effect<DerivedStore<unknown>, ...>` instead of the refusal. The compute
+there is now `() => 0`, as in the optional-field row; the directive and its fragment are unchanged.
+
+The devtools project (`pnpm exec vitest run --project devtools`) at `b5daf1bf11d55d731ed7a19eb511b83e99d69c7d`, after
+the read half was named: 1705 tests, 1704 passed, 1 failed, and the one failure is
+`a model whose scope closed merges no reading a later configure hands it`, the closed-model regression that 72-05
+turns green.
+
+## Each type guarantee gutted once
+
+Each gut is a working-tree edit to `makeDerivedStore`'s options type in `ExternalStore.ts`, run with
+`pnpm test:tstyche ExternalStore < /dev/null` and reverted with `git checkout -- packages/devtools/src/model/ExternalStore.ts`
+before the next; none was committed, and `ExternalStore.ts` has one commit since `phase_base`.
+
+### Without Required<K>
+
+Edit: the type parameter `K extends object & Required<K>` became `K extends object`. Result: exit 1, pass 1 of 2 fails
+on the directive at `ExternalStore.tst.ts:44:5`. Test title:
+`a key type with an optional field is refused`. First error line, verbatim:
+
+```
+Error: Unused '@ts-expect-error' directive. ts(2578)
+```
+
+### With a parent list that may be empty
+
+Edit: `parents: readonly [Parent, ...Array<Parent>]` became `parents: ReadonlyArray<Parent>`. Result: exit 1, pass 1 of 2
+fails at `ExternalStore.tst.ts:53:5`. Test title: `an empty parent list is refused`. First error line, verbatim:
+
+```
+Error: Unused '@ts-expect-error' directive. ts(2578)
+```
+
+### With a compute that may read outside its key
+
+Edit: `compute: (key: K) => A` became `compute: (key: K & { readonly other: unknown }) => A`. Result: exit 1, pass 1 of 2
+fails at `ExternalStore.tst.ts:65:25`, the directive of the pin titled
+`a compute reading a field outside its key is refused` (the call now resolves, so the suppressed error is the
+return-type error and not the property error). First error line, verbatim:
+
+```
+Error: The diagnostic message did not match.
+```
+
+After the three reverts `pnpm test:tstyche ExternalStore` passes again.
+
+## The closed-model regression green
+
+Head: `c5171dd3538246fc816a6e0347012dfd38aabddc` (the `refactor(72-05)` commit).
+
+Test: `a model whose scope closed merges no reading a later configure hands it` passes.
+
+The devtools project (`pnpm exec vitest run --project devtools`): 1705 passed, 0 failed, among them the 15
+characterisation rows (unchanged) and M47, J1 and J8.
+
+The proving grep, verbatim:
+
+```
+/usr/bin/grep -nE "let (last|fed|supplied|closed)|closed|remerge|rejoin|reservice|key\.[A-Za-z]+ === " packages/devtools/src/model/DockModel.ts
+```
+
+At `phase_base` it printed these 26 lines:
+
+```
+206:  let fed = diagnosticsFeed.getSnapshot();
+207:  let supplied = inputs.reading;
+213:  const remerge = () => {
+220:  diagnosticsFeed.subscribe(remerge);
+229:  // pairs a question from one moment with a guard from another. A closed model joins nothing further.
+230:  let closed = false;
+239:  let lastJoin = keyNow();
+241:  const rejoin = () => {
+242:    if (closed) return;
+245:      key.feed === lastJoin.feed &&
+246:      key.supplied === lastJoin.supplied &&
+247:      key.unsampled === lastJoin.unsampled
+264:  let lastServices = servicesKeyNow();
+266:  const reservice = () => {
+267:    if (closed) return;
+270:      key.wiring === lastServices.wiring &&
+271:      key.activity === lastServices.activity &&
+272:      key.portCalls === lastServices.portCalls &&
+273:      key.unsampled === lastServices.unsampled
+281:  gatesFeed.subscribe(rejoin);
+282:  shownReading.subscribe(rejoin);
+283:  shownReading.subscribe(reservice);
+286:      closed = true;
+316:      // The feed re-reads the registry and the thunk before `remerge`, whose publish joins through them: one
+324:      // A reading that moved is a new merged snapshot, which rejoins through its own subscription.
+325:      remerge();
+```
+
+At `c5171dd3538246fc816a6e0347012dfd38aabddc` it prints nothing (exit 1).
+
+## The store-list test shown failing
+
+The throwaway, in the working tree only and never committed: a tenth member
+`extra: { subscribe: questions.subscribe, getSnapshot: questions.getSnapshot }` added to the
+`DockModel` interface and to the model `makeDockModel` returns, in
+`packages/devtools/src/model/DockModel.ts`. The command:
+
+```
+pnpm exec vitest run --project devtools packages/devtools/test/model/DockModel.test.ts --reporter=json --outputFile=<S>/tenth-06.json
+```
+
+Exactly one test failed, `the members with subscribe and getSnapshot are the stores BEH-QD-700 names`,
+with this first failure line, verbatim:
+
+```
+AssertionError: expected [ Array(10) ] to deeply equal [ Array(9) ]
+```
+
+The throwaway was then reverted with `git checkout -- packages/devtools/src/model/DockModel.ts`, and the
+same file ran again: 61 passed, 0 failed.
+
+## The success test on the closed tree
+
+Both throwaways were made on the closed tree (head `8d3dabc1061105277bbe1cf335bc4ab8515a2694`, no `packages/*/src`
+file differing from it), in the working tree only, never committed, and each reverted with
+`git checkout -- <file>` before the next.
+
+### A field added to the services compute's input
+
+The throwaway: `readonly extra: boolean;` added to `ServicesInput` in `packages/devtools/src/model/PortCards.ts`,
+a field the services key reader in `DockModel.ts` does not write. The command (stdin closed):
+
+```
+pnpm typecheck
+```
+
+It exited 2, and the one error names the reader in `DockModel.ts` and the field, first line (cut at the type
+that follows):
+
+```
+packages/devtools/src/model/DockModel.ts(252,7): error TS2741: Property 'extra' is missing in type '{ wiring: { readonly
+```
+
+The compiler refuses the field at the reader that builds the key. Reverted with
+`git checkout -- packages/devtools/src/model/PortCards.ts`.
+
+### A tenth store
+
+The throwaway: a tenth member `extra: { subscribe: services.subscribe, getSnapshot: services.getSnapshot }` added to
+the `DockModel` interface and to the model `makeDockModel` returns, in `packages/devtools/src/model/DockModel.ts`.
+The command (stdin closed):
+
+```
+pnpm exec vitest run --project devtools packages/devtools/test/model/DockModel.test.ts --reporter=json --outputFile=<S>/success-tenth.json
+```
+
+Result: `60 passed, 1 failed`. The failing title is
+`the members with subscribe and getSnapshot are the stores BEH-QD-700 names`, with this first failure line,
+verbatim:
+
+```
+AssertionError: expected [ Array(10) ] to deeply equal [ Array(9) ]
+```
+
+Reverted with `git checkout -- packages/devtools/src/model/DockModel.ts`; the same file ran again: 61 passed,
+0 failed, and `git status --porcelain -- packages spec` printed nothing.

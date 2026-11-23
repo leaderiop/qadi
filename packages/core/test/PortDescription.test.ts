@@ -46,7 +46,14 @@ import { makeResourceId, makeSubjectId, SubjectIdSchema } from "../src/Identity.
 import type { ArgsOf, PortTypes } from "../src/Ports.ts";
 import { relationshipResolverPort } from "../src/RelationshipResolver.ts";
 import { signatureHistoryPort } from "../src/SignatureHistory.ts";
-import { collectingTracer, forkAllAndSettle, isolatedMetrics } from "./helpers.ts";
+import {
+  attributesOf,
+  collectingTracer,
+  forkAllAndSettle,
+  hostile,
+  hostileError,
+  isolatedMetrics,
+} from "./helpers.ts";
 
 class ProbeError extends Data.TaggedError("ProbeError")<{
   readonly what: string;
@@ -167,8 +174,7 @@ describe("retryingPort", () => {
 
       assert.strictEqual(answer, 7);
       assert.strictEqual(yield* Ref.get(invoked), 3);
-      const caller = spans.find((s) => s.name === "caller");
-      assert.deepStrictEqual(Object.fromEntries(caller?.attributes ?? []), { "qadi.attempts": 3 });
+      assert.deepStrictEqual(attributesOf(spans, "caller"), { "qadi.attempts": 3 });
       const retries = yield* Metric.value(portRetriesTotal);
       assert.strictEqual(retries.occurrences.get("AttributeResolver"), 2);
       assert.strictEqual(yield* nameOf(layer), "flaky (retrying)");
@@ -188,8 +194,7 @@ describe("retryingPort", () => {
       if (!Result.isFailure(result)) return;
       assert.deepStrictEqual(result.failure, new ProbeError({ what: "x", cause: "flaky" }));
       assert.strictEqual(yield* Ref.get(invoked), 3);
-      const caller = spans.find((s) => s.name === "caller");
-      assert.deepStrictEqual(Object.fromEntries(caller?.attributes ?? []), { "qadi.attempts": 3 });
+      assert.deepStrictEqual(attributesOf(spans, "caller"), { "qadi.attempts": 3 });
       const retries = yield* Metric.value(portRetriesTotal);
       assert.strictEqual(retries.occurrences.get("AttributeResolver"), 3);
     }).pipe(isolatedMetrics));
@@ -593,6 +598,26 @@ describe("a derived port's key is its wire question's key, and its defect is its
     });
   });
 
+  it("a request whose member throws a value whose toString and message cannot be read is refused with the placeholder", () => {
+    for (const thrown of [hostile, hostileError]) {
+      const request = {
+        subjectId: makeSubjectId("alice"),
+        relation: "owner",
+        depth: undefined,
+        get resourceId(): ResourceId {
+          throw thrown;
+        },
+      };
+      const refused = relationshipResolverPort.key([request]);
+      assert.isTrue(Result.isFailure(refused));
+      assert.deepStrictEqual(Result.isFailure(refused) ? refused.failure : undefined, {
+        _tag: "Unreadable",
+        path: [],
+        message: "a value that could not be described",
+      });
+    }
+  });
+
   it("CustomPredicate states its own key: it covers the subject's roles, permissions and attributes, which its wire question does not carry", () => {
     const asEditor = makeSubject({ id: "alice", roles: ["editor"], permissions: [], attributes: {} });
     const asViewer = makeSubject({ id: "alice", roles: ["viewer"], permissions: [], attributes: {} });
@@ -610,5 +635,70 @@ describe("a derived port's key is its wire question's key, and its defect is its
       Result.getOrThrow(customPredicatePort.key(ask(asEditor))),
       Result.getOrThrow(customPredicatePort.key(ask(asViewer))),
     );
+  });
+});
+
+/** A wire whose two conversions throw `thrown`, over the probe port's question and answer shapes. */
+const throwingWire = (thrown: unknown) =>
+  portWire({
+    question: Schema.Struct({ subjectId: SubjectIdSchema, what: Schema.String }),
+    answer: Schema.Struct({ n: Schema.optionalKey(Schema.Number) }),
+    toQuestion: (_args: [who: string]) => {
+      throw thrown;
+    },
+    fromQuestion: (_question, subject): [who: string] => [subject.id],
+    toAnswer: (_answer: number) => {
+      throw thrown;
+    },
+    fromAnswer: (wire) => wire.n ?? 0,
+  });
+
+describe("a port wire refuses a conversion that throws, never throws itself", () => {
+  it("a wire whose conversion throws a value whose toString and message cannot be read refuses the question and the answer with the placeholder", () => {
+    for (const thrown of [hostile, hostileError]) {
+      const wire = throwingWire(thrown);
+      const question = wire.encodeQuestion(["alice"]);
+      const answer = wire.encodeAnswer(1);
+      assert.isTrue(Result.isFailure(question));
+      assert.isTrue(Result.isFailure(answer));
+      assert.strictEqual(Result.isFailure(question) ? question.failure : undefined, "a value that could not be described");
+      assert.strictEqual(Result.isFailure(answer) ? answer.failure : undefined, "a value that could not be described");
+    }
+  });
+
+  it("a wire whose conversion throws an Error refuses with its message, without its name", () => {
+    const wire = throwingWire(new Error("boom"));
+    const question = wire.encodeQuestion(["alice"]);
+    const answer = wire.encodeAnswer(1);
+    assert.isTrue(Result.isFailure(question));
+    assert.isTrue(Result.isFailure(answer));
+    assert.strictEqual(Result.isFailure(question) ? question.failure : undefined, "boom");
+    assert.strictEqual(Result.isFailure(answer) ? answer.failure : undefined, "boom");
+  });
+});
+
+describe("a port wire built from a spec decodes what it is given", () => {
+  const alice = makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} });
+
+  it("reads a question into its subject and the request it asks for, and an answer into its value", () => {
+    const wire = throwingWire(new Error("unused"));
+    const question = wire.decodeQuestion({ subjectId: "alice", what: "level" });
+    assert.isTrue(Result.isSuccess(question));
+    if (Result.isSuccess(question)) {
+      assert.strictEqual(question.success.subjectId, "alice");
+      assert.deepStrictEqual(question.success.args(alice), ["alice"]);
+    }
+    assert.strictEqual(Result.getOrUndefined(wire.decodeAnswer({ n: 3 })), 3);
+    assert.strictEqual(Result.getOrUndefined(wire.decodeAnswer({})), 0);
+  });
+
+  it("refuses a question and an answer of another shape with the schema's sentence, naming the member", () => {
+    const wire = throwingWire(new Error("unused"));
+    const question = wire.decodeQuestion({ subjectId: "alice" });
+    const answer = wire.decodeAnswer({ n: "three" });
+    assert.isTrue(Result.isFailure(question));
+    assert.isTrue(Result.isFailure(answer));
+    assert.strictEqual(Result.isFailure(question) ? question.failure : undefined, "Missing key\n  at [\"what\"]");
+    assert.strictEqual(Result.isFailure(answer) ? answer.failure : undefined, "Expected number\n  at [\"n\"]");
   });
 });

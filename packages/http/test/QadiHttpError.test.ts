@@ -20,8 +20,10 @@ import {
   SignatureHistoryUnavailable,
   UndischargedObligation,
   classifyEnforcementError,
+  decisionHistoryPort,
   makeResourceId,
   makeSubjectId,
+  signatureHistoryPort,
 } from "@qadi/core";
 import { collectingLogger } from "@qadi/testing";
 import * as Effect from "effect/Effect";
@@ -356,6 +358,56 @@ describe("ENFORCEMENT_ERROR_WIRE", () => {
     expect(unscoped).toEqual({ _tag: "SignatureHistoryUnavailable", subjectId });
     expect("resourceId" in unscoped).toBe(false);
   });
+
+  it("the DecisionHistoryUnavailable projection and body carry its event", () => {
+    // `JSON.parse` returns `any`, so the request needs no `as`; the port builds its
+    // own error.
+    const error = decisionHistoryPort.failure(
+      [JSON.parse('{"subjectId":"alice","event":"approved"}')],
+      "store down",
+    );
+    const named = { _tag: "DecisionHistoryUnavailable", event: "approved" };
+    expect(projectHttpEnforcementFailure(error)).toEqual(named);
+    expect(Schema.encodeSync(DecisionHistoryUnavailableResponse)(error)).toEqual(named);
+  });
+
+  it(
+    "the SignatureHistoryUnavailable projection and response body carry no \
+subject id when the error has none",
+    () => {
+      // `JSON.parse` returns `any`, which is what an untyped JavaScript caller
+      // hands over (no `as`); a symbol is the one value it cannot carry.
+      const refused = JSON.parse("{}");
+      refused.subjectId = Symbol("alice");
+      const error = signatureHistoryPort.failure([refused], "store down");
+      const bare = { _tag: "SignatureHistoryUnavailable" };
+      const encoded = Schema.encodeSync(SignatureHistoryUnavailableResponse)(error);
+      expect(projectHttpEnforcementFailure(error)).toEqual(bare);
+      expect(encoded).toEqual(bare);
+      // `toEqual` reads a member stated `undefined` as absent, so the key is checked too.
+      expect("subjectId" in projectHttpEnforcementFailure(error)).toBe(false);
+      expect("subjectId" in encoded).toBe(false);
+    },
+  );
+
+  it(
+    "the DecisionHistoryUnavailable projection and response body carry no \
+event when the error has none",
+    () => {
+      // `JSON.parse` returns `any`, which is what an untyped JavaScript caller
+      // hands over (no `as`); a symbol is the one value it cannot carry.
+      const refused = JSON.parse('{"subjectId":"alice"}');
+      refused.event = Symbol("approved");
+      const error = decisionHistoryPort.failure([refused], "store down");
+      const bare = { _tag: "DecisionHistoryUnavailable" };
+      const encoded = Schema.encodeSync(DecisionHistoryUnavailableResponse)(error);
+      expect(projectHttpEnforcementFailure(error)).toEqual(bare);
+      expect(encoded).toEqual(bare);
+      // `toEqual` reads a member stated `undefined` as absent, so the key is checked too.
+      expect("event" in projectHttpEnforcementFailure(error)).toBe(false);
+      expect("event" in encoded).toBe(false);
+    },
+  );
 
   it("the projection of a real AccessDenied drops the trace before the encoder", () => {
     const projected = projectHttpEnforcementFailure(everyHttpEnforcementFailure.AccessDenied());

@@ -11,6 +11,11 @@ import type { SinkRecord } from "../src/DecisionRecord.ts";
 import { DecisionSink } from "../src/DecisionSink.ts";
 import { isAllowed } from "../src/Decision.ts";
 import { evaluate } from "../src/Evaluate.ts";
+import {
+  decideSubjectsSpan,
+  decideSubjectsStreamSpan,
+  evaluateSpan,
+} from "../src/EvaluationSpan.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
@@ -23,9 +28,16 @@ import {
   filterSubjectsStream,
 } from "../src/SubjectSet.ts";
 import type { SubjectOutcome } from "../src/SubjectSet.ts";
-import { collectingTracer, subjectSetLayer, subjectWith, testLayer } from "./helpers.ts";
+import {
+  attributesOf,
+  collectingTracer,
+  subjectSetLayer,
+  subjectWith,
+  testLayer,
+} from "./helpers.ts";
 import { scriptedPort } from "../src/PortDoubles.ts";
 import { PortReply } from "../src/PortDescription.ts";
+import { decodeSpan, encodeSpan } from "../src/PortSpanEncode.ts";
 
 const read = permission("doc", "read");
 const canRead = P.hasPermission(read);
@@ -557,17 +569,17 @@ describe("observability", () => {
         Effect.provide(Layer.mergeAll(subjectSetLayer(), collectingTracer(spans))),
       );
 
-      const batch = spans.find((s) => s.name === "qadi.decideSubjects");
-      assert.isDefined(batch);
-      if (batch === undefined) return;
-      assert.deepStrictEqual(Object.fromEntries(batch.attributes), {
-        "qadi.subject_count": 2,
-        "qadi.policy_tag": "HasPermission",
-      });
+      assert.deepStrictEqual(
+        attributesOf(spans, decideSubjectsSpan.name),
+        encodeSpan(decideSubjectsSpan.question, {
+          subjectCount: 2,
+          policyTag: "HasPermission",
+        }),
+      );
 
       const perSubject = spans
-        .filter((s) => s.name === "qadi.evaluate")
-        .map((s) => Object.fromEntries(s.attributes)["qadi.subject_id"]);
+        .filter((s) => s.name === evaluateSpan.name)
+        .map((s) => decodeSpan(evaluateSpan.question, s.attributes).subjectId);
       assert.deepStrictEqual(perSubject, ["a", "b"]);
     }));
 });
@@ -606,12 +618,10 @@ describe("decideSubjectsStream", () => {
         ),
       );
 
-      const batch = spans.find((s) => s.name === "qadi.decideSubjectsStream");
-      assert.isDefined(batch);
-      if (batch === undefined) return;
-      assert.deepStrictEqual(Object.fromEntries(batch.attributes), {
-        "qadi.policy_tag": "HasPermission",
-      });
+      assert.deepStrictEqual(
+        attributesOf(spans, decideSubjectsStreamSpan.name),
+        encodeSpan(decideSubjectsStreamSpan.question, { policyTag: "HasPermission" }),
+      );
     }).pipe(Effect.provide(subjectSetLayer())));
 
   it.effect("evaluates one subject at a time, same as decideSubjects", () =>

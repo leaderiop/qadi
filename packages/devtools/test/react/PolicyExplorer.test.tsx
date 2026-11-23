@@ -24,8 +24,8 @@ import { PolicyExplorer } from "../../src/react/PolicyExplorer.tsx";
 import type { PolicySighting } from "../../src/model/Catalogue.ts";
 import { makeExplorerSession } from "../../src/model/ExplorerSession.ts";
 import { policyLabel } from "../../src/model/Catalogue.ts";
+import { read } from "../helpers.ts";
 
-const read = permission("doc", "read");
 const write = permission("doc", "write");
 
 const sighting = (policy: Policy, count = 1): PolicySighting => ({

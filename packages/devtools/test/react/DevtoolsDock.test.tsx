@@ -42,10 +42,9 @@ import { WiringRead } from "../../src/model/DiagnosticsStore.ts";
 import type { WiringReport } from "../../src/model/Wiring.ts";
 import type { GateInstanceLike } from "../../src/model/Gates.ts";
 import { makeGateRegistryDouble } from "../gateRegistryDouble.ts";
-import { decisionRecord, obligationRecord } from "../helpers.ts";
+import { decisionRecord, obligationRecord, read } from "../helpers.ts";
 import { questionsProp } from "./questionsProp.ts";
 
-const read = permission("doc", "read");
 const write = permission("doc", "write");
 const reader = role({ name: "reader", permissions: [read] });
 const alice = fromRoles({ id: "alice", roles: [reader] });

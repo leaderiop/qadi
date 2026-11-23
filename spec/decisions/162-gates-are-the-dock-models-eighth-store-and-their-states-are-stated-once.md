@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-162                                   |
-> | Revision       | 1.5                                            |
+> | Revision       | 1.7                                            |
 > | Effective Date | 2026-11-16                                     |
-> | Status         | Accepted — amends ADR-QD-047; applies ADR-QD-152; keeps ADR-QD-053, ADR-QD-080 |
+> | Status         | Accepted — amends ADR-QD-047; applies ADR-QD-152; keeps ADR-QD-053, ADR-QD-080; amended 2026-11-22 (ADR-QD-185: the store count is BEH-QD-700's; the join is a derived store) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.5 (2026-11-16): decision 5: a release that throws is not stated, a failed subscribe is keyed like a failed read, stating a throw is total, configure swaps before it re-merges; the failure copy is one neutral sentence (review iteration 3 IN-01, IN-02, IN-03, IN-05; ARCH-96, CCR-QD-440)<br>1.4 (2026-11-16): decision 5: a configure after a failed watch subscribes again; a silent mend is read at the next announcement, changed poll or configure (review iteration 2 IN-03)<br>1.3 (2026-11-16): decision 5: the same failure is compared by name and message, not by the stack its reason renders (review iteration 2 IN-02)<br>1.2 (2026-11-16): decision 5: releasing the old registry's subscription is guarded and stated, never repeated (review iteration 2 WR-01)<br>1.1 (2026-11-16): decision 5: a registry that throws is stated as GatesView.Failed and its rows make no claim; the first version's rationale was false for react's own registry (review WR-01)<br>1.0 (2026-11-16): Initial release (ARCH-96, CCR-QD-440) |
+> | Change History | 1.7 (2026-11-22): note — the 2026-11-22 note says what the store-list test holds (CCR-QD-464)<br>1.6 (2026-11-22): notes — the store is a derived store and the count is BEH-QD-700's (ARCH-119, CCR-QD-464)<br>1.5 (2026-11-16): decision 5: a release that throws is not stated, a failed subscribe is keyed like a failed read, stating a throw is total, configure swaps before it re-merges; the failure copy is one neutral sentence (review iteration 3 IN-01, IN-02, IN-03, IN-05; ARCH-96, CCR-QD-440)<br>1.4 (2026-11-16): decision 5: a configure after a failed watch subscribes again; a silent mend is read at the next announcement, changed poll or configure (review iteration 2 IN-03)<br>1.3 (2026-11-16): decision 5: the same failure is compared by name and message, not by the stack its reason renders (review iteration 2 IN-02)<br>1.2 (2026-11-16): decision 5: releasing the old registry's subscription is guarded and stated, never repeated (review iteration 2 WR-01)<br>1.1 (2026-11-16): decision 5: a registry that throws is stated as GatesView.Failed and its rows make no claim; the first version's rationale was false for react's own registry (review WR-01)<br>1.0 (2026-11-16): Initial release (ARCH-96, CCR-QD-440) |
 
 ---
 
@@ -118,6 +118,10 @@ released by its finalizer. ADR-QD-152 is the shape of the vocabulary. No record 
    differently, because they counted the policy rail among the stores, so diagnostics was "the seventh store" and the timeline
    status "the eighth readout" there. Those anchors keep their titles, and the header of `DockModel.ts`
    states the count this record does.
+
+> **Amended 2026-11-22 (CCR-QD-464).** The count is listed once, in BEH-QD-700, which also says how a test of a built model holds it; the header of
+> `DockModel.ts` no longer states it ([ADR-QD-185](./185-the-dock-models-computed-stores-are-derived-stores.md)).
+
 5. **A registry that throws is stated, and its rows make no claim** (review finding WR-01). The registry is host code, and the
    model reads it on four paths: the build, `configure`, a registry notification and a poll tick. The first version left a
    throw uncaught, on the argument that a caught error would show an empty panel with nothing said and the host would see its own
@@ -151,6 +155,9 @@ released by its finalizer. ADR-QD-152 is the shape of the vocabulary. No record 
    publishes one snapshot and none of them reads a registry the host has just handed away (review iteration 3, IN-05).
    After close the model reads no registry at all, so a late `configure` runs none of the host's code.
 
+> **Amended 2026-11-22 (CCR-QD-464).** The join is a derived store, which the registry's publish refreshes through its parents, and the model holds no
+> closed flag: the derived store stops with the model's scope ([ADR-QD-185](./185-the-dock-models-computed-stores-are-derived-stores.md)).
+
 ## Consequences
 
 - **One copy edit in the browser** (D-12a, a user decision during the UI contract). The gates-absent message's advice changed
@@ -180,6 +187,9 @@ released by its finalizer. ADR-QD-152 is the shape of the vocabulary. No record 
 ## Related
 
 - [ADR-QD-047](./047-a-headless-devtools-model.md), whose store count this states once
+
+> **Amended 2026-11-22 (CCR-QD-464).** The count is BEH-QD-700's, listed once ([ADR-QD-185](./185-the-dock-models-computed-stores-are-derived-stores.md)).
+
 - [ADR-QD-053](./053-a-gate-can-be-found.md), whose two wiring sentences are now history and whose decision stands
 - [ADR-QD-080](./080-a-gate-registry-belongs-to-its-atom-set.md), whose "never a verdict" the registry still keeps
 - [ADR-QD-137](./137-a-devtools-session-owns-its-runs-through-a-scope.md), whose scoped construction the subscription follows

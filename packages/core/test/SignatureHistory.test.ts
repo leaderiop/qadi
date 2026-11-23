@@ -6,18 +6,37 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Match from "effect/Match";
 import * as Result from "effect/Result";
 import { makeSubject } from "../src/AuthSubject.ts";
 import { SignatureHistoryUnavailable } from "../src/Errors.ts";
+import type { MissingResourceId } from "../src/Errors.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import { hasSignature } from "../src/Policy.ts";
-import { describeKeyRefusal, KeyRefusal } from "../src/PortDescription.ts";
+import { askSignature } from "../src/PortAccess.ts";
+import { scriptedPort } from "../src/PortDoubles.ts";
+import { describeKeyRefusal, KeyRefusal, PortReply } from "../src/PortDescription.ts";
+import type { LeafOf, ReadSite } from "../src/PortDescription.ts";
 import {
   SignatureHistory,
   SignatureHistoryNone,
+  signatureAnswerFromSignatures,
   signatureHistoryFromSignatures,
   signatureHistoryPort,
 } from "../src/SignatureHistory.ts";
+import type { SignatureAnswer, SignatureInput } from "../src/SignatureHistory.ts";
+import {
+  alice,
+  causeText,
+  disagreement,
+  HOSTILE_LISTS,
+  HOSTILE_RECORDS,
+  SITES,
+  unkeyableRow,
+  unkeyableSubject,
+  unnamedInstance,
+  untypedWith,
+} from "./fixtureJudgement.ts";
 import { leafOf } from "./helpers.ts";
 
 const query = (
@@ -280,4 +299,526 @@ describe("signatureHistoryPort's wire", () => {
     if (Result.isFailure(encoded)) return assert.fail(encoded.failure);
     assert.deepStrictEqual(encoded.success, { subjectId: "alice" });
   });
+});
+
+describe("a signature read whose request the key refuses", () => {
+  // `JSON.parse` returns `any`, which is what an untyped JavaScript caller hands
+  // over (no `as`); a symbol is the one value it cannot carry, so it is set on the
+  // parsed object afterwards.
+  it.effect(
+    "fails as \
+SignatureHistoryUnavailable with no subject id and the refusal as \
+its cause, never dying",
+    () =>
+      Effect.gen(function* () {
+        const untyped = JSON.parse('{"roles":[],"permissions":[],"attributes":{}}');
+        untyped.id = Symbol("alice");
+        const subject = makeSubject(untyped);
+        const leaf = leafOf("HasSignature", hasSignature("approved", { scope: "Any" }));
+        const asked = signatureHistoryPort.asks.HasSignature(leaf, {
+          subject,
+          resource: undefined,
+        });
+        const refusal = signatureHistoryPort.key(asked);
+        if (Result.isSuccess(refusal)) return assert.fail("the key admitted the request");
+
+        const result = yield* Effect.result(
+          askSignature(subject, leaf, undefined).pipe(
+            Effect.provide(signatureHistoryFromSignatures([])),
+          ),
+        );
+        if (Result.isSuccess(result)) return assert.fail("the read answered");
+        if (result.failure._tag !== "SignatureHistoryUnavailable") {
+          return assert.fail(result.failure._tag);
+        }
+        assert.isFalse(Object.hasOwn(result.failure, "subjectId"));
+        assert.strictEqual(result.failure.cause, describeKeyRefusal(refusal.failure));
+      }),
+  );
+});
+
+/** What a judgement or a read gave: an answer, or one of the two failures. */
+type Judged = Result.Result<
+  SignatureAnswer,
+  MissingResourceId | SignatureHistoryUnavailable
+>;
+
+const failureOf = Match.type<MissingResourceId | SignatureHistoryUnavailable>().pipe(
+  Match.tagsExhaustive({
+    MissingResourceId: (failure) => ({
+      _tag: failure._tag,
+      relation: failure.relation,
+    }),
+    SignatureHistoryUnavailable: (failure) => ({
+      _tag: failure._tag,
+      hasSubjectId: Object.hasOwn(failure, "subjectId"),
+      subjectId: failure.subjectId,
+      resourceId: failure.resourceId,
+      cause: failure.cause,
+    }),
+  }),
+);
+
+const answerOf = (result: Judged) =>
+  Result.match(result, {
+    onSuccess: ({ matched, onFile }) => ({ matched, onFile }),
+    onFailure: failureOf,
+  });
+
+const readOf = (
+  rows: ReadonlyArray<SignatureInput>,
+  leaf: LeafOf["HasSignature"],
+  site: ReadSite,
+) =>
+  Effect.result(askSignature(site.subject, leaf, site.resource)).pipe(
+    Effect.provide(signatureHistoryFromSignatures(rows)),
+  );
+
+/**
+ * `signatureAnswerFromSignatures` answers what `askSignature` answers over
+ * `signatureHistoryFromSignatures` for the same rows, leaf and site.
+ *
+ * The product is every subject, resource id, meaning and signer role a row can
+ * carry, as a lone row and after an unrelated one, plus no rows, over four leaves
+ * and four sites. The axes are the remedy table's own agreement test in
+ * `@qadi/devtools`, written out again here because a test cannot import another
+ * package's tests and no shipped module carries test data.
+ */
+describe("signatureAnswerFromSignatures", () => {
+  const SUBJECTS = ["alice", "bob"];
+  const RESOURCE_IDS = [undefined, "doc-1", "doc-2"];
+  const MEANINGS = ["approved", "reviewed"];
+  const ROLES = [undefined, "approver", "other"];
+
+  const SINGLES = SUBJECTS.flatMap((subjectId) =>
+    RESOURCE_IDS.flatMap((resourceId) =>
+      MEANINGS.flatMap((meaning) =>
+        ROLES.map((signerRole) => ({
+          name: [
+            subjectId,
+            meaning,
+            resourceId ?? "subject-wide",
+            signerRole ?? "no role",
+          ].join(" "),
+          row: {
+            subjectId,
+            meaning,
+            ...(resourceId === undefined ? {} : { resourceId }),
+            ...(signerRole === undefined ? {} : { signerRole }),
+          } satisfies SignatureInput,
+        })),
+      ),
+    ),
+  );
+
+  const DECOY: SignatureInput = {
+    subjectId: "alice",
+    meaning: "reviewed",
+    resourceId: "doc-1",
+  };
+
+  const LISTS: ReadonlyArray<{
+    readonly name: string;
+    readonly rows: ReadonlyArray<SignatureInput>;
+  }> = [
+    { name: "an empty list", rows: [] },
+    ...SINGLES.map(({ name, row }) => ({ name, rows: [row] })),
+    ...SINGLES.map(({ name, row }) => ({
+      name: `the decoy, then ${name}`,
+      rows: [DECOY, row],
+    })),
+  ];
+
+  /** The four leaves, named by what they are, so a test picks one by name. */
+  const LEAVES = {
+    resource: {
+      name: "scope Resource",
+      leaf: leafOf("HasSignature", hasSignature("approved", { scope: "Resource" })),
+    },
+    resourceAsApprover: {
+      name: "scope Resource, signer role approver",
+      leaf: leafOf(
+        "HasSignature",
+        hasSignature("approved", { scope: "Resource", signerRole: "approver" }),
+      ),
+    },
+    any: {
+      name: "scope Any",
+      leaf: leafOf("HasSignature", hasSignature("approved", { scope: "Any" })),
+    },
+    anyAsApprover: {
+      name: "scope Any, signer role approver",
+      leaf: leafOf(
+        "HasSignature",
+        hasSignature("approved", { scope: "Any", signerRole: "approver" }),
+      ),
+    },
+  };
+
+  const ROLE_FREE = Object.values(LEAVES).filter(
+    ({ leaf }) => leaf.signerRole === undefined,
+  );
+
+  it.effect(
+    "answers as \
+askSignature over the fixture layer does, on every case of the product",
+    () =>
+      Effect.gen(function* () {
+        const sites = Object.entries(SITES);
+        const leaves = Object.values(LEAVES);
+        assert.strictEqual(SINGLES.length, 36);
+        assert.strictEqual(LISTS.length, 73);
+        assert.strictEqual(sites.length * leaves.length * LISTS.length, 1168);
+        const mismatches: Array<string> = [];
+        let compared = 0;
+        for (const [siteName, site] of sites) {
+          for (const { name: leafName, leaf } of leaves) {
+            for (const { name: listName, rows } of LISTS) {
+              compared += 1;
+              const found = disagreement(
+                `${siteName} | ${leafName} | ${listName}`,
+                answerOf(signatureAnswerFromSignatures(rows, leaf, site)),
+                answerOf(yield* readOf(rows, leaf, site)),
+              );
+              if (found !== undefined) mismatches.push(found);
+            }
+          }
+        }
+        assert.strictEqual(compared, 1168);
+        assert.deepStrictEqual(mismatches, [], mismatches.join("\n"));
+      }),
+  );
+
+  it.effect(
+    "a refused fixture row fails as \
+the read does, with the refusal and never matched: false",
+    () =>
+      Effect.gen(function* () {
+        const rows = [
+          { subjectId: "alice", meaning: "approved" },
+          unkeyableRow('{"meaning":"approved"}'),
+        ];
+        for (const { leaf } of ROLE_FREE) {
+          const judged = signatureAnswerFromSignatures(rows, leaf, SITES.withId);
+          const read = yield* readOf(rows, leaf, SITES.withId);
+          assert.isTrue(Result.isFailure(judged) && Result.isFailure(read));
+          assert.deepStrictEqual(answerOf(judged), answerOf(read));
+          if (Result.isFailure(judged)) {
+            assert.strictEqual(judged.failure._tag, "SignatureHistoryUnavailable");
+          }
+        }
+      }),
+  );
+
+  it.effect(
+    "at a Resource site with no id, the missing id is answered before any \
+row is read",
+    () =>
+      Effect.gen(function* () {
+        const { leaf } = LEAVES.resource;
+        const refusedRows = [
+          { subjectId: "alice", meaning: "approved" },
+          unkeyableRow('{"meaning":"approved"}'),
+        ];
+        const typedRows = [{ subjectId: "alice", meaning: "approved" }];
+        const cases: ReadonlyArray<readonly [ReadonlyArray<SignatureInput>, ReadSite]> = [
+          [refusedRows, SITES.withoutResource],
+          [typedRows, { subject: unkeyableSubject(), resource: undefined }],
+        ];
+        for (const [rows, site] of cases) {
+          const judged = signatureAnswerFromSignatures(rows, leaf, site);
+          const read = yield* readOf(rows, leaf, site);
+          const wanted = { _tag: "MissingResourceId", relation: "approved" } as const;
+          assert.deepStrictEqual(answerOf(judged), wanted);
+          assert.deepStrictEqual(answerOf(read), wanted);
+        }
+      }),
+  );
+
+  it.effect(
+    "a refused query key fails as \
+the read does, with no subject id and never matched: false",
+    () =>
+      Effect.gen(function* () {
+        const rows = [{ subjectId: "alice", meaning: "approved" }];
+        const site: ReadSite = { subject: unkeyableSubject(), resource: { id: "doc-1" } };
+        for (const { leaf } of ROLE_FREE) {
+          const judged = signatureAnswerFromSignatures(rows, leaf, site);
+          const read = yield* readOf(rows, leaf, site);
+          assert.isTrue(Result.isFailure(judged) && Result.isFailure(read));
+          assert.deepStrictEqual(answerOf(judged), answerOf(read));
+          if (Result.isFailure(judged)) {
+            assert.strictEqual(judged.failure._tag, "SignatureHistoryUnavailable");
+            assert.isFalse(Object.hasOwn(judged.failure, "subjectId"));
+          }
+        }
+      }),
+  );
+});
+
+/**
+ * A fixture row, a site subject or a site resource that cannot be read is a refusal,
+ * never a throw: the layer, the read over it and the judgement fail typed.
+ *
+ * The three records an untyped caller can hand over that no typed signature admits
+ * are `null`, an object with a getter that throws, and a proxy whose trap throws
+ * (`HOSTILE_RECORDS`). A row's refusal names the field that was read, a site's
+ * names the site, and both carry what was thrown.
+ */
+describe("a signature fixture whose rows or site cannot be read", () => {
+  const typed = { subjectId: "alice", meaning: "approved" };
+  const anyLeaf = leafOf("HasSignature", hasSignature("approved", { scope: "Any" }));
+  const resourceLeaf = leafOf(
+    "HasSignature",
+    hasSignature("approved", { scope: "Resource" }),
+  );
+
+  /** Each hostile row, and its refusal: the field read and what it threw. */
+  const ROWS = {
+    nullRecord: {
+      row: HOSTILE_RECORDS.nullRecord("{}", "meaning", "boom"),
+      cause: /^subjectId: reading it threw: .*null/,
+    },
+    throwingGetter: {
+      row: HOSTILE_RECORDS.throwingGetter('{"subjectId":"alice"}', "meaning", "boom"),
+      cause: /^meaning: reading it threw: boom$/,
+    },
+    throwingProxy: {
+      row: HOSTILE_RECORDS.throwingProxy("{}", "meaning", "boom"),
+      cause: /^subjectId: reading it threw: boom$/,
+    },
+  };
+
+  it.effect(
+    "a fixture row that cannot be read fails every read, naming the field and \
+what was thrown",
+    () =>
+      Effect.gen(function* () {
+        for (const [name, { row, cause }] of Object.entries(ROWS)) {
+          const rows = [typed, row];
+          const layer = signatureHistoryFromSignatures(rows);
+          const direct = yield* Effect.result(query(layer, "alice", "doc-1"));
+          const read = yield* readOf(rows, anyLeaf, SITES.withId);
+          const judged = signatureAnswerFromSignatures(rows, anyLeaf, SITES.withId);
+          const results: ReadonlyArray<
+            Result.Result<unknown, MissingResourceId | SignatureHistoryUnavailable>
+          > = [direct, read, judged];
+          for (const result of results) {
+            if (Result.isSuccess(result)) return assert.fail(`${name}: answered`);
+            if (result.failure._tag !== "SignatureHistoryUnavailable") {
+              return assert.fail(`${name}: ${result.failure._tag}`);
+            }
+            assert.match(causeText(result.failure), cause, name);
+          }
+          assert.deepStrictEqual(answerOf(judged), answerOf(read), name);
+        }
+      }),
+  );
+
+  it("a site subject that cannot be read fails the judgement with no subject id, \
+naming the site", () => {
+    for (const [name, build] of Object.entries(HOSTILE_RECORDS)) {
+      const subject = build(JSON.stringify(alice), "id", "boom");
+      const judged = signatureAnswerFromSignatures([typed], anyLeaf, {
+        subject,
+        resource: undefined,
+      });
+      if (Result.isSuccess(judged)) return assert.fail(`${name}: answered`);
+      if (judged.failure._tag !== "SignatureHistoryUnavailable") {
+        return assert.fail(`${name}: ${judged.failure._tag}`);
+      }
+      assert.isFalse(Object.hasOwn(judged.failure, "subjectId"), name);
+      assert.match(causeText(judged.failure), /^site: reading it threw: /, name);
+    }
+  });
+
+  it.effect(
+    "a resource id that throws fails a Resource leaf, which an Any leaf never reads",
+    () =>
+      Effect.gen(function* () {
+        const resource = HOSTILE_RECORDS.throwingGetter("{}", "id", "boom");
+        const site: ReadSite = { subject: alice, resource };
+        const refused = signatureAnswerFromSignatures([typed], resourceLeaf, site);
+        if (Result.isSuccess(refused)) return assert.fail("answered");
+        if (refused.failure._tag !== "SignatureHistoryUnavailable") {
+          return assert.fail(refused.failure._tag);
+        }
+        assert.isFalse(Object.hasOwn(refused.failure, "resourceId"));
+        assert.strictEqual(causeText(refused.failure), "site: reading it threw: boom");
+        const answered = signatureAnswerFromSignatures([typed], anyLeaf, site);
+        assert.isTrue(Result.isSuccess(answered));
+        const read = yield* readOf([typed], anyLeaf, site);
+        assert.deepStrictEqual(answerOf(answered), answerOf(read));
+      }),
+  );
+});
+
+/**
+ * A list of rows that cannot be read is a refusal, never a throw, for the layer, the
+ * read over it and the judgement alike.
+ *
+ * The list is read before any row (`HOSTILE_LISTS`): a revoked proxy, a `length` or
+ * an element getter that throws, a value that is not iterable. Its refusal names the
+ * list and carries what was thrown.
+ */
+describe("a signature fixture whose list of rows cannot be read", () => {
+  const anyLeaf = leafOf("HasSignature", hasSignature("approved", { scope: "Any" }));
+  /** Each hostile list, and its refusal: the list and what it threw. */
+  const LISTS = {
+    revokedProxy: {
+      build: HOSTILE_LISTS.revokedProxy,
+      cause: /^signatures: reading it threw: .*revoked/,
+    },
+    throwingLength: {
+      build: HOSTILE_LISTS.throwingLength,
+      cause: /^signatures: reading it threw: boom$/,
+    },
+    throwingElement: {
+      build: HOSTILE_LISTS.throwingElement,
+      cause: /^signatures: reading it threw: boom$/,
+    },
+    notIterable: {
+      build: HOSTILE_LISTS.notIterable,
+      cause: /^signatures: reading it threw: /,
+    },
+  };
+
+  it.effect(
+    "a list that cannot be read fails every read, naming the list and what was thrown",
+    () =>
+      Effect.gen(function* () {
+        for (const [name, { build, cause }] of Object.entries(LISTS)) {
+          const rows = build("boom");
+          const layer = signatureHistoryFromSignatures(rows);
+          const direct = yield* Effect.result(query(layer, "alice", "doc-1"));
+          const read = yield* readOf(rows, anyLeaf, SITES.withId);
+          const judged = signatureAnswerFromSignatures(rows, anyLeaf, SITES.withId);
+          const results: ReadonlyArray<
+            Result.Result<unknown, MissingResourceId | SignatureHistoryUnavailable>
+          > = [direct, read, judged];
+          for (const result of results) {
+            if (Result.isSuccess(result)) return assert.fail(`${name}: answered`);
+            if (result.failure._tag !== "SignatureHistoryUnavailable") {
+              return assert.fail(`${name}: ${result.failure._tag}`);
+            }
+            assert.match(causeText(result.failure), cause, name);
+          }
+        }
+      }),
+  );
+});
+
+/**
+ * A row or a site holding an unkeyable object whose class `name` is not a string is a
+ * refusal that names the class generically, never a throw.
+ *
+ * The refusal's sentence names the class of what it refused, and a `name` that is a
+ * symbol, or an object whose `toString` throws, cannot be interpolated, so the sentence
+ * must be built without reading one.
+ */
+describe("a signature fixture holding an object whose class name is not text", () => {
+  const anyLeaf = leafOf("HasSignature", hasSignature("approved", { scope: "Any" }));
+  const UNKEYABLE = /an unkeyable instance \(Object\) has no request key/;
+  const NAMES = {
+    symbol: Symbol("odd"),
+    throwingToString: {
+      toString: () => {
+        throw new Error("ts");
+      },
+    },
+  };
+
+  it("a row and a site fail with a sentence that names the class generically", () => {
+    for (const [name, className] of Object.entries(NAMES)) {
+      const odd = unnamedInstance(className);
+      const row = untypedWith('{"meaning":"approved"}', "subjectId", odd);
+      const subject = untypedWith(JSON.stringify(alice), "id", odd);
+      for (const judged of [
+        signatureAnswerFromSignatures([row], anyLeaf, SITES.withId),
+        signatureAnswerFromSignatures([], anyLeaf, { subject, resource: undefined }),
+      ]) {
+        if (Result.isSuccess(judged)) return assert.fail(`${name}: answered`);
+        if (judged.failure._tag !== "SignatureHistoryUnavailable") {
+          return assert.fail(`${name}: ${judged.failure._tag}`);
+        }
+        assert.match(causeText(judged.failure), UNKEYABLE, name);
+      }
+    }
+  });
+});
+
+/**
+ * A request or a store the signature port fails on carries `subjectId` exactly when
+ * the schema admits the request's value, whether or not the key refuses it.
+ *
+ * A subject id that is an object is a value the key admits and the schema refuses,
+ * so a failing store gives a member-less error whose cause is the store's own, not
+ * a refusal sentence.
+ */
+describe("a signature store that fails on a subject id the key admits", () => {
+  it.effect("the error has no subject id and the cause is the store's own", () =>
+    Effect.gen(function* () {
+      const request = JSON.parse('{"subjectId":{"a":1}}');
+      assert.isTrue(Result.isSuccess(signatureHistoryPort.key([request])));
+      const broken = scriptedPort(signatureHistoryPort, () =>
+        PortReply.fail("down"),
+      ).layer;
+      const failure = yield* Effect.flip(
+        SignatureHistory.signaturesFor(request).pipe(Effect.provide(broken)),
+      );
+      assert.isFalse(Object.hasOwn(failure, "subjectId"));
+      assert.strictEqual(failure.cause, "down");
+    }),
+  );
+});
+
+/**
+ * Each field of a signature row is read through the one guarded read, and the
+ * refusal names that field, whichever one it is.
+ *
+ * One getter throws on one field and every other field is valid, so the sentence can
+ * only have come from that field's own path.
+ */
+describe("a signature row with one field that cannot be read", () => {
+  const ROW =
+    '{"subjectId":"alice","resourceId":"doc-1","meaning":"approved",' +
+    '"signerRole":"reviewer","signedAt":1,"algorithm":"ed25519","keyId":"k1"}';
+  const anyLeaf = leafOf("HasSignature", hasSignature("approved", { scope: "Any" }));
+
+  const refusesNaming = (field: string) =>
+    Effect.gen(function* () {
+      const rows = [HOSTILE_RECORDS.throwingGetter(ROW, field, "boom")];
+      const layer = signatureHistoryFromSignatures(rows);
+      const read = yield* Effect.result(query(layer, "alice", "doc-1"));
+      const judged = signatureAnswerFromSignatures(rows, anyLeaf, SITES.withId);
+      const results: ReadonlyArray<
+        Result.Result<unknown, MissingResourceId | SignatureHistoryUnavailable>
+      > = [read, judged];
+      for (const result of results) {
+        if (Result.isSuccess(result)) return assert.fail(`${field}: answered`);
+        if (result.failure._tag !== "SignatureHistoryUnavailable") {
+          return assert.fail(`${field}: ${result.failure._tag}`);
+        }
+        assert.strictEqual(causeText(result.failure), `${field}: reading it threw: boom`);
+      }
+    });
+
+  it.effect("a row whose subjectId cannot be read is refused naming subjectId", () =>
+    refusesNaming("subjectId"),
+  );
+  it.effect("a row whose resourceId cannot be read is refused naming resourceId", () =>
+    refusesNaming("resourceId"),
+  );
+  it.effect("a row whose signerRole cannot be read is refused naming signerRole", () =>
+    refusesNaming("signerRole"),
+  );
+  it.effect("a row whose signedAt cannot be read is refused naming signedAt", () =>
+    refusesNaming("signedAt"),
+  );
+  it.effect("a row whose algorithm cannot be read is refused naming algorithm", () =>
+    refusesNaming("algorithm"),
+  );
+  it.effect("a row whose keyId cannot be read is refused naming keyId", () =>
+    refusesNaming("keyId"),
+  );
 });

@@ -28,7 +28,9 @@ import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Result from "effect/Result";
 import { CurrentSubject } from "./CurrentSubject.ts";
+import { askedOf, guardHealthCheckSpan } from "./EvaluationSpan.ts";
 import type { Policy } from "./Policy.ts";
+import { annotateAsked, annotateSpan } from "./PortSpanEncode.ts";
 import { questionOf } from "./Question.ts";
 import type { EvaluateOptions } from "./Question.ts";
 import { walk } from "./Walk.ts";
@@ -54,8 +56,9 @@ export interface GuardHealthCheckResult {
  *
  * Requires only `CurrentSubject` and the ports. `options.evaluationId` is
  * accepted and ignored (a probe has no id); `concurrency` is honoured.
- * The `qadi.guardHealthCheck` span carries `qadi.healthy` and, when
- * unhealthy, `qadi.error_tag`, so a tracer still sees a failed probe.
+ * Its span (`guardHealthCheckSpan`, `EvaluationSpan.ts`) says what the probe asked
+ * before the walk, and whether it was healthy, with the error's tag when not, after
+ * it, so a tracer still sees a failed probe.
  *
  * Never fails: a typed `EvaluationError` from the probed evaluation is
  * captured into the result rather than propagated — a health check that
@@ -91,19 +94,23 @@ export interface GuardHealthCheckResult {
  * cannot drift apart silently — without it, a field renamed on one side alone
  * would still typecheck via the surrounding `Effect.fn` inference.
  */
-export const createGuardHealthCheck = Effect.fn("qadi.guardHealthCheck")(function* (
+export const createGuardHealthCheck = Effect.fn(guardHealthCheckSpan.name)(function* (
   canaryPolicy: Policy,
   options?: EvaluateOptions,
 ) {
   const subject = yield* CurrentSubject;
+  const question = questionOf(subject, canaryPolicy, options);
+  // Before the walk, so a probe that fails still says what it asked.
+  yield* annotateAsked(guardHealthCheckSpan.question, askedOf(question));
   const checkedAt = yield* Clock.currentTimeMillis;
   const [elapsed, result] = yield* Effect.timed(
-    Effect.result(walk(questionOf(subject, canaryPolicy, options), options?.concurrency)),
+    Effect.result(walk(question, options?.concurrency)),
   );
-  yield* Effect.annotateCurrentSpan(
+  yield* annotateSpan(
+    guardHealthCheckSpan.answer,
     Result.isSuccess(result)
-      ? { "qadi.healthy": true }
-      : { "qadi.healthy": false, "qadi.error_tag": result.failure._tag },
+      ? { healthy: true }
+      : { healthy: false, errorTag: result.failure._tag },
   );
 
   return {

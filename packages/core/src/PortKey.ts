@@ -53,8 +53,10 @@
  */
 import * as Equal from "effect/Equal";
 import * as Result from "effect/Result";
+import type { WirePath } from "./JsonRefusal.ts";
 import { KeyRefusal } from "./PortDescription.ts";
 import type { UnkeyableKind } from "./PortDescription.ts";
+import { thrownMessage } from "./ThrownMessage.ts";
 
 /** One child of a container: where it sits, and how to read it when its turn comes. */
 type Child = readonly [segment: string | number, read: () => unknown];
@@ -74,11 +76,18 @@ const frame = (
   close: (tokens: ReadonlyArray<string>) => string,
 ): KeyFrame => ({ container, children: children.values(), close, tokens: [] });
 
-/** The constructor's name, or the `Object.prototype.toString` brand without one. */
+/**
+ * The constructor's name, or the `Object.prototype.toString` brand without one.
+ *
+ * A name is taken only when it is a string: a class may declare a `name` that is a
+ * symbol or an object, and a refusal's sentence interpolates the brand.
+ */
 const brandOf = (value: object): string => {
   const ctor: unknown = Reflect.get(value, "constructor");
-  return typeof ctor === "function" && ctor.name !== ""
-    ? ctor.name
+  const name: unknown =
+    typeof ctor === "function" ? Reflect.get(ctor, "name") : undefined;
+  return typeof name === "string" && name !== ""
+    ? name
     : Object.prototype.toString.call(value).slice(8, -1);
 };
 
@@ -121,6 +130,10 @@ const mapFrame = (container: ReadonlyMap<unknown, unknown>): KeyFrame =>
         .toSorted()
         .join(",")}}`,
   );
+
+/** The refusal a throw at `path` is. `path` is copied, because a walk moves it on. */
+const unreadable = (path: WirePath, error: unknown): KeyRefusal =>
+  KeyRefusal.Unreadable({ path: [...path], message: thrownMessage(error) });
 
 /**
  * The request key of `value`, or the first reason it has none.
@@ -196,7 +209,38 @@ export const canonicalKey = (value: unknown): Result.Result<string, KeyRefusal> 
 
   return Result.try({
     try: walk,
-    catch: (error) =>
-      KeyRefusal.Unreadable({ path: [...path], message: error instanceof Error ? error.message : String(error) }),
+    catch: (error) => unreadable(path, error),
   }).pipe(Result.flatMap((walked) => walked));
 };
+
+/**
+ * `read()`, or the refusal that its throw is.
+ *
+ * The one place a fixture's rows and a site's fields are read from a value a caller
+ * may have built wrongly: a getter that throws, a proxy whose trap throws, a `null`
+ * or `undefined` row. The throw becomes a {@link KeyRefusal.Unreadable} naming
+ * `path` and carrying what was thrown, which `describeKeyRefusal` writes as a
+ * sentence, so a fixture's lookup and a fixture judgement refuse such a value as
+ * they refuse one the key cannot read, and neither throws (BEH-QD-410). It is the
+ * one guarded read callers use, so none outside this module writes a `try`;
+ * `canonicalKey` guards its own walk, whose path is live where this copies it, and
+ * `thrownMessage` guards its own renderings.
+ */
+export const readGuarded = <A>(
+  path: WirePath,
+  read: () => A,
+): Result.Result<A, KeyRefusal> =>
+  Result.try({ try: read, catch: (error) => unreadable(path, error) });
+
+/**
+ * `rows` as an array of its elements, or the refusal that reading the list is.
+ *
+ * The list is the first thing a fixture reads from its caller, before any row:
+ * a revoked proxy, a `length` or an index getter that throws, a value that is not
+ * iterable. All of it happens inside the one guarded read, so a bad list is
+ * refused the way a bad row is, and the caller then maps the copy it holds.
+ */
+export const readRows = <A>(
+  path: WirePath,
+  rows: ReadonlyArray<A>,
+): Result.Result<Array<A>, KeyRefusal> => readGuarded(path, () => [...rows]);

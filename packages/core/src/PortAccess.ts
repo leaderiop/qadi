@@ -34,6 +34,7 @@ import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import * as Metric from "effect/Metric";
+import * as Result from "effect/Result";
 import type { AttributeResolver } from "./AttributeResolver.ts";
 import { attributeResolverPort } from "./AttributeResolver.ts";
 import type { AuthSubject } from "./AuthSubject.ts";
@@ -43,14 +44,13 @@ import { decisionHistoryPort } from "./DecisionHistory.ts";
 import type { AttributeResolveError, DecisionHistoryUnavailable } from "./Errors.ts";
 import type { MissingResourceId } from "./Errors.ts";
 import type { ResourceId } from "./Identity.ts";
-import { errorOf } from "./LeafNeeds.ts";
 import { isOwnKey, ownValue } from "./Operand.ts";
 import type { LeafOf } from "./PortDescription.ts";
 import { portCallsTotal, predicatePortCallsTotal, servedPortCallsTotal } from "./PortMetrics.ts";
 import type { PortName } from "./PortName.ts";
 import { relationshipResolverPort } from "./RelationshipResolver.ts";
 import type { Resource } from "./Resource.ts";
-import { isResourceScoped } from "./ScopedLeaf.ts";
+import { isResourceScoped, requireResourceId } from "./ScopedLeaf.ts";
 import type {
   AnswerOf,
   ArgsOf,
@@ -61,10 +61,10 @@ import type {
   ServiceOf,
 } from "./Ports.ts";
 import type { PortInterpreter, SpanFields, SpanStruct, SpanType } from "./PortSpan.ts";
-import { encodeSpan } from "./PortSpanEncode.ts";
+import { annotateSpan } from "./PortSpanEncode.ts";
 import type { SignatureAnswer } from "./SignatureHistory.ts";
 import { signatureHistoryPort } from "./SignatureHistory.ts";
-import { signatureMatches } from "./SignatureMatch.ts";
+import { signatureAnswerOf } from "./SignatureMatch.ts";
 
 /**
  * Which interpreter of a policy is asking: the evaluator or the translator.
@@ -93,7 +93,7 @@ type Interpreter = Exclude<PortInterpreter, "remote">;
 const annotateQuestion = <Q extends SpanFields>(
   d: { readonly attributes: { readonly question: SpanStruct<Q> } },
   question: SpanType<SpanStruct<Q>>,
-): Effect.Effect<void> => Effect.annotateCurrentSpan(encodeSpan(d.attributes.question, question));
+): Effect.Effect<void> => annotateSpan(d.attributes.question, question);
 
 /**
  * Annotates the current span with a port's **answer**, as its description's
@@ -108,7 +108,7 @@ const annotateQuestion = <Q extends SpanFields>(
 const annotateAnswer = <Ans extends SpanFields>(
   d: { readonly attributes: { readonly answer: SpanStruct<Ans> } },
   disclosed: SpanType<SpanStruct<Ans>>,
-): Effect.Effect<void> => Effect.annotateCurrentSpan(encodeSpan(d.attributes.answer, disclosed));
+): Effect.Effect<void> => annotateSpan(d.attributes.answer, disclosed);
 
 /**
  * Converts a port call's defect into its own typed error, leaving an
@@ -246,6 +246,9 @@ const completeRequest: {
   SignatureHistory: (request) => request,
 };
 
+/** What `readScoped` asks `requireResourceId` about: a leaf always about one resource. */
+const RESOURCE_SCOPED = { scope: "Resource" } as const;
+
 /**
  * The one read of a port whose question is about one resource: a request with
  * no resource id fails with `MissingResourceId` on the port's own span.
@@ -266,9 +269,11 @@ const completeRequest: {
  * `relation` is what `MissingResourceId` names: the event, the relation or the
  * meaning the leaf asks. A plain function, like `readPort`: it runs under the
  * calling read's span and opens none, so it is not an `Effect.fn` and not in
- * `UNTRACED_BUDGET`. The one id test is over the request `asks` built, whose
+ * `UNTRACED_BUDGET`. The one id test is `requireResourceId` (`ScopedLeaf.ts`),
+ * which the fixture judgements call too, over the request `asks` built, whose
  * `resourceId` is `resourceIdOf` (`Resource.ts`), the writer's rule and the
- * reader's.
+ * reader's. The caller has routed on the leaf's scope, so this read asks it as a
+ * leaf that is always about one resource, which is also what `hasRelationship` is.
  */
 const readScoped = <K extends ScopedPort>(
   d: DescriptionOf<K>,
@@ -282,15 +287,17 @@ const readScoped = <K extends ScopedPort>(
 > =>
   Effect.gen(function* () {
     const [{ resourceId }] = request;
-    if (resourceId === undefined) {
+    const found = requireResourceId(RESOURCE_SCOPED, resourceId, relation);
+    if (Result.isFailure(found)) {
       yield* annotateQuestion<SpanFields>(d, {
         ...d.attributes.pose(request),
         scope: "Resource",
         interpreter,
       });
-      return yield* Effect.fail(errorOf({ _tag: "ResourceId", relation }));
+      return yield* Effect.fail(found.failure);
     }
-    return yield* readPort(d, interpreter, completeRequest[d.port](request, resourceId));
+    const args = completeRequest[d.port](request, found.success);
+    return yield* readPort(d, interpreter, args);
   });
 
 // ---------------------------------------------------------------------------
@@ -451,7 +458,7 @@ export const askRelationship = Effect.fn(relationshipResolverPort.span)(function
  * `HasCustom`, ADR-QD-055).
  *
  * `CustomPredicateError` has no `cause` field, so the description renders a
- * defect into `reason` with `Cause.pretty` (`customPredicatePort.defect`).
+ * defect into `reason` with `causeMessage` (`customPredicatePort.defect`).
  */
 export const askCustom = Effect.fn(customPredicatePort.span)(function* (
   subject: AuthSubject,
@@ -469,10 +476,11 @@ export const askCustom = Effect.fn(customPredicatePort.span)(function* (
  * Asks the signature history and matches `leaf`'s requirement against what it
  * returns. Evaluator-only (translation refuses `HasSignature`, INV-QD-056).
  *
- * The match is made here too, from the same `signatureMatches` the span's
- * `disclose` reads, so `qadi.matched` is on the span even when the verdict is
- * built elsewhere. `qadi.matched` rather than a three-valued `qadi.answer`: a
- * signature either matches or it doesn't, with no analogous middle state.
+ * The answer is built here too, by `signatureAnswerOf`, from the same
+ * `signatureMatches` the span's `disclose` reads, so `qadi.matched` is on the
+ * span even when the verdict is built elsewhere. `qadi.matched` rather than a
+ * three-valued `qadi.answer`: a signature either matches or it doesn't, with no
+ * analogous middle state.
  *
  * A `Resource`-scoped leaf with no usable resource id fails with
  * `MissingResourceId` on the port's own span (`readScoped`, BEH-QD-227,
@@ -488,10 +496,11 @@ export const askSignature = Effect.fn(signatureHistoryPort.span)(function* (
     isResourceScoped(leaf)
       ? yield* readScoped(signatureHistoryPort, "evaluate", request, leaf.meaning)
       : yield* readPort(signatureHistoryPort, "evaluate", request);
-  const answer: SignatureAnswer = {
-    matched: signatureMatches(signatures, leaf.meaning, leaf.signerRole),
-    onFile: signatures.length,
-  };
+  const answer: SignatureAnswer = signatureAnswerOf(
+    signatures,
+    leaf.meaning,
+    leaf.signerRole,
+  );
   return answer;
 });
 

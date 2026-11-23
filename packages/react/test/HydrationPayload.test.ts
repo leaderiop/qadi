@@ -10,6 +10,7 @@ import {
   CurrentSubject,
   Deny,
   EvaluationServicesNone,
+  MAX_DECODE_DEPTH,
   allOf,
   anyOf,
   evaluate,
@@ -33,6 +34,7 @@ import { dehydrateDecisions, hydrateDecisions, isSeeded, permits } from "../src/
 import type { HydrateOptions } from "../src/Hydration.ts";
 import type { DecisionEntry, HydrationDrop } from "../src/Hydration.ts";
 import { currentDecision } from "../src/DecisionOutcome.ts";
+import { PAYLOAD_PRODUCERS } from "../src/HydrationEngine.ts";
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 
 const read = hasPermission(permission("doc", "read"));
@@ -212,6 +214,34 @@ describe("the payload is versioned", () => {
       const seeded = [...hydrate(payload, alice, { onDropped: (d) => drops.push(d) })];
       expect(seeded).toEqual([]);
       expect(drops.map((d) => d.reason)).toEqual(["UnsupportedPayloadVersion"]);
+    }
+  });
+});
+
+describe("each whole-payload refusal reason is raised by the producer its row names", () => {
+  /** An object `depth` levels deep, built without recursion so the test itself cannot overflow. */
+  const nested = (depth: number): unknown => {
+    let value: unknown = "u1";
+    for (let level = 0; level < depth; level++) value = { next: value };
+    return value;
+  };
+
+  // Keyed by producer, so a producer with no input does not compile.
+  const refusedBy: {
+    readonly [P in (typeof PAYLOAD_PRODUCERS)[keyof typeof PAYLOAD_PRODUCERS]]: unknown;
+  } = {
+    TooDeep: { version: 2, subjectId: nested(MAX_DECODE_DEPTH + 10), entries: [] },
+    Malformed: 42,
+    UnsupportedPayloadVersion: { version: 3, subjectId: "u1", entries: [] },
+    SubjectCheck: { version: 2, subjectId: "someone-else", entries: [] },
+  };
+
+  it("each row's producer refuses the payload whole under that row's reason, once", () => {
+    for (const [reason, producer] of Object.entries(PAYLOAD_PRODUCERS)) {
+      const drops: Array<HydrationDrop<unknown>> = [];
+      const seeded = [...hydrate(refusedBy[producer], alice, { onDropped: (d) => drops.push(d) })];
+      expect(seeded).toEqual([]);
+      expect(drops.map((d) => [d.reason, d.wholePayload])).toEqual([[reason, true]]);
     }
   });
 });

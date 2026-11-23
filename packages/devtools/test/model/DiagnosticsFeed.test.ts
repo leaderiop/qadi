@@ -28,7 +28,7 @@ import {
 import { noDiagnostics } from "../../src/model/DiagnosticsStore.ts";
 import type { PortCallCollector, PortCallLog } from "../../src/model/PortCalls.ts";
 import { makeCollectorDouble } from "../collectorDouble.ts";
-import { settleTurns, thrownBy } from "../helpers.ts";
+import { hostile, hostileError, settleTurns, thrownBy } from "../helpers.ts";
 
 /** A layer that counts its builds and releases. */
 const counted = () => {
@@ -150,6 +150,22 @@ describe("the diagnostics feed", () => {
 
       yield* step("6 seconds");
       assert.strictEqual(state.calls, 1);
+    }),
+  );
+
+  it.effect("a collector that throws a value that cannot be rendered is Stopped with the placeholder", () =>
+    Effect.gen(function* () {
+      for (const value of [hostile, hostileError]) {
+        const { collector } = makeCollectorDouble(() => {
+          throw value;
+        });
+        const feed = yield* makeDiagnosticsFeed({ collector });
+
+        const { status } = feed.getSnapshot();
+        if (!DiagnosticsStatus.$is("Stopped")(status)) return assert.fail("expected Stopped");
+        assert.isFalse(status.sampled);
+        assert.strictEqual(status.reason, "a value that could not be described");
+      }
     }),
   );
 

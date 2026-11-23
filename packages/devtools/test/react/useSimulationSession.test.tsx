@@ -12,63 +12,23 @@
 import { assert, describe, it, vi } from "@effect/vitest";
 import { act, renderHook, render, waitFor } from "@testing-library/react";
 import * as Effect from "effect/Effect";
-import * as Layer from "effect/Layer";
 import { Activity, StrictMode, useState } from "react";
 import { useDockModel } from "../../src/react/useDockModel.ts";
 import { useScoped } from "../../src/react/useScoped.ts";
-import { AttributeResolver, gte, hasAttribute, portsLayer } from "@qadi/core";
-import { policyLabel } from "../../src/model/Catalogue.ts";
-import type { PolicySighting } from "../../src/model/Catalogue.ts";
+import { gte, hasAttribute } from "@qadi/core";
 import type { DockModel } from "../../src/model/DockModel.ts";
 import { sourceFromRecords } from "../../src/model/Source.ts";
-import { emptyTimeline, ingestAll } from "../../src/model/Timeline.ts";
 import { useSimulationSession } from "../../src/react/useSimulationSession.ts";
 import type { UseSimulationSessionInput } from "../../src/react/useSimulationSession.ts";
 import { decisionRecord } from "../helpers.ts";
+import { entryOf, sighting, slow } from "../simulationFixtures.ts";
 
 const clearance = hasAttribute("clearance", gte(5));
 
-const sighting: PolicySighting = {
-  policy: clearance,
-  label: policyLabel(clearance),
-  count: 1,
-  allows: 1,
-  denies: 0,
-  errors: 0,
-  lastAt: 100,
-};
-const sightings = [sighting];
+const sightings = [sighting(clearance)];
 
 /** One empty source, so `configure` sees one identity per field however often a case renders. */
 const source = sourceFromRecords([]);
-
-/** A resolver that takes a second, and counts how it ended. */
-const slow = () => {
-  const tally = { started: 0, finished: 0, interrupted: 0 };
-  const ports = portsLayer({
-    AttributeResolver: Layer.succeed(AttributeResolver, {
-      name: "slow",
-      resolve: () =>
-        Effect.sync(() => {
-          tally.started += 1;
-        }).pipe(
-          Effect.andThen(Effect.sleep("1 second")),
-          Effect.onInterrupt(() =>
-            Effect.sync(() => {
-              tally.interrupted += 1;
-            }),
-          ),
-          Effect.andThen(
-            Effect.sync(() => {
-              tally.finished += 1;
-              return 9;
-            }),
-          ),
-        ),
-    }),
-  });
-  return { tally, ports };
-};
 
 describe("the component that owns a session's scope", () => {
   it("keeps a run alive through StrictMode's double mount, and stops it on unmount", async () => {
@@ -183,10 +143,9 @@ describe("useSimulationSession", () => {
   });
 
   it("seeds the session when its seed prop arrives, and not before", () => {
-    const [entry] = ingestAll(emptyTimeline(), [
+    const entry = entryOf(
       decisionRecord({ evaluationId: "ev-91", policy: clearance, action: "read" }),
-    ]).entries;
-    assert.isDefined(entry);
+    );
     const first: UseSimulationSessionInput = { sightings };
     const { result, rerender } = renderHook(
       (props: UseSimulationSessionInput) => useSimulationSession(props),

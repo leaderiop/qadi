@@ -19,7 +19,9 @@
  * absent one, because the reviewer reads it as "and even that would not help".
  */
 import * as Match from "effect/Match";
+import * as Result from "effect/Result";
 import {
+  actedAnswerFromEvents,
   foldMatcherCases,
   foldPolicyCases,
   getByPath,
@@ -28,20 +30,28 @@ import {
   makeSubjectId,
   permissionKey,
   resourceIdOf,
+  signatureAnswerFromSignatures,
+  signatureHistoryPort,
+  thrownMessage,
   valueLabel,
 } from "@qadi/core";
 import type {
-  HistoryScope,
+  DecisionHistoryUnavailable,
+  LeafOf,
   Matcher,
   MatcherCases,
   MatcherContext,
+  MissingResourceId,
   Permission,
   Policy,
   PolicyCases,
+  ReadSite,
+  SignatureHistoryUnavailable,
   ValueRef,
 } from "@qadi/core";
 import type { SimulationEdit } from "./SimulationEdit.ts";
-import { fieldOps, grant } from "./SimulationFields.ts";
+import { NO_CUSTOM_PREDICATE_FIELD, fieldOps, grant } from "./SimulationFields.ts";
+import { subjectOf } from "./SimulationInput.ts";
 import type { SimulationInput } from "./SimulationInput.ts";
 
 /**
@@ -70,12 +80,20 @@ export interface RemedySweep {
  * One edit per requirement the policy names that the input does not already meet.
  *
  * "Does not already meet" is a **syntactic** check, and deliberately so for
- * roles, permissions, edges and events: those are set membership, and asking
- * the evaluator would cost one run per candidate to learn what a lookup
- * answers. Attributes get no such check — a key present with the wrong value is
- * precisely the case worth a row — so a remedy that changes nothing is offered,
- * and the sweep reports it as *no change*. That is a finding too: it says the
- * attribute was never the problem.
+ * roles, permissions and edges: those are set membership, and asking the
+ * evaluator would cost one run per candidate to learn what a lookup answers.
+ * For events and signatures it is core's answer (`actedAnswerFromEvents`,
+ * `signatureAnswerFromSignatures`), because the leaf's scope decides which row
+ * answers and that rule is the port's. A check the port refuses is skipped with
+ * the port's refusal, never offered a row, and the two agreement tests
+ * (`RemedySignatureConformance.test.ts`, `RemedyActedConformance.test.ts`)
+ * compare the table with core's evaluation. `remedyEdits` never throws, for any
+ * value a signature row, an event row, the list of them, the form's subject or
+ * the form's resource holds: a requirement whose form cannot be read is a skip
+ * naming what was thrown, whichever kind of requirement it is. Attributes get no
+ * such check — a key present with the wrong value is precisely the case worth a
+ * row — so a remedy that changes nothing is offered, and the sweep reports it as
+ * *no change*. That is a finding too: it says the attribute was never the problem.
  *
  * **`Not` is not descended into**, and neither is a `Rules` row whose `effect`
  * is `"Deny"`. Satisfying a requirement under a negation, or under a deny row's
@@ -86,7 +104,7 @@ export interface RemedySweep {
  */
 export const remedyEdits = (policy: Policy, input: SimulationInput): RemedySweep => {
   const built = requirementsOf(policy)
-    .map((requirement) => remedyFor(requirement)(input))
+    .map((requirement) => remedyGuarded(requirement, input))
     .filter((one): one is Built => one !== undefined);
 
   return {
@@ -313,13 +331,8 @@ type Requirement =
   | { readonly _tag: "ResourceAttribute"; readonly attribute: string; readonly matcher: Matcher }
   | { readonly _tag: "Relationship"; readonly relation: string }
   | { readonly _tag: "Action"; readonly action: string }
-  | { readonly _tag: "Acted"; readonly event: string; readonly scope: HistoryScope }
-  | {
-      readonly _tag: "Signature";
-      readonly meaning: string;
-      readonly signerRole: string | undefined;
-      readonly scope: HistoryScope;
-    }
+  | { readonly _tag: "Acted"; readonly leaf: LeafOf["HasActed"] }
+  | { readonly _tag: "Signature"; readonly leaf: LeafOf["HasSignature"] }
   | { readonly _tag: "Custom"; readonly name: string };
 
 /** Joins requirement lists in order, with a loop so a very wide node is never spread into arguments. */
@@ -352,7 +365,9 @@ const requirementCases: PolicyCases<ReadonlyArray<Requirement>> = {
   ],
   HasRelationship: (p) => [{ _tag: "Relationship" as const, relation: p.relation }],
   HasAction: (p) => [{ _tag: "Action" as const, action: p.action }],
-  HasActed: (p) => [{ _tag: "Acted" as const, event: p.event, scope: p.scope }],
+  // The node itself goes to core, which answers whether the form's events meet
+  // it at the site (`actedAnswerFromEvents`), so the remedy reads the port's scoping.
+  HasActed: (p) => [{ _tag: "Acted" as const, leaf: p }],
   // The remedy for "has not acted" is to remove the event, which `singleEdits`
   // already offers for every event the fixtures list.
   HasNotActed: () => [],
@@ -362,12 +377,9 @@ const requirementCases: PolicyCases<ReadonlyArray<Requirement>> = {
   // than passed over, because a requirement no remedy could be built for must
   // be said so (BEH-QD-222).
   HasCustom: (p) => [{ _tag: "Custom" as const, name: p.name }],
-  // The node carries everything `askSignature` matches on - the meaning, the
-  // signer role when it names one, and the scope - so the remedy is built from
-  // it exactly as `AddEvent` is built from `HasActed`.
-  HasSignature: (p) => [
-    { _tag: "Signature" as const, meaning: p.meaning, signerRole: p.signerRole, scope: p.scope },
-  ],
+  // The node itself goes to core, which answers whether the form's rows meet it
+  // at the site, so the remedy reads the port's own scoping and match.
+  HasSignature: (p) => [{ _tag: "Signature" as const, leaf: p }],
   AllOf: (_p, children) => concat(children),
   AnyOf: (_p, children) => concat(children),
   // Only `Permit` rows: a rule's `condition` is evaluated for applicability,
@@ -423,8 +435,72 @@ const skip = (requirement: string, reason: string): Built => ({
 });
 
 const NO_RESOURCE_ID = "the check names no resource id";
-const CUSTOM_HAS_NO_FIELD =
-  "a custom predicate's answer has no form field; run against Snapshot or Live";
+
+/**
+ * The sentence for a check that `who` refuses, so no added row would be answered.
+ *
+ * One sentence for every refusal, with the refuser and what it said in it. A check the
+ * port refuses is refused whatever row were added, so the row would not remedy it,
+ * and a remedy row that does not remedy is worse than an absent one (BEH-QD-222).
+ */
+const refusal = (who: string, cause: unknown): string =>
+  `the ${who} refuses this check, so no added row would be answered: ` +
+  thrownMessage(cause);
+
+/**
+ * A read of the form, or the skip reason its throw is.
+ *
+ * The form holds what a person typed and what a host handed over, so reading its
+ * subject, its id or attributes, its resource, its id or attributes, its action or
+ * any of its lists may throw (a getter, a proxy, a `null`). Every arm of
+ * {@link remedyFor} reads the form, so every arm runs inside this one read, through
+ * {@link remedyGuarded}: no arm reads the form outside it, and such a requirement is
+ * skipped with what was thrown and never throws out of `remedyEdits`, which `whatIf`
+ * calls from `derive`. The rows themselves reach core as they are, and core reads
+ * them through its own guarded read.
+ */
+const readForm = <A>(read: () => A): Result.Result<A, string> =>
+  Result.try({ try: read, catch: (thrown) => refusal("form", thrown) });
+
+/** What a requirement is called in the sweep's skips, said once for arms and guard. */
+const requirementLabel: (self: Requirement) => string = Match.type<Requirement>().pipe(
+  Match.tagsExhaustive({
+    Role: (self) => `role ${self.role}`,
+    Permission: (self) => `permission ${permissionKey(self.permission)}`,
+    Action: (self) => `action ${self.action}`,
+    SubjectAttribute: (self) => `subject attribute ${self.attribute}`,
+    ResourceAttribute: (self) => `resource attribute ${self.attribute}`,
+    Relationship: (self) => `relationship ${self.relation}`,
+    Acted: (self) => `event ${self.leaf.event}`,
+    Signature: (self) => `signature ${self.leaf.meaning}`,
+    Custom: (self) => `custom predicate ${self.name}`,
+  }),
+);
+
+/**
+ * The reason a check that core's fixture judgement failed for is skipped.
+ *
+ * Both judgements read this one dispatcher, each failing with `MissingResourceId` or
+ * its own port's error, which carries the refusal of a form row or of the form's
+ * subject the port's key cannot read.
+ */
+const skipReason: (
+  failure: MissingResourceId | SignatureHistoryUnavailable | DecisionHistoryUnavailable,
+) => string = Match.type<
+  MissingResourceId | SignatureHistoryUnavailable | DecisionHistoryUnavailable
+>().pipe(
+  Match.tagsExhaustive({
+    MissingResourceId: () => NO_RESOURCE_ID,
+    SignatureHistoryUnavailable: (failure) => refusal("signature port", failure.cause),
+    DecisionHistoryUnavailable: (failure) => refusal("history port", failure.cause),
+  }),
+);
+
+/** Where the simulated check is made, as core's fixture judgements take it. */
+const siteOf = (input: SimulationInput): ReadSite => ({
+  subject: subjectOf(input.subject),
+  resource: input.resource,
+});
 
 /** A built edit, for the arms that take a field's grant from the table. */
 const edit = (self: SimulationEdit): Built => ({ _tag: "Edit", edit: self });
@@ -473,7 +549,7 @@ const remedyFor: (self: Requirement) => (input: SimulationInput) => Built | unde
       SubjectAttribute: (self) => (input: SimulationInput) => {
         const witnessed = satisfyingValue(self.matcher, input);
         if (witnessed._tag === "Unsynthesisable") {
-          return skip(`subject attribute ${self.attribute}`, witnessed.reason);
+          return skip(requirementLabel(self), witnessed.reason);
         }
         return edit(
           grant(
@@ -486,11 +562,11 @@ const remedyFor: (self: Requirement) => (input: SimulationInput) => Built | unde
 
       ResourceAttribute: (self) => (input: SimulationInput) => {
         if (input.resource === undefined) {
-          return skip(`resource attribute ${self.attribute}`, "the check names no resource");
+          return skip(requirementLabel(self), "the check names no resource");
         }
         const witnessed = satisfyingValue(self.matcher, input);
         if (witnessed._tag === "Unsynthesisable") {
-          return skip(`resource attribute ${self.attribute}`, witnessed.reason);
+          return skip(requirementLabel(self), witnessed.reason);
         }
         return strengthen(
           "SetResourceAttribute",
@@ -504,64 +580,100 @@ const remedyFor: (self: Requirement) => (input: SimulationInput) => Built | unde
 
       Relationship: (self) => (input: SimulationInput) => {
         const resourceId = resourceIdOf(input.resource);
-        if (resourceId === undefined) return skip(`relationship ${self.relation}`, NO_RESOURCE_ID);
+        if (resourceId === undefined) return skip(requirementLabel(self), NO_RESOURCE_ID);
         const edge = { subjectId: input.subject.id, relation: self.relation, resourceId };
         return fieldOps("relationships").holds(input, edge)
           ? undefined
           : edit(grant("relationships", edge, `with relationship ${self.relation} on ${resourceId}`));
       },
 
-      // Both scopes need a resource id, because that is what an event record
-      // carries — `Any` widens the *question*, not the fixture.
+      // Met is core's answer, so an `Any` leaf is met by the subject's event on any
+      // resource. A refusal is skipped with `skipReason`. An unmet node needs the
+      // site's resource id for its row, because an event record carries one and
+      // `Any` widens the question, not the fixture.
       Acted: (self) => (input: SimulationInput) => {
-        const resourceId = resourceIdOf(input.resource);
-        if (resourceId === undefined) return skip(`event ${self.event}`, NO_RESOURCE_ID);
-        const event = { subjectId: input.subject.id, event: self.event, resourceId };
-        return fieldOps("history").holds(input, event)
-          ? undefined
-          : edit(grant("history", event, `with event ${self.event} on ${resourceId}`));
-      },
-
-      // `Resource` scope is answered from a row stored with that resource id; `Any`
-      // only from a subject-global row, which has none (`askSignature`,
-      // INV-QD-120). So the remedy's row carries the resource id exactly when the
-      // question does, and is "already met" only by a row that would answer it —
-      // a node naming no signer role is met by a row with any role, so this is
-      // the port's match rather than `sameSignature`'s equality.
-      Signature: (self) => (input: SimulationInput) => {
-        const resourceId = self.scope === "Resource" ? resourceIdOf(input.resource) : undefined;
-        if (self.scope === "Resource" && resourceId === undefined) {
-          return skip(`signature ${self.meaning}`, NO_RESOURCE_ID);
-        }
-        const met = fieldOps("signatures")
-          .elements(input)
-          .some(
-            (held) =>
-              held.subjectId === input.subject.id &&
-              held.resourceId === resourceId &&
-              held.meaning === self.meaning &&
-              (self.signerRole === undefined || held.signerRole === self.signerRole),
-          );
-        if (met) return undefined;
-        const signature = {
-          subjectId: input.subject.id,
-          meaning: self.meaning,
-          ...(self.signerRole === undefined ? {} : { signerRole: self.signerRole }),
-          ...(resourceId === undefined ? {} : { resourceId }),
-        };
-        return edit(
-          grant(
-            "signatures",
-            signature,
-            `with signature ${self.meaning}${resourceId === undefined ? "" : ` on ${resourceId}`}${
-              self.signerRole === undefined ? "" : ` as ${self.signerRole}`
-            }`,
-          ),
+        const { leaf } = self;
+        const { event } = leaf;
+        return Result.match(
+          Result.gen(function* () {
+            const site = siteOf(input);
+            const rows = fieldOps("history").elements(input);
+            const answer = yield* Result.mapError(
+              actedAnswerFromEvents(rows, leaf, site),
+              skipReason,
+            );
+            if (answer === "Acted") return undefined;
+            const resourceId = resourceIdOf(input.resource);
+            if (resourceId === undefined) return yield* Result.fail(NO_RESOURCE_ID);
+            const row = { subjectId: site.subject.id, event, resourceId };
+            return edit(grant("history", row, `with event ${event} on ${resourceId}`));
+          }),
+          {
+            onFailure: (reason) => skip(requirementLabel(self), reason),
+            onSuccess: (built) => built,
+          },
         );
       },
 
-      Custom: (self) => () => skip(`custom predicate ${self.name}`, CUSTOM_HAS_NO_FIELD),
+      // Met is core's answer for this node at this site over the form's rows, not
+      // a restated match. An unmet node is one row whose resource id is the
+      // request's own, so the row carries the id exactly when the question does.
+      // A failure, a refusal included, is skipped with `skipReason`. The port's
+      // match ignores `signedAt`, `algorithm` and `keyId` (ADR-QD-058), which is
+      // why this is not `sameSignature`'s full equality, the form's duplicate check.
+      Signature: (self) => (input: SimulationInput) => {
+        const { leaf } = self;
+        const { meaning, signerRole } = leaf;
+        return Result.match(
+          Result.gen(function* () {
+            const site = siteOf(input);
+            const rows = fieldOps("signatures").elements(input);
+            const answer = yield* Result.mapError(
+              signatureAnswerFromSignatures(rows, leaf, site),
+              skipReason,
+            );
+            if (answer.matched) return undefined;
+            const [{ resourceId }] = signatureHistoryPort.asks.HasSignature(leaf, site);
+            const on = resourceId === undefined ? "" : ` on ${resourceId}`;
+            const as = signerRole === undefined ? "" : ` as ${signerRole}`;
+            return edit(
+              grant(
+                "signatures",
+                {
+                  subjectId: site.subject.id,
+                  meaning,
+                  ...(signerRole === undefined ? {} : { signerRole }),
+                  ...(resourceId === undefined ? {} : { resourceId }),
+                },
+                `with signature ${meaning}${on}${as}`,
+              ),
+            );
+          }),
+          {
+            onFailure: (reason) => skip(requirementLabel(self), reason),
+            onSuccess: (built) => built,
+          },
+        );
+      },
+
+      Custom: (self) => () =>
+        skip(requirementLabel(self), NO_CUSTOM_PREDICATE_FIELD.reason),
     }),
+  );
+
+/**
+ * One requirement's remedy, with every read of the form inside {@link readForm}.
+ *
+ * The one place an arm of {@link remedyFor} is called, so a requirement whose form
+ * cannot be read is a skip naming the form and what it threw, whatever its kind.
+ */
+const remedyGuarded = (self: Requirement, input: SimulationInput): Built | undefined =>
+  Result.match(
+    readForm(() => remedyFor(self)(input)),
+    {
+      onFailure: (reason) => skip(requirementLabel(self), reason),
+      onSuccess: (built) => built,
+    },
   );
 
 /**

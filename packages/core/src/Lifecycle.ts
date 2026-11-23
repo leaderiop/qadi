@@ -29,6 +29,11 @@ import { Decided, Failed } from "./DecisionRecord.ts";
 import type { EvaluationError } from "./Errors.ts";
 import { EvaluationId } from "./EvaluationId.ts";
 import {
+  askedOf,
+  denialEvent,
+  evaluateSpan,
+} from "./EvaluationSpan.ts";
+import {
   decisionsTotal,
   denialsByPolicyTagTotal,
   evaluationDurationMillis,
@@ -38,6 +43,7 @@ import type { CacheOutcome } from "./EvaluationMetrics.ts";
 import type { EvaluationServices } from "./EvaluationServices.ts";
 import type { Policy } from "./Policy.ts";
 import type { PortServices } from "./Ports.ts";
+import { annotateAsked, annotateSpan, logAnnotations } from "./PortSpanEncode.ts";
 import { questionOf } from "./Question.ts";
 import type { EvaluateOptions, Question, QuestionOptions } from "./Question.ts";
 import { decisionRecordFor, sinkEmitter } from "./SinkEmit.ts";
@@ -55,13 +61,17 @@ interface EvaluationLookup {
  *
  * Mints the id, reads the clock and the optional cache and sink, and wraps the
  * walk's answer in metrics, a span, a log line and the records. The subject is
- * `question.subject`; this reads no `CurrentSubject`. Emits the `qadi.evaluate`
- * span carrying the decision (ADR-QD-051: the root, under its old name).
+ * `question.subject`; this reads no `CurrentSubject`. Emits the evaluate span
+ * declared in `EvaluationSpan.ts`: its question is annotated before the lookup, so a
+ * failed evaluation still says who asked what, and its outcome after it on every
+ * path that ends in a decision or a typed failure. An interrupted or defected one
+ * carries no outcome, and the span's status says why (ADR-QD-188; ADR-QD-051: the
+ * root, under its old name).
  *
  * Its options are `EvaluateOptions` less the question options, derived, so a
  * built question's resource, action and depth cannot be passed a second time.
  */
-export const decideQuestion = Effect.fn("qadi.evaluate")(function* (
+export const decideQuestion = Effect.fn(evaluateSpan.name)(function* (
   question: Question,
   options?: Omit<EvaluateOptions, keyof QuestionOptions>,
 ) {
@@ -72,6 +82,9 @@ export const decideQuestion = Effect.fn("qadi.evaluate")(function* (
   // depend on whether some *other* call happened to correlate.
   const mintedId = yield* EvaluationId.next;
   const evaluationId = options?.evaluationId ?? mintedId;
+  // Before the lookup, so a span that ends in a failure still carries its question.
+  const asked = askedOf(question);
+  yield* annotateAsked(evaluateSpan.question, { ...asked, evaluationId });
   const startedAt = yield* Clock.currentTimeMillis;
 
   // Optional by construction: `serviceOption` adds nothing to the requirements, so
@@ -127,9 +140,9 @@ export const decideQuestion = Effect.fn("qadi.evaluate")(function* (
     Effect.tapError((error) =>
       Effect.gen(function* () {
         yield* Metric.update(evaluationErrorsTotal, error._tag);
-        yield* Effect.annotateCurrentSpan({
-          "qadi.outcome": "Failed",
-          "qadi.error_tag": error._tag,
+        yield* annotateSpan(evaluateSpan.answer, {
+          outcome: "Failed",
+          errorTag: error._tag,
         });
         yield* emit(decisionRecordFor(question, stamp, new Failed({ error })));
       }),
@@ -144,20 +157,14 @@ export const decideQuestion = Effect.fn("qadi.evaluate")(function* (
     trace,
   );
 
-  yield* Effect.annotateCurrentSpan({
-    "qadi.decision": decision._tag,
-    "qadi.subject_id": question.subject.id,
-    "qadi.evaluation_id": evaluationId,
-    "qadi.policy_tag": question.policy._tag,
-    // Only when supplied: an absent action must not become the string
-    // "undefined" in a trace viewer, and adding a key unconditionally would
-    // change every existing span.
-    ...(question.action === undefined ? {} : { "qadi.action": question.action }),
-    // Obligations are reported, never run. Present only when there are some, so
-    // an evaluation that carries none looks exactly as it did before E2.
-    ...(decision._tag === "Allow" && decision.obligations.length > 0
-      ? { "qadi.obligations": decision.obligations.map((o) => o.id).join(",") }
-      : {}),
+  yield* annotateSpan(evaluateSpan.answer, {
+    outcome: decision._tag,
+    // Reported, never run, and only when there are some: an absent value is not
+    // written, so an allow that owes nothing carries no obligations at all.
+    obligations:
+      decision._tag === "Allow" && decision.obligations.length > 0
+        ? decision.obligations.map((o) => o.id).join(",")
+        : undefined,
   });
 
   yield* Metric.update(decisionsTotal[decision._tag], 1);
@@ -166,11 +173,13 @@ export const decideQuestion = Effect.fn("qadi.evaluate")(function* (
   if (decision._tag === "Deny") {
     yield* Metric.update(denialsByPolicyTagTotal, question.policy._tag);
     yield* Effect.logDebug("qadi: policy denied").pipe(
-      Effect.annotateLogs({
-        "qadi.policy_tag": question.policy._tag,
-        "qadi.subject_id": question.subject.id,
-        "qadi.reason": decision.reason,
-      }),
+      Effect.annotateLogs(
+        logAnnotations(denialEvent, {
+          policyTag: asked.policyTag,
+          subjectId: asked.subjectId,
+          reason: decision.reason,
+        }),
+      ),
     );
   }
 

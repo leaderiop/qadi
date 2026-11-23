@@ -5,12 +5,17 @@
  * the point of ADR-QD-080. The render-level behaviour is in `GateRegistry.test.tsx`
  * and `GateWriter.test.tsx`.
  */
-import { hasPermission, permission } from "@qadi/core";
+import { EvaluationServicesNone, hasPermission, permission } from "@qadi/core";
 import * as FastCheck from "fast-check";
 import { describe, expect, it, vi } from "vitest";
 import { makeGateRegistry } from "../src/GateRegistry.ts";
+import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 import type { GateInstance, GateRenderState } from "../src/GateRegistry.ts";
 import { gateWriterFor } from "../src/GateWriter.ts";
+import { inEnvironment, said } from "./support/environment.ts";
+import type { Environment } from "./support/environment.ts";
+import { listenTo, notificationsOf } from "./support/gates.ts";
+import { threw } from "./support/reporterThrew.ts";
 
 const canRead = hasPermission(permission("doc", "read"));
 
@@ -54,51 +59,48 @@ describe("the snapshot", () => {
 describe("subscribing", () => {
   it("tells a subscriber on register, update and unregister", () => {
     const registry = makeGateRegistry();
-    let notified = 0;
-    registry.subscribe(() => {
-      notified += 1;
-    });
+    const told = notificationsOf(registry);
     const handle = writerOf(registry).register(instance("a", "Pending"));
-    expect(notified).toBe(1);
+    expect(told()).toBe(1);
     handle.update("Allowed");
-    expect(notified).toBe(2);
+    expect(told()).toBe(2);
     handle.unregister();
-    expect(notified).toBe(3);
+    expect(told()).toBe(3);
   });
 
   it("does not notify for an unchanged state", () => {
     const registry = makeGateRegistry();
-    let notified = 0;
     const handle = writerOf(registry).register(instance("a", "Pending"));
-    registry.subscribe(() => {
-      notified += 1;
-    });
+    const told = notificationsOf(registry);
     handle.update("Pending");
-    expect(notified).toBe(0);
+    expect(told()).toBe(0);
   });
 
   it("stops telling a subscriber that unsubscribed", () => {
     const registry = makeGateRegistry();
-    let notified = 0;
-    const unsubscribe = registry.subscribe(() => {
-      notified += 1;
-    });
+    const { told, unsubscribe } = listenTo(registry);
     unsubscribe();
     writerOf(registry).register(instance("a", "Pending"));
-    expect(notified).toBe(0);
+    expect(told()).toBe(0);
   });
 
-  it("a listener that throws does not stop the fan-out", () => {
+  it("a listener that throws makes none of register, update or unregister throw", () => {
     const registry = makeGateRegistry();
-    let reached = false;
     registry.subscribe(() => {
       throw new Error("subscriber bug");
     });
+    const heard: Array<number> = [];
     registry.subscribe(() => {
-      reached = true;
+      heard.push(registry.instances().length);
     });
-    expect(() => writerOf(registry).register(instance("a", "Pending"))).not.toThrow();
-    expect(reached).toBe(true);
+
+    // A throw out of `register` fails the test where it is raised.
+    const handle = writerOf(registry).register(instance("a", "Pending"));
+    expect(() => handle.update("Allowed")).not.toThrow();
+    expect(() => handle.unregister()).not.toThrow();
+
+    // The subscriber after the throwing one still heard each of the three.
+    expect(heard).toEqual([1, 1, 0]);
   });
 });
 
@@ -254,6 +256,67 @@ describe("scope and collisions", () => {
     expect(Object.getOwnPropertyNames(registry).sort()).toEqual(["instances", "subscribe"]);
     expect(Object.getOwnPropertySymbols(registry)).toEqual([]);
     expect(gateWriterFor({ ...registry })).toBeUndefined();
+  });
+});
+
+describe("a throwing collision reporter is named by the option it was passed through", () => {
+  const boom = (): never => {
+    throw new Error("boom");
+  };
+
+  /** Fails with the lines the console received, which a whole-array diff would elide. */
+  const saidOnly = (lines: ReadonlyArray<string>, option: string): void => {
+    expect(lines.join("\n"), `the console received ${JSON.stringify(lines)}`).toBe(
+      threw(option, "Error: boom"),
+    );
+  };
+
+  /** Registers `x` twice on `gates`, and returns the console lines and the listed ids. */
+  const collide = (
+    environment: Environment,
+    build: () => { readonly instances: () => ReadonlyArray<GateInstance> },
+  ) => {
+    const ids: Array<string> = [];
+    const lines = inEnvironment(environment, () =>
+      said(() => {
+        const gates = build();
+        const writer = writerOf(gates);
+        writer.register(instance("x", "Allowed"));
+        writer.register(instance("x", "Denied"));
+        ids.push(...gates.instances().map((one) => one.id));
+      }),
+    );
+    return { lines, ids };
+  };
+
+  it("a throwing onIdCollision on makeGateRegistry is named onIdCollision in development", () => {
+    const run = collide("development", () => makeGateRegistry({ onIdCollision: boom }));
+    saidOnly(run.lines, "onIdCollision");
+    expect(run.ids).toEqual(["x", "x~1"]);
+  });
+
+  it("a throwing onIdCollision on makeGateRegistry is named onIdCollision in production", () => {
+    const run = collide("production", () => makeGateRegistry({ onIdCollision: boom }));
+    saidOnly(run.lines, "onIdCollision");
+    expect(run.ids).toEqual(["x", "x~1"]);
+  });
+
+  it("a throwing onGateIdCollision on makeQadiAtoms is named onGateIdCollision in development", () => {
+    const run = collide(
+      "development",
+      () => makeQadiAtoms(EvaluationServicesNone, { onGateIdCollision: boom }).gates,
+    );
+    saidOnly(run.lines, "onGateIdCollision");
+    expect(run.ids).toEqual(["x", "x~1"]);
+  });
+
+  it("a throwing onGateIdCollision on makeQadiAtoms is named onGateIdCollision in production", () => {
+    const run = collide(
+      "production",
+      () => makeQadiAtoms(EvaluationServicesNone, { onGateIdCollision: boom }).gates,
+    );
+    saidOnly(run.lines, "onGateIdCollision");
+    expect(run.ids).toEqual(["x", "x~1"]);
   });
 });
 

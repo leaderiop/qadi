@@ -1,3 +1,4 @@
+import { assert } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Logger from "effect/Logger";
@@ -101,6 +102,22 @@ export const collectingTracer = (spans: Array<Tracer.Span>): Layer.Layer<never> 
       },
     }),
   );
+
+/**
+ * The attribute record of the first span with this name, which must exist.
+ *
+ * One reading of a {@link collectingTracer}'s spans, shared by every span test, so
+ * a test states which span and what it carries and never how to find it.
+ */
+export const attributesOf = (spans: ReadonlyArray<Tracer.Span>, name: string) => {
+  const span = spans.find((s) => s.name === name);
+  assert.isDefined(span);
+  return Object.fromEntries(span?.attributes ?? []);
+};
+
+/** The attribute record of every span with this name, in span order. */
+export const allAttributesOf = (spans: ReadonlyArray<Tracer.Span>, name: string) =>
+  spans.filter((s) => s.name === name).map((s) => Object.fromEntries(s.attributes));
 
 /**
  * Gives an effect its own `MetricRegistry` for the duration of a test.
@@ -317,3 +334,26 @@ export const leafOf = <T extends P.Policy["_tag"]>(tag: T, policy: P.Policy): Le
   if (isTag(policy)) return policy;
   throw new Error(`expected a ${tag} leaf, built a ${policy._tag}`);
 };
+
+/**
+ * A thrown value that can be neither stringified nor asked for its message.
+ *
+ * The one hostile value the thrown-value tests share (ADR-QD-182): both its
+ * `toString` and its `message` getter throw, so a copy of `thrownMessage` that
+ * guards only one of them fails here.
+ */
+export const hostile = {
+  toString(): string {
+    throw new Error("toString threw");
+  },
+  get message(): string {
+    throw new Error("message threw");
+  },
+};
+
+/** An `Error` whose `message` getter throws, so `String` of it throws too. */
+export const hostileError = Object.defineProperty(new Error("unread"), "message", {
+  get(): string {
+    throw new Error("message threw");
+  },
+});

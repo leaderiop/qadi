@@ -28,6 +28,7 @@ import {
   type DiagnosticsStore,
 } from "../../src/model/DiagnosticsStore.ts";
 import type { PortCallCollector, PortCallLog } from "../../src/model/PortCalls.ts";
+import { hostile, hostileError } from "../helpers.ts";
 
 const emptyLog: PortCallLog = { calls: [], dropped: 0, capacity: 10 };
 
@@ -265,6 +266,21 @@ describe("runDiagnostics", () => {
       assert.strictEqual(state.reads, 3);
       assert.isDefined(store.getSnapshot().hydration);
       yield* Fiber.interrupt(fiber);
+    }),
+  );
+
+  it.effect("a layer that fails to build with a value that cannot be rendered reads Failed with the placeholder", () =>
+    Effect.gen(function* () {
+      for (const value of [hostile, hostileError]) {
+        const { collector } = scriptedCollector();
+        const store = makeDiagnosticsStore();
+        const layer = Layer.effect(AttributeResolver, Effect.fail(value));
+        const fiber = yield* start(store, { layer, collector });
+        const reading = store.getSnapshot().wiring;
+        if (reading._tag !== "Failed") return assert.fail("expected Failed");
+        assert.strictEqual(reading.reason, "a value that could not be described");
+        yield* Fiber.interrupt(fiber);
+      }
     }),
   );
 

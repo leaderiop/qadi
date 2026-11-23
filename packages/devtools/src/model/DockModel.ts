@@ -1,5 +1,6 @@
 /**
- * The dock's nine stores and the rules between them, as one model a test can drive without rendering.
+ * The dock's stores and the rules between them, as one model a test can drive without
+ * rendering.
  *
  * The dock built the timeline, the policy rail, the explorer, the role choice, the
  * simulation and its own session in React and connected them with layout effects,
@@ -22,18 +23,12 @@
  * The model holds no registry subscription of its own. There is no `dispose` and no
  * `read` command.
  *
- * **Nine stores, counted once.** Seven came first: the timeline, the dock session,
- * the explorer, the role choice, the simulation, the diagnostics reading (the poll's
- * status and the sampled reading with a supplied one laid over it) and the timeline
- * status (whether its read is running or stopped, with the one command that reads it
- * again). `questions` is the eighth: the gates feed's snapshot (the registry, and the
- * questions thunk the host handed) joined to the supplied reading's questions and the
- * poll's status, recomputed from all three in one synchronous step (ADR-QD-169).
- * `services` is the ninth (ADR-QD-168):
- * the Services tab's port cards, one pure function of the shown reading, recomputed
- * only when one of its four inputs changes identity. `sightings` is a thunk and not a
- * store. Earlier records counted the policy rail among the stores, which is why they
- * call diagnostics the seventh store and the timeline status the eighth.
+ * **Its stores.** The stores are listed once, in BEH-QD-700. A test of a built model
+ * lists its members that have `subscribe` and `getSnapshot` and fails when one is added
+ * or removed, and review keeps that list equal to BEH-QD-700's. The shown reading,
+ * `questions` and `services` are derived stores (ADR-QD-185), each recomputed from its
+ * key when a field of it changes identity and stopped with the model's scope.
+ * `sightings` is a thunk and not a store.
  *
  * Package-private (ADR-QD-099): the dock is the one thing that drives it.
  */
@@ -55,7 +50,7 @@ import {
 } from "./DiagnosticsStore.ts";
 import { makeDockSession, type DockSession } from "./DockSession.ts";
 import { makeExplorerSession, type ExplorerSession } from "./ExplorerSession.ts";
-import { makeExternalStore, type ExternalStore } from "./ExternalStore.ts";
+import { makeDerivedStore, type ReadableStore } from "./ExternalStore.ts";
 import {
   joinQuestions,
   type AskedQuestionLike,
@@ -108,9 +103,9 @@ export interface DockModel {
   /** The timeline read's status and its restart, passed through from the timeline feed; not merged. */
   readonly timelineStatus: TimelineStatusReadout;
   /** The asked questions joined to the guards asking them, both read at one moment; holds guards and questions, never a verdict. */
-  readonly questions: Pick<ExternalStore<QuestionsSnapshot>, "subscribe" | "getSnapshot">;
+  readonly questions: ReadableStore<QuestionsSnapshot>;
   /** The Services tab's port cards of the shown reading, recomputed only when one of its four inputs changes identity. */
-  readonly services: Pick<ExternalStore<ServicesView>, "subscribe" | "getSnapshot">;
+  readonly services: ReadableStore<ServicesView>;
   /** `catalogueOf` of the shown timeline and the current catalogue, computed once per change. */
   readonly sightings: () => ReadonlyArray<PolicySighting>;
   /** Dispatches only the inputs whose identity changed. An omitted input reads as `undefined`. */
@@ -165,6 +160,22 @@ const joinInputOf = (key: JoinKey): JoinInput => {
   };
 };
 
+/** The two things the shown reading is merged from, compared by identity. */
+interface MergeKey {
+  readonly fed: DiagnosticsSnapshot;
+  readonly supplied: DiagnosticsReading | undefined;
+}
+
+/**
+ * The sampled snapshot with the supplied reading laid over it, the feed's own snapshot
+ * when the merge changes nothing.
+ */
+function mergedOf(key: MergeKey): DiagnosticsSnapshot {
+  const merged = mergeReading(key.fed.reading, key.supplied);
+  if (merged === key.fed.reading) return key.fed;
+  return { status: key.fed.status, reading: merged };
+}
+
 /** One list for every absent catalogue, so the role store keeps one identity. */
 const NO_ROLES: ReadonlyArray<Role> = [];
 
@@ -203,21 +214,14 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
 
   // Forks the poll and never waits on it, so an asynchronous layer leaves it `Starting` after the build.
   const diagnosticsFeed = yield* makeDiagnosticsFeed(inputs.diagnostics);
-  let fed = diagnosticsFeed.getSnapshot();
-  let supplied = inputs.reading;
-  const mergedOf = (snapshot: DiagnosticsSnapshot, reading: DiagnosticsReading | undefined): DiagnosticsSnapshot => {
-    const merged = mergeReading(snapshot.reading, reading);
-    return merged === snapshot.reading ? snapshot : { status: snapshot.status, reading: merged };
-  };
-  const shownReading = makeExternalStore<DiagnosticsSnapshot>(mergedOf(fed, supplied));
-  const remerge = () => {
-    const next = diagnosticsFeed.getSnapshot();
-    if (next === fed && inputs.reading === supplied) return;
-    fed = next;
-    supplied = inputs.reading;
-    shownReading.set(mergedOf(fed, supplied));
-  };
-  diagnosticsFeed.subscribe(remerge);
+  const shownReading = yield* makeDerivedStore({
+    parents: [diagnosticsFeed],
+    key: (): MergeKey => ({
+      fed: diagnosticsFeed.getSnapshot(),
+      supplied: inputs.reading,
+    }),
+    compute: mergedOf,
+  });
 
   // Host code, both of it: the feed guards the registry and the thunk, and states a throw in its snapshot.
   const gatesFeed = yield* makeGatesFeed({
@@ -225,67 +229,37 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
     questions: inputs.questions,
     intervalMillis: inputs.diagnostics?.intervalMillis,
   });
-  // The join is pure over the feed's snapshot, the supplied questions and the poll's status, so no snapshot
-  // pairs a question from one moment with a guard from another. A closed model joins nothing further.
-  let closed = false;
-  const keyNow = (): JoinKey => {
-    const suppliedNow = inputs.reading?.questions;
-    return {
-      feed: gatesFeed.getSnapshot(),
-      supplied: suppliedNow,
-      unsampled: suppliedNow === undefined && isUnsampled(shownReading.getSnapshot().status),
-    };
-  };
-  let lastJoin = keyNow();
-  const questions = makeExternalStore<QuestionsSnapshot>(joinQuestions(joinInputOf(lastJoin)));
-  const rejoin = () => {
-    if (closed) return;
-    const key = keyNow();
-    if (
-      key.feed === lastJoin.feed &&
-      key.supplied === lastJoin.supplied &&
-      key.unsampled === lastJoin.unsampled
-    ) {
-      return;
-    }
-    lastJoin = key;
-    questions.set(joinQuestions(joinInputOf(key)));
-  };
+  // The join is pure over the feed's snapshot, the supplied questions and the poll's
+  // status, so no snapshot pairs a question from one moment with a guard from another.
+  // Built after the shown reading and the feeds and before any host listener, so the join
+  // and the cards move first.
+  const questions = yield* makeDerivedStore({
+    parents: [gatesFeed, shownReading],
+    key: (): JoinKey => {
+      const supplied = inputs.reading?.questions;
+      const { status } = shownReading.getSnapshot();
+      return {
+        feed: gatesFeed.getSnapshot(),
+        supplied,
+        unsampled: supplied === undefined && isUnsampled(status),
+      };
+    },
+    compute: (key) => joinQuestions(joinInputOf(key)),
+  });
   // The port cards are a function of the shown reading alone: no host code is read, so nothing here is guarded.
-  const servicesKeyNow = (): ServicesInput => {
-    const { status, reading } = shownReading.getSnapshot();
-    return {
-      wiring: reading.wiring,
-      activity: reading.activity,
-      portCalls: reading.portCalls,
-      unsampled: isUnsampled(status),
-    };
-  };
-  let lastServices = servicesKeyNow();
-  const services = makeExternalStore<ServicesView>(portCards(lastServices));
-  const reservice = () => {
-    if (closed) return;
-    const key = servicesKeyNow();
-    if (
-      key.wiring === lastServices.wiring &&
-      key.activity === lastServices.activity &&
-      key.portCalls === lastServices.portCalls &&
-      key.unsampled === lastServices.unsampled
-    ) {
-      return;
-    }
-    lastServices = key;
-    services.set(portCards(key));
-  };
-  // After `shownReading` and the feed exist and before any host listener, so the join and the cards move first.
-  gatesFeed.subscribe(rejoin);
-  shownReading.subscribe(rejoin);
-  shownReading.subscribe(reservice);
-  yield* Effect.addFinalizer(() =>
-    Effect.sync(() => {
-      closed = true;
-    }),
-  );
+  const services = yield* makeDerivedStore({
+    parents: [shownReading],
+    key: (): ServicesInput => {
+      const { status, reading } = shownReading.getSnapshot();
+      return {
+        wiring: reading.wiring,
+        activity: reading.activity,
+        portCalls: reading.portCalls,
+        unsampled: isUnsampled(status),
+      };
+    },
+    compute: portCards,
+  });
 
   return {
     timeline,
@@ -313,16 +287,18 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
       }
       // The session guards an identical layer itself, so this is not guarded again.
       simulation.setPorts(next.ports);
-      // The feed re-reads the registry and the thunk before `remerge`, whose publish joins through them: one
-      // `configure` reads no registry the host has just handed away, and publishes one join.
+      // The feed re-reads the registry and the thunk before the shown reading is
+      // refreshed, whose publish joins through them: one `configure` reads no
+      // registry the host has just handed away, and publishes one join.
       gatesFeed.configure({
         gates: next.gates,
         questions: next.questions,
         intervalMillis: next.diagnostics?.intervalMillis,
       });
       diagnosticsFeed.configure(next.diagnostics);
-      // A reading that moved is a new merged snapshot, which rejoins through its own subscription.
-      remerge();
+      // A reading that moved is a new shown reading, which the join and the cards follow
+      // through their parents.
+      shownReading.refresh();
     },
   };
 });

@@ -1,66 +1,85 @@
 /**
  * The gate reconcile rules, with no React and no DOM rendering (ARCH-76).
  *
- * `reconcile(writer, live, wanted, current) → next live map`, where
- * `live: ReadonlyMap<string, Registered>`, `wanted: ReadonlyArray<GateIdentity>` and
- * `current` is index-aligned with `wanted`. The writer is a fake that records every
- * call, so each rule is read off the log: what changed or left unregisters, what is
- * new registers, and what is unchanged is left alone. The render-level behaviour is
- * in `GateWriter.test.tsx`.
+ * `reconcile(writer, live, wanted) → next live map`, where
+ * `live: ReadonlyMap<string, Registered>` and `wanted: ReadonlyMap<string, GateWanted>`,
+ * where `wanted` is keyed by gate id. The writer is a fake that records every call, so
+ * each rule is read off the log: what is kept is told its state, what changed or left
+ * unregisters, and what is new registers. The render-level behaviour is in
+ * `GateWriter.test.tsx` and `GateRegistration.characterisation.test.tsx`.
  */
 import { hasPermission, permission } from "@qadi/core";
 import { describe, expect, it } from "vitest";
-import { reconcile } from "../src/GateWriter.ts";
-import type { GateIdentity, GateWriter, Registered } from "../src/GateWriter.ts";
+import { gateWriterFor, reconcile } from "../src/GateWriter.ts";
+import type {
+  GateIdentity,
+  GateWanted,
+  GateWriter,
+  Registered,
+} from "../src/GateWriter.ts";
+import { makeGateRegistry } from "../src/GateRegistry.ts";
 import type { GateRenderState } from "../src/GateRegistry.ts";
+import { newCanRead, notificationsOf } from "./support/gates.ts";
+
+/** A new `doc:write` policy on every call, as `newCanRead`. */
+const newCanWrite = () => hasPermission(permission("doc", "write"));
 
 type Call =
   | readonly ["register", string, GateRenderState, Element | undefined]
   | readonly ["unregister", string]
   | readonly ["update", string, GateRenderState];
 
+/** A writer that logs every call it is made, and never throws. */
 const fakeWriter = () => {
   const log: Array<Call> = [];
   const writer: GateWriter = {
     register: (instance) => {
       log.push(["register", instance.id, instance.state, instance.element]);
       return {
-        update: (state) => log.push(["update", instance.id, state]),
-        unregister: () => log.push(["unregister", instance.id]),
+        update: (state) => {
+          log.push(["update", instance.id, state]);
+        },
+        unregister: () => {
+          log.push(["unregister", instance.id]);
+        },
       };
     },
   };
   return { writer, log };
 };
 
-const canRead = () => hasPermission(permission("doc", "read"));
-const canWrite = () => hasPermission(permission("doc", "write"));
-
 const markerOf = (element: HTMLSpanElement | null = null) => ({ current: element });
 
-const identity = (id: string, overrides?: Partial<GateIdentity>): GateIdentity => ({
-  id,
+const identity = (overrides?: Partial<GateIdentity>): GateIdentity => ({
   kind: "useCan",
   atom: {},
   wraps: false,
-  policy: canRead(),
+  policy: newCanRead(),
   resource: undefined,
   marker: markerOf(),
   ...overrides,
 });
 
+const want = (one: GateIdentity, state: GateRenderState = "Pending"): GateWanted => ({
+  identity: one,
+  state,
+});
+
 const nothing: ReadonlyMap<string, Registered> = new Map();
 
 describe("reconcile: registering", () => {
-  it("registers every wanted identity, in order, with the current policy, resource and state", () => {
+  it("registers every wanted entry in map order, with its identity and its state", () => {
     const { writer, log } = fakeWriter();
-    const a = identity("a");
-    const b = identity("b");
-    const policyNow = canWrite();
-    const next = reconcile(writer, nothing, [a, b], [
-      { policy: policyNow, resource: { type: "doc", id: "1" }, state: "Allowed" },
-      { policy: canRead(), resource: undefined, state: "Denied" },
-    ]);
+    const a = identity({ policy: newCanWrite(), resource: { type: "doc", id: "1" } });
+    const b = identity();
+    const next = reconcile(
+      writer,
+      nothing,
+      new Map([
+        ["a", want(a, "Allowed")],
+        ["b", want(b, "Denied")],
+      ]),
+    );
     expect(log).toEqual([
       ["register", "a", "Allowed", undefined],
       ["register", "b", "Denied", undefined],
@@ -69,43 +88,33 @@ describe("reconcile: registering", () => {
     expect(next.get("a")?.identity).toBe(a);
   });
 
-  it("registers a new id and calls nothing else", () => {
+  it("keeps a live entry, updates it, and registers an id that was not live", () => {
     const { writer, log } = fakeWriter();
-    const a = identity("a");
-    const first = reconcile(writer, nothing, [a], [{ policy: a.policy, resource: undefined, state: "Pending" }]);
+    const a = identity();
+    const first = reconcile(writer, nothing, new Map([["a", want(a)]]));
     log.length = 0;
-    const b = identity("b");
-    const next = reconcile(writer, first, [a, b], [
-      { policy: a.policy, resource: undefined, state: "Pending" },
-      { policy: b.policy, resource: undefined, state: "Allowed" },
+    const next = reconcile(
+      writer,
+      first,
+      new Map([
+        ["a", want(a)],
+        ["b", want(identity(), "Allowed")],
+      ]),
+    );
+    expect(log).toEqual([
+      ["update", "a", "Pending"],
+      ["register", "b", "Allowed", undefined],
     ]);
-    expect(log).toEqual([["register", "b", "Allowed", undefined]]);
     expect([...next.keys()]).toEqual(["a", "b"]);
   });
 
-  it("falls back to the identity's own policy and resource, and to Pending, when current is absent", () => {
-    const registered: Array<{ policy: unknown; resource: unknown; state: unknown }> = [];
-    const writer: GateWriter = {
-      register: (instance) => {
-        registered.push({
-          policy: instance.policy,
-          resource: instance.resource,
-          state: instance.state,
-        });
-        return { update: () => undefined, unregister: () => undefined };
-      },
-    };
-    const resource = { type: "doc", id: "7" };
-    const a = identity("a", { resource });
-    reconcile(writer, nothing, [a], [undefined]);
-    reconcile(writer, nothing, [a], []);
-    expect(registered).toEqual([
-      { policy: a.policy, resource, state: "Pending" },
-      { policy: a.policy, resource, state: "Pending" },
-    ]);
+  it("registers a new id with the wanted state, not Pending", () => {
+    const { writer, log } = fakeWriter();
+    reconcile(writer, nothing, new Map([["a", want(identity(), "Denied")]]));
+    expect(log).toEqual([["register", "a", "Denied", undefined]]);
   });
 
-  it("registers the policy and resource current gives, not the identity's", () => {
+  it("registers the policy and resource its identity carries", () => {
     const registered: Array<{ policy: unknown; resource: unknown }> = [];
     const writer: GateWriter = {
       register: (instance) => {
@@ -113,11 +122,10 @@ describe("reconcile: registering", () => {
         return { update: () => undefined, unregister: () => undefined };
       },
     };
-    const a = identity("a", { resource: { type: "doc", id: "old" } });
-    const newPolicy = canWrite();
-    const newResource = { type: "doc", id: "new" };
-    reconcile(writer, nothing, [a], [{ policy: newPolicy, resource: newResource, state: "Pending" }]);
-    expect(registered).toEqual([{ policy: newPolicy, resource: newResource }]);
+    const policy = newCanWrite();
+    const resource = { type: "doc", id: "new" };
+    reconcile(writer, nothing, new Map([["a", want(identity({ policy, resource }))]]));
+    expect(registered).toEqual([{ policy, resource }]);
   });
 });
 
@@ -125,75 +133,198 @@ describe("reconcile: the element", () => {
   it("registers the marker's element for a wrapping identity that has one", () => {
     const { writer, log } = fakeWriter();
     const element = document.createElement("span");
-    reconcile(writer, nothing, [identity("a", { wraps: true, marker: markerOf(element) })], [undefined]);
+    const wrapping = identity({ wraps: true, marker: markerOf(element) });
+    reconcile(writer, nothing, new Map([["a", want(wrapping)]]));
     expect(log).toEqual([["register", "a", "Pending", element]]);
   });
 
   it("registers undefined for a wrapping identity whose marker is empty", () => {
     const { writer, log } = fakeWriter();
-    reconcile(writer, nothing, [identity("a", { wraps: true, marker: markerOf(null) })], [undefined]);
+    const wrapping = identity({ wraps: true, marker: markerOf(null) });
+    reconcile(writer, nothing, new Map([["a", want(wrapping)]]));
     expect(log).toEqual([["register", "a", "Pending", undefined]]);
   });
 
   it("registers undefined for a non-wrapping identity even when its marker holds an element", () => {
     const { writer, log } = fakeWriter();
     const element = document.createElement("span");
-    reconcile(writer, nothing, [identity("a", { wraps: false, marker: markerOf(element) })], [undefined]);
+    const plain = identity({ wraps: false, marker: markerOf(element) });
+    reconcile(writer, nothing, new Map([["a", want(plain)]]));
     expect(log).toEqual([["register", "a", "Pending", undefined]]);
   });
 });
 
-describe("reconcile: leaving things alone", () => {
-  it("makes no call, and keeps the same entries, for the same identities with fresh policy objects", () => {
+describe("reconcile: keeping and updating", () => {
+  it("tells the handle of a kept entry the wanted state", () => {
     const { writer, log } = fakeWriter();
-    const atom = {};
-    const marker = markerOf();
-    const a = identity("a", { atom, marker });
-    const b = identity("b", { atom, marker });
-    const first = reconcile(writer, nothing, [a, b], [undefined, undefined]);
+    const a = identity();
+    const first = reconcile(writer, nothing, new Map([["a", want(a, "Pending")]]));
     log.length = 0;
-    const next = reconcile(
-      writer,
-      first,
-      [
-        identity("a", { atom, marker, policy: canWrite() }),
-        identity("b", { atom, marker, resource: { type: "doc", id: "2" } }),
-      ],
-      [undefined, undefined],
-    );
-    expect(log).toEqual([]);
+    const next = reconcile(writer, first, new Map([["a", want(a, "Allowed")]]));
+    expect(log).toEqual([["update", "a", "Allowed"]]);
     expect(next.get("a")).toBe(first.get("a"));
-    expect(next.get("b")).toBe(first.get("b"));
   });
 
-  it("does not mutate the live map it is given", () => {
+  it("keeps the entry when only the policy or the resource changed", () => {
+    const moved: ReadonlyArray<readonly [string, Partial<GateIdentity>]> = [
+      ["policy", { policy: newCanWrite() }],
+      ["resource", { resource: { type: "doc", id: "r2" } }],
+    ];
+    for (const [what, change] of moved) {
+      const { writer, log } = fakeWriter();
+      const atom = {};
+      const marker = markerOf();
+      const first = reconcile(
+        writer,
+        nothing,
+        new Map([["a", want(identity({ atom, marker }))]]),
+      );
+      log.length = 0;
+      const next = reconcile(
+        writer,
+        first,
+        new Map([["a", want(identity({ atom, marker, ...change }))]]),
+      );
+      expect(log, what).toEqual([["update", "a", "Pending"]]);
+      expect(next.get("a"), what).toBe(first.get("a"));
+    }
+  });
+
+  it("reconciling the same input twice keeps every entry and calls only update", () => {
+    const { writer, log } = fakeWriter();
+    const input = new Map([
+      ["a", want(identity(), "Allowed")],
+      ["b", want(identity(), "Denied")],
+    ]);
+    const first = reconcile(writer, nothing, input);
+    log.length = 0;
+    const second = reconcile(writer, first, input);
+    expect(log).toEqual([
+      ["update", "a", "Allowed"],
+      ["update", "b", "Denied"],
+    ]);
+    expect(second.get("a")).toBe(first.get("a"));
+    expect(second.get("b")).toBe(first.get("b"));
+  });
+
+  it(
+    "on a real registry a kept entry notifies once for a new state and not for the same",
+    () => {
+      const registry = makeGateRegistry();
+      const writer = gateWriterFor(registry);
+      if (writer === undefined) throw new Error("registry has no writer");
+      const a = identity();
+      const first = reconcile(writer, nothing, new Map([["a", want(a, "Pending")]]));
+      const told = notificationsOf(registry);
+      const same = reconcile(writer, first, new Map([["a", want(a, "Pending")]]));
+      expect(told()).toBe(0);
+      reconcile(writer, same, new Map([["a", want(a, "Allowed")]]));
+      expect(told()).toBe(1);
+      expect(registry.instances().map((one) => [one.id, one.state])).toEqual([
+        ["a", "Allowed"],
+      ]);
+    },
+  );
+
+  it("returns a fresh map and does not mutate the live map it is given", () => {
     const { writer } = fakeWriter();
-    const a = identity("a");
-    const first = reconcile(writer, nothing, [a], [undefined]);
+    const first = reconcile(writer, nothing, new Map([["a", want(identity())]]));
     const snapshot = [...first];
-    reconcile(writer, first, [identity("b")], [undefined]);
+    const next = reconcile(writer, first, new Map([["b", want(identity())]]));
+    expect(next).not.toBe(first);
     expect([...first]).toEqual(snapshot);
     expect(nothing.size).toBe(0);
   });
 });
 
 describe("reconcile: unregistering", () => {
-  it("unregisters a dropped id and registers nothing", () => {
+  it(
+    "on a real registry a changed identity keeps its id and reports no collision",
+    () => {
+      const reported: Array<string> = [];
+      const registry = makeGateRegistry({ onIdCollision: (id) => reported.push(id) });
+      const writer = gateWriterFor(registry);
+      if (writer === undefined) throw new Error("registry has no writer");
+      const first = reconcile(writer, nothing, new Map([["a", want(identity())]]));
+      const atom = {};
+      const next = reconcile(
+        writer,
+        first,
+        new Map([["a", want(identity({ atom }), "Allowed")]]),
+      );
+      expect(registry.instances().map((one) => [one.id, one.state])).toEqual([
+        ["a", "Allowed"],
+      ]);
+      expect(next.get("a")?.identity.atom).toBe(atom);
+      expect(reported).toEqual([]);
+    },
+  );
+
+  it("calls each live update or unregister in order, then each registration", () => {
     const { writer, log } = fakeWriter();
-    const a = identity("a");
-    const b = identity("b");
-    const first = reconcile(writer, nothing, [a, b], [undefined, undefined]);
+    const atom = {};
+    const marker = markerOf();
+    const first = reconcile(
+      writer,
+      nothing,
+      new Map([
+        ["a", want(identity({ atom, marker }))],
+        ["b", want(identity({ atom, marker }))],
+        ["c", want(identity({ atom, marker }))],
+      ]),
+    );
     log.length = 0;
-    const next = reconcile(writer, first, [a], [undefined]);
-    expect(log).toEqual([["unregister", "b"]]);
-    expect([...next.keys()]).toEqual(["a"]);
+    reconcile(
+      writer,
+      first,
+      new Map([
+        ["d", want(identity({ atom, marker }))],
+        ["a", want(identity({ atom, marker }))],
+        ["c", want(identity({ atom: {}, marker }))],
+      ]),
+    );
+    expect(log).toEqual([
+      ["update", "a", "Pending"],
+      ["unregister", "b"],
+      ["unregister", "c"],
+      ["register", "d", "Pending", undefined],
+      ["register", "c", "Pending", undefined],
+    ]);
   });
 
-  it("unregisters everything for an empty wanted list", () => {
+  it("unregisters a dropped id and registers nothing", () => {
     const { writer, log } = fakeWriter();
-    const first = reconcile(writer, nothing, [identity("a"), identity("b")], [undefined, undefined]);
+    const a = identity();
+    const first = reconcile(
+      writer,
+      nothing,
+      new Map([
+        ["a", want(a)],
+        ["b", want(identity())],
+      ]),
+    );
     log.length = 0;
-    const next = reconcile(writer, first, [], []);
+    const next = reconcile(writer, first, new Map([["a", want(a)]]));
+    expect(log).toEqual([
+      ["update", "a", "Pending"],
+      ["unregister", "b"],
+    ]);
+    expect([...next.keys()]).toEqual(["a"]);
+    expect(next.get("a")).toBe(first.get("a"));
+  });
+
+  it("unregisters everything for an empty wanted map", () => {
+    const { writer, log } = fakeWriter();
+    const first = reconcile(
+      writer,
+      nothing,
+      new Map([
+        ["a", want(identity())],
+        ["b", want(identity())],
+      ]),
+    );
+    log.length = 0;
+    const next = reconcile(writer, first, new Map());
     expect(log).toEqual([
       ["unregister", "a"],
       ["unregister", "b"],
@@ -210,23 +341,40 @@ describe("reconcile: unregistering", () => {
 
   // One test, not one per field: vitest folds identical errors into one block, and
   // the field name rides on each assertion's message instead.
-  it("unregisters then registers when only one of atom, kind, wraps or marker changed, and leaves its sibling", () => {
-    for (const [what, change] of changes) {
-      const { writer, log } = fakeWriter();
-      const atom = {};
-      const marker = markerOf();
-      const a = identity("a", { atom, marker });
-      const b = identity("b", { atom, marker });
-      const first = reconcile(writer, nothing, [a, b], [undefined, undefined]);
-      log.length = 0;
-      const changed = identity("a", { atom, marker, ...change });
-      const next = reconcile(writer, first, [changed, b], [undefined, undefined]);
-      expect(log, what).toEqual([
-        ["unregister", "a"],
-        ["register", "a", "Pending", undefined],
-      ]);
-      expect(next.get("a")?.identity, what).toBe(changed);
-      expect(next.get("b"), what).toBe(first.get("b"));
-    }
-  });
+  it(
+    "re-registers when only atom, kind, wraps or marker changed, updating its sibling",
+    () => {
+      for (const [what, change] of changes) {
+        const { writer, log } = fakeWriter();
+        const atom = {};
+        const marker = markerOf();
+        const b = identity({ atom, marker });
+        const first = reconcile(
+          writer,
+          nothing,
+          new Map([
+            ["a", want(identity({ atom, marker }))],
+            ["b", want(b)],
+          ]),
+        );
+        log.length = 0;
+        const changed = identity({ atom, marker, ...change });
+        const next = reconcile(
+          writer,
+          first,
+          new Map([
+            ["a", want(changed)],
+            ["b", want(b)],
+          ]),
+        );
+        expect(log, what).toEqual([
+          ["unregister", "a"],
+          ["update", "b", "Pending"],
+          ["register", "a", "Pending", undefined],
+        ]);
+        expect(next.get("a")?.identity, what).toBe(changed);
+        expect(next.get("b"), what).toBe(first.get("b"));
+      }
+    },
+  );
 });

@@ -471,6 +471,39 @@ a `describe`/`it` title is a pin or a snapshot-golden row, counted per file in
 is exported as its series (a record keyed by the closed label), never as the
 untagged base, which reads zero.
 
+**A span key of the evaluate family is declared once, and read through its
+declaration: `SPAN_KEY_LITERAL_BUDGET`** (ADR-QD-188).
+The family's spans and the denial log line take their keys from
+`packages/core/src/EvaluationSpan.ts`, which spells each once and reads `qadi.subject_id`
+from `PortSpanEncode.ts`'s `sharedQuestionKeys`. `[span-key-source]` in
+`scripts/check-house-style.mjs` reads the key set from that declaration, never from a
+list of its own: a key in any quote form, digits allowed (an extraction that finds fewer
+than `SPAN_KEY_MIN` keys fails, so a moved or emptied declaration cannot make the rule
+pass with nothing to check, and a `qadi.` there the extraction cannot read fails too). It
+refuses a key spelled twice there, and any mention of a key in `packages/*/src` or
+`features/step-definitions` outside the two files. A test builds an expected record with
+`encodeSpan` (a log line's with `logAnnotations`) and reads a value with `decodeSpan` or
+`struct.keys`; an exact quoted key outside a title is a golden row, counted per file
+against the budget in both directions (`[span-key-literal]`). A title is the first
+argument of a `describe`, `it`, `it.<effect|scoped|live|layer>` or `test` call, never of
+a method call, so `pattern.test("…")` with a key in it is counted. Test-scope, like
+`METRIC_ID_LITERAL_BUDGET`: it walks `packages/*/test` and `packages/*/bench`, and also
+`features/features` (its `.test.ts` step files included) and every type-test file
+tstyche selects. The table is checked against the budget (`[span-key-literal-table]`),
+and a new row is a reviewed edit to both together.
+
+| Test file | Span-key literals | Why |
+| --------- | ----------------- | --- |
+| `packages/core/test/Evaluate.test.ts` | 12 | The port-span golden: it pins the shared subject id key of the port spans |
+| `packages/core/test/EvaluationSpan.contract.test.ts` | 96 | The tracer-facing golden: it writes every key literally on purpose |
+| `packages/core/test/PortAccess.test.ts` | 3 | The port-span golden for the attribute read: the shared subject id key |
+| `packages/core/test/PortServe.test.ts` | 5 | The port-span golden for a served port: the shared subject id key |
+| `packages/core/test/PortSpan.test.ts` | 9 | The port-span golden for the span struct: the shared subject id key |
+| `packages/core/test/Predicate.test.ts` | 3 | The port-span golden for a translation: the shared subject id key |
+| `packages/devtools/test/model/PortCalls.test.ts` | 1 | It pins the shared subject id key on a port call |
+| `packages/devtools/test/model/Source.test.ts` | 2 | It pins that devtools' own log line carries no reason key |
+| `packages/testing/test/CollectingTracer.test.ts` | 2 | An arbitrary attribute in a tracer test |
+
 **A negative type pin can fail, and each one is counted: `NOT_CALLABLE_PIN_BUDGET`**
 (ADR-QD-175). tstyche checks `expect(f).type.not.toBeCallableWith(args)`, and
 `not.toBeConstructableWith` for `new`, by compiling the call and reading any
@@ -487,10 +520,15 @@ function that returns an `Effect` or a `Stream` states its refusal through the
 parameter type, so it holds whichever way the rule is set: `Params<F>` for a
 whole call, `expect<Params<typeof f>>().type.not.toBeCallableWith(…)`
 (`PortAccess.tst.ts`), or `Parameters<typeof f>[i]` with `not.toBeAssignableTo`
-for one parameter (`DecisionLog.tst.ts`). `Params<F>` and `Parameters<F>` read
-only the last overload of an overloaded `F`, so a pin on one names the signature
-it means. Every negative pin has a positive twin in its file, the same subject
-with the arguments made valid, so the pin is seen to fail for the reason it names.
+for one parameter (`DecisionLog.tst.ts`). A generic function whose pin must infer
+its type parameters as a writer's call does goes through a `declare`d `paramsOf`,
+`expect(paramsOf(f)).type.not.toBeCallableWith(…)` (`EvaluationSpan.tst.ts`): it
+drops the result and keeps the type parameters, where `Params<F>` on a generic
+needs an explicit instantiation, which can hide an inference regression.
+`Params<F>`, `Parameters<F>` and `paramsOf` read only the last overload of an
+overloaded `F`, so a pin on one names the signature it means. Every negative pin
+has a positive twin in its file, the same subject with the arguments made valid,
+so the pin is seen to fail for the reason it names.
 
 The gate counts the negative `toBeCallableWith` and `toBeConstructableWith` pins
 in every file tstyche selects, separately, with comments and the text of strings
@@ -512,6 +550,7 @@ an API.
 | `packages/core/test/Decision.tst.ts` | 0 | 7 | `new Allow`, `new Deny`: plain instance |
 | `packages/core/test/DecisionCache.tst.ts` | 3 | 0 | `getOrCompute` returns an `Effect`: refused through `Params<…>` |
 | `packages/core/test/EvaluationEnvironment.tst.ts` | 4 | 0 | `evaluationEnvironment`: plain return |
+| `packages/core/test/EvaluationSpan.tst.ts` | 6 | 0 | `annotateAsked` and `annotateSpan` return an `Effect`: refused through `paramsOf(…)`, inferred at the call; `encodeSpan`, `askedAttributes`, `logAnnotations`: plain return |
 | `packages/core/test/Explanation.tst.ts` | 2 | 0 | `foldExplanationCases`: plain return |
 | `packages/core/test/FloatingEffectPins.tst.ts` | 7 | 3 | The characterisation: its bare pins on an `Effect`, a `Stream` and a constructor pin the tool |
 | `packages/core/test/HydrationMetrics.tst.ts` | 2 | 0 | `hydrationDropMeaning`: plain return |
@@ -563,6 +602,27 @@ the rule), and one that turns the rule on with an in-file directive and runs in 
 where the first proves the directive. A pass fails if
 tstyche compiles any type test under another tsconfig, as it does for a file
 outside the tsconfig's `include`.
+
+**A rebindable module-scope name is counted: `MODULE_STATE_BUDGET`** (ADR-QD-184). A
+`let` or `var` binding that a file declares outside every function and class body in
+`packages/*/src` is state every caller in the process shares, so it is counted per file
+and allowed only in the files below, checked in both directions (`[module-state]`): a new
+one fails, and so does a count silently moving. The count is read from the file's syntax
+tree (`scripts/lib/module-state-scan.mjs`, through `typescript`'s own parse), not from its
+text, so it counts `export let` and `export var`, a declaration however it is indented,
+one inside a top-level block, a loop's own `let`, and each name of `let a, b` or of a
+destructuring pattern. It counts no `const`, and with it no `const` holding a mutable
+container (`Policy.ts`'s depth memo, a `Metric`, a lookup table), no `static` class field,
+no `declare`d binding (it states a type for a global and declares no runtime binding of
+the module) and nothing a function or method declares. The binding each count belongs to
+is checked to be among those counted (`[module-state-names]`), a file no
+`packages/*/tsconfig.src.json` contains fails (`[module-state-scan]`), and this table is
+checked against the budget (`[module-state-table]`). Test scope is exempt. A new row is a
+reviewed edit to the budget and this table together.
+
+| Module-scope state | Count | Why |
+| ------------------ | ----- | --- |
+| `packages/react/src/DeveloperSignals.ts` | 1 | `warnedInstrumentedInProduction`: the production-instrumentation line is printed once per process however many providers mount, and an atom set or a provider is narrower than a process (ADR-QD-184). |
 
 ## 7. Schema
 
@@ -776,10 +836,14 @@ state-management layer of its own. The rules that keep it that way:
   a retained verdict** (ADR-QD-053). Each atom set's `gates` registry
   (`makeGateRegistry`, ADR-QD-080) is what a guard writes to from an effect,
   through a handle only `@qadi/react` can reach — carrying its policy, its
-  resource, its current render state, and a ref React filled in. No module-scope
-  state is left in this package: hydration's seed lookup is a closure the atom set
-  owns (`QadiAtoms.hydrate`, ADR-QD-078) and so is this. Nothing re-renders because a guard registered, and nothing in
-  that file can affect what one renders.
+  resource, its current render state, and a ref React filled in. One rebindable
+  module-scope name is left in this package, and it is counted: the latch in
+  `DeveloperSignals.ts` that prints the production-instrumentation line once per
+  process however many providers mount (ADR-QD-184, `MODULE_STATE_BUDGET` in §6).
+  Everything else belongs to an atom set: hydration's seed lookup is a closure the
+  atom set owns (`QadiAtoms.hydrate`, ADR-QD-078) and so is this registry. Nothing
+  re-renders because a guard registered, and nothing in that file can affect what
+  one renders.
 
   This section previously read as forbidding it, and `@qadi/devtools`'s React
   panel said so on screen: *"an instance registry would breach AGENTS.md §13
@@ -791,6 +855,8 @@ state-management layer of its own. The rules that keep it that way:
   purpose this bullet describes.
 
   The wording this bullet once had, and two corrections to it: `spec/process/house-rules-evidence.md` §5.
+  The sentence it once had about module-scope state, and why it changed:
+  `spec/process/house-rules-evidence.md` §7.
 - **Instrumentation is opt-in, and off means absent.** `QadiProvider`'s
   `instrument` defaults to `false`, and with it off no guard registers and no
   marker element is rendered — not a wrapper that does nothing, no wrapper. A

@@ -22,22 +22,9 @@ import type { AskedQuestionLike, GateInstanceLike } from "../../src/model/Gates.
 import { AskedRead, RegistryRead, makeGatesFeed } from "../../src/index.ts";
 import type { GatesFeed, GatesSnapshot } from "../../src/index.ts";
 import { makeGateRegistryDouble } from "../gateRegistryDouble.ts";
-import { readPolicy, settleTurns, thrownBy } from "../helpers.ts";
+import { guard, readPolicy, settleTurns, thrownBy, tick } from "../helpers.ts";
 
 const writePolicy: Policy = hasPermission(permission("doc", "write"));
-
-const guard = (
-  id: string,
-  policy: Policy,
-  fields?: { readonly state?: string; readonly resource?: Resource | undefined },
-): GateInstanceLike => ({ id, kind: "Can", policy, state: fields?.state ?? "Allowed", resource: fields?.resource });
-
-/** Settles every fiber, steps the clock one default interval, settles again. */
-const tick = Effect.gen(function* () {
-  yield* settleTurns;
-  yield* TestClock.adjust("2 seconds");
-  yield* settleTurns;
-});
 
 /** Counts every notification of the feed, so "publishes nothing" is an observation. */
 const listen = (feed: GatesFeed) => {
@@ -227,7 +214,7 @@ describe("the gates feed", () => {
           throw unrenderable;
         },
       });
-      assert.strictEqual(askedFailure(other), "The questions threw a value that could not be described.");
+      assert.strictEqual(askedFailure(other), "a value that could not be described");
     }));
 
   it.effect("T4 a new thunk is read by configure at once and restarts the cadence; no thunk stops it", () =>
@@ -775,7 +762,7 @@ describe("the gates feed", () => {
           },
         },
       );
-      const sentence = "The registry threw a value that could not be described.";
+      const sentence = "a value that could not be described";
       const double = makeGateRegistryDouble([guard("a", readPolicy)], { swallowListenerErrors: true });
       double.failReads(unrenderable);
       const feed = yield* makeGatesFeed();

@@ -27,6 +27,7 @@ import * as Effect from "effect/Effect";
 import * as Equal from "effect/Equal";
 import * as Schedule from "effect/Schedule";
 import type * as Scope from "effect/Scope";
+import { causeMessage } from "@qadi/core";
 import { DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS } from "./DiagnosticsStore.ts";
 import { makeExternalStore } from "./ExternalStore.ts";
 import type { AskedQuestionLike, GateInstanceLike, GateRegistryLike } from "./Gates.ts";
@@ -39,8 +40,9 @@ export type RegistryRead = Data.TaggedEnum<{
   /** The registry's own array, never copied. */
   Read: { readonly instances: ReadonlyArray<GateInstanceLike> };
   /**
-   * `instances` or `subscribe` threw. `reason` is a `Cause.pretty` trace for the host's own
-   * process: it must not cross a trust boundary.
+   * `instances` or `subscribe` threw. `reason` is `causeMessage`'s text of the throw, a
+   * `Cause.pretty` trace whenever one renders, for the host's own process: it must not cross
+   * a trust boundary.
    */
   Failed: { readonly reason: string };
 }>;
@@ -53,8 +55,9 @@ export type AskedRead = Data.TaggedEnum<{
   Unhanded: {};
   Read: { readonly questions: ReadonlyArray<AskedQuestionLike> };
   /**
-   * The thunk, or comparing its answer, threw. `reason` is a `Cause.pretty` trace for the
-   * host's own process: it must not cross a trust boundary.
+   * The thunk, or comparing its answer, threw. `reason` is `causeMessage`'s text of the
+   * throw, a `Cause.pretty` trace whenever one renders, for the host's own process: it must
+   * not cross a trust boundary.
    */
   Failed: { readonly reason: string };
 }>;
@@ -88,26 +91,31 @@ export interface GatesFeed {
   readonly configure: (next: GatesFeedInputs) => void;
 }
 
-const REGISTRY_FALLBACK = "The registry threw a value that could not be described.";
-const QUESTIONS_FALLBACK = "The questions threw a value that could not be described.";
+/**
+ * What two throws are compared by when reading the key of one throws.
+ *
+ * A compare key, never shown: each source compares only its own throws, so one value serves both.
+ */
+const UNREADABLE_KEY = "unreadable";
 
 interface Stated {
   readonly reason: string;
   readonly key: string;
 }
 
-/** What a throw is stated as, and what two throws are compared by. Total: a thrown value that cannot be rendered falls back. */
-const stated = (thrown: unknown, fallback: string): Stated => {
-  let reason = fallback;
-  try {
-    reason = Cause.pretty(Cause.die(thrown));
-  } catch {
-    // Keeps the fallback.
-  }
+/**
+ * What a throw is stated as, and what two throws are compared by. Total.
+ *
+ * The reason is `causeMessage`'s text of the throw, which never throws. The key is the
+ * error's `name: message`, else the reason, and `UNREADABLE_KEY` only when reading the
+ * key throws, so two throws that cannot be read still compare equal.
+ */
+const stated = (thrown: unknown): Stated => {
+  const reason = causeMessage(Cause.die(thrown));
   try {
     return { reason, key: thrown instanceof Error ? `${thrown.name}: ${thrown.message}` : reason };
   } catch {
-    return { reason, key: fallback };
+    return { reason, key: UNREADABLE_KEY };
   }
 };
 
@@ -157,7 +165,7 @@ export const makeGatesFeed = Effect.fn("qadi.devtools.makeGatesFeed")(function* 
           ? previous
           : RegistryRead.Read({ instances });
       } catch (thrown) {
-        failure = stated(thrown, REGISTRY_FALLBACK);
+        failure = stated(thrown);
       }
     }
     registryKey = failure.key;
@@ -178,7 +186,7 @@ export const makeGatesFeed = Effect.fn("qadi.devtools.makeGatesFeed")(function* 
         ? previous
         : AskedRead.Read({ questions });
     } catch (thrown) {
-      const failure = stated(thrown, QUESTIONS_FALLBACK);
+      const failure = stated(thrown);
       askedKey = failure.key;
       return AskedRead.$is("Failed")(previous) && previousKey === failure.key
         ? previous
@@ -215,7 +223,7 @@ export const makeGatesFeed = Effect.fn("qadi.devtools.makeGatesFeed")(function* 
     try {
       release = registry.subscribe(onRegistry);
     } catch (thrown) {
-      watchFailure = stated(thrown, REGISTRY_FALLBACK);
+      watchFailure = stated(thrown);
     }
   };
 

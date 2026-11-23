@@ -21,11 +21,15 @@
  * closed. The public half is `PortSpan.ts` (the types a description names) and
  * `PortSpanDecode.ts` (the decoder).
  *
+ * The evaluate family builds its spans with the same machinery, in
+ * `EvaluationSpan.ts`, and writes them through the same functions (ADR-QD-188).
+ *
  * Not a Schema `Struct` + `encodeKeys` whole: that measured ≈1.1 µs per encode
  * and fails a whole row on one wrong-typed attribute, which BEH-QD-228 forbids.
  * Encoding here is a walk over the value's own entries; decoding takes each
  * field alone, so a wrong-typed value reads as absent and the rest are kept.
  */
+import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import { portInterpreter } from "./PortInterpreter.ts";
@@ -62,13 +66,15 @@ export const spanStruct = <const Fields extends SpanFields>(
 };
 
 /**
- * The attributes to annotate a span with: the struct's keys, the value's own
- * entries, and nothing that is `undefined`.
+ * The one encoding body: the struct's keys, the value's own entries, and nothing
+ * that is `undefined`.
  *
  * Plain and synchronous — a table walk, no parse — because it runs twice per
- * port read on the resolver-miss path (ADR-QD-034).
+ * port read on the resolver-miss path (ADR-QD-034). Reached only through its two
+ * typed doors, {@link encodeSpan} and {@link logAnnotations}, which are this same
+ * function, so neither adds a call.
  */
-export const encodeSpan = <Fields extends SpanFields>(
+const encodeStruct = <Fields extends SpanFields>(
   struct: SpanStruct<Fields>,
   value: SpanType<SpanStruct<Fields>>,
 ): Readonly<Record<string, SpanValue>> => {
@@ -80,6 +86,73 @@ export const encodeSpan = <Fields extends SpanFields>(
   }
   return out;
 };
+
+/**
+ * A struct that annotates a log line and never a span: its keys, encoded with
+ * {@link logAnnotations}, are a log line's annotations.
+ *
+ * Its own declaration kind, so every span-writing function here refuses it at
+ * compile time: {@link encodeSpan}, {@link annotateSpan}, {@link annotateAsked}
+ * and {@link askedAttributes}. What it carries, such as a denial's reason sentence,
+ * stays on the log line where an operator turns it on. A raw
+ * `Effect.annotateCurrentSpan` or `Stream.withSpan` attribute map, and a log event
+ * upcast to a plain {@link SpanStruct}, are not refused; review keeps those.
+ */
+export interface LogEventStruct<Fields extends SpanFields> extends SpanStruct<Fields> {
+  readonly logEvent: true;
+}
+
+/** Builds a {@link LogEventStruct} from its fields and keys, like {@link spanStruct}. */
+export const logEventStruct = <const Fields extends SpanFields>(
+  fields: Fields,
+  keys: { readonly [K in keyof Fields]: SpanKey },
+): LogEventStruct<Fields> => ({ ...spanStruct(fields, keys), logEvent: true });
+
+/** A struct a span may carry: any but a {@link LogEventStruct}. */
+type SpanCarried<Fields extends SpanFields> = SpanStruct<Fields> & {
+  readonly logEvent?: never;
+};
+
+/**
+ * The attributes to write a span with, from any struct but a {@link LogEventStruct}.
+ *
+ * The encoding body under a type that refuses a log event, so a span's attributes
+ * cannot be built from one through it.
+ */
+export const encodeSpan: <Fields extends SpanFields>(
+  struct: SpanCarried<Fields>,
+  value: SpanType<SpanStruct<Fields>>,
+) => Readonly<Record<string, SpanValue>> = encodeStruct;
+
+/**
+ * The annotations of a log line, from a {@link LogEventStruct} and nothing else.
+ *
+ * The encoding body under a type that takes only a log event, so a span's struct
+ * cannot be encoded as a log line's annotations through it, and the span-writing
+ * functions here refuse the event itself. What it returns is a plain record, so a
+ * raw `Effect.annotateCurrentSpan` of it is not refused; review keeps that, as
+ * {@link LogEventStruct} says.
+ */
+export const logAnnotations: <Fields extends SpanFields>(
+  event: LogEventStruct<Fields>,
+  value: SpanType<SpanStruct<Fields>>,
+) => Readonly<Record<string, SpanValue>> = encodeStruct;
+
+/**
+ * Annotates the current span with one struct's attributes, any member left out.
+ *
+ * The one body that annotates the current span with a struct: a port's question
+ * and answer (`PortAccess.ts`), a retried call's attempts (`PortDerivation.ts`) and
+ * the evaluate family's annotated questions and answers all go through it. A plain
+ * function: it opens no span, it writes to the one the caller opened. A family
+ * question, which must name every member, is written with {@link annotateAsked}, and
+ * one passed as the attributes a span opens with is built by
+ * {@link askedAttributes}; a {@link LogEventStruct} is refused.
+ */
+export const annotateSpan = <Fields extends SpanFields>(
+  struct: SpanCarried<Fields>,
+  value: SpanType<SpanStruct<Fields>>,
+): Effect.Effect<void> => Effect.annotateCurrentSpan(encodeSpan(struct, value));
 
 /**
  * What a port's `pose` must return: every member of its span question but
@@ -96,6 +169,34 @@ export type PoseOf<S> =
   S extends SpanStruct<infer Fields>
     ? { readonly [K in Exclude<keyof Fields, "interpreter">]-?: Fields[K]["Type"] | undefined }
     : never;
+
+/**
+ * Annotates the current span with an evaluate family span's question, every member
+ * named.
+ *
+ * The value is a {@link PoseOf} the question, so a writer that leaves a member out,
+ * such as the evaluation id or the policy's tag, fails to compile where it writes,
+ * as a port's `pose` does (ADR-QD-133, ADR-QD-188). A member that is absent this
+ * time, such as an action not supplied, is named with `undefined`. An answer, which
+ * names only what its ending says, is written with {@link annotateSpan}.
+ */
+export const annotateAsked = <Fields extends SpanFields>(
+  struct: SpanCarried<Fields>,
+  value: PoseOf<SpanStruct<Fields>>,
+): Effect.Effect<void> => annotateSpan<SpanFields>(struct, value);
+
+/**
+ * The attributes a family span opens with, from its question with every member named.
+ *
+ * For a span whose question is known when it opens and is passed as
+ * `Stream.withSpan` attributes rather than annotated: the value is a {@link PoseOf}
+ * the question, as {@link annotateAsked} holds it, and a {@link LogEventStruct} is
+ * refused, as {@link encodeSpan} refuses it.
+ */
+export const askedAttributes = <Fields extends SpanFields>(
+  struct: SpanCarried<Fields>,
+  value: PoseOf<SpanStruct<Fields>>,
+): Readonly<Record<string, SpanValue>> => encodeSpan<SpanFields>(struct, value);
 
 /**
  * A port's span attributes, with `pose` held to {@link PoseOf} its question.

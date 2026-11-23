@@ -14,16 +14,20 @@
  * record accesses that never happened.
  */
 import * as Context from "effect/Context";
-import * as Data from "effect/Data";
 import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
-import * as HashSet from "effect/HashSet";
 import * as Layer from "effect/Layer";
+import * as Result from "effect/Result";
 import type * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
 import { DecisionHistoryUnavailable } from "./Errors.ts";
-import type { InvalidBoundedPermits } from "./Errors.ts";
-import { ResourceIdSchema, SubjectIdSchema } from "./Identity.ts";
+import type { InvalidBoundedPermits, MissingResourceId } from "./Errors.ts";
+import {
+  makeResourceId,
+  makeSubjectId,
+  ResourceIdSchema,
+  SubjectIdSchema,
+} from "./Identity.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
 import {
   boundedPort,
@@ -32,7 +36,9 @@ import {
   retryingPort,
   timingOutPort,
 } from "./PortDerivation.ts";
-import type { LeafOf, PortDescription, ReadSite } from "./PortDescription.ts";
+import { describeKeyRefusal } from "./PortDescription.ts";
+import type { KeyRefusal, LeafOf, PortDescription, ReadSite } from "./PortDescription.ts";
+import { readGuarded, readRows } from "./PortKey.ts";
 import {
   portSpan,
   sharedQuestionFields,
@@ -41,7 +47,7 @@ import {
 } from "./PortSpanEncode.ts";
 import type { PortServingFacet } from "./PortServing.ts";
 import { sameAnswer } from "./PortWireEncode.ts";
-import { scopedResourceIdOf } from "./ScopedLeaf.ts";
+import { requireResourceId, scopedResourceIdOf } from "./ScopedLeaf.ts";
 
 /**
  * What the port can say about a past event.
@@ -171,6 +177,8 @@ const actedServing: PortServingFacet<"DecisionHistory", [query: ActedQuery]> = {
   declare: ({ names }) => ({ DecisionHistory: { events: names } }),
 };
 
+const isEvent = Schema.is(Schema.String);
+
 /**
  * The decision-history port, described once (`PortDescription.ts`).
  *
@@ -222,7 +230,13 @@ export const decisionHistoryPort: PortDescription<
   service: DecisionHistory,
   invoke: (shape) => (query) => shape.hasActed(query),
   make: (name, call) => ({ name, hasActed: call }),
-  failure: ([query], cause) => new DecisionHistoryUnavailable({ event: query.event, cause }),
+  // The event is set only when its schema admits the request's value, so a refused
+  // request fails as this error and never as a defect.
+  failure: ([query], cause) =>
+    new DecisionHistoryUnavailable({
+      ...(isEvent(query.event) ? { event: query.event } : {}),
+      cause,
+    }),
   none: { name: "DecisionHistoryUnknown", answer: "Unknown" },
 });
 
@@ -252,28 +266,60 @@ export interface ActedEventInput {
   readonly resourceId: string;
 }
 
-/** `(subjectId, event)` only — no resource, for an "ever, at all" question. */
-export interface ActedAnywhereInput {
-  readonly subjectId: string;
-  readonly event: string;
-}
-
 /**
- * One `(subjectId, event, resourceId)` triple and one `(subjectId, event)`
- * pair, compared structurally rather than by a joined string key — a naive
- * `${a} ${b} ${c}` join collides whenever a segment itself contains the
- * delimiter. `Data.Class` gives per-field `Equal`/`Hash`, so `HashSet`
- * membership compares each field independently and the collision is
- * unrepresentable, not just harder to hit.
+ * Whether the listed events hold the one a query names: on its resource, or on
+ * any resource when it names none.
  *
- * Exported, as `RelationshipEdge` in `RelationshipResolver.ts` is: a value
- * class with no behaviour beyond structural equality has nothing to leak, and
- * a consumer building its own history fixture reuses these exact classes
- * rather than pasting identical ones.
+ * A closed world, so an unlisted event is `"NotActed"` and never `"Unknown"`.
+ * Rows and queries are keyed by {@link decisionHistoryPort}'s `key`, whose text is
+ * injective (`PortKey.ts`) and keeps the `Any` request apart from every
+ * resource-scoped one: each row contributes the key of its own request and the
+ * key of its `Any` request. A row or a query the key refuses fails rather than
+ * answering `"NotActed"`, which `hasNotActed` would read as an allow.
+ *
+ * The list and every field of a row are read through `readGuarded`, so a list that
+ * is a revoked proxy or whose `length` throws, and a row that is `null` or
+ * `undefined` or whose property read throws, are a refusal like one the key makes
+ * and not a throw.
+ *
+ * `decisionHistoryFromEvents` and `actedAnswerFromEvents` both read it, so the
+ * layer and the judgement cannot answer differently.
  */
-export class ActedEvent extends Data.Class<ActedEventInput> {}
+const actedLookup = (
+  events: ReadonlyArray<ActedEventInput>,
+): ((query: ActedQuery) => Result.Result<"Acted" | "NotActed", KeyRefusal>) => {
+  const keyed = Result.map(
+    Result.flatMap(readRows(["events"], events), (rows) =>
+      Result.all(
+        rows.map((event) =>
+          Result.flatMap(
+            Result.all({
+              subjectId: readGuarded(["subjectId"], () => event.subjectId),
+              event: readGuarded(["event"], () => event.event),
+              resourceId: readGuarded(["resourceId"], () => event.resourceId),
+            }),
+            (row) => {
+              const asked = { subjectId: makeSubjectId(row.subjectId), event: row.event };
+              const resourceId = makeResourceId(row.resourceId);
+              return Result.all([
+                decisionHistoryPort.key([{ ...asked, resourceId }]),
+                decisionHistoryPort.key([{ ...asked, resourceId: undefined }]),
+              ]);
+            },
+          ),
+        ),
+      ),
+    ),
+    (keys) => new Set(keys.flat()),
+  );
 
-export class ActedAnywhere extends Data.Class<ActedAnywhereInput> {}
+  return (query) =>
+    Result.flatMap(keyed, (keys) =>
+      Result.map(decisionHistoryPort.key([query]), (key) =>
+        keys.has(key) ? "Acted" : "NotActed",
+      ),
+    );
+};
 
 /**
  * Resolves against a static event list.
@@ -281,39 +327,72 @@ export class ActedAnywhere extends Data.Class<ActedAnywhereInput> {}
  * A closed world: anything not listed is `"NotActed"` rather than `"Unknown"`,
  * because this layer *is* the store and it does know. Suitable for tests and
  * small fixed policies.
+ *
+ * A row or a query with no key fails closed: a refused entry fails every read, and
+ * a refused query fails its own, with `DecisionHistoryUnavailable` carrying the
+ * refusal's sentence, never `"NotActed"`, which `hasNotActed` would read as an
+ * allow. No typed row or query is refused, so that branch is reached only by an
+ * untyped caller.
  */
 export const decisionHistoryFromEvents = (
   events: ReadonlyArray<ActedEventInput>,
 ): Layer.Layer<DecisionHistory> => {
-  const keyed = HashSet.fromIterable(events.map((event) => new ActedEvent(event)));
-  const anywhere = HashSet.fromIterable(
-    events.map(({ subjectId, event }) => new ActedAnywhere({ subjectId, event })),
-  );
-
+  const lookup = actedLookup(events);
   return Layer.succeed(DecisionHistory, {
     name: "decisionHistoryFromEvents",
     hasActed: (query) =>
-      Effect.succeed(
-        (
-          query.resourceId === undefined
-            ? HashSet.has(
-                anywhere,
-                new ActedAnywhere({ subjectId: query.subjectId, event: query.event }),
-              )
-            : HashSet.has(
-                keyed,
-                new ActedEvent({
-                  subjectId: query.subjectId,
-                  event: query.event,
-                  resourceId: query.resourceId,
-                }),
-              )
-        )
-          ? "Acted"
-          : "NotActed",
-      ),
+      Result.match(lookup(query), {
+        onSuccess: Effect.succeed,
+        onFailure: (refusal) =>
+          Effect.fail(decisionHistoryPort.failure([query], describeKeyRefusal(refusal))),
+      }),
   });
 };
+
+/**
+ * What the history port, read for a `hasActed` leaf at `site` over these fixture
+ * events, answers, with no Effect.
+ *
+ * It asks the description's own request (`decisionHistoryPort.asks`), so an
+ * `Any`-scoped leaf asks about no resource even where the site has one. A
+ * resource-scoped leaf at a site with no usable resource id fails with
+ * `MissingResourceId`, before any event is read (`requireResourceId`). Otherwise
+ * it reads the lookup `decisionHistoryFromEvents` reads. The fixture is a closed
+ * world, so it never answers `"Unknown"`, and its type says so. A row or a request
+ * the key refuses fails with `DecisionHistoryUnavailable` carrying
+ * `describeKeyRefusal`'s sentence, never `"NotActed"`, which `hasNotActed` would
+ * read as an allow.
+ *
+ * It never throws, whatever a row, the site's subject or the site's resource holds
+ * (BEH-QD-410): a `null` row, a getter or a proxy that throws is a refusal. A row's
+ * is the lookup's, naming the field. The site is read once, through `readGuarded`,
+ * where the request is built, so a subject or resource that throws fails with the
+ * leaf's own `event`, which the site does not decide, and the refusal's sentence.
+ * The agreement with `askActed`
+ * over the fixture layer is pinned by `DecisionHistory.test.ts`.
+ */
+export const actedAnswerFromEvents = (
+  events: ReadonlyArray<ActedEventInput>,
+  leaf: LeafOf["HasActed"],
+  site: ReadSite,
+): Result.Result<
+  "Acted" | "NotActed",
+  MissingResourceId | DecisionHistoryUnavailable
+> =>
+  Result.gen(function* () {
+    const [query] = yield* Result.mapError(
+      readGuarded(["site"], () => decisionHistoryPort.asks.HasActed(leaf, site)),
+      (refusal) =>
+        new DecisionHistoryUnavailable({
+          ...(isEvent(leaf.event) ? { event: leaf.event } : {}),
+          cause: describeKeyRefusal(refusal),
+        }),
+    );
+    yield* requireResourceId(leaf, query.resourceId, leaf.event);
+    return yield* Result.mapError(actedLookup(events)(query), (refusal) =>
+      decisionHistoryPort.failure([query], describeKeyRefusal(refusal)),
+    );
+  });
 
 /**
  * Wraps a history layer so every `hasActed` call retries on

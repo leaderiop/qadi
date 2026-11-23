@@ -9,8 +9,11 @@
  * deliberately smaller set.
  */
 import * as Effect from "effect/Effect";
+import * as TestClock from "effect/testing/TestClock";
 import { DiagnosticsStatus } from "../src/model/DiagnosticsFeed.ts";
 import { noStops } from "../src/react/StoppedBox.tsx";
+import type { Parent } from "../src/model/ExternalStore.ts";
+import type { GateInstanceLike } from "../src/model/Gates.ts";
 import type { DiagnosticsNoticeProps } from "../src/react/DiagnosticsNotice.tsx";
 import {
   Allow,
@@ -32,6 +35,7 @@ import type {
   EvaluationError,
   ObligationOutcome,
   Policy,
+  Resource,
 } from "@qadi/core";
 
 export const read = permission("doc", "read");
@@ -175,6 +179,35 @@ export const settleTurns = Effect.gen(function* () {
   for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
 });
 
+/** Settles every fiber, steps the clock one poll interval, settles again. */
+export const tick = Effect.gen(function* () {
+  yield* settleTurns;
+  yield* TestClock.adjust("2 seconds");
+  yield* settleTurns;
+});
+
+/** One live guard asking `policy`, in the Allowed state unless a test says otherwise. */
+export const guard = (
+  id: string,
+  policy: Policy,
+  fields?: { readonly state?: string; readonly resource?: Resource | undefined },
+): GateInstanceLike => ({
+  id,
+  kind: "Can",
+  policy,
+  state: fields?.state ?? "Allowed",
+  resource: fields?.resource,
+});
+
+/** A counter of one store's notifications, subscribed from now on. */
+export const heardOn = (store: Parent) => {
+  const heard = { calls: 0 };
+  store.subscribe(() => {
+    heard.calls += 1;
+  });
+  return heard;
+};
+
 /** Whether `run` threw and what it threw, so a falsy thrown value (`undefined`, `null`) still counts as a throw. */
 export const thrownBy = (run: () => void): { readonly threw: boolean; readonly thrown: unknown } => {
   try {
@@ -191,3 +224,26 @@ export const liveNotice: DiagnosticsNoticeProps = {
   onRestart: () => undefined,
   announced: { current: noStops },
 };
+
+/**
+ * A thrown value that can be neither stringified nor asked for its message.
+ *
+ * The one hostile value the thrown-value tests share (ADR-QD-182): both its
+ * `toString` and its `message` getter throw, so a copy of `thrownMessage` that
+ * guards only one of them fails here.
+ */
+export const hostile = {
+  toString(): string {
+    throw new Error("toString threw");
+  },
+  get message(): string {
+    throw new Error("message threw");
+  },
+};
+
+/** An `Error` whose `message` getter throws, so `String` of it throws too. */
+export const hostileError = Object.defineProperty(new Error("unread"), "message", {
+  get(): string {
+    throw new Error("message threw");
+  },
+});

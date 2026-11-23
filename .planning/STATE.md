@@ -1,42 +1,42 @@
 ---
 gsd_state_version: "1.0"
-milestone: v1.7
+milestone: v1.8
+milestone_name: Arch Wave 13
 status: Awaiting next milestone
-stopped_at: Phase 68.1 complete — all phases complete
-last_updated: "2026-11-22T06:36:14.710Z"
-last_activity: 2026-11-22
-last_activity_desc: "Milestones v1.6 + v1.7 shipped as PR #163"
-state_head: fc152ff28ca98035b573997d0448bbbf75d2cf22
+stopped_at: Phase 76 complete — all phases complete
+last_updated: "2026-11-23T20:30:02.520Z"
+last_activity: 2026-11-23
+last_activity_desc: Milestone v1.8 completed and archived
+state_head: 26fdb4e8412fa975cdabb541ee60ac6df76de9ec
 progress:
   total_phases: 8
   completed_phases: 8
-  total_plans: 60
-  completed_plans: 60
+  total_plans: 63
+  completed_plans: 63
   percent: 100
-milestone_name: Arch Wave 12
-current_phase: "68.1"
+current_phase: 76
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-22)
+See: .planning/PROJECT.md (updated 2026-11-23)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Planning next milestone (v1.7 completed 2026-11-22; not merged, not released)
+**Current focus:** Planning the next milestone (v1.8 Arch Wave 13 completed 2026-11-23 on branch `arch-wave-13`; not merged, not released)
 
 ## Current Position
 
-Phase: Milestone v1.7 complete
+Phase: Milestone v1.8 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-11-22 -- Milestones v1.6 + v1.7 shipped as PR #163
+Last activity: 2026-11-23 — Milestone v1.8 completed and archived
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 379
+- Total plans completed: 442
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -103,6 +103,14 @@ Last activity: 2026-11-22 -- Milestones v1.6 + v1.7 shipped as PR #163
 | 67 | 7 | - | - |
 | 68 | 15 | - | - |
 | 68.1 | 9 | - | - |
+| 69 | 9 | - | - |
+| 70 | 7 | - | - |
+| 71 | 8 | - | - |
+| 72 | 8 | - | - |
+| 73 | 7 | - | - |
+| 74 | 7 | - | - |
+| 75 | 9 | - | - |
+| 76 | 8 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -481,6 +489,69 @@ Last activity: 2026-11-22 -- Milestones v1.6 + v1.7 shipped as PR #163
 | Phase QD-68.1 P07 | 25min | 2 tasks | 3 files |
 | Phase 68.1 P09 | 25 min | 2 tasks | 3 files |
 | Phase QD-68.1 P08 | 15 min | 2 tasks | 2 files |
+| Phase 69 P01 | 40min | 3 tasks | 8 files |
+| Phase QD-69 P02 | 15 min | 2 tasks | 3 files |
+| Phase 69 P03 | 20min | 3 tasks | 5 files |
+| Phase QD-69 P04 | 25 min | 3 tasks | 11 files |
+| Phase 69 P05 | 15min | 3 tasks | 4 files |
+| Phase QD-69 P06 | 20min | 3 tasks | 9 files |
+| Phase 69 P07 | 35 min | 3 tasks | 11 files |
+| Phase QD-69 P08 | 30min | 2 tasks | 9 files |
+| Phase 69 P09 | 75min | 2 tasks | 4 files |
+| Phase QD-70 P01 | 10 min | 2 tasks | 3 files |
+| Phase 70 P02 | 15 min | 3 tasks | 2 files |
+| Phase 70 P03 | 12 min | 2 tasks | 2 files |
+| Phase QD-70 P04 | 20 min | 2 tasks | 4 files |
+| Phase QD-70 P05 | 35 min | 2 tasks | 6 files |
+| Phase QD-70 P06 | 30 min | 2 tasks | 3 files |
+| Phase QD-70 P07 | 30 min | 2 tasks | 3 files |
+| Phase 71 P01 | 9 min | 2 tasks | 4 files |
+| Phase QD-71 P02 | 12 min | 2 tasks | 3 files |
+| Phase 71 P03 | 28 min | 2 tasks | 5 files |
+| Phase QD-71 P04 | 22 min | 2 tasks | 4 files |
+| Phase 71 P05 | 18 min | 2 tasks | 4 files |
+| Phase QD-71 P06 | 25 min | 2 tasks | 7 files |
+| Phase 71 P07 | 25 min | 2 tasks | 5 files |
+| Phase 71 P08 | 30 min | 2 tasks | 7 files |
+| Phase 72 P01 | 35 min | 2 tasks | 6 files |
+| Phase 72 P02 | 25min | 2 tasks | 4 files |
+| Phase 72 P03 | 15 min | 2 tasks | 5 files |
+| Phase 72 P04 | 30 min | 3 tasks | 8 files |
+| Phase 72 P05 | 11 min | 3 tasks | 10 files |
+| Phase 72 P06 | 9 min | 2 tasks | 4 files |
+| Phase 72 P07 | 25min | 2 tasks | 3 files |
+| Phase 72 P08 | 20 min | 3 tasks | 5 files |
+| Phase 73 P01 | 20 min | 3 tasks | 7 files |
+| Phase 73 P02 | 15 min | 2 tasks | 7 files |
+| Phase QD-73 P03 | 25 min | 2 tasks | 4 files |
+| Phase QD-73 P04 | 20 min | 3 tasks | 5 files |
+| Phase 73 P05 | 6 min | 2 tasks | 2 files |
+| Phase 73 P06 | 25 min | 2 tasks | 4 files |
+| Phase 73 P07 | 30 min | 3 tasks | 4 files |
+| Phase 74 P01 | 20 min | 2 tasks | 7 files |
+| Phase 74 P02 | 10 min | 2 tasks | 7 files |
+| Phase 74 P03 | 45min | 3 tasks | 8 files |
+| Phase 74 P04 | 12 min | 3 tasks | 4 files |
+| Phase 74 P05 | 10 min | 2 tasks | 2 files |
+| Phase 74 P06 | 25 min | 2 tasks | 4 files |
+| Phase 74 P07 | 75 min | 3 tasks | 4 files |
+| Phase 75 P01 | 6 min | 2 tasks | 5 files |
+| Phase 75 P02 | 2 min | 2 tasks | 2 files |
+| Phase 75 P03 | 12 min | 2 tasks | 5 files |
+| Phase 75 P04 | 16 min | 2 tasks | 7 files |
+| Phase 75 P05 | 14 min | 2 tasks | 3 files |
+| Phase 75 P06 | 25 min | 2 tasks | 4 files |
+| Phase 75 P07 | 20 min | 2 tasks | 3 files |
+| Phase 75 P08 | 9 min | 3 tasks | 9 files |
+| Phase 75 P09 | 4 min | 2 tasks | 3 files |
+| Phase 76 P01 | 30 min | 2 tasks | 5 files |
+| Phase 76 P02 | 12 min | 2 tasks | 7 files |
+| Phase 76 P03 | 35 min | 3 tasks | 11 files |
+| Phase 76 P04 | 15 min | 3 tasks | 9 files |
+| Phase 76 P05 | 20 min | 3 tasks | 4 files |
+| Phase 76 P06 | 40 min | 3 tasks | 4 files |
+| Phase 76 P07 | 35 min | 3 tasks | 16 files |
+| Phase QD-76 P08 | 45 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -817,9 +888,86 @@ Last activity: 2026-11-22 -- Milestones v1.6 + v1.7 shipped as PR #163
 - [Phase 68.1]: ADR-QD-033 is amended (Rev 1.5), not superseded; CCR-QD-460 is the only record number the phase adds
 - [Phase 68.1]: 68.1-06: Phase 63's gate-14 truths are read against 68.1-04's single gate-14 run plus a silent diff of what gate 14 reads since; gate 14 is not run twice
 - [Phase QD-68.1]: 68.1-08: the tick commit holds REQUIREMENTS.md and the summary only, so the tree since the green check:pr differs by exactly those; STATE and ROADMAP advance in a separate commit
+- [Phase 69]: Plan 69-01: scorer records survived and no-coverage counts per file so the close separates removed killed mutants from a weakened test; the close-only thrown group is judged by judgeNew (no base, no open mutant)
+- [Phase QD-69]: 69-02: the no-cause capture case is rewritten in place to pin an empty recorded message; hostile fixtures are declared once per test file
+- [Phase 69]: 69-03: each devtools hostile case loops over both fixtures through its site's own entry; a failing build is the handed layer's own Effect.fail, no hand-written port (decided autonomously)
+- [Phase QD-69]: 69-04: causeMessage lives beside thrownMessage (one rule: what a reader sees of something that went wrong); Cause.pretty is guarded and falls back to thrownMessage of Cause.squash; describeThrown and renderReason deleted, not aliased
+- [Phase 69]: 69-05: react errorLine is namedLine(error) ?? thrownMessage(error); devtools capture reads cause, else reason, else error through fieldOf and thrownMessage (a null cause reads as none)
+- [Phase QD-69]: 69-06: GatesFeed stated reads its reason through causeMessage(Cause.die(thrown)); its own guard is gone, key and fallback kept; a throw that cannot be rendered reads as the one placeholder (decided autonomously)
+- [Phase 69]: ADR-QD-182, CCR-QD-461 and gate 14's probes recorded: both thrownMessage and causeMessage are public @qadi/core exports; the second export, the devtools feeds in scope, the capture keeping a failure's own text and react naming an error once were decided autonomously on 2026-11-22 under the owner's instruction
+- [Phase QD-69]: 69-08: the spec states the thrown-value rule at every seam with only the reserved ids; ADR-QD-182 gate 14 mention names its script (decided autonomously)
+- [Phase 69]: 69-09: an Ignored (static) mutant is judged by kind per file with one examined allowance, since no test can kill a static mutant; base record untouched (decided autonomously)
+- [Phase 69]: Code review (3 iterations, 13 findings, all fixed): a capture field is absent only when `undefined`, so a `null` cause records `"null"` (supersedes 69-05's "a null cause reads as none"); hostile fixtures live once per package's test helpers; the examined Capture allowance went with the `fieldOf` it covered and the mutation record was re-closed on all five groups at the fixed head (decided autonomously)
+- [Phase QD-70]: 70-01: characterisation compares reporter entries by reference identity; base measured at 3630e298 (HydrationEngine.ts 169/169, 36 Ignored)
+- [Phase 70]: 70-02: the base experiment and type pins are recorded RED; a throwaway entry row is refused only at the engine's bucket record and, once bucketed, reaches no event or count; payload and dehydration rows compile with nothing producing them (decided autonomously)
+- [Phase 70]: 70-03: bucket records are per-call mapped-type records whose key order is the emission order; one generic dropEvents serves both sides (autonomous)
+- [Phase QD-70]: 70-04: PAYLOAD_PRODUCERS (reason to producer) stays in HydrationEngine.ts beside the decoder; PAYLOAD_REASONS is its compile-checked inverse, replacing the Match dispatcher (autonomous)
+- [Phase QD-70]: 70-05: ADR-QD-183 states ADR-QD-152's file-sharing reason is gone truthfully (ARCH-118 edits only the two reporter call sites, not the planners or records); ADR-QD-152 amended to Rev 1.1
+- [Phase QD-70]: 70-06: INV-QD-385/386 and BEH-QD-686..690 name their enforcement by real test titles; the behaviours describe the shipped code (autonomous)
+- [Phase QD-70]: 70-07: a by-hand static mutant the entry decoder's construction guard refuses (RuntimeError) counts as detected; EXAMINED admits 8 StringLiteral and 1 ObjectLiteral in HydrationEngine.ts. Decided autonomously.
+- [Phase 70]: Code review (3 iterations, every finding fixed): the payload-producer type machinery is exported from the package-private engine and pinned (a gutted `OnlyMember` turns pins red); the spec states per kind what the compiler enforces and that it cannot check code drops under a reason or raises a producer; the characterisation gained reverse-order rows with no expected value changed; mutation re-closed on both groups at the fixed head (decided autonomously)
+- [Phase 71]: 71-01: rows 12 and 18 of the characterisation shared one title; row 12 is titled 'a returning onDropped is told the left-out entry once in production, and nothing is written to the console' so the 35 titles are distinct (decided autonomously)
+- [Phase QD-71]: 71-02: the regression rows compare the console as one joined string and carry the received lines in the assertion message, so the JSON report shows the received line; the missing-row and second-latch pins refuse through a call helper, so their directive fragment is "is not assignable to" (decided autonomously)
+- [Phase 71]: 71-03: defaultOf reads only speaks/often/says (a Pick of SignalRow) so ReporterThrew's entry-less row passes without a cast; the latch has one writer (once) and sayProviderSignal reads it through the table
+- [Phase QD-71]: 71-04: providerSignalReporter projects reporterFor over the signal's own row on every report; one environment gate, one containment and one latch read remain (decided autonomously)
+- [Phase 71]: Module-scope mutable state is counted by MODULE_STATE_BUDGET (library source, let/var only, const exempt), table in AGENTS.md section 6; decided autonomously
+- [Phase QD-71]: ADR-QD-184 states what the compiler refuses and what only tests hold; decided autonomously, with the table's resolved column pinned by the table-facts test because no code reads it
+- [Phase 71]: 71-07: the invariants and behaviours say which guarantees only a named test holds (resolution timing, each row's condition, the entry point's own name), decided autonomously
+- [Phase 71]: 71-08: equivalent mutants removed by changing the source (stale-free snapshot, entry read from the handle, everywhere-row overload) rather than re-baselining; table static mutants admitted via EXAMINED after a by-hand run killed all 80
+- [Phase 71]: Code review (3 iterations, 24 findings, all fixed): the InstrumentedInProduction condition is stated only in its row and QadiProvider reads it through `holdsHere`; `ReporterThrew`'s default is read through `unconditionally`; MODULE_STATE_BUDGET counts module-scope bindings through a syntax-tree scan run by the shared `scripts/lib/typescript-server-child.mjs`, which both gates use; INV-QD-064/251/388 corrected; three review-added static mutants admitted after a by-hand kill and all five groups re-closed at 43c0b44e (decided autonomously)
+- [Phase 76]: Code review (3 iterations, 22 findings, all fixed; disposition 0 of 10 open): the totality rule covers every fixture read, both judgements and `remedyEdits` for any value (one guarded read in core, `readGuarded`/`readRows`/`unreadable`, a total `brandOf`; `remedyGuarded`/`readForm` in devtools); the missing-resource-id check is one helper, `requireResourceId`; mutation re-closed at e2260f94 on one head, every mutant on a written line killed but the base's equivalent `SignatureHistory.ts:380` (recorded as MOVED); security 31/31 closed after ADR-QD-189 Rev 1.9 stated its provenance; validation no gaps; verification 4/4 (decided autonomously)
+- [Phase 75]: Code review (3 iterations, 36 findings, all handled; disposition 0 of 17 open): the outcome is written on every decided or typed-failure path and an interrupted or defected evaluation carries its question and no outcome; a family question is held to `PoseOf` (`annotateAsked`, `askedAttributes`); a `LogEventStruct` is refused by every span-writing function, a raw `annotateCurrentSpan` or an upcast kept by review; every family span name comes from the declaration; the contract is held to its first commit by `75-contract-check.mjs` (28 self-test cases); mutation re-closed at 6e1ffc3e on one head, Lifecycle 38/38, Predicate 282/282, SubjectSet 32/32, GuardHealthCheck 9/9 (both base survivors gone), EvaluationSpan.ts 3/3 and PortSpanEncode.ts's added lines with every static mutant killed by hand; cost +9.17% at 24ca9e2a (decided autonomously)
+- [Phase 74]: Code review (3 iterations, 25 findings, all fixed): a no-op seeding answers its input reference; staleness keeps its policy and seed disjuncts (BEH-QD-322); the characterisation is held to its first commit by `74-characterisation-check.mjs` (every statement, import kind and fixture helper it reads; 49 self-test cases); shared helpers live once in `simulationFixtures.ts`/`helpers.ts`, with 19 further devtools test files folded onto them; every review edit to a spec document is a revision; mutation re-closed at 1ae6035b, SimulationSession.ts 244/248 (base 325/331), HeldChoice.ts 63/63, SeededChoice.ts 122/122 with its 11 static mutants killed by hand, the seed disjunct's base survivor paired through `MOVED` (decided autonomously)
+- [Phase 73]: Code review (3 iterations, 21 findings, all fixed): `reconcile`'s rollback/AggregateError path removed as unreachable, the writer contract stated once on `GateWriter` and pinned on the real registry; `sameIdentity` module-private; one-consumer test helpers moved back to their consumer; validation added one real-registry notification test; mutation re-closed at 37e85311, GateWriter.ts 83/83, useGate.ts 44/45 (an equivalent survivor the base had) (decided autonomously)
+- [Phase 72]: Code review (3 iterations, 25 findings, all fixed): `sameFields` compares only own enumerable string-keyed fields; the finalizer is registered before parents are subscribed and releases every parent even when one throws, then rethrows through `throwCollected` (shared with `notify`); shared test helpers moved to `dockModelFixtures.ts`/`helpers.ts`; the store-list test compares as a set; validation added one order assertion; mutation re-closed at ed8d487f, DockModel.ts 70/70, ExternalStore.ts 77/78 (the base's survivor) (decided autonomously)
+- [Phase 72]: 72-01: mutation base measured before any phase file existed (reverses CONTEXT order); characterisation takes the base as truth, no row corrected
+- [Phase 72]: 72-02: regression title wrapped multi-line (fixed title is 91 columns on one line); type-pin cause recorded as the missing export
+- [Phase 72]: ADR-QD-185 records the derived store and the dock model on it; CCR-QD-464 row registered before any spec text cites it
+- [Phase 72]: 72-04: the empty-parent-list type pin takes a plain compute, since a context-sensitive compute leaves A unknown once the parents refusal fails the call
+- [Phase 72]: 72-05: the dock model's shownReading, questions and services are three makeDerivedStore calls; configure refreshes shownReading last; the plan-mandated M36 comment line stays at 93 columns (verification-only exception)
+- [Phase 72]: 72-06: per-store row tests pin order inside the rows (a diagnostics listener reads the recomputed store), and the store count is a test of a built model rather than a sentence
+- [Phase 72]: 72-07: BEH-QD-699 states the keys of questions and services as the code builds them; the DockModel.test.ts traceability row cites BEH-QD-699 for the diagnostics per-store test
+- [Phase 72]: 72-08: a phase decision number (D-13) in BEH-QD-700's closing sentence was removed at its cause with a revision bump; the span name's Ignored mutant is examined by hand and recorded in EXAMINED, not closed by a contrived test
+- [Phase 73]: 73-01: the mutation base was measured before any phase file existed; GateWriter.ts 95/96, useGate.ts 62/74 at phase_base 1dbaf1a9
+- [Phase 73]: 73-01: the gate-registration characterisation (19 rows) is green on the base with no row corrected; guardTrees returns a named GuardTrees interface (TS2883)
+- [Phase 73]: ADR-QD-186 records gate registration as one keyed reconcile: failure-rule sentence verbatim, sameIdentity compares exactly kind/atom/wraps/marker, ADR-QD-053 unchanged
+- [Phase QD-73]: 73-03: a kept handle is told its state on every reconcile; the equal-state rule stays only in GateHandle.update
+- [Phase QD-73]: The type pins use three @ts-expect-error directives and no negative callable or constructable pin, so NOT_CALLABLE_PIN_BUDGET is unchanged
+- [Phase 73]: 73-05: the three reconcile-rule registry cases were deleted only after their reconcile tests and characterisation rows passed in the same run; hasPermission and permission left the file's imports with them
+- [Phase 73]: 73-06: BEH-QD-702 carries the failure-rule sentence word for word from reconcile's doc comment and ADR-QD-186; INV-QD-391 and INV-QD-392 state what the compiler refuses apart from what only tests and review hold
+- [Phase 73]: 73-07: the mutation close held every base score (GateWriter.ts 97/97, useGate.ts 44/45, no new open or Ignored mutant), so no test was added and EXAMINED stays empty; RECN-01 to RECN-05 marked complete after a green check:pr; RECN-03 is closed under the reading of ADR-QD-186 (one registration effect beside the writer-keyed teardown)
+- [Phase 74]: The mutation base was measured with the helper move kept out of the tree, so no phase test or fixtures file existed while Stryker ran
+- [Phase 74]: judgeNew of a close-only file reports an Ignored mutant as unexamined unless EXAMINED admits its kind, and a stale EXAMINED entry as removable
+- [Phase 74]: 74-02: ADR-QD-187 written with the five rule sentences verbatim; the CCR-QD-466 row names only files that exist at plan end, 74-06 adds code and test files
+- [Phase 74]: 74-03: SimulationSession re-exports PolicyChoice, PolicyMenu and PolicyMenuOption from ./SeededChoice.ts so the unedited characterisation still resolves them; the barrel names them from the new module
+- [Phase 74]: 74-04: the session's second home for the choice types is removed; the characterisation imports them from SeededChoice.ts (decided autonomously)
+- [Phase 74]: 74-05: simulationFixtures.ts needed no change after the removal; every export keeps two importers or a caller in the module (settled, called by ran)
+- [Phase 74]: 74-06: INV-QD-393 Enforcement cites eleven SeededChoice.test.ts titles (the pin, orphan, menu-list and no-op titles BEH-QD-706 to 709 cite), not every title in the file (decided autonomously)
+- [Phase 74]: 74-06: the CCR-QD-466 prose names BEH-QD-706 to 710, INV-QD-393/394 and the three dated amendments (decided autonomously)
+- [Phase 74]: 74-07: compare is red on SimulationSession.ts:313, a base survivor (redundant seed disjunct of stale) relocated by a rewritten line; recorded as equivalent, not closed outside the plan's drop-closing paths
+- [Phase 75]: ADR-QD-188: qadi.outcome (Allow, Deny, Failed) is the one outcome key of qadi.evaluate; qadi.decision removed with no dual write; decided autonomously before any source change
+- [Phase 75]: 75-02: the contract's rows hold literal span keys and import nothing from EvaluationSpan.ts; long titles are wrapped, never shortened, so each equals the plan's Title cell
+- [Phase 75]: 75-03: EvaluationSpan.ts declares the evaluate span and the denial event once; decideQuestion annotates its question before the lookup and writes the outcome under one key on Allow, Deny and Failed
+- [Phase 75]: 75-04: the predicate tag is a Schema.String field, not a closed list, because the predicate's tags live in Predicate.ts, which reads EvaluationSpan.ts
+- [Phase 75]: 75-05: the runtime rows compare shared fields by identity, and the type test words its header without the literal expect-error token so the verify's exact count holds
+- [Phase 75]: 75-06: the span-key rule reads its key set from EvaluationSpan.ts with a pinned minimum of 11, tolerates the shared key once in PortSpanEncode.ts, and skips the test-literal rule when the set is unusable so an empty alternation cannot match empty quotes
+- [Phase 75]: 75-07: two static mutants of EvaluationSpan.ts crash the module at import (Stryker RuntimeError, not Killed) and are admitted by EXAMINED with the finding recorded; the cost of the second annotation is recorded as +6.8% to +7.8% geometric mean, not gated
+- [Phase 75]: 75-08: the cost of the second span annotation is recorded in ADR-QD-188 as measured (+7.83% then +6.79% geometric mean, about 0.4 to 1.1 us per call), a record and not a gate
+- [Phase 75]: 75-09: ESPN-01..05 marked complete by hand on the commit check:pr passed on; WX-01..07 stay Pending
+- [Phase 76]: ADR-QD-189: a change, not a rejection; core answers whether a fixture row meets a signature or acted leaf; both fixture refusals fail typed; ActedEvent, ActedAnywhere and ActedAnywhereInput removed (decided autonomously)
+- [Phase 76]: Site-subject refusal rows give core an empty fixture, not the port default: the default port never reads the request, so no fixture change could make core fail there
+- [Phase 76]: Over-long test titles stay one string literal continued by a backslash, broken after an as, because house-style reads one physical line at a time
+- [Phase 76]: 76-03: signatureHistoryPort.failure sets subjectId and resourceId only when their schemas admit the request's value, and SignatureHistoryUnavailable.subjectId is optional, so a refused signature request fails typed and never dies (ADR-QD-189 decision 4); signatureAnswerFromSignatures answers fixture rows from the shared lookup and answer rule
+- [Phase 76]: 76-04: the history fixture keys rows and requests through decisionHistoryPort.key; DecisionHistoryUnavailable.event optional; actedAnswerFromEvents added; ActedEvent, ActedAnywhere, ActedAnywhereInput removed (api-surface 940, ADR-QD-189)
+- [Phase 76]: 76-05: the remedy table asks core (signatureAnswerFromSignatures, actedAnswerFromEvents) and skips refused checks with the port's refusal; the custom-predicate sentence is NO_CUSTOM_PREDICATE_FIELD, owned by SimulationFields.ts
+- [Phase 76]: 76-06: 19 guts seen red and recorded; mutation close on one head (core 200/201, devtools 467/467, http 34/34), every written-line mutant Killed by hand; two http response-body rows strengthened and one added; the base survivor SignatureHistory.ts:362 is equivalent (Brand.nominal is the identity)
+- [Phase 76]: 76-07: BEH-QD-717 and INV-QD-398 cite the core conformance rows; the dated notes are additions and BEH-QD-410's older last paragraph is left as written
+- [Phase QD-76]: 76-08: a close scan found four over-wide added lines in QadiHttpError.test.ts; fixed and the whole mutation close re-measured on the new head rather than waived (WX-04, 90 columns)
+- [Phase QD-76]: 76-08: SIGM-01..05 marked complete by hand after check:pr exited 0 on 446f0b27; WX-01..07 stay Pending until the milestone closes
 
 ### Pending Todos
 
+- v1.8: Phases 69, 70 and 71 are live defects, each opening with a regression test seen RED on its phase base; Phase 70 asks its payload-path question at the discuss step; Phase 75 opens on a human checkpoint (the outcome key and whether the old keys stay; visible to tracers; `@qadi/core` changeset); Phase 76 is speculative and may end in a recorded rejection (ADR-QD-189 and CCR-QD-468, no code change); strictly serial, 69 then 70 through 76; ids reserved (ADR-QD-182 to 189, CCR-QD-461 to 468, BEH-QD-681 to 720, INV-QD-383 to 398), never run `node scripts/next-id.mjs`; soft edges 70 to 71 (`HydrationEngine.ts`), 71 to 73 (`GateRegistry.ts`), 72 to 74 (`DockModel.test.ts`). Evidence: `.planning/phases/_WAVE13-CONTEXT.md`.
 - v1.5: Phase 43 (`@qadi/core`) and Phase 48 (`@qadi/audit`) are **Breaking**; Phase 50 opens on a `pnpm bench` measurement and may end in a recorded rejection (ADR-QD-163); Phase 48's first plan checks ADR-QD-054 and ADR-QD-056 before any code; soft edges 45 → 48, 47 → 49 and 50 → 51 (same files; serial order covers them).
 - v1.4: research-phase before planning Phases 40 and 42 (37, 38, 39, 40, 41, 42 done) (`/gsd-plan-phase --research-phase <N>`); 38, 39 and 41 are standard. Phase 40 opens on the compatibility decision for `onMalformed`/`qadi.reason`; Phase 41 opens on RED first plus the non-JSON display decision; Phase 42 opens on a human checkpoint (evidence, then one `AskUserQuestion`).
 - v1.2: phases open on a `checkpoint:decision` (23-01, 25-01, 28-01; see ROADMAP); answer each once when its phase starts. 22-01's two were already answered in `_DECISIONS-v1.2.md` (done 2026-11-11).
@@ -876,6 +1024,7 @@ Last activity: 2026-11-22 -- Milestones v1.6 + v1.7 shipped as PR #163
 ### Roadmap Evolution
 
 - Phase 68.1 inserted after Phase 68: Address tech debt from the v1.7 audit (owner chose a cleanup phase before completing)
+- v1.8 roadmap created 2026-11-22: Phases 69-76, one per review candidate (ARCH-116 to ARCH-123), strictly serial; 47 of 47 requirements mapped (40 phase-specific, 7 cross-cutting WX-01 to WX-07 on every phase)
 
 ## Deferred Items
 
@@ -888,14 +1037,11 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-22T00:10:06.301Z
-Stopped at: Phase 68.1 complete — all phases complete
+Last session: 2026-11-23T16:52:31.825Z
+Stopped at: Milestone v1.8 completed and archived
 Resume file: None
 
 ## Operator Next Steps
 
-
-
-
-
+- Review and merge `arch-wave-13` when the owner chooses (not done here: no push, merge or release by owner instruction)
 - Start the next milestone with /gsd-new-milestone

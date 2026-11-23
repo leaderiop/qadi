@@ -51,7 +51,8 @@ import * as Schema from "effect/Schema";
 import * as Struct from "effect/Struct";
 import * as Atom from "effect/reactivity/Atom";
 import type { HydrationDropReporter } from "./DeveloperSignals.ts";
-import { hydrationDropReporter, saysDehydrationDropped, saysHydrationDropped } from "./DeveloperSignals.ts";
+import { reporterFor, SIGNALS } from "./DeveloperSignals.ts";
+import { dehydrationBuckets, dropEvents, entryBuckets } from "./HydrationBuckets.ts";
 import type { DecisionEntry, EntryDropReason, HydrationHooks, PayloadRefusalReason } from "./HydrationEvent.ts";
 import { HydrationEvent, emitHydration } from "./HydrationEvent.ts";
 import type { SeededDecision } from "./SeededDecision.ts";
@@ -196,15 +197,82 @@ const decodeEnvelope = untrustedDecoder(Envelope, {
   prepare: checkVersion,
 }).decode;
 
-/** The decoder's refusal as the reason the payload is refused with. */
-const payloadRefusalReason: (refusal: UntrustedValueRefusal | PayloadVersionRefusal) => PayloadRefusalReason =
-  Match.type<UntrustedValueRefusal | PayloadVersionRefusal>().pipe(
-    Match.tagsExhaustive({
-      TooDeep: (): PayloadRefusalReason => "PayloadTooDeep",
-      Malformed: (): PayloadRefusalReason => "MalformedPayload",
-      UnsupportedPayloadVersion: (): PayloadRefusalReason => "UnsupportedPayloadVersion",
-    }),
-  );
+/**
+ * What raises a whole-payload refusal: one of the payload decoder's own
+ * refusals, by tag, or the subject check.
+ *
+ * Exported for `HydrationBuckets.tst.ts`; this module is package-private and out
+ * of the barrel (AGENTS.md §9, ADR-QD-099).
+ */
+export type PayloadProducer =
+  | (UntrustedValueRefusal | PayloadVersionRefusal)["_tag"]
+  | "SubjectCheck";
+
+/**
+ * Each whole-payload refusal reason, and the producer that raises it.
+ *
+ * One row per reason of core's drop-reason table of kind `payload`, so a
+ * `payload` row the table gains does not compile here until its producer is
+ * stated (ADR-QD-183, amending ADR-QD-152's consequence that such a row compiled
+ * everywhere), and a new producer then needs its slot in {@link PAYLOAD_REASONS}.
+ * That is the whole of what the compiler checks: it cannot check that a call site
+ * raises the producer. A producer given a slot and never raised compiles, and the
+ * conformance test is what drives each row.
+ *
+ * A runtime value on purpose, though the engine reads it only as a type
+ * (`typeof PAYLOAD_PRODUCERS`): it is the record that conformance test drives,
+ * one refusal per row, and the source of truth {@link PAYLOAD_REASONS} is checked
+ * against. Exported for that test and for `HydrationBuckets.tst.ts`; this module
+ * is package-private and out of the barrel.
+ */
+export const PAYLOAD_PRODUCERS = {
+  PayloadSubjectMismatch: "SubjectCheck",
+  UnsupportedPayloadVersion: "UnsupportedPayloadVersion",
+  MalformedPayload: "Malformed",
+  PayloadTooDeep: "TooDeep",
+} satisfies { readonly [R in PayloadRefusalReason]: PayloadProducer };
+
+/**
+ * The union itself when it has exactly one member, `never` otherwise.
+ *
+ * Exported for `HydrationBuckets.tst.ts`; this module is package-private and out
+ * of the barrel.
+ */
+export type OnlyMember<U, All = U> = U extends unknown ? ([All] extends [U] ? U : never) : never;
+
+/**
+ * The one reason whose row in `Rows` names `P`, and `never` when no row does or
+ * two rows do.
+ *
+ * `Rows` is {@link PAYLOAD_PRODUCERS} unless a type pin supplies another record
+ * to show what a doubled or an unnamed producer types its slot. Exported for
+ * `HydrationBuckets.tst.ts`; this module is package-private and out of the
+ * barrel.
+ */
+export type ReasonRaisedBy<
+  P extends PayloadProducer,
+  Rows extends { readonly [R in PayloadRefusalReason]: PayloadProducer } = typeof PAYLOAD_PRODUCERS,
+> = OnlyMember<
+  { readonly [R in PayloadRefusalReason]: Rows[R] extends P ? R : never }[PayloadRefusalReason]
+>;
+
+/**
+ * Each producer, and the reason its refusal is reported under: the inverse of
+ * {@link PAYLOAD_PRODUCERS}, checked against it. A producer no row names, or two
+ * rows name, types its slot `never`, and a decoder refusal with no slot is a
+ * missing property, so the two directions cannot disagree. Indexed by the
+ * refusal's own tag, so it needs no `Object.hasOwn` (AGENTS.md §5a, as
+ * `VERDICTS`).
+ *
+ * Exported for `HydrationBuckets.tst.ts`; this module is package-private and out
+ * of the barrel.
+ */
+export const PAYLOAD_REASONS: { readonly [P in PayloadProducer]: ReasonRaisedBy<P> } = {
+  TooDeep: "PayloadTooDeep",
+  Malformed: "MalformedPayload",
+  UnsupportedPayloadVersion: "UnsupportedPayloadVersion",
+  SubjectCheck: "PayloadSubjectMismatch",
+};
 
 const decodeEntry = untrustedDecoder(DehydratedEntryWire, { unknownKeys: "refuse" }).decode;
 
@@ -348,7 +416,8 @@ const emitAll = (events: ReadonlyArray<HydrationEvent>, hooks: HydrationHooks): 
  * it is **dropped**, because a payload mixing subjects is a bug whose only safe
  * reading is to trust none of it. Of the rest, an entry whose policy does not
  * encode is left out as `UnencodablePolicy`, so the call is total: one
- * `LeftOut` per non-empty reason, then `Dehydrated` for what was written.
+ * `LeftOut` per non-empty reason, then `Dehydrated` for what was written. The
+ * left-out events come from the side's bucket record.
  */
 const planDehydration = (
   entries: ReadonlyArray<DecisionEntry>,
@@ -357,21 +426,22 @@ const planDehydration = (
   // `undefined`, not `""` (EC-06): an empty `entries` names no subject at
   // all, and `""` is not a value `SubjectId` can actually hold, so it read as
   // data rather than as "nothing here." `subjectId` is `undefined` only when
-  // `entries` is already empty, so the filter below still reduces to `[]`
-  // in that case with no special-casing needed.
+  // `entries` is already empty, so the loop below sees no entry in that case
+  // and needs no special-casing.
   const subjectId = entries[0]?.decision.subjectId;
-
-  const own = entries.filter((e) => e.decision.subjectId === subjectId);
-  const foreign = entries.filter((e) => e.decision.subjectId !== subjectId);
 
   // The subject filter first, so a foreign entry is never encoded and an entry
   // both foreign and unencodable is `ForeignSubject`.
+  const drops = dehydrationBuckets();
   const written: Array<DehydratedEntry> = [];
-  const unencodable: Array<DecisionEntry> = [];
-  for (const entry of own) {
+  for (const entry of entries) {
+    if (entry.decision.subjectId !== subjectId) {
+      drops.ForeignSubject.push(entry);
+      continue;
+    }
     const encoded = dehydrateEntry(entry, includeTrace);
     if (Option.isSome(encoded)) written.push(encoded.value);
-    else unencodable.push(entry);
+    else drops.UnencodablePolicy.push(entry);
   }
 
   // Said, not merely done. Dropping is correct and specified; doing it in
@@ -379,12 +449,12 @@ const planDehydration = (
   // and see nothing wrong. And counted: `qadi_hydration_seeded_total` next to the
   // dehydrated count is the difference between "hydration ran" and "hydration
   // ran and did nothing".
-  const events: Array<HydrationEvent> = [];
-  if (foreign.length > 0) events.push(HydrationEvent.LeftOut({ reason: "ForeignSubject", entries: foreign }));
-  if (unencodable.length > 0) {
-    events.push(HydrationEvent.LeftOut({ reason: "UnencodablePolicy", entries: unencodable }));
-  }
-  events.push(HydrationEvent.Dehydrated({ count: written.length }));
+  const events: ReadonlyArray<HydrationEvent> = [
+    ...dropEvents(drops, (reason, dropped) =>
+      HydrationEvent.LeftOut({ reason, entries: dropped }),
+    ),
+    HydrationEvent.Dehydrated({ count: written.length }),
+  ];
 
   return { payload: { version: PAYLOAD_VERSION, subjectId, entries: written }, events };
 };
@@ -405,7 +475,13 @@ export const dehydrateWith = (
   options?: DehydrateOptions,
 ): DehydratedDecisions => {
   const plan = planDehydration(entries, options?.includeTrace ?? false);
-  emitAll(plan.events, { leftOut: hydrationDropReporter(options?.onDropped, saysDehydrationDropped) });
+  emitAll(plan.events, {
+    leftOut: reporterFor(
+      SIGNALS.DehydrationDropped,
+      "dehydrateDecisions",
+      options?.onDropped,
+    ),
+  });
   return plan.payload;
 };
 
@@ -474,6 +550,10 @@ interface HydrationPlan {
  *
  * Pure: writes no metric and calls no reporter, so nothing a reporter does can
  * stop an entry being seeded or counted. Private, like {@link planDehydration}.
+ * Every refused entry is collected in the entry bucket record, and the
+ * entry-drop events come from that record alone; a refused payload is one
+ * `PayloadRefused` event, raised under the reason its producer's row names
+ * (`PAYLOAD_REASONS`), with no bucket.
  */
 const planHydration = (seedFor: HydrationSeedLookup, payload: unknown, subject: AuthSubject): HydrationPlan => {
   // The count rule — a refused payload is at least one drop — is the
@@ -487,7 +567,9 @@ const planHydration = (seedFor: HydrationSeedLookup, payload: unknown, subject: 
     Predicate.isObject(payload) && Array.isArray(payload["entries"]) ? payload["entries"] : [];
 
   const envelope = decodeEnvelope(payload);
-  if (Result.isFailure(envelope)) return refuse(payloadRefusalReason(envelope.failure), visible);
+  if (Result.isFailure(envelope)) {
+    return refuse(PAYLOAD_REASONS[envelope.failure._tag], visible);
+  }
   const { subjectId, entries } = envelope.success;
 
   // `undefined` names an empty payload (EC-06), not a subject that failed to
@@ -498,7 +580,9 @@ const planHydration = (seedFor: HydrationSeedLookup, payload: unknown, subject: 
   // way a real mismatch drops them, just without asserting a wrong id that was
   // never named.
   if (subjectId === undefined) {
-    return entries.length > 0 ? refuse("PayloadSubjectMismatch", entries) : { initialValues: [], events: [] };
+    return entries.length > 0
+      ? refuse(PAYLOAD_REASONS.SubjectCheck, entries)
+      : { initialValues: [], events: [] };
   }
 
   // The whole payload is rejected on a subject mismatch, not entry by entry: the
@@ -506,18 +590,10 @@ const planHydration = (seedFor: HydrationSeedLookup, payload: unknown, subject: 
   // entries are handed back whole; unlike the dehydrate side this discloses
   // nothing new — they are the caller's own argument, returned to them — so only
   // the *default* reporter withholds them.
-  if (subjectId !== subject.id) return refuse("PayloadSubjectMismatch", entries);
+  if (subjectId !== subject.id) return refuse(PAYLOAD_REASONS.SubjectCheck, entries);
 
   const seeded: Array<readonly [Atom.Atom<unknown>, unknown]> = [];
-  const tooDeep: Array<unknown> = [];
-  const malformed: Array<unknown> = [];
-  const undecodable: Array<unknown> = [];
-
-  const bucketOf: Record<EntryDropReason, Array<unknown>> = {
-    EntryTooDeep: tooDeep,
-    MalformedEntry: malformed,
-    UndecodablePolicy: undecodable,
-  };
+  const drops = entryBuckets();
 
   for (const entry of entries) {
     const fields = decodeEntry(entry);
@@ -526,7 +602,7 @@ const planHydration = (seedFor: HydrationSeedLookup, payload: unknown, subject: 
     // disclosure of the wrong shape — is a different failure than a policy shape
     // this schema doesn't know, and warrants its own reason.
     if (Result.isFailure(fields)) {
-      bucketOf[entryDropReason(fields.failure, "MalformedEntry")].push(entry);
+      drops[entryDropReason(fields.failure, "MalformedEntry")].push(entry);
       continue;
     }
 
@@ -535,27 +611,24 @@ const planHydration = (seedFor: HydrationSeedLookup, payload: unknown, subject: 
     // entry of a shape undecodable, and one warning per entry would bury the
     // page's other output under a payload's worth of identical lines.
     if (Result.isFailure(decoded)) {
-      bucketOf[entryDropReason(decoded.failure, "UndecodablePolicy")].push(entry);
+      drops[entryDropReason(decoded.failure, "UndecodablePolicy")].push(entry);
       continue;
     }
 
     if (!entryAgrees(fields.success, decoded.success)) {
-      malformed.push(entry);
+      drops.MalformedEntry.push(entry);
       continue;
     }
 
     seeded.push(seedFor(decoded.success, fields.success.resource).hold(rebuild(fields.success, subject.id)));
   }
 
-  const events: Array<HydrationEvent> = [];
-  if (tooDeep.length > 0) events.push(HydrationEvent.EntriesDropped({ reason: "EntryTooDeep", entries: tooDeep }));
-  if (malformed.length > 0) {
-    events.push(HydrationEvent.EntriesDropped({ reason: "MalformedEntry", entries: malformed }));
-  }
-  if (undecodable.length > 0) {
-    events.push(HydrationEvent.EntriesDropped({ reason: "UndecodablePolicy", entries: undecodable }));
-  }
-  events.push(HydrationEvent.Seeded({ count: seeded.length }));
+  const events: ReadonlyArray<HydrationEvent> = [
+    ...dropEvents(drops, (reason, dropped) =>
+      HydrationEvent.EntriesDropped({ reason, entries: dropped }),
+    ),
+    HydrationEvent.Seeded({ count: seeded.length }),
+  ];
 
   return { initialValues: seeded, events };
 };
@@ -593,7 +666,9 @@ export const hydrateWith = (
 ): InitialValues => {
   const plan = planHydration(seedFor, payload, subject);
   // Emitted after the whole plan, never interleaved with it.
-  emitAll(plan.events, { dropped: hydrationDropReporter(options?.onDropped, saysHydrationDropped) });
+  emitAll(plan.events, {
+    dropped: reporterFor(SIGNALS.HydrationDropped, "hydrateDecisions", options?.onDropped),
+  });
   return plan.initialValues;
 };
 

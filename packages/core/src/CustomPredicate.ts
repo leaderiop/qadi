@@ -11,7 +11,6 @@
  * legitimate answer — the same distinction `AttributeResolver.resolve`'s own
  * doc comment draws between an absent value and a broken lookup.
  */
-import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
 import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
@@ -37,6 +36,7 @@ import {
 import type { PortServingFacet } from "./PortServing.ts";
 import { portWire, sameAnswer, WIRE_MAX_DEPTH } from "./PortWireEncode.ts";
 import type { Resource } from "./Resource.ts";
+import { causeMessage, thrownMessage } from "./ThrownMessage.ts";
 
 export interface CustomPredicateShape {
   /**
@@ -54,8 +54,10 @@ export interface CustomPredicateShape {
    * An implementation is not required to fail cleanly. `PortAccess.ts`'s
    * `askCustom` catches a defect from this call and converts it into
    * this same `CustomPredicateError` — its `reason` then renders the defect
-   * (`Cause.pretty`), the same way it already renders an unregistered name as
-   * a sentence — matching `AttributeResolverShape.resolve`'s own contract;
+   * (`causeMessage`: its `Cause.pretty` text, or the died value's own text when
+   * that cannot render), the same way it already renders an unregistered name as
+   * a sentence, so a predicate that dies with any value ends as a typed error
+   * and never a defect — matching `AttributeResolverShape.resolve`'s own contract;
    * see its doc comment for why (issue #100).
    */
   readonly evaluate: (
@@ -78,22 +80,6 @@ export class CustomPredicate extends Context.Service<
     params: unknown,
   ) => CustomPredicate.use((r) => r.evaluate(name, subject, resource, params));
 }
-
-/**
- * A failure's cause as `CustomPredicateError.reason`, which is a sentence:
- * a string stays as it is (a replayed outage, a scripted `"down"`), an `Error`
- * gives its message (a deadline), anything else its `String` rendering.
- * Total: a value whose `toString` throws renders as a placeholder rather than
- * turning a typed failure into a defect.
- */
-const renderReason = (cause: unknown): string => {
-  if (cause instanceof Error) return cause.message;
-  try {
-    return String(cause);
-  } catch {
-    return "<unrenderable cause>";
-  }
-};
 
 /** The custom predicate's request: what `evaluate` receives, positionally. */
 type CustomArgs = [
@@ -209,9 +195,11 @@ const customServing: PortServingFacet<
  * that edits the resource, never replays an answer given to a different
  * question (ARCH-45 I1), and a key derived from the question could not say so.
  * And `CustomPredicateError` has no `cause` field, so `failure` renders the
- * cause into `reason` and `defect` renders a defect with `Cause.pretty` — what
- * `PortAccess.ts` always did (D-10-e) — where the derived defect is the
- * failure of the squashed cause.
+ * cause into `reason` (`thrownMessage`: a string stays as it is, a replayed outage
+ * or a scripted `"down"`, an `Error` gives its message, anything else its `String`
+ * form) and `defect` renders a defect with `causeMessage` — what `PortAccess.ts`
+ * always did (D-10-e), its `Cause.pretty` text, but total — where the derived
+ * defect is the failure of the squashed cause.
  */
 export const customPredicatePort: PortDescription<
   "CustomPredicate",
@@ -235,8 +223,8 @@ export const customPredicatePort: PortDescription<
   invoke: (shape) => (name, subject, resource, params) =>
     shape.evaluate(name, subject, resource, params),
   make: (name, call) => ({ name, evaluate: call }),
-  failure: ([name], cause) => new CustomPredicateError({ name, reason: renderReason(cause) }),
-  defect: ([name], cause) => new CustomPredicateError({ name, reason: Cause.pretty(cause) }),
+  failure: ([name], cause) => new CustomPredicateError({ name, reason: thrownMessage(cause) }),
+  defect: ([name], cause) => new CustomPredicateError({ name, reason: causeMessage(cause) }),
   key: ([name, subject, resource, params]) =>
     canonicalKey([
       subject.id,

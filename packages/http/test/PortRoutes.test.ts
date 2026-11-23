@@ -15,6 +15,8 @@ import * as Layer from "effect/Layer";
 import * as Record from "effect/Record";
 import * as Result from "effect/Result";
 import * as FetchHttpClient from "effect/http/FetchHttpClient";
+import * as HttpClient from "effect/http/HttpClient";
+import * as HttpClientError from "effect/http/HttpClientError";
 import * as HttpRouter from "effect/http/HttpRouter";
 import * as HttpServer from "effect/http/HttpServer";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
@@ -423,6 +425,41 @@ describe("the client reads the reply from the body, whatever the status (ARCH-52
         if (Result.isFailure(result)) {
           assert.strictEqual(Reflect.get(Object(result.failure), "_tag"), failureTag);
           assert.include(rendered(result.failure), "Transport");
+        }
+      }),
+    ));
+});
+
+/** An `HttpClientError` whose `message` cannot be read, and so whose string form cannot either. */
+class HostileClientError extends HttpClientError.HttpClientError {
+  override get message(): string {
+    throw new Error("message threw");
+  }
+}
+
+describe("the client's transport failure", () => {
+  const hostileClient = HttpClient.make((request) =>
+    Effect.fail(new HostileClientError({ reason: new HttpClientError.TransportError({ request }) })),
+  );
+
+  it.effect("a transport failure whose message cannot be read is the port's own error with the placeholder, never a defect", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const context = yield* Layer.build(
+          remotePortsLayer({ baseUrl: "http://srv.test", ports: ["AttributeResolver"] }).pipe(
+            Layer.provide(Layer.succeed(HttpClient.HttpClient, hostileClient)),
+          ),
+        );
+        const d = PORTS.AttributeResolver;
+        const result = yield* Effect.result(d.invoke(Context.get(context, d.service))(aliceId, "clearance"));
+        assert.isTrue(Result.isFailure(result));
+        if (Result.isFailure(result)) {
+          assert.strictEqual(
+            Reflect.get(Object(result.failure), "_tag"),
+            d.failure(CASES.AttributeResolver.args, "x")._tag,
+          );
+          assert.include(rendered(result.failure), "Transport");
+          assert.include(rendered(result.failure), "a value that could not be described");
         }
       }),
     ));

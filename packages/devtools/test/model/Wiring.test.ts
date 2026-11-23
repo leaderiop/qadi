@@ -28,7 +28,6 @@ import {
   hasAttribute,
   hasPermission,
   hasSignature,
-  permission,
   portCallsTotal,
   portRetriesTotal,
   portTimeoutsTotal,
@@ -37,8 +36,7 @@ import {
 } from "@qadi/core";
 import { isolatedMetrics, qadiTestLayer, subjectWith } from "@qadi/testing";
 import { portActivity, wiringReport } from "../../src/model/Wiring.ts";
-
-const read = permission("doc", "read");
+import { read } from "../helpers.ts";
 
 describe("wiringReport", () => {
   // E4.6 — a panel that could only run inside a fully-wired program would be

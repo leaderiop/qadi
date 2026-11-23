@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-168                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-18                                     |
-> | Status         | Accepted — amends ADR-QD-047; follows ADR-QD-162; keeps ADR-QD-160 |
+> | Status         | Accepted — amends ADR-QD-047; follows ADR-QD-162; keeps ADR-QD-160; amended 2026-11-22 (ADR-QD-185: `services` is a derived store; the count is BEH-QD-700's) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-18): Initial release (ARCH-102, CCR-QD-446) |
+> | Change History | 1.2 (2026-11-22): note — the 2026-11-22 note says what the store-list test holds (CCR-QD-464)<br>1.1 (2026-11-22): notes — the store is a derived store and the count is BEH-QD-700's (ARCH-119, CCR-QD-464)<br>1.0 (2026-11-18): Initial release (ARCH-102, CCR-QD-446) |
 
 ---
 
@@ -65,6 +65,9 @@ had already moved the port facts and the consequence sentences into `PortReading
    is. A poll that moved none of them notifies nothing. Counting the stores once: seven before `questions` (the timeline, the
    dock session, the explorer, the role choice, the simulation, the diagnostics and the timeline status), `questions` the eighth,
    `services` the ninth.
+
+> **Amended 2026-11-22 (CCR-QD-464).** `services` is a derived store, and the count is BEH-QD-700's, listed once ([ADR-QD-185](./185-the-dock-models-computed-stores-are-derived-stores.md)).
+
 8. **The panel renders the store and computes nothing.** `ServicesPanel` takes the store and reads it with `useStoreSnapshot`,
    as `QuestionsPanel` does, and maps the view's tags to JSX through hoisted exhaustive matchers. The fixed prose stays in the
    view because it is text and not a rule: the process-wide scope note, the cache card's sentences and the two notes. Every
@@ -82,6 +85,10 @@ had already moved the port facts and the consequence sentences into `PortReading
   to `Live`: `configure` publishes `Starting` (unsampled) between the two, so the store notifies twice and ends on a new,
   structurally equal reference. That is a harmless re-render, so `reservice` was not narrowed, and BEH-QD-615 states the rule as
   identity of the four inputs, not as a promise about any one status transition.
+
+> **Amended 2026-11-22 (CCR-QD-464).** The rule is the derived store's per-field identity over the same four inputs, unchanged in effect
+> ([ADR-QD-185](./185-the-dock-models-computed-stores-are-derived-stores.md)).
+
 - **A metric word outside the registry is no longer reported.** The narrowing of `PortActivity.port` makes a word the registry
   does not know impossible to hold in the type, so `portActivity` stopped reading it. Nothing on a card could show it.
 
@@ -134,6 +141,10 @@ for this phase.
   ([ADR-QD-160](./160-port-facts-are-read-from-the-description.md), BEH-QD-575).
 - **The dock model has nine stores.** The count is stated here, in the ADR-QD-047 amendment, in BEH-QD-465 and in the
   `DockModel.ts` header; each earlier ordinal is kept as written and corrected by a dated note.
+
+> **Amended 2026-11-22 (CCR-QD-464).** Superseded: BEH-QD-700 lists the stores, and says how a test of a built model holds that list
+> ([ADR-QD-185](./185-the-dock-models-computed-stores-are-derived-stores.md)).
+
 - **The four non-port cards still read `never called`** (or `no activity reading`), although no metric counts them. That is
   kept byte-identical under D-09 and left for a later phase, which could say that no calls are counted for a service that is
   not a port.

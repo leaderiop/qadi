@@ -14,8 +14,8 @@ import type { Role } from "@qadi/core";
 import { makeHeldChoiceStore } from "../../src/model/HeldChoice.ts";
 import { sameRole } from "../../src/model/RoleTree.ts";
 import { RoleViewer } from "../../src/react/RoleViewer.tsx";
+import { read } from "../helpers.ts";
 
-const read = permission("doc", "read");
 const write = permission("doc", "write");
 const comment = permission("doc", "comment");
 

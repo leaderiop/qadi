@@ -12,8 +12,8 @@ import { flattenPermissions, permission, role } from "@qadi/core";
 import type { Role } from "@qadi/core";
 import { decidingSet, grantPath, roleSummary } from "../../src/model/RoleTree.ts";
 import type { RoleRow } from "../../src/model/RoleTree.ts";
+import { read } from "../helpers.ts";
 
-const read = permission("doc", "read");
 const write = permission("doc", "write");
 const comment = permission("doc", "comment");
 const archive = permission("doc", "archive");

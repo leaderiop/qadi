@@ -16,6 +16,7 @@ import * as Result from "effect/Result";
 import type * as Schema from "effect/Schema";
 import { EncodeRefusal } from "./JsonRefusal.ts";
 import type { OpaqueKind, WirePath } from "./JsonRefusal.ts";
+import { thrownMessage } from "./ThrownMessage.ts";
 
 /**
  * A container the walk has entered and not yet left: an array's items, or an
@@ -180,7 +181,7 @@ const rebuildJson = (value: unknown): Schema.Json => {
 };
 
 const encodeFailed = (error: unknown): EncodeRefusal =>
-  EncodeRefusal.EncodeFailed({ message: error instanceof Error ? error.message : String(error) });
+  EncodeRefusal.EncodeFailed({ message: thrownMessage(error) });
 
 /**
  * An object's own entries as a detached record of `Schema.Json`, or the first

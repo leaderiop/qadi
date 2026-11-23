@@ -113,11 +113,18 @@ export class MissingResourceId extends Schema.TaggedError<MissingResourceId>()(
   },
 ) {}
 
-/** A wired history store could not be reached. Distinct from it saying "Unknown". */
+/**
+ * A wired history store could not be reached. Distinct from it saying "Unknown".
+ *
+ * The event is absent exactly when the request's event is unreadable or is not a
+ * string, whether or not the key refuses it. The cause is `describeKeyRefusal`'s
+ * sentence when the key refuses the request, and the store's own cause when the key
+ * admits it (BEH-QD-410).
+ */
 export class DecisionHistoryUnavailable extends Schema.TaggedError<DecisionHistoryUnavailable>()(
   "DecisionHistoryUnavailable",
   {
-    event: Schema.String,
+    event: Schema.optional(Schema.String),
     cause: Schema.Defect(),
   },
 ) {}
@@ -125,11 +132,16 @@ export class DecisionHistoryUnavailable extends Schema.TaggedError<DecisionHisto
 /**
  * A wired `SignatureHistory` store could not be reached. Distinct from it
  * legitimately answering "no matching signatures" — see `SignatureHistory.ts`.
+ *
+ * The subject id is absent exactly when the request's subject id is unreadable or
+ * is not a string, whether or not the key refuses it. The cause is
+ * `describeKeyRefusal`'s sentence when the key refuses the request, and the
+ * store's own cause when the key admits it (BEH-QD-410).
  */
 export class SignatureHistoryUnavailable extends Schema.TaggedError<SignatureHistoryUnavailable>()(
   "SignatureHistoryUnavailable",
   {
-    subjectId: SubjectIdSchema,
+    subjectId: Schema.optional(SubjectIdSchema),
     // `Schema.optional`, not `Schema.UndefinedOr` — see `MissingAction.expected`'s
     // doc comment above for why: a JSON round-trip turns `undefined` into an
     // absent key, which only `optional` tolerates on decode.

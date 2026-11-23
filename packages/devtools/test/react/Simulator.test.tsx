@@ -30,43 +30,21 @@ import {
   MissingAction,
   obligation,
   obliged,
-  permission,
   scriptedPort,
   PortReply,
   attributeResolverPort,
   portsLayer,
 } from "@qadi/core";
 import type { Policy } from "@qadi/core";
-import { policyLabel } from "../../src/model/Catalogue.ts";
-import type { PolicySighting } from "../../src/model/Catalogue.ts";
 import { makeSimulationSession } from "../../src/model/SimulationSession.ts";
 import type { SimulationSessionInit } from "../../src/model/SimulationSession.ts";
-import { emptyTimeline, ingestAll } from "../../src/model/Timeline.ts";
-import type { TimelineEntry } from "../../src/model/Timeline.ts";
 import { Simulator } from "../../src/react/Simulator.tsx";
-import { decisionRecord, failedRecord, obligationRecord } from "../helpers.ts";
-
-const read = permission("doc", "read");
-
-const sighting = (policy: Policy): PolicySighting => ({
-  policy,
-  label: policyLabel(policy),
-  count: 1,
-  allows: 1,
-  denies: 0,
-  errors: 0,
-  lastAt: 100,
-});
+import { decisionRecord, failedRecord, read } from "../helpers.ts";
+import { entryOf, orphan, sighting } from "../simulationFixtures.ts";
 
 const brokenPorts = portsLayer({
   AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("the store is down"), "broken").layer,
 });
-
-const entryOf = (record: Parameters<typeof ingestAll>[1][number]): TimelineEntry => {
-  const [entry] = ingestAll(emptyTimeline(), [record]).entries;
-  if (entry === undefined) throw new Error("expected an entry");
-  return entry;
-};
 
 /**
  * Every session a test builds lives in a scope the test owns (ARCH-73): the
@@ -572,7 +550,7 @@ describe("the baseline card, in each of its states", () => {
   it("says a comparison is unavailable for a row that carries no decision", async () => {
     mount({
       sightings: [sighting(hasPermission(read))],
-      seed: entryOf(obligationRecord({ evaluationId: "ev-9" })),
+      seed: orphan,
     });
     await run();
 

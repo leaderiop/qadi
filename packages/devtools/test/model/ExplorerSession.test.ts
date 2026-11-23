@@ -33,8 +33,8 @@ import {
   type ExplorerSession,
   type ExplorerSnapshot,
 } from "../../src/model/ExplorerSession.ts";
+import { hostile, hostileError, read } from "../helpers.ts";
 
-const read = permission("doc", "read");
 const write = permission("doc", "write");
 
 const sighting = (policy: Policy, count = 1): PolicySighting => ({
@@ -567,6 +567,21 @@ describe("the decode and encode exits", () => {
     assert.strictEqual(textOf(Exit.succeed("{}")), "{}");
     assert.include(textOf(Exit.die(new Error("cannot encode"))), "cannot encode");
     assert.strictEqual(textOf(Exit.failCause(Cause.fail("plain"))), Cause.pretty(Cause.fail("plain")));
+  });
+
+  it("a defect whose value cannot be rendered is a stated refusal with the placeholder, not a throw", () => {
+    for (const value of [hostile, hostileError]) {
+      assert.strictEqual(
+        refusalOf(Exit.die(value)),
+        "the decoder failed unexpectedly: a value that could not be described",
+      );
+    }
+  });
+
+  it("the text of an encode that died with a value that cannot be rendered is the placeholder", () => {
+    for (const value of [hostile, hostileError]) {
+      assert.strictEqual(textOf(Exit.die(value)), "a value that could not be described");
+    }
   });
 });
 

@@ -67,16 +67,21 @@
  * The feed set comes from the artifact, so a new feed is caught without editing
  * this file, and the run counts the calls through a module hook that wraps each
  * feed, so a call written but never run does not count. TypeScript's parse
- * (`typescript/unstable/*`, run in a child process, `scripts/lib/probe-guard-parse.mjs`,
- * under the same timeout as every other child) decides what annotates a
- * value and what is a refusal, so a comment, a string, an import, an alias or
- * `typeof` does not count; and a failure to load or run that parse fails the
- * gate, naming the installed TypeScript, whose unstable API a routine upgrade
- * can move.
+ * (`typescript/unstable/*`) decides what annotates a value and what is a refusal, so a
+ * comment, a string, an import, an alias or `typeof` does not count. It runs in a child
+ * process, `scripts/lib/probe-guard-parse.mjs`, started through
+ * `scripts/lib/typescript-server-child.mjs` under the same timeout as every other child;
+ * a failure to load or run that parse fails the gate, naming the installed TypeScript,
+ * whose unstable API a routine upgrade can move.
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import {
+  failureCause,
+  installedTypescriptVersion,
+  runTypescriptChild,
+} from "./lib/typescript-server-child.mjs";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 const SANDBOX = join(ROOT, ".package-check");
@@ -88,23 +93,13 @@ const fail = (message) => failures.push(message);
  * A child that hangs would hang `pnpm check`; each `execFileSync` child is killed after this long, which a cold `pnpm build` stays well inside.
  * The probe guard's parse is one of them (`scripts/lib/probe-guard-parse.mjs`), so a TypeScript server that stops
  * answering ends the gate at this bound. That server works on a request without reading its pipe, so it does not die
- * with the child; the child names it on stderr and the gate kills it when the child is killed (ADR-QD-033).
+ * with the child; the child names it on stderr and `scripts/lib/typescript-server-child.mjs` kills it when the child
+ * is killed (ADR-QD-033), the same way for the module-state scan of `scripts/check-house-style.mjs`.
  */
 const CHILD_TIMEOUT_MS = 600_000;
 
-/** What to print for a failed `execFileSync` child: a killed child's output is empty, so its cause is named, then any output. */
-const why = (error) =>
-  [
-    error.code === "ETIMEDOUT"
-      ? `timed out after ${CHILD_TIMEOUT_MS} ms`
-      : error.signal
-        ? `killed by ${error.signal}`
-        : undefined,
-    error.stdout,
-    error.stderr,
-  ]
-    .filter(Boolean)
-    .join("\n") || error.message;
+/** What to print for a failed `execFileSync` child (`scripts/lib/typescript-server-child.mjs`). */
+const why = (error) => failureCause(error, CHILD_TIMEOUT_MS);
 
 /**
  * The type-only names check 4's consumer must use as a type.
@@ -460,8 +455,10 @@ try {
 // denial rather than rejecting is INV-QD-006 seen from a consumer's position.
 // ---------------------------------------------------------------------------
 
-const FIXTURE = `import * as Effect from "effect/Effect";
+const FIXTURE = `import * as Cause from "effect/Cause";
+import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Result from "effect/Result";
 import * as HttpApi from "effect/http-api/HttpApi";
 import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
 import * as HttpApiEndpoint from "effect/http-api/HttpApiEndpoint";
@@ -469,8 +466,10 @@ import * as HttpApiGroup from "effect/http-api/HttpApiGroup";
 import * as HttpRouter from "effect/http/HttpRouter";
 import * as HttpServer from "effect/http/HttpServer";
 import {
+  actedAnswerFromEvents,
   AttributeResolver,
   AttributeResolverNone,
+  causeMessage,
   currentSubjectLayer,
   CustomPredicateNone,
   Decided,
@@ -483,13 +482,17 @@ import {
   EvaluationIdLive,
   fromRoles,
   gte,
+  hasActed,
   hasAttribute,
   hasPermission,
+  hasSignature,
   permission,
   RelationshipResolverNever,
   role,
+  signatureAnswerFromSignatures,
   SignatureHistoryNone,
   StoredRecord,
+  thrownMessage,
   toPredicate,
 } from "@qadi/core";
 import { makeQadi } from "@qadi/promise";
@@ -562,6 +565,65 @@ await qadi.dispose();
 // declaration file in any of them is a compile error here.
 expect("testing layer", typeof qadiTestLayer, "function");
 expect("react provider", typeof QadiProvider, "function");
+// The two new public names answer in the packed artifact.
+expect("thrown message of an Error", thrownMessage(new Error("boom")), "boom");
+expect("thrown message of a value that cannot be described", thrownMessage({ toString: () => { throw new Error("no"); } }), "a value that could not be described");
+expect("cause message of a failure that renders", causeMessage(Cause.fail("plain")), Cause.pretty(Cause.fail("plain")));
+expect("cause message of a defect that cannot be rendered", causeMessage(Cause.die({ get message(): string { throw new Error("no"); }, toString: () => { throw new Error("no"); } })), "a value that could not be described");
+// The fixture judgements answer in the packed artifact.
+const anyLeaf = hasSignature("approved", { scope: "Any" });
+const resourceLeaf = hasSignature("approved", { scope: "Resource" });
+if (anyLeaf._tag !== "HasSignature" || resourceLeaf._tag !== "HasSignature") {
+  throw new Error("consumer: hasSignature built another node");
+}
+const noResource = { subject: alice, resource: undefined };
+const answered = {
+  onSuccess: (answer: { readonly matched: boolean }) => answer.matched,
+  onFailure: (failure: { readonly _tag: string }) => failure._tag,
+};
+expect(
+  "signature answer of a matching Any row",
+  Result.match(
+    signatureAnswerFromSignatures(
+      [{ subjectId: "alice", meaning: "approved" }],
+      anyLeaf,
+      noResource,
+    ),
+    answered,
+  ),
+  true,
+);
+expect(
+  "signature answer of a Resource leaf at a site with no resource",
+  Result.match(signatureAnswerFromSignatures([], resourceLeaf, noResource), answered),
+  "MissingResourceId",
+);
+const actedAny = hasActed("approved", { scope: "Any" });
+const actedResource = hasActed("approved", { scope: "Resource" });
+if (actedAny._tag !== "HasActed" || actedResource._tag !== "HasActed") {
+  throw new Error("consumer: hasActed built another node");
+}
+const actedOf = {
+  onSuccess: (answer: string) => answer,
+  onFailure: (failure: { readonly _tag: string }) => failure._tag,
+};
+expect(
+  "acted answer of an Any leaf over an event on another resource",
+  Result.match(
+    actedAnswerFromEvents(
+      [{ subjectId: "alice", event: "approved", resourceId: "doc-9" }],
+      actedAny,
+      { subject: alice, resource: { id: "doc-1" } },
+    ),
+    actedOf,
+  ),
+  "Acted",
+);
+expect(
+  "acted answer of a Resource leaf at a site with no resource",
+  Result.match(actedAnswerFromEvents([], actedResource, noResource), actedOf),
+  "MissingResourceId",
+);
 
 // @qadi/devtools ships TWO entry points, and check 3's import probe only
 // reaches package roots — so the second one is exercised here or nowhere.
@@ -916,10 +978,10 @@ if (consumerReady) {
 
   let seen;
   try {
-    const output = execFileSync(
-      process.execPath,
-      [join(ROOT, "scripts", "lib", "probe-guard-parse.mjs"), SANDBOX, JSON.stringify([...REFUSED_SHAPE_PROBES])],
-      { cwd: ROOT, encoding: "utf8", stdio: "pipe", timeout: CHILD_TIMEOUT_MS },
+    const output = runTypescriptChild(
+      join(ROOT, "scripts", "lib", "probe-guard-parse.mjs"),
+      [SANDBOX, JSON.stringify([...REFUSED_SHAPE_PROBES])],
+      { cwd: ROOT, timeoutMs: CHILD_TIMEOUT_MS },
     );
     let parsed;
     try {
@@ -930,17 +992,7 @@ if (consumerReady) {
     if (parsed === null) fail("the probe guard could not read consumer.ts from the sandbox project");
     else if (parsed !== undefined) seen = { typed: new Set(parsed.typed), refused: new Set(parsed.refused) };
   } catch (error) {
-    // A child killed by a signal never closed its TypeScript server, which may still be working on a request; kill the
-    // servers it named. A child that exited on its own closed its server first, so no pid it named is reused here.
-    const killed = typeof error.signal === "string";
-    for (const pid of killed ? (/^server pids: (.+)$/m.exec(error.stderr ?? "")?.[1].split(" ") ?? []) : []) {
-      try {
-        process.kill(Number(pid), "SIGKILL");
-      } catch {
-        // already gone
-      }
-    }
-    const version = JSON.parse(readFileSync(join(ROOT, "node_modules", "typescript", "package.json"), "utf8")).version;
+    const version = installedTypescriptVersion(ROOT);
     fail(
       `the probe guard could not load or run the TypeScript parser, typescript@${version}'s unstable API, ` +
         `which a TypeScript upgrade can move: ${why(error)}`,

@@ -4,7 +4,6 @@
  * The lifecycle wiring `useGate` delegates to, tested against a bare registry:
  * the narrower surface the old module-scope design could not offer.
  */
-import { hasPermission, permission } from "@qadi/core";
 import { renderHook } from "@testing-library/react";
 import { createRef, StrictMode } from "react";
 import { describe, expect, it } from "vitest";
@@ -12,20 +11,18 @@ import { makeGateRegistry } from "../src/GateRegistry.ts";
 import type { GateRenderState } from "../src/GateRegistry.ts";
 import { gateWriterFor } from "../src/GateWriter.ts";
 import { useGateRegistrations } from "../src/useGate.ts";
-import type { GateIdentity, GateWriter } from "../src/GateWriter.ts";
-
-const canRead = () => hasPermission(permission("doc", "read"));
+import type { GateIdentity, GateWanted, GateWriter } from "../src/GateWriter.ts";
+import { newCanRead, notificationsOf } from "./support/gates.ts";
 
 // One marker ref per hook instance, as `useGate` has: a fresh ref per render
 // would be a changed identity.
 const marker = createRef<HTMLSpanElement>();
 
 const identityFor = (atom: object, overrides?: Partial<GateIdentity>): GateIdentity => ({
-  id: "g1",
   kind: "useCan",
   atom,
   wraps: false,
-  policy: canRead(),
+  policy: newCanRead(),
   resource: undefined,
   marker,
   ...overrides,
@@ -35,11 +32,7 @@ const setup = () => {
   const registry = makeGateRegistry();
   const writer = gateWriterFor(registry);
   if (writer === undefined) throw new Error("registry has no writer");
-  let notified = 0;
-  registry.subscribe(() => {
-    notified += 1;
-  });
-  return { registry, writer, notifications: () => notified };
+  return { registry, writer, notifications: notificationsOf(registry) };
 };
 
 interface Props {
@@ -48,8 +41,11 @@ interface Props {
   readonly state: GateRenderState;
 }
 
+const wantedOf = (p: Props): ReadonlyMap<string, GateWanted> =>
+  new Map([["g1", { identity: p.identity, state: p.state }]]);
+
 const run = (props: Props, wrapper?: typeof StrictMode) =>
-  renderHook((p: Props) => useGateRegistrations(p.writer, [p.identity], [p.state]), {
+  renderHook((p: Props) => useGateRegistrations(p.writer, wantedOf(p)), {
     initialProps: props,
     wrapper,
   });
@@ -77,6 +73,22 @@ describe("useGateRegistrations (one identity)", () => {
     ]);
   });
 
+  it("an unchanged state makes no notification and keeps the id", () => {
+    const { registry, writer, notifications } = setup();
+    const identity = identityFor({});
+    const view = run({ writer, identity, state: "Pending" });
+    const afterMount = notifications();
+    const [mounted] = registry.instances();
+
+    view.rerender({ writer, identity, state: "Pending" });
+
+    expect(notifications()).toBe(afterMount);
+    expect(registry.instances().map((one) => [one.id, one.state])).toEqual([
+      ["g1", "Pending"],
+    ]);
+    expect(registry.instances()[0]).toBe(mounted);
+  });
+
   it("an equal-but-fresh policy with the same atom does not re-register", () => {
     // Ticket 141's property, provable here without rendering a `<Can>`.
     const { writer, notifications } = setup();
@@ -86,7 +98,7 @@ describe("useGateRegistrations (one identity)", () => {
 
     view.rerender({
       writer,
-      identity: identityFor(atom, { policy: canRead(), resource: { id: "doc-1" } }),
+      identity: identityFor(atom, { policy: newCanRead(), resource: { id: "doc-1" } }),
       state: "Allowed",
     });
 

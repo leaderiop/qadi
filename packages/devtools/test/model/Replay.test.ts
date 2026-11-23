@@ -26,15 +26,13 @@ import {
   hasPermission,
   hasRole,
   MissingResource,
-  permission,
   role,
   portsLayer,
 } from "@qadi/core";
-import type { AllowingTrace, DecisionOutcome, StoredRecord } from "@qadi/core";
+import type { AllowingTrace, DecisionOutcome } from "@qadi/core";
 import { baselineDiff, matchesBaseline, replayInput, unseededByReplay } from "../../src/model/Replay.ts";
 import type { Baseline, Replay } from "../../src/model/Replay.ts";
 import { simulate } from "../../src/model/Simulation.ts";
-import { emptyTimeline, ingestAll } from "../../src/model/Timeline.ts";
 import type { TimelineEntry } from "../../src/model/Timeline.ts";
 import { verdictOfOutcome } from "../../src/model/Verdict.ts";
 import {
@@ -44,16 +42,10 @@ import {
   deny,
   failedRecord,
   obligationRecord,
+  read,
   readPolicy,
 } from "../helpers.ts";
-
-const read = permission("doc", "read");
-
-const entryOf = (record: StoredRecord): TimelineEntry => {
-  const [entry] = ingestAll(emptyTimeline(), [record]).entries;
-  if (entry === undefined) throw new Error("expected an entry");
-  return entry;
-};
+import { entryOf } from "../simulationFixtures.ts";
 
 const replayable = (self: Replay) => {
   if (self._tag !== "Replayable") throw new Error(`expected Replayable: ${self.reason}`);

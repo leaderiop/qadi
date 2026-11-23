@@ -7,10 +7,10 @@
  * (AGENTS.md §9).
  */
 import { useSyncExternalStore } from "react";
-import type { ExternalStore } from "../model/ExternalStore.ts";
+import type { ReadableStore } from "../model/ExternalStore.ts";
 import type { TimelineStore } from "../model/TimelineStore.ts";
 
-export const useStoreSnapshot = <A>(store: Pick<ExternalStore<A>, "subscribe" | "getSnapshot">): A =>
+export const useStoreSnapshot = <A>(store: ReadableStore<A>): A =>
   useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
 
 /**

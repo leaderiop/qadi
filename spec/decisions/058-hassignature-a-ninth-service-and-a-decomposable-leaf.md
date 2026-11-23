@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-058                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-08-25                                     |
-> | Status         | Accepted                                       |
+> | Status         | Accepted; amended 2026-10-08 (ADR-QD-105), 2026-11-08 (ADR-QD-109), 2026-11-10 (ADR-QD-117), 2026-11-23 (ADR-QD-189) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-10): amendment — a signature's scope "Any" reads signatures on file subject-wide, unlike HasActed's any resource; "Resource" keeps HasActed's meaning (ARCH-59, ADR-QD-117, CCR-QD-395)<br>1.1 (2026-11-08): amendment — the signature query carries the asker's requirement as optional context (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.0 (2026-08-25): Initial release (CCR-QD-089) |
+> | Change History | 1.3 (2026-11-23): amendment — the match rule and the answer serve the fixture judgements too, and the error's subject id is optional (ARCH-123, ADR-QD-189, CCR-QD-468)<br>1.2 (2026-11-10): amendment — a signature's scope "Any" reads signatures on file subject-wide, unlike HasActed's any resource; "Resource" keeps HasActed's meaning (ARCH-59, ADR-QD-117, CCR-QD-395)<br>1.1 (2026-11-08): amendment — the signature query carries the asker's requirement as optional context (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.0 (2026-08-25): Initial release (CCR-QD-089) |
 
 ---
 
@@ -251,3 +251,17 @@ with no resource" (INV-QD-120), because a signature recorded for `doc-1` is wide
 attested if it satisfies every resource. The literal is unchanged (it is in the persisted `Policy` wire),
 `explain()` says "on file subject-wide, not for a resource", and an adapter author follows INV-QD-120,
 not BEH-QD-092. See [ADR-QD-117](./117-a-signature-ledger-is-a-keyed-store.md).
+
+## Amendment (2026-11-23, ADR-QD-189, CCR-QD-468)
+
+The match rule stated once, `signatureMatches`, also serves the fixture judgement. `signatureAnswerFromSignatures`
+answers what `askSignature` answers over a fixture list, and the answer `{ matched, onFile }` is built once, by
+`signatureAnswerOf` in `SignatureMatch.ts`, which both read, so a read and a judgement cannot answer differently.
+The module stays out of the barrel (ADR-QD-099).
+
+`SignatureHistoryUnavailable.subjectId` is optional. The description's `failure` sets it only when its schema
+admits the request's value, as it already did for `resourceId`, so a request the key refuses, a subject id that is
+not a string, fails as this error and the sink record and the response body carry it without the member, the
+cause naming the refusal. `SinkCodec.ts`'s `subjectId` wire field is the error class's own optional member, so an
+absent one decodes absent. `hasActed`'s fixture gains the same pure judgement, `actedAnswerFromEvents`. See
+[ADR-QD-189](./189-remedies-asks-core-whether-a-fixture-row-meets-a-signature-or-acted-leaf.md).

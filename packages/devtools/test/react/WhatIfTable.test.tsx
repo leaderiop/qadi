@@ -23,7 +23,6 @@ import {
   hasRole,
   labeled,
   MissingResource,
-  permission,
   permitWhen,
   rules,
   scriptedPort,
@@ -37,9 +36,7 @@ import type { SimulationInput } from "../../src/model/SimulationInput.ts";
 import { whatIf } from "../../src/model/WhatIf.ts";
 import type { Comparison, WhatIfReport, WhatIfRow } from "../../src/model/WhatIf.ts";
 import { WhatIfTable } from "../../src/react/WhatIfTable.tsx";
-import { allow, deny } from "../helpers.ts";
-
-const read = permission("doc", "read");
+import { allow, deny, read } from "../helpers.ts";
 
 const brokenPorts = portsLayer({
   AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("down"), "broken").layer,

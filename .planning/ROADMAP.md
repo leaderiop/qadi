@@ -10,6 +10,7 @@
 - ✅ **v1.5 Arch Wave 10** — Phases 43-52 (completed 2026-11-16; not released) — [archive](milestones/v1.5-ROADMAP.md)
 - ✅ **v1.6 Arch Wave 11** — Phases 53-61 (completed 2026-11-19; not released) — [archive](milestones/v1.6-ROADMAP.md)
 - ✅ **v1.7 Arch Wave 12** — Phases 62-68.1 (completed 2026-11-22; not released) — [archive](milestones/v1.7-ROADMAP.md)
+- ✅ **v1.8 Arch Wave 13** — Phases 69-76 (completed 2026-11-23; not released) — [archive](milestones/v1.8-ROADMAP.md)
 
 ## Phases
 
@@ -383,5 +384,23 @@ Full details: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) · requir
 Full details: [milestones/v1.7-ROADMAP.md](milestones/v1.7-ROADMAP.md) · requirements:
 [milestones/v1.7-REQUIREMENTS.md](milestones/v1.7-REQUIREMENTS.md) · audit:
 [milestones/v1.7-MILESTONE-AUDIT.md](milestones/v1.7-MILESTONE-AUDIT.md)
+
+</details>
+
+<details>
+<summary>✅ v1.8 Arch Wave 13 (Phases 69-76) — COMPLETED 2026-11-23 (not released)</summary>
+
+- [x] Phase 69: One total thrown-value-to-message module, ARCH-116 (core minor) (9/9 plans) — completed 2026-11-22
+- [x] Phase 70: Hydration's drop events come from its buckets, ARCH-117 (react patch) (7/7 plans) — completed 2026-11-22
+- [x] Phase 71: Developer-signal reporters resolved through one table, ARCH-118 (react patch) (8/8 plans) — completed 2026-11-22
+- [x] Phase 72: A derived store behind the dock model's stores, ARCH-119 (8/8 plans) — completed 2026-11-22
+- [x] Phase 73: One pure reconcile for gate registration, ARCH-120 (7/7 plans) — completed 2026-11-23
+- [x] Phase 74: The simulation session's policy choice split from its runs, ARCH-121 (7/7 plans) — completed 2026-11-23
+- [x] Phase 75: A declared span shape for the evaluate family, ARCH-122 (core minor, Breaking; checkpoint decided autonomously) (9/9 plans) — completed 2026-11-23
+- [x] Phase 76: Remedies uses core's signature match, ARCH-123 (core and http minor, Breaking; a change, not a rejection) (8/8 plans) — completed 2026-11-23
+
+Full details: [milestones/v1.8-ROADMAP.md](milestones/v1.8-ROADMAP.md) · requirements:
+[milestones/v1.8-REQUIREMENTS.md](milestones/v1.8-REQUIREMENTS.md) · audit:
+[milestones/v1.8-MILESTONE-AUDIT.md](milestones/v1.8-MILESTONE-AUDIT.md)
 
 </details>

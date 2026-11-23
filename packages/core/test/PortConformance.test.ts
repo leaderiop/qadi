@@ -74,7 +74,14 @@ import {
   signatureHistoryRetrying,
   signatureHistoryTimingOut,
 } from "../src/SignatureHistory.ts";
-import { collectingTracer, forkAllAndSettle, isolatedMetrics } from "./helpers.ts";
+import {
+  attributesOf,
+  collectingTracer,
+  forkAllAndSettle,
+  hostile,
+  hostileError,
+  isolatedMetrics,
+} from "./helpers.ts";
 
 /** What the suite needs to know about one port beyond its description. */
 interface PortCase<
@@ -249,10 +256,7 @@ const conform: CaseVisitor = (c) => {
 
           assert.deepStrictEqual(answer, c.answer);
           assert.strictEqual(double.calls.length, 3);
-          const caller = spans.find((s) => s.name === "caller");
-          assert.deepStrictEqual(Object.fromEntries(caller?.attributes ?? []), {
-            "qadi.attempts": 3,
-          });
+          assert.deepStrictEqual(attributesOf(spans, "caller"), { "qadi.attempts": 3 });
           const retries = yield* Metric.value(portRetriesTotal);
           assert.strictEqual(retries.occurrences.get(d.port), 2);
         }).pipe(isolatedMetrics));
@@ -273,10 +277,7 @@ const conform: CaseVisitor = (c) => {
           if (!Result.isFailure(result)) return;
           assert.strictEqual(result.failure, original);
           assert.strictEqual(yield* Ref.get(invoked), 3);
-          const caller = spans.find((s) => s.name === "caller");
-          assert.deepStrictEqual(Object.fromEntries(caller?.attributes ?? []), {
-            "qadi.attempts": 3,
-          });
+          assert.deepStrictEqual(attributesOf(spans, "caller"), { "qadi.attempts": 3 });
           const retries = yield* Metric.value(portRetriesTotal);
           assert.strictEqual(retries.occurrences.get(d.port), 3);
         }).pipe(isolatedMetrics));
@@ -738,13 +739,10 @@ describe("customPredicatePort's failure reason", () => {
     assert.strictEqual(reasonFor(42), "42");
   });
 
-  it("is a placeholder for a value that cannot be rendered", () => {
-    const unrenderable = {
-      toString: () => {
-        throw new Error("no");
-      },
-    };
-    assert.strictEqual(reasonFor(unrenderable), "<unrenderable cause>");
+  it("is the placeholder for a cause whose toString and message cannot be read, never a throw", () => {
+    for (const thrown of [hostile, hostileError]) {
+      assert.strictEqual(reasonFor(thrown), "a value that could not be described");
+    }
   });
 
   it("a defect is rendered with Cause.pretty and names the same predicate", () => {
@@ -753,5 +751,14 @@ describe("customPredicatePort's failure reason", () => {
     const defect = customPredicatePort.defect(args, cause);
     assert.strictEqual(defect.reason, Cause.pretty(cause));
     assert.strictEqual(defect.name, customPredicatePort.failure(args, new Error("boom")).name);
+  });
+
+  it("a defect whose value cannot be rendered by Cause.pretty is the placeholder, under the same predicate", () => {
+    const args: [string, typeof alice, undefined, undefined] = ["isOwner", alice, undefined, undefined];
+    for (const thrown of [hostile, hostileError]) {
+      const defect = customPredicatePort.defect(args, Cause.die(thrown));
+      assert.strictEqual(defect.reason, "a value that could not be described");
+      assert.strictEqual(defect.name, "isOwner");
+    }
   });
 });

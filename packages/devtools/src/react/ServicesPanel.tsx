@@ -18,7 +18,7 @@
  */
 import type { CSSProperties, FC, ReactNode } from "react";
 import * as Match from "effect/Match";
-import type { ExternalStore } from "../model/ExternalStore.ts";
+import type { ReadableStore } from "../model/ExternalStore.ts";
 import type { CallsView, CardTone, PortCardRow, ServicesView } from "../model/PortCards.ts";
 import { DiagnosticsNotice, diagnosticsRootProps } from "./DiagnosticsNotice.tsx";
 import type { DiagnosticsNoticeProps } from "./DiagnosticsNotice.tsx";
@@ -33,7 +33,7 @@ export interface ServicesPanelProps {
    * It holds a view and not a reading, so the panel has no wording rule, count or
    * filter of its own to keep in step with the model's.
    */
-  readonly services: Pick<ExternalStore<ServicesView>, "subscribe" | "getSnapshot">;
+  readonly services: ReadableStore<ServicesView>;
   /**
    * The dock's diagnostics status and restart, stated by the shared notice.
    *

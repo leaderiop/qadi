@@ -1,6 +1,8 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
+import * as Fiber from "effect/Fiber";
 import * as FastCheck from "fast-check";
 import * as TestClock from "effect/testing/TestClock";
 import * as Layer from "effect/Layer";
@@ -14,6 +16,9 @@ import {
   attributeResolverRetrying,
 } from "../src/AttributeResolver.ts";
 import { isAllowed } from "../src/Decision.ts";
+import { DecisionCache, decisionCacheLayer } from "../src/DecisionCache.ts";
+import type { SinkRecord } from "../src/DecisionRecord.ts";
+import { DecisionSink } from "../src/DecisionSink.ts";
 import { customPredicateFromRecord, customPredicatePort } from "../src/CustomPredicate.ts";
 import {
   DecisionHistory,
@@ -29,6 +34,7 @@ import {
   SignatureHistoryUnavailable,
 } from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
+import { denialEvent, evaluateSpan } from "../src/EvaluationSpan.ts";
 import { decisionsTotal, denialsByPolicyTagTotal, evaluationDurationMillis } from "../src/EvaluationMetrics.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
@@ -40,9 +46,21 @@ import {
   relationshipResolverPort,
 } from "../src/RelationshipResolver.ts";
 import { signatureHistoryFromSignatures, signatureHistoryPort } from "../src/SignatureHistory.ts";
-import { chain, collectingLogger, collectingTracer, isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
+import {
+  chain,
+  allAttributesOf,
+  attributesOf,
+  collectingLogger,
+  collectingTracer,
+  hostile,
+  hostileError,
+  isolatedMetrics,
+  subjectWith,
+  testLayer,
+} from "./helpers.ts";
 import { scriptedPort } from "../src/PortDoubles.ts";
 import { PortReply } from "../src/PortDescription.ts";
+import { decodeSpan, encodeSpan, logAnnotations } from "../src/PortSpanEncode.ts";
 
 const read = permission("doc", "read");
 const write = permission("doc", "write");
@@ -2444,16 +2462,15 @@ describe("observability", () => {
         ),
       );
 
-      const span = named(spans, "qadi.evaluate");
-      assert.isDefined(span);
-      if (span === undefined) return;
       // The identifier is deterministic because EvaluationId is a service —
       // ADR-QD-012. Under crypto.randomUUID this assertion could not exist.
-      assert.deepStrictEqual(Object.fromEntries(span.attributes), {
-        "qadi.decision": "Allow",
-        "qadi.subject_id": "u1",
-        "qadi.evaluation_id": "eval-1",
-        "qadi.policy_tag": "HasRole",
+      assert.deepStrictEqual(attributesOf(spans, evaluateSpan.name), {
+        ...encodeSpan(evaluateSpan.question, {
+          subjectId: "u1",
+          evaluationId: "eval-1",
+          policyTag: "HasRole",
+        }),
+        ...encodeSpan(evaluateSpan.answer, { outcome: "Allow" }),
       });
     }));
 
@@ -2470,41 +2487,167 @@ describe("observability", () => {
         ),
       );
 
-      const span = named(spans, "qadi.evaluate");
-      assert.isDefined(span);
-      if (span === undefined) return;
-      assert.deepStrictEqual(Object.fromEntries(span.attributes), {
-        "qadi.decision": "Deny",
-        "qadi.subject_id": "u2",
-        "qadi.evaluation_id": "eval-1",
-        "qadi.policy_tag": "HasPermission",
+      assert.deepStrictEqual(attributesOf(spans, evaluateSpan.name), {
+        ...encodeSpan(evaluateSpan.question, {
+          subjectId: "u2",
+          evaluationId: "eval-1",
+          policyTag: "HasPermission",
+        }),
+        ...encodeSpan(evaluateSpan.answer, { outcome: "Deny" }),
       });
     }));
 
-  it.effect("a failed evaluation annotates qadi.evaluate as Failed, with its error tag", () =>
-    Effect.gen(function* () {
-      // Before this, a store outage left the span with no attribute at all, so a
-      // trace could not tell a failed evaluation from one still running.
-      const spans: Array<Tracer.Span> = [];
-      const down = scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer;
+  it.effect(
+    "a failed evaluation annotates qadi.evaluate with its question and error tag",
+    () =>
+      Effect.gen(function* () {
+        // The question is on the span, not only the failure: a trace tells a failed
+        // evaluation from one still running, and says by whom it was asked.
+        const spans: Array<Tracer.Span> = [];
+        const down = scriptedPort(attributeResolverPort, () =>
+          PortReply.fail("down"),
+        ).layer;
 
-      yield* Effect.result(evaluate(P.hasAttribute("clearance", M.gte(1)))).pipe(
+        yield* Effect.result(evaluate(P.hasAttribute("clearance", M.gte(1)))).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              testLayer(subjectWith({ id: "u3" }), { AttributeResolver: down }),
+              collectingTracer(spans),
+            ),
+          ),
+        );
+
+        assert.deepStrictEqual(attributesOf(spans, evaluateSpan.name), {
+          ...encodeSpan(evaluateSpan.question, {
+            subjectId: "u3",
+            evaluationId: "eval-1",
+            policyTag: "HasAttribute",
+          }),
+          ...encodeSpan(evaluateSpan.answer, {
+            outcome: "Failed",
+            errorTag: "AttributeResolveError",
+          }),
+        });
+      }),
+  );
+
+  it.effect("an interrupted evaluation carries its question and no outcome", () =>
+    Effect.gen(function* () {
+      // A caller's timeout around a port that never answers: no answer is written, so
+      // the span is the question alone, and its status says it was interrupted.
+      const spans: Array<Tracer.Span> = [];
+      const silent = Layer.succeed(AttributeResolver, { resolve: () => Effect.never });
+
+      yield* Effect.gen(function* () {
+        const clearance = P.hasAttribute("clearance", M.gte(1));
+        const fiber = yield* Effect.forkChild(
+          evaluate(clearance).pipe(Effect.timeout("1 second")),
+        );
+        yield* TestClock.adjust("1 second");
+        yield* Fiber.await(fiber);
+      }).pipe(
         Effect.provide(
           Layer.mergeAll(
-            testLayer(subjectWith({ id: "u3" }), { AttributeResolver: down }),
+            testLayer(subjectWith({ id: "u3" }), { AttributeResolver: silent }),
             collectingTracer(spans),
           ),
         ),
       );
 
-      const span = named(spans, "qadi.evaluate");
-      assert.isDefined(span);
-      if (span === undefined) return;
-      assert.deepStrictEqual(Object.fromEntries(span.attributes), {
-        "qadi.outcome": "Failed",
-        "qadi.error_tag": "AttributeResolveError",
-      });
+      assert.deepStrictEqual(
+        attributesOf(spans, evaluateSpan.name),
+        encodeSpan(evaluateSpan.question, {
+          subjectId: "u3",
+          evaluationId: "eval-1",
+          policyTag: "HasAttribute",
+        }),
+      );
+      const span = named(spans, evaluateSpan.name);
+      assert.strictEqual(span?.status._tag, "Ended");
+      if (span?.status._tag !== "Ended") return;
+      assert.isTrue(Exit.hasInterrupts(span.status.exit));
     }));
+
+  it.effect("a defected evaluation carries its question and no outcome", () =>
+    Effect.gen(function* () {
+      // A host cache that dies: a defect is no typed failure, so no answer is written,
+      // and the span's status carries the defect.
+      const spans: Array<Tracer.Span> = [];
+      const broken = Layer.succeed(
+        DecisionCache,
+        DecisionCache.of({
+          getOrCompute: () => Effect.die("a broken cache"),
+          size: Effect.succeed(0),
+          clear: Effect.void,
+        }),
+      );
+
+      const exit = yield* Effect.exit(evaluate(P.hasRole("editor"))).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ id: "u1", roles: ["editor"] })),
+            broken,
+            collectingTracer(spans),
+          ),
+        ),
+      );
+
+      assert.isTrue(Exit.hasDies(exit));
+      assert.deepStrictEqual(
+        attributesOf(spans, evaluateSpan.name),
+        encodeSpan(evaluateSpan.question, {
+          subjectId: "u1",
+          evaluationId: "eval-1",
+          policyTag: "HasRole",
+        }),
+      );
+      const span = named(spans, evaluateSpan.name);
+      assert.strictEqual(span?.status._tag, "Ended");
+      if (span?.status._tag !== "Ended") return;
+      assert.isTrue(Exit.hasDies(span.status.exit));
+    }));
+
+  it.effect(
+    "a cache hit's span carries its question and outcome, and its record says hit",
+    () =>
+      Effect.gen(function* () {
+        // The second evaluation is served from the cache, which its record shows; its
+        // span is the same question and outcome a miss writes.
+        const spans: Array<Tracer.Span> = [];
+        const records: Array<SinkRecord> = [];
+        const sink = Layer.succeed(DecisionSink, {
+          record: (record) =>
+            Effect.sync(() => {
+              records.push(record);
+            }),
+        });
+
+        yield* Effect.gen(function* () {
+          yield* evaluate(P.hasRole("editor"));
+          yield* evaluate(P.hasRole("editor"));
+        }).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              testLayer(subjectWith({ id: "u1", roles: ["editor"] })),
+              decisionCacheLayer(),
+              sink,
+              collectingTracer(spans),
+            ),
+          ),
+        );
+
+        const decided = records.flatMap((r) => (r._tag === "Decision" ? [r] : []));
+        assert.deepStrictEqual(decided.map((r) => r.cache), ["miss", "hit"]);
+        assert.deepStrictEqual(allAttributesOf(spans, evaluateSpan.name)[1], {
+          ...encodeSpan(evaluateSpan.question, {
+            subjectId: "u1",
+            evaluationId: "eval-2",
+            policyTag: "HasRole",
+          }),
+          ...encodeSpan(evaluateSpan.answer, { outcome: "Allow" }),
+        });
+      }),
+  );
 
   it.effect("the action appears on the span only when one was supplied", () =>
     Effect.gen(function* () {
@@ -2521,15 +2664,14 @@ describe("observability", () => {
         ),
       );
 
-      const span = named(spans, "qadi.evaluate");
-      assert.isDefined(span);
-      if (span === undefined) return;
-      assert.deepStrictEqual(Object.fromEntries(span.attributes), {
-        "qadi.decision": "Allow",
-        "qadi.subject_id": "u1",
-        "qadi.evaluation_id": "eval-1",
-        "qadi.policy_tag": "HasAction",
-        "qadi.action": "write",
+      assert.deepStrictEqual(attributesOf(spans, evaluateSpan.name), {
+        ...encodeSpan(evaluateSpan.question, {
+          subjectId: "u1",
+          evaluationId: "eval-1",
+          policyTag: "HasAction",
+          action: "write",
+        }),
+        ...encodeSpan(evaluateSpan.answer, { outcome: "Allow" }),
       });
     }));
 
@@ -2548,10 +2690,10 @@ describe("observability", () => {
         ),
       );
 
-      const span = named(spans, "qadi.evaluate");
-      assert.isDefined(span);
-      if (span === undefined) return;
-      assert.notProperty(Object.fromEntries(span.attributes), "qadi.action");
+      assert.notProperty(
+        attributesOf(spans, evaluateSpan.name),
+        evaluateSpan.question.keys.action,
+      );
     }));
 
   it.effect("obligations are reported on the span, by id, only when present", () =>
@@ -2574,11 +2716,11 @@ describe("observability", () => {
         ),
       );
 
-      const span = named(spans, "qadi.evaluate");
+      const span = named(spans, evaluateSpan.name);
       assert.isDefined(span);
       if (span === undefined) return;
       assert.strictEqual(
-        Object.fromEntries(span.attributes)["qadi.obligations"],
+        decodeSpan(evaluateSpan.answer, span.attributes).obligations,
         "log-access,notify-dpo",
       );
     }));
@@ -2596,10 +2738,10 @@ describe("observability", () => {
         ),
       );
 
-      const span = named(spans, "qadi.evaluate");
-      assert.isDefined(span);
-      if (span === undefined) return;
-      assert.notProperty(Object.fromEntries(span.attributes), "qadi.obligations");
+      assert.notProperty(
+        attributesOf(spans, evaluateSpan.name),
+        evaluateSpan.answer.keys.obligations,
+      );
     }));
 
   /**
@@ -2629,7 +2771,7 @@ describe("observability", () => {
         ),
       );
 
-      assert.isDefined(named(spans, "qadi.evaluate"));
+      assert.isDefined(named(spans, evaluateSpan.name));
       assert.isUndefined(named(spans, "qadi.allOf"));
       assert.isUndefined(named(spans, "qadi.anyOf"));
       assert.isUndefined(named(spans, "qadi.rules"));
@@ -2691,7 +2833,7 @@ describe("observability", () => {
 
         // No span for any of the three combinators this ticket converted —
         // only the root, which stays traced per ADR-QD-051.
-        assert.isDefined(named(spans, "qadi.evaluate"));
+        assert.isDefined(named(spans, evaluateSpan.name));
         assert.isUndefined(named(spans, "qadi.allOf"));
         assert.isUndefined(named(spans, "qadi.anyOf"));
         assert.isUndefined(named(spans, "qadi.rules"));
@@ -2789,9 +2931,6 @@ describe("observability", () => {
    * is wired, so what may appear in one is a disclosure decision rather than a
    * formatting one (INV-QD-044).
    */
-  const attributes = (span: Tracer.Span | undefined): Record<string, unknown> =>
-    span === undefined ? {} : Object.fromEntries(span.attributes);
-
   const resolverOf = (record: Readonly<Record<string, unknown>>) =>
     Layer.succeed(AttributeResolver, {
       name: "record",
@@ -2830,7 +2969,7 @@ describe("observability", () => {
         ),
       );
 
-      assert.deepStrictEqual(attributes(named(spans, "qadi.attribute")), {
+      assert.deepStrictEqual(attributesOf(spans, "qadi.attribute"), {
         "qadi.attribute": "tier",
         "qadi.subject_id": "u1",
         "qadi.interpreter": "evaluate",
@@ -2858,7 +2997,7 @@ describe("observability", () => {
         ),
       );
 
-      assert.deepStrictEqual(attributes(named(spans, "qadi.attribute")), {
+      assert.deepStrictEqual(attributesOf(spans, "qadi.attribute"), {
         "qadi.attribute": "tier",
         "qadi.subject_id": "u1",
         "qadi.interpreter": "evaluate",
@@ -2886,12 +3025,8 @@ describe("observability", () => {
         );
       }
 
-      const portSpans = ["qadi.acted", "qadi.hasRelationship", "qadi.hasSignature"].map((name) =>
-        named(spans, name),
-      );
-      assert.isTrue(portSpans.every((span) => span !== undefined));
-      for (const span of portSpans) {
-        assert.isFalse(Object.hasOwn(attributes(span), "qadi.resource_id"));
+      for (const name of ["qadi.acted", "qadi.hasRelationship", "qadi.hasSignature"]) {
+        assert.isFalse(Object.hasOwn(attributesOf(spans, name), "qadi.resource_id"));
       }
     }));
 
@@ -2908,7 +3043,7 @@ describe("observability", () => {
         ),
       );
 
-      assert.strictEqual(attributes(named(spans, "qadi.attribute"))["qadi.resolved"], false);
+      assert.strictEqual(attributesOf(spans, "qadi.attribute")["qadi.resolved"], false);
     }));
 
   // E1.4 — the question is annotated before the call precisely so this holds.
@@ -2925,8 +3060,7 @@ describe("observability", () => {
       );
 
       const span = named(spans, "qadi.attribute");
-      assert.isDefined(span);
-      assert.deepStrictEqual(attributes(span), {
+      assert.deepStrictEqual(attributesOf(spans, "qadi.attribute"), {
         "qadi.attribute": "tier",
         "qadi.subject_id": "u1",
         "qadi.interpreter": "evaluate",
@@ -2972,7 +3106,7 @@ describe("observability", () => {
           }), collectingTracer(spans))),
       );
 
-      assert.deepStrictEqual(attributes(named(spans, "qadi.acted")), {
+      assert.deepStrictEqual(attributesOf(spans, "qadi.acted"), {
         "qadi.subject_id": "u1",
         "qadi.interpreter": "evaluate",
         "qadi.event": "raised",
@@ -2994,7 +3128,7 @@ describe("observability", () => {
         ),
       );
 
-      assert.deepStrictEqual(attributes(named(spans, "qadi.acted")), {
+      assert.deepStrictEqual(attributesOf(spans, "qadi.acted"), {
         "qadi.subject_id": "u1",
         "qadi.interpreter": "evaluate",
         "qadi.event": "raised",
@@ -3028,7 +3162,7 @@ describe("observability", () => {
       );
 
       const span = named(spans, "qadi.acted");
-      assert.deepStrictEqual(attributes(span), {
+      assert.deepStrictEqual(attributesOf(spans, "qadi.acted"), {
         "qadi.subject_id": "u1",
         "qadi.interpreter": "evaluate",
         "qadi.event": "raised",
@@ -3050,7 +3184,7 @@ describe("observability", () => {
           }), collectingTracer(spans))),
       );
 
-      assert.deepStrictEqual(attributes(named(spans, "qadi.hasRelationship")), {
+      assert.deepStrictEqual(attributesOf(spans, "qadi.hasRelationship"), {
         "qadi.subject_id": "u1",
         "qadi.interpreter": "evaluate",
         "qadi.relation": "owner",
@@ -3074,7 +3208,7 @@ describe("observability", () => {
         ),
       );
 
-      assert.strictEqual(attributes(named(spans, "qadi.hasRelationship"))["qadi.depth"], 3);
+      assert.strictEqual(attributesOf(spans, "qadi.hasRelationship")["qadi.depth"], 3);
     }));
 
   // E1.8 — a wiring error should still say what it wanted a resource id for.
@@ -3094,7 +3228,7 @@ describe("observability", () => {
       );
 
       const span = named(spans, "qadi.hasRelationship");
-      assert.deepStrictEqual(attributes(span), {
+      assert.deepStrictEqual(attributesOf(spans, "qadi.hasRelationship"), {
         "qadi.subject_id": "u1",
         "qadi.interpreter": "evaluate",
         "qadi.relation": "owner",
@@ -3119,7 +3253,7 @@ describe("observability", () => {
         ),
       );
 
-      assert.deepStrictEqual(attributes(named(spans, "qadi.hasCustom")), {
+      assert.deepStrictEqual(attributesOf(spans, "qadi.hasCustom"), {
         "qadi.custom_predicate": "isOwner",
         "qadi.subject_id": "u1",
         "qadi.interpreter": "evaluate",
@@ -3146,7 +3280,7 @@ describe("observability", () => {
         ),
       );
 
-      assert.deepStrictEqual(attributes(named(spans, "qadi.hasSignature")), {
+      assert.deepStrictEqual(attributesOf(spans, "qadi.hasSignature"), {
         "qadi.subject_id": "u1",
         "qadi.meaning": "approved",
         "qadi.scope": "Resource",
@@ -3171,7 +3305,7 @@ describe("observability", () => {
       if (r._tag !== "Failure") return;
       assert.strictEqual(r.failure._tag, "MissingResourceId");
       // The question is on the span, and no resource id is invented for it.
-      assert.deepStrictEqual(attributes(named(spans, "qadi.hasSignature")), {
+      assert.deepStrictEqual(attributesOf(spans, "qadi.hasSignature"), {
         "qadi.subject_id": "u1",
         "qadi.meaning": "approved",
         "qadi.scope": "Resource",
@@ -3200,7 +3334,7 @@ describe("observability", () => {
 
       // Matched although the signature carries a role the policy never named:
       // an unspecified signer role accepts any.
-      assert.deepStrictEqual(attributes(named(spans, "qadi.hasSignature")), {
+      assert.deepStrictEqual(attributesOf(spans, "qadi.hasSignature"), {
         "qadi.subject_id": "u1",
         "qadi.meaning": "approved",
         "qadi.scope": "Any",
@@ -3265,7 +3399,7 @@ describe("observability", () => {
         ),
       );
 
-      const span = named(spans, "qadi.evaluate");
+      const span = named(spans, evaluateSpan.name);
       assert.isDefined(span);
       if (span === undefined) return;
       assert.notStrictEqual(span.status._tag, "Started");
@@ -3407,11 +3541,14 @@ describe("qadi.evaluate Debug log on denial", () => {
       // `Effect.log*` is variadic (`...message`), so a single-argument call
       // still arrives as a one-element array.
       assert.deepStrictEqual(logs[0]?.message, ["qadi: policy denied"]);
-      assert.deepStrictEqual(logs[0]?.annotations, {
-        "qadi.policy_tag": "HasPermission",
-        "qadi.subject_id": "u2",
-        "qadi.reason": "subject lacks permission 'doc:write'",
-      });
+      assert.deepStrictEqual(
+        logs[0]?.annotations,
+        logAnnotations(denialEvent, {
+          policyTag: "HasPermission",
+          subjectId: "u2",
+          reason: "subject lacks permission 'doc:write'",
+        }),
+      );
     }));
 
   it.effect("an allow logs nothing", () =>
@@ -4035,6 +4172,26 @@ describe("port defects become typed errors", () => {
       // under this name") — a string a reader can act on, not a fresh shape
       // invented for the defect case.
       assert.match(r.failure.reason, /boom/);
+    }));
+
+  it.effect("a CustomPredicate that dies with a value whose toString and message cannot be read surfaces as CustomPredicateError", () =>
+    Effect.gen(function* () {
+      for (const thrown of [hostile, hostileError]) {
+        const dying = scriptedPort(customPredicatePort, () => PortReply.die(thrown)).layer;
+
+        const r = yield* Effect.result(
+          evaluate(P.hasCustom("isOwner")).pipe(
+            Effect.provide(testLayer(subjectWith({}), { CustomPredicate: dying })),
+          ),
+        );
+
+        assert.strictEqual(r._tag, "Failure");
+        if (r._tag !== "Failure") return;
+        assert.instanceOf(r.failure, CustomPredicateError);
+        if (!(r.failure instanceof CustomPredicateError)) return;
+        assert.strictEqual(r.failure.name, "isOwner");
+        assert.strictEqual(r.failure.reason, "a value that could not be described");
+      }
     }));
 
   it.effect("a dying SignatureHistory surfaces as SignatureHistoryUnavailable", () =>

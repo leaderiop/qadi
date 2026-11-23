@@ -32,10 +32,9 @@ import * as Semaphore from "effect/Semaphore";
 import { InvalidBoundedPermits } from "./Errors.ts";
 import type { SubjectId } from "./Identity.ts";
 import { carryDefault, markDefault } from "./PortDefault.ts";
-import { KeyRefusal } from "./PortDescription.ts";
 import type { LeafRequests, PortDescription, PortShape } from "./PortDescription.ts";
-import { canonicalKey } from "./PortKey.ts";
-import { attemptsStruct, encodeSpan } from "./PortSpanEncode.ts";
+import { canonicalKey, readGuarded } from "./PortKey.ts";
+import { annotateSpan, attemptsStruct } from "./PortSpanEncode.ts";
 import { portRetriesTotal, portTimeoutsTotal } from "./PortMetrics.ts";
 import type { PortName } from "./PortName.ts";
 import type { PortSpanAttributesLike } from "./PortSpan.ts";
@@ -78,7 +77,7 @@ export type DerivedWireSpec<
  * state one. It is derived from `PortDescription`, so a member the description
  * gains reaches every port built here without editing this type.
  * `CustomPredicate` does not use it: its key must cover the whole subject and
- * its defect renders with `Cause.pretty`, and it says so where it is declared.
+ * its defect renders with `causeMessage`, and it says so where it is declared.
  */
 export const makePortDescription = <
   N extends PortName,
@@ -109,14 +108,9 @@ export const makePortDescription = <
     // Reading the question can throw (a getter on a request, an untyped caller),
     // and a key is refused, never thrown (`PortDescription.key`).
     key: (args) =>
-      Result.try({
-        try: () => presentMembers(wire.toQuestion(args)),
-        catch: (error) =>
-          KeyRefusal.Unreadable({
-            path: [],
-            message: error instanceof Error ? error.message : String(error),
-          }),
-      }).pipe(Result.flatMap(canonicalKey)),
+      readGuarded([], () => presentMembers(wire.toQuestion(args))).pipe(
+        Result.flatMap(canonicalKey),
+      ),
     defect: (args, cause) => spec.failure(args, Cause.squash(cause)),
   };
 };
@@ -210,7 +204,7 @@ export const retryCountingAttempts = <A, E>(
       Effect.retry(schedule),
       Effect.ensuring(
         Effect.flatMap(Ref.get(attempts), (n) =>
-          Effect.annotateCurrentSpan(encodeSpan(attemptsStruct, { attempts: n })),
+          annotateSpan(attemptsStruct, { attempts: n }),
         ),
       ),
     );

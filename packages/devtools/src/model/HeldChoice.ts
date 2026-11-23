@@ -14,20 +14,21 @@
  * (ADR-QD-048: "a label is a display string, never an identity"). An evicted
  * value is still a value in hand, so nothing is lost by keeping it.
  *
- * Package-private: it is not in the barrel (ADR-QD-099). The simulator session,
- * the policy explorer and the role viewer each supply their list and their
- * equality; none of them clamps an index.
+ * Package-private: it is not in the barrel (ADR-QD-099). The simulator's seeded
+ * choice (`SeededChoice.ts`), the policy explorer and the role viewer each supply
+ * their list and their equality; none of them clamps an index.
  *
  * `makeHeldChoiceStore` is the same rule as a store, for a screen that has
  * nothing else to remember (the role viewer): owned by the dock, so a choice
  * outlives the tab it is shown on (INV-QD-107).
  *
- * `makeHeldChoice` is the cell underneath it, and what a session embeds: it
- * holds the list and the choice and publishes nothing. A session that
+ * `makeHeldChoice` is the cell underneath it, and what the explorer session
+ * embeds: it holds the list and the choice and publishes nothing. A session that
  * embedded the store instead would publish twice per command, once from the
  * store and once from its own snapshot (ARCH-74, BEH-QD-466), so the store is the
  * cell for a screen with nothing else to remember, and a session owns its
- * own publish around the cell.
+ * own publish around the cell. The simulator holds a pure value built on
+ * `resolveHeld`, `pinHead` and `heldValue` instead (ADR-QD-187).
  */
 import { makeExternalStore, sameElements } from "./ExternalStore.ts";
 
@@ -99,8 +100,7 @@ export const heldIndex = <A>(choice: HeldChoice<A>): number | undefined =>
  *
  * Each command answers whether it changed anything, so the owner publishes
  * exactly once per effective command. Nothing is pinned at construction: an
- * owner that wants the head held calls `pin`, and one that must not (a
- * simulation seeded from a replayed row) simply does not.
+ * owner that wants the head held calls `pin`.
  */
 export interface HeldChoiceCell<A> {
   /** The list as it is now. */

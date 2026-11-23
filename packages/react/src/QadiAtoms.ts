@@ -28,9 +28,9 @@ import {
   type InitialValues,
   hydrateWith,
 } from "./HydrationEngine.ts";
-import { hydrationMismatchReporter } from "./DeveloperSignals.ts";
+import { reporterFor, SIGNALS } from "./DeveloperSignals.ts";
 import type { GateRegistry } from "./GateRegistry.ts";
-import { makeGateRegistry } from "./GateRegistry.ts";
+import { buildGateRegistry } from "./GateWriter.ts";
 import type { DecisionResult } from "./DecisionOutcome.ts";
 import type { AskedQuestion } from "./QuestionBook.ts";
 import { makeQuestionBook } from "./QuestionBook.ts";
@@ -243,9 +243,13 @@ export const makeQadiAtoms = (
   );
   // Resolved once per atom set and handed to every question, so the
   // development-mode default is decided at construction.
-  const report = hydrationMismatchReporter(options?.onHydrationMismatch);
-  const gates = makeGateRegistry(
-    options?.onGateIdCollision === undefined ? {} : { onIdCollision: options.onGateIdCollision },
+  const report = reporterFor(
+    SIGNALS.SeedSuperseded,
+    "makeQadiAtoms",
+    options?.onHydrationMismatch,
+  );
+  const gates = buildGateRegistry(
+    reporterFor(SIGNALS.GateIdCollision, "makeQadiAtoms", options?.onGateIdCollision),
   );
 
   // One pending sweep per atom set; the book signals it and the sweep reads the book.

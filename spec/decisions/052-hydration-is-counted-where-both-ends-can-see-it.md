@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-052                                   |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-10-08                                     |
-> | Status         | Accepted; amended 2026-11-10 (one hydration event, projected once) |
+> | Status         | Accepted; amended 2026-11-10 (one hydration event, projected once); amended 2026-11-22 (each end's onDropped default read from its signal's row, ADR-QD-184) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.4 (2026-11-10): generalised by ADR-QD-123 — the rule written here for the hydration metrics is the rule for every `qadi_*` metric (ARCH-61, CCR-QD-401)<br>1.3 (2026-11-10): amended — every hydration outcome is one HydrationEvent projected once by HydrationEvent.ts; a refusal is counted at least once; UnencodablePolicy; the Context.empty() confinement file is HydrationEvent.ts (HydrationCounts.ts deleted) (ARCH-60, INV-QD-045, INV-QD-251, CCR-QD-398)<br>1.2 (2026-10-08): amended: at effect 4.0.0 a metric looks its registry up on every update; writer and reader agree because both name the default registry, not because a metric remembers one (ARCH-45 I8, CCR-QD-269)<br>1.1 (2026-10-04): The drop-reason set changes — `UnregisteredAtoms` removed, `UnsupportedPayloadVersion` and `MalformedPayload` added; the five metrics, their ids and descriptions are unchanged (ADR-QD-078, CCR-QD-156)<br>1.0 (2026-08-24): Initial release (CCR-QD-072) |
+> | Change History | 1.5 (2026-11-22): Amendment: each end's onDropped default is read from its signal's row (ADR-QD-184, CCR-QD-463)<br>1.4 (2026-11-10): generalised by ADR-QD-123 — the rule written here for the hydration metrics is the rule for every `qadi_*` metric (ARCH-61, CCR-QD-401)<br>1.3 (2026-11-10): amended — every hydration outcome is one HydrationEvent projected once by HydrationEvent.ts; a refusal is counted at least once; UnencodablePolicy; the Context.empty() confinement file is HydrationEvent.ts (HydrationCounts.ts deleted) (ARCH-60, INV-QD-045, INV-QD-251, CCR-QD-398)<br>1.2 (2026-10-08): amended: at effect 4.0.0 a metric looks its registry up on every update; writer and reader agree because both name the default registry, not because a metric remembers one (ARCH-45 I8, CCR-QD-269)<br>1.1 (2026-10-04): The drop-reason set changes — `UnregisteredAtoms` removed, `UnsupportedPayloadVersion` and `MalformedPayload` added; the five metrics, their ids and descriptions are unchanged (ADR-QD-078, CCR-QD-156)<br>1.0 (2026-08-24): Initial release (CCR-QD-072) |
 
 ---
 
@@ -152,6 +152,14 @@ between the ends — and a number cannot tell a developer which they have.
 >   ends' `onDropped` take one `HydrationDrop` shape (12-03's checkpoint answer,
 >   `option-a`: "One `HydrationDrop` type for both ends (Breaking dehydrate
 >   `onDropped`); `HydrationEvent.ts` joins the react Stryker run").
+
+> **Amendment (2026-11-22, ADR-QD-184, CCR-QD-463).** The decision stands. Each end's
+> default is now its signal's row in `SIGNALS` (`DehydrationDropped` and
+> `HydrationDropped`), which `reporterFor` resolves with the row's condition, development
+> only, and under the row's option, `onDropped`. So the dehydrate default cannot be paired
+> with the hydrate row: a call site hands `reporterFor` the row, never a default. Each end
+> still resolves its reporter once per call
+> ([ADR-QD-184](./184-developer-signal-reporters-are-resolved-through-one-table.md)).
 
 ## Consequences
 

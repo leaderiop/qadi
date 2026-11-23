@@ -18,6 +18,16 @@
  * superseded never lands (`isCurrent`, on the run's token). And a result is shown
  * only for the question it answered (`stale`, `baseline`).
  *
+ * **The policy and where it came from are one value.** The session holds one
+ * `SeededChoice` (`SeededChoice.ts`) and replaces it with what a transition answers:
+ * the pin rule, the orphan rule, the menu and its reverse lookup, the same-policy rule
+ * and the replay decode are the module's, and the session keeps its runs and its form
+ * (ADR-QD-187).
+ *
+ * Once the session is built, `writeDraft` is the one place the draft and its
+ * resource text are assigned, and `clearRun` is the one operation that stops the run
+ * in flight and sets it `Idle`, called from `reseed`, `choosePolicy` and `setPorts`.
+ *
  * The store is a closure over `makeExternalStore`, the mechanics
  * `TimelineStore.ts` shares; commands are synchronous and notify once.
  *
@@ -32,20 +42,26 @@
 import * as Effect from "effect/Effect";
 import * as Equal from "effect/Equal";
 import * as Exit from "effect/Exit";
-import * as Match from "effect/Match";
 import type * as Scope from "effect/Scope";
 import type { DecisionOutcome, EvaluationClock, Policy } from "@qadi/core";
 import { makeExternalStore } from "./ExternalStore.ts";
 import type { CapturedAnswers } from "./Capture.ts";
-import { sameSighting, sightingFor, type PolicySighting } from "./Catalogue.ts";
-import { heldValue, makeHeldChoice } from "./HeldChoice.ts";
+import type { PolicySighting } from "./Catalogue.ts";
 import { readOutcome, type RecordOutcome } from "./Inspect.ts";
+import { baselineDiff, type Baseline } from "./Replay.ts";
 import {
-  baselineDiff,
-  replayInput,
-  type Baseline,
-  type UnseededField,
-} from "./Replay.ts";
+  choose,
+  menuOf,
+  policyChoice,
+  policyOf,
+  seedFrom,
+  seededChoice,
+  seededFrom,
+  seedOf,
+  sightingAt,
+  withSightings,
+} from "./SeededChoice.ts";
+import type { PolicyChoice, PolicyMenu, SeededChoice } from "./SeededChoice.ts";
 import { simulate } from "./Simulation.ts";
 import { makeSupersedingRun } from "./SupersedingRun.ts";
 import type { RunToken } from "./SupersedingRun.ts";
@@ -63,32 +79,6 @@ import {
 } from "./SimulationSource.ts";
 import type { TimelineEntry } from "./Timeline.ts";
 import { sweepPlan, whatIf, type SweepPlan, type WhatIfReport } from "./WhatIf.ts";
-
-/**
- * The policy being simulated, and where it came from.
- *
- * The first three arms are `HeldChoice`'s (ARCH-74, BEH-QD-466), written out here so
- * the type a host reads is complete, and not re-mapped from it. `Listed.index`
- * is a reading of the rail as it is now, never an input: the choice itself is the
- * policy, held by value (`choosePolicy`). `Evicted` is a chosen policy the rail
- * no longer lists. It is still the one a run evaluates, and a view says it has
- * left the log; it is neither dropped nor swapped for a neighbour.
- *
- * Nothing but the compiler keeps the three arms equal to `HeldChoice<PolicySighting>`,
- * and it does: `policyChoice` returns the cell's own `resolve()` as a
- * `PolicyChoice`, and `policyOf` reads the held arms through `heldValue`, so an
- * arm added to either side, or a field renamed on one, stops compiling there.
- */
-export type PolicyChoice =
-  | { readonly _tag: "Empty" }
-  | { readonly _tag: "Listed"; readonly value: PolicySighting; readonly index: number }
-  | { readonly _tag: "Evicted"; readonly value: PolicySighting }
-  | {
-      readonly _tag: "Seeded";
-      readonly entry: TimelineEntry;
-      readonly policy: Policy;
-      readonly unseeded: ReadonlyArray<UnseededField>;
-    };
 
 /** What a run was asked, kept with its answer so the answer can be judged against the form. */
 export interface SimulationQuestion {
@@ -117,25 +107,6 @@ export type RunState =
     }
   | { readonly _tag: "Broke"; readonly question: SimulationQuestion; readonly message: string }
   | { readonly _tag: "Refused"; readonly question: SimulationQuestion; readonly refusal: SourceRefusal };
-
-/** One entry of the policy dropdown: what it submits and what it says. */
-export interface PolicyMenuOption {
-  readonly value: string;
-  readonly label: string;
-}
-
-/**
- * What the policy dropdown lists, in order, and which entry it shows.
- *
- * A reading of the policy the session holds, never the other way round: the
- * replayed row or an evicted choice leads the list while there is one, then each
- * sighting under its position as `String(index)`. `choosePolicyAt` takes a
- * position of `options`, so a view parses nothing.
- */
-export interface PolicyMenu {
-  readonly options: ReadonlyArray<PolicyMenuOption>;
-  readonly selected: string;
-}
 
 /** What a sweep would cost, said before it runs, and whether that cost is the host's own I/O. */
 export interface SweepCost {
@@ -176,7 +147,13 @@ export interface SimulationSnapshot {
   readonly plan: SweepPlan | undefined;
   readonly cost: SweepCost;
   readonly run: RunState;
-  /** True when the form, the policy or the seed moved since the shown result ran. */
+  /**
+   * True when the form, the policy or the seed moved since the shown result ran.
+   *
+   * The policy and seed checks (no policy, another policy, another seed) state
+   * BEH-QD-322's rule where it is read, not because one can hold while a run is
+   * shown: every command that changes the policy or the seed also clears the run.
+   */
   readonly stale: boolean;
   /** Present only for a result that ran against the current seed. */
   readonly baseline: Baseline | undefined;
@@ -273,34 +250,6 @@ const resourceTextOf = (input: SimulationInput): ResourceText => {
     : { text: "", error: text.reason };
 };
 
-/** The dropdown's entry for a choice: the value a select holds, never a position. */
-const selectedOf: (choice: PolicyChoice) => string = Match.type<PolicyChoice>().pipe(
-  Match.tagsExhaustive({
-    Empty: () => "",
-    Listed: (listed) => String(listed.index),
-    Evicted: () => "evicted",
-    Seeded: () => "seeded",
-  }),
-);
-
-/** How many entries lead the rail in the menu: the replayed row, or an evicted choice. */
-const leading = (choice: PolicyChoice): number =>
-  choice._tag === "Seeded" || choice._tag === "Evicted" ? 1 : 0;
-
-const policyMenuOf = (
-  choice: PolicyChoice,
-  sightings: ReadonlyArray<PolicySighting>,
-): PolicyMenu => ({
-  options: [
-    ...(choice._tag === "Seeded" ? [{ value: "seeded", label: "from the replayed row" }] : []),
-    ...(choice._tag === "Evicted"
-      ? [{ value: "evicted", label: `${choice.value.label} — no longer in the log` }]
-      : []),
-    ...sightings.map((sighting, index) => ({ value: String(index), label: sighting.label })),
-  ],
-  selected: selectedOf(choice),
-});
-
 /**
  * The sentence above the run buttons: said before the sweep, never after it, and
  * with the count the sweep runs.
@@ -330,16 +279,14 @@ const costOf = (refusal: SourceRefusal | undefined, plan: SweepPlan | undefined)
 export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSession")(function* (
   init?: SimulationSessionInit,
 ): Effect.fn.Return<SimulationSession, never, Scope.Scope> {
-  /** The chosen policy and the sighting it was chosen from. A value, never an index. */
-  const chosen = makeHeldChoice(init?.sightings ?? [], sameSighting);
-  if (init?.seed === undefined) chosen.pin();
-  let seedEntry: TimelineEntry | undefined;
-  /** The replayed row's policy, held with the row it came from so neither exists without the other. */
-  let seeded:
-    | { readonly entry: TimelineEntry; readonly policy: Policy; readonly unseeded: ReadonlyArray<UnseededField> }
-    | undefined;
-  let draft: SimulationInput = blank;
-  let resourceText: ResourceText = { text: "", error: undefined };
+  const seeding = seededChoice(init?.sightings ?? [], init?.seed);
+  /**
+   * The policy being simulated and where it came from, replaced by what a
+   * transition answers (`SeededChoice.ts`).
+   */
+  let choice: SeededChoice = seeding.choice;
+  let draft: SimulationInput = seeding.input ?? blank;
+  let resourceText: ResourceText = resourceTextOf(draft);
   let sourceChoice: SourceChoice = "Fixtures";
   let clock: EvaluationClock = "live";
   let pairs = false;
@@ -350,43 +297,11 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
   /** Every run forks into this, so a newer run or a superseding command interrupts the one in flight; a closed session answers no `run`. */
   const runs = yield* makeSupersedingRun();
 
-  const policyChoice = (): PolicyChoice =>
-    seeded === undefined
-      ? chosen.resolve()
-      : { _tag: "Seeded", entry: seeded.entry, policy: seeded.policy, unseeded: seeded.unseeded };
-
-  /**
-   * Holds the head of the rail once there is one and nothing is chosen or seeded.
-   *
-   * Without it the default would follow the head, and a reviewer who never
-   * touched the dropdown would run a different policy after a decision arrived.
-   */
-  const pin = () => {
-    if (seeded === undefined) chosen.pin();
-  };
-
-  const policyOf = (picked: PolicyChoice): Policy | undefined =>
-    picked._tag === "Seeded" ? picked.policy : heldValue(picked)?.policy;
-
-  /**
-   * The row a result is compared against, when there is one to compare with.
-   *
-   * The replayed row while its policy is the one running. An orphan has no
-   * policy to replay, so it never becomes the running policy — but it is still
-   * the row the reviewer opened, and the baseline says it carries no decision.
-   * A replayable row the reviewer walked away from is neither.
-   */
-  const seedOf = (choice: PolicyChoice): TimelineEntry | undefined =>
-    choice._tag === "Seeded"
-      ? choice.entry
-      : seedEntry?._tag === "TimelineDecision"
-        ? undefined
-        : seedEntry;
-
   const build = (): SimulationSnapshot => {
-    const policy = policyChoice();
+    const policy = policyChoice(choice);
+    const policyNow = policyOf(choice);
+    const seed = seedOf(choice);
     const { options, refusal, source } = describeSource(sourceChoice, { ports, capture });
-    const policyNow = policyOf(policy);
     const plan =
       policyNow === undefined
         ? undefined
@@ -401,21 +316,20 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
       (question.input !== draft ||
         policyNow === undefined ||
         !Equal.equals(question.policy, policyNow) ||
-        question.seed !== seedOf(policy));
+        question.seed !== seed);
 
-    const seed = seedOf(policy);
     const baseline =
       run._tag === "Ran" && !stale && seed !== undefined
         ? baselineDiff(seed, run.outcome)
         : undefined;
 
     return {
-      sightings: chosen.list(),
+      sightings: choice.sightings,
       policy,
       draft,
       fields: formOf(draft),
       resourceText,
-      policyMenu: policyMenuOf(policy, chosen.list()),
+      policyMenu: menuOf(choice),
       sourceChoice,
       options,
       refusal,
@@ -447,6 +361,12 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
    */
   const supersede = () => {
     runs.stop();
+  };
+
+  /** Stops the run in flight and sets the run `Idle`. */
+  const clearRun = () => {
+    supersede();
+    run = { _tag: "Idle" };
   };
 
   const program = (
@@ -502,7 +422,6 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
 
   const start = (kind: RunKind): void => {
     if (runs.closed()) return;
-    const choice = policyChoice();
     const policy = policyOf(choice);
     if (policy === undefined) return;
 
@@ -531,48 +450,46 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
     runs.fork(mine, land(mine, question, kind, prepared, runClock, pairs));
   };
 
-  /** The one path a draft changes by: the same no-op rule and resource text for every command. */
-  const edit = (next: SimulationInput) => {
-    if (next === draft) return;
-    if (next.resource !== draft.resource) resourceText = resourceTextOf(next);
+  /**
+   * Assigns the draft and its resource text, answering whether it wrote anything.
+   *
+   * Given `text`, it is written as given, so `editResourceText` keeps what was typed
+   * and `reseed` writes the text it re-encoded. Without it the text is re-encoded
+   * only when the resource changed, and the draft already held writes nothing.
+   */
+  const writeDraft = (next: SimulationInput, text?: ResourceText): boolean => {
+    if (text === undefined && next === draft) return false;
+    const kept = next.resource === draft.resource;
+    resourceText = text ?? (kept ? resourceText : resourceTextOf(next));
     draft = next;
-    commit();
+    return true;
+  };
+
+  /**
+   * Writes `next` through `writeDraft` and publishes; the draft already held
+   * publishes nothing.
+   */
+  const edit = (next: SimulationInput) => {
+    if (writeDraft(next)) commit();
   };
 
   /** Seeds from `entry` unconditionally: `seed` guards it, `replay` does not. */
   const reseed = (entry: TimelineEntry | undefined): void => {
-    seedEntry = entry;
-    seeded = undefined;
-    if (entry !== undefined) {
-      const replay = replayInput(entry);
-      if (replay._tag === "Replayable") {
-        seeded = { entry, policy: replay.policy, unseeded: replay.unseeded };
-        draft = replay.input;
-      }
-    }
-    resourceText = resourceTextOf(draft);
-    pin();
-    supersede();
-    run = { _tag: "Idle" };
+    const seeding = seedFrom(choice, entry);
+    choice = seeding.choice;
+    const next = seeding.input ?? draft;
+    writeDraft(next, resourceTextOf(next));
+    clearRun();
     commit();
   };
 
   const choosePolicy = (policy: Policy): void => {
-    // A seeded policy belongs to the row it came from; choosing another from
-    // the rail is leaving that row behind.
-    const held = chosen.held();
-    if (
-      seeded === undefined &&
-      held !== undefined &&
-      Equal.equals(held.policy, policy) &&
-      run._tag === "Idle"
-    ) {
-      return;
-    }
-    chosen.choose(sightingFor(chosen.list(), policy));
-    seeded = undefined;
-    supersede();
-    run = { _tag: "Idle" };
+    // The module owns the same-policy rule; the session adds only that a run in
+    // flight or shown is cleared even by the policy already held.
+    const next = choose(choice, policy);
+    if (next === choice && run._tag === "Idle") return;
+    choice = next;
+    clearRun();
     commit();
   };
 
@@ -582,23 +499,21 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
     getSnapshot: store.getSnapshot,
 
     setSightings: (next) => {
-      if (!chosen.setList(next)) return;
-      pin();
+      const resighted = withSightings(choice, next);
+      if (resighted === choice) return;
+      choice = resighted;
       commit();
     },
 
     choosePolicy,
 
     choosePolicyAt: (position) => {
-      // The menu's leading entries (the replayed row, an evicted choice) name no sighting.
-      const picked = Number.isInteger(position)
-        ? chosen.list()[position - leading(policyChoice())]
-        : undefined;
+      const picked = sightingAt(choice, position);
       if (picked !== undefined) choosePolicy(picked.policy);
     },
 
     seed: (entry) => {
-      if (entry === seedEntry) return;
+      if (entry === seededFrom(choice)) return;
       reseed(entry);
     },
 
@@ -609,10 +524,7 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
       ports = next;
       // A capture is the answers of the environment it came from.
       capture = undefined;
-      if (run._tag === "Running") {
-        supersede();
-        run = { _tag: "Idle" };
-      }
+      if (run._tag === "Running") clearRun();
       commit();
     },
 
@@ -655,18 +567,16 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
         // Reported inline, and the previous resource is left alone: clearing it
         // on every keystroke that is not yet valid JSON would make the form
         // unusable halfway through typing one.
-        resourceText = { text, error: decoded.reason };
+        writeDraft(draft, { text, error: decoded.reason });
       } else {
-        resourceText = { text, error: undefined };
-        draft = withResource(draft, decoded.value);
+        writeDraft(withResource(draft, decoded.value), { text, error: undefined });
       }
       commit();
     },
 
     renameSubject: (to) => {
       if (to === draft.subject.id) return;
-      draft = renameSubject(draft, draft.subject.id, to);
-      commit();
+      edit(renameSubject(draft, draft.subject.id, to));
     },
 
     setAction: (text) => {
@@ -679,8 +589,5 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
     run: start,
   };
 
-  // A session made with a seed is seeded before anyone reads it, so a screen
-  // mounted with one shows its first render seeded.
-  if (init?.seed !== undefined) session.seed(init.seed);
   return session;
 });

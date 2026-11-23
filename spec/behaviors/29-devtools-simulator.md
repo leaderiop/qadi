@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-29                                    |
-> | Revision       | 1.21                                            |
+> | Revision       | 1.31                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.21 (2026-11-14): BEH-QD-541: the remedy label reads valueLabel (ARCH-88, CCR-QD-432)<br>1.20 (2026-11-14): BEH-QD-541: a remedy whose value has no JSON form is still offered, under a label that cannot throw (ARCH-88, CCR-QD-432)<br>1.19 (2026-11-14): BEH-QD-461 and BEH-QD-322 restated: the session's runs go through one module (CCR-QD-428)<br>1.18 (2026-11-12): BEH-QD-455 listed as it is: prepareSource returns PreparedSource (ReadySource or RefusedSource), and describeSource gives the dock its options, refusal and source without building a recorder; SourcePreparation is gone (CCR-QD-427)<br>1.17 (2026-11-12): BEH-QD-460 restated: a checked baseline carries its own reading (CCR-QD-427)<br>1.16 (2026-11-12): BEH-QD-219 to 221 printed once: the duplicate block, the Change History fragment spliced into the body and the superseded replay-miss requirements are removed; no requirement changes (CCR-QD-427)<br>1.15 (2026-11-12): BEH-QD-226 restated on EvaluationClock; BEH-QD-504 (one clock vocabulary) and BEH-QD-505 (the review layer and a simulation agree); the seal is the simulator's shadow sinkAndCache choice (ARCH-81, ADR-QD-146, CCR-QD-424)<br>1.14 (2026-11-11): BEH-QD-322 — PolicyChoice is HeldChoice's three arms, Empty, Listed and Evicted, or Seeded; the arms None and Chosen are gone (ARCH-74, BEH-QD-466, ADR-QD-047 amendment, CCR-QD-416)<br>1.13 (2026-11-11): BEH-QD-460 — the simulator renders its session and computes nothing (setAction, choosePolicyAt, policyMenu, cost, baselineReading, a run's reading); BEH-QD-461 — a session owns its runs: constructed in a scope, a superseding command interrupts the run in flight before it returns, closing the scope interrupts it; BEH-QD-322's fence and compiled example show the scoped constructor, run as a command, and no reap or dispose (ARCH-73, ADR-QD-137, ADR-QD-047 amendment, CCR-QD-415)<br>1.12 (2026-11-11): BEH-QD-455 — a source choice is prepared in one place: each source's availability and sentence are stated once, a Live preparation captures and each run prepares its own, and the session stores what `prepareSource` returns; BEH-QD-220's refusal and BEH-QD-322's fence name `prepareSource`, the session's former pair of functions being gone (ARCH-72, ADR-QD-050 amendment, CCR-QD-414)<br>1.11 (2026-11-10): BEH-QD-411 — a replay miss is an outage on every port; BEH-QD-221's miss requirements replaced, and a refused-key request is never captured and fails on replay (ARCH-65, ADR-QD-129, CCR-QD-407)<br>1.10 (2026-11-10): BEH-QD-390 — replay is an act: replaying a row always re-seeds, even the row last replayed; seed keeps its same-entry guard; BEH-QD-322's fence lists seed and replay (ARCH-63, ADR-QD-047, CCR-QD-405)<br>1.9 (2026-11-10): BEH-QD-222/225/322: signature rows, the hasCustom named skip, the field table and chip commands (ARCH-61, lost ARCH-48, ADR-QD-047 amendment, CCR-QD-400)<br>1.8 (2026-11-08): BEH-QD-221 — a signature request the capture never saw MUST fail as `SignatureHistoryUnavailable` (code review WR-04, INV-QD-043)<br>1.7 (2026-10-08): the simulator's mechanics (`simulate`, `whatIf`, `sweepPlan`, `capturing`, `replayLayer`, `remedyEdits`, `replayInput`, `baselineDiff`, the form codecs) are package-private; specified here because the simulator screen relies on them, and a host drives `makeSimulationSession` (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.6 (2026-10-08): BEH-QD-221 — a capture keys by the whole question the port received, not by a projection of it (ARCH-45, CCR-QD-263)<br>1.5 (2026-10-08): BEH-QD-322 — a chosen policy is held by value, not by its position in the rail; `choosePolicy` takes the policy, `PolicyChoice` gains `Evicted`, and the first policy shown is held (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.4 (2026-10-07): BEH-QD-220 — a source that cannot be honoured is refused, and a sweep runs the evaluations it stated; BEH-QD-225 — every field a replay names has a control; BEH-QD-322 — a simulation is a session (ADR-QD-047 and ADR-QD-050 amended, CCR-QD-199)<br>1.3 (2026-10-05): BEH-QD-221 — `CapturedAnswers` is keyed by port name, each map by the port description's `key`; an unseen query's answer is the description's `none`, the same value the named default gives (ADR-QD-094, CCR-QD-177)<br>1.2 (2026-10-05): BEH-QD-223 — every leaf witness is checked against `judgeMatcher` before it is offered, so the requirement holds by construction; `gte(±Infinity)`, `gte(NaN)`, `eq(literal(NaN))` and `eq(literal(undefined))` had produced witnesses the evaluator rejects (ADR-QD-091, CCR-QD-173)<br>1.1 (2026-10-04): BEH-QD-222 — the remedy derivation and the matcher witness MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.0 (2026-08-24): Initial release (CCR-QD-070) |
+> | Change History | 1.31 (2026-11-23): BEH-QD-719: a list of rows the form cannot give is skipped, never a throw (code review iteration 2 WR-01, ADR-QD-189, CCR-QD-468)<br>1.30 (2026-11-23): BEH-QD-720: the identity row and the remedy row each check their own fact once (code review IN-06, ADR-QD-189, CCR-QD-468)<br>1.29 (2026-11-23): BEH-QD-719: a signature row, an event row, the form's subject and the form's resource it cannot read are skipped, never thrown (code review WR-01, ADR-QD-189, CCR-QD-468)<br>1.28 (2026-11-23): BEH-QD-719: one template writes the refusal sentence, with the refuser and its cause in it (code review IN-01, ADR-QD-189, CCR-QD-468)<br>1.27 (2026-11-23): BEH-QD-718 to BEH-QD-720: the remedy table asks core about fixture rows, skips a refused check, and the custom refusal is one sentence; BEH-QD-222 notes it (ARCH-123, ADR-QD-189, CCR-QD-468)<br>1.26 (2026-11-23): BEH-QD-709 cites only the tests that pin choosing the held policy, in code review (CCR-QD-466)<br>1.25 (2026-11-23): BEH-QD-706 to BEH-QD-710: the seeded choice's pin rule, orphan rule, one menu list and no-op, and the session's one draft write and one run clear (ADR-QD-187, CCR-QD-466)<br>1.24 (2026-11-23): BEH-QD-460: the menu order and its reverse lookup are SeededChoice's (ADR-QD-187, CCR-QD-466)<br>1.23 (2026-11-22): BEH-QD-685: a `null` cause is a reported cause, captured as `null`; a field is absent only when `undefined` (code review WR-03, ADR-QD-182, CCR-QD-461)<br>1.22 (2026-11-22): BEH-QD-685: a capture records a broken port with the text the failure carried (ADR-QD-182, CCR-QD-461)<br>1.21 (2026-11-14): BEH-QD-541: the remedy label reads valueLabel (ARCH-88, CCR-QD-432)<br>1.20 (2026-11-14): BEH-QD-541: a remedy whose value has no JSON form is still offered, under a label that cannot throw (ARCH-88, CCR-QD-432)<br>1.19 (2026-11-14): BEH-QD-461 and BEH-QD-322 restated: the session's runs go through one module (CCR-QD-428)<br>1.18 (2026-11-12): BEH-QD-455 listed as it is: prepareSource returns PreparedSource (ReadySource or RefusedSource), and describeSource gives the dock its options, refusal and source without building a recorder; SourcePreparation is gone (CCR-QD-427)<br>1.17 (2026-11-12): BEH-QD-460 restated: a checked baseline carries its own reading (CCR-QD-427)<br>1.16 (2026-11-12): BEH-QD-219 to 221 printed once: the duplicate block, the Change History fragment spliced into the body and the superseded replay-miss requirements are removed; no requirement changes (CCR-QD-427)<br>1.15 (2026-11-12): BEH-QD-226 restated on EvaluationClock; BEH-QD-504 (one clock vocabulary) and BEH-QD-505 (the review layer and a simulation agree); the seal is the simulator's shadow sinkAndCache choice (ARCH-81, ADR-QD-146, CCR-QD-424)<br>1.14 (2026-11-11): BEH-QD-322 — PolicyChoice is HeldChoice's three arms, Empty, Listed and Evicted, or Seeded; the arms None and Chosen are gone (ARCH-74, BEH-QD-466, ADR-QD-047 amendment, CCR-QD-416)<br>1.13 (2026-11-11): BEH-QD-460 — the simulator renders its session and computes nothing (setAction, choosePolicyAt, policyMenu, cost, baselineReading, a run's reading); BEH-QD-461 — a session owns its runs: constructed in a scope, a superseding command interrupts the run in flight before it returns, closing the scope interrupts it; BEH-QD-322's fence and compiled example show the scoped constructor, run as a command, and no reap or dispose (ARCH-73, ADR-QD-137, ADR-QD-047 amendment, CCR-QD-415)<br>1.12 (2026-11-11): BEH-QD-455 — a source choice is prepared in one place: each source's availability and sentence are stated once, a Live preparation captures and each run prepares its own, and the session stores what `prepareSource` returns; BEH-QD-220's refusal and BEH-QD-322's fence name `prepareSource`, the session's former pair of functions being gone (ARCH-72, ADR-QD-050 amendment, CCR-QD-414)<br>1.11 (2026-11-10): BEH-QD-411 — a replay miss is an outage on every port; BEH-QD-221's miss requirements replaced, and a refused-key request is never captured and fails on replay (ARCH-65, ADR-QD-129, CCR-QD-407)<br>1.10 (2026-11-10): BEH-QD-390 — replay is an act: replaying a row always re-seeds, even the row last replayed; seed keeps its same-entry guard; BEH-QD-322's fence lists seed and replay (ARCH-63, ADR-QD-047, CCR-QD-405)<br>1.9 (2026-11-10): BEH-QD-222/225/322: signature rows, the hasCustom named skip, the field table and chip commands (ARCH-61, lost ARCH-48, ADR-QD-047 amendment, CCR-QD-400)<br>1.8 (2026-11-08): BEH-QD-221 — a signature request the capture never saw MUST fail as `SignatureHistoryUnavailable` (code review WR-04, INV-QD-043)<br>1.7 (2026-10-08): the simulator's mechanics (`simulate`, `whatIf`, `sweepPlan`, `capturing`, `replayLayer`, `remedyEdits`, `replayInput`, `baselineDiff`, the form codecs) are package-private; specified here because the simulator screen relies on them, and a host drives `makeSimulationSession` (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.6 (2026-10-08): BEH-QD-221 — a capture keys by the whole question the port received, not by a projection of it (ARCH-45, CCR-QD-263)<br>1.5 (2026-10-08): BEH-QD-322 — a chosen policy is held by value, not by its position in the rail; `choosePolicy` takes the policy, `PolicyChoice` gains `Evicted`, and the first policy shown is held (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.4 (2026-10-07): BEH-QD-220 — a source that cannot be honoured is refused, and a sweep runs the evaluations it stated; BEH-QD-225 — every field a replay names has a control; BEH-QD-322 — a simulation is a session (ADR-QD-047 and ADR-QD-050 amended, CCR-QD-199)<br>1.3 (2026-10-05): BEH-QD-221 — `CapturedAnswers` is keyed by port name, each map by the port description's `key`; an unseen query's answer is the description's `none`, the same value the named default gives (ADR-QD-094, CCR-QD-177)<br>1.2 (2026-10-05): BEH-QD-223 — every leaf witness is checked against `judgeMatcher` before it is offered, so the requirement holds by construction; `gte(±Infinity)`, `gte(NaN)`, `eq(literal(NaN))` and `eq(literal(undefined))` had produced witnesses the evaluator rejects (ADR-QD-091, CCR-QD-173)<br>1.1 (2026-10-04): BEH-QD-222 — the remedy derivation and the matcher witness MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.0 (2026-08-24): Initial release (CCR-QD-070) |
 
 _Previous: [28 — The Devtools Screens](./28-devtools-screens.md)_
 
@@ -274,6 +274,12 @@ takes it as *and even that would not help*. `hasCustom` and a resource-scoped
 `hasSignature` with no resource id are therefore reported in `skipped`, not passed
 over in silence (ARCH-61 found both were).
 
+> **Note (2026-11-23, ADR-QD-189):** "already met" for a signature or an event is
+> core's answer, not a restated match
+> ([BEH-QD-718](#beh-qd-718-a-signature-or-acted-remedy-is-decided-by-core)), and a
+> check the port refuses is skipped with the refusal
+> ([BEH-QD-719](#beh-qd-719-a-remedy-core-cannot-build-is-skipped-with-its-reason)).
+
 ```
 REQUIREMENT: A sweep's remedy derivation and a matcher witness MUST NOT exhaust the
              call stack for any caller-held policy or matcher, whatever its nesting
@@ -338,6 +344,125 @@ remedy there is a removal — and every removal expressible over a subject's own
 grants is already offered by `singleEdits`. Declining to descend loses nothing
 and avoids relabelling anti-remedies as strengthenings, which inverts the one
 thing the table is read for.
+
+## BEH-QD-718: A signature or acted remedy is decided by core
+
+> **Invariant:** [INV-QD-397](../invariants.md#inv-qd-397-the-remedy-table-agrees-with-the-fixture-ports-on-every-signature-and-acted-leaf)
+> **See:** [ADR-QD-189](../decisions/189-remedies-asks-core-whether-a-fixture-row-meets-a-signature-or-acted-leaf.md)
+
+```
+REQUIREMENT: The remedy table MUST decide whether a `hasSignature` or a `hasActed`
+             leaf is met by `signatureAnswerFromSignatures` or
+             `actedAnswerFromEvents` over the form's rows, at the site
+             `subjectOf(input.subject)` and the form's resource. Met MUST be no
+             row. An unmet signature leaf MUST be one `AddSignature` row whose
+             resource id is the request's (the description's `asks`). An unmet
+             event leaf at a site with a usable resource id MUST be one `AddEvent`
+             row on that resource. Applying the row MUST make the leaf hold.
+```
+
+The port's match ignores `signedAt`, `algorithm` and `keyId`, which is why the
+form's duplicate check (`sameSignature`) is a different rule: it compares every
+field a row carries, and the port compares two. An `Any`-scoped event leaf is met
+by the subject's event on any resource, so the table offers no row for it where
+one is on file, and offers one on the site's resource where none is and the site
+names one, rather than reading both scopes as the exact triple ([BEH-QD-716](06-services.md#beh-qd-716-a-fixture-judgement-answers-what-the-port-read-answers)).
+
+Pinned by `packages/devtools/test/model/RemedySignatureConformance.test.ts`
+("the product holds 1184 cases over four sites, four leaves and 74 lists",
+"at a site whose resource id is doc-1",
+"at a site whose resource has no id",
+"at a site whose resource id is not a string",
+"at a site with no resource"),
+`packages/devtools/test/model/RemedyActedConformance.test.ts`
+("the product holds 144 cases over four sites, two leaves and 18 lists",
+"at a site whose resource id is doc-1",
+"at a site whose resource has no id",
+"at a site whose resource id is not a string",
+"at a site with no resource") and `packages/devtools/test/model/Remedies.test.ts`
+("offers the signature the policy names, built from its node",
+"applies a signature remedy as the row the port answers from",
+"stays silent about a signature the fixtures already hold",
+"offers a signature when the fixtures hold a different one",
+"offers an edge and an event, keyed to the resource in the check",
+"stays silent about an edge or event the fixtures already list",
+"offers an edge or event when the fixtures list a different one").
+
+## BEH-QD-719: A remedy core cannot build is skipped with its reason
+
+> **Invariant:** [INV-QD-397](../invariants.md#inv-qd-397-the-remedy-table-agrees-with-the-fixture-ports-on-every-signature-and-acted-leaf)
+> **See:** [ADR-QD-189](../decisions/189-remedies-asks-core-whether-a-fixture-row-meets-a-signature-or-acted-leaf.md)
+
+```
+REQUIREMENT: A `MissingResourceId`, and an unmet event leaf at a site with no
+             usable resource id, MUST be skipped with `the check names no resource
+             id`. A `SignatureHistoryUnavailable` MUST be skipped with `the
+             signature port refuses this check, so no added row would be answered: `
+             and a `DecisionHistoryUnavailable` with `the history port refuses this
+             check, so no added row would be answered: `, each followed by the
+             refusal's `thrownMessage`, and neither MUST be offered a row.
+             `remedyEdits` MUST NOT throw for any value a signature row, an event
+             row, the list of them, the form's subject or the form's resource
+             holds: one it cannot read MUST be skipped with `the form refuses this
+             check, so no added row would be answered: ` and what was thrown when
+             it is the form's own subject or resource or its getter for the list,
+             and with its port's sentence when core's judgement refuses it.
+```
+
+A check the port refuses would be refused whatever row were added, so a row would
+not remedy it, and a remedy row that does not remedy is worse than an absent one
+([BEH-QD-222](#beh-qd-222-a-what-if-sweep-varies-the-input-in-both-directions)). One
+template writes the sentence once, with the refuser (`signature port`, `history
+port`) and what it said in it, and one dispatcher over the three failure tags
+chooses which.
+
+Pinned by `packages/devtools/test/model/RemedySignatureConformance.test.ts`
+("a fixture row it cannot key is skipped with its refusal and offered no row, while core fails the read",
+"a site whose subject id it cannot key is skipped with its refusal and offered no row, while core fails the read",
+"at a site whose resource has no id",
+"at a site whose resource id is not a string",
+"at a site with no resource"),
+`packages/devtools/test/model/RemedyActedConformance.test.ts`
+("a fixture row it cannot key is skipped with its refusal and offered no row, while core fails the read",
+"a site whose subject id it cannot key is skipped with its refusal and offered no row, while core fails the read",
+"at a site whose resource has no id",
+"at a site whose resource id is not a string",
+"at a site with no resource"), `packages/devtools/test/model/RemedyTotality.test.ts`
+("a row that is null is skipped, naming the field and what was thrown",
+"a row whose getter throws is skipped, naming the field and what was thrown",
+"a row that is a throwing proxy is skipped, naming the field and the throw",
+"a form subject that cannot be read is skipped, naming the form",
+"a resource id that throws skips a Resource leaf and not an Any leaf",
+"a resource id that throws skips a Resource leaf, and an Any leaf's row",
+"a list that is a revoked proxy is skipped, naming the list and the throw",
+"a list whose length throws is skipped, naming the list and the throw",
+"a getter for the list that throws is skipped, naming the form",
+"a row holding an object whose class name is not text names it generically") and
+`packages/devtools/test/model/Remedies.test.ts`
+("declines a resource-scoped signature when the check names no resource id",
+"declines an edge or an event when the check names no resource id").
+
+## BEH-QD-720: The custom-predicate refusal is one sentence
+
+> **Invariant:** [INV-QD-397](../invariants.md#inv-qd-397-the-remedy-table-agrees-with-the-fixture-ports-on-every-signature-and-acted-leaf)
+> **See:** [ADR-QD-189](../decisions/189-remedies-asks-core-whether-a-fixture-row-meets-a-signature-or-acted-leaf.md)
+
+```
+REQUIREMENT: The field table's custom-predicate cell MUST be
+             `NO_CUSTOM_PREDICATE_FIELD`, and the remedy table's skip for a
+             `hasCustom` node MUST give that value's `reason`.
+```
+
+The sentence, `a custom predicate's answer has no form field; run against Snapshot or
+Live`, is written once in source and once among the tests, where
+`SimulationFields.test.ts` asserts it against the export and every other test
+reads the export; `Remedies.test.ts` asserts that the remedy table's skip gives
+that export's `reason`, and `SimulationFields.test.ts` that the field table's cell
+is that export, so each fact is checked once. Pinned by `packages/devtools/test/model/SimulationFields.test.ts`
+("says why a custom predicate has no cell",
+"the custom-predicate cell is the one shared no-vocabulary value") and
+`packages/devtools/test/model/Remedies.test.ts`
+("names a custom predicate it cannot remedy, rather than staying silent").
 
 ## BEH-QD-541: A remedy whose value has no JSON form is still offered, under a label that cannot throw
 
@@ -859,6 +984,13 @@ commands are the session's (ARCH-73)", "what the view shows is read by the sessi
 renders a session the test builds and proves the screen shows what the session says and
 dispatches what it is given.
 
+> **Amended 2026-11-23 (ADR-QD-187, CCR-QD-466).** The menu's order and its reverse lookup are
+> computed by `SeededChoice.ts` (`menuOf` and `sightingAt`, both reading one list), which the session
+> reads under its snapshot, and the rules are pinned as plain values by `SeededChoice.test.ts`. That a
+> menu position naming no rail policy changes nothing and notifies no one is pinned at the session by
+> `SimulationSession.characterisation.test.ts`. The ARCH-73 describes above keep the action's rule
+> and the readings. See [ADR-QD-187](../decisions/187-the-simulation-sessions-policy-choice-is-a-pure-seeded-choice.md).
+
 ## BEH-QD-461: A session owns its runs
 
 ```ts
@@ -952,6 +1084,159 @@ specification allows are the ones each states in its call: the id prefix, and
 whether decisions are real (`shadow: "none"`) or imagined
 (`shadow: "sinkAndCache"`). Pinned by
 `packages/devtools/test/model/ReviewSimulationConformance.test.ts`.
+
+## BEH-QD-685: A capture records a broken port with the text the failure carried
+
+> **Invariant:** [INV-QD-383](../invariants.md#inv-qd-383-a-function-stated-as-total-stays-total-whatever-value-it-caught)
+> **See:** [ADR-QD-182](../decisions/182-one-total-thrown-value-to-text-rule-exported-by-core.md)
+
+```
+REQUIREMENT: A port that fails MUST be captured as `Broke` with `thrownMessage` of
+             the failure's `cause`, else of its `reason`, else of the error itself
+             (its own string `message`), each field read without throwing. A failure
+             that carries none of these MUST be captured with the empty string, and
+             a cause that cannot be described MUST still be captured as `Broke`,
+             with `a value that could not be described`. A field is absent only
+             when it is `undefined`: a `null` cause MUST be captured as `null`, the
+             cause the resolver reported, and MUST NOT fall through to the reason.
+
+REQUIREMENT: A replay of a captured custom predicate failure MUST carry the
+             captured reason.
+```
+
+A failure's own text is its `cause` for a resolver and its `reason` for a custom
+predicate. Neither the error's tag nor its `String` form would do: a port error
+stringifies to its tag, and a `CustomPredicateError` to the predicate's name, which a
+replay would carry as its reason where the port reported another. A cause that could not
+be stringified used to be captured as nothing, and now it is captured as the placeholder,
+so a what-if run still sees that the port broke. [BEH-QD-221](#beh-qd-221-a-capture-records-answers-and-a-replay-reproduces-them)'s
+replay rebuilds the error class from the port, so the captured text is all the capture
+carries.
+
+## BEH-QD-706: The head is pinned only while no replayed row is held
+
+> **Invariant:** [INV-QD-393](../invariants.md#inv-qd-393-the-simulators-seeded-choice-is-a-pure-value)
+> **See:** [ADR-QD-187](../decisions/187-the-simulation-sessions-policy-choice-is-a-pure-seeded-choice.md)
+
+```
+REQUIREMENT: The seeded choice MUST pin the head of the rail on construction, on a new
+             rail and on a new seed exactly when no replayed policy is held, and
+             choosing MUST pin nothing.
+```
+
+The constructor, `withSightings` and `seedFrom` each pin the head exactly when no replayed
+policy is held, and `choose` holds a value and pins nothing. The rule lives inside the
+transitions, so no caller can forget it or apply it while a replayed policy is held. It is
+held by tests only: no type or gate states it.
+
+Pinned by `packages/devtools/test/model/SeededChoice.test.ts` ("with no seed, the
+constructor pins the head of the rail", "a replayed seed pins nothing and answers the row
+decoded", "an orphan seed pins the head and answers no input", "a held replayed policy pins
+nothing, and leaving it pins the head", "leaving a replayed policy pins the head of that
+moment, not an earlier one", "choosing before the rail has any holds the choice, not the
+head") and `packages/devtools/test/model/SimulationSession.characterisation.test.ts` ("built
+with no seed, a session holds the head of the rail and keeps it", "built with a replayable
+row, a session holds its policy unpinned", "an empty session pins the first head the rail
+gives it").
+
+## BEH-QD-707: A row with no decision stays the baseline row
+
+> **Invariant:** [INV-QD-393](../invariants.md#inv-qd-393-the-simulators-seeded-choice-is-a-pure-value)
+> **See:** [ADR-QD-187](../decisions/187-the-simulation-sessions-policy-choice-is-a-pure-seeded-choice.md)
+
+```
+REQUIREMENT: While no replayed policy is held, a seed row that is not a decision MUST
+             stay the row a result is compared against, and a decision row MUST NOT.
+```
+
+While a replayed policy is held, the seed is its row; otherwise a row that is not a
+`TimelineDecision` stays the baseline row, and a decision row the reviewer walked away from
+is no seed. It is held by tests only.
+
+Pinned by `packages/devtools/test/model/SeededChoice.test.ts` ("seedOf is the replayed row
+while its policy is held", "seedOf keeps an orphan row after another policy is chosen",
+"seedOf is nothing for a decision row walked away from") and
+`packages/devtools/test/model/SimulationSession.characterisation.test.ts` ("built with an
+orphan row, a session holds the head and keeps the row as seed", "choosing from the rail
+while an orphan is the seed keeps the orphan").
+
+## BEH-QD-708: The policy menu and its reverse lookup read one list
+
+> **Invariant:** [INV-QD-393](../invariants.md#inv-qd-393-the-simulators-seeded-choice-is-a-pure-value)
+> **See:** [ADR-QD-187](../decisions/187-the-simulation-sessions-policy-choice-is-a-pure-seeded-choice.md)
+
+```
+REQUIREMENT: The menu and the position lookup MUST read one list, so a position that
+             names the replayed row, an evicted choice or nothing MUST name no
+             sighting.
+```
+
+The menu is one list of entries, each with its value, its label and the sighting it names,
+and `menuOf` and `sightingAt` both read it, so a position that names no sighting answers
+nothing. Tests hold the order and the lookup. The compiler holds the first three arms of
+`PolicyChoice` to `HeldChoice<PolicySighting>` and the menu option to a value and a label,
+which is why this behaviour alone cites the type tests.
+
+Pinned by `packages/devtools/test/model/SeededChoice.test.ts` ("the menu leads with the
+replayed row while a replayed policy is held", "the menu leads with an evicted choice,
+labelled as no longer in the log", "sightingAt names each rail entry after the lead, in the
+order of the menu", "each option of the menu names the sighting sightingAt reads at its
+position"), `packages/devtools/test/model/SeededChoice.tst.ts` ("the first three arms of
+PolicyChoice are HeldChoice of PolicySighting", "a menu option is a value and a label, and a
+menu its options and selected value") and
+`packages/devtools/test/model/SimulationSession.characterisation.test.ts` ("position 0 of a
+seeded menu names the replayed row and changes nothing", "position 2 of a seeded menu chooses
+the second sighting of the rail").
+
+## BEH-QD-709: Choosing the held policy again changes nothing while the run is idle
+
+> **Invariant:** [INV-QD-393](../invariants.md#inv-qd-393-the-simulators-seeded-choice-is-a-pure-value)
+> **See:** [ADR-QD-187](../decisions/187-the-simulation-sessions-policy-choice-is-a-pure-seeded-choice.md)
+
+```
+REQUIREMENT: Choosing the held policy with no replayed policy held MUST return the choice
+             unchanged, and the session MUST publish nothing for it while the run is
+             `Idle`.
+```
+
+`choose` returns its input when no replayed policy is held and the held sighting has the
+chosen policy, and the session publishes nothing only when `choose` returned its input and
+the run is `Idle`. The policy half is the module's and the run half is the session's: with a
+run that is not `Idle`, choosing the held policy again still clears the run and publishes. It
+is held by tests only.
+
+Pinned by `packages/devtools/test/model/SeededChoice.test.ts` ("choosing an equal copy of
+the held policy returns the same choice", "choosing the held policy while a replayed
+policy is held drops it") and
+`packages/devtools/test/model/SimulationSession.characterisation.test.ts` ("choosing an
+equal copy of the held policy while idle changes nothing", "choosing the held policy
+after a run clears the run, notifying once").
+
+## BEH-QD-710: A draft is written in one place and a run is cleared by one operation
+
+> **Invariant:** [INV-QD-394](../invariants.md#inv-qd-394-the-simulation-session-writes-its-draft-in-one-place-and-clears-its-run-through-one-operation)
+> **See:** [ADR-QD-187](../decisions/187-the-simulation-sessions-policy-choice-is-a-pure-seeded-choice.md)
+
+```
+REQUIREMENT: The session MUST assign its draft and resource text in one function and
+             MUST clear its run through one operation, called from `reseed`,
+             `choosePolicy` and `setPorts`.
+```
+
+Once the session is built, `writeDraft` is the one place the draft and its resource text are
+assigned, and `clearRun` is the one operation that stops the run in flight and sets it `Idle`,
+called from `reseed`, `choosePolicy` and `setPorts`. Tests hold the behaviour: what each
+command clears, publishes or keeps. That the draft and an `Idle` run are assigned nowhere
+else is kept by review alone, since no gate counts the assignments.
+
+Pinned by `packages/devtools/test/model/SimulationSession.characterisation.test.ts`
+("seeding a row after a run clears it, and a new run checks the row", "choosing another
+policy after a run clears it, so nothing is stale", "new ports during a run clear it and stop
+it", "new ports after a finished run keep the result", "editing to the draft it holds changes
+nothing", "an edit that changes the resource re-encodes the resource text", "an edit that
+keeps the resource keeps the typed resource text", "resource text publishes on every call, an
+unchanged parse and a refusal too", "renaming to the current id changes nothing, and a rename
+keeps the text").
 
 ---
 

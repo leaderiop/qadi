@@ -41,30 +41,22 @@ import type { Policy } from "@qadi/core";
 import { collectingTracer } from "@qadi/testing";
 import { answerCount } from "../../src/model/Capture.ts";
 import { policyLabel } from "../../src/model/Catalogue.ts";
-import type { PolicySighting } from "../../src/model/Catalogue.ts";
 import { readOutcome } from "../../src/model/Inspect.ts";
 import type { SimulationInput } from "../../src/model/SimulationInput.ts";
 import { makeSimulationSession } from "../../src/model/SimulationSession.ts";
 import type { SimulationSession } from "../../src/model/SimulationSession.ts";
-import { emptyTimeline, ingestAll } from "../../src/model/Timeline.ts";
-import type { TimelineEntry } from "../../src/model/Timeline.ts";
-import { allow, decisionRecord, deny, failedRecord, obligationRecord, read } from "../helpers.ts";
-
-const sighting = (policy: Policy): PolicySighting => ({
-  policy,
-  label: policyLabel(policy),
-  count: 1,
-  allows: 1,
-  denies: 0,
-  errors: 0,
-  lastAt: 100,
-});
-
-const entryOf = (record: Parameters<typeof ingestAll>[1][number]): TimelineEntry => {
-  const [entry] = ingestAll(emptyTimeline(), [record]).entries;
-  if (entry === undefined) throw new Error("expected an entry");
-  return entry;
-};
+import { allow, decisionRecord, deny, failedRecord, read } from "../helpers.ts";
+import {
+  counted,
+  entryOf,
+  orphan,
+  ran,
+  rowRead,
+  settled,
+  sighting,
+  slow,
+  startRun,
+} from "../simulationFixtures.ts";
 
 const clearance = hasAttribute("clearance", gte(5));
 /** What a fixture answers: enough that `clearance` allows, so a wrong source would show. */
@@ -82,82 +74,12 @@ const otherBrokenPorts = portsLayer({
   AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("also down"), "broken").layer,
 });
 
-/** A resolver that takes a second, and counts how it ended. No error is constructed. */
-const slow = () => {
-  const tally = { started: 0, finished: 0, interrupted: 0 };
-  const ports = portsLayer({
-    AttributeResolver: Layer.succeed(AttributeResolver, {
-      name: "slow",
-      resolve: () =>
-        Effect.sync(() => {
-          tally.started += 1;
-        }).pipe(
-          Effect.andThen(Effect.sleep("1 second")),
-          Effect.onInterrupt(() =>
-            Effect.sync(() => {
-              tally.interrupted += 1;
-            }),
-          ),
-          Effect.andThen(
-            Effect.sync(() => {
-              tally.finished += 1;
-              return 9;
-            }),
-          ),
-        ),
-    }),
-  });
-  return { tally, ports };
-};
-
 /** A session over one policy, built in the test's scope, with `input` as its form. */
 const sessionWith = (policy: Policy, input: SimulationInput = withClearance) =>
   Effect.gen(function* () {
     const session = yield* makeSimulationSession({ sightings: [sighting(policy)] });
     session.edit(input);
     return session;
-  });
-
-const counted = (session: SimulationSession) => {
-  const seen = { notified: 0 };
-  session.subscribe(() => {
-    seen.notified += 1;
-  });
-  return seen;
-};
-
-// The helpers below drive the scoped interface (ARCH-73, ADR-QD-137): `run` is a
-// command that forks into the session's own handle, so a test starts one and then
-// waits on the snapshot rather than joining a fiber it was handed.
-
-/** Starts a run, and lets its program reach the sleeping port. */
-const startRun = (session: SimulationSession, kind: "Run" | "Sweep" = "Run") =>
-  Effect.gen(function* () {
-    session.run(kind);
-    yield* TestClock.adjust("10 millis");
-  });
-
-/** Resumes once no run is in flight: at once when none is, else on the notification that ends it. */
-const settled = (session: SimulationSession) =>
-  Effect.callback<void>((resume) => {
-    const idle = () => session.getSnapshot().run._tag !== "Running";
-    if (idle()) {
-      resume(Effect.void);
-      return;
-    }
-    const off = session.subscribe(() => {
-      if (!idle()) return;
-      off();
-      resume(Effect.void);
-    });
-    return Effect.sync(off);
-  });
-
-/** One run or sweep, waited for. */
-const ran = (session: SimulationSession, kind: "Run" | "Sweep" = "Run") =>
-  Effect.suspend(() => {
-    session.run(kind);
-    return settled(session);
   });
 
 describe("choosing a source that cannot be honoured — C2", () => {
@@ -526,99 +448,6 @@ describe("the view's commands are the session's (ARCH-73)", () => {
       assert.strictEqual(seen.notified, 1);
     }));
 
-  it.effect("choosePolicyAt names a position of the menu, which a seeded or evicted entry shifts by one", () =>
-    Effect.gen(function* () {
-      const seeded = yield* makeSimulationSession({
-        sightings: [sighting(hasRole("a"))],
-        seed: entryOf(decisionRecord({ evaluationId: "ev-s", policy: hasRole("s") })),
-      });
-      const seededSeen = counted(seeded);
-      // Position 0 is "from the replayed row": choosing it is not choosing a policy.
-      seeded.choosePolicyAt(0);
-      assert.strictEqual(seeded.getSnapshot().policy._tag, "Seeded");
-      assert.strictEqual(seededSeen.notified, 0);
-      seeded.choosePolicyAt(1);
-      const left = seeded.getSnapshot().policy;
-      assert.isTrue(left._tag === "Listed" && left.index === 0 && Equal.equals(left.value.policy, hasRole("a")));
-
-      const evicted = yield* makeSimulationSession({
-        sightings: [sighting(hasRole("a")), sighting(hasRole("b"))],
-      });
-      evicted.choosePolicy(hasRole("b"));
-      evicted.setSightings([sighting(hasRole("a"))]);
-      const evictedSeen = counted(evicted);
-      evicted.choosePolicyAt(0);
-      assert.strictEqual(evicted.getSnapshot().policy._tag, "Evicted");
-      assert.strictEqual(evictedSeen.notified, 0);
-      evicted.choosePolicyAt(1);
-      const back = evicted.getSnapshot().policy;
-      assert.isTrue(back._tag === "Listed" && Equal.equals(back.value.policy, hasRole("a")));
-    }));
-
-  it.effect("choosePolicyAt a position that lists nothing, or not a whole position, changes nothing", () =>
-    Effect.gen(function* () {
-      const session = yield* makeSimulationSession({
-        sightings: [sighting(clearance), sighting(hasRole("x"))],
-      });
-      const before = session.getSnapshot();
-      const seen = counted(session);
-      for (const position of [2, 5, -1, 0.5, Number.NaN]) session.choosePolicyAt(position);
-      assert.strictEqual(seen.notified, 0);
-      assert.strictEqual(session.getSnapshot(), before);
-    }));
-
-  describe("policyMenu is what the dropdown lists, in order, with the option it shows selected", () => {
-    const named: PolicySighting = { ...sighting(hasRole("a")), label: "canArchive" };
-    const other = sighting(hasRole("b"));
-
-    it.effect("is empty and selects nothing while there is no policy", () =>
-      Effect.gen(function* () {
-        const session = yield* makeSimulationSession();
-        assert.deepStrictEqual(session.getSnapshot().policyMenu, { options: [], selected: "" });
-      }));
-
-    it.effect("lists each sighting by its label and value `String(index)`, and selects the chosen one", () =>
-      Effect.gen(function* () {
-        const session = yield* makeSimulationSession({ sightings: [named, other] });
-        const options = [
-          { value: "0", label: "canArchive" },
-          { value: "1", label: other.label },
-        ];
-        assert.deepStrictEqual(session.getSnapshot().policyMenu, { options, selected: "0" });
-
-        session.choosePolicy(hasRole("b"));
-        assert.deepStrictEqual(session.getSnapshot().policyMenu, { options, selected: "1" });
-      }));
-
-    it.effect("leads with the evicted choice, labelled as no longer in the log", () =>
-      Effect.gen(function* () {
-        const session = yield* makeSimulationSession({ sightings: [named, other] });
-        session.choosePolicy(hasRole("b"));
-        session.setSightings([named]);
-        assert.deepStrictEqual(session.getSnapshot().policyMenu, {
-          options: [
-            { value: "evicted", label: `${other.label} — no longer in the log` },
-            { value: "0", label: "canArchive" },
-          ],
-          selected: "evicted",
-        });
-      }));
-
-    it.effect("leads with the replayed row while seeded", () =>
-      Effect.gen(function* () {
-        const session = yield* makeSimulationSession({
-          sightings: [named],
-          seed: entryOf(decisionRecord({ evaluationId: "ev-s", policy: hasRole("s") })),
-        });
-        assert.deepStrictEqual(session.getSnapshot().policyMenu, {
-          options: [
-            { value: "seeded", label: "from the replayed row" },
-            { value: "0", label: "canArchive" },
-          ],
-          selected: "seeded",
-        });
-      }));
-  });
 });
 
 // These readings are asserted here, at the session, and not only through the DOM:
@@ -882,14 +711,14 @@ describe("what the view shows is read by the session (ARCH-73)", () => {
 
     it.effect("is absent for an orphan, for a stale result, and before any run", () =>
       Effect.gen(function* () {
-        const orphan = yield* makeSimulationSession({
+        const orphaned = yield* makeSimulationSession({
           sightings: [sighting(hasRole("a"))],
-          seed: entryOf(obligationRecord({ evaluationId: "ev-9" })),
+          seed: orphan,
         });
-        assert.isUndefined(reading(orphan));
-        yield* ran(orphan);
-        assert.strictEqual(orphan.getSnapshot().baseline?._tag, "Unavailable");
-        assert.isUndefined(reading(orphan));
+        assert.isUndefined(reading(orphaned));
+        yield* ran(orphaned);
+        assert.strictEqual(orphaned.getSnapshot().baseline?._tag, "Unavailable");
+        assert.isUndefined(reading(orphaned));
 
         const decided = yield* seededWith(
           decisionRecord({ evaluationId: "ev-91", policy: hasPermission(read), action: "read" }),
@@ -972,7 +801,6 @@ describe("a result belongs to the question it answered", () => {
 
   it.effect("says an orphan carries no decision to compare against", () =>
     Effect.gen(function* () {
-      const orphan = entryOf(obligationRecord({ evaluationId: "ev-9" }));
       const session = yield* makeSimulationSession({ sightings: [sighting(hasRole("a"))], seed: orphan });
       yield* ran(session);
       assert.strictEqual(session.getSnapshot().baseline?._tag, "Unavailable");
@@ -992,7 +820,6 @@ describe("a result belongs to the question it answered", () => {
             ),
         }),
       });
-      const orphan = entryOf(obligationRecord({ evaluationId: "ev-late" }));
       const session = yield* sessionWith(clearance);
       session.setPorts(ports);
       session.chooseSource("Live");
@@ -1089,19 +916,9 @@ describe("the cost line is the cost — C7", () => {
 });
 
 describe("seeding", () => {
-  const seed = entryOf(
-    decisionRecord({
-      evaluationId: "ev-3",
-      policy: hasPermission(read),
-      subjectId: "carol",
-      action: "read",
-      resource: { id: "doc-1" },
-    }),
-  );
-
   it.effect("fills the policy, action and resource, and names every field it could not seed", () =>
     Effect.gen(function* () {
-      const session = yield* makeSimulationSession({ sightings: [], seed });
+      const session = yield* makeSimulationSession({ sightings: [], seed: rowRead });
       const snapshot = session.getSnapshot();
       if (snapshot.policy._tag !== "Seeded") throw new Error("expected a seeded policy");
       assert.deepStrictEqual(snapshot.policy.policy, hasPermission(read));
@@ -1113,39 +930,6 @@ describe("seeding", () => {
         snapshot.policy.unseeded.map((field) => field.field),
         "signatures",
       );
-    }));
-
-  it.effect("an orphan seeds nothing and leaves no policy", () =>
-    Effect.gen(function* () {
-      const session = yield* makeSimulationSession({
-        sightings: [],
-        seed: entryOf(obligationRecord({ evaluationId: "ev-9" })),
-      });
-      assert.strictEqual(session.getSnapshot().policy._tag, "Empty");
-    }));
-
-  it.effect("resets the resource field and any unparsed text on a re-seed", () =>
-    Effect.gen(function* () {
-      const session = yield* makeSimulationSession({ sightings: [], seed });
-      session.editResourceText("{oops");
-      assert.isDefined(session.getSnapshot().resourceText.error);
-      session.seed(
-        entryOf(
-          decisionRecord({ evaluationId: "ev-4", policy: hasRole("x"), resource: { id: "doc-2" } }),
-        ),
-      );
-      assert.deepStrictEqual(session.getSnapshot().resourceText, {
-        text: '{"id":"doc-2"}',
-        error: undefined,
-      });
-    }));
-
-  it.effect("choosing from the rail leaves the replayed row behind", () =>
-    Effect.gen(function* () {
-      const session = yield* makeSimulationSession({ sightings: [sighting(hasRole("a"))], seed });
-      assert.strictEqual(session.getSnapshot().policy._tag, "Seeded");
-      session.choosePolicy(hasRole("a"));
-      assert.strictEqual(session.getSnapshot().policy._tag, "Listed");
     }));
 
   it.effect("keeps an evicted choice, marks it, and still runs it", () =>
@@ -1168,77 +952,6 @@ describe("seeding", () => {
       // An evicted choice outlives an empty rail.
       session.setSightings([]);
       assert.strictEqual(session.getSnapshot().policy._tag, "Evicted");
-    }));
-
-  it.effect("pins the head before any choice, and a new head does not move it", () =>
-    Effect.gen(function* () {
-      const session = yield* makeSimulationSession();
-      assert.strictEqual(session.getSnapshot().policy._tag, "Empty");
-      session.setSightings([sighting(hasRole("a"))]);
-      session.setSightings([sighting(hasRole("b")), sighting(hasRole("a"))]);
-      const policy = session.getSnapshot().policy;
-      assert.strictEqual(policy._tag, "Listed");
-      if (policy._tag !== "Listed") return;
-      assert.isTrue(Equal.equals(policy.value.policy, hasRole("a")));
-      assert.strictEqual(policy.index, 1);
-    }));
-
-  it.effect("does not pin while a replayed row is seeded, and pins when it is left", () =>
-    Effect.gen(function* () {
-      const session = yield* makeSimulationSession({ seed });
-      session.setSightings([sighting(hasRole("a"))]);
-      assert.strictEqual(session.getSnapshot().policy._tag, "Seeded");
-      session.seed(undefined);
-      session.setSightings([sighting(hasRole("b")), sighting(hasRole("a"))]);
-      const policy = session.getSnapshot().policy;
-      assert.isTrue(policy._tag === "Listed" && Equal.equals(policy.value.policy, hasRole("a")));
-    }));
-
-  it.effect("pins the head at the moment a replayed row is left, not before", () =>
-    Effect.gen(function* () {
-      const session = yield* makeSimulationSession({ sightings: [sighting(hasRole("a"))], seed });
-      session.setSightings([sighting(hasRole("a"))]);
-      session.setSightings([sighting(hasRole("c")), sighting(hasRole("a"))]);
-      session.seed(undefined);
-      const policy = session.getSnapshot().policy;
-      assert.isTrue(policy._tag === "Listed" && Equal.equals(policy.value.policy, hasRole("c")));
-    }));
-
-  it.effect("choosing the held policy while a replayed row is seeded still leaves the row", () =>
-    Effect.gen(function* () {
-      const session = yield* makeSimulationSession({ sightings: [sighting(hasRole("a"))] });
-      session.seed(seed);
-      assert.strictEqual(session.getSnapshot().policy._tag, "Seeded");
-      session.choosePolicy(hasRole("a"));
-      assert.strictEqual(session.getSnapshot().policy._tag, "Listed");
-    }));
-
-  it.effect("remembers the rail's label for a chosen policy once it leaves the rail", () =>
-    Effect.gen(function* () {
-      const named: PolicySighting = { ...sighting(hasRole("a")), label: "canArchive" };
-      const session = yield* makeSimulationSession({ sightings: [sighting(hasRole("b")), named] });
-      session.choosePolicy(hasRole("a"));
-      session.setSightings([]);
-      const policy = session.getSnapshot().policy;
-      assert.strictEqual(policy._tag === "Evicted" && policy.value.label, "canArchive");
-    }));
-
-  it.effect("holds a policy chosen before the rail has any", () =>
-    Effect.gen(function* () {
-      const session = yield* makeSimulationSession();
-      session.choosePolicy(hasRole("a"));
-      session.setSightings([sighting(hasRole("b")), sighting(hasRole("a"))]);
-      const policy = session.getSnapshot().policy;
-      assert.isTrue(policy._tag === "Listed" && Equal.equals(policy.value.policy, hasRole("a")));
-    }));
-
-  it.effect("refuses nothing: choosing an unlisted policy holds it as evicted", () =>
-    Effect.gen(function* () {
-      const session = yield* makeSimulationSession({ sightings: [sighting(hasRole("a"))] });
-      session.choosePolicy(hasRole("zzz"));
-      const policy = session.getSnapshot().policy;
-      assert.isTrue(policy._tag === "Evicted" && Equal.equals(policy.value.policy, hasRole("zzz")));
-      assert.strictEqual(policy._tag === "Evicted" && policy.value.label, policyLabel(hasRole("zzz")));
     }));
 
   it.effect("runs nothing when there is no policy", () =>
@@ -1308,17 +1021,6 @@ describe("replaying a row", () => {
       assert.strictEqual(session.getSnapshot().run._tag, "Idle");
     }));
 
-  it.effect("seed with the entry it holds is a no-op, so an effect re-run keeps the edited form", () =>
-    Effect.gen(function* () {
-      const session = yield* makeSimulationSession({ sightings: [] });
-      session.seed(a);
-      session.edit({ ...session.getSnapshot().draft, action: "write" });
-      const seen = counted(session);
-      session.seed(a);
-      assert.strictEqual(seen.notified, 0);
-      assert.strictEqual(session.getSnapshot().draft.action, "write");
-    }));
-
   it.effect("seed after a replay of the same entry keeps the replay's edited form", () =>
     Effect.gen(function* () {
       const session = yield* makeSimulationSession({ sightings: [] });
@@ -1332,7 +1034,6 @@ describe("replaying a row", () => {
 
   it.effect("replaying a row that cannot be replayed leaves the seed as seed does", () =>
     Effect.gen(function* () {
-      const orphan = entryOf(obligationRecord({ evaluationId: "ev-orphan" }));
       const replayed = yield* makeSimulationSession({ sightings: [sighting(hasRole("b"))], seed: a });
       const seeded = yield* makeSimulationSession({ sightings: [sighting(hasRole("b"))], seed: a });
       replayed.replay(orphan);
@@ -1349,34 +1050,6 @@ describe("replaying a row", () => {
 });
 
 describe("choosing a policy", () => {
-  it.effect("keeps the chosen policy when a decision reorders the rail", () =>
-    Effect.gen(function* () {
-      const session = yield* makeSimulationSession({
-        sightings: [sighting(hasRole("a")), sighting(hasRole("b"))],
-      });
-      session.choosePolicy(hasRole("b"));
-      session.setSightings([sighting(hasRole("b")), sighting(hasRole("a"))]);
-      const policy = session.getSnapshot().policy;
-      assert.strictEqual(policy._tag, "Listed");
-      if (policy._tag !== "Listed") return;
-      assert.isTrue(Equal.equals(policy.value.policy, hasRole("b")));
-      assert.strictEqual(policy.index, 0);
-    }));
-
-  it.effect("keeps the chosen policy when a new policy decides first", () =>
-    Effect.gen(function* () {
-      const session = yield* makeSimulationSession({
-        sightings: [sighting(hasRole("a")), sighting(hasRole("b"))],
-      });
-      session.choosePolicy(hasRole("b"));
-      session.setSightings([sighting(hasRole("c")), sighting(hasRole("a")), sighting(hasRole("b"))]);
-      const policy = session.getSnapshot().policy;
-      assert.strictEqual(policy._tag, "Listed");
-      if (policy._tag !== "Listed") return;
-      assert.isTrue(Equal.equals(policy.value.policy, hasRole("b")));
-      assert.strictEqual(policy.index, 2);
-    }));
-
   it.effect("runs the chosen policy after the rail moved", () =>
     Effect.gen(function* () {
       const admin = hasRole("admin");
@@ -1601,29 +1274,32 @@ describe("the form's own commands", () => {
       assert.strictEqual(session.getSnapshot().draft.relationships?.[0]?.subjectId, "bob");
     }));
 
-  it.effect("every no-op command leaves the snapshot and the subscribers alone", () =>
-    Effect.gen(function* () {
-      const session = yield* makeSimulationSession({ sightings: [sighting(hasRole("a"))] });
-      const sightings = session.getSnapshot().sightings;
-      const seen = counted(session);
-      const before = session.getSnapshot();
+  it.effect(
+    "a no-op seed, ports, source, clock, pairs or chip command leaves the snapshot alone",
+    () =>
+      Effect.gen(function* () {
+        const session = yield* makeSimulationSession({
+          sightings: [sighting(hasRole("a"))],
+        });
+        const seen = counted(session);
+        const before = session.getSnapshot();
 
-      session.setSightings([...sightings]);
-      session.choosePolicy(hasRole("a"));
-      session.seed(undefined);
-      session.setPorts(undefined);
-      session.chooseSource("Fixtures");
-      session.setClock("live");
-      session.setPairs(false);
-      session.edit(before.draft);
-      session.renameSubject(before.draft.subject.id);
-      session.removeChip("roles", 0);
-      session.removeChip("signatures", 3);
-      assert.deepStrictEqual(session.addChip("history", "  "), { _tag: "Refused", reason: "nothing to add" });
+        session.seed(undefined);
+        session.setPorts(undefined);
+        session.chooseSource("Fixtures");
+        session.setClock("live");
+        session.setPairs(false);
+        session.removeChip("roles", 0);
+        session.removeChip("signatures", 3);
+        assert.deepStrictEqual(session.addChip("history", "  "), {
+          _tag: "Refused",
+          reason: "nothing to add",
+        });
 
-      assert.strictEqual(seen.notified, 0);
-      assert.strictEqual(session.getSnapshot(), before);
-    }));
+        assert.strictEqual(seen.notified, 0);
+        assert.strictEqual(session.getSnapshot(), before);
+      }),
+  );
 
   it.effect("every effective command notifies once and replaces the snapshot", () =>
     Effect.gen(function* () {
@@ -1730,18 +1406,6 @@ describe("what the session starts from, and what each command preserves", () => 
       assert.strictEqual(session.getSnapshot().run._tag, "Ran");
       session.choosePolicy(hasRole("a"));
       assert.strictEqual(session.getSnapshot().run._tag, "Idle");
-    }));
-
-  it.effect("leaving a seed with seed(undefined) clears the replayed policy", () =>
-    Effect.gen(function* () {
-      const seed = entryOf(decisionRecord({ evaluationId: "ev-6", policy: hasRole("x") }));
-      const session = yield* makeSimulationSession({ sightings: [sighting(hasRole("a"))], seed });
-      assert.strictEqual(session.getSnapshot().policy._tag, "Seeded");
-      session.seed(undefined);
-      assert.strictEqual(session.getSnapshot().policy._tag, "Listed");
-      const empty = yield* makeSimulationSession({ sightings: [], seed });
-      empty.seed(undefined);
-      assert.strictEqual(empty.getSnapshot().policy._tag, "Empty");
     }));
 
   it.effect("reports an accepted resource text as typed, with no error", () =>

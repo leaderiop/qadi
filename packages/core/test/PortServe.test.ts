@@ -24,7 +24,7 @@ import { portCallsTotal, servedPortCallsTotal } from "../src/PortMetrics.ts";
 import type { PortName } from "../src/PortName.ts";
 import { PORTS } from "../src/Ports.ts";
 import type { AnswerOf, ArgsOf, DescriptionOf, PortTypes } from "../src/Ports.ts";
-import { collectingTracer, isolatedMetrics } from "./helpers.ts";
+import { attributesOf, collectingTracer, isolatedMetrics } from "./helpers.ts";
 
 const aliceId = makeSubjectId("alice");
 const alice = makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} });
@@ -97,9 +97,7 @@ const serve = <K extends PortName>(d: DescriptionOf<K>, c: Case<K>) => {
           Effect.provide(Layer.mergeAll(answering, collectingTracer(spans))),
         );
         assert.deepStrictEqual(answer, c.answer);
-        const span = spans.find((s) => s.name === d.span);
-        assert.isDefined(span);
-        const attributes = Object.fromEntries(span?.attributes ?? []);
+        const attributes = attributesOf(spans, d.span);
         assert.strictEqual(attributes["qadi.interpreter"], "remote");
         for (const [key, value] of Object.entries(c.question)) {
           assert.strictEqual(attributes[key], value, key);
@@ -110,8 +108,7 @@ const serve = <K extends PortName>(d: DescriptionOf<K>, c: Case<K>) => {
       Effect.gen(function* () {
         const spans: Array<Tracer.Span> = [];
         yield* read.pipe(Effect.provide(Layer.mergeAll(answering, collectingTracer(spans))));
-        const span = spans.find((s) => s.name === d.span);
-        assert.notInclude(JSON.stringify(Object.fromEntries(span?.attributes ?? [])), SECRET);
+        assert.notInclude(JSON.stringify(attributesOf(spans, d.span)), SECRET);
       }));
 
     it.effect("counts once in the served metric and not in the evaluator's", () =>

@@ -1105,3 +1105,43 @@ export const loggedCache = Layer.effect(
 ```
 
 The decision is [ADR-QD-174](https://github.com/leaderiop/qadi/blob/main/spec/decisions/174-a-decision-cache-is-asked-the-question.md).
+
+## 0.13: the evaluate spans answer under `qadi.outcome` and a failed span says what was asked
+
+The `qadi.evaluate` span's outcome is one key on every path that ends in a decision or a typed failure: `qadi.outcome`, with the values `Allow`, `Deny` and `Failed`. An interrupted or defected evaluation carries its question and no outcome, and the span's status says why. The key `qadi.decision`, which carried `Allow` or `Deny`, is removed, and nothing is written under both keys, so a tracer query or a dashboard on `qadi.decision` must move to `qadi.outcome`. A failed evaluation was never under `qadi.decision`; it was `qadi.outcome` with the value `Failed`, so a query that already read `qadi.outcome` for failures now finds the allows and denials under it too.
+
+A failed `qadi.evaluate` span used to carry only `qadi.outcome` and `qadi.error_tag`, because its question was annotated after the decision was made. The question is now annotated first, on every path, so a query by `qadi.subject_id` or by `qadi.evaluation_id` finds the evaluations that failed as well as the ones that decided. The other spans of the family say what they were asked too, and `qadi.toPredicate` says why a translation failed.
+
+| Span | Before | After |
+| ---- | ------ | ----- |
+| `qadi.evaluate`, an allow or a denial | `qadi.decision` (`Allow` or `Deny`), `qadi.subject_id`, `qadi.evaluation_id`, `qadi.policy_tag`, `qadi.action` when supplied, `qadi.obligations` on an allow that owes some | `qadi.outcome` (`Allow` or `Deny`) in place of `qadi.decision`; the other keys as before |
+| `qadi.evaluate`, a failure | `qadi.outcome` (`Failed`) and `qadi.error_tag` | `qadi.subject_id`, `qadi.evaluation_id`, `qadi.policy_tag`, `qadi.action` when supplied, `qadi.outcome` (`Failed`) and `qadi.error_tag` |
+| `qadi.toPredicate`, a translation | `qadi.subject_id`, `qadi.policy_tag` and `qadi.predicate_tag` | the same, and `qadi.action` when supplied |
+| `qadi.toPredicate`, a failed translation | no key | `qadi.subject_id`, `qadi.policy_tag`, `qadi.action` when supplied and `qadi.error_tag` |
+| `qadi.guardHealthCheck` | `qadi.healthy`, and `qadi.error_tag` when unhealthy | `qadi.subject_id`, `qadi.policy_tag` and `qadi.action` when supplied, then `qadi.healthy`, and `qadi.error_tag` when unhealthy |
+| `qadi.decideSubjects` | `qadi.subject_count` and `qadi.policy_tag` | the same, and `qadi.action` when supplied |
+| `qadi.decideSubjectsStream` | `qadi.policy_tag` | the same, and `qadi.action` when supplied |
+
+Every evaluation now annotates its span twice, the question and then the answer, where it annotated once. The cost is recorded in the decision.
+
+The decision is [ADR-QD-188](https://github.com/leaderiop/qadi/blob/main/spec/decisions/188-the-evaluate-familys-spans-are-declared-once-and-a-failed-span-says-what-was-asked.md).
+
+## 0.13: `ActedEvent`, `ActedAnywhere` and `ActedAnywhereInput` are removed, and two history errors may omit a member
+
+`ActedEvent`, `ActedAnywhere` and `ActedAnywhereInput` are removed from `@qadi/core`. A host that built its own set of history rows from them keys its rows with `decisionHistoryPort.key`, as `decisionHistoryFromEvents` does; `ActedEventInput`, the row `decisionHistoryFromEvents` takes, stays.
+
+`SignatureHistoryUnavailable.subjectId` and `DecisionHistoryUnavailable.event` are optional. Each is absent exactly when the request's value for it was unreadable or one the member's schema refuses, a subject id or an event that is not a string, whether or not the port's key refuses it. The error's `cause` is the refusal's sentence when the key refuses the request, and the store's own cause when the key admits it, as it does a subject id that is an object. A reader of a sink record, or of `@qadi/http`'s `SignatureHistoryUnavailableResponse` and `DecisionHistoryUnavailableResponse`, checks for the member before reading it, and a decoder of a stored record accepts it absent.
+
+The two fixtures also fail a request or a row they cannot key, where they used to misanswer: a history set with such a row answered `"NotActed"`, which `hasNotActed` reads as an allow.
+
+| Change | Before | After |
+| ------ | ------ | ----- |
+| `ActedEvent` | a class exported by `@qadi/core` | removed; key a row with `decisionHistoryPort.key` |
+| `ActedAnywhere` | a class exported by `@qadi/core` | removed; key a row with `decisionHistoryPort.key` |
+| `ActedAnywhereInput` | the input type of `ActedAnywhere` | removed with it |
+| `SignatureHistoryUnavailable.subjectId` | always present | optional, absent when the request's subject id was not a string |
+| `DecisionHistoryUnavailable.event` | always present | optional, absent when the request's event was not a string |
+| `decisionHistoryFromEvents`, a row or request it cannot key | answered `"NotActed"` or threw | fails with `DecisionHistoryUnavailable` |
+| `signatureHistoryFromSignatures`, a request it cannot key | the read died | fails with `SignatureHistoryUnavailable` |
+
+The decision is [ADR-QD-189](https://github.com/leaderiop/qadi/blob/main/spec/decisions/189-remedies-asks-core-whether-a-fixture-row-meets-a-signature-or-acted-leaf.md).

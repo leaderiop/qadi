@@ -28,6 +28,7 @@ import type { AttributeResolveError, DecisionHistoryUnavailable } from "./Errors
 import type { MissingAction } from "./Errors.ts";
 import { PolicyNotTranslatable } from "./Errors.ts";
 import { predicatesTranslatedTotal } from "./EvaluationMetrics.ts";
+import { askedOf, toPredicateSpan } from "./EvaluationSpan.ts";
 import type { Matcher, MatcherContext, ValueRef } from "./Matcher.ts";
 import { referencesResource } from "./Matcher.ts";
 import { getByPath, ownValue } from "./Operand.ts";
@@ -37,6 +38,7 @@ import { fieldsOf, foldPolicy, foldPolicyCases } from "./Policy.ts";
 import { askActed, isAnyActedLeaf, readAttribute } from "./PortAccess.ts";
 import type { AnyActedLeaf } from "./PortAccess.ts";
 import type { LeafOf } from "./PortDescription.ts";
+import { annotateAsked, annotateSpan } from "./PortSpanEncode.ts";
 import { questionOf } from "./Question.ts";
 import type { Question, QuestionOptions } from "./Question.ts";
 import type { Combining, Policy, PolicyCases, RuleEffect } from "./Policy.ts";
@@ -635,6 +637,19 @@ const run = (
   );
 
 /**
+ * Annotates a failed translation's span with the error's tag, and fails unchanged.
+ *
+ * `toPredicate`'s pipeable: `Effect.fn` runs it inside the span, so it covers every
+ * way a translation fails, too deep, fields, untranslatable or a port.
+ */
+const answerFailure = <A, E extends { readonly _tag: string }, R>(
+  translation: Effect.Effect<A, E, R>,
+): Effect.Effect<A, E, R> =>
+  Effect.tapError(translation, (error) =>
+    annotateSpan(toPredicateSpan.answer, { errorTag: error._tag }),
+  );
+
+/**
  * Compiles a policy into a filter over rows the caller has not loaded.
  *
  * Fails rather than approximates. A node outside the translatable subset
@@ -649,8 +664,12 @@ const run = (
  * restriction is refused, because a row filter alone would let a caller select
  * columns the policy withheld. Narrow the page with this, then judge the columns
  * with `decide` and `project`.
+ *
+ * Its span (`toPredicateSpan`, `EvaluationSpan.ts`) says what was asked before
+ * translating and, when translation fails, the error's tag (ADR-QD-188). The tag
+ * is written by {@link answerFailure}, a pipeable `Effect.fn` runs inside the span.
  */
-export const toPredicate = Effect.fn("qadi.toPredicate")(function* (
+export const toPredicate = Effect.fn(toPredicateSpan.name)(function* (
   policy: Policy,
   options?: PredicateOptions,
 ) {
@@ -658,6 +677,7 @@ export const toPredicate = Effect.fn("qadi.toPredicate")(function* (
   // Translation answers for rows not yet loaded, so its question has no
   // resource — explicitly, even if a caller's untyped options carried one.
   const question: Question = { ...questionOf(subject, policy, options), resource: undefined };
+  yield* annotateAsked(toPredicateSpan.question, askedOf(question));
   // Admission first, and from the policy alone: a policy that is both too deep
   // and field-restricting is always `PolicyTooDeep`, independent of child order
   // (ARCH-02 D-02-e, N4; INV-QD-037). Shared with `walk` (`Admission.ts`).
@@ -678,13 +698,9 @@ export const toPredicate = Effect.fn("qadi.toPredicate")(function* (
   }
   const predicate = yield* run(compiled, subject, admitted.success.matcherContext);
 
-  yield* Effect.annotateCurrentSpan({
-    "qadi.subject_id": subject.id,
-    "qadi.policy_tag": policy._tag,
-    "qadi.predicate_tag": predicate._tag,
-  });
+  yield* annotateSpan(toPredicateSpan.answer, { predicateTag: predicate._tag });
 
   yield* Metric.update(predicatesTranslatedTotal, 1);
 
   return predicate;
-});
+}, answerFailure);

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-103                                   |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-10-07                                     |
-> | Status         | Accepted — amends ADR-QD-053, ADR-QD-080, ADR-QD-025 |
+> | Status         | Accepted — amends ADR-QD-053, ADR-QD-080, ADR-QD-025; amended 2026-11-22 (ADR-QD-186) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.4 (2026-11-12): Amendment: a seed is held by the handle, not a registry node (ADR-QD-149, CCR-QD-427)<br>1.3 (2026-11-12): The sweep runs within a few macrotasks of the pressure, not one: after an unmount the registry removes its node a macrotask later and only then does the book signal (CCR-QD-426)<br>1.2 (2026-11-12): amendment — the atom set sweeps its own book one macrotask after the pressure; the provider forks none (ARCH-83, ADR-QD-148, CCR-QD-426)<br>1.1 (2026-11-11): Note (ARCH-76, CCR-QD-418): useGateRegistration was removed (ADR-QD-140)<br>1.0 (2026-10-07): Initial (ARCH-23, CCR-QD-201) |
+> | Change History | 1.5 (2026-11-22): Note: a single-question guard passes one keyed wanted entry (ADR-QD-186, CCR-QD-465)<br>1.4 (2026-11-12): Amendment: a seed is held by the handle, not a registry node (ADR-QD-149, CCR-QD-427)<br>1.3 (2026-11-12): The sweep runs within a few macrotasks of the pressure, not one: after an unmount the registry removes its node a macrotask later and only then does the book signal (CCR-QD-426)<br>1.2 (2026-11-12): amendment — the atom set sweeps its own book one macrotask after the pressure; the provider forks none (ARCH-83, ADR-QD-148, CCR-QD-426)<br>1.1 (2026-11-11): Note (ARCH-76, CCR-QD-418): useGateRegistration was removed (ADR-QD-140)<br>1.0 (2026-10-07): Initial (ARCH-23, CCR-QD-201) |
 
 ---
 
@@ -54,6 +54,8 @@ Nothing in the suite could see it, because nothing forced a collection.
   `usePolicies` is its policy-only case. *(2026-11-11, ARCH-76: `useGateRegistration` was
   removed, a single-question guard passes one identity to `useGateRegistrations`, which now
   lives in `useGate.ts`; see [ADR-QD-140](140-a-gates-write-side-is-a-leaf-below-the-atom-set.md).)*
+  *(2026-11-22, ARCH-120: a single-question guard now passes one wanted entry keyed by its gate id, not
+  one identity; see [ADR-QD-186](186-gate-registration-is-one-keyed-reconcile.md).)*
 - **Mutation scope.** `stryker.react.mjs` also mutates `QuestionBook.ts`, break threshold unchanged.
 
 ### Decisions taken (ARCH-23)

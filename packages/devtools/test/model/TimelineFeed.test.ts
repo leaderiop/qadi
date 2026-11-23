@@ -19,7 +19,7 @@ import type { StoredRecord } from "@qadi/core";
 import { sourceFromRecords, type Source, type SourceRead } from "../../src/model/Source.ts";
 import { makeTimelineFeed, type TimelineFeed } from "../../src/index.ts";
 import { idleTimeline } from "../../src/model/TimelineFeed.ts";
-import { decisionRecord, settleTurns, thrownBy } from "../helpers.ts";
+import { decisionRecord, hostile, hostileError, settleTurns, thrownBy } from "../helpers.ts";
 
 const flush = Effect.andThen(Effect.yieldNow, TestClock.adjust("10 millis"));
 
@@ -236,6 +236,17 @@ describe("the timeline feed", () => {
       const status = feed.status.getSnapshot();
       assert.strictEqual(status._tag, "Stopped");
       assert.isTrue(status._tag === "Stopped" && status.reason.includes("boom"));
+    }));
+
+  it.effect("a read that dies with a value that cannot be rendered is Stopped with the placeholder", () =>
+    Effect.gen(function* () {
+      for (const value of [hostile, hostileError]) {
+        const feed = yield* makeTimelineFeed({ source: { read: Effect.die(value) } });
+
+        const status = feed.status.getSnapshot();
+        if (status._tag !== "Stopped") return assert.fail("expected Stopped");
+        assert.strictEqual(status.reason, "a value that could not be described");
+      }
     }));
 
   it.effect("TF11 a live stream that dies after its backlog is Stopped and keeps the entries; a new source reads again", () =>

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-152                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-11-14                                     |
 > | Status         | Accepted — amends ADR-QD-123 and ADR-QD-037    |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-14): Initial (ARCH-86, CCR-QD-430) |
+> | Change History | 1.3 (2026-11-22): the Consequences bullet superseded by the amendment is marked amended, its old text kept (ARCH-117, ADR-QD-183, CCR-QD-462)<br>1.2 (2026-11-22): amendment corrected: an entry or dehydration row is a compile error until it has a bucket, a payload row until its producer is named (ARCH-117, ADR-QD-183, CCR-QD-462)<br>1.1 (2026-11-22): amendment — every drop reason is a compile error until it is produced and reported (ARCH-117, ADR-QD-183, CCR-QD-462)<br>1.0 (2026-11-14): Initial (ARCH-86, CCR-QD-430) |
 
 ---
 
@@ -81,6 +81,17 @@ it.** (ARCH-86, CCR-QD-430.)
   would reshape `HydrationEngine.ts`, which a later phase shares, and the reporters already read a
   new reason's meaning from its row.
 
+## Amendment (2026-11-22, CCR-QD-462): every drop reason is a compile error until its source is stated
+
+The alternative this decision turned down, a reason-keyed record in react's payload path, is taken by
+[ADR-QD-183](./183-hydration-drop-events-are-derived-from-their-buckets.md), because the reason given, a later phase
+sharing `HydrationEngine.ts`, no longer holds. The consequence below that a `payload` or `dehydration` row compiles
+everywhere is amended: an `entry` row is a compile error at the hydrate side's bucket constructor in
+`HydrationBuckets.ts`, and a `dehydration` row at the dehydrate side's, each until it has a bucket, and so an event,
+and a `payload` row is a compile error at `HydrationEngine.ts`'s `PAYLOAD_PRODUCERS` until its producer is named. The
+compiler cannot check that a call site raises a producer ([ADR-QD-183](./183-hydration-drop-events-are-derived-from-their-buckets.md)).
+Every other decision here is unchanged.
+
 ## Consequences
 
 - `@qadi/core` gains two public types, `HydrationDropReasonOf` and `HydrationDropRow`, so the
@@ -92,6 +103,9 @@ it.** (ARCH-86, CCR-QD-430.)
   row compiles everywhere, because react's payload map is keyed by the decoder's refusal and not by
   reason: it reaches the metric, the panel and the reporters with its meaning, but nothing emits it
   until a refusal that produces it is written. A `dehydration` row likewise.
+  (Amended 2026-11-22 by ADR-QD-183: see the Amendment above. A `payload` and a `dehydration` row no longer compile
+  everywhere, and the engine's `bucketOf` is gone; the records are now `entryBuckets`, `dehydrationBuckets` and
+  `PAYLOAD_PRODUCERS`.)
 - The written-out oracles go red on any new row, by design.
 - Devtools and the example are unchanged.
   [ADR-QD-041](./041-a-mismatch-is-announced.md)'s sentence placing each meaning next to the union

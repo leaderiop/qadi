@@ -21,15 +21,24 @@ import {
 } from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import { predicatesTranslatedTotal } from "../src/EvaluationMetrics.ts";
+import { toPredicateSpan } from "../src/EvaluationSpan.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
 import type { Predicate } from "../src/Predicate.ts";
 import { evaluatePredicate, toPredicate } from "../src/Predicate.ts";
-import { chain, collectingTracer, isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
+import {
+  attributesOf,
+  chain,
+  collectingTracer,
+  isolatedMetrics,
+  subjectWith,
+  testLayer,
+} from "./helpers.ts";
 import { scriptedPort } from "../src/PortDoubles.ts";
 import { PortReply } from "../src/PortDescription.ts";
+import { encodeSpan } from "../src/PortSpanEncode.ts";
 
 const tenant = subjectWith({
   id: "u-1",
@@ -1614,8 +1623,6 @@ describe("BEH-QD-264: a defecting port fails translation typed, not dead", () =>
 describe("BEH-QD-267: translation's port reads are spans", () => {
   const named = (spans: ReadonlyArray<Tracer.Span>, name: string) =>
     spans.find((s) => s.name === name);
-  const attributesOf = (span: Tracer.Span | undefined): Record<string, unknown> =>
-    span === undefined ? {} : Object.fromEntries(span.attributes);
 
   const resolver = Layer.succeed(AttributeResolver, {
     name: "record",
@@ -1663,10 +1670,10 @@ describe("BEH-QD-267: translation's port reads are spans", () => {
       );
 
       const span = named(spans, "qadi.attribute");
-      const root = named(spans, "qadi.toPredicate");
+      const root = named(spans, toPredicateSpan.name);
       assert.isDefined(span);
       assert.isDefined(root);
-      assert.deepStrictEqual(attributesOf(span), {
+      assert.deepStrictEqual(attributesOf(spans, "qadi.attribute"), {
         "qadi.attribute": "riskScore",
         "qadi.subject_id": "u9",
         "qadi.interpreter": "toPredicate",
@@ -1709,7 +1716,7 @@ describe("BEH-QD-267: translation's port reads are spans", () => {
         ),
       );
 
-      assert.deepStrictEqual(attributesOf(named(spans, "qadi.attribute")), {
+      assert.deepStrictEqual(attributesOf(spans, "qadi.attribute"), {
         "qadi.attribute": "riskScore",
         "qadi.subject_id": "u9",
         "qadi.interpreter": "toPredicate",
@@ -1728,7 +1735,7 @@ describe("BEH-QD-267: translation's port reads are spans", () => {
         ),
       );
 
-      assert.deepStrictEqual(attributesOf(named(spans, "qadi.acted")), {
+      assert.deepStrictEqual(attributesOf(spans, "qadi.acted"), {
         "qadi.subject_id": "u9",
         "qadi.event": "onboarded",
         "qadi.scope": "Any",
@@ -1928,11 +1935,12 @@ describe("qadi.toPredicate names the translation it was asked", () => {
         Effect.provide(Layer.mergeAll(testLayer(subjectWith({ id: "u9", roles: ["editor"] })), collectingTracer(spans))),
       );
 
-      const span = spans.find((s) => s.name === "qadi.toPredicate");
-      assert.deepStrictEqual(Object.fromEntries(span?.attributes ?? []), {
-        "qadi.subject_id": "u9",
-        "qadi.policy_tag": "HasRole",
-        "qadi.predicate_tag": "True",
+      assert.deepStrictEqual(attributesOf(spans, toPredicateSpan.name), {
+        ...encodeSpan(toPredicateSpan.question, {
+          subjectId: "u9",
+          policyTag: "HasRole",
+        }),
+        ...encodeSpan(toPredicateSpan.answer, { predicateTag: "True" }),
       });
     }));
 });

@@ -12,14 +12,19 @@
  * `say`, is the only `console` reference in the library. A new signal is a new
  * union member, and the compiler asks for its sentence.
  *
- * **Resolution.** Each resolver below returns the supplied reporter, contained,
- * or else the default. A supplied reporter replaces the default outright and
- * runs in production: a caller routing signals to telemetry does not also want
- * them on the console, and one that does can call `console.warn` itself. The default speaks only under its
- * own condition, which is development for every signal except
- * `InstrumentedInProduction`.
+ * **Resolution.** Every reporter is resolved by {@link reporterFor} from the signal's
+ * row in {@link SIGNALS}, which states where its default speaks, how often, when the
+ * entry point resolves it and the option each entry point passes it under. A supplied
+ * reporter replaces the default outright and runs in production: a caller routing
+ * signals to telemetry does not also want them on the console, and one that does can
+ * call `console.warn` itself. The default speaks only under its own condition, which is
+ * development for every signal except `InstrumentedInProduction` and `ReporterThrew`. The
+ * environment is read in one place, {@link holdsHere}, which `QadiProvider` also asks of
+ * `InstrumentedInProduction`'s row to decide whether to raise it. The one piece of process
+ * state is the latch that lets `InstrumentedInProduction` speak once per process
+ * (ADR-QD-184).
  *
- * **A supplied reporter observes; it cannot change the outcome.** Each resolver
+ * **A supplied reporter observes; it cannot change the outcome.** Resolution
  * wraps what it is handed once, in {@link contain}, so a reporter that throws is
  * announced as `ReporterThrew` and then ignored: the result, the seeds, the
  * counts and the render are what they would have been had it returned (ARCH-60).
@@ -41,7 +46,7 @@ import type {
   Policy,
   Resource,
 } from "@qadi/core";
-import { hydrationDropMeaning } from "@qadi/core";
+import { hydrationDropMeaning, thrownMessage } from "@qadi/core";
 import * as Data from "effect/Data";
 import * as Match from "effect/Match";
 import type { SeededDecision } from "./SeededDecision.ts";
@@ -61,17 +66,20 @@ export interface HydrationMismatch {
 export type HydrationMismatchReporter = (mismatch: HydrationMismatch) => void;
 
 /**
- * Whether to warn by default.
+ * Whether the code is running in a development build, as far as it can tell.
  *
  * The literal `process.env.NODE_ENV` text is load-bearing rather than
  * idiomatic: esbuild and Vite `define` substitute exactly that member
- * expression, so a production build folds this to `false` and eliminates the
- * `console.warn` below with it. `globalThis.process?.env?.["NODE_ENV"]` would
- * be tidier and would not be substituted, which is why it is not used. The
- * `typeof` guard is what keeps unbundled ESM from throwing `ReferenceError` in
- * a browser, where `process` does not exist at all.
+ * expression, so a production build compares a constant here.
+ * `globalThis.process?.env?.["NODE_ENV"]` would be tidier and would not be
+ * substituted, which is why it is not used. The `typeof` guard is what keeps
+ * unbundled ESM from throwing `ReferenceError` in a browser, where `process`
+ * does not exist at all.
+ *
+ * Read at run time, by the table's conditions, so the sentences and the table
+ * stay in a production bundle: substituting the text does not remove them.
  */
-export const isDevelopment = (): boolean =>
+const isDevelopment = (): boolean =>
   typeof process !== "undefined" && process.env.NODE_ENV !== "production";
 
 /**
@@ -99,21 +107,40 @@ type DeveloperSignal = Data.TaggedEnum<{
   UnwritableGateRegistry: {};
 }>;
 
-/** A hook a host can supply, named as the option it is passed through. */
-type ReporterName = "onHydrationMismatch" | "onGateIdCollision" | "onDropped" | "onDeveloperSignal";
-
 const DeveloperSignal = Data.taggedEnum<DeveloperSignal>();
 
 const verdict = (decision: Decision | SeededDecision): string =>
   permits(decision) ? "allowed" : "denied";
 
 /**
- * An error as one short line: `name: message` for an `Error`, else its string
- * form. Only the error: never the value the reporter was handed, which may be
- * another subject's decision.
+ * The `name: message` form of an `Error` whose own `message` reads as a string.
+ *
+ * Anything else, a value that is not an `Error` or an `Error` whose `message` is not
+ * a string or whose getter throws, is `undefined` here and `errorLine` writes it
+ * through `thrownMessage`, so the name is never printed twice (ADR-QD-182).
  */
-const errorLine = (error: unknown): string =>
-  error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+const namedLine = (error: unknown): string | undefined => {
+  try {
+    if (error instanceof Error) {
+      const message: unknown = error.message;
+      // `thrownMessage` is the guarded string conversion of the name (a name need not be a string).
+      if (typeof message === "string") return `${thrownMessage(error.name)}: ${message}`;
+    }
+  } catch {
+    // The `message` getter threw, or a proxy's prototype trap did.
+  }
+  return undefined;
+};
+
+/**
+ * An error as one short line: `name: message` for an `Error` whose message reads
+ * as a string, else `thrownMessage`'s text.
+ *
+ * Only the error: never the value the reporter was handed, which may be another
+ * subject's decision. No value the reporter threw can make this line throw, so the
+ * containment holds whatever was thrown.
+ */
+const errorLine = (error: unknown): string => namedLine(error) ?? thrownMessage(error);
 
 /**
  * What to say about each signal.
@@ -153,7 +180,8 @@ const describeSignal: (signal: DeveloperSignal) => string = Match.type<Developer
       `root a distinct \`identifierPrefix\` in its hydrateRoot/createRoot options ` +
       `to fix the cause.`,
     DehydrationDropped: ({ reason, count }) =>
-      `[qadi] dehydrateDecisions dropped ${count} decision(s): ${hydrationDropMeaning(reason).remedy}.`,
+      `[qadi] dehydrateDecisions dropped ${count} decision(s): ` +
+      `${hydrationDropMeaning(reason).remedy}.`,
     HydrationDropped: ({ reason, count, wholePayload }) => {
       // A refusal of the payload whole is not "zero decisions lost" when the
       // payload carried none, so it is announced as a refusal and the count is
@@ -200,7 +228,8 @@ const say = (signal: DeveloperSignal): void => {
  * swallowed, so the caller carries on exactly as if the reporter had returned.
  * Said in **every** environment, because the host replaced the default and
  * nothing else will ever say it (BEH-QD-230's reason for announcing a drop at
- * all). The library's own defaults are not wrapped: `say` does not throw.
+ * all); that rule is `ReporterThrew`'s own row, read through {@link unconditionally}. The
+ * library's own defaults are not wrapped: `say` does not throw.
  */
 const contain =
   <A,>(reporter: ReporterName, supplied: (value: A) => void) =>
@@ -208,50 +237,9 @@ const contain =
     try {
       supplied(value);
     } catch (error) {
-      say(DeveloperSignal.ReporterThrew({ reporter, error }));
+      unconditionally(SIGNALS.ReporterThrew)(DeveloperSignal.ReporterThrew({ reporter, error }));
     }
   };
-
-/**
- * The reporter an atom set will use, or `undefined` for none.
- *
- * A supplied callback replaces the warning outright rather than adding to it: a
- * caller routing mismatches to telemetry does not also want them on the
- * console, and one that does can call `console.warn` itself.
- */
-export const hydrationMismatchReporter = (
-  supplied: HydrationMismatchReporter | undefined,
-): HydrationMismatchReporter | undefined =>
-  supplied === undefined
-    ? isDevelopment()
-      ? (mismatch) => say(DeveloperSignal.SeedSuperseded({ mismatch }))
-      : undefined
-    : contain("onHydrationMismatch", supplied);
-
-/**
- * Told when two live guards registered the same id with one gate registry.
- *
- * React's `useId` is unique within a root; two hydrated roots derive ids from
- * tree position and so collide. The registry keeps both guards (the second under
- * a disambiguated id) and says so once per id.
- */
-export type GateIdCollisionReporter = (id: string) => void;
-
-/**
- * The reporter a gate registry will use, or `undefined` for none.
- *
- * The sibling of {@link hydrationMismatchReporter}: a development-mode warning
- * by default, replaced outright by a supplied callback, which then runs in
- * production too.
- */
-export const gateIdCollisionReporter = (
-  supplied: GateIdCollisionReporter | undefined,
-): GateIdCollisionReporter | undefined =>
-  supplied === undefined
-    ? isDevelopment()
-      ? (id) => say(DeveloperSignal.GateIdCollision({ id }))
-      : undefined
-    : contain("onGateIdCollision", supplied);
 
 /**
  * Entries a payload discarded, and why: the one drop shape both ends report.
@@ -287,45 +275,237 @@ export type HydrationDropReporter<A, R extends HydrationDropReason = ClientHydra
   drop: HydrationDrop<A, R>,
 ) => void;
 
-/**
- * The development default for entries `dehydrateDecisions` left out.
- *
- * Counts them and says nothing about their contents, because a dropped decision
- * may belong to *another subject* and printing it would be the disclosure the
- * drop exists to prevent.
- */
-export const saysDehydrationDropped: HydrationDropReporter<unknown, DehydrationDropReason> = ({
-  reason,
-  entries,
-}) => say(DeveloperSignal.DehydrationDropped({ reason, count: entries.length }));
-
-/** The development default for entries, or a payload, `hydrateDecisions` did not seed. */
-export const saysHydrationDropped: HydrationDropReporter<unknown> = ({ reason, entries, wholePayload }) =>
-  say(DeveloperSignal.HydrationDropped({ reason, count: entries.length, wholePayload }));
+/** The environments a default's condition is read against: one build, and not the other. */
+type Gated = "Development" | "Production";
 
 /**
- * The drop reporter one end will use, or `undefined` for none.
+ * Where a signal's console default speaks: in one build, or in every environment.
  *
- * One of this module's reporters, deliberately the same shape as the others: a
- * development-mode warning by default, replaced outright by a supplied
- * callback, which then runs in production too. Generic in the reason so both
- * ends resolve through it; which sentence the default says is the caller's
- * `byDefault` — {@link saysDehydrationDropped} for the slot a `LeftOut` event is
- * announced to, {@link saysHydrationDropped} for the one `PayloadRefused` and
- * `EntriesDropped` are — so it is chosen by the event's tag, never by testing
- * the reason string.
- *
- * It exists because hydration had silent exits. An entry left out of a payload
- * is a bug on the server (a cache key mixing two users' decisions, a policy the
- * schema cannot carry), and a payload the client cannot verify left "hydration
- * isn't working" with no signal attached to it at all. The current reasons are
- * `HydrationDropReason` in `@qadi/core`.
+ * Only a {@link Gated} condition is read at run time ({@link holdsHere}). A row that
+ * speaks everywhere has none to read, and the types say so rather than a branch.
  */
-export const hydrationDropReporter = <A, R extends HydrationDropReason = ClientHydrationDropReason>(
-  supplied: HydrationDropReporter<A, R> | undefined,
-  byDefault: HydrationDropReporter<A, R>,
-): HydrationDropReporter<A, R> | undefined =>
-  supplied === undefined ? (isDevelopment() ? byDefault : undefined) : contain("onDropped", supplied);
+type Speaks = Gated | "Everywhere";
+
+/** How often a default speaks once its condition holds. */
+type Often = "PerEvent" | "OncePerProcess";
+
+/** When an entry point resolves the reporter it was handed. */
+type Resolution = "OncePerAtomSet" | "OncePerRegistry" | "OncePerCall" | "OnEveryReport";
+
+/** What one entry point states about a signal: its reporter option, and when it reads it. */
+interface EntryFacts<Option extends string> {
+  readonly option: Option;
+  readonly resolved: Resolution;
+}
+
+/**
+ * One signal's row: its default, the condition it speaks under and the entry points that
+ * take a reporter for it.
+ *
+ * `Told` is what the default (and a reporter) is told, `Entry` the entry points the row
+ * names, `Option` the names a reporter can be passed under. `often` and `speaks` are type
+ * parameters so a table can state which one row may speak once per process, and a resolver
+ * can ask for the rows whose default has a condition to read.
+ *
+ * `speaks` is read by {@link holdsHere}, and by nothing else: it is where the default
+ * speaks, and for `InstrumentedInProduction`, whose situation exists only in production, it
+ * is also where `QadiProvider` raises the signal at all.
+ */
+interface SignalRow<
+  Told,
+  Entry extends string,
+  Option extends string,
+  O extends Often = Often,
+  S extends Speaks = Speaks,
+> {
+  readonly speaks: S;
+  readonly often: O;
+  readonly says: (told: Told) => void;
+  readonly entries: { readonly [E in Entry]: EntryFacts<Option> };
+}
+
+/** The tag of every developer signal. */
+export type SignalTag = DeveloperSignal["_tag"];
+
+/** A row's `often`: only the production-instrumentation row may latch once per process. */
+type OftenOf<T extends SignalTag> = T extends "InstrumentedInProduction"
+  ? "OncePerProcess"
+  : "PerEvent";
+
+/**
+ * One row per developer signal, and no other shape of table.
+ *
+ * Keyed by the signal union, so a signal without a row, a row for no signal, or a second
+ * row speaking once per process does not compile. `never` for what a row is told lets
+ * each row say its own, and the template-literal option keeps every option name a literal
+ * so {@link ReporterName} can be read off it.
+ */
+export type SignalTable = {
+  readonly [T in SignalTag]: SignalRow<never, string, `on${string}`, OftenOf<T>>;
+};
+
+/**
+ * How each environment condition reads where the code runs.
+ *
+ * The one place the environment is checked. `Everywhere` is not a key: it has no
+ * condition, and {@link holdsHere} and {@link unconditionally} refuse it by type.
+ */
+const CONDITIONS: { readonly [S in Gated]: () => boolean } = {
+  Development: isDevelopment,
+  Production: () => !isDevelopment(),
+};
+
+/**
+ * Whether a row's condition holds in the environment the code runs in.
+ *
+ * The one reader of a row's `speaks`, so the condition is written once, in the row.
+ * {@link reporterFor} asks it whether a default speaks, and `QadiProvider` asks it of
+ * `InstrumentedInProduction`'s row whether the situation exists to be raised, so the
+ * provider carries no environment check of its own.
+ */
+export const holdsHere = (row: { readonly speaks: Gated }): boolean =>
+  CONDITIONS[row.speaks]();
+
+/**
+ * Whether the production-instrumentation warning has already fired.
+ *
+ * Module scope, not per-provider: several `QadiProvider`s can share one
+ * process, and the point is a single signal that instrumentation reached a
+ * production bundle at all, not one line per provider instance. It is the one
+ * piece of process state in the library, kept in the one file allowed ambient
+ * state; a supplied reporter bypasses it and is told once per mount instead
+ * (ADR-QD-184).
+ */
+let warnedInstrumentedInProduction = false;
+
+/** A default that speaks once per process, whatever it is told. */
+const once =
+  <Told,>(says: (told: Told) => void) =>
+  (told: Told): void => {
+    if (warnedInstrumentedInProduction) return;
+    warnedInstrumentedInProduction = true;
+    says(told);
+  };
+
+/**
+ * Every developer signal's default, how often it speaks, and the option each entry point
+ * reports it under.
+ *
+ * Total over the union, so a signal added without a row does not compile, and
+ * {@link ReporterName} is read off it rather than kept by hand. `OncePerProcess` is the
+ * one latch in the library (ADR-QD-184). The provider's rows say `OnEveryReport` because
+ * it reads its reporter through a ref on every report, so an inline callback stays
+ * current. `says` is what the default writes: the hydration defaults count entries and
+ * never print them, and four signals use `say` as it is.
+ */
+export const SIGNALS = {
+  SeedSuperseded: {
+    speaks: "Development",
+    often: "PerEvent",
+    says: (mismatch: HydrationMismatch) => say(DeveloperSignal.SeedSuperseded({ mismatch })),
+    entries: { makeQadiAtoms: { option: "onHydrationMismatch", resolved: "OncePerAtomSet" } },
+  },
+  GateIdCollision: {
+    speaks: "Development",
+    often: "PerEvent",
+    says: (id: string) => say(DeveloperSignal.GateIdCollision({ id })),
+    entries: {
+      makeQadiAtoms: { option: "onGateIdCollision", resolved: "OncePerAtomSet" },
+      makeGateRegistry: { option: "onIdCollision", resolved: "OncePerRegistry" },
+    },
+  },
+  DehydrationDropped: {
+    speaks: "Development",
+    often: "PerEvent",
+    // Counts entries and says nothing about their contents, because a dropped decision may
+    // belong to *another subject* and printing it would be the disclosure the drop exists
+    // to prevent.
+    says: ({ reason, entries }: HydrationDrop<unknown, DehydrationDropReason>) =>
+      say(DeveloperSignal.DehydrationDropped({ reason, count: entries.length })),
+    entries: { dehydrateDecisions: { option: "onDropped", resolved: "OncePerCall" } },
+  },
+  HydrationDropped: {
+    speaks: "Development",
+    often: "PerEvent",
+    says: ({ reason, entries, wholePayload }: HydrationDrop<unknown>) =>
+      say(DeveloperSignal.HydrationDropped({ reason, count: entries.length, wholePayload })),
+    entries: { hydrateDecisions: { option: "onDropped", resolved: "OncePerCall" } },
+  },
+  ReporterThrew: { speaks: "Everywhere", often: "PerEvent", says: say, entries: {} },
+  InstrumentedInProduction: {
+    speaks: "Production",
+    often: "OncePerProcess",
+    says: say,
+    entries: { QadiProvider: { option: "onDeveloperSignal", resolved: "OnEveryReport" } },
+  },
+  AtomsReplaced: {
+    speaks: "Development",
+    often: "PerEvent",
+    says: say,
+    entries: { QadiProvider: { option: "onDeveloperSignal", resolved: "OnEveryReport" } },
+  },
+  UnwritableGateRegistry: {
+    speaks: "Development",
+    often: "PerEvent",
+    says: say,
+    entries: { QadiProvider: { option: "onDeveloperSignal", resolved: "OnEveryReport" } },
+  },
+} satisfies SignalTable;
+
+/** The option of one entry point's facts, or nothing where there is none. */
+type OptionOf<E> = E extends { readonly option: infer O } ? O : never;
+
+type Rows = typeof SIGNALS;
+
+/**
+ * A hook a host can supply, named as the option it is passed through.
+ *
+ * The union of every option in {@link SIGNALS}, and the name a `ReporterThrew` carries.
+ */
+export type ReporterName = {
+  readonly [T in SignalTag]: OptionOf<Rows[T]["entries"][keyof Rows[T]["entries"]]>;
+}[SignalTag];
+
+/**
+ * A default with no condition to read.
+ *
+ * Takes only a row that speaks everywhere, so a row changed to speak under a condition
+ * fails to compile at its caller instead of being announced when it should be silent.
+ * Nothing is checked at run time because nothing is left to check: the type is the whole
+ * statement, and the row's `says` is what runs.
+ */
+const unconditionally = <Told,>(row: {
+  readonly speaks: "Everywhere";
+  readonly says: (told: Told) => void;
+}): ((told: Told) => void) => row.says;
+
+/**
+ * What a conditional row's default does here: its `says`, once per process when the row
+ * latches, and nothing where the row's condition does not hold.
+ */
+const defaultOf = <Told,>(
+  row: Pick<SignalRow<Told, string, string, Often, Gated>, "speaks" | "often" | "says">,
+): ((told: Told) => void) | undefined => {
+  if (!holdsHere(row)) return undefined;
+  return row.often === "OncePerProcess" ? once(row.says) : row.says;
+};
+
+/**
+ * The reporter one entry point will use for a signal, or `undefined` for none.
+ *
+ * The one resolver: a supplied reporter replaces the default outright, wrapped by
+ * {@link contain} under the option the row gives that entry point, so a throw is
+ * announced under the name the caller passed; with none, the row's default under its own
+ * condition. `entry` must be one the row names and `supplied` must be told what the row's
+ * default is told, so a slot paired with the wrong row does not compile. A row that speaks
+ * everywhere is refused: it takes no supplied reporter and has no condition to read.
+ */
+export const reporterFor = <Told, Entry extends string, A extends Told>(
+  row: SignalRow<Told, Entry, ReporterName, Often, Gated>,
+  entry: NoInfer<Entry>,
+  supplied: ((told: A) => void) | undefined,
+): ((told: A) => void) | undefined =>
+  supplied === undefined ? defaultOf(row) : contain(row.entries[entry].option, supplied);
 
 /**
  * What `QadiProvider` can tell a developer.
@@ -361,49 +541,16 @@ export const providerSignals = {
 };
 
 /**
- * Whether the production-instrumentation warning has already fired.
+ * The reporter `QadiProvider` will use for one signal.
  *
- * Module scope, not per-provider: several `QadiProvider`s can share one
- * process, and the point is a single signal that instrumentation reached a
- * production bundle at all, not one line per provider instance. It is the one
- * piece of process state in the library, kept in the one file allowed ambient
- * state; a supplied reporter bypasses it and is told once per mount instead.
+ * A projection of {@link reporterFor} over the signal's own row, read again on every
+ * report so an inline callback stays current. Unlike the entry points that resolve a
+ * reporter or nothing, it always returns a reporter: the provider detects each situation
+ * itself, and the row decides whether the default speaks. A supplied callback replaces
+ * the default outright and runs in production.
  */
-let warnedInstrumentedInProduction = false;
-
-/**
- * The console default for the provider's signals, each under its own condition.
- *
- * `InstrumentedInProduction` is raised by the provider only outside development,
- * so its default needs just the once-per-process latch. The other two are raised
- * in any environment (a supplied reporter hears them in production) and speak on
- * the console only in development.
- */
-const sayProviderSignal: ProviderSignalReporter = Match.type<ProviderSignal>().pipe(
-  Match.tagsExhaustive({
-    InstrumentedInProduction: (signal) => {
-      if (warnedInstrumentedInProduction) return;
-      warnedInstrumentedInProduction = true;
-      say(signal);
-    },
-    AtomsReplaced: (signal) => {
-      if (isDevelopment()) say(signal);
-    },
-    UnwritableGateRegistry: (signal) => {
-      if (isDevelopment()) say(signal);
-    },
-  }),
-);
-
-/**
- * The reporter `QadiProvider` will use.
- *
- * Unlike the hydration resolvers this never returns `undefined`: the provider
- * detects each situation itself, and the default decides per signal whether it
- * speaks. A supplied callback replaces the default outright and runs in
- * production.
- */
-export const providerSignalReporter = (
-  supplied: ProviderSignalReporter | undefined,
-): ProviderSignalReporter =>
-  supplied === undefined ? sayProviderSignal : contain("onDeveloperSignal", supplied);
+export const providerSignalReporter =
+  (supplied: ProviderSignalReporter | undefined): ProviderSignalReporter =>
+  (signal) => {
+    reporterFor(SIGNALS[signal._tag], "QadiProvider", supplied)?.(signal);
+  };

@@ -8,22 +8,10 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
-import { fromJson, hasPermission, permission, PolicyDecodeTooDeep, toJson } from "@qadi/core";
-import type { Policy } from "@qadi/core";
-import { policyLabel } from "../../src/model/Catalogue.ts";
+import { fromJson, hasPermission, PolicyDecodeTooDeep, toJson } from "@qadi/core";
 import { makeExplorerSession, refusalOf } from "../../src/model/ExplorerSession.ts";
-
-const read = permission("doc", "read");
-
-const sightingOf = (policy: Policy) => ({
-  policy,
-  label: policyLabel(policy),
-  count: 1,
-  allows: 1,
-  denies: 0,
-  errors: 0,
-  lastAt: 100,
-});
+import { read } from "../helpers.ts";
+import { sighting } from "../simulationFixtures.ts";
 
 const sentenceFor = (text: string): string | undefined => refusalOf(Effect.runSyncExit(fromJson(text)));
 
@@ -69,7 +57,7 @@ describe("an empty rail", () => {
   it("ignores previewing, so a policy arriving later is not already previewed", () => {
     const session = makeExplorerSession();
     session.setPreviewing(true);
-    session.setSightings([sightingOf(hasPermission(read))]);
+    session.setSightings([sighting(hasPermission(read))]);
     const snapshot = session.getSnapshot();
     assert.strictEqual(snapshot._tag, "Showing");
     if (snapshot._tag === "Showing") assert.isFalse(snapshot.simplification.previewing);
