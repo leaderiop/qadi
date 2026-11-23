@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-189                                   |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-11-23                                     |
 > | Status         | Accepted — amends ADR-QD-058 and ADR-QD-094   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.4 (2026-11-23): enforcement: the custom-predicate sentence, each fact checked once (code review IN-06, CCR-QD-468)<br>1.3 (2026-11-23): decision 4: a member is absent exactly when its schema refuses the value, and the cause is the store's own when the key admits it (code review WR-02, CCR-QD-468)<br>1.2 (2026-11-23): decision 4 and 5: the refusal is total over a row, a subject and a resource that throw, through one guarded read (code review WR-01, CCR-QD-468)<br>1.1 (2026-11-23): what enforces it: the compiler, the scripts, the tests by title and what review keeps; the acted evidence (ARCH-123, CCR-QD-468)<br>1.0 (2026-11-23): Initial release (ARCH-123, CCR-QD-468) |
+> | Change History | 1.5 (2026-11-23): decisions 1 and 7 state the decision and its reason in the spec's own terms (code review IN-05, CCR-QD-468)<br>1.4 (2026-11-23): enforcement: the custom-predicate sentence, each fact checked once (code review IN-06, CCR-QD-468)<br>1.3 (2026-11-23): decision 4: a member is absent exactly when its schema refuses the value, and the cause is the store's own when the key admits it (code review WR-02, CCR-QD-468)<br>1.2 (2026-11-23): decision 4 and 5: the refusal is total over a row, a subject and a resource that throw, through one guarded read (code review WR-01, CCR-QD-468)<br>1.1 (2026-11-23): what enforces it: the compiler, the scripts, the tests by title and what review keeps; the acted evidence (ARCH-123, CCR-QD-468)<br>1.0 (2026-11-23): Initial release (ARCH-123, CCR-QD-468) |
 
 ---
 
@@ -53,10 +53,9 @@ leaves were the two it did not ask.
 ## Decision
 
 1. **A change, not a recorded rejection.** Whether a fixture row meets a `hasSignature` or a
-   `hasActed` leaf is core's answer, and `SignatureMatch.ts` stays package-private. This was
-   decided autonomously, under the owner's standing instruction ("do not ask me; always pick
-   the most complete and clean solutions"), in place of the roadmap's owner question, and it is
-   recorded here before any source change.
+   `hasActed` leaf is core's answer, and `SignatureMatch.ts` stays package-private. The
+   alternative, recording a rejection, keeps two statements of one rule and leaves the refusals
+   below in place. The owner chose the change, for the most complete and clean result.
 2. **Core gains two pure, synchronous judgements on its fixture side.**
    `signatureAnswerFromSignatures(signatures, leaf, site)` sits beside
    `signatureHistoryFromSignatures` and answers
@@ -107,9 +106,8 @@ leaves were the two it did not ask.
 6. **The custom-predicate refusal is one value.** `NO_CUSTOM_PREDICATE_FIELD` in
    `SimulationFields.ts` is what `FIXTURE_DATA.CustomPredicate` is and what the remedy table
    reads. The sentence kept is the one the panel shows.
-7. **Core's public surface gains two names where the milestone expected at most one.** The acted
-   arm had the same defect in the same function, observable at `Any` scope, and the complete fix
-   asks core for both. It also loses `ActedEvent`, `ActedAnywhere` and `ActedAnywhereInput`,
+7. **Core's public surface gains two names, because the acted arm had the same defect in the
+   same function.** It is observable at `Any` scope, and the complete fix asks core for both. It also loses `ActedEvent`, `ActedAnywhere` and `ActedAnywhereInput`,
    which the keyed fixture leaves unread.
 8. **ADR-QD-099 needs no exception.** Both names live in barreled modules, and
    `SignatureMatch.ts` stays out of the barrel.
