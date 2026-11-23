@@ -318,14 +318,17 @@ describe("choosing a policy", () => {
     assert.deepStrictEqual(pc(n), listed(sA, 0));
   });
 
-  it("seedFrom the row a choice holds answers the same choice and the row decoded", () => {
-    const replaying = start([sA], rowRead);
-    const again = seedFrom(replaying, rowRead);
-    assert.strictEqual(again.choice, replaying);
-    assert.deepStrictEqual(again.input, carolDraft);
-    const orphaned = start([sA], orphan);
-    assert.strictEqual(seedFrom(orphaned, orphan).choice, orphaned);
-  });
+  it(
+    "seedFrom the row a choice holds answers the same choice and the row decoded",
+    () => {
+      const replaying = start([sA], rowRead);
+      const again = seedFrom(replaying, rowRead);
+      assert.strictEqual(again.choice, replaying);
+      assert.deepStrictEqual(again.input, carolDraft);
+      const orphaned = start([sA], orphan);
+      assert.strictEqual(seedFrom(orphaned, orphan).choice, orphaned);
+    },
+  );
 
   it("seedFrom(undefined) on a choice with no seed answers the same choice", () => {
     for (const c of [start([sA]), start([])]) {
