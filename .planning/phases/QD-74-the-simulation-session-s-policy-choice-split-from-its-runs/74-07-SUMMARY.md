@@ -9,8 +9,8 @@ plan_head_after: 2a03fc6f408f616305a5db674387b5ed7279a161
 
 requires: ["74-06"]
 provides:
-  - "74-mutation-close.json: groups session, held and choice measured on one head (b212d96e), compare exits 1 on one relocated equivalent base survivor"
-  - "74-mutation.mjs: EXAMINED admits the 11 static mutants of SeededChoice.ts, each Killed by hand; self-test: 33 passed"
+  - "74-mutation-close.json: groups session, held and choice measured on one head (b212d96e), compare exits 0 once MOVED records the relocated equivalent base survivor (see Resolution)"
+  - "74-mutation.mjs: EXAMINED admits the 11 static mutants of SeededChoice.ts, each Killed by hand; MOVED pairs one relocated base survivor; self-test: 37 passed"
   - "74-RED-EVIDENCE.md: the mutation close, the static mutants run by hand, the relocated survivor, and the close on the final tree"
   - "CHSE-01 to CHSE-05 complete in REQUIREMENTS.md"
 affects: []
@@ -46,7 +46,7 @@ status: complete
 
 # Phase 74 Plan 07: Close of the simulation session's policy choice split Summary
 
-**The three files were mutation-closed on one head, the 11 static mutants of the new `SeededChoice.ts` were each killed by hand, every close scan holds, `pnpm check:pr` is green, and CHSE-01 to CHSE-05 are complete; `compare` is red on one relocated equivalent base survivor.**
+**The three files were mutation-closed on one head, the 11 static mutants of the new `SeededChoice.ts` were each killed by hand, every close scan holds, `pnpm check:pr` is green, and CHSE-01 to CHSE-05 are complete; `compare` passes once `MOVED` records the one relocated equivalent base survivor.**
 
 ## The close
 
@@ -154,3 +154,12 @@ Task 3 verify prints `phase closed`; Task 2 verify (with the two verification-on
 Task 1 verify prints `mutation close compared` except for its compare checks, which fail as recorded above. Commits
 `26566bac`, `77ad0472` and `2a03fc6f` are ancestors of HEAD; `git rev-list --count b212d96e..HEAD` before this summary is 3;
 `git status --porcelain -- packages scripts spec .changeset` is empty.
+
+## Resolution after the plan
+
+Decided autonomously by the orchestrator: the redundant seed disjunct of `stale` stays (BEH-QD-322 states that `stale`
+covers all three inputs, and `SimulationQuestion.seed` is public and read by the characterisation). `74-mutation.mjs`
+gained `MOVED`, a reviewed record pairing the base survivor at `SimulationSession.ts` 404:9 with the close survivor at
+313:9, admitted only while the base mutant is on a rewritten line and the close mutant is present. Four self-test cases
+pin it, so `--self-test` ends `self-test: 37 passed` where the plan's verify expects 33, and `compare` on the recorded
+close now exits 0. The evidence records it under "A base survivor the phase moved".
