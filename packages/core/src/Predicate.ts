@@ -28,7 +28,12 @@ import type { AttributeResolveError, DecisionHistoryUnavailable } from "./Errors
 import type { MissingAction } from "./Errors.ts";
 import { PolicyNotTranslatable } from "./Errors.ts";
 import { predicatesTranslatedTotal } from "./EvaluationMetrics.ts";
-import { annotateAsked, annotateSpan, toPredicateSpan } from "./EvaluationSpan.ts";
+import {
+  annotateAsked,
+  annotateSpan,
+  askedOf,
+  toPredicateSpan,
+} from "./EvaluationSpan.ts";
 import type { Matcher, MatcherContext, ValueRef } from "./Matcher.ts";
 import { referencesResource } from "./Matcher.ts";
 import { getByPath, ownValue } from "./Operand.ts";
@@ -662,11 +667,7 @@ export const toPredicate = Effect.fn(toPredicateSpan.name)(function* (
   // Translation answers for rows not yet loaded, so its question has no
   // resource — explicitly, even if a caller's untyped options carried one.
   const question: Question = { ...questionOf(subject, policy, options), resource: undefined };
-  yield* annotateAsked(toPredicateSpan.question, {
-    subjectId: subject.id,
-    policyTag: policy._tag,
-    action: question.action,
-  });
+  yield* annotateAsked(toPredicateSpan.question, askedOf(question));
   // Admission first, and from the policy alone: a policy that is both too deep
   // and field-restricting is always `PolicyTooDeep`, independent of child order
   // (ARCH-02 D-02-e, N4; INV-QD-037). Shared with `walk` (`Admission.ts`).

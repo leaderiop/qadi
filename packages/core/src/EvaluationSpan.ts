@@ -28,6 +28,7 @@ import type { Decision } from "./Decision.ts";
 import { POLICY_TAGS } from "./Policy.ts";
 import type { SpanFields, SpanKey, SpanStruct, SpanType } from "./PortSpan.ts";
 import type { PoseOf } from "./PortSpanEncode.ts";
+import type { Question } from "./Question.ts";
 import {
   encodeSpan,
   sharedQuestionFields,
@@ -66,6 +67,21 @@ const askedKeys = {
   policyTag: "qadi.policy_tag",
   action: "qadi.action",
 } as const;
+
+/**
+ * What a built question asks: its subject's id, its policy's tag and its action.
+ *
+ * The one projection from a {@link Question} to the shared question fields, read by
+ * every writer that holds one, so the subject, the policy and the action a span
+ * states are always the question's own and never a second source beside it.
+ */
+export const askedOf = (
+  question: Question,
+): PoseOf<SpanStruct<typeof askedFields>> => ({
+  subjectId: question.subject.id,
+  policyTag: question.policy._tag,
+  action: question.action,
+});
 
 /** The tag of the failure a span ended on. */
 const failedFields = { errorTag: Schema.optionalKey(Schema.String) };

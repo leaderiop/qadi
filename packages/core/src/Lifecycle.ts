@@ -31,6 +31,7 @@ import { EvaluationId } from "./EvaluationId.ts";
 import {
   annotateAsked,
   annotateSpan,
+  askedOf,
   denialEvent,
   evaluateSpan,
 } from "./EvaluationSpan.ts";
@@ -84,12 +85,7 @@ export const decideQuestion = Effect.fn(evaluateSpan.name)(function* (
   const mintedId = yield* EvaluationId.next;
   const evaluationId = options?.evaluationId ?? mintedId;
   // Before the lookup, so a span that ends in a failure still carries its question.
-  yield* annotateAsked(evaluateSpan.question, {
-    subjectId: question.subject.id,
-    evaluationId,
-    policyTag: question.policy._tag,
-    action: question.action,
-  });
+  yield* annotateAsked(evaluateSpan.question, { ...askedOf(question), evaluationId });
   const startedAt = yield* Clock.currentTimeMillis;
 
   // Optional by construction: `serviceOption` adds nothing to the requirements, so
