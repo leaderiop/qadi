@@ -298,3 +298,17 @@ The test quoted above as `registers a new id and calls nothing else` is now titl
 registers an id that was not live`. Its expected log, `update a` then `register b`, always showed an update of the kept
 entry, so the old title described the `reconcile` that did no update. Only the title changed; the sections above quote
 the old one.
+
+### Two overlapping reconcile tests removed
+
+Code review found two reconcile tests that pin a rule another test pins at the same precision. Each is removed and the
+survivor named:
+
+- `tells a kept handle its state even when unchanged, leaving equality to it`: one entry told an unchanged state. The
+  survivor `reconciling the same input twice keeps every entry and calls only update` states the same rule for two
+  entries, with the kept objects. The "Result" paragraph above that names the removed title describes a test that no
+  longer exists.
+- `keeps unchanged identities with fresh policy objects, calling only update`: two entries, one with a new policy and
+  one with a new resource. The survivor `keeps the entry when only the policy or the resource changed` states the same
+  rule for each of the two fields on its own. The row of the moved-cases table above that maps the ticket 141 case onto
+  the removed title is now pinned by the survivor and by the characterisation row named beside it.

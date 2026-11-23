@@ -161,15 +161,6 @@ describe("reconcile: keeping and updating", () => {
     expect(next.get("a")).toBe(first.get("a"));
   });
 
-  it("tells a kept handle its state even when unchanged, leaving equality to it", () => {
-    const { writer, log } = fakeWriter();
-    const a = identity();
-    const first = reconcile(writer, nothing, new Map([["a", want(a, "Pending")]]));
-    log.length = 0;
-    reconcile(writer, first, new Map([["a", want(a, "Pending")]]));
-    expect(log).toEqual([["update", "a", "Pending"]]);
-  });
-
   it("keeps the entry when only the policy or the resource changed", () => {
     const moved: ReadonlyArray<readonly [string, Partial<GateIdentity>]> = [
       ["policy", { policy: newCanWrite() }],
@@ -210,35 +201,6 @@ describe("reconcile: keeping and updating", () => {
     ]);
     expect(second.get("a")).toBe(first.get("a"));
     expect(second.get("b")).toBe(first.get("b"));
-  });
-
-  it("keeps unchanged identities with fresh policy objects, calling only update", () => {
-    const { writer, log } = fakeWriter();
-    const atom = {};
-    const marker = markerOf();
-    const first = reconcile(
-      writer,
-      nothing,
-      new Map([
-        ["a", want(identity({ atom, marker }))],
-        ["b", want(identity({ atom, marker }))],
-      ]),
-    );
-    log.length = 0;
-    const next = reconcile(
-      writer,
-      first,
-      new Map([
-        ["a", want(identity({ atom, marker, policy: newCanWrite() }))],
-        ["b", want(identity({ atom, marker, resource: { type: "doc", id: "2" } }))],
-      ]),
-    );
-    expect(log).toEqual([
-      ["update", "a", "Pending"],
-      ["update", "b", "Pending"],
-    ]);
-    expect(next.get("a")).toBe(first.get("a"));
-    expect(next.get("b")).toBe(first.get("b"));
   });
 
   it("returns a fresh map and does not mutate the live map it is given", () => {
