@@ -369,3 +369,61 @@ replacement.
 | 340 | 17 | ArrowFunction | `() => undefined` | Killed |
 | 576 | 13 | ArrowFunction | `() => undefined` | Killed |
 | 698 | 19 | ArrowFunction | `() => undefined` | Killed |
+
+## The cost, measured
+
+What the second annotation costs: the close tree (the head arm, `close`) against the same tree with `packages/core/src`
+patched back to the base's writers (the `base` arm), interleaved, so each arm runs first in half the rounds. The patch is
+`git diff HEAD <phase_base> -- packages/core/src`: six files (`EvaluationSpan.ts` deleted, and `GuardHealthCheck.ts`,
+`Lifecycle.ts`, `PortSpanEncode.ts`, `Predicate.ts`, `SubjectSet.ts` restored), 537 lines, applied and reversed by
+`ab.sh`, which left `packages/` clean (`git status --porcelain -- packages` printed nothing after every run).
+
+```
+bash scripts/bench/ab.sh <S>/bench/to-base.patch <S>/bench/out 6 close base packages/core/bench/Evaluate.bench.ts "^evaluate$" < /dev/null
+node scripts/bench/analyze.mjs <S>/bench/out base close <S>/bench/workloads.txt < /dev/null
+```
+
+`<S>/bench/workloads.txt` holds the 17 benches of `test("evaluate", …)` as `evaluate :: <bench name>`. Six rounds, 12 runs,
+order `close-1 base-1 base-2 close-2 close-3 base-3 base-4 close-4 close-5 base-5 base-6 close-6`. Machine: Apple M3 Pro,
+12 CPUs, node v26.13.0. `ab.sh` exited 0 and logged `quiet: load 7.01 on 12 cpus, top process at 73.4%` at the start.
+
+The first run began while the machine was still shedding the load of the coverage run before it: the 1-minute load average
+read 7.0 before its first run, peaked at 10.8 before `close-2`, and fell to 3.8 by the last (`syspolicyd` and `fseventsd`
+were the busiest processes). That is inside `ab.sh`'s quiet condition (load at or below the CPU count, no process above
+100%), so it is a valid run, but a falling load is not a steady one, so the run was repeated on a host that had settled:
+`<S>/bench/out2`, the same two commands with `out2`, `ab.sh` exit 0, `quiet: load 3.49 on 12 cpus, top process at 25.6%`,
+the 1-minute load 2.8 to 6.9 across its runs. Both are recorded; they agree.
+
+Median of per-run minima per arm, in ns; the delta is the close's over the base's; the spread is the reference (`base`) arm's
+spread across the six runs. Each cell reads `base -> close, delta, spread`.
+
+| Workload | First run (load falling) | Second run (settled) |
+| -------- | ------------------------ | -------------------- |
+| `one node` | 5687 -> 6375, +12.1%, 11.7% | 5833 -> 6479, +11.1%, 10.0% |
+| `resolver miss — one port call` | 11041 -> 11958, +8.3%, 13.6% | 11833 -> 12209, +3.2%, 9.2% |
+| `wide — allOf of 8` | 7584 -> 8250, +8.8%, 11.0% | 7750 -> 8438, +8.9%, 9.1% |
+
+```
+first run:  # geomean_d_min_pct: 7.83   # slower: 15 of 17   # worst_d_min: 14.6 evaluate :: anyOf First — 8, last allows   # gate: fail
+second run: # geomean_d_min_pct: 6.79   # slower: 14 of 17   # worst_d_min: 11.1 evaluate :: wrapper-heavy — 10 nested labeled/not/obliged   # gate: fail
+```
+
+`analyze.mjs` exited 1 on both (a workload slower than 5% and a geometric mean above 2%), and that is a record, not a gate
+(D-16): the second annotation is a deliberate cost of the declared span shape, and it is reported here and not hidden. Its
+size is the absolute delta, about 0.4 to 1.1 µs per evaluation across the 17 workloads, which reads as one more span
+annotation and its encode per `evaluate` call: the percentage is lowest on the most expensive workload, `field-heavy —
+allOf of 8 under Intersection` (+2.2% and +2.3%), and in the second run three workloads are under the 5% band
+(`field-heavy — allOf of 8 under Intersection`, `obligation-heavy — allOf of 8 distinct obligations` at +4.5%, `resolver
+miss — one port call` at +3.2%). The p50 delta is positive on every workload in both runs; the mean-of-means delta is
+mixed in sign in the first run (a stalled run swings a mean of means) and positive on every workload in the second. They
+are recorded in `analysis.tsv` and decide nothing.
+
+## Coverage on the close tree
+
+```
+pnpm coverage < /dev/null > <S>/coverage-07.log 2>&1
+```
+
+Exit status 0 (`<S>/coverage-07.status`), run alone on the close tree before the bench: statements 99.64% (7539/7566),
+branches 98.68% (3231/3274), functions 99.55% (2928/2941), lines 99.81% (6653/6665), so `packages/core`'s 95% and every
+other package's 90% hold. `packages/` was unchanged by the run.
