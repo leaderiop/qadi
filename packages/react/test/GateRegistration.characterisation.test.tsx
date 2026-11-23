@@ -13,10 +13,6 @@
  * Its inputs and expected values are fixed: an edit to this file may touch titles, layout
  * or helpers only, and each such edit is its own commit. The rules these rows rest on are
  * stated without rendering in `GateWriter.reconcile.test.ts`.
- *
- * Shared helpers it uses: `notificationsOf` from `support/gates.ts`, the notification
- * counter; and from `support/trees.tsx` the fixtures (`canRead`, `canWrite`, `isAdmin`,
- * `docA`, `docB`), `atoms`, `providerTree`, `Group` and `snapshotOf`.
  */
 import {
   AttributeResolver,
