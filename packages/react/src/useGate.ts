@@ -70,9 +70,9 @@ const KIND_FACTS: Readonly<
  * there is one lifecycle implementation and not two.
  *
  * The registration effect runs after every commit with that commit's own `wanted`, and
- * `reconcile` registers what is new, unregisters what is gone or changed, and tells
- * what it keeps its state: an unchanged identity and an unchanged state make no
- * notifying call, because the handle decides equality. The teardown keyed on `writer`
+ * `reconcile` registers what is new, unregisters what is gone or changed, and tells each
+ * kept handle its state: an unchanged identity and an unchanged state make no notifying
+ * call, because the handle decides equality. The teardown keyed on `writer`
  * is declared first and is the one place registrations end on unmount or a writer
  * change, because an effect's cleanup is React's only unmount signal and also runs
  * before every re-run, so folding it into the registration effect would re-register on
