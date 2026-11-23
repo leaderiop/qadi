@@ -266,3 +266,106 @@ Each plant was applied to the working tree, `node scripts/check-house-style.mjs 
 | N5 | `packages/core/test/SubjectSet.test.ts` | append a const holding the double-quoted longer name qadi.actions | 0 | clean |
 
 Every plant failed with its rule or passed as stated.
+
+## Static mutants run by hand
+
+`EvaluationSpan.ts` is module-scope declarations, so under `ignoreStatic: true` its close holds 0 valid mutants and 35
+Ignored (static) ones (the Stryker score line reads `NaN`: nothing to score). `Predicate.ts` gained one static arrow in
+this phase, the `tapError` callback of `toPredicate`'s span (line 698), which its base did not hold, so `compare` refused
+it as `has a new Ignored mutant: ArrowFunction -> () => undefined` until it was run by hand. Both files were run in one
+by-hand run, with `ignoreStatic: false`, by the group's own configuration spread, on the close head:
+
+```
+pnpm exec stryker run <S>/stryker.examined.mjs --mutate packages/core/src/EvaluationSpan.ts,packages/core/src/Predicate.ts < /dev/null
+```
+
+where `<S>/stryker.examined.mjs` is `import base from "<repo>/stryker.config.mjs"; export default { ...base, ignoreStatic:
+false, jsonReporter: { fileName: "<S>/examined/mutation.json" }, htmlReporter: { fileName: "<S>/examined/index.html" } };`.
+The run exited 0 with a final score of 100.00.
+
+| File | Mutants | Killed | RuntimeError | Survived | NoCoverage | Timeout |
+| ---- | ------- | ------ | ------------ | -------- | ---------- | ------- |
+| `EvaluationSpan.ts` | 35 | 33 | 2 | 0 | 0 | 0 |
+| `Predicate.ts` | 304 (282 valid and 22 Ignored) | 304 | 0 | 0 | 0 | 0 |
+
+Counts by kind, which is what `EXAMINED` admits: `EvaluationSpan.ts` `ArrowFunction () => undefined` 2, `ObjectLiteral
+{}` 21, `StringLiteral ""` 12; `Predicate.ts` `ArrowFunction () => undefined` 1 (its other 21 Ignored mutants are the
+base's, line-shifted, and the scorer admits them by kind against the base).
+
+Two of the 35 are not `Killed` but `RuntimeError`, and that is a finding and not a pass: line 48 (`declareSpan`'s arrow
+replaced by `() => undefined`) and line 55 (`askedFields` replaced by `{}`) make the module throw `Cannot read properties
+of undefined (reading 'name')` while it is imported, so Stryker reports `An error occurred outside of a test run` and
+every test file that reached the module (44 are listed, `EvaluationSpan.contract.test.ts` and `EvaluationSpan.test.ts` among
+them) fails to load. Stryker does not call a mutant that no test can even start under `Killed`, and does not score it.
+It is detected by every test in the suite, which is the property `Killed` is meant to carry, so both are admitted by
+`EXAMINED`; the plan's check that an admitted kind holds no status but `Killed` is run with that one reading, recorded as
+a verification-only deviation in `75-07-SUMMARY.md`. No other status appears: 0 Survived, 0 NoCoverage, 0 Timeout.
+Every row below is an Ignored mutant of the close record, joined to its by-hand status on line, column, mutator and
+replacement.
+
+### EvaluationSpan.ts
+
+| Line | Column | Mutator | Replacement | Status by hand |
+| ---- | ------ | ------- | ----------- | -------------- |
+| 48 | 21 | ArrowFunction | `() => undefined` | RuntimeError |
+| 55 | 21 | ObjectLiteral | `{}` | RuntimeError |
+| 69 | 22 | ObjectLiteral | `{}` | Killed |
+| 89 | 41 | ObjectLiteral | `{}` | Killed |
+| 90 | 9 | StringLiteral | `""` | Killed |
+| 92 | 5 | ObjectLiteral | `{}` | Killed |
+| 93 | 5 | ObjectLiteral | `{}` | Killed |
+| 93 | 35 | StringLiteral | `""` | Killed |
+| 96 | 5 | ObjectLiteral | `{}` | Killed |
+| 101 | 5 | ObjectLiteral | `{}` | Killed |
+| 101 | 16 | StringLiteral | `""` | Killed |
+| 101 | 60 | StringLiteral | `""` | Killed |
+| 118 | 44 | ObjectLiteral | `{}` | Killed |
+| 119 | 9 | StringLiteral | `""` | Killed |
+| 122 | 5 | ObjectLiteral | `{}` | Killed |
+| 123 | 5 | ObjectLiteral | `{}` | Killed |
+| 123 | 21 | StringLiteral | `""` | Killed |
+| 135 | 49 | ObjectLiteral | `{}` | Killed |
+| 136 | 9 | StringLiteral | `""` | Killed |
+| 139 | 5 | ObjectLiteral | `{}` | Killed |
+| 140 | 5 | ObjectLiteral | `{}` | Killed |
+| 140 | 16 | StringLiteral | `""` | Killed |
+| 157 | 47 | ObjectLiteral | `{}` | Killed |
+| 158 | 9 | StringLiteral | `""` | Killed |
+| 160 | 5 | ObjectLiteral | `{}` | Killed |
+| 165 | 5 | ObjectLiteral | `{}` | Killed |
+| 166 | 21 | StringLiteral | `""` | Killed |
+| 181 | 53 | ObjectLiteral | `{}` | Killed |
+| 182 | 9 | StringLiteral | `""` | Killed |
+| 184 | 5 | ObjectLiteral | `{}` | Killed |
+| 185 | 5 | ObjectLiteral | `{}` | Killed |
+| 197 | 3 | ObjectLiteral | `{}` | Killed |
+| 202 | 3 | ObjectLiteral | `{}` | Killed |
+| 205 | 13 | StringLiteral | `""` | Killed |
+| 214 | 29 | ArrowFunction | `() => undefined` | Killed |
+
+### Predicate.ts
+
+| Line | Column | Mutator | Replacement | Status by hand |
+| ---- | ------ | ------- | ----------- | -------------- |
+| 82 | 25 | ObjectLiteral | `{}` | Killed |
+| 82 | 33 | StringLiteral | `""` | Killed |
+| 83 | 26 | ObjectLiteral | `{}` | Killed |
+| 83 | 34 | StringLiteral | `""` | Killed |
+| 85 | 18 | ArrowFunction | `() => undefined` | Killed |
+| 163 | 24 | ObjectLiteral | `{}` | Killed |
+| 164 | 11 | ArrowFunction | `() => undefined` | Killed |
+| 165 | 12 | ArrowFunction | `() => undefined` | Killed |
+| 166 | 14 | ArrowFunction | `() => undefined` | Killed |
+| 167 | 15 | ArrowFunction | `() => undefined` | Killed |
+| 168 | 10 | ArrowFunction | `() => undefined` | Killed |
+| 169 | 9 | ArrowFunction | `() => undefined` | Killed |
+| 170 | 13 | ArrowFunction | `() => undefined` | Killed |
+| 174 | 34 | ArrowFunction | `() => undefined` | Killed |
+| 203 | 24 | ArrowFunction | `() => undefined` | Killed |
+| 220 | 21 | ArrowFunction | `() => undefined` | Killed |
+| 268 | 16 | ArrowFunction | `() => undefined` | Killed |
+| 282 | 25 | ArrowFunction | `() => undefined` | Killed |
+| 338 | 17 | ArrowFunction | `() => undefined` | Killed |
+| 340 | 17 | ArrowFunction | `() => undefined` | Killed |
+| 576 | 13 | ArrowFunction | `() => undefined` | Killed |
+| 698 | 19 | ArrowFunction | `() => undefined` | Killed |
