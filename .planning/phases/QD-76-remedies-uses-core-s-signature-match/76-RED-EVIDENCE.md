@@ -342,3 +342,337 @@ Required green (each read from the report as passed):
   - `QadiHttpError.test.ts`: SignatureHistoryUnavailable's projection carries resourceId only when the error had one
   - `QadiHttpError.test.ts`: the DecisionHistoryUnavailable projection and response body carry no event when the error has none
 
+
+## Each acted, remedy and record rule gutted once
+
+Same procedure as above: one scratch edit, the named commands, the result read from the report, then `git checkout -- <file>`. No gut is committed or left in the tree, and no gut expects a throw: the history refusal guts fail the rows that pin a typed failure, and the remedy refusal gut fails the rows that pin the skip's text.
+
+### acted-lookup-unshared
+
+Scratch edit (`packages/core/src/DecisionHistory.ts`): in `actedAnswerFromEvents`, answer `events.some((row) => row.subjectId === query.subjectId && row.event === query.event && row.resourceId === query.resourceId) ? "Acted" : "NotActed"` in place of the lookup (the missing-id check is kept; the refusal is gone with the shared lookup).
+
+Command (repository root, stdin closed):
+
+```
+pnpm exec vitest run --project core packages/core/test/DecisionHistory.test.ts --reporter=json --outputFile=<scratch>/gut-acted-lookup-unshared-core.json < /dev/null
+```
+
+Result: 10 passed, 3 failed of 13.
+
+Failed (every failing test in the report):
+
+  - `DecisionHistory.test.ts`: answers as askActed over the fixture layer does, on every case of the product
+  - `DecisionHistory.test.ts`: a refused subject or event row fails as the read does, with the refusal and never NotActed
+  - `DecisionHistory.test.ts`: a refused event fails as the read does, with no event and never NotActed
+
+Command (repository root, stdin closed):
+
+```
+pnpm exec vitest run --project devtools packages/devtools/test/model/RemedyActedConformance.test.ts --reporter=json --outputFile=<scratch>/gut-acted-lookup-unshared-dev.json < /dev/null
+```
+
+Result: 1 passed, 6 failed of 7.
+
+Failed (every failing test in the report):
+
+  - `RemedyActedConformance.test.ts`: at a site whose resource id is doc-1
+  - `RemedyActedConformance.test.ts`: at a site whose resource has no id
+  - `RemedyActedConformance.test.ts`: at a site whose resource id is not a string
+  - `RemedyActedConformance.test.ts`: at a site with no resource
+  - `RemedyActedConformance.test.ts`: a fixture row it cannot key is skipped with its refusal and offered no row, while core fails the read
+  - `RemedyActedConformance.test.ts`: a site whose subject id it cannot key is skipped with its refusal and offered no row, while core fails the read
+
+### acted-any-as-resource
+
+Scratch edit (`packages/core/src/DecisionHistory.ts`): `actedAnswerFromEvents` asks `decisionHistoryPort.asks.HasActed({ ...leaf, scope: "Resource" }, site)` in place of the leaf's own request, the missing-id check unchanged. An `Any` leaf at a site with a resource id then asks about that one resource.
+
+Command (repository root, stdin closed):
+
+```
+pnpm exec vitest run --project core packages/core/test/DecisionHistory.test.ts --reporter=json --outputFile=<scratch>/gut-acted-any-as-resource-core.json < /dev/null
+```
+
+Result: 12 passed, 1 failed of 13.
+
+Failed (every failing test in the report):
+
+  - `DecisionHistory.test.ts`: answers as askActed over the fixture layer does, on every case of the product
+
+Command (repository root, stdin closed):
+
+```
+pnpm exec vitest run --project devtools packages/devtools/test/model/RemedyActedConformance.test.ts --reporter=json --outputFile=<scratch>/gut-acted-any-as-resource-dev.json < /dev/null
+```
+
+Result: 6 passed, 1 failed of 7.
+
+Failed (every failing test in the report):
+
+  - `RemedyActedConformance.test.ts`: at a site whose resource id is doc-1
+
+Required green (each read from the report as passed):
+
+  - `RemedyActedConformance.test.ts`: at a site whose resource has no id
+  - `RemedyActedConformance.test.ts`: at a site whose resource id is not a string
+  - `RemedyActedConformance.test.ts`: at a site with no resource
+  - `RemedyActedConformance.test.ts`: a fixture row it cannot key is skipped with its refusal and offered no row, while core fails the read
+  - `RemedyActedConformance.test.ts`: a site whose subject id it cannot key is skipped with its refusal and offered no row, while core fails the read
+
+### acted-unknown-added
+
+Scratch edit (`packages/core/src/DecisionHistory.ts`): the judgement's declared answer is `ActedResult` (which adds `"Unknown"`) in place of `"Acted" | "NotActed"`.
+
+Command (stdin closed, status and log in the scratch folder):
+
+```
+pnpm test:tstyche < /dev/null > <scratch>/gut-acted-unknown-added.tstyche.log 2>&1; echo $? > <scratch>/gut-acted-unknown-added.tstyche.status
+```
+
+Exit status 1. Both tstyche passes (the rule-off pass and the rule-on pass) printed `Tests: 1 failed` (400 passed, 1 skipped; 399 passed, 2 skipped), and the log names the pin: `actedAnswerFromEvents answers Acted or NotActed, or fails as the history read fails` (PA), in `packages/core/test/DecisionHistory.tst.ts`.
+
+### history-member-unchecked
+
+Scratch edit (`packages/core/src/DecisionHistory.ts`): `decisionHistoryPort.failure` sets `event: query.event` without its `isEvent` test, so a symbol event reaches the error's schema.
+
+Command (repository root, stdin closed):
+
+```
+pnpm exec vitest run --project core packages/core/test/DecisionHistory.test.ts --reporter=json --outputFile=<scratch>/gut-history-member-unchecked-core.json < /dev/null
+```
+
+Result: 11 passed, 2 failed of 13.
+
+Failed (every failing test in the report):
+
+  - `DecisionHistory.test.ts`: an event that is a symbol fails with no event and the refusal as its cause, never answering NotActed
+  - `DecisionHistory.test.ts`: a refused event fails as the read does, with no event and never NotActed
+
+Required green (each read from the report as passed):
+
+  - `DecisionHistory.test.ts`: a subject whose id is a symbol fails as DecisionHistoryUnavailable, never answering NotActed
+  - `DecisionHistory.test.ts`: a fixture row whose subject id is a symbol fails every read, never answering NotActed
+  - `DecisionHistory.test.ts`: a fixture row whose event cannot be read fails every read, never throwing
+  - `DecisionHistory.test.ts`: answers as askActed over the fixture layer does, on every case of the product
+  - `DecisionHistory.test.ts`: a refused subject or event row fails as the read does, with the refusal and never NotActed
+
+### history-refusal-as-unacted
+
+Scratch edit (`packages/core/src/DecisionHistory.ts`): `actedLookup` answers `Result.succeed("NotActed")` wherever it would fail with a refusal, an entry's or the query's. A refusal then reads as "never acted", which `hasNotActed` grants.
+
+Command (repository root, stdin closed):
+
+```
+pnpm exec vitest run --project core packages/core/test/DecisionHistory.test.ts --reporter=json --outputFile=<scratch>/gut-history-refusal-as-unacted-core.json < /dev/null
+```
+
+Result: 7 passed, 6 failed of 13.
+
+Failed (every failing test in the report):
+
+  - `DecisionHistory.test.ts`: a subject whose id is a symbol fails as DecisionHistoryUnavailable, never answering NotActed
+  - `DecisionHistory.test.ts`: an event that is a symbol fails with no event and the refusal as its cause, never answering NotActed
+  - `DecisionHistory.test.ts`: a fixture row whose subject id is a symbol fails every read, never answering NotActed
+  - `DecisionHistory.test.ts`: a fixture row whose event cannot be read fails every read, never throwing
+  - `DecisionHistory.test.ts`: a refused subject or event row fails as the read does, with the refusal and never NotActed
+  - `DecisionHistory.test.ts`: a refused event fails as the read does, with no event and never NotActed
+
+Required green (each read from the report as passed):
+
+  - `DecisionHistory.test.ts`: answers as askActed over the fixture layer does, on every case of the product
+
+Command (repository root, stdin closed):
+
+```
+pnpm exec vitest run --project devtools packages/devtools/test/model/RemedyActedConformance.test.ts --reporter=json --outputFile=<scratch>/gut-history-refusal-as-unacted-dev.json < /dev/null
+```
+
+Result: 5 passed, 2 failed of 7.
+
+Failed (every failing test in the report):
+
+  - `RemedyActedConformance.test.ts`: a fixture row it cannot key is skipped with its refusal and offered no row, while core fails the read
+  - `RemedyActedConformance.test.ts`: a site whose subject id it cannot key is skipped with its refusal and offered no row, while core fails the read
+
+Required green (each read from the report as passed):
+
+  - `RemedyActedConformance.test.ts`: at a site whose resource id is doc-1
+  - `RemedyActedConformance.test.ts`: at a site whose resource has no id
+  - `RemedyActedConformance.test.ts`: at a site whose resource id is not a string
+  - `RemedyActedConformance.test.ts`: at a site with no resource
+
+### http-history-member-projected
+
+Scratch edit (`packages/http/src/QadiHttpError.ts`): the `DecisionHistoryUnavailable` projection carries `event: error.event` in place of its conditional spread. This runs on the strengthened HP2 row (`e73b71a3`, see `### http-signature-member-projected`).
+
+Command (repository root, stdin closed):
+
+```
+pnpm exec vitest run --project http packages/http/test/QadiHttpError.test.ts --reporter=json --outputFile=<scratch>/gut-http-history-member-projected-http.json < /dev/null
+```
+
+Result: 53 passed, 1 failed of 54.
+
+Failed (every failing test in the report):
+
+  - `QadiHttpError.test.ts`: the DecisionHistoryUnavailable projection and response body carry no event when the error has none
+
+Required green (each read from the report as passed):
+
+  - `QadiHttpError.test.ts`: the SignatureHistoryUnavailable projection and response body carry no subject id when the error has none
+
+### remedy-missing-id-met
+
+Scratch edit (`packages/devtools/src/model/Remedies.ts`): the `Signature` arm's failure branch answers `undefined` (met) for `MissingResourceId`, so a check that names no resource id is read as satisfied. Both files in one invocation.
+
+Command (repository root, stdin closed):
+
+```
+pnpm exec vitest run --project devtools packages/devtools/test/model/RemedySignatureConformance.test.ts packages/devtools/test/model/Remedies.test.ts --reporter=json --outputFile=<scratch>/gut-remedy-missing-id-met-dev.json < /dev/null
+```
+
+Result: 82 passed, 4 failed of 86.
+
+Failed (every failing test in the report):
+
+  - `Remedies.test.ts`: declines a resource-scoped signature when the check names no resource id
+  - `RemedySignatureConformance.test.ts`: at a site whose resource has no id
+  - `RemedySignatureConformance.test.ts`: at a site whose resource id is not a string
+  - `RemedySignatureConformance.test.ts`: at a site with no resource
+
+Required green (each read from the report as passed):
+
+  - `RemedySignatureConformance.test.ts`: at a site whose resource id is doc-1
+  - `RemedySignatureConformance.test.ts`: a fixture row it cannot key is skipped with its refusal and offered no row, while core fails the read
+  - `RemedySignatureConformance.test.ts`: a site whose subject id it cannot key is skipped with its refusal and offered no row, while core fails the read
+
+### remedy-row-from-site
+
+Scratch edit (`packages/devtools/src/model/Remedies.ts`): the signature row's resource id is `resourceIdOf(input.resource)` in place of the request's, so an `Any` check at a site with a resource id offers a row scoped to it. Both files in one invocation.
+
+Command (repository root, stdin closed):
+
+```
+pnpm exec vitest run --project devtools packages/devtools/test/model/RemedySignatureConformance.test.ts packages/devtools/test/model/Remedies.test.ts --reporter=json --outputFile=<scratch>/gut-remedy-row-from-site-dev.json < /dev/null
+```
+
+Result: 82 passed, 4 failed of 86.
+
+Failed (every failing test in the report):
+
+  - `Remedies.test.ts`: offers the signature the policy names, built from its node
+  - `Remedies.test.ts`: applies a signature remedy as the row the port answers from
+  - `Remedies.test.ts`: offers a signature when the fixtures hold a different one
+  - `RemedySignatureConformance.test.ts`: at a site whose resource id is doc-1
+
+Required green (each read from the report as passed):
+
+  - `RemedySignatureConformance.test.ts`: at a site whose resource has no id
+  - `RemedySignatureConformance.test.ts`: at a site whose resource id is not a string
+  - `RemedySignatureConformance.test.ts`: at a site with no resource
+  - `RemedySignatureConformance.test.ts`: a fixture row it cannot key is skipped with its refusal and offered no row, while core fails the read
+  - `RemedySignatureConformance.test.ts`: a site whose subject id it cannot key is skipped with its refusal and offered no row, while core fails the read
+
+### remedy-refusal-text-dropped
+
+Scratch edit (`packages/devtools/src/model/Remedies.ts`): `skipReason`'s `SignatureHistoryUnavailable` arm answers `SIGNATURE_PORT_REFUSED` alone, without the cause's `thrownMessage`.
+
+Command (repository root, stdin closed):
+
+```
+pnpm exec vitest run --project devtools packages/devtools/test/model/RemedySignatureConformance.test.ts --reporter=json --outputFile=<scratch>/gut-remedy-refusal-text-dropped-dev.json < /dev/null
+```
+
+Result: 5 passed, 2 failed of 7.
+
+Failed (every failing test in the report):
+
+  - `RemedySignatureConformance.test.ts`: a fixture row it cannot key is skipped with its refusal and offered no row, while core fails the read
+  - `RemedySignatureConformance.test.ts`: a site whose subject id it cannot key is skipped with its refusal and offered no row, while core fails the read
+
+Required green (each read from the report as passed):
+
+  - `RemedySignatureConformance.test.ts`: at a site whose resource id is doc-1
+  - `RemedySignatureConformance.test.ts`: at a site whose resource has no id
+  - `RemedySignatureConformance.test.ts`: at a site whose resource id is not a string
+  - `RemedySignatureConformance.test.ts`: at a site with no resource
+
+### remedy-acted-triple
+
+Scratch edit (`packages/devtools/src/model/Remedies.ts`): the `Acted` arm's body is the exact-triple check the code before ADR-QD-189 used: a missing id skips; `fieldOps("history").holds` on `{ subjectId, event, resourceId }` is met; otherwise the grant.
+
+Command (repository root, stdin closed):
+
+```
+pnpm exec vitest run --project devtools packages/devtools/test/model/RemedyActedConformance.test.ts --reporter=json --outputFile=<scratch>/gut-remedy-acted-triple-dev.json < /dev/null
+```
+
+Result: 1 passed, 6 failed of 7.
+
+Failed (every failing test in the report):
+
+  - `RemedyActedConformance.test.ts`: at a site whose resource id is doc-1
+  - `RemedyActedConformance.test.ts`: at a site whose resource has no id
+  - `RemedyActedConformance.test.ts`: at a site whose resource id is not a string
+  - `RemedyActedConformance.test.ts`: at a site with no resource
+  - `RemedyActedConformance.test.ts`: a fixture row it cannot key is skipped with its refusal and offered no row, while core fails the read
+  - `RemedyActedConformance.test.ts`: a site whose subject id it cannot key is skipped with its refusal and offered no row, while core fails the read
+
+Required green (each read from the report as passed):
+
+  - `RemedyActedConformance.test.ts`: the product holds 144 cases over four sites, two leaves and 18 lists
+
+The mismatches the report prints, per site row (distinct `<leaf> | <list> |` lines, counted from the failure messages), 14 in all:
+
+  - at a site whose resource id is doc-1: 2 mismatches, all at `Any` scope
+    - `hasActed approved at scope Any | alice approved doc-2 |`
+    - `hasActed approved at scope Any | the decoy, then alice approved doc-2 |`
+  - at a site whose resource has no id: 4 mismatches, all at `Any` scope
+    - `hasActed approved at scope Any | alice approved doc-1 |`
+    - `hasActed approved at scope Any | alice approved doc-2 |`
+    - `hasActed approved at scope Any | the decoy, then alice approved doc-1 |`
+    - `hasActed approved at scope Any | the decoy, then alice approved doc-2 |`
+  - at a site whose resource id is not a string: 4 mismatches, all at `Any` scope
+    - `hasActed approved at scope Any | alice approved doc-1 |`
+    - `hasActed approved at scope Any | alice approved doc-2 |`
+    - `hasActed approved at scope Any | the decoy, then alice approved doc-1 |`
+    - `hasActed approved at scope Any | the decoy, then alice approved doc-2 |`
+  - at a site with no resource: 4 mismatches, all at `Any` scope
+    - `hasActed approved at scope Any | alice approved doc-1 |`
+    - `hasActed approved at scope Any | alice approved doc-2 |`
+    - `hasActed approved at scope Any | the decoy, then alice approved doc-1 |`
+    - `hasActed approved at scope Any | the decoy, then alice approved doc-2 |`
+
+These are the 14 of "### The acted divergences" above, row for row: 2 at the site whose resource id is doc-1 and 4 at each of the three sites with no usable resource id, every one at `Any` scope. The two refusal rows fail as well (the exact-triple check never reads core's refusal).
+
+### custom-cell-copied
+
+Scratch edit (`packages/devtools/src/model/SimulationFields.ts`): `FIXTURE_DATA.CustomPredicate` is a fresh object literal with the same `_tag` and the same sentence. The sentence is then written twice and the value is no longer the one the remedy table reads.
+
+Command (repository root, stdin closed):
+
+```
+pnpm exec vitest run --project devtools packages/devtools/test/model/SimulationFields.test.ts --reporter=json --outputFile=<scratch>/gut-custom-cell-copied-dev.json < /dev/null
+```
+
+Result: 83 passed, 1 failed of 84.
+
+Failed (every failing test in the report):
+
+  - `SimulationFields.test.ts`: the custom-predicate cell is the value whose reason the remedy table gives
+
+Required green (each read from the report as passed):
+
+  - `SimulationFields.test.ts`: says why a custom predicate has no cell
+
+### overview-row-deleted
+
+Scratch edit (`spec/overview.md`): the `signatureAnswerFromSignatures` row of the public API tables deleted.
+
+Command (stdin closed):
+
+```
+node scripts/check-api-surface.mjs < /dev/null > <scratch>/gut-overview-row-deleted.api.log 2>&1; echo $? > <scratch>/gut-overview-row-deleted.api.status
+```
+
+Exit status 1. The failing line: `packages/core/src/SignatureHistory.ts  [missing] \`signatureAnswerFromSignatures\` is exported by @qadi/core and is not named in spec/overview.md's Public API surface section. Add it to a table, or to "Not listed above" with a reason.`
+
