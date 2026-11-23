@@ -88,7 +88,7 @@ const kind = (m) => `${m.mutator} ${m.replacement}`;
  * so its 38 static mutants are admitted here: 36 Killed, and 2 (the `declareSpan` arrow and `askedFields`) that crash the
  * module at import, which Stryker reports as RuntimeError although every test file fails to load (75-RED-EVIDENCE.md).
  * `PortSpanEncode.ts`'s 6 static mutants, in the two ranges its group mutates, are Killed by hand. `Predicate.ts` gained
- * one static arrow, the `tapError` callback of `toPredicate`'s span, Killed by hand.
+ * one static arrow, `answerFailure`, the pipeable that annotates a failed translation's error tag, Killed by hand.
  */
 const EXAMINED = { "packages/core/src/EvaluationSpan.ts": { 'ArrowFunction () => undefined': 3, 'ObjectLiteral {}': 22, 'StringLiteral ""': 13 }, "packages/core/src/PortSpanEncode.ts": { 'ArrowFunction () => undefined': 4, 'ObjectLiteral {}': 1, 'BooleanLiteral false': 1 }, "packages/core/src/Predicate.ts": { 'ArrowFunction () => undefined': 1 } };
 /**
