@@ -2427,9 +2427,10 @@ for (const file of srcSources) {
 //     `encodeSpan` (a log line's with `logAnnotations`) and reads one with
 //     `decodeSpan`, and a key typed by hand belongs in a golden, counted per file. A
 //     key that opens the title of a `describe`, `it`, `it.<effect|scoped|live|layer>`
-//     or `test` call is not counted; one passed to a method call is. It walks `packages/<pkg>/test` and `bench`,
-//     `features/features` (its `.test.ts` step files included) and every type-test
-//     file tstyche selects (`scripts/lib/type-tests.mjs`).
+//     or `test` call is not counted; one passed to a method call is. It walks
+//     `packages/<pkg>/test` and `bench`, `features/features` (its `.test.ts` step
+//     files included) and every type-test file tstyche selects
+//     (`scripts/lib/type-tests.mjs`).
 //   [span-key-literal-table]  AGENTS.md section 6's table and the budget agree.
 // ---------------------------------------------------------------------------
 

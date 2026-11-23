@@ -205,12 +205,20 @@ describe("the declaration of the evaluate family", () => {
     // A span holding every answer key the evaluate span writes: a batch reads none back.
     const answered = new Map(
       Object.entries(
-        encodeSpan(evaluateSpan.answer, { outcome: "Allow", errorTag: "E", obligations: "a" }),
+        encodeSpan(evaluateSpan.answer, {
+          outcome: "Allow",
+          errorTag: "E",
+          obligations: "a",
+        }),
       ),
     );
     for (const span of batches) {
       assert.lengthOf(Object.keys(span.answer.keys), 0, `${span.name} has an answer`);
-      assert.deepStrictEqual(decodeSpan(span.answer, answered), {}, `${span.name} reads one`);
+      assert.deepStrictEqual(
+        decodeSpan(span.answer, answered),
+        {},
+        `${span.name} reads one`,
+      );
     }
   });
 
@@ -228,10 +236,13 @@ describe("the declaration of the evaluate family", () => {
     );
   });
 
-  it("a log event declaration carries its marker at runtime and a span struct does not", () => {
-    assert.isTrue(denialEvent.logEvent);
-    for (const struct of [...questions, attributeResolverPort.attributes.question]) {
-      assert.isFalse(Object.hasOwn(struct, "logEvent"));
-    }
-  });
+  it(
+    "a log event declaration carries its marker at runtime and a span struct does not",
+    () => {
+      assert.isTrue(denialEvent.logEvent);
+      for (const struct of [...questions, attributeResolverPort.attributes.question]) {
+        assert.isFalse(Object.hasOwn(struct, "logEvent"));
+      }
+    },
+  );
 });
