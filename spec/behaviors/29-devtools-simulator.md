@@ -1082,10 +1082,10 @@ is held by tests only.
 
 Pinned by `packages/devtools/test/model/SeededChoice.test.ts` ("choosing an equal copy of the
 held policy returns the same choice", "choosing the held policy while a replayed policy is
-held drops it", "withSightings with the same elements in a new array returns the same
-choice") and `packages/devtools/test/model/SimulationSession.characterisation.test.ts`
-("choosing an equal copy of the held policy while idle changes nothing", "choosing the held
-policy after a run clears the run, notifying once").
+held drops it") and
+`packages/devtools/test/model/SimulationSession.characterisation.test.ts` ("choosing an equal
+copy of the held policy while idle changes nothing", "choosing the held policy after a run
+clears the run, notifying once").
 
 ## BEH-QD-710: A draft is written in one place and a run is cleared by one operation
 
