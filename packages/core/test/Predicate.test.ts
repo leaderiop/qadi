@@ -21,6 +21,7 @@ import {
 } from "../src/Errors.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import { predicatesTranslatedTotal } from "../src/EvaluationMetrics.ts";
+import { toPredicateSpan } from "../src/EvaluationSpan.ts";
 import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
@@ -30,6 +31,7 @@ import { evaluatePredicate, toPredicate } from "../src/Predicate.ts";
 import { chain, collectingTracer, isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
 import { scriptedPort } from "../src/PortDoubles.ts";
 import { PortReply } from "../src/PortDescription.ts";
+import { encodeSpan } from "../src/PortSpanEncode.ts";
 
 const tenant = subjectWith({
   id: "u-1",
@@ -1928,11 +1930,13 @@ describe("qadi.toPredicate names the translation it was asked", () => {
         Effect.provide(Layer.mergeAll(testLayer(subjectWith({ id: "u9", roles: ["editor"] })), collectingTracer(spans))),
       );
 
-      const span = spans.find((s) => s.name === "qadi.toPredicate");
+      const span = spans.find((s) => s.name === toPredicateSpan.name);
       assert.deepStrictEqual(Object.fromEntries(span?.attributes ?? []), {
-        "qadi.subject_id": "u9",
-        "qadi.policy_tag": "HasRole",
-        "qadi.predicate_tag": "True",
+        ...encodeSpan(toPredicateSpan.question, {
+          subjectId: "u9",
+          policyTag: "HasRole",
+        }),
+        ...encodeSpan(toPredicateSpan.answer, { predicateTag: "True" }),
       });
     }));
 });

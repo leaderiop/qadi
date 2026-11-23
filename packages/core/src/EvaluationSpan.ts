@@ -99,6 +99,28 @@ export const evaluateSpan = declareSpan({
 });
 
 /**
+ * The `qadi.toPredicate` span: one per translation of a policy into a row filter.
+ *
+ * The question is who asked what: the subject, the policy's tag and the action
+ * when there is one, annotated before admission, so a translation that fails still
+ * says what it was asked. It has no resource, because a translation answers for
+ * rows not yet loaded. The answer is the predicate's tag on success, or the error's
+ * tag on any failure: too deep, a fields restriction, an untranslatable node or a
+ * port failure.
+ *
+ * The predicate's tag is a string, not a closed list, because the predicate's tags
+ * are declared in `Predicate.ts`, which reads this module.
+ */
+export const toPredicateSpan = declareSpan({
+  name: "qadi.toPredicate",
+  question: spanStruct(askedFields, askedKeys),
+  answer: spanStruct(
+    { predicateTag: Schema.optionalKey(Schema.String), ...failedFields },
+    { predicateTag: "qadi.predicate_tag", ...failedKeys },
+  ),
+});
+
+/**
  * The annotations of the denial log line: the policy tag, the subject and the
  * reason.
  *

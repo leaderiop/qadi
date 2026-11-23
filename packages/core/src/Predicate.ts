@@ -28,6 +28,7 @@ import type { AttributeResolveError, DecisionHistoryUnavailable } from "./Errors
 import type { MissingAction } from "./Errors.ts";
 import { PolicyNotTranslatable } from "./Errors.ts";
 import { predicatesTranslatedTotal } from "./EvaluationMetrics.ts";
+import { annotateSpan, toPredicateSpan } from "./EvaluationSpan.ts";
 import type { Matcher, MatcherContext, ValueRef } from "./Matcher.ts";
 import { referencesResource } from "./Matcher.ts";
 import { getByPath, ownValue } from "./Operand.ts";
@@ -649,8 +650,11 @@ const run = (
  * restriction is refused, because a row filter alone would let a caller select
  * columns the policy withheld. Narrow the page with this, then judge the columns
  * with `decide` and `project`.
+ *
+ * Its span (`toPredicateSpan`, `EvaluationSpan.ts`) says what was asked before
+ * translating and, when translation fails, the error's tag (ADR-QD-188).
  */
-export const toPredicate = Effect.fn("qadi.toPredicate")(function* (
+export const toPredicate = Effect.fn(toPredicateSpan.name)(function* (
   policy: Policy,
   options?: PredicateOptions,
 ) {
@@ -658,6 +662,11 @@ export const toPredicate = Effect.fn("qadi.toPredicate")(function* (
   // Translation answers for rows not yet loaded, so its question has no
   // resource — explicitly, even if a caller's untyped options carried one.
   const question: Question = { ...questionOf(subject, policy, options), resource: undefined };
+  yield* annotateSpan(toPredicateSpan.question, {
+    subjectId: subject.id,
+    policyTag: policy._tag,
+    action: question.action,
+  });
   // Admission first, and from the policy alone: a policy that is both too deep
   // and field-restricting is always `PolicyTooDeep`, independent of child order
   // (ARCH-02 D-02-e, N4; INV-QD-037). Shared with `walk` (`Admission.ts`).
@@ -678,13 +687,15 @@ export const toPredicate = Effect.fn("qadi.toPredicate")(function* (
   }
   const predicate = yield* run(compiled, subject, admitted.success.matcherContext);
 
-  yield* Effect.annotateCurrentSpan({
-    "qadi.subject_id": subject.id,
-    "qadi.policy_tag": policy._tag,
-    "qadi.predicate_tag": predicate._tag,
-  });
+  yield* annotateSpan(toPredicateSpan.answer, { predicateTag: predicate._tag });
 
   yield* Metric.update(predicatesTranslatedTotal, 1);
 
   return predicate;
-});
+},
+  // Inside the span, so any failure says its tag: too deep, fields, untranslatable
+  // or a port.
+  Effect.tapError((error) =>
+    annotateSpan(toPredicateSpan.answer, { errorTag: error._tag }),
+  ),
+);
