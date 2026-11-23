@@ -84,12 +84,13 @@ export const mapLine = (diffText) => {
 const kind = (m) => `${m.mutator} ${m.replacement}`;
 /**
  * Ignored mutants a close may hold beyond its base, per file and kind, each run by hand and detected there: the group's
- * config spread with `ignoreStatic: false`, run with `--mutate <file>`. `EvaluationSpan.ts` is all declarations, so its
- * 35 static mutants are admitted here: 33 Killed, and 2 (the `declareSpan` arrow and `askedFields`) that crash the module
- * at import, which Stryker reports as RuntimeError although every test file fails to load (75-RED-EVIDENCE.md).
- * `Predicate.ts` gained one static arrow, the `tapError` callback of `toPredicate`'s span, Killed by hand.
+ * config spread with `ignoreStatic: false`, run with the group's `--mutate` list. `EvaluationSpan.ts` is all declarations,
+ * so its 38 static mutants are admitted here: 36 Killed, and 2 (the `declareSpan` arrow and `askedFields`) that crash the
+ * module at import, which Stryker reports as RuntimeError although every test file fails to load (75-RED-EVIDENCE.md).
+ * `PortSpanEncode.ts`'s 6 static mutants, in the two ranges its group mutates, are Killed by hand. `Predicate.ts` gained
+ * one static arrow, the `tapError` callback of `toPredicate`'s span, Killed by hand.
  */
-const EXAMINED = { "packages/core/src/EvaluationSpan.ts": { 'ArrowFunction () => undefined': 2, 'ObjectLiteral {}': 21, 'StringLiteral ""': 12 }, "packages/core/src/Predicate.ts": { 'ArrowFunction () => undefined': 1 } };
+const EXAMINED = { "packages/core/src/EvaluationSpan.ts": { 'ArrowFunction () => undefined': 3, 'ObjectLiteral {}': 22, 'StringLiteral ""': 13 }, "packages/core/src/PortSpanEncode.ts": { 'ArrowFunction () => undefined': 4, 'ObjectLiteral {}': 1, 'BooleanLiteral false': 1 }, "packages/core/src/Predicate.ts": { 'ArrowFunction () => undefined': 1 } };
 /**
  * Open mutants a rewrite moved, per file: each entry names a base survivor on a line the diff rewrote, the close
  * survivor it became, and why no test can kill it. An entry admits its close mutant only while the base mutant is in

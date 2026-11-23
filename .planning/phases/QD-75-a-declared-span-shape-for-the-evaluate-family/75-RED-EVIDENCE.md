@@ -495,3 +495,209 @@ a copy: a renamed contract title failed with the row named gone and the renamed 
 changed in `helpers.ts` failed with `attributesOf moved to the helpers file with other text`.
 
 The sections above are left as they were written.
+
+## 2026-11-23: The close after code review
+
+The close above was recorded at a61a47c4. The code-review loop then changed runtime code in `Lifecycle.ts`, `Predicate.ts`,
+`SubjectSet.ts`, `GuardHealthCheck.ts`, `EvaluationSpan.ts` and `PortSpanEncode.ts` (`annotateSpan`, `annotateAsked`,
+`askedAttributes`, `logEventStruct`, and `encodeSpan`/`logAnnotations` over one `encodeStruct`), so the close and the cost
+were measured again on the tree that ships. Sections above are left as they were written.
+
+**The group.** `PortSpanEncode.ts` joined the close-only `span` group (afd13e18, after 0621478d), mutated only over the
+lines the phase added to it: `--mutate packages/core/src/EvaluationSpan.ts,packages/core/src/PortSpanEncode.ts:90-153,packages/core/src/PortSpanEncode.ts:170-197`
+(`logEventStruct` to `annotateSpan`, and `annotateAsked` to `askedAttributes`). The first attempt mutated the whole file
+and left four survivors in `spanStruct`'s `decode`, which is older code (e635e6849, 2026-10-07) and not part of the phase;
+they are recorded below and the ranges exclude them. `PortAccess.ts` and `PortDerivation.ts` are not in a group: each
+changed line there replaces `Effect.annotateCurrentSpan(encodeSpan(s, v))` with `annotateSpan(s, v)`, which behaves
+identically, so their mutants are the base's.
+
+**Four pre-existing survivors, outside the phase.** Mutating the whole of `PortSpanEncode.ts` left four Survived mutants
+at `PortSpanEncode.ts:59` in `spanStruct`'s `decode`, on `if (raw === undefined || field === undefined) continue;`: 59:13
+ConditionalExpression `false` (two mutants), 59:13 LogicalOperator `raw === undefined && field === undefined`, and 59:34
+ConditionalExpression `false`. They are equivalent. `field === undefined` is a type-narrowing guard that cannot be
+reached at runtime: the keys and the fields share one key set, and removing it needs a `!` or an `as`. `raw === undefined`
+is a fast path, because decoding `undefined` answers None for every field type the library declares; I checked that by
+decoding `undefined` against all 53 fields of every `spanStruct` the library declares (the five port descriptions
+`AttributeResolver`, `CustomPredicate`, `DecisionHistory`, `RelationshipResolver`, `SignatureHistory`, the evaluate family
+in `EvaluationSpan.ts`, and `PortSpanEncode.ts`'s own), and none of them accepts it (`accepting undefined: []`).
+
+**Two survivors the by-hand run found, killed by two tests.** The by-hand static run at afd13e18 left two static
+mutants Survived: `EvaluationSpan.ts` 200:9 StringLiteral `""` (the `name` of the keyless `decideSubjectSpan`, which no
+test read) and `PortSpanEncode.ts` 109:72 BooleanLiteral `false` (the runtime `logEvent: true` marker of
+`logEventStruct`, which nothing read). Commit 24ca9e2a adds two rows to `packages/core/test/EvaluationSpan.test.ts`, no
+source change: "each span of the family keeps the public name a tracer keys on" compares the six declared names with
+their literals, and "a log event declaration carries its marker at runtime and a span struct does not" pins
+`denialEvent.logEvent` as true and its absence on the five questions and a port span struct. Each mutant was planted by
+hand once and reverted with `git checkout --`: `name: ""` made the first row fail (1 failed, 12 passed), and
+`logEvent: false` made the second fail (1 failed, 12 passed); with the source restored the file passes 13 of 13.
+`node scripts/check-house-style.mjs` and `pnpm typecheck` are clean: a span name is not a span key.
+
+**The close**, on one head, 24ca9e2a, each Stryker run alone with stdin closed, `record close core --restart` then `record
+close span`:
+
+| File | Group | Killed / valid | Survived | No coverage | Ignored |
+| ---- | ----- | -------------- | -------- | ----------- | ------- |
+| `Lifecycle.ts` | core | 38/38 | 0 | 0 | 1 |
+| `Predicate.ts` | core | 282/282 | 0 | 0 | 22 |
+| `SubjectSet.ts` | core | 33/33 | 0 | 0 | 5 |
+| `GuardHealthCheck.ts` | core | 9/9 | 0 | 0 | 0 |
+| `EvaluationSpan.ts` | span | 3/3 | 0 | 0 | 38 |
+| `PortSpanEncode.ts` (lines 90-153 and 170-197) | span | 0/0 | 0 | 0 | 6 |
+
+The `core` run scored 100.00 (362 killed). Every mutant in the two ranges of `PortSpanEncode.ts` is a module-scope arrow or
+object, so it is static and Ignored; they are closed by the by-hand run.
+
+**Static mutants run by hand.** One run into one report, with `ignoreStatic: false`, by the group's configuration spread:
+
+```
+pnpm exec stryker run <S>/stryker.examined.mjs --mutate packages/core/src/EvaluationSpan.ts,packages/core/src/PortSpanEncode.ts:90-153,packages/core/src/PortSpanEncode.ts:170-197,packages/core/src/Predicate.ts < /dev/null
+```
+
+It exited 0 with a score of 100.00. `EvaluationSpan.ts` 39 Killed and 2 RuntimeError (41: 3 valid and 38 Ignored),
+`PortSpanEncode.ts` 6 Killed, `Predicate.ts` 304 Killed; no Survived, NoCoverage or Timeout. The two RuntimeError are, as in
+the first close, line 53 (`declareSpan`'s arrow replaced by `() => undefined`) and line 60 (`askedFields` replaced by `{}`):
+each crashes the module while it is imported, so every test file that reaches it fails to load and Stryker reports `An
+error occurred outside of a test run` instead of `Killed`. They are detected by every test of the suite, which is what
+`Killed` means here, and are admitted under that one reading, not hidden. `EXAMINED` now admits, by kind,
+`EvaluationSpan.ts` `ArrowFunction () => undefined` 3, `ObjectLiteral {}` 22, `StringLiteral ""` 13;
+`PortSpanEncode.ts` `ArrowFunction () => undefined` 4, `ObjectLiteral {}` 1, `BooleanLiteral false` 1; `Predicate.ts`
+`ArrowFunction () => undefined` 1 (its other 21 are the base's). Each Ignored mutant of the close record, joined to its
+by-hand status on line, column, mutator and replacement:
+
+### EvaluationSpan.ts
+
+| Line | Column | Mutator | Replacement | Status by hand |
+| ---- | ------ | ------- | ----------- | -------------- |
+| 80 | 24 | ArrowFunction | `() => undefined` | Killed |
+| 100 | 29 | ArrowFunction | `() => undefined` | Killed |
+| 133 | 5 | ObjectLiteral | `{}` | Killed |
+| 142 | 5 | ObjectLiteral | `{}` | Killed |
+| 142 | 16 | StringLiteral | `""` | Killed |
+| 142 | 60 | StringLiteral | `""` | Killed |
+| 134 | 5 | ObjectLiteral | `{}` | Killed |
+| 160 | 9 | StringLiteral | `""` | Killed |
+| 53 | 21 | ArrowFunction | `() => undefined` | RuntimeError |
+| 60 | 21 | ObjectLiteral | `{}` | RuntimeError |
+| 130 | 41 | ObjectLiteral | `{}` | Killed |
+| 137 | 5 | ObjectLiteral | `{}` | Killed |
+| 164 | 21 | StringLiteral | `""` | Killed |
+| 176 | 49 | ObjectLiteral | `{}` | Killed |
+| 164 | 5 | ObjectLiteral | `{}` | Killed |
+| 177 | 9 | StringLiteral | `""` | Killed |
+| 131 | 9 | StringLiteral | `""` | Killed |
+| 92 | 24 | ObjectLiteral | `{}` | Killed |
+| 181 | 5 | ObjectLiteral | `{}` | Killed |
+| 180 | 5 | ObjectLiteral | `{}` | Killed |
+| 181 | 16 | StringLiteral | `""` | Killed |
+| 89 | 26 | ObjectLiteral | `{}` | Killed |
+| 109 | 22 | ObjectLiteral | `{}` | Killed |
+| 159 | 44 | ObjectLiteral | `{}` | Killed |
+| 134 | 35 | StringLiteral | `""` | Killed |
+| 199 | 46 | ObjectLiteral | `{}` | Killed |
+| 200 | 9 | StringLiteral | `""` | Killed |
+| 211 | 47 | ObjectLiteral | `{}` | Killed |
+| 212 | 9 | StringLiteral | `""` | Killed |
+| 215 | 5 | ObjectLiteral | `{}` | Killed |
+| 214 | 5 | ObjectLiteral | `{}` | Killed |
+| 163 | 5 | ObjectLiteral | `{}` | Killed |
+| 215 | 21 | StringLiteral | `""` | Killed |
+| 227 | 53 | ObjectLiteral | `{}` | Killed |
+| 228 | 9 | StringLiteral | `""` | Killed |
+| 243 | 3 | ObjectLiteral | `{}` | Killed |
+| 248 | 3 | ObjectLiteral | `{}` | Killed |
+| 251 | 13 | StringLiteral | `""` | Killed |
+
+### PortSpanEncode.ts
+
+| Line | Column | Mutator | Replacement | Status by hand |
+| ---- | ------ | ------- | ----------- | -------------- |
+| 106 | 31 | ArrowFunction | `() => undefined` | Killed |
+| 109 | 31 | ObjectLiteral | `{}` | Killed |
+| 149 | 29 | ArrowFunction | `() => undefined` | Killed |
+| 180 | 30 | ArrowFunction | `() => undefined` | Killed |
+| 109 | 72 | BooleanLiteral | `false` | Killed |
+| 193 | 32 | ArrowFunction | `() => undefined` | Killed |
+
+### Predicate.ts
+
+| Line | Column | Mutator | Replacement | Status by hand |
+| ---- | ------ | ------- | ----------- | -------------- |
+| 83 | 25 | ObjectLiteral | `{}` | Killed |
+| 164 | 24 | ObjectLiteral | `{}` | Killed |
+| 83 | 33 | StringLiteral | `""` | Killed |
+| 167 | 14 | ArrowFunction | `() => undefined` | Killed |
+| 168 | 15 | ArrowFunction | `() => undefined` | Killed |
+| 86 | 18 | ArrowFunction | `() => undefined` | Killed |
+| 84 | 26 | ObjectLiteral | `{}` | Killed |
+| 84 | 34 | StringLiteral | `""` | Killed |
+| 175 | 34 | ArrowFunction | `() => undefined` | Killed |
+| 165 | 11 | ArrowFunction | `() => undefined` | Killed |
+| 166 | 12 | ArrowFunction | `() => undefined` | Killed |
+| 204 | 24 | ArrowFunction | `() => undefined` | Killed |
+| 221 | 21 | ArrowFunction | `() => undefined` | Killed |
+| 169 | 10 | ArrowFunction | `() => undefined` | Killed |
+| 170 | 9 | ArrowFunction | `() => undefined` | Killed |
+| 339 | 17 | ArrowFunction | `() => undefined` | Killed |
+| 171 | 13 | ArrowFunction | `() => undefined` | Killed |
+| 283 | 25 | ArrowFunction | `() => undefined` | Killed |
+| 577 | 13 | ArrowFunction | `() => undefined` | Killed |
+| 341 | 17 | ArrowFunction | `() => undefined` | Killed |
+| 645 | 23 | ArrowFunction | `() => undefined` | Killed |
+| 269 | 16 | ArrowFunction | `() => undefined` | Killed |
+
+**Compare**, after `node .planning/phases/QD-75-a-declared-span-shape-for-the-evaluate-family/75-mutation.mjs compare`:
+
+```
+packages/core/src/Lifecycle.ts 42/42 -> 38/38, survived 0 -> 0, no coverage 0 -> 0, ignored 2 -> 1 (0 new)
+packages/core/src/Predicate.ts 280/280 -> 282/282, survived 0 -> 0, no coverage 0 -> 0, ignored 22 -> 22 (0 new)
+packages/core/src/SubjectSet.ts 34/34 -> 33/33, survived 0 -> 0, no coverage 0 -> 0, ignored 8 -> 5 (0 new)
+packages/core/src/GuardHealthCheck.ts 7/9 -> 9/9, survived 2 -> 0, no coverage 0 -> 0, ignored 1 -> 0 (0 new)
+packages/core/src/EvaluationSpan.ts 3/3, survived 0, no coverage 0, ignored 38 (0 unexamined)
+packages/core/src/PortSpanEncode.ts 0/0, survived 0, no coverage 0, ignored 6 (0 unexamined)
+no file has an open or Ignored mutant its base did not have, and every score that fell lost only killed mutants
+```
+
+The self-test ends `self-test: 36 passed`.
+
+### The cost, measured at the shipping tree
+
+The run above in this file (a61a47c4) predates the rewiring of the writers through `annotateAsked`, `askedAttributes`,
+`annotateSpan` and `logAnnotations`, so it was repeated on the final source tree (HEAD 24ca9e2a; no `packages/core/src` file
+differs from it at any later commit). Same patch construction (`git diff HEAD c054c2b12fc46fa53fa78e0efa9ff98fd9d60314 --
+packages/core/src`, 792 lines, eight files: `GuardHealthCheck.ts`, `Lifecycle.ts`, `PortAccess.ts`, `PortDerivation.ts`,
+`PortSpanEncode.ts`, `Predicate.ts`, `SubjectSet.ts`, and `EvaluationSpan.ts` deleted), same 17 workloads, six rounds in
+the same interleaved order, Apple M3 Pro, node v26.13.0:
+
+```
+bash scripts/bench/ab.sh <S>/bench-re/to-base.patch <S>/bench-re/out 6 close base packages/core/bench/Evaluate.bench.ts "^evaluate$" < /dev/null
+node scripts/bench/analyze.mjs <S>/bench-re/out base close <S>/bench-re/workloads.txt < /dev/null
+```
+
+The first attempt was refused by `ab.sh` as busy (`busy: load 34.06 on 12 cpus, top process at 649.1%`, another session's
+compiler). I waited for the host to settle and ran again, never forcing it: `ab.sh` exited 0 with `quiet: load 2.32 on 12
+cpus, top process at 19.3%`, and the 1-minute load stayed between 2.3 and 4.8 across all twelve runs (12:09 to 12:14).
+`analyze.mjs` exited 1, which is a record and not a gate.
+
+Median of per-run minima, in ns, `base -> close, delta, spread` (the reference arm's spread across six runs), against the
+first measurement at a61a47c4 (its second, settled run):
+
+| Workload | At the shipping tree (24ca9e2a) | At a61a47c4 (settled run) |
+| -------- | ------------------------------- | ------------------------- |
+| `one node` | 5562 -> 6458, +16.1%, 7.5% | 5833 -> 6479, +11.1%, 10.0% |
+| `resolver miss — one port call` | 10979 -> 11792, +7.4%, 12.2% | 11833 -> 12209, +3.2%, 9.2% |
+| `wide — allOf of 8` | 7312 -> 8104, +10.8%, 8.0% | 7750 -> 8438, +8.9%, 9.1% |
+
+```
+# geomean_d_min_pct: 9.17   # slower: 16 of 17   # worst_d_min: 16.1 evaluate :: one node   # gate: fail
+```
+
+The geometric mean over the 17 workloads is +9.17% (against +7.83% and +6.79% at a61a47c4), 16 of 17 over the 5% band; only
+`field-heavy — allOf of 8 under Intersection` is inside it (+2.0%). The absolute cost is about 0.3 to 0.9 µs per `evaluate`
+call (`one node` +896 ns, `wide` +792 ns, `resolver miss` +813 ns), the same order as before; the percentage is larger
+because the base arm ran faster in this run (`one node` 5562 against 5833 ns), and it is lowest on the most expensive
+workload. The added call frames of the rewiring are inside the figure, as expected; it is a record and not a gate.
+
+### Coverage on the shipping tree
+
+`pnpm coverage < /dev/null`, alone, exit 0 (252 test files, 6290 tests passed): statements 99.64%, branches 98.68%,
+functions 99.55%, lines 99.82%, so `packages/core`'s 95% and every other package's 90% hold.
