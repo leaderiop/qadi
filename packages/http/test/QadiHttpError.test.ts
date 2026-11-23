@@ -359,8 +359,9 @@ describe("ENFORCEMENT_ERROR_WIRE", () => {
     expect("resourceId" in unscoped).toBe(false);
   });
 
-  it("DecisionHistoryUnavailable's projection and response body carry the event when the error had one", () => {
-    // `JSON.parse` returns `any`, so the request needs no `as`; the port builds its own error.
+  it("the DecisionHistoryUnavailable projection and body carry its event", () => {
+    // `JSON.parse` returns `any`, so the request needs no `as`; the port builds its
+    // own error.
     const error = decisionHistoryPort.failure(
       [JSON.parse('{"subjectId":"alice","event":"approved"}')],
       "store down",
@@ -380,11 +381,12 @@ subject id when the error has none",
       refused.subjectId = Symbol("alice");
       const error = signatureHistoryPort.failure([refused], "store down");
       const bare = { _tag: "SignatureHistoryUnavailable" };
+      const encoded = Schema.encodeSync(SignatureHistoryUnavailableResponse)(error);
       expect(projectHttpEnforcementFailure(error)).toEqual(bare);
-      expect(Schema.encodeSync(SignatureHistoryUnavailableResponse)(error)).toEqual(bare);
+      expect(encoded).toEqual(bare);
       // `toEqual` reads a member stated `undefined` as absent, so the key is checked too.
       expect("subjectId" in projectHttpEnforcementFailure(error)).toBe(false);
-      expect("subjectId" in Schema.encodeSync(SignatureHistoryUnavailableResponse)(error)).toBe(false);
+      expect("subjectId" in encoded).toBe(false);
     },
   );
 
@@ -398,11 +400,12 @@ event when the error has none",
       refused.event = Symbol("approved");
       const error = decisionHistoryPort.failure([refused], "store down");
       const bare = { _tag: "DecisionHistoryUnavailable" };
+      const encoded = Schema.encodeSync(DecisionHistoryUnavailableResponse)(error);
       expect(projectHttpEnforcementFailure(error)).toEqual(bare);
-      expect(Schema.encodeSync(DecisionHistoryUnavailableResponse)(error)).toEqual(bare);
+      expect(encoded).toEqual(bare);
       // `toEqual` reads a member stated `undefined` as absent, so the key is checked too.
       expect("event" in projectHttpEnforcementFailure(error)).toBe(false);
-      expect("event" in Schema.encodeSync(DecisionHistoryUnavailableResponse)(error)).toBe(false);
+      expect("event" in encoded).toBe(false);
     },
   );
 
