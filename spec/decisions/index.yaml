@@ -570,3 +570,7 @@ entries:
     file: "185-the-dock-models-computed-stores-are-derived-stores.md"
     title: "The dock model's computed stores are derived stores"
     status: "Accepted — extends ADR-QD-168, amends ADR-QD-047, corrects ADR-QD-169"
+  - id: "ADR-QD-186"
+    file: "186-gate-registration-is-one-keyed-reconcile.md"
+    title: "Gate registration is one keyed reconcile"
+    status: "Accepted — extends ADR-QD-140 and ADR-QD-111"
