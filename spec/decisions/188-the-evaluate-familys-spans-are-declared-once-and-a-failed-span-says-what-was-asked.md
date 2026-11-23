@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-188                                   |
-> | Revision       | 1.8                                            |
+> | Revision       | 1.9                                            |
 > | Effective Date | 2026-11-23                                     |
 > | Status         | Accepted — extends ADR-QD-051 and ADR-QD-109   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.8 (2026-11-23): The cost, measured: names the commit its figures were measured at, a61a47c4, and that they are re-measured on the tree that ships (code review, CCR-QD-467)<br>1.7 (2026-11-23): Decision 6 and What enforces it: every span-writing function refuses a log event, logAnnotations takes one only, and review keeps a raw span write or an upcast (code review, CCR-QD-467)<br>1.6 (2026-11-23): Decision 6 and What enforces it: denialEvent is a log event the span annotators refuse, held by the compiler (code review, CCR-QD-467)<br>1.5 (2026-11-23): Decision 3 declares the keyless decideSubjectSpan, so every span name of the family is read from the declaration (code review, CCR-QD-467)<br>1.4 (2026-11-23): Decision 8 and Consequences point to What enforces it and The cost, measured, which this document holds (code review, CCR-QD-467)<br>1.3 (2026-11-23): What enforces it: the compiler holds each question whole through annotateAsked's PoseOf (code review, CCR-QD-467)<br>1.2 (2026-11-23): Decision 1 scopes the outcome to a path that ends in a decision or a typed failure; an interrupted or defected evaluation carries no outcome (code review, CCR-QD-467)<br>1.1 (2026-11-23): What enforces it (the compiler, the rule, the tests, review) and the measured cost of the second annotation; related records INV-QD-395, INV-QD-396, BEH-QD-711 to BEH-QD-715 (ARCH-122, CCR-QD-467)<br>1.0 (2026-11-23): Initial release (ARCH-122, CCR-QD-467) |
+> | Change History | 1.9 (2026-11-23): The cost, measured: states the figures measured at 24ca9e2a, the tree that ships, beside the earlier ones measured at a61a47c4 (code review, CCR-QD-467)<br>1.8 (2026-11-23): The cost, measured: names the commit its figures were measured at, a61a47c4, and that they are re-measured on the tree that ships (code review, CCR-QD-467)<br>1.7 (2026-11-23): Decision 6 and What enforces it: every span-writing function refuses a log event, logAnnotations takes one only, and review keeps a raw span write or an upcast (code review, CCR-QD-467)<br>1.6 (2026-11-23): Decision 6 and What enforces it: denialEvent is a log event the span annotators refuse, held by the compiler (code review, CCR-QD-467)<br>1.5 (2026-11-23): Decision 3 declares the keyless decideSubjectSpan, so every span name of the family is read from the declaration (code review, CCR-QD-467)<br>1.4 (2026-11-23): Decision 8 and Consequences point to What enforces it and The cost, measured, which this document holds (code review, CCR-QD-467)<br>1.3 (2026-11-23): What enforces it: the compiler holds each question whole through annotateAsked's PoseOf (code review, CCR-QD-467)<br>1.2 (2026-11-23): Decision 1 scopes the outcome to a path that ends in a decision or a typed failure; an interrupted or defected evaluation carries no outcome (code review, CCR-QD-467)<br>1.1 (2026-11-23): What enforces it (the compiler, the rule, the tests, review) and the measured cost of the second annotation; related records INV-QD-395, INV-QD-396, BEH-QD-711 to BEH-QD-715 (ARCH-122, CCR-QD-467)<br>1.0 (2026-11-23): Initial release (ARCH-122, CCR-QD-467) |
 
 ---
 
@@ -115,8 +115,8 @@ Nothing outside `packages/core/test` reads these keys: not `@qadi/devtools`, `@q
 - Breaking for a tracer query on `qadi.decision`: it moves to `qadi.outcome`. It ships with a
   `@qadi/core` changeset and an upgrade-guide section that list every new key a tracer sees.
 - Every evaluation annotates twice, the question and then the answer, where it annotated once.
-  The cost is recorded under The cost, measured: +6.79% geomean on a settled host, about
-  0.4–1.1 µs per call.
+  The cost is recorded under The cost, measured: +9.17% geomean at the tree that ships, about
+  0.3–0.9 µs per call.
 - `decideQuestion` stays exported, package-private, because its type test pins its options.
 - No public name changes, so `check-api-surface` stays at 941 exports.
 
@@ -161,34 +161,34 @@ The decision is held by four things, and the last of them is not a machine.
 Every evaluation annotates twice, the question and then the answer, where it annotated once. The
 price was measured against the writers this decision replaced: the tree with the declaration
 (`close`) and the same tree with `packages/core/src` patched back to the earlier writers (`base`),
-interleaved so each arm runs first in half the rounds. The `close` arm's tree is commit `a61a47c4`.
-That tree predates the code-review rewiring of the writers through `annotateAsked`, `askedAttributes`,
-`annotateSpan` and `logAnnotations`, which adds a call frame to each annotation, so the figures below
-are those of `a61a47c4`; they are re-measured on the tree that ships this decision, and that run is
-recorded here with its commit.
+interleaved so each arm runs first in half the rounds. It was measured twice, and the second
+measurement is the one that ships. The first, at commit `a61a47c4`, predates the code-review
+rewiring of the writers through `annotateAsked`, `askedAttributes`, `annotateSpan` and
+`logAnnotations`, which adds a call frame to each annotation; the second, at commit `24ca9e2a`, is
+the tree that ships this decision.
 
 ```
 bash scripts/bench/ab.sh <patch back to the earlier writers> <out> 6 close base packages/core/bench/Evaluate.bench.ts "^evaluate$" < /dev/null
 node scripts/bench/analyze.mjs <out> base close <the 17 workloads of the evaluate bench> < /dev/null
 ```
 
-Six rounds, twelve runs, on an Apple M3 Pro with node v26.13.0. The first run began while the
-machine was still shedding the load of an earlier run (a falling load is not a steady one), so it
-was repeated on a host that had settled. Both are recorded, and they agree. Each cell is the median of
-the per-run minima, in ns, as `base -> close, delta, spread`, the spread being the reference arm's
-across the six runs.
+Six rounds, twelve runs, on an Apple M3 Pro with node v26.13.0, on a host whose 1-minute load stayed
+between 2.3 and 4.8 on 12 CPUs. Each cell is the median of the per-run minima, in ns, as
+`base -> close, delta, spread`, the spread being the reference arm's across the six runs.
 
-| Workload | First run (load falling) | Second run (settled) |
-| -------- | ------------------------ | -------------------- |
-| `one node` | 5687 -> 6375, +12.1%, 11.7% | 5833 -> 6479, +11.1%, 10.0% |
-| `resolver miss — one port call` | 11041 -> 11958, +8.3%, 13.6% | 11833 -> 12209, +3.2%, 9.2% |
-| `wide — allOf of 8` | 7584 -> 8250, +8.8%, 11.0% | 7750 -> 8438, +8.9%, 9.1% |
+| Workload | At `24ca9e2a`, the shipping tree | At `a61a47c4`, the earlier measurement (settled run) |
+| -------- | -------------------------------- | ---------------------------------------------------- |
+| `one node` | 5562 -> 6458, +16.1%, 7.5% | 5833 -> 6479, +11.1%, 10.0% |
+| `resolver miss — one port call` | 10979 -> 11792, +7.4%, 12.2% | 11833 -> 12209, +3.2%, 9.2% |
+| `wide — allOf of 8` | 7312 -> 8104, +10.8%, 8.0% | 7750 -> 8438, +8.9%, 9.1% |
 
-The geometric mean over all 17 workloads is +7.83% in the first run and +6.79% in the second, with
-15 and 14 of the 17 over the analyzer's 5% band. The analyzer's verdict was a failure in both runs.
-The absolute cost is about 0.4 to 1.1 µs per `evaluate` call, one more annotation and its encode,
-so the percentage is lowest where the work is most expensive: `field-heavy — allOf of 8 under
-Intersection` is +2.2% and +2.3%.
+The geometric mean over all 17 workloads is **+9.17%** at the shipping tree, with 16 of the 17 over
+the analyzer's 5% band; at `a61a47c4` it was +7.83% in a first run, begun while the machine was still
+shedding an earlier run's load, and +6.79% in a repeat on a settled host, with 15 and 14 over the
+band. The analyzer's verdict was a failure in every run. The absolute cost at the shipping tree is
+about 0.3 to 0.9 µs per `evaluate` call, one more annotation and its encode (`one node` +896 ns,
+`wide` +792 ns, `resolver miss` +813 ns), so the percentage is lowest where the work is most
+expensive: `field-heavy — allOf of 8 under Intersection` is +2.0%, the one workload inside the band.
 
 The figure is a record and not a gate, in the habit of [ADR-QD-034](./034-the-switch-exception-is-measured.md), which measures a cost
 and does not make a benchmark a merge gate: the second annotation is the price of annotating the question before the work, so that a failed span
