@@ -53,7 +53,7 @@ const GROUPS = {
     files: [`${R}PortKey.ts`, `${R}ScopedLeaf.ts`, `${R}LeafNeeds.ts`, `${R}PortDerivation.ts`],
     // Each file is mutated only where this phase wrote it: the `+` side of `git diff -U0 bf339146 HEAD -- <file>`
     // (`PortKey.ts` 56, 79-84, 87-90, 134-137, 212 and 215-246; `ScopedLeaf.ts` 2-3, 5-6, 14-19, 24-25 and 47-75;
-    // `LeafNeeds.ts` 22, 199 and 240-241; `PortDerivation.ts` 36 and 111-113). These ranges must follow the file if it
+    // `LeafNeeds.ts` 22, 199 and 240-248, the whole of `errorOf`, whose body block starts on a written line; `PortDerivation.ts` 36 and 111-113). These ranges must follow the file if it
     // changes: re-derive them from that diff, never by editing a range to cover a line that survives. Stryker keeps a
     // mutant only when its whole node lies inside a range, so a node that starts on a written line and runs past it
     // (a function body, an overload's implementation) is left to the by-hand run over the whole file.
@@ -71,7 +71,7 @@ const GROUPS = {
       `${R}ScopedLeaf.ts:47-75`,
       `${R}LeafNeeds.ts:22-22`,
       `${R}LeafNeeds.ts:199-199`,
-      `${R}LeafNeeds.ts:240-241`,
+      `${R}LeafNeeds.ts:240-248`,
       `${R}PortDerivation.ts:36-36`,
       `${R}PortDerivation.ts:111-113`,
     ],
