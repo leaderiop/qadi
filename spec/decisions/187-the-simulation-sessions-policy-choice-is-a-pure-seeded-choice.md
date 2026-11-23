@@ -123,7 +123,8 @@ assignments.
 - BEH-QD-466, BEH-QD-460 and INV-QD-107 gain one dated amendment each; no sentence of theirs
   is rewritten.
 - No public name changes and `check-api-surface` stays at 941 exports, so there is no
-  changeset and `spec/overview.md` does not change.
+  changeset; `spec/overview.md` names the three types from `model/SeededChoice.ts`
+  (Rev 1.133) under the same names.
 - The behaviours are
   [BEH-QD-706](../behaviors/29-devtools-simulator.md#beh-qd-706-the-head-is-pinned-only-while-no-replayed-row-is-held),
   [BEH-QD-707](../behaviors/29-devtools-simulator.md#beh-qd-707-a-row-with-no-decision-stays-the-baseline-row),
