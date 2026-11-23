@@ -471,6 +471,33 @@ a `describe`/`it` title is a pin or a snapshot-golden row, counted per file in
 is exported as its series (a record keyed by the closed label), never as the
 untagged base, which reads zero.
 
+**A span key of the evaluate family is declared once, and read through its declaration: `SPAN_KEY_LITERAL_BUDGET`** (ADR-QD-188).
+The family's spans and the denial log line take their keys from
+`packages/core/src/EvaluationSpan.ts`, which spells each once and reads `qadi.subject_id`
+from `PortSpanEncode.ts`'s `sharedQuestionKeys`. `[span-key-source]` in
+`scripts/check-house-style.mjs` reads the key set from that declaration, never from a
+list of its own (an extraction that finds fewer than `SPAN_KEY_MIN` keys fails, so a
+moved or emptied declaration cannot make the rule pass with nothing to check), refuses a
+key spelled twice there, and refuses any mention of a key in `packages/*/src` or
+`features/step-definitions` outside the two files. A test builds an expected record with
+`encodeSpan` and reads a value with `decodeSpan` or `struct.keys`; an exact quoted key
+outside a title is a golden row, counted per file against the budget in both directions
+(`[span-key-literal]`). Test-scope, like `PORT_DOUBLE_BUDGET`. The table is checked
+against the budget (`[span-key-literal-table]`), and a new row is a reviewed edit to both
+together.
+
+| Test file | Span-key literals | Why |
+| --------- | ----------------- | --- |
+| `packages/core/test/Evaluate.test.ts` | 12 | The port-span golden: it pins the shared subject id key of the port spans |
+| `packages/core/test/EvaluationSpan.contract.test.ts` | 96 | The tracer-facing golden: it writes every key literally on purpose |
+| `packages/core/test/PortAccess.test.ts` | 3 | The port-span golden for the attribute read: the shared subject id key |
+| `packages/core/test/PortServe.test.ts` | 5 | The port-span golden for a served port: the shared subject id key |
+| `packages/core/test/PortSpan.test.ts` | 9 | The port-span golden for the span struct: the shared subject id key |
+| `packages/core/test/Predicate.test.ts` | 3 | The port-span golden for a translation: the shared subject id key |
+| `packages/devtools/test/model/PortCalls.test.ts` | 1 | It pins the shared subject id key on a port call |
+| `packages/devtools/test/model/Source.test.ts` | 2 | It pins that devtools' own log line carries no reason key |
+| `packages/testing/test/CollectingTracer.test.ts` | 2 | An arbitrary attribute in a tracer test |
+
 **A negative type pin can fail, and each one is counted: `NOT_CALLABLE_PIN_BUDGET`**
 (ADR-QD-175). tstyche checks `expect(f).type.not.toBeCallableWith(args)`, and
 `not.toBeConstructableWith` for `new`, by compiling the call and reading any

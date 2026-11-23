@@ -9,6 +9,10 @@
  * carries its question because that is annotated before the work, not after it
  * (ADR-QD-188, extending ADR-QD-051 and ADR-QD-109).
  *
+ * A key spelled anywhere else in library source, or typed by hand in a test outside its
+ * counted goldens, is refused by `[span-key-source]` and `[span-key-literal]` in
+ * `scripts/check-house-style.mjs` (ADR-QD-188).
+ *
  * Every field is a {@link SpanValue} leaf by type, which is INV-QD-044: a span
  * of this family cannot hold a resolved attribute, a resource or a policy body.
  *

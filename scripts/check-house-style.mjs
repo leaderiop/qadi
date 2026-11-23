@@ -52,6 +52,9 @@
  * lines, so an indented declaration and each name of `let a, b` count; a `const` holding
  * a mutable container, a `static` class field, a `declare`d binding and anything a
  * function declares do not.
+ * The thirteenth, `SPAN_KEY_LITERAL_BUDGET`, is test-scope like
+ * `METRIC_ID_LITERAL_BUDGET`; it and `[span-key-source]` are described where they run,
+ * below (ADR-QD-188).
  *
  * The three whole-file, cross-line-break checks below (`no-prefixed-error-tag`,
  * `no-catchtags-object-form`, `no-named-effect-submodule-import`) already run
@@ -2407,6 +2410,252 @@ for (const file of srcSources) {
       `${rel}  [metric-id-literal] ${found} \`"qadi_…"\` id literal(s) outside a test title.\n` +
         `    A test reads a metric through its export (\`Metric.value(decisionsTotal.Allow)\`); a literal id ` +
         `belongs in a pin, added to METRIC_ID_LITERAL_BUDGET with its exact count (ADR-QD-123).`,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ADR-QD-188 — a span key of the evaluate family is declared once, in
+// `EvaluationSpan.ts`, and read through that declaration. Three rules, none of
+// which is a new gate number (they run inside this script, which `pnpm lint` runs):
+//
+//   [span-key-source]  the key set is read from the declaration, never from a
+//     list of this script's own, and no other library file spells or mentions a key.
+//   [span-key-literal]  SPAN_KEY_LITERAL_BUDGET: a test builds a record with
+//     `encodeSpan` and reads one with `decodeSpan`, and a key typed by hand belongs
+//     in a golden, counted per file.
+//   [span-key-literal-table]  AGENTS.md section 6's table and the budget agree.
+// ---------------------------------------------------------------------------
+
+/** The one file that spells each key of the family. */
+const SPAN_KEY_DECLARATION = "packages/core/src/EvaluationSpan.ts";
+
+/** The file whose `sharedQuestionKeys.subjectId` is the family's subject id key. */
+const SPAN_KEY_SHARED = "packages/core/src/PortSpanEncode.ts";
+
+/**
+ * The size of the family's key set when the rule was written.
+ *
+ * An extraction that finds fewer fails, so renaming the declaration cannot empty the
+ * rule and let every check below pass with nothing to compare.
+ */
+const SPAN_KEY_MIN = 11;
+
+/**
+ * The exact count of quoted family-key literals per test file, outside a
+ * `describe(`/`it(`/`test(` title. Each is a golden row: the one place a test
+ * restates a key (ADR-QD-188). Checked in both directions like
+ * `METRIC_ID_LITERAL_BUDGET`, so a key typed anywhere else fails until it is written
+ * down with its reason.
+ *
+ * @type {Readonly<Record<string, number>>}
+ */
+const SPAN_KEY_LITERAL_BUDGET = {
+  // The port-span golden: it pins the shared subject id key of the port spans.
+  "packages/core/test/Evaluate.test.ts": 12,
+  // The tracer-facing golden: it writes every key literally on purpose.
+  "packages/core/test/EvaluationSpan.contract.test.ts": 96,
+  // The port-span golden for the attribute read: the shared subject id key.
+  "packages/core/test/PortAccess.test.ts": 3,
+  // The port-span golden for a served port: the shared subject id key.
+  "packages/core/test/PortServe.test.ts": 5,
+  // The port-span golden for the span struct: the shared subject id key.
+  "packages/core/test/PortSpan.test.ts": 9,
+  // The port-span golden for a translation: the shared subject id key.
+  "packages/core/test/Predicate.test.ts": 3,
+  // It pins the shared subject id key on a port call.
+  "packages/devtools/test/model/PortCalls.test.ts": 1,
+  // It pins that devtools' own log line carries no reason key.
+  "packages/devtools/test/model/Source.test.ts": 2,
+  // An arbitrary attribute in a tracer test.
+  "packages/testing/test/CollectingTracer.test.ts": 2,
+};
+
+const SPAN_KEY_LITERAL_SHAPE = /"(qadi\.[a-z][a-z_]*)"/g;
+const SPAN_KEY_SHARED_SHAPE =
+  /sharedQuestionKeys[^{]*\{[^}]*\bsubjectId:\s*"(qadi\.[a-z][a-z_]*)"/;
+
+// The key set is read from the declaration: every quoted key on a line that is neither a
+// comment nor a `name:` line (the span names), plus the shared subject id key.
+/** @type {Map<string, number[]>} */
+const declaredSpanKeys = new Map();
+/** @type {string | undefined} */
+let sharedSpanKey;
+{
+  const read = (rel) => readFileSync(join(ROOT, rel), "utf8").replace(/\r\n/g, "\n");
+  read(SPAN_KEY_DECLARATION)
+    .split("\n")
+    .forEach((line, index) => {
+      if (isCommentLine(line) || /^\s*name:/.test(line)) return;
+      for (const m of line.matchAll(SPAN_KEY_LITERAL_SHAPE)) {
+        declaredSpanKeys.set(m[1], [...(declaredSpanKeys.get(m[1]) ?? []), index + 1]);
+      }
+    });
+  sharedSpanKey = SPAN_KEY_SHARED_SHAPE.exec(read(SPAN_KEY_SHARED))?.[1];
+}
+const spanKeys = new Set(declaredSpanKeys.keys());
+if (sharedSpanKey !== undefined) spanKeys.add(sharedSpanKey);
+const spanKeyRule = spanKeys.size >= SPAN_KEY_MIN;
+const spanKeyAlternation = [...spanKeys]
+  .map((k) => k.replaceAll(".", "\\."))
+  .join("|");
+
+{
+  const through = "read it through EvaluationSpan.ts (ADR-QD-188)";
+  if (sharedSpanKey === undefined) {
+    failures += 1;
+    console.error(
+      `${SPAN_KEY_SHARED}  [span-key-source] \`sharedQuestionKeys.subjectId\` ` +
+        "cannot be read, so the key set is incomplete.",
+    );
+  }
+  if (!spanKeyRule) {
+    failures += 1;
+    console.error(
+      `${SPAN_KEY_DECLARATION}  [span-key-source] the key set holds ${spanKeys.size} ` +
+        `key(s), fewer than SPAN_KEY_MIN (${SPAN_KEY_MIN}); the declaration moved or ` +
+        "was emptied, so no key is checked.",
+    );
+  }
+  for (const [key, lines] of declaredSpanKeys) {
+    if (lines.length > 1) {
+      failures += 1;
+      console.error(
+        `${SPAN_KEY_DECLARATION}:${lines.join(",")}  [span-key-source] \`${key}\` is ` +
+          "spelled more than once; a key is spelled once and every field reads it.",
+      );
+    }
+    if (key === sharedSpanKey) {
+      failures += 1;
+      console.error(
+        `${SPAN_KEY_DECLARATION}:${lines.join(",")}  [span-key-source] spells the ` +
+          `shared key \`${key}\`; read it from sharedQuestionKeys in ${SPAN_KEY_SHARED}.`,
+      );
+    }
+  }
+  if (spanKeys.size > 0) {
+    const mention = new RegExp(
+      `(?<![A-Za-z0-9_.$])(?:${spanKeyAlternation})(?![A-Za-z0-9_.])`,
+    );
+    for (const file of srcSources) {
+      const rel = relative(ROOT, file);
+      if (rel === SPAN_KEY_DECLARATION) continue;
+      const lines = readFileSync(file, "utf8").replace(/\r\n/g, "\n").split("\n");
+      let shared = 0;
+      lines.forEach((raw, index) => {
+        const m = mention.exec(raw);
+        if (m === null) return;
+        if (rel === SPAN_KEY_SHARED && m[0] === sharedSpanKey) {
+          shared += 1;
+          if (shared === 1) return;
+        }
+        failures += 1;
+        console.error(
+          `${rel}:${index + 1}  [span-key-source] mentions the span key \`${m[0]}\`; ` +
+            `${through}.\n    ${raw.trim()}`,
+        );
+      });
+    }
+  }
+}
+
+if (spanKeyRule) {
+  const literal = new RegExp(
+    "(?<!\\b(?:describe|it|test|it\\.effect|it\\.scoped|it\\.live|it\\.layer)" +
+      `\\(\\s*)(["'\`])(?:${spanKeyAlternation})\\1`,
+    "g",
+  );
+  /** @type {Map<string, number>} */
+  const literalCounts = new Map();
+  for (const file of testSourceSet) {
+    const rel = relative(ROOT, file);
+    const text = readFileSync(file, "utf8")
+      .replace(/\r\n/g, "\n")
+      .split("\n")
+      .map((l) => (isCommentLine(l) ? "" : l))
+      .join("\n");
+    const n = (text.match(literal) ?? []).length;
+    if (n > 0) literalCounts.set(rel, n);
+  }
+  for (const [rel, budget] of Object.entries(SPAN_KEY_LITERAL_BUDGET)) {
+    const found = literalCounts.get(rel) ?? 0;
+    if (found !== budget) {
+      failures += 1;
+      console.error(
+        `${rel}  [span-key-literal] declares ${budget} quoted span key literal(s), ` +
+          `found ${found}.\n    Update SPAN_KEY_LITERAL_BUDGET in ` +
+          "scripts/check-house-style.mjs and AGENTS.md section 6's table so they agree.",
+      );
+    }
+  }
+  for (const [rel, found] of literalCounts) {
+    if (rel in SPAN_KEY_LITERAL_BUDGET) continue;
+    failures += 1;
+    console.error(
+      `${rel}  [span-key-literal] ${found} quoted span key literal(s) outside a test ` +
+        "title.\n    A test builds a record with `encodeSpan` and reads a value with " +
+        "`decodeSpan` or `struct.keys`; a literal key belongs in a golden, added to " +
+        "SPAN_KEY_LITERAL_BUDGET with its exact count (ADR-QD-188).",
+    );
+  }
+}
+
+// AGENTS.md section 6's table is the budget stated for readers: its file column must be
+// exactly the budget's keys, with the same count.
+{
+  const agents = readFileSync(join(ROOT, "AGENTS.md"), "utf8")
+    .replace(/\r\n/g, "\n")
+    .split("\n");
+  const header = agents.findIndex((l) =>
+    /^\|\s*Test file\s*\|\s*Span-key literals\s*\|\s*Why\s*\|/.test(l)
+  );
+  /** @type {Map<string, number>} */
+  const listed = new Map();
+  if (header === -1) {
+    failures += 1;
+    console.error(
+      "AGENTS.md  [span-key-literal-table] the section 6 " +
+        "`| Test file | Span-key literals | Why |` table was not found.",
+    );
+  } else {
+    for (let i = header + 2; i < agents.length && agents[i].startsWith("|"); i += 1) {
+      const m = /^\|\s*`([^`]+)`\s*\|\s*(\d+)\s*\|\s*\S/.exec(agents[i]);
+      if (m === null) {
+        failures += 1;
+        console.error(
+          `AGENTS.md:${i + 1}  [span-key-literal-table] a row that is not ` +
+            "`file` | count | why.",
+        );
+        continue;
+      }
+      if (listed.has(m[1])) {
+        failures += 1;
+        console.error(
+          `AGENTS.md:${i + 1}  [span-key-literal-table] lists ${m[1]} a second time; ` +
+            "one row per file.",
+        );
+        continue;
+      }
+      listed.set(m[1], Number(m[2]));
+    }
+  }
+  for (const [rel, n] of listed) {
+    const budget = Object.hasOwn(SPAN_KEY_LITERAL_BUDGET, rel)
+      ? SPAN_KEY_LITERAL_BUDGET[rel]
+      : undefined;
+    if (budget === n) continue;
+    failures += 1;
+    console.error(
+      `AGENTS.md  [span-key-literal-table] section 6 lists ${rel} (${n}), which ` +
+        "SPAN_KEY_LITERAL_BUDGET does not match.",
+    );
+  }
+  for (const rel of Object.keys(SPAN_KEY_LITERAL_BUDGET)) {
+    if (listed.has(rel)) continue;
+    failures += 1;
+    console.error(
+      `AGENTS.md  [span-key-literal-table] ${rel} is in SPAN_KEY_LITERAL_BUDGET with ` +
+        "no row in section 6's table.",
     );
   }
 }
