@@ -30,7 +30,6 @@ import {
   MissingAction,
   obligation,
   obliged,
-  permission,
   scriptedPort,
   PortReply,
   attributeResolverPort,
@@ -40,10 +39,8 @@ import type { Policy } from "@qadi/core";
 import { makeSimulationSession } from "../../src/model/SimulationSession.ts";
 import type { SimulationSessionInit } from "../../src/model/SimulationSession.ts";
 import { Simulator } from "../../src/react/Simulator.tsx";
-import { decisionRecord, failedRecord, obligationRecord } from "../helpers.ts";
-import { entryOf, sighting } from "../simulationFixtures.ts";
-
-const read = permission("doc", "read");
+import { decisionRecord, failedRecord, read } from "../helpers.ts";
+import { entryOf, orphan, sighting } from "../simulationFixtures.ts";
 
 const brokenPorts = portsLayer({
   AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("the store is down"), "broken").layer,
@@ -553,7 +550,7 @@ describe("the baseline card, in each of its states", () => {
   it("says a comparison is unavailable for a row that carries no decision", async () => {
     mount({
       sightings: [sighting(hasPermission(read))],
-      seed: entryOf(obligationRecord({ evaluationId: "ev-9" })),
+      seed: orphan,
     });
     await run();
 
