@@ -32,16 +32,14 @@ import * as Semaphore from "effect/Semaphore";
 import { InvalidBoundedPermits } from "./Errors.ts";
 import type { SubjectId } from "./Identity.ts";
 import { carryDefault, markDefault } from "./PortDefault.ts";
-import { KeyRefusal } from "./PortDescription.ts";
 import type { LeafRequests, PortDescription, PortShape } from "./PortDescription.ts";
-import { canonicalKey } from "./PortKey.ts";
+import { canonicalKey, readGuarded } from "./PortKey.ts";
 import { annotateSpan, attemptsStruct } from "./PortSpanEncode.ts";
 import { portRetriesTotal, portTimeoutsTotal } from "./PortMetrics.ts";
 import type { PortName } from "./PortName.ts";
 import type { PortSpanAttributesLike } from "./PortSpan.ts";
 import { portWire, presentMembers } from "./PortWireEncode.ts";
 import type { PortWireSpec, QuestionOf } from "./PortWireEncode.ts";
-import { thrownMessage } from "./ThrownMessage.ts";
 
 /**
  * What a derived port states about its wire: a {@link PortWireSpec} whose
@@ -110,10 +108,9 @@ export const makePortDescription = <
     // Reading the question can throw (a getter on a request, an untyped caller),
     // and a key is refused, never thrown (`PortDescription.key`).
     key: (args) =>
-      Result.try({
-        try: () => presentMembers(wire.toQuestion(args)),
-        catch: (error) => KeyRefusal.Unreadable({ path: [], message: thrownMessage(error) }),
-      }).pipe(Result.flatMap(canonicalKey)),
+      readGuarded([], () => presentMembers(wire.toQuestion(args))).pipe(
+        Result.flatMap(canonicalKey),
+      ),
     defect: (args, cause) => spec.failure(args, Cause.squash(cause)),
   };
 };
