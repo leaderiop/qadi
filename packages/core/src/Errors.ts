@@ -113,11 +113,17 @@ export class MissingResourceId extends Schema.TaggedError<MissingResourceId>()(
   },
 ) {}
 
-/** A wired history store could not be reached. Distinct from it saying "Unknown". */
+/**
+ * A wired history store could not be reached. Distinct from it saying "Unknown".
+ *
+ * The event is absent exactly when the request's event is not a string, which
+ * only a request the key refuses can hold; the cause then carries
+ * `describeKeyRefusal`'s sentence, which names it (BEH-QD-410).
+ */
 export class DecisionHistoryUnavailable extends Schema.TaggedError<DecisionHistoryUnavailable>()(
   "DecisionHistoryUnavailable",
   {
-    event: Schema.String,
+    event: Schema.optional(Schema.String),
     cause: Schema.Defect(),
   },
 ) {}

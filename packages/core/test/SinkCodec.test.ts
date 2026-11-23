@@ -34,6 +34,7 @@ import {
 } from "../src/Errors.ts";
 import { EncodeRefusal } from "../src/JsonRefusal.ts";
 import { DecodeRefusal, WIRE_VERSIONS } from "../src/SinkWire.ts";
+import { decisionHistoryPort } from "../src/DecisionHistory.ts";
 import { signatureHistoryPort } from "../src/SignatureHistory.ts";
 import { MAX_DECODE_DEPTH } from "../src/UntrustedDecode.ts";
 import type { EvaluationError } from "../src/Errors.ts";
@@ -2580,6 +2581,42 @@ without one",
         assert.instanceOf(failure, SignatureHistoryUnavailable);
         if (failure instanceof SignatureHistoryUnavailable) {
           assert.isFalse(Object.hasOwn(failure, "subjectId"));
+          assert.strictEqual(failure.cause, "store down");
+        }
+      }),
+  );
+
+  it.effect(
+    "a DecisionHistoryUnavailable with no event round-trips \
+without one",
+    () =>
+      Effect.gen(function* () {
+        // `JSON.parse` returns `any`, which is what an untyped JavaScript caller
+        // hands over (no `as`); a symbol is the one value it cannot carry.
+        const refused = JSON.parse('{"subjectId":"alice"}');
+        refused.event = Symbol("approved");
+        const error = decisionHistoryPort.failure([refused], "store down");
+        const encoded = jsonOf(
+          new DecisionRecord({
+            evaluationId: "e",
+            at: 0,
+            subjectId: makeSubjectId("u1"),
+            policy: P.hasPermission(read),
+            outcome: new Failed({ error }),
+          }),
+        );
+        const wire = wireErrorOf(encoded);
+        assert.isTrue(Predicate.isObject(wire));
+        if (Predicate.isObject(wire)) assert.isFalse(Object.hasOwn(wire, "event"));
+
+        const decoded = yield* decodeEffect(JSON.parse(JSON.stringify(encoded)));
+        const failure =
+          decoded._tag === "Decision" && decoded.outcome._tag === "Failed"
+            ? decoded.outcome.error
+            : undefined;
+        assert.instanceOf(failure, DecisionHistoryUnavailable);
+        if (failure instanceof DecisionHistoryUnavailable) {
+          assert.isFalse(Object.hasOwn(failure, "event"));
           assert.strictEqual(failure.cause, "store down");
         }
       }),

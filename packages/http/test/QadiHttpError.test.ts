@@ -20,6 +20,7 @@ import {
   SignatureHistoryUnavailable,
   UndischargedObligation,
   classifyEnforcementError,
+  decisionHistoryPort,
   makeResourceId,
   makeSubjectId,
   signatureHistoryPort,
@@ -370,6 +371,21 @@ subject id when the error has none",
       const bare = { _tag: "SignatureHistoryUnavailable" };
       expect(projectHttpEnforcementFailure(error)).toEqual(bare);
       expect(Schema.encodeSync(SignatureHistoryUnavailableResponse)(error)).toEqual(bare);
+    },
+  );
+
+  it(
+    "the DecisionHistoryUnavailable projection and response body carry no \
+event when the error has none",
+    () => {
+      // `JSON.parse` returns `any`, which is what an untyped JavaScript caller
+      // hands over (no `as`); a symbol is the one value it cannot carry.
+      const refused = JSON.parse('{"subjectId":"alice"}');
+      refused.event = Symbol("approved");
+      const error = decisionHistoryPort.failure([refused], "store down");
+      const bare = { _tag: "DecisionHistoryUnavailable" };
+      expect(projectHttpEnforcementFailure(error)).toEqual(bare);
+      expect(Schema.encodeSync(DecisionHistoryUnavailableResponse)(error)).toEqual(bare);
     },
   );
 
