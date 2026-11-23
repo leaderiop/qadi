@@ -21,10 +21,10 @@ current_phase: 76
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-22)
+See: .planning/PROJECT.md (updated 2026-11-23)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Milestone v1.8 — audit, complete and clean up (all 8 phases complete)
+**Current focus:** Planning the next milestone (v1.8 Arch Wave 13 completed 2026-11-23 on branch `arch-wave-13`; not merged, not released)
 
 ## Current Position
 
@@ -1038,14 +1038,10 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 ## Session Continuity
 
 Last session: 2026-11-23T16:52:31.825Z
-Stopped at: Phase 76 complete — all phases complete
+Stopped at: Milestone v1.8 completed and archived
 Resume file: None
 
 ## Operator Next Steps
 
-
-
-
-
-
+- Review and merge `arch-wave-13` when the owner chooses (not done here: no push, merge or release by owner instruction)
 - Start the next milestone with /gsd-new-milestone
