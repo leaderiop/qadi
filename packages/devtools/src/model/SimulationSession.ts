@@ -46,6 +46,7 @@ import {
   type Baseline,
   type UnseededField,
 } from "./Replay.ts";
+import type { PolicyChoice, PolicyMenu } from "./SeededChoice.ts";
 import { simulate } from "./Simulation.ts";
 import { makeSupersedingRun } from "./SupersedingRun.ts";
 import type { RunToken } from "./SupersedingRun.ts";
@@ -64,31 +65,8 @@ import {
 import type { TimelineEntry } from "./Timeline.ts";
 import { sweepPlan, whatIf, type SweepPlan, type WhatIfReport } from "./WhatIf.ts";
 
-/**
- * The policy being simulated, and where it came from.
- *
- * The first three arms are `HeldChoice`'s (ARCH-74, BEH-QD-466), written out here so
- * the type a host reads is complete, and not re-mapped from it. `Listed.index`
- * is a reading of the rail as it is now, never an input: the choice itself is the
- * policy, held by value (`choosePolicy`). `Evicted` is a chosen policy the rail
- * no longer lists. It is still the one a run evaluates, and a view says it has
- * left the log; it is neither dropped nor swapped for a neighbour.
- *
- * Nothing but the compiler keeps the three arms equal to `HeldChoice<PolicySighting>`,
- * and it does: `policyChoice` returns the cell's own `resolve()` as a
- * `PolicyChoice`, and `policyOf` reads the held arms through `heldValue`, so an
- * arm added to either side, or a field renamed on one, stops compiling there.
- */
-export type PolicyChoice =
-  | { readonly _tag: "Empty" }
-  | { readonly _tag: "Listed"; readonly value: PolicySighting; readonly index: number }
-  | { readonly _tag: "Evicted"; readonly value: PolicySighting }
-  | {
-      readonly _tag: "Seeded";
-      readonly entry: TimelineEntry;
-      readonly policy: Policy;
-      readonly unseeded: ReadonlyArray<UnseededField>;
-    };
+// The snapshot reads these, so the module that publishes it names them too.
+export type { PolicyChoice, PolicyMenu, PolicyMenuOption } from "./SeededChoice.ts";
 
 /** What a run was asked, kept with its answer so the answer can be judged against the form. */
 export interface SimulationQuestion {
@@ -117,25 +95,6 @@ export type RunState =
     }
   | { readonly _tag: "Broke"; readonly question: SimulationQuestion; readonly message: string }
   | { readonly _tag: "Refused"; readonly question: SimulationQuestion; readonly refusal: SourceRefusal };
-
-/** One entry of the policy dropdown: what it submits and what it says. */
-export interface PolicyMenuOption {
-  readonly value: string;
-  readonly label: string;
-}
-
-/**
- * What the policy dropdown lists, in order, and which entry it shows.
- *
- * A reading of the policy the session holds, never the other way round: the
- * replayed row or an evicted choice leads the list while there is one, then each
- * sighting under its position as `String(index)`. `choosePolicyAt` takes a
- * position of `options`, so a view parses nothing.
- */
-export interface PolicyMenu {
-  readonly options: ReadonlyArray<PolicyMenuOption>;
-  readonly selected: string;
-}
 
 /** What a sweep would cost, said before it runs, and whether that cost is the host's own I/O. */
 export interface SweepCost {

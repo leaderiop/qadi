@@ -1,10 +1,10 @@
 /**
  * The helpers the simulation session's tests share.
  *
- * Read by `SimulationSession.test.ts`, `SimulationSession.runs.test.ts` and
- * `SimulationSession.characterisation.test.ts`, so a sighting, a timeline entry, a
- * slow resolver and the commands that drive a run are one definition rather than a
- * copy a file keeps beside its own tests.
+ * Read by `SimulationSession.test.ts`, `SimulationSession.runs.test.ts`,
+ * `SimulationSession.characterisation.test.ts` and `SeededChoice.test.ts`, so a
+ * sighting, a timeline entry, a slow resolver and the commands that drive a run are
+ * one definition rather than a copy a file keeps beside its own tests.
  */
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";

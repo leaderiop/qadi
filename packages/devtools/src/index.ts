@@ -90,6 +90,7 @@ export type {
   BaselineReading,
   UnseededField,
 } from "./model/Replay.ts";
+export type { PolicyChoice, PolicyMenu, PolicyMenuOption } from "./model/SeededChoice.ts";
 export { Evicted, NoSelection, Selected, selectionOf } from "./model/Selection.ts";
 export type { Selection } from "./model/Selection.ts";
 export type { EditDirection, EditKind, SimulationEdit } from "./model/SimulationEdit.ts";
@@ -102,9 +103,6 @@ export type {
 } from "./model/SimulationInput.ts";
 export { makeSimulationSession } from "./model/SimulationSession.ts";
 export type {
-  PolicyChoice,
-  PolicyMenu,
-  PolicyMenuOption,
   ResourceText,
   RunKind,
   RunState,
