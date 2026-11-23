@@ -82,10 +82,10 @@ const KIND_FACTS: Readonly<
  * returns immediately: the hooks run unconditionally because the rules of hooks
  * do not bend for a debug feature, and what the flag changes is what they do.
  *
- * The hook keeps one ref, `registered`, which holds its registrations (each carrying the
- * identity it was made for) and nothing beyond them. Tests pin what registers and when it
- * ends; that the ref holds nothing beyond its registrations is kept by review and not by a
- * test or a gate.
+ * The hook keeps one ref, `registered`, which holds its registrations (each carrying
+ * the identity it was made for) and nothing beyond them. Tests pin what registers and
+ * when it ends; that the ref holds nothing beyond its registrations is kept by review
+ * and not by a test or a gate.
  */
 export const useGateRegistrations = (
   writer: GateWriter | undefined,
