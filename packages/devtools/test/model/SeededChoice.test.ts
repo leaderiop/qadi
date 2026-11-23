@@ -241,8 +241,7 @@ describe("the policy menu", () => {
   });
 
   it(
-    "the menu lists each sighting by its label under String(index), " +
-      "selecting the held one",
+    "the menu lists each sighting by label under String(index) and selects the held one",
     () => {
       const c = start([named, sB]);
       const options: ReadonlyArray<readonly [string, string]> = [
