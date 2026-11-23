@@ -24,7 +24,6 @@ import {
   literal,
   obligation,
   obliged,
-  permission,
   permitWhen,
   rules,
   scriptedPort,
@@ -43,9 +42,7 @@ import { live } from "../../src/model/SimulationSource.ts";
 import { verdictOfOutcome } from "../../src/model/Verdict.ts";
 import { changedRows, compareOutcomes, isChanged, sweepPlan, whatIf } from "../../src/model/WhatIf.ts";
 import type { Comparison, WhatIfRow } from "../../src/model/WhatIf.ts";
-import { chain } from "../helpers.ts";
-
-const read = permission("doc", "read");
+import { chain, read } from "../helpers.ts";
 
 /** Two independent ways to satisfy one branch — the case first-order misses. */
 const eitherWay = anyOf([hasRole("editor"), hasPermission(read)]);

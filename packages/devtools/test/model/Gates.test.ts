@@ -20,6 +20,7 @@ import {
 } from "../../src/model/Gates.ts";
 import type { AskedQuestionLike, GateGroup, GateInstanceLike, QuestionsSnapshot } from "../../src/model/Gates.ts";
 import { displayOfNodeStatus, displayOfVerdict } from "../../src/model/Verdict.ts";
+import { readPolicy } from "../helpers.ts";
 
 /** AGENTS.md §6 leaves no `!`, and an absent group is a failure worth naming. */
 const only = (groups: ReadonlyArray<GateGroup>): GateGroup => {
@@ -28,12 +29,11 @@ const only = (groups: ReadonlyArray<GateGroup>): GateGroup => {
   return first;
 };
 
-const canRead = hasPermission(permission("doc", "read"));
 const isAdmin = hasRole("admin");
 
 const instance = (fields: Partial<GateInstanceLike> & { readonly id: string }): GateInstanceLike => ({
   kind: "Can",
-  policy: canRead,
+  policy: readPolicy,
   state: "Allowed",
   ...fields,
 });
@@ -59,7 +59,7 @@ describe("gateGroups", () => {
 
   it("separates two different questions", () => {
     const groups = gateGroups([
-      instance({ id: "a", policy: canRead }),
+      instance({ id: "a", policy: readPolicy }),
       instance({ id: "b", policy: isAdmin }),
     ]);
     assert.strictEqual(groups.length, 2);
@@ -93,7 +93,7 @@ describe("gateGroups", () => {
   it("keeps registration order, so rows do not jump", () => {
     const groups = gateGroups([
       instance({ id: "a", policy: isAdmin }),
-      instance({ id: "b", policy: canRead }),
+      instance({ id: "b", policy: readPolicy }),
     ]);
     assert.deepStrictEqual(
       groups.map((group) => group.label),
@@ -193,20 +193,20 @@ describe("locatableIds", () => {
 
 describe("instancesAsking", () => {
   const groups = gateGroups([
-    instance({ id: "a", policy: canRead }),
-    instance({ id: "b", policy: canRead, resource: { id: "x" } }),
+    instance({ id: "a", policy: readPolicy }),
+    instance({ id: "b", policy: readPolicy, resource: { id: "x" } }),
   ]);
 
   it("finds the guards asking one question", () => {
     assert.deepStrictEqual(
-      instancesAsking(groups, canRead, undefined).map((one) => one.id),
+      instancesAsking(groups, readPolicy, undefined).map((one) => one.id),
       ["a"],
     );
   });
 
   it("distinguishes the resource-scoped question", () => {
     assert.deepStrictEqual(
-      instancesAsking(groups, canRead, { id: "x" }).map((one) => one.id),
+      instancesAsking(groups, readPolicy, { id: "x" }).map((one) => one.id),
       ["b"],
     );
   });
@@ -309,18 +309,18 @@ describe("joinQuestions: the panel's rows, decided once", () => {
 
   it("pairs each question with the guards asking it, in registry order", () => {
     const questions: ReadonlyArray<AskedQuestionLike> = [
-      { policy: canRead },
+      { policy: readPolicy },
       { policy: isAdmin },
-      { policy: canRead, resource: { id: "x" } },
+      { policy: readPolicy, resource: { id: "x" } },
       { policy: canWrite },
     ];
     const guards = [
-      instance({ id: "a", policy: canRead }),
+      instance({ id: "a", policy: readPolicy }),
       // Built separately, equal by structure: the same question as `a`.
       instance({ id: "b", policy: hasPermission(permission("doc", "read")) }),
       // A state this build does not know is listed, not dropped.
       instance({ id: "c", policy: isAdmin, state: "Suspended" }),
-      instance({ id: "d", policy: canRead, resource: { id: "x" } }),
+      instance({ id: "d", policy: readPolicy, resource: { id: "x" } }),
     ];
 
     const snapshot = joinQuestions({ questions, gates: guards, failed: undefined, questionsFailed: undefined, unsampled: false });
@@ -336,7 +336,7 @@ describe("joinQuestions: the panel's rows, decided once", () => {
 
   it("a question with no registry is a row asked by nobody", () => {
     const snapshot = joinQuestions({
-      questions: [{ policy: canRead }],
+      questions: [{ policy: readPolicy }],
       gates: undefined,
       failed: undefined,
       questionsFailed: undefined,
@@ -349,7 +349,7 @@ describe("joinQuestions: the panel's rows, decided once", () => {
   it("a registry that could not be read is Failed with its reason, lists no guard and makes no claim in any row", () => {
     const guards = [instance({ id: "a" })];
     const snapshot = joinQuestions({
-      questions: [{ policy: canRead }],
+      questions: [{ policy: readPolicy }],
       gates: guards,
       failed: "boom",
       questionsFailed: undefined,
@@ -382,7 +382,11 @@ describe("joinQuestions: the panel's rows, decided once", () => {
     assert.strictEqual(joinQuestions({ ...noQuestions, questionsFailed: "boom" }).questions._tag, "Failed");
     assert.strictEqual(joinQuestions({ ...noQuestions, questions: [], questionsFailed: "boom" }).questions._tag, "Empty");
     assert.strictEqual(
-      joinQuestions({ ...noQuestions, questions: [{ policy: canRead }], questionsFailed: "boom" }).questions._tag,
+      joinQuestions({
+        ...noQuestions,
+        questions: [{ policy: readPolicy }],
+        questionsFailed: "boom",
+      }).questions._tag,
       "Rows",
     );
   });

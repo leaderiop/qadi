@@ -34,9 +34,15 @@ import {
   type PolicySighting,
 } from "../../src/model/Catalogue.ts";
 import { emptyTimeline, ingestAll } from "../../src/model/Timeline.ts";
-import { allow, decisionRecord, deny, failedRecord, obligationRecord } from "../helpers.ts";
+import {
+  allow,
+  decisionRecord,
+  deny,
+  failedRecord,
+  obligationRecord,
+  read,
+} from "../helpers.ts";
 
-const read = permission("doc", "read");
 const write = permission("doc", "write");
 
 const fold = (records: ReadonlyArray<Parameters<typeof ingestAll>[1][number]>) =>

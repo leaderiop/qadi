@@ -52,9 +52,14 @@ import {
 } from "../../src/model/Inspect.ts";
 import type { InspectNode } from "../../src/model/Inspect.ts";
 import { emptyTimeline, ingestAll } from "../../src/model/Timeline.ts";
-import { chain, decisionRecord, failedRecord, obligationRecord } from "../helpers.ts";
+import {
+  chain,
+  decisionRecord,
+  failedRecord,
+  obligationRecord,
+  read,
+} from "../helpers.ts";
 
-const read = permission("doc", "read");
 const write = permission("doc", "write");
 const reader = role({ name: "reader", permissions: [read] });
 const alice = fromRoles({ id: "alice", roles: [reader] });

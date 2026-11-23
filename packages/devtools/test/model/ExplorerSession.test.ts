@@ -33,9 +33,8 @@ import {
   type ExplorerSession,
   type ExplorerSnapshot,
 } from "../../src/model/ExplorerSession.ts";
-import { hostile, hostileError } from "../helpers.ts";
+import { hostile, hostileError, read } from "../helpers.ts";
 
-const read = permission("doc", "read");
 const write = permission("doc", "write");
 
 const sighting = (policy: Policy, count = 1): PolicySighting => ({

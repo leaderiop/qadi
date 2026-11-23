@@ -44,8 +44,8 @@ import {
   type SimulationInput,
 } from "../../src/model/SimulationInput.ts";
 import { live } from "../../src/model/SimulationSource.ts";
+import { read } from "../helpers.ts";
 
-const read = permission("doc", "read");
 const write = permission("doc", "write");
 
 const alice: SimulationInput = {

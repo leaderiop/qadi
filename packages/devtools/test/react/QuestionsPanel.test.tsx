@@ -12,14 +12,12 @@
  */
 import { assert, describe, it } from "@effect/vitest";
 import { act, render, screen } from "@testing-library/react";
-import { hasPermission, hasRole, permission } from "@qadi/core";
+import { hasPermission, hasRole } from "@qadi/core";
 import type { HydrationActivity } from "../../src/model/Hydration.ts";
 import { QuestionsPanel } from "../../src/react/QuestionsPanel.tsx";
 import type { AskedQuestionLike } from "../../src/react/QuestionsPanel.tsx";
-import { liveNotice } from "../helpers.ts";
+import { liveNotice, read } from "../helpers.ts";
 import { panelInput } from "./questionsPanelInput.ts";
-
-const read = permission("doc", "read");
 
 describe("the questions panel", () => {
   // E5.1 — an empty state that explains, rather than a blank panel.

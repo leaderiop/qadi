@@ -9,16 +9,11 @@
 import { assert, describe, it } from "@effect/vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { PairedEntry } from "../../src/model/Pairing.ts";
-import { emptyTimeline, entryKey, ingestAll } from "../../src/model/Timeline.ts";
+import { entryKey } from "../../src/model/Timeline.ts";
 import type { TimelineEntry } from "../../src/model/Timeline.ts";
 import { DecisionLog } from "../../src/react/DecisionLog.tsx";
 import { decisionRecord, failedRecord } from "../helpers.ts";
-
-const entryOf = (record: Parameters<typeof ingestAll>[1][number]): TimelineEntry => {
-  const [entry] = ingestAll(emptyTimeline(), [record]).entries;
-  if (entry === undefined) throw new Error("expected a timeline entry");
-  return entry;
-};
+import { entryOf } from "../simulationFixtures.ts";
 
 const rowOf = (entry: TimelineEntry): PairedEntry => ({
   entry,

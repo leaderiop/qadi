@@ -29,7 +29,6 @@ import * as Stream from "effect/Stream";
 import * as TestClock from "effect/testing/TestClock";
 import * as FastCheck from "fast-check";
 import {
-  AttributeResolver,
   Decided,
   gte,
   hasAttribute,
@@ -82,6 +81,7 @@ import {
   suppliedHydration,
   wiringNamed,
 } from "../dockModelFixtures.ts";
+import { slow } from "../simulationFixtures.ts";
 
 const write = permission("doc", "write");
 const writePolicy: Policy = hasPermission(write);
@@ -173,34 +173,6 @@ const brokenPorts = portsLayer({
 const otherBrokenPorts = portsLayer({
   AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("also down"), "broken").layer,
 });
-
-/** A resolver that takes a second, and counts how it ended. No error is constructed. */
-const slow = () => {
-  const tally = { started: 0, finished: 0, interrupted: 0 };
-  const ports = portsLayer({
-    AttributeResolver: Layer.succeed(AttributeResolver, {
-      name: "slow",
-      resolve: () =>
-        Effect.sync(() => {
-          tally.started += 1;
-        }).pipe(
-          Effect.andThen(Effect.sleep("1 second")),
-          Effect.onInterrupt(() =>
-            Effect.sync(() => {
-              tally.interrupted += 1;
-            }),
-          ),
-          Effect.andThen(
-            Effect.sync(() => {
-              tally.finished += 1;
-              return 9;
-            }),
-          ),
-        ),
-    }),
-  });
-  return { tally, ports };
-};
 
 /** A source that counts its reads and the releases of what each read acquired. */
 const watched = (backlog: ReadonlyArray<StoredRecord>, live: Stream.Stream<StoredRecord>) => {

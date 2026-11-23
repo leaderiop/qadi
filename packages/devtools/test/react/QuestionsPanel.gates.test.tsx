@@ -13,18 +13,17 @@
  */
 import { assert, describe, it } from "@effect/vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { hasPermission, hasRole, permission } from "@qadi/core";
+import { hasRole } from "@qadi/core";
 import { GatesView, QuestionsView } from "../../src/model/Gates.ts";
 import type { GateInstanceLike, QuestionsSnapshot } from "../../src/model/Gates.ts";
 import { QuestionsPanel } from "../../src/react/QuestionsPanel.tsx";
 import type { AskedQuestionLike } from "../../src/react/QuestionsPanel.tsx";
-import { liveNotice } from "../helpers.ts";
+import { liveNotice, readPolicy } from "../helpers.ts";
 import { panelInput } from "./questionsPanelInput.ts";
 
-const canRead = hasPermission(permission("doc", "read"));
 const isAdmin = hasRole("admin");
 
-const asked: ReadonlyArray<AskedQuestionLike> = [{ policy: canRead }];
+const asked: ReadonlyArray<AskedQuestionLike> = [{ policy: readPolicy }];
 
 const marker = (): HTMLElement => {
   const element = document.createElement("span");
@@ -36,7 +35,7 @@ const gate = (
   fields: Partial<GateInstanceLike> & { readonly id: string },
 ): GateInstanceLike => ({
   kind: "Can",
-  policy: canRead,
+  policy: readPolicy,
   state: "Allowed",
   ...fields,
 });
@@ -125,7 +124,9 @@ describe("a registry that could not be read", () => {
   // The snapshot the model gives while the registry throws: a view, no guards and rows with no claim.
   const snapshot: QuestionsSnapshot = {
     gates: GatesView.Failed({ reason: "registry exploded" }),
-    questions: QuestionsView.Rows({ rows: [{ question: { policy: canRead }, asking: undefined }] }),
+    questions: QuestionsView.Rows({
+      rows: [{ question: { policy: readPolicy }, asking: undefined }],
+    }),
     instances: [],
   };
   const unreadable = { questions: { subscribe: () => () => {}, getSnapshot: () => snapshot } };

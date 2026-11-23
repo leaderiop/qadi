@@ -19,7 +19,6 @@ import {
   hasAttribute,
   hasRelationship,
   hasPermission,
-  permission,
   portsLayer,
 } from "@qadi/core";
 import type { Decision, DecisionOutcome } from "@qadi/core";
@@ -27,8 +26,7 @@ import { emptyAnswers } from "../../src/model/Capture.ts";
 import { simulate } from "../../src/model/Simulation.ts";
 import type { SimulationInput } from "../../src/model/SimulationInput.ts";
 import { causesIO, fixtures, live, portsOf, snapshot } from "../../src/model/SimulationSource.ts";
-
-const read = permission("doc", "read");
+import { read } from "../helpers.ts";
 
 const decisionOf = (outcome: DecisionOutcome): Decision => {
   if (outcome._tag !== "Decided") throw new Error("expected a decision");

@@ -9,6 +9,9 @@
  * drive a run are one definition rather than a copy a file keeps beside its own
  * tests. A helper is here when two or more of those files read it, or when one does
  * and another helper here calls it; `KEYS`, read only by `seededOf`, is not exported.
+ * Tests of other modules read the same helpers rather than keep a copy:
+ * `ExplorerSessionRefusal.test.ts` reads `sighting`, `Replay.test.ts` and
+ * `react/DecisionLog.test.tsx` read `entryOf`, and `DockModel.test.ts` reads `slow`.
  */
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
