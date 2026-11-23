@@ -296,12 +296,15 @@ describe("choosing a policy", () => {
     assert.deepStrictEqual(pc(c), listed(b, 2));
   });
 
-  it("choosing the evicted policy again keeps the evicted sighting", () => {
-    const e = withSightings(choose(start([sA, sB]), roleB), [sA]);
-    const again = pc(choose(seedFrom(e, rowRead).choice, roleB));
-    assert.deepStrictEqual(again, evictedOf(sB));
-    assert.strictEqual(again._tag === "Evicted" ? again.value : undefined, sB);
-  });
+  it(
+    "choosing the evicted policy while a replay is held keeps the evicted sighting",
+    () => {
+      const e = withSightings(choose(start([sA, sB]), roleB), [sA]);
+      const again = pc(choose(seedFrom(e, rowRead).choice, roleB));
+      assert.deepStrictEqual(again, evictedOf(sB));
+      assert.strictEqual(again._tag === "Evicted" ? again.value : undefined, sB);
+    },
+  );
 
   it(
     "withSightings with the same elements in a new array returns the same choice",
@@ -358,7 +361,7 @@ describe("readings", () => {
     assert.strictEqual(policyOf(start([])), undefined);
   });
 
-  it("an orphan seeds no policy and answers no input", () => {
+  it("on an empty rail, an orphan seeds no policy and answers no input", () => {
     const s = seededChoice([], orphan);
     assert.deepStrictEqual(pc(s.choice), empty);
     assert.strictEqual(s.input, undefined);

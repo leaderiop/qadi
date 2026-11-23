@@ -380,3 +380,21 @@ prints `self-test: 13 passed` (a title change, an expected-value change, a row m
 moved helper, a helper changed in place, one declared nowhere, one imported from elsewhere or not exported, and an
 unreviewed or unused text change each fail; an import move, a header edit, an identical helper move and a reviewed
 change pass).
+
+## Titles and session tests changed in code review (2026-11-23)
+
+The tables above name tests by the titles they had when they were written. In code review:
+
+- `SeededChoice.test.ts`'s `an orphan seeds no policy and answers no input` became `on an empty rail, an orphan seeds no
+  policy and answers no input`, and `choosing the evicted policy again keeps the evicted sighting` became `choosing the
+  evicted policy while a replay is held keeps the evicted sighting`; each row's input and expected values are unchanged.
+- `seedFrom answers a new choice even for the row it holds` gave way to `seedFrom the row a choice holds answers the same
+  choice and the row decoded`, `seedFrom(undefined) on a choice with no seed answers the same choice` and `seedFrom
+  another row, or the held row after a choice, answers a new seed`, because `seedFrom` now answers its input for a
+  seeding that changes nothing.
+- `SimulationSession.test.ts` dropped `resets the resource field and any unparsed text on a re-seed` (the
+  characterisation's `seeding another row replaces the policy, the draft and the resource text` pins it) and `seed with
+  the entry it holds is a no-op, so an effect re-run keeps the edited form` (the characterisation's `seeding the row it
+  already holds changes nothing and notifies no one`), and `every no-op command leaves the snapshot and the subscribers
+  alone` became `a no-op seed, ports, source, clock, pairs or chip command leaves the snapshot alone`, without the four
+  commands the characterisation's no-op rows pin. The session tests hold 80.
