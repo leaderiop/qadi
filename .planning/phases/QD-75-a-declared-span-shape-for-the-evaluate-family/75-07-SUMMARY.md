@@ -12,6 +12,7 @@ requires:
     provides: "75-01 scorer and base record; 75-04/75-05 writers and tests; 75-06 span-key rule"
 provides:
   - "75-mutation-close.json: groups core and span measured on one head, compare agrees with the base"
+  # superseded 2026-11-23 (code review): see the superseded key below
   - "EXAMINED in 75-mutation.mjs: EvaluationSpan.ts (35 static mutants) and Predicate.ts (1), each run by hand"
   - "75-RED-EVIDENCE.md: Static mutants run by hand, The cost, measured, Coverage on the close tree"
 affects: [75-08, 75-09]
@@ -37,6 +38,7 @@ key-files:
 key-decisions:
   - "The by-hand run covers EvaluationSpan.ts and Predicate.ts in one Stryker run into one report, so the single report the task verify reads holds every EXAMINED file"
   - "Two static mutants of EvaluationSpan.ts that crash the module at import (Stryker RuntimeError, not Killed) are admitted, because every test file fails to load under them; recorded as a finding and a verification-only deviation, not hidden"
+  # superseded 2026-11-23 (code review): see the superseded key below
   - "The cost is reported as measured (geometric mean +7.83% then +6.79%, analyzer verdict fail) as a record and not a gate, and the run was repeated on a settled host"
 
 requirements-completed: []  # WX-04 and WX-05 are held by this plan but stay Pending: no plan marks a WX row
@@ -44,6 +46,7 @@ requirements-completed: []  # WX-04 and WX-05 are held by this plan but stay Pen
 duration: 20 min
 completed: 2026-11-23
 status: complete
+superseded: "2026-11-23 (code review): the close and the cost here describe a61a47c4; the close was re-recorded at 24ca9e2a (core 362/362, the span group with PortSpanEncode.ts by its GROUPS ranges) and the cost re-measured at +9.17% geometric mean, about 0.3 to 0.9 us per evaluate call; see 75-RED-EVIDENCE.md, 2026-11-23: The close after code review"
 ---
 
 # Phase 75 Plan 07: The mutation close, coverage and the cost of the declared spans Summary
@@ -52,11 +55,25 @@ The four writers and the declaration close at 100% of valid mutants killed with 
 against the base, `pnpm coverage` holds, and the second span annotation costs a measured +6.8% to +7.8% geometric mean
 per `evaluate` (about 0.4 to 1.1 microseconds), recorded and not gated.
 
+> **Superseded 2026-11-23 (code review).** The close and the cost in this section describe `a61a47c4`. Code review
+> then changed `packages/core/src`, so both were measured again on the tree that ships: the close at `24ca9e2a` holds
+> `core` 362/362 killed and the `span` group (`EvaluationSpan.ts` 3/3 valid with 38 Ignored, and `PortSpanEncode.ts` over
+> the line ranges `75-mutation.mjs`'s `GROUPS` gives it, 6 Ignored), every Ignored mutant run by hand; the cost is +9.17%
+> geometric mean, about 0.3 to 0.9 µs per `evaluate` call. See `75-RED-EVIDENCE.md`, "2026-11-23: The close after code
+> review", and ADR-QD-188, The cost, measured. The figures in it are left as they were written.
+
 phase_base: c054c2b12fc46fa53fa78e0efa9ff98fd9d60314
 
 ## Accomplishments
 
-- Close measured on one head (`a61a47c4`, nothing under `packages/` changed afterwards): `core` 365/365 killed
+> **Superseded 2026-11-23 (code review).** The close and the cost in this section describe `a61a47c4`. Code review
+> then changed `packages/core/src`, so both were measured again on the tree that ships: the close at `24ca9e2a` holds
+> `core` 362/362 killed and the `span` group (`EvaluationSpan.ts` 3/3 valid with 38 Ignored, and `PortSpanEncode.ts` over
+> the line ranges `75-mutation.mjs`'s `GROUPS` gives it, 6 Ignored), every Ignored mutant run by hand; the cost is +9.17%
+> geometric mean, about 0.3 to 0.9 µs per `evaluate` call. See `75-RED-EVIDENCE.md`, "2026-11-23: The close after code
+> review", and ADR-QD-188, The cost, measured. The figures in it are left as they were written.
+
+- Close measured on one head (`a61a47c4`, nothing under `packages/` changed afterwards [Superseded 2026-11-23: code review later changed `packages/core/src`; see the note above.]): `core` 365/365 killed
   (`Lifecycle.ts` 38/38, `Predicate.ts` 282/282, `SubjectSet.ts` 35/35, `GuardHealthCheck.ts` 10/10, base survivors at
   `GuardHealthCheck.ts` closed: 7/9 to 10/10), with the base's invocation; `span` (`EvaluationSpan.ts`, close-only) holds 0
   valid mutants and 35 Ignored (all static), the Stryker score reading NaN.
@@ -131,17 +148,24 @@ None.
 ## Threat Flags
 
 None. T-75-14 is mitigated: one head for every group, nothing under `packages/` after it, each `EXAMINED` entry backed by a
-by-hand report (the two `RuntimeError` mutants named as such). T-75-15: `ab.sh` alternated arm order over six rounds, refused
+by-hand report (the two `RuntimeError` mutants named as such). [Superseded 2026-11-23: code review later changed `packages/core/src`; see the note above.] T-75-15: `ab.sh` alternated arm order over six rounds, refused
 a busy host and restored `packages/`; the reference spread is recorded beside each figure.
 
 ## Issues Encountered
+
+> **Superseded 2026-11-23 (code review).** The close and the cost in this section describe `a61a47c4`. Code review
+> then changed `packages/core/src`, so both were measured again on the tree that ships: the close at `24ca9e2a` holds
+> `core` 362/362 killed and the `span` group (`EvaluationSpan.ts` 3/3 valid with 38 Ignored, and `PortSpanEncode.ts` over
+> the line ranges `75-mutation.mjs`'s `GROUPS` gives it, 6 Ignored), every Ignored mutant run by hand; the cost is +9.17%
+> geometric mean, about 0.3 to 0.9 µs per `evaluate` call. See `75-RED-EVIDENCE.md`, "2026-11-23: The close after code
+> review", and ADR-QD-188, The cost, measured. The figures in it are left as they were written.
 
 None beyond the above. The cost is a real +6.8% to +7.8% geometric mean (about 0.4 to 1.1 microseconds per `evaluate`); 75-08
 and 75-09 should state it with that figure and its two runs rather than as "negligible".
 
 ## Next Phase Readiness
 
-Ready for 75-08. Nothing under `packages/` changes after this plan. `verify-traceability --strict` still reads PASS 20 /
+Ready for 75-08. Nothing under `packages/` changes after this plan. [Superseded 2026-11-23: code review later changed `packages/core/src`; see the note above.] `verify-traceability --strict` still reads PASS 20 /
 FAIL 1 by design (the CCR-QD-467 README row arrives in 75-08).
 
 ## Self-Check: PASSED

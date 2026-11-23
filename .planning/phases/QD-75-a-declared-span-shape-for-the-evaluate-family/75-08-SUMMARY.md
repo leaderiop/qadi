@@ -43,6 +43,7 @@ key-files:
     - apps/website/src/content/docs/docs/reference/upgrading.md
 
 key-decisions:
+  # superseded 2026-11-23 (code review): see the superseded key below
   - "The cost section of ADR-QD-188 and the CCR row give both measured runs (+7.83% and +6.79% geometric mean, 0.4 to 1.1 us per call) as a record and not a gate, with the reference arm's spread beside the three named workloads; nothing is rounded in the plan's favour"
   - "INV-QD-395's Enforcement says the position of each annotation inside its writer is kept by review and no gate checks it, and cites the seven failed-span contract rows; INV-QD-396 names the compiler, the two house-style rules and the tests"
   - "The ADR-QD-188 Related list gains its new line as a separate paragraph ('Added in revision 1.1') so no existing line changes"
@@ -52,6 +53,7 @@ requirements-completed: []  # ESPN-05, WX-02, WX-03, WX-07 are held by this plan
 duration: 9 min
 completed: 2026-11-23
 status: complete
+superseded: "2026-11-23 (code review): the close and the cost here describe a61a47c4; the close was re-recorded at 24ca9e2a (core 362/362, the span group with PortSpanEncode.ts by its GROUPS ranges) and the cost re-measured at +9.17% geometric mean, about 0.3 to 0.9 us per evaluate call; see 75-RED-EVIDENCE.md, 2026-11-23: The close after code review"
 ---
 
 # Phase 75 Plan 08: The span change stated, traced, announced and recorded Summary
@@ -139,6 +141,13 @@ only. T-75-18: the CCR file list was compared with `git diff --name-only` outsid
 header. T-75-SC: nothing was installed or upgraded.
 
 ## Issues Encountered
+
+> **Superseded 2026-11-23 (code review).** The close and the cost in this section describe `a61a47c4`. Code review
+> then changed `packages/core/src`, so both were measured again on the tree that ships: the close at `24ca9e2a` holds
+> `core` 362/362 killed and the `span` group (`EvaluationSpan.ts` 3/3 valid with 38 Ignored, and `PortSpanEncode.ts` over
+> the line ranges `75-mutation.mjs`'s `GROUPS` gives it, 6 Ignored), every Ignored mutant run by hand; the cost is +9.17%
+> geometric mean, about 0.3 to 0.9 µs per `evaluate` call. See `75-RED-EVIDENCE.md`, "2026-11-23: The close after code
+> review", and ADR-QD-188, The cost, measured. The figures in it are left as they were written.
 
 None. Honest numbers carried into the records: the cost is +7.83% (first run, load falling) and +6.79% (settled), 14 or 15 of 17
 workloads over the 5% band, about 0.4 to 1.1 us per call, recorded as a result and not a gate. ESPN-05 and WX-07 have no edge class
