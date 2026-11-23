@@ -5,10 +5,11 @@
  * Which policy `makeSimulationSession` holds, whether it came from the rail, a
  * choice or a replayed row, the menu a view lists for it, the draft and resource text
  * that travel with it, and the run and staleness that follow a change are read as the
- * session reports them: `getSnapshot` and `subscribe`, never its internals. Every row
- * compares the whole `view` projection and the exact notification count. Its inputs,
- * titles and expected values are fixed; an edit to this file may touch its header or
- * its imports only.
+ * session reports them: `getSnapshot` and `subscribe`, never its internals. Each row
+ * compares the whole `view` projection, the snapshot's own identity for a no-op, or
+ * both. A row that counts notifications through `subscribe` asserts an exact count
+ * where it reads one; not every row counts them. Its inputs, titles and expected
+ * values are fixed; an edit to this file may touch its header or its imports only.
  *
  * The helpers it uses are `sighting`, `entryOf`, `slow`, `counted`, `startRun` and
  * `ran` from `../simulationFixtures.ts`.
