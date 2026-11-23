@@ -41,7 +41,12 @@ import { forEveryPort, PORTS, portsLayer, tabulatePorts } from "../src/Ports.ts"
 import type { AnswerOf, ArgsOf, DescriptionOf, PortServices, PortTypes, ServiceOf } from "../src/Ports.ts";
 import { RelationshipResolverNever } from "../src/RelationshipResolver.ts";
 import { SignatureHistory, SignatureHistoryNone } from "../src/SignatureHistory.ts";
-import { collectingTracer, leafOf, policyArbitrary } from "./helpers.ts";
+import {
+  allAttributesOf,
+  collectingTracer,
+  leafOf,
+  policyArbitrary,
+} from "./helpers.ts";
 
 const aliceId = makeSubjectId("alice");
 const bobId = makeSubjectId("bob");
@@ -392,17 +397,12 @@ describe("a signature question asked remotely (PORT-04)", () => {
         ),
       ),
     );
-  const signatureSpans = (spans: ReadonlyArray<Tracer.Span>) =>
-    spans
-      .filter((s) => s.name === PORTS.SignatureHistory.span)
-      .map((s) => Object.fromEntries(s.attributes));
-
   it.effect("leaves a local and a served span equal apart from the interpreter", () =>
     Effect.gen(function* () {
       const spans: Array<Tracer.Span> = [];
       const answer = yield* signed(spans, "approved", "manager");
       assert.isTrue(answer.matched);
-      const found = signatureSpans(spans);
+      const found = allAttributesOf(spans, PORTS.SignatureHistory.span);
       assert.strictEqual(found.length, 2);
       const local = found.find((a) => a["qadi.interpreter"] === "evaluate");
       const served = found.find((a) => a["qadi.interpreter"] === "remote");
@@ -421,7 +421,7 @@ describe("a signature question asked remotely (PORT-04)", () => {
       const spans: Array<Tracer.Span> = [];
       const answer = yield* signed(spans, "approved", "director");
       assert.isFalse(answer.matched);
-      const found = signatureSpans(spans);
+      const found = allAttributesOf(spans, PORTS.SignatureHistory.span);
       assert.strictEqual(found.length, 2);
       for (const attributes of found) assert.strictEqual(attributes["qadi.matched"], false);
     }));

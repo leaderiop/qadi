@@ -16,7 +16,13 @@ import * as P from "../src/Policy.ts";
 import type { SinkRecord } from "../src/DecisionRecord.ts";
 import { DecisionSink } from "../src/DecisionSink.ts";
 import { portsLayer } from "../src/Ports.ts";
-import { collectingTracer, isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
+import {
+  attributesOf,
+  collectingTracer,
+  isolatedMetrics,
+  subjectWith,
+  testLayer,
+} from "./helpers.ts";
 import { scriptedPort } from "../src/PortDoubles.ts";
 import { PortReply } from "../src/PortDescription.ts";
 import { encodeSpan } from "../src/PortSpanEncode.ts";
@@ -164,8 +170,7 @@ describe("createGuardHealthCheck", () => {
     const down = scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer;
     return Effect.gen(function* () {
       yield* createGuardHealthCheck(P.hasAttribute("plan", M.eq(M.literal("pro"))));
-      const probe = spans.find((s) => s.name === guardHealthCheckSpan.name);
-      assert.deepStrictEqual(Object.fromEntries(probe?.attributes ?? []), {
+      assert.deepStrictEqual(attributesOf(spans, guardHealthCheckSpan.name), {
         ...encodeSpan(guardHealthCheckSpan.question, {
           subjectId: "u1",
           policyTag: "HasAttribute",

@@ -1,3 +1,4 @@
+import { assert } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Logger from "effect/Logger";
@@ -101,6 +102,22 @@ export const collectingTracer = (spans: Array<Tracer.Span>): Layer.Layer<never> 
       },
     }),
   );
+
+/**
+ * The attribute record of the first span with this name, which must exist.
+ *
+ * One reading of a {@link collectingTracer}'s spans, shared by every span test, so
+ * a test states which span and what it carries and never how to find it.
+ */
+export const attributesOf = (spans: ReadonlyArray<Tracer.Span>, name: string) => {
+  const span = spans.find((s) => s.name === name);
+  assert.isDefined(span);
+  return Object.fromEntries(span?.attributes ?? []);
+};
+
+/** The attribute record of every span with this name, in span order. */
+export const allAttributesOf = (spans: ReadonlyArray<Tracer.Span>, name: string) =>
+  spans.filter((s) => s.name === name).map((s) => Object.fromEntries(s.attributes));
 
 /**
  * Gives an effect its own `MetricRegistry` for the duration of a test.

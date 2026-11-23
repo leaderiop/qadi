@@ -17,6 +17,8 @@ import { scriptedPort } from "../src/PortDoubles.ts";
 import { toPredicate } from "../src/Predicate.ts";
 import { decideSubjects, decideSubjectsStream } from "../src/SubjectSet.ts";
 import {
+  allAttributesOf,
+  attributesOf,
   collectingLogger,
   collectingTracer,
   subjectSetLayer,
@@ -58,17 +60,6 @@ const owes = P.allOf([
 ]);
 const clearance = P.hasAttribute("clearance", M.gte(1));
 const plan = P.hasAttribute("plan", M.eq(M.literal("pro")));
-
-/** The attribute record of the first span with this name. */
-const attributesOf = (spans: ReadonlyArray<Tracer.Span>, name: string) => {
-  const span = spans.find((s) => s.name === name);
-  assert.isDefined(span);
-  return Object.fromEntries(span?.attributes ?? []);
-};
-
-/** The attribute record of every span with this name, in span order. */
-const allAttributesOf = (spans: ReadonlyArray<Tracer.Span>, name: string) =>
-  spans.filter((s) => s.name === name).map((s) => Object.fromEntries(s.attributes));
 
 describe("qadi.evaluate", () => {
   it.effect("an evaluation with no action carries no qadi.action key", () =>

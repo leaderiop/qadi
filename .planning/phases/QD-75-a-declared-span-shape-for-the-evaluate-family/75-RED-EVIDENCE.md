@@ -472,3 +472,26 @@ Each earlier section is present once: `## The contract on the base`, `## Each ev
 `## Static mutants run by hand`, `## The cost, measured` and `## Coverage on the close tree`.
 
 Every scan holds on the final tree.
+
+## 2026-11-23: the contract's one-commit rule, replaced in code review
+
+The close above says the contract has exactly one commit since `phase_base`. Code review moved the contract's two
+span-attribute helpers, `attributesOf` and `allAttributesOf`, into `packages/core/test/helpers.ts`, so every span test
+reads one copy rather than restating it. That is a second commit to the contract, and it changes no row, so the
+one-commit rule could no longer say what it was there to say: that no title, input, expected value or row order moved.
+
+`75-contract-check.mjs` says it instead. It parses the contract and `helpers.ts` at ecb0256f and as checked out, and
+fails unless the multiset of `it`/`it.effect` calls, whitespace collapsed and led by their `describe` titles, is the
+first commit's; every other top-level statement of the contract is the first commit's, in order, once the moved helpers
+are left out; and each moved helper is declared in `helpers.ts` with its first commit's text exactly (whitespace
+collapsed, a leading `export` dropped), exported and imported under its own name, and reads every name as the contract
+provided it then (the same name of the same module, a type-only import admitted as a value import of that name and
+module, never the reverse). Its `--self-test` holds 25 cases, among them a title change, an expected-value change and a
+changed moved helper, which fail, and an import move, a header edit and an identical helper move, which pass.
+
+On the tree after the move: `contract-check: 33 rows and 20 statements as at ecb0256f; 15 helpers kept, 2 moved
+(attributesOf, allAttributesOf)`, exit 0; `self-test: 25 passed`, exit 0. Planted on the working tree and restored from
+a copy: a renamed contract title failed with the row named gone and the renamed row named new; `attributesOf`'s body
+changed in `helpers.ts` failed with `attributesOf moved to the helpers file with other text`.
+
+The sections above are left as they were written.

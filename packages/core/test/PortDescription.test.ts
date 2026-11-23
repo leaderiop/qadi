@@ -46,7 +46,14 @@ import { makeResourceId, makeSubjectId, SubjectIdSchema } from "../src/Identity.
 import type { ArgsOf, PortTypes } from "../src/Ports.ts";
 import { relationshipResolverPort } from "../src/RelationshipResolver.ts";
 import { signatureHistoryPort } from "../src/SignatureHistory.ts";
-import { collectingTracer, forkAllAndSettle, hostile, hostileError, isolatedMetrics } from "./helpers.ts";
+import {
+  attributesOf,
+  collectingTracer,
+  forkAllAndSettle,
+  hostile,
+  hostileError,
+  isolatedMetrics,
+} from "./helpers.ts";
 
 class ProbeError extends Data.TaggedError("ProbeError")<{
   readonly what: string;
@@ -167,8 +174,7 @@ describe("retryingPort", () => {
 
       assert.strictEqual(answer, 7);
       assert.strictEqual(yield* Ref.get(invoked), 3);
-      const caller = spans.find((s) => s.name === "caller");
-      assert.deepStrictEqual(Object.fromEntries(caller?.attributes ?? []), { "qadi.attempts": 3 });
+      assert.deepStrictEqual(attributesOf(spans, "caller"), { "qadi.attempts": 3 });
       const retries = yield* Metric.value(portRetriesTotal);
       assert.strictEqual(retries.occurrences.get("AttributeResolver"), 2);
       assert.strictEqual(yield* nameOf(layer), "flaky (retrying)");
@@ -188,8 +194,7 @@ describe("retryingPort", () => {
       if (!Result.isFailure(result)) return;
       assert.deepStrictEqual(result.failure, new ProbeError({ what: "x", cause: "flaky" }));
       assert.strictEqual(yield* Ref.get(invoked), 3);
-      const caller = spans.find((s) => s.name === "caller");
-      assert.deepStrictEqual(Object.fromEntries(caller?.attributes ?? []), { "qadi.attempts": 3 });
+      assert.deepStrictEqual(attributesOf(spans, "caller"), { "qadi.attempts": 3 });
       const retries = yield* Metric.value(portRetriesTotal);
       assert.strictEqual(retries.occurrences.get("AttributeResolver"), 3);
     }).pipe(isolatedMetrics));

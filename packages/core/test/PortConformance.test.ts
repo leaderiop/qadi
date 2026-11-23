@@ -74,7 +74,14 @@ import {
   signatureHistoryRetrying,
   signatureHistoryTimingOut,
 } from "../src/SignatureHistory.ts";
-import { collectingTracer, forkAllAndSettle, hostile, hostileError, isolatedMetrics } from "./helpers.ts";
+import {
+  attributesOf,
+  collectingTracer,
+  forkAllAndSettle,
+  hostile,
+  hostileError,
+  isolatedMetrics,
+} from "./helpers.ts";
 
 /** What the suite needs to know about one port beyond its description. */
 interface PortCase<
@@ -249,10 +256,7 @@ const conform: CaseVisitor = (c) => {
 
           assert.deepStrictEqual(answer, c.answer);
           assert.strictEqual(double.calls.length, 3);
-          const caller = spans.find((s) => s.name === "caller");
-          assert.deepStrictEqual(Object.fromEntries(caller?.attributes ?? []), {
-            "qadi.attempts": 3,
-          });
+          assert.deepStrictEqual(attributesOf(spans, "caller"), { "qadi.attempts": 3 });
           const retries = yield* Metric.value(portRetriesTotal);
           assert.strictEqual(retries.occurrences.get(d.port), 2);
         }).pipe(isolatedMetrics));
@@ -273,10 +277,7 @@ const conform: CaseVisitor = (c) => {
           if (!Result.isFailure(result)) return;
           assert.strictEqual(result.failure, original);
           assert.strictEqual(yield* Ref.get(invoked), 3);
-          const caller = spans.find((s) => s.name === "caller");
-          assert.deepStrictEqual(Object.fromEntries(caller?.attributes ?? []), {
-            "qadi.attempts": 3,
-          });
+          assert.deepStrictEqual(attributesOf(spans, "caller"), { "qadi.attempts": 3 });
           const retries = yield* Metric.value(portRetriesTotal);
           assert.strictEqual(retries.occurrences.get(d.port), 3);
         }).pipe(isolatedMetrics));

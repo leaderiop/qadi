@@ -39,7 +39,7 @@ import type {
 } from "../src/Ports.ts";
 import { relationshipResolverPort } from "../src/RelationshipResolver.ts";
 import { signatureHistoryPort } from "../src/SignatureHistory.ts";
-import { collectingTracer, isolatedMetrics, leafOf } from "./helpers.ts";
+import { attributesOf, collectingTracer, isolatedMetrics, leafOf } from "./helpers.ts";
 
 /** Each read takes the leaf it answers (ARCH-70); these build one, narrowed to its node type. */
 const attributeLeaf = (attribute: string) => leafOf("HasAttribute", P.hasAttribute(attribute, M.exists()));
@@ -247,12 +247,6 @@ describe("a read is one body, locally and served (ARCH-47)", () => {
   const doc = makeResourceId("doc-1");
   const signed = [{ signerId: aliceId, meaning: "approved", signerRole: "manager", signedAt: 0 }];
 
-  const attributesOf = (spans: ReadonlyArray<Tracer.Span>, name: string) => {
-    const span = spans.find((s) => s.name === name);
-    assert.isDefined(span);
-    return Object.fromEntries(span?.attributes ?? []);
-  };
-
   const without = (record: Readonly<Record<string, unknown>>, key: string) =>
     Object.fromEntries(Object.entries(record).filter(([k]) => k !== key));
 
@@ -427,12 +421,6 @@ describe("a local read equals a served read, port by port (ARCH-47)", () => {
     toPredicate: predicatePortCallsTotal,
   } as const;
 
-  const attributesIn = (spans: ReadonlyArray<Tracer.Span>, name: string) => {
-    const span = spans.find((s) => s.name === name);
-    assert.isDefined(span);
-    return Object.fromEntries(span?.attributes ?? []);
-  };
-
   const withoutInterpreter = (record: Readonly<Record<string, unknown>>) =>
     Object.fromEntries(Object.entries(record).filter(([k]) => k !== "qadi.interpreter"));
 
@@ -457,8 +445,8 @@ describe("a local read equals a served read, port by port (ARCH-47)", () => {
       return {
         local,
         served,
-        localAttributes: attributesIn(localSpans, d.span),
-        servedAttributes: attributesIn(servedSpans, d.span),
+        localAttributes: attributesOf(localSpans, d.span),
+        servedAttributes: attributesOf(servedSpans, d.span),
       };
     });
 
@@ -475,8 +463,8 @@ describe("a local read equals a served read, port by port (ARCH-47)", () => {
               yield* servePortRead(d, ...row.served).pipe(
                 Effect.provide(Layer.mergeAll(store, collectingTracer(servedSpans))),
               );
-              const local = attributesIn(localSpans, d.span);
-              const served = attributesIn(servedSpans, d.span);
+              const local = attributesOf(localSpans, d.span);
+              const served = attributesOf(servedSpans, d.span);
               assert.strictEqual(local["qadi.interpreter"], row.interpreter);
               assert.strictEqual(served["qadi.interpreter"], "remote");
               assert.deepStrictEqual(withoutInterpreter(served), withoutInterpreter(local));
@@ -665,8 +653,7 @@ describe("a missing resource id still leaves its question on the span (D-07)", (
             return yield* Metric.value(portCallsTotal);
           }),
         );
-        const attributes = Object.fromEntries(spans.find((s) => s.name === row.span)?.attributes ?? []);
-        assert.deepStrictEqual(attributes, row.question);
+        assert.deepStrictEqual(attributesOf(spans, row.span), row.question);
         assert.deepStrictEqual(spans.map((s) => s.name).sort(), [row.span]);
         assert.deepStrictEqual(calls, []);
         assert.deepStrictEqual(nonZero(portCalls), []);

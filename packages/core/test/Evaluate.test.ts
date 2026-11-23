@@ -48,6 +48,8 @@ import {
 import { signatureHistoryFromSignatures, signatureHistoryPort } from "../src/SignatureHistory.ts";
 import {
   chain,
+  allAttributesOf,
+  attributesOf,
   collectingLogger,
   collectingTracer,
   hostile,
@@ -2460,12 +2462,9 @@ describe("observability", () => {
         ),
       );
 
-      const span = named(spans, evaluateSpan.name);
-      assert.isDefined(span);
-      if (span === undefined) return;
       // The identifier is deterministic because EvaluationId is a service —
       // ADR-QD-012. Under crypto.randomUUID this assertion could not exist.
-      assert.deepStrictEqual(Object.fromEntries(span.attributes), {
+      assert.deepStrictEqual(attributesOf(spans, evaluateSpan.name), {
         ...encodeSpan(evaluateSpan.question, {
           subjectId: "u1",
           evaluationId: "eval-1",
@@ -2488,10 +2487,7 @@ describe("observability", () => {
         ),
       );
 
-      const span = named(spans, evaluateSpan.name);
-      assert.isDefined(span);
-      if (span === undefined) return;
-      assert.deepStrictEqual(Object.fromEntries(span.attributes), {
+      assert.deepStrictEqual(attributesOf(spans, evaluateSpan.name), {
         ...encodeSpan(evaluateSpan.question, {
           subjectId: "u2",
           evaluationId: "eval-1",
@@ -2521,10 +2517,7 @@ describe("observability", () => {
           ),
         );
 
-        const span = named(spans, evaluateSpan.name);
-        assert.isDefined(span);
-        if (span === undefined) return;
-        assert.deepStrictEqual(Object.fromEntries(span.attributes), {
+        assert.deepStrictEqual(attributesOf(spans, evaluateSpan.name), {
           ...encodeSpan(evaluateSpan.question, {
             subjectId: "u3",
             evaluationId: "eval-1",
@@ -2561,19 +2554,17 @@ describe("observability", () => {
         ),
       );
 
-      const span = named(spans, evaluateSpan.name);
-      assert.isDefined(span);
-      if (span === undefined) return;
       assert.deepStrictEqual(
-        Object.fromEntries(span.attributes),
+        attributesOf(spans, evaluateSpan.name),
         encodeSpan(evaluateSpan.question, {
           subjectId: "u3",
           evaluationId: "eval-1",
           policyTag: "HasAttribute",
         }),
       );
-      assert.strictEqual(span.status._tag, "Ended");
-      if (span.status._tag !== "Ended") return;
+      const span = named(spans, evaluateSpan.name);
+      assert.strictEqual(span?.status._tag, "Ended");
+      if (span?.status._tag !== "Ended") return;
       assert.isTrue(Exit.hasInterrupts(span.status.exit));
     }));
 
@@ -2602,19 +2593,17 @@ describe("observability", () => {
       );
 
       assert.isTrue(Exit.hasDies(exit));
-      const span = named(spans, evaluateSpan.name);
-      assert.isDefined(span);
-      if (span === undefined) return;
       assert.deepStrictEqual(
-        Object.fromEntries(span.attributes),
+        attributesOf(spans, evaluateSpan.name),
         encodeSpan(evaluateSpan.question, {
           subjectId: "u1",
           evaluationId: "eval-1",
           policyTag: "HasRole",
         }),
       );
-      assert.strictEqual(span.status._tag, "Ended");
-      if (span.status._tag !== "Ended") return;
+      const span = named(spans, evaluateSpan.name);
+      assert.strictEqual(span?.status._tag, "Ended");
+      if (span?.status._tag !== "Ended") return;
       assert.isTrue(Exit.hasDies(span.status.exit));
     }));
 
@@ -2649,10 +2638,7 @@ describe("observability", () => {
 
         const decided = records.flatMap((r) => (r._tag === "Decision" ? [r] : []));
         assert.deepStrictEqual(decided.map((r) => r.cache), ["miss", "hit"]);
-        const second = spans.filter((s) => s.name === evaluateSpan.name)[1];
-        assert.isDefined(second);
-        if (second === undefined) return;
-        assert.deepStrictEqual(Object.fromEntries(second.attributes), {
+        assert.deepStrictEqual(allAttributesOf(spans, evaluateSpan.name)[1], {
           ...encodeSpan(evaluateSpan.question, {
             subjectId: "u1",
             evaluationId: "eval-2",
@@ -2678,10 +2664,7 @@ describe("observability", () => {
         ),
       );
 
-      const span = named(spans, evaluateSpan.name);
-      assert.isDefined(span);
-      if (span === undefined) return;
-      assert.deepStrictEqual(Object.fromEntries(span.attributes), {
+      assert.deepStrictEqual(attributesOf(spans, evaluateSpan.name), {
         ...encodeSpan(evaluateSpan.question, {
           subjectId: "u1",
           evaluationId: "eval-1",
@@ -2707,11 +2690,8 @@ describe("observability", () => {
         ),
       );
 
-      const span = named(spans, evaluateSpan.name);
-      assert.isDefined(span);
-      if (span === undefined) return;
       assert.notProperty(
-        Object.fromEntries(span.attributes),
+        attributesOf(spans, evaluateSpan.name),
         evaluateSpan.question.keys.action,
       );
     }));
@@ -2758,11 +2738,8 @@ describe("observability", () => {
         ),
       );
 
-      const span = named(spans, evaluateSpan.name);
-      assert.isDefined(span);
-      if (span === undefined) return;
       assert.notProperty(
-        Object.fromEntries(span.attributes),
+        attributesOf(spans, evaluateSpan.name),
         evaluateSpan.answer.keys.obligations,
       );
     }));
@@ -2954,9 +2931,6 @@ describe("observability", () => {
    * is wired, so what may appear in one is a disclosure decision rather than a
    * formatting one (INV-QD-044).
    */
-  const attributes = (span: Tracer.Span | undefined): Record<string, unknown> =>
-    span === undefined ? {} : Object.fromEntries(span.attributes);
-
   const resolverOf = (record: Readonly<Record<string, unknown>>) =>
     Layer.succeed(AttributeResolver, {
       name: "record",
@@ -2995,7 +2969,7 @@ describe("observability", () => {
         ),
       );
 
-      assert.deepStrictEqual(attributes(named(spans, "qadi.attribute")), {
+      assert.deepStrictEqual(attributesOf(spans, "qadi.attribute"), {
         "qadi.attribute": "tier",
         "qadi.subject_id": "u1",
         "qadi.interpreter": "evaluate",
@@ -3023,7 +2997,7 @@ describe("observability", () => {
         ),
       );
 
-      assert.deepStrictEqual(attributes(named(spans, "qadi.attribute")), {
+      assert.deepStrictEqual(attributesOf(spans, "qadi.attribute"), {
         "qadi.attribute": "tier",
         "qadi.subject_id": "u1",
         "qadi.interpreter": "evaluate",
@@ -3051,12 +3025,8 @@ describe("observability", () => {
         );
       }
 
-      const portSpans = ["qadi.acted", "qadi.hasRelationship", "qadi.hasSignature"].map((name) =>
-        named(spans, name),
-      );
-      assert.isTrue(portSpans.every((span) => span !== undefined));
-      for (const span of portSpans) {
-        assert.isFalse(Object.hasOwn(attributes(span), "qadi.resource_id"));
+      for (const name of ["qadi.acted", "qadi.hasRelationship", "qadi.hasSignature"]) {
+        assert.isFalse(Object.hasOwn(attributesOf(spans, name), "qadi.resource_id"));
       }
     }));
 
@@ -3073,7 +3043,7 @@ describe("observability", () => {
         ),
       );
 
-      assert.strictEqual(attributes(named(spans, "qadi.attribute"))["qadi.resolved"], false);
+      assert.strictEqual(attributesOf(spans, "qadi.attribute")["qadi.resolved"], false);
     }));
 
   // E1.4 — the question is annotated before the call precisely so this holds.
@@ -3090,8 +3060,7 @@ describe("observability", () => {
       );
 
       const span = named(spans, "qadi.attribute");
-      assert.isDefined(span);
-      assert.deepStrictEqual(attributes(span), {
+      assert.deepStrictEqual(attributesOf(spans, "qadi.attribute"), {
         "qadi.attribute": "tier",
         "qadi.subject_id": "u1",
         "qadi.interpreter": "evaluate",
@@ -3137,7 +3106,7 @@ describe("observability", () => {
           }), collectingTracer(spans))),
       );
 
-      assert.deepStrictEqual(attributes(named(spans, "qadi.acted")), {
+      assert.deepStrictEqual(attributesOf(spans, "qadi.acted"), {
         "qadi.subject_id": "u1",
         "qadi.interpreter": "evaluate",
         "qadi.event": "raised",
@@ -3159,7 +3128,7 @@ describe("observability", () => {
         ),
       );
 
-      assert.deepStrictEqual(attributes(named(spans, "qadi.acted")), {
+      assert.deepStrictEqual(attributesOf(spans, "qadi.acted"), {
         "qadi.subject_id": "u1",
         "qadi.interpreter": "evaluate",
         "qadi.event": "raised",
@@ -3193,7 +3162,7 @@ describe("observability", () => {
       );
 
       const span = named(spans, "qadi.acted");
-      assert.deepStrictEqual(attributes(span), {
+      assert.deepStrictEqual(attributesOf(spans, "qadi.acted"), {
         "qadi.subject_id": "u1",
         "qadi.interpreter": "evaluate",
         "qadi.event": "raised",
@@ -3215,7 +3184,7 @@ describe("observability", () => {
           }), collectingTracer(spans))),
       );
 
-      assert.deepStrictEqual(attributes(named(spans, "qadi.hasRelationship")), {
+      assert.deepStrictEqual(attributesOf(spans, "qadi.hasRelationship"), {
         "qadi.subject_id": "u1",
         "qadi.interpreter": "evaluate",
         "qadi.relation": "owner",
@@ -3239,7 +3208,7 @@ describe("observability", () => {
         ),
       );
 
-      assert.strictEqual(attributes(named(spans, "qadi.hasRelationship"))["qadi.depth"], 3);
+      assert.strictEqual(attributesOf(spans, "qadi.hasRelationship")["qadi.depth"], 3);
     }));
 
   // E1.8 — a wiring error should still say what it wanted a resource id for.
@@ -3259,7 +3228,7 @@ describe("observability", () => {
       );
 
       const span = named(spans, "qadi.hasRelationship");
-      assert.deepStrictEqual(attributes(span), {
+      assert.deepStrictEqual(attributesOf(spans, "qadi.hasRelationship"), {
         "qadi.subject_id": "u1",
         "qadi.interpreter": "evaluate",
         "qadi.relation": "owner",
@@ -3284,7 +3253,7 @@ describe("observability", () => {
         ),
       );
 
-      assert.deepStrictEqual(attributes(named(spans, "qadi.hasCustom")), {
+      assert.deepStrictEqual(attributesOf(spans, "qadi.hasCustom"), {
         "qadi.custom_predicate": "isOwner",
         "qadi.subject_id": "u1",
         "qadi.interpreter": "evaluate",
@@ -3311,7 +3280,7 @@ describe("observability", () => {
         ),
       );
 
-      assert.deepStrictEqual(attributes(named(spans, "qadi.hasSignature")), {
+      assert.deepStrictEqual(attributesOf(spans, "qadi.hasSignature"), {
         "qadi.subject_id": "u1",
         "qadi.meaning": "approved",
         "qadi.scope": "Resource",
@@ -3336,7 +3305,7 @@ describe("observability", () => {
       if (r._tag !== "Failure") return;
       assert.strictEqual(r.failure._tag, "MissingResourceId");
       // The question is on the span, and no resource id is invented for it.
-      assert.deepStrictEqual(attributes(named(spans, "qadi.hasSignature")), {
+      assert.deepStrictEqual(attributesOf(spans, "qadi.hasSignature"), {
         "qadi.subject_id": "u1",
         "qadi.meaning": "approved",
         "qadi.scope": "Resource",
@@ -3365,7 +3334,7 @@ describe("observability", () => {
 
       // Matched although the signature carries a role the policy never named:
       // an unspecified signer role accepts any.
-      assert.deepStrictEqual(attributes(named(spans, "qadi.hasSignature")), {
+      assert.deepStrictEqual(attributesOf(spans, "qadi.hasSignature"), {
         "qadi.subject_id": "u1",
         "qadi.meaning": "approved",
         "qadi.scope": "Any",

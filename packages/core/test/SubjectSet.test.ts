@@ -28,7 +28,13 @@ import {
   filterSubjectsStream,
 } from "../src/SubjectSet.ts";
 import type { SubjectOutcome } from "../src/SubjectSet.ts";
-import { collectingTracer, subjectSetLayer, subjectWith, testLayer } from "./helpers.ts";
+import {
+  attributesOf,
+  collectingTracer,
+  subjectSetLayer,
+  subjectWith,
+  testLayer,
+} from "./helpers.ts";
 import { scriptedPort } from "../src/PortDoubles.ts";
 import { PortReply } from "../src/PortDescription.ts";
 import { decodeSpan, encodeSpan } from "../src/PortSpanEncode.ts";
@@ -563,11 +569,8 @@ describe("observability", () => {
         Effect.provide(Layer.mergeAll(subjectSetLayer(), collectingTracer(spans))),
       );
 
-      const batch = spans.find((s) => s.name === decideSubjectsSpan.name);
-      assert.isDefined(batch);
-      if (batch === undefined) return;
       assert.deepStrictEqual(
-        Object.fromEntries(batch.attributes),
+        attributesOf(spans, decideSubjectsSpan.name),
         encodeSpan(decideSubjectsSpan.question, {
           subjectCount: 2,
           policyTag: "HasPermission",
@@ -615,11 +618,8 @@ describe("decideSubjectsStream", () => {
         ),
       );
 
-      const batch = spans.find((s) => s.name === decideSubjectsStreamSpan.name);
-      assert.isDefined(batch);
-      if (batch === undefined) return;
       assert.deepStrictEqual(
-        Object.fromEntries(batch.attributes),
+        attributesOf(spans, decideSubjectsStreamSpan.name),
         encodeSpan(decideSubjectsStreamSpan.question, { policyTag: "HasPermission" }),
       );
     }).pipe(Effect.provide(subjectSetLayer())));
