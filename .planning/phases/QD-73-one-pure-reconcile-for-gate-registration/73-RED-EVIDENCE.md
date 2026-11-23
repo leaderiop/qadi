@@ -210,3 +210,31 @@ pnpm exec vitest run --project react packages/react/test/GateWriter.reconcile.te
 Result: `2 files passed, 32 tests passed` (22 in the reconcile file, 10 in `GateWriter.test.tsx`).
 
 `pnpm typecheck` clean; `node scripts/check-house-style.mjs` reads `70 type-test file(s)`; no budget changed.
+
+## Where each moved registry case is pinned now
+
+Three cases of `packages/react/test/GateRegistry.test.tsx` stated a reconcile rule through rendering. Each left that
+file only after its reconcile test and its characterisation row were seen passing in the same run as the trimmed
+file. Trim commit: `104ccffd1878f457451e5216ab0496e7ffefa1c5`.
+
+| Case that left `GateRegistry.test.tsx` | Reconcile test (`GateWriter.reconcile.test.ts`) | Characterisation row (`GateRegistration.characterisation.test.tsx`) |
+|----------------------------------------|-------------------------------------------------|---------------------------------------------------------------------|
+| `does NOT re-register on a render with a fresh, structurally equal policy and resource (ticket 141)` | `keeps unchanged identities with fresh policy objects, calling only update` | `a re-render with a fresh equal policy and resource notifies nothing` |
+| `unregisters exactly the instance whose key was removed` | `unregisters a dropped id and registers nothing` | `removing a key unregisters that entry alone and keeps its sibling` |
+| `does not re-register when an equal record is rebuilt each render` | `reconciling the same input twice keeps every entry and calls only update` | `an equal record rebuilt each render notifies nothing` |
+
+Command, from the repository root with stdin closed, on the trimmed tree:
+
+```
+pnpm exec vitest run --project react packages/react/test/GateRegistry.test.tsx \
+  packages/react/test/GateWriter.reconcile.test.ts \
+  packages/react/test/GateRegistration.characterisation.test.tsx --reporter=json
+```
+
+Result for each replacement: `passed` (all six titles above).
+
+`GateRegistry.test.tsx: 37 passed, 0 failed`
+
+The 37 titles are the 40 of the file before the trim minus the three above, in the same order. The whole react
+project passes (653 tests), `pnpm typecheck` and oxlint on the file are clean, and `packages/react/src`, the
+characterisation and `packages/react/test/support` are unchanged.
