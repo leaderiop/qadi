@@ -1,8 +1,8 @@
 // The mutation record over the source files the evaluate family's span rework touches, one Stryker group per set of
 // files, all through `stryker.config.mjs`: `core` (`Lifecycle.ts`, `Predicate.ts`, `SubjectSet.ts`,
-// `GuardHealthCheck.ts`) and `span` (`EvaluationSpan.ts`, `PortSpanEncode.ts`). `span` is close-only: `EvaluationSpan.ts`
-// does not exist at the base and `PortSpanEncode.ts` is not in the base record, so neither has a base to be compared
-// with, and the group's rule is that every valid mutant is killed and every
+// `GuardHealthCheck.ts`) and `span` (`EvaluationSpan.ts`, and `PortSpanEncode.ts` over the lines this phase added). `span` is close-only:
+// `EvaluationSpan.ts` does not exist at the base and `PortSpanEncode.ts` is not in the base record, so neither has a
+// base to be compared with, and the group's rule is that every valid mutant is killed and every
 // Ignored mutant is admitted through `EXAMINED`, each run by hand and Killed there. `record base|close <group>`
 // reads the group's report and writes, under that group in `75-mutation-base.json` or `75-mutation-close.json`, each
 // file's counts and its open (Survived, NoCoverage) and Ignored mutants; every group of one record is measured on one
@@ -33,10 +33,16 @@ const GROUPS = {
     config: "stryker.config.mjs",
     report: "reports/mutation/mutation.json",
     files: [`${R}EvaluationSpan.ts`, `${R}PortSpanEncode.ts`],
+    // `PortSpanEncode.ts` is mutated only where this phase added runtime code: `logEventStruct` to `annotateSpan`
+    // (lines 90-153) and `annotateAsked` to `askedAttributes` (lines 170-197). `spanStruct`'s `decode` and the rest are
+    // older and outside the phase. These ranges must follow the file if it changes: re-derive them with
+    // `git diff -U0 c054c2b1 HEAD -- packages/core/src/PortSpanEncode.ts` (the `+` side of each hunk that adds a
+    // declaration), never by editing a range to cover a line that survives.
+    mutate: [`${R}EvaluationSpan.ts`, `${R}PortSpanEncode.ts:90-153`, `${R}PortSpanEncode.ts:170-197`],
     closeOnly: true,
   },
 };
-const invocation = (group) => `pnpm exec stryker run ${GROUPS[group].config} --mutate ${GROUPS[group].files.join(",")}`;
+const invocation = (group) => `pnpm exec stryker run ${GROUPS[group].config} --mutate ${(GROUPS[group].mutate ?? GROUPS[group].files).join(",")}`;
 const DETECTED = new Set(["Killed", "Timeout"]);
 const OPEN = new Set(["Survived", "NoCoverage"]);
 
