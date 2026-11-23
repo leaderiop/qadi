@@ -34,7 +34,13 @@ import { isAllowed } from "./Decision.ts";
 import type { EvaluationError } from "./Errors.ts";
 import { evaluate } from "./Evaluate.ts";
 import type { StandingEvaluationServices } from "./EvaluationServices.ts";
+import {
+  annotateSpan,
+  decideSubjectsSpan,
+  decideSubjectsStreamSpan,
+} from "./EvaluationSpan.ts";
 import type { Policy } from "./Policy.ts";
+import { encodeSpan } from "./PortSpanEncode.ts";
 import type { EvaluateOptions } from "./Question.ts";
 
 /**
@@ -166,14 +172,15 @@ export const decideSubject = Effect.fn("qadi.decideSubject")(function* (
  * caller's resolvers by its own length, and an unbounded fan-out onto somebody
  * else's database is not a default to choose for them.
  */
-export const decideSubjects = Effect.fn("qadi.decideSubjects")(function* (
+export const decideSubjects = Effect.fn(decideSubjectsSpan.name)(function* (
   policy: Policy,
   subjects: ReadonlyArray<AuthSubject>,
   options?: EvaluateOptions,
 ) {
-  yield* Effect.annotateCurrentSpan({
-    "qadi.subject_count": subjects.length,
-    "qadi.policy_tag": policy._tag,
+  yield* annotateSpan(decideSubjectsSpan.question, {
+    subjectCount: subjects.length,
+    policyTag: policy._tag,
+    action: options?.action,
   });
 
   // Sequential: `Effect.forEach` with no `concurrency` runs one element at a time.
@@ -242,11 +249,12 @@ export const filterSubjects = (
  * library has chosen not to default to, on both the array and streamed form
  * alike — not a gap in the streaming sibling specifically.
  *
- * Carries `qadi.policy_tag`, the one `decideSubjects` annotation known before
- * a single element runs. `qadi.subject_count` has no batch-level equivalent
- * here: `subjects` is a `Stream`, so its length is not known in advance and
- * may not even be finite — a span annotated with a count would either block
- * on consuming the whole stream first or lie about what has been seen so far.
+ * Its span carries `decideSubjectsStreamSpan`'s question (`EvaluationSpan.ts`):
+ * the policy tag and the action, the facts known before a single element runs.
+ * The subject count has no streamed equivalent: `subjects` is a `Stream`, so its
+ * length is not known in advance and may not even be finite — a span annotated
+ * with a count would either block on consuming the whole stream first or lie
+ * about what has been seen so far.
  */
 export const decideSubjectsStream = <E2 = never, R2 = never>(
   policy: Policy,
@@ -255,8 +263,11 @@ export const decideSubjectsStream = <E2 = never, R2 = never>(
 ): Stream.Stream<SubjectOutcome, E2, SubjectSetServices | R2> =>
   subjects.pipe(
     Stream.mapEffect((subject) => decideSubject(policy, subject, options)),
-    Stream.withSpan("qadi.decideSubjectsStream", {
-      attributes: { "qadi.policy_tag": policy._tag },
+    Stream.withSpan(decideSubjectsStreamSpan.name, {
+      attributes: encodeSpan(decideSubjectsStreamSpan.question, {
+        policyTag: policy._tag,
+        action: options?.action,
+      }),
     }),
   );
 

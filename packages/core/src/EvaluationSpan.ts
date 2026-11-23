@@ -121,6 +121,69 @@ export const toPredicateSpan = declareSpan({
 });
 
 /**
+ * The `qadi.guardHealthCheck` span: one per probe.
+ *
+ * The question is the canary's: the subject, the policy's tag and the action when
+ * there is one, annotated before the walk. The answer is whether the probe was
+ * healthy, and the error tag only when it was not, so a tracer still sees a failed
+ * probe.
+ */
+export const guardHealthCheckSpan = declareSpan({
+  name: "qadi.guardHealthCheck",
+  question: spanStruct(askedFields, askedKeys),
+  answer: spanStruct(
+    { healthy: Schema.optionalKey(Schema.Boolean), ...failedFields },
+    { healthy: "qadi.healthy", ...failedKeys },
+  ),
+});
+
+/**
+ * What a batch's span answers: nothing of its own.
+ *
+ * Each subject's decision is its own `qadi.evaluate` span.
+ */
+const answersNothing = spanStruct({}, {});
+
+/**
+ * The `qadi.decideSubjects` span: one per batch held as an array.
+ *
+ * The question is the batch's: how many subjects, the policy's tag and the action
+ * when there is one, annotated before the first subject runs.
+ */
+export const decideSubjectsSpan = declareSpan({
+  name: "qadi.decideSubjects",
+  question: spanStruct(
+    {
+      subjectCount: Schema.optionalKey(Schema.Number),
+      policyTag: askedFields.policyTag,
+      action: askedFields.action,
+    },
+    {
+      subjectCount: "qadi.subject_count",
+      policyTag: askedKeys.policyTag,
+      action: askedKeys.action,
+    },
+  ),
+  answer: answersNothing,
+});
+
+/**
+ * The `qadi.decideSubjectsStream` span: one per batch held as a stream.
+ *
+ * The question is the policy's tag and the action when there is one, the facts known
+ * before a single element runs. It has no subject count, because a stream's length is
+ * not known in advance and may not be finite.
+ */
+export const decideSubjectsStreamSpan = declareSpan({
+  name: "qadi.decideSubjectsStream",
+  question: spanStruct(
+    { policyTag: askedFields.policyTag, action: askedFields.action },
+    { policyTag: askedKeys.policyTag, action: askedKeys.action },
+  ),
+  answer: answersNothing,
+});
+
+/**
  * The annotations of the denial log line: the policy tag, the subject and the
  * reason.
  *

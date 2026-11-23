@@ -8,6 +8,7 @@ import { AttributeResolver, attributeResolverPort } from "../src/AttributeResolv
 import { currentSubjectLayer } from "../src/CurrentSubject.ts";
 import { DecisionCache, decisionCacheLayer } from "../src/DecisionCache.ts";
 import { decisionsTotal } from "../src/EvaluationMetrics.ts";
+import { evaluateSpan, guardHealthCheckSpan } from "../src/EvaluationSpan.ts";
 import { createGuardHealthCheck } from "../src/GuardHealthCheck.ts";
 import * as M from "../src/Matcher.ts";
 import { permission } from "../src/Permission.ts";
@@ -18,6 +19,7 @@ import { portsLayer } from "../src/Ports.ts";
 import { collectingTracer, isolatedMetrics, subjectWith, testLayer } from "./helpers.ts";
 import { scriptedPort } from "../src/PortDoubles.ts";
 import { PortReply } from "../src/PortDescription.ts";
+import { encodeSpan } from "../src/PortSpanEncode.ts";
 
 const canRead = P.hasPermission(permission("doc", "read"));
 
@@ -157,15 +159,23 @@ describe("createGuardHealthCheck", () => {
       assert.isTrue(result.healthy);
     }).pipe(Effect.provide(Layer.mergeAll(currentSubjectLayer(subjectWith({})), portsLayer()))));
 
-  it.effect("the probe span says whether it was healthy", () => {
+  it.effect("the probe span says what it asked and whether it was healthy", () => {
     const spans: Array<Tracer.Span> = [];
     const down = scriptedPort(attributeResolverPort, () => PortReply.fail("down")).layer;
     return Effect.gen(function* () {
       yield* createGuardHealthCheck(P.hasAttribute("plan", M.eq(M.literal("pro"))));
-      const probe = spans.find((s) => s.name === "qadi.guardHealthCheck");
-      assert.strictEqual(probe?.attributes.get("qadi.healthy"), false);
-      assert.strictEqual(probe?.attributes.get("qadi.error_tag"), "AttributeResolveError");
-      assert.isUndefined(spans.find((s) => s.name === "qadi.evaluate"));
+      const probe = spans.find((s) => s.name === guardHealthCheckSpan.name);
+      assert.deepStrictEqual(Object.fromEntries(probe?.attributes ?? []), {
+        ...encodeSpan(guardHealthCheckSpan.question, {
+          subjectId: "u1",
+          policyTag: "HasAttribute",
+        }),
+        ...encodeSpan(guardHealthCheckSpan.answer, {
+          healthy: false,
+          errorTag: "AttributeResolveError",
+        }),
+      });
+      assert.isUndefined(spans.find((s) => s.name === evaluateSpan.name));
     }).pipe(
       Effect.provide(
         Layer.mergeAll(
