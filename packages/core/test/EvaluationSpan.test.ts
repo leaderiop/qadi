@@ -4,6 +4,7 @@
  * tracer receives are pinned by `EvaluationSpan.contract.test.ts`.
  */
 import { assert, describe, it } from "@effect/vitest";
+import { attributeResolverPort } from "../src/AttributeResolver.ts";
 import {
   askedOf,
   batchAskedOf,
@@ -210,6 +211,27 @@ describe("the declaration of the evaluate family", () => {
     for (const span of batches) {
       assert.lengthOf(Object.keys(span.answer.keys), 0, `${span.name} has an answer`);
       assert.deepStrictEqual(decodeSpan(span.answer, answered), {}, `${span.name} reads one`);
+    }
+  });
+
+  it("each span of the family keeps the public name a tracer keys on", () => {
+    assert.deepStrictEqual(
+      spans.map((span) => span.name),
+      [
+        "qadi.evaluate",
+        "qadi.toPredicate",
+        "qadi.guardHealthCheck",
+        "qadi.decideSubjects",
+        "qadi.decideSubjectsStream",
+        "qadi.decideSubject",
+      ],
+    );
+  });
+
+  it("a log event declaration carries its marker at runtime and a span struct does not", () => {
+    assert.isTrue(denialEvent.logEvent);
+    for (const struct of [...questions, attributeResolverPort.attributes.question]) {
+      assert.isFalse(Object.hasOwn(struct, "logEvent"));
     }
   });
 });
