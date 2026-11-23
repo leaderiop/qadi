@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-30                                    |
-> | Revision       | 1.19                                            |
+> | Revision       | 1.20                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.19 (2026-11-23): BEH-QD-715's listing names batchAskedOf, the batch writers' one projection (code review, ADR-QD-188, CCR-QD-467)<br>1.18 (2026-11-23): BEH-QD-715 cites the pin that annotateAsked refuses the denial event (code review, ADR-QD-188, CCR-QD-467)<br>1.17 (2026-11-23): BEH-QD-715: every span-writing function refuses a log event, logAnnotations builds the denial line's annotations, and a raw span write or an upcast is kept by review (code review, ADR-QD-188, CCR-QD-467)<br>1.16 (2026-11-23): BEH-QD-711 cites a cache-hit row that also reads the record's cache outcome (code review, ADR-QD-188, CCR-QD-467)<br>1.15 (2026-11-23): BEH-QD-715 names every write form, and the denial event is a log event the span annotators refuse (code review, ADR-QD-188, CCR-QD-467)<br>1.14 (2026-11-23): BEH-QD-715's listing: the annotators live beside encodeSpan in PortSpanEncode.ts, one body for port and family spans, and askedOf is listed (code review, ADR-QD-188, CCR-QD-467)<br>1.13 (2026-11-23): BEH-QD-714 and BEH-QD-715's listings name decideSubjectSpan, declared in EvaluationSpan.ts (code review, ADR-QD-188, CCR-QD-467)<br>1.12 (2026-11-23): BEH-QD-712: the outcome is written on every path that ends in a decision or a typed failure, and an interrupted or defected evaluation carries its question and no outcome (code review, ADR-QD-188, CCR-QD-467)<br>1.11 (2026-11-23): BEH-QD-711 to BEH-QD-715 new: the evaluate family's spans carry their question on every path, the outcome is one key, and every key is declared once; the intro covers the spans around a question (ARCH-122, ADR-QD-188, CCR-QD-467)<br>1.10 (2026-11-16): a row's resourceId is classified by tag like its own, an unlisted tag gets never (review iteration 2 IN-02)<br>1.9 (2026-11-16): BEH-QD-588 new: the leaf-needs table states which leaves ask about one resource, and readScoped enforces it (ARCH-97, CCR-QD-441)<br>1.8 (2026-11-16): BEH-QD-574 new: one checked row builder, PortCall derived from the registry; BEH-QD-228's listing shows the derived form (ARCH-94, CCR-QD-438)<br>1.7 (2026-11-11): BEH-QD-227 — a missing resource id leaves the port's span and nothing else; BEH-QD-445 (a missing resource id fails the same way on every scoped port) (ARCH-70, ADR-QD-134, CCR-QD-412)<br>1.6 (2026-11-08): BEH-QD-227 — a span's question is the description's pose and its answer disclose, written by one read body; a local and a served span agree apart from the interpreter; onFile is on neither (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.5 (2026-10-08): BEH-QD-227 — `qadi.interpreter` gains `"remote"` for a served read; `PortCall.interpreter` follows (ARCH-31, CCR-QD-382)<br>1.4 (2026-10-07): BEH-QD-227 — each span's attributes are stated once, by its port's description (`attributes`: a question annotated before the call, an answer annotated after, and `disclose`), and `PortAccess.ts` writes through that statement; `qadi.attempts` joins the listing; the list of ports whose answers are closed is corrected (four, not two); BEH-QD-228 — `@qadi/devtools` reads a span through the same description (`decodePortSpan`), a value outside a field's closed union reads as absent, and a row carries `attempts`, and a signature row its `scope` and `resourceId` (ARCH-21, CCR-QD-198)<br>1.3 (2026-10-05): BEH-QD-227 — each span's name is read from its port's description (`span`, `PortSpanName`) by both `PortAccess.ts` and `@qadi/devtools`' collector; BEH-QD-229 — the Services screen shows timeouts beside retries (ADR-QD-094, CCR-QD-177)<br>1.2 (2026-10-04): BEH-QD-227/BEH-QD-228 — the spans move to `PortAccess.ts` and gain `qadi.interpreter`; BEH-QD-267 — `toPredicate`'s port reads are spans too (CCR-QD-153, ADR-QD-077)<br>1.1 (2026-09-08): BEH-QD-227/BEH-QD-228 — add the two missing port-touching leaves, `qadi.hasCustom`/`qadi.hasSignature`, and widen `PortCall` to the real five-member union (CCR-QD-131)<br>1.0 (2026-08-24): Initial release (CCR-QD-071) |
+> | Change History | 1.20 (2026-11-23): BEH-QD-711 to BEH-QD-714 state what holds rather than what changed; BEH-QD-712's title is scoped to a decided or failed path (code review, ADR-QD-188, CCR-QD-467)<br>1.19 (2026-11-23): BEH-QD-715's listing names batchAskedOf, the batch writers' one projection (code review, ADR-QD-188, CCR-QD-467)<br>1.18 (2026-11-23): BEH-QD-715 cites the pin that annotateAsked refuses the denial event (code review, ADR-QD-188, CCR-QD-467)<br>1.17 (2026-11-23): BEH-QD-715: every span-writing function refuses a log event, logAnnotations builds the denial line's annotations, and a raw span write or an upcast is kept by review (code review, ADR-QD-188, CCR-QD-467)<br>1.16 (2026-11-23): BEH-QD-711 cites a cache-hit row that also reads the record's cache outcome (code review, ADR-QD-188, CCR-QD-467)<br>1.15 (2026-11-23): BEH-QD-715 names every write form, and the denial event is a log event the span annotators refuse (code review, ADR-QD-188, CCR-QD-467)<br>1.14 (2026-11-23): BEH-QD-715's listing: the annotators live beside encodeSpan in PortSpanEncode.ts, one body for port and family spans, and askedOf is listed (code review, ADR-QD-188, CCR-QD-467)<br>1.13 (2026-11-23): BEH-QD-714 and BEH-QD-715's listings name decideSubjectSpan, declared in EvaluationSpan.ts (code review, ADR-QD-188, CCR-QD-467)<br>1.12 (2026-11-23): BEH-QD-712: the outcome is written on every path that ends in a decision or a typed failure, and an interrupted or defected evaluation carries its question and no outcome (code review, ADR-QD-188, CCR-QD-467)<br>1.11 (2026-11-23): BEH-QD-711 to BEH-QD-715 new: the evaluate family's spans carry their question on every path, the outcome is one key, and every key is declared once; the intro covers the spans around a question (ARCH-122, ADR-QD-188, CCR-QD-467)<br>1.10 (2026-11-16): a row's resourceId is classified by tag like its own, an unlisted tag gets never (review iteration 2 IN-02)<br>1.9 (2026-11-16): BEH-QD-588 new: the leaf-needs table states which leaves ask about one resource, and readScoped enforces it (ARCH-97, CCR-QD-441)<br>1.8 (2026-11-16): BEH-QD-574 new: one checked row builder, PortCall derived from the registry; BEH-QD-228's listing shows the derived form (ARCH-94, CCR-QD-438)<br>1.7 (2026-11-11): BEH-QD-227 — a missing resource id leaves the port's span and nothing else; BEH-QD-445 (a missing resource id fails the same way on every scoped port) (ARCH-70, ADR-QD-134, CCR-QD-412)<br>1.6 (2026-11-08): BEH-QD-227 — a span's question is the description's pose and its answer disclose, written by one read body; a local and a served span agree apart from the interpreter; onFile is on neither (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.5 (2026-10-08): BEH-QD-227 — `qadi.interpreter` gains `"remote"` for a served read; `PortCall.interpreter` follows (ARCH-31, CCR-QD-382)<br>1.4 (2026-10-07): BEH-QD-227 — each span's attributes are stated once, by its port's description (`attributes`: a question annotated before the call, an answer annotated after, and `disclose`), and `PortAccess.ts` writes through that statement; `qadi.attempts` joins the listing; the list of ports whose answers are closed is corrected (four, not two); BEH-QD-228 — `@qadi/devtools` reads a span through the same description (`decodePortSpan`), a value outside a field's closed union reads as absent, and a row carries `attempts`, and a signature row its `scope` and `resourceId` (ARCH-21, CCR-QD-198)<br>1.3 (2026-10-05): BEH-QD-227 — each span's name is read from its port's description (`span`, `PortSpanName`) by both `PortAccess.ts` and `@qadi/devtools`' collector; BEH-QD-229 — the Services screen shows timeouts beside retries (ADR-QD-094, CCR-QD-177)<br>1.2 (2026-10-04): BEH-QD-227/BEH-QD-228 — the spans move to `PortAccess.ts` and gain `qadi.interpreter`; BEH-QD-267 — `toPredicate`'s port reads are spans too (CCR-QD-153, ADR-QD-077)<br>1.1 (2026-09-08): BEH-QD-227/BEH-QD-228 — add the two missing port-touching leaves, `qadi.hasCustom`/`qadi.hasSignature`, and widen `PortCall` to the real five-member union (CCR-QD-131)<br>1.0 (2026-08-24): Initial release (CCR-QD-071) |
 
 _Previous: [29 — The Subject Simulator](./29-devtools-simulator.md)_
 
@@ -162,16 +162,14 @@ REQUIREMENT: `qadi.evaluate` MUST carry `qadi.subject_id`, `qadi.evaluation_id`
              anything that can fail.
 ```
 
-A failed evaluation used to carry only its outcome and its error tag, because the
-question was annotated after the decision was made. A tracer filtering by subject
-or by evaluation id therefore missed every evaluation that failed. The question is
-now annotated first, so an allow, a denial, a cache hit and a failure all say who
-asked what; the span of a failed evaluation is a question with an outcome of
-`Failed` and an error tag, never a bare failure.
+The question is annotated before the cache lookup, so an allow, a denial, a cache
+hit and a failure all say who asked what, and a tracer filtering by subject or by
+evaluation id sees every evaluation that failed. The span of a failed evaluation is
+a question with an outcome of `Failed` and an error tag, never a bare failure.
 
 Pinned by `packages/core/test/EvaluationSpan.contract.test.ts` ("a failed evaluation carries exactly its question, outcome Failed and error tag", "a failed evaluation with an action carries exactly its question and error tag", "an allow carries exactly its question and outcome Allow", "a cache hit carries exactly its question and outcome", "each qadi.evaluate span in a batch carries exactly its question and outcome") and `packages/core/test/Evaluate.test.ts` ("a failed evaluation annotates qadi.evaluate with its question and error tag", "a cache hit's span carries its question and outcome, and its record says hit"). The contract's cache-hit row reads the span alone, which a hit and a miss write alike; the second `Evaluate.test.ts` row also reads the decision record, whose `cache` is `"hit"`, so it fails if the second evaluation was not served from the cache.
 
-## BEH-QD-712: The outcome of an evaluation is one key on every path
+## BEH-QD-712: The outcome of an evaluation is one key on every decided or failed path
 
 > **See:** [ADR-QD-188](../decisions/188-the-evaluate-familys-spans-are-declared-once-and-a-failed-span-says-what-was-asked.md),
 > [ADR-QD-051](../decisions/051-a-span-says-what-was-asked.md)
@@ -194,11 +192,11 @@ REQUIREMENT: An interrupted or defected evaluation MUST carry its question and
              no `qadi.outcome`; the span's status says why it ended.
 ```
 
-The outcome sat under two keys: `qadi.decision` on an allow or a denial and
-`qadi.outcome` on a failure. A failure is not a decision, so `qadi.decision:
-"Failed"` would say something false, and the record of a decision already calls
-the same fact `outcome`. Nothing is written under both keys, so a tracer query on
-`qadi.decision` moves to `qadi.outcome`.
+One key carries the outcome whichever way the evaluation ended in a decision or a
+typed failure, `qadi.outcome`. A failure is not a decision, so `qadi.decision:
+"Failed"` would say something false, and the record of a decision calls the same
+fact `outcome`. No second key carries it, so a tracer query names `qadi.outcome`
+alone; ADR-QD-188 records the key it replaced.
 
 An interrupted evaluation, a caller's timeout around a port that never answers for
 one, and a defected one, a host cache that dies for one, reach neither the success
@@ -227,9 +225,8 @@ REQUIREMENT: `qadi.toPredicate` MUST carry its question, the subject, the
              `qadi.error_tag` on any failure.
 ```
 
-`toPredicate` annotated nothing when a translation failed. It now answers an
-error tag for every way a translation can end: a policy too deep, a fields
-restriction, an untranslatable node or a port failure
+`toPredicate` answers an error tag for every way a translation can fail: a
+policy too deep, a fields restriction, an untranslatable node or a port failure
 ([BEH-QD-123](./16-predicates.md#beh-qd-123-untranslatable-fails-nothing-is-approximated),
 [BEH-QD-264](./16-predicates.md#beh-qd-264-a-defecting-port-fails-translation-typed-not-dead)).
 It has no resource, because a translation answers for rows not yet loaded.
@@ -260,8 +257,8 @@ REQUIREMENT: `qadi.guardHealthCheck` MUST carry its question before the walk and
              `qadi.policy_tag`, each with `qadi.action` when supplied.
 ```
 
-A probe never said which subject or policy it probed, and a batch never said which
-action. A stream has no subject count, because its length is not known before the
+A probe says which subject and policy it probed, and a batch which action it asked
+about. A stream has no subject count, because its length is not known before the
 first element runs and may not be finite. A batch span answers nothing of its own:
 each subject's decision is its own `qadi.evaluate` span
 ([BEH-QD-317](./05-evaluator.md#beh-qd-317-a-readiness-probe-asks-the-ports-every-time)).
