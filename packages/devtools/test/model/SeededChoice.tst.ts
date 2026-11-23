@@ -72,8 +72,11 @@ test(
   },
 );
 
-test("the barrel names the three types from the seeded choice module", () => {
-  expect<BarrelPolicyChoice>().type.toBe<PolicyChoice>();
-  expect<BarrelPolicyMenu>().type.toBe<PolicyMenu>();
-  expect<BarrelPolicyMenuOption>().type.toBe<PolicyMenuOption>();
-});
+test(
+  "the barrel's PolicyChoice, PolicyMenu and PolicyMenuOption are the module's shapes",
+  () => {
+    expect<BarrelPolicyChoice>().type.toBe<PolicyChoice>();
+    expect<BarrelPolicyMenu>().type.toBe<PolicyMenu>();
+    expect<BarrelPolicyMenuOption>().type.toBe<PolicyMenuOption>();
+  },
+);
