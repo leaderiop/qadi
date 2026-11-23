@@ -520,10 +520,15 @@ function that returns an `Effect` or a `Stream` states its refusal through the
 parameter type, so it holds whichever way the rule is set: `Params<F>` for a
 whole call, `expect<Params<typeof f>>().type.not.toBeCallableWith(…)`
 (`PortAccess.tst.ts`), or `Parameters<typeof f>[i]` with `not.toBeAssignableTo`
-for one parameter (`DecisionLog.tst.ts`). `Params<F>` and `Parameters<F>` read
-only the last overload of an overloaded `F`, so a pin on one names the signature
-it means. Every negative pin has a positive twin in its file, the same subject
-with the arguments made valid, so the pin is seen to fail for the reason it names.
+for one parameter (`DecisionLog.tst.ts`). A generic function whose pin must infer
+its type parameters as a writer's call does goes through a `declare`d `paramsOf`,
+`expect(paramsOf(f)).type.not.toBeCallableWith(…)` (`EvaluationSpan.tst.ts`): it
+drops the result and keeps the type parameters, where `Params<F>` on a generic
+needs an explicit instantiation, which can hide an inference regression.
+`Params<F>`, `Parameters<F>` and `paramsOf` read only the last overload of an
+overloaded `F`, so a pin on one names the signature it means. Every negative pin
+has a positive twin in its file, the same subject with the arguments made valid,
+so the pin is seen to fail for the reason it names.
 
 The gate counts the negative `toBeCallableWith` and `toBeConstructableWith` pins
 in every file tstyche selects, separately, with comments and the text of strings
@@ -545,7 +550,7 @@ an API.
 | `packages/core/test/Decision.tst.ts` | 0 | 7 | `new Allow`, `new Deny`: plain instance |
 | `packages/core/test/DecisionCache.tst.ts` | 3 | 0 | `getOrCompute` returns an `Effect`: refused through `Params<…>` |
 | `packages/core/test/EvaluationEnvironment.tst.ts` | 4 | 0 | `evaluationEnvironment`: plain return |
-| `packages/core/test/EvaluationSpan.tst.ts` | 6 | 0 | `annotateAsked` and `annotateSpan` return an `Effect`: refused through the parameter type, inferred at the call; `encodeSpan`, `askedAttributes`, `logAnnotations`: plain return |
+| `packages/core/test/EvaluationSpan.tst.ts` | 6 | 0 | `annotateAsked` and `annotateSpan` return an `Effect`: refused through `paramsOf(…)`, inferred at the call; `encodeSpan`, `askedAttributes`, `logAnnotations`: plain return |
 | `packages/core/test/Explanation.tst.ts` | 2 | 0 | `foldExplanationCases`: plain return |
 | `packages/core/test/FloatingEffectPins.tst.ts` | 7 | 3 | The characterisation: its bare pins on an `Effect`, a `Stream` and a constructor pin the tool |
 | `packages/core/test/HydrationMetrics.tst.ts` | 2 | 0 | `hydrationDropMeaning`: plain return |
