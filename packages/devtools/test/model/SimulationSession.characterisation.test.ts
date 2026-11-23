@@ -20,12 +20,11 @@ import { gte, hasAttribute, hasPermission, hasRole } from "@qadi/core";
 import type { Policy } from "@qadi/core";
 import { policyLabel } from "../../src/model/Catalogue.ts";
 import type { PolicySighting } from "../../src/model/Catalogue.ts";
+import type { PolicyChoice, PolicyMenu } from "../../src/model/SeededChoice.ts";
 import type { SimulationField } from "../../src/model/SimulationFields.ts";
 import type { SimulationInput } from "../../src/model/SimulationInput.ts";
 import { makeSimulationSession } from "../../src/model/SimulationSession.ts";
 import type {
-  PolicyChoice,
-  PolicyMenu,
   ResourceText,
   RunState,
   SimulationSessionInit,
