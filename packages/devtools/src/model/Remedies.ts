@@ -21,6 +21,7 @@
 import * as Match from "effect/Match";
 import * as Result from "effect/Result";
 import {
+  actedAnswerFromEvents,
   foldMatcherCases,
   foldPolicyCases,
   getByPath,
@@ -36,7 +37,6 @@ import {
 } from "@qadi/core";
 import type {
   DecisionHistoryUnavailable,
-  HistoryScope,
   LeafOf,
   Matcher,
   MatcherCases,
@@ -82,15 +82,16 @@ export interface RemedySweep {
  * "Does not already meet" is a **syntactic** check, and deliberately so for
  * roles, permissions and edges: those are set membership, and asking the
  * evaluator would cost one run per candidate to learn what a lookup answers.
- * For signatures it is core's answer (`signatureAnswerFromSignatures`), because
- * the leaf's scope decides which row answers and that rule is the port's. A
- * check the port refuses is skipped with the port's refusal, never offered a row
- * and never thrown, for any value a form row or the form's subject holds, and
- * `RemedySignatureConformance.test.ts` compares the table with core's
- * evaluation. Attributes get no such check — a key present with the wrong value is
- * precisely the case worth a row — so a remedy that changes nothing is offered,
- * and the sweep reports it as *no change*. That is a finding too: it says the
- * attribute was never the problem.
+ * For events and signatures it is core's answer (`actedAnswerFromEvents`,
+ * `signatureAnswerFromSignatures`), because the leaf's scope decides which row
+ * answers and that rule is the port's. A check the port refuses is skipped with
+ * the port's refusal, never offered a row and never thrown, for any value a form
+ * row or the form's subject holds, and the two agreement tests
+ * (`RemedySignatureConformance.test.ts`, `RemedyActedConformance.test.ts`)
+ * compare the table with core's evaluation. Attributes get no such check — a
+ * key present with the wrong value is precisely the case worth a row — so a
+ * remedy that changes nothing is offered, and the sweep reports it as *no
+ * change*. That is a finding too: it says the attribute was never the problem.
  *
  * **`Not` is not descended into**, and neither is a `Rules` row whose `effect`
  * is `"Deny"`. Satisfying a requirement under a negation, or under a deny row's
@@ -328,7 +329,7 @@ type Requirement =
   | { readonly _tag: "ResourceAttribute"; readonly attribute: string; readonly matcher: Matcher }
   | { readonly _tag: "Relationship"; readonly relation: string }
   | { readonly _tag: "Action"; readonly action: string }
-  | { readonly _tag: "Acted"; readonly event: string; readonly scope: HistoryScope }
+  | { readonly _tag: "Acted"; readonly leaf: LeafOf["HasActed"] }
   | { readonly _tag: "Signature"; readonly leaf: LeafOf["HasSignature"] }
   | { readonly _tag: "Custom"; readonly name: string };
 
@@ -362,7 +363,9 @@ const requirementCases: PolicyCases<ReadonlyArray<Requirement>> = {
   ],
   HasRelationship: (p) => [{ _tag: "Relationship" as const, relation: p.relation }],
   HasAction: (p) => [{ _tag: "Action" as const, action: p.action }],
-  HasActed: (p) => [{ _tag: "Acted" as const, event: p.event, scope: p.scope }],
+  // The node itself goes to core, which answers whether the form's events meet
+  // it at the site (`actedAnswerFromEvents`), so the remedy reads the port's scoping.
+  HasActed: (p) => [{ _tag: "Acted" as const, leaf: p }],
   // The remedy for "has not acted" is to remove the event, which `singleEdits`
   // already offers for every event the fixtures list.
   HasNotActed: () => [],
@@ -551,15 +554,23 @@ const remedyFor: (self: Requirement) => (input: SimulationInput) => Built | unde
           : edit(grant("relationships", edge, `with relationship ${self.relation} on ${resourceId}`));
       },
 
-      // Both scopes need a resource id, because that is what an event record
-      // carries — `Any` widens the *question*, not the fixture.
+      // Met is core's answer, so an `Any` leaf is met by the subject's event on any
+      // resource. A refusal is skipped with `skipReason`. An unmet node needs the
+      // site's resource id for its row, because an event record carries one and
+      // `Any` widens the question, not the fixture.
       Acted: (self) => (input: SimulationInput) => {
-        const resourceId = resourceIdOf(input.resource);
-        if (resourceId === undefined) return skip(`event ${self.event}`, NO_RESOURCE_ID);
-        const event = { subjectId: input.subject.id, event: self.event, resourceId };
-        return fieldOps("history").holds(input, event)
-          ? undefined
-          : edit(grant("history", event, `with event ${self.event} on ${resourceId}`));
+        const { event } = self.leaf;
+        const rows = fieldOps("history").elements(input);
+        return Result.match(actedAnswerFromEvents(rows, self.leaf, siteOf(input)), {
+          onFailure: (failure) => skip(`event ${event}`, skipReason(failure)),
+          onSuccess: (answer) => {
+            if (answer === "Acted") return undefined;
+            const resourceId = resourceIdOf(input.resource);
+            if (resourceId === undefined) return skip(`event ${event}`, NO_RESOURCE_ID);
+            const row = { subjectId: input.subject.id, event, resourceId };
+            return edit(grant("history", row, `with event ${event} on ${resourceId}`));
+          },
+        });
       },
 
       // Met is core's answer for this node at this site over the form's rows, not
