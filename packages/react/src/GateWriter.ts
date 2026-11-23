@@ -276,9 +276,10 @@ export interface GateIdentity {
  * `marker`.
  *
  * `policy` and `resource` are left out because the atom changes with the question,
- * so a different question is a different atom.
+ * so a different question is a different atom. Not exported: `reconcile` is the one
+ * place identities are compared.
  */
-export const sameIdentity = (a: GateIdentity, b: GateIdentity): boolean =>
+const sameIdentity = (a: GateIdentity, b: GateIdentity): boolean =>
   a.kind === b.kind && a.atom === b.atom && a.wraps === b.wraps && a.marker === b.marker;
 
 /** One live registration: the identity it was made for, and the handle that ends it. */
