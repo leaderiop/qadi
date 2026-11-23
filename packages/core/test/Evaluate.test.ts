@@ -16,7 +16,9 @@ import {
   attributeResolverRetrying,
 } from "../src/AttributeResolver.ts";
 import { isAllowed } from "../src/Decision.ts";
-import { DecisionCache } from "../src/DecisionCache.ts";
+import { DecisionCache, decisionCacheLayer } from "../src/DecisionCache.ts";
+import type { SinkRecord } from "../src/DecisionRecord.ts";
+import { DecisionSink } from "../src/DecisionSink.ts";
 import { customPredicateFromRecord, customPredicatePort } from "../src/CustomPredicate.ts";
 import {
   DecisionHistory,
@@ -2615,6 +2617,51 @@ describe("observability", () => {
       if (span.status._tag !== "Ended") return;
       assert.isTrue(Exit.hasDies(span.status.exit));
     }));
+
+  it.effect(
+    "a cache hit's span carries its question and outcome, and its record says hit",
+    () =>
+      Effect.gen(function* () {
+        // The second evaluation is served from the cache, which its record shows; its
+        // span is the same question and outcome a miss writes.
+        const spans: Array<Tracer.Span> = [];
+        const records: Array<SinkRecord> = [];
+        const sink = Layer.succeed(DecisionSink, {
+          record: (record) =>
+            Effect.sync(() => {
+              records.push(record);
+            }),
+        });
+
+        yield* Effect.gen(function* () {
+          yield* evaluate(P.hasRole("editor"));
+          yield* evaluate(P.hasRole("editor"));
+        }).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              testLayer(subjectWith({ id: "u1", roles: ["editor"] })),
+              decisionCacheLayer(),
+              sink,
+              collectingTracer(spans),
+            ),
+          ),
+        );
+
+        const decided = records.flatMap((r) => (r._tag === "Decision" ? [r] : []));
+        assert.deepStrictEqual(decided.map((r) => r.cache), ["miss", "hit"]);
+        const second = spans.filter((s) => s.name === evaluateSpan.name)[1];
+        assert.isDefined(second);
+        if (second === undefined) return;
+        assert.deepStrictEqual(Object.fromEntries(second.attributes), {
+          ...encodeSpan(evaluateSpan.question, {
+            subjectId: "u1",
+            evaluationId: "eval-2",
+            policyTag: "HasRole",
+          }),
+          ...encodeSpan(evaluateSpan.answer, { outcome: "Allow" }),
+        });
+      }),
+  );
 
   it.effect("the action appears on the span only when one was supplied", () =>
     Effect.gen(function* () {
