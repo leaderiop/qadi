@@ -37,7 +37,9 @@
 //   - (imports) every binding the contract imports is the first commit's, alike in the name it imports, its module and
 //     whether it imports a type; a name it no longer imports is one a moved helper reads; a name it newly imports is a
 //     moved helper; and its imports that bind no name are the first commit's, in order.
-// The order of the imports that bind a name is not compared. An import, a comment and where a helper is declared may
+// Whitespace collapsed means each run of whitespace between two tokens, or in a comment, reads as one space; the text
+// of a string, template or regular expression literal is compared exactly, so a title or a value whose own spacing
+// changed is named. The order of the imports that bind a name is not compared. An import, a comment and where a helper is declared may
 // change; a row and what it runs may not.
 //
 // This replaced, in code review, the earlier rule that the contract has exactly one commit, because moving its two
@@ -60,7 +62,22 @@ const HELPERS_SPECIFIER = "./helpers.ts";
 const KEPT = "declared in the contract";
 const FREE = "neither imported nor declared";
 
-const collapse = (text) => text.replace(/\s+/g, " ").trim();
+/**
+ * A text with each whitespace run outside `kept` collapsed to one space, and trimmed.
+ *
+ * `kept` lists the `[start, end)` offsets of the literals in `text`, sorted and disjoint; a literal starts and ends
+ * with a quote, a backtick, a brace or a slash, so no whitespace run crosses its edge, and its own text is kept
+ * exactly.
+ */
+const collapse = (text, kept = []) => {
+  let out = "";
+  let at = 0;
+  for (const [start, end] of kept) {
+    out += text.slice(at, start).replace(/\s+/g, " ") + text.slice(start, end);
+    at = end;
+  }
+  return (out + text.slice(at).replace(/\s+/g, " ")).trim();
+};
 const unexported = (text) => text.replace(/^export\s+/, "");
 const snippet = (text) => (text === undefined ? "nothing" : `«${text.slice(0, 80)}»`);
 const modules = (list) => (list.length === 0 ? "none" : list.join(", "));
@@ -96,6 +113,27 @@ const readAll = async (texts) => {
     const snapshot = api.updateSnapshot({ openProjects: [`${dir}/tsconfig.json`] });
     const program = snapshot.getProjects()[0].program;
     const textOf = (file, node) => file.text.slice(node.getStart(file), node.end);
+    // A token whose own text is compared exactly: whitespace inside it is part of a title or a value.
+    const LITERALS = new Set([
+      SyntaxKind.StringLiteral,
+      SyntaxKind.NoSubstitutionTemplateLiteral,
+      SyntaxKind.TemplateHead,
+      SyntaxKind.TemplateMiddle,
+      SyntaxKind.TemplateTail,
+      SyntaxKind.RegularExpressionLiteral,
+      SyntaxKind.JsxText,
+    ]);
+    /** A node's text with whitespace collapsed between its tokens and kept inside its literals. */
+    const exact = (file, node) => {
+      const from = node.getStart(file);
+      const kept = [];
+      const find = (child) => {
+        if (LITERALS.has(child.kind)) kept.push([child.getStart(file) - from, child.end - from]);
+        else child.forEachChild(find);
+      };
+      find(node);
+      return collapse(textOf(file, node), kept.sort((a, b) => a[0] - b[0]));
+    };
     const isRow = (node) =>
       node.kind === SyntaxKind.CallExpression &&
       ((node.expression.kind === SyntaxKind.Identifier && node.expression.text === "it") ||
@@ -166,13 +204,13 @@ const readAll = async (texts) => {
       const within = [];
       let named = identifiers;
       const visit = (node) => {
-        if (isRow(node)) rows.push([...within, collapse(textOf(file, node))].join(" > "));
+        if (isRow(node)) rows.push([...within, exact(file, node)].join(" > "));
         if (node.kind === SyntaxKind.Identifier) {
           identifiers.add(node.text);
           named.add(node.text);
         }
         const block = isDescribe(node);
-        if (block) within.push(collapse(textOf(file, node.arguments[0])));
+        if (block) within.push(exact(file, node.arguments[0]));
         node.forEachChild(visit);
         if (block) within.pop();
       };
@@ -215,10 +253,11 @@ const readAll = async (texts) => {
         }
         if (declares !== undefined) {
           const exported = /^export\s/.test(text);
-          helpers.set(declares, { text: collapse(text), body: collapse(unexported(text)), exported, reads, inert });
+          const compared = exact(file, statement);
+          helpers.set(declares, { text: compared, body: unexported(compared), exported, reads, inert });
         }
-        if (!allowed) loose.push(collapse(text));
-        statements.push({ text: collapse(text), declares });
+        if (!allowed) loose.push(exact(file, statement));
+        statements.push({ text: exact(file, statement), declares });
         named = reads;
         visit(statement);
         named = identifiers;
@@ -461,6 +500,35 @@ export const listed = (spans: ReadonlyArray<Tracer.Span>, v: number) => {
         `statement 2 after the imports is not the first commit's: it had «${firstRow}», ` +
           'this has «it("a renamed row", () => { assert.deepStrictEqual(listed([], 1), { v: 1, keys: »',
       ],
+    },
+    {
+      title: "a whitespace change inside a title fails",
+      head: head.replace('"a row"', '"a  row"'),
+      problems: [
+        'a row of the first commit is gone or changed: it("a row", () => { assert.deepStrictEqual(listed([], 1), ' +
+          "{ v: 1, keys: [1, 2] }); })",
+        'a row the first commit does not have: it("a  row", () => { assert.deepStrictEqual(listed([], 1), ' +
+          "{ v: 1, keys: [1, 2] }); })",
+        `statement 2 after the imports is not the first commit's: it had «${firstRow}», ` +
+          'this has «it("a  row", () => { assert.deepStrictEqual(listed([], 1), { v: 1, keys: [1, 2] »',
+      ],
+    },
+    {
+      title: "a whitespace change inside a template literal fails",
+      base: base.replace('other(seed(2))', 'other(seed(2), `a ${KEYS} b`)'),
+      head: head.replace('other(seed(2))', 'other(seed(2), `a  ${KEYS} b`)'),
+      problems: [
+        'a row of the first commit is gone or changed: "s" > it.effect("another row", () => other(seed(2), `a ${KEYS} b`))',
+        'a row the first commit does not have: "s" > it.effect("another row", () => other(seed(2), `a  ${KEYS} b`))',
+        "statement 3 after the imports is not the first commit's: it had " +
+          '«describe("s", () => { it.effect("another row", () => other(seed(2), `a ${KEYS} b», ' +
+          'this has «describe("s", () => { it.effect("another row", () => other(seed(2), `a  ${KEYS} »',
+      ],
+    },
+    {
+      title: "a whitespace run changed between tokens passes",
+      head: head.replace('"another row", () =>', '"another row",\n    () =>'),
+      problems: [],
     },
     {
       title: "an expected value change fails",
