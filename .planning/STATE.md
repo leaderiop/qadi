@@ -5,16 +5,16 @@ milestone_name: Arch Wave 14
 current_phase: 77
 current_phase_name: An audit row is a value only its codec makes
 status: executing
-stopped_at: Completed QD-77-01-PLAN.md
-last_updated: "2026-11-23T23:38:11.295Z"
+stopped_at: Completed 77-02-PLAN.md
+last_updated: "2026-11-23T23:49:16.816Z"
 last_activity: 2026-11-24
 last_activity_desc: Phase QD-77 execution started
-state_head: c85a7da169e1e1fa931e94b8dd0bf565f72d7426
+state_head: 759dfa564ec2f4a9207c2f748c47daded240b804
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 7
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-23)
 ## Current Position
 
 Phase: QD-77 (An audit row is a value only its codec makes) — EXECUTING
-Plan: 2 of 7
+Plan: 3 of 7
 Status: Executing Phase QD-77
 Last activity: 2026-11-24 — Phase QD-77 execution started
 
@@ -557,6 +557,7 @@ Progress: [░░░░░░░░░░] 0% (0 of 4 phases)
 | Phase 76 P07 | 35 min | 3 tasks | 16 files |
 | Phase QD-76 P08 | 45 min | 2 tasks | 4 files |
 | Phase QD-77 P01 | 15 min | 2 tasks | 3 files |
+| Phase QD-77 P02 | 25 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -969,6 +970,7 @@ Progress: [░░░░░░░░░░] 0% (0 of 4 phases)
 - [Phase 76]: 76-07: BEH-QD-717 and INV-QD-398 cite the core conformance rows; the dated notes are additions and BEH-QD-410's older last paragraph is left as written
 - [Phase QD-76]: 76-08: a close scan found four over-wide added lines in QadiHttpError.test.ts; fixed and the whole mutation close re-measured on the new head rather than waived (WX-04, 90 columns)
 - [Phase QD-76]: 76-08: SIGM-01..05 marked complete by hand after check:pr exited 0 on 446f0b27; WX-01..07 stay Pending until the milestone closes
+- [Phase QD-77]: 77-02: the inconsistent-record matrix row uses an evaluationId that disagrees with the record's decision; a fifteenth writer-input test pins two rows from one record
 
 ### Pending Todos
 
@@ -1044,8 +1046,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-23T23:38:11.242Z
-Stopped at: Completed QD-77-01-PLAN.md
+Last session: 2026-11-23T23:49:16.770Z
+Stopped at: Completed 77-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
