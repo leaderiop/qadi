@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-189                                   |
-> | Revision       | 1.5                                            |
+> | Revision       | 1.6                                            |
 > | Effective Date | 2026-11-23                                     |
 > | Status         | Accepted — amends ADR-QD-058 and ADR-QD-094   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.5 (2026-11-23): decisions 1 and 7 state the decision and its reason in the spec's own terms (code review IN-05, CCR-QD-468)<br>1.4 (2026-11-23): enforcement: the custom-predicate sentence, each fact checked once (code review IN-06, CCR-QD-468)<br>1.3 (2026-11-23): decision 4: a member is absent exactly when its schema refuses the value, and the cause is the store's own when the key admits it (code review WR-02, CCR-QD-468)<br>1.2 (2026-11-23): decision 4 and 5: the refusal is total over a row, a subject and a resource that throw, through one guarded read (code review WR-01, CCR-QD-468)<br>1.1 (2026-11-23): what enforces it: the compiler, the scripts, the tests by title and what review keeps; the acted evidence (ARCH-123, CCR-QD-468)<br>1.0 (2026-11-23): Initial release (ARCH-123, CCR-QD-468) |
+> | Change History | 1.6 (2026-11-23): decision 4: the list of rows is read through readRows, and its pins are named (code review iteration 2 WR-01, CCR-QD-468)<br>1.5 (2026-11-23): decisions 1 and 7 state the decision and its reason in the spec's own terms (code review IN-05, CCR-QD-468)<br>1.4 (2026-11-23): enforcement: the custom-predicate sentence, each fact checked once (code review IN-06, CCR-QD-468)<br>1.3 (2026-11-23): decision 4: a member is absent exactly when its schema refuses the value, and the cause is the store's own when the key admits it (code review WR-02, CCR-QD-468)<br>1.2 (2026-11-23): decision 4 and 5: the refusal is total over a row, a subject and a resource that throw, through one guarded read (code review WR-01, CCR-QD-468)<br>1.1 (2026-11-23): what enforces it: the compiler, the scripts, the tests by title and what review keeps; the acted evidence (ARCH-123, CCR-QD-468)<br>1.0 (2026-11-23): Initial release (ARCH-123, CCR-QD-468) |
 
 ---
 
@@ -73,13 +73,18 @@ leaves were the two it did not ask.
    fixture keys its rows and its requests through `decisionHistoryPort.key`, as the signature
    fixture keys through `signatureHistoryPort.key`, so both fixtures read one key text per pair
    and fail closed on one refusal (BEH-QD-410).
-4. **The refusal is total.** For every value a request member, a fixture row, the site's subject
-   or the site's resource holds, including `null` or `undefined`, a getter that throws and a
-   proxy whose trap throws, the fixture layer, the read over it and the judgement answer or
-   fail with the port's own typed error and never throw or die. Each untrusted field is read
+4. **The refusal is total.** For every value a request member, the list of fixture rows, a
+   fixture row, the site's subject or the site's resource holds, including `null` or
+   `undefined`, a getter that throws, a proxy whose trap throws and a list that is a revoked
+   proxy or whose `length` throws, the fixture layer, the read over it and the judgement answer
+   or fail with the port's own typed error and never throw or die. Each untrusted field is read
    through one guarded read, `readGuarded` in `PortKey.ts`, which turns a throw into
    `KeyRefusal.Unreadable` with the field's path and `thrownMessage` of what was thrown, so
-   the refusal sentence names the field. A row's fields are read once, where its lookup key
+   the refusal sentence names the field; the list is read through `readRows`, the same read
+   over the list's own elements. The class a refusal names is a string by construction: a
+   class whose `name` is a symbol or an object is named by its `toString` brand, so the
+   sentence is built without reading a `name` that cannot be written as text. A row's
+   fields are read once, where its lookup key
    is built; the site is read once, where the judgement builds the request, and a subject or
    resource that throws is named as the site. The evaluator's own read of its site is not
    guarded: it holds a subject `evaluate` already read.
@@ -88,7 +93,8 @@ leaves were the two it did not ask.
    admits the request's value (`Schema.is`), as it already did for `resourceId`. An absent member
    says the request held a value the member's schema refuses, whether or not the key refuses it,
    so a subject id that is an object, which the key admits, leaves it absent too. The cause is
-   `describeKeyRefusal`'s sentence when the key refuses the request, which names the value, and
+   `describeKeyRefusal`'s sentence when the key refuses the request,
+   which names the value, and
    the store's own cause when the key admits it. The
    representation is the error class itself, so `SinkCodec` and `@qadi/http`'s response body
    carry an absent member with no second schema (ADR-QD-060), and the response body's two
@@ -201,6 +207,8 @@ unchanged because no error class is added or removed: two gain an optional membe
   "a fixture row that cannot be read fails every read, naming the field and what was thrown",
   "a site subject that cannot be read fails the judgement with no subject id, naming the site",
   "a resource id that throws fails a Resource leaf, which an Any leaf never reads",
+  "a list that cannot be read fails every read, naming the list and what was thrown",
+  "a row and a site fail with a sentence that names the class generically",
   "the error has no subject id and the cause is the store's own") and
   `packages/core/test/DecisionHistory.test.ts`
   ("a site whose subject id is a symbol fails as the read does, with the refusal and never NotActed",
@@ -213,11 +221,15 @@ unchanged because no error class is added or removed: two gain an optional membe
   "a fixture row that cannot be read fails every read, naming the field and what was thrown",
   "a site subject that cannot be read fails the judgement with no event, naming the site",
   "a resource id that throws fails a Resource leaf, which an Any leaf never reads",
+  "a list that cannot be read fails every read, naming the list and what was thrown",
+  "a row and a site fail with a sentence that names the class generically",
   "the error has no event and the cause is the store's own").
-- The remedy table over a row or site it cannot read:
+- The remedy table over a row, a list of rows or a site it cannot read:
   `packages/devtools/test/model/RemedyTotality.test.ts` (each of a null row, a row whose getter
-  throws and a row that is a throwing proxy, for a signature leaf and an event leaf, and a form
-  subject or resource that cannot be read, each skipped with its sentence).
+  throws and a row that is a throwing proxy, for a signature leaf and an event leaf, a form
+  subject or resource that cannot be read, a list that is a revoked proxy, whose `length`
+  throws or whose getter on the form throws, and a row holding an object whose class name is
+  not text, each skipped with its sentence).
 - The `SinkCodec` round trips for an absent member: `packages/core/test/SinkCodec.test.ts`
   ("a SignatureHistoryUnavailable with no subject id round-trips without one",
   "a DecisionHistoryUnavailable with no event round-trips without one"), and the response body for it:

@@ -28,6 +28,7 @@ import {
   alice,
   causeText,
   disagreement,
+  HOSTILE_LISTS,
   HOSTILE_RECORDS,
   leafOf,
   SITES,
@@ -526,6 +527,61 @@ naming the site", () => {
         assert.isTrue(Result.isSuccess(answered));
         const read = yield* readOf([typed], anyLeaf, site);
         assert.deepStrictEqual(answerOf(answered), answerOf(read));
+      }),
+  );
+});
+
+/**
+ * A list of rows that cannot be read is a refusal, never a throw, for the layer, the
+ * read over it and the judgement alike.
+ *
+ * The list is read before any row (`HOSTILE_LISTS`): a revoked proxy, a `length` or
+ * an element getter that throws, a value that is not iterable. Its refusal names the
+ * list and carries what was thrown.
+ */
+describe("a history fixture whose list of rows cannot be read", () => {
+  const anyLeaf = leafOf("HasActed", hasActed("approved", { scope: "Any" }));
+  /** Each hostile list, and its refusal: the list and what it threw. */
+  const LISTS = {
+    revokedProxy: {
+      build: HOSTILE_LISTS.revokedProxy,
+      cause: /^events: reading it threw: .*revoked/,
+    },
+    throwingLength: {
+      build: HOSTILE_LISTS.throwingLength,
+      cause: /^events: reading it threw: boom$/,
+    },
+    throwingElement: {
+      build: HOSTILE_LISTS.throwingElement,
+      cause: /^events: reading it threw: boom$/,
+    },
+    notIterable: {
+      build: HOSTILE_LISTS.notIterable,
+      cause: /^events: reading it threw: /,
+    },
+  };
+
+  it.effect(
+    "a list that cannot be read fails every read, naming the list and what was thrown",
+    () =>
+      Effect.gen(function* () {
+        for (const [name, { build, cause }] of Object.entries(LISTS)) {
+          const rows = build("boom");
+          const layer = decisionHistoryFromEvents(rows);
+          const direct = yield* Effect.result(query(layer, "approved", "doc-1", "alice"));
+          const read = yield* readOf(rows, anyLeaf, SITES.withId);
+          const judged = actedAnswerFromEvents(rows, anyLeaf, SITES.withId);
+          const results: ReadonlyArray<
+            Result.Result<unknown, MissingResourceId | DecisionHistoryUnavailable>
+          > = [direct, read, judged];
+          for (const result of results) {
+            if (Result.isSuccess(result)) return assert.fail(`${name}: answered`);
+            if (result.failure._tag !== "DecisionHistoryUnavailable") {
+              return assert.fail(`${name}: ${result.failure._tag}`);
+            }
+            assert.match(causeText(result.failure), cause, name);
+          }
+        }
       }),
   );
 });

@@ -88,9 +88,9 @@ export interface RemedySweep {
  * the port's refusal, never offered a row, and the two agreement tests
  * (`RemedySignatureConformance.test.ts`, `RemedyActedConformance.test.ts`)
  * compare the table with core's evaluation. Those two checks never throw, for
- * any value a signature row, an event row, the form's subject or the form's
- * resource holds: a row or a site that cannot be read is a skip naming what was
- * thrown. Attributes get no such check — a
+ * any value a signature row, an event row, the list of them, the form's subject
+ * or the form's resource holds: a row, a list or a site that cannot be read is a
+ * skip naming what was thrown. Attributes get no such check — a
  * key present with the wrong value is precisely the case worth a row — so a
  * remedy that changes nothing is offered, and the sweep reports it as *no
  * change*. That is a finding too: it says the attribute was never the problem.
@@ -448,12 +448,15 @@ const refusal = (who: string, cause: unknown): string =>
   thrownMessage(cause);
 
 /**
- * A read of the form's own subject or resource, or the skip reason its throw is.
+ * A read of the form's own subject, resource or row list, or the skip reason its
+ * throw is.
  *
  * The form holds what a person typed and what a host handed over, so reading its
- * subject or its resource may throw (a getter, a proxy, a `null`). The two arms that
- * ask core read the form only through this, so such a check is skipped with what was
- * thrown and never throws out of `remedyEdits`, which `whatIf` calls from `derive`.
+ * subject, its resource or its list of rows may throw (a getter, a proxy, a `null`).
+ * The two arms that ask core read the form only through this, so such a check is
+ * skipped with what was thrown and never throws out of `remedyEdits`, which `whatIf`
+ * calls from `derive`. The rows themselves reach core as they are, and core reads
+ * them through its own guarded read.
  */
 const readForm = <A>(read: () => A): Result.Result<A, string> =>
   Result.try({ try: read, catch: (thrown) => refusal("form", thrown) });
@@ -578,7 +581,7 @@ const remedyFor: (self: Requirement) => (input: SimulationInput) => Built | unde
         return Result.match(
           Result.gen(function* () {
             const site = yield* readForm(() => siteOf(input));
-            const rows = fieldOps("history").elements(input);
+            const rows = yield* readForm(() => fieldOps("history").elements(input));
             const answer = yield* Result.mapError(
               actedAnswerFromEvents(rows, leaf, site),
               skipReason,
@@ -608,7 +611,7 @@ const remedyFor: (self: Requirement) => (input: SimulationInput) => Built | unde
         return Result.match(
           Result.gen(function* () {
             const site = yield* readForm(() => siteOf(input));
-            const rows = fieldOps("signatures").elements(input);
+            const rows = yield* readForm(() => fieldOps("signatures").elements(input));
             const answer = yield* Result.mapError(
               signatureAnswerFromSignatures(rows, leaf, site),
               skipReason,

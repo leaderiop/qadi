@@ -447,6 +447,36 @@ export const HOSTILE_RECORDS = {
     }),
 };
 
+/**
+ * The ways a list of rows can fail to be read: a proxy revoked after it was built, a
+ * `length` that throws, an element whose getter throws, a value that is not iterable.
+ *
+ * Each is built from `JSON.parse`, so it is an untyped value (no `as`), what a typed
+ * signature refuses and an untyped caller hands over. Each is given what it throws;
+ * the revoked proxy and the plain object throw what the engine throws.
+ */
+export const HOSTILE_LISTS = {
+  revokedProxy: (_message: string) => {
+    const { proxy, revoke } = Proxy.revocable(JSON.parse("[]"), {});
+    revoke();
+    return proxy;
+  },
+  throwingLength: (message: string) =>
+    new Proxy(JSON.parse("[]"), {
+      get: (target, key) => {
+        if (key === "length") throw new Error(message);
+        return Reflect.get(target, key);
+      },
+    }),
+  throwingElement: (message: string) =>
+    Object.defineProperty(JSON.parse("[0]"), "0", {
+      get: () => {
+        throw new Error(message);
+      },
+    }),
+  notIterable: (_message: string) => JSON.parse("{}"),
+};
+
 /** A port failure's cause as its sentence, or a failed assertion when it is not text. */
 export const causeText = (failure: { readonly cause: unknown }): string =>
   typeof failure.cause === "string"

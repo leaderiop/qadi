@@ -38,7 +38,7 @@ import {
 } from "./PortDerivation.ts";
 import { describeKeyRefusal } from "./PortDescription.ts";
 import type { KeyRefusal, LeafOf, PortDescription, ReadSite } from "./PortDescription.ts";
-import { readGuarded } from "./PortKey.ts";
+import { readGuarded, readRows } from "./PortKey.ts";
 import {
   portSpan,
   sharedQuestionFields,
@@ -277,9 +277,10 @@ export interface ActedEventInput {
  * key of its `Any` request. A row or a query the key refuses fails rather than
  * answering `"NotActed"`, which `hasNotActed` would read as an allow.
  *
- * Every field of a row is read through `readGuarded`, so a row that is `null` or
- * `undefined`, or whose property read throws, is a refused entry like one the key
- * refuses and not a throw.
+ * The list and every field of a row are read through `readGuarded`, so a list that
+ * is a revoked proxy or whose `length` throws, and a row that is `null` or
+ * `undefined` or whose property read throws, are a refusal like one the key makes
+ * and not a throw.
  *
  * `decisionHistoryFromEvents` and `actedAnswerFromEvents` both read it, so the
  * layer and the judgement cannot answer differently.
@@ -288,22 +289,24 @@ const actedLookup = (
   events: ReadonlyArray<ActedEventInput>,
 ): ((query: ActedQuery) => Result.Result<"Acted" | "NotActed", KeyRefusal>) => {
   const keyed = Result.map(
-    Result.all(
-      events.map((event) =>
-        Result.flatMap(
-          Result.all({
-            subjectId: readGuarded(["subjectId"], () => event.subjectId),
-            event: readGuarded(["event"], () => event.event),
-            resourceId: readGuarded(["resourceId"], () => event.resourceId),
-          }),
-          (row) => {
-            const asked = { subjectId: makeSubjectId(row.subjectId), event: row.event };
-            const resourceId = makeResourceId(row.resourceId);
-            return Result.all([
-              decisionHistoryPort.key([{ ...asked, resourceId }]),
-              decisionHistoryPort.key([{ ...asked, resourceId: undefined }]),
-            ]);
-          },
+    Result.flatMap(readRows(["events"], events), (rows) =>
+      Result.all(
+        rows.map((event) =>
+          Result.flatMap(
+            Result.all({
+              subjectId: readGuarded(["subjectId"], () => event.subjectId),
+              event: readGuarded(["event"], () => event.event),
+              resourceId: readGuarded(["resourceId"], () => event.resourceId),
+            }),
+            (row) => {
+              const asked = { subjectId: makeSubjectId(row.subjectId), event: row.event };
+              const resourceId = makeResourceId(row.resourceId);
+              return Result.all([
+                decisionHistoryPort.key([{ ...asked, resourceId }]),
+                decisionHistoryPort.key([{ ...asked, resourceId: undefined }]),
+              ]);
+            },
+          ),
         ),
       ),
     ),

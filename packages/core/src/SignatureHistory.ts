@@ -43,7 +43,7 @@ import {
 } from "./PortDerivation.ts";
 import { describeKeyRefusal } from "./PortDescription.ts";
 import type { KeyRefusal, LeafOf, PortDescription, ReadSite } from "./PortDescription.ts";
-import { readGuarded } from "./PortKey.ts";
+import { readGuarded, readRows } from "./PortKey.ts";
 import {
   portSpan,
   sharedQuestionFields,
@@ -350,45 +350,48 @@ export interface SignatureInput {
  * text, which is injective over the pair (`PortKey.ts`), so `["a:b", "c"]` and
  * `["a", "b:c"]` never share one. The fixture and the port spell the pair once.
  *
- * Every field of a row is read through `readGuarded`, so a row that is `null` or
- * `undefined`, or whose property read throws, is a refused entry like one the key
- * refuses and not a throw.
+ * The list and every field of a row are read through `readGuarded`, so a list that
+ * is a revoked proxy or whose `length` throws, and a row that is `null` or
+ * `undefined` or whose property read throws, are a refusal like one the key makes
+ * and not a throw.
  */
 const signatureLookup = (
   signatures: ReadonlyArray<SignatureInput>,
 ): ((query: SignatureQuery) => Result.Result<Array<Signature>, KeyRefusal>) => {
   const pairKey = (subjectId: SubjectId, resourceId?: ResourceId) =>
     signatureHistoryPort.key([{ subjectId, resourceId }]);
-  const keyed = Result.all(
-    signatures.map((input) =>
-      Result.flatMap(
-        Result.all({
-          subjectId: readGuarded(["subjectId"], () => input.subjectId),
-          resourceId: readGuarded(["resourceId"], () => input.resourceId),
-          meaning: readGuarded(["meaning"], () => input.meaning),
-          signerRole: readGuarded(["signerRole"], () => input.signerRole),
-          signedAt: readGuarded(["signedAt"], () => input.signedAt),
-          algorithm: readGuarded(["algorithm"], () => input.algorithm),
-          keyId: readGuarded(["keyId"], () => input.keyId),
-        }),
-        (row) =>
-          Result.map(
-            pairKey(
-              makeSubjectId(row.subjectId),
-              row.resourceId === undefined ? undefined : makeResourceId(row.resourceId),
+  const keyed = Result.flatMap(readRows(["signatures"], signatures), (rows) =>
+    Result.all(
+      rows.map((input) =>
+        Result.flatMap(
+          Result.all({
+            subjectId: readGuarded(["subjectId"], () => input.subjectId),
+            resourceId: readGuarded(["resourceId"], () => input.resourceId),
+            meaning: readGuarded(["meaning"], () => input.meaning),
+            signerRole: readGuarded(["signerRole"], () => input.signerRole),
+            signedAt: readGuarded(["signedAt"], () => input.signedAt),
+            algorithm: readGuarded(["algorithm"], () => input.algorithm),
+            keyId: readGuarded(["keyId"], () => input.keyId),
+          }),
+          (row) =>
+            Result.map(
+              pairKey(
+                makeSubjectId(row.subjectId),
+                row.resourceId === undefined ? undefined : makeResourceId(row.resourceId),
+              ),
+              (key): [string, Signature] => [
+                key,
+                {
+                  signerId: makeSubjectId(row.subjectId),
+                  meaning: row.meaning,
+                  signedAt: row.signedAt ?? 0,
+                  ...(row.signerRole === undefined ? {} : { signerRole: row.signerRole }),
+                  ...(row.algorithm === undefined ? {} : { algorithm: row.algorithm }),
+                  ...(row.keyId === undefined ? {} : { keyId: row.keyId }),
+                },
+              ],
             ),
-            (key): [string, Signature] => [
-              key,
-              {
-                signerId: makeSubjectId(row.subjectId),
-                meaning: row.meaning,
-                signedAt: row.signedAt ?? 0,
-                ...(row.signerRole === undefined ? {} : { signerRole: row.signerRole }),
-                ...(row.algorithm === undefined ? {} : { algorithm: row.algorithm }),
-                ...(row.keyId === undefined ? {} : { keyId: row.keyId }),
-              },
-            ],
-          ),
+        ),
       ),
     ),
   );

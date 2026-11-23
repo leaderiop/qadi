@@ -173,3 +173,83 @@ describe("remedyEdits over an event row or a site it cannot read", () => {
     );
   });
 });
+
+/**
+ * `remedyEdits` never throws for a list of rows it cannot read, nor for an object whose
+ * class name is not text.
+ *
+ * The list is the form's own `signatures` or `history`: a getter that throws is the form
+ * refusing, a revoked proxy or a `length` that throws is the port refusing, each skipped
+ * with what was thrown. An object a row holds whose constructor `name` is a symbol, or an
+ * object whose `toString` throws, is named generically in the sentence.
+ */
+const withList = (field: "signatures" | "history", list: unknown): SimulationInput =>
+  Object.defineProperty({ subject: asker, resource: SITES.withId }, field, {
+    value: list,
+  });
+
+const revokedList = () => {
+  const { proxy, revoke } = Proxy.revocable(JSON.parse("[]"), {});
+  revoke();
+  return proxy;
+};
+
+const throwingLength = (message: string) =>
+  new Proxy(JSON.parse("[]"), {
+    get: (target, key) => {
+      if (key === "length") throw new Error(message);
+      return Reflect.get(target, key);
+    },
+  });
+
+const throwingField = (field: "signatures" | "history", message: string) =>
+  Object.defineProperty({ subject: asker, resource: SITES.withId }, field, {
+    get: () => {
+      throw new Error(message);
+    },
+  });
+
+describe("remedyEdits over a list of rows it cannot read", () => {
+  const signature = (cause: string, who = "signature port") => ({
+    edits: [],
+    skipped: [`signature approved: ${skipFor(who, cause)}`],
+  });
+  const event = (cause: string, who = "history port") => ({
+    edits: [],
+    skipped: [`event approved: ${skipFor(who, cause)}`],
+  });
+
+  it("a list that is a revoked proxy is skipped, naming the list and the throw", () => {
+    const sweep = swept(signatureLeaf, withList("signatures", revokedList()));
+    assert.deepStrictEqual(sweep.edits, []);
+    assert.match(sweep.skipped.join("\n"), /^signature approved: the signature port /);
+    const revoked = /answered: signatures: reading it threw: .*revoked/;
+    assert.match(sweep.skipped.join("\n"), revoked);
+    assert.match(
+      swept(eventLeaf, withList("history", revokedList())).skipped.join("\n"),
+      /answered: events: reading it threw: .*revoked/,
+    );
+  });
+
+  it("a list whose length throws is skipped, naming the list and the throw", () => {
+    assert.deepStrictEqual(
+      swept(signatureLeaf, withList("signatures", throwingLength("boom"))),
+      signature("signatures: reading it threw: boom"),
+    );
+    assert.deepStrictEqual(
+      swept(eventLeaf, withList("history", throwingLength("boom"))),
+      event("events: reading it threw: boom"),
+    );
+  });
+
+  it("a getter for the list that throws is skipped, naming the form", () => {
+    assert.deepStrictEqual(
+      swept(signatureLeaf, throwingField("signatures", "boom")),
+      signature("boom", "form"),
+    );
+    assert.deepStrictEqual(
+      swept(eventLeaf, throwingField("history", "boom")),
+      event("boom", "form"),
+    );
+  });
+});

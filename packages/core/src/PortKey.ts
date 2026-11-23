@@ -222,3 +222,16 @@ export const readGuarded = <A>(
     catch: (error) =>
       KeyRefusal.Unreadable({ path: [...path], message: thrownMessage(error) }),
   });
+
+/**
+ * `rows` as an array of its elements, or the refusal that reading the list is.
+ *
+ * The list is the first thing a fixture reads from its caller, before any row:
+ * a revoked proxy, a `length` or an index getter that throws, a value that is not
+ * iterable. All of it happens inside the one guarded read, so a bad list is
+ * refused the way a bad row is, and the caller then maps the copy it holds.
+ */
+export const readRows = <A>(
+  path: WirePath,
+  rows: ReadonlyArray<A>,
+): Result.Result<Array<A>, KeyRefusal> => readGuarded(path, () => [...rows]);
