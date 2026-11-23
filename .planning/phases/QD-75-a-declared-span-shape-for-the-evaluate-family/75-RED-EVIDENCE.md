@@ -723,10 +723,17 @@ lines were added to `logAnnotations`' doc (`PortSpanEncode.ts`), which moved the
 | `PortSpanEncode.ts` (both ranges) | 0/0 | 0 | 0 | 6 (0 unexamined) |
 
 `compare` exits 0: "no file has an open or Ignored mutant its base did not have, and every
-score that fell lost only killed mutants". `SubjectSet.ts` lost one valid mutant (33 → 32) and
-one Ignored (7 → 6 against the 24ca9e2a run's count of the same file) with the block body. The
-static mutants are those the by-hand run at `24ca9e2a` killed: the two files' Ignored counts
-are unchanged and `EXAMINED` admits every one, so no by-hand rerun was needed.
+score that fell lost only killed mutants".
+
+`SubjectSet.ts` went from 33 to 32 valid mutants and from 5 to 6 Ignored against the
+`24ca9e2a` run. With the block body gone, `decideSubjectsStream` is a module-scope arrow with
+an expression body, so Stryker now counts its `ArrowFunction` mutant (259:37) as static and
+ignores it by default. `compare` admits it, because the core group is held to its base (8
+Ignored in this file), but that alone does not show the mutant is caught. It was run by hand
+with the group's configuration and `ignoreStatic: false`, over `SubjectSet.ts:259-273` only:
+259:37 `ArrowFunction` `() => undefined`, 265:22 `ArrowFunction` `() => undefined` and 266:52
+`ObjectLiteral` `{}` were all Killed (exit 0). The span group's Ignored counts are unchanged
+since `24ca9e2a` (38 and 6) and `EXAMINED` admits every one, each killed by hand there.
 
 The cost was not re-measured: the per-call path is unchanged since `24ca9e2a` (an expression
 body for a block holding only a `return`, and comments), so the figures recorded there
