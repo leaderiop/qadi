@@ -120,15 +120,16 @@ export const mapLine = (diffText) => {
 const kind = (m) => `${m.mutator} ${m.replacement}`;
 /**
  * Ignored mutants a close may hold beyond its base, per file and kind, each run by hand and detected there: the group's
- * config spread with `ignoreStatic: false`, run with the group's `--mutate` list. None is admitted at the base. The
- * close admits seven, each Killed by hand on its own line (`76-RED-EVIDENCE.md`, "Static mutants run by hand"):
- * `SignatureMatch.ts` holds one more static arrow, `signatureAnswerOf`, the expression-bodied export that builds the
- * answer the read and the fixture judgement share; `Remedies.ts` holds one more module-scope string, the history
- * refusal sentence `HISTORY_PORT_REFUSED`, one more object literal, `remedyFor`'s dispatch table, and four more static
- * arrows, the `Acted`, `Signature` and `Custom` arm closures of that table and `render`, which the table's rewrite
- * counts under a kind the base held fewer of.
+ * config spread with `ignoreStatic: false`, run with the group's `--mutate` list (the whole files, for `keys`). None is
+ * admitted at the base. The close admits one for each of these, each Killed by hand on a line the phase wrote
+ * (`76-RED-EVIDENCE.md`, "The close after code review"): `SignatureHistory.ts` (the static arrow of the expression-bodied
+ * export `signatureAnswerFromSignatures`), `SignatureMatch.ts` (`signatureAnswerOf`), `DecisionHistory.ts`
+ * (`actedAnswerFromEvents`), `Remedies.ts` (the module-scope refusal sentences, the dispatch table `remedyFor` and its
+ * arm closures, which the table's rewrite counts under kinds the base held fewer of: 16 static arrows and 2 object
+ * literals more than the base) and, in the close-only `keys` group, `PortKey.ts` (the three static arrows of the guarded
+ * reads `readGuarded`, `readRows` and `unreadable`, which are expression-bodied exports and a module-scope helper).
  */
-const EXAMINED = { "packages/core/src/SignatureMatch.ts": { "ArrowFunction () => undefined": 1 }, "packages/devtools/src/model/Remedies.ts": { 'StringLiteral ""': 1, "ObjectLiteral {}": 1, "ArrowFunction () => undefined": 4 } };
+const EXAMINED = { "packages/core/src/SignatureHistory.ts": { "ArrowFunction () => undefined": 1 }, "packages/core/src/SignatureMatch.ts": { "ArrowFunction () => undefined": 1 }, "packages/core/src/DecisionHistory.ts": { "ArrowFunction () => undefined": 1 }, "packages/devtools/src/model/Remedies.ts": { "ArrowFunction () => undefined": 16, "ObjectLiteral {}": 2 }, "packages/core/src/PortKey.ts": { "ArrowFunction () => undefined": 3 } };
 /**
  * Open mutants a rewrite moved, per file: each entry names a base survivor on a line the diff rewrote, the close
  * survivor it became, and why no test can kill it. An entry admits its close mutant only while the base mutant is in
