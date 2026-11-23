@@ -703,3 +703,31 @@ answer annotation and the denial line are unchanged. It is a record and not a ga
 
 `pnpm coverage < /dev/null`, alone, exit 0 (252 test files, 6290 tests passed): statements 99.64%, branches 98.68%,
 functions 99.55%, lines 99.82%, so `packages/core`'s 95% and every other package's 90% hold.
+
+## 2026-11-23: The close after the third review iteration
+
+The third review iteration changed runtime code in two places after `24ca9e2a`:
+`decideSubjectsStream` became an expression body again (`SubjectSet.ts`), and two comment
+lines were added to `logAnnotations`' doc (`PortSpanEncode.ts`), which moved the span group's
+`PortSpanEncode.ts` ranges to `90-156` and `173-200` (re-derived from
+`git diff -U0 c054c2b1 HEAD`, commit `e9ebfe90`). Both groups were re-recorded on one head,
+`6e1ffc3e`, with the scorer (`record close core --restart`, then `record close span`):
+
+| File | Killed / valid | Survived | No coverage | Ignored |
+| ---- | -------------- | -------- | ----------- | ------- |
+| `Lifecycle.ts` | 38/38 | 0 | 0 | 1 |
+| `Predicate.ts` | 282/282 | 0 | 0 | 22 |
+| `SubjectSet.ts` | 32/32 | 0 | 0 | 6 |
+| `GuardHealthCheck.ts` | 9/9 | 0 | 0 | 0 |
+| `EvaluationSpan.ts` | 3/3 | 0 | 0 | 38 (0 unexamined) |
+| `PortSpanEncode.ts` (both ranges) | 0/0 | 0 | 0 | 6 (0 unexamined) |
+
+`compare` exits 0: "no file has an open or Ignored mutant its base did not have, and every
+score that fell lost only killed mutants". `SubjectSet.ts` lost one valid mutant (33 → 32) and
+one Ignored (7 → 6 against the 24ca9e2a run's count of the same file) with the block body. The
+static mutants are those the by-hand run at `24ca9e2a` killed: the two files' Ignored counts
+are unchanged and `EXAMINED` admits every one, so no by-hand rerun was needed.
+
+The cost was not re-measured: the per-call path is unchanged since `24ca9e2a` (an expression
+body for a block holding only a `return`, and comments), so the figures recorded there
+(+9.17% geometric mean, about 0.3–0.9 µs per call) are the shipping tree's.

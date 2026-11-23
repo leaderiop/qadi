@@ -2,7 +2,7 @@
  "phase": "75",
  "groups": {
   "core": {
-   "head": "24ca9e2a45a6624b86174b5571721b51d3fc557b",
+   "head": "6e1ffc3ec78da3b26e942461be3c1f0c77d82688",
    "invocation": "pnpm exec stryker run stryker.config.mjs --mutate packages/core/src/Lifecycle.ts,packages/core/src/Predicate.ts,packages/core/src/SubjectSet.ts,packages/core/src/GuardHealthCheck.ts",
    "files": {
     "packages/core/src/Lifecycle.ts": {
@@ -191,13 +191,13 @@
      ]
     },
     "packages/core/src/SubjectSet.ts": {
-     "killed": 33,
+     "killed": 32,
      "timeout": 0,
      "survived": 0,
      "noCoverage": 0,
-     "ignored": 5,
-     "detected": 33,
-     "valid": 33,
+     "ignored": 6,
+     "detected": 32,
+     "valid": 32,
      "open": [],
      "ignoredMutants": [
       {
@@ -209,30 +209,37 @@
       },
       {
        "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 259,
+       "column": 37
+      },
+      {
+       "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 278,
+       "line": 277,
        "column": 26
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 279,
+       "line": 278,
        "column": 23
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 283,
+       "line": 282,
        "column": 22
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 297,
+       "line": 296,
        "column": 37
       }
      ]
@@ -251,8 +258,8 @@
    }
   },
   "span": {
-   "head": "24ca9e2a45a6624b86174b5571721b51d3fc557b",
-   "invocation": "pnpm exec stryker run stryker.config.mjs --mutate packages/core/src/EvaluationSpan.ts,packages/core/src/PortSpanEncode.ts:90-153,packages/core/src/PortSpanEncode.ts:170-197",
+   "head": "6e1ffc3ec78da3b26e942461be3c1f0c77d82688",
+   "invocation": "pnpm exec stryker run stryker.config.mjs --mutate packages/core/src/EvaluationSpan.ts,packages/core/src/PortSpanEncode.ts:90-156,packages/core/src/PortSpanEncode.ts:173-200",
    "files": {
     "packages/core/src/EvaluationSpan.ts": {
      "killed": 3,
@@ -567,21 +574,21 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 149,
+       "line": 152,
        "column": 29
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 180,
+       "line": 183,
        "column": 30
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 193,
+       "line": 196,
        "column": 32
       }
      ]
