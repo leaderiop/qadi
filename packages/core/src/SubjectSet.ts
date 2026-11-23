@@ -260,8 +260,8 @@ export const decideSubjectsStream = <E2 = never, R2 = never>(
   policy: Policy,
   subjects: Stream.Stream<AuthSubject, E2, R2>,
   options?: EvaluateOptions,
-): Stream.Stream<SubjectOutcome, E2, SubjectSetServices | R2> => {
-  return subjects.pipe(
+): Stream.Stream<SubjectOutcome, E2, SubjectSetServices | R2> =>
+  subjects.pipe(
     Stream.mapEffect((subject) => decideSubject(policy, subject, options)),
     Stream.withSpan(decideSubjectsStreamSpan.name, {
       attributes: askedAttributes(
@@ -270,7 +270,6 @@ export const decideSubjectsStream = <E2 = never, R2 = never>(
       ),
     }),
   );
-};
 
 /** One outcome as `filterSubjectsStream` reports it: allowed, failed, or nothing for a denial. */
 const toFilteredOutcome: (outcome: SubjectOutcome) => Option.Option<FilteredSubjectOutcome> =
