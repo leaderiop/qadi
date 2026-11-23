@@ -2424,8 +2424,10 @@ for (const file of srcSources) {
 //   [span-key-source]  the key set is read from the declaration, never from a
 //     list of this script's own, and no other library file spells or mentions a key.
 //   [span-key-literal]  SPAN_KEY_LITERAL_BUDGET: a test builds a record with
-//     `encodeSpan` and reads one with `decodeSpan`, and a key typed by hand belongs
-//     in a golden, counted per file. It walks `packages/<pkg>/test` and `bench`,
+//     `encodeSpan` (a log line's with `logAnnotations`) and reads one with
+//     `decodeSpan`, and a key typed by hand belongs in a golden, counted per file. A
+//     key that opens the title of a `describe`, `it`, `it.<effect|scoped|live|layer>`
+//     or `test` call is not counted; one passed to a method call is. It walks `packages/<pkg>/test` and `bench`,
 //     `features/features` (its `.test.ts` step files included) and every type-test
 //     file tstyche selects (`scripts/lib/type-tests.mjs`).
 //   [span-key-literal-table]  AGENTS.md section 6's table and the budget agree.
@@ -2583,8 +2585,10 @@ const spanKeyAlternation = [...spanKeys]
 }
 
 if (spanKeyRule) {
+  // A title is the first argument of a test call head, never of a method call: the head
+  // follows neither a `.` nor a name character, so `pattern.test("qadi.…")` is counted.
   const literal = new RegExp(
-    "(?<!\\b(?:describe|it|test|it\\.effect|it\\.scoped|it\\.live|it\\.layer)" +
+    "(?<!(?:^|[^.\\w$])(?:describe|it|test|it\\.effect|it\\.scoped|it\\.live|it\\.layer)" +
       `\\(\\s*)(["'\`])(?:${spanKeyAlternation})\\1`,
     "g",
   );

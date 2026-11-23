@@ -484,7 +484,9 @@ refuses a key spelled twice there, and any mention of a key in `packages/*/src` 
 `features/step-definitions` outside the two files. A test builds an expected record with
 `encodeSpan` (a log line's with `logAnnotations`) and reads a value with `decodeSpan` or
 `struct.keys`; an exact quoted key outside a title is a golden row, counted per file
-against the budget in both directions (`[span-key-literal]`). Test-scope, like
+against the budget in both directions (`[span-key-literal]`). A title is the first
+argument of a `describe`, `it`, `it.<effect|scoped|live|layer>` or `test` call, never of
+a method call, so `pattern.test("…")` with a key in it is counted. Test-scope, like
 `METRIC_ID_LITERAL_BUDGET`: it walks `packages/*/test` and `packages/*/bench`, and also
 `features/features` (its `.test.ts` step files included) and every type-test file
 tstyche selects. The table is checked against the budget (`[span-key-literal-table]`),
