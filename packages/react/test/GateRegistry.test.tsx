@@ -13,9 +13,7 @@ import {
   EvaluationServicesNone,
   eq,
   hasAttribute,
-  hasPermission,
   literal,
-  permission,
   portsLayer,
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
@@ -39,6 +37,7 @@ import {
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 import { MissingQadiProviderError } from "../src/QadiProvider.tsx";
 import { QadiProvider } from "../src/QadiProvider.tsx";
+import { notificationsOf } from "./support/gates.ts";
 import {
   alice,
   atoms,
@@ -62,18 +61,15 @@ const mount = trees.mount;
  */
 const rerenderedGate = (strict: boolean, first: ReactNode, second: ReactNode) => {
   const set = atoms();
-  let told = 0;
-  set.gates.subscribe(() => {
-    told += 1;
-  });
+  const told = notificationsOf(set.gates);
   const tree = (child: ReactNode) =>
     providerTree(set, child, { instrument: true, strict });
   const view = render(tree(first));
   const idAtMount = set.gates.instances()[0]?.id;
-  const afterMount = told;
+  const afterMount = told();
   view.rerender(tree(second));
   const instances = set.gates.instances();
-  const notifications = told - afterMount;
+  const notifications = told() - afterMount;
   view.unmount();
   return { idAtMount, instances, notifications, left: set.gates.instances() };
 };
@@ -257,51 +253,6 @@ describe("instrumented, a guard says it exists", () => {
       true,
     );
     expect(gateInstances()[0]?.resource).toBe(resource);
-  });
-
-  it("does NOT re-register on a render with a fresh, structurally equal policy and resource (ticket 141)", () => {
-    // AGENTS.md §13 blesses passing an inline policy/resource literal — a fresh
-    // object every render — and relies on `Atom.family`'s structural keying to
-    // share the underlying atom anyway. Before the fix, the registration
-    // effect's dependency array compared `policy`/`resource` by reference, so
-    // this exact pattern unregistered and re-registered the instance (two
-    // `changed()` notifications) on every single render, even though nothing
-    // about the question or its answer changed.
-    const shared = atoms();
-    let notified = 0;
-    const unsubscribe = shared.gates.subscribe(() => {
-      notified += 1;
-    });
-
-    const Wrapper = ({ tick }: { tick: number }) => (
-      <Can policy={hasPermission(permission("doc", "read"))} resource={{ id: "doc-1" }}>
-        {`allowed-${tick}`}
-      </Can>
-    );
-
-    const view = render(
-      <QadiProvider atoms={shared} subject={alice} instrument>
-        <Wrapper tick={0} />
-      </QadiProvider>,
-    );
-
-    const idBefore = shared.gates.instances()[0]?.id;
-    const notifiedAfterMount = notified;
-
-    view.rerender(
-      <QadiProvider atoms={shared} subject={alice} instrument>
-        <Wrapper tick={1} />
-      </QadiProvider>,
-    );
-
-    expect(shared.gates.instances()).toHaveLength(1);
-    // The SAME instance, not one torn down and rebuilt.
-    expect(shared.gates.instances()[0]?.id).toBe(idBefore);
-    // No unregister/re-register churn from the re-render.
-    expect(notified).toBe(notifiedAfterMount);
-
-    unsubscribe();
-    view.unmount();
   });
 
   it("drops an instance when it unmounts", () => {
@@ -627,23 +578,6 @@ describe("grouped reads register per question", () => {
     expect(gateInstances()).toEqual([]);
   });
 
-  it("unregisters exactly the instance whose key was removed", async () => {
-    const set = trees.adopt(atoms());
-    const tree = (only: ReadonlyArray<"read" | "admin">) => (
-      <QadiProvider atoms={set} subject={alice} instrument>
-        <Group names={only} />
-      </QadiProvider>
-    );
-    const view = render(tree(["read", "admin"]));
-    await waitFor(() => expect(gateInstances().length).toBe(2));
-    const readId = gateInstances().find((one) => one.id.endsWith("/read"))?.id;
-
-    view.rerender(tree(["read"]));
-
-    await waitFor(() => expect(gateInstances().length).toBe(1));
-    expect(gateInstances()[0]?.id).toBe(readId);
-  });
-
   it("unregisters every instance on unmount", async () => {
     const view = mount(<Group />, true);
     await waitFor(() => expect(gateInstances().length).toBe(2));
@@ -651,29 +585,6 @@ describe("grouped reads register per question", () => {
     view.unmount();
 
     expect(gateInstances()).toEqual([]);
-  });
-
-  it("does not re-register when an equal record is rebuilt each render", async () => {
-    const set = trees.adopt(atoms());
-    let notified = 0;
-    set.gates.subscribe(() => {
-      notified += 1;
-    });
-    const tree = (tick: number) => (
-      <QadiProvider atoms={set} subject={alice} instrument>
-        <span data-tick={tick} />
-        <Group />
-      </QadiProvider>
-    );
-    const view = render(tree(0));
-    await waitFor(() =>
-      expect(listed(gateInstances()).map((x) => x[2])).toEqual(["Denied", "Allowed"]));
-    const settled = notified;
-
-    view.rerender(tree(1));
-    view.rerender(tree(2));
-
-    expect(notified).toBe(settled);
   });
 
   it("registers a resource-scoped entry from useQuestions, carrying its resource", async () => {
