@@ -13,7 +13,8 @@ import * as Result from "effect/Result";
 import * as FastCheck from "fast-check";
 import { describeKeyRefusal, KeyRefusal } from "../src/PortDescription.ts";
 import { canonicalKey } from "../src/PortKey.ts";
-import { hostile, hostileError, unnamedInstance } from "./helpers.ts";
+import { unnamedInstance } from "./fixtureJudgement.ts";
+import { hostile, hostileError } from "./helpers.ts";
 
 /** Why the key refused `v`, asserting it did. */
 const refusalOf = (v: unknown): KeyRefusal => {

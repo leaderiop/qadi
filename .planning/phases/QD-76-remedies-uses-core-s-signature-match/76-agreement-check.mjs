@@ -181,8 +181,8 @@ const readAll = async (texts) => {
 const SHARED = new Map([
   ["packages/devtools/test/model/RemedySignatureConformance.test.ts", "packages/devtools/test/remedyAgreement.ts"],
   ["packages/devtools/test/model/RemedyActedConformance.test.ts", "packages/devtools/test/remedyAgreement.ts"],
-  ["packages/core/test/SignatureHistory.test.ts", "packages/core/test/helpers.ts"],
-  ["packages/core/test/DecisionHistory.test.ts", "packages/core/test/helpers.ts"],
+  ["packages/core/test/SignatureHistory.test.ts", "packages/core/test/fixtureJudgement.ts"],
+  ["packages/core/test/DecisionHistory.test.ts", "packages/core/test/fixtureJudgement.ts"],
 ]);
 
 /** Each `const` a statement list declares at top level, by name, with its text and whether it is exported. */

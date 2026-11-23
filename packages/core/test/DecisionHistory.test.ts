@@ -30,13 +30,13 @@ import {
   disagreement,
   HOSTILE_LISTS,
   HOSTILE_RECORDS,
-  leafOf,
   SITES,
   unkeyableRow,
   unkeyableSubject,
   unnamedInstance,
   untypedWith,
-} from "./helpers.ts";
+} from "./fixtureJudgement.ts";
+import { leafOf } from "./helpers.ts";
 
 const query = (
   layer: Layer.Layer<DecisionHistory>,
