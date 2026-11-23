@@ -101,7 +101,12 @@ export interface GateHandle {
   readonly unregister: () => void;
 }
 
-/** What a registry lets this package do to it. Never exported from the barrel. */
+/**
+ * What a registry lets this package do to it. Never exported from the barrel.
+ *
+ * `register`, and `update` and `unregister` on the {@link GateHandle} it returns, do not
+ * throw: {@link reconcile} handles no throw of its own and relies on that.
+ */
 export interface GateWriter {
   readonly register: (instance: GateInstance) => GateHandle;
 }
@@ -167,6 +172,12 @@ class OwnedGateRegistry implements GateRegistry {
  * *during* a notification is visited in the same pass, because that is what
  * iterating a `Set` one is still adding to does. A future change that introduces
  * a yield point would change this and needs to say so here first.
+ *
+ * **It keeps the {@link GateWriter} contract: nothing it writes throws.** Each of
+ * `register`, `update` and `unregister` is a synchronous `Map` and `Set` write,
+ * `changed` isolates every listener, and the collision reporter it is handed never
+ * throws: the default only prints a line, and a supplied one is contained by
+ * `reporterFor`.
  */
 export const buildGateRegistry = (report: ((id: string) => void) | undefined): GateRegistry => {
   const entries = new Map<string, GateInstance>();
@@ -313,13 +324,9 @@ export interface GateWanted {
  * changed is decided once, in the handle's `update` (`buildGateRegistry`). It acts
  * only through the writer and the handles it is handed.
  *
- * **The writer's contract.** A writer's `register` and a handle's `update` and
- * `unregister` do not throw. `buildGateRegistry` keeps that contract: a listener's
- * throw is isolated per listener, its collision reporter arrives already contained by
- * `reporterFor`, and its handles are idempotent. `reconcile` relies on the contract and
- * handles no throw of its own: a writer that breaks it propagates the throw part-way,
- * with the steps before it applied. `reconcile` never mutates `live` and returns a new
- * `Map`.
+ * It relies on the {@link GateWriter} contract and handles no throw: a writer that
+ * breaks it propagates the throw part-way, with the steps before it applied. It never
+ * mutates `live` and returns a new `Map`.
  *
  * Model logic that imports nothing from React, so it is tested against a fake writer
  * without rendering (ARCH-76, ADR-QD-140). See ADR-QD-186.

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-186                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-11-22                                     |
 > | Status         | Accepted — extends ADR-QD-140 and ADR-QD-111   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-11-22): What enforces it: review alone keeps that no other module diffs states, that reconcile adds no handler for a throw and that the hook's one ref holds only its registrations (CCR-QD-465)<br>1.2 (2026-11-22): What enforces it: the hook's one ref holding its registrations and nothing beyond them is kept by review (CCR-QD-465)<br>1.1 (2026-11-22): Decision 6 is the writer's contract, not a failure rule: reconcile handles no throw of its own (CCR-QD-465)<br>1.0 (2026-11-22): new — gate registration is one keyed reconcile (ARCH-120, CCR-QD-465) |
+> | Change History | 1.4 (2026-11-22): Decision 6 states the writer's contract and the registry's true reasons for keeping it, with no idempotence; What enforces it cites only the tests that pin it (CCR-QD-465)<br>1.3 (2026-11-22): What enforces it: review alone keeps that no other module diffs states, that reconcile adds no handler for a throw and that the hook's one ref holds only its registrations (CCR-QD-465)<br>1.2 (2026-11-22): What enforces it: the hook's one ref holding its registrations and nothing beyond them is kept by review (CCR-QD-465)<br>1.1 (2026-11-22): Decision 6 is the writer's contract, not a failure rule: reconcile handles no throw of its own (CCR-QD-465)<br>1.0 (2026-11-22): new — gate registration is one keyed reconcile (ARCH-120, CCR-QD-465) |
 
 ---
 
@@ -55,13 +55,15 @@ rule could not be tested beside the rest of `reconcile`.
    `reconcile` is deterministic in its arguments, acts only through the writer and the
    handles it is handed, and returns a fresh map.
 6. **The writer's contract.** A writer's `register` and a handle's `update` and
-   `unregister` do not throw. `buildGateRegistry` keeps that contract: a listener's throw
-   is isolated per listener (the registry's own swallow, which
-   [ADR-QD-177](./177-one-throwing-listener-cannot-silence-the-rest.md) leaves as it is), its
-   collision reporter arrives already contained by `reporterFor` ([ADR-QD-184](./184-developer-signal-reporters-are-resolved-through-one-table.md)),
-   and its handles are idempotent. `reconcile` relies on the contract and handles no throw
-   of its own: a writer that breaks it propagates the throw part-way, with the steps before
-   it applied. `reconcile` never mutates `live` and returns a new `Map`.
+   `unregister` do not throw, and `reconcile` relies on that and handles no throw of its
+   own: a writer that breaks it propagates the throw part-way, with the steps before it
+   applied. It is stated on `GateWriter`, where an implementer reads it. `buildGateRegistry`
+   keeps it because each is a synchronous `Map` and `Set` write, a listener's throw is
+   isolated per listener (the registry's own swallow, which
+   [ADR-QD-177](./177-one-throwing-listener-cannot-silence-the-rest.md) leaves as it is),
+   and the collision reporter it is handed never throws: the default only prints a line, and
+   a supplied one is contained by `reporterFor`
+   ([ADR-QD-184](./184-developer-signal-reporters-are-resolved-through-one-table.md)).
 7. **`useGateRegistrations(writer, wanted)` keeps one ref, `registered`, and one
    registration effect with no dependency list**, which calls `reconcile` with the committed
    render's own `wanted`. Beside it stays the teardown keyed on `writer`, declared first,
@@ -93,8 +95,7 @@ pins are in `GateWriter.reconcile.tst.ts`.
 Tests alone enforce: the step's rules and its call order
 (`GateWriter.reconcile.test.ts`); the writer's contract on the registry this package
 builds, in `GateRegistry.store.test.ts`: a throwing subscriber makes none of `register`,
-`update` and `unregister` throw while the other subscribers still hear each, a handle is
-idempotent (a second `unregister`, and an `update` after one, change nothing), and a
+`update` and `unregister` throw while the other subscribers still hear each, and a
 throwing collision reporter, supplied through `makeQadiAtoms` or `makeGateRegistry`, does
 not make `register` throw; the equal-state no-op (`GateRegistry.store.test.ts`,
 `GateWriter.test.tsx`); and behaviour preserved, which is what registers, under which id,
