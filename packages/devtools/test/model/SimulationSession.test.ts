@@ -45,11 +45,13 @@ import { readOutcome } from "../../src/model/Inspect.ts";
 import type { SimulationInput } from "../../src/model/SimulationInput.ts";
 import { makeSimulationSession } from "../../src/model/SimulationSession.ts";
 import type { SimulationSession } from "../../src/model/SimulationSession.ts";
-import { allow, decisionRecord, deny, failedRecord, obligationRecord, read } from "../helpers.ts";
+import { allow, decisionRecord, deny, failedRecord, read } from "../helpers.ts";
 import {
   counted,
   entryOf,
+  orphan,
   ran,
+  rowRead,
   settled,
   sighting,
   slow,
@@ -709,14 +711,14 @@ describe("what the view shows is read by the session (ARCH-73)", () => {
 
     it.effect("is absent for an orphan, for a stale result, and before any run", () =>
       Effect.gen(function* () {
-        const orphan = yield* makeSimulationSession({
+        const orphaned = yield* makeSimulationSession({
           sightings: [sighting(hasRole("a"))],
-          seed: entryOf(obligationRecord({ evaluationId: "ev-9" })),
+          seed: orphan,
         });
-        assert.isUndefined(reading(orphan));
-        yield* ran(orphan);
-        assert.strictEqual(orphan.getSnapshot().baseline?._tag, "Unavailable");
-        assert.isUndefined(reading(orphan));
+        assert.isUndefined(reading(orphaned));
+        yield* ran(orphaned);
+        assert.strictEqual(orphaned.getSnapshot().baseline?._tag, "Unavailable");
+        assert.isUndefined(reading(orphaned));
 
         const decided = yield* seededWith(
           decisionRecord({ evaluationId: "ev-91", policy: hasPermission(read), action: "read" }),
@@ -799,7 +801,6 @@ describe("a result belongs to the question it answered", () => {
 
   it.effect("says an orphan carries no decision to compare against", () =>
     Effect.gen(function* () {
-      const orphan = entryOf(obligationRecord({ evaluationId: "ev-9" }));
       const session = yield* makeSimulationSession({ sightings: [sighting(hasRole("a"))], seed: orphan });
       yield* ran(session);
       assert.strictEqual(session.getSnapshot().baseline?._tag, "Unavailable");
@@ -819,7 +820,6 @@ describe("a result belongs to the question it answered", () => {
             ),
         }),
       });
-      const orphan = entryOf(obligationRecord({ evaluationId: "ev-late" }));
       const session = yield* sessionWith(clearance);
       session.setPorts(ports);
       session.chooseSource("Live");
@@ -916,19 +916,9 @@ describe("the cost line is the cost — C7", () => {
 });
 
 describe("seeding", () => {
-  const seed = entryOf(
-    decisionRecord({
-      evaluationId: "ev-3",
-      policy: hasPermission(read),
-      subjectId: "carol",
-      action: "read",
-      resource: { id: "doc-1" },
-    }),
-  );
-
   it.effect("fills the policy, action and resource, and names every field it could not seed", () =>
     Effect.gen(function* () {
-      const session = yield* makeSimulationSession({ sightings: [], seed });
+      const session = yield* makeSimulationSession({ sightings: [], seed: rowRead });
       const snapshot = session.getSnapshot();
       if (snapshot.policy._tag !== "Seeded") throw new Error("expected a seeded policy");
       assert.deepStrictEqual(snapshot.policy.policy, hasPermission(read));
@@ -1044,7 +1034,6 @@ describe("replaying a row", () => {
 
   it.effect("replaying a row that cannot be replayed leaves the seed as seed does", () =>
     Effect.gen(function* () {
-      const orphan = entryOf(obligationRecord({ evaluationId: "ev-orphan" }));
       const replayed = yield* makeSimulationSession({ sightings: [sighting(hasRole("b"))], seed: a });
       const seeded = yield* makeSimulationSession({ sightings: [sighting(hasRole("b"))], seed: a });
       replayed.replay(orphan);
