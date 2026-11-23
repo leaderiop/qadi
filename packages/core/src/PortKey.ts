@@ -131,6 +131,10 @@ const mapFrame = (container: ReadonlyMap<unknown, unknown>): KeyFrame =>
         .join(",")}}`,
   );
 
+/** The refusal a throw at `path` is. `path` is copied, because a walk moves it on. */
+const unreadable = (path: WirePath, error: unknown): KeyRefusal =>
+  KeyRefusal.Unreadable({ path: [...path], message: thrownMessage(error) });
+
 /**
  * The request key of `value`, or the first reason it has none.
  *
@@ -205,7 +209,7 @@ export const canonicalKey = (value: unknown): Result.Result<string, KeyRefusal> 
 
   return Result.try({
     try: walk,
-    catch: (error) => KeyRefusal.Unreadable({ path: [...path], message: thrownMessage(error) }),
+    catch: (error) => unreadable(path, error),
   }).pipe(Result.flatMap((walked) => walked));
 };
 
@@ -217,18 +221,16 @@ export const canonicalKey = (value: unknown): Result.Result<string, KeyRefusal> 
  * or `undefined` row. The throw becomes a {@link KeyRefusal.Unreadable} naming
  * `path` and carrying what was thrown, which `describeKeyRefusal` writes as a
  * sentence, so a fixture's lookup and a fixture judgement refuse such a value as
- * they refuse one the key cannot read, and neither throws (BEH-QD-410). Reads go
- * through it so that no caller writes a `try` of its own.
+ * they refuse one the key cannot read, and neither throws (BEH-QD-410). It is the
+ * one guarded read callers use, so none outside this module writes a `try`;
+ * `canonicalKey` guards its own walk, whose path is live where this copies it, and
+ * `thrownMessage` guards its own renderings.
  */
 export const readGuarded = <A>(
   path: WirePath,
   read: () => A,
 ): Result.Result<A, KeyRefusal> =>
-  Result.try({
-    try: read,
-    catch: (error) =>
-      KeyRefusal.Unreadable({ path: [...path], message: thrownMessage(error) }),
-  });
+  Result.try({ try: read, catch: (error) => unreadable(path, error) });
 
 /**
  * `rows` as an array of its elements, or the refusal that reading the list is.
