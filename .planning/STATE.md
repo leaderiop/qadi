@@ -4,18 +4,18 @@ milestone: v1.8
 milestone_name: Arch Wave 13
 current_phase: 75
 current_phase_name: A declared span shape for the evaluate family
-current_plan: 3
+current_plan: 4
 status: executing
-stopped_at: Completed 75-02-PLAN.md
-last_updated: "2026-11-23T08:34:05.719Z"
+stopped_at: Completed 75-03-PLAN.md
+last_updated: "2026-11-23T08:37:52.430Z"
 last_activity: 2026-11-23
 last_activity_desc: Phase 74 complete, transitioned to Phase 75
-state_head: 84379d330970e4301f3a3dd1856c175c075073b1
+state_head: af18c62d18798697a29865b51a1d9483e6de6862
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 55
-  completed_plans: 48
+  completed_plans: 49
   percent: 75
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 ## Current Position
 
 Phase: QD-75 (A declared span shape for the evaluate family) — EXECUTING
-Current Plan: 3
+Current Plan: 4
 Total Plans in Phase: 9
 Status: Ready to execute
 Last activity: 2026-11-23 — Phase 74 complete, transitioned to Phase 75
@@ -539,6 +539,7 @@ Last activity: 2026-11-23 — Phase 74 complete, transitioned to Phase 75
 | Phase 74 P07 | 75 min | 3 tasks | 4 files |
 | Phase 75 P01 | 6 min | 2 tasks | 5 files |
 | Phase 75 P02 | 2 min | 2 tasks | 2 files |
+| Phase 75 P03 | 12 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -932,6 +933,7 @@ Last activity: 2026-11-23 — Phase 74 complete, transitioned to Phase 75
 - [Phase 74]: 74-07: compare is red on SimulationSession.ts:313, a base survivor (redundant seed disjunct of stale) relocated by a rewritten line; recorded as equivalent, not closed outside the plan's drop-closing paths
 - [Phase 75]: ADR-QD-188: qadi.outcome (Allow, Deny, Failed) is the one outcome key of qadi.evaluate; qadi.decision removed with no dual write; decided autonomously before any source change
 - [Phase 75]: 75-02: the contract's rows hold literal span keys and import nothing from EvaluationSpan.ts; long titles are wrapped, never shortened, so each equals the plan's Title cell
+- [Phase 75]: 75-03: EvaluationSpan.ts declares the evaluate span and the denial event once; decideQuestion annotates its question before the lookup and writes the outcome under one key on Allow, Deny and Failed
 
 ### Pending Todos
 
@@ -1005,8 +1007,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-23T08:34:05.437Z
-Stopped at: Completed 75-02-PLAN.md
+Last session: 2026-11-23T08:37:52.143Z
+Stopped at: Completed 75-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
