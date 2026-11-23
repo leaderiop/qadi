@@ -80,3 +80,77 @@ The received record has neither `qadi.subject_id` nor `qadi.evaluation_id`.
 
 The contract file is never edited after its commit. Its changed rows turn green in the plans that change the source,
 with no row touched, and its kept rows stay green throughout.
+
+## Each evaluate span rule gutted once
+
+Plan 75-03 on `81410a1d`. Each gut is an edit to `packages/core/src/Lifecycle.ts` on the working tree, the contract run
+alone, and `git checkout -- packages/core/src/Lifecycle.ts` afterwards; neither gut is in any commit. Besides the rows
+named below, rows C8 to C17 fail in both runs, as they do on `81410a1d` itself (the translation, probe and batch writers
+change in later plans).
+
+### question-after-lookup
+
+The edit: the statement that annotates `evaluateSpan.question` moves from right after the evaluation id to just after the
+lookup, so it runs on the success path only.
+
+The command:
+
+```
+pnpm exec vitest run --project core packages/core/test/EvaluationSpan.contract.test.ts --reporter=json --outputFile=<S>/gut-question-after-lookup.json < /dev/null
+```
+
+The evaluate rows that fail, and no others:
+
+- `a failed evaluation carries exactly its question, outcome Failed and error tag` (C3)
+- `a failed evaluation with an action carries exactly its question and error tag` (C4)
+
+First failure lines:
+
+```
+a failed evaluation carries exactly its question, outcome Failed and error tag
+AssertionError: expected { 'qadi.outcome': 'Failed', …(1) } to deeply equal { 'qadi.subject_id': 'u3', …(4) }
+a failed evaluation with an action carries exactly its question and error tag
+AssertionError: expected { 'qadi.outcome': 'Failed', …(1) } to deeply equal { 'qadi.subject_id': 'u3', …(5) }
+```
+
+The allow, denial and cache rows pass: with the question written after the lookup a decided span still carries it, and
+only a span that fails before the lookup returns loses it. That is the rule the gut pins.
+
+### decision-key
+
+The edit: `yield* Effect.annotateCurrentSpan({ "qadi.decision": decision._tag });` added right after the success answer,
+so a decided span carries the old key beside the new one.
+
+The command:
+
+```
+pnpm exec vitest run --project core packages/core/test/EvaluationSpan.contract.test.ts --reporter=json --outputFile=<S>/gut-decision-key.json < /dev/null
+```
+
+The evaluate rows that fail, and no others:
+
+- `an allow carries exactly its question and outcome Allow` (C1)
+- `a denial carries exactly its question and outcome Deny` (C2)
+- `an allow with an action carries exactly its question and outcome` (C5)
+- `an allow owing obligations carries exactly its question, outcome and ids` (C6)
+- `a cache hit carries exactly its question and outcome` (C7)
+- `each qadi.evaluate span in a batch carries exactly its question and outcome` (C18)
+
+First failure lines:
+
+```
+an allow carries exactly its question and outcome Allow
+AssertionError: expected { 'qadi.subject_id': 'u1', …(4) } to deeply equal { 'qadi.subject_id': 'u1', …(3) }
+a denial carries exactly its question and outcome Deny
+AssertionError: expected { 'qadi.subject_id': 'u2', …(4) } to deeply equal { 'qadi.subject_id': 'u2', …(3) }
+an allow with an action carries exactly its question and outcome
+AssertionError: expected { 'qadi.subject_id': 'u1', …(5) } to deeply equal { 'qadi.subject_id': 'u1', …(4) }
+an allow owing obligations carries exactly its question, outcome and ids
+AssertionError: expected { 'qadi.subject_id': 'u4', …(5) } to deeply equal { 'qadi.subject_id': 'u4', …(4) }
+a cache hit carries exactly its question and outcome
+AssertionError: expected { 'qadi.subject_id': 'u1', …(4) } to deeply equal { 'qadi.subject_id': 'u1', …(3) }
+each qadi.evaluate span in a batch carries exactly its question and outcome
+AssertionError: expected [ …(2) ] to deeply equal [ …(2) ]
+```
+
+Each received record holds one key more than the contract's, the old one.
