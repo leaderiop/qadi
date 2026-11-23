@@ -1,192 +1,242 @@
 ---
 phase: QD-74-the-simulation-session-s-policy-choice-split-from-its-runs
-fixed_at: 2026-11-23T05:52:20Z
+fixed_at: 2026-11-23T06:23:02Z
 review_path: .planning/phases/QD-74-the-simulation-session-s-policy-choice-split-from-its-runs/74-REVIEW.md
-iteration: 2
-findings_in_scope: 7
-fixed: 7
+iteration: 3
+findings_in_scope: 5
+fixed: 5
 skipped: 0
 status: all_fixed
 ---
 
-# Phase 74: Code Review Fix Report (iteration 2)
+# Phase 74: Code Review Fix Report (iteration 3)
 
-**Fixed at:** 2026-11-23T05:52:20Z
+**Fixed at:** 2026-11-23T06:23:02Z
 **Source review:** .planning/phases/QD-74-the-simulation-session-s-policy-choice-split-from-its-runs/74-REVIEW.md
-**Iteration:** 2
+**Iteration:** 3
 
 **Summary:**
-- Findings in scope: 7 (2 warnings, 5 info; fix scope `all`)
-- Fixed: 7
+- Findings in scope: 5 (2 warnings, 3 info; fix scope `all`)
+- Fixed: 5
 - Skipped: 0
 
 `workflow.use_worktrees` is `false`, so every edit, commit and gate ran in the main checkout on `arch-wave-13`. You
 can reproduce the gate numbers below from that tree.
 
+This report replaces the iteration-2 report that was committed as `74-REVIEW-FIX.md` (`b41eb85d`). That report is
+kept unchanged as `74-REVIEW-FIX.iter2.md`. Where it is out of date, see "Corrections to iteration 2's report" below.
+
 ## Fixed Issues
 
-### WR-01: The type pin's traceability row still says every transition answers a seeded choice
-
-**Files modified:** `spec/traceability.md`, `spec/README.md`
-**Commit:** af19ea52
-**Applied fix:**
-- The `SeededChoice.tst.ts` row now ends "…the menu option shape, and what each transition answers: a `SeededChoice`
-  from `withSightings` and `choose`, a `Seeding` from `seededChoice` and `seedFrom`". That is the rule as
-  `SeededChoice.ts`, ADR-QD-187 decision 1 and INV-QD-393 state it.
-- `spec/traceability.md` moved to Rev 1.263 through `spec-revise`. CCR-QD-466's row cites it, and `spec/README.md`
-  moved to Rev 1.319 with the row (1.320 after IN-05).
-- I grepped all of `spec/` and `packages/devtools` for "every transition", "answering a seeded", "returns a new
-  object" and "no-op returns". No other text in the phase makes the old claim. The remaining hits are about other
-  modules (the audit pipeline's `Ref.modify`, `getSnapshot` merges and `withAction`), plus `SeededChoice.ts:5`
-  ("every transition and every reading is a function of plain values"), which is true.
-
-### WR-02: The characterisation check passes edits that change what a row asserts or runs
+### WR-01: The characterisation check still passes import and fixture edits that change what a row runs
 
 **Files modified:** `74-characterisation-check.mjs`, `74-RED-EVIDENCE.md`
-**Commit:** 59186a74
-**Applied fix:** The check now also reads `simulationFixtures.ts` as `e25c8cfd` holds it. It fails unless all four
-rules below hold.
+**Commit:** fbed827d
+**Applied fix:** The check now treats each hole as a rule, not a case.
 
-- **(a) Statements.** Every top-level statement of the characterisation other than its imports matches the first
-  commit's, whitespace collapsed and in order, once the 13 moved helpers are left out. There are 29. So a `describe`
-  body, a helper kept in place and any new statement are compared whole. The leading header comment is not compared,
-  because a statement's text starts after its leading comments. The row multiset is still compared, so a changed row
-  is named.
-- **(b) Fixture helpers.** Each helper the first commit imported from the fixtures (`counted`, `entryOf`, `ran`,
-  `sighting`, `slow`, `startRun`) keeps its first text in the fixtures. So does each fixture helper a moved helper
-  reads, and each fixture helper those read, which brings in `settled` under `ran`. Each name such a helper imports
-  must come from the module it came from at the first commit. A moved helper keeps its first-commit text, or the text
-  `REVIEWED` gives it. `REVIEWED` still holds exactly one entry, `PolicyView`. A moved helper may not read a name the
-  characterisation still declares if the fixtures declare it separately.
-- **(c) Imports.** Every name the characterisation imports keeps its first commit's module. Modules are compared as
-  repository paths, so a relative specifier from the fixtures and one from the characterisation compare equal. The
-  exceptions are the `IMPORT_MOVES` table, which holds exactly `PolicyChoice` and `PolicyMenu` (from
-  `SimulationSession.ts` to `SeededChoice.ts`), and a moved helper, which must come from `../simulationFixtures.ts`.
-  A name the characterisation no longer imports must be one a moved helper reads, and the fixtures must import it
-  from the same module or as the table moves it. A newly imported name must be a moved helper. An unused `IMPORT_MOVES`
-  or `REVIEWED` entry fails. Both table entries are used on HEAD: `PolicyMenu` by the characterisation's own import,
-  `PolicyChoice` by the fixtures' import under `PolicyView` and `policyView`.
-- The vacuous "and is declared nowhere else" clause is gone. The rule (a) comparison replaced the old "is still
-  declared here, with other text" message.
+How it reads imports:
+- `readAll` reads every import form: named, namespace (`*`), default and type-only, including inline `type`
+  modifiers.
+- It records each binding by four things: its local name, the name it imports (`propertyName ?? name`, `*` or
+  `default`), its module as a path from the repository root, and whether it imports a type.
+- An import that binds no name (`import "x"`, or `import {} from "x"`) is recorded in order.
+- It records the modules each file loads, meaning every import that is not `import type`.
 
-The self-test now has 23 cases. Each one asserts the exact list of problem messages it expects, in order, not only
-pass or fail. There is one case for each of the reviewer's three holes and a top-level `beforeEach`. Others cover a
-transitively read fixture helper, a fixture import re-pointed under a compared helper, an import dropped, added or
-re-pointed, a moved helper's import from the wrong module, and an unused move.
+The rules now enforced:
+- **Characterisation imports.** Every binding must equal the first commit's in all four parts. The exceptions are a
+  module that `IMPORT_MOVES` moves, and a moved helper, which must be imported under its own name from
+  `../simulationFixtures.ts`. The imports that bind no name must be the first commit's list, in order. So an added or
+  removed side-effect import fails, and so do `counted as slow`, a namespace re-point and a type-only or default
+  rebinding.
+- **What a compared helper reads.** This is one rule, for both moved helpers and fixture helpers. The fixtures must
+  provide each name the way the first commit did:
+  - an import must bind the same name of the same module, of the same kind, unless `IMPORT_MOVES` moves the module;
+  - a name the first commit neither imported nor declared must still be neither (this closes shadowing a global or a
+    free name);
+  - a name the characterisation still declares fails however the fixtures provide it. This also covers the reviewer's
+    line-273 gap, where the fixtures *import* a kept name.
+- **Fixture helpers** are compared with their `export`. This absorbed the old "imported … but not exported by it"
+  message, so that message is deleted.
+- **Fixtures statements.** Each top-level statement must be an import or a declaration of one name: a `const`, a
+  function, a type or an interface. So a `beforeEach(...)`, a mutating statement, a `let`, a class and an
+  `export … from` all fail.
+- **Load-time code in the fixtures.** A `const` that no rule compares must run nothing as the module loads. Its
+  initialiser must be a function, a literal, a name, or an array or object literal of those.
+- **Modules the fixtures load.** Every module the fixtures load must be one that the two files loaded at the first
+  commit.
+
+Messages:
+- The "not declared in the fixtures of the first commit" branch is deleted. It cannot fire against the fixed `BASE`.
+- The `no parse` throw is deleted for the same reason.
+- The old throws for destructured and shared declarations are gone. Such a statement now fails the rules as a
+  statement.
+- The self-test grew from 23 cases to 49. Each asserts its exact problem list, in order.
+- Every message the script can emit has at least one case. That includes the eight messages in the review's table
+  that the self-test did not exercise; the deleted ones are noted above. The read rule has a case for each of its
+  eight failing pairs of "was" and "now".
+- I confirmed the self-test fails when a message is changed: I altered `" than reviewed"` and one case failed.
 
 Results:
 - On HEAD: `characterisation-check: 35 rows and 29 statements as at e25c8cfd; 21 helpers kept, 13 moved (KEYS,
   rowRead, orphan, carolDraft, PolicyView, policyView, listed, evictedOf, seededOf, zero, menu, seededEntry,
   evictedEntry)`, exit 0.
-- `--self-test`: `self-test: 23 passed`.
+- `--self-test`: `self-test: 49 passed`.
 
-I made the reviewer's three scratch edits on the working tree, ran the check on each, and reverted each with
-`git checkout --`. Each exits 1, and each reports exactly one problem:
+What the check does not compare, by design:
+- The order of the imports that bind a name. The header says so.
+- The read rule matches identifiers, so a property name that equals a new top-level fixtures name fails it. This errs
+  on the strict side, and nothing on HEAD trips it.
 
-| Edit | Problem reported |
-| ---- | ---------------- |
-| `const listed = (value: PolicySighting, index: number) => ({ _tag: "Listed", value, index: index + 1 });` added as the first line of `describe("seeding")` | `statement 22 after the imports is not the first commit's: it had «describe("seeding", () => { it.effect("built with no seed, a session holds the h», this has «describe("seeding", () => { const listed = (value: PolicySighting, index: number»` |
-| `sighting`'s `count: 1` made `count: 2` in `simulationFixtures.ts` | `sighting in the fixtures is not its first commit's text` |
-| `slow` dropped from the fixtures import and imported from `./elsewhere.ts` | `slow came from ../simulationFixtures.ts and is imported from ./elsewhere.ts here` |
+**Reviewer's probes, re-run.** I made each edit on the working tree, ran the check, and reverted with
+`git checkout --`. Each exits 1 with exactly the problems shown:
 
-A fourth edit changed `settled`'s idle test (`!== "Running"` to `=== "Idle"`), which only `ran` reads. It reports
-`settled in the fixtures is not its first commit's text`.
+| Edit | Problems reported |
+| ---- | ----------------- |
+| characterisation: `TestClock` imported from `../fakeClock.ts` | `` TestClock was imported as `* as TestClock from effect/testing/TestClock` and is imported as `* as TestClock from packages/devtools/test/fakeClock.ts` here `` |
+| fixtures: `TestClock` imported from `./fakeClock.ts` | `` TestClock, which startRun reads, was imported as `* as TestClock from effect/testing/TestClock` and the fixtures import it as `* as TestClock from packages/devtools/test/fakeClock.ts` ``; `the fixtures load packages/devtools/test/fakeClock.ts, which neither file loaded at the first commit` |
+| characterisation: `import "../setup.ts";` added | `the imports that bind no name were none and are packages/devtools/test/setup.ts here` |
+| characterisation: `import * as Extra from "./extra.ts";` added | `Extra is imported here, and the first commit neither imports nor declares it` |
+| fixtures: `import "./setup.ts";` added | `the fixtures load packages/devtools/test/setup.ts, which neither file loaded at the first commit` |
+| characterisation: `counted as slow` in the fixtures import | `` slow was imported as `{ slow } from packages/devtools/test/simulationFixtures.ts` and is imported as `{ counted as slow } from packages/devtools/test/simulationFixtures.ts` here `` |
+| fixtures: `emptyTimeline as ingestAll` | `` ingestAll, which entryOf reads, was imported as `{ ingestAll } from packages/devtools/src/model/Timeline.ts` and the fixtures import it as `{ emptyTimeline as ingestAll } from packages/devtools/src/model/Timeline.ts` `` |
+| fixtures: `beforeEach(() => {});` appended | `a top-level statement of the fixtures is not an import or a declaration of one name: «beforeEach(() => {});»` |
+| fixtures: `Object.assign(carolDraft, { action: "write" });` appended | `a top-level statement of the fixtures is not an import or a declaration of one name: «Object.assign(carolDraft, { action: "write" });»` |
+| fixtures: `export const hook = beforeEach(() => {});` appended | `hook in the fixtures runs code as the module loads, and no first commit's text pins it` |
 
-`74-RED-EVIDENCE.md` gains a dated section, "The characterisation check hardened (2026-11-23, code review, second
-pass)". It records the new rules, the counts and the three edits. No earlier note was rewritten.
+`74-RED-EVIDENCE.md` gains a dated section, "The characterisation check reads every import and every fixtures
+statement (2026-11-23, code review, third pass)". It records the rules, the counts and the table above. No earlier
+note was rewritten.
 
-### IN-01: `SimulationSession.test.ts` keeps an identical copy of the fixtures' `orphan`, and a near-copy of `rowRead`
+### WR-02: CCR-QD-466 cites `spec/README.md` at Rev 1.320; the header is 1.321
 
-**Files modified:** `packages/devtools/test/model/SimulationSession.test.ts`
-**Commit:** e517dfd3
+**Files modified:** `spec/README.md`
+**Commit:** 1f4f387c
 **Applied fix:**
-- The file now imports `orphan` and `rowRead` from `../simulationFixtures.ts`. The identical local `orphan` in
-  "replaying a row that cannot be replayed leaves the seed as seed does" is deleted.
-- Importing `orphan` at module scope would have left three older local `orphan`s shadowing it, so I removed those
-  too. "says an orphan carries no decision to compare against" (`ev-9`) and "never shows a result as answering a row
-  replayed while that run was starting" (`ev-late`) now read the shared row. Neither reads the row's evaluation id.
-  In "is absent for an orphan, for a stale result, and before any run", the session that was named `orphan` is now
-  `orphaned`, beside its sibling `decided`, and is seeded with the shared `orphan`. The file now has one orphan
-  definition. `obligationRecord` is no longer imported.
-- `describe("seeding")`'s local `seed` (`ev-3`) is gone, and its one row seeds `rowRead`. I did not give `rowRead` an
-  `id` parameter. The one difference, the evaluation id, is read by no row, so one definition remains without one.
-  `rowRead` is also a moved helper whose first-commit text the characterisation check pins, and a parameter would
-  have needed a second `REVIEWED` entry, which the brief keeps at exactly `PolicyView`. Every expected value in the
-  row is unchanged.
-- The session tests still hold 80, all passing.
+- The row now cites `` `spec/README.md` Rev 1.322 ``.
+- `spec-revise` then bumped README once, to 1.322, with the entry "CCR-QD-466's row cites the master index at its own
+  revision and lists the devtools tests that now read the shared test helpers (code review)". The header and the
+  row's citation agree.
+- The same edit brought the row's file list up to date for IN-03's second commit. The 19 test files it touched are
+  listed, and one sentence in the summary says the devtools tests read `read`, `readPolicy`, `sighting`, `entryOf`
+  and `slow` from the shared test helpers.
+- Checked with a script:
+  - The row's file list, braces expanded, equals `git diff --name-only b22d97f9 HEAD -- packages spec` (39 files).
+  - All seven cited revisions equal their headers: ADR 1.2, 28 at 1.52, 29 at 1.26, invariants 1.189, overview
+    1.133, traceability 1.263 and README 1.322.
 
-### IN-02: The fixtures' new section comment now heads `slow` and `counted`
+### IN-01: `74-REVIEW-FIX.md` reports revisions that `e0c6b67a` superseded before the report was committed
 
-**Files modified:** `packages/devtools/test/simulationFixtures.ts`
-**Commit:** 5a9d8381
-**Applied fix:** `slow` and `counted` moved back above the "Two logged rows…" section comment, right after
-`sighting` and `entryOf`, which is where the first commit had them. That comment now heads only `KEYS` through
-`evictedEntry`, and the run-helpers comment heads `startRun`, `settled` and `ran`. No declaration's text changed, and
-the characterisation check still passes.
+**Files modified:** `74-REVIEW-FIX.md` (this report, not committed by the fixer)
+**Commit:** none (the orchestrator commits this report)
+**Applied fix:** This report replaces the iteration-2 record, and the section below corrects it. I did not edit
+`74-REVIEW-FIX.iter2.md`.
 
-### IN-03: A double blank line left where `slow` was removed
+### IN-02: `SeededChoice.test.ts` shadows the imported fixture helper `sighting`
 
-**Files modified:** `packages/devtools/test/react/useSimulationSession.test.tsx`
-**Commit:** 443ced73
-**Applied fix:** I deleted one of the two blank lines. No touched test file has a double blank line left.
+**Files modified:** `packages/devtools/test/model/SeededChoice.test.ts`
+**Commit:** b89fa22f
+**Applied fix:** I renamed the local in "each option of the menu names the sighting sightingAt reads at its position"
+to `expected`. No title and no expected value changed.
 
-### IN-04: BEH-QD-709 cites a `withSightings` test as evidence that choosing the held policy is a no-op
+### IN-03: `Simulator.test.tsx` builds its own orphan row and its own `read`
 
-**Files modified:** `spec/behaviors/29-devtools-simulator.md`
-**Commits:** 95935195, c925f1a9 (rewraps the citation inside 90 columns)
-**Applied fix:**
-- "withSightings with the same elements in a new array returns the same choice" is dropped from BEH-QD-709's
-  Pinned-by list. INV-QD-393's Enforcement still cites it, and ADR-QD-187's "What enforces it" now does too (IN-05).
-- The four remaining titles are verbatim. Each one appears once, as a string literal, in its test file.
-- Revision: none. `spec-revise` does not require one, and BEH-QD-709 is new at Rev 1.25 in this phase. I applied the
-  same rule as for the ADR in IN-05.
+**Commits:** 79c78650 (the simulator test) and 3a6f18df (every other copy)
 
-### IN-05: ADR-QD-187's "What enforces it" omits the transition-signature pin and decision 1's no-op rows
+**`Simulator.test.tsx` (79c78650).**
+- "says a comparison is unavailable for a row that carries no decision" now seeds the shared `orphan`.
+- `read` comes from `../helpers.ts`.
+- The local copies are gone, and so are the `obligationRecord` and `permission` imports.
+- Both shared definitions behave identically to the copies:
+  - `read` is the same `permission("doc", "read")`.
+  - The orphan differs only in its evaluation id (`ev-orphan` against `ev-9`). The row never reads the id; it asserts
+    only "an orphan carries no decision".
 
-**Files modified:** `spec/decisions/187-the-simulation-sessions-policy-choice-is-a-pure-seeded-choice.md`,
-`spec/README.md`
-**Commit:** e173aea3
-**Applied fix:**
-- **The compiler sentence.** It now also says each transition answers what decision 1 says: a `SeededChoice` from
-  `withSightings` and `choose`, and a `Seeding` from `seededChoice` and `seedFrom`. It names the pin that holds this,
-  "choose and withSightings answer a SeededChoice; seededChoice and seedFrom a Seeding".
-- **The tests sentence.** It now reads "decision 1's no-op rule and the rules of decisions 2 to 6". It names decision
-  1's rows: "withSightings with the same elements in a new array returns the same choice", "seedFrom the row a choice
-  holds answers the same choice and the row decoded" and "seedFrom(undefined) on a choice with no seed answers the
-  same choice". That is the set INV-QD-393's Enforcement cites.
-- **Revision.** ADR-QD-187 stays at Rev 1.1. `spec-revise --check` requires no revision for the edit, and the 1.1
-  entry ("corrected in code review: what each transition answers, …") already covers it. So CCR-QD-466 still cites
-  "Rev 1.1 (new at 1.0; corrected at 1.1, in code review)".
-- **CCR-QD-466 summary.** The summary said "the compiler holds the union arms and the menu option shape". It now adds
-  "and what each transition answers", matching the ADR. `spec/README.md` moved to Rev 1.320, and the row cites it.
+**Every other copy (3a6f18df).** I grepped `packages/devtools/test` for top-level declarations that share a name with
+an export of `helpers.ts` or `simulationFixtures.ts`. I also grepped for each export's body under any name. I folded
+every copy that behaves identically:
+
+| Copy | Files | Now reads |
+| ---- | ----- | --------- |
+| `const read = permission("doc", "read")` | `SimulationSource`, `Simulation`, `WhatIf`, `Inspect`, `Wiring`, `ExplorerSession`, `RoleTree`, `Catalogue`, `ExplorerSessionRefusal`, `Replay` (`model/*.test.ts`); `PolicyExplorer`, `QuestionsPanel`, `DevtoolsDock`, `RoleViewer`, `WhatIfTable` (`react/*.test.tsx`) | `read` from `../helpers.ts` |
+| `const canRead = hasPermission(permission("doc", "read"))` | `model/Gates.test.ts`, `react/QuestionsPanel.gates.test.tsx` | `readPolicy` from `../helpers.ts` |
+| `sightingOf`, the same body as `sighting` | `model/ExplorerSessionRefusal.test.ts` | `sighting` from `../simulationFixtures.ts` |
+| `entryOf` | `model/Replay.test.ts`, `react/DecisionLog.test.tsx` | `entryOf` from `../simulationFixtures.ts` |
+| `slow` | `model/DockModel.test.ts` | `slow` from `../simulationFixtures.ts` |
+
+Notes on the folds:
+- Imports left unused were dropped: `permission`, `policyLabel`, `Policy`, `StoredRecord`, `emptyTimeline`,
+  `ingestAll` and `AttributeResolver`, each where nothing else used it.
+- The four lines the fold pushed past 90 columns are rewrapped.
+- `DecisionLog`'s `entryOf` threw "expected a timeline entry" where the shared one throws "expected an entry". No
+  input reaches either throw: `ingestAll` of one record always yields one entry, an orphan included. So the two
+  behave identically.
+- `simulationFixtures.ts`'s header now names the four tests of other modules that read it. The characterisation check
+  does not compare comments, and it still passes.
+
+Kept local, and why:
+- `react/QuestionsPanel.characterisation.test.tsx` and `react/QuestionsPanel.feed.characterisation.test.tsx` keep
+  their `canRead`. They are characterisations whose headers fix their statements: "names nothing the base lacks", and
+  "Never edited after it is written".
+- `react/QuestionsPanel.thunk.test.tsx` keeps its `canRead`. Its header says "Never weakened after its commit: the
+  move makes it green unedited".
+- `Gates.test.ts`'s two inline `hasPermission(permission("doc", "read"))` are not copies. They build two equal but
+  separate policies on purpose.
+- These differ in signature or body, so they are not copies:
+  - `sighting` in `ExplorerSession.test.ts`, `PolicyExplorer.test.tsx` and `Catalogue.test.ts` (a `count` or `label`
+    parameter);
+  - `listed` in `NonJsonWitness.test.ts` (a `label` parameter);
+  - `entryOf`, `settled` and `ran` in `DockModel.test.ts` (a `DockModel` parameter);
+  - the `counted` helpers of the diagnostics tests (another subject);
+  - the test-local `orphan`, `read`, `slow`, `hostile`, `guard`, `allow` and `deny` bindings inside test bodies.
+
+Results:
+- The devtools suite still holds 73 files and 1760 tests, all passing.
+- No title or expected value changed.
+
+## Corrections to iteration 2's report
+
+The orchestrator's commit `e0c6b67a` ("docs(74): record the review's second edits to ADR-QD-187 and the simulator
+behaviours") came after the iteration-2 fixer wrote its report and before that report was committed (`b41eb85d`). It
+changed three things the report states otherwise:
+- **IN-04's "Revision: none"** no longer holds. `spec/behaviors/29-devtools-simulator.md` went to **Rev 1.26** for
+  BEH-QD-709's narrowed citation, and CCR-QD-466 cites it there.
+- **IN-05's "ADR-QD-187 stays at Rev 1.1"** no longer holds. ADR-QD-187 went to **Rev 1.2** for "What enforces it"
+  naming the transition pin and decision 1's no-op rows. CCR-QD-466 cites "Rev 1.2 (new at 1.0; corrected at 1.1 and
+  1.2, in code review)".
+- **"Other checks"** should have listed README 1.321, ADR 1.2 and 29-devtools-simulator 1.26, not README 1.320, ADR
+  1.1 and 1.25. `e0c6b67a` bumped `spec/README.md` to 1.321 and left the row's own self-citation at 1.320. That is
+  WR-02 above, which moved both to **1.322**.
+
+The record of the decision is that every code-review spec edit is a revision.
 
 ## Verification
 
-Every gate ran in the main checkout, on HEAD `c925f1a9`, one runner at a time with stdin closed:
+Every gate ran in the main checkout, on HEAD `1f4f387c`, one runner at a time with stdin closed:
 
 | Gate | Result |
 | ---- | ------ |
 | `pnpm exec vitest run --project devtools` | 73 files, 1760 tests passed |
 | `pnpm typecheck` | exit 0 |
-| `pnpm test:tstyche` | both passes: 71 files passed (381 passed / 1 skipped, then 380 / 2 skipped) |
+| `pnpm test:tstyche` | exit 0; both passes, 71 files (the second: 380 passed, 2 skipped) |
 | `node scripts/check-house-style.mjs` | `578 file(s) clean (3 declared switch(es), 71 type-test file(s))` |
 | `node scripts/check-doc-examples.mjs` | `118 block(s) compile` |
 | `node scripts/check-api-surface.mjs` | `941 export(s) documented across 9 package(s)` |
-| `pnpm exec oxlint` on the touched test files and the check script | exit 0 |
+| `pnpm exec oxlint` on every touched test file and the check script | exit 0, no diagnostics |
 | `node scripts/spec-revise.mjs --check` | every Revision matches its newest Change History entry |
 | `74-characterisation-check.mjs` | 35 rows and 29 statements as at e25c8cfd; 21 kept, 13 moved |
-| `74-characterisation-check.mjs --self-test` | 23 passed |
+| `74-characterisation-check.mjs --self-test` | 49 passed |
 | `bash spec/scripts/verify-traceability.sh --strict` | `PASS: 21   FAIL: 0   SKIP: 0`, exit 0 |
 
 Other checks:
-- No added line in `packages`, `spec/behaviors` or `spec/decisions` is longer than 90 characters
-  (`perl -CS -ne 'print if length > 91'` on added diff lines).
-- CCR-QD-466's file list still equals `git diff --name-only b22d97f9 HEAD -- packages spec` (20 files).
-- Its cited revisions equal the headers: traceability 1.263, README 1.320, ADR 1.1, invariants 1.189,
-  29-devtools-simulator 1.25, 28-devtools-screens 1.52, overview 1.133.
+- No added line in `packages` is longer than 90 characters (`perl -CS -ne 'print if length > 91'` on added diff
+  lines).
+- CCR-QD-466's file list equals `git diff --name-only b22d97f9 HEAD -- packages spec` (39 files). Its cited revisions
+  equal the headers: ADR 1.2, 28-devtools-screens 1.52, 29-devtools-simulator 1.26, invariants 1.189, overview 1.133,
+  traceability 1.263, README 1.322.
+- I did not touch the characterisation, `74-mutation-base.json`, `74-mutation.mjs` or `74-mutation-close.json`.
 
 ---
 
-_Fixed: 2026-11-23T05:52:20Z_
+_Fixed: 2026-11-23T06:23:02Z_
 _Fixer: Claude (gsd-code-fixer)_
-_Iteration: 2_
+_Iteration: 3_
