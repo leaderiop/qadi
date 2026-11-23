@@ -58,9 +58,11 @@ interface EvaluationLookup {
  * Mints the id, reads the clock and the optional cache and sink, and wraps the
  * walk's answer in metrics, a span, a log line and the records. The subject is
  * `question.subject`; this reads no `CurrentSubject`. Emits the evaluate span
- * declared in `EvaluationSpan.ts`: its question is annotated before the lookup and
- * its outcome after it, on every path, so a failed evaluation still says who asked
- * what (ADR-QD-188; ADR-QD-051: the root, under its old name).
+ * declared in `EvaluationSpan.ts`: its question is annotated before the lookup, so a
+ * failed evaluation still says who asked what, and its outcome after it on every
+ * path that ends in a decision or a typed failure. An interrupted or defected one
+ * carries no outcome, and the span's status says why (ADR-QD-188; ADR-QD-051: the
+ * root, under its old name).
  *
  * Its options are `EvaluateOptions` less the question options, derived, so a
  * built question's resource, action and depth cannot be passed a second time.

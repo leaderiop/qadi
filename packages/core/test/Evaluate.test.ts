@@ -1,6 +1,8 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
+import * as Fiber from "effect/Fiber";
 import * as FastCheck from "fast-check";
 import * as TestClock from "effect/testing/TestClock";
 import * as Layer from "effect/Layer";
@@ -14,6 +16,7 @@ import {
   attributeResolverRetrying,
 } from "../src/AttributeResolver.ts";
 import { isAllowed } from "../src/Decision.ts";
+import { DecisionCache } from "../src/DecisionCache.ts";
 import { customPredicateFromRecord, customPredicatePort } from "../src/CustomPredicate.ts";
 import {
   DecisionHistory,
@@ -2532,6 +2535,86 @@ describe("observability", () => {
         });
       }),
   );
+
+  it.effect("an interrupted evaluation carries its question and no outcome", () =>
+    Effect.gen(function* () {
+      // A caller's timeout around a port that never answers: no answer is written, so
+      // the span is the question alone, and its status says it was interrupted.
+      const spans: Array<Tracer.Span> = [];
+      const silent = Layer.succeed(AttributeResolver, { resolve: () => Effect.never });
+
+      yield* Effect.gen(function* () {
+        const clearance = P.hasAttribute("clearance", M.gte(1));
+        const fiber = yield* Effect.forkChild(
+          evaluate(clearance).pipe(Effect.timeout("1 second")),
+        );
+        yield* TestClock.adjust("1 second");
+        yield* Fiber.await(fiber);
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ id: "u3" }), { AttributeResolver: silent }),
+            collectingTracer(spans),
+          ),
+        ),
+      );
+
+      const span = named(spans, evaluateSpan.name);
+      assert.isDefined(span);
+      if (span === undefined) return;
+      assert.deepStrictEqual(
+        Object.fromEntries(span.attributes),
+        encodeSpan(evaluateSpan.question, {
+          subjectId: "u3",
+          evaluationId: "eval-1",
+          policyTag: "HasAttribute",
+        }),
+      );
+      assert.strictEqual(span.status._tag, "Ended");
+      if (span.status._tag !== "Ended") return;
+      assert.isTrue(Exit.hasInterrupts(span.status.exit));
+    }));
+
+  it.effect("a defected evaluation carries its question and no outcome", () =>
+    Effect.gen(function* () {
+      // A host cache that dies: a defect is no typed failure, so no answer is written,
+      // and the span's status carries the defect.
+      const spans: Array<Tracer.Span> = [];
+      const broken = Layer.succeed(
+        DecisionCache,
+        DecisionCache.of({
+          getOrCompute: () => Effect.die("a broken cache"),
+          size: Effect.succeed(0),
+          clear: Effect.void,
+        }),
+      );
+
+      const exit = yield* Effect.exit(evaluate(P.hasRole("editor"))).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            testLayer(subjectWith({ id: "u1", roles: ["editor"] })),
+            broken,
+            collectingTracer(spans),
+          ),
+        ),
+      );
+
+      assert.isTrue(Exit.hasDies(exit));
+      const span = named(spans, evaluateSpan.name);
+      assert.isDefined(span);
+      if (span === undefined) return;
+      assert.deepStrictEqual(
+        Object.fromEntries(span.attributes),
+        encodeSpan(evaluateSpan.question, {
+          subjectId: "u1",
+          evaluationId: "eval-1",
+          policyTag: "HasRole",
+        }),
+      );
+      assert.strictEqual(span.status._tag, "Ended");
+      if (span.status._tag !== "Ended") return;
+      assert.isTrue(Exit.hasDies(span.status.exit));
+    }));
 
   it.effect("the action appears on the span only when one was supplied", () =>
     Effect.gen(function* () {

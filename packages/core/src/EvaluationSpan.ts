@@ -82,9 +82,10 @@ const outcomes = [
  * The `qadi.evaluate` span: one per decided question.
  *
  * The question is who asked what: the subject, the evaluation id, the policy's
- * tag and the action when there is one. The answer is the outcome on every path,
- * the error tag only on `Failed`, and the obligations comma-joined only on an
- * allow that owes some.
+ * tag and the action when there is one. The answer is the outcome on every path
+ * that ends in a decision or a typed failure, the error tag only on `Failed`, and
+ * the obligations comma-joined only on an allow that owes some. An interrupted or
+ * defected evaluation carries its question and no outcome; its status says why.
  */
 export const evaluateSpan = declareSpan({
   name: "qadi.evaluate",

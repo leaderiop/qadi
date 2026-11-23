@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-188                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-23                                     |
 > | Status         | Accepted — extends ADR-QD-051 and ADR-QD-109   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-23): What enforces it (the compiler, the rule, the tests, review) and the measured cost of the second annotation; related records INV-QD-395, INV-QD-396, BEH-QD-711 to BEH-QD-715 (ARCH-122, CCR-QD-467)<br>1.0 (2026-11-23): Initial release (ARCH-122, CCR-QD-467) |
+> | Change History | 1.2 (2026-11-23): Decision 1 scopes the outcome to a path that ends in a decision or a typed failure; an interrupted or defected evaluation carries no outcome (code review, CCR-QD-467)<br>1.1 (2026-11-23): What enforces it (the compiler, the rule, the tests, review) and the measured cost of the second annotation; related records INV-QD-395, INV-QD-396, BEH-QD-711 to BEH-QD-715 (ARCH-122, CCR-QD-467)<br>1.0 (2026-11-23): Initial release (ARCH-122, CCR-QD-467) |
 
 ---
 
@@ -43,9 +43,12 @@ Nothing outside `packages/core/test` reads these keys: not `@qadi/devtools`, `@q
 ## Decision
 
 1. **One outcome key.** `qadi.outcome`, with the closed values `Allow`, `Deny` and `Failed`,
-   is the one outcome key of `qadi.evaluate`, on every path. `qadi.decision` is removed.
-   The record of a decision already names the same fact `outcome`, and a failure is not a
-   decision, so `qadi.decision: "Failed"` would say something false.
+   is the one outcome key of `qadi.evaluate`, on every path that ends in a decision or a
+   typed failure. `qadi.decision` is removed. The record of a decision already names the
+   same fact `outcome`, and a failure is not a decision, so `qadi.decision: "Failed"` would
+   say something false. An interrupted or defected evaluation carries its question and no
+   outcome: the span's status already says why it ended, and a value of `qadi.outcome` for
+   it would state that fact a second time.
 2. **No release writes both keys.** `qadi.decision` does not stay for a release beside
    `qadi.outcome`. Breaking changes are allowed, nothing is in production, and nothing in
    this repository reads these spans; two keys would be a second statement of one fact,
