@@ -1,7 +1,8 @@
 // The mutation record over the source files the evaluate family's span rework touches, one Stryker group per set of
 // files, all through `stryker.config.mjs`: `core` (`Lifecycle.ts`, `Predicate.ts`, `SubjectSet.ts`,
-// `GuardHealthCheck.ts`) and `span` (`EvaluationSpan.ts`). `span` is close-only: `EvaluationSpan.ts` does not exist at
-// the base, so it has no base record to be compared with, and its rule is that every valid mutant is killed and every
+// `GuardHealthCheck.ts`) and `span` (`EvaluationSpan.ts`, `PortSpanEncode.ts`). `span` is close-only: `EvaluationSpan.ts`
+// does not exist at the base and `PortSpanEncode.ts` is not in the base record, so neither has a base to be compared
+// with, and the group's rule is that every valid mutant is killed and every
 // Ignored mutant is admitted through `EXAMINED`, each run by hand and Killed there. `record base|close <group>`
 // reads the group's report and writes, under that group in `75-mutation-base.json` or `75-mutation-close.json`, each
 // file's counts and its open (Survived, NoCoverage) and Ignored mutants; every group of one record is measured on one
@@ -31,7 +32,7 @@ const GROUPS = {
   span: {
     config: "stryker.config.mjs",
     report: "reports/mutation/mutation.json",
-    files: [`${R}EvaluationSpan.ts`],
+    files: [`${R}EvaluationSpan.ts`, `${R}PortSpanEncode.ts`],
     closeOnly: true,
   },
 };
