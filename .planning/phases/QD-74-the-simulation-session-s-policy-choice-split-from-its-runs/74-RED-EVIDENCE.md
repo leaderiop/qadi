@@ -24,3 +24,114 @@ pnpm exec vitest run --project devtools packages/devtools/test/model/SimulationS
 The 35 rows hold the 35 titles of the plan under 8 describes (`seeding`, `replaying a row`, `choosing a policy`, `the
 policy menu`, `staleness`, `the rail`, `the ports`, `the draft`). Every expected value reasoned from the code was the
 value the base returned: no row took a value from the base that differs from the one it was written with.
+
+## Each seeded choice rule gutted once
+
+Each gut is a scratch edit to `packages/devtools/src/model/SeededChoice.ts` on the working tree, made on
+`1fa3eb626c314efbb6553db16d79d01a05fcdcd1` (the module is from `ef65bb473dc314db6817a72b280a99a8e24c8d99`, its type pins
+from `1fa3eb62`). Each was run, its report saved, and then reverted with `git checkout -- packages/devtools/src/model/SeededChoice.ts`; no
+gut was committed, and `git status --porcelain -- packages` read empty after each. The five rule guts run
+
+```
+pnpm exec vitest run --project devtools packages/devtools/test/model/SeededChoice.test.ts --reporter=json --outputFile=<report>
+```
+
+and the type tie runs `pnpm test:tstyche`. The failing titles below are the ones the report names; every other row of the
+file passed in that run.
+
+### pin
+
+Edit: `pinUnlessReplayed` answers `held` always, so no transition pins the head.
+
+Result: 5 failed, 28 passed. Failing titles:
+
+- `with no seed, the constructor pins the head of the rail`
+- `an empty choice pins the first head it is given, and a new head does not move it`
+- `an orphan seed pins the head and answers no input`
+- `a held replayed policy pins nothing, and leaving it pins the head`
+- `choosing an equal copy of the held policy returns the same choice`
+
+First failure lines:
+
+```
+AssertionError: expected { _tag: 'Listed', …(2) } to deeply equal { _tag: 'Listed', …(2) }
+    at packages/devtools/test/model/SeededChoice.test.ts:151:12
+```
+
+### orphan
+
+Edit: `seedOf` answers `undefined` unless the row's policy is replayed, so an orphan row stops being the seed.
+
+Result: 1 failed, 32 passed. Failing title: `seedOf keeps an orphan row after another policy is chosen`.
+
+First failure lines:
+
+```
+AssertionError: expected undefined to equal TimelineOrphan{ …(5) }
+    at packages/devtools/test/model/SeededChoice.test.ts:220:12
+```
+
+### order
+
+Edit: `menuEntries` puts the lead's entries after the rail's entries instead of before them.
+
+Result: 4 failed, 29 passed. Failing titles:
+
+- `the menu leads with an evicted choice, labelled as no longer in the log`
+- `the menu leads with the replayed row while a replayed policy is held`
+- `sightingAt 0 of a seeded or evicted menu is nothing, and 1 is the head of the rail`
+- `sightingAt names each rail entry after the lead, in the order of the menu`
+
+First failure lines:
+
+```
+AssertionError: expected { …(2) } to deeply equal { …(2) }
+    at packages/devtools/test/model/SeededChoice.test.ts:258:12
+```
+
+### lookup
+
+Edit: `sightingAt` reads `choice.sightings[position]` instead of the menu's list, so a position no longer counts the
+lead.
+
+Result: 3 failed, 30 passed. Failing titles:
+
+- `sightingAt 0 of a seeded or evicted menu is nothing, and 1 is the head of the rail`
+- `sightingAt names each rail entry after the lead, in the order of the menu`
+- `each option of the menu names the sighting sightingAt reads at its position`
+
+First failure lines:
+
+```
+AssertionError: expected { …(7) } to equal undefined
+    at packages/devtools/test/model/SeededChoice.test.ts:277:16
+```
+
+### noop
+
+Edit: `choose` drops its early return, so choosing the held policy answers a new object.
+
+Result: 1 failed, 32 passed. Failing title: `choosing an equal copy of the held policy returns the same choice`.
+
+First failure lines:
+
+```
+AssertionError: expected { sightings: [ { …(7) } ], …(2) } to equal { sightings: [ { …(7) } ], …(2) }
+    at packages/devtools/test/model/SeededChoice.test.ts:330:12
+```
+
+### tie
+
+Edit: a fifth arm, `| { readonly _tag: "Gutted" }`, added to `PolicyChoice`.
+
+Command: `pnpm test:tstyche < /dev/null > <log> 2>&1`. Exit 1; both passes read `Targets: 1 failed, 1 total` with
+`Test files: 1 failed, 70 passed, 71 total`, and the one failing test is
+`the first three arms of PolicyChoice are HeldChoice of PolicySighting`.
+
+First failure lines:
+
+```
+Error: Type '{ readonly _tag: "Empty"; } | { readonly _tag: "Gutted"; } | { readonly _tag: "Listed"; … } | { readonly _tag: "Evicted"; … }' is not the same as type 'HeldChoice<PolicySighting>'.
+
+  at ./packages/devtools/test/model/SeededChoice.tst.ts:32:5 ❭ the first three arms of PolicyChoice are HeldChoice of PolicySighting
+```
