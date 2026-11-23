@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-186                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-22                                     |
 > | Status         | Accepted — extends ADR-QD-140 and ADR-QD-111   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-22): Decision 6 is the writer's contract, not a failure rule: reconcile handles no throw of its own (CCR-QD-465)<br>1.0 (2026-11-22): new — gate registration is one keyed reconcile (ARCH-120, CCR-QD-465) |
+> | Change History | 1.2 (2026-11-22): What enforces it: the hook's one ref holding its registrations and nothing beyond them is kept by review (CCR-QD-465)<br>1.1 (2026-11-22): Decision 6 is the writer's contract, not a failure rule: reconcile handles no throw of its own (CCR-QD-465)<br>1.0 (2026-11-22): new — gate registration is one keyed reconcile (ARCH-120, CCR-QD-465) |
 
 ---
 
@@ -101,8 +101,9 @@ not make `register` throw; the equal-state no-op (`GateRegistry.store.test.ts`,
 in what state and with how many notifications
 (`GateRegistration.characterisation.test.tsx`).
 
-Neither enforces that no other module diffs states, or that `reconcile` adds no handler
-for a throw its writer's contract rules out. Review and the behaviours below do.
+Neither enforces that no other module diffs states, that `reconcile` adds no handler for a
+throw its writer's contract rules out, or that the hook's one ref holds its registrations
+and nothing beyond them. Review and the behaviours below do.
 
 ## Alternatives considered
 
