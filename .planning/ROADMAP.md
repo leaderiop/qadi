@@ -731,7 +731,32 @@ Plans:
   4. The custom-predicate refusal is one sentence owned in one place, and ADR-QD-189 records the outcome (change or rejection).
 
 **Planning notes**: The owner decision (where core exposes "would this fixture signature satisfy this node" without exporting `SignatureMatch.ts`, or a recorded rejection) is asked once at this phase's discuss step. The agreement test is the deliverable that survives a rejection.
-**Plans**: TBD
+**Plans**: 8 plans (strictly serial, waves 1 to 8)
+
+Plans:
+**Wave 1**
+- [ ] 76-01-PLAN.md — base facts, the three mutation bases (core, devtools, http), and ADR-QD-189 recording the owner decision before anything under `packages/` changes
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 76-02-PLAN.md — the remedy agreement tests on the base (signature 1184 cases, acted 144) and the refusal rows RED there, with the agreement check holding them
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 76-03-PLAN.md — the signature refusal fails typed for any value; `signatureAnswerFromSignatures` shares the fixture's lookup and the read's answer rule
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 76-04-PLAN.md — the history fixture keyed through the port's key and its refusal typed; `actedAnswerFromEvents`; `ActedEvent`, `ActedAnywhere` and `ActedAnywhereInput` removed
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 76-05-PLAN.md — the remedy table asks core for signature and acted leaves; the custom-predicate refusal is one value owned by `SimulationFields.ts`
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 76-06-PLAN.md — every guarantee gutted once; the mutation close of all three groups, every static mutant on a written line run by hand
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 76-07-PLAN.md — BEH-QD-716 to BEH-QD-720, INV-QD-397, INV-QD-398, ADR-QD-189 finished and ADR-QD-058/094 amended, three changesets, the 0.13 upgrade section and CCR-QD-468
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 76-08-PLAN.md — close scans on the final tree, `pnpm check:pr`, and SIGM-01 to SIGM-05 marked
 
 ### Progress (v1.8)
 
