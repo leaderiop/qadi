@@ -60,7 +60,7 @@ import {
 } from "./helpers.ts";
 import { scriptedPort } from "../src/PortDoubles.ts";
 import { PortReply } from "../src/PortDescription.ts";
-import { decodeSpan, encodeSpan } from "../src/PortSpanEncode.ts";
+import { decodeSpan, encodeSpan, logAnnotations } from "../src/PortSpanEncode.ts";
 
 const read = permission("doc", "read");
 const write = permission("doc", "write");
@@ -3543,7 +3543,7 @@ describe("qadi.evaluate Debug log on denial", () => {
       assert.deepStrictEqual(logs[0]?.message, ["qadi: policy denied"]);
       assert.deepStrictEqual(
         logs[0]?.annotations,
-        encodeSpan(denialEvent, {
+        logAnnotations(denialEvent, {
           policyTag: "HasPermission",
           subjectId: "u2",
           reason: "subject lacks permission 'doc:write'",

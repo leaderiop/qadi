@@ -7,7 +7,8 @@
  * `CompilePredicate.tst.ts`: under `pnpm typecheck` an unused directive is TS2578,
  * and under `pnpm test:tstyche` the text after it is a fragment of the one
  * suppressed error's message. The span annotators return an `Effect`, so each of
- * their refusals is a negative pin through the parameter type, with its positive twin.
+ * their refusals is a negative pin through the parameter type, with its positive twin;
+ * the attribute and annotation builders return a plain record and are pinned bare.
  */
 import { expect, test } from "tstyche";
 import type { Decision } from "../src/Decision.ts";
@@ -23,7 +24,13 @@ import {
 import type { SpanOutcome } from "../src/EvaluationSpan.ts";
 import type { Policy } from "../src/Policy.ts";
 import type { SpanKey, SpanStruct, SpanType, SpanValue } from "../src/PortSpan.ts";
-import { annotateAsked, annotateSpan } from "../src/PortSpanEncode.ts";
+import {
+  annotateAsked,
+  annotateSpan,
+  askedAttributes,
+  encodeSpan,
+  logAnnotations,
+} from "../src/PortSpanEncode.ts";
 
 type Answer = SpanType<typeof evaluateSpan.answer>;
 type Question = SpanType<typeof evaluateSpan.question>;
@@ -120,4 +127,36 @@ test("the denial event's struct cannot annotate a span", () => {
 
 test("a span struct of the same fields can annotate a span", () => {
   expect<DenialParams>().type.toBeCallableWith(spanOfDenialFields, { reason: "r" });
+});
+
+test("the denial event's struct cannot build a span's attributes", () => {
+  expect(encodeSpan).type.not.toBeCallableWith(denialEvent, { reason: "r" });
+});
+
+test("a span struct of the same fields can build a span's attributes", () => {
+  expect(encodeSpan).type.toBeCallableWith(spanOfDenialFields, { reason: "r" });
+});
+
+test("the denial event's struct cannot open a span with its attributes", () => {
+  expect(askedAttributes).type.not.toBeCallableWith(denialEvent, {
+    policyTag: "HasRole",
+    subjectId: "u1",
+    reason: "r",
+  });
+});
+
+test("a span struct of the same fields can open a span with its attributes", () => {
+  expect(askedAttributes).type.toBeCallableWith(spanOfDenialFields, {
+    policyTag: "HasRole",
+    subjectId: "u1",
+    reason: "r",
+  });
+});
+
+test("a span struct cannot annotate a log line", () => {
+  expect(logAnnotations).type.not.toBeCallableWith(spanOfDenialFields, { reason: "r" });
+});
+
+test("the denial event's struct can annotate a log line", () => {
+  expect(logAnnotations).type.toBeCallableWith(denialEvent, { reason: "r" });
 });

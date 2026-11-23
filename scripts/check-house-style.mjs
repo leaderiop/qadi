@@ -754,7 +754,7 @@ const NOT_CALLABLE_PIN_BUDGET = {
   "packages/core/test/Decision.tst.ts": { callable: 0, constructable: 7 },
   "packages/core/test/DecisionCache.tst.ts": { callable: 3, constructable: 0 },
   "packages/core/test/EvaluationEnvironment.tst.ts": { callable: 4, constructable: 0 },
-  "packages/core/test/EvaluationSpan.tst.ts": { callable: 2, constructable: 0 },
+  "packages/core/test/EvaluationSpan.tst.ts": { callable: 5, constructable: 0 },
   "packages/core/test/Explanation.tst.ts": { callable: 2, constructable: 0 },
   // The characterisation of tstyche's reading under each `floatingEffect` setting: its bare negative pins pin the tool, not an API.
   [CHARACTERISATION]: { callable: 7, constructable: 3 },

@@ -40,8 +40,7 @@ import {
   decideSubjectsStreamSpan,
 } from "./EvaluationSpan.ts";
 import type { Policy } from "./Policy.ts";
-import { annotateAsked, encodeSpan } from "./PortSpanEncode.ts";
-import type { PoseOf } from "./PortSpanEncode.ts";
+import { annotateAsked, askedAttributes } from "./PortSpanEncode.ts";
 import type { EvaluateOptions } from "./Question.ts";
 
 /**
@@ -262,15 +261,13 @@ export const decideSubjectsStream = <E2 = never, R2 = never>(
   subjects: Stream.Stream<AuthSubject, E2, R2>,
   options?: EvaluateOptions,
 ): Stream.Stream<SubjectOutcome, E2, SubjectSetServices | R2> => {
-  // Every member named, as `annotateAsked` holds every other question of the family.
-  const asked: PoseOf<typeof decideSubjectsStreamSpan.question> = {
-    policyTag: policy._tag,
-    action: options?.action,
-  };
   return subjects.pipe(
     Stream.mapEffect((subject) => decideSubject(policy, subject, options)),
     Stream.withSpan(decideSubjectsStreamSpan.name, {
-      attributes: encodeSpan(decideSubjectsStreamSpan.question, asked),
+      attributes: askedAttributes(decideSubjectsStreamSpan.question, {
+        policyTag: policy._tag,
+        action: options?.action,
+      }),
     }),
   );
 };

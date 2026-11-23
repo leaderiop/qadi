@@ -17,7 +17,12 @@ import {
 import * as P from "../src/Policy.ts";
 import { POLICY_TAGS } from "../src/Policy.ts";
 import type { SpanFields, SpanStruct, SpanType } from "../src/PortSpan.ts";
-import { decodeSpan, encodeSpan, sharedQuestionKeys } from "../src/PortSpanEncode.ts";
+import {
+  decodeSpan,
+  encodeSpan,
+  logAnnotations,
+  sharedQuestionKeys,
+} from "../src/PortSpanEncode.ts";
 import { questionOf } from "../src/Question.ts";
 import { subjectWith } from "./helpers.ts";
 
@@ -168,7 +173,8 @@ describe("the declaration of the evaluate family", () => {
     assert.deepStrictEqual(back(guardHealthCheckSpan.answer, probed), probed);
     assert.deepStrictEqual(back(decideSubjectsSpan.question, batch), batch);
     assert.deepStrictEqual(back(decideSubjectsStreamSpan.question, streamed), streamed);
-    assert.deepStrictEqual(back(denialEvent, denial), denial);
+    const logged = new Map(Object.entries(logAnnotations(denialEvent, denial)));
+    assert.deepStrictEqual(decodeSpan(denialEvent, logged), denial);
   });
 
   it("a built question asks its own subject, policy tag and action", () => {

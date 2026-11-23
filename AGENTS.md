@@ -542,7 +542,7 @@ an API.
 | `packages/core/test/Decision.tst.ts` | 0 | 7 | `new Allow`, `new Deny`: plain instance |
 | `packages/core/test/DecisionCache.tst.ts` | 3 | 0 | `getOrCompute` returns an `Effect`: refused through `Params<…>` |
 | `packages/core/test/EvaluationEnvironment.tst.ts` | 4 | 0 | `evaluationEnvironment`: plain return |
-| `packages/core/test/EvaluationSpan.tst.ts` | 2 | 0 | `annotateAsked` and `annotateSpan` return an `Effect`: refused through the parameter type |
+| `packages/core/test/EvaluationSpan.tst.ts` | 5 | 0 | `annotateAsked` and `annotateSpan` return an `Effect`: refused through the parameter type; `encodeSpan`, `askedAttributes`, `logAnnotations`: plain return |
 | `packages/core/test/Explanation.tst.ts` | 2 | 0 | `foldExplanationCases`: plain return |
 | `packages/core/test/FloatingEffectPins.tst.ts` | 7 | 3 | The characterisation: its bare pins on an `Effect`, a `Stream` and a constructor pin the tool |
 | `packages/core/test/HydrationMetrics.tst.ts` | 2 | 0 | `hydrationDropMeaning`: plain return |

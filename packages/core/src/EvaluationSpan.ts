@@ -4,12 +4,13 @@
  *
  * Each key is spelled once, in this file, and the subject id is the port spans'
  * own (`sharedQuestionKeys`), so a trace reads one fact under one key whichever
- * span carries it. Every write goes through the declaration, in one of three forms,
+ * span carries it. Every write goes through the declaration, in one of four forms,
  * all in `PortSpanEncode.ts`: a question through `annotateAsked`, which must name
- * every member; an answer through `annotateSpan`; and, with `encodeSpan`, the
- * denial log line's annotations and the stream span's `Stream.withSpan`
- * attributes. A failed span still carries its question because that is annotated
- * before the work, not after it (ADR-QD-188, extending ADR-QD-051 and ADR-QD-109).
+ * every member; the stream span's question, its `Stream.withSpan` attributes,
+ * through `askedAttributes`, which must too; an answer through `annotateSpan`; and
+ * the denial log line's annotations through `logAnnotations`. A failed span still
+ * carries its question because that is annotated before the work, not after it
+ * (ADR-QD-188, extending ADR-QD-051 and ADR-QD-109).
  *
  * A key spelled anywhere else in library source, or typed by hand in a test outside its
  * counted goldens, is refused by `[span-key-source]` and `[span-key-literal]` in
@@ -223,8 +224,10 @@ export const decideSubjectsStreamSpan = declareSpan({
  * The annotations of the denial log line: the policy tag, the subject and the
  * reason.
  *
- * A `LogEventStruct`, so the span annotators refuse it and the reason stays on the
- * log line: it is encoded with `encodeSpan` into the line's annotations.
+ * A `LogEventStruct`, encoded with `logAnnotations` into the line's annotations.
+ * Every span-writing function the library has refuses it at compile time, so the
+ * reason stays on the log line; a raw `Effect.annotateCurrentSpan`, or the event
+ * upcast to a plain `SpanStruct`, is not refused and is kept by review.
  */
 export const denialEvent = logEventStruct(
   {

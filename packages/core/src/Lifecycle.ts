@@ -43,7 +43,7 @@ import type { CacheOutcome } from "./EvaluationMetrics.ts";
 import type { EvaluationServices } from "./EvaluationServices.ts";
 import type { Policy } from "./Policy.ts";
 import type { PortServices } from "./Ports.ts";
-import { annotateAsked, annotateSpan, encodeSpan } from "./PortSpanEncode.ts";
+import { annotateAsked, annotateSpan, logAnnotations } from "./PortSpanEncode.ts";
 import { questionOf } from "./Question.ts";
 import type { EvaluateOptions, Question, QuestionOptions } from "./Question.ts";
 import { decisionRecordFor, sinkEmitter } from "./SinkEmit.ts";
@@ -173,7 +173,7 @@ export const decideQuestion = Effect.fn(evaluateSpan.name)(function* (
     yield* Metric.update(denialsByPolicyTagTotal, question.policy._tag);
     yield* Effect.logDebug("qadi: policy denied").pipe(
       Effect.annotateLogs(
-        encodeSpan(denialEvent, {
+        logAnnotations(denialEvent, {
           policyTag: question.policy._tag,
           subjectId: question.subject.id,
           reason: decision.reason,
