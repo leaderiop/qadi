@@ -11,6 +11,7 @@
 - ✅ **v1.6 Arch Wave 11** — Phases 53-61 (completed 2026-11-19; not released) — [archive](milestones/v1.6-ROADMAP.md)
 - ✅ **v1.7 Arch Wave 12** — Phases 62-68.1 (completed 2026-11-22; not released) — [archive](milestones/v1.7-ROADMAP.md)
 - ✅ **v1.8 Arch Wave 13** — Phases 69-76 (completed 2026-11-23; not released) — [archive](milestones/v1.8-ROADMAP.md)
+- 🚧 **v1.9 Arch Wave 14** — Phases 77-80 (in progress)
 
 ## Phases
 
@@ -404,3 +405,149 @@ Full details: [milestones/v1.8-ROADMAP.md](milestones/v1.8-ROADMAP.md) · requir
 [milestones/v1.8-MILESTONE-AUDIT.md](milestones/v1.8-MILESTONE-AUDIT.md)
 
 </details>
+
+## 🚧 v1.9 Arch Wave 14 (Phases 77-80)
+
+### Overview
+
+Wave 14 resolves the four candidates of the 2026-11-23 architecture review, one phase each, strictly serial, and every candidate ends in a change or a recorded decision. `.planning/phases/_WAVE14-CONTEXT.md` is authoritative for per-phase evidence (taken at `ab8ccb75`), owner decisions and reserved ids; `.planning/research/` (STACK, FEATURES, ARCHITECTURE, PITFALLS, SUMMARY) is this wave's research; the review HTML is session-scoped and may be gone. **Phase 77 is the one live defect and goes first**, opening with a regression test seen RED on its phase base. `@qadi/audit` can write an archive its own reader refuses: `archiveAuditTrail` checks only a row's sequence facts, so a type-valid row whose record has `at: NaN` is archived, `JSON.stringify` turns `at` into `null`, and `readAuditArchive` refuses the bundle as `EntryNotDecodable` (reproduced 2026-11-23 with a throwaway run, deleted afterwards). `archiveAuditTrail(entries, NaN)` writes `createdAt: null`, which the reader also refuses (reasoned, not yet run), and `keyMaterial` is a third unchecked pass-through. ADR-QD-110 closed this class for `sequenceNumber` only. Phases 78 to 80 are three `@qadi/devtools` deepenings in dependency order: the timeline store owns its capacity (78), every feed and the dock model take inputs only through `configure` (79), and the highlight lens becomes a headless session owned by the dock model, with the unread `QadiContextValue.instrument` resolved (80). Branch `arch-wave-14`, based on `main` at `5784bbd6` (v1.8 merged as #164; not released); the research base is `ab8ccb75`.
+
+**The four phases and their order are fixed (2026-11-23, owner decision D2).** Nothing is added, merged, split or reordered, whatever the `fine` granularity setting would suggest: each review candidate is one phase, and the small find folds into Phase 80 (D1).
+
+**Standing direction (owner, unchanged):** the cleanest, most complete design wins, not the simplest, and the project is not in production, so compatibility is never the tiebreaker. Phases 77 (`@qadi/audit`) and 79 (`@qadi/devtools`) are **Breaking**; 78 is a type-level change (a public `TimelineStore` gains a member); 80 is Breaking for `@qadi/react` only if `QadiContextValue.instrument` is removed. Nothing is released or published, no version-packages PR is merged, and the branch is not merged.
+
+Order: the live defect (77), then the three devtools deepenings (78, 79, 80). **Execution order: phases run strictly one at a time, in numeric order (77 → 80).** Every records plan edits the same spec registers (CCR tail, invariants, traceability, `index.yaml`, `overview.md`, behaviour docs) and `use_worktrees` is false, so each phase depends on the previous one.
+
+**Owner decisions** (`_WAVE14-CONTEXT.md`):
+
+| Decision | Phase | What it fixes |
+|----------|-------|---------------|
+| D1 | all | All four review candidates become phases, and the small find (`QadiContextValue.instrument`, public, never read) folds into Phase 80 (asked 2026-11-23; locked) |
+| D2 | all | Order 77 → 78 → 79 → 80: the audit row first because it holds the only live defect, and 78 before 79 (locked) |
+| D3 | all | Branch `arch-wave-14` off `main` at `5784bbd6`; no merge, no release (locked) |
+| D4 | all | Research run; `.planning/research/` is this wave's research (locked) |
+| to ask | 77 | At the discuss step, once, after the probe: the brand mechanism (type-level `Brand.nominal` on a plain object, a private-constructor class with a private marker as Phase 65's `admit` is, or `Schema.brand`); whether the exported `AuditEntry` schema value stays; the fate of `undated` (INV-QD-101); how a host assigns `sequenceNumber` after encoding; the row's `unknownKeys`; the refusal-message table for the envelope-first decode |
+| to ask | 79 | At the discuss step, once, after the spike: how `configure` folds into the build hook without an `Off` then `Starting` flash (inside the scoped build, a latest-inputs ref, or a second effect); omitted vs `undefined` under `sameFields`; diagnostics `undefined` (off) vs `{}` (on); whether `GatesFeed`'s restart on `watchFailure !== undefined` (G43) is part of the one rule or a stated exception; whether `capacity: undefined` vs the default capacity still wipes the timeline |
+| to ask | 80 | At the discuss step, once: whether `picking` and `picked` survive a tab switch (`spec/devtools-spec/01-shell.md:72`, BEH-QD-234's three exits, INV-QD-107), the stale-pick rule (reuse `HeldChoice.resolveHeld`), and removing `instrument` (Breaking `@qadi/react`, amends ADR-QD-111) |
+
+**Every phase** carries the seven cross-cutting requirements (WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07): `pnpm check:pr < /dev/null` green at the end of each phase; its ADR (or "Unused" in its CCR row), CCR, BEH/INV and traceability records using only its reserved numbers, never `node scripts/next-id.mjs`; `spec/overview.md` names every added export and drops every removed one (gate 13), and gate 14 probes every changed `make*Feed` signature; no new `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`, ambient `console`/`process.env`/clock, `Record<string, unknown>`, `// Stryker disable` or module-scope `let`, and a budget changes only together with its AGENTS.md table; coverage held (core at least 95 percent, the others at least 90) and the Stryker score of every touched file recorded per phase in `NN-mutation-base.json` (the same invocation at the phase base and at close), a drop closed with a test and never re-baselined; a characterisation or regression test written on the phase base before any behaviour change (RED for a defect, green for preserved behaviour) and every new check shown failing once; no D-numbers, plan-local ids or phase numbers in shipped source, test titles or BDD scenarios; nothing released or published. House rules, verify-command hygiene and the Stryker procedure are in `.planning/phases/_SHARED-CONTEXT.md`, overridden where `_WAVE14-CONTEXT.md` says so. A record's plan is the phase's last plan.
+
+**Soft edges** (from `_WAVE14-CONTEXT.md` and the files each phase edits; serial order covers all of them):
+
+| Edge | Strength | Reason |
+|------|----------|--------|
+| 77 first | ordering | the only live defect goes first, with its regression test RED on its own phase base; `@qadi/audit` shares no source with 78 to 80 |
+| 78 → 79 | hard | after 78, `TimelineFeed.configure` is two comparisons and the feed's `timeline` is the one store; doing 79 first would rewrite the `inner`/`push` plumbing that 78 deletes |
+| 79 → 80 | soft | 80 adds a tenth member to the `DockModel` record and edits `DevtoolsDock.tsx`, both of which 79 reshapes; `DockModel.ts` and `dockModelFixtures.ts` are edited by both, and 80 needs no input from `configure` |
+| 78, 79, 80 → close | re-verify | the three phases edit the same devtools files, so the milestone close re-verifies 77 to 79 and re-runs each phase's record scripts |
+
+**Numbering reserved for v1.9** (the whole block is held in the shared reservation file, `$(git rev-parse --git-common-dir)/qadi-reserved-ids.json`, set to CCR 472, ADR 193, BEH 740, INV 406 on 2026-11-23; never run `node scripts/next-id.mjs` while executing these phases, because every call writes a reservation; name an unused reservation "Unused:" in the phase's CCR row; an amendment of an existing ADR leaves its new ADR number unused and says so; pass `--date 2026-11-23`, or the real date of the edit, to `spec-revise`). Next free on `ab8ccb75`: ADR-QD-190, CCR-QD-469, BEH-QD-721, INV-QD-399. Highest ARCH is ARCH-123; ARCH ids below 124 are never reused. ADR Document IDs equal the file number (gate 10).
+
+| Phase | ARCH | ADR-QD | CCR-QD | BEH-QD | INV-QD |
+|---|---|---|---|---|---|
+| 77 | 124 | 190 | 469 | 721–725 | 399–400 |
+| 78 | 125 | 191 | 470 | 726–730 | 401–402 |
+| 79 | 126 | 192 | 471 | 731–735 | 403–404 |
+| 80 | 127 | 193 | 472 | 736–740 | 405–406 |
+
+**Out of scope** (recorded, not planned): a general "unwalked member decoded by its own decoder" option on `untrustedDecoder` (its four users have different refusal policies; Phase 77 takes the one concrete inconsistency); merging the tag-keyed error tables (each is compiler-checked, and `catchTag` needs a literal tuple); changing `ArchiveRefusal`'s members or `ARCHIVE_VERSION` (Phase 77 changes what the writer accepts, not the archive format); truncate-on-resize or grow-keeps-entries for the timeline; structural (deep) identity for feed inputs; exporting the lens session from `@qadi/devtools`' barrel; aligning `@qadi/react`'s swallowing gate registry with ADR-QD-177's rethrow contract and guarding the devtools feeds' publish-between-`begin()`-and-`fork()` window (both carried from v1.7); formatting with `oxfmt` (AGENTS.md §17); upgrading any dependency; merge, release or publish.
+
+### Phases
+
+- [ ] **Phase 77: An audit row is a value only its codec makes** - `AuditEntry` is obtainable only from `encodeAuditEntry` and `decodeAuditEntry`, so the writer can no longer write an archive its own reader refuses; the row decodes envelope-first (ARCH-124, audit; live defect; Breaking)
+- [ ] **Phase 78: `TimelineStore` owns its capacity** - A `resize(capacity)` command replaces `TimelineFeed`'s mirror store, six-member forwarder and abandoned subscription, and the feed returns its one store (ARCH-125, devtools)
+- [ ] **Phase 79: Feeds and the dock model take inputs only through `configure`** - Constructors take no inputs, one per-field identity rule decides a restart, one package-private hook does "scope, then configure", and the dock's input type is stated once (ARCH-126, devtools; Breaking)
+- [ ] **Phase 80: The highlight lens is a headless session; `instrument` resolved** - The lens's rules move into a `LensSession` that the dock model owns as its tenth store, `useLens` shrinks to the DOM adapter, and the unread `QadiContextValue.instrument` is removed or its reason recorded (ARCH-127, devtools + react)
+
+### Phase Details
+
+### Phase 77: An audit row is a value only its codec makes
+
+**Goal**: `@qadi/audit` can no longer write an archive its own reader refuses, because an `AuditEntry` is a value only its codec makes, so the archive, retention and the archive facts trust a row without re-checking it, and the row decodes envelope-first as core's stored record does.
+**Live defect**: yes. `archiveAuditTrail` checks only sequence facts (`AuditArchive.ts:110-127`, `ArchiveFacts.ts:104-130`), so a type-valid row `{...e, record: {...e.record, at: NaN}}` is archived, `JSON.stringify` writes `at: null`, and `readAuditArchive` refuses the bundle's own output as `EntryNotDecodable` (`AuditArchive.ts:290-306`); a second, archive-level variant is `archiveAuditTrail(entries, NaN)` writing `createdAt: null`.
+**Breaking**: yes (`@qadi/audit`). Amends ADR-QD-110.
+**Depends on**: Nothing in v1.9 (first phase; serial order).
+**Requirements**: AROW-01, AROW-02, AROW-03, AROW-04, AROW-05, AROW-06, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Packages**: `@qadi/audit` (`AuditEntry.ts`, `ArchiveFacts.ts`, `AuditArchive.ts`, `Retention.ts`, their tests and type pins, one features step file); `@qadi/core` is untouched (`untrustedDecoder` already supports `unwalked`, so no `UNTRUSTED_DECODE_BUDGET` change)
+**Records**: ARCH-124; ADR-QD-190 (new; amends ADR-QD-110; records the brand, the decode order and the refusal table); CCR-QD-469; BEH-QD-721 to 725 (BEH-QD-253 amended); INV-QD-399 to 400 (INV-QD-101 amended)
+**Evidence** (`_WAVE14-CONTEXT.md`, at `ab8ccb75`): `AuditEntry` is a plain struct type any caller can build (`AuditEntry.ts:80-84`). The safe-integer rule for `sequenceNumber` is written twice, `AuditEntry.ts:56` (`Schema.optional(Schema.Int)`) and `ArchiveFacts.ts:56-64` (`Schema.is(Schema.Int)`), "kept in step" by a comment at `:50-54`. `decodeAuditEntry` reads the record first and then the row (`AuditEntry.ts:149-157`, with a hand `hasProperty(input, "record")` pre-check and its own message), where core's stored record is envelope-first with `record` unwalked (`SinkCodec.ts:603-651`, ADR-QD-170). Dead if the brand holds: `isSequenceNumber` (`ArchiveFacts.ts:64`), the write-path `SequenceNumberInvalid` (`:138`) and `Retention.ts`'s `undated` branch (`:80-90`). Pins that move: UntrustedSeams A11/A12 (`"an audit row has no record"` and the long `Expected {...}` text; tags stay) and `AuditEntryDifferential.test.ts`.
+
+**Success Criteria** (what must be TRUE):
+  1. Regression tests written on the phase base, without `as`, are RED for each writer input the reader refuses (at least the `at: NaN` row and `archiveAuditTrail(entries, NaN)`; every other enumerated input, `keyMaterial` included, is RED or recorded "refuted at the base"), and after the phase every archive `archiveAuditTrail` returns is read back by `readAuditArchive(JSON.parse(JSON.stringify(archive)))`.
+  2. An `AuditEntry` can be obtained only from `encodeAuditEntry` or `decodeAuditEntry`: a literal, a spread of an existing row with a changed field, and the exported schema value each fail to compile, pinned by type tests that can fail (`@ts-expect-error` with `toRaiseError`, plus a positive twin); the row keeps its `JSON.stringify` bytes, its key-absent `sequenceNumber` and the structural `Equal`/`Hash` that `holds()` and `planPurge` use, and a host can still assign a `sequenceNumber` after encoding through a route the codec owns (decided and recorded).
+  3. `decodeAuditEntry` reads the envelope first with `record` unwalked, then the record, through `untrustedDecoder` and with no new `Schema.decode*` or `JSON.parse` token; the refusal tags are unchanged, and a characterisation matrix written on the phase base (including a row where both envelope and record are bad) shows every message and precedence change, which ADR-QD-190 tabulates.
+  4. The checks the brand makes dead (`isSequenceNumber`, the write-path `SequenceNumberInvalid`, `Retention`'s `undated` branch and fields) are removed or kept with a recorded reason, `sequenceNumber`'s safe-integer rule is stated in one place, and a record-domain round-trip property mirrors `ArchiveRoundTrip.test.ts`'s sequence-number one.
+  5. ADR-QD-190 records the brand, the decode order and the refusal table and amends ADR-QD-110; INV-QD-101, BEH-QD-253 and the affected `spec/overview.md` rows move with it; a `@qadi/audit` changeset marks the change Breaking, with an upgrade-guide entry.
+
+**Planning notes**: **Research flag: a pre-plan probe is required** (`/gsd-plan-phase --research-phase 77`). (a) Compile each candidate brand form under the audit tsconfig and probe its `Equal`, `Hash` and `JSON.stringify` behaviour: the researchers disagree (a type-level `Brand.nominal` on a plain object keeps structural equality but survives a spread, so `{...entry, sequenceNumber: 1.5}` still type-checks; a private-constructor class with a `declare private readonly` marker does not survive one but its `Equal`/`Hash` and the marker compile in audit are unverified), and an exported decodable schema value is a second way to mint. (b) Enumerate whole-archive writer inputs (entries, `now`, `keyMaterial`) through `readAuditArchive(JSON.parse(JSON.stringify(archive)))`; the `now: NaN` and `keyMaterial` variants are reasoned, not run, and any that does not reproduce is recorded "refuted at the base". The open decisions in the owner table above are asked once at the discuss step, after the probe. Test churn: about 35 literal or spread row sites in 9 audit test files, 5 type-pin files and one features step file; a `numbered(entry, n)` helper that goes through the codec avoids hand-built rows. Commit the per-file Stryker baselines (`AuditEntry.ts`, `ArchiveFacts.ts`, `AuditArchive.ts`, `Retention.ts`) alone and first, and re-close them after the review fixes. Do not delete a check the type cannot prove.
+**Plans**: TBD
+
+### Phase 78: `TimelineStore` owns its capacity
+
+**Goal**: A `TimelineStore` owns its capacity through a `resize(capacity)` command, so `makeTimelineFeed` returns its one store and the mirror store, six-member forwarder and abandoned subscription that worked around a captured capacity are gone.
+**Depends on**: Phase 77 (serial order only; `@qadi/audit` and `@qadi/devtools` share no source). Phase 79 depends on this phase.
+**Requirements**: TRSZ-01, TRSZ-02, TRSZ-03, TRSZ-04, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Packages**: `@qadi/devtools` (`TimelineStore.ts`, `TimelineFeed.ts`, their tests, `spec/overview.md`, one changeset)
+**Records**: ARCH-125; ADR-QD-191 (new, or an amendment of ADR-QD-137 with 191 named unused; keeps ADR-QD-137); CCR-QD-470; BEH-QD-726 to 730; INV-QD-401 to 402
+**Evidence** (`_WAVE14-CONTEXT.md`, at `ab8ccb75`): capacity is captured once (`TimelineStore.ts:49`). `TimelineFeed.ts:126-193` works around it with a mutable `inner`, a mirror `view` ExternalStore (`:129`), a `push` listener (`:132-133`), a six-member forwarder (`:136-141`) and a resize that drops the old store without unsubscribing (`:178`); `idleTimeline` (`:106`) writes the six members a third time. Today `configure` assigns `inputs = next` before an invalid capacity throws (half-applied), `accept` at capacity 0 is undecided, and resize while paused is untested. A public `TimelineStore` gaining a member is a type-level change, so it needs a changeset and a `spec/overview.md` row (gate 13).
+
+**Success Criteria** (what must be TRUE):
+  1. `TimelineStore.test.ts` pins `resize(capacity)` without a scope or a source: it validates the capacity before changing anything, does nothing for the same effective capacity, empties the timeline at the new bound, releases the pause and notifies subscribers once, and each rule is shown failing once.
+  2. `makeTimelineFeed` returns its one store: the six-member forwarder, the mirror `view` store, the `push` listener and the subscription left on a dropped store are deleted (`/usr/bin/grep` finds none in `TimelineFeed.ts`), `idleTimeline` gains the member, and the host's store keeps the same identity across a capacity change.
+  3. `try { resize } finally { readSource }` and the `reads.closed()` guard stay, TF4, TF14, TF26, TF27 and TF29 pass unedited, and a capacity change that throws leaves the feed's inputs unchanged (no half-applied state).
+  4. ADR-QD-191 (or an ADR-QD-137 amendment that names 191 unused) records the command, and `spec/overview.md` (gate 13) and a `@qadi/devtools` changeset cover the new public member.
+
+**Planning notes**: No research flag: `clear`, `setPaused` and `SupersedingRun` are direct precedents and TF1 to TF29 are the pinned proof. The decisions are small and go to the discuss step or the plan: an equal effective capacity is a store-level no-op and how that meets the feed's "omitted reads as `undefined`" rule (79 later owns that rule); resize while paused releases the pause like `clear`; an invalid capacity is validated before anything mutates (throw or typed result); `useTimelineStore(options)` leaves a changed `capacity` alone. Resize publishes with `publish`, not `set`, so the pause reset is heard. Commit the Stryker baselines of `TimelineStore.ts` and `TimelineFeed.ts` first and re-close them after the review.
+**Plans**: TBD
+
+### Phase 79: Feeds and the dock model take inputs only through `configure`
+
+**Goal**: Every feed and the dock model are built with no inputs and take them only through `configure`, so one per-field identity rule decides whether an input moved, one package-private hook does "scope, then configure", and the dock's input type is stated once.
+**Breaking**: yes (`@qadi/devtools`: `makeTimelineFeed`, `makeDiagnosticsFeed`, `makeGatesFeed` and `makeDockModel` lose their constructor inputs; `makeSimulationSession` if it has the same shape). Amends ADR-QD-137, ADR-QD-173 and ADR-QD-185.
+**Depends on**: Phase 78 (hard: after 78, `TimelineFeed.configure` is two comparisons, so this phase does not rewrite plumbing 78 deletes).
+**Requirements**: CONF-01, CONF-02, CONF-03, CONF-04, CONF-05, CONF-06, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Packages**: `@qadi/devtools` (`TimelineFeed.ts`, `DiagnosticsFeed.ts`, `GatesFeed.ts`, `DockModel.ts`, `ExternalStore.ts`, `react/useDockModel.ts`, `useTimeline`, `useDiagnostics`, `useScoped`, `DevtoolsDock.tsx`), plus gate 14's packed consumer (`scripts/check-package-install.mjs:653-712`), `surface.tst.ts`, the compiled README fence, the website's devtools page, `spec/behaviors` and ADR fences
+**Records**: ARCH-126; ADR-QD-192 (new; amends ADR-QD-137, ADR-QD-173 and ADR-QD-185); CCR-QD-471; BEH-QD-731 to 735; INV-QD-403 to 404
+**Evidence** (`_WAVE14-CONTEXT.md`, at `ab8ccb75`): `useDockModel.ts:51-57` lists the eight inputs three times, and the same field set is three types (`DevtoolsDockProps`, `DevtoolsDock.tsx:80`; `UseDockModelInput`, `useDockModel.ts:28`; `DockModelInputs`, `DockModel.ts:73`). `DockModel` maps inputs twice (`{ capacity, source }` at `:188` and `:283`; `{ gates, questions, intervalMillis }` at `:227-230` and `:293-296`). Four hand-written restart rules: Timeline, Diagnostics (`DiagnosticsFeed.ts:197-200`), Gates (`GatesFeed.ts:261-268`, which also restarts when `watchFailure !== undefined`, G43) and Dock (an unconditional `refresh()`); a new options field compiles and never restarts. The shared rule is `sameFields` (`ExternalStore.ts:133-146`, private, used by `makeDerivedStore` under a `Required<K>` bound that is on that function only). Traps: `sameFields` counts `{a}` vs `{a, b: undefined}` as a change, diagnostics presence is not a field comparison, and `intervalMillis` crosses from diagnostics to gates. Constructors that lose `init`: `TimelineFeed.ts:123`, `DiagnosticsFeed.ts:121`/`:196`, `GatesFeed.ts:157`, `DockModel.ts:209`.
+
+**Success Criteria** (what must be TRUE):
+  1. A characterisation test written on the phase base, and green there, pins the dock's first-render sequence (diagnostics, gates and the Questions join), plain and under StrictMode, and the same test is green after the change: no reader sees an unconfigured model.
+  2. `makeTimelineFeed`, `makeDiagnosticsFeed`, `makeGatesFeed` and `makeDockModel` are built with no inputs and `configure` is the only way inputs arrive, with the first `configure` producing what `init` produces today.
+  3. One per-field identity rule, the one `makeDerivedStore` uses, decides whether an input moved: omitted and `undefined` are treated alike, diagnostics on and off stays a distinct transition, the gates feed's re-watch after a failed watch (G43) is either part of the rule or a stated exception, and a type pin that can fail shows a new input field cannot compile without being compared.
+  4. One package-private hook does "build in a scope, then configure with the latest inputs", used by `useDockModel`, `useTimeline`, `useDiagnostics` (and `useSimulationSession` where it fits), and a hidden `Activity` or a StrictMode rebuild configures with the current inputs, not stale ones, pinned by a test.
+  5. `UseDockModelInput` is gone, `DevtoolsDockProps` is `DockModelInputs` plus the host-only props, inputs are mapped onto each feed in one place in `DockModel`, and gate 14's packed consumer, `surface.tst.ts`, the compiled README fence, the website's devtools page, `spec/behaviors` and the ADR fences all use the new signatures in the same plan as the change, with ADR-QD-192 and a Breaking `@qadi/devtools` changeset and upgrade-guide entry.
+
+**Planning notes**: **Research flag: a pre-plan render-sequence spike is required** (`/gsd-plan-phase --research-phase 79`). Today the first render is `Starting` then `Starting`, because the idle stand-ins hide an unconfigured feed; children's layout effects run before the parent's configure effect and `isUnsampled(Off)` is false, so a bare constructor could make the Questions join briefly claim "not handed over". That is derived by tracing, not run: the spike runs the sequence plain, under StrictMode and across a hidden `Activity` against a bare constructor, and `useScoped` reads `make` once per mount, so folding configure into the build needs the latest inputs (a ref, or a kept second effect). The open decisions in the owner table above are asked once at the discuss step, after the spike; also decide a throw during the first `configure` inside the build (scope closed vs model kept). `DockModel.configure`'s dispatch order (gates, then diagnostics, then `shownReading.refresh()`) stays written once, and the rule decides whether a feed restarts, not the order. Export `sameFields` from its file, not the barrel. Test churn: about 190 to 213 construction sites (`DockModel.test.ts` 77, `GatesFeed.test.ts` 38, `DiagnosticsFeed.test.ts` 33, `TimelineFeed.test.ts` 30), so use one fixture helper, and keep the characterisation file out of shared helpers because Phase 80 edits them. Gate 14's fixture is a template string that only `pnpm spec:package` compiles. Commit the Stryker baselines of `TimelineFeed.ts`, `DiagnosticsFeed.ts`, `GatesFeed.ts`, `ExternalStore.ts` and `DockModel.ts` (score 1, ADR-QD-168) first and re-close them after the review.
+**Plans**: TBD
+
+### Phase 80: The highlight lens is a headless session; `instrument` resolved
+
+**Goal**: The highlight lens's rules live in a headless `LensSession` that the dock model owns as its tenth store, so they are tested and mutation-gated without the DOM and `useLens` is only the document adapter, and the unread public `QadiContextValue.instrument` is removed or its reason to stay is recorded.
+**Depends on**: Phase 79 (soft: 80 adds a member to the `DockModel` record and edits `DevtoolsDock.tsx`, both of which 79 reshapes).
+**Requirements**: LENS-01, LENS-02, LENS-03, LENS-04, LENS-05, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Packages**: `@qadi/devtools` (new package-private `model/LensSession.ts`, `model/DockModel.ts`, `react/useLens.ts`, `react/QuestionsPanel.tsx`, `questionsPanelInput.ts`); `@qadi/react` (`QadiProvider.tsx`, only if `instrument` is removed)
+**Records**: ARCH-127; ADR-QD-193 (new; amends ADR-QD-185's store count and ADR-QD-047; a dated ADR-QD-111 amendment if `instrument` is removed); CCR-QD-472; BEH-QD-736 to 740 (BEH-QD-700 "nine" becomes "ten"); INV-QD-405 to 406 (INV-QD-390 amended)
+**Evidence** (`_WAVE14-CONTEXT.md`, at `ab8ccb75`): `useLens.ts:43-120` holds `highlighted`, `picking` and `picked` in three `useState`s and the rules are in DOM handlers (a pick swallows the click only when a guard was found; Escape cancels picking and does not reset `picked`; toggle clears both; hovering nothing clears the highlight), with the listeners torn down and re-added on every `instances` change. Only DOM tests cover it (`QuestionsPanel.gates.test.tsx:267-410`), so the rules sit outside the model's tests and Stryker gate, the defect class `ExplorerSession.ts`'s header records fixing. `DockModel.ts` holds a mutation score of 1 (ADR-QD-168). The small find: `QadiContextValue.instrument` (`QadiProvider.tsx:62`, written at `:307-308`) has no reader in `packages/*/src` or tests, and the provider's own `instrument` prop stays; it is public through the barrel, so removal is a Breaking `@qadi/react` minor (changeset, the `0.13` upgrade-guide section, `spec/overview.md:570`, the `useMemo` deps at `:91`).
+
+**Success Criteria** (what must be TRUE):
+  1. A package-private `LensSession` in `model/` holds `highlighted`, `picking` and `picked`, with transitions toggle, hover, choose (which says whether the click is consumed), cancel, highlight and clear, and each rule that today lives in `useLens`'s handlers is pinned by plain calls under the model's mutation gate.
+  2. The dock model owns the session as its tenth store, BEH-QD-700, INV-QD-390, ADR-QD-185 and the store-list test move together, and `DockModel.ts`'s mutation score does not fall below its phase-base record.
+  3. `useLens` keeps only the document listeners and `drawLens`/`clearLens`, the click is swallowed synchronously in the capture listener, the listeners are not re-added on every instance change, and `QuestionsPanel.gates.test.tsx` and `Lens.test.ts` keep passing, with any behaviour change preceded by a characterisation test.
+  4. What happens to `picking` and `picked` across a tab switch, and to a picked id whose guard has gone, is decided against `spec/devtools-spec/01-shell.md:72`, BEH-QD-234 and INV-QD-107 (reusing `HeldChoice`'s rule where it fits), pinned by tests, and recorded in ADR-QD-193.
+  5. After a repo-wide search that includes `examples/` and `website/`, `QadiContextValue.instrument` is removed with a Breaking `@qadi/react` changeset, an upgrade-guide entry, a `spec/overview.md` edit and a dated ADR-QD-111 amendment, or the reason it stays is recorded with a first reader.
+
+**Planning notes**: No research flag: `DockSession`, `ExplorerSession` and `HeldChoice` are the precedents and the open items are decisions, not unknown technology. The one decision needing evidence first is persistence: the review treats "a pick survives a tab switch" as the point, while BEH-QD-234's third exit and `01-shell.md:72` say opening the inspector exits lens mode, and a persisted `picked` would re-run `scrollIntoView` on remount (`InstanceRow` must not re-fire) and a persisted highlight would redraw unasked; every changed behaviour gets an ADR row. `choose` is decided synchronously in the capture listener, and the cleanup calls `cancel()` so BEH-QD-234's exit-on-unmount holds. `QuestionsPanel` takes a `lens` prop and `questionsPanelInput.ts` is the single seam for about 42 panel renders. `LensSession.ts` is new and needs its mutation bar set at its first commit; commit `DockModel.ts`'s baseline first. The milestone close re-verifies 77 to 79 and re-runs each phase's record scripts, because 78 to 80 edit the same files.
+**Plans**: TBD
+**UI hint**: yes
+
+### Progress (v1.9)
+
+**Execution Order:**
+Phases execute in numeric order: 77 → 78 → 79 → 80
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 77. An audit row is a value only its codec makes | 0/0 | Not started | - |
+| 78. `TimelineStore` owns its capacity | 0/0 | Not started | - |
+| 79. Feeds and the dock model take inputs only through `configure` | 0/0 | Not started | - |
+| 80. The highlight lens is a headless session; `instrument` resolved | 0/0 | Not started | - |

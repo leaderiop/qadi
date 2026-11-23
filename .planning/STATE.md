@@ -6,7 +6,7 @@ status: planning
 last_updated: "2026-11-23T21:49:14.363Z"
 last_activity: 2026-11-23
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,14 +20,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-23)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Planning the next milestone (v1.8 Arch Wave 13 completed 2026-11-23 on branch `arch-wave-13`; not merged, not released)
+**Current focus:** Phase 77, An audit row is a value only its codec makes (v1.9 Arch Wave 14, branch `arch-wave-14` off `main` at `5784bbd6`; v1.8 merged as #164; nothing released)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-11-23 — Milestone v1.9 started
+Phase: 77 of 80 (An audit row is a value only its codec makes)
+Plan: — of — (not yet planned)
+Status: Ready to plan
+Last activity: 2026-11-23 — v1.9 roadmap created (Phases 77-80, 28/28 requirements mapped)
+
+Progress: [░░░░░░░░░░] 0% (0 of 4 phases)
 
 
 ## Performance Metrics
@@ -964,6 +966,7 @@ Last activity: 2026-11-23 — Milestone v1.9 started
 
 ### Pending Todos
 
+- v1.9: strictly serial, 77 then 78 through 80; ids reserved (ADR-QD-190 to 193, CCR-QD-469 to 472, BEH-QD-721 to 740, INV-QD-399 to 406), never run `node scripts/next-id.mjs`. Phase 77 (`@qadi/audit`, live defect, **Breaking**) opens with a RED regression test written without `as` on its phase base, and needs a pre-plan probe first (`/gsd-plan-phase --research-phase 77`: the brand form's `Equal`/`Hash`/`JSON.stringify`, and the whole-archive writer inputs `entries`, `now`, `keyMaterial`). Phase 78 (`TimelineStore.resize`) is standard, no research. Phase 79 (**Breaking**, `@qadi/devtools`) opens with a first-render characterisation test, plain and under StrictMode, and needs a render-sequence spike first (`/gsd-plan-phase --research-phase 79`); 78 hard-precedes 79. Phase 80 (`LensSession`, `instrument`) is standard, no research; its tab-switch persistence and `instrument` removal are decided once at the discuss step. Soft edge 79 to 80 (`DockModel.ts`, `DevtoolsDock.tsx`); the milestone close re-verifies 77 to 79. Evidence: `.planning/phases/_WAVE14-CONTEXT.md` and `.planning/research/`.
 - v1.8: Phases 69, 70 and 71 are live defects, each opening with a regression test seen RED on its phase base; Phase 70 asks its payload-path question at the discuss step; Phase 75 opens on a human checkpoint (the outcome key and whether the old keys stay; visible to tracers; `@qadi/core` changeset); Phase 76 is speculative and may end in a recorded rejection (ADR-QD-189 and CCR-QD-468, no code change); strictly serial, 69 then 70 through 76; ids reserved (ADR-QD-182 to 189, CCR-QD-461 to 468, BEH-QD-681 to 720, INV-QD-383 to 398), never run `node scripts/next-id.mjs`; soft edges 70 to 71 (`HydrationEngine.ts`), 71 to 73 (`GateRegistry.ts`), 72 to 74 (`DockModel.test.ts`). Evidence: `.planning/phases/_WAVE13-CONTEXT.md`.
 - v1.5: Phase 43 (`@qadi/core`) and Phase 48 (`@qadi/audit`) are **Breaking**; Phase 50 opens on a `pnpm bench` measurement and may end in a recorded rejection (ADR-QD-163); Phase 48's first plan checks ADR-QD-054 and ADR-QD-056 before any code; soft edges 45 → 48, 47 → 49 and 50 → 51 (same files; serial order covers them).
 - v1.4: research-phase before planning Phases 40 and 42 (37, 38, 39, 40, 41, 42 done) (`/gsd-plan-phase --research-phase <N>`); 38, 39 and 41 are standard. Phase 40 opens on the compatibility decision for `onMalformed`/`qadi.reason`; Phase 41 opens on RED first plus the non-JSON display decision; Phase 42 opens on a human checkpoint (evidence, then one `AskUserQuestion`).
@@ -1022,6 +1025,7 @@ Last activity: 2026-11-23 — Milestone v1.9 started
 
 - Phase 68.1 inserted after Phase 68: Address tech debt from the v1.7 audit (owner chose a cleanup phase before completing)
 - v1.8 roadmap created 2026-11-22: Phases 69-76, one per review candidate (ARCH-116 to ARCH-123), strictly serial; 47 of 47 requirements mapped (40 phase-specific, 7 cross-cutting WX-01 to WX-07 on every phase)
+- v1.9 roadmap created 2026-11-23: Phases 77-80, one per review candidate (ARCH-124 to ARCH-127), strictly serial (owner decision D2); 28 of 28 requirements mapped (21 phase-specific, 7 cross-cutting WX-01 to WX-07 on every phase); research flags on 77 and 79
 
 ## Deferred Items
 
@@ -1034,11 +1038,11 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-23T16:52:31.825Z
-Stopped at: Milestone v1.8 completed and archived
+Last session: 2026-11-23
+Stopped at: v1.9 roadmap created; Phase 77 ready to plan
 Resume file: None
 
 ## Operator Next Steps
 
-- Review and merge `arch-wave-13` when the owner chooses (not done here: no push, merge or release by owner instruction)
-- Start the next milestone with /gsd-new-milestone
+- Plan Phase 77 with `/gsd-plan-phase --research-phase 77` (probe first: brand form, `Equal`/`Hash`, writer inputs)
+- Branch `arch-wave-14` is not merged and nothing is released (owner instruction: release only when asked for "the release")
