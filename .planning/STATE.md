@@ -5,17 +5,17 @@ milestone_name: Arch Wave 13
 current_phase: 73
 current_phase_name: One pure reconcile for gate registration
 current_plan: 7
-status: executing
-stopped_at: Completed 73-06-PLAN.md
-last_updated: "2026-11-23T01:08:16.269Z"
+status: verifying
+stopped_at: Completed 73-07-PLAN.md
+last_updated: "2026-11-23T01:16:56.750Z"
 last_activity: 2026-11-22
 last_activity_desc: Phase 72 complete, transitioned to Phase 73
-state_head: d254cfd7cdbf1c0b1b874172bcd0dca3eae57107
+state_head: c7096b651a1b2ca6a337f872aea1dab98fa3e703
 progress:
   total_phases: 8
   completed_phases: 4
   total_plans: 39
-  completed_plans: 38
+  completed_plans: 39
   percent: 50
 ---
 
@@ -33,7 +33,7 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 Phase: 73 (One pure reconcile for gate registration) — EXECUTING
 Current Plan: 7
 Total Plans in Phase: 7
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-22 — Phase 72 complete, transitioned to Phase 73
 
 
@@ -527,6 +527,7 @@ Last activity: 2026-11-22 — Phase 72 complete, transitioned to Phase 73
 | Phase QD-73 P04 | 20 min | 3 tasks | 5 files |
 | Phase 73 P05 | 6 min | 2 tasks | 2 files |
 | Phase 73 P06 | 25 min | 2 tasks | 4 files |
+| Phase 73 P07 | 30 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -906,6 +907,7 @@ Last activity: 2026-11-22 — Phase 72 complete, transitioned to Phase 73
 - [Phase QD-73]: The type pins use three @ts-expect-error directives and no negative callable or constructable pin, so NOT_CALLABLE_PIN_BUDGET is unchanged
 - [Phase 73]: 73-05: the three reconcile-rule registry cases were deleted only after their reconcile tests and characterisation rows passed in the same run; hasPermission and permission left the file's imports with them
 - [Phase 73]: 73-06: BEH-QD-702 carries the failure-rule sentence word for word from reconcile's doc comment and ADR-QD-186; INV-QD-391 and INV-QD-392 state what the compiler refuses apart from what only tests and review hold
+- [Phase 73]: 73-07: the mutation close held every base score (GateWriter.ts 97/97, useGate.ts 44/45, no new open or Ignored mutant), so no test was added and EXAMINED stays empty; RECN-01 to RECN-05 marked complete after a green check:pr; RECN-03 is closed under the reading of ADR-QD-186 (one registration effect beside the writer-keyed teardown)
 
 ### Pending Todos
 
@@ -979,8 +981,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-23T01:08:15.658Z
-Stopped at: Completed 73-06-PLAN.md
+Last session: 2026-11-23T01:16:56.526Z
+Stopped at: Completed 73-07-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

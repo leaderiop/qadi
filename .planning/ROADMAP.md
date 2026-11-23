@@ -603,7 +603,7 @@ Plans:
   4. The state-update half is tested without rendering, beside `GateWriter.reconcile.test.ts`, `GateRegistry.test.tsx` loses the cases that move, and ADR-QD-186 extends ADR-QD-140 and ADR-QD-111.
 
 **Planning notes**: AGENTS.md §13 holds: the gate registry records that a gate exists and what it renders now, never a retained verdict.
-**Plans**: 6/7 plans executed (strictly serial, waves 1 to 7)
+**Plans**: 7/7 plans executed (strictly serial, waves 1 to 7)
 
 Plans:
 **Wave 1**
@@ -625,7 +625,7 @@ Plans:
 - [x] 73-06-PLAN.md — BEH-QD-701 to BEH-QD-705, INV-QD-391, INV-QD-392, their traceability, and the completed CCR-QD-465 row
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 73-07-PLAN.md — the mutation close, every close scan, `pnpm check:pr`, and RECN-01 to RECN-05 complete
+- [x] 73-07-PLAN.md — the mutation close, every close scan, `pnpm check:pr`, and RECN-01 to RECN-05 complete
 
 ### Phase 74: The simulation session's policy choice split from its runs
 
@@ -694,7 +694,7 @@ Phases execute in numeric order: 69 → 70 → 71 → 72 → 73 → 74 → 75 �
 | 70. Hydration's drop events come from its buckets | 7/7 | Complete    | 2026-11-22 |
 | 71. Developer-signal reporters resolved through one table | 8/8 | Complete    | 2026-11-22 |
 | 72. A derived store behind the dock model's stores | 8/8 | Complete    | 2026-11-22 |
-| 73. One pure reconcile for gate registration | 6/7 | In Progress | - |
+| 73. One pure reconcile for gate registration | 7/7 | In Progress | - |
 | 74. The simulation session's policy choice split from its runs | 0/TBD | Not started | - |
 | 75. A declared span shape for the evaluate family | 0/TBD | Not started | - |
 | 76. Remedies uses core's signature match | 0/TBD | Not started | - |
