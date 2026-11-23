@@ -36,6 +36,7 @@ import { evaluate } from "./Evaluate.ts";
 import type { StandingEvaluationServices } from "./EvaluationServices.ts";
 import {
   annotateAsked,
+  decideSubjectSpan,
   decideSubjectsSpan,
   decideSubjectsStreamSpan,
 } from "./EvaluationSpan.ts";
@@ -124,7 +125,7 @@ export const FilteredSubjectOutcome = Data.taggedEnum<FilteredSubjectOutcome>();
  * and it is also what isolates the element: each subject is evaluated exactly
  * as it would have been alone (INV-QD-016).
  */
-export const decideSubject = Effect.fn("qadi.decideSubject")(function* (
+export const decideSubject = Effect.fn(decideSubjectSpan.name)(function* (
   policy: Policy,
   subject: AuthSubject,
   options?: EvaluateOptions,

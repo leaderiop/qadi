@@ -6,6 +6,7 @@
 import { assert, describe, it } from "@effect/vitest";
 import {
   askedOf,
+  decideSubjectSpan,
   decideSubjectsSpan,
   decideSubjectsStreamSpan,
   denialEvent,
@@ -26,6 +27,7 @@ const spans = [
   guardHealthCheckSpan,
   decideSubjectsSpan,
   decideSubjectsStreamSpan,
+  decideSubjectSpan,
 ];
 
 const questions = [

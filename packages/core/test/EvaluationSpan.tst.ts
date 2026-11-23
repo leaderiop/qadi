@@ -13,6 +13,7 @@ import { expect, test } from "tstyche";
 import type { Decision } from "../src/Decision.ts";
 import {
   annotateAsked,
+  decideSubjectSpan,
   decideSubjectsSpan,
   decideSubjectsStreamSpan,
   denialEvent,
@@ -57,6 +58,7 @@ test("each span name is a span key", () => {
   expect(guardHealthCheckSpan.name).type.toBe<SpanKey>();
   expect(decideSubjectsSpan.name).type.toBe<SpanKey>();
   expect(decideSubjectsStreamSpan.name).type.toBe<SpanKey>();
+  expect(decideSubjectSpan.name).type.toBe<SpanKey>();
 });
 
 test("an outcome outside the three is refused, and Failed is accepted", () => {

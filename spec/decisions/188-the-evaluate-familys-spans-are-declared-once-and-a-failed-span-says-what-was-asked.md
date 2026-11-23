@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-188                                   |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-11-23                                     |
 > | Status         | Accepted — extends ADR-QD-051 and ADR-QD-109   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.4 (2026-11-23): Decision 8 and Consequences point to What enforces it and The cost, measured, which this document holds (code review, CCR-QD-467)<br>1.3 (2026-11-23): What enforces it: the compiler holds each question whole through annotateAsked's PoseOf (code review, CCR-QD-467)<br>1.2 (2026-11-23): Decision 1 scopes the outcome to a path that ends in a decision or a typed failure; an interrupted or defected evaluation carries no outcome (code review, CCR-QD-467)<br>1.1 (2026-11-23): What enforces it (the compiler, the rule, the tests, review) and the measured cost of the second annotation; related records INV-QD-395, INV-QD-396, BEH-QD-711 to BEH-QD-715 (ARCH-122, CCR-QD-467)<br>1.0 (2026-11-23): Initial release (ARCH-122, CCR-QD-467) |
+> | Change History | 1.5 (2026-11-23): Decision 3 declares the keyless decideSubjectSpan, so every span name of the family is read from the declaration (code review, CCR-QD-467)<br>1.4 (2026-11-23): Decision 8 and Consequences point to What enforces it and The cost, measured, which this document holds (code review, CCR-QD-467)<br>1.3 (2026-11-23): What enforces it: the compiler holds each question whole through annotateAsked's PoseOf (code review, CCR-QD-467)<br>1.2 (2026-11-23): Decision 1 scopes the outcome to a path that ends in a decision or a typed failure; an interrupted or defected evaluation carries no outcome (code review, CCR-QD-467)<br>1.1 (2026-11-23): What enforces it (the compiler, the rule, the tests, review) and the measured cost of the second annotation; related records INV-QD-395, INV-QD-396, BEH-QD-711 to BEH-QD-715 (ARCH-122, CCR-QD-467)<br>1.0 (2026-11-23): Initial release (ARCH-122, CCR-QD-467) |
 
 ---
 
@@ -61,7 +61,8 @@ Nothing outside `packages/core/test` reads these keys: not `@qadi/devtools`, `@q
 3. **One declaration module.** One package-private module, `EvaluationSpan.ts`, beside
    `PortSpan.ts`, declares `evaluateSpan`, `toPredicateSpan`, `decideSubjectsSpan`,
    `decideSubjectsStreamSpan` and `guardHealthCheckSpan`, each a `{ name, question, answer }`
-   whose structs are built with `spanStruct`, and the `denialEvent` struct. Each key is
+   whose structs are built with `spanStruct`, the keyless `decideSubjectSpan`, so that every
+   span name of the family is read from it, and the `denialEvent` struct. Each key is
    spelled once there; `qadi.subject_id` is read from `sharedQuestionKeys`, so a tracer
    filtering on it finds the port spans and the evaluate family under one key.
 4. **What each span asks and answers.**

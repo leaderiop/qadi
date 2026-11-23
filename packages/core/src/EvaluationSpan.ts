@@ -168,6 +168,19 @@ export const guardHealthCheckSpan = declareSpan({
 const answersNothing = spanStruct({}, {});
 
 /**
+ * The `qadi.decideSubject` span: one per subject of a batch, and keyless.
+ *
+ * It asks and answers nothing of its own, because the `qadi.evaluate` span it opens
+ * carries the subject's question and outcome. It is declared so that its name, like
+ * every other of the family, is read from here.
+ */
+export const decideSubjectSpan = declareSpan({
+  name: "qadi.decideSubject",
+  question: answersNothing,
+  answer: answersNothing,
+});
+
+/**
  * The `qadi.decideSubjects` span: one per batch held as an array.
  *
  * The question is the batch's: how many subjects, the policy's tag and the action
