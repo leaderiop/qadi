@@ -1,4 +1,4 @@
-# Qadi — Architecture Waves (current: v1.8 Arch Wave 13)
+# Qadi — Architecture Waves (current: v1.9 Arch Wave 14)
 
 ## What This Is
 
@@ -12,6 +12,28 @@ module was a shallow pass-through.
 
 The review is at https://claude.ai/artifact/LH5dLGadz28NyzmZez9jcX, with a local copy at
 `/tmp/claude-1002/-home-yopu-Project-Perso-qadi/588341bb-9f42-4e6e-b1a3-ed991ed47acf/scratchpad/qadi-architecture-review.html`.
+
+## Current Milestone: v1.9 Arch Wave 14
+
+**Goal:** Resolve all four candidates of the 2026-11-23 architecture review. The audit row goes first, because it may
+hide a live defect (the package can write an archive its own reader refuses), then the three devtools deepenings.
+
+**Target features (Phases 77–80, ARCH-124…127, strictly serial):**
+- 77: An audit row is a value only its codec makes. `AuditEntry` is branded, so archive, retention and the archive
+  facts trust a row without re-checking it. The row decodes envelope-first, as core's stored record does. Opens with a
+  RED test for the archive that cannot be read back (audit; possible live defect; Breaking; amends ADR-QD-110)
+- 78: `TimelineStore` owns its capacity through a resize command. `TimelineFeed`'s six-member forwarder, mirror store
+  and abandoned subscription are deleted (devtools; keeps ADR-QD-137)
+- 79: Each feed and the dock model take their inputs only through `configure`. One per-field identity rule decides a
+  restart, the one `makeDerivedStore` uses. One package-private hook does "scope, then configure", and the dock's input
+  type is stated once. Opens with a characterisation test of diagnostics' first-render sequence (devtools; Breaking;
+  amends ADR-QD-137/173)
+- 80: The highlight lens becomes a headless session owned by the dock model, and `useLens` shrinks to the DOM adapter.
+  The unread public `QadiContextValue.instrument` is removed, or the reason it stays is recorded (devtools, react)
+
+**Source review:** `/private/tmp/claude-502/-Users-mohammadalmechkor-Projects-Perso-qadi/8b5d3789-bd5e-4ce2-bf7e-0b31a0ae4995/scratchpad/architecture-review-20261123.html`
+(session-scoped; `.planning/phases/_WAVE14-CONTEXT.md` holds everything a planner needs). Branch `arch-wave-14`, based on
+`main` at `5784bbd6` (v1.8 merged as #164). No merge, no release.
 
 ## Previous Milestone: v1.8 Arch Wave 13 (completed 2026-11-23; not released)
 
@@ -152,7 +174,7 @@ v1.8 Arch Wave 13 completed 2026-11-23 on branch `arch-wave-13` (see the v1.8 en
 - whether a fixture row meets a signature or acted leaf is core's own answer, and a refused value fails typed wherever it
   is read.
 
-Nothing is merged or released, and the next milestone is not yet defined.
+Merged to `main` as #164 (`5784bbd6`); not released. The next milestone is v1.9 Arch Wave 14.
 
 v1.7 Arch Wave 12 completed 2026-11-22 on branch `arch-wave-12` (see the v1.7 entry above): every tech-debt item the
 v1.6 audit carried is resolved by a change or a recorded decision. Negative type pins can fail and are budgeted, gate 14
@@ -368,7 +390,10 @@ logged, counted or spanned.
 
 ### Active
 
-(None. The next milestone is not yet defined.)
+- [ ] ARCH-124 An audit row is a value only its codec makes (Phase 77)
+- [ ] ARCH-125 `TimelineStore` owns its capacity (Phase 78)
+- [ ] ARCH-126 Feeds and the dock model take inputs only through `configure` (Phase 79)
+- [ ] ARCH-127 The highlight lens is a headless session; `QadiContextValue.instrument` resolved (Phase 80)
 
 ### Out of Scope
 
@@ -635,4 +660,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-23 after the v1.8 milestone*
+*Last updated: 2026-11-23 after starting the v1.9 milestone*
