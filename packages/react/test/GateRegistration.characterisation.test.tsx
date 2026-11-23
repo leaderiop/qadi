@@ -10,9 +10,8 @@
  * and names an id only through a value captured at an earlier step, because `useId`
  * counts across a file.
  *
- * Its inputs and expected values are fixed: an edit to this file may touch titles, layout
- * or helpers only, and each such edit is its own commit. The rules these rows rest on are
- * stated without rendering in `GateWriter.reconcile.test.ts`.
+ * The rules these rows rest on are stated without rendering in
+ * `GateWriter.reconcile.test.ts`.
  */
 import {
   AttributeResolver,
