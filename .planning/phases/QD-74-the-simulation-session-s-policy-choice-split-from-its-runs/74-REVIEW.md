@@ -1,8 +1,8 @@
 ---
 phase: QD-74-the-simulation-session-s-policy-choice-split-from-its-runs
-reviewed: 2026-11-23T05:40:56Z
+reviewed: 2026-11-23T06:01:47Z
 depth: standard
-iteration: 2
+iteration: 3
 files_reviewed: 25
 files_reviewed_list:
   - packages/devtools/src/model/SeededChoice.ts
@@ -28,154 +28,193 @@ files_reviewed_list:
   - spec/README.md
   - AGENTS.md
   - .planning/phases/QD-74-the-simulation-session-s-policy-choice-split-from-its-runs/74-CONTEXT.md
-  - .planning/phases/QD-74-the-simulation-session-s-policy-choice-split-from-its-runs/74-REVIEW.iter1.md
+  - .planning/phases/QD-74-the-simulation-session-s-policy-choice-split-from-its-runs/74-REVIEW.iter2.md
   - .planning/phases/QD-74-the-simulation-session-s-policy-choice-split-from-its-runs/74-REVIEW-FIX.md
 findings:
   critical: 0
   warning: 2
-  info: 5
-  total: 7
+  info: 3
+  total: 5
   necessity: 0
 status: issues_found
 ---
 
-# Phase 74: Code Review Report (iteration 2)
+# Phase 74: Code Review Report (iteration 3)
 
-**Reviewed:** 2026-11-23T05:40:56Z
+**Reviewed:** 2026-11-23T06:01:47Z
 **Depth:** standard
 **Files Reviewed:** 25
 **Status:** issues_found
 
 ## Summary
 
-I re-reviewed the phase after the iteration-1 fixes (`f99e7cc9..ded61ecf`), against the full phase diff (`b22d97f9..HEAD`).
-
-**WR-01, the `seedFrom` no-op, is correct and changes no observable session behaviour.** I traced every case of `keeps = kept?.entry === entry && (kept?.replayed === undefined) === (replayable === undefined)`:
-
-| Case | Result |
-| ---- | ------ |
-| No seed held, no entry | `keeps`. The seed stays `undefined`. `held` is re-pinned, so the constructor (`held: undefined` over a non-empty rail) still answers a new, pinned choice. |
-| Held replaying row, same entry | `keeps`. `pinUnlessReplayed` answers `choice.held`, so the input choice comes back. |
-| Held row after `choose` (replay dropped), same replayable entry | Not kept. A new seed restores the replay. |
-| Held orphan, same entry | `keeps`. `held` is already pinned, so the input comes back. |
-| Replay held but the row now non-replayable | Unreachable: a row decodes the same way every time. |
-| Any other entry, or `undefined` while a seed is held | Not kept. |
-
-So the choice comes back unchanged exactly when the seed reference and the held sighting are both unchanged. Each conjunct is load-bearing, and a row catches its mutant:
-
-- dropping the entry test: "seedFrom another row…";
-- dropping the replay-state test: the `back` half of that row;
-- dropping `held === choice.held`: "with no seed, the constructor pins the head of the rail", through its `withSightings` step.
-
-**The session is unchanged.**
-
-- `reseed` never compares `seeding.choice` by reference. It still writes `seeding.input ?? draft` with a re-encoded text, calls `clearRun()` and publishes on every call.
-- `replay` of the held row still answers the freshly decoded input.
-- The `seed` guard (`entry === seededFrom(choice)`) is untouched.
-- The only difference is that `snapshot.policy.policy` keeps its old object identity on a re-replay. `stale` compares it with `Equal.equals`, and nothing in `src/react` reads it by reference.
-
-The rule's sentence is word for word the same in `SeededChoice.ts:24-27`, INV-QD-393's statement and ADR-QD-187 decision 1. The ADR places its readings sentence between the two halves. One record still has the old claim (WR-01).
+I re-reviewed the phase after the iteration-2 fixes (`af19ea52..b41eb85d`), against the full phase diff
+(`b22d97f9..HEAD`). No source file changed in iteration 2. The edits were to tests, the fixtures, the check
+script and the spec.
 
 **What I checked and found sound:**
 
-- **The check script.** `74-characterisation-check.mjs` resolves `typescript/unstable/sync` against the installed TypeScript 7.0.2. It parses all three files, prints "35 rows as at e25c8cfd; 21 helpers kept, 13 moved", and its 13 self-test cases pass. `REVIEWED` is exact and minimal: one entry, `PolicyView`, and its from/to text matches.
-- **The helper moves.** The 13 moved declarations are text-identical once whitespace is collapsed. The fixtures declare no `let`/`var`. The header names exactly the six importers. Every exported helper meets the header's rule of two readers, or one reader plus a caller in the fixtures.
-- **The React moves.** `Simulator.test.tsx` and `useSimulationSession.test.tsx` behave as before. The five affected suites pass: 181 tests.
-- **WR-09's removals.** Each survivor pins the same rule at the same or higher precision:
-  - The `[1]` refusal takes the same `editResourceText` refused branch as `{oops`.
-  - The kept-edit seed no-op takes the same `seededFrom` guard.
-  - The four no-ops each assert snapshot identity and a count of 0 on their own.
-- **WR-05.** Both rows now fail under an always-pin mutant.
-- **WR-02, WR-03, WR-07, WR-08, IN-01 and IN-02** are applied as described.
-- **IN-03.** The new `stale` doc is true.
+- **IN-01's edits to `SimulationSession.test.ts`.**
+  - No title changed.
+  - No expected value changed.
+  - None of the three rows that now read the shared `orphan` reads its evaluation id. Those rows were `ev-9` twice and `ev-late`.
+  - The `seeding` row's asserted fields are exactly `rowRead`'s.
+  - The renamed `orphaned` leaves no local `orphan`, `rowRead` or `seed` shadowing an import.
+  - The six affected suites pass (186 tests).
+- **IN-02 and IN-03 are applied as described.** Every exported fixture helper has two readers, or one reader and
+  a caller in the fixtures (`settled`, under `ran`).
+- **The check's hardened rules hold for the classes the last pass found, and for two more.** I ran a scratch copy
+  of the check that reads a modified characterisation or fixtures file. Each of these edits fails, with the right
+  message:
+  - a declaration inside a `describe`;
+  - a top-level `beforeEach`;
+  - a changed `sighting`;
+  - a re-pointed named import;
+  - a changed default parameter (`kind = "Sweep"` in `startRun` and `ran`);
+  - a re-ordered `describe`, with `the ports` moved before `the rail`;
+  - a fixture that declares `policyLabel` instead of importing it.
+- **On HEAD, the check passes.** It prints 35 rows and 29 statements, and `--self-test` reports 23 passed.
 - **The spec text.**
-  - Every quoted title in the phase's Pinned-by and Enforcement text exists verbatim.
-  - CCR-QD-466's seven cited revisions equal the document headers.
-  - Its file list equals `git diff --name-only b22d97f9 HEAD -- packages spec` (20 files).
-- **House rules and wording.** No phase-added `.ts`/`.tsx` line is longer than 90 characters. There is no `as`, `!`, `any`, `switch` or `Record<string, unknown>`, and no phase-relative wording in shipped files.
+  - All 39 quoted titles exist verbatim, each in the file it is cited from. That covers BEH-QD-706 to BEH-QD-710, INV-QD-393, INV-QD-394 and ADR-QD-187's "What enforces it", with titles that wrap across lines joined.
+  - The traceability rows name every cited test file.
+  - CCR-QD-466's file list, braces expanded, equals `git diff --name-only b22d97f9 HEAD -- packages spec` (20 files).
+  - Six of its seven cited revisions equal the headers (ADR 1.2, 28 at 1.52, 29 at 1.26, invariants 1.189, overview 1.133, traceability 1.263).
+  - `spec-revise --check` passes.
+- **House rules.**
+  - The phase adds no `as` cast, `!`, `any`, `switch` or `Record<string, unknown>` in `packages`.
+  - No added `.ts` or `.tsx` line is longer than 90 characters.
+  - No shipped file has phase-relative wording.
+  - The 91 to 93 character lines in ADR-QD-187 match its sibling ADRs (183 to 186), so I did not flag them.
 
 **What remains:**
 
-- **WR-01.** The traceability row of the type pin still says "every transition answering a seeded choice", which is the claim WR-01 removed everywhere else.
-- **WR-02.** The characterisation check misses three kinds of edit that change what a row asserts or runs. I confirmed each with a scratch copy of the script: all three exit 0.
-- **Info.** Five small cleanliness items.
+- **WR-01.** The check still passes three kinds of edit that change what a row runs. Eight of its problem messages
+  have no self-test case.
+- **WR-02.** CCR-QD-466 cites `spec/README.md` one revision behind its header.
+- **Info.** The fix report is stale on revisions, a test shadows a fixture helper, and the simulator's React test keeps a near-copy of
+  the shared `orphan`.
 
 ## Warnings
 
-### WR-01: The type pin's traceability row still says every transition answers a seeded choice
+### WR-01: The characterisation check still passes import and fixture edits that change what a row runs
 
-**File:** `spec/traceability.md:583`
+**File:** `.planning/phases/QD-74-the-simulation-session-s-policy-choice-split-from-its-runs/74-characterisation-check.mjs:20-24,150-157,283-325`
 
-**Issue:** The row for `packages/devtools/test/model/SeededChoice.tst.ts` ends with "…the menu option shape and every transition answering a seeded choice". That is the false claim WR-01 corrected in `SeededChoice.ts`, ADR-QD-187 decision 1, INV-QD-393 and the pin's own title. `seededChoice` and `seedFrom` answer a `Seeding`, and the pin asserts exactly that ("choose and withSightings answer a SeededChoice; seededChoice and seedFrom a Seeding"). The fix loop never touched `spec/traceability.md`: it is still at Rev 1.262, and its last change-history entry predates the review.
+**Issue:** The header says "every name the characterisation imports comes from the module its first commit
+imported it from", and "an import, a comment and where a helper is declared may change; a row and what it runs may
+not". The script supports neither claim. I ran a scratch copy that reads a modified characterisation (`HEADF`) or
+fixtures file (`FIXF`). Each edit below exits 0 with "35 rows and 29 statements as at e25c8cfd":
 
-**Fix:** Restate the row's tail as "…the menu option shape, and what each transition answers: a `SeededChoice` from `withSightings` and `choose`, a `Seeding` from `seededChoice` and `seedFrom`". Bump `spec/traceability.md` to Rev 1.263 with a change-history line, and update CCR-QD-466's cited revision, then `spec/README.md`'s revision with it.
+1. **Namespace, default and side-effect imports are never read.** Lines 151-157 record only
+   `importClause.namedBindings.elements`. A `NamespaceImport` has no `elements`, a default import's `importClause.name` is never read, and `import "x"` has no clause. So each of these passes:
+   - `import * as TestClock from "../fakeClock.ts"` in the characterisation;
+   - `import "../setup.ts"`, or `import * as Extra from "./extra.ts"`, added to the characterisation;
+   - `import * as TestClock from "./fakeClock.ts"` in `simulationFixtures.ts`, where `startRun` reads it.
 
-### WR-02: The characterisation check passes edits that change what a row asserts or runs
+   The characterisation reads `Effect` and `TestClock` this way. The fixtures read `Effect`, `Layer` and `TestClock`.
+2. **An import's exported name is never compared.** Only `element.name` (the local name) is keyed, and
+   `element.propertyName` is ignored. Two edits that pass:
+   - `counted as slow` in the characterisation's fixtures import, with `counted` still imported. Every row that
+     calls `slow()` now gets a notification counter.
+   - `emptyTimeline as ingestAll` in the fixtures, under the compared `entryOf`.
+3. **The fixtures' other statements are never compared.** Rule (b) compares only the declarations it reaches from
+   a seed. A top-level statement appended to `simulationFixtures.ts`, such as a `beforeEach(...)` or a call that mutates a
+   compared helper's value, passes. The same holds for a new declaration whose initialiser does either. The
+   fixtures run in the characterisation's module graph, so a hook registered there runs before its rows.
 
-**File:** `.planning/phases/QD-74-the-simulation-session-s-policy-choice-split-from-its-runs/74-characterisation-check.mjs:6-15,114-139,159-188`
+Separately, the self-test does not assert every reason the script can give. These problem messages have no case:
 
-**Issue:** The script says it fails unless "no row's title, input, expected value, body or section moved". The locked rule is narrower: only the header, imports and moved helper declarations may change. The script reads only two things: the `it` calls, and the top-level declarations the first commit had. I ran a scratch copy that reads a modified characterisation or fixtures file. Each edit below changes what a row asserts or runs, and each exits 0 with "35 rows as at e25c8cfd":
+| Line | Message |
+| ---- | ------- |
+| 248 | "reviewed first text is not its first commit's" |
+| 250 | "with other text than reviewed" |
+| 271 | "came from … and the fixtures declare it" (moved helper) |
+| 274 | "is declared here and apart in the fixtures" |
+| 293 | "is not declared in the fixtures of the first commit" |
+| 296 | "is no longer declared in the fixtures" |
+| 315 | "came from … and the fixtures declare it" (fixture helper) |
+| 323 | "is imported from … but not exported by it" |
 
-1. **A shadowing declaration inside a `describe` body.** The probe added `const listed = (…) => ({ _tag: "Listed", value, index: index + 1 })` under the first `describe`. Every row in that section now expects a different index. The row text is unchanged, the `describe` statement is neither a helper nor a row, and so nothing compares it. A new top-level non-declaration statement, such as a `beforeEach(…)`, is not compared either.
-2. **A helper the characterisation already imported at `e25c8cfd`, changed in `simulationFixtures.ts`.** The probe changed `sighting`'s `count: 1` to `count: 2`. `sighting`, `entryOf`, `slow`, `counted`, `startRun` and `ran` (with `settled` under it) are never compared with their first-commit text.
-3. **One of those pre-existing imports re-pointed.** The probe used `import { slow } from "./elsewhere.ts"`. The specifier is checked only for the 13 moved helpers.
+Line 293 cannot fire in `main` at all: `BASE` is a fixed commit whose characterisation compiled against its own
+fixtures.
 
-Two smaller gaps:
-
-- The self-test checks only pass or fail, never the reason. A case can stay green after it starts failing for an unrelated reason.
-- Line 12's "and is declared nowhere else" is vacuous. That branch only runs when the name is absent from the characterisation, and no other file is searched.
+Line 273 has a related gap. It flags a kept characterisation name that the fixtures *declare* for a moved helper, but not one the fixtures *import*.
 
 **Fix:**
-- Compare every non-import top-level statement of the checked-out characterisation, other than the moved helpers, with the first commit's, as a multiset of collapsed text. That covers `describe` bodies and any new statement. The row multiset can then stay as the precise message.
-- For each name the first commit imported, require the same specifier, except a moved helper, which must come from `../simulationFixtures.ts`.
-- Read `git show e25c8cfd:packages/devtools/test/simulationFixtures.ts`, and require each pre-existing fixture helper the characterisation names to keep its text.
-- Have each self-test case name the problem it expects, for example by matching a substring of the message. Add one case for each of the three holes above.
-- Drop "and is declared nowhere else", or check it.
+- In `readAll`, record every import form, each as a binding:
+  - its local name, its exported name (`propertyName ?? name`) and its module for a named import;
+  - `*` for a namespace import and `default` for a default import;
+  - a side-effect import as an entry with no binding, compared as a list.
+- Compare the exported name as well as the module in rule (c), and in rule (b)'s fixture-import checks.
+- Compare every top-level statement of the fixtures that is not a declaration, and require that list to equal the
+  first commit's (empty). Alternatively, require every new fixtures statement to be a declaration whose initialiser is a function
+  or literal.
+- Add one self-test case per line in the table above, asserting its exact message. Delete line 292-295's branch,
+  or say in a comment that it guards only the self-test's synthetic base.
+- Add one case each for a re-pointed namespace import, an aliased named import and a top-level fixtures statement.
+
+### WR-02: CCR-QD-466 cites `spec/README.md` at Rev 1.320; the header is 1.321
+
+**File:** `spec/README.md:8,13,403`
+
+**Issue:** Commit `e0c6b67a` bumped `spec/README.md` to Rev 1.321 ("CCR-QD-466's row cites ADR-QD-187 at Rev 1.2
+and the simulator behaviours at Rev 1.26"). It edited the row's two other citations but left the row's own
+`` `spec/README.md` Rev 1.320 ``. Every earlier code-review edit to this row kept the self-citation current: the
+1.317 to 1.320 entries each moved it with the edit, as CCR-QD-465 cites 1.314, its own last edit. The brief's
+check that "the CCR-QD-466 row's cited revisions equal each document's header" fails on exactly this one.
+
+**Fix:** In one `spec-revise` edit, change the row's `` `spec/README.md` Rev 1.320 `` to the revision that edit
+cuts (1.322). Add a Change History entry such as "1.322 (2026-11-23): CCR-QD-466's row cites the master index at
+its own revision (code review)".
 
 ## Info
 
-### IN-01: `SimulationSession.test.ts` keeps an identical copy of the fixtures' `orphan`, and a near-copy of `rowRead`
+### IN-01: `74-REVIEW-FIX.md` reports revisions that `e0c6b67a` superseded before the report was committed
 
-**File:** `packages/devtools/test/model/SimulationSession.test.ts:1047`, `packages/devtools/test/model/SimulationSession.test.ts:919-927`
+**File:** `.planning/phases/QD-74-the-simulation-session-s-policy-choice-split-from-its-runs/74-REVIEW-FIX.md` (IN-04 "Revision" bullet, IN-05 "Revision" bullet, the "Other checks" list)
 
-**Issue:** "replaying a row that cannot be replayed leaves the seed as seed does" declares `const orphan = entryOf(obligationRecord({ evaluationId: "ev-orphan" }));`. That is byte-identical to the exported `orphan` in `simulationFixtures.ts:70`, in a file the fixtures header lists as an importer under "one definition rather than a copy a file keeps beside its own tests". The `describe("seeding")` block's `seed` (`ev-3`: `hasPermission(read)`, carol, read, doc-1) differs from `rowRead` only by its `evaluationId`. Its first row asserts exactly `carolDraft`'s fields. IN-04 removed the React copies but missed these.
+**Issue:** The report was committed after `e0c6b67a` (`b41eb85d`), but it still says:
+- for IN-04, "Revision: none";
+- for IN-05, "ADR-QD-187 stays at Rev 1.1 … So CCR-QD-466 still cites 'Rev 1.1 …'";
+- under "Other checks", "README 1.320, ADR 1.1, … 29-devtools-simulator 1.25".
 
-**Fix:** Import `orphan` from `../simulationFixtures.ts` and delete the local copy. Optionally replace `seed` with `rowRead` as well, which leaves the asserted values unchanged.
+HEAD has ADR-QD-187 at Rev 1.2, `29-devtools-simulator.md` at 1.26 and `spec/README.md` at 1.321, and CCR-QD-466
+cites the first two. A reader auditing the loop from the report gets the opposite of what was decided, and the
+brief records that decision: every code-review spec edit is a revision.
 
-### IN-02: The fixtures' new section comment now heads `slow` and `counted`
+**Fix:** Correct the two bullets and the revisions list to 1.2, 1.26 and 1.321 (1.322 after WR-02), and name `e0c6b67a` as the commit that cut them.
 
-**File:** `packages/devtools/test/simulationFixtures.ts:46-47,140-174`
+### IN-02: `SeededChoice.test.ts` shadows the imported fixture helper `sighting`
 
-**Issue:** The 13 moved helpers were inserted between `entryOf` and `slow` under `// Two logged rows, the form a replay of one fills in, and a policy choice and a menu as a row compares them.` The section runs until the run-helpers comment at line 176. So `slow` (a resolver) and `counted` (a notification counter) now sit under a heading that does not describe them.
+**File:** `packages/devtools/test/model/SeededChoice.test.ts:249`
 
-**Fix:** Move `slow` and `counted` above the new section, next to `sighting` and `entryOf` where they were. Or give them their own one-line heading.
+**Issue:** Inside "each option of the menu names the sighting sightingAt reads at its position",
+`const sighting = leads ? undefined : c.sightings[Number(value)];` shadows the `sighting` this file imports from
+`../simulationFixtures.ts` (line 44). The row is correct. But this is the shadowing pattern the last two passes
+removed from the session tests, and a later edit inside that callback that calls `sighting(policy)` would not
+compile for a confusing reason.
 
-### IN-03: A double blank line left where `slow` was removed
+**Fix:** Rename the local, for example `const expected = leads ? undefined : c.sightings[Number(value)];
+assert.strictEqual(sightingAt(c, index), expected);`.
 
-**File:** `packages/devtools/test/react/useSimulationSession.test.tsx:32-33`
+### IN-03: `Simulator.test.tsx` builds its own orphan row and its own `read`
 
-**Issue:** Removing the local `slow` (IN-04) left two consecutive blank lines between `const source = sourceFromRecords([]);` and the first `describe`.
+**File:** `packages/devtools/test/react/Simulator.test.tsx:43,46,556`
 
-**Fix:** Delete one of the blank lines.
+**Issue:**
+- "says a comparison is unavailable for a row that carries no decision" seeds
+  `entryOf(obligationRecord({ evaluationId: "ev-9" }))`. That is the fixtures' `orphan` with another evaluation id,
+  which the row never reads. The fixtures header lists this file as an importer "rather than a copy a file keeps
+  beside its own tests", and iteration 2's IN-01 removed the same copy from the session tests only.
+- Line 46's `const read = permission("doc", "read");` duplicates `read` from `../helpers.ts`, which line 43 already
+  imports from. This predates the phase, but the phase rewrote this import block.
 
-### IN-04: BEH-QD-709 cites a `withSightings` test as evidence that choosing the held policy is a no-op
-
-**File:** `spec/behaviors/29-devtools-simulator.md:1083-1086`
-
-**Issue:** BEH-QD-709 is "Choosing the held policy again changes nothing while the run is idle". Its Pinned-by list includes "withSightings with the same elements in a new array returns the same choice". That row pins a different transition's no-op, which INV-QD-393 already cites. The title exists, so the gates pass, but the citation does not pin this behaviour.
-
-**Fix:** Drop that title from BEH-QD-709's Pinned-by list. INV-QD-393's Enforcement keeps it.
-
-### IN-05: ADR-QD-187's "What enforces it" omits the transition-signature pin and decision 1's no-op rows
-
-**File:** `spec/decisions/187-the-simulation-sessions-policy-choice-is-a-pure-seeded-choice.md:94-100`
-
-**Issue:** "The compiler enforces" names two facts, the three arms and the menu option shape. INV-QD-393's Enforcement names three: it also says the compiler holds what each transition answers, through the retitled tst pin. "Tests alone enforce: the rules of decisions 2 to 6" leaves out decision 1's no-op rule, which WR-01 gave its own rows ("seedFrom the row a choice holds answers the same choice and the row decoded", "seedFrom(undefined) on a choice with no seed answers the same choice"). The ADR is now less complete than the invariant that cites it.
-
-**Fix:** Add "and what each transition answers" to the compiler sentence, and change "decisions 2 to 6" to "decision 1's no-op rule and decisions 2 to 6". This is an ADR wording edit, so cut a Rev 1.2 and update CCR-QD-466's citation with it.
+**Fix:**
+- Import `orphan` from `../simulationFixtures.ts`, seed it, and drop `obligationRecord` from the helpers import.
+- Import `read` from `../helpers.ts` and delete the local copy.
 
 ---
 
-_Reviewed: 2026-11-23T05:40:56Z_
+_Reviewed: 2026-11-23T06:01:47Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
