@@ -622,7 +622,7 @@ Plans:
 - [ ] 73-05-PLAN.md — the three reconcile-rule cases leave `GateRegistry.test.tsx`, each pinned twice elsewhere
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 73-06-PLAN.md — BEH-QD-701 to BEH-QD-705, INV-QD-391, INV-QD-392, their traceability, and CCR-QD-465 in its final form
+- [ ] 73-06-PLAN.md — BEH-QD-701 to BEH-QD-705, INV-QD-391, INV-QD-392, their traceability, and the completed CCR-QD-465 row
 
 **Wave 7** *(blocked on Wave 6 completion)*
 - [ ] 73-07-PLAN.md — the mutation close, every close scan, `pnpm check:pr`, and RECN-01 to RECN-05 complete
