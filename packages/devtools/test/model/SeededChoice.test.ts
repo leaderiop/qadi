@@ -246,8 +246,8 @@ describe("the policy menu", () => {
         assert.strictEqual(options.length, count);
         options.forEach(({ value }, index) => {
           const leads = value === "seeded" || value === "evicted";
-          const sighting = leads ? undefined : c.sightings[Number(value)];
-          assert.strictEqual(sightingAt(c, index), sighting);
+          const expected = leads ? undefined : c.sightings[Number(value)];
+          assert.strictEqual(sightingAt(c, index), expected);
         });
       }
     },
