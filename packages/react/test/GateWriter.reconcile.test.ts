@@ -2,11 +2,11 @@
  * The gate reconcile rules, with no React and no DOM rendering (ARCH-76).
  *
  * `reconcile(writer, live, wanted) → next live map`, where
- * `live: ReadonlyMap<string, Registered>` and `wanted: ReadonlyMap<string, GateWanted>`
- * is keyed by gate id. The writer is a fake that records every call, so each rule is
- * read off the log: what is kept is told its state, what changed or left unregisters,
- * and what is new registers. The render-level behaviour is in `GateWriter.test.tsx`
- * and `GateRegistration.characterisation.test.tsx`.
+ * `live: ReadonlyMap<string, Registered>` and `wanted: ReadonlyMap<string, GateWanted>`,
+ * where `wanted` is keyed by gate id. The writer is a fake that records every call, so
+ * each rule is read off the log: what is kept is told its state, what changed or left
+ * unregisters, and what is new registers. The render-level behaviour is in
+ * `GateWriter.test.tsx` and `GateRegistration.characterisation.test.tsx`.
  */
 import { hasPermission, permission } from "@qadi/core";
 import { describe, expect, it } from "vitest";
