@@ -950,3 +950,118 @@ Mutants on a written line: 18 (Killed 18).
 - packages/http/src/QadiHttpError.ts: base valid 26, base lines removed or rewritten 206-212,276-277,287,290-293; Ignored base mutants on them: 4; open ones: 0
 
 `DecisionHistory.ts`'s score did not fall (32/32 to 52/52), so the removed-mutant rule is not exercised for it; the one Ignored base mutant on a removed line (225, `ArrowFunction -> () => undefined`) is carried by kind, and its kind is not above the base's count. The files whose valid count went down (`Remedies.ts` 297 to 277, `PortAccess.ts` 47 to 46) lost only Killed mutants with the code that held them, which is the removed-mutant rule; neither score fell.
+
+## The close on the final tree
+
+Measured by `76-08` on the final tree, one scan at a time, stdin closed, nothing else running. The tree: the last
+`packages/` commit is `43e83c50` (a width fix, below); the mutation close was re-measured on it; no later commit
+touches `packages`, `spec`, `scripts`, `apps`, `AGENTS.md`, `.changeset` or a manifest.
+
+### The width fix and the re-measured close
+
+The scan for an added `packages/` line over 90 columns found four in `packages/http/test/QadiHttpError.test.ts`: the
+row that projects a history error carrying its event had a 110-column title line and a 90-plus-column comment, and the
+two rows for an absent member each held a 105-column expectation. `43e83c50` shortens that title to `the
+DecisionHistoryUnavailable projection and body carry its event`, wraps the comment, and reads each encoded body once
+into a const; no assertion changed (55 of 55 in the file before and after). The row's earlier title, quoted in the
+section "The first close and the survivors it showed" above, is the superseded one. Because a file under `packages/`
+changed after the close of `7fe82541`, every group was re-measured with `record close core --restart` (`<scratch>/close-run.sh
+--restart`): core 200/201 (Stryker 99.50, the one base survivor `SignatureHistory.ts:366`), devtools 467/467 and http
+34/34, all three on head `43e83c50bd91ef91d70f55efefed06440a205f98`, the same counts as the close of `7fe82541`;
+`76-mutation.mjs compare` prints `no file has an open or Ignored mutant its base did not have, and every score that
+fell lost only killed mutants`, and `--self-test` reads `self-test: 38 passed`. The by-hand runs of the static mutants
+above stay as written: a test-only reformat moves no source line, so no written-line range changed. The re-measured
+record is committed as `f4e3bce4`.
+
+### The rows, by exact title (vitest JSON reports on the final tree)
+
+- Agreement files and the custom-sentence rows (project devtools, `RemedySignatureConformance.test.ts`,
+  `RemedyActedConformance.test.ts`, `Remedies.test.ts`, `SimulationFields.test.ts`): 177 of 177 passed. Each agreement
+  file passes 7 of 7: the count row (`the product holds 1184 cases over four sites, four leaves and 74 lists`, acted
+  `144 cases over four sites, two leaves and 18 lists`), the four site rows and the two refusal rows. `Remedies.test.ts`
+  passes `names a custom predicate it cannot remedy, rather than staying silent`; `SimulationFields.test.ts` passes
+  `says why a custom predicate has no cell` and `the custom-predicate cell is the value whose reason the remedy table
+  gives`.
+- Core (project core, `SignatureHistory.test.ts`, `DecisionHistory.test.ts`, `SinkCodec.test.ts`): 205 of 205 passed,
+  including the five signature rows (the product, the refused fixture row, the missing resource id, the refused query
+  key, the failure with no subject id), the seven history rows (the product, the refused subject or event row, the
+  refused event, a symbol subject id, a symbol event, a fixture row whose subject id is a symbol, a fixture row whose
+  event cannot be read) and the two codec rows for an absent member.
+- Http (project http, `QadiHttpError.test.ts`): 55 of 55 passed, including the two rows for a body with no member.
+- The type pins exist (`SignatureHistory.tst.ts`: `signatureAnswerFromSignatures answers a SignatureAnswer or exactly
+  its two failures`; `DecisionHistory.tst.ts`: `actedAnswerFromEvents answers Acted or NotActed, or fails as the history
+  read fails`) and run under `pnpm check:pr`'s tstyche step. No source or test says a refused request throws (`throws as
+  the read dies`, `dies as the read does` match nowhere under `packages`).
+
+### The agreement, the inline match, the barrel and the custom sentence
+
+- `76-agreement-check.mjs`: `agreement-check: 3 frozen and 3 append-only file(s) hold the statements of 22d5b10c`;
+  `--self-test`: `self-test: 18 passed`.
+- No devtools source reads `held.subjectId`, `held.resourceId`, `held.meaning`, `held.signerRole`, `signatureMatches` or
+  `HistoryScope`; `SignatureMatch` is not in `packages/core/src/index.ts`; `CUSTOM_HAS_NO_FIELD` appears nowhere under
+  `packages`.
+- The custom sentence is a literal once in `SimulationFields.ts` and once in `SimulationFields.test.ts` (asserted
+  against `NO_CUSTOM_PREDICATE_FIELD` with `assert.deepStrictEqual(NO_CUSTOM_PREDICATE_FIELD, {`); `Remedies.test.ts`
+  reads `NO_CUSTOM_PREDICATE_FIELD.reason`.
+
+### The changed paths and the kept test lines
+
+`git diff --name-only bf339146 HEAD -- packages spec scripts .changeset apps AGENTS.md examples features package.json
+pnpm-lock.yaml` is exactly the 36 required paths of the plan's closed list; the one optional path
+(`packages/core/test/PortAccess.test.ts`) is not changed. The core, devtools and http barrels, `AGENTS.md`,
+`scripts/check-house-style.mjs`, the DoD table and the manifests equal `bf339146`, so the section 4 table still holds
+twelve classes. In every test file that existed at `bf339146`, no existing line was removed or changed, except inside
+an import declaration, inside the two declared rows, and one trailing comment: `SinkCodec.test.ts:571`, the payload
+comment `// missing \`subjectId\`/\`cause\`` that became `// missing \`cause\``. The comment is on an input the change
+leaves malformed for a different reason (it still lacks `cause`; `subjectId` is optional now), 76-03's plan declares the
+edit ("becomes `// missing \`cause\``, its input and expected value unchanged"), and it is not a row: a verification-only
+deviation (the plan's scan allows two rows and imports, and omits this declared comment).
+
+### The exports, the readers and the gates
+
+- `check-api-surface.mjs`: `api-surface: 940 export(s) documented across 9 package(s)`; `spec/overview.md` names
+  `signatureAnswerFromSignatures` and `actedAnswerFromEvents`, keeps the row `| \`ActedEventInput\` | type |
+  \`DecisionHistory.ts\` |`, and names none of `ActedEvent`, `ActedAnywhere`, `ActedAnywhereInput` in a row; none of the
+  three is named under `packages`, `examples` or `features` (the control, `ActedEventInput` in
+  `packages/core/src/DecisionHistory.ts`, is found).
+- `check-house-style.mjs`: `house-style: 584 file(s) clean (3 declared switch(es), 74 type-test file(s))`.
+- The reservation file's sha256 is `07a779c95ed6f98639077d67dedd68179830521c7aeb5adf925ad6b21749836f`, the one `76-01-SUMMARY.md`
+  records; ADR-QD-189, CCR-QD-468, BEH-QD-716 to 720 and INV-QD-397 and 398 (and ARCH-123) each appear in `spec/`.
+
+### Every reader of the two optional error members
+
+`SignatureHistoryUnavailable.subjectId` and `DecisionHistoryUnavailable.event`, the files under `packages/*/src`,
+`apps`, `examples` and `features` that name either error, and every `.event` or `.subjectId` read each holds:
+
+| File | Edited by the phase | Reads |
+| ---- | ------------------- | ----- |
+| `packages/http/src/QadiHttpError.ts` | yes | `error.event` (283) and `error.subjectId` (299) behind a presence test, both pinned by the two rows for a body with no member; `error.subjectId` (461, 462) is `AccessDenied`'s own, in `logDenial` |
+| `packages/core/src/Errors.ts` | yes | `self.subjectId` (256), `AccessDenied`'s projection |
+| `packages/core/src/DecisionHistory.ts` | yes | `query.*`, `question.event`, `leaf.event`, `qadi.event` (a span key): requests and leaves only |
+| `packages/core/src/SignatureHistory.ts` | yes | `query.subjectId`, `input.subjectId`: requests only |
+| `packages/core/src/PortAccess.ts` | yes | `leaf.event` (391) |
+| `packages/devtools/src/model/Remedies.ts` | yes | none |
+| `apps/website/src/content/docs/docs/reference/upgrading.md` | yes | the prose `SignatureHistoryUnavailable.subjectId`, `DecisionHistoryUnavailable.event`: the upgrade note that says each is absent when the request cannot be keyed |
+| `packages/audit/src/SignatureLedger.ts` | no | `pair.subjectId` (71), `entry.subjectId` (169): a pair and an entry |
+| `packages/core/src/Predicate.ts` | no | `context.subjectId` (225) |
+| `packages/core/src/SinkCodec.ts` | no | `wire.subjectId`, `facts.subjectId` (251, 288): the wire and its facts, never an error value |
+| `packages/core/src/EvaluationMetrics.ts` | no | none |
+| `examples/nextjs-newsroom/src/server/ports.ts`, `examples/nextjs-newsroom/test/port-routes.test.ts` | no | none |
+| five pages under `apps/website/src/content/docs/docs/` (`concepts/actions-history.md`, `concepts/signatures.md`, `packages/audit/signatures.md`, `packages/http.md`, `reference/api.md`) | no | none (no read of either member) |
+
+No file the phase did not edit reads either member off an error value.
+
+### The added lines
+
+Over every added line of `packages/` since `bf339146` (the whole diff, comments excluded for code constructs, included
+for suppression comments), the scans find: no `as` other than `as const`, no `!` assertion, `any`, `switch`,
+`Effect.fnUntraced`, `async` or `await`, `console`, `process.env`, `Date.now`, `new Date`, `performance.now` or
+`Record<string, unknown>`; no Stryker suppression comment; no line over 90 columns (counted in characters with
+`perl -CS`); no decision label, plan label, requirement id, phase wording or placeholder in `packages` or `spec`
+outside the revision tables, and none in `scripts`, `.changeset`, `apps` or `AGENTS.md`. Every added test title is one
+string literal, unique in its file and free of a label. Their length: a title the phase wrote with a `\` line
+continuation is held to 90 columns on each source line (the plan's own required titles, such as `a fixture row it cannot
+key is skipped with its refusal and offered no row, while core fails the read`, are longer than 90 characters joined), a
+verification-only deviation recorded in the summary; every other added title is at most 90 characters.
+
+Every scan holds on the final tree.
