@@ -684,14 +684,14 @@ Plans:
   4. The behaviour doc, the invariant, traceability and a `@qadi/core` changeset describe the span change that tracers will see, and ADR-QD-188 extends ADR-QD-051 and ADR-QD-109.
 
 **Planning notes**: Open the phase on the checkpoint: evidence first, then one `AskUserQuestion`. `decideQuestion` in `Lifecycle.ts` is exported but used only in that file; take it as a hygiene note if the file is touched anyway (the review's own footnote, not a requirement).
-**Plans**: 1/9 plans executed (strictly serial, waves 1 to 9)
+**Plans**: 2/9 plans executed (strictly serial, waves 1 to 9)
 
 Plans:
 **Wave 1**
 - [x] 75-01-PLAN.md — base facts, the scorer and the core mutation base, and ADR-QD-188 recording the checkpoint decision before anything under `packages/` changes
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 75-02-PLAN.md — the 33-row contract test on the base: 15 kept rows green, 18 changed rows RED, the failed span's missing question first
+- [x] 75-02-PLAN.md — the 33-row contract test on the base: 15 kept rows green, 18 changed rows RED, the failed span's missing question first
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 75-03-PLAN.md — `EvaluationSpan.ts` with the evaluate span and the denial event; `decideQuestion` annotates its question before the lookup and the outcome under `qadi.outcome`
@@ -746,5 +746,5 @@ Phases execute in numeric order: 69 → 70 → 71 → 72 → 73 → 74 → 75 �
 | 72. A derived store behind the dock model's stores | 8/8 | Complete    | 2026-11-22 |
 | 73. One pure reconcile for gate registration | 7/7 | Complete    | 2026-11-23 |
 | 74. The simulation session's policy choice split from its runs | 7/7 | Complete    | 2026-11-23 |
-| 75. A declared span shape for the evaluate family | 1/9 | In Progress | - |
+| 75. A declared span shape for the evaluate family | 2/9 | In Progress | - |
 | 76. Remedies uses core's signature match | 0/TBD | Not started | - |

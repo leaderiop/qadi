@@ -4,18 +4,18 @@ milestone: v1.8
 milestone_name: Arch Wave 13
 current_phase: 75
 current_phase_name: A declared span shape for the evaluate family
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: Completed 75-01-PLAN.md
-last_updated: "2026-11-23T08:30:05.394Z"
+stopped_at: Completed 75-02-PLAN.md
+last_updated: "2026-11-23T08:34:05.719Z"
 last_activity: 2026-11-23
 last_activity_desc: Phase 74 complete, transitioned to Phase 75
-state_head: e529e08519da0f1af78a150859df3cae2a37d4dc
+state_head: 84379d330970e4301f3a3dd1856c175c075073b1
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 55
-  completed_plans: 47
+  completed_plans: 48
   percent: 75
 ---
 
@@ -31,9 +31,9 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 ## Current Position
 
 Phase: QD-75 (A declared span shape for the evaluate family) — EXECUTING
-Current Plan: 2
+Current Plan: 3
 Total Plans in Phase: 9
-Status: Executing
+Status: Ready to execute
 Last activity: 2026-11-23 — Phase 74 complete, transitioned to Phase 75
 
 
@@ -538,6 +538,7 @@ Last activity: 2026-11-23 — Phase 74 complete, transitioned to Phase 75
 | Phase 74 P06 | 25 min | 2 tasks | 4 files |
 | Phase 74 P07 | 75 min | 3 tasks | 4 files |
 | Phase 75 P01 | 6 min | 2 tasks | 5 files |
+| Phase 75 P02 | 2 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -930,6 +931,7 @@ Last activity: 2026-11-23 — Phase 74 complete, transitioned to Phase 75
 - [Phase 74]: 74-06: the CCR-QD-466 prose names BEH-QD-706 to 710, INV-QD-393/394 and the three dated amendments (decided autonomously)
 - [Phase 74]: 74-07: compare is red on SimulationSession.ts:313, a base survivor (redundant seed disjunct of stale) relocated by a rewritten line; recorded as equivalent, not closed outside the plan's drop-closing paths
 - [Phase 75]: ADR-QD-188: qadi.outcome (Allow, Deny, Failed) is the one outcome key of qadi.evaluate; qadi.decision removed with no dual write; decided autonomously before any source change
+- [Phase 75]: 75-02: the contract's rows hold literal span keys and import nothing from EvaluationSpan.ts; long titles are wrapped, never shortened, so each equals the plan's Title cell
 
 ### Pending Todos
 
@@ -1003,8 +1005,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-23T08:29:58.692Z
-Stopped at: Completed 75-01-PLAN.md
+Last session: 2026-11-23T08:34:05.437Z
+Stopped at: Completed 75-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
