@@ -134,7 +134,15 @@ const EXAMINED = { "packages/core/src/SignatureMatch.ts": { "ArrowFunction () =>
  * survivor it became, and why no test can kill it. An entry admits its close mutant only while the base mutant is in
  * the base record on a rewritten line and the close mutant is in the close record; otherwise the entry is a reason.
  */
-const MOVED = {};
+const MOVED = {
+  "packages/core/src/SignatureHistory.ts": [
+    {
+      base: { status: "Survived", mutator: "ConditionalExpression", replacement: "false", line: 366, column: 11 },
+      close: { status: "Survived", mutator: "ConditionalExpression", replacement: "false", line: 380, column: 17 },
+      why: "the one equivalent survivor the base held, `row.resourceId === undefined ? undefined : makeResourceId(row.resourceId)`: `makeResourceId` is `Brand.nominal`, the identity, so forcing the test false calls it on `undefined` and returns `undefined`, the value the true branch gives. The code review rewrote the line (the row's fields are read through one guarded read), so `compare` no longer carries it. It stays because the type of `pairKey`'s argument admits no unbranded `undefined`, so no cast-free read can drop the test.",
+    },
+  ],
+};
 
 const key = (m, line = m.line) => [m.status, m.mutator, m.replacement, line, m.column].join("\u0000");
 /** A multiset of mutant keys: key -> count. */
@@ -377,6 +385,25 @@ const selfTest = () => {
     ]) {
       const got = judge({ base: b, close, diffs }, [F], () => {}, {}, moved).length;
       if (got !== want) fail([`self-test FAILED: ${name}: ${got} reasons, wanted ${want}`]);
+      passed++;
+    }
+  }
+  // The real MOVED entry: the base survivor it names is in the base record on a line the review's diff rewrote, and it
+  // admits exactly its close survivor, so it cannot go stale or widen unnoticed.
+  {
+    const f = `${R}SignatureHistory.ts`;
+    const entry = MOVED[f][0];
+    const at = (line, column) => ({ ...entry.base, line, column });
+    const b = { files: { [f]: file(71, 72, [at(366, 11)]) } };
+    const dd = { [f]: "@@ -361,6 +363,31 @@\n" };
+    const baseHolds = readJson(`${D}76-mutation-base.json`).groups.core.files[f].open.some((x) => key(x) === key(entry.base));
+    for (const [name, got, want] of [
+      ["the real MOVED entry names a survivor the base record holds", baseHolds ? 0 : 1, 0],
+      ["the real MOVED entry admits its close survivor", judge({ base: b, close: { files: { [f]: file(99, 100, [at(380, 17)]) } }, diffs: dd }, [f], () => {}, {}, MOVED).length, 0],
+      ["the same close survivor without the entry fails", judge({ base: b, close: { files: { [f]: file(99, 100, [at(380, 17)]) } }, diffs: dd }, [f], () => {}, {}, {}).length, 1],
+      ["the real MOVED entry admits no other survivor", judge({ base: b, close: { files: { [f]: file(99, 100, [at(380, 17), at(381, 17)]) } }, diffs: dd }, [f], () => {}, {}, MOVED).length, 1],
+    ]) {
+      if (got !== want) fail([`self-test FAILED: ${name}: ${got}, wanted ${want}`]);
       passed++;
     }
   }
