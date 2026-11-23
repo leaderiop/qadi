@@ -327,3 +327,21 @@ differs from the current one. The disjunct is a redundant guard, the same reason
 needs either the removal of that disjunct and of the question's `seed` field (a change to `SimulationSession.ts`, to the
 exported `SimulationQuestion` type and to BEH-QD-322's "stale covers all three"), or a scorer rule that pairs a
 rewritten line's survivor with its base; neither is a drop-closing path this plan allows, and neither was taken.
+
+## The close on the final tree
+
+Run on the tree after the mutation close commit, `phase_base` `b22d97f9af293734787b3f771400d6f5f6e87065`, with nothing under
+`packages/` changed since the close head `b212d96e28d487637300a8875af1e02c75d3f7cd`:
+
+- The proving grep over `SimulationSession.ts` (`makeHeldChoice|chosen\.|seedEntry|seeded = |leading\(|policyMenuOf|selectedOf|const pin = |pin\(\)|replayInput\(`) prints nothing.
+- The session's code lines (comments excluded) hold one `draft = `, one `resourceText = `, one `run = { _tag: "Idle" }`, two `supersede();` and three `clearRun();`.
+- `SeededChoice.ts` holds no `effect/Effect`.
+- No added source line of `packages/devtools/src` (comments and import lines excluded) holds `as`, a non-null `!`, `any`, `switch (`, `Effect.fnUntraced`, `async` or `await`, `console.`, `process.env`, `Date.now`, `new Date`, `performance.now` or `Record<string, unknown>`; no added test line does, once the three `X as Y,` import-specifier lines of `SeededChoice.tst.ts` (barrel aliases, not assertions) are left out of the reading.
+- No added `packages` line holds a `Stryker disable` or `Stryker restore` comment, and none passes 90 characters (counted with `perl -CS`).
+- No added `packages` or `spec` line holds a decision number, plan id, requirement id, phase wording or placeholder id.
+- The 73 test titles the phase added over five files are unique within their file, at most 82 characters and carry no label.
+- The characterisation was committed first by `e25c8cfd` and changed afterwards only by `5022cec1`, which changed only its import lines: with import statements dropped, the file equals its first commit.
+- `node scripts/check-api-surface.mjs` ends `api-surface: 941 export(s) documented across 9 package(s)`.
+- `AGENTS.md`, `scripts/`, `spec/process/definitions-of-done.md` and `.changeset/` equal `phase_base`.
+
+Every scan holds on the final tree.
