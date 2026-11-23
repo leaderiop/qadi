@@ -85,9 +85,15 @@ export const mapLine = (diffText) => {
 const kind = (m) => `${m.mutator} ${m.replacement}`;
 /**
  * Ignored mutants a close may hold beyond its base, per file and kind, each run by hand and detected there: the group's
- * config spread with `ignoreStatic: false`, run with the group's `--mutate` list. None is admitted at the base.
+ * config spread with `ignoreStatic: false`, run with the group's `--mutate` list. None is admitted at the base. The
+ * close admits seven, each Killed by hand on its own line (`76-RED-EVIDENCE.md`, "Static mutants run by hand"):
+ * `SignatureMatch.ts` holds one more static arrow, `signatureAnswerOf`, the expression-bodied export that builds the
+ * answer the read and the fixture judgement share; `Remedies.ts` holds one more module-scope string, the history
+ * refusal sentence `HISTORY_PORT_REFUSED`, one more object literal, `remedyFor`'s dispatch table, and four more static
+ * arrows, the `Acted`, `Signature` and `Custom` arm closures of that table and `render`, which the table's rewrite
+ * counts under a kind the base held fewer of.
  */
-const EXAMINED = {};
+const EXAMINED = { "packages/core/src/SignatureMatch.ts": { "ArrowFunction () => undefined": 1 }, "packages/devtools/src/model/Remedies.ts": { 'StringLiteral ""': 1, "ObjectLiteral {}": 1, "ArrowFunction () => undefined": 4 } };
 /**
  * Open mutants a rewrite moved, per file: each entry names a base survivor on a line the diff rewrote, the close
  * survivor it became, and why no test can kill it. An entry admits its close mutant only while the base mutant is in
