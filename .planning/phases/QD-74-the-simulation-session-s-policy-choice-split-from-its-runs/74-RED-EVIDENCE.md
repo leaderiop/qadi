@@ -135,3 +135,108 @@ Error: Type '{ readonly _tag: "Empty"; } | { readonly _tag: "Gutted"; } | { read
 
   at ./packages/devtools/test/model/SeededChoice.tst.ts:32:5 ❭ the first three arms of PolicyChoice are HeldChoice of PolicySighting
 ```
+
+## Each run clear and draft rule gutted once
+
+Each gut is a scratch edit to `packages/devtools/src/model/SimulationSession.ts` on the working tree, made on `0caa34a68c6795f85b82c8df78e677335a6618ab`.
+Each was run, its report saved, and then reverted with `git checkout -- packages/devtools/src/model/SimulationSession.ts`; no
+gut was committed, and `git status --porcelain -- packages` read empty after the last revert. Every gut runs
+
+```
+pnpm exec vitest run --project devtools packages/devtools/test/model/SimulationSession.characterisation.test.ts --reporter=json --outputFile=<report>
+```
+
+and the failing titles below are the ones the report names; every other row of the file passed in that run.
+
+### clear-reseed
+
+Edit: `reseed` does not call `clearRun`, so seeding leaves the run in place.
+
+Result: 2 failed, 33 passed. Failing titles:
+
+- `seeding a row after a run clears it, and a new run checks the row`
+- `replaying the held row re-seeds the edited form and clears the run`
+
+First failure lines:
+
+```
+AssertionError: expected { …(8) } to deeply equal { …(8) }
+    at packages/devtools/test/model/SimulationSession.characterisation.test.ts:733:14
+```
+
+### clear-choose
+
+Edit: `choosePolicy` does not call `clearRun`, so choosing another policy leaves the run in place.
+
+Result: 2 failed, 33 passed. Failing titles:
+
+- `choosing another policy after a run clears it, so nothing is stale`
+- `choosing the held policy after a run clears the run, notifying once`
+
+First failure lines:
+
+```
+AssertionError: expected { …(8) } to deeply equal { …(8) }
+    at packages/devtools/test/model/SimulationSession.characterisation.test.ts:710:14
+```
+
+### clear-ports
+
+Edit: `setPorts` does not call `clearRun`, so new ports leave a running run in place.
+
+Result: 1 failed, 34 passed. Failing title:
+
+- `new ports during a run clear it and stop it`
+
+First failure lines:
+
+```
+AssertionError: expected { …(8) } to deeply equal { draft: { …(2) }, …(7) }
+    at packages/devtools/test/model/SimulationSession.characterisation.test.ts:843:14
+```
+
+### idle
+
+Edit: `choosePolicy` returns whenever `choose` answered its input, whatever the run, instead of only while the run is `Idle`.
+
+Result: 1 failed, 34 passed. Failing title:
+
+- `choosing the held policy after a run clears the run, notifying once`
+
+First failure lines:
+
+```
+AssertionError: expected { …(8) } to deeply equal { …(8) }
+    at packages/devtools/test/model/SimulationSession.characterisation.test.ts:462:14
+```
+
+### draft-noop
+
+Edit: `writeDraft` drops its first line, so the draft already held is written and published again.
+
+Result: 1 failed, 34 passed. Failing title:
+
+- `editing to the draft it holds changes nothing`
+
+First failure lines:
+
+```
+AssertionError: expected 1 to equal +0
+    at packages/devtools/test/model/SimulationSession.characterisation.test.ts:884:14
+```
+
+### draft-text
+
+Edit: Without `text`, `writeDraft` always re-encodes the resource text from the draft.
+
+Result: 2 failed, 33 passed. Failing titles:
+
+- `an edit that keeps the resource keeps the typed resource text`
+- `renaming to the current id changes nothing, and a rename keeps the text`
+
+First failure lines:
+
+```
+AssertionError: expected { …(8) } to deeply equal { draft: { …(3) }, …(7) }
+    at packages/devtools/test/model/SimulationSession.characterisation.test.ts:916:14
+```
