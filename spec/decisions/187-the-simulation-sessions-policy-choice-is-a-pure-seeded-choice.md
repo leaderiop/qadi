@@ -75,15 +75,14 @@ clears was missed: each was a rule restated by hand beside its twin.
 8. **The session keeps runs and the form.** It holds one `let choice: SeededChoice`; the
    mutable values and the readings and menu functions the module replaces leave its file.
    `stale` stays in the session, because it compares a run's question with the form.
-9. **One clear.** Once the session is built, `writeDraft` is the one place the draft and its
-   resource text are assigned, and `clearRun` is the one operation that stops the run in
-   flight and sets it `Idle`, called from `reseed`, `choosePolicy` and `setPorts`. `start`'s
-   `Refused` path still calls `supersede`, because it sets `Refused`, not `Idle`, and so is
-   not a clear.
-10. **One draft path.** `edit`, `reseed`, `editResourceText` and `renameSubject` reach the
-    draft only through `writeDraft`, which holds the no-op rule and the resource-text rule;
-    `renameSubject` goes through `edit`, since a rename never touches the resource. `edit`'s
-    comment, which says it is the one path, is true.
+9. **One clear.** `clearRun` is the one operation that stops the run in flight and sets it
+   `Idle`, called from `reseed`, `choosePolicy` and `setPorts`. `start`'s `Refused` path
+   still calls `supersede`, because it sets `Refused`, not `Idle`, and so is not a clear.
+10. **One draft path.** Once the session is built, `writeDraft` is the one place the draft
+    and its resource text are assigned, and it holds the no-op rule and the resource-text
+    rule. `edit`, `reseed`, `editResourceText` and `renameSubject` reach the draft only
+    through it; `renameSubject` goes through `edit`, since a rename never touches the
+    resource. The session's header names `writeDraft` the one place.
 
 This decision and its shape were decided autonomously on 2026-11-23 under the owner's
 instruction to take the most complete, clean option: the choice as a value with transitions
