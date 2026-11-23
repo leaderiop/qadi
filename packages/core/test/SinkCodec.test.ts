@@ -34,6 +34,7 @@ import {
 } from "../src/Errors.ts";
 import { EncodeRefusal } from "../src/JsonRefusal.ts";
 import { DecodeRefusal, WIRE_VERSIONS } from "../src/SinkWire.ts";
+import { signatureHistoryPort } from "../src/SignatureHistory.ts";
 import { MAX_DECODE_DEPTH } from "../src/UntrustedDecode.ts";
 import type { EvaluationError } from "../src/Errors.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
@@ -568,7 +569,7 @@ describe("the wire is untrusted", () => {
         { _tag: "MissingResourceId" }, // missing `relation`
         { _tag: "DecisionHistoryUnavailable", event: "approved" }, // missing `cause`
         { _tag: "PolicyTooDeep" }, // missing `maxDepth`
-        { _tag: "SignatureHistoryUnavailable" }, // missing `subjectId`/`cause`
+        { _tag: "SignatureHistoryUnavailable" }, // missing `cause`
         { _tag: "AttributeResolveError", attribute: "x" }, // missing `cause`
       ];
 
@@ -2538,4 +2539,49 @@ describe("decodeSinkRecordWithJson: the record and its JSON form from one decode
       assert.deepStrictEqual(both.failure, alone.failure);
     }
   });
+});
+
+/**
+ * A member the error could not fill is absent on the wire, not present as
+ * `undefined` and not refused on decode: a signature read whose request the key
+ * refuses fails with no subject id (BEH-QD-410), and its record is read back as
+ * written.
+ */
+describe("an error member a refused request could not fill stays absent \
+across the wire", () => {
+  it.effect(
+    "a SignatureHistoryUnavailable with no subject id round-trips \
+without one",
+    () =>
+      Effect.gen(function* () {
+        // `JSON.parse` returns `any`, which is what an untyped JavaScript caller
+        // hands over (no `as`); a symbol is the one value it cannot carry.
+        const refused = JSON.parse("{}");
+        refused.subjectId = Symbol("alice");
+        const error = signatureHistoryPort.failure([refused], "store down");
+        const encoded = jsonOf(
+          new DecisionRecord({
+            evaluationId: "e",
+            at: 0,
+            subjectId: makeSubjectId("u1"),
+            policy: P.hasPermission(read),
+            outcome: new Failed({ error }),
+          }),
+        );
+        const wire = wireErrorOf(encoded);
+        assert.isTrue(Predicate.isObject(wire));
+        if (Predicate.isObject(wire)) assert.isFalse(Object.hasOwn(wire, "subjectId"));
+
+        const decoded = yield* decodeEffect(JSON.parse(JSON.stringify(encoded)));
+        const failure =
+          decoded._tag === "Decision" && decoded.outcome._tag === "Failed"
+            ? decoded.outcome.error
+            : undefined;
+        assert.instanceOf(failure, SignatureHistoryUnavailable);
+        if (failure instanceof SignatureHistoryUnavailable) {
+          assert.isFalse(Object.hasOwn(failure, "subjectId"));
+          assert.strictEqual(failure.cause, "store down");
+        }
+      }),
+  );
 });

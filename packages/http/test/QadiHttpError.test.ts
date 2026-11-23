@@ -22,6 +22,7 @@ import {
   classifyEnforcementError,
   makeResourceId,
   makeSubjectId,
+  signatureHistoryPort,
 } from "@qadi/core";
 import { collectingLogger } from "@qadi/testing";
 import * as Effect from "effect/Effect";
@@ -356,6 +357,21 @@ describe("ENFORCEMENT_ERROR_WIRE", () => {
     expect(unscoped).toEqual({ _tag: "SignatureHistoryUnavailable", subjectId });
     expect("resourceId" in unscoped).toBe(false);
   });
+
+  it(
+    "the SignatureHistoryUnavailable projection and response body carry no \
+subject id when the error has none",
+    () => {
+      // `JSON.parse` returns `any`, which is what an untyped JavaScript caller
+      // hands over (no `as`); a symbol is the one value it cannot carry.
+      const refused = JSON.parse("{}");
+      refused.subjectId = Symbol("alice");
+      const error = signatureHistoryPort.failure([refused], "store down");
+      const bare = { _tag: "SignatureHistoryUnavailable" };
+      expect(projectHttpEnforcementFailure(error)).toEqual(bare);
+      expect(Schema.encodeSync(SignatureHistoryUnavailableResponse)(error)).toEqual(bare);
+    },
+  );
 
   it("the projection of a real AccessDenied drops the trace before the encoder", () => {
     const projected = projectHttpEnforcementFailure(everyHttpEnforcementFailure.AccessDenied());

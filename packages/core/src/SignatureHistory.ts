@@ -203,6 +203,9 @@ const signatureServing: PortServingFacet<"SignatureHistory", [query: SignatureQu
   declare: ({ asked }) => (asked ? { SignatureHistory: { signatures: "own-records" } } : {}),
 };
 
+const isSubjectId = Schema.is(SubjectIdSchema);
+const isResourceId = Schema.is(ResourceIdSchema);
+
 /**
  * The signature-history port, described once (`PortDescription.ts`).
  *
@@ -282,10 +285,12 @@ export const signatureHistoryPort: PortDescription<
   service: SignatureHistory,
   invoke: (shape) => (query) => shape.signaturesFor(query),
   make: (name, call) => ({ name, signaturesFor: call }),
+  // Each member is set only when its schema admits the request's value, so a
+  // refused request fails as this error and never as a defect.
   failure: ([query], cause) =>
     new SignatureHistoryUnavailable({
-      subjectId: query.subjectId,
-      resourceId: query.resourceId,
+      ...(isSubjectId(query.subjectId) ? { subjectId: query.subjectId } : {}),
+      ...(isResourceId(query.resourceId) ? { resourceId: query.resourceId } : {}),
       cause,
     }),
   none: { name: "SignatureHistoryNone", answer: NO_SIGNATURES },

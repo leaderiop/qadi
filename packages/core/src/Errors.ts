@@ -125,11 +125,15 @@ export class DecisionHistoryUnavailable extends Schema.TaggedError<DecisionHisto
 /**
  * A wired `SignatureHistory` store could not be reached. Distinct from it
  * legitimately answering "no matching signatures" — see `SignatureHistory.ts`.
+ *
+ * The subject id is absent exactly when the request's subject id is not a
+ * string, which only a request the key refuses can hold; the cause then carries
+ * `describeKeyRefusal`'s sentence, which names it (BEH-QD-410).
  */
 export class SignatureHistoryUnavailable extends Schema.TaggedError<SignatureHistoryUnavailable>()(
   "SignatureHistoryUnavailable",
   {
-    subjectId: SubjectIdSchema,
+    subjectId: Schema.optional(SubjectIdSchema),
     // `Schema.optional`, not `Schema.UndefinedOr` — see `MissingAction.expected`'s
     // doc comment above for why: a JSON round-trip turns `undefined` into an
     // absent key, which only `optional` tolerates on decode.

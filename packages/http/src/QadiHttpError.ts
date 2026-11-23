@@ -203,9 +203,11 @@ const wire = <K extends HttpEnforcementTag, S extends Schema.Top & { readonly Ty
  * straight into a client-visible 502 body — a resolver's connection string, a
  * stack-shaped object, whatever the backing store actually threw. Those five
  * are independently declared `Schema.TaggedStruct`s covering only the safe
- * fields, and their `project` picks exactly those fields. The middleware still
- * *fails* with the real class instance up to the projection (for logs, and for
- * `SinkCodec.ts`'s wire, per ADR-QD-060). `CustomPredicateError`'s wire view
+ * fields, and their `project` picks exactly those fields; a member the error
+ * could not fill (`SignatureHistoryUnavailable`'s subject id, as its resource
+ * id) is absent from the body. The middleware still *fails* with the real class
+ * instance up to the projection (for logs, and for `SinkCodec.ts`'s wire, per
+ * ADR-QD-060). `CustomPredicateError`'s wire view
  * drops `reason` entirely rather than half of it: the field conflates an
  * unregistered-name message with `Cause.pretty` output under one untyped
  * string (JD-02) and nothing at this boundary can tell which one a given value
@@ -284,13 +286,14 @@ export const ENFORCEMENT_ERROR_WIRE = {
   SignatureHistoryUnavailable: wire(
     "SignatureHistoryUnavailable",
     Schema.TaggedStruct("SignatureHistoryUnavailable", {
-      subjectId: SubjectIdSchema,
+      subjectId: Schema.optional(SubjectIdSchema),
       resourceId: Schema.optional(ResourceIdSchema),
     }),
-    (error) =>
-      error.resourceId === undefined
-        ? { _tag: error._tag, subjectId: error.subjectId }
-        : { _tag: error._tag, subjectId: error.subjectId, resourceId: error.resourceId },
+    (error) => ({
+      _tag: error._tag,
+      ...(error.subjectId === undefined ? {} : { subjectId: error.subjectId }),
+      ...(error.resourceId === undefined ? {} : { resourceId: error.resourceId }),
+    }),
   ),
   MissingAction: wire("MissingAction", MissingAction, (error) => error),
   MissingResource: wire("MissingResource", MissingResource, (error) => error),
