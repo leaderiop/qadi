@@ -1125,3 +1125,23 @@ A failed `qadi.evaluate` span used to carry only `qadi.outcome` and `qadi.error_
 Every evaluation now annotates its span twice, the question and then the answer, where it annotated once. The cost is recorded in the decision.
 
 The decision is [ADR-QD-188](https://github.com/leaderiop/qadi/blob/main/spec/decisions/188-the-evaluate-familys-spans-are-declared-once-and-a-failed-span-says-what-was-asked.md).
+
+## 0.13: `ActedEvent`, `ActedAnywhere` and `ActedAnywhereInput` are removed, and two history errors may omit a member
+
+`ActedEvent`, `ActedAnywhere` and `ActedAnywhereInput` are removed from `@qadi/core`. A host that built its own set of history rows from them keys its rows with `decisionHistoryPort.key`, as `decisionHistoryFromEvents` does; `ActedEventInput`, the row `decisionHistoryFromEvents` takes, stays.
+
+`SignatureHistoryUnavailable.subjectId` and `DecisionHistoryUnavailable.event` are optional. Each is absent exactly when a request the port's key refused held a value the member's schema refuses, a subject id or an event that is not a string, and the error's `cause` then names the refusal. A reader of a sink record, or of `@qadi/http`'s `SignatureHistoryUnavailableResponse` and `DecisionHistoryUnavailableResponse`, checks for the member before reading it, and a decoder of a stored record accepts it absent.
+
+The two fixtures also fail a request or a row they cannot key, where they used to misanswer: a history set with such a row answered `"NotActed"`, which `hasNotActed` reads as an allow.
+
+| Change | Before | After |
+| ------ | ------ | ----- |
+| `ActedEvent` | a class exported by `@qadi/core` | removed; key a row with `decisionHistoryPort.key` |
+| `ActedAnywhere` | a class exported by `@qadi/core` | removed; key a row with `decisionHistoryPort.key` |
+| `ActedAnywhereInput` | the input type of `ActedAnywhere` | removed with it |
+| `SignatureHistoryUnavailable.subjectId` | always present | optional, absent when the request's subject id was not a string |
+| `DecisionHistoryUnavailable.event` | always present | optional, absent when the request's event was not a string |
+| `decisionHistoryFromEvents`, a row or request it cannot key | answered `"NotActed"` or threw | fails with `DecisionHistoryUnavailable` |
+| `signatureHistoryFromSignatures`, a request it cannot key | the read died | fails with `SignatureHistoryUnavailable` |
+
+The decision is [ADR-QD-189](https://github.com/leaderiop/qadi/blob/main/spec/decisions/189-remedies-asks-core-whether-a-fixture-row-meets-a-signature-or-acted-leaf.md).
