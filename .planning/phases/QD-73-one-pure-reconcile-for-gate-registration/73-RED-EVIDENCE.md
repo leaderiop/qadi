@@ -238,3 +238,36 @@ Result for each replacement: `passed` (all six titles above).
 The 37 titles are the 40 of the file before the trim minus the three above, in the same order. The whole react
 project passes (653 tests), `pnpm typecheck` and oxlint on the file are clean, and `packages/react/src`, the
 characterisation and `packages/react/test/support` are unchanged.
+
+## The close on the final tree
+
+Head scanned: `f109881ba2519d77b7c41c1c58bfd16562374655`. Nothing under `packages/` differs from the head the mutation
+close was measured on (`86032b43e7510a912df2d47d5c168d80f152c463`).
+
+| Scan | Command, from the repository root | Result |
+|------|------------------------------------|--------|
+| the proving grep | `grep -nE "states\.join\|Record\.values\|stableRef\|statesRef\|latest\.current\|GateCurrent\|wanted\.find\|current\[i\]\|a\.id === b\.id\|\?\? \"Pending\"\|identities\.every\|wanted\.set\(" packages/react/src/useGate.ts packages/react/src/GateWriter.ts` | no output |
+| the hook's shape | `grep -cE "useEffect\(" packages/react/src/useGate.ts` and `grep -cE "= useRef" packages/react/src/useGate.ts` | 2 effects, 2 refs; `Record.values` does not occur (the proving grep covers it) |
+| added source lines | `git diff -U0 <phase_base> -- packages/react/src`, comments and imports dropped, scanned for `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`, `await`, `console.`, `process.env`, `Date.now`, `new Date`, `performance.now`, `Record<string, unknown>` | no hit |
+| added test lines | the same over `packages/react/test`, for `as`, `!`, `any`, `switch`, `Record<string, unknown>` | no hit |
+| suppression comments | `git diff -U0 <phase_base> -- packages`, for a mutation-suppression comment | no hit |
+| line width | every added `packages` line, length over 90 columns | none |
+| labels | every added `packages` and `spec` line, for a decision number, plan id, requirement id, case label or phase-relative wording | one hit, fixed in `f109881b` (below), none after |
+| the characterisation | `git log --format=%h <phase_base>..HEAD -- packages/react/test/GateRegistration.characterisation.test.tsx` | one commit, `2680ab4d` |
+| the api surface | `node scripts/check-api-surface.mjs` | `api-surface: 941 export(s) documented across 9 package(s)` |
+| untouched files | `git diff --quiet <phase_base> -- spec/overview.md AGENTS.md scripts spec/process/definitions-of-done.md .changeset` | equal to the base |
+
+The one label hit was the added line of ADR-QD-111's amendment that named the decisions-table row it points at by the
+row's own label. It now says "its row in the table above"; the older amendment's line naming the row is not an added line.
+
+Titles added since `<phase_base>`, each unique in its file, at most 90 characters, with no label (file, count, longest):
+
+| File | Titles added | Longest |
+|------|--------------|---------|
+| `GateWriter.reconcile.test.ts` | 17 | 80 |
+| `GateWriter.test.tsx` | 2 (`an unchanged state makes no notification and keeps the id`, 57; `a reconcile that throws leaves nothing registered once the hook unmounts`, 72) | 72 |
+| `GateRegistration.characterisation.test.tsx` | 19 | 80 |
+| `GateWriter.reconcile.tst.ts` | 5 | 65 |
+| `GateRegistry.test.tsx` | 0 (37 titles, three moved out) | none |
+
+RECN-03 is closed under the reading of ADR-QD-186: one registration effect beside the writer-keyed teardown (Decision item 7).
