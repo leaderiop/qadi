@@ -11,6 +11,7 @@ import { makeSubject } from "../src/AuthSubject.ts";
 import { SignatureHistoryUnavailable } from "../src/Errors.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import { hasSignature } from "../src/Policy.ts";
+import { askSignature } from "../src/PortAccess.ts";
 import { describeKeyRefusal, KeyRefusal } from "../src/PortDescription.ts";
 import {
   SignatureHistory,
@@ -280,4 +281,40 @@ describe("signatureHistoryPort's wire", () => {
     if (Result.isFailure(encoded)) return assert.fail(encoded.failure);
     assert.deepStrictEqual(encoded.success, { subjectId: "alice" });
   });
+});
+
+describe("a signature read whose request the key refuses", () => {
+  // `JSON.parse` returns `any`, which is what an untyped JavaScript caller hands
+  // over (no `as`); a symbol is the one value it cannot carry, so it is set on the
+  // parsed object afterwards.
+  it.effect(
+    "fails as \
+SignatureHistoryUnavailable with no subject id and the refusal as \
+its cause, never dying",
+    () =>
+      Effect.gen(function* () {
+        const untyped = JSON.parse('{"roles":[],"permissions":[],"attributes":{}}');
+        untyped.id = Symbol("alice");
+        const subject = makeSubject(untyped);
+        const leaf = leafOf("HasSignature", hasSignature("approved", { scope: "Any" }));
+        const asked = signatureHistoryPort.asks.HasSignature(leaf, {
+          subject,
+          resource: undefined,
+        });
+        const refusal = signatureHistoryPort.key(asked);
+        if (Result.isSuccess(refusal)) return assert.fail("the key admitted the request");
+
+        const result = yield* Effect.result(
+          askSignature(subject, leaf, undefined).pipe(
+            Effect.provide(signatureHistoryFromSignatures([])),
+          ),
+        );
+        if (Result.isSuccess(result)) return assert.fail("the read answered");
+        if (result.failure._tag !== "SignatureHistoryUnavailable") {
+          return assert.fail(result.failure._tag);
+        }
+        assert.isFalse(Object.hasOwn(result.failure, "subjectId"));
+        assert.strictEqual(result.failure.cause, describeKeyRefusal(refusal.failure));
+      }),
+  );
 });
