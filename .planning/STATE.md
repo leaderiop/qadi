@@ -26,7 +26,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-22)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 75 — A declared span shape for the evaluate family
+**Current focus:** Phase 76 — Remedies uses core's signature match
 
 ## Current Position
 
@@ -910,6 +910,7 @@ Last activity: 2026-11-23 — Phase 75 complete, transitioned to Phase 76
 - [Phase 71]: 71-07: the invariants and behaviours say which guarantees only a named test holds (resolution timing, each row's condition, the entry point's own name), decided autonomously
 - [Phase 71]: 71-08: equivalent mutants removed by changing the source (stale-free snapshot, entry read from the handle, everywhere-row overload) rather than re-baselining; table static mutants admitted via EXAMINED after a by-hand run killed all 80
 - [Phase 71]: Code review (3 iterations, 24 findings, all fixed): the InstrumentedInProduction condition is stated only in its row and QadiProvider reads it through `holdsHere`; `ReporterThrew`'s default is read through `unconditionally`; MODULE_STATE_BUDGET counts module-scope bindings through a syntax-tree scan run by the shared `scripts/lib/typescript-server-child.mjs`, which both gates use; INV-QD-064/251/388 corrected; three review-added static mutants admitted after a by-hand kill and all five groups re-closed at 43c0b44e (decided autonomously)
+- [Phase 75]: Code review (3 iterations, 36 findings, all handled; disposition 0 of 17 open): the outcome is written on every decided or typed-failure path and an interrupted or defected evaluation carries its question and no outcome; a family question is held to `PoseOf` (`annotateAsked`, `askedAttributes`); a `LogEventStruct` is refused by every span-writing function, a raw `annotateCurrentSpan` or an upcast kept by review; every family span name comes from the declaration; the contract is held to its first commit by `75-contract-check.mjs` (28 self-test cases); mutation re-closed at 6e1ffc3e on one head, Lifecycle 38/38, Predicate 282/282, SubjectSet 32/32, GuardHealthCheck 9/9 (both base survivors gone), EvaluationSpan.ts 3/3 and PortSpanEncode.ts's added lines with every static mutant killed by hand; cost +9.17% at 24ca9e2a (decided autonomously)
 - [Phase 74]: Code review (3 iterations, 25 findings, all fixed): a no-op seeding answers its input reference; staleness keeps its policy and seed disjuncts (BEH-QD-322); the characterisation is held to its first commit by `74-characterisation-check.mjs` (every statement, import kind and fixture helper it reads; 49 self-test cases); shared helpers live once in `simulationFixtures.ts`/`helpers.ts`, with 19 further devtools test files folded onto them; every review edit to a spec document is a revision; mutation re-closed at 1ae6035b, SimulationSession.ts 244/248 (base 325/331), HeldChoice.ts 63/63, SeededChoice.ts 122/122 with its 11 static mutants killed by hand, the seed disjunct's base survivor paired through `MOVED` (decided autonomously)
 - [Phase 73]: Code review (3 iterations, 21 findings, all fixed): `reconcile`'s rollback/AggregateError path removed as unreachable, the writer contract stated once on `GateWriter` and pinned on the real registry; `sameIdentity` module-private; one-consumer test helpers moved back to their consumer; validation added one real-registry notification test; mutation re-closed at 37e85311, GateWriter.ts 83/83, useGate.ts 44/45 (an equivalent survivor the base had) (decided autonomously)
 - [Phase 72]: Code review (3 iterations, 25 findings, all fixed): `sameFields` compares only own enumerable string-keyed fields; the finalizer is registered before parents are subscribed and releases every parent even when one throws, then rethrows through `throwCollected` (shared with `notify`); shared test helpers moved to `dockModelFixtures.ts`/`helpers.ts`; the store-list test compares as a set; validation added one order assertion; mutation re-closed at ed8d487f, DockModel.ts 70/70, ExternalStore.ts 77/78 (the base's survivor) (decided autonomously)
@@ -1030,4 +1031,4 @@ Resume file: None
 
 
 
-- Plan Phase 75 with /gsd-plan-phase 75 (Phase 75 carries a human checkpoint and Phase 76 an owner question, each decided autonomously in this run)
+- Plan Phase 76 with /gsd-plan-phase 76 (Phase 76 carries an owner question, decided autonomously under the standing autonomous-run instruction)
