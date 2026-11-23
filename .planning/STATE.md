@@ -2,21 +2,21 @@
 gsd_state_version: "1.0"
 milestone: v1.8
 milestone_name: Arch Wave 13
-current_phase: 74
-current_phase_name: The simulation session's policy choice split from its runs
-current_plan: 7
-status: verifying
-stopped_at: Completed 74-07-PLAN.md
-last_updated: "2026-11-23T04:55:51.021Z"
+current_phase: 75
+current_phase_name: A declared span shape for the evaluate family
+current_plan: Not started
+status: planning
+stopped_at: Phase 74 complete, ready to plan Phase 75
+last_updated: "2026-11-23T06:54:24.365Z"
 last_activity: 2026-11-23
-last_activity_desc: Phase 73 complete, transitioned to Phase 74
-state_head: 2a03fc6f408f616305a5db674387b5ed7279a161
+last_activity_desc: Phase 74 complete, transitioned to Phase 75
+state_head: 4d39763d685027adcbadde27ff009742d6341822
 progress:
   total_phases: 8
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 46
   completed_plans: 46
-  percent: 63
+  percent: 75
 ---
 
 # Project State
@@ -30,17 +30,17 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 
 ## Current Position
 
-Phase: 74 (The simulation session's policy choice split from its runs) — READY TO EXECUTE
-Current Plan: 7
+Phase: 75 — A declared span shape for the evaluate family
+Current Plan: Not started
 Total Plans in Phase: 7
-Status: Phase complete — ready for verification
-Last activity: 2026-11-23 — Phase 73 complete, transitioned to Phase 74
+Status: Ready to plan
+Last activity: 2026-11-23 — Phase 74 complete, transitioned to Phase 75
 
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 418
+- Total plans completed: 425
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -112,6 +112,7 @@ Last activity: 2026-11-23 — Phase 73 complete, transitioned to Phase 74
 | 71 | 8 | - | - |
 | 72 | 8 | - | - |
 | 73 | 7 | - | - |
+| 74 | 7 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -1000,7 +1001,7 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 ## Session Continuity
 
 Last session: 2026-11-23T04:55:50.736Z
-Stopped at: Completed 74-07-PLAN.md
+Stopped at: Phase 74 complete, ready to plan Phase 75
 Resume file: None
 
 ## Operator Next Steps
