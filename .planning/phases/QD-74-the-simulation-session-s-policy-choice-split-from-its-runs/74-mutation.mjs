@@ -71,6 +71,20 @@ const kind = (m) => `${m.mutator} ${m.replacement}`;
  * config spread with `ignoreStatic: false`, run with `--mutate <file>`. Empty until a close needs one.
  */
 const EXAMINED = { "packages/devtools/src/model/SeededChoice.ts": { 'ArrowFunction () => undefined': 10, 'ObjectLiteral {}': 1 } };
+/**
+ * Open mutants a rewrite moved, per file: each entry names a base survivor on a line the diff rewrote, the close
+ * survivor it became, and why no test can kill it. An entry admits its close mutant only while the base mutant is in
+ * the base record on a rewritten line and the close mutant is in the close record; otherwise the entry is a reason.
+ */
+const MOVED = {
+  "packages/devtools/src/model/SimulationSession.ts": [
+    {
+      base: { status: "Survived", mutator: "ConditionalExpression", replacement: "false", line: 404, column: 9 },
+      close: { status: "Survived", mutator: "ConditionalExpression", replacement: "false", line: 313, column: 9 },
+      why: "question.seed !== seed: reseed and choosePolicy, the only commands that move the seed, both clear the run",
+    },
+  ],
+};
 
 const key = (m, line = m.line) => [m.status, m.mutator, m.replacement, line, m.column].join("\u0000");
 /** A multiset of mutant keys: key -> count. */
@@ -124,7 +138,7 @@ const tally = (reportFile, files) => {
  * A fall in the score is a reason only when the file also has a new open mutant: a score that fell because the code
  * holding killed mutants was deleted passes, and any new Survived or NoCoverage mutant fails.
  */
-export const judge = ({ base, close, diffs }, files, log = console.log, examined = EXAMINED) => {
+export const judge = ({ base, close, diffs }, files, log = console.log, examined = EXAMINED, moved = {}) => {
   const bad = [];
   for (const file of files) {
     const b = base.files[file];
@@ -140,7 +154,16 @@ export const judge = ({ base, close, diffs }, files, log = console.log, examined
     };
     // Integer cross-multiplication, so no rounded float decides whether a score fell.
     const fell = c.detected * b.valid < b.detected * c.valid;
-    const open = beyond(c.open, (x) => key(x), bag(b.open, atBase));
+    const allowedOpen = bag(b.open, atBase);
+    for (const e of moved[file] ?? []) {
+      const inBase = b.open.some((x) => key(x) === key(e.base));
+      if (!inBase || toClose(e.base.line) !== undefined) {
+        bad.push(`${file}: a MOVED entry names no base survivor on a rewritten line: ${e.base.line}`);
+      } else if (!c.open.some((x) => key(x) === key(e.close))) {
+        bad.push(`${file}: a MOVED entry the close no longer needs: ${e.close.line}`);
+      } else allowedOpen.set(key(e.close), (allowedOpen.get(key(e.close)) ?? 0) + 1);
+    }
+    const open = beyond(c.open, (x) => key(x), allowedOpen);
     if (fell && open.length > 0) bad.push(`${file} fell from ${b.detected}/${b.valid} to ${c.detected}/${c.valid}`);
     for (const m of open) bad.push(`${file}:${m.line} has a new ${m.status} mutant: ${m.mutator} -> ${m.replacement}`);
     // An Ignored (static) mutant never runs, so where it sits tests nothing: a line the phase rewrites moves its static
@@ -237,7 +260,7 @@ const compare = () => {
     }
     if (base.invocation !== invocation(group) || close.invocation !== invocation(group)) bad.push(`a ${group} record was not made by the recorded invocation`);
     const diffs = Object.fromEntries(files.map((file) => [file, git("diff", "-U0", base.head, close.head, "--", file)]));
-    bad.push(...judge({ base, close, diffs }, files));
+    bad.push(...judge({ base, close, diffs }, files, console.log, EXAMINED, MOVED));
   }
   if (bad.length > 0) fail(bad);
   console.log("no file has an open or Ignored mutant its base did not have, and every score that fell lost only killed mutants");
@@ -291,6 +314,21 @@ const selfTest = () => {
     const got = judge({ base, close, diffs }, [F], () => {}, { [F]: { [kind(m("Ignored", 3))]: 1 } }).length;
     if (got !== want) fail([`self-test FAILED: ${name}: ${got} reasons, wanted ${want}`]);
     passed++;
+  }
+  // A MOVED entry admits exactly the close survivor a rewrite made of a base survivor, and a stale entry fails.
+  {
+    const rewritten = { files: { [F]: file(42, 43, [m("Survived", 10)], [m("Ignored", 3)]) } };
+    const entry = (b, c) => ({ [F]: [{ base: m("Survived", b), close: m("Survived", c), why: "planted" }] });
+    for (const [name, b, close, moved, want] of [
+      ["a survivor a rewrite moved, named in MOVED, is not new", rewritten, closeOf(file(42, 43, [m("Survived", 9)], [m("Ignored", 3)])), entry(10, 9), 0],
+      ["the same moved survivor without its MOVED entry fails", rewritten, closeOf(file(42, 43, [m("Survived", 9)], [m("Ignored", 3)])), {}, 1],
+      ["a MOVED entry whose base line the diff did not rewrite fails", base, closeOf(file(42, 43, [m("Survived", 19)], [m("Ignored", 3)])), entry(20, 19), 1],
+      ["a MOVED entry the close no longer needs fails", rewritten, closeOf(file(43, 43, [], [m("Ignored", 3)])), entry(10, 9), 1],
+    ]) {
+      const got = judge({ base: b, close, diffs }, [F], () => {}, {}, moved).length;
+      if (got !== want) fail([`self-test FAILED: ${name}: ${got} reasons, wanted ${want}`]);
+      passed++;
+    }
   }
   // A fall with no new open mutant: the killed mutants went with the code that held them.
   {

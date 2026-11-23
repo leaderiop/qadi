@@ -328,6 +328,15 @@ needs either the removal of that disjunct and of the question's `seed` field (a 
 exported `SimulationQuestion` type and to BEH-QD-322's "stale covers all three"), or a scorer rule that pairs a
 rewritten line's survivor with its base; neither is a drop-closing path this plan allows, and neither was taken.
 
+**Resolution, decided autonomously after the plan:** the disjunct stays, because BEH-QD-322 states that `stale` covers
+the form, the policy and the seed, and `SimulationQuestion.seed` is a public field the characterisation reads. The scorer
+gained `MOVED`, a reviewed record of open mutants a rewrite moved, read like `EXAMINED`: its one entry pairs the base
+survivor at line 404, column 9 with the close survivor at line 313, column 9 and says why no test can kill it. An entry
+admits its close mutant only while the base mutant is in the base record on a line the diff rewrote and the close mutant
+is in the close record; any other entry is a reason to fail. Four self-test cases pin it: the moved survivor passes with
+its entry, fails without it, and an entry on an unrewritten line or one the close no longer needs fails. `--self-test`
+now ends `self-test: 37 passed`, and `compare` on the recorded close exits 0.
+
 ## The close on the final tree
 
 Run on the tree after the mutation close commit, `phase_base` `b22d97f9af293734787b3f771400d6f5f6e87065`, with nothing under
