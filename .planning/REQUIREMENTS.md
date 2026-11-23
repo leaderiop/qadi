@@ -58,11 +58,11 @@
 
 ### A declared span shape for the evaluate family (Phase 75, ARCH-122, core; human checkpoint)
 
-- [ ] **ESPN-01**: The owner decides, at one checkpoint, the outcome key and whether the old keys stay for a release. The decision is recorded in ADR-QD-188.
-- [ ] **ESPN-02**: A regression test written on the phase base is RED: a failed `qadi.evaluate` span carries no `qadi.subject_id` or `qadi.evaluation_id`. It is GREEN after the change.
-- [ ] **ESPN-03**: One declared question/answer struct for the evaluate span family, built with `spanStruct`. The question is annotated before the lookup, and the outcome is under one key on every path.
-- [ ] **ESPN-04**: `Lifecycle.ts`, `Predicate.ts` (`toPredicate`), `SubjectSet.ts` and `GuardHealthCheck.ts` write span keys only through that declaration. The tests read the keys from it, not as hand-typed `"qadi.*"` strings.
-- [ ] **ESPN-05**: The behavior doc, the invariant, traceability and a `@qadi/core` changeset describe the span change that tracers will see. ADR-QD-188 extends ADR-QD-051 and ADR-QD-109.
+- [x] **ESPN-01**: The owner decides, at one checkpoint, the outcome key and whether the old keys stay for a release. The decision is recorded in ADR-QD-188.
+- [x] **ESPN-02**: A regression test written on the phase base is RED: a failed `qadi.evaluate` span carries no `qadi.subject_id` or `qadi.evaluation_id`. It is GREEN after the change.
+- [x] **ESPN-03**: One declared question/answer struct for the evaluate span family, built with `spanStruct`. The question is annotated before the lookup, and the outcome is under one key on every path.
+- [x] **ESPN-04**: `Lifecycle.ts`, `Predicate.ts` (`toPredicate`), `SubjectSet.ts` and `GuardHealthCheck.ts` write span keys only through that declaration. The tests read the keys from it, not as hand-typed `"qadi.*"` strings.
+- [x] **ESPN-05**: The behavior doc, the invariant, traceability and a `@qadi/core` changeset describe the span change that tracers will see. ADR-QD-188 extends ADR-QD-051 and ADR-QD-109.
 
 ### Remedies uses core's signature match (Phase 76, ARCH-123, devtools + core; speculative)
 
@@ -135,11 +135,11 @@ Which phases cover which requirements. One row per ID (`phase.complete` cannot p
 | CHSE-03 | Phase 74 | Complete |
 | CHSE-04 | Phase 74 | Complete |
 | CHSE-05 | Phase 74 | Complete |
-| ESPN-01 | Phase 75 | Pending |
-| ESPN-02 | Phase 75 | Pending |
-| ESPN-03 | Phase 75 | Pending |
-| ESPN-04 | Phase 75 | Pending |
-| ESPN-05 | Phase 75 | Pending |
+| ESPN-01 | Phase 75 | Complete |
+| ESPN-02 | Phase 75 | Complete |
+| ESPN-03 | Phase 75 | Complete |
+| ESPN-04 | Phase 75 | Complete |
+| ESPN-05 | Phase 75 | Complete |
 | SIGM-01 | Phase 76 | Pending |
 | SIGM-02 | Phase 76 | Pending |
 | SIGM-03 | Phase 76 | Pending |
