@@ -1,0 +1,273 @@
+{
+ "phase": "77",
+ "groups": {
+  "entry": {
+   "head": "4d0d3627b93d344efa880be83430166698864600",
+   "invocation": "pnpm exec stryker run stryker.audit.mjs --mutate packages/audit/src/AuditEntry.ts",
+   "files": {
+    "packages/audit/src/AuditEntry.ts": {
+     "killed": 17,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 8,
+     "detected": 17,
+     "valid": 17,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 80,
+       "column": 41
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 102,
+       "column": 43
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 118,
+       "column": 17
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 119,
+       "column": 3
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 119,
+       "column": 18
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrayDeclaration",
+       "replacement": "[]",
+       "line": 119,
+       "column": 38
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 119,
+       "column": 39
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 122,
+       "column": 19
+      }
+     ]
+    }
+   }
+  },
+  "facts": {
+   "head": "4d0d3627b93d344efa880be83430166698864600",
+   "invocation": "pnpm exec stryker run stryker.audit.mjs --mutate packages/audit/src/ArchiveFacts.ts",
+   "files": {
+    "packages/audit/src/ArchiveFacts.ts": {
+     "killed": 66,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 4,
+     "detected": 66,
+     "valid": 66,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 74,
+       "column": 22
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 138,
+       "column": 61
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 143,
+       "column": 62
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 158,
+       "column": 47
+      }
+     ]
+    }
+   }
+  },
+  "archive": {
+   "head": "4d0d3627b93d344efa880be83430166698864600",
+   "invocation": "pnpm exec stryker run stryker.audit.mjs --mutate packages/audit/src/AuditArchive.ts",
+   "files": {
+    "packages/audit/src/AuditArchive.ts": {
+     "killed": 53,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 14,
+     "detected": 53,
+     "valid": 53,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 83,
+       "column": 25
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 110,
+       "column": 44
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 174,
+       "column": 58
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 241,
+       "column": 41
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 247,
+       "column": 39
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 249,
+       "column": 27
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 258,
+       "column": 58
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 258,
+       "column": 73
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrayDeclaration",
+       "replacement": "[]",
+       "line": 258,
+       "column": 93
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 258,
+       "column": 94
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 261,
+       "column": 24
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 262,
+       "column": 14
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 263,
+       "column": 16
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 267,
+       "column": 16
+      }
+     ]
+    }
+   }
+  },
+  "retention": {
+   "head": "4d0d3627b93d344efa880be83430166698864600",
+   "invocation": "pnpm exec stryker run stryker.audit.mjs --mutate packages/audit/src/Retention.ts",
+   "files": {
+    "packages/audit/src/Retention.ts": {
+     "killed": 59,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 2,
+     "detected": 59,
+     "valid": 59,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 35,
+       "column": 61
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 129,
+       "column": 26
+      }
+     ]
+    }
+   }
+  }
+ }
+}
