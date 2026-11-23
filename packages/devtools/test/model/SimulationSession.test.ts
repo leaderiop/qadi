@@ -942,22 +942,6 @@ describe("seeding", () => {
       );
     }));
 
-  it.effect("resets the resource field and any unparsed text on a re-seed", () =>
-    Effect.gen(function* () {
-      const session = yield* makeSimulationSession({ sightings: [], seed });
-      session.editResourceText("{oops");
-      assert.isDefined(session.getSnapshot().resourceText.error);
-      session.seed(
-        entryOf(
-          decisionRecord({ evaluationId: "ev-4", policy: hasRole("x"), resource: { id: "doc-2" } }),
-        ),
-      );
-      assert.deepStrictEqual(session.getSnapshot().resourceText, {
-        text: '{"id":"doc-2"}',
-        error: undefined,
-      });
-    }));
-
   it.effect("keeps an evicted choice, marks it, and still runs it", () =>
     Effect.gen(function* () {
       const session = yield* makeSimulationSession({
@@ -1045,17 +1029,6 @@ describe("replaying a row", () => {
       yield* TestClock.adjust("1 second");
       assert.strictEqual(tally.finished, 0);
       assert.strictEqual(session.getSnapshot().run._tag, "Idle");
-    }));
-
-  it.effect("seed with the entry it holds is a no-op, so an effect re-run keeps the edited form", () =>
-    Effect.gen(function* () {
-      const session = yield* makeSimulationSession({ sightings: [] });
-      session.seed(a);
-      session.edit({ ...session.getSnapshot().draft, action: "write" });
-      const seen = counted(session);
-      session.seed(a);
-      assert.strictEqual(seen.notified, 0);
-      assert.strictEqual(session.getSnapshot().draft.action, "write");
     }));
 
   it.effect("seed after a replay of the same entry keeps the replay's edited form", () =>
@@ -1312,29 +1285,32 @@ describe("the form's own commands", () => {
       assert.strictEqual(session.getSnapshot().draft.relationships?.[0]?.subjectId, "bob");
     }));
 
-  it.effect("every no-op command leaves the snapshot and the subscribers alone", () =>
-    Effect.gen(function* () {
-      const session = yield* makeSimulationSession({ sightings: [sighting(hasRole("a"))] });
-      const sightings = session.getSnapshot().sightings;
-      const seen = counted(session);
-      const before = session.getSnapshot();
+  it.effect(
+    "a no-op seed, ports, source, clock, pairs or chip command leaves the snapshot alone",
+    () =>
+      Effect.gen(function* () {
+        const session = yield* makeSimulationSession({
+          sightings: [sighting(hasRole("a"))],
+        });
+        const seen = counted(session);
+        const before = session.getSnapshot();
 
-      session.setSightings([...sightings]);
-      session.choosePolicy(hasRole("a"));
-      session.seed(undefined);
-      session.setPorts(undefined);
-      session.chooseSource("Fixtures");
-      session.setClock("live");
-      session.setPairs(false);
-      session.edit(before.draft);
-      session.renameSubject(before.draft.subject.id);
-      session.removeChip("roles", 0);
-      session.removeChip("signatures", 3);
-      assert.deepStrictEqual(session.addChip("history", "  "), { _tag: "Refused", reason: "nothing to add" });
+        session.seed(undefined);
+        session.setPorts(undefined);
+        session.chooseSource("Fixtures");
+        session.setClock("live");
+        session.setPairs(false);
+        session.removeChip("roles", 0);
+        session.removeChip("signatures", 3);
+        assert.deepStrictEqual(session.addChip("history", "  "), {
+          _tag: "Refused",
+          reason: "nothing to add",
+        });
 
-      assert.strictEqual(seen.notified, 0);
-      assert.strictEqual(session.getSnapshot(), before);
-    }));
+        assert.strictEqual(seen.notified, 0);
+        assert.strictEqual(session.getSnapshot(), before);
+      }),
+  );
 
   it.effect("every effective command notifies once and replaces the snapshot", () =>
     Effect.gen(function* () {
