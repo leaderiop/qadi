@@ -25,7 +25,7 @@ covered_files:
   - "packages/react/test/HydrationBuckets.tst.ts"
   - "packages/react/test/HydrationDropEvents.test.ts"
   - "packages/react/test/HydrationPayload.test.ts"
-covered_digest: "v4:sha256:d26d4dbd8646c793bc58079db6e55b800dffddb57b21413b9e285cbff51b3789"
+covered_digest: "v4:sha256:70ab61fd7293d379db6fdcd12b21fb1bdb6cad1ad49d190f4215b12339278308"
 behavior_unverified: 0
 overrides_applied: 0
 ---
@@ -135,3 +135,28 @@ No gaps. Two honest limits, both already stated in the spec: the compiler does n
 
 _Verified: 2026-11-22_
 _Verifier: Claude (gsd-verifier)_
+
+## Re-verification (2026-11-23, milestone close sweep)
+
+**Staleness:** `70: stale, verification d1580da2, 21 covered, 1 changed since` (`v18-stale.mjs`, run at `8752a052`).
+
+| Cited file | Changed since `d1580da2` by |
+| --- | --- |
+| `packages/react/src/HydrationEngine.ts` | `b8566b76` refactor(71-04): resolve the hydration and mismatch reporters through the developer-signal table (Phase 71)<br>`42396c33` style(71): wrap the two reporter resolutions the phase added past the package's width (Phase 71) |
+
+**What each change did to the truths:** both commits edit only the two reporter call sites, `dehydrateWith` (`leftOut:`) and `hydrateWith` (`dropped:`), which now read `reporterFor(SIGNALS.DehydrationDropped, "dehydrateDecisions", options?.onDropped)` and `reporterFor(SIGNALS.HydrationDropped, "hydrateDecisions", options?.onDropped)` in place of `hydrationDropReporter(…, saysXDropped)`; the second only wraps one call. The planners and the records are untouched, which is the reading the report already recorded ("the one later change edits the two reporter call sites and none of the planners or records"). Truth 2 (one `entryBuckets()` record, `EntriesDropped(` built only in the `dropEvents` callback) holds: `HydrationEngine.ts:628`. Truth 3 (`LeftOut(` only in the callback) holds: `:454`. Truth 5 (`PAYLOAD_REASONS[envelope.failure._tag]`, no `payloadRefusalReason`) holds: `:571`. Truth 4 (events, order, counts) holds: the characterisation passes with the reporter resolved through the table, which is the behaviour Phase 71 pinned as unchanged. Truths 1 and 6 concern `HydrationBuckets.ts`, `HydrationEvent.ts` and the barrel, none changed.
+
+### Spot-checks re-run (Re-verification (2026-11-23, milestone close sweep))
+
+Run on the tree at `8752a052`, one command at a time, in the foreground, with stdin closed. `pnpm check:pr` exited 0 at `a4741601` (17 of 18 steps, mutation skipped by design, which includes `pnpm test:tstyche` over `HydrationBuckets.tst.ts`); `git diff a4741601 HEAD -- . ':!.planning'` is empty.
+
+| Behaviour | Command run now | Result now | Status |
+| --------- | --------------- | ---------- | ------ |
+| Buckets, drop-event characterisation, engine, events, payload conformance, counts | `pnpm exec vitest run packages/react/test/{HydrationBuckets,HydrationDropEvents,HydrationEngine,HydrationEvent,HydrationPayload,HydrationCounts}.test.ts --project react` | 6 files, 137 tests passed | PASS |
+| One site per event, no leftover mapper | `grep -n "malformed.push\|EntriesDropped(\|LeftOut(\|payloadRefusalReason" packages/react/src/HydrationEngine.ts` | `LeftOut(` at `:454`, `EntriesDropped(` at `:628`, no `malformed.push`, no `payloadRefusalReason` | PASS |
+| House style | `node scripts/check-house-style.mjs` | `585 file(s) clean (3 declared switch(es), 74 type-test file(s))` | PASS |
+| Gate 13 | `node scripts/check-api-surface.mjs` | exit 0, `940 export(s) documented across 9 package(s)` (941 when verified; Phase 76 changed the `DecisionHistory` exports in `@qadi/core`, none in `@qadi/react`) | PASS |
+
+**Digest:** `covered_digest: "v4:sha256:d26d4dbd8646c793bc58079db6e55b800dffddb57b21413b9e285cbff51b3789"` becomes `covered_digest: "v4:sha256:70ab61fd7293d379db6fdcd12b21fb1bdb6cad1ad49d190f4215b12339278308"`, over the same 21 covered files.
+
+**Verdict:** passed

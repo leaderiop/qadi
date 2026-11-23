@@ -29,7 +29,7 @@ covered_files:
   - packages/core/src/Predicate.ts
   - packages/core/src/SubjectSet.ts
   - packages/core/test/EvaluationSpan.contract.test.ts
-covered_digest: "v4:sha256:f5a9b58a8eb273949c77d36aac10b83597828a7ba50ace1f199233cb9572b811"
+covered_digest: "v4:sha256:a64a38e6adf00ec7d8d557364453b66f216f86d6438d2ace5b5520ad206731f4"
 behavior_unverified: 0
 overrides_applied: 0
 ---
@@ -88,3 +88,36 @@ No gaps. Notes that are not gaps:
 
 _Verified: 2026-11-23_
 _Verifier: Claude (gsd-verifier)_
+
+## Re-verification (2026-11-23, milestone close sweep)
+
+**Staleness:** `75: stale, verification 447fad5d, 25 covered, 1 changed since` (`v18-stale.mjs`, run at `8752a052`).
+
+| Cited file | Changed since `447fad5d` by |
+| --- | --- |
+| `.planning/phases/QD-75-a-declared-span-shape-for-the-evaluate-family/75-09-SUMMARY.md` | `7499603b` docs(75): name the five requirements the close plan completed in its summary (the milestone audit, after Phase 76) |
+
+**What the change did to the truths:** `7499603b` changes one frontmatter line of the close plan's summary, `requirements-completed: []` to `[ESPN-01, ESPN-02, ESPN-03, ESPN-04, ESPN-05]`, so the milestone audit's cross-check reads the five ids the plan marked complete (they were marked by hand in `b957a155`, as the summary's `key-decisions` says). It touches no source and no spec. `.planning/REQUIREMENTS.md` still shows ESPN-01 to ESPN-05 as `[x]` and `Complete` against Phase 75. Every other covered file, the six source files and the contract test among them (`packages/core/src/{EvaluationSpan,GuardHealthCheck,Lifecycle,PortSpanEncode,Predicate,SubjectSet}.ts`, `packages/core/test/EvaluationSpan.contract.test.ts`), has an empty `git diff 447fad5d HEAD`, so truths 1 to 4 stand as verified. Phase 76's source changes to `packages/core` (`PortKey.ts`, `PortDerivation.ts`, `PortAccess.ts`, the history ports) are outside what the report covers; the span suites below still pass over them, and `qadi.decision` is written nowhere in `packages/*/src`.
+
+**One finding, not a gap.** `75-contract-check.mjs` (truth 2's evidence, "exit 0") no longer exits 0 at HEAD. It reports `1 problem(s)`: `alice in the helpers file runs code as the module loads, and no first commit's text pins it`. The cause is Phase 76's `42eaa5ee` (fix(76): IN-03 the core test helpers stated once), which added `export const alice = makeSubject({...})` and four sibling helpers to `packages/core/test/helpers.ts` for the fixture-judgement tests. The check's rule for new helpers-file statements admits only an initialiser that is a function, a literal, a name, or an array or object literal of those, and a call to `makeSubject` is none of them. Every other rule of the check (the contract's 33 rows, its 20 top-level statements, the moved helpers, the helpers the contract reads, the imports) passes: it names no other problem, `--self-test` passes (28 of 28), and the contract test file has no diff since `447fad5d`. `makeSubject` (`packages/core/src/AuthSubject.ts:69`) is a pure object builder, the contract file imports none of the five new helpers, and no helper the contract reads changed, so the property the truth states (the contract holds the rows it was first committed with, only imports and two helpers moved) holds. What fails is the check's stricter, separate guard against load-time code in the shared helpers file, which Phase 76 legitimately tripped. It is a phase-local `.planning` script, not part of `pnpm check`, so no gate fails. Left as is here (this sweep edits no other file); to make the check exit 0 again, the rule would admit a call to a pure builder, or the helpers would move to a file the contract does not read.
+
+### Spot-checks re-run (Re-verification (2026-11-23, milestone close sweep))
+
+Run on the tree at `8752a052`, one command at a time, in the foreground, with stdin closed. `pnpm check:pr` exited 0 at `a4741601` (17 of 18 steps, mutation skipped by design, `pnpm test:tstyche` and the span-key gates included); `git diff a4741601 HEAD -- . ':!.planning'` is empty.
+
+| Behaviour | Command run now | Result now | Status |
+| --------- | --------------- | ---------- | ------ |
+| The span contract, the span tests and the evaluator | `pnpm exec vitest run packages/core/test/{EvaluationSpan.contract,EvaluationSpan,Evaluate}.test.ts --project core` | 3 files, 271 tests passed | PASS |
+| The contract holds its first-commit rows | `node .planning/phases/QD-75-*/75-contract-check.mjs` | exit 1, one problem: the helpers-file load rule named above; no row, statement, moved-helper or import problem | PASS for the truth, finding recorded above |
+| The check's own self-test | `node .planning/phases/QD-75-*/75-contract-check.mjs --self-test` | exit 0, `28 passed` | PASS |
+| The six covered source files and the contract test are unchanged | `git diff --stat 447fad5d HEAD -- packages/core/src/{EvaluationSpan,GuardHealthCheck,Lifecycle,PortSpanEncode,Predicate,SubjectSet}.ts packages/core/test/EvaluationSpan.contract.test.ts` | empty | PASS |
+| `qadi.decision` is written nowhere | `grep -rn "qadi\.decision\b" packages/*/src` | no hit | PASS |
+| The span-key rules and the budget | `node scripts/check-house-style.mjs` | `585 file(s) clean (3 declared switch(es), 74 type-test file(s))` | PASS |
+| Gate 13 | `node scripts/check-api-surface.mjs` | exit 0, `940 export(s) documented across 9 package(s)` (941 when verified; Phase 76 removed `ActedEvent`, `ActedAnywhere`, `ActedAnywhereInput` from `@qadi/core` and added `actedAnswerFromEvents`, `signatureAnswerFromSignatures`; Phase 75 added or removed none) | PASS |
+| The five requirements | `grep -n "ESPN-0" .planning/REQUIREMENTS.md`; `grep -n "requirements-completed" .planning/phases/QD-75-*/75-09-SUMMARY.md` | ESPN-01 to ESPN-05 `[x]` and `Complete`; the summary lists all five | PASS |
+
+**Digest:** `covered_digest: "v4:sha256:f5a9b58a8eb273949c77d36aac10b83597828a7ba50ace1f199233cb9572b811"` becomes `covered_digest: "v4:sha256:a64a38e6adf00ec7d8d557364453b66f216f86d6438d2ace5b5520ad206731f4"`, over the same 25 covered files.
+
+**Resolved (2026-11-23, 5640572d).** The helpers moved to a file the contract does not read: `alice`, `SITES` and the other fixture-judgement helpers left `packages/core/test/helpers.ts` unchanged for `packages/core/test/fixtureJudgement.ts`, and `76-agreement-check.mjs` names that module as where those two test files' helpers moved. The check's rule is unchanged. On 5640572d: `75-contract-check.mjs` exits 0 (`33 rows and 20 statements as at ecb0256f; 15 helpers kept, 2 moved (attributesOf, allAttributesOf)`) and its `--self-test` passes 28; `76-agreement-check.mjs` exits 0 and its self-test passes 28; the four affected test files pass (138 tests), typecheck and house-style are clean (586 files).
+
+**Verdict:** passed

@@ -33,7 +33,7 @@ covered_files:
   - spec/invariants.md
   - spec/overview.md
   - spec/traceability.md
-covered_digest: "v4:sha256:5dfd843c2caef8aa6ebd22d7984bf4924459ce767f2a6d7a78c4a9dfa7cd6eac"
+covered_digest: "v4:sha256:e77f159ae2f64752b511de1e1a19bc43bb3125fa84ffc4c13e728289dd649a8a"
 behavior_unverified: 0
 overrides_applied: 0
 ---
@@ -106,3 +106,32 @@ No gaps. The policy choice is a pure value module, the session holds one `choice
 
 _Verified: 2026-11-23_
 _Verifier: Claude (gsd-verifier)_
+
+## Re-verification (2026-11-23, milestone close sweep)
+
+**Staleness:** `74: stale, verification 4d39763d, 29 covered, 4 changed since` (`v18-stale.mjs`, run at `8752a052`).
+
+| Cited file | Changed since `4d39763d` by |
+| --- | --- |
+| `spec/behaviors/29-devtools-simulator.md` | `3f01baa1` fix(76): WR-01 the list of rows is read through the guarded read in both lookups and the remedy table<br>`a7271f09` fix(76): IN-06 the custom-predicate sentence is checked once per fact<br>`f4c0fd78` fix(76): WR-01 a row or a site that cannot be read is a refusal, never a throw<br>`5d04cd61` fix(76): IN-01 one sentence for a refused check in the remedy table<br>`f4358350` docs(76-07): the fixture judgements, the remedy rules and their invariants, traced |
+| `spec/invariants.md` | `15acdb65` docs(76): name the rows that pin each guarded field's refusal<br>`3f01baa1`, `f4c0fd78`, `df556b19` fix(76): WR-03 one check that a resource-scoped request has its id, `f4358350` (all Phase 76)<br>`08011a28` docs(75): IN-05 BEH-QD-715, INV-QD-396 and the traceability rows cite the span-name and log-event-marker pins<br>`b818f498`, `a86b1bfe`, `c5cc1f17`, `d00be34c`, `5a97036e`, `3ae2ac73`, `dfb5984d`, `785105a2`, `7442fe10`, `5de0fe09` fix(75) review fixes<br>`98cadb08` docs(75-08): state the evaluate span family and trace it |
+| `spec/overview.md` | `5451d320` feat(76-04): actedAnswerFromEvents reads the lookup the history fixture layer reads<br>`00db0cee` feat(76-03): signatureAnswerFromSignatures reads the fixture lookup and the answer rule the port read uses |
+| `spec/traceability.md` | every commit in the staleness report, all Phase 75 (`ab9a822e`, `98cadb08`, `1580707f`, `5de0fe09`, `7442fe10`, `37296184`, `3ae2ac73`, `9778a79c`, `5a97036e`, `d00be34c`, `c5cc1f17`, `a86b1bfe`, `08011a28`) or Phase 76 (`0fc9f17f`, `f4358350`, `df556b19`, `f4c0fd78`, `a7271f09`, `e31f388b`, `3f01baa1`, `e0da53cd`, `1604604b`, `ce33803f`), each a row or a revision line |
+
+**What each change did to the truths:** all four files are normative spec documents; the later phases added their own rows and revision lines and left Phase 74's alone. Read against truth 5 and the spec consistency section: in `29-devtools-simulator.md` the diff against `4d39763d` removes two lines (the revision number and the change-history row) and adds BEH-QD-719 and BEH-QD-720 content; BEH-QD-706 to BEH-QD-710 are untouched. In `invariants.md` the removed lines are the revision and change-history rows and the `Source` text of INV-QD-057 and INV-QD-288 (both about `PortAccess.ts`, reworded by Phases 75 and 76); INV-QD-393 and INV-QD-394 are untouched. In `overview.md` the only removed rows are `ActedEvent`, `ActedAnywhere` and `ActedAnywhereInput` (Phase 76, ARCH-123, `DecisionHistory`), and the `PolicyChoice`, `PolicyMenu`, `PolicyMenuOption` row naming `model/SeededChoice.ts` (`overview.md:893`) is still there. In `traceability.md` the 21 removed lines are rows of Phases 75 and 76 reworded, plus the revision line; the BEH-QD-706 to 710 index row for document 29 is kept (the line grew BEH-QD-719/720) and the SeededChoice rows are present (7 mentions). `spec/decisions/137-*`, `150-*`, `047-*` and `187-*` have no diff since `4d39763d`, and neither do `SeededChoice.ts`, `SimulationSession.ts` or `HeldChoice.ts`, so truths 1 to 5 hold as verified.
+
+### Spot-checks re-run (Re-verification (2026-11-23, milestone close sweep))
+
+Run on the tree at `8752a052`, one command at a time, in the foreground, with stdin closed. `pnpm check:pr` exited 0 at `a4741601` (17 of 18 steps, mutation skipped by design; this includes gates 11 to 13 over the spec documents and `pnpm test:tstyche` over `SeededChoice.tst.ts`); `git diff a4741601 HEAD -- . ':!.planning'` is empty.
+
+| Behaviour | Command run now | Result now | Status |
+| --------- | --------------- | ---------- | ------ |
+| The pure module, the 35-row session characterisation and the session's runs | `pnpm exec vitest run packages/devtools/test/model/{SeededChoice,SimulationSession.characterisation,SimulationSession}.test.ts --project devtools` | 3 files, 150 tests passed | PASS |
+| The characterisation still holds the rows it was first committed with | `node .planning/phases/QD-74-*/74-characterisation-check.mjs` | exit 0, `35 rows and 29 statements as at e25c8cfd; 21 helpers kept, 13 moved` | PASS |
+| The ADRs Phase 74 said it left alone, and its own source | `git diff --stat 4d39763d HEAD -- spec/decisions/137-* spec/decisions/150-* spec/decisions/047-* spec/decisions/187-* packages/devtools/src/model/{SeededChoice,SimulationSession,HeldChoice}.ts` | empty | PASS |
+| The overview still names the moved types | `grep -nE "PolicyChoice\|PolicyMenu" spec/overview.md` | `:893` names `model/SeededChoice.ts` | PASS |
+| Gate 13 | `node scripts/check-api-surface.mjs` | exit 0, `940 export(s) documented across 9 package(s)` (941 when verified; Phase 76's `DecisionHistory` and `SignatureHistory` exports, none of Phase 74's) | PASS |
+
+**Digest:** `covered_digest: "v4:sha256:5dfd843c2caef8aa6ebd22d7984bf4924459ce767f2a6d7a78c4a9dfa7cd6eac"` becomes `covered_digest: "v4:sha256:e77f159ae2f64752b511de1e1a19bc43bb3125fa84ffc4c13e728289dd649a8a"`, over the same 29 covered files.
+
+**Verdict:** passed

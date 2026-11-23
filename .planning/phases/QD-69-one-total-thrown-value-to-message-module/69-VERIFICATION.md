@@ -38,7 +38,7 @@ covered_files:
   - "packages/devtools/src/model/TimelineFeed.ts"
   - "packages/http/src/RemotePorts.ts"
   - "packages/react/src/DeveloperSignals.ts"
-covered_digest: "v4:sha256:4f92da386c108fb8805cec646333f39909e760447573d7b39c94c0d21228aa7a"
+covered_digest: "v4:sha256:6ba9df60d39b1b7acf8bf531b73a7d9a9e78a625c3da3c5dc8668f4998b7d879"
 behavior_unverified: 0
 overrides_applied: 0
 ---
@@ -137,3 +137,40 @@ No gaps. The phase goal is observably achieved: the rule exists, is total, is ex
 
 _Verified: 2026-11-22_
 _Verifier: Claude (gsd-verifier)_
+
+## Re-verification (2026-11-23, milestone close sweep)
+
+**Staleness:** `69: stale, verification 9220fba1, 34 covered, 3 changed since` (`v18-stale.mjs`, run at `8752a052`).
+
+| Cited file | Changed since `9220fba1` by |
+| --- | --- |
+| `packages/core/src/PortDerivation.ts` | `dc2a5a89` fix(76): IN-01 the port key reads through the one guarded read<br>`dfb5984d` fix(75): IN-01 one annotator body beside encodeSpan |
+| `packages/core/src/PortKey.ts` | `474303fd` fix(76): IN-01 one builder for the unreadable refusal, and the comment says which reads guard themselves<br>`e0da53cd` fix(76): WR-02 a refusal names an unkeyable object's class only when its name is text<br>`3f01baa1` fix(76): WR-01 the list of rows is read through the guarded read in both lookups and the remedy table<br>`f4c0fd78` fix(76): WR-01 a row or a site that cannot be read is a refusal, never a throw |
+| `packages/react/src/DeveloperSignals.ts` | `6c22f886` fix(71): read InstrumentedInProduction's environment condition once, from its row<br>`ede26ad1` refactor(71-08): leave no equivalent mutant in the moved gate store or the contained reporter<br>`4854696a` refactor(71-04): resolve every developer-signal reporter through the table and remove the hand-written resolvers<br>`9b8645ee` fix(71-03): name a throwing collision reporter by the option it was passed through |
+
+**What each change did to the truths:**
+
+- `PortDerivation.ts` (`dc2a5a89`, Phase 76; `dfb5984d`, Phase 75): the request `key` no longer carries its own `Result.try` and `thrownMessage` call. It reads the question through `readGuarded([], …)` from `PortKey.ts`, whose one `unreadable` builder calls `thrownMessage(error)` (`PortKey.ts:136`). The throw still becomes a `KeyRefusal.Unreadable` carrying the one rule's text, so truth 3 (the site routes through the rule) holds, by one call further in. `dfb5984d` swaps `encodeSpan` for `annotateSpan` in the attempts write and touches no thrown-value path. `defect` still goes through `spec.failure`/`causeMessage`.
+- `PortKey.ts` (Phase 76): `canonicalKey`'s own `catch` now calls the shared `unreadable(path, error)`, which is the same `KeyRefusal.Unreadable({ path: [...path], message: thrownMessage(error) })`. `brandOf` reads a constructor's `name` only when it is a string, so a refusal's sentence cannot interpolate a symbol. `readGuarded` and `readRows` are new guarded reads that end in the same `thrownMessage`. Nothing weakens totality: every `try` in the module still renders through `thrownMessage`.
+- `DeveloperSignals.ts` (Phase 71): the reporter resolvers were rewritten into one table. `namedLine` and `errorLine` still render a caught value through `thrownMessage` (`DeveloperSignals.ts:127,143`), so the react site of truth 3 holds.
+- Not a regression, a widening: `Remedies.ts` (Phase 76) is a new devtools caller of `thrownMessage`. The inventory of `thrownMessage`/`causeMessage` callers is otherwise as truth 3 lists it.
+
+Truths 1 to 4 and the additional checks still hold on HEAD: `UNDESCRIBABLE` is still the one placeholder literal in `packages/*/src` (`ThrownMessage.ts:4`, the old `<unrenderable cause>` is absent); `Cause.pretty(` is called once, in `ThrownMessage.ts:55`; `instanceof Error` appears only in `ThrownMessage.ts` and the same three guarded, documented non-copies (`Source.ts`, `GatesFeed.ts`, `DeveloperSignals.ts`).
+
+### Spot-checks re-run (Re-verification (2026-11-23, milestone close sweep))
+
+Run on the tree at `8752a052`, one command at a time, in the foreground, with stdin closed. `pnpm check:pr` exited 0 at `a4741601` (17 of 18 steps, mutation skipped as on every non-release PR); `git diff a4741601 HEAD -- . ':!.planning'` is empty.
+
+| Behaviour | Command run now | Result now | Status |
+| --------- | --------------- | ---------- | ------ |
+| Core total-function tables and sites | `pnpm exec vitest run packages/core/test/{ThrownMessage,PortWire,PortKey,PortDescription,SinkCodec,PortConformance,Evaluate}.test.ts --project core` | 7 files, 647 tests passed | PASS |
+| http transport | `pnpm exec vitest run packages/http/test/PortRoutes.test.ts --project http` | 1 file, 64 passed | PASS |
+| react reporter line | `pnpm exec vitest run packages/react/test/DeveloperSignals.test.ts --project react` | 1 file, 43 passed | PASS |
+| devtools capture and feeds | `pnpm exec vitest run packages/devtools/test/model/{Capture,ExplorerSession,TimelineFeed,DiagnosticsFeed,DiagnosticsStore,GatesFeed}.test.ts --project devtools` | 6 files, 227 passed | PASS |
+| One placeholder, one `Cause.pretty(` | `grep -rn "UNDESCRIBABLE\|unrenderable" packages/*/src`; `grep -rn "Cause.pretty(" packages/*/src` (comments excluded) | one literal (`ThrownMessage.ts:4`); one call (`ThrownMessage.ts:55`) | PASS |
+| House style | `node scripts/check-house-style.mjs` | `585 file(s) clean (3 declared switch(es), 74 type-test file(s))` | PASS |
+| Gate 13 | `node scripts/check-api-surface.mjs` | exit 0, `940 export(s) documented across 9 package(s)` (941 when verified: Phase 76 removed `ActedEvent`, `ActedAnywhere` and `ActedAnywhereInput` and added `actedAnswerFromEvents` and `signatureAnswerFromSignatures`, and `spec/overview.md` names each) | PASS |
+
+**Digest:** `covered_digest: "v4:sha256:4f92da386c108fb8805cec646333f39909e760447573d7b39c94c0d21228aa7a"` becomes `covered_digest: "v4:sha256:6ba9df60d39b1b7acf8bf531b73a7d9a9e78a625c3da3c5dc8668f4998b7d879"`, over the same 34 covered files.
+
+**Verdict:** passed

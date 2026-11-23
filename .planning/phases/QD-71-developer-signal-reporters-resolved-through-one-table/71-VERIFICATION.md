@@ -30,7 +30,7 @@ covered_files:
   - "packages/react/test/DeveloperSignalReporters.test.tsx"
   - "packages/react/test/DeveloperSignals.tst.ts"
   - "scripts/check-house-style.mjs"
-covered_digest: "v4:sha256:3aa0efd3ba09d06fd9e349d6d72d2383504079d0d4ae556b98aaccf248b47b0e"
+covered_digest: "v4:sha256:ad9434bca5125e370f5773bf3ac9c49e0b4a1a93342377369b1b097b82d2d9e2"
 behavior_unverified: 0
 overrides_applied: 0
 ---
@@ -131,3 +131,37 @@ Not re-run by this verification: Stryker (per the instructions; the recorded clo
 
 _Verified: 2026-11-22T19:30:00Z_
 _Verifier: Claude (gsd-verifier)_
+
+## Re-verification (2026-11-23, milestone close sweep)
+
+**Staleness:** `71: stale, verification a9b22070, 26 covered, 3 changed since` (`v18-stale.mjs`, run at `8752a052`).
+
+| Cited file | Changed since `a9b22070` by |
+| --- | --- |
+| `AGENTS.md` | `cd71008b` docs(75): IN-04 AGENTS.md names the paramsOf pin form for a generic Effect function<br>`92ba8b43` fix(75): IN-10 a span key passed to a method call is counted<br>`5cf302fb` fix(75): IN-06 wrap the span-key budget paragraph to the file's ninety columns<br>`d00be34c` fix(75): IN-01 pin every annotator refusal through inference at a writer-shaped call<br>`5a97036e` fix(75): WR-01 refuse a log event at every span-writing function<br>`3ae2ac73` fix(75): IN-02 keep the denial reason off a span by type, name every write form<br>`ee1b7378` fix(75): WR-04 close the span-key rules' scope and extraction gaps<br>`7442fe10` fix(75): WR-02 hold every family question to PoseOf<br>`6980ba12` feat(75-06): a span key of the evaluate family is declared once and read through its declaration |
+| `packages/react/src/GateWriter.ts` | `11ae27d9` fix(73): IN-01 IN-02 state the writer's contract once, on GateWriter, with only its true reasons<br>`52c19e8b` fix(73): IN-02 stop exporting sameIdentity<br>`0c81a557` fix(73): WR-01 remove the dead rollback path from reconcile<br>`299297ad` refactor(73-03): reconcile gate registrations keyed by gate id in one step |
+| `scripts/check-house-style.mjs` | `4a7ddb00` style(75): IN-06 wrap four over-long lines to their file's width<br>`92ba8b43` fix(75): IN-10 a span key passed to a method call is counted<br>`d00be34c` fix(75): IN-01 pin every annotator refusal through inference at a writer-shaped call<br>`5a97036e` fix(75): WR-01 refuse a log event at every span-writing function<br>`3ae2ac73` fix(75): IN-02 keep the denial reason off a span by type, name every write form<br>`ee1b7378` fix(75): WR-04 close the span-key rules' scope and extraction gaps<br>`7442fe10` fix(75): WR-02 hold every family question to PoseOf<br>`6980ba12` feat(75-06): a span key of the evaluate family is declared once and read through its declaration |
+
+**What each change did to the truths:**
+
+- `AGENTS.md` (Phase 75): adds the `SPAN_KEY_LITERAL_BUDGET` paragraph and table to §6, a `paramsOf` paragraph to the negative-pin text, and one row to the callable-pin table. The `MODULE_STATE_BUDGET` paragraph, its one-row table (`packages/react/src/DeveloperSignals.ts`, count 1) and §13's "One rebindable module-scope name is left in this package, and it is counted" are not in the diff. Truth 7 holds.
+- `scripts/check-house-style.mjs` (Phase 75): adds the span-key rules (`[span-key-source]`, `[span-key-literal]`, `[span-key-literal-table]`) and wraps lines. `git diff a9b22070 HEAD` on the file has no line naming `MODULE_STATE` or `module-state`, so `MODULE_STATE_BUDGET` and its four checks are untouched, and the gate still passes with the budget in force (run below).
+- `GateWriter.ts` (Phase 73): `reconcile` is now keyed by gate id in one step, `sameIdentity` is no longer exported and `GateIdentity` has no `id`. `buildGateRegistry(report)` is unchanged in signature: it still takes the already-resolved reporter (`((id: string) => void) | undefined`), and its new doc says the collision reporter "is contained by `reporterFor`". So truth 5 (each name reported once, nothing contained twice) and the key link `makeGateRegistry` to `buildGateRegistry` hold. No `let` was added at module scope: the only unindented `let` in `packages/react/src` is `warnedInstrumentedInProduction` (`DeveloperSignals.ts:379`), the other `let`s are inside function bodies.
+
+Truths 1 to 9 hold on HEAD. `DeveloperSignals.ts` itself, the table and `reporterFor` are unchanged since the verification; `QadiProvider.tsx:274` still reads `holdsHere(SIGNALS.InstrumentedInProduction)`; a grep for the retired per-signal resolvers (`hydrationMismatchReporter`, `gateIdCollisionReporter`, `hydrationDropReporter`, `saysHydrationDropped`, `saysDehydrationDropped`) finds nothing in `packages/react/src`; `isDevelopment`/`NODE_ENV` appear only in `DeveloperSignals.ts`.
+
+### Spot-checks re-run (Re-verification (2026-11-23, milestone close sweep))
+
+Run on the tree at `8752a052`, one command at a time, in the foreground, with stdin closed. `pnpm check:pr` exited 0 at `a4741601` (17 of 18 steps, mutation skipped by design, `pnpm test:tstyche` included, so `DeveloperSignals.tst.ts` and `GateWriter.reconcile.tst.ts` ran); `git diff a4741601 HEAD -- . ':!.planning'` is empty.
+
+| Behaviour | Command run now | Result now | Status |
+| --------- | --------------- | ---------- | ------ |
+| Table, reporter characterisation, registry store, registry, reconcile, writer | `pnpm exec vitest run packages/react/test/{DeveloperSignals.test.ts,DeveloperSignalReporters.test.tsx,GateRegistry.store.test.ts,GateRegistry.test.tsx,GateWriter.reconcile.test.ts,GateWriter.test.tsx} --project react` | 6 files, 167 tests passed | PASS |
+| `MODULE_STATE_BUDGET` still counted both ways | `node scripts/check-house-style.mjs` | `585 file(s) clean (3 declared switch(es), 74 type-test file(s))` | PASS |
+| The one module-scope `let`, no other environment read | `grep -rnE "^\s*(export )?(let\|var) " packages/react/src`; `grep -rln "isDevelopment\|NODE_ENV" packages/react/src` | `DeveloperSignals.ts:379` is the only unindented binding; `DeveloperSignals.ts` is the only file reading the environment | PASS |
+| `QadiProvider` reads the row's condition | `grep -n "holdsHere" packages/react/src/QadiProvider.tsx` | `:274 holdsHere(SIGNALS.InstrumentedInProduction)` | PASS |
+| Gate 13 | `node scripts/check-api-surface.mjs` | exit 0, `940 export(s) documented across 9 package(s)` (941 when verified; the change is in `@qadi/core`'s `DecisionHistory` exports from Phase 76, not `@qadi/react`, whose barrel is untouched) | PASS |
+
+**Digest:** `covered_digest: "v4:sha256:3aa0efd3ba09d06fd9e349d6d72d2383504079d0d4ae556b98aaccf248b47b0e"` becomes `covered_digest: "v4:sha256:ad9434bca5125e370f5773bf3ac9c49e0b4a1a93342377369b1b097b82d2d9e2"`, over the same 26 covered files.
+
+**Verdict:** passed

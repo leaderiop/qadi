@@ -26,7 +26,7 @@ covered_files:
   - "packages/devtools/test/model/DockModel.test.ts"
   - "packages/devtools/test/model/ExternalStore.test.ts"
   - "packages/devtools/test/model/ExternalStore.tst.ts"
-covered_digest: "v4:sha256:494feb1383468611b6f5999cb5b36e4bd10b3eb53a47c743a9dceb616f011b4c"
+covered_digest: "v4:sha256:2eff436ff01dfcb946f4bc31299cb71fccc76809f95ea156055a25f42b2ac53e"
 behavior_unverified: 0
 overrides_applied: 0
 ---
@@ -133,3 +133,28 @@ No gaps. Notes, none blocking: (1) ExternalStore.ts's recorded close shows one m
 
 _Verified: 2026-11-22_
 _Verifier: Claude (gsd-verifier)_
+
+## Re-verification (2026-11-23, milestone close sweep)
+
+**Staleness:** `72: stale, verification 824804df, 22 covered, 1 changed since` (`v18-stale.mjs`, run at `8752a052`).
+
+| Cited file | Changed since `824804df` by |
+| --- | --- |
+| `packages/devtools/test/model/DockModel.test.ts` | `3a6f18df` fix(74): IN-03 the devtools tests read the shared read, readPolicy, sighting, entryOf and slow (Phase 74) |
+
+**What the change did to the truths:** `3a6f18df` removes the file's private `slow` resolver fixture and the `AttributeResolver` import it needed, and imports `slow` from `packages/devtools/test/simulationFixtures.ts`. The shared `slow` has the identical body (a one-second `Effect.sleep` resolver, a `started`/`finished`/`interrupted` tally, `return 9`; compared line by line against the removed text). No title, input or expected value in the file changed (the commit says so and the diff for this file is 28 deleted lines, one import line and one import removal). So truth 7 (one test per store, assertions on key and order against host listeners) and truth 6 hold unchanged; truths 1 to 5 and 8 to 12 concern `ExternalStore.ts`, `DockModel.ts`, the characterisation file and the spec, none of which changed.
+
+### Spot-checks re-run (Re-verification (2026-11-23, milestone close sweep))
+
+Run on the tree at `8752a052`, one command at a time, in the foreground, with stdin closed. `pnpm check:pr` exited 0 at `a4741601` (17 of 18 steps, mutation skipped by design); `git diff a4741601 HEAD -- . ':!.planning'` is empty.
+
+| Behaviour | Command run now | Result now | Status |
+| --------- | --------------- | ---------- | ------ |
+| The dock model's per-store tests, the 15-row characterisation and the derived store's own tests | `pnpm exec vitest run packages/devtools/test/model/{DockModel,DockModel.characterisation,ExternalStore}.test.ts --project devtools` | 3 files, 113 tests passed | PASS |
+| The shared `slow` is the removed one | read `packages/devtools/test/simulationFixtures.ts:50-75` against `git show 3a6f18df` | same fixture, same tally and return value | PASS |
+| House style | `node scripts/check-house-style.mjs` | `585 file(s) clean (3 declared switch(es), 74 type-test file(s))` | PASS |
+| Gate 13 | `node scripts/check-api-surface.mjs` | exit 0, `940 export(s) documented across 9 package(s)` (941 when verified; the change is in `@qadi/core`'s `DecisionHistory` exports from Phase 76, and the devtools barrels are untouched) | PASS |
+
+**Digest:** `covered_digest: "v4:sha256:494feb1383468611b6f5999cb5b36e4bd10b3eb53a47c743a9dceb616f011b4c"` becomes `covered_digest: "v4:sha256:2eff436ff01dfcb946f4bc31299cb71fccc76809f95ea156055a25f42b2ac53e"`, over the same 22 covered files.
+
+**Verdict:** passed
