@@ -56,18 +56,21 @@ test(
   },
 );
 
-test("every transition answers a seeded choice, so a no-op can return its input", () => {
-  expect(choose).type.toBe<(choice: SeededChoice, policy: Policy) => SeededChoice>();
-  expect(withSightings).type.toBe<
-    (choice: SeededChoice, sightings: ReadonlyArray<PolicySighting>) => SeededChoice
-  >();
-  expect(seedFrom).type.toBe<
-    (choice: SeededChoice, entry: TimelineEntry | undefined) => Seeding
-  >();
-  expect(seededChoice).type.toBe<
-    (sightings: ReadonlyArray<PolicySighting>, seed?: TimelineEntry) => Seeding
-  >();
-});
+test(
+  "choose and withSightings answer a SeededChoice; seededChoice and seedFrom a Seeding",
+  () => {
+    expect(choose).type.toBe<(choice: SeededChoice, policy: Policy) => SeededChoice>();
+    expect(withSightings).type.toBe<
+      (choice: SeededChoice, sightings: ReadonlyArray<PolicySighting>) => SeededChoice
+    >();
+    expect(seedFrom).type.toBe<
+      (choice: SeededChoice, entry: TimelineEntry | undefined) => Seeding
+    >();
+    expect(seededChoice).type.toBe<
+      (sightings: ReadonlyArray<PolicySighting>, seed?: TimelineEntry) => Seeding
+    >();
+  },
+);
 
 test("the barrel names the three types from the seeded choice module", () => {
   expect<BarrelPolicyChoice>().type.toBe<PolicyChoice>();

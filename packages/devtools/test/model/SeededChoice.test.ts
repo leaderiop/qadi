@@ -387,12 +387,32 @@ describe("choosing a policy", () => {
     assert.deepStrictEqual(pc(n), listed(sA, 0));
   });
 
-  it("seedFrom answers a new choice even for the row it holds", () => {
-    const c = start([sA], rowRead);
-    const again = seedFrom(c, rowRead);
-    assert.notStrictEqual(again.choice, c);
-    assert.deepStrictEqual(pc(again.choice), seededOf(rowRead, hasPermission(read)));
+  it("seedFrom the row a choice holds answers the same choice and the row decoded", () => {
+    const replaying = start([sA], rowRead);
+    const again = seedFrom(replaying, rowRead);
+    assert.strictEqual(again.choice, replaying);
     assert.deepStrictEqual(again.input, carolInput);
+    const orphaned = start([sA], orphan);
+    assert.strictEqual(seedFrom(orphaned, orphan).choice, orphaned);
+  });
+
+  it("seedFrom(undefined) on a choice with no seed answers the same choice", () => {
+    for (const c of [start([sA]), start([])]) {
+      const left = seedFrom(c, undefined);
+      assert.strictEqual(left.choice, c);
+      assert.strictEqual(left.input, undefined);
+    }
+  });
+
+  it("seedFrom another row, or the held row after a choice, answers a new seed", () => {
+    const c = start([sA], rowRead);
+    const other = seedFrom(c, rowS).choice;
+    assert.deepStrictEqual(pc(other), seededOf(rowS, roleS));
+    const walked = choose(c, roleA);
+    const back = seedFrom(walked, rowRead);
+    assert.notStrictEqual(back.choice, walked);
+    assert.deepStrictEqual(pc(back.choice), seededOf(rowRead, hasPermission(read)));
+    assert.deepStrictEqual(back.input, carolInput);
   });
 });
 

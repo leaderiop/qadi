@@ -2,9 +2,9 @@
  * The policy the simulator runs and where it came from, as a value.
  *
  * A `SeededChoice` is the rail of sightings, the sighting chosen from it and the
- * logged row the form was last seeded from. Every transition answers a new value
- * and every reading is a function of one, so a rule below is a function a test calls
- * with plain values, with no scope, no store and no run around it.
+ * logged row the form was last seeded from. Every transition and every reading is a
+ * function of plain values, so a rule below is one a test calls with no scope, no
+ * store and no run around it.
  *
  * The constructor, `withSightings` and `seedFrom` each pin the head exactly when no
  * replayed policy is held, and `choose` holds a value and pins nothing.
@@ -21,8 +21,10 @@
  * the chosen policy, and the session publishes nothing only when `choose` returned its
  * input and the run is `Idle`.
  *
- * A transition that changes nothing returns its input object, so a caller detects a
- * no-op with `===`.
+ * `withSightings` and `choose` map a `SeededChoice` to a `SeededChoice`, and
+ * `seededChoice` and `seedFrom` answer a `Seeding`: the choice, and the input a
+ * replayed row gives. A transition that changes nothing answers its input object,
+ * inside the `Seeding` for `seedFrom`, so a caller detects a no-op with `===`.
  *
  * It relies on two contracts it does not check: `replayInput` is total over a
  * `TimelineEntry`, so `seedFrom` decodes a row once and never refuses one, and
@@ -132,9 +134,11 @@ const pinUnlessReplayed = (
 /**
  * Seeds `choice` from `entry`, or from no row at all.
  *
- * Answers a new choice even for the row it already holds: whether to seed again is
- * the caller's to decide. The row is decoded once, and the input it fills the form
- * with comes back beside the choice.
+ * The row is decoded once, and the input it fills the form with comes back beside
+ * the choice, for the row already held too: whether to seed again is the caller's to
+ * decide. A seeding that changes nothing answers `choice` itself. The row already
+ * held is kept unless the reviewer has chosen a policy since and the row replays,
+ * which brings its policy back: a row decodes to the same replay every time.
  */
 export const seedFrom = (
   choice: SeededChoice,
@@ -142,8 +146,13 @@ export const seedFrom = (
 ): Seeding => {
   const replay = entry === undefined ? undefined : replayInput(entry);
   const replayable = replay?._tag === "Replayable" ? replay : undefined;
-  const seed: SeedRow | undefined =
-    entry === undefined
+  const kept = choice.seed;
+  const keeps =
+    kept?.entry === entry &&
+    (kept?.replayed === undefined) === (replayable === undefined);
+  const seed: SeedRow | undefined = keeps
+    ? kept
+    : entry === undefined
       ? undefined
       : {
           entry,
@@ -152,12 +161,12 @@ export const seedFrom = (
               ? undefined
               : { policy: replayable.policy, unseeded: replayable.unseeded },
         };
+  const held = pinUnlessReplayed(choice.sightings, choice.held, seed);
   return {
-    choice: {
-      sightings: choice.sightings,
-      held: pinUnlessReplayed(choice.sightings, choice.held, seed),
-      seed,
-    },
+    choice:
+      seed === choice.seed && held === choice.held
+        ? choice
+        : { sightings: choice.sightings, held, seed },
     input: replayable?.input,
   };
 };

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-187                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-23                                     |
 > | Status         | Accepted — extends ADR-QD-047                  |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-23): new — the simulation session's policy choice is a pure seeded choice (ARCH-121, CCR-QD-466) |
+> | Change History | 1.1 (2026-11-23): corrected in code review: what each transition answers, the draft's one path and the clear, and the overview's row (CCR-QD-466)<br>1.0 (2026-11-23): new — the simulation session's policy choice is a pure seeded choice (ARCH-121, CCR-QD-466) |
 
 ---
 
@@ -39,10 +39,13 @@ clears was missed: each was a rule restated by hand beside its twin.
    `SeedRow` of the row seeded from and, while that row's policy is the running one, a
    `ReplayedPolicy` of its policy and its unseeded fields. It is built on `HeldChoice.ts`'s
    pure `resolveHeld`, `pinHead` and `heldValue`, not on its mutable cell. The transitions
-   are `seededChoice`, `withSightings`, `seedFrom` and `choose`, each from a `SeededChoice`
-   to a `SeededChoice`. The readings are `policyChoice`, `policyOf`, `seedOf`, `seededFrom`,
-   `menuOf` and `sightingAt`. A transition that changes nothing returns its input object, so
-   a caller detects a no-op with `===`. The session stores nothing of its own for one.
+   are `seededChoice`, `withSightings`, `seedFrom` and `choose`. `withSightings` and
+   `choose` map a `SeededChoice` to a `SeededChoice`, and `seededChoice` and `seedFrom`
+   answer a `Seeding`: the choice, and the input a replayed row gives. The readings are
+   `policyChoice`, `policyOf`, `seedOf`, `seededFrom`, `menuOf` and `sightingAt`. A
+   transition that changes nothing answers its input object, inside the `Seeding` for
+   `seedFrom`, so a caller detects a no-op with `===`. The session stores nothing of its
+   own for one.
 2. **The pin rule.** The constructor, `withSightings` and `seedFrom` each pin the head
    exactly when no replayed policy is held, and `choose` holds a value and pins nothing.
    The rule lives inside the transitions, so no caller can forget it or apply it while a
