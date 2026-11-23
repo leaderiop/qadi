@@ -298,6 +298,47 @@
 
 ---
 
+## Milestone: v1.8 — Arch Wave 13
+
+**Shipped:** 2026-11-23 (completed; not merged, not released)
+**Phases:** 8 (69–76) | **Plans:** 63 | **Sessions:** one autonomous run (`/gsd-autonomous`), with context compactions
+
+### What Was Built
+- ARCH-116: one total thrown-value-to-message rule (`thrownMessage`, `causeMessage`) exported by `@qadi/core`. Every "never throws" copy across core, http, react and devtools uses it, closing four live throw-throughs.
+- ARCH-117/118: hydration's drop events come from its reason-keyed buckets, and every developer-signal reporter is resolved through one table, with the option-name drift fixed (two live defects).
+- ARCH-119/120/121: three deepenings. The dock model's stores are derived stores, gate registration is one pure keyed `reconcile`, and the simulation session's policy choice is a pure seeded choice beside its runs.
+- ARCH-122: the evaluate family's spans are declared once. A failed span says what was asked, and the outcome has one key, `qadi.outcome` (Breaking).
+- ARCH-123: whether a fixture row meets a signature or acted leaf is core's answer. Remedies asks core, a refused value fails typed wherever it is read, and three unused classes are removed (Breaking).
+
+### What Worked
+- Defects first, each with RED on the phase base, then deepenings, then the tracer-visible change, then the speculative item. Every phase ended in a change; the speculative Phase 76 too, not a recorded rejection.
+- Agreement and contract tests held to their first commit by a script (Phases 75 and 76). Review could reshape helpers and imports freely while the rows stayed provably untouched.
+- The post-review mutation re-close found real gaps twice. In Phase 76, 12 survivors on review-written lines were unpinned path arguments, killed by exact-path rows; one equivalent survivor was recorded as moved rather than hidden.
+- The security audit caught a provenance regression. A review fix had removed ADR-QD-189's statement that its decision was autonomous, and the ADR now says so again.
+
+### What Was Inefficient
+- Review rounds widened scope. Phase 76's totality rule grew from the two judgements to every fixture read and `remedyEdits` over three iterations, each needing its own mutation re-close.
+- A later phase broke an earlier phase's record check (`75-contract-check.mjs`), and nothing noticed until the milestone close sweep. Phase checks are not part of `pnpm check`, so only a re-verification runs them.
+- The GSD disposition ledger reconciles a fix report only in its own shape (frontmatter, `## Fixed Issues`, `###` headings), and a report in another shape read as open findings.
+
+### Patterns Established
+- At the close, re-run every phase's own record checks (contract, agreement, mutation compare), not only the gates. A later phase can break an earlier phase's guard without failing `check:pr`.
+- Fixtures that run code as their module loads live in their own module, never in a helpers file that a held contract imports.
+- A dependency behaviour the code relies on for totality gets a canary in `v4-api-smoke.test.ts` (Effect's `String(cause)`), shown failing once.
+- A phase's summary names the requirements it completed in `requirements-completed`, even when the requirements were marked by hand. The audit's three-source cross-check reads that field.
+
+### Key Lessons
+1. Run every earlier phase's record scripts at each phase close, not only at the milestone close. A shared test helper is a cross-phase seam.
+2. When a review fix edits a decision record, re-read its provenance sentence. A tidy-up can turn an autonomous decision into a claimed owner choice.
+3. Keep a fix report in the shape the ledger parses from the first iteration. Reshaping it at the end costs a disposition re-run.
+
+### Cost Observations
+- Model mix: opus for the orchestrator; sonnet for executors, fixers, checkers, verifiers, auditors and the integration check.
+- Sessions: one long autonomous run across several context compactions.
+- Notable: 630 commits in about two days. Outside `.planning`, 198 files changed (+17,915 / −2,874). Ten changesets, three of them Breaking minors.
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -311,6 +352,7 @@
 | v1.5 | 1 (autonomous) | 10 | Defects first with RED on base; a benchmark gate opening a phase; post-review mutation records; the audit fixes its own info findings |
 | v1.6 | 1 (autonomous) | 9 | Pinned per-phase scan scripts; three human checkpoints asked once before planning; review fixes Info findings too, with a mutation re-run per round |
 | v1.7 | 1 (autonomous) | 8 | Debt-only wave; an inserted cleanup phase after the first audit; staleness and re-verify as scripts; Nyquist validation by gate scripts and self-tests |
+| v1.8 | 1 (autonomous) | 8 | Review-driven totality; first-commit contract and agreement checks; post-review mutation re-close per phase; close sweep re-runs each phase's record checks |
 
 ### Cumulative Quality
 
@@ -323,9 +365,10 @@
 | v1.5 | vitest 231 files / 5656 tests (+568, +43), tstyche, e2e 30 | core ≥95%, others ≥90% (enforced); full `pnpm check` with mutation green, every Stryker run ≥ 80 | 0 |
 | v1.6 | vitest core 2649 + devtools 1647 (at audit), tstyche, e2e 30 | core ≥95%, others ≥90% (enforced); every phase's scoped Stryker compare held (no touched file's score fell) | 0 |
 | v1.7 | vitest 242 files / 5985 tests, BDD 568, tstyche 759 assertions (both passes) | core ≥95%, others ≥90% (enforced); no touched file's mutation score fell in any phase | 0 |
+| v1.8 | vitest 255 files / 6363 tests, BDD 568, type tests 43, e2e 30, tstyche 863 of 869 assertions passed (both passes) | core ≥95%, others ≥90% (enforced); every phase's mutation compare passes after review (one recorded equivalent survivor) | 0 |
 
 ### Top Lessons (Verified Across Milestones)
 
-1. Re-verify at close: a later phase that touches shared files makes earlier verification stale (v1.0: 4 phases; v1.2: 3 phases; v1.3: 6 phases; v1.4: 3 phases; v1.5: 5 phases). v1.6 relied on each phase's own verifier plus the milestone integration check (2649 core and 1647 devtools tests at the audit head) instead of per-phase re-verification. v1.7 made it mechanical: a staleness script names the stale phases and a driver re-verifies them (63, 67, 68 and 68.1 after the final fixes).
+1. Re-verify at close: a later phase that touches shared files makes earlier verification stale (v1.0: 4 phases; v1.2: 3 phases; v1.3: 6 phases; v1.4: 3 phases; v1.5: 5 phases). v1.6 relied on each phase's own verifier plus the milestone integration check (2649 core and 1647 devtools tests at the audit head) instead of per-phase re-verification. v1.7 made it mechanical: a staleness script names the stale phases and a driver re-verifies them (63, 67, 68 and 68.1 after the final fixes). v1.8: six of eight phases went stale at the close (69–72, 74, 75), and re-verification found one real break, a phase's record check failing because a later phase edited a shared test helper.
 2. Run review → fix after verification passes: it found warnings verification missed in every milestone.
 3. Shape tooling inputs so tools can read them: v1.0's requirement ranges and v1.2's grouped traceability rows both forced hand edits.
