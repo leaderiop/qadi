@@ -1,0 +1,323 @@
+{
+ "phase": "73",
+ "groups": {
+  "writer": {
+   "head": "1dbaf1a932109af41278b9b56892083c6ec40913",
+   "invocation": "pnpm exec stryker run stryker.react.mjs --mutate packages/react/src/GateWriter.ts",
+   "files": {
+    "packages/react/src/GateWriter.ts": {
+     "killed": 95,
+     "timeout": 0,
+     "survived": 1,
+     "noCoverage": 0,
+     "ignored": 2,
+     "detected": 95,
+     "valid": 96,
+     "open": [
+      {
+       "status": "Survived",
+       "mutator": "ConditionalExpression",
+       "replacement": "true",
+       "line": 271,
+       "column": 3
+      }
+     ],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 250,
+       "column": 30
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 270,
+       "column": 29
+      }
+     ]
+    }
+   }
+  },
+  "hook": {
+   "head": "1dbaf1a932109af41278b9b56892083c6ec40913",
+   "invocation": "pnpm exec stryker run stryker.react.mjs --mutate packages/react/src/useGate.ts",
+   "files": {
+    "packages/react/src/useGate.ts": {
+     "killed": 62,
+     "timeout": 0,
+     "survived": 11,
+     "noCoverage": 1,
+     "ignored": 25,
+     "detected": 62,
+     "valid": 74,
+     "open": [
+      {
+       "status": "NoCoverage",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 134,
+       "column": 90
+      },
+      {
+       "status": "Survived",
+       "mutator": "ConditionalExpression",
+       "replacement": "false",
+       "line": 96,
+       "column": 14
+      },
+      {
+       "status": "Survived",
+       "mutator": "BlockStatement",
+       "replacement": "{}",
+       "line": 94,
+       "column": 40
+      },
+      {
+       "status": "Survived",
+       "mutator": "ConditionalExpression",
+       "replacement": "true",
+       "line": 93,
+       "column": 5
+      },
+      {
+       "status": "Survived",
+       "mutator": "ConditionalExpression",
+       "replacement": "false",
+       "line": 132,
+       "column": 16
+      },
+      {
+       "status": "Survived",
+       "mutator": "ConditionalExpression",
+       "replacement": "false",
+       "line": 110,
+       "column": 9
+      },
+      {
+       "status": "Survived",
+       "mutator": "ConditionalExpression",
+       "replacement": "true",
+       "line": 96,
+       "column": 14
+      },
+      {
+       "status": "Survived",
+       "mutator": "EqualityOperator",
+       "replacement": "before === undefined",
+       "line": 96,
+       "column": 14
+      },
+      {
+       "status": "Survived",
+       "mutator": "ConditionalExpression",
+       "replacement": "true",
+       "line": 149,
+       "column": 11
+      },
+      {
+       "status": "Survived",
+       "mutator": "OptionalChaining",
+       "replacement": "registered.current.get(identity.id).handle",
+       "line": 149,
+       "column": 32
+      },
+      {
+       "status": "Survived",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 144,
+       "column": 32
+      },
+      {
+       "status": "Survived",
+       "mutator": "ConditionalExpression",
+       "replacement": "false",
+       "line": 146,
+       "column": 9
+      }
+     ],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 53,
+       "column": 5
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 54,
+       "column": 8
+      },
+      {
+       "status": "Ignored",
+       "mutator": "BooleanLiteral",
+       "replacement": "false",
+       "line": 54,
+       "column": 17
+      },
+      {
+       "status": "Ignored",
+       "mutator": "BooleanLiteral",
+       "replacement": "true",
+       "line": 54,
+       "column": 32
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 55,
+       "column": 11
+      },
+      {
+       "status": "Ignored",
+       "mutator": "BooleanLiteral",
+       "replacement": "false",
+       "line": 55,
+       "column": 20
+      },
+      {
+       "status": "Ignored",
+       "mutator": "BooleanLiteral",
+       "replacement": "true",
+       "line": 55,
+       "column": 35
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 56,
+       "column": 11
+      },
+      {
+       "status": "Ignored",
+       "mutator": "BooleanLiteral",
+       "replacement": "true",
+       "line": 56,
+       "column": 20
+      },
+      {
+       "status": "Ignored",
+       "mutator": "BooleanLiteral",
+       "replacement": "true",
+       "line": 56,
+       "column": 36
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 57,
+       "column": 16
+      },
+      {
+       "status": "Ignored",
+       "mutator": "BooleanLiteral",
+       "replacement": "true",
+       "line": 57,
+       "column": 25
+      },
+      {
+       "status": "Ignored",
+       "mutator": "BooleanLiteral",
+       "replacement": "true",
+       "line": 57,
+       "column": 41
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 58,
+       "column": 24
+      },
+      {
+       "status": "Ignored",
+       "mutator": "BooleanLiteral",
+       "replacement": "true",
+       "line": 58,
+       "column": 33
+      },
+      {
+       "status": "Ignored",
+       "mutator": "BooleanLiteral",
+       "replacement": "true",
+       "line": 58,
+       "column": 49
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 59,
+       "column": 16
+      },
+      {
+       "status": "Ignored",
+       "mutator": "BooleanLiteral",
+       "replacement": "true",
+       "line": 59,
+       "column": 25
+      },
+      {
+       "status": "Ignored",
+       "mutator": "BooleanLiteral",
+       "replacement": "false",
+       "line": 59,
+       "column": 41
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 60,
+       "column": 17
+      },
+      {
+       "status": "Ignored",
+       "mutator": "BooleanLiteral",
+       "replacement": "true",
+       "line": 60,
+       "column": 26
+      },
+      {
+       "status": "Ignored",
+       "mutator": "BooleanLiteral",
+       "replacement": "true",
+       "line": 60,
+       "column": 42
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 61,
+       "column": 17
+      },
+      {
+       "status": "Ignored",
+       "mutator": "BooleanLiteral",
+       "replacement": "true",
+       "line": 61,
+       "column": 26
+      },
+      {
+       "status": "Ignored",
+       "mutator": "BooleanLiteral",
+       "replacement": "false",
+       "line": 61,
+       "column": 42
+      }
+     ]
+    }
+   }
+  }
+ }
+}
