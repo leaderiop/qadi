@@ -354,3 +354,29 @@ Run on the tree after the mutation close commit, `phase_base` `b22d97f9af2937347
 - `AGENTS.md`, `scripts/`, `spec/process/definitions-of-done.md` and `.changeset/` equal `phase_base`.
 
 Every scan holds on the final tree.
+
+## The characterisation check replaces the import-only rule (2026-11-23, code review)
+
+The close above says the characterisation, with import statements dropped, equals its first commit. In code review the
+helpers `SeededChoice.test.ts` had copied from the characterisation (`KEYS`, `rowRead`, `orphan`, `carolDraft`,
+`PolicyView`, `policyView`, `listed`, `evictedOf`, `seededOf`, `zero`, `menu`, `seededEntry`, `evictedEntry`) moved into
+`packages/devtools/test/simulationFixtures.ts`, so both files read one definition. Deleting those declarations from the
+characterisation is more than an import change, so that rule could no longer hold, and it was replaced by
+`74-characterisation-check.mjs`, which states what the rule was there to keep:
+
+- the multiset of every `it(...)` and `it.effect(...)` call's full text, whitespace collapsed and led by its `describe`
+  titles, equals the first commit's (`e25c8cfd`), so no row's title, input, expected value, body or section moved;
+- every top-level helper of the first commit is still declared there with the same text, or declared at top level of
+  `simulationFixtures.ts` with that text once `export` is dropped, exported and imported from it when the
+  characterisation names it.
+
+One moved helper's text changed, and the check names it in its `REVIEWED` table with both texts: `PolicyView`'s
+`unseeded` is `ReadonlyArray<SimulationField>`, the type `policyView` maps the snapshot's fields to, where the
+characterisation had `ReadonlyArray<string>`. It is a type, so no row's value moves with it.
+
+Command, from the repository root: `node .planning/phases/QD-74-the-simulation-session-s-policy-choice-split-from-its-runs/74-characterisation-check.mjs`,
+which prints `characterisation-check: 35 rows as at e25c8cfd; 21 helpers kept, 13 moved (…)`; with `--self-test` it
+prints `self-test: 13 passed` (a title change, an expected-value change, a row moved to another section, a changed
+moved helper, a helper changed in place, one declared nowhere, one imported from elsewhere or not exported, and an
+unreviewed or unused text change each fail; an import move, a header edit, an identical helper move and a reviewed
+change pass).

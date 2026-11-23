@@ -3,19 +3,26 @@
  *
  * Read by `SimulationSession.test.ts`, `SimulationSession.runs.test.ts`,
  * `SimulationSession.characterisation.test.ts` and `SeededChoice.test.ts`, so a
- * sighting, a timeline entry, a slow resolver and the commands that drive a run are
- * one definition rather than a copy a file keeps beside its own tests.
+ * sighting, a timeline entry, two logged rows and the form a replay fills in, the
+ * policy and menu projections a row compares, a slow resolver and the commands that
+ * drive a run are one definition rather than a copy a file keeps beside its own
+ * tests. A helper is here when two or more of those files read it, or when one does
+ * and another helper here calls it; `KEYS`, read only by `seededOf`, is not exported.
  */
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as TestClock from "effect/testing/TestClock";
-import { AttributeResolver, portsLayer } from "@qadi/core";
+import { AttributeResolver, hasPermission, portsLayer } from "@qadi/core";
 import type { Policy } from "@qadi/core";
 import { policyLabel } from "../src/model/Catalogue.ts";
 import type { PolicySighting } from "../src/model/Catalogue.ts";
+import type { PolicyChoice, PolicyMenu } from "../src/model/SeededChoice.ts";
+import type { SimulationField } from "../src/model/SimulationFields.ts";
+import type { SimulationInput } from "../src/model/SimulationInput.ts";
 import type { SimulationSession } from "../src/model/SimulationSession.ts";
 import { emptyTimeline, ingestAll } from "../src/model/Timeline.ts";
 import type { TimelineEntry } from "../src/model/Timeline.ts";
+import { decisionRecord, obligationRecord, read } from "./helpers.ts";
 
 export const sighting = (policy: Policy): PolicySighting => ({
   policy,
@@ -34,6 +41,100 @@ export const entryOf = (
   if (entry === undefined) throw new Error("expected an entry");
   return entry;
 };
+
+// Two logged rows, the form a replay of one fills in, and a policy choice and a menu
+// as a row compares them.
+
+/** The seven fields a replayed row leaves for the reviewer, in the form's order. */
+const KEYS: ReadonlyArray<SimulationField> = [
+  "roles",
+  "permissions",
+  "subjectAttributes",
+  "attributes",
+  "relationships",
+  "history",
+  "signatures",
+];
+
+export const rowRead = entryOf(
+  decisionRecord({
+    evaluationId: "ev-read",
+    policy: hasPermission(read),
+    subjectId: "carol",
+    action: "read",
+    resource: { id: "doc-1" },
+  }),
+);
+
+export const orphan = entryOf(obligationRecord({ evaluationId: "ev-orphan" }));
+
+/** The form a replay of `rowRead` fills in. */
+export const carolDraft: SimulationInput = {
+  subject: { id: "carol" },
+  action: "read",
+  resource: { id: "doc-1" },
+};
+
+export type PolicyView =
+  | Exclude<PolicyChoice, { readonly _tag: "Seeded" }>
+  | {
+      readonly _tag: "Seeded";
+      readonly entry: TimelineEntry;
+      readonly policy: Policy;
+      readonly unseeded: ReadonlyArray<SimulationField>;
+    };
+
+export const policyView = (choice: PolicyChoice): PolicyView =>
+  choice._tag === "Seeded"
+    ? {
+        _tag: "Seeded",
+        entry: choice.entry,
+        policy: choice.policy,
+        unseeded: choice.unseeded.map((u) => u.key),
+      }
+    : choice;
+
+export const listed = (value: PolicySighting, index: number): PolicyView => ({
+  _tag: "Listed",
+  value,
+  index,
+});
+
+export const evictedOf = (value: PolicySighting): PolicyView =>
+  ({ _tag: "Evicted", value });
+
+export const seededOf = (row: TimelineEntry, policy: Policy): PolicyView => ({
+  _tag: "Seeded",
+  entry: row,
+  policy,
+  unseeded: KEYS,
+});
+
+export const zero = (policy: Policy): PolicySighting => ({
+  policy,
+  label: policyLabel(policy),
+  count: 0,
+  allows: 0,
+  denies: 0,
+  errors: 0,
+  lastAt: undefined,
+});
+
+export const menu = (
+  options: ReadonlyArray<readonly [string, string]>,
+  selected: string,
+): PolicyMenu => ({
+  options: options.map(([value, label]) => ({ value, label })),
+  selected,
+});
+
+export const seededEntry: readonly [string, string] =
+  ["seeded", "from the replayed row"];
+
+export const evictedEntry = (sighting: PolicySighting): readonly [string, string] => [
+  "evicted",
+  `${sighting.label} — no longer in the log`,
+];
 
 /** A resolver that takes a second, and counts how it ended. No error is constructed. */
 export const slow = () => {

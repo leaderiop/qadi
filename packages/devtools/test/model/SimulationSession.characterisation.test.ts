@@ -8,21 +8,21 @@
  * session reports them: `getSnapshot` and `subscribe`, never its internals. Each row
  * compares the whole `view` projection, the snapshot's own identity for a no-op, or
  * both. A row that counts notifications through `subscribe` asserts an exact count
- * where it reads one; not every row counts them. Its inputs, titles and expected
- * values are fixed; an edit to this file may touch its header or its imports only.
+ * where it reads one; not every row counts them. Its rows are fixed, with their
+ * titles, inputs and expected values; an edit to this file may touch its header, its
+ * imports and where a helper is declared, never a row.
  *
- * The helpers it uses are `sighting`, `entryOf`, `slow`, `counted`, `startRun` and
- * `ran` from `../simulationFixtures.ts`.
+ * The helpers it shares with other tests are in `../simulationFixtures.ts`: the
+ * sighting, entry, run and notification helpers, the two logged rows and the form a
+ * replay fills in, and the policy and menu projections a row compares.
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as TestClock from "effect/testing/TestClock";
 import { gte, hasAttribute, hasPermission, hasRole } from "@qadi/core";
 import type { Policy } from "@qadi/core";
-import { policyLabel } from "../../src/model/Catalogue.ts";
 import type { PolicySighting } from "../../src/model/Catalogue.ts";
-import type { PolicyChoice, PolicyMenu } from "../../src/model/SeededChoice.ts";
-import type { SimulationField } from "../../src/model/SimulationFields.ts";
+import type { PolicyMenu } from "../../src/model/SeededChoice.ts";
 import type { SimulationInput } from "../../src/model/SimulationInput.ts";
 import { makeSimulationSession } from "../../src/model/SimulationSession.ts";
 import type {
@@ -32,15 +32,27 @@ import type {
 } from "../../src/model/SimulationSession.ts";
 import type { SimulationSession } from "../../src/model/SimulationSession.ts";
 import type { TimelineEntry } from "../../src/model/Timeline.ts";
-import { decisionRecord, obligationRecord, read } from "../helpers.ts";
+import { decisionRecord, read } from "../helpers.ts";
 import {
+  carolDraft,
   counted,
   entryOf,
+  evictedEntry,
+  evictedOf,
+  listed,
+  menu,
+  orphan,
+  policyView,
   ran,
+  rowRead,
+  seededEntry,
+  seededOf,
   sighting,
   slow,
   startRun,
+  zero,
 } from "../simulationFixtures.ts";
+import type { PolicyView } from "../simulationFixtures.ts";
 
 const roleA = hasRole("a");
 const roleB = hasRole("b");
@@ -59,26 +71,6 @@ const withClearance: SimulationInput = {
 };
 const blank: SimulationInput = { subject: { id: "someone" } };
 
-/** The seven fields a replayed row leaves for the reviewer, in the form's order. */
-const KEYS: ReadonlyArray<SimulationField> = [
-  "roles",
-  "permissions",
-  "subjectAttributes",
-  "attributes",
-  "relationships",
-  "history",
-  "signatures",
-];
-
-const rowRead = entryOf(
-  decisionRecord({
-    evaluationId: "ev-read",
-    policy: hasPermission(read),
-    subjectId: "carol",
-    action: "read",
-    resource: { id: "doc-1" },
-  }),
-);
 const rowA = entryOf(decisionRecord({ evaluationId: "ev-a", policy: roleA }));
 const rowX = entryOf(
   decisionRecord({
@@ -87,26 +79,9 @@ const rowX = entryOf(
     resource: { id: "doc-2" },
   }),
 );
-const orphan = entryOf(obligationRecord({ evaluationId: "ev-orphan" }));
-
-/** The form a replay of `rowRead` fills in. */
-const carolDraft: SimulationInput = {
-  subject: { id: "carol" },
-  action: "read",
-  resource: { id: "doc-1" },
-};
 
 /** A session built in the test's scope. */
 const build = (init?: SimulationSessionInit) => makeSimulationSession(init);
-
-type PolicyView =
-  | Exclude<PolicyChoice, { readonly _tag: "Seeded" }>
-  | {
-      readonly _tag: "Seeded";
-      readonly entry: TimelineEntry;
-      readonly policy: Policy;
-      readonly unseeded: ReadonlyArray<string>;
-    };
 
 type RunView =
   | { readonly _tag: "Idle" }
@@ -126,16 +101,6 @@ interface View {
   readonly stale: boolean;
   readonly baseline: string | undefined;
 }
-
-const policyView = (choice: PolicyChoice): PolicyView =>
-  choice._tag === "Seeded"
-    ? {
-        _tag: "Seeded",
-        entry: choice.entry,
-        policy: choice.policy,
-        unseeded: choice.unseeded.map((u) => u.key),
-      }
-    : choice;
 
 const runView = (run: RunState): RunView =>
   run._tag === "Idle"
@@ -157,45 +122,12 @@ const view = (session: SimulationSession): View => {
   };
 };
 
-const listed = (value: PolicySighting, index: number): PolicyView => ({
-  _tag: "Listed",
-  value,
-  index,
-});
-const evictedOf = (value: PolicySighting): PolicyView => ({ _tag: "Evicted", value });
-const seededOf = (row: TimelineEntry, policy: Policy): PolicyView => ({
-  _tag: "Seeded",
-  entry: row,
-  policy,
-  unseeded: KEYS,
-});
-const zero = (policy: Policy): PolicySighting => ({
-  policy,
-  label: policyLabel(policy),
-  count: 0,
-  allows: 0,
-  denies: 0,
-  errors: 0,
-  lastAt: undefined,
-});
 const ranOf = (policy: Policy, seed: TimelineEntry | undefined): RunView => ({
   _tag: "Ran",
   policy,
   seed,
 });
 
-const menu = (
-  options: ReadonlyArray<readonly [string, string]>,
-  selected: string,
-): PolicyMenu => ({
-  options: options.map(([value, label]) => ({ value, label })),
-  selected,
-});
-const seededEntry: readonly [string, string] = ["seeded", "from the replayed row"];
-const evictedEntry = (sighting: PolicySighting): readonly [string, string] => [
-  "evicted",
-  `${sighting.label} — no longer in the log`,
-];
 const text = (typed: string): ResourceText => ({ text: typed, error: undefined });
 
 /** The view a session reports unless a row says otherwise. */

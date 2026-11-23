@@ -6,13 +6,13 @@
  * the same rules through `SimulationSession.characterisation.test.ts` and
  * `SimulationSession.test.ts`.
  *
- * The helpers it uses are `sighting` and `entryOf` from `../simulationFixtures.ts`.
+ * The helpers it shares with the session's tests are in `../simulationFixtures.ts`:
+ * the sighting and entry helpers, the two logged rows and the form a replay fills
+ * in, and the policy and menu projections a row compares.
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Equal from "effect/Equal";
 import { hasPermission, hasRole } from "@qadi/core";
-import type { Policy } from "@qadi/core";
-import { policyLabel } from "../../src/model/Catalogue.ts";
 import type { PolicySighting } from "../../src/model/Catalogue.ts";
 import {
   choose,
@@ -26,16 +26,25 @@ import {
   sightingAt,
   withSightings,
 } from "../../src/model/SeededChoice.ts";
-import type {
-  PolicyChoice,
-  PolicyMenu,
-  SeededChoice,
-} from "../../src/model/SeededChoice.ts";
-import type { SimulationField } from "../../src/model/SimulationFields.ts";
-import type { SimulationInput } from "../../src/model/SimulationInput.ts";
+import type { SeededChoice } from "../../src/model/SeededChoice.ts";
 import type { TimelineEntry } from "../../src/model/Timeline.ts";
-import { decisionRecord, obligationRecord, read } from "../helpers.ts";
-import { entryOf, sighting } from "../simulationFixtures.ts";
+import { decisionRecord, read } from "../helpers.ts";
+import {
+  carolDraft,
+  entryOf,
+  evictedEntry,
+  evictedOf,
+  listed,
+  menu,
+  orphan,
+  policyView,
+  rowRead,
+  seededEntry,
+  seededOf,
+  sighting,
+  zero,
+} from "../simulationFixtures.ts";
+import type { PolicyView } from "../simulationFixtures.ts";
 
 const roleA = hasRole("a");
 const roleB = hasRole("b");
@@ -48,97 +57,15 @@ const sB = sighting(roleB);
 const sC = sighting(roleC);
 const named: PolicySighting = { ...sighting(roleA), label: "canArchive" };
 
-/** The seven fields a replayed row leaves for the reviewer, in the form's order. */
-const KEYS: ReadonlyArray<SimulationField> = [
-  "roles",
-  "permissions",
-  "subjectAttributes",
-  "attributes",
-  "relationships",
-  "history",
-  "signatures",
-];
-
-const rowRead = entryOf(
-  decisionRecord({
-    evaluationId: "ev-read",
-    policy: hasPermission(read),
-    subjectId: "carol",
-    action: "read",
-    resource: { id: "doc-1" },
-  }),
-);
 const rowS = entryOf(decisionRecord({ evaluationId: "ev-s", policy: roleS }));
-const orphan = entryOf(obligationRecord({ evaluationId: "ev-orphan" }));
 
-/** The form a replay of `rowRead` fills in. */
-const carolInput: SimulationInput = {
-  subject: { id: "carol" },
-  action: "read",
-  resource: { id: "doc-1" },
-};
-
-type PolicyView =
-  | Exclude<PolicyChoice, { readonly _tag: "Seeded" }>
-  | {
-      readonly _tag: "Seeded";
-      readonly entry: TimelineEntry;
-      readonly policy: Policy;
-      readonly unseeded: ReadonlyArray<SimulationField>;
-    };
-
-const listed = (value: PolicySighting, index: number): PolicyView => ({
-  _tag: "Listed",
-  value,
-  index,
-});
-const evictedOf = (value: PolicySighting): PolicyView => ({ _tag: "Evicted", value });
-const seededOf = (entry: TimelineEntry, policy: Policy): PolicyView => ({
-  _tag: "Seeded",
-  entry,
-  policy,
-  unseeded: KEYS,
-});
 const empty: PolicyView = { _tag: "Empty" };
-
-const zero = (policy: Policy): PolicySighting => ({
-  policy,
-  label: policyLabel(policy),
-  count: 0,
-  allows: 0,
-  denies: 0,
-  errors: 0,
-  lastAt: undefined,
-});
 
 const start = (sightings: ReadonlyArray<PolicySighting>, seed?: TimelineEntry) =>
   seededChoice(sightings, seed).choice;
 
 /** The choice as a host reads it, with a replayed row's fields named by their keys. */
-const pc = (choice: SeededChoice): PolicyView => {
-  const picked = policyChoice(choice);
-  return picked._tag === "Seeded"
-    ? {
-        _tag: "Seeded",
-        entry: picked.entry,
-        policy: picked.policy,
-        unseeded: picked.unseeded.map((field) => field.key),
-      }
-    : picked;
-};
-
-const menu = (
-  options: ReadonlyArray<readonly [string, string]>,
-  selected: string,
-): PolicyMenu => ({
-  options: options.map(([value, label]) => ({ value, label })),
-  selected,
-});
-const seededEntry: readonly [string, string] = ["seeded", "from the replayed row"];
-const evictedEntry = (sighting: PolicySighting): readonly [string, string] => [
-  "evicted",
-  `${sighting.label} — no longer in the log`,
-];
+const pc = (choice: SeededChoice): PolicyView => policyView(policyChoice(choice));
 
 /** A choice that held sB and then lost it from the rail, so it reads as Evicted. */
 const evictedBeyondRail = () =>
@@ -171,7 +98,7 @@ describe("pinning the head", () => {
     assert.deepStrictEqual(pc(grown), expected);
     assert.strictEqual(s.choice.held, undefined);
     assert.strictEqual(grown.held, undefined);
-    assert.deepStrictEqual(s.input, carolInput);
+    assert.deepStrictEqual(s.input, carolDraft);
   });
 
   it("an orphan seed pins the head and answers no input", () => {
@@ -395,7 +322,7 @@ describe("choosing a policy", () => {
     const replaying = start([sA], rowRead);
     const again = seedFrom(replaying, rowRead);
     assert.strictEqual(again.choice, replaying);
-    assert.deepStrictEqual(again.input, carolInput);
+    assert.deepStrictEqual(again.input, carolDraft);
     const orphaned = start([sA], orphan);
     assert.strictEqual(seedFrom(orphaned, orphan).choice, orphaned);
   });
@@ -416,7 +343,7 @@ describe("choosing a policy", () => {
     const back = seedFrom(walked, rowRead);
     assert.notStrictEqual(back.choice, walked);
     assert.deepStrictEqual(pc(back.choice), seededOf(rowRead, hasPermission(read)));
-    assert.deepStrictEqual(back.input, carolInput);
+    assert.deepStrictEqual(back.input, carolDraft);
   });
 });
 
