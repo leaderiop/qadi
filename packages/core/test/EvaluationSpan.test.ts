@@ -191,9 +191,15 @@ describe("the declaration of the evaluate family", () => {
   it("the batch spans write nothing after their question", () => {
     // Each subject's decision is its own qadi.evaluate span, so no batch span answers.
     const batches = [decideSubjectsSpan, decideSubjectsStreamSpan, decideSubjectSpan];
+    // A span holding every answer key the evaluate span writes: a batch reads none back.
+    const answered = new Map(
+      Object.entries(
+        encodeSpan(evaluateSpan.answer, { outcome: "Allow", errorTag: "E", obligations: "a" }),
+      ),
+    );
     for (const span of batches) {
       assert.lengthOf(Object.keys(span.answer.keys), 0, `${span.name} has an answer`);
-      assert.deepStrictEqual(encodeSpan(span.answer, {}), {});
+      assert.deepStrictEqual(decodeSpan(span.answer, answered), {}, `${span.name} reads one`);
     }
   });
 });
