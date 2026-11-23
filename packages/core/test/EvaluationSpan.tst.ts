@@ -1,13 +1,13 @@
 /**
  * Pins what the compiler guarantees about the evaluate family's declaration: the
- * outcome tie, the policy tag, the leaf-only fields, the span names and a question
- * written whole.
+ * outcome tie, the policy tag, the leaf-only fields, the span names, a question
+ * written whole and a log event kept off every span.
  *
  * Each refusal is an expect-error directive checked twice, as in
  * `CompilePredicate.tst.ts`: under `pnpm typecheck` an unused directive is TS2578,
  * and under `pnpm test:tstyche` the text after it is a fragment of the one
- * suppressed error's message. The question annotator returns an `Effect`, so its
- * refusal is a negative pin through its parameter type, with its positive twin.
+ * suppressed error's message. The span annotators return an `Effect`, so each of
+ * their refusals is a negative pin through the parameter type, with its positive twin.
  */
 import { expect, test } from "tstyche";
 import type { Decision } from "../src/Decision.ts";
@@ -22,8 +22,8 @@ import {
 } from "../src/EvaluationSpan.ts";
 import type { SpanOutcome } from "../src/EvaluationSpan.ts";
 import type { Policy } from "../src/Policy.ts";
-import type { SpanKey, SpanType, SpanValue } from "../src/PortSpan.ts";
-import { annotateAsked } from "../src/PortSpanEncode.ts";
+import type { SpanKey, SpanStruct, SpanType, SpanValue } from "../src/PortSpan.ts";
+import { annotateAsked, annotateSpan } from "../src/PortSpanEncode.ts";
 
 type Answer = SpanType<typeof evaluateSpan.answer>;
 type Question = SpanType<typeof evaluateSpan.question>;
@@ -102,4 +102,22 @@ test("a question that names every member is accepted", () => {
     policyTag: "HasRole",
     action: undefined,
   });
+});
+
+/** The answer annotator's parameters at the denial event's fields, `Effect` dropped. */
+type DenialParams = typeof annotateSpan<typeof denialEvent.fields> extends (
+  ...args: infer A
+) => unknown
+  ? (...args: A) => void
+  : never;
+
+/** A span struct of the denial event's own fields, which a span may carry. */
+declare const spanOfDenialFields: SpanStruct<typeof denialEvent.fields>;
+
+test("the denial event's struct cannot annotate a span", () => {
+  expect<DenialParams>().type.not.toBeCallableWith(denialEvent, { reason: "r" });
+});
+
+test("a span struct of the same fields can annotate a span", () => {
+  expect<DenialParams>().type.toBeCallableWith(spanOfDenialFields, { reason: "r" });
 });

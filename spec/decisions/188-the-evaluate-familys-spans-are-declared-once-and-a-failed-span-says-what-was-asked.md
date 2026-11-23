@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-188                                   |
-> | Revision       | 1.5                                            |
+> | Revision       | 1.6                                            |
 > | Effective Date | 2026-11-23                                     |
 > | Status         | Accepted — extends ADR-QD-051 and ADR-QD-109   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.5 (2026-11-23): Decision 3 declares the keyless decideSubjectSpan, so every span name of the family is read from the declaration (code review, CCR-QD-467)<br>1.4 (2026-11-23): Decision 8 and Consequences point to What enforces it and The cost, measured, which this document holds (code review, CCR-QD-467)<br>1.3 (2026-11-23): What enforces it: the compiler holds each question whole through annotateAsked's PoseOf (code review, CCR-QD-467)<br>1.2 (2026-11-23): Decision 1 scopes the outcome to a path that ends in a decision or a typed failure; an interrupted or defected evaluation carries no outcome (code review, CCR-QD-467)<br>1.1 (2026-11-23): What enforces it (the compiler, the rule, the tests, review) and the measured cost of the second annotation; related records INV-QD-395, INV-QD-396, BEH-QD-711 to BEH-QD-715 (ARCH-122, CCR-QD-467)<br>1.0 (2026-11-23): Initial release (ARCH-122, CCR-QD-467) |
+> | Change History | 1.6 (2026-11-23): Decision 6 and What enforces it: denialEvent is a log event the span annotators refuse, held by the compiler (code review, CCR-QD-467)<br>1.5 (2026-11-23): Decision 3 declares the keyless decideSubjectSpan, so every span name of the family is read from the declaration (code review, CCR-QD-467)<br>1.4 (2026-11-23): Decision 8 and Consequences point to What enforces it and The cost, measured, which this document holds (code review, CCR-QD-467)<br>1.3 (2026-11-23): What enforces it: the compiler holds each question whole through annotateAsked's PoseOf (code review, CCR-QD-467)<br>1.2 (2026-11-23): Decision 1 scopes the outcome to a path that ends in a decision or a typed failure; an interrupted or defected evaluation carries no outcome (code review, CCR-QD-467)<br>1.1 (2026-11-23): What enforces it (the compiler, the rule, the tests, review) and the measured cost of the second annotation; related records INV-QD-395, INV-QD-396, BEH-QD-711 to BEH-QD-715 (ARCH-122, CCR-QD-467)<br>1.0 (2026-11-23): Initial release (ARCH-122, CCR-QD-467) |
 
 ---
 
@@ -87,7 +87,9 @@ Nothing outside `packages/core/test` reads these keys: not `@qadi/devtools`, `@q
    whose answer is a decision. `qadi.error_tag` is shared by the three spans that can fail.
    `qadi.obligations` is the comma-joined ids and appears only on an Allow that owes some.
    The denial log line keeps its message and its three annotations, built from `denialEvent`,
-   and stays a debug log, so the reason sentence is not copied onto the span's attributes.
+   and stays a debug log, so the reason sentence is not copied onto the span's attributes:
+   `denialEvent` is a log event, a declaration kind of its own that the span annotators
+   refuse.
 7. **Names come from the declaration.** Each span's name is read from its declaration, as a
    port read reads its name from its description. The names themselves do not change.
 8. **A rule guards the keys.** A house-style rule reads the key set from the declaration, and
@@ -128,8 +130,10 @@ The decision is held by four things, and the last of them is not a machine.
   a `PoseOf` the question, the type a port's `pose` returns
   ([ADR-QD-133](./133-a-port-request-is-derived-from-its-wire-question.md)), and the stream span's
   attributes are built from a value of that type, so a writer that leaves out a member, the
-  evaluation id or the policy's tag, does not compile. `packages/core/test/EvaluationSpan.tst.ts`
-  pins each tie and the refusal of a question with a member left out
+  evaluation id or the policy's tag, does not compile. `denialEvent` is a `LogEventStruct`, which
+  `annotateSpan` and `annotateAsked` refuse, so the reason cannot be written to a span through
+  them. `packages/core/test/EvaluationSpan.tst.ts` pins each tie, the refusal of a question with a
+  member left out and the refusal of the denial event's struct
   ([INV-QD-396](../invariants.md#inv-qd-396-one-fact-has-one-key-across-the-evaluate-family)).
 - **The rule.** `[span-key-source]` and `[span-key-literal]` in `scripts/check-house-style.mjs`, run
   by `pnpm lint`, read the key set from the declaration. The first refuses a family key spelled in

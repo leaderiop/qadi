@@ -86,16 +86,39 @@ export const encodeSpan = <Fields extends SpanFields>(
 };
 
 /**
+ * A struct that annotates a log line and never a span: its keys, encoded with
+ * {@link encodeSpan}, are a log line's annotations.
+ *
+ * Its own declaration kind, so the span annotators, {@link annotateSpan} and
+ * {@link annotateAsked}, refuse it at compile time: what it carries, such as a
+ * denial's reason sentence, stays on the log line where an operator turns it on.
+ */
+export interface LogEventStruct<Fields extends SpanFields> extends SpanStruct<Fields> {
+  readonly logEvent: true;
+}
+
+/** Builds a {@link LogEventStruct} from its fields and keys, like {@link spanStruct}. */
+export const logEventStruct = <const Fields extends SpanFields>(
+  fields: Fields,
+  keys: { readonly [K in keyof Fields]: SpanKey },
+): LogEventStruct<Fields> => ({ ...spanStruct(fields, keys), logEvent: true });
+
+/** A struct a span may carry: any but a {@link LogEventStruct}. */
+type SpanCarried<Fields extends SpanFields> = SpanStruct<Fields> & {
+  readonly logEvent?: never;
+};
+
+/**
  * Annotates the current span with one struct's attributes, any member left out.
  *
  * The one body that writes a struct to a span: a port's question and answer
  * (`PortAccess.ts`), a retried call's attempts (`PortDerivation.ts`) and the
  * evaluate family's answers all go through it. A plain function: it opens no span,
  * it writes to the one the caller opened. A family question, which must name every
- * member, is written with {@link annotateAsked}.
+ * member, is written with {@link annotateAsked}; a {@link LogEventStruct} is refused.
  */
 export const annotateSpan = <Fields extends SpanFields>(
-  struct: SpanStruct<Fields>,
+  struct: SpanCarried<Fields>,
   value: SpanType<SpanStruct<Fields>>,
 ): Effect.Effect<void> => Effect.annotateCurrentSpan(encodeSpan(struct, value));
 
@@ -126,7 +149,7 @@ export type PoseOf<S> =
  * names only what its ending says, is written with {@link annotateSpan}.
  */
 export const annotateAsked = <Fields extends SpanFields>(
-  struct: SpanStruct<Fields>,
+  struct: SpanCarried<Fields>,
   value: PoseOf<SpanStruct<Fields>>,
 ): Effect.Effect<void> => annotateSpan<SpanFields>(struct, value);
 
