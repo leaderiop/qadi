@@ -42,11 +42,11 @@
 
 ### One pure reconcile for gate registration (Phase 73, ARCH-120, react)
 
-- [ ] **RECN-01**: A characterisation of `useGate`/`useGates` registration (register, state update, unregister, remount, StrictMode) is written on the phase base and stays green.
-- [ ] **RECN-02**: `reconcile` takes identities and states keyed by gate id and does register, update and unregister in one pure step. No caller passes arrays that must line up by index.
-- [ ] **RECN-03**: `useGateRegistrations` has one effect plus the refs React needs. The `states.join("|")` diff and the paired `Record.values` calls are gone.
-- [ ] **RECN-04**: The state-update half is tested without rendering, beside `GateWriter.reconcile.test.ts`. `GateRegistry.test.tsx` loses the cases that move.
-- [ ] **RECN-05**: ADR-QD-186 extends ADR-QD-140 and ADR-QD-111. AGENTS.md §13 is unaffected (registry state, not decision state).
+- [x] **RECN-01**: A characterisation of `useGate`/`useGates` registration (register, state update, unregister, remount, StrictMode) is written on the phase base and stays green.
+- [x] **RECN-02**: `reconcile` takes identities and states keyed by gate id and does register, update and unregister in one pure step. No caller passes arrays that must line up by index.
+- [x] **RECN-03**: `useGateRegistrations` has one effect plus the refs React needs. The `states.join("|")` diff and the paired `Record.values` calls are gone.
+- [x] **RECN-04**: The state-update half is tested without rendering, beside `GateWriter.reconcile.test.ts`. `GateRegistry.test.tsx` loses the cases that move.
+- [x] **RECN-05**: ADR-QD-186 extends ADR-QD-140 and ADR-QD-111. AGENTS.md §13 is unaffected (registry state, not decision state).
 
 ### The simulation session's policy choice split from its runs (Phase 74, ARCH-121, devtools)
 
@@ -125,11 +125,11 @@ Which phases cover which requirements. One row per ID (`phase.complete` cannot p
 | DERV-03 | Phase 72 | Complete |
 | DERV-04 | Phase 72 | Complete |
 | DERV-05 | Phase 72 | Complete |
-| RECN-01 | Phase 73 | Pending |
-| RECN-02 | Phase 73 | Pending |
-| RECN-03 | Phase 73 | Pending |
-| RECN-04 | Phase 73 | Pending |
-| RECN-05 | Phase 73 | Pending |
+| RECN-01 | Phase 73 | Complete |
+| RECN-02 | Phase 73 | Complete |
+| RECN-03 | Phase 73 | Complete |
+| RECN-04 | Phase 73 | Complete |
+| RECN-05 | Phase 73 | Complete |
 | CHSE-01 | Phase 74 | Pending |
 | CHSE-02 | Phase 74 | Pending |
 | CHSE-03 | Phase 74 | Pending |
