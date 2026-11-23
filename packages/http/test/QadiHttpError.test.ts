@@ -371,6 +371,9 @@ subject id when the error has none",
       const bare = { _tag: "SignatureHistoryUnavailable" };
       expect(projectHttpEnforcementFailure(error)).toEqual(bare);
       expect(Schema.encodeSync(SignatureHistoryUnavailableResponse)(error)).toEqual(bare);
+      // `toEqual` reads a member stated `undefined` as absent, so the key is checked too.
+      expect("subjectId" in projectHttpEnforcementFailure(error)).toBe(false);
+      expect("subjectId" in Schema.encodeSync(SignatureHistoryUnavailableResponse)(error)).toBe(false);
     },
   );
 
@@ -386,6 +389,9 @@ event when the error has none",
       const bare = { _tag: "DecisionHistoryUnavailable" };
       expect(projectHttpEnforcementFailure(error)).toEqual(bare);
       expect(Schema.encodeSync(DecisionHistoryUnavailableResponse)(error)).toEqual(bare);
+      // `toEqual` reads a member stated `undefined` as absent, so the key is checked too.
+      expect("event" in projectHttpEnforcementFailure(error)).toBe(false);
+      expect("event" in Schema.encodeSync(DecisionHistoryUnavailableResponse)(error)).toBe(false);
     },
   );
 
