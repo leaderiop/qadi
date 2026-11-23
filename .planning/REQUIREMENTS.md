@@ -66,11 +66,11 @@
 
 ### Remedies uses core's signature match (Phase 76, ARCH-123, devtools + core; speculative)
 
-- [ ] **SIGM-01**: An agreement test written on the phase base compares Remedies' "already met" verdict with the fixture signature port's own answer, over subjects, resources, meanings and signer roles (including a node with no signer role). It stays green whatever the phase decides.
-- [ ] **SIGM-02**: Either Remedies asks core (through the fixture signature port or the port description) whether a fixture signature satisfies a node, and the inline match at `Remedies.ts:531-545` is gone, or the phase ends in a recorded rejection that says why no shape fits without widening core's public surface.
-- [ ] **SIGM-03**: `SignatureMatch.ts` stays package-private (ADR-QD-099). If any export is added, `spec/overview.md` names it (gate 13) and the packed-install gate probes it.
-- [ ] **SIGM-04**: The custom-predicate refusal is one sentence, owned in one place (`Remedies.ts:426` and `SimulationFields.ts:576` today).
-- [ ] **SIGM-05**: ADR-QD-189 records the outcome, change or rejection, with CCR-QD-468.
+- [x] **SIGM-01**: An agreement test written on the phase base compares Remedies' "already met" verdict with the fixture signature port's own answer, over subjects, resources, meanings and signer roles (including a node with no signer role). It stays green whatever the phase decides.
+- [x] **SIGM-02**: Either Remedies asks core (through the fixture signature port or the port description) whether a fixture signature satisfies a node, and the inline match at `Remedies.ts:531-545` is gone, or the phase ends in a recorded rejection that says why no shape fits without widening core's public surface.
+- [x] **SIGM-03**: `SignatureMatch.ts` stays package-private (ADR-QD-099). If any export is added, `spec/overview.md` names it (gate 13) and the packed-install gate probes it.
+- [x] **SIGM-04**: The custom-predicate refusal is one sentence, owned in one place (`Remedies.ts:426` and `SimulationFields.ts:576` today).
+- [x] **SIGM-05**: ADR-QD-189 records the outcome, change or rejection, with CCR-QD-468.
 
 ### Cross-cutting (every v1.8 phase)
 
@@ -140,11 +140,11 @@ Which phases cover which requirements. One row per ID (`phase.complete` cannot p
 | ESPN-03 | Phase 75 | Complete |
 | ESPN-04 | Phase 75 | Complete |
 | ESPN-05 | Phase 75 | Complete |
-| SIGM-01 | Phase 76 | Pending |
-| SIGM-02 | Phase 76 | Pending |
-| SIGM-03 | Phase 76 | Pending |
-| SIGM-04 | Phase 76 | Pending |
-| SIGM-05 | Phase 76 | Pending |
+| SIGM-01 | Phase 76 | Complete |
+| SIGM-02 | Phase 76 | Complete |
+| SIGM-03 | Phase 76 | Complete |
+| SIGM-04 | Phase 76 | Complete |
+| SIGM-05 | Phase 76 | Complete |
 | WX-01 | All v1.8 phases | Pending |
 | WX-02 | All v1.8 phases | Pending |
 | WX-03 | All v1.8 phases | Pending |
