@@ -4,18 +4,18 @@ milestone: v1.8
 milestone_name: Arch Wave 13
 current_phase: 75
 current_phase_name: A declared span shape for the evaluate family
-current_plan: 7
+current_plan: 8
 status: executing
-stopped_at: Completed 75-06-PLAN.md
-last_updated: "2026-11-23T08:54:24.629Z"
+stopped_at: Completed 75-07-PLAN.md
+last_updated: "2026-11-23T09:14:22.440Z"
 last_activity: 2026-11-23
 last_activity_desc: Phase 74 complete, transitioned to Phase 75
-state_head: b6db787e988808bf2de2e3572903385e08e76a06
+state_head: 2c917b6b43b898a0d17433a28b63106d36ebfb61
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 55
-  completed_plans: 52
+  completed_plans: 53
   percent: 75
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 ## Current Position
 
 Phase: QD-75 (A declared span shape for the evaluate family) — EXECUTING
-Current Plan: 7
+Current Plan: 8
 Total Plans in Phase: 9
 Status: Ready to execute
 Last activity: 2026-11-23 — Phase 74 complete, transitioned to Phase 75
@@ -543,6 +543,7 @@ Last activity: 2026-11-23 — Phase 74 complete, transitioned to Phase 75
 | Phase 75 P04 | 16 min | 2 tasks | 7 files |
 | Phase 75 P05 | 14 min | 2 tasks | 3 files |
 | Phase 75 P06 | 25 min | 2 tasks | 4 files |
+| Phase 75 P07 | 20 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -940,6 +941,7 @@ Last activity: 2026-11-23 — Phase 74 complete, transitioned to Phase 75
 - [Phase 75]: 75-04: the predicate tag is a Schema.String field, not a closed list, because the predicate's tags live in Predicate.ts, which reads EvaluationSpan.ts
 - [Phase 75]: 75-05: the runtime rows compare shared fields by identity, and the type test words its header without the literal expect-error token so the verify's exact count holds
 - [Phase 75]: 75-06: the span-key rule reads its key set from EvaluationSpan.ts with a pinned minimum of 11, tolerates the shared key once in PortSpanEncode.ts, and skips the test-literal rule when the set is unusable so an empty alternation cannot match empty quotes
+- [Phase 75]: 75-07: two static mutants of EvaluationSpan.ts crash the module at import (Stryker RuntimeError, not Killed) and are admitted by EXAMINED with the finding recorded; the cost of the second annotation is recorded as +6.8% to +7.8% geometric mean, not gated
 
 ### Pending Todos
 
@@ -1013,8 +1015,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-23T08:54:18.071Z
-Stopped at: Completed 75-06-PLAN.md
+Last session: 2026-11-23T09:14:22.137Z
+Stopped at: Completed 75-07-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
