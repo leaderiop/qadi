@@ -4,18 +4,18 @@ milestone: v1.8
 milestone_name: Arch Wave 13
 current_phase: 74
 current_phase_name: The simulation session's policy choice split from its runs
-current_plan: 3
+current_plan: 4
 status: executing
-stopped_at: Completed 74-02-PLAN.md
-last_updated: "2026-11-23T04:03:57.894Z"
+stopped_at: Completed 74-03-PLAN.md
+last_updated: "2026-11-23T04:16:27.075Z"
 last_activity: 2026-11-23
 last_activity_desc: Phase 73 complete, transitioned to Phase 74
-state_head: b68006b846341c859b79d0b1286854cef23475e0
+state_head: 338e02e4dfd865c1fb06f5692abd2821cf667bcc
 progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 46
-  completed_plans: 41
+  completed_plans: 42
   percent: 63
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 ## Current Position
 
 Phase: 74 (The simulation session's policy choice split from its runs) — READY TO EXECUTE
-Current Plan: 3
+Current Plan: 4
 Total Plans in Phase: 7
 Status: Ready to execute
 Last activity: 2026-11-23 — Phase 73 complete, transitioned to Phase 74
@@ -531,6 +531,7 @@ Last activity: 2026-11-23 — Phase 73 complete, transitioned to Phase 74
 | Phase 73 P07 | 30 min | 3 tasks | 4 files |
 | Phase 74 P01 | 20 min | 2 tasks | 7 files |
 | Phase 74 P02 | 10 min | 2 tasks | 7 files |
+| Phase 74 P03 | 45min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -915,6 +916,7 @@ Last activity: 2026-11-23 — Phase 73 complete, transitioned to Phase 74
 - [Phase 74]: The mutation base was measured with the helper move kept out of the tree, so no phase test or fixtures file existed while Stryker ran
 - [Phase 74]: judgeNew of a close-only file reports an Ignored mutant as unexamined unless EXAMINED admits its kind, and a stale EXAMINED entry as removable
 - [Phase 74]: 74-02: ADR-QD-187 written with the five rule sentences verbatim; the CCR-QD-466 row names only files that exist at plan end, 74-06 adds code and test files
+- [Phase 74]: 74-03: SimulationSession re-exports PolicyChoice, PolicyMenu and PolicyMenuOption from ./SeededChoice.ts so the unedited characterisation still resolves them; the barrel names them from the new module
 
 ### Pending Todos
 
@@ -988,8 +990,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-23T04:03:57.547Z
-Stopped at: Completed 74-02-PLAN.md
+Last session: 2026-11-23T04:16:21.230Z
+Stopped at: Completed 74-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
