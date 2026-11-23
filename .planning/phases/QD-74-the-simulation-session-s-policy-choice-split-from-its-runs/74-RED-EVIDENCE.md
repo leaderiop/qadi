@@ -240,3 +240,30 @@ First failure lines:
 AssertionError: expected { …(8) } to deeply equal { draft: { …(3) }, …(7) }
     at packages/devtools/test/model/SimulationSession.characterisation.test.ts:916:14
 ```
+
+## Where each moved session test is pinned now
+
+Each removed session test is survived by a `SeededChoice.test.ts` test at the same expected values, and where the session reading matters by a characterisation row.
+
+| Session test (base) | SeededChoice.test.ts | Characterisation |
+| ------------------- | -------------------- | ---------------- |
+| choosePolicyAt names a position of the menu, which a seeded or evicted entry shifts by one | sightingAt 0 of a seeded or evicted menu is nothing, and 1 is the head of the rail | position 0 of a seeded menu names the replayed row and changes nothing; position 0 of a menu led by an evicted choice changes nothing |
+| choosePolicyAt a position that lists nothing, or not a whole position, changes nothing | sightingAt a position past the list, negative, fractional or NaN is nothing | a position past the list, negative, fractional or NaN changes nothing |
+| is empty and selects nothing while there is no policy | the menu of an empty choice is empty and selects nothing | the menu of an empty session is empty and selects nothing |
+| lists each sighting by its label and value `String(index)`, and selects the chosen one | the menu lists each sighting by its label under String(index), selecting the held one | choosing a listed policy holds it and notifies once |
+| leads with the evicted choice, labelled as no longer in the log | the menu leads with an evicted choice, labelled as no longer in the log | choosing a policy the rail does not list holds it as evicted |
+| leads with the replayed row while seeded | the menu leads with the replayed row while a replayed policy is held | built with a replayable row, a session holds its policy unpinned |
+| an orphan seeds nothing and leaves no policy | an orphan seeds no policy and answers no input | built with an orphan row, a session holds the head and keeps the row as seed |
+| choosing from the rail leaves the replayed row behind | choosing from the rail drops the replayed policy | choosing the held policy while seeded leaves the row, keeping the draft |
+| pins the head before any choice, and a new head does not move it | with no seed, the constructor pins the head of the rail | built with no seed, a session holds the head of the rail and keeps it |
+| does not pin while a replayed row is seeded, and pins when it is left | a held replayed policy pins nothing, and leaving it pins the head | built with a replayable row, a session holds its policy unpinned |
+| pins the head at the moment a replayed row is left, not before | leaving a replayed policy pins the head of that moment, not an earlier one | built with a replayable row, a session holds its policy unpinned |
+| choosing the held policy while a replayed row is seeded still leaves the row | choosing the held policy while a replayed policy is held drops it | choosing the held policy while seeded leaves the row, keeping the draft |
+| remembers the rail's label for a chosen policy once it leaves the rail | a chosen policy keeps the label of the rail once the rail drops it | a finished run stays current when the rail moves |
+| holds a policy chosen before the rail has any | choosing before the rail has any holds the choice, not the head | a policy chosen before the rail has any is held once the rail lists it |
+| refuses nothing: choosing an unlisted policy holds it as evicted | choosing a policy the rail does not list holds it as evicted | choosing a policy the rail does not list holds it as evicted |
+| keeps the chosen policy when a decision reorders the rail | the held policy follows a reordered rail | the held policy follows the rail to its new position |
+| keeps the chosen policy when a new policy decides first | the held policy follows the rail past a new head | the held policy follows the rail to its new position |
+| leaving a seed with seed(undefined) clears the replayed policy | seedFrom(undefined) drops the replayed policy, holding the head or nothing | built with a replayable row, a session holds its policy unpinned |
+
+They were removed by commit `81972903` (`test(74-05): drop the session tests whose rules the seeded choice tests pin`). The session tests held 100 before and hold 82 after (100 - 18).
