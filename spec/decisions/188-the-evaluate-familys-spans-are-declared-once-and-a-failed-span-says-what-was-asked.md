@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-188                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-11-23                                     |
 > | Status         | Accepted — extends ADR-QD-051 and ADR-QD-109   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-11-23): What enforces it: the compiler holds each question whole through annotateAsked's PoseOf (code review, CCR-QD-467)<br>1.2 (2026-11-23): Decision 1 scopes the outcome to a path that ends in a decision or a typed failure; an interrupted or defected evaluation carries no outcome (code review, CCR-QD-467)<br>1.1 (2026-11-23): What enforces it (the compiler, the rule, the tests, review) and the measured cost of the second annotation; related records INV-QD-395, INV-QD-396, BEH-QD-711 to BEH-QD-715 (ARCH-122, CCR-QD-467)<br>1.0 (2026-11-23): Initial release (ARCH-122, CCR-QD-467) |
+> | Change History | 1.4 (2026-11-23): Decision 8 and Consequences point to What enforces it and The cost, measured, which this document holds (code review, CCR-QD-467)<br>1.3 (2026-11-23): What enforces it: the compiler holds each question whole through annotateAsked's PoseOf (code review, CCR-QD-467)<br>1.2 (2026-11-23): Decision 1 scopes the outcome to a path that ends in a decision or a typed failure; an interrupted or defected evaluation carries no outcome (code review, CCR-QD-467)<br>1.1 (2026-11-23): What enforces it (the compiler, the rule, the tests, review) and the measured cost of the second annotation; related records INV-QD-395, INV-QD-396, BEH-QD-711 to BEH-QD-715 (ARCH-122, CCR-QD-467)<br>1.0 (2026-11-23): Initial release (ARCH-122, CCR-QD-467) |
 
 ---
 
@@ -90,8 +90,8 @@ Nothing outside `packages/core/test` reads these keys: not `@qadi/devtools`, `@q
 7. **Names come from the declaration.** Each span's name is read from its declaration, as a
    port read reads its name from its description. The names themselves do not change.
 8. **A rule guards the keys.** A house-style rule reads the key set from the declaration, and
-   refuses a family key typed by hand outside it. A What-enforces-it section names the rule
-   when it is added.
+   refuses a family key typed by hand outside it: `[span-key-source]` and
+   `[span-key-literal]`; see What enforces it.
 
 ## Alternatives considered
 
@@ -111,7 +111,8 @@ Nothing outside `packages/core/test` reads these keys: not `@qadi/devtools`, `@q
 - Breaking for a tracer query on `qadi.decision`: it moves to `qadi.outcome`. It ships with a
   `@qadi/core` changeset and an upgrade-guide section that list every new key a tracer sees.
 - Every evaluation annotates twice, the question and then the answer, where it annotated once.
-  The cost is measured and recorded in a later revision of this decision.
+  The cost is recorded under The cost, measured: +6.79% geomean on a settled host, about
+  0.4–1.1 µs per call.
 - `decideQuestion` stays exported, package-private, because its type test pins its options.
 - No public name changes, so `check-api-surface` stays at 941 exports.
 
