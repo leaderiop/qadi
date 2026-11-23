@@ -443,7 +443,7 @@ Order: the three live defects (69 to 71), the three deepenings (72 to 74), the c
 - [x] **Phase 70: Hydration's drop events come from its buckets** - `EntriesDropped` and `LeftOut` events are derived from reason-keyed records on the hydrate and dehydrate sides, so a drop reason cannot gain a bucket without its event (ARCH-117, react; live defect) (completed 2026-11-22)
 - [x] **Phase 71: Developer-signal reporters resolved through one table** - One table states where each signal runs, how often and what it is named, and a throwing `onIdCollision` reporter is reported under that name (ARCH-118, react; live defect) (completed 2026-11-22)
 - [x] **Phase 72: A derived store behind the dock model's stores** - `ExternalStore` gains a store derived from parent stores that owns key equality, stop-after-close and notify-once, and the dock model's three hand-built computed stores use it (ARCH-119, devtools) (completed 2026-11-22)
-- [ ] **Phase 73: One pure reconcile for gate registration** - One `reconcile` keyed by gate id registers, updates and unregisters, and `useGate` loses its state-diff effect and the index-aligned parallel arrays (ARCH-120, react)
+- [x] **Phase 73: One pure reconcile for gate registration** - One `reconcile` keyed by gate id registers, updates and unregisters, and `useGate` loses its state-diff effect and the index-aligned parallel arrays (ARCH-120, react) (completed 2026-11-23)
 - [ ] **Phase 74: The simulation session's policy choice split from its runs** - The policy-choice and seed rules move into a pure module beside `HeldChoice.ts`, and the session keeps only runs (ARCH-121, devtools)
 - [ ] **Phase 75: A declared span shape for the evaluate family** - One question/answer span struct built with `spanStruct`, so a failed `qadi.evaluate` span carries the question and the outcome sits under one key; human checkpoint (ARCH-122, core)
 - [ ] **Phase 76: Remedies uses core's signature match** - Remedies asks core whether a fixture signature satisfies a node, or the phase ends in a recorded rejection; speculative (ARCH-123, devtools + core)
@@ -603,7 +603,7 @@ Plans:
   4. The state-update half is tested without rendering, beside `GateWriter.reconcile.test.ts`, `GateRegistry.test.tsx` loses the cases that move, and ADR-QD-186 extends ADR-QD-140 and ADR-QD-111.
 
 **Planning notes**: AGENTS.md §13 holds: the gate registry records that a gate exists and what it renders now, never a retained verdict.
-**Plans**: 7/7 plans executed (strictly serial, waves 1 to 7)
+**Plans**: 7/7 plans complete (strictly serial, waves 1 to 7)
 
 Plans:
 **Wave 1**
@@ -694,7 +694,7 @@ Phases execute in numeric order: 69 → 70 → 71 → 72 → 73 → 74 → 75 �
 | 70. Hydration's drop events come from its buckets | 7/7 | Complete    | 2026-11-22 |
 | 71. Developer-signal reporters resolved through one table | 8/8 | Complete    | 2026-11-22 |
 | 72. A derived store behind the dock model's stores | 8/8 | Complete    | 2026-11-22 |
-| 73. One pure reconcile for gate registration | 7/7 | In Progress | - |
+| 73. One pure reconcile for gate registration | 7/7 | Complete    | 2026-11-23 |
 | 74. The simulation session's policy choice split from its runs | 0/TBD | Not started | - |
 | 75. A declared span shape for the evaluate family | 0/TBD | Not started | - |
 | 76. Remedies uses core's signature match | 0/TBD | Not started | - |

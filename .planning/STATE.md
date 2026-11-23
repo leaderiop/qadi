@@ -2,21 +2,21 @@
 gsd_state_version: "1.0"
 milestone: v1.8
 milestone_name: Arch Wave 13
-current_phase: 73
-current_phase_name: One pure reconcile for gate registration
-current_plan: 7
-status: verifying
-stopped_at: Completed 73-07-PLAN.md
-last_updated: "2026-11-23T01:16:56.750Z"
-last_activity: 2026-11-22
-last_activity_desc: Phase 72 complete, transitioned to Phase 73
-state_head: c7096b651a1b2ca6a337f872aea1dab98fa3e703
+current_phase: 74
+current_phase_name: The simulation session's policy choice split from its runs
+current_plan: Not started
+status: planning
+stopped_at: Phase 73 complete, ready to plan Phase 74
+last_updated: "2026-11-23T02:33:33.295Z"
+last_activity: 2026-11-23
+last_activity_desc: Phase 73 complete, transitioned to Phase 74
+state_head: 0e4f76815e93e720a9204ff0444a03f22d76539c
 progress:
   total_phases: 8
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 39
   completed_plans: 39
-  percent: 50
+  percent: 63
 ---
 
 # Project State
@@ -30,17 +30,17 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 
 ## Current Position
 
-Phase: 73 (One pure reconcile for gate registration) — EXECUTING
-Current Plan: 7
+Phase: 74 — The simulation session's policy choice split from its runs
+Current Plan: Not started
 Total Plans in Phase: 7
-Status: Phase complete — ready for verification
-Last activity: 2026-11-22 — Phase 72 complete, transitioned to Phase 73
+Status: Ready to plan
+Last activity: 2026-11-23 — Phase 73 complete, transitioned to Phase 74
 
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 411
+- Total plans completed: 418
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -111,6 +111,7 @@ Last activity: 2026-11-22 — Phase 72 complete, transitioned to Phase 73
 | 70 | 7 | - | - |
 | 71 | 8 | - | - |
 | 72 | 8 | - | - |
+| 73 | 7 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -982,7 +983,7 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 ## Session Continuity
 
 Last session: 2026-11-23T01:16:56.526Z
-Stopped at: Completed 73-07-PLAN.md
+Stopped at: Phase 73 complete, ready to plan Phase 74
 Resume file: None
 
 ## Operator Next Steps
