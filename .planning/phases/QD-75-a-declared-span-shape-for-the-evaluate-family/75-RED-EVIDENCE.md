@@ -695,7 +695,9 @@ The geometric mean over the 17 workloads is +9.17% (against +7.83% and +6.79% at
 `field-heavy — allOf of 8 under Intersection` is inside it (+2.0%). The absolute cost is about 0.3 to 0.9 µs per `evaluate`
 call (`one node` +896 ns, `wide` +792 ns, `resolver miss` +813 ns), the same order as before; the percentage is larger
 because the base arm ran faster in this run (`one node` 5562 against 5833 ns), and it is lowest on the most expensive
-workload. The added call frames of the rewiring are inside the figure, as expected; it is a record and not a gate.
+workload. What the rewiring added is inside the figure: a call frame on the question annotation and on each port annotation
+(`annotateQuestion`, `annotateAnswer`), and one object per evaluation (`askedOf`'s result spread with the evaluation id); the
+answer annotation and the denial line are unchanged. It is a record and not a gate.
 
 ### Coverage on the shipping tree
 

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-188                                   |
-> | Revision       | 1.9                                            |
+> | Revision       | 1.10                                            |
 > | Effective Date | 2026-11-23                                     |
 > | Status         | Accepted — extends ADR-QD-051 and ADR-QD-109   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.9 (2026-11-23): The cost, measured: states the figures measured at 24ca9e2a, the tree that ships, beside the earlier ones measured at a61a47c4 (code review, CCR-QD-467)<br>1.8 (2026-11-23): The cost, measured: names the commit its figures were measured at, a61a47c4, and that they are re-measured on the tree that ships (code review, CCR-QD-467)<br>1.7 (2026-11-23): Decision 6 and What enforces it: every span-writing function refuses a log event, logAnnotations takes one only, and review keeps a raw span write or an upcast (code review, CCR-QD-467)<br>1.6 (2026-11-23): Decision 6 and What enforces it: denialEvent is a log event the span annotators refuse, held by the compiler (code review, CCR-QD-467)<br>1.5 (2026-11-23): Decision 3 declares the keyless decideSubjectSpan, so every span name of the family is read from the declaration (code review, CCR-QD-467)<br>1.4 (2026-11-23): Decision 8 and Consequences point to What enforces it and The cost, measured, which this document holds (code review, CCR-QD-467)<br>1.3 (2026-11-23): What enforces it: the compiler holds each question whole through annotateAsked's PoseOf (code review, CCR-QD-467)<br>1.2 (2026-11-23): Decision 1 scopes the outcome to a path that ends in a decision or a typed failure; an interrupted or defected evaluation carries no outcome (code review, CCR-QD-467)<br>1.1 (2026-11-23): What enforces it (the compiler, the rule, the tests, review) and the measured cost of the second annotation; related records INV-QD-395, INV-QD-396, BEH-QD-711 to BEH-QD-715 (ARCH-122, CCR-QD-467)<br>1.0 (2026-11-23): Initial release (ARCH-122, CCR-QD-467) |
+> | Change History | 1.10 (2026-11-23): The cost, measured: names exactly what the rewiring added, a call frame on the question annotation and on each port annotation and one object per evaluation, the answer annotation and the denial line unchanged (code review, CCR-QD-467)<br>1.9 (2026-11-23): The cost, measured: states the figures measured at 24ca9e2a, the tree that ships, beside the earlier ones measured at a61a47c4 (code review, CCR-QD-467)<br>1.8 (2026-11-23): The cost, measured: names the commit its figures were measured at, a61a47c4, and that they are re-measured on the tree that ships (code review, CCR-QD-467)<br>1.7 (2026-11-23): Decision 6 and What enforces it: every span-writing function refuses a log event, logAnnotations takes one only, and review keeps a raw span write or an upcast (code review, CCR-QD-467)<br>1.6 (2026-11-23): Decision 6 and What enforces it: denialEvent is a log event the span annotators refuse, held by the compiler (code review, CCR-QD-467)<br>1.5 (2026-11-23): Decision 3 declares the keyless decideSubjectSpan, so every span name of the family is read from the declaration (code review, CCR-QD-467)<br>1.4 (2026-11-23): Decision 8 and Consequences point to What enforces it and The cost, measured, which this document holds (code review, CCR-QD-467)<br>1.3 (2026-11-23): What enforces it: the compiler holds each question whole through annotateAsked's PoseOf (code review, CCR-QD-467)<br>1.2 (2026-11-23): Decision 1 scopes the outcome to a path that ends in a decision or a typed failure; an interrupted or defected evaluation carries no outcome (code review, CCR-QD-467)<br>1.1 (2026-11-23): What enforces it (the compiler, the rule, the tests, review) and the measured cost of the second annotation; related records INV-QD-395, INV-QD-396, BEH-QD-711 to BEH-QD-715 (ARCH-122, CCR-QD-467)<br>1.0 (2026-11-23): Initial release (ARCH-122, CCR-QD-467) |
 
 ---
 
@@ -164,8 +164,10 @@ price was measured against the writers this decision replaced: the tree with the
 interleaved so each arm runs first in half the rounds. It was measured twice, and the second
 measurement is the one that ships. The first, at commit `a61a47c4`, predates the code-review
 rewiring of the writers through `annotateAsked`, `askedAttributes`, `annotateSpan` and
-`logAnnotations`, which adds a call frame to each annotation; the second, at commit `24ca9e2a`, is
-the tree that ships this decision.
+`logAnnotations`. That rewiring adds a call frame to the question annotation and to each port
+annotation (`annotateQuestion`, `annotateAnswer`), and one object per evaluation (`askedOf`'s result
+spread with the evaluation id); the answer annotation and the denial line are unchanged. The second
+measurement, at commit `24ca9e2a`, is the tree that ships this decision.
 
 ```
 bash scripts/bench/ab.sh <patch back to the earlier writers> <out> 6 close base packages/core/bench/Evaluate.bench.ts "^evaluate$" < /dev/null
