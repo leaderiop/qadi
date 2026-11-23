@@ -7,12 +7,14 @@
 import { hasPermission, permission } from "@qadi/core";
 import { renderHook } from "@testing-library/react";
 import { createRef, StrictMode } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { makeGateRegistry } from "../src/GateRegistry.ts";
 import type { GateRenderState } from "../src/GateRegistry.ts";
 import { gateWriterFor } from "../src/GateWriter.ts";
 import { useGateRegistrations } from "../src/useGate.ts";
 import type { GateIdentity, GateWanted, GateWriter } from "../src/GateWriter.ts";
+import { notificationsOf } from "./support/gates.ts";
+import { Boundary } from "./support/trees.tsx";
 
 const canRead = () => hasPermission(permission("doc", "read"));
 
@@ -34,11 +36,7 @@ const setup = () => {
   const registry = makeGateRegistry();
   const writer = gateWriterFor(registry);
   if (writer === undefined) throw new Error("registry has no writer");
-  let notified = 0;
-  registry.subscribe(() => {
-    notified += 1;
-  });
-  return { registry, writer, notifications: () => notified };
+  return { registry, writer, notifications: notificationsOf(registry) };
 };
 
 interface Props {
@@ -77,6 +75,22 @@ describe("useGateRegistrations (one identity)", () => {
     expect(registry.instances().map((one) => [one.id, one.state])).toEqual([
       ["g1", "Allowed"],
     ]);
+  });
+
+  it("an unchanged state makes no notification and keeps the id", () => {
+    const { registry, writer, notifications } = setup();
+    const identity = identityFor({});
+    const view = run({ writer, identity, state: "Pending" });
+    const afterMount = notifications();
+    const [mounted] = registry.instances();
+
+    view.rerender({ writer, identity, state: "Pending" });
+
+    expect(notifications()).toBe(afterMount);
+    expect(registry.instances().map((one) => [one.id, one.state])).toEqual([
+      ["g1", "Pending"],
+    ]);
+    expect(registry.instances()[0]).toBe(mounted);
   });
 
   it("an equal-but-fresh policy with the same atom does not re-register", () => {
@@ -141,5 +155,52 @@ describe("useGateRegistrations (one identity)", () => {
     const { registry } = setup();
     run({ writer: undefined, identity: identityFor({}), state: "Allowed" });
     expect(registry.instances()).toEqual([]);
+  });
+});
+
+describe("useGateRegistrations (several identities)", () => {
+  it("a reconcile that throws leaves nothing registered once the hook unmounts", () => {
+    const { registry, writer, notifications } = setup();
+    const failure = new Error("register c is refused");
+    const throwing: GateWriter = {
+      register: (instance) => {
+        if (instance.id === "c") throw failure;
+        return writer.register(instance);
+      },
+    };
+    const a = identityFor({});
+    const wantedA: ReadonlyMap<string, GateWanted> = new Map([
+      ["a", { identity: a, state: "Allowed" }],
+    ]);
+    const wantedAll: ReadonlyMap<string, GateWanted> = new Map([
+      ["a", { identity: a, state: "Allowed" }],
+      ["b", { identity: identityFor({}), state: "Allowed" }],
+      ["c", { identity: identityFor({}), state: "Allowed" }],
+    ]);
+    const caught: Array<unknown> = [];
+    const report = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const view = renderHook(
+        (p: { readonly wanted: ReadonlyMap<string, GateWanted> }) =>
+          useGateRegistrations(throwing, p.wanted),
+        {
+          initialProps: { wanted: wantedA },
+          wrapper: ({ children }) => (
+            <Boundary onCaught={(error) => caught.push(error)}>{children}</Boundary>
+          ),
+        },
+      );
+      expect(registry.instances().map((one) => one.id)).toEqual(["a"]);
+
+      view.rerender({ wanted: wantedAll });
+
+      expect(caught).toHaveLength(1);
+      expect(caught[0]).toBe(failure);
+      expect(registry.instances()).toEqual([]);
+      // Register a, register b, the rollback of b, then the teardown of a.
+      expect(notifications()).toBe(4);
+    } finally {
+      report.mockRestore();
+    }
   });
 });
