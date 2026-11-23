@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-189                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-23                                     |
 > | Status         | Accepted — amends ADR-QD-058 and ADR-QD-094   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-23): Initial release (ARCH-123, CCR-QD-468) |
+> | Change History | 1.1 (2026-11-23): what enforces it: the compiler, the scripts, the tests by title and what review keeps; the acted evidence (ARCH-123, CCR-QD-468)<br>1.0 (2026-11-23): Initial release (ARCH-123, CCR-QD-468) |
 
 ---
 
@@ -154,8 +154,73 @@ history fixture's rows are keyed by the port's key text.
 `sameSignature` stays, because the form's duplicate check compares every field and the port's
 match ignores `signedAt`, `algorithm` and `keyId` (ADR-QD-058's trust on presence).
 
-What enforces each rule is named in a later revision of this record, once the tests that hold it
-exist.
+What enforces each rule is named under "What enforces it" below.
+
+## What enforces it
+
+**The compiler** holds the judgements' result types, through the two type tests:
+`packages/core/test/SignatureHistory.tst.ts`
+("signatureAnswerFromSignatures answers a SignatureAnswer or exactly its two failures") and
+`packages/core/test/DecisionHistory.tst.ts`
+("actedAnswerFromEvents answers Acted or NotActed, or fails as the history read fails"), so a widened
+failure type or an `"Unknown"` answer does not compile. The remedy table reads every failure through one
+`Match.tagsExhaustive` dispatcher over the three failure tags, so a fourth is a compile error, and its
+`Requirement` variants carry the leaf each arm asks about. The errors' optional members are typed by their
+schemas, so a call site other than `failure`'s own guarded one that sets one to a value the schema refuses
+is a type error.
+
+**The scripts.** `scripts/check-api-surface.mjs` names both new exports in the overview, refuses
+`SignatureMatch.ts` in the barrel through its `ENTRY` check and, with `ActedEvent`, `ActedAnywhere` and
+`ActedAnywhereInput` removed from the overview, refuses any of them exported again undocumented.
+`scripts/check-package-install.mjs` refuses a non-entry module in its check 3b and runs both judgements in the
+packed consumer. `scripts/check-house-style.mjs` holds the twelve schema errors to AGENTS.md's table, which is
+unchanged because no error class is added or removed: two gain an optional member.
+
+**The tests**, by file and exact title.
+
+- The core conformance rows: `packages/core/test/SignatureHistory.test.ts`
+  ("answers as askSignature over the fixture layer does, on every case of the product") and
+  `packages/core/test/DecisionHistory.test.ts`
+  ("answers as askActed over the fixture layer does, on every case of the product").
+- The core refusal rows that pin the total refusal of BEH-QD-410:
+  `packages/core/test/SignatureHistory.test.ts`
+  ("a refused fixture row fails as the read does, with the refusal and never matched: false",
+  "a refused query key fails as the read does, with no subject id and never matched: false",
+  "fails as SignatureHistoryUnavailable with no subject id and the refusal as its cause, never dying") and
+  `packages/core/test/DecisionHistory.test.ts`
+  ("a refused subject or event row fails as the read does, with the refusal and never NotActed",
+  "a refused event fails as the read does, with no event and never NotActed",
+  "a subject whose id is a symbol fails as DecisionHistoryUnavailable, never answering NotActed",
+  "an event that is a symbol fails with no event and the refusal as its cause, never answering NotActed",
+  "a fixture row whose subject id is a symbol fails every read, never answering NotActed",
+  "a fixture row whose event cannot be read fails every read, never throwing").
+- The `SinkCodec` round trips for an absent member: `packages/core/test/SinkCodec.test.ts`
+  ("a SignatureHistoryUnavailable with no subject id round-trips without one",
+  "a DecisionHistoryUnavailable with no event round-trips without one"), and the response body for it:
+  `packages/http/test/QadiHttpError.test.ts`
+  ("the SignatureHistoryUnavailable projection and response body carry no subject id when the error has none",
+  "the DecisionHistoryUnavailable projection and response body carry no event when the error has none").
+- The agreement rows and their refusal rows, each a closed product whose size it asserts:
+  `packages/devtools/test/model/RemedySignatureConformance.test.ts`
+  ("the product holds 1184 cases over four sites, four leaves and 74 lists",
+  "a fixture row it cannot key is skipped with its refusal and offered no row, while core fails the read",
+  "a site whose subject id it cannot key is skipped with its refusal and offered no row, while core fails the read") and
+  `packages/devtools/test/model/RemedyActedConformance.test.ts`
+  ("the product holds 144 cases over four sites, two leaves and 18 lists",
+  "a fixture row it cannot key is skipped with its refusal and offered no row, while core fails the read",
+  "a site whose subject id it cannot key is skipped with its refusal and offered no row, while core fails the read").
+- The custom-cell identity row: `packages/devtools/test/model/SimulationFields.test.ts`
+  ("the custom-predicate cell is the value whose reason the remedy table gives").
+
+**The totality's mechanism** is `Schema.is` on each member before `failure` sets it, and the history fixture
+keyed through the port's key, so a refused request has no path to a throw or to `"NotActed"`.
+
+**What review keeps.** That each lookup and the answer rule are read and not restated is kept by review, since
+no script counts the reads; it was seen failing once, when a copy of the lookup drifted and the conformance
+rows went red. That the products cover every case the code distinguishes is kept by review too.
+
+**The acted evidence.** The acted agreement file failed on the code before this decision on 14 `Any`-scope
+cases, a redundant row at a site with an id and a false skip at a site without one, and passes after it.
 
 ## Related
 
