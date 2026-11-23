@@ -163,9 +163,6 @@ describe("errorOf", () => {
     const resource = errorOf({ _tag: "Resource", attribute: "owner" });
     assert.instanceOf(resource, MissingResource);
     assert.strictEqual(resource.attribute, "owner");
-    const id = errorOf({ _tag: "ResourceId", relation: "owner" });
-    assert.instanceOf(id, MissingResourceId);
-    assert.strictEqual(id.relation, "owner");
   });
 });
 

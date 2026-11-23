@@ -30,8 +30,8 @@ import * as Layer from "effect/Layer";
 import * as Result from "effect/Result";
 import type * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
-import { MissingResourceId, SignatureHistoryUnavailable } from "./Errors.ts";
-import type { InvalidBoundedPermits } from "./Errors.ts";
+import { SignatureHistoryUnavailable } from "./Errors.ts";
+import type { InvalidBoundedPermits, MissingResourceId } from "./Errors.ts";
 import { makeResourceId, makeSubjectId, ResourceIdSchema, SubjectIdSchema } from "./Identity.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
 import {
@@ -51,7 +51,7 @@ import {
 } from "./PortSpanEncode.ts";
 import type { PortServingFacet } from "./PortServing.ts";
 import { sameAnswer } from "./PortWireEncode.ts";
-import { isResourceScoped, scopedResourceIdOf } from "./ScopedLeaf.ts";
+import { requireResourceId, scopedResourceIdOf } from "./ScopedLeaf.ts";
 import { Signature } from "./Signature.ts";
 import { signatureAnswerOf, signatureMatches } from "./SignatureMatch.ts";
 
@@ -436,14 +436,15 @@ export const signatureHistoryFromSignatures = (
  *
  * It asks the description's own request (`signatureHistoryPort.asks`). A
  * resource-scoped leaf at a site with no usable resource id fails with
- * `MissingResourceId`, before any row is read. Otherwise it reads the lookup
- * `signatureHistoryFromSignatures` reads and answers `{ matched, onFile }` by the
- * rule `askSignature` uses (`signatureAnswerOf`). A row or a request the key
- * refuses fails with `SignatureHistoryUnavailable` carrying `describeKeyRefusal`'s
- * sentence, never `matched: false`, which would deny `hasSignature` and grant
- * `not(hasSignature(…))` (INV-QD-007), and never a throw, for any value the rows
- * or the site hold (BEH-QD-410). The agreement with `askSignature` over the
- * fixture layer is pinned by `SignatureHistory.test.ts`.
+ * `MissingResourceId`, before any row is read (`requireResourceId`). Otherwise it
+ * reads the lookup `signatureHistoryFromSignatures` reads and answers `{ matched,
+ * onFile }` by the rule `askSignature` uses (`signatureAnswerOf`). A row or a
+ * request the key refuses fails with `SignatureHistoryUnavailable` carrying
+ * `describeKeyRefusal`'s sentence, never `matched: false`, which would deny
+ * `hasSignature` and grant `not(hasSignature(…))` (INV-QD-007), and never a
+ * throw, for any value the rows or the site hold (BEH-QD-410). The agreement
+ * with `askSignature` over the fixture layer is pinned by
+ * `SignatureHistory.test.ts`.
  */
 export const signatureAnswerFromSignatures = (
   signatures: ReadonlyArray<SignatureInput>,
@@ -451,15 +452,14 @@ export const signatureAnswerFromSignatures = (
   site: ReadSite,
 ): Result.Result<SignatureAnswer, MissingResourceId | SignatureHistoryUnavailable> => {
   const [query] = signatureHistoryPort.asks.HasSignature(leaf, site);
-  if (isResourceScoped(leaf) && query.resourceId === undefined) {
-    return Result.fail(new MissingResourceId({ relation: leaf.meaning }));
-  }
-  return Result.match(signatureLookup(signatures)(query), {
-    onFailure: (refusal) =>
-      Result.fail(signatureHistoryPort.failure([query], describeKeyRefusal(refusal))),
-    onSuccess: (rows) =>
-      Result.succeed(signatureAnswerOf(rows, leaf.meaning, leaf.signerRole)),
-  });
+  return Result.flatMap(requireResourceId(leaf, query.resourceId, leaf.meaning), () =>
+    Result.match(signatureLookup(signatures)(query), {
+      onFailure: (refusal) =>
+        Result.fail(signatureHistoryPort.failure([query], describeKeyRefusal(refusal))),
+      onSuccess: (rows) =>
+        Result.succeed(signatureAnswerOf(rows, leaf.meaning, leaf.signerRole)),
+    }),
+  );
 };
 
 /**

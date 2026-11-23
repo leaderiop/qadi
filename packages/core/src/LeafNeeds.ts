@@ -19,7 +19,7 @@
 import * as Match from "effect/Match";
 import type { AuthSubject } from "./AuthSubject.ts";
 import type { ActedResult } from "./DecisionHistory.ts";
-import { MissingAction, MissingResource, MissingResourceId } from "./Errors.ts";
+import { MissingAction, MissingResource } from "./Errors.ts";
 import type { Matcher, MatcherContext, Verdict } from "./Matcher.ts";
 import { judgeMatcher, referencesAction, referencesResource } from "./Matcher.ts";
 import { permissionKey } from "./Permission.ts";
@@ -195,14 +195,8 @@ export interface ResourceAbsence {
   readonly attribute: string;
 }
 
-/** The resource id a scoped port read needed and the resource did not have. */
-export interface ResourceIdAbsence {
-  readonly _tag: "ResourceId";
-  readonly relation: string;
-}
-
 /** What a request can be missing. */
-export type Absence = ActionAbsence | ResourceAbsence | ResourceIdAbsence;
+export type Absence = ActionAbsence | ResourceAbsence;
 
 const isMatcherLeaf = (leaf: LeafPolicy): leaf is MatcherLeaf => LEAF_NEEDS[leaf._tag].matcher;
 
@@ -243,17 +237,12 @@ export function absenceOf(
 
 export function errorOf(absence: ActionAbsence): MissingAction;
 export function errorOf(absence: ResourceAbsence): MissingResource;
-export function errorOf(absence: ResourceIdAbsence): MissingResourceId;
-export function errorOf(
-  absence: ActionAbsence | ResourceAbsence,
-): MissingAction | MissingResource;
-export function errorOf(absence: Absence): MissingAction | MissingResource | MissingResourceId;
-export function errorOf(absence: Absence): MissingAction | MissingResource | MissingResourceId {
+export function errorOf(absence: Absence): MissingAction | MissingResource;
+export function errorOf(absence: Absence): MissingAction | MissingResource {
   return Match.value(absence).pipe(
     Match.tagsExhaustive({
       Action: (a) => (a.expected === undefined ? new MissingAction({}) : new MissingAction({ expected: a.expected })),
       Resource: (a) => new MissingResource({ attribute: a.attribute }),
-      ResourceId: (a) => new MissingResourceId({ relation: a.relation }),
     }),
   );
 }

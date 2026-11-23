@@ -20,8 +20,8 @@ import * as Layer from "effect/Layer";
 import * as Result from "effect/Result";
 import type * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
-import { DecisionHistoryUnavailable, MissingResourceId } from "./Errors.ts";
-import type { InvalidBoundedPermits } from "./Errors.ts";
+import { DecisionHistoryUnavailable } from "./Errors.ts";
+import type { InvalidBoundedPermits, MissingResourceId } from "./Errors.ts";
 import {
   makeResourceId,
   makeSubjectId,
@@ -46,7 +46,7 @@ import {
 } from "./PortSpanEncode.ts";
 import type { PortServingFacet } from "./PortServing.ts";
 import { sameAnswer } from "./PortWireEncode.ts";
-import { isResourceScoped, scopedResourceIdOf } from "./ScopedLeaf.ts";
+import { requireResourceId, scopedResourceIdOf } from "./ScopedLeaf.ts";
 
 /**
  * What the port can say about a past event.
@@ -338,13 +338,14 @@ export const decisionHistoryFromEvents = (
  * It asks the description's own request (`decisionHistoryPort.asks`), so an
  * `Any`-scoped leaf asks about no resource even where the site has one. A
  * resource-scoped leaf at a site with no usable resource id fails with
- * `MissingResourceId`, before any event is read. Otherwise it reads the lookup
- * `decisionHistoryFromEvents` reads. The fixture is a closed world, so it never
- * answers `"Unknown"`, and its type says so. A row or a request the key refuses
- * fails with `DecisionHistoryUnavailable` carrying `describeKeyRefusal`'s sentence,
- * never `"NotActed"`, which `hasNotActed` would read as an allow, and never a
- * throw, for any value the rows or the site hold (BEH-QD-410). The agreement with
- * `askActed` over the fixture layer is pinned by `DecisionHistory.test.ts`.
+ * `MissingResourceId`, before any event is read (`requireResourceId`). Otherwise
+ * it reads the lookup `decisionHistoryFromEvents` reads. The fixture is a closed
+ * world, so it never answers `"Unknown"`, and its type says so. A row or a
+ * request the key refuses fails with `DecisionHistoryUnavailable` carrying
+ * `describeKeyRefusal`'s sentence, never `"NotActed"`, which `hasNotActed` would
+ * read as an allow, and never a throw, for any value the rows or the site hold
+ * (BEH-QD-410). The agreement with `askActed` over the fixture layer is pinned
+ * by `DecisionHistory.test.ts`.
  */
 export const actedAnswerFromEvents = (
   events: ReadonlyArray<ActedEventInput>,
@@ -355,14 +356,13 @@ export const actedAnswerFromEvents = (
   MissingResourceId | DecisionHistoryUnavailable
 > => {
   const [query] = decisionHistoryPort.asks.HasActed(leaf, site);
-  if (isResourceScoped(leaf) && query.resourceId === undefined) {
-    return Result.fail(new MissingResourceId({ relation: leaf.event }));
-  }
-  return Result.match(actedLookup(events)(query), {
-    onSuccess: Result.succeed,
-    onFailure: (refusal) =>
-      Result.fail(decisionHistoryPort.failure([query], describeKeyRefusal(refusal))),
-  });
+  return Result.flatMap(requireResourceId(leaf, query.resourceId, leaf.event), () =>
+    Result.match(actedLookup(events)(query), {
+      onSuccess: Result.succeed,
+      onFailure: (refusal) =>
+        Result.fail(decisionHistoryPort.failure([query], describeKeyRefusal(refusal))),
+    }),
+  );
 };
 
 /**

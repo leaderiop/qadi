@@ -34,6 +34,7 @@ import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import * as Metric from "effect/Metric";
+import * as Result from "effect/Result";
 import type { AttributeResolver } from "./AttributeResolver.ts";
 import { attributeResolverPort } from "./AttributeResolver.ts";
 import type { AuthSubject } from "./AuthSubject.ts";
@@ -43,14 +44,13 @@ import { decisionHistoryPort } from "./DecisionHistory.ts";
 import type { AttributeResolveError, DecisionHistoryUnavailable } from "./Errors.ts";
 import type { MissingResourceId } from "./Errors.ts";
 import type { ResourceId } from "./Identity.ts";
-import { errorOf } from "./LeafNeeds.ts";
 import { isOwnKey, ownValue } from "./Operand.ts";
 import type { LeafOf } from "./PortDescription.ts";
 import { portCallsTotal, predicatePortCallsTotal, servedPortCallsTotal } from "./PortMetrics.ts";
 import type { PortName } from "./PortName.ts";
 import { relationshipResolverPort } from "./RelationshipResolver.ts";
 import type { Resource } from "./Resource.ts";
-import { isResourceScoped } from "./ScopedLeaf.ts";
+import { isResourceScoped, requireResourceId } from "./ScopedLeaf.ts";
 import type {
   AnswerOf,
   ArgsOf,
@@ -246,6 +246,9 @@ const completeRequest: {
   SignatureHistory: (request) => request,
 };
 
+/** What `readScoped` asks `requireResourceId` about: a leaf always about one resource. */
+const RESOURCE_SCOPED = { scope: "Resource" } as const;
+
 /**
  * The one read of a port whose question is about one resource: a request with
  * no resource id fails with `MissingResourceId` on the port's own span.
@@ -266,9 +269,11 @@ const completeRequest: {
  * `relation` is what `MissingResourceId` names: the event, the relation or the
  * meaning the leaf asks. A plain function, like `readPort`: it runs under the
  * calling read's span and opens none, so it is not an `Effect.fn` and not in
- * `UNTRACED_BUDGET`. The one id test is over the request `asks` built, whose
+ * `UNTRACED_BUDGET`. The one id test is `requireResourceId` (`ScopedLeaf.ts`),
+ * which the fixture judgements call too, over the request `asks` built, whose
  * `resourceId` is `resourceIdOf` (`Resource.ts`), the writer's rule and the
- * reader's.
+ * reader's. The caller has routed on the leaf's scope, so this read asks it as a
+ * leaf that is always about one resource, which is also what `hasRelationship` is.
  */
 const readScoped = <K extends ScopedPort>(
   d: DescriptionOf<K>,
@@ -282,15 +287,17 @@ const readScoped = <K extends ScopedPort>(
 > =>
   Effect.gen(function* () {
     const [{ resourceId }] = request;
-    if (resourceId === undefined) {
+    const found = requireResourceId(RESOURCE_SCOPED, resourceId, relation);
+    if (Result.isFailure(found)) {
       yield* annotateQuestion<SpanFields>(d, {
         ...d.attributes.pose(request),
         scope: "Resource",
         interpreter,
       });
-      return yield* Effect.fail(errorOf({ _tag: "ResourceId", relation }));
+      return yield* Effect.fail(found.failure);
     }
-    return yield* readPort(d, interpreter, completeRequest[d.port](request, resourceId));
+    const args = completeRequest[d.port](request, found.success);
+    return yield* readPort(d, interpreter, args);
   });
 
 // ---------------------------------------------------------------------------
