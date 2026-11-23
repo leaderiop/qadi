@@ -1080,12 +1080,12 @@ the run is `Idle`. The policy half is the module's and the run half is the sessi
 run that is not `Idle`, choosing the held policy again still clears the run and publishes. It
 is held by tests only.
 
-Pinned by `packages/devtools/test/model/SeededChoice.test.ts` ("choosing an equal copy of the
-held policy returns the same choice", "choosing the held policy while a replayed policy is
-held drops it") and
-`packages/devtools/test/model/SimulationSession.characterisation.test.ts` ("choosing an equal
-copy of the held policy while idle changes nothing", "choosing the held policy after a run
-clears the run, notifying once").
+Pinned by `packages/devtools/test/model/SeededChoice.test.ts` ("choosing an equal copy of
+the held policy returns the same choice", "choosing the held policy while a replayed
+policy is held drops it") and
+`packages/devtools/test/model/SimulationSession.characterisation.test.ts` ("choosing an
+equal copy of the held policy while idle changes nothing", "choosing the held policy
+after a run clears the run, notifying once").
 
 ## BEH-QD-710: A draft is written in one place and a run is cleared by one operation
 
