@@ -64,7 +64,7 @@ import type { PortInterpreter, SpanFields, SpanStruct, SpanType } from "./PortSp
 import { annotateSpan } from "./PortSpanEncode.ts";
 import type { SignatureAnswer } from "./SignatureHistory.ts";
 import { signatureHistoryPort } from "./SignatureHistory.ts";
-import { signatureMatches } from "./SignatureMatch.ts";
+import { signatureAnswerOf } from "./SignatureMatch.ts";
 
 /**
  * Which interpreter of a policy is asking: the evaluator or the translator.
@@ -469,10 +469,11 @@ export const askCustom = Effect.fn(customPredicatePort.span)(function* (
  * Asks the signature history and matches `leaf`'s requirement against what it
  * returns. Evaluator-only (translation refuses `HasSignature`, INV-QD-056).
  *
- * The match is made here too, from the same `signatureMatches` the span's
- * `disclose` reads, so `qadi.matched` is on the span even when the verdict is
- * built elsewhere. `qadi.matched` rather than a three-valued `qadi.answer`: a
- * signature either matches or it doesn't, with no analogous middle state.
+ * The answer is built here too, by `signatureAnswerOf`, from the same
+ * `signatureMatches` the span's `disclose` reads, so `qadi.matched` is on the
+ * span even when the verdict is built elsewhere. `qadi.matched` rather than a
+ * three-valued `qadi.answer`: a signature either matches or it doesn't, with no
+ * analogous middle state.
  *
  * A `Resource`-scoped leaf with no usable resource id fails with
  * `MissingResourceId` on the port's own span (`readScoped`, BEH-QD-227,
@@ -488,10 +489,11 @@ export const askSignature = Effect.fn(signatureHistoryPort.span)(function* (
     isResourceScoped(leaf)
       ? yield* readScoped(signatureHistoryPort, "evaluate", request, leaf.meaning)
       : yield* readPort(signatureHistoryPort, "evaluate", request);
-  const answer: SignatureAnswer = {
-    matched: signatureMatches(signatures, leaf.meaning, leaf.signerRole),
-    onFile: signatures.length,
-  };
+  const answer: SignatureAnswer = signatureAnswerOf(
+    signatures,
+    leaf.meaning,
+    leaf.signerRole,
+  );
   return answer;
 });
 

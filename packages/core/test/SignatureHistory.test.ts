@@ -6,19 +6,24 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Match from "effect/Match";
 import * as Result from "effect/Result";
 import { makeSubject } from "../src/AuthSubject.ts";
 import { SignatureHistoryUnavailable } from "../src/Errors.ts";
+import type { MissingResourceId } from "../src/Errors.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import { hasSignature } from "../src/Policy.ts";
 import { askSignature } from "../src/PortAccess.ts";
 import { describeKeyRefusal, KeyRefusal } from "../src/PortDescription.ts";
+import type { ReadSite } from "../src/PortDescription.ts";
 import {
   SignatureHistory,
   SignatureHistoryNone,
+  signatureAnswerFromSignatures,
   signatureHistoryFromSignatures,
   signatureHistoryPort,
 } from "../src/SignatureHistory.ts";
+import type { SignatureAnswer, SignatureInput } from "../src/SignatureHistory.ts";
 import { leafOf } from "./helpers.ts";
 
 const query = (
@@ -315,6 +320,236 @@ its cause, never dying",
         }
         assert.isFalse(Object.hasOwn(result.failure, "subjectId"));
         assert.strictEqual(result.failure.cause, describeKeyRefusal(refusal.failure));
+      }),
+  );
+});
+
+/**
+ * `signatureAnswerFromSignatures` answers what `askSignature` answers over
+ * `signatureHistoryFromSignatures` for the same rows, leaf and site.
+ *
+ * The product is every subject, resource id, meaning and signer role a row can
+ * carry, as a lone row and after an unrelated one, plus no rows, over four leaves
+ * and four sites. The axes are the remedy table's own agreement test in
+ * `@qadi/devtools`, written out again here because a test cannot import another
+ * package's tests and no shipped module carries test data.
+ */
+describe("signatureAnswerFromSignatures", () => {
+  // `JSON.parse` returns `any`, which is what an untyped JavaScript caller hands
+  // over (no `as`); a symbol is the one value it cannot carry, so it is set on the
+  // parsed object afterwards.
+  const unkeyable = (json: string) => {
+    const untyped = JSON.parse(json);
+    untyped.subjectId = Symbol("alice");
+    return untyped;
+  };
+
+  const alice = makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} });
+
+  const unkeyableSubject = () => {
+    const untyped = JSON.parse(JSON.stringify(alice));
+    untyped.id = Symbol("alice");
+    return untyped;
+  };
+
+  const SUBJECTS = ["alice", "bob"];
+  const RESOURCE_IDS = [undefined, "doc-1", "doc-2"];
+  const MEANINGS = ["approved", "reviewed"];
+  const ROLES = [undefined, "approver", "other"];
+
+  const SINGLES = SUBJECTS.flatMap((subjectId) =>
+    RESOURCE_IDS.flatMap((resourceId) =>
+      MEANINGS.flatMap((meaning) =>
+        ROLES.map((signerRole) => ({
+          name: [
+            subjectId,
+            meaning,
+            resourceId ?? "subject-wide",
+            signerRole ?? "no role",
+          ].join(" "),
+          row: {
+            subjectId,
+            meaning,
+            ...(resourceId === undefined ? {} : { resourceId }),
+            ...(signerRole === undefined ? {} : { signerRole }),
+          } satisfies SignatureInput,
+        })),
+      ),
+    ),
+  );
+
+  const DECOY: SignatureInput = {
+    subjectId: "alice",
+    meaning: "reviewed",
+    resourceId: "doc-1",
+  };
+
+  const LISTS: ReadonlyArray<{
+    readonly name: string;
+    readonly rows: ReadonlyArray<SignatureInput>;
+  }> = [
+    { name: "an empty list", rows: [] },
+    ...SINGLES.map(({ name, row }) => ({ name, rows: [row] })),
+    ...SINGLES.map(({ name, row }) => ({
+      name: `the decoy, then ${name}`,
+      rows: [DECOY, row],
+    })),
+  ];
+
+  const LEAVES = (["Resource", "Any"] as const).flatMap((scope) => [
+    {
+      name: `scope ${scope}`,
+      leaf: leafOf("HasSignature", hasSignature("approved", { scope })),
+    },
+    {
+      name: `scope ${scope}, signer role approver`,
+      leaf: leafOf(
+        "HasSignature",
+        hasSignature("approved", { scope, signerRole: "approver" }),
+      ),
+    },
+  ]);
+
+  const ROLE_FREE = LEAVES.filter(({ name }) => !name.includes("signer role"));
+
+  const SITES: ReadonlyArray<{ readonly name: string; readonly site: ReadSite }> = [
+    { name: "resource id doc-1", site: { subject: alice, resource: { id: "doc-1" } } },
+    { name: "resource with no id", site: { subject: alice, resource: {} } },
+    { name: "resource id not a string", site: { subject: alice, resource: { id: 7 } } },
+    { name: "no resource", site: { subject: alice, resource: undefined } },
+  ];
+
+  type Judged = Result.Result<
+    SignatureAnswer,
+    MissingResourceId | SignatureHistoryUnavailable
+  >;
+
+  const failureOf = Match.type<MissingResourceId | SignatureHistoryUnavailable>().pipe(
+    Match.tagsExhaustive({
+      MissingResourceId: (failure) => ({
+        _tag: failure._tag,
+        relation: failure.relation,
+      }),
+      SignatureHistoryUnavailable: (failure) => ({
+        _tag: failure._tag,
+        hasSubjectId: Object.hasOwn(failure, "subjectId"),
+        subjectId: failure.subjectId,
+        resourceId: failure.resourceId,
+        cause: failure.cause,
+      }),
+    }),
+  );
+
+  const answerOf = (result: Judged) =>
+    Result.match(result, {
+      onSuccess: ({ matched, onFile }) => ({ matched, onFile }),
+      onFailure: failureOf,
+    });
+
+  const readOf = (
+    rows: ReadonlyArray<SignatureInput>,
+    leaf: (typeof LEAVES)[number]["leaf"],
+    site: ReadSite,
+  ) =>
+    Effect.result(askSignature(site.subject, leaf, site.resource)).pipe(
+      Effect.provide(signatureHistoryFromSignatures(rows)),
+    );
+
+  it.effect(
+    "answers as \
+askSignature over the fixture layer does, on every case of the product",
+    () =>
+      Effect.gen(function* () {
+        assert.strictEqual(SINGLES.length, 36);
+        assert.strictEqual(LISTS.length, 73);
+        assert.strictEqual(SITES.length * LEAVES.length * LISTS.length, 1168);
+        const mismatches: Array<string> = [];
+        let compared = 0;
+        for (const { name: siteName, site } of SITES) {
+          for (const { name: leafName, leaf } of LEAVES) {
+            for (const { name: listName, rows } of LISTS) {
+              compared += 1;
+              const judged = answerOf(signatureAnswerFromSignatures(rows, leaf, site));
+              const read = answerOf(yield* readOf(rows, leaf, site));
+              if (JSON.stringify(judged) !== JSON.stringify(read)) {
+                mismatches.push(
+                  `${siteName} | ${leafName} | ${listName} | ` +
+                    `judged ${JSON.stringify(judged)} | read ${JSON.stringify(read)}`,
+                );
+              }
+            }
+          }
+        }
+        assert.strictEqual(compared, 1168);
+        assert.deepStrictEqual(mismatches, [], mismatches.join("\n"));
+      }),
+  );
+
+  it.effect(
+    "a refused fixture row fails as \
+the read does, with the refusal and never matched: false",
+    () =>
+      Effect.gen(function* () {
+        const rows = [
+          { subjectId: "alice", meaning: "approved" },
+          unkeyable('{"meaning":"approved"}'),
+        ];
+        const site: ReadSite = { subject: alice, resource: { id: "doc-1" } };
+        for (const { leaf } of ROLE_FREE) {
+          const judged = signatureAnswerFromSignatures(rows, leaf, site);
+          const read = yield* readOf(rows, leaf, site);
+          assert.isTrue(Result.isFailure(judged) && Result.isFailure(read));
+          assert.deepStrictEqual(answerOf(judged), answerOf(read));
+          if (Result.isFailure(judged)) {
+            assert.strictEqual(judged.failure._tag, "SignatureHistoryUnavailable");
+          }
+        }
+      }),
+  );
+
+  it.effect(
+    "at a Resource site with no id, the missing id is answered before any \
+row is read",
+    () =>
+      Effect.gen(function* () {
+        const [resourceLeaf] = LEAVES;
+        if (resourceLeaf === undefined) return assert.fail("no Resource leaf");
+        const refusedRows = [
+          { subjectId: "alice", meaning: "approved" },
+          unkeyable('{"meaning":"approved"}'),
+        ];
+        const typedRows = [{ subjectId: "alice", meaning: "approved" }];
+        const cases: ReadonlyArray<readonly [ReadonlyArray<SignatureInput>, ReadSite]> = [
+          [refusedRows, { subject: alice, resource: undefined }],
+          [typedRows, { subject: unkeyableSubject(), resource: undefined }],
+        ];
+        for (const [rows, site] of cases) {
+          const judged = signatureAnswerFromSignatures(rows, resourceLeaf.leaf, site);
+          const read = yield* readOf(rows, resourceLeaf.leaf, site);
+          const wanted = { _tag: "MissingResourceId", relation: "approved" } as const;
+          assert.deepStrictEqual(answerOf(judged), wanted);
+          assert.deepStrictEqual(answerOf(read), wanted);
+        }
+      }),
+  );
+
+  it.effect(
+    "a refused query key fails as \
+the read does, with no subject id and never matched: false",
+    () =>
+      Effect.gen(function* () {
+        const rows = [{ subjectId: "alice", meaning: "approved" }];
+        const site: ReadSite = { subject: unkeyableSubject(), resource: { id: "doc-1" } };
+        for (const { leaf } of ROLE_FREE) {
+          const judged = signatureAnswerFromSignatures(rows, leaf, site);
+          const read = yield* readOf(rows, leaf, site);
+          assert.isTrue(Result.isFailure(judged) && Result.isFailure(read));
+          assert.deepStrictEqual(answerOf(judged), answerOf(read));
+          if (Result.isFailure(judged)) {
+            assert.strictEqual(judged.failure._tag, "SignatureHistoryUnavailable");
+            assert.isFalse(Object.hasOwn(judged.failure, "subjectId"));
+          }
+        }
       }),
   );
 });

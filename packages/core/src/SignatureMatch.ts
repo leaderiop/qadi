@@ -9,7 +9,9 @@
  * A leaf module for a reason of layering, not size: the signature span's
  * `disclose` (`SignatureHistory.ts`) and `askSignature` (`PortAccess.ts`) both
  * need the rule, and `PortAccess.ts` imports `SignatureHistory.ts`, so the rule
- * cannot live in either without a cycle. It stays out of the barrel
+ * cannot live in either without a cycle. `signatureAnswerOf` builds the answer
+ * `askSignature` and `signatureAnswerFromSignatures` both give, so the read and
+ * the fixture judgement cannot answer differently. It stays out of the barrel
  * (AGENTS.md §9, ADR-QD-099) because the match is how `@qadi/core` reads a
  * signature list, not something a host calls.
  */
@@ -24,3 +26,21 @@ export const signatureMatches = (
   signatures.some(
     (s) => s.meaning === meaning && (signerRole === undefined || s.signerRole === signerRole),
   );
+
+/**
+ * Whether one of `signatures` meets the leaf's meaning and signer role, and how
+ * many were on file.
+ *
+ * The answer `askSignature` hands the walk and `signatureAnswerFromSignatures`
+ * returns, built here once. The return type is written out rather than named
+ * `SignatureAnswer` because `SignatureHistory.ts` imports this module and madge
+ * counts a type-only import back as a cycle.
+ */
+export const signatureAnswerOf = (
+  signatures: ReadonlyArray<Signature>,
+  meaning: string,
+  signerRole: string | undefined,
+): { readonly matched: boolean; readonly onFile: number } => ({
+  matched: signatureMatches(signatures, meaning, signerRole),
+  onFile: signatures.length,
+});

@@ -30,7 +30,7 @@ import * as Layer from "effect/Layer";
 import * as Result from "effect/Result";
 import type * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
-import { SignatureHistoryUnavailable } from "./Errors.ts";
+import { MissingResourceId, SignatureHistoryUnavailable } from "./Errors.ts";
 import type { InvalidBoundedPermits } from "./Errors.ts";
 import { makeResourceId, makeSubjectId, ResourceIdSchema, SubjectIdSchema } from "./Identity.ts";
 import type { ResourceId, SubjectId } from "./Identity.ts";
@@ -42,7 +42,7 @@ import {
   timingOutPort,
 } from "./PortDerivation.ts";
 import { describeKeyRefusal } from "./PortDescription.ts";
-import type { LeafOf, PortDescription, ReadSite } from "./PortDescription.ts";
+import type { KeyRefusal, LeafOf, PortDescription, ReadSite } from "./PortDescription.ts";
 import {
   portSpan,
   sharedQuestionFields,
@@ -51,9 +51,9 @@ import {
 } from "./PortSpanEncode.ts";
 import type { PortServingFacet } from "./PortServing.ts";
 import { sameAnswer } from "./PortWireEncode.ts";
-import { scopedResourceIdOf } from "./ScopedLeaf.ts";
+import { isResourceScoped, scopedResourceIdOf } from "./ScopedLeaf.ts";
 import { Signature } from "./Signature.ts";
-import { signatureMatches } from "./SignatureMatch.ts";
+import { signatureAnswerOf, signatureMatches } from "./SignatureMatch.ts";
 
 export interface SignatureQuery {
   readonly subjectId: SubjectId;
@@ -335,32 +335,23 @@ export interface SignatureInput {
 }
 
 /**
- * Resolves against a static signature list.
+ * The rows of the one `(subjectId, resourceId)` pair a query names, or the refusal
+ * of a row or of the query's key.
  *
- * A closed world: a `(subjectId, resourceId)` pair not listed answers `[]`,
- * because this layer *is* the store and it does know — the same distinction
- * `decisionHistoryFromEvents` draws. A resource-scoped query only ever sees
- * rows stored with that same `resourceId`, and a subject-global query
- * (`resourceId` absent) only ever sees rows stored with none — the same
- * separation `ActedEvent`/`ActedAnywhere` keep, expressed here as a keyed
- * group rather than a `HashSet`, since the answer to one key is a *list* of
- * signatures rather than one membership bit.
+ * `signatureHistoryFromSignatures` and `signatureAnswerFromSignatures` both read
+ * it, so the layer and the judgement cannot answer differently. A refused entry
+ * fails every query, a refused query fails its own, and each answer is a fresh
+ * copy.
  *
  * Grouped by {@link signatureHistoryPort}'s own `key` over the pair alone, the
  * requirement-free projection: a query's `meaning` and `signerRole` are context,
  * not a filter, so they must not split one pair's rows. The group is the key's
  * text, which is injective over the pair (`PortKey.ts`), so `["a:b", "c"]` and
  * `["a", "b:c"]` never share one. The fixture and the port spell the pair once.
- *
- * A pair with no key fails closed: a refused fixture entry fails every read,
- * and a refused query fails its own, with `SignatureHistoryUnavailable` carrying
- * the refusal's sentence, never an empty list, which would grant under
- * `not(hasSignature(...))`. No typed `SubjectId`/`ResourceId` pair is refused
- * (both are strings), so that branch is reached only by an untyped caller.
  */
-export const signatureHistoryFromSignatures = (
+const signatureLookup = (
   signatures: ReadonlyArray<SignatureInput>,
-): Layer.Layer<SignatureHistory> => {
+): ((query: SignatureQuery) => Result.Result<Array<Signature>, KeyRefusal>) => {
   const pairKey = (subjectId: SubjectId, resourceId?: ResourceId) =>
     signatureHistoryPort.key([{ subjectId, resourceId }]);
   const keyed = Result.all(
@@ -394,22 +385,81 @@ export const signatureHistoryFromSignatures = (
     return groups;
   });
 
+  return (query) =>
+    Result.flatMap(grouped, (groups) =>
+      Result.map(pairKey(query.subjectId, query.resourceId), (key) => [
+        ...(groups.get(key) ?? []),
+      ]),
+    );
+};
+
+/**
+ * Resolves against a static signature list.
+ *
+ * A closed world: a `(subjectId, resourceId)` pair not listed answers `[]`,
+ * because this layer *is* the store and it does know — the same distinction
+ * `decisionHistoryFromEvents` draws. A resource-scoped query only ever sees
+ * rows stored with that same `resourceId`, and a subject-global query
+ * (`resourceId` absent) only ever sees rows stored with none — the same
+ * separation `ActedEvent`/`ActedAnywhere` keep, expressed here as a keyed
+ * group rather than a `HashSet`, since the answer to one key is a *list* of
+ * signatures rather than one membership bit.
+ *
+ * A pair with no key fails closed: a refused fixture entry fails every read,
+ * and a refused query fails its own, with `SignatureHistoryUnavailable` carrying
+ * the refusal's sentence, never an empty list, which would grant under
+ * `not(hasSignature(...))`. No typed `SubjectId`/`ResourceId` pair is refused
+ * (both are strings), so that branch is reached only by an untyped caller. The
+ * error carries the request's subject id and resource id only where they are a
+ * `SubjectId` and a `ResourceId`.
+ */
+export const signatureHistoryFromSignatures = (
+  signatures: ReadonlyArray<SignatureInput>,
+): Layer.Layer<SignatureHistory> => {
+  const lookup = signatureLookup(signatures);
   return Layer.succeed(SignatureHistory, {
     name: "signatureHistoryFromSignatures",
     // A copy per query, not the live array `groups` holds: handing out the
     // internal reference would let a caller's push/splice on the returned
     // list corrupt every future answer for that same key.
     signaturesFor: (query) =>
-      Result.match(
-        Result.flatMap(grouped, (groups) =>
-          Result.map(pairKey(query.subjectId, query.resourceId), (key) => [...(groups.get(key) ?? [])]),
-        ),
-        {
-          onSuccess: Effect.succeed,
-          onFailure: (refusal) =>
-            Effect.fail(signatureHistoryPort.failure([query], describeKeyRefusal(refusal))),
-        },
-      ),
+      Result.match(lookup(query), {
+        onSuccess: Effect.succeed,
+        onFailure: (refusal) =>
+          Effect.fail(signatureHistoryPort.failure([query], describeKeyRefusal(refusal))),
+      }),
+  });
+};
+
+/**
+ * What the signature port, read for `leaf` at `site` over these fixture rows,
+ * answers, with no Effect.
+ *
+ * It asks the description's own request (`signatureHistoryPort.asks`). A
+ * resource-scoped leaf at a site with no usable resource id fails with
+ * `MissingResourceId`, before any row is read. Otherwise it reads the lookup
+ * `signatureHistoryFromSignatures` reads and answers `{ matched, onFile }` by the
+ * rule `askSignature` uses (`signatureAnswerOf`). A row or a request the key
+ * refuses fails with `SignatureHistoryUnavailable` carrying `describeKeyRefusal`'s
+ * sentence, never `matched: false`, which would deny `hasSignature` and grant
+ * `not(hasSignature(…))` (INV-QD-007), and never a throw, for any value the rows
+ * or the site hold (BEH-QD-410). The agreement with `askSignature` over the
+ * fixture layer is pinned by `SignatureHistory.test.ts`.
+ */
+export const signatureAnswerFromSignatures = (
+  signatures: ReadonlyArray<SignatureInput>,
+  leaf: LeafOf["HasSignature"],
+  site: ReadSite,
+): Result.Result<SignatureAnswer, MissingResourceId | SignatureHistoryUnavailable> => {
+  const [query] = signatureHistoryPort.asks.HasSignature(leaf, site);
+  if (isResourceScoped(leaf) && query.resourceId === undefined) {
+    return Result.fail(new MissingResourceId({ relation: leaf.meaning }));
+  }
+  return Result.match(signatureLookup(signatures)(query), {
+    onFailure: (refusal) =>
+      Result.fail(signatureHistoryPort.failure([query], describeKeyRefusal(refusal))),
+    onSuccess: (rows) =>
+      Result.succeed(signatureAnswerOf(rows, leaf.meaning, leaf.signerRole)),
   });
 };
 
