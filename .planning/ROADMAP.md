@@ -731,11 +731,11 @@ Plans:
   4. The custom-predicate refusal is one sentence owned in one place, and ADR-QD-189 records the outcome (change or rejection).
 
 **Planning notes**: The owner decision (where core exposes "would this fixture signature satisfy this node" without exporting `SignatureMatch.ts`, or a recorded rejection) is asked once at this phase's discuss step. The agreement test is the deliverable that survives a rejection.
-**Plans**: 8 plans (strictly serial, waves 1 to 8)
+**Plans**: 1/8 plans executed (strictly serial, waves 1 to 8)
 
 Plans:
 **Wave 1**
-- [ ] 76-01-PLAN.md — base facts, the three mutation bases (core, devtools, http), and ADR-QD-189 recording the owner decision before anything under `packages/` changes
+- [x] 76-01-PLAN.md — base facts, the three mutation bases (core, devtools, http), and ADR-QD-189 recording the owner decision before anything under `packages/` changes
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 76-02-PLAN.md — the remedy agreement tests on the base (signature 1184 cases, acted 144) and the refusal rows RED there, with the agreement check holding them
@@ -772,4 +772,4 @@ Phases execute in numeric order: 69 → 70 → 71 → 72 → 73 → 74 → 75 �
 | 73. One pure reconcile for gate registration | 7/7 | Complete    | 2026-11-23 |
 | 74. The simulation session's policy choice split from its runs | 7/7 | Complete    | 2026-11-23 |
 | 75. A declared span shape for the evaluate family | 9/9 | Complete    | 2026-11-23 |
-| 76. Remedies uses core's signature match | 0/TBD | Not started | - |
+| 76. Remedies uses core's signature match | 1/8 | In Progress | - |

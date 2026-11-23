@@ -4,19 +4,19 @@ milestone: v1.8
 milestone_name: Arch Wave 13
 current_phase: 76
 current_phase_name: Remedies uses core's signature match
-current_plan: Not started
+current_plan: 2
 status: executing
-stopped_at: Phase 75 complete, ready to plan Phase 76
-last_updated: "2026-11-23T15:26:30.434Z"
+stopped_at: Completed 76-01-PLAN.md
+last_updated: "2026-11-23T15:37:05.396Z"
 last_activity: 2026-11-23
 last_activity_desc: Phase 75 complete, transitioned to Phase 76
-state_head: adc5f509e56829bc3bebf1d0a562d4a499849ffa
+state_head: a6d0e88148cf048e09da96b8df87bd3c123d25aa
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 63
-  completed_plans: 55
-  percent: 87
+  completed_plans: 56
+  percent: 88
 ---
 
 # Project State
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 ## Current Position
 
 Phase: 76 (Remedies uses core's signature match) — READY TO EXECUTE
-Current Plan: Not started
+Current Plan: 2
 Total Plans in Phase: 8
 Status: Ready to execute
 Last activity: 2026-11-23 — Phase 75 complete, transitioned to Phase 76
@@ -547,6 +547,7 @@ Last activity: 2026-11-23 — Phase 75 complete, transitioned to Phase 76
 | Phase 75 P07 | 20 min | 2 tasks | 3 files |
 | Phase 75 P08 | 9 min | 3 tasks | 9 files |
 | Phase 75 P09 | 4 min | 2 tasks | 3 files |
+| Phase 76 P01 | 30 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -948,6 +949,7 @@ Last activity: 2026-11-23 — Phase 75 complete, transitioned to Phase 76
 - [Phase 75]: 75-07: two static mutants of EvaluationSpan.ts crash the module at import (Stryker RuntimeError, not Killed) and are admitted by EXAMINED with the finding recorded; the cost of the second annotation is recorded as +6.8% to +7.8% geometric mean, not gated
 - [Phase 75]: 75-08: the cost of the second span annotation is recorded in ADR-QD-188 as measured (+7.83% then +6.79% geometric mean, about 0.4 to 1.1 us per call), a record and not a gate
 - [Phase 75]: 75-09: ESPN-01..05 marked complete by hand on the commit check:pr passed on; WX-01..07 stay Pending
+- [Phase 76]: ADR-QD-189: a change, not a rejection; core answers whether a fixture row meets a signature or acted leaf; both fixture refusals fail typed; ActedEvent, ActedAnywhere and ActedAnywhereInput removed (decided autonomously)
 
 ### Pending Todos
 
@@ -1021,8 +1023,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-23T09:28:52.280Z
-Stopped at: Phase 75 complete, ready to plan Phase 76
+Last session: 2026-11-23T15:36:58.982Z
+Stopped at: Completed 76-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
