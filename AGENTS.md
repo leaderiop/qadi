@@ -471,7 +471,8 @@ a `describe`/`it` title is a pin or a snapshot-golden row, counted per file in
 is exported as its series (a record keyed by the closed label), never as the
 untagged base, which reads zero.
 
-**A span key of the evaluate family is declared once, and read through its declaration: `SPAN_KEY_LITERAL_BUDGET`** (ADR-QD-188).
+**A span key of the evaluate family is declared once, and read through its
+declaration: `SPAN_KEY_LITERAL_BUDGET`** (ADR-QD-188).
 The family's spans and the denial log line take their keys from
 `packages/core/src/EvaluationSpan.ts`, which spells each once and reads `qadi.subject_id`
 from `PortSpanEncode.ts`'s `sharedQuestionKeys`. `[span-key-source]` in
@@ -481,13 +482,13 @@ than `SPAN_KEY_MIN` keys fails, so a moved or emptied declaration cannot make th
 pass with nothing to check, and a `qadi.` there the extraction cannot read fails too). It
 refuses a key spelled twice there, and any mention of a key in `packages/*/src` or
 `features/step-definitions` outside the two files. A test builds an expected record with
-`encodeSpan` and reads a value with `decodeSpan` or `struct.keys`; an exact quoted key
-outside a title is a golden row, counted per file against the budget in both directions
-(`[span-key-literal]`). Test-scope, like `METRIC_ID_LITERAL_BUDGET`: it walks
-`packages/*/test` and `packages/*/bench`, and also `features/features` (its `.test.ts`
-step files included) and every type-test file tstyche selects. The table is checked
-against the budget (`[span-key-literal-table]`), and a new row is a reviewed edit to both
-together.
+`encodeSpan` (a log line's with `logAnnotations`) and reads a value with `decodeSpan` or
+`struct.keys`; an exact quoted key outside a title is a golden row, counted per file
+against the budget in both directions (`[span-key-literal]`). Test-scope, like
+`METRIC_ID_LITERAL_BUDGET`: it walks `packages/*/test` and `packages/*/bench`, and also
+`features/features` (its `.test.ts` step files included) and every type-test file
+tstyche selects. The table is checked against the budget (`[span-key-literal-table]`),
+and a new row is a reviewed edit to both together.
 
 | Test file | Span-key literals | Why |
 | --------- | ----------------- | --- |
