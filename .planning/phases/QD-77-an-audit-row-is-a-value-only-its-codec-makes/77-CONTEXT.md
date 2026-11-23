@@ -360,3 +360,9 @@ Requirements: AROW-01..06, plus the cross-cutting WX-01..07.
   phase's change.
 
 </deferred>
+
+## Workflow note (decided autonomously, 2026-11-23)
+
+`check ui-plan-gate 77` answered `frontend: true`, but only because the token `form` matched inside "brand form" in
+the roadmap's planning notes. `@qadi/audit` is server-only, and this phase edits no UI file. So step 3a.5's UI-SPEC and
+AI-SPEC hooks are skipped for this phase, as a false positive: a design contract for a codec change would be noise.
