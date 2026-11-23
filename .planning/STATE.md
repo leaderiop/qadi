@@ -26,7 +26,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-22)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 73 — One pure reconcile for gate registration
+**Current focus:** Phase 74 — The simulation session's policy choice split from its runs
 
 ## Current Position
 
@@ -892,6 +892,7 @@ Last activity: 2026-11-23 — Phase 73 complete, transitioned to Phase 74
 - [Phase 71]: 71-07: the invariants and behaviours say which guarantees only a named test holds (resolution timing, each row's condition, the entry point's own name), decided autonomously
 - [Phase 71]: 71-08: equivalent mutants removed by changing the source (stale-free snapshot, entry read from the handle, everywhere-row overload) rather than re-baselining; table static mutants admitted via EXAMINED after a by-hand run killed all 80
 - [Phase 71]: Code review (3 iterations, 24 findings, all fixed): the InstrumentedInProduction condition is stated only in its row and QadiProvider reads it through `holdsHere`; `ReporterThrew`'s default is read through `unconditionally`; MODULE_STATE_BUDGET counts module-scope bindings through a syntax-tree scan run by the shared `scripts/lib/typescript-server-child.mjs`, which both gates use; INV-QD-064/251/388 corrected; three review-added static mutants admitted after a by-hand kill and all five groups re-closed at 43c0b44e (decided autonomously)
+- [Phase 73]: Code review (3 iterations, 21 findings, all fixed): `reconcile`'s rollback/AggregateError path removed as unreachable, the writer contract stated once on `GateWriter` and pinned on the real registry; `sameIdentity` module-private; one-consumer test helpers moved back to their consumer; validation added one real-registry notification test; mutation re-closed at 37e85311, GateWriter.ts 83/83, useGate.ts 44/45 (an equivalent survivor the base had) (decided autonomously)
 - [Phase 72]: Code review (3 iterations, 25 findings, all fixed): `sameFields` compares only own enumerable string-keyed fields; the finalizer is registered before parents are subscribed and releases every parent even when one throws, then rethrows through `throwCollected` (shared with `notify`); shared test helpers moved to `dockModelFixtures.ts`/`helpers.ts`; the store-list test compares as a set; validation added one order assertion; mutation re-closed at ed8d487f, DockModel.ts 70/70, ExternalStore.ts 77/78 (the base's survivor) (decided autonomously)
 - [Phase 72]: 72-01: mutation base measured before any phase file existed (reverses CONTEXT order); characterisation takes the base as truth, no row corrected
 - [Phase 72]: 72-02: regression title wrapped multi-line (fixed title is 91 columns on one line); type-pin cause recorded as the missing export
@@ -992,4 +993,4 @@ Resume file: None
 
 
 
-- Plan Phase 73 with /gsd-plan-phase 73 (Phases 75 and 76 each carry one owner question, decided autonomously in this run)
+- Plan Phase 74 with /gsd-plan-phase 74 (Phases 75 and 76 each carry one owner question, decided autonomously in this run)
