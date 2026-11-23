@@ -477,6 +477,17 @@ export const HOSTILE_LISTS = {
   notIterable: (_message: string) => JSON.parse("{}"),
 };
 
+/**
+ * An instance of a class whose `name` is `name`, which is not a string.
+ *
+ * No request key admits a class instance, and a refusal's sentence names its class:
+ * a symbol or an object with a throwing `toString` is a `name` that cannot be
+ * interpolated. Built from `Object.defineProperty`, as TypeScript refuses a static
+ * `name` of another type.
+ */
+export const unnamedInstance = (name: unknown) =>
+  new (Object.defineProperty(class {}, "name", { value: name }))();
+
 /** A port failure's cause as its sentence, or a failed assertion when it is not text. */
 export const causeText = (failure: { readonly cause: unknown }): string =>
   typeof failure.cause === "string"

@@ -34,6 +34,8 @@ import {
   SITES,
   unkeyableRow,
   unkeyableSubject,
+  unnamedInstance,
+  untypedWith,
 } from "./helpers.ts";
 
 const query = (
@@ -584,6 +586,46 @@ describe("a history fixture whose list of rows cannot be read", () => {
         }
       }),
   );
+});
+
+/**
+ * A row or a site holding an unkeyable object whose class `name` is not a string is a
+ * refusal that names the class generically, never a throw.
+ *
+ * The refusal's sentence names the class of what it refused, and a `name` that is a
+ * symbol, or an object whose `toString` throws, cannot be interpolated, so the sentence
+ * must be built without reading one.
+ */
+describe("a history fixture holding an object whose class name is not text", () => {
+  const anyLeaf = leafOf("HasActed", hasActed("approved", { scope: "Any" }));
+  const UNKEYABLE = /an unkeyable instance \(Object\) has no request key/;
+  const NAMES = {
+    symbol: Symbol("odd"),
+    throwingToString: {
+      toString: () => {
+        throw new Error("ts");
+      },
+    },
+  };
+
+  it("a row and a site fail with a sentence that names the class generically", () => {
+    for (const [name, className] of Object.entries(NAMES)) {
+      const odd = unnamedInstance(className);
+      const json = '{"event":"approved","resourceId":"doc-1"}';
+      const row = untypedWith(json, "subjectId", odd);
+      const subject = untypedWith(JSON.stringify(alice), "id", odd);
+      for (const judged of [
+        actedAnswerFromEvents([row], anyLeaf, SITES.withId),
+        actedAnswerFromEvents([], anyLeaf, { subject, resource: undefined }),
+      ]) {
+        if (Result.isSuccess(judged)) return assert.fail(`${name}: answered`);
+        if (judged.failure._tag !== "DecisionHistoryUnavailable") {
+          return assert.fail(`${name}: ${judged.failure._tag}`);
+        }
+        assert.match(causeText(judged.failure), UNKEYABLE, name);
+      }
+    }
+  });
 });
 
 /**

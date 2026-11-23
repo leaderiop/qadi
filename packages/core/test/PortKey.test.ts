@@ -13,7 +13,7 @@ import * as Result from "effect/Result";
 import * as FastCheck from "fast-check";
 import { describeKeyRefusal, KeyRefusal } from "../src/PortDescription.ts";
 import { canonicalKey } from "../src/PortKey.ts";
-import { hostile, hostileError } from "./helpers.ts";
+import { hostile, hostileError, unnamedInstance } from "./helpers.ts";
 
 /** Why the key refused `v`, asserting it did. */
 const refusalOf = (v: unknown): KeyRefusal => {
@@ -197,6 +197,26 @@ describe("canonicalKey — the refusals (ARCH-65)", () => {
     assert.deepStrictEqual(
       [refusalOf(anonymous), refusalOf(orphan)],
       [
+        KeyRefusal.Unkeyable({ path: [], kind: "instance", brand: "Object" }),
+        KeyRefusal.Unkeyable({ path: [], kind: "instance", brand: "Object" }),
+      ],
+    );
+  });
+
+  it("names an instance whose class name is not a string by its toString brand", () => {
+    const odd = {
+      toString: () => {
+        throw new Error("ts");
+      },
+    };
+    assert.deepStrictEqual(
+      [
+        refusalOf(unnamedInstance(Symbol("odd"))),
+        refusalOf(unnamedInstance(odd)),
+        refusalOf(unnamedInstance(5)),
+      ],
+      [
+        KeyRefusal.Unkeyable({ path: [], kind: "instance", brand: "Object" }),
         KeyRefusal.Unkeyable({ path: [], kind: "instance", brand: "Object" }),
         KeyRefusal.Unkeyable({ path: [], kind: "instance", brand: "Object" }),
       ],

@@ -76,11 +76,18 @@ const frame = (
   close: (tokens: ReadonlyArray<string>) => string,
 ): KeyFrame => ({ container, children: children.values(), close, tokens: [] });
 
-/** The constructor's name, or the `Object.prototype.toString` brand without one. */
+/**
+ * The constructor's name, or the `Object.prototype.toString` brand without one.
+ *
+ * A name is taken only when it is a string: a class may declare a `name` that is a
+ * symbol or an object, and a refusal's sentence interpolates the brand.
+ */
 const brandOf = (value: object): string => {
   const ctor: unknown = Reflect.get(value, "constructor");
-  return typeof ctor === "function" && ctor.name !== ""
-    ? ctor.name
+  const name: unknown =
+    typeof ctor === "function" ? Reflect.get(ctor, "name") : undefined;
+  return typeof name === "string" && name !== ""
+    ? name
     : Object.prototype.toString.call(value).slice(8, -1);
 };
 

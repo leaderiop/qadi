@@ -209,6 +209,11 @@ const throwingField = (field: "signatures" | "history", message: string) =>
     },
   });
 
+const unnamedInstance = (name: unknown) =>
+  new (Object.defineProperty(class {}, "name", { value: name }))();
+
+const UNKEYABLE = "subjectId: an unkeyable instance (Object) has no request key";
+
 describe("remedyEdits over a list of rows it cannot read", () => {
   const signature = (cause: string, who = "signature port") => ({
     edits: [],
@@ -251,5 +256,26 @@ describe("remedyEdits over a list of rows it cannot read", () => {
       swept(eventLeaf, throwingField("history", "boom")),
       event("boom", "form"),
     );
+  });
+
+  it("a row holding an object whose class name is not text names it generically", () => {
+    const throwingToString = {
+      toString: () => {
+        throw new Error("ts");
+      },
+    };
+    for (const name of [Symbol("odd"), throwingToString]) {
+      const row = JSON.parse('{"meaning":"approved","event":"approved"}');
+      row.resourceId = "d";
+      row.subjectId = unnamedInstance(name);
+      assert.deepStrictEqual(
+        swept(signatureLeaf, withList("signatures", [row])),
+        signature(UNKEYABLE),
+      );
+      assert.deepStrictEqual(
+        swept(eventLeaf, withList("history", [row])),
+        event(UNKEYABLE),
+      );
+    }
   });
 });
