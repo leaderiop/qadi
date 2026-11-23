@@ -22,9 +22,14 @@ import type { DecisionHistoryUnavailable, MissingResourceId } from "../src/Error
 import { hasActed, hasNotActed } from "../src/Policy.ts";
 import { askActed } from "../src/PortAccess.ts";
 import { describeKeyRefusal } from "../src/PortDescription.ts";
-import type { ReadSite } from "../src/PortDescription.ts";
-import { resourceIdOf } from "../src/Resource.ts";
-import { leafOf } from "./helpers.ts";
+import type { LeafOf, ReadSite } from "../src/PortDescription.ts";
+import {
+  disagreement,
+  leafOf,
+  SITES,
+  unkeyableRow,
+  unkeyableSubject,
+} from "./helpers.ts";
 
 const query = (
   layer: Layer.Layer<DecisionHistory>,
@@ -234,24 +239,43 @@ NotActed",
   );
 });
 
+/** What a judgement or a read gave: an answer, or one of the two failures. */
+type Judged = Result.Result<ActedResult, MissingResourceId | DecisionHistoryUnavailable>;
+
+const failureOf = Match.type<MissingResourceId | DecisionHistoryUnavailable>().pipe(
+  Match.tagsExhaustive({
+    MissingResourceId: (failure) => ({
+      _tag: failure._tag,
+      relation: failure.relation,
+    }),
+    DecisionHistoryUnavailable: (failure) => ({
+      _tag: failure._tag,
+      hasEvent: Object.hasOwn(failure, "event"),
+      event: failure.event,
+      cause: failure.cause,
+    }),
+  }),
+);
+
+const answerOf = (result: Judged) =>
+  Result.match(result, {
+    onSuccess: (answer) => ({ _tag: "Answered", answer }) as const,
+    onFailure: failureOf,
+  });
+
+const readOf = (
+  events: ReadonlyArray<ActedEventInput>,
+  leaf: LeafOf["HasActed"],
+  site: ReadSite,
+) =>
+  Effect.result(askActed("evaluate", site.subject, leaf, site.resource)).pipe(
+    Effect.provide(decisionHistoryFromEvents(events)),
+  );
+
 describe("actedAnswerFromEvents", () => {
   // `JSON.parse` returns `any`, which is what an untyped JavaScript caller hands
   // over (no `as`); a symbol is the one value it cannot carry, so it is set on the
   // parsed object afterwards.
-  const alice = makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} });
-
-  const untypedSubject = () => {
-    const untyped = JSON.parse(JSON.stringify(alice));
-    untyped.id = Symbol("alice");
-    return untyped;
-  };
-
-  const untypedEvent = () => {
-    const untyped = JSON.parse('{"event":"approved","resourceId":"doc-1"}');
-    untyped.subjectId = Symbol("alice");
-    return untyped;
-  };
-
   const untypedLeaf = (scope: "Any" | "Resource") => {
     const untyped = JSON.parse('{"event":"approved"}');
     untyped.event = Symbol("approved");
@@ -289,75 +313,40 @@ describe("actedAnswerFromEvents", () => {
     })),
   ];
 
-  const LEAVES = (["Resource", "Any"] as const).map((scope) => ({
-    name: `hasActed approved at scope ${scope}`,
-    leaf: leafOf("HasActed", hasActed("approved", { scope })),
-  }));
-
-  const SITES: ReadonlyArray<{ readonly name: string; readonly site: ReadSite }> = [
-    { name: "resource id doc-1", site: { subject: alice, resource: { id: "doc-1" } } },
-    { name: "resource with no id", site: { subject: alice, resource: {} } },
-    { name: "resource id not a string", site: { subject: alice, resource: { id: 7 } } },
-    { name: "no resource", site: { subject: alice, resource: undefined } },
-  ];
-
-  type Judged = Result.Result<
-    ActedResult,
-    MissingResourceId | DecisionHistoryUnavailable
-  >;
-
-  const failureOf = Match.type<MissingResourceId | DecisionHistoryUnavailable>().pipe(
-    Match.tagsExhaustive({
-      MissingResourceId: (failure) => ({
-        _tag: failure._tag,
-        relation: failure.relation,
-      }),
-      DecisionHistoryUnavailable: (failure) => ({
-        _tag: failure._tag,
-        hasEvent: Object.hasOwn(failure, "event"),
-        event: failure.event,
-        cause: failure.cause,
-      }),
-    }),
-  );
-
-  const answerOf = (result: Judged) =>
-    Result.match(result, {
-      onSuccess: (answer) => ({ _tag: "Answered", answer }) as const,
-      onFailure: failureOf,
-    });
-
-  const readOf = (
-    events: ReadonlyArray<ActedEventInput>,
-    leaf: (typeof LEAVES)[number]["leaf"],
-    site: ReadSite,
-  ) =>
-    Effect.result(askActed("evaluate", site.subject, leaf, site.resource)).pipe(
-      Effect.provide(decisionHistoryFromEvents(events)),
-    );
+  /** The two leaves, named by their scope, so a test picks one by what it is. */
+  const LEAVES = {
+    resource: {
+      name: "hasActed approved at scope Resource",
+      leaf: leafOf("HasActed", hasActed("approved", { scope: "Resource" })),
+    },
+    any: {
+      name: "hasActed approved at scope Any",
+      leaf: leafOf("HasActed", hasActed("approved", { scope: "Any" })),
+    },
+  };
 
   it.effect(
     "answers as \
 askActed over the fixture layer does, on every case of the product",
     () =>
       Effect.gen(function* () {
+        const sites = Object.entries(SITES);
+        const leaves = Object.values(LEAVES);
         assert.strictEqual(SINGLES.length, 8);
         assert.strictEqual(LISTS.length, 17);
-        assert.strictEqual(SITES.length * LEAVES.length * LISTS.length, 136);
+        assert.strictEqual(sites.length * leaves.length * LISTS.length, 136);
         const mismatches: Array<string> = [];
         let compared = 0;
-        for (const { name: siteName, site } of SITES) {
-          for (const { name: leafName, leaf } of LEAVES) {
+        for (const [siteName, site] of sites) {
+          for (const { name: leafName, leaf } of leaves) {
             for (const { name: listName, rows } of LISTS) {
               compared += 1;
-              const judged = answerOf(actedAnswerFromEvents(rows, leaf, site));
-              const read = answerOf(yield* readOf(rows, leaf, site));
-              if (JSON.stringify(judged) !== JSON.stringify(read)) {
-                mismatches.push(
-                  `${siteName} | ${leafName} | ${listName} | ` +
-                    `judged ${JSON.stringify(judged)} | read ${JSON.stringify(read)}`,
-                );
-              }
+              const found = disagreement(
+                `${siteName} | ${leafName} | ${listName}`,
+                answerOf(actedAnswerFromEvents(rows, leaf, site)),
+                answerOf(yield* readOf(rows, leaf, site)),
+              );
+              if (found !== undefined) mismatches.push(found);
             }
           }
         }
@@ -366,33 +355,58 @@ askActed over the fixture layer does, on every case of the product",
       }),
   );
 
+  /**
+   * What each site gives each leaf when the check is refused: a Resource leaf with
+   * no usable resource id fails for want of one, and the rest fail as the history
+   * port does.
+   */
+  const UNAVAILABLE = "DecisionHistoryUnavailable";
+  const REFUSED = [
+    { site: SITES.withId, Resource: "DecisionHistoryUnavailable", Any: UNAVAILABLE },
+    { site: SITES.withoutId, Resource: "MissingResourceId", Any: UNAVAILABLE },
+    { site: SITES.withNonStringId, Resource: "MissingResourceId", Any: UNAVAILABLE },
+    { site: SITES.withoutResource, Resource: "MissingResourceId", Any: UNAVAILABLE },
+  ] as const;
+
   it.effect(
-    "a refused subject or event row fails as \
+    "a site whose subject id is a symbol fails as \
 the read does, with the refusal and never NotActed",
     () =>
       Effect.gen(function* () {
-        const typed = [{ subjectId: "alice", event: "approved", resourceId: "doc-1" }];
-        for (const { site } of SITES) {
-          const cases: ReadonlyArray<
-            readonly [ReadSite, ReadonlyArray<ActedEventInput>]
-          > = [
-            [{ ...site, subject: untypedSubject() }, typed],
-            [site, [untypedEvent()]],
-          ];
-          for (const [at, rows] of cases) {
-            for (const { leaf } of LEAVES) {
-              const judged = answerOf(actedAnswerFromEvents(rows, leaf, at));
-              const read = answerOf(yield* readOf(rows, leaf, at));
-              assert.deepStrictEqual(judged, read);
-              const missing =
-                leaf.scope === "Resource" && resourceIdOf(at.resource) === undefined;
-              assert.strictEqual(
-                judged._tag,
-                missing ? "MissingResourceId" : "DecisionHistoryUnavailable",
-              );
-              if (judged._tag === "DecisionHistoryUnavailable") {
-                assert.strictEqual(judged.event, "approved");
-              }
+        const rows = [{ subjectId: "alice", event: "approved", resourceId: "doc-1" }];
+        for (const { site, ...tags } of REFUSED) {
+          const at = { ...site, subject: unkeyableSubject() };
+          for (const [scope, { leaf }] of [
+            ["Resource", LEAVES.resource],
+            ["Any", LEAVES.any],
+          ] as const) {
+            const judged = answerOf(actedAnswerFromEvents(rows, leaf, at));
+            assert.deepStrictEqual(judged, answerOf(yield* readOf(rows, leaf, at)));
+            assert.strictEqual(judged._tag, tags[scope]);
+            if (judged._tag === "DecisionHistoryUnavailable") {
+              assert.strictEqual(judged.event, "approved");
+            }
+          }
+        }
+      }),
+  );
+
+  it.effect(
+    "an event row whose subject id is a symbol fails as \
+the read does, with the refusal and never NotActed",
+    () =>
+      Effect.gen(function* () {
+        const rows = [unkeyableRow('{"event":"approved","resourceId":"doc-1"}')];
+        for (const { site, ...tags } of REFUSED) {
+          for (const [scope, { leaf }] of [
+            ["Resource", LEAVES.resource],
+            ["Any", LEAVES.any],
+          ] as const) {
+            const judged = answerOf(actedAnswerFromEvents(rows, leaf, site));
+            assert.deepStrictEqual(judged, answerOf(yield* readOf(rows, leaf, site)));
+            assert.strictEqual(judged._tag, tags[scope]);
+            if (judged._tag === "DecisionHistoryUnavailable") {
+              assert.strictEqual(judged.event, "approved");
             }
           }
         }
@@ -404,12 +418,11 @@ the read does, with the refusal and never NotActed",
 the read does, with no event and never NotActed",
     () =>
       Effect.gen(function* () {
-        const site: ReadSite = { subject: alice, resource: { id: "doc-1" } };
         const rows = [{ subjectId: "alice", event: "approved", resourceId: "doc-1" }];
         for (const scope of ["Any", "Resource"] as const) {
           const leaf = untypedLeaf(scope);
-          const judged = answerOf(actedAnswerFromEvents(rows, leaf, site));
-          const read = answerOf(yield* readOf(rows, leaf, site));
+          const judged = answerOf(actedAnswerFromEvents(rows, leaf, SITES.withId));
+          const read = answerOf(yield* readOf(rows, leaf, SITES.withId));
           assert.deepStrictEqual(judged, read);
           assert.strictEqual(judged._tag, "DecisionHistoryUnavailable");
           if (judged._tag === "DecisionHistoryUnavailable") {

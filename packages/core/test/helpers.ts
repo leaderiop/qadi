@@ -15,7 +15,7 @@ import * as M from "../src/Matcher.ts";
 import { obligation } from "../src/Obligation.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
-import type { LeafOf } from "../src/PortDescription.ts";
+import type { LeafOf, ReadSite } from "../src/PortDescription.ts";
 import { portsLayer } from "../src/Ports.ts";
 import type { PortOverrides } from "../src/Ports.ts";
 
@@ -357,3 +357,67 @@ export const hostileError = Object.defineProperty(new Error("unread"), "message"
     throw new Error("message threw");
   },
 });
+
+/**
+ * The subject the fixture judgements are asked as.
+ *
+ * The fixture judgement tests (`signatureAnswerFromSignatures`,
+ * `actedAnswerFromEvents`) read their sites, their decoy and their untyped values from
+ * here, so the two files walk one product and build one kind of untyped value.
+ */
+export const alice = makeSubject({
+  id: "alice",
+  roles: [],
+  permissions: [],
+  attributes: {},
+});
+
+/**
+ * The four sites a check can be asked at, a record so that each is named by what it is.
+ *
+ * A resource with an id, one without, one whose id is not a string, and no resource.
+ */
+export const SITES: {
+  readonly withId: ReadSite;
+  readonly withoutId: ReadSite;
+  readonly withNonStringId: ReadSite;
+  readonly withoutResource: ReadSite;
+} = {
+  withId: { subject: alice, resource: { id: "doc-1" } },
+  withoutId: { subject: alice, resource: {} },
+  withNonStringId: { subject: alice, resource: { id: 7 } },
+  withoutResource: { subject: alice, resource: undefined },
+};
+
+/**
+ * The line a case prints when a judgement and the read it must agree with differ, or
+ * `undefined` when they agree.
+ *
+ * Compared as `JSON.stringify` shows them, so a field one has and the other lacks, or
+ * holds as `undefined`, is a difference.
+ */
+export const disagreement = (where: string, judged: unknown, read: unknown) =>
+  JSON.stringify(judged) === JSON.stringify(read)
+    ? undefined
+    : `${where} | judged ${JSON.stringify(judged)} | read ${JSON.stringify(read)}`;
+
+/**
+ * `json` parsed, with `field` set to `value`.
+ *
+ * `JSON.parse` returns `any`, which is what an untyped JavaScript caller hands
+ * over (no `as`, AGENTS.md §6). A symbol is the one value it cannot carry, so it is
+ * set on the parsed object afterwards.
+ */
+export const untypedWith = (json: string, field: string, value: unknown) => {
+  const untyped = JSON.parse(json);
+  untyped[field] = value;
+  return untyped;
+};
+
+/** A fixture row whose subject id is a symbol, which no request key admits. */
+export const unkeyableRow = (json: string) =>
+  untypedWith(json, "subjectId", Symbol("alice"));
+
+/** A site subject whose id is a symbol, which no request key admits. */
+export const unkeyableSubject = () =>
+  untypedWith(JSON.stringify(alice), "id", Symbol("alice"));

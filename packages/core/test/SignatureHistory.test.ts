@@ -15,7 +15,7 @@ import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import { hasSignature } from "../src/Policy.ts";
 import { askSignature } from "../src/PortAccess.ts";
 import { describeKeyRefusal, KeyRefusal } from "../src/PortDescription.ts";
-import type { ReadSite } from "../src/PortDescription.ts";
+import type { LeafOf, ReadSite } from "../src/PortDescription.ts";
 import {
   SignatureHistory,
   SignatureHistoryNone,
@@ -24,7 +24,13 @@ import {
   signatureHistoryPort,
 } from "../src/SignatureHistory.ts";
 import type { SignatureAnswer, SignatureInput } from "../src/SignatureHistory.ts";
-import { leafOf } from "./helpers.ts";
+import {
+  disagreement,
+  leafOf,
+  SITES,
+  unkeyableRow,
+  unkeyableSubject,
+} from "./helpers.ts";
 
 const query = (
   layer: Layer.Layer<SignatureHistory>,
@@ -324,6 +330,43 @@ its cause, never dying",
   );
 });
 
+/** What a judgement or a read gave: an answer, or one of the two failures. */
+type Judged = Result.Result<
+  SignatureAnswer,
+  MissingResourceId | SignatureHistoryUnavailable
+>;
+
+const failureOf = Match.type<MissingResourceId | SignatureHistoryUnavailable>().pipe(
+  Match.tagsExhaustive({
+    MissingResourceId: (failure) => ({
+      _tag: failure._tag,
+      relation: failure.relation,
+    }),
+    SignatureHistoryUnavailable: (failure) => ({
+      _tag: failure._tag,
+      hasSubjectId: Object.hasOwn(failure, "subjectId"),
+      subjectId: failure.subjectId,
+      resourceId: failure.resourceId,
+      cause: failure.cause,
+    }),
+  }),
+);
+
+const answerOf = (result: Judged) =>
+  Result.match(result, {
+    onSuccess: ({ matched, onFile }) => ({ matched, onFile }),
+    onFailure: failureOf,
+  });
+
+const readOf = (
+  rows: ReadonlyArray<SignatureInput>,
+  leaf: LeafOf["HasSignature"],
+  site: ReadSite,
+) =>
+  Effect.result(askSignature(site.subject, leaf, site.resource)).pipe(
+    Effect.provide(signatureHistoryFromSignatures(rows)),
+  );
+
 /**
  * `signatureAnswerFromSignatures` answers what `askSignature` answers over
  * `signatureHistoryFromSignatures` for the same rows, leaf and site.
@@ -335,23 +378,6 @@ its cause, never dying",
  * package's tests and no shipped module carries test data.
  */
 describe("signatureAnswerFromSignatures", () => {
-  // `JSON.parse` returns `any`, which is what an untyped JavaScript caller hands
-  // over (no `as`); a symbol is the one value it cannot carry, so it is set on the
-  // parsed object afterwards.
-  const unkeyable = (json: string) => {
-    const untyped = JSON.parse(json);
-    untyped.subjectId = Symbol("alice");
-    return untyped;
-  };
-
-  const alice = makeSubject({ id: "alice", roles: [], permissions: [], attributes: {} });
-
-  const unkeyableSubject = () => {
-    const untyped = JSON.parse(JSON.stringify(alice));
-    untyped.id = Symbol("alice");
-    return untyped;
-  };
-
   const SUBJECTS = ["alice", "bob"];
   const RESOURCE_IDS = [undefined, "doc-1", "doc-2"];
   const MEANINGS = ["approved", "reviewed"];
@@ -396,87 +422,58 @@ describe("signatureAnswerFromSignatures", () => {
     })),
   ];
 
-  const LEAVES = (["Resource", "Any"] as const).flatMap((scope) => [
-    {
-      name: `scope ${scope}`,
-      leaf: leafOf("HasSignature", hasSignature("approved", { scope })),
+  /** The four leaves, named by what they are, so a test picks one by name. */
+  const LEAVES = {
+    resource: {
+      name: "scope Resource",
+      leaf: leafOf("HasSignature", hasSignature("approved", { scope: "Resource" })),
     },
-    {
-      name: `scope ${scope}, signer role approver`,
+    resourceAsApprover: {
+      name: "scope Resource, signer role approver",
       leaf: leafOf(
         "HasSignature",
-        hasSignature("approved", { scope, signerRole: "approver" }),
+        hasSignature("approved", { scope: "Resource", signerRole: "approver" }),
       ),
     },
-  ]);
+    any: {
+      name: "scope Any",
+      leaf: leafOf("HasSignature", hasSignature("approved", { scope: "Any" })),
+    },
+    anyAsApprover: {
+      name: "scope Any, signer role approver",
+      leaf: leafOf(
+        "HasSignature",
+        hasSignature("approved", { scope: "Any", signerRole: "approver" }),
+      ),
+    },
+  };
 
-  const ROLE_FREE = LEAVES.filter(({ name }) => !name.includes("signer role"));
-
-  const SITES: ReadonlyArray<{ readonly name: string; readonly site: ReadSite }> = [
-    { name: "resource id doc-1", site: { subject: alice, resource: { id: "doc-1" } } },
-    { name: "resource with no id", site: { subject: alice, resource: {} } },
-    { name: "resource id not a string", site: { subject: alice, resource: { id: 7 } } },
-    { name: "no resource", site: { subject: alice, resource: undefined } },
-  ];
-
-  type Judged = Result.Result<
-    SignatureAnswer,
-    MissingResourceId | SignatureHistoryUnavailable
-  >;
-
-  const failureOf = Match.type<MissingResourceId | SignatureHistoryUnavailable>().pipe(
-    Match.tagsExhaustive({
-      MissingResourceId: (failure) => ({
-        _tag: failure._tag,
-        relation: failure.relation,
-      }),
-      SignatureHistoryUnavailable: (failure) => ({
-        _tag: failure._tag,
-        hasSubjectId: Object.hasOwn(failure, "subjectId"),
-        subjectId: failure.subjectId,
-        resourceId: failure.resourceId,
-        cause: failure.cause,
-      }),
-    }),
+  const ROLE_FREE = Object.values(LEAVES).filter(
+    ({ leaf }) => leaf.signerRole === undefined,
   );
-
-  const answerOf = (result: Judged) =>
-    Result.match(result, {
-      onSuccess: ({ matched, onFile }) => ({ matched, onFile }),
-      onFailure: failureOf,
-    });
-
-  const readOf = (
-    rows: ReadonlyArray<SignatureInput>,
-    leaf: (typeof LEAVES)[number]["leaf"],
-    site: ReadSite,
-  ) =>
-    Effect.result(askSignature(site.subject, leaf, site.resource)).pipe(
-      Effect.provide(signatureHistoryFromSignatures(rows)),
-    );
 
   it.effect(
     "answers as \
 askSignature over the fixture layer does, on every case of the product",
     () =>
       Effect.gen(function* () {
+        const sites = Object.entries(SITES);
+        const leaves = Object.values(LEAVES);
         assert.strictEqual(SINGLES.length, 36);
         assert.strictEqual(LISTS.length, 73);
-        assert.strictEqual(SITES.length * LEAVES.length * LISTS.length, 1168);
+        assert.strictEqual(sites.length * leaves.length * LISTS.length, 1168);
         const mismatches: Array<string> = [];
         let compared = 0;
-        for (const { name: siteName, site } of SITES) {
-          for (const { name: leafName, leaf } of LEAVES) {
+        for (const [siteName, site] of sites) {
+          for (const { name: leafName, leaf } of leaves) {
             for (const { name: listName, rows } of LISTS) {
               compared += 1;
-              const judged = answerOf(signatureAnswerFromSignatures(rows, leaf, site));
-              const read = answerOf(yield* readOf(rows, leaf, site));
-              if (JSON.stringify(judged) !== JSON.stringify(read)) {
-                mismatches.push(
-                  `${siteName} | ${leafName} | ${listName} | ` +
-                    `judged ${JSON.stringify(judged)} | read ${JSON.stringify(read)}`,
-                );
-              }
+              const found = disagreement(
+                `${siteName} | ${leafName} | ${listName}`,
+                answerOf(signatureAnswerFromSignatures(rows, leaf, site)),
+                answerOf(yield* readOf(rows, leaf, site)),
+              );
+              if (found !== undefined) mismatches.push(found);
             }
           }
         }
@@ -492,12 +489,11 @@ the read does, with the refusal and never matched: false",
       Effect.gen(function* () {
         const rows = [
           { subjectId: "alice", meaning: "approved" },
-          unkeyable('{"meaning":"approved"}'),
+          unkeyableRow('{"meaning":"approved"}'),
         ];
-        const site: ReadSite = { subject: alice, resource: { id: "doc-1" } };
         for (const { leaf } of ROLE_FREE) {
-          const judged = signatureAnswerFromSignatures(rows, leaf, site);
-          const read = yield* readOf(rows, leaf, site);
+          const judged = signatureAnswerFromSignatures(rows, leaf, SITES.withId);
+          const read = yield* readOf(rows, leaf, SITES.withId);
           assert.isTrue(Result.isFailure(judged) && Result.isFailure(read));
           assert.deepStrictEqual(answerOf(judged), answerOf(read));
           if (Result.isFailure(judged)) {
@@ -512,20 +508,19 @@ the read does, with the refusal and never matched: false",
 row is read",
     () =>
       Effect.gen(function* () {
-        const [resourceLeaf] = LEAVES;
-        if (resourceLeaf === undefined) return assert.fail("no Resource leaf");
+        const { leaf } = LEAVES.resource;
         const refusedRows = [
           { subjectId: "alice", meaning: "approved" },
-          unkeyable('{"meaning":"approved"}'),
+          unkeyableRow('{"meaning":"approved"}'),
         ];
         const typedRows = [{ subjectId: "alice", meaning: "approved" }];
         const cases: ReadonlyArray<readonly [ReadonlyArray<SignatureInput>, ReadSite]> = [
-          [refusedRows, { subject: alice, resource: undefined }],
+          [refusedRows, SITES.withoutResource],
           [typedRows, { subject: unkeyableSubject(), resource: undefined }],
         ];
         for (const [rows, site] of cases) {
-          const judged = signatureAnswerFromSignatures(rows, resourceLeaf.leaf, site);
-          const read = yield* readOf(rows, resourceLeaf.leaf, site);
+          const judged = signatureAnswerFromSignatures(rows, leaf, site);
+          const read = yield* readOf(rows, leaf, site);
           const wanted = { _tag: "MissingResourceId", relation: "approved" } as const;
           assert.deepStrictEqual(answerOf(judged), wanted);
           assert.deepStrictEqual(answerOf(read), wanted);
