@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-189                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-11-23                                     |
 > | Status         | Accepted — amends ADR-QD-058 and ADR-QD-094   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-23): decision 4 and 5: the refusal is total over a row, a subject and a resource that throw, through one guarded read (code review WR-01, CCR-QD-468)<br>1.1 (2026-11-23): what enforces it: the compiler, the scripts, the tests by title and what review keeps; the acted evidence (ARCH-123, CCR-QD-468)<br>1.0 (2026-11-23): Initial release (ARCH-123, CCR-QD-468) |
+> | Change History | 1.3 (2026-11-23): decision 4: a member is absent exactly when its schema refuses the value, and the cause is the store's own when the key admits it (code review WR-02, CCR-QD-468)<br>1.2 (2026-11-23): decision 4 and 5: the refusal is total over a row, a subject and a resource that throw, through one guarded read (code review WR-01, CCR-QD-468)<br>1.1 (2026-11-23): what enforces it: the compiler, the scripts, the tests by title and what review keeps; the acted evidence (ARCH-123, CCR-QD-468)<br>1.0 (2026-11-23): Initial release (ARCH-123, CCR-QD-468) |
 
 ---
 
@@ -83,11 +83,14 @@ leaves were the two it did not ask.
    the refusal sentence names the field. A row's fields are read once, where its lookup key
    is built; the site is read once, where the judgement builds the request, and a subject or
    resource that throws is named as the site. The evaluator's own read of its site is not
-   guarded: it holds a subject `evaluate` already read. `SignatureHistoryUnavailable.subjectId` and
-   `DecisionHistoryUnavailable.event` become optional, and each description's `failure` sets a
-   member only when the member's own schema admits the request's value (`Schema.is`), as it
-   already did for `resourceId`. An absent member says the request held a value the wire cannot
-   carry, and the cause carries `describeKeyRefusal`'s sentence, which names it. The
+   guarded: it holds a subject `evaluate` already read.
+   `SignatureHistoryUnavailable.subjectId` and `DecisionHistoryUnavailable.event` become
+   optional, and each description's `failure` sets a member only when the member's own schema
+   admits the request's value (`Schema.is`), as it already did for `resourceId`. An absent member
+   says the request held a value the member's schema refuses, whether or not the key refuses it,
+   so a subject id that is an object, which the key admits, leaves it absent too. The cause is
+   `describeKeyRefusal`'s sentence when the key refuses the request, which names the value, and
+   the store's own cause when the key admits it. The
    representation is the error class itself, so `SinkCodec` and `@qadi/http`'s response body
    carry an absent member with no second schema (ADR-QD-060), and the response body's two
    members become optional with it.
@@ -199,7 +202,8 @@ unchanged because no error class is added or removed: two gain an optional membe
   "fails as SignatureHistoryUnavailable with no subject id and the refusal as its cause, never dying",
   "a fixture row that cannot be read fails every read, naming the field and what was thrown",
   "a site subject that cannot be read fails the judgement with no subject id, naming the site",
-  "a resource id that throws fails a Resource leaf, which an Any leaf never reads") and
+  "a resource id that throws fails a Resource leaf, which an Any leaf never reads",
+  "the error has no subject id and the cause is the store's own") and
   `packages/core/test/DecisionHistory.test.ts`
   ("a site whose subject id is a symbol fails as the read does, with the refusal and never NotActed",
   "an event row whose subject id is a symbol fails as the read does, with the refusal and never NotActed",
@@ -210,7 +214,8 @@ unchanged because no error class is added or removed: two gain an optional membe
   "a fixture row whose event cannot be read fails every read, never throwing",
   "a fixture row that cannot be read fails every read, naming the field and what was thrown",
   "a site subject that cannot be read fails the judgement with no event, naming the site",
-  "a resource id that throws fails a Resource leaf, which an Any leaf never reads").
+  "a resource id that throws fails a Resource leaf, which an Any leaf never reads",
+  "the error has no event and the cause is the store's own").
 - The remedy table over a row or site it cannot read:
   `packages/devtools/test/model/RemedyTotality.test.ts` (each of a null row, a row whose getter
   throws and a row that is a throwing proxy, for a signature leaf and an event leaf, and a form

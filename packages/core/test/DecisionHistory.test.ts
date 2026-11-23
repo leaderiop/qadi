@@ -21,7 +21,8 @@ import { makeSubject } from "../src/AuthSubject.ts";
 import type { DecisionHistoryUnavailable, MissingResourceId } from "../src/Errors.ts";
 import { hasActed, hasNotActed } from "../src/Policy.ts";
 import { askActed } from "../src/PortAccess.ts";
-import { describeKeyRefusal } from "../src/PortDescription.ts";
+import { scriptedPort } from "../src/PortDoubles.ts";
+import { describeKeyRefusal, PortReply } from "../src/PortDescription.ts";
 import type { LeafOf, ReadSite } from "../src/PortDescription.ts";
 import {
   alice,
@@ -526,5 +527,30 @@ naming the site", () => {
         const read = yield* readOf([typed], anyLeaf, site);
         assert.deepStrictEqual(answerOf(answered), answerOf(read));
       }),
+  );
+});
+
+/**
+ * A request or a store the history port fails on carries `event` exactly when the
+ * schema admits the request's value, whether or not the key refuses it.
+ *
+ * An event that is a number is a value the key admits and the schema refuses, so a
+ * failing store gives a member-less error whose cause is the store's own, not a
+ * refusal sentence.
+ */
+describe("a history store that fails on an event the key admits", () => {
+  it.effect("the error has no event and the cause is the store's own", () =>
+    Effect.gen(function* () {
+      const request = JSON.parse('{"subjectId":"alice","event":5}');
+      assert.isTrue(Result.isSuccess(decisionHistoryPort.key([request])));
+      const broken = scriptedPort(decisionHistoryPort, () =>
+        PortReply.fail("down"),
+      ).layer;
+      const failure = yield* Effect.flip(
+        DecisionHistory.hasActed(request).pipe(Effect.provide(broken)),
+      );
+      assert.isFalse(Object.hasOwn(failure, "event"));
+      assert.strictEqual(failure.cause, "down");
+    }),
   );
 });

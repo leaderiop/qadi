@@ -14,7 +14,8 @@ import type { MissingResourceId } from "../src/Errors.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import { hasSignature } from "../src/Policy.ts";
 import { askSignature } from "../src/PortAccess.ts";
-import { describeKeyRefusal, KeyRefusal } from "../src/PortDescription.ts";
+import { scriptedPort } from "../src/PortDoubles.ts";
+import { describeKeyRefusal, KeyRefusal, PortReply } from "../src/PortDescription.ts";
 import type { LeafOf, ReadSite } from "../src/PortDescription.ts";
 import {
   SignatureHistory,
@@ -646,5 +647,30 @@ naming the site", () => {
         const read = yield* readOf([typed], anyLeaf, site);
         assert.deepStrictEqual(answerOf(answered), answerOf(read));
       }),
+  );
+});
+
+/**
+ * A request or a store the signature port fails on carries `subjectId` exactly when
+ * the schema admits the request's value, whether or not the key refuses it.
+ *
+ * A subject id that is an object is a value the key admits and the schema refuses,
+ * so a failing store gives a member-less error whose cause is the store's own, not
+ * a refusal sentence.
+ */
+describe("a signature store that fails on a subject id the key admits", () => {
+  it.effect("the error has no subject id and the cause is the store's own", () =>
+    Effect.gen(function* () {
+      const request = JSON.parse('{"subjectId":{"a":1}}');
+      assert.isTrue(Result.isSuccess(signatureHistoryPort.key([request])));
+      const broken = scriptedPort(signatureHistoryPort, () =>
+        PortReply.fail("down"),
+      ).layer;
+      const failure = yield* Effect.flip(
+        SignatureHistory.signaturesFor(request).pipe(Effect.provide(broken)),
+      );
+      assert.isFalse(Object.hasOwn(failure, "subjectId"));
+      assert.strictEqual(failure.cause, "down");
+    }),
   );
 });

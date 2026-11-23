@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-12                                    |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.4 (2026-11-23): BEH-QD-093: a row that cannot be read fails typed, and its pinning rows (code review WR-01, ADR-QD-189, CCR-QD-468)<br>1.3 (2026-11-23): BEH-QD-093: the event is optional, and the fixture fails a row or request the key refuses (ARCH-123, ADR-QD-189, CCR-QD-468)<br>1.2 (2026-11-18): BEH-QD-607 (ARCH-101, CCR-QD-445)<br>1.1 (2026-11-10): BEH-QD-092 — HasSignature reads "Any" narrower than history does: signatures on file subject-wide, and a discharge on a resource without a string id is refused (ARCH-59, ADR-QD-117, CCR-QD-395)<br>1.0 (2026-07-26): Initial release (CCR-QD-016) |
+> | Change History | 1.5 (2026-11-23): BEH-QD-093: the event is absent whenever its schema refuses the value, and the cause is the store's own when the key admits it (code review WR-02, ADR-QD-189, CCR-QD-468)<br>1.4 (2026-11-23): BEH-QD-093: a row that cannot be read fails typed, and its pinning rows (code review WR-01, ADR-QD-189, CCR-QD-468)<br>1.3 (2026-11-23): BEH-QD-093: the event is optional, and the fixture fails a row or request the key refuses (ARCH-123, ADR-QD-189, CCR-QD-468)<br>1.2 (2026-11-18): BEH-QD-607 (ARCH-101, CCR-QD-445)<br>1.1 (2026-11-10): BEH-QD-092 — HasSignature reads "Any" narrower than history does: signatures on file subject-wide, and a discharge on a resource without a string id is refused (ARCH-59, ADR-QD-117, CCR-QD-395)<br>1.0 (2026-07-26): Initial release (CCR-QD-016) |
 
 _Previous: [11 — Obligations](./11-obligations.md)_
 
@@ -151,8 +151,9 @@ engineer to audit approvals.
 denial, exactly as `RelationshipResolverNever` answering `false` is.
 
 > **Note (2026-11-23, ADR-QD-189):** the event is absent exactly when the request's
-> event is not a string, which only a request the port's key refuses can hold, and
-> the cause then carries `describeKeyRefusal`'s sentence, which names it
+> event is not a string, whether or not the port's key refuses it. The cause is
+> `describeKeyRefusal`'s sentence when the key refuses the request, and the store's
+> own cause when the key admits it, as an event that is a number is
 > ([BEH-QD-410](06-services.md#beh-qd-410-a-request-the-key-refuses-fails-closed)).
 > `decisionHistoryFromEvents` keys its rows and its requests through
 > `decisionHistoryPort.key`, so a row or a request the key refuses, or that cannot be
@@ -165,7 +166,8 @@ denial, exactly as `RelationshipResolverNever` answering `false` is.
 > "a fixture row whose subject id is a symbol fails every read, never answering NotActed",
 > "a fixture row whose event cannot be read fails every read, never throwing",
 > "a fixture row that cannot be read fails every read, naming the field and what was thrown",
-> "a site subject that cannot be read fails the judgement with no event, naming the site").
+> "a site subject that cannot be read fails the judgement with no event, naming the site",
+> "the error has no event and the cause is the store's own").
 
 ## BEH-QD-607: Both acted polarities read one verdict row, and Unknown denies both
 
