@@ -147,7 +147,13 @@ export interface SimulationSnapshot {
   readonly plan: SweepPlan | undefined;
   readonly cost: SweepCost;
   readonly run: RunState;
-  /** True when the form, the policy or the seed moved since the shown result ran. */
+  /**
+   * True when the form, the policy or the seed moved since the shown result ran.
+   *
+   * The policy and seed checks (no policy, another policy, another seed) state
+   * BEH-QD-322's rule where it is read, not because one can hold while a run is
+   * shown: every command that changes the policy or the seed also clears the run.
+   */
   readonly stale: boolean;
   /** Present only for a result that ran against the current seed. */
   readonly baseline: Baseline | undefined;
