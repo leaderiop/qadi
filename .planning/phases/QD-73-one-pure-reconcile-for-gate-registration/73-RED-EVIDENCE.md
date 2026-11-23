@@ -51,3 +51,23 @@ AssertionError: expected [] to deeply equal [ [ 'update', 'a', 'Allowed' ] ]
 The base `reconcile` tells a kept entry nothing: it calls only `register` and `unregister`, so the log is empty where the
 update half expects `["update", "a", <state>]`. The second title fails the same way with `'Pending'` in place of
 `'Allowed'`.
+
+## The keyed reconcile green
+
+Command (from the repository root, stdin closed):
+
+```
+pnpm exec vitest run --project react packages/react/test/GateWriter.reconcile.test.ts packages/react/test/GateRegistration.characterisation.test.tsx --reporter=json --outputFile=<scratch>/green-03.json
+```
+
+Head: `0a5c5db47ece4f429c0e3320ff62fedcd3a27cab`.
+
+Result, per file:
+
+- `GateWriter.reconcile.test.ts`: `22 passed, 0 failed`
+- `GateRegistration.characterisation.test.tsx` (the file is unchanged since its own commit): `19 passed, 0 failed`
+
+The two update-half cases that were red on the base, `tells the handle of a kept entry the wanted state` and
+`tells a kept handle its state even when unchanged, leaving equality to it`, now pass: the keyed `reconcile` calls
+`update` on the kept handle with the wanted state, so the log reads `["update", "a", "Allowed"]` and
+`["update", "a", "Pending"]` where the base's log was empty.
