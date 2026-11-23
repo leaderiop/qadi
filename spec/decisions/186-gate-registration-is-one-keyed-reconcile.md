@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-186                                   |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-11-22                                     |
 > | Status         | Accepted — extends ADR-QD-140 and ADR-QD-111   |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.4 (2026-11-22): Decision 6 states the writer's contract and the registry's true reasons for keeping it, with no idempotence; What enforces it cites only the tests that pin it (CCR-QD-465)<br>1.3 (2026-11-22): What enforces it: review alone keeps that no other module diffs states, that reconcile adds no handler for a throw and that the hook's one ref holds only its registrations (CCR-QD-465)<br>1.2 (2026-11-22): What enforces it: the hook's one ref holding its registrations and nothing beyond them is kept by review (CCR-QD-465)<br>1.1 (2026-11-22): Decision 6 is the writer's contract, not a failure rule: reconcile handles no throw of its own (CCR-QD-465)<br>1.0 (2026-11-22): new — gate registration is one keyed reconcile (ARCH-120, CCR-QD-465) |
+> | Change History | 1.5 (2026-11-22): Alternatives: the rejected count rule says what it counted and cites ADR-QD-177 (CCR-QD-465)<br>1.4 (2026-11-22): Decision 6 states the writer's contract and the registry's true reasons for keeping it, with no idempotence; What enforces it cites only the tests that pin it (CCR-QD-465)<br>1.3 (2026-11-22): What enforces it: review alone keeps that no other module diffs states, that reconcile adds no handler for a throw and that the hook's one ref holds only its registrations (CCR-QD-465)<br>1.2 (2026-11-22): What enforces it: the hook's one ref holding its registrations and nothing beyond them is kept by review (CCR-QD-465)<br>1.1 (2026-11-22): Decision 6 is the writer's contract, not a failure rule: reconcile handles no throw of its own (CCR-QD-465)<br>1.0 (2026-11-22): new — gate registration is one keyed reconcile (ARCH-120, CCR-QD-465) |
 
 ---
 
@@ -122,10 +122,12 @@ and nothing beyond them. Review does.
   adds a union and an interpreter and removes nothing.
 - **Folding the teardown into the registration effect.** Rejected: it re-registers on every
   commit or leaks on unmount (decision 7).
-- **A rollback, and a count rule for the throws, inside `reconcile`.** Rejected: no writer
-  this package builds throws (decision 6), so the rule would defend a state nothing can
-  reach, and the half-applied step it would leave behind after an earlier unregister is no
-  better than letting the throw propagate.
+- **A rollback, and a rule inside `reconcile` that counts how many of a step's writes threw
+  and reports them together** (the shape
+  [ADR-QD-177](./177-one-throwing-listener-cannot-silence-the-rest.md) gives a notifier).
+  Rejected: no writer this package builds throws (decision 6), so the rule would defend a
+  state nothing can reach, and the half-applied step it would leave behind after an earlier
+  unregister is no better than letting the throw propagate.
 
 ## Consequences
 
