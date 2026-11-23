@@ -1,6 +1,7 @@
 /**
- * What the gate tests that need no rendering share: a count of the notifications a gate
- * registry makes, and fresh policies.
+ * What the gate tests share: the count of notifications a gate registry makes
+ * (`listenTo`, `notificationsOf`), and policies that are new on every call
+ * (`newCanRead`, `newCanWrite`).
  *
  * Tests that state how many times a registry told its subscribers share this one
  * counter, so the subscription and the running count are written once and every test
