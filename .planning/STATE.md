@@ -4,18 +4,18 @@ milestone: v1.8
 milestone_name: Arch Wave 13
 current_phase: 76
 current_phase_name: Remedies uses core's signature match
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: Completed 76-01-PLAN.md
-last_updated: "2026-11-23T15:37:05.396Z"
+stopped_at: Completed 76-02-PLAN.md
+last_updated: "2026-11-23T15:47:25.947Z"
 last_activity: 2026-11-23
 last_activity_desc: Phase 75 complete, transitioned to Phase 76
-state_head: a6d0e88148cf048e09da96b8df87bd3c123d25aa
+state_head: 6bbc4482b10e1aa71ce04652d6f3c0a581f70bcf
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 63
-  completed_plans: 56
+  completed_plans: 57
   percent: 88
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 ## Current Position
 
 Phase: 76 (Remedies uses core's signature match) — READY TO EXECUTE
-Current Plan: 2
+Current Plan: 3
 Total Plans in Phase: 8
 Status: Ready to execute
 Last activity: 2026-11-23 — Phase 75 complete, transitioned to Phase 76
@@ -548,6 +548,7 @@ Last activity: 2026-11-23 — Phase 75 complete, transitioned to Phase 76
 | Phase 75 P08 | 9 min | 3 tasks | 9 files |
 | Phase 75 P09 | 4 min | 2 tasks | 3 files |
 | Phase 76 P01 | 30 min | 2 tasks | 5 files |
+| Phase 76 P02 | 12 min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -950,6 +951,8 @@ Last activity: 2026-11-23 — Phase 75 complete, transitioned to Phase 76
 - [Phase 75]: 75-08: the cost of the second span annotation is recorded in ADR-QD-188 as measured (+7.83% then +6.79% geometric mean, about 0.4 to 1.1 us per call), a record and not a gate
 - [Phase 75]: 75-09: ESPN-01..05 marked complete by hand on the commit check:pr passed on; WX-01..07 stay Pending
 - [Phase 76]: ADR-QD-189: a change, not a rejection; core answers whether a fixture row meets a signature or acted leaf; both fixture refusals fail typed; ActedEvent, ActedAnywhere and ActedAnywhereInput removed (decided autonomously)
+- [Phase 76]: Site-subject refusal rows give core an empty fixture, not the port default: the default port never reads the request, so no fixture change could make core fail there
+- [Phase 76]: Over-long test titles stay one string literal continued by a backslash, broken after an as, because house-style reads one physical line at a time
 
 ### Pending Todos
 
@@ -1023,8 +1026,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-23T15:36:58.982Z
-Stopped at: Completed 76-01-PLAN.md
+Last session: 2026-11-23T15:47:25.531Z
+Stopped at: Completed 76-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
