@@ -4,18 +4,18 @@ milestone: v1.8
 milestone_name: Arch Wave 13
 current_phase: 76
 current_phase_name: Remedies uses core's signature match
-current_plan: 6
+current_plan: 7
 status: executing
-stopped_at: Completed 76-05-PLAN.md
-last_updated: "2026-11-23T16:08:38.343Z"
+stopped_at: Completed 76-06-PLAN.md
+last_updated: "2026-11-23T16:31:34.297Z"
 last_activity: 2026-11-23
 last_activity_desc: Phase 75 complete, transitioned to Phase 76
-state_head: e8c1d9cf029e452fde5168ac2bb040fb27c5ba17
+state_head: 4d8ad74d670f6ff461a83743c6739e09e9faef36
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 63
-  completed_plans: 60
+  completed_plans: 61
   percent: 88
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 ## Current Position
 
 Phase: 76 (Remedies uses core's signature match) — READY TO EXECUTE
-Current Plan: 6
+Current Plan: 7
 Total Plans in Phase: 8
 Status: Ready to execute
 Last activity: 2026-11-23 — Phase 75 complete, transitioned to Phase 76
@@ -552,6 +552,7 @@ Last activity: 2026-11-23 — Phase 75 complete, transitioned to Phase 76
 | Phase 76 P03 | 35 min | 3 tasks | 11 files |
 | Phase 76 P04 | 15 min | 3 tasks | 9 files |
 | Phase 76 P05 | 20 min | 3 tasks | 4 files |
+| Phase 76 P06 | 40 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -959,6 +960,7 @@ Last activity: 2026-11-23 — Phase 75 complete, transitioned to Phase 76
 - [Phase 76]: 76-03: signatureHistoryPort.failure sets subjectId and resourceId only when their schemas admit the request's value, and SignatureHistoryUnavailable.subjectId is optional, so a refused signature request fails typed and never dies (ADR-QD-189 decision 4); signatureAnswerFromSignatures answers fixture rows from the shared lookup and answer rule
 - [Phase 76]: 76-04: the history fixture keys rows and requests through decisionHistoryPort.key; DecisionHistoryUnavailable.event optional; actedAnswerFromEvents added; ActedEvent, ActedAnywhere, ActedAnywhereInput removed (api-surface 940, ADR-QD-189)
 - [Phase 76]: 76-05: the remedy table asks core (signatureAnswerFromSignatures, actedAnswerFromEvents) and skips refused checks with the port's refusal; the custom-predicate sentence is NO_CUSTOM_PREDICATE_FIELD, owned by SimulationFields.ts
+- [Phase 76]: 76-06: 19 guts seen red and recorded; mutation close on one head (core 200/201, devtools 467/467, http 34/34), every written-line mutant Killed by hand; two http response-body rows strengthened and one added; the base survivor SignatureHistory.ts:362 is equivalent (Brand.nominal is the identity)
 
 ### Pending Todos
 
@@ -1032,8 +1034,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-23T16:08:37.968Z
-Stopped at: Completed 76-05-PLAN.md
+Last session: 2026-11-23T16:31:33.887Z
+Stopped at: Completed 76-06-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
