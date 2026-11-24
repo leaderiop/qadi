@@ -315,5 +315,5 @@ The two new cells of `packages/devtools/test/react/DockRegistryReads.test.tsx` p
 - edit W1: `GatesFeed.ts:284`: the early return of `configure` made `if (sameFields(held, wanted)) return;`, so the retry fires only on a moved field
 - failed: a registry that keeps refusing is subscribed once more by each re-render, read never, and publishes nothing
 - failed: a registry that stops refusing is watched and read by the next commit, and then left alone
-- edit W2: `GatesFeed.ts:187`: `readRegistry` given a new `Failed` on every retry (`&& false` on the identity-keeping condition), so each retry publishes
+- edit W2: `GatesFeed.ts:197`: `readRegistry` given a new `Failed` on every retry (`&& false` on the identity-keeping condition), so each retry publishes
 - failed: a registry that keeps refusing is subscribed once more by each re-render, read never, and publishes nothing

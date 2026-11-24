@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-192                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-11-24                                     |
 > | Status         | Accepted — amends ADR-QD-137, ADR-QD-173 and ADR-QD-185 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-24): decision 2: the dock applies the one rule through its feeds, with no comparison of its own beside the catalogue's<br>1.1 (2026-11-24): the behaviours and invariants that state it; DockRegistryReads.test.tsx pins the registry read counts<br>1.0 (2026-11-24): Initial (ARCH-126, CCR-QD-471) |
+> | Change History | 1.3 (2026-11-24): the retry of a failed watch on each host re-render is pinned by DockRegistryReads.test.tsx<br>1.2 (2026-11-24): decision 2: the dock applies the one rule through its feeds, with no comparison of its own beside the catalogue's<br>1.1 (2026-11-24): the behaviours and invariants that state it; DockRegistryReads.test.tsx pins the registry read counts<br>1.0 (2026-11-24): Initial (ARCH-126, CCR-QD-471) |
 
 ---
 
@@ -187,7 +187,9 @@ Three consequences are not breaking and are stated so a host is not surprised:
 - **The dock is configured on every host commit.** `DevtoolsDock` hands its inputs over as a record rebuilt each render, so
   `useConfigured`'s effect runs after every commit and each feed's rule makes it a no-op when nothing moved. A registry
   whose `subscribe` throws is subscribed again once per commit, because the retry of a failed watch fires on any
-  `configure`.
+  `configure`; it is read never, and nothing is published to any store, until the registry accepts a subscription,
+  and the next commit then watches and reads it and the one after leaves it alone.
+  `packages/devtools/test/react/DockRegistryReads.test.tsx` pins both, through `useDockModel`.
 - **The `instances()` read counts changed.** A `configure` that moves nothing reads no registry, so a healthy
   registry's `instances()` is read once under the hook and twice under StrictMode, where the code before ADR-QD-192 read
   it twice and three times; `subscribe` and live-listener counts are unchanged (1 and 1, 2 and 1), and a failing registry is subscribed
