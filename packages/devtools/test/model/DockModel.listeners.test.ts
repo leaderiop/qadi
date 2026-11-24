@@ -424,8 +424,8 @@ describe("a dock whose host listener throws", () => {
       assert.deepStrictEqual(
         rail.map((sighting) => [sighting.label, sighting.count]),
         [
-          ["canRead", 1],
           ["canWrite", 1],
+          ["canRead", 1],
         ],
       );
       assert.strictEqual(model.explorer.getSnapshot().sightings, rail);
