@@ -132,7 +132,7 @@ the reverse and carried a hand-written pre-check for a missing record.
    on `now` (`Retention.ts`). A non-finite `now` fails `ArchiveInputInvalid` `{ field: "now"; value: number }`, a
    `Data.TaggedError` shaped like `RetentionInputInvalid`, so a host handles both the same way. It is checked before
    the sequence facts, so `archiveAuditTrail` fails `ArchiveInputInvalid | SequenceIntegrityError`. The new export is a
-   row of `spec/overview.md`, which gate 13 reads.
+   row of `spec/overview.md`, which gate 13 (`scripts/check-api-surface.mjs`) reads.
 9. **`keyMaterial` is a projection.** `archiveAuditTrail` writes each item as a fresh `{ keyId, algorithm, publicKey }`.
    An extra property of a structurally wider value is not part of the declared shape and is not carried. Values are
    still never judged.
@@ -169,10 +169,10 @@ the reverse and carried a hand-written pre-check for a missing record.
   construction, a cost measured and rejected for the sink record (ADR-QD-135).
 - **A class that is an implementation with an alias in front of it, as `VerifiedArchive` is.** It works, but
   diagnostics and hovers would name the implementation. It is the fallback only if a gate cannot read a type-only class
-  export, and gate 13 can, since it learned a local export list.
+  export, and gate 13 (`scripts/check-api-surface.mjs`) can, since it learned a local export list.
 - **Keeping an unbranded schema under the name `AuditEntry`.** A value and a type of one name that disagree.
 - **Renaming the schema `AuditRow`.** It is a second public description of the row that nobody reads.
-- **A public `withSequenceNumber`.** It is a third maker, adds a row to gate 13 and a probe to gate 14, and no host flow
+- **A public `withSequenceNumber`.** It is a third maker, adds a row to gate 13 (`scripts/check-api-surface.mjs`) and a probe to gate 14 (`scripts/check-package-install.mjs`), and no host flow
   needs it.
 - **`encodeAuditEntry(record, { sequenceNumber })`.** The sink never knows the store's number at encode time.
 - **Keeping the sequence-number check as defence in depth.** Only a cast can reach it, the house forbids `as`, and an
