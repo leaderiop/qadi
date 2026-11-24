@@ -27,12 +27,12 @@ phase runs on branch `arch-wave-14`, strictly serial (77 → 80).
 
 ### Feeds and the dock model take inputs only through `configure` (Phase 79, ARCH-126, devtools; Breaking)
 
-- [ ] **CONF-01**: A characterisation test written on the phase base, and green there, pins the dock's first-render sequence (diagnostics, gates and the Questions join), plainly and under StrictMode. The same test is green after the change: no reader sees an unconfigured model.
-- [ ] **CONF-02**: `makeTimelineFeed`, `makeDiagnosticsFeed`, `makeGatesFeed`, `makeDockModel` (and `makeSimulationSession`, if it has the same shape) are built with no inputs, and `configure` is the only way inputs arrive. The first `configure` produces what today's `init` produces.
-- [ ] **CONF-03**: Whether an input moved is decided by one per-field identity rule, the one `makeDerivedStore` uses. Omitted and `undefined` inputs are treated alike, diagnostics on and off stays a distinct transition, and the gates feed's re-watch after a failed watch (G43) is either part of the rule or a stated exception. A new input field cannot compile without being compared.
-- [ ] **CONF-04**: One package-private hook does "build in a scope, then configure with the latest inputs". `useDockModel`, `useTimeline`, `useDiagnostics` (and `useSimulationSession`, where it fits) use it. A hidden `Activity` or a StrictMode rebuild configures with the current inputs, not stale ones.
-- [ ] **CONF-05**: The dock's input type is stated once: `UseDockModelInput` is gone, and `DevtoolsDockProps` is `DockModelInputs` plus the host-only props. Inputs are mapped onto each feed in one place in `DockModel`.
-- [ ] **CONF-06**: Gate 14's packed consumer, `surface.tst.ts`, the compiled README fence, the website's devtools page, `spec/behaviors` and the ADR fences use the new signatures, in the same plan as the change. ADR-QD-192 amends ADR-QD-137, ADR-QD-173 and ADR-QD-185. A `@qadi/devtools` changeset marks it **Breaking**, with an upgrade-guide entry.
+- [x] **CONF-01**: A characterisation test written on the phase base, and green there, pins the dock's first-render sequence (diagnostics, gates and the Questions join), plainly and under StrictMode. The same test is green after the change: no reader sees an unconfigured model.
+- [x] **CONF-02**: `makeTimelineFeed`, `makeDiagnosticsFeed`, `makeGatesFeed`, `makeDockModel` (and `makeSimulationSession`, if it has the same shape) are built with no inputs, and `configure` is the only way inputs arrive. The first `configure` produces what today's `init` produces.
+- [x] **CONF-03**: Whether an input moved is decided by one per-field identity rule, the one `makeDerivedStore` uses. Omitted and `undefined` inputs are treated alike, diagnostics on and off stays a distinct transition, and the gates feed's re-watch after a failed watch (G43) is either part of the rule or a stated exception. A new input field cannot compile without being compared.
+- [x] **CONF-04**: One package-private hook does "build in a scope, then configure with the latest inputs". `useDockModel`, `useTimeline`, `useDiagnostics` (and `useSimulationSession`, where it fits) use it. A hidden `Activity` or a StrictMode rebuild configures with the current inputs, not stale ones.
+- [x] **CONF-05**: The dock's input type is stated once: `UseDockModelInput` is gone, and `DevtoolsDockProps` is `DockModelInputs` plus the host-only props. Inputs are mapped onto each feed in one place in `DockModel`.
+- [x] **CONF-06**: Gate 14's packed consumer, `surface.tst.ts`, the compiled README fence, the website's devtools page, `spec/behaviors` and the ADR fences use the new signatures, in the same plan as the change. ADR-QD-192 amends ADR-QD-137, ADR-QD-173 and ADR-QD-185. A `@qadi/devtools` changeset marks it **Breaking**, with an upgrade-guide entry.
 
 ### The highlight lens is a headless session (Phase 80, ARCH-127, devtools + react)
 
@@ -85,12 +85,12 @@ phase runs on branch `arch-wave-14`, strictly serial (77 → 80).
 | TRSZ-02 | Phase 78 | Complete |
 | TRSZ-03 | Phase 78 | Complete |
 | TRSZ-04 | Phase 78 | Complete |
-| CONF-01 | Phase 79 | Pending |
-| CONF-02 | Phase 79 | Pending |
-| CONF-03 | Phase 79 | Pending |
-| CONF-04 | Phase 79 | Pending |
-| CONF-05 | Phase 79 | Pending |
-| CONF-06 | Phase 79 | Pending |
+| CONF-01 | Phase 79 | Complete |
+| CONF-02 | Phase 79 | Complete |
+| CONF-03 | Phase 79 | Complete |
+| CONF-04 | Phase 79 | Complete |
+| CONF-05 | Phase 79 | Complete |
+| CONF-06 | Phase 79 | Complete |
 | LENS-01 | Phase 80 | Pending |
 | LENS-02 | Phase 80 | Pending |
 | LENS-03 | Phase 80 | Pending |
