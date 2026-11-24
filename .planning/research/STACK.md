@@ -1,209 +1,197 @@
-# Stack Research: v1.9 Arch Wave 14 (Phases 77-80)
+# Stack Research — v1.10 Arch Wave 15 (Phases 81–84, ARCH-128..131)
 
-**Domain:** internal architecture deepening in an existing Effect v4 monorepo (no new features, no new dependencies)
-**Researched:** 2026-11-23
-**Confidence:** HIGH. Versions come from `node_modules/*/package.json` and `pnpm-lock.yaml`. The brand behaviour was probed with a throwaway typechecked file (compiled under `tsconfig.base.json` with `@ts-expect-error` on both negative cases, run once with `tsx`, then deleted; `git status packages/audit` shows no leftover). Everything else was read from the files cited.
+**Domain:** internal architecture deepening of an Effect v4 authorization monorepo (devtools model/hooks, `@qadi/react` provider)
+**Researched:** 2026-11-24
+**Confidence:** HIGH. Every version was read from the installed `node_modules`, and every behavioural claim was either read in installed source or reproduced with a throwaway probe (deleted afterwards; no source or test file was changed).
 
-## Verdict
+**Verdict: no stack change. No new dependency, no version bump, no new config.** Everything the four phases need is already installed and already used in the repo. This file records the verified facts the planner needs, the exact APIs to reuse, and the traps found.
 
-**Add nothing. Upgrade nothing. Every phase is served by APIs already installed and already used in the repo.** The only decision a roadmapper needs is which brand idiom Phase 77 uses (below); the rest is wiring existing pieces.
+## Recommended Stack (installed, verified)
 
-## Installed Versions (read, not remembered)
+### Core Technologies
 
-| Package | Version | Source |
-|---------|---------|--------|
-| `effect` | 4.1.2 | `node_modules/effect/package.json`; `pnpm-lock.yaml` (`effect@4.1.2`); catalog `effect: latest` in `pnpm-workspace.yaml`, peer range `^4.0.0` |
-| `@effect/atom-react` | 4.1.2 | `node_modules/@effect/atom-react/package.json`; `@qadi/react` only |
-| `react` / `react-dom` | 19.3.1 | `node_modules/react/package.json`, `packages/devtools/node_modules/react/package.json`; catalog pins `19.3.1`; peer range `>=19.2.4` (`packages/devtools/package.json`, `packages/react/package.json`) |
-| `@types/react` / `@types/react-dom` | 19.3.0 | `pnpm-workspace.yaml` catalog |
-| `typescript` | `^7.0.0` | `pnpm-workspace.yaml` catalog |
-| `vitest` / `@effect/vitest` | 5.1.0 / 4.1.2 | `pnpm-workspace.yaml`, `pnpm-lock.yaml` |
-| `@testing-library/react` | `^16.3.3` | `pnpm-workspace.yaml` |
+| Technology | Installed version | Purpose in Wave 15 | Why / note |
+|------------|-------------------|--------------------|------------|
+| `effect` | 4.1.2 | `Equal.equals` (83 per-field fold), `Effect.fn`, scopes; `AtomRegistry` (82) lives at `effect/reactivity/AtomRegistry` (the `unstable/` path does not exist in 4.1.2) | Catalog is `latest`; the lock pins 4.1.2. Peer range stays `^4.0.0`. |
+| `@effect/atom-react` | 4.1.2 | `RegistryContext`, `useAtomValue`; the registry glue for 82 | Already the declared glue (AGENTS.md §13). Its own `RegistryProvider` has the same dispose-on-cleanup shape as ours (see 82); there is no upstream fix to adopt. |
+| `react` / `react-dom` | 19.3.1 | `<Activity>` semantics (82), `useLayoutEffect`/`useRef` (82, 84) | Peer is `>=19.2.4`; `Activity` is stable in this range. |
+| `typescript` | 7.0.2 | Generic constraint for 84's `useConfigured<A extends { configure(i: I): void }, I>` | No new compiler feature needed. |
 
-`@qadi/devtools` has `react` as a peer only (`packages/devtools/package.json:51`); it does not depend on `@effect/atom-react`. Phase 80 touches `@qadi/react` only to delete a field, so no cross-package dependency changes.
+### Supporting Libraries (all already installed, all test-only)
 
-## Recommended Stack per Phase
+| Library | Installed | Purpose | When to use |
+|---------|-----------|---------|-------------|
+| `vitest` | 5.1.0 | Phase RED tests, `vi.useFakeTimers` if a test must cross the `setTimeout(0)` | 81 (pure, no DOM), 82 (`happy-dom`), 83/84 (pure + hook tests) |
+| `@effect/vitest` | 4.1.2 | `it.effect`, `it.layer`, `TestClock` for the model tests | 81, 83 (the feed's run is an Effect) |
+| `happy-dom` | 21.0.4 | `environment: "happy-dom"` in `packages/react/vitest.config.ts` | 82 Activity test; `Activity` hide/reveal works under it (reproduced) |
+| `@testing-library/react` | 16.3.3 | `render`, `act` | 82; reveal must be inside `await act(async …)` |
+| `fast-check` | 4.10.2 | Property tests of the pure fold | 83: the per-field keep-if-equal function is a natural property (idempotent, identity-preserving) |
 
-### Phase 77: `AuditEntry` as a value only its codec makes (`@qadi/audit`)
+### Development Tools
 
-| API | Where it lives | Purpose | Why |
-|-----|----------------|---------|-----|
-| `effect/Brand` `Brand.nominal<T>()` and `Brand.Brand<"X">` | `node_modules/effect/dist/Brand.d.ts`; used at `packages/audit/src/SignatureLedger.ts:46-48`, `packages/core/src/Identity.ts:44-51`, `packages/core/src/Qadi.ts:276` | Mint the branded row inside `encodeAuditEntry`/`decodeAuditEntry` | The house idiom for "a value only this module makes" and what `SignatureLedgerKey` already does in the same package. Zero runtime cost: `Brand.nominal` returns its argument unchanged (probe printed the plain object back). No new import style, no new dependency. |
-| `effect/Schema` `Schema.brand("AuditEntry")` | `node_modules/effect/dist/Schema.d.ts:4374-4398`; used at `packages/core/src/Policy.ts:155-167` | Only if the row's own struct stays a public schema | Narrows `Type` to `S["Type"] & Brand.Brand<B>`. Adds no runtime check and does not change the encoded side (doc at `Schema.d.ts:4386`). |
-| `untrustedDecoder` with `unwalked` | `packages/core/src/UntrustedDecode.ts:154-158, 224-275` | Envelope-first row decode | Already supports exactly what Phase 77 asks (details below). |
+| Tool | Purpose | Notes |
+|------|---------|-------|
+| `scripts/check-house-style.mjs` | Budgets that new code can trip | 81: the new collect helper must not use `Effect.orDie`/`as`/`any`. 83: deleting `DiagnosticsStore.ts` must keep `spec/overview.md` and `[module-state]`/barrel rules green (the store is package-private, so no export-surface gate fires, but `spec/` ADR-QD-173 prose must be amended). 84: `NOT_CALLABLE_PIN_BUDGET` applies if a `.tst.ts` pin is added for the `Configurable` constraint (use `Params<…>`/twin form per AGENTS.md §6). |
+| Stryker (`pnpm mutation`) | Per-phase mutation re-close (house practice) | `DockModel.ts` keeps a mutation score of 1 (ADR-QD-168); 81 adds branches there, so plan the re-close. |
 
-**Recommendation: `Brand.nominal`, not `Schema.brand`.** Reasons, in order:
+## Verified facts the phases rely on
 
-1. The row's decoded `record` is not produced by a schema at all. `decodeAuditEntry` builds `{ record: decoded.success.json, sequenceNumber }` by hand from `decodeSinkRecordWithJson`'s JSON form (`packages/audit/src/AuditEntry.ts:157`), and the envelope schema types `record` as `Schema.Unknown` (`AuditEntry.ts:118`). A `Schema.brand` on that struct would brand a value whose `record` is `unknown`, not the `SinkRecordJson` the type promises. The brand has to be applied where the finished row is assembled, and `Brand.nominal` is the tool for "tag a value you have already built".
-2. `Schema.brand` on the exported `AuditEntry` schema would leave `Schema.decodeUnknown(AuditEntry)` as a second, unguarded way to mint a branded row. That is the defect the brand exists to prevent (the doc comment at `AuditEntry.ts:21-24` already warns against reading a row "with this schema alone"). If the roadmap keeps the schema public, it must be the **unbranded** struct, with the brand applied only inside the two codec functions.
-3. `AGENTS.md` §6 forbids `as`. `Brand.nominal<AuditEntry>()({...})` is the sanctioned cast-free constructor.
+### 81 — what `ExternalStore.ts` already offers (read at `packages/devtools/src/model/ExternalStore.ts`, 221 lines)
 
-**Verified by probe** (`tsc` clean, `tsx` ran):
-- `Row.pipe(Schema.brand("AuditEntry"))` gives `Type = {...} & Brand<"AuditEntry">`; the decode success value is assignable to it; a plain literal `{ record: 1, sequenceNumber: undefined }` is **not** assignable (negative `@ts-expect-error` held).
-- `Brand.nominal<Nom>()` accepts an object type (not only primitives): `mk({...})` returns the same object; a bare literal is not assignable to `Nom`.
-- `Schema.brand` identifier must be a single string literal (`EnsureSingleBrandKey`, `Schema.d.ts:4353`; same note at `packages/core/src/Policy.ts:149`).
+| Member | Exported? | Semantics (verified) | Use in 81/83/84 |
+|--------|-----------|----------------------|-----------------|
+| `makeExternalStore(initial)` | yes | `set` notifies only on a different reference; `publish` always notifies; `notify` runs every listener, collects throws, rethrows via `throwCollected` | 83 feed value store, 84 `LensSession` |
+| `throwCollected(thrown, message)` | **no** (module-private `function`, line 63) | 0 thrown: nothing; 1: the value itself (`undefined`/`null` included); >1: one `AggregateError(thrown, message)`; a thrown `AggregateError` is one value, never flattened (ADR-QD-177) | **81 needs it exported**, or better the loop around it (below) |
+| `sameElements` | yes | reference-equal element-wise | 81: skip the second `spread` when the rail did not move |
+| `sameFields(a, b)` | yes | own enumerable string-keyed fields, `===` per field, a field on one side only counts as moved | 83/84 per-field identity |
+| `sameFieldsOrAbsent(a, b)` | yes | `undefined` equals only `undefined` | `DiagnosticsFeed.configure` already uses it |
+| `makeDerivedStore` | yes | key-gated recompute; releases every parent even if one release throws, then `throwCollected` | already the dock's three derived stores |
 
-**What the brand does and does not guarantee.** Both brands are compile-time only. `Brand.nominal` is publicly exported, so another module can mint one (`packages/core/src/Qadi.ts:256-270` documents the same forgeability for `Authorized`). Phase 77's claim must be worded "archive, retention and the archive facts trust a row without re-checking it", not "unforgeable". Do not export a `makeAuditEntry` or the brand constructor from the barrel (`packages/audit/src/index.ts:3` is `export * from "./AuditEntry.ts"`, so anything exported from `AuditEntry.ts` is public; keep the minting constructor module-private, or move it to a non-barrel file as `PortDerivation.ts`-style scaffolding is, AGENTS.md §9).
+**Recommendation for 81 (no new dependency):** the "run every step, collect throws, rethrow once" loop now exists twice in this file (`notify`, the derived store's finalizer) and the dock needs a third. Add one package-private export beside `throwCollected`, for example `runCollecting(steps: ReadonlyArray<() => void>, message: string): void`, and make all three call it. The dock's `configure` becomes: validate (`completeDockInputs`, still first and still allowed to throw before anything moves), assign `held`, then `runCollecting([timeline step, catalogue step, ports, gates, diagnostics, shownReading.refresh], "…")`. Keep it out of the devtools barrel (the barrels are named per module, AGENTS.md §9; `ExternalStore.ts` is already barrel-free). This reproduces the ADR-QD-177 rule at one more call site without a second implementation of it, and it fixes "a second throw replaces the first" by construction (`AggregateError` on two).
 
-**Envelope-first decode: no new stack, one behavioural difference to settle.**
-- `untrustedDecoder(schema, { unknownKeys, unwalked })` already takes `unwalked: ReadonlyArray<UnwalkedKey<A>>`, where a key is allowed only if its `Encoded` type is `unknown` or `ReadonlyArray<unknown>` (`UntrustedDecode.ts:121-130, 154-158`). The audit row already uses it: `Schema.Struct({ record: Schema.Unknown, sequenceNumber })` with `unwalked: ["record"]` (`AuditEntry.ts:117-120`), and the archive envelope does the same with `entries` (`AuditArchive.ts:258`).
-- The fixed order inside the decoder is project, guard (skipping unwalked keys), `prepare`, strict decode (`UntrustedDecode.ts:152-153, 248-260`).
-- Core's stored-record read is the model: `storedWire = untrustedDecoder(StoredEnvelopeWire, { unknownKeys: "ignore", unwalked: ["record"] })`, then `decodeSinkRecord(read.success.record)` on the already-decoded `record` (`packages/core/src/SinkCodec.ts:589-603, 612-621`).
-- **The audit row today runs the opposite order**: `decodeSinkRecordWithJson(input.record)` first, then `decodeRow(input)` (`AuditEntry.ts:152-156`), and it uses `unknownKeys: "refuse"` where core's stored envelope uses `"ignore"` (`AuditEntry.ts:119` vs `SinkCodec.ts:603`). Phase 77 flips the order by calling `decodeRow` first and passing `row.success.record` to `decodeSinkRecordWithJson`. The `Predicate.hasProperty(input, "record")` pre-check at `AuditEntry.ts:152` reads `input.record` before any guard and goes away with the flip (the schema's own `Missing key` refusal replaces it, as the stored read documents at `SinkCodec.ts:618-620`).
-- **Decision for the planner, not a stack question:** `refuse` versus `ignore` on the row's top level. `refuse` keeps today's behaviour; `ignore` matches core and the additive-metadata argument at `SinkCodec.ts:594-598` but changes what `decodeAuditEntry` accepts and therefore the writer/reader agreement (`ArchiveFacts.ts:56-57`, ADR-QD-110). Either is expressible with the existing option; the choice is a spec/ADR call.
-- If `ignore` is chosen, the schema must be an object or a union of objects with distinct literal tags, or the decoder throws at build time (`UntrustedDecode.ts:149-151`). A plain `Struct` qualifies.
-- The shared constant `SequenceNumber = Schema.optional(Schema.Int)` (`AuditEntry.ts:56`) and `ArchiveFacts.ts`'s own `Schema.Int` must stay in agreement (`ArchiveFacts.ts:56-57`); a RED test for the unreadable archive should be written against that pair.
+**Order trap:** step order in `configure` is semantic, not incidental. The comments pin: `held` assigned before the timeline publishes; gates applied before `shownReading.refresh()`; the model's own timeline listener subscribed before any host listener. A collected-steps list must preserve exactly that order (`runCollecting` runs in array order).
 
-**Budget interactions** (`AGENTS.md` §7a): `UNTRUSTED_DECODE_BUDGET` counts `onExcessProperty`, `exceedsJsonDepth`, `Schema.decode*` and `JSON.parse` tokens in `packages/*/src`. `AuditEntry.ts` is not on that table today (it goes through `untrustedDecoder`), so the flip must introduce none of those tokens; use `untrustedDecoder` only. `Schema.brand` is not a counted token. Test churn: about 36 `sequenceNumber:` / literal-row sites in `packages/audit/test` (16 in `AuditArchive.test.ts`, 8 in `Retention.test.ts`) and one in `features/features/wire-versions/wire-versions.steps.test.ts` will need to build rows through `encodeAuditEntry`/`decodeAuditEntry` (already the pattern at `packages/audit/test/Retention.test.ts:15, 34`) instead of literals; type pins `AuditArchive.tst.ts`, `Retention.tst.ts`, `AuditRefusal.tst.ts`, `AuditWriteOutcome.tst.ts` and `AuditPortReply.tst.ts` mention the type and may need a positive/negative pair (the `NOT_CALLABLE_PIN_BUDGET` rules, `AGENTS.md` §6, apply to any new `not.toBeCallableWith`).
+**Double-spread trap:** the timeline listener (`DockModel.ts` ≈349–356) already calls `spread()` when `shown` moved; the catalogue branch then spreads again. `spread` is idempotent through the sessions' `sameElements` guards, so today's cost is wasted work, not wrong state. Skip the second spread by comparing the new `rail` with the one the listener produced (`sameElements`), not by adding a flag.
 
-### Phase 78: `TimelineStore` owns capacity via a resize command (`@qadi/devtools`)
+### 82 — React 19.3.1 `<Activity>` semantics (reproduced in `packages/react`, happy-dom)
 
-| API | Where | Purpose | Why |
-|-----|-------|---------|-----|
-| `makeExternalStore` (`set`, `publish`) | `packages/devtools/src/model/ExternalStore.ts:76-107` | The store's single view | Already what `makeTimelineStore` uses (`TimelineStore.ts:50`). `publish` notifies without a reference change, which a resize that empties the buffer needs. |
-| `emptyTimeline(options)` | `packages/devtools/src/model/Timeline.ts` (imported at `TimelineStore.ts:30`) | Rebuild the buffer at a new capacity | `makeTimelineStore` already calls it for `clear` (`TimelineStore.ts:80-85`); a resize is `clear` with a different `options.capacity`. |
+Probe A: parent state toggles `<Activity mode>`; the child element is a hoisted constant (`stable`), so the child is **not** re-rendered.
 
-No new API. The change is shape only: `TimelineStore.timeline`/`options` become mutable inside the closure and a command (name is the planner's) replaces `emptyTimeline(options)` with `emptyTimeline({ capacity })`, clears `frozen`, and `publish`es. `TimelineFeed.ts` then deletes `inner`, `view`, `push`, the six-member forwarder `timeline` object and `bounded` (`TimelineFeed.ts:111-146`), returns the one store, and `configure`'s resize branch calls the new command (`TimelineFeed.ts:176-190`).
-
-Things to carry over, because they are behaviour not plumbing:
-- A capacity change today **drops** the old inner store without unsubscribing (`TimelineFeed.ts:178-180`) and the pause state goes with it (`frozen` lives in the old store). A resize command that empties the buffer must decide whether it also unfreezes; `clear` does (`TimelineStore.ts:83`). Keep that behaviour unless an ADR amends it (ADR-QD-137 is kept, per `PROJECT.md`).
-- The throw-ordering contract on `configure` (`TimelineFeed.ts:97-103`, `175-190`, the `try { push() } finally { readSource(...) }`) rests on `notify` rethrowing after all listeners run (ADR-QD-177, `ExternalStore.ts:21-31`). With one store the publish is `store.resize(...)`; the `try/finally` stays so a throwing timeline listener still cannot prevent the refill read.
-- `idleTimeline` (`TimelineFeed.ts:76-83`) is a literal `TimelineStore`; adding a member to the interface adds a no-op member there too, and `useTimelineStore`'s hand-fed store (`useTimeline.ts:92-101`) gets it free from `makeTimelineStore`.
-- `TimelineStore` is a public type (`packages/devtools/src/index.ts:134`) and `spec/overview.md` must name every export (gate 13, `AGENTS.md` §15), so a new member of the interface needs its row or the gate fails.
-
-### Phase 79: feeds and the dock model take inputs only through `configure` (`@qadi/devtools`)
-
-| API | Where | Purpose | Why |
-|-----|-------|---------|-----|
-| `sameFields` (module-private function) | `packages/devtools/src/model/ExternalStore.ts:146-153` | The per-field identity rule | Own enumerable string keys compared with `===`, an extra field counts as a change. It is the exact rule `makeDerivedStore.refresh` uses (`ExternalStore.ts:176-181`). Export it from the file (not the barrel) and have the feeds and `DockModel` call it. |
-| `useScoped(make)` | `packages/devtools/src/react/useScoped.ts:20-47` | Scope and build in a layout effect | Already the "scope" half. Built in `useLayoutEffect(..., [])`, closes on cleanup, `setValue(() => built)` so a function value is not taken for an updater, clears state on cleanup for hidden `Activity`. |
-| `useLayoutEffect` with a dependency list | `useDockModel.ts:55-59`, `useTimeline.ts:62-64`, `useDiagnostics.ts:42-44` | The "configure" half | Three copies of the same shape today; this is the duplication the new hook removes. |
-| `useSyncExternalStore` | `packages/devtools/src/react/useStoreSnapshot.ts:14` | Reads | Unchanged. The one call site stays the one call site. |
-
-**The per-field rule, written down from the code.** Today three different rules exist:
-1. `makeDerivedStore`: `sameFields` over the key (`ExternalStore.ts:146-153`).
-2. `makeDiagnosticsFeed.configure`: hand-written `next.layer !== before.layer || next.collector !== before.collector || next.intervalMillis !== before.intervalMillis` (`DiagnosticsFeed.ts:187-206`), so a field added to `DiagnosticsOptions` is silently not compared.
-3. `makeTimelineFeed.configure`: `next.capacity !== before.capacity`, then `next.source !== before.source` (`TimelineFeed.ts:176-190`); `makeGatesFeed.configure`: `next.gates !== registryNow`, `next.questions !== before.questions || next.intervalMillis !== before.intervalMillis` (`GatesFeed.ts:259-275`).
-4. `DockModel.configure`: `next.catalogue !== before.catalogue`, plus feed-by-feed forwarding (`DockModel.ts:275-302`).
-
-`sameFields`' own contract (`ExternalStore.ts:136-145`) is the one to adopt: `===` per own enumerable string-keyed field, fields on one side only count as a change, inherited/non-enumerable/symbol keys are ignored. Phase 72 already established that `makeDerivedStore` requires `K extends object & Required<K>` so the compiler refuses an optional field (`ExternalStore.ts:164-167`); a feed input type with optional members (`TimelineFeedInputs`, `DiagnosticsOptions`, `GatesFeedInputs`) cannot reuse that constraint directly. Two ways to compare an optional-field input: compare the object through `sameFields` (works for any `object`; `sameFields<K extends object>` has no `Required` bound, the bound is on `makeDerivedStore` only), or normalise each input to a `Required` shape with explicit `undefined`s. The first needs no new API. Note `exactOptionalPropertyTypes`: the inputs are declared `?: T | undefined`, which is why an omitted input "reads as `undefined`" (`TimelineFeed.ts:93-95`). `sameFields` treats a missing key and a key holding `undefined` as **different** (`fromB.has(field)`), so every `configure` caller must pass the full key set, or the rule must normalise first. That is precisely the "omitted reads as undefined" contract, so normalisation belongs in the shared rule.
-
-**Constructor inputs go away.** Today each of `makeTimelineFeed(init?)`, `makeDiagnosticsFeed(init?)`, `makeGatesFeed(init?)`, `makeDockModel(init?)` takes the same inputs as `configure` (`TimelineFeed.ts:150-153`, `DiagnosticsFeed.ts:150-153`, `GatesFeed.ts:121-124`, `DockModel.ts:176-179`), and `useDockModel` writes the field list **three times** (`UseDockModelInput`, the `makeDockModel({...})` call, the `configure({...})` call and the dependency array: four counts in `useDockModel.ts:29-59`). The roadmap's "dock's input type is stated once" is satisfied by exporting `DockModelInputs` (already declared at `DockModel.ts:80-98`) and deleting `UseDockModelInput`, which is the same eight fields as `DockModelInputs`.
-
-**The one hook, "scope, then configure".** Shape, using only what is installed:
-
-```ts
-// package-private, react/useScoped.ts or a sibling; effect imports as namespaces (AGENTS.md §1)
-export const useConfigured = <A extends { readonly configure: (inputs: I) => void }, I>(
-  make: () => Effect.Effect<A, never, Scope.Scope>,
-  inputs: I,
-): A | undefined => {
-  const value = useScoped(make);
-  useLayoutEffect(() => {
-    if (value !== undefined) value.configure(inputs);
-  }, [value, inputs]);
-  return value;
-};
+```
+render 1
+layout-up  closureRender=1 ref=ref@render1
+passive-up closureRender=1 ref=ref@render1
+--- hide
+layout-down  passive-down
+--- show                      <- no "render N" line
+layout-up  closureRender=1 ref=ref@render1
+passive-up closureRender=1 ref=ref@render1
 ```
 
-Two constraints the existing code already teaches:
-- **The dependency list cannot be `[value, inputs]` on an inline object.** `useDockModel` lists each field separately so a fresh literal each render does not re-run the effect; `useDiagnostics`' doc says the run restarts when a field changes "never when the `options` object does" (`useDiagnostics.ts:27-31`). But `configure` itself already diffs per field, so depending on the object only costs one idempotent `configure` call per render, not a restart. A hook that must avoid even that needs `useMemo` on a per-field key or a ref compared with `sameFields`; both are plain React 19.3.1 APIs. Pick one rule and state it, which is exactly the "one per-field identity rule" item.
-- **The layout effect runs again on the render the value appears** (`useDockModel.ts:53-54` comment). Keep that: it is what lets a prop changed between `useScoped`'s build and its `setValue` land. The first-render sequence for diagnostics is the thing Phase 79's opening characterisation test must pin (`useDiagnostics.ts:38-45`: `useScoped(() => makeDiagnosticsFeed(options))`, then `configure(options)` immediately on the same pass the feed appears, then `idleDiagnostics(options)` is read on the pass before the feed exists, `Starting` vs `Off` per `DiagnosticsFeed.ts:134-142`). Dropping `init` means the build no longer starts the first poll; the first `configure` does, so the sequence "idle `Starting` -> feed built `Off` -> configured `Starting`" must be checked for a flash of `Off` that `idleDiagnostics` hid.
-- **StrictMode / hidden `Activity`:** `useScoped` clears its state in cleanup and rebuilds in the next effect; `configure` must therefore run on every new value, not once per mount. The `[value, ...]` dependency does that.
+Probe B (StrictMode, parent re-renders the child with new props while hidden):
 
-**Amends ADR-QD-137/173.** `makeTimelineFeed` is exported from the package root (`TimelineFeed.ts:1-11`, ADR-QD-173) and `makeGatesFeed`/`makeDiagnosticsFeed` are probed by gate 14 (`scripts/check-package-install.mjs`, per `PROJECT.md` v1.7 Phase 63), so removing their `init` parameter is a public Breaking change: the packed-install consumer must be updated in the same phase or `pnpm check` fails at gate 14.
+```
+--- hide                      passive-down
+--- tag->b while hidden       render 7, render 8   (hidden Activity still re-renders on prop change)
+--- show                      render 9, render 10 (StrictMode double)   passive-up closureRender=10, ref=ref@render1
+```
 
-### Phase 80: highlight lens as a headless session (`@qadi/devtools` + `@qadi/react`)
+| Question | Answer | Confidence |
+|----------|--------|------------|
+| Does hiding run effect cleanups (layout and passive)? | Yes, both, immediately; component state and refs are kept. | HIGH (reproduced) |
+| Does reveal re-run effects without re-rendering the component? | **Yes**, when the element is stable: both layout and passive effects run again, **dependencies ignored**. | HIGH (reproduced) |
+| With which closure? | The **last committed render's** closure (probe B: `closureRender=10` after a hidden re-render; probe A: the only one). Refs/`useState` survive hide/reveal. | HIGH (reproduced; matches the comment already in `useScoped.ts`) |
+| Is a hidden subtree re-rendered when its props change? | Yes (probe B). The reveal then commits that render. | HIGH |
 
-| API | Where | Purpose | Why |
-|-----|-------|---------|-----|
-| `makeExternalStore` / `ReadableStore` | `ExternalStore.ts:60-107` | Session state and its `subscribe`/`getSnapshot` | Same mechanics as `DockSession` (`DockSession.ts:43-47`) and `HeldChoiceStore`. |
-| `makeDockSession` pattern | `packages/devtools/src/model/DockSession.ts:63-` | Template for a pure session with commands | Plain closure, no scope needed: `makeDockSession` is not an `Effect`. |
-| `useStoreSnapshot` | `react/useStoreSnapshot.ts:13-14` | Read the session | The dock's one `useSyncExternalStore` call. |
-| `Lens.ts` (`boxesOf`, `clearLens`, `drawLens`, `gateIdAt`) | `packages/devtools/src/react/Lens.ts` | The DOM adapter | Already pure DOM operations; stays in `react/`. |
+**Mechanism of the 82 defect (reproduced against the real `QadiProvider`):** hide > one macrotask → the cleanup's `setTimeout(0)` fires `registry.dispose()` and nulls `registryRef`. Reveal re-runs the effect closure that captured the **disposed** `registry` (no re-render, so no new closure). `dispose()` is terminal.
 
-The three `useState`s (`highlighted`, `picking`, `picked`) and four commands (`highlight`, `clear`, `togglePicking`, plus the internal `setPicking(false); setHighlighted([]); setPicked(id)` transitions on pick and `Escape`) at `useLens.ts:46-120` become one pure state machine in `model/`: state `{ highlighted, picking, picked }`, commands `highlight(ids)`, `clear()`, `togglePicking()`, `hover(id | undefined)`, `pick(id)`, `cancel()`. The transitions are already written down by the effects (`useLens.ts:63-86, 112-120`), and they are pure.
+**Trap found beyond the brief — the provider's own effect is not the only thrower.** With a `<Can>` child under the provider, the reveal throws an `AggregateError` of **two** `registry is disposed` errors: one from `QadiProvider.tsx:258` and one from the child's own atom subscription (`@effect/atom-react` `useAtomValue`, reached through the stale `RegistryContext` value). React runs child effects before parent effects in one commit, and a provider-built replacement cannot reach the child before it re-subscribes (the context value only changes on a re-render, which happens after that commit's effects). So a fix that **rebuilds a registry in the provider's effect or via state** (the `useScoped` shape) still fails: the revealed children subscribe to the old, disposed registry first. The registry a revealed child can still reach must be **usable**.
 
-- **Model owns, React adapts.** What stays in `useLens.ts` (renamed or not) after the move: the effect that draws and clears (`useLens.ts:49-62`, keyed on `[highlighted, instances]`) and the effect that registers `pointermove`/`click`(capture)/`keydown` listeners while `picking` (`useLens.ts:64-98`), each reading `document` inside an effect only. This keeps `AGENTS.md` §13's "no DOM API in `@qadi/react`" and the file's own server-render rule (`useLens.ts:10-12`).
-- **Ownership by the dock model.** Add the session as a field of `DockModel` built in `makeDockModel`'s scope next to `dock` and `explorer` (`DockModel.ts:186-197`). It needs **no** `Scope` of its own (no fibers), so use a plain `make…` function, not `Effect.fn`, as `makeDockSession` does. `instances` (`GateInstanceLike`) is DOM-adjacent input read by `useLens`; keep it an argument to the DOM adapter, not session state, because it changes per render from `snapshot.instances` (`QuestionsPanel.tsx:106`) and `gateIdAt` needs it only at event time. If the session needs the registry's instance list, `DockModel` already has it through the gates feed (`GatesFeed.ts` `GatesSnapshot.registry`), but state that need explicitly in the plan rather than copying it into the session.
-- **Mutation score.** `DockModel.ts` keeps a mutation score of 1 (ADR-QD-168, per `PROJECT.md` v1.8 Phase 72). Adding a field and a pass-through to `DockModel` adds mutants; a test of the built model that lists its members with `subscribe` and `getSnapshot` fails when one is added (`DockModel.ts:26-30`), so the BEH-QD-700 list and that test change in the same commit.
-- **`QadiContextValue.instrument` (`packages/react/src/QadiProvider.tsx:62, 307-308`).** The context value is built `{ atoms, registry, instrument, gates }`. The repo's only readers destructure `atoms`, `registry` and `gates` (`DevtoolsFeed.ts:126`, `hooks.ts:22, 155, 174`); none reads `instrument` from the context. `QadiProvider` itself uses its own `instrument` prop (`QadiProvider.tsx:196-208, 266-286`) for the gate writer and the production signal, so the **prop stays**; only the context member is unread. Removing it is a type-only Breaking change to a public type (`spec/overview.md:570` lists `QadiContextValue`), and `useMemo` dependency `[atoms, registry, instrument, gates]` shrinks. The doc comment at `QadiProvider.tsx:91` ("through `useQadiContext` only for other fields (`atoms`, `instrument`)") also names it and needs editing. The alternative the milestone allows, keeping it and recording why, is only worth it if a downstream (outside this repo) reads it; nothing here shows one.
+### 82 — what `AtomRegistry` (effect 4.1.2, `packages/effect/src/reactivity/AtomRegistry.ts`) offers
+
+| API | Behaviour (read at lines 472–750; probed) |
+|-----|-------------------------------------------|
+| `make({ initialValues, scheduleTask, timeoutResolution, defaultIdleTTL })` | seeds each `[atom, value]` through `ensureNode(target).setInitialValue` in the constructor |
+| `dispose()` (line 746) | `disposed = true; reset()`. **Terminal**: `createNode` (line 619) throws `Cannot access Atom …: registry is disposed` on any later `get`/`set`/`subscribe`; an unsubscribe function from before the dispose is still safe to call |
+| `reset()` (line 727) | clears timeout buckets and **all nodes** (each `node.remove()` runs its lifetime finalizers, so in-flight fibers are interrupted), but leaves `disposed` false: the registry stays **fully usable**. Seeds are lost (`get` returns the atom default until re-seeded); subscriptions to removed nodes are gone |
+| `ensureNode(atom).setInitialValue(v)` | public on the `AtomRegistry` and `Node` interfaces; after a `reset()` it restores a seed (probed: `reset` then `get` → default `0`, then `setInitialValue(7)` → `7`, then `set`/`subscribe` work) |
+| `registry.disposed` | a field of `RegistryImpl`, **not** on the `AtomRegistry` interface: do not read it |
+| `scheduleTask`, `defaultIdleTTL` | exist; **off limits** per AGENTS.md §13 (they reroute dispatch and dropped a required render; ADR-QD-148) |
+
+`@effect/atom-react`'s own `RegistryProvider` (`src/RegistryContext.ts` lines 79–112) uses the identical pattern (ref-built registry, `setTimeout(500)` dispose in cleanup, cancelled on remount) and therefore has the same hide-then-reveal defect. There is nothing upstream to adopt or wait for.
+
+**Recommendation for 82, opinionated:** one owner for the lifetime means the provider never hands out a registry that a later effect re-run can find dead. With the facts above, the design that satisfies it without new state, a new dependency or a context change:
+
+1. Keep the render-phase, ref-held construction (first render and SSR need the registry and the seeded subject before any effect; AGENTS.md note at `QadiProvider.tsx:214`).
+2. In the deferred cleanup call `registry.reset()` **instead of** `registry.dispose()`, and re-apply the seeds in the same callback (`ensureNode(atoms.subject).setInitialValue(subject)` and each `initialValues` entry, read from the latest-committed props via a ref, as `signalRef` already does), so the registry a revealed child reaches is already seeded before any effect runs. Do not null `registryRef`.
+3. Delete the `registryRef.current = undefined` line: a nulled ref is the second half of the defect (a later render would build a different registry than the one in the committed context value).
+4. Pin it with a test that hides **longer than a macrotask** and reveals with stable children, with a `<Can>` child under the provider (the existing P4 hides and shows in one tick, so it cannot see the defect). Seen RED on the phase base.
+
+The cost of `reset()` over `dispose()`: a straggling read after a true unmount silently recreates a node instead of throwing. That is the accepted trade, because React gives no signal separating "hidden" from "gone", and a registry nothing references is garbage. If the planner prefers keeping a terminal `dispose()` for true unmount, the only React-visible signal is the cleanup of an effect with no later re-run, which does not exist; do not simulate it with a longer timer.
+
+**What not to do for 82:** no `useState` holding the registry (a rebuild lands after the children's effects, proven above, and the first-render/SSR seeding needs it in render); no `useScoped` (returns `undefined` on the first pass, which breaks SSR and the "no pending flash" requirement); no `useSyncExternalStore` or `useState` for decisions (AGENTS.md §13); no `AtomRegistry.make` options beyond today's.
+
+### 83 — what exists for the fold (no new API needed)
+
+| Need | Use | Where |
+|------|-----|-------|
+| Per-field keep-if-equal | the existing private `keep = (previous, next) => Equal.equals(previous, next) ? previous : next` over `effect/Equal` (already imported in `DiagnosticsStore.ts`) | becomes the body of one pure `foldReading(current, next): Diagnostics` that returns `current` itself when every field kept its reference |
+| Holding the value | `makeExternalStore<Diagnostics>` already used by `DiagnosticsFeed`'s `view`; the feed's `show(status)` already publishes status and reading together as one `DiagnosticsSnapshot` | the feed stores `reading` as a plain `let`/value and `view.set({ status, reading })`; `set`'s reference guard replaces the store's own early return |
+| `accept` sink | `runSource` takes `Pick<TimelineStore, "accept">`; mirror it as `Pick<…,"accept">`-shaped `(reading: Diagnostics) => void`, or a bare function | `runDiagnostics(accept, options)`; the `marking` wrapper (3 restated members) disappears because the feed passes its own closure |
+| Resetting on `off()` | assign `noDiagnostics` (constant, keeps identity) | replaces `store = makeDiagnosticsStore()` |
+
+`Diagnostics.questions` is always `undefined` out of the poll (`runDiagnostics` writes `questions: undefined`) and is only ever filled by the **supplied** `DiagnosticsReading.questions`, read in the dock at `DockModel.ts ≈378` as `held.reading?.questions`, not through the feed. The resolution that needs no new type machinery: drop `questions` from `Diagnostics` (the polled shape) and keep it on `DiagnosticsReading` (the supplied shape) only, with `mergeReading`'s `questions` line deleted. That narrows a public type (`Diagnostics` is exported), hence the "possibly Breaking" tag in the roadmap: confirm with `spec/overview.md`/gate 13 and ship a Breaking changeset plus an upgrade-guide entry if it is exported from the barrel.
+
+### 84 — what already exists
+
+| Change | API to use | Verified |
+|--------|-----------|----------|
+| `useConfigured` takes a value with `configure` | `<A extends { readonly configure: (inputs: I) => void }, I>(make, inputs)`; `DockModel`, `TimelineFeed`, `DiagnosticsFeed` already expose `configure(inputs)` with matching arity (`DockModel.ts:246`, `TimelineFeed.ts:98`, `DiagnosticsFeed.ts:119`); `GatesFeed.ts:108` too | the three callers' adapters are `(v, i) => v.configure(i)` verbatim |
+| `LensSession.move` | `store.set(next)` | `move` is `if (next === store.getSnapshot()) return; store.publish(next)`, which is `set`'s exact definition (`ExternalStore.ts:93–97`). `choose` arms `armed` after its own `next === current` early return, so `store.set(next)` there is equivalent too |
+| `useLens` one fact two ways | pass the snapshot `instances` or the store, not both | read-only change in `useLens.ts`/`QuestionsPanel.tsx:114–118` |
+| `DockFrame` stop-ledger twice | one local helper in `DevtoolsDock.tsx` | no API |
+| `useTimeline` per-render inputs record (`useTimeline.ts:70`) | `useMemo(() => ({ source, capacity }), [source, capacity])` | `useConfigured`'s layout effect depends on `[value, inputs]`, so a fresh record re-runs `configure` every render; it is a no-op today only because `sameFields` absorbs it. `useMemo` is already imported across the package |
+
+## Installation
+
+```bash
+# Nothing to install. Verify the lock still resolves what this file read:
+pnpm ls effect @effect/atom-react react react-dom vitest happy-dom --depth -1
+```
 
 ## Alternatives Considered
 
-| Recommended | Alternative | Why Not |
-|-------------|-------------|---------|
-| `Brand.nominal` minted inside the two codec functions | `Schema.brand("AuditEntry")` on the exported row schema | Leaves `Schema.decodeUnknown(AuditEntry)` as a second, guard-free way to mint a branded row, defeating the point; and the decode of `record` is by hand, not by the schema (`AuditEntry.ts:157`). |
-| `Brand.nominal` | `Schema.Class` / `Schema.TaggedClass` | Adds a runtime class and a constructor; `ADR-QD-135` already measured and rejected a `Schema.TaggedClass` on a hot path, and an `AuditEntry` must still `JSON.stringify` to exactly the stored bytes (`AuditEntry.ts:13-20`). A class instance serialises its own prototype members differently. |
-| `Brand.nominal` | A `unique symbol` field, as `RunToken` does (`SupersedingRun.ts:42-47`) | A symbol-keyed property would be a real runtime field; `JSON.stringify` skips symbol keys, but `Equal`/spread/structured-clone behaviour then differs between a decoded row and a hand-written one. `Brand` has no runtime footprint. |
-| Existing `sameFields` as the one rule | A new `Equal.equals`-based deep compare | `Equal.equals` on a `Layer`, a `Source` or a thunk would compare structurally where identity is wanted; `DiagnosticsStore` already used per-field `Equal.equals` for a different job (`ExternalStore.ts:12-14`). Phase 79's whole point is `===` per field. |
-| A plain closure session for the lens | `Effect.Service` / `Context.Service` for the session | No dependency to provide, no scope to hold; every sibling (`DockSession`, `ExplorerSession`, `HeldChoiceStore`) is a plain `make…` function returned through `DockModel`. A service would add a `Layer` with no consumer (`AGENTS.md` §2-3). |
-| `useLayoutEffect` for "configure" | `useEffect` | A pass between layout and passive effects would paint with stale inputs. Every existing site is a layout effect, and `useScoped` is one (`useScoped.ts:21-47`); the first paint seeing the right inputs is a stated property (`useScoped.ts:8-10`). |
-| `useSyncExternalStore` through `useStoreSnapshot` | `@effect/atom-react` for the lens | `AGENTS.md` §13: that is `@qadi/react`'s binding, and `@qadi/devtools` does not depend on it (`packages/devtools/package.json`). The dock's models are plain external stores. |
+| Recommended | Alternative | When the alternative is better |
+|-------------|-------------|--------------------------------|
+| 82: `reset()` + reseed in the deferred cleanup, one ref-held registry | `useScoped`-style state-held registry rebuilt on reveal | Never here: children's effects run first against the stale context (reproduced), and the first pass would be `undefined` (breaks SSR/hydration seeding) |
+| 82: `reset()` + reseed | Dispose only on the real unmount | Only if React ever exposes "hidden vs gone"; it does not in 19.3.1 |
+| 82: `reset()` + reseed | Drop the registry's disposal entirely (no reset) | If in-flight port reads on a hidden provider are acceptable; they are not (fibers would run for an invisible tree) |
+| 81: shared `runCollecting` in `ExternalStore.ts` | A fourth hand-written try/catch loop in `DockModel.ts` | Never: it restates ADR-QD-177's rule a third time, the drift this file's header already warns about |
+| 83: fold as a pure function + the feed's existing `view` store | Keep `DiagnosticsStore` and only trim `marking` | Only if an external subscriber of the store appears; none does (ADR-QD-173; only its own test subscribes) |
+| 84: `store.set` | Keep `move` | Never: it is `set` restated |
 
-## What NOT to Add or Do
+## What NOT to Use
 
-| Avoid | Why | Use Instead |
+| Avoid | Why | Use instead |
 |-------|-----|-------------|
-| Any new dependency (zustand, immer, xstate, ts-brand, type-fest `Tagged`) | Nothing in the four phases needs one; `AGENTS.md` §13 allows exactly one deliberate dependency exception in `@qadi/react` | `effect/Brand`, `effect/Schema`, `makeExternalStore` |
-| `as AuditEntry` or `as unknown as AuditEntry` | `AGENTS.md` §6 forbids `as`; it also silently voids the brand | `Brand.nominal<AuditEntry>()(...)` inside the codec only |
-| `Schema.brand` on a schema that is still publicly decodable | Second minting path | Keep the public schema unbranded, brand in `encode/decodeAuditEntry` |
-| Exporting the brand constructor from `@qadi/audit`'s barrel | `export *` makes it public (`packages/audit/src/index.ts:3`); gate 13 also demands an `overview.md` row | Module-private const, or a non-barrel file (`AGENTS.md` §9) |
-| A `switch` on a lens state tag | `AGENTS.md` §5a: `Match`, and `SWITCH_BUDGET` fails any new `switch` | `Match.type<…>().pipe(Match.tagsExhaustive(…))` at module scope if the session is a tagged state |
-| `Record<string, unknown>` as a widened input type for the shared identity rule | Rejected in project memory: monomorphise or use a predicate | `sameFields<K extends object>` as written |
-| `useState` + `useEffect` holding lens state in `@qadi/react` | `AGENTS.md` §13; Phase 80's whole point is that the model owns it | A model session read through `useStoreSnapshot` |
-| A second `useSyncExternalStore` call site | `useStoreSnapshot.ts:5-8` warns a second copy once produced a constant-`undefined` run | `useStoreSnapshot` |
-| `console.*`, `Date.now`, `performance.now`, `crypto.randomUUID` in the session | `AGENTS.md` §6; `no-ambient-console` is enforced | Not needed: the lens session is pure |
-| New module-scope `let` for a lens "last picked" or a hook latch | `MODULE_STATE_BUDGET` allows exactly one (`DeveloperSignals.ts`) | State in the session closure |
-| `Effect.fnUntraced` or a new `Effect.fn` per transition | `UNTRACED_BUDGET` counts exactly three; session transitions are plain functions | Plain functions; `Effect.fn` only where a scope is built (`makeDockModel` is already one) |
-| `Schema.TaggedErrorClass` for any new refusal | `AGENTS.md` §4, `SCHEMA_ERROR_BUDGET` | Reuse core's `SinkRecordNotDecodable` (ADR-QD-161); no new error is needed |
+| Any new npm dependency (state libs, `use-effect-event` shims, `immer`, an Activity polyfill) | Nothing in the four phases is missing; the quality gate is "no new dependency unless unavoidable" and none is | The installed set above |
+| `registry.dispose()` on a provider cleanup (82) | Terminal; React re-runs effects on reveal against the old closure and children subscribe to the old registry | `reset()` + reseed |
+| `registry.disposed`, `dispatcher`, `nodes` (82) | Not on the `AtomRegistry` interface; couples to `RegistryImpl` | `ensureNode`, `reset`, `subscribe` only |
+| `AtomRegistry.make` `scheduleTask` / `defaultIdleTTL` (82) | Off limits (AGENTS.md §13, ADR-QD-148): rerouted dispatch dropped a required render | today's `make({ initialValues })` |
+| `useState`/`useEffect` for decisions, or for the registry to rebuild it (82) | AGENTS.md §13 and the child-effect ordering above | the ref-held registry |
+| `Effect.orDie`, `as`, `any`, `switch (_tag)` in the new collect helper / fold | House rules §4–§6 | `Match.tagsExhaustive`, typed generics |
+| `Date.now()`, `new Date()`, `setTimeout` in the model code (81/83) | House rules §6; tests use `TestClock` | `Clock`, `TestClock`; the only `setTimeout` is the existing React cleanup deferral in `QadiProvider.tsx` |
+| `catchTags({…})` object form | House-style gate | array-form `Effect.catchTag([...], …)` |
+| Exporting `throwCollected`/`runCollecting`, `sameFields`, `DiagnosticsStore` from a barrel | `ExternalStore.ts` is deliberately barrel-free; `exports` map is closed (ADR-QD-099) | named import from `./ExternalStore.ts` inside the package |
 
 ## Stack Patterns by Variant
 
-**If Phase 77 keeps `AuditEntry` as an exported schema value:**
-- Export the unbranded struct under the existing name and the branded `type AuditEntry`; mint only in `encodeAuditEntry`/`decodeAuditEntry`.
-- Because `export type AuditEntry = typeof AuditEntry.Type` is the current pairing (`AuditEntry.ts:84`) and a type/const pair of one name cannot differ in brand without a second declaration. If that proves awkward, rename the struct (for example `AuditRow`) and record it in `spec/overview.md`, which is allowed to change in a Breaking phase.
+**If a phase's RED test is on a hidden/revealed React tree (82):**
+- Render a hoisted constant element inside `<Activity mode>` toggled by parent state, include a `<Can>` consumer, hide, wait **more than one macrotask** (real timers `await new Promise(r => setTimeout(r, 20))` or fake timers advanced), then `await act(async () => setMode("visible"))`.
+- Because a stable element gives no re-render on reveal, and an unstable one (re-created each parent render) re-renders and hides the defect. P4 in `QadiProvider.sweep.test.tsx:136` hides and shows in one tick, so it passes on the defective code.
 
-**If Phase 77 chooses `unknownKeys: "ignore"` on the row:**
-- Use `untrustedDecoder(…, { unknownKeys: "ignore", unwalked: ["record"] })` exactly as `storedWire` does.
-- Because that is the one rule core already states for an envelope with a nested record (`SinkCodec.ts:589-603`), and the `ignore` projection reads only declared keys (INV-QD-306/377).
-
-**If Phase 79's shared rule must also cover `K` with optional fields:**
-- Normalise inputs to explicit-`undefined` objects before `sameFields`, or compare fields through the input type's own key list.
-- Because `sameFields` distinguishes a missing key from a key holding `undefined` (`ExternalStore.ts:146-153`), and `exactOptionalPropertyTypes` plus the `?: T | undefined` convention means callers may pass either.
+**If a phase touches the dock `configure` (81, then 83):**
+- Subscribe a throwing listener on each store (`explorer`, `simulation`, `dock`, `roles`, `questions`, `services`, `diagnostics`) in turn, `configure`, and assert (a) every later step ran, (b) the thrown value reaches the caller (one: itself; two: `AggregateError` in call order), (c) an identical `configure` does not need to heal.
+- 83 follows 81 and edits the same block, so land 81's `runCollecting` first (the roadmap's serial order is right, and nothing in this stack argues for relaxing it).
 
 ## Version Compatibility
 
-| Package A | Compatible With | Notes |
-|-----------|-----------------|-------|
-| `effect@4.1.2` | `Brand.nominal`, `Schema.brand`, `Schema.optional(Schema.Int)`, `Result`, `Effect.fn`, `Match` | All used in `packages/` today; `Schema.brand` still requires one string-literal key (`Schema.d.ts:4353`). `packages/core/test/v4-api-smoke.test.ts` pins the v4 APIs the repo depends on; add a pin there only if Phase 77 adopts an API not already covered. |
-| `react@19.3.1` | `useSyncExternalStore`, `useLayoutEffect`, `useState` updater form | Peer range `>=19.2.4`; no React 19.3-only API is needed. Keep `setValue(() => built)` (`useScoped.ts:36-37`). |
-| `typescript@^7` | `Brand.nominal<T>()` on an object intersection | Probe compiled clean under `tsconfig.base.json`; negative assignment errors held. |
-| `@qadi/audit` -> `@qadi/core` | `untrustedDecoder`, `decodeSinkRecordWithJson`, `SinkRecordJson`, `decodeRefusalOf`, `DecodeRefusal`, `SinkRecordNotDecodable` | All already imported at `AuditEntry.ts:38-46`; no `@qadi/core` change is required for Phase 77. |
-| `@qadi/devtools` | `@qadi/core` (`causeMessage`, `StoredRecord`) | `workspace:^`; no change. |
-
-## Gates a Stack Change Would Trip (none are triggered if the above is followed)
-
-- Gate 13, `scripts/check-api-surface.mjs`: any new or renamed export (the lens session's factory if exported from the root, the `TimelineStore` resize member, `DockModelInputs`) needs a `spec/overview.md` row or a "Not listed above" reason (`AGENTS.md` §15).
-- Gate 14, `scripts/check-package-install.mjs`: removing the `init` parameter from an exported `make*Feed` is observable through the packed `exports` map; the consumer fixture must be updated (`PROJECT.md` v1.7 Phase 63).
-- `UNTRUSTED_DECODE_BUDGET`: no `Schema.decode*`, `JSON.parse`, `onExcessProperty` or `exceedsJsonDepth` token may appear in `packages/audit/src/AuditEntry.ts`; go through `untrustedDecoder`.
-- `NOT_CALLABLE_PIN_BUDGET` and `[not-callable-control]`: a new negative type pin ("a literal is not an `AuditEntry`" is better written as `expect<AuditEntry>().type.not.toBeAssignableTo…` / `toBeAssignableFrom`-style on a plain value, not `not.toBeCallableWith` on an Effect-returning function) needs its positive twin in the same file.
-- `SWITCH_BUDGET`, `UNTRACED_BUDGET`, `ANY_BUDGET`, `MODULE_STATE_BUDGET`, `HAS_CUSTOM_BUDGET`: no change expected.
+| Package | Compatible with | Notes |
+|---------|-----------------|-------|
+| `effect@4.1.2` | `@effect/atom-react@4.1.2`, `@effect/vitest@4.1.2` | Same release train; `AtomRegistry` import path is `effect/reactivity/AtomRegistry` |
+| `react@19.3.1` | `react-dom@19.3.1`, `@types/react@19.3.0`, `@testing-library/react@16.3.3` | Peer floor `>=19.2.4`; `Activity` effect semantics above verified on 19.3.1 only. The behaviour that matters (cleanup on hide, effect re-run on reveal with the last committed closure) is the documented model of Activity, but is reproduced here only on 19.3.1: re-check if the floor is ever raised or the catalog moves |
+| `vitest@5.1.0` | `happy-dom@21.0.4`, `@vitest/coverage-v8@5.1.0` | `packages/react` runs `environment: "happy-dom"`; devtools model tests are DOM-free |
+| `typescript@7.0.2` | tstyche `.tst.ts` pins | Phase 84's constraint type is a candidate for a positive type pin; a negative one is budgeted (`NOT_CALLABLE_PIN_BUDGET`) |
 
 ## Sources
 
-- `node_modules/effect/package.json` (4.1.2); `pnpm-lock.yaml` (`effect@4.1.2`, `@effect/atom-react@4.1.2`, `react@19.3.1`, `vitest@5.1.0`) — HIGH
-- `pnpm-workspace.yaml` catalogs — HIGH
-- `node_modules/effect/dist/Schema.d.ts:4353-4421` (`brand`, `fromBrand`, `EnsureSingleBrandKey`) and `node_modules/effect/dist/Brand.d.ts` — HIGH (installed declarations)
-- Throwaway probe in `packages/audit` (typecheck under `tsconfig.base.json` plus one `tsx` run; deleted) — HIGH for the behaviours stated
-- `packages/audit/src/AuditEntry.ts`, `AuditArchive.ts`, `SignatureLedger.ts`, `index.ts`; `packages/core/src/UntrustedDecode.ts`, `SinkCodec.ts:312-318, 556-640`, `Policy.ts:125-198`, `Identity.ts`, `Qadi.ts:245-285` — HIGH (read)
-- `packages/devtools/src/model/ExternalStore.ts`, `TimelineStore.ts`, `TimelineFeed.ts`, `DiagnosticsFeed.ts`, `GatesFeed.ts`, `DockModel.ts`, `DockSession.ts`, `SupersedingRun.ts`; `react/useScoped.ts`, `useDockModel.ts`, `useTimeline.ts`, `useDiagnostics.ts`, `useStoreSnapshot.ts`, `useLens.ts` — HIGH (read)
-- `packages/react/src/QadiProvider.tsx:40-100, 190-310`; grep of `useQadiContext` readers across `packages/*/src` and `packages/*/test` — HIGH
-- `AGENTS.md` (house rules §1-§17) and `.planning/PROJECT.md` (v1.9 scope) — HIGH
-- Not consulted: Context7 and web search. Every API in scope is already vendored in `node_modules` and was read there, which outranks documentation for the pinned build.
-
-**Unverified:** (1) whether `Brand.nominal`'s `Constructor` type interacts badly with `readonly` fields under `exactOptionalPropertyTypes` for the exact `AuditEntry` shape (the probe used `number | undefined`, matching `Schema.optional(Schema.Int)`'s type; it passed, but the real row has `record: SinkRecordJson`); (2) the exact line numbers of `Timeline.ts`'s `emptyTimeline` options type; (3) whether `packages/audit/test/_probe.test.ts` (untracked, predates this research) is an intended file; it uses `encodeAuditEntry` and is not mine.
+- `node_modules/effect/src/reactivity/AtomRegistry.ts` lines 133–160, 472–520, 605–630, 727–750 — `make`, `reset`, `dispose`, `createNode` (HIGH, installed 4.1.2)
+- `node_modules/@effect/atom-react/src/RegistryContext.ts` lines 47–112 — upstream `RegistryProvider` shares the dispose pattern (HIGH, installed 4.1.2)
+- `packages/devtools/src/model/ExternalStore.ts` — full read; `throwCollected` is module-private (HIGH)
+- `packages/devtools/src/model/DockModel.ts` 335–431, `DiagnosticsFeed.ts`, `DiagnosticsStore.ts`, `LensSession.ts` 140–180, `react/useConfigured.ts`, `useScoped.ts`, `useDockModel.ts`, `useDiagnostics.ts`, `useTimeline.ts`; `packages/react/src/QadiProvider.tsx` 190–320 (HIGH)
+- Probes, throwaway, deleted: (1) plain React Activity hide/reveal logging effect closures, stable and hidden-re-render variants, StrictMode on and off; (2) real `QadiProvider` + `<Can>` hidden past a macrotask then revealed, which yields an `AggregateError` of two disposed-registry errors, one at `QadiProvider.tsx:258`; (3) `AtomRegistry` `reset` then `ensureNode().setInitialValue`, and `dispose` then `get`/`subscribe`/unsubscribe (HIGH, first-hand reproduction)
+- `/private/tmp/claude-502/.../scratchpad/wave15-brief.md` — the four candidates and reproductions (HIGH, project-internal)
 
 ---
-*Stack research for: Qadi v1.9 Arch Wave 14 (Phases 77-80)*
-*Researched: 2026-11-23*
+*Stack research for: v1.10 Arch Wave 15 (internal; no stack change)*
+*Researched: 2026-11-24*
