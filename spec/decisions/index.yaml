@@ -598,3 +598,7 @@ entries:
     file: "192-feeds-and-the-dock-model-take-inputs-only-through-configure.md"
     title: "Feeds and the dock model take inputs only through configure"
     status: "Accepted — amends ADR-QD-137, ADR-QD-173 and ADR-QD-185"
+  - id: "ADR-QD-193"
+    file: "193-the-highlight-lens-is-a-headless-session-the-dock-model-owns.md"
+    title: "The highlight lens is a headless session the dock model owns"
+    status: "Accepted — amends ADR-QD-185, ADR-QD-047 and ADR-QD-111"
