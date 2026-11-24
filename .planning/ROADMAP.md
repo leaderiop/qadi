@@ -454,7 +454,7 @@ Order: the live defect (77), then the three devtools deepenings (78, 79, 80). **
 
 ### Phases
 
-- [ ] **Phase 77: An audit row is a value only its codec makes** - `AuditEntry` is obtainable only from `encodeAuditEntry` and `decodeAuditEntry`, so the writer can no longer write an archive its own reader refuses; the row decodes envelope-first (ARCH-124, audit; live defect; Breaking)
+- [x] **Phase 77: An audit row is a value only its codec makes** - `AuditEntry` is obtainable only from `encodeAuditEntry` and `decodeAuditEntry`, so the writer can no longer write an archive its own reader refuses; the row decodes envelope-first (ARCH-124, audit; live defect; Breaking) (completed 2026-11-24)
 - [ ] **Phase 78: `TimelineStore` owns its capacity** - A `resize(capacity)` command replaces `TimelineFeed`'s mirror store, six-member forwarder and abandoned subscription, and the feed returns its one store (ARCH-125, devtools)
 - [ ] **Phase 79: Feeds and the dock model take inputs only through `configure`** - Constructors take no inputs, one per-field identity rule decides a restart, one package-private hook does "scope, then configure", and the dock's input type is stated once (ARCH-126, devtools; Breaking)
 - [ ] **Phase 80: The highlight lens is a headless session; `instrument` resolved** - The lens's rules move into a `LensSession` that the dock model owns as its tenth store, `useLens` shrinks to the DOM adapter, and the unread `QadiContextValue.instrument` is removed or its reason recorded (ARCH-127, devtools + react)
@@ -480,7 +480,7 @@ Order: the live defect (77), then the three devtools deepenings (78, 79, 80). **
   5. ADR-QD-190 records the brand, the decode order and the refusal table and amends ADR-QD-110; INV-QD-101, BEH-QD-253 and the affected `spec/overview.md` rows move with it; a `@qadi/audit` changeset marks the change Breaking, with an upgrade-guide entry.
 
 **Planning notes**: **Research flag: a pre-plan probe is required** (`/gsd-plan-phase --research-phase 77`). (a) Compile each candidate brand form under the audit tsconfig and probe its `Equal`, `Hash` and `JSON.stringify` behaviour: the researchers disagree (a type-level `Brand.nominal` on a plain object keeps structural equality but survives a spread, so `{...entry, sequenceNumber: 1.5}` still type-checks; a private-constructor class with a `declare private readonly` marker does not survive one but its `Equal`/`Hash` and the marker compile in audit are unverified), and an exported decodable schema value is a second way to mint. (b) Enumerate whole-archive writer inputs (entries, `now`, `keyMaterial`) through `readAuditArchive(JSON.parse(JSON.stringify(archive)))`; the `now: NaN` and `keyMaterial` variants are reasoned, not run, and any that does not reproduce is recorded "refuted at the base". The open decisions in the owner table above are asked once at the discuss step, after the probe. Test churn: about 35 literal or spread row sites in 9 audit test files, 5 type-pin files and one features step file; a `numbered(entry, n)` helper that goes through the codec avoids hand-built rows. Commit the per-file Stryker baselines (`AuditEntry.ts`, `ArchiveFacts.ts`, `AuditArchive.ts`, `Retention.ts`) alone and first, and re-close them after the review fixes. Do not delete a check the type cannot prove.
-**Plans**: 7/7 plans executed (waves 1 to 7, strictly serial)
+**Plans**: 7/7 plans complete (waves 1 to 7, strictly serial)
 
 Plans:
 **Wave 1**
@@ -569,7 +569,7 @@ Phases execute in numeric order: 77 → 78 → 79 → 80
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 77. An audit row is a value only its codec makes | 7/7 | In Progress | - |
+| 77. An audit row is a value only its codec makes | 7/7 | Complete    | 2026-11-24 |
 | 78. `TimelineStore` owns its capacity | 0/0 | Not started | - |
 | 79. Feeds and the dock model take inputs only through `configure` | 0/0 | Not started | - |
 | 80. The highlight lens is a headless session; `instrument` resolved | 0/0 | Not started | - |

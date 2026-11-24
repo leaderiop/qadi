@@ -44,13 +44,13 @@ phase runs on branch `arch-wave-14`, strictly serial (77 → 80).
 
 ### Cross-cutting (every v1.9 phase)
 
-- [ ] **WX-01**: `pnpm check:pr < /dev/null` is green at the end of each phase.
-- [ ] **WX-02**: Each phase records its ADR (or names it "Unused" in its CCR row), its CCR row, and its BEH/INV/traceability changes, using only its reserved numbers. `node scripts/next-id.mjs` is never run.
-- [ ] **WX-03**: `spec/overview.md` names every added export and drops every removed one (gate 13). Gate 14 probes every changed `make*Feed` signature.
-- [ ] **WX-04**: Nothing new is added from this list: `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`, ambient `console`/`process.env`/clock, `Record<string, unknown>`, `// Stryker disable`, a module-scope `let`. A budget changes only together with its AGENTS.md table.
-- [ ] **WX-05**: Coverage thresholds hold (core at least 95%, the others at least 90%). The Stryker score of touched files does not fall: recorded per phase in `NN-mutation-base.json`, measured with the same invocation at the phase base and at close. A drop is closed with a test, never re-baselined.
-- [ ] **WX-06**: Every behaviour change is preceded by a characterisation or regression test written on the phase base: RED for a defect, green for preserved behaviour. Every new check is shown failing once.
-- [ ] **WX-07**: No D-numbers, plan-local ids or phase numbers enter shipped source, test titles or BDD scenarios. Nothing is released or published, and no version-packages PR is merged.
+- [x] **WX-01**: `pnpm check:pr < /dev/null` is green at the end of each phase.
+- [x] **WX-02**: Each phase records its ADR (or names it "Unused" in its CCR row), its CCR row, and its BEH/INV/traceability changes, using only its reserved numbers. `node scripts/next-id.mjs` is never run.
+- [x] **WX-03**: `spec/overview.md` names every added export and drops every removed one (gate 13). Gate 14 probes every changed `make*Feed` signature.
+- [x] **WX-04**: Nothing new is added from this list: `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await`, ambient `console`/`process.env`/clock, `Record<string, unknown>`, `// Stryker disable`, a module-scope `let`. A budget changes only together with its AGENTS.md table.
+- [x] **WX-05**: Coverage thresholds hold (core at least 95%, the others at least 90%). The Stryker score of touched files does not fall: recorded per phase in `NN-mutation-base.json`, measured with the same invocation at the phase base and at close. A drop is closed with a test, never re-baselined.
+- [x] **WX-06**: Every behaviour change is preceded by a characterisation or regression test written on the phase base: RED for a defect, green for preserved behaviour. Every new check is shown failing once.
+- [x] **WX-07**: No D-numbers, plan-local ids or phase numbers enter shipped source, test titles or BDD scenarios. Nothing is released or published, and no version-packages PR is merged.
 
 ## Future Requirements
 
@@ -96,13 +96,13 @@ phase runs on branch `arch-wave-14`, strictly serial (77 → 80).
 | LENS-03 | Phase 80 | Pending |
 | LENS-04 | Phase 80 | Pending |
 | LENS-05 | Phase 80 | Pending |
-| WX-01 | All v1.9 phases | Pending |
-| WX-02 | All v1.9 phases | Pending |
-| WX-03 | All v1.9 phases | Pending |
-| WX-04 | All v1.9 phases | Pending |
-| WX-05 | All v1.9 phases | Pending |
-| WX-06 | All v1.9 phases | Pending |
-| WX-07 | All v1.9 phases | Pending |
+| WX-01 | All v1.9 phases | Complete |
+| WX-02 | All v1.9 phases | Complete |
+| WX-03 | All v1.9 phases | Complete |
+| WX-04 | All v1.9 phases | Complete |
+| WX-05 | All v1.9 phases | Complete |
+| WX-06 | All v1.9 phases | Complete |
+| WX-07 | All v1.9 phases | Complete |
 
 **Coverage:**
 - v1.9 requirements: 28 total (21 phase-specific + 7 cross-cutting)
