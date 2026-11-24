@@ -2,7 +2,7 @@
  "phase": "77",
  "groups": {
   "entry": {
-   "head": "2c4d7213425ef86949ef51dc2c64f02c27f2cff3",
+   "head": "4e7d47bf1b7b57c543100e8d182dd90a71af2cd8",
    "invocation": "pnpm exec stryker run stryker.audit.mjs --mutate packages/audit/src/AuditEntry.ts",
    "files": {
     "packages/audit/src/AuditEntry.ts": {
@@ -62,45 +62,45 @@
    }
   },
   "facts": {
-   "head": "2c4d7213425ef86949ef51dc2c64f02c27f2cff3",
+   "head": "4e7d47bf1b7b57c543100e8d182dd90a71af2cd8",
    "invocation": "pnpm exec stryker run stryker.audit.mjs --mutate packages/audit/src/ArchiveFacts.ts",
    "files": {
     "packages/audit/src/ArchiveFacts.ts": {
-     "killed": 56,
+     "killed": 55,
      "timeout": 0,
      "survived": 0,
      "noCoverage": 0,
      "ignored": 4,
-     "detected": 56,
-     "valid": 56,
+     "detected": 55,
+     "valid": 55,
      "open": [],
      "ignoredMutants": [
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 60,
+       "line": 61,
        "column": 22
       },
       {
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 137,
+       "line": 158,
        "column": 59
       },
       {
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 142,
+       "line": 162,
        "column": 62
       },
       {
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 157,
+       "line": 177,
        "column": 47
       }
      ]
@@ -108,7 +108,7 @@
    }
   },
   "archive": {
-   "head": "2c4d7213425ef86949ef51dc2c64f02c27f2cff3",
+   "head": "4e7d47bf1b7b57c543100e8d182dd90a71af2cd8",
    "invocation": "pnpm exec stryker run stryker.audit.mjs --mutate packages/audit/src/AuditArchive.ts",
    "files": {
     "packages/audit/src/AuditArchive.ts": {
@@ -125,98 +125,98 @@
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 48,
+       "line": 54,
        "column": 41
       },
       {
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 97,
+       "line": 136,
        "column": 25
       },
       {
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 139,
+       "line": 179,
        "column": 44
       },
       {
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 222,
+       "line": 254,
        "column": 58
       },
       {
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 289,
+       "line": 321,
        "column": 39
       },
       {
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 291,
+       "line": 323,
        "column": 27
       },
       {
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 300,
+       "line": 332,
        "column": 58
       },
       {
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 300,
+       "line": 332,
        "column": 73
       },
       {
        "status": "Ignored",
        "mutator": "ArrayDeclaration",
        "replacement": "[]",
-       "line": 300,
+       "line": 332,
        "column": 93
       },
       {
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 300,
+       "line": 332,
        "column": 94
       },
       {
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 303,
+       "line": 335,
        "column": 24
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 304,
+       "line": 336,
        "column": 14
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 305,
+       "line": 337,
        "column": 16
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 309,
+       "line": 341,
        "column": 16
       }
      ]
@@ -224,31 +224,31 @@
    }
   },
   "retention": {
-   "head": "2c4d7213425ef86949ef51dc2c64f02c27f2cff3",
+   "head": "4e7d47bf1b7b57c543100e8d182dd90a71af2cd8",
    "invocation": "pnpm exec stryker run stryker.audit.mjs --mutate packages/audit/src/Retention.ts",
    "files": {
     "packages/audit/src/Retention.ts": {
-     "killed": 58,
+     "killed": 57,
      "timeout": 0,
      "survived": 0,
      "noCoverage": 0,
      "ignored": 2,
-     "detected": 58,
-     "valid": 58,
+     "detected": 57,
+     "valid": 57,
      "open": [],
      "ignoredMutants": [
       {
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 41,
+       "line": 66,
        "column": 61
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 138,
+       "line": 165,
        "column": 26
       }
      ]
@@ -256,17 +256,17 @@
    }
   },
   "made": {
-   "head": "2c4d7213425ef86949ef51dc2c64f02c27f2cff3",
+   "head": "4e7d47bf1b7b57c543100e8d182dd90a71af2cd8",
    "invocation": "pnpm exec stryker run stryker.audit.mjs --mutate packages/audit/src/CodecMade.ts",
    "files": {
     "packages/audit/src/CodecMade.ts": {
-     "killed": 12,
+     "killed": 18,
      "timeout": 0,
      "survived": 0,
      "noCoverage": 0,
      "ignored": 0,
-     "detected": 12,
-     "valid": 12,
+     "detected": 18,
+     "valid": 18,
      "open": [],
      "ignoredMutants": []
     }
