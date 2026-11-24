@@ -13,7 +13,7 @@ import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import type * as Scope from "effect/Scope";
 import { causeMessage } from "@qadi/core";
-import { makeExternalStore } from "./ExternalStore.ts";
+import { makeExternalStore, sameFields } from "./ExternalStore.ts";
 import { sourceFromRecords, type Source } from "./Source.ts";
 import { makeSupersedingRun } from "./SupersedingRun.ts";
 import { DEFAULT_TIMELINE_CAPACITY, emptyTimeline, type Timeline } from "./Timeline.ts";
@@ -84,8 +84,9 @@ export interface TimelineFeed {
   /** Where the read stands. */
   readonly status: TimelineStatusReadout;
   /**
-   * Re-reads only when the effective capacity or the source moved. An omitted capacity
-   * and `DEFAULT_TIMELINE_CAPACITY` are one bound. A capacity the timeline refuses throws
+   * Re-reads only when the effective capacity or the source moved: a configure in which
+   * no field moved changes nothing. An omitted capacity and `DEFAULT_TIMELINE_CAPACITY`
+   * are one bound. A capacity the timeline refuses throws
    * before anything moves and leaves the inputs, the timeline and the read as they were.
    * Does nothing once the feed's scope has closed. A capacity change publishes
    * the emptied timeline and then starts the read that refills it, from the same source or
@@ -96,6 +97,21 @@ export interface TimelineFeed {
    */
   readonly configure: (inputs: TimelineFeedInputs) => void;
 }
+
+/**
+ * The one normaliser of a timeline feed's inputs.
+ *
+ * An omitted field and one holding `undefined` become one field, the capacity is
+ * compared by the bound it means, and a refused bound throws here, before anything
+ * moves. The declared return type makes a new input a compile error until it is
+ * listed here (ADR-QD-192).
+ */
+export const completeTimelineInputs = (
+  inputs: TimelineFeedInputs,
+): Required<TimelineFeedInputs> & { readonly capacity: number } => ({
+  capacity: effectiveCapacity(inputs.capacity),
+  source: inputs.source,
+});
 
 /** What a feed that gave no source reads: nothing, which ends at once. */
 const NO_SOURCE: Source = sourceFromRecords([]);
@@ -140,9 +156,8 @@ export const idleTimelineStatus: TimelineStatusReadout = {
 export const makeTimelineFeed = Effect.fn("qadi.devtools.makeTimelineFeed")(function* (
   init?: TimelineFeedInputs,
 ): Effect.fn.Return<TimelineFeed, never, Scope.Scope> {
-  let inputs: TimelineFeedInputs = init ?? {};
-  const timeline =
-    makeTimelineStore({ capacity: inputs.capacity ?? DEFAULT_TIMELINE_CAPACITY });
+  let held = completeTimelineInputs(init ?? {});
+  const timeline = makeTimelineStore({ capacity: held.capacity });
 
   const status = makeExternalStore<TimelineStatus>(READING);
   // One read at a time: a newer read supersedes and interrupts the one before it.
@@ -161,11 +176,11 @@ export const makeTimelineFeed = Effect.fn("qadi.devtools.makeTimelineFeed")(func
       onFailure: (cause) => status.set(TimelineStatus.Stopped({ reason: causeMessage(cause) })),
     });
   };
-  readSource(inputs.source);
+  readSource(held.source);
 
   // A restart on a closed feed would publish a state nothing follows.
   const restart = () => {
-    if (!reads.closed()) readSource(inputs.source);
+    if (!reads.closed()) readSource(held.source);
   };
 
   return {
@@ -174,16 +189,17 @@ export const makeTimelineFeed = Effect.fn("qadi.devtools.makeTimelineFeed")(func
     configure: (next) => {
       // A command on a closed feed would publish a state nothing follows.
       if (reads.closed()) return;
-      // The rule refuses a bad bound before anything moves.
-      const capacity = effectiveCapacity(next.capacity);
-      const before = inputs;
-      inputs = next;
+      // The normaliser refuses a bad bound before anything moves.
+      const wanted = completeTimelineInputs(next);
+      if (sameFields(held, wanted)) return;
+      const before = held;
+      held = wanted;
       // Past the check, `resize` throws only from its publish, after it has resized.
       let resized = true;
       try {
-        resized = timeline.resize(capacity);
+        resized = timeline.resize(wanted.capacity);
       } finally {
-        if (resized || next.source !== before.source) readSource(next.source);
+        if (resized || wanted.source !== before.source) readSource(wanted.source);
       }
     },
   };
