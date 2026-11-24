@@ -157,6 +157,22 @@ export const clearLens = (target: Document): void => {
   }
 };
 
+/** The nearest guard containing `start`, itself included, found by walking up. */
+const gateIdContaining = (
+  start: Element | null,
+  instances: ReadonlyArray<{ readonly id: string; readonly element?: unknown }>,
+): string | undefined => {
+  let node: Element | null = start;
+
+  while (node !== null) {
+    const current = node;
+    const match = instances.find((instance) => instance.element === current);
+    if (match !== undefined) return match.id;
+    node = node.parentElement;
+  }
+  return undefined;
+};
+
 /**
  * The instance id of the nearest guard containing a point, or `undefined`.
  *
@@ -176,14 +192,28 @@ export const gateIdAt = (
   x: number,
   y: number,
   instances: ReadonlyArray<{ readonly id: string; readonly element?: unknown }>,
-): string | undefined => {
-  let node: Element | null = target.elementFromPoint(x, y);
+): string | undefined => gateIdContaining(target.elementFromPoint(x, y), instances);
 
-  while (node !== null) {
-    const current = node;
-    const match = instances.find((instance) => instance.element === current);
-    if (match !== undefined) return match.id;
-    node = node.parentElement;
-  }
-  return undefined;
-};
+/**
+ * The instance id of the guard a click was made on, or `undefined`.
+ *
+ * A click a pointer made is placed by where the pointer was, as `gateIdAt` places it. One
+ * a keyboard made, on a control with focus, reports `detail` 0 and no pointer, and a point
+ * read from it would land at the page's corner, on whatever guard wraps the page and not
+ * on the control the reader pressed. That click is placed by the element it was made on.
+ * A click with no pointer whose target is not an element has nothing else to go on, so it
+ * falls back to its coordinates.
+ */
+export const gateIdOfClick = (
+  target: Document,
+  click: {
+    readonly detail: number;
+    readonly target: EventTarget | null;
+    readonly clientX: number;
+    readonly clientY: number;
+  },
+  instances: ReadonlyArray<{ readonly id: string; readonly element?: unknown }>,
+): string | undefined =>
+  click.detail === 0 && click.target instanceof Element
+    ? gateIdContaining(click.target, instances)
+    : gateIdAt(target, click.clientX, click.clientY, instances);

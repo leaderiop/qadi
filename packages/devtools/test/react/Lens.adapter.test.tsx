@@ -1,12 +1,14 @@
 /**
  * The lens adapter's click, driven over a session of its own with no dock around it.
  *
- * A click is consumed exactly when a pick was made, even when a subscriber to the session
- * throws while being told of the pick.
+ * Two properties of the click handler are held here: a click is consumed exactly when a
+ * pick was made, even when a subscriber to the session throws while being told of the
+ * pick, and a click that a keyboard made is placed by the control it was made on and not
+ * by a point it did not report.
  */
 import { afterEach, assert, describe, it } from "@effect/vitest";
 import { hasPermission, permission } from "@qadi/core";
-import { act, render } from "@testing-library/react";
+import { act, fireEvent, render } from "@testing-library/react";
 import { vi } from "vitest";
 import { makeExternalStore } from "../../src/model/ExternalStore.ts";
 import { joinQuestions, type GateInstanceLike } from "../../src/model/Gates.ts";
@@ -34,7 +36,12 @@ const control = (parent: HTMLElement = document.body): HTMLButtonElement => {
 const mount = (instances: ReadonlyArray<GateInstanceLike>) => {
   const lens = makeLensSession();
   const questions = makeExternalStore(
-    joinQuestions({ questions: [], gates: instances, questionsFailed: undefined, unsampled: false }),
+    joinQuestions({
+      questions: [],
+      gates: instances,
+      questionsFailed: undefined,
+      unsampled: false,
+    }),
   );
   const Probe = () => {
     useLens(lens, questions);
@@ -83,5 +90,29 @@ describe("the lens adapter's click", () => {
     assert.strictEqual(pickedOf(lens.getSnapshot()), "a", "the pick was recorded");
     assert.isTrue(click.defaultPrevented, "the click was consumed");
     assert.strictEqual(thrown, boom, "the subscriber's failure reached the dispatch");
+  });
+
+  it("a click made with no pointer is placed by the control it was made on, not by a point it did not report", async () => {
+    const marker = document.createElement("span");
+    document.body.appendChild(marker);
+    const held = control(marker);
+    const beside = control();
+    const lens = mount([guard("a", marker)]);
+    await picking(lens);
+
+    document.elementFromPoint = () => marker;
+    let proceeded = false;
+    await act(async () => {
+      proceeded = fireEvent.click(beside, { detail: 0, clientX: 0, clientY: 0 });
+    });
+    assert.isTrue(proceeded, "a control no guard holds keeps its click");
+    assert.isUndefined(pickedOf(lens.getSnapshot()), "nothing picked");
+
+    document.elementFromPoint = () => null;
+    await act(async () => {
+      proceeded = fireEvent.click(held, { detail: 0, clientX: 0, clientY: 0 });
+    });
+    assert.isFalse(proceeded, "a control a guard holds is a pick");
+    assert.strictEqual(pickedOf(lens.getSnapshot()), "a");
   });
 });

@@ -149,3 +149,14 @@ The cell was run on the unchanged handler (`if (!lens.choose(...)) return;` befo
 subscriber's throw skipped them (`the click was consumed: expected false to be true`).
 
 - failed: a click that made a pick is still consumed when a subscriber throws while being told of it, and its failure still reaches the dispatch
+
+### IN-03 a click with no pointer is placed by its target
+
+The two new test files were run before `gateIdOfClick` existed and before the handler used it: the helper's three cells
+failed (`gateIdOfClick is not a function`), and the adapter cell failed on the unchanged handler, which read the point
+(`a control no guard holds keeps its click: expected false to be true`).
+
+- failed: a click that reports a pointer is placed by its coordinates, wherever its target is
+- failed: a click with no pointer is placed by the element it was made on, not by a point
+- failed: a click with no pointer and no element to name falls back to its coordinates
+- failed: a click made with no pointer is placed by the control it was made on, not by a point it did not report
