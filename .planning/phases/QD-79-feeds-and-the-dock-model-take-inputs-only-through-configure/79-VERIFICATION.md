@@ -1,10 +1,44 @@
 ---
 phase: QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure
-verified: 2026-11-24T15:00:00Z
+verified: 2026-11-24T19:15:00Z
 status: passed
 score: 5/5 must-haves verified
 covered_files:
   - ".changeset/devtools-feeds-take-inputs-through-configure.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-01-PLAN.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-01-SUMMARY.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-02-PLAN.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-02-SUMMARY.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-03-PLAN.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-03-SUMMARY.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-04-PLAN.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-04-SUMMARY.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-05-PLAN.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-05-SUMMARY.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-06-PLAN.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-06-SUMMARY.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-07-PLAN.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-07-SUMMARY.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-08-PLAN.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-08-SUMMARY.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-09-PLAN.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-09-SUMMARY.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-10-PLAN.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-10-SUMMARY.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-11-PLAN.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-11-SUMMARY.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-12-PLAN.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-12-SUMMARY.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-13-PLAN.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-13-SUMMARY.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-14-PLAN.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-14-SUMMARY.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-15-PLAN.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-15-SUMMARY.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-16-PLAN.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-16-SUMMARY.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-17-PLAN.md"
+  - ".planning/phases/QD-79-feeds-and-the-dock-model-take-inputs-only-through-configure/79-17-SUMMARY.md"
   - "packages/devtools/src/model/DiagnosticsFeed.ts"
   - "packages/devtools/src/model/DockModel.ts"
   - "packages/devtools/src/model/ExternalStore.ts"
@@ -23,7 +57,7 @@ covered_files:
   - "packages/devtools/test/surface.tst.ts"
   - "scripts/check-package-install.mjs"
   - "spec/decisions/192-feeds-and-the-dock-model-take-inputs-only-through-configure.md"
-covered_digest: "v4:sha256:a8038197fe510b18830dc57c138fd95fda761ce55ae07afdee1f8bf101c89154"
+covered_digest: "v4:sha256:b5475e132cbb986996fdc29538888df723805e3978bc34acf4c1424a849cabad"
 behavior_unverified: 0
 overrides_applied: 0
 ---
@@ -137,3 +171,61 @@ No gaps. Every roadmap success criterion and every CONF and WX requirement is ba
 
 _Verified: 2026-11-24_
 _Verifier: Claude (gsd-verifier)_
+
+---
+
+## Re-verification at the v1.9 close (2026-11-24)
+
+**Staleness:** `verification.status` read `stale` at `069e202b`: three covered files changed after the report's tree (`92cfd986`), all through Phase 80 (the lens as a headless session, ADR-QD-193).
+
+| Covered file | Changed since `92cfd986` by | What changed |
+| ------------ | --------------------------- | ------------ |
+| `packages/devtools/src/model/DockModel.ts` | Phase 80 | `import { makeLensSession }` (`:72`), `readonly lens: LensSession` on `DockModel` (`:224`), `const lens = makeLensSession()` (`:340`), `lens` in the returned record (`:436`): 8 added lines, none inside `configure` |
+| `packages/devtools/src/react/DevtoolsDock.tsx` | Phase 80 | `lens={props.model.lens}` passed to `QuestionsPanel` (`:270`): 1 added line |
+| `packages/devtools/test/model/ConfigureRule.test.ts` | Phase 80 | the nine-store fixtures become ten: `lens` is added to `storesOf`, `storeNames`, `snapshotsOf`, `heardOnEach` and `silent` (`:594`, `:607`, `:622`, `:644`, `:656`, `:670`), and CR22's title and two expectations gain `lens: 0` (`:895`, `:912`, `:930`) |
+
+`git diff 92cfd986 HEAD` over the other sixteen covered files (the three feeds, `ExternalStore.ts`, `useConfigured.ts`, `useDockModel.ts`, `useTimeline.ts`, `useDiagnostics.ts`, `useScoped.ts`, the changeset, ADR-QD-192, `surface.tst.ts`, `ConfigureInputs.tst.ts`, `useConfigured.test.tsx`, the characterisation file, `check-package-install.mjs`) is empty. The verifier was told Phase 80's change is legitimate; the diff was read to confirm it, not assumed.
+
+### Truths against the tree at `069e202b`
+
+| # | Truth | Holds now? | Current evidence |
+|---|-------|-----------|------------------|
+| 1 | SC1 / CONF-01: first-render characterisation, plain and StrictMode, written on the base | Holds, unchanged | `79-characterisation-check.mjs`: "ConfigureFirstRender.characterisation.test.tsx holds its first commit (cf3186d9)", exit 0. The file is byte-identical to the report's tree and green in the devtools run. `DevtoolsDock.tsx`'s one added prop reaches `QuestionsPanel`, which the characterisation renders with no `lens` change to what it pins. |
+| 2 | SC2 / CONF-02: the four constructors take no input; `configure` is the only way in | Holds; line numbers moved | `makeTimelineFeed` `TimelineFeed.ts:161`, `makeDiagnosticsFeed` `DiagnosticsFeed.ts:163`, `makeGatesFeed` `GatesFeed.ts:151` (unchanged); `makeDockModel` now `DockModel.ts:323` (was `:317`), still `function* (): Effect.fn.Return<DockModel, never, ...>` with no parameter. `makeLensSession()` (`:340`) is called with no argument too, so the tenth store adds no constructor input. `surface.tst.ts:307-309` pins `Parameters<typeof makeX>` as `[]` for the three feeds; a repo-wide grep for `make(TimelineFeed\|GatesFeed\|DiagnosticsFeed\|DockModel)(<non-empty>` over `packages/devtools/src`, `spec`, `scripts`, package READMEs and `apps/website/src` finds only the upgrade guide's uncompiled "before" fence (`upgrading.md:1307-1308`). |
+| 3 | SC3 / CONF-03: one per-field rule (`sameFields`, `sameFieldsOrAbsent`), omitted equals `undefined`, diagnostics on/off distinct, G43 stated exception, a type pin that can fail | Holds, unchanged | `ExternalStore.ts:138` (`sameFields`) and `:154` (`sameFieldsOrAbsent`), used at `TimelineFeed.ts:200`, `DiagnosticsFeed.ts:217`, `GatesFeed.ts:284` (`&& watchFailure === undefined`, the G43 exception) and `ExternalStore.ts:197`. Normalisers: `completeTimelineInputs` `TimelineFeed.ts:109`, `completeDiagnosticsOptions` `DiagnosticsFeed.ts:148`, `completeGatesInputs` `GatesFeed.ts:88`, `completeDockInputs` `DockModel.ts:178` (was `:177`). The dock still compares nothing of its own beyond `wanted.catalogue !== before.catalogue` (`DockModel.ts:416`); the feeds apply the rule to what `feedInputsOf(wanted)` hands them. `run-tstyche`: 77 files, 415 passed, 2 skipped, 0 failed (Phase 80 added a file; the report's 76 and 414 were the tree before it). |
+| 4 | SC4 / CONF-04: one package-private `useConfigured`, used by `useDockModel`, `useTimeline`, `useDiagnostics`; hidden `Activity` or StrictMode rebuild configures with current inputs | Holds, unchanged | `useConfigured.ts:19` (build and configure inside the scoped effect, then `useLayoutEffect` at `:27`); callers `useDockModel.ts:30`, `useTimeline.ts:71`, `useDiagnostics.ts:44`. None of the five hook files or `useConfigured.test.tsx` changed. `useConfigured.test.tsx` green. |
+| 5 | SC5 / CONF-05, CONF-06: `UseDockModelInput` gone, `DevtoolsDockProps` is `DockModelInputs` plus host props, one mapping, gate 14, README, website, spec, ADR, changeset, upgrade guide | Holds; line numbers moved | `UseDockModelInput`: zero hits across `packages`, `scripts`, `spec` (and `apps` source; only built `dist` html mentions the feed call). `DevtoolsDock.tsx:76` `DevtoolsDockProps extends DockModelInputs { unknownParents; onInvalidate }`, spread to `useDockModel(inputs)` at `:97`. `feedInputsOf` `DockModel.ts:206` (was `:205`), called once at `configure` `:410` (was `:403`). ADR-QD-192, the changeset, the upgrade entry and `check-package-install.mjs` are unchanged. `spec/decisions/` and `spec/behaviors/28-devtools-screens.md` changed through Phase 80's own ADR and rows; ADR-QD-192 itself did not. |
+
+### The four invariants asked about
+
+| Invariant | Holds? | Evidence now |
+|-----------|--------|--------------|
+| No feed or model takes a constructor parameter | Holds | Row 2. The lens session added in Phase 80 is built bare (`DockModel.ts:340`). |
+| `configure` is the only input path and leaves the lens alone | Holds | `configure` (`DockModel.ts:403-432`) names `timelineFeed`, `roles`/`spread`, `simulation.setPorts`, `gatesFeed`, `diagnosticsFeed` and `shownReading` and never `lens`. `ConfigureRule.test.ts` now counts the lens as a tenth store in `silent` (`:670`, `lens: 0`) and applies it to every no-change case (`:739`, `:766`, `:787`, `:807`) and to CR22's bare-dock count (`:912`, `:930`): a configure that touched it would fail those. The test file is 14 lines changed, all additive and for `lens`; no existing expectation moved. |
+| The dock has no comparison or guard of its own | Holds | One comparison in `configure`, `wanted.catalogue !== before.catalogue` (`:416`); `DevtoolsDock.tsx` imports and uses no guard or `@qadi/react` hook (grep for `guard` and `@qadi/react` in it: no hit). |
+| `useConfigured` and the first-render characterisation | Hold | Rows 1 and 4. |
+
+### Spot-checks re-run
+
+Run on the tree at `069e202b`, from the repo root, one command at a time, stdin closed. No Stryker, no `record`, no `pnpm check:pr`.
+
+| Behaviour | Command run now | Result now | Status |
+| --------- | --------------- | ---------- | ------ |
+| The tests that hold the truths | `pnpm exec vitest run --project devtools packages/devtools/test/model/{ConfigureRule,DockModel,GatesFeed}.test.ts packages/devtools/test/react/{useConfigured,ConfigureFirstRender.characterisation,DockRegistryReads}.test.tsx` | 6 files, 141 tests passed | PASS |
+| The whole devtools project | `pnpm exec vitest run --project devtools` | 85 files, 1906 tests passed (the report's 80 and 1869, plus Phase 80's) | PASS |
+| First-render characterisation holds its first commit | `node .planning/phases/QD-79-.../79-characterisation-check.mjs` | "holds its first commit (cf3186d9)", exit 0 | PASS |
+| Pinned tests hold their assertions | `node .../79-pinned-check.mjs` | "15 tests hold their assertions", exit 0 | PASS |
+| The mutation script's own self-test | `node .../79-mutation.mjs --self-test` | "32 passed", exit 0 | PASS |
+| Type pins in both tstyche passes | `node scripts/run-tstyche.mjs` | 77 files, 415 passed, 2 skipped, 0 failed | PASS |
+| House style | `node scripts/check-house-style.mjs` | `604 file(s) clean (3 declared switch(es), 77 type-test file(s))` | PASS |
+| Gate 13 | `node scripts/check-api-surface.mjs` | exit 0, `942 export(s) documented across 9 package(s)` (the same 942 the report recorded) | PASS |
+
+Not re-run: `79-mutation.mjs compare` against a fresh Stryker run (Stryker is not run here; the committed `79-mutation-close.json` is for `92cfd986`, and Phase 80 has its own mutation record), `pnpm check:pr` and `pnpm spec:package` (gate 14's packed consumer). `check-package-install.mjs` and every file it reads for the three feed signatures are unchanged since the run that was green.
+
+### Evidence that moved
+
+Only line numbers, in `DockModel.ts`, because Phase 80 inserted lines above them: `makeDockModel` `:317` to `:323`, `completeDockInputs` `:177` to `:178`, `feedInputsOf` `:205` to `:206`, its call in `configure` `:403` to `:410`. No truth's claim changed. Counts moved with Phase 80: devtools run 80 files and 1869 tests to 85 and 1906, tstyche 76 files and 414 tests to 77 and 415, house style 596 files and 76 type-test files to 604 and 77.
+
+**Digest:** `covered_digest` is refreshed by `gsd-tools query verification.fingerprint` over the same implementation files; the frontmatter's `covered_files` is that command's output verbatim.
+
+**Verdict:** passed. All five truths still hold; no gap.

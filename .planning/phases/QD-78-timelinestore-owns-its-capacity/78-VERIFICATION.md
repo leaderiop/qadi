@@ -39,7 +39,7 @@ covered_files:
   - "packages/devtools/test/react/useTimeline.test.tsx"
   - "packages/devtools/test/surface.tst.ts"
   - "spec/decisions/191-a-timeline-store-owns-its-capacity.md"
-covered_digest: "v4:sha256:78cade29a87dad63fb51436b5ddb50d56e6547ff016cd86714924c0ed7d28936"
+covered_digest: "v4:sha256:fe97440b8a9daf004b351c36a40b780d82fd71697ee65fcf17a76dafb1957120"
 behavior_unverified: 0
 overrides_applied: 0
 ---
@@ -153,6 +153,46 @@ No gaps. The goal holds in code: `resize` is a store command that validates befo
 Minor notes, none blocking:
 - `effectiveCapacity` is an `export function` in `TimelineFeed.ts` shared by the feed and the dock. It is not in the package barrel, so gate 13 needs no row, and it keeps the capacity rule stated once in `emptyTimeline`.
 - Seven `verify.key-links` entries fail only because the plans wrote regex-special patterns; they were checked by hand above.
+
+---
+
+## Re-verification at the v1.9 close (2026-11-24)
+
+**Staleness:** `gsd-tools query verification.status` read `stale` at `069e202b`: covered files `DockModel.ts` and `TimelineFeed.ts` (and the `DockModel.test.ts`, `TimelineFeed.test.ts` and `useTimeline.ts` files) changed after this report. The changes are Phase 79's (the feeds and the dock model built bare, inputs through `configure`, ADR-QD-192: `627b5a76`, `16557256`, `b20a807f`, `16f0ed19`) and Phase 80's (`1865d9a1`, the lens as the dock model's tenth store). The original report above is kept as written. `TimelineStore.ts`, `Timeline.ts`, their tests, `useTimeline.test.tsx`, ADR-QD-191 and the changeset are unchanged since `038af3d3`.
+
+**What moved.** `makeTimelineFeed` takes no inputs now: it builds `makeTimelineStore()` at the default bound and `configure` applies `{ source, capacity }` (`TimelineFeed.ts:162-167, 195-211`). The dock model's capacity check moved from an inline call into `completeDockInputs` (`DockModel.ts:177-186`), which `configure` calls first (`DockModel.ts:405`). The tests that built `makeTimelineFeed({ ... })` build through `timelineFeedOf` (`packages/devtools/test/builtFeeds.ts`: build bare, then `configure`). `TimelineFeed.test.ts` changed by that call-site swap only: no title, input or expected value of TF4, TF14, TF26, TF27, TF29 or any other test moved (diff `038af3d3..HEAD` read in full).
+
+### Truths, one by one
+
+| # | Truth | Still holds | Evidence now |
+|---|-------|-------------|--------------|
+| 1 | TRSZ-01: `resize` validates first, no-op for the same effective bound, empties at the new bound, releases the pause, publishes once | Yes, unchanged | `TimelineStore.ts:82-90`: `emptyTimeline({ capacity })` first; `next.capacity === timeline.capacity` returns `false`; else `timeline = next; frozen = undefined; view.publish(next); return true`. `clear` builds from `timeline.capacity` (`:76-80`). Contract at `:44-53`. The nine-test `describe("resizing")` block is at `TimelineStore.test.ts:196`; the file passes. |
+| 2 | TRSZ-02: the feed returns its one store; forwarder, mirror view, `push` listener and abandoned subscription gone; `idleTimeline` gains the member | Yes, strengthened | `TimelineFeed.ts:167` `const timeline = makeTimelineStore();` built once and returned as `timeline` (`:185`); no `inner`, `view`, `push`, `bounded` or forwarder in the file. `idleTimeline` has `resize: () => false` (`:143`), pinned by TF36 (`TimelineFeed.test.ts:806`). The dock model reads `timelineFeed.timeline` (`DockModel.ts:331-332`) and hands it out (`:441`). |
+| 3 | TRSZ-03: the host's store keeps one identity; `try { resize } finally { readSource }` and `reads.closed()` stay; TF4/14/26/27/29 pass unedited; a throwing capacity leaves inputs unchanged | Yes | `configure`: `if (reads.closed()) return` (`TimelineFeed.ts:197`); `completeTimelineInputs(next)` throws before `held = wanted` (`:199-201`); `try { timeline.resize(wanted.capacity) } finally { readSource(wanted.source) }` (`:204-208`). `readSource` now runs unconditionally past the `sameFields` check, which is the old `resized \|\| source changed` condition (a moved input is a moved capacity, which `resize` answers `true` for, or a moved source). `restart` keeps the closed guard (`:189`). TF4 (`:135`), TF14 (`:315`), TF26 (`:548`), TF27 (`:573`), TF29 (`:621`) pass with their bodies unchanged apart from the `timelineFeedOf` call site; TF30, TF31, TF33, TF34, TF36 present and pass. |
+| 4 | TRSZ-04: ADR-QD-191 or an ADR-QD-137 amendment, `spec/overview.md` and a `@qadi/devtools` changeset | Yes, unchanged | `spec/decisions/191-a-timeline-store-owns-its-capacity.md`; ADR-QD-137 amendment (`137-...md:158`); `spec/overview.md:874` (`TimelineStore`, `resize`) and `:927`; `.changeset/devtools-timeline-store-owns-its-capacity.md` (`"@qadi/devtools": minor`, **Breaking**); `apps/website/src/content/docs/docs/reference/upgrading.md:1221-1227`; BEH-QD-726..730 (`28-devtools-screens.md:2931,2968,2996,3037`; `27-devtools-timeline.md:571`), INV-QD-401/402 (`invariants.md:4645,4657`), CCR-QD-470 (`spec/README.md:407`). `verify-traceability.sh --strict`: PASS 21, FAIL 0. |
+| 5 | D-02, D-03, D-08, D-12, D-13 honoured | Yes; two evidence locations moved | D-02: `effectiveCapacity` (`TimelineFeed.ts:126-128`) makes omitted and default one bound, TF33 (`:725`). D-03: `Timeline.ts:250-252` `bound` returns `self` when `sameElements(kept, self.entries)`. D-08: `useTimelineStore` resizes in `useLayoutEffect` (`useTimeline.ts:105-107`), never in render, and builds `makeTimelineStore({ capacity })` in `useState` (`:101`); the file differs from `038af3d3` only in the `useTimeline` path (`useConfigured` over `makeTimelineFeed`, `:64-88`). D-12: truth 1. D-13: **moved** from `DockModel.ts:300` to `completeDockInputs` (`DockModel.ts:177-186`, called first in `configure` at `:405`, before `held = wanted`), then `try { timelineFeed.configure(fed.timeline) } finally { catalogue, roles, ports, gates, diagnostics, shownReading }` (`:412-433`); M55 (`DockModel.test.ts:455`) and M56 (`:481`) pass. |
+| 6 | WX-01..07 cross-cutting rules | Yes, for this phase's contribution | See the spot-checks. The scope, budgets and no-release rules are unchanged by this re-verification (it is read-only on code). The full merge gate belongs to the milestone close and was not re-run here. |
+
+**Score:** 6/6 truths still hold (0 behavior-unverified). No truth failed; no gap.
+
+### Spot-checks re-run (v1.9 close, 2026-11-24)
+
+Run on `069e202b`, one command at a time, in the foreground, with stdin closed. Stryker and `record` were not run.
+
+| Behaviour | Command run now | Result now | Status |
+|-----------|-----------------|------------|--------|
+| The tests that hold the five truths | `pnpm exec vitest run --project devtools packages/devtools/test/model/{TimelineStore,TimelineFeed,Timeline,DockModel}.test.ts packages/devtools/test/react/useTimeline.test.tsx` | 5 files, 180 tests passed | PASS |
+| The devtools suite | `pnpm exec vitest run --project devtools` | 85 files, 1906 tests passed | PASS |
+| Type pins, including `surface.tst.ts:318-320` (`resize` is required and returns `boolean`) | `pnpm test:tstyche` | 77 files, 415 tests passed, 2 skipped (both passes) | PASS |
+| The mutation script's own checks | `node .planning/phases/QD-78-timelinestore-owns-its-capacity/78-mutation.mjs --self-test` | `self-test: 31 passed` | PASS |
+| The recorded mutation close against its base (reads the JSON; no Stryker run) | `node .../78-mutation.mjs compare` | exit 0: Timeline 106/106, TimelineStore 39/39, TimelineFeed 41/41, DockModel 72/72, 0 survived, 0 no coverage, 0 new Ignored. This is the close recorded in this phase; it does not measure the Phase 79 and 80 edits to `TimelineFeed.ts` and `DockModel.ts`, which those phases carry in their own records. | PASS (record only) |
+| House style | `node scripts/check-house-style.mjs` | `604 file(s) clean (3 declared switch(es), 77 type-test file(s))` | PASS |
+| Gate 13 | `node scripts/check-api-surface.mjs` | `942 export(s) documented across 9 package(s)` | PASS |
+| Traceability | `bash spec/scripts/verify-traceability.sh --strict` | PASS 21, FAIL 0, SKIP 0 | PASS |
+
+**Digest:** `covered_digest: "v4:sha256:78cade29a87dad63fb51436b5ddb50d56e6547ff016cd86714924c0ed7d28936"` becomes `covered_digest: "v4:sha256:fe97440b8a9daf004b351c36a40b780d82fd71697ee65fcf17a76dafb1957120"`, computed by `gsd-tools query verification.fingerprint` over the same 35 covered files (the phase's 22 plan and summary files plus the 13 implementation, test, spec and changeset files listed above).
+
+**Verdict:** passed
 
 ---
 
