@@ -100,9 +100,9 @@ export interface DiagnosticsReadout {
    * called, and then what they threw is rethrown out of whatever published: one value as
    * itself, several as one `AggregateError`. A throw during a publish from the poll is
    * stated as the poll's stop, and the `Stopped` is held even when a listener throws on
-   * that publish too. A throw on the `Starting` that `restart` or `configure` publishes
-   * escapes before the new poll is forked, so the feed stays `Starting` and no new poll
-   * starts.
+   * that publish too. A throw on the `Starting` that `restart` or `configure` publishes is
+   * rethrown once the new poll has started, so the feed never stays `Starting` with no poll
+   * (ADR-QD-194).
    */
   readonly subscribe: (listener: () => void) => () => void;
   readonly getSnapshot: () => DiagnosticsSnapshot;
@@ -184,8 +184,6 @@ export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed"
   const start = (next: DiagnosticsOptions) => {
     const token = runs.begin();
     const target = store;
-    // Before the fork: its synchronous prefix may already reach `Live` or `Stopped`. The one `Starting` value, so `show` drops a repeat.
-    show(diagnosticsStarting.status);
     const marking: DiagnosticsStore = {
       subscribe: target.subscribe,
       getSnapshot: target.getSnapshot,
@@ -198,9 +196,15 @@ export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed"
         show(DiagnosticsStatus.$is("Live")(current) ? current : DiagnosticsStatus.Live());
       },
     };
-    runs.fork(token, runDiagnostics(marking, next), {
-      onFailure: (cause) => show(DiagnosticsStatus.Stopped({ reason: causeMessage(cause), sampled })),
-    });
+    // Before the fork: its synchronous prefix may already reach `Live` or `Stopped`. The one
+    // `Starting` value, so `show` drops a repeat. The poll starts whatever a listener throws on it.
+    try {
+      show(diagnosticsStarting.status);
+    } finally {
+      runs.fork(token, runDiagnostics(marking, next), {
+        onFailure: (cause) => show(DiagnosticsStatus.Stopped({ reason: causeMessage(cause), sampled })),
+      });
+    }
   };
 
   const off = () => {
