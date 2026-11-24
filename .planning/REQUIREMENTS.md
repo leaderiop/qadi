@@ -20,10 +20,10 @@ phase runs on branch `arch-wave-14`, strictly serial (77 → 80).
 
 ### `TimelineStore` owns its capacity (Phase 78, ARCH-125, devtools)
 
-- [ ] **TRSZ-01**: `TimelineStore` has a `resize(capacity)` command. It validates the capacity before changing anything, does nothing for the same effective capacity, empties the timeline at the new bound, releases the pause, and notifies subscribers once. Each of these is pinned in `TimelineStore.test.ts` without a scope or a source.
-- [ ] **TRSZ-02**: `makeTimelineFeed` returns its one store. The six-member forwarder, the mirror `view` store, the `push` listener and the subscription left on a dropped store are deleted. `idleTimeline` gains the member.
-- [ ] **TRSZ-03**: The host's store keeps the same identity across a capacity change. `try { resize } finally { readSource }` and the `reads.closed()` guard stay. TF4, TF14, TF26, TF27 and TF29 pass unedited. A capacity change that throws leaves the feed's inputs unchanged (no half-applied state).
-- [ ] **TRSZ-04**: ADR-QD-191 records the command, or ADR-QD-137 is amended and 191 is named unused. `spec/overview.md` and a `@qadi/devtools` changeset cover the new public member.
+- [x] **TRSZ-01**: `TimelineStore` has a `resize(capacity)` command. It validates the capacity before changing anything, does nothing for the same effective capacity, empties the timeline at the new bound, releases the pause, and notifies subscribers once. Each of these is pinned in `TimelineStore.test.ts` without a scope or a source.
+- [x] **TRSZ-02**: `makeTimelineFeed` returns its one store. The six-member forwarder, the mirror `view` store, the `push` listener and the subscription left on a dropped store are deleted. `idleTimeline` gains the member.
+- [x] **TRSZ-03**: The host's store keeps the same identity across a capacity change. `try { resize } finally { readSource }` and the `reads.closed()` guard stay. TF4, TF14, TF26, TF27 and TF29 pass unedited. A capacity change that throws leaves the feed's inputs unchanged (no half-applied state).
+- [x] **TRSZ-04**: ADR-QD-191 records the command, or ADR-QD-137 is amended and 191 is named unused. `spec/overview.md` and a `@qadi/devtools` changeset cover the new public member.
 
 ### Feeds and the dock model take inputs only through `configure` (Phase 79, ARCH-126, devtools; Breaking)
 
@@ -81,10 +81,10 @@ phase runs on branch `arch-wave-14`, strictly serial (77 → 80).
 | AROW-04 | Phase 77 | Complete |
 | AROW-05 | Phase 77 | Complete |
 | AROW-06 | Phase 77 | Complete |
-| TRSZ-01 | Phase 78 | Pending |
-| TRSZ-02 | Phase 78 | Pending |
-| TRSZ-03 | Phase 78 | Pending |
-| TRSZ-04 | Phase 78 | Pending |
+| TRSZ-01 | Phase 78 | Complete |
+| TRSZ-02 | Phase 78 | Complete |
+| TRSZ-03 | Phase 78 | Complete |
+| TRSZ-04 | Phase 78 | Complete |
 | CONF-01 | Phase 79 | Pending |
 | CONF-02 | Phase 79 | Pending |
 | CONF-03 | Phase 79 | Pending |
