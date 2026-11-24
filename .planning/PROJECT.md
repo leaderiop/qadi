@@ -1,4 +1,4 @@
-# Qadi — Architecture Waves (current: v1.9 Arch Wave 14)
+# Qadi — Architecture Waves (current: v1.10 Arch Wave 15)
 
 ## What This Is
 
@@ -12,6 +12,32 @@ module was a shallow pass-through.
 
 The review is at https://claude.ai/artifact/LH5dLGadz28NyzmZez9jcX, with a local copy at
 `/tmp/claude-1002/-home-yopu-Project-Perso-qadi/588341bb-9f42-4e6e-b1a3-ed991ed47acf/scratchpad/qadi-architecture-review.html`.
+
+## Current Milestone: v1.10 Arch Wave 15
+
+**Goal:** Resolve all four candidates of the 2026-11-24 architecture review. The two live defects go first, each opening
+with a regression test seen RED on its phase base, then the two devtools deepenings.
+
+**Target features (Phases 81–84, ARCH-128…131, strictly serial):**
+- 81: The dock model's `configure` applies every input whatever a listener throws, and rethrows what was collected once
+  at the end. Today only the timeline step is guarded: a throwing explorer, simulation, dock, roles, questions, services
+  or diagnostics listener skips every later step, a second throw replaces the first, and an identical `configure` does
+  not heal it (reproduced 2026-11-24). The double `spread` on a capacity-and-catalogue change goes with it (devtools;
+  live defect; extends ADR-QD-191 decision 11 and ADR-QD-177)
+- 82: `QadiProvider`'s registry has one owner for its lifetime. A provider hidden inside `<Activity>` longer than a
+  macrotask and shown again with stable children throws `registry is disposed` from its subject effect
+  (`QadiProvider.tsx:258`, reproduced 2026-11-24) (react; live defect)
+- 83: The diagnostics feed holds its reading as a value folded by a pure per-field rule; the package-private
+  `DiagnosticsStore` that nothing subscribes to goes, `runDiagnostics` takes an `accept` sink as `runSource` does,
+  and the never-written `Diagnostics.questions` path is resolved (devtools; possibly Breaking; amends ADR-QD-173)
+- 84: `useConfigured` takes a value that has `configure`, deleting its three identical adapters, with the review's
+  small finds: `LensSession`'s `move` restating `ExternalStore.set`, `useLens` taking one fact two ways, the
+  `DockFrame` stop-ledger written twice, and `useTimeline`'s per-render inputs record (devtools)
+
+**Source review:** `/private/tmp/claude-502/-Users-mohammadalmechkor-Projects-Perso-qadi/8b5d3789-bd5e-4ce2-bf7e-0b31a0ae4995/scratchpad/architecture-review-20261124.html`
+(session-scoped; `.planning/phases/_WAVE15-CONTEXT.md` holds everything a planner needs). Branch `arch-wave-15`, off
+`arch-wave-14` at `902d2128` (v1.9 not merged; stacked as v1.6 and v1.7 were). No merge, no release. Scope, order,
+branch and research were decided autonomously on 2026-11-24 under the owner's standing instruction of 2026-11-22.
 
 ## Previous Milestone: v1.9 Arch Wave 14 (completed 2026-11-24; not released)
 
@@ -183,7 +209,7 @@ v1.9 Arch Wave 14 completed 2026-11-24 on branch `arch-wave-14` (see the v1.9 en
 - the highlight lens is a headless session the dock model owns, `useLens` is its document adapter, and
   `QadiContextValue` no longer carries the unread `instrument`.
 
-Not merged and not released. The next milestone is not yet defined.
+Not merged and not released. The next milestone is v1.10 Arch Wave 15, on `arch-wave-15` stacked on this branch.
 
 v1.8 Arch Wave 13 completed 2026-11-23 on branch `arch-wave-13` (see the v1.8 entry above). All eight candidates of the
 2026-11-22 architecture review are resolved:
@@ -419,6 +445,10 @@ logged, counted or spanned.
 
 ### Active
 
+- [ ] ARCH-128 The dock model's `configure` applies every input whatever a listener throws — v1.10, Phase 81
+- [ ] ARCH-129 `QadiProvider`'s registry has one owner for its lifetime — v1.10, Phase 82
+- [ ] ARCH-130 The diagnostics feed folds its reading as a value — v1.10, Phase 83
+- [ ] ARCH-131 `useConfigured` requires `configure`, and the review's small finds — v1.10, Phase 84
 
 ### Out of Scope
 
@@ -701,4 +731,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-24 after v1.9 milestone*
+*Last updated: 2026-11-24 after starting v1.10 milestone*
