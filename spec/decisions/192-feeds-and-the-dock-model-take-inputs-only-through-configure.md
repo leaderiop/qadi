@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-192                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-24                                     |
 > | Status         | Accepted — amends ADR-QD-137, ADR-QD-173 and ADR-QD-185 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-24): Initial (ARCH-126, CCR-QD-471) |
+> | Change History | 1.1 (2026-11-24): the behaviours and invariants that state it; DockRegistryReads.test.tsx pins the registry read counts<br>1.0 (2026-11-24): Initial (ARCH-126, CCR-QD-471) |
 
 ---
 
@@ -191,7 +191,9 @@ Three consequences are not breaking and are stated so a host is not surprised:
   registry's `instances()` is read once under the hook and twice under StrictMode, where the code before ADR-QD-192 read
   it twice and three times; `subscribe` and live-listener counts are unchanged (1 and 1, 2 and 1), and a failing registry is subscribed
   twice and three times and read never, as before. The first-render characterisation pins the `subscribe` counts and no
-  `instances()` count, and the end states are identical.
+  `instances()` count, and the end states are identical. `packages/devtools/test/react/DockRegistryReads.test.tsx` pins the
+  read counts through `useDockModel`, plain and under StrictMode, for a healthy and a failing registry, and that a re-render
+  holding the same fields reads and subscribes nothing.
 - **The hook rests on React re-running an effect with its latest closure.** On the installed React 19.3.1 the build effect
   `useScoped` re-runs on a StrictMode remount or an `Activity` reveal reads the latest committed render's closure although
   its dependency array is empty. If a React release stops doing that, the first reader commit after a reveal holds the
@@ -225,6 +227,13 @@ value alone and a closure held from the first render.
 hooks changed and holds identical on the first commit of the dock and of the feed hooks, plain and under StrictMode,
 the first commit after each of three `Activity` reveals, and a first configure that throws. It is held to its first commit
 by a recorded hash.
+
+**The registry reads.** `packages/devtools/test/react/DockRegistryReads.test.tsx` mounts a dock through `useDockModel` over a
+registry that counts its `instances()` and `subscribe` calls: a healthy registry is read once and subscribed once, and read
+twice and subscribed twice under StrictMode; a registry whose `subscribe` throws is read never and subscribed twice, and
+three times under StrictMode; a re-render with a fresh inputs record holding the same fields reads and subscribes nothing;
+and one that moves an input of the gates feed reads the registry once. It was shown failing against a gates feed whose
+early return was removed.
 
 **The sources.** `packages/devtools/test/model/ExternalStore.test.ts` pins `sameFields` and `sameFieldsOrAbsent` and keeps
 the two cases that a field on one side only, and a field swapped for one holding `undefined`, are changes.
@@ -263,3 +272,10 @@ fence above, and `scripts/check-house-style.mjs` holds its budgets unmoved.
 - [ADR-QD-177](./177-one-throwing-listener-cannot-silence-the-rest.md) — every listener is called and what they threw is rethrown, which the dock's `finally` keeps
 - [ADR-QD-185](./185-the-dock-models-computed-stores-are-derived-stores.md) — `sameFields` is the rule a derived store's key already used; decision 2 is amended by this decision
 - [ADR-QD-191](./191-a-timeline-store-owns-its-capacity.md) — the capacity is checked first and the dock applies it whole or not at all, which the normalisers keep
+- [BEH-QD-731](../behaviors/28-devtools-screens.md#beh-qd-731-the-feeds-and-the-dock-model-are-built-with-no-inputs) — the four constructors take no argument and a bare build equals the empty build
+- [BEH-QD-732](../behaviors/28-devtools-screens.md#beh-qd-732-a-configure-in-which-no-input-moved-changes-nothing) — a `configure` in which no input moved publishes nothing and reads no host code
+- [BEH-QD-733](../behaviors/28-devtools-screens.md#beh-qd-733-a-failed-watch-is-retried-by-any-configure-and-a-quiet-mend-waits-for-a-moved-input) — the retry of a failed watch, and a quiet mend read by a moved input
+- [BEH-QD-734](../behaviors/28-devtools-screens.md#beh-qd-734-the-hooks-configure-inside-the-scoped-build) — the hooks configure inside the scoped build, and the registry reads under them
+- [BEH-QD-735](../behaviors/28-devtools-screens.md#beh-qd-735-the-docks-inputs-are-stated-once-and-a-reader-subscribed-before-the-first-configure-hears-that-configure) — the dock's inputs stated once, and what a pre-subscribed reader hears
+- [INV-QD-403](../invariants.md#inv-qd-403-a-configure-that-moves-no-input-reaches-no-host-code-the-retry-of-a-failed-watch-excepted) — a configure that moves no input reaches no host code
+- [INV-QD-404](../invariants.md#inv-qd-404-every-input-field-is-compared-or-the-package-does-not-compile) — every input field is compared, or the package does not compile
