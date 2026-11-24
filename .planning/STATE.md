@@ -4,17 +4,18 @@ milestone: v1.9
 milestone_name: Arch Wave 14
 current_phase: 80
 current_phase_name: The highlight lens is a headless session; `instrument` resolved
+current_plan: 4
 status: executing
-stopped_at: Completed QD-80-02-PLAN.md
-last_updated: "2026-11-24T15:24:00.481Z"
+stopped_at: Completed QD-80-03-PLAN.md
+last_updated: "2026-11-24T15:27:03.278Z"
 last_activity: 2026-11-24
 last_activity_desc: Phase QD-79 complete, transitioned to Phase 80
-state_head: e9fd5c0066b0139aa850518726817303f43c609a
+state_head: e4d69027dcbb736846075cc5eb3c4a1b9c8abc9f
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 48
-  completed_plans: 37
+  completed_plans: 38
   percent: 75
 ---
 
@@ -30,9 +31,9 @@ See: .planning/PROJECT.md (updated 2026-11-24)
 ## Current Position
 
 Phase: QD-80 (The highlight lens is a headless session; `instrument` resolved) — EXECUTING
-Current Plan: 3
+Current Plan: 4
 Total Plans in Phase: 13
-Status: Executing
+Status: Ready to execute
 Last activity: 2026-11-24 — 80-02 complete (the lens characterised through the dock)
 
 Progress: [████████░░] 75% (2 of 4 phases)
@@ -593,6 +594,7 @@ Progress: [████████░░] 75% (2 of 4 phases)
 | Phase QD-79 P17 | 25min | 2 tasks | 2 files |
 | Phase QD-80 P01 | 50min | 3 tasks | 4 files |
 | Phase QD-80 P02 | 35min | 2 tasks | 3 files |
+| Phase QD-80 P03 | 20min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -1027,6 +1029,7 @@ Progress: [████████░░] 75% (2 of 4 phases)
 - [Phase QD-79]: A bare build applies no inputs: the build-time application of the always-empty record is deleted, not pinned (orchestrator-decided)
 - [Phase QD-79]: The by-hand clause of the 79-16 verify judges undetected static mutants against the base Ignored multiset by kind (orchestrator-decided)
 - [Phase QD-80]: 80-01: dock mutation base recorded as measured, 69/69 (plan-time 72/72 was wrong); instrument search uses git grep
+- [Phase QD-80]: 80-03: a remounted guard registers under a new id (useId branch new), so a pick held by gate id needs no retain(ids)
 
 ### Pending Todos
 
@@ -1103,8 +1106,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-24T15:24:00.277Z
-Stopped at: Completed QD-80-02-PLAN.md
+Last session: 2026-11-24T15:26:57.908Z
+Stopped at: Completed QD-80-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
