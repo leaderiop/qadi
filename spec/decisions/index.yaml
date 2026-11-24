@@ -602,3 +602,7 @@ entries:
     file: "193-the-highlight-lens-is-a-headless-session-the-dock-model-owns.md"
     title: "The highlight lens is a headless session the dock model owns"
     status: "Accepted — amends ADR-QD-185, ADR-QD-047 and ADR-QD-111"
+  - id: "ADR-QD-194"
+    file: "194-a-run-of-calls-applies-every-call-whatever-one-throws.md"
+    title: "A run of calls applies every call whatever one throws"
+    status: "Accepted — amends ADR-QD-177, ADR-QD-185, ADR-QD-191 and ADR-QD-192"
