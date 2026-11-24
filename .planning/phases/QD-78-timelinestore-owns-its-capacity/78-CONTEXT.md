@@ -127,6 +127,15 @@ Requirements: TRSZ-01..04, plus the cross-cutting WX-01..07.
 - **D-07: `idleTimeline` gains `resize`.** It does nothing and returns `false`. It stays inert, never paused, and is
   never fed.
 
+- **D-13: the dock model applies a capacity whole or not at all.** `DockModel.configure` (`DockModel.ts:280-283`) assigns `inputs = next` and only then calls `timelineFeed.configure`. So a refused capacity throws after the dock has taken the new inputs and before it has applied the catalogue, ports, gates and diagnostics. The dock is then half-applied, and the next `configure` compares against inputs it never applied. The plan checker found this on 2026-11-24, and it was decided autonomously the same day.
+  - **Required semantics, with the exact control flow left to the planner:**
+    1. **A refused capacity changes nothing in the dock.** `inputs`, the catalogue spread and roles, the ports, the gates feed and the diagnostics feed are all left alone. The error propagates. A later valid `configure` compares against the old inputs.
+    2. **A listener throw does not stop the dock.** If the timeline's publish throws after the timeline has changed, the dock still applies every other part of `next`, then rethrows. This follows the ADR-QD-177 contract the feed already keeps with `try { resize } finally { readSource }`.
+  - The capacity rule stays stated once, in `emptyTimeline`. The dock does not restate it. It learns of a refusal from the feed's throw before it has assigned anything, for example by asking the feed first, then assigning and applying the rest inside the structure that keeps the rethrow.
+  - Pin both cases with RED tests on the phase base, in `DockModel.test.ts`. Show each failing once after the change.
+  - **Records:** ADR-QD-191 records the rule. Phase 79's input-mapping rewrite (CONF-05) must keep it, so add a line to the CCR row to say so.
+  - **Rejected:** deferring this to Phase 79. It is the same half-applied defect, reached through the same refused capacity, and the context promises a rejected capacity "changes nothing anywhere".
+
 ### The second captured-once site
 - **D-08: `useTimelineStore` follows its `capacity` option.**
   - The hook keeps one store for its lifetime, as today, and calls `store.resize(options.capacity ?? DEFAULT)` when the
