@@ -48,3 +48,9 @@ the row marked after the switch to the log and back (`expected +0 to equal 1`).
 - base: 55c79a96db057952465918e410c529b85dc3e4e7
 - failed: entering picking adds three document listeners, and a change in the listed guards while picking adds none
 - failed: under StrictMode a pick reveals its row once, and after a switch to the log and back the row is still marked with no second reveal
+
+The pinned check was run once on a planted change: one assertion inside a lens cell of `QuestionsPanel.gates.test.tsx`
+(`strictEqual` read as `notStrictEqual`, line 223) in a `cp`-backed copy, restored with `cp` afterwards; the run failed,
+and `git status --short -- packages` printed nothing once restored.
+
+- check failed: 80-pinned-check.mjs: packages/devtools/test/react/QuestionsPanel.gates.test.tsx: differs from its base text at line 223
