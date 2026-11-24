@@ -105,3 +105,16 @@ Each check was run against a one-line, uncommitted edit of the changed source, f
 - shown failing: TF36 the idle timeline answers any resize with false and stays one empty snapshot that nothing hears
   - Edit: `TimelineFeed.ts`: `resize: () => true,` on `idleTimeline`
   - First message: `AssertionError: expected true to be false`
+
+## The dock, shown failing once after the change
+
+M55 and M56 pass unedited since the dock RED commit. Each was run against an uncommitted edit of `DockModel.ts` that
+undoes the half of the fix it pins, failed, and the file was restored. After the last restore `git diff --quiet --
+packages/devtools/src` holds (the working-tree fix is the change under commit).
+
+- shown failing: M55: a capacity the timeline refuses throws and changes nothing in the dock, so a later configure compares with the inputs the dock held
+  - edit: `DockModel.ts` `configure`: `const capacity = next.capacity;` in place of `const capacity = effectiveCapacity(next.capacity);`
+  - First message: `AssertionError: expected 4 to equal +0` (the refused capacity left the dock holding inputs it never applied, so the later configure moved the rails, the ports and the timeline)
+- shown failing: M56: a timeline listener that throws on a capacity change is rethrown once the dock has applied the rest of the configure
+  - edit: `DockModel.ts` `configure`: the `try`/`finally` unwrapped, the feed configure and the rest of the inputs in straight-line code
+  - First message: `AssertionError: expected [] to deeply equal [ 'editor' ]` (the throw escaped before the role list was applied)

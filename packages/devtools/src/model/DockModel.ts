@@ -14,7 +14,10 @@
  * `catalogueOf` once and reaches the explorer, the simulation and the dock
  * session synchronously, so no two screens can read different timelines.
  * `configure` dispatches only the inputs whose identity moved (ARCH-63's defect
- * class: an unchanged prop must not wipe a capture or a half-filled form).
+ * class: an unchanged prop must not wipe a capture or a half-filled form). A capacity
+ * is compared by the bound it means and applied whole or not at all: one the timeline
+ * refuses throws before the dock moves, and a timeline listener's throw is rethrown
+ * once every other input is applied (ADR-QD-191).
  *
  * **The model owns its lifetime.** It is built in a `Scope`. It reads its source
  * through a timeline feed, its diagnostics through a diagnostics feed and its gate
@@ -66,10 +69,18 @@ import { makeSimulationSession, type SimulationSession } from "./SimulationSessi
 import type { EvaluationPortsLayer } from "./SimulationInput.ts";
 import type { Source } from "./Source.ts";
 import type { Timeline } from "./Timeline.ts";
-import { makeTimelineFeed, type TimelineStatusReadout } from "./TimelineFeed.ts";
+import {
+  effectiveCapacity,
+  makeTimelineFeed,
+  type TimelineStatusReadout,
+} from "./TimelineFeed.ts";
 import type { TimelineStore } from "./TimelineStore.ts";
 
-/** What a host hands the dock. Each field is compared by identity when it is configured again. */
+/**
+ * What a host hands the dock. Each field is compared by identity when it is configured
+ * again, except `capacity`, which is compared by the bound it means; an omitted one is
+ * `DEFAULT_TIMELINE_CAPACITY` (ADR-QD-191).
+ */
 export interface DockModelInputs {
   readonly capacity?: number | undefined;
   readonly catalogue?: Catalogue | undefined;
@@ -108,7 +119,14 @@ export interface DockModel {
   readonly services: ReadableStore<ServicesView>;
   /** `catalogueOf` of the shown timeline and the current catalogue, computed once per change. */
   readonly sightings: () => ReadonlyArray<PolicySighting>;
-  /** Dispatches only the inputs whose identity changed. An omitted input reads as `undefined`. */
+  /**
+   * Applies the inputs that changed.
+   *
+   * A capacity the timeline refuses throws before anything moves, and what a timeline
+   * listener throws on a capacity change is rethrown after every other input is applied
+   * (ADR-QD-191). An omitted input reads as `undefined`, an omitted capacity as
+   * `DEFAULT_TIMELINE_CAPACITY`.
+   */
   readonly configure: (inputs: DockModelInputs) => void;
 }
 
@@ -278,27 +296,36 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
     sightings: () => rail,
 
     configure: (next) => {
+      // A capacity the timeline refuses throws here, before the dock moves.
+      const capacity = effectiveCapacity(next.capacity);
       const before = inputs;
+      // Assigned before the timeline publishes: the dock's own timeline listener spreads
+      // the catalogue it reads from them.
       inputs = next;
-      timelineFeed.configure({ capacity: next.capacity, source: next.source });
-      if (next.catalogue !== before.catalogue) {
-        spread();
-        roles.setList(next.catalogue?.roles ?? NO_ROLES);
+      // Past the check the feed throws only from a listener on a publish it has made, so
+      // the rest of the inputs are applied and that throw is rethrown (ADR-QD-177).
+      try {
+        timelineFeed.configure({ capacity, source: next.source });
+      } finally {
+        if (next.catalogue !== before.catalogue) {
+          spread();
+          roles.setList(next.catalogue?.roles ?? NO_ROLES);
+        }
+        // The session guards an identical layer itself, so this is not guarded again.
+        simulation.setPorts(next.ports);
+        // The feed re-reads the registry and the thunk before the shown reading is
+        // refreshed, whose publish joins through them: one `configure` reads no
+        // registry the host has just handed away, and publishes one join.
+        gatesFeed.configure({
+          gates: next.gates,
+          questions: next.questions,
+          intervalMillis: next.diagnostics?.intervalMillis,
+        });
+        diagnosticsFeed.configure(next.diagnostics);
+        // A reading that moved is a new shown reading, which the join and the cards
+        // follow through their parents.
+        shownReading.refresh();
       }
-      // The session guards an identical layer itself, so this is not guarded again.
-      simulation.setPorts(next.ports);
-      // The feed re-reads the registry and the thunk before the shown reading is
-      // refreshed, whose publish joins through them: one `configure` reads no
-      // registry the host has just handed away, and publishes one join.
-      gatesFeed.configure({
-        gates: next.gates,
-        questions: next.questions,
-        intervalMillis: next.diagnostics?.intervalMillis,
-      });
-      diagnosticsFeed.configure(next.diagnostics);
-      // A reading that moved is a new shown reading, which the join and the cards follow
-      // through their parents.
-      shownReading.refresh();
     },
   };
 });
