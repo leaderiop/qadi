@@ -29,7 +29,7 @@ import {
 } from "../src/index.ts";
 import type {
   AskedQuestionLike as ReactAskedQuestionLike,
-  DevtoolsDockProps as ReactDevtoolsDockProps,
+  DevtoolsDockProps,
   DiagnosticsOptions as ReactDiagnosticsOptions,
 } from "../src/react/index.ts";
 
@@ -322,7 +322,7 @@ test("a timeline store resizes itself and answers whether it did", () => {
 });
 
 test("the dock takes eight model inputs and two host props, each accepting undefined", () => {
-  expect<keyof ReactDevtoolsDockProps>().type.toBe<
+  expect<keyof DevtoolsDockProps>().type.toBe<
     | "source"
     | "capacity"
     | "catalogue"
@@ -345,5 +345,5 @@ test("the dock takes eight model inputs and two host props, each accepting undef
     readonly questions: undefined;
     readonly unknownParents: undefined;
     readonly onInvalidate: undefined;
-  }>().type.toBeAssignableTo<ReactDevtoolsDockProps>();
+  }>().type.toBeAssignableTo<DevtoolsDockProps>();
 });
