@@ -13,9 +13,11 @@ import * as Layer from "effect/Layer";
 import * as Stream from "effect/Stream";
 import * as TestClock from "effect/testing/TestClock";
 import type { StoredRecord } from "@qadi/core";
+import { PortReply, attributeResolverPort, hasPermission, permission, portsLayer, role, scriptedPort } from "@qadi/core";
 import { DiagnosticsStatus } from "../../src/index.ts";
 import { diagnosticsOff, makeDiagnosticsFeed, type DiagnosticsFeed } from "../../src/model/DiagnosticsFeed.ts";
 import type { DiagnosticsOptions } from "../../src/model/DiagnosticsStore.ts";
+import { makeDockModel, type DockModel, type DockModelInputs } from "../../src/model/DockModel.ts";
 import {
   AskedRead,
   RegistryRead,
@@ -34,6 +36,8 @@ import {
   type TimelineFeedInputs,
 } from "../../src/model/TimelineFeed.ts";
 import { diagnosticsFeedOf, gatesFeedOf, timelineFeedOf } from "../builtFeeds.ts";
+import { dockModelOf } from "../builtFeeds.ts";
+import { activityOf, askingIds } from "../dockModelFixtures.ts";
 import { makeGateRegistryDouble } from "../gateRegistryDouble.ts";
 import { decisionRecord, guard, heardOn, readPolicy, settleTurns } from "../helpers.ts";
 
@@ -563,6 +567,389 @@ describe("the gates feed", () => {
 
         assert.deepStrictEqual(configured.read(withConfigure), built.read(withInputs), field);
       }
+    }),
+  );
+});
+
+const reader = role({ name: "reader", permissions: [permission("doc", "read")] });
+const writePolicy = hasPermission(permission("doc", "write"));
+const writer = role({ name: "writer", permissions: [permission("doc", "write")] });
+
+/** A questions thunk that asks `policy` and adds one to `calls` each time it is read. */
+const asking = (calls: { count: number }, policy: AskedQuestionLike["policy"]) => (): ReadonlyArray<AskedQuestionLike> => {
+  calls.count += 1;
+  return [{ policy }];
+};
+
+/** Two ports layers, each one value: a snapshot holds its layer, so two models handed the same one read alike. */
+const heldPorts = portsLayer({
+  AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("the store is down"), "broken").layer,
+});
+const otherPorts = portsLayer({
+  AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("also down"), "broken").layer,
+});
+
+/** The nine stores of a dock, by the names the model gives them. */
+const storesOf = (model: DockModel) => ({
+  timeline: model.timeline,
+  dock: model.dock,
+  explorer: model.explorer,
+  roles: model.roles,
+  simulation: model.simulation,
+  diagnostics: model.diagnostics,
+  timelineStatus: model.timelineStatus,
+  questions: model.questions,
+  services: model.services,
+});
+type StoreName = keyof ReturnType<typeof storesOf>;
+const storeNames: ReadonlyArray<StoreName> = [
+  "timeline",
+  "dock",
+  "explorer",
+  "roles",
+  "simulation",
+  "diagnostics",
+  "timelineStatus",
+  "questions",
+  "services",
+];
+
+const snapshotsOf = (model: DockModel) => {
+  const stores = storesOf(model);
+  return {
+    timeline: stores.timeline.getSnapshot(),
+    dock: stores.dock.getSnapshot(),
+    explorer: stores.explorer.getSnapshot(),
+    roles: stores.roles.getSnapshot(),
+    simulation: stores.simulation.getSnapshot(),
+    diagnostics: stores.diagnostics.getSnapshot(),
+    timelineStatus: stores.timelineStatus.getSnapshot(),
+    questions: stores.questions.getSnapshot(),
+    services: stores.services.getSnapshot(),
+  };
+};
+type Snapshots = ReturnType<typeof snapshotsOf>;
+
+/** What two models are compared by: the simulation's `plan` is built anew with each model and compares by identity. */
+const comparable = (observed: DockObserved): DockObserved => ({
+  ...observed,
+  snapshots: { ...observed.snapshots, simulation: { ...observed.snapshots.simulation, plan: undefined } },
+});
+
+/** The stores whose snapshot is another object than it was. */
+const moved = (before: Snapshots, after: Snapshots): ReadonlyArray<StoreName> =>
+  storeNames.filter((name) => before[name] !== after[name]);
+
+/** One listener on each of the nine stores, counting what each hears. */
+const heardOnEach = (model: DockModel) => {
+  const stores = storesOf(model);
+  const heard = {
+    timeline: heardOn(stores.timeline),
+    dock: heardOn(stores.dock),
+    explorer: heardOn(stores.explorer),
+    roles: heardOn(stores.roles),
+    simulation: heardOn(stores.simulation),
+    diagnostics: heardOn(stores.diagnostics),
+    timelineStatus: heardOn(stores.timelineStatus),
+    questions: heardOn(stores.questions),
+    services: heardOn(stores.services),
+  };
+  return () => ({
+    timeline: heard.timeline.calls,
+    dock: heard.dock.calls,
+    explorer: heard.explorer.calls,
+    roles: heard.roles.calls,
+    simulation: heard.simulation.calls,
+    diagnostics: heard.diagnostics.calls,
+    timelineStatus: heard.timelineStatus.calls,
+    questions: heard.questions.calls,
+    services: heard.services.calls,
+  });
+};
+
+const silent = {
+  timeline: 0,
+  dock: 0,
+  explorer: 0,
+  roles: 0,
+  simulation: 0,
+  diagnostics: 0,
+  timelineStatus: 0,
+  questions: 0,
+  services: 0,
+};
+
+/** Every host-supplied input of a dock, fresh, with the counts of what reads them. */
+const dockProbe = () => {
+  const first = counted([record("a", 100), record("b", 200), record("c", 300)]);
+  const second = counted([record("d", 400)]);
+  const diagnostics = diagnosticsProbe();
+  const firstGates = makeGateRegistryDouble([guard("g1", readPolicy)]);
+  const secondGates = makeGateRegistryDouble([guard("g2", readPolicy)]);
+  const calls = { count: 0 };
+  const held: DockModelInputs = {
+    capacity: 5,
+    catalogue: { policies: { canRead: readPolicy }, roles: [reader] },
+    diagnostics: { layer: diagnostics.layer(), collector: diagnostics.collector(), intervalMillis: 5_000 },
+    gates: firstGates.registry,
+    questions: asking(calls, readPolicy),
+    reading: { activity: activityOf(1) },
+    ports: heldPorts,
+    source: first.source,
+  };
+  const tally = () => ({
+    firstSource: first.tally.reads,
+    secondSource: second.tally.reads,
+    firstRegistry: firstGates.reads(),
+    secondRegistry: secondGates.reads(),
+    firstSubscriptions: firstGates.subscriptions(),
+    secondSubscriptions: secondGates.subscriptions(),
+    thunk: calls.count,
+    samples: diagnostics.counts.samples,
+    builds: diagnostics.counts.builds,
+    releases: diagnostics.counts.releases,
+  });
+  return { held, first, second, diagnostics, secondGates, calls, tally };
+};
+type DockProbe = ReturnType<typeof dockProbe>;
+
+interface DockObserved {
+  readonly snapshots: Snapshots;
+  readonly ids: ReadonlyArray<string>;
+  readonly sightings: ReadonlyArray<string>;
+  readonly asking: ReadonlyArray<ReadonlyArray<string>>;
+  readonly tally: ReturnType<DockProbe["tally"]>;
+}
+
+const observe = (probe: DockProbe, model: DockModel): DockObserved => {
+  const snapshots = snapshotsOf(model);
+  return {
+    snapshots,
+    ids: snapshots.timeline.entries.map((entry) => entry.evaluationId),
+    sightings: model.sightings().map((sighting) => sighting.label),
+    asking: askingIds(snapshots.questions),
+    tally: probe.tally(),
+  };
+};
+
+describe("the dock model", () => {
+  it.effect("CR16 a fresh literal holding the eight inputs notifies no store and reads no registry, thunk or source", () =>
+    Effect.gen(function* () {
+      const probe = dockProbe();
+      const model = yield* dockModelOf(probe.held);
+      yield* settleTurns;
+      const calls = heardOnEach(model);
+      const before = observe(probe, model);
+
+      model.configure({ ...probe.held });
+      yield* settleTurns;
+      const after = observe(probe, model);
+
+      assert.deepStrictEqual(calls(), silent);
+      assert.deepStrictEqual(moved(before.snapshots, after.snapshots), []);
+      assert.deepStrictEqual(after.tally, before.tally);
+    }),
+  );
+
+  it.effect("CR17 an omitted input and one holding undefined are one input: nothing is notified and nothing is read", () =>
+    Effect.gen(function* () {
+      const probe = dockProbe();
+      const model = yield* dockModelOf({ gates: probe.held.gates, source: probe.held.source });
+      yield* settleTurns;
+      const calls = heardOnEach(model);
+      const before = observe(probe, model);
+
+      model.configure({
+        gates: probe.held.gates,
+        source: probe.held.source,
+        capacity: undefined,
+        catalogue: undefined,
+        diagnostics: undefined,
+        questions: undefined,
+        reading: undefined,
+        ports: undefined,
+      });
+      yield* settleTurns;
+      const after = observe(probe, model);
+
+      assert.deepStrictEqual(calls(), silent);
+      assert.deepStrictEqual(moved(before.snapshots, after.snapshots), []);
+      assert.deepStrictEqual(after.tally, before.tally);
+    }),
+  );
+
+  it.effect("CR18 an omitted capacity, an undefined one and the default are one bound: the timeline snapshot stays and no read starts", () =>
+    Effect.gen(function* () {
+      const probe = dockProbe();
+      const model = yield* dockModelOf({ source: probe.held.source });
+      yield* settleTurns;
+      const calls = heardOnEach(model);
+      const timeline = model.timeline.getSnapshot();
+      const before = probe.tally();
+
+      model.configure({ source: probe.held.source, capacity: DEFAULT_TIMELINE_CAPACITY });
+      model.configure({ source: probe.held.source, capacity: undefined });
+      model.configure({ source: probe.held.source });
+      yield* settleTurns;
+
+      assert.strictEqual(model.timeline.getSnapshot(), timeline);
+      assert.deepStrictEqual(calls(), silent);
+      assert.deepStrictEqual(probe.tally(), before);
+    }),
+  );
+
+  it.effect("CR19 a bare build reads what an empty input read in every store, and configuring an empty input right after it notifies none", () =>
+    Effect.gen(function* () {
+      const bare = yield* makeDockModel();
+      const built = yield* dockModelOf({});
+      yield* settleTurns;
+
+      assert.deepStrictEqual(snapshotsOf(bare), snapshotsOf(built));
+      assert.deepStrictEqual(bare.sightings(), built.sightings());
+
+      const calls = heardOnEach(bare);
+      const before = snapshotsOf(bare);
+
+      bare.configure({});
+      yield* settleTurns;
+
+      assert.deepStrictEqual(calls(), silent);
+      assert.deepStrictEqual(moved(before, snapshotsOf(bare)), []);
+    }),
+  );
+
+  type DockMover = Mover<DockModelInputs, DockModel, DockObserved>;
+
+  const dockPair = (move: (probe: DockProbe) => DockModelInputs) => () => {
+    const probe = dockProbe();
+    return {
+      held: probe.held,
+      moved: { ...probe.held, ...move(probe) },
+      read: (model: DockModel): DockObserved => observe(probe, model),
+    };
+  };
+
+  const dockMovers: Record<keyof Required<DockModelInputs>, DockMover> = {
+    capacity: {
+      pair: dockPair(() => ({ capacity: 2 })),
+      reacted: (before, after) => before.snapshots.timeline.capacity === 5 && after.snapshots.timeline.capacity === 2,
+    },
+    catalogue: {
+      pair: dockPair(() => ({
+        catalogue: { policies: { canRead: readPolicy, canWrite: writePolicy }, roles: [writer] },
+      })),
+      reacted: (before, after) =>
+        before.snapshots.roles !== after.snapshots.roles && after.sightings.length > before.sightings.length,
+    },
+    diagnostics: {
+      pair: dockPair((probe) => ({ diagnostics: { ...probe.held.diagnostics, layer: probe.diagnostics.layer() } })),
+      reacted: (before, after) =>
+        after.tally.builds === before.tally.builds + 1 && after.tally.releases === before.tally.releases + 1,
+    },
+    gates: {
+      pair: dockPair((probe) => ({ gates: probe.secondGates.registry })),
+      reacted: (before, after) =>
+        after.tally.secondSubscriptions === before.tally.secondSubscriptions + 1 &&
+        before.asking.flat().join() === "g1" &&
+        after.asking.flat().join() === "g2",
+    },
+    questions: {
+      pair: dockPair((probe) => ({ questions: asking(probe.calls, writePolicy) })),
+      reacted: (before, after) => after.tally.thunk > before.tally.thunk && before.snapshots.questions !== after.snapshots.questions,
+    },
+    reading: {
+      pair: dockPair(() => ({ reading: { activity: activityOf(2) } })),
+      reacted: (before, after) =>
+        before.snapshots.diagnostics !== after.snapshots.diagnostics && after.tally.builds === before.tally.builds,
+    },
+    ports: {
+      pair: dockPair(() => ({ ports: otherPorts })),
+      reacted: (before, after) => before.snapshots.simulation !== after.snapshots.simulation,
+    },
+    source: {
+      pair: dockPair((probe) => ({ source: probe.second.source })),
+      reacted: (before, after) =>
+        before.tally.secondSource === 0 && after.tally.secondSource === 1 && after.ids.includes("d") && !before.ids.includes("d"),
+    },
+  };
+
+  it.effect("CR20 each input moved alone makes the store it reaches react", () =>
+    Effect.gen(function* () {
+      for (const [field, row] of Object.entries(dockMovers)) {
+        const { held, moved: next, read } = row.pair();
+        const model = yield* dockModelOf(held);
+        yield* settleTurns;
+        const before = read(model);
+
+        model.configure(next);
+        yield* settleTurns;
+
+        assert.isTrue(row.reacted(before, read(model)), field);
+      }
+    }),
+  );
+
+  it.effect("CR21 each input given at build and given through configure reaches the same state, while the constructor takes inputs", () =>
+    Effect.gen(function* () {
+      for (const [field, row] of Object.entries(dockMovers)) {
+        const built = row.pair();
+        const configured = row.pair();
+        const withInputs = yield* makeDockModel(built.moved);
+        const withConfigure = yield* dockModelOf(configured.moved);
+        yield* settleTurns;
+
+        assert.deepStrictEqual(comparable(configured.read(withConfigure)), comparable(built.read(withInputs)), field);
+      }
+    }),
+  );
+
+  /** A configure of every input a host's dock holds, a layer for the poll and nothing else moved. */
+  const firstConfigure = (model: DockModel, layer: Layer.Layer<never>) => {
+    model.configure({
+      capacity: 50,
+      source: counted([record("a", 100)]).source,
+      catalogue: { policies: { canRead: readPolicy } },
+      diagnostics: { layer },
+      gates: makeGateRegistryDouble([guard("g1", readPolicy)]).registry,
+      questions: asking({ count: 0 }, readPolicy),
+    });
+  };
+
+  it.effect("CR22 a reader subscribed to every store of a bare dock before its first configure hears 2, 2, 3, 3, 0, 1, 0, 2 and 1 notifications while the poll layer is still building, and one more on three stores once it has built", () =>
+    Effect.gen(function* () {
+      const building = yield* makeDockModel();
+      const buildingCalls = heardOnEach(building);
+      firstConfigure(building, Layer.effectDiscard(Effect.never));
+      yield* settleTurns;
+
+      assert.deepStrictEqual(buildingCalls(), {
+        timeline: 2,
+        dock: 2,
+        explorer: 3,
+        roles: 0,
+        simulation: 3,
+        diagnostics: 1,
+        timelineStatus: 0,
+        questions: 2,
+        services: 1,
+      });
+
+      const built = yield* makeDockModel();
+      const builtCalls = heardOnEach(built);
+      firstConfigure(built, diagnosticsProbe().layer());
+      yield* settleTurns;
+
+      assert.deepStrictEqual(builtCalls(), {
+        timeline: 2,
+        dock: 2,
+        explorer: 3,
+        roles: 0,
+        simulation: 3,
+        diagnostics: 2,
+        timelineStatus: 0,
+        questions: 3,
+        services: 2,
+      });
     }),
   );
 });

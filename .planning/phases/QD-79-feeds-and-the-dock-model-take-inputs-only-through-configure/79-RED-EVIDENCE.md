@@ -95,3 +95,68 @@ The cells are in `packages/devtools/test/model/ConfigureRule.test.ts`, built thr
 
 - edit R17: `GatesFeed.ts`: a bare build that reads its registry as `Failed` when none was handed
 - failed: CR13 a bare build reads unwatched and unhanded, as an empty input does, and nothing runs until it is handed something
+
+## 79-04 the dock cells of the rule
+
+The cells are in `packages/devtools/test/model/ConfigureRule.test.ts` (the `the dock model` block, after the feed cells, which are unchanged), built through `packages/devtools/test/builtFeeds.ts`, and are written on the phase base (`910cb7838ac562608880f8e3b067fb2cc4c014b3`, no source file changed). On the base exactly the two feed cells of 79-03 and the two dock no-op cells fail, on the registry read count: the code before ADR-QD-192 hands the gates feed the registry again on every dock configure. Every other dock cell is green on the base and is shown failing once by a scratch edit of `DockModel.ts`, run with the JSON reporter and restored with `git checkout -- packages/devtools/src`; `git status --porcelain -- packages/devtools/src` printed nothing afterwards. The scratch edits also fail the four cells that are red on the base; those are listed once, under the base run.
+
+The first-configure counts of CR22 were measured on the base. With a layer that is still building the counts are the ones the research recorded (timeline 2, dock 2, explorer 3, simulation 3, roles 0, diagnostics 1, timelineStatus 0, questions 2, services 1). With a layer that builds at once the poll's `Live` adds one notification on each of the diagnostics, questions and services stores (2, 3 and 2); the cell pins both.
+
+- red on the base: CR11 a fresh literal holding the same registry, thunk and interval reads the registry no more, calls the thunk no more and publishes nothing
+- red on the base: CR12 an omitted questions thunk and interval and ones holding undefined are one input: nothing is read and nothing is published
+- red on the base: CR16 a fresh literal holding the eight inputs notifies no store and reads no registry, thunk or source
+- red on the base: CR17 an omitted input and one holding undefined are one input: nothing is notified and nothing is read
+- failed: CR11 a fresh literal holding the same registry, thunk and interval reads the registry no more, calls the thunk no more and publishes nothing
+- failed: CR12 an omitted questions thunk and interval and ones holding undefined are one input: nothing is read and nothing is published
+- failed: CR16 a fresh literal holding the eight inputs notifies no store and reads no registry, thunk or source
+- failed: CR17 an omitted input and one holding undefined are one input: nothing is notified and nothing is read
+
+- edit K1: `DockModel.ts`: a configure that never hands the timeline feed the source
+- failed: CR20 each input moved alone makes the store it reaches react
+- failed: CR21 each input given at build and given through configure reaches the same state, while the constructor takes inputs
+- failed: CR22 a reader subscribed to every store of a bare dock before its first configure hears 2, 2, 3, 3, 0, 1, 0, 2 and 1 notifications while the poll layer is still building, and one more on three stores once it has built
+
+- edit K2: `DockModel.ts`: a configure that drops the ports (the `setPorts` call removed)
+- failed: CR20 each input moved alone makes the store it reaches react
+- failed: CR21 each input given at build and given through configure reaches the same state, while the constructor takes inputs
+
+- edit K3: `DockModel.ts`: an omitted capacity read as a bound of 7 instead of `DEFAULT_TIMELINE_CAPACITY` in `configure`
+- failed: CR18 an omitted capacity, an undefined one and the default are one bound: the timeline snapshot stays and no read starts
+- failed: CR19 a bare build reads what an empty input read in every store, and configuring an empty input right after it notifies none
+
+- edit K4: `DockModel.ts`: a bare build whose timeline starts at a capacity of 7 instead of the default
+- failed: CR19 a bare build reads what an empty input read in every store, and configuring an empty input right after it notifies none
+
+- edit K5: `DockModel.ts`: a catalogue change that does not hand the explorer its sightings (`explorer.setSightings` removed from `spread`)
+- failed: CR21 each input given at build and given through configure reaches the same state, while the constructor takes inputs
+- failed: CR22 a reader subscribed to every store of a bare dock before its first configure hears 2, 2, 3, 3, 0, 1, 0, 2 and 1 notifications while the poll layer is still building, and one more on three stores once it has built
+
+- edit K6: `DockModel.ts`: a configure that ignores a moved catalogue (the comparison replaced by `false`)
+- failed: CR20 each input moved alone makes the store it reaches react
+- failed: CR21 each input given at build and given through configure reaches the same state, while the constructor takes inputs
+- failed: CR22 a reader subscribed to every store of a bare dock before its first configure hears 2, 2, 3, 3, 0, 1, 0, 2 and 1 notifications while the poll layer is still building, and one more on three stores once it has built
+
+- edit K7: `DockModel.ts`: a configure that hands the gates feed the registry it held before
+- failed: CR20 each input moved alone makes the store it reaches react
+- failed: CR21 each input given at build and given through configure reaches the same state, while the constructor takes inputs
+
+- edit K8: `DockModel.ts`: a configure that hands the gates feed the questions thunk it held before
+- failed: CR20 each input moved alone makes the store it reaches react
+- failed: CR21 each input given at build and given through configure reaches the same state, while the constructor takes inputs
+
+- edit K9: `DockModel.ts`: a configure that hands the diagnostics feed the options it held before
+- failed: CR20 each input moved alone makes the store it reaches react
+- failed: CR21 each input given at build and given through configure reaches the same state, while the constructor takes inputs
+- failed: CR22 a reader subscribed to every store of a bare dock before its first configure hears 2, 2, 3, 3, 0, 1, 0, 2 and 1 notifications while the poll layer is still building, and one more on three stores once it has built
+
+- edit K10: `DockModel.ts`: a configure that never refreshes the shown reading (`shownReading.refresh()` removed)
+- failed: CR20 each input moved alone makes the store it reaches react
+
+- edit K11: `DockModel.ts`: a configure that hands the timeline feed the capacity it held before
+- failed: CR20 each input moved alone makes the store it reaches react
+- failed: CR21 each input given at build and given through configure reaches the same state, while the constructor takes inputs
+- failed: CR22 a reader subscribed to every store of a bare dock before its first configure hears 2, 2, 3, 3, 0, 1, 0, 2 and 1 notifications while the poll layer is still building, and one more on three stores once it has built
+
+- edit K12: `DockModel.ts`: a catalogue change that dispatches one more command to the simulation (`simulation.setPairs(true)` after `spread`)
+- failed: CR21 each input given at build and given through configure reaches the same state, while the constructor takes inputs
+- failed: CR22 a reader subscribed to every store of a bare dock before its first configure hears 2, 2, 3, 3, 0, 1, 0, 2 and 1 notifications while the poll layer is still building, and one more on three stores once it has built
