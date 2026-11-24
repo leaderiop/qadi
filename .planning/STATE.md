@@ -5,16 +5,16 @@ milestone_name: Arch Wave 15
 current_phase: 81
 current_phase_name: The dock model applies every input whatever a listener throws
 status: executing
-stopped_at: Completed QD-81-09-PLAN.md
-last_updated: "2026-11-24T22:54:00.364Z"
+stopped_at: Completed QD-81-10-PLAN.md
+last_updated: "2026-11-24T23:09:16.206Z"
 last_activity: 2026-11-24
 last_activity_desc: Phase QD-81 execution started
-state_head: 53d60c388040f9efdd0b9da045c45093fd6f3f3c
+state_head: 7ebd3dbf3a7888c8466781cb3412e3689550b698
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 11
-  completed_plans: 9
+  completed_plans: 10
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-24)
 ## Current Position
 
 Phase: QD-81 (The dock model applies every input whatever a listener throws) — EXECUTING
-Plan: 10 of 11
+Plan: 11 of 11
 Status: Executing Phase QD-81
 Last activity: 2026-11-24 — Phase QD-81 execution started
 
@@ -610,6 +610,7 @@ Last activity: 2026-11-24 — Phase QD-81 execution started
 | Phase QD-81 P07 | 14min | 2 tasks | 8 files |
 | Phase 81 P08 | 35min | 2 tasks | 6 files |
 | Phase QD-81 P09 | 15 min | 2 tasks | 3 files |
+| Phase QD-81 P10 | 40 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -1059,6 +1060,7 @@ Last activity: 2026-11-24 — Phase QD-81 execution started
 - [Phase QD-81]: Plan 81-07: ADR-QD-194 and the amendments of ADR-QD-177, ADR-QD-185, ADR-QD-191 and ADR-QD-192 written; the CCR-QD-473 row was begun in the first commit because strict verification fails on a cited CCR with no register row (decided autonomously)
 - [Phase 81]: 81-08: BEH-QD-699 retitled to four computed stores and its anchors follow; INV-QD-296 and INV-QD-403 corrected for the deleted spread (decided autonomously)
 - [Phase QD-81]: 81-09: the README states the dock configure rule in the feeds section; CCR-QD-473 has no Unused number (decided autonomously)
+- [Phase QD-81]: 81-10: the one new survivor (DiagnosticsFeed accept stale-run guard) is closed by F33, never re-baselined; TF37 moved before TF36 so the archived 79-pinned check fails on TF29 alone
 
 ### Pending Todos
 
@@ -1138,8 +1140,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-24T22:54:00.317Z
-Stopped at: Completed QD-81-09-PLAN.md
+Last session: 2026-11-24T23:09:16.170Z
+Stopped at: Completed QD-81-10-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
