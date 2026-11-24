@@ -650,7 +650,7 @@ Plans:
   5. After a repo-wide search that includes `examples/` and `website/`, `QadiContextValue.instrument` is removed with a Breaking `@qadi/react` changeset, an upgrade-guide entry, a `spec/overview.md` edit and a dated ADR-QD-111 amendment, or the reason it stays is recorded with a first reader.
 
 **Planning notes**: No research flag: `DockSession`, `ExplorerSession` and `HeldChoice` are the precedents and the open items are decisions, not unknown technology. The one decision needing evidence first is persistence: the review treats "a pick survives a tab switch" as the point, while BEH-QD-234's third exit and `01-shell.md:72` say opening the inspector exits lens mode, and a persisted `picked` would re-run `scrollIntoView` on remount (`InstanceRow` must not re-fire) and a persisted highlight would redraw unasked; every changed behaviour gets an ADR row. `choose` is decided synchronously in the capture listener, and the cleanup calls `cancel()` so BEH-QD-234's exit-on-unmount holds. `QuestionsPanel` takes a `lens` prop and `questionsPanelInput.ts` is the single seam for about 42 panel renders. `LensSession.ts` is new and needs its mutation bar set at its first commit; commit `DockModel.ts`'s baseline first. The milestone close re-verifies 77 to 79 and re-runs each phase's record scripts, because 78 to 80 edit the same files.
-**Plans**: 6/13 plans executed (waves 1 to 13, strictly serial)
+**Plans**: 7/13 plans executed (waves 1 to 13, strictly serial)
 
 Plans:
 **Wave 1**
@@ -672,7 +672,7 @@ Plans:
 - [x] 80-06-PLAN.md — the dock model owns the lens as its tenth store; the store list and the configure sweep at ten
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 80-07-PLAN.md — `useLens` as the document adapter, the panel's required `lens` prop, the dock passing the model's; the four flips applied
+- [x] 80-07-PLAN.md — `useLens` as the document adapter, the panel's required `lens` prop, the dock passing the model's; the four flips applied
 
 **Wave 8** *(blocked on Wave 7 completion)*
 - [ ] 80-08-PLAN.md — `QadiContextValue` drops `instrument`, pinned by a type test seen failing first; the react flip applied
@@ -703,4 +703,4 @@ Phases execute in numeric order: 77 → 78 → 79 → 80
 | 77. An audit row is a value only its codec makes | 7/7 | Complete    | 2026-11-24 |
 | 78. `TimelineStore` owns its capacity | 11/11 | Complete    | 2026-11-24 |
 | 79. Feeds and the dock model take inputs only through `configure` | 17/17 | Complete    | 2026-11-24 |
-| 80. The highlight lens is a headless session; `instrument` resolved | 6/13 | In Progress | - |
+| 80. The highlight lens is a headless session; `instrument` resolved | 7/13 | In Progress | - |
