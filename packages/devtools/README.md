@@ -177,9 +177,9 @@ a subscription on it survives a capacity change. A `configure` with a new `capac
 publishes the emptied timeline and then starts the read that refills it, from the same
 `source` or a new one. A throw from a timeline listener on that publish and a throw from
 a status listener on the `Reading` the read publishes stop nothing: the read starts, and
-both are rethrown once it has, as one `AggregateError` with the timeline's first. Each
-of those two steps collects its own listeners' throws the same way, so a step that
-several listeners threw on contributes one nested `AggregateError`, never flattened.
+both are rethrown once it has, as one `AggregateError` with the timeline's first. When
+several listeners of one store throw in one notification they are one `AggregateError`,
+and the dock keeps it whole as its step's throw, nested and never flattened.
 
 ```typescript
 import * as Effect from "effect/Effect";
