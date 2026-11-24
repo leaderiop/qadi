@@ -52,15 +52,6 @@ export interface QadiContextValue {
   readonly atoms: QadiAtoms;
   readonly registry: AtomRegistry.AtomRegistry;
   /**
-   * Whether guards in this subtree record that they exist.
-   *
-   * Carried on the context rather than read from a global, so it is per
-   * authorization context — a multi-tenant application can instrument one
-   * provider without instrumenting the others — and so a test can turn it on
-   * without touching process state.
-   */
-  readonly instrument: boolean;
-  /**
    * The registry this subtree's guards write to: the provider's `gates` prop if
    * given, else `atoms.gates`.
    */
@@ -88,7 +79,7 @@ export const useQadiContext = (hookName: string): QadiContextValue => {
  * A direct re-export of `@effect/atom-react`'s own `useAtomValue`, which
  * reads the registry from `RegistryContext` rather than an explicit
  * argument — every other call site in this package reads the registry
- * through `useQadiContext` only for other fields (`atoms`, `instrument`), not
+ * through `useQadiContext` only for other fields (`atoms`, `gates`), not
  * to pass it here.
  *
  * **Outside a `QadiProvider`, this is not `MissingQadiProviderError` the way
@@ -147,6 +138,12 @@ export interface QadiProviderProps {
    * Guard it the way you guard the dock itself. It is a debug affordance, and
    * on a production page it hands any script a list of what the current user
    * may and may not do.
+   *
+   * It is a prop of each provider rather than a global, so it is per authorization
+   * context — a multi-tenant application can instrument one provider without
+   * instrumenting the others — and a test can turn it on without touching process
+   * state. It is not a field of the context value: the provider resolves it once into
+   * the writer its guards use, so toggling it hands consumers no new context value.
    */
   readonly instrument?: boolean;
   /**
@@ -304,8 +301,8 @@ export const QadiProvider = ({
   // Memoised, or every render of the provider gives every consumer a new
   // context value and re-renders the whole guarded subtree.
   const value = useMemo(
-    () => ({ atoms, registry, instrument, gates }),
-    [atoms, registry, instrument, gates],
+    () => ({ atoms, registry, gates }),
+    [atoms, registry, gates],
   );
 
   // What gates read through: the atoms and the once-resolved writer, on a context

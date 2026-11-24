@@ -33,7 +33,7 @@ describe("the instrument toggle", () => {
       view.rerender(providerTree(set, child, { instrument: true }));
       const rendersOnToggle = renders - before;
 
-      expect(rendersOnToggle).toBe(1);
+      expect(rendersOnToggle).toBe(0);
     },
   );
 

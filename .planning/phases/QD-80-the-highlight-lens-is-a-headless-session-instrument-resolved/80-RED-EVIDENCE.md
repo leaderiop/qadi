@@ -102,3 +102,11 @@ included, still holds.
 - failed (unflipped): a pick, then a switch to the log and back
 - failed (unflipped): the highlight button pressed while picking
 - failed (unflipped): two pointer moves over one guard while picking
+
+## 80-08 the context value
+
+The type pin was written first and run on the unchanged provider (`pnpm test:tstyche
+packages/react/test/QadiProvider.tst.ts`: 2 failed, 2 total, in both passes).
+
+- failed: the context value is the atoms, the registry and the gates
+- failed: a consumer reads the gates from the context, and instrumentation is not a field of it
