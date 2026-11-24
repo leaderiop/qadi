@@ -239,6 +239,15 @@ describe("archiveAuditTrail", () => {
 
         assert.deepStrictEqual(archive.keyMaterial, keyMaterial);
       }));
+
+    it.effect("options without a keyMaterial leave the archive without a keyMaterial key", () =>
+      Effect.gen(function* () {
+        const entry = yield* encodeAuditEntry(decisionRecord());
+
+        const archive = yield* archiveAuditTrail([entry], 0, {});
+
+        assert.isFalse(Object.hasOwn(archive, "keyMaterial"));
+      }));
   });
 });
 
