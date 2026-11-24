@@ -255,3 +255,11 @@ The scratch edit was applied to `packages/devtools/src/model/GatesFeed.ts`, with
 - failed: `surface.tst.ts`, each feed is built in a scope and fails with nothing (the `Parameters<typeof makeGatesFeed>` pin)
 - edit B1 again, on the final alias form (orchestrator re-run, 2026-11-24, at d3c07e17): the packed consumer's `type GatesFeedIsBare = [Parameters<typeof makeGatesFeed>] extends [[]] ? true : false` with the scratch `function* (_scratch?: number)` built into `lib`
 - failed: `scripts/check-package-install.mjs` exit 1, `.package-check/consumer.ts(213,7): error TS2322: Type 'true' is not assignable to type 'false'`; the file was restored from a copy and `lib` rebuilt from the committed source
+
+## 79-14 the gate registry read counts (orchestrator-decided pin)
+
+The new file `packages/devtools/test/react/DockRegistryReads.test.tsx` pins, through `useDockModel`, the `instances()` read counts ADR-QD-192 states: a healthy registry read once and subscribed once, and read twice and subscribed twice under StrictMode; a registry whose `subscribe` throws read never and subscribed twice, and three times under StrictMode; a re-render with a fresh inputs record holding the same fields reads and subscribes nothing; and one that moves an input of the gates feed reads the registry once. The exact counts held on the installed React, so the ADR states them and the file pins them. The scratch edit was applied to `packages/devtools/src/model/GatesFeed.ts`, run with `pnpm exec vitest run --project devtools packages/devtools/test/react/DockRegistryReads.test.tsx`, and restored from a copy taken just before it (the test file was committed first); `git status --porcelain -- packages/devtools/src` is empty afterwards.
+
+- edit R1: `GatesFeed.ts`: the early return of `configure` made unreachable (`if (false && sameFields(held, wanted) && watchFailure === undefined) return;`), so a `configure` that moves nothing reads the registry
+- failed: a healthy registry is read once under the hook and twice under StrictMode (`expected 2 to equal 1`, the build's second `configure` read it)
+- failed: a re-render with a fresh inputs record holding the same fields reads nothing and subscribes nothing (`{ reads: 4, subscribes: 1 }` against `{ reads: 2, subscribes: 1 }`)
