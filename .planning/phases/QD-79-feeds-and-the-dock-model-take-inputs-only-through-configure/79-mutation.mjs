@@ -68,9 +68,19 @@ export const mapLine = (diffText) => {
 const kind = (m) => `${m.mutator} ${m.replacement}`;
 /**
  * Ignored mutants a close may hold beyond its base, per file and kind, each run by hand and Killed there: the group's
- * config spread with `ignoreStatic: false`, run with `--mutate <file>`. No file holds one yet.
+ * config spread with `ignoreStatic: false`, run with `--mutate <file>`. Every entry here is one module-scope arrow the
+ * phase added, run by hand with `ignoreStatic: false`, `ArrowFunction () => undefined` of: `completeTimelineInputs`
+ * (killed by "the dock mounted with no source renders an empty dock rather than throwing"), `completeDiagnosticsOptions`
+ * (the Services and React panel cell of screen 6), `completeGatesInputs` (G31), `sameFieldsOrAbsent` (M23) and, in the
+ * dock model, `completeDockInputs` and `feedInputsOf` (the same empty-dock cell).
  */
-const EXAMINED = {};
+const EXAMINED = {
+  "packages/devtools/src/model/TimelineFeed.ts": { "ArrowFunction () => undefined": 1 },
+  "packages/devtools/src/model/DiagnosticsFeed.ts": { "ArrowFunction () => undefined": 1 },
+  "packages/devtools/src/model/GatesFeed.ts": { "ArrowFunction () => undefined": 1 },
+  "packages/devtools/src/model/ExternalStore.ts": { "ArrowFunction () => undefined": 1 },
+  "packages/devtools/src/model/DockModel.ts": { "ArrowFunction () => undefined": 2 },
+};
 
 const key = (m, line = m.line) => [m.status, m.mutator, m.replacement, line, m.column].join("\u0000");
 /** A multiset of mutant keys: key -> count. */
