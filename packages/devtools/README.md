@@ -163,22 +163,23 @@ a report.
 A shell of your own builds the three feeds in a scope. Closing the scope ends every
 read, and a read that stops is stated in its feed's status instead of leaving a dead
 fiber. A `subscribe` listener is yours, and one that throws does not stop the others:
-every listener is called, and then what they threw is rethrown out of whatever
-published (`configure`, `restart`, a read or tick, or the host registry's own
-notification), one value as itself and several as one `AggregateError`. A status that
-announces work (`Reading`, `Starting`) is published and the work starts whatever a
-listener throws on it, so a throw leaves no read, poll or run unstarted, and it is
-rethrown once the work has started. A throw a listener makes on a record the timeline
-read hands over, or on a sample the diagnostics poll hands over, ends that read or poll,
-and its status says `Stopped`. A questions cadence tick that throws ends the cadence
-too, because that is the run's own failure. The store a host holds as `timeline`
-is the feed's one store for its whole life, and a capacity other than the one it holds is that store's `resize`, so a
-subscription on it survives a capacity change. A `configure` with a new `capacity` publishes the emptied timeline and
-then starts the read that refills it, from the same `source` or a new one. A throw from a timeline listener on that
-publish and a throw from a status listener on the `Reading` the read publishes stop nothing: the read starts, and both
-are rethrown once it has, as one `AggregateError` with the timeline's first. Each of
-those two steps collects its own listeners' throws the same way, so a step that several
-listeners threw on contributes one nested `AggregateError`, never flattened.
+every listener is called, and then what they threw is rethrown out of whatever published
+(`configure`, `restart`, a read or tick, or the host registry's own notification), one
+value as itself and several as one `AggregateError`. A status that announces work
+(`Reading`, `Starting`) is published and the work starts whatever a listener throws on
+it, so a throw leaves no read, poll or run unstarted, and it is rethrown once the work
+has started. A throw a listener makes on a record the timeline read hands over, or on a
+sample the diagnostics poll hands over, ends that read or poll, and its status says
+`Stopped`. A questions cadence tick that throws ends the cadence too, because that is
+the run's own failure. The store a host holds as `timeline` is the feed's one store for
+its whole life, and a capacity other than the one it holds is that store's `resize`, so
+a subscription on it survives a capacity change. A `configure` with a new `capacity`
+publishes the emptied timeline and then starts the read that refills it, from the same
+`source` or a new one. A throw from a timeline listener on that publish and a throw from
+a status listener on the `Reading` the read publishes stop nothing: the read starts, and
+both are rethrown once it has, as one `AggregateError` with the timeline's first. Each
+of those two steps collects its own listeners' throws the same way, so a step that
+several listeners threw on contributes one nested `AggregateError`, never flattened.
 
 ```typescript
 import * as Effect from "effect/Effect";
