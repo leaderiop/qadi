@@ -242,10 +242,11 @@ describe("archiveAuditTrail refuses a keyMaterial its reader would refuse", () =
 describe("a row the codec made cannot be changed afterwards", () => {
   const decoded = (record: unknown, sequenceNumber?: number) =>
     Result.getOrThrow(decodeAuditEntry({ record, sequenceNumber })).entry;
-  const sequenced = decoded(good.record, 1);
+  /** Made inside the test, so the test is what covers the codec's freeze. */
+  const madeHere = () => [codecRow("fresh"), decoded(good.record, 1)];
 
   it("a write to sequenceNumber or to record throws and leaves the row as it was", () => {
-    for (const row of [good, sequenced]) {
+    for (const row of madeHere()) {
       const before = JSON.stringify(row);
       assert.throws(() => Object.assign(row, { sequenceNumber: 1.5 }), TypeError);
       assert.throws(() => Object.assign(row, { record: null }), TypeError);
@@ -254,7 +255,7 @@ describe("a row the codec made cannot be changed afterwards", () => {
   });
 
   it("a write to the row's record throws and leaves its at as it was", () => {
-    for (const row of [good, sequenced]) {
+    for (const row of madeHere()) {
       assert.throws(() => Object.assign(row.record, { at: null }), TypeError);
       assert.strictEqual(row.record.at, 1_000);
     }
@@ -266,10 +267,14 @@ describe("a row the codec made cannot be changed afterwards", () => {
     assert.isFalse(Object.isFrozen(host));
     assert.isTrue(Object.isFrozen(entry.record));
     assert.isFalse(Object.is(entry.record, host));
+    assert.isTrue(Object.isFrozen(entry));
+    assert.isTrue(Object.isFrozen(codecRow("again")));
   });
 
   it("a frozen row equals its twin, hashes alike and is held by an archive", () => {
+    const [, sequenced] = madeHere();
     const again = decoded(good.record, 1);
+    if (sequenced === undefined) return assert.fail("no row");
     assert.isTrue(Equal.equals(sequenced, again));
     assert.strictEqual(Hash.hash(sequenced), Hash.hash(again));
     const written = Effect.runSync(archiveAuditTrail([sequenced], 0));
