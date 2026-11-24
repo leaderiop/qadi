@@ -29,10 +29,11 @@ See: .planning/PROJECT.md (updated 2026-11-24)
 
 ## Current Position
 
-Phase: QD-80 (The highlight lens is a headless session; `instrument` resolved) — READY TO EXECUTE
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-11-24 — Phase QD-79 complete, transitioned to Phase 80
+Phase: QD-80 (The highlight lens is a headless session; `instrument` resolved) — EXECUTING
+Current Plan: 3
+Total Plans in Phase: 13
+Status: Executing
+Last activity: 2026-11-24 — 80-02 complete (the lens characterised through the dock)
 
 Progress: [████████░░] 75% (2 of 4 phases)
 
