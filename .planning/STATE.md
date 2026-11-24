@@ -5,16 +5,16 @@ milestone_name: Arch Wave 14
 current_phase: 79
 current_phase_name: Feeds and the dock model take inputs only through `configure`
 status: executing
-stopped_at: Completed QD-79-14-PLAN.md
-last_updated: "2026-11-24T11:57:33.261Z"
+stopped_at: Completed QD-79-15-PLAN.md
+last_updated: "2026-11-24T12:07:59.369Z"
 last_activity: 2026-11-24
 last_activity_desc: Phase QD-78 complete, transitioned to Phase 79
-state_head: d647839ecbe0ba9f2fb9b553140efe579a7e3a2b
+state_head: f0d00c12b3ae5b9d2c3ba32d036988d91f2c6dcb
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 35
-  completed_plans: 32
+  completed_plans: 33
   percent: 50
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-24)
 ## Current Position
 
 Phase: 79 (Feeds and the dock model take inputs only through `configure`) — EXECUTING
-Plan: 15 of 17
+Plan: 16 of 17
 Status: Executing (79-09 complete)
 Last activity: 2026-11-24 — 79-09 complete (the dock maps its inputs onto its feeds in one place)
 
@@ -586,6 +586,7 @@ Progress: [█████░░░░░] 50% (2 of 4 phases)
 | Phase QD-79 P11 | 25min | 2 tasks | 6 files |
 | Phase QD-79 P13 | 50min | 2 tasks | 7 files |
 | Phase QD-79 P14 | 95min | 3 tasks | 9 files |
+| Phase QD-79 P15 | 35min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -1016,6 +1017,7 @@ Progress: [█████░░░░░] 50% (2 of 4 phases)
 - [Phase QD-79]: 79-01: the mutation base is recorded as measured on phase_base 910cb783 (five groups, dock 72/72, store 77/78 with one open mutant at ExternalStore.ts:113), committed alone and first
 - [Phase QD-79]: ADR-QD-192 records the feeds and the dock model taking inputs only through configure, with amendments of ADR-QD-137, ADR-QD-173 and ADR-QD-185 (CCR-QD-471)
 - [Phase QD-79]: 79-14: BEH-QD-731 to 735 and INV-QD-403 and 404 state the bare feeds and the one rule; the registry read counts of ADR-QD-192 are pinned by DockRegistryReads.test.tsx, shown failing once (orchestrator-decided)
+- [Phase QD-79]: 79-15: ADR-QD-192 decision 2 and ADR-QD-185's amendment say the dock applies the one rule through its feeds (orchestrator-decided, 2026-11-24)
 
 ### Pending Todos
 
@@ -1092,8 +1094,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-24T11:57:32.995Z
-Stopped at: Completed QD-79-14-PLAN.md
+Last session: 2026-11-24T12:07:59.008Z
+Stopped at: Completed QD-79-15-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
