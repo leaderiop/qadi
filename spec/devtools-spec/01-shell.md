@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-DVT-01                                    |
-> | Revision       | 0.6 (draft)                                    |
+> | Revision       | 0.7 (draft)                                    |
 > | Effective Date | 2026-08-24                                     |
 > | Status         | Draft — pending CCR                            |
 > | Author         | Qadi Engineering                               |
 > | Classification | Design Specification (draft)                    |
-> | Change History | 0.6 (2026-11-10): the inspector's "Replay in simulator" re-seeds every time, as a command on the simulation session rather than a prop (ARCH-63, BEH-QD-390, CCR-QD-405)<br>0.5 (2026-08-24): The lens is built; the gap saying it was blocked on a design change to `@qadi/react` closed, and the dock's "apart from the lens" qualifier withdrawn (CCR-QD-074)<br>0.4 (2026-08-24): The dock is built; its normative rules are BEH-QD-210 (CCR-QD-067)<br>0.3 (2026-08-24): The non-page topologies now have a data path, though still no surface (CCR-QD-066)<br>0.2 (2026-08-24): The dock recorded as one surface among several, not the only one (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
+> | Change History | 0.7 (2026-11-24): the built lens lives in the React panel, so leaving that panel is the exit the lens-mode section names; it ends picking and clears the highlight, and the pick is kept (ARCH-127, ADR-QD-193, CCR-QD-472)<br>0.6 (2026-11-10): the inspector's "Replay in simulator" re-seeds every time, as a command on the simulation session rather than a prop (ARCH-63, BEH-QD-390, CCR-QD-405)<br>0.5 (2026-08-24): The lens is built; the gap saying it was blocked on a design change to `@qadi/react` closed, and the dock's "apart from the lens" qualifier withdrawn (CCR-QD-074)<br>0.4 (2026-08-24): The dock is built; its normative rules are BEH-QD-210 (CCR-QD-067)<br>0.3 (2026-08-24): The non-page topologies now have a data path, though still no surface (CCR-QD-066)<br>0.2 (2026-08-24): The dock recorded as one surface among several, not the only one (CCR-QD-060)<br>0.1 (2026-08-22): Initial draft from devtools design session |
 
 ---
 
@@ -73,6 +73,16 @@ Toggling the crosshair enters element-picking mode over the host page:
 
 The React panel's "highlight" action is the inverse mapping: from a gate in
 the tree to its DOM element.
+
+> **Noted 2026-11-24 (ADR-QD-193, CCR-QD-472).** The built lens lives in the React
+> panel, so leaving that panel is the exit this section names for lens mode: a tab
+> switch, or any other unmount, ends picking, clears the highlight and detaches the
+> document listeners, and the pick is kept, because a screen's choice survives
+> leaving the screen and returning to it
+> ([INV-QD-107](../invariants.md#inv-qd-107-a-screen-never-changes-what-it-shows-without-the-reviewer)).
+> A highlight is an act, so it is not drawn again on the return, and the picked row
+> is marked again without a second scroll
+> ([BEH-QD-738](../behaviors/28-devtools-screens.md#beh-qd-738-leaving-the-react-panel-ends-picking-and-clears-the-highlight-and-the-pick-is-kept)).
 
 **Built** ([ADR-QD-053](../decisions/053-a-gate-can-be-found.md), CCR-QD-073).
 The design change this gap named is the one that was made: `@qadi/react` gained
