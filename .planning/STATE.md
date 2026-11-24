@@ -5,16 +5,16 @@ milestone_name: Arch Wave 14
 current_phase: 78
 current_phase_name: "`TimelineStore` owns its capacity"
 status: executing
-stopped_at: Completed 78-07-PLAN.md
-last_updated: "2026-11-24T06:15:03.398Z"
+stopped_at: Completed 78-08-PLAN.md
+last_updated: "2026-11-24T06:43:26.169Z"
 last_activity: 2026-11-24
 last_activity_desc: Phase QD-78 execution started
-state_head: 65a7b20fc6c5cf66b675bf87b3b99e84c45987a2
+state_head: bcba35c1cabd0885fb512b9c80bcd6fb48f2903d
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 18
-  completed_plans: 14
+  completed_plans: 15
   percent: 25
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-24)
 ## Current Position
 
 Phase: QD-78 (`TimelineStore` owns its capacity) — EXECUTING
-Plan: 8 of 11
+Plan: 9 of 11
 Status: Executing Phase QD-78
 Last activity: 2026-11-24 — Phase QD-78 execution started
 
@@ -571,6 +571,7 @@ Progress: [███░░░░░░░] 25% (1 of 4 phases)
 | Phase QD-78 P05 | 30min | 2 tasks | 3 files |
 | Phase QD-78 P78-06 | 25min | 3 tasks | 4 files |
 | Phase QD-78 P78-07 | 25min | 2 tasks | 5 files |
+| Phase QD-78 P78-08 | 40min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -996,6 +997,7 @@ Progress: [███░░░░░░░] 25% (1 of 4 phases)
 - [Phase QD-78]: 78-02: TF30 reads RED at its second refusal and M55 at the later configure with held inputs; both are the defect, tests unedited
 - [Phase QD-78]: 78-03: TF33 pins the base identity comparison of an omitted and the default capacity; 78-04 changes exactly its assertions
 - [Phase QD-78]: 78-05: the dock checks the capacity through effectiveCapacity first and applies the rest in a finally; it reads no error to tell a refusal from a listener throw
+- [Phase QD-78]: 78-08: BEH-QD-726 to 730 and INV-QD-401/402 written from the shipped code; the refusal rule first, end to end; the doc 28 traceability row lists ids, not a range
 
 ### Pending Todos
 
@@ -1072,8 +1074,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-24T06:15:03.316Z
-Stopped at: Completed 78-07-PLAN.md
+Last session: 2026-11-24T06:43:26.117Z
+Stopped at: Completed 78-08-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
