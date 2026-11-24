@@ -130,11 +130,10 @@ describe("the timeline feed", () => {
   it.effect("CR3 a bare build reads what an empty input read, and configuring an empty input right after it publishes nothing", () =>
     Effect.gen(function* () {
       const bare = yield* makeTimelineFeed();
-      const empty = yield* makeTimelineFeed({});
       const built = yield* timelineFeedOf({});
       yield* settleTurns;
 
-      for (const feed of [bare, empty, built]) {
+      for (const feed of [bare, built]) {
         assert.strictEqual(feed.timeline.getSnapshot().capacity, DEFAULT_TIMELINE_CAPACITY);
         assert.deepStrictEqual(idsOf(feed), []);
         assert.deepStrictEqual(feed.status.getSnapshot(), TimelineStatus.Reading());
@@ -326,10 +325,9 @@ describe("the diagnostics feed", () => {
   it.effect("CR8 a bare build reads Off by identity, as a build handed undefined does, and configuring undefined right after it publishes nothing", () =>
     Effect.gen(function* () {
       const bare = yield* makeDiagnosticsFeed();
-      const handed = yield* makeDiagnosticsFeed(undefined);
       const built = yield* diagnosticsFeedOf(undefined);
 
-      for (const feed of [bare, handed, built]) assert.strictEqual(feed.getSnapshot(), diagnosticsOff);
+      for (const feed of [bare, built]) assert.strictEqual(feed.getSnapshot(), diagnosticsOff);
 
       const seen = recording(bare);
       bare.configure(undefined);
@@ -505,11 +503,10 @@ describe("the gates feed", () => {
   it.effect("CR13 a bare build reads unwatched and unhanded, as an empty input does, and nothing runs until it is handed something", () =>
     Effect.gen(function* () {
       const bare = yield* makeGatesFeed();
-      const empty = yield* makeGatesFeed({});
       const built = yield* gatesFeedOf({});
       yield* settleTurns;
 
-      for (const feed of [bare, empty, built]) {
+      for (const feed of [bare, built]) {
         const { registry, asked } = feed.getSnapshot();
         assert.isTrue(RegistryRead.$is("Unwatched")(registry));
         assert.isTrue(AskedRead.$is("Unhanded")(asked));

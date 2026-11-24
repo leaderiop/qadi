@@ -217,9 +217,12 @@ export interface HostInputs {
 /** Builds the three feeds in the caller's scope; closing it ends every read. */
 export const watch = Effect.fn("example.watch")(function* (report: (line: string) => void, host: HostInputs) {
   const log = yield* makeDecisionLog({ environment: "Server", capacity: 512 });
-  const timeline = yield* makeTimelineFeed({ source: log });
-  const diagnostics = yield* makeDiagnosticsFeed({ intervalMillis: 1_000 });
-  const gates = yield* makeGatesFeed(host);
+  const timeline = yield* makeTimelineFeed();
+  timeline.configure({ source: log });
+  const diagnostics = yield* makeDiagnosticsFeed();
+  diagnostics.configure({ intervalMillis: 1_000 });
+  const gates = yield* makeGatesFeed();
+  gates.configure(host);
 
   // A feed can already be Live or Stopped when its build returns, so say where it is once, then every change.
   const follow = (subscribe: (listener: () => void) => () => void, line: () => string) => {

@@ -650,7 +650,8 @@ expect("devtools dock", typeof DevtoolsDock, "function");
 const fed = await Effect.runPromise(
   Effect.scoped(
     Effect.gen(function* () {
-      const feed = yield* makeTimelineFeed({ source: sourceFromRecords([stored]) });
+      const feed = yield* makeTimelineFeed();
+      feed.configure({ source: sourceFromRecords([stored]) });
       for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
       return { status: feed.status.getSnapshot()._tag, entries: feed.timeline.getSnapshot().entries.length };
     }),
@@ -695,7 +696,8 @@ const gated = await Effect.runPromise(
   Effect.scoped(
     Effect.gen(function* () {
       const bare = yield* makeGatesFeed();
-      const feed = yield* makeGatesFeed({ gates: gateRegistry });
+      const feed = yield* makeGatesFeed();
+      feed.configure({ gates: gateRegistry });
       const read = feed.getSnapshot().registry;
       const watching = gateListeners.size;
       registered = [gate, { ...gate, id: "gate-2" }];
@@ -726,7 +728,8 @@ const diagnosed = await Effect.runPromise(
   Effect.scoped(
     Effect.gen(function* () {
       const off = yield* makeDiagnosticsFeed();
-      const feed = yield* makeDiagnosticsFeed({});
+      const feed = yield* makeDiagnosticsFeed();
+      feed.configure({});
       let turns = 0;
       while (!["Live", "Stopped"].includes(feed.getSnapshot().status._tag) && turns < LIVE_TURNS) {
         yield* Effect.yieldNow;

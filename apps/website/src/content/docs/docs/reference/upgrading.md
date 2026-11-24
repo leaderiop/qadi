@@ -1048,8 +1048,10 @@ const sampling: DiagnosticsOptions = { intervalMillis: 1_000 };
 export const statuses = Effect.scoped(
   Effect.gen(function* () {
     const log = yield* makeDecisionLog({ environment: "Server", capacity: 512 });
-    const timeline = yield* makeTimelineFeed({ source: log });
-    const diagnostics = yield* makeDiagnosticsFeed(sampling);
+    const timeline = yield* makeTimelineFeed();
+    timeline.configure({ source: log });
+    const diagnostics = yield* makeDiagnosticsFeed();
+    diagnostics.configure(sampling);
     return {
       timeline: timeline.status.getSnapshot()._tag,
       diagnostics: diagnostics.getSnapshot().status._tag,
