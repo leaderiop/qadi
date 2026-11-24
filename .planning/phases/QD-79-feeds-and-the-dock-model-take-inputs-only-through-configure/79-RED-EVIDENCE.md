@@ -253,3 +253,5 @@ The scratch edit was applied to `packages/devtools/src/model/GatesFeed.ts`, with
 - edit B1: `makeGatesFeed`'s generator given an optional parameter, `function* (_scratch?: number)`
 - failed: `scripts/check-package-install.mjs` with `TS2322: Type 'true' is not assignable to type 'false'` on the packed consumer's `Parameterless<typeof makeGatesFeed>` constant
 - failed: `surface.tst.ts`, each feed is built in a scope and fails with nothing (the `Parameters<typeof makeGatesFeed>` pin)
+- edit B1 again, on the final alias form (orchestrator re-run, 2026-11-24, at d3c07e17): the packed consumer's `type GatesFeedIsBare = [Parameters<typeof makeGatesFeed>] extends [[]] ? true : false` with the scratch `function* (_scratch?: number)` built into `lib`
+- failed: `scripts/check-package-install.mjs` exit 1, `.package-check/consumer.ts(213,7): error TS2322: Type 'true' is not assignable to type 'false'`; the file was restored from a copy and `lib` rebuilt from the committed source
