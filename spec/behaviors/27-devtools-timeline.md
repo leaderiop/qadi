@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-27                                    |
-> | Revision       | 1.14                                           |
+> | Revision       | 1.15                                           |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.14 (2026-11-19): BEH-QD-629; ingest takes the envelope (ARCH-105, CCR-QD-449)<br>1.13 (2026-11-14): BEH-QD-204: a throwing onMalformed leaves the stream running and is logged by the thrown value's name or type only (ADR-QD-153, CCR-QD-431)<br>1.12 (2026-11-14): BEH-QD-204 amended: onMalformed receives DecodeRefusal, the default warning annotated by decodeRefusalAnnotations (ADR-QD-153, CCR-QD-431)<br>1.11 (2026-11-10): BEH-QD-203 — the prelude rules are @qadi/core's decodeDecisionStream and sourceFromEventSource is the EventSource adapter over it; no requirement changes (ARCH-60, CCR-QD-397)<br>1.10 (2026-10-08): BEH-QD-204 — `onMalformed` also distinguishes `"inconsistent"`, a record that contradicts its own trace or envelope (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.9 (2026-10-08): BEH-QD-209 — an orphan shows its subject, action and resource id when the record carries them, and its filter text includes them; the handler wording follows `ObligationDischarge` (ADR-QD-105, CCR-QD-220)<br>1.8 (2026-10-07): BEH-QD-208 — the alignment is core's (`foldAligned`, INV-QD-103) and the devtools `TreeFold.ts` twin is deleted; `describeTracePath` words a path for a screen; the stale `dehydrateDecisions` clause is corrected (ADR-QD-101, CCR-QD-191)<br>1.7 (2026-10-06): BEH-QD-208 — a node whose `fieldStrategy` or `combining` is outside its closed union shows the value verbatim and says it is evaluated fail-closed (ADR-QD-092 amendment, CCR-QD-183)<br>1.6 (2026-10-06): BEH-QD-203 — an absent backlog is a prelude that did not arrive in time, not an older server, and the reader stamps nothing (`legacyEnvironment` removed); BEH-QD-204 — version 2 is the one version a frame decodes from, a pre-0.10 record is `"unsupported-version"` and a bare frame `"not-a-record"` (ADR-QD-096/097 amendments, CCR-QD-182)<br>1.5 (2026-10-05): ARCH-11 — BEH-QD-203's `Source` is one scoped `read` returning `SourceRead`, and its third requirement is replaced (the environment is stamped once, by the producing log, and carried on the wire); BEH-QD-235's backlog requirements name `SourceRead.backlog` and `storedRecordOrder`; BEH-QD-204 reads the envelope; BEH-QD-205's capacity is `DEFAULT_LOG_CAPACITY` (ADR-QD-097, CCR-QD-181)<br>1.4 (2026-10-05): BEH-QD-204 — `MalformedReason` gains `"unsupported-version"`, and a frame of either wire version decodes (ADR-QD-096, CCR-QD-180)<br>1.3 (2026-10-05): BEH-QD-204 — `MalformedReason` gains `"too-deep"`, read from `decodeSinkRecordString`'s `DecodeRefusal` (ADR-QD-095, CCR-QD-179)<br>1.2 (2026-10-04): BEH-QD-208 — `inspect` and `flattenTree` MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.1 (2026-08-25): BEH-QD-235 — several sources are one source, so a server's decisions and a browser's re-checks reach one timeline and can be paired (CCR-QD-076)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
+> | Change History | 1.15 (2026-11-24): BEH-QD-729 new, and BEH-QD-205 points to it: a record a zero-capacity timeline cannot keep changes nothing (ADR-QD-191, CCR-QD-470)<br>1.14 (2026-11-19): BEH-QD-629; ingest takes the envelope (ARCH-105, CCR-QD-449)<br>1.13 (2026-11-14): BEH-QD-204: a throwing onMalformed leaves the stream running and is logged by the thrown value's name or type only (ADR-QD-153, CCR-QD-431)<br>1.12 (2026-11-14): BEH-QD-204 amended: onMalformed receives DecodeRefusal, the default warning annotated by decodeRefusalAnnotations (ADR-QD-153, CCR-QD-431)<br>1.11 (2026-11-10): BEH-QD-203 — the prelude rules are @qadi/core's decodeDecisionStream and sourceFromEventSource is the EventSource adapter over it; no requirement changes (ARCH-60, CCR-QD-397)<br>1.10 (2026-10-08): BEH-QD-204 — `onMalformed` also distinguishes `"inconsistent"`, a record that contradicts its own trace or envelope (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.9 (2026-10-08): BEH-QD-209 — an orphan shows its subject, action and resource id when the record carries them, and its filter text includes them; the handler wording follows `ObligationDischarge` (ADR-QD-105, CCR-QD-220)<br>1.8 (2026-10-07): BEH-QD-208 — the alignment is core's (`foldAligned`, INV-QD-103) and the devtools `TreeFold.ts` twin is deleted; `describeTracePath` words a path for a screen; the stale `dehydrateDecisions` clause is corrected (ADR-QD-101, CCR-QD-191)<br>1.7 (2026-10-06): BEH-QD-208 — a node whose `fieldStrategy` or `combining` is outside its closed union shows the value verbatim and says it is evaluated fail-closed (ADR-QD-092 amendment, CCR-QD-183)<br>1.6 (2026-10-06): BEH-QD-203 — an absent backlog is a prelude that did not arrive in time, not an older server, and the reader stamps nothing (`legacyEnvironment` removed); BEH-QD-204 — version 2 is the one version a frame decodes from, a pre-0.10 record is `"unsupported-version"` and a bare frame `"not-a-record"` (ADR-QD-096/097 amendments, CCR-QD-182)<br>1.5 (2026-10-05): ARCH-11 — BEH-QD-203's `Source` is one scoped `read` returning `SourceRead`, and its third requirement is replaced (the environment is stamped once, by the producing log, and carried on the wire); BEH-QD-235's backlog requirements name `SourceRead.backlog` and `storedRecordOrder`; BEH-QD-204 reads the envelope; BEH-QD-205's capacity is `DEFAULT_LOG_CAPACITY` (ADR-QD-097, CCR-QD-181)<br>1.4 (2026-10-05): BEH-QD-204 — `MalformedReason` gains `"unsupported-version"`, and a frame of either wire version decodes (ADR-QD-096, CCR-QD-180)<br>1.3 (2026-10-05): BEH-QD-204 — `MalformedReason` gains `"too-deep"`, read from `decodeSinkRecordString`'s `DecodeRefusal` (ADR-QD-095, CCR-QD-179)<br>1.2 (2026-10-04): BEH-QD-208 — `inspect` and `flattenTree` MUST be stack-safe (ADR-QD-090, CCR-QD-170)<br>1.1 (2026-08-25): BEH-QD-235 — several sources are one source, so a server's decisions and a browser's re-checks reach one timeline and can be paired (CCR-QD-076)<br>1.0 (2026-08-24): Initial release (CCR-QD-067) |
 
 _Previous: [26 — The Decision Stream](./26-decision-stream.md)_
 
@@ -293,6 +293,8 @@ The default is `DEFAULT_LOG_CAPACITY` itself (`DEFAULT_TIMELINE_CAPACITY` is
 defined as it), and the oldest goes first as a decision log evicts, so a reader
 sees one eviction policy and one number rather than two. Non-negative rather than
 positive, unlike the log's: a view of zero is coherent, a buffer of zero is not.
+A record a zero-capacity timeline cannot keep changes nothing
+([BEH-QD-729](#beh-qd-729-a-record-a-zero-capacity-timeline-cannot-keep-changes-nothing)).
 
 ## BEH-QD-206: Four verdict classes, and ERROR is one of them
 
@@ -565,6 +567,34 @@ already have ([BEH-QD-626](./24-decision-sink.md#beh-qd-626-a-stored-record-is-t
 so the timeline no longer spells the flattened form twice. `recordOf` is not
 exported: it maps a row to its record, `entry.decision` or `entry.obligations`.
 The pins are `StoredOrder.test.ts` T1 to T3.
+
+## BEH-QD-729: A record a zero-capacity timeline cannot keep changes nothing
+
+> **Decision:** [ADR-QD-191](../decisions/191-a-timeline-store-owns-its-capacity.md) ·
+> **Scope:** [BEH-QD-205](#beh-qd-205-one-timeline-ordered-unique-and-joined) ·
+> **Invariant:** [INV-QD-039](../invariants.md#inv-qd-039-the-timeline-is-ordered-unique-and-independent-of-arrival)
+
+```ts
+export const ingest: (self: Timeline, stored: StoredRecord) => Timeline;
+```
+
+```
+REQUIREMENT: A record a timeline cannot keep, because its capacity is zero, MUST return the identical
+             timeline.
+REQUIREMENT: A timeline that holds entries over a zero bound MUST still be emptied by the next record,
+             as a new value.
+```
+
+The rule is stated in `Timeline.ts`'s `bound`, which returns the timeline it was given when nothing is kept and nothing
+was held, and not in the store's `accept`. The store's existing identity check is then the one place a non-change stops
+costing a render: a store publishes nothing and keeps its snapshot, and a feed's timeline listeners hear nothing, for a
+record the view keeps nowhere. A timeline holding entries over a zero bound is only hand-built, and the record that
+empties it is a change, so it is a new value.
+
+Pinned by `packages/devtools/test/model/Timeline.test.ts` ("a record a zero-capacity timeline cannot keep returns the
+identical timeline", "a timeline holding entries over a zero bound is emptied by the next record"),
+`packages/devtools/test/model/TimelineStore.test.ts` ("a record at a capacity of zero notifies no subscriber and keeps
+the snapshot") and `packages/devtools/test/model/TimelineFeed.test.ts` (TF32). Specified in ADR-QD-191 (CCR-QD-470).
 
 ---
 
