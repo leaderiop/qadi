@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-192                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-11-24                                     |
 > | Status         | Accepted — amends ADR-QD-137, ADR-QD-173 and ADR-QD-185 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-11-24): the retry of a failed watch on each host re-render is pinned by DockRegistryReads.test.tsx<br>1.2 (2026-11-24): decision 2: the dock applies the one rule through its feeds, with no comparison of its own beside the catalogue's<br>1.1 (2026-11-24): the behaviours and invariants that state it; DockRegistryReads.test.tsx pins the registry read counts<br>1.0 (2026-11-24): Initial (ARCH-126, CCR-QD-471) |
+> | Change History | 1.4 (2026-11-24): decision 1 and the alternatives: a bare timeline feed starts no read, and the skipped read is what shipped, unobservable (CCR-QD-471)<br>1.3 (2026-11-24): the retry of a failed watch on each host re-render is pinned by DockRegistryReads.test.tsx<br>1.2 (2026-11-24): decision 2: the dock applies the one rule through its feeds, with no comparison of its own beside the catalogue's<br>1.1 (2026-11-24): the behaviours and invariants that state it; DockRegistryReads.test.tsx pins the registry read counts<br>1.0 (2026-11-24): Initial (ARCH-126, CCR-QD-471) |
 
 ---
 
@@ -47,8 +47,9 @@ as a change, so `{ source }` and `{ source, capacity: undefined }` were two inpu
 1. **The four constructors take no argument, and `configure` is the only way inputs arrive.** `makeTimelineFeed()`,
    `makeDiagnosticsFeed()`, `makeGatesFeed()` and `makeDockModel()` build bare in the caller's scope. A bare feed is what
    the constructor built when handed `{}` (for the diagnostics feed, `undefined`, which is off), so a bare timeline feed
-   reads the empty source as the constructor read it, and "bare" is not a third state beside "configured" and "configured
-   with nothing". A bare feed followed by `configure(i)` reaches the state the code before ADR-QD-192 reached by building
+   holds the default capacity and starts no read: the empty source ends at once and publishes nothing, so a bare feed
+   and one built with `{}` show the same timeline and status, and "bare" is not a third state beside "configured" and
+   "configured with nothing". A bare feed followed by `configure(i)` reaches the state the code before ADR-QD-192 reached by building
    with `i`. `makeTimelineFeed`, `makeDiagnosticsFeed` and `makeGatesFeed` are root exports, so this is a published
    signature change; `makeDockModel` is package-private.
 2. **One per-field rule, over one normaliser per input type.** `sameFields` is exported from `ExternalStore.ts`, still out
@@ -165,8 +166,11 @@ export const watchEntries = Effect.fn("example.watchEntries")(function* (report:
 - **Keeping the constructors' argument beside `configure`.** Two ways in are what produced the second mapping site, the
   restated rule and the build that repeated its configure. A convenience overload would need a first `configure` it
   could not skip.
-- **Skipping the bare timeline feed's read of the empty source.** It would make "bare" a third state, neither configured
-  nor configured with nothing.
+- **Reading the empty source at build.** The shipped build does not (the mutation close removed it): the read was
+  unobservable, because an empty source ends at once, publishes nothing and leaves the status where it was, and its
+  Stryker mutants were equivalent. A bare feed starts no run, and `restart` and `configure` keep their reads. Skipping it
+  does not make "bare" a third state, because the timeline and the status are those of a feed configured with the empty
+  input.
 - **An "applied" sentinel that folds the retry into the rule.** Decision 5.
 
 ## Consequences
@@ -213,7 +217,7 @@ ADR-QD-173's decision 1 and ADR-QD-185's decision 2 are each amended in a dated 
 
 **The rule, per feed and for the dock.** `packages/devtools/test/model/ConfigureRule.test.ts`: for each of the timeline,
 diagnostics and gates feeds and the dock, a fresh literal holding the same fields publishes nothing and reads no host code,
-an omitted field equals one holding `undefined`, a bare build reads what an empty input read, each input moved alone makes
+an omitted field equals one holding `undefined`, a bare build shows what an empty input showed, each input moved alone makes
 the feed or the store it reaches react (a table keyed by `Record<keyof Required<I>, Mover>`, so a new field fails the
 compile until a row exists), and a build then a configure reaches what a build with the inputs reached. The dock's
 cell for a reader subscribed before the first configure pins the counts of decision 10 for both kinds of layer. Each
