@@ -576,7 +576,62 @@ Plans:
   5. `UseDockModelInput` is gone, `DevtoolsDockProps` is `DockModelInputs` plus the host-only props, inputs are mapped onto each feed in one place in `DockModel`, and gate 14's packed consumer, `surface.tst.ts`, the compiled README fence, the website's devtools page, `spec/behaviors` and the ADR fences all use the new signatures in the same plan as the change, with ADR-QD-192 and a Breaking `@qadi/devtools` changeset and upgrade-guide entry.
 
 **Planning notes**: **Research flag: a pre-plan render-sequence spike is required** (`/gsd-plan-phase --research-phase 79`). Today the first render is `Starting` then `Starting`, because the idle stand-ins hide an unconfigured feed; children's layout effects run before the parent's configure effect and `isUnsampled(Off)` is false, so a bare constructor could make the Questions join briefly claim "not handed over". That is derived by tracing, not run: the spike runs the sequence plain, under StrictMode and across a hidden `Activity` against a bare constructor, and `useScoped` reads `make` once per mount, so folding configure into the build needs the latest inputs (a ref, or a kept second effect). The open decisions in the owner table above are asked once at the discuss step, after the spike; also decide a throw during the first `configure` inside the build (scope closed vs model kept). `DockModel.configure`'s dispatch order (gates, then diagnostics, then `shownReading.refresh()`) stays written once, and the rule decides whether a feed restarts, not the order. Export `sameFields` from its file, not the barrel. Test churn: about 190 to 213 construction sites (`DockModel.test.ts` 77, `GatesFeed.test.ts` 38, `DiagnosticsFeed.test.ts` 33, `TimelineFeed.test.ts` 30), so use one fixture helper, and keep the characterisation file out of shared helpers because Phase 80 edits them. Gate 14's fixture is a template string that only `pnpm spec:package` compiles. Commit the Stryker baselines of `TimelineFeed.ts`, `DiagnosticsFeed.ts`, `GatesFeed.ts`, `ExternalStore.ts` and `DockModel.ts` (score 1, ADR-QD-168) first and re-close them after the review.
-**Plans**: TBD
+**Plans**: 17 plans (waves 1 to 17, strictly serial)
+
+Plans:
+**Wave 1**
+- [ ] 79-01-PLAN.md — record the phase base and the per-file mutation base of `TimelineFeed.ts`, `DiagnosticsFeed.ts`, `GatesFeed.ts`, `ExternalStore.ts` and `DockModel.ts`, committed alone and first
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 79-02-PLAN.md — on the base: the dock's first-render characterisation (plain, StrictMode, a hidden `Activity`, a first-configure throw) and the check that holds it byte for byte
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 79-03-PLAN.md — on the base: the built-feeds helper and the per-field rule cells for the three feeds, the gates feed's seen RED
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 79-04-PLAN.md — on the base: the dock model's rule cells and its pre-subscribed reader counts, the no-op cells seen RED
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 79-05-PLAN.md — the pinned-test check, and the timeline, diagnostics and gates feed tests built bare and configured
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 79-06-PLAN.md — the dock model tests and its characterisation built bare and configured
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 79-07-PLAN.md — `sameFields` exported with `sameFieldsOrAbsent`, and the timeline and diagnostics feeds applying their inputs through one normaliser and the rule
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 79-08-PLAN.md — the gates feed on the rule with its stated re-watch exception, and the type pins of each feed's input record
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [ ] 79-09-PLAN.md — the dock model maps its inputs onto its feeds in one place, and its input record's type pins
+
+**Wave 10** *(blocked on Wave 9 completion)*
+- [ ] 79-10-PLAN.md — the package-private `useConfigured` hook, its tests, and the dock, timeline and diagnostics hooks built through it
+
+**Wave 11** *(blocked on Wave 10 completion)*
+- [ ] 79-11-PLAN.md — `DevtoolsDockProps` extends `DockModelInputs`, `UseDockModelInput` deleted, gate 14 types every dock prop
+
+**Wave 12** *(blocked on Wave 11 completion)*
+- [ ] 79-12-PLAN.md — every consumer builds bare and configures, then the four constructors take no inputs
+
+**Wave 13** *(blocked on Wave 12 completion)*
+- [ ] 79-13-PLAN.md — ADR-QD-192, the amendments of ADR-QD-137, ADR-QD-173 and ADR-QD-185, CCR-QD-471 begun
+
+**Wave 14** *(blocked on Wave 13 completion)*
+- [ ] 79-14-PLAN.md — BEH-QD-731 to BEH-QD-735, INV-QD-403 and INV-QD-404, the restated entries and their traceability
+
+**Wave 15** *(blocked on Wave 14 completion)*
+- [ ] 79-15-PLAN.md — the Breaking changeset, the 0.13 upgrade section, the README, and CCR-QD-471 completed
+
+**Wave 16** *(blocked on Wave 15 completion)*
+- [ ] 79-16-PLAN.md — the mutation close of the five files compared with their base, and the close scans on the final tree
+
+**Wave 17** *(blocked on Wave 16 completion)*
+- [ ] 79-17-PLAN.md — `pnpm check:pr` and `pnpm spec:package` green on the closed tree, the trailer scan, CONF-01 to CONF-06 complete
+
+**Cross-cutting constraints:** <!-- gsd:generated -->
+- Assumption (flagged): WX-07 has no edge class (`unclassified`); the new titles and comments carry no decision number, plan id, requirement id or phase wording
 
 ### Phase 80: The highlight lens is a headless session; `instrument` resolved
 
