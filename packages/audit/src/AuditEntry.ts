@@ -67,7 +67,9 @@ const SequenceNumber = Schema.optional(Schema.Int);
  * guard, and `any` passes it: a store client's `JSON.parse` result is assignable to the
  * type. So each row the codec makes is also recorded in `CodecMade.ts`, and the archive
  * writer, `verifySequenceIntegrity` and `planRetention` refuse a row that was not made
- * there, naming its index (ADR-QD-190).
+ * there, naming its index (ADR-QD-190). The codec also freezes each row and its `record`
+ * as it makes them, so a write to `sequenceNumber` or to `record.at` throws in strict
+ * mode, and the fields the check read are the fields the writer reads.
  *
  * `record` is the encoded wire (see this module's doc comment); its `Type` is
  * already JSON-shaped, so a store persists `JSON.stringify(entry)` as it is, and
@@ -103,6 +105,27 @@ class AuditEntry extends Data.Class<{
 export type { AuditEntry };
 
 /**
+ * Finishes a row the codec made: freezes it and the `record` it holds, then records it
+ * ({@link markCodecMade}).
+ *
+ * The record JSON is the codec's own top-level object (the encode and the strict decode
+ * each build one), so freezing it touches nothing a host gave. It is one level: the
+ * encoder passes a host's nested object through (a record's `resource.a` is the same
+ * object in the row), and what a host supplied stays the host's. The two fields the
+ * writer and the purge read as identity, `sequenceNumber` and `record.at`, are top-level,
+ * so no write can change them after the codec checked them.
+ */
+const madeByCodec = (
+  record: SinkRecordJson,
+  sequenceNumber: number | undefined,
+): AuditEntry => {
+  const row = new AuditEntry({ record, sequenceNumber });
+  Object.freeze(record);
+  Object.freeze(row);
+  return markCodecMade(row);
+};
+
+/**
  * Translates one `SinkRecord` into the row `AuditTrailPort.write` persists.
  *
  * One call to `@qadi/core`'s `encodeSinkRecord`, which guards the whole encoded
@@ -122,7 +145,7 @@ export const encodeAuditEntry = Effect.fn("qadi.audit.encodeAuditEntry")(functio
   record: SinkRecord,
 ) {
   const json = yield* Effect.fromResult(encodeSinkRecord(record));
-  return markCodecMade(new AuditEntry({ record: json, sequenceNumber: undefined }));
+  return madeByCodec(json, undefined);
 });
 
 /**
@@ -178,7 +201,6 @@ export const decodeAuditEntry = (
   const decoded = decodeSinkRecordWithJson(row.success.record);
   if (Result.isFailure(decoded)) return Result.fail(decoded.failure);
   const { sequenceNumber } = row.success;
-  const made = new AuditEntry({ record: decoded.success.json, sequenceNumber });
-  const entry = markCodecMade(made);
+  const entry = madeByCodec(decoded.success.json, sequenceNumber);
   return Result.succeed({ entry, record: decoded.success.record });
 };

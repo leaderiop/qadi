@@ -9,10 +9,13 @@
  * first row refused, and that nothing was archived or planned from them. A row only the
  * codec made is the positive twin of each. The writer's third host-supplied input,
  * `keyMaterial`, is read the same way: a store or a JavaScript caller hands it over as
- * `any`, and the writer refuses what its own reader would.
+ * `any`, and the writer refuses what its own reader would. A row the codec made is also
+ * one nothing can change afterwards.
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as Equal from "effect/Equal";
+import * as Hash from "effect/Hash";
 import * as Result from "effect/Result";
 import { archiveAuditTrail, readAuditArchive } from "../src/AuditArchive.ts";
 import type { ArchivalOptions, KeyMaterial } from "../src/AuditArchive.ts";
@@ -233,5 +236,45 @@ describe("archiveAuditTrail refuses a keyMaterial its reader would refuse", () =
       const read = Result.getOrThrow(readAuditArchive(stored));
       assert.deepStrictEqual(read.keyMaterial, keyMaterial.map(() => key));
     }
+  });
+});
+
+describe("a row the codec made cannot be changed afterwards", () => {
+  const decoded = (record: unknown, sequenceNumber?: number) =>
+    Result.getOrThrow(decodeAuditEntry({ record, sequenceNumber })).entry;
+  const sequenced = decoded(good.record, 1);
+
+  it("a write to sequenceNumber or to record throws and leaves the row as it was", () => {
+    for (const row of [good, sequenced]) {
+      const before = JSON.stringify(row);
+      assert.throws(() => Object.assign(row, { sequenceNumber: 1.5 }), TypeError);
+      assert.throws(() => Object.assign(row, { record: null }), TypeError);
+      assert.strictEqual(JSON.stringify(row), before);
+    }
+  });
+
+  it("a write to the row's record throws and leaves its at as it was", () => {
+    for (const row of [good, sequenced]) {
+      assert.throws(() => Object.assign(row.record, { at: null }), TypeError);
+      assert.strictEqual(row.record.at, 1_000);
+    }
+  });
+
+  it("the codec freezes the record it built, not the object a host handed it", () => {
+    const host = JSON.parse(JSON.stringify(good.record));
+    const entry = decoded(host, 1);
+    assert.isFalse(Object.isFrozen(host));
+    assert.isTrue(Object.isFrozen(entry.record));
+    assert.isFalse(Object.is(entry.record, host));
+  });
+
+  it("a frozen row equals its twin, hashes alike and is held by an archive", () => {
+    const again = decoded(good.record, 1);
+    assert.isTrue(Equal.equals(sequenced, again));
+    assert.strictEqual(Hash.hash(sequenced), Hash.hash(again));
+    const written = Effect.runSync(archiveAuditTrail([sequenced], 0));
+    const stored = JSON.parse(JSON.stringify(written));
+    const archive = Result.getOrThrow(readAuditArchive(stored));
+    assert.strictEqual(archive.holds(again), 1);
   });
 });

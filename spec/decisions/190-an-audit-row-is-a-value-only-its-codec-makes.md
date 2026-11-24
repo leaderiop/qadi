@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-190                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-11-23                                     |
 > | Status         | Accepted — amends ADR-QD-110 and ADR-QD-056; amended 2026-11-24 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-11-24): second amendment: the record of what the codec made is per loaded copy of the module, and the limit is recorded (code review IN-01, CCR-QD-469)<br>1.2 (2026-11-24): second amendment: archiveAuditTrail holds keyMaterial to the reader's schema; ArchiveInputInvalid gains the field keyMaterial and its value is unknown (code review, CCR-QD-469)<br>1.1 (2026-11-24): amendment — a row is also checked at run time, through a package-private record of what the codec made; ArchiveInputInvalid and RetentionInputInvalid gain the field entries (code review WR-01, CCR-QD-469)<br>1.0 (2026-11-23): Initial (ARCH-124, CCR-QD-469) |
+> | Change History | 1.4 (2026-11-24): second amendment: the codec freezes each row it makes and its record, one level, so INV-QD-400 holds for the life of the row (code review IN-02, CCR-QD-469)<br>1.3 (2026-11-24): second amendment: the record of what the codec made is per loaded copy of the module, and the limit is recorded (code review IN-01, CCR-QD-469)<br>1.2 (2026-11-24): second amendment: archiveAuditTrail holds keyMaterial to the reader's schema; ArchiveInputInvalid gains the field keyMaterial and its value is unknown (code review, CCR-QD-469)<br>1.1 (2026-11-24): amendment — a row is also checked at run time, through a package-private record of what the codec made; ArchiveInputInvalid and RetentionInputInvalid gain the field entries (code review WR-01, CCR-QD-469)<br>1.0 (2026-11-23): Initial (ARCH-124, CCR-QD-469) |
 
 ---
 
@@ -348,4 +348,18 @@ codec-made row and `now` of `1`:
    record a row of its own and so forge membership, which is the check this amendment adds. A second loaded copy of
    `@qadi/audit` is already a configuration to fix, and one install of the package avoids it. A host that sees the symptom checks `pnpm why @qadi/audit` (or its package manager's equivalent) for
    two copies.
-7. **Decided autonomously on 2026-11-24**, under the owner's standing instruction of 2026-11-22.
+7. **A row the codec made is frozen, so the check is about what the row holds as well as who made it.** The record of
+   makers attests who made an object, and a JavaScript caller could still run `entry.sequenceNumber = 1.5` or
+   `entry.record.at = null` on a recorded row, which the type refuses to a typed caller (the fields are `readonly`).
+   The codec now freezes the row and the `record` object it built, in `madeByCodec` before it records the row, so
+   INV-QD-400's "its `at` is finite and its `sequenceNumber` is a safe integer or `undefined`" holds for the life of the
+   row and not only at the moment of construction, and a write throws a `TypeError` in strict mode. Probed first:
+   freezing breaks neither `Equal` nor `Hash` of a `Data.Class` (a frozen row equals its twin, hashes alike and is held
+   by an archive: `holds`, `planPurge`) nor the bytes of `JSON.stringify`. The freeze is one level. The row's `record`
+   is the codec's own top-level object, built by the encode or by the strict decode, and a host's own object is never
+   that object (a test pins that decoding a host's parsed row leaves it unfrozen). Deeper, the encoder passes a host's
+   nested object through (probed: for a `resource` of `{ a: { b: 1 } }`, the row's `record.resource.a` is the host's own
+   `a`), so a deep freeze would freeze objects the host owns. INV-QD-400 says one level, and does not claim deep
+   immutability. Rejected: a deep copy of the record before freezing, which adds a per-row allocation to every audit
+   write to close a path (a write to a nested value) that no invariant of the writer or the purge reads.
+8. **Decided autonomously on 2026-11-24**, under the owner's standing instruction of 2026-11-22.
