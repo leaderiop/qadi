@@ -11,12 +11,12 @@ phase runs on branch `arch-wave-14`, strictly serial (77 → 80).
 
 ### An audit row is a value only its codec makes (Phase 77, ARCH-124, audit; live defect; Breaking)
 
-- [ ] **AROW-01**: A regression test written on the phase base, without `as`, is RED for each writer input the reader refuses: at least a type-valid row whose record has `at: NaN` (`archiveAuditTrail` writes it, `readAuditArchive` refuses it as `EntryNotDecodable`) and `archiveAuditTrail(entries, NaN)` (`createdAt: null`). Every other writer input enumerated (including `keyMaterial`) is either RED or recorded as "refuted at the base". All are GREEN after the change: every archive `archiveAuditTrail` returns is read back by `readAuditArchive(JSON.parse(JSON.stringify(archive)))`.
-- [ ] **AROW-02**: `AuditEntry` can be obtained only from `encodeAuditEntry` or `decodeAuditEntry`. A literal, a spread of an existing row with a changed field, and the exported schema value cannot produce one without a compile error, pinned by type tests that can fail (`@ts-expect-error` with `toRaiseError`, plus a positive twin). The mechanism is decided at the discuss step after a probe, and recorded. The row keeps its `JSON.stringify` bytes, its key-absent `sequenceNumber` and the structural `Equal`/`Hash` that `holds()` and `planPurge` use.
-- [ ] **AROW-03**: A host can still assign a `sequenceNumber` after encoding, through a route the codec owns (for example, re-reading through `decodeAuditEntry` or a codec-owned setter). The route is decided and recorded.
-- [ ] **AROW-04**: `decodeAuditEntry` reads the envelope first, with `record` unwalked, then the record, as core's stored-record read does. It uses `untrustedDecoder` and adds no `Schema.decode*` or `JSON.parse` token. The refusal tags are unchanged. A characterisation matrix written on the phase base, including a row where both the envelope and the record are bad, shows every message and precedence change, and the ADR tabulates them.
-- [ ] **AROW-05**: The checks the brand makes dead are removed, or kept with a recorded reason: `ArchiveFacts`' `isSequenceNumber` and the write-path `SequenceNumberInvalid`, and `Retention`'s `undated` branch and fields. `sequenceNumber`'s safe-integer rule is stated in one place. A record-domain round-trip property mirrors `ArchiveRoundTrip.test.ts`'s sequence-number one.
-- [ ] **AROW-06**: ADR-QD-190 records the brand, the decode order and the refusal table, and amends ADR-QD-110. INV-QD-101, BEH-QD-253 and the affected `spec/overview.md` rows move with the decision. A `@qadi/audit` changeset marks the change **Breaking**, with an upgrade-guide entry.
+- [x] **AROW-01**: A regression test written on the phase base, without `as`, is RED for each writer input the reader refuses: at least a type-valid row whose record has `at: NaN` (`archiveAuditTrail` writes it, `readAuditArchive` refuses it as `EntryNotDecodable`) and `archiveAuditTrail(entries, NaN)` (`createdAt: null`). Every other writer input enumerated (including `keyMaterial`) is either RED or recorded as "refuted at the base". All are GREEN after the change: every archive `archiveAuditTrail` returns is read back by `readAuditArchive(JSON.parse(JSON.stringify(archive)))`.
+- [x] **AROW-02**: `AuditEntry` can be obtained only from `encodeAuditEntry` or `decodeAuditEntry`. A literal, a spread of an existing row with a changed field, and the exported schema value cannot produce one without a compile error, pinned by type tests that can fail (`@ts-expect-error` with `toRaiseError`, plus a positive twin). The mechanism is decided at the discuss step after a probe, and recorded. The row keeps its `JSON.stringify` bytes, its key-absent `sequenceNumber` and the structural `Equal`/`Hash` that `holds()` and `planPurge` use.
+- [x] **AROW-03**: A host can still assign a `sequenceNumber` after encoding, through a route the codec owns (for example, re-reading through `decodeAuditEntry` or a codec-owned setter). The route is decided and recorded.
+- [x] **AROW-04**: `decodeAuditEntry` reads the envelope first, with `record` unwalked, then the record, as core's stored-record read does. It uses `untrustedDecoder` and adds no `Schema.decode*` or `JSON.parse` token. The refusal tags are unchanged. A characterisation matrix written on the phase base, including a row where both the envelope and the record are bad, shows every message and precedence change, and the ADR tabulates them.
+- [x] **AROW-05**: The checks the brand makes dead are removed, or kept with a recorded reason: `ArchiveFacts`' `isSequenceNumber` and the write-path `SequenceNumberInvalid`, and `Retention`'s `undated` branch and fields. `sequenceNumber`'s safe-integer rule is stated in one place. A record-domain round-trip property mirrors `ArchiveRoundTrip.test.ts`'s sequence-number one.
+- [x] **AROW-06**: ADR-QD-190 records the brand, the decode order and the refusal table, and amends ADR-QD-110. INV-QD-101, BEH-QD-253 and the affected `spec/overview.md` rows move with the decision. A `@qadi/audit` changeset marks the change **Breaking**, with an upgrade-guide entry.
 
 ### `TimelineStore` owns its capacity (Phase 78, ARCH-125, devtools)
 
@@ -75,12 +75,12 @@ phase runs on branch `arch-wave-14`, strictly serial (77 → 80).
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AROW-01 | Phase 77 | Pending |
-| AROW-02 | Phase 77 | Pending |
-| AROW-03 | Phase 77 | Pending |
-| AROW-04 | Phase 77 | Pending |
-| AROW-05 | Phase 77 | Pending |
-| AROW-06 | Phase 77 | Pending |
+| AROW-01 | Phase 77 | Complete |
+| AROW-02 | Phase 77 | Complete |
+| AROW-03 | Phase 77 | Complete |
+| AROW-04 | Phase 77 | Complete |
+| AROW-05 | Phase 77 | Complete |
+| AROW-06 | Phase 77 | Complete |
 | TRSZ-01 | Phase 78 | Pending |
 | TRSZ-02 | Phase 78 | Pending |
 | TRSZ-03 | Phase 78 | Pending |
