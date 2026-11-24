@@ -510,7 +510,7 @@ import {
   sourceFromRecords,
   verdictOf,
 } from "@qadi/devtools";
-import { DevtoolsDock } from "@qadi/devtools/react";
+import { DevtoolsDock, type DevtoolsDockProps } from "@qadi/devtools/react";
 import { compileSql } from "@qadi/predicate-sql";
 import { compilePrismaWhere } from "@qadi/predicate-prisma";
 import { AuditDecisionSinkLive, AuditTrailPortTest } from "@qadi/audit";
@@ -674,6 +674,23 @@ const gateRegistry: GateRegistryLike = {
     };
   },
 };
+
+// The dock's props are the dock model's inputs and the host's two. The literal names all ten, so the packed
+// declaration file must resolve the model's input type from an entry point whose map is closed.
+const dockProps: DevtoolsDockProps = {
+  source: sourceFromRecords([stored]),
+  capacity: 100,
+  catalogue: undefined,
+  diagnostics: {},
+  reading: undefined,
+  gates: gateRegistry,
+  questions: () => [],
+  ports: undefined,
+  unknownParents: [],
+  onInvalidate: () => {},
+};
+expect("devtools dock props", Object.keys(dockProps).length, 10);
+
 const gated = await Effect.runPromise(
   Effect.scoped(
     Effect.gen(function* () {

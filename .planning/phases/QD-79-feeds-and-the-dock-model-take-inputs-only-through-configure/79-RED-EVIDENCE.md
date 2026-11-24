@@ -243,3 +243,5 @@ The scratch edit was applied to `packages/devtools/src/model/DockModel.ts`, run 
 
 - edit P1: `DockModel.ts`: `readonly extra?: number | undefined` added to `DockModelInputs`
 - failed: the dock takes eight model inputs and two host props, each accepting undefined
+
+- edit P2: `scripts/check-package-install.mjs`: `extra: 1` added to the packed consumer's `dockProps` literal; gate 14 failed with `TS2353: Object literal may only specify known properties, and 'extra' does not exist in type 'DevtoolsDockProps'`, restored from a copy; the committed gate is green.
