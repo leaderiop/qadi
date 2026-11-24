@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-192                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-24                                     |
 > | Status         | Accepted — amends ADR-QD-137, ADR-QD-173 and ADR-QD-185 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-24): the behaviours and invariants that state it; DockRegistryReads.test.tsx pins the registry read counts<br>1.0 (2026-11-24): Initial (ARCH-126, CCR-QD-471) |
+> | Change History | 1.2 (2026-11-24): decision 2: the dock applies the one rule through its feeds, with no comparison of its own beside the catalogue's<br>1.1 (2026-11-24): the behaviours and invariants that state it; DockRegistryReads.test.tsx pins the registry read counts<br>1.0 (2026-11-24): Initial (ARCH-126, CCR-QD-471) |
 
 ---
 
@@ -52,7 +52,8 @@ as a change, so `{ source }` and `{ source, capacity: undefined }` were two inpu
    with `i`. `makeTimelineFeed`, `makeDiagnosticsFeed` and `makeGatesFeed` are root exports, so this is a published
    signature change; `makeDockModel` is package-private.
 2. **One per-field rule, over one normaliser per input type.** `sameFields` is exported from `ExternalStore.ts`, still out
-   of both barrels, and every feed and the dock apply it to their inputs. It is unchanged: values compare with `===`, and
+   of both barrels, and every feed applies it to its inputs; the dock applies it through its feeds and holds no
+   comparison of its own beside the catalogue's (decision 9). It is unchanged: values compare with `===`, and
    a field on one side only is a change. `sameFieldsOrAbsent(a, b)` sits beside it for an input that may be absent: absent
    equals only absent, and two present inputs compare with `sameFields`. Each input type has exactly one normaliser,
    declared `(inputs: I) => Required<I>`: `completeTimelineInputs`, `completeDiagnosticsOptions`, `completeGatesInputs` and

@@ -569,7 +569,7 @@ entries:
   - id: "ADR-QD-185"
     file: "185-the-dock-models-computed-stores-are-derived-stores.md"
     title: "The dock model's computed stores are derived stores"
-    status: "Accepted — extends ADR-QD-168, amends ADR-QD-047, corrects ADR-QD-169; amended 2026-11-24 (sameFields is exported and applied by the feeds and the dock, ADR-QD-192)"
+    status: "Accepted — extends ADR-QD-168, amends ADR-QD-047, corrects ADR-QD-169; amended 2026-11-24 (sameFields is exported and applied by the feeds, and through them by the dock, ADR-QD-192)"
   - id: "ADR-QD-186"
     file: "186-gate-registration-is-one-keyed-reconcile.md"
     title: "Gate registration is one keyed reconcile"
