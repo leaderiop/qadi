@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-190                                   |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-11-23                                     |
 > | Status         | Accepted — amends ADR-QD-110 and ADR-QD-056; amended 2026-11-24 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.4 (2026-11-24): second amendment: the codec freezes each row it makes and its record, one level, so INV-QD-400 holds for the life of the row (code review IN-02, CCR-QD-469)<br>1.3 (2026-11-24): second amendment: the record of what the codec made is per loaded copy of the module, and the limit is recorded (code review IN-01, CCR-QD-469)<br>1.2 (2026-11-24): second amendment: archiveAuditTrail holds keyMaterial to the reader's schema; ArchiveInputInvalid gains the field keyMaterial and its value is unknown (code review, CCR-QD-469)<br>1.1 (2026-11-24): amendment — a row is also checked at run time, through a package-private record of what the codec made; ArchiveInputInvalid and RetentionInputInvalid gain the field entries (code review WR-01, CCR-QD-469)<br>1.0 (2026-11-23): Initial (ARCH-124, CCR-QD-469) |
+> | Change History | 1.5 (2026-11-24): third amendment: the writer reads keyMaterial once and writes what it checked (code review WR-01, CCR-QD-469)<br>1.4 (2026-11-24): second amendment: the codec freezes each row it makes and its record, one level, so INV-QD-400 holds for the life of the row (code review IN-02, CCR-QD-469)<br>1.3 (2026-11-24): second amendment: the record of what the codec made is per loaded copy of the module, and the limit is recorded (code review IN-01, CCR-QD-469)<br>1.2 (2026-11-24): second amendment: archiveAuditTrail holds keyMaterial to the reader's schema; ArchiveInputInvalid gains the field keyMaterial and its value is unknown (code review, CCR-QD-469)<br>1.1 (2026-11-24): amendment — a row is also checked at run time, through a package-private record of what the codec made; ArchiveInputInvalid and RetentionInputInvalid gain the field entries (code review WR-01, CCR-QD-469)<br>1.0 (2026-11-23): Initial (ARCH-124, CCR-QD-469) |
 
 ---
 
@@ -363,3 +363,25 @@ codec-made row and `now` of `1`:
    immutability. Rejected: a deep copy of the record before freezing, which adds a per-row allocation to every audit
    write to close a path (a write to a nested value) that no invariant of the writer or the purge reads.
 8. **Decided autonomously on 2026-11-24**, under the owner's standing instruction of 2026-11-22.
+
+## Third amendment (2026-11-24, CCR-QD-469, code review of the second amendment)
+
+**The `keyMaterial` the writer checks is the one it writes.** The second amendment's check read `options.keyMaterial`,
+validated each item with `Schema.is`, and then read `options.keyMaterial` again and destructured each item a second
+time to build the three-field projection. A getter, or a proxy, answers each read separately. Probed on that code, an
+item `{ get keyId() { return n++ ? 5 : "a" }, algorithm: "b", publicKey: "c" }` passed `Schema.is` (the first read,
+`"a"`) and was then destructured to `keyId: 5`, so the writer archived a bundle its reader refuses as `Malformed`:
+the defect this record set out to close, reached through the input the second amendment guards.
+
+1. **The writer reads `options.keyMaterial` once, and each item's three fields once.** `snapshotKeyMaterial` in
+   `AuditArchive.ts` takes the value given, refuses what is not a list, and for each item builds a fresh
+   `{ keyId, algorithm, publicKey }` from one read of each field by name, checks that object with the module's
+   `KeyMaterialSchema`, and returns the checked objects. What is checked is what is written, and a getter that
+   answers differently the second time is never asked a second time. The fields are read by name and not spread,
+   because a spread copies own enumerable properties only, and a class whose `keyId` is an accessor on its prototype
+   is key material the reader would read from the archived bytes. An extra property is never read, which keeps the
+   second amendment's rule that a `privateKey` on the object does not reach the archive. A throwing accessor is the
+   host's own throw and is not an input this check reads.
+2. **Rejected.** Mapping over the value already checked and reading each item again, because each item is read twice
+   there. Validating after the projection with the first read, because the projection is the second read.
+3. **Decided autonomously on 2026-11-24**, under the owner's standing instruction of 2026-11-22.

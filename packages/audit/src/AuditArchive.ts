@@ -14,6 +14,7 @@ import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import * as MutableHashMap from "effect/MutableHashMap";
 import * as Option from "effect/Option";
+import * as Predicate from "effect/Predicate";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import { untrustedDecoder } from "@qadi/core";
@@ -52,6 +53,39 @@ const KeyMaterialSchema = Schema.Struct({
 });
 
 const isKeyMaterial = Schema.is(KeyMaterialSchema);
+
+/**
+ * The `keyMaterial` a host gave (none is `undefined`), as the three fields the reader reads
+ * from each item, or the refusal of the first thing the reader would refuse.
+ *
+ * Each field is read once, into a fresh object, and that object is what is checked and
+ * what is returned, so a getter or a proxy cannot pass the check with one value and be
+ * written with another. The fields are read by name and not spread, so a class whose
+ * fields are accessors on its prototype is read as it is. An extra property is never
+ * read, so a private key on the object a host passes does not reach the archive.
+ */
+const snapshotKeyMaterial = (
+  given: unknown,
+): Result.Result<ReadonlyArray<KeyMaterial> | undefined, ArchiveInputInvalid> => {
+  if (given === undefined) {
+    return Result.succeed(undefined);
+  }
+  if (!Array.isArray(given)) {
+    return Result.fail(new ArchiveInputInvalid({ field: "keyMaterial", value: given }));
+  }
+  const items: ReadonlyArray<unknown> = given;
+  const snapshot: Array<KeyMaterial> = [];
+  for (const [index, item] of items.entries()) {
+    const copy = Predicate.isObject(item)
+      ? { keyId: item.keyId, algorithm: item.algorithm, publicKey: item.publicKey }
+      : item;
+    if (!isKeyMaterial(copy)) {
+      return Result.fail(new ArchiveInputInvalid({ field: "keyMaterial", value: index }));
+    }
+    snapshot.push(copy);
+  }
+  return Result.succeed(snapshot);
+};
 
 /**
  * The bundle {@link archiveAuditTrail} builds. **Not tamper-evident** (WD-07,
@@ -115,9 +149,10 @@ const ARCHIVE_VERSION = "1";
  * (`CodecMade.ts`), which only `encodeAuditEntry` and `decodeAuditEntry` can
  * satisfy. `keyMaterial` is the same kind of input and is held to the reader's own
  * schema, so a `keyId` typed `any` that is a number is refused here and not archived
- * for the reader to refuse. Each item is written as its three declared fields, never
- * judged and never carried with an extra property of a wider value, so a private key
- * or a secret on the object a host passes does not reach the archive.
+ * for the reader to refuse. Each item is read once, as its three declared fields, and
+ * what is checked is what is written, so an accessor that answers differently the
+ * second time cannot get past the check. An extra property is never carried, so a
+ * private key or a secret on the object a host passes does not reach the archive.
  *
  * The sequence check tolerates and is tested against entries arriving out of
  * write order — it checks the *sequence numbers*, not array order.
@@ -144,23 +179,14 @@ export const archiveAuditTrail = Effect.fn("qadi.audit.archiveAuditTrail")(funct
   if (!Number.isFinite(now)) {
     return yield* Effect.fail(new ArchiveInputInvalid({ field: "now", value: now }));
   }
-  // What a store client or a JavaScript caller hands over is not what the type says.
-  const given: unknown = options?.keyMaterial;
-  if (given !== undefined) {
-    if (!Array.isArray(given)) {
-      const refusal = new ArchiveInputInvalid({ field: "keyMaterial", value: given });
-      return yield* Effect.fail(refusal);
-    }
-    const index = given.findIndex((item) => !isKeyMaterial(item));
-    if (index !== -1) {
-      const refusal = new ArchiveInputInvalid({ field: "keyMaterial", value: index });
-      return yield* Effect.fail(refusal);
-    }
+  // What a store client or a JavaScript caller hands over is not what the type says, and
+  // `options` is read once: what is checked is what is written.
+  const snapshot = snapshotKeyMaterial(options?.keyMaterial);
+  if (Result.isFailure(snapshot)) {
+    return yield* Effect.fail(snapshot.failure);
   }
+  const keyMaterial = snapshot.success;
   const facts = yield* verifiedArchiveFacts(entries);
-  const keyMaterial = options?.keyMaterial?.map(
-    ({ keyId, algorithm, publicKey }) => ({ keyId, algorithm, publicKey }),
-  );
 
   const archive: AuditArchive = {
     archiveVersion: ARCHIVE_VERSION,

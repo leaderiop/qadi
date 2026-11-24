@@ -34,6 +34,12 @@ const fromStore = (rows: ReadonlyArray<unknown>): ReadonlyArray<AuditEntry> =>
 
 const good = codecRow("good");
 
+/** What a JavaScript caller can hand over where the type says something else: `any`. */
+const handedOver = <T>(value: unknown): T => {
+  const box: object = { value };
+  return Reflect.get(box, "value");
+};
+
 /** A row whose `at` is not a number and which carries a key the codec refuses. */
 const notDecodable = { record: { ...good.record, at: null }, sequenceNumber: undefined, extra: 1 };
 /** Two rows whose numbers are consecutive but not integers. */
@@ -227,6 +233,52 @@ describe("archiveAuditTrail refuses a keyMaterial its reader would refuse", () =
 
   it("the rows are read after the keys the reader reads", () => {
     archiveInvalid(refused([key], fromStore([notDecodable])), "entries", 0);
+  });
+
+  it("a keyMaterial list is read once, so what is checked is what is written", () => {
+    let reads = 0;
+    const options: ArchivalOptions = {
+      get keyMaterial() {
+        reads += 1;
+        return reads === 1 ? [key] : [{ ...key, keyId: "second read" }];
+      },
+    };
+    const archive = Effect.runSync(archiveAuditTrail([good], 1_000, options));
+    assert.strictEqual(reads, 1);
+    assert.deepStrictEqual(archive.keyMaterial, [key]);
+  });
+
+  it("an item field is read once, so a value that changes after the check is never archived", () => {
+    const five = handedOver<string>(5);
+    let reads = 0;
+    const shifting: KeyMaterial = {
+      get keyId() {
+        reads += 1;
+        return reads === 1 ? "a" : five;
+      },
+      algorithm: "b",
+      publicKey: "c",
+    };
+    const archive = Effect.runSync(archiveAuditTrail([good], 1_000, { keyMaterial: [shifting] }));
+    assert.strictEqual(reads, 1);
+    const read = Result.getOrThrow(readAuditArchive(JSON.parse(JSON.stringify(archive))));
+    assert.deepStrictEqual(read.keyMaterial, [{ keyId: "a", algorithm: "b", publicKey: "c" }]);
+  });
+
+  it("an item whose fields are accessors on its class is archived as its three fields", () => {
+    class Held {
+      get keyId() {
+        return key.keyId;
+      }
+      get algorithm() {
+        return key.algorithm;
+      }
+      get publicKey() {
+        return key.publicKey;
+      }
+    }
+    const archive = Effect.runSync(archiveAuditTrail([good], 1_000, { keyMaterial: [new Held()] }));
+    assert.deepStrictEqual(archive.keyMaterial, [key]);
   });
 
   it("key material the reader reads is archived, with an extra key dropped", () => {
