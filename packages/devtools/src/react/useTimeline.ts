@@ -17,7 +17,7 @@ import { useCallback, useLayoutEffect, useState } from "react";
 import type { Source } from "../model/Source.ts";
 import { idleTimeline, idleTimelineStatus, makeTimelineFeed, type TimelineStatus } from "../model/TimelineFeed.ts";
 import { makeTimelineStore, type TimelineStore } from "../model/TimelineStore.ts";
-import type { Timeline } from "../model/Timeline.ts";
+import { DEFAULT_TIMELINE_CAPACITY, type Timeline } from "../model/Timeline.ts";
 import { useScoped } from "./useScoped.ts";
 import { usePaused, useStoreSnapshot } from "./useStoreSnapshot.ts";
 
@@ -57,8 +57,9 @@ export const useTimeline = (
   const capacity = options?.capacity;
   const feed = useScoped(() => makeTimelineFeed({ source, capacity }));
 
-  // The feed diffs each field by identity. It runs again on the render the feed
-  // appears, so an input changed in between still lands.
+  // The feed compares the source by identity and the capacity by the bound it means.
+  // It runs again on the render the feed appears, so an input changed in between
+  // still lands.
   useLayoutEffect(() => {
     if (feed !== undefined) feed.configure({ source, capacity });
   }, [feed, source, capacity]);
@@ -83,12 +84,21 @@ export const useTimeline = (
 /**
  * A store fed by hand rather than by a source.
  *
- * For a screen rendering records it already holds — a replay, a fixture, a
- * test. `useState` rather than `useMemo` because the store must survive a
- * re-render with different arguments; recreating it would drop the timeline.
+ * For a screen rendering records it already holds — a replay, a fixture, a test.
+ * The store survives every re-render, so a changed `capacity` resizes it (empties
+ * it at the new bound and releases a pause) rather than replacing it, while the
+ * same capacity, or none after none, changes nothing (ADR-QD-191). `useState`
+ * rather than `useMemo` because the store must not be recreated by a re-render.
  */
 export const useTimelineStore = (options?: { readonly capacity?: number }): UseTimeline => {
-  const [store] = useState(() => makeTimelineStore(options));
+  const capacity = options?.capacity ?? DEFAULT_TIMELINE_CAPACITY;
+  const [store] = useState(() => makeTimelineStore({ capacity }));
+
+  // A layout effect, so a changed bound is shown before paint; its first run is a
+  // no-op because the store was built at that bound.
+  useLayoutEffect(() => {
+    store.resize(capacity);
+  }, [store, capacity]);
 
   const timeline = useStoreSnapshot(store);
   const paused = usePaused(store);
