@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-177                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-20                                     |
-> | Status         | Accepted — amends ADR-QD-173; amended 2026-11-21 (a capacity change's publish stops no read) |
+> | Status         | Accepted — amends ADR-QD-173; amended 2026-11-21 (a capacity change's publish stops no read); amended 2026-11-24 (ADR-QD-194: the rule is written once as callAll, and the window between a status and its fork is closed) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-21): amendment: a capacity change's publish stops no read; decision 5 says what the code holds (ARCH-115, CCR-QD-459)<br>1.0 (2026-11-20): Initial release (ARCH-111, CCR-QD-455) |
+> | Change History | 1.2 (2026-11-24): amended by ADR-QD-194 (CCR-QD-473)<br>1.1 (2026-11-21): amendment: a capacity change's publish stops no read; decision 5 says what the code holds (ARCH-115, CCR-QD-459)<br>1.0 (2026-11-20): Initial release (ARCH-111, CCR-QD-455) |
 
 ---
 
@@ -85,6 +85,24 @@ unchanged. `TimelineFeed.test.ts` pins the new order (TF26, TF27), the window (T
 `DiagnosticsFeed.test.ts` the diagnostics feed's window and its stop (F31, F32)
 ([BEH-QD-656](../behaviors/28-devtools-screens.md#beh-qd-656-a-throwing-listener-does-not-silence-the-others)). The
 release note is a patch for `@qadi/devtools`.
+
+## Amendment (2026-11-24, ARCH-128, CCR-QD-473): the rule is written once, and the window is closed
+
+Decisions 1 to 3 are written once, as `callAll(calls, message)` in `ExternalStore.ts` ([ADR-QD-194](./194-a-run-of-calls-applies-every-call-whatever-one-throws.md)):
+every call runs, each inside its own `try`, and the thrown values are rethrown by how many there are, one as itself and
+several as one `AggregateError` in call order. `notify` is `callAll` over the live listener set, the derived store's
+release is `callAll` over its parent releases, and every multi-call command of the dock model calls it, so the rule has
+one statement where it had two loops. The decision by count, the two messages and decision 4's live set are unchanged.
+
+Decision 5 is closed, and its alternative "Close the window between `begin()` and `fork()`" is the one taken. The work a
+status announces starts whatever a listener throws on that status, and the throw is rethrown after it started: the
+timeline's `Reading`, the diagnostics feed's `Starting` and the simulation's `Running` are each published in a `try`
+whose `finally` forks the work, because the fork cannot throw. The 2026-11-21 amendment's last clause is superseded: a
+status listener's throw on the `Reading` a capacity change publishes over a `Stopped` does not replace the timeline
+listener's and does not leave the read unstarted. Both throws are rethrown as one `AggregateError`, the timeline listener's
+first, and the read starts (TF29, flipped); a lone throw on the `Reading` a restart publishes is rethrown as itself with
+the read started (TF28, flipped), as is one on the diagnostics feed's `Starting` (F31, flipped). Context and Decision keep
+their history.
 
 ## Related
 

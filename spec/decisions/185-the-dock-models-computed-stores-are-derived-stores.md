@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-185                                   |
-> | Revision       | 1.5                                            |
+> | Revision       | 1.6                                            |
 > | Effective Date | 2026-11-22                                     |
-> | Status         | Accepted — extends ADR-QD-168, amends ADR-QD-047, corrects ADR-QD-169; amended 2026-11-24 (sameFields is exported and applied by the feeds, and through them by the dock, ADR-QD-192); amended 2026-11-24 (the lens is the tenth store, and a store rather than a computed one, ADR-QD-193) |
+> | Status         | Accepted — extends ADR-QD-168, amends ADR-QD-047, corrects ADR-QD-169; amended 2026-11-24 (sameFields is exported and applied by the feeds, and through them by the dock, ADR-QD-192); amended 2026-11-24 (the lens is the tenth store, and a store rather than a computed one, ADR-QD-193); amended 2026-11-24 (ADR-QD-194: the sightings rail is the fourth derived store) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.5 (2026-11-24): amended by ADR-QD-193 (CCR-QD-472)<br>1.4 (2026-11-24): the amendment says the dock applies sameFields through its feeds (ADR-QD-192, CCR-QD-471)<br>1.3 (2026-11-24): amended by ADR-QD-192 (CCR-QD-471)<br>1.2 (2026-11-22): decision 7 states what a parent whose subscribe throws and a release that throws each do (CCR-QD-464)<br>1.1 (2026-11-22): correction — key equality is over own enumerable string-keyed fields, the finalizer is registered before the parents are subscribed, and the store-list test lists the model's members and is kept equal to BEH-QD-700 by review (CCR-QD-464)<br>1.0 (2026-11-22): new — the dock model's three computed stores are derived stores (ARCH-119, CCR-QD-464) |
+> | Change History | 1.6 (2026-11-24): amended by ADR-QD-194 (CCR-QD-473)<br>1.5 (2026-11-24): amended by ADR-QD-193 (CCR-QD-472)<br>1.4 (2026-11-24): the amendment says the dock applies sameFields through its feeds (ADR-QD-192, CCR-QD-471)<br>1.3 (2026-11-24): amended by ADR-QD-192 (CCR-QD-471)<br>1.2 (2026-11-22): decision 7 states what a parent whose subscribe throws and a release that throws each do (CCR-QD-464)<br>1.1 (2026-11-22): correction — key equality is over own enumerable string-keyed fields, the finalizer is registered before the parents are subscribed, and the store-list test lists the model's members and is kept equal to BEH-QD-700 by review (CCR-QD-464)<br>1.0 (2026-11-22): new — the dock model's three computed stores are derived stores (ARCH-119, CCR-QD-464) |
 
 ---
 
@@ -181,3 +181,14 @@ as a thunk (decision 1) rather than held in stores `configure` sets last.
 > derived-store rule above does not reach it, and `configure` touches none of it
 > ([ADR-QD-193](./193-the-highlight-lens-is-a-headless-session-the-dock-model-owns.md)). The three computed stores stay the
 > shown reading, `questions` and `services`, and the counts and ordinals above keep their history.
+
+> **Amended 2026-11-24 (CCR-QD-473): the sightings rail is the fourth derived store.**
+> The model has four derived stores, not three: the sightings rail is built on `makeDerivedStore` beside the shown reading,
+> `questions` and `services`. Its parent is the timeline and its key is `{ shown, catalogue }`, the shown timeline and the
+> held catalogue, each compared by identity. It is built right after the timeline feed and before every other subscription,
+> so it moves first, and the explorer's and the simulation's `setSightings` are its two listeners, in that order. It is
+> internal: the model's stores are still the ten
+> [BEH-QD-700](../behaviors/28-devtools-screens.md#beh-qd-700-the-dock-models-stores-are-listed-once) lists, and `sightings`
+> is a thunk reading it, so a rail recompute is the rule above applied to one more key and not a new kind of store
+> ([ADR-QD-194](./194-a-run-of-calls-applies-every-call-whatever-one-throws.md)). The counts and ordinals above keep their
+> history.

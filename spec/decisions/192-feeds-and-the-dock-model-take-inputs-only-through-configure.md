@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-192                                   |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-11-24                                     |
-> | Status         | Accepted — amends ADR-QD-137, ADR-QD-173 and ADR-QD-185 |
+> | Status         | Accepted — amends ADR-QD-137, ADR-QD-173 and ADR-QD-185; amended 2026-11-24 (ADR-QD-194: every step runs on every configure, and the dock's catalogue comparison is gone) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.4 (2026-11-24): decision 1 and the alternatives: a bare timeline feed starts no read, and the skipped read is what shipped, unobservable (CCR-QD-471)<br>1.3 (2026-11-24): the retry of a failed watch on each host re-render is pinned by DockRegistryReads.test.tsx<br>1.2 (2026-11-24): decision 2: the dock applies the one rule through its feeds, with no comparison of its own beside the catalogue's<br>1.1 (2026-11-24): the behaviours and invariants that state it; DockRegistryReads.test.tsx pins the registry read counts<br>1.0 (2026-11-24): Initial (ARCH-126, CCR-QD-471) |
+> | Change History | 1.5 (2026-11-24): amended by ADR-QD-194 (CCR-QD-473)<br>1.4 (2026-11-24): decision 1 and the alternatives: a bare timeline feed starts no read, and the skipped read is what shipped, unobservable (CCR-QD-471)<br>1.3 (2026-11-24): the retry of a failed watch on each host re-render is pinned by DockRegistryReads.test.tsx<br>1.2 (2026-11-24): decision 2: the dock applies the one rule through its feeds, with no comparison of its own beside the catalogue's<br>1.1 (2026-11-24): the behaviours and invariants that state it; DockRegistryReads.test.tsx pins the registry read counts<br>1.0 (2026-11-24): Initial (ARCH-126, CCR-QD-471) |
 
 ---
 
@@ -286,3 +286,17 @@ fence above, and `scripts/check-house-style.mjs` holds its budgets unmoved.
 - [BEH-QD-735](../behaviors/28-devtools-screens.md#beh-qd-735-the-docks-inputs-are-stated-once-and-a-reader-subscribed-before-the-first-configure-hears-that-configure) — the dock's inputs stated once, and what a pre-subscribed reader hears
 - [INV-QD-403](../invariants.md#inv-qd-403-a-configure-that-moves-no-input-reaches-no-host-code-the-retry-of-a-failed-watch-excepted) — a configure that moves no input reaches no host code
 - [INV-QD-404](../invariants.md#inv-qd-404-every-input-field-is-compared-or-the-package-does-not-compile) — every input field is compared, or the package does not compile
+
+## Amendment (2026-11-24, ARCH-128, CCR-QD-473): every step runs on every `configure`
+
+Decision 3's `try` around the timeline's `configure` with everything else in the `finally`, and decision 7's quoted
+`try { timeline.resize(…) } finally { readSource(…) }`, are replaced by `callAll`
+([ADR-QD-194](./194-a-run-of-calls-applies-every-call-whatever-one-throws.md)). The timeline feed's `configure` runs its
+resize and its read as two steps, and the dock's runs seven, each reading the held inputs when it runs and each a no-op
+through its target's own guard when its input has not moved, so what a listener threw on one step cannot skip a later one,
+and an identical `configure` after a throwing one heals. The dock's one comparison of its own, the catalogue's, is gone:
+decisions 2 and 9 say the dock holds one beside the feeds', and it holds none, because the roles and the rail are each
+guarded by their own target. Decision 10's counts for the explorer and the simulation are 2 and 2, not 3 and 3, because
+the sightings rail is a derived store that recomputes once per change: the counts read timeline 2, dock 2, explorer 2,
+simulation 2, roles 0, diagnostics 1, timeline status 0, questions 2 and services 1 while the diagnostics layer is still
+building, and 2, 3 and 2 for diagnostics, questions and services once it has built. The decisions keep their history.

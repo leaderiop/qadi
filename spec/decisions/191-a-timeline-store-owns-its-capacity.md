@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-191                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-24                                     |
-> | Status         | Accepted — amends ADR-QD-137                   |
+> | Status         | Accepted — amends ADR-QD-137; amended 2026-11-24 (ADR-QD-194: the feed's and the dock's steps run through callAll) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-24): Initial (ARCH-125, CCR-QD-470) |
+> | Change History | 1.1 (2026-11-24): amended by ADR-QD-194 (CCR-QD-473)<br>1.0 (2026-11-24): Initial (ARCH-125, CCR-QD-470) |
 
 ---
 
@@ -195,3 +195,15 @@ this record's registration, tracing and revision.
 - [BEH-QD-730](../behaviors/28-devtools-screens.md#beh-qd-730-the-hand-fed-timeline-store-follows-its-capacity-option) — the hand-fed timeline store follows its capacity option
 - BEH-QD-465, BEH-QD-636 and BEH-QD-205, which the records above restate
 - [INV-QD-401 and INV-QD-402](../invariants.md) — a capacity the timeline refuses changes nothing, and a timeline feed hands its host one store for its life
+
+## Amendment (2026-11-24, ARCH-128, CCR-QD-473): a run of calls through `callAll`
+
+Decision 6's `finally` around `resize` and decision 11's `try` and `finally` in the dock are replaced by
+`callAll` ([ADR-QD-194](./194-a-run-of-calls-applies-every-call-whatever-one-throws.md)): the feed's `configure` runs its
+resize and its read of the held source as two steps, and the dock's `configure` runs seven (the timeline feed, the rail,
+the roles, the ports, the gates, the diagnostics and the shown reading), each reading the held inputs when it runs. What a
+listener threw is still rethrown once the rest is applied, one value as itself and several as one `AggregateError` in step
+order. A capacity the timeline refuses still throws before anything moves, by position and never by reading the error,
+because the capacity check runs first and outside the collector (M55, unedited), and a timeline listener's throw on a
+capacity change is still rethrown after every other input is applied (M56, unedited). Decisions 6 and 11 keep their
+history.
