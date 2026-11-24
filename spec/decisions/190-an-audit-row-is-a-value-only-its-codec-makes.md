@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-190                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-11-23                                     |
 > | Status         | Accepted — amends ADR-QD-110 and ADR-QD-056; amended 2026-11-24 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-24): second amendment: archiveAuditTrail holds keyMaterial to the reader's schema; ArchiveInputInvalid gains the field keyMaterial and its value is unknown (code review, CCR-QD-469)<br>1.1 (2026-11-24): amendment — a row is also checked at run time, through a package-private record of what the codec made; ArchiveInputInvalid and RetentionInputInvalid gain the field entries (code review WR-01, CCR-QD-469)<br>1.0 (2026-11-23): Initial (ARCH-124, CCR-QD-469) |
+> | Change History | 1.3 (2026-11-24): second amendment: the record of what the codec made is per loaded copy of the module, and the limit is recorded (code review IN-01, CCR-QD-469)<br>1.2 (2026-11-24): second amendment: archiveAuditTrail holds keyMaterial to the reader's schema; ArchiveInputInvalid gains the field keyMaterial and its value is unknown (code review, CCR-QD-469)<br>1.1 (2026-11-24): amendment — a row is also checked at run time, through a package-private record of what the codec made; ArchiveInputInvalid and RetentionInputInvalid gain the field entries (code review WR-01, CCR-QD-469)<br>1.0 (2026-11-23): Initial (ARCH-124, CCR-QD-469) |
 
 ---
 
@@ -337,4 +337,15 @@ codec-made row and `now` of `1`:
 5. **Breaking, in the release this record already marks Breaking.** `archiveAuditTrail` can fail `ArchiveInputInvalid`
    for `keyMaterial` where it archived a bundle the reader refused or threw, and `value` widens from `number` to
    `unknown`. A host that passes `keyMaterial` of the declared shape sees no difference at run time.
-6. **Decided autonomously on 2026-11-24**, under the owner's standing instruction of 2026-11-22.
+6. **The record of what the codec made is per loaded copy of the module, and this is a limit of the chosen
+   mechanism.** `CodecMade.ts`'s `WeakSet` belongs to one copy of `@qadi/audit`. A row made by another copy, which
+   happens with two versions installed side by side, two bundles with separate module graphs, or a test or hot reload
+   that resets modules, is "not made by the codec" to the copy that reads it, and the writer fails
+   `ArchiveInputInvalid { field: "entries", value: 0 }` for a row that was made correctly, with nothing in the message
+   to say the copies differ. The package's `bun` condition resolves to `./src/index.ts` beside the `import` condition's
+   `./lib/index.js`, so a mixed resolution is possible. The limit is kept and recorded, and the mechanism is not
+   changed: a registry keyed by `Symbol.for` on `globalThis` would let every copy read it, and would let any host
+   record a row of its own and so forge membership, which is the check this amendment adds. A second loaded copy of
+   `@qadi/audit` is already a configuration to fix, and one install of the package avoids it. A host that sees the symptom checks `pnpm why @qadi/audit` (or its package manager's equivalent) for
+   two copies.
+7. **Decided autonomously on 2026-11-24**, under the owner's standing instruction of 2026-11-22.
