@@ -164,6 +164,82 @@ describe("archiveAuditTrail", () => {
 
       assert.isTrue(archive.metadata.sequenceIntegrityVerified);
     }));
+
+  describe("now", () => {
+    const refused = (now: number, entries: Parameters<typeof archiveAuditTrail>[0]) =>
+      Effect.gen(function* () {
+        const result = yield* Effect.result(archiveAuditTrail(entries, now));
+        if (!Result.isFailure(result)) return assert.fail("a non-finite now archived");
+        const failure = result.failure;
+        if (failure._tag !== "ArchiveInputInvalid") return assert.fail(failure._tag);
+        return failure;
+      });
+
+    it.effect("a now of NaN, +Infinity or -Infinity is ArchiveInputInvalid", () =>
+      Effect.gen(function* () {
+        const entry = yield* encodeAuditEntry(decisionRecord());
+        const nonFinite = [Number.NaN, Infinity, -Infinity];
+        for (const now of nonFinite) {
+          const failure = yield* refused(now, [entry]);
+          assert.strictEqual(failure.field, "now");
+          assert.isTrue(Object.is(failure.value, now));
+        }
+      }));
+
+    it.effect("a non-finite now is refused before a sequence break is looked for", () =>
+      Effect.gen(function* () {
+        const a = yield* encodeAuditEntry(decisionRecord({ evaluationId: "a" }));
+        const b = yield* encodeAuditEntry(decisionRecord({ evaluationId: "b" }));
+        const broken = [numbered(a, 1), numbered(b, 3)];
+
+        const failure = yield* refused(Number.NaN, broken);
+        assert.strictEqual(failure._tag, "ArchiveInputInvalid");
+
+        const sequenced = yield* Effect.result(archiveAuditTrail(broken, 0));
+        if (!Result.isFailure(sequenced)) return assert.fail("a broken chain archived");
+        assert.strictEqual(sequenced.failure._tag, "SequenceIntegrityError");
+      }));
+
+    it.effect("a finite now archives, negative zero and zero as createdAt 0", () =>
+      Effect.gen(function* () {
+        const entry = yield* encodeAuditEntry(decisionRecord());
+        for (const now of [-0, 0, 5_000, -5_000, Number.MAX_VALUE]) {
+          const archive = yield* archiveAuditTrail([entry], now);
+          const read = Result.getOrThrow(readAuditArchive(stored(archive)));
+          assert.strictEqual(read.createdAt, now);
+        }
+      }));
+  });
+
+  describe("keyMaterial", () => {
+    it.effect("an item with an extra key is written as its three declared fields", () =>
+      Effect.gen(function* () {
+        const entry = yield* encodeAuditEntry(decisionRecord());
+        const item = { keyId: "", algorithm: "a", publicKey: "p", extra: "secret" };
+
+        const archive = yield* archiveAuditTrail([entry], 0, { keyMaterial: [item] });
+
+        const written = archive.keyMaterial?.[0] ?? assert.fail("no keyMaterial");
+        assert.deepStrictEqual(written, { keyId: "", algorithm: "a", publicKey: "p" });
+        assert.deepStrictEqual(Object.keys(written), ["keyId", "algorithm", "publicKey"]);
+        assert.notInclude(JSON.stringify(archive), "secret");
+        const read = Result.getOrThrow(readAuditArchive(stored(archive)));
+        assert.deepStrictEqual(read.keyMaterial, [written]);
+      }));
+
+    it.effect("an item is carried unjudged, empty or odd values written as given", () =>
+      Effect.gen(function* () {
+        const entry = yield* encodeAuditEntry(decisionRecord());
+        const keyMaterial = [
+          { keyId: "", algorithm: "", publicKey: "" },
+          { keyId: "\uD800", algorithm: "not an algorithm", publicKey: "\u0000" },
+        ];
+
+        const archive = yield* archiveAuditTrail([entry], 0, { keyMaterial });
+
+        assert.deepStrictEqual(archive.keyMaterial, keyMaterial);
+      }));
+  });
 });
 
 /** The bundle's JSON shape, entries left opaque so a test can corrupt them. */

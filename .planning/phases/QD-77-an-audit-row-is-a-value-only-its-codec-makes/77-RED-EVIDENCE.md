@@ -84,3 +84,60 @@ Pass one (`tsconfig.tstyche.json`) and pass two (`tsconfig.test.json`) each repo
 The two value pins (`new Row.AuditEntry(...)`, `Schema.decodeUnknownEffect(Row.AuditEntry)`) kept passing: they
 depend on the type-only export, not on the brand. The finding behind the spread pins: the `Data.Class` base alone
 refuses a literal (no `pipe`), and only the private `nominal` member refuses a spread of a real row.
+
+## Each new check seen failing once
+
+Each gut was applied to `packages/audit/src`, `pnpm vitest run --project audit` was run over the whole audit
+project (exit 1 each time), and the file was restored with `git checkout -- packages/audit/src`
+(`git diff --quiet -- packages/audit/src` held after each).
+
+### The `now` guard removed (`AuditArchive.ts`)
+
+The `if (!Number.isFinite(now)) { return yield* Effect.fail(new ArchiveInputInvalid(...)) }` block deleted.
+`Tests  6 failed | 570 passed (576)`:
+
+- `AuditArchive.test.ts > archiveAuditTrail > now > a now of NaN, +Infinity or -Infinity is ArchiveInputInvalid`
+- `AuditArchive.test.ts > archiveAuditTrail > now > a non-finite now is refused before a sequence break is looked for`
+- `ArchiveRoundTrip.test.ts > PROPERTY: every archive the writer returns is read back > refuses a now of NaN, +Infinity or -Infinity as ArchiveInputInvalid`
+- `ArchiveWriterInputs.test.ts > a now the type admits > now NaN`, `now positive infinity` and `now negative infinity`
+  `... is archived only when its reader reads it back`
+
+### The `keyMaterial` projection removed (`AuditArchive.ts`)
+
+`options?.keyMaterial?.map(({ keyId, algorithm, publicKey }) => ...)` replaced by `options?.keyMaterial`.
+`Tests  3 failed | 573 passed (576)`:
+
+- `AuditArchive.test.ts > archiveAuditTrail > keyMaterial > an item with an extra key is written as its three declared fields`
+- `ArchiveRoundTrip.test.ts > PROPERTY: every archive the writer returns is read back > fails as the reader reads, or writes a bundle that reads back`
+- `ArchiveWriterInputs.test.ts > key material the type admits > a keyMaterial item with an extra key is archived only when its reader reads it back`
+
+### The decode order put back to record-first (`AuditEntry.ts`)
+
+`decodeAuditEntry` made to call `decodeSinkRecordWithJson` on the input's `record` before `decodeRow`.
+`Tests  9 failed | 567 passed (576)`, the seven exact-refusal rows of
+`AuditEntry.characterisation.test.ts > decodeAuditEntry refuses each kind of stored row` (null, a string, a number, an
+array, an empty object, a sequence number and no record, and the both-bad row `a bad record, a bad sequence number
+and an extra key`), and two rows of `UntrustedSeams.test.ts` (`no record -> Malformed naming the missing key` and
+`A11 5, null and [] -> not an object; {} -> the missing record`).
+
+### The record-domain oracle broken (`AuditEntry.ts`)
+
+The plan named `encodeAuditEntry` writing `sequenceNumber: 0` as this gut. It was run (`<S>/nofail-seq0.log`,
+49 failed) and it does **not** fail the record-domain property: a `0` is a safe integer, so a row carrying it
+round-trips with equal bytes, and the 49 failures are the sequence-sensitive tests of other files (`ArchiveFacts`,
+`ArchiveRoundTrip`'s sequence properties, `ArchiveWriterInputs`). The property closes the record domain, so the gut
+that breaks it is an encoder that writes a record its own codec cannot read back: `return new AuditEntry({ record:
+{ ...json, at: Number.NaN }, sequenceNumber: undefined })`. `Tests  115 failed | 461 passed (576)`, among them:
+
+- `ArchiveRoundTrip.test.ts > PROPERTY: over any record, the codec refuses it or reads it back > is refused as
+  SinkRecordNotEncodable, or read back with its own bytes` (`Property failed after 6 tests`, counterexample
+  `[0, {"resource": undefined, "stable": true}]`, shrunk: an `at` of `0` written as `NaN` is `null` in the bytes and
+  the codec refuses the row it was handed)
+- `ArchiveRoundTrip.test.ts > PROPERTY: every archive the writer returns is read back > fails as the reader reads, or
+  writes a bundle that reads back`
+
+### How often the record-domain property reaches each branch
+
+A throwaway copy of the test counted its 500 runs: 278 records refused as `SinkRecordNotEncodable`, 222 read back
+(210 with no `Date` and no `undefined` value, so asserted `Equal` to the encoded row; 12 with one, asserted on bytes
+and fixed point only), 122 of the 222 with a `resource`. The copy was deleted.
