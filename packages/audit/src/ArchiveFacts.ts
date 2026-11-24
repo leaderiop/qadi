@@ -19,7 +19,7 @@
  *
  * A row's `sequenceNumber` is a safe integer here without being checked: only
  * `decodeAuditEntry` gives a row one, and its codec states the rule once
- * (`AuditEntry.ts`, ADR-QD-190), so {@link firstBreakIn} never subtracts past
+ * (`AuditEntry.ts`, ADR-QD-190), so {@link firstBreakIn} never adds one past
  * `2 ** 53`.
  */
 import * as Data from "effect/Data";

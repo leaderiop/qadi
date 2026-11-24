@@ -2,13 +2,15 @@
  * The durable, persisted form of one `SinkRecord` — what `AuditTrailPort`
  * actually stores.
  *
- * `Schema`-derived, diverging deliberately from `@qadi/predicate-sql`'s and
- * `@qadi/predicate-prisma`'s fully hand-written style. Those types are
- * produced and consumed in the same process; an `AuditEntry` is durably
- * persisted by the caller's own store and re-parsed later — by a compliance
- * review, a query tool, possibly a different process entirely — which is the
- * same condition [ADR-QD-002](../../../spec/decisions/002-schema-derived-policy-adt.md)
- * used to make `Policy` the hand-written-interface exception.
+ * A row is a nominal class only its codec makes ({@link AuditEntry}), and its
+ * `record` is `@qadi/core`'s own wire schema, not a second description of it. An
+ * `AuditEntry` is durably persisted by the caller's own store and re-parsed later —
+ * by a compliance review, a query tool, possibly a different process entirely — so
+ * the one route from stored bytes to a row is {@link decodeAuditEntry}, which
+ * refuses what it cannot read. The only schema in this module is the private
+ * envelope that decode reads a row's top level through. The same trust boundary
+ * made `Policy` a schema-derived exception to the hand-written style
+ * ([ADR-QD-002](../../../spec/decisions/002-schema-derived-policy-adt.md)).
  *
  * **A row carries the encoded wire, not the record's classes.** `record` is a
  * `SinkRecordJson` — `@qadi/core`'s `encodeSinkRecord` output, the same value
@@ -48,7 +50,7 @@ import {
  *
  * The one statement of the safe-integer rule. Only {@link decodeAuditEntry}
  * gives a row a number, so every `sequenceNumber` in memory is a safe integer,
- * and `firstBreakIn` (`ArchiveFacts.ts`) never subtracts past `2 ** 53`, where
+ * and `firstBreakIn` (`ArchiveFacts.ts`) never adds one past `2 ** 53`, where
  * `n + 1 === n` would hide a duplicate (ADR-QD-110, ADR-QD-190).
  */
 const SequenceNumber = Schema.optional(Schema.Int);
