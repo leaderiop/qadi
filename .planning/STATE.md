@@ -22,10 +22,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-24)
+See: .planning/PROJECT.md (updated 2026-11-25)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase QD-81 — The dock model applies every input whatever a listener throws
+**Current focus:** Phase 82 — `QadiProvider`'s registry has one owner for its lifetime
 
 ## Current Position
 
@@ -1124,6 +1124,7 @@ Last activity: 2026-11-25 — Phase QD-81 complete, transitioned to Phase 82
 - [Phase 22] `phase.complete` cannot match REQUIREMENTS.md's grouped traceability table (one row per phase listing several IDs), so v1.2 rows stay `Pending`; update them by hand or reshape the table. **Resolved 2026-11-12:** rows updated by hand (now archived in `milestones/v1.2-REQUIREMENTS.md`).
 
 - [Phase 77] Review limits recorded, not gaps: the codec-made registry is one per loaded copy of `@qadi/audit` (a second copy refuses the first's rows as `EntryNotMadeByCodec`); a throwing getter or `Proxy` passed as an input still throws as the host's own throw (ADR-QD-190 amendment 3).
+- [Phase 81] Review (81-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations fixed 13 findings (iteration 1: README record-path claim, vacuous lens row, package-private dock model in the README, nested `AggregateError` wording, three info; iteration 2: spec records restated for DL1..DL20 and TF37, BEH-QD-656 gains the record/sample-throw requirement; iteration 3: direct pins in `TimelineFeed.listeners.test.ts` LF1..LF3, amendment banner). `pnpm check:pr` and `pnpm spec:package` green after the fixes at daf7cd45; mutation compare exit 0 (no src change since the close). Note: `TimelineFeed.configure` re-reads a source a nested `configure` already read (TF37 pins two reads; dedup makes it harmless) — recorded, not changed. The pinned check refused a TF38 addition; the direct pins went into a new file instead. `phase.complete` warnings about `spec/decisions/1xx-...md` are false positives (abbreviated paths; the files exist).
 ### Roadmap Evolution
 
 - Phase 68.1 inserted after Phase 68: Address tech debt from the v1.7 audit (owner chose a cleanup phase before completing)
@@ -1143,11 +1144,11 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-24T23:21:17.274Z
+Last session: 2026-11-25
 Stopped at: Phase QD-81 complete, ready to plan Phase 82
 Resume file: None
 
 ## Operator Next Steps
 
 
-- Start Phase 81 with /gsd-discuss-phase 81 (then /gsd-plan-phase 81)
+- Phase 82: smart discuss (decided autonomously), then /gsd-plan-phase 82 and /gsd-execute-phase 82
