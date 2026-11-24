@@ -69,9 +69,18 @@ export const useLens = (lens: LensSession, questions: ReadableStore<QuestionsSna
       // Swallowed, so picking a guarded button does not also press it. Only
       // when a guard was actually found — otherwise the dock's own controls
       // would stop working the moment picking was on.
-      if (!lens.choose(guardAt(event))) return;
-      event.preventDefault();
-      event.stopPropagation();
+      const id = guardAt(event);
+      // `choose` notifies only when the pick moved, so a throw means it did: the click
+      // stays swallowed while the subscriber's failure still reaches the dispatch.
+      let consumed = true;
+      try {
+        consumed = lens.choose(id);
+      } finally {
+        if (consumed) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      }
     };
 
     const cancel = (event: KeyboardEvent): void => {

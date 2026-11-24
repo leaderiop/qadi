@@ -142,3 +142,10 @@ The cell was run with `event.preventDefault();` deleted from the click handler.
 The cell was run with the handlers reading a guard list captured when the listeners were added.
 
 - failed: a guard that registers while picking is found by the next pointer move and the next click
+
+### WR-03 a click that made a pick is consumed whatever a subscriber does
+
+The cell was run on the unchanged handler (`if (!lens.choose(...)) return;` before the two default-action calls): the
+subscriber's throw skipped them (`the click was consumed: expected false to be true`).
+
+- failed: a click that made a pick is still consumed when a subscriber throws while being told of it, and its failure still reaches the dispatch
