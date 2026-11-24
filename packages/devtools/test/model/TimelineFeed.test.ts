@@ -721,7 +721,7 @@ describe("the timeline feed", () => {
       assert.strictEqual(feed.timeline.getSnapshot(), snapshot);
     }));
 
-  it.effect("TF33 an omitted capacity after the default capacity, and the default after an omitted one, each empty the timeline and read again", () =>
+  it.effect("TF33 an omitted capacity and the default capacity are one bound: moving between them keeps the timeline and reads nothing again", () =>
     Effect.gen(function* () {
       const a = watched([], Stream.never);
       const feed = yield* makeTimelineFeed({
@@ -729,23 +729,30 @@ describe("the timeline feed", () => {
         capacity: DEFAULT_TIMELINE_CAPACITY,
       });
       yield* flush;
+      const heard = { calls: 0 };
+      feed.timeline.subscribe(() => {
+        heard.calls += 1;
+      });
       feed.timeline.accept(record("manual", 100));
       assert.deepStrictEqual(idsOf(feed), ["manual"]);
+      assert.strictEqual(heard.calls, 1);
 
       feed.configure({ source: a.source });
       yield* flush;
 
-      assert.deepStrictEqual(idsOf(feed), []);
-      assert.deepStrictEqual(a.tally, { started: 2, finalized: 1 });
+      assert.deepStrictEqual(idsOf(feed), ["manual"]);
+      assert.deepStrictEqual(a.tally, { started: 1, finalized: 0 });
+      assert.strictEqual(heard.calls, 1);
 
       feed.timeline.accept(record("again", 200));
-      assert.deepStrictEqual(idsOf(feed), ["again"]);
+      assert.strictEqual(heard.calls, 2);
 
       feed.configure({ source: a.source, capacity: DEFAULT_TIMELINE_CAPACITY });
       yield* flush;
 
-      assert.deepStrictEqual(idsOf(feed), []);
-      assert.deepStrictEqual(a.tally, { started: 3, finalized: 2 });
+      assert.deepStrictEqual(idsOf(feed), ["manual", "again"]);
+      assert.deepStrictEqual(a.tally, { started: 1, finalized: 0 });
+      assert.strictEqual(heard.calls, 2);
     }));
 
   it.effect("TF34 the store a host holds is one object for the feed life: a listener added before two capacity changes hears each emptied timeline once", () =>

@@ -173,6 +173,23 @@ describe("makeTimelineStore", () => {
 
       assert.strictEqual(store.getSnapshot().entries.length, 1);
     });
+
+    it("a clear after a resize keeps the capacity it was resized to", () => {
+      const store = makeTimelineStore({ capacity: 5 });
+      store.resize(3);
+      for (const id of ["a", "b", "c", "d"]) {
+        store.accept(decisionRecord({ evaluationId: id, at: 100 }));
+      }
+      store.clear();
+
+      assert.strictEqual(store.getSnapshot().capacity, 3);
+      assert.deepStrictEqual(store.getSnapshot().entries, []);
+
+      for (const id of ["e", "f", "g", "h"]) {
+        store.accept(decisionRecord({ evaluationId: id, at: 200 }));
+      }
+      assert.strictEqual(store.getSnapshot().entries.length, 3);
+    });
   });
 
   it("a record at a capacity of zero notifies no subscriber and keeps the snapshot", () => {

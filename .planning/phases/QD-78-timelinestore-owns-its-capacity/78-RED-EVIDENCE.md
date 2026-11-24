@@ -84,3 +84,12 @@ was restored with `git checkout -- <file>`. After the last restore `git diff --q
 - shown failing: UT5 a re-render with the same capacity, or with none after none, keeps the hand-fed entries
   - Edit: `useTimeline.ts` `useTimelineStore`: `const [store] = [makeTimelineStore(options)];` (a store per render)
   - First message: `AssertionError: expected { entries: [], capacity: 3 } to equal { entries: [], capacity: 3 }`
+
+## RED at the change
+
+Each test was run against the tree that lacks the rule it pins, and failed.
+
+- RED at the change: a clear after a resize keeps the capacity it was resized to
+  - Run before `clear` changed, with `resize` in place: `AssertionError: expected 5 to equal 3` (the clear rebuilt the timeline at the constructor's capacity)
+- RED at the change: TF33 an omitted capacity after the default capacity, and the default after an omitted one, each empty the timeline and read again
+  - The base form, run unedited against the new feed (the effective capacity is the store's): `AssertionError: expected [ 'manual' ] to deeply equal []` (the timeline is kept and nothing is read again); rewritten in the same commit as the one-bound rule

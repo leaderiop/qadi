@@ -13,6 +13,9 @@
  * finding a gap where the interesting decision was is the one outcome that
  * makes the pause button worse than useless. So records keep folding in and
  * `getSnapshot` keeps returning the timeline as it was when the pause began.
+ *
+ * **A capacity change is the store's own.** Whoever holds the store holds it for the life
+ * of whatever feeds it, so a different bound needs no new store (ADR-QD-191).
  */
 import * as Effect from "effect/Effect";
 import * as Stream from "effect/Stream";
@@ -36,6 +39,18 @@ export interface TimelineStore {
   readonly accept: (record: StoredRecord) => void;
   /** Empties the **view**. It does not reach back to any sink's own log. */
   readonly clear: () => void;
+  /**
+   * Changes how many entries the timeline keeps, and answers whether it did.
+   *
+   * A capacity the timeline refuses throws `emptyTimeline`'s error before anything moves,
+   * the pause and the frozen view included. The capacity it already has changes nothing,
+   * publishes nothing and answers `false`. Any other empties the timeline at the new
+   * bound, releases a pause, publishes once and answers `true`; what a listener throws on
+   * that publish is rethrown after the change is made. At run time a missing or `null`
+   * capacity reads as `DEFAULT_TIMELINE_CAPACITY`, and any value that is not a
+   * non-negative integer is refused (ADR-QD-191).
+   */
+  readonly resize: (capacity: number) => boolean;
   readonly setPaused: (paused: boolean) => void;
   readonly isPaused: () => boolean;
 }
@@ -61,9 +76,19 @@ export const makeTimelineStore = (options?: { readonly capacity?: number }): Tim
     },
 
     clear: () => {
-      timeline = emptyTimeline(options);
+      timeline = emptyTimeline({ capacity: timeline.capacity });
       frozen = undefined;
       view.publish(timeline);
+    },
+
+    resize: (capacity) => {
+      const next = emptyTimeline({ capacity });
+      if (next.capacity === timeline.capacity) return false;
+      timeline = next;
+      frozen = undefined;
+      // `publish`, not `set`: a capacity change notifies whatever the value's identity.
+      view.publish(next);
+      return true;
     },
 
     setPaused: (paused) => {
