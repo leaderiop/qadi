@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-110                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-08                                     |
-> | Status         | Accepted — amends ADR-QD-056                   |
+> | Status         | Accepted — amends ADR-QD-056; amended 2026-11-23 (ADR-QD-190) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-08): Initial (ARCH-48, CCR-QD-387) |
+> | Change History | 1.1 (2026-11-23): amendment — an archive's facts are computed over rows only the codec makes; SequenceNumberInvalid and invalidSequenceNumber are retired (ARCH-124, ADR-QD-190, CCR-QD-469)<br>1.0 (2026-11-08): Initial (ARCH-48, CCR-QD-387) |
 
 ---
 
@@ -106,3 +106,26 @@ check would still pass a duplicate past `2 ** 53`.
 - [BEH-QD-254](../behaviors/33-audit-pipeline.md#beh-qd-254-sequence-integrity-verification-detects-a-gap-or-a-duplicate-and-trusts-neither-write-order)
 - [INV-QD-054](../invariants.md#inv-qd-054-verifysequenceintegrity-detects-every-gap-and-duplicate-sequence-number)
 - [INV-QD-130](../invariants.md#inv-qd-130-a-purge-never-selects-a-row-its-archive-does-not-hold)
+
+## Amendment (2026-11-23, ADR-QD-190, CCR-QD-469)
+
+The facts are computed over rows only the codec makes. `AuditEntry` is a module-local class exported as a type, and
+`encodeAuditEntry` and `decodeAuditEntry` are the only places that construct one ([ADR-QD-190](190-an-audit-row-is-a-value-only-its-codec-makes.md)),
+so a row's `sequenceNumber` is a safe integer by construction: `decodeAuditEntry` refuses any other number as
+`Malformed`, and nothing else gives a row one. The safe-integer rule is stated once, in the row's schema.
+
+The check the "Decision" section adds for the sequence-number domain is retired with the case it guarded.
+`isSequenceNumber`, the `invalidSequenceNumber` fact, `verifiedArchiveFacts`' first failure and the public
+`SequenceNumberInvalid` are removed, and `SequenceIntegrity.ts` re-exports `verifySequenceIntegrity` and
+`SequenceIntegrityError` alone. `verifySequenceIntegrity` and `archiveAuditTrail` fail `SequenceIntegrityError` for the
+sequence and for nothing else about a number. The refusal recorded as D-48-g, that the writer refuses a sequence number
+the reader cannot decode, moved from the writer to the codec: the number never reaches the writer, because a row that
+carried it cannot be made. The reader's agreement with the writer (BEH-QD-254) holds over the rows the codec makes, which
+is every row the type admits.
+
+`archiveAuditTrail` also fails `ArchiveInputInvalid`, before the sequence facts, for a `now` that is not finite, and
+writes each `keyMaterial` item as its three declared fields, so the bundle it returns is read back by
+`readAuditArchive`. The "Consequences" paragraph that names `SequenceNumberInvalid` as the one public addition, and the
+sentence that a caller narrows on `_tag` first because of it, state what was true of the code before ADR-QD-190: the
+failure of `verifySequenceIntegrity` is `SequenceIntegrityError` alone, and `archiveAuditTrail` fails
+`SequenceIntegrityError` or `ArchiveInputInvalid`.
