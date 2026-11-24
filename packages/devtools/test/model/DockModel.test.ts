@@ -54,6 +54,7 @@ import type { DockModel } from "../../src/model/DockModel.ts";
 import type { TabId } from "../../src/model/DockSession.ts";
 import { noFilters } from "../../src/model/Filters.ts";
 import type { AskedQuestionLike, GateInstanceLike, QuestionsSnapshot } from "../../src/model/Gates.ts";
+import { isPicking, pickedOf } from "../../src/model/LensSession.ts";
 import type { Source } from "../../src/model/Source.ts";
 import type { TimelineEntry } from "../../src/model/Timeline.ts";
 import { countsOf } from "../../src/model/Verdict.ts";
@@ -1812,7 +1813,19 @@ describe("the stores of the model", () => {
           "timelineStatus",
           "questions",
           "services",
+          "lens",
         ]);
       }),
+  );
+
+  it.effect("a bare model holds the lens idle, with nothing drawn and nothing picked", () =>
+    Effect.gen(function* () {
+      const model = yield* makeDockModel();
+      const snapshot = model.lens.getSnapshot();
+
+      assert.isFalse(isPicking(snapshot));
+      assert.isUndefined(pickedOf(snapshot));
+      assert.deepStrictEqual(snapshot.highlighted, []);
+    }),
   );
 });

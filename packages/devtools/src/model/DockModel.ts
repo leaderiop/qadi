@@ -69,6 +69,7 @@ import {
   type RegistryRead,
 } from "./GatesFeed.ts";
 import { makeHeldChoiceStore, type HeldChoiceStore } from "./HeldChoice.ts";
+import { makeLensSession, type LensSession } from "./LensSession.ts";
 import { portCards, type ServicesInput, type ServicesView } from "./PortCards.ts";
 import { sameRole } from "./RoleTree.ts";
 import { makeSimulationSession, type SimulationSession } from "./SimulationSession.ts";
@@ -216,6 +217,11 @@ export interface DockModel {
   /** Stable across a capacity change: a different bound is a different buffer, not a different review session. */
   readonly timeline: TimelineStore;
   readonly dock: DockSession;
+  /**
+   * The highlight lens: what is drawn over the page, whether the reader is picking, and the
+   * guard they picked; no configure touches it.
+   */
+  readonly lens: LensSession;
   readonly explorer: ExplorerSession;
   readonly roles: HeldChoiceStore<Role>;
   readonly simulation: SimulationSession;
@@ -331,6 +337,7 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
   const explorer = makeExplorerSession({ sightings: rail });
   const roles = makeHeldChoiceStore(NO_ROLES, sameRole);
   const dock = makeDockSession({ timeline: shown, simulation });
+  const lens = makeLensSession();
 
   const spread = () => {
     rail = catalogueOf(shown, held.catalogue);
@@ -426,6 +433,7 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
   return {
     timeline,
     dock,
+    lens,
     explorer,
     roles,
     simulation,

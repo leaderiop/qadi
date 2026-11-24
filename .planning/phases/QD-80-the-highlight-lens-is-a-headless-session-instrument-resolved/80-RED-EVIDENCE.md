@@ -78,3 +78,17 @@ failed under both is listed under the inert one.
 - failed (inert): pickedOf reads the pick of an idle snapshot and nothing while picking; isPicking is true only while picking
 - failed (eager): every sequence of commands keeps picking free of a pick and draws at most one guard while picking
 - failed (eager): a command publishes exactly when the snapshot changes
+
+## 80-06 the tenth store
+
+The store-list cell, the bare-lens cell and the per-store sweep were changed first and run on the unchanged dock model
+(`DockModel.test.ts` and `ConfigureRule.test.ts`: 8 failed, 77 passed).
+
+- failed: a built model's members with subscribe and getSnapshot are exactly this list
+- failed: a bare model holds the lens idle, with nothing drawn and nothing picked
+- failed: CR16 a fresh literal holding the eight inputs notifies no store and reads no registry, thunk or source
+- failed: CR17 an omitted input and one holding undefined are one input: nothing is notified and nothing is read
+- failed: CR18 an omitted capacity, an undefined one and the default are one bound: the timeline snapshot stays and no read starts
+- failed: CR19 a bare build reads what an empty input read in every store, and configuring an empty input right after it notifies none
+- failed: CR20 each input moved alone makes the store it reaches react
+- failed: CR22 a reader subscribed to every store of a bare dock before its first configure hears 2, 2, 3, 3, 0, 1, 0, 2, 1 and 0 notifications while the poll layer is still building, and one more on three stores once it has built
