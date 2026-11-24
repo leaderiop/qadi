@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-28                                    |
-> | Revision       | 1.57                                           |
+> | Revision       | 1.58                                           |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.57 (2026-11-24): the feeds and the dock model are built bare (ADR-QD-192, CCR-QD-471)<br>1.56 (2026-11-24): the compiled diagnostics fence builds bare and configures (ADR-QD-192, CCR-QD-471)<br>1.55 (2026-11-24): DiagnosticsOptions accepts undefined per field (ADR-QD-192, CCR-QD-471)<br>1.54 (2026-11-24): BEH-QD-726, BEH-QD-727 and BEH-QD-730 new; BEH-QD-636 and BEH-QD-656 restated for the one store and the bound a capacity means (ADR-QD-191, CCR-QD-470)<br>1.53 (2026-11-24): BEH-QD-728 and INV-QD-401: a capacity the timeline refuses changes nothing in configure (ADR-QD-191, CCR-QD-470)<br>1.52 (2026-11-23): BEH-QD-466: the simulation session holds a SeededChoice (ADR-QD-187, CCR-QD-466)<br>1.51 (2026-11-22): BEH-QD-696: the inherited, non-enumerable and symbol-keyed cases are pinned by one test of a key whose such fields differ (CCR-QD-464)<br>1.50 (2026-11-22): BEH-QD-615 and BEH-QD-699: the questions and services store tests are titled for what they hold, once per key field (CCR-QD-464)<br>1.49 (2026-11-22): BEH-QD-698: the two release tests' titles are shortened (CCR-QD-464)<br>1.48 (2026-11-22): BEH-QD-700: the store-list test compares names as a set and the section claims no order (CCR-QD-464)<br>1.47 (2026-11-22): BEH-QD-698: a build whose parent subscribe throws, and a close whose release throws, are stated; its pinned-by paragraph is wrapped (CCR-QD-464)<br>1.46 (2026-11-22): BEH-QD-696 to BEH-QD-700: own enumerable string-keyed key fields, a parent whose subscribe throws, the derived stores named, the ordinal history in a dated note, and what the store-list test holds (CCR-QD-464)<br>1.45 (2026-11-22): BEH-QD-700 cites ADR-QD-185 and the change register only (CCR-QD-464)<br>1.44 (2026-11-22): BEH-QD-696 to BEH-QD-700: a derived store behind the dock model's stores; BEH-QD-465, BEH-QD-583 and BEH-QD-656 amended (ARCH-119, CCR-QD-464)<br>1.43 (2026-11-22): BEH-QD-615 drops the ordinal and is pinned by the per-store test<br>1.42 (2026-11-22): BEH-QD-616: the model holds no gate-watch state; its join is a derived store<br>1.41 (2026-11-22): BEH-QD-465 and BEH-QD-583 name the read half of a store ReadableStore (ARCH-119, CCR-QD-464)<br>1.40 (2026-11-22): BEH-QD-692: a throwing reporter is named by the option the caller passed (ARCH-118, ADR-QD-184, CCR-QD-463)<br>1.39 (2026-11-22): BEH-QD-507, BEH-QD-519 and BEH-QD-637 amended: a stopped reason is causeMessage's text of the cause (ADR-QD-182, CCR-QD-461)<br>1.38 (2026-11-21): BEH-QD-656: a capacity change's publish stops no read, and the diagnostics poll's Stopped is held (ARCH-115, CCR-QD-459)<br>1.37 (2026-11-20): BEH-QD-656 new; BEH-QD-638 amended: every listener is called, and what they threw is rethrown (ARCH-111, ADR-QD-177, CCR-QD-455)<br>1.36 (2026-11-19): BEH-QD-638 says a release that throws is swallowed, not stated (BEH-QD-584) (review iteration 3)<br>1.35 (2026-11-19): BEH-QD-638 narrows its no-escape rule to the registry and the thunk; a feed subscribe listener must not throw; BEH-QD-636's pin names TF24 (review iteration 2)<br>1.34 (2026-11-19): BEH-QD-636: a configure after the scope closed reads and publishes nothing (Phase 60 review WR-02)<br>1.33 (2026-11-19): BEH-QD-636..640; BEH-QD-323, 465, 506, 510 amended (ARCH-107, CCR-QD-451)<br>1.32 (2026-11-18): BEH-QD-616..620; BEH-QD-323, 465, 506, 507, 583, 584, 585 amended (ARCH-103, CCR-QD-447)<br>1.31 (2026-11-18): BEH-QD-611..615; BEH-QD-465, 573, 575, 216 amended (ARCH-102, CCR-QD-446)<br>1.30 (2026-11-16): BEH-QD-583: pinned by M38 and M45, M46 (review iteration 3 IN-04, IN-06; ARCH-96, CCR-QD-440)<br>1.29 (2026-11-16): BEH-QD-584: an unsubscribe that throws is not stated; configure swaps the registry before it re-merges; the same registry is not subscribed again after a watch that worked; an unrenderable throw is a fixed sentence (review iteration 3 IN-01, IN-02, IN-05; ARCH-96, CCR-QD-440)<br>1.28 (2026-11-16): BEH-QD-584: a configure after a failed subscribe subscribes again, with the same registry or another; a silent mend stays Failed until read (review iteration 2 IN-03; ARCH-96, CCR-QD-440)<br>1.27 (2026-11-16): BEH-QD-583: the same failure is the same name and message, not the stack (review iteration 2 IN-02; ARCH-96, CCR-QD-440)<br>1.26 (2026-11-16): BEH-QD-584: an unsubscribe that throws is stated and never repeated (review iteration 2 WR-01; ARCH-96, CCR-QD-440)<br>1.25 (2026-11-16): BEH-QD-583 and BEH-QD-584: a registry that throws is stated as the Failed gates view and its rows make no claim; Listed carries nothing; a closed model reads no registry (review WR-01, IN-02, IN-03; ARCH-96, CCR-QD-440)<br>1.24 (2026-11-16): BEH-QD-581 to 585; BEH-QD-465 amended and BEH-QD-217 corrected: the gate registry is the dock model's eighth store (ARCH-96, CCR-QD-440)<br>1.23 (2026-11-16): BEH-QD-215: a defaulted port with no name reads 'defaulted — unnamed' (ARCH-94 review WR-01)<br>1.22 (2026-11-16): BEH-QD-573 and BEH-QD-575 new; BEH-QD-215's defaulted is read from isPortDefault, not a name (ARCH-94, CCR-QD-438)<br>1.21 (2026-11-14): BEH-QD-521 to BEH-QD-525 new: one module owns a run a newer run supersedes (CCR-QD-428)<br>1.20 (2026-11-12): BEH-QD-519 and BEH-QD-520 new: the timeline states a stop and restarts; BEH-QD-465 (eight readouts), BEH-QD-509 and BEH-QD-510 restated (CCR-QD-427)<br>1.19 (2026-11-12): review fixes: a closed feed and a repeated command publish nothing; the notice keeps a persistent status region, alerts once per stop and shows its focus (ARCH-82, BEH-QD-507, BEH-QD-509, INV-QD-313, CCR-QD-425)<br>1.18 (2026-11-12): BEH-QD-465 restated (seven stores) and BEH-QD-323 restated (the model polls; useDiagnostics returns { status, reading }); BEH-QD-506..510 new (ARCH-82, CCR-QD-425)<br>1.17 (2026-11-11): The one internal hook, useGates, is in useGate.ts (ARCH-76, CCR-QD-418, ADR-QD-140)<br>1.16 (2026-11-11): BEH-QD-465 — the dock is one model (makeDockModel owns the six stores and pushes the rail, one configure, the model reads its source in its own scope); BEH-QD-466 — a choice from a list has one shape (HeldChoice's three arms, one cell in both sessions); BEH-QD-389's note names the dock model, not the owned hook (ARCH-74, ADR-QD-047 amendment, CCR-QD-416)<br>1.15 (2026-11-10): BEH-QD-429 (every panel shows a verdict through one treatment) and BEH-QD-430 (a record's outcome and obligation are read once) (ARCH-67, CCR-QD-409)<br>1.14 (2026-11-10): BEH-QD-399 added: the role tree is the role walk as flat rows, keyed by identity, stack-safe at 20,000 deep, a repeated role a leaf pointing at its first occurrence; BEH-QD-214's diamond requirement amended to match (ADR-QD-128, ARCH-64, CCR-QD-406)<br>1.13 (2026-11-10): BEH-QD-389 — the dock's tab, filters, selection and replay are a session the dock owns: pair the whole timeline then filter, count the whole timeline, select opens the inspector, replay opens the simulator and re-seeds (ARCH-63, ADR-QD-047, CCR-QD-405)<br>1.12 (2026-11-09): BEH-QD-337 — what the explorer shows is a session the dock owns; BEH-QD-211 and BEH-QD-213 gain a sentence each (ARCH-58, ADR-QD-047, CCR-QD-394)<br>1.11 (2026-11-08): BEH-QD-233 — every surface registers through one internal useGates over a writer the provider resolves once (ARCH-49, ADR-QD-111, CCR-QD-388)<br>1.10 (2026-10-08): the screens' mechanics (`policiesSeen`, `PolicyTree`, the lens) are package-private; specified here because the dock relies on them (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.9 (2026-10-08): BEH-QD-323 — a reading supplied to the dock is one `reading` prop of `DiagnosticsReading`, merged field by field by `mergeReading`, replacing the five props `wiring`, `activity`, `portCalls`, `questions` and `hydration`; the superseded `hydrationMismatches` is removed from the dock and `QuestionsPanel` (**breaking**, ARCH-44, reverses the layout half of ARCH-24's D-24-c, CCR-QD-241)<br>1.8 (2026-10-08): BEH-QD-323 — under a `QadiProvider` the shared build comes from `useDevtoolsFeed()`'s layer, the provider's own build, rather than a hoisted context (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.7 (2026-10-08): BEH-QD-233 — a registry built by `makeGateRegistry` reports a colliding id by default (ARCH-43, CCR-QD-250)<br>1.6 (2026-10-08): BEH-QD-211 — two structurally equal *declared* policies are one entry under the first declared name, and the explorer and the role viewer keep what they show when their list moves (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.5 (2026-10-07): BEH-QD-233 — a hook that asks several questions (`usePolicies`, `useQuestions`) lists one instance per question, each under `<useId>/<name>`; the panel shows the new kind strings as they are (ARCH-23, ADR-QD-103, CCR-QD-201)<br>1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
+> | Change History | 1.58 (2026-11-24): BEH-QD-731 to BEH-QD-735 new; BEH-QD-465, BEH-QD-584, BEH-QD-619 and BEH-QD-636 to BEH-QD-639 restated (ADR-QD-192, CCR-QD-471)<br>1.57 (2026-11-24): the feeds and the dock model are built bare (ADR-QD-192, CCR-QD-471)<br>1.56 (2026-11-24): the compiled diagnostics fence builds bare and configures (ADR-QD-192, CCR-QD-471)<br>1.55 (2026-11-24): DiagnosticsOptions accepts undefined per field (ADR-QD-192, CCR-QD-471)<br>1.54 (2026-11-24): BEH-QD-726, BEH-QD-727 and BEH-QD-730 new; BEH-QD-636 and BEH-QD-656 restated for the one store and the bound a capacity means (ADR-QD-191, CCR-QD-470)<br>1.53 (2026-11-24): BEH-QD-728 and INV-QD-401: a capacity the timeline refuses changes nothing in configure (ADR-QD-191, CCR-QD-470)<br>1.52 (2026-11-23): BEH-QD-466: the simulation session holds a SeededChoice (ADR-QD-187, CCR-QD-466)<br>1.51 (2026-11-22): BEH-QD-696: the inherited, non-enumerable and symbol-keyed cases are pinned by one test of a key whose such fields differ (CCR-QD-464)<br>1.50 (2026-11-22): BEH-QD-615 and BEH-QD-699: the questions and services store tests are titled for what they hold, once per key field (CCR-QD-464)<br>1.49 (2026-11-22): BEH-QD-698: the two release tests' titles are shortened (CCR-QD-464)<br>1.48 (2026-11-22): BEH-QD-700: the store-list test compares names as a set and the section claims no order (CCR-QD-464)<br>1.47 (2026-11-22): BEH-QD-698: a build whose parent subscribe throws, and a close whose release throws, are stated; its pinned-by paragraph is wrapped (CCR-QD-464)<br>1.46 (2026-11-22): BEH-QD-696 to BEH-QD-700: own enumerable string-keyed key fields, a parent whose subscribe throws, the derived stores named, the ordinal history in a dated note, and what the store-list test holds (CCR-QD-464)<br>1.45 (2026-11-22): BEH-QD-700 cites ADR-QD-185 and the change register only (CCR-QD-464)<br>1.44 (2026-11-22): BEH-QD-696 to BEH-QD-700: a derived store behind the dock model's stores; BEH-QD-465, BEH-QD-583 and BEH-QD-656 amended (ARCH-119, CCR-QD-464)<br>1.43 (2026-11-22): BEH-QD-615 drops the ordinal and is pinned by the per-store test<br>1.42 (2026-11-22): BEH-QD-616: the model holds no gate-watch state; its join is a derived store<br>1.41 (2026-11-22): BEH-QD-465 and BEH-QD-583 name the read half of a store ReadableStore (ARCH-119, CCR-QD-464)<br>1.40 (2026-11-22): BEH-QD-692: a throwing reporter is named by the option the caller passed (ARCH-118, ADR-QD-184, CCR-QD-463)<br>1.39 (2026-11-22): BEH-QD-507, BEH-QD-519 and BEH-QD-637 amended: a stopped reason is causeMessage's text of the cause (ADR-QD-182, CCR-QD-461)<br>1.38 (2026-11-21): BEH-QD-656: a capacity change's publish stops no read, and the diagnostics poll's Stopped is held (ARCH-115, CCR-QD-459)<br>1.37 (2026-11-20): BEH-QD-656 new; BEH-QD-638 amended: every listener is called, and what they threw is rethrown (ARCH-111, ADR-QD-177, CCR-QD-455)<br>1.36 (2026-11-19): BEH-QD-638 says a release that throws is swallowed, not stated (BEH-QD-584) (review iteration 3)<br>1.35 (2026-11-19): BEH-QD-638 narrows its no-escape rule to the registry and the thunk; a feed subscribe listener must not throw; BEH-QD-636's pin names TF24 (review iteration 2)<br>1.34 (2026-11-19): BEH-QD-636: a configure after the scope closed reads and publishes nothing (Phase 60 review WR-02)<br>1.33 (2026-11-19): BEH-QD-636..640; BEH-QD-323, 465, 506, 510 amended (ARCH-107, CCR-QD-451)<br>1.32 (2026-11-18): BEH-QD-616..620; BEH-QD-323, 465, 506, 507, 583, 584, 585 amended (ARCH-103, CCR-QD-447)<br>1.31 (2026-11-18): BEH-QD-611..615; BEH-QD-465, 573, 575, 216 amended (ARCH-102, CCR-QD-446)<br>1.30 (2026-11-16): BEH-QD-583: pinned by M38 and M45, M46 (review iteration 3 IN-04, IN-06; ARCH-96, CCR-QD-440)<br>1.29 (2026-11-16): BEH-QD-584: an unsubscribe that throws is not stated; configure swaps the registry before it re-merges; the same registry is not subscribed again after a watch that worked; an unrenderable throw is a fixed sentence (review iteration 3 IN-01, IN-02, IN-05; ARCH-96, CCR-QD-440)<br>1.28 (2026-11-16): BEH-QD-584: a configure after a failed subscribe subscribes again, with the same registry or another; a silent mend stays Failed until read (review iteration 2 IN-03; ARCH-96, CCR-QD-440)<br>1.27 (2026-11-16): BEH-QD-583: the same failure is the same name and message, not the stack (review iteration 2 IN-02; ARCH-96, CCR-QD-440)<br>1.26 (2026-11-16): BEH-QD-584: an unsubscribe that throws is stated and never repeated (review iteration 2 WR-01; ARCH-96, CCR-QD-440)<br>1.25 (2026-11-16): BEH-QD-583 and BEH-QD-584: a registry that throws is stated as the Failed gates view and its rows make no claim; Listed carries nothing; a closed model reads no registry (review WR-01, IN-02, IN-03; ARCH-96, CCR-QD-440)<br>1.24 (2026-11-16): BEH-QD-581 to 585; BEH-QD-465 amended and BEH-QD-217 corrected: the gate registry is the dock model's eighth store (ARCH-96, CCR-QD-440)<br>1.23 (2026-11-16): BEH-QD-215: a defaulted port with no name reads 'defaulted — unnamed' (ARCH-94 review WR-01)<br>1.22 (2026-11-16): BEH-QD-573 and BEH-QD-575 new; BEH-QD-215's defaulted is read from isPortDefault, not a name (ARCH-94, CCR-QD-438)<br>1.21 (2026-11-14): BEH-QD-521 to BEH-QD-525 new: one module owns a run a newer run supersedes (CCR-QD-428)<br>1.20 (2026-11-12): BEH-QD-519 and BEH-QD-520 new: the timeline states a stop and restarts; BEH-QD-465 (eight readouts), BEH-QD-509 and BEH-QD-510 restated (CCR-QD-427)<br>1.19 (2026-11-12): review fixes: a closed feed and a repeated command publish nothing; the notice keeps a persistent status region, alerts once per stop and shows its focus (ARCH-82, BEH-QD-507, BEH-QD-509, INV-QD-313, CCR-QD-425)<br>1.18 (2026-11-12): BEH-QD-465 restated (seven stores) and BEH-QD-323 restated (the model polls; useDiagnostics returns { status, reading }); BEH-QD-506..510 new (ARCH-82, CCR-QD-425)<br>1.17 (2026-11-11): The one internal hook, useGates, is in useGate.ts (ARCH-76, CCR-QD-418, ADR-QD-140)<br>1.16 (2026-11-11): BEH-QD-465 — the dock is one model (makeDockModel owns the six stores and pushes the rail, one configure, the model reads its source in its own scope); BEH-QD-466 — a choice from a list has one shape (HeldChoice's three arms, one cell in both sessions); BEH-QD-389's note names the dock model, not the owned hook (ARCH-74, ADR-QD-047 amendment, CCR-QD-416)<br>1.15 (2026-11-10): BEH-QD-429 (every panel shows a verdict through one treatment) and BEH-QD-430 (a record's outcome and obligation are read once) (ARCH-67, CCR-QD-409)<br>1.14 (2026-11-10): BEH-QD-399 added: the role tree is the role walk as flat rows, keyed by identity, stack-safe at 20,000 deep, a repeated role a leaf pointing at its first occurrence; BEH-QD-214's diamond requirement amended to match (ADR-QD-128, ARCH-64, CCR-QD-406)<br>1.13 (2026-11-10): BEH-QD-389 — the dock's tab, filters, selection and replay are a session the dock owns: pair the whole timeline then filter, count the whole timeline, select opens the inspector, replay opens the simulator and re-seeds (ARCH-63, ADR-QD-047, CCR-QD-405)<br>1.12 (2026-11-09): BEH-QD-337 — what the explorer shows is a session the dock owns; BEH-QD-211 and BEH-QD-213 gain a sentence each (ARCH-58, ADR-QD-047, CCR-QD-394)<br>1.11 (2026-11-08): BEH-QD-233 — every surface registers through one internal useGates over a writer the provider resolves once (ARCH-49, ADR-QD-111, CCR-QD-388)<br>1.10 (2026-10-08): the screens' mechanics (`policiesSeen`, `PolicyTree`, the lens) are package-private; specified here because the dock relies on them (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.9 (2026-10-08): BEH-QD-323 — a reading supplied to the dock is one `reading` prop of `DiagnosticsReading`, merged field by field by `mergeReading`, replacing the five props `wiring`, `activity`, `portCalls`, `questions` and `hydration`; the superseded `hydrationMismatches` is removed from the dock and `QuestionsPanel` (**breaking**, ARCH-44, reverses the layout half of ARCH-24's D-24-c, CCR-QD-241)<br>1.8 (2026-10-08): BEH-QD-323 — under a `QadiProvider` the shared build comes from `useDevtoolsFeed()`'s layer, the provider's own build, rather than a hoisted context (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.7 (2026-10-08): BEH-QD-233 — a registry built by `makeGateRegistry` reports a colliding id by default (ARCH-43, CCR-QD-250)<br>1.6 (2026-10-08): BEH-QD-211 — two structurally equal *declared* policies are one entry under the first declared name, and the explorer and the role viewer keep what they show when their list moves (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.5 (2026-10-07): BEH-QD-233 — a hook that asks several questions (`usePolicies`, `useQuestions`) lists one instance per question, each under `<useId>/<name>`; the panel shows the new kind strings as they are (ARCH-23, ADR-QD-103, CCR-QD-201)<br>1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
 
 _Previous: [27 — The Devtools Timeline](./27-devtools-timeline.md)_
 
@@ -912,6 +912,14 @@ Pinned by `DockSession.test.ts`, headlessly, and through the dock by
 > **Decision:** [ADR-QD-047](../decisions/047-a-headless-devtools-model.md) (amended, CCR-QD-416, CCR-QD-425, CCR-QD-427) ·
 > **Scope:** [ADR-QD-137](../decisions/137-a-devtools-session-owns-its-runs-through-a-scope.md)
 >
+> **Restated 2026-11-24 (CCR-QD-471).** `makeDockModel()` takes no argument and `configure` is the only way inputs arrive
+> ([BEH-QD-731](#beh-qd-731-the-feeds-and-the-dock-model-are-built-with-no-inputs)). One rule decides whether an input moved, so
+> a `configure` in which no input moved publishes nothing and reads no registry, thunk or source
+> ([BEH-QD-732](#beh-qd-732-a-configure-in-which-no-input-moved-changes-nothing)), and the eight inputs are `DockModelInputs`,
+> stated once and mapped onto the three feeds in one place
+> ([BEH-QD-735](#beh-qd-735-the-docks-inputs-are-stated-once-and-a-reader-subscribed-before-the-first-configure-hears-that-configure)).
+> Restated by ADR-QD-192 (CCR-QD-471).
+>
 > **Amended 2026-11-24 (ARCH-125, CCR-QD-470).** `configure` compares a capacity by the bound it means, reads an omitted one
 > as `DEFAULT_TIMELINE_CAPACITY`, and applies a capacity whole or not at all: one the timeline refuses throws before the dock
 > moves, and a timeline listener's throw is rethrown once every other input is applied
@@ -1015,7 +1023,8 @@ REQUIREMENT: `configure` MUST dispatch only an input whose identity changed, and
 
 An unchanged prop resets nothing: not a capture, not a half-filled form, not a held
 choice. An omitted input reads as `undefined` and an omitted capacity as
-`DEFAULT_TIMELINE_CAPACITY`.
+`DEFAULT_TIMELINE_CAPACITY`. A `configure` in which no input moved publishes nothing and reads no registry, thunk or
+source ([BEH-QD-732](#beh-qd-732-a-configure-in-which-no-input-moved-changes-nothing)).
 
 ```
 REQUIREMENT: The dock model MUST own the diagnostics feed and the merged reading as
@@ -2074,6 +2083,11 @@ registry read and a failed questions read). Specified in ADR-QD-162 (CCR-QD-440,
 > **Scope:** [ADR-QD-137](../decisions/137-a-devtools-session-owns-its-runs-through-a-scope.md) ·
 > **Invariant:** [INV-QD-343](../invariants.md#inv-qd-343-a-questions-snapshot-pairs-each-asked-question-with-the-guards-asking-it-at-one-moment)
 >
+> **Restated 2026-11-24 (CCR-QD-471).** A quiet mend is read by a `configure` that moves an input, and not by one that moves
+> nothing: a `configure` in which no input moved reads no registry, and the retry of a failed watch is the one exception
+> ([BEH-QD-733](#beh-qd-733-a-failed-watch-is-retried-by-any-configure-and-a-quiet-mend-waits-for-a-moved-input)). One
+> `configure` publishes at most one snapshot. Restated by ADR-QD-192 (CCR-QD-471).
+>
 > **Amended 2026-11-18 (CCR-QD-447).** The subscription, its release and its failure state are the gates feed's, built in the
 > model's scope ([BEH-QD-616](#beh-qd-616-one-feed-owns-the-gate-watch-and-the-questions-input)); every rule below holds of the
 > feed as it did of the model, and the Pinned-by paragraph names the feed's cases.
@@ -2099,7 +2113,7 @@ REQUIREMENT: The model's gates feed MUST subscribe to the registry in the model'
 ```
 REQUIREMENT: `configure` with a different registry MUST release the old subscription,
              subscribe to the new registry and re-join at once, before it re-merges the
-             reading, so that one `configure` publishes one snapshot and reads no registry
+             reading, so that one `configure` publishes at most one snapshot and reads no registry
              the host has handed away; with the same registry, after a watch that worked,
              it MUST NOT subscribe again.
 ```
@@ -2129,7 +2143,7 @@ Instrumentation off means absent (AGENTS.md §13): a dock handed no registry ren
 that throws is stated, not caught silently and not left uncaught: `@qadi/react`'s own registry swallows a listener's throw, so an
 uncaught one froze the panel with nothing said (ADR-QD-162, decision 5). The panel says it under `qadi-gates-failed`, with the
 reason, and its rows keep the question and say nothing about who is asking. A registry that mends without announcing it stays `Failed` until the registry announces, a feed tick whose questions changed
-joins them, or a `configure` reads it, since a quiet tick reads nothing. A hide and a show of the dock rebuilds the model,
+joins them, or a `configure` that moves an input reads it, since a quiet tick reads nothing. A hide and a show of the dock rebuilds the model,
 and with it the subscription.
 
 Pinned by `packages/devtools/test/model/GatesFeed.test.ts` (G33 the registry subscription lives as long as the feed's scope,
@@ -2137,7 +2151,7 @@ follows a new registry and never outlives close; G35 and G36 a closed feed subsc
 registry whose `subscribe` throws is stated and a working one replaces it; G42 and G42 b an unsubscribe that throws is not
 stated, applies the new registry in full and is called once, on a swap and on close; G43 a `subscribe` that threw is tried
 again by a `configure` with the same registry, and the same failure thrown afresh publishes nothing; G44 a registry that
-mends without announcing stays `Failed` until something reads it; G45 a thrown string or object is compared by what it
+mends without announcing stays `Failed` until the registry announces or a `configure` that moves an input reads it; G45 a thrown string or object is compared by what it
 renders as; G46 a thrown value that cannot be rendered is stated all the same; G47 one `configure` publishes one snapshot
 and reads no registry the host handed away), `packages/devtools/test/model/DockModel.test.ts` (M36 a model whose scope closed
 reads no registry a later configure hands it; M47 one `configure` publishes one snapshot, through the model) and `packages/devtools/test/react/DevtoolsDock.test.tsx` (the
@@ -2462,6 +2476,10 @@ poll withholds the rows but states the failure), `packages/devtools/test/react/Q
 > **Decision:** [ADR-QD-169](../decisions/169-the-questions-panels-two-host-inputs-are-one-feed.md) ·
 > **Scope:** [ADR-QD-162](../decisions/162-gates-are-the-dock-models-eighth-store-and-their-states-are-stated-once.md) ·
 > **Invariant:** [INV-QD-357](../invariants.md#inv-qd-357-one-feed-owns-the-gate-registry-its-subscription-its-failure-state-and-the-questions-input)
+>
+> **Restated 2026-11-24 (CCR-QD-471).** One `configure` publishes at most one snapshot, and none when no input moved
+> ([BEH-QD-732](#beh-qd-732-a-configure-in-which-no-input-moved-changes-nothing)); the feed reads the registry on a
+> `configure` that moves an input, or that retries a failed watch, and not on any other. Restated by ADR-QD-192 (CCR-QD-471).
 
 ```
 REQUIREMENT: `DockModel.questions` MUST be joined, purely, from the feed's snapshot, the
@@ -2472,12 +2490,12 @@ REQUIREMENT: `DockModel.questions` MUST be joined, purely, from the feed's snaps
 
 ```
 REQUIREMENT: A supplied question list MUST win over the thunk, and the thunk's failure MUST
-             then not be stated. One `configure` MUST publish one snapshot.
+             then not be stated. One `configure` MUST publish at most one snapshot.
 ```
 
 The join reads no host code: the feed has already read it and stated any throw. One read went away (D-04 as amended): a
-diagnostics publish that changes no question no longer re-reads the registry. The feed reads it on its own notification, on
-`configure` and on a tick whose questions changed, because the registry announces its own changes and a quiet tick reads
+diagnostics publish that changes no question no longer re-reads the registry. The feed reads it on its own notification, on a
+`configure` that moves an input or retries a failed watch, and on a tick whose questions changed, because the registry announces its own changes and a quiet tick reads
 nothing. See also [BEH-QD-583](#beh-qd-583-the-questions-store-is-one-moment-and-keeps-its-reference-when-nothing-moved).
 
 Pinned by `packages/devtools/test/model/DockModel.test.ts` (J1 the join moves first, so a host listener reads a joined
@@ -2514,6 +2532,8 @@ Specified in ADR-QD-169 (CCR-QD-447, D-02, D-05).
 > **Decision:** [ADR-QD-173](../decisions/173-the-devtools-headless-interface-is-its-feeds.md) ·
 > **Scope:** [ADR-QD-137](../decisions/137-a-devtools-session-owns-its-runs-through-a-scope.md) ·
 > **Invariant:** [INV-QD-365](../invariants.md#inv-qd-365-every-read-the-dock-runs-is-reachable-headless-and-none-the-root-exports-goes-unwatched)
+>
+> **Restated 2026-11-24 (CCR-QD-471).** `makeTimelineFeed()` takes no argument and `configure` is the only way its inputs arrive; a `configure` in which no source and no capacity moved publishes nothing and starts no read ([BEH-QD-731](#beh-qd-731-the-feeds-and-the-dock-model-are-built-with-no-inputs), [BEH-QD-732](#beh-qd-732-a-configure-in-which-no-input-moved-changes-nothing)). Past that one decision `configure` resizes the store and reads the source again. Restated by ADR-QD-192 (CCR-QD-471).
 
 ```ts
 export const makeTimelineFeed: () => Effect<TimelineFeed, never, Scope>;
@@ -2556,6 +2576,8 @@ Pinned by `packages/devtools/test/model/TimelineFeed.test.ts`, through the root 
 > **Decision:** [ADR-QD-173](../decisions/173-the-devtools-headless-interface-is-its-feeds.md) ·
 > **Scope:** [ADR-QD-137](../decisions/137-a-devtools-session-owns-its-runs-through-a-scope.md) ·
 > **Invariant:** [INV-QD-365](../invariants.md#inv-qd-365-every-read-the-dock-runs-is-reachable-headless-and-none-the-root-exports-goes-unwatched)
+>
+> **Restated 2026-11-24 (CCR-QD-471).** `makeDiagnosticsFeed()` takes no argument and is `Off` until `configure` hands it options; one rule decides whether a layer, a collector or an interval moved, and the options' presence is a transition of its own ([BEH-QD-731](#beh-qd-731-the-feeds-and-the-dock-model-are-built-with-no-inputs), [BEH-QD-732](#beh-qd-732-a-configure-in-which-no-input-moved-changes-nothing)). Restated by ADR-QD-192 (CCR-QD-471).
 
 ```ts
 export const makeDiagnosticsFeed: () => Effect<DiagnosticsFeed, never, Scope>;
@@ -2604,6 +2626,8 @@ Pinned by `packages/devtools/test/model/DiagnosticsFeed.test.ts`, through the ro
 > **Decision:** [ADR-QD-173](../decisions/173-the-devtools-headless-interface-is-its-feeds.md) ·
 > **Scope:** [ADR-QD-169](../decisions/169-the-questions-panels-two-host-inputs-are-one-feed.md) ·
 > **Invariant:** [INV-QD-365](../invariants.md#inv-qd-365-every-read-the-dock-runs-is-reachable-headless-and-none-the-root-exports-goes-unwatched)
+>
+> **Restated 2026-11-24 (CCR-QD-471).** `makeGatesFeed()` takes no argument and is unwatched and unhanded until `configure` hands it inputs; a `configure` in which no input moved reads no registry and calls no thunk, and a failed watch is retried by any `configure` ([BEH-QD-732](#beh-qd-732-a-configure-in-which-no-input-moved-changes-nothing), [BEH-QD-733](#beh-qd-733-a-failed-watch-is-retried-by-any-configure-and-a-quiet-mend-waits-for-a-moved-input)). Restated by ADR-QD-192 (CCR-QD-471).
 
 ```ts
 export const makeGatesFeed: () => Effect<GatesFeed, never, Scope>;
@@ -2645,6 +2669,8 @@ Pinned by `packages/devtools/test/model/GatesFeed.test.ts`, through the root.
 
 > **Decision:** [ADR-QD-173](../decisions/173-the-devtools-headless-interface-is-its-feeds.md) ·
 > **Invariant:** [INV-QD-366](../invariants.md#inv-qd-366-the-diagnostics-poll-has-one-option-shape-read-without-translation)
+>
+> **Restated 2026-11-24 (CCR-QD-471).** `DiagnosticsOptions` accepts `undefined` for each of its three fields, and an omitted field and one holding `undefined` are one field ([BEH-QD-732](#beh-qd-732-a-configure-in-which-no-input-moved-changes-nothing)). Restated by ADR-QD-192 (CCR-QD-471).
 
 ```ts
 export interface DiagnosticsOptions {
@@ -3020,3 +3046,185 @@ The hook's first run of that effect is a no-op, because the store was built at t
 Pinned by `packages/devtools/test/react/useTimeline.test.tsx` (UT4, a changed capacity empties the hand-fed store at the
 new bound and keeps the store; UT5, a re-render with the same capacity, or with none after none, keeps the hand-fed
 entries). Specified in ADR-QD-191 (CCR-QD-470).
+
+## BEH-QD-731: The feeds and the dock model are built with no inputs
+
+> **Decision:** [ADR-QD-192](../decisions/192-feeds-and-the-dock-model-take-inputs-only-through-configure.md) ·
+> **Scope:** [ADR-QD-173](../decisions/173-the-devtools-headless-interface-is-its-feeds.md) ·
+> **Invariant:** [INV-QD-403](../invariants.md#inv-qd-403-a-configure-that-moves-no-input-reaches-no-host-code-the-retry-of-a-failed-watch-excepted)
+
+```
+REQUIREMENT: `makeTimelineFeed`, `makeDiagnosticsFeed`, `makeGatesFeed` and `makeDockModel` MUST take
+             no argument, and `configure` MUST be the only way inputs arrive.
+REQUIREMENT: A bare build MUST equal the build handed the empty input: the timeline feed reads no
+             source and is hand-fed, the diagnostics feed is `Off`, the gates feed is unwatched and
+             unhanded, and the dock model reads in every store what an empty input read.
+REQUIREMENT: A bare build followed by `configure(i)` MUST reach the state a build handed `i` reached.
+```
+
+A bare feed is not a third state beside "configured" and "configured with nothing": the timeline feed still reads the empty
+source, as it read it when it was handed `{}`, and the diagnostics feed is the feed handed `undefined`, which is off. A host
+builds in its own scope and then hands its inputs over, so a build and a later `configure` cannot disagree about
+what an input means. `makeTimelineFeed`, `makeDiagnosticsFeed` and `makeGatesFeed` are root exports, so the missing
+argument is a published signature change; `makeDockModel` is package-private (ADR-QD-099). A headless host configures a
+feed before it subscribes, so it hears nothing it did not ask for
+([BEH-QD-735](#beh-qd-735-the-docks-inputs-are-stated-once-and-a-reader-subscribed-before-the-first-configure-hears-that-configure)).
+
+Pinned by `packages/devtools/test/model/ConfigureRule.test.ts` (CR3, CR8, CR13 and CR19, a bare build reads what an empty
+input read and configuring an empty input right after it changes nothing; CR4, CR9, CR14 and CR20, each input moved alone
+makes the feed or the store it reaches react), `packages/devtools/test/react/ConfigureFirstRender.characterisation.test.tsx`
+(C1 to C3, the dock's first commit holds only its configured state, plain and under StrictMode),
+`packages/devtools/test/surface.tst.ts` ("each feed is built in a scope and fails with nothing", the three public feeds'
+`Parameters` pinned as `[]`) and gate 14 (`scripts/check-package-install.mjs`), whose packed consumer builds each public
+feed bare and pins each constructor's `Parameters` as `[]`. Specified in ADR-QD-192 (CCR-QD-471).
+
+## BEH-QD-732: A configure in which no input moved changes nothing
+
+> **Decision:** [ADR-QD-192](../decisions/192-feeds-and-the-dock-model-take-inputs-only-through-configure.md) ·
+> **Scope:** [ADR-QD-185](../decisions/185-the-dock-models-computed-stores-are-derived-stores.md) ·
+> **Invariant:** [INV-QD-403](../invariants.md#inv-qd-403-a-configure-that-moves-no-input-reaches-no-host-code-the-retry-of-a-failed-watch-excepted)
+
+```
+REQUIREMENT: A `configure` in which no field moved, after the inputs are normalised, MUST publish
+             nothing, restart nothing and read no host code, whether it is handed the same record
+             or a fresh record holding the same fields; the retry of a failed watch
+             (BEH-QD-733) is the one exception.
+REQUIREMENT: An omitted field and a field holding `undefined` MUST be one field.
+REQUIREMENT: A capacity MUST compare by the bound it means, so an omitted capacity, an `undefined`
+             one and `DEFAULT_TIMELINE_CAPACITY` are one bound.
+REQUIREMENT: The diagnostics options' presence MUST be a transition of its own: `{}` and
+             `{ layer: undefined }` are the same "on", `undefined` is "off", and `configure(undefined)`
+             on a feed that is off MUST publish nothing.
+REQUIREMENT: Each field of each input type MUST be compared by identity, and a field moved alone
+             MUST make the feed or the store it reaches react.
+```
+
+The rule is one comparison, `sameFields` in `ExternalStore.ts`, over one complete record per input type
+(`completeTimelineInputs`, `completeDiagnosticsOptions`, `completeGatesInputs` and `completeDockInputs`); values compare
+with `===`, and a field present on one side only is a change. `sameFieldsOrAbsent` is its form for an input that may be
+absent: absent equals only absent, and two present inputs compare with `sameFields`. A host that configures the dock on
+every commit therefore runs no host code that its inputs did not move: a registry's `instances()`, a questions thunk
+and a source are each read only when their input moved
+([INV-QD-403](../invariants.md#inv-qd-403-a-configure-that-moves-no-input-reaches-no-host-code-the-retry-of-a-failed-watch-excepted)).
+A capacity the timeline refuses still throws before anything moves
+([BEH-QD-728](#beh-qd-728-a-capacity-the-timeline-refuses-changes-nothing-in-configure)).
+
+Pinned by `packages/devtools/test/model/ConfigureRule.test.ts` (CR1, CR6, CR11 and CR16, a fresh literal holding the same
+fields publishes nothing, starts nothing and reads no host code; CR2, CR12, CR17 and CR23, an omitted field equals one
+holding `undefined`; CR2 and CR18, a capacity compares by its bound; CR7, the presence of the diagnostics options is a
+transition of its own; CR4, CR9, CR14 and CR20, each input moved alone reacts),
+`packages/devtools/test/model/ExternalStore.test.ts` (`sameFields` and `sameFieldsOrAbsent`, which keep the two cases that a
+field on one side only and a field swapped for one holding `undefined` are changes) and
+`packages/devtools/test/react/DockRegistryReads.test.tsx` (a re-render with a fresh inputs record holding the same fields
+reads and subscribes nothing, and one that moves an input of the gates feed reads the registry once).
+Specified in ADR-QD-192 (CCR-QD-471).
+
+## BEH-QD-733: A failed watch is retried by any configure, and a quiet mend waits for a moved input
+
+> **Decision:** [ADR-QD-192](../decisions/192-feeds-and-the-dock-model-take-inputs-only-through-configure.md) ·
+> **Scope:** [ADR-QD-162](../decisions/162-gates-are-the-dock-models-eighth-store-and-their-states-are-stated-once.md) ·
+> **Invariant:** [INV-QD-403](../invariants.md#inv-qd-403-a-configure-that-moves-no-input-reaches-no-host-code-the-retry-of-a-failed-watch-excepted)
+
+```
+REQUIREMENT: A `configure` on a gates feed whose `subscribe` threw MUST subscribe again, with the
+             same registry or another, even when no input moved.
+REQUIREMENT: A registry that mends without announcing MUST stay `Failed` until it announces, until
+             a tick whose questions changed joins it, or until a `configure` that moves an input
+             reads it.
+```
+
+The rule of [BEH-QD-732](#beh-qd-732-a-configure-in-which-no-input-moved-changes-nothing) answers "did an input move?", and a
+failed subscription has no other way back than a second subscribe, which must fire when nothing moved. So the gates feed
+returns early on `sameFields(held, wanted) && watchFailure === undefined`, and the retry is the one stated exception rather
+than a sentinel written into the rule. The exception is narrow: a registry whose `subscribe` keeps throwing is subscribed
+again once per `configure`, and a registry that works is subscribed once. A registry that mended quietly is not read by a
+`configure` that moves nothing, because that read would run host code a host that configures on every commit never asked
+for; a `configure` that moves an input, the `intervalMillis` for one, reads it
+([BEH-QD-584](#beh-qd-584-the-gate-registry-is-a-model-input-subscribed-for-the-models-scope)).
+
+Pinned by `packages/devtools/test/model/GatesFeed.test.ts` (G43, a registry whose `subscribe` threw is subscribed again by a
+`configure` with the same registry; G44, whose last stanza holds that a registry that mended without announcing stays
+`Failed` after a `configure` with the same inputs and is read after one that moves `intervalMillis`),
+`packages/devtools/test/react/QuestionsPanel.feed.characterisation.test.tsx` (case 13, a silent mend is not read by a
+re-render with unchanged inputs) and `packages/devtools/test/react/ConfigureFirstRender.characterisation.test.tsx` (C4, a
+registry whose `subscribe` throws is read as failed in every commit and retried once per build).
+Specified in ADR-QD-192 (CCR-QD-471).
+
+## BEH-QD-734: The hooks configure inside the scoped build
+
+> **Decision:** [ADR-QD-192](../decisions/192-feeds-and-the-dock-model-take-inputs-only-through-configure.md) ·
+> **Scope:** [ADR-QD-137](../decisions/137-a-devtools-session-owns-its-runs-through-a-scope.md) ·
+> **Invariant:** [INV-QD-403](../invariants.md#inv-qd-403-a-configure-that-moves-no-input-reaches-no-host-code-the-retry-of-a-failed-watch-excepted)
+
+```
+REQUIREMENT: `useDockModel`, `useTimeline` and `useDiagnostics` MUST configure the value inside the
+             scoped build, before any reader commits it, so no reader sees an unconfigured value.
+REQUIREMENT: A change of the inputs record's identity MUST configure the value again, and the same
+             record MUST configure nothing more.
+REQUIREMENT: A remount or an `Activity` reveal MUST rebuild the value configured with the inputs of
+             the latest committed render.
+REQUIREMENT: A first `configure` that throws MUST close the scope, publish nothing and reach the
+             error boundary as the original error.
+REQUIREMENT: A healthy gate registry MUST be read once by a dock built through `useDockModel`, and
+             twice under StrictMode; a registry whose `subscribe` throws MUST be read never, and
+             subscribed twice and, under StrictMode, three times.
+```
+
+The hooks are written on one package-private hook, `useConfigured`: `useScoped`'s build with the value's `configure` tapped
+onto it, and a layout effect on the value and the inputs record that configures again after a commit in which the record
+changed identity. The hook decides nothing about whether an input moved, and the value's own rule makes the second call a
+no-op when nothing did ([BEH-QD-732](#beh-qd-732-a-configure-in-which-no-input-moved-changes-nothing)). The latest inputs
+reach a rebuild through the render's own closure, with no ref, which rests on React running an effect with its latest
+closure. The code before ADR-QD-192 built each value with its inputs and configured it again in a second effect, so a healthy
+registry was read twice and three times under StrictMode; the counts above are the ones a configure that moves nothing
+leaves.
+
+Pinned by `packages/devtools/test/react/useConfigured.test.tsx` (U1, the first commit a child makes reads the value already
+configured; U2, a first configure that throws closes the scope and reaches the boundary as itself; U3, a new inputs record
+configures once more and the same record configures nothing more; U4, a value hidden, handed new inputs and shown again is
+rebuilt configured with them, also under StrictMode),
+`packages/devtools/test/react/ConfigureFirstRender.characterisation.test.tsx` (C1 to C11, the first commit of the dock and
+of the feed hooks, plain and under StrictMode, the first commit after each of three `Activity` reveals, and a first
+configure that throws) and `packages/devtools/test/react/DockRegistryReads.test.tsx` ("a healthy registry is read once under
+the hook and twice under StrictMode", "a registry whose subscribe throws is subscribed again by each build and read
+never"). Specified in ADR-QD-192 (CCR-QD-471).
+
+## BEH-QD-735: The dock's inputs are stated once, and a reader subscribed before the first configure hears that configure
+
+> **Decision:** [ADR-QD-192](../decisions/192-feeds-and-the-dock-model-take-inputs-only-through-configure.md) ·
+> **Scope:** [ADR-QD-185](../decisions/185-the-dock-models-computed-stores-are-derived-stores.md) ·
+> **Invariant:** [INV-QD-404](../invariants.md#inv-qd-404-every-input-field-is-compared-or-the-package-does-not-compile)
+
+```
+REQUIREMENT: `DevtoolsDockProps` MUST be the dock model's inputs, `DockModelInputs`, plus the host's
+             own two props, `unknownParents` and `onInvalidate`, and no other type MUST restate the
+             eight inputs.
+REQUIREMENT: The dock's inputs MUST be mapped onto the three feeds' inputs in one place,
+             `feedInputsOf`, which carries the diagnostics options' interval to the gates feed.
+REQUIREMENT: A field added to an input type MUST fail the compile until the one normaliser that
+             lists the fields names it.
+REQUIREMENT: A reader subscribed to a bare dock's stores before its first `configure` MUST hear that
+             `configure`'s publishes, and the end state MUST equal the one a configure before the
+             subscription reaches.
+```
+
+`DockModelInputs` is package-private; the packed declaration file names it through `DevtoolsDockProps`, so no entry is
+added to the export list. `DockModel.configure` calls `feedInputsOf` once and dispatches in the dock's existing order, the
+timeline first, then the catalogue and roles, the ports, the gates, the diagnostics and the shown reading's refresh, so
+the order is written once and each feed's rule decides whether it restarts. The dock holds one comparison of its own,
+the catalogue, because it moves the dock's rail and roles and not a feed.
+
+A reader attached to a bare dock before its first `configure` hears what that `configure` publishes, where a dock
+built with its inputs published nothing to anyone. The counts are, in the order timeline, dock, explorer, simulation, roles,
+diagnostics, timeline status, questions and services: 2, 2, 3, 3, 0, 1, 0, 2 and 1 while the diagnostics layer is still
+building, and a layer that builds at once adds the poll's `Live` publish to the diagnostics, questions and services
+stores, which hear 2, 3 and 2. A React reader never sees them, because the hook configures before it publishes; a headless
+host that subscribes first and configures after does, and so configures before it subscribes.
+
+Pinned by `packages/devtools/test/model/ConfigureInputs.tst.ts` (a golden `Required<…>` pin per input type, the dock's
+included with the return types of `completeDockInputs` and `feedInputsOf`, and a record literal missing one field, refused,
+beside its accepted twin), `packages/devtools/test/surface.tst.ts` ("the dock takes eight model inputs and two host props,
+each accepting undefined"), `packages/devtools/test/model/ConfigureRule.test.ts` (CR22, a reader subscribed to every store of
+a bare dock before its first configure hears the counts above; CR24, a complete dock record maps onto its feeds, the
+diagnostics interval reaching the gates) and gate 14 (`scripts/check-package-install.mjs`), whose packed consumer passes a
+literal of the dock's ten props. Specified in ADR-QD-192 (CCR-QD-471).
