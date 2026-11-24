@@ -1,6 +1,8 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
 import * as Result from "effect/Result";
+import * as Tracer from "effect/Tracer";
 import { encodeAuditEntry } from "../src/AuditEntry.ts";
 import { archiveAuditTrail, readAuditArchive } from "../src/AuditArchive.ts";
 import { decisionRecord, failedWithCause, httpClientError, numbered } from "./helpers.ts";
@@ -33,6 +35,25 @@ describe("archiveAuditTrail", () => {
       const archive = yield* archiveAuditTrail([entry], 0, { keyMaterial });
 
       assert.deepStrictEqual(archive.keyMaterial, keyMaterial);
+    }));
+
+  it.effect("archiving an entry opens a span named qadi.audit.archiveAuditTrail", () =>
+    Effect.gen(function* () {
+      const entry = yield* encodeAuditEntry(decisionRecord());
+      const names: Array<string> = [];
+      const tracer = Layer.succeed(
+        Tracer.Tracer,
+        Tracer.make({
+          span: (options) => {
+            names.push(options.name);
+            return new Tracer.NativeSpan(options);
+          },
+        }),
+      );
+
+      yield* archiveAuditTrail([entry], 0).pipe(Effect.provide(tracer));
+
+      assert.include(names, "qadi.audit.archiveAuditTrail");
     }));
 
   it.effect("refuses to archive a broken chain rather than archiving it anyway", () =>
