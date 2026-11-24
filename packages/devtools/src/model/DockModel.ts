@@ -301,10 +301,13 @@ function mergedOf(key: MergeKey): DiagnosticsSnapshot {
 /** One list for every absent catalogue, so the role store keeps one identity. */
 const NO_ROLES: ReadonlyArray<Role> = [];
 
-/** Builds the model in the caller's scope; closing it interrupts the source read and any run in flight. */
-export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* (
-  init?: DockModelInputs,
-): Effect.fn.Return<DockModel, never, Scope.Scope> {
+/**
+ * Builds the model bare in the caller's scope; closing it interrupts the source read and any run in flight.
+ *
+ * The model takes its inputs only through `configure` (ADR-QD-192), so a bare model
+ * shows what an empty record shows until it is handed one.
+ */
+export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* (): Effect.fn.Return<DockModel, never, Scope.Scope> {
   let held = completeDockInputs({});
   // Reads the source in this scope, once `configure` hands it over; the store it hands back outlives a capacity change.
   const timelineFeed = yield* makeTimelineFeed();
@@ -407,7 +410,6 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
       shownReading.refresh();
     }
   };
-  if (init !== undefined) configure(init);
 
   return {
     timeline,

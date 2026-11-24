@@ -141,11 +141,14 @@ const UNHANDED = AskedRead.Unhanded();
 
 const snapshotOf = (registry: RegistryRead, asked: AskedRead): GatesSnapshot => ({ registry, asked });
 
-/** Builds the feed in the caller's scope; closing it releases the subscription and interrupts the cadence. */
-export const makeGatesFeed = Effect.fn("qadi.devtools.makeGatesFeed")(function* (
-  init?: GatesFeedInputs,
-): Effect.fn.Return<GatesFeed, never, Scope.Scope> {
-  let held = completeGatesInputs(init ?? {});
+/**
+ * Builds the feed bare in the caller's scope; closing it releases the subscription and interrupts the cadence.
+ *
+ * The feed takes its inputs only through `configure` (ADR-QD-192), so a bare feed reads
+ * as unwatched and unhanded until it is handed something.
+ */
+export const makeGatesFeed = Effect.fn("qadi.devtools.makeGatesFeed")(function* (): Effect.fn.Return<GatesFeed, never, Scope.Scope> {
+  let held = completeGatesInputs({});
   let registryNow = held.gates;
   let release = () => {};
   // Why `subscribe` threw, if it did: the registry's changes then may not reach the feed, until `configure` watches again.

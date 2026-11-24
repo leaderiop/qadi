@@ -152,11 +152,14 @@ export const idleTimelineStatus: TimelineStatusReadout = {
   restart: () => {},
 };
 
-/** Builds the feed in the caller's scope; closing it interrupts the read. */
-export const makeTimelineFeed = Effect.fn("qadi.devtools.makeTimelineFeed")(function* (
-  init?: TimelineFeedInputs,
-): Effect.fn.Return<TimelineFeed, never, Scope.Scope> {
-  let held = completeTimelineInputs(init ?? {});
+/**
+ * Builds the feed bare in the caller's scope; closing it interrupts the read.
+ *
+ * The feed takes its inputs only through `configure` (ADR-QD-192), so a bare feed holds
+ * the default capacity and reads no source until it is handed one.
+ */
+export const makeTimelineFeed = Effect.fn("qadi.devtools.makeTimelineFeed")(function* (): Effect.fn.Return<TimelineFeed, never, Scope.Scope> {
+  let held = completeTimelineInputs({});
   const timeline = makeTimelineStore({ capacity: held.capacity });
 
   const status = makeExternalStore<TimelineStatus>(READING);

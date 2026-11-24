@@ -151,12 +151,14 @@ export const completeDiagnosticsOptions = (options: DiagnosticsOptions): Require
   intervalMillis: options.intervalMillis,
 });
 
-/** Builds the feed in the caller's scope; closing it interrupts the run, and an interruption is never a `Stopped`. */
-export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed")(function* (
-  init?: DiagnosticsOptions,
-): Effect.fn.Return<DiagnosticsFeed, never, Scope.Scope> {
-  let held: Required<DiagnosticsOptions> | undefined =
-    init === undefined ? undefined : completeDiagnosticsOptions(init);
+/**
+ * Builds the feed bare in the caller's scope; closing it interrupts the run, and an interruption is never a `Stopped`.
+ *
+ * The feed takes its options only through `configure` (ADR-QD-192), so a bare feed is
+ * `Off` and starts nothing until it is handed options.
+ */
+export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed")(function* (): Effect.fn.Return<DiagnosticsFeed, never, Scope.Scope> {
+  let held: Required<DiagnosticsOptions> | undefined;
   let store: DiagnosticsStore = makeDiagnosticsStore();
   // Whether the reading shown holds an accepted sample: reset only by `Off`.
   let sampled = false;
@@ -214,8 +216,6 @@ export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed"
   const restart = () => {
     if (!runs.closed() && held !== undefined) start(held);
   };
-
-  if (held !== undefined) start(held);
 
   return { subscribe: view.subscribe, getSnapshot: view.getSnapshot, configure, restart };
 });

@@ -214,20 +214,6 @@ describe("the timeline feed", () => {
       }
     }),
   );
-
-  it.effect("CR5 each input given at build and given through configure reaches the same state, while the constructor takes inputs", () =>
-    Effect.gen(function* () {
-      for (const [field, row] of Object.entries(timelineMovers)) {
-        const built = row.pair();
-        const configured = row.pair();
-        const withInputs = yield* makeTimelineFeed(built.moved);
-        const withConfigure = yield* timelineFeedOf(configured.moved);
-        yield* settleTurns;
-
-        assert.deepStrictEqual(configured.read(withConfigure), built.read(withInputs), field);
-      }
-    }),
-  );
 });
 
 const emptyLog: PortCallLog = { calls: [], dropped: 0, capacity: 10 };
@@ -387,20 +373,6 @@ describe("the diagnostics feed", () => {
         yield* settleTurns;
 
         assert.isTrue(row.reacted(before, read(feed)), field);
-      }
-    }),
-  );
-
-  it.effect("CR10 each input given at build and given through configure reaches the same state, while the constructor takes inputs", () =>
-    Effect.gen(function* () {
-      for (const [field, row] of Object.entries(diagnosticsMovers)) {
-        const built = row.pair();
-        const configured = row.pair();
-        const withInputs = yield* makeDiagnosticsFeed(built.moved);
-        const withConfigure = yield* diagnosticsFeedOf(configured.moved);
-        yield* settleTurns;
-
-        assert.deepStrictEqual(configured.read(withConfigure), built.read(withInputs), field);
       }
     }),
   );
@@ -584,20 +556,6 @@ describe("the gates feed", () => {
       }
     }),
   );
-
-  it.effect("CR15 each input given at build and given through configure reaches the same state, while the constructor takes inputs", () =>
-    Effect.gen(function* () {
-      for (const [field, row] of Object.entries(gatesMovers)) {
-        const built = row.pair();
-        const configured = row.pair();
-        const withInputs = yield* makeGatesFeed(built.moved);
-        const withConfigure = yield* gatesFeedOf(configured.moved);
-        yield* settleTurns;
-
-        assert.deepStrictEqual(configured.read(withConfigure), built.read(withInputs), field);
-      }
-    }),
-  );
 });
 
 const reader = role({ name: "reader", permissions: [permission("doc", "read")] });
@@ -658,12 +616,6 @@ const snapshotsOf = (model: DockModel) => {
   };
 };
 type Snapshots = ReturnType<typeof snapshotsOf>;
-
-/** What two models are compared by: the simulation's `plan` is built anew with each model and compares by identity. */
-const comparable = (observed: DockObserved): DockObserved => ({
-  ...observed,
-  snapshots: { ...observed.snapshots, simulation: { ...observed.snapshots.simulation, plan: undefined } },
-});
 
 /** The stores whose snapshot is another object than it was. */
 const moved = (before: Snapshots, after: Snapshots): ReadonlyArray<StoreName> =>
@@ -914,20 +866,6 @@ describe("the dock model", () => {
         yield* settleTurns;
 
         assert.isTrue(row.reacted(before, read(model)), field);
-      }
-    }),
-  );
-
-  it.effect("CR21 each input given at build and given through configure reaches the same state, while the constructor takes inputs", () =>
-    Effect.gen(function* () {
-      for (const [field, row] of Object.entries(dockMovers)) {
-        const built = row.pair();
-        const configured = row.pair();
-        const withInputs = yield* makeDockModel(built.moved);
-        const withConfigure = yield* dockModelOf(configured.moved);
-        yield* settleTurns;
-
-        assert.deepStrictEqual(comparable(configured.read(withConfigure)), comparable(built.read(withInputs)), field);
       }
     }),
   );

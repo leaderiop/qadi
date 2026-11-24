@@ -660,6 +660,16 @@ const fed = await Effect.runPromise(
 expect("devtools feed", fed.status, "Reading");
 expect("devtools feed entries", fed.entries, 1);
 
+// A feed takes its inputs only through \`configure\`: each alias is \`true\` only when the packed constructor
+// has no parameter, so a constructor that takes one makes the \`true\` below a compile error.
+type TimelineFeedIsBare = [Parameters<typeof makeTimelineFeed>] extends [[]] ? true : false;
+type DiagnosticsFeedIsBare = [Parameters<typeof makeDiagnosticsFeed>] extends [[]] ? true : false;
+type GatesFeedIsBare = [Parameters<typeof makeGatesFeed>] extends [[]] ? true : false;
+const timelineFeedTakesNothing: TimelineFeedIsBare = true;
+const diagnosticsFeedTakesNothing: DiagnosticsFeedIsBare = true;
+const gatesFeedTakesNothing: GatesFeedIsBare = true;
+expect("devtools feeds take no parameter", timelineFeedTakesNothing && diagnosticsFeedTakesNothing && gatesFeedTakesNothing, true);
+
 // A feed built over a registry says what the registry holds, which is not what a feed over none says.
 // \`makeGatesFeed\` reads synchronously, so no turn is needed; the registry is a structural literal because
 // @qadi/react's real one needs a DOM. Closing the scope must release the one subscription it took.

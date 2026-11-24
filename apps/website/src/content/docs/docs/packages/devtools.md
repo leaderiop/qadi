@@ -220,8 +220,8 @@ and hands it a `source`, a `catalogue`, `diagnostics` and `gates`, the registry 
 What the headless model exports is what a shell crosses: three feeds and the
 simulation session, the wiring the dock takes, and the readings of a timeline.
 
-- **Feeds.** `makeTimelineFeed`, `makeDiagnosticsFeed` and `makeGatesFeed` build in a
-  scope and state a stop; `makeSimulationSession` holds the simulator.
+- **Feeds.** `makeTimelineFeed`, `makeDiagnosticsFeed` and `makeGatesFeed` build bare in a
+  scope, take their inputs through `configure` and state a stop; `makeSimulationSession` holds the simulator.
   `@qadi/devtools/react` has the React half of each (`useTimeline`,
   `useSimulationSession`, `useDiagnostics`). `useDiagnostics` and the dock
   share one feed. A stop's or a failed read's `reason` (`Stopped`, `WiringRead.Failed`,
