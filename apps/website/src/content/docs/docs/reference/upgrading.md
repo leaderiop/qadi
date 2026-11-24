@@ -1145,3 +1145,46 @@ The two fixtures also fail a request or a row they cannot key, where they used t
 | `signatureHistoryFromSignatures`, a request it cannot key | the read died | fails with `SignatureHistoryUnavailable` |
 
 The decision is [ADR-QD-189](https://github.com/leaderiop/qadi/blob/main/spec/decisions/189-remedies-asks-core-whether-a-fixture-row-meets-a-signature-or-acted-leaf.md).
+
+## 0.13: an audit row is made only by its codec
+
+`@qadi/audit` archived rows its own reader refused. `AuditEntry` was a plain struct any caller could build, so a row with a `NaN` `at`, an extra top-level key or a record that disagreed with its decision reached `archiveAuditTrail`, and `readAuditArchive` then refused the bundle as `EntryNotDecodable`, which blocks the purge the archive exists for. An audit row is now a value only `encodeAuditEntry` and `decodeAuditEntry` make, and the writer never receives a row the reader refuses.
+
+| Change | Before | After |
+| ------ | ------ | ----- |
+| `AuditEntry` | a schema value and a struct type, any object literal or spread | a type alone, made only by `encodeAuditEntry` and `decodeAuditEntry`; the schema value is removed |
+| a store's sequence number on a row | `{ ...entry, sequenceNumber: n }` | `decodeAuditEntry({ record, sequenceNumber: n })` |
+| `SequenceNumberInvalid` | the writer's and the verifier's failure for a number that is not a safe integer | removed; `decodeAuditEntry` refuses such a number as `Malformed`, so no row holds one |
+| `undated` on `RetentionPlan` and `PurgePlan` | the rows whose `at` was not finite | removed; a row's `at` is finite, so a plan holds `retained` and `expired`, and a purge plan `purge`, `retain` and `unarchived` |
+| `archiveAuditTrail` with a `now` that is not finite | archived the bundle with a `null` `createdAt` | fails `ArchiveInputInvalid`, naming `now` and the value |
+| a `keyMaterial` item with an extra property | archived, and the reader refused the bundle | written as `keyId`, `algorithm` and `publicKey` |
+| `decodeAuditEntry` | read the row's record, then the row | reads the row, then its record: the message of a refusal changes, and so does the refusal of a row that is bad in both places, and every tag is unchanged |
+
+A numbered row is read back from the store as it holds it. The sequence number is a fact of your store, so it reaches a row when the store returns the row, with the record the store holds beside it:
+
+```typescript
+import * as Result from "effect/Result";
+import { decodeAuditEntry } from "@qadi/audit";
+
+// A row as your store returns it: the encoded record and the store's own number.
+declare const stored: { readonly record: unknown; readonly sequenceNumber: number };
+
+const numbered = decodeAuditEntry({
+  record: stored.record,
+  sequenceNumber: stored.sequenceNumber,
+});
+
+if (Result.isSuccess(numbered)) {
+  // The row `verifySequenceIntegrity` and `archiveAuditTrail` read.
+  const entry = numbered.success.entry;
+  void entry;
+}
+```
+
+`decodeAuditEntry` refuses a row whose number is not a safe integer, and refuses a row with an undeclared top-level key, so a spread such as `{ ...entry, sequenceNumber: n }` is a way to write storage JSON and not a way to make an `AuditEntry`. Write that object to your store, and read the store's row back through `decodeAuditEntry`. There is no setter and no `encodeAuditEntry` option for the number.
+
+A handler of the writer's failures covers `ArchiveInputInvalid` and `SequenceIntegrityError`; `ArchiveInputInvalid` has the shape of `RetentionInputInvalid`, with a `field` and a `value`. A caller of `planRetention` or `planPurge` stops reading `undated`. A caller that catches `SequenceNumberInvalid` removes the handler, because `decodeAuditEntry` refuses the number first.
+
+The migration example for rows written before 0.10, at the top of this guide, is unchanged. It runs on `@qadi/audit@0.10` and returns storage JSON, which is the object your store takes.
+
+The decision is [ADR-QD-190](https://github.com/leaderiop/qadi/blob/main/spec/decisions/190-an-audit-row-is-a-value-only-its-codec-makes.md).

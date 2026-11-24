@@ -22,12 +22,15 @@ const AppLayer = AuditDecisionSinkLive({ failureThreshold: 5, resetTimeoutMs: 30
 The layer fails with `InvalidAuditSinkOption` when an option cannot work: a `failureThreshold` that is not a positive safe integer, a `resetTimeoutMs` that is not a finite, positive, whole number of milliseconds within the safe integers, or a `storeCallTimeout` that is not a positive duration.
 
 **Audit trail** (`AuditTrailPort`) — one method, `write(entry): Effect<void, AuditWriteError>`.
-`AuditEntry` is schema-derived, built on `@qadi/core`'s own record codec
-rather than re-deriving `Policy`/`Trace`/`Obligation` a second time. An audit
-row's `record` is the same JSON the decision stream and forwarding emit for
-that record (`encodeSinkRecord`'s output), so a store persists
+`AuditEntry` is a type that only the codec makes: `encodeAuditEntry` makes a row
+from a record and `decodeAuditEntry` makes one from what a store returns, so an
+object literal or a spread of a row is not an `AuditEntry`. The codec is built on
+`@qadi/core`'s own record codec rather than re-deriving `Policy`/`Trace`/`Obligation`
+a second time. An audit row's `record` is the same JSON the decision stream and
+forwarding emit for that record (`encodeSinkRecord`'s output), so a store persists
 `JSON.stringify(entry)` as it is; read rows back with `decodeAuditEntry`, the
-depth-guarded reader.
+depth-guarded reader, which is also the one route a store's sequence number
+reaches a row: `decodeAuditEntry({ record, sequenceNumber })`.
 
 Rows are versioned. A row's `record` is wire version 2, with `version: 2` and
 the decision's outcome as one tagged `outcome`. It is the only version 0.11
@@ -36,9 +39,9 @@ reads or writes. A row written before 0.10 is wire version 1: it has no
 Re-encode such rows with 0.10.x before upgrading; see
 [Upgrading to 0.11](/docs/reference/upgrading/#audit-rows-written-before-010).
 A row whose record contradicts itself, such as a decision that says allow beside a trace that says deny, is refused as `Inconsistent` by the same reader.
-Read rows back with
-`decodeAuditEntry`, not with the `AuditEntry` schema alone, which under
-`Schema`'s default options silently strips a typo inside the stored policy. `encodeAuditEntry` refuses rather than approximates: a
+`decodeAuditEntry` reads the row's envelope first, as untrusted, and then its record, so
+a row that is not an object, has no record or carries an undeclared top-level key is refused
+before its record is read. `encodeAuditEntry` refuses rather than approximates: a
 record carrying a value with no safe durable representation — a function, a
 `Symbol`, a circular reference, a `Map`/`Set`/`RegExp` — fails
 `@qadi/core`'s `SinkRecordNotEncodable`, naming the refusal and its path, instead of being
@@ -124,11 +127,11 @@ These are pure functions and data — caller-invoked, caller-scheduled, since
 
 **Retention** — `planRetention(entries, policy, now)` is the age rule: it splits
 a set of entries into `retained` and `expired` (their union is the input,
-unchanged, and their intersection is empty) and lists the `undated` rows, or
-returns a `RetentionInputInvalid` naming the bad input. `now` is a parameter,
-never `Date.now()`. A row is expired only with a finite `at` past a valid limit:
-a non-finite `at` is retained, and a non-finite `now` or a `maxAgeMs` that is
-`NaN` or negative expires nothing. `expired` is a report, not a purge selection.
+unchanged, and their intersection is empty), or returns a `RetentionInputInvalid`
+naming the bad input. `now` is a parameter, never `Date.now()`. A row is expired
+only past a valid limit, and a row's `at` is finite because only the codec makes a
+row; a non-finite `now` or a `maxAgeMs` that is `NaN` or negative expires nothing.
+`expired` is a report, not a purge selection.
 
 **Purge** — `planPurge(entries, policy, now, archive)` is the only function that
 returns rows to delete. A row is purged only when it is expired and the
@@ -146,14 +149,16 @@ ignored: sequencing is opt-in, assigned only by the caller's own store, never
 by `@qadi/audit` itself. This is gap-and-duplicate detection, not cryptographic
 tamper-evidence: there is no per-entry hash and nothing links one entry to the
 next, so an attacker able to modify stored rows can renumber them and defeat
-this check entirely. A `sequenceNumber` that is not a safe integer (`1.5`,
-`2 ** 53`, `Infinity`) fails `SequenceNumberInvalid` first, naming the entry's
-`index`: such a number cannot be stored and read back, and past `2 ** 53` a
-duplicate would not be seen.
+this check entirely. A row's `sequenceNumber` is a safe integer, because
+`decodeAuditEntry` refuses any other (`1.5`, `2 ** 53`, `Infinity`) as `Malformed`
+and only the codec makes a row, so the check never meets a number it cannot judge.
 
 **Archival** — `archiveAuditTrail` sorts entries by `sequenceNumber`, stably,
 before setting `metadata.sequenceIntegrityVerified: true`. Entries with no
-`sequenceNumber` follow the sequenced ones, in the order given.
+`sequenceNumber` follow the sequenced ones, in the order given. A `now` that is not
+finite fails `ArchiveInputInvalid`, naming the field and the value, before the
+sequence is read, and each `keyMaterial` item is written as its declared `keyId`,
+`algorithm` and `publicKey` and no other property, its values never judged.
 `readAuditArchive(input)` reads a stored bundle back. It refuses, each with its own
 `ArchiveRefusal` in an `ArchiveNotVerified`, a bundle that is not an archive, has
 another `archiveVersion`, nests past the decode bound, holds an entry that does not decode, declares a count

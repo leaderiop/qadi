@@ -138,19 +138,23 @@ only function here that returns rows to delete, and `archive` is a
 `VerifiedArchive`, which only `readAuditArchive` produces:
 
 1. `archiveAuditTrail(entries, now)` bundles the trail (it runs the sequence
-   check and writes the entries in sequence order).
+   check and writes the entries in sequence order). A `now` that is not finite
+   fails `ArchiveInputInvalid`, before the sequence check, because `createdAt`
+   would be written as `null` and the reader would refuse the bundle. Each
+   `keyMaterial` item is written as its declared `keyId`, `algorithm` and
+   `publicKey` and nothing else, and its values are never judged.
 2. You write the bundle to your own long-term storage.
 3. You read it back and pass what the store returned, as parsed JSON, to
    `readAuditArchive`. It refuses a bundle that nests past the decode bound or does not decode, whose count,
    sequence, order or `sequenceIntegrityVerified` claim does not match, each with
    its own `ArchiveRefusal` in an `ArchiveNotVerified`.
-4. `planPurge` returns `{ purge, retain, undated, unarchived }`: an expired row
+4. `planPurge` returns `{ purge, retain, unarchived }`: an expired row
    the archive does not hold is retained and listed in `unarchived`. Rows are
    compared structurally, and two identical rows need two archived copies.
 5. You delete `purge` from the trail. This package deletes nothing.
 
 `planRetention` is the age rule alone, for seeing what would expire before an
-archive exists. It returns `{ retained, expired, undated }` and a
+archive exists. It returns `{ retained, expired }` and a
 `RetentionInputInvalid` on a non-finite `now` or a `maxAgeMs` that is `NaN` or
 negative; `expired` is not a purge selection.
 
