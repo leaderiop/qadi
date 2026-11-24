@@ -15,7 +15,7 @@ Every phase runs on branch `arch-wave-15` (off `arch-wave-14` at `902d2128`), st
 - [ ] **COLL-02**: The record path is total too: a listener that throws on a timeline publish (no `configure` involved) does not leave the explorer, the simulation or the dock behind the timeline; the throw reaches the caller after every follower has moved. RED on the base.
 - [ ] **COLL-03**: One throw is rethrown as itself (`undefined` and `null` included); two or more are rethrown once, collected, in step order, by the same rule `ExternalStore`'s listener notification and derived-store release already use, which lives in one package-private place shared by all three (kept out of the barrel). No second copy of the loop.
 - [ ] **COLL-04**: A catalogue and a capacity changed in one `configure` move the sightings rail once, and the notification counts the configure-rule pins (CR22, BEH-QD-735) record are restated for it. The step order (held inputs first, then timeline, rail, roles, ports, gates, diagnostics, shown reading last, one join publish) is pinned. A refused capacity still throws before anything moves (M55), and M56 stays green.
-- [ ] **COLL-05**: A listener that throws on the diagnostics feed's `Starting` publish no longer leaves the poll unforked, so the "applies every input" claim holds for the diagnostics, services and questions listeners too; or, if the window is kept, the reason is recorded and pinned by a test. A listener that calls `configure` again from inside a step leaves the model on the inner call's inputs (pinned).
+- [ ] **COLL-05**: The window between a run's `begin()` and its `fork()` is closed at every site in `packages/devtools/src/model/**` (the timeline feed's `Reading`, the diagnostics feed's `Starting`, the simulation's `Running`): the work a status announces starts whatever a listener throws on that status, and the throw is rethrown after, so the "applies every input" claim holds for the diagnostics, services, questions and timeline-status listeners too (ADR-QD-177 decision 5 amended; TF29's flip recorded). A listener that calls `configure` again from inside a step leaves the model on the inner call's inputs (pinned). Decided autonomously 2026-11-24 (81-CONTEXT D-09).
 - [ ] **COLL-06**: ADR-QD-194 records the rule (or ADR-QD-191 decision 11 and ADR-QD-177 are amended and 194 is named unused); BEH/INV/traceability and the dock model's file header move with it.
 
 ### `QadiProvider`'s registry has one owner for its lifetime (Phase 82, ARCH-129, react; live defect)
@@ -54,7 +54,6 @@ Every phase runs on branch `arch-wave-15` (off `arch-wave-14` at `902d2128`), st
 ## Future Requirements
 
 - Align `@qadi/react`'s gate registry, which swallows listener errors, with ADR-QD-177's rethrow contract (carried from v1.7).
-- Guard the publish-between-`begin()`-and-`fork()` window in the devtools feeds (carried from v1.7, D7), beyond the diagnostics `Starting` window COLL-05 takes.
 - Structural (deep) identity for feed inputs (carried from v1.9).
 - Exporting the lens session from `@qadi/devtools`' barrel (carried from v1.9).
 - Upstream: `@effect/atom-react`'s `RegistryProvider` has the same dispose-in-cleanup shape as the defect Phase 82 fixes.
