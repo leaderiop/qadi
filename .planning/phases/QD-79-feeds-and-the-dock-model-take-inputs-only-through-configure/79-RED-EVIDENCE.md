@@ -261,8 +261,10 @@ The scratch edit was applied to `packages/devtools/src/model/GatesFeed.ts`, with
 The new file `packages/devtools/test/react/DockRegistryReads.test.tsx` pins, through `useDockModel`, the `instances()` read counts ADR-QD-192 states: a healthy registry read once and subscribed once, and read twice and subscribed twice under StrictMode; a registry whose `subscribe` throws read never and subscribed twice, and three times under StrictMode; a re-render with a fresh inputs record holding the same fields reads and subscribes nothing; and one that moves an input of the gates feed reads the registry once. The exact counts held on the installed React, so the ADR states them and the file pins them. The scratch edit was applied to `packages/devtools/src/model/GatesFeed.ts`, run with `pnpm exec vitest run --project devtools packages/devtools/test/react/DockRegistryReads.test.tsx`, and restored from a copy taken just before it (the test file was committed first); `git status --porcelain -- packages/devtools/src` is empty afterwards.
 
 - edit R1: `GatesFeed.ts`: the early return of `configure` made unreachable (`if (false && sameFields(held, wanted) && watchFailure === undefined) return;`), so a `configure` that moves nothing reads the registry
-- failed: a healthy registry is read once under the hook and twice under StrictMode (`expected 2 to equal 1`, the build's second `configure` read it)
-- failed: a re-render with a fresh inputs record holding the same fields reads nothing and subscribes nothing (`{ reads: 4, subscribes: 1 }` against `{ reads: 2, subscribes: 1 }`)
+- failed: a healthy registry is read once under the hook and twice under StrictMode
+- failed: a re-render with a fresh inputs record holding the same fields reads nothing and subscribes nothing
+
+The first failed with `expected 2 to equal 1` (the build's second `configure` read the registry) and the second with `{ reads: 4, subscribes: 1 }` against `{ reads: 2, subscribes: 1 }`.
 
 ## 79-16 the close
 
@@ -287,3 +289,12 @@ The constructors have no parameters, so the build applied an input record that i
 - edit R1: `TimelineFeed.ts`: `makeTimelineStore({ capacity: held.capacity })` is now `makeTimelineStore()`; `held.capacity` of a bare build is the store's own default, so the argument said nothing
 - edit R2: `TimelineFeed.ts`: the build-time `readSource(held.source)` is deleted; `held.source` of a bare build is `undefined`, which reads the empty source that ends at once and leaves the status at its initial reading, so the call changed nothing a reader sees. `restart` and `configure` keep their reads
 - edit R3: `GatesFeed.ts`: the build-time `watch(registryNow)`, `publish(readRegistry(), readAsked())` and `cadence()` are deleted; with no registry and no thunk handed, `watch` takes no subscription, the publish carries the two values the store already holds (unwatched, unhanded) and so publishes nothing, and `cadence` stops a run that was never started. `configure` keeps all three
+
+The other two cells of `DockRegistryReads.test.tsx` passed against that edit, so each was shown failing against an edit of its own, run with `pnpm exec vitest run --project devtools packages/devtools/test/react/DockRegistryReads.test.tsx` and restored from a copy of `GatesFeed.ts` taken before the first (`git status --porcelain -- packages` is empty afterwards):
+
+- edit S7: `GatesFeed.ts:179`: `readRegistry` starts from no watch failure (`let failure: Stated | undefined;` for `let failure = watchFailure;`), so a registry whose `subscribe` threw is read
+- failed: a registry whose subscribe throws is subscribed again by each build and read never
+- edit S8: `GatesFeed.ts:254` and `:291`: `publish(readRegistry(), asked)` replaced by `publish(store.getSnapshot().registry, asked)` in the tick and in `configure`, so a `configure` that moves an input reads no registry (the healthy cell fails on the same edit: `expected +0 to equal 1`)
+- failed: a re-render that moves an input of the gates feed reads the registry once
+
+The six module-scope arrows the phase added (`completeTimelineInputs`, `completeDiagnosticsOptions`, `completeGatesInputs`, `sameFieldsOrAbsent`, `completeDockInputs`, `feedInputsOf`) are `ArrowFunction () => undefined` mutants Stryker ignores as static. Each was run by hand with `ignoreStatic: false` on the final head and is Killed there; the by-hand report of each file also holds the base's own inherited static survivors, which the base already counted as Ignored.
