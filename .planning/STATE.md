@@ -5,16 +5,16 @@ milestone_name: Arch Wave 14
 current_phase: 78
 current_phase_name: "`TimelineStore` owns its capacity"
 status: executing
-stopped_at: Completed QD-78-01-PLAN.md
-last_updated: "2026-11-24T05:31:32.406Z"
+stopped_at: Completed QD-78-02-PLAN.md
+last_updated: "2026-11-24T05:36:27.776Z"
 last_activity: 2026-11-24
 last_activity_desc: Phase QD-78 execution started
-state_head: fc35006661eebdf8f743d65605b96cdd6f0cb3c6
+state_head: 78a06321c23648bf7ed94069b0ba5e31dcf29c92
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 18
-  completed_plans: 8
+  completed_plans: 9
   percent: 25
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-24)
 ## Current Position
 
 Phase: QD-78 (`TimelineStore` owns its capacity) — EXECUTING
-Plan: 2 of 11
+Plan: 3 of 11
 Status: Executing Phase QD-78
 Last activity: 2026-11-24 — Phase QD-78 execution started
 
@@ -565,6 +565,7 @@ Progress: [███░░░░░░░] 25% (1 of 4 phases)
 | Phase QD-77 P06 | 36 min | 3 tasks | 8 files |
 | Phase 77 P07 | 70 min | 3 tasks | 5 files |
 | Phase QD-78 P01 | 25min | 2 tasks | 2 files |
+| Phase QD-78 P02 | 30min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -987,6 +988,7 @@ Progress: [███░░░░░░░] 25% (1 of 4 phases)
 
 - [Phase 77]: Code review (77-REVIEW-DISPOSITION.md): three iterations, 0 open. Run-time brand added (package-private `CodecMade.ts` WeakSet filled only by the codec; rows frozen one level); `keyMaterial` read once and checked against `KeyMaterialSchema`; non-list `entries` refused by all four row functions; `ArchiveInputInvalid`/`RetentionInputInvalid` carry closed `ArchiveInputRefusal`/`RetentionInputRefusal` enums (api-surface 942). Verification passed 5/5 (3d58ac6e); `check:pr` exit 0 at 13c0b7c7.
 - [Phase QD-78]: 78-01: mutation base recorded as measured on phase_base de13eb7f (four groups; dock 70/70 not ADR-QD-168 145/145; store survivor at TimelineStore.ts:58 at base)
+- [Phase QD-78]: 78-02: TF30 reads RED at its second refusal and M55 at the later configure with held inputs; both are the defect, tests unedited
 
 ### Pending Todos
 
@@ -1063,8 +1065,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-24T05:31:32.335Z
-Stopped at: Completed QD-78-01-PLAN.md
+Last session: 2026-11-24T05:36:27.293Z
+Stopped at: Completed QD-78-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
