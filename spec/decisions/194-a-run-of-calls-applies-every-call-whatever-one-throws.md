@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-194                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-24                                     |
 > | Status         | Accepted — amends ADR-QD-177, ADR-QD-185, ADR-QD-191 and ADR-QD-192 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-24): Initial (ARCH-128, CCR-QD-473) |
+> | Change History | 1.1 (2026-11-24): BEH-QD-741 to BEH-QD-745, INV-QD-407 and INV-QD-408 linked (CCR-QD-473)<br>1.0 (2026-11-24): Initial (ARCH-128, CCR-QD-473) |
 
 ---
 
@@ -218,4 +218,10 @@ listeners account for the whole difference.
 - [ADR-QD-191](./191-a-timeline-store-owns-its-capacity.md) — a refused capacity throws before anything moves, and the `try`/`finally` of decisions 6 and 11 is `callAll`; amended by this decision
 - [ADR-QD-192](./192-feeds-and-the-dock-model-take-inputs-only-through-configure.md) — one per-field rule per feed, whose every step is a no-op on held inputs; the `try`/`finally` of decisions 3 and 7 is `callAll`; amended by this decision
 - [ADR-QD-099](./099-entry-points-are-a-closed-list.md) — `callAll` stays out of both barrels
-- BEH-QD-741 to BEH-QD-745, INV-QD-407 and INV-QD-408, which state the change
+- [BEH-QD-741](../behaviors/28-devtools-screens.md#beh-qd-741-a-dock-configure-applies-every-input-whatever-a-listener-throws),
+  [BEH-QD-742](../behaviors/28-devtools-screens.md#beh-qd-742-what-the-steps-of-a-configure-threw-surfaces-once-after-the-last-step),
+  [BEH-QD-743](../behaviors/28-devtools-screens.md#beh-qd-743-the-sightings-rail-is-a-derived-store-so-a-record-moves-its-readers-whatever-a-listener-throws),
+  [BEH-QD-744](../behaviors/28-devtools-screens.md#beh-qd-744-the-work-a-status-announces-starts-whatever-a-listener-throws-on-that-status),
+  [BEH-QD-745](../behaviors/28-devtools-screens.md#beh-qd-745-a-configure-made-from-inside-a-step-decides-the-end-state-and-a-listener-that-always-reconfigures-never-ends),
+  [INV-QD-407](../invariants.md#inv-qd-407-a-configure-leaves-no-input-unapplied-whatever-a-listener-throws) and
+  [INV-QD-408](../invariants.md#inv-qd-408-work-a-status-announces-is-started-whatever-a-listener-throws-on-it), which state the change
