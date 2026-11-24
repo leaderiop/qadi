@@ -425,7 +425,7 @@ entries:
   - id: "ADR-QD-137"
     file: "137-a-devtools-session-owns-its-runs-through-a-scope.md"
     title: "A devtools session owns its runs through a scope"
-    status: "Accepted — supersedes ARCH-20 D-20-b (an amendment to ADR-QD-047); reads ADR-QD-047, ADR-QD-050; amended 2026-11-12 (the timeline's read is scoped too)"
+    status: "Accepted — supersedes ARCH-20 D-20-b (an amendment to ADR-QD-047); reads ADR-QD-047, ADR-QD-050; amended 2026-11-12 (the timeline's read is scoped too); amended 2026-11-24 (the timeline feed holds one store, ADR-QD-191)"
   - id: "ADR-QD-140"
     file: "140-a-gates-write-side-is-a-leaf-below-the-atom-set.md"
     title: "A gate's write side is a leaf below the atom set, and its hook sits above it"
