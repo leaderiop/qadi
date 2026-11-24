@@ -138,7 +138,7 @@ const ingestDecision = (self: Timeline, environment: string, record: DecisionRec
   // filter keeps everything. A guard for that case was dead code — the mutation
   // gate removed it and every test still passed.
   const kept = self.entries.filter((e) => e !== orphan);
-  return bound({ ...self, entries: insert(kept, entry) });
+  return bound(self, insert(kept, entry));
 };
 
 const ingestObligations = (self: Timeline, environment: string, record: ObligationRecord): Timeline => {
@@ -161,7 +161,7 @@ const ingestObligations = (self: Timeline, environment: string, record: Obligati
       at: record.at,
       obligations: record,
     });
-    return bound({ ...self, entries: insert(self.entries, entry) });
+    return bound(self, insert(self.entries, entry));
   }
 
   // Same outcome delivered twice by a replaying feed.
@@ -236,13 +236,18 @@ const insert = (
 /**
  * Drops the oldest, as a decision log evicts.
  *
+ * A record the timeline keeps nowhere returns the timeline it was given, so a store
+ * that compares by identity publishes nothing for it (ADR-QD-191); a timeline that
+ * holds entries over its bound is still emptied, as a new value.
+ *
  * Unconditional: `slice` from a clamped offset is the whole rule, and the
  * under-capacity guard it replaces had no observable else — slicing from zero
  * returns the same entries, so the mutation gate could not tell the two apart.
  * The clamp is not optional, though: a negative offset would slice from the
  * *end* and silently keep the wrong rows.
  */
-const bound = (self: Timeline): Timeline => ({
-  ...self,
-  entries: self.entries.slice(Math.max(0, self.entries.length - self.capacity)),
-});
+const bound = (self: Timeline, entries: ReadonlyArray<TimelineEntry>): Timeline => {
+  const kept = entries.slice(Math.max(0, entries.length - self.capacity));
+  const nothingChanged = kept.length === 0 && self.entries.length === 0;
+  return nothingChanged ? self : { ...self, entries: kept };
+};
