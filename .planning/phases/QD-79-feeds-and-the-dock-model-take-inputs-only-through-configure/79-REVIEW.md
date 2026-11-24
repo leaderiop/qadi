@@ -34,9 +34,9 @@ files_reviewed_list:
 findings:
   critical: 0
   warning: 1
-  info: 5
-  total: 6
-  necessity: 1
+  info: 0
+  total: 1
+  necessity: 0
 status: issues_found
 ---
 
@@ -49,155 +49,70 @@ status: issues_found
 
 ## Summary
 
-I read every changed source file in full and the diff of each test file, and checked the
-diff for `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`, module-scope `let`, and
-`Record<string, unknown>`. None appear. The new `useConfigured` ordering holds: a child
-never sees an unconfigured value, and `useScoped`'s closure comment is correct for
-StrictMode and `Activity` (U4 pins it). `configure` ordering in `DockModel`, the
-`finally` structure, and the derived-store parents match the pre-phase behaviour. I
-found no data-loss, security or evaluation-path defect.
+Iteration 2. I re-read the source files the iteration-1 fixes touched and the new test cells,
+and re-ran `pnpm exec vitest run --project devtools packages/devtools/test/react packages/devtools/test/model`
+(78 files, 1863 tests, all pass) and `oxlint` over `packages/devtools` and the check script
+(warnings only, in `HeldChoice.test.ts`, not in scope).
 
-`ConfigureRule.test.ts`, `DockRegistryReads.test.tsx` and `useConfigured.test.tsx` ran
-green (31 files, 417 tests, `pnpm exec vitest run --project devtools`).
+Each iteration-1 fix is correct and introduced nothing new:
 
-One behavioural finding, confirmed by a throwaway probe that I deleted afterwards: moving
-`configure` into a per-render layout effect makes the gate registry's "retry a failed
-watch on any configure" rule run on every host re-render. The remaining items are quality
-and test-hygiene points, including both orchestrator-observed items, which I confirmed.
+- **WR-01 (retry of a failed watch per host re-render):** the two new cells in
+  `DockRegistryReads.test.tsx` match the code path. With `watchFailure` set, `GatesFeed.configure`
+  passes the early return, re-subscribes, and `readRegistry` returns the previous `Failed` snapshot
+  by key, so nothing is published and the registry is never read. The mended cell (subscribe once,
+  read once, then quiet) follows from the same lines. The `refusing.on` flag and the `Held`
+  carrier are sound, and `assert.isDefined(model)` guards the `model?.` chains from passing
+  vacuously.
+- **IN-05 (`feedInputsOf` hands `diagnostics` on as given):** `DiagnosticsFeed.configure` normalises
+  once with `completeDiagnosticsOptions` and compares with `sameFieldsOrAbsent`, so the dock's
+  second normalisation was redundant. `FeedInputs.diagnostics`, the golden in `ConfigureInputs.tst.ts`
+  and CR24 follow. `inputs.diagnostics?.intervalMillis` for the gates record is unchanged.
+- **IN-03 (wrapping), IN-01, IN-02, IN-04:** whitespace and test-hygiene only. The removed
+  `Object.keys(dockProps).length` assertion leaves `dockProps` as a type-check-only literal, which
+  the comment above it states; the consumer's `tsconfig` has no `noUnusedLocals`.
 
-The necessity rubric was read. One judgement-based Info finding follows from it (IN-05).
-The two characterisation-held test files were read but no finding is raised against them.
+The rest of the phase (`useConfigured` ordering, `useScoped`'s closure comment under StrictMode and
+`Activity`, `configure` ordering and the `finally` in `DockModel`, the derived-store parents) is
+unchanged from iteration 1 and still holds. No `as`, `!`, `any`, `switch`, `async`, module-scope
+`let` or `Record<string, unknown>` appears in the diff.
+
+One new finding, outside the iteration-1 fixes: the code, the ADR and a behaviour doc disagree
+about whether a bare timeline feed reads the empty source.
 
 ## Warnings
 
-### WR-01: A registry whose `subscribe` throws is re-subscribed on every host render
+### WR-01: ADR-QD-192 and BEH-QD-731 say a bare timeline feed reads the empty source; the code does not, and the ADR lists skipping that read as a rejected alternative
 
-**File:** `packages/devtools/src/model/GatesFeed.ts:279-285` (reached from `packages/devtools/src/react/useConfigured.ts:28-30`)
-**Issue:** `GatesFeed.configure` returns early only when `sameFields(held, wanted) &&
-watchFailure === undefined`. While a watch has failed, every `configure` calls
-`watch(registryNow)` and so calls the host's `registry.subscribe` again.
-`useConfigured`'s layout effect depends on `[value, inputs]`, and `useDockModel` passes
-the rest-spread `inputs` record, which is a new object on every render. So `configure`
-runs on every render of the component that mounts `DevtoolsDock`, and each run re-invokes
-host code that is already known to throw. Before this phase the hook's dependency list was
-the individual fields, so the retry fired only when a field changed.
+**File:** `packages/devtools/src/model/TimelineFeed.ts:157-159` (code and doc), `spec/decisions/192-feeds-and-the-dock-model-take-inputs-only-through-configure.md:49-51` and `:168-169`, `spec/behaviors/28-devtools-screens.md:3057-3066`
+**Issue:** Commit `b20a807f` ("a bare build applies no inputs") removed `readSource(held.source)` from
+`makeTimelineFeed`'s build. Nothing in the body of `makeTimelineFeed` starts a read now, so a bare feed
+starts no run, and `configure({})` right after it returns at `sameFields(held, wanted)`, so the empty
+source is never read at all. The three texts that describe this were not updated:
 
-I confirmed this with a probe: a registry whose `subscribe` throws, mounted under
-`useDockModel({ gates, questions })`, was subscribed 2 times after mount and 7 times after
-5 plain re-renders with identical inputs. The existing test, "a registry whose subscribe
-throws is subscribed again by each build and read never" in
-`DockRegistryReads.test.tsx`, pins only the build count and never re-renders.
+- ADR-QD-192 decision 1 (line 50): "a bare timeline feed reads the empty source as the constructor read it".
+- ADR-QD-192 "Alternatives considered" (line 168): "Skipping the bare timeline feed's read of the empty
+  source. It would make 'bare' a third state". That is the shipped behaviour, presented as the rejected one.
+- BEH-QD-731: the paragraph after the requirement says "the timeline feed still reads the empty source,
+  as it read it when it was handed `{}`", directly under a requirement in the same record that says "the
+  timeline feed reads no source and is hand-fed".
 
-This follows from the recorded rule ("a failed watch is retried by any `configure`"), so
-it is an unexamined interaction rather than a slip. It means host code with side effects
-(logging, metrics, a registry that opens a connection in `subscribe`) is hit once per
-render for as long as the registry stays broken.
-**Fix:** Pick one and pin it in `DockRegistryReads.test.tsx`:
-- Keep the rule and have `useConfigured` skip a `configure` whose inputs are field-for-field
-  the last ones it handed over, so the "any configure" retry fires only on a changed record.
-  This still needs the same-fields comparison to live in one place, so it would have to
-  reuse `sameFields` rather than add a second rule.
-- Or restrict the retry to a `configure` whose inputs moved, and update the decision
-  record and the `GatesFeed.configure` doc.
-- Or leave it and add a re-render cell asserting the subscribe count, so the per-render
-  retry is a stated behaviour and not an accident.
+The source's own doc (`reads no source until it is handed one`) matches the code and the requirement, so
+the ADR and the second BEH sentence are the stale ones. There is no observable difference: the empty source
+ends at once, `status` stays `Reading`, and CR3 pins that the bare and the built feed read the same
+timeline and status, so this is a record-versus-code mismatch and not a behaviour bug. `AGENTS.md` §11
+makes `spec/` normative, and the record currently names as rejected the exact thing that shipped, which is the
+kind of drift §15 says gates exist to stop.
+**Fix:** Amend ADR-QD-192 (a dated Rev 1.4 entry, as Rev 1.3 did) and BEH-QD-731:
 
-## Info
+- Decision 1: "a bare timeline feed holds the default capacity and starts no read; the empty source ends at
+  once and publishes nothing, so a bare feed and one built with `{}` show the same timeline and status".
+- Alternatives considered: replace the "Skipping the bare timeline feed's read" bullet with "Reading the empty
+  source at build. It is unobservable (the read ends at once, publishes nothing and leaves `Reading`), so a
+  bare feed starts no run, and `restart` and `configure` keep their reads (b20a807f)".
+- BEH-QD-731: change "the timeline feed still reads the empty source, as it read it when it was handed `{}`"
+  to "the timeline feed starts no read and shows what the empty source showed".
 
-### IN-01: `ConfigureRule.test.ts` imports from two modules twice each, as two value imports
-
-**File:** `packages/devtools/test/model/ConfigureRule.test.ts:20-21` and `:39-40`
-**Issue:** Lines 20 and 21 are both value imports from `../../src/model/DockModel.ts`.
-Lines 39 and 40 are both value imports from `../builtFeeds.ts`. This confirms
-orchestrator item 1. Other duplicated modules in the changed test files are
-`import type` plus value splits, which the codebase uses on purpose, so only these two are
-real duplicates.
-**Fix:**
-```ts
-import {
-  completeDockInputs,
-  feedInputsOf,
-  makeDockModel,
-  type DockModelInputs,
-} from "../../src/model/DockModel.ts";
-...
-import { diagnosticsFeedOf, dockModelOf, gatesFeedOf, timelineFeedOf } from "../builtFeeds.ts";
-```
-
-### IN-02: Stale test documentation naming constructors that take inputs
-
-**File:** `packages/devtools/test/model/ConfigureRule.test.ts:7-8`, `packages/devtools/test/model/DockModel.test.ts:591`
-**Issue:** The file header says "The cells that build with inputs exist only while the
-constructors take them; the rest hold for the bare build a host's hook makes." No
-constructor takes inputs any more (79-12), and no cell in the file builds with them (a
-grep for `make(Timeline|Diagnostics|Gates)Feed(` with an argument and `makeDockModel(` with
-an argument finds none in `src/` or `test/`). The sentence describes a state that no longer
-exists. The `DockModel.test.ts` title "a catalogue given at construction fills both rails"
-(M2 (b)) has the same drift, since it now goes through `dockModelOf`, which configures after
-the build.
-**Fix:** Delete the sentence from the header, or replace it with "Every cell builds bare
-and configures, as a host's hook does". Reword the M2 (b) title to "a catalogue handed to a
-bare model's first `configure` fills both rails and the role list at once". Check first
-that the 15 pinned tests held by `79-pinned-check.mjs` do not include M2.
-
-### IN-03: The four bare-constructor signatures run far past the hand-wrapping width
-
-**File:** `packages/devtools/src/model/TimelineFeed.ts:161` (142 columns),
-`packages/devtools/src/model/GatesFeed.ts:150` (133), `packages/devtools/src/model/DiagnosticsFeed.ts:160` (151),
-`packages/devtools/src/model/DockModel.ts:310` (133)
-**Issue:** This confirms orchestrator item 2. Dropping the parameter list collapsed the
-previously wrapped signature onto one line, which is the longest line in each of those files
-by 20 or more columns. Related new lines are also past ~100 columns: `DockModel.ts:164` (the
-`source` field's doc, 175), `DockModel.ts:186` (the `FeedInputs` doc, 126),
-`DockModel.ts:206` (109), and `DiagnosticsFeed.ts:148` (107). Other lines in these files
-were already over 100 before this phase, so only the signatures and the two one-line doc
-comments stand out. AGENTS.md §17 says hand-wrapping is the house style.
-**Fix:**
-```ts
-export const makeGatesFeed = Effect.fn("qadi.devtools.makeGatesFeed")(function* (): Effect.fn.Return<
-  GatesFeed,
-  never,
-  Scope.Scope
-> {
-```
-Do the same for the other three. Wrap the `source` field doc as a multi-line block, like
-the other seven fields.
-
-### IN-04: The packed-artifact check's runtime assertion on the dock's props is vacuous
-
-**File:** `scripts/check-package-install.mjs:688-703`
-**Issue:** `expect("devtools dock props", Object.keys(dockProps).length, 10)` counts the keys
-of an object literal written on the lines above, so it can never fail. The comment says the
-literal "names all ten", and the real check is that the literal type-checks against
-`DevtoolsDockProps` from the packed `.d.ts`. That check is sound, because a missing or extra
-key fails under the consumer's `tsc`. The `expect` adds nothing and suggests a guarantee it
-does not give. `surface.tst.ts` already pins `keyof DevtoolsDockProps` for the real count.
-**Fix:** Delete the `expect` line, or replace it with a type-level count over the packed type,
-as the `…IsBare` aliases do:
-```ts
-type DockPropKeys = keyof DevtoolsDockProps;
-const dockPropKeys: DockPropKeys[] = ["source", "capacity", "catalogue", "ports", "diagnostics",
-  "reading", "gates", "questions", "unknownParents", "onInvalidate"];
-```
-Typing the array against the packed union at least rejects a renamed key.
-
-### IN-05: `feedInputsOf` normalises the diagnostics options a second time that the feed normalises itself
-
-**File:** `packages/devtools/src/model/DockModel.ts:206`
-**Category:** necessity
-**Issue:** `feedInputsOf` calls `completeDiagnosticsOptions(inputs.diagnostics)`, and
-`DiagnosticsFeed.configure` normalises its argument again at `DiagnosticsFeed.ts:209`, so
-the dock's copy is rebuilt and then rebuilt. The evidence that it is unneeded is that
-`diagnosticsFeed.configure` is typed `(options: DiagnosticsOptions | undefined)` and
-accepts the raw value, so a `FeedInputs.diagnostics` of the raw options would be compared
-identically. It exists to keep `FeedInputs` symmetric with the other two feed records and
-for the golden in `ConfigureInputs.tst.ts`, so this rests on judgement and I rate it Info.
-It is harmless today; it only costs one extra object per render now that `configure` runs
-per render.
-**Fix:** Either keep it and say in the `FeedInputs` doc that the dock hands the feed a
-complete record on purpose (so the golden and the doc agree), or pass
-`inputs.diagnostics` through and relax `FeedInputs.diagnostics` to
-`DiagnosticsOptions | undefined`, updating the golden in `ConfigureInputs.tst.ts` with it.
+Then run `node scripts/spec-revise.mjs --check` and `bash spec/scripts/verify-traceability.sh --strict`.
 
 ---
 
