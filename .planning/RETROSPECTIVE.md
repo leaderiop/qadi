@@ -358,7 +358,7 @@
 
 ### What Was Inefficient
 - An executor ran `requirements.mark-complete` early and marked LENS-01/04 before their plans landed; it was reverted and the brief now forbids it.
-- A `String.replace` with a replacement string turned `$\`` into "the text before the match" and duplicated a plan's head; rebuilt with a function replacement.
+- A `String.replace` with a replacement string turned `` $` `` into "the text before the match" and duplicated a plan's head; rebuilt with a function replacement.
 - Spec text quoting a test by title went stale when review renamed the test. No gate compares a quoted title with the test it names; review caught it a round later.
 - Phase scripts resolve paths from the repo root and fail when run from the phase directory, which read as a failure in two hand-backs.
 
