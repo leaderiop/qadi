@@ -97,6 +97,11 @@ Requirements: TRSZ-01..04, plus the cross-cutting WX-01..07.
   - a resize to the same capacity while paused, which stays paused and publishes nothing;
   - an invalid resize while paused, which stays paused, keeps the frozen view and publishes nothing.
 
+- **D-12: `clear()` empties at the store's current capacity.** Today `clear` rebuilds from the captured `options` (`TimelineStore.ts:63-66`). After a `resize` that would silently restore the **old** bound, the same captured-once defect this phase removes.
+  - `clear` builds the empty timeline from `timeline.capacity`. No captured `options` survives in the store body.
+  - Pin it with a store test: `resize(n)` then `clear()` keeps bound `n`. It must be RED with the `clear` change reverted.
+  - Found by the pattern mapper, 2026-11-24. Decided autonomously the same day.
+
 ### The feed (TRSZ-02, TRSZ-03)
 - **D-05: `makeTimelineFeed` returns its one store.**
   - Delete `bounded`'s per-change use, the `inner` variable, the mirror `view`, `push` and the six-member forwarder.
@@ -125,7 +130,7 @@ Requirements: TRSZ-01..04, plus the cross-cutting WX-01..07.
 ### The second captured-once site
 - **D-08: `useTimelineStore` follows its `capacity` option.**
   - The hook keeps one store for its lifetime, as today, and calls `store.resize(options.capacity ?? DEFAULT)` when the
-    capacity changes. It runs this from an effect, the hook's existing pattern for a command, and never during render.
+    capacity changes. It runs this from a layout effect (`useLayoutEffect`, the package's pattern for a command, `useTimeline.ts:62-64`), never during render.
   - Characterise first on the base: today a capacity change on `useTimelineStore` is ignored and the store keeps the old
     bound. Then make the change.
   - BEH-QD-519's hand-fed-store reading (`Reading`, inert `restart`) is unchanged.
