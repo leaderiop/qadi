@@ -179,7 +179,8 @@ publishes the emptied timeline and then starts the read that refills it, from th
 a status listener on the `Reading` the read publishes stop nothing: the read starts, and
 both are rethrown once it has, as one `AggregateError` with the timeline's first. When
 several listeners of one store throw in one notification they are one `AggregateError`,
-and the dock keeps it whole as its step's throw, nested and never flattened.
+and a feed's or the dock's `configure` keeps it whole as its step's throw, nested and
+never flattened.
 
 ```typescript
 import * as Effect from "effect/Effect";
