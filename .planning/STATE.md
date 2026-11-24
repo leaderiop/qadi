@@ -3,10 +3,10 @@ gsd_state_version: "1.0"
 milestone: v1.10
 milestone_name: Arch Wave 15
 status: planning
-last_updated: "2026-11-24T20:33:07.513Z"
+last_updated: "2026-11-24T20:54:19.000Z"
 last_activity: 2026-11-24
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-24)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Planning the next milestone (v1.9 Arch Wave 14 completed 2026-11-24; not merged, not released)
+**Current focus:** v1.10 Arch Wave 15, Phase 81 (the dock model applies every input whatever a listener throws); roadmap created 2026-11-24 (Phases 81-84, strictly serial; v1.9 not merged, not released)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 81 of 81-84 (The dock model applies every input whatever a listener throws) — not started
 Plan: —
-Status: Defining requirements
-Last activity: 2026-11-24 — Milestone v1.10 started
+Status: Ready to plan
+Last activity: 2026-11-24 — v1.10 roadmap created (Phases 81-84)
 
 
 ## Performance Metrics
@@ -1036,6 +1036,7 @@ Last activity: 2026-11-24 — Milestone v1.10 started
 
 ### Pending Todos
 
+- v1.10: strictly serial, 81 then 82 through 84; ids reserved (ADR-QD-194 to 197, CCR-QD-473 to 476, BEH-QD-741 to 760, INV-QD-407 to 414), never run `node scripts/next-id.mjs`. Phases 81 (`@qadi/devtools`) and 82 (`@qadi/react`) are live defects, each opening with a regression test seen RED on its phase base; Phase 81's first plan commits the `DockModel.ts` and `ExternalStore.ts` Stryker baselines alone and records how the archived `79-`/`80-pinned-check.mjs` run from a scratch copy; Phase 82 needs a pre-plan spike first (`/gsd-plan-phase --research-phase 82`); Phase 83 is Breaking only if `Diagnostics.questions` is removed; Phase 84 has no defect, so it opens on green characterisations. Every grey area is decided autonomously at its discuss step (`_WAVE15-CONTEXT.md`, `research/SUMMARY.md`).
 - v1.9: strictly serial, 77 then 78 through 80; ids reserved (ADR-QD-190 to 193, CCR-QD-469 to 472, BEH-QD-721 to 740, INV-QD-399 to 406), never run `node scripts/next-id.mjs`. Phase 77 (`@qadi/audit`, live defect, **Breaking**) opens with a RED regression test written without `as` on its phase base, and needs a pre-plan probe first (`/gsd-plan-phase --research-phase 77`: the brand form's `Equal`/`Hash`/`JSON.stringify`, and the whole-archive writer inputs `entries`, `now`, `keyMaterial`). Phase 78 (`TimelineStore.resize`) is standard, no research. Phase 79 (**Breaking**, `@qadi/devtools`) opens with a first-render characterisation test, plain and under StrictMode, and needs a render-sequence spike first (`/gsd-plan-phase --research-phase 79`); 78 hard-precedes 79. Phase 80 (`LensSession`, `instrument`) is standard, no research; its tab-switch persistence and `instrument` removal are decided once at the discuss step. Soft edge 79 to 80 (`DockModel.ts`, `DevtoolsDock.tsx`); the milestone close re-verifies 77 to 79. Evidence: `.planning/phases/_WAVE14-CONTEXT.md` and `.planning/research/`.
 - v1.8: Phases 69, 70 and 71 are live defects, each opening with a regression test seen RED on its phase base; Phase 70 asks its payload-path question at the discuss step; Phase 75 opens on a human checkpoint (the outcome key and whether the old keys stay; visible to tracers; `@qadi/core` changeset); Phase 76 is speculative and may end in a recorded rejection (ADR-QD-189 and CCR-QD-468, no code change); strictly serial, 69 then 70 through 76; ids reserved (ADR-QD-182 to 189, CCR-QD-461 to 468, BEH-QD-681 to 720, INV-QD-383 to 398), never run `node scripts/next-id.mjs`; soft edges 70 to 71 (`HydrationEngine.ts`), 71 to 73 (`GateRegistry.ts`), 72 to 74 (`DockModel.test.ts`). Evidence: `.planning/phases/_WAVE13-CONTEXT.md`.
 - v1.5: Phase 43 (`@qadi/core`) and Phase 48 (`@qadi/audit`) are **Breaking**; Phase 50 opens on a `pnpm bench` measurement and may end in a recorded rejection (ADR-QD-163); Phase 48's first plan checks ADR-QD-054 and ADR-QD-056 before any code; soft edges 45 → 48, 47 → 49 and 50 → 51 (same files; serial order covers them).
@@ -1098,6 +1099,7 @@ Last activity: 2026-11-24 — Milestone v1.10 started
 - v1.8 roadmap created 2026-11-22: Phases 69-76, one per review candidate (ARCH-116 to ARCH-123), strictly serial; 47 of 47 requirements mapped (40 phase-specific, 7 cross-cutting WX-01 to WX-07 on every phase)
 - v1.9 roadmap created 2026-11-23: Phases 77-80, one per review candidate (ARCH-124 to ARCH-127), strictly serial (owner decision D2); 28 of 28 requirements mapped (21 phase-specific, 7 cross-cutting WX-01 to WX-07 on every phase); research flags on 77 and 79
 - v1.9 completed 2026-11-24: Phases 77-80 archived to `.planning/milestones/v1.9-phases/`; audit `passed` (28/28, 9/9, 4/4)
+- v1.10 roadmap created 2026-11-24: Phases 81-84, one per review candidate (ARCH-128 to ARCH-131), strictly serial (decision D2); 27 of 27 requirements mapped (20 phase-specific, 7 cross-cutting WX-01 to WX-07 on every phase); research flag on 82
 
 ## Deferred Items
 
@@ -1110,11 +1112,11 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-24T16:47:43.552Z
-Stopped at: Phase QD-80 complete — all phases complete
+Last session: 2026-11-24T20:54:19.000Z
+Stopped at: v1.10 roadmap created — Phase 81 not started
 Resume file: None
 
 ## Operator Next Steps
 
 
-- Start the next milestone with /gsd-new-milestone
+- Start Phase 81 with /gsd-discuss-phase 81 (then /gsd-plan-phase 81)
