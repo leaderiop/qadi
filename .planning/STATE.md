@@ -5,16 +5,16 @@ milestone_name: Arch Wave 15
 current_phase: 81
 current_phase_name: The dock model applies every input whatever a listener throws
 status: executing
-stopped_at: Completed 81-01-PLAN.md
-last_updated: "2026-11-24T22:04:34.643Z"
+stopped_at: Completed 81-02-PLAN.md
+last_updated: "2026-11-24T22:15:01.195Z"
 last_activity: 2026-11-24
 last_activity_desc: Phase QD-81 execution started
-state_head: a24a403312854717d8fafaef7733958eb02bc004
+state_head: a855e00b74284ee67d495a874bd9b95f611a56e7
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 11
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-24)
 ## Current Position
 
 Phase: QD-81 (The dock model applies every input whatever a listener throws) — EXECUTING
-Plan: 2 of 11
+Plan: 3 of 11
 Status: Executing Phase QD-81
 Last activity: 2026-11-24 — Phase QD-81 execution started
 
@@ -602,6 +602,7 @@ Last activity: 2026-11-24 — Phase QD-81 execution started
 | Phase QD-80 P12 | 20min | 2 tasks | 2 files |
 | Phase QD-80 P13 | 45min | 2 tasks | 1 files |
 | Phase 81 P01 | 15 min | 3 tasks | 5 files |
+| Phase QD-81 P02 | 55 min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -1041,6 +1042,8 @@ Last activity: 2026-11-24 — Phase QD-81 execution started
 - [Phase QD-80]: Plan 80-12: the lens session's move returns void (its boolean was read by no caller; two unkillable BooleanLiteral mutants), orchestrator-decided
 - [Phase 81]: The mutation base of the five model files is recorded as measured: SimulationSession.ts holds 6 Survived mutants on the phase base, its floor is 242/248
 - [Phase 81]: single-source judges the blanked text of src/model/** and adds two reasons beyond the plan's list so a tree with nothing to read cannot pass
+- [Phase QD-81]: 81-02: each listener row of the dock model runs from capacity 5 (moved to 3) and capacity 3 (left), because a moved capacity lets the dock's own timeline listener deliver the explorer and simulation notification first and the catalogue step mends it; decided autonomously
+- [Phase QD-81]: 81-02: the new source yields once before it answers so its records arrive after configure returns; decided autonomously
 
 ### Pending Todos
 
@@ -1120,8 +1123,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-24T22:04:34.611Z
-Stopped at: Completed 81-01-PLAN.md
+Last session: 2026-11-24T22:15:01.157Z
+Stopped at: Completed 81-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
