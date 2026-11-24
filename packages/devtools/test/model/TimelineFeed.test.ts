@@ -811,21 +811,6 @@ describe("the timeline feed", () => {
       assert.deepStrictEqual(idsOf(feed), ["z"]);
     }));
 
-  it.effect("TF36 the idle timeline answers any resize with false and stays one empty snapshot that nothing hears", () =>
-    Effect.sync(() => {
-      const snapshot = idleTimeline.getSnapshot();
-      const heard = { calls: 0 };
-      idleTimeline.subscribe(() => {
-        heard.calls += 1;
-      });
-
-      assert.isFalse(idleTimeline.resize(3));
-      assert.isFalse(idleTimeline.resize(-1));
-
-      assert.strictEqual(idleTimeline.getSnapshot(), snapshot);
-      assert.strictEqual(heard.calls, 0);
-    }));
-
   it.effect("TF37 a timeline listener that configures the feed again during a capacity change leaves it reading the inner source at the inner capacity", () =>
     Effect.gen(function* () {
       const a = counting([record("from-a", 100)], Stream.never);
@@ -846,5 +831,20 @@ describe("the timeline feed", () => {
       assert.strictEqual(feed.timeline.getSnapshot().capacity, 2);
       assert.deepStrictEqual(idsOf(feed), ["from-b"]);
       assert.deepStrictEqual(c.tally, { reads: 0 });
+    }));
+
+  it.effect("TF36 the idle timeline answers any resize with false and stays one empty snapshot that nothing hears", () =>
+    Effect.sync(() => {
+      const snapshot = idleTimeline.getSnapshot();
+      const heard = { calls: 0 };
+      idleTimeline.subscribe(() => {
+        heard.calls += 1;
+      });
+
+      assert.isFalse(idleTimeline.resize(3));
+      assert.isFalse(idleTimeline.resize(-1));
+
+      assert.strictEqual(idleTimeline.getSnapshot(), snapshot);
+      assert.strictEqual(heard.calls, 0);
     }));
 });

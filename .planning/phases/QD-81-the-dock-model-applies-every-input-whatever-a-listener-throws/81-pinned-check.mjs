@@ -30,7 +30,7 @@ const PINNED = [
   { file: `${TEST_DIR}ExternalStore.test.ts`, flips: [], added: [], edits: [] },
   { file: `${TEST_DIR}ConfigureRule.test.ts`, flips: ["CR22"], added: [], edits: [] },
   { file: `${TEST_DIR}TimelineFeed.test.ts`, flips: ["TF28", "TF29"], added: ["TF37"], edits: [] },
-  { file: `${TEST_DIR}DiagnosticsFeed.test.ts`, flips: ["F31"], added: [], edits: [] },
+  { file: `${TEST_DIR}DiagnosticsFeed.test.ts`, flips: ["F31"], added: ["F33"], edits: [] },
   { file: `${TEST_DIR}GatesFeed.test.ts`, flips: [], added: ["G49"], edits: [] },
   {
     file: `${TEST_DIR}SimulationSession.runs.test.ts`,
