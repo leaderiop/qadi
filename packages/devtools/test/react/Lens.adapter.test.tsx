@@ -5,7 +5,8 @@
  * pick was made, even when a subscriber to the session throws while being told of the
  * pick, and a click that a keyboard made is placed by the control it was made on and not
  * by a point it did not report. The panel that draws from the same session holds one
- * subscription to it and not one for the adapter and another for itself.
+ * subscription to it and not one for the adapter and another for itself, and to the
+ * questions store likewise.
  */
 import { afterEach, assert, describe, it } from "@effect/vitest";
 import { hasPermission, permission } from "@qadi/core";
@@ -16,6 +17,7 @@ import { joinQuestions, type GateInstanceLike } from "../../src/model/Gates.ts";
 import { makeLensSession, pickedOf, type LensSession } from "../../src/model/LensSession.ts";
 import { QuestionsPanel } from "../../src/react/QuestionsPanel.tsx";
 import { useLens } from "../../src/react/useLens.ts";
+import { useStoreSnapshot } from "../../src/react/useStoreSnapshot.ts";
 import { liveNotice } from "../helpers.ts";
 import { panelInput } from "./questionsPanelInput.ts";
 
@@ -48,7 +50,7 @@ const mount = (instances: ReadonlyArray<GateInstanceLike>) => {
     }),
   );
   const Probe = () => {
-    useLens(lens, questions);
+    useLens(lens, questions, useStoreSnapshot(questions).instances);
     return null;
   };
   render(<Probe />);
@@ -149,6 +151,28 @@ describe("the lens panel's subscription", () => {
     };
     const { unmount } = render(
       <QuestionsPanel diagnostics={liveNotice} {...panelInput({ questions: [], lens })} />,
+    );
+    assert.strictEqual(held, 1, "while mounted");
+    unmount();
+    assert.strictEqual(held, 0, "after unmount");
+  });
+
+  it("the panel holds one subscription to the questions store while it is mounted and none after", () => {
+    const input = panelInput({ questions: [] });
+    let held = 0;
+    const questions = {
+      ...input.questions,
+      subscribe: (listener: () => void) => {
+        held += 1;
+        const unsubscribe = input.questions.subscribe(listener);
+        return () => {
+          held -= 1;
+          unsubscribe();
+        };
+      },
+    };
+    const { unmount } = render(
+      <QuestionsPanel diagnostics={liveNotice} {...input} questions={questions} />,
     );
     assert.strictEqual(held, 1, "while mounted");
     unmount();

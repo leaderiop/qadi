@@ -28,17 +28,20 @@ import { useStoreSnapshot } from "./useStoreSnapshot.ts";
  * session alone: were it the listeners' cleanup, a highlight that ended picking
  * would run it and cancel the highlight it had just drawn.
  *
- * Returns the snapshot it read, so a panel that draws from the same session holds the one
- * subscription and not a second.
+ * Returns the snapshot it read, so a panel that draws from the same session holds the
+ * one subscription and not a second. The guards listed now are an argument for the same
+ * reason: the caller reads the questions store to render, so the adapter does not
+ * subscribe to it again, and it reads `questions` only when an event arrives. A caller
+ * that does not render from the store reads it with `useStoreSnapshot`.
  */
 export const useLens = (
   lens: LensSession,
   questions: ReadableStore<QuestionsSnapshot>,
+  instances: QuestionsSnapshot["instances"],
 ): LensSnapshot => {
   const snapshot = useStoreSnapshot(lens);
   const highlighted: ReadonlyArray<string> = snapshot.highlighted;
   const picking = isPicking(snapshot);
-  const { instances } = useStoreSnapshot(questions);
 
   // Measured in an effect, not in a handler, so the boxes are computed after
   // React has committed — a guard whose state just changed may have only now

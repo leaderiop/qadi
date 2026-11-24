@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-193                                   |
-> | Revision       | 1.6                                            |
+> | Revision       | 1.7                                            |
 > | Effective Date | 2026-11-24                                     |
 > | Status         | Accepted — amends ADR-QD-185, ADR-QD-047 and ADR-QD-111 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.6 (2026-11-24): the adapter does not catch a subscriber's failure; what the dispatch does with it is the DOM's (CCR-QD-472)<br>1.5 (2026-11-24): hover and choose from idle are reached by the adapter between a pick and its listeners coming off (CCR-QD-472)<br>1.4 (2026-11-24): a hover leaves the reveal and moves nothing from idle, the state between a pick and the listeners coming off (CCR-QD-472)<br>1.3 (2026-11-24): the reader-facing table lists seven interaction rows, the keyboard click and the dropped reveal included (CCR-QD-472)<br>1.2 (2026-11-24): the review's corrections: the reveal belongs to its pick, the click placed by its element and swallowed whatever a subscriber does, the capture wording (CCR-QD-472)<br>1.1 (2026-11-24): the behaviours and invariants that state it are linked (CCR-QD-472)<br>1.0 (2026-11-24): Initial (ARCH-127) |
+> | Change History | 1.7 (2026-11-24): useLens is handed the listed guards, so the panel holds one subscription to the questions store (CCR-QD-472)<br>1.6 (2026-11-24): the adapter does not catch a subscriber's failure; what the dispatch does with it is the DOM's (CCR-QD-472)<br>1.5 (2026-11-24): hover and choose from idle are reached by the adapter between a pick and its listeners coming off (CCR-QD-472)<br>1.4 (2026-11-24): a hover leaves the reveal and moves nothing from idle, the state between a pick and the listeners coming off (CCR-QD-472)<br>1.3 (2026-11-24): the reader-facing table lists seven interaction rows, the keyboard click and the dropped reveal included (CCR-QD-472)<br>1.2 (2026-11-24): the review's corrections: the reveal belongs to its pick, the click placed by its element and swallowed whatever a subscriber does, the capture wording (CCR-QD-472)<br>1.1 (2026-11-24): the behaviours and invariants that state it are linked (CCR-QD-472)<br>1.0 (2026-11-24): Initial (ARCH-127) |
 
 ---
 
@@ -98,10 +98,11 @@ React hook, and a field of the provider's context had no reader.
    is a store the model builds and no input computes, so it is not a derived store and the derived-store rule of ADR-QD-185
    does not reach it. BEH-QD-700 lists the stores once and `DockModel.test.ts`'s store-list test holds that list.
 
-6. **`useLens(lens, questions)` is the document adapter, with three effects and no React state.**
-   - **Draw.** It reads the session snapshot and the questions snapshot through `useStoreSnapshot` and draws
-     `snapshot.highlighted` over the matching instances with `drawLens`, or calls `clearLens` when there are none. Its
-     dependencies are `[highlighted, instances]` and its cleanup clears.
+6. **`useLens(lens, questions, instances)` is the document adapter, with three effects and no React state.**
+   - **Draw.** It reads the session snapshot through `useStoreSnapshot`, is handed the listed guards (`instances`, which the
+     panel read from the questions store to render) and draws `snapshot.highlighted` over the matching instances with
+     `drawLens`, or calls `clearLens` when there are none. Its dependencies are `[highlighted, instances]` and its cleanup
+     clears.
    - **Listeners.** It adds the three document listeners when the snapshot becomes `Picking` and removes them when it stops
      being so, with dependencies `[picking, lens, questions]`. Each handler reads `questions.getSnapshot().instances` when
      the event arrives, so a change in the listed guards adds and removes nothing.
@@ -111,8 +112,9 @@ React hook, and a field of the provider's context had no reader.
    unless `choose` answered `false`: `choose` notifies only when the pick moved, so a throw out of it means the pick was
    made, and the adapter does not catch the subscriber's failure (ADR-QD-177). The click listener is in the capture phase,
    which keeps the target and bubble handlers of the page from seeing the click; a listener on the window's capture phase,
-   or an earlier one on the document's, still does. `useLens` returns the snapshot it read, so the panel that draws from
-   the same session holds one subscription and not two.
+   or an earlier one on the document's, still does. `useLens` returns the snapshot it read and takes the listed guards as an
+   argument, so the panel that draws from the same session and the same questions store holds one subscription to each and
+   not two.
    - **Exit on unmount.** An effect keyed on `[lens]` alone whose cleanup calls `lens.cancel()`. It is its own effect because
      the listeners' effect re-runs on every mode change: a `cancel()` in its cleanup would wipe a highlight that
      `highlight` had just drawn while ending picking (decision 3).
@@ -245,7 +247,7 @@ title listing ten counts).
 **The adapter and the panel through the dock.** `packages/devtools/test/react/Lens.dock.test.tsx` holds decision 6's
 listeners, the default action of a swallowed click, the guard list read when the event arrives, and decision 8's single reveal under
 StrictMode. `packages/devtools/test/react/Lens.adapter.test.tsx` holds the click swallowed when a subscriber throws, the click
-with no pointer placed by its target, and the panel's one subscription; `packages/devtools/test/react/Lens.click.test.ts` holds
+with no pointer placed by its target, and the panel's one subscription to the lens and to the questions store; `packages/devtools/test/react/Lens.click.test.ts` holds
 `gateIdOfClick`. `packages/devtools/test/react/Lens.dock.characterisation.test.tsx`
 was written before the hook changed and is held to its first commit by a recorded hash, with exactly four declared flips
 (the pick kept, the highlight ending picking, the overlay surviving the next move, and the same overlay element); its other

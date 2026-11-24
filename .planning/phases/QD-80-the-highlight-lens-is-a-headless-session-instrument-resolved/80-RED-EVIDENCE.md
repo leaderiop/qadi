@@ -213,3 +213,12 @@ on the window) and asserts the click is consumed. It was run against a scratch e
 and drops the error (restored with `cp`): `the subscriber's failure surfaced: expected false to be true`; 1 failed, 2 passed.
 
 - failed: a click that made a pick is still consumed when a subscriber throws while being told of it, and its failure is not caught by the adapter
+
+### IN-03 one subscription to the questions store
+
+The new cell counts the subscriptions the panel takes on a questions store while it is mounted and after it unmounts. It was
+run on the unchanged panel and adapter (`while mounted: expected 2 to equal 1`; 1 failed, 3 passed). `useLens` now takes the
+listed guards as an argument, so the panel's own read is the one subscription, and the handlers still read
+`questions.getSnapshot()` when an event arrives.
+
+- failed: the panel holds one subscription to the questions store while it is mounted and none after
