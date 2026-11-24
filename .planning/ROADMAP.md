@@ -502,13 +502,13 @@ Order: the two live defects (81, 82), then the two devtools deepenings (83, 84).
   5. The window between a run's `begin()` and its `fork()` is closed at every site in `src/model/**` (the timeline's `Reading`, the diagnostics' `Starting`, the simulation's `Running`): the work starts whatever a listener throws on that status, and the throw is rethrown after (TF29's flip recorded); a listener that calls `configure` again from inside a step leaves the model on the inner call's inputs (pinned); ADR-QD-194 (or the named amendments), BEH, INV, traceability and the dock model's file header carry the rule.
 
 **Planning notes**: No external research: the open items are discuss-step decisions (the grey-area table above), and the researchers' recommendations are in `research/SUMMARY.md`. Open the plan with the ten-store throw matrix, the record path, the two-throw case, a reentrancy row and a publish count for a capacity-and-catalogue `configure`: FEATURES measured the explorer hearing two publishes there while ARCHITECTURE read the second spread as publishing nothing, so count first. Never collect the capacity refusal (M55); steps read `held` when they run, not entry-time locals; no did-spread flag (it skips heals and corrupts under nesting). `DockModel.ts` holds a mutation score of 1 (69 killed, 0 survived, 12 ignored at v1.9 close; a new `Ignored` mutant fails the compare, so new literals stay inside function bodies); commit the Stryker baselines of `DockModel.ts` and `ExternalStore.ts` alone and first, and re-close them after the review. The archived `79-pinned-check.mjs` and `80-pinned-check.mjs` hard-code `.planning/phases/QD-79...` and fail with ENOENT now that v1.9 is archived: the first plan records how to run them from a scratch copy with the paths rewritten (do not edit the archive) in `_WAVE15-CONTEXT.md`, and new record scripts take their directory from `import.meta.url`. No new `switch`, `Effect.fnUntraced`, `any` or module-scope `let`.
-**Plans**: 3/11 plans executed
+**Plans**: 4/11 plans executed
 
 Plans:
 - [x] 81-01 (W1): Record the mutation base of the five model files first, the base facts and archived checks, and the phase check helpers with `single-source` (D-03, D-12, D-13).
 - [x] 81-02 (W2): `DockModel.listeners.test.ts`, the ten-store throw matrix, the record path, two throwers, `undefined`/`null`, one rail publish and the nested configure, seen red (COLL-01, COLL-02).
 - [x] 81-03 (W3): TF28, TF29 and F31 flipped and retitled, TF37, SR6 and G49 added, seen red; the pinned check (COLL-05).
-- [ ] 81-04 (W4): `callAll(calls, message)` in `ExternalStore.ts`, test-first; `notify` and the derived release on it (COLL-03, D-04 to D-06).
+- [x] 81-04 (W4): `callAll(calls, message)` in `ExternalStore.ts`, test-first; `notify` and the derived release on it (COLL-03, D-04 to D-06).
 - [ ] 81-05 (W5): The timeline feed's `configure` through `callAll`; the timeline, diagnostics and simulation begin-to-fork windows closed (COLL-05, D-09).
 - [ ] 81-06 (W6): The rail as the fourth derived store, `configure` as seven steps through `callAll`, `spread` removed, CR22 restated from the measurement (COLL-01 to COLL-04, D-07, D-08, D-10).
 - [ ] 81-07 (W7): ADR-QD-194 and the dated amendments of ADR-QD-177, 185, 191 and 192; CCR-QD-473 begun (COLL-06, D-11).
@@ -587,7 +587,7 @@ Phases execute in numeric order: 81 → 82 → 83 → 84
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 81. The dock model applies every input whatever a listener throws | 3/11 | In Progress | - |
+| 81. The dock model applies every input whatever a listener throws | 4/11 | In Progress | - |
 | 82. `QadiProvider`'s registry has one owner for its lifetime | 0/0 | Not started | - |
 | 83. The diagnostics feed folds its reading as a value | 0/0 | Not started | - |
 | 84. `useConfigured` requires `configure`, and the review's small finds | 0/0 | Not started | - |
