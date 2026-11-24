@@ -23,6 +23,7 @@ import {
   type TimelineFeed,
 } from "../../src/index.ts";
 import { idleTimeline } from "../../src/model/TimelineFeed.ts";
+import { timelineFeedOf } from "../builtFeeds.ts";
 import { decisionRecord, hostile, hostileError, settleTurns, thrownBy } from "../helpers.ts";
 
 const flush = Effect.andThen(Effect.yieldNow, TestClock.adjust("10 millis"));
@@ -92,7 +93,7 @@ const heardStatus = (feed: TimelineFeed): Array<string> => {
 describe("the timeline feed", () => {
   it.effect("TF1 a source's records show in the timeline once the feed is built", () =>
     Effect.gen(function* () {
-      const feed = yield* makeTimelineFeed({ source: sourceFromRecords([record("a", 100), record("b", 200)]) });
+      const feed = yield* timelineFeedOf({ source: sourceFromRecords([record("a", 100), record("b", 200)]) });
       yield* flush;
 
       assert.deepStrictEqual(idsOf(feed), ["a", "b"]);
@@ -101,7 +102,7 @@ describe("the timeline feed", () => {
   it.effect("TF2 configuring the same source and capacity reads nothing again and notifies nothing", () =>
     Effect.gen(function* () {
       const a = watched([record("x", 100)], Stream.never);
-      const feed = yield* makeTimelineFeed({ source: a.source, capacity: 5 });
+      const feed = yield* timelineFeedOf({ source: a.source, capacity: 5 });
       yield* flush;
       const heard = { calls: 0 };
       feed.timeline.subscribe(() => {
@@ -119,7 +120,7 @@ describe("the timeline feed", () => {
     Effect.gen(function* () {
       const a = watched([], Stream.never);
       const b = watched([record("from-b", 100)], Stream.never);
-      const feed = yield* makeTimelineFeed({ source: a.source });
+      const feed = yield* timelineFeedOf({ source: a.source });
       yield* flush;
       assert.deepStrictEqual(a.tally, { started: 1, finalized: 0 });
 
@@ -134,7 +135,7 @@ describe("the timeline feed", () => {
   it.effect("TF4 a capacity change keeps the timeline object, empties it, bounds the new buffer and reads again", () =>
     Effect.gen(function* () {
       const a = watched([], Stream.never);
-      const feed = yield* makeTimelineFeed({ source: a.source, capacity: 5 });
+      const feed = yield* timelineFeedOf({ source: a.source, capacity: 5 });
       yield* flush;
       const timeline = feed.timeline;
       timeline.accept(record("manual", 100));
@@ -154,7 +155,7 @@ describe("the timeline feed", () => {
   it.effect("TF5 configuring with no source releases the read and keeps the entries it delivered", () =>
     Effect.gen(function* () {
       const a = watched([record("x", 100)], Stream.never);
-      const feed = yield* makeTimelineFeed({ source: a.source });
+      const feed = yield* timelineFeedOf({ source: a.source });
       yield* flush;
 
       feed.configure({});
@@ -169,7 +170,7 @@ describe("the timeline feed", () => {
       const queue = yield* Queue.unbounded<StoredRecord>();
       const a = watched([], Stream.fromQueue(queue));
       const scope = yield* Scope.make();
-      const feed = yield* Scope.provide(makeTimelineFeed({ source: a.source }), scope);
+      const feed = yield* Scope.provide(timelineFeedOf({ source: a.source }), scope);
       yield* flush;
       Queue.offerUnsafe(queue, record("before", 100));
       yield* flush;
@@ -235,7 +236,7 @@ describe("the timeline feed", () => {
 
   it.effect("TF10 a read that dies is Stopped with its reason, at once", () =>
     Effect.gen(function* () {
-      const feed = yield* makeTimelineFeed({ source: { read: Effect.die(new Error("boom")) } });
+      const feed = yield* timelineFeedOf({ source: { read: Effect.die(new Error("boom")) } });
 
       const status = feed.status.getSnapshot();
       assert.strictEqual(status._tag, "Stopped");
@@ -245,7 +246,7 @@ describe("the timeline feed", () => {
   it.effect("a read that dies with a value that cannot be rendered is Stopped with the placeholder", () =>
     Effect.gen(function* () {
       for (const value of [hostile, hostileError]) {
-        const feed = yield* makeTimelineFeed({ source: { read: Effect.die(value) } });
+        const feed = yield* timelineFeedOf({ source: { read: Effect.die(value) } });
 
         const status = feed.status.getSnapshot();
         if (status._tag !== "Stopped") return assert.fail("expected Stopped");
@@ -255,7 +256,7 @@ describe("the timeline feed", () => {
 
   it.effect("TF11 a live stream that dies after its backlog is Stopped and keeps the entries; a new source reads again", () =>
     Effect.gen(function* () {
-      const feed = yield* makeTimelineFeed({
+      const feed = yield* timelineFeedOf({
         source: { read: Effect.succeed({ backlog: [record("x", 100)], live: Stream.die(new Error("live boom")) }) },
       });
       yield* flush;
@@ -281,7 +282,7 @@ describe("the timeline feed", () => {
           [record("x", 100)],
           Stream.never.pipe(Stream.ensuring(Effect.die(new Error("release boom")))),
         );
-        const feed = yield* Scope.provide(makeTimelineFeed({ source: dying.source }), scope);
+        const feed = yield* Scope.provide(timelineFeedOf({ source: dying.source }), scope);
         const heard = heardStatus(feed);
         yield* flush;
 
@@ -298,7 +299,7 @@ describe("the timeline feed", () => {
 
   it.effect("TF13 a source that ends by itself is not a stop", () =>
     Effect.gen(function* () {
-      const ended = yield* makeTimelineFeed({ source: sourceFromRecords([record("z", 1)]) });
+      const ended = yield* timelineFeedOf({ source: sourceFromRecords([record("z", 1)]) });
       const endedHeard = heardStatus(ended);
       const none = yield* makeTimelineFeed();
       const noneHeard = heardStatus(none);
@@ -314,7 +315,7 @@ describe("the timeline feed", () => {
   it.effect("TF14 a capacity change while Stopped starts a new read and returns to Reading", () =>
     Effect.gen(function* () {
       const a = flaky();
-      const feed = yield* makeTimelineFeed({ source: a.source });
+      const feed = yield* timelineFeedOf({ source: a.source });
       yield* flush;
       assert.strictEqual(feed.status.getSnapshot()._tag, "Stopped");
 
@@ -329,7 +330,7 @@ describe("the timeline feed", () => {
   it.effect("TF15 a restart after a stop reads the current source again, keeps what was delivered and shows nothing twice", () =>
     Effect.gen(function* () {
       const a = flaky();
-      const feed = yield* makeTimelineFeed({ source: a.source });
+      const feed = yield* timelineFeedOf({ source: a.source });
       yield* flush;
       assert.strictEqual(feed.status.getSnapshot()._tag, "Stopped");
       assert.deepStrictEqual(idsOf(feed), ["x"]);
@@ -345,7 +346,7 @@ describe("the timeline feed", () => {
   it.effect("TF16 a restart while Reading replaces the read, publishes no Stopped and shows nothing twice", () =>
     Effect.gen(function* () {
       const a = counting([record("a", 100)], Stream.never);
-      const feed = yield* makeTimelineFeed({ source: a.source });
+      const feed = yield* timelineFeedOf({ source: a.source });
       const heard = heardStatus(feed);
       yield* flush;
 
@@ -361,7 +362,7 @@ describe("the timeline feed", () => {
     Effect.gen(function* () {
       const a = counting([record("a", 100)], Stream.never);
       const scope = yield* Scope.make();
-      const feed = yield* Scope.provide(makeTimelineFeed({ source: a.source }), scope);
+      const feed = yield* Scope.provide(timelineFeedOf({ source: a.source }), scope);
       const heard = heardStatus(feed);
       yield* flush;
       yield* Scope.close(scope, Exit.void);
@@ -378,7 +379,7 @@ describe("the timeline feed", () => {
     Effect.gen(function* () {
       const a = flaky();
       const scope = yield* Scope.make();
-      const feed = yield* Scope.provide(makeTimelineFeed({ source: a.source }), scope);
+      const feed = yield* Scope.provide(timelineFeedOf({ source: a.source }), scope);
       yield* flush;
       assert.strictEqual(feed.status.getSnapshot()._tag, "Stopped");
       const heard = heardStatus(feed);
@@ -398,7 +399,7 @@ describe("the timeline feed", () => {
       const a = flaky();
       const b = counting([record("b", 300)], Stream.never);
       const scope = yield* Scope.make();
-      const feed = yield* Scope.provide(makeTimelineFeed({ source: a.source }), scope);
+      const feed = yield* Scope.provide(timelineFeedOf({ source: a.source }), scope);
       yield* flush;
       assert.strictEqual(feed.status.getSnapshot()._tag, "Stopped");
       const before = feed.timeline.getSnapshot();
@@ -430,7 +431,7 @@ describe("the timeline feed", () => {
         ),
       );
       const scope = yield* Scope.make();
-      const feed = yield* Scope.provide(makeTimelineFeed({ source: slow.source }), scope);
+      const feed = yield* Scope.provide(timelineFeedOf({ source: slow.source }), scope);
       const heard = heardStatus(feed);
       yield* flush;
       feed.configure({ source: watched([], Stream.never).source });
@@ -448,7 +449,7 @@ describe("the timeline feed", () => {
 
   it.effect("TF20 a restart from Stopped publishes Reading before a read that dies at once publishes Stopped", () =>
     Effect.gen(function* () {
-      const feed = yield* makeTimelineFeed({ source: { read: Effect.die(new Error("gone")) } });
+      const feed = yield* timelineFeedOf({ source: { read: Effect.die(new Error("gone")) } });
       yield* flush;
       assert.strictEqual(feed.status.getSnapshot()._tag, "Stopped");
       const heard = heardStatus(feed);
@@ -462,7 +463,7 @@ describe("the timeline feed", () => {
 
   it.effect("TF21 a subscriber that reconfigures the feed inside its Reading notification leaves the newest read live", () =>
     Effect.gen(function* () {
-      const feed = yield* makeTimelineFeed({
+      const feed = yield* timelineFeedOf({
         source: { read: Effect.succeed({ backlog: [], live: Stream.die(new Error("boom")) }) },
       });
       yield* flush;
@@ -547,7 +548,7 @@ describe("the timeline feed", () => {
   it.effect("TF26 a listener that throws on the emptied timeline a capacity change publishes stops no read: configure rethrows, and the new source is read", () =>
     Effect.gen(function* () {
       const a = watched([], Stream.never);
-      const feed = yield* makeTimelineFeed({ source: a.source, capacity: 5 });
+      const feed = yield* timelineFeedOf({ source: a.source, capacity: 5 });
       yield* flush;
       const b = counting([record("from-b", 100)], Stream.never);
       const boom = new Error("boom");
@@ -572,7 +573,7 @@ describe("the timeline feed", () => {
   it.effect("TF27 a listener that throws on a capacity-only change stops no read: the emptied timeline is refilled from the same source", () =>
     Effect.gen(function* () {
       const a = counting([record("x", 100)], Stream.never);
-      const feed = yield* makeTimelineFeed({ source: a.source, capacity: 5 });
+      const feed = yield* timelineFeedOf({ source: a.source, capacity: 5 });
       yield* flush;
       assert.deepStrictEqual(idsOf(feed), ["x"]);
       const boom = new Error("boom");
@@ -596,7 +597,7 @@ describe("the timeline feed", () => {
   it.effect("TF28 a listener that throws on the Reading a restart publishes over a Stopped leaves the status Reading with no read started", () =>
     Effect.gen(function* () {
       const { source, tally } = flaky();
-      const feed = yield* makeTimelineFeed({ source });
+      const feed = yield* timelineFeedOf({ source });
       yield* flush;
       assert.strictEqual(feed.status.getSnapshot()._tag, "Stopped");
       const boom = new Error("boom");
@@ -620,7 +621,7 @@ describe("the timeline feed", () => {
   it.effect("TF29 a status listener that throws on the Reading a capacity change publishes over a Stopped replaces the timeline listener's throw, and no read is started", () =>
     Effect.gen(function* () {
       const { source, tally } = flaky();
-      const feed = yield* makeTimelineFeed({ source, capacity: 5 });
+      const feed = yield* timelineFeedOf({ source, capacity: 5 });
       yield* flush;
       assert.strictEqual(feed.status.getSnapshot()._tag, "Stopped");
       const timelineBoom = new Error("timeline boom");
@@ -652,7 +653,7 @@ describe("the timeline feed", () => {
   it.effect("TF30 a capacity that is not a non-negative integer throws and changes nothing, so a later configure compares with the inputs the feed held", () =>
     Effect.gen(function* () {
       const a = watched([], Stream.never);
-      const feed = yield* makeTimelineFeed({ source: a.source, capacity: 5 });
+      const feed = yield* timelineFeedOf({ source: a.source, capacity: 5 });
       yield* flush;
       feed.timeline.accept(record("x", 100));
       const snapshot = feed.timeline.getSnapshot();
@@ -690,7 +691,7 @@ describe("the timeline feed", () => {
     Effect.gen(function* () {
       const a = watched([], Stream.never);
       const b = counting([record("from-b", 100)], Stream.never);
-      const feed = yield* makeTimelineFeed({ source: a.source, capacity: 5 });
+      const feed = yield* timelineFeedOf({ source: a.source, capacity: 5 });
       yield* flush;
       const refused = thrownBy(() => feed.configure({ source: b.source, capacity: -1 }));
       assert.isTrue(refused.threw);
@@ -704,7 +705,7 @@ describe("the timeline feed", () => {
 
   it.effect("TF32 a zero-capacity feed tells its timeline listeners nothing for records it cannot keep", () =>
     Effect.gen(function* () {
-      const feed = yield* makeTimelineFeed({
+      const feed = yield* timelineFeedOf({
         capacity: 0,
         source: delayed([record("a", 100)]),
       });
@@ -724,7 +725,7 @@ describe("the timeline feed", () => {
   it.effect("TF33 an omitted capacity and the default capacity are one bound: moving between them keeps the timeline and reads nothing again", () =>
     Effect.gen(function* () {
       const a = watched([], Stream.never);
-      const feed = yield* makeTimelineFeed({
+      const feed = yield* timelineFeedOf({
         source: a.source,
         capacity: DEFAULT_TIMELINE_CAPACITY,
       });
@@ -758,7 +759,7 @@ describe("the timeline feed", () => {
   it.effect("TF34 the store a host holds is one object for the feed life: a listener added before two capacity changes hears each emptied timeline once", () =>
     Effect.gen(function* () {
       const a = watched([], Stream.never);
-      const feed = yield* makeTimelineFeed({ source: a.source, capacity: 5 });
+      const feed = yield* timelineFeedOf({ source: a.source, capacity: 5 });
       yield* flush;
       const held = feed.timeline;
       const heard: Array<number> = [];
@@ -784,7 +785,7 @@ describe("the timeline feed", () => {
   it.effect("TF35 a capacity change while paused releases the pause and shows the emptied live timeline", () =>
     Effect.gen(function* () {
       const a = watched([], Stream.never);
-      const feed = yield* makeTimelineFeed({ source: a.source, capacity: 5 });
+      const feed = yield* timelineFeedOf({ source: a.source, capacity: 5 });
       yield* flush;
       feed.timeline.accept(record("x", 100));
       feed.timeline.setPaused(true);

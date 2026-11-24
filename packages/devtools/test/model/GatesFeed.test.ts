@@ -21,6 +21,7 @@ import type { Policy, Resource } from "@qadi/core";
 import type { AskedQuestionLike, GateInstanceLike } from "../../src/model/Gates.ts";
 import { AskedRead, RegistryRead, makeGatesFeed } from "../../src/index.ts";
 import type { GatesFeed, GatesSnapshot } from "../../src/index.ts";
+import { gatesFeedOf } from "../builtFeeds.ts";
 import { makeGateRegistryDouble } from "../gateRegistryDouble.ts";
 import { guard, readPolicy, settleTurns, thrownBy, tick } from "../helpers.ts";
 
@@ -72,7 +73,7 @@ describe("the gates feed", () => {
     Effect.gen(function* () {
       let asked: ReadonlyArray<AskedQuestionLike> = [{ policy: readPolicy }];
       const double = makeGateRegistryDouble([guard("a", readPolicy)]);
-      const feed = yield* makeGatesFeed({ gates: double.registry, questions: () => asked });
+      const feed = yield* gatesFeedOf({ gates: double.registry, questions: () => asked });
       yield* settleTurns;
 
       assert.strictEqual(instancesOf(feed), double.registry.instances());
@@ -100,7 +101,7 @@ describe("the gates feed", () => {
       const double = makeGateRegistryDouble([guard("a", readPolicy)]);
       double.failReads(new Error("registry exploded"));
 
-      const feed = yield* makeGatesFeed({ gates: double.registry });
+      const feed = yield* gatesFeedOf({ gates: double.registry });
       yield* settleTurns;
 
       assert.include(registryFailure(feed) ?? "", "registry exploded");
@@ -110,7 +111,7 @@ describe("the gates feed", () => {
   it.effect("T1 a thunk that throws is stated as Failed, the build does not throw, and the cadence keeps reading it", () =>
     Effect.gen(function* () {
       const calls = { n: 0 };
-      const feed = yield* makeGatesFeed({
+      const feed = yield* gatesFeedOf({
         questions: () => {
           calls.n += 1;
           throw "questions down";
@@ -147,7 +148,7 @@ describe("the gates feed", () => {
         () => [{ policy: readPolicy }],
       ];
       const calls = { n: 0 };
-      const feed = yield* makeGatesFeed({
+      const feed = yield* gatesFeedOf({
         questions: () => {
           const step = script[calls.n];
           calls.n += 1;
@@ -182,7 +183,7 @@ describe("the gates feed", () => {
         },
       });
       const calls = { n: 0 };
-      const feed = yield* makeGatesFeed({
+      const feed = yield* gatesFeedOf({
         questions: () => {
           calls.n += 1;
           return calls.n === 1 ? [{ policy: readPolicy }] : hostile;
@@ -209,7 +210,7 @@ describe("the gates feed", () => {
           },
         },
       );
-      const other = yield* makeGatesFeed({
+      const other = yield* gatesFeedOf({
         questions: () => {
           throw unrenderable;
         },
@@ -221,7 +222,7 @@ describe("the gates feed", () => {
     Effect.gen(function* () {
       const first = counting(() => []);
       const second = counting(() => [{ policy: readPolicy }]);
-      const feed = yield* makeGatesFeed({ questions: first.thunk });
+      const feed = yield* gatesFeedOf({ questions: first.thunk });
       yield* settleTurns;
       assert.strictEqual(first.seen.calls, 1);
 
@@ -244,7 +245,7 @@ describe("the gates feed", () => {
   it.effect("T5 the cadence follows intervalMillis, and its first tick is one interval after the build", () =>
     Effect.gen(function* () {
       const quick = counting(() => []);
-      yield* makeGatesFeed({ questions: quick.thunk, intervalMillis: 500 });
+      yield* gatesFeedOf({ questions: quick.thunk, intervalMillis: 500 });
       yield* settleTurns;
       assert.strictEqual(quick.seen.calls, 1);
       yield* TestClock.adjust("499 millis");
@@ -255,7 +256,7 @@ describe("the gates feed", () => {
       assert.strictEqual(quick.seen.calls, 2);
 
       const slow = counting(() => []);
-      yield* makeGatesFeed({ questions: slow.thunk });
+      yield* gatesFeedOf({ questions: slow.thunk });
       yield* settleTurns;
       yield* TestClock.adjust("1999 millis");
       yield* settleTurns;
@@ -269,7 +270,7 @@ describe("the gates feed", () => {
     Effect.gen(function* () {
       const list: Array<{ readonly policy: Policy }> = [];
       // A fresh array of fresh, structurally built policies on every read, the way `atoms.asked()` answers.
-      const feed = yield* makeGatesFeed({ questions: () => list.map((question) => ({ policy: question.policy })) });
+      const feed = yield* gatesFeedOf({ questions: () => list.map((question) => ({ policy: question.policy })) });
       yield* settleTurns;
       const first = feed.getSnapshot().asked;
       assert.deepStrictEqual(questionsOf(feed), []);
@@ -292,7 +293,7 @@ describe("the gates feed", () => {
     Effect.gen(function* () {
       const asked = counting(() => [{ policy: readPolicy }]);
       const double = makeGateRegistryDouble([guard("a", readPolicy)]);
-      const feed = yield* makeGatesFeed({ gates: double.registry, questions: asked.thunk });
+      const feed = yield* gatesFeedOf({ gates: double.registry, questions: asked.thunk });
       yield* settleTurns;
       const seen = listen(feed);
 
@@ -306,7 +307,7 @@ describe("the gates feed", () => {
   it.effect("T8 configure with the thunk and the interval the feed already has reads nothing; a new interval reads at once and re-times the cadence", () =>
     Effect.gen(function* () {
       const asked = counting(() => []);
-      const feed = yield* makeGatesFeed({ questions: asked.thunk, intervalMillis: 2000 });
+      const feed = yield* gatesFeedOf({ questions: asked.thunk, intervalMillis: 2000 });
       yield* settleTurns;
       assert.strictEqual(asked.seen.calls, 1);
       const built = feed.getSnapshot();
@@ -345,14 +346,14 @@ describe("the gates feed", () => {
           }),
       };
       yield* Effect.gen(function* () {
-        const bare = yield* makeGatesFeed({});
+        const bare = yield* gatesFeedOf({});
         yield* settleTurns;
         assert.strictEqual(pending.n, 0);
         bare.configure({ gates: undefined });
         yield* settleTurns;
         assert.strictEqual(pending.n, 0);
 
-        const feed = yield* makeGatesFeed({ questions: () => [] });
+        const feed = yield* gatesFeedOf({ questions: () => [] });
         yield* settleTurns;
         assert.strictEqual(pending.n, 1);
         feed.configure({});
@@ -371,7 +372,7 @@ describe("the gates feed", () => {
         },
       });
 
-      yield* makeGatesFeed({}).pipe(Effect.provideService(Tracer.Tracer, tracer));
+      yield* gatesFeedOf({}).pipe(Effect.provideService(Tracer.Tracer, tracer));
 
       assert.include(names, "qadi.devtools.makeGatesFeed");
     }));
@@ -382,22 +383,22 @@ describe("the gates feed", () => {
       assert.strictEqual(none.getSnapshot().registry._tag, "Unwatched");
       assert.strictEqual(none.getSnapshot().asked._tag, "Unhanded");
 
-      const empty = yield* makeGatesFeed({ gates: makeGateRegistryDouble().registry });
+      const empty = yield* gatesFeedOf({ gates: makeGateRegistryDouble().registry });
       assert.deepStrictEqual(instancesOf(empty), []);
 
       const one = makeGateRegistryDouble([guard("a", readPolicy)]);
-      const listed = yield* makeGatesFeed({ gates: one.registry });
+      const listed = yield* gatesFeedOf({ gates: one.registry });
       assert.strictEqual(instancesOf(listed), one.registry.instances());
       assert.strictEqual(listed.getSnapshot().asked._tag, "Unhanded");
 
-      const asked = yield* makeGatesFeed({ questions: () => [{ policy: readPolicy }] });
+      const asked = yield* gatesFeedOf({ questions: () => [{ policy: readPolicy }] });
       assert.strictEqual(asked.getSnapshot().registry._tag, "Unwatched");
       assert.deepStrictEqual(questionsOf(asked), [{ policy: readPolicy }]);
     }));
 
   it.effect("G32 b (twin of M32 b): the feed reads a handed thunk at build, whatever the poll; withholding an unsampled answer is the model's", () =>
     Effect.gen(function* () {
-      const feed = yield* makeGatesFeed({ questions: () => [] });
+      const feed = yield* gatesFeedOf({ questions: () => [] });
 
       assert.deepStrictEqual(questionsOf(feed), []);
     }));
@@ -407,7 +408,7 @@ describe("the gates feed", () => {
       const a = makeGateRegistryDouble([guard("a", readPolicy)]);
       const b = makeGateRegistryDouble([guard("b1", writePolicy), guard("b2", readPolicy)]);
       const scope = yield* Scope.make();
-      const feed = yield* Scope.provide(makeGatesFeed({ gates: a.registry }), scope);
+      const feed = yield* Scope.provide(gatesFeedOf({ gates: a.registry }), scope);
 
       assert.strictEqual(a.listeners(), 1);
       assert.strictEqual(a.subscriptions(), 1);
@@ -442,7 +443,7 @@ describe("the gates feed", () => {
   it.effect("G34 (twin of M34): with no thunk no cadence runs, and nothing is published while time passes", () =>
     Effect.gen(function* () {
       const double = makeGateRegistryDouble([guard("a", readPolicy)]);
-      const feed = yield* makeGatesFeed({ gates: double.registry });
+      const feed = yield* gatesFeedOf({ gates: double.registry });
       const first = feed.getSnapshot();
       const seen = listen(feed);
 
@@ -457,7 +458,7 @@ describe("the gates feed", () => {
       const a = makeGateRegistryDouble([guard("a", readPolicy)]);
       const b = makeGateRegistryDouble([guard("b", readPolicy)]);
       const scope = yield* Scope.make();
-      const feed = yield* Scope.provide(makeGatesFeed({ gates: a.registry }), scope);
+      const feed = yield* Scope.provide(gatesFeedOf({ gates: a.registry }), scope);
       yield* Scope.close(scope, Exit.void);
 
       feed.configure({ gates: b.registry });
@@ -474,7 +475,7 @@ describe("the gates feed", () => {
       const held = counting(() => []);
       const handed = counting(() => [{ policy: writePolicy }]);
       const scope = yield* Scope.make();
-      const feed = yield* Scope.provide(makeGatesFeed({ gates: a.registry, questions: held.thunk }), scope);
+      const feed = yield* Scope.provide(gatesFeedOf({ gates: a.registry, questions: held.thunk }), scope);
       yield* Scope.close(scope, Exit.void);
       const readByA = a.reads();
       const last = feed.getSnapshot();
@@ -497,7 +498,7 @@ describe("the gates feed", () => {
   it.effect("G38 (twin of M38): a throw on a notification the registry swallows still reaches the snapshot, and mending recovers it", () =>
     Effect.gen(function* () {
       const double = makeGateRegistryDouble([guard("a", readPolicy)], { swallowListenerErrors: true });
-      const feed = yield* makeGatesFeed({ gates: double.registry, questions: () => [{ policy: readPolicy }] });
+      const feed = yield* gatesFeedOf({ gates: double.registry, questions: () => [{ policy: readPolicy }] });
       yield* settleTurns;
       const seen = listen(feed);
       assert.deepStrictEqual(idsOf(feed), ["a"]);
@@ -532,7 +533,7 @@ describe("the gates feed", () => {
     Effect.gen(function* () {
       let asked: ReadonlyArray<AskedQuestionLike> = [{ policy: readPolicy }];
       const double = makeGateRegistryDouble([guard("a", readPolicy)], { swallowListenerErrors: true });
-      const feed = yield* makeGatesFeed({ gates: double.registry, questions: () => asked });
+      const feed = yield* gatesFeedOf({ gates: double.registry, questions: () => asked });
       yield* settleTurns;
       double.failReads(boom);
       const seen = listen(feed);
@@ -558,7 +559,7 @@ describe("the gates feed", () => {
       bad.failSubscribe(boom);
       const good = makeGateRegistryDouble([guard("b", readPolicy)]);
 
-      const feed = yield* makeGatesFeed({ gates: bad.registry });
+      const feed = yield* gatesFeedOf({ gates: bad.registry });
       assert.include(registryFailure(feed) ?? "", "registry exploded");
 
       feed.configure({ gates: good.registry });
@@ -575,7 +576,7 @@ describe("the gates feed", () => {
       const subscribes = makeGateRegistryDouble([guard("c", readPolicy)]);
       subscribes.failSubscribe(boom);
       const scope = yield* Scope.make();
-      const feed = yield* Scope.provide(makeGatesFeed({ gates: a.registry }), scope);
+      const feed = yield* Scope.provide(gatesFeedOf({ gates: a.registry }), scope);
       assert.deepStrictEqual(idsOf(feed), ["a"]);
 
       feed.configure({ gates: reads.registry });
@@ -601,7 +602,7 @@ describe("the gates feed", () => {
       const a = makeGateRegistryDouble([guard("a", readPolicy)]);
       const b = makeGateRegistryDouble([guard("b", readPolicy)]);
       const scope = yield* Scope.make();
-      const feed = yield* Scope.provide(makeGatesFeed({ gates: a.registry }), scope);
+      const feed = yield* Scope.provide(gatesFeedOf({ gates: a.registry }), scope);
       const seen = listen(feed);
       a.failRelease(boom);
 
@@ -632,7 +633,7 @@ describe("the gates feed", () => {
     Effect.gen(function* () {
       const a = makeGateRegistryDouble([guard("a", readPolicy)]);
       const scope = yield* Scope.make();
-      const feed = yield* Scope.provide(makeGatesFeed({ gates: a.registry }), scope);
+      const feed = yield* Scope.provide(gatesFeedOf({ gates: a.registry }), scope);
       a.failRelease(boom);
 
       const closed = yield* Effect.exit(Scope.close(scope, Exit.void));
@@ -646,7 +647,7 @@ describe("the gates feed", () => {
     Effect.gen(function* () {
       const a = makeGateRegistryDouble([guard("a", readPolicy)]);
       const scope = yield* Scope.make();
-      const feed = yield* Scope.provide(makeGatesFeed({ gates: a.registry }), scope);
+      const feed = yield* Scope.provide(gatesFeedOf({ gates: a.registry }), scope);
       // The release throws, so the closed feed's listener stays live on the registry.
       a.failRelease(boom);
       yield* Scope.close(scope, Exit.void);
@@ -666,7 +667,7 @@ describe("the gates feed", () => {
     Effect.gen(function* () {
       const double = makeGateRegistryDouble([guard("a", readPolicy)]);
       double.failSubscribe(boom);
-      const feed = yield* makeGatesFeed({ gates: double.registry });
+      const feed = yield* gatesFeedOf({ gates: double.registry });
       assert.include(registryFailure(feed) ?? "", "registry exploded");
 
       // Still failing: tried again and stated again, with nothing held. The same failure thrown afresh,
@@ -697,7 +698,7 @@ describe("the gates feed", () => {
       let asked: ReadonlyArray<AskedQuestionLike> = [{ policy: readPolicy }];
       const double = makeGateRegistryDouble([guard("a", readPolicy)]);
       const answer = () => asked;
-      const feed = yield* makeGatesFeed({ gates: double.registry, questions: answer });
+      const feed = yield* gatesFeedOf({ gates: double.registry, questions: answer });
       yield* settleTurns;
       double.failReads(boom);
       assert.include(registryFailure(feed) ?? "", "registry exploded");
@@ -726,7 +727,7 @@ describe("the gates feed", () => {
   it.effect("G45 (twin of M45): a thrown value that is not an error is compared by what it renders as", () =>
     Effect.gen(function* () {
       const double = makeGateRegistryDouble([guard("a", readPolicy)], { swallowListenerErrors: true });
-      const feed = yield* makeGatesFeed({ gates: double.registry, questions: () => [{ policy: readPolicy }] });
+      const feed = yield* gatesFeedOf({ gates: double.registry, questions: () => [{ policy: readPolicy }] });
       yield* settleTurns;
       const seen = listen(feed);
 
@@ -787,7 +788,7 @@ describe("the gates feed", () => {
     Effect.gen(function* () {
       const a = makeGateRegistryDouble([guard("a", readPolicy)]);
       const b = makeGateRegistryDouble([guard("b", readPolicy)]);
-      const feed = yield* makeGatesFeed({ gates: a.registry, questions: () => [{ policy: readPolicy }] });
+      const feed = yield* gatesFeedOf({ gates: a.registry, questions: () => [{ policy: readPolicy }] });
       const published: Array<GatesSnapshot> = [];
       feed.subscribe(() => {
         published.push(feed.getSnapshot());
@@ -860,7 +861,7 @@ describe("the gates feed", () => {
         let lastTick: ReadonlyArray<AskedQuestionLike> = [];
         const double = makeGateRegistryDouble();
         const scope = yield* Scope.make();
-        const feed = yield* Scope.provide(makeGatesFeed({ gates: double.registry, questions: () => asked }), scope);
+        const feed = yield* Scope.provide(gatesFeedOf({ gates: double.registry, questions: () => asked }), scope);
 
         /** What is wrong with the snapshot now, read against both sources at this very moment. */
         const disagreements = (moment: string): ReadonlyArray<string> => {
