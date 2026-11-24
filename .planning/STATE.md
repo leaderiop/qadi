@@ -5,16 +5,16 @@ milestone_name: Arch Wave 14
 current_phase: 79
 current_phase_name: Feeds and the dock model take inputs only through `configure`
 status: executing
-stopped_at: Phase QD-78 complete, ready to plan Phase 79
-last_updated: "2026-11-24T09:47:22.628Z"
+stopped_at: Completed QD-79-01-PLAN.md
+last_updated: "2026-11-24T10:01:31.207Z"
 last_activity: 2026-11-24
 last_activity_desc: Phase QD-78 complete, transitioned to Phase 79
-state_head: 775043dda6b3c546d506c0350033e974d716da19
+state_head: 03089a61513ffa516f0598f2db292b91ca642608
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 35
-  completed_plans: 18
+  completed_plans: 19
   percent: 50
 ---
 
@@ -29,10 +29,10 @@ See: .planning/PROJECT.md (updated 2026-11-24)
 
 ## Current Position
 
-Phase: 79 (Feeds and the dock model take inputs only through `configure`) — READY TO EXECUTE
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-11-24 — Phase QD-78 complete, transitioned to Phase 79
+Phase: 79 (Feeds and the dock model take inputs only through `configure`) — EXECUTING
+Plan: 2 of 17
+Status: Executing (79-01 complete)
+Last activity: 2026-11-24 — 79-01 complete (mutation base recorded)
 
 Progress: [█████░░░░░] 50% (2 of 4 phases)
 
@@ -574,6 +574,7 @@ Progress: [█████░░░░░] 50% (2 of 4 phases)
 | Phase QD-78 P78-07 | 25min | 2 tasks | 5 files |
 | Phase QD-78 P78-08 | 40min | 2 tasks | 5 files |
 | Phase QD-78 P10 | 35min | 2 tasks | 2 files |
+| Phase QD-79 P01 | 20 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -1001,6 +1002,7 @@ Progress: [█████░░░░░] 50% (2 of 4 phases)
 - [Phase QD-78]: 78-05: the dock checks the capacity through effectiveCapacity first and applies the rest in a finally; it reads no error to tell a refusal from a listener throw
 - [Phase QD-78]: 78-08: BEH-QD-726 to 730 and INV-QD-401/402 written from the shipped code; the refusal rule first, end to end; the doc 28 traceability row lists ids, not a range
 - [Phase QD-78]: 78-10: the base's equivalent survivor in TimelineStore.accept was closed by deleting the redundant identity guard (ExternalStore.set decides), decided autonomously
+- [Phase QD-79]: 79-01: the mutation base is recorded as measured on phase_base 910cb783 (five groups, dock 72/72, store 77/78 with one open mutant at ExternalStore.ts:113), committed alone and first
 
 ### Pending Todos
 
@@ -1077,8 +1079,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-24T07:26:18.230Z
-Stopped at: Phase QD-78 complete, ready to plan Phase 79
+Last session: 2026-11-24T10:01:31.121Z
+Stopped at: Completed QD-79-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
