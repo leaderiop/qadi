@@ -43,6 +43,7 @@ import {
 } from "@qadi/core";
 import type { Policy, Resource, StoredRecord } from "@qadi/core";
 import { makeCollectorDouble } from "../collectorDouble.ts";
+import { dockModelOf } from "../builtFeeds.ts";
 import { catalogueOf, policyLabel } from "../../src/model/Catalogue.ts";
 import type { Catalogue } from "../../src/model/Catalogue.ts";
 import { DiagnosticsStatus, diagnosticsOff } from "../../src/model/DiagnosticsFeed.ts";
@@ -408,7 +409,7 @@ describe("configure dispatches only what changed (M10)", () => {
 describe("a capacity change empties the timeline and keeps the dock's choices (M11)", () => {
   it.effect("M11: the bound reaches the timeline", () =>
     Effect.gen(function* () {
-      const model = yield* makeDockModel({ capacity: 5 });
+      const model = yield* dockModelOf({ capacity: 5 });
       for (let i = 1; i <= 6; i++) {
         model.timeline.accept(decided(`e${i}`, i * 100, i % 2 === 0 ? writePolicy : readPolicy, "read"));
       }
@@ -417,7 +418,7 @@ describe("a capacity change empties the timeline and keeps the dock's choices (M
 
   it.effect("M11: a new bound empties the timeline, keeps the tab, filters and choices, and bounds the new buffer", () =>
     Effect.gen(function* () {
-      const model = yield* makeDockModel({ capacity: 5, catalogue: { roles: [editor, viewer] } });
+      const model = yield* dockModelOf({ capacity: 5, catalogue: { roles: [editor, viewer] } });
       model.timeline.accept(decided("a", 100, readPolicy, "read"));
       model.timeline.accept(decided("b", 200, writePolicy, "write"));
       const timeline = model.timeline;
@@ -446,7 +447,7 @@ describe("a capacity the timeline refuses or a listener interrupts is taken whol
     Effect.gen(function* () {
       const held: Catalogue = { policies: { canRead: readPolicy }, roles: [editor] };
       const other: Catalogue = { policies: { canWrite: writePolicy }, roles: [viewer] };
-      const model = yield* makeDockModel({ capacity: 5, catalogue: held });
+      const model = yield* dockModelOf({ capacity: 5, catalogue: held });
       model.timeline.accept(decided("a", 100, readPolicy, "read"));
       const seen = listen(model);
 
@@ -470,7 +471,7 @@ describe("a capacity the timeline refuses or a listener interrupts is taken whol
 
   it.effect("M56: a timeline listener that throws on a capacity change is rethrown once the dock has applied the rest of the configure", () =>
     Effect.gen(function* () {
-      const model = yield* makeDockModel({ capacity: 5 });
+      const model = yield* dockModelOf({ capacity: 5 });
       const boom = new Error("a timeline listener threw");
       model.timeline.subscribe(() => {
         throw boom;
@@ -518,7 +519,7 @@ describe("the model's scope ends what the model started (M13, M15, M16)", () => 
     Effect.gen(function* () {
       const { ports, tally } = slow();
       const scope = yield* Scope.make();
-      const model = yield* Scope.provide(makeDockModel({ ports }), scope);
+      const model = yield* Scope.provide(dockModelOf({ ports }), scope);
       model.timeline.accept(decisionRecord({ evaluationId: "a", at: 100, policy: clearance, action: "read" }));
       model.dock.replay(entryOf(model, "a"));
       model.simulation.chooseSource("Live");
@@ -538,7 +539,7 @@ describe("the model's scope ends what the model started (M13, M15, M16)", () => 
     Effect.gen(function* () {
       const a = watched([], Stream.never);
       const b = watched([decided("from-b", 100, readPolicy, "read")], Stream.never);
-      const model = yield* makeDockModel({ source: a.source });
+      const model = yield* dockModelOf({ source: a.source });
       yield* flush;
       assert.strictEqual(a.tally.started, 1);
       assert.strictEqual(a.tally.finalized, 0);
@@ -559,7 +560,7 @@ describe("the model's scope ends what the model started (M13, M15, M16)", () => 
       const queue = yield* Queue.unbounded<StoredRecord>();
       const a = watched([], Stream.fromQueue(queue));
       const scope = yield* Scope.make();
-      const model = yield* Scope.provide(makeDockModel({ source: a.source }), scope);
+      const model = yield* Scope.provide(dockModelOf({ source: a.source }), scope);
       yield* flush;
       assert.strictEqual(a.tally.started, 1);
       Queue.offerUnsafe(queue, decided("before", 100, readPolicy, "read"));
@@ -581,7 +582,7 @@ describe("the model's scope ends what the model started (M13, M15, M16)", () => 
 describe("what configure and the stores hold back (M2 b, M10 d, M15 b-d, M17)", () => {
   it.effect("M2 (b): a catalogue given at construction fills both rails and the role list at once", () =>
     Effect.gen(function* () {
-      const model = yield* makeDockModel({ catalogue: { policies: { canRead: readPolicy }, roles: [editor] } });
+      const model = yield* dockModelOf({ catalogue: { policies: { canRead: readPolicy }, roles: [editor] } });
 
       for (const rail of [model.explorer.getSnapshot().sightings, model.simulation.getSnapshot().sightings]) {
         assert.strictEqual(rail.length, 1);
@@ -638,7 +639,7 @@ describe("what configure and the stores hold back (M2 b, M10 d, M15 b-d, M17)", 
   it.effect("M15 (b): a configure that leaves the source alone does not read it again", () =>
     Effect.gen(function* () {
       const a = watched([], Stream.never);
-      const model = yield* makeDockModel({ source: a.source });
+      const model = yield* dockModelOf({ source: a.source });
       yield* flush;
 
       model.configure({ source: a.source, catalogue: { policies: { canRead: readPolicy } } });
@@ -650,7 +651,7 @@ describe("what configure and the stores hold back (M2 b, M10 d, M15 b-d, M17)", 
   it.effect("M15 (c): a new bound reads the same source again, into the new buffer", () =>
     Effect.gen(function* () {
       const a = watched([decided("x", 100, readPolicy, "read")], Stream.never);
-      const model = yield* makeDockModel({ source: a.source, capacity: 5 });
+      const model = yield* dockModelOf({ source: a.source, capacity: 5 });
       yield* flush;
       assert.strictEqual(model.timeline.getSnapshot().entries.length, 1);
 
@@ -667,7 +668,7 @@ describe("what configure and the stores hold back (M2 b, M10 d, M15 b-d, M17)", 
   it.effect("M15 (d): configuring with no source releases the read and keeps what it delivered", () =>
     Effect.gen(function* () {
       const a = watched([decided("x", 100, readPolicy, "read")], Stream.never);
-      const model = yield* makeDockModel({ source: a.source });
+      const model = yield* dockModelOf({ source: a.source });
       yield* flush;
 
       model.configure({});
@@ -784,7 +785,7 @@ describe("the diagnostics store (M18..M27)", () => {
         if (fail) throw new Error("the collector blew up");
         return { calls: [], dropped: 0, capacity: 10 };
       });
-      const model = yield* makeDockModel({ diagnostics: { collector } });
+      const model = yield* dockModelOf({ diagnostics: { collector } });
       const live = model.diagnostics.getSnapshot();
       assert.isTrue(DiagnosticsStatus.$is("Live")(live.status));
       assert.deepStrictEqual(live.reading.portCalls, { calls: [], dropped: 0, capacity: 10 });
@@ -844,7 +845,7 @@ describe("the diagnostics store (M18..M27)", () => {
 
   it.effect("M19: an empty options object is Live at once with hydration read, and no options is Off", () =>
     Effect.gen(function* () {
-      const live = yield* makeDockModel({ diagnostics: {} });
+      const live = yield* dockModelOf({ diagnostics: {} });
       const { status, reading } = live.diagnostics.getSnapshot();
       assert.isTrue(DiagnosticsStatus.$is("Live")(status));
       assert.isDefined(reading.hydration);
@@ -857,7 +858,7 @@ describe("the diagnostics store (M18..M27)", () => {
   it.effect("M20: an asynchronous layer leaves the store Starting after the build, then Live with the wiring read", () =>
     Effect.gen(function* () {
       const { layer } = countedLayer(Effect.sleep("1 second"));
-      const model = yield* makeDockModel({ diagnostics: { layer } });
+      const model = yield* dockModelOf({ diagnostics: { layer } });
       const early = model.diagnostics.getSnapshot();
       assert.isTrue(DiagnosticsStatus.$is("Starting")(early.status));
       assert.strictEqual(early.reading, noDiagnostics);
@@ -871,7 +872,7 @@ describe("the diagnostics store (M18..M27)", () => {
 
   it.effect("M21: with no reading supplied the store keeps one snapshot, and a sample that changed nothing notifies nothing", () =>
     Effect.gen(function* () {
-      const model = yield* makeDockModel({ diagnostics: {} });
+      const model = yield* dockModelOf({ diagnostics: {} });
       const first = model.diagnostics.getSnapshot();
       assert.strictEqual(model.diagnostics.getSnapshot(), first);
       const heard = { calls: 0 };
@@ -887,7 +888,7 @@ describe("the diagnostics store (M18..M27)", () => {
 
   it.effect("M22: a supplied field wins over the sampled one, the rest are sampled, and the merge is one reference", () =>
     Effect.gen(function* () {
-      const model = yield* makeDockModel({ diagnostics: {}, reading: { activity: suppliedActivity } });
+      const model = yield* dockModelOf({ diagnostics: {}, reading: { activity: suppliedActivity } });
 
       const { reading } = model.diagnostics.getSnapshot();
       assert.strictEqual(reading.activity, suppliedActivity);
@@ -900,7 +901,7 @@ describe("the diagnostics store (M18..M27)", () => {
       const { counts, layer } = countedLayer();
       const diagnostics = { layer };
       const reading = { activity: suppliedActivity };
-      const model = yield* makeDockModel({ diagnostics });
+      const model = yield* dockModelOf({ diagnostics });
       const heard = { calls: 0 };
       model.diagnostics.subscribe(() => {
         heard.calls += 1;
@@ -921,7 +922,7 @@ describe("the diagnostics store (M18..M27)", () => {
       const { counts, layer } = countedLayer();
       const questions = () => [];
       const { collector } = makeCollectorDouble();
-      const model = yield* makeDockModel({ diagnostics: { layer, collector, intervalMillis: 5_000 }, questions });
+      const model = yield* dockModelOf({ diagnostics: { layer, collector, intervalMillis: 5_000 }, questions });
       const seen = listen(model);
       model.diagnostics.subscribe(() => {
         seen.calls += 1;
@@ -937,7 +938,7 @@ describe("the diagnostics store (M18..M27)", () => {
   it.effect("M25: configuring diagnostics away reads Off and releases the layer, and defined again goes Starting then Live", () =>
     Effect.gen(function* () {
       const { counts, layer } = countedLayer();
-      const model = yield* makeDockModel({ diagnostics: { layer } });
+      const model = yield* dockModelOf({ diagnostics: { layer } });
 
       model.configure({});
 
@@ -959,7 +960,7 @@ describe("the diagnostics store (M18..M27)", () => {
     Effect.gen(function* () {
       const first = countedLayer();
       const scope = yield* Scope.make();
-      const model = yield* Scope.provide(makeDockModel({ diagnostics: { layer: first.layer } }), scope);
+      const model = yield* Scope.provide(dockModelOf({ diagnostics: { layer: first.layer } }), scope);
       const seen = recordingOf(model);
 
       yield* Scope.close(scope, Exit.void);
@@ -968,7 +969,7 @@ describe("the diagnostics store (M18..M27)", () => {
       assert.strictEqual(first.counts.releases, 1);
 
       const slow = countedLayer(Effect.sleep("1 second"));
-      const rebuilt = yield* makeDockModel({ diagnostics: { layer: slow.layer } });
+      const rebuilt = yield* dockModelOf({ diagnostics: { layer: slow.layer } });
       const early = rebuilt.diagnostics.getSnapshot();
       assert.isTrue(DiagnosticsStatus.$is("Starting")(early.status));
       assert.strictEqual(early.reading, noDiagnostics);
@@ -982,7 +983,7 @@ describe("the diagnostics store (M18..M27)", () => {
       const first = makeCollectorDouble().collector;
       const answer = { calls: [], dropped: 3, capacity: 10 };
       const second = makeCollectorDouble(() => answer).collector;
-      const model = yield* makeDockModel({ diagnostics: { collector: first } });
+      const model = yield* dockModelOf({ diagnostics: { collector: first } });
       const seen = recordingOf(model);
 
       model.configure({ diagnostics: { collector: second }, reading: { activity: suppliedActivity } });
@@ -1000,7 +1001,7 @@ describe("the diagnostics store (M18..M27)", () => {
 
   it.effect("M28: with no reading supplied the store's snapshot is the feed's own, even after one was supplied", () =>
     Effect.gen(function* () {
-      const model = yield* makeDockModel({ reading: { activity: suppliedActivity } });
+      const model = yield* dockModelOf({ reading: { activity: suppliedActivity } });
       assert.notStrictEqual(model.diagnostics.getSnapshot(), diagnosticsOff);
 
       model.configure({});
@@ -1014,7 +1015,7 @@ describe("the diagnostics store (M18..M27)", () => {
       Effect.gen(function* () {
         const scope = yield* Scope.make();
         const model = yield* Scope.provide(
-          makeDockModel({ reading: { activity: suppliedActivity } }),
+          dockModelOf({ reading: { activity: suppliedActivity } }),
           scope,
         );
         yield* Scope.close(scope, Exit.void);
@@ -1040,7 +1041,7 @@ describe("the diagnostics store (M18..M27)", () => {
           dropped: call,
           capacity: 10,
         }));
-        const model = yield* makeDockModel({ diagnostics: { collector } });
+        const model = yield* dockModelOf({ diagnostics: { collector } });
         yield* settleTurns;
         const heard = heardOn(model.diagnostics);
 
@@ -1053,7 +1054,7 @@ describe("the diagnostics store (M18..M27)", () => {
       field: "the supplied reading",
       heard: Effect.gen(function* () {
         const diagnostics = {};
-        const model = yield* makeDockModel({
+        const model = yield* dockModelOf({
           diagnostics,
           reading: { activity: activityOf(1) },
         });
@@ -1076,7 +1077,7 @@ describe("the diagnostics store (M18..M27)", () => {
       field: "a guard added to the registry",
       heard: Effect.gen(function* () {
         const double = makeGateRegistryDouble();
-        const model = yield* makeDockModel({ diagnostics: {}, gates: double.registry });
+        const model = yield* dockModelOf({ diagnostics: {}, gates: double.registry });
         yield* settleTurns;
         const heard = heardOn(model.diagnostics);
 
@@ -1091,7 +1092,7 @@ describe("the diagnostics store (M18..M27)", () => {
       heard: Effect.gen(function* () {
         const diagnostics = {};
         const reading = { activity: activityOf(1) };
-        const model = yield* makeDockModel({ diagnostics, reading });
+        const model = yield* dockModelOf({ diagnostics, reading });
         const heard = heardOn(model.diagnostics);
 
         const questions = () => [{ policy: readPolicy }];
@@ -1133,7 +1134,7 @@ describe("the timeline's status (M29)", () => {
               : { backlog: [at("x", 100), at("y", 200)], live: Stream.empty };
           }),
         };
-        const model = yield* makeDockModel({ source });
+        const model = yield* dockModelOf({ source });
         yield* flush;
         assert.strictEqual(model.timelineStatus.getSnapshot()._tag, "Stopped");
 
@@ -1176,17 +1177,17 @@ describe("the questions store (M32, M32 b, M34, M36, M47, P2)", () => {
     Effect.gen(function* () {
       const asked = { diagnostics: {}, questions: () => [{ policy: readPolicy }] };
 
-      const none = yield* makeDockModel(asked);
+      const none = yield* dockModelOf(asked);
       yield* settleTurns;
       assert.strictEqual(none.questions.getSnapshot().gates._tag, "Absent");
       assert.deepStrictEqual(askingIds(none.questions.getSnapshot()), [[]]);
 
-      const empty = yield* makeDockModel({ ...asked, gates: makeGateRegistryDouble().registry });
+      const empty = yield* dockModelOf({ ...asked, gates: makeGateRegistryDouble().registry });
       yield* settleTurns;
       assert.strictEqual(empty.questions.getSnapshot().gates._tag, "Empty");
 
       const one = makeGateRegistryDouble([guard("a", readPolicy)]);
-      const listed = yield* makeDockModel({ ...asked, gates: one.registry });
+      const listed = yield* dockModelOf({ ...asked, gates: one.registry });
       yield* settleTurns;
       const view = listed.questions.getSnapshot();
       assert.strictEqual(view.gates._tag, "Listed");
@@ -1196,14 +1197,14 @@ describe("the questions store (M32, M32 b, M34, M36, M47, P2)", () => {
       assert.strictEqual(off.questions.getSnapshot().questions._tag, "Absent");
       assert.strictEqual(off.questions.getSnapshot().gates._tag, "Absent");
 
-      const supplied = yield* makeDockModel({ reading: { questions: [] } });
+      const supplied = yield* dockModelOf({ reading: { questions: [] } });
       assert.strictEqual(supplied.questions.getSnapshot().questions._tag, "Empty");
     }));
 
   it.effect("M32 b: a poll that has not sampled reads Unsampled, and Absent once it has with no questions to read", () =>
     Effect.gen(function* () {
       const layer = Layer.effectDiscard(Effect.sleep("1 second"));
-      const model = yield* makeDockModel({ diagnostics: { layer } });
+      const model = yield* dockModelOf({ diagnostics: { layer } });
       assert.isTrue(DiagnosticsStatus.$is("Starting")(model.diagnostics.getSnapshot().status));
       assert.strictEqual(model.questions.getSnapshot().questions._tag, "Unsampled");
 
@@ -1218,7 +1219,7 @@ describe("the questions store (M32, M32 b, M34, M36, M47, P2)", () => {
   it.effect("M34: a supplied question list keeps one snapshot while the poll goes from Starting to Live", () =>
     Effect.gen(function* () {
       const layer = Layer.effectDiscard(Effect.sleep("1 second"));
-      const model = yield* makeDockModel({ diagnostics: { layer }, reading: { questions: [] } });
+      const model = yield* dockModelOf({ diagnostics: { layer }, reading: { questions: [] } });
       assert.isTrue(DiagnosticsStatus.$is("Starting")(model.diagnostics.getSnapshot().status));
       const first = model.questions.getSnapshot();
       assert.strictEqual(first.questions._tag, "Empty");
@@ -1241,7 +1242,7 @@ describe("the questions store (M32, M32 b, M34, M36, M47, P2)", () => {
       const a = makeGateRegistryDouble([guard("a", readPolicy)]);
       const b = makeGateRegistryDouble([guard("b", readPolicy)]);
       const scope = yield* Scope.make();
-      const model = yield* Scope.provide(makeDockModel({ gates: a.registry, reading: { questions: [] } }), scope);
+      const model = yield* Scope.provide(dockModelOf({ gates: a.registry, reading: { questions: [] } }), scope);
       yield* Scope.close(scope, Exit.void);
       const readByA = a.reads();
 
@@ -1258,7 +1259,7 @@ describe("the questions store (M32, M32 b, M34, M36, M47, P2)", () => {
     Effect.gen(function* () {
       const a = makeGateRegistryDouble([guard("a", readPolicy)]);
       const b = makeGateRegistryDouble([guard("b", readPolicy)]);
-      const model = yield* makeDockModel({ gates: a.registry, reading: { questions: [{ policy: readPolicy }] } });
+      const model = yield* dockModelOf({ gates: a.registry, reading: { questions: [{ policy: readPolicy }] } });
       const seen: Array<ReadonlyArray<ReadonlyArray<string>>> = [];
       model.questions.subscribe(() => {
         seen.push(askingIds(model.questions.getSnapshot()));
@@ -1325,7 +1326,7 @@ describe("the questions store (M32, M32 b, M34, M36, M47, P2)", () => {
         const double = makeGateRegistryDouble();
         const scope = yield* Scope.make();
         const model = yield* Scope.provide(
-          makeDockModel({
+          dockModelOf({
             diagnostics: {},
             questions: () => {
               answered = asked;
@@ -1408,7 +1409,7 @@ describe("the questions store (M32, M32 b, M34, M36, M47, P2)", () => {
       field: "the gates feed's snapshot",
       heard: Effect.gen(function* () {
         const double = makeGateRegistryDouble();
-        const model = yield* makeDockModel({
+        const model = yield* dockModelOf({
           gates: double.registry,
           reading: { questions: [{ policy: readPolicy }] },
         });
@@ -1422,7 +1423,7 @@ describe("the questions store (M32, M32 b, M34, M36, M47, P2)", () => {
     {
       field: "the supplied questions",
       heard: Effect.gen(function* () {
-        const model = yield* makeDockModel({ reading: { questions: [] } });
+        const model = yield* dockModelOf({ reading: { questions: [] } });
         const heard = heardOn(model.questions);
         const told: Array<string> = [];
         model.diagnostics.subscribe(() => {
@@ -1439,7 +1440,7 @@ describe("the questions store (M32, M32 b, M34, M36, M47, P2)", () => {
       field: "the unsampled flag",
       heard: Effect.gen(function* () {
         const layer = Layer.effectDiscard(Effect.sleep("1 second"));
-        const model = yield* makeDockModel({ diagnostics: { layer } });
+        const model = yield* dockModelOf({ diagnostics: { layer } });
         const heard = heardOn(model.questions);
 
         yield* settleTurns;
@@ -1456,7 +1457,7 @@ describe("the questions store (M32, M32 b, M34, M36, M47, P2)", () => {
       field: "the wiring",
       heard: Effect.gen(function* () {
         const diagnostics = {};
-        const model = yield* makeDockModel({
+        const model = yield* dockModelOf({
           diagnostics,
           reading: { wiring: wiringNamed("one") },
         });
@@ -1499,7 +1500,7 @@ describe("the join of the three feeds (J1..J8)", () => {
   it.effect("J1: the join moves first on either side, so a host listener reads a joined snapshot", () =>
     Effect.gen(function* () {
       const double = makeGateRegistryDouble();
-      const model = yield* makeDockModel({ gates: double.registry, reading: { questions: [{ policy: readPolicy }] } });
+      const model = yield* dockModelOf({ gates: double.registry, reading: { questions: [{ policy: readPolicy }] } });
 
       const onRegistry: Array<ReadonlyArray<ReadonlyArray<string>>> = [];
       double.registry.subscribe(() => {
@@ -1522,7 +1523,7 @@ describe("the join of the three feeds (J1..J8)", () => {
   it.effect("J2: a questions input that throws is stated as Failed, and the poll stays Live and keeps sampling", () =>
     Effect.gen(function* () {
       const probe = makeCollectorDouble();
-      const model = yield* makeDockModel({ diagnostics: { collector: probe.collector }, questions: down });
+      const model = yield* dockModelOf({ diagnostics: { collector: probe.collector }, questions: down });
       yield* settleTurns;
 
       assert.include(failedReason(model.questions.getSnapshot()) ?? "", "questions down");
@@ -1537,7 +1538,7 @@ describe("the join of the three feeds (J1..J8)", () => {
 
   it.effect("J3: a questions input with no diagnostics is read at once", () =>
     Effect.gen(function* () {
-      const model = yield* makeDockModel({ questions: () => [{ policy: readPolicy }] });
+      const model = yield* dockModelOf({ questions: () => [{ policy: readPolicy }] });
 
       assert.isTrue(DiagnosticsStatus.$is("Off")(model.diagnostics.getSnapshot().status));
       assert.deepStrictEqual(askingIds(model.questions.getSnapshot()), [[]]);
@@ -1547,18 +1548,18 @@ describe("the join of the three feeds (J1..J8)", () => {
     Effect.gen(function* () {
       const layer = Layer.effectDiscard(Effect.sleep("1 second"));
 
-      const answering = yield* makeDockModel({ diagnostics: { layer }, questions: () => [{ policy: readPolicy }] });
+      const answering = yield* dockModelOf({ diagnostics: { layer }, questions: () => [{ policy: readPolicy }] });
       assert.isTrue(DiagnosticsStatus.$is("Starting")(answering.diagnostics.getSnapshot().status));
       assert.strictEqual(answering.questions.getSnapshot().questions._tag, "Unsampled");
 
-      const throwing = yield* makeDockModel({ diagnostics: { layer }, questions: down });
+      const throwing = yield* dockModelOf({ diagnostics: { layer }, questions: down });
       assert.isTrue(DiagnosticsStatus.$is("Starting")(throwing.diagnostics.getSnapshot().status));
       assert.strictEqual(throwing.questions.getSnapshot().questions._tag, "Failed");
     }));
 
   it.effect("J5: a supplied list wins over the thunk, whose failure is then not stated", () =>
     Effect.gen(function* () {
-      const model = yield* makeDockModel({ questions: down, reading: { questions: [{ policy: writePolicy }] } });
+      const model = yield* dockModelOf({ questions: down, reading: { questions: [{ policy: writePolicy }] } });
 
       const view = model.questions.getSnapshot().questions;
       assert.strictEqual(view._tag, "Rows");
@@ -1571,7 +1572,7 @@ describe("the join of the three feeds (J1..J8)", () => {
   it.effect("J6: diagnostics.intervalMillis paces the questions input", () =>
     Effect.gen(function* () {
       const read = { calls: 0 };
-      yield* makeDockModel({
+      yield* dockModelOf({
         diagnostics: { intervalMillis: 500 },
         questions: () => {
           read.calls += 1;
@@ -1595,7 +1596,7 @@ describe("the join of the three feeds (J1..J8)", () => {
       const double = makeGateRegistryDouble([guard("a", readPolicy)]);
       double.failReads(new Error("registry down"));
 
-      const model = yield* makeDockModel({ gates: double.registry, questions: () => [{ policy: readPolicy }] });
+      const model = yield* dockModelOf({ gates: double.registry, questions: () => [{ policy: readPolicy }] });
       yield* settleTurns;
 
       const snapshot = model.questions.getSnapshot();
@@ -1608,7 +1609,7 @@ describe("the join of the three feeds (J1..J8)", () => {
       const a = makeGateRegistryDouble([guard("a", readPolicy)]);
       const b = makeGateRegistryDouble([guard("b", readPolicy)]);
       const diagnostics = {};
-      const model = yield* makeDockModel({ diagnostics, gates: a.registry, questions: () => [{ policy: readPolicy }] });
+      const model = yield* dockModelOf({ diagnostics, gates: a.registry, questions: () => [{ policy: readPolicy }] });
       yield* settleTurns;
       const seen: Array<ReadonlyArray<ReadonlyArray<string>>> = [];
       model.questions.subscribe(() => {
@@ -1629,7 +1630,7 @@ describe("the join of the three feeds (J1..J8)", () => {
 describe("the services store", () => {
   it.effect("M48: the services store holds the port cards of the shown reading from the first snapshot", () =>
     Effect.gen(function* () {
-      const supplied = yield* makeDockModel({
+      const supplied = yield* dockModelOf({
         reading: {
           wiring: WiringRead.Read({
             report: {
@@ -1660,7 +1661,7 @@ describe("the services store", () => {
       const bare = yield* makeDockModel();
       assert.strictEqual(bare.services.getSnapshot()._tag, "NotHanded");
 
-      const starting = yield* makeDockModel({ diagnostics: { layer: Layer.effectDiscard(Effect.never) } });
+      const starting = yield* dockModelOf({ diagnostics: { layer: Layer.effectDiscard(Effect.never) } });
       assert.strictEqual(starting.services.getSnapshot()._tag, "Withheld");
     }));
 
@@ -1668,7 +1669,7 @@ describe("the services store", () => {
     Effect.gen(function* () {
       const layer = Layer.effectDiscard(Effect.sleep("1 second"));
       const reading = { wiring: wiringNamed("one"), activity: [], portCalls: logOf() };
-      const model = yield* makeDockModel({ diagnostics: { layer }, reading });
+      const model = yield* dockModelOf({ diagnostics: { layer }, reading });
       assert.isTrue(DiagnosticsStatus.$is("Starting")(model.diagnostics.getSnapshot().status));
       const before = model.services.getSnapshot();
       assert.strictEqual(rowOf(model).activity, "no activity reading");
@@ -1690,7 +1691,7 @@ describe("the services store", () => {
         return { calls: [], dropped: 0, capacity: 10 };
       });
       const reading = oneReading();
-      const model = yield* makeDockModel({ diagnostics: { collector }, reading });
+      const model = yield* dockModelOf({ diagnostics: { collector }, reading });
       const before = model.services.getSnapshot();
       const heard = heardOf(model);
 
@@ -1704,7 +1705,7 @@ describe("the services store", () => {
       assert.strictEqual(heard.calls, 0);
 
       // Off to Live passes through Starting, where the flag is set, so the reference moves; both ends read alike.
-      const off = yield* makeDockModel({ reading });
+      const off = yield* dockModelOf({ reading });
       assert.isTrue(DiagnosticsStatus.$is("Off")(off.diagnostics.getSnapshot().status));
       const offView = off.services.getSnapshot();
       off.configure({ diagnostics: {}, reading });
@@ -1721,7 +1722,7 @@ describe("the services store", () => {
     Effect.gen(function* () {
       const diagnostics = {};
       const reading = oneReading();
-      const model = yield* makeDockModel({ diagnostics, reading });
+      const model = yield* dockModelOf({ diagnostics, reading });
       const heard = heardOf(model);
       const told: Array<string> = [];
       model.diagnostics.subscribe(() => {
@@ -1743,7 +1744,7 @@ describe("the services store", () => {
       heard: Effect.gen(function* () {
         const layer = Layer.effectDiscard(Effect.sleep("1 second"));
         const reading = { wiring: wiringNamed("one"), activity: [], portCalls: logOf() };
-        const model = yield* makeDockModel({ diagnostics: { layer }, reading });
+        const model = yield* dockModelOf({ diagnostics: { layer }, reading });
         const heard = heardOf(model);
 
         yield* settleTurns;

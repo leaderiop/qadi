@@ -23,7 +23,7 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Scope from "effect/Scope";
-import { makeDockModel } from "../../src/model/DockModel.ts";
+import { dockModelOf } from "../builtFeeds.ts";
 import { makeCollectorDouble } from "../collectorDouble.ts";
 import {
   activityOf,
@@ -52,7 +52,7 @@ describe("the diagnostics store", () => {
       const logA = logOf("a");
       const logB = logOf("b");
       const { collector } = makeCollectorDouble((call) => (call === 1 ? logA : logB));
-      const model = yield* makeDockModel({
+      const model = yield* dockModelOf({
         diagnostics: { collector },
         reading: { activity: suppliedActivity },
       });
@@ -72,7 +72,7 @@ describe("the diagnostics store", () => {
     () =>
       Effect.gen(function* () {
         const diagnostics = {};
-        const model = yield* makeDockModel({
+        const model = yield* dockModelOf({
           diagnostics,
           reading: { activity: suppliedActivity },
         });
@@ -92,7 +92,7 @@ describe("the questions store", () => {
   it.effect("a guard added to the registry notifies the questions store once", () =>
     Effect.gen(function* () {
       const double = makeGateRegistryDouble();
-      const model = yield* makeDockModel({
+      const model = yield* dockModelOf({
         gates: double.registry,
         reading: { questions: [{ policy: readPolicy }] },
       });
@@ -108,7 +108,7 @@ describe("the questions store", () => {
     "a configure changing only the supplied questions notifies questions once",
     () =>
       Effect.gen(function* () {
-        const model = yield* makeDockModel({ reading: { questions: [] } });
+        const model = yield* dockModelOf({ reading: { questions: [] } });
         const heard = heardOn(model.questions);
 
         model.configure({ reading: { questions: [{ policy: readPolicy }] } });
@@ -126,7 +126,7 @@ describe("the questions store", () => {
         const b = makeGateRegistryDouble([guard("b", readPolicy)]);
         const scope = yield* Scope.make();
         const model = yield* Scope.provide(
-          makeDockModel({ gates: a.registry, reading: { questions: [] } }),
+          dockModelOf({ gates: a.registry, reading: { questions: [] } }),
           scope,
         );
         yield* Scope.close(scope, Exit.void);
@@ -151,7 +151,7 @@ describe("the services store", () => {
       Effect.gen(function* () {
         const diagnostics = {};
         const reading = oneReading();
-        const model = yield* makeDockModel({ diagnostics, reading });
+        const model = yield* dockModelOf({ diagnostics, reading });
         const before = model.services.getSnapshot();
         const heard = heardOf(model);
 
@@ -172,7 +172,7 @@ describe("the services store", () => {
       Effect.gen(function* () {
         const diagnostics = {};
         const reading = oneReading();
-        const model = yield* makeDockModel({ diagnostics, reading });
+        const model = yield* dockModelOf({ diagnostics, reading });
         const before = model.services.getSnapshot();
         const heard = heardOf(model);
 
@@ -193,7 +193,7 @@ describe("the services store", () => {
       Effect.gen(function* () {
         const diagnostics = {};
         const reading = { ...oneReading(), portCalls: logOf() };
-        const model = yield* makeDockModel({ diagnostics, reading });
+        const model = yield* dockModelOf({ diagnostics, reading });
         const before = model.services.getSnapshot();
         const heard = heardOf(model);
 
@@ -218,7 +218,7 @@ describe("the services store", () => {
       Effect.gen(function* () {
         const diagnostics = {};
         const reading = oneReading();
-        const model = yield* makeDockModel({ diagnostics, reading });
+        const model = yield* dockModelOf({ diagnostics, reading });
         const before = model.services.getSnapshot();
         const heard = heardOf(model);
 
@@ -238,7 +238,7 @@ describe("the services store", () => {
       Effect.gen(function* () {
         const diagnostics = {};
         const reading = oneReading();
-        const model = yield* makeDockModel({ diagnostics, reading });
+        const model = yield* dockModelOf({ diagnostics, reading });
         const before = model.services.getSnapshot();
         const heard = heardOf(model);
 
@@ -258,7 +258,7 @@ describe("the services store", () => {
       Effect.gen(function* () {
         const reading = oneReading();
         const scope = yield* Scope.make();
-        const model = yield* Scope.provide(makeDockModel({ reading }), scope);
+        const model = yield* Scope.provide(dockModelOf({ reading }), scope);
         yield* Scope.close(scope, Exit.void);
         const before = model.services.getSnapshot();
         const heard = heardOf(model);
@@ -278,7 +278,7 @@ describe("the order of the stores and their listeners", () => {
       Effect.gen(function* () {
         const diagnostics = {};
         const reading = oneReading();
-        const model = yield* makeDockModel({ diagnostics, reading });
+        const model = yield* dockModelOf({ diagnostics, reading });
         const told: Array<string> = [];
         model.diagnostics.subscribe(() => {
           told.push(rowOf(model).state);
@@ -298,7 +298,7 @@ describe("the order of the stores and their listeners", () => {
     () =>
       Effect.gen(function* () {
         const reading = { ...oneReading(), questions: [] };
-        const model = yield* makeDockModel({ reading });
+        const model = yield* dockModelOf({ reading });
         const boom = new Error("questions listener");
         model.questions.subscribe(() => {
           throw boom;
@@ -330,7 +330,7 @@ describe("the order of the stores and their listeners", () => {
       Effect.gen(function* () {
         const double = makeGateRegistryDouble();
         const first = { ...oneReading(), questions: [{ policy: readPolicy }] };
-        const model = yield* makeDockModel({ gates: double.registry, reading: first });
+        const model = yield* dockModelOf({ gates: double.registry, reading: first });
         const heard: Array<string> = [];
         model.diagnostics.subscribe(() => heard.push("diagnostics"));
         model.questions.subscribe(() => heard.push("questions"));
@@ -362,7 +362,7 @@ describe("closing the scope", () => {
         const double = makeGateRegistryDouble([guard("a", readPolicy)]);
         const scope = yield* Scope.make();
         const model = yield* Scope.provide(
-          makeDockModel({
+          dockModelOf({
             diagnostics: {},
             gates: double.registry,
             questions: () => [{ policy: readPolicy }],
