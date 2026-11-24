@@ -4,7 +4,12 @@ import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Scope from "effect/Scope";
 import * as Tracer from "effect/Tracer";
-import { makeDerivedStore, makeExternalStore } from "../../src/model/ExternalStore.ts";
+import {
+  makeDerivedStore,
+  makeExternalStore,
+  sameFields,
+  sameFieldsOrAbsent,
+} from "../../src/model/ExternalStore.ts";
 import type { Parent } from "../../src/model/ExternalStore.ts";
 import { heardOn, thrownBy } from "../helpers.ts";
 
@@ -952,4 +957,28 @@ describe("makeDerivedStore", () => {
 
       assert.include(names, "qadi.devtools.makeDerivedStore");
     }));
+});
+
+describe("sameFields and sameFieldsOrAbsent", () => {
+  it("sameFields holds for two fresh records with the same field values and fails when one field differs", () => {
+    const shared = { n: 1 };
+    assert.isTrue(sameFields({ a: 1, b: shared }, { a: 1, b: shared }));
+    assert.isFalse(sameFields({ a: 1, b: shared }, { a: 2, b: shared }));
+    assert.isFalse(sameFields({ a: 1, b: shared }, { a: 1, b: { n: 1 } }));
+  });
+
+  it("sameFieldsOrAbsent holds for two absent inputs", () => {
+    assert.isTrue(sameFieldsOrAbsent(undefined, undefined));
+  });
+
+  it("sameFieldsOrAbsent tells an absent input from an empty record on either side", () => {
+    assert.isFalse(sameFieldsOrAbsent(undefined, {}));
+    assert.isFalse(sameFieldsOrAbsent({}, undefined));
+  });
+
+  it("sameFieldsOrAbsent compares two present records field by field", () => {
+    const shared = { n: 1 };
+    assert.isTrue(sameFieldsOrAbsent({ a: shared }, { a: shared }));
+    assert.isFalse(sameFieldsOrAbsent({ a: shared }, { a: { n: 1 } }));
+  });
 });

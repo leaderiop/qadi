@@ -160,3 +160,18 @@ The first-configure counts of CR22 were measured on the base. With a layer that 
 - edit K12: `DockModel.ts`: a catalogue change that dispatches one more command to the simulation (`simulation.setPairs(true)` after `spread`)
 - failed: CR21 each input given at build and given through configure reaches the same state, while the constructor takes inputs
 - failed: CR22 a reader subscribed to every store of a bare dock before its first configure hears 2, 2, 3, 3, 0, 1, 0, 2 and 1 notifications while the poll layer is still building, and one more on three stores once it has built
+
+## 79-07 the rule and the timeline and diagnostics feeds
+
+- edit E1: `ExternalStore.ts`: `sameFieldsOrAbsent` comparing two present records with `a === b`
+- failed: sameFieldsOrAbsent compares two present records field by field
+
+- edit E2: `ExternalStore.ts`: `sameFieldsOrAbsent` answering true when either side is absent
+- failed: sameFieldsOrAbsent tells an absent input from an empty record on either side
+
+- edit E3: `ExternalStore.ts`: `sameFields` answering false for every pair (the length comparison replaced by `false`)
+- failed: sameFields holds for two fresh records with the same field values and fails when one field differs
+- failed: sameFieldsOrAbsent compares two present records field by field
+
+- edit E4: `ExternalStore.ts`: `sameFieldsOrAbsent` answering false for two absent inputs
+- failed: sameFieldsOrAbsent holds for two absent inputs

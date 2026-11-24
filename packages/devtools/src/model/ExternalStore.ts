@@ -130,8 +130,12 @@ export type Parent = Pick<ReadableStore<unknown>, "subscribe">;
  *
  * A field on one key only counts as a change. A field that is inherited,
  * non-enumerable or symbol-keyed is not part of the key and is not compared.
+ *
+ * Exported from this module only, not from a barrel: the feeds and the dock
+ * model compare their normalised inputs with it (ADR-QD-192), so one rule
+ * decides whether an input moved.
  */
-function sameFields<K extends object>(a: K, b: K): boolean {
+export function sameFields<K extends object>(a: K, b: K): boolean {
   const fromA = Object.entries(a);
   const fromB = new Map<string, unknown>(Object.entries(b));
   return (
@@ -139,6 +143,18 @@ function sameFields<K extends object>(a: K, b: K): boolean {
     fromA.every(([field, value]) => fromB.has(field) && fromB.get(field) === value)
   );
 }
+
+/**
+ * `sameFields` over two inputs that may each be absent.
+ *
+ * Absent equals only absent. An absent input is a state of its own, the
+ * diagnostics poll turned off, so `{}` and `undefined` differ even though the
+ * first holds no field that moved (ADR-QD-192).
+ */
+export const sameFieldsOrAbsent = <K extends object>(
+  a: K | undefined,
+  b: K | undefined,
+): boolean => (a === undefined || b === undefined ? a === b : sameFields(a, b));
 
 /**
  * A store computed from a key read off its parents and inputs, recomputed only
