@@ -252,13 +252,19 @@ const entriesFrom = (capacity: number): ReadonlyArray<string> => (capacity === 3
  * One store's row: its listener throws once, one `configure` moves every input, and then the same
  * inputs again as a fresh literal change nothing.
  *
- * It runs from each capacity in `starts`: 5 moves the capacity to 3, and 3 leaves it where it was.
- * A moved capacity makes the dock's own timeline listener hand the sightings to the explorer and
- * the simulation first, so a throw there is mended by the catalogue step that follows; the
- * unmoved capacity is the run in which that step is the one that delivers them. The timeline and
- * the dock hear their first notification only from a moved capacity, so they run from 5 alone.
+ * Each row states whether `configure` notifies its store's listener (`heard`) and the row asserts
+ * it, so a row cannot pass without the throw being exercised, and a store `configure` never
+ * touches states that it is not called. It runs from each capacity in `starts`: 5 moves the
+ * capacity to 3, and 3 leaves it where it was. A moved capacity makes the dock's own timeline
+ * listener hand the sightings to the explorer and the simulation first, so a throw there is
+ * mended by the catalogue step that follows; the unmoved capacity is the run in which that step
+ * is the one that delivers them. The timeline and the dock hear their first notification only
+ * from a moved capacity, so they run from 5 alone.
  */
-const throwingRow = (name: StoreName, starts: ReadonlyArray<number> = [5, 3]) =>
+const throwingRow = (
+  name: StoreName,
+  { heard, starts = [5, 3] }: { readonly heard: boolean; readonly starts?: ReadonlyArray<number> },
+) =>
   Effect.gen(function* () {
     for (const capacity of starts) {
       const fx = fixtures();
@@ -267,25 +273,21 @@ const throwingRow = (name: StoreName, starts: ReadonlyArray<number> = [5, 3]) =>
       const listener = throwOnce(storesOf(model)[name], boom);
 
       const run = thrownBy(() => model.configure(fx.wanted()));
-      const calledDuringConfigure = listener.called;
+      assert.strictEqual(listener.called, heard, `from capacity ${capacity}`);
       yield* applied(model, fx, entriesFrom(capacity));
 
-      if (calledDuringConfigure) {
-        assert.isTrue(run.threw, `from capacity ${capacity}`);
-        assert.strictEqual(run.thrown, boom, `from capacity ${capacity}`);
-      } else {
-        assert.isFalse(run.threw, `from capacity ${capacity}`);
-      }
+      assert.strictEqual(run.threw, heard, `from capacity ${capacity}`);
+      if (heard) assert.strictEqual(run.thrown, boom, `from capacity ${capacity}`);
 
       const before = snapshotsOf(model);
-      const heard = heardOnEach(model);
+      const heardAgain = heardOnEach(model);
       const reads = fx.tally.reads;
 
       const again = thrownBy(() => model.configure(fx.wanted()));
       yield* settleTurns;
 
       assert.isFalse(again.threw, `from capacity ${capacity}`);
-      assert.deepStrictEqual(heard(), silent);
+      assert.deepStrictEqual(heardAgain(), silent);
       assert.deepStrictEqual(movedBetween(before, snapshotsOf(model)), []);
       assert.strictEqual(fx.tally.reads, reads);
     }
@@ -293,43 +295,43 @@ const throwingRow = (name: StoreName, starts: ReadonlyArray<number> = [5, 3]) =>
 
 describe("a dock whose host listener throws", () => {
   it.effect("DL1 with a throwing timeline listener, a configure applies every input, rethrows what it threw, and an identical configure changes nothing", () =>
-    throwingRow("timeline", [5]),
+    throwingRow("timeline", { heard: true, starts: [5] }),
   );
 
   it.effect("DL2 with a throwing dock listener, a configure applies every input, rethrows what it threw, and an identical configure changes nothing", () =>
-    throwingRow("dock", [5]),
+    throwingRow("dock", { heard: true, starts: [5] }),
   );
 
   it.effect("DL3 with a throwing roles listener, a configure applies every input, rethrows what it threw, and an identical configure changes nothing", () =>
-    throwingRow("roles"),
+    throwingRow("roles", { heard: true }),
   );
 
   it.effect("DL4 with a throwing explorer listener, a configure applies every input, rethrows what it threw, and an identical configure changes nothing", () =>
-    throwingRow("explorer"),
+    throwingRow("explorer", { heard: true }),
   );
 
   it.effect("DL5 with a throwing simulation listener, a configure applies every input, rethrows what it threw, and an identical configure changes nothing", () =>
-    throwingRow("simulation"),
+    throwingRow("simulation", { heard: true }),
   );
 
   it.effect("DL6 with a throwing diagnostics listener, a configure applies every input, rethrows what it threw, and an identical configure changes nothing", () =>
-    throwingRow("diagnostics"),
+    throwingRow("diagnostics", { heard: true }),
   );
 
   it.effect("DL7 with a throwing timelineStatus listener, a configure applies every input, rethrows what it threw, and an identical configure changes nothing", () =>
-    throwingRow("timelineStatus"),
+    throwingRow("timelineStatus", { heard: true }),
   );
 
   it.effect("DL8 with a throwing questions listener, a configure applies every input, rethrows what it threw, and an identical configure changes nothing", () =>
-    throwingRow("questions"),
+    throwingRow("questions", { heard: true }),
   );
 
   it.effect("DL9 with a throwing services listener, a configure applies every input, rethrows what it threw, and an identical configure changes nothing", () =>
-    throwingRow("services"),
+    throwingRow("services", { heard: true }),
   );
 
-  it.effect("DL10 with a throwing lens listener, a configure applies every input, rethrows what it threw, and an identical configure changes nothing", () =>
-    throwingRow("lens"),
+  it.effect("DL10 a lens listener is not called by a configure, so one that throws changes nothing about it, and every input is applied", () =>
+    throwingRow("lens", { heard: false }),
   );
 
   it.effect("DL11 the rows above cover every store a built model exposes", () =>
