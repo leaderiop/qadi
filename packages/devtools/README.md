@@ -165,18 +165,19 @@ read, and a read that stops is stated in its feed's status instead of leaving a 
 fiber. A `subscribe` listener is yours, and one that throws does not stop the others:
 every listener is called, and then what they threw is rethrown out of whatever
 published (`configure`, `restart`, a read or tick, or the host registry's own
-notification), one value as itself and several as one `AggregateError`. The rest of
-that call does not run, so a throw can still leave a feed's status wrong with nothing
-running: the gates feed's questions cadence ends, a diagnostics feed stays `Starting`
-with no new poll, and a timeline restarted from `Stopped` says `Reading` with nothing
-reading. The store a host holds as `timeline` is the feed's one store for its whole
-life, and a capacity other than the one it holds is that store's `resize`, so a
-subscription on it survives a capacity change. A `configure` with a new `capacity` publishes the emptied timeline and then
-starts the read that refills it, from the same `source` or a new one, so a throw on
-that publish is rethrown once the read has started and stops no read, unless the
-timeline was `Stopped` and a status listener throws on the `Reading` that read
-publishes: that throw escapes instead, replaces the timeline listener's, and no read
-is started.
+notification), one value as itself and several as one `AggregateError`. A status that announces work (`Reading`, `Starting`) is published
+and the work starts whatever a listener throws on it, so a throw leaves no read, poll or run unstarted, and it is
+rethrown once the work has started. The one throw that still ends something is the gates feed's own: a questions
+cadence tick that throws ends the cadence, because that is the run's own failure. The store a host holds as `timeline`
+is the feed's one store for its whole life, and a capacity other than the one it holds is that store's `resize`, so a
+subscription on it survives a capacity change. A `configure` with a new `capacity` publishes the emptied timeline and
+then starts the read that refills it, from the same `source` or a new one. A throw from a timeline listener on that
+publish and a throw from a status listener on the `Reading` the read publishes stop nothing: the read starts, and both
+are rethrown once it has, as one `AggregateError` with the timeline's first. The dock model's `configure` goes further
+and applies every input, the timeline, the sightings rail, the roles, the simulation's ports, the gates, the
+diagnostics and the shown reading, whatever a host listener on any of them throws, and rethrows after the last step:
+one throw as itself, two or more as one `AggregateError` in step order. The sightings rail is a store derived from the
+timeline and the catalogue, not a member of the model's inputs, and a listener on it is called like any other.
 
 ```typescript
 import * as Effect from "effect/Effect";
