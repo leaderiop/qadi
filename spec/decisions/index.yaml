@@ -590,3 +590,7 @@ entries:
     file: "190-an-audit-row-is-a-value-only-its-codec-makes.md"
     title: "An audit row is a value only its codec makes"
     status: "Accepted — amends ADR-QD-110 and ADR-QD-056"
+  - id: "ADR-QD-191"
+    file: "191-a-timeline-store-owns-its-capacity.md"
+    title: "A timeline store owns its capacity"
+    status: "Accepted — amends ADR-QD-137"
