@@ -113,8 +113,7 @@ export const QuestionsPanel: FC<QuestionsPanelProps> = ({
   const unsampled = isUnsampled(diagnostics.status);
   const snapshot = useStoreSnapshot(questions);
 
-  useLens(lens, questions);
-  const view: LensView = { session: lens, snapshot: useStoreSnapshot(lens) };
+  const view: LensView = { session: lens, snapshot: useLens(lens, questions) };
 
   return (
     <div {...diagnosticsRootProps(diagnostics.status)} data-testid="qadi-questions">

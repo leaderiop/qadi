@@ -4,7 +4,8 @@
  * Two properties of the click handler are held here: a click is consumed exactly when a
  * pick was made, even when a subscriber to the session throws while being told of the
  * pick, and a click that a keyboard made is placed by the control it was made on and not
- * by a point it did not report.
+ * by a point it did not report. The panel that draws from the same session holds one
+ * subscription to it and not one for the adapter and another for itself.
  */
 import { afterEach, assert, describe, it } from "@effect/vitest";
 import { hasPermission, permission } from "@qadi/core";
@@ -12,8 +13,11 @@ import { act, fireEvent, render } from "@testing-library/react";
 import { vi } from "vitest";
 import { makeExternalStore } from "../../src/model/ExternalStore.ts";
 import { joinQuestions, type GateInstanceLike } from "../../src/model/Gates.ts";
-import { makeLensSession, pickedOf } from "../../src/model/LensSession.ts";
+import { makeLensSession, pickedOf, type LensSession } from "../../src/model/LensSession.ts";
+import { QuestionsPanel } from "../../src/react/QuestionsPanel.tsx";
 import { useLens } from "../../src/react/useLens.ts";
+import { liveNotice } from "../helpers.ts";
+import { panelInput } from "./questionsPanelInput.ts";
 
 const read = permission("doc", "read");
 const originalElementFromPoint = document.elementFromPoint;
@@ -51,7 +55,7 @@ const mount = (instances: ReadonlyArray<GateInstanceLike>) => {
   return lens;
 };
 
-const picking = async (lens: ReturnType<typeof makeLensSession>) => {
+const picking = async (lens: LensSession) => {
   await act(async () => {
     lens.toggle();
   });
@@ -114,5 +118,29 @@ describe("the lens adapter's click", () => {
     });
     assert.isFalse(proceeded, "a control a guard holds is a pick");
     assert.strictEqual(pickedOf(lens.getSnapshot()), "a");
+  });
+});
+
+describe("the lens panel's subscription", () => {
+  it("the panel holds one subscription to the lens while it is mounted and none after", () => {
+    const session = makeLensSession();
+    let held = 0;
+    const lens: LensSession = {
+      ...session,
+      subscribe: (listener) => {
+        held += 1;
+        const unsubscribe = session.subscribe(listener);
+        return () => {
+          held -= 1;
+          unsubscribe();
+        };
+      },
+    };
+    const { unmount } = render(
+      <QuestionsPanel diagnostics={liveNotice} {...panelInput({ questions: [], lens })} />,
+    );
+    assert.strictEqual(held, 1, "while mounted");
+    unmount();
+    assert.strictEqual(held, 0, "after unmount");
   });
 });

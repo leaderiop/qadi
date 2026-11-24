@@ -168,3 +168,10 @@ that moves nothing each disarm; a hover does not) and run on the unchanged sessi
 14 passed).
 
 - failed: a pick reveals its row once, and only for its own guard; toggle, cancel and highlight disarm a reveal that was not taken and hover does not; takeReveal publishes nothing
+
+### IN-06 one subscription to the lens
+
+The new cell was run with `QuestionsPanel.tsx` and `useLens.ts` taken from the commit before the change, each restored with
+`cp` afterwards (`while mounted: expected 2 to equal 1`; 1 failed, 2 passed).
+
+- failed: the panel holds one subscription to the lens while it is mounted and none after

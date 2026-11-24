@@ -15,7 +15,7 @@
 import { useEffect } from "react";
 import type { ReadableStore } from "../model/ExternalStore.ts";
 import type { QuestionsSnapshot } from "../model/Gates.ts";
-import { isPicking, type LensSession } from "../model/LensSession.ts";
+import { isPicking, type LensSession, type LensSnapshot } from "../model/LensSession.ts";
 import { boxesOf, clearLens, drawLens, gateIdAt, gateIdOfClick } from "./Lens.ts";
 import { useStoreSnapshot } from "./useStoreSnapshot.ts";
 
@@ -27,8 +27,14 @@ import { useStoreSnapshot } from "./useStoreSnapshot.ts";
  * until it is reloaded. The exit on unmount is its own effect, keyed on the
  * session alone: were it the listeners' cleanup, a highlight that ended picking
  * would run it and cancel the highlight it had just drawn.
+ *
+ * Returns the snapshot it read, so a panel that draws from the same session holds the one
+ * subscription and not a second.
  */
-export const useLens = (lens: LensSession, questions: ReadableStore<QuestionsSnapshot>): void => {
+export const useLens = (
+  lens: LensSession,
+  questions: ReadableStore<QuestionsSnapshot>,
+): LensSnapshot => {
   const snapshot = useStoreSnapshot(lens);
   const highlighted: ReadonlyArray<string> = snapshot.highlighted;
   const picking = isPicking(snapshot);
@@ -107,4 +113,6 @@ export const useLens = (lens: LensSession, questions: ReadableStore<QuestionsSna
     },
     [lens],
   );
+
+  return snapshot;
 };
