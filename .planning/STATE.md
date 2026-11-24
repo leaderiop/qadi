@@ -5,16 +5,16 @@ milestone_name: Arch Wave 14
 current_phase: 79
 current_phase_name: Feeds and the dock model take inputs only through `configure`
 status: executing
-stopped_at: Completed QD-79-08-PLAN.md
-last_updated: "2026-11-24T10:40:11.500Z"
+stopped_at: Completed 79-09-PLAN.md
+last_updated: "2026-11-24T10:48:22.046Z"
 last_activity: 2026-11-24
 last_activity_desc: Phase QD-78 complete, transitioned to Phase 79
-state_head: 9539e806703764722b4f0714429a8cfa8dc5a86b
+state_head: 14d20f955b9b206f6e80c1aa557a5ed5e9d3b167
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 35
-  completed_plans: 26
+  completed_plans: 27
   percent: 50
 ---
 
@@ -30,9 +30,9 @@ See: .planning/PROJECT.md (updated 2026-11-24)
 ## Current Position
 
 Phase: 79 (Feeds and the dock model take inputs only through `configure`) — EXECUTING
-Plan: 9 of 17
-Status: Executing (79-04 complete)
-Last activity: 2026-11-24 — 79-04 complete (dock rule cells written on the base)
+Plan: 10 of 17
+Status: Executing (79-09 complete)
+Last activity: 2026-11-24 — 79-09 complete (the dock maps its inputs onto its feeds in one place)
 
 Progress: [█████░░░░░] 50% (2 of 4 phases)
 
@@ -582,6 +582,7 @@ Progress: [█████░░░░░] 50% (2 of 4 phases)
 | Phase QD-79 P06 | 8min | 2 tasks | 2 files |
 | Phase QD-79 P07 | 35min | 3 tasks | 8 files |
 | Phase QD-79 P08 | 40min | 3 tasks | 5 files |
+| Phase QD-79 P09 | 25min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -1086,8 +1087,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-24T10:40:11.282Z
-Stopped at: Completed QD-79-08-PLAN.md
+Last session: 2026-11-24T10:48:21.755Z
+Stopped at: Completed 79-09-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
