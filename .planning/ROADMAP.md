@@ -521,7 +521,7 @@ Plans:
   4. ADR-QD-191 (or an ADR-QD-137 amendment that names 191 unused) records the command, and `spec/overview.md` (gate 13) and a `@qadi/devtools` changeset cover the new public member.
 
 **Planning notes**: No research flag: `clear`, `setPaused` and `SupersedingRun` are direct precedents and TF1 to TF29 are the pinned proof. The decisions are small and go to the discuss step or the plan: an equal effective capacity is a store-level no-op and how that meets the feed's "omitted reads as `undefined`" rule (79 later owns that rule); resize while paused releases the pause like `clear`; an invalid capacity is validated before anything mutates (throw or typed result); `useTimelineStore(options)` leaves a changed `capacity` alone. Resize publishes with `publish`, not `set`, so the pause reset is heard. Commit the Stryker baselines of `TimelineStore.ts` and `TimelineFeed.ts` first and re-close them after the review.
-**Plans**: 9/11 plans executed (waves 1 to 11, strictly serial)
+**Plans**: 10/11 plans executed (waves 1 to 11, strictly serial)
 
 Plans:
 **Wave 1**
@@ -552,7 +552,7 @@ Plans:
 - [x] 78-09-PLAN.md — the Breaking changeset, the overview rows, the 0.13 upgrade section and the devtools README, and the CCR row completed
 
 **Wave 10** *(blocked on Wave 9 completion)*
-- [ ] 78-10-PLAN.md — mutation close of the four files against the base, the dock's score held, and the close scans
+- [x] 78-10-PLAN.md — mutation close of the four files against the base, the dock's score held, and the close scans
 
 **Wave 11** *(blocked on Wave 10 completion)*
 - [ ] 78-11-PLAN.md — `pnpm check:pr` green on the closed tree, the plan-commit trailer scan, TRSZ-01 to TRSZ-04 complete
@@ -605,6 +605,6 @@ Phases execute in numeric order: 77 → 78 → 79 → 80
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 77. An audit row is a value only its codec makes | 7/7 | Complete    | 2026-11-24 |
-| 78. `TimelineStore` owns its capacity | 9/11 | In Progress | - |
+| 78. `TimelineStore` owns its capacity | 10/11 | In Progress | - |
 | 79. Feeds and the dock model take inputs only through `configure` | 0/0 | Not started | - |
 | 80. The highlight lens is a headless session; `instrument` resolved | 0/0 | Not started | - |
