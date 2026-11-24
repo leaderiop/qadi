@@ -5,19 +5,19 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "`archiveAuditTrail` checks `keyMaterial` and then re-reads it, so the check and the written value can differ"
   - id: WR-02
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "INV-QD-399 says no input is a defect \"whatever the value given\", but a non-list `entries` still throws"
   - id: WR-03
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "`ArchiveInputInvalid.value: unknown` overloads one slot for an index and for a given value, and a closed shape that avoids it already exists in this package"
   - id: IN-01
     severity: info
-    disposition: open
+    disposition: fixed
     title: "`RetentionInputInvalid.value` is still `number` while `now` can be anything for a JavaScript caller"
   - id: IN-02
     severity: info
@@ -31,7 +31,7 @@ findings:
     severity: info
     disposition: fixed
     title: "The `now` writer tests pass on any failure, and one property is duplicated"
-open: 4
+open: 0
 total: 7
 recorded: 2026-11-24T03:30:07.896Z
 ---
@@ -40,12 +40,12 @@ recorded: 2026-11-24T03:30:07.896Z
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | open | - |
-| WR-02 | warning | open | - |
-| WR-03 | warning | open | - |
-| IN-01 | info | open | - |
+| WR-01 | warning | fixed | 77-REVIEW-FIX.md (3b74c980; read-once snapshot, verified by the orchestrator) |
+| WR-02 | warning | fixed | 77-REVIEW-FIX.md (f64b6d69) |
+| WR-03 | warning | fixed | 77-REVIEW-FIX.md (f64b6d69; closed ArchiveInputRefusal) |
+| IN-01 | info | fixed | 77-REVIEW-FIX.md (f64b6d69; closed RetentionInputRefusal) |
 | IN-02 | info | fixed | 77-REVIEW-FIX.md |
-| IN-03 | info | fixed | 77-REVIEW-FIX.iter2.md (not in the current review) |
+| IN-03 | info | fixed | kept by disposition; reason recorded in the test header (7e828c39), 77-REVIEW-FIX.iter2.md (not in the current review) |
 | IN-04 | info | fixed | 77-REVIEW-FIX.iter2.md (not in the current review) |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
