@@ -38,3 +38,13 @@ inequality, so the base gives a new id.
 - base: 2cca1f46a30ea7fd50d070fc34cf3b0d7239a2b2
 - red on the base (toggle-no-rerender): a memoised consumer of the context renders again when instrument is toggled
 - useId: a remounted guard registers under a new id
+
+## 80-04 the adapter regressions
+
+Both cells of `Lens.dock.test.tsx` were run on the unchanged source: each failed on its own assertion, the first on the
+listener types added again by a change in the listed guards (a second set of three on top of the first), the second on
+the row marked after the switch to the log and back (`expected +0 to equal 1`).
+
+- base: 55c79a96db057952465918e410c529b85dc3e4e7
+- failed: entering picking adds three document listeners, and a change in the listed guards while picking adds none
+- failed: under StrictMode a pick reveals its row once, and after a switch to the log and back the row is still marked with no second reveal
