@@ -5,16 +5,16 @@ milestone_name: Arch Wave 14
 current_phase: 77
 current_phase_name: An audit row is a value only its codec makes
 status: executing
-stopped_at: Completed 77-03-PLAN.md
-last_updated: "2026-11-24T00:01:54.807Z"
+stopped_at: Completed 77-04-PLAN.md
+last_updated: "2026-11-24T00:16:35.025Z"
 last_activity: 2026-11-24
 last_activity_desc: Phase QD-77 execution started
-state_head: 3f27e7ed9f1bb4935024a39eeba4ae7df065d2d8
+state_head: df701cc2642852d9b1b2774ee5626e9168ab8ed8
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 7
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-23)
 ## Current Position
 
 Phase: QD-77 (An audit row is a value only its codec makes) — EXECUTING
-Plan: 4 of 7
+Plan: 5 of 7
 Status: Executing Phase QD-77
 Last activity: 2026-11-24 — Phase QD-77 execution started
 
@@ -559,6 +559,7 @@ Progress: [░░░░░░░░░░] 0% (0 of 4 phases)
 | Phase QD-77 P01 | 15 min | 2 tasks | 3 files |
 | Phase QD-77 P02 | 25 min | 3 tasks | 5 files |
 | Phase QD-77 P03 | 10 min | 3 tasks | 15 files |
+| Phase QD-77 P04 | 14 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -973,6 +974,8 @@ Progress: [░░░░░░░░░░] 0% (0 of 4 phases)
 - [Phase QD-76]: 76-08: SIGM-01..05 marked complete by hand after check:pr exited 0 on 446f0b27; WX-01..07 stay Pending until the milestone closes
 - [Phase QD-77]: 77-02: the inconsistent-record matrix row uses an evaluationId that disagrees with the record's decision; a fifteenth writer-input test pins two rows from one record
 - [Phase QD-77]: AuditEntry is a module-local nominal Data.Class exported as a type; decodeAuditEntry reads the envelope first and the record second; the writer refuses a non-finite now (ArchiveInputInvalid) and projects keyMaterial; SequenceNumberInvalid and undated removed (77-03)
+- [Phase QD-77]: 77-04: the record-domain property is gutted with an encoder writing an unreadable record, not sequenceNumber 0, which round-trips
+- [Phase QD-77]: 77-04: planPurge doc states about 22 us per row for the whole call (15 warmed rounds), not the hash alone
 
 ### Pending Todos
 
@@ -1048,8 +1051,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-24T00:01:54.736Z
-Stopped at: Completed 77-03-PLAN.md
+Last session: 2026-11-24T00:16:34.952Z
+Stopped at: Completed 77-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
