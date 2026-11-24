@@ -637,7 +637,7 @@ describe("the diagnostics feed", () => {
     }),
   );
 
-  it.effect("F31 a listener that throws on the Starting a configure publishes leaves the feed Starting, and no new poll starts", () =>
+  it.effect("F31 a listener that throws on the Starting a configure publishes is rethrown once the new poll has started", () =>
     Effect.gen(function* () {
       const a = makeCollectorDouble();
       const b = makeCollectorDouble();
@@ -657,8 +657,8 @@ describe("the diagnostics feed", () => {
 
       assert.isTrue(outcome.threw);
       assert.strictEqual(outcome.thrown, boom);
-      assert.strictEqual(b.state.calls, 0);
-      assert.strictEqual(feed.getSnapshot().status._tag, "Starting");
+      assert.isAbove(b.state.calls, 0);
+      assert.strictEqual(feed.getSnapshot().status._tag, "Live");
     }),
   );
 

@@ -594,7 +594,7 @@ describe("the timeline feed", () => {
       assert.strictEqual(feed.timeline.getSnapshot().capacity, 2);
     }));
 
-  it.effect("TF28 a listener that throws on the Reading a restart publishes over a Stopped leaves the status Reading with no read started", () =>
+  it.effect("TF28 a listener that throws on the Reading a restart publishes over a Stopped is rethrown once the read has started", () =>
     Effect.gen(function* () {
       const { source, tally } = flaky();
       const feed = yield* timelineFeedOf({ source });
@@ -614,11 +614,11 @@ describe("the timeline feed", () => {
       assert.isTrue(outcome.threw);
       assert.strictEqual(outcome.thrown, boom);
       assert.strictEqual(feed.status.getSnapshot()._tag, "Reading");
-      assert.strictEqual(tally.reads, 1);
-      assert.deepStrictEqual(idsOf(feed), ["x"]);
+      assert.strictEqual(tally.reads, 2);
+      assert.deepStrictEqual(idsOf(feed), ["x", "y"]);
     }));
 
-  it.effect("TF29 a status listener that throws on the Reading a capacity change publishes over a Stopped replaces the timeline listener's throw, and no read is started", () =>
+  it.effect("TF29 a timeline listener and a status listener that throw on a capacity change over a Stopped read are rethrown as one AggregateError in that order, and the read is started", () =>
     Effect.gen(function* () {
       const { source, tally } = flaky();
       const feed = yield* timelineFeedOf({ source, capacity: 5 });
@@ -643,10 +643,18 @@ describe("the timeline feed", () => {
       yield* flush;
 
       assert.isTrue(outcome.threw);
-      assert.strictEqual(outcome.thrown, statusBoom);
+      assert.instanceOf(outcome.thrown, AggregateError);
+      const errors = outcome.thrown instanceof AggregateError ? outcome.thrown.errors : [];
+      assert.strictEqual(errors.length, 2);
+      assert.strictEqual(errors[0], timelineBoom);
+      assert.strictEqual(errors[1], statusBoom);
+      assert.strictEqual(
+        outcome.thrown instanceof AggregateError ? outcome.thrown.message : "",
+        "More than one step of the timeline feed's configure threw.",
+      );
       assert.strictEqual(feed.status.getSnapshot()._tag, "Reading");
-      assert.strictEqual(tally.reads, 1);
-      assert.deepStrictEqual(idsOf(feed), []);
+      assert.strictEqual(tally.reads, 2);
+      assert.deepStrictEqual(idsOf(feed), ["x", "y"]);
       assert.strictEqual(feed.timeline.getSnapshot().capacity, 2);
     }));
 
@@ -816,5 +824,27 @@ describe("the timeline feed", () => {
 
       assert.strictEqual(idleTimeline.getSnapshot(), snapshot);
       assert.strictEqual(heard.calls, 0);
+    }));
+
+  it.effect("TF37 a timeline listener that configures the feed again during a capacity change leaves it reading the inner source at the inner capacity", () =>
+    Effect.gen(function* () {
+      const a = counting([record("from-a", 100)], Stream.never);
+      const b = counting([record("from-b", 100)], Stream.never);
+      const c = counting([record("from-c", 100)], Stream.never);
+      const feed = yield* timelineFeedOf({ source: a.source, capacity: 5 });
+      yield* flush;
+      let nested = false;
+      feed.timeline.subscribe(() => {
+        if (nested) return;
+        nested = true;
+        feed.configure({ source: b.source, capacity: 2 });
+      });
+
+      feed.configure({ source: c.source, capacity: 3 });
+      yield* flush;
+
+      assert.strictEqual(feed.timeline.getSnapshot().capacity, 2);
+      assert.deepStrictEqual(idsOf(feed), ["from-b"]);
+      assert.deepStrictEqual(c.tally, { reads: 0 });
     }));
 });

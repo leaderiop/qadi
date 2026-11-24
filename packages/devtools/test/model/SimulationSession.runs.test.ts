@@ -21,7 +21,7 @@ import { collectingTracer } from "@qadi/testing";
 import type { SimulationInput } from "../../src/model/SimulationInput.ts";
 import { makeSimulationSession } from "../../src/model/SimulationSession.ts";
 import type { SimulationSession } from "../../src/model/SimulationSession.ts";
-import { settleTurns } from "../helpers.ts";
+import { settleTurns, thrownBy } from "../helpers.ts";
 import { counted, sighting, slow } from "../simulationFixtures.ts";
 
 const clearance = hasAttribute("clearance", gte(5));
@@ -160,5 +160,26 @@ describe("how the session ends a run", () => {
 
       assert.strictEqual(session.getSnapshot().run._tag, "Ran");
       assert.strictEqual(tally.finished, 1);
+    }));
+
+  it.effect("SR6 a subscriber that throws on the Running a run publishes is rethrown once the run has started, and the run lands", () =>
+    Effect.gen(function* () {
+      const { session, tally } = yield* liveSession([]);
+      const boom = new Error("boom");
+      let throws = 1;
+      session.subscribe(() => {
+        if (throws === 0) return;
+        throws -= 1;
+        throw boom;
+      });
+
+      const outcome = thrownBy(() => session.run("Run"));
+      yield* TestClock.adjust("2 seconds");
+      yield* settleTurns;
+
+      assert.isTrue(outcome.threw);
+      assert.strictEqual(outcome.thrown, boom);
+      assert.strictEqual(tally.started, 1);
+      assert.strictEqual(session.getSnapshot().run._tag, "Ran");
     }));
 });

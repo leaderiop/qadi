@@ -992,4 +992,30 @@ describe("the gates feed", () => {
       assert.strictEqual(outcome.thrown, boom);
       assert.strictEqual(double.listeners(), 1);
     }));
+
+  it.effect("G49 a listener that throws on the publish a configure makes is rethrown, and the questions cadence that configure started keeps reading the thunk", () =>
+    Effect.gen(function* () {
+      const double = makeGateRegistryDouble([guard("a", readPolicy)]);
+      const feed = yield* gatesFeedOf({ gates: double.registry });
+      yield* settleTurns;
+      const second = counting(() => [{ policy: writePolicy }]);
+      const boom = new Error("boom");
+      let throws = 1;
+      feed.subscribe(() => {
+        if (throws === 0) return;
+        throws -= 1;
+        throw boom;
+      });
+
+      const outcome = thrownBy(() =>
+        feed.configure({ gates: double.registry, questions: second.thunk, intervalMillis: 5_000 }),
+      );
+      const readAtConfigure = second.seen.calls;
+      yield* TestClock.adjust("10 seconds");
+      yield* settleTurns;
+
+      assert.isTrue(outcome.threw);
+      assert.strictEqual(outcome.thrown, boom);
+      assert.isAtLeast(second.seen.calls, readAtConfigure + 2);
+    }));
 });

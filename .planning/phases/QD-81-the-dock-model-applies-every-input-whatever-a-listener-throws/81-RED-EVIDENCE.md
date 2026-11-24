@@ -70,3 +70,30 @@ copy-backed scratch edit of `packages/devtools/src/model/DockModel.ts`, restored
 - base counts (capacity and catalogue): timeline 1, dock 1, explorer 2, roles 1, simulation 2, diagnostics 0, timelineStatus 0, questions 0, services 0, lens 0
 - red on the base: DL17 a listener that configures the dock again from inside a step leaves the model where a plain configure with those inputs leaves a fresh one
   - failed on: AssertionError: expected the nested model's state to deeply equal the fresh model's (the nested model held the outer call's gates "g1", its collector's one call and the Live source option enabled, where the fresh one holds "g2", the second collector's two calls and Live disabled)
+
+## 81-03 the windows
+
+Each line below was printed by `pnpm exec vitest run --project devtools <file> -t "<label> "` on the phase base
+(`packages/devtools/src` equal to `phase_base`, stdin closed), from the repository root. A test the plan flips is run as it
+is first (its `before` line), then rewritten and run again (its `red` line).
+
+- before (passing on the base): TF29 a status listener that throws on the Reading a capacity change publishes over a Stopped replaces the timeline listener's throw, and no read is started
+- red on the base: TF29 a timeline listener and a status listener that throw on a capacity change over a Stopped read are rethrown as one AggregateError in that order, and the read is started
+  - failed on: AssertionError: expected Error: status boom to be an instance of AggregateError (the base rethrows the status listener's throw alone, replacing the timeline listener's, and starts no read)
+- flip TF29: a status listener's throw on the Reading replaced the timeline listener's and no read started => both throws are rethrown as one AggregateError, the timeline's first, and the read starts
+- before (passing on the base): TF28 a listener that throws on the Reading a restart publishes over a Stopped leaves the status Reading with no read started
+- red on the base: TF28 a listener that throws on the Reading a restart publishes over a Stopped is rethrown once the read has started
+  - failed on: AssertionError: expected 1 to equal 2 (the reads: the Reading's listener threw before the read was forked, so the second read never ran)
+- flip TF28: a listener's throw on the Reading a restart publishes left the status Reading with no read started => the throw is rethrown as itself and the read starts (two reads, x and y)
+- before (passing on the base): F31 a listener that throws on the Starting a configure publishes leaves the feed Starting, and no new poll starts
+- red on the base: F31 a listener that throws on the Starting a configure publishes is rethrown once the new poll has started
+  - failed on: AssertionError: expected +0 to be above +0 (the new collector's calls: the Starting's listener threw before the poll was forked)
+- flip F31: a listener's throw on the Starting a configure publishes left the feed Starting and no new poll started => the throw is rethrown as itself, the new poll starts and the status reaches Live
+- red on the base: TF37 a timeline listener that configures the feed again during a capacity change leaves it reading the inner source at the inner capacity
+  - failed on: AssertionError: expected [ 'from-b', 'from-c' ] to deeply equal [ 'from-b' ] (the outer configure's read step took its entry-time source after the nested configure had moved the inputs, and read the outer source)
+- red on the base: SR6 a subscriber that throws on the Running a run publishes is rethrown once the run has started, and the run lands
+  - failed on: AssertionError: expected +0 to equal 1 (the resolver was never asked: the Running's subscriber threw before the run was forked)
+- failed (scratch): G49 a listener that throws on the publish a configure makes is rethrown, and the questions cadence that configure started keeps reading the thunk
+  - edit: moved the cadence() call in GatesFeed.configure after the publish call, from a copy-backed GatesFeed.ts restored with cp; failed on: AssertionError: expected 1 to be at least 3 (the thunk read once, at the configure, and never again: the publish threw before the cadence was forked)
+
+G49 is green on the base, a characterisation of a window that is already closed: the gates feed forks its cadence before it publishes. A first draft configured the feed with a thunk already, and stayed green under the scratch edit because the cadence already running reads the held thunk; the feed that starts with no thunk is the one whose cadence the configure itself forks.
