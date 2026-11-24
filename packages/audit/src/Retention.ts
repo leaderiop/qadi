@@ -80,9 +80,6 @@ export interface RetentionPlan {
   readonly expired: ReadonlyArray<AuditEntry>;
 }
 
-const refuse = (refusal: RetentionInputRefusal) =>
-  Result.fail(new RetentionInputInvalid({ refusal }));
-
 /**
  * The one age rule: which rows are past `policy`'s limit.
  *
@@ -102,14 +99,16 @@ export const planRetention = (
   now: number,
 ): Result.Result<RetentionPlan, RetentionInputInvalid> => {
   if (!Number.isFinite(now)) {
-    return refuse(RetentionInputRefusal.NowNotFinite({ value: now }));
+    const refusal = RetentionInputRefusal.NowNotFinite({ value: now });
+    return Result.fail(new RetentionInputInvalid({ refusal }));
   }
   if (!(policy.maxAgeMs >= 0)) {
-    return refuse(RetentionInputRefusal.MaxAgeInvalid({ value: policy.maxAgeMs }));
+    const refusal = RetentionInputRefusal.MaxAgeInvalid({ value: policy.maxAgeMs });
+    return Result.fail(new RetentionInputInvalid({ refusal }));
   }
-  const refused = rowsRefusal(entries);
-  if (refused !== undefined) {
-    return refuse(refused);
+  const refusal = rowsRefusal(entries);
+  if (refusal !== undefined) {
+    return Result.fail(new RetentionInputInvalid({ refusal }));
   }
   const retained: Array<AuditEntry> = [];
   const expired: Array<AuditEntry> = [];
