@@ -520,7 +520,29 @@ Plans:
   4. ADR-QD-191 (or an ADR-QD-137 amendment that names 191 unused) records the command, and `spec/overview.md` (gate 13) and a `@qadi/devtools` changeset cover the new public member.
 
 **Planning notes**: No research flag: `clear`, `setPaused` and `SupersedingRun` are direct precedents and TF1 to TF29 are the pinned proof. The decisions are small and go to the discuss step or the plan: an equal effective capacity is a store-level no-op and how that meets the feed's "omitted reads as `undefined`" rule (79 later owns that rule); resize while paused releases the pause like `clear`; an invalid capacity is validated before anything mutates (throw or typed result); `useTimelineStore(options)` leaves a changed `capacity` alone. Resize publishes with `publish`, not `set`, so the pause reset is heard. Commit the Stryker baselines of `TimelineStore.ts` and `TimelineFeed.ts` first and re-close them after the review.
-**Plans**: TBD
+**Plans**: 7 plans (waves 1 to 7, strictly serial)
+
+Plans:
+**Wave 1**
+- [ ] 78-01-PLAN.md — record the phase base and the per-file mutation base of `Timeline.ts`, `TimelineStore.ts` and `TimelineFeed.ts`, committed alone and first
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 78-02-PLAN.md — on the base: the zero-capacity, refused-configure and hand-fed-hook defects seen RED, and the capacity-change characterisations, each shown failing once
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 78-03-PLAN.md — `TimelineStore.resize`, `clear` at the held bound, the feed's one store with `configure` checking first, `idleTimeline.resize`, and the store's resize rules
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 78-04-PLAN.md — a record a zero-capacity timeline cannot keep changes nothing, `useTimelineStore` follows its capacity, and the `resize` type pins
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 78-05-PLAN.md — ADR-QD-191 with its index entry and trace row, the dated ADR-QD-137 amendment, and the CCR-QD-470 row begun
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 78-06-PLAN.md — BEH-QD-726 to 730 and INV-QD-401/402, the restated timeline behaviours, the Breaking changeset, the 0.13 upgrade section, overview rows and devtools prose
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 78-07-PLAN.md — mutation close against the base, close scans, `pnpm check:pr` green, TRSZ-01 to TRSZ-04 complete
 
 ### Phase 79: Feeds and the dock model take inputs only through `configure`
 
