@@ -5,16 +5,16 @@ milestone_name: Arch Wave 15
 current_phase: 81
 current_phase_name: The dock model applies every input whatever a listener throws
 status: executing
-stopped_at: Completed QD-81-10-PLAN.md
-last_updated: "2026-11-24T23:09:16.206Z"
+stopped_at: Completed QD-81-11-PLAN.md
+last_updated: "2026-11-24T23:21:17.317Z"
 last_activity: 2026-11-24
 last_activity_desc: Phase QD-81 execution started
-state_head: 7ebd3dbf3a7888c8466781cb3412e3689550b698
+state_head: ccef4384c7d83043582459bc07e425499f74c137
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 11
-  completed_plans: 10
+  completed_plans: 11
   percent: 0
 ---
 
@@ -611,6 +611,7 @@ Last activity: 2026-11-24 — Phase QD-81 execution started
 | Phase 81 P08 | 35min | 2 tasks | 6 files |
 | Phase QD-81 P09 | 15 min | 2 tasks | 3 files |
 | Phase QD-81 P10 | 40 min | 2 tasks | 6 files |
+| Phase QD-81 P11 | 95min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -1061,6 +1062,7 @@ Last activity: 2026-11-24 — Phase QD-81 execution started
 - [Phase 81]: 81-08: BEH-QD-699 retitled to four computed stores and its anchors follow; INV-QD-296 and INV-QD-403 corrected for the deleted spread (decided autonomously)
 - [Phase QD-81]: 81-09: the README states the dock configure rule in the feeds section; CCR-QD-473 has no Unused number (decided autonomously)
 - [Phase QD-81]: 81-10: the one new survivor (DiagnosticsFeed accept stale-run guard) is closed by F33, never re-baselined; TF37 moved before TF36 so the archived 79-pinned check fails on TF29 alone
+- [Phase QD-81]: 81-11: the model close was re-measured on the head holding the reordered timeline tests, and ADR-194's merge-gate references name their commands (decided autonomously)
 
 ### Pending Todos
 
@@ -1140,8 +1142,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-24T23:09:16.170Z
-Stopped at: Completed QD-81-10-PLAN.md
+Last session: 2026-11-24T23:21:17.274Z
+Stopped at: Completed QD-81-11-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
