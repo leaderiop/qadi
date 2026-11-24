@@ -29,6 +29,7 @@ import {
 } from "../src/index.ts";
 import type {
   AskedQuestionLike as ReactAskedQuestionLike,
+  DevtoolsDockProps as ReactDevtoolsDockProps,
   DiagnosticsOptions as ReactDiagnosticsOptions,
 } from "../src/react/index.ts";
 
@@ -318,4 +319,31 @@ test("a timeline store resizes itself and answers whether it did", () => {
   expect<TimelineStore["resize"]>().type.toBe<(capacity: number) => boolean>();
   expect<Omit<TimelineStore, "resize">>().type.not.toBeAssignableTo<TimelineStore>();
   expect<TimelineFeed["timeline"]>().type.toBe<TimelineStore>();
+});
+
+test("the dock takes eight model inputs and two host props, each accepting undefined", () => {
+  expect<keyof ReactDevtoolsDockProps>().type.toBe<
+    | "source"
+    | "capacity"
+    | "catalogue"
+    | "ports"
+    | "diagnostics"
+    | "reading"
+    | "gates"
+    | "questions"
+    | "unknownParents"
+    | "onInvalidate"
+  >();
+  expect<{
+    readonly source: undefined;
+    readonly capacity: undefined;
+    readonly catalogue: undefined;
+    readonly ports: undefined;
+    readonly diagnostics: undefined;
+    readonly reading: undefined;
+    readonly gates: undefined;
+    readonly questions: undefined;
+    readonly unknownParents: undefined;
+    readonly onInvalidate: undefined;
+  }>().type.toBeAssignableTo<ReactDevtoolsDockProps>();
 });

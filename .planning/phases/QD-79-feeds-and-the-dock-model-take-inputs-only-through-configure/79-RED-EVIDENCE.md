@@ -236,3 +236,10 @@ Each scratch edit was applied to `packages/devtools/src/react/useConfigured.ts`,
 - failed: U3 a new inputs record configures once more and the same record configures nothing more
 - edit H4: the build reads its inputs from `useState(() => inputs)[0]`, the first render's closure
 - failed: U4 a value hidden, handed new inputs and shown again is rebuilt configured with them, also under StrictMode
+
+## 79-11 the dock props
+
+The scratch edit was applied to `packages/devtools/src/model/DockModel.ts`, run with `pnpm test:tstyche`, and restored from a copy of the file taken before the edit (the whole change is uncommitted at that point, so a checkout of the source folder would have removed it); `git diff` shows only the intended change afterwards. The cell is green on the real type.
+
+- edit P1: `DockModel.ts`: `readonly extra?: number | undefined` added to `DockModelInputs`
+- failed: the dock takes eight model inputs and two host props, each accepting undefined

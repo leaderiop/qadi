@@ -85,28 +85,83 @@ import {
 import type { TimelineStore } from "./TimelineStore.ts";
 
 /**
- * What a host hands the dock. Each field is compared by identity when it is configured
- * again, except `capacity`, which is compared by the bound it means; an omitted one is
- * `DEFAULT_TIMELINE_CAPACITY` (ADR-QD-191).
+ * The dock's inputs, stated once: the props `DevtoolsDock` takes beside the host's own
+ * (ADR-QD-192).
+ *
+ * Each field is compared by identity when it is configured again, except `capacity`, which is
+ * compared by the bound it means; an omitted one is `DEFAULT_TIMELINE_CAPACITY` (ADR-QD-191).
+ * Package-private (ADR-QD-099): a host reads these through `DevtoolsDockProps`.
  */
 export interface DockModelInputs {
+  /** How many rows to keep. Defaults to the timeline's own bound. */
   readonly capacity?: number | undefined;
+  /**
+   * Policies and roles the application names.
+   *
+   * Optional because the policy rail is built from what the log has **seen** —
+   * every record carries its policy — so this adds only what has not run yet,
+   * plus the names. Roles are not observable at all and come only from here.
+   */
   readonly catalogue?: Catalogue | undefined;
-  /** What to sample; compared per field, so an inline literal restarts nothing. */
+  /**
+   * What to sample while the dock is mounted: the application's layer and the
+   * port-call collector, each optional.
+   *
+   * The way to keep the Services and React panels current without writing the
+   * loop: the dock samples on a schedule, keeps a reading's identity while it is
+   * unchanged, and releases the layer on unmount. Absent, nothing is sampled and
+   * the panels explain what they would need; `{}` samples the metric reads
+   * alone. Compared per field, so an inline literal restarts nothing; the run
+   * restarts when a field changes identity, so hold the fields at module scope.
+   * The dock's model polls in its own scope, so a hidden-then-shown dock samples
+   * afresh, from its first sample.
+   *
+   * Gates and questions are not in it: the gates come from the registry the `gates`
+   * input hands over, and the questions from the `questions` input, both read by the
+   * dock's model in its own scope.
+   */
   readonly diagnostics?: DiagnosticsOptions | undefined;
-  /** The registry of live guards; the gates feed subscribes in the model's scope. Absent: the panel says none was handed over. */
+  /**
+   * The registry of live guards, usually the feed's `gates` or `atoms.gates` from `@qadi/react`.
+   *
+   * Needs `instrument` on the `QadiProvider` to list anyone, so it is opt-in
+   * twice over — a host has to ask for the registry and then hand it here. The
+   * gates feed subscribes to it in the model's scope, so the host does not
+   * re-render when a guard mounts or goes (ADR-QD-162). Absent: the panel says none was
+   * handed over.
+   */
   readonly gates?: GateRegistryLike | undefined;
   /**
-   * The questions asked so far, usually `atoms.asked`.
+   * The questions asked so far, usually the feed's `questions` or `atoms.asked` from `@qadi/react`.
    *
    * Read by the gates feed on the diagnostics cadence and never by the poll, so a throw is stated in
-   * the panel and the poll keeps running (ADR-QD-169).
+   * the panel and the poll keeps running (ADR-QD-169). Hold it at module scope or in a
+   * `useMemo`, since the model reads it again when its identity changes.
    */
   readonly questions?: (() => ReadonlyArray<AskedQuestionLike>) | undefined;
-  /** A reading taken elsewhere: each field it carries wins; a change recomputes the merge and never restarts the poll. */
+  /**
+   * A reading taken elsewhere, such as another process's or a fixture's.
+   *
+   * Each field it carries takes precedence over the same field of what
+   * `diagnostics` samples, and a field it omits falls through to the sample
+   * (`mergeReading`). It answers "what did another process see", which sampling
+   * this one cannot: for this process, hand over `diagnostics` instead. Its
+   * `wiring` is a `WiringRead`, so a reading from elsewhere can state a failed
+   * read as well as a report; its `portCalls` come from `collectPortCalls` and
+   * need the collector's tracer layer wired where evaluations ran; its
+   * `questions` are usually `atoms.asked()` from `@qadi/react`. A change
+   * recomputes the merge and never restarts the poll.
+   */
   readonly reading?: DiagnosticsReading | undefined;
+  /**
+   * The application's own resolvers, for the simulator's `Live` source.
+   *
+   * The only way anything in this package performs I/O, so it is opt-in by the
+   * application author. Without it the simulator still works on fixtures, and
+   * the `Live` option is shown disabled with the reason.
+   */
   readonly ports?: EvaluationPortsLayer | undefined;
-  /** Read in the model's own scope; a new source (or capacity) supersedes the previous read. */
+  /** Where records come from, read in the model's own scope; a new source (or capacity) supersedes the previous read. Omitted, the dock renders empty rather than throwing. */
   readonly source?: Source | undefined;
 }
 

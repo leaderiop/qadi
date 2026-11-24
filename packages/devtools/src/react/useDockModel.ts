@@ -16,31 +16,15 @@
  * that branch, which is what keeps a hidden `Activity` from leaving one on a closed
  * model (ADR-QD-137).
  */
-import type { Catalogue } from "../model/Catalogue.ts";
-import type { DiagnosticsOptions, DiagnosticsReading } from "../model/DiagnosticsStore.ts";
-import { makeDockModel, type DockModel } from "../model/DockModel.ts";
-import type { AskedQuestionLike, GateRegistryLike } from "../model/Gates.ts";
-import type { EvaluationPortsLayer } from "../model/SimulationInput.ts";
-import type { Source } from "../model/Source.ts";
+import { makeDockModel, type DockModel, type DockModelInputs } from "../model/DockModel.ts";
 import { useConfigured } from "./useConfigured.ts";
 
-export interface UseDockModelInput {
-  readonly source?: Source | undefined;
-  readonly capacity?: number | undefined;
-  readonly catalogue?: Catalogue | undefined;
-  readonly ports?: EvaluationPortsLayer | undefined;
-  readonly diagnostics?: DiagnosticsOptions | undefined;
-  readonly reading?: DiagnosticsReading | undefined;
-  readonly gates?: GateRegistryLike | undefined;
-  readonly questions?: (() => ReadonlyArray<AskedQuestionLike>) | undefined;
-}
-
-const configureDock = (model: DockModel, inputs: UseDockModelInput): void => {
+const configureDock = (model: DockModel, inputs: DockModelInputs): void => {
   model.configure(inputs);
 };
 
-export const useDockModel = (input: UseDockModelInput): DockModel | undefined =>
+export const useDockModel = (inputs: DockModelInputs): DockModel | undefined =>
   // One scope per mounted dock: unmounting closes it, which interrupts the source read
   // and a simulation run in flight. The model diffs each field by identity and re-reads
   // on a new source or capacity, so the record is handed over whenever it changes.
-  useConfigured(makeDockModel, configureDock, input);
+  useConfigured(makeDockModel, configureDock, inputs);
