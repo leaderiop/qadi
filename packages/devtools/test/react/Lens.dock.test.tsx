@@ -5,9 +5,9 @@
  * props and on nothing the panel takes. Two properties are held here: the three document
  * listeners picking needs are added once on entering picking and are not touched again when
  * the listed guards change, and a pick made under `StrictMode` reveals its row once and is
- * still marked, with no second reveal, after the panel is left and entered again. A third
- * holds what the handler does with the page: the click a pick consumes has its default action
- * cancelled.
+ * still marked, with no second reveal, after the panel is left and entered again. Two more
+ * hold what the handlers do with the page: the click a pick consumes has its default action
+ * cancelled, and a click or a pointer move reaches a guard that registered after picking began.
  *
  * The registry, the guards and the pointer stub are written in this file on purpose: a shared
  * helper edited later would change what the file holds.
@@ -192,5 +192,36 @@ describe("the lens adapter through the dock", () => {
     });
     assert.isFalse(proceeded, "the picked link is not followed");
     assert.strictEqual(pickedRows().length, 1, "the guard picked");
+  });
+
+  it("a guard that registers while picking is found by the next pointer move and the next click", async () => {
+    const a = marker();
+    const b = marker();
+    const double = makeRegistry([guard("a", a)]);
+    render(<DevtoolsDock gates={double.registry} reading={{ questions: asked }} />);
+    await act(async () => {});
+    await toReact();
+    pointingAt(null);
+    await click(pickButton());
+
+    await act(async () => {
+      double.add(guard("b", b));
+    });
+    pointingAt(b);
+    await act(async () => {
+      fireEvent.pointerMove(document, { clientX: 5, clientY: 5 });
+    });
+    assert.deepStrictEqual(
+      [...document.querySelectorAll("[data-qadi-lens]")].map((overlay) => overlay.getAttribute("data-qadi-lens")),
+      ["b"],
+      "the late guard is the one drawn",
+    );
+
+    await clickDocument();
+    assert.deepStrictEqual(
+      screen.getAllByTestId("qadi-instance").map((row) => row.dataset["qadiPicked"]),
+      [undefined, "true"],
+      "the late guard is the one picked",
+    );
   });
 });

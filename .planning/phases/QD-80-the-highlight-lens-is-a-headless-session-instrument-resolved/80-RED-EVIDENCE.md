@@ -136,3 +136,9 @@ packages` showed only the intended files afterwards.
 The cell was run with `event.preventDefault();` deleted from the click handler.
 
 - failed: a click a pick consumes has its default action cancelled, and a click over no guard keeps it
+
+### WR-02 the guards are read when the event arrives
+
+The cell was run with the handlers reading a guard list captured when the listeners were added.
+
+- failed: a guard that registers while picking is found by the next pointer move and the next click
