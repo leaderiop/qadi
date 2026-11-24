@@ -107,3 +107,26 @@ directory; `git status --porcelain -- packages` printed nothing afterwards):
 On the restored tree it prints `pinned: 8 files hold their base text, 3 of 4 declared flips applied`, and `--all-applied`
 fails on `CR22` alone (the test equals its base and no `- flip CR22: ` line is recorded), which the restatement of CR22
 changes.
+
+## 81-04 callAll
+
+Each line below was printed by `pnpm exec vitest run --project devtools packages/devtools/test/model/ExternalStore.callAll.test.ts`
+on the phase base (`packages/devtools/src` equal to `phase_base`, stdin closed), from the repository root: 8 failed of 8. The
+module exports no `callAll`, so each test fails on the first call to it.
+
+- red on the base: callAll with no call returns and throws nothing
+  - failed on: TypeError: callAll is not a function (ExternalStore.ts exports no callAll)
+- red on the base: callAll runs every call in order and returns when none throws
+  - failed on: TypeError: callAll is not a function (ExternalStore.ts exports no callAll)
+- red on the base: callAll runs every call after one throws, then rethrows that value as itself
+  - failed on: TypeError: callAll is not a function (ExternalStore.ts exports no callAll)
+- red on the base: callAll rethrows a thrown undefined as undefined and a thrown null as null
+  - failed on: TypeError: callAll is not a function (ExternalStore.ts exports no callAll)
+- red on the base: callAll collects two or more throws into one AggregateError in call order, with the message it was given
+  - failed on: TypeError: callAll is not a function (ExternalStore.ts exports no callAll)
+- red on the base: callAll keeps one value thrown by two calls as two errors
+  - failed on: TypeError: callAll is not a function (ExternalStore.ts exports no callAll)
+- red on the base: callAll keeps an AggregateError a call threw as one error, never flattened
+  - failed on: TypeError: callAll is not a function (ExternalStore.ts exports no callAll)
+- red on the base: callAll over a live set calls a member added during the pass and skips one removed before its turn
+  - failed on: TypeError: callAll is not a function (ExternalStore.ts exports no callAll)
