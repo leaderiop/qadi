@@ -67,12 +67,10 @@ export const makeTimelineStore = (options?: { readonly capacity?: number }): Tim
     getSnapshot: view.getSnapshot,
 
     accept: (record) => {
-      const next = ingest(timeline, record);
-      // A duplicate returns the identical timeline, so this is where a replaying
-      // feed stops costing a render.
-      if (next === timeline) return;
-      timeline = next;
-      if (frozen === undefined) view.set(next);
+      timeline = ingest(timeline, record);
+      // A duplicate returns the identical timeline and `set` notifies only for a new
+      // reference, so a replaying feed costs no render.
+      if (frozen === undefined) view.set(timeline);
     },
 
     clear: () => {
