@@ -130,3 +130,16 @@ module exports no `callAll`, so each test fails on the first call to it.
   - failed on: TypeError: callAll is not a function (ExternalStore.ts exports no callAll)
 - red on the base: callAll over a live set calls a member added during the pass and skips one removed before its turn
   - failed on: TypeError: callAll is not a function (ExternalStore.ts exports no callAll)
+
+## 81-06 the dock
+
+CR22 was run as it stood against the rebuilt dock model (the sightings rail a derived store, `configure` seven steps through
+`callAll`), stdin closed, from the repository root. Each record failed on the explorer and the simulation alone, 3 received
+as 2; every other store's count was unchanged, and the one more on three stores once the poll has built is unchanged.
+
+- flip CR22: building 2, 2, 3, 3, 0, 1, 0, 2, 1 and 0, built 2, 2, 3, 3, 0, 2, 0, 3, 2 and 0 => building 2, 2, 2, 2, 0, 1, 0, 2, 1 and 0, built 2, 2, 2, 2, 0, 2, 0, 3, 2 and 0
+- CR22 is restated from DL16, red on the base
+
+A scratch-free correction found while turning DL15 green: its rail assertion listed the two sightings oldest first, while
+the rail is newest first (`policiesSeen` walks the timeline newest first), so the expected order was swapped to
+`canWrite`, `canRead`; the assertion that the explorer and the simulation hold the model's rail is unchanged.

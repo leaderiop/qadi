@@ -892,7 +892,7 @@ describe("the dock model", () => {
     });
   };
 
-  it.effect("CR22 a reader subscribed to every store of a bare dock before its first configure hears 2, 2, 3, 3, 0, 1, 0, 2, 1 and 0 notifications while the poll layer is still building, and one more on three stores once it has built", () =>
+  it.effect("CR22 a reader subscribed to every store of a bare dock before its first configure hears 2, 2, 2, 2, 0, 1, 0, 2, 1 and 0 notifications while the poll layer is still building, and one more on three stores once it has built", () =>
     Effect.gen(function* () {
       const building = yield* makeDockModel();
       const buildingCalls = heardOnEach(building);
@@ -902,9 +902,9 @@ describe("the dock model", () => {
       assert.deepStrictEqual(buildingCalls(), {
         timeline: 2,
         dock: 2,
-        explorer: 3,
+        explorer: 2,
         roles: 0,
-        simulation: 3,
+        simulation: 2,
         diagnostics: 1,
         timelineStatus: 0,
         questions: 2,
@@ -920,9 +920,9 @@ describe("the dock model", () => {
       assert.deepStrictEqual(builtCalls(), {
         timeline: 2,
         dock: 2,
-        explorer: 3,
+        explorer: 2,
         roles: 0,
-        simulation: 3,
+        simulation: 2,
         diagnostics: 2,
         timelineStatus: 0,
         questions: 3,
