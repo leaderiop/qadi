@@ -175,3 +175,12 @@ The new cell was run with `QuestionsPanel.tsx` and `useLens.ts` taken from the c
 `cp` afterwards (`while mounted: expected 2 to equal 1`; 1 failed, 2 passed).
 
 - failed: the panel holds one subscription to the lens while it is mounted and none after
+
+### IN-01 the react characterisation's title and header follow its flip
+
+`toggle-no-rerender` became a declared multi-line flip (`edits`: two header lines, the title and the assertion; the
+assertion line is the one seen red on the base above). The extended check was run against the file with only the
+assertion applied, and against the restored base text; the file was then moved by the script's own `flip` command.
+
+- check failed: 80-characterisation-check.mjs --all-flipped: flip toggle-no-rerender: only some of its edits are applied
+- check failed: 80-characterisation-check.mjs --all-flipped: flip toggle-no-rerender is not applied

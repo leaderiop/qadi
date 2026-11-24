@@ -2,8 +2,8 @@
  * Pins what toggling the provider's `instrument` does to a context consumer and to a
  * guard.
  *
- * A memoised component that reads the provider's context is rendered again when the
- * toggle flips, because the context value carries the flag; a guard registers when it
+ * A memoised component that reads the provider's context does not render again when the
+ * toggle flips, because the context value carries no flag; a guard registers when it
  * flips on and unregisters when it flips off. The registration cell is held as it is: it
  * is how a guard's reach to the registry is told apart from the context value. This file
  * is held to its first commit, with one declared change.
@@ -17,7 +17,7 @@ import { atoms, canRead, providerTree } from "./support/trees.tsx";
 
 describe("the instrument toggle", () => {
   it(
-    "a memoised consumer of the context renders again when instrument is toggled",
+    "a memoised consumer of the context does not render again when instrument is toggled",
     () => {
       let renders = 0;
       const Probe = memo(() => {

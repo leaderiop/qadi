@@ -4,7 +4,10 @@
 // every applied flip reverted to its `before` line, must equal that commit's file by sha256: the pins were written on
 // the code before the change, so a pin edited to follow it would stop guarding it. A flip is one whole line (its
 // indentation included) that occurs once in the file at `base`; applying it replaces that line with `after`, and
-// nothing else in the file may move. The run mode also refuses a `base` that is not the commit that added the file.
+// nothing else in the file may move. A flip that has to move several lines at once (a title, the sentence that says the
+// same thing and the assertion) declares them as `edits`, each a whole line like the one above, applied and reverted
+// together: a flip with only some of its edits applied is refused. `title` is always the test's title at the base, which
+// is the title the red evidence line names. The run mode also refuses a `base` that is not the commit that added the file.
 //
 // From the repository root:
 //   node <this file>                          holds each file to its first commit, flips reverted
@@ -57,8 +60,24 @@ const FILES = [
       {
         name: "toggle-no-rerender",
         title: "a memoised consumer of the context renders again when instrument is toggled",
-        before: "      expect(rendersOnToggle).toBe(1);",
-        after: "      expect(rendersOnToggle).toBe(0);",
+        edits: [
+          {
+            before: " * A memoised component that reads the provider's context is rendered again when the",
+            after: " * A memoised component that reads the provider's context does not render again when the",
+          },
+          {
+            before: " * toggle flips, because the context value carries the flag; a guard registers when it",
+            after: " * toggle flips, because the context value carries no flag; a guard registers when it",
+          },
+          {
+            before: '    "a memoised consumer of the context renders again when instrument is toggled",',
+            after: '    "a memoised consumer of the context does not render again when instrument is toggled",',
+          },
+          {
+            before: "      expect(rendersOnToggle).toBe(1);",
+            after: "      expect(rendersOnToggle).toBe(0);",
+          },
+        ],
       },
     ],
   },
@@ -68,39 +87,57 @@ const digest = (text) => createHash("sha256").update(text).digest("hex");
 const count = (lines, line) => lines.filter((l) => l === line).length;
 const replaceOnce = (lines, from, to) => lines.map((l) => (l === from ? to : l));
 
-/** Reasons a flip cannot be declared against the base text: its `before` must occur once and its `after` never. */
+/** The whole-line edits of a flip: its `edits`, or the one `before` / `after` pair it is written with. */
+const editsOf = (flip) => flip.edits ?? [{ before: flip.before, after: flip.after }];
+
+/** The reasons an edit is in neither clean state, prefixed by its flip's name and, when it has several, its number. */
+const unreadable = (flip, edit, lines) => {
+  const before = count(lines, edit.before);
+  const after = count(lines, edit.after);
+  const at = editsOf(flip).length > 1 ? `flip ${flip.name}: edit ${editsOf(flip).indexOf(edit) + 1}:` : `flip ${flip.name}:`;
+  if (before >= 1 && after >= 1) return `${at} its before and after lines are both present`;
+  if (before === 0 && after === 0) return `${at} neither its before nor its after line is present`;
+  return `${at} its before line occurs ${before} times and its after line ${after}`;
+};
+
+const isUnapplied = (lines, edit) => count(lines, edit.before) === 1 && count(lines, edit.after) === 0;
+const isApplied = (lines, edit) => count(lines, edit.after) === 1 && count(lines, edit.before) === 0;
+
+/** Reasons a flip cannot be declared against the base text: each `before` must occur once and each `after` never. */
 export const judgeFlips = (baseText, flips) => {
   const lines = baseText.split("\n");
-  return flips.flatMap((flip) => {
-    const bad = [];
-    const before = count(lines, flip.before);
-    if (before !== 1) bad.push(`flip ${flip.name}: its before line occurs ${before} times at the base, not once`);
-    if (count(lines, flip.after) !== 0) bad.push(`flip ${flip.name}: its after line is already present at the base`);
-    return bad;
-  });
+  return flips.flatMap((flip) =>
+    editsOf(flip).flatMap((edit, index, all) => {
+      const bad = [];
+      const at = all.length > 1 ? `flip ${flip.name}: edit ${index + 1}:` : `flip ${flip.name}:`;
+      const before = count(lines, edit.before);
+      if (before !== 1) bad.push(`${at} its before line occurs ${before} times at the base, not once`);
+      if (count(lines, edit.after) !== 0) bad.push(`${at} its after line is already present at the base`);
+      return bad;
+    }),
+  );
 };
 
 /**
  * The text with every applied flip reverted, which flips were applied, and the reasons a flip is unreadable.
- * A flip is applied when its `after` occurs once and its `before` never, unapplied the other way round; both present,
- * either twice, or neither is refused.
+ * A flip is applied when each of its edits has its `after` once and its `before` never, unapplied the other way round;
+ * a flip with both kinds of edit, an edit with both lines present, either line twice, or neither is refused.
  */
 export const revert = (currentText, flips) => {
   let lines = currentText.split("\n");
   const applied = [];
   const reasons = [];
   for (const flip of flips) {
-    const before = count(lines, flip.before);
-    const after = count(lines, flip.after);
-    if (before === 1 && after === 0) continue;
-    if (after === 1 && before === 0) {
+    const edits = editsOf(flip);
+    if (edits.every((edit) => isUnapplied(lines, edit))) continue;
+    if (edits.every((edit) => isApplied(lines, edit))) {
       applied.push(flip.name);
-      lines = replaceOnce(lines, flip.after, flip.before);
+      for (const edit of edits) lines = replaceOnce(lines, edit.after, edit.before);
       continue;
     }
-    if (before >= 1 && after >= 1) reasons.push(`flip ${flip.name}: its before and after lines are both present`);
-    else if (before === 0 && after === 0) reasons.push(`flip ${flip.name}: neither its before nor its after line is present`);
-    else reasons.push(`flip ${flip.name}: its before line occurs ${before} times and its after line ${after}`);
+    const odd = edits.filter((edit) => !isUnapplied(lines, edit) && !isApplied(lines, edit));
+    if (odd.length > 0) reasons.push(...odd.map((edit) => unreadable(flip, edit, lines)));
+    else reasons.push(`flip ${flip.name}: only some of its edits are applied`);
   }
   return { text: lines.join("\n"), applied, reasons };
 };
@@ -126,13 +163,13 @@ export const applyFlips = (text, flips, names) => {
   let lines = text.split("\n");
   const reasons = [];
   for (const flip of wanted) {
-    const before = count(lines, flip.before);
-    const after = count(lines, flip.after);
-    if (before !== 1 || after !== 0) {
-      reasons.push(`flip ${flip.name}: not unapplied (its before line occurs ${before} times, its after line ${after})`);
+    const edits = editsOf(flip);
+    if (!edits.every((edit) => isUnapplied(lines, edit))) {
+      const seen = edits.map((edit) => `${count(lines, edit.before)}/${count(lines, edit.after)}`).join(", ");
+      reasons.push(`flip ${flip.name}: not unapplied (its before and after lines occur ${seen} times)`);
       continue;
     }
-    lines = replaceOnce(lines, flip.before, flip.after);
+    for (const edit of edits) lines = replaceOnce(lines, edit.before, edit.after);
   }
   return reasons.length > 0 ? { reasons } : { text: lines.join("\n"), reasons };
 };
@@ -143,6 +180,33 @@ export const judgeRed = (evidenceText, flips) => {
   return flips
     .filter((flip) => !lines.includes(`- red on the base (${flip.name}): ${flip.title}`))
     .map((flip) => `no red line in the evidence for flip ${flip.name}: - red on the base (${flip.name}): ${flip.title}`);
+};
+
+/** A flip of three lines moved together: the title, the sentence that says the same thing and the assertion. */
+const multiCases = () => {
+  const flip = {
+    name: "multi",
+    title: "t",
+    edits: [
+      { before: "// says 0", after: "// says 1" },
+      { before: '  it("zero", () => {', after: '  it("one", () => {' },
+      { before: "  expect(n).toBe(0);", after: "  expect(n).toBe(1);" },
+    ],
+  };
+  const base = ["// says 0", '  it("zero", () => {', "  expect(n).toBe(0);", "});", ""].join("\n");
+  const entry = { file: "m.tsx", base: "0123456789abcdef" };
+  const flipped = base.replace("says 0", "says 1").replace('"zero"', '"one"').replace("toBe(0)", "toBe(1)");
+  const run = (current, allFlipped = false) => judge(entry, base, current, [flip], allFlipped);
+  return [
+    ["a multi-line flip applied whole passes and is reported", (() => { const r = run(flipped, true); return r.reasons.length === 0 && r.applied.join() === "multi"; })()],
+    ["a multi-line flip unapplied passes", run(base).reasons.length === 0],
+    ["a multi-line flip with only its assertion applied is refused", run(base.replace("toBe(0)", "toBe(1)")).reasons.some((r) => r.includes("only some of its edits are applied"))],
+    ["a multi-line flip with only its title left unapplied is refused", run(flipped.replace('"one"', '"zero"')).reasons.some((r) => r.includes("only some of its edits are applied"))],
+    ["a multi-line flip with one line edited to a third text is refused, naming the edit", run(flipped.replace("says 1", "says 2")).reasons.some((r) => r.includes("edit 1: neither"))],
+    ["a multi-line flip declared over a line absent at the base is refused, naming the edit", judgeFlips(base.replace("// says 0\n", ""), [flip]).some((r) => r.includes("edit 1: its before line occurs 0"))],
+    ["flip applies every line of a multi-line flip", applyFlips(base, [flip], ["multi"]).text === flipped],
+    ["flip of a partly applied multi-line flip is refused", applyFlips(base.replace("toBe(0)", "toBe(1)"), [flip], ["multi"]).reasons.length === 1],
+  ];
 };
 
 const selfTest = () => {
@@ -171,6 +235,7 @@ const selfTest = () => {
     ["flip of an unknown name is refused", applyFlips(base, flips, ["nope"]).reasons.length === 1],
     ["a flip with no red line is named", judgeRed("- red on the base (one): t\n", flips).length === 1],
     ["every flip with a red line passes", judgeRed("- red on the base (one): t\n- red on the base (two): t\n", flips).length === 0],
+    ...multiCases(),
   ];
   const failed = cases.filter(([, ok]) => !ok).map(([name]) => name);
   if (failed.length > 0) {
