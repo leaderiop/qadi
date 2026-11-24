@@ -1339,3 +1339,48 @@ A headless host configures before it subscribes: a reader subscribed to a feed b
 `makeSimulationSession` and `useSimulationSession` are unchanged: the session has no `configure`, and its input is read once when it is built.
 
 The decision is [ADR-QD-192](https://github.com/leaderiop/qadi/blob/main/spec/decisions/192-feeds-and-the-dock-model-take-inputs-only-through-configure.md).
+
+## 0.13: `QadiContextValue` no longer carries `instrument`
+
+`QadiContextValue`, the value `useQadiContext` returns, is now `atoms`, `registry` and `gates`. It held `instrument` too, a copy of the provider's prop that nothing in `@qadi/react` read: whether a guard registers is decided by the writer the provider resolves once from that prop, and the writer stays off the context. Because the flag was in the value, toggling `instrument` gave every `useQadiContext` consumer a new value and rendered each of them again; now only the guards register and unregister.
+
+| Change | Before | After |
+| ------ | ------ | ----- |
+| `QadiContextValue` | `atoms`, `registry`, `instrument` and `gates` | `atoms`, `registry` and `gates` |
+| toggling `instrument` | every `useQadiContext` consumer rendered again | only guards re-register |
+
+A component that read `useQadiContext(...).instrument` reads the flag its host passed to `QadiProvider`'s `instrument` prop instead. Before:
+
+```ts
+import { useQadiContext } from "@qadi/react";
+
+export const InstrumentBadge = () => {
+  const { instrument } = useQadiContext("InstrumentBadge");
+  return <span>{instrument ? "instrumented" : "plain"}</span>;
+};
+```
+
+After, the host keeps its own flag, passes it to `QadiProvider` and to the component that needs it, and a component that reads the context takes `gates`:
+
+```tsx
+import { EvaluationServicesNone, makeSubject } from "@qadi/core";
+import { QadiProvider, makeQadiAtoms, useQadiContext } from "@qadi/react";
+
+const atoms = makeQadiAtoms(EvaluationServicesNone);
+const reader = makeSubject({ id: "u1", permissions: ["doc:read"] });
+
+const InstrumentBadge = (props: { readonly instrumented: boolean }) => {
+  const { gates } = useQadiContext("InstrumentBadge");
+  return (
+    <span>{props.instrumented ? `${gates.instances().length} guards mounted` : "plain"}</span>
+  );
+};
+
+export const App = (props: { readonly instrumented: boolean }) => (
+  <QadiProvider atoms={atoms} subject={reader} instrument={props.instrumented}>
+    <InstrumentBadge instrumented={props.instrumented} />
+  </QadiProvider>
+);
+```
+
+The decision is [ADR-QD-193](https://github.com/leaderiop/qadi/blob/main/spec/decisions/193-the-highlight-lens-is-a-headless-session-the-dock-model-owns.md).
