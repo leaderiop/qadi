@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-193                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-24                                     |
 > | Status         | Accepted — amends ADR-QD-185, ADR-QD-047 and ADR-QD-111 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-24): the behaviours and invariants that state it are linked (CCR-QD-472)<br>1.0 (2026-11-24): Initial (ARCH-127) |
+> | Change History | 1.2 (2026-11-24): the review's corrections: the reveal belongs to its pick, the click placed by its element and swallowed whatever a subscriber does, the capture wording (CCR-QD-472)<br>1.1 (2026-11-24): the behaviours and invariants that state it are linked (CCR-QD-472)<br>1.0 (2026-11-24): Initial (ARCH-127) |
 
 ---
 
@@ -72,8 +72,8 @@ React hook, and a field of the provider's context had no reader.
    | `toggle()` | `Picking { [] }`, reveal disarmed | `Idle { [], undefined }` | nothing |
    | `hover(id)` | no-op | `Picking { [id] }`, or `Picking { [] }` for `undefined`; the same guard is a no-op | nothing |
    | `choose(id)` | no-op | a guard: `Idle { [], id }` and the reveal armed for it; `undefined`: no-op | `true` only when it moved to `Idle` with a pick |
-   | `cancel()` | `Idle { [], p }`; a no-op when nothing is drawn | `Idle { [], undefined }` | nothing |
-   | `highlight(ids)` | `Idle { ids, p }`; the same elements in the same order are a no-op | `Idle { ids, undefined }`, ending picking | nothing |
+   | `cancel()` | `Idle { [], p }`; a no-op when nothing is drawn, and the reveal disarmed either way | `Idle { [], undefined }` | nothing |
+   | `highlight(ids)` | `Idle { ids, p }`; the same elements in the same order are a no-op, and the reveal disarmed either way | `Idle { ids, undefined }`, ending picking | nothing |
    | `takeReveal(id)` | `true` once, if armed for `id` | the same | a boolean; never publishes |
 
    `choose` answers whether the click it was given is consumed, so the adapter decides it synchronously inside the capture
@@ -105,6 +105,14 @@ React hook, and a field of the provider's context had no reader.
    - **Listeners.** It adds the three document listeners when the snapshot becomes `Picking` and removes them when it stops
      being so, with dependencies `[picking, lens, questions]`. Each handler reads `questions.getSnapshot().instances` when
      the event arrives, so a change in the listed guards adds and removes nothing.
+   A click is placed by `gateIdOfClick`: by its coordinates when it reports a pointer, and by the element it was made on
+   when it reports none, as a click made from the keyboard does, because the point such a click carries is the page's
+   corner. The handler finds the guard first, then calls `choose` inside a `try` and swallows the click in its `finally`
+   unless `choose` answered `false`: `choose` notifies only when the pick moved, so a throw out of it means the pick was
+   made, and the subscriber's failure still reaches the dispatch (ADR-QD-177). The click listener is in the capture phase,
+   which keeps the target and bubble handlers of the page from seeing the click; a listener on the window's capture phase,
+   or an earlier one on the document's, still does. `useLens` returns the snapshot it read, so the panel that draws from
+   the same session holds one subscription and not two.
    - **Exit on unmount.** An effect keyed on `[lens]` alone whose cleanup calls `lens.cancel()`. It is its own effect because
      the listeners' effect re-runs on every mode change: a `cancel()` in its cleanup would wipe a highlight that
      `highlight` had just drawn while ending picking (decision 3).
@@ -131,9 +139,11 @@ React hook, and a field of the provider's context had no reader.
 8. **A picked row reveals itself once per pick, never on a remount.** With the pick kept, a row that marks itself picked on
    mount would scroll the panel at every return to the tab. `choose` arms a one-shot reveal for the chosen guard before it
    publishes, so a listener told of the pick can take it, and `takeReveal(id)` answers `true` once, for that guard only, and
-   disarms it. `toggle` disarms it, and `takeReveal` publishes nothing, because it is an event and not state. The row's
+   disarms it. A reveal belongs to the moment of its pick: `toggle`, `cancel` and `highlight` disarm it, whether or not they
+   moved the snapshot, and `hover` leaves it. `takeReveal` publishes nothing, because it is an event and not state. The row's
    effect is `if (picked && session.takeReveal(instance.id)) node.current?.scrollIntoView(...)`. A row not rendered when the
-   pick happened reveals itself the first time it mounts after the pick, which is the first reveal and not a re-fire, and
+   pick happened reveals itself the first time it mounts after the pick, which is the first reveal and not a re-fire, unless
+   the reader has left the panel or asked for a drawing in between, which dropped it, and
    under StrictMode the double-mounted effect takes the reveal on its first run and reads `false` on its second. A `useRef`
    "mounted already picked" guard in the row was rejected: it keeps the rule in React, outside the mutation gate, and it
    would skip that first reveal.
@@ -176,7 +186,7 @@ names the test that holds its after.
 | Behaviour | Before | After | Held by |
 | --------- | ------ | ----- | ------- |
 | The pick after a tab switch | A pick, then a switch to the log and back: the row is not marked, picking is off, no overlay remains, and the pick button reads "pick a control on the page" | The row is still marked with its existing `data-qadi-picked` background, and the panel does not scroll on the return; picking is off and no overlay remains | `Lens.dock.characterisation.test.tsx`, "a pick, then a switch to the log and back"; `Lens.dock.test.tsx`, "under StrictMode a pick reveals its row once, and after a switch to the log and back the row is still marked with no second reveal" |
-| The reveal | The row's effect scrolls it into view whenever it mounts picked | It scrolls once for the pick that was made | `LensSession.test.ts`, "a pick reveals its row once, and only for its own guard; toggle disarms a reveal that was not taken; takeReveal publishes nothing" |
+| The reveal | The row's effect scrolls it into view whenever it mounts picked | It scrolls once for the pick that was made | `LensSession.test.ts`, "a pick reveals its row once, and only for its own guard; toggle, cancel and highlight disarm a reveal that was not taken and hover does not; takeReveal publishes nothing" |
 | Highlight pressed while picking | Picking stays on, the overlays are drawn, and the next pointer move over the dock removes them | Picking ends and the overlays stay | `Lens.dock.characterisation.test.tsx`, "the highlight button pressed while picking"; `LensSession.test.ts`, the cell whose title ends "highlight while picking ends picking and draws the guards asked for" |
 | Two pointer moves over one guard | The panel re-renders and the overlay element is replaced each time | Nothing is published and the overlay element is the same | `Lens.dock.characterisation.test.tsx`, "two pointer moves over one guard while picking"; `LensSession.test.ts`, the cell whose title contains "a hover over the guard already drawn publishes nothing" |
 | A change in the listed guards while picking | The three document listeners are removed and added again | Nothing is removed or added | `Lens.dock.test.tsx`, "entering picking adds three document listeners, and a change in the listed guards while picking adds none" |
@@ -229,7 +239,10 @@ holds the bare store. `packages/devtools/test/model/ConfigureRule.test.ts` holds
 title listing ten counts).
 
 **The adapter and the panel through the dock.** `packages/devtools/test/react/Lens.dock.test.tsx` holds decision 6's
-listeners and decision 8's single reveal under StrictMode. `packages/devtools/test/react/Lens.dock.characterisation.test.tsx`
+listeners, the default action of a swallowed click, the guard list read when the event arrives, and decision 8's single reveal under
+StrictMode. `packages/devtools/test/react/Lens.adapter.test.tsx` holds the click swallowed when a subscriber throws, the click
+with no pointer placed by its target, and the panel's one subscription; `packages/devtools/test/react/Lens.click.test.ts` holds
+`gateIdOfClick`. `packages/devtools/test/react/Lens.dock.characterisation.test.tsx`
 was written before the hook changed and is held to its first commit by a recorded hash, with exactly four declared flips
 (the pick kept, the highlight ending picking, the overlay surviving the next move, and the same overlay element); its other
 cells hold what did not change: "a pick on a guard swallows its click and ends picking", "a click over no guard goes through
