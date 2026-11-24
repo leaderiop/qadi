@@ -4,8 +4,8 @@
  * A field omitted and one holding `undefined` are one input, so a configure that hands either
  * publishes nothing, restarts nothing and reads no host code. A field added to an input type must
  * be compared, and each moved-alone table below is keyed by a complete record of that type, so a
- * new field fails to compile until it has a row. The cells that build with inputs exist only while
- * the constructors take them; the rest hold for the bare build a host's hook makes.
+ * new field fails to compile until it has a row. Every cell builds bare and configures, as a host's
+ * hook does.
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";

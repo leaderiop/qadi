@@ -298,3 +298,12 @@ The other two cells of `DockRegistryReads.test.tsx` passed against that edit, so
 - failed: a re-render that moves an input of the gates feed reads the registry once
 
 The six module-scope arrows the phase added (`completeTimelineInputs`, `completeDiagnosticsOptions`, `completeGatesInputs`, `sameFieldsOrAbsent`, `completeDockInputs`, `feedInputsOf`) are `ArrowFunction () => undefined` mutants Stryker ignores as static. Each was run by hand with `ignoreStatic: false` on the final head and is Killed there; the by-hand report of each file also holds the base's own inherited static survivors, which the base already counted as Ignored.
+
+## 79 review fix
+
+### IN-02 the retitled cell
+
+The scratch edit was applied to `packages/devtools/src/model/DockModel.ts` and run with `pnpm exec vitest run --project devtools packages/devtools/test/model/DockModel.test.ts`; the file was restored from a copy taken just before it, and `git status --porcelain -- packages/devtools/src` is empty afterwards. The cell is the same test under a new title (its body and assertions are unchanged); the pinned check still reports 15 tests holding their assertions.
+
+- edit T1: `DockModel.ts:398`: `spread();` replaced by `void 0;` in `configure`, so a new catalogue never reaches the rails
+- failed: a catalogue handed to a bare model's first configure fills both rails and the role list at once

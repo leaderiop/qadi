@@ -588,7 +588,7 @@ describe("the model's scope ends what the model started (M13, M15, M16)", () => 
 });
 
 describe("what configure and the stores hold back (M2 b, M10 d, M15 b-d, M17)", () => {
-  it.effect("M2 (b): a catalogue given at construction fills both rails and the role list at once", () =>
+  it.effect("M2 (b): a catalogue handed to a bare model's first configure fills both rails and the role list at once", () =>
     Effect.gen(function* () {
       const model = yield* dockModelOf({ catalogue: { policies: { canRead: readPolicy }, roles: [editor] } });
 
