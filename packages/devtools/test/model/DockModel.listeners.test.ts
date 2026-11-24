@@ -496,6 +496,51 @@ describe("a dock whose host listener throws", () => {
     }),
   );
 
+  it.effect("DL18 two listeners on one store that both throw during a configure are rethrown as that store's one AggregateError, whole", () =>
+    Effect.gen(function* () {
+      const fx = fixtures();
+      const model = yield* setUp(5);
+      const first = new Error("a first roles listener threw");
+      const second = new Error("a second roles listener threw");
+      throwOnce(model.roles, first);
+      throwOnce(model.roles, second);
+
+      const run = thrownBy(() => model.configure(fx.wanted()));
+      yield* applied(model, fx, entriesFrom(5));
+
+      const { thrown } = run;
+      if (!(thrown instanceof AggregateError)) return assert.fail("expected an AggregateError");
+      assert.deepStrictEqual(thrown.errors, [first, second]);
+      assert.strictEqual(thrown.message, "More than one of the store's listeners threw.");
+    }),
+  );
+
+  it.effect("DL19 a step whose listeners threw twice is one nested AggregateError beside the other step's throw, never flattened", () =>
+    Effect.gen(function* () {
+      const fx = fixtures();
+      const model = yield* setUp(5);
+      const timelineBoom = new Error("a timeline listener threw");
+      const first = new Error("a first roles listener threw");
+      const second = new Error("a second roles listener threw");
+      throwOnce(model.timeline, timelineBoom);
+      throwOnce(model.roles, first);
+      throwOnce(model.roles, second);
+
+      const run = thrownBy(() => model.configure(fx.wanted()));
+      yield* applied(model, fx, entriesFrom(5));
+
+      const { thrown } = run;
+      if (!(thrown instanceof AggregateError)) return assert.fail("expected an AggregateError");
+      assert.strictEqual(thrown.message, "More than one step of the dock's configure threw.");
+      assert.strictEqual(thrown.errors.length, 2);
+      assert.strictEqual(thrown.errors[0], timelineBoom);
+      const nested = thrown.errors[1];
+      if (!(nested instanceof AggregateError)) return assert.fail("expected a nested AggregateError");
+      assert.deepStrictEqual(nested.errors, [first, second]);
+      assert.strictEqual(nested.message, "More than one of the store's listeners threw.");
+    }),
+  );
+
   it.effect("DL20 a source whose records reach an always-throwing explorer listener is read until the first of them and the status says it stopped", () =>
     Effect.gen(function* () {
       const boom = new Error("an explorer listener threw");
