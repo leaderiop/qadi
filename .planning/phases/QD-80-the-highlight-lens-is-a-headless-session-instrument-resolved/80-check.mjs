@@ -182,10 +182,13 @@ export const judgeIds = (entries) => {
   const bad = [];
   for (const entry of entries) {
     const history = entry.file.startsWith("spec/") ? entry.text.split("\n").findIndex((l) => /^#{1,6}\s.*Change History/i.test(l)) + 1 : 0;
-    for (const { n, line } of addedOf(entry)) {
+    for (const { n, line: whole } of addedOf(entry)) {
+      // A spec document keeps its history in the Document Control row too, one line spanning every older entry: only
+      // the newest entry, the one before the first `<br>`, is new text, and it is history, so wording is exempt there.
+      const row = entry.file.startsWith("spec/") && whole.startsWith("> | Change History |");
+      const line = row ? whole.split("<br>")[0] : whole;
       for (const [re, what] of ID_TOKENS) if (re.test(line)) bad.push(`${entry.file}:${n} names ${what}: ${line.trim()}`);
-      // A spec document keeps its history in the Document Control row too, one line that spans every older entry.
-      const inHistory = (history > 0 && n >= history) || (entry.file.startsWith("spec/") && line.startsWith("> | Change History |"));
+      const inHistory = row || (history > 0 && n >= history);
       if (!PHRASE_EXEMPT(entry.file) && !inHistory && PHRASE.test(line)) bad.push(`${entry.file}:${n} has phase-relative wording: ${line.trim()}`);
     }
   }
@@ -443,6 +446,7 @@ it("has \\"quotes\\"", () => {});`;
   const header = "> | Change History | 1.1 (2026-11-24): a row\n> | Status | no longer here\n";
   eq("a phrase in the Document Control history row is exempt", judgeIds([{ file: "spec/a.md", text: header.replace("a row", "no longer a row"), added: new Set([1]) }]), []);
   eq("a phrase in another Document Control row is flagged", judgeIds([{ file: "spec/a.md", text: header, added: new Set([2]) }]).length, 1);
+  eq("an older entry of the Document Control history row is not new text", judgeIds([{ file: "spec/a.md", text: "> | Change History | 1.2 (2026-11-24): a row<br>1.1 (2026-11-10): D-01 approved, no longer<br>1.0 (2026-11-09): Initial\n", added: new Set([1]) }]), []);
   eq("an id in the Document Control history row is still flagged", judgeIds([{ file: "spec/a.md", text: "> | Change History | 1.1 (2026-11-24): LENS-01\n", added: new Set([1]) }]).length, 1);
 
   const src = "packages/devtools/src/model/A.ts";

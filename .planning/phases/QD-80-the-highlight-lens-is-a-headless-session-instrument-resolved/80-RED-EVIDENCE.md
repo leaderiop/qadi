@@ -119,3 +119,9 @@ under a Change History heading, which the judge looked for. The judge now treats
 holds three cases (the row is exempt, another Document Control row is flagged, an id in the row is flagged).
 
 - check failed: scan-ids: spec/traceability.md:13 has phase-relative wording
+
+`scan-ids` was run again after the CCR-QD-472 row and the README revision, and failed on the same one-line row of
+`spec/README.md`, whose older entries hold a decision number; only the newest entry of that row is new text, so the judge
+now reads the text before its first `<br>`.
+
+- check failed: scan-ids: spec/README.md:13 names a decision number
