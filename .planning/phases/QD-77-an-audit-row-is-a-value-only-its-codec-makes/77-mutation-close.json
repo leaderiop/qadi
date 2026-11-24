@@ -1,0 +1,259 @@
+{
+ "phase": "77",
+ "groups": {
+  "entry": {
+   "head": "6cb2fa2bc4888249d4bb6c31918e89eafecccc9a",
+   "invocation": "pnpm exec stryker run stryker.audit.mjs --mutate packages/audit/src/AuditEntry.ts",
+   "files": {
+    "packages/audit/src/AuditEntry.ts": {
+     "killed": 11,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 6,
+     "detected": 11,
+     "valid": 11,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 114,
+       "column": 43
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 129,
+       "column": 17
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 130,
+       "column": 3
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 130,
+       "column": 18
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrayDeclaration",
+       "replacement": "[]",
+       "line": 130,
+       "column": 38
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 130,
+       "column": 39
+      }
+     ]
+    }
+   }
+  },
+  "facts": {
+   "head": "6cb2fa2bc4888249d4bb6c31918e89eafecccc9a",
+   "invocation": "pnpm exec stryker run stryker.audit.mjs --mutate packages/audit/src/ArchiveFacts.ts",
+   "files": {
+    "packages/audit/src/ArchiveFacts.ts": {
+     "killed": 50,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 3,
+     "detected": 50,
+     "valid": 50,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 57,
+       "column": 22
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 109,
+       "column": 62
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 123,
+       "column": 47
+      }
+     ]
+    }
+   }
+  },
+  "archive": {
+   "head": "6cb2fa2bc4888249d4bb6c31918e89eafecccc9a",
+   "invocation": "pnpm exec stryker run stryker.audit.mjs --mutate packages/audit/src/AuditArchive.ts",
+   "files": {
+    "packages/audit/src/AuditArchive.ts": {
+     "killed": 62,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 15,
+     "detected": 62,
+     "valid": 62,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 52,
+       "column": 59
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 98,
+       "column": 25
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 130,
+       "column": 44
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 200,
+       "column": 58
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 267,
+       "column": 41
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 273,
+       "column": 39
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 275,
+       "column": 27
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 284,
+       "column": 58
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 284,
+       "column": 73
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrayDeclaration",
+       "replacement": "[]",
+       "line": 284,
+       "column": 93
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 284,
+       "column": 94
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 287,
+       "column": 24
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 288,
+       "column": 14
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 289,
+       "column": 16
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 293,
+       "column": 16
+      }
+     ]
+    }
+   }
+  },
+  "retention": {
+   "head": "6cb2fa2bc4888249d4bb6c31918e89eafecccc9a",
+   "invocation": "pnpm exec stryker run stryker.audit.mjs --mutate packages/audit/src/Retention.ts",
+   "files": {
+    "packages/audit/src/Retention.ts": {
+     "killed": 52,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 2,
+     "detected": 52,
+     "valid": 52,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 37,
+       "column": 61
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 122,
+       "column": 26
+      }
+     ]
+    }
+   }
+  }
+ }
+}
