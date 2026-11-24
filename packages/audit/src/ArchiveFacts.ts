@@ -17,14 +17,17 @@
  * re-exports them. The check is gap-and-duplicate detection, not tamper-evidence
  * (see that file).
  *
- * A row's `sequenceNumber` is a safe integer here without being checked: only
- * `decodeAuditEntry` gives a row one, and its codec states the rule once
- * (`AuditEntry.ts`, ADR-QD-190), so {@link firstBreakIn} never adds one past
- * `2 ** 53`.
+ * A row's `sequenceNumber` is a safe integer here without being checked here: only
+ * `decodeAuditEntry` gives a row one, its codec states the rule once (`AuditEntry.ts`,
+ * ADR-QD-190), and {@link verifiedArchiveFacts} takes only rows the codec made
+ * (`CodecMade.ts`), so a number outside the safe integers never reaches
+ * {@link firstBreakIn}, which never adds one past `2 ** 53`. The pure
+ * {@link archiveFacts} is the reader's, over rows it has just decoded.
  */
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import type { AuditEntry } from "./AuditEntry.ts";
+import { firstNotCodecMade } from "./CodecMade.ts";
 
 /** The first place a sorted run of sequence numbers is not `previous + 1`. */
 export interface SequenceBreak {
@@ -106,14 +109,37 @@ export const archiveFacts = (entries: ReadonlyArray<AuditEntry>): ArchiveFacts =
   };
 };
 
+/**
+ * An archive function refused its input: `field` says which, and `value` is the
+ * offending number.
+ *
+ * - `now`: `archiveAuditTrail`'s `now` is not a finite number. A non-finite `createdAt`
+ *   is a bundle `readAuditArchive` refuses as `Malformed`, so the writer refuses it
+ *   first rather than hand a store an archive that blocks every purge needing it.
+ * - `entries`: `value` is the index of the first entry in the list that the codec did
+ *   not make (`CodecMade.ts`). The compiler refuses such a row where it can, and `any`
+ *   (a store client's `JSON.parse`, an untyped ORM result) and JavaScript callers
+ *   pass it. A row the codec did not make may be one `readAuditArchive` refuses, so
+ *   the writer and `verifySequenceIntegrity` refuse it first (ADR-QD-190).
+ *
+ * Shaped like `RetentionInputInvalid` (`Retention.ts`), and a different error,
+ * because `field` names which call refused. A closed `field` is the whole set of
+ * inputs these functions guard.
+ */
+export class ArchiveInputInvalid extends Data.TaggedError("ArchiveInputInvalid")<{
+  readonly field: "now" | "entries";
+  readonly value: number;
+}> {}
+
 export class SequenceIntegrityError extends Data.TaggedError("SequenceIntegrityError")<{
   readonly expectedSequence: number;
   readonly actualSequence: number;
 }> {}
 
 /**
- * The facts of `entries`, or `SequenceIntegrityError` at their first gap or
- * duplicate: the writer's reading of them.
+ * The facts of `entries`, or `ArchiveInputInvalid` at the first entry the codec did
+ * not make, or `SequenceIntegrityError` at their first gap or duplicate: the writer's
+ * reading of them.
  *
  * The Effect wrapper `archiveAuditTrail` needs, and the one place a break becomes
  * a failure (ARCH-48, ADR-QD-110). The span keeps the name it had before the facts
@@ -123,6 +149,10 @@ export class SequenceIntegrityError extends Data.TaggedError("SequenceIntegrityE
 export const verifiedArchiveFacts = Effect.fn("qadi.audit.verifySequenceIntegrity")(function* (
   entries: ReadonlyArray<AuditEntry>,
 ) {
+  const notMade = firstNotCodecMade(entries);
+  if (notMade !== undefined) {
+    return yield* Effect.fail(new ArchiveInputInvalid({ field: "entries", value: notMade }));
+  }
   const facts = archiveFacts(entries);
   if (facts.sequenceBreak !== undefined) {
     return yield* Effect.fail(new SequenceIntegrityError(facts.sequenceBreak));
@@ -132,7 +162,8 @@ export const verifiedArchiveFacts = Effect.fn("qadi.audit.verifySequenceIntegrit
 
 /**
  * Fails `SequenceIntegrityError` at the first gap or duplicate among the
- * entries' sequence numbers.
+ * entries' sequence numbers, or `ArchiveInputInvalid` naming `entries` and the
+ * index of the first entry the codec did not make.
  *
  * Entries with no `sequenceNumber` are ignored — sequencing is opt-in, and a
  * caller who never assigns one has nothing here to verify.

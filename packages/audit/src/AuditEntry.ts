@@ -43,6 +43,7 @@ import {
   SinkRecordNotDecodable,
   untrustedDecoder,
 } from "@qadi/core";
+import { markCodecMade } from "./CodecMade.ts";
 
 /**
  * The optional gap-detection field of a row's bytes: a safe integer, so `1.5`,
@@ -50,7 +51,7 @@ import {
  *
  * The one statement of the safe-integer rule. Only {@link decodeAuditEntry}
  * gives a row a number, so every `sequenceNumber` in memory is a safe integer,
- * and `firstBreakIn` (`ArchiveFacts.ts`) never adds one past `2 ** 53`, where
+ * and `firstBreakIn` (`ArchiveFacts.ts`) never subtracts past `2 ** 53`, where
  * `n + 1 === n` would hide a duplicate (ADR-QD-110, ADR-QD-190).
  */
 const SequenceNumber = Schema.optional(Schema.Int);
@@ -62,7 +63,11 @@ const SequenceNumber = Schema.optional(Schema.Int);
  * The writer and the purge read a row's fields as its identity (`holds`,
  * `planPurge`), so only the codec may make one: the class is module-local,
  * exported as a type alone, and its private `nominal` member keeps an object
- * literal or a spread of the same shape from passing for one (ADR-QD-190).
+ * literal or a spread of the same shape from passing for one. That is a compile-time
+ * guard, and `any` passes it: a store client's `JSON.parse` result is assignable to the
+ * type. So each row the codec makes is also recorded in `CodecMade.ts`, and the archive
+ * writer, `verifySequenceIntegrity` and `planRetention` refuse a row that was not made
+ * there, naming its index (ADR-QD-190).
  *
  * `record` is the encoded wire (see this module's doc comment); its `Type` is
  * already JSON-shaped, so a store persists `JSON.stringify(entry)` as it is, and
@@ -117,7 +122,7 @@ export const encodeAuditEntry = Effect.fn("qadi.audit.encodeAuditEntry")(functio
   record: SinkRecord,
 ) {
   const json = yield* Effect.fromResult(encodeSinkRecord(record));
-  return new AuditEntry({ record: json, sequenceNumber: undefined });
+  return markCodecMade(new AuditEntry({ record: json, sequenceNumber: undefined }));
 });
 
 /**
@@ -173,6 +178,7 @@ export const decodeAuditEntry = (
   const decoded = decodeSinkRecordWithJson(row.success.record);
   if (Result.isFailure(decoded)) return Result.fail(decoded.failure);
   const { sequenceNumber } = row.success;
-  const entry = new AuditEntry({ record: decoded.success.json, sequenceNumber });
+  const made = new AuditEntry({ record: decoded.success.json, sequenceNumber });
+  const entry = markCodecMade(made);
   return Result.succeed({ entry, record: decoded.success.record });
 };

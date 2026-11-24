@@ -140,7 +140,9 @@ only function here that returns rows to delete, and `archive` is a
 1. `archiveAuditTrail(entries, now)` bundles the trail (it runs the sequence
    check and writes the entries in sequence order). A `now` that is not finite
    fails `ArchiveInputInvalid`, before the sequence check, because `createdAt`
-   would be written as `null` and the reader would refuse the bundle. Each
+   would be written as `null` and the reader would refuse the bundle. So does an
+   entry the codec did not make, naming `entries` and its index: a row your store
+   client returned as `any` is read through `decodeAuditEntry` first. Each
    `keyMaterial` item is written as its declared `keyId`, `algorithm` and
    `publicKey` and nothing else, and its values are never judged.
 2. You write the bundle to your own long-term storage.
@@ -155,8 +157,8 @@ only function here that returns rows to delete, and `archive` is a
 
 `planRetention` is the age rule alone, for seeing what would expire before an
 archive exists. It returns `{ retained, expired }` and a
-`RetentionInputInvalid` on a non-finite `now` or a `maxAgeMs` that is `NaN` or
-negative; `expired` is not a purge selection.
+`RetentionInputInvalid` on a non-finite `now`, a `maxAgeMs` that is `NaN` or
+negative, or an entry the codec did not make; `expired` is not a purge selection.
 
 **What a `VerifiedArchive` proves.** The bytes you handed `readAuditArchive`
 decoded, matched their declared count, had no sequence gap or duplicate and were

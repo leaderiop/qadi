@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-110                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-08                                     |
 > | Status         | Accepted — amends ADR-QD-056; amended 2026-11-23 (ADR-QD-190) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-23): amendment — an archive's facts are computed over rows only the codec makes; SequenceNumberInvalid and invalidSequenceNumber are retired (ARCH-124, ADR-QD-190, CCR-QD-469)<br>1.0 (2026-11-08): Initial (ARCH-48, CCR-QD-387) |
+> | Change History | 1.2 (2026-11-24): amendment — verifySequenceIntegrity and archiveAuditTrail also fail ArchiveInputInvalid for an entry the codec did not make (ADR-QD-190, CCR-QD-469)<br>1.1 (2026-11-23): amendment — an archive's facts are computed over rows only the codec makes; SequenceNumberInvalid and invalidSequenceNumber are retired (ARCH-124, ADR-QD-190, CCR-QD-469)<br>1.0 (2026-11-08): Initial (ARCH-48, CCR-QD-387) |
 
 ---
 
@@ -129,3 +129,12 @@ writes each `keyMaterial` item as its three declared fields, so the bundle it re
 sentence that a caller narrows on `_tag` first because of it, state what was true of the code before ADR-QD-190: the
 failure of `verifySequenceIntegrity` is `SequenceIntegrityError` alone, and `archiveAuditTrail` fails
 `SequenceIntegrityError` or `ArchiveInputInvalid`.
+
+## Amendment (2026-11-24, ADR-QD-190, CCR-QD-469)
+
+The 2026-11-23 amendment above says the failure of `verifySequenceIntegrity` is `SequenceIntegrityError` alone. It is that
+for a row the codec made. `verifiedArchiveFacts` also refuses an entry the codec did not make, which a store client's
+`any` and a JavaScript caller can pass, as `ArchiveInputInvalid` naming `entries` and the index of the first, before it
+computes any fact ([ADR-QD-190](190-an-audit-row-is-a-value-only-its-codec-makes.md), its amendment of 2026-11-24). So
+`verifySequenceIntegrity` and `archiveAuditTrail` fail `ArchiveInputInvalid | SequenceIntegrityError`. The pure
+`archiveFacts`, which `readAuditArchive` runs over rows it has just decoded, checks nothing.

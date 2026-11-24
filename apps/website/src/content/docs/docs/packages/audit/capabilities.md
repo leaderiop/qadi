@@ -130,7 +130,9 @@ a set of entries into `retained` and `expired` (their union is the input,
 unchanged, and their intersection is empty), or returns a `RetentionInputInvalid`
 naming the bad input. `now` is a parameter, never `Date.now()`. A row is expired
 only past a valid limit, and a row's `at` is finite because only the codec makes a
-row; a non-finite `now` or a `maxAgeMs` that is `NaN` or negative expires nothing.
+row; a non-finite `now` or a `maxAgeMs` that is `NaN` or negative expires nothing, and an
+entry the codec did not make (a row your store client returned as `any`) is refused as
+`RetentionInputInvalid`, naming `entries` and its index.
 `expired` is a report, not a purge selection.
 
 **Purge** — `planPurge(entries, policy, now, archive)` is the only function that
@@ -151,13 +153,15 @@ tamper-evidence: there is no per-entry hash and nothing links one entry to the
 next, so an attacker able to modify stored rows can renumber them and defeat
 this check entirely. A row's `sequenceNumber` is a safe integer, because
 `decodeAuditEntry` refuses any other (`1.5`, `2 ** 53`, `Infinity`) as `Malformed`
-and only the codec makes a row, so the check never meets a number it cannot judge.
+and only the codec makes a row, so the check never meets a number it cannot judge: an entry
+the codec did not make fails `ArchiveInputInvalid`, naming `entries` and its index, before
+the check reads it.
 
 **Archival** — `archiveAuditTrail` sorts entries by `sequenceNumber`, stably,
 before setting `metadata.sequenceIntegrityVerified: true`. Entries with no
 `sequenceNumber` follow the sequenced ones, in the order given. A `now` that is not
-finite fails `ArchiveInputInvalid`, naming the field and the value, before the
-sequence is read, and each `keyMaterial` item is written as its declared `keyId`,
+finite, or an entry the codec did not make, fails `ArchiveInputInvalid`, naming the field
+and the value (for `entries`, the index of the first), before the sequence is read, and each `keyMaterial` item is written as its declared `keyId`,
 `algorithm` and `publicKey` and no other property, its values never judged.
 `readAuditArchive(input)` reads a stored bundle back. It refuses, each with its own
 `ArchiveRefusal` in an `ArchiveNotVerified`, a bundle that is not an archive, has

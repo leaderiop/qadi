@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-190                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-23                                     |
-> | Status         | Accepted — amends ADR-QD-110 and ADR-QD-056   |
+> | Status         | Accepted — amends ADR-QD-110 and ADR-QD-056; amended 2026-11-24 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-23): Initial (ARCH-124, CCR-QD-469) |
+> | Change History | 1.1 (2026-11-24): amendment — a row is also checked at run time, through a package-private record of what the codec made; ArchiveInputInvalid and RetentionInputInvalid gain the field entries (code review WR-01, CCR-QD-469)<br>1.0 (2026-11-23): Initial (ARCH-124, CCR-QD-469) |
 
 ---
 
@@ -69,8 +69,9 @@ the reverse and carried a hand-written pre-check for a missing record.
 4. **The checks the brand made dead are removed.** The safe-integer rule is stated once, in the row's schema
    (`Schema.optional(Schema.Int)`). `isSequenceNumber`, the `invalidSequenceNumber` fact, `verifiedArchiveFacts`' first
    failure and the public `SequenceNumberInvalid` are removed, so `verifySequenceIntegrity` and `archiveAuditTrail`
-   fail `SequenceIntegrityError` for the sequence alone and `SequenceIntegrity.ts` re-exports two names. Only a cast
-   puts a non-safe-integer on an `AuditEntry`, and the house forbids `as`.
+   fail `SequenceIntegrityError` for the sequence alone and `SequenceIntegrity.ts` re-exports two names. A typed
+   caller can put a non-safe-integer on an `AuditEntry` only with a cast, and the house forbids `as`; an `any`-typed row
+   needs none, which the amendment of 2026-11-24 below closes at run time.
    `undated` is removed from `planRetention`, `RetentionPlan` and `PurgePlan`: an `AuditEntry`'s `at` is finite by
    construction (`encodeAuditEntry` refuses NaN and ±Infinity, probed, and `decodeAuditEntry` reads `at` as
    `Schema.Finite`). The purge guarantee never leaned on the branch: `planPurge` selects only rows the
@@ -175,8 +176,9 @@ the reverse and carried a hand-written pre-check for a missing record.
 - **A public `withSequenceNumber`.** It is a third maker, adds a row to gate 13 (`scripts/check-api-surface.mjs`) and a probe to gate 14 (`scripts/check-package-install.mjs`), and no host flow
   needs it.
 - **`encodeAuditEntry(record, { sequenceNumber })`.** The sink never knows the store's number at encode time.
-- **Keeping the sequence-number check as defence in depth.** Only a cast can reach it, the house forbids `as`, and an
-  unreachable check is an unkillable mutant that the per-file mutation bar counts against the file.
+- **Keeping the sequence-number check as defence in depth.** A typed caller can reach it only with a cast, and the house
+  forbids `as`. An `any`-typed row is covered by one membership test that holds for every field and for an extra key,
+  where a per-field check restates the codec's rules field by field (the amendment of 2026-11-24).
 - **A silent `isFinite(at)` guard in place of `undated`.** It is dead under the type, and unkillable.
 - **`undated` as an always-empty report.** A member every caller must learn that never carries anything.
 - **`unknownKeys: "ignore"` for the row, mirroring the stored-record envelope.** That envelope ignores a newer
@@ -225,6 +227,11 @@ AuditEntry` occurs only in `AuditEntry.ts`.
 read back", "PROPERTY: over any record, the codec refuses it or reads it back" and "PROPERTY: over any number, the
 codec sets the domain and the writer".
 
+**The run-time check** (the amendment of 2026-11-24) is `packages/audit/test/ForeignRows.test.ts`: a parsed row with a
+`null` `at` and an extra key, two plain rows numbered `1.5` and `2.5`, the codec's own bytes parsed back, an object with a
+real row's prototype and fields, and `null` and a string in the list, each refused by index by `archiveAuditTrail`,
+`verifySequenceIntegrity`, `planRetention` and `planPurge`, each with a positive twin of rows the codec made.
+
 **The writer-input file** is `packages/audit/test/ArchiveWriterInputs.test.ts`, which holds the rows of decision 7 that
 compile, and `packages/audit/test/AuditArchive.test.ts` holds the exact assertions for the `now` guard and the
 `keyMaterial` projection.
@@ -252,3 +259,42 @@ decode order, the brand, and an encoder that writes a record its codec cannot re
 - [ADR-QD-171](171-a-stored-record-is-its-envelope-in-memory-too.md) — a record-carrying class with structural `Equal`
 - [BEH-QD-721 and BEH-QD-722](../behaviors/33-audit-pipeline.md) — envelope-first decode, and the writer's `now` and `keyMaterial`
 - [INV-QD-399 and INV-QD-400](../invariants.md) — every archive the writer returns is read back, and a row is made only by its codec
+
+## Amendment (2026-11-24, CCR-QD-469)
+
+**The brand is a run-time fact too.** Decision 4 said only a cast puts a non-safe-integer on an `AuditEntry`. That
+holds for a typed caller and not for the route a store takes: `JSON.parse`, a raw SQL row, an untyped ORM result and
+`structuredClone` return `any`, which is assignable to `AuditEntry` with no cast, and a JavaScript caller has no
+compiler at all. Through that route the writer archived a row with `at: null` and an extra key, which
+`readAuditArchive` refuses as `EntryNotDecodable`, the defect this record set out to close, and it passed two plain rows
+numbered `1.5` and `2.5` as a verified sequence, which the code before ADR-QD-190 refused as `SequenceNumberInvalid`.
+Both were written as tests first (`ForeignRows.test.ts`) and were red on the code before this amendment.
+
+1. **A row the codec made is recorded.** `CodecMade.ts` holds a module-scope `const` `WeakSet<object>`, which is not a
+   rebindable name and so not a row of `MODULE_STATE_BUDGET`. `encodeAuditEntry` and `decodeAuditEntry` record each row
+   they construct, through `markCodecMade`, and nothing else calls it. `firstNotCodecMade(entries)` answers the index of
+   the first entry that is not a recorded object, `null` and a primitive included. The module is out of the barrel
+   (ADR-QD-099), so a host cannot record a row of its own, and a `WeakSet` keeps no row alive.
+2. **The functions that compute a fact from a host's rows ask.** `verifiedArchiveFacts` does, so `archiveAuditTrail`
+   and `verifySequenceIntegrity` do, and `planRetention` does, so `planPurge` does. The pure `archiveFacts` is the
+   reader's, over rows `readAuditArchive` has just decoded, and asks nothing. The check follows the `now` and `maxAgeMs`
+   checks and precedes every fact, so a refused list is never read.
+3. **The refusal is the closed shape the input already had.** `ArchiveInputInvalid.field` is `"now" | "entries"`, and
+   `RetentionInputInvalid.field` is `"now" | "maxAgeMs" | "entries"`. For `entries`, `value` is the index of the first
+   entry the codec did not make. A closed union states the whole set, and a second error class would make a host handle
+   one input failure two ways. `ArchiveInputInvalid` is declared in `ArchiveFacts.ts`, which `verifiedArchiveFacts`
+   needs, and re-exported by `AuditArchive.ts` for the barrel; declared in `AuditArchive.ts` it would make the two
+   modules import each other. So `verifySequenceIntegrity` fails `SequenceIntegrityError | ArchiveInputInvalid`.
+4. **`planPurge` is safe on its own account too.** `holds` counts by structural equality with the archived rows, which
+   are all codec-made class instances, and a plain object never equals a class instance, so an archive holds no copy of
+   a row the codec did not make. `planPurge` refuses through `planRetention` and keeps that second reason.
+5. **Rejected.** Narrowing the claim to typed callers, because it leaves this record's own defect reachable from
+   `JSON.parse`. `instanceof` alone, because `Object.create(Object.getPrototypeOf(row))` with a row's fields imitates it
+   (a test builds that object). Restoring the per-field `isSequenceNumber` check, because it puts back the duplicated
+   rule decision 4 removed, and it would not refuse an extra key or a `null` `at`.
+6. **Breaking, in the release this record already marks Breaking.** `verifySequenceIntegrity`, `planRetention` and
+   `planPurge` can fail with a value a host that handled the old error set did not handle, and `archiveAuditTrail`'s
+   `ArchiveInputInvalid` has a wider `field`. A host that passes only rows it read back through `decodeAuditEntry` or
+   made with `encodeAuditEntry` sees no difference at run time.
+7. **Decided autonomously on 2026-11-24**, under the owner's standing instruction of 2026-11-22 to take the most complete
+   and clean solution and not ask.

@@ -5,8 +5,8 @@
  * a type admits or a codec makes. The writer fails with the typed error the test names,
  * or returns a bundle that `readAuditArchive` reads back from its JSON text, the form a
  * store gives it. A bundle the reader refuses is the defect: an archive this package
- * wrote and cannot itself read. A row is only ever one the codec made, so no
- * hostile row is built here.
+ * wrote and cannot itself read. A row is only ever one the codec made here, so no
+ * hostile row is built; `ForeignRows.test.ts` holds the rows the codec did not make.
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";

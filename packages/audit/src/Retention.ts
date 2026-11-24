@@ -12,7 +12,8 @@
  * `now - at > maxAgeMs` (the age rule, in {@link planRetention}); and a
  * {@link VerifiedArchive} read back from storage holds the row
  * ({@link planPurge}). A row's `at` is finite because only the codec makes a
- * row and its decode refuses any other (ADR-QD-190), so the rule has no case
+ * row and its decode refuses any other (ADR-QD-190), and {@link planRetention}
+ * refuses a list holding a row the codec did not make, so the rule has no case
  * for an unknown age. Fail-closed for a deletion selector means retaining,
  * never expiring: a wrong retain keeps a row too long, a wrong purge destroys
  * evidence that may never have been archived. {@link planPurge} is the only
@@ -24,6 +25,7 @@ import * as Option from "effect/Option";
 import * as Result from "effect/Result";
 import type { VerifiedArchive } from "./AuditArchive.ts";
 import type { AuditEntry } from "./AuditEntry.ts";
+import { firstNotCodecMade } from "./CodecMade.ts";
 
 export interface RetentionPolicy {
   /** An entry older than this, relative to `now`, is past its age. */
@@ -32,10 +34,12 @@ export interface RetentionPolicy {
 
 /**
  * `planRetention` or `planPurge` refused its input: `now` is not a finite
- * number, or `maxAgeMs` is `NaN` or negative. `value` is the offending number.
+ * number, `maxAgeMs` is `NaN` or negative, or a row was not made by the codec.
+ * `value` is the offending number; for `entries` it is the index of the first
+ * row the codec did not make (`CodecMade.ts`, ADR-QD-190).
  */
 export class RetentionInputInvalid extends Data.TaggedError("RetentionInputInvalid")<{
-  readonly field: "now" | "maxAgeMs";
+  readonly field: "now" | "maxAgeMs" | "entries";
   readonly value: number;
 }> {}
 
@@ -56,10 +60,13 @@ export interface RetentionPlan {
  * The one age rule: which rows are past `policy`'s limit.
  *
  * Refuses `RetentionInputInvalid` when `now` is not finite or `maxAgeMs` is
- * `NaN` or negative (`+Infinity` is valid and means "retain forever").
- * Otherwise one pass: a row with `now - at > maxAgeMs` is expired and the rest
- * are retained. Use it to see what would expire before an archive exists; to
- * select rows for deletion use {@link planPurge}, which needs the archive.
+ * `NaN` or negative (`+Infinity` is valid and means "retain forever"), and then
+ * when an entry is not a row the codec made, naming `entries` and the index of
+ * the first (a store client's `any` and a JavaScript caller's literal pass the
+ * type; a row of unknown shape has no age to read). Otherwise one pass: a row with
+ * `now - at > maxAgeMs` is expired and the rest are retained. Use it to see what
+ * would expire before an archive exists; to select rows for deletion use
+ * {@link planPurge}, which needs the archive.
  */
 export const planRetention = (
   entries: ReadonlyArray<AuditEntry>,
@@ -71,6 +78,10 @@ export const planRetention = (
   }
   if (!(policy.maxAgeMs >= 0)) {
     return Result.fail(new RetentionInputInvalid({ field: "maxAgeMs", value: policy.maxAgeMs }));
+  }
+  const notMade = firstNotCodecMade(entries);
+  if (notMade !== undefined) {
+    return Result.fail(new RetentionInputInvalid({ field: "entries", value: notMade }));
   }
   const retained: Array<AuditEntry> = [];
   const expired: Array<AuditEntry> = [];
@@ -110,6 +121,11 @@ export interface PurgePlan {
  * row it does not hold stays in `retain` and is listed in `unarchived`. Rows
  * are compared structurally, so a row read back from a store matches the
  * archived one, and a row edited after archiving does not.
+ *
+ * A row the codec did not make is refused by that age rule, and the archive
+ * would not hold it in any case: `holds` counts by structural equality with the
+ * archived rows, which are all codec-made class instances, so a plain object
+ * with the same fields has no copy there.
  *
  * `archive` is a {@link VerifiedArchive}: it can only come from
  * `readAuditArchive` over bytes the store returned, so the archive-before-purge
