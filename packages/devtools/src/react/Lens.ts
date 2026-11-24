@@ -205,7 +205,7 @@ export const gateIdAt = (
  * falls back to its coordinates.
  */
 export const gateIdOfClick = (
-  target: Document,
+  doc: Document,
   click: {
     readonly detail: number;
     readonly target: EventTarget | null;
@@ -216,4 +216,4 @@ export const gateIdOfClick = (
 ): string | undefined =>
   click.detail === 0 && click.target instanceof Element
     ? gateIdContaining(click.target, instances)
-    : gateIdAt(target, click.clientX, click.clientY, instances);
+    : gateIdAt(doc, click.clientX, click.clientY, instances);
