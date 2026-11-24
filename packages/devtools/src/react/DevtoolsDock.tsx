@@ -267,6 +267,7 @@ const Screen: FC<{
     questions: () => (
       <QuestionsPanel
         questions={props.model.questions}
+        lens={props.model.lens}
         hydration={props.shown.hydration}
         onInvalidate={props.host.onInvalidate}
         diagnostics={notice}

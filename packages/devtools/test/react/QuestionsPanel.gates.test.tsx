@@ -16,6 +16,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { hasRole } from "@qadi/core";
 import { GatesView, QuestionsView } from "../../src/model/Gates.ts";
 import type { GateInstanceLike, QuestionsSnapshot } from "../../src/model/Gates.ts";
+import { makeLensSession } from "../../src/model/LensSession.ts";
 import { QuestionsPanel } from "../../src/react/QuestionsPanel.tsx";
 import type { AskedQuestionLike } from "../../src/react/QuestionsPanel.tsx";
 import { liveNotice, readPolicy } from "../helpers.ts";
@@ -129,7 +130,10 @@ describe("a registry that could not be read", () => {
     }),
     instances: [],
   };
-  const unreadable = { questions: { subscribe: () => () => {}, getSnapshot: () => snapshot } };
+  const unreadable = {
+    questions: { subscribe: () => () => {}, getSnapshot: () => snapshot },
+    lens: makeLensSession(),
+  };
 
   it("says it, with the reason, and offers no pick", () => {
     render(<QuestionsPanel diagnostics={liveNotice} {...unreadable} />);
@@ -162,6 +166,7 @@ describe("questions that could not be read", () => {
       <QuestionsPanel
         diagnostics={liveNotice}
         questions={{ subscribe: () => () => {}, getSnapshot: () => snapshot }}
+        lens={makeLensSession()}
       />,
     );
   };

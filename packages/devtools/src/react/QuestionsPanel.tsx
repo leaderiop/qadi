@@ -38,6 +38,8 @@ import type {
 import { displayOfGateState, isLocatable, locatableIds } from "../model/Gates.ts";
 import type { HydrationActivity } from "../model/Hydration.ts";
 import { unaccountedEntries } from "../model/Hydration.ts";
+import type { LensSession, LensSnapshot } from "../model/LensSession.ts";
+import { isPicking, pickedOf } from "../model/LensSession.ts";
 import { DiagnosticsNotice, diagnosticsRootProps } from "./DiagnosticsNotice.tsx";
 import type { DiagnosticsNoticeProps } from "./DiagnosticsNotice.tsx";
 import { button, colors, font, muted } from "./theme.ts";
@@ -59,6 +61,13 @@ export interface QuestionsPanelProps {
    * **on the provider**, with different fixes.
    */
   readonly questions: ReadableStore<QuestionsSnapshot>;
+  /**
+   * The highlight lens this panel draws through and picks into.
+   *
+   * The dock model's, so a pick outlives the panel: leaving the tab and coming back finds the
+   * guard still marked.
+   */
+  readonly lens: LensSession;
   /**
    * Read with `hydrationActivity`, which needs no wiring at all.
    *
@@ -96,6 +105,7 @@ const row: CSSProperties = {
 
 export const QuestionsPanel: FC<QuestionsPanelProps> = ({
   questions,
+  lens,
   hydration,
   onInvalidate,
   diagnostics,
@@ -103,7 +113,8 @@ export const QuestionsPanel: FC<QuestionsPanelProps> = ({
   const unsampled = isUnsampled(diagnostics.status);
   const snapshot = useStoreSnapshot(questions);
 
-  const lens = useLens(snapshot.instances);
+  useLens(lens, questions);
+  const view: LensView = { session: lens, snapshot: useStoreSnapshot(lens) };
 
   return (
     <div {...diagnosticsRootProps(diagnostics.status)} data-testid="qadi-questions">
@@ -118,9 +129,9 @@ export const QuestionsPanel: FC<QuestionsPanelProps> = ({
         the evaluator sees. The guards asking each question are listed underneath.
       </p>
 
-      {gatesBlock(snapshot.gates)(lens)}
+      {gatesBlock(snapshot.gates)(view)}
 
-      {questionsBlock(snapshot.questions)(lens)}
+      {questionsBlock(snapshot.questions)(view)}
 
       <Hydration activity={hydration} unsampled={unsampled} />
 
@@ -138,7 +149,11 @@ export const QuestionsPanel: FC<QuestionsPanelProps> = ({
   );
 };
 
-type Lens = ReturnType<typeof useLens>;
+/** The session the panel drives and the snapshot it shows, read once per render. */
+interface LensView {
+  readonly session: LensSession;
+  readonly snapshot: LensSnapshot;
+}
 
 const gatesNote = (text: string) => (): ReactNode => (
   <p style={{ ...muted, fontSize: font.sizeSmall }} data-testid="qadi-gates-absent">
@@ -147,11 +162,11 @@ const gatesNote = (text: string) => (): ReactNode => (
 );
 
 /** The gates block for one view, built once; a new view is a compile error here. */
-const gatesBlock: (view: GatesView) => (lens: Lens) => ReactNode = Match.type<GatesView>().pipe(
+const gatesBlock: (view: GatesView) => (lens: LensView) => ReactNode = Match.type<GatesView>().pipe(
   Match.tagsExhaustive({
     Absent: () => gatesNote(GATES_ABSENT_TEXT),
     Empty: () => gatesNote(GATES_EMPTY_TEXT),
-    Listed: () => (lens: Lens) => <PickButton lens={lens} />,
+    Listed: () => (lens: LensView) => <PickButton lens={lens} />,
     // The precedent's wording and colour: `ServicesPanel`'s `qadi-wiring-failed`.
     Failed: ({ reason }) => () => (
       <p style={{ ...muted, color: colors.error }} data-testid="qadi-gates-failed">
@@ -162,7 +177,7 @@ const gatesBlock: (view: GatesView) => (lens: Lens) => ReactNode = Match.type<Ga
 );
 
 /** The questions block for one view, built once; a new view is a compile error here. */
-const questionsBlock: (view: QuestionsView) => (lens: Lens) => ReactNode = Match.type<QuestionsView>().pipe(
+const questionsBlock: (view: QuestionsView) => (lens: LensView) => ReactNode = Match.type<QuestionsView>().pipe(
   Match.tagsExhaustive({
     Unsampled: () => () => null,
     Absent: () => () => (
@@ -177,7 +192,7 @@ const questionsBlock: (view: QuestionsView) => (lens: Lens) => ReactNode = Match
         component reads its decision.
       </p>
     ),
-    Rows: (view) => (lens: Lens) =>
+    Rows: (view) => (lens: LensView) =>
       view.rows.map((entry, index) => (
         <Question key={`${policyLabel(entry.question.policy)}-${index}`} entry={entry} lens={lens} />
       )),
@@ -193,7 +208,7 @@ const questionsBlock: (view: QuestionsView) => (lens: Lens) => ReactNode = Match
 /** One question, and the guards currently asking it. */
 const Question: FC<{
   readonly entry: QuestionRow;
-  readonly lens: Lens;
+  readonly lens: LensView;
 }> = ({ entry, lens }) => {
   const { question, asking } = entry;
   // `undefined`: the registry could not be read, so this row says nothing about who is asking.
@@ -224,7 +239,7 @@ const Question: FC<{
                 : undefined
             }
             onClick={() => {
-              lens.highlight(locatableIds(asking));
+              lens.session.highlight(locatableIds(asking));
             }}
           >
             highlight {locatable.length}
@@ -233,7 +248,12 @@ const Question: FC<{
       </div>
 
       {(asking ?? []).map((instance) => (
-        <InstanceRow key={instance.id} instance={instance} picked={lens.picked === instance.id} />
+        <InstanceRow
+          key={instance.id}
+          instance={instance}
+          picked={pickedOf(lens.snapshot) === instance.id}
+          session={lens.session}
+        />
       ))}
     </div>
   );
@@ -243,7 +263,8 @@ const Question: FC<{
 const InstanceRow: FC<{
   readonly instance: GateInstanceLike;
   readonly picked: boolean;
-}> = ({ instance, picked }) => {
+  readonly session: LensSession;
+}> = ({ instance, picked, session }) => {
   const node = useRef<HTMLDivElement | null>(null);
   const state = displayOfGateState(instance.state);
   const treatment = treatmentOf(state);
@@ -251,9 +272,10 @@ const InstanceRow: FC<{
   useEffect(() => {
     // The row reveals itself, from its own ref. The panel looking its rows up
     // by attribute would be re-inventing the string lookup `Lens.ts` avoids, in
-    // the one place a ref is trivially at hand.
-    if (picked) node.current?.scrollIntoView({ block: "nearest" });
-  }, [picked]);
+    // the one place a ref is trivially at hand. Only for the pick the session armed, so a
+    // row that is marked again on a return to the panel does not scroll a second time.
+    if (picked && session.takeReveal(instance.id)) node.current?.scrollIntoView({ block: "nearest" });
+  }, [picked, session, instance.id]);
 
   return (
     <div
@@ -287,18 +309,21 @@ const InstanceRow: FC<{
   );
 };
 
-const PickButton: FC<{ readonly lens: Lens }> = ({ lens }) => (
-  <div style={{ marginBottom: 6 }}>
-    <button
-      type="button"
-      style={{ ...button(lens.picking), fontSize: font.sizeSmall }}
-      data-testid="qadi-pick"
-      onClick={lens.togglePicking}
-    >
-      {lens.picking ? "picking — click a control, or press Escape" : "pick a control on the page"}
-    </button>
-  </div>
-);
+const PickButton: FC<{ readonly lens: LensView }> = ({ lens }) => {
+  const picking = isPicking(lens.snapshot);
+  return (
+    <div style={{ marginBottom: 6 }}>
+      <button
+        type="button"
+        style={{ ...button(picking), fontSize: font.sizeSmall }}
+        data-testid="qadi-pick"
+        onClick={lens.session.toggle}
+      >
+        {picking ? "picking — click a control, or press Escape" : "pick a control on the page"}
+      </button>
+    </div>
+  );
+};
 
 const heading: CSSProperties = {
   ...muted,

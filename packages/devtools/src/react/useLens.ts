@@ -1,49 +1,38 @@
 "use client";
 /**
- * The lens as a React affordance: what is highlighted, and whether we are picking.
+ * The lens's document adapter: the three listeners picking needs while the session is
+ * picking, and the overlay over the guards the session names.
  *
- * State lives here rather than in `Lens.ts` so that module stays a set of pure
- * DOM operations that a test can drive without rendering — the split
- * `useTimeline.ts` makes against `TimelineStore.ts`, for the same reason.
+ * The rules are the session's (`LensSession.ts`, ADR-QD-193), so this holds no React
+ * state: it reads the session and the guard list, draws what they say and forwards
+ * what the document does. Keeping it that thin leaves `Lens.ts` a set of pure DOM
+ * operations that a test can drive without rendering.
  *
  * Every `document` reference is inside an effect. The dock is a client
  * component, so effects do not run on a server, and reaching for `document`
  * during render would be the one thing that breaks a server-rendered host.
  */
-import { useCallback, useEffect, useState } from "react";
-import type { GateInstanceLike } from "../model/Gates.ts";
+import { useEffect } from "react";
+import type { ReadableStore } from "../model/ExternalStore.ts";
+import type { QuestionsSnapshot } from "../model/Gates.ts";
+import { isPicking, type LensSession } from "../model/LensSession.ts";
 import { boxesOf, clearLens, drawLens, gateIdAt } from "./Lens.ts";
-
-export interface Lens {
-  /** The instances currently drawn over. */
-  readonly highlighted: ReadonlyArray<string>;
-  readonly picking: boolean;
-  /**
-   * The instance the reader last picked off the page.
-   *
-   * Held here rather than acted on with a `querySelector`, so the row that
-   * needs to reveal itself does it from its own ref. A panel looking its own
-   * rows up by attribute would be re-inventing the string lookup `Lens.ts`
-   * deliberately avoids, inside the one place a ref is trivially available.
-   */
-  readonly picked: string | undefined;
-  /** Draws over these instances, replacing whatever was drawn. */
-  readonly highlight: (ids: ReadonlyArray<string>) => void;
-  readonly clear: () => void;
-  readonly togglePicking: () => void;
-}
+import { useStoreSnapshot } from "./useStoreSnapshot.ts";
 
 /**
- * Drives the highlight overlay and the pick interaction.
+ * Drives the highlight overlay and the pick interaction over the page.
  *
  * Picking stops on the pick, on `Escape`, and on unmount — three exits, because
  * a debugging mode that can be entered and not left makes the page unusable
- * until it is reloaded.
+ * until it is reloaded. The exit on unmount is its own effect, keyed on the
+ * session alone: were it the listeners' cleanup, a highlight that ended picking
+ * would run it and cancel the highlight it had just drawn.
  */
-export const useLens = (instances: ReadonlyArray<GateInstanceLike>): Lens => {
-  const [highlighted, setHighlighted] = useState<ReadonlyArray<string>>([]);
-  const [picking, setPicking] = useState(false);
-  const [picked, setPicked] = useState<string | undefined>(undefined);
+export const useLens = (lens: LensSession, questions: ReadableStore<QuestionsSnapshot>): void => {
+  const snapshot = useStoreSnapshot(lens);
+  const highlighted: ReadonlyArray<string> = snapshot.highlighted;
+  const picking = isPicking(snapshot);
+  const { instances } = useStoreSnapshot(questions);
 
   // Measured in an effect, not in a handler, so the boxes are computed after
   // React has committed — a guard whose state just changed may have only now
@@ -61,34 +50,32 @@ export const useLens = (instances: ReadonlyArray<GateInstanceLike>): Lens => {
     };
   }, [highlighted, instances]);
 
+  // Keyed on the mode and not on the guards: the handlers read the guards when the
+  // event arrives, so a guard that registers while picking adds no listener.
   useEffect(() => {
     if (!picking) return;
 
+    const guardAt = (event: MouseEvent): string | undefined =>
+      gateIdAt(document, event.clientX, event.clientY, questions.getSnapshot().instances);
+
     const move = (event: PointerEvent): void => {
-      const id = gateIdAt(document, event.clientX, event.clientY, instances);
-      // `[]` where the pointer is over nothing guarded — including over the dock
+      // `undefined` where the pointer is over nothing guarded — including over the dock
       // itself, which is not inside a guard and so resolves to nothing without
       // needing to know anything about the dock.
-      setHighlighted(id === undefined ? [] : [id]);
+      lens.hover(guardAt(event));
     };
 
     const choose = (event: MouseEvent): void => {
-      const id = gateIdAt(document, event.clientX, event.clientY, instances);
-      if (id === undefined) return;
       // Swallowed, so picking a guarded button does not also press it. Only
       // when a guard was actually found — otherwise the dock's own controls
       // would stop working the moment picking was on.
+      if (!lens.choose(guardAt(event))) return;
       event.preventDefault();
       event.stopPropagation();
-      setPicking(false);
-      setHighlighted([]);
-      setPicked(id);
     };
 
     const cancel = (event: KeyboardEvent): void => {
-      if (event.key !== "Escape") return;
-      setPicking(false);
-      setHighlighted([]);
+      if (event.key === "Escape") lens.cancel();
     };
 
     // Capture, so the click is intercepted before the page's own handlers see
@@ -102,21 +89,12 @@ export const useLens = (instances: ReadonlyArray<GateInstanceLike>): Lens => {
       document.removeEventListener("click", choose, true);
       document.removeEventListener("keydown", cancel);
     };
-  }, [picking, instances]);
+  }, [picking, lens, questions]);
 
-  const highlight = useCallback((ids: ReadonlyArray<string>) => {
-    setHighlighted(ids);
-  }, []);
-
-  const clear = useCallback(() => {
-    setHighlighted([]);
-  }, []);
-
-  const togglePicking = useCallback(() => {
-    setPicking((was) => !was);
-    setHighlighted([]);
-    setPicked(undefined);
-  }, []);
-
-  return { highlighted, picking, picked, highlight, clear, togglePicking };
+  useEffect(
+    () => () => {
+      lens.cancel();
+    },
+    [lens],
+  );
 };

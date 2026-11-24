@@ -92,3 +92,13 @@ The store-list cell, the bare-lens cell and the per-store sweep were changed fir
 - failed: CR19 a bare build reads what an empty input read in every store, and configuring an empty input right after it notifies none
 - failed: CR20 each input moved alone makes the store it reaches react
 - failed: CR22 a reader subscribed to every store of a bare dock before its first configure hears 2, 2, 3, 3, 0, 1, 0, 2, 1 and 0 notifications while the poll layer is still building, and one more on three stores once it has built
+
+## 80-07 the adapter
+
+The panel, the dock and the seam were changed first and `Lens.dock.characterisation.test.tsx` was run unflipped on the
+changed code (3 failed, 7 passed). Four flips sit on three titles; every other cell, the held `scrolls() === 1` line
+included, still holds.
+
+- failed (unflipped): a pick, then a switch to the log and back
+- failed (unflipped): the highlight button pressed while picking
+- failed (unflipped): two pointer moves over one guard while picking
