@@ -125,3 +125,14 @@ holds three cases (the row is exempt, another Document Control row is flagged, a
 now reads the text before its first `<br>`.
 
 - check failed: scan-ids: spec/README.md:13 names a decision number
+
+## review fixes (iteration 1)
+
+Each scratch edit was made to `useLens.ts` from a copy taken just before it and restored with `cp`; `git status --short --
+packages` showed only the intended files afterwards.
+
+### WR-01 the consumed click's default action
+
+The cell was run with `event.preventDefault();` deleted from the click handler.
+
+- failed: a click a pick consumes has its default action cancelled, and a click over no guard keeps it

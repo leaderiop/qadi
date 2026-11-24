@@ -5,7 +5,9 @@
  * props and on nothing the panel takes. Two properties are held here: the three document
  * listeners picking needs are added once on entering picking and are not touched again when
  * the listed guards change, and a pick made under `StrictMode` reveals its row once and is
- * still marked, with no second reveal, after the panel is left and entered again.
+ * still marked, with no second reveal, after the panel is left and entered again. A third
+ * holds what the handler does with the page: the click a pick consumes has its default action
+ * cancelled.
  *
  * The registry, the guards and the pointer stub are written in this file on purpose: a shared
  * helper edited later would change what the file holds.
@@ -162,5 +164,33 @@ describe("the lens adapter through the dock", () => {
     await toReact();
     assert.strictEqual(pickedRows().length, 1, "the row still marked on the return");
     assert.strictEqual(revealed, 1, "no second reveal on the return");
+  });
+
+  it("a click a pick consumes has its default action cancelled, and a click over no guard keeps it", async () => {
+    const link = document.createElement("a");
+    link.setAttribute("href", "#guarded");
+    link.setAttribute("data-lens-fixture", "");
+    document.body.appendChild(link);
+    const other = marker();
+    const { registry } = makeRegistry([guard("a", link)]);
+    render(<DevtoolsDock gates={registry} reading={{ questions: asked }} />);
+    await act(async () => {});
+    await toReact();
+    await click(pickButton());
+
+    pointingAt(other);
+    let proceeded = false;
+    await act(async () => {
+      proceeded = fireEvent.click(other, { clientX: 5, clientY: 5, detail: 1 });
+    });
+    assert.isTrue(proceeded, "a click over no guard keeps its default action");
+    assert.strictEqual(pickedRows().length, 0, "nothing picked over no guard");
+
+    pointingAt(link);
+    await act(async () => {
+      proceeded = fireEvent.click(link, { clientX: 5, clientY: 5, detail: 1 });
+    });
+    assert.isFalse(proceeded, "the picked link is not followed");
+    assert.strictEqual(pickedRows().length, 1, "the guard picked");
   });
 });
