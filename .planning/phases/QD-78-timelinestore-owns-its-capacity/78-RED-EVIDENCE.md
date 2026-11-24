@@ -63,3 +63,24 @@ eight RED titles above, and no other.
 - characterised: TF35 a capacity change while paused releases the pause and shows the emptied live timeline
 - characterised: a timeline holding entries over a zero bound is emptied by the next record
 - characterised: UT5 a re-render with the same capacity, or with none after none, keeps the hand-fed entries
+
+## Shown failing once
+
+Each characterisation was run against a one-line, uncommitted edit of the base source it is about, failed, and the edit
+was restored with `git checkout -- <file>`. After the last restore `git diff --quiet -- packages/devtools/src` holds.
+
+- shown failing: TF33 an omitted capacity after the default capacity, and the default after an omitted one, each empty the timeline and read again
+  - Edit: `TimelineFeed.ts` `configure`: `const resized = false;` (the identity comparison never fires)
+  - First message: `AssertionError: expected [ 'manual' ] to deeply equal []`
+- shown failing: TF34 the store a host holds is one object for the feed life: a listener added before two capacity changes hears each emptied timeline once
+  - Edit: `TimelineFeed.ts`: `const push = () => {};` (the mirror hears nothing)
+  - First message: `AssertionError: expected [] to deeply equal [ 3, 2 ]`
+- shown failing: TF35 a capacity change while paused releases the pause and shows the emptied live timeline
+  - Edit: `TimelineFeed.ts` forwarder: `isPaused: () => true,`
+  - First message: `AssertionError: expected true to be false`
+- shown failing: a timeline holding entries over a zero bound is emptied by the next record
+  - Edit: `Timeline.ts`: `const bound = (self: Timeline): Timeline => self;`
+  - First message: `AssertionError: expected [ TimelineDecision{ …(6) }, …(1) ] to deeply equal []`
+- shown failing: UT5 a re-render with the same capacity, or with none after none, keeps the hand-fed entries
+  - Edit: `useTimeline.ts` `useTimelineStore`: `const [store] = [makeTimelineStore(options)];` (a store per render)
+  - First message: `AssertionError: expected { entries: [], capacity: 3 } to equal { entries: [], capacity: 3 }`
