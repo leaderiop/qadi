@@ -830,6 +830,8 @@ describe("the timeline feed", () => {
 
       assert.strictEqual(feed.timeline.getSnapshot().capacity, 2);
       assert.deepStrictEqual(idsOf(feed), ["from-b"]);
+      // The inner call's read and the outer call's own read step: the held source is read once by each.
+      assert.deepStrictEqual(b.tally, { reads: 2 });
       assert.deepStrictEqual(c.tally, { reads: 0 });
     }));
 
