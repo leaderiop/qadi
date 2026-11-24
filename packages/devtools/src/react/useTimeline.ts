@@ -15,10 +15,17 @@
  */
 import { useCallback, useLayoutEffect, useState } from "react";
 import type { Source } from "../model/Source.ts";
-import { idleTimeline, idleTimelineStatus, makeTimelineFeed, type TimelineStatus } from "../model/TimelineFeed.ts";
+import {
+  idleTimeline,
+  idleTimelineStatus,
+  makeTimelineFeed,
+  type TimelineFeed,
+  type TimelineFeedInputs,
+  type TimelineStatus,
+} from "../model/TimelineFeed.ts";
 import { makeTimelineStore, type TimelineStore } from "../model/TimelineStore.ts";
 import { DEFAULT_TIMELINE_CAPACITY, type Timeline } from "../model/Timeline.ts";
-import { useScoped } from "./useScoped.ts";
+import { useConfigured } from "./useConfigured.ts";
 import { usePaused, useStoreSnapshot } from "./useStoreSnapshot.ts";
 
 export interface UseTimeline {
@@ -33,6 +40,10 @@ export interface UseTimeline {
   /** Reads the current source again; does nothing before the feed exists and for a hand-fed store. */
   readonly restart: () => void;
 }
+
+const configureTimeline = (feed: TimelineFeed, inputs: TimelineFeedInputs): void => {
+  feed.configure(inputs);
+};
 
 /**
  * Subscribes to a source and returns the timeline it produces.
@@ -55,14 +66,9 @@ export const useTimeline = (
   options?: { readonly capacity?: number },
 ): UseTimeline => {
   const capacity = options?.capacity;
-  const feed = useScoped(() => makeTimelineFeed({ source, capacity }));
-
-  // The feed compares the source by identity and the capacity by the bound it means.
-  // It runs again on the render the feed appears, so an input changed in between
-  // still lands.
-  useLayoutEffect(() => {
-    if (feed !== undefined) feed.configure({ source, capacity });
-  }, [feed, source, capacity]);
+  // The feed compares the source by identity and the capacity by the bound it means, so
+  // a record rebuilt every render configures nothing.
+  const feed = useConfigured(makeTimelineFeed, configureTimeline, { source, capacity });
 
   const store = feed?.timeline ?? idleTimeline;
   const timeline = useStoreSnapshot(store);

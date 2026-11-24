@@ -6,15 +6,19 @@
  * poll. The feed lives in a scope the component holds, so unmounting closes it
  * (ADR-QD-137).
  */
-import { useLayoutEffect } from "react";
 import {
   idleDiagnostics,
   makeDiagnosticsFeed,
+  type DiagnosticsFeed,
   type DiagnosticsSnapshot,
 } from "../model/DiagnosticsFeed.ts";
 import type { DiagnosticsOptions } from "../model/DiagnosticsStore.ts";
-import { useScoped } from "./useScoped.ts";
+import { useConfigured } from "./useConfigured.ts";
 import { useStoreSnapshot } from "./useStoreSnapshot.ts";
+
+const configureDiagnostics = (feed: DiagnosticsFeed, options: DiagnosticsOptions | undefined): void => {
+  feed.configure(options);
+};
 
 /**
  * Samples the diagnostics while mounted, and returns the poll's status and its latest reading.
@@ -35,13 +39,9 @@ import { useStoreSnapshot } from "./useStoreSnapshot.ts";
  * fresh run.
  */
 export const useDiagnostics = (options?: DiagnosticsOptions): DiagnosticsSnapshot => {
-  const feed = useScoped(() => makeDiagnosticsFeed(options));
-
-  // The feed compares each field by identity. It runs again on the render the feed
-  // appears, so an input changed in between still lands.
-  useLayoutEffect(() => {
-    if (feed !== undefined) feed.configure(options);
-  }, [feed, options]);
+  // The feed compares each field by identity, so an `options` object rebuilt every render
+  // configures nothing.
+  const feed = useConfigured(makeDiagnosticsFeed, configureDiagnostics, options);
 
   return useStoreSnapshot(feed ?? idleDiagnostics(options));
 };

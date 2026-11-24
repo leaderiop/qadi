@@ -7,7 +7,7 @@
  * `useSimulationSession.ts`'s relationship to `SimulationSession` taken to the whole
  * dock (ARCH-74), and package-private for the same reason (ADR-QD-099).
  *
- * Nothing here forks a fiber or holds state: `useScoped` holds the model and its scope,
+ * Nothing here forks a fiber or holds state: `useConfigured` holds the model and its scope,
  * and the model reads the source in that scope. The host's diagnostics options and
  * supplied reading are inputs like the source: the model polls and merges them in its
  * scope, and so are the gate registry and the questions source: the model's gates feed
@@ -16,14 +16,13 @@
  * that branch, which is what keeps a hidden `Activity` from leaving one on a closed
  * model (ADR-QD-137).
  */
-import { useLayoutEffect } from "react";
 import type { Catalogue } from "../model/Catalogue.ts";
 import type { DiagnosticsOptions, DiagnosticsReading } from "../model/DiagnosticsStore.ts";
 import { makeDockModel, type DockModel } from "../model/DockModel.ts";
 import type { AskedQuestionLike, GateRegistryLike } from "../model/Gates.ts";
 import type { EvaluationPortsLayer } from "../model/SimulationInput.ts";
 import type { Source } from "../model/Source.ts";
-import { useScoped } from "./useScoped.ts";
+import { useConfigured } from "./useConfigured.ts";
 
 export interface UseDockModelInput {
   readonly source?: Source | undefined;
@@ -36,25 +35,12 @@ export interface UseDockModelInput {
   readonly questions?: (() => ReadonlyArray<AskedQuestionLike>) | undefined;
 }
 
-export const useDockModel = ({
-  source,
-  capacity,
-  catalogue,
-  ports,
-  diagnostics,
-  reading,
-  gates,
-  questions,
-}: UseDockModelInput): DockModel | undefined => {
-  // One scope per mounted dock: unmounting closes it, which interrupts the source read
-  // and a simulation run in flight.
-  const model = useScoped(() => makeDockModel({ source, capacity, catalogue, ports, diagnostics, reading, gates, questions }));
-
-  // The model diffs each field by identity and re-reads on a new source or capacity. It
-  // runs again on the render the model appears, so a prop changed in between still lands.
-  useLayoutEffect(() => {
-    if (model !== undefined) model.configure({ source, capacity, catalogue, ports, diagnostics, reading, gates, questions });
-  }, [model, source, capacity, catalogue, ports, diagnostics, reading, gates, questions]);
-
-  return model;
+const configureDock = (model: DockModel, inputs: UseDockModelInput): void => {
+  model.configure(inputs);
 };
+
+export const useDockModel = (input: UseDockModelInput): DockModel | undefined =>
+  // One scope per mounted dock: unmounting closes it, which interrupts the source read
+  // and a simulation run in flight. The model diffs each field by identity and re-reads
+  // on a new source or capacity, so the record is handed over whenever it changes.
+  useConfigured(makeDockModel, configureDock, input);
