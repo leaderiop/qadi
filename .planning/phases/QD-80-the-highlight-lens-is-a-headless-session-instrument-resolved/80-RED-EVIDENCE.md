@@ -14,3 +14,16 @@ the scratch directory and restored with `cp`; `git status --porcelain -- package
 - check failed: scan-ids: packages/devtools/src/model/DockModel.ts:444 names a requirement id: // LENS-01 scratch
 - check failed: scan-forbidden: packages/devtools/src/model/DockModel.ts:445 uses an as cast: const planted = value as Planted;
 - check failed: branch: no useId evidence line
+
+## 80-02 the lens through the dock
+
+Each flip's after line was applied alone to a `cp`-backed copy of the committed file and run on the unchanged source: that
+flip's test failed and the other nine passed. The file was restored with `cp` after each run, and
+`git status --short -- packages` printed nothing afterwards.
+
+- base: 7546f54e1a07abec7ea6aef328f9196a59a033c2
+- red on the base (pick-kept): a pick, then a switch to the log and back
+- red on the base (highlight-ends-picking): the highlight button pressed while picking
+- red on the base (highlight-survives-move): the highlight button pressed while picking
+- red on the base (same-hover-same-overlay): two pointer moves over one guard while picking
+- check failed: 80-characterisation-check.mjs: packages/devtools/test/react/Lens.dock.characterisation.test.tsx differs from its first commit: sha256 1a46298d133f8af4b1719d2cc937c60155e016498a0240e75e97baf528590c9d with its flips reverted, dab45aaac1a71d410a81290259b6c559627814edb0110dc3cd5e2d6e6273ce89 at 7546f54e
