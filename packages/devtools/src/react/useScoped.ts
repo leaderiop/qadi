@@ -40,8 +40,9 @@ export const useScoped = <A>(make: () => Effect.Effect<A, never, Scope.Scope>): 
       setValue(undefined);
       close();
     };
-    // `make` is read once per mount: later inputs arrive as commands, which is how
-    // every owner here takes its props (the dock model's and the feeds' `configure`).
+    // The build runs once per mount, and a remount or a reveal runs it again with the
+    // latest committed render's closure, so a caller that configures inside the build
+    // hands the rebuilt value the current inputs.
   }, []);
 
   return value;

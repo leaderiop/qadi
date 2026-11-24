@@ -223,3 +223,16 @@ The first-configure counts of CR22 were measured on the base. With a layer that 
 - edit T4: `DockModel.ts`: `readonly extra?: number | undefined` added to `DockModelInputs`
 - failed: tsc TS2741 packages/devtools/src/model/DockModel.ts
 - failed: a dock model compares eight inputs, each present and possibly undefined, and maps them onto its three feeds
+
+## 79-10 the hook
+
+Each scratch edit was applied to `packages/devtools/src/react/useConfigured.ts`, run with the JSON reporter against `packages/devtools/test/react/useConfigured.test.tsx`, and restored from a copy; `git status --porcelain -- packages/devtools/src` shows only the committed hook and the `useScoped.ts` comment afterwards. The four cells are green on the real hook.
+
+- edit H1: fold (c), the build left bare (`useScoped(make)`), so only the change effect configures
+- failed: U1 the first commit a child makes reads the value already configured with the first inputs
+- edit H2: the build wraps `configure(built, inputs)` in a `try`/`catch` that swallows the throw
+- failed: U2 a configure that throws on the first build closes the scope and reaches the boundary as itself
+- edit H3: the change effect's dependencies are `[value]` only
+- failed: U3 a new inputs record configures once more and the same record configures nothing more
+- edit H4: the build reads its inputs from `useState(() => inputs)[0]`, the first render's closure
+- failed: U4 a value hidden, handed new inputs and shown again is rebuilt configured with them, also under StrictMode
