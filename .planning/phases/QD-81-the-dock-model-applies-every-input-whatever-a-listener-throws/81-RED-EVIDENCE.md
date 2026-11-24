@@ -143,3 +143,22 @@ as 2; every other store's count was unchanged, and the one more on three stores 
 A scratch-free correction found while turning DL15 green: its rail assertion listed the two sightings oldest first, while
 the rail is newest first (`policiesSeen` walks the timeline newest first), so the expected order was swapped to
 `canWrite`, `canRead`; the assertion that the explorer and the simulation hold the model's rail is unchanged.
+
+## 81-10 the close
+
+The mutation close found one mutant the begin-then-fork change left alive: the guard `if (!runs.isCurrent(token)) return;` in the diagnostics feed's `accept` (`ConditionalExpression -> false`). At the base the pre-flip F31 killed it, because a throw on the `Starting` left the old poll running, fenced by its token; with the window closed, no held test reached a stale `accept` and told it from a fresh one. F33 closes it.
+
+- failed (scratch): F33 a sample the superseded run takes on its way out is dropped, so the feed stays Starting until the newest run samples
+  - edit: replaced the guard in `makeDiagnosticsFeed`'s `accept` with `if (false) return;` in the working tree, restored with `git checkout -- packages/devtools/src/model/DiagnosticsFeed.ts`; failed on: AssertionError: expected [ 'Starting', 'Live' ] to deeply equal [ 'Starting' ] (the superseded run's sample reached the store while the newest run was held)
+
+F33 is green on the base, a characterisation of a guard that was already there. The close was re-measured on the head that holds it: `DiagnosticsFeed.ts` 60/60, no open mutant.
+
+The pinned check found TF36 failing beside TF29 once TF37 was appended after it: the archived check cuts a test to the next test or the closing line, so the blank line before the appended test fell inside TF36's block, with no line of TF36 changed. TF37 now sits before TF36.
+
+- archived checks at close:
+  - 79-pinned-check.mjs: exit 1: packages/devtools/test/model/TimelineFeed.test.ts: TF29: an assertion or a line other than a construction changed
+  - 79-characterisation-check.mjs: exit 0: characterisation: packages/devtools/test/react/ConfigureFirstRender.characterisation.test.tsx holds its first commit (cf3186d9)
+  - 80-pinned-check.mjs --all-applied: exit 0: pinned: 4 files hold their base text, 4 of 4 declared edits applied
+  - 80-characterisation-check.mjs --all-flipped: exit 0: characterisation: packages/react/test/InstrumentToggle.characterisation.test.tsx holds its first commit (2cca1f46), 1 of 1 flips applied
+  - 80-characterisation-check.mjs --red-recorded: exit 0: red-recorded: every flip has its red line
+- 79-pinned-check fails on TF29 only: the flip recorded above (D-13)
