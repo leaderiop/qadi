@@ -198,6 +198,8 @@ export const DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS = 2_000;
  * Gates and questions are not here. They are the gates feed's inputs
  * (`GatesFeedInputs.gates` and `GatesFeedInputs.questions`, `makeGatesFeed`), which reads them
  * (ADR-QD-162, ADR-QD-169).
+ *
+ * A field holding `undefined` reads as omitted.
  */
 export interface DiagnosticsOptions {
   /**
@@ -213,15 +215,15 @@ export interface DiagnosticsOptions {
    * Typed `Layer<never, unknown>` because `Layer` is contravariant in what it
    * provides: that is the one type every layer is assignable to.
    */
-  readonly layer?: Layer.Layer<never, unknown>;
+  readonly layer?: Layer.Layer<never, unknown> | undefined;
   /** The collector whose `layer` is wired where evaluations run, for the recent port calls. */
-  readonly collector?: PortCallCollector;
+  readonly collector?: PortCallCollector | undefined;
   /**
    * How often to sample, in milliseconds. Defaults to `DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS`.
    *
    * A changed value restarts the poll, which is why a cadence is a number and not a `Schedule`.
    */
-  readonly intervalMillis?: number;
+  readonly intervalMillis?: number | undefined;
 }
 
 /**

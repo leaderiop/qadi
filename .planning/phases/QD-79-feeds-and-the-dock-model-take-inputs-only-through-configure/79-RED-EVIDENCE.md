@@ -175,3 +175,14 @@ The first-configure counts of CR22 were measured on the base. With a layer that 
 
 - edit E4: `ExternalStore.ts`: `sameFieldsOrAbsent` answering false for two absent inputs
 - failed: sameFieldsOrAbsent holds for two absent inputs
+
+- edit E5: `DiagnosticsFeed.ts`: a feed that holds and compares the raw options without normalising them (`completeDiagnosticsOptions` not applied to the held or the wanted options)
+- failed: CR23 an omitted option and one holding undefined are one option: nothing restarts and nothing is published
+
+- edit E6: `DiagnosticsFeed.ts`: a configure that returns on `held === wanted` instead of `sameFieldsOrAbsent(held, wanted)`
+- failed: CR6 a fresh literal holding the same layer, collector and interval restarts nothing and publishes nothing
+- failed: CR7 on a bare feed undefined publishes nothing, an empty object turns it on, a fresh empty object publishes nothing, and undefined turns it Off once
+- failed: CR23 an omitted option and one holding undefined are one option: nothing restarts and nothing is published
+
+- edit E7: `surface.tst.ts`: the DiagnosticsOptions pin kept at the narrow field types against the widened type
+- failed: DiagnosticsOptions is a layer, a collector and an interval, and nothing else

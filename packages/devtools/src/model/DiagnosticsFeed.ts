@@ -31,7 +31,7 @@ import {
   type DiagnosticsOptions,
   type DiagnosticsStore,
 } from "./DiagnosticsStore.ts";
-import { makeExternalStore } from "./ExternalStore.ts";
+import { makeExternalStore, sameFieldsOrAbsent } from "./ExternalStore.ts";
 import { makeSupersedingRun } from "./SupersedingRun.ts";
 
 /**
@@ -112,8 +112,9 @@ export interface DiagnosticsReadout {
 
 export interface DiagnosticsFeed extends DiagnosticsReadout {
   /**
-   * Compared per field: an options object equal field by field to the previous
-   * one restarts nothing. `undefined` ends the run and resets the reading.
+   * Compared per field over the normalised options: an options object equal field by
+   * field to the previous one restarts nothing, and a field omitted equals one holding
+   * `undefined`. `undefined` ends the run and resets the reading.
    */
   readonly configure: (options: DiagnosticsOptions | undefined) => void;
 }
@@ -135,11 +136,27 @@ const IDLE_STARTING = idle(diagnosticsStarting);
 export const idleDiagnostics = (options: DiagnosticsOptions | undefined): DiagnosticsReadout =>
   options === undefined ? IDLE_OFF : IDLE_STARTING;
 
+/**
+ * The one normaliser of the diagnostics feed's options.
+ *
+ * An omitted field and one holding `undefined` become one field, so two options that
+ * differ only in how they spell an absent field are one option. It sits here rather than
+ * beside its type in `DiagnosticsStore.ts` so that it is in a file the mutation record
+ * measures. The declared return type makes a new option a compile error until it is
+ * listed here (ADR-QD-192).
+ */
+export const completeDiagnosticsOptions = (options: DiagnosticsOptions): Required<DiagnosticsOptions> => ({
+  layer: options.layer,
+  collector: options.collector,
+  intervalMillis: options.intervalMillis,
+});
+
 /** Builds the feed in the caller's scope; closing it interrupts the run, and an interruption is never a `Stopped`. */
 export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed")(function* (
   init?: DiagnosticsOptions,
 ): Effect.fn.Return<DiagnosticsFeed, never, Scope.Scope> {
-  let options = init;
+  let held: Required<DiagnosticsOptions> | undefined =
+    init === undefined ? undefined : completeDiagnosticsOptions(init);
   let store: DiagnosticsStore = makeDiagnosticsStore();
   // Whether the reading shown holds an accepted sample: reset only by `Off`.
   let sampled = false;
@@ -187,27 +204,18 @@ export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed"
   const configure = (next: DiagnosticsOptions | undefined) => {
     // A command on a closed feed would publish a state nothing follows.
     if (runs.closed()) return;
-    const before = options;
-    options = next;
-    if (next === undefined) {
-      off();
-      return;
-    }
-    if (
-      before === undefined ||
-      next.layer !== before.layer ||
-      next.collector !== before.collector ||
-      next.intervalMillis !== before.intervalMillis
-    ) {
-      start(next);
-    }
+    const wanted = next === undefined ? undefined : completeDiagnosticsOptions(next);
+    if (sameFieldsOrAbsent(held, wanted)) return;
+    held = wanted;
+    if (wanted === undefined) off();
+    else start(wanted);
   };
 
   const restart = () => {
-    if (!runs.closed() && options !== undefined) start(options);
+    if (!runs.closed() && held !== undefined) start(held);
   };
 
-  if (init !== undefined) start(init);
+  if (held !== undefined) start(held);
 
   return { subscribe: view.subscribe, getSnapshot: view.getSnapshot, configure, restart };
 });

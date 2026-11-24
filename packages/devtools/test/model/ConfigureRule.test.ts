@@ -405,6 +405,37 @@ describe("the diagnostics feed", () => {
       }
     }),
   );
+
+  it.effect("CR23 an omitted option and one holding undefined are one option: nothing restarts and nothing is published", () =>
+    Effect.gen(function* () {
+      const probe = diagnosticsProbe();
+      const layer = probe.layer();
+      const feed = yield* diagnosticsFeedOf({ layer });
+      yield* settleTurns;
+      const seen = recording(feed);
+      const held = { ...probe.counts };
+      const snapshot = feed.getSnapshot();
+      assert.isTrue(DiagnosticsStatus.$is("Live")(snapshot.status));
+
+      feed.configure({ layer, collector: undefined, intervalMillis: undefined });
+      yield* step("1 second");
+
+      assert.deepStrictEqual(seen, []);
+      assert.deepStrictEqual({ ...probe.counts }, held);
+      assert.strictEqual(feed.getSnapshot(), snapshot);
+
+      const empty = yield* diagnosticsFeedOf({});
+      yield* settleTurns;
+      const emptySeen = recording(empty);
+      const emptySnapshot = empty.getSnapshot();
+
+      empty.configure({ layer: undefined });
+      yield* settleTurns;
+
+      assert.deepStrictEqual(emptySeen, []);
+      assert.strictEqual(empty.getSnapshot(), emptySnapshot);
+    }),
+  );
 });
 
 const noQuestions = (): ReadonlyArray<AskedQuestionLike> => [];

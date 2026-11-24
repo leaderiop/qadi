@@ -293,9 +293,9 @@ test("React's DiagnosticsOptions is the root's", () => {
 
 test("DiagnosticsOptions is a layer, a collector and an interval, and nothing else", () => {
   expect<DiagnosticsOptions>().type.toBe<{
-    readonly layer?: Layer.Layer<never, unknown>;
-    readonly collector?: PortCallCollector;
-    readonly intervalMillis?: number;
+    readonly layer?: Layer.Layer<never, unknown> | undefined;
+    readonly collector?: PortCallCollector | undefined;
+    readonly intervalMillis?: number | undefined;
   }>();
 });
 
