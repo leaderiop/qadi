@@ -118,3 +118,37 @@ packages/devtools/src` holds (the working-tree fix is the change under commit).
 - shown failing: M56: a timeline listener that throws on a capacity change is rethrown once the dock has applied the rest of the configure
   - edit: `DockModel.ts` `configure`: the `try`/`finally` unwrapped, the feed configure and the rest of the inputs in straight-line code
   - First message: `AssertionError: expected [] to deeply equal [ 'editor' ]` (the throw escaped before the role list was applied)
+
+## The resize rules of the store, shown failing once
+
+Each of the nine resize tests in `TimelineStore.test.ts` passes on the changed source. Each was run against its own
+uncommitted edit of `TimelineStore.ts` `resize`, failed, and the file was restored. After the last restore `git diff
+--quiet -- packages/devtools/src` holds.
+
+- shown failing: a new capacity empties the timeline at the new bound, publishes once and answers true
+  - edit: `view.publish(next)` dropped
+  - First message: `AssertionError: expected +0 to equal 1` (no listener heard the resize)
+- shown failing: the capacity it already has answers false, publishes nothing and keeps the entries
+  - edit: the same-capacity `return false` removed
+  - First message: `AssertionError: expected true to be false`
+- shown failing: a new capacity while paused releases the pause and shows the emptied live timeline
+  - edit: `frozen = undefined` removed
+  - First message: `AssertionError: expected true to be false` (the pause was kept)
+- shown failing: the capacity it already has while paused keeps the pause and the frozen view, and publishes nothing
+  - edit: `frozen = undefined` moved above the same-capacity return
+  - First message: `AssertionError: expected false to be true` (the same capacity released the pause)
+- shown failing: a capacity it refuses throws, and keeps the entries, the pause and the frozen view
+  - edit: `frozen = undefined` moved to the first line, before `emptyTimeline`
+  - First message: `AssertionError: expected false to be true` (the refused capacity released the pause)
+- shown failing: zero is a capacity it keeps, and negative zero is the same bound
+  - edit: `Object.is(next.capacity, timeline.capacity)` in place of `===`
+  - First message: `AssertionError: expected true to be false` (negative zero after zero counted as a new bound)
+- shown failing: what a listener throws on the resize is rethrown after the resize is made
+  - edit: `timeline = next` moved after `view.publish(next)`
+  - First message: `Error: one listener` (the store kept the old bound, so the second resize to the new one published again and the listener's throw escaped the test)
+- shown failing: a listener that resizes to the same capacity from inside the publish is answered false
+  - edit: the same-capacity return answers `true`
+  - First message: `AssertionError: expected [ true ] to deeply equal [ false ]`
+- shown failing: a caller outside the type: no capacity and null read as the default, a string or a bigint throws
+  - edit: `{ entries: [], capacity }` built in place of `emptyTimeline({ capacity })`
+  - First message: `AssertionError: expected undefined to equal 500` (the missing capacity was kept as `undefined`)
