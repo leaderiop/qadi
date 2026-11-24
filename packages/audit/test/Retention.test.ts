@@ -119,25 +119,25 @@ describe("planRetention", () => {
     return result.failure;
   };
 
-  it("refuses a non-finite now, naming the field and the value", () => {
+  it("refuses a non-finite now, naming the member and the value", () => {
     for (const now of [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NaN]) {
       const error = refused({ maxAgeMs: 1_000 }, now);
       assert.strictEqual(error._tag, "RetentionInputInvalid");
-      assert.strictEqual(error.field, "now");
-      assert.isTrue(Object.is(error.value, now));
+      if (error.refusal._tag !== "NowNotFinite") return assert.fail(error.refusal._tag);
+      assert.isTrue(Object.is(error.refusal.value, now));
     }
   });
 
-  it("refuses a maxAgeMs that is NaN or negative, naming the field and the value", () => {
+  it("refuses a maxAgeMs that is NaN or negative, naming the member and the value", () => {
     for (const maxAgeMs of [Number.NaN, -1, Number.NEGATIVE_INFINITY]) {
       const error = refused({ maxAgeMs }, 2_000);
-      assert.strictEqual(error.field, "maxAgeMs");
-      assert.isTrue(Object.is(error.value, maxAgeMs));
+      if (error.refusal._tag !== "MaxAgeInvalid") return assert.fail(error.refusal._tag);
+      assert.isTrue(Object.is(error.refusal.value, maxAgeMs));
     }
   });
 
   it("checks now before maxAgeMs", () => {
-    assert.strictEqual(refused({ maxAgeMs: -1 }, Number.NaN).field, "now");
+    assert.strictEqual(refused({ maxAgeMs: -1 }, Number.NaN).refusal._tag, "NowNotFinite");
   });
 });
 
@@ -228,7 +228,7 @@ describe("planPurge", () => {
     const result = planPurge([entryAt(0)], { maxAgeMs: -1 }, 2_000, archiveOf([]));
     if (!Result.isFailure(result)) return assert.fail("expected a refusal");
     assert.strictEqual(result.failure._tag, "RetentionInputInvalid");
-    assert.strictEqual(result.failure.field, "maxAgeMs");
+    assert.strictEqual(result.failure.refusal._tag, "MaxAgeInvalid");
   });
 });
 

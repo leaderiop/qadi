@@ -6,7 +6,9 @@
  * `any` (`JSON.parse`, a raw SQL row, an untyped ORM result) and a JavaScript caller has
  * no compiler, so the type alone cannot keep a row the codec never made out of the
  * archive writer. The codec records each row it makes here, and a function that takes a
- * host's rows asks {@link firstNotCodecMade} before it computes a fact from them.
+ * host's rows asks {@link rowsRefusal} before it computes a fact from them. The same
+ * caller can pass something that is not a list at all, so the list is the first thing
+ * asked.
  *
  * Membership is identity, which a class check is not: `instanceof` is answered by a
  * prototype, and `Object.create` gives any object a row's. A `WeakSet` holds no row
@@ -21,6 +23,7 @@
  * and let any host record a row of its own, which defeats the check, so the limit stays
  * and a second copy is a configuration to fix: install one.
  */
+import * as Data from "effect/Data";
 import * as Predicate from "effect/Predicate";
 
 const codecMade = new WeakSet<object>();
@@ -32,14 +35,37 @@ export const markCodecMade = <Row extends object>(row: Row): Row => {
 };
 
 /**
- * The index of the first entry the codec did not make, or `undefined` when it made
- * every one (an empty list included).
+ * Why a host's rows are refused: the two members every function that takes rows shares.
  *
- * An entry that is not an object, `null` included, is not a row the codec made.
+ * `ArchiveInputRefusal` and `RetentionInputRefusal` each add the members of their own
+ * inputs to these, so a row is refused in one place and by one reading of "a row the
+ * codec made" (ADR-QD-190).
  */
-export const firstNotCodecMade = (entries: ReadonlyArray<unknown>): number | undefined => {
+export type RowsRefusalCases = {
+  /** `entries` is not a list; `value` is what was given. */
+  readonly EntriesNotAList: { readonly value: unknown };
+  /** The entry at `index` is not a row the codec made. */
+  readonly EntryNotMadeByCodec: { readonly index: number };
+};
+
+type RowsRefusal = Data.TaggedEnum<RowsRefusalCases>;
+const { EntriesNotAList, EntryNotMadeByCodec } = Data.taggedEnum<RowsRefusal>();
+
+/**
+ * Why `entries` is not a list of rows the codec made, or `undefined` when it is one (an
+ * empty list included).
+ *
+ * `EntriesNotAList` carries what was given, so the host that passed `undefined`, `null` or
+ * an object for the list can see it. `EntryNotMadeByCodec` carries the index of the first
+ * entry the codec did not make; an entry that is not an object, `null` included, is not a
+ * row the codec made.
+ */
+export const rowsRefusal = (entries: unknown): RowsRefusal | undefined => {
+  if (!Array.isArray(entries)) {
+    return EntriesNotAList({ value: entries });
+  }
   const index = entries.findIndex(
     (entry) => !(Predicate.isObjectKeyword(entry) && codecMade.has(entry)),
   );
-  return index === -1 ? undefined : index;
+  return index === -1 ? undefined : EntryNotMadeByCodec({ index });
 };

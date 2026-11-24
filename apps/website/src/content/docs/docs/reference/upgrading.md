@@ -1156,10 +1156,13 @@ The decision is [ADR-QD-189](https://github.com/leaderiop/qadi/blob/main/spec/de
 | a store's sequence number on a row | `{ ...entry, sequenceNumber: n }` | `decodeAuditEntry({ record, sequenceNumber: n })` |
 | `SequenceNumberInvalid` | the writer's and the verifier's failure for a number that is not a safe integer | removed; `decodeAuditEntry` refuses such a number as `Malformed`, so no row holds one |
 | `undated` on `RetentionPlan` and `PurgePlan` | the rows whose `at` was not finite | removed; a row's `at` is finite, so a plan holds `retained` and `expired`, and a purge plan `purge`, `retain` and `unarchived` |
-| `archiveAuditTrail` with a `now` that is not finite | archived the bundle with a `null` `createdAt` | fails `ArchiveInputInvalid`, naming `now` and the value |
+| `archiveAuditTrail` with a `now` that is not finite | archived the bundle with a `null` `createdAt` | fails `ArchiveInputInvalid` with the refusal `NowNotFinite`, carrying the value |
 | a `keyMaterial` item with an extra property | archived, and the reader refused the bundle | written as `keyId`, `algorithm` and `publicKey` |
-| a `keyMaterial` typed `any` that the reader would refuse (an item with a number `keyId`, a `null` item, a value that is not a list) | a number `keyId` was archived and the reader refused the bundle; a `null` item or a non-list threw a `TypeError` and killed the fiber | fails `ArchiveInputInvalid`, naming `keyMaterial` and the index of the first item refused, or the value given when it is not a list |
-| a row typed `any` that the codec did not make (`JSON.parse`, a raw SQL row, an untyped ORM result) in `archiveAuditTrail`, `verifySequenceIntegrity`, `planRetention` or `planPurge` | accepted, so a row with a `null` `at` was archived and a plain row numbered `1.5` was read as a number | fails `ArchiveInputInvalid` or `RetentionInputInvalid`, naming `entries` and the index of the first such row |
+| a `keyMaterial` typed `any` that the reader would refuse (an item with a number `keyId`, a `null` item, a value that is not a list) | a number `keyId` was archived and the reader refused the bundle; a `null` item or a non-list threw a `TypeError` and killed the fiber | fails `ArchiveInputInvalid` with `KeyMaterialItemRefused`, carrying the `index` of the first item refused, or `KeyMaterialNotAList`, carrying the value given when it is not a list |
+| a `keyMaterial` accessor (a getter, a proxy) that answers differently when it is read again | read twice, once to check and once to write, so a `keyId` the check saw as a string could be archived as a number | the list and each item's fields are read once, and what is checked is what is written |
+| a row typed `any` that the codec did not make (`JSON.parse`, a raw SQL row, an untyped ORM result) in `archiveAuditTrail`, `verifySequenceIntegrity`, `planRetention` or `planPurge` | accepted, so a row with a `null` `at` was archived and a plain row numbered `1.5` was read as a number | fails `ArchiveInputInvalid` or `RetentionInputInvalid` with `EntryNotMadeByCodec`, carrying the `index` of the first such row |
+| `entries` that is not a list (`undefined`, `null`, an object) in the same four functions | a `TypeError` that killed the fiber | fails `ArchiveInputInvalid` or `RetentionInputInvalid` with `EntriesNotAList`, carrying the value you passed |
+| the shape of `RetentionInputInvalid` | `field` and a `number` `value` | a `refusal`: a member of the closed `RetentionInputRefusal` |
 | an `AuditEntry` the codec made, written to (`entry.sequenceNumber = 1.5`, `entry.record.at = null`) | changed the row the writer and the purge read | throws a `TypeError` in strict mode: the codec freezes the row and its `record`, one level deep |
 | `decodeAuditEntry` | read the row's record, then the row | reads the row, then its record: the message of a refusal changes, and so does the refusal of a row that is bad in both places, and every tag is unchanged |
 
@@ -1186,7 +1189,26 @@ if (Result.isSuccess(numbered)) {
 
 `decodeAuditEntry` refuses a row whose number is not a safe integer, and refuses a row with an undeclared top-level key, so a spread such as `{ ...entry, sequenceNumber: n }` is a way to write storage JSON and not a way to make an `AuditEntry`. Write that object to your store, and read the store's row back through `decodeAuditEntry`. There is no setter and no `encodeAuditEntry` option for the number.
 
-A handler of the writer's failures covers `ArchiveInputInvalid` and `SequenceIntegrityError`; `ArchiveInputInvalid` has the shape of `RetentionInputInvalid`, with a `field` and a `value`. `ArchiveInputInvalid`'s `field` is `"now"`, `"keyMaterial"` or `"entries"` and `RetentionInputInvalid`'s is `"now"`, `"maxAgeMs"` or `"entries"`; for `entries` the `value` is the index of the first row the codec did not make, and for `keyMaterial` it is the index of the first item that is not key material, or the value you passed when it is not a list. `ArchiveInputInvalid`'s `value` is `unknown`, because `any` and JavaScript callers pass what the type does not admit. `verifySequenceIntegrity` can fail `ArchiveInputInvalid` as well as `SequenceIntegrityError`, so a handler of it covers both, and `planRetention` and `planPurge` can fail `RetentionInputInvalid` for `entries`. The record of what the codec made is per loaded copy of `@qadi/audit`: a row made by one copy and passed to another (two versions installed side by side, two bundles with separate module graphs, a test that resets modules) fails `ArchiveInputInvalid` naming `entries` and the index of the first such row, so install one copy. A host that passes only rows it read back through `decodeAuditEntry`, or made with `encodeAuditEntry`, from one copy of the package, sees no difference at run time; a row that arrives as `any` is read back through `decodeAuditEntry` first. A caller of `planRetention` or `planPurge` stops reading `undated`. A caller that catches `SequenceNumberInvalid` removes the handler, because `decodeAuditEntry` refuses the number first.
+A handler of the writer's failures covers `ArchiveInputInvalid` and `SequenceIntegrityError`. `ArchiveInputInvalid` and `RetentionInputInvalid` each carry a `refusal`, the way `ArchiveNotVerified` does, and the refusal is a member of a closed `Data.TaggedEnum` that you read with `Match.tagsExhaustive`: `ArchiveInputRefusal` has `NowNotFinite`, `KeyMaterialNotAList`, `KeyMaterialItemRefused`, `EntriesNotAList` and `EntryNotMadeByCodec`, and `RetentionInputRefusal` has `NowNotFinite`, `MaxAgeInvalid`, `EntriesNotAList` and `EntryNotMadeByCodec`. A member holds a value of type `unknown` only where it carries what you passed (`value`), and an `index` is always a number, so a handler never has to ask which of the two a slot holds. Code that read `error.field` and `error.value` reads `error.refusal` instead:
+
+```typescript
+import * as Match from "effect/Match";
+import type { ArchiveInputRefusal } from "@qadi/audit";
+
+// One reading per member: a member added later is a compile error here.
+export const describeArchiveInput: (refusal: ArchiveInputRefusal) => string =
+  Match.type<ArchiveInputRefusal>().pipe(
+    Match.tagsExhaustive({
+      NowNotFinite: ({ value }) => `now is not a finite number: ${String(value)}`,
+      KeyMaterialNotAList: ({ value }) => `keyMaterial is not a list: ${typeof value}`,
+      KeyMaterialItemRefused: ({ index }) => `keyMaterial item ${index} is not key material`,
+      EntriesNotAList: ({ value }) => `entries is not a list: ${typeof value}`,
+      EntryNotMadeByCodec: ({ index }) => `entry ${index} was not made by the codec`,
+    }),
+  );
+```
+
+`verifySequenceIntegrity` can fail `ArchiveInputInvalid` as well as `SequenceIntegrityError`, so a handler of it covers both, and `planRetention` and `planPurge` can fail `RetentionInputInvalid` for `entries`. The record of what the codec made is per loaded copy of `@qadi/audit`: a row made by one copy and passed to another (two versions installed side by side, two bundles with separate module graphs, a test that resets modules) fails `ArchiveInputInvalid` with `EntryNotMadeByCodec` and the index of the first such row, so install one copy. A host that passes only rows it read back through `decodeAuditEntry`, or made with `encodeAuditEntry`, from one copy of the package, sees no difference at run time; a row that arrives as `any` is read back through `decodeAuditEntry` first. A caller of `planRetention` or `planPurge` stops reading `undated`. A caller that catches `SequenceNumberInvalid` removes the handler, because `decodeAuditEntry` refuses the number first.
 
 The migration example for rows written before 0.10, at the top of this guide, is unchanged. It runs on `@qadi/audit@0.10` and returns storage JSON, which is the object your store takes.
 

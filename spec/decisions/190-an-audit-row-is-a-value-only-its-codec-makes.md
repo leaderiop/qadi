@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-190                                   |
-> | Revision       | 1.5                                            |
+> | Revision       | 1.6                                            |
 > | Effective Date | 2026-11-23                                     |
 > | Status         | Accepted — amends ADR-QD-110 and ADR-QD-056; amended 2026-11-24 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.5 (2026-11-24): third amendment: the writer reads keyMaterial once and writes what it checked (code review WR-01, CCR-QD-469)<br>1.4 (2026-11-24): second amendment: the codec freezes each row it makes and its record, one level, so INV-QD-400 holds for the life of the row (code review IN-02, CCR-QD-469)<br>1.3 (2026-11-24): second amendment: the record of what the codec made is per loaded copy of the module, and the limit is recorded (code review IN-01, CCR-QD-469)<br>1.2 (2026-11-24): second amendment: archiveAuditTrail holds keyMaterial to the reader's schema; ArchiveInputInvalid gains the field keyMaterial and its value is unknown (code review, CCR-QD-469)<br>1.1 (2026-11-24): amendment — a row is also checked at run time, through a package-private record of what the codec made; ArchiveInputInvalid and RetentionInputInvalid gain the field entries (code review WR-01, CCR-QD-469)<br>1.0 (2026-11-23): Initial (ARCH-124, CCR-QD-469) |
+> | Change History | 1.6 (2026-11-24): third amendment: entries that is not a list is refused, and a refusal is a closed enum (code review WR-02, WR-03, IN-01, CCR-QD-469)<br>1.5 (2026-11-24): third amendment: the writer reads keyMaterial once and writes what it checked (code review WR-01, CCR-QD-469)<br>1.4 (2026-11-24): second amendment: the codec freezes each row it makes and its record, one level, so INV-QD-400 holds for the life of the row (code review IN-02, CCR-QD-469)<br>1.3 (2026-11-24): second amendment: the record of what the codec made is per loaded copy of the module, and the limit is recorded (code review IN-01, CCR-QD-469)<br>1.2 (2026-11-24): second amendment: archiveAuditTrail holds keyMaterial to the reader's schema; ArchiveInputInvalid gains the field keyMaterial and its value is unknown (code review, CCR-QD-469)<br>1.1 (2026-11-24): amendment — a row is also checked at run time, through a package-private record of what the codec made; ArchiveInputInvalid and RetentionInputInvalid gain the field entries (code review WR-01, CCR-QD-469)<br>1.0 (2026-11-23): Initial (ARCH-124, CCR-QD-469) |
 
 ---
 
@@ -130,7 +130,7 @@ the reverse and carried a hand-written pre-check for a missing record.
    bytes and is its own fixed point. The sequence-number property moved from the writer to the reader:
    `decodeAuditEntry` refuses a non-safe-integer number as `Malformed`.
 8. **`now` is guarded, and the guard has its own error.** `now` stays a parameter, because the package is parameterized
-   on `now` (`Retention.ts`). A non-finite `now` fails `ArchiveInputInvalid` `{ field: "now"; value: number }`, a
+   on `now` (`Retention.ts`). A non-finite `now` fails `ArchiveInputInvalid` `{ field: "now"; value: number }` (the refusal `NowNotFinite` since the third amendment), a
    `Data.TaggedError` shaped like `RetentionInputInvalid`, so a host handles both the same way. It is checked before
    the sequence facts, so `archiveAuditTrail` fails `ArchiveInputInvalid | SequenceIntegrityError`. The new export is a
    row of `spec/overview.md`, which gate 13 (`scripts/check-api-surface.mjs`) reads.
@@ -272,14 +272,15 @@ Both were written as tests first (`ForeignRows.test.ts`) and were red on the cod
 
 1. **A row the codec made is recorded.** `CodecMade.ts` holds a module-scope `const` `WeakSet<object>`, which is not a
    rebindable name and so not a row of `MODULE_STATE_BUDGET`. `encodeAuditEntry` and `decodeAuditEntry` record each row
-   they construct, through `markCodecMade`, and nothing else calls it. `firstNotCodecMade(entries)` answers the index of
-   the first entry that is not a recorded object, `null` and a primitive included. The module is out of the barrel
+   they construct, through `markCodecMade`, and nothing else calls it. `firstNotCodecMade(entries)` answered the index of
+   the first entry that is not a recorded object (the third amendment's `rowsRefusal` replaces it), `null` and a primitive included. The module is out of the barrel
    (ADR-QD-099), so a host cannot record a row of its own, and a `WeakSet` keeps no row alive.
 2. **The functions that compute a fact from a host's rows ask.** `verifiedArchiveFacts` does, so `archiveAuditTrail`
    and `verifySequenceIntegrity` do, and `planRetention` does, so `planPurge` does. The pure `archiveFacts` is the
    reader's, over rows `readAuditArchive` has just decoded, and asks nothing. The check follows the `now` and `maxAgeMs`
    checks and precedes every fact, so a refused list is never read.
-3. **The refusal is the closed shape the input already had.** `ArchiveInputInvalid.field` is `"now" | "entries"`, and
+3. **The refusal is the closed shape the input already had** (superseded by the third amendment: the shape is a closed
+   `refusal` enum, not a `field` and a `value`). `ArchiveInputInvalid.field` is `"now" | "entries"`, and
    `RetentionInputInvalid.field` is `"now" | "maxAgeMs" | "entries"`. For `entries`, `value` is the index of the first
    entry the codec did not make. A closed union states the whole set, and a second error class would make a host handle
    one input failure two ways. `ArchiveInputInvalid` is declared in `ArchiveFacts.ts`, which `verifiedArchiveFacts`
@@ -317,7 +318,8 @@ codec-made row and `now` of `1`:
    property, which the projection to the three declared fields drops, so an item with a `privateKey` is still
    archived without it. `Schema.is` is not one of the tokens `UNTRUSTED_DECODE_BUDGET` counts (`Schema.decode*`,
    `onExcessProperty`, `exceedsJsonDepth`, `JSON.parse`), and no budget moves.
-2. **The refusal is the closed shape the input already had, with a third member.** `ArchiveInputInvalid.field` is
+2. **The refusal is the closed shape the input already had, with a third member** (superseded by the third amendment,
+   item 4: `value: unknown` overloaded one slot, and the refusal is now a closed `refusal` enum). `ArchiveInputInvalid.field` is
    `"now" | "keyMaterial" | "entries"`, the whole set. For `keyMaterial`, `value` is the index of the first item that
    is not key material, or, when what was given is not a list, that value. `value` is `unknown`, which the
    `number` it was cannot say: a caller the type does not bind can give a `now` that is a string, and a
@@ -341,7 +343,7 @@ codec-made row and `now` of `1`:
    mechanism.** `CodecMade.ts`'s `WeakSet` belongs to one copy of `@qadi/audit`. A row made by another copy, which
    happens with two versions installed side by side, two bundles with separate module graphs, or a test or hot reload
    that resets modules, is "not made by the codec" to the copy that reads it, and the writer fails
-   `ArchiveInputInvalid { field: "entries", value: 0 }` for a row that was made correctly, with nothing in the message
+   `ArchiveInputInvalid` with the refusal `EntryNotMadeByCodec { index: 0 }` for a row that was made correctly, with nothing in the message
    to say the copies differ. The package's `bun` condition resolves to `./src/index.ts` beside the `import` condition's
    `./lib/index.js`, so a mixed resolution is possible. The limit is kept and recorded, and the mechanism is not
    changed: a registry keyed by `Symbol.for` on `globalThis` would let every copy read it, and would let any host
@@ -384,4 +386,46 @@ the defect this record set out to close, reached through the input the second am
    host's own throw and is not an input this check reads.
 2. **Rejected.** Mapping over the value already checked and reading each item again, because each item is read twice
    there. Validating after the projection with the first read, because the projection is the second read.
-3. **Decided autonomously on 2026-11-24**, under the owner's standing instruction of 2026-11-22.
+3. **`entries` is the fourth input a host hands over, and it is refused when it is not a list.** The invariant says
+   no input is a defect "whatever the value given", and `entries` was the one input that was: `firstNotCodecMade`
+   called `entries.findIndex`, so `undefined`, `null` or an object threw a `TypeError` inside `Effect.fn`, a defect
+   where a typed failure belongs, in all four functions that take rows (`archiveAuditTrail`,
+   `verifySequenceIntegrity`, `planRetention` and so `planPurge`). Probed on the code before this amendment: each of
+   `undefined`, `null`, `7`, `"rows"` and `{ length: 1 }` killed the fiber. `CodecMade.ts`'s `rowsRefusal(entries)` takes
+   `unknown` and asks `Array.isArray` first, then the codec's record; it replaces `firstNotCodecMade`, so the list check
+   and the identity check are one question asked in one place, and the four functions cannot disagree about it. It
+   is asked first of the rows, after the inputs that precede them (`now`, `maxAgeMs`, `keyMaterial`). A throwing
+   accessor or a hostile proxy on an input is the host's own throw, not a value the check reads, and is outside it.
+4. **A refusal is a member of a closed `Data.TaggedEnum`, not a `field` and an overloaded `value`.** The second
+   amendment widened `ArchiveInputInvalid.value` to `unknown` so one slot could hold an index for `entries`, an index
+   or the value given for `keyMaterial`, and the value given for `now`. The type could not say which, so a handler
+   could not narrow `value` from `field` alone, and a host needing the difference had to ask `Array.isArray` of what it
+   had passed. That is the widening the owner's rule refuses: `unknown` used to avoid a union. The package already has
+   the closed shape: `ArchiveNotVerified { refusal: ArchiveRefusal }`, a `Data.TaggedEnum` read with
+   `Match.tagsExhaustive`. So `ArchiveInputInvalid { refusal: ArchiveInputRefusal }` has exactly one member per case
+   the writer and `verifySequenceIntegrity` refuse: `NowNotFinite { value }`, `KeyMaterialNotAList { value }`,
+   `KeyMaterialItemRefused { index }`, `EntriesNotAList { value }` and `EntryNotMadeByCodec { index }`, and
+   `RetentionInputInvalid { refusal: RetentionInputRefusal }` has exactly its own: `NowNotFinite { value }`,
+   `MaxAgeInvalid { value }`, `EntriesNotAList { value }` and `EntryNotMadeByCodec { index }`. `unknown` appears only
+   where a member holds a value the caller gave, `index` is always a `number`, and nothing is overloaded. A
+   `Data.TaggedError` cannot extend a union of shapes (TS2509), which is why the second amendment kept one pair; a
+   field that is a `Data.TaggedEnum` is not that, and it is the shape `ArchiveNotVerified` already uses. Both errors
+   take the same treatment, because the second amendment's reason for widening one (a caller the type does not bind
+   can give a `now` that is a string) applies to the other, and two errors documented as one shape that differ in
+   type is the drift the amendment closes.
+5. **The two members they share are stated once.** `EntriesNotAList` and `EntryNotMadeByCodec` are the same case and
+   the same fields in both enums, because both are the answer to one question, `rowsRefusal`. `CodecMade.ts` states
+   them as `RowsRefusalCases`, a type, and each enum is `RowsRefusalCases` plus its own members, so `rowsRefusal`'s answer
+   is assignable to both with no mapping and a third function that takes rows takes the same two members by
+   construction. Rejected: repeating the two members in each enum with a mapping from one to the other, which is a
+   second statement of the case that can drift, and a `Schema.TaggedError` (outside the twelve of section 4 of
+   `AGENTS.md`).
+6. **Breaking, in the release this record already marks Breaking.** `RetentionInputInvalid` and `ArchiveInputInvalid`
+   gain `refusal` and lose `field` and `value`, and `ArchiveInputRefusal` and `RetentionInputRefusal` are two new
+   exports, each a type and its constructors. `RetentionInputInvalid` is older than the release and its shape changes
+   in it, which the changeset and the upgrade guide say. A host that read `error.field` and `error.value` reads
+   `error.refusal` and matches its tags; a host that passes only lists of rows the codec made sees no difference at run
+   time. A non-list `entries` was a defect and is now a typed failure, which a host that did not handle it did not see
+   as a value.
+7. **Decided autonomously on 2026-11-24**, under the owner's standing instruction of 2026-11-22 to take the most complete
+   and clean solution and not ask.

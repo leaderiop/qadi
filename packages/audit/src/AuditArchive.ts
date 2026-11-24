@@ -19,7 +19,12 @@ import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import { untrustedDecoder } from "@qadi/core";
 import type { DecodeRefusal, UntrustedValueRefusal } from "@qadi/core";
-import { ArchiveInputInvalid, archiveFacts, verifiedArchiveFacts } from "./ArchiveFacts.ts";
+import {
+  ArchiveInputInvalid,
+  ArchiveInputRefusal,
+  archiveFacts,
+  verifiedArchiveFacts,
+} from "./ArchiveFacts.ts";
 import { decodeAuditEntry } from "./AuditEntry.ts";
 import type { AuditEntry } from "./AuditEntry.ts";
 
@@ -40,7 +45,7 @@ export interface ArchivalOptions {
   readonly keyMaterial?: ReadonlyArray<KeyMaterial> | undefined;
 }
 
-export { ArchiveInputInvalid } from "./ArchiveFacts.ts";
+export { ArchiveInputInvalid, ArchiveInputRefusal } from "./ArchiveFacts.ts";
 
 /**
  * One `keyMaterial` item as the reader reads it, and so as the writer may write it
@@ -66,12 +71,12 @@ const isKeyMaterial = Schema.is(KeyMaterialSchema);
  */
 const snapshotKeyMaterial = (
   given: unknown,
-): Result.Result<ReadonlyArray<KeyMaterial> | undefined, ArchiveInputInvalid> => {
+): Result.Result<ReadonlyArray<KeyMaterial> | undefined, ArchiveInputRefusal> => {
   if (given === undefined) {
     return Result.succeed(undefined);
   }
   if (!Array.isArray(given)) {
-    return Result.fail(new ArchiveInputInvalid({ field: "keyMaterial", value: given }));
+    return Result.fail(ArchiveInputRefusal.KeyMaterialNotAList({ value: given }));
   }
   const items: ReadonlyArray<unknown> = given;
   const snapshot: Array<KeyMaterial> = [];
@@ -80,7 +85,7 @@ const snapshotKeyMaterial = (
       ? { keyId: item.keyId, algorithm: item.algorithm, publicKey: item.publicKey }
       : item;
     if (!isKeyMaterial(copy)) {
-      return Result.fail(new ArchiveInputInvalid({ field: "keyMaterial", value: index }));
+      return Result.fail(ArchiveInputRefusal.KeyMaterialItemRefused({ index }));
     }
     snapshot.push(copy);
   }
@@ -132,12 +137,12 @@ const ARCHIVE_VERSION = "1";
 
 /**
  * Builds the bundle from the entries' facts (`archiveFacts`, ADR-QD-110). Fails
- * with `ArchiveInputInvalid` for a `now` that is not finite, before anything else is
- * read; for a `keyMaterial` that is not a list of items with three string fields
- * (`field: "keyMaterial"`, `value` the index of the first item refused, or the value
- * given when it is not a list), before the entries are read; and for the first entry
- * the codec did not make (`field: "entries"`, `value` its index), before any fact is
- * computed from it; otherwise only with
+ * with `ArchiveInputInvalid` for a `now` that is not finite (`NowNotFinite`), before
+ * anything else is read; for a `keyMaterial` that is not a list (`KeyMaterialNotAList`)
+ * or holds an item without three string fields (`KeyMaterialItemRefused`, the index of
+ * the first), before the entries are read; and for `entries` that is not a list
+ * (`EntriesNotAList`) or holds an entry the codec did not make (`EntryNotMadeByCodec`,
+ * the index of the first), before any fact is computed from it; otherwise only with
  * `SequenceIntegrityError`, rather than archiving a set of rows already known to
  * have a gap or a duplicate. An archive exists to be trusted later, so it refuses
  * to be built on a foundation this package can already tell is broken, or one its
@@ -177,13 +182,14 @@ export const archiveAuditTrail = Effect.fn("qadi.audit.archiveAuditTrail")(funct
   options?: ArchivalOptions,
 ) {
   if (!Number.isFinite(now)) {
-    return yield* Effect.fail(new ArchiveInputInvalid({ field: "now", value: now }));
+    const refusal = ArchiveInputRefusal.NowNotFinite({ value: now });
+    return yield* Effect.fail(new ArchiveInputInvalid({ refusal }));
   }
   // What a store client or a JavaScript caller hands over is not what the type says, and
   // `options` is read once: what is checked is what is written.
   const snapshot = snapshotKeyMaterial(options?.keyMaterial);
   if (Result.isFailure(snapshot)) {
-    return yield* Effect.fail(snapshot.failure);
+    return yield* Effect.fail(new ArchiveInputInvalid({ refusal: snapshot.failure }));
   }
   const keyMaterial = snapshot.success;
   const facts = yield* verifiedArchiveFacts(entries);

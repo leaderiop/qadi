@@ -372,8 +372,8 @@ describe("PROPERTY: every archive the writer returns is read back", () => {
       if (!Result.isFailure(written)) return assert.fail("a non-finite now was archived");
       const failure = written.failure;
       if (failure._tag !== "ArchiveInputInvalid") return assert.fail(failure._tag);
-      assert.strictEqual(failure.field, "now");
-      assert.isTrue(Object.is(failure.value, now));
+      if (failure.refusal._tag !== "NowNotFinite") return assert.fail(failure.refusal._tag);
+      assert.isTrue(Object.is(failure.refusal.value, now));
     }
   });
 });

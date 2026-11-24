@@ -222,8 +222,8 @@ describe("archiveAuditTrail", () => {
         const nonFinite = [Number.NaN, Infinity, -Infinity];
         for (const now of nonFinite) {
           const failure = yield* refused(now, [entry]);
-          assert.strictEqual(failure.field, "now");
-          assert.isTrue(Object.is(failure.value, now));
+          if (failure.refusal._tag !== "NowNotFinite") return assert.fail(failure.refusal._tag);
+          assert.isTrue(Object.is(failure.refusal.value, now));
         }
       }));
 

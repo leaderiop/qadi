@@ -128,11 +128,12 @@ These are pure functions and data — caller-invoked, caller-scheduled, since
 **Retention** — `planRetention(entries, policy, now)` is the age rule: it splits
 a set of entries into `retained` and `expired` (their union is the input,
 unchanged, and their intersection is empty), or returns a `RetentionInputInvalid`
-naming the bad input. `now` is a parameter, never `Date.now()`. A row is expired
+whose `refusal` names the bad input. `now` is a parameter, never `Date.now()`. A row is expired
 only past a valid limit, and a row's `at` is finite because only the codec makes a
 row; a non-finite `now` or a `maxAgeMs` that is `NaN` or negative expires nothing, and an
-entry the codec did not make (a row your store client returned as `any`) is refused as
-`RetentionInputInvalid`, naming `entries` and its index.
+`entries` that is not a list is refused as `RetentionInputInvalid` with the refusal
+`EntriesNotAList`, and so is an entry the codec did not make (a row your store client
+returned as `any`), with `EntryNotMadeByCodec` and its `index`.
 `expired` is a report, not a purge selection.
 
 **Purge** — `planPurge(entries, policy, now, archive)` is the only function that
@@ -154,18 +155,21 @@ next, so an attacker able to modify stored rows can renumber them and defeat
 this check entirely. A row's `sequenceNumber` is a safe integer, because
 `decodeAuditEntry` refuses any other (`1.5`, `2 ** 53`, `Infinity`) as `Malformed`
 and only the codec makes a row, so the check never meets a number it cannot judge: an entry
-the codec did not make fails `ArchiveInputInvalid`, naming `entries` and its index, before
-the check reads it.
+the codec did not make fails `ArchiveInputInvalid` with `EntryNotMadeByCodec` and its
+`index`, and `entries` that is not a list fails it with `EntriesNotAList`, before the check
+reads it.
 
 **Archival** — `archiveAuditTrail` sorts entries by `sequenceNumber`, stably,
 before setting `metadata.sequenceIntegrityVerified: true`. Entries with no
 `sequenceNumber` follow the sequenced ones, in the order given. A `now` that is not
 finite, a `keyMaterial` that is not a list of objects with a string `keyId`, `algorithm`
-and `publicKey`, or an entry the codec did not make, fails `ArchiveInputInvalid`, naming
-the field and the value (for `keyMaterial` and `entries`, the index of the first item or
-entry refused, or the value given when `keyMaterial` is not a list), before the sequence is
-read, and each `keyMaterial` item is written as its declared `keyId`, `algorithm` and
-`publicKey` and no other property, what they mean never judged.
+and `publicKey`, `entries` that is not a list, or an entry the codec did not make, fails
+`ArchiveInputInvalid` before the sequence is read. Its `refusal` is one member of the closed
+`ArchiveInputRefusal`: `NowNotFinite`, `KeyMaterialNotAList` and `EntriesNotAList` carry the
+value given, and `KeyMaterialItemRefused` and `EntryNotMadeByCodec` carry the `index` of the
+first item or entry refused. Each `keyMaterial` item is read once and written as its
+declared `keyId`, `algorithm` and `publicKey` and no other property, what they mean never
+judged.
 `readAuditArchive(input)` reads a stored bundle back. It refuses, each with its own
 `ArchiveRefusal` in an `ArchiveNotVerified`, a bundle that is not an archive, has
 another `archiveVersion`, nests past the decode bound, holds an entry that does not decode, declares a count

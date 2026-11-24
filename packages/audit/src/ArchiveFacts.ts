@@ -19,15 +19,16 @@
  *
  * A row's `sequenceNumber` is a safe integer here without being checked here: only
  * `decodeAuditEntry` gives a row one, its codec states the rule once (`AuditEntry.ts`,
- * ADR-QD-190), and {@link verifiedArchiveFacts} takes only rows the codec made
- * (`CodecMade.ts`), so a number outside the safe integers never reaches
+ * ADR-QD-190), and {@link verifiedArchiveFacts} takes only a list of rows the codec
+ * made (`CodecMade.ts`), so a number outside the safe integers never reaches
  * {@link firstBreakIn}, which never adds one past `2 ** 53`. The pure
  * {@link archiveFacts} is the reader's, over rows it has just decoded.
  */
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import type { AuditEntry } from "./AuditEntry.ts";
-import { firstNotCodecMade } from "./CodecMade.ts";
+import { rowsRefusal } from "./CodecMade.ts";
+import type { RowsRefusalCases } from "./CodecMade.ts";
 
 /** The first place a sorted run of sequence numbers is not `previous + 1`. */
 export interface SequenceBreak {
@@ -110,33 +111,52 @@ export const archiveFacts = (entries: ReadonlyArray<AuditEntry>): ArchiveFacts =
 };
 
 /**
- * An archive function refused its input: `field` says which, and `value` names what
- * was refused, as each member below says.
+ * Why an archive function refused its input, one member per case, as
+ * `ArchiveRefusal` is for a stored bundle.
  *
- * - `now`: `archiveAuditTrail`'s `now` is not a finite number, and `value` is the value
- *   given. A non-finite `createdAt` is a bundle `readAuditArchive` refuses as
- *   `Malformed`, so the writer refuses it first rather than hand a store an archive that
- *   blocks every purge needing it.
- * - `keyMaterial`: `archiveAuditTrail`'s `keyMaterial` is not a list of items the reader
- *   reads (an object with a string `keyId`, `algorithm` and `publicKey`), so the writer
- *   would archive a bundle the reader refuses as `Malformed`, or could not read it at
- *   all. `value` is the index of the first item refused, or, when what was given is not
- *   a list, that value. A number given where a list belongs reads as an index, so a host
- *   that must tell the two apart asks `Array.isArray` of what it passed.
- * - `entries`: `value` is the index of the first entry in the list that the codec did
- *   not make (`CodecMade.ts`). The compiler refuses such a row where it can, and `any`
- *   (a store client's `JSON.parse`, an untyped ORM result) and JavaScript callers
- *   pass it. A row the codec did not make may be one `readAuditArchive` refuses, so
- *   the writer and `verifySequenceIntegrity` refuse it first (ADR-QD-190).
+ * - `NowNotFinite`: `archiveAuditTrail`'s `now` is not a finite number, and `value` is the
+ *   value given (a caller the type does not bind can give a string). A non-finite
+ *   `createdAt` is a bundle `readAuditArchive` refuses as `Malformed`, so the writer
+ *   refuses it first rather than hand a store an archive that blocks every purge needing
+ *   it.
+ * - `KeyMaterialNotAList`: `archiveAuditTrail`'s `keyMaterial` is not a list, and `value` is
+ *   the value given.
+ * - `KeyMaterialItemRefused`: the item at `index`, the first, is not what the reader reads
+ *   (an object with a string `keyId`, `algorithm` and `publicKey`), so the writer would
+ *   archive a bundle the reader refuses as `Malformed`.
+ * - `EntriesNotAList`: `entries` is not a list, and `value` is the value given. A store
+ *   client's result and a JavaScript caller's argument can be anything.
+ * - `EntryNotMadeByCodec`: the entry at `index`, the first, is not a row the codec made
+ *   (`CodecMade.ts`). The compiler refuses such a row where it can, and `any` (a store
+ *   client's `JSON.parse`, an untyped ORM result) and JavaScript callers pass it. A row
+ *   the codec did not make may be one `readAuditArchive` refuses, so the writer and
+ *   `verifySequenceIntegrity` refuse it first (ADR-QD-190).
  *
- * Shaped like `RetentionInputInvalid` (`Retention.ts`), and a different error,
- * because `field` names which call refused. A closed `field` is the whole set of
- * inputs these functions guard, and `value` is `unknown` because a caller the type
- * does not bind (`any`, JavaScript) can give a `now` that is not a number.
+ * `unknown` appears only where a member holds a value the caller gave, and `index` is
+ * always a number, so a handler narrows by `_tag` alone. The last two members are the
+ * ones `RetentionInputRefusal` (`Retention.ts`) has too, stated once in `CodecMade.ts`.
+ */
+export type ArchiveInputRefusal = Data.TaggedEnum<
+  RowsRefusalCases & {
+    NowNotFinite: { readonly value: unknown };
+    KeyMaterialNotAList: { readonly value: unknown };
+    KeyMaterialItemRefused: { readonly index: number };
+  }
+>;
+
+/** Constructors and guards for {@link ArchiveInputRefusal}. */
+export const ArchiveInputRefusal = Data.taggedEnum<ArchiveInputRefusal>();
+
+/**
+ * `archiveAuditTrail` or `verifySequenceIntegrity` refused its input; `refusal` says which.
+ *
+ * A typed result, never thrown, and not a defect whatever the value given. Shaped like
+ * `ArchiveNotVerified` and `RetentionInputInvalid` (`Retention.ts`): a `refusal` that is a
+ * closed `Data.TaggedEnum`, read through `Match.tagsExhaustive`. A different error from
+ * `RetentionInputInvalid`, because the refusals differ by which call refused.
  */
 export class ArchiveInputInvalid extends Data.TaggedError("ArchiveInputInvalid")<{
-  readonly field: "now" | "keyMaterial" | "entries";
-  readonly value: unknown;
+  readonly refusal: ArchiveInputRefusal;
 }> {}
 
 export class SequenceIntegrityError extends Data.TaggedError("SequenceIntegrityError")<{
@@ -145,9 +165,9 @@ export class SequenceIntegrityError extends Data.TaggedError("SequenceIntegrityE
 }> {}
 
 /**
- * The facts of `entries`, or `ArchiveInputInvalid` at the first entry the codec did
- * not make, or `SequenceIntegrityError` at their first gap or duplicate: the writer's
- * reading of them.
+ * The facts of `entries`, or `ArchiveInputInvalid` when it is not a list or holds an entry
+ * the codec did not make, or `SequenceIntegrityError` at their first gap or duplicate: the
+ * writer's reading of them.
  *
  * The Effect wrapper `archiveAuditTrail` needs, and the one place a break becomes
  * a failure (ARCH-48, ADR-QD-110). The span keeps the name it had before the facts
@@ -157,9 +177,9 @@ export class SequenceIntegrityError extends Data.TaggedError("SequenceIntegrityE
 export const verifiedArchiveFacts = Effect.fn("qadi.audit.verifySequenceIntegrity")(function* (
   entries: ReadonlyArray<AuditEntry>,
 ) {
-  const notMade = firstNotCodecMade(entries);
-  if (notMade !== undefined) {
-    return yield* Effect.fail(new ArchiveInputInvalid({ field: "entries", value: notMade }));
+  const refused = rowsRefusal(entries);
+  if (refused !== undefined) {
+    return yield* Effect.fail(new ArchiveInputInvalid({ refusal: refused }));
   }
   const facts = archiveFacts(entries);
   if (facts.sequenceBreak !== undefined) {
@@ -170,8 +190,9 @@ export const verifiedArchiveFacts = Effect.fn("qadi.audit.verifySequenceIntegrit
 
 /**
  * Fails `SequenceIntegrityError` at the first gap or duplicate among the
- * entries' sequence numbers, or `ArchiveInputInvalid` naming `entries` and the
- * index of the first entry the codec did not make.
+ * entries' sequence numbers, or `ArchiveInputInvalid` when `entries` is not a list
+ * (`EntriesNotAList`) or holds an entry the codec did not make (`EntryNotMadeByCodec`,
+ * with the index of the first).
  *
  * Entries with no `sequenceNumber` are ignored — sequencing is opt-in, and a
  * caller who never assigns one has nothing here to verify.

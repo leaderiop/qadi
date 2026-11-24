@@ -25,7 +25,8 @@ import * as Option from "effect/Option";
 import * as Result from "effect/Result";
 import type { VerifiedArchive } from "./AuditArchive.ts";
 import type { AuditEntry } from "./AuditEntry.ts";
-import { firstNotCodecMade } from "./CodecMade.ts";
+import { rowsRefusal } from "./CodecMade.ts";
+import type { RowsRefusalCases } from "./CodecMade.ts";
 
 export interface RetentionPolicy {
   /** An entry older than this, relative to `now`, is past its age. */
@@ -33,14 +34,37 @@ export interface RetentionPolicy {
 }
 
 /**
- * `planRetention` or `planPurge` refused its input: `now` is not a finite
- * number, `maxAgeMs` is `NaN` or negative, or a row was not made by the codec.
- * `value` is the offending number; for `entries` it is the index of the first
- * row the codec did not make (`CodecMade.ts`, ADR-QD-190).
+ * Why `planRetention` or `planPurge` refused its input, one member per case.
+ *
+ * - `NowNotFinite`: `now` is not a finite number, and `value` is the value given.
+ * - `MaxAgeInvalid`: `maxAgeMs` is `NaN` or negative, and `value` is the value given.
+ * - `EntriesNotAList`: `entries` is not a list, and `value` is the value given.
+ * - `EntryNotMadeByCodec`: the entry at `index`, the first, is not a row the codec made
+ *   (`CodecMade.ts`, ADR-QD-190).
+ *
+ * `unknown` appears only where a member holds a value the caller gave, and `index` is
+ * always a number. The last two members are the ones `ArchiveInputRefusal`
+ * (`ArchiveFacts.ts`) has too, stated once in `CodecMade.ts`.
+ */
+export type RetentionInputRefusal = Data.TaggedEnum<
+  RowsRefusalCases & {
+    NowNotFinite: { readonly value: unknown };
+    MaxAgeInvalid: { readonly value: unknown };
+  }
+>;
+
+/** Constructors and guards for {@link RetentionInputRefusal}. */
+export const RetentionInputRefusal = Data.taggedEnum<RetentionInputRefusal>();
+
+/**
+ * `planRetention` or `planPurge` refused its input; `refusal` says which.
+ *
+ * A typed result, never thrown. Shaped like `ArchiveInputInvalid` (`ArchiveFacts.ts`), a
+ * `refusal` that is a closed `Data.TaggedEnum`, and a different error because the
+ * refusals differ by which call refused.
  */
 export class RetentionInputInvalid extends Data.TaggedError("RetentionInputInvalid")<{
-  readonly field: "now" | "maxAgeMs" | "entries";
-  readonly value: number;
+  readonly refusal: RetentionInputRefusal;
 }> {}
 
 /**
@@ -56,14 +80,18 @@ export interface RetentionPlan {
   readonly expired: ReadonlyArray<AuditEntry>;
 }
 
+const refuse = (refusal: RetentionInputRefusal) =>
+  Result.fail(new RetentionInputInvalid({ refusal }));
+
 /**
  * The one age rule: which rows are past `policy`'s limit.
  *
- * Refuses `RetentionInputInvalid` when `now` is not finite or `maxAgeMs` is
- * `NaN` or negative (`+Infinity` is valid and means "retain forever"), and then
- * when an entry is not a row the codec made, naming `entries` and the index of
- * the first (a store client's `any` and a JavaScript caller's literal pass the
- * type; a row of unknown shape has no age to read). Otherwise one pass: a row with
+ * Refuses `RetentionInputInvalid` when `now` is not finite (`NowNotFinite`) or `maxAgeMs`
+ * is `NaN` or negative (`MaxAgeInvalid`; `+Infinity` is valid and means "retain
+ * forever"), and then when `entries` is not a list (`EntriesNotAList`) or an entry is not
+ * a row the codec made (`EntryNotMadeByCodec`, the index of the first). A store client's
+ * `any` and a JavaScript caller's literal pass the type; a row of unknown shape has no
+ * age to read. Otherwise one pass: a row with
  * `now - at > maxAgeMs` is expired and the rest are retained. Use it to see what
  * would expire before an archive exists; to select rows for deletion use
  * {@link planPurge}, which needs the archive.
@@ -74,14 +102,14 @@ export const planRetention = (
   now: number,
 ): Result.Result<RetentionPlan, RetentionInputInvalid> => {
   if (!Number.isFinite(now)) {
-    return Result.fail(new RetentionInputInvalid({ field: "now", value: now }));
+    return refuse(RetentionInputRefusal.NowNotFinite({ value: now }));
   }
   if (!(policy.maxAgeMs >= 0)) {
-    return Result.fail(new RetentionInputInvalid({ field: "maxAgeMs", value: policy.maxAgeMs }));
+    return refuse(RetentionInputRefusal.MaxAgeInvalid({ value: policy.maxAgeMs }));
   }
-  const notMade = firstNotCodecMade(entries);
-  if (notMade !== undefined) {
-    return Result.fail(new RetentionInputInvalid({ field: "entries", value: notMade }));
+  const refused = rowsRefusal(entries);
+  if (refused !== undefined) {
+    return refuse(refused);
   }
   const retained: Array<AuditEntry> = [];
   const expired: Array<AuditEntry> = [];
