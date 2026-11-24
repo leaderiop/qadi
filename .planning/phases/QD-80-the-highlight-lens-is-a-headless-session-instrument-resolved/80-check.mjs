@@ -184,7 +184,8 @@ export const judgeIds = (entries) => {
     const history = entry.file.startsWith("spec/") ? entry.text.split("\n").findIndex((l) => /^#{1,6}\s.*Change History/i.test(l)) + 1 : 0;
     for (const { n, line } of addedOf(entry)) {
       for (const [re, what] of ID_TOKENS) if (re.test(line)) bad.push(`${entry.file}:${n} names ${what}: ${line.trim()}`);
-      const inHistory = history > 0 && n >= history;
+      // A spec document keeps its history in the Document Control row too, one line that spans every older entry.
+      const inHistory = (history > 0 && n >= history) || (entry.file.startsWith("spec/") && line.startsWith("> | Change History |"));
       if (!PHRASE_EXEMPT(entry.file) && !inHistory && PHRASE.test(line)) bad.push(`${entry.file}:${n} has phase-relative wording: ${line.trim()}`);
     }
   }
@@ -439,6 +440,10 @@ it("has \\"quotes\\"", () => {});`;
   const spec = "# Title\nno longer here\n## Change History\n| 1 | no longer a row |\n";
   eq("a phrase before the change history is flagged", judgeIds([{ file: "spec/a.md", text: spec, added: new Set([2]) }]).length, 1);
   eq("a phrase in the change history is exempt", judgeIds([{ file: "spec/a.md", text: spec, added: new Set([4]) }]), []);
+  const header = "> | Change History | 1.1 (2026-11-24): a row\n> | Status | no longer here\n";
+  eq("a phrase in the Document Control history row is exempt", judgeIds([{ file: "spec/a.md", text: header.replace("a row", "no longer a row"), added: new Set([1]) }]), []);
+  eq("a phrase in another Document Control row is flagged", judgeIds([{ file: "spec/a.md", text: header, added: new Set([2]) }]).length, 1);
+  eq("an id in the Document Control history row is still flagged", judgeIds([{ file: "spec/a.md", text: "> | Change History | 1.1 (2026-11-24): LENS-01\n", added: new Set([1]) }]).length, 1);
 
   const src = "packages/devtools/src/model/A.ts";
   const test = "packages/devtools/test/model/A.test.ts";

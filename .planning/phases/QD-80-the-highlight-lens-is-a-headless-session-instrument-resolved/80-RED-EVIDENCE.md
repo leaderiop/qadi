@@ -110,3 +110,12 @@ packages/react/test/QadiProvider.tst.ts`: 2 failed, 2 total, in both passes).
 
 - failed: the context value is the atoms, the registry and the gates
 - failed: a consumer reads the gates from the context, and instrumentation is not a field of it
+
+## 80-09 the phase-relative wording scan
+
+`scan-ids` was run on the committed ADR-QD-193 tree and failed on the one-line Change History row of
+`spec/traceability.md`, an old entry of which holds the scanned wording; the row sits in the Document Control table, not
+under a Change History heading, which the judge looked for. The judge now treats that row as history, and its self-test
+holds three cases (the row is exempt, another Document Control row is flagged, an id in the row is flagged).
+
+- check failed: scan-ids: spec/traceability.md:13 has phase-relative wording
