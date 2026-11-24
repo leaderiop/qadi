@@ -5,16 +5,16 @@ milestone_name: Arch Wave 14
 current_phase: 79
 current_phase_name: Feeds and the dock model take inputs only through `configure`
 status: executing
-stopped_at: Completed QD-79-12-PLAN.md
-last_updated: "2026-11-24T11:16:55.338Z"
+stopped_at: Completed QD-79-13-PLAN.md
+last_updated: "2026-11-24T11:42:26.707Z"
 last_activity: 2026-11-24
 last_activity_desc: Phase QD-78 complete, transitioned to Phase 79
-state_head: b946f2729e87ba95923a91ce14bb400c25d014df
+state_head: 357ff93009864799055a40f12e78ceed5e955134
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 35
-  completed_plans: 30
+  completed_plans: 31
   percent: 50
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-24)
 ## Current Position
 
 Phase: 79 (Feeds and the dock model take inputs only through `configure`) — EXECUTING
-Plan: 13 of 17
+Plan: 14 of 17
 Status: Executing (79-09 complete)
 Last activity: 2026-11-24 — 79-09 complete (the dock maps its inputs onto its feeds in one place)
 
@@ -584,6 +584,7 @@ Progress: [█████░░░░░] 50% (2 of 4 phases)
 | Phase QD-79 P08 | 40min | 3 tasks | 5 files |
 | Phase QD-79 P09 | 25min | 2 tasks | 4 files |
 | Phase QD-79 P11 | 25min | 2 tasks | 6 files |
+| Phase QD-79 P13 | 50min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -1012,6 +1013,7 @@ Progress: [█████░░░░░] 50% (2 of 4 phases)
 - [Phase QD-78]: 78-08: BEH-QD-726 to 730 and INV-QD-401/402 written from the shipped code; the refusal rule first, end to end; the doc 28 traceability row lists ids, not a range
 - [Phase QD-78]: 78-10: the base's equivalent survivor in TimelineStore.accept was closed by deleting the redundant identity guard (ExternalStore.set decides), decided autonomously
 - [Phase QD-79]: 79-01: the mutation base is recorded as measured on phase_base 910cb783 (five groups, dock 72/72, store 77/78 with one open mutant at ExternalStore.ts:113), committed alone and first
+- [Phase QD-79]: ADR-QD-192 records the feeds and the dock model taking inputs only through configure, with amendments of ADR-QD-137, ADR-QD-173 and ADR-QD-185 (CCR-QD-471)
 
 ### Pending Todos
 
@@ -1088,8 +1090,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-24T11:16:55.155Z
-Stopped at: Completed QD-79-12-PLAN.md
+Last session: 2026-11-24T11:42:20.391Z
+Stopped at: Completed QD-79-13-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
