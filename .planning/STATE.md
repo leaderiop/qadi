@@ -5,16 +5,16 @@ milestone_name: Arch Wave 14
 current_phase: 78
 current_phase_name: "`TimelineStore` owns its capacity"
 status: executing
-stopped_at: Completed QD-78-78-04-PLAN.md
-last_updated: "2026-11-24T05:49:01.927Z"
+stopped_at: Completed QD-78-05-PLAN.md
+last_updated: "2026-11-24T05:54:47.901Z"
 last_activity: 2026-11-24
 last_activity_desc: Phase QD-78 execution started
-state_head: c08337eb4b8b70f612234be848e8bf835edd94d3
+state_head: 44049265ebe3e83d0cf335baf963271fd5473428
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 18
-  completed_plans: 11
+  completed_plans: 12
   percent: 25
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-24)
 ## Current Position
 
 Phase: QD-78 (`TimelineStore` owns its capacity) — EXECUTING
-Plan: 5 of 11
+Plan: 6 of 11
 Status: Executing Phase QD-78
 Last activity: 2026-11-24 — Phase QD-78 execution started
 
@@ -568,6 +568,7 @@ Progress: [███░░░░░░░] 25% (1 of 4 phases)
 | Phase QD-78 P02 | 30min | 2 tasks | 6 files |
 | Phase QD-78 P78-03 | 20min | 2 tasks | 4 files |
 | Phase QD-78 P78-04 | 25min | 2 tasks | 5 files |
+| Phase QD-78 P05 | 30min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -992,6 +993,7 @@ Progress: [███░░░░░░░] 25% (1 of 4 phases)
 - [Phase QD-78]: 78-01: mutation base recorded as measured on phase_base de13eb7f (four groups; dock 70/70 not ADR-QD-168 145/145; store survivor at TimelineStore.ts:58 at base)
 - [Phase QD-78]: 78-02: TF30 reads RED at its second refusal and M55 at the later configure with held inputs; both are the defect, tests unedited
 - [Phase QD-78]: 78-03: TF33 pins the base identity comparison of an omitted and the default capacity; 78-04 changes exactly its assertions
+- [Phase QD-78]: 78-05: the dock checks the capacity through effectiveCapacity first and applies the rest in a finally; it reads no error to tell a refusal from a listener throw
 
 ### Pending Todos
 
@@ -1068,8 +1070,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-24T05:49:01.831Z
-Stopped at: Completed QD-78-78-04-PLAN.md
+Last session: 2026-11-24T05:54:47.819Z
+Stopped at: Completed QD-78-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
