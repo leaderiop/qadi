@@ -18,6 +18,7 @@ import { DiagnosticsStatus } from "../../src/index.ts";
 import { diagnosticsOff, makeDiagnosticsFeed, type DiagnosticsFeed } from "../../src/model/DiagnosticsFeed.ts";
 import type { DiagnosticsOptions } from "../../src/model/DiagnosticsStore.ts";
 import { makeDockModel, type DockModel, type DockModelInputs } from "../../src/model/DockModel.ts";
+import { completeDockInputs, feedInputsOf } from "../../src/model/DockModel.ts";
 import {
   AskedRead,
   RegistryRead,
@@ -981,6 +982,28 @@ describe("the dock model", () => {
         questions: 3,
         services: 2,
       });
+    }),
+  );
+
+  it.effect("CR24 a complete dock record maps onto its feeds, the diagnostics interval reaching the gates, and without diagnostics the gates interval and the diagnostics record are absent", () =>
+    Effect.gen(function* () {
+      const probe = makeGateRegistryDouble([guard("g1", readPolicy)]);
+      const questions = asking({ count: 0 }, readPolicy);
+      const { source } = counted([record("a", 100)]);
+      const layer = Layer.effectDiscard(Effect.never);
+      const gates = probe.registry;
+
+      const on = feedInputsOf(
+        completeDockInputs({ capacity: 50, source, gates, questions, diagnostics: { layer, intervalMillis: 250 } }),
+      );
+      assert.deepStrictEqual(on.timeline, { capacity: 50, source });
+      assert.deepStrictEqual(on.gates, { gates, questions, intervalMillis: 250 });
+      assert.deepStrictEqual(on.diagnostics, { layer, collector: undefined, intervalMillis: 250 });
+
+      const off = feedInputsOf(completeDockInputs({ source, gates, questions }));
+      assert.deepStrictEqual(off.timeline, { capacity: DEFAULT_TIMELINE_CAPACITY, source });
+      assert.deepStrictEqual(off.gates, { gates, questions, intervalMillis: undefined });
+      assert.isUndefined(off.diagnostics);
     }),
   );
 });
