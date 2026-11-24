@@ -219,3 +219,7 @@ The first-configure counts of CR22 were measured on the base. With a layer that 
 - failed: CR24 a complete dock record maps onto its feeds, the diagnostics interval reaching the gates, and without diagnostics the gates interval and the diagnostics record are absent
 
 - CR16 and CR17 were already green at the start of this plan (the dock's configure reached each feed's own no-op after the feeds' rules); their RED run on the base is recorded in 79-04, and they stay green.
+
+- edit T4: `DockModel.ts`: `readonly extra?: number | undefined` added to `DockModelInputs`
+- failed: tsc TS2741 packages/devtools/src/model/DockModel.ts
+- failed: a dock model compares eight inputs, each present and possibly undefined, and maps them onto its three feeds

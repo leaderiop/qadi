@@ -14,7 +14,11 @@
  */
 import { expect, test } from "tstyche";
 import type * as Layer from "effect/Layer";
-import type { DiagnosticsOptions } from "../../src/model/DiagnosticsStore.ts";
+import type { Catalogue } from "../../src/model/Catalogue.ts";
+import type { DiagnosticsOptions, DiagnosticsReading } from "../../src/model/DiagnosticsStore.ts";
+import { completeDockInputs, feedInputsOf } from "../../src/model/DockModel.ts";
+import type { DockModelInputs } from "../../src/model/DockModel.ts";
+import type { EvaluationPortsLayer } from "../../src/model/SimulationInput.ts";
 import type { PortCallCollector } from "../../src/model/PortCalls.ts";
 import type { Source } from "../../src/model/Source.ts";
 import type { AskedQuestionLike, GateRegistryLike } from "../../src/model/Gates.ts";
@@ -75,4 +79,49 @@ test("a gates feed compares a registry, a thunk and an interval, each present an
   // @ts-expect-error is missing in type
   const missing: Required<GatesFeedInputs> = { gates: undefined, questions: undefined };
   expect(missing).type.toBe<Required<GatesFeedInputs>>();
+});
+
+type DockRecord = {
+  readonly capacity: number | undefined;
+  readonly catalogue: Catalogue | undefined;
+  readonly diagnostics: DiagnosticsOptions | undefined;
+  readonly gates: GateRegistryLike | undefined;
+  readonly questions: (() => ReadonlyArray<AskedQuestionLike>) | undefined;
+  readonly reading: DiagnosticsReading | undefined;
+  readonly ports: EvaluationPortsLayer | undefined;
+  readonly source: Source | undefined;
+};
+
+test("a dock model compares eight inputs, each present and possibly undefined, and maps them onto its three feeds", () => {
+  expect<Required<DockModelInputs>>().type.toBe<DockRecord>();
+  expect<ReturnType<typeof completeDockInputs>>().type.toBe<DockRecord>();
+  expect<ReturnType<typeof feedInputsOf>>().type.toBe<{
+    readonly timeline: Required<TimelineFeedInputs>;
+    readonly gates: Required<GatesFeedInputs>;
+    readonly diagnostics: Required<DiagnosticsOptions> | undefined;
+  }>();
+
+  const whole: Required<DockModelInputs> = {
+    capacity: undefined,
+    catalogue: undefined,
+    diagnostics: undefined,
+    gates: undefined,
+    questions: undefined,
+    reading: undefined,
+    ports: undefined,
+    source: undefined,
+  };
+  expect(whole).type.toBe<Required<DockModelInputs>>();
+
+  // @ts-expect-error is missing in type
+  const missing: Required<DockModelInputs> = {
+    capacity: undefined,
+    catalogue: undefined,
+    diagnostics: undefined,
+    gates: undefined,
+    questions: undefined,
+    reading: undefined,
+    ports: undefined,
+  };
+  expect(missing).type.toBe<Required<DockModelInputs>>();
 });
