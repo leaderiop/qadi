@@ -3,12 +3,12 @@
  "unmeasured": [],
  "groups": {
   "model": {
-   "head": "424ff7f76dc05f3118e486f7c1b8de8a1a63c8ae",
+   "head": "b340b9d511d3bd1b6c9d2fb8051c619fc43fc73f",
    "invocation": "pnpm exec stryker run stryker.devtools.mjs --mutate packages/devtools/src/model/ExternalStore.ts,packages/devtools/src/model/DockModel.ts,packages/devtools/src/model/TimelineFeed.ts,packages/devtools/src/model/DiagnosticsFeed.ts,packages/devtools/src/model/SimulationSession.ts",
    "files": {
     "packages/devtools/src/model/ExternalStore.ts": {
-     "killed": 78,
-     "timeout": 6,
+     "killed": 84,
+     "timeout": 0,
      "survived": 0,
      "noCoverage": 0,
      "ignored": 3,
@@ -40,8 +40,8 @@
      ]
     },
     "packages/devtools/src/model/DockModel.ts": {
-     "killed": 64,
-     "timeout": 1,
+     "killed": 65,
+     "timeout": 0,
      "survived": 0,
      "noCoverage": 0,
      "ignored": 12,
@@ -336,11 +336,11 @@
     },
     "packages/devtools/src/model/SimulationSession.ts": {
      "killed": 244,
-     "timeout": 2,
-     "survived": 4,
+     "timeout": 0,
+     "survived": 6,
      "noCoverage": 0,
      "ignored": 4,
-     "detected": 246,
+     "detected": 244,
      "valid": 250,
      "open": [
       {
@@ -363,6 +363,20 @@
        "replacement": "false",
        "line": 310,
        "column": 17
+      },
+      {
+       "status": "Survived",
+       "mutator": "ConditionalExpression",
+       "replacement": "false",
+       "line": 313,
+       "column": 22
+      },
+      {
+       "status": "Survived",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 313,
+       "column": 35
       },
       {
        "status": "Survived",
