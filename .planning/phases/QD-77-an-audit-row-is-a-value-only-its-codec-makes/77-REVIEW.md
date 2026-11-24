@@ -1,12 +1,13 @@
 ---
 phase: QD-77-an-audit-row-is-a-value-only-its-codec-makes
-reviewed: 2026-11-24T00:00:00Z
+reviewed: 2026-11-24T06:00:00Z
 depth: standard
-files_reviewed: 17
+files_reviewed: 19
 files_reviewed_list:
   - packages/audit/src/ArchiveFacts.ts
   - packages/audit/src/AuditArchive.ts
   - packages/audit/src/AuditEntry.ts
+  - packages/audit/src/CodecMade.ts
   - packages/audit/src/Retention.ts
   - packages/audit/src/SequenceIntegrity.ts
   - packages/audit/test/ArchiveFacts.test.ts
@@ -16,6 +17,7 @@ files_reviewed_list:
   - packages/audit/test/AuditEntry.characterisation.test.ts
   - packages/audit/test/AuditEntry.test.ts
   - packages/audit/test/AuditEntry.tst.ts
+  - packages/audit/test/ForeignRows.test.ts
   - packages/audit/test/Retention.test.ts
   - packages/audit/test/SequenceIntegrity.test.ts
   - packages/audit/test/UntrustedSeams.test.ts
@@ -23,63 +25,94 @@ files_reviewed_list:
   - scripts/check-api-surface.mjs
 findings:
   critical: 0
-  warning: 1
-  info: 4
+  warning: 3
+  info: 2
   total: 5
+  necessity: 0
 status: issues_found
 ---
 
-# Phase QD-77: Code Review Report
+# Phase QD-77: Code Review Report (iteration 3)
 
 **Reviewed:** 2026-11-24
 **Depth:** standard
-**Files Reviewed:** 17
+**Files Reviewed:** 19
 **Status:** issues_found
 
 ## Summary
 
-The implementation follows 77-CONTEXT.md closely. The brand class, the envelope-first decode, the `now` and `keyMaterial` writer guards and the dead-check removals are all present and match D-01 to D-10. The nine audit test files I ran under the root vitest config pass (204 tests), and `node scripts/check-api-surface.mjs` is green. `oxlint` reports nothing on the scoped files.
+All three iteration-2 findings are fixed as the disposition decided, and I found no BLOCKER.
 
-The one substantive defect is a gap in the premise behind D-04. The phase makes INV-QD-399 ("every archive the writer returns is read back") and INV-QD-400 ("a row is made only by its codec") hold by type alone, and it removes the runtime guard on that basis. The type does not stop an `any`-typed row, and `JSON.parse` returns `any`. I did not assess necessity findings: I did not read `necessity-review.md`, and I found no candidate worth classifying, so `necessity:` is omitted.
+- **WR-01 (`keyMaterial`)**: fixed. The check runs after `now` and before the entries, and uses the module's own `KeyMaterialSchema`, which the reader also uses. A probe against `effect` confirmed what the check covers. A number `keyId`, a `null` item, a string item, a missing field, a hole and a non-list value are each refused, and an extra key is dropped. Two gaps are left: the check reads host values twice (WR-01 below), and the "whatever the value given" claim does not hold for `entries` (WR-02).
+- **IN-01 (per-copy `WeakSet`)**: recorded in `CodecMade.ts`, ADR-QD-190 item 6 and the upgrade guide, as the disposition decided. Not re-raised.
+- **IN-02 (freeze)**: fixed, and the one-level freeze is correct. Probed on `effect@4.1.2`: `Hash.hash` caches in a `WeakMap` (`Hash.ts:131-166`) and `Equal` caches pair results in a `WeakMap` (`Equal.ts:217`). Neither writes to the object, so a frozen `Data.Class` row still `Equal`s its twin and hashes alike. The top-level `json` in the decode path is never the host's object, because `untrustedDecoder`'s `ignore` projection builds a fresh envelope before the schema walk. Freezing the two top-level fields the writer and purge read as identity (`at`, `sequenceNumber`) is sufficient for INV-QD-400.
+
+`ArchiveInputInvalid.value: unknown` is not wrong, but a cleaner closed shape exists in this codebase (WR-03 below).
+
+The docs and spec records match the code, apart from the two overclaims in WR-02 and IN-01.
 
 ## Warnings
 
-### WR-01: The writer's invariants rest on the compile-time brand alone, and `any` bypasses it with no cast
+### WR-01: `archiveAuditTrail` checks `keyMaterial` and then re-reads it, so the check and the written value can differ
 
-**File:** `packages/audit/src/AuditArchive.ts:130-154`, `packages/audit/src/ArchiveFacts.ts:20-23`, `packages/audit/src/ArchiveFacts.ts:87-107`
-**Issue:** D-04 removed `isSequenceNumber` and `SequenceNumberInvalid`. Its stated ground is "Only a cast can put a non-safe-integer on an `AuditEntry`, the house forbids `as`". That is not true. `JSON.parse(text)` and most store clients (raw SQL rows, `any`-typed ORM results, `structuredClone`) return `any`, which is assignable to `AuditEntry` with no `as`. A JS caller, or a `@qadi/promise` user who does not run the type checker, also gets no protection. `archiveAuditTrail` and `archiveFacts` have no runtime check that an entry came from the codec. So the phase's own failure modes can still occur on that path:
-- `archiveAuditTrail([{ record: { ...r, at: null }, extra: 1 }], now)` archives a row that `readAuditArchive` then refuses as `EntryNotDecodable`. This is the exact defect the phase set out to close.
-- A `sequenceNumber` of `1.5`, `2.5` now passes `firstBreakIn`, because `2.5 === 1.5 + 1` and no check follows. Before this phase the writer refused it as `SequenceNumberInvalid`. So for `any`-typed input the change loses protection that the old code gave.
-- `ArchiveFacts.ts:20-23` documents "a row's `sequenceNumber` is a safe integer here without being checked". That holds only for typed callers.
+**File:** `packages/audit/src/AuditArchive.ts:117-134`
+**Issue:** The guard reads `options?.keyMaterial` once into `given` and validates `given` and each item. The projection then reads `options?.keyMaterial?.map(...)` a second time, and destructures each item a second time. The two reads see different values if `options.keyMaterial` or an item field is an accessor. Probed: `{ get keyId() { return n++ ? 5 : "a" }, algorithm: "b", publicKey: "c" }` passes `Schema.is`, then destructures to `keyId: 5`. The writer then archives a bundle its reader refuses as `Malformed`, which is the failure WR-01 of iteration 2 set out to close. The input comes from a host or a JavaScript caller, the exact population the check is for. The trigger is contrived, but INV-QD-399 and the ADR claim the writer cannot archive an item the reader refuses.
+**Fix:** Validate and project the same snapshot, once per item.
+```ts
+const given: unknown = options?.keyMaterial;
+let keyMaterial: Array<KeyMaterial> | undefined;
+if (given !== undefined) {
+  if (!Array.isArray(given)) return yield* Effect.fail(new ArchiveInputInvalid({ field: "keyMaterial", value: given }));
+  const projected = [];
+  for (const [index, item] of given.entries()) {
+    const copy = isRecordLike(item) ? { keyId: item.keyId, algorithm: item.algorithm, publicKey: item.publicKey } : item;
+    if (!isKeyMaterial(copy)) return yield* Effect.fail(new ArchiveInputInvalid({ field: "keyMaterial", value: index }));
+    projected.push(copy);
+  }
+  keyMaterial = projected;
+}
+```
+Here `isRecordLike` is a `Predicate.isObject`-style guard, so a `null` item still fails by index and no `as` is needed. This reads each field once and validates what it writes. At minimum, map over `given` rather than re-reading `options.keyMaterial`.
 
-This is not a regression against the sequence-number rule for typed callers. It is a hole in the stated guarantee for the untyped route, which is how hosts read rows back (the doc comment on `AuditEntry` itself says "a row ... re-parsed later"). `planPurge` stays safe, because a plain object never `Equal`s a class instance, so `holds` returns 0.
-**Fix:** Either enforce the brand at run time in the one place that builds a bundle, or narrow the claim in INV-QD-399 and ADR-QD-190 to "typed callers" and say so in the `archiveAuditTrail` doc. A run-time check needs a brand test that only `AuditEntry.ts` can answer, without a new public export. One option is a module-local `WeakSet<object>` filled by `encodeAuditEntry` and `decodeAuditEntry`, with an `assertCodecMade(entries)` helper imported by `AuditArchive.ts` from a non-barrel module. A second option is to move the class into its own non-barrel module and use `instanceof`. In both cases `archiveAuditTrail` fails with a typed error (for example `ArchiveInputInvalid { field: "entries" }`) when any entry is not codec-made, and a test passes `JSON.parse(...)` rows to pin it. If the cost is judged not worth it, record the decision and correct the false "only a cast" sentence in D-04, ADR-QD-190 and the `ArchiveFacts.ts` header.
+### WR-02: INV-QD-399 says no input is a defect "whatever the value given", but a non-list `entries` still throws
+
+**File:** `packages/audit/src/CodecMade.ts:40-45`, `packages/audit/src/ArchiveFacts.ts:153-165`, `spec/invariants.md` (INV-QD-399 statement)
+**Issue:** The iteration-2 fix treats a non-list `keyMaterial` as an input the type does not bind and refuses it as a value. `entries` has the same trust boundary, and a JavaScript caller can pass `undefined`, `null` or an object for it. `firstNotCodecMade(entries)` calls `entries.findIndex`, which throws a `TypeError`. Inside `Effect.fn` that is a defect (a die), not an `ArchiveInputInvalid`. `planRetention`, `planPurge` and `verifySequenceIntegrity` share the call. INV-QD-399 ends "None of the three is a defect, whatever the value given", and ADR-QD-190 and BEH-QD-722 are worded the same way. A throwing accessor or Proxy on `keyMaterial` is also a defect, and `Schema.is` on a hostile item can throw. The statement is stronger than the code.
+**Fix:** Either guard the list in `firstNotCodecMade`/`verifiedArchiveFacts`, with a non-list reported as `ArchiveInputInvalid { field: "entries", value: <given> }` (consistent with `keyMaterial`) and the same for `RetentionInputInvalid`, or narrow the invariant, ADR item and BEH requirement to "a list". Add a `ForeignRows` test for a non-list `entries` whichever way it goes.
+
+### WR-03: `ArchiveInputInvalid.value: unknown` overloads one slot for an index and for a given value, and a closed shape that avoids it already exists in this package
+
+**File:** `packages/audit/src/ArchiveFacts.ts:131-140`
+**Issue:** `value` is the given value for `now`, the index for `entries`, and for `keyMaterial` either an index or the given value. The type cannot tell a handler which, so a handler (a log line, a retry policy, a user message) cannot narrow `value` from `field` alone. For `keyMaterial` it cannot tell index 3 from a given `3` without the host's original input, as the doc comment concedes ("asks `Array.isArray` of what it passed"). That is the widening the owner's memory warns about (`unknown` to dodge a union, no closed shape). It also diverges from the sibling `RetentionInputInvalid.value: number`, which the doc says this error is "shaped like", while that one can hold a non-number `now` too.
+
+ADR-QD-190 item 2 is right that `Data.TaggedError` cannot extend a union of shapes (TS2509), and a `Schema.TaggedError` is outside the §4 budget. The same file already shows the in-house closed shape: `ArchiveNotVerified { refusal: ArchiveRefusal }`, with `ArchiveRefusal` a `Data.TaggedEnum`, consumed through `Match.tagsExhaustive`. For example:
+```ts
+export type ArchiveInputRefusal = Data.TaggedEnum<{
+  NowNotFinite: { readonly value: unknown };
+  KeyMaterialNotAList: { readonly value: unknown };
+  KeyMaterialItemRefused: { readonly index: number };
+  EntryNotMadeByCodec: { readonly index: number };
+}>;
+export class ArchiveInputInvalid extends Data.TaggedError("ArchiveInputInvalid")<{
+  readonly refusal: ArchiveInputRefusal;
+}> {}
+```
+`unknown` then appears only where a value is a given value, `index` is always a `number`, and nothing needs `Array.isArray` to disambiguate. The release is already marked Breaking and `ArchiveInputInvalid` is new in it, so the shape costs nothing to change now. `RetentionInputInvalid` would take the same treatment for symmetry.
+**Fix:** Owner decision. If the owner prefers the single `field`/`value` pair, keep `unknown` but add a `keyMaterial` member for the non-list case (`"keyMaterial" | "keyMaterialItem" | ...`) so `value` is an index for every member except `now` and the non-list one. The overloaded slot is the part to remove.
 
 ## Info
 
-### IN-01: The `AuditEntry.ts` header describes a schema-derived row that no longer exists
+### IN-01: `RetentionInputInvalid.value` is still `number` while `now` can be anything for a JavaScript caller
 
-**File:** `packages/audit/src/AuditEntry.ts:5-12`
-**Issue:** The header still says the row is "`Schema`-derived" and that it diverges from the hand-written style of `@qadi/predicate-sql` and `@qadi/predicate-prisma`. D-02 removed the exported schema value, and the row is now a module-local `Data.Class` whose only schema is the private envelope in `decodeRow`. The paragraph's argument ("same condition ADR-QD-002 used to make `Policy` the hand-written-interface exception") now describes a design this file does not have, and it contradicts the class docs below it.
-**Fix:** Rewrite the first paragraph. The row is a nominal class made only by its codec, `record` is `@qadi/core`'s wire schema, and the envelope schema is private.
+**File:** `packages/audit/src/Retention.ts:41-44`, `packages/audit/src/ArchiveFacts.ts:131-140`
+**Issue:** The reasoning that widened `ArchiveInputInvalid.value` to `unknown` ("a caller the type does not bind can give a `now` that is a string") applies unchanged to `planRetention`, which does `new RetentionInputInvalid({ field: "now", value: now })` after `Number.isFinite(now)`. The two errors are documented as one shape and now differ in type.
+**Fix:** Settle it with WR-03 so both errors carry the same shape, or record why they differ.
 
-### IN-02: `ArchiveFacts.ts` says `firstBreakIn` "subtracts"
+### IN-02: `README.md` leaves out the non-list `keyMaterial` value
 
-**File:** `packages/audit/src/ArchiveFacts.ts:22-23`
-**Issue:** The header says `firstBreakIn` "never subtracts past `2 ** 53`". The function adds: it compares `actual !== previous + 1`. The `n + 1 === n` hazard in `AuditEntry.ts:49-53` is the correct statement.
-**Fix:** Say "never adds one past `2 ** 53`" or "never compares past `2 ** 53`".
-
-### IN-03: The decode matrix pins `effect`'s own formatter wording
-
-**File:** `packages/audit/test/AuditEntry.characterisation.test.ts:57-59`, `:76-79`, `:94`, `:104`, `:132`
-**Issue:** Rows assert exact strings such as `'Expected an integer\n  at ["sequenceNumber"]'` and `'Expected number | undefined\n  at ["sequenceNumber"]'`. These are produced by `effect` 4.x's issue formatter, not by this package. A catalog bump that rewords them fails the file, with no audit-side defect. ADR-QD-170 chose the decoder's own messages, so the pin is deliberate, but it couples the suite to a third-party string.
-**Fix:** Keep the exact `_tag` and `maxDepth` rows as they are. For `Malformed` rows, assert the tag plus a stable fragment (`["sequenceNumber"]`, `["record"]`, `["extra"]`) via `assert.include`. Keep one exact-string row if the ADR requires it, and say which row that is.
-
-### IN-04: The `now` writer tests pass on any failure, and one property is duplicated
-
-**File:** `packages/audit/test/ArchiveWriterInputs.test.ts:24-36`, `:45-55`; `packages/audit/test/ArchiveRoundTrip.test.ts:230-263` and `:312-346`
-**Issue:** `writtenIsRead` returns `undefined` for any writer failure (`assert.isString(written.failure._tag)`). The three non-finite `now` tests in `ArchiveWriterInputs` therefore stay green if the writer fails with the wrong error. The exact `ArchiveInputInvalid` tag is pinned elsewhere (`AuditArchive.test.ts:199-208`, `ArchiveRoundTrip.test.ts:400-411`), so there is no coverage hole, but the file's own tests are weaker than their titles. Separately, "the writer refuses exactly the inputs the reader reports as SequenceBroken" (`:230-263`) and "fails as the reader reads" (`:312-346`) now assert the same writer-reader agreement over the same domain, since the unsafe-number axis was removed from the second. `Agreement.test.ts` covers it a third time.
-**Fix:** Pass the expected tag into `writtenIsRead` (for example `writtenIsRead(entries, now, options, "ArchiveInputInvalid")`) so a wrong failure is red. Fold one of the two sequence properties into the other.
+**File:** `packages/audit/README.md:142-148`
+**Issue:** The README says a refused `keyMaterial` is named by `keyMaterial` "and the index of the first item". It does not say that a non-list is named by the value given, which BEH-QD-722, the overview row and the upgrade guide all say.
+**Fix:** Add "or the value given, when it is not a list" to the sentence. Change it again if WR-03 changes the shape.
 
 ---
 
@@ -87,24 +120,25 @@ _Reviewed: 2026-11-24_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
 
-## Orchestrator disposition (decided autonomously, 2026-11-24, under the owner's standing instruction of 2026-11-22: "always pick the most complete and clean solutions")
+## Orchestrator disposition, iteration 3 (decided autonomously, 2026-11-24, under the owner's standing instruction of 2026-11-22: "always pick the most complete and clean solutions"; owner memory: closed unions over widening, no `unknown`-bag hacks)
 
-**WR-01: fix with a run-time brand check. Do not narrow the claim.** Rejected: narrowing INV-QD-399/INV-QD-400 and ADR-QD-190 to "typed callers". That leaves the phase's own defect reachable from `JSON.parse`, `any`-typed store rows and JS callers. Rejected: `instanceof` alone. It can be imitated with `Object.create(Object.getPrototypeOf(realRow))`. Rejected: restoring per-field `isSequenceNumber` checks. That would put back the duplicated rule that D-04 removed, when one membership test covers every field.
-- **Membership set.** A new package-private module `packages/audit/src/CodecMade.ts`. Keep it out of `index.ts` and so unexported, since the barrel is `export *`. It holds a module-scope `const` `WeakSet<object>`, which is not a `let` and so not a `MODULE_STATE_BUDGET` row. It has two functions: one records a row, and one says whether a value is a codec-made row. Both are typed with no `as`, `!` or `any`. `encodeAuditEntry` and `decodeAuditEntry` record every row they make, and only those two functions do.
-- **Writer guard.** `archiveAuditTrail` refuses the first entry that is not codec-made with a typed `ArchiveInputInvalid`. That check comes after the `now` check and before the facts. Give `ArchiveInputInvalid` a closed shape that names the entry by its index next to the existing `now` field. The memory rule applies: a closed union states the whole set, never a widened `old | "New"`. Update its exhaustive consumers.
-- **Every other public function that takes host-supplied `AuditEntry` values and computes facts gets the same guard.** That is `verifySequenceIntegrity` and `planRetention`. If one of them must not take it, record why. `planPurge` stays safe through `holds()`; say so in its doc.
-- **Tests.** Write the test first: a `JSON.parse`d row with `at: null` plus an extra key, and a plain-object pair with `sequenceNumber` 1.5 and 2.5. Show each RED on the current HEAD, then GREEN after the fix. Pin the exact error tag and fields, and show the new check failing once. No `as` in tests: `JSON.parse` already returns `any`, and the house rule bans writing `any`, so route it through a typed `unknown` and a function parameter as needed.
-- **Records, same change.**
-  - A dated amendment to ADR-QD-190 that corrects the "only a cast" premise and records the run-time brand.
-  - Correct the same sentence in the `ArchiveFacts.ts` header and in 77-CONTEXT D-04's ADR-quoted text where it appears in shipped records.
-  - Extend the CCR-QD-469 row.
-  - Restate INV-QD-399 and INV-QD-400 so they hold at run time.
-  - Update the changeset and the upgrade-guide 0.13 section for the new refusal.
-  - Add `spec/overview.md` rows only if a public export changes.
-  - Reserved ids only. Never run `next-id.mjs`.
-- **Mutation.** Re-run the close for every touched group with `77-mutation.mjs`, using the same invocations, and re-commit `77-mutation-close.json`. Kill any survivor with a test. Never re-baseline.
-- **Gate.** `pnpm check:pr < /dev/null` must end green.
+**WR-01: fix.** Validate one snapshot and project from it. Read `options?.keyMaterial` once into a local. Check it, then project each item from the values the check read: take each field once and build the fresh `{ keyId, algorithm, publicKey }` from those reads. Nothing is read twice. Pin it with the accessor probe the reviewer describes, a getter that passes the check and then changes. Show that probe RED on HEAD first.
 
-**IN-01, IN-02: fix as suggested.**
-**IN-03: no change. Exact messages are kept on purpose.** ADR-QD-170 chose the strict decoder's own messages, and AROW-04 requires every message change to be shown and tabulated. A dependency bump that rewords them should turn this characterisation red, because that is what it is for. Record this reason in the test file's header comment.
-**IN-04: fix both parts.** Pass the expected tag to `writtenIsRead`, and fold the duplicated sequence-agreement property into one.
+**WR-02: fix. Do not narrow.** A non-list `entries` is refused as a typed error by every function that takes host rows: `archiveAuditTrail`, `verifySequenceIntegrity`, `planRetention` and `planPurge`. That also covers whatever `firstNotCodecMade` is given. INV-QD-399's "whatever the value given" then holds as written. Write the tests first and show them RED, then GREEN, each with a positive twin.
+
+**WR-03 and IN-01: replace the overloaded `value: unknown` with a closed tagged refusal, the shape `ArchiveNotVerified { refusal: ArchiveRefusal }` already uses in this file.**
+- `ArchiveInputInvalid { refusal: ArchiveInputRefusal }`. `ArchiveInputRefusal` is a `Data.TaggedEnum` with exactly one member per case the writer and `verifySequenceIntegrity` refuse:
+  - `now` not finite, carrying the given value;
+  - `keyMaterial` not a list, carrying the given value;
+  - a `keyMaterial` item invalid, carrying its `index: number`;
+  - `entries` not a list, carrying the given value;
+  - an entry the codec did not make, carrying its `index: number`.
+- `RetentionInputInvalid { refusal: RetentionInputRefusal }` follows the same discipline, with exactly its own cases: `now`, `maxAgeMs`, entries not a list, and an entry not codec-made.
+- Typing. A member carries `unknown` only where it holds a value the caller gave, and `index: number` wherever it is an index. Nothing is overloaded and nothing is widened. Name the members in this codebase's style.
+- Consumers. Read refusals with `Match.tagsExhaustive`, and update every consumer in src, tests, docs, fences, the website and the examples.
+- Records. Update the `spec/overview.md` rows (gate 13 must list any newly exported refusal type or constructor), the changeset, the upgrade guide, README, `capabilities.md`, the ADR-QD-190 amendment, BEH/INV wording, the CCR-QD-469 row and the traceability mapping.
+- Breaking is already declared for this release, and both errors' shapes are new or changed in it.
+
+**IN-02: fix.** The README states the non-list `keyMaterial` case, worded to match the new refusal names.
+
+Mutation: re-run the close for every touched group and re-commit `77-mutation-close.json`. Kill any survivor with a test; never re-baseline. `pnpm check:pr < /dev/null` must end green.
