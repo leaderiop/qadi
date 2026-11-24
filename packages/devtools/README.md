@@ -165,10 +165,13 @@ read, and a read that stops is stated in its feed's status instead of leaving a 
 fiber. A `subscribe` listener is yours, and one that throws does not stop the others:
 every listener is called, and then what they threw is rethrown out of whatever
 published (`configure`, `restart`, a read or tick, or the host registry's own
-notification), one value as itself and several as one `AggregateError`. A status that announces work (`Reading`, `Starting`) is published
-and the work starts whatever a listener throws on it, so a throw leaves no read, poll or run unstarted, and it is
-rethrown once the work has started. The one throw that still ends something is the gates feed's own: a questions
-cadence tick that throws ends the cadence, because that is the run's own failure. The store a host holds as `timeline`
+notification), one value as itself and several as one `AggregateError`. A status that
+announces work (`Reading`, `Starting`) is published and the work starts whatever a
+listener throws on it, so a throw leaves no read, poll or run unstarted, and it is
+rethrown once the work has started. A throw a listener makes on a record the timeline
+read hands over, or on a sample the diagnostics poll hands over, still ends that read
+or poll, and its status says so (`Stopped`); so does a questions cadence tick that
+throws, which ends the cadence. The store a host holds as `timeline`
 is the feed's one store for its whole life, and a capacity other than the one it holds is that store's `resize`, so a
 subscription on it survives a capacity change. A `configure` with a new `capacity` publishes the emptied timeline and
 then starts the read that refills it, from the same `source` or a new one. A throw from a timeline listener on that

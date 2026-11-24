@@ -495,4 +495,29 @@ describe("a dock whose host listener throws", () => {
       assert.deepStrictEqual(stateOf(nested), stateOf(plain));
     }),
   );
+
+  it.effect("DL20 a source whose records reach an always-throwing explorer listener is read until the first of them and the status says it stopped", () =>
+    Effect.gen(function* () {
+      const boom = new Error("an explorer listener threw");
+      // Yields before it answers, so its records arrive after the listener is subscribed.
+      const source: Source = {
+        read: Effect.gen(function* () {
+          yield* Effect.yieldNow;
+          return { backlog: [record("r1", 100), record("r2", 200)], live: Stream.never };
+        }),
+      };
+      const model = yield* dockModelOf({ capacity: 5, catalogue, source });
+      model.explorer.subscribe(() => {
+        throw boom;
+      });
+
+      yield* settleTurns;
+
+      assert.strictEqual(model.timelineStatus.getSnapshot()._tag, "Stopped");
+      assert.deepStrictEqual(
+        model.timeline.getSnapshot().entries.map((entry) => entry.evaluationId),
+        ["r1"],
+      );
+    }),
+  );
 });
