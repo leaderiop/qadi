@@ -107,7 +107,7 @@ repaired it. Six defects came out of that, each seen failing on the code before 
    whatever published. The closure variables the spread kept, the spread function and its identity guard are deleted. A
    pause toggle republishes the same timeline, so the rail's key does not move; the dock session keeps its own identity
    guard. The double publish is gone by construction: a `configure` that changes the capacity and the catalogue
-   recomputes the rail once, in the timeline step, and step 2 finds its key unchanged. The rail is internal and not a
+   recomputes the rail once, in the timeline step, and the rail step finds its key unchanged. The rail is internal and not a
    member of the model, so the ten stores
    [BEH-QD-700](../behaviors/28-devtools-screens.md#beh-qd-700-the-dock-models-stores-are-listed-once) lists are unchanged,
    and `sightings` stays a thunk reading it.
@@ -181,8 +181,9 @@ listeners account for the whole difference.
 
 ## Consequences
 
-- One helper changes shape and one is added; no export moves, so gates 13 and 14 are unmoved. The release note is a patch
-  for `@qadi/devtools`: a defect fix. No upgrade-guide entry.
+- One helper changes shape and one is added; no export moves, so `scripts/check-api-surface.mjs` (gate 13) and
+  `scripts/check-package-install.mjs` (gate 14) are unmoved. The release note is a patch for `@qadi/devtools`: a defect
+  fix. No upgrade-guide entry.
 - A publishing call of the model (`configure`, a record, a resize, a restart, a poll) throws what the listeners threw once
   every step has run: one `AggregateError` where the code before ADR-QD-194 threw the first listener's value, and only
   when two or more threw.
