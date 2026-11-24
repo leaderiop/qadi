@@ -510,6 +510,7 @@ Plans:
 **Depends on**: Phase 77 (serial order only; `@qadi/audit` and `@qadi/devtools` share no source). Phase 79 depends on this phase.
 **Requirements**: TRSZ-01, TRSZ-02, TRSZ-03, TRSZ-04, WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
 **Packages**: `@qadi/devtools` (`TimelineStore.ts`, `TimelineFeed.ts`, their tests, `spec/overview.md`, one changeset)
+**UI hint**: no (no rendered surface changes: the store, the feeds and the dock model are headless, and `useTimelineStore`'s change is a hook effect; "view" in the evidence below is the mirror `ExternalStore` variable)
 **Records**: ARCH-125; ADR-QD-191 (new, or an amendment of ADR-QD-137 with 191 named unused; keeps ADR-QD-137); CCR-QD-470; BEH-QD-726 to 730; INV-QD-401 to 402
 **Evidence** (`_WAVE14-CONTEXT.md`, at `ab8ccb75`): capacity is captured once (`TimelineStore.ts:49`). `TimelineFeed.ts:126-193` works around it with a mutable `inner`, a mirror `view` ExternalStore (`:129`), a `push` listener (`:132-133`), a six-member forwarder (`:136-141`) and a resize that drops the old store without unsubscribing (`:178`); `idleTimeline` (`:106`) writes the six members a third time. Today `configure` assigns `inputs = next` before an invalid capacity throws (half-applied), `accept` at capacity 0 is undecided, and resize while paused is untested. A public `TimelineStore` gaining a member is a type-level change, so it needs a changeset and a `spec/overview.md` row (gate 13).
 

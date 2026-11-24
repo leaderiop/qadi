@@ -240,3 +240,5 @@ Requirements: TRSZ-01..04, plus the cross-cutting WX-01..07.
 The planner must run `check ui-plan-gate 78` if it answers `frontend: true`. This phase does touch a React hook
 (`useTimeline.ts`), but it changes no rendered markup, styling or layout. So the UI-SPEC hook is skipped unless the gate
 names a real visual surface.
+
+On 2026-11-24 the post-wave `ui-safety-gate` blocked after the hook test `useTimeline.test.tsx` landed. It sniffs the same `view` token: the mirror `ExternalStore` variable named in the roadmap's evidence. This was resolved with the workflow's authoritative declaration, a `**UI hint**: no` line in the ROADMAP Phase 78 section, which overrides token sniffing for both UI gates. No UI-SPEC is written, because no rendered surface changes.
