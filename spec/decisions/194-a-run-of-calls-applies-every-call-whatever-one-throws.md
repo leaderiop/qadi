@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-194                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-11-24                                     |
 > | Status         | Accepted — amends ADR-QD-177, ADR-QD-185, ADR-QD-191 and ADR-QD-192 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-25): the change table, item 6 and the test list say what DL1 to DL20 and TF37 now assert (CCR-QD-473)<br>1.1 (2026-11-24): BEH-QD-741 to BEH-QD-745, INV-QD-407 and INV-QD-408 linked (CCR-QD-473)<br>1.0 (2026-11-24): Initial (ARCH-128, CCR-QD-473) |
+> | Change History | 1.3 (2026-11-25): the test list names TimelineFeed.listeners.test.ts (CCR-QD-473)<br>1.2 (2026-11-25): the change table, item 6 and the test list say what DL1 to DL20 and TF37 now assert (CCR-QD-473)<br>1.1 (2026-11-24): BEH-QD-741 to BEH-QD-745, INV-QD-407 and INV-QD-408 linked (CCR-QD-473)<br>1.0 (2026-11-24): Initial (ARCH-128, CCR-QD-473) |
 
 ---
 
@@ -208,7 +208,8 @@ listeners account for the whole difference.
 - `packages/devtools/test/model/DockModel.listeners.test.ts`: DL1 to DL20, one row per store a built model exposes, the two
   throwers, the record path, the single publish, the nested `configure`, the nested `AggregateError` and the record a
   listener throws on.
-- `packages/devtools/test/model/TimelineFeed.test.ts`: TF28, TF29 and TF37. `DiagnosticsFeed.test.ts`: F31.
+- `packages/devtools/test/model/TimelineFeed.test.ts`: TF28, TF29 and TF37. `TimelineFeed.listeners.test.ts`: LF1 to LF3, a
+  throw on a record ends the read and a nested `AggregateError` beside the read's own. `DiagnosticsFeed.test.ts`: F31.
   `SimulationSession.runs.test.ts`: SR6. `GatesFeed.test.ts`: G49.
 - `packages/devtools/test/model/ConfigureRule.test.ts`: CR22's restated counts. `DockModel.test.ts`: M55 and M56, unedited.
 - The Stryker record of the five files, and `scripts/check-house-style.mjs`, whose budgets do not move: the change adds no
