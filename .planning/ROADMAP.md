@@ -576,14 +576,14 @@ Plans:
   5. `UseDockModelInput` is gone, `DevtoolsDockProps` is `DockModelInputs` plus the host-only props, inputs are mapped onto each feed in one place in `DockModel`, and gate 14's packed consumer, `surface.tst.ts`, the compiled README fence, the website's devtools page, `spec/behaviors` and the ADR fences all use the new signatures in the same plan as the change, with ADR-QD-192 and a Breaking `@qadi/devtools` changeset and upgrade-guide entry.
 
 **Planning notes**: **Research flag: a pre-plan render-sequence spike is required** (`/gsd-plan-phase --research-phase 79`). Today the first render is `Starting` then `Starting`, because the idle stand-ins hide an unconfigured feed; children's layout effects run before the parent's configure effect and `isUnsampled(Off)` is false, so a bare constructor could make the Questions join briefly claim "not handed over". That is derived by tracing, not run: the spike runs the sequence plain, under StrictMode and across a hidden `Activity` against a bare constructor, and `useScoped` reads `make` once per mount, so folding configure into the build needs the latest inputs (a ref, or a kept second effect). The open decisions in the owner table above are asked once at the discuss step, after the spike; also decide a throw during the first `configure` inside the build (scope closed vs model kept). `DockModel.configure`'s dispatch order (gates, then diagnostics, then `shownReading.refresh()`) stays written once, and the rule decides whether a feed restarts, not the order. Export `sameFields` from its file, not the barrel. Test churn: about 190 to 213 construction sites (`DockModel.test.ts` 77, `GatesFeed.test.ts` 38, `DiagnosticsFeed.test.ts` 33, `TimelineFeed.test.ts` 30), so use one fixture helper, and keep the characterisation file out of shared helpers because Phase 80 edits them. Gate 14's fixture is a template string that only `pnpm spec:package` compiles. Commit the Stryker baselines of `TimelineFeed.ts`, `DiagnosticsFeed.ts`, `GatesFeed.ts`, `ExternalStore.ts` and `DockModel.ts` (score 1, ADR-QD-168) first and re-close them after the review.
-**Plans**: 1/17 plans executed (waves 1 to 17, strictly serial)
+**Plans**: 2/17 plans executed (waves 1 to 17, strictly serial)
 
 Plans:
 **Wave 1**
 - [x] 79-01-PLAN.md — record the phase base and the per-file mutation base of `TimelineFeed.ts`, `DiagnosticsFeed.ts`, `GatesFeed.ts`, `ExternalStore.ts` and `DockModel.ts`, committed alone and first
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 79-02-PLAN.md — on the base: the dock's first-render characterisation (plain, StrictMode, a hidden `Activity`, a first-configure throw) and the check that holds it byte for byte
+- [x] 79-02-PLAN.md — on the base: the dock's first-render characterisation (plain, StrictMode, a hidden `Activity`, a first-configure throw) and the check that holds it byte for byte
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 79-03-PLAN.md — on the base: the built-feeds helper and the per-field rule cells for the three feeds, the gates feed's seen RED
@@ -662,5 +662,5 @@ Phases execute in numeric order: 77 → 78 → 79 → 80
 |-------|----------------|--------|-----------|
 | 77. An audit row is a value only its codec makes | 7/7 | Complete    | 2026-11-24 |
 | 78. `TimelineStore` owns its capacity | 11/11 | Complete    | 2026-11-24 |
-| 79. Feeds and the dock model take inputs only through `configure` | 1/17 | In Progress | - |
+| 79. Feeds and the dock model take inputs only through `configure` | 2/17 | In Progress | - |
 | 80. The highlight lens is a headless session; `instrument` resolved | 0/0 | Not started | - |
