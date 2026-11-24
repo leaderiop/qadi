@@ -97,3 +97,13 @@ is first (its `before` line), then rewritten and run again (its `red` line).
   - edit: moved the cadence() call in GatesFeed.configure after the publish call, from a copy-backed GatesFeed.ts restored with cp; failed on: AssertionError: expected 1 to be at least 3 (the thunk read once, at the configure, and never again: the publish threw before the cadence was forked)
 
 G49 is green on the base, a characterisation of a window that is already closed: the gates feed forks its cadence before it publishes. A first draft configured the feed with a thunk already, and stayed green under the scratch edit because the cadence already running reads the held thunk; the feed that starts with no thunk is the one whose cadence the configure itself forks.
+
+`node <this directory>/81-pinned-check.mjs` on the tree, every line it prints, after a scratch edit that appended one comment
+line to a copy-backed `packages/devtools/test/model/DockModel.test.ts` (restored with `cp` from a copy in the scratch
+directory; `git status --porcelain -- packages` printed nothing afterwards):
+
+- check failed: pinned: packages/devtools/test/model/DockModel.test.ts: differs from its base text at line 1832
+
+On the restored tree it prints `pinned: 8 files hold their base text, 3 of 4 declared flips applied`, and `--all-applied`
+fails on `CR22` alone (the test equals its base and no `- flip CR22: ` line is recorded), which the restatement of CR22
+changes.
