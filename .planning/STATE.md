@@ -5,16 +5,16 @@ milestone_name: Arch Wave 15
 current_phase: 81
 current_phase_name: The dock model applies every input whatever a listener throws
 status: executing
-stopped_at: Completed QD-81-07-PLAN.md
-last_updated: "2026-11-24T22:39:17.177Z"
+stopped_at: Completed 81-08-PLAN.md
+last_updated: "2026-11-24T22:49:42.167Z"
 last_activity: 2026-11-24
 last_activity_desc: Phase QD-81 execution started
-state_head: 929e4e04be0f607d206ce01491ac0309e4902b40
+state_head: ec05cafc6673482d224d596ecc449ea1a21d6e6c
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 11
-  completed_plans: 7
+  completed_plans: 8
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-24)
 ## Current Position
 
 Phase: QD-81 (The dock model applies every input whatever a listener throws) — EXECUTING
-Plan: 8 of 11
+Plan: 9 of 11
 Status: Executing Phase QD-81
 Last activity: 2026-11-24 — Phase QD-81 execution started
 
@@ -608,6 +608,7 @@ Last activity: 2026-11-24 — Phase QD-81 execution started
 | Phase QD-81 P05 | 12 min | 2 tasks | 3 files |
 | Phase QD-81 P06 | 12 min | 3 tasks | 4 files |
 | Phase QD-81 P07 | 14min | 2 tasks | 8 files |
+| Phase 81 P08 | 35min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -1055,6 +1056,7 @@ Last activity: 2026-11-24 — Phase QD-81 execution started
 - [Phase QD-81]: 81-05: try/finally, not callAll, at the three publish-then-fork sites (decided autonomously): only the publish can throw there, so a callAll message could never be read
 - [Phase QD-81]: 81-06: CR22 restated from measured counts (explorer and simulation 3 to 2 in both records); DL15 rail order corrected to newest first. Decided autonomously.
 - [Phase QD-81]: Plan 81-07: ADR-QD-194 and the amendments of ADR-QD-177, ADR-QD-185, ADR-QD-191 and ADR-QD-192 written; the CCR-QD-473 row was begun in the first commit because strict verification fails on a cited CCR with no register row (decided autonomously)
+- [Phase 81]: 81-08: BEH-QD-699 retitled to four computed stores and its anchors follow; INV-QD-296 and INV-QD-403 corrected for the deleted spread (decided autonomously)
 
 ### Pending Todos
 
@@ -1134,8 +1136,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-24T22:39:17.141Z
-Stopped at: Completed QD-81-07-PLAN.md
+Last session: 2026-11-24T22:49:42.116Z
+Stopped at: Completed 81-08-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

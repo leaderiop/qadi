@@ -14,9 +14,9 @@ Every phase runs on branch `arch-wave-15` (off `arch-wave-14` at `902d2128`), st
 - [ ] **COLL-01**: A regression test written on the phase base is RED there and GREEN after: for every store a host can subscribe to on the dock model (timeline, explorer, simulation, dock, roles, questions, services, diagnostics, and any other the model exposes, the lens included), a listener that throws during `configure` leaves every other input applied (roles listed, explorer and simulation on one sightings rail, the dock on the shown timeline, ports set, gates and diagnostics configured, the shown reading refreshed), and the throw is rethrown after the last step.
 - [ ] **COLL-02**: The record path is total too: a listener that throws on a timeline publish (no `configure` involved) does not leave the explorer, the simulation or the dock behind the timeline; the throw reaches the caller after every follower has moved. RED on the base.
 - [ ] **COLL-03**: One throw is rethrown as itself (`undefined` and `null` included); two or more are rethrown once, collected, in step order, by the same rule `ExternalStore`'s listener notification and derived-store release already use, which lives in one package-private place shared by all three (kept out of the barrel). No second copy of the loop.
-- [ ] **COLL-04**: A catalogue and a capacity changed in one `configure` move the sightings rail once, and the notification counts the configure-rule pins (CR22, BEH-QD-735) record are restated for it. The step order (held inputs first, then timeline, rail, roles, ports, gates, diagnostics, shown reading last, one join publish) is pinned. A refused capacity still throws before anything moves (M55), and M56 stays green.
+- [x] **COLL-04**: A catalogue and a capacity changed in one `configure` move the sightings rail once, and the notification counts the configure-rule pins (CR22, BEH-QD-735) record are restated for it. The step order (held inputs first, then timeline, rail, roles, ports, gates, diagnostics, shown reading last, one join publish) is pinned. A refused capacity still throws before anything moves (M55), and M56 stays green.
 - [ ] **COLL-05**: The window between a run's `begin()` and its `fork()` is closed at every site in `packages/devtools/src/model/**` (the timeline feed's `Reading`, the diagnostics feed's `Starting`, the simulation's `Running`): the work a status announces starts whatever a listener throws on that status, and the throw is rethrown after, so the "applies every input" claim holds for the diagnostics, services, questions and timeline-status listeners too (ADR-QD-177 decision 5 amended; TF29's flip recorded). A listener that calls `configure` again from inside a step leaves the model on the inner call's inputs (pinned). Decided autonomously 2026-11-24 (81-CONTEXT D-09).
-- [ ] **COLL-06**: ADR-QD-194 records the rule (or ADR-QD-191 decision 11 and ADR-QD-177 are amended and 194 is named unused); BEH/INV/traceability and the dock model's file header move with it.
+- [x] **COLL-06**: ADR-QD-194 records the rule (or ADR-QD-191 decision 11 and ADR-QD-177 are amended and 194 is named unused); BEH/INV/traceability and the dock model's file header move with it.
 
 ### `QadiProvider`'s registry has one owner for its lifetime (Phase 82, ARCH-129, react; live defect)
 
@@ -44,12 +44,12 @@ Every phase runs on branch `arch-wave-15` (off `arch-wave-14` at `902d2128`), st
 ### Cross-cutting (every v1.10 phase)
 
 - [ ] **WX-01**: `pnpm check:pr < /dev/null` is green at the end of each phase.
-- [ ] **WX-02**: Each phase records its ADR (or names it "Unused" in its CCR row), its CCR row, and its BEH/INV/traceability changes, using only its reserved numbers. `node scripts/next-id.mjs` is never run.
+- [x] **WX-02**: Each phase records its ADR (or names it "Unused" in its CCR row), its CCR row, and its BEH/INV/traceability changes, using only its reserved numbers. `node scripts/next-id.mjs` is never run.
 - [ ] **WX-03**: `spec/overview.md` names every added export and drops every removed one (gate 13). Gate 14 probes every changed public signature.
 - [ ] **WX-04**: Nothing new is added from this list: `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await` in src, ambient `console`/`process.env`/clock, `Record<string, unknown>`, `// Stryker disable`, a module-scope `let`. A budget changes only together with its AGENTS.md table.
 - [ ] **WX-05**: Coverage thresholds hold (core at least 95%, the others at least 90%). The Stryker score of touched files does not fall: recorded per phase in `NN-mutation-base.json`, measured with the same invocation at the phase base and at close. A drop is closed with a test, never re-baselined.
 - [ ] **WX-06**: Every behaviour change is preceded by a characterisation or regression test written on the phase base: RED for a defect, green for preserved behaviour. Every new check is shown failing once.
-- [ ] **WX-07**: No D-numbers, plan-local ids or phase numbers enter shipped source, test titles or BDD scenarios. Nothing is released, published, pushed or merged, and no version-packages PR is merged.
+- [x] **WX-07**: No D-numbers, plan-local ids or phase numbers enter shipped source, test titles or BDD scenarios. Nothing is released, published, pushed or merged, and no version-packages PR is merged.
 
 ## Future Requirements
 
@@ -76,9 +76,9 @@ Every phase runs on branch `arch-wave-15` (off `arch-wave-14` at `902d2128`), st
 | COLL-01 | Phase 81 | Pending |
 | COLL-02 | Phase 81 | Pending |
 | COLL-03 | Phase 81 | Pending |
-| COLL-04 | Phase 81 | Pending |
+| COLL-04 | Phase 81 | Complete |
 | COLL-05 | Phase 81 | Pending |
-| COLL-06 | Phase 81 | Pending |
+| COLL-06 | Phase 81 | Complete |
 | LEASE-01 | Phase 82 | Pending |
 | LEASE-02 | Phase 82 | Pending |
 | LEASE-03 | Phase 82 | Pending |
@@ -94,12 +94,12 @@ Every phase runs on branch `arch-wave-15` (off `arch-wave-14` at `902d2128`), st
 | ADPT-04 | Phase 84 | Pending |
 | ADPT-05 | Phase 84 | Pending |
 | WX-01 | All v1.10 phases | Pending |
-| WX-02 | All v1.10 phases | Pending |
+| WX-02 | All v1.10 phases | Complete |
 | WX-03 | All v1.10 phases | Pending |
 | WX-04 | All v1.10 phases | Pending |
 | WX-05 | All v1.10 phases | Pending |
 | WX-06 | All v1.10 phases | Pending |
-| WX-07 | All v1.10 phases | Pending |
+| WX-07 | All v1.10 phases | Complete |
 
 **Coverage:**
 - v1.10 requirements: 27 total (20 phase-specific + 7 cross-cutting)
