@@ -12,8 +12,9 @@
  * `choose` answers whether the click it was given is consumed, which is what decides
  * whether the page sees it. A pick arms a one-shot reveal for its guard; `takeReveal`
  * answers true once and publishes nothing, so a row scrolls itself into view for the
- * pick that was made and not again on a later render. The pick is held by the guard's
- * id and only `choose` or `toggle` replaces it.
+ * pick that was made and not again on a later render. The reveal belongs to the moment
+ * of its pick: `toggle`, `cancel` and `highlight` disarm it, and `hover` leaves it. The
+ * pick is held by the guard's id and only `choose` or `toggle` replaces it.
  *
  * Package-private (ADR-QD-099): the dock's model owns it and the document adapter
  * drives it. `DockSession` is the shape.
@@ -68,7 +69,10 @@ export interface LensSession extends ReadableStore<LensSnapshot> {
   readonly cancel: () => void;
   /** Draws over these guards and ends picking, keeping the pick. */
   readonly highlight: (ids: ReadonlyArray<string>) => void;
-  /** Whether the reveal the pick armed for this guard is still to be taken; true once. */
+  /**
+   * Whether the reveal the pick armed for this guard is still to be taken; true once.
+   * `toggle`, `cancel` and `highlight` disarm it, and `hover` does not.
+   */
   readonly takeReveal: (id: string) => boolean;
 }
 
@@ -132,7 +136,8 @@ const highlighted: (snapshot: LensSnapshot) => Draw = Match.type<LensSnapshot>()
 
 export const makeLensSession = (): LensSession => {
   // The guard whose row is yet to reveal itself: armed by a pick, disarmed by the
-  // reveal being taken or by `toggle`.
+  // reveal being taken or by `toggle`, `cancel` or `highlight`, whether or not those
+  // moved the snapshot.
   let armed: string | undefined;
 
   const store = makeExternalStore<LensSnapshot>(IDLE);
@@ -167,10 +172,12 @@ export const makeLensSession = (): LensSession => {
     },
 
     cancel: () => {
+      armed = undefined;
       move(cancelled(store.getSnapshot()));
     },
 
     highlight: (ids) => {
+      armed = undefined;
       move(highlighted(store.getSnapshot())(ids));
     },
 

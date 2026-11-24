@@ -240,7 +240,7 @@ describe("the lens session", () => {
     assert.strictEqual(heard.calls, 4);
   });
 
-  it("a pick reveals its row once, and only for its own guard; toggle disarms a reveal that was not taken; takeReveal publishes nothing", () => {
+  it("a pick reveals its row once, and only for its own guard; toggle, cancel and highlight disarm a reveal that was not taken and hover does not; takeReveal publishes nothing", () => {
     const { session, heard } = pickedOff("a");
     const picked = session.getSnapshot();
     const before = heard.calls;
@@ -251,12 +251,27 @@ describe("the lens session", () => {
     assert.strictEqual(heard.calls, before);
 
     const kept = pickedOff("a");
-    kept.session.highlight(["a"]);
-    kept.session.cancel();
     kept.session.hover("b");
     assert.isFalse(kept.session.choose("b"));
     assert.isFalse(kept.session.takeReveal("b"));
     assert.isTrue(kept.session.takeReveal("a"));
+
+    const cancelled = pickedOff("a");
+    cancelled.session.cancel();
+    assert.isFalse(cancelled.session.takeReveal("a"));
+
+    const drawnThenCancelled = pickedOff("a");
+    drawnThenCancelled.session.highlight(["b"]);
+    drawnThenCancelled.session.cancel();
+    assert.isFalse(drawnThenCancelled.session.takeReveal("a"));
+
+    const highlighted = pickedOff("a");
+    highlighted.session.highlight(["b"]);
+    assert.isFalse(highlighted.session.takeReveal("a"));
+
+    const unchanged = pickedOff("a");
+    unchanged.session.highlight([]);
+    assert.isFalse(unchanged.session.takeReveal("a"));
 
     const toggled = pickedOff("a");
     toggled.session.toggle();

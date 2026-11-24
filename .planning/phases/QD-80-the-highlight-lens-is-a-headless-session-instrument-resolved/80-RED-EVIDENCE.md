@@ -160,3 +160,11 @@ failed (`gateIdOfClick is not a function`), and the adapter cell failed on the u
 - failed: a click with no pointer is placed by the element it was made on, not by a point
 - failed: a click with no pointer and no element to name falls back to its coordinates
 - failed: a click made with no pointer is placed by the control it was made on, not by a point it did not report
+
+### IN-05 a reveal belongs to the moment of its pick
+
+The reveal cell of `LensSession.test.ts` was changed first (a cancel, a drawing then a cancel, a highlight and a highlight
+that moves nothing each disarm; a hover does not) and run on the unchanged session (`expected true to be false`; 1 failed,
+14 passed).
+
+- failed: a pick reveals its row once, and only for its own guard; toggle, cancel and highlight disarm a reveal that was not taken and hover does not; takeReveal publishes nothing
