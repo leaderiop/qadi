@@ -2,10 +2,10 @@
  * Every archive the writer returns is read back by its reader.
  *
  * Each test is one input of `archiveAuditTrail`: a row, a `now` or a `keyMaterial` item
- * a type admits or a codec makes. The writer either fails with a typed error, which
- * passes, or returns a bundle that `readAuditArchive` reads back from its JSON text, the
- * form a store gives it. A bundle the reader refuses is the defect: an archive this
- * package wrote and cannot itself read. A row is only ever one the codec made, so no
+ * a type admits or a codec makes. The writer fails with the typed error the test names,
+ * or returns a bundle that `readAuditArchive` reads back from its JSON text, the form a
+ * store gives it. A bundle the reader refuses is the defect: an archive this package
+ * wrote and cannot itself read. A row is only ever one the codec made, so no
  * hostile row is built here.
  */
 import { assert, describe, it } from "@effect/vitest";
@@ -18,15 +18,23 @@ import type { AuditEntry } from "../src/AuditEntry.ts";
 import { decisionRecord } from "./helpers.ts";
 
 /**
- * What the reader makes of the writer's bundle, read back from its JSON text: the
- * verified archive, or `undefined` when the writer failed with a typed error.
+ * What the reader makes of the writer's bundle, read back from its JSON text. `failsWith`
+ * is the tag the writer must fail with, so a wrong failure is red: with it the writer
+ * must fail that way and the result is `undefined`, and without it the writer must
+ * succeed and the reader must read the bundle.
  */
-const writtenIsRead = (entries: ReadonlyArray<AuditEntry>, now: number, options?: ArchivalOptions) => {
+const writtenIsRead = (
+  entries: ReadonlyArray<AuditEntry>,
+  now: number,
+  options?: ArchivalOptions,
+  failsWith?: string,
+) => {
   const written = Effect.runSync(Effect.result(archiveAuditTrail(entries, now, options)));
   if (Result.isFailure(written)) {
-    assert.isString(written.failure._tag);
+    assert.strictEqual(written.failure._tag, failsWith);
     return undefined;
   }
+  assert.isUndefined(failsWith, "the writer archived an input it must refuse");
   const read = readAuditArchive(JSON.parse(JSON.stringify(written.success)));
   assert.isTrue(
     Result.isSuccess(read),
@@ -43,15 +51,15 @@ const archivedOnlyWhenRead = "is archived only when its reader reads it back";
 
 describe("a now the type admits", () => {
   it("now NaN " + archivedOnlyWhenRead, () => {
-    writtenIsRead([row], Number.NaN);
+    writtenIsRead([row], Number.NaN, undefined, "ArchiveInputInvalid");
   });
 
   it("now positive infinity " + archivedOnlyWhenRead, () => {
-    writtenIsRead([row], Number.POSITIVE_INFINITY);
+    writtenIsRead([row], Number.POSITIVE_INFINITY, undefined, "ArchiveInputInvalid");
   });
 
   it("now negative infinity " + archivedOnlyWhenRead, () => {
-    writtenIsRead([row], Number.NEGATIVE_INFINITY);
+    writtenIsRead([row], Number.NEGATIVE_INFINITY, undefined, "ArchiveInputInvalid");
   });
 
   it("now negative zero " + archivedOnlyWhenRead, () => {

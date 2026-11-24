@@ -7,8 +7,9 @@
  * ({@link readAuditArchive}) order, claim rule and sequence-break check into it
  * had to leave every behavior here unchanged; the file imports only the public
  * modules for that reason. The property over the whole `number` domain reads the
- * safe-integer rule at the codec, where it is stated once, and holds the writer to
- * the reader on every row the codec makes (ADR-QD-110, ADR-QD-190). The last two
+ * safe-integer rule at the codec, where it is stated once, and the writer is held to
+ * the reader on every row the codec makes by the sequence-break property
+ * (ADR-QD-110, ADR-QD-190). The last two
  * properties close the writer's domain (any entries, any finite `now`, any
  * `keyMaterial`) and the codec's (any record, hostile values included) the same way.
  */
@@ -228,10 +229,22 @@ describe("PROPERTY: any reordering of a written bundle is refused at the first e
 });
 
 describe("PROPERTY: the writer refuses exactly the inputs the reader reports as SequenceBroken, with the same numbers", () => {
-  const maybeSequenced = FastCheck.array(
-    FastCheck.option(FastCheck.integer({ min: 0, max: 8 }), { nil: undefined }),
-    { maxLength: 12 },
+  // Small numbers make runs and breaks likely; the safe-integer bounds are the edge a
+  // number reaches a row at.
+  const sequenceNumber = FastCheck.oneof(
+    { weight: 8, arbitrary: FastCheck.integer({ min: 0, max: 8 }) },
+    {
+      weight: 1,
+      arbitrary: FastCheck.constantFrom(
+        Number.MAX_SAFE_INTEGER,
+        Number.MAX_SAFE_INTEGER - 1,
+        -Number.MAX_SAFE_INTEGER,
+      ),
+    },
   );
+  const maybeSequenced = FastCheck.array(FastCheck.option(sequenceNumber, { nil: undefined }), {
+    maxLength: 12,
+  });
 
   it("agrees on whether the sequence is broken, and on where", () => {
     FastCheck.assert(
@@ -262,7 +275,7 @@ describe("PROPERTY: the writer refuses exactly the inputs the reader reports as 
   });
 });
 
-describe("PROPERTY: over any number, the codec sets the domain and the writer", () => {
+describe("PROPERTY: over any number, the codec sets the domain", () => {
   // Small integers to make contiguous runs likely, and every kind of number the
   // TypeScript type admits but the AuditEntry codec does not.
   const anyNumber = FastCheck.oneof(
@@ -282,16 +295,6 @@ describe("PROPERTY: over any number, the codec sets the domain and the writer", 
       1.5,
     ),
   );
-  const safeNumber = FastCheck.oneof(
-    FastCheck.integer({ min: 0, max: 4 }),
-    FastCheck.constantFrom(
-      Number.MAX_SAFE_INTEGER,
-      Number.MAX_SAFE_INTEGER - 1,
-      -Number.MAX_SAFE_INTEGER,
-    ),
-  );
-  const optional = FastCheck.option(safeNumber, { nil: undefined });
-  const maybeNumbered = FastCheck.array(optional, { maxLength: 8 });
 
   it("decodeAuditEntry reads a safe integer, and refuses any other as Malformed", () => {
     const record = pool[0]?.record ?? assert.fail("the pool is empty");
@@ -304,42 +307,6 @@ describe("PROPERTY: over any number, the codec sets the domain and the writer", 
         }
         if (!Result.isFailure(decoded)) return assert.fail("an unsafe number was read");
         assert.strictEqual(decoded.failure.refusal._tag, "Malformed");
-      }),
-      { numRuns: 500 },
-    );
-  });
-
-  it("fails as the reader reads, and otherwise writes a readable bundle", () => {
-    FastCheck.assert(
-      FastCheck.property(maybeNumbered, (numbers) => {
-        const entries = numbers.flatMap((sequenceNumber, i) => {
-          const entry = pool[i];
-          if (entry === undefined) return [];
-          return [sequenceNumber === undefined ? entry : numbered(entry, sequenceNumber)];
-        });
-        const writer = Effect.runSync(Effect.result(archiveAuditTrail(entries, 0)));
-
-        if (Result.isFailure(writer)) {
-          if (writer.failure._tag !== "SequenceIntegrityError") {
-            return assert.fail("expected SequenceIntegrityError");
-          }
-          const read = readAuditArchive({
-            archiveVersion: "1",
-            metadata: {
-              createdAt: 0,
-              entryCount: entries.length,
-              sequenceIntegrityVerified: false,
-            },
-            entries: stored(entries),
-          });
-          if (!Result.isFailure(read)) return assert.fail("a refused bundle was read");
-          const refusal = read.failure.refusal;
-          if (refusal._tag !== "SequenceBroken") return assert.fail(refusal._tag);
-          assert.strictEqual(writer.failure.expectedSequence, refusal.expectedSequence);
-          assert.strictEqual(writer.failure.actualSequence, refusal.actualSequence);
-          return;
-        }
-        assert.isTrue(Result.isSuccess(readAuditArchive(stored(writer.success))));
       }),
       { numRuns: 500 },
     );

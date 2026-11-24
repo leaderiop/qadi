@@ -3,7 +3,10 @@
  * row and its read-back twin are one row.
  *
  * The matrix is a table of input and exact refusal, so a change of message or precedence
- * edits exactly its row and no other. The twins block pins the bytes, the key set and the
+ * edits exactly its row and no other. The messages are the strict decoder's own and are
+ * kept exact on purpose: a change of the decoder's wording, such as one a dependency
+ * update brings, must turn this file red, so that each moved message is seen and
+ * tabulated, not absorbed. The twins block pins the bytes, the key set and the
  * equality of a row made by `encodeAuditEntry` and the same row made by
  * `decodeAuditEntry`, with and without a store's sequence number.
  */
