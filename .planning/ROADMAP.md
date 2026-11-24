@@ -455,7 +455,7 @@ Order: the live defect (77), then the three devtools deepenings (78, 79, 80). **
 ### Phases
 
 - [x] **Phase 77: An audit row is a value only its codec makes** - `AuditEntry` is obtainable only from `encodeAuditEntry` and `decodeAuditEntry`, so the writer can no longer write an archive its own reader refuses; the row decodes envelope-first (ARCH-124, audit; live defect; Breaking) (completed 2026-11-24)
-- [ ] **Phase 78: `TimelineStore` owns its capacity** - A `resize(capacity)` command replaces `TimelineFeed`'s mirror store, six-member forwarder and abandoned subscription, and the feed returns its one store (ARCH-125, devtools)
+- [x] **Phase 78: `TimelineStore` owns its capacity** - A `resize(capacity)` command replaces `TimelineFeed`'s mirror store, six-member forwarder and abandoned subscription, and the feed returns its one store (ARCH-125, devtools) (completed 2026-11-24)
 - [ ] **Phase 79: Feeds and the dock model take inputs only through `configure`** - Constructors take no inputs, one per-field identity rule decides a restart, one package-private hook does "scope, then configure", and the dock's input type is stated once (ARCH-126, devtools; Breaking)
 - [ ] **Phase 80: The highlight lens is a headless session; `instrument` resolved** - The lens's rules move into a `LensSession` that the dock model owns as its tenth store, `useLens` shrinks to the DOM adapter, and the unread `QadiContextValue.instrument` is removed or its reason recorded (ARCH-127, devtools + react)
 
@@ -521,7 +521,7 @@ Plans:
   4. ADR-QD-191 (or an ADR-QD-137 amendment that names 191 unused) records the command, and `spec/overview.md` (gate 13) and a `@qadi/devtools` changeset cover the new public member.
 
 **Planning notes**: No research flag: `clear`, `setPaused` and `SupersedingRun` are direct precedents and TF1 to TF29 are the pinned proof. The decisions are small and go to the discuss step or the plan: an equal effective capacity is a store-level no-op and how that meets the feed's "omitted reads as `undefined`" rule (79 later owns that rule); resize while paused releases the pause like `clear`; an invalid capacity is validated before anything mutates (throw or typed result); `useTimelineStore(options)` leaves a changed `capacity` alone. Resize publishes with `publish`, not `set`, so the pause reset is heard. Commit the Stryker baselines of `TimelineStore.ts` and `TimelineFeed.ts` first and re-close them after the review.
-**Plans**: 11/11 plans executed (waves 1 to 11, strictly serial)
+**Plans**: 11/11 plans complete (waves 1 to 11, strictly serial)
 
 Plans:
 **Wave 1**
@@ -605,6 +605,6 @@ Phases execute in numeric order: 77 → 78 → 79 → 80
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 77. An audit row is a value only its codec makes | 7/7 | Complete    | 2026-11-24 |
-| 78. `TimelineStore` owns its capacity | 11/11 | In Progress | - |
+| 78. `TimelineStore` owns its capacity | 11/11 | Complete    | 2026-11-24 |
 | 79. Feeds and the dock model take inputs only through `configure` | 0/0 | Not started | - |
 | 80. The highlight lens is a headless session; `instrument` resolved | 0/0 | Not started | - |
