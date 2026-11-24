@@ -712,7 +712,7 @@ describe("the gates feed", () => {
       yield* tick;
       assert.deepStrictEqual(idsOf(feed), ["a"]);
 
-      // So does a notification, and so does a `configure`, even with the same registry.
+      // A notification reads the registry, and so does a `configure` that moves an input; one that moves none reads nothing.
       double.failReads(boom);
       double.mendReadsQuietly();
       double.add(guard("b", readPolicy));
@@ -721,6 +721,9 @@ describe("the gates feed", () => {
       double.failReads(boom);
       double.mendReadsQuietly();
       feed.configure({ gates: double.registry, questions: answer });
+      assert.include(registryFailure(feed) ?? "", "registry exploded");
+
+      feed.configure({ gates: double.registry, questions: answer, intervalMillis: 5_000 });
       assert.deepStrictEqual(idsOf(feed), ["a", "b"]);
     }));
 

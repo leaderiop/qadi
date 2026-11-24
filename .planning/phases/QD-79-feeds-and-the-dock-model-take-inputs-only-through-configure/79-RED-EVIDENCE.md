@@ -195,3 +195,8 @@ The first-configure counts of CR22 were measured on the base. With a layer that 
 - failed: CR18 an omitted capacity, an undefined one and the default are one bound: the timeline snapshot stays and no read starts
 - failed: TF2 configuring the same source and capacity reads nothing again and notifies nothing
 - failed: TF33 an omitted capacity and the default capacity are one bound: moving between them keeps the timeline and reads nothing again
+
+## 79-08 the gates rule and the input pins
+
+- red before the rule: G44 (twin of M44): a registry that mends without announcing stays Failed until something reads it again
+- red before the rule: 13 a silent mend is not read by a re-render with unchanged inputs
