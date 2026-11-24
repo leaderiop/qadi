@@ -17,8 +17,13 @@ import { PortReply, attributeResolverPort, hasPermission, permission, portsLayer
 import { DiagnosticsStatus } from "../../src/index.ts";
 import { diagnosticsOff, makeDiagnosticsFeed, type DiagnosticsFeed } from "../../src/model/DiagnosticsFeed.ts";
 import type { DiagnosticsOptions } from "../../src/model/DiagnosticsStore.ts";
-import { makeDockModel, type DockModel, type DockModelInputs } from "../../src/model/DockModel.ts";
-import { completeDockInputs, feedInputsOf } from "../../src/model/DockModel.ts";
+import {
+  completeDockInputs,
+  feedInputsOf,
+  makeDockModel,
+  type DockModel,
+  type DockModelInputs,
+} from "../../src/model/DockModel.ts";
 import {
   AskedRead,
   RegistryRead,
@@ -36,8 +41,7 @@ import {
   type TimelineFeed,
   type TimelineFeedInputs,
 } from "../../src/model/TimelineFeed.ts";
-import { diagnosticsFeedOf, gatesFeedOf, timelineFeedOf } from "../builtFeeds.ts";
-import { dockModelOf } from "../builtFeeds.ts";
+import { diagnosticsFeedOf, dockModelOf, gatesFeedOf, timelineFeedOf } from "../builtFeeds.ts";
 import { activityOf, askingIds } from "../dockModelFixtures.ts";
 import { makeGateRegistryDouble } from "../gateRegistryDouble.ts";
 import { decisionRecord, guard, heardOn, readPolicy, settleTurns } from "../helpers.ts";
