@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-193                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-24                                     |
 > | Status         | Accepted — amends ADR-QD-185, ADR-QD-047 and ADR-QD-111 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-24): Initial (ARCH-127) |
+> | Change History | 1.1 (2026-11-24): the behaviours and invariants that state it are linked (CCR-QD-472)<br>1.0 (2026-11-24): Initial (ARCH-127) |
 
 ---
 
@@ -256,7 +256,7 @@ fences, of which this record has none: its listing is a `ts` fence, because `Len
 - [ADR-QD-185](./185-the-dock-models-computed-stores-are-derived-stores.md) — the lens is the tenth store and not a computed one; amended by this decision
 - [BEH-QD-234](../behaviors/28-devtools-screens.md#beh-qd-234-the-lens-points-at-a-guard-in-both-directions) — the lens's exits and its unmount cleanup
 - [BEH-QD-700](../behaviors/28-devtools-screens.md#beh-qd-700-the-dock-models-stores-are-listed-once) — the stores, now ten
-- BEH-QD-736 to BEH-QD-740 — the behaviours that state this decision
+- [BEH-QD-736](../behaviors/28-devtools-screens.md#beh-qd-736-the-lens-is-a-headless-session-and-a-no-op-publishes-nothing), [BEH-QD-737](../behaviors/28-devtools-screens.md#beh-qd-737-a-click-is-consumed-only-by-a-pick-that-found-a-guard-decided-in-the-capture-listener), [BEH-QD-738](../behaviors/28-devtools-screens.md#beh-qd-738-leaving-the-react-panel-ends-picking-and-clears-the-highlight-and-the-pick-is-kept), [BEH-QD-739](../behaviors/28-devtools-screens.md#beh-qd-739-a-picked-row-reveals-itself-once-per-pick-and-a-pick-whose-guard-has-gone-marks-no-row-and-moves-to-no-other) and [BEH-QD-740](../behaviors/09-react.md#beh-qd-740-qadicontextvalue-is-the-atoms-the-registry-and-the-gates-and-instrumentation-is-the-providers-prop) — the behaviours that state this decision
 - [INV-QD-107](../invariants.md#inv-qd-107-a-screen-never-changes-what-it-shows-without-the-reviewer) — leaving a screen and returning to it is not a choice
 - [INV-QD-390](../invariants.md#inv-qd-390-the-dock-models-computed-stores-are-derived-stores-and-their-count-is-stated-once) — the dock model's stores and their count
-- INV-QD-405 and INV-QD-406 — the lens snapshot admits no pick while picking, and lens mode never outlives the panel's listeners
+- [INV-QD-405](../invariants.md#inv-qd-405-the-lens-snapshot-admits-no-pick-while-picking-and-at-most-one-drawn-guard-while-picking) and [INV-QD-406](../invariants.md#inv-qd-406-lens-mode-never-outlives-the-panels-listeners-and-no-overlay-outlives-the-panel) — the lens snapshot admits no pick while picking, and lens mode never outlives the panel's listeners

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-28                                    |
-> | Revision       | 1.60                                           |
+> | Revision       | 1.61                                           |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.60 (2026-11-24): BEH-QD-736: the lens is a headless session, and a no-op publishes nothing (ADR-QD-193, CCR-QD-472)<br>1.59 (2026-11-24): BEH-QD-731: a bare timeline feed starts no read and shows what the empty source showed (ADR-QD-192, CCR-QD-471)<br>1.58 (2026-11-24): BEH-QD-731 to BEH-QD-735 new; BEH-QD-465, BEH-QD-584, BEH-QD-619 and BEH-QD-636 to BEH-QD-639 restated (ADR-QD-192, CCR-QD-471)<br>1.57 (2026-11-24): the feeds and the dock model are built bare (ADR-QD-192, CCR-QD-471)<br>1.56 (2026-11-24): the compiled diagnostics fence builds bare and configures (ADR-QD-192, CCR-QD-471)<br>1.55 (2026-11-24): DiagnosticsOptions accepts undefined per field (ADR-QD-192, CCR-QD-471)<br>1.54 (2026-11-24): BEH-QD-726, BEH-QD-727 and BEH-QD-730 new; BEH-QD-636 and BEH-QD-656 restated for the one store and the bound a capacity means (ADR-QD-191, CCR-QD-470)<br>1.53 (2026-11-24): BEH-QD-728 and INV-QD-401: a capacity the timeline refuses changes nothing in configure (ADR-QD-191, CCR-QD-470)<br>1.52 (2026-11-23): BEH-QD-466: the simulation session holds a SeededChoice (ADR-QD-187, CCR-QD-466)<br>1.51 (2026-11-22): BEH-QD-696: the inherited, non-enumerable and symbol-keyed cases are pinned by one test of a key whose such fields differ (CCR-QD-464)<br>1.50 (2026-11-22): BEH-QD-615 and BEH-QD-699: the questions and services store tests are titled for what they hold, once per key field (CCR-QD-464)<br>1.49 (2026-11-22): BEH-QD-698: the two release tests' titles are shortened (CCR-QD-464)<br>1.48 (2026-11-22): BEH-QD-700: the store-list test compares names as a set and the section claims no order (CCR-QD-464)<br>1.47 (2026-11-22): BEH-QD-698: a build whose parent subscribe throws, and a close whose release throws, are stated; its pinned-by paragraph is wrapped (CCR-QD-464)<br>1.46 (2026-11-22): BEH-QD-696 to BEH-QD-700: own enumerable string-keyed key fields, a parent whose subscribe throws, the derived stores named, the ordinal history in a dated note, and what the store-list test holds (CCR-QD-464)<br>1.45 (2026-11-22): BEH-QD-700 cites ADR-QD-185 and the change register only (CCR-QD-464)<br>1.44 (2026-11-22): BEH-QD-696 to BEH-QD-700: a derived store behind the dock model's stores; BEH-QD-465, BEH-QD-583 and BEH-QD-656 amended (ARCH-119, CCR-QD-464)<br>1.43 (2026-11-22): BEH-QD-615 drops the ordinal and is pinned by the per-store test<br>1.42 (2026-11-22): BEH-QD-616: the model holds no gate-watch state; its join is a derived store<br>1.41 (2026-11-22): BEH-QD-465 and BEH-QD-583 name the read half of a store ReadableStore (ARCH-119, CCR-QD-464)<br>1.40 (2026-11-22): BEH-QD-692: a throwing reporter is named by the option the caller passed (ARCH-118, ADR-QD-184, CCR-QD-463)<br>1.39 (2026-11-22): BEH-QD-507, BEH-QD-519 and BEH-QD-637 amended: a stopped reason is causeMessage's text of the cause (ADR-QD-182, CCR-QD-461)<br>1.38 (2026-11-21): BEH-QD-656: a capacity change's publish stops no read, and the diagnostics poll's Stopped is held (ARCH-115, CCR-QD-459)<br>1.37 (2026-11-20): BEH-QD-656 new; BEH-QD-638 amended: every listener is called, and what they threw is rethrown (ARCH-111, ADR-QD-177, CCR-QD-455)<br>1.36 (2026-11-19): BEH-QD-638 says a release that throws is swallowed, not stated (BEH-QD-584) (review iteration 3)<br>1.35 (2026-11-19): BEH-QD-638 narrows its no-escape rule to the registry and the thunk; a feed subscribe listener must not throw; BEH-QD-636's pin names TF24 (review iteration 2)<br>1.34 (2026-11-19): BEH-QD-636: a configure after the scope closed reads and publishes nothing (Phase 60 review WR-02)<br>1.33 (2026-11-19): BEH-QD-636..640; BEH-QD-323, 465, 506, 510 amended (ARCH-107, CCR-QD-451)<br>1.32 (2026-11-18): BEH-QD-616..620; BEH-QD-323, 465, 506, 507, 583, 584, 585 amended (ARCH-103, CCR-QD-447)<br>1.31 (2026-11-18): BEH-QD-611..615; BEH-QD-465, 573, 575, 216 amended (ARCH-102, CCR-QD-446)<br>1.30 (2026-11-16): BEH-QD-583: pinned by M38 and M45, M46 (review iteration 3 IN-04, IN-06; ARCH-96, CCR-QD-440)<br>1.29 (2026-11-16): BEH-QD-584: an unsubscribe that throws is not stated; configure swaps the registry before it re-merges; the same registry is not subscribed again after a watch that worked; an unrenderable throw is a fixed sentence (review iteration 3 IN-01, IN-02, IN-05; ARCH-96, CCR-QD-440)<br>1.28 (2026-11-16): BEH-QD-584: a configure after a failed subscribe subscribes again, with the same registry or another; a silent mend stays Failed until read (review iteration 2 IN-03; ARCH-96, CCR-QD-440)<br>1.27 (2026-11-16): BEH-QD-583: the same failure is the same name and message, not the stack (review iteration 2 IN-02; ARCH-96, CCR-QD-440)<br>1.26 (2026-11-16): BEH-QD-584: an unsubscribe that throws is stated and never repeated (review iteration 2 WR-01; ARCH-96, CCR-QD-440)<br>1.25 (2026-11-16): BEH-QD-583 and BEH-QD-584: a registry that throws is stated as the Failed gates view and its rows make no claim; Listed carries nothing; a closed model reads no registry (review WR-01, IN-02, IN-03; ARCH-96, CCR-QD-440)<br>1.24 (2026-11-16): BEH-QD-581 to 585; BEH-QD-465 amended and BEH-QD-217 corrected: the gate registry is the dock model's eighth store (ARCH-96, CCR-QD-440)<br>1.23 (2026-11-16): BEH-QD-215: a defaulted port with no name reads 'defaulted — unnamed' (ARCH-94 review WR-01)<br>1.22 (2026-11-16): BEH-QD-573 and BEH-QD-575 new; BEH-QD-215's defaulted is read from isPortDefault, not a name (ARCH-94, CCR-QD-438)<br>1.21 (2026-11-14): BEH-QD-521 to BEH-QD-525 new: one module owns a run a newer run supersedes (CCR-QD-428)<br>1.20 (2026-11-12): BEH-QD-519 and BEH-QD-520 new: the timeline states a stop and restarts; BEH-QD-465 (eight readouts), BEH-QD-509 and BEH-QD-510 restated (CCR-QD-427)<br>1.19 (2026-11-12): review fixes: a closed feed and a repeated command publish nothing; the notice keeps a persistent status region, alerts once per stop and shows its focus (ARCH-82, BEH-QD-507, BEH-QD-509, INV-QD-313, CCR-QD-425)<br>1.18 (2026-11-12): BEH-QD-465 restated (seven stores) and BEH-QD-323 restated (the model polls; useDiagnostics returns { status, reading }); BEH-QD-506..510 new (ARCH-82, CCR-QD-425)<br>1.17 (2026-11-11): The one internal hook, useGates, is in useGate.ts (ARCH-76, CCR-QD-418, ADR-QD-140)<br>1.16 (2026-11-11): BEH-QD-465 — the dock is one model (makeDockModel owns the six stores and pushes the rail, one configure, the model reads its source in its own scope); BEH-QD-466 — a choice from a list has one shape (HeldChoice's three arms, one cell in both sessions); BEH-QD-389's note names the dock model, not the owned hook (ARCH-74, ADR-QD-047 amendment, CCR-QD-416)<br>1.15 (2026-11-10): BEH-QD-429 (every panel shows a verdict through one treatment) and BEH-QD-430 (a record's outcome and obligation are read once) (ARCH-67, CCR-QD-409)<br>1.14 (2026-11-10): BEH-QD-399 added: the role tree is the role walk as flat rows, keyed by identity, stack-safe at 20,000 deep, a repeated role a leaf pointing at its first occurrence; BEH-QD-214's diamond requirement amended to match (ADR-QD-128, ARCH-64, CCR-QD-406)<br>1.13 (2026-11-10): BEH-QD-389 — the dock's tab, filters, selection and replay are a session the dock owns: pair the whole timeline then filter, count the whole timeline, select opens the inspector, replay opens the simulator and re-seeds (ARCH-63, ADR-QD-047, CCR-QD-405)<br>1.12 (2026-11-09): BEH-QD-337 — what the explorer shows is a session the dock owns; BEH-QD-211 and BEH-QD-213 gain a sentence each (ARCH-58, ADR-QD-047, CCR-QD-394)<br>1.11 (2026-11-08): BEH-QD-233 — every surface registers through one internal useGates over a writer the provider resolves once (ARCH-49, ADR-QD-111, CCR-QD-388)<br>1.10 (2026-10-08): the screens' mechanics (`policiesSeen`, `PolicyTree`, the lens) are package-private; specified here because the dock relies on them (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.9 (2026-10-08): BEH-QD-323 — a reading supplied to the dock is one `reading` prop of `DiagnosticsReading`, merged field by field by `mergeReading`, replacing the five props `wiring`, `activity`, `portCalls`, `questions` and `hydration`; the superseded `hydrationMismatches` is removed from the dock and `QuestionsPanel` (**breaking**, ARCH-44, reverses the layout half of ARCH-24's D-24-c, CCR-QD-241)<br>1.8 (2026-10-08): BEH-QD-323 — under a `QadiProvider` the shared build comes from `useDevtoolsFeed()`'s layer, the provider's own build, rather than a hoisted context (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.7 (2026-10-08): BEH-QD-233 — a registry built by `makeGateRegistry` reports a colliding id by default (ARCH-43, CCR-QD-250)<br>1.6 (2026-10-08): BEH-QD-211 — two structurally equal *declared* policies are one entry under the first declared name, and the explorer and the role viewer keep what they show when their list moves (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.5 (2026-10-07): BEH-QD-233 — a hook that asks several questions (`usePolicies`, `useQuestions`) lists one instance per question, each under `<useId>/<name>`; the panel shows the new kind strings as they are (ARCH-23, ADR-QD-103, CCR-QD-201)<br>1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
+> | Change History | 1.61 (2026-11-24): BEH-QD-737 to BEH-QD-739 new; BEH-QD-234, BEH-QD-700 and BEH-QD-735 restated (ADR-QD-193, CCR-QD-472)<br>1.60 (2026-11-24): BEH-QD-736: the lens is a headless session, and a no-op publishes nothing (ADR-QD-193, CCR-QD-472)<br>1.59 (2026-11-24): BEH-QD-731: a bare timeline feed starts no read and shows what the empty source showed (ADR-QD-192, CCR-QD-471)<br>1.58 (2026-11-24): BEH-QD-731 to BEH-QD-735 new; BEH-QD-465, BEH-QD-584, BEH-QD-619 and BEH-QD-636 to BEH-QD-639 restated (ADR-QD-192, CCR-QD-471)<br>1.57 (2026-11-24): the feeds and the dock model are built bare (ADR-QD-192, CCR-QD-471)<br>1.56 (2026-11-24): the compiled diagnostics fence builds bare and configures (ADR-QD-192, CCR-QD-471)<br>1.55 (2026-11-24): DiagnosticsOptions accepts undefined per field (ADR-QD-192, CCR-QD-471)<br>1.54 (2026-11-24): BEH-QD-726, BEH-QD-727 and BEH-QD-730 new; BEH-QD-636 and BEH-QD-656 restated for the one store and the bound a capacity means (ADR-QD-191, CCR-QD-470)<br>1.53 (2026-11-24): BEH-QD-728 and INV-QD-401: a capacity the timeline refuses changes nothing in configure (ADR-QD-191, CCR-QD-470)<br>1.52 (2026-11-23): BEH-QD-466: the simulation session holds a SeededChoice (ADR-QD-187, CCR-QD-466)<br>1.51 (2026-11-22): BEH-QD-696: the inherited, non-enumerable and symbol-keyed cases are pinned by one test of a key whose such fields differ (CCR-QD-464)<br>1.50 (2026-11-22): BEH-QD-615 and BEH-QD-699: the questions and services store tests are titled for what they hold, once per key field (CCR-QD-464)<br>1.49 (2026-11-22): BEH-QD-698: the two release tests' titles are shortened (CCR-QD-464)<br>1.48 (2026-11-22): BEH-QD-700: the store-list test compares names as a set and the section claims no order (CCR-QD-464)<br>1.47 (2026-11-22): BEH-QD-698: a build whose parent subscribe throws, and a close whose release throws, are stated; its pinned-by paragraph is wrapped (CCR-QD-464)<br>1.46 (2026-11-22): BEH-QD-696 to BEH-QD-700: own enumerable string-keyed key fields, a parent whose subscribe throws, the derived stores named, the ordinal history in a dated note, and what the store-list test holds (CCR-QD-464)<br>1.45 (2026-11-22): BEH-QD-700 cites ADR-QD-185 and the change register only (CCR-QD-464)<br>1.44 (2026-11-22): BEH-QD-696 to BEH-QD-700: a derived store behind the dock model's stores; BEH-QD-465, BEH-QD-583 and BEH-QD-656 amended (ARCH-119, CCR-QD-464)<br>1.43 (2026-11-22): BEH-QD-615 drops the ordinal and is pinned by the per-store test<br>1.42 (2026-11-22): BEH-QD-616: the model holds no gate-watch state; its join is a derived store<br>1.41 (2026-11-22): BEH-QD-465 and BEH-QD-583 name the read half of a store ReadableStore (ARCH-119, CCR-QD-464)<br>1.40 (2026-11-22): BEH-QD-692: a throwing reporter is named by the option the caller passed (ARCH-118, ADR-QD-184, CCR-QD-463)<br>1.39 (2026-11-22): BEH-QD-507, BEH-QD-519 and BEH-QD-637 amended: a stopped reason is causeMessage's text of the cause (ADR-QD-182, CCR-QD-461)<br>1.38 (2026-11-21): BEH-QD-656: a capacity change's publish stops no read, and the diagnostics poll's Stopped is held (ARCH-115, CCR-QD-459)<br>1.37 (2026-11-20): BEH-QD-656 new; BEH-QD-638 amended: every listener is called, and what they threw is rethrown (ARCH-111, ADR-QD-177, CCR-QD-455)<br>1.36 (2026-11-19): BEH-QD-638 says a release that throws is swallowed, not stated (BEH-QD-584) (review iteration 3)<br>1.35 (2026-11-19): BEH-QD-638 narrows its no-escape rule to the registry and the thunk; a feed subscribe listener must not throw; BEH-QD-636's pin names TF24 (review iteration 2)<br>1.34 (2026-11-19): BEH-QD-636: a configure after the scope closed reads and publishes nothing (Phase 60 review WR-02)<br>1.33 (2026-11-19): BEH-QD-636..640; BEH-QD-323, 465, 506, 510 amended (ARCH-107, CCR-QD-451)<br>1.32 (2026-11-18): BEH-QD-616..620; BEH-QD-323, 465, 506, 507, 583, 584, 585 amended (ARCH-103, CCR-QD-447)<br>1.31 (2026-11-18): BEH-QD-611..615; BEH-QD-465, 573, 575, 216 amended (ARCH-102, CCR-QD-446)<br>1.30 (2026-11-16): BEH-QD-583: pinned by M38 and M45, M46 (review iteration 3 IN-04, IN-06; ARCH-96, CCR-QD-440)<br>1.29 (2026-11-16): BEH-QD-584: an unsubscribe that throws is not stated; configure swaps the registry before it re-merges; the same registry is not subscribed again after a watch that worked; an unrenderable throw is a fixed sentence (review iteration 3 IN-01, IN-02, IN-05; ARCH-96, CCR-QD-440)<br>1.28 (2026-11-16): BEH-QD-584: a configure after a failed subscribe subscribes again, with the same registry or another; a silent mend stays Failed until read (review iteration 2 IN-03; ARCH-96, CCR-QD-440)<br>1.27 (2026-11-16): BEH-QD-583: the same failure is the same name and message, not the stack (review iteration 2 IN-02; ARCH-96, CCR-QD-440)<br>1.26 (2026-11-16): BEH-QD-584: an unsubscribe that throws is stated and never repeated (review iteration 2 WR-01; ARCH-96, CCR-QD-440)<br>1.25 (2026-11-16): BEH-QD-583 and BEH-QD-584: a registry that throws is stated as the Failed gates view and its rows make no claim; Listed carries nothing; a closed model reads no registry (review WR-01, IN-02, IN-03; ARCH-96, CCR-QD-440)<br>1.24 (2026-11-16): BEH-QD-581 to 585; BEH-QD-465 amended and BEH-QD-217 corrected: the gate registry is the dock model's eighth store (ARCH-96, CCR-QD-440)<br>1.23 (2026-11-16): BEH-QD-215: a defaulted port with no name reads 'defaulted — unnamed' (ARCH-94 review WR-01)<br>1.22 (2026-11-16): BEH-QD-573 and BEH-QD-575 new; BEH-QD-215's defaulted is read from isPortDefault, not a name (ARCH-94, CCR-QD-438)<br>1.21 (2026-11-14): BEH-QD-521 to BEH-QD-525 new: one module owns a run a newer run supersedes (CCR-QD-428)<br>1.20 (2026-11-12): BEH-QD-519 and BEH-QD-520 new: the timeline states a stop and restarts; BEH-QD-465 (eight readouts), BEH-QD-509 and BEH-QD-510 restated (CCR-QD-427)<br>1.19 (2026-11-12): review fixes: a closed feed and a repeated command publish nothing; the notice keeps a persistent status region, alerts once per stop and shows its focus (ARCH-82, BEH-QD-507, BEH-QD-509, INV-QD-313, CCR-QD-425)<br>1.18 (2026-11-12): BEH-QD-465 restated (seven stores) and BEH-QD-323 restated (the model polls; useDiagnostics returns { status, reading }); BEH-QD-506..510 new (ARCH-82, CCR-QD-425)<br>1.17 (2026-11-11): The one internal hook, useGates, is in useGate.ts (ARCH-76, CCR-QD-418, ADR-QD-140)<br>1.16 (2026-11-11): BEH-QD-465 — the dock is one model (makeDockModel owns the six stores and pushes the rail, one configure, the model reads its source in its own scope); BEH-QD-466 — a choice from a list has one shape (HeldChoice's three arms, one cell in both sessions); BEH-QD-389's note names the dock model, not the owned hook (ARCH-74, ADR-QD-047 amendment, CCR-QD-416)<br>1.15 (2026-11-10): BEH-QD-429 (every panel shows a verdict through one treatment) and BEH-QD-430 (a record's outcome and obligation are read once) (ARCH-67, CCR-QD-409)<br>1.14 (2026-11-10): BEH-QD-399 added: the role tree is the role walk as flat rows, keyed by identity, stack-safe at 20,000 deep, a repeated role a leaf pointing at its first occurrence; BEH-QD-214's diamond requirement amended to match (ADR-QD-128, ARCH-64, CCR-QD-406)<br>1.13 (2026-11-10): BEH-QD-389 — the dock's tab, filters, selection and replay are a session the dock owns: pair the whole timeline then filter, count the whole timeline, select opens the inspector, replay opens the simulator and re-seeds (ARCH-63, ADR-QD-047, CCR-QD-405)<br>1.12 (2026-11-09): BEH-QD-337 — what the explorer shows is a session the dock owns; BEH-QD-211 and BEH-QD-213 gain a sentence each (ARCH-58, ADR-QD-047, CCR-QD-394)<br>1.11 (2026-11-08): BEH-QD-233 — every surface registers through one internal useGates over a writer the provider resolves once (ARCH-49, ADR-QD-111, CCR-QD-388)<br>1.10 (2026-10-08): the screens' mechanics (`policiesSeen`, `PolicyTree`, the lens) are package-private; specified here because the dock relies on them (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.9 (2026-10-08): BEH-QD-323 — a reading supplied to the dock is one `reading` prop of `DiagnosticsReading`, merged field by field by `mergeReading`, replacing the five props `wiring`, `activity`, `portCalls`, `questions` and `hydration`; the superseded `hydrationMismatches` is removed from the dock and `QuestionsPanel` (**breaking**, ARCH-44, reverses the layout half of ARCH-24's D-24-c, CCR-QD-241)<br>1.8 (2026-10-08): BEH-QD-323 — under a `QadiProvider` the shared build comes from `useDevtoolsFeed()`'s layer, the provider's own build, rather than a hoisted context (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.7 (2026-10-08): BEH-QD-233 — a registry built by `makeGateRegistry` reports a colliding id by default (ARCH-43, CCR-QD-250)<br>1.6 (2026-10-08): BEH-QD-211 — two structurally equal *declared* policies are one entry under the first declared name, and the explorer and the role viewer keep what they show when their list moves (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.5 (2026-10-07): BEH-QD-233 — a hook that asks several questions (`usePolicies`, `useQuestions`) lists one instance per question, each under `<useId>/<name>`; the panel shows the new kind strings as they are (ARCH-23, ADR-QD-103, CCR-QD-201)<br>1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
 
 _Previous: [27 — The Devtools Timeline](./27-devtools-timeline.md)_
 
@@ -614,8 +614,13 @@ and the dock's own controls keep working while the mode is on.
 REQUIREMENT: Picking MUST have an exit that does not require a reload.
 ```
 
-Three: the pick, `Escape`, and unmount. Unmount also removes every overlay — a
-dock that left them behind would deface the page it was debugging.
+Five: the toggle, the pick, `Escape`, a highlight asked for while picking, and leaving
+the panel. Leaving the panel, by a tab switch or by any other unmount, ends picking,
+removes every overlay and detaches the listeners, and keeps the pick: a dock that left
+overlays behind would deface the page it was debugging, and a lens left picking with
+nothing listening would be a mode nobody can see and nothing can exit
+([BEH-QD-738](#beh-qd-738-leaving-the-react-panel-ends-picking-and-clears-the-highlight-and-the-pick-is-kept),
+[BEH-QD-736](#beh-qd-736-the-lens-is-a-headless-session-and-a-no-op-publishes-nothing)).
 
 ```
 REQUIREMENT: A guard MUST be found by element identity, never by a selector.
@@ -1088,11 +1093,11 @@ diagnostics start at `Starting` with no reading; this is accepted
 ```
 REQUIREMENT: The dock model's stores MUST be exactly the members of `DockModel` that have
              `subscribe` and `getSnapshot`: `timeline`, `dock`, `explorer`, `roles`,
-             `simulation`, `diagnostics`, `timelineStatus`, `questions` and `services`;
+             `simulation`, `diagnostics`, `timelineStatus`, `questions`, `services` and `lens`;
              `sightings` is a thunk and not a store.
 ```
 
-This section is the one place the model's stores are named and counted, nine of them, in no particular order. A test of
+This section is the one place the model's stores are named and counted, ten of them, in no particular order. A test of
 a built model compares the names of the members that have `subscribe` and `getSnapshot` with a list, as a set, and fails
 when one is added or removed; the list there and the list here are kept equal by review, not by a gate. `timeline`,
 `dock`, `explorer`, `roles` and `simulation` are the timeline, the dock session, the explorer, the role choice and the
@@ -1101,9 +1106,11 @@ simulation; `diagnostics` is the poll's status with the sampled reading and a su
 `questions` is the gates feed's snapshot joined to the questions and the poll's status
 ([BEH-QD-583](#beh-qd-583-the-questions-store-is-one-moment-and-keeps-its-reference-when-nothing-moved)); `services` is
 the Services tab's port cards
-([BEH-QD-615](#beh-qd-615-the-services-store-is-one-moment-and-keeps-its-reference-when-nothing-moved)). `diagnostics`,
-`questions` and `services` are derived stores
-([BEH-QD-699](#beh-qd-699-the-dock-models-three-computed-stores-are-derived-stores)).
+([BEH-QD-615](#beh-qd-615-the-services-store-is-one-moment-and-keeps-its-reference-when-nothing-moved)); `lens` is the
+highlight lens's session, built with no input ([BEH-QD-736](#beh-qd-736-the-lens-is-a-headless-session-and-a-no-op-publishes-nothing)). `diagnostics`, `questions` and
+`services` are derived stores
+([BEH-QD-699](#beh-qd-699-the-dock-models-three-computed-stores-are-derived-stores)), and `lens` is not one, because
+nothing computes it: a `configure` publishes nothing on it.
 
 > **Noted 2026-11-22 (CCR-QD-464).** Earlier records counted the policy rail among the stores. They call the diagnostics
 > the seventh store, the timeline status the eighth readout, `questions` the eighth store and `services` the ninth; those
@@ -1111,7 +1118,10 @@ the Services tab's port cards
 
 Pinned by `packages/devtools/test/model/DockModel.test.ts`, which compares the names of the members of a built model that
 have `subscribe` and `getSnapshot` with a list, whatever their order, and fails when one is added or removed ("a built
-model's members with subscribe and getSnapshot are exactly this list"). Specified in ADR-QD-185 (CCR-QD-464).
+model's members with subscribe and getSnapshot are exactly this list"; "a bare model holds the lens idle, with nothing
+drawn and nothing picked"), and `packages/devtools/test/model/ConfigureRule.test.ts` sweeps all ten stores, so a
+`configure` that moves nothing, or moves an input, never makes the lens publish (CR16 to CR20, CR22). Specified in
+ADR-QD-185 (CCR-QD-464) and ADR-QD-193 (CCR-QD-472).
 
 ## BEH-QD-466: A choice from a list has one shape
 
@@ -3216,16 +3226,16 @@ the catalogue, because it moves the dock's rail and roles and not a feed.
 
 A reader attached to a bare dock before its first `configure` hears what that `configure` publishes, where a dock
 built with its inputs published nothing to anyone. The counts are, in the order timeline, dock, explorer, simulation, roles,
-diagnostics, timeline status, questions and services: 2, 2, 3, 3, 0, 1, 0, 2 and 1 while the diagnostics layer is still
-building, and a layer that builds at once adds the poll's `Live` publish to the diagnostics, questions and services
-stores, which hear 2, 3 and 2. A React reader never sees them, because the hook configures before it publishes; a headless
+diagnostics, timeline status, questions, services and lens: 2, 2, 3, 3, 0, 1, 0, 2, 1 and 0 while the diagnostics layer is
+still building, and a layer that builds at once adds the poll's `Live` publish to the diagnostics, questions and services
+stores, which hear 2, 3 and 2, while the lens hears none in either case. A React reader never sees them, because the hook configures before it publishes; a headless
 host that subscribes first and configures after does, and so configures before it subscribes.
 
 Pinned by `packages/devtools/test/model/ConfigureInputs.tst.ts` (a golden `Required<…>` pin per input type, the dock's
 included with the return types of `completeDockInputs` and `feedInputsOf`, and a record literal missing one field, refused,
 beside its accepted twin), `packages/devtools/test/surface.tst.ts` ("the dock takes eight model inputs and two host props,
-each accepting undefined"), `packages/devtools/test/model/ConfigureRule.test.ts` (CR22, a reader subscribed to every store of
-a bare dock before its first configure hears the counts above; CR24, a complete dock record maps onto its feeds, the
+each accepting undefined"), `packages/devtools/test/model/ConfigureRule.test.ts` (CR22, a reader subscribed to each of the ten stores of
+a bare dock before its first configure hears the counts above, the lens none of them; CR24, a complete dock record maps onto its feeds, the
 diagnostics interval reaching the gates) and gate 14 (`scripts/check-package-install.mjs`), whose packed consumer passes a
 literal of the dock's ten props. Specified in ADR-QD-192 (CCR-QD-471).
 
@@ -3287,3 +3297,109 @@ command run from inside a listener sees the snapshot already published"; "picked
 and nothing while picking; isPicking is true only while picking"; and the property "a command publishes exactly when
 the snapshot changes", which also holds that `choose` answers `true` exactly when it changed the snapshot. Specified
 in ADR-QD-193 (CCR-QD-472).
+
+## BEH-QD-737: A click is consumed only by a pick that found a guard, decided in the capture listener
+
+> **Decision:** [ADR-QD-193](../decisions/193-the-highlight-lens-is-a-headless-session-the-dock-model-owns.md) ·
+> **Scope:** [ADR-QD-047](../decisions/047-a-headless-devtools-model.md) ·
+> **Invariant:** [INV-QD-405](../invariants.md#inv-qd-405-the-lens-snapshot-admits-no-pick-while-picking-and-at-most-one-drawn-guard-while-picking)
+
+```
+REQUIREMENT: While the lens is picking, the document adapter MUST hold three document listeners, a
+             `pointermove` and a `keydown` listener and a `click` listener in the capture phase, and
+             while it is not picking it MUST hold none.
+REQUIREMENT: A click MUST be swallowed only when `choose` answered `true` for the guard under it, decided
+             synchronously inside the capture listener. A click over no guard MUST reach the page and
+             leave picking on, and an idle lens MUST swallow none.
+REQUIREMENT: The listeners MUST be keyed on whether the lens is picking and on the two stores they read,
+             and not on the guards those stores list: each handler reads the listed guards when its
+             event arrives, so a change in the listed guards while picking MUST add no listener and
+             remove none.
+```
+
+This is the rule BEH-QD-234 states as "the lens MUST NOT intercept the page's own input, except on a pick that found a
+guard", moved to where it can be decided: `choose` returns whether the click it was given is consumed
+([BEH-QD-736](#beh-qd-736-the-lens-is-a-headless-session-and-a-no-op-publishes-nothing)), so the adapter swallows the click
+(`preventDefault` and `stopPropagation`) from that answer and holds no rule of its own. The click listener is in the
+capture phase so the page's own handlers do not see it first; the dock's own controls keep working while the mode is on,
+because a click on them finds no guard.
+
+Pinned by `packages/devtools/test/react/Lens.dock.test.tsx` ("entering picking adds three document listeners, and a
+change in the listed guards while picking adds none"),
+`packages/devtools/test/react/Lens.dock.characterisation.test.tsx` ("a pick on a guard swallows its click and ends
+picking"; "a click over no guard goes through and picking stays on"),
+`packages/devtools/test/react/QuestionsPanel.gates.test.tsx` ("SWALLOWS THE CLICK, so picking a button does not press
+it") and `packages/devtools/test/model/LensSession.test.ts` ("a choose while idle consumes nothing and publishes
+nothing; a choose over nothing while picking consumes nothing and keeps picking; a choose over a guard while picking
+consumes the click, picks it and leaves picking"). Specified in ADR-QD-193 (CCR-QD-472).
+
+## BEH-QD-738: Leaving the React panel ends picking and clears the highlight, and the pick is kept
+
+> **Decision:** [ADR-QD-193](../decisions/193-the-highlight-lens-is-a-headless-session-the-dock-model-owns.md) ·
+> **Scope:** [ADR-QD-047](../decisions/047-a-headless-devtools-model.md) ·
+> **Invariant:** [INV-QD-406](../invariants.md#inv-qd-406-lens-mode-never-outlives-the-panels-listeners-and-no-overlay-outlives-the-panel),
+> [INV-QD-107](../invariants.md#inv-qd-107-a-screen-never-changes-what-it-shows-without-the-reviewer)
+
+```
+REQUIREMENT: The dock model MUST own the lens, so that the React panel unmounting leaves it as the panel's
+             exit finds it.
+REQUIREMENT: Leaving the React panel, by a tab switch or by any other unmount, MUST end picking, remove
+             every overlay and leave no document listener, and MUST keep the pick.
+REQUIREMENT: Returning to the React panel MUST NOT draw a highlight asked for before it left, and MUST
+             NOT start picking.
+REQUIREMENT: The exit MUST be an effect of its own, keyed on the session alone, so that ending picking
+             for any other reason does not cancel a highlight it has just drawn.
+```
+
+The lens is the dock model's tenth store, so a pick survives the panel that made it, as the dock's tab, the explorer's
+policy and the roles do ([INV-QD-107](../invariants.md#inv-qd-107-a-screen-never-changes-what-it-shows-without-the-reviewer)).
+Picking and the drawing do not: a highlight is an act, like a replay, and drawing it again when the reader returns
+would draw over the host page unasked, and a lens left picking with nothing listening would be a mode nobody can see
+and nothing can exit, which BEH-QD-234 forbids. The exit is `cancel()`, which from `Idle` clears the drawing and keeps
+the pick and from `Picking` ends picking. It is not the listeners' cleanup, because that effect re-runs on every
+change of mode, and a `highlight` asked for while picking ends picking and so would have its own drawing cancelled.
+The model adds no rule of its own to a tab change.
+
+Pinned by `packages/devtools/test/react/Lens.dock.characterisation.test.tsx` ("a pick, then a switch to the log and
+back"; "a highlight, then a switch to the log and back"; "a switch to the log while picking ends picking and leaves no
+listener"; "the highlight button pressed while picking"; "entering picking again drops the pick, and leaving it does
+not restore it"), `packages/devtools/test/react/QuestionsPanel.gates.test.tsx` ("removes its overlays when the panel
+unmounts"; "stops listening when the panel unmounts") and `packages/devtools/test/model/DockModel.test.ts` ("a bare
+model holds the lens idle, with nothing drawn and nothing picked"). Specified in ADR-QD-193 (CCR-QD-472).
+
+## BEH-QD-739: A picked row reveals itself once per pick, and a pick whose guard has gone marks no row and moves to no other
+
+> **Decision:** [ADR-QD-193](../decisions/193-the-highlight-lens-is-a-headless-session-the-dock-model-owns.md) ·
+> **Scope:** [ADR-QD-047](../decisions/047-a-headless-devtools-model.md) ·
+> **Invariant:** [INV-QD-107](../invariants.md#inv-qd-107-a-screen-never-changes-what-it-shows-without-the-reviewer)
+
+```
+REQUIREMENT: A pick MUST arm a one-shot reveal for its guard before the snapshot is published. `takeReveal`
+             MUST answer `true` once, and only for that guard, and MUST publish nothing, and `toggle`
+             MUST disarm a reveal that was not taken.
+REQUIREMENT: A picked row MUST scroll itself into view only when `takeReveal` answers `true` for its guard,
+             and never because it is marked picked alone, so a panel that mounts again scrolls nothing.
+REQUIREMENT: The pick MUST be held by the id of its guard, and only `choose` or `toggle` MUST replace it.
+             A guard that has gone MUST mark no row, and a guard mounted in its place MUST NOT be marked.
+```
+
+With the pick kept across a tab switch, a row that scrolled itself whenever it mounted marked would scroll the panel on
+every return, so the reveal is an event the pick arms and a row takes. Under StrictMode the double-mounted effect takes
+the reveal on its first run and reads `false` on its second. The pick is held the way a held choice is held, by what it
+names and never moved to a neighbour; `resolveHeld` is not used, because it reads "nothing held" as the head of the list,
+which for the lens would mark the first guard as picked when nothing is. A pick whose guard has gone is not announced
+by the picked row, because the question's own row already says the guard was asked and nothing is mounted.
+
+Keeping the id cannot attach a pick to another guard, because a guard unmounted and mounted again in the same position
+registers under a new id. The evidence is split between the two packages, because `@qadi/devtools` does not import
+`@qadi/react`: the registered id is `packages/react/test/GateId.remount.test.tsx`, and the panel half is the dock cell
+that gives the new guard its own id. The session has no command that drops a pick when its id leaves the list.
+
+Pinned by `packages/devtools/test/model/LensSession.test.ts` ("a pick reveals its row once, and only for its own guard;
+toggle disarms a reveal that was not taken; takeReveal publishes nothing"; "a listener told of a pick can take its
+reveal"), `packages/devtools/test/react/Lens.dock.test.tsx` ("under StrictMode a pick reveals its row once, and after a
+switch to the log and back the row is still marked with no second reveal"),
+`packages/devtools/test/react/Lens.dock.characterisation.test.tsx` ("a pick, then a switch to the log and back", whose
+scroll count stays at one on the return; "a pick whose guard unmounted marks no row, and the guard mounted
+in its place is not marked") and `packages/react/test/GateId.remount.test.tsx` ("a guard unmounted and mounted again in
+the same position registers under a new id"). Specified in ADR-QD-193 (CCR-QD-472).
