@@ -2,16 +2,20 @@
 phase: QD-80-the-highlight-lens-is-a-headless-session-instrument-resolved
 reviewed: 2026-11-24T00:00:00Z
 depth: standard
-files_reviewed: 16
+iteration: 2
+files_reviewed: 19
 files_reviewed_list:
   - packages/devtools/src/model/DockModel.ts
   - packages/devtools/src/model/LensSession.ts
   - packages/devtools/src/react/DevtoolsDock.tsx
+  - packages/devtools/src/react/Lens.ts
   - packages/devtools/src/react/QuestionsPanel.tsx
   - packages/devtools/src/react/useLens.ts
   - packages/devtools/test/model/ConfigureRule.test.ts
   - packages/devtools/test/model/DockModel.test.ts
   - packages/devtools/test/model/LensSession.test.ts
+  - packages/devtools/test/react/Lens.adapter.test.tsx
+  - packages/devtools/test/react/Lens.click.test.ts
   - packages/devtools/test/react/Lens.dock.characterisation.test.tsx
   - packages/devtools/test/react/Lens.dock.test.tsx
   - packages/devtools/test/react/QuestionsPanel.gates.test.tsx
@@ -22,166 +26,111 @@ files_reviewed_list:
   - packages/react/test/QadiProvider.tst.ts
 findings:
   critical: 0
-  warning: 3
-  info: 6
-  total: 9
+  warning: 1
+  info: 4
+  total: 5
+  necessity: 1
 status: issues_found
 ---
 
-# Phase QD-80: Code Review Report
+# Phase QD-80: Code Review Report (iteration 2)
 
 **Reviewed:** 2026-11-24
 **Depth:** standard
-**Files Reviewed:** 16
+**Files Reviewed:** 19
 **Status:** issues_found
 
 ## Summary
 
-The session (`LensSession.ts`) is sound. I traced every row of ADR-QD-193's transition table against the code and found no
-mismatch. `Picking` cannot carry a pick. A no-op keeps the snapshot reference and publishes nothing. `armed` is set before
-the publish and disarmed by `toggle`. The StrictMode double effect takes the reveal once. `document` is only reached
-inside effects. The unmount exit is its own `[lens]` effect, so a highlight that ends picking is not cancelled by it. The
-`instrument` removal is complete: the memo, the doc comments and the type pin agree, and nothing else in `packages/react/src`
-reads the field.
+All nine iteration-1 fixes hold. I read the code and the new tests for each, ran the lens suites (7 files, 84 tests, all
+pass) and the two react cells, and ran both held-text checks (`80-pinned-check.mjs --all-applied`: 4 of 4;
+`80-characterisation-check.mjs --all-flipped`: 4 of 4 and 1 of 1).
 
-No critical defect was found. The warnings are two gaps where a normative claim of ADR-QD-193 / BEH-QD-737 has no test
-that would fail if the code regressed (the adapter sits outside the `src/model/**` mutation glob, so only DOM tests hold
-it), and one place where the "click is consumed iff a pick was made" claim breaks when a store listener throws. The info
-items are stale or vacuous held-test text, a keyboard-click edge, an over-claim in a comment, and a reveal that can fire
-late.
+- **try/finally click decision (`useLens.ts:73-89`)**: holds. `choose` can throw only out of `store.publish`, after the value
+  is held and `armed` is set, so `consumed = true` at entry is the right answer on a throw. When `choose` returns `false`
+  nothing is swallowed. The throw still reaches the dispatch. No path swallows a click that made no pick.
+- **`gateIdOfClick` (`Lens.ts:207-219`)**: holds. `detail === 0` with an `Element` target is placed by the target, and
+  everything else keeps its coordinates. The `Lens.click.test.ts` cells and the adapter cell fail if the rule is reverted.
+  The held tests dispatch on `document`, which is not an `Element`, so they still use coordinates.
+- **Reveal disarm (`LensSession.ts:155-182`)**: holds. `toggle`, `cancel` and `highlight` clear `armed` before `move`, so a
+  no-op still disarms. The reveal cell pins each branch. The panel's unmount exit is `cancel`, so it drops an untaken reveal
+  as the changeset says. The StrictMode double effect still takes the reveal once, because a mount-time `cancel` of an idle
+  session changes nothing.
+- **`useLens` returning the snapshot**: holds. The panel holds one lens subscription, and the adapter cell fails on two.
+- **`instrument` removal**: complete. No reader of the field remains in `packages/*/src`, the type pin, the memo deps,
+  BEH-QD-740, the overview row, the changeset and the 0.13 upgrade section agree.
 
-Necessity: `necessity-review.md` was not loaded for this review, so no necessity findings are emitted and the
-`necessity:` count is omitted.
+One WARNING remains, in the ADR and changeset text. Four INFO items follow. No source defect was found.
 
 ## Warnings
 
-### WR-01: Nothing pins `preventDefault` on the consumed click
+### WR-01: ADR-QD-193 Rev 1.2's "What changes for a reader" table and its count do not match the changeset or the code
 
-**File:** `packages/devtools/src/react/useLens.ts:73`
-**Issue:** The capture handler consumes a pick with `event.preventDefault(); event.stopPropagation();`. The tests assert
-only that a target-phase listener on the guard does not fire (`pressed === 0`). That exercises `stopPropagation` alone.
-`stopPropagation` does not cancel a default action, so a picked submit button or `<a href>` would still submit or
-navigate if `preventDefault()` were removed, and no test would fail. `grep defaultPrevented packages/devtools/test`
-returns nothing. The comment says "so picking a guarded button does not also press it", and BEH-QD-737 says the click is
-"consumed". The adapter is outside the mutation gate, so this survives silently.
-**Fix:** Add a test in a new file. The two held test files cannot be edited for this. Dispatch a cancelable click over a
-guard while picking and assert `event.defaultPrevented === true`. Beside it, dispatch one over no guard and assert
-`defaultPrevented === false`. Use a guarded `<a href="#x">` or a form submit button to show the default action is
-suppressed.
-
-### WR-02: Nothing pins that the handlers read the guard list at event time
-
-**File:** `packages/devtools/src/react/useLens.ts:58-59`
-**Issue:** ADR-QD-193 decision 6 and D-14 state that "each handler reads `questions.getSnapshot().instances` when the event
-arrives". The only test, `Lens.dock.test.tsx` "entering picking adds three document listeners...", checks that no listener
-is added or removed when a guard registers. It never picks, or hovers over, the guard that registered after picking began.
-A regression that captured the render-time `instances` in the handlers while keeping the deps `[picking, lens, questions]`
-would pass every listener-count test and every lens cell, and would leave picking blind to a late guard. That is exactly
-the stale-closure class this phase removed the deps to avoid. The old code was correct only because it re-subscribed on
-each change.
-**Fix:** Add a cell to `Lens.dock.test.tsx`, or to a new file. Enter picking with guard `a`. Add guard `b` through
-`double.add`. Point `elementFromPoint` at `b`'s marker. Click the document. Assert the row for `b` is the picked one.
-Do the same with `pointermove` and one overlay.
-
-### WR-03: `choose` can record a pick and still not consume the click when a lens listener throws
-
-**File:** `packages/devtools/src/model/LensSession.ts:159-167` and `packages/devtools/src/react/useLens.ts:72-74`
-**Issue:** `choose` is documented as "Whether the click is consumed: true only for that move". It sets `armed`, then
-calls `store.publish(next)`, then `return true`. `makeExternalStore.notify` deliberately rethrows what a listener threw
-(ADR-QD-177). If any subscriber to the lens store throws, `publish` throws after the snapshot is already held and
-`armed` is set. `choose` never returns, and the adapter's `if (!lens.choose(...)) return;` is skipped by the exception.
-The result is a recorded pick whose click was not swallowed, so the guarded control is pressed as well. That is the
-outcome the capture listener exists to prevent. The listeners are React's `useSyncExternalStore` handlers today, so this
-is unlikely, but the session is an `ExternalStore` consumers can subscribe to. The headless tests cover a throwing
-listener for `ExternalStore` but not for `choose`'s answer.
-**Fix:** Decide consumption before notifying, so a listener failure cannot change it. In the adapter, for example, call a
-`choose` that returns the answer and defers the notify failure:
-```ts
-// LensSession.choose
-armed = pickedOf(next);
-try {
-  store.publish(next);
-} catch (error) {
-  queueMicrotask(() => { throw error; }); // still reported, never changes the answer
-}
-return true;
-```
-Alternatively state in the doc comment that a throwing subscriber voids the answer, and pin that. Add a headless cell
-either way: subscribe a throwing listener, call `choose`, and assert the return value.
+**File:** `spec/decisions/193-the-highlight-lens-is-a-headless-session-the-dock-model-owns.md` (section "What changes for a
+reader", and Consequences item 2); `.changeset/devtools-lens-is-a-headless-session.md:5-12`
+**Issue:** The ADR says "Four interaction rules and the instrument toggle change" and "Each row names the test that holds
+its after", and Consequence 2 repeats "four". The table has five interaction rows plus the toggle. It has no row for the
+keyboard click, which Rev 1.2 added to decision 6 and BEH-QD-737, and the reveal row does not say that a reveal not yet
+taken is dropped when the reader leaves the panel or presses a highlight. Those are two of the changeset's six listed
+behaviour changes. The changeset's own count is also short by one: it opens "differently in six ways" and its closing
+paragraph adds a seventh, that the document listeners are added once per picking session, which is a row in the ADR table
+and not in the changeset list. AGENTS.md §11 makes the spec normative and gates it, but no gate checks a count in prose, so
+the ADR has two stale claims and the two documents disagree about what changed.
+**Fix:** Add two rows to the ADR table, "A click made from the keyboard while picking" with `Lens.adapter.test.tsx` and
+`Lens.click.test.ts`, and "A reveal not yet taken" with the reveal cell of `LensSession.test.ts`. Change "Four interaction
+rules" to the count of the interaction rows (seven), in the section lead and in Consequence 2. Make the changeset say
+"in seven ways" with the listener row as the seventh bullet, or fold the closing paragraph into a bullet. Do it through
+`scripts/spec-revise.mjs` as before.
 
 ## Info
 
-### IN-01: `InstrumentToggle.characterisation.test.tsx` title and header describe the behaviour that was removed
+### IN-01: Impossible-state guard: "`hover` leaves the reveal armed" states a rule over a state that cannot occur
 
-**File:** `packages/react/test/InstrumentToggle.characterisation.test.tsx:2-8, 20-22`
-**Issue:** The test is titled "a memoised consumer of the context renders again when instrument is toggled" and its header
-says the consumer "is rendered again when the toggle flips, because the context value carries the flag". The assertion is
-now `expect(rendersOnToggle).toBe(0)`. The title and header state the opposite of what the test checks. ADR-QD-193 says the
-"assertion is now zero", but a reader of the test alone is misled. This file is held by the characterisation check, so the
-text cannot be edited here. A rename needs a declared flip.
-**Fix:** Add the corrected title in the new `QadiProvider` test, or add the title and header to the declared-flip list when
-the file is next re-baselined.
+**File:** `packages/devtools/src/model/LensSession.ts:14-17` and `:73-75`; ADR-QD-193 decision 8; BEH-QD-739
+**Category:** necessity
+**Issue:** The requirement that `hover` MUST NOT disarm a reveal is a rule about a state the session cannot be in. `hover`
+acts only from `Picking`. A reveal is armed only by `choose`, which leaves `Picking`, and `toggle` disarms on entering it
+(`LensSession.ts:156`). So when `hover` has an effect, `armed` is already `undefined`. The only way the cell reaches the
+rule is `kept.session.hover("b")` from `Idle`, where `hover` is a no-op (`LensSession.test.ts:253-257`). That pins that
+`hover` has no `armed = undefined` line, which is harmless, but it reads as pinning behaviour while `Picking`. The evidence
+is the three call sites above, so it is provable from the repository; it is Info because it is a documentation claim and
+removing the sentence is a scope call.
+**Fix:** Drop "and `hover` does not" from the doc comments, the ADR and BEH-QD-739, or state that it is vacuous. Keep the
+test line, which still stops a future `hover` from disarming.
 
-### IN-02: A held assertion cannot fail, so it does not pin the Escape exit
+### IN-02: The throwing-subscriber test pins happy-dom's propagation, and the spec says "reaches the dispatch"
 
-**File:** `packages/devtools/test/react/QuestionsPanel.gates.test.tsx:359-368` ("leaves the mode on Escape")
-**Issue:** The test ends with `assert.notInclude(pickButton.textContent, "Escape —")`. The picking text is "picking —
-click a control, or press Escape" and the idle text is "pick a control on the page". Neither contains "Escape —", so the
-assertion passes whether or not Escape ended picking. This text is in the span held byte for byte by
-`80-pinned-check.mjs`, so it must not be edited. The Escape exit is genuinely pinned by the characterisation cell
-"entering picking again drops the pick, and leaving it does not restore it", which asserts the idle text after Escape. The
-finding is about the held cell, not an uncovered path.
-**Fix:** Do not edit the held cell. The characterisation cell already carries the Escape pin. If it is ever flipped or
-re-baselined, keep the Escape assertion there.
+**File:** `packages/devtools/test/react/Lens.adapter.test.tsx:70-90`; BEH-QD-737; ADR-QD-193 decision 6
+**Issue:** The cell asserts `thrown === boom` from `target.dispatchEvent(click)`. A browser never throws a listener's error
+out of `dispatchEvent`; it reports it to `window.onerror` and carries on. happy-dom 21 throws it out only under its default
+`errorCapture` setting (`EventTarget.js` routes it to `window[dispatchError]` under `tryAndCatch`). The property that
+matters, that the click stays default-prevented and the failure is not swallowed by `choose`'s caller, is held, since
+`defaultPrevented` is asserted. But the test would fail for an unrelated reason if the environment's error capture
+changed, and BEH-QD-737's "MUST still reach the dispatch" overstates what a browser does.
+**Fix:** Reword the requirement to "is not caught by the adapter", and in the test collect the error with a `window` `error`
+listener or accept either outcome, then assert it equals `boom`.
 
-### IN-03: A keyboard-initiated click is hit-tested at its recorded coordinates
+### IN-03: The panel still subscribes to the questions store twice
 
-**File:** `packages/devtools/src/react/useLens.ts:58-59, 68-74`
-**Issue:** The capture handler resolves the guard with `gateIdAt(document, event.clientX, event.clientY, ...)`. A click
-produced by Enter or Space on a focused control carries `detail === 0`. In browsers that report `0,0` for such a click,
-it is hit-tested at the page's top-left corner. A full-page `<Can>` wrapper that contains that corner would make a
-keyboard user's Enter on the dock's own toggle or highlight button count as a pick, and be swallowed. The only
-keyboard-reachable exit is then Escape. This predates the phase, since the old handler did the same, but ADR-QD-193
-re-affirms the capture decision as the model of consumption. I could not verify per-browser coordinates, so this is
-conditional.
-**Fix:** Ignore `event.detail === 0` in `choose` (a click not produced by a pointer), or hit-test the event's target
-instead of its coordinates. The held tests use `fireEvent.click(document, {clientX, clientY})`, which has `detail 0`.
-Such a change needs those cells to pass `detail: 1`, and the held files cannot take that edit. Cover it with a new test.
+**File:** `packages/devtools/src/react/QuestionsPanel.tsx:114-116` and `packages/devtools/src/react/useLens.ts:41`
+**Issue:** IN-06 of iteration 1 removed the second lens subscription. The same shape remains for `questions`: the panel
+calls `useStoreSnapshot(questions)` and `useLens(lens, questions)` calls it again for `instances`. The panel already holds
+`snapshot.instances`. The new cell counts only lens subscriptions, so it does not catch this. It costs one extra listener
+and no wrong render, so it is Info.
+**Fix:** Either leave it and say why in the `useLens` doc comment (the adapter must stand alone, as `Lens.adapter.test.tsx`
+mounts it), or let `useLens` take the snapshot's instances and keep reading `questions.getSnapshot()` in the handlers.
 
-### IN-04: The comment over-claims what a document-capture `stopPropagation` consumes
+### IN-04: `gateIdOfClick` names its first parameter `target`, beside `click.target`
 
-**File:** `packages/devtools/src/react/useLens.ts:81-82`
-**Issue:** "Capture, so the click is intercepted before the page's own handlers see it." A `stopPropagation` on a
-`document` capture listener stops the target and bubble phases. It does not stop a `window`-capture listener, which runs
-earlier, and it does not stop other `document`-capture listeners registered before this one. An application that listens in
-the window or document capture phase (for example analytics, or a router's link interceptor) still sees the click.
-BEH-QD-737's wording, "consumed", inherits the same over-claim.
-**Fix:** Say "before the page's target and bubble handlers" in the comment and in BEH-QD-737. Use `stopImmediatePropagation`
-if swallowing other document-capture listeners is intended.
-
-### IN-05: An armed reveal that no row takes fires later, unasked
-
-**File:** `packages/devtools/src/model/LensSession.ts:136, 164, 177-181`
-**Issue:** `armed` is cleared only by `takeReveal` for that id, by a second `choose`, or by `toggle`. `cancel` and `highlight`
-do not touch it. If the pick is made while the picked guard has no row (the gates view is `Listed` but the questions view
-is `Absent`, `Unsampled` or `Failed`), `armed` stays set. When the questions later arrive and the row first mounts, or on
-the next return to the tab, the panel scrolls with no action from the reader. D-06 and decision 8 accept this as "the first
-reveal, not a re-fire". The consequence is a late, unattended scroll, and no test covers it.
-**Fix:** Either disarm in `cancel()` when it ends a panel visit (the unmount exit already calls it from `Idle`, so it would
-disarm any reveal not taken by the time the panel closes), or add a cell stating the intended late-reveal behaviour so a
-change to it is visible.
-
-### IN-06: The panel subscribes to the lens twice
-
-**File:** `packages/devtools/src/react/QuestionsPanel.tsx:116-117` and `packages/devtools/src/react/useLens.ts:32`
-**Issue:** `useLens` reads `useStoreSnapshot(lens)`, and `QuestionsPanel` then reads `useStoreSnapshot(lens)` again to build
-`view`. Two `useSyncExternalStore` subscriptions are held on one store, and the panel's `useLens(...)` call discards the
-snapshot the hook already read.
-**Fix:** Have `useLens` return the snapshot it read (`: LensSnapshot`) and build `view` from that. The adapter then holds
-one subscription.
+**File:** `packages/devtools/src/react/Lens.ts:207-219`
+**Issue:** The `Document` is `target` and the event's element is `click.target`, in the same expression
+(`click.target instanceof Element ? ... : gateIdAt(target, ...)`). `gateIdAt` already uses `target: Document`, so it is
+consistent, but the pair is easy to misread in a function whose whole point is which target decides.
+**Fix:** Rename the first parameter to `doc` in `gateIdOfClick`, or leave it for consistency with `gateIdAt`.
 
 ---
 
 _Reviewed: 2026-11-24_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
+_Iteration: 2_
