@@ -14,6 +14,7 @@ import {
   emptyTimeline,
   ingest,
   ingestAll,
+  type Timeline,
   type TimelineEntry,
 } from "../../src/model/Timeline.ts";
 import { decisionRecord, failedRecord, obligationRecord } from "../helpers.ts";
@@ -364,6 +365,20 @@ describe("capacity", () => {
 
     assert.strictEqual(ingest(empty, decision), empty);
     assert.strictEqual(ingest(empty, orphan), empty);
+  });
+
+  it("a timeline holding entries over a zero bound is emptied by the next record", () => {
+    const one = ingest(
+      emptyTimeline({ capacity: 1 }),
+      decisionRecord({ evaluationId: "a", at: 100 }),
+    );
+    const over: Timeline = { entries: one.entries, capacity: 0 };
+
+    const next = ingest(over, decisionRecord({ evaluationId: "b", at: 200 }));
+
+    assert.notStrictEqual(next, over);
+    assert.deepStrictEqual(next.entries, []);
+    assert.strictEqual(next.capacity, 0);
   });
 
   /**

@@ -17,7 +17,11 @@ import * as Stream from "effect/Stream";
 import * as TestClock from "effect/testing/TestClock";
 import type { StoredRecord } from "@qadi/core";
 import { sourceFromRecords, type Source, type SourceRead } from "../../src/model/Source.ts";
-import { makeTimelineFeed, type TimelineFeed } from "../../src/index.ts";
+import {
+  DEFAULT_TIMELINE_CAPACITY,
+  makeTimelineFeed,
+  type TimelineFeed,
+} from "../../src/index.ts";
 import { idleTimeline } from "../../src/model/TimelineFeed.ts";
 import { decisionRecord, hostile, hostileError, settleTurns, thrownBy } from "../helpers.ts";
 
@@ -715,5 +719,79 @@ describe("the timeline feed", () => {
 
       assert.strictEqual(heard.calls, 0);
       assert.strictEqual(feed.timeline.getSnapshot(), snapshot);
+    }));
+
+  it.effect("TF33 an omitted capacity after the default capacity, and the default after an omitted one, each empty the timeline and read again", () =>
+    Effect.gen(function* () {
+      const a = watched([], Stream.never);
+      const feed = yield* makeTimelineFeed({
+        source: a.source,
+        capacity: DEFAULT_TIMELINE_CAPACITY,
+      });
+      yield* flush;
+      feed.timeline.accept(record("manual", 100));
+      assert.deepStrictEqual(idsOf(feed), ["manual"]);
+
+      feed.configure({ source: a.source });
+      yield* flush;
+
+      assert.deepStrictEqual(idsOf(feed), []);
+      assert.deepStrictEqual(a.tally, { started: 2, finalized: 1 });
+
+      feed.timeline.accept(record("again", 200));
+      assert.deepStrictEqual(idsOf(feed), ["again"]);
+
+      feed.configure({ source: a.source, capacity: DEFAULT_TIMELINE_CAPACITY });
+      yield* flush;
+
+      assert.deepStrictEqual(idsOf(feed), []);
+      assert.deepStrictEqual(a.tally, { started: 3, finalized: 2 });
+    }));
+
+  it.effect("TF34 the store a host holds is one object for the feed life: a listener added before two capacity changes hears each emptied timeline once", () =>
+    Effect.gen(function* () {
+      const a = watched([], Stream.never);
+      const feed = yield* makeTimelineFeed({ source: a.source, capacity: 5 });
+      yield* flush;
+      const held = feed.timeline;
+      const heard: Array<number> = [];
+      const unsubscribe = held.subscribe(() => {
+        heard.push(held.getSnapshot().capacity);
+      });
+
+      feed.configure({ source: a.source, capacity: 3 });
+      feed.configure({ source: a.source, capacity: 2 });
+      yield* flush;
+
+      assert.strictEqual(feed.timeline, held);
+      assert.deepStrictEqual(heard, [3, 2]);
+
+      unsubscribe();
+      feed.configure({ source: a.source, capacity: 4 });
+      yield* flush;
+
+      assert.deepStrictEqual(heard, [3, 2]);
+      assert.strictEqual(held.getSnapshot().capacity, 4);
+    }));
+
+  it.effect("TF35 a capacity change while paused releases the pause and shows the emptied live timeline", () =>
+    Effect.gen(function* () {
+      const a = watched([], Stream.never);
+      const feed = yield* makeTimelineFeed({ source: a.source, capacity: 5 });
+      yield* flush;
+      feed.timeline.accept(record("x", 100));
+      feed.timeline.setPaused(true);
+      feed.timeline.accept(record("y", 200));
+      assert.deepStrictEqual(idsOf(feed), ["x"]);
+
+      feed.configure({ source: a.source, capacity: 3 });
+      yield* flush;
+
+      assert.isFalse(feed.timeline.isPaused());
+      assert.deepStrictEqual(idsOf(feed), []);
+      assert.strictEqual(feed.timeline.getSnapshot().capacity, 3);
+
+      feed.timeline.accept(record("z", 300));
+      assert.deepStrictEqual(idsOf(feed), ["z"]);
     }));
 });

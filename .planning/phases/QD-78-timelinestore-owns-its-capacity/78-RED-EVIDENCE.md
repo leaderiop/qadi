@@ -46,3 +46,20 @@ inputs before the timeline feed is configured, and applies the rest in straight-
 ## Not RED at the base
 
 None. Every test written to be RED on the base failed there.
+
+## Characterised at the base
+
+The five characterisations were written on the unchanged source of the phase base
+`de13eb7f48f2e0e77b374299d20d2e5e891bef95` and pass there; the same five files plus `DockModel.test.ts` still fail exactly the
+eight RED titles above, and no other.
+
+- Command: `pnpm exec vitest run --project devtools packages/devtools/test/model/Timeline.test.ts
+  packages/devtools/test/model/TimelineStore.test.ts packages/devtools/test/model/TimelineFeed.test.ts
+  packages/devtools/test/react/useTimeline.test.tsx packages/devtools/test/model/DockModel.test.ts --reporter=json
+  --outputFile=<S>/char.json`
+- Result: `Tests  8 failed | 157 passed (165)`; the command exits non-zero (the eight RED titles)
+- characterised: TF33 an omitted capacity after the default capacity, and the default after an omitted one, each empty the timeline and read again
+- characterised: TF34 the store a host holds is one object for the feed life: a listener added before two capacity changes hears each emptied timeline once
+- characterised: TF35 a capacity change while paused releases the pause and shows the emptied live timeline
+- characterised: a timeline holding entries over a zero bound is emptied by the next record
+- characterised: UT5 a re-render with the same capacity, or with none after none, keeps the hand-fed entries
