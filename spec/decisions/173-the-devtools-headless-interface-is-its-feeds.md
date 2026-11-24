@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-173                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-11-19                                     |
-> | Status         | Accepted — amends ADR-QD-047, ADR-QD-099, ADR-QD-169; applies ADR-QD-137; amended 2026-11-20 (ADR-QD-177: every listener is called); amended 2026-11-21 (the port cards stay package-private) |
+> | Status         | Accepted — amends ADR-QD-047, ADR-QD-099, ADR-QD-169; applies ADR-QD-137; amended 2026-11-20 (ADR-QD-177: every listener is called); amended 2026-11-21 (the port cards stay package-private); amended 2026-11-24 (the feeds take their inputs only through configure, ADR-QD-192) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-21): amendment: the port cards stay package-private, and a headless consumer reads the diagnostics feed's reading (ARCH-115, CCR-QD-459)<br>1.1 (2026-11-20): amendment — every listener is called (ARCH-111, ADR-QD-177, CCR-QD-455)<br>1.0 (2026-11-19): Initial release (ARCH-107, CCR-QD-451) |
+> | Change History | 1.3 (2026-11-24): amended by ADR-QD-192 (CCR-QD-471)<br>1.2 (2026-11-21): amendment: the port cards stay package-private, and a headless consumer reads the diagnostics feed's reading (ARCH-115, CCR-QD-459)<br>1.1 (2026-11-20): amendment — every listener is called (ARCH-111, ADR-QD-177, CCR-QD-455)<br>1.0 (2026-11-19): Initial release (ARCH-107, CCR-QD-451) |
 
 ---
 
@@ -122,3 +122,13 @@ for the consumer, which joins those inputs as it needs. No export is added or re
 [ADR-QD-137](./137-a-devtools-session-owns-its-runs-through-a-scope.md),
 [ADR-QD-169](./169-the-questions-panels-two-host-inputs-are-one-feed.md), BEH-QD-636..640, INV-QD-365, INV-QD-366,
 [ADR-QD-177](./177-one-throwing-listener-cannot-silence-the-rest.md), BEH-QD-656, INV-QD-373.
+
+> **Amended 2026-11-24 (CCR-QD-471): the three feeds take their inputs only through `configure`.**
+> Decision 1 named the feeds' constructors with their inputs. `makeTimelineFeed`, `makeDiagnosticsFeed` and
+> `makeGatesFeed` take no argument and build bare in the caller's scope, and an input reaches a feed only through its
+> `configure`, which applies one per-field rule to a complete record of its inputs: a `configure` in which no input moved
+> publishes nothing, restarts nothing and reads no host code, the gates feed's retry of a failed watch excepted
+> ([ADR-QD-192](./192-feeds-and-the-dock-model-take-inputs-only-through-configure.md)). Decision 3's `DiagnosticsOptions`
+> accepts `undefined` for each of its fields, and decision 8's `configure(undefined)` on a feed that is already off still
+> publishes nothing. A shell that subscribes before its first `configure` hears that configure's publishes, so it
+> configures first. Context and Alternatives considered keep their history.

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-185                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-11-22                                     |
-> | Status         | Accepted — extends ADR-QD-168, amends ADR-QD-047, corrects ADR-QD-169 |
+> | Status         | Accepted — extends ADR-QD-168, amends ADR-QD-047, corrects ADR-QD-169; amended 2026-11-24 (sameFields is exported and applied by the feeds and the dock, ADR-QD-192) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-22): decision 7 states what a parent whose subscribe throws and a release that throws each do (CCR-QD-464)<br>1.1 (2026-11-22): correction — key equality is over own enumerable string-keyed fields, the finalizer is registered before the parents are subscribed, and the store-list test lists the model's members and is kept equal to BEH-QD-700 by review (CCR-QD-464)<br>1.0 (2026-11-22): new — the dock model's three computed stores are derived stores (ARCH-119, CCR-QD-464) |
+> | Change History | 1.3 (2026-11-24): amended by ADR-QD-192 (CCR-QD-471)<br>1.2 (2026-11-22): decision 7 states what a parent whose subscribe throws and a release that throws each do (CCR-QD-464)<br>1.1 (2026-11-22): correction — key equality is over own enumerable string-keyed fields, the finalizer is registered before the parents are subscribed, and the store-list test lists the model's members and is kept equal to BEH-QD-700 by review (CCR-QD-464)<br>1.0 (2026-11-22): new — the dock model's three computed stores are derived stores (ARCH-119, CCR-QD-464) |
 
 ---
 
@@ -163,3 +163,12 @@ as a thunk (decision 1) rather than held in stores `configure` sets last.
 [BEH-QD-700](../behaviors/28-devtools-screens.md#beh-qd-700-the-dock-models-stores-are-listed-once),
 [INV-QD-389](../invariants.md#inv-qd-389-a-derived-store-recomputes-exactly-when-its-key-changes-and-does-nothing-after-its-scope-closes),
 [INV-QD-390](../invariants.md#inv-qd-390-the-dock-models-computed-stores-are-derived-stores-and-their-count-is-stated-once).
+
+> **Amended 2026-11-24 (CCR-QD-471): `sameFields` is the rule the feeds and the dock apply.**
+> Decision 2 called `sameFields` a module-private comparison. It is exported from `ExternalStore.ts`, still out of both
+> barrels, with `sameFieldsOrAbsent` beside it for an input that may be absent (absent equals only absent), and every feed
+> and the dock apply it to their inputs after one normaliser per input type has made them complete records, so a field
+> left out and a field holding `undefined` are one field
+> ([ADR-QD-192](./192-feeds-and-the-dock-model-take-inputs-only-through-configure.md)). The comparison itself is unchanged:
+> own enumerable string-keyed fields, values by `===`, and a field on one side only is a change. Context and Alternatives
+> considered keep their history.
