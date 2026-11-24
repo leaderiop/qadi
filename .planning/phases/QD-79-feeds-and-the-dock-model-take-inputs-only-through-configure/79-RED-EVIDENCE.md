@@ -307,3 +307,13 @@ The scratch edit was applied to `packages/devtools/src/model/DockModel.ts` and r
 
 - edit T1: `DockModel.ts:398`: `spread();` replaced by `void 0;` in `configure`, so a new catalogue never reaches the rails
 - failed: a catalogue handed to a bare model's first configure fills both rails and the role list at once
+
+### WR-01 the retry of a failed watch on each re-render
+
+The two new cells of `packages/devtools/test/react/DockRegistryReads.test.tsx` pin what ADR-QD-192 records: a registry whose `subscribe` keeps throwing is subscribed once more by each commit that hands the hook a new inputs record, is read never, and publishes nothing to the questions, services, diagnostics or dock stores; and once it accepts, the next commit watches and reads it and the one after leaves it alone. Each scratch edit was applied to `packages/devtools/src/model/GatesFeed.ts`, run with `pnpm exec vitest run --project devtools packages/devtools/test/react/DockRegistryReads.test.tsx`, and restored from a copy taken before the first (`git status --porcelain -- packages/devtools/src` is empty afterwards).
+
+- edit W1: `GatesFeed.ts:284`: the early return of `configure` made `if (sameFields(held, wanted)) return;`, so the retry fires only on a moved field
+- failed: a registry that keeps refusing is subscribed once more by each re-render, read never, and publishes nothing
+- failed: a registry that stops refusing is watched and read by the next commit, and then left alone
+- edit W2: `GatesFeed.ts:187`: `readRegistry` given a new `Failed` on every retry (`&& false` on the identity-keeping condition), so each retry publishes
+- failed: a registry that keeps refusing is subscribed once more by each re-render, read never, and publishes nothing
