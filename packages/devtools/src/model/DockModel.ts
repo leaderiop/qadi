@@ -41,7 +41,6 @@ import type * as Scope from "effect/Scope";
 import type { Role } from "@qadi/core";
 import { catalogueOf, type Catalogue, type PolicySighting } from "./Catalogue.ts";
 import {
-  completeDiagnosticsOptions,
   isUnsampled,
   makeDiagnosticsFeed,
   type DiagnosticsReadout,
@@ -188,12 +187,13 @@ export const completeDockInputs = (inputs: DockModelInputs): Required<DockModelI
 
 /**
  * What the dock hands each of its three feeds: the timeline's and the gates' records, and the
- * diagnostics' when it is on.
+ * diagnostics' options as the host gave them when it is on, which the diagnostics feed's own
+ * `configure` normalises.
  */
 interface FeedInputs {
   readonly timeline: Required<TimelineFeedInputs>;
   readonly gates: Required<GatesFeedInputs>;
-  readonly diagnostics: Required<DiagnosticsOptions> | undefined;
+  readonly diagnostics: DiagnosticsOptions | undefined;
 }
 
 /**
@@ -209,7 +209,7 @@ export const feedInputsOf = (inputs: Required<DockModelInputs>): FeedInputs => (
     questions: inputs.questions,
     intervalMillis: inputs.diagnostics?.intervalMillis,
   },
-  diagnostics: inputs.diagnostics === undefined ? undefined : completeDiagnosticsOptions(inputs.diagnostics),
+  diagnostics: inputs.diagnostics,
 });
 
 export interface DockModel {

@@ -98,7 +98,7 @@ test("a dock model compares eight inputs, each present and possibly undefined, a
   expect<ReturnType<typeof feedInputsOf>>().type.toBe<{
     readonly timeline: Required<TimelineFeedInputs>;
     readonly gates: Required<GatesFeedInputs>;
-    readonly diagnostics: Required<DiagnosticsOptions> | undefined;
+    readonly diagnostics: DiagnosticsOptions | undefined;
   }>();
 
   const whole: Required<DockModelInputs> = {

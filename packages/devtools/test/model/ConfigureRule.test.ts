@@ -937,7 +937,7 @@ describe("the dock model", () => {
       );
       assert.deepStrictEqual(on.timeline, { capacity: 50, source });
       assert.deepStrictEqual(on.gates, { gates, questions, intervalMillis: 250 });
-      assert.deepStrictEqual(on.diagnostics, { layer, collector: undefined, intervalMillis: 250 });
+      assert.deepStrictEqual(on.diagnostics, { layer, intervalMillis: 250 });
 
       const off = feedInputsOf(completeDockInputs({ source, gates, questions }));
       assert.deepStrictEqual(off.timeline, { capacity: DEFAULT_TIMELINE_CAPACITY, source });
