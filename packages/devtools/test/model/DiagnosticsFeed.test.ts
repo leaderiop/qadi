@@ -684,4 +684,33 @@ describe("the diagnostics feed", () => {
       assert.isTrue(DiagnosticsStatus.$is("Stopped")(status) && status.sampled);
     }),
   );
+
+  it.effect("F33 a sample the superseded run takes on its way out is dropped, so the feed stays Starting until the newest run samples", () =>
+    Effect.gen(function* () {
+      const slow: PortCallCollector = {
+        layer: Layer.empty,
+        snapshot: Effect.sleep("1 second").pipe(Effect.as(logOf(2))),
+      };
+      const feed = yield* makeDiagnosticsFeed();
+      const seen = recording(feed);
+      const a = makeCollectorDouble((call) => {
+        if (call === 1) feed.configure({ collector: slow });
+        return logOf(1);
+      });
+
+      feed.configure({ collector: a.collector });
+      yield* settleTurns;
+
+      assert.strictEqual(a.state.calls, 1);
+      assert.deepStrictEqual(seen, ["Starting"]);
+      assert.strictEqual(feed.getSnapshot().status._tag, "Starting");
+      assert.strictEqual(feed.getSnapshot().reading, noDiagnostics);
+
+      yield* step("1 second");
+
+      const { status, reading } = feed.getSnapshot();
+      assert.isTrue(DiagnosticsStatus.$is("Live")(status));
+      assert.deepStrictEqual(reading.portCalls, logOf(2));
+    }),
+  );
 });
