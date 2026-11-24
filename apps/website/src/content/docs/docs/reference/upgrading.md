@@ -1277,3 +1277,65 @@ To change a feed's capacity, call `configure` rather than `feed.timeline.resize`
 The dock refuses a capacity whole, and applies an interrupted one whole: when a timeline listener throws on the capacity change, the dock has applied its catalogue, roles, ports, gates, diagnostics and shown reading by the time the throw reaches the caller.
 
 The decision is [ADR-QD-191](https://github.com/leaderiop/qadi/blob/main/spec/decisions/191-a-timeline-store-owns-its-capacity.md).
+
+## 0.13: the feeds and the dock model take their inputs only through configure
+
+`@qadi/devtools` let a host hand a feed its inputs twice: as the constructor's argument and again through `configure`, and the two had to agree. Each feed also wrote its own answer to "did an input move?", so a `configure` that moved nothing could still read the gate registry and run the questions thunk, and an input left out differed from one holding `undefined`. The feeds and the dock model now take their inputs only through `configure`: `makeTimelineFeed`, `makeDiagnosticsFeed` and `makeGatesFeed` take no argument, one per-field rule answers whether an input moved, and the gates feed's retry of a failed watch is the rule's one stated exception. The dock's inputs are declared once, and the hooks that build a feed or the dock configure it before they publish it.
+
+| Change | Before | After |
+| ------ | ------ | ----- |
+| `makeTimelineFeed`, `makeDiagnosticsFeed`, `makeGatesFeed` | took the inputs as an argument | take no argument; the inputs reach the feed through `configure`, and `configure(inputs)` after a bare build reaches what building with `inputs` reached |
+| a `configure` in which no input moved | could read the gate registry and the questions thunk again | publishes nothing, restarts nothing and reads no host code, the retry of a failed watch excepted |
+| an omitted input | differed from one holding `undefined`: `{ source }` and `{ source, capacity: undefined }` were two inputs | one input; a capacity compares by the bound it means |
+| a registry that mends without announcing | read by any `configure`, so it left `Failed` on the next host commit | stays `Failed` until it announces, until a tick whose questions changed joins it, or until a `configure` moves an input; a failed watch is retried by any `configure` |
+| a reader subscribed before the first `configure` | heard nothing from a feed built with its inputs | hears that `configure`'s publishes; configure before subscribing |
+| `DiagnosticsOptions` | `layer`, `collector` and `intervalMillis` were present or absent | each accepts `undefined`, so an optional value is forwarded without a conditional spread |
+| `DevtoolsDockProps` | the dock's inputs and the host's two props, written out in the props type and again in the hook's input type | the dock model's eight inputs plus `unknownParents` and `onInvalidate`, each accepting `undefined`, declared once |
+
+A headless host that built its feeds with their inputs builds them bare and configures each:
+
+```ts
+import * as Effect from "effect/Effect";
+import { makeDecisionLog } from "@qadi/core";
+import { makeDiagnosticsFeed, makeTimelineFeed, type DiagnosticsOptions } from "@qadi/devtools";
+
+export const watch = Effect.fn("example.watch")(function* (
+  report: (line: string) => void,
+  options: DiagnosticsOptions | undefined,
+) {
+  const log = yield* makeDecisionLog({ environment: "Server", capacity: 512 });
+  const timeline = yield* makeTimelineFeed({ source: log });
+  const diagnostics = yield* makeDiagnosticsFeed(options);
+  timeline.timeline.subscribe(() => report(`${timeline.timeline.getSnapshot().entries.length} entries`));
+  diagnostics.subscribe(() => report(diagnostics.getSnapshot().status._tag));
+  return { timeline, diagnostics };
+});
+```
+
+After, it builds both bare and configures each before it subscribes, so the reader hears only what changes after it, and an absent `options` is the same `configure(undefined)` that leaves the diagnostics feed off:
+
+```typescript
+import * as Effect from "effect/Effect";
+import { makeDecisionLog } from "@qadi/core";
+import { makeDiagnosticsFeed, makeTimelineFeed, type DiagnosticsOptions } from "@qadi/devtools";
+
+export const watch = Effect.fn("example.watch")(function* (
+  report: (line: string) => void,
+  options: DiagnosticsOptions | undefined,
+) {
+  const log = yield* makeDecisionLog({ environment: "Server", capacity: 512 });
+  const timeline = yield* makeTimelineFeed();
+  timeline.configure({ source: log });
+  const diagnostics = yield* makeDiagnosticsFeed();
+  diagnostics.configure(options);
+  timeline.timeline.subscribe(() => report(`${timeline.timeline.getSnapshot().entries.length} entries`));
+  diagnostics.subscribe(() => report(diagnostics.getSnapshot().status._tag));
+  return { timeline, diagnostics };
+});
+```
+
+A headless host configures before it subscribes: a reader subscribed to a feed before its first `configure` hears that `configure`'s publishes, where a feed built with its inputs published nothing to anyone. A component never sees them, because `useTimeline`, `useDiagnostics` and `DevtoolsDock` configure before they publish. A host that calls `configure` on every commit, as `DevtoolsDock` does with its props, runs no host code its inputs did not move.
+
+`makeSimulationSession` and `useSimulationSession` are unchanged: the session has no `configure`, and its input is read once when it is built.
+
+The decision is [ADR-QD-192](https://github.com/leaderiop/qadi/blob/main/spec/decisions/192-feeds-and-the-dock-model-take-inputs-only-through-configure.md).

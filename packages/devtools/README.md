@@ -23,8 +23,9 @@ pulling in a UI, and `react` is an optional peer dependency for exactly that
 reason.
 
 What each exports is what a shell crosses, not everything the modules declare.
-The root has the three feeds a shell builds in a scope (`makeTimelineFeed`,
-`makeDiagnosticsFeed`, `makeGatesFeed`), the simulation session
+The root has the three feeds a shell builds bare in a scope (`makeTimelineFeed`,
+`makeDiagnosticsFeed`, `makeGatesFeed`), each taking its inputs only through its
+`configure`, the simulation session
 (`makeSimulationSession`), the wiring the dock takes, the timeline readings
 (`verdictOf`, `pairedEntries`, `inspect`, `applyFilters`, `selectionOf`) and the types
 those name. The React entry has `DevtoolsDock` and the hooks over the feeds
@@ -251,7 +252,11 @@ changes after it.
 
 `log.layer` is the application's sink, the `DecisionSink` for the code that
 evaluates. `timeline.status.restart()` and `diagnostics.restart()` restart a stopped
-feed. `configure` replaces the whole input set: `TimelineFeed.configure` reads an
+feed. A host configures a feed before it subscribes, since a reader subscribed first
+hears that `configure`'s publishes, and a `configure` in which no input moved does
+nothing: it publishes nothing, restarts nothing and reads no host code, and a failed
+watch of the gate registry is the one thing any `configure` retries. `configure`
+replaces the whole input set: `TimelineFeed.configure` reads an
 omitted input as `undefined`, and `diagnostics.configure(undefined)` ends the poll
 and resets it to `Off`. An omitted `capacity` is `DEFAULT_TIMELINE_CAPACITY`, one bound
 with it, so moving between them keeps the timeline and reads nothing again. A
