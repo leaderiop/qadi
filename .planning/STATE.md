@@ -22,10 +22,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-23)
+See: .planning/PROJECT.md (updated 2026-11-24)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase QD-77 — An audit row is a value only its codec makes
+**Current focus:** Phase 78 — `TimelineStore` owns its capacity
 
 ## Current Position
 
@@ -34,7 +34,7 @@ Plan: Not started
 Status: Ready to plan
 Last activity: 2026-11-24 — Phase QD-77 complete, transitioned to Phase 78
 
-Progress: [███░░░░░░░] 25% (0 of 4 phases)
+Progress: [███░░░░░░░] 25% (1 of 4 phases)
 
 
 ## Performance Metrics
@@ -984,6 +984,7 @@ Progress: [███░░░░░░░] 25% (0 of 4 phases)
 - [Phase QD-77]: 77-06: BEH-QD-723 to BEH-QD-725 are named only in the CCR-QD-469 unused list; BEH-QD-489 and BEH-QD-625 read and left unchanged; upgrade-guide fence is a compiled typescript example, 0.10 fence untouched
 - [Phase 77]: A by-hand static mutant the decoder's own construction guard refuses at import (RuntimeError, untrustedDecoder: unknownKeys must be) counts as detected in the close verify — No test turns a load-time refusal into Killed; the earlier hydration close decided the same. Decided autonomously.
 
+- [Phase 77]: Code review (77-REVIEW-DISPOSITION.md): three iterations, 0 open. Run-time brand added (package-private `CodecMade.ts` WeakSet filled only by the codec; rows frozen one level); `keyMaterial` read once and checked against `KeyMaterialSchema`; non-list `entries` refused by all four row functions; `ArchiveInputInvalid`/`RetentionInputInvalid` carry closed `ArchiveInputRefusal`/`RetentionInputRefusal` enums (api-surface 942). Verification passed 5/5 (3d58ac6e); `check:pr` exit 0 at 13c0b7c7.
 ### Pending Todos
 
 - v1.9: strictly serial, 77 then 78 through 80; ids reserved (ADR-QD-190 to 193, CCR-QD-469 to 472, BEH-QD-721 to 740, INV-QD-399 to 406), never run `node scripts/next-id.mjs`. Phase 77 (`@qadi/audit`, live defect, **Breaking**) opens with a RED regression test written without `as` on its phase base, and needs a pre-plan probe first (`/gsd-plan-phase --research-phase 77`: the brand form's `Equal`/`Hash`/`JSON.stringify`, and the whole-archive writer inputs `entries`, `now`, `keyMaterial`). Phase 78 (`TimelineStore.resize`) is standard, no research. Phase 79 (**Breaking**, `@qadi/devtools`) opens with a first-render characterisation test, plain and under StrictMode, and needs a render-sequence spike first (`/gsd-plan-phase --research-phase 79`); 78 hard-precedes 79. Phase 80 (`LensSession`, `instrument`) is standard, no research; its tab-switch persistence and `instrument` removal are decided once at the discuss step. Soft edge 79 to 80 (`DockModel.ts`, `DevtoolsDock.tsx`); the milestone close re-verifies 77 to 79. Evidence: `.planning/phases/_WAVE14-CONTEXT.md` and `.planning/research/`.
@@ -1041,6 +1042,7 @@ Progress: [███░░░░░░░] 25% (0 of 4 phases)
 - [v1.2] Phases 21, 22 and 23 report `verification.status: stale` (later phases touched covered files); re-run their verification gates (/gsd-execute-phase 21|22|23 resumes at the gates) after Phase 29, before the milestone audit. **Resolved 2026-11-12:** all three re-verified `passed` at HEAD.
 - [Phase 22] `phase.complete` cannot match REQUIREMENTS.md's grouped traceability table (one row per phase listing several IDs), so v1.2 rows stay `Pending`; update them by hand or reshape the table. **Resolved 2026-11-12:** rows updated by hand (now archived in `milestones/v1.2-REQUIREMENTS.md`).
 
+- [Phase 77] Review limits recorded, not gaps: the codec-made registry is one per loaded copy of `@qadi/audit` (a second copy refuses the first's rows as `EntryNotMadeByCodec`); a throwing getter or `Proxy` passed as an input still throws as the host's own throw (ADR-QD-190 amendment 3).
 ### Roadmap Evolution
 
 - Phase 68.1 inserted after Phase 68: Address tech debt from the v1.7 audit (owner chose a cleanup phase before completing)
@@ -1058,11 +1060,11 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-24T01:28:19.955Z
+Last session: 2026-11-24T04:45:00.000Z
 Stopped at: Phase QD-77 complete, ready to plan Phase 78
 Resume file: None
 
 ## Operator Next Steps
 
-- Plan Phase 77 with `/gsd-plan-phase --research-phase 77` (probe first: brand form, `Equal`/`Hash`, writer inputs)
+- Phase 77 complete and verified; next: discuss and plan Phase 78 (`TimelineStore` owns its capacity, ARCH-125)
 - Branch `arch-wave-14` is not merged and nothing is released (owner instruction: release only when asked for "the release")
