@@ -263,3 +263,19 @@ The new file `packages/devtools/test/react/DockRegistryReads.test.tsx` pins, thr
 - edit R1: `GatesFeed.ts`: the early return of `configure` made unreachable (`if (false && sameFields(held, wanted) && watchFailure === undefined) return;`), so a `configure` that moves nothing reads the registry
 - failed: a healthy registry is read once under the hook and twice under StrictMode (`expected 2 to equal 1`, the build's second `configure` read it)
 - failed: a re-render with a fresh inputs record holding the same fields reads nothing and subscribes nothing (`{ reads: 4, subscribes: 1 }` against `{ reads: 2, subscribes: 1 }`)
+
+## 79-16 the close
+
+Each scratch edit was applied to the source file named, run against the file's own test file with `pnpm exec vitest run --project devtools`, and restored from a copy taken before the first edit; `git status --porcelain -- packages/devtools/src` is empty afterwards. The mutant is the one the close run reported Survived.
+
+- edit S1: `ExternalStore.ts:113`: `a === b ||` replaced by `false ||` (the base survivor, ConditionalExpression -> false)
+- failed: a list holding NaN is the same as itself, though no element of it equals itself
+- edit S2: `GatesFeed.ts:184`: the identity-keeping condition of `readRegistry` replaced by `false` (ConditionalExpression -> false; the StringLiteral -> "" mutant of the same line makes the same condition false)
+- failed: a changed answer on the cadence keeps the registry read the snapshot already holds
+- edit S3: `GatesFeed.ts:286`: `wanted.gates !== registryNow || watchFailure !== undefined` replaced by `true`
+- failed: a new thunk alone leaves the registry's subscription held, released and taken no more
+- edit S4: `GatesFeed.ts:291`: `wanted.questions !== before.questions || wanted.intervalMillis !== before.intervalMillis` replaced by `true`
+- failed: a new registry alone reads the thunk and the interval it already holds no more
+- edit S5: `DockModel.ts:319`: `makeExplorerSession({ sightings: rail })` replaced by `makeExplorerSession({})`
+- edit S6: `DockModel.ts:318`: `makeSimulationSession({ sightings: rail })` replaced by `makeSimulationSession({})`
+- failed: a model built bare hands both rails the one list its sightings read returns

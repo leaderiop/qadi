@@ -326,6 +326,55 @@ describe("the gates feed", () => {
       assert.strictEqual(asked.seen.calls, 3);
     }));
 
+  it.effect("a new thunk alone leaves the registry's subscription held, released and taken no more", () =>
+    Effect.gen(function* () {
+      const double = makeGateRegistryDouble([guard("a", readPolicy)]);
+      const feed = yield* gatesFeedOf({ gates: double.registry, questions: () => [] });
+      yield* settleTurns;
+      assert.strictEqual(double.subscriptions(), 1);
+
+      feed.configure({ gates: double.registry, questions: () => [{ policy: readPolicy }] });
+
+      assert.strictEqual(double.subscriptions(), 1);
+      assert.strictEqual(double.releases(), 0);
+      assert.strictEqual(double.listeners(), 1);
+    }));
+
+  it.effect("a new registry alone reads the thunk and the interval it already holds no more", () =>
+    Effect.gen(function* () {
+      const asked = counting(() => [{ policy: readPolicy }]);
+      const other = makeGateRegistryDouble([guard("b", writePolicy)]);
+      const feed = yield* gatesFeedOf({ questions: asked.thunk, intervalMillis: 2000 });
+      yield* settleTurns;
+      assert.strictEqual(asked.seen.calls, 1);
+
+      feed.configure({ gates: other.registry, questions: asked.thunk, intervalMillis: 2000 });
+      assert.strictEqual(asked.seen.calls, 1);
+
+      yield* TestClock.adjust("1999 millis");
+      yield* settleTurns;
+      assert.strictEqual(asked.seen.calls, 1);
+      yield* TestClock.adjust("1 millis");
+      yield* settleTurns;
+      assert.strictEqual(asked.seen.calls, 2);
+    }));
+
+  it.effect("a changed answer on the cadence keeps the registry read the snapshot already holds", () =>
+    Effect.gen(function* () {
+      let answer: ReadonlyArray<AskedQuestionLike> = [];
+      const double = makeGateRegistryDouble([guard("a", readPolicy)]);
+      const feed = yield* gatesFeedOf({ gates: double.registry, questions: () => answer, intervalMillis: 100 });
+      yield* settleTurns;
+      const registryBefore = feed.getSnapshot().registry;
+      assert.strictEqual(RegistryRead.$is("Read")(registryBefore), true);
+
+      answer = [{ policy: readPolicy }];
+      yield* tick;
+
+      assert.deepStrictEqual(questionsOf(feed), [{ policy: readPolicy }]);
+      assert.strictEqual(feed.getSnapshot().registry, registryBefore);
+    }));
+
   it.effect("T9 a feed with no thunk holds no pending sleep, and handing it none ends the cadence it had", () =>
     Effect.gen(function* () {
       const clock = yield* Clock.Clock;

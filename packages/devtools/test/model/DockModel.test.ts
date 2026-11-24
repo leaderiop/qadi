@@ -209,6 +209,14 @@ describe("a timeline reaches every screen (M1, M2, M3)", () => {
       assert.deepStrictEqual(model.sightings(), model.simulation.getSnapshot().sightings);
     }));
 
+  it.effect("a model built bare hands both rails the one list its sightings read returns", () =>
+    Effect.gen(function* () {
+      const model = yield* makeDockModel();
+
+      assert.strictEqual(model.explorer.getSnapshot().sightings, model.sightings());
+      assert.strictEqual(model.simulation.getSnapshot().sightings, model.sightings());
+    }));
+
   it.effect("M2: a declared catalogue adds names and unrun policies to both rails", () =>
     Effect.gen(function* () {
       const model = yield* makeDockModel();

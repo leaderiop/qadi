@@ -7,6 +7,7 @@ import * as Tracer from "effect/Tracer";
 import {
   makeDerivedStore,
   makeExternalStore,
+  sameElements,
   sameFields,
   sameFieldsOrAbsent,
 } from "../../src/model/ExternalStore.ts";
@@ -980,5 +981,12 @@ describe("sameFields and sameFieldsOrAbsent", () => {
     const shared = { n: 1 };
     assert.isTrue(sameFieldsOrAbsent({ a: shared }, { a: shared }));
     assert.isFalse(sameFieldsOrAbsent({ a: shared }, { a: { n: 1 } }));
+  });
+});
+
+describe("sameElements", () => {
+  it("a list holding NaN is the same as itself, though no element of it equals itself", () => {
+    const list = [Number.NaN];
+    assert.isTrue(sameElements(list, list));
   });
 });
