@@ -61,3 +61,26 @@ packages/audit/src/AuditEntry.ts  [missing] `GateProbe` is exported by @qadi/aud
 ```
 
 Without the plant the gate prints `api-surface: 940 export(s) documented across 9 package(s)`.
+
+## The row pins without the brand
+
+`declare private readonly nominal: never;` was deleted from `packages/audit/src/AuditEntry.ts`, `pnpm test:tstyche`
+was run (exit 1, both passes), and the line was restored (`git diff --quiet -- packages/audit/src` holds).
+`packages/audit/test/AuditEntry.tst.ts` has 6 negative `@ts-expect-error` pins, each with a positive twin.
+
+Pass one (`tsconfig.tstyche.json`) and pass two (`tsconfig.test.json`) each reported `Tests: 2 failed`,
+`Suppressed: 2 failed, 78 matched, 80 total`, and these four lines:
+
+- `Error: Unused '@ts-expect-error' directive. ts(2578)` at `AuditEntry.tst.ts:45:3`, the spread of an encode-made
+  row (`takesRow({ ...encoded, sequenceNumber: 2 })`): without the brand the spread type has `record`,
+  `sequenceNumber` and `pipe`, so it is assignable to `AuditEntry` and nothing errors.
+- `Error: Unused '@ts-expect-error' directive. ts(2578)` at `AuditEntry.tst.ts:51:3`, the same for a decode-made row.
+- `Error: The diagnostic message did not match.` at `AuditEntry.tst.ts:39:23`, the literal
+  (`takesRow({ record, sequenceNumber: 1 })`): it still errors, but on `Property 'pipe' is missing ... but required in
+  type 'Pipeable'`, which does not contain `nominal`.
+- `Error: The diagnostic message did not match.` at `AuditEntry.tst.ts:57:23`, the writer given a plain row, for the
+  same reason.
+
+The two value pins (`new Row.AuditEntry(...)`, `Schema.decodeUnknownEffect(Row.AuditEntry)`) kept passing: they
+depend on the type-only export, not on the brand. The finding behind the spread pins: the `Data.Class` base alone
+refuses a literal (no `pipe`), and only the private `nominal` member refuses a spread of a real row.
