@@ -5,17 +5,17 @@ milestone_name: Arch Wave 14
 current_phase: 80
 current_phase_name: The highlight lens is a headless session; `instrument` resolved
 status: executing
-stopped_at: Phase QD-79 complete, ready to plan Phase 80
-last_updated: "2026-11-24T15:08:10.139Z"
+stopped_at: Completed QD-80-01-PLAN.md
+last_updated: "2026-11-24T15:19:34.829Z"
 last_activity: 2026-11-24
 last_activity_desc: Phase QD-79 complete, transitioned to Phase 80
-state_head: 5cda425482d8b25af570694ccea4238dc0665402
+state_head: fcc561a6d993e1530c21ef6d74c396a4226bdf5b
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 48
-  completed_plans: 35
-  percent: 73
+  completed_plans: 36
+  percent: 75
 ---
 
 # Project State
@@ -34,7 +34,7 @@ Plan: Not started
 Status: Ready to execute
 Last activity: 2026-11-24 — Phase QD-79 complete, transitioned to Phase 80
 
-Progress: [███████░░░] 73% (2 of 4 phases)
+Progress: [████████░░] 75% (2 of 4 phases)
 
 
 ## Performance Metrics
@@ -590,6 +590,7 @@ Progress: [███████░░░] 73% (2 of 4 phases)
 | Phase QD-79 P15 | 35min | 2 tasks | 8 files |
 | Phase QD-79 P16 | 95min | 2 tasks | 8 files |
 | Phase QD-79 P17 | 25min | 2 tasks | 2 files |
+| Phase QD-80 P01 | 50min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -1023,6 +1024,7 @@ Progress: [███████░░░] 73% (2 of 4 phases)
 - [Phase QD-79]: 79-15: ADR-QD-192 decision 2 and ADR-QD-185's amendment say the dock applies the one rule through its feeds (orchestrator-decided, 2026-11-24)
 - [Phase QD-79]: A bare build applies no inputs: the build-time application of the always-empty record is deleted, not pinned (orchestrator-decided)
 - [Phase QD-79]: The by-hand clause of the 79-16 verify judges undetected static mutants against the base Ignored multiset by kind (orchestrator-decided)
+- [Phase QD-80]: 80-01: dock mutation base recorded as measured, 69/69 (plan-time 72/72 was wrong); instrument search uses git grep
 
 ### Pending Todos
 
@@ -1099,8 +1101,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-24T13:03:14.109Z
-Stopped at: Phase QD-79 complete, ready to plan Phase 80
+Last session: 2026-11-24T15:19:34.635Z
+Stopped at: Completed QD-80-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
