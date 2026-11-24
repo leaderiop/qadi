@@ -45,7 +45,7 @@ Every phase runs on branch `arch-wave-15` (off `arch-wave-14` at `902d2128`), st
 
 - [ ] **WX-01**: `pnpm check:pr < /dev/null` is green at the end of each phase.
 - [x] **WX-02**: Each phase records its ADR (or names it "Unused" in its CCR row), its CCR row, and its BEH/INV/traceability changes, using only its reserved numbers. `node scripts/next-id.mjs` is never run.
-- [ ] **WX-03**: `spec/overview.md` names every added export and drops every removed one (gate 13). Gate 14 probes every changed public signature.
+- [x] **WX-03**: `spec/overview.md` names every added export and drops every removed one (gate 13). Gate 14 probes every changed public signature.
 - [ ] **WX-04**: Nothing new is added from this list: `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await` in src, ambient `console`/`process.env`/clock, `Record<string, unknown>`, `// Stryker disable`, a module-scope `let`. A budget changes only together with its AGENTS.md table.
 - [ ] **WX-05**: Coverage thresholds hold (core at least 95%, the others at least 90%). The Stryker score of touched files does not fall: recorded per phase in `NN-mutation-base.json`, measured with the same invocation at the phase base and at close. A drop is closed with a test, never re-baselined.
 - [ ] **WX-06**: Every behaviour change is preceded by a characterisation or regression test written on the phase base: RED for a defect, green for preserved behaviour. Every new check is shown failing once.
@@ -95,7 +95,7 @@ Every phase runs on branch `arch-wave-15` (off `arch-wave-14` at `902d2128`), st
 | ADPT-05 | Phase 84 | Pending |
 | WX-01 | All v1.10 phases | Pending |
 | WX-02 | All v1.10 phases | Complete |
-| WX-03 | All v1.10 phases | Pending |
+| WX-03 | All v1.10 phases | Complete |
 | WX-04 | All v1.10 phases | Pending |
 | WX-05 | All v1.10 phases | Pending |
 | WX-06 | All v1.10 phases | Pending |
