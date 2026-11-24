@@ -93,3 +93,15 @@ Each test was run against the tree that lacks the rule it pins, and failed.
   - Run before `clear` changed, with `resize` in place: `AssertionError: expected 5 to equal 3` (the clear rebuilt the timeline at the constructor's capacity)
 - RED at the change: TF33 an omitted capacity after the default capacity, and the default after an omitted one, each empty the timeline and read again
   - The base form, run unedited against the new feed (the effective capacity is the store's): `AssertionError: expected [ 'manual' ] to deeply equal []` (the timeline is kept and nothing is read again); rewritten in the same commit as the one-bound rule
+
+## Shown failing once, after the change
+
+Each check was run against a one-line, uncommitted edit of the changed source, failed, and the edit was restored with
+`git checkout -- packages/devtools/src/model/TimelineFeed.ts`. After the last restore `git diff --quiet -- packages/devtools/src` holds.
+
+- shown failing: TF33 an omitted capacity and the default capacity are one bound: moving between them keeps the timeline and reads nothing again
+  - Edit: `TimelineFeed.ts` `configure`: the read condition `resized || next.source !== before.source` replaced by `next.capacity !== before.capacity || next.source !== before.source` (the identity rule)
+  - First message: `AssertionError: expected { started: 2, finalized: 1 } to deeply equal { started: 1, finalized: +0 }`
+- shown failing: TF36 the idle timeline answers any resize with false and stays one empty snapshot that nothing hears
+  - Edit: `TimelineFeed.ts`: `resize: () => true,` on `idleTimeline`
+  - First message: `AssertionError: expected true to be false`

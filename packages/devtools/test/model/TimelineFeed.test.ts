@@ -801,4 +801,19 @@ describe("the timeline feed", () => {
       feed.timeline.accept(record("z", 300));
       assert.deepStrictEqual(idsOf(feed), ["z"]);
     }));
+
+  it.effect("TF36 the idle timeline answers any resize with false and stays one empty snapshot that nothing hears", () =>
+    Effect.sync(() => {
+      const snapshot = idleTimeline.getSnapshot();
+      const heard = { calls: 0 };
+      idleTimeline.subscribe(() => {
+        heard.calls += 1;
+      });
+
+      assert.isFalse(idleTimeline.resize(3));
+      assert.isFalse(idleTimeline.resize(-1));
+
+      assert.strictEqual(idleTimeline.getSnapshot(), snapshot);
+      assert.strictEqual(heard.calls, 0);
+    }));
 });
