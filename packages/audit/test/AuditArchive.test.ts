@@ -5,6 +5,7 @@ import * as Result from "effect/Result";
 import * as Tracer from "effect/Tracer";
 import { encodeAuditEntry } from "../src/AuditEntry.ts";
 import { archiveAuditTrail, readAuditArchive } from "../src/AuditArchive.ts";
+import { verifySequenceIntegrity } from "../src/SequenceIntegrity.ts";
 import { decisionRecord, failedWithCause, httpClientError, numbered } from "./helpers.ts";
 
 describe("archiveAuditTrail", () => {
@@ -54,6 +55,25 @@ describe("archiveAuditTrail", () => {
       yield* archiveAuditTrail([entry], 0).pipe(Effect.provide(tracer));
 
       assert.include(names, "qadi.audit.archiveAuditTrail");
+    }));
+
+  it.effect("verifying a sequence opens a span named qadi.audit.verifySequenceIntegrity", () =>
+    Effect.gen(function* () {
+      const entry = yield* encodeAuditEntry(decisionRecord());
+      const names: Array<string> = [];
+      const tracer = Layer.succeed(
+        Tracer.Tracer,
+        Tracer.make({
+          span: (options) => {
+            names.push(options.name);
+            return new Tracer.NativeSpan(options);
+          },
+        }),
+      );
+
+      yield* verifySequenceIntegrity([entry]).pipe(Effect.provide(tracer));
+
+      assert.deepStrictEqual(names, ["qadi.audit.verifySequenceIntegrity"]);
     }));
 
   it.effect("refuses to archive a broken chain rather than archiving it anyway", () =>
