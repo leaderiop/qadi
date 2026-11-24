@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-194                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-24                                     |
 > | Status         | Accepted — amends ADR-QD-177, ADR-QD-185, ADR-QD-191 and ADR-QD-192 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-24): BEH-QD-741 to BEH-QD-745, INV-QD-407 and INV-QD-408 linked (CCR-QD-473)<br>1.0 (2026-11-24): Initial (ARCH-128, CCR-QD-473) |
+> | Change History | 1.2 (2026-11-25): the change table, item 6 and the test list say what DL1 to DL20 and TF37 now assert (CCR-QD-473)<br>1.1 (2026-11-24): BEH-QD-741 to BEH-QD-745, INV-QD-407 and INV-QD-408 linked (CCR-QD-473)<br>1.0 (2026-11-24): Initial (ARCH-128, CCR-QD-473) |
 
 ---
 
@@ -134,7 +134,8 @@ repaired it. Six defects came out of that, each seen failing on the code before 
 6. **A nested `configure` decides the end state.** A listener that calls `configure(second)` from inside a step runs a
    whole nested `configure`, and the outer call's remaining steps then read the nested inputs, so the model ends where a
    plain `configure(second)` on a fresh model ends (DL17). The same holds inside the timeline feed: its read step reads the
-   held source (TF37).
+   held source (TF37), so the source is read once by the inner call and once by the outer call's own read step, and the
+   replay is deduplicated by the timeline.
 
 ### What changes, and the test that pins it
 
@@ -142,7 +143,7 @@ The counts are those measured on the code before ADR-QD-194 and on the code afte
 
 | Behaviour | Before | After | Test |
 | --------- | ------ | ----- | ---- |
-| A throwing listener on any one of the ten stores during `configure` | every later step skipped; roles `[]`, diagnostics `Off`, no poll, no read | every input applied; the throw rethrown as itself; an identical `configure` changes nothing | DL1 to DL10, DL13, DL14 |
+| A throwing listener on any one of the nine stores a `configure` notifies | every later step skipped; roles `[]`, diagnostics `Off`, no poll, no read | every input applied; the throw rethrown as itself; an identical `configure` changes nothing | DL1 to DL9, DL13, DL14; DL10 pins that the tenth, the lens, is never called by a `configure` |
 | Two listeners throwing in one `configure` | the second replaced the first | one `AggregateError`, in step order, with the dock's message | DL12 |
 | Every store a built model exposes has a row | not asserted | a store added later is a failing row | DL11 |
 | A throwing explorer listener on the record path | the timeline held both entries, the dock and the simulation stayed on the first | the dock and the simulation follow every record; each `accept` rethrows | DL15 |
@@ -204,8 +205,9 @@ listeners account for the whole difference.
 
 - `packages/devtools/test/model/ExternalStore.callAll.test.ts`: the rule on its own (none, one, undefined, null, several in
   call order, one value twice, an `AggregateError` kept whole, a live set).
-- `packages/devtools/test/model/DockModel.listeners.test.ts`: DL1 to DL17, one row per store a built model exposes, the two
-  throwers, the record path, the single publish and the nested `configure`.
+- `packages/devtools/test/model/DockModel.listeners.test.ts`: DL1 to DL20, one row per store a built model exposes, the two
+  throwers, the record path, the single publish, the nested `configure`, the nested `AggregateError` and the record a
+  listener throws on.
 - `packages/devtools/test/model/TimelineFeed.test.ts`: TF28, TF29 and TF37. `DiagnosticsFeed.test.ts`: F31.
   `SimulationSession.runs.test.ts`: SR6. `GatesFeed.test.ts`: G49.
 - `packages/devtools/test/model/ConfigureRule.test.ts`: CR22's restated counts. `DockModel.test.ts`: M55 and M56, unedited.
