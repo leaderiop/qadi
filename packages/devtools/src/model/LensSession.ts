@@ -137,11 +137,10 @@ export const makeLensSession = (): LensSession => {
 
   const store = makeExternalStore<LensSnapshot>(IDLE);
 
-  /** Publishes `next` when it is not the snapshot held; whether it did. */
-  const move = (next: LensSnapshot): boolean => {
-    if (next === store.getSnapshot()) return false;
+  /** Publishes `next` when it is not the snapshot held, so a no-op publishes nothing. */
+  const move = (next: LensSnapshot): void => {
+    if (next === store.getSnapshot()) return;
     store.publish(next);
-    return true;
   };
 
   return {
