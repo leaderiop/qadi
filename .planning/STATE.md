@@ -5,16 +5,16 @@ milestone_name: Arch Wave 14
 current_phase: 79
 current_phase_name: Feeds and the dock model take inputs only through `configure`
 status: executing
-stopped_at: Completed QD-79-13-PLAN.md
-last_updated: "2026-11-24T11:42:26.707Z"
+stopped_at: Completed QD-79-14-PLAN.md
+last_updated: "2026-11-24T11:57:33.261Z"
 last_activity: 2026-11-24
 last_activity_desc: Phase QD-78 complete, transitioned to Phase 79
-state_head: 357ff93009864799055a40f12e78ceed5e955134
+state_head: d647839ecbe0ba9f2fb9b553140efe579a7e3a2b
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 35
-  completed_plans: 31
+  completed_plans: 32
   percent: 50
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-24)
 ## Current Position
 
 Phase: 79 (Feeds and the dock model take inputs only through `configure`) — EXECUTING
-Plan: 14 of 17
+Plan: 15 of 17
 Status: Executing (79-09 complete)
 Last activity: 2026-11-24 — 79-09 complete (the dock maps its inputs onto its feeds in one place)
 
@@ -585,6 +585,7 @@ Progress: [█████░░░░░] 50% (2 of 4 phases)
 | Phase QD-79 P09 | 25min | 2 tasks | 4 files |
 | Phase QD-79 P11 | 25min | 2 tasks | 6 files |
 | Phase QD-79 P13 | 50min | 2 tasks | 7 files |
+| Phase QD-79 P14 | 95min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -1014,6 +1015,7 @@ Progress: [█████░░░░░] 50% (2 of 4 phases)
 - [Phase QD-78]: 78-10: the base's equivalent survivor in TimelineStore.accept was closed by deleting the redundant identity guard (ExternalStore.set decides), decided autonomously
 - [Phase QD-79]: 79-01: the mutation base is recorded as measured on phase_base 910cb783 (five groups, dock 72/72, store 77/78 with one open mutant at ExternalStore.ts:113), committed alone and first
 - [Phase QD-79]: ADR-QD-192 records the feeds and the dock model taking inputs only through configure, with amendments of ADR-QD-137, ADR-QD-173 and ADR-QD-185 (CCR-QD-471)
+- [Phase QD-79]: 79-14: BEH-QD-731 to 735 and INV-QD-403 and 404 state the bare feeds and the one rule; the registry read counts of ADR-QD-192 are pinned by DockRegistryReads.test.tsx, shown failing once (orchestrator-decided)
 
 ### Pending Todos
 
@@ -1090,8 +1092,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-24T11:42:20.391Z
-Stopped at: Completed QD-79-13-PLAN.md
+Last session: 2026-11-24T11:57:32.995Z
+Stopped at: Completed QD-79-14-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
