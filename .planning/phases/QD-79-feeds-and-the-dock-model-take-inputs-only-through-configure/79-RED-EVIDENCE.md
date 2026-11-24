@@ -186,3 +186,12 @@ The first-configure counts of CR22 were measured on the base. With a layer that 
 
 - edit E7: `surface.tst.ts`: the DiagnosticsOptions pin kept at the narrow field types against the widened type
 - failed: DiagnosticsOptions is a layer, a collector and an interval, and nothing else
+
+## 79-08 the timeline feed rule is its one decision
+
+- edit R1: `TimelineFeed.ts`: the `sameFields(held, wanted)` guard in `configure` replaced by `false`, after the second comparison was removed
+- failed: CR1 a fresh literal holding the same source and capacity publishes nothing and starts no read
+- failed: CR2 an omitted capacity, an undefined one and the default are one bound, and an omitted source and an undefined one are one input
+- failed: CR18 an omitted capacity, an undefined one and the default are one bound: the timeline snapshot stays and no read starts
+- failed: TF2 configuring the same source and capacity reads nothing again and notifies nothing
+- failed: TF33 an omitted capacity and the default capacity are one bound: moving between them keeps the timeline and reads nothing again

@@ -192,14 +192,13 @@ export const makeTimelineFeed = Effect.fn("qadi.devtools.makeTimelineFeed")(func
       // The normaliser refuses a bad bound before anything moves.
       const wanted = completeTimelineInputs(next);
       if (sameFields(held, wanted)) return;
-      const before = held;
       held = wanted;
-      // Past the check, `resize` throws only from its publish, after it has resized.
-      let resized = true;
+      // Past the check an input moved, so the read starts again whichever one it was;
+      // `resize` throws only from its publish, after it has resized.
       try {
-        resized = timeline.resize(wanted.capacity);
+        timeline.resize(wanted.capacity);
       } finally {
-        if (resized || wanted.source !== before.source) readSource(wanted.source);
+        readSource(wanted.source);
       }
     },
   };
