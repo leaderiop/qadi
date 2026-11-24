@@ -169,9 +169,9 @@ notification), one value as itself and several as one `AggregateError`. A status
 announces work (`Reading`, `Starting`) is published and the work starts whatever a
 listener throws on it, so a throw leaves no read, poll or run unstarted, and it is
 rethrown once the work has started. A throw a listener makes on a record the timeline
-read hands over, or on a sample the diagnostics poll hands over, still ends that read
-or poll, and its status says so (`Stopped`); so does a questions cadence tick that
-throws, which ends the cadence. The store a host holds as `timeline`
+read hands over, or on a sample the diagnostics poll hands over, ends that read or poll,
+and its status says `Stopped`. A questions cadence tick that throws ends the cadence
+too, because that is the run's own failure. The store a host holds as `timeline`
 is the feed's one store for its whole life, and a capacity other than the one it holds is that store's `resize`, so a
 subscription on it survives a capacity change. A `configure` with a new `capacity` publishes the emptied timeline and
 then starts the read that refills it, from the same `source` or a new one. A throw from a timeline listener on that
