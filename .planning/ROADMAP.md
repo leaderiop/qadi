@@ -650,7 +650,7 @@ Plans:
   5. After a repo-wide search that includes `examples/` and `website/`, `QadiContextValue.instrument` is removed with a Breaking `@qadi/react` changeset, an upgrade-guide entry, a `spec/overview.md` edit and a dated ADR-QD-111 amendment, or the reason it stays is recorded with a first reader.
 
 **Planning notes**: No research flag: `DockSession`, `ExplorerSession` and `HeldChoice` are the precedents and the open items are decisions, not unknown technology. The one decision needing evidence first is persistence: the review treats "a pick survives a tab switch" as the point, while BEH-QD-234's third exit and `01-shell.md:72` say opening the inspector exits lens mode, and a persisted `picked` would re-run `scrollIntoView` on remount (`InstanceRow` must not re-fire) and a persisted highlight would redraw unasked; every changed behaviour gets an ADR row. `choose` is decided synchronously in the capture listener, and the cleanup calls `cancel()` so BEH-QD-234's exit-on-unmount holds. `QuestionsPanel` takes a `lens` prop and `questionsPanelInput.ts` is the single seam for about 42 panel renders. `LensSession.ts` is new and needs its mutation bar set at its first commit; commit `DockModel.ts`'s baseline first. The milestone close re-verifies 77 to 79 and re-runs each phase's record scripts, because 78 to 80 edit the same files.
-**Plans**: 10/13 plans executed (waves 1 to 13, strictly serial)
+**Plans**: 11/13 plans executed (waves 1 to 13, strictly serial)
 
 Plans:
 **Wave 1**
@@ -684,7 +684,7 @@ Plans:
 - [x] 80-10-PLAN.md — BEH-QD-736 to BEH-QD-740, INV-QD-405 and INV-QD-406, the restated records, traceability and the devtools-spec notes
 
 **Wave 11** *(blocked on Wave 10 completion)*
-- [ ] 80-11-PLAN.md — the Breaking `@qadi/react` and patch `@qadi/devtools` changesets, the 0.13 upgrade section, the overview line, CCR-QD-472 complete
+- [x] 80-11-PLAN.md — the Breaking `@qadi/react` and patch `@qadi/devtools` changesets, the 0.13 upgrade section, the overview line, CCR-QD-472 complete
 
 **Wave 12** *(blocked on Wave 11 completion)*
 - [ ] 80-12-PLAN.md — the mutation close of the dock model and the lens session on one head, and every close scan
@@ -703,4 +703,4 @@ Phases execute in numeric order: 77 → 78 → 79 → 80
 | 77. An audit row is a value only its codec makes | 7/7 | Complete    | 2026-11-24 |
 | 78. `TimelineStore` owns its capacity | 11/11 | Complete    | 2026-11-24 |
 | 79. Feeds and the dock model take inputs only through `configure` | 17/17 | Complete    | 2026-11-24 |
-| 80. The highlight lens is a headless session; `instrument` resolved | 10/13 | In Progress | - |
+| 80. The highlight lens is a headless session; `instrument` resolved | 11/13 | In Progress | - |
