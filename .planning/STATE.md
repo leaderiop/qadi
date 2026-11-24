@@ -25,7 +25,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-24)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase QD-78 — `TimelineStore` owns its capacity
+**Current focus:** Phase 79 — Feeds and the dock model take inputs only through `configure`
 
 ## Current Position
 
@@ -34,7 +34,7 @@ Plan: Not started
 Status: Ready to plan
 Last activity: 2026-11-24 — Phase QD-78 complete, transitioned to Phase 79
 
-Progress: [█████░░░░░] 50% (1 of 4 phases)
+Progress: [█████░░░░░] 50% (2 of 4 phases)
 
 
 ## Performance Metrics
