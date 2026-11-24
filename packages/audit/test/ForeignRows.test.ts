@@ -1,17 +1,21 @@
 /**
- * A row the codec did not make is refused where the audit functions take rows.
+ * A row the codec did not make, and a `keyMaterial` the reader would refuse, are refused
+ * where the audit functions take them.
  *
  * The compiler refuses a literal or a spread of a row, but a store client hands rows back
  * as `any` (`JSON.parse`, a raw SQL row, an untyped ORM result) and a JavaScript caller
  * has no compiler at all, so the type alone does not keep one out. Each test builds the
  * rows a store would return, as parsed JSON, and pins the exact refusal, the index of the
  * first row refused, and that nothing was archived or planned from them. A row only the
- * codec made is the positive twin of each.
+ * codec made is the positive twin of each. The writer's third host-supplied input,
+ * `keyMaterial`, is read the same way: a store or a JavaScript caller hands it over as
+ * `any`, and the writer refuses what its own reader would.
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Result from "effect/Result";
 import { archiveAuditTrail, readAuditArchive } from "../src/AuditArchive.ts";
+import type { ArchivalOptions, KeyMaterial } from "../src/AuditArchive.ts";
 import { decodeAuditEntry, encodeAuditEntry } from "../src/AuditEntry.ts";
 import type { AuditEntry } from "../src/AuditEntry.ts";
 import { planPurge, planRetention } from "../src/Retention.ts";
@@ -50,7 +54,11 @@ const planFailure = (entries: ReadonlyArray<AuditEntry>) => {
   return Result.isFailure(result) ? result.failure : assert.fail("the plan took the rows");
 };
 
-const archiveInvalid = (error: { readonly _tag: string }, field: string, value: number) => {
+const archiveInvalid = (
+  error: { readonly _tag: string },
+  field: string,
+  value: unknown,
+) => {
   assert.deepStrictEqual({ ...error }, { _tag: "ArchiveInputInvalid", field, value });
 };
 
@@ -156,5 +164,74 @@ describe("planRetention and planPurge refuse a row the codec did not make", () =
     const result = planPurge([plain], { maxAgeMs: 10 }, 100_000, archive);
     if (!Result.isFailure(result)) return assert.fail("the purge took a row the codec did not make");
     retentionInvalid(result.failure, 0);
+  });
+});
+
+describe("archiveAuditTrail refuses a keyMaterial its reader would refuse", () => {
+  const key = { keyId: "k1", algorithm: "ed25519", publicKey: "AAAA" };
+  type Rows = ReadonlyArray<AuditEntry>;
+  const run = (options: ArchivalOptions, entries: Rows = [good], now = 1_000) =>
+    Effect.runSync(Effect.result(archiveAuditTrail(entries, now, options)));
+  /** What a store client or a JavaScript caller hands over: parsed JSON, typed `any`. */
+  const given = (keyMaterial: unknown): ArchivalOptions =>
+    JSON.parse(JSON.stringify({ keyMaterial }));
+  const refused = (keyMaterial: unknown, entries?: Rows, now?: number) => {
+    const result = run(given(keyMaterial), entries, now);
+    if (Result.isFailure(result)) return result.failure;
+    return assert.fail("the writer archived the keys");
+  };
+
+  it("a number keyId is refused by index, not archived for the reader to refuse", () => {
+    archiveInvalid(refused([{ ...key, keyId: 5 }]), "keyMaterial", 0);
+  });
+
+  it("the index is the first item refused, after items the reader reads", () => {
+    const missing = { keyId: "k2", algorithm: "a" };
+    archiveInvalid(refused([key, missing, null]), "keyMaterial", 1);
+  });
+
+  it("a null item and a string item are refused by index", () => {
+    archiveInvalid(refused([null]), "keyMaterial", 0);
+    archiveInvalid(refused([key, "k"]), "keyMaterial", 1);
+  });
+
+  it("an item with a missing field or a non-string field is refused by index", () => {
+    archiveInvalid(refused([{ keyId: "k", algorithm: "a" }]), "keyMaterial", 0);
+    archiveInvalid(refused([{ ...key, publicKey: null }]), "keyMaterial", 0);
+  });
+
+  it("a hole in the list is an item that is not key material", () => {
+    const sparse: Array<KeyMaterial> = Array.from({ length: 3 });
+    delete sparse[1];
+    sparse[0] = key;
+    sparse[2] = key;
+    const result = run({ keyMaterial: sparse });
+    if (!Result.isFailure(result)) return assert.fail("the writer archived the keys");
+    archiveInvalid(result.failure, "keyMaterial", 1);
+  });
+
+  it("a value that is not a list is refused with the value given", () => {
+    for (const value of ["x", 7, null, true, { keyId: "k" }]) {
+      archiveInvalid(refused(value), "keyMaterial", value);
+    }
+  });
+
+  it("now is read before the keys, and the keys before the rows", () => {
+    const rows = fromStore([notDecodable]);
+    archiveInvalid(refused([null], rows, Number.NaN), "now", Number.NaN);
+    archiveInvalid(refused([null], rows), "keyMaterial", 0);
+  });
+
+  it("the rows are read after the keys the reader reads", () => {
+    archiveInvalid(refused([key], fromStore([notDecodable])), "entries", 0);
+  });
+
+  it("key material the reader reads is archived, with an extra key dropped", () => {
+    for (const keyMaterial of [[key], [{ ...key, privateKey: "secret" }, key], []]) {
+      const archive = Effect.runSync(archiveAuditTrail([good], 1_000, { keyMaterial }));
+      const stored = JSON.parse(JSON.stringify(archive));
+      const read = Result.getOrThrow(readAuditArchive(stored));
+      assert.deepStrictEqual(read.keyMaterial, keyMaterial.map(() => key));
+    }
   });
 });

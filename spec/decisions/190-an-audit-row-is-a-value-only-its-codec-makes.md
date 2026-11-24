@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-190                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-23                                     |
 > | Status         | Accepted — amends ADR-QD-110 and ADR-QD-056; amended 2026-11-24 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-24): amendment — a row is also checked at run time, through a package-private record of what the codec made; ArchiveInputInvalid and RetentionInputInvalid gain the field entries (code review WR-01, CCR-QD-469)<br>1.0 (2026-11-23): Initial (ARCH-124, CCR-QD-469) |
+> | Change History | 1.2 (2026-11-24): second amendment: archiveAuditTrail holds keyMaterial to the reader's schema; ArchiveInputInvalid gains the field keyMaterial and its value is unknown (code review, CCR-QD-469)<br>1.1 (2026-11-24): amendment — a row is also checked at run time, through a package-private record of what the codec made; ArchiveInputInvalid and RetentionInputInvalid gain the field entries (code review WR-01, CCR-QD-469)<br>1.0 (2026-11-23): Initial (ARCH-124, CCR-QD-469) |
 
 ---
 
@@ -298,3 +298,43 @@ Both were written as tests first (`ForeignRows.test.ts`) and were red on the cod
    made with `encodeAuditEntry` sees no difference at run time.
 7. **Decided autonomously on 2026-11-24**, under the owner's standing instruction of 2026-11-22 to take the most complete
    and clean solution and not ask.
+
+## Second amendment (2026-11-24, CCR-QD-469, code review of the first amendment)
+
+**`keyMaterial` is the third input the writer takes from a host, and the type does not bind it either.** The first
+amendment held the rows and `now` to run time and left `options.keyMaterial` to the type. Probed on that code, with a
+codec-made row and `now` of `1`:
+
+| `keyMaterial` given | Result |
+| ------------------- | ------ |
+| `[{ keyId: 5, algorithm: "a", publicKey: "k" }]` (`any`, a number `keyId`) | archived, and `readAuditArchive` refuses the bundle `Malformed`: the defect this record set out to close |
+| `[null]` | a defect, `TypeError: Cannot destructure property 'keyId' of null` |
+| `"x"` | a defect, `TypeError: options?.keyMaterial?.map is not a function` |
+
+1. **The writer holds `keyMaterial` to the reader's own schema.** Each item is checked with `Schema.is` of the
+   module's one `KeyMaterialSchema`, the schema `readAuditArchive` decodes the bundle's `keyMaterial` with, so the
+   shape is stated once and the writer cannot accept an item the reader refuses. `Schema.is` ignores an extra
+   property, which the projection to the three declared fields drops, so an item with a `privateKey` is still
+   archived without it. `Schema.is` is not one of the tokens `UNTRUSTED_DECODE_BUDGET` counts (`Schema.decode*`,
+   `onExcessProperty`, `exceedsJsonDepth`, `JSON.parse`), and no budget moves.
+2. **The refusal is the closed shape the input already had, with a third member.** `ArchiveInputInvalid.field` is
+   `"now" | "keyMaterial" | "entries"`, the whole set. For `keyMaterial`, `value` is the index of the first item that
+   is not key material, or, when what was given is not a list, that value. `value` is `unknown`, which the
+   `number` it was cannot say: a caller the type does not bind can give a `now` that is a string, and a
+   non-list `keyMaterial` is any value. Both the index and the value can be a number, so a host that must tell the
+   two apart asks `Array.isArray` of what it passed; a second `field` member for the non-list case was rejected,
+   because it splits one input into two names for the sake of a case that a host has already seen at its own call
+   site. A `Data.TaggedError` class cannot extend a union of shapes (TS2509), so `field` and `value` stay one pair.
+3. **The order is `now`, then `keyMaterial`, then `entries`, then the facts.** The two scalars-and-small-lists the
+   writer takes as options are read first and cost a constant or the size of the key list, and the rows, which can
+   be many, last, so a refused list is never read and a bad `keyMaterial` is not hidden behind a bad row. The
+   alternative, the signature's own order (entries first), would read an unbounded list before a one-line check.
+4. **Rejected.** Narrowing INV-QD-399 to typed `keyMaterial`, because the invariant and the changeset say "any
+   `keyMaterial`" and the first amendment's reason for a run-time check applies unchanged. `untrustedDecoder` for the
+   list, because it would add a `Schema.decode*` token to `AuditArchive.ts` and move `UNTRUSTED_DECODE_BUDGET` and its
+   table for a list that is not untrusted JSON but an in-process value. Checking after the projection, because the
+   projection is what throws on a `null` item.
+5. **Breaking, in the release this record already marks Breaking.** `archiveAuditTrail` can fail `ArchiveInputInvalid`
+   for `keyMaterial` where it archived a bundle the reader refused or threw, and `value` widens from `number` to
+   `unknown`. A host that passes `keyMaterial` of the declared shape sees no difference at run time.
+6. **Decided autonomously on 2026-11-24**, under the owner's standing instruction of 2026-11-22.

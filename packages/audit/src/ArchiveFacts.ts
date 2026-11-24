@@ -110,12 +110,19 @@ export const archiveFacts = (entries: ReadonlyArray<AuditEntry>): ArchiveFacts =
 };
 
 /**
- * An archive function refused its input: `field` says which, and `value` is the
- * offending number.
+ * An archive function refused its input: `field` says which, and `value` names what
+ * was refused, as each member below says.
  *
- * - `now`: `archiveAuditTrail`'s `now` is not a finite number. A non-finite `createdAt`
- *   is a bundle `readAuditArchive` refuses as `Malformed`, so the writer refuses it
- *   first rather than hand a store an archive that blocks every purge needing it.
+ * - `now`: `archiveAuditTrail`'s `now` is not a finite number, and `value` is the value
+ *   given. A non-finite `createdAt` is a bundle `readAuditArchive` refuses as
+ *   `Malformed`, so the writer refuses it first rather than hand a store an archive that
+ *   blocks every purge needing it.
+ * - `keyMaterial`: `archiveAuditTrail`'s `keyMaterial` is not a list of items the reader
+ *   reads (an object with a string `keyId`, `algorithm` and `publicKey`), so the writer
+ *   would archive a bundle the reader refuses as `Malformed`, or could not read it at
+ *   all. `value` is the index of the first item refused, or, when what was given is not
+ *   a list, that value. A number given where a list belongs reads as an index, so a host
+ *   that must tell the two apart asks `Array.isArray` of what it passed.
  * - `entries`: `value` is the index of the first entry in the list that the codec did
  *   not make (`CodecMade.ts`). The compiler refuses such a row where it can, and `any`
  *   (a store client's `JSON.parse`, an untyped ORM result) and JavaScript callers
@@ -124,11 +131,12 @@ export const archiveFacts = (entries: ReadonlyArray<AuditEntry>): ArchiveFacts =
  *
  * Shaped like `RetentionInputInvalid` (`Retention.ts`), and a different error,
  * because `field` names which call refused. A closed `field` is the whole set of
- * inputs these functions guard.
+ * inputs these functions guard, and `value` is `unknown` because a caller the type
+ * does not bind (`any`, JavaScript) can give a `now` that is not a number.
  */
 export class ArchiveInputInvalid extends Data.TaggedError("ArchiveInputInvalid")<{
-  readonly field: "now" | "entries";
-  readonly value: number;
+  readonly field: "now" | "keyMaterial" | "entries";
+  readonly value: unknown;
 }> {}
 
 export class SequenceIntegrityError extends Data.TaggedError("SequenceIntegrityError")<{

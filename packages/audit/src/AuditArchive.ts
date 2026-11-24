@@ -42,6 +42,18 @@ export interface ArchivalOptions {
 export { ArchiveInputInvalid } from "./ArchiveFacts.ts";
 
 /**
+ * One `keyMaterial` item as the reader reads it, and so as the writer may write it
+ * (`Schema.is` ignores an extra key, which the writer's projection drops).
+ */
+const KeyMaterialSchema = Schema.Struct({
+  keyId: Schema.String,
+  algorithm: Schema.String,
+  publicKey: Schema.String,
+});
+
+const isKeyMaterial = Schema.is(KeyMaterialSchema);
+
+/**
  * The bundle {@link archiveAuditTrail} builds. **Not tamper-evident** (WD-07,
  * see the package README's own "Not tamper-evident" section) — `keyMaterial`
  * is carried, never used to sign or verify anything, and
@@ -86,9 +98,12 @@ const ARCHIVE_VERSION = "1";
 
 /**
  * Builds the bundle from the entries' facts (`archiveFacts`, ADR-QD-110). Fails
- * with `ArchiveInputInvalid` for a `now` that is not finite, before the entries
- * are read, and for the first entry the codec did not make (`field: "entries"`,
- * `value` its index), before any fact is computed from it; otherwise only with
+ * with `ArchiveInputInvalid` for a `now` that is not finite, before anything else is
+ * read; for a `keyMaterial` that is not a list of items with three string fields
+ * (`field: "keyMaterial"`, `value` the index of the first item refused, or the value
+ * given when it is not a list), before the entries are read; and for the first entry
+ * the codec did not make (`field: "entries"`, `value` its index), before any fact is
+ * computed from it; otherwise only with
  * `SequenceIntegrityError`, rather than archiving a set of rows already known to
  * have a gap or a duplicate. An archive exists to be trusted later, so it refuses
  * to be built on a foundation this package can already tell is broken, or one its
@@ -98,9 +113,11 @@ const ARCHIVE_VERSION = "1";
  * (ADR-QD-190). The type says so for a typed caller; a row a store client returned
  * as `any`, or a JavaScript caller's literal, is refused by the run-time check
  * (`CodecMade.ts`), which only `encodeAuditEntry` and `decodeAuditEntry` can
- * satisfy. Each `keyMaterial` item is written as its three declared fields,
- * never judged and never carried with an extra property of a wider value, so a
- * private key or a secret on the object a host passes does not reach the archive.
+ * satisfy. `keyMaterial` is the same kind of input and is held to the reader's own
+ * schema, so a `keyId` typed `any` that is a number is refused here and not archived
+ * for the reader to refuse. Each item is written as its three declared fields, never
+ * judged and never carried with an extra property of a wider value, so a private key
+ * or a secret on the object a host passes does not reach the archive.
  *
  * The sequence check tolerates and is tested against entries arriving out of
  * write order — it checks the *sequence numbers*, not array order.
@@ -126,6 +143,19 @@ export const archiveAuditTrail = Effect.fn("qadi.audit.archiveAuditTrail")(funct
 ) {
   if (!Number.isFinite(now)) {
     return yield* Effect.fail(new ArchiveInputInvalid({ field: "now", value: now }));
+  }
+  // What a store client or a JavaScript caller hands over is not what the type says.
+  const given: unknown = options?.keyMaterial;
+  if (given !== undefined) {
+    if (!Array.isArray(given)) {
+      const refusal = new ArchiveInputInvalid({ field: "keyMaterial", value: given });
+      return yield* Effect.fail(refusal);
+    }
+    const index = given.findIndex((item) => !isKeyMaterial(item));
+    if (index !== -1) {
+      const refusal = new ArchiveInputInvalid({ field: "keyMaterial", value: index });
+      return yield* Effect.fail(refusal);
+    }
   }
   const facts = yield* verifiedArchiveFacts(entries);
   const keyMaterial = options?.keyMaterial?.map(
@@ -255,12 +285,6 @@ class VerifiedArchiveImpl {
  * It proves what the store said it holds, no more.
  */
 export type VerifiedArchive = VerifiedArchiveImpl;
-
-const KeyMaterialSchema = Schema.Struct({
-  keyId: Schema.String,
-  algorithm: Schema.String,
-  publicKey: Schema.String,
-});
 
 const ArchiveEnvelope = Schema.Struct({
   archiveVersion: Schema.String,

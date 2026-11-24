@@ -140,11 +140,14 @@ only function here that returns rows to delete, and `archive` is a
 1. `archiveAuditTrail(entries, now)` bundles the trail (it runs the sequence
    check and writes the entries in sequence order). A `now` that is not finite
    fails `ArchiveInputInvalid`, before the sequence check, because `createdAt`
-   would be written as `null` and the reader would refuse the bundle. So does an
+   would be written as `null` and the reader would refuse the bundle. So does a
+   `keyMaterial` the reader would refuse (an item that is not an object with a
+   string `keyId`, `algorithm` and `publicKey`, or a value that is not a list),
+   naming `keyMaterial` and the index of the first item, and so does an
    entry the codec did not make, naming `entries` and its index: a row your store
    client returned as `any` is read through `decodeAuditEntry` first. Each
    `keyMaterial` item is written as its declared `keyId`, `algorithm` and
-   `publicKey` and nothing else, and its values are never judged.
+   `publicKey` and nothing else, and what they mean is never judged.
 2. You write the bundle to your own long-term storage.
 3. You read it back and pass what the store returned, as parsed JSON, to
    `readAuditArchive`. It refuses a bundle that nests past the decode bound or does not decode, whose count,

@@ -160,9 +160,12 @@ the check reads it.
 **Archival** — `archiveAuditTrail` sorts entries by `sequenceNumber`, stably,
 before setting `metadata.sequenceIntegrityVerified: true`. Entries with no
 `sequenceNumber` follow the sequenced ones, in the order given. A `now` that is not
-finite, or an entry the codec did not make, fails `ArchiveInputInvalid`, naming the field
-and the value (for `entries`, the index of the first), before the sequence is read, and each `keyMaterial` item is written as its declared `keyId`,
-`algorithm` and `publicKey` and no other property, its values never judged.
+finite, a `keyMaterial` that is not a list of objects with a string `keyId`, `algorithm`
+and `publicKey`, or an entry the codec did not make, fails `ArchiveInputInvalid`, naming
+the field and the value (for `keyMaterial` and `entries`, the index of the first item or
+entry refused, or the value given when `keyMaterial` is not a list), before the sequence is
+read, and each `keyMaterial` item is written as its declared `keyId`, `algorithm` and
+`publicKey` and no other property, what they mean never judged.
 `readAuditArchive(input)` reads a stored bundle back. It refuses, each with its own
 `ArchiveRefusal` in an `ArchiveNotVerified`, a bundle that is not an archive, has
 another `archiveVersion`, nests past the decode bound, holds an entry that does not decode, declares a count
