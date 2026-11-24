@@ -115,8 +115,9 @@ export interface PurgePlan {
  * `readAuditArchive` over bytes the store returned, so the archive-before-purge
  * order is a property of the types rather than a duty. What that proves, and
  * what it does not (durability, tamper-evidence), is on its own doc. Selects
- * only; `@qadi/audit` deletes nothing. Cost is one structural hash per row
- * (about 25 µs measured), so a million-row run is a batch job.
+ * only; `@qadi/audit` deletes nothing. Cost is one structural hash per row (the
+ * whole call measured about 22 µs per row, ADR-QD-190), so a million-row run is a
+ * batch job.
  */
 export const planPurge = (
   entries: ReadonlyArray<AuditEntry>,

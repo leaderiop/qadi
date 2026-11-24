@@ -141,3 +141,48 @@ that breaks it is an encoder that writes a record its own codec cannot read back
 A throwaway copy of the test counted its 500 runs: 278 records refused as `SinkRecordNotEncodable`, 222 read back
 (210 with no `Date` and no `undefined` value, so asserted `Equal` to the encoded row; 12 with one, asserted on bytes
 and fixed point only), 122 of the 222 with a `resource`. The copy was deleted.
+
+## The purge cost
+
+`planPurge`'s doc said "about 25 µs measured". The figure came from an unrecorded probe:
+`.planning/milestones/archive-pre-gsd/architecture/ARCH-38-purge-plan.md:501` reads "structural hashing ≈ 25 µs per
+row (probe)", with no rows, machine or method.
+
+- Machine: Apple M3 Pro, `uname -m` `arm64`, `node --version` `v26.13.0`.
+- Method: a throwaway test (deleted, never committed) built 20,000 codec-made rows (`numbered` over
+  `encodeAuditEntry`, distinct evaluation ids, `at` 1000), archived them and read the bundle back with
+  `readAuditArchive`. Each round it rebuilt every row from its JSON text (`decodeAuditEntry(JSON.parse(text))`), so no
+  row and no record object, and therefore no cached hash, was reused, then timed one `planPurge(rows, { maxAgeMs: 10 },
+  1_000_000, verified)` over all 20,000 (every row expired and held, so every row takes the purge branch) with
+  `performance.now()`, and in the same round timed `Hash.hash` alone over another freshly built set. Per-row
+  microseconds are the call time over 20,000.
+
+The five rounds, first as the plan specified them (cold):
+
+| | r1 | r2 | r3 | r4 | r5 | median | max / min |
+| - | -- | -- | -- | -- | -- | ------ | --------- |
+| `planPurge` µs/row | 26.64 | 22.47 | 45.01 | 16.50 | 27.50 | 26.64 | 2.73 |
+| `Hash.hash` alone µs/row | 6.18 | 6.60 | 16.34 | 10.55 | 6.73 | 6.73 | |
+
+That spread is over a factor of two, so the cold run alone does not support a number. The first round runs the
+hashing and `MutableHashMap` code before the engine has warmed it, so the probe was run three more times with one
+uncounted warm-up round before the five counted ones (the only change):
+
+| run | r1 | r2 | r3 | r4 | r5 | median | max / min |
+| --- | -- | -- | -- | -- | -- | ------ | --------- |
+| 1 `planPurge` | 23.85 | 32.79 | 22.79 | 20.86 | 23.66 | 23.66 | 1.57 |
+| 1 `Hash.hash` | 6.77 | 6.45 | 7.85 | 16.14 | 8.21 | 7.85 | |
+| 2 `planPurge` | 21.91 | 22.74 | 22.36 | 18.89 | 26.41 | 22.36 | 1.40 |
+| 2 `Hash.hash` | 8.20 | 18.42 | 10.49 | 6.12 | 6.54 | 8.20 | |
+| 3 `planPurge` | 18.80 | 18.92 | 18.74 | 17.61 | 24.46 | 18.80 | 1.39 |
+| 3 `Hash.hash` | 9.76 | 17.09 | 24.03 | 6.44 | 7.62 | 9.76 | |
+
+Each warmed run is within a factor of two (1.39 to 1.57). The median of the fifteen counted rounds is 22.36 µs per
+row, so the doc says "about 22 µs". The run-to-run medians span 18.8 to 23.7, so the figure is an order of magnitude,
+not a constant. `Hash.hash` alone is 6 to 10 µs per row, so the 22 µs is the whole call (the age pass, the identity
+set, the structural hash and the comparison against the archived copy), and the sentence now says so; the earlier
+wording read as if the hash alone cost the whole figure. The old 25 µs falls inside the measured range of the cold
+run, so it was not wrong by much, only unrecorded.
+
+Sentence now: "Cost is one structural hash per row (the whole call measured about 22 µs per row, ADR-QD-190), so a
+million-row run is a batch job."
