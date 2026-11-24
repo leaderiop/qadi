@@ -24,6 +24,7 @@ import * as Data from "effect/Data";
 import * as Order from "effect/Order";
 import type { DecisionRecord, ObligationRecord, SinkRecord, StoredRecord } from "@qadi/core";
 import { DEFAULT_LOG_CAPACITY, sinkRecordOrder } from "@qadi/core";
+import { sameElements } from "./ExternalStore.ts";
 
 /** One evaluation, as one process saw it. */
 export class TimelineDecision extends Data.TaggedClass("TimelineDecision")<{
@@ -248,6 +249,5 @@ const insert = (
  */
 const bound = (self: Timeline, entries: ReadonlyArray<TimelineEntry>): Timeline => {
   const kept = entries.slice(Math.max(0, entries.length - self.capacity));
-  const nothingChanged = kept.length === 0 && self.entries.length === 0;
-  return nothingChanged ? self : { ...self, entries: kept };
+  return sameElements(kept, self.entries) ? self : { ...self, entries: kept };
 };

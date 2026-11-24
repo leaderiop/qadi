@@ -367,6 +367,35 @@ describe("capacity", () => {
     assert.strictEqual(ingest(empty, orphan), empty);
   });
 
+  it("an older record a full timeline evicts at once returns the identical timeline", () => {
+    const full = fold(
+      [
+        decisionRecord({ evaluationId: "b", at: 200 }),
+        decisionRecord({ evaluationId: "c", at: 300 }),
+      ],
+      2,
+    );
+
+    const next = ingest(full, decisionRecord({ evaluationId: "a", at: 100 }));
+
+    assert.strictEqual(next, full);
+  });
+
+  it("a newer record a full timeline keeps returns a new timeline with the oldest dropped", () => {
+    const full = fold(
+      [
+        decisionRecord({ evaluationId: "b", at: 200 }),
+        decisionRecord({ evaluationId: "c", at: 300 }),
+      ],
+      2,
+    );
+
+    const next = ingest(full, decisionRecord({ evaluationId: "d", at: 400 }));
+
+    assert.notStrictEqual(next, full);
+    assert.deepStrictEqual(ids(next.entries), ["c", "d"]);
+  });
+
   it("a timeline holding entries over a zero bound is emptied by the next record", () => {
     const one = ingest(
       emptyTimeline({ capacity: 1 }),
