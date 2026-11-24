@@ -54,3 +54,27 @@ The pinned check was run once on a planted change: one assertion inside a lens c
 and `git status --short -- packages` printed nothing once restored.
 
 - check failed: 80-pinned-check.mjs: packages/devtools/test/react/QuestionsPanel.gates.test.tsx: differs from its base text at line 223
+
+## 80-05 the lens session
+
+Each title was run against two scratch stubs, never committed: the inert one (every command a no-op, `choose` and
+`takeReveal` false) and the eager one (starts picking, every command publishes a fresh snapshot, `highlight` keeps
+picking, `choose`, `takeReveal` and `isPicking` always true). Each title below failed under the stub named; a title that
+failed under both is listed under the inert one.
+
+- stubs: inert and eager
+- failed (eager): a new session is idle, draws nothing and holds no pick
+- failed (inert): toggle from idle enters picking with nothing drawn and drops the pick; toggle while picking returns to idle with nothing drawn and nothing picked
+- failed (inert): a hover while idle changes nothing and publishes nothing; a hover while picking draws the guard under the pointer, or nothing; a hover over the guard already drawn publishes nothing
+- failed (inert): a choose while idle consumes nothing and publishes nothing; a choose over nothing while picking consumes nothing and keeps picking; a choose over a guard while picking consumes the click, picks it and leaves picking
+- failed (inert): cancel while picking returns to idle with nothing drawn and nothing picked; cancel while idle clears the drawing and keeps the pick; cancel while idle with nothing drawn publishes nothing
+- failed (inert): highlight while idle draws the guards asked for and keeps the pick; highlight with the same guards publishes nothing; highlight with the same guards in another order publishes; highlight while picking ends picking and draws the guards asked for
+- failed (inert): highlight with no guards while idle draws nothing and keeps the pick
+- failed (inert): a published snapshot keeps the array it was given
+- failed (inert): a repeated cancel, hover or highlight publishes once
+- failed (inert): a pick reveals its row once, and only for its own guard; toggle disarms a reveal that was not taken; takeReveal publishes nothing
+- failed (inert): a listener told of a pick can take its reveal
+- failed (inert): a command run from inside a listener sees the snapshot already published
+- failed (inert): pickedOf reads the pick of an idle snapshot and nothing while picking; isPicking is true only while picking
+- failed (eager): every sequence of commands keeps picking free of a pick and draws at most one guard while picking
+- failed (eager): a command publishes exactly when the snapshot changes
