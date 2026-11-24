@@ -5,16 +5,16 @@ milestone_name: Arch Wave 15
 current_phase: 81
 current_phase_name: The dock model applies every input whatever a listener throws
 status: executing
-stopped_at: v1.10 roadmap created — Phase 81 not started
-last_updated: "2026-11-24T21:53:54.901Z"
+stopped_at: Completed 81-01-PLAN.md
+last_updated: "2026-11-24T22:04:34.643Z"
 last_activity: 2026-11-24
-last_activity_desc: v1.10 roadmap created (Phases 81-84)
-state_head: 98871dc8d5b11f45d669319c7738d6899b9bd79e
+last_activity_desc: Phase QD-81 execution started
+state_head: a24a403312854717d8fafaef7733958eb02bc004
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 11
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
 ---
 
@@ -25,14 +25,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-24)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** v1.10 Arch Wave 15, Phase 81 (the dock model applies every input whatever a listener throws); roadmap created 2026-11-24 (Phases 81-84, strictly serial; v1.9 not merged, not released)
+**Current focus:** Phase QD-81 — The dock model applies every input whatever a listener throws
 
 ## Current Position
 
-Phase: QD-81 (The dock model applies every input whatever a listener throws) — READY TO EXECUTE
-Plan: —
-Status: Ready to execute
-Last activity: 2026-11-24 — v1.10 roadmap created (Phases 81-84)
+Phase: QD-81 (The dock model applies every input whatever a listener throws) — EXECUTING
+Plan: 2 of 11
+Status: Executing Phase QD-81
+Last activity: 2026-11-24 — Phase QD-81 execution started
 
 
 ## Performance Metrics
@@ -601,6 +601,7 @@ Last activity: 2026-11-24 — v1.10 roadmap created (Phases 81-84)
 | Phase QD-80 P11 | 20min | 2 tasks | 5 files |
 | Phase QD-80 P12 | 20min | 2 tasks | 2 files |
 | Phase QD-80 P13 | 45min | 2 tasks | 1 files |
+| Phase 81 P01 | 15 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -1038,6 +1039,8 @@ Last activity: 2026-11-24 — v1.10 roadmap created (Phases 81-84)
 - [Phase QD-80]: 80-03: a remounted guard registers under a new id (useId branch new), so a pick held by gate id needs no retain(ids)
 - [Phase QD-80]: Decision index status strings record each ADR-QD-193 amendment (orchestrator-decided)
 - [Phase QD-80]: Plan 80-12: the lens session's move returns void (its boolean was read by no caller; two unkillable BooleanLiteral mutants), orchestrator-decided
+- [Phase 81]: The mutation base of the five model files is recorded as measured: SimulationSession.ts holds 6 Survived mutants on the phase base, its floor is 242/248
+- [Phase 81]: single-source judges the blanked text of src/model/** and adds two reasons beyond the plan's list so a tree with nothing to read cannot pass
 
 ### Pending Todos
 
@@ -1117,8 +1120,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-24T20:54:19.000Z
-Stopped at: v1.10 roadmap created — Phase 81 not started
+Last session: 2026-11-24T22:04:34.611Z
+Stopped at: Completed 81-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
