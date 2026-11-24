@@ -1,6 +1,7 @@
 // The phase's mutation record, over the four source files Phase 77 edits, one Stryker group per file: `entry`
 // (`AuditEntry.ts`), `facts` (`ArchiveFacts.ts`), `archive` (`AuditArchive.ts`) and `retention` (`Retention.ts`), all
-// through `stryker.audit.mjs`. No group is close-only, because the phase adds no source file. `record base|close <group>`
+// through `stryker.audit.mjs`. One group is close-only, `made` (`CodecMade.ts`, the one source file the phase adds, in
+// its review fix). `record base|close <group>`
 // reads the group's report and writes, under that group in `77-mutation-base.json` or `77-mutation-close.json`, each
 // file's counts and its open (Survived, NoCoverage) and Ignored mutants; every group of one record is measured on one
 // commit, and `record close <group> --restart` starts a fresh close record at the current head and names the groups it
@@ -24,6 +25,8 @@ const GROUPS = {
   facts: { ...AUDIT, files: ["packages/audit/src/ArchiveFacts.ts"] },
   archive: { ...AUDIT, files: ["packages/audit/src/AuditArchive.ts"] },
   retention: { ...AUDIT, files: ["packages/audit/src/Retention.ts"] },
+  // The run-time brand a review added: a new file, so it has no base and may hold no open mutant.
+  made: { ...AUDIT, files: ["packages/audit/src/CodecMade.ts"], closeOnly: true },
 };
 const invocation = (group) => `pnpm exec stryker run ${GROUPS[group].config} --mutate ${GROUPS[group].files.join(",")}`;
 const DETECTED = new Set(["Killed", "Timeout"]);
@@ -347,7 +350,7 @@ const MODES = {
   compare: { clean: false, run: () => compare() },
   "--self-test": { clean: false, run: () => selfTest() },
 };
-const usage = () => fail(["usage: node 77-mutation.mjs record base|close entry|facts|archive|retention [--restart], compare, or --self-test"]);
+const usage = () => fail(["usage: node 77-mutation.mjs record base|close entry|facts|archive|retention|made [--restart] (base is not for made), compare, or --self-test"]);
 /** Runs `mode`, refusing first when it records and `status` shows a read file modified. */
 function dispatch(modes, mode, args, status, refuse) {
   const entry = Object.hasOwn(modes, mode) ? modes[mode] : undefined;
