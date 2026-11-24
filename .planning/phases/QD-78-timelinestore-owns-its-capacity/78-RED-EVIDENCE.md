@@ -31,6 +31,18 @@ Each row is a capacity defect of the timeline, the store, the feed or the hand-f
 - RED: UT4 a changed capacity empties the hand-fed store at the new bound and keeps the store
   - `AssertionError: expected 5 to equal 1` (the hand-fed store kept its first capacity)
 
+### The dock
+
+- RED: M55: a capacity the timeline refuses throws and changes nothing in the dock, so a later configure compares with the inputs the dock held
+  - `AssertionError: expected 6 to equal +0` (the later configure with the held inputs moved the rails, the ports and the timeline: six notifications)
+- RED: M56: a timeline listener that throws on a capacity change is rethrown once the dock has applied the rest of the configure
+  - `AssertionError: expected [] to deeply equal [ 'editor' ]` (the throw escaped before the role list was applied)
+
+The dock rows ran at HEAD `324bf9da` (no file under `packages/devtools/src` differs from `phase_base`), by
+`pnpm exec vitest run --project devtools packages/devtools/test/model/DockModel.test.ts --reporter=json
+--outputFile=<S>/red-dock.json`: `Tests  2 failed | 61 passed (63)`; the command exits non-zero. `DockModel.ts` assigns its
+inputs before the timeline feed is configured, and applies the rest in straight-line code after it.
+
 ## Not RED at the base
 
 None. Every test written to be RED on the base failed there.

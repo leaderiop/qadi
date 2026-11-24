@@ -67,6 +67,7 @@ import {
   read,
   readPolicy,
   settleTurns,
+  thrownBy,
   tick,
 } from "../helpers.ts";
 import { makeGateRegistryDouble } from "../gateRegistryDouble.ts";
@@ -437,6 +438,58 @@ describe("a capacity change empties the timeline and keeps the dock's choices (M
 
       for (let i = 1; i <= 6; i++) model.timeline.accept(decided(`n${i}`, i * 100, readPolicy, "read"));
       assert.strictEqual(model.timeline.getSnapshot().entries.length, 6);
+    }));
+});
+
+describe("a capacity the timeline refuses or a listener interrupts is taken whole or not at all (M55, M56)", () => {
+  it.effect("M55: a capacity the timeline refuses throws and changes nothing in the dock, so a later configure compares with the inputs the dock held", () =>
+    Effect.gen(function* () {
+      const held: Catalogue = { policies: { canRead: readPolicy }, roles: [editor] };
+      const other: Catalogue = { policies: { canWrite: writePolicy }, roles: [viewer] };
+      const model = yield* makeDockModel({ capacity: 5, catalogue: held });
+      model.timeline.accept(decided("a", 100, readPolicy, "read"));
+      const seen = listen(model);
+
+      const refused = thrownBy(() =>
+        model.configure({ capacity: -1, catalogue: other, ports: brokenPorts }),
+      );
+
+      assert.isTrue(refused.threw);
+      assert.instanceOf(refused.thrown, Error);
+      assert.strictEqual(
+        refused.thrown instanceof Error ? refused.thrown.message : "",
+        "emptyTimeline: capacity must be a non-negative integer, got -1",
+      );
+      assert.strictEqual(seen.calls, 0);
+
+      model.configure({ capacity: 5, catalogue: held });
+
+      assert.strictEqual(seen.calls, 0);
+      assert.strictEqual(model.timeline.getSnapshot().entries.length, 1);
+    }));
+
+  it.effect("M56: a timeline listener that throws on a capacity change is rethrown once the dock has applied the rest of the configure", () =>
+    Effect.gen(function* () {
+      const model = yield* makeDockModel({ capacity: 5 });
+      const boom = new Error("a timeline listener threw");
+      model.timeline.subscribe(() => {
+        throw boom;
+      });
+      const catalogue: Catalogue = { policies: { canRead: readPolicy }, roles: [editor] };
+
+      const run = thrownBy(() =>
+        model.configure({ capacity: 3, catalogue, diagnostics: {} }),
+      );
+
+      assert.isTrue(run.threw);
+      assert.strictEqual(run.thrown, boom);
+      assert.strictEqual(model.timeline.getSnapshot().capacity, 3);
+      assert.deepStrictEqual(
+        model.roles.getSnapshot().list.map((held) => held.name),
+        ["editor"],
+      );
+      const { status } = model.diagnostics.getSnapshot();
+      assert.isFalse(DiagnosticsStatus.$is("Off")(status));
     }));
 });
 
