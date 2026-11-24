@@ -2,7 +2,7 @@
  "phase": "79",
  "groups": {
   "timeline": {
-   "head": "c9186646a186526784d7b0a5524360749b9df8cd",
+   "head": "92cfd9868b51245805ef187cf6e5342e17e88824",
    "invocation": "pnpm exec stryker run stryker.devtools.mjs --mutate packages/devtools/src/model/TimelineFeed.ts",
    "files": {
     "packages/devtools/src/model/TimelineFeed.ts": {
@@ -97,7 +97,7 @@
    }
   },
   "diagnostics": {
-   "head": "c9186646a186526784d7b0a5524360749b9df8cd",
+   "head": "92cfd9868b51245805ef187cf6e5342e17e88824",
    "invocation": "pnpm exec stryker run stryker.devtools.mjs --mutate packages/devtools/src/model/DiagnosticsFeed.ts",
    "files": {
     "packages/devtools/src/model/DiagnosticsFeed.ts": {
@@ -205,7 +205,7 @@
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 160,
+       "line": 163,
        "column": 46
       }
      ]
@@ -213,7 +213,7 @@
    }
   },
   "gates": {
-   "head": "c9186646a186526784d7b0a5524360749b9df8cd",
+   "head": "92cfd9868b51245805ef187cf6e5342e17e88824",
    "invocation": "pnpm exec stryker run stryker.devtools.mjs --mutate packages/devtools/src/model/GatesFeed.ts",
    "files": {
     "packages/devtools/src/model/GatesFeed.ts": {
@@ -251,7 +251,7 @@
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 150,
+       "line": 151,
        "column": 40
       }
      ]
@@ -259,7 +259,7 @@
    }
   },
   "store": {
-   "head": "c9186646a186526784d7b0a5524360749b9df8cd",
+   "head": "92cfd9868b51245805ef187cf6e5342e17e88824",
    "invocation": "pnpm exec stryker run stryker.devtools.mjs --mutate packages/devtools/src/model/ExternalStore.ts",
    "files": {
     "packages/devtools/src/model/ExternalStore.ts": {
@@ -298,101 +298,101 @@
    }
   },
   "dock": {
-   "head": "c9186646a186526784d7b0a5524360749b9df8cd",
+   "head": "92cfd9868b51245805ef187cf6e5342e17e88824",
    "invocation": "pnpm exec stryker run stryker.devtools.mjs --mutate packages/devtools/src/model/DockModel.ts",
    "files": {
     "packages/devtools/src/model/DockModel.ts": {
-     "killed": 72,
+     "killed": 69,
      "timeout": 0,
      "survived": 0,
      "noCoverage": 0,
      "ignored": 12,
-     "detected": 72,
-     "valid": 72,
+     "detected": 69,
+     "valid": 69,
      "open": [],
      "ignoredMutants": [
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 175,
+       "line": 177,
        "column": 35
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 199,
+       "line": 205,
        "column": 29
       },
       {
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 239,
+       "line": 245,
        "column": 24
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 240,
+       "line": 246,
        "column": 16
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 241,
+       "line": 247,
        "column": 11
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 242,
+       "line": 248,
        "column": 13
       },
       {
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 251,
+       "line": 257,
        "column": 24
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 252,
+       "line": 258,
        "column": 15
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 253,
+       "line": 259,
        "column": 11
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 254,
+       "line": 260,
        "column": 13
       },
       {
        "status": "Ignored",
        "mutator": "ArrayDeclaration",
        "replacement": "[\"Stryker was here\"]",
-       "line": 302,
+       "line": 308,
        "column": 39
       },
       {
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 310,
+       "line": 317,
        "column": 40
       }
      ]
