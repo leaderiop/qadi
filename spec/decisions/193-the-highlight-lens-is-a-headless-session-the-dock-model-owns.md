@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-193                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-11-24                                     |
 > | Status         | Accepted — amends ADR-QD-185, ADR-QD-047 and ADR-QD-111 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-11-24): the reader-facing table lists seven interaction rows, the keyboard click and the dropped reveal included (CCR-QD-472)<br>1.2 (2026-11-24): the review's corrections: the reveal belongs to its pick, the click placed by its element and swallowed whatever a subscriber does, the capture wording (CCR-QD-472)<br>1.1 (2026-11-24): the behaviours and invariants that state it are linked (CCR-QD-472)<br>1.0 (2026-11-24): Initial (ARCH-127) |
+> | Change History | 1.5 (2026-11-24): hover and choose from idle are reached by the adapter between a pick and its listeners coming off (CCR-QD-472)<br>1.4 (2026-11-24): a hover leaves the reveal and moves nothing from idle, the state between a pick and the listeners coming off (CCR-QD-472)<br>1.3 (2026-11-24): the reader-facing table lists seven interaction rows, the keyboard click and the dropped reveal included (CCR-QD-472)<br>1.2 (2026-11-24): the review's corrections: the reveal belongs to its pick, the click placed by its element and swallowed whatever a subscriber does, the capture wording (CCR-QD-472)<br>1.1 (2026-11-24): the behaviours and invariants that state it are linked (CCR-QD-472)<br>1.0 (2026-11-24): Initial (ARCH-127) |
 
 ---
 
@@ -78,8 +78,8 @@ React hook, and a field of the provider's context had no reader.
 
    `choose` answers whether the click it was given is consumed, so the adapter decides it synchronously inside the capture
    listener: a click is swallowed only by a pick that found a guard, and an idle lens never swallows one. `hover` and `choose`
-   from `Idle` are reachable only headlessly, because the adapter listens only while picking; they are pinned so that an idle
-   lens fails closed. There is **no `clear` command**: each outcome it would have is already another command's, `cancel()` or
+   from `Idle` reach the session from the adapter only between a pick and its listeners coming off, when React commits it,
+   and otherwise only headlessly; they are pinned so that an idle lens fails closed. There is **no `clear` command**: each outcome it would have is already another command's, `cancel()` or
    `highlight([])` from `Idle` and `hover(undefined)` from `Picking`, and no caller would read a second name for a transition
    that exists. "Draw nothing" is `highlight([])` while idle and `hover(undefined)` while picking.
 
@@ -140,7 +140,9 @@ React hook, and a field of the provider's context had no reader.
    mount would scroll the panel at every return to the tab. `choose` arms a one-shot reveal for the chosen guard before it
    publishes, so a listener told of the pick can take it, and `takeReveal(id)` answers `true` once, for that guard only, and
    disarms it. A reveal belongs to the moment of its pick: `toggle`, `cancel` and `highlight` disarm it, whether or not they
-   moved the snapshot, and `hover` leaves it. `takeReveal` publishes nothing, because it is an event and not state. The row's
+   moved the snapshot. A `hover` leaves it, and from `Idle` it moves nothing: that is the state between a pick and the
+   listeners coming off, which happens when React commits the pick, so a pointer move can still arrive in it. `takeReveal`
+   publishes nothing, because it is an event and not state. The row's
    effect is `if (picked && session.takeReveal(instance.id)) node.current?.scrollIntoView(...)`. A row not rendered when the
    pick happened reveals itself the first time it mounts after the pick, which is the first reveal and not a re-fire, unless
    the reader has left the panel or asked for a drawing in between, which dropped it, and
@@ -186,8 +188,8 @@ names the test that holds its after.
 | Behaviour | Before | After | Held by |
 | --------- | ------ | ----- | ------- |
 | The pick after a tab switch | A pick, then a switch to the log and back: the row is not marked, picking is off, no overlay remains, and the pick button reads "pick a control on the page" | The row is still marked with its existing `data-qadi-picked` background, and the panel does not scroll on the return; picking is off and no overlay remains | `Lens.dock.characterisation.test.tsx`, "a pick, then a switch to the log and back"; `Lens.dock.test.tsx`, "under StrictMode a pick reveals its row once, and after a switch to the log and back the row is still marked with no second reveal" |
-| The reveal | The row's effect scrolls it into view whenever it mounts picked | It scrolls once for the pick that was made | `LensSession.test.ts`, "a pick reveals its row once, and only for its own guard; toggle, cancel and highlight disarm a reveal that was not taken and hover does not; takeReveal publishes nothing" |
-| A reveal not yet taken | The row scrolls into view whenever it next mounts picked, however long it has waited | A reveal not yet taken is dropped when the reader leaves the panel, starts picking again or presses a highlight, and the row then does not scroll | `LensSession.test.ts`, "a pick reveals its row once, and only for its own guard; toggle, cancel and highlight disarm a reveal that was not taken and hover does not; takeReveal publishes nothing" |
+| The reveal | The row's effect scrolls it into view whenever it mounts picked | It scrolls once for the pick that was made | `LensSession.test.ts`, "a pick reveals its row once, and only for its own guard; toggle, cancel and highlight disarm a reveal that was not taken, and a hover, which moves nothing from idle, does not; takeReveal publishes nothing" |
+| A reveal not yet taken | The row scrolls into view whenever it next mounts picked, however long it has waited | A reveal not yet taken is dropped when the reader leaves the panel, starts picking again or presses a highlight, and the row then does not scroll | `LensSession.test.ts`, "a pick reveals its row once, and only for its own guard; toggle, cancel and highlight disarm a reveal that was not taken, and a hover, which moves nothing from idle, does not; takeReveal publishes nothing" |
 | Highlight pressed while picking | Picking stays on, the overlays are drawn, and the next pointer move over the dock removes them | Picking ends and the overlays stay | `Lens.dock.characterisation.test.tsx`, "the highlight button pressed while picking"; `LensSession.test.ts`, the cell whose title ends "highlight while picking ends picking and draws the guards asked for" |
 | Two pointer moves over one guard | The panel re-renders and the overlay element is replaced each time | Nothing is published and the overlay element is the same | `Lens.dock.characterisation.test.tsx`, "two pointer moves over one guard while picking"; `LensSession.test.ts`, the cell whose title contains "a hover over the guard already drawn publishes nothing" |
 | A click made from the keyboard while picking | A click on a focused control was placed by its coordinates, which a browser may report as the page's corner, so a guard wrapping the page took the reader's press | It is placed by the control it was made on | `Lens.adapter.test.tsx`, "a click made with no pointer is placed by the control it was made on, not by a point it did not report"; `Lens.click.test.ts`, "a click with no pointer is placed by the element it was made on, not by a point" |

@@ -240,7 +240,7 @@ describe("the lens session", () => {
     assert.strictEqual(heard.calls, 4);
   });
 
-  it("a pick reveals its row once, and only for its own guard; toggle, cancel and highlight disarm a reveal that was not taken and hover does not; takeReveal publishes nothing", () => {
+  it("a pick reveals its row once, and only for its own guard; toggle, cancel and highlight disarm a reveal that was not taken, and a hover, which moves nothing from idle, does not; takeReveal publishes nothing", () => {
     const { session, heard } = pickedOff("a");
     const picked = session.getSnapshot();
     const before = heard.calls;
@@ -251,6 +251,7 @@ describe("the lens session", () => {
     assert.strictEqual(heard.calls, before);
 
     const kept = pickedOff("a");
+    // Idle between the pick and the listeners coming off: a hover moves nothing and leaves it.
     kept.session.hover("b");
     assert.isFalse(kept.session.choose("b"));
     assert.isFalse(kept.session.takeReveal("b"));

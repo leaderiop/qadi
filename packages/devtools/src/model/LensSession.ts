@@ -13,8 +13,9 @@
  * whether the page sees it. A pick arms a one-shot reveal for its guard; `takeReveal`
  * answers true once and publishes nothing, so a row scrolls itself into view for the
  * pick that was made and not again on a later render. The reveal belongs to the moment
- * of its pick: `toggle`, `cancel` and `highlight` disarm it, and `hover` leaves it. The
- * pick is held by the guard's id and only `choose` or `toggle` replaces it.
+ * of its pick: `toggle`, `cancel` and `highlight` disarm it. A `hover` leaves it, and
+ * moves nothing from `Idle`, where the lens is between a pick and the listeners coming
+ * off. The pick is held by the guard's id and only `choose` or `toggle` replaces it.
  *
  * Package-private (ADR-QD-099): the dock's model owns it and the document adapter
  * drives it. `DockSession` is the shape.
@@ -71,7 +72,8 @@ export interface LensSession extends ReadableStore<LensSnapshot> {
   readonly highlight: (ids: ReadonlyArray<string>) => void;
   /**
    * Whether the reveal the pick armed for this guard is still to be taken; true once.
-   * `toggle`, `cancel` and `highlight` disarm it, and `hover` does not.
+   * `toggle`, `cancel` and `highlight` disarm it; `hover` does not, and from `Idle` it
+   * moves nothing.
    */
   readonly takeReveal: (id: string) => boolean;
 }

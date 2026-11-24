@@ -194,3 +194,14 @@ with its reason.
 
 - check failed: 80-pinned-check.mjs: packages/devtools/test/react/QuestionsPanel.gates.test.tsx: differs from its base text at line 391
 - failed: leaves the mode on Escape
+
+## review fixes (iteration 2)
+
+### IN-01 a hover from idle leaves the reveal, and says so
+
+`hover` acts only from `Picking`, and a reveal is armed only by `choose`, which leaves `Picking`, so the rule is held by the
+one state where both are true: `Idle` between a pick and the listeners coming off. The cell's hover line was run against a
+scratch edit of `LensSession.ts` that made `hover` disarm (restored with `cp`): `expected false to be true`; 1 failed, 14
+passed. The title now states the rule as it holds.
+
+- failed: a pick reveals its row once, and only for its own guard; toggle, cancel and highlight disarm a reveal that was not taken, and a hover, which moves nothing from idle, does not; takeReveal publishes nothing
