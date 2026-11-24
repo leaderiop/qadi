@@ -2,20 +2,19 @@
 gsd_state_version: "1.0"
 milestone: v1.9
 milestone_name: Arch Wave 14
-current_phase: 80
-current_plan: Not started
-status: completed
+status: Awaiting next milestone
 stopped_at: Phase QD-80 complete — all phases complete
-last_updated: "2026-11-24T17:59:39.372Z"
+last_updated: "2026-11-24T18:10:55.608Z"
 last_activity: 2026-11-24
-last_activity_desc: Phase QD-80 complete
-state_head: 34db327797b35d3147f07c208fff293d75a135b4
+last_activity_desc: Milestone v1.9 completed and archived
+state_head: b477bb966eed3ff14bb1bbf58bafc1f1134b2e47
 progress:
   total_phases: 4
   completed_phases: 4
   total_plans: 48
   completed_plans: 48
   percent: 100
+current_phase: 80
 ---
 
 # Project State
@@ -25,17 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-24)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 79 — Feeds and the dock model take inputs only through `configure`
+**Current focus:** Planning the next milestone (v1.9 Arch Wave 14 completed 2026-11-24; not merged, not released)
 
 ## Current Position
 
-Phase: QD-80
-Current Plan: Not started
-Total Plans in Phase: 13
-Status: All phases complete
-Last activity: 2026-11-24 — Phase QD-80 complete
-
-Progress: [██████████] 100% (2 of 4 phases)
+Phase: Milestone v1.9 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-11-24 — Milestone v1.9 completed and archived
 
 
 ## Performance Metrics
@@ -1105,6 +1101,7 @@ Progress: [██████████] 100% (2 of 4 phases)
 - Phase 68.1 inserted after Phase 68: Address tech debt from the v1.7 audit (owner chose a cleanup phase before completing)
 - v1.8 roadmap created 2026-11-22: Phases 69-76, one per review candidate (ARCH-116 to ARCH-123), strictly serial; 47 of 47 requirements mapped (40 phase-specific, 7 cross-cutting WX-01 to WX-07 on every phase)
 - v1.9 roadmap created 2026-11-23: Phases 77-80, one per review candidate (ARCH-124 to ARCH-127), strictly serial (owner decision D2); 28 of 28 requirements mapped (21 phase-specific, 7 cross-cutting WX-01 to WX-07 on every phase); research flags on 77 and 79
+- v1.9 completed 2026-11-24: Phases 77-80 archived to `.planning/milestones/v1.9-phases/`; audit `passed` (28/28, 9/9, 4/4)
 
 ## Deferred Items
 
@@ -1123,5 +1120,5 @@ Resume file: None
 
 ## Operator Next Steps
 
-- Phase 77 complete and verified; next: discuss and plan Phase 78 (`TimelineStore` owns its capacity, ARCH-125)
-- Branch `arch-wave-14` is not merged and nothing is released (owner instruction: release only when asked for "the release")
+
+- Start the next milestone with /gsd-new-milestone

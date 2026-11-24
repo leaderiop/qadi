@@ -13,7 +13,7 @@ module was a shallow pass-through.
 The review is at https://claude.ai/artifact/LH5dLGadz28NyzmZez9jcX, with a local copy at
 `/tmp/claude-1002/-home-yopu-Project-Perso-qadi/588341bb-9f42-4e6e-b1a3-ed991ed47acf/scratchpad/qadi-architecture-review.html`.
 
-## Current Milestone: v1.9 Arch Wave 14
+## Previous Milestone: v1.9 Arch Wave 14 (completed 2026-11-24; not released)
 
 **Goal:** Resolve all four candidates of the 2026-11-23 architecture review. The audit row goes first, because it may
 hide a live defect (the package can write an archive its own reader refuses), then the three devtools deepenings.
@@ -34,6 +34,19 @@ hide a live defect (the package can write an archive its own reader refuses), th
 **Source review:** `/private/tmp/claude-502/-Users-mohammadalmechkor-Projects-Perso-qadi/8b5d3789-bd5e-4ce2-bf7e-0b31a0ae4995/scratchpad/architecture-review-20261123.html`
 (session-scoped; `.planning/phases/_WAVE14-CONTEXT.md` holds everything a planner needs). Branch `arch-wave-14`, based on
 `main` at `5784bbd6` (v1.8 merged as #164). No merge, no release.
+
+v1.9 Arch Wave 14 completed 2026-11-24 on branch `arch-wave-14` (285 commits; 98 files, +9,623 / −1,278 outside
+`.planning`): ARCH-124 to ARCH-127, ADR-QD-190 to ADR-QD-193, amendments to ADR-QD-047, 056, 110, 111, 137, 173 and 185,
+and CCR-QD-469..472. All 4 phases `passed`, Nyquist-compliant and secured (0 open threats). Each phase ran a
+three-iteration code review and re-closed its mutation measurement after it. Every choice was decided autonomously under
+the owner's standing instruction (take the most complete, clean solution), including Phase 80's removal of
+`QadiContextValue.instrument` (removed, the prop kept). The audit is `passed`: 28/28 requirements, 9/9 integration
+points, 4/4 flows; it re-verified Phases 78 and 79, which later phases had made stale. `check:pr` exited 0 at the end of
+every phase and last at `2eff29ae` (6550 tests). Five changesets: four Breaking minors (`@qadi/audit`: the codec-made
+row; `@qadi/devtools` ×2: `resize` replacing the feed's forwarder, and bare constructors with inputs only through
+`configure`; `@qadi/react`: `QadiContextValue` without `instrument`) and one `@qadi/devtools` patch (the headless lens),
+with 0.13 upgrade-guide sections. **Not merged and not released.** Archive: `.planning/milestones/v1.9-ROADMAP.md`,
+`v1.9-REQUIREMENTS.md`, `v1.9-MILESTONE-AUDIT.md`.
 
 ## Previous Milestone: v1.8 Arch Wave 13 (completed 2026-11-23; not released)
 
@@ -160,6 +173,17 @@ threshold that never opens, a failing user sink that loses records unlogged), th
 `arch-wave-9` at `ba0d0615` (v1.4 is not merged). No merge, no release.
 
 ## Current State
+
+v1.9 Arch Wave 14 completed 2026-11-24 on branch `arch-wave-14` (see the v1.9 entry above). All four candidates of the
+2026-11-23 architecture review are resolved:
+- an audit row is a value only its codec makes, so the package can no longer write an archive its own reader refuses;
+- `TimelineStore` owns its capacity through `resize`;
+- every devtools feed and the dock model are built bare and take inputs only through `configure`, under one per-field
+  identity rule;
+- the highlight lens is a headless session the dock model owns, `useLens` is its document adapter, and
+  `QadiContextValue` no longer carries the unread `instrument`.
+
+Not merged and not released. The next milestone is not yet defined.
 
 v1.8 Arch Wave 13 completed 2026-11-23 on branch `arch-wave-13` (see the v1.8 entry above). All eight candidates of the
 2026-11-22 architecture review are resolved:
@@ -452,7 +476,19 @@ logged, counted or spanned.
 - **Hot spots** (churn over the last 15 commits): react `QadiAtoms`/`Hydration`/`hooks`; http
   `RequirePermission`/`DecisionStreamRoute`; core `SinkCodec`/`Evaluate`/`PortAccess`.
 
-### Known Issues (carried forward from v1.8)
+### Known Issues (carried forward from v1.9)
+
+- The v1.9 audit (`.planning/milestones/v1.9-MILESTONE-AUDIT.md`) is `passed`. It records what was left by decision or
+  can only be checked by hand:
+  - where a keyboard click (Enter or Space on a focused guard) lands while picking is checked in happy-dom only; a
+    real-browser pass is manual;
+  - the React 19.2.4 peer floor is not exercised (the repo installs 19.3.1);
+  - `QadiProvider` keeps its `instrument` prop by decision (ADR-QD-193): the prop decides whether a guard registers,
+    and a component that needs the flag is passed the host's own;
+  - Phase 78's mutation record predates Phases 79 and 80's edits to `TimelineFeed.ts` and `DockModel.ts`; each file was
+    re-measured at the later phase's close, and no milestone-level Stryker run was made.
+
+### Known Issues (carried forward from v1.8) — unchanged in v1.9
 
 - The v1.8 audit (`.planning/milestones/v1.8-MILESTONE-AUDIT.md`) is `passed`. It records what no change can undo or what
   was left by decision:
@@ -665,4 +701,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-24 after Phase 80*
+*Last updated: 2026-11-24 after v1.9 milestone*

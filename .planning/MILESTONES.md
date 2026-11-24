@@ -1,5 +1,23 @@
 # Milestones
 
+## v1.9 Arch Wave 14 (Shipped: 2026-11-24)
+
+**Delivered:** all four candidates of the 2026-11-23 architecture review, on branch `arch-wave-14`. Not merged, not released.
+
+**Phases completed:** 4 phases (77–80), 48 plans. 285 commits; 98 files, +9,623 / −1,278 outside `.planning`.
+
+**Key accomplishments:**
+- 77: an audit row is a value only its codec makes. `AuditEntry` is a module-local nominal class exported as a type, the row decodes envelope-first, and `archiveAuditTrail` refuses a row the codec did not make, so an archive the package writes is one its own reader reads back (Breaking; ADR-QD-190).
+- 78: `TimelineStore` owns its capacity through `resize`; `TimelineFeed`'s forwarder, mirror store and abandoned subscription are deleted (Breaking; ADR-QD-191).
+- 79: every feed and the dock model are built bare and take inputs only through `configure`, under one per-field identity rule; one package-private hook does "scope, then configure", and the dock's input type is stated once (Breaking; ADR-QD-192).
+- 80: the highlight lens is a headless `LensSession`, the dock model's tenth store, under the mutation gate (52/52); `useLens` is only the document adapter; `QadiContextValue` drops the unread `instrument` (Breaking `@qadi/react` minor; ADR-QD-193).
+
+**Quality:** each phase was code-reviewed in three iterations, mutation re-closed, secured (0 open threats) and Nyquist-validated. The audit is `passed` (28/28 requirements, 9/9 integration points, 4/4 flows); it re-verified Phases 78 and 79, which later phases had made stale. `check:pr` was last green at `2eff29ae` (6550 tests). Five changesets: four Breaking minors (`@qadi/audit`, `@qadi/devtools` ×2, `@qadi/react`) and one `@qadi/devtools` patch, with 0.13 upgrade-guide sections.
+
+**Known verification overrides:** none. The audit-open scan was clear, with 2 items acknowledged in an earlier milestone and still suppressed.
+
+---
+
 ## v1.8 Arch Wave 13 (Shipped: 2026-11-23)
 
 **Delivered:** all eight candidates of the 2026-11-22 architecture review, on branch `arch-wave-13`. Not merged, not released.
