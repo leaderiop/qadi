@@ -200,3 +200,15 @@ The first-configure counts of CR22 were measured on the base. With a layer that 
 
 - red before the rule: G44 (twin of M44): a registry that mends without announcing stays Failed until something reads it again
 - red before the rule: 13 a silent mend is not read by a re-render with unchanged inputs
+
+- edit T1: `TimelineFeed.ts`: `readonly extra?: number | undefined` added to `TimelineFeedInputs`
+- failed: tsc TS2322 packages/devtools/src/model/TimelineFeed.ts
+- failed: a timeline feed compares a capacity and a source, each present and possibly undefined
+
+- edit T2: `DiagnosticsStore.ts`: `readonly extra?: number | undefined` added to `DiagnosticsOptions`
+- failed: tsc TS2741 packages/devtools/src/model/DiagnosticsFeed.ts
+- failed: a diagnostics feed compares a layer, a collector and an interval, each present and possibly undefined
+
+- edit T3: `GatesFeed.ts`: `readonly extra?: number | undefined` added to `GatesFeedInputs`
+- failed: tsc TS2741 packages/devtools/src/model/GatesFeed.ts
+- failed: a gates feed compares a registry, a thunk and an interval, each present and possibly undefined
