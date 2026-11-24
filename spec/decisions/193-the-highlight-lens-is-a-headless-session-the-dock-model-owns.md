@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-193                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-11-24                                     |
 > | Status         | Accepted — amends ADR-QD-185, ADR-QD-047 and ADR-QD-111 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-24): the review's corrections: the reveal belongs to its pick, the click placed by its element and swallowed whatever a subscriber does, the capture wording (CCR-QD-472)<br>1.1 (2026-11-24): the behaviours and invariants that state it are linked (CCR-QD-472)<br>1.0 (2026-11-24): Initial (ARCH-127) |
+> | Change History | 1.3 (2026-11-24): the reader-facing table lists seven interaction rows, the keyboard click and the dropped reveal included (CCR-QD-472)<br>1.2 (2026-11-24): the review's corrections: the reveal belongs to its pick, the click placed by its element and swallowed whatever a subscriber does, the capture wording (CCR-QD-472)<br>1.1 (2026-11-24): the behaviours and invariants that state it are linked (CCR-QD-472)<br>1.0 (2026-11-24): Initial (ARCH-127) |
 
 ---
 
@@ -180,15 +180,17 @@ React hook, and a field of the provider's context had no reader.
 
 ### What changes for a reader
 
-Four interaction rules and the instrument toggle change; no markup, copy, test id, style, colour or layout does. Each row
+Seven interaction rules and the instrument toggle change; no markup, copy, test id, style, colour or layout does. Each row
 names the test that holds its after.
 
 | Behaviour | Before | After | Held by |
 | --------- | ------ | ----- | ------- |
 | The pick after a tab switch | A pick, then a switch to the log and back: the row is not marked, picking is off, no overlay remains, and the pick button reads "pick a control on the page" | The row is still marked with its existing `data-qadi-picked` background, and the panel does not scroll on the return; picking is off and no overlay remains | `Lens.dock.characterisation.test.tsx`, "a pick, then a switch to the log and back"; `Lens.dock.test.tsx`, "under StrictMode a pick reveals its row once, and after a switch to the log and back the row is still marked with no second reveal" |
 | The reveal | The row's effect scrolls it into view whenever it mounts picked | It scrolls once for the pick that was made | `LensSession.test.ts`, "a pick reveals its row once, and only for its own guard; toggle, cancel and highlight disarm a reveal that was not taken and hover does not; takeReveal publishes nothing" |
+| A reveal not yet taken | The row scrolls into view whenever it next mounts picked, however long it has waited | A reveal not yet taken is dropped when the reader leaves the panel, starts picking again or presses a highlight, and the row then does not scroll | `LensSession.test.ts`, "a pick reveals its row once, and only for its own guard; toggle, cancel and highlight disarm a reveal that was not taken and hover does not; takeReveal publishes nothing" |
 | Highlight pressed while picking | Picking stays on, the overlays are drawn, and the next pointer move over the dock removes them | Picking ends and the overlays stay | `Lens.dock.characterisation.test.tsx`, "the highlight button pressed while picking"; `LensSession.test.ts`, the cell whose title ends "highlight while picking ends picking and draws the guards asked for" |
 | Two pointer moves over one guard | The panel re-renders and the overlay element is replaced each time | Nothing is published and the overlay element is the same | `Lens.dock.characterisation.test.tsx`, "two pointer moves over one guard while picking"; `LensSession.test.ts`, the cell whose title contains "a hover over the guard already drawn publishes nothing" |
+| A click made from the keyboard while picking | A click on a focused control was placed by its coordinates, which a browser may report as the page's corner, so a guard wrapping the page took the reader's press | It is placed by the control it was made on | `Lens.adapter.test.tsx`, "a click made with no pointer is placed by the control it was made on, not by a point it did not report"; `Lens.click.test.ts`, "a click with no pointer is placed by the element it was made on, not by a point" |
 | A change in the listed guards while picking | The three document listeners are removed and added again | Nothing is removed or added | `Lens.dock.test.tsx`, "entering picking adds three document listeners, and a change in the listed guards while picking adds none" |
 | Toggling `instrument` | A memoised consumer of the context renders once more | It does not render, and a `Can` still registers on toggle-on and unregisters on toggle-off | `InstrumentToggle.characterisation.test.tsx`, "a memoised consumer of the context renders again when instrument is toggled" (its assertion is the render count, now zero) and "a Can registers when instrument is turned on and unregisters when it is turned off"; `QadiProvider.tst.ts` |
 
@@ -210,7 +212,7 @@ names the test that holds its after.
 
 1. The lens's rules are pinned by plain calls and fall under the model's mutation gate, because the session lives in
    `src/model/`. The hook decides nothing.
-2. A pick survives a tab round trip, and picking, the drawing and the reveal do not. Four interaction rules and the
+2. A pick survives a tab round trip, and picking, the drawing and the reveal do not. Seven interaction rules and the
    instrument toggle change, as the table says.
 3. `DockModel` has ten stores, and `configure` publishes nothing on the tenth.
 4. Breaking for `@qadi/react`, a minor release marked **Breaking**: `QadiContextValue` is `atoms`, `registry` and `gates`. A
