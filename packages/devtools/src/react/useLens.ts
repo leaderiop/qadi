@@ -86,8 +86,10 @@ export const useLens = (lens: LensSession, questions: ReadableStore<QuestionsSna
       if (event.key === "Escape") lens.cancel();
     };
 
-    // Capture, so the click is intercepted before the page's own handlers see
-    // it. Bubble would be too late: the application would already have acted.
+    // Capture, so the click is intercepted before the page's target and bubble handlers
+    // see it; bubble would be too late, the application would already have acted. A
+    // listener the page put on the window's capture phase, or on the document's before
+    // this one, still sees the click: `stopPropagation` does not reach either.
     document.addEventListener("pointermove", move);
     document.addEventListener("click", choose, true);
     document.addEventListener("keydown", cancel);
