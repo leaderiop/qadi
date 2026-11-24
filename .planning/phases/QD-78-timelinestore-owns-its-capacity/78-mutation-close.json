@@ -2,80 +2,80 @@
  "phase": "78",
  "groups": {
   "timeline": {
-   "head": "4d013fbfbd7d3c822062bf3aec84124476bf7951",
+   "head": "35c45e60fc975d25bc0b635ea23de3f88bafa96b",
    "invocation": "pnpm exec stryker run stryker.devtools.mjs --mutate packages/devtools/src/model/Timeline.ts",
    "files": {
     "packages/devtools/src/model/Timeline.ts": {
-     "killed": 113,
+     "killed": 106,
      "timeout": 0,
      "survived": 0,
      "noCoverage": 0,
      "ignored": 9,
-     "detected": 113,
-     "valid": 113,
+     "detected": 106,
+     "valid": 106,
      "open": [],
      "ignoredMutants": [
       {
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 29,
+       "line": 30,
        "column": 56
       },
       {
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 53,
+       "line": 54,
        "column": 54
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 90,
+       "line": 91,
        "column": 26
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 102,
+       "line": 103,
        "column": 25
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 111,
+       "line": 112,
        "column": 23
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 174,
+       "line": 175,
        "column": 18
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 180,
+       "line": 181,
        "column": 24
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 186,
+       "line": 187,
        "column": 14
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 188,
+       "line": 189,
        "column": 18
       }
      ]
@@ -83,7 +83,7 @@
    }
   },
   "store": {
-   "head": "4d013fbfbd7d3c822062bf3aec84124476bf7951",
+   "head": "35c45e60fc975d25bc0b635ea23de3f88bafa96b",
    "invocation": "pnpm exec stryker run stryker.devtools.mjs --mutate packages/devtools/src/model/TimelineStore.ts",
    "files": {
     "packages/devtools/src/model/TimelineStore.ts": {
@@ -108,7 +108,7 @@
    }
   },
   "feed": {
-   "head": "4d013fbfbd7d3c822062bf3aec84124476bf7951",
+   "head": "35c45e60fc975d25bc0b635ea23de3f88bafa96b",
    "invocation": "pnpm exec stryker run stryker.devtools.mjs --mutate packages/devtools/src/model/TimelineFeed.ts",
    "files": {
     "packages/devtools/src/model/TimelineFeed.ts": {
@@ -196,7 +196,7 @@
    }
   },
   "dock": {
-   "head": "4d013fbfbd7d3c822062bf3aec84124476bf7951",
+   "head": "35c45e60fc975d25bc0b635ea23de3f88bafa96b",
    "invocation": "pnpm exec stryker run stryker.devtools.mjs --mutate packages/devtools/src/model/DockModel.ts",
    "files": {
     "packages/devtools/src/model/DockModel.ts": {
