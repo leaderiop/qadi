@@ -5,7 +5,9 @@
 // may carry only the declared edits: each is `before` at the base and `after` as checked out. An edit counts as applied
 // when its `after` occurs exactly once; every applied edit is reverted and the whole file must then equal the base. An
 // edit whose `before` is not found exactly once at the base, or lies at or below `heldFrom`, is refused, so no edit can
-// reach a held lens cell. Anything else that differs fails, naming the file and the first line that differs.
+// reach a held lens cell, with one exception: an edit that states `inRegion`, the reason a held line has to change,
+// may lie there (an empty reason does not count). Every other byte of the region stays held. Anything else that differs
+// fails, naming the file and the first line that differs.
 //
 // From the repository root:
 //   node .planning/phases/QD-80-the-highlight-lens-is-a-headless-session-instrument-resolved/80-pinned-check.mjs
@@ -42,6 +44,14 @@ const PINNED = [
           "  };",
       },
       {
+        name: "escape-assertion",
+        inRegion:
+          "the held assertion could not fail: neither the picking text nor the idle text contains `Escape —`, so it " +
+          "passed whether or not Escape ended picking; it now reads that the button text is back to the idle text",
+        before: '    assert.notInclude(screen.getByTestId("qadi-pick").textContent ?? "", "Escape —");',
+        after: '    assert.strictEqual(screen.getByTestId("qadi-pick").textContent, "pick a control on the page");',
+      },
+      {
         name: "failed-questions-lens",
         before: "        questions={{ subscribe: () => () => {}, getSnapshot: () => snapshot }}",
         after:
@@ -75,7 +85,8 @@ export const judge = ({ file, heldFrom, edits }, base, current) => {
       reasons.push(`${file}: edit ${edit.name} does not occur exactly once at the base`);
       return false;
     }
-    if (held !== undefined && held >= 0 && at + edit.before.length > held) {
+    const reasoned = typeof edit.inRegion === "string" && edit.inRegion.trim() !== "";
+    if (held !== undefined && held >= 0 && at + edit.before.length > held && !reasoned) {
       reasons.push(`${file}: edit ${edit.name} lies at or below the held region`);
       return false;
     }
@@ -102,6 +113,10 @@ const selfTest = () => {
   const heldChanged = judge(sample, baseText, baseText.replace("it(2);", "it(3);"));
   const beside = judge(sample, baseText, baseText.replace("const a = 1;", "const a = 1;\nconst b = 2;").replace("mid", "mad"));
   const below = judge({ ...sample, edits: [{ name: "low", before: "it(1);", after: "it(1);\nlens;" }] }, baseText, baseText.replace("it(1);", "it(1);\nlens;"));
+  const stated = { name: "low", inRegion: "it could not fail", before: "it(1);", after: "it(1);\nlens;" };
+  const reasoned = judge({ ...sample, edits: [stated] }, baseText, baseText.replace("it(1);", "it(1);\nlens;"));
+  const blank = judge({ ...sample, edits: [{ ...stated, inRegion: "  " }] }, baseText, baseText);
+  const reasonedBeside = judge({ ...sample, edits: [stated] }, baseText, baseText.replace("it(1);", "it(1);\nlens;").replace("it(2);", "it(3);"));
   const twice = judge({ ...sample, edits: [{ name: "dup", before: "it(", after: "it(\n" }] }, baseText, baseText);
   const cases = [
     ["equal passes", ok.reasons.length === 0 && ok.applied === 0],
@@ -109,6 +124,9 @@ const selfTest = () => {
     ["a changed byte in the held region fails, naming the file", heldChanged.reasons.some((r) => r.startsWith("x.test.tsx: differs") && r.endsWith("line 6"))],
     ["a change beside an applied edit fails", beside.reasons.some((r) => r.startsWith("x.test.tsx: differs"))],
     ["an edit whose before lies in the held region is refused", below.reasons.some((r) => r.includes("edit low lies at or below"))],
+    ["an edit in the held region that states its reason passes and is reported", reasoned.reasons.length === 0 && reasoned.applied === 1],
+    ["an edit in the held region with a blank reason is refused", blank.reasons.some((r) => r.includes("edit low lies at or below"))],
+    ["a change beside an edit in the held region fails", reasonedBeside.reasons.some((r) => r.startsWith("x.test.tsx: differs") && r.endsWith("line 6"))],
     ["an edit whose before is not found once is refused", twice.reasons.some((r) => r.includes("edit dup does not occur exactly once"))],
     ["with one edit missing, one of one is not applied", ok.applied < sample.edits.length],
   ];

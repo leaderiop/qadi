@@ -393,7 +393,7 @@ describe("pick — the page points at the panel", () => {
     act(() => {
       fireEvent.keyDown(document, { key: "Escape" });
     });
-    assert.notInclude(screen.getByTestId("qadi-pick").textContent ?? "", "Escape —");
+    assert.strictEqual(screen.getByTestId("qadi-pick").textContent, "pick a control on the page");
   });
 
   it("stops listening when the panel unmounts", () => {

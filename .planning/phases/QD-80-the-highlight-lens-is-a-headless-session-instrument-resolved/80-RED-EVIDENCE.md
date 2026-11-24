@@ -184,3 +184,13 @@ assertion applied, and against the restored base text; the file was then moved b
 
 - check failed: 80-characterisation-check.mjs --all-flipped: flip toggle-no-rerender: only some of its edits are applied
 - check failed: 80-characterisation-check.mjs --all-flipped: flip toggle-no-rerender is not applied
+
+### IN-02 the Escape exit is asserted by something that can fail
+
+The held assertion `notInclude(..., "Escape —")` was run against a scratch edit of `useLens.ts` that ignores `Escape` (restored
+with `cp`): all 26 cells passed, so it could not fail. The replacement assertion (the button text is the idle text again)
+was run against the same edit and failed. The pinned check refused the edit before it was declared as an in-region edit
+with its reason.
+
+- check failed: 80-pinned-check.mjs: packages/devtools/test/react/QuestionsPanel.gates.test.tsx: differs from its base text at line 391
+- failed: leaves the mode on Escape
