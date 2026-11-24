@@ -175,6 +175,21 @@ describe("makeTimelineStore", () => {
     });
   });
 
+  it("a record at a capacity of zero notifies no subscriber and keeps the snapshot", () => {
+    const store = makeTimelineStore({ capacity: 0 });
+    const snapshot = store.getSnapshot();
+    const heard = { calls: 0 };
+    store.subscribe(() => {
+      heard.calls += 1;
+    });
+
+    store.accept(decisionRecord({ evaluationId: "a", at: 100 }));
+    store.accept(decisionRecord({ evaluationId: "b", at: 200 }));
+
+    assert.strictEqual(heard.calls, 0);
+    assert.strictEqual(store.getSnapshot(), snapshot);
+  });
+
   it("passes its capacity to the timeline", () => {
     const store = makeTimelineStore({ capacity: 2 });
     for (const [index, id] of ["a", "b", "c"].entries()) {

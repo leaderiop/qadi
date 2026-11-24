@@ -356,6 +356,16 @@ describe("capacity", () => {
     assert.deepStrictEqual(timeline.entries, []);
   });
 
+  it("a record a zero-capacity timeline cannot keep returns the identical timeline", () => {
+    const empty = emptyTimeline({ capacity: 0 });
+
+    const decision = decisionRecord({ evaluationId: "a", at: 100 });
+    const orphan = obligationRecord({ evaluationId: "orphan", at: 100 });
+
+    assert.strictEqual(ingest(empty, decision), empty);
+    assert.strictEqual(ingest(empty, orphan), empty);
+  });
+
   /**
    * Under capacity, nothing is dropped — and the offset must be clamped to get
    * there. An unclamped `slice(length - capacity)` goes negative and slices

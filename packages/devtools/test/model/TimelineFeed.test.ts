@@ -644,4 +644,76 @@ describe("the timeline feed", () => {
       assert.deepStrictEqual(idsOf(feed), []);
       assert.strictEqual(feed.timeline.getSnapshot().capacity, 2);
     }));
+
+  it.effect("TF30 a capacity that is not a non-negative integer throws and changes nothing, so a later configure compares with the inputs the feed held", () =>
+    Effect.gen(function* () {
+      const a = watched([], Stream.never);
+      const feed = yield* makeTimelineFeed({ source: a.source, capacity: 5 });
+      yield* flush;
+      feed.timeline.accept(record("x", 100));
+      const snapshot = feed.timeline.getSnapshot();
+      const heard = { calls: 0 };
+      feed.timeline.subscribe(() => {
+        heard.calls += 1;
+      });
+
+      for (const attempt of [1, 2]) {
+        const refused = thrownBy(() =>
+          feed.configure({ source: a.source, capacity: -1 }),
+        );
+        yield* flush;
+
+        assert.isTrue(refused.threw, `refusal ${attempt} throws`);
+        assert.instanceOf(refused.thrown, Error);
+        assert.strictEqual(
+          refused.thrown instanceof Error ? refused.thrown.message : "",
+          "emptyTimeline: capacity must be a non-negative integer, got -1",
+        );
+        assert.strictEqual(feed.timeline.getSnapshot(), snapshot);
+        assert.strictEqual(heard.calls, 0);
+        assert.deepStrictEqual(a.tally, { started: 1, finalized: 0 });
+      }
+
+      feed.configure({ source: a.source, capacity: 5 });
+      yield* flush;
+
+      assert.strictEqual(feed.timeline.getSnapshot(), snapshot);
+      assert.strictEqual(heard.calls, 0);
+      assert.deepStrictEqual(a.tally, { started: 1, finalized: 0 });
+    }));
+
+  it.effect("TF31 a restart after a refused configure reads the source the feed held", () =>
+    Effect.gen(function* () {
+      const a = watched([], Stream.never);
+      const b = counting([record("from-b", 100)], Stream.never);
+      const feed = yield* makeTimelineFeed({ source: a.source, capacity: 5 });
+      yield* flush;
+      const refused = thrownBy(() => feed.configure({ source: b.source, capacity: -1 }));
+      assert.isTrue(refused.threw);
+
+      feed.status.restart();
+      yield* flush;
+
+      assert.deepStrictEqual(b.tally, { reads: 0 });
+      assert.deepStrictEqual(a.tally, { started: 2, finalized: 1 });
+    }));
+
+  it.effect("TF32 a zero-capacity feed tells its timeline listeners nothing for records it cannot keep", () =>
+    Effect.gen(function* () {
+      const feed = yield* makeTimelineFeed({
+        capacity: 0,
+        source: delayed([record("a", 100)]),
+      });
+      const snapshot = feed.timeline.getSnapshot();
+      const heard = { calls: 0 };
+      feed.timeline.subscribe(() => {
+        heard.calls += 1;
+      });
+
+      yield* flush;
+      feed.timeline.accept(record("b", 200));
+
+      assert.strictEqual(heard.calls, 0);
+      assert.strictEqual(feed.timeline.getSnapshot(), snapshot);
+    }));
 });

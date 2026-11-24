@@ -207,4 +207,29 @@ describe("useTimelineStore", () => {
     assert.strictEqual(result.current.status, status);
     assert.strictEqual(result.current.timeline, timeline);
   });
+
+  it("UT4 a changed capacity empties the hand-fed store at the new bound and keeps the store", () => {
+    const { result, rerender } = renderHook(
+      ({ capacity }) => useTimelineStore({ capacity }),
+      { initialProps: { capacity: 5 } },
+    );
+    const { store } = result.current;
+    act(() => {
+      store.accept(decisionRecord({ evaluationId: "a", at: 100 }));
+      store.accept(decisionRecord({ evaluationId: "b", at: 200 }));
+    });
+    assert.strictEqual(result.current.timeline.entries.length, 2);
+
+    rerender({ capacity: 1 });
+
+    assert.strictEqual(result.current.store, store);
+    assert.strictEqual(result.current.timeline.capacity, 1);
+    assert.deepStrictEqual(result.current.timeline.entries, []);
+
+    act(() => {
+      store.accept(decisionRecord({ evaluationId: "c", at: 300 }));
+      store.accept(decisionRecord({ evaluationId: "d", at: 400 }));
+    });
+    assert.strictEqual(result.current.timeline.entries.length, 1);
+  });
 });
