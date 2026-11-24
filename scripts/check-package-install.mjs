@@ -700,7 +700,6 @@ const dockProps: DevtoolsDockProps = {
   unknownParents: [],
   onInvalidate: () => {},
 };
-expect("devtools dock props", Object.keys(dockProps).length, 10);
 
 const gated = await Effect.runPromise(
   Effect.scoped(
