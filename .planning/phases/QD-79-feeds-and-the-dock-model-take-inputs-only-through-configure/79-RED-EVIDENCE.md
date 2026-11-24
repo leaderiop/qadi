@@ -245,3 +245,11 @@ The scratch edit was applied to `packages/devtools/src/model/DockModel.ts`, run 
 - failed: the dock takes eight model inputs and two host props, each accepting undefined
 
 - edit P2: `scripts/check-package-install.mjs`: `extra: 1` added to the packed consumer's `dockProps` literal; gate 14 failed with `TS2353: Object literal may only specify known properties, and 'extra' does not exist in type 'DevtoolsDockProps'`, restored from a copy; the committed gate is green.
+
+## 79-12 the bare constructors
+
+The scratch edit was applied to `packages/devtools/src/model/GatesFeed.ts`, with the uncommitted task work in the tree, so it was restored from a copy taken just before the edit; `git diff` shows only the intended change afterwards.
+
+- edit B1: `makeGatesFeed`'s generator given an optional parameter, `function* (_scratch?: number)`
+- failed: `scripts/check-package-install.mjs` with `TS2322: Type 'true' is not assignable to type 'false'` on the packed consumer's `Parameterless<typeof makeGatesFeed>` constant
+- failed: `surface.tst.ts`, each feed is built in a scope and fails with nothing (the `Parameters<typeof makeGatesFeed>` pin)
