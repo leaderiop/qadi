@@ -594,3 +594,7 @@ entries:
     file: "191-a-timeline-store-owns-its-capacity.md"
     title: "A timeline store owns its capacity"
     status: "Accepted — amends ADR-QD-137"
+  - id: "ADR-QD-192"
+    file: "192-feeds-and-the-dock-model-take-inputs-only-through-configure.md"
+    title: "Feeds and the dock model take inputs only through configure"
+    status: "Accepted — amends ADR-QD-137, ADR-QD-173 and ADR-QD-185"
