@@ -5,16 +5,16 @@ milestone_name: Arch Wave 14
 current_phase: 77
 current_phase_name: An audit row is a value only its codec makes
 status: executing
-stopped_at: Completed 77-06-PLAN.md
-last_updated: "2026-11-24T01:01:33.213Z"
+stopped_at: Completed 77-07-PLAN.md
+last_updated: "2026-11-24T01:28:20.001Z"
 last_activity: 2026-11-24
 last_activity_desc: Phase QD-77 execution started
-state_head: 1c310f93888920d5b0a3dd0c83ea06a4f8d057e8
+state_head: ab105eea0b6f7db33ef7dd2333e8dfbafaa394af
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 7
-  completed_plans: 6
+  completed_plans: 7
   percent: 0
 ---
 
@@ -562,6 +562,7 @@ Progress: [░░░░░░░░░░] 0% (0 of 4 phases)
 | Phase QD-77 P04 | 14 min | 3 tasks | 5 files |
 | Phase QD-77 P05 | 14min | 2 tasks | 6 files |
 | Phase QD-77 P06 | 36 min | 3 tasks | 8 files |
+| Phase 77 P07 | 70 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -980,6 +981,7 @@ Progress: [░░░░░░░░░░] 0% (0 of 4 phases)
 - [Phase QD-77]: 77-04: planPurge doc states about 22 us per row for the whole call (15 warmed rounds), not the hash alone
 - [Phase QD-77]: ADR-QD-190 records the brand, envelope-first decode, writer-input table and measured purge cost; ADR-QD-170 applied unchanged; the Date/undefined finding recorded as a consequence (decided autonomously 2026-11-23)
 - [Phase QD-77]: 77-06: BEH-QD-723 to BEH-QD-725 are named only in the CCR-QD-469 unused list; BEH-QD-489 and BEH-QD-625 read and left unchanged; upgrade-guide fence is a compiled typescript example, 0.10 fence untouched
+- [Phase 77]: A by-hand static mutant the decoder's own construction guard refuses at import (RuntimeError, untrustedDecoder: unknownKeys must be) counts as detected in the close verify — No test turns a load-time refusal into Killed; the earlier hydration close decided the same. Decided autonomously.
 
 ### Pending Todos
 
@@ -1055,8 +1057,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-24T01:01:33.164Z
-Stopped at: Completed 77-06-PLAN.md
+Last session: 2026-11-24T01:28:19.955Z
+Stopped at: Completed 77-07-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
