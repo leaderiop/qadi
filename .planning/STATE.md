@@ -5,16 +5,16 @@ milestone_name: Arch Wave 15
 current_phase: 81
 current_phase_name: The dock model applies every input whatever a listener throws
 status: executing
-stopped_at: Completed QD-81-06-PLAN.md
-last_updated: "2026-11-24T22:28:54.058Z"
+stopped_at: Completed QD-81-07-PLAN.md
+last_updated: "2026-11-24T22:39:17.177Z"
 last_activity: 2026-11-24
 last_activity_desc: Phase QD-81 execution started
-state_head: 6de35d7fe2ce001edb63e1c251fbd19b73dbf5dc
+state_head: 929e4e04be0f607d206ce01491ac0309e4902b40
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 11
-  completed_plans: 6
+  completed_plans: 7
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-24)
 ## Current Position
 
 Phase: QD-81 (The dock model applies every input whatever a listener throws) — EXECUTING
-Plan: 7 of 11
+Plan: 8 of 11
 Status: Executing Phase QD-81
 Last activity: 2026-11-24 — Phase QD-81 execution started
 
@@ -607,6 +607,7 @@ Last activity: 2026-11-24 — Phase QD-81 execution started
 | Phase QD-81 P04 | 8 min | 2 tasks | 3 files |
 | Phase QD-81 P05 | 12 min | 2 tasks | 3 files |
 | Phase QD-81 P06 | 12 min | 3 tasks | 4 files |
+| Phase QD-81 P07 | 14min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -1053,6 +1054,7 @@ Last activity: 2026-11-24 — Phase QD-81 execution started
 - [Phase QD-81]: Decided autonomously: callAll takes Iterable<() => void> and is walked with for-of, so the live listener Set is read as it stands and no copy is made
 - [Phase QD-81]: 81-05: try/finally, not callAll, at the three publish-then-fork sites (decided autonomously): only the publish can throw there, so a callAll message could never be read
 - [Phase QD-81]: 81-06: CR22 restated from measured counts (explorer and simulation 3 to 2 in both records); DL15 rail order corrected to newest first. Decided autonomously.
+- [Phase QD-81]: Plan 81-07: ADR-QD-194 and the amendments of ADR-QD-177, ADR-QD-185, ADR-QD-191 and ADR-QD-192 written; the CCR-QD-473 row was begun in the first commit because strict verification fails on a cited CCR with no register row (decided autonomously)
 
 ### Pending Todos
 
@@ -1132,8 +1134,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-24T22:28:54.025Z
-Stopped at: Completed QD-81-06-PLAN.md
+Last session: 2026-11-24T22:39:17.141Z
+Stopped at: Completed QD-81-07-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
