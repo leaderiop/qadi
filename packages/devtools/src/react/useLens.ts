@@ -76,7 +76,7 @@ export const useLens = (
       // would stop working the moment picking was on.
       const id = gateIdOfClick(document, event, questions.getSnapshot().instances);
       // `choose` notifies only when the pick moved, so a throw means it did: the click
-      // stays swallowed while the subscriber's failure still reaches the dispatch.
+      // stays swallowed, and the subscriber's failure is not caught here.
       let consumed = true;
       try {
         consumed = lens.choose(id);

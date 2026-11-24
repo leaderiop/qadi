@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-193                                   |
-> | Revision       | 1.5                                            |
+> | Revision       | 1.6                                            |
 > | Effective Date | 2026-11-24                                     |
 > | Status         | Accepted — amends ADR-QD-185, ADR-QD-047 and ADR-QD-111 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.5 (2026-11-24): hover and choose from idle are reached by the adapter between a pick and its listeners coming off (CCR-QD-472)<br>1.4 (2026-11-24): a hover leaves the reveal and moves nothing from idle, the state between a pick and the listeners coming off (CCR-QD-472)<br>1.3 (2026-11-24): the reader-facing table lists seven interaction rows, the keyboard click and the dropped reveal included (CCR-QD-472)<br>1.2 (2026-11-24): the review's corrections: the reveal belongs to its pick, the click placed by its element and swallowed whatever a subscriber does, the capture wording (CCR-QD-472)<br>1.1 (2026-11-24): the behaviours and invariants that state it are linked (CCR-QD-472)<br>1.0 (2026-11-24): Initial (ARCH-127) |
+> | Change History | 1.6 (2026-11-24): the adapter does not catch a subscriber's failure; what the dispatch does with it is the DOM's (CCR-QD-472)<br>1.5 (2026-11-24): hover and choose from idle are reached by the adapter between a pick and its listeners coming off (CCR-QD-472)<br>1.4 (2026-11-24): a hover leaves the reveal and moves nothing from idle, the state between a pick and the listeners coming off (CCR-QD-472)<br>1.3 (2026-11-24): the reader-facing table lists seven interaction rows, the keyboard click and the dropped reveal included (CCR-QD-472)<br>1.2 (2026-11-24): the review's corrections: the reveal belongs to its pick, the click placed by its element and swallowed whatever a subscriber does, the capture wording (CCR-QD-472)<br>1.1 (2026-11-24): the behaviours and invariants that state it are linked (CCR-QD-472)<br>1.0 (2026-11-24): Initial (ARCH-127) |
 
 ---
 
@@ -109,7 +109,7 @@ React hook, and a field of the provider's context had no reader.
    when it reports none, as a click made from the keyboard does, because the point such a click carries is the page's
    corner. The handler finds the guard first, then calls `choose` inside a `try` and swallows the click in its `finally`
    unless `choose` answered `false`: `choose` notifies only when the pick moved, so a throw out of it means the pick was
-   made, and the subscriber's failure still reaches the dispatch (ADR-QD-177). The click listener is in the capture phase,
+   made, and the adapter does not catch the subscriber's failure (ADR-QD-177). The click listener is in the capture phase,
    which keeps the target and bubble handlers of the page from seeing the click; a listener on the window's capture phase,
    or an earlier one on the document's, still does. `useLens` returns the snapshot it read, so the panel that draws from
    the same session holds one subscription and not two.

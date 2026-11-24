@@ -205,3 +205,11 @@ scratch edit of `LensSession.ts` that made `hover` disarm (restored with `cp`): 
 passed. The title now states the rule as it holds.
 
 - failed: a pick reveals its row once, and only for its own guard; toggle, cancel and highlight disarm a reveal that was not taken, and a hover, which moves nothing from idle, does not; takeReveal publishes nothing
+
+### IN-02 the throwing-subscriber cell holds in any DOM
+
+The cell reads the subscriber's failure from whichever channel the DOM uses (thrown out of `dispatchEvent`, or an `error` event
+on the window) and asserts the click is consumed. It was run against a scratch edit of `useLens.ts` whose `choose` call catches
+and drops the error (restored with `cp`): `the subscriber's failure surfaced: expected false to be true`; 1 failed, 2 passed.
+
+- failed: a click that made a pick is still consumed when a subscriber throws while being told of it, and its failure is not caught by the adapter

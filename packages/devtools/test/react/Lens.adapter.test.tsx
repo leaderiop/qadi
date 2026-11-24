@@ -68,7 +68,7 @@ afterEach(() => {
 });
 
 describe("the lens adapter's click", () => {
-  it("a click that made a pick is still consumed when a subscriber throws while being told of it, and its failure still reaches the dispatch", async () => {
+  it("a click that made a pick is still consumed when a subscriber throws while being told of it, and its failure is not caught by the adapter", async () => {
     const marker = document.createElement("span");
     document.body.appendChild(marker);
     const target = control(marker);
@@ -80,20 +80,31 @@ describe("the lens adapter's click", () => {
     lens.subscribe(() => {
       if (pickedOf(lens.getSnapshot()) !== undefined) throw boom;
     });
+    // A browser reports a listener's error to the window and carries on, and happy-dom
+    // throws it out of `dispatchEvent`: the failure is read from whichever the DOM does.
+    const surfaced: Array<unknown> = [];
+    const report = (event: ErrorEvent): void => {
+      surfaced.push(event.error);
+      event.preventDefault();
+    };
+    window.addEventListener("error", report);
     // Built here, so the event can be read after a dispatch that threw.
     const click = new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 });
-    let thrown: unknown;
-    await act(async () => {
-      try {
-        target.dispatchEvent(click);
-      } catch (error) {
-        thrown = error;
-      }
-    });
+    try {
+      await act(async () => {
+        try {
+          target.dispatchEvent(click);
+        } catch (error) {
+          surfaced.push(error);
+        }
+      });
+    } finally {
+      window.removeEventListener("error", report);
+    }
 
     assert.strictEqual(pickedOf(lens.getSnapshot()), "a", "the pick was recorded");
     assert.isTrue(click.defaultPrevented, "the click was consumed");
-    assert.strictEqual(thrown, boom, "the subscriber's failure reached the dispatch");
+    assert.isTrue(surfaced.includes(boom), "the subscriber's failure surfaced");
   });
 
   it("a click made with no pointer is placed by the control it was made on, not by a point it did not report", async () => {
