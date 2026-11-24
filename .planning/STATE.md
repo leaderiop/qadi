@@ -5,16 +5,16 @@ milestone_name: Arch Wave 15
 current_phase: 81
 current_phase_name: The dock model applies every input whatever a listener throws
 status: executing
-stopped_at: Completed 81-02-PLAN.md
-last_updated: "2026-11-24T22:15:01.195Z"
+stopped_at: Completed 81-03-PLAN.md
+last_updated: "2026-11-24T22:20:38.636Z"
 last_activity: 2026-11-24
 last_activity_desc: Phase QD-81 execution started
-state_head: a855e00b74284ee67d495a874bd9b95f611a56e7
+state_head: 5926cfc748bb72bbe6e4fc4014339b144e9016cc
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 11
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-24)
 ## Current Position
 
 Phase: QD-81 (The dock model applies every input whatever a listener throws) — EXECUTING
-Plan: 3 of 11
+Plan: 4 of 11
 Status: Executing Phase QD-81
 Last activity: 2026-11-24 — Phase QD-81 execution started
 
@@ -603,6 +603,7 @@ Last activity: 2026-11-24 — Phase QD-81 execution started
 | Phase QD-80 P13 | 45min | 2 tasks | 1 files |
 | Phase 81 P01 | 15 min | 3 tasks | 5 files |
 | Phase QD-81 P02 | 55 min | 3 tasks | 2 files |
+| Phase QD-81 P03 | 10 min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -1044,6 +1045,8 @@ Last activity: 2026-11-24 — Phase QD-81 execution started
 - [Phase 81]: single-source judges the blanked text of src/model/** and adds two reasons beyond the plan's list so a tree with nothing to read cannot pass
 - [Phase QD-81]: 81-02: each listener row of the dock model runs from capacity 5 (moved to 3) and capacity 3 (left), because a moved capacity lets the dock's own timeline listener deliver the explorer and simulation notification first and the catalogue step mends it; decided autonomously
 - [Phase QD-81]: 81-02: the new source yields once before it answers so its records arrive after configure returns; decided autonomously
+- [Phase QD-81]: 81-03: G49 configures the gates feed with no thunk first, so the configure's own cadence fork is the only one observable (decided autonomously)
+- [Phase QD-81]: 81-03: the pinned check cuts an added test with its separating blank line, and counts a flip applied only when its block differs and the evidence has a flip line (decided autonomously)
 
 ### Pending Todos
 
@@ -1123,8 +1126,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-24T22:15:01.157Z
-Stopped at: Completed 81-02-PLAN.md
+Last session: 2026-11-24T22:20:38.601Z
+Stopped at: Completed 81-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
