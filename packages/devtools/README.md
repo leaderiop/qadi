@@ -176,11 +176,7 @@ is the feed's one store for its whole life, and a capacity other than the one it
 subscription on it survives a capacity change. A `configure` with a new `capacity` publishes the emptied timeline and
 then starts the read that refills it, from the same `source` or a new one. A throw from a timeline listener on that
 publish and a throw from a status listener on the `Reading` the read publishes stop nothing: the read starts, and both
-are rethrown once it has, as one `AggregateError` with the timeline's first. The dock model's `configure` goes further
-and applies every input, the timeline, the sightings rail, the roles, the simulation's ports, the gates, the
-diagnostics and the shown reading, whatever a host listener on any of them throws, and rethrows after the last step:
-one throw as itself, two or more as one `AggregateError` in step order. The sightings rail is a store derived from the
-timeline and the catalogue, not a member of the model's inputs, and a listener on it is called like any other.
+are rethrown once it has, as one `AggregateError` with the timeline's first.
 
 ```typescript
 import * as Effect from "effect/Effect";
