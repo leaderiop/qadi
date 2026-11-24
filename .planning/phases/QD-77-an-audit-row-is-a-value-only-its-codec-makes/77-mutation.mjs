@@ -70,15 +70,11 @@ export const mapLine = (diffText) => {
 const kind = (m) => `${m.mutator} ${m.replacement}`;
 /**
  * Ignored mutants a close may hold beyond its base, per file and kind, each run by hand and Killed there: the group's
- * config spread with `ignoreStatic: false`, run with `--mutate <file>`. `AuditArchive.ts` holds one more Ignored
- * `StringLiteral ""` than its base: the tag of `ArchiveInputInvalid`, a module-scope value that runs once at import. It
- * ran by hand with `ignoreStatic: false` and the whole file held 75 Killed and 2 RuntimeError, no survivor; the tag is
- * Killed by the tests that read a refusal for a non-finite `now` by its tag. The two RuntimeError are
- * the options of `untrustedDecoder(...)` (base-present, unchanged), which the decoder itself refuses at import.
+ * config spread with `ignoreStatic: false`, run with `--mutate <file>`. No file holds one: the module-scope tag of
+ * `ArchiveInputInvalid`, once a new Ignored `StringLiteral ""` in `AuditArchive.ts`, is declared in `ArchiveFacts.ts`
+ * and replaces a mutant the base held, and that file ran by hand with 60 Killed and 0 Survived.
  */
-const EXAMINED = {
-  "packages/audit/src/AuditArchive.ts": { 'StringLiteral ""': 1 },
-};
+const EXAMINED = {};
 
 const key = (m, line = m.line) => [m.status, m.mutator, m.replacement, line, m.column].join("\u0000");
 /** A multiset of mutant keys: key -> count. */
