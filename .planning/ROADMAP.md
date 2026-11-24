@@ -476,7 +476,7 @@ Order: the two live defects (81, 82), then the two devtools deepenings (83, 84).
 
 ### Phases
 
-- [ ] **Phase 81: The dock model applies every input whatever a listener throws** - `configure` and the record path run every step and rethrow what was collected once; a catalogue-and-capacity change moves the sightings rail once (ARCH-128, devtools; live defect)
+- [x] **Phase 81: The dock model applies every input whatever a listener throws** - `configure` and the record path run every step and rethrow what was collected once; a catalogue-and-capacity change moves the sightings rail once (ARCH-128, devtools; live defect) (completed 2026-11-25)
 - [ ] **Phase 82: `QadiProvider`'s registry has one owner for its lifetime** - A provider hidden in `<Activity>` longer than a macrotask and shown again never reaches a disposed registry; the lifetime rule is one headless, mutation-gated module (ARCH-129, react; live defect)
 - [ ] **Phase 83: The diagnostics feed folds its reading as a value** - A pure per-field fold replaces the package-private store nothing subscribes to, `runDiagnostics` takes an `accept` sink, and the never-written `Diagnostics.questions` is resolved (ARCH-130, devtools; possibly Breaking)
 - [ ] **Phase 84: `useConfigured` requires `configure`, and the review's small finds** - Three identical adapters deleted, `LensSession` publishes through `ExternalStore.set`, `useLens` receives each fact once, `DockFrame`'s stop ledger exists once, and `useTimeline`'s inputs record is decided (ARCH-131, devtools)
@@ -502,7 +502,7 @@ Order: the two live defects (81, 82), then the two devtools deepenings (83, 84).
   5. The window between a run's `begin()` and its `fork()` is closed at every site in `src/model/**` (the timeline's `Reading`, the diagnostics' `Starting`, the simulation's `Running`): the work starts whatever a listener throws on that status, and the throw is rethrown after (TF29's flip recorded); a listener that calls `configure` again from inside a step leaves the model on the inner call's inputs (pinned); ADR-QD-194 (or the named amendments), BEH, INV, traceability and the dock model's file header carry the rule.
 
 **Planning notes**: No external research: the open items are discuss-step decisions (the grey-area table above), and the researchers' recommendations are in `research/SUMMARY.md`. Open the plan with the ten-store throw matrix, the record path, the two-throw case, a reentrancy row and a publish count for a capacity-and-catalogue `configure`: FEATURES measured the explorer hearing two publishes there while ARCHITECTURE read the second spread as publishing nothing, so count first. Never collect the capacity refusal (M55); steps read `held` when they run, not entry-time locals; no did-spread flag (it skips heals and corrupts under nesting). `DockModel.ts` holds a mutation score of 1 (69 killed, 0 survived, 12 ignored at v1.9 close; a new `Ignored` mutant fails the compare, so new literals stay inside function bodies); commit the Stryker baselines of `DockModel.ts` and `ExternalStore.ts` alone and first, and re-close them after the review. The archived `79-pinned-check.mjs` and `80-pinned-check.mjs` hard-code `.planning/phases/QD-79...` and fail with ENOENT now that v1.9 is archived: the first plan records how to run them from a scratch copy with the paths rewritten (do not edit the archive) in `_WAVE15-CONTEXT.md`, and new record scripts take their directory from `import.meta.url`. No new `switch`, `Effect.fnUntraced`, `any` or module-scope `let`.
-**Plans**: 11/11 plans executed
+**Plans**: 11/11 plans complete
 
 Plans:
 - [x] 81-01 (W1): Record the mutation base of the five model files first, the base facts and archived checks, and the phase check helpers with `single-source` (D-03, D-12, D-13).
@@ -587,7 +587,7 @@ Phases execute in numeric order: 81 → 82 → 83 → 84
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 81. The dock model applies every input whatever a listener throws | 11/11 | In Progress | - |
+| 81. The dock model applies every input whatever a listener throws | 11/11 | Complete    | 2026-11-25 |
 | 82. `QadiProvider`'s registry has one owner for its lifetime | 0/0 | Not started | - |
 | 83. The diagnostics feed folds its reading as a value | 0/0 | Not started | - |
 | 84. `useConfigured` requires `configure`, and the review's small finds | 0/0 | Not started | - |
