@@ -36,10 +36,10 @@ phase runs on branch `arch-wave-14`, strictly serial (77 → 80).
 
 ### The highlight lens is a headless session (Phase 80, ARCH-127, devtools + react)
 
-- [ ] **LENS-01**: A package-private `LensSession` in `model/` holds `highlighted`, `picking` and `picked`. Its transitions are toggle, hover, choose (which says whether the click is consumed), cancel and highlight (amended 2026-11-24 at the discuss step, decided autonomously: no separate `clear`, because each of its outcomes is already `cancel()`, `highlight([])` or `hover(undefined)`; see 80-CONTEXT.md D-11). Each rule that today lives in `useLens`'s handlers is pinned by plain calls, under the model's mutation gate.
+- [x] **LENS-01**: A package-private `LensSession` in `model/` holds `highlighted`, `picking` and `picked`. Its transitions are toggle, hover, choose (which says whether the click is consumed), cancel and highlight (amended 2026-11-24 at the discuss step, decided autonomously: no separate `clear`, because each of its outcomes is already `cancel()`, `highlight([])` or `hover(undefined)`; see 80-CONTEXT.md D-11). Each rule that today lives in `useLens`'s handlers is pinned by plain calls, under the model's mutation gate.
 - [ ] **LENS-02**: The dock model owns the session as its tenth store. BEH-QD-700, INV-QD-390, ADR-QD-185 and the store-list test move together. `DockModel.ts`'s mutation score does not fall.
 - [ ] **LENS-03**: `useLens` keeps only the document listeners and `drawLens`/`clearLens`. The click is swallowed synchronously in the capture listener, and the listeners are not re-added on every instance change. `QuestionsPanel.gates.test.tsx` and `Lens.test.ts` keep passing. Any behaviour change is preceded by a characterisation test.
-- [ ] **LENS-04**: What happens to `picking` and `picked` across a tab switch, and to a picked id whose guard has gone, is decided at the discuss step against `spec/devtools-spec/01-shell.md:72`, BEH-QD-234 and INV-QD-107 (reusing `HeldChoice`'s rule where it fits). It is pinned by tests and recorded in ADR-QD-193.
+- [x] **LENS-04**: What happens to `picking` and `picked` across a tab switch, and to a picked id whose guard has gone, is decided at the discuss step against `spec/devtools-spec/01-shell.md:72`, BEH-QD-234 and INV-QD-107 (reusing `HeldChoice`'s rule where it fits). It is pinned by tests and recorded in ADR-QD-193.
 - [ ] **LENS-05**: `QadiContextValue.instrument` is removed from `@qadi/react` (the provider's `instrument` prop stays), or the reason it stays is recorded with a first reader. A repo-wide search, including `examples/` and `website/`, is done first. Removing it comes with a **Breaking** `@qadi/react` changeset, an upgrade-guide entry, a `spec/overview.md` edit and a dated ADR-QD-111 amendment.
 
 ### Cross-cutting (every v1.9 phase)
@@ -91,10 +91,10 @@ phase runs on branch `arch-wave-14`, strictly serial (77 → 80).
 | CONF-04 | Phase 79 | Complete |
 | CONF-05 | Phase 79 | Complete |
 | CONF-06 | Phase 79 | Complete |
-| LENS-01 | Phase 80 | Pending |
+| LENS-01 | Phase 80 | Complete |
 | LENS-02 | Phase 80 | Pending |
 | LENS-03 | Phase 80 | Pending |
-| LENS-04 | Phase 80 | Pending |
+| LENS-04 | Phase 80 | Complete |
 | LENS-05 | Phase 80 | Pending |
 | WX-01 | All v1.9 phases | Complete |
 | WX-02 | All v1.9 phases | Complete |
