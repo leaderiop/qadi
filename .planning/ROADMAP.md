@@ -456,7 +456,7 @@ Order: the live defect (77), then the three devtools deepenings (78, 79, 80). **
 
 - [x] **Phase 77: An audit row is a value only its codec makes** - `AuditEntry` is obtainable only from `encodeAuditEntry` and `decodeAuditEntry`, so the writer can no longer write an archive its own reader refuses; the row decodes envelope-first (ARCH-124, audit; live defect; Breaking) (completed 2026-11-24)
 - [x] **Phase 78: `TimelineStore` owns its capacity** - A `resize(capacity)` command replaces `TimelineFeed`'s mirror store, six-member forwarder and abandoned subscription, and the feed returns its one store (ARCH-125, devtools) (completed 2026-11-24)
-- [ ] **Phase 79: Feeds and the dock model take inputs only through `configure`** - Constructors take no inputs, one per-field identity rule decides a restart, one package-private hook does "scope, then configure", and the dock's input type is stated once (ARCH-126, devtools; Breaking)
+- [x] **Phase 79: Feeds and the dock model take inputs only through `configure`** - Constructors take no inputs, one per-field identity rule decides a restart, one package-private hook does "scope, then configure", and the dock's input type is stated once (ARCH-126, devtools; Breaking) (completed 2026-11-24)
 - [ ] **Phase 80: The highlight lens is a headless session; `instrument` resolved** - The lens's rules move into a `LensSession` that the dock model owns as its tenth store, `useLens` shrinks to the DOM adapter, and the unread `QadiContextValue.instrument` is removed or its reason recorded (ARCH-127, devtools + react)
 
 ### Phase Details
@@ -576,7 +576,7 @@ Plans:
   5. `UseDockModelInput` is gone, `DevtoolsDockProps` is `DockModelInputs` plus the host-only props, inputs are mapped onto each feed in one place in `DockModel`, and gate 14's packed consumer, `surface.tst.ts`, the compiled README fence, the website's devtools page, `spec/behaviors` and the ADR fences all use the new signatures in the same plan as the change, with ADR-QD-192 and a Breaking `@qadi/devtools` changeset and upgrade-guide entry.
 
 **Planning notes**: **Research flag: a pre-plan render-sequence spike is required** (`/gsd-plan-phase --research-phase 79`). Today the first render is `Starting` then `Starting`, because the idle stand-ins hide an unconfigured feed; children's layout effects run before the parent's configure effect and `isUnsampled(Off)` is false, so a bare constructor could make the Questions join briefly claim "not handed over". That is derived by tracing, not run: the spike runs the sequence plain, under StrictMode and across a hidden `Activity` against a bare constructor, and `useScoped` reads `make` once per mount, so folding configure into the build needs the latest inputs (a ref, or a kept second effect). The open decisions in the owner table above are asked once at the discuss step, after the spike; also decide a throw during the first `configure` inside the build (scope closed vs model kept). `DockModel.configure`'s dispatch order (gates, then diagnostics, then `shownReading.refresh()`) stays written once, and the rule decides whether a feed restarts, not the order. Export `sameFields` from its file, not the barrel. Test churn: about 190 to 213 construction sites (`DockModel.test.ts` 77, `GatesFeed.test.ts` 38, `DiagnosticsFeed.test.ts` 33, `TimelineFeed.test.ts` 30), so use one fixture helper, and keep the characterisation file out of shared helpers because Phase 80 edits them. Gate 14's fixture is a template string that only `pnpm spec:package` compiles. Commit the Stryker baselines of `TimelineFeed.ts`, `DiagnosticsFeed.ts`, `GatesFeed.ts`, `ExternalStore.ts` and `DockModel.ts` (score 1, ADR-QD-168) first and re-close them after the review.
-**Plans**: 17/17 plans executed (waves 1 to 17, strictly serial)
+**Plans**: 17/17 plans complete (waves 1 to 17, strictly serial)
 
 Plans:
 **Wave 1**
@@ -662,5 +662,5 @@ Phases execute in numeric order: 77 → 78 → 79 → 80
 |-------|----------------|--------|-----------|
 | 77. An audit row is a value only its codec makes | 7/7 | Complete    | 2026-11-24 |
 | 78. `TimelineStore` owns its capacity | 11/11 | Complete    | 2026-11-24 |
-| 79. Feeds and the dock model take inputs only through `configure` | 17/17 | In Progress | - |
+| 79. Feeds and the dock model take inputs only through `configure` | 17/17 | Complete    | 2026-11-24 |
 | 80. The highlight lens is a headless session; `instrument` resolved | 0/0 | Not started | - |

@@ -2,20 +2,20 @@
 gsd_state_version: "1.0"
 milestone: v1.9
 milestone_name: Arch Wave 14
-current_phase: 79
-current_phase_name: Feeds and the dock model take inputs only through `configure`
-status: executing
-stopped_at: Completed QD-79-17-PLAN.md
-last_updated: "2026-11-24T13:03:14.251Z"
+current_phase: 80
+current_phase_name: The highlight lens is a headless session; `instrument` resolved
+status: planning
+stopped_at: Phase QD-79 complete, ready to plan Phase 80
+last_updated: "2026-11-24T13:55:53.015Z"
 last_activity: 2026-11-24
-last_activity_desc: Phase QD-78 complete, transitioned to Phase 79
-state_head: 6a071ef17bc02271e0cf9f6dc50c88aa52114bfc
+last_activity_desc: Phase QD-79 complete, transitioned to Phase 80
+state_head: 0d0a0b47980faeafc21090e51c4ccc7f129d0dd7
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 35
   completed_plans: 35
-  percent: 50
+  percent: 75
 ---
 
 # Project State
@@ -29,18 +29,18 @@ See: .planning/PROJECT.md (updated 2026-11-24)
 
 ## Current Position
 
-Phase: 79 (Feeds and the dock model take inputs only through `configure`) — EXECUTING
-Plan: 17 of 17
-Status: Executing (79-09 complete)
-Last activity: 2026-11-24 — 79-09 complete (the dock maps its inputs onto its feeds in one place)
+Phase: 80 — The highlight lens is a headless session; `instrument` resolved
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-11-24 — Phase QD-79 complete, transitioned to Phase 80
 
-Progress: [█████░░░░░] 50% (2 of 4 phases)
+Progress: [████████░░] 75% (2 of 4 phases)
 
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 460
+- Total plans completed: 477
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -117,6 +117,7 @@ Progress: [█████░░░░░] 50% (2 of 4 phases)
 | 76 | 8 | - | - |
 | QD-77 | 7 | - | - |
 | QD-78 | 11 | - | - |
+| QD-79 | 17 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -1099,7 +1100,7 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 ## Session Continuity
 
 Last session: 2026-11-24T13:03:14.109Z
-Stopped at: Completed QD-79-17-PLAN.md
+Stopped at: Phase QD-79 complete, ready to plan Phase 80
 Resume file: None
 
 ## Operator Next Steps
