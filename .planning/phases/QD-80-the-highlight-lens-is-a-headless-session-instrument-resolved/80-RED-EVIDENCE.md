@@ -27,3 +27,14 @@ flip's test failed and the other nine passed. The file was restored with `cp` af
 - red on the base (highlight-survives-move): the highlight button pressed while picking
 - red on the base (same-hover-same-overlay): two pointer moves over one guard while picking
 - check failed: 80-characterisation-check.mjs: packages/devtools/test/react/Lens.dock.characterisation.test.tsx differs from its first commit: sha256 1a46298d133f8af4b1719d2cc937c60155e016498a0240e75e97baf528590c9d with its flips reverted, dab45aaac1a71d410a81290259b6c559627814edb0110dc3cd5e2d6e6273ce89 at 7546f54e
+
+## 80-03 the instrument toggle and the remounted guard
+
+The flip's after line was applied to a `cp`-backed copy of the committed file and run on the unchanged source: the
+toggle cell failed (`expected 1 to be +0`) and the registration cell passed. The file was restored with `cp`, and
+`git status --short -- packages` printed nothing afterwards. The remounted-guard cell passes on the base with an
+inequality, so the base gives a new id.
+
+- base: 2cca1f46a30ea7fd50d070fc34cf3b0d7239a2b2
+- red on the base (toggle-no-rerender): a memoised consumer of the context renders again when instrument is toggled
+- useId: a remounted guard registers under a new id

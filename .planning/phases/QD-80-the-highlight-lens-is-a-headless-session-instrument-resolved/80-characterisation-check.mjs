@@ -50,6 +50,18 @@ const FILES = [
       },
     ],
   },
+  {
+    file: "packages/react/test/InstrumentToggle.characterisation.test.tsx",
+    base: "2cca1f46a30ea7fd50d070fc34cf3b0d7239a2b2",
+    flips: [
+      {
+        name: "toggle-no-rerender",
+        title: "a memoised consumer of the context renders again when instrument is toggled",
+        before: "      expect(rendersOnToggle).toBe(1);",
+        after: "      expect(rendersOnToggle).toBe(0);",
+      },
+    ],
+  },
 ];
 
 const digest = (text) => createHash("sha256").update(text).digest("hex");
