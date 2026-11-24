@@ -650,7 +650,47 @@ Plans:
   5. After a repo-wide search that includes `examples/` and `website/`, `QadiContextValue.instrument` is removed with a Breaking `@qadi/react` changeset, an upgrade-guide entry, a `spec/overview.md` edit and a dated ADR-QD-111 amendment, or the reason it stays is recorded with a first reader.
 
 **Planning notes**: No research flag: `DockSession`, `ExplorerSession` and `HeldChoice` are the precedents and the open items are decisions, not unknown technology. The one decision needing evidence first is persistence: the review treats "a pick survives a tab switch" as the point, while BEH-QD-234's third exit and `01-shell.md:72` say opening the inspector exits lens mode, and a persisted `picked` would re-run `scrollIntoView` on remount (`InstanceRow` must not re-fire) and a persisted highlight would redraw unasked; every changed behaviour gets an ADR row. `choose` is decided synchronously in the capture listener, and the cleanup calls `cancel()` so BEH-QD-234's exit-on-unmount holds. `QuestionsPanel` takes a `lens` prop and `questionsPanelInput.ts` is the single seam for about 42 panel renders. `LensSession.ts` is new and needs its mutation bar set at its first commit; commit `DockModel.ts`'s baseline first. The milestone close re-verifies 77 to 79 and re-runs each phase's record scripts, because 78 to 80 edit the same files.
-**Plans**: TBD
+**Plans**: 13 plans (waves 1 to 13, strictly serial)
+
+Plans:
+**Wave 1**
+- [ ] 80-01-PLAN.md — record the phase base and the mutation base of `DockModel.ts`, committed alone and first; the base facts, the `instrument` search rerun, and the phase check helper
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 80-02-PLAN.md — on the base: the lens characterised through the dock (four declared flips) and the check that holds it to its first commit
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 80-03-PLAN.md — on the base: the `instrument` toggle characterised (one declared flip) and the id of a remounted guard measured
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 80-04-PLAN.md — on the base: the listener and tab-round-trip regressions seen RED through the dock, and the pinned-test check for the panel and lens tests
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 80-05-PLAN.md — the package-private `LensSession`, every transition seen failing against two scratch stubs first
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 80-06-PLAN.md — the dock model owns the lens as its tenth store; the store list and the configure sweep at ten
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 80-07-PLAN.md — `useLens` as the document adapter, the panel's required `lens` prop, the dock passing the model's; the four flips applied
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 80-08-PLAN.md — `QadiContextValue` drops `instrument`, pinned by a type test seen failing first; the react flip applied
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [ ] 80-09-PLAN.md — ADR-QD-193, the dated amendments of ADR-QD-185, ADR-QD-047 and ADR-QD-111, CCR-QD-472 begun
+
+**Wave 10** *(blocked on Wave 9 completion)*
+- [ ] 80-10-PLAN.md — BEH-QD-736 to BEH-QD-740, INV-QD-405 and INV-QD-406, the restated records, traceability and the devtools-spec notes
+
+**Wave 11** *(blocked on Wave 10 completion)*
+- [ ] 80-11-PLAN.md — the Breaking `@qadi/react` and patch `@qadi/devtools` changesets, the 0.13 upgrade section, the overview line, CCR-QD-472 complete
+
+**Wave 12** *(blocked on Wave 11 completion)*
+- [ ] 80-12-PLAN.md — the mutation close of the dock model and the lens session on one head, and every close scan
+
+**Wave 13** *(blocked on Wave 12 completion)*
+- [ ] 80-13-PLAN.md — `pnpm check:pr` and `pnpm spec:package` green on the measured tree, LENS-01 to LENS-05 complete, the trailer scan
 **UI hint**: no (decided 2026-11-24: behaviour only, no markup, copy, test id or style change; 80-CONTEXT.md D-26)
 
 ### Progress (v1.9)
@@ -663,4 +703,4 @@ Phases execute in numeric order: 77 → 78 → 79 → 80
 | 77. An audit row is a value only its codec makes | 7/7 | Complete    | 2026-11-24 |
 | 78. `TimelineStore` owns its capacity | 11/11 | Complete    | 2026-11-24 |
 | 79. Feeds and the dock model take inputs only through `configure` | 17/17 | Complete    | 2026-11-24 |
-| 80. The highlight lens is a headless session; `instrument` resolved | 0/0 | Not started | - |
+| 80. The highlight lens is a headless session; `instrument` resolved | 0/13 | Not started | - |
