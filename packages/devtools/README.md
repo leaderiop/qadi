@@ -168,7 +168,9 @@ notification), one value as itself and several as one `AggregateError`. The rest
 that call does not run, so a throw can still leave a feed's status wrong with nothing
 running: the gates feed's questions cadence ends, a diagnostics feed stays `Starting`
 with no new poll, and a timeline restarted from `Stopped` says `Reading` with nothing
-reading. A `configure` with a new `capacity` publishes the emptied timeline and then
+reading. The store a host holds as `timeline` is the feed's one store for its whole
+life, and a capacity other than the one it holds is that store's `resize`, so a
+subscription on it survives a capacity change. A `configure` with a new `capacity` publishes the emptied timeline and then
 starts the read that refills it, from the same `source` or a new one, so a throw on
 that publish is rethrown once the read has started and stops no read, unless the
 timeline was `Stopped` and a status listener throws on the `Reading` that read
@@ -248,7 +250,11 @@ changes after it.
 evaluates. `timeline.status.restart()` and `diagnostics.restart()` restart a stopped
 feed. `configure` replaces the whole input set: `TimelineFeed.configure` reads an
 omitted input as `undefined`, and `diagnostics.configure(undefined)` ends the poll
-and resets it to `Off`. A shell lays a reading of its own over the feed's with
+and resets it to `Off`. An omitted `capacity` is `DEFAULT_TIMELINE_CAPACITY`, one bound
+with it, so moving between them keeps the timeline and reads nothing again. A
+capacity the timeline refuses throws before anything moves, in the feed's
+`configure` and in the dock's: the inputs, the timeline and the read are as they
+were, and the dock applies a capacity whole or not at all. A shell lays a reading of its own over the feed's with
 `mergeReading`, the dock's `reading` rule.
 
 A stop's or a failed read's `reason` (`Stopped`, `WiringRead.Failed`,

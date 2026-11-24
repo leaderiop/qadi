@@ -1213,3 +1213,65 @@ export const describeArchiveInput: (refusal: ArchiveInputRefusal) => string =
 The migration example for rows written before 0.10, at the top of this guide, is unchanged. It runs on `@qadi/audit@0.10` and returns storage JSON, which is the object your store takes.
 
 The decision is [ADR-QD-190](https://github.com/leaderiop/qadi/blob/main/spec/decisions/190-an-audit-row-is-a-value-only-its-codec-makes.md).
+
+## 0.13: a timeline store owns its capacity
+
+`@qadi/devtools` built the timeline store a host held per capacity. `makeTimelineStore` read its capacity once, so the feed kept an inner store it rebuilt on every capacity change, a second store fed by a listener on it, and a six-member forwarder it handed the host. A capacity the timeline refuses threw with the feed's inputs already naming it, and the dock above it held inputs it never applied. An omitted capacity and `DEFAULT_TIMELINE_CAPACITY` emptied the review and read the source again, a zero-capacity timeline published for records it kept nowhere, and `useTimelineStore` kept the capacity of its first render. A timeline store now owns its capacity: it has a `resize`, the feed holds one store for its whole life, and a capacity the timeline refuses changes nothing.
+
+| Change | Before | After |
+| ------ | ------ | ----- |
+| `TimelineStore` | `subscribe`, `getSnapshot`, `accept`, `clear`, `setPaused` and `isPaused` | also a required `resize(capacity): boolean`; an object a host writes as a `TimelineStore` needs one |
+| `resize` on a store | no such member; a different bound was a different store | `false` and nothing changes for the capacity the store holds; any other empties the timeline at the new bound, releases a pause, publishes once and answers `true` |
+| `feed.timeline` | a forwarder over a store the feed replaced on each capacity change | the feed's one store for its life; a capacity change is its `resize`, and a subscription on it survives |
+| an omitted `capacity` and `DEFAULT_TIMELINE_CAPACITY` | two bounds: moving between them emptied the timeline and read the source again | one bound: the timeline is kept and nothing is read again |
+| a `capacity` the timeline refuses, in `configure` | threw with the inputs already assigned, so a later `configure` with the same inputs did nothing and a `restart` read a source the feed never read | throws before the inputs, the timeline or the read move, so a later `configure` compares with the inputs the feed held and a `restart` reads the source it held |
+| a `capacity` the dock refuses, and a timeline listener that throws on a capacity change | the dock held inputs it never applied; the rest of the configure did not run after the throw | the dock applies a capacity whole or not at all: a refused one throws before any other input moves, and a listener's throw is rethrown once the rest is applied |
+| a record a zero-capacity timeline cannot keep | a new timeline, so the store notified and the feed re-rendered | the identical timeline: nothing is published |
+| `useTimelineStore` with a changed `capacity` | kept the capacity of its first render | empties the same store at the new bound, releases a pause and keeps the store |
+| `clear` after a resize | built the empty timeline from the options the store was made with | empties at the capacity the store holds |
+
+A host that wrapped a store a feed handed it names the new member. Before, the wrapper forwarded six:
+
+```ts
+import type { TimelineStore } from "@qadi/devtools";
+
+export const traced = (inner: TimelineStore, log: (what: string) => void): TimelineStore => ({
+  subscribe: inner.subscribe,
+  getSnapshot: inner.getSnapshot,
+  accept: (record) => {
+    log("accept");
+    inner.accept(record);
+  },
+  clear: inner.clear,
+  setPaused: inner.setPaused,
+  isPaused: inner.isPaused,
+});
+```
+
+After, it forwards `resize` as well, and the answer is the inner store's:
+
+```typescript
+import type { TimelineStore } from "@qadi/devtools";
+
+export const traced = (inner: TimelineStore, log: (what: string) => void): TimelineStore => ({
+  subscribe: inner.subscribe,
+  getSnapshot: inner.getSnapshot,
+  accept: (record) => {
+    log("accept");
+    inner.accept(record);
+  },
+  clear: inner.clear,
+  resize: (capacity) => {
+    log("resize");
+    return inner.resize(capacity);
+  },
+  setPaused: inner.setPaused,
+  isPaused: inner.isPaused,
+});
+```
+
+To change a feed's capacity, call `configure` rather than `feed.timeline.resize`. `configure` resizes the one store and then reads the source again, so the timeline refills at the new bound; `resize` alone empties the timeline and starts no read. An omitted capacity is `DEFAULT_TIMELINE_CAPACITY`, and a capacity the timeline refuses throws before anything moves, in the feed and in the dock.
+
+The dock refuses a capacity whole, and applies an interrupted one whole: when a timeline listener throws on the capacity change, the dock has applied its catalogue, roles, ports, gates, diagnostics and shown reading by the time the throw reaches the caller.
+
+The decision is [ADR-QD-191](https://github.com/leaderiop/qadi/blob/main/spec/decisions/191-a-timeline-store-owns-its-capacity.md).
