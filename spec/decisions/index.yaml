@@ -586,3 +586,7 @@ entries:
     file: "189-remedies-asks-core-whether-a-fixture-row-meets-a-signature-or-acted-leaf.md"
     title: "Remedies asks core whether a fixture row meets a signature or acted leaf"
     status: "Accepted — amends ADR-QD-058 and ADR-QD-094"
+  - id: "ADR-QD-190"
+    file: "190-an-audit-row-is-a-value-only-its-codec-makes.md"
+    title: "An audit row is a value only its codec makes"
+    status: "Accepted — amends ADR-QD-110 and ADR-QD-056"
