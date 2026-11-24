@@ -3,18 +3,18 @@ gsd_state_version: "1.0"
 milestone: v1.9
 milestone_name: Arch Wave 14
 current_phase: 78
-current_phase_name: TimelineStore owns its capacity
+current_phase_name: "`TimelineStore` owns its capacity"
 status: executing
-stopped_at: Phase QD-77 complete, ready to plan Phase 78
-last_updated: "2026-11-24T05:17:04.876Z"
+stopped_at: Completed QD-78-01-PLAN.md
+last_updated: "2026-11-24T05:31:32.406Z"
 last_activity: 2026-11-24
-last_activity_desc: Phase QD-77 complete, transitioned to Phase 78
-state_head: 3d6bbb0c00c680de42c1bee54defea0bb3bd238e
+last_activity_desc: Phase QD-78 execution started
+state_head: fc35006661eebdf8f743d65605b96cdd6f0cb3c6
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 18
-  completed_plans: 7
+  completed_plans: 8
   percent: 25
 ---
 
@@ -25,14 +25,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-24)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 78 — `TimelineStore` owns its capacity
+**Current focus:** Phase QD-78 — `TimelineStore` owns its capacity
 
 ## Current Position
 
-Phase: 78 (TimelineStore owns its capacity) — READY TO EXECUTE
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-11-24 — Phase QD-77 complete, transitioned to Phase 78
+Phase: QD-78 (`TimelineStore` owns its capacity) — EXECUTING
+Plan: 2 of 11
+Status: Executing Phase QD-78
+Last activity: 2026-11-24 — Phase QD-78 execution started
 
 Progress: [███░░░░░░░] 25% (1 of 4 phases)
 
@@ -564,6 +564,7 @@ Progress: [███░░░░░░░] 25% (1 of 4 phases)
 | Phase QD-77 P05 | 14min | 2 tasks | 6 files |
 | Phase QD-77 P06 | 36 min | 3 tasks | 8 files |
 | Phase 77 P07 | 70 min | 3 tasks | 5 files |
+| Phase QD-78 P01 | 25min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -985,6 +986,8 @@ Progress: [███░░░░░░░] 25% (1 of 4 phases)
 - [Phase 77]: A by-hand static mutant the decoder's own construction guard refuses at import (RuntimeError, untrustedDecoder: unknownKeys must be) counts as detected in the close verify — No test turns a load-time refusal into Killed; the earlier hydration close decided the same. Decided autonomously.
 
 - [Phase 77]: Code review (77-REVIEW-DISPOSITION.md): three iterations, 0 open. Run-time brand added (package-private `CodecMade.ts` WeakSet filled only by the codec; rows frozen one level); `keyMaterial` read once and checked against `KeyMaterialSchema`; non-list `entries` refused by all four row functions; `ArchiveInputInvalid`/`RetentionInputInvalid` carry closed `ArchiveInputRefusal`/`RetentionInputRefusal` enums (api-surface 942). Verification passed 5/5 (3d58ac6e); `check:pr` exit 0 at 13c0b7c7.
+- [Phase QD-78]: 78-01: mutation base recorded as measured on phase_base de13eb7f (four groups; dock 70/70 not ADR-QD-168 145/145; store survivor at TimelineStore.ts:58 at base)
+
 ### Pending Todos
 
 - v1.9: strictly serial, 77 then 78 through 80; ids reserved (ADR-QD-190 to 193, CCR-QD-469 to 472, BEH-QD-721 to 740, INV-QD-399 to 406), never run `node scripts/next-id.mjs`. Phase 77 (`@qadi/audit`, live defect, **Breaking**) opens with a RED regression test written without `as` on its phase base, and needs a pre-plan probe first (`/gsd-plan-phase --research-phase 77`: the brand form's `Equal`/`Hash`/`JSON.stringify`, and the whole-archive writer inputs `entries`, `now`, `keyMaterial`). Phase 78 (`TimelineStore.resize`) is standard, no research. Phase 79 (**Breaking**, `@qadi/devtools`) opens with a first-render characterisation test, plain and under StrictMode, and needs a render-sequence spike first (`/gsd-plan-phase --research-phase 79`); 78 hard-precedes 79. Phase 80 (`LensSession`, `instrument`) is standard, no research; its tab-switch persistence and `instrument` removal are decided once at the discuss step. Soft edge 79 to 80 (`DockModel.ts`, `DevtoolsDock.tsx`); the milestone close re-verifies 77 to 79. Evidence: `.planning/phases/_WAVE14-CONTEXT.md` and `.planning/research/`.
@@ -1060,8 +1063,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-24T04:45:00.000Z
-Stopped at: Phase QD-77 complete, ready to plan Phase 78
+Last session: 2026-11-24T05:31:32.335Z
+Stopped at: Completed QD-78-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
