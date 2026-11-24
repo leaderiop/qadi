@@ -251,7 +251,7 @@ describe("the lens session", () => {
     assert.strictEqual(heard.calls, before);
 
     const kept = pickedOff("a");
-    // Idle between the pick and the listeners coming off: a hover moves nothing and leaves it.
+    // Idle after a pick: a hover moves nothing and leaves the reveal.
     kept.session.hover("b");
     assert.isFalse(kept.session.choose("b"));
     assert.isFalse(kept.session.takeReveal("b"));

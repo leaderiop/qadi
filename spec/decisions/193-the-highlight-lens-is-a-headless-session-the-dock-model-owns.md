@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-193                                   |
-> | Revision       | 1.8                                            |
+> | Revision       | 1.9                                            |
 > | Effective Date | 2026-11-24                                     |
 > | Status         | Accepted — amends ADR-QD-185, ADR-QD-047 and ADR-QD-111 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.8 (2026-11-24): the instrument-toggle test is quoted by its current title (CCR-QD-472)<br>1.7 (2026-11-24): useLens is handed the listed guards, so the panel holds one subscription to the questions store (CCR-QD-472)<br>1.6 (2026-11-24): the adapter does not catch a subscriber's failure; what the dispatch does with it is the DOM's (CCR-QD-472)<br>1.5 (2026-11-24): hover and choose from idle are reached by the adapter between a pick and its listeners coming off (CCR-QD-472)<br>1.4 (2026-11-24): a hover leaves the reveal and moves nothing from idle, the state between a pick and the listeners coming off (CCR-QD-472)<br>1.3 (2026-11-24): the reader-facing table lists seven interaction rows, the keyboard click and the dropped reveal included (CCR-QD-472)<br>1.2 (2026-11-24): the review's corrections: the reveal belongs to its pick, the click placed by its element and swallowed whatever a subscriber does, the capture wording (CCR-QD-472)<br>1.1 (2026-11-24): the behaviours and invariants that state it are linked (CCR-QD-472)<br>1.0 (2026-11-24): Initial (ARCH-127) |
+> | Change History | 1.9 (2026-11-24): hover and choose from idle are reached only headlessly or by a script in the click's task, not by a user's pointer (CCR-QD-472)<br>1.8 (2026-11-24): the instrument-toggle test is quoted by its current title (CCR-QD-472)<br>1.7 (2026-11-24): useLens is handed the listed guards, so the panel holds one subscription to the questions store (CCR-QD-472)<br>1.6 (2026-11-24): the adapter does not catch a subscriber's failure; what the dispatch does with it is the DOM's (CCR-QD-472)<br>1.5 (2026-11-24): hover and choose from idle are reached by the adapter between a pick and its listeners coming off (CCR-QD-472)<br>1.4 (2026-11-24): a hover leaves the reveal and moves nothing from idle, the state between a pick and the listeners coming off (CCR-QD-472)<br>1.3 (2026-11-24): the reader-facing table lists seven interaction rows, the keyboard click and the dropped reveal included (CCR-QD-472)<br>1.2 (2026-11-24): the review's corrections: the reveal belongs to its pick, the click placed by its element and swallowed whatever a subscriber does, the capture wording (CCR-QD-472)<br>1.1 (2026-11-24): the behaviours and invariants that state it are linked (CCR-QD-472)<br>1.0 (2026-11-24): Initial (ARCH-127) |
 
 ---
 
@@ -78,8 +78,9 @@ React hook, and a field of the provider's context had no reader.
 
    `choose` answers whether the click it was given is consumed, so the adapter decides it synchronously inside the capture
    listener: a click is swallowed only by a pick that found a guard, and an idle lens never swallows one. `hover` and `choose`
-   from `Idle` reach the session from the adapter only between a pick and its listeners coming off, when React commits it,
-   and otherwise only headlessly; they are pinned so that an idle lens fails closed. There is **no `clear` command**: each outcome it would have is already another command's, `cancel()` or
+   from `Idle` are reached only headlessly, or by a script that dispatches a second event in the click's task, because the
+   listeners come off within that task, before a user's next pointer event; the session is pinned so that an idle lens
+   fails closed whoever sends them. There is **no `clear` command**: each outcome it would have is already another command's, `cancel()` or
    `highlight([])` from `Idle` and `hover(undefined)` from `Picking`, and no caller would read a second name for a transition
    that exists. "Draw nothing" is `highlight([])` while idle and `hover(undefined)` while picking.
 
@@ -142,8 +143,9 @@ React hook, and a field of the provider's context had no reader.
    mount would scroll the panel at every return to the tab. `choose` arms a one-shot reveal for the chosen guard before it
    publishes, so a listener told of the pick can take it, and `takeReveal(id)` answers `true` once, for that guard only, and
    disarms it. A reveal belongs to the moment of its pick: `toggle`, `cancel` and `highlight` disarm it, whether or not they
-   moved the snapshot. A `hover` leaves it, and from `Idle` it moves nothing: that is the state between a pick and the
-   listeners coming off, which happens when React commits the pick, so a pointer move can still arrive in it. `takeReveal`
+   moved the snapshot. A `hover` leaves it, and from `Idle` it moves nothing. A user's pointer cannot send one there, because the
+   listeners come off before the next pointer event; only a headless caller, or a script that dispatches a second event in
+   the click's task, can, and the rule protects that case. `takeReveal`
    publishes nothing, because it is an event and not state. The row's
    effect is `if (picked && session.takeReveal(instance.id)) node.current?.scrollIntoView(...)`. A row not rendered when the
    pick happened reveals itself the first time it mounts after the pick, which is the first reveal and not a re-fire, unless
