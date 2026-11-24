@@ -480,7 +480,7 @@ Order: the live defect (77), then the three devtools deepenings (78, 79, 80). **
   5. ADR-QD-190 records the brand, the decode order and the refusal table and amends ADR-QD-110; INV-QD-101, BEH-QD-253 and the affected `spec/overview.md` rows move with it; a `@qadi/audit` changeset marks the change Breaking, with an upgrade-guide entry.
 
 **Planning notes**: **Research flag: a pre-plan probe is required** (`/gsd-plan-phase --research-phase 77`). (a) Compile each candidate brand form under the audit tsconfig and probe its `Equal`, `Hash` and `JSON.stringify` behaviour: the researchers disagree (a type-level `Brand.nominal` on a plain object keeps structural equality but survives a spread, so `{...entry, sequenceNumber: 1.5}` still type-checks; a private-constructor class with a `declare private readonly` marker does not survive one but its `Equal`/`Hash` and the marker compile in audit are unverified), and an exported decodable schema value is a second way to mint. (b) Enumerate whole-archive writer inputs (entries, `now`, `keyMaterial`) through `readAuditArchive(JSON.parse(JSON.stringify(archive)))`; the `now: NaN` and `keyMaterial` variants are reasoned, not run, and any that does not reproduce is recorded "refuted at the base". The open decisions in the owner table above are asked once at the discuss step, after the probe. Test churn: about 35 literal or spread row sites in 9 audit test files, 5 type-pin files and one features step file; a `numbered(entry, n)` helper that goes through the codec avoids hand-built rows. Commit the per-file Stryker baselines (`AuditEntry.ts`, `ArchiveFacts.ts`, `AuditArchive.ts`, `Retention.ts`) alone and first, and re-close them after the review fixes. Do not delete a check the type cannot prove.
-**Plans**: 5/7 plans executed (waves 1 to 7, strictly serial)
+**Plans**: 6/7 plans executed (waves 1 to 7, strictly serial)
 
 Plans:
 **Wave 1**
@@ -499,7 +499,7 @@ Plans:
 - [x] 77-05-PLAN.md — ADR-QD-190 with its index entry and trace row, dated amendments to ADR-QD-110 and ADR-QD-056, and the CCR-QD-469 row
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 77-06-PLAN.md — BEH-QD-721/722 and INV-QD-399/400, the restated audit behaviours and invariants, the Breaking changeset, the upgrade guide and audit prose
+- [x] 77-06-PLAN.md — BEH-QD-721/722 and INV-QD-399/400, the restated audit behaviours and invariants, the Breaking changeset, the upgrade guide and audit prose
 
 **Wave 7** *(blocked on Wave 6 completion)*
 - [ ] 77-07-PLAN.md — mutation close against the base, close scans, `pnpm check:pr` green, AROW-01 to AROW-06 complete
@@ -569,7 +569,7 @@ Phases execute in numeric order: 77 → 78 → 79 → 80
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 77. An audit row is a value only its codec makes | 5/7 | In Progress | - |
+| 77. An audit row is a value only its codec makes | 6/7 | In Progress | - |
 | 78. `TimelineStore` owns its capacity | 0/0 | Not started | - |
 | 79. Feeds and the dock model take inputs only through `configure` | 0/0 | Not started | - |
 | 80. The highlight lens is a headless session; `instrument` resolved | 0/0 | Not started | - |
