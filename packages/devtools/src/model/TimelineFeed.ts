@@ -13,7 +13,7 @@ import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import type * as Scope from "effect/Scope";
 import { causeMessage } from "@qadi/core";
-import { makeExternalStore, sameFields } from "./ExternalStore.ts";
+import { callAll, makeExternalStore, sameFields } from "./ExternalStore.ts";
 import { sourceFromRecords, type Source } from "./Source.ts";
 import { makeSupersedingRun } from "./SupersedingRun.ts";
 import { DEFAULT_TIMELINE_CAPACITY, emptyTimeline, type Timeline } from "./Timeline.ts";
@@ -64,8 +64,8 @@ export interface TimelineStatusReadout {
    * Registers a listener, and returns the function that removes it. Every listener is
    * called, and then what they threw is rethrown out of whatever published: one value as
    * itself, several as one `AggregateError`. A throw on the `Reading` that `restart` or
-   * `configure` publishes over a `Stopped` escapes before the new read is started, so the
-   * status says `Reading` with nothing reading.
+   * `configure` publishes is rethrown once the new read has started, so the status never
+   * says `Reading` with nothing reading (ADR-QD-194).
    */
   readonly subscribe: (listener: () => void) => () => void;
   readonly getSnapshot: () => TimelineStatus;
@@ -78,7 +78,8 @@ export interface TimelineFeed {
    * which empties it at the new bound.
    * Every listener on its `subscribe` is called, and it runs on every record; what they
    * threw is rethrown out of whatever published, and the rest of that call does not run,
-   * except that a capacity change goes on to start the read that refills it (see `configure`).
+   * except that a capacity change goes on to start the read that refills it, whose throw is
+   * rethrown after it (see `configure`).
    */
   readonly timeline: TimelineStore;
   /** Where the read stands. */
@@ -90,10 +91,9 @@ export interface TimelineFeed {
    * before anything moves and leaves the inputs, the timeline and the read as they were.
    * Does nothing once the feed's scope has closed. A capacity change publishes
    * the emptied timeline and then starts the read that refills it, from the same source or
-   * a new one; what a listener throws on that publish is rethrown once the read has started,
-   * unless the feed was `Stopped` and a status listener throws on the `Reading` that read
-   * publishes: that throw escapes instead, replaces the timeline listener's, and no read is
-   * started (the window `status` describes).
+   * a new one. Its resize and its read both run, whatever a listener throws on either, and
+   * what they threw is rethrown after: one value as itself, both as one `AggregateError`,
+   * the resize's first (ADR-QD-194, ADR-QD-177).
    */
   readonly configure: (inputs: TimelineFeedInputs) => void;
 }
@@ -172,16 +172,20 @@ export const makeTimelineFeed = Effect.fn("qadi.devtools.makeTimelineFeed")(func
   // A source that went away is replaced by an empty one.
   const readSource = (source: Source | undefined) => {
     const token = reads.begin();
-    status.set(READING);
     const marking: Pick<TimelineStore, "accept"> = {
       accept: (record) => {
         if (!reads.isCurrent(token)) return;
         timeline.accept(record);
       },
     };
-    reads.fork(token, runSource(marking, source ?? NO_SOURCE), {
-      onFailure: (cause) => status.set(TimelineStatus.Stopped({ reason: causeMessage(cause) })),
-    });
+    // The publish comes first and the read starts whatever a listener throws on it.
+    try {
+      status.set(READING);
+    } finally {
+      reads.fork(token, runSource(marking, source ?? NO_SOURCE), {
+        onFailure: (cause) => status.set(TimelineStatus.Stopped({ reason: causeMessage(cause) })),
+      });
+    }
   };
 
   // A restart on a closed feed would publish a state nothing follows.
@@ -199,13 +203,14 @@ export const makeTimelineFeed = Effect.fn("qadi.devtools.makeTimelineFeed")(func
       const wanted = completeTimelineInputs(next);
       if (sameFields(held, wanted)) return;
       held = wanted;
-      // Past the check an input moved, so the read starts again whichever one it was;
-      // `resize` throws only from its publish, after it has resized.
-      try {
-        timeline.resize(wanted.capacity);
-      } finally {
-        readSource(wanted.source);
-      }
+      // Past the check an input moved, so the read starts again whichever one it was; both
+      // steps run whatever a listener throws on either, and `resize` throws only from its
+      // publish, after it has resized. Each step reads the held inputs when it runs, so a
+      // nested `configure` from a listener decides the capacity and the source.
+      callAll(
+        [() => timeline.resize(held.capacity), () => readSource(held.source)],
+        "More than one step of the timeline feed's configure threw.",
+      );
     },
   };
 });
