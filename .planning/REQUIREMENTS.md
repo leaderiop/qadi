@@ -65,7 +65,6 @@ Every phase runs on branch `arch-wave-15` (off `arch-wave-14` at `902d2128`), st
 | Using `AtomRegistry`'s `scheduleTask`/`defaultIdleTTL` for the registry lifetime | AGENTS.md §13 and ADR-QD-148: they reroute dispatch and dropped a required render |
 | Reading `registry.disposed` | Not on `AtomRegistry`'s interface |
 | Building the provider's registry in an effect (`useScoped` shape) | Children's effects run before the provider's on reveal, and it renders nothing on the server pass |
-| Changing `TimelineFeed`'s own `try/finally` | TF29 pins it; Phase 81 changes the dock model, not the feed |
 | Upgrading any dependency | STACK: every API needed is installed |
 | Formatting with `oxfmt` | AGENTS.md §17 |
 | Merge, release or publish | Standing instruction: release only when the user explicitly asks for "the release" |

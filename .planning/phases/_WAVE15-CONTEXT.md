@@ -94,7 +94,8 @@ ADR Document IDs must equal the file number (gate 10).
 - **The rule already exists twice:** `ExternalStore.ts` `throwCollected` (≈63), used by `notify` and the derived-store
   release; one throw rethrows itself, two or more an `AggregateError`.
 - **Keep:** M55 (refused capacity throws before anything moves), M56, the step order (one join publish), the lens
-  silent on configure, `TimelineFeed`'s own `try/finally` (TF29).
+  silent on configure. (`TimelineFeed`'s own `try/finally` was listed here; Phase 81's discuss step closed the
+  `begin()`-to-`fork()` window at every site instead, 81-CONTEXT D-09, 2026-11-24.)
 - `DockModel.ts` mutation record: 69 killed / 0 survived / 12 ignored at v1.9 close; a new `Ignored` mutant fails the
   compare, so keep new literals inside function bodies.
 
