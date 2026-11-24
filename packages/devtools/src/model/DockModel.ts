@@ -161,7 +161,10 @@ export interface DockModelInputs {
    * the `Live` option is shown disabled with the reason.
    */
   readonly ports?: EvaluationPortsLayer | undefined;
-  /** Where records come from, read in the model's own scope; a new source (or capacity) supersedes the previous read. Omitted, the dock renders empty rather than throwing. */
+  /**
+   * Where records come from, read in the model's own scope; a new source (or capacity)
+   * supersedes the previous read. Omitted, the dock renders empty rather than throwing.
+   */
   readonly source?: Source | undefined;
 }
 
@@ -183,7 +186,10 @@ export const completeDockInputs = (inputs: DockModelInputs): Required<DockModelI
   source: inputs.source,
 });
 
-/** What the dock hands each of its three feeds: the timeline's and the gates' records, and the diagnostics' when it is on. */
+/**
+ * What the dock hands each of its three feeds: the timeline's and the gates' records, and the
+ * diagnostics' when it is on.
+ */
 interface FeedInputs {
   readonly timeline: Required<TimelineFeedInputs>;
   readonly gates: Required<GatesFeedInputs>;
@@ -302,14 +308,20 @@ function mergedOf(key: MergeKey): DiagnosticsSnapshot {
 const NO_ROLES: ReadonlyArray<Role> = [];
 
 /**
- * Builds the model bare in the caller's scope; closing it interrupts the source read and any run in flight.
+ * Builds the model bare in the caller's scope; closing it interrupts the source read and any
+ * run in flight.
  *
  * The model takes its inputs only through `configure` (ADR-QD-192), so a bare model
  * shows what an empty record shows until it is handed one.
  */
-export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* (): Effect.fn.Return<DockModel, never, Scope.Scope> {
+export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* (): Effect.fn.Return<
+  DockModel,
+  never,
+  Scope.Scope
+> {
   let held = completeDockInputs({});
-  // Reads the source in this scope, once `configure` hands it over; the store it hands back outlives a capacity change.
+  // Reads the source in this scope, once `configure` hands it over; the store it hands back
+  // outlives a capacity change.
   const timelineFeed = yield* makeTimelineFeed();
   const timeline = timelineFeed.timeline;
   let shown: Timeline = timeline.getSnapshot();

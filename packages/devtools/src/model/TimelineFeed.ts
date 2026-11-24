@@ -158,7 +158,11 @@ export const idleTimelineStatus: TimelineStatusReadout = {
  * The feed takes its inputs only through `configure` (ADR-QD-192), so a bare feed holds
  * the default capacity and reads no source until it is handed one.
  */
-export const makeTimelineFeed = Effect.fn("qadi.devtools.makeTimelineFeed")(function* (): Effect.fn.Return<TimelineFeed, never, Scope.Scope> {
+export const makeTimelineFeed = Effect.fn("qadi.devtools.makeTimelineFeed")(function* (): Effect.fn.Return<
+  TimelineFeed,
+  never,
+  Scope.Scope
+> {
   let held = completeTimelineInputs({});
   const timeline = makeTimelineStore();
 

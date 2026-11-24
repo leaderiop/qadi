@@ -145,19 +145,26 @@ export const idleDiagnostics = (options: DiagnosticsOptions | undefined): Diagno
  * measures. The declared return type makes a new option a compile error until it is
  * listed here (ADR-QD-192).
  */
-export const completeDiagnosticsOptions = (options: DiagnosticsOptions): Required<DiagnosticsOptions> => ({
+export const completeDiagnosticsOptions = (
+  options: DiagnosticsOptions,
+): Required<DiagnosticsOptions> => ({
   layer: options.layer,
   collector: options.collector,
   intervalMillis: options.intervalMillis,
 });
 
 /**
- * Builds the feed bare in the caller's scope; closing it interrupts the run, and an interruption is never a `Stopped`.
+ * Builds the feed bare in the caller's scope; closing it interrupts the run, and an
+ * interruption is never a `Stopped`.
  *
  * The feed takes its options only through `configure` (ADR-QD-192), so a bare feed is
  * `Off` and starts nothing until it is handed options.
  */
-export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed")(function* (): Effect.fn.Return<DiagnosticsFeed, never, Scope.Scope> {
+export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed")(function* (): Effect.fn.Return<
+  DiagnosticsFeed,
+  never,
+  Scope.Scope
+> {
   let held: Required<DiagnosticsOptions> | undefined;
   let store: DiagnosticsStore = makeDiagnosticsStore();
   // Whether the reading shown holds an accepted sample: reset only by `Off`.
