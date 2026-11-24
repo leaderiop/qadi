@@ -25,6 +25,7 @@ import {
   type PortCallCollector,
   type TimelineFeed,
   type TimelineStatusReadout,
+  type TimelineStore,
 } from "../src/index.ts";
 import type {
   AskedQuestionLike as ReactAskedQuestionLike,
@@ -311,4 +312,10 @@ test("a handle's parts are nameable (TS2883)", () => {
   expect<TimelineFeed["status"]>().type.toBe<TimelineStatusReadout>();
   expect<DiagnosticsFeed>().type.toBeAssignableTo<DiagnosticsReadout>();
   expect<ReturnType<GatesFeed["getSnapshot"]>>().type.toBe<GatesSnapshot>();
+});
+
+test("a timeline store resizes itself and answers whether it did", () => {
+  expect<TimelineStore["resize"]>().type.toBe<(capacity: number) => boolean>();
+  expect<Omit<TimelineStore, "resize">>().type.not.toBeAssignableTo<TimelineStore>();
+  expect<TimelineFeed["timeline"]>().type.toBe<TimelineStore>();
 });

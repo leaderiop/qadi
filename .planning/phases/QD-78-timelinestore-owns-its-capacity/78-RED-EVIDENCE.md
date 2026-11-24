@@ -152,3 +152,12 @@ uncommitted edit of `TimelineStore.ts` `resize`, failed, and the file was restor
 - shown failing: a caller outside the type: no capacity and null read as the default, a string or a bigint throws
   - edit: `{ entries: [], capacity }` built in place of `emptyTimeline({ capacity })`
   - First message: `AssertionError: expected undefined to equal 500` (the missing capacity was kept as `undefined`)
+
+- shown failing: a timeline store resizes itself and answers whether it did
+  - edit: `TimelineStore.ts` `resize` returning `void` instead of `boolean`
+  - First message: `Type '(capacity: number) => void' is not the same as type '(capacity: number) => boolean'.` (the first pin)
+  - edit: `TimelineStore.ts` `resize` made optional (`readonly resize?:`)
+  - First message: `Type 'Omit<TimelineStore, "resize">' is assignable to type 'TimelineStore'.` (the second pin; the first pin failed too)
+  - edit: `TimelineFeed.ts` `timeline` typed `Pick<TimelineStore, "subscribe" | "getSnapshot">`
+  - First message: `Type 'Pick<TimelineStore, "getSnapshot" | "subscribe">' is not the same as type 'TimelineStore'.` (the third pin)
+  - Each edit was uncommitted against the committed tree and restored from a byte copy; `git diff --quiet -- packages/devtools/src` holds.
