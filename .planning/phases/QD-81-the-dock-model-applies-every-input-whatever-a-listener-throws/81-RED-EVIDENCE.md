@@ -24,3 +24,49 @@ removes:
 - check failed: single-source: collect loop outside callAll: packages/devtools/src/model/ExternalStore.ts:211
 - check failed: single-source: throwCollected is reached other than through callAll
 - check failed: single-source: DockModel.ts holds a try
+
+## 81-02 the dock model's listener tests
+
+Each line below was printed by `pnpm exec vitest run --project devtools packages/devtools/test/model/DockModel.listeners.test.ts`
+on the phase base (`packages/devtools/src` equal to `phase_base`, stdin closed), from the repository root.
+
+- red on the base: DL4 with a throwing explorer listener, a configure applies every input, rethrows what it threw, and an identical configure changes nothing
+  - failed on: AssertionError: expected [] to deeply equal [ 'editor' ] (the roles read, in the run that leaves the capacity where it was; the run that moves it is green on the base)
+- failed (scratch): DL1 with a throwing timeline listener, a configure applies every input, rethrows what it threw, and an identical configure changes nothing
+  - edit: deleted the simulation.setPorts call from configure; failed on: AssertionError: expected false to equal true (the Live source option)
+- failed (scratch): DL2 with a throwing dock listener, a configure applies every input, rethrows what it threw, and an identical configure changes nothing
+  - edit: deleted the simulation.setPorts call from configure; failed on: AssertionError: expected false to equal true (the Live source option)
+- red on the base: DL3 with a throwing roles listener, a configure applies every input, rethrows what it threw, and an identical configure changes nothing
+  - failed on: AssertionError: expected false to equal true (the Live source option of the simulation, which needs the handed ports: the roles step threw before the ports step)
+- red on the base: DL5 with a throwing simulation listener, a configure applies every input, rethrows what it threw, and an identical configure changes nothing
+  - failed on: AssertionError: expected [] to deeply equal [ 'editor' ] (the roles read, in the run that leaves the capacity where it was)
+- red on the base: DL6 with a throwing diagnostics listener, a configure applies every input, rethrows what it threw, and an identical configure changes nothing
+  - failed on: AssertionError: expected [] to deeply equal [ [ 'g1' ] ] (the questions asking read: the poll was never forked)
+- red on the base: DL7 with a throwing timelineStatus listener, a configure applies every input, rethrows what it threw, and an identical configure changes nothing
+  - failed on: AssertionError: expected [] to deeply equal [ 'a', 'b' ] (the timeline entries: the read was never started)
+- red on the base: DL8 with a throwing questions listener, a configure applies every input, rethrows what it threw, and an identical configure changes nothing
+  - failed on: AssertionError: expected false to be true (the diagnostics status is not Live: the diagnostics step never ran)
+- red on the base: DL9 with a throwing services listener, a configure applies every input, rethrows what it threw, and an identical configure changes nothing
+  - failed on: AssertionError: expected [] to deeply equal [ [ 'g1' ] ] (the questions asking read: the poll was never forked)
+- failed (scratch): DL10 with a throwing lens listener, a configure applies every input, rethrows what it threw, and an identical configure changes nothing
+  - edit: deleted the simulation.setPorts call from configure; failed on: AssertionError: expected false to equal true (the Live source option)
+- failed (scratch): DL11 the rows above cover every store a built model exposes
+  - edit: added an extra member with subscribe and getSnapshot to the returned model; failed on: AssertionError: expected [ 'timeline', 'dock', 'lens', ...(8) ] to have the same members as [ Array(10) ]
+- red on the base: DL12 a timeline listener and a roles listener that both throw are rethrown as one AggregateError in step order, with the message naming the configure
+  - failed on: AssertionError: expected false to equal true (the Live source option: the roles step threw before the ports step, so the read stops at an applied input before the two throws are compared)
+- red on the base: DL13 a listener that throws undefined is rethrown as undefined once every input is applied
+  - failed on: AssertionError: expected false to equal true (the Live source option of the simulation, which needs the handed ports)
+- red on the base: DL14 a listener that throws null is rethrown as null once every input is applied
+  - failed on: AssertionError: expected [] to deeply equal [ 'editor' ] (the roles read, in the run that leaves the capacity where it was)
+
+The four rows green on the base (DL1, DL2, DL10, DL11) are characterisations of what already holds; each was shown failing once by a
+copy-backed scratch edit of `packages/devtools/src/model/DockModel.ts`, restored with `cp` from a copy in the scratch directory
+(`git status --porcelain -- packages/devtools/src` printed nothing afterwards).
+
+- red on the base: DL15 an explorer listener that always throws leaves the simulation and the dock on every record the timeline accepts, and each accept rethrows it
+  - failed on: AssertionError: expected [] to deeply equal [ 'r1', 'r2' ] (the dock's rows: both accepts rethrew the listener's value and the timeline held both entries, while the dock stayed on its first timeline)
+- red on the base: DL16 a configure that moves the capacity and the catalogue publishes the sightings once to the explorer and once to the simulation
+  - failed on: AssertionError: expected { timeline: 1, dock: 1, ...(8) } to deeply equal the same record with explorer 1 and simulation 1 (received explorer 2 and simulation 2, and nothing else differed)
+- base counts (capacity and catalogue): timeline 1, dock 1, explorer 2, roles 1, simulation 2, diagnostics 0, timelineStatus 0, questions 0, services 0, lens 0
+- red on the base: DL17 a listener that configures the dock again from inside a step leaves the model where a plain configure with those inputs leaves a fresh one
+  - failed on: AssertionError: expected the nested model's state to deeply equal the fresh model's (the nested model held the outer call's gates "g1", its collector's one call and the Live source option enabled, where the fresh one holds "g2", the second collector's two calls and Live disabled)
