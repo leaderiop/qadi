@@ -279,3 +279,11 @@ Each scratch edit was applied to the source file named, run against the file's o
 - edit S5: `DockModel.ts:319`: `makeExplorerSession({ sightings: rail })` replaced by `makeExplorerSession({})`
 - edit S6: `DockModel.ts:318`: `makeSimulationSession({ sightings: rail })` replaced by `makeSimulationSession({})`
 - failed: a model built bare hands both rails the one list its sightings read returns
+
+### 79-16 the close: a bare build applies no inputs (orchestrator decision)
+
+The constructors have no parameters, so the build applied an input record that is always empty. Five mutants the close found at the head before this change are equivalent for that reason alone; the dead build-time application is deleted rather than pinned. The whole devtools project (80 files, 1867 tests), the pinned check (15 tests hold their assertions), the characterisation check and `pnpm typecheck` all pass on the tree after it, so the change preserves behaviour and the code that remains is still held by the tests that held it.
+
+- edit R1: `TimelineFeed.ts`: `makeTimelineStore({ capacity: held.capacity })` is now `makeTimelineStore()`; `held.capacity` of a bare build is the store's own default, so the argument said nothing
+- edit R2: `TimelineFeed.ts`: the build-time `readSource(held.source)` is deleted; `held.source` of a bare build is `undefined`, which reads the empty source that ends at once and leaves the status at its initial reading, so the call changed nothing a reader sees. `restart` and `configure` keep their reads
+- edit R3: `GatesFeed.ts`: the build-time `watch(registryNow)`, `publish(readRegistry(), readAsked())` and `cadence()` are deleted; with no registry and no thunk handed, `watch` takes no subscription, the publish carries the two values the store already holds (unwatched, unhanded) and so publishes nothing, and `cadence` stops a run that was never started. `configure` keeps all three

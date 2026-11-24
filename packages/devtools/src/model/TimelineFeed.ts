@@ -160,7 +160,7 @@ export const idleTimelineStatus: TimelineStatusReadout = {
  */
 export const makeTimelineFeed = Effect.fn("qadi.devtools.makeTimelineFeed")(function* (): Effect.fn.Return<TimelineFeed, never, Scope.Scope> {
   let held = completeTimelineInputs({});
-  const timeline = makeTimelineStore({ capacity: held.capacity });
+  const timeline = makeTimelineStore();
 
   const status = makeExternalStore<TimelineStatus>(READING);
   // One read at a time: a newer read supersedes and interrupts the one before it.
@@ -179,7 +179,6 @@ export const makeTimelineFeed = Effect.fn("qadi.devtools.makeTimelineFeed")(func
       onFailure: (cause) => status.set(TimelineStatus.Stopped({ reason: causeMessage(cause) })),
     });
   };
-  readSource(held.source);
 
   // A restart on a closed feed would publish a state nothing follows.
   const restart = () => {

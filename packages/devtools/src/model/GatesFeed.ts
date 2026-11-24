@@ -13,11 +13,11 @@
  * without a statement.
  *
  * The thunk has a cadence of its own because `asked()` has no change signal. Its first
- * tick is one interval after it starts, since the build and each `configure` that hands a
- * new thunk read it themselves. A tick whose answer equals the last, or whose failure has
- * the same key, reads nothing else and publishes nothing. Two failures compare by a key (an
- * error's name and message, else its rendering), because one throw reads the same from any
- * call path where its rendered stack does not.
+ * tick is one interval after it starts, since each `configure` that hands a new thunk
+ * reads it itself. A tick whose answer equals the last, or whose failure has the same key,
+ * reads nothing else and publishes nothing. Two failures compare by a key (an error's name
+ * and message, else its rendering), because one throw reads the same from any call path
+ * where its rendered stack does not.
  *
  * Exported from the package root (ADR-QD-173): a shell builds it in a scope it owns.
  */
@@ -268,10 +268,6 @@ export const makeGatesFeed = Effect.fn("qadi.devtools.makeGatesFeed")(function* 
       ),
     );
   };
-
-  watch(registryNow);
-  publish(readRegistry(), readAsked());
-  cadence();
 
   return {
     subscribe: store.subscribe,
