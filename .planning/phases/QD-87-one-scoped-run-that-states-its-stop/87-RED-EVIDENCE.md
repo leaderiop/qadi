@@ -183,3 +183,8 @@ of `cbe375bf` as the plan words it, and it passed, since `cbe375bf` changed only
   (variant: the run on the tree today, because the code has not moved)
 - check failed: records: BEH-QD-523 names row F99 for packages/devtools/test/model/DiagnosticsFeed.test.ts, which no title opens
   (variant: BEH-QD-523's pinned-by paragraph names the row F99, which no title opens)
+
+## 87-04 the earlier-phase checks
+
+- check failed: 87-earlier-checks.mjs: 85-check.mjs trailers: expected the line "trailers: 34 plan commits, each with the one trailer", got "trailers: 33 plan commits, each with the one trailer"
+  (variant: the ledger row of `85-check.mjs trailers` with its `line` changed from 33 to 34 plan commits)
