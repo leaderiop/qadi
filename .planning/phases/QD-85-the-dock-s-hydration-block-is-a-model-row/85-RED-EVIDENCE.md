@@ -216,3 +216,7 @@ the rest of its stderr is indented under that.
 
 - red on the base: R1 a poll that moves only the reading, the status staying Live, commits nothing under the dock
   (the frame subscribed to the whole snapshot: 6 commits at the end, 3 when the status settled on Live)
+- failed: R2 a poll that stops the feed commits under the dock, so the count is not blind
+  (scratch edit: the frame read the status once, model.diagnostics.getSnapshot().status, and never subscribed; expected 2 to be above 2)
+- failed: R3 counts handed to a mounted dock reach the open hydration block, and later counts replace them
+  (scratch edit: the questions tab handed hydration={undefined}; the seeded cell was not found)
