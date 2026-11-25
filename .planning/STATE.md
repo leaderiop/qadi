@@ -5,16 +5,16 @@ milestone_name: Arch Wave 15
 current_phase: 82
 current_phase_name: "`QadiProvider`'s registry has one owner for its lifetime"
 status: executing
-stopped_at: Completed QD-82-02-PLAN.md
-last_updated: "2026-11-25T01:16:13.358Z"
+stopped_at: Completed QD-82-03-PLAN.md
+last_updated: "2026-11-25T01:22:57.034Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase QD-82 execution started
-state_head: 1f0092db69a3ad8da7aae928948d6a2129862e2a
+state_head: 57f3bff6e79c05cfec15e3e503f01d5c3d522fc1
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 21
-  completed_plans: 13
+  completed_plans: 14
   percent: 25
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-82 (`QadiProvider`'s registry has one owner for its lifetime) — EXECUTING
-Plan: 3 of 10
+Plan: 4 of 10
 Status: Executing Phase QD-82
 Last activity: 2026-11-25 — Phase QD-82 execution started
 
@@ -615,6 +615,7 @@ Last activity: 2026-11-25 — Phase QD-82 execution started
 | Phase QD-81 P11 | 95min | 2 tasks | 3 files |
 | Phase QD-82 P01 | 15min | 3 tasks | 4 files |
 | Phase QD-82 P02 | 25 min | 3 tasks | 2 files |
+| Phase QD-82 P03 | 40 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -1069,6 +1070,8 @@ Last activity: 2026-11-25 — Phase QD-82 execution started
 - [Phase QD-82]: 82-01: the react mutation base is 147/150 on phase_base (QuestionBook.ts holds 3 survivors the compare rule passes); the lease group is judged absolutely and run with --disableBail (decided autonomously)
 - [Phase QD-82]: LT6 to LT8 are red on the base through a second registry (seen.size 2), not a thrown reveal, so their fixed outcome is one registry seen
 - [Phase QD-82]: Base commit order observed: setup children before provider, cleanup parent before children, the provider's passive setup last in a good reveal; on a long-hide reveal the provider's subject effect throws first and its passive setup never runs
+- [Phase QD-82]: 82-03: LT15's short hide is two synchronous act calls (flip) because the awaited pair of LT5 crosses a macrotask in a cold run
+- [Phase QD-82]: 82-03: LT11 clears its frame log just before the reveal so a render of the hidden tree is not read as a seen frame; LT9 clears before the hide because its element is hoisted
 
 ### Pending Todos
 
@@ -1149,8 +1152,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T01:16:13.291Z
-Stopped at: Completed QD-82-02-PLAN.md
+Last session: 2026-11-25T01:22:56.981Z
+Stopped at: Completed QD-82-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
