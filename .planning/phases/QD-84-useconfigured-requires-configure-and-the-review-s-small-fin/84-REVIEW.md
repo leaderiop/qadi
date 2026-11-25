@@ -1,7 +1,8 @@
 ---
 phase: QD-84-useconfigured-requires-configure-and-the-review-s-small-fin
-reviewed: 2026-11-25T10:15:00Z
+reviewed: 2026-11-25T10:40:00Z
 depth: standard
+iteration: 3
 files_reviewed: 25
 files_reviewed_list:
   - packages/devtools/src/model/LensSession.ts
@@ -31,109 +32,65 @@ files_reviewed_list:
   - spec/invariants.md
 findings:
   critical: 0
-  warning: 3
-  info: 3
-  total: 6
+  warning: 0
+  info: 0
+  total: 0
   necessity: 0
-status: issues_found
+status: clean
 ---
 
-# Phase QD-84: Code Review Report
+# Phase QD-84: Code Review Report (iteration 3)
 
-**Reviewed:** 2026-11-25T10:15:00Z
+**Reviewed:** 2026-11-25T10:40:00Z
 **Depth:** standard
 **Files Reviewed:** 25
-**Status:** issues_found
+**Status:** clean
 
 ## Summary
 
-The source change is sound. I found no behavioural defect in it.
+Iteration 3 is scoped to the fixes in commit `98d8a1d8` for iteration 2's IN-01 (header) and IN-02 (property-versus-method pin). Both were verified against source and by running the checks. Nothing the commit changed is wrong, and the fix introduced no defect. The remaining files were reviewed in iterations 1 and 2 and are unchanged by this commit. Its only code change is `useConfigured.tst.ts`; the rest is spec text.
 
-- `LensSession.ts`: `store.set` has exactly the semantics of the deleted `move`. `choose` still arms the reveal before it publishes, and it only reaches `set` with `next !== current`.
-- `useLens` subscribes to the questions store first and the lens second. That is the order the panel used before. The handlers read `questions.getSnapshot()` at event time.
-- `useStopNotice` keys its memo on `[status, onRestart]`. Each feed's `restart` is one closure per feed (`DiagnosticsFeed.ts:231`, `TimelineFeed.ts:192`), and `DockModel.diagnostics.restart` and `timelineStatus.restart` hand those closures through unchanged. So it is equivalent to the old `[status, model]` memo.
-- `useConfigured` and the three hooks type-check with no type argument. I ran a scratch `tsc` and the refusals hold. A value with no `configure`, a mismatched input, and a build handed `{ source: 1 }` are all compile errors.
+**Fourth refusal fails for the reason its fragment names.**
+- `useConfigured(() => Effect.succeed(configurable), wideInputs)` has `I = number | string` and `A = { x: number; configure: (inputs: number) => void }`.
+- `A` does not satisfy `Configurable<number | string>`, because the property `configure` is checked contravariantly under `strictFunctionTypes`. The resulting message chain contains "Types of parameters 'inputs' and 'inputs' are incompatible", which is the fragment after the directive.
+- `node scripts/run-tstyche.mjs packages/devtools/test/react/useConfigured.tst.ts` passes both passes (`floatingEffect` off, then on). Each pass reports `Suppressed: 4 matched` and 6 of 6 tests.
 
-Verified by running them:
-- `vitest` over the five new or changed React tests passes (18 tests).
-- The full `scripts/run-tstyche.mjs` run passes.
+**The twin differs only in the argument under test.**
+- The refused call and the twin use the same build thunk and the same `configurable`.
+- Only the inputs change, from `wideInputs: number | string` to `narrowInputs: number`.
+- Both are `declare const`, so no narrowing or literal widening can change what `I` is inferred as.
 
-Spec checks:
-- Every quoted test title I checked exists verbatim: the `LensSession`, `Lens.adapter`, `GatesFeed` G43, `DockRegistryReads`, `Lens.dock` and `useConfigured.tst` titles, and the TN1-15, N1-15, C1-11 and U1-4 ranges.
-- The base-revision line references in ADR-197 (`useDockModel.ts:30`, `useTimeline.ts:69-71`, `useDiagnostics.ts:44`, `DevtoolsDock.tsx:86`) are correct.
+**A method-signature `Configurable` would accept the refused call.**
+- I reproduced this in a standalone `tsc --strict` scratch file with a property-form and a method-form constraint, using the same shapes.
+- The property form refuses `wide`.
+- The method form accepts it and also accepts `narrow`.
+- The source's own `configure` being a function property does not matter, because TypeScript picks strict or bivariant checking from the target signature's declaration kind.
+- `84-RED-EVIDENCE.md` independently records this test failing with TS2578 when the member was changed to a method signature, and only this test, so the other three still refuse under the method form.
 
-All the findings are claims in the spec records that the code does not back.
+**The same scratch file supports "the first three are refused in either form".**
+- A value with no `configure` gives TS2741 under both forms.
+- A weak-type mismatch gives "has no properties in common" under both forms.
+- A `{ source: 1 }` mismatch gives the ordinary type error under both forms.
 
-## Warnings
+**Spec text states each refusal exactly.**
+- BEH-QD-756 (revision 1.80), ADR-QD-197 decision 1 (revision 1.4) and the `useConfigured.tst.ts` row of `spec/traceability.md` (revision 1.329) all list four refusals: no `configure`; another value's inputs; a source that is a number; narrower `configure` inputs.
+- All three attribute the weak-type message ("has no properties in common") to the second refusal, and the ordinary mismatch to the first and third.
+- All three say only the fourth is refused by the property form alone.
+- The BEH-QD-756 "Pinned by" list names the fourth test by its exact title.
+- No stale "three refusals" wording remains outside change history. I grepped `spec`, `.changeset` and `packages/devtools`.
+- The header of `useConfigured.tst.ts` matches the four pins.
 
-### WR-01: BEH-QD-756 says three refusals are pinned, and only one is
+**Gates run, all green:**
+- `scripts/check-house-style.mjs` (617 files clean, 78 type-test files)
+- `spec/scripts/verify-traceability.sh --strict` (21 pass, 0 fail; revision equals the newest history entry)
+- `scripts/check-dod-table.mjs`
+- `scripts/check-devtools-claims.mjs`
+- `scripts/check-doc-examples.mjs` (119 blocks compile)
 
-**File:** `spec/behaviors/28-devtools-screens.md` (BEH-QD-756, the paragraph "Three calls are refused and pinned as refusals")
-**Issue:** The record says "Three calls are refused and pinned as refusals: a value with no `configure`, the diagnostics feed's build handed a timeline's inputs, and the timeline feed's build handed a source that is a number."
-- `packages/devtools/test/react/useConfigured.tst.ts` holds exactly one `@ts-expect-error`, for the no-`configure` case.
-- The other two were a one-off scratch check. ADR-QD-197 decision 1 says so ("A scratch file ... Three calls were refused").
-- ADR-QD-197's alternatives section is accurate about this: "The refusal is one `@ts-expect-error`".
-- The BEH requirement "a build handed inputs that are not the ones its `configure` takes, MUST be a compile error" therefore has no pin. This is spec section 11: a behaviour record must be pinned by tests.
-- I confirmed with a scratch `tsc` that the two unpinned refusals do hold today. They are true but unprotected, and the record claims they are protected.
-
-**Fix:** Either add the two refusals to `useConfigured.tst.ts`, each with an accepted twin and a message fragment, as the existing case has. Or reword the BEH to say one refusal is pinned and the mismatch refusal was checked once when the decision was made. Adding the pins is the more complete option, and it costs nothing in `NOT_CALLABLE_PIN_BUDGET` because they are `@ts-expect-error` pins:
-
-```ts
-// @ts-expect-error Argument of type '() => Effect<DiagnosticsFeed
-useConfigured(makeDiagnosticsFeed, { source: timelineSource, capacity: 1 });
-// twin
-useConfigured(makeDiagnosticsFeed, undefined);
-```
-
-### WR-02: "The lens group of `stryker.devtools.mjs`" does not exist in that file
-
-**File:** `spec/behaviors/28-devtools-screens.md` (BEH-QD-757, "Pinned by"), `spec/invariants.md` (INV-QD-413, **Enforcement**), `spec/decisions/197-a-configurable-value-one-questions-path-for-the-lens-and-one-stop-ledger.md` ("What enforces it", decision 2, and the alternatives entry "Keep `move`")
-**Issue:** Three shipped records cite "the lens group of `stryker.devtools.mjs`" as an enforcement mechanism. `stryker.devtools.mjs` has no groups. It has one `mutate: ["packages/devtools/src/model/**/*.ts"]` and no mention of "lens".
-- The only "lens" group is the phase-local script `.planning/phases/QD-84-.../84-mutation.mjs` (`GROUPS = { lens: ... }`).
-- That script is not in `pnpm check` and will not exist for a later reader of `spec/`.
-- Neither phrase appears in the base revision of BEH-28. They were introduced by this phase.
-
-A reader following the reference to the shipped enforcement mechanism finds nothing.
-
-**Fix:** Cite the real mechanism: "the devtools mutation run (`stryker.devtools.mjs`, which mutates `src/model/`, `LensSession.ts` included)". Drop "group". If the phase's measured record matters, cite it as a phase artifact, not as an enforcement point.
-
-### WR-03: ADR-QD-197 says `LensSession.ts` is the only file under the mutation glob
-
-**File:** `spec/decisions/197-a-configurable-value-one-questions-path-for-the-lens-and-one-stop-ledger.md` ("The mutation record" bullet in Consequences)
-**Issue:** The text reads "Only `LensSession.ts` is under the devtools mutation run's `mutate` glob". The glob is `packages/devtools/src/model/**/*.ts`, so every model file is under it.
-- The intended claim is that, of the files this decision edits, only `LensSession.ts` is mutated.
-- As written it is false and contradicts `stryker.devtools.mjs`.
-- INV-QD-414's version ("The hook is in `src/react`, which the mutation gate ... does not mutate") is correct.
-
-**Fix:** Reword to "Of the files this decision edits, only `LensSession.ts` is under the devtools mutation run's `mutate` glob (`packages/devtools/src/model/**/*.ts`)".
-
-## Info
-
-### IN-01: First line of the `useConfigured.ts` header is about 115 columns
-
-**File:** `packages/devtools/src/react/useConfigured.ts:3`
-**Issue:** The hand-wrap convention is about 90 columns (AGENTS.md section 17). The edited summary line is "Builds a value that has `configure` in a scope and configures it with the latest inputs before anything reads it." It also reads as if the scope has `configure`.
-**Fix:** Wrap it, and say what the value carries, for example:
-
-```
- * Builds a value that has `configure` in a scope, and configures it with the latest
- * inputs before anything reads it.
-```
-
-### IN-02: The `Configurable` doc says it is exported for the type test alone
-
-**File:** `packages/devtools/src/react/useConfigured.ts:20-26`
-**Issue:** The comment says "Exported for `useConfigured.tst.ts` alone". `useConfigured` is itself exported and its signature names `Configurable<I>`. Declaration emit needs the type to be exported (TS4xxx otherwise), so it would be exported even with no test.
-**Fix:** "The constraint `useConfigured` asks of its value. Exported because the hook's signature names it; kept out of both barrels (AGENTS.md section 9)."
-
-### IN-03: Stray trailing comma in the generic of a `.ts` file
-
-**File:** `packages/devtools/src/react/useStopNotice.ts:16`
-**Issue:** `<S,>` is the `.tsx` disambiguation idiom. In a `.ts` file it is noise, and a reader may wonder why it is there. `StoppedBox.tsx`, where it is needed, is the model for it.
-**Fix:** `export const useStopNotice = <S>(status: S, onRestart: () => void): StopNoticeProps<S> => {`
+All reviewed files meet quality standards. No issues found.
 
 ---
 
-_Reviewed: 2026-11-25T10:15:00Z_
+_Reviewed: 2026-11-25T10:40:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
