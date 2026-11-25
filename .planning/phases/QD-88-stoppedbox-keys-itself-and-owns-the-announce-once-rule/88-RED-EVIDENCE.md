@@ -83,3 +83,7 @@ The base is the one `88-mutation-base.json` records (`phase_base` 892c4d36bf0f63
 - check failed: pinned held src: packages/devtools/src/react/DevtoolsDock.tsx: differs from its base text at line 268
 - check failed: pinned kept: packages/devtools/test/react/DiagnosticsNotice.test.tsx: the region N9 dropped a kept line: assert.isNull(silent.getAttribute("role"));
 - check failed: pinned all-applied: packages/devtools/test/helpers.ts: its declared edit is not applied
+
+## 88-04 the earlier-phase checks
+
+- check failed: earlier checks: packages/devtools/test/react/DiagnosticsNotice.test.tsx: differs from phase_base and no commit since it has one of its explaining subjects
