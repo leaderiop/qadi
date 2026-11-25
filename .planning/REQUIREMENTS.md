@@ -9,10 +9,10 @@
 
 ### The dock's hydration block is a model row (Phase 85, ARCH-132, devtools)
 
-- [ ] **HYDV-01**: A characterisation written on the phase base, green there and after, pins every hydration block state the panel renders today (Pending, Unwired, Counts with its rate sentence, raised-drops filter and unaccounted scope text, the activity-over-status precedence, the "0 dehydrated entries" wording), using the two `QuestionsPanel` HTML-string files as the byte oracle plus the cells they lack.
+- [x] **HYDV-01**: A characterisation written on the phase base, green there and after, pins every hydration block state the panel renders today (Pending, Unwired, Counts with its rate sentence, raised-drops filter and unaccounted scope text, the activity-over-status precedence, the "0 dehydrated entries" wording), using the two `QuestionsPanel` HTML-string files as the byte oracle plus the cells they lack.
 - [ ] **HYDV-02**: A pure hydration view beside `portCards` returns a closed tagged union (Pending / Unwired / Counts with its text worked out) and is tested as a table, under `src/model/` and the devtools mutation gate. No JSX enters `model/`.
 - [ ] **HYDV-03**: The dock model serves the view (as its own derived store or on an existing one, decided at discuss) keyed per field so an unchanged reading publishes nothing; the three distinct "unsampled" predicates (questions with `supplied === undefined`, services unguarded, hydration with activity precedence) each stay as they are and are stated once each, not flattened into one.
-- [ ] **HYDV-04**: `QuestionsPanel` renders the view's tag and decides nothing; `DockFrame` no longer subscribes to the whole merged reading to pass `hydration` along, and keeps only what its notice needs (status). Every `data-testid` is unchanged.
+- [x] **HYDV-04**: `QuestionsPanel` renders the view's tag and decides nothing; `DockFrame` no longer subscribes to the whole merged reading to pass `hydration` along, and keeps only what its notice needs (status). Every `data-testid` is unchanged.
 - [ ] **HYDV-05**: ADR-QD-198 records the phase (or ADR-QD-185 is amended and 198 named unused); BEH-QD-700/699/735, INV-QD-390, BEH-QD-218's table (a hydration row) and the store-name pins move with it.
 
 ### `QadiProvider`'s registry lifetime has a React-free owner (Phase 86, ARCH-133, react)
@@ -69,8 +69,8 @@
 - [ ] **WX-03**: `spec/overview.md` names every added export and drops every removed one (gate 13). Gate 14 probes every changed public signature. The changeset policy (a patch per edited public package, or none for package-private moves) is decided once at Phase 85's discuss and applied across the wave.
 - [ ] **WX-04**: Nothing new is added from this list: `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await` in src, ambient `console`/`process.env`/clock, `Record<string, unknown>`, `// Stryker disable`, a module-scope `let`. A budget changes only together with its AGENTS.md table, in one commit.
 - [ ] **WX-05**: Coverage thresholds hold (core at least 95%, the others at least 90%). The Stryker score of touched files does not fall: re-taken per phase in `NN-mutation-base.json` at the phase base and at close with the same invocation (a `RENAMED` map for folds). A drop is closed with a test, never re-baselined. Unmeasured React files are listed per phase.
-- [ ] **WX-06**: Every behaviour change is preceded by a characterisation or regression test written on the phase base: RED for a change, green for preserved behaviour. Every new check is shown failing once, with the scratch variant and failing text recorded.
-- [ ] **WX-07**: No D-numbers, plan-local ids or phase numbers enter shipped source, test titles or BDD scenarios. Nothing is released, published, pushed or merged, and no version-packages PR is merged. Nothing under `.planning/milestones` is staged with `git add -A`.
+- [x] **WX-06**: Every behaviour change is preceded by a characterisation or regression test written on the phase base: RED for a change, green for preserved behaviour. Every new check is shown failing once, with the scratch variant and failing text recorded.
+- [x] **WX-07**: No D-numbers, plan-local ids or phase numbers enter shipped source, test titles or BDD scenarios. Nothing is released, published, pushed or merged, and no version-packages PR is merged. Nothing under `.planning/milestones` is staged with `git add -A`.
 
 ## Future Requirements
 
@@ -101,10 +101,10 @@ Which phases cover which requirements. Each phase-specific requirement maps to e
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HYDV-01 | Phase 85 | Pending |
+| HYDV-01 | Phase 85 | Complete |
 | HYDV-02 | Phase 85 | Pending |
 | HYDV-03 | Phase 85 | Pending |
-| HYDV-04 | Phase 85 | Pending |
+| HYDV-04 | Phase 85 | Complete |
 | HYDV-05 | Phase 85 | Pending |
 | PREG-01 | Phase 86 | Pending |
 | PREG-02 | Phase 86 | Pending |
@@ -140,8 +140,8 @@ Which phases cover which requirements. Each phase-specific requirement maps to e
 | WX-03 | Phases 85–91 (every phase) | Pending |
 | WX-04 | Phases 85–91 (every phase) | Pending |
 | WX-05 | Phases 85–91 (every phase) | Pending |
-| WX-06 | Phases 85–91 (every phase) | Pending |
-| WX-07 | Phases 85–91 (every phase) | Pending |
+| WX-06 | Phases 85–91 (every phase) | Complete |
+| WX-07 | Phases 85–91 (every phase) | Complete |
 
 **Coverage:**
 - v1.11 requirements: 41 total (34 phase-specific + 7 cross-cutting)

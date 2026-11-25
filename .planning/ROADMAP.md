@@ -530,12 +530,12 @@ Order: the dock model's hydration row (85), the provider's lifetime owner (86), 
   5. ADR-QD-198 (or ADR-QD-185 amended with 198 named unused), BEH-QD-700, 699 and 735, INV-QD-390, BEH-QD-218's table and the store-name pins are restated in the same change (HYDV-05).
 
 **Planning notes**: Standard patterns (precedent ADR-QD-168 and ADR-QD-185); plan 1 is the characterisation, using the two HTML-string files and writing the cells they lack. The discuss step decides the view's home, `DockFrame`'s status read and the view's input shape (grey-area table), and the wave's changeset policy. Constraints that are findings: the derived key compares identity per field and the fold keeps references (never a fresh spread); the static Unwired advice stays a panel constant, so no JSX enters `model/`; the "0 dehydrated entries" plural is pinned, not fixed; no fourth "nothing hydrated" state; activity precedence is kept. If the view is the eleventh store, the "eleven" count, CR22 and the store-name sweeps move with it. Stryker: `stryker.devtools.mjs` measures the new view under `model/**` with its own bar; `QuestionsPanel.tsx` and `DockFrame` are unmeasured, so list them in `UNMEASURED` and prove them with scratch variants. Phase 88 edits the same `DevtoolsDock.tsx` lines, which is why 85 goes first.
-**Plans**: 2/11 plans executed
+**Plans**: 3/11 plans executed
 
 Plans:
 - [x] 85-01 (W1): The phase base and the mutation base of the dock model recorded; the hydration block characterised on the base, cells H1 to H13, each seen failing
 - [x] 85-02 (W2): The phase check helper (`85-check.mjs`): ids, forbidden constructs, trailers, no React in the model, the three predicates, the panel deciding nothing, the frame reading the status, the records; each check seen failing
-- [ ] 85-03 (W3): The pinned-test check (18 held files, the born characterisation, the one declared panel-test edit) and the earlier-phase checks against a measured ledger
+- [x] 85-03 (W3): The pinned-test check (18 held files, the born characterisation, the one declared panel-test edit) and the earlier-phase checks against a measured ledger
 - [ ] 85-04 (W4): `HydrationView.ts`, the block as a pure closed view, tested as a table (V1 to V17) and pinned closed by type tests, with its own mutation probe
 - [ ] 85-05 (W5): The dock model serves the view as its eleventh store, keyed per field over the shown reading; the store-name pins (CR22, DL21, the member list) move with it
 - [ ] 85-06 (W6): The hydration store's identity (an identical poll publishes nothing, activity over status, status outside the key) and its place in the listener aggregate pinned, each seen failing
@@ -690,7 +690,7 @@ Phases execute in numeric order: 85 → 86 → 87 → 88 → 89 → 90 → 91
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 85. The dock's hydration block is a model row | 2/11 | In Progress | - |
+| 85. The dock's hydration block is a model row | 3/11 | In Progress | - |
 | 86. `QadiProvider`'s registry lifetime has a React-free owner | 0/TBD | Not started | - |
 | 87. One scoped run that states its stop | 0/TBD | Not started | - |
 | 88. `StoppedBox` keys itself and owns the announce-once rule | 0/TBD | Not started | - |

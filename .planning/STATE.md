@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 85
 current_phase_name: The dock's hydration block is a model row
 status: executing
-stopped_at: Completed 85-02-PLAN.md
-last_updated: "2026-11-25T13:21:08.205Z"
+stopped_at: Completed QD-85-03-PLAN.md
+last_updated: "2026-11-25T13:27:11.082Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase QD-85 execution started
-state_head: 15839b81a0c1d2b822d0be8f9d74b5fc1ebf8336
+state_head: e14f580bbc3461b650e2307d26348bf9cd36a359
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 11
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-85 (The dock's hydration block is a model row) — EXECUTING
-Plan: 3 of 11
+Plan: 4 of 11
 Status: Executing Phase QD-85
 Last activity: 2026-11-25 — Phase QD-85 execution started
 
@@ -654,6 +654,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase QD-84 P13 | 40min | 2 tasks | 2 files |
 | Phase QD-85 P01 | 10 min | 3 tasks | 4 files |
 | Phase QD-85 P02 | 25 min | 2 tasks | 2 files |
+| Phase QD-85 P03 | 20min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -1140,6 +1141,8 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase QD-85]: Decided autonomously: panel-decides-nothing accepts a hydration store read through any useStoreSnapshot call whose argument names hydration
 - [Phase QD-85]: Decided autonomously: records reads describe titles too and fails a kept behavior that loses its heading or names no test file
 - [Phase QD-85]: Decided autonomously: no-react-in-model requires exactly two Data.taggedEnum constants in the view
+- [Phase QD-85]: 85-03: the declared QuestionsPanel.test.tsx region is held as a prefix and a suffix of the file, so it may be rewritten or emptied whole, its opening line included (decided autonomously)
+- [Phase QD-85]: 85-03: the earlier-phase ledger compares the first plain stderr line (not blank, not indented, not node:-prefixed); the Phase 80 row is its missing-module line, not an ancestry failure (decided autonomously)
 
 ### Pending Todos
 
@@ -1224,8 +1227,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T13:21:08.169Z
-Stopped at: Completed 85-02-PLAN.md
+Last session: 2026-11-25T13:27:11.048Z
+Stopped at: Completed QD-85-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
