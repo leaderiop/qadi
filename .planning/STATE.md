@@ -5,16 +5,16 @@ milestone_name: Arch Wave 15
 current_phase: 83
 current_phase_name: The diagnostics feed folds its reading as a value
 status: executing
-stopped_at: Phase 82 complete, ready to plan Phase 83
-last_updated: "2026-11-25T03:51:54.811Z"
+stopped_at: Completed 83-01-PLAN.md
+last_updated: "2026-11-25T04:02:12.688Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 82 complete, transitioned to Phase 83
-state_head: c54bbf56f2bc920208bfe4eb9d26ebc6cbd32d69
+state_head: 626faa060ef90dfd4b9a16caab56a3d95c56c6b8
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 32
-  completed_plans: 21
+  completed_plans: 22
   percent: 50
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-83 (The diagnostics feed folds its reading as a value) — READY TO EXECUTE
-Plan: Not started
+Plan: 2 of 11
 Status: Ready to execute
 Last activity: 2026-11-25 — Phase 82 complete, transitioned to Phase 83
 
@@ -624,6 +624,7 @@ Last activity: 2026-11-25 — Phase 82 complete, transitioned to Phase 83
 | Phase QD-82 P08 | 9 min | 2 tasks | 3 files |
 | Phase QD-82 P09 | 12 min | 2 tasks | 2 files |
 | Phase QD-82 P10 | 4min | 2 tasks | 2 files |
+| Phase QD-83 P01 | 25min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -1090,6 +1091,7 @@ Last activity: 2026-11-25 — Phase 82 complete, transitioned to Phase 83
 - [Phase QD-82]: 82-08: the CCR-QD-474 row lists documents in first-changed order and names the losses a host sees after a long hide (decided autonomously)
 - [Phase QD-82]: 82-09: the mutation close needed no new test; the three QuestionBook.ts survivors the base held are carried through, never re-baselined (decided autonomously)
 - [Phase QD-82]: Decided autonomously (82-10): the gate passed first time at 6d1fda56 so no fix commit and no mutation re-close; LEASE-01..05 marked by hand; WX-01..07 were already Complete
+- [Phase QD-83]: 83-01: the mutation scorer keys a base record by base paths and a close record by close paths (RENAMED maps close to base), so one group measures the diagnostics module across its rename; DiagnosticsFeed.ts and Diagnostics.ts are absolute at the close
 
 ### Pending Todos
 
@@ -1171,8 +1173,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T02:11:38.946Z
-Stopped at: Phase 82 complete, ready to plan Phase 83
+Last session: 2026-11-25T04:02:06.536Z
+Stopped at: Completed 83-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
