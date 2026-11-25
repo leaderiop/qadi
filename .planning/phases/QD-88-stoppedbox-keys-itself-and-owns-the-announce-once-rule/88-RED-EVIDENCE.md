@@ -48,3 +48,14 @@ The base is the one `88-mutation-base.json` records (`phase_base` 892c4d36bf0f63
   (scratch edit: give the -stopped div in StoppedBox.tsx a key read from a local state that the box own layout effect sets once after mount; 4 row(s) failed under it)
 - failed (base remount-after-commit): A5 [StrictMode] the commit that records a stop does not mount its box again
   (scratch edit: give the -stopped div in StoppedBox.tsx a key read from a local state that the box own layout effect sets once after mount; 4 row(s) failed under it)
+
+## 88-01 the stop notice hook
+
+- failed (base record-in-render): H1 a render that is thrown away announces nothing, so the stop alerts when it is first shown
+  (scratch edit: move the ledger write in StoppedBox.tsx from its layout effect into its render body; 1 row(s) failed under it)
+- failed (base memo-on-status): H2 a notice follows its feed restart while the status stays the same stop
+  (scratch edit: key the memo in useStopNotice.ts on the status alone; 1 row(s) failed under it)
+- failed (base no-memo): H3 the notice is one value across a re-render that changes nothing it holds, and a new value for a new stop
+  (scratch edit: return a fresh props object from useStopNotice.ts on every render; 1 row(s) failed under it)
+- failed (base two-commits): C1 a newly shown stop adds at most one commit over a live source
+  (scratch edit: add to StoppedBox.tsx a layout effect with no dependency list that bumps a local counter until it reaches 2, two extra commits per shown stop; 1 row(s) failed under it)
