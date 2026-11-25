@@ -230,3 +230,24 @@ The rows below were added to the same module's file after the first six; the edi
   (scratch edit: the narrower edit, `plan.starting()` moved before `runs.begin()` so a newer run started from the starting state is superseded by the outer one, because the listed edit of the condition leaves this row green: the outer engine never runs when a newer run replaced it before its fork; 2 row(s) failed under it)
 - failed (scratch): ST17 a model property: a stop is stated for exactly the current runs whose engine fails, and nothing after close
   (scratch edit: the stop condition of `packages/devtools/src/model/StatedRun.ts` reduced to `Exit.isFailure(exit)`, the current-run gate dropped; 3 row(s) failed under it)
+
+## 87-05 the configure prologue
+
+Each row is green on the new module (twice in a row) and was seen failing once under a scratch edit of the module, restored from a copy with `cp` and compared with `cmp` before anything was committed.
+
+- failed (scratch): CP1 a configure after close calls nothing past the closed guard, even for input the normaliser would refuse
+  (scratch edit: the closed guard of `packages/devtools/src/model/ConfigurePrologue.ts` moved after `rule.complete(raw)`; 4 row(s) failed under it)
+- failed (scratch): CP2 a refused input throws from the normaliser before the held value is read, compared, held or stepped
+  (scratch edit: `rule.complete(raw)` of `packages/devtools/src/model/ConfigurePrologue.ts` moved after `rule.held()`, because the gate needs the wanted value and so cannot be read before it; 3 row(s) failed under it)
+- failed (scratch): CP3 an input the gate calls the same returns before hold and the steps
+  (scratch edit: the gate of `packages/devtools/src/model/ConfigurePrologue.ts` ignored, `if (rule.same(before, wanted)) return;` reduced to a bare call; 1 row(s) failed under it)
+- failed (scratch): CP4 a changed input is held before the steps run, and the steps receive the wanted and the previous value
+  (scratch edit: `rule.hold(wanted)` of `packages/devtools/src/model/ConfigurePrologue.ts` moved after `steps(wanted, before)`; 5 row(s) failed under it)
+- failed (scratch): CP5 a configure nested in a step decides, because the steps read the held value when they run
+  (scratch edit: `rule.hold(wanted)` of `packages/devtools/src/model/ConfigurePrologue.ts` moved after `steps(wanted, before)`; 5 row(s) failed under it)
+- failed (scratch): CP6 the gate receives the held value first and the wanted value second
+  (scratch edit: the gate of `packages/devtools/src/model/ConfigurePrologue.ts` given its arguments swapped, `rule.same(wanted, before)`; 2 row(s) failed under it)
+- failed (scratch): CP7 a step that throws reaches the caller after the input was held
+  (scratch edit: `rule.hold(wanted)` of `packages/devtools/src/model/ConfigurePrologue.ts` moved after `steps(wanted, before)`; 5 row(s) failed under it)
+- failed (scratch): CP8 the calls run in the order closed, complete, held, same, hold, steps
+  (scratch edit: the closed guard of `packages/devtools/src/model/ConfigurePrologue.ts` moved after `rule.complete(raw)`; 4 row(s) failed under it)
