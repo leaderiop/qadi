@@ -2,20 +2,20 @@
 gsd_state_version: "1.0"
 milestone: v1.11
 milestone_name: Arch Wave 16
-current_phase: 87
-current_phase_name: One scoped run that states its stop
-status: executing
-stopped_at: Completed 87-11-PLAN.md
-last_updated: "2026-11-25T20:54:17.126Z"
+current_phase: 88
+current_phase_name: "`StoppedBox` keys itself and owns the announce-once rule"
+status: planning
+stopped_at: Phase 87 complete, ready to plan Phase 88
+last_updated: "2026-11-25T21:14:31.589Z"
 last_activity: 2026-11-25
-last_activity_desc: Phase 86 complete, transitioned to Phase 87
-state_head: 9bcddb76005c91a6f49477fd616de566d1a146c3
+last_activity_desc: Phase 87 complete, transitioned to Phase 88
+state_head: 08aadb342746f5c16d306bf05c20e373a7f85d92
 progress:
   total_phases: 7
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 30
   completed_plans: 30
-  percent: 29
+  percent: 43
 ---
 
 # Project State
@@ -29,18 +29,18 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 
 ## Current Position
 
-Phase: 87 (One scoped run that states its stop) — READY TO EXECUTE
-Plan: 11 of 11
-Status: Ready to execute
-Last activity: 2026-11-25 — Phase 86 complete, transitioned to Phase 87
+Phase: 88 — `StoppedBox` keys itself and owns the announce-once rule
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-11-25 — Phase 87 complete, transitioned to Phase 88
 
-Progress: [███░░░░░░░] 29%
+Progress: [████░░░░░░] 43%
 
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 554
+- Total plans completed: 565
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -125,6 +125,7 @@ Progress: [███░░░░░░░] 29%
 | 84 | 13 | - | - |
 | QD-85 | 11 | - | - |
 | 86 | 8 | - | - |
+| 87 | 11 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -1298,7 +1299,7 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 ## Session Continuity
 
 Last session: 2026-11-25T20:54:17.071Z
-Stopped at: Completed 87-11-PLAN.md
+Stopped at: Phase 87 complete, ready to plan Phase 88
 Resume file: None
 
 ## Operator Next Steps

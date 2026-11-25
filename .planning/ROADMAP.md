@@ -503,7 +503,7 @@ Order: the dock model's hydration row (85), the provider's lifetime owner (86), 
 
 - [x] **Phase 85: The dock's hydration block is a model row** - A pure hydration view (Pending / Unwired / Counts, text worked out) is served by the dock model, `QuestionsPanel` renders its tag and decides nothing, and `DockFrame` stops subscribing to the whole reading to pass one field (ARCH-132, devtools) (completed 2026-11-25)
 - [x] **Phase 86: `QadiProvider`'s registry lifetime has a React-free owner** - Create, seed, subject write, recycle and the lease live in one headless module tested with an injected defer; the component keeps one ref and forwards (ARCH-133, react) (completed 2026-11-25)
-- [ ] **Phase 87: One scoped run that states its stop** - Publish-then-fork, the stop rule, `restart`, the closed guard and the configure prologue are stated once above `SupersedingRun`; a dying simulation run reports the same stop text as the feeds (ARCH-134, devtools; opens with a RED test and a spike)
+- [x] **Phase 87: One scoped run that states its stop** - Publish-then-fork, the stop rule, `restart`, the closed guard and the configure prologue are stated once above `SupersedingRun`; a dying simulation run reports the same stop text as the feeds (ARCH-134, devtools; opens with a RED test and a spike) (completed 2026-11-25)
 - [ ] **Phase 88: `StoppedBox` keys itself and owns the announce-once rule** - Callers stop computing `stoppedKey` from a ref during render; the ledger transition is a pure function, decided at mount and recorded at commit (ARCH-135, devtools react)
 - [ ] **Phase 89: One admission step for a host's audit batch** - `now`, rows and the caller's terms are checked once for `archiveAuditTrail`, `planRetention`, `verifiedArchiveFacts` and `planPurge`; `NowNotFinite` is stated once (ARCH-136, audit)
 - [ ] **Phase 90: The remaining per-port facts live on the port description** - Span name, serving shape and fixture data type move onto the description as a spike allows, `PortName` stays a leaf, and `readScoped` routes off the `LEAF_NEEDS` row (ARCH-137, core; opens with a spike)
@@ -598,7 +598,7 @@ Plans:
   5. ADR-QD-200 applies, and does not reopen, ADR-QD-150 point 2 and extends ADR-QD-182 decision 10 to the session; ADR-QD-192, ADR-QD-194 and the `ThrownMessage.ts` doc are amended in the same change; the per-feed tests (TF21-23, TF28, F28-31, F33, SR5-6) stay unedited; a `@qadi/devtools` patch changeset records the Simulator text change (STOP-05).
 
 **Planning notes**: **Research flag: plan 1 is a spike plus the RED test** (`/gsd-plan-phase --research-phase 87`); several valid shapes exist and the self-interrupt behaviour must be characterised before a policy is chosen. Constraints that are findings: the session keeps `Effect.exit` in the run body (routing it through `onFailure` skips interrupt-only causes and leaves SR1 `Running` forever); `GatesFeed` forks before it publishes, so it shares only the prologue (three prologue rules exist: closed guard first; `sameFieldsOrAbsent` for diagnostics' absent options; `sameFields && watchFailure === undefined` for gates); `try { publish } finally { fork }` stays inside the shared helper; no named `Effect.fn` or `Effect.fnUntraced` on the factory (`UNTRACED_BUDGET`); `land` keeps `root: true`; `Broke` and `GatesSnapshot` shapes are unchanged. Add the row nobody has: a publish that throws and a superseding command from the same listener. Render `Broke.message` in the same `<pre>` treatment as `Stopped.reason` if the discuss step takes it. Stryker: `stryker.devtools.mjs` over `SupersedingRun`, the three feeds, `SimulationSession`, `GatesFeed` and the new module; re-take the base first.
-**Plans**: 11/11 plans executed
+**Plans**: 11/11 plans complete
 
 Plans:
 - [x] 87-01 (W1): The phase base and the touched files' mutation base recorded first; the spike re-run on the base; SX1 to SX3 and SB2 to SB4 (the broken simulation run) and TX1, TX2, DX1, DX2 (the feeds' self-interrupt) red on the base; SB1, TX3 to TX7 and DX3 to DX7 green and seen failing
@@ -715,7 +715,7 @@ Phases execute in numeric order: 85 → 86 → 87 → 88 → 89 → 90 → 91
 |-------|----------------|--------|-----------|
 | 85. The dock's hydration block is a model row | 11/11 | Complete    | 2026-11-25 |
 | 86. `QadiProvider`'s registry lifetime has a React-free owner | 8/8 | Complete    | 2026-11-25 |
-| 87. One scoped run that states its stop | 11/11 | In Progress | - |
+| 87. One scoped run that states its stop | 11/11 | Complete    | 2026-11-25 |
 | 88. `StoppedBox` keys itself and owns the announce-once rule | 0/TBD | Not started | - |
 | 89. One admission step for a host's audit batch | 0/TBD | Not started | - |
 | 90. The remaining per-port facts live on the port description | 0/TBD | Not started | - |

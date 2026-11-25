@@ -25,11 +25,11 @@
 
 ### One scoped run that states its stop (Phase 87, ARCH-134, devtools)
 
-- [ ] **STOP-01**: A test written on the phase base is RED there and GREEN after: a `SimulationSession` run that dies reports `Broke.message` equal to `causeMessage(cause)` (today it is `String(exit.cause)`, `Cause([Die(...)])`), with a hostile-value case. A characterisation pins each feed's current status sequence, including what a self-interrupt does today (SR1: the session reads `Broke`).
-- [ ] **STOP-02**: One package-private module above `SupersedingRun` owns, once: publish-then-fork through a callback (a listener's throw on the start-up publish is rethrown after the new run has started, ADR-QD-194), failure → stopped with `causeMessage`, `restart`, the closed guard and the token-guarded sink. `TimelineFeed` and `DiagnosticsFeed` supply only their engine and states.
-- [ ] **STOP-03**: The configure prologue (closed guard, normaliser, identity gate) is stated once with a parameterised gate, used by the timeline, diagnostics (`sameFieldsOrAbsent`) and gates (`watchFailure` retry) feeds; `GatesFeed` keeps forking before it publishes (INV-QD-408).
-- [ ] **STOP-04**: `SimulationSession` shares publish-then-fork and the stop-message rule, and keeps its own exit read so a self-interrupted run still reads `Broke`. The feeds' self-interrupt behaviour is decided and pinned (kept or changed, with its own test and ADR line).
-- [ ] **STOP-05**: A new ADR-QD-200 applies (does not reopen) ADR-QD-150 point 2 and extends ADR-QD-182 decision 10 to the session; ADR-QD-192/194 and the `ThrownMessage.ts` doc are amended in the same change; the per-feed tests (TF21–23, TF28, F28–31, F33, SR5–6) stay unedited; a `@qadi/devtools` patch changeset records the Simulator text change.
+- [x] **STOP-01**: A test written on the phase base is RED there and GREEN after: a `SimulationSession` run that dies reports `Broke.message` equal to `causeMessage(cause)` (today it is `String(exit.cause)`, `Cause([Die(...)])`), with a hostile-value case. A characterisation pins each feed's current status sequence, including what a self-interrupt does today (SR1: the session reads `Broke`).
+- [x] **STOP-02**: One package-private module above `SupersedingRun` owns, once: publish-then-fork through a callback (a listener's throw on the start-up publish is rethrown after the new run has started, ADR-QD-194), failure → stopped with `causeMessage`, `restart`, the closed guard and the token-guarded sink. `TimelineFeed` and `DiagnosticsFeed` supply only their engine and states.
+- [x] **STOP-03**: The configure prologue (closed guard, normaliser, identity gate) is stated once with a parameterised gate, used by the timeline, diagnostics (`sameFieldsOrAbsent`) and gates (`watchFailure` retry) feeds; `GatesFeed` keeps forking before it publishes (INV-QD-408).
+- [x] **STOP-04**: `SimulationSession` shares publish-then-fork and the stop-message rule, and keeps its own exit read so a self-interrupted run still reads `Broke`. The feeds' self-interrupt behaviour is decided and pinned (kept or changed, with its own test and ADR line).
+- [x] **STOP-05**: A new ADR-QD-200 applies (does not reopen) ADR-QD-150 point 2 and extends ADR-QD-182 decision 10 to the session; ADR-QD-192/194 and the `ThrownMessage.ts` doc are amended in the same change; the per-feed tests (TF21–23, TF28, F28–31, F33, SR5–6) stay unedited; a `@qadi/devtools` patch changeset records the Simulator text change.
 
 ### `StoppedBox` keys itself and owns the announce-once rule (Phase 88, ARCH-135, devtools)
 
@@ -111,11 +111,11 @@ Which phases cover which requirements. Each phase-specific requirement maps to e
 | PREG-03 | Phase 86 | Complete |
 | PREG-04 | Phase 86 | Complete |
 | PREG-05 | Phase 86 | Complete |
-| STOP-01 | Phase 87 | Pending |
-| STOP-02 | Phase 87 | Pending |
-| STOP-03 | Phase 87 | Pending |
-| STOP-04 | Phase 87 | Pending |
-| STOP-05 | Phase 87 | Pending |
+| STOP-01 | Phase 87 | Complete |
+| STOP-02 | Phase 87 | Complete |
+| STOP-03 | Phase 87 | Complete |
+| STOP-04 | Phase 87 | Complete |
+| STOP-05 | Phase 87 | Complete |
 | SBOX-01 | Phase 88 | Pending |
 | SBOX-02 | Phase 88 | Pending |
 | SBOX-03 | Phase 88 | Pending |
