@@ -20,6 +20,16 @@
  * sweep (`QadiAtoms.ts`, [ADR-QD-148](../../../spec/decisions/148-the-atom-set-owns-its-eviction-sweep.md)),
  * which never touches dispatch, notification or the scheduler at all, and this
  * provider forks none.
+ *
+ * **The registry's lifetime is decided in `RegistryLease.ts`, once.** The provider
+ * builds one registry and keeps it for its life; when every effect of the provider
+ * has been cleaned up and none re-runs within a macrotask (an unmount, or an
+ * `<Activity>` hidden for longer), the registry is recycled in place with `reset()`
+ * rather than disposed or replaced, so a consumer revealed later still reads a live
+ * one (ADR-QD-195).
+ * A recycle detaches any subscription a host holds directly on the registry
+ * (`registry.subscribe`, or `mount`, reached through `RegistryContext`); this
+ * package's own hooks have unsubscribed before it runs.
  */
 import type { AuthSubject } from "@qadi/core";
 import { useAtomValue as useLibraryAtomValue } from "@effect/atom-react/Hooks";
@@ -46,6 +56,7 @@ import {
 import type { ProviderSignal, ProviderSignalReporter } from "./DeveloperSignals.ts";
 import { MissingQadiProviderError } from "./MissingQadiProviderError.ts";
 import type { QadiAtoms } from "./QadiAtoms.ts";
+import { makeRegistryLease } from "./RegistryLease.ts";
 import { GateScopeContext } from "./useGate.ts";
 
 export interface QadiContextValue {
@@ -120,6 +131,13 @@ export interface QadiProviderProps {
   /**
    * Extra atom values to seed. Rarely needed; useful for server-rendered
    * decisions and for tests that want to assert on a settled state.
+   *
+   * They seed the registry at construction only. After a hide longer than a
+   * macrotask the registry is recycled and they return to their defaults: a
+   * hydration seed is not shown again, because a server seed is not an authority
+   * and showing it again could paint an allow this client has since replaced. A
+   * gate whose client cannot answer (no subject, or a resolver that never settles)
+   * stays pending until it does.
    */
   readonly initialValues?: InitialValues;
   /**
@@ -213,7 +231,9 @@ export const QadiProvider = ({
   };
   // The subject is seeded at registry construction rather than written in an
   // effect, so the first render already has it. Writing it afterwards would
-  // show every guarded control in its pending state for one frame.
+  // show every guarded control in its pending state for one frame. The registry
+  // is built once per provider and kept for its life; a release recycles it in
+  // place rather than replacing it, so `registryRef` is never cleared.
   const registryRef = useRef<AtomRegistry.AtomRegistry | undefined>(undefined);
   const registry = (registryRef.current ??= AtomRegistry.make({
     initialValues: [
@@ -228,7 +248,8 @@ export const QadiProvider = ({
   // inline `makeQadiAtoms(...)` call, or a genuine tenant switch) gets a
   // context silently holding the NEW atoms inside the OLD registry: the new
   // `initialValues` are never seeded, and decisions evaluated against the
-  // previous atom set stay cached until this provider unmounts. Warned in
+  // previous atom set stay cached until this provider unmounts or its registry
+  // is recycled. Warned in
   // development only — this is an invariant announced, not an assumption
   // remembered, matching the instrumentation signal's precedent for a rule
   // nothing else here enforces (DA-06). Detected in any environment and
@@ -239,6 +260,24 @@ export const QadiProvider = ({
     if (atomsIdentityRef.current !== atoms) report(providerSignals.atomsReplaced());
     atomsIdentityRef.current = atoms;
   }, [atoms]);
+
+  // What the recycle re-seeds from: the atoms and subject of the last commit,
+  // written in an effect so a render React discards never reaches it.
+  const latestRef = useRef({ atoms, subject });
+  useEffect(() => {
+    latestRef.current = { atoms, subject };
+  }, [atoms, subject]);
+
+  // The reset clears every node and runs its finalizers, which releases the
+  // runtime's layer scope; the subject is then written back so a consumer
+  // subscribing on reveal reads it. Neither `initialValues` nor a hydration seed
+  // is written back: a seed is not an authority (ADR-QD-039), and a re-applied
+  // one could paint an allow the client has since replaced.
+  const leaseRef = useRef<ReturnType<typeof makeRegistryLease> | undefined>(undefined);
+  const lease = (leaseRef.current ??= makeRegistryLease(() => {
+    registry.reset();
+    registry.set(latestRef.current.atoms.subject, latestRef.current.subject);
+  }));
 
   // Reverted from a render-phase write (ticket 34): that version reproducibly
   // hung an in-flight re-check forever on a page where `subject` never
@@ -282,21 +321,14 @@ export const QadiProvider = ({
     }
   }, [instrument, gates]);
 
-  const disposeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // The last effect of the provider, so on a reveal it runs after every consumer
+  // has subscribed. React runs the cleanup on a StrictMode double effect, on every
+  // hide of an `<Activity>` and on unmount, and gives no sign which: the lease
+  // waits one macrotask, and a hold in between cancels the recycle.
   useEffect(() => {
-    // Disposal is deferred by a tick and cancelled on remount, so React's
-    // development-mode double-mount does not destroy a live registry.
-    if (disposeTimer.current !== undefined) {
-      clearTimeout(disposeTimer.current);
-      disposeTimer.current = undefined;
-    }
-    return () => {
-      disposeTimer.current = setTimeout(() => {
-        registry.dispose();
-        registryRef.current = undefined;
-      }, 0);
-    };
-  }, [registry]);
+    lease.hold();
+    return () => lease.release();
+  }, [lease]);
 
   // Memoised, or every render of the provider gives every consumer a new
   // context value and re-renders the whole guarded subtree.
