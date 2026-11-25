@@ -238,3 +238,26 @@ After the removal (`Diagnostics.questions` and its three writes deleted): typech
 - green after the removal: F2 an empty options object samples the metric reads only and is Live once built
 - green after the removal: MR1 a supplied reading's questions are not part of the shown reading
 - green after the removal: MR2 a supplied reading's questions reach the questions store on the configure that hands them
+
+## 83-06 the fold
+
+`pnpm exec vitest run --project devtools packages/devtools/test/model/Diagnostics.test.ts < /dev/null` on the tree where
+the `foldReading` describe exists and `foldReading` does not: 5 failed, 24 passed; each failing row stops with
+`TypeError: foldReading is not a function`. (The sixth row, "has a row for every field of the reading", reads no fold and
+passes by design.)
+
+- red on the base: returns the previous reading itself for a structurally equal fresh sample: TypeError: foldReading is not a function
+- red on the base: gives only the field that moved a new reference, for each field: TypeError: foldReading is not a function
+- red on the base: changes identity once however many identical samples are folded in: TypeError: foldReading is not a function
+- red on the base: keeps the empty reading's fields for a first sample that equals them: TypeError: foldReading is not a function
+- red on the base: decides each field by structural equality, not by reference: TypeError: foldReading is not a function
+
+After the function: the `foldReading` file is 29 passed, the devtools suite is green, the typecheck and `pnpm test:tstyche
+packages/devtools/test` (53 tests, both passes) are clean, `83-check.mjs single-fold` passes and so does house style.
+
+- green after the change: returns the previous reading itself for a structurally equal fresh sample
+- green after the change: has a row for every field of the reading
+- green after the change: gives only the field that moved a new reference, for each field
+- green after the change: changes identity once however many identical samples are folded in
+- green after the change: keeps the empty reading's fields for a first sample that equals them
+- green after the change: decides each field by structural equality, not by reference

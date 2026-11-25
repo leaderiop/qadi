@@ -18,6 +18,7 @@ import {
 } from "@qadi/core";
 import {
   DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS,
+  foldReading,
   makeDiagnosticsStore,
   mergeReading,
   noDiagnostics,
@@ -27,7 +28,9 @@ import {
   type DiagnosticsOptions,
   type DiagnosticsStore,
 } from "../../src/model/Diagnostics.ts";
+import type { HydrationActivity } from "../../src/model/Hydration.ts";
 import type { PortCallCollector, PortCallLog } from "../../src/model/PortCalls.ts";
+import type { PortActivity } from "../../src/model/Wiring.ts";
 import { hostile, hostileError } from "../helpers.ts";
 
 const emptyLog: PortCallLog = { calls: [], dropped: 0, capacity: 10 };
@@ -56,81 +59,93 @@ const counted = (store: { readonly subscribe: (l: () => void) => () => void }) =
 const start = (store: DiagnosticsStore, options?: DiagnosticsOptions) =>
   Effect.forkChild(runDiagnostics(store, options), { startImmediately: true });
 
-describe("makeDiagnosticsStore", () => {
-  it("starts at the empty reading", () => {
-    assert.strictEqual(makeDiagnosticsStore().getSnapshot(), noDiagnostics);
+describe("foldReading", () => {
+  const activityOf = (calls: number): ReadonlyArray<PortActivity> => [
+    { port: "AttributeResolver", calls, translationCalls: 0, retries: 0, timeouts: 0 },
+  ];
+  const hydrationOf = (seeded: number): HydrationActivity => ({
+    dehydrated: 0,
+    seeded,
+    rechecked: 0,
+    mismatched: 0,
+    drops: [],
+  });
+  const logOf = (dropped: number): PortCallLog => ({ calls: [], dropped, capacity: 10 });
+
+  /** A reading, built fresh on every call, so no two share a reference. */
+  const first = (): Diagnostics => ({
+    wiring: WiringRead.NotHanded(),
+    activity: activityOf(1),
+    hydration: hydrationOf(0),
+    portCalls: logOf(0),
+  });
+  /** Every field unlike `first`'s: a field added to `Diagnostics` is a compile error here. */
+  const moved: Diagnostics = {
+    wiring: WiringRead.Failed({ reason: "x" }),
+    activity: activityOf(2),
+    hydration: hydrationOf(1),
+    portCalls: logOf(3),
+  };
+  const rows: ReadonlyArray<readonly [keyof Diagnostics, Diagnostics]> = [
+    ["wiring", { ...first(), wiring: moved.wiring }],
+    ["activity", { ...first(), activity: moved.activity }],
+    ["hydration", { ...first(), hydration: moved.hydration }],
+    ["portCalls", { ...first(), portCalls: moved.portCalls }],
+  ];
+
+  it("returns the previous reading itself for a structurally equal fresh sample", () => {
+    const previous = first();
+    assert.strictEqual(foldReading(previous, first()), previous);
   });
 
-  it("notifies when a reading differs, and says so with a new snapshot", () => {
-    const store = makeDiagnosticsStore();
-    const seen = counted(store);
-    store.accept({ ...noDiagnostics, portCalls: emptyLog });
-    assert.strictEqual(seen.notified, 1);
-    assert.strictEqual(store.getSnapshot().portCalls, emptyLog);
+  it("has a row for every field of the reading", () => {
+    assert.deepStrictEqual(rows.map(([field]) => field).sort(), Object.keys(moved).sort());
   });
 
-  it("does not notify for a structurally equal reading, and keeps the snapshot", () => {
-    const store = makeDiagnosticsStore();
-    store.accept({ ...noDiagnostics, portCalls: emptyLog });
-    const before = store.getSnapshot();
-    const seen = counted(store);
-    store.accept({
-      ...noDiagnostics,
-      activity: [],
-      portCalls: { calls: [], dropped: 0, capacity: 10 },
-    });
-    assert.strictEqual(seen.notified, 0);
-    assert.strictEqual(store.getSnapshot(), before);
-  });
-
-  it("gives only the field that changed a new reference", () => {
-    const store = makeDiagnosticsStore();
-    store.accept({ ...noDiagnostics, portCalls: emptyLog });
-    const before = store.getSnapshot();
-    store.accept({
-      ...noDiagnostics,
-      portCalls: { calls: [], dropped: 1, capacity: 10 },
-    });
-    const after = store.getSnapshot();
-    assert.notStrictEqual(after, before);
-    assert.notStrictEqual(after.portCalls, before.portCalls);
-    assert.strictEqual(after.wiring, before.wiring);
-    assert.strictEqual(after.activity, before.activity);
-    assert.strictEqual(after.hydration, before.hydration);
-  });
-
-  it("moves each field on its own", () => {
-    const first: Diagnostics = {
-      wiring: WiringRead.NotHanded(),
-      activity: [],
-      hydration: {
-        dehydrated: 0,
-        seeded: 0,
-        rechecked: 0,
-        mismatched: 0,
-        drops: [],
-      },
-      portCalls: emptyLog,
-    };
-    const variants: ReadonlyArray<[string, Diagnostics]> = [
-      ["wiring", { ...first, wiring: WiringRead.Failed({ reason: "x" }) }],
-      [
-        "activity",
-        {
-          ...first,
-          activity: [{ port: "AttributeResolver", calls: 1, translationCalls: 0, retries: 0, timeouts: 0 }],
-        },
-      ],
-      ["hydration", { ...first, hydration: first.hydration && { ...first.hydration, seeded: 1 } }],
-      ["portCalls", { ...first, portCalls: { ...emptyLog, dropped: 3 } }],
-    ];
-    for (const [field, next] of variants) {
-      const store = makeDiagnosticsStore();
-      store.accept(first);
-      const seen = counted(store);
-      store.accept(next);
-      assert.strictEqual(seen.notified, 1, field);
+  it("gives only the field that moved a new reference, for each field", () => {
+    const previous = first();
+    for (const [field, sample] of rows) {
+      const folded = foldReading(previous, sample);
+      assert.notStrictEqual(folded, previous, field);
+      for (const [other] of rows) {
+        assert.strictEqual(
+          folded[other],
+          other === field ? sample[other] : previous[other],
+          `${field} moved, ${other} read`,
+        );
+      }
     }
+  });
+
+  it("changes identity once however many identical samples are folded in", () => {
+    let reading = noDiagnostics;
+    const identities = new Set<Diagnostics>();
+    for (let i = 0; i < 5; i += 1) {
+      reading = foldReading(reading, first());
+      identities.add(reading);
+    }
+    assert.strictEqual(identities.size, 1);
+    assert.notStrictEqual(reading, noDiagnostics);
+  });
+
+  it("keeps the empty reading's fields for a first sample that equals them", () => {
+    const folded = foldReading(noDiagnostics, { ...first(), wiring: WiringRead.NotHanded(), activity: [] });
+    assert.strictEqual(folded.wiring, noDiagnostics.wiring);
+    assert.strictEqual(folded.activity, noDiagnostics.activity);
+    assert.notStrictEqual(folded.hydration, noDiagnostics.hydration);
+  });
+
+  it("decides each field by structural equality, not by reference", () => {
+    const previous = first();
+    const sample = first();
+    assert.notStrictEqual(sample.wiring, previous.wiring);
+    assert.notStrictEqual(sample.activity, previous.activity);
+    assert.notStrictEqual(sample.portCalls, previous.portCalls);
+    const folded = foldReading(previous, sample);
+    assert.strictEqual(folded.wiring, previous.wiring);
+    assert.strictEqual(folded.activity, previous.activity);
+    assert.strictEqual(folded.hydration, previous.hydration);
+    assert.strictEqual(folded.portCalls, previous.portCalls);
   });
 });
 

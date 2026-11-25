@@ -29,9 +29,10 @@
  * the decisions and the panel read one instance (BEH-QD-323).
  *
  * **A sample that changed nothing changes nothing.** `useSyncExternalStore`
- * compares snapshots by identity, and every read builds fresh objects, so
- * `accept` keeps each field's previous reference when `Equal.equals` says it is
- * unchanged and notifies only if some field moved.
+ * compares snapshots by identity, and every read builds fresh objects, so each
+ * sample is folded into the last reading by `foldReading`, which keeps each
+ * field's reference while `Equal.equals` says it is unchanged and returns the
+ * last reading itself when nothing moved.
  *
  * Gates are deliberately not here. They are the dock model's own input
  * (`DockModelInputs.gates`), a registry the model subscribes to (ADR-QD-162).
@@ -43,7 +44,7 @@ import * as Exit from "effect/Exit";
 import * as Layer from "effect/Layer";
 import * as Schedule from "effect/Schedule";
 import { causeMessage } from "@qadi/core";
-import { makeExternalStore } from "./ExternalStore.ts";
+import { makeExternalStore, sameFields } from "./ExternalStore.ts";
 import type { AskedQuestionLike } from "./Gates.ts";
 import { hydrationActivity, type HydrationActivity } from "./Hydration.ts";
 import type { PortCallCollector, PortCallLog } from "./PortCalls.ts";
@@ -157,29 +158,35 @@ export interface DiagnosticsStore {
 
 const keep = <A>(previous: A, next: A): A => (Equal.equals(previous, next) ? previous : next);
 
+/**
+ * Folds one sampled reading into the last one, keeping every field that did not change.
+ *
+ * Each field keeps `previous`'s reference while `Equal.equals` says it is unchanged, and the
+ * result is `previous` itself when no field moved, so a quiet poll hands a store the value it
+ * already holds. A pure function of its two arguments: it reads no clock, no store and no
+ * closure.
+ *
+ * The result is typed `Diagnostics` and built as an object literal naming every field, so a
+ * field added to `Diagnostics` is a compile error until it is folded here, and `sameFields`
+ * decides whether anything moved without a second list of the fields to forget it from.
+ * Exported from this module only, not from a barrel (ADR-QD-099).
+ */
+export function foldReading(previous: Diagnostics, next: Diagnostics): Diagnostics {
+  const folded: Diagnostics = {
+    wiring: keep(previous.wiring, next.wiring),
+    activity: keep(previous.activity, next.activity),
+    hydration: keep(previous.hydration, next.hydration),
+    portCalls: keep(previous.portCalls, next.portCalls),
+  };
+  return sameFields(folded, previous) ? previous : folded;
+}
+
 export const makeDiagnosticsStore = (): DiagnosticsStore => {
   const store = makeExternalStore(noDiagnostics);
   return {
     subscribe: store.subscribe,
     getSnapshot: store.getSnapshot,
-    accept: (next) => {
-      const current = store.getSnapshot();
-      const merged: Diagnostics = {
-        wiring: keep(current.wiring, next.wiring),
-        activity: keep(current.activity, next.activity),
-        hydration: keep(current.hydration, next.hydration),
-        portCalls: keep(current.portCalls, next.portCalls),
-      };
-      if (
-        merged.wiring === current.wiring &&
-        merged.activity === current.activity &&
-        merged.hydration === current.hydration &&
-        merged.portCalls === current.portCalls
-      ) {
-        return;
-      }
-      store.set(merged);
-    },
+    accept: (next) => store.set(foldReading(store.getSnapshot(), next)),
   };
 };
 
