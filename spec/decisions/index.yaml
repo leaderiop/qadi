@@ -606,3 +606,7 @@ entries:
     file: "194-a-run-of-calls-applies-every-call-whatever-one-throws.md"
     title: "A run of calls applies every call whatever one throws"
     status: "Accepted — amends ADR-QD-177, ADR-QD-185, ADR-QD-191 and ADR-QD-192"
+  - id: "ADR-QD-195"
+    file: "195-a-providers-registry-has-one-owner-for-its-lifetime.md"
+    title: "A provider's registry has one owner for its lifetime"
+    status: "Accepted — amends ADR-QD-014, ADR-QD-148 and ADR-QD-149"
