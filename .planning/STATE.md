@@ -3,19 +3,18 @@ gsd_state_version: "1.0"
 milestone: v1.10
 milestone_name: Arch Wave 15
 current_phase: 84
-current_phase_name: "`useConfigured` requires `configure`, and the review's small finds"
-status: verifying
-stopped_at: Completed QD-84-13-PLAN.md
-last_updated: "2026-11-25T08:54:16.877Z"
+status: completed
+stopped_at: Phase 84 complete — all phases complete
+last_updated: "2026-11-25T09:39:51.049Z"
 last_activity: 2026-11-25
-last_activity_desc: Phase 83 complete, transitioned to Phase 84
-state_head: 219cb81bf98a59d3f4f96ee846906328ea4378d1
+last_activity_desc: Phase 84 complete
+state_head: 3f0960eb0e3231393b43cdc2ee691e47ec31bd1d
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 45
   completed_plans: 45
-  percent: 75
+  percent: 100
 ---
 
 # Project State
@@ -29,16 +28,16 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 
 ## Current Position
 
-Phase: 84 (`useConfigured` requires `configure`, and the review's small finds) — READY TO EXECUTE
-Plan: 13 of 13
-Status: Phase complete — ready for verification
-Last activity: 2026-11-25 — Phase 83 complete, transitioned to Phase 84
+Phase: 84
+Plan: Not started
+Status: All phases complete
+Last activity: 2026-11-25 — Phase 84 complete
 
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 522
+- Total plans completed: 535
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -120,6 +119,7 @@ Last activity: 2026-11-25 — Phase 83 complete, transitioned to Phase 84
 | QD-81 | 11 | - | - |
 | 82 | 10 | - | - |
 | 83 | 11 | - | - |
+| 84 | 13 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -1191,6 +1191,7 @@ Last activity: 2026-11-25 — Phase 83 complete, transitioned to Phase 84
 - [Phase 81] Review (81-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations fixed 13 findings (iteration 1: README record-path claim, vacuous lens row, package-private dock model in the README, nested `AggregateError` wording, three info; iteration 2: spec records restated for DL1..DL20 and TF37, BEH-QD-656 gains the record/sample-throw requirement; iteration 3: direct pins in `TimelineFeed.listeners.test.ts` LF1..LF3, amendment banner). `pnpm check:pr` and `pnpm spec:package` green after the fixes at daf7cd45; mutation compare exit 0 (no src change since the close). Note: `TimelineFeed.configure` re-reads a source a nested `configure` already read (TF37 pins two reads; dedup makes it harmless) — recorded, not changed. The pinned check refused a TF38 addition; the direct pins went into a new file instead. `phase.complete` warnings about `spec/decisions/1xx-...md` are false positives (abbreviated paths; the files exist).
 - [Phase 82] Review (82-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations fixed 7 findings (iteration 1: BEH-QD-749/ADR claim that the reveal's first frame reads a subject changed while hidden corrected to the one-frame read and pinned in LT6, LT16/LT17 pin the committed re-seed, LT12 drives real pressure across the hide, `leaseRef` typed `RegistryLease`, the re-seed moved into a `finally` after `reset()` with LT18, LT14 made to depend on the release; iteration 2: LT18 hears the timer's throw through a cast-free `setTimeout` wrapper instead of swapping process listeners; iteration 3 clean). Mutation re-close: react 148/150 (QuestionBook.ts:109 now killed), lease 28/28, compare exit 0; `pnpm check:pr` and `pnpm spec:package` green at 4ec88995. Validation 12/12, security 29/29 (2 low accepted), verification passed 5/5. `phase.complete` warnings name a scratch test file, a command and $TMPDIR outputs a SUMMARY mentions; not missing artifacts.
 - [Phase 83] Review (83-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations, 7 findings: 5 fixed (WR-01 the four-field pin read the folded reading, now the raw sample; WR-02 nothing pinned that a superseded sample leaves `sampled` false, now SR1 in `DiagnosticsFeed.superseded.test.ts`, seen as the only failure with `sampled = true` above the guard; WR-03 the `DockModel.reading` doc; IN-01 the changeset/upgrade pointer to the questions store; IN-04 wraps), 2 declined (IN-02 the held characterisation header; IN-03 a behaviour change against FC11/MR2). The fixer's request to loosen `83-pinned-check.mjs` was refused by the classifier and not re-done by the orchestrator. Mutation re-taken (59/59, 32/32, 65/65), check:pr and spec:package green at 13763f9f; a missing trailer on the review-report commit fixed by rebuilding 12 local commits with `git commit-tree` and remapping cited hashes. Validate 11/11, secure 27/27 (2 low accepted), verify 4/4.
+- [Phase 84] Review (84-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations, 8 findings, all fixed (WR-01 BEH-QD-756 claimed three pinned refusals with one pinned, now pinned; WR-02/WR-03 the records named a "lens group" of `stryker.devtools.mjs`, now the real mutate glob; IN-01..IN-03 iteration 1 wraps, the `Configurable` doc and a `.ts` generic comma; iteration 2 IN-01 the type-test header and IN-02 the property-not-method choice, now pinned by a fourth refusal seen failing under a method signature). The ledger dropped the two iteration-1 IN ids reused in iteration 2; they are recorded in its "Findings dropped by id reuse" section. `LensSession.ts` unchanged since the close (47/47), check:pr and spec:package green at ce02fbc7 after the fixes. Validate 16/16, secure 31/31 (none accepted), verify 5/5.
 ### Roadmap Evolution
 
 - Phase 68.1 inserted after Phase 68: Address tech debt from the v1.7 audit (owner chose a cleanup phase before completing)
@@ -1211,10 +1212,10 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 ## Session Continuity
 
 Last session: 2026-11-25T08:54:16.486Z
-Stopped at: Completed QD-84-13-PLAN.md
+Stopped at: Phase 84 complete — all phases complete
 Resume file: None
 
 ## Operator Next Steps
 
 
-- Phase 84: smart discuss (decided autonomously), then /gsd-plan-phase 84 and /gsd-execute-phase 84
+- All v1.10 phases complete: /gsd-audit-milestone v1.10, then /gsd-complete-milestone v1.10 (no tag, no push), then /gsd-cleanup

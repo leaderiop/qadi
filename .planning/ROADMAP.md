@@ -479,7 +479,7 @@ Order: the two live defects (81, 82), then the two devtools deepenings (83, 84).
 - [x] **Phase 81: The dock model applies every input whatever a listener throws** - `configure` and the record path run every step and rethrow what was collected once; a catalogue-and-capacity change moves the sightings rail once (ARCH-128, devtools; live defect) (completed 2026-11-25)
 - [x] **Phase 82: `QadiProvider`'s registry has one owner for its lifetime** - A provider hidden in `<Activity>` longer than a macrotask and shown again never reaches a disposed registry; the lifetime rule is one headless, mutation-gated module (ARCH-129, react; live defect) (completed 2026-11-25)
 - [x] **Phase 83: The diagnostics feed folds its reading as a value** - A pure per-field fold replaces the package-private store nothing subscribes to, `runDiagnostics` takes an `accept` sink, and the never-written `Diagnostics.questions` is resolved (ARCH-130, devtools; possibly Breaking) (completed 2026-11-25)
-- [ ] **Phase 84: `useConfigured` requires `configure`, and the review's small finds** - Three identical adapters deleted, `LensSession` publishes through `ExternalStore.set`, `useLens` receives each fact once, `DockFrame`'s stop ledger exists once, and `useTimeline`'s inputs record is decided (ARCH-131, devtools)
+- [x] **Phase 84: `useConfigured` requires `configure`, and the review's small finds** - Three identical adapters deleted, `LensSession` publishes through `ExternalStore.set`, `useLens` receives each fact once, `DockFrame`'s stop ledger exists once, and `useTimeline`'s inputs record is decided (ARCH-131, devtools) (completed 2026-11-25)
 
 ### Phase Details
 
@@ -602,7 +602,7 @@ Plans:
   5. `useTimeline`'s per-render inputs record is either memoised or recorded as a rejection against ADR-QD-192 decision 8, with the gates feed's retry-on-configure (G43) unaffected, and ADR-QD-197 records the phase or is named unused in CCR-QD-476.
 
 **Planning notes**: Standard patterns, and no defect, so no RED: open with characterisations green on the base before any edit (`useConfigured.test.tsx` U1-U4 re-expressed over an object double, `LensSession.test.ts:304/378` mutation-checked so a publish-before-arm fails it, `Lens.adapter.test.tsx:160`'s one-subscription pin); `ConfigureFirstRender` and `Lens.dock` stay unedited. The discuss step decides the `useLens` shape (research recommends `useLens(lens, questions)` subscribing once and returning both snapshots, handlers reading `questions.getSnapshot()` at event time, never writing a ref during render; amend ADR-QD-193 and BEH-QD-737, and edit traceability row 661 in the same commit) and the `useTimeline` record (research recommends a recorded rejection: the value's own rule makes memoisation a no-op, `DevtoolsDock`'s rest spread is fresh per render by construction, and memoising one of three hooks makes them asymmetric; if it memoises, only `useTimeline`, never the dock's or the gates' records). Use positive type pins only for the `Configurable` constraint (`DockModel`, `TimelineFeed` and `DiagnosticsFeed` assignable), which costs no `NOT_CALLABLE_PIN_BUDGET` row; check `useConfigured<A, I>`'s inference. Re-measure `LensSession.ts` (52/52, no open mutant) and list the `src/react` hooks as `unmeasured`. Changeset: none, or a `@qadi/devtools` patch stating "no export changes".
-**Plans**: 13/13 plans executed
+**Plans**: 13/13 plans complete
 
 Plans:
 - [x] 84-01 (W1): Record the mutation base of `LensSession.ts` first, the base facts, and the phase check helper with `no-adapter`, `no-restated-set`, `one-path`, `one-ledger` and `records` (D-21, D-23, D-24).
@@ -630,4 +630,4 @@ Phases execute in numeric order: 81 → 82 → 83 → 84
 | 81. The dock model applies every input whatever a listener throws | 11/11 | Complete    | 2026-11-25 |
 | 82. `QadiProvider`'s registry has one owner for its lifetime | 10/10 | Complete    | 2026-11-25 |
 | 83. The diagnostics feed folds its reading as a value | 11/11 | Complete    | 2026-11-25 |
-| 84. `useConfigured` requires `configure`, and the review's small finds | 13/13 | In Progress | - |
+| 84. `useConfigured` requires `configure`, and the review's small finds | 13/13 | Complete    | 2026-11-25 |
