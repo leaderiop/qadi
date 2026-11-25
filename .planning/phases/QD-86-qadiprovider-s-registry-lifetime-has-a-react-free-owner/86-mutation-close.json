@@ -1,0 +1,47 @@
+{
+ "phase": "86",
+ "unmeasured": [
+  {
+   "file": "packages/react/src/QadiProvider.tsx",
+   "why": "renders; it holds no lifetime branch, and its behaviour is pinned by the rendered tests and the characterisation"
+  }
+ ],
+ "groups": {
+  "lease": {
+   "head": "07c5afb4a116b0873a9ac4628489e6b33a86d4e3",
+   "invocation": "pnpm exec stryker run stryker.react.mjs --mutate packages/react/src/RegistryLease.ts --disableBail",
+   "files": {
+    "packages/react/src/RegistryLease.ts": {
+     "killed": 28,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 0,
+     "detected": 28,
+     "valid": 28,
+     "open": [],
+     "ignoredMutants": []
+    }
+   }
+  },
+  "owner": {
+   "head": "07c5afb4a116b0873a9ac4628489e6b33a86d4e3",
+   "invocation": "pnpm exec stryker run stryker.react.mjs --mutate packages/react/src/RegistryOwner.ts --disableBail",
+   "files": {
+    "packages/react/src/RegistryOwner.ts": {
+     "killed": 19,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 0,
+     "detected": 19,
+     "valid": 19,
+     "open": [],
+     "ignoredMutants": [],
+     "timeouts": [],
+     "outside": []
+    }
+   }
+  }
+ }
+}
