@@ -4,17 +4,17 @@ milestone: v1.11
 milestone_name: Arch Wave 16
 current_phase: 85
 current_phase_name: The dock's hydration block is a model row
-status: planning
-stopped_at: "Roadmap created for v1.11 — next: discuss Phase 85"
-last_updated: "2026-11-25T12:56:59.024Z"
+status: executing
+stopped_at: Completed QD-85-01-PLAN.md
+last_updated: "2026-11-25T13:10:32.201Z"
 last_activity: 2026-11-25
-last_activity_desc: Roadmap created for milestone v1.11 (Phases 85-91, ARCH-132…138; 41 of 41 requirements mapped)
-state_head: a6372095337533d11d3d35cf8a71f6145430addc
+last_activity_desc: Phase QD-85 execution started
+state_head: 31d0227ec251d43fe1483191a47b6cbb4f5ecbaa
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 11
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
 ---
 
@@ -25,14 +25,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-25)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 85, The dock's hydration block is a model row (v1.11 Arch Wave 16, Phases 85-91; roadmap created 2026-11-25; v1.9 and v1.10 merged as #165, nothing released)
+**Current focus:** Phase QD-85 — The dock's hydration block is a model row
 
 ## Current Position
 
-Phase: 85 (The dock's hydration block is a model row) — READY TO EXECUTE
-Plan: —
-Status: Roadmap created; ready to discuss Phase 85
-Last activity: 2026-11-25 — Roadmap created for milestone v1.11 (Phases 85-91, ARCH-132…138; 41 of 41 requirements mapped)
+Phase: QD-85 (The dock's hydration block is a model row) — EXECUTING
+Plan: 2 of 11
+Status: Executing Phase QD-85
+Last activity: 2026-11-25 — Phase QD-85 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -652,6 +652,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase QD-84 P11 | 25min | 2 tasks | 5 files |
 | Phase QD-84 P12 | 10min | 2 tasks | 1 files |
 | Phase QD-84 P13 | 40min | 2 tasks | 2 files |
+| Phase QD-85 P01 | 10 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -1131,6 +1132,8 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase QD-84]: 84-06: Configurable<I> stays exported from useConfigured.ts for its type test only and is refused from both barrels
 - [Phase 84]: ADR-QD-197 records the useTimeline per-render memo as a rejection, with the four reasons; reason 4 is a reason not to make memoisation the hooks' rule (decided autonomously)
 - [Phase QD-84]: 84-11: BEH-QD-756 to 760 and INV-QD-413 and 414 written with exact-title pinned-by; CCR-QD-476 row complete, no reserved number left Unused
+- [Phase QD-85]: H10 pins an all-zero reading (decided autonomously): a bare drops: [] rendered the same bytes as H6 and no scratch edit could tell them apart
+- [Phase QD-85]: H13 seen-failing edit is in Diagnostics.ts mergeReading (decided autonomously): the panel is handed one merged reading
 
 ### Pending Todos
 
@@ -1215,8 +1218,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T08:54:16.486Z
-Stopped at: Roadmap created for v1.11 — next: discuss Phase 85
+Last session: 2026-11-25T13:10:32.167Z
+Stopped at: Completed QD-85-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
