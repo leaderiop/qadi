@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 86
 current_phase_name: QadiProvider's registry lifetime has a React-free owner
 status: executing
-stopped_at: Completed 86-04-PLAN.md
-last_updated: "2026-11-25T16:30:27.318Z"
+stopped_at: Completed 86-05-PLAN.md
+last_updated: "2026-11-25T16:34:28.976Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 86 execution started
-state_head: b131ef7ac311aae2315a1982292ae66b22b86593
+state_head: f9c51e0528ac05d9965a07abb11188998a4be77b
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 19
-  completed_plans: 15
+  completed_plans: 16
   percent: 14
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: 86 (QadiProvider's registry lifetime has a React-free owner) — EXECUTING
-Plan: 5 of 8
+Plan: 6 of 8
 Status: Ready to execute
 Last activity: 2026-11-25 — Phase 86 execution started
 
@@ -668,6 +668,7 @@ Progress: [█░░░░░░░░░] 14%
 | Phase 86 P02 | 40min | 2 tasks | 2 files |
 | Phase QD-86 P03 | 10min | 2 tasks | 2 files |
 | Phase 86 P04 | 25min | 3 tasks | 5 files |
+| Phase 86 P05 | 15min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -1174,6 +1175,7 @@ Progress: [█░░░░░░░░░] 14%
 - [Phase QD-86]: 86-03: the 82 single-owner ledger row is chosen by the provider text against phase_base, never by what the run printed; the 82 base row is the measured exit 0
 - [Phase 86]: RO1, RO3 and RO4 end on what was deferred, with RO2 as the recycles-once twin, so emptying the recycle body fails RO2 and leaves them green
 - [Phase 86]: RO10 pins the record-before-write order with a throwing listener, which escapes registry.set on effect 4.1.2
+- [Phase 86]: 86-05: atoms-identity and ticket-34 comments share one block above the commit effect
 
 ### Pending Todos
 
@@ -1260,8 +1262,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T16:30:27.261Z
-Stopped at: Completed 86-04-PLAN.md
+Last session: 2026-11-25T16:34:28.914Z
+Stopped at: Completed 86-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
