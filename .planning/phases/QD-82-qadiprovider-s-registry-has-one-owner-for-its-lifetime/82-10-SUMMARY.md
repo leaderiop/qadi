@@ -18,16 +18,16 @@ key-decisions:
   - "Decided autonomously: the gate passed on its first run at the head of 82-09, so no fix commit exists and no mutation close is re-taken here; the re-run owed after review fixes is written down below"
   - "Decided autonomously: WX-01 to WX-07 are standing v1.10 requirements already marked Complete, so only LEASE-01 to LEASE-05 changed; `requirements.mark-complete` was not run"
 requirements-completed: [WX-01, WX-03, WX-07, LEASE-01, LEASE-02, LEASE-03, LEASE-04, LEASE-05]
-duration: PLAN_DURATION
+duration: 4min
 completed: 2026-11-25
 status: complete
-commits: PLAN_COMMITS
+commits: 1
 plan_head_before: 6d1fda561477dd41c3346415df13fb36d0872ff4
-plan_head_after: PLAN_HEAD_AFTER
+plan_head_after: 7b3d5deb047e075192ae7d719f81bf88959831b8
 actuals:
   tokens: 6000
   tasks: 2
-  commits: PLAN_COMMITS
+  commits: 1
 ---
 
 # Phase QD-82 Plan 10: The phase gate, requirements complete, release check Summary
@@ -125,7 +125,7 @@ The three WX-01 backstops (adjacency, empty, ordering) are held by `scripts/run-
 | Task | Commit | Files |
 | ---- | ------ | ----- |
 | 1 | none: the gate made no change; its output is the gate facts above | `82-10-SUMMARY.md` |
-| 2 | see `plan_head_after`: `docs(82-10): LEASE-01 to LEASE-05 complete` | `.planning/REQUIREMENTS.md`, `82-10-SUMMARY.md` |
+| 2 | 7b3d5deb: `docs(82-10): LEASE-01 to LEASE-05 complete` | `.planning/REQUIREMENTS.md`, `82-10-SUMMARY.md` |
 
 ## Deviations from Plan
 
@@ -154,4 +154,8 @@ None. The gate passed on its first run; no fix commit was needed.
 The phase's code review follows. It re-takes the gate and any owed mutation close after its fixes, per `## Re-run after review
 fixes`.
 
-## Self-Check: PENDING
+## Self-Check: PASSED
+
+- FOUND: `.planning/REQUIREMENTS.md` with LEASE-01 to LEASE-05 checked and Complete
+- FOUND: commit 7b3d5deb, an ancestor of HEAD
+- The two task verifies pass; `82-check.mjs commit`, `trailers` and `scan-ids` exit 0

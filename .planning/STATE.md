@@ -5,16 +5,16 @@ milestone_name: Arch Wave 15
 current_phase: 82
 current_phase_name: "`QadiProvider`'s registry has one owner for its lifetime"
 status: executing
-stopped_at: Completed QD-82-09-PLAN.md
-last_updated: "2026-11-25T02:06:27.302Z"
+stopped_at: Completed QD-82-10-PLAN.md
+last_updated: "2026-11-25T02:11:39.002Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase QD-82 execution started
-state_head: 0166e85bdd5c11f2e6e82490036e94e2502865fb
+state_head: 7b3d5deb047e075192ae7d719f81bf88959831b8
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 21
-  completed_plans: 20
+  completed_plans: 21
   percent: 25
 ---
 
@@ -622,6 +622,7 @@ Last activity: 2026-11-25 — Phase QD-82 execution started
 | Phase QD-82 P07 | 14 min | 2 tasks | 6 files |
 | Phase QD-82 P08 | 9 min | 2 tasks | 3 files |
 | Phase QD-82 P09 | 12 min | 2 tasks | 2 files |
+| Phase QD-82 P10 | 4min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -1087,6 +1088,7 @@ Last activity: 2026-11-25 — Phase QD-82 execution started
 - [Phase QD-82]: Decided autonomously: per-behaviour rows for BEH-QD-746 to BEH-QD-750 sit in a small table under traceability section 1's range table, since section 1 held none and the plan's verify needs them
 - [Phase QD-82]: 82-08: the CCR-QD-474 row lists documents in first-changed order and names the losses a host sees after a long hide (decided autonomously)
 - [Phase QD-82]: 82-09: the mutation close needed no new test; the three QuestionBook.ts survivors the base held are carried through, never re-baselined (decided autonomously)
+- [Phase QD-82]: Decided autonomously (82-10): the gate passed first time at 6d1fda56 so no fix commit and no mutation re-close; LEASE-01..05 marked by hand; WX-01..07 were already Complete
 
 ### Pending Todos
 
@@ -1167,8 +1169,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T02:06:27.246Z
-Stopped at: Completed QD-82-09-PLAN.md
+Last session: 2026-11-25T02:11:38.946Z
+Stopped at: Completed QD-82-10-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
