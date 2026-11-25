@@ -9,11 +9,11 @@
 
 ### The dock's hydration block is a model row (Phase 85, ARCH-132, devtools)
 
-- [ ] **HYDV-01**: A characterisation written on the phase base, green there and after, pins every hydration block state the panel renders today (Pending, Unwired, Counts with its rate sentence, raised-drops filter and unaccounted scope text, the activity-over-status precedence, the "0 dehydrated entries" wording), using the two `QuestionsPanel` HTML-string files as the byte oracle plus the cells they lack.
-- [ ] **HYDV-02**: A pure hydration view beside `portCards` returns a closed tagged union (Pending / Unwired / Counts with its text worked out) and is tested as a table, under `src/model/` and the devtools mutation gate. No JSX enters `model/`.
-- [ ] **HYDV-03**: The dock model serves the view (as its own derived store or on an existing one, decided at discuss) keyed per field so an unchanged reading publishes nothing; the three distinct "unsampled" predicates (questions with `supplied === undefined`, services unguarded, hydration with activity precedence) each stay as they are and are stated once each, not flattened into one.
-- [ ] **HYDV-04**: `QuestionsPanel` renders the view's tag and decides nothing; `DockFrame` no longer subscribes to the whole merged reading to pass `hydration` along, and keeps only what its notice needs (status). Every `data-testid` is unchanged.
-- [ ] **HYDV-05**: ADR-QD-198 records the phase (or ADR-QD-185 is amended and 198 named unused); BEH-QD-700/699/735, INV-QD-390, BEH-QD-218's table (a hydration row) and the store-name pins move with it.
+- [x] **HYDV-01**: A characterisation written on the phase base, green there and after, pins every hydration block state the panel renders today (Pending, Unwired, Counts with its rate sentence, raised-drops filter and unaccounted scope text, the activity-over-status precedence, the "0 dehydrated entries" wording), using the two `QuestionsPanel` HTML-string files as the byte oracle plus the cells they lack.
+- [x] **HYDV-02**: A pure hydration view beside `portCards` returns a closed tagged union (Pending / Unwired / Counts with its text worked out) and is tested as a table, under `src/model/` and the devtools mutation gate. No JSX enters `model/`.
+- [x] **HYDV-03**: The dock model serves the view (as its own derived store or on an existing one, decided at discuss) keyed per field so an unchanged reading publishes nothing; the three distinct "unsampled" predicates (questions with `supplied === undefined`, services unguarded, hydration with activity precedence) each stay as they are and are stated once each, not flattened into one.
+- [x] **HYDV-04**: `QuestionsPanel` renders the view's tag and decides nothing; `DockFrame` no longer subscribes to the whole merged reading to pass `hydration` along, and keeps only what its notice needs (status). Every `data-testid` is unchanged.
+- [x] **HYDV-05**: ADR-QD-198 records the phase (or ADR-QD-185 is amended and 198 named unused); BEH-QD-700/699/735, INV-QD-390, BEH-QD-218's table (a hydration row) and the store-name pins move with it.
 
 ### `QadiProvider`'s registry lifetime has a React-free owner (Phase 86, ARCH-133, react)
 
@@ -101,11 +101,11 @@ Which phases cover which requirements. Each phase-specific requirement maps to e
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HYDV-01 | Phase 85 | Pending |
-| HYDV-02 | Phase 85 | Pending |
-| HYDV-03 | Phase 85 | Pending |
-| HYDV-04 | Phase 85 | Pending |
-| HYDV-05 | Phase 85 | Pending |
+| HYDV-01 | Phase 85 | Complete |
+| HYDV-02 | Phase 85 | Complete |
+| HYDV-03 | Phase 85 | Complete |
+| HYDV-04 | Phase 85 | Complete |
+| HYDV-05 | Phase 85 | Complete |
 | PREG-01 | Phase 86 | Pending |
 | PREG-02 | Phase 86 | Pending |
 | PREG-03 | Phase 86 | Pending |

@@ -2,20 +2,20 @@
 gsd_state_version: "1.0"
 milestone: v1.11
 milestone_name: Arch Wave 16
-current_phase: 85
-current_phase_name: The dock's hydration block is a model row
-status: executing
-stopped_at: Completed QD-85-11-PLAN.md
-last_updated: "2026-11-25T14:25:34.854Z"
+current_phase: 86
+current_phase_name: "`QadiProvider`'s registry lifetime has a React-free owner"
+status: planning
+stopped_at: Phase QD-85 complete, ready to plan Phase 86
+last_updated: "2026-11-25T14:39:13.508Z"
 last_activity: 2026-11-25
-last_activity_desc: Phase QD-85 execution started
-state_head: 0193aeefe46638e1045a4f51c9b4c93c0efa0400
+last_activity_desc: Phase QD-85 complete, transitioned to Phase 86
+state_head: 666d5863805de3c9f5d39317d49b1f3c2626e897
 progress:
   total_phases: 7
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 11
   completed_plans: 11
-  percent: 0
+  percent: 14
 ---
 
 # Project State
@@ -29,18 +29,18 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 
 ## Current Position
 
-Phase: QD-85 (The dock's hydration block is a model row) — EXECUTING
-Plan: 11 of 11
-Status: Executing Phase QD-85
-Last activity: 2026-11-25 — Phase QD-85 execution started
+Phase: 86 — `QadiProvider`'s registry lifetime has a React-free owner
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-11-25 — Phase QD-85 complete, transitioned to Phase 86
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 14%
 
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 535
+- Total plans completed: 546
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -123,6 +123,7 @@ Progress: [░░░░░░░░░░] 0%
 | 82 | 10 | - | - |
 | 83 | 11 | - | - |
 | 84 | 13 | - | - |
+| QD-85 | 11 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -1248,7 +1249,7 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 ## Session Continuity
 
 Last session: 2026-11-25T14:25:34.803Z
-Stopped at: Completed QD-85-11-PLAN.md
+Stopped at: Phase QD-85 complete, ready to plan Phase 86
 Resume file: None
 
 ## Operator Next Steps
