@@ -2,20 +2,20 @@
 gsd_state_version: "1.0"
 milestone: v1.11
 milestone_name: Arch Wave 16
-current_phase: 86
-current_phase_name: QadiProvider's registry lifetime has a React-free owner
-status: verifying
-stopped_at: Completed 86-08-PLAN.md
-last_updated: "2026-11-25T17:04:51.832Z"
+current_phase: 87
+current_phase_name: One scoped run that states its stop
+status: planning
+stopped_at: Phase 86 complete, ready to plan Phase 87
+last_updated: "2026-11-25T17:28:17.341Z"
 last_activity: 2026-11-25
-last_activity_desc: Phase 86 execution started
-state_head: d5d9a7a169828fe83d96c400c493d0498f85db38
+last_activity_desc: Phase 86 complete, transitioned to Phase 87
+state_head: 98a3d414b1b59d8caae4000f087ef7939b56c979
 progress:
   total_phases: 7
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 19
   completed_plans: 19
-  percent: 14
+  percent: 29
 ---
 
 # Project State
@@ -25,22 +25,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-25)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 86 — QadiProvider's registry lifetime has a React-free owner
+**Current focus:** Phase 87 — One scoped run that states its stop
 
 ## Current Position
 
-Phase: 86 (QadiProvider's registry lifetime has a React-free owner) — EXECUTING
-Plan: 8 of 8
-Status: Phase complete — ready for verification
-Last activity: 2026-11-25 — Phase 86 execution started
+Phase: 87 — One scoped run that states its stop
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-11-25 — Phase 86 complete, transitioned to Phase 87
 
-Progress: [█░░░░░░░░░] 14%
+Progress: [███░░░░░░░] 29%
 
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 546
+- Total plans completed: 554
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -124,6 +124,7 @@ Progress: [█░░░░░░░░░] 14%
 | 83 | 11 | - | - |
 | 84 | 13 | - | - |
 | QD-85 | 11 | - | - |
+| 86 | 8 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -1247,6 +1248,7 @@ Progress: [█░░░░░░░░░] 14%
 - [Phase 83] Review (83-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations, 7 findings: 5 fixed (WR-01 the four-field pin read the folded reading, now the raw sample; WR-02 nothing pinned that a superseded sample leaves `sampled` false, now SR1 in `DiagnosticsFeed.superseded.test.ts`, seen as the only failure with `sampled = true` above the guard; WR-03 the `DockModel.reading` doc; IN-01 the changeset/upgrade pointer to the questions store; IN-04 wraps), 2 declined (IN-02 the held characterisation header; IN-03 a behaviour change against FC11/MR2). The fixer's request to loosen `83-pinned-check.mjs` was refused by the classifier and not re-done by the orchestrator. Mutation re-taken (59/59, 32/32, 65/65), check:pr and spec:package green at 13763f9f; a missing trailer on the review-report commit fixed by rebuilding 12 local commits with `git commit-tree` and remapping cited hashes. Validate 11/11, secure 27/27 (2 low accepted), verify 4/4.
 - [Phase 84] Review (84-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations, 8 findings, all fixed (WR-01 BEH-QD-756 claimed three pinned refusals with one pinned, now pinned; WR-02/WR-03 the records named a "lens group" of `stryker.devtools.mjs`, now the real mutate glob; IN-01..IN-03 iteration 1 wraps, the `Configurable` doc and a `.ts` generic comma; iteration 2 IN-01 the type-test header and IN-02 the property-not-method choice, now pinned by a fourth refusal seen failing under a method signature). The ledger dropped the two iteration-1 IN ids reused in iteration 2; they are recorded in its "Findings dropped by id reuse" section. `LensSession.ts` unchanged since the close (47/47), check:pr and spec:package green at ce02fbc7 after the fixes. Validate 16/16, secure 31/31 (none accepted), verify 5/5.
 - [Phase 85] Review (85-REVIEW-DISPOSITION.md): 0 critical, 0 warning; IN-01 (optional `hydration` prop, fallback reached by tests only) and IN-02 ("1 dehydrated entry have", "All 1 reasons" wording, predates the phase) deferred with reasons. Verification passed 7/7; VALIDATION validated; SECURITY 22/22 closed. `phase.complete` ticks WX-01..07 on every phase close: return them to Pending until the wave ends.
+- [Phase 86] Review (86-REVIEW-DISPOSITION.md): 0 critical, 0 warning; IN-01, IN-03, IN-04, IN-05 fixed in e435ee33 (owner interface doc, provider comment, test defer honours an in-batch cancel, refresh edge scoped in the changeset and owner header); IN-02 (`RegistryLease.ts` header names the provider) deferred, the file held byte for byte. Verification passed 9/9; VALIDATION validated; SECURITY 24/24 closed; `check:pr` green on f51b72b5. `phase.complete` left PREG-05 unticked (ticked by hand) and ticked WX-01..07 (returned to Pending).
 
 ### Roadmap Evolution
 
@@ -1269,7 +1271,7 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 ## Session Continuity
 
 Last session: 2026-11-25T17:04:51.767Z
-Stopped at: Completed 86-08-PLAN.md
+Stopped at: Phase 86 complete, ready to plan Phase 87
 Resume file: None
 
 ## Operator Next Steps

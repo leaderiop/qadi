@@ -513,6 +513,8 @@ logged, counted or spanned.
 
 - ✓ ARCH-132 The dock's hydration block is a model row (HYDV-01..05): a pure, package-private `HydrationView.ts` (`hydrationView`, a closed `Pending | Unwired | Counts` `Data.TaggedEnum` with a closed `None | Raised` drops union and every sentence worked out) is served as `DockModel.hydration`, the eleventh store and fifth derived store, built after `services` from the shown reading and keyed by identity on `{ hydration, unsampled }`; one module-scope `shownInputOf` computes `unsampled` for services and hydration while the questions guard keeps its own; `QuestionsPanel` renders the view through hoisted `Match.tagsExhaustive` matchers and imports neither `isUnsampled` nor `unaccountedEntries`; `DockFrame` reads only the poll's status through `useDiagnosticsStatus` beside `usePaused`, and `Screen` lost `shown`, so a counts-only poll commits nothing under the dock (R1, with R2 as control). Characterisations H1..H13 born on the base and held byte for byte; V1..V17, M57..M60, DL21/DL22, CR22. Mutation DockModel 65/65 -> 72/72, HydrationView 41/41, no new Ignored. ADR-QD-198, ADR-QD-185/168 noted, BEH-QD-761..765, INV-QD-415/416, CCR-QD-477; `@qadi/devtools` patch, no export changes — v1.11, Phase 85 (2026-11-25)
 
+- ✓ ARCH-133 `QadiProvider`'s registry lifetime has a React-free owner (PREG-01..05): a package-private `RegistryOwner.ts` (`makeRegistryOwner`, no React import) builds and seeds the one registry, records the latest committed atoms and subject, writes the subject on every commit without reading first, and recycles through the unchanged `RegistryLease` with `reset` then, in a `finally`, the latest subject (never a seed or `initialValues`); building it schedules nothing. It is tested headlessly against a real `AtomRegistry` and an injected `defer` (RO1–RO16, recycles-nothing/recycles-once twins) and measured by Stryker (19/19 killed; the lease stays 28/28). `QadiProvider` keeps one lifetime ref (`ownerRef ??=`), four effects (commit first, hold/release last) and forwards only. ADR-QD-199 (ADR-QD-195 Rev 1.4), BEH-QD-766/767, INV-QD-417/418, CCR-QD-478; render-suite audit kept every test (0 removed). One host-visible edge: a `registry.refresh` on an unread subject atom after the first commit and before any recycle keeps the subject (pinned RO16, patch changeset).
+
 ### Active
 
 v1.11 Arch Wave 16 requirements: see `.planning/REQUIREMENTS.md` (Phases 85–91, ARCH-132…138).
@@ -575,6 +577,8 @@ v1.11 Arch Wave 16 requirements: see `.planning/REQUIREMENTS.md` (Phases 85–91
 
 ### Known Issues (v1.11, open)
 
+- Phase 86 review IN-02 is deferred (`86-REVIEW-DISPOSITION.md`): `RegistryLease.ts`'s header still names `QadiProvider.tsx` as its one caller; the file was held byte for byte through the phase. Natural fix point: Phase 91, which edits the provider.
+- Phase 86: the commit-first, hold-last effect order in `QadiProvider.tsx` is held by the phase check `provider-forwards-only` and review, not by a merge gate (ADR-QD-199); a later phase that rewrites the provider re-runs it by hand.
 - Phase 85 review IN-01 and IN-02 are deferred (`85-REVIEW-DISPOSITION.md`): `QuestionsPanel`'s optional `hydration` prop has a fallback only tests reach (a required prop would edit held characterisations); the hydration block's "1 dehydrated entry have" and "All 1 reasons" wording predates the phase and is pinned by the byte oracle.
 
 ### Known Issues (carried forward from v1.10)
@@ -797,6 +801,7 @@ v1.11 Arch Wave 16 requirements: see `.planning/REQUIREMENTS.md` (Phases 85–91
 | The diagnostics feed's reading is a value folded into its one snapshot by a pure `foldReading`; `runDiagnostics` takes a one-member sink; `Diagnostics` carries only what the poll samples | The feed kept the reading in a package-private store beside its snapshot, replaced the store in `off()`, marked `Live` through a second path, folded with a five-clause `===` chain, and typed a `questions` field the poll never sampled, so a reader of a sampled reading's `questions` read `undefined` | Accepted (Phase 83, ADR-QD-196, CCR-QD-475; removing `Diagnostics.questions` as a Breaking minor over routing it through the shown reading, the pure rename first, the sink shape, SR1 in a new file over editing the held characterisation, and the declined IN-02/IN-03 decided autonomously 2026-11-25) |
 | A hook's value takes its own inputs through `configure`; the lens reads each fact once; one stop ledger per feed; `useTimeline`'s inputs record is not memoised | `useConfigured` took a value and a second adapter argument restated three times, `LensSession` restated the store's `set` as `move`, `useLens` was handed the guards beside a store it read anyway, `DockFrame` held two copies of the stop ledger and its memo | Accepted (Phase 84, ADR-QD-197, CCR-QD-476; the property-form constraint and its four pinned refusals, the memo recorded as a rejection, `useLens` returning both snapshots, `useStopNotice` keyed on the feed's `restart`, and the review's two added refusals decided autonomously 2026-11-25) |
 | The dock's hydration block is a derived model store keyed `{ hydration, unsampled }`; `DockFrame` reads status through a `usePaused`-shaped hook; one changeset patch per edited public package across the wave (decided autonomously, Phase 85 D-04..D-10) | The panel decided Pending/Unwired/Counts and worked out its sentences, and the frame subscribed to the whole merged reading to pass one field along | Accepted; shipped (Phase 85, ADR-QD-198) |
+| A provider's registry lifetime is kept by a React-free `RegistryOwner` over the unchanged lease; the subject write is unguarded; zero render tests removed (decided autonomously, Phase 86 D-01..D-19, D-10a) | The lifetime rules lived in `QadiProvider`'s six effects and six refs where no headless test or mutant could reach them; the read-then-write guard was dropped because the subject atom ignores an equal write, and its one difference (refresh on an unread node) is pinned and stated | ✓ Good — ADR-QD-199, owner 19/19 mutants |
 
 ## Evolution
 
@@ -816,4 +821,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-25 after Phase 85*
+*Last updated: 2026-11-25 after Phase 86*

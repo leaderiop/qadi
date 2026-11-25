@@ -17,11 +17,11 @@
 
 ### `QadiProvider`'s registry lifetime has a React-free owner (Phase 86, ARCH-133, react)
 
-- [ ] **PREG-01**: The existing lifetime suites (LT1–LT18, RL1–RL10 and the `QadiProvider.*.test.tsx` files) stay green and unedited across the phase, and a characterisation of create / seed / subject write / recycle / atoms-replaced is written on the base before anything moves.
-- [ ] **PREG-02**: One package-private, React-free module owns the registry: create, seed (subject and `initialValues`), write the subject, recycle (`reset`, never `dispose`) and hold/release through the unchanged `RegistryLease`. It is inert at construction and is added to `stryker.react.mjs`.
-- [ ] **PREG-03**: The owner is tested without rendering, against a real `AtomRegistry` and an injected `defer`: never-run, cancel-once, run-after-cancel recycles nothing, a long hide recycles exactly once and re-seeds from the latest props before any read. Every "recycles nothing" test has a "recycles once" twin that fails if the recycle is removed.
-- [ ] **PREG-04**: `QadiProvider` keeps one lifetime ref and forwards hold, release and subject changes; it holds no branch of lifetime logic (it stays outside the mutate list). Effect order is unchanged (commit before hold, hold last), and every alternative ADR-QD-195 rejected stays rejected.
-- [ ] **PREG-05**: ADR-QD-199 records the owner (or ADR-QD-195 is amended and 199 named unused); BEH/INV/traceability move with it; the render suite shrinks to StrictMode, `<Activity>` and SSR smoke tests only where the owner's tests now hold the property.
+- [x] **PREG-01**: The existing lifetime suites (LT1–LT18, RL1–RL10 and the `QadiProvider.*.test.tsx` files) stay green and unedited across the phase, and a characterisation of create / seed / subject write / recycle / atoms-replaced is written on the base before anything moves.
+- [x] **PREG-02**: One package-private, React-free module owns the registry: create, seed (subject and `initialValues`), write the subject, recycle (`reset`, never `dispose`) and hold/release through the unchanged `RegistryLease`. It is inert at construction and is added to `stryker.react.mjs`.
+- [x] **PREG-03**: The owner is tested without rendering, against a real `AtomRegistry` and an injected `defer`: never-run, cancel-once, run-after-cancel recycles nothing, a long hide recycles exactly once and re-seeds from the latest props before any read. Every "recycles nothing" test has a "recycles once" twin that fails if the recycle is removed.
+- [x] **PREG-04**: `QadiProvider` keeps one lifetime ref and forwards hold, release and subject changes; it holds no branch of lifetime logic (it stays outside the mutate list). Effect order is unchanged (commit before hold, hold last), and every alternative ADR-QD-195 rejected stays rejected.
+- [x] **PREG-05**: ADR-QD-199 records the owner (or ADR-QD-195 is amended and 199 named unused); BEH/INV/traceability move with it; the render suite shrinks to StrictMode, `<Activity>` and SSR smoke tests only where the owner's tests now hold the property.
 
 ### One scoped run that states its stop (Phase 87, ARCH-134, devtools)
 
@@ -106,11 +106,11 @@ Which phases cover which requirements. Each phase-specific requirement maps to e
 | HYDV-03 | Phase 85 | Complete |
 | HYDV-04 | Phase 85 | Complete |
 | HYDV-05 | Phase 85 | Complete |
-| PREG-01 | Phase 86 | Pending |
-| PREG-02 | Phase 86 | Pending |
-| PREG-03 | Phase 86 | Pending |
-| PREG-04 | Phase 86 | Pending |
-| PREG-05 | Phase 86 | Pending |
+| PREG-01 | Phase 86 | Complete |
+| PREG-02 | Phase 86 | Complete |
+| PREG-03 | Phase 86 | Complete |
+| PREG-04 | Phase 86 | Complete |
+| PREG-05 | Phase 86 | Complete |
 | STOP-01 | Phase 87 | Pending |
 | STOP-02 | Phase 87 | Pending |
 | STOP-03 | Phase 87 | Pending |
