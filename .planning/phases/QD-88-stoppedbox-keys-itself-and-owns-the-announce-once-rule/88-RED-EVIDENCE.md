@@ -59,3 +59,18 @@ The base is the one `88-mutation-base.json` records (`phase_base` 892c4d36bf0f63
   (scratch edit: return a fresh props object from useStopNotice.ts on every render; 1 row(s) failed under it)
 - failed (base two-commits): C1 a newly shown stop adds at most one commit over a live source
   (scratch edit: add to StoppedBox.tsx a layout effect with no dependency list that bumps a local counter until it reaches 2, two extra commits per shown stop; 1 row(s) failed under it)
+
+## 88-02 the phase check
+
+- check failed: base: phase_base is not an ancestor of HEAD
+- check failed: commit: 0 commits since phase_base have the subject: chore(88-02): no commit has this subject
+- check failed: unchanged: packages/devtools/test/react/useStopNotice.test.tsx differs from phase_base
+- check failed: seen-failing: no failure line in the evidence for: a title with no failure line
+- check failed: vitest: the report names no test file
+- check failed: suite: planted row fails and is not red before
+- check failed: scan-ids: packages/devtools/test/react/useStopNotice.test.tsx:145 names a requirement id: // SBOX-01 planted
+- check failed: scan-forbidden: packages/devtools/test/react/useStopNotice.test.tsx:145 uses an as cast: const planted = value as Planted;
+- check failed: trailers: the message has 0 Co-Authored-By lines, not one
+- check failed: box-keys-itself: packages/devtools/src/react/StoppedBox.tsx reads .current: no render reads a ref
+- check failed: ledger-module: packages/devtools/src/model/StopLedger.ts is missing
+- check failed: records: BEH-QD-759 names packages/devtools/test/react/NoSuchFile.test.tsx, which does not exist
