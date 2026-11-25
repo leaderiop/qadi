@@ -64,9 +64,12 @@ const READING: TimelineStatus = TimelineStatus.Reading();
  */
 export interface TimelineStatusReadout {
   /**
-   * Registers a listener, and returns the function that removes it. What a listener throws
-   * on the `Reading` that `restart` or `configure` publishes is rethrown once the new read
-   * has started (see `StatedRun.ts`).
+   * Registers a listener, and returns the function that removes it. Every listener is called,
+   * and then what they threw is rethrown out of whatever published: one value as itself,
+   * several as one `AggregateError` (ADR-QD-177). A throw on the `Reading` that `restart` or
+   * `configure` publishes is rethrown once the new read has started, so the status never says
+   * `Reading` with nothing reading (ADR-QD-194). A throw on a publish from the read itself is
+   * not rethrown: the status is held, and the throw is lost with the read's fiber.
    */
   readonly subscribe: (listener: () => void) => () => void;
   readonly getSnapshot: () => TimelineStatus;

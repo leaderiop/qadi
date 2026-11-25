@@ -96,11 +96,13 @@ export const isUnsampled: (status: DiagnosticsStatus) => boolean = Match.type<Di
 /** What a panel reads: a snapshot, and the command that starts the poll again. */
 export interface DiagnosticsReadout {
   /**
-   * Registers a listener, and returns the function that removes it. A throw during a
-   * publish from the poll is stated as the poll's stop, and the `Stopped` is held even when
-   * a listener throws on that publish too. What a listener throws on the `Starting` that
-   * `restart` or `configure` publishes is rethrown once the new poll has started (see
-   * `StatedRun.ts`).
+   * Registers a listener, and returns the function that removes it. Every listener is called,
+   * and then what they threw is rethrown out of whatever published: one value as itself,
+   * several as one `AggregateError` (ADR-QD-177). A throw on the `Starting` that `restart` or
+   * `configure` publishes is rethrown once the new poll has started, so the status never says
+   * `Starting` with nothing polling (ADR-QD-194). A throw during a publish from the poll is
+   * stated as the poll's stop, and the `Stopped` is held even when a listener throws on that
+   * publish too; the throw itself is lost with the poll's fiber.
    */
   readonly subscribe: (listener: () => void) => () => void;
   readonly getSnapshot: () => DiagnosticsSnapshot;
