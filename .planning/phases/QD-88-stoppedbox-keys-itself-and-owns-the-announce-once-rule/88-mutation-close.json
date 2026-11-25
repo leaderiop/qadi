@@ -1,0 +1,76 @@
+{
+ "phase": "88",
+ "phase_base": "892c4d36bf0f639a5219c53e7c39563533ea8b7e",
+ "unmeasured": [
+  {
+   "file": "packages/devtools/src/react/StoppedBox.tsx",
+   "why": "stryker.devtools.mjs mutates src/model/** only, so no mutant is made of this file; the wrapper keys the body from the ledger, the body decides the alert at mount and records at commit, and the announce rows A1 to A5, H1, C1 and the notice rows pin it; the scratch variants V1, V2, V3, V7, V8 and V10 in 88-RED-EVIDENCE.md prove it"
+  },
+  {
+   "file": "packages/devtools/src/react/useStopNotice.ts",
+   "why": "stryker.devtools.mjs mutates src/model/** only, so no mutant is made of this file; it holds one reducer and one memo per feed, and H2, H3, DS1 to DS3, A1 and A2 pin it; the scratch variants V4, V5, V6, V9 and H3 in 88-RED-EVIDENCE.md prove it"
+  },
+  {
+   "file": "packages/devtools/src/react/TimelineNotice.tsx",
+   "why": "stryker.devtools.mjs mutates src/model/** only, so no mutant is made of this file; it hands the box the notice whole and passes no key, and the TN rows and N rows pin it; the scratch variants VN1 in 88-RED-EVIDENCE.md prove it"
+  },
+  {
+   "file": "packages/devtools/src/react/DiagnosticsNotice.tsx",
+   "why": "stryker.devtools.mjs mutates src/model/** only, so no mutant is made of this file; it hands the box the notice whole and passes no key, and the TN rows and N rows pin it; the scratch variants VN2 in 88-RED-EVIDENCE.md prove it"
+  }
+ ],
+ "groups": {
+  "ledger": {
+   "head": "5951ac7780f0a183a7ee62dfce3372067af9f58e",
+   "invocation": "pnpm exec stryker run stryker.devtools.mjs --mutate packages/devtools/src/model/StopLedger.ts --disableBail",
+   "files": {
+    "packages/devtools/src/model/StopLedger.ts": {
+     "killed": 12,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 4,
+     "detected": 12,
+     "valid": 12,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 21,
+       "column": 43,
+       "lineText": "export const noStops: StopLedger<never> = { stop: undefined, count: 0 };"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 29,
+       "column": 27,
+       "lineText": "export const stoppedKey = <S>(ledger: StopLedger<S>, status: S): number =>"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 37,
+       "column": 30,
+       "lineText": "export const announcesStop = <S>(ledger: StopLedger<S>, status: S): boolean => ledger.stop !== status;"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 45,
+       "column": 27,
+       "lineText": "export const recordStop = <S>(ledger: StopLedger<S>, status: S): StopLedger<S> =>"
+      }
+     ],
+     "timeouts": [],
+     "outside": []
+    }
+   }
+  }
+ }
+}
