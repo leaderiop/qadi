@@ -96,3 +96,32 @@ red rows green, as it should, and leaves DX7 green, so DX7 has a narrower edit o
   (scratch edit: the same edit; 9 row(s) failed under it)
 - failed (scratch): DX7 a layer whose build interrupts itself is a failed wiring read inside a Live feed, not a stop
   (scratch edit: the narrower edit, the start-up publish in `start` of `packages/devtools/src/model/DiagnosticsFeed.ts` publishing `Stopped({ reason: "x", sampled: false })` in place of `Starting`, because the first edit leaves DX7 green; 4 row(s) failed under it)
+
+## 87-02 the stated-run cells
+
+Written on the base, before any file under `packages/*/src` moved. Each cell is green on the base (three runs in a row, beside the four held store suites) and was then seen failing once under a scratch edit of the file it pins, restored from a copy before anything was committed. Row 1 and row 2 each also fail the other cells that read a source or a stop through the same code, which the count says.
+
+- failed (scratch): SC1 a timeline read that ends by itself stays Reading and publishes nothing after its start
+  (scratch edit: `readSource` in `packages/devtools/src/model/TimelineFeed.ts` forking `runSource(...)` followed by `Effect.andThen(Effect.die(new Error("ended")))`; 3 row(s) failed under it)
+- failed (scratch): SC2 a timeline read that dies publishes Stopped once with the cause text and keeps the entries it delivered
+  (scratch edit: the `onFailure` body of the timeline `fork` in `TimelineFeed.ts` emptied; 3 row(s) failed under it)
+- failed (scratch): SC3 a restart over a Stopped timeline publishes Reading and replays the source into the same timeline, each entry once
+  (scratch edit: `restart` of `TimelineFeed.ts` reading the empty source in place of the held one; 1 row(s) failed under it)
+- failed (scratch): SC4 a restart on a bare timeline feed reads the empty source: one read span, Reading kept, nothing published
+  (scratch edit: `restart` of `TimelineFeed.ts` guarded by `held.source !== undefined`; 1 row(s) failed under it)
+- failed (scratch): SC5 the diagnostics feed goes Off, Starting, Live and Off again as options come and go
+  (scratch edit: `off` of `packages/devtools/src/model/DiagnosticsFeed.ts` without `view.set(diagnosticsOff)`; 1 row(s) failed under it)
+- failed (scratch): SC6 a diagnostics collector that dies is Stopped and not sampled before a sample, and Stopped and sampled after one
+  (scratch edit: the sink of `DiagnosticsFeed.ts` without `sampled = true`; 1 row(s) failed under it)
+- failed (scratch): SC7 a timeline listener that throws on the Reading of a restart and reconfigures from the same call is rethrown once by identity, and only the newer read reads
+  (scratch edit: the start-up publish `status.set(READING)` of `TimelineFeed.ts` wrapped in a `try`/`catch` that drops what it caught; 1 row(s) failed under it)
+- failed (scratch): SC8 a diagnostics listener that throws on the Starting of a restart and reconfigures from the same call is rethrown once by identity, and the newer poll is the live one
+  (scratch edit: the start-up publish of `start` in `DiagnosticsFeed.ts` wrapped in a `try`/`catch` that drops what it caught; 1 row(s) failed under it)
+- failed (scratch): SC9 a session listener that throws on the Running of a run and runs again from the same call is rethrown once by identity, and the newer run is the one that lands
+  (scratch edit: the `commit()` in `start` of `packages/devtools/src/model/SimulationSession.ts` wrapped in a `try`/`catch` that drops what it caught; 1 row(s) failed under it)
+- failed (scratch): SC10 a session listener that throws on the Ran publish leaves Ran shown
+  (scratch edit: the session fork given `{ onFailure: () => { run = { _tag: "Broke", question, message: "x" }; commit(); } }`; 1 row(s) failed under it)
+- failed (scratch): SC11 a session run whose ports layer dies publishes Running and then Broke, once each
+  (scratch edit: the `commit()` after the run lands skipped when the run is `Broke`; 1 row(s) failed under it)
+- failed (scratch): SC12 a configure after a feed scope closed reads and publishes nothing, a capacity the timeline refuses included
+  (scratch edit: the closed guard of `TimelineFeed.ts` configure moved after `completeTimelineInputs` and the closed guards of `DiagnosticsFeed.ts` and `packages/devtools/src/model/GatesFeed.ts` configure removed; each of the three edits alone also failed this row; 1 row(s) failed under it)
