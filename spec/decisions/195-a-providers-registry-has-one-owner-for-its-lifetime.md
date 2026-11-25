@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-195                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-25                                     |
 > | Status         | Accepted — amends ADR-QD-014, ADR-QD-148 and ADR-QD-149 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-25): Related links BEH-QD-746 to BEH-QD-750 (CCR-QD-474)<br>1.0 (2026-11-25): Initial (ARCH-129, CCR-QD-474) |
+> | Change History | 1.2 (2026-11-25): Related links INV-QD-409 and INV-QD-410 (CCR-QD-474)<br>1.1 (2026-11-25): Related links BEH-QD-746 to BEH-QD-750 (CCR-QD-474)<br>1.0 (2026-11-25): Initial (ARCH-129, CCR-QD-474) |
 
 ---
 
@@ -226,4 +226,6 @@ runs.
   [BEH-QD-747](../behaviors/09-react.md#beh-qd-747-a-provider-holds-one-registry-for-its-life),
   [BEH-QD-748](../behaviors/09-react.md#beh-qd-748-a-providers-registry-is-released-once-a-macrotask-after-its-last-release-unless-held-first),
   [BEH-QD-749](../behaviors/09-react.md#beh-qd-749-a-recycle-writes-back-the-latest-committed-subject-before-a-consumer-reads-it) and
-  [BEH-QD-750](../behaviors/09-react.md#beh-qd-750-a-recycle-re-applies-neither-initialvalues-nor-a-hydration-seed), which state it
+  [BEH-QD-750](../behaviors/09-react.md#beh-qd-750-a-recycle-re-applies-neither-initialvalues-nor-a-hydration-seed), which state it;
+  [INV-QD-409](../invariants.md#inv-qd-409-no-consumer-reaches-an-unusable-registry) and
+  [INV-QD-410](../invariants.md#inv-qd-410-a-provider-holds-exactly-one-registry-for-its-life), the two invariants it keeps

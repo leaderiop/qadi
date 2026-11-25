@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-APP-REACT                                 |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Appendix — Worked Example                      |
-> | Change History | 1.3 (2026-11-16): Seeing who is asking: useDevtoolsFeed() returns the registry as gates, not the list (review WR-02; ARCH-96, CCR-QD-440)<br>1.2 (2026-10-05): §5's "read the whole decision" example rendered the editor while an allow was being re-checked — `Success` with `waiting: true` is neither `Initial` nor `Failure`, so the ladder fell through to the previous verdict; it now reads the result once with `outcomeOf` (ADR-QD-093, CCR-QD-175)<br>1.1 (2026-07-26): Atom keying corrected — structural, not by reference (CCR-QD-013)<br>1.0 (2026-07-26): Initial release (CCR-QD-003) |
+> | Change History | 1.4 (2026-11-25): the provider keeps its registry for its life and recycles it, it does not dispose it on unmount (ADR-QD-195, CCR-QD-474)<br>1.3 (2026-11-16): Seeing who is asking: useDevtoolsFeed() returns the registry as gates, not the list (review WR-02; ARCH-96, CCR-QD-440)<br>1.2 (2026-10-05): §5's "read the whole decision" example rendered the editor while an allow was being re-checked — `Success` with `waiting: true` is neither `Initial` nor `Failure`, so the ladder fell through to the previous verdict; it now reads the result once with `outcomeOf` (ADR-QD-093, CCR-QD-175)<br>1.1 (2026-07-26): Atom keying corrected — structural, not by reference (CCR-QD-013)<br>1.0 (2026-07-26): Initial release (CCR-QD-003) |
 
 ---
 
@@ -33,7 +33,7 @@ Every `tsx` and `typescript` block below is extracted and type-checked by
                                   ┌────────────▼─────────────┐
        <QadiProvider> ──────────▶│  AtomRegistry            │  one per provider
                                   │  computes · caches ·     │
-                                  │  disposes                │
+                                  │  recycles                │
                                   └────────────┬─────────────┘
                                                │ useSyncExternalStore
                             useCan · useDecision · Can · Cannot
@@ -137,7 +137,10 @@ export const App = ({
 
 No `RegistryProvider`, no runtime prop, no `Suspense` boundary required. The
 provider creates its own registry, seeds the subject into it at construction —
-so the first render already has it — and disposes it on unmount.
+so the first render already has it — and keeps it for its life. It recycles the
+registry in place a macrotask after its last release (an unmount, or an
+`<Activity>` hidden for longer), writing the subject back, and never disposes it
+([ADR-QD-195](../decisions/195-a-providers-registry-has-one-owner-for-its-lifetime.md)).
 
 ## 4. Gate the interface
 
