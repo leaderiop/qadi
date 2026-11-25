@@ -1,0 +1,423 @@
+{
+ "phase": "87",
+ "phase_base": "56b9ae4d98ebd1f950369c9830d4a310727895ac",
+ "unmeasured": [
+  {
+   "file": "packages/devtools/src/react/Simulator.tsx",
+   "why": "stryker.devtools.mjs mutates src/model only, so no mutant is made of a React file; its render is pinned by Simulator.broke.test.tsx and the held stopped-box tests"
+  },
+  {
+   "file": "packages/devtools/src/react/StoppedBox.tsx",
+   "why": "stryker.devtools.mjs mutates src/model only, so no mutant is made of a React file; its render is pinned by Simulator.broke.test.tsx and the held stopped-box tests"
+  },
+  {
+   "file": "packages/devtools/src/react/theme.ts",
+   "why": "stryker.devtools.mjs mutates src/model only, so no mutant is made of a React file; its render is pinned by Simulator.broke.test.tsx and the held stopped-box tests"
+  }
+ ],
+ "groups": {
+  "touched": {
+   "head": "56b9ae4d98ebd1f950369c9830d4a310727895ac",
+   "invocation": "pnpm exec stryker run stryker.devtools.mjs --mutate packages/devtools/src/model/SupersedingRun.ts,packages/devtools/src/model/TimelineFeed.ts,packages/devtools/src/model/DiagnosticsFeed.ts,packages/devtools/src/model/SimulationSession.ts,packages/devtools/src/model/GatesFeed.ts",
+   "files": {
+    "packages/devtools/src/model/SupersedingRun.ts": {
+     "killed": 49,
+     "timeout": 1,
+     "survived": 3,
+     "noCoverage": 0,
+     "ignored": 0,
+     "detected": 50,
+     "valid": 53,
+     "open": [
+      {
+       "status": "Survived",
+       "mutator": "OptionalChaining",
+       "replacement": "hooks.onFailure(exit.cause)",
+       "line": 121,
+       "column": 13,
+       "lineText": "hooks.onFailure?.(exit.cause);"
+      },
+      {
+       "status": "Survived",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 94,
+       "column": 29,
+       "lineText": "const token: RunToken = { [tokenBrand]: true };"
+      },
+      {
+       "status": "Survived",
+       "mutator": "BooleanLiteral",
+       "replacement": "false",
+       "line": 94,
+       "column": 45,
+       "lineText": "const token: RunToken = { [tokenBrand]: true };"
+      }
+     ],
+     "ignoredMutants": []
+    },
+    "packages/devtools/src/model/TimelineFeed.ts": {
+     "killed": 37,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 11,
+     "detected": 37,
+     "valid": 37,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 109,
+       "column": 39,
+       "lineText": "export const completeTimelineInputs = ("
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrayDeclaration",
+       "replacement": "[\"Stryker was here\"]",
+       "line": 117,
+       "column": 45,
+       "lineText": "const NO_SOURCE: Source = sourceFromRecords([]);"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 138,
+       "column": 44,
+       "lineText": "export const idleTimeline: TimelineStore = {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 139,
+       "column": 14,
+       "lineText": "subscribe: () => () => {},"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 140,
+       "column": 16,
+       "lineText": "getSnapshot: () => IDLE_TIMELINE,"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 143,
+       "column": 11,
+       "lineText": "resize: () => false,"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 145,
+       "column": 13,
+       "lineText": "isPaused: () => false,"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 149,
+       "column": 58,
+       "lineText": "export const idleTimelineStatus: TimelineStatusReadout = {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 150,
+       "column": 14,
+       "lineText": "subscribe: () => () => {},"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 151,
+       "column": 16,
+       "lineText": "getSnapshot: () => READING,"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 161,
+       "column": 43,
+       "lineText": "export const makeTimelineFeed = Effect.fn(\"qadi.devtools.makeTimelineFeed\")(function* (): Effect.fn.Return<"
+      }
+     ]
+    },
+    "packages/devtools/src/model/DiagnosticsFeed.ts": {
+     "killed": 59,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 14,
+     "detected": 59,
+     "valid": 59,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 70,
+       "column": 52,
+       "lineText": "export const diagnosticsOff: DiagnosticsSnapshot = {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 76,
+       "column": 57,
+       "lineText": "export const diagnosticsStarting: DiagnosticsSnapshot = {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 88,
+       "column": 24,
+       "lineText": "Match.tagsExhaustive({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 89,
+       "column": 10,
+       "lineText": "Off: () => false,"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 90,
+       "column": 15,
+       "lineText": "Starting: () => true,"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 91,
+       "column": 11,
+       "lineText": "Live: () => false,"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 92,
+       "column": 14,
+       "lineText": "Stopped: (stopped) => !stopped.sampled,"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 122,
+       "column": 14,
+       "lineText": "const idle = (snapshot: DiagnosticsSnapshot): DiagnosticsReadout => ({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 122,
+       "column": 70,
+       "lineText": "const idle = (snapshot: DiagnosticsSnapshot): DiagnosticsReadout => ({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 123,
+       "column": 14,
+       "lineText": "subscribe: () => () => {},"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 124,
+       "column": 16,
+       "lineText": "getSnapshot: () => snapshot,"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 136,
+       "column": 32,
+       "lineText": "export const idleDiagnostics = (options: DiagnosticsOptions | undefined): DiagnosticsReadout =>"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 148,
+       "column": 43,
+       "lineText": "export const completeDiagnosticsOptions = ("
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 163,
+       "column": 46,
+       "lineText": "export const makeDiagnosticsFeed = Effect.fn(\"qadi.devtools.makeDiagnosticsFeed\")(function* (): Effect.fn.Return<"
+      }
+     ]
+    },
+    "packages/devtools/src/model/SimulationSession.ts": {
+     "killed": 244,
+     "timeout": 0,
+     "survived": 6,
+     "noCoverage": 0,
+     "ignored": 4,
+     "detected": 244,
+     "valid": 250,
+     "open": [
+      {
+       "status": "Survived",
+       "mutator": "ConditionalExpression",
+       "replacement": "false",
+       "line": 317,
+       "column": 9,
+       "lineText": "policyNow === undefined ||"
+      },
+      {
+       "status": "Survived",
+       "mutator": "ConditionalExpression",
+       "replacement": "false",
+       "line": 319,
+       "column": 9,
+       "lineText": "question.seed !== seed);"
+      },
+      {
+       "status": "Survived",
+       "mutator": "ConditionalExpression",
+       "replacement": "false",
+       "line": 310,
+       "column": 17,
+       "lineText": "...(source === undefined ? {} : { source }),"
+      },
+      {
+       "status": "Survived",
+       "mutator": "ConditionalExpression",
+       "replacement": "false",
+       "line": 402,
+       "column": 9,
+       "lineText": "if (!runs.isCurrent(mine)) return;"
+      },
+      {
+       "status": "Survived",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 313,
+       "column": 35,
+       "lineText": "const question = run._tag === \"Idle\" ? undefined : run.question;"
+      },
+      {
+       "status": "Survived",
+       "mutator": "ConditionalExpression",
+       "replacement": "false",
+       "line": 313,
+       "column": 22,
+       "lineText": "const question = run._tag === \"Idle\" ? undefined : run.question;"
+      }
+     ],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 244,
+       "column": 32,
+       "lineText": "const blank: SimulationInput = { subject: { id: \"someone\" } };"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 244,
+       "column": 43,
+       "lineText": "const blank: SimulationInput = { subject: { id: \"someone\" } };"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 244,
+       "column": 49,
+       "lineText": "const blank: SimulationInput = { subject: { id: \"someone\" } };"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 279,
+       "column": 48,
+       "lineText": "export const makeSimulationSession = Effect.fn(\"qadi.devtools.makeSimulationSession\")(function* ("
+      }
+     ]
+    },
+    "packages/devtools/src/model/GatesFeed.ts": {
+     "killed": 119,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 4,
+     "detected": 119,
+     "valid": 119,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 88,
+       "column": 36,
+       "lineText": "export const completeGatesInputs = (inputs: GatesFeedInputs): Required<GatesFeedInputs> => ({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 116,
+       "column": 24,
+       "lineText": "const UNREADABLE_KEY = \"unreadable\";"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 142,
+       "column": 20,
+       "lineText": "const snapshotOf = (registry: RegistryRead, asked: AskedRead): GatesSnapshot => ({ registry, asked });"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 151,
+       "column": 40,
+       "lineText": "export const makeGatesFeed = Effect.fn(\"qadi.devtools.makeGatesFeed\")(function* (): Effect.fn.Return<"
+      }
+     ]
+    }
+   }
+  }
+ }
+}
