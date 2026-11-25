@@ -205,3 +205,28 @@ Each row is green on the new module (three runs in a row) and was seen failing o
   (scratch edit: `causeMessage(exit.cause)` replaced by `String(exit.cause)`; 3 row(s) failed under it)
 - failed (scratch): ST6 an engine that succeeds states nothing
   (scratch edit: the narrower edit, the stop condition `runs.isCurrent(token)` stating `Exit.isFailure(exit) ? causeMessage(exit.cause) : "ended"`, because the listed edit of the condition to `runs.isCurrent(token)` alone leaves ST6 green: `causeMessage` of a success exit throws inside the forked body before it states anything; 2 row(s) failed under it)
+
+The rows below were added to the same module's file after the first six; the edits are the same kind, each restored with `cp` and compared with `cmp`.
+
+- failed (scratch): ST7 a newer start interrupts the older engine, and the older run states nothing even when its release dies
+  (scratch edit: the narrower edit, the forked body read through `Effect.onExit` with the stop condition `Exit.isFailure(exit)` and no current-run gate, so an interruption from outside is stated, because the listed edit of the condition alone leaves this row green: an outside interruption never resumes the body, so the exit is never read; 7 row(s) failed under it)
+- failed (scratch): ST8 stop interrupts a running engine and states nothing, even when its release dies
+  (scratch edit: `stop` made a no-op (`stop: () => undefined`); 2 row(s) failed under it)
+- failed (scratch): ST9 stop with no run states nothing and calls no starting state
+  (scratch edit: the narrower edit, `stop` stating `stopped("stopped")` after `runs.stop()`, because the listed edit of the condition leaves this row green: nothing it reads is reached by a stop; 5 row(s) failed under it)
+- failed (scratch): ST10 stop after the engine completed changes nothing and states nothing
+  (scratch edit: the narrower edit, `stop` stating `stopped("stopped")` after `runs.stop()`, because the listed edit of the condition leaves this row green: nothing it reads is reached by a stop; 5 row(s) failed under it)
+- failed (scratch): ST11 closing the scope mid-run interrupts the engine and states nothing even when its release dies, while a current engine that dies on the same module states once
+  (scratch edit: the narrower edit, the forked body read through `Effect.onExit` with the stop condition `Exit.isFailure(exit)` and no current-run gate, so an interruption from outside is stated, because the listed edit of the condition alone leaves this row green: an outside interruption never resumes the body, so the exit is never read; 7 row(s) failed under it)
+- failed (scratch): ST12 after the scope closed, start calls neither the starting state nor the engine, and closed reads true
+  (scratch edit: the `if (runs.closed()) return;` line of `start` removed; 2 row(s) failed under it)
+- failed (scratch): ST13 the guard passes a write from the current run and drops one from a run a newer start replaced
+  (scratch edit: `guard` writing without reading `isCurrent` first; 1 row(s) failed under it)
+- failed (scratch): ST14 an engine that starts a newer run in its synchronous start and then dies states nothing, and the newer run is live
+  (scratch edit: the stop condition of `packages/devtools/src/model/StatedRun.ts` reduced to `Exit.isFailure(exit)`, the current-run gate dropped; 3 row(s) failed under it)
+- failed (scratch): ST15 an engine that starts a newer run in its synchronous start and then interrupts itself states nothing
+  (scratch edit: the stop condition of `packages/devtools/src/model/StatedRun.ts` reduced to `Exit.isFailure(exit)`, the current-run gate dropped; 3 row(s) failed under it)
+- failed (scratch): ST16 a starting state that starts a newer run leaves only the newer engine running, and the outer run states nothing
+  (scratch edit: the narrower edit, `plan.starting()` moved before `runs.begin()` so a newer run started from the starting state is superseded by the outer one, because the listed edit of the condition leaves this row green: the outer engine never runs when a newer run replaced it before its fork; 2 row(s) failed under it)
+- failed (scratch): ST17 a model property: a stop is stated for exactly the current runs whose engine fails, and nothing after close
+  (scratch edit: the stop condition of `packages/devtools/src/model/StatedRun.ts` reduced to `Exit.isFailure(exit)`, the current-run gate dropped; 3 row(s) failed under it)
