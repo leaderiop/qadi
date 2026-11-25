@@ -9,14 +9,24 @@
 import { assert, describe, it } from "@effect/vitest";
 import { vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { StrictMode } from "react";
+import { StrictMode, type ReactElement } from "react";
 import { DiagnosticsStatus } from "../../src/model/DiagnosticsFeed.ts";
 import { DiagnosticsNotice, diagnosticsRootProps } from "../../src/react/DiagnosticsNotice.tsx";
-import { noStops } from "../../src/react/StoppedBox.tsx";
+import { noStops } from "../../src/model/StopLedger.ts";
 import type { DiagnosticsNoticeProps } from "../../src/react/DiagnosticsNotice.tsx";
+import { useStopNotice } from "../../src/react/useStopNotice.ts";
 import { colors, withAlpha } from "../../src/react/theme.ts";
 
-const freshRef = (): DiagnosticsNoticeProps["announced"] => ({ current: noStops });
+/** A fixed handle: a ledger with no stop in it and a record that keeps nothing. */
+const freshRef = (): DiagnosticsNoticeProps["announced"] => ({ ledger: noStops, record: () => undefined });
+
+/** One feed's real hook, so the ledger it holds survives a remount of the notice. */
+const Held = ({ status, show }: { readonly status: DiagnosticsStatus; readonly show: boolean }): ReactElement => {
+  const held = useStopNotice(status, () => undefined);
+  return show ? <DiagnosticsNotice {...held} /> : <></>;
+};
+
+const held = (status: DiagnosticsStatus, show = true) => <Held status={status} show={show} />;
 
 const noop = () => undefined;
 
@@ -150,24 +160,23 @@ describe("the diagnostics notice", () => {
   });
 
   it("N9 a stop alerts once, again for a new stop, and a strict-mode first render still alerts", () => {
-    const announced = freshRef();
     const first = stopped("boom", true);
-    const view = render(notice(first, announced));
+    const view = render(held(first));
     assert.strictEqual(screen.getByTestId("qadi-diagnostics-stopped").getAttribute("data-announce"), "alert");
 
-    view.unmount();
-    const again = render(notice(first, announced));
+    view.rerender(held(first, false));
+    view.rerender(held(first));
     const silent = screen.getByTestId("qadi-diagnostics-stopped");
     assert.strictEqual(silent.getAttribute("data-announce"), "none");
     assert.isNull(silent.getAttribute("role"));
 
-    again.rerender(notice(stopped("boom", true), announced));
+    view.rerender(held(stopped("boom", true)));
     const next = screen.getByTestId("qadi-diagnostics-stopped");
     assert.strictEqual(next.getAttribute("data-announce"), "alert");
     assert.strictEqual(next.getAttribute("role"), "alert");
-    again.unmount();
+    view.unmount();
 
-    render(<StrictMode>{notice(stopped("boom", true), freshRef())}</StrictMode>);
+    render(<StrictMode>{held(stopped("boom", true))}</StrictMode>);
     assert.strictEqual(screen.getByTestId("qadi-diagnostics-stopped").getAttribute("data-announce"), "alert");
   });
 
@@ -201,12 +210,11 @@ describe("the diagnostics notice", () => {
   });
 
   it("N12 a second stop on a mounted notice remounts it, so its alert is present on the new mount", () => {
-    const announced = freshRef();
-    const view = render(notice(stopped("first", true), announced));
+    const view = render(held(stopped("first", true)));
     const first = screen.getByTestId("qadi-diagnostics-stopped");
     assert.strictEqual(first.getAttribute("role"), "alert");
 
-    view.rerender(notice(stopped("second", true), announced));
+    view.rerender(held(stopped("second", true)));
 
     const second = screen.getByTestId("qadi-diagnostics-stopped");
     assert.notStrictEqual(second, first);
@@ -215,10 +223,10 @@ describe("the diagnostics notice", () => {
     assert.strictEqual(screen.getByTestId("qadi-diagnostics-reason").textContent, "second");
 
     const same = stopped("second", true);
-    view.rerender(notice(same, announced));
+    view.rerender(held(same));
     const third = screen.getByTestId("qadi-diagnostics-stopped");
     assert.strictEqual(third.getAttribute("role"), "alert");
-    view.rerender(notice(same, announced));
+    view.rerender(held(same));
     assert.strictEqual(screen.getByTestId("qadi-diagnostics-stopped"), third);
   });
 

@@ -11,12 +11,14 @@ import { act, render, screen } from "@testing-library/react";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Stream from "effect/Stream";
-import { Activity, StrictMode, type RefObject } from "react";
+import { Activity, StrictMode, type ReactElement } from "react";
 import { vi } from "vitest";
 import { sourceFromRecords, type Source } from "../../src/model/Source.ts";
 import { TimelineStatus } from "../../src/model/TimelineFeed.ts";
 import { DevtoolsDock } from "../../src/react/DevtoolsDock.tsx";
-import { noStops, type StopLedger } from "../../src/react/StoppedBox.tsx";
+import { noStops } from "../../src/model/StopLedger.ts";
+import type { StopNoticeProps } from "../../src/react/StoppedBox.tsx";
+import { useStopNotice } from "../../src/react/useStopNotice.ts";
 import { TimelineNotice } from "../../src/react/TimelineNotice.tsx";
 import { colors } from "../../src/react/theme.ts";
 import { decisionRecord } from "../helpers.ts";
@@ -69,8 +71,29 @@ const click = async (element: HTMLElement) => {
 
 const goTo = (tab: (typeof TABS)[number]) => click(screen.getByRole("button", { name: tab }));
 
-/** A ledger with no stop in it, in the shape the dock hands the notice. */
-const ledger = (): RefObject<StopLedger<TimelineStatus>> => ({ current: noStops });
+/** A fixed handle in the shape the dock hands the notice: a ledger with no stop and a record that keeps nothing. */
+const ledger = (): StopNoticeProps<TimelineStatus>["announced"] => ({ ledger: noStops, record: () => undefined });
+
+/** One feed's real hook, so the ledger it holds survives a remount of the notice. */
+const Held = ({ status, show }: { readonly status: TimelineStatus; readonly show: boolean }): ReactElement => {
+  const notice = useStopNotice<TimelineStatus>(status, () => undefined);
+  return show ? <TimelineNotice {...notice} /> : <></>;
+};
+
+/** Two feeds' ledgers side by side; the notice is handed the ledger of `which`. */
+const Either = ({
+  status,
+  which,
+  show,
+}: {
+  readonly status: TimelineStatus;
+  readonly which: 1 | 2;
+  readonly show: boolean;
+}): ReactElement => {
+  const one = useStopNotice<TimelineStatus>(status, () => undefined);
+  const two = useStopNotice<TimelineStatus>(status, () => undefined);
+  return show ? <TimelineNotice {...(which === 1 ? one : two)} /> : <></>;
+};
 
 const notice = () => screen.queryByTestId("qadi-timeline-notice");
 const stopped = () => screen.getByTestId("qadi-timeline-stopped");
@@ -271,30 +294,41 @@ describe("the timeline notice", () => {
   });
 
   it("TN14 a notice mounted again for the stop already announced does not count it twice", async () => {
-    const announced = ledger();
     const status = TimelineStatus.Stopped({ reason: "boom" });
-    const view = render(<TimelineNotice status={status} onRestart={() => {}} announced={announced} />);
+    const view = render(<Held status={status} show />);
     await settle();
-    assert.strictEqual(announced.current.count, 1);
-    view.unmount();
+    assert.strictEqual(stopped().getAttribute("data-announce"), "alert");
 
-    render(<TimelineNotice status={status} onRestart={() => {}} announced={announced} />);
+    view.rerender(<Held status={status} show={false} />);
+    await settle();
+    view.rerender(<Held status={status} show />);
     await settle();
 
-    assert.strictEqual(announced.current.count, 1);
     assert.strictEqual(stopped().getAttribute("data-announce"), "none");
+    const kept = stopped();
+    view.rerender(<Held status={status} show />);
+    await settle();
+    assert.strictEqual(stopped(), kept);
+
+    view.rerender(<Held status={TimelineStatus.Stopped({ reason: "boom" })} show />);
+    await settle();
+    assert.notStrictEqual(stopped(), kept);
+    assert.strictEqual(stopped().getAttribute("data-announce"), "alert");
   });
 
-  it("TN15 a notice handed another ledger records its stop there", async () => {
+  it("TN15 a notice handed the ledger of another feed records its stop there, and that stop is then silent on it", async () => {
     const status = TimelineStatus.Stopped({ reason: "boom" });
-    const first = ledger();
-    const view = render(<TimelineNotice status={status} onRestart={() => {}} announced={first} />);
+    const view = render(<Either status={status} which={1} show />);
     await settle();
-    const second = ledger();
+    assert.strictEqual(stopped().getAttribute("data-announce"), "alert");
 
-    view.rerender(<TimelineNotice status={status} onRestart={() => {}} announced={second} />);
+    view.rerender(<Either status={status} which={2} show />);
+    await settle();
+    view.rerender(<Either status={status} which={2} show={false} />);
+    await settle();
+    view.rerender(<Either status={status} which={2} show />);
     await settle();
 
-    assert.strictEqual(second.current.stop, status);
+    assert.strictEqual(stopped().getAttribute("data-announce"), "none");
   });
 });

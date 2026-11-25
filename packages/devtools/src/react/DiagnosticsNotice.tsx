@@ -18,7 +18,7 @@ import type { CSSProperties, FC, ReactNode } from "react";
 import * as Match from "effect/Match";
 import type { DiagnosticsStatus } from "../model/DiagnosticsFeed.ts";
 import { focusRingProps } from "./focusRing.ts";
-import { StoppedBox, stoppedKey, type StopNoticeProps } from "./StoppedBox.tsx";
+import { StoppedBox, type StopNoticeProps } from "./StoppedBox.tsx";
 import { colors, font, muted, panel } from "./theme.ts";
 
 const STARTING_LEAD = "Waiting for the first sample.";
@@ -63,8 +63,6 @@ const StartingNotice: FC = () => (
   </div>
 );
 
-type Binding = Pick<DiagnosticsNoticeProps, "onRestart" | "announced">;
-
 /** What a status puts in the always-present polite region, and what it puts beside it. */
 interface Parts {
   readonly region: ReactNode;
@@ -73,17 +71,16 @@ interface Parts {
 
 const NOTHING: Parts = { region: null, stopped: null };
 
-const noticeOf: (self: DiagnosticsStatus) => (binding: Binding) => Parts = Match.type<DiagnosticsStatus>().pipe(
+const noticeOf: (self: DiagnosticsStatus) => (notice: DiagnosticsNoticeProps) => Parts = Match.type<DiagnosticsStatus>().pipe(
   Match.tagsExhaustive({
     Off: () => () => NOTHING,
     Starting: () => () => ({ region: <StartingNotice />, stopped: null }),
     Live: () => () => NOTHING,
-    Stopped: (status) => ({ onRestart, announced }: Binding) => ({
+    Stopped: (status) => (notice: DiagnosticsNoticeProps) => ({
       region: null,
       stopped: (
         <StoppedBox<DiagnosticsStatus>
-          key={stoppedKey(announced.current, status)}
-          status={status}
+          notice={notice}
           reason={status.reason}
           lead={STOPPED_LEAD}
           body={status.sampled ? STOPPED_BODY_SAMPLED : STOPPED_BODY_UNSAMPLED}
@@ -91,16 +88,14 @@ const noticeOf: (self: DiagnosticsStatus) => (binding: Binding) => Parts = Match
           restartLabel={RESTART_LABEL}
           feed="diagnostics"
           sampled={status.sampled}
-          onRestart={onRestart}
-          announced={announced}
         />
       ),
     }),
   }),
 );
 
-export const DiagnosticsNotice: FC<DiagnosticsNoticeProps> = ({ status, onRestart, announced }) => {
-  const { region, stopped } = noticeOf(status)({ onRestart, announced });
+export const DiagnosticsNotice: FC<DiagnosticsNoticeProps> = (notice) => {
+  const { region, stopped } = noticeOf(notice.status)(notice);
   return (
     <>
       <div role="status" data-testid="qadi-diagnostics-region">

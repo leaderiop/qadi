@@ -6,29 +6,30 @@
  * keeps their style, their alert rule and their Restart button from drifting apart. The
  * caller owns the copy and the test-id prefix; the box owns everything else.
  *
- * **The alert is fixed at mount.** A stop is announced as it arrives, so its alert role is
- * decided once, when the box mounts, and a second stop is a new mount (`stoppedKey`). The
- * stack-trace reason after it is never part of the alert.
+ * **The alert is fixed at mount.** `StoppedBox` is a wrapper that keys `StoppedBody` on
+ * the stop (`stoppedKey`), so a second stop is a new mount and a role is never added to a
+ * mounted element. The body decides its alert once, at mount, from the ledger it was
+ * handed (`announcesStop`), and records its stop at commit, so a render that is thrown
+ * away announces nothing. The stack-trace reason after the alert is never part of it.
  *
- * Package-private: it is in no barrel and so not importable (AGENTS.md §9, ADR-QD-099).
+ * The ledger and the three functions over it are `model/StopLedger.ts` (ADR-QD-201).
+ * Package-private: it is in no barrel and so not importable (AGENTS.md section 9, ADR-QD-099).
  */
-import type { CSSProperties, MouseEvent, ReactElement, RefObject } from "react";
+import type { CSSProperties, MouseEvent, ReactElement } from "react";
 import { useLayoutEffect, useState } from "react";
+import { announcesStop, stoppedKey, type StopLedger } from "../model/StopLedger.ts";
 import { button, colors, panel, reasonStyle, withAlpha } from "./theme.ts";
 
 /**
- * The last stop a box showed, and how many distinct stops boxes have shown.
+ * The ledger a feed's notice reads, and the call that records a stop in it.
  *
- * The dock owns it so it outlives every screen. It records only which stop was announced,
- * never what the reading says (AGENTS.md §13).
+ * Both come from one reducer the dock's frame holds per feed, so the ledger outlives every
+ * screen. It records only which stop was announced, never what the reading says (AGENTS.md section 13).
  */
-export interface StopLedger<S> {
-  readonly stop: S | undefined;
-  readonly count: number;
+export interface AnnouncedStops<S> {
+  readonly ledger: StopLedger<S>;
+  readonly record: (status: S) => void;
 }
-
-/** A ledger with no stop in it: what a dock starts from. */
-export const noStops: StopLedger<never> = { stop: undefined, count: 0 };
 
 /** What the dock hands a feed's stop notice. */
 export interface StopNoticeProps<S> {
@@ -36,18 +37,9 @@ export interface StopNoticeProps<S> {
   readonly status: S;
   /** Starts the feed again; it leaves its stop, so the notice is replaced. */
   readonly onRestart: () => void;
-  /**
-   * The stops the notice has shown, owned by the dock so it outlives every screen.
-   *
-   * It records only which stop was announced and how many there have been, never what
-   * the status or the reading says (AGENTS.md §13).
-   */
-  readonly announced: RefObject<StopLedger<S>>;
+  /** The stops the notice has shown, and the call that records one. */
+  readonly announced: AnnouncedStops<S>;
 }
-
-/** One key per stop, so a second stop remounts the box and its alert is announced as it arrives. */
-export const stoppedKey = <S,>(ledger: StopLedger<S>, status: S): number =>
-  ledger.stop === status ? ledger.count : ledger.count + 1;
 
 /** The two feeds that stop. */
 type StoppedFeed = "diagnostics" | "timeline";
@@ -68,8 +60,8 @@ const FEEDS: {
 
 /** What a feed hands the box. */
 export interface StoppedBoxProps<S> {
-  /** The stop value; its identity is the stop. */
-  readonly status: S;
+  /** What the dock hands the feed's notice: the stop, its restart and the ledger. */
+  readonly notice: StopNoticeProps<S>;
   /** The stack-trace reason; the block is left out when it is empty. */
   readonly reason: string;
   readonly lead: string;
@@ -80,8 +72,6 @@ export interface StoppedBoxProps<S> {
   readonly feed: StoppedFeed;
   /** Rendered as `data-sampled` only when given. */
   readonly sampled?: boolean | undefined;
-  readonly onRestart: () => void;
-  readonly announced: RefObject<StopLedger<S>>;
 }
 
 const stoppedStyle: CSSProperties = {
@@ -99,8 +89,12 @@ const restartStyle: CSSProperties = {
   marginTop: 8,
 };
 
-export const StoppedBox = <S,>({
-  status,
+export const StoppedBox = <S,>(props: StoppedBoxProps<S>): ReactElement => (
+  <StoppedBody key={stoppedKey(props.notice.announced.ledger, props.notice.status)} {...props} />
+);
+
+const StoppedBody = <S,>({
+  notice: { status, onRestart, announced },
   reason,
   lead,
   body,
@@ -108,16 +102,11 @@ export const StoppedBox = <S,>({
   restartLabel,
   feed,
   sampled,
-  onRestart,
-  announced,
 }: StoppedBoxProps<S>): ReactElement => {
   const { hooks, focusTarget } = FEEDS[feed];
   // Decided at mount: a new stop is a new mount (see `stoppedKey`), so a role is never added to a mounted element.
-  const [alert] = useState(() => announced.current.stop !== status);
-  useLayoutEffect(() => {
-    const { stop, count } = announced.current;
-    if (stop !== status) announced.current = { stop: status, count: count + 1 };
-  }, [announced, status]);
+  const [alert] = useState(() => announcesStop(announced.ledger, status));
+  useLayoutEffect(() => announced.record(status), [announced.record, status]);
 
   // Puts focus back inside the screen, because the button that had it leaves the DOM.
   const restart = (event: MouseEvent<HTMLButtonElement>) => {

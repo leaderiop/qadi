@@ -19,7 +19,8 @@ import { AttributeResolver, gte, hasAttribute, portsLayer } from "@qadi/core";
 import { makeSimulationSession } from "../../src/model/SimulationSession.ts";
 import type { SimulationSessionInit } from "../../src/model/SimulationSession.ts";
 import { Simulator } from "../../src/react/Simulator.tsx";
-import { noStops, StoppedBox } from "../../src/react/StoppedBox.tsx";
+import { noStops } from "../../src/model/StopLedger.ts";
+import { StoppedBox } from "../../src/react/StoppedBox.tsx";
 import { sighting } from "../simulationFixtures.ts";
 
 /**
@@ -75,15 +76,13 @@ describe("the stopped box reason", () => {
     const reason = "first line of the reason\nsecond line of the reason";
     render(
       <StoppedBox
-        status="stopped"
+        notice={{ status: "stopped", onRestart: () => undefined, announced: { ledger: noStops, record: () => undefined } }}
         reason={reason}
         lead="Timeline stopped."
         body="It stopped."
         reasonLabel="Why the timeline stopped"
         restartLabel="Restart timeline"
         feed="timeline"
-        onRestart={() => undefined}
-        announced={{ current: noStops }}
       />,
     );
 
