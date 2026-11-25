@@ -3,9 +3,9 @@ phase: "QD-87"
 slug: "one-scoped-run-that-states-its-stop"
 # status lifecycle: draft (seeded by plan-phase) → validated (set by validate-phase §6)
 # audit-milestone §5.5 distinguishes NOT-VALIDATED (draft) from PARTIAL (validated + nyquist_compliant: false) (#2117)
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: validated
+nyquist_compliant: true
+wave_0_complete: true
 created: "2026-11-25"
 ---
 
@@ -38,17 +38,17 @@ created: "2026-11-25"
 
 ---
 
-## Requirement → Test Map (from research; task ids filled by the planner)
+## Per-Requirement Verification Map
 
-| Requirement | Behavior | Test Type | File | Base |
+| Requirement | Behavior | Test Type | File | Status |
 |-------------|----------|-----------|------|------|
-| STOP-01 | session dies in its ports layer: `Broke.message` is `causeMessage`'s (`Error: the layer exploded`, not `Cause([Die(...)])`); hostile die gives the placeholder | unit | `test/model/SimulationSession.stop.test.ts` (new) | RED |
-| STOP-01 | each feed's status tape and today's self-interrupt; D-17 throw plus superseding command | characterisation | `test/model/StatedRun.characterisation.test.ts` (new) | green |
-| STOP-02 | the module: publish-then-fork, rethrow once by identity, token-guarded sink, closed guard, stop, stale run states nothing, model property | unit + property | `test/model/StatedRun.test.ts` (new) | new module |
-| STOP-03 | the prologue: closed first, refused capacity throws before anything moves, identity gate, `held` before steps, nested configure, gates' failed-watch exception | unit + held | `test/model/ConfigurePrologue.test.ts` (new); held `ConfigureRule.test.ts`, `GatesFeed.test.ts` | new module |
-| STOP-04 | timeline / diagnostics self-interrupt reads `Stopped`; every outside interruption never does; session `Ran` survives a throwing `Ran` listener; SR1 | unit | `test/model/TimelineFeed.stop.test.ts`, `test/model/DiagnosticsFeed.stop.test.ts` (new); held `SimulationSession.runs.test.ts` | RED / green |
-| STOP-05 | Simulator `Broke` is a labelled, focusable `<pre>` with `StoppedBox`'s reason style; `StoppedBox` byte-identical | component | `test/react/Simulator.broke.test.tsx` (new) | RED / green |
-| WX-01..07 | gate, ids, changesets, forbidden forms, coverage and mutation, seen-failing, no release | script + gate | `87-check.mjs`, `87-pinned-check.mjs`, `87-mutation.mjs`, `87-earlier-checks.mjs` | Wave 0 |
+| STOP-01 | session dies in its ports layer: `Broke.message` is `causeMessage`'s (`Error: the layer exploded`, not `Cause([Die(...)])`); hostile die gives the placeholder | unit | `test/model/SimulationSession.stop.test.ts` (new) | ✅ green |
+| STOP-01 | each feed's status tape and today's self-interrupt; D-17 throw plus superseding command | characterisation | `test/model/StatedRun.characterisation.test.ts` (new) | ✅ green |
+| STOP-02 | the module: publish-then-fork, rethrow once by identity, token-guarded sink, closed guard, stop, stale run states nothing, model property | unit + property | `test/model/StatedRun.test.ts` (new) | ✅ green |
+| STOP-03 | the prologue: closed first, refused capacity throws before anything moves, identity gate, `held` before steps, nested configure, gates' failed-watch exception | unit + held | `test/model/ConfigurePrologue.test.ts` (new); held `ConfigureRule.test.ts`, `GatesFeed.test.ts` | ✅ green |
+| STOP-04 | timeline / diagnostics self-interrupt reads `Stopped`; every outside interruption never does; session `Ran` survives a throwing `Ran` listener; SR1 | unit | `test/model/TimelineFeed.stop.test.ts`, `test/model/DiagnosticsFeed.stop.test.ts` (new); held `SimulationSession.runs.test.ts` | ✅ green |
+| STOP-05 | Simulator `Broke` is a labelled, focusable `<pre>` with `StoppedBox`'s reason style; `StoppedBox` byte-identical | component | `test/react/Simulator.broke.test.tsx` (new) | ✅ green |
+| WX-01..07 | gate, ids, changesets, forbidden forms, coverage and mutation, seen-failing, no release | script + gate | `87-check.mjs`, `87-pinned-check.mjs`, `87-mutation.mjs`, `87-earlier-checks.mjs` | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -56,10 +56,10 @@ created: "2026-11-25"
 
 ## Wave 0 Requirements
 
-- [ ] `87-check.mjs`, `87-pinned-check.mjs`, `87-mutation.mjs`, `87-earlier-checks.mjs`, each with a self-test and each mode seen failing once
-- [ ] `87-mutation-base.json` on a clean tree before any edit (scoped `stryker.devtools.mjs` over the five touched model files)
-- [ ] `87-RED-EVIDENCE.md` with each RED row's base failing text and one scratch variant per new check
-- [ ] the new test files written on the base before any `src` edit
+- [x] `87-check.mjs`, `87-pinned-check.mjs`, `87-mutation.mjs`, `87-earlier-checks.mjs`, each with a self-test and each mode seen failing once
+- [x] `87-mutation-base.json` on a clean tree before any edit (scoped `stryker.devtools.mjs` over the five touched model files)
+- [x] `87-RED-EVIDENCE.md` with each RED row's base failing text and one scratch variant per new check
+- [x] the new test files written on the base before any `src` edit
 
 ---
 
@@ -71,11 +71,19 @@ All phase behaviors have automated verification.
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 30s per task
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 30s per task
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** validated 2026-11-25 (autonomous run): every requirement maps to a test file or phase check that exists and passed at HEAD `7422ccff` (devtools 105 files / 2061 tests; the seven STOP files 58 tests; `87-check.mjs --self-test` 301; pinned 122 held, 5/5 born, 2/2 edits applied; mutation compare green; all shape modes, records --close, scan-ids, scan-forbidden, trailers green).
+
+## Validation Audit 2026-11-25
+
+| Metric | Count |
+|---|---|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
