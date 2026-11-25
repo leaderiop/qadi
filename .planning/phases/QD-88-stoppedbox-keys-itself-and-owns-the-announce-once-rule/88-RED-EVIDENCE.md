@@ -87,3 +87,35 @@ The base is the one `88-mutation-base.json` records (`phase_base` 892c4d36bf0f63
 ## 88-04 the earlier-phase checks
 
 - check failed: earlier checks: packages/devtools/test/react/DiagnosticsNotice.test.tsx: differs from phase_base and no commit since it has one of its explaining subjects
+
+## 88-05 the stop ledger
+
+- red before: packages/devtools/test/model/StopLedger.test.ts
+  - failed on: Failed to resolve import "../../src/model/StopLedger.ts" from "packages/devtools/test/model/StopLedger.test.ts". Does the file exist?
+  (scratch state: packages/devtools/src/model/StopLedger.ts absent at HEAD caf45f64146a0690465fcb63f8291d65a3536ce3; test blob b439973b79b7355949e7611653c62ab5a3e21d86)
+- failed (fresh-spread): L2 the recorded stop again: the same key, silent, and recording returns the same ledger
+  (scratch edit: recordStop returns { ...ledger } for the known stop; 3 row(s) failed under it)
+- failed (fresh-spread): L6 the last stop of a ledger of count three: key three, silent, the same ledger
+  (scratch edit: recordStop returns { ...ledger } for the known stop; 3 row(s) failed under it)
+- failed (fresh-spread): LAW2 recording a recorded stop returns the same ledger, for every row
+  (scratch edit: recordStop returns { ...ledger } for the known stop; 3 row(s) failed under it)
+- failed (no-plus-one): L1 an empty ledger and a first stop: key one, announces, recorded with count one
+  (scratch edit: the key reads ledger.count in both branches; 6 row(s) failed under it)
+- failed (no-plus-one): L3 a second distinct stop: key two, announces, recorded with count two
+  (scratch edit: the key reads ledger.count in both branches; 6 row(s) failed under it)
+- failed (no-plus-one): L4 an equal-field stop that is a new identity announces, because a stop is its identity
+  (scratch edit: the key reads ledger.count in both branches; 6 row(s) failed under it)
+- failed (no-plus-one): L5 a ledger of count three and a new stop: key four, announces, recorded with count four
+  (scratch edit: the key reads ledger.count in both branches; 6 row(s) failed under it)
+- failed (no-plus-one): LAW1 the key is the same before and after the stop is recorded, for every row
+  (scratch edit: the key reads ledger.count in both branches; 6 row(s) failed under it)
+- failed (no-plus-one): LAW3 any sequence of stops: the count equals the number of changes and the key holds across each record
+  (scratch edit: the key reads ledger.count in both branches; 6 row(s) failed under it)
+- failed (always-plus-one): L2 the recorded stop again: the same key, silent, and recording returns the same ledger
+  (scratch edit: the key is always ledger.count + 1; 4 row(s) failed under it)
+- failed (always-plus-one): L6 the last stop of a ledger of count three: key three, silent, the same ledger
+  (scratch edit: the key is always ledger.count + 1; 4 row(s) failed under it)
+- failed (always-plus-one): LAW1 the key is the same before and after the stop is recorded, for every row
+  (scratch edit: the key is always ledger.count + 1; 4 row(s) failed under it)
+- failed (always-plus-one): LAW3 any sequence of stops: the count equals the number of changes and the key holds across each record
+  (scratch edit: the key is always ledger.count + 1; 4 row(s) failed under it)
