@@ -602,7 +602,7 @@ Plans:
   5. `useTimeline`'s per-render inputs record is either memoised or recorded as a rejection against ADR-QD-192 decision 8, with the gates feed's retry-on-configure (G43) unaffected, and ADR-QD-197 records the phase or is named unused in CCR-QD-476.
 
 **Planning notes**: Standard patterns, and no defect, so no RED: open with characterisations green on the base before any edit (`useConfigured.test.tsx` U1-U4 re-expressed over an object double, `LensSession.test.ts:304/378` mutation-checked so a publish-before-arm fails it, `Lens.adapter.test.tsx:160`'s one-subscription pin); `ConfigureFirstRender` and `Lens.dock` stay unedited. The discuss step decides the `useLens` shape (research recommends `useLens(lens, questions)` subscribing once and returning both snapshots, handlers reading `questions.getSnapshot()` at event time, never writing a ref during render; amend ADR-QD-193 and BEH-QD-737, and edit traceability row 661 in the same commit) and the `useTimeline` record (research recommends a recorded rejection: the value's own rule makes memoisation a no-op, `DevtoolsDock`'s rest spread is fresh per render by construction, and memoising one of three hooks makes them asymmetric; if it memoises, only `useTimeline`, never the dock's or the gates' records). Use positive type pins only for the `Configurable` constraint (`DockModel`, `TimelineFeed` and `DiagnosticsFeed` assignable), which costs no `NOT_CALLABLE_PIN_BUDGET` row; check `useConfigured<A, I>`'s inference. Re-measure `LensSession.ts` (52/52, no open mutant) and list the `src/react` hooks as `unmeasured`. Changeset: none, or a `@qadi/devtools` patch stating "no export changes".
-**Plans**: 8/13 plans executed
+**Plans**: 9/13 plans executed
 
 Plans:
 - [x] 84-01 (W1): Record the mutation base of `LensSession.ts` first, the base facts, and the phase check helper with `no-adapter`, `no-restated-set`, `one-path`, `one-ledger` and `records` (D-21, D-23, D-24).
@@ -613,7 +613,7 @@ Plans:
 - [x] 84-06 (W6): `Configurable<I>` and `useConfigured(make, inputs)`, the three adapters deleted, `useConfigured.tst.ts` and the `Configurable` refusals (ADPT-01, D-05 to D-08).
 - [x] 84-07 (W7): `LensSession` publishes through `store.set`, `move` deleted; the arm-before-publish pin seen failing over `set` (ADPT-02, D-09, D-10).
 - [x] 84-08 (W8): `useLens(lens, questions): UseLens`, the panel's one call, the adapter test's two edits, the `UseLens` refusals, and the lens records in the same commit; CCR-QD-476 begun (ADPT-03, D-11 to D-14).
-- [ ] 84-09 (W9): `useStopNotice` and `StopNoticeProps<S>`, the notice props as aliases, their refusals (ADPT-04, D-15, D-16).
+- [x] 84-09 (W9): `useStopNotice` and `StopNoticeProps<S>`, the notice props as aliases, their refusals (ADPT-04, D-15, D-16).
 - [ ] 84-10 (W10): ADR-QD-197 with its index entry and §3 row; ADR-QD-192's dated amendment; ADR-QD-193 linked; the devtools patch changeset (ADPT-05, D-17, D-25, D-26).
 - [ ] 84-11 (W11): BEH-QD-756 to 760 and INV-QD-413, 414; BEH-QD-734 and 736 re-pinned; traceability; CCR-QD-476 completed (WX-02, D-25).
 - [ ] 84-12 (W12): The mutation close compared with the base, the close scans, the held files fully applied, the earlier checks re-run, the flagged assumptions (WX-05, D-24).
@@ -630,4 +630,4 @@ Phases execute in numeric order: 81 → 82 → 83 → 84
 | 81. The dock model applies every input whatever a listener throws | 11/11 | Complete    | 2026-11-25 |
 | 82. `QadiProvider`'s registry has one owner for its lifetime | 10/10 | Complete    | 2026-11-25 |
 | 83. The diagnostics feed folds its reading as a value | 11/11 | Complete    | 2026-11-25 |
-| 84. `useConfigured` requires `configure`, and the review's small finds | 8/13 | In Progress | - |
+| 84. `useConfigured` requires `configure`, and the review's small finds | 9/13 | In Progress | - |
