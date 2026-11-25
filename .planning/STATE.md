@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 85
 current_phase_name: The dock's hydration block is a model row
 status: executing
-stopped_at: Completed QD-85-03-PLAN.md
-last_updated: "2026-11-25T13:27:11.082Z"
+stopped_at: Completed 85-04-PLAN.md
+last_updated: "2026-11-25T13:35:14.488Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase QD-85 execution started
-state_head: e14f580bbc3461b650e2307d26348bf9cd36a359
+state_head: 8fddc8e7db719b43f5021b3885b7f22460f85068
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 11
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-85 (The dock's hydration block is a model row) — EXECUTING
-Plan: 4 of 11
+Plan: 5 of 11
 Status: Executing Phase QD-85
 Last activity: 2026-11-25 — Phase QD-85 execution started
 
@@ -655,6 +655,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase QD-85 P01 | 10 min | 3 tasks | 4 files |
 | Phase QD-85 P02 | 25 min | 2 tasks | 2 files |
 | Phase QD-85 P03 | 20min | 2 tasks | 3 files |
+| Phase QD-85 P04 | 15 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -1143,6 +1144,7 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase QD-85]: Decided autonomously: no-react-in-model requires exactly two Data.taggedEnum constants in the view
 - [Phase QD-85]: 85-03: the declared QuestionsPanel.test.tsx region is held as a prefix and a suffix of the file, so it may be rewritten or emptied whole, its opening line included (decided autonomously)
 - [Phase QD-85]: 85-03: the earlier-phase ledger compares the first plain stderr line (not blank, not indented, not node:-prefixed); the Phase 80 row is its missing-module line, not an ancestry failure (decided autonomously)
+- [Phase QD-85]: 85-04: hydrationView's Counts carries rate, drops (None { text } | Raised { rows }) and scope as ready strings and rows; decided autonomously, the scope note is one field because the panel's text nodes join to one sentence
 
 ### Pending Todos
 
@@ -1227,8 +1229,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T13:27:11.048Z
-Stopped at: Completed QD-85-03-PLAN.md
+Last session: 2026-11-25T13:35:14.448Z
+Stopped at: Completed 85-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
