@@ -31,8 +31,8 @@
  * The store is a closure over `makeExternalStore`, the mechanics
  * `TimelineStore.ts` shares; commands are synchronous and notify once.
  *
- * **The session owns its runs.** It is built in a `Scope` and keeps one superseding
- * run (`makeSupersedingRun`, ADR-QD-150): every run forks into it, so a newer run
+ * **The session owns its runs.** It is built in a `Scope` and keeps one stated run
+ * (`makeStatedRun`, ADR-QD-150): every run starts through it, so a newer run
  * or a superseding command interrupts the run in flight, and closing the scope
  * interrupts it too.
  * A host ends a session by closing its scope; nothing is reaped or disposed
@@ -43,6 +43,7 @@ import * as Effect from "effect/Effect";
 import * as Equal from "effect/Equal";
 import * as Exit from "effect/Exit";
 import type * as Scope from "effect/Scope";
+import { causeMessage } from "@qadi/core";
 import type { DecisionOutcome, EvaluationClock, Policy } from "@qadi/core";
 import { makeExternalStore } from "./ExternalStore.ts";
 import type { CapturedAnswers } from "./Capture.ts";
@@ -63,8 +64,8 @@ import {
 } from "./SeededChoice.ts";
 import type { PolicyChoice, PolicyMenu, SeededChoice } from "./SeededChoice.ts";
 import { simulate } from "./Simulation.ts";
-import { makeSupersedingRun } from "./SupersedingRun.ts";
-import type { RunToken } from "./SupersedingRun.ts";
+import { makeStatedRun } from "./StatedRun.ts";
+import type { RunLive } from "./StatedRun.ts";
 import type { ChipAdded, FieldView, SimulationField } from "./SimulationFields.ts";
 import { fieldOps, formOf, renameSubject } from "./SimulationFields.ts";
 import { actionOf, decodeResource, encodeResource, withAction, withResource } from "./SimulationForm.ts";
@@ -105,7 +106,16 @@ export type RunState =
       readonly report: WhatIfReport | undefined;
       readonly clock: EvaluationClock;
     }
-  | { readonly _tag: "Broke"; readonly question: SimulationQuestion; readonly message: string }
+  | {
+      readonly _tag: "Broke";
+      readonly question: SimulationQuestion;
+      /**
+       * `causeMessage`'s text of the run's cause: a multi-line trace with the error's
+       * message on its first line, or the one placeholder for a value that cannot be
+       * described.
+       */
+      readonly message: string;
+    }
   | { readonly _tag: "Refused"; readonly question: SimulationQuestion; readonly refusal: SourceRefusal };
 
 /** What a sweep would cost, said before it runs, and whether that cost is the host's own I/O. */
@@ -294,9 +304,6 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
   let capture: CapturedAnswers | undefined;
   let run: RunState = { _tag: "Idle" };
 
-  /** Every run forks into this, so a newer run or a superseding command interrupts the one in flight; a closed session answers no `run`. */
-  const runs = yield* makeSupersedingRun();
-
   const build = (): SimulationSnapshot => {
     const policy = policyChoice(choice);
     const policyNow = policyOf(choice);
@@ -352,6 +359,16 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
   };
 
   /**
+   * Every run starts through this, so a newer run or a superseding command interrupts the one in
+   * flight; a closed session answers no `run`. A defect after the run landed leaves the landed result.
+   */
+  const runs = yield* makeStatedRun((reason) => {
+    if (run._tag !== "Running") return;
+    run = { _tag: "Broke", question: run.question, message: reason };
+    commit();
+  });
+
+  /**
    * Makes the run in flight stale and stops it, before the command returns.
    *
    * Correctness is the token's: the abandoned run's exit is never applied. The
@@ -390,7 +407,7 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
   // `root`: a run is the reviewer's own act, and the context the session captured
   // has the constructor's span as its parent.
   const land = Effect.fn("qadi.devtools.simulationSession.run", { root: true })(function* (
-    mine: RunToken,
+    live: RunLive,
     question: SimulationQuestion,
     kind: RunKind,
     ready: ReadySource,
@@ -399,7 +416,7 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
   ) {
     const exit = yield* Effect.exit(program(question, kind, ready, runClock, runPairs));
     // Superseded, or its scope closed: there is nothing to report to.
-    if (!runs.isCurrent(mine)) return;
+    if (!live.current()) return;
 
     if (Exit.isSuccess(exit)) {
       if (exit.value.answers !== undefined) capture = exit.value.answers;
@@ -415,7 +432,7 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
       // `simulate` and `whatIf` cannot fail — a broken resolver is a `Failed`
       // *outcome* — so reaching here means a defect, and a panel that showed
       // nothing would look merely unresponsive.
-      run = { _tag: "Broke", question, message: String(exit.cause) };
+      run = { _tag: "Broke", question, message: causeMessage(exit.cause) };
     }
     commit();
   });
@@ -441,16 +458,14 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
       return;
     }
 
-    const mine = runs.begin();
     const runClock = clock;
-    run = { _tag: "Running", question };
-    // The run starts whatever a listener throws on the commit. A subscriber notified by it
-    // may have superseded this run, and `fork` refuses a token that has been superseded.
-    try {
-      commit();
-    } finally {
-      runs.fork(mine, land(mine, question, kind, prepared, runClock, pairs));
-    }
+    runs.start({
+      starting: () => {
+        run = { _tag: "Running", question };
+        commit();
+      },
+      engine: (live) => land(live, question, kind, prepared, runClock, pairs),
+    });
   };
 
   /**
