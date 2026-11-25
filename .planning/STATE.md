@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 87
 current_phase_name: One scoped run that states its stop
 status: executing
-stopped_at: Completed QD-87-05-PLAN.md
-last_updated: "2026-11-25T19:44:19.624Z"
+stopped_at: Completed 87-06-PLAN.md
+last_updated: "2026-11-25T19:48:12.259Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 86 complete, transitioned to Phase 87
-state_head: 5d40fece161812e7f69792d9de6c501dd76caead
+state_head: 47b6b207a91245fa224e61b19dbe7bed217841a0
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 30
-  completed_plans: 24
+  completed_plans: 25
   percent: 29
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: 87 (One scoped run that states its stop) — READY TO EXECUTE
-Plan: 6 of 11
+Plan: 7 of 11
 Status: Ready to execute
 Last activity: 2026-11-25 — Phase 86 complete, transitioned to Phase 87
 
@@ -678,6 +678,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 87 P03 | 14min | 3 tasks | 2 files |
 | Phase 87 P04 | 20min | 2 tasks | 2 files |
 | Phase QD-87 P05 | 45 min | 3 tasks | 5 files |
+| Phase 87 P06 | 20min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -1198,6 +1199,7 @@ Progress: [███░░░░░░░] 29%
 - [Phase 87]: 87-04: no ledger row of the earlier-phase checks carries a when; the moved files are read by no judge in a way the move changes
 - [Phase QD-87]: 87-05: StatedRun states a stop for a current run whose own work ended on anything but success (an interruption the run gave itself included) and never reads hasInterruptsOnly; an outside interruption never resumes the forked body so it is never stated — Spike-confirmed; the current-run gate is reached only by the begin-window rows ST14, ST15 and ST17's Nest command
 - [Phase QD-87]: 87-05: ConfigurePrologue.makeConfigure reads closed, complete, held, same, hold, then steps; the identity gate is a parameter, no runtime import, out of both barrels — One order for the three feeds; gates feed's failed-watch retry is its same argument
+- [Phase 87]: 87-06: feed Stopped docs state the one rule (own work ended on anything but success, self-interruption included); rethrow prose lives once in StatedRun.ts
 
 ### Pending Todos
 
@@ -1285,8 +1287,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T19:44:19.571Z
-Stopped at: Completed QD-87-05-PLAN.md
+Last session: 2026-11-25T19:48:12.204Z
+Stopped at: Completed 87-06-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
