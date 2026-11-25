@@ -14,11 +14,17 @@ import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import * as MutableHashMap from "effect/MutableHashMap";
 import * as Option from "effect/Option";
+import * as Predicate from "effect/Predicate";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import { untrustedDecoder } from "@qadi/core";
 import type { DecodeRefusal, UntrustedValueRefusal } from "@qadi/core";
-import { archiveFacts, verifiedArchiveFacts } from "./ArchiveFacts.ts";
+import {
+  ArchiveInputInvalid,
+  ArchiveInputRefusal,
+  archiveFacts,
+  verifiedArchiveFacts,
+} from "./ArchiveFacts.ts";
 import { decodeAuditEntry } from "./AuditEntry.ts";
 import type { AuditEntry } from "./AuditEntry.ts";
 
@@ -38,6 +44,53 @@ export interface KeyMaterial {
 export interface ArchivalOptions {
   readonly keyMaterial?: ReadonlyArray<KeyMaterial> | undefined;
 }
+
+export { ArchiveInputInvalid, ArchiveInputRefusal } from "./ArchiveFacts.ts";
+
+/**
+ * One `keyMaterial` item as the reader reads it, and so as the writer may write it
+ * (`Schema.is` ignores an extra key, which the writer's projection drops).
+ */
+const KeyMaterialSchema = Schema.Struct({
+  keyId: Schema.String,
+  algorithm: Schema.String,
+  publicKey: Schema.String,
+});
+
+const isKeyMaterial = Schema.is(KeyMaterialSchema);
+
+/**
+ * The `keyMaterial` a host gave (none is `undefined`), as the three fields the reader reads
+ * from each item, or the refusal of the first thing the reader would refuse.
+ *
+ * Each field is read once, into a fresh object, and that object is what is checked and
+ * what is returned, so a getter or a proxy cannot pass the check with one value and be
+ * written with another. The fields are read by name and not spread, so a class whose
+ * fields are accessors on its prototype is read as it is. An extra property is never
+ * read, so a private key on the object a host passes does not reach the archive.
+ */
+const snapshotKeyMaterial = (
+  given: unknown,
+): Result.Result<ReadonlyArray<KeyMaterial> | undefined, ArchiveInputRefusal> => {
+  if (given === undefined) {
+    return Result.succeed(undefined);
+  }
+  if (!Array.isArray(given)) {
+    return Result.fail(ArchiveInputRefusal.KeyMaterialNotAList({ value: given }));
+  }
+  const items: ReadonlyArray<unknown> = given;
+  const snapshot: Array<KeyMaterial> = [];
+  for (const [index, item] of items.entries()) {
+    const copy = Predicate.isObject(item)
+      ? { keyId: item.keyId, algorithm: item.algorithm, publicKey: item.publicKey }
+      : item;
+    if (!isKeyMaterial(copy)) {
+      return Result.fail(ArchiveInputRefusal.KeyMaterialItemRefused({ index }));
+    }
+    snapshot.push(copy);
+  }
+  return Result.succeed(snapshot);
+};
 
 /**
  * The bundle {@link archiveAuditTrail} builds. **Not tamper-evident** (WD-07,
@@ -84,11 +137,27 @@ const ARCHIVE_VERSION = "1";
 
 /**
  * Builds the bundle from the entries' facts (`archiveFacts`, ADR-QD-110). Fails
- * with `SequenceNumberInvalid` for a `sequenceNumber` that is not a safe integer
- * (one `readAuditArchive` could not decode), and with `SequenceIntegrityError`
- * rather than archiving a set of rows already known to have a gap or a
- * duplicate — an archive exists to be trusted later, so it refuses to be built
- * on a foundation this package can already tell is broken.
+ * with `ArchiveInputInvalid` for a `now` that is not finite (`NowNotFinite`), before
+ * anything else is read; for a `keyMaterial` that is not a list (`KeyMaterialNotAList`)
+ * or holds an item without three string fields (`KeyMaterialItemRefused`, the index of
+ * the first), before the entries are read; and for `entries` that is not a list
+ * (`EntriesNotAList`) or holds an entry the codec did not make (`EntryNotMadeByCodec`,
+ * the index of the first), before any fact is computed from it; otherwise only with
+ * `SequenceIntegrityError`, rather than archiving a set of rows already known to
+ * have a gap or a duplicate. An archive exists to be trusted later, so it refuses
+ * to be built on a foundation this package can already tell is broken, or one its
+ * own reader would refuse.
+ *
+ * The rows are made by the codec, so each is one `readAuditArchive` decodes back
+ * (ADR-QD-190). The type says so for a typed caller; a row a store client returned
+ * as `any`, or a JavaScript caller's literal, is refused by the run-time check
+ * (`CodecMade.ts`), which only `encodeAuditEntry` and `decodeAuditEntry` can
+ * satisfy. `keyMaterial` is the same kind of input and is held to the reader's own
+ * schema, so a `keyId` typed `any` that is a number is refused here and not archived
+ * for the reader to refuse. Each item is read once, as its three declared fields, and
+ * what is checked is what is written, so an accessor that answers differently the
+ * second time cannot get past the check. An extra property is never carried, so a
+ * private key or a secret on the object a host passes does not reach the archive.
  *
  * The sequence check tolerates and is tested against entries arriving out of
  * write order — it checks the *sequence numbers*, not array order.
@@ -112,6 +181,17 @@ export const archiveAuditTrail = Effect.fn("qadi.audit.archiveAuditTrail")(funct
   now: number,
   options?: ArchivalOptions,
 ) {
+  if (!Number.isFinite(now)) {
+    const refusal = ArchiveInputRefusal.NowNotFinite({ value: now });
+    return yield* Effect.fail(new ArchiveInputInvalid({ refusal }));
+  }
+  // What a store client or a JavaScript caller hands over is not what the type says, and
+  // `options` is read once: what is checked is what is written.
+  const snapshot = snapshotKeyMaterial(options?.keyMaterial);
+  if (Result.isFailure(snapshot)) {
+    return yield* Effect.fail(new ArchiveInputInvalid({ refusal: snapshot.failure }));
+  }
+  const keyMaterial = snapshot.success;
   const facts = yield* verifiedArchiveFacts(entries);
 
   const archive: AuditArchive = {
@@ -122,7 +202,7 @@ export const archiveAuditTrail = Effect.fn("qadi.audit.archiveAuditTrail")(funct
       sequenceIntegrityVerified: facts.sequenceIntegrityVerified,
     },
     entries: facts.ordered,
-    ...(options?.keyMaterial === undefined ? {} : { keyMaterial: options.keyMaterial }),
+    ...(keyMaterial === undefined ? {} : { keyMaterial }),
   };
   return archive;
 });
@@ -237,12 +317,6 @@ class VerifiedArchiveImpl {
  * It proves what the store said it holds, no more.
  */
 export type VerifiedArchive = VerifiedArchiveImpl;
-
-const KeyMaterialSchema = Schema.Struct({
-  keyId: Schema.String,
-  algorithm: Schema.String,
-  publicKey: Schema.String,
-});
 
 const ArchiveEnvelope = Schema.Struct({
   archiveVersion: Schema.String,

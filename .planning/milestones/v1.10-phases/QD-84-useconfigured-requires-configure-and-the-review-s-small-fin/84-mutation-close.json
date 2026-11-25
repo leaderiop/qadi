@@ -1,0 +1,223 @@
+{
+ "phase": "84",
+ "unmeasured": [
+  {
+   "file": "packages/devtools/src/react/useConfigured.ts",
+   "why": "no Stryker config reaches src/react (stryker.devtools.mjs mutates src/model only); held by its tests, the characterisations and the 90% coverage threshold"
+  },
+  {
+   "file": "packages/devtools/src/react/useDockModel.ts",
+   "why": "no Stryker config reaches src/react (stryker.devtools.mjs mutates src/model only); held by its tests, the characterisations and the 90% coverage threshold"
+  },
+  {
+   "file": "packages/devtools/src/react/useTimeline.ts",
+   "why": "no Stryker config reaches src/react (stryker.devtools.mjs mutates src/model only); held by its tests, the characterisations and the 90% coverage threshold"
+  },
+  {
+   "file": "packages/devtools/src/react/useDiagnostics.ts",
+   "why": "no Stryker config reaches src/react (stryker.devtools.mjs mutates src/model only); held by its tests, the characterisations and the 90% coverage threshold"
+  },
+  {
+   "file": "packages/devtools/src/react/useLens.ts",
+   "why": "no Stryker config reaches src/react (stryker.devtools.mjs mutates src/model only); held by its tests, the characterisations and the 90% coverage threshold"
+  },
+  {
+   "file": "packages/devtools/src/react/useStopNotice.ts",
+   "why": "no Stryker config reaches src/react (stryker.devtools.mjs mutates src/model only); held by its tests, the characterisations and the 90% coverage threshold"
+  },
+  {
+   "file": "packages/devtools/src/react/QuestionsPanel.tsx",
+   "why": "no Stryker config reaches src/react (stryker.devtools.mjs mutates src/model only); held by its tests, the characterisations and the 90% coverage threshold"
+  },
+  {
+   "file": "packages/devtools/src/react/DevtoolsDock.tsx",
+   "why": "no Stryker config reaches src/react (stryker.devtools.mjs mutates src/model only); held by its tests, the characterisations and the 90% coverage threshold"
+  },
+  {
+   "file": "packages/devtools/src/react/StoppedBox.tsx",
+   "why": "no Stryker config reaches src/react (stryker.devtools.mjs mutates src/model only); held by its tests, the characterisations and the 90% coverage threshold"
+  },
+  {
+   "file": "packages/devtools/src/react/DiagnosticsNotice.tsx",
+   "why": "no Stryker config reaches src/react (stryker.devtools.mjs mutates src/model only); held by its tests, the characterisations and the 90% coverage threshold"
+  },
+  {
+   "file": "packages/devtools/src/react/TimelineNotice.tsx",
+   "why": "no Stryker config reaches src/react (stryker.devtools.mjs mutates src/model only); held by its tests, the characterisations and the 90% coverage threshold"
+  }
+ ],
+ "groups": {
+  "lens": {
+   "head": "d1f40a031567ca279014ed0e47610eae32ac0bc7",
+   "invocation": "pnpm exec stryker run stryker.devtools.mjs --mutate packages/devtools/src/model/LensSession.ts",
+   "files": {
+    "packages/devtools/src/model/LensSession.ts": {
+     "killed": 47,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 22,
+     "detected": 47,
+     "valid": 47,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 46,
+       "column": 26
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 47,
+       "column": 13
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 55,
+       "column": 26
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 56,
+       "column": 13
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 57,
+       "column": 16
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrayDeclaration",
+       "replacement": "[\"Stryker was here\"]",
+       "line": 83,
+       "column": 30
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 84,
+       "column": 32
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 87,
+       "column": 24
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 88,
+       "column": 11
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 89,
+       "column": 14
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 95,
+       "column": 26
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 96,
+       "column": 13
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 97,
+       "column": 16
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 108,
+       "column": 26
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 109,
+       "column": 13
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 110,
+       "column": 16
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 119,
+       "column": 26
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 120,
+       "column": 13
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 124,
+       "column": 16
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 131,
+       "column": 24
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 132,
+       "column": 11
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 136,
+       "column": 14
+      }
+     ]
+    }
+   }
+  }
+ }
+}

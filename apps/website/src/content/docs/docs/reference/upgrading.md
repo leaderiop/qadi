@@ -922,6 +922,41 @@ One behaviour changes with the move. A questions input that throws is now stated
 
 The decision is [ADR-QD-169](https://github.com/leaderiop/qadi/blob/main/spec/decisions/169-the-questions-panels-two-host-inputs-are-one-feed.md).
 
+## 0.13: Diagnostics has no questions field
+
+`@qadi/devtools`'s `Diagnostics`, one reading of what the poll samples, no longer has a `questions` field, so it is `wiring`, `activity`, `hydration` and `portCalls`. The poll never sampled questions, because the gates feed reads the questions the dock asks about, so the field was `undefined` on every sampled reading and held a list only where `mergeReading` copied one from a supplied `DiagnosticsReading`. The dock's questions join already reads that list from the supplied reading, beside the merged one.
+
+`DiagnosticsReading.questions` is unchanged, and so is the Questions tab: a list a reading supplies is still listed and still wins over the dock's `questions` input. Only a reader of `Diagnostics.questions` changes, and the compiler names each one. A host that read `questions` off the reading the dock model's `diagnostics` readout holds reads them from the `DiagnosticsReading` it supplied or from the model's `questions` store.
+
+Before:
+
+```ts
+const merged = mergeReading(sampled, supplied);
+const asked = merged.questions;
+```
+
+After:
+
+```typescript
+import { mergeReading, WiringRead } from "@qadi/devtools";
+import type { Diagnostics, DiagnosticsReading } from "@qadi/devtools";
+
+const sampled: Diagnostics = {
+  wiring: WiringRead.NotHanded(),
+  activity: [],
+  hydration: undefined,
+  portCalls: undefined,
+};
+const supplied: DiagnosticsReading = { questions: [] };
+
+// The merged reading is what the poll samples, with the four supplied fields laid over it.
+export const merged: Diagnostics = mergeReading(sampled, supplied);
+// The questions are read from the reading that supplied them.
+export const asked = supplied.questions;
+```
+
+The decision is [ADR-QD-196](https://github.com/leaderiop/qadi/blob/main/spec/decisions/196-the-diagnostics-feed-folds-its-reading-as-a-value.md).
+
 ## 0.13: untrustedDecoder states the envelope's unknown-key policy
 
 `@qadi/core`'s `untrustedDecoder` now takes a required options object, and its `unknownKeys` is required: `UnknownKeyPolicy`, a new export, is `"refuse" | "ignore"`. It says what the decoder does with a top-level key its schema does not declare. A call that passed no options passes `{ unknownKeys: "refuse" }`, and a call that passed `unwalked` or `prepare` adds `unknownKeys: "refuse"` beside it. Both keep every answer they gave. Before:
@@ -1048,8 +1083,10 @@ const sampling: DiagnosticsOptions = { intervalMillis: 1_000 };
 export const statuses = Effect.scoped(
   Effect.gen(function* () {
     const log = yield* makeDecisionLog({ environment: "Server", capacity: 512 });
-    const timeline = yield* makeTimelineFeed({ source: log });
-    const diagnostics = yield* makeDiagnosticsFeed(sampling);
+    const timeline = yield* makeTimelineFeed();
+    timeline.configure({ source: log });
+    const diagnostics = yield* makeDiagnosticsFeed();
+    diagnostics.configure(sampling);
     return {
       timeline: timeline.status.getSnapshot()._tag,
       diagnostics: diagnostics.getSnapshot().status._tag,
@@ -1145,3 +1182,240 @@ The two fixtures also fail a request or a row they cannot key, where they used t
 | `signatureHistoryFromSignatures`, a request it cannot key | the read died | fails with `SignatureHistoryUnavailable` |
 
 The decision is [ADR-QD-189](https://github.com/leaderiop/qadi/blob/main/spec/decisions/189-remedies-asks-core-whether-a-fixture-row-meets-a-signature-or-acted-leaf.md).
+
+## 0.13: an audit row is made only by its codec
+
+`@qadi/audit` archived rows its own reader refused. `AuditEntry` was a plain struct any caller could build, so a row with a `NaN` `at`, an extra top-level key or a record that disagreed with its decision reached `archiveAuditTrail`, and `readAuditArchive` then refused the bundle as `EntryNotDecodable`, which blocks the purge the archive exists for. An audit row is now a value only `encodeAuditEntry` and `decodeAuditEntry` make, and the writer never receives a row the reader refuses.
+
+| Change | Before | After |
+| ------ | ------ | ----- |
+| `AuditEntry` | a schema value and a struct type, any object literal or spread | a type alone, made only by `encodeAuditEntry` and `decodeAuditEntry`; the schema value is removed |
+| a store's sequence number on a row | `{ ...entry, sequenceNumber: n }` | `decodeAuditEntry({ record, sequenceNumber: n })` |
+| `SequenceNumberInvalid` | the writer's and the verifier's failure for a number that is not a safe integer | removed; `decodeAuditEntry` refuses such a number as `Malformed`, so no row holds one |
+| `undated` on `RetentionPlan` and `PurgePlan` | the rows whose `at` was not finite | removed; a row's `at` is finite, so a plan holds `retained` and `expired`, and a purge plan `purge`, `retain` and `unarchived` |
+| `archiveAuditTrail` with a `now` that is not finite | archived the bundle with a `null` `createdAt` | fails `ArchiveInputInvalid` with the refusal `NowNotFinite`, carrying the value |
+| a `keyMaterial` item with an extra property | archived, and the reader refused the bundle | written as `keyId`, `algorithm` and `publicKey` |
+| a `keyMaterial` typed `any` that the reader would refuse (an item with a number `keyId`, a `null` item, a value that is not a list) | a number `keyId` was archived and the reader refused the bundle; a `null` item or a non-list threw a `TypeError` and killed the fiber | fails `ArchiveInputInvalid` with `KeyMaterialItemRefused`, carrying the `index` of the first item refused, or `KeyMaterialNotAList`, carrying the value given when it is not a list |
+| a `keyMaterial` accessor (a getter, a proxy) that answers differently when it is read again | read twice, once to check and once to write, so a `keyId` the check saw as a string could be archived as a number | the list and each item's fields are read once, and what is checked is what is written |
+| a row typed `any` that the codec did not make (`JSON.parse`, a raw SQL row, an untyped ORM result) in `archiveAuditTrail`, `verifySequenceIntegrity`, `planRetention` or `planPurge` | accepted, so a row with a `null` `at` was archived and a plain row numbered `1.5` was read as a number | fails `ArchiveInputInvalid` or `RetentionInputInvalid` with `EntryNotMadeByCodec`, carrying the `index` of the first such row |
+| `entries` that is not a list (`undefined`, `null`, an object) in the same four functions | a `TypeError` that killed the fiber | fails `ArchiveInputInvalid` or `RetentionInputInvalid` with `EntriesNotAList`, carrying the value you passed |
+| the shape of `RetentionInputInvalid` | `field` and a `number` `value` | a `refusal`: a member of the closed `RetentionInputRefusal` |
+| an `AuditEntry` the codec made, written to (`entry.sequenceNumber = 1.5`, `entry.record.at = null`) | changed the row the writer and the purge read | throws a `TypeError` in strict mode: the codec freezes the row and its `record`, one level deep |
+| `decodeAuditEntry` | read the row's record, then the row | reads the row, then its record: the message of a refusal changes, and so does the refusal of a row that is bad in both places, and every tag is unchanged |
+
+A numbered row is read back from the store as it holds it. The sequence number is a fact of your store, so it reaches a row when the store returns the row, with the record the store holds beside it:
+
+```typescript
+import * as Result from "effect/Result";
+import { decodeAuditEntry } from "@qadi/audit";
+
+// A row as your store returns it: the encoded record and the store's own number.
+declare const stored: { readonly record: unknown; readonly sequenceNumber: number };
+
+const numbered = decodeAuditEntry({
+  record: stored.record,
+  sequenceNumber: stored.sequenceNumber,
+});
+
+if (Result.isSuccess(numbered)) {
+  // The row `verifySequenceIntegrity` and `archiveAuditTrail` read.
+  const entry = numbered.success.entry;
+  void entry;
+}
+```
+
+`decodeAuditEntry` refuses a row whose number is not a safe integer, and refuses a row with an undeclared top-level key, so a spread such as `{ ...entry, sequenceNumber: n }` is a way to write storage JSON and not a way to make an `AuditEntry`. Write that object to your store, and read the store's row back through `decodeAuditEntry`. There is no setter and no `encodeAuditEntry` option for the number.
+
+A handler of the writer's failures covers `ArchiveInputInvalid` and `SequenceIntegrityError`. `ArchiveInputInvalid` and `RetentionInputInvalid` each carry a `refusal`, the way `ArchiveNotVerified` does, and the refusal is a member of a closed `Data.TaggedEnum` that you read with `Match.tagsExhaustive`: `ArchiveInputRefusal` has `NowNotFinite`, `KeyMaterialNotAList`, `KeyMaterialItemRefused`, `EntriesNotAList` and `EntryNotMadeByCodec`, and `RetentionInputRefusal` has `NowNotFinite`, `MaxAgeInvalid`, `EntriesNotAList` and `EntryNotMadeByCodec`. A member holds a value of type `unknown` only where it carries what you passed (`value`), and an `index` is always a number, so a handler never has to ask which of the two a slot holds. Code that read `error.field` and `error.value` reads `error.refusal` instead:
+
+```typescript
+import * as Match from "effect/Match";
+import type { ArchiveInputRefusal } from "@qadi/audit";
+
+// One reading per member: a member added later is a compile error here.
+export const describeArchiveInput: (refusal: ArchiveInputRefusal) => string =
+  Match.type<ArchiveInputRefusal>().pipe(
+    Match.tagsExhaustive({
+      NowNotFinite: ({ value }) => `now is not a finite number: ${String(value)}`,
+      KeyMaterialNotAList: ({ value }) => `keyMaterial is not a list: ${typeof value}`,
+      KeyMaterialItemRefused: ({ index }) => `keyMaterial item ${index} is not key material`,
+      EntriesNotAList: ({ value }) => `entries is not a list: ${typeof value}`,
+      EntryNotMadeByCodec: ({ index }) => `entry ${index} was not made by the codec`,
+    }),
+  );
+```
+
+`verifySequenceIntegrity` can fail `ArchiveInputInvalid` as well as `SequenceIntegrityError`, so a handler of it covers both, and `planRetention` and `planPurge` can fail `RetentionInputInvalid` for `entries`. The record of what the codec made is per loaded copy of `@qadi/audit`: a row made by one copy and passed to another (two versions installed side by side, two bundles with separate module graphs, a test that resets modules) fails `ArchiveInputInvalid` with `EntryNotMadeByCodec` and the index of the first such row, so install one copy. A host that passes only rows it read back through `decodeAuditEntry`, or made with `encodeAuditEntry`, from one copy of the package, sees no difference at run time; a row that arrives as `any` is read back through `decodeAuditEntry` first. A caller of `planRetention` or `planPurge` stops reading `undated`. A caller that catches `SequenceNumberInvalid` removes the handler, because `decodeAuditEntry` refuses the number first.
+
+The migration example for rows written before 0.10, at the top of this guide, is unchanged. It runs on `@qadi/audit@0.10` and returns storage JSON, which is the object your store takes.
+
+The decision is [ADR-QD-190](https://github.com/leaderiop/qadi/blob/main/spec/decisions/190-an-audit-row-is-a-value-only-its-codec-makes.md).
+
+## 0.13: a timeline store owns its capacity
+
+`@qadi/devtools` built the timeline store a host held per capacity. `makeTimelineStore` read its capacity once, so the feed kept an inner store it rebuilt on every capacity change, a second store fed by a listener on it, and a six-member forwarder it handed the host. A capacity the timeline refuses threw with the feed's inputs already naming it, and the dock above it held inputs it never applied. An omitted capacity and `DEFAULT_TIMELINE_CAPACITY` emptied the review and read the source again, a zero-capacity timeline published for records it kept nowhere, and `useTimelineStore` kept the capacity of its first render. A timeline store now owns its capacity: it has a `resize`, the feed holds one store for its whole life, and a capacity the timeline refuses changes nothing.
+
+| Change | Before | After |
+| ------ | ------ | ----- |
+| `TimelineStore` | `subscribe`, `getSnapshot`, `accept`, `clear`, `setPaused` and `isPaused` | also a required `resize(capacity): boolean`; an object a host writes as a `TimelineStore` needs one |
+| `resize` on a store | no such member; a different bound was a different store | `false` and nothing changes for the capacity the store holds; any other empties the timeline at the new bound, releases a pause, publishes once and answers `true` |
+| `feed.timeline` | a forwarder over a store the feed replaced on each capacity change | the feed's one store for its life; a capacity change is its `resize`, and a subscription on it survives |
+| an omitted `capacity` and `DEFAULT_TIMELINE_CAPACITY` | two bounds: moving between them emptied the timeline and read the source again | one bound: the timeline is kept and nothing is read again |
+| a `capacity` the timeline refuses, in `configure` | threw with the inputs already assigned, so a later `configure` with the same inputs did nothing and a `restart` read a source the feed never read | throws before the inputs, the timeline or the read move, so a later `configure` compares with the inputs the feed held and a `restart` reads the source it held |
+| a `capacity` the dock refuses, and a timeline listener that throws on a capacity change | the dock held inputs it never applied; the rest of the configure did not run after the throw | the dock applies a capacity whole or not at all: a refused one throws before any other input moves, and a listener's throw is rethrown once the rest is applied |
+| a record a zero-capacity timeline cannot keep | a new timeline, so the store notified and the feed re-rendered | the identical timeline: nothing is published |
+| `useTimelineStore` with a changed `capacity` | kept the capacity of its first render | empties the same store at the new bound, releases a pause and keeps the store |
+| `clear` after a resize | built the empty timeline from the options the store was made with | empties at the capacity the store holds |
+
+A host that wrapped a store a feed handed it names the new member. Before, the wrapper forwarded six:
+
+```ts
+import type { TimelineStore } from "@qadi/devtools";
+
+export const traced = (inner: TimelineStore, log: (what: string) => void): TimelineStore => ({
+  subscribe: inner.subscribe,
+  getSnapshot: inner.getSnapshot,
+  accept: (record) => {
+    log("accept");
+    inner.accept(record);
+  },
+  clear: inner.clear,
+  setPaused: inner.setPaused,
+  isPaused: inner.isPaused,
+});
+```
+
+After, it forwards `resize` as well, and the answer is the inner store's:
+
+```typescript
+import type { TimelineStore } from "@qadi/devtools";
+
+export const traced = (inner: TimelineStore, log: (what: string) => void): TimelineStore => ({
+  subscribe: inner.subscribe,
+  getSnapshot: inner.getSnapshot,
+  accept: (record) => {
+    log("accept");
+    inner.accept(record);
+  },
+  clear: inner.clear,
+  resize: (capacity) => {
+    log("resize");
+    return inner.resize(capacity);
+  },
+  setPaused: inner.setPaused,
+  isPaused: inner.isPaused,
+});
+```
+
+To change a feed's capacity, call `configure` rather than `feed.timeline.resize`. `configure` resizes the one store and then reads the source again, so the timeline refills at the new bound; `resize` alone empties the timeline and starts no read. An omitted capacity is `DEFAULT_TIMELINE_CAPACITY`, and a capacity the timeline refuses throws before anything moves, in the feed and in the dock.
+
+The dock refuses a capacity whole, and applies an interrupted one whole: when a timeline listener throws on the capacity change, the dock has applied its catalogue, roles, ports, gates, diagnostics and shown reading by the time the throw reaches the caller.
+
+The decision is [ADR-QD-191](https://github.com/leaderiop/qadi/blob/main/spec/decisions/191-a-timeline-store-owns-its-capacity.md).
+
+## 0.13: the feeds and the dock model take their inputs only through configure
+
+`@qadi/devtools` let a host hand a feed its inputs twice: as the constructor's argument and again through `configure`, and the two had to agree. Each feed also wrote its own answer to "did an input move?", so a `configure` that moved nothing could still read the gate registry and run the questions thunk, and an input left out differed from one holding `undefined`. The feeds and the dock model now take their inputs only through `configure`: `makeTimelineFeed`, `makeDiagnosticsFeed` and `makeGatesFeed` take no argument, one per-field rule answers whether an input moved, and the gates feed's retry of a failed watch is the rule's one stated exception. The dock's inputs are declared once, and the hooks that build a feed or the dock configure it before they publish it.
+
+| Change | Before | After |
+| ------ | ------ | ----- |
+| `makeTimelineFeed`, `makeDiagnosticsFeed`, `makeGatesFeed` | took the inputs as an argument | take no argument; the inputs reach the feed through `configure`, and `configure(inputs)` after a bare build reaches what building with `inputs` reached |
+| a `configure` in which no input moved | could read the gate registry and the questions thunk again | publishes nothing, restarts nothing and reads no host code, the retry of a failed watch excepted |
+| an omitted input | differed from one holding `undefined`: `{ source }` and `{ source, capacity: undefined }` were two inputs | one input; a capacity compares by the bound it means |
+| a registry that mends without announcing | read by any `configure`, so it left `Failed` on the next host commit | stays `Failed` until it announces, until a tick whose questions changed joins it, or until a `configure` moves an input; a failed watch is retried by any `configure` |
+| a reader subscribed before the first `configure` | heard nothing from a feed built with its inputs | hears that `configure`'s publishes; configure before subscribing |
+| `DiagnosticsOptions` | `layer`, `collector` and `intervalMillis` were present or absent | each accepts `undefined`, so an optional value is forwarded without a conditional spread |
+| `DevtoolsDockProps` | the dock's inputs and the host's two props, written out in the props type and again in the hook's input type | the dock model's eight inputs plus `unknownParents` and `onInvalidate`, each accepting `undefined`, declared once |
+
+A headless host that built its feeds with their inputs builds them bare and configures each:
+
+```ts
+import * as Effect from "effect/Effect";
+import { makeDecisionLog } from "@qadi/core";
+import { makeDiagnosticsFeed, makeTimelineFeed, type DiagnosticsOptions } from "@qadi/devtools";
+
+export const watch = Effect.fn("example.watch")(function* (
+  report: (line: string) => void,
+  options: DiagnosticsOptions | undefined,
+) {
+  const log = yield* makeDecisionLog({ environment: "Server", capacity: 512 });
+  const timeline = yield* makeTimelineFeed({ source: log });
+  const diagnostics = yield* makeDiagnosticsFeed(options);
+  timeline.timeline.subscribe(() => report(`${timeline.timeline.getSnapshot().entries.length} entries`));
+  diagnostics.subscribe(() => report(diagnostics.getSnapshot().status._tag));
+  return { timeline, diagnostics };
+});
+```
+
+After, it builds both bare and configures each before it subscribes, so the reader hears only what changes after it, and an absent `options` is the same `configure(undefined)` that leaves the diagnostics feed off:
+
+```typescript
+import * as Effect from "effect/Effect";
+import { makeDecisionLog } from "@qadi/core";
+import { makeDiagnosticsFeed, makeTimelineFeed, type DiagnosticsOptions } from "@qadi/devtools";
+
+export const watch = Effect.fn("example.watch")(function* (
+  report: (line: string) => void,
+  options: DiagnosticsOptions | undefined,
+) {
+  const log = yield* makeDecisionLog({ environment: "Server", capacity: 512 });
+  const timeline = yield* makeTimelineFeed();
+  timeline.configure({ source: log });
+  const diagnostics = yield* makeDiagnosticsFeed();
+  diagnostics.configure(options);
+  timeline.timeline.subscribe(() => report(`${timeline.timeline.getSnapshot().entries.length} entries`));
+  diagnostics.subscribe(() => report(diagnostics.getSnapshot().status._tag));
+  return { timeline, diagnostics };
+});
+```
+
+A headless host configures before it subscribes: a reader subscribed to a feed before its first `configure` hears that `configure`'s publishes, where a feed built with its inputs published nothing to anyone. A component never sees them, because `useTimeline`, `useDiagnostics` and `DevtoolsDock` configure before they publish. A host that calls `configure` on every commit, as `DevtoolsDock` does with its props, runs no host code its inputs did not move.
+
+`makeSimulationSession` and `useSimulationSession` are unchanged: the session has no `configure`, and its input is read once when it is built.
+
+The decision is [ADR-QD-192](https://github.com/leaderiop/qadi/blob/main/spec/decisions/192-feeds-and-the-dock-model-take-inputs-only-through-configure.md).
+
+## 0.13: `QadiContextValue` no longer carries `instrument`
+
+`QadiContextValue`, the value `useQadiContext` returns, is now `atoms`, `registry` and `gates`. It held `instrument` too, a copy of the provider's prop that nothing in `@qadi/react` read: whether a guard registers is decided by the writer the provider resolves once from that prop, and the writer stays off the context. Because the flag was in the value, toggling `instrument` gave every `useQadiContext` consumer a new value and rendered each of them again; now only the guards register and unregister.
+
+| Change | Before | After |
+| ------ | ------ | ----- |
+| `QadiContextValue` | `atoms`, `registry`, `instrument` and `gates` | `atoms`, `registry` and `gates` |
+| toggling `instrument` | every `useQadiContext` consumer rendered again | only guards re-register |
+
+A component that read `useQadiContext(...).instrument` reads the flag its host passed to `QadiProvider`'s `instrument` prop instead. Before:
+
+```ts
+import { useQadiContext } from "@qadi/react";
+
+export const InstrumentBadge = () => {
+  const { instrument } = useQadiContext("InstrumentBadge");
+  return <span>{instrument ? "instrumented" : "plain"}</span>;
+};
+```
+
+After, the host keeps its own flag, passes it to `QadiProvider` and to the component that needs it, and a component that reads the context takes `gates`:
+
+```tsx
+import { EvaluationServicesNone, makeSubject } from "@qadi/core";
+import { QadiProvider, makeQadiAtoms, useQadiContext } from "@qadi/react";
+
+const atoms = makeQadiAtoms(EvaluationServicesNone);
+const reader = makeSubject({ id: "u1", permissions: ["doc:read"] });
+
+const InstrumentBadge = (props: { readonly instrumented: boolean }) => {
+  const { gates } = useQadiContext("InstrumentBadge");
+  return (
+    <span>{props.instrumented ? `${gates.instances().length} guards mounted` : "plain"}</span>
+  );
+};
+
+export const App = (props: { readonly instrumented: boolean }) => (
+  <QadiProvider atoms={atoms} subject={reader} instrument={props.instrumented}>
+    <InstrumentBadge instrumented={props.instrumented} />
+  </QadiProvider>
+);
+```
+
+The decision is [ADR-QD-193](https://github.com/leaderiop/qadi/blob/main/spec/decisions/193-the-highlight-lens-is-a-headless-session-the-dock-model-owns.md).

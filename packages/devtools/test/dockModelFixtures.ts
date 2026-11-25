@@ -8,7 +8,7 @@
  * `helpers.ts`.
  */
 import { assert } from "@effect/vitest";
-import { WiringRead } from "../src/model/DiagnosticsStore.ts";
+import { WiringRead } from "../src/model/Diagnostics.ts";
 import type { DockModel } from "../src/model/DockModel.ts";
 import type { QuestionsSnapshot } from "../src/model/Gates.ts";
 import type { HydrationActivity } from "../src/model/Hydration.ts";

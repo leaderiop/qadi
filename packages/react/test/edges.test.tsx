@@ -1,6 +1,6 @@
 /**
  * The branches the happy-path tests do not reach: failure rendering, the
- * Suspense promise, StrictMode remounting, and registry disposal.
+ * Suspense promise, StrictMode remounting, and the registry's release.
  */
 import {
   AttributeResolver,
@@ -21,7 +21,10 @@ import {
 } from "@qadi/core";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import { Component, StrictMode, Suspense, type ReactNode } from "react";
+import * as Atom from "effect/reactivity/Atom";
+import type * as AtomRegistry from "effect/reactivity/AtomRegistry";
+import { RegistryContext } from "@effect/atom-react/RegistryContext";
+import { Component, StrictMode, Suspense, useContext, type ReactNode } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import {
@@ -254,16 +257,29 @@ describe("provider lifetime", () => {
     await waitFor(() => expect(screen.getByText("u1")).toBeDefined());
   });
 
-  it("disposes its registry when unmounted", async () => {
+  it("releases its registry after it unmounts", async () => {
+    const host = Atom.make("default").pipe(Atom.keepAlive);
+    const handed: Array<AtomRegistry.AtomRegistry> = [];
+    const Tap = () => {
+      handed.push(useContext(RegistryContext));
+      return null;
+    };
     const Probe = () => <span>{useSubject()?.id ?? "none"}</span>;
     const { unmount } = render(
-      <QadiProvider atoms={working} subject={reader}>
+      <QadiProvider atoms={working} subject={reader} initialValues={[[host, "seeded"]]}>
         <Probe />
+        <Tap />
       </QadiProvider>,
     );
     await waitFor(() => expect(screen.getByText("u1")).toBeDefined());
+    const registry = handed[0];
+    if (registry === undefined) throw new Error("the tap was never handed a registry");
+    expect(registry.get(host)).toBe("seeded");
+
     unmount();
-    await waitFor(() => expect(document.body.textContent).toBe(""));
+    await new Promise<void>((resolve) => setTimeout(resolve, 50));
+
+    expect(registry.get(host)).toBe("default");
   });
 });
 

@@ -14,11 +14,11 @@
  *
  * Package-private: it is in no barrel and so not importable (AGENTS.md §9, ADR-QD-099).
  */
-import type { CSSProperties, FC, ReactNode, RefObject } from "react";
+import type { CSSProperties, FC, ReactNode } from "react";
 import * as Match from "effect/Match";
 import type { DiagnosticsStatus } from "../model/DiagnosticsFeed.ts";
 import { focusRingProps } from "./focusRing.ts";
-import { StoppedBox, stoppedKey, type StopLedger } from "./StoppedBox.tsx";
+import { StoppedBox, stoppedKey, type StopNoticeProps } from "./StoppedBox.tsx";
 import { colors, font, muted, panel } from "./theme.ts";
 
 const STARTING_LEAD = "Waiting for the first sample.";
@@ -33,19 +33,7 @@ const RESTART_LABEL = "Restart diagnostics";
 const REASON_LABEL = "Why diagnostics stopped";
 
 /** What a screen hands the shared notice. */
-export interface DiagnosticsNoticeProps {
-  /** The diagnostics store's status, read once by the dock. */
-  readonly status: DiagnosticsStatus;
-  /** Starts the poll again; the poll goes through `Starting`, so the notice is replaced. */
-  readonly onRestart: () => void;
-  /**
-   * The stops notices have shown, owned by the dock so it outlives every screen.
-   *
-   * It records only which stop was announced and how many there have been, never what
-   * the reading says (AGENTS.md §13).
-   */
-  readonly announced: RefObject<StopLedger<DiagnosticsStatus>>;
-}
+export type DiagnosticsNoticeProps = StopNoticeProps<DiagnosticsStatus>;
 
 /**
  * The props a screen's root carries, so restart has a focus target and a test a hook.

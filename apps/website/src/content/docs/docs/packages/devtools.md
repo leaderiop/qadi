@@ -181,11 +181,12 @@ each build the layer. Build the context once and give that one value
 to both.
 
 The `reading` prop carries a reading taken elsewhere, such as another process's
-report, as `{ wiring, activity, hydration, portCalls, questions }`. Each field it
-carries wins over the sampled one and a field it omits falls through to the
-sample, so a dock can sample this process's activity and show another process's
-wiring. Its `wiring` is a `WiringRead`, so it can state a failed read as well as a
-report.
+report, as `{ wiring, activity, hydration, portCalls, questions }`. Each of the
+first four it carries wins over the sampled one and a field it omits falls
+through to the sample, so a dock can sample this process's activity and show
+another process's wiring. Its `wiring` is a `WiringRead`, so it can state a failed
+read as well as a report. Its `questions` are the questions the dock lists, and
+win over the dock's `questions` input.
 
 **A host reading the diagnostics itself** takes the same options with
 `useDiagnostics`, which returns `{ status, reading }` from the same feed the dock
@@ -220,8 +221,8 @@ and hands it a `source`, a `catalogue`, `diagnostics` and `gates`, the registry 
 What the headless model exports is what a shell crosses: three feeds and the
 simulation session, the wiring the dock takes, and the readings of a timeline.
 
-- **Feeds.** `makeTimelineFeed`, `makeDiagnosticsFeed` and `makeGatesFeed` build in a
-  scope and state a stop; `makeSimulationSession` holds the simulator.
+- **Feeds.** `makeTimelineFeed`, `makeDiagnosticsFeed` and `makeGatesFeed` build bare in a
+  scope, take their inputs through `configure` and state a stop; `makeSimulationSession` holds the simulator.
   `@qadi/devtools/react` has the React half of each (`useTimeline`,
   `useSimulationSession`, `useDiagnostics`). `useDiagnostics` and the dock
   share one feed. A stop's or a failed read's `reason` (`Stopped`, `WiringRead.Failed`,

@@ -23,8 +23,9 @@ pulling in a UI, and `react` is an optional peer dependency for exactly that
 reason.
 
 What each exports is what a shell crosses, not everything the modules declare.
-The root has the three feeds a shell builds in a scope (`makeTimelineFeed`,
-`makeDiagnosticsFeed`, `makeGatesFeed`), the simulation session
+The root has the three feeds a shell builds bare in a scope (`makeTimelineFeed`,
+`makeDiagnosticsFeed`, `makeGatesFeed`), each taking its inputs only through its
+`configure`, the simulation session
 (`makeSimulationSession`), the wiring the dock takes, the timeline readings
 (`verdictOf`, `pairedEntries`, `inspect`, `applyFilters`, `selectionOf`) and the types
 those name. The React entry has `DevtoolsDock` and the hooks over the feeds
@@ -152,28 +153,35 @@ cache, is two instances if the dock and your application each build the layer,
 and the dock reports its own. Build the context once and give
 that one value to both (the shared-context rule is in BEH-QD-323). The
 `reading` prop carries a reading taken elsewhere (another process's report, a
-fixture) as `{ wiring, activity, hydration, portCalls, questions }`: each field it
-carries wins over the sampled one, and a field it omits falls through to the
-sample. Its `wiring` is a `WiringRead`, so it can state a failed read as well as
-a report.
+fixture) as `{ wiring, activity, hydration, portCalls, questions }`: each of the
+first four it carries wins over the sampled one, and a field it omits falls
+through to the sample. Its `wiring` is a `WiringRead`, so it can state a failed
+read as well as a report. Its `questions` are the questions the dock lists, and
+win over the dock's `questions` input.
 
 ## Without React: the feeds
 
 A shell of your own builds the three feeds in a scope. Closing the scope ends every
 read, and a read that stops is stated in its feed's status instead of leaving a dead
 fiber. A `subscribe` listener is yours, and one that throws does not stop the others:
-every listener is called, and then what they threw is rethrown out of whatever
-published (`configure`, `restart`, a read or tick, or the host registry's own
-notification), one value as itself and several as one `AggregateError`. The rest of
-that call does not run, so a throw can still leave a feed's status wrong with nothing
-running: the gates feed's questions cadence ends, a diagnostics feed stays `Starting`
-with no new poll, and a timeline restarted from `Stopped` says `Reading` with nothing
-reading. A `configure` with a new `capacity` publishes the emptied timeline and then
-starts the read that refills it, from the same `source` or a new one, so a throw on
-that publish is rethrown once the read has started and stops no read, unless the
-timeline was `Stopped` and a status listener throws on the `Reading` that read
-publishes: that throw escapes instead, replaces the timeline listener's, and no read
-is started.
+every listener is called, and then what they threw is rethrown out of whatever published
+(`configure`, `restart`, a read or tick, or the host registry's own notification), one
+value as itself and several as one `AggregateError`. A status that announces work
+(`Reading`, `Starting`) is published and the work starts whatever a listener throws on
+it, so a throw leaves no read, poll or run unstarted, and it is rethrown once the work
+has started. A throw a listener makes on a record the timeline read hands over, or on a
+sample the diagnostics poll hands over, ends that read or poll, and its status says
+`Stopped`. A questions cadence tick that throws ends the cadence too, because that is
+the run's own failure. The store a host holds as `timeline` is the feed's one store for
+its whole life, and a capacity other than the one it holds is that store's `resize`, so
+a subscription on it survives a capacity change. A `configure` with a new `capacity`
+publishes the emptied timeline and then starts the read that refills it, from the same
+`source` or a new one. A throw from a timeline listener on that publish and a throw from
+a status listener on the `Reading` the read publishes stop nothing: the read starts, and
+both are rethrown once it has, as one `AggregateError` with the timeline's first. When
+several listeners of one store throw in one notification they are one `AggregateError`,
+and a feed's or the dock's `configure` keeps it whole as its step's throw, nested and
+never flattened.
 
 ```typescript
 import * as Effect from "effect/Effect";
@@ -215,9 +223,12 @@ export interface HostInputs {
 /** Builds the three feeds in the caller's scope; closing it ends every read. */
 export const watch = Effect.fn("example.watch")(function* (report: (line: string) => void, host: HostInputs) {
   const log = yield* makeDecisionLog({ environment: "Server", capacity: 512 });
-  const timeline = yield* makeTimelineFeed({ source: log });
-  const diagnostics = yield* makeDiagnosticsFeed({ intervalMillis: 1_000 });
-  const gates = yield* makeGatesFeed(host);
+  const timeline = yield* makeTimelineFeed();
+  timeline.configure({ source: log });
+  const diagnostics = yield* makeDiagnosticsFeed();
+  diagnostics.configure({ intervalMillis: 1_000 });
+  const gates = yield* makeGatesFeed();
+  gates.configure(host);
 
   // A feed can already be Live or Stopped when its build returns, so say where it is once, then every change.
   const follow = (subscribe: (listener: () => void) => () => void, line: () => string) => {
@@ -246,9 +257,17 @@ changes after it.
 
 `log.layer` is the application's sink, the `DecisionSink` for the code that
 evaluates. `timeline.status.restart()` and `diagnostics.restart()` restart a stopped
-feed. `configure` replaces the whole input set: `TimelineFeed.configure` reads an
+feed. A host configures a feed before it subscribes, since a reader subscribed first
+hears that `configure`'s publishes, and a `configure` in which no input moved does
+nothing: it publishes nothing, restarts nothing and reads no host code, and a failed
+watch of the gate registry is the one thing any `configure` retries. `configure`
+replaces the whole input set: `TimelineFeed.configure` reads an
 omitted input as `undefined`, and `diagnostics.configure(undefined)` ends the poll
-and resets it to `Off`. A shell lays a reading of its own over the feed's with
+and resets it to `Off`. An omitted `capacity` is `DEFAULT_TIMELINE_CAPACITY`, one bound
+with it, so moving between them keeps the timeline and reads nothing again. A
+capacity the timeline refuses throws before anything moves, in the feed's
+`configure` and in the dock's: the inputs, the timeline and the read are as they
+were, and the dock applies a capacity whole or not at all. A shell lays a reading of its own over the feed's with
 `mergeReading`, the dock's `reading` rule.
 
 A stop's or a failed read's `reason` (`Stopped`, `WiringRead.Failed`,

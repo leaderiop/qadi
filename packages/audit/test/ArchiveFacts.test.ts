@@ -4,18 +4,18 @@ import * as FastCheck from "fast-check";
 import { archiveFacts } from "../src/ArchiveFacts.ts";
 import { encodeAuditEntry } from "../src/AuditEntry.ts";
 import type { AuditEntry } from "../src/AuditEntry.ts";
-import { decisionRecord } from "./helpers.ts";
+import { decisionRecord, numbered } from "./helpers.ts";
 
 /** Twelve structurally distinct rows, each encoded once: the evaluationIds differ. */
 const pool: ReadonlyArray<AuditEntry> = Array.from({ length: 12 }, (_, i) =>
   Effect.runSync(encodeAuditEntry(decisionRecord({ evaluationId: "f-" + i }))),
 );
 
-/** Pool entry `i` carrying `sequenceNumber`, a fresh object each call. */
-const entryAt = (i: number, sequenceNumber: number | undefined): AuditEntry => ({
-  ...(pool[i] ?? assert.fail("pool index out of range")),
-  sequenceNumber,
-});
+/** Pool entry `i` carrying `sequenceNumber`, numbered through the codec. */
+const entryAt = (i: number, sequenceNumber: number | undefined): AuditEntry => {
+  const entry = pool[i] ?? assert.fail("pool index out of range");
+  return sequenceNumber === undefined ? entry : numbered(entry, sequenceNumber);
+};
 
 /** A list of entries, one per given sequence number (`undefined` = unsequenced), ids `f-0`, `f-1`, ... */
 const entriesWith = (numbers: ReadonlyArray<number | undefined>): ReadonlyArray<AuditEntry> =>
@@ -165,27 +165,3 @@ describe("PROPERTY: archiveFacts over any list of optional sequence numbers", ()
     );
   });
 });
-
-describe("archiveFacts: the sequence-number domain", () => {
-  it("a list of safe integers and unsequenced entries has no invalid sequence number", () => {
-    assert.isUndefined(archiveFacts(entriesWith([2, undefined, Number.MAX_SAFE_INTEGER, -3])).invalidSequenceNumber);
-  });
-
-  it("reports the first entry, in the order given, whose number is not a safe integer", () => {
-    assert.deepStrictEqual(archiveFacts(entriesWith([1, undefined, 2.5, 2 ** 53])).invalidSequenceNumber, {
-      index: 2,
-      sequenceNumber: 2.5,
-    });
-    assert.deepStrictEqual(archiveFacts(entriesWith([-(2 ** 53), 0.5])).invalidSequenceNumber, {
-      index: 0,
-      sequenceNumber: -(2 ** 53),
-    });
-  });
-
-  it("still computes the order and the first descent past an invalid number", () => {
-    const facts = archiveFacts(entriesWith([Number.NEGATIVE_INFINITY, 3, 1]));
-    assert.strictEqual(facts.invalidSequenceNumber?.index, 0);
-    assert.strictEqual(facts.outOfOrderAt, 2);
-  });
-});
-

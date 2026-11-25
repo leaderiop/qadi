@@ -11,8 +11,9 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Stream from "effect/Stream";
 import { sourceFromRecords } from "../../src/model/Source.ts";
+import { DEFAULT_TIMELINE_CAPACITY } from "../../src/model/Timeline.ts";
 import { makeTimelineStore, runSource } from "../../src/model/TimelineStore.ts";
-import { decisionRecord, obligationRecord } from "../helpers.ts";
+import { decisionRecord, heardOn, obligationRecord, thrownBy } from "../helpers.ts";
 
 describe("makeTimelineStore", () => {
   it("notifies a subscriber when a record lands", () => {
@@ -173,6 +174,236 @@ describe("makeTimelineStore", () => {
 
       assert.strictEqual(store.getSnapshot().entries.length, 1);
     });
+
+    it("a clear after a resize keeps the capacity it was resized to", () => {
+      const store = makeTimelineStore({ capacity: 5 });
+      store.resize(3);
+      for (const id of ["a", "b", "c", "d"]) {
+        store.accept(decisionRecord({ evaluationId: id, at: 100 }));
+      }
+      store.clear();
+
+      assert.strictEqual(store.getSnapshot().capacity, 3);
+      assert.deepStrictEqual(store.getSnapshot().entries, []);
+
+      for (const id of ["e", "f", "g", "h"]) {
+        store.accept(decisionRecord({ evaluationId: id, at: 200 }));
+      }
+      assert.strictEqual(store.getSnapshot().entries.length, 3);
+    });
+  });
+
+  describe("resizing", () => {
+    const refused = (value: unknown) =>
+      `emptyTimeline: capacity must be a non-negative integer, got ${value}`;
+
+    it("a new capacity empties the timeline at the new bound, publishes once and answers true", () => {
+      const store = makeTimelineStore({ capacity: 5 });
+      store.accept(decisionRecord({ evaluationId: "old", at: 50 }));
+      const heard = heardOn(store);
+
+      const answer = store.resize(2);
+
+      assert.isTrue(answer);
+      assert.strictEqual(heard.calls, 1);
+      assert.strictEqual(store.getSnapshot().capacity, 2);
+      assert.deepStrictEqual(store.getSnapshot().entries, []);
+      for (const [index, id] of ["a", "b", "c"].entries()) {
+        store.accept(decisionRecord({ evaluationId: id, at: 100 + index }));
+      }
+      assert.strictEqual(store.getSnapshot().entries.length, 2);
+    });
+
+    it("the capacity it already has answers false, publishes nothing and keeps the entries", () => {
+      const store = makeTimelineStore({ capacity: 5 });
+      store.accept(decisionRecord({ evaluationId: "kept", at: 100 }));
+      const snapshot = store.getSnapshot();
+      const heard = heardOn(store);
+
+      const answer = store.resize(5);
+
+      assert.isFalse(answer);
+      assert.strictEqual(heard.calls, 0);
+      assert.strictEqual(store.getSnapshot(), snapshot);
+      assert.strictEqual(store.getSnapshot().entries.length, 1);
+    });
+
+    it("a new capacity while paused releases the pause and shows the emptied live timeline", () => {
+      const store = makeTimelineStore({ capacity: 5 });
+      store.accept(decisionRecord({ evaluationId: "before", at: 100 }));
+      store.setPaused(true);
+      store.accept(decisionRecord({ evaluationId: "during", at: 200 }));
+
+      const answer = store.resize(3);
+
+      assert.isTrue(answer);
+      assert.isFalse(store.isPaused());
+      assert.strictEqual(store.getSnapshot().capacity, 3);
+      assert.deepStrictEqual(store.getSnapshot().entries, []);
+      store.accept(decisionRecord({ evaluationId: "after", at: 300 }));
+      assert.deepStrictEqual(
+        store.getSnapshot().entries.map((e) => e.evaluationId),
+        ["after"],
+      );
+    });
+
+    it("the capacity it already has while paused keeps the pause and the frozen view, and publishes nothing", () => {
+      const store = makeTimelineStore({ capacity: 5 });
+      store.accept(decisionRecord({ evaluationId: "before", at: 100 }));
+      store.setPaused(true);
+      const frozen = store.getSnapshot();
+      store.accept(decisionRecord({ evaluationId: "during", at: 200 }));
+      const heard = heardOn(store);
+
+      const answer = store.resize(5);
+
+      assert.isFalse(answer);
+      assert.isTrue(store.isPaused());
+      assert.strictEqual(store.getSnapshot(), frozen);
+      assert.strictEqual(heard.calls, 0);
+      store.setPaused(false);
+      assert.strictEqual(store.getSnapshot().entries.length, 2);
+    });
+
+    it("a capacity it refuses throws, and keeps the entries, the pause and the frozen view", () => {
+      const store = makeTimelineStore({ capacity: 5 });
+      store.accept(decisionRecord({ evaluationId: "before", at: 100 }));
+      store.setPaused(true);
+      const frozen = store.getSnapshot();
+      store.accept(decisionRecord({ evaluationId: "during", at: 200 }));
+      const heard = heardOn(store);
+
+      for (const value of [-1, 2.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+        const { threw, thrown } = thrownBy(() => {
+          store.resize(value);
+        });
+
+        assert.isTrue(threw);
+        assert.instanceOf(thrown, Error);
+        assert.strictEqual(thrown instanceof Error ? thrown.message : "", refused(value));
+        assert.strictEqual(heard.calls, 0);
+        assert.strictEqual(store.getSnapshot(), frozen);
+        assert.isTrue(store.isPaused());
+      }
+      store.setPaused(false);
+      assert.strictEqual(store.getSnapshot().capacity, 5);
+      assert.strictEqual(store.getSnapshot().entries.length, 2);
+    });
+
+    it("zero is a capacity it keeps, and negative zero is the same bound", () => {
+      const store = makeTimelineStore({ capacity: 5 });
+      const heard = heardOn(store);
+
+      const toZero = store.resize(0);
+      const toNegativeZero = store.resize(-0);
+
+      assert.isTrue(toZero);
+      assert.isFalse(toNegativeZero);
+      assert.strictEqual(heard.calls, 1);
+      assert.strictEqual(store.getSnapshot().capacity, 0);
+      assert.deepStrictEqual(store.getSnapshot().entries, []);
+    });
+
+    it("what a listener throws on the resize is rethrown after the resize is made", () => {
+      const one = makeTimelineStore({ capacity: 5 });
+      const failure = new Error("one listener");
+      const heardByOne = heardOn(one);
+      one.subscribe(() => {
+        throw failure;
+      });
+
+      const rethrown = thrownBy(() => {
+        one.resize(2);
+      });
+
+      assert.isTrue(rethrown.threw);
+      assert.strictEqual(rethrown.thrown, failure);
+      assert.strictEqual(heardByOne.calls, 1);
+      assert.strictEqual(one.getSnapshot().capacity, 2);
+      assert.deepStrictEqual(one.getSnapshot().entries, []);
+      assert.isFalse(one.resize(2));
+
+      const two = makeTimelineStore({ capacity: 5 });
+      const first = new Error("first listener");
+      const second = new Error("second listener");
+      two.subscribe(() => {
+        throw first;
+      });
+      two.subscribe(() => {
+        throw second;
+      });
+
+      const collected = thrownBy(() => {
+        two.resize(3);
+      });
+
+      assert.isTrue(collected.threw);
+      assert.instanceOf(collected.thrown, AggregateError);
+      assert.deepStrictEqual(
+        collected.thrown instanceof AggregateError ? collected.thrown.errors : [],
+        [first, second],
+      );
+      assert.strictEqual(two.getSnapshot().capacity, 3);
+      assert.isFalse(two.resize(3));
+    });
+
+    it("a listener that resizes to the same capacity from inside the publish is answered false", () => {
+      const store = makeTimelineStore({ capacity: 5 });
+      const inner: Array<boolean> = [];
+      const heard = { calls: 0 };
+      store.subscribe(() => {
+        heard.calls += 1;
+        if (heard.calls === 1) inner.push(store.resize(3));
+      });
+
+      const outer = store.resize(3);
+
+      assert.isTrue(outer);
+      assert.deepStrictEqual(inner, [false]);
+      assert.strictEqual(heard.calls, 1);
+      assert.strictEqual(store.getSnapshot().capacity, 3);
+    });
+
+    it("a caller outside the type: no capacity and null read as the default, a string or a bigint throws", () => {
+      const store = makeTimelineStore({ capacity: 5 });
+      const heard = heardOn(store);
+
+      const omitted: unknown = Reflect.apply(store.resize, store, [undefined]);
+      assert.strictEqual(omitted, true);
+      assert.strictEqual(store.getSnapshot().capacity, DEFAULT_TIMELINE_CAPACITY);
+      assert.strictEqual(heard.calls, 1);
+
+      const empty: unknown = Reflect.apply(store.resize, store, [null]);
+      assert.strictEqual(empty, false);
+      assert.strictEqual(heard.calls, 1);
+
+      for (const value of ["5", 5n]) {
+        const { threw, thrown } = thrownBy(() => {
+          Reflect.apply(store.resize, store, [value]);
+        });
+
+        assert.isTrue(threw);
+        assert.instanceOf(thrown, Error);
+        assert.strictEqual(thrown instanceof Error ? thrown.message : "", refused(5));
+      }
+      assert.strictEqual(store.getSnapshot().capacity, DEFAULT_TIMELINE_CAPACITY);
+      assert.strictEqual(heard.calls, 1);
+    });
+  });
+
+  it("a record at a capacity of zero notifies no subscriber and keeps the snapshot", () => {
+    const store = makeTimelineStore({ capacity: 0 });
+    const snapshot = store.getSnapshot();
+    const heard = { calls: 0 };
+    store.subscribe(() => {
+      heard.calls += 1;
+    });
+
+    store.accept(decisionRecord({ evaluationId: "a", at: 100 }));
+    store.accept(decisionRecord({ evaluationId: "b", at: 200 }));
+
+    assert.strictEqual(heard.calls, 0);
+    assert.strictEqual(store.getSnapshot(), snapshot);
   });
 
   it("passes its capacity to the timeline", () => {

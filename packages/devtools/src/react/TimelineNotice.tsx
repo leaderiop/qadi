@@ -8,10 +8,10 @@
  *
  * Package-private: it is in no barrel and so not importable (AGENTS.md §9, ADR-QD-099).
  */
-import type { FC, ReactNode, RefObject } from "react";
+import type { FC, ReactNode } from "react";
 import * as Match from "effect/Match";
 import type { TimelineStatus } from "../model/TimelineFeed.ts";
-import { StoppedBox, stoppedKey, type StopLedger } from "./StoppedBox.tsx";
+import { StoppedBox, stoppedKey, type StopNoticeProps } from "./StoppedBox.tsx";
 
 const STOPPED_LEAD = "Timeline stopped.";
 const STOPPED_BODY =
@@ -20,18 +20,7 @@ const RESTART_LABEL = "Restart timeline";
 const REASON_LABEL = "Why the timeline stopped";
 
 /** What the dock hands the timeline notice. */
-export interface TimelineNoticeProps {
-  /** The timeline feed's status, read once by the dock. */
-  readonly status: TimelineStatus;
-  /** Reads the source again; the feed goes through `Reading`, so the notice is removed. */
-  readonly onRestart: () => void;
-  /**
-   * The stops the notice has shown, owned by the dock so it outlives every screen.
-   *
-   * It records only which stop was announced, never what the status says (AGENTS.md §13).
-   */
-  readonly announced: RefObject<StopLedger<TimelineStatus>>;
-}
+export type TimelineNoticeProps = StopNoticeProps<TimelineStatus>;
 
 type Binding = Pick<TimelineNoticeProps, "onRestart" | "announced">;
 

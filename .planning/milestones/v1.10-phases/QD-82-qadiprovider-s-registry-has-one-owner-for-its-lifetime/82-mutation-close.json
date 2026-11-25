@@ -1,0 +1,245 @@
+{
+ "phase": "82",
+ "unmeasured": [
+  {
+   "file": "packages/react/src/QadiProvider.tsx",
+   "why": "renders; its lifetime logic is RegistryLease.ts, and its behaviour is pinned by the rendered tests"
+  }
+ ],
+ "groups": {
+  "react": {
+   "head": "56fd5e5717a9ead559353884091f9780b6e1b99d",
+   "invocation": "pnpm exec stryker run stryker.react.mjs --mutate packages/react/src/DecisionOutcome.ts,packages/react/src/QuestionBook.ts,packages/react/src/HydrationEvent.ts,packages/react/src/SweepScheduler.ts",
+   "files": {
+    "packages/react/src/DecisionOutcome.ts": {
+     "killed": 8,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 11,
+     "detected": 8,
+     "valid": 8,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 86,
+       "column": 24
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 87,
+       "column": 12
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 88,
+       "column": 18
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 89,
+       "column": 11
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 90,
+       "column": 17
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 102,
+       "column": 24
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 103,
+       "column": 14
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 104,
+       "column": 14
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 105,
+       "column": 14
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 121,
+       "column": 26
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 135,
+       "column": 32
+      }
+     ]
+    },
+    "packages/react/src/QuestionBook.ts": {
+     "killed": 84,
+     "timeout": 2,
+     "survived": 2,
+     "noCoverage": 0,
+     "ignored": 0,
+     "detected": 86,
+     "valid": 88,
+     "open": [
+      {
+       "status": "Survived",
+       "mutator": "ConditionalExpression",
+       "replacement": "false",
+       "line": 170,
+       "column": 9
+      },
+      {
+       "status": "Survived",
+       "mutator": "EqualityOperator",
+       "replacement": "excess < 0",
+       "line": 170,
+       "column": 9
+      }
+     ],
+     "ignoredMutants": []
+    },
+    "packages/react/src/HydrationEvent.ts": {
+     "killed": 32,
+     "timeout": 1,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 8,
+     "detected": 33,
+     "valid": 33,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 184,
+       "column": 24
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 186,
+       "column": 7
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 191,
+       "column": 7
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 197,
+       "column": 7
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 203,
+       "column": 7
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 209,
+       "column": 7
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 214,
+       "column": 7
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 225,
+       "column": 30
+      }
+     ]
+    },
+    "packages/react/src/SweepScheduler.ts": {
+     "killed": 21,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 2,
+     "detected": 21,
+     "valid": 21,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 96,
+       "column": 30
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 100,
+       "column": 28
+      }
+     ]
+    }
+   }
+  },
+  "lease": {
+   "head": "56fd5e5717a9ead559353884091f9780b6e1b99d",
+   "invocation": "pnpm exec stryker run stryker.react.mjs --mutate packages/react/src/RegistryLease.ts --disableBail",
+   "files": {
+    "packages/react/src/RegistryLease.ts": {
+     "killed": 28,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 0,
+     "detected": 28,
+     "valid": 28,
+     "open": [],
+     "ignoredMutants": [],
+     "timeouts": [],
+     "outside": []
+    }
+   }
+  }
+ }
+}

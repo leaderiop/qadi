@@ -339,6 +339,87 @@
 
 ---
 
+## Milestone: v1.9 — Arch Wave 14
+
+**Shipped:** 2026-11-24 (completed; not merged, not released)
+**Phases:** 4 (77–80) | **Plans:** 48 | **Sessions:** one autonomous run (`/gsd-autonomous`), with context compactions
+
+### What Was Built
+- ARCH-124: an audit row is a value only its codec makes. The row decodes envelope-first, and `archiveAuditTrail` refuses a row the codec did not make, so the package can no longer write an archive its own reader refuses (Breaking).
+- ARCH-125: `TimelineStore` owns its capacity through `resize`; the feed's six-member forwarder, mirror store and abandoned subscription are gone (Breaking).
+- ARCH-126: every devtools feed and the dock model are built bare and take inputs only through `configure`, under one per-field identity rule, and the dock's input type is stated once (Breaking).
+- ARCH-127: the highlight lens is a headless `LensSession` the dock model owns as its tenth store, under the mutation gate; `useLens` is the document adapter; `QadiContextValue` drops the unread `instrument` (Breaking for `@qadi/react`).
+
+### What Worked
+- A characterisation written on the phase base and held there by a script (79's first render, 80's lens behaviours) let each change say exactly which behaviours it flips, with a declared-edit list checked against the base.
+- Moving rules out of DOM handlers into a headless session put them under mutation for the first time. The first close found two survivors on `move`'s unread boolean, and the fix was to delete the return value.
+- The third review iteration corrected the orchestrator: a reachability claim pushed in iteration 2 (a hover reaching `Idle` with a reveal armed) was shown unreachable by a user, and the spec now says headless only.
+- Re-verification at the close found no real break this time (78 and 79 stale only through line moves), because each phase re-ran the earlier phases' record scripts at its own close.
+
+### What Was Inefficient
+- An executor ran `requirements.mark-complete` early and marked LENS-01/04 before their plans landed; it was reverted and the brief now forbids it.
+- A `String.replace` with a replacement string turned `` $` `` into "the text before the match" and duplicated a plan's head; rebuilt with a function replacement.
+- Spec text quoting a test by title went stale when review renamed the test. No gate compares a quoted title with the test it names; review caught it a round later.
+- Phase scripts resolve paths from the repo root and fail when run from the phase directory, which read as a failure in two hand-backs.
+
+### Patterns Established
+- A one-shot UI effect (a row revealing itself once) is a command on the session that answers once and publishes nothing, not state a component reads.
+- A capture-phase click listener decides consumption from the command's own answer, inside `try/finally`, so a throwing subscriber cannot leak a click the session already took.
+- When a field is removed from a public context, keep the prop that drives behaviour and record why in the ADR, rather than removing both.
+
+### Key Lessons
+1. Never write string replacements with `String.replace(str, text)` when the text is arbitrary; use a function replacement.
+2. A quoted test title in spec is a reference like any other; rename the test and the spec in the same commit.
+3. When an orchestrator decision claims reachability, ask the reviewer to verify it against the framework's commit order before writing it into an ADR.
+
+### Cost Observations
+- Model mix: opus for the orchestrator; sonnet for executors, fixers, checkers, verifiers, auditors and the integration check.
+- Sessions: one long autonomous run across several context compactions.
+- Notable: 285 commits in about a day. Outside `.planning`, 98 files changed (+9,623 / −1,278). Five changesets, four of them Breaking minors.
+
+---
+
+## Milestone: v1.10 — Arch Wave 15
+
+**Shipped:** 2026-11-25 (completed; not merged, not released; stacked on the unmerged v1.9)
+**Phases:** 4 (81–84) | **Plans:** 45 | **Sessions:** one autonomous run (`/gsd-autonomous`), with context compactions
+
+### What Was Built
+- ARCH-128: the dock model applies every input whatever a listener throws, through one package-private `callAll` (one error rethrown as itself, two or more as one `AggregateError`); the sightings rail moves once; announced work starts whatever its listener throws (live defect).
+- ARCH-129: `QadiProvider`'s registry has one owner for its lifetime; a headless `RegistryLease` recycles it in place, so a provider hidden in `<Activity>` past a macrotask never reaches a disposed registry (live defect).
+- ARCH-130: the diagnostics feed holds its reading only in its snapshot, folded by a pure `foldReading`; the unread store and the never-sampled `Diagnostics.questions` are gone (Breaking).
+- ARCH-131: `useConfigured` takes a value with its own `configure`; `LensSession` publishes through `ExternalStore.set`; `useLens` reads each fact once; one stop ledger per feed; `useTimeline`'s memo recorded as a rejection.
+
+### What Worked
+- Both live defects opened with a regression test seen RED on the phase base, and each part of the fix was shown load-bearing by a scratch variant (82's lease: every lifetime test red before, each piece of the recycle removed in turn).
+- A `Configurable<I>` written as a function property rather than a method made the constraint contravariant; review asked for that choice to be pinned, and a fourth type refusal now fails if someone turns it back into a method.
+- Re-verification at the close caught two stale phases (81 and 83) and found no break: every report from an earlier phase's record scripts traced to a later phase's committed record.
+- The audit, integration check and both re-verifications ran in parallel, since they read different things.
+
+### What Was Inefficient
+- gsd-tools `query commit` writes no co-author trailer, so every tooling commit needed an amend. One missed amend in Phase 83 cost a rebuild of 12 local commits with `git commit-tree` and a remap of cited hashes.
+- The review disposition ledger keys findings by id, and ids restart each iteration, so two iteration-1 findings in Phase 84 fell out and were recorded by hand.
+- Plan verify steps that judge an existing commit (`84-check.mjs commit`) were run before the commit by some executors; later briefs had to say "after".
+- A `check:pr` run under load average ~98 timed out an untouched test; it passed on a clean re-run with no change, disclosed in the SUMMARY.
+- At the archive, `git add -A` on the moved phase directories picked up four untracked review backups (`*.iter*.md`); caught by the forbidden-file check before the commit.
+
+### Patterns Established
+- A hook that configures a value takes the value's own `configure` through a structural constraint, instead of an adapter argument per caller.
+- A per-render inputs record that the value already compares field by field is not memoised; the rejection is recorded in the ADR with the test that shows an equal record publishes nothing.
+- A notice's remount ledger lives in one hook called once per feed, keyed on that feed's own `restart`.
+
+### Key Lessons
+1. Amend the trailer immediately after every tooling commit, and check `%(trailers)` before moving on; a late fix rewrites history.
+2. A review ledger must key findings by iteration and id together, or record dropped ids by hand.
+3. Earlier phases' record scripts judge against their own base; give each a directive exemption (`"use client";`) the way 84's has, or expect explained reports at every later close.
+
+### Cost Observations
+- Model mix: opus for the orchestrator; sonnet for executors, fixers, checkers, verifiers, auditors and the integration check.
+- Sessions: one long autonomous run across several context compactions.
+- Notable: 226 commits in about a day. Outside `.planning`, 91 files changed (+5,870 / −723). Four changesets, one of them a Breaking minor.
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -353,6 +434,8 @@
 | v1.6 | 1 (autonomous) | 9 | Pinned per-phase scan scripts; three human checkpoints asked once before planning; review fixes Info findings too, with a mutation re-run per round |
 | v1.7 | 1 (autonomous) | 8 | Debt-only wave; an inserted cleanup phase after the first audit; staleness and re-verify as scripts; Nyquist validation by gate scripts and self-tests |
 | v1.8 | 1 (autonomous) | 8 | Review-driven totality; first-commit contract and agreement checks; post-review mutation re-close per phase; close sweep re-runs each phase's record checks |
+| v1.9 | 1 (autonomous) | 4 | Base-held characterisations with declared flips; headless sessions under the mutation gate; earlier phases' record scripts re-run at each phase close |
+| v1.10 | 1 (autonomous) | 4 | Two live defects RED on base with load-bearing scratch variants; audit, integration and re-verifications run in parallel; review choices pinned by type refusals |
 
 ### Cumulative Quality
 
@@ -366,9 +449,11 @@
 | v1.6 | vitest core 2649 + devtools 1647 (at audit), tstyche, e2e 30 | core ≥95%, others ≥90% (enforced); every phase's scoped Stryker compare held (no touched file's score fell) | 0 |
 | v1.7 | vitest 242 files / 5985 tests, BDD 568, tstyche 759 assertions (both passes) | core ≥95%, others ≥90% (enforced); no touched file's mutation score fell in any phase | 0 |
 | v1.8 | vitest 255 files / 6363 tests, BDD 568, type tests 43, e2e 30, tstyche 863 of 869 assertions passed (both passes) | core ≥95%, others ≥90% (enforced); every phase's mutation compare passes after review (one recorded equivalent survivor) | 0 |
+| v1.9 | vitest 6550 tests, BDD 568, examples 43, tstyche 77 files / 415 tests | 99.67% statements / 99.83% lines overall; every phase's mutation compare passes after review, the new LensSession at 52/52 | 0 |
+| v1.10 | vitest 280 files / 6638 tests, BDD 568, examples 43, tstyche 78 files / 425 tests | 99.67% statements / 99.83% lines overall; every phase's mutation compare passes after review (LensSession 47/47, RegistryLease 28/28) | 0 |
 
 ### Top Lessons (Verified Across Milestones)
 
-1. Re-verify at close: a later phase that touches shared files makes earlier verification stale (v1.0: 4 phases; v1.2: 3 phases; v1.3: 6 phases; v1.4: 3 phases; v1.5: 5 phases). v1.6 relied on each phase's own verifier plus the milestone integration check (2649 core and 1647 devtools tests at the audit head) instead of per-phase re-verification. v1.7 made it mechanical: a staleness script names the stale phases and a driver re-verifies them (63, 67, 68 and 68.1 after the final fixes). v1.8: six of eight phases went stale at the close (69–72, 74, 75), and re-verification found one real break, a phase's record check failing because a later phase edited a shared test helper.
+1. Re-verify at close: a later phase that touches shared files makes earlier verification stale (v1.0: 4 phases; v1.2: 3 phases; v1.3: 6 phases; v1.4: 3 phases; v1.5: 5 phases). v1.6 relied on each phase's own verifier plus the milestone integration check (2649 core and 1647 devtools tests at the audit head) instead of per-phase re-verification. v1.7 made it mechanical: a staleness script names the stale phases and a driver re-verifies them (63, 67, 68 and 68.1 after the final fixes). v1.8: six of eight phases went stale at the close (69–72, 74, 75), and re-verification found one real break, a phase's record check failing because a later phase edited a shared test helper. v1.9: two of four went stale (78, 79), only through line moves; no break, because each phase close re-ran the earlier phases' record scripts. v1.10: two of four went stale (81, 83), through later phases' real edits to shared files; no break, and every earlier-script report traced to a later phase's record.
 2. Run review → fix after verification passes: it found warnings verification missed in every milestone.
 3. Shape tooling inputs so tools can read them: v1.0's requirement ranges and v1.2's grouped traceability rows both forced hand edits.

@@ -2,13 +2,15 @@
  * The durable, persisted form of one `SinkRecord` — what `AuditTrailPort`
  * actually stores.
  *
- * `Schema`-derived, diverging deliberately from `@qadi/predicate-sql`'s and
- * `@qadi/predicate-prisma`'s fully hand-written style. Those types are
- * produced and consumed in the same process; an `AuditEntry` is durably
- * persisted by the caller's own store and re-parsed later — by a compliance
- * review, a query tool, possibly a different process entirely — which is the
- * same condition [ADR-QD-002](../../../spec/decisions/002-schema-derived-policy-adt.md)
- * used to make `Policy` the hand-written-interface exception.
+ * A row is a nominal class only its codec makes ({@link AuditEntry}), and its
+ * `record` is `@qadi/core`'s own wire schema, not a second description of it. An
+ * `AuditEntry` is durably persisted by the caller's own store and re-parsed later —
+ * by a compliance review, a query tool, possibly a different process entirely — so
+ * the one route from stored bytes to a row is {@link decodeAuditEntry}, which
+ * refuses what it cannot read. The only schema in this module is the private
+ * envelope that decode reads a row's top level through. The same trust boundary
+ * made `Policy` a schema-derived exception to the hand-written style
+ * ([ADR-QD-002](../../../spec/decisions/002-schema-derived-policy-adt.md)).
  *
  * **A row carries the encoded wire, not the record's classes.** `record` is a
  * `SinkRecordJson` — `@qadi/core`'s `encodeSinkRecord` output, the same value
@@ -19,9 +21,8 @@
  * the store's own `JSON.stringify` did the rest, which wrote an `Error` cause
  * as `{}` and threw on a cyclic one. Read a row back with
  * {@link decodeAuditEntry}, which is depth-guarded and applies every check the
- * core decode applies — never with this schema alone, which under `Schema`'s
- * default options strips a typo'd field inside the embedded policy rather than
- * refusing it.
+ * core decode applies: a typo'd field inside the embedded policy is refused, not
+ * stripped.
  *
  * Built on `@qadi/core`'s own wire schema rather than re-deriving
  * `Policy`/`Trace`/`Obligation` a second time: a wire form for a value crossing
@@ -30,58 +31,99 @@
  * refusal is `@qadi/core`'s `SinkRecordNotEncodable`, the error `encodeSinkRecord`
  * returns, not an audit copy of it (ADR-QD-161).
  */
+import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
-import * as Predicate from "effect/Predicate";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
-import type { SinkRecord } from "@qadi/core";
+import type { SinkRecord, SinkRecordJson } from "@qadi/core";
 import {
-  DecodeRefusal,
   decodeRefusalOf,
   decodeSinkRecordWithJson,
   encodeSinkRecord,
-  SinkRecordJson,
   SinkRecordNotDecodable,
   untrustedDecoder,
 } from "@qadi/core";
+import { markCodecMade } from "./CodecMade.ts";
 
 /**
- * The optional gap-detection field, declared once for the row schema and the
- * row decode: a safe integer, so `1.5`, `NaN` and `2 ** 53` are `Malformed` on
- * decode. `archiveFacts` (`ArchiveFacts.ts`) states the same domain with the
- * same `Schema.Int`, so `verifySequenceIntegrity` and `archiveAuditTrail` fail
- * `SequenceNumberInvalid` for any one such number and never archive a row this
- * decode would refuse (ADR-QD-110).
+ * The optional gap-detection field of a row's bytes: a safe integer, so `1.5`,
+ * `NaN` and `2 ** 53` are `Malformed` on decode.
+ *
+ * The one statement of the safe-integer rule. Only {@link decodeAuditEntry}
+ * gives a row a number, so every `sequenceNumber` in memory is a safe integer,
+ * and `firstBreakIn` (`ArchiveFacts.ts`) never subtracts past `2 ** 53`, where
+ * `n + 1 === n` would hide a duplicate (ADR-QD-110, ADR-QD-190).
  */
 const SequenceNumber = Schema.optional(Schema.Int);
 
 /**
- * One persisted row.
+ * A stored audit row: made only by {@link encodeAuditEntry} and
+ * {@link decodeAuditEntry}.
+ *
+ * The writer and the purge read a row's fields as its identity (`holds`,
+ * `planPurge`), so only the codec may make one: the class is module-local,
+ * exported as a type alone, and its private `nominal` member keeps an object
+ * literal or a spread of the same shape from passing for one. That is a compile-time
+ * guard, and `any` passes it: a store client's `JSON.parse` result is assignable to the
+ * type. So each row the codec makes is also recorded in `CodecMade.ts`, and the archive
+ * writer, `verifySequenceIntegrity` and `planRetention` refuse a row that was not made
+ * there, naming its index (ADR-QD-190). The codec also freezes each row and its `record`
+ * as it makes them, so a write to `sequenceNumber` or to `record.at` throws in strict
+ * mode, and the fields the check read are the fields the writer reads.
  *
  * `record` is the encoded wire (see this module's doc comment); its `Type` is
- * already JSON-shaped, so a store persists `JSON.stringify(entry)` as it is.
+ * already JSON-shaped, so a store persists `JSON.stringify(entry)` as it is, and
+ * the bytes are the fields and nothing else. `record` is version-2 bytes
+ * (`version: 2`, one tagged `outcome`, ADR-QD-096), the only wire version this
+ * release reads or writes. A row written before 0.10 carries version-1 bytes (no
+ * `version` key, `decided`/`failed`), which 0.11.0 does not read: re-encode such
+ * rows with 0.10.x (`decodeAuditEntry` then `encodeAuditEntry` from
+ * `@qadi/audit@0.10`) before upgrading, or {@link decodeAuditEntry} refuses them
+ * as `UnsupportedVersion`.
  *
- * `record` is version-2 bytes (`version: 2`, one tagged `outcome`,
- * ADR-QD-096) — the only wire version this release reads or writes. A row
- * written before 0.10 carries version-1 bytes (no `version` key,
- * `decided`/`failed`), which 0.11.0 no longer reads: re-encode such rows with
- * 0.10.x (`decodeAuditEntry` then `encodeAuditEntry` from `@qadi/audit@0.10`)
- * before upgrading, or {@link decodeAuditEntry} refuses them as
- * `UnsupportedVersion`.
- *
- * `sequenceNumber` is the optional gap-detection field a caller's own store
- * assigns — `@qadi/audit` never populates it. Only the caller's store has
- * cross-restart visibility into a global write order, the same constraint
- * that shapes `AuditStagingPort`. Present so `verifySequenceIntegrity`
- * ([SequenceIntegrity.ts](./SequenceIntegrity.ts)) has something to check once the
- * caller has assigned it (an autoincrement column, their own counter) and
- * read the rows back.
+ * `sequenceNumber` is the gap-detection field a caller's own store assigns;
+ * `@qadi/audit` never invents one. Only the caller's store has cross-restart
+ * visibility into a global write order, the same constraint that shapes
+ * `AuditStagingPort`. It is a required field holding `undefined` when the store
+ * gave none, so every row has the key and an encoded row equals its read-back
+ * twin. A number reaches a row only through `decodeAuditEntry({ record,
+ * sequenceNumber })`, once the caller has assigned it (an autoincrement column,
+ * their own counter) and read the rows back for `verifySequenceIntegrity`
+ * ([SequenceIntegrity.ts](./SequenceIntegrity.ts)).
  */
-export const AuditEntry = Schema.Struct({
+class AuditEntry extends Data.Class<{
+  readonly record: SinkRecordJson;
+  readonly sequenceNumber: number | undefined;
+}> {
+  /**
+   * Makes the type nominal, so an object literal of the same shape is not an
+   * `AuditEntry`. Declared only: it has no slot at run time.
+   */
+  declare private readonly nominal: never;
+}
+
+export type { AuditEntry };
+
+/**
+ * Finishes a row the codec made: freezes it and the `record` it holds, then records it
+ * ({@link markCodecMade}).
+ *
+ * The record JSON is the codec's own top-level object (the encode and the strict decode
+ * each build one), so freezing it touches nothing a host gave. It is one level: the
+ * encoder passes a host's nested object through (a record's `resource.a` is the same
+ * object in the row), and what a host supplied stays the host's. The two fields the
+ * writer and the purge read as identity, `sequenceNumber` and `record.at`, are top-level,
+ * so no write can change them after the codec checked them.
+ */
+const madeByCodec = (
   record: SinkRecordJson,
-  sequenceNumber: SequenceNumber,
-});
-export type AuditEntry = typeof AuditEntry.Type;
+  sequenceNumber: number | undefined,
+): AuditEntry => {
+  const row = new AuditEntry({ record, sequenceNumber });
+  Object.freeze(record);
+  Object.freeze(row);
+  return markCodecMade(row);
+};
 
 /**
  * Translates one `SinkRecord` into the row `AuditTrailPort.write` persists.
@@ -103,44 +145,43 @@ export const encodeAuditEntry = Effect.fn("qadi.audit.encodeAuditEntry")(functio
   record: SinkRecord,
 ) {
   const json = yield* Effect.fromResult(encodeSinkRecord(record));
-  const entry: AuditEntry = { record: json, sequenceNumber: undefined };
-  return entry;
+  return madeByCodec(json, undefined);
 });
 
 /**
- * The row's own fields, decoded as untrusted through `UntrustedDecode.ts`: an
+ * The row's envelope, decoded as untrusted through `UntrustedDecode.ts`: an
  * excess property at the row's top level, or a `sequenceNumber` that is not a
- * number, is `Malformed`, and a row nested past the decode bound outside its
- * record is `TooDeep`. `record` is unwalked, and `unknown` here, because
- * `decodeSinkRecordWithJson` has already read it from its own root (INV-QD-306).
+ * safe integer, is `Malformed`, and a row nested past the decode bound outside
+ * its record is `TooDeep`. `record` is unwalked, and `unknown` here, because
+ * `decodeSinkRecordWithJson` reads it from its own root (INV-QD-306).
  */
 const decodeRow = untrustedDecoder(
   Schema.Struct({ record: Schema.Unknown, sequenceNumber: SequenceNumber }),
   { unknownKeys: "refuse", unwalked: ["record"] },
 ).decode;
 
-const malformed = (message: string) =>
-  Result.fail(new SinkRecordNotDecodable({ refusal: DecodeRefusal.Malformed({ message }) }));
-
 /**
  * Reads a stored row back: the row as an `AuditEntry`, and its record rebuilt.
  *
- * The guarded reader for rows a store re-parses — a compliance review, a query
- * tool, another process. The record goes through `@qadi/core`'s
- * `decodeSinkRecordWithJson` first, which refuses input nested past the decode bound
- * before the schema recurses into it; decoding a row with the schema alone
- * died with a `RangeError` on a deeply nested stored policy. Only then is the
- * rest of the row decoded, now safe. A refusal is a value, never a throw.
+ * The guarded reader for rows a store re-parses (a compliance review, a query
+ * tool, another process), and the one route a store's sequence number reaches a
+ * row. The envelope is read first, as untrusted with `record` unwalked, so a
+ * non-object, an unknown top-level key or a `sequenceNumber` that is not a safe
+ * integer is refused with the strict decoder's own message, as core's stored
+ * record read does (ADR-QD-190). The record then goes through `@qadi/core`'s
+ * `decodeSinkRecordWithJson`, which refuses input nested past the decode bound
+ * before the schema recurses into it; decoding a row with the schema alone died
+ * with a `RangeError` on a deeply nested stored policy. A refusal is a value,
+ * never a throw.
  *
  * The record is decoded once, by core's strict reader, and the entry holds that
- * decode's JSON form, so an envelope key this version does not declare is dropped
- * by the decode itself rather than by a second lenient read (ADR-QD-110,
- * ADR-QD-153).
+ * decode's JSON form, so a field inside the record this version does not declare
+ * is refused by the decode itself rather than dropped by a second lenient read
+ * (ADR-QD-110, ADR-QD-153).
  *
- * Reads wire version 2 only (ADR-QD-096's 2026-10-06 amendment), and
- * whatever leniency and strictness `decodeSinkRecordWithJson` applies — an unknown
- * envelope key ignored, a typo inside the embedded policy refused, a record of
- * any other `version` refused as `UnsupportedVersion` — applies here too. That
+ * Reads wire version 2 only (ADR-QD-096's 2026-10-06 amendment), and whatever
+ * leniency and strictness `decodeSinkRecordWithJson` applies, a record of any
+ * other `version` refused as `UnsupportedVersion`, applies here too. That
  * includes a row written before 0.10, whose record has no `version` at all: it
  * is refused as `UnsupportedVersion` with `version: undefined`, never upgraded.
  * Such rows are re-encoded with 0.10.x before upgrading, which reads both
@@ -148,12 +189,18 @@ const malformed = (message: string) =>
  */
 export const decodeAuditEntry = (
   input: unknown,
-): Result.Result<{ readonly entry: AuditEntry; readonly record: SinkRecord }, SinkRecordNotDecodable> => {
-  if (!Predicate.hasProperty(input, "record")) return malformed("an audit row has no record");
-  const decoded = decodeSinkRecordWithJson(input.record);
-  if (Result.isFailure(decoded)) return Result.fail(decoded.failure);
+): Result.Result<
+  { readonly entry: AuditEntry; readonly record: SinkRecord },
+  SinkRecordNotDecodable
+> => {
   const row = decodeRow(input);
-  if (Result.isFailure(row)) return Result.fail(new SinkRecordNotDecodable({ refusal: decodeRefusalOf(row.failure) }));
-  const entry: AuditEntry = { record: decoded.success.json, sequenceNumber: row.success.sequenceNumber };
+  if (Result.isFailure(row)) {
+    const refusal = decodeRefusalOf(row.failure);
+    return Result.fail(new SinkRecordNotDecodable({ refusal }));
+  }
+  const decoded = decodeSinkRecordWithJson(row.success.record);
+  if (Result.isFailure(decoded)) return Result.fail(decoded.failure);
+  const { sequenceNumber } = row.success;
+  const entry = madeByCodec(decoded.success.json, sequenceNumber);
   return Result.succeed({ entry, record: decoded.success.record });
 };

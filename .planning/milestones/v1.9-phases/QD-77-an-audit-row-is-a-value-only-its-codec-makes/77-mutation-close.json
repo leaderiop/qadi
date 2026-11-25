@@ -1,0 +1,276 @@
+{
+ "phase": "77",
+ "groups": {
+  "entry": {
+   "head": "4e7d47bf1b7b57c543100e8d182dd90a71af2cd8",
+   "invocation": "pnpm exec stryker run stryker.audit.mjs --mutate packages/audit/src/AuditEntry.ts",
+   "files": {
+    "packages/audit/src/AuditEntry.ts": {
+     "killed": 13,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 6,
+     "detected": 13,
+     "valid": 13,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 144,
+       "column": 43
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 159,
+       "column": 17
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 160,
+       "column": 3
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 160,
+       "column": 18
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrayDeclaration",
+       "replacement": "[]",
+       "line": 160,
+       "column": 38
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 160,
+       "column": 39
+      }
+     ]
+    }
+   }
+  },
+  "facts": {
+   "head": "4e7d47bf1b7b57c543100e8d182dd90a71af2cd8",
+   "invocation": "pnpm exec stryker run stryker.audit.mjs --mutate packages/audit/src/ArchiveFacts.ts",
+   "files": {
+    "packages/audit/src/ArchiveFacts.ts": {
+     "killed": 55,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 4,
+     "detected": 55,
+     "valid": 55,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 61,
+       "column": 22
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 158,
+       "column": 59
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 162,
+       "column": 62
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 177,
+       "column": 47
+      }
+     ]
+    }
+   }
+  },
+  "archive": {
+   "head": "4e7d47bf1b7b57c543100e8d182dd90a71af2cd8",
+   "invocation": "pnpm exec stryker run stryker.audit.mjs --mutate packages/audit/src/AuditArchive.ts",
+   "files": {
+    "packages/audit/src/AuditArchive.ts": {
+     "killed": 82,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 14,
+     "detected": 82,
+     "valid": 82,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 54,
+       "column": 41
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 136,
+       "column": 25
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 179,
+       "column": 44
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 254,
+       "column": 58
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 321,
+       "column": 39
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 323,
+       "column": 27
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 332,
+       "column": 58
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 332,
+       "column": 73
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrayDeclaration",
+       "replacement": "[]",
+       "line": 332,
+       "column": 93
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 332,
+       "column": 94
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 335,
+       "column": 24
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 336,
+       "column": 14
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 337,
+       "column": 16
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 341,
+       "column": 16
+      }
+     ]
+    }
+   }
+  },
+  "retention": {
+   "head": "4e7d47bf1b7b57c543100e8d182dd90a71af2cd8",
+   "invocation": "pnpm exec stryker run stryker.audit.mjs --mutate packages/audit/src/Retention.ts",
+   "files": {
+    "packages/audit/src/Retention.ts": {
+     "killed": 57,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 2,
+     "detected": 57,
+     "valid": 57,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 66,
+       "column": 61
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 165,
+       "column": 26
+      }
+     ]
+    }
+   }
+  },
+  "made": {
+   "head": "4e7d47bf1b7b57c543100e8d182dd90a71af2cd8",
+   "invocation": "pnpm exec stryker run stryker.audit.mjs --mutate packages/audit/src/CodecMade.ts",
+   "files": {
+    "packages/audit/src/CodecMade.ts": {
+     "killed": 18,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 0,
+     "detected": 18,
+     "valid": 18,
+     "open": [],
+     "ignoredMutants": []
+    }
+   }
+  }
+ }
+}

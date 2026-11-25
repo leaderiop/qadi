@@ -15,8 +15,10 @@ import {
   makeGatesFeed,
   makeTimelineFeed,
   type AskedQuestionLike,
+  type Diagnostics,
   type DiagnosticsFeed,
   type DiagnosticsOptions,
+  type DiagnosticsReading,
   type DiagnosticsReadout,
   type GateInstanceLike,
   type GateRegistryLike,
@@ -25,9 +27,11 @@ import {
   type PortCallCollector,
   type TimelineFeed,
   type TimelineStatusReadout,
+  type TimelineStore,
 } from "../src/index.ts";
 import type {
   AskedQuestionLike as ReactAskedQuestionLike,
+  DevtoolsDockProps,
   DiagnosticsOptions as ReactDiagnosticsOptions,
 } from "../src/react/index.ts";
 
@@ -248,6 +252,9 @@ export { runDiagnostics } from "../src/index.ts";
 export { noDiagnostics } from "../src/index.ts";
 
 // @ts-expect-error no exported member
+export { foldReading } from "../src/index.ts";
+
+// @ts-expect-error no exported member
 export { idleTimeline } from "../src/index.ts";
 
 // @ts-expect-error no exported member
@@ -262,6 +269,9 @@ export { isUnsampled } from "../src/index.ts";
 // @ts-expect-error no exported member
 export type { DiagnosticsStore } from "../src/index.ts";
 
+// @ts-expect-error no exported member
+export type { DiagnosticsSink } from "../src/index.ts";
+
 // One option shape, `DiagnosticsOptions`; the dock-only name is gone from both entries.
 // @ts-expect-error no exported member
 export type { DiagnosticsDockOptions } from "../src/index.ts";
@@ -274,6 +284,30 @@ export { useStoreSnapshot } from "../src/react/index.ts";
 
 // @ts-expect-error no exported member
 export { DiagnosticsNotice } from "../src/react/index.ts";
+
+// @ts-expect-error no exported member
+export type { Configurable } from "../src/index.ts";
+
+// @ts-expect-error no exported member
+export type { Configurable as ReactConfigurable } from "../src/react/index.ts";
+
+// @ts-expect-error no exported member
+export type { UseLens } from "../src/index.ts";
+
+// @ts-expect-error no exported member
+export type { UseLens as ReactUseLens } from "../src/react/index.ts";
+
+// @ts-expect-error no exported member
+export { useStopNotice } from "../src/index.ts";
+
+// @ts-expect-error no exported member
+export { useStopNotice as reactUseStopNotice } from "../src/react/index.ts";
+
+// @ts-expect-error no exported member
+export type { StopNoticeProps } from "../src/index.ts";
+
+// @ts-expect-error no exported member
+export type { StopNoticeProps as ReactStopNoticeProps } from "../src/react/index.ts";
 
 test("the React entry's AskedQuestionLike is the model's", () => {
   expect<ReactAskedQuestionLike>().type.toBe<AskedQuestionLike>();
@@ -292,23 +326,65 @@ test("React's DiagnosticsOptions is the root's", () => {
 
 test("DiagnosticsOptions is a layer, a collector and an interval, and nothing else", () => {
   expect<DiagnosticsOptions>().type.toBe<{
-    readonly layer?: Layer.Layer<never, unknown>;
-    readonly collector?: PortCallCollector;
-    readonly intervalMillis?: number;
+    readonly layer?: Layer.Layer<never, unknown> | undefined;
+    readonly collector?: PortCallCollector | undefined;
+    readonly intervalMillis?: number | undefined;
   }>();
+});
+
+test("the root's Diagnostics holds exactly the four sampled fields", () => {
+  expect<Diagnostics>().type.not.toHaveProperty("questions");
+  expect<keyof Diagnostics>().type.toBe<"activity" | "hydration" | "portCalls" | "wiring">();
+});
+
+test("the root's DiagnosticsReading carries questions", () => {
+  expect<DiagnosticsReading>().type.toHaveProperty("questions");
 });
 
 test("each feed is built in a scope and fails with nothing", () => {
   expect(makeTimelineFeed()).type.toBe<Effect.Effect<TimelineFeed, never, Scope.Scope>>();
   expect(makeDiagnosticsFeed()).type.toBe<Effect.Effect<DiagnosticsFeed, never, Scope.Scope>>();
   expect(makeGatesFeed()).type.toBe<Effect.Effect<GatesFeed, never, Scope.Scope>>();
-  expect(makeDiagnosticsFeed({ intervalMillis: 1_000 })).type.toBe<
-    Effect.Effect<DiagnosticsFeed, never, Scope.Scope>
-  >();
+  expect<Parameters<typeof makeTimelineFeed>>().type.toBe<[]>();
+  expect<Parameters<typeof makeDiagnosticsFeed>>().type.toBe<[]>();
+  expect<Parameters<typeof makeGatesFeed>>().type.toBe<[]>();
 });
 
 test("a handle's parts are nameable (TS2883)", () => {
   expect<TimelineFeed["status"]>().type.toBe<TimelineStatusReadout>();
   expect<DiagnosticsFeed>().type.toBeAssignableTo<DiagnosticsReadout>();
   expect<ReturnType<GatesFeed["getSnapshot"]>>().type.toBe<GatesSnapshot>();
+});
+
+test("a timeline store resizes itself and answers whether it did", () => {
+  expect<TimelineStore["resize"]>().type.toBe<(capacity: number) => boolean>();
+  expect<Omit<TimelineStore, "resize">>().type.not.toBeAssignableTo<TimelineStore>();
+  expect<TimelineFeed["timeline"]>().type.toBe<TimelineStore>();
+});
+
+test("the dock takes eight model inputs and two host props, each accepting undefined", () => {
+  expect<keyof DevtoolsDockProps>().type.toBe<
+    | "source"
+    | "capacity"
+    | "catalogue"
+    | "ports"
+    | "diagnostics"
+    | "reading"
+    | "gates"
+    | "questions"
+    | "unknownParents"
+    | "onInvalidate"
+  >();
+  expect<{
+    readonly source: undefined;
+    readonly capacity: undefined;
+    readonly catalogue: undefined;
+    readonly ports: undefined;
+    readonly diagnostics: undefined;
+    readonly reading: undefined;
+    readonly gates: undefined;
+    readonly questions: undefined;
+    readonly unknownParents: undefined;
+    readonly onInvalidate: undefined;
+  }>().type.toBeAssignableTo<DevtoolsDockProps>();
 });

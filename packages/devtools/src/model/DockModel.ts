@@ -13,8 +13,13 @@
  * **One push per change.** A new shown timeline, or a new catalogue, computes
  * `catalogueOf` once and reaches the explorer, the simulation and the dock
  * session synchronously, so no two screens can read different timelines.
- * `configure` dispatches only the inputs whose identity moved (ARCH-63's defect
- * class: an unchanged prop must not wipe a capture or a half-filled form).
+ * `configure` is seven steps, each a no-op on inputs its target already holds through
+ * that target's own guard (ARCH-63's defect class: an unchanged prop must not wipe a
+ * capture or a half-filled form). A capacity is compared by the bound it means and
+ * applied whole or not at all: one the timeline refuses throws before anything moves.
+ * Every step runs whatever a listener throws, and what they threw is rethrown after the
+ * last step, one as itself and several as one `AggregateError` in step order
+ * (ADR-QD-194).
  *
  * **The model owns its lifetime.** It is built in a `Scope`. It reads its source
  * through a timeline feed, its diagnostics through a diagnostics feed and its gate
@@ -25,10 +30,11 @@
  *
  * **Its stores.** The stores are listed once, in BEH-QD-700. A test of a built model
  * lists its members that have `subscribe` and `getSnapshot` and fails when one is added
- * or removed, and review keeps that list equal to BEH-QD-700's. The shown reading,
- * `questions` and `services` are derived stores (ADR-QD-185), each recomputed from its
- * key when a field of it changes identity and stopped with the model's scope.
- * `sightings` is a thunk and not a store.
+ * or removed, and review keeps that list equal to BEH-QD-700's. The model has four
+ * derived stores (ADR-QD-185): the sightings rail, the shown reading, `questions` and
+ * `services`, each recomputed from its key when a field of it changes identity and
+ * stopped with the model's scope. The rail is not a member: `sightings` is a thunk
+ * reading it, and not a store.
  *
  * Package-private (ADR-QD-099): the dock is the one thing that drives it.
  */
@@ -47,10 +53,10 @@ import {
   mergeReading,
   type DiagnosticsOptions,
   type DiagnosticsReading,
-} from "./DiagnosticsStore.ts";
+} from "./Diagnostics.ts";
 import { makeDockSession, type DockSession } from "./DockSession.ts";
 import { makeExplorerSession, type ExplorerSession } from "./ExplorerSession.ts";
-import { makeDerivedStore, type ReadableStore } from "./ExternalStore.ts";
+import { callAll, makeDerivedStore, type ReadableStore } from "./ExternalStore.ts";
 import {
   joinQuestions,
   type AskedQuestionLike,
@@ -58,43 +64,169 @@ import {
   type JoinInput,
   type QuestionsSnapshot,
 } from "./Gates.ts";
-import { makeGatesFeed, type AskedRead, type GatesSnapshot, type RegistryRead } from "./GatesFeed.ts";
+import {
+  makeGatesFeed,
+  type AskedRead,
+  type GatesFeedInputs,
+  type GatesSnapshot,
+  type RegistryRead,
+} from "./GatesFeed.ts";
 import { makeHeldChoiceStore, type HeldChoiceStore } from "./HeldChoice.ts";
+import { makeLensSession, type LensSession } from "./LensSession.ts";
 import { portCards, type ServicesInput, type ServicesView } from "./PortCards.ts";
 import { sameRole } from "./RoleTree.ts";
 import { makeSimulationSession, type SimulationSession } from "./SimulationSession.ts";
 import type { EvaluationPortsLayer } from "./SimulationInput.ts";
 import type { Source } from "./Source.ts";
 import type { Timeline } from "./Timeline.ts";
-import { makeTimelineFeed, type TimelineStatusReadout } from "./TimelineFeed.ts";
+import {
+  effectiveCapacity,
+  makeTimelineFeed,
+  type TimelineFeedInputs,
+  type TimelineStatusReadout,
+} from "./TimelineFeed.ts";
 import type { TimelineStore } from "./TimelineStore.ts";
 
-/** What a host hands the dock. Each field is compared by identity when it is configured again. */
+/**
+ * The dock's inputs, stated once: the props `DevtoolsDock` takes beside the host's own
+ * (ADR-QD-192).
+ *
+ * Each field is compared by identity when it is configured again, except `capacity`, which is
+ * compared by the bound it means; an omitted one is `DEFAULT_TIMELINE_CAPACITY` (ADR-QD-191).
+ * Package-private (ADR-QD-099): a host reads these through `DevtoolsDockProps`.
+ */
 export interface DockModelInputs {
+  /** How many rows to keep. Defaults to the timeline's own bound. */
   readonly capacity?: number | undefined;
+  /**
+   * Policies and roles the application names.
+   *
+   * Optional because the policy rail is built from what the log has **seen** —
+   * every record carries its policy — so this adds only what has not run yet,
+   * plus the names. Roles are not observable at all and come only from here.
+   */
   readonly catalogue?: Catalogue | undefined;
-  /** What to sample; compared per field, so an inline literal restarts nothing. */
+  /**
+   * What to sample while the dock is mounted: the application's layer and the
+   * port-call collector, each optional.
+   *
+   * The way to keep the Services and React panels current without writing the
+   * loop: the dock samples on a schedule, keeps a reading's identity while it is
+   * unchanged, and releases the layer on unmount. Absent, nothing is sampled and
+   * the panels explain what they would need; `{}` samples the metric reads
+   * alone. Compared per field, so an inline literal restarts nothing; the run
+   * restarts when a field changes identity, so hold the fields at module scope.
+   * The dock's model polls in its own scope, so a hidden-then-shown dock samples
+   * afresh, from its first sample.
+   *
+   * Gates and questions are not in it: the gates come from the registry the `gates`
+   * input hands over, and the questions from the `questions` input, both read by the
+   * dock's model in its own scope.
+   */
   readonly diagnostics?: DiagnosticsOptions | undefined;
-  /** The registry of live guards; the gates feed subscribes in the model's scope. Absent: the panel says none was handed over. */
+  /**
+   * The registry of live guards, usually the feed's `gates` or `atoms.gates` from `@qadi/react`.
+   *
+   * Needs `instrument` on the `QadiProvider` to list anyone, so it is opt-in
+   * twice over — a host has to ask for the registry and then hand it here. The
+   * gates feed subscribes to it in the model's scope, so the host does not
+   * re-render when a guard mounts or goes (ADR-QD-162). Absent: the panel says none was
+   * handed over.
+   */
   readonly gates?: GateRegistryLike | undefined;
   /**
-   * The questions asked so far, usually `atoms.asked`.
+   * The questions asked so far, usually the feed's `questions` or `atoms.asked` from `@qadi/react`.
    *
    * Read by the gates feed on the diagnostics cadence and never by the poll, so a throw is stated in
-   * the panel and the poll keeps running (ADR-QD-169).
+   * the panel and the poll keeps running (ADR-QD-169). Hold it at module scope or in a
+   * `useMemo`, since the model reads it again when its identity changes.
    */
   readonly questions?: (() => ReadonlyArray<AskedQuestionLike>) | undefined;
-  /** A reading taken elsewhere: each field it carries wins; a change recomputes the merge and never restarts the poll. */
+  /**
+   * A reading taken elsewhere, such as another process's or a fixture's.
+   *
+   * Each of `wiring`, `activity`, `hydration` and `portCalls` it carries takes
+   * precedence over the same field of what `diagnostics` samples, and a field it
+   * omits falls through to the sample (`mergeReading`). It answers "what did
+   * another process see", which sampling this one cannot: for this process, hand
+   * over `diagnostics` instead. Its `wiring` is a `WiringRead`, so a reading from
+   * elsewhere can state a failed read as well as a report; its `portCalls` come
+   * from `collectPortCalls` and need the collector's tracer layer wired where
+   * evaluations ran. Its `questions`, usually `atoms.asked()` from `@qadi/react`,
+   * are not merged: the questions join reads them from this reading, and they
+   * win over the `questions` input. A change recomputes the merge and never
+   * restarts the poll.
+   */
   readonly reading?: DiagnosticsReading | undefined;
+  /**
+   * The application's own resolvers, for the simulator's `Live` source.
+   *
+   * The only way anything in this package performs I/O, so it is opt-in by the
+   * application author. Without it the simulator still works on fixtures, and
+   * the `Live` option is shown disabled with the reason.
+   */
   readonly ports?: EvaluationPortsLayer | undefined;
-  /** Read in the model's own scope; a new source (or capacity) supersedes the previous read. */
+  /**
+   * Where records come from, read in the model's own scope; a new source (or capacity)
+   * supersedes the previous read. Omitted, the dock renders empty rather than throwing.
+   */
   readonly source?: Source | undefined;
 }
+
+/**
+ * The one normaliser of the dock model's inputs.
+ *
+ * A capacity the timeline refuses throws here, before anything moves, and a field added to
+ * `DockModelInputs` is a compile error until it is listed, so it cannot be left out of the
+ * comparison (ADR-QD-192).
+ */
+export const completeDockInputs = (inputs: DockModelInputs): Required<DockModelInputs> => ({
+  capacity: effectiveCapacity(inputs.capacity),
+  catalogue: inputs.catalogue,
+  diagnostics: inputs.diagnostics,
+  gates: inputs.gates,
+  questions: inputs.questions,
+  reading: inputs.reading,
+  ports: inputs.ports,
+  source: inputs.source,
+});
+
+/**
+ * What the dock hands each of its three feeds: the timeline's and the gates' records, and the
+ * diagnostics' options as the host gave them when it is on, which the diagnostics feed's own
+ * `configure` normalises.
+ */
+interface FeedInputs {
+  readonly timeline: Required<TimelineFeedInputs>;
+  readonly gates: Required<GatesFeedInputs>;
+  readonly diagnostics: DiagnosticsOptions | undefined;
+}
+
+/**
+ * Maps the dock's inputs onto its three feeds, the one place this is written.
+ *
+ * The poll's interval is one setting: the diagnostics own it, and the gates read their thunk on the
+ * same cadence, so it crosses from one record to the other here and nowhere else (ADR-QD-192).
+ */
+export const feedInputsOf = (inputs: Required<DockModelInputs>): FeedInputs => ({
+  timeline: { capacity: inputs.capacity, source: inputs.source },
+  gates: {
+    gates: inputs.gates,
+    questions: inputs.questions,
+    intervalMillis: inputs.diagnostics?.intervalMillis,
+  },
+  diagnostics: inputs.diagnostics,
+});
 
 export interface DockModel {
   /** Stable across a capacity change: a different bound is a different buffer, not a different review session. */
   readonly timeline: TimelineStore;
   readonly dock: DockSession;
+  /**
+   * The highlight lens: what is drawn over the page, whether the reader is picking, and the
+   * guard they picked; no configure touches it.
+   */
+  readonly lens: LensSession;
   readonly explorer: ExplorerSession;
   readonly roles: HeldChoiceStore<Role>;
   readonly simulation: SimulationSession;
@@ -106,9 +238,19 @@ export interface DockModel {
   readonly questions: ReadableStore<QuestionsSnapshot>;
   /** The Services tab's port cards of the shown reading, recomputed only when one of its four inputs changes identity. */
   readonly services: ReadableStore<ServicesView>;
-  /** `catalogueOf` of the shown timeline and the current catalogue, computed once per change. */
+  /**
+   * The rail's snapshot: `catalogueOf` of the shown timeline and the held catalogue, recomputed
+   * when either changes identity, once per change.
+   */
   readonly sightings: () => ReadonlyArray<PolicySighting>;
-  /** Dispatches only the inputs whose identity changed. An omitted input reads as `undefined`. */
+  /**
+   * Applies the inputs.
+   *
+   * A capacity the timeline refuses throws before anything moves. Every other step runs
+   * whatever a listener throws, and the throws are rethrown after the last step, one as itself
+   * and several as one `AggregateError` in step order (ADR-QD-194). An omitted input reads as
+   * `undefined`, an omitted capacity as `DEFAULT_TIMELINE_CAPACITY`.
+   */
   readonly configure: (inputs: DockModelInputs) => void;
 }
 
@@ -176,59 +318,64 @@ function mergedOf(key: MergeKey): DiagnosticsSnapshot {
   return { status: key.fed.status, reading: merged };
 }
 
+/** The two things the sightings rail is computed from, compared by identity. */
+interface RailKey {
+  readonly shown: Timeline;
+  readonly catalogue: Catalogue | undefined;
+}
+
 /** One list for every absent catalogue, so the role store keeps one identity. */
 const NO_ROLES: ReadonlyArray<Role> = [];
 
-/** Builds the model in the caller's scope; closing it interrupts the source read and any run in flight. */
-export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* (
-  init?: DockModelInputs,
-): Effect.fn.Return<DockModel, never, Scope.Scope> {
-  let inputs: DockModelInputs = init ?? {};
-  // Reads the source in this scope; the store it hands back outlives a capacity change.
-  const timelineFeed = yield* makeTimelineFeed({ capacity: inputs.capacity, source: inputs.source });
+/**
+ * Builds the model bare in the caller's scope; closing it interrupts the source read and any
+ * run in flight.
+ *
+ * The model takes its inputs only through `configure` (ADR-QD-192), so a bare model
+ * shows what an empty record shows until it is handed one.
+ */
+export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* (): Effect.fn.Return<
+  DockModel,
+  never,
+  Scope.Scope
+> {
+  let held = completeDockInputs({});
+  // Reads the source in this scope, once `configure` hands it over; the store it hands back
+  // outlives a capacity change.
+  const timelineFeed = yield* makeTimelineFeed();
   const timeline = timelineFeed.timeline;
-  let shown: Timeline = timeline.getSnapshot();
-  let rail = catalogueOf(shown, inputs.catalogue);
-
-  const simulation = yield* makeSimulationSession({ sightings: rail });
-  simulation.setPorts(inputs.ports);
-  const explorer = makeExplorerSession({ sightings: rail });
-  const roles = makeHeldChoiceStore(inputs.catalogue?.roles ?? NO_ROLES, sameRole);
-  const dock = makeDockSession({ timeline: shown, simulation });
-
-  const spread = () => {
-    rail = catalogueOf(shown, inputs.catalogue);
-    explorer.setSightings(rail);
-    simulation.setSightings(rail);
-    dock.setTimeline(shown);
-  };
-
-  // Subscribed here, before any host listener, so the rail moves first. A pause toggle
+  // The sightings rail, a function of the shown timeline and the held catalogue. Built right
+  // after the timeline and before any other subscription, so it moves first; a pause toggle
   // publishes the same timeline, which reaches the host but not the rail.
-  timeline.subscribe(() => {
-    const next = timeline.getSnapshot();
-    if (next === shown) return;
-    shown = next;
-    spread();
+  const rail = yield* makeDerivedStore({
+    parents: [timeline],
+    key: (): RailKey => ({ shown: timeline.getSnapshot(), catalogue: held.catalogue }),
+    compute: (key) => catalogueOf(key.shown, key.catalogue),
   });
 
+  const simulation = yield* makeSimulationSession({ sightings: rail.getSnapshot() });
+  const explorer = makeExplorerSession({ sightings: rail.getSnapshot() });
+  const roles = makeHeldChoiceStore(NO_ROLES, sameRole);
+  const dock = makeDockSession({ timeline: timeline.getSnapshot(), simulation });
+  const lens = makeLensSession();
+
+  rail.subscribe(() => explorer.setSightings(rail.getSnapshot()));
+  rail.subscribe(() => simulation.setSightings(rail.getSnapshot()));
+  timeline.subscribe(() => dock.setTimeline(timeline.getSnapshot()));
+
   // Forks the poll and never waits on it, so an asynchronous layer leaves it `Starting` after the build.
-  const diagnosticsFeed = yield* makeDiagnosticsFeed(inputs.diagnostics);
+  const diagnosticsFeed = yield* makeDiagnosticsFeed();
   const shownReading = yield* makeDerivedStore({
     parents: [diagnosticsFeed],
     key: (): MergeKey => ({
       fed: diagnosticsFeed.getSnapshot(),
-      supplied: inputs.reading,
+      supplied: held.reading,
     }),
     compute: mergedOf,
   });
 
   // Host code, both of it: the feed guards the registry and the thunk, and states a throw in its snapshot.
-  const gatesFeed = yield* makeGatesFeed({
-    gates: inputs.gates,
-    questions: inputs.questions,
-    intervalMillis: inputs.diagnostics?.intervalMillis,
-  });
+  const gatesFeed = yield* makeGatesFeed();
   // The join is pure over the feed's snapshot, the supplied questions and the poll's
   // status, so no snapshot pairs a question from one moment with a guard from another.
   // Built after the shown reading and the feeds and before any host listener, so the join
@@ -236,7 +383,7 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
   const questions = yield* makeDerivedStore({
     parents: [gatesFeed, shownReading],
     key: (): JoinKey => {
-      const supplied = inputs.reading?.questions;
+      const supplied = held.reading?.questions;
       const { status } = shownReading.getSnapshot();
       return {
         feed: gatesFeed.getSnapshot(),
@@ -261,9 +408,34 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
     compute: portCards,
   });
 
+  const configure = (next: DockModelInputs) => {
+    // A capacity the timeline refuses throws here, before anything moves.
+    held = completeDockInputs(next);
+    // Each step reads `held` when it runs, so a configure a listener makes from inside a step
+    // decides the end state, and each is a no-op on inputs its target already holds.
+    callAll(
+      [
+        () => timelineFeed.configure(feedInputsOf(held).timeline),
+        () => rail.refresh(),
+        () => roles.setList(held.catalogue?.roles ?? NO_ROLES),
+        () => simulation.setPorts(held.ports),
+        // The gates apply their inputs before the shown reading refreshes, whose publish
+        // joins through them: one `configure` reads no registry the host has just handed
+        // away, and publishes one join.
+        () => gatesFeed.configure(feedInputsOf(held).gates),
+        () => diagnosticsFeed.configure(feedInputsOf(held).diagnostics),
+        // A reading that moved is a new shown reading, which the join and the cards
+        // follow through their parents.
+        () => shownReading.refresh(),
+      ],
+      "More than one step of the dock's configure threw.",
+    );
+  };
+
   return {
     timeline,
     dock,
+    lens,
     explorer,
     roles,
     simulation,
@@ -275,30 +447,7 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
     timelineStatus: timelineFeed.status,
     questions: { subscribe: questions.subscribe, getSnapshot: questions.getSnapshot },
     services: { subscribe: services.subscribe, getSnapshot: services.getSnapshot },
-    sightings: () => rail,
-
-    configure: (next) => {
-      const before = inputs;
-      inputs = next;
-      timelineFeed.configure({ capacity: next.capacity, source: next.source });
-      if (next.catalogue !== before.catalogue) {
-        spread();
-        roles.setList(next.catalogue?.roles ?? NO_ROLES);
-      }
-      // The session guards an identical layer itself, so this is not guarded again.
-      simulation.setPorts(next.ports);
-      // The feed re-reads the registry and the thunk before the shown reading is
-      // refreshed, whose publish joins through them: one `configure` reads no
-      // registry the host has just handed away, and publishes one join.
-      gatesFeed.configure({
-        gates: next.gates,
-        questions: next.questions,
-        intervalMillis: next.diagnostics?.intervalMillis,
-      });
-      diagnosticsFeed.configure(next.diagnostics);
-      // A reading that moved is a new shown reading, which the join and the cards follow
-      // through their parents.
-      shownReading.refresh();
-    },
+    sightings: () => rail.getSnapshot(),
+    configure,
   };
 });

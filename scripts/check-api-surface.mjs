@@ -66,19 +66,25 @@ const DECLARATION = /^export (?:const|class|interface|type|function) ([A-Za-z_$]
 const BARREL = /^export \* from "\.\/([^"]+)"/;
 
 /**
- * A named re-export **from another module**: `export type { A, B } from "./C.ts"`.
+ * A named export list: `export type { A, B } from "./C.ts"` re-exports from another
+ * module, and `export type { A };` (see `REEXPORT_LOCAL`) lists local names.
  *
- * Understood rather than rejected, because the names are on the line — no module
- * resolution is needed to know what this adds to the surface. The form appears
- * where a module is deliberately out of the barrel and only its types are public
- * (`DeveloperSignals.ts`, whose ambient-global boundary is not a public surface).
- *
- * The `from` clause is required. `export { foo }` with no source is a different
- * thing — it can publish a locally-declared name that carries no `export`
- * keyword of its own, so `DECLARATION` would never have seen it — and stays
- * unsupported below.
+ * Understood rather than rejected, because the names are on the line whether or not
+ * a `from` clause follows them: no module resolution is needed to know what this
+ * adds to the surface. The `from` form appears where a module is deliberately out of
+ * the barrel and only its types are public (`DeveloperSignals.ts`, whose
+ * ambient-global boundary is not a public surface).
  */
 const REEXPORT_FROM = /^export (?:type )?\{([^}]*)\} from "/;
+
+/**
+ * A local export list: `export { foo };` or `export type { Foo };`, no `from` clause.
+ *
+ * A local list can publish a name that carries no `export` keyword of its own
+ * (`class Foo {}` then `export type { Foo };`), which `DECLARATION` never sees: that
+ * is exactly why the list is read for its names and not skipped.
+ */
+const REEXPORT_LOCAL = /^export (?:type )?\{([^}]*)\}\s*;?\s*$/;
 
 /**
  * The opening line of such a list that is wrapped over several lines: `export {`
@@ -86,8 +92,9 @@ const REEXPORT_FROM = /^export (?:type )?\{([^}]*)\} from "/;
  *
  * `@qadi/devtools`' barrels name every export per module (ARCH-40), and a long
  * list wraps at the codebase's hand-wrap width. `logicalLines` joins the wrapped
- * list back into the one line `REEXPORT_FROM` reads, so the form is understood
- * and not merely tolerated: a list that never closes still reaches `UNSUPPORTED`.
+ * list back into the one line `REEXPORT_FROM` or `REEXPORT_LOCAL` reads, so the
+ * form is understood and not merely tolerated: a list that never closes still
+ * reaches `UNSUPPORTED`.
  */
 const REEXPORT_OPEN = /^export (?:type )?\{[^}]*$/;
 
@@ -100,9 +107,8 @@ const REEXPORT_NAME = /^(?:type\s+)?[A-Za-z_$][\w$]*(?:\s+as\s+([A-Za-z_$][\w$]*
  * weaker while still printing success, which is the failure mode the gate exists to
  * prevent.
  *
- * `export {` and `export type {` are listed, and `REEXPORT_FROM` is tried first —
- * so only the source-less form, and any list this parser cannot decompose, reaches
- * here.
+ * `export {` and `export type {` are listed, and `REEXPORT_FROM` and `REEXPORT_LOCAL`
+ * are tried first — so only a list this parser cannot decompose reaches here.
  *
  * `async function`, `enum`, `abstract class`, `let`, `var`, `import` and `declare`
  * are also listed. None of them matched `DECLARATION` (which only understands
@@ -179,7 +185,7 @@ const exportsOf = (file) => {
   const names = new Set();
 
   for (const [index, line] of logicalLines(source)) {
-    const reexport = REEXPORT_FROM.exec(line);
+    const reexport = REEXPORT_FROM.exec(line) ?? REEXPORT_LOCAL.exec(line);
     if (reexport) {
       const clauses = reexport[1]
         .split(",")

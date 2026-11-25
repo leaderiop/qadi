@@ -16,9 +16,9 @@
  * Adding a name is a line here, a row in `spec/overview.md` and a line in
  * `test/surface.test.ts`.
  */
+export type { DiagnosticsOptions } from "../model/Diagnostics.ts";
 export { DiagnosticsStatus } from "../model/DiagnosticsFeed.ts";
 export type { DiagnosticsSnapshot } from "../model/DiagnosticsFeed.ts";
-export type { DiagnosticsOptions } from "../model/DiagnosticsStore.ts";
 export type { AskedQuestionLike } from "../model/Gates.ts";
 export { TimelineStatus } from "../model/TimelineFeed.ts";
 export { DevtoolsDock } from "./DevtoolsDock.tsx";

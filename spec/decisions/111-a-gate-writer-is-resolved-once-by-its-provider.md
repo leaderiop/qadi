@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-111                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-11-08                                     |
-> | Status         | Accepted — amends ADR-QD-053, ADR-QD-080; amended by ADR-QD-140; amended 2026-11-22 (ADR-QD-186) |
+> | Status         | Accepted — amends ADR-QD-053, ADR-QD-080; amended by ADR-QD-140; amended 2026-11-22 (ADR-QD-186); amended 2026-11-24 (ADR-QD-193) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-22): Amendment: a guard passes its wanted registrations keyed by gate id (ADR-QD-186, CCR-QD-465)<br>1.1 (2026-11-11): Amendment (ARCH-76, CCR-QD-418): the hooks moved to useGate.ts; amended by ADR-QD-140<br>1.0 (2026-11-08): Initial (ARCH-49, CCR-QD-388) |
+> | Change History | 1.3 (2026-11-24): amended by ADR-QD-193 (CCR-QD-472)<br>1.2 (2026-11-22): Amendment: a guard passes its wanted registrations keyed by gate id (ADR-QD-186, CCR-QD-465)<br>1.1 (2026-11-11): Amendment (ARCH-76, CCR-QD-418): the hooks moved to useGate.ts; amended by ADR-QD-140<br>1.0 (2026-11-08): Initial (ARCH-49, CCR-QD-388) |
 
 ---
 
@@ -161,3 +161,13 @@ history and stays as written.
   tells each kept handle its state.
 - **The removal note above:** a single-question guard passes one wanted entry keyed by
   its gate id to `useGateRegistrations`, not one identity.
+
+## Amendment (2026-11-24, ADR-QD-193, CCR-QD-472)
+
+The Decision's sentence that `QadiContextValue`, which is public, "is unchanged" held when it was written, and the text
+above is history and stays as written. [ADR-QD-193](./193-the-highlight-lens-is-a-headless-session-the-dock-model-owns.md)
+removes the value's `instrument` field, which nothing read: the public value is `atoms`, `registry` and `gates`, and a
+toggle of the provider's `instrument` prop hands a consumer of the context no new value. The prop stays, and the writer
+stays off the value as decided here: `QadiProvider` still resolves `instrument ? gateWriterFor(gates) : undefined` once and
+hands it through `GateScopeContext`, so whether a guard registers is decided there and a host that wants to know whether it
+instrumented reads the value it passed.

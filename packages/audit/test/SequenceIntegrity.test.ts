@@ -4,12 +4,13 @@ import * as FastCheck from "fast-check";
 import { encodeAuditEntry } from "../src/AuditEntry.ts";
 import type { AuditEntry } from "../src/AuditEntry.ts";
 import { verifySequenceIntegrity } from "../src/SequenceIntegrity.ts";
-import { decisionRecord } from "./helpers.ts";
+import { decisionRecord, numbered } from "./helpers.ts";
 
-const entryWithSequence = (sequenceNumber: number | undefined): AuditEntry => ({
-  ...Effect.runSync(encodeAuditEntry(decisionRecord({ evaluationId: `e-${String(sequenceNumber)}` }))),
-  sequenceNumber,
-});
+const entryWithSequence = (sequenceNumber: number | undefined): AuditEntry => {
+  const evaluationId = `e-${String(sequenceNumber)}`;
+  const entry = Effect.runSync(encodeAuditEntry(decisionRecord({ evaluationId })));
+  return sequenceNumber === undefined ? entry : numbered(entry, sequenceNumber);
+};
 
 describe("verifySequenceIntegrity", () => {
   it.effect("no entries at all is trivially intact", () =>
@@ -82,6 +83,14 @@ describe("verifySequenceIntegrity", () => {
         assert.strictEqual(result.failure.actualSequence, 3);
       }
     }));
+
+  it.effect("the largest safe integers are accepted", () =>
+    Effect.gen(function* () {
+      yield* verifySequenceIntegrity([
+        entryWithSequence(Number.MAX_SAFE_INTEGER),
+        entryWithSequence(Number.MAX_SAFE_INTEGER - 1),
+      ]);
+    }));
 });
 
 describe("PROPERTY: gap and duplicate detection over generated sequences", () => {
@@ -117,44 +126,4 @@ describe("PROPERTY: gap and duplicate detection over generated sequences", () =>
       { numRuns: 100 },
     );
   });
-});
-
-describe("verifySequenceIntegrity: a sequence number outside the safe integers", () => {
-  const invalidAt = (numbers: ReadonlyArray<number | undefined>) =>
-    Effect.gen(function* () {
-      const result = yield* Effect.result(verifySequenceIntegrity(numbers.map(entryWithSequence)));
-      if (result._tag !== "Failure") return assert.fail("expected a failure");
-      if (result.failure._tag !== "SequenceNumberInvalid") return assert.fail("expected SequenceNumberInvalid");
-      return result.failure;
-    });
-
-  it.effect("a fractional number fails SequenceNumberInvalid, even in an otherwise contiguous run", () =>
-    Effect.gen(function* () {
-      const failure = yield* invalidAt([1.5, 2.5]);
-      assert.strictEqual(failure.index, 0);
-      assert.strictEqual(failure.sequenceNumber, 1.5);
-    }));
-
-  it.effect("a duplicate past 2 ** 53, which the gap check alone cannot see, fails SequenceNumberInvalid", () =>
-    Effect.gen(function* () {
-      const failure = yield* invalidAt([undefined, 2 ** 53, 2 ** 53]);
-      assert.strictEqual(failure.index, 1);
-      assert.strictEqual(failure.sequenceNumber, 2 ** 53);
-    }));
-
-  it.effect("Infinity and NaN fail SequenceNumberInvalid, reported at the first one in the order given", () =>
-    Effect.gen(function* () {
-      assert.strictEqual((yield* invalidAt([Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY])).index, 0);
-      const nan = yield* invalidAt([3, 1, Number.NaN]);
-      assert.strictEqual(nan.index, 2);
-      assert.isTrue(Number.isNaN(nan.sequenceNumber));
-    }));
-
-  it.effect("the largest safe integers are accepted", () =>
-    Effect.gen(function* () {
-      yield* verifySequenceIntegrity([
-        entryWithSequence(Number.MAX_SAFE_INTEGER),
-        entryWithSequence(Number.MAX_SAFE_INTEGER - 1),
-      ]);
-    }));
 });

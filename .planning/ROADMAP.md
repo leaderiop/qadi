@@ -11,6 +11,8 @@
 - ✅ **v1.6 Arch Wave 11** — Phases 53-61 (completed 2026-11-19; not released) — [archive](milestones/v1.6-ROADMAP.md)
 - ✅ **v1.7 Arch Wave 12** — Phases 62-68.1 (completed 2026-11-22; not released) — [archive](milestones/v1.7-ROADMAP.md)
 - ✅ **v1.8 Arch Wave 13** — Phases 69-76 (completed 2026-11-23; not released) — [archive](milestones/v1.8-ROADMAP.md)
+- ✅ **v1.9 Arch Wave 14** — Phases 77-80 (completed 2026-11-24; not released) — [archive](milestones/v1.9-ROADMAP.md)
+- ✅ **v1.10 Arch Wave 15** — Phases 81-84 (completed 2026-11-25; not released) — [archive](milestones/v1.10-ROADMAP.md)
 
 ## Phases
 
@@ -402,5 +404,33 @@ Full details: [milestones/v1.7-ROADMAP.md](milestones/v1.7-ROADMAP.md) · requir
 Full details: [milestones/v1.8-ROADMAP.md](milestones/v1.8-ROADMAP.md) · requirements:
 [milestones/v1.8-REQUIREMENTS.md](milestones/v1.8-REQUIREMENTS.md) · audit:
 [milestones/v1.8-MILESTONE-AUDIT.md](milestones/v1.8-MILESTONE-AUDIT.md)
+
+</details>
+
+<details>
+<summary>✅ v1.9 Arch Wave 14 (Phases 77-80) — COMPLETED 2026-11-24 (not released)</summary>
+
+- [x] Phase 77: An audit row is a value only its codec makes, ARCH-124 (audit minor, Breaking) (7/7 plans) — completed 2026-11-24
+- [x] Phase 78: `TimelineStore` owns its capacity, ARCH-125 (devtools minor, Breaking) (11/11 plans) — completed 2026-11-24
+- [x] Phase 79: Feeds and the dock model take inputs only through `configure`, ARCH-126 (devtools minor, Breaking) (17/17 plans) — completed 2026-11-24
+- [x] Phase 80: The highlight lens is a headless session; `instrument` resolved, ARCH-127 (react minor, Breaking; devtools patch) (13/13 plans) — completed 2026-11-24
+
+Full details: [milestones/v1.9-ROADMAP.md](milestones/v1.9-ROADMAP.md) · requirements:
+[milestones/v1.9-REQUIREMENTS.md](milestones/v1.9-REQUIREMENTS.md) · audit:
+[milestones/v1.9-MILESTONE-AUDIT.md](milestones/v1.9-MILESTONE-AUDIT.md)
+
+</details>
+
+<details>
+<summary>✅ v1.10 Arch Wave 15 (Phases 81-84) — COMPLETED 2026-11-25 (not released)</summary>
+
+- [x] Phase 81: The dock model applies every input whatever a listener throws, ARCH-128 (devtools patch; live defect) (11/11 plans) — completed 2026-11-25
+- [x] Phase 82: `QadiProvider`'s registry has one owner for its lifetime, ARCH-129 (react patch; live defect) (10/10 plans) — completed 2026-11-25
+- [x] Phase 83: The diagnostics feed folds its reading as a value, ARCH-130 (devtools minor, Breaking) (11/11 plans) — completed 2026-11-25
+- [x] Phase 84: `useConfigured` requires `configure`, and the review's small finds, ARCH-131 (devtools patch) (13/13 plans) — completed 2026-11-25
+
+Full details: [milestones/v1.10-ROADMAP.md](milestones/v1.10-ROADMAP.md) · requirements:
+[milestones/v1.10-REQUIREMENTS.md](milestones/v1.10-REQUIREMENTS.md) · audit:
+[milestones/v1.10-MILESTONE-AUDIT.md](milestones/v1.10-MILESTONE-AUDIT.md)
 
 </details>

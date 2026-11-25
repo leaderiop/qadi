@@ -5,12 +5,12 @@
 > | Property       | Value                                                        |
 > | -------------- | ------------------------------------------------------------ |
 > | Document ID    | QADI-BEH-09                                                  |
-> | Revision       | 3.17                                                          |
+> | Revision       | 3.22                                                          |
 > | Effective Date | 2026-10-08                                                   |
 > | Status         | Effective                                                    |
 > | Author         | Qadi Engineering                                             |
 > | Classification | Functional Specification                                     |
-> | Change History | 3.17 (2026-11-22): BEH-QD-703: pinned by the reconcile test on a real registry (CCR-QD-465)<br>3.16 (2026-11-22): BEH-QD-702: states the writer's contract once and cites only the tests that pin it (CCR-QD-465)<br>3.15 (2026-11-22): BEH-QD-703: pinned by the surviving same-input reconcile test (CCR-QD-465)<br>3.14 (2026-11-22): BEH-QD-702: the writer's contract replaces the failure rule (CCR-QD-465)<br>3.13 (2026-11-22): BEH-QD-701 to BEH-QD-705: gate registration as one keyed reconcile (ARCH-120, CCR-QD-465)<br>3.12 (2026-11-22): BEH-QD-691, BEH-QD-693 and BEH-QD-694: the table-facts test detects a changed row and is no evidence of timing; the provider reads InstrumentedInProduction's condition through holdsHere; the latch is the one rebindable module-scope binding (ARCH-118, CCR-QD-463)<br>3.11 (2026-11-22): BEH-QD-691, BEH-QD-693, BEH-QD-694: one developer-signal table, each default's condition, the once-per-process line (ARCH-118, ADR-QD-184, CCR-QD-463)<br>3.10 (2026-11-19): BEH-QD-327: DiagnosticsOptions.layer (ARCH-107, CCR-QD-451)<br>3.9 (2026-11-18): BEH-QD-327: the feed hands questions beside gates (ARCH-103, CCR-QD-447)<br>3.8 (2026-11-16): BEH-QD-327: the feed hands over the gate registry (ARCH-96, CCR-QD-440)<br>3.7 (2026-11-12): BEH-QD-516 new: the subject stays in the registry for the provider's lifetime; BEH-QD-067's later-change requirement names it (CCR-QD-427)<br>3.6 (2026-11-12): BEH-QD-512..515 new (one sweeper per atom set; the sweep after the pressure; no provider fork and no manual sweep; the bound after unmount); BEH-QD-065 restated without sweepEvictions (ARCH-83, CCR-QD-426)<br>3.5 (2026-10-08): BEH-QD-327 added — a devtools feed reads the provider's own runtime: `useDevtoolsFeed` and `runtimeLayer` (ARCH-34, ADR-QD-053 amendment, CCR-QD-240)<br>3.4 (2026-10-08): BEH-QD-067 — `onDeveloperSignal`, and the requirement that the provider never writes to the console itself (ADR-QD-041 amendment, CCR-QD-203)<br>3.3 (2026-10-07): ARCH-23 — BEH-QD-065's `QadiAtoms` listing takes `decision(policy, resource?)` (`decisionFor` is removed), `decisions`, `gates`, `sweepEvictions` and the `maxTrackedQuestions`/`onGateIdCollision` options it omitted, and "the same atom" becomes "for as long as the atom set tracks the question, whatever the garbage collector does"; BEH-QD-068 gains `useQuestions` and the grouped-registration note (ADR-QD-103, ADR-QD-053 amendment, INV-QD-105, CCR-QD-201)<br>3.2 (2026-10-06): `QadiAtoms.hydrate` takes `DehydratedDecisions` — `DehydratedPayload` is removed with the version-1 payload reader (ADR-QD-078 amendment, CCR-QD-182)<br>3.1 (2026-10-05): ARCH-14 — BEH-QD-066 gains `DecisionOutcome`/`outcomeOf`, a complete state table (`Initial` with `waiting: true`, a `Failure` being re-checked, and `previousSuccess` never read) and the requirement that every surface reads through `outcomeOf`; BEH-QD-307 added (a decision result reads as one of five outcomes); BEH-QD-068's `useCan` paragraph names `outcomeOf` (ADR-QD-093, INV-QD-094, CCR-QD-175)<br>3.0 (2026-10-04): ARCH-05 — `DecisionResult` and `currentDecision` hold a `ClientDecision` (the closed union of an evaluated or a seeded decision), `useDecisionSuspense` returns one, `DeniedNode`'s function takes `Deny | SeededDeny`, and `useProjected` projects through `permits`/`projectVisible`; `QadiAtoms` gains `hydrate`; the `subject` atom compares with `subjectEquivalence` (BEH-QD-066, BEH-QD-068, BEH-QD-065, BEH-QD-067, CCR-QD-156)<br>2.9 (2026-09-19): AC-02/EY-03 — the "depends on `effect` and `react` only" and `getServerSnapshot` paragraphs corrected for CCR-QD-150's `@effect/atom-react` reversal (2026-09-13), which this revision had missed; `useCan`'s "pending, denied and failed" corrected to the fourth state, a re-check, `hooks.ts`'s own doc comment already named<br>2.8 (2026-09-19): BEH-QD-067 — the subject-seeding requirement scoped to initial construction, and a requirement added for a later `subject` prop change: written in an effect, with an accepted one-frame stale-decision window (AC-03/EY-02)<br>2.7 (2026-09-08): The `Can` RECOMMENDED note corrected — `failure ?? fallback` could not distinguish an omitted `failure` from an explicit `failure={null}`; `Can` now renders `fallback` only when `failure` is omitted, and an explicit `null` opts out of it (issue #79, CCR-QD-138)<br>2.6 (2026-09-08): BEH-QD-065 — the `QadiAtoms` interface fence was missing `asked`, cross-referenced to its normative home at BEH-QD-198 (CCR-QD-126)<br>2.5 (2026-08-30): BEH-QD-068 — an already-settled decision MUST still resolve its suspense promise, and a re-checking one MUST still suspend (COMPAT-01, gap G-01-1)<br>2.4 (2026-08-23): BEH-QD-067 — `"use client"` per module, and the server-rendering guarantee (ADR-QD-042 companion work, CCR-QD-057)<br>2.3 (2026-08-23): BEH-QD-065 — `makeQadiAtoms` takes `QadiAtomsOptions` (ADR-QD-041, BEH-QD-152, CCR-QD-056)<br>2.2 (2026-08-23): BEH-QD-072 — a guard hands its denial to the node that replaces it (CCR-QD-054)<br>2.1 (2026-07-26): BEH-QD-071 corrected — atom keying is structural, not by reference (CCR-QD-013)<br>2.0 (2026-07-26): Rebuilt on `effect/reactivity` (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
+> | Change History | 3.22 (2026-11-25): BEH-QD-749: the recycle writes back the subject of the last commit whose effects ran, even when the reset throws, and the first frame of a reveal after a change made while hidden reads the previous subject; LT6, LT16 to LT18 cited (CCR-QD-474)<br>3.21 (2026-11-25): BEH-QD-067 and BEH-QD-516 restated: the provider holds one registry for its life and recycles it, nothing is disposed; the invariants linked (ADR-QD-195, CCR-QD-474)<br>3.20 (2026-11-25): BEH-QD-746 to BEH-QD-750: a provider's registry has one owner for its lifetime (ARCH-129, ADR-QD-195, CCR-QD-474)<br>3.19 (2026-11-24): BEH-QD-740: the instrument-toggle test is quoted by its current title (CCR-QD-472)<br>3.18 (2026-11-24): BEH-QD-740: QadiContextValue is the atoms, the registry and the gates (ADR-QD-193, CCR-QD-472)<br>3.17 (2026-11-22): BEH-QD-703: pinned by the reconcile test on a real registry (CCR-QD-465)<br>3.16 (2026-11-22): BEH-QD-702: states the writer's contract once and cites only the tests that pin it (CCR-QD-465)<br>3.15 (2026-11-22): BEH-QD-703: pinned by the surviving same-input reconcile test (CCR-QD-465)<br>3.14 (2026-11-22): BEH-QD-702: the writer's contract replaces the failure rule (CCR-QD-465)<br>3.13 (2026-11-22): BEH-QD-701 to BEH-QD-705: gate registration as one keyed reconcile (ARCH-120, CCR-QD-465)<br>3.12 (2026-11-22): BEH-QD-691, BEH-QD-693 and BEH-QD-694: the table-facts test detects a changed row and is no evidence of timing; the provider reads InstrumentedInProduction's condition through holdsHere; the latch is the one rebindable module-scope binding (ARCH-118, CCR-QD-463)<br>3.11 (2026-11-22): BEH-QD-691, BEH-QD-693, BEH-QD-694: one developer-signal table, each default's condition, the once-per-process line (ARCH-118, ADR-QD-184, CCR-QD-463)<br>3.10 (2026-11-19): BEH-QD-327: DiagnosticsOptions.layer (ARCH-107, CCR-QD-451)<br>3.9 (2026-11-18): BEH-QD-327: the feed hands questions beside gates (ARCH-103, CCR-QD-447)<br>3.8 (2026-11-16): BEH-QD-327: the feed hands over the gate registry (ARCH-96, CCR-QD-440)<br>3.7 (2026-11-12): BEH-QD-516 new: the subject stays in the registry for the provider's lifetime; BEH-QD-067's later-change requirement names it (CCR-QD-427)<br>3.6 (2026-11-12): BEH-QD-512..515 new (one sweeper per atom set; the sweep after the pressure; no provider fork and no manual sweep; the bound after unmount); BEH-QD-065 restated without sweepEvictions (ARCH-83, CCR-QD-426)<br>3.5 (2026-10-08): BEH-QD-327 added — a devtools feed reads the provider's own runtime: `useDevtoolsFeed` and `runtimeLayer` (ARCH-34, ADR-QD-053 amendment, CCR-QD-240)<br>3.4 (2026-10-08): BEH-QD-067 — `onDeveloperSignal`, and the requirement that the provider never writes to the console itself (ADR-QD-041 amendment, CCR-QD-203)<br>3.3 (2026-10-07): ARCH-23 — BEH-QD-065's `QadiAtoms` listing takes `decision(policy, resource?)` (`decisionFor` is removed), `decisions`, `gates`, `sweepEvictions` and the `maxTrackedQuestions`/`onGateIdCollision` options it omitted, and "the same atom" becomes "for as long as the atom set tracks the question, whatever the garbage collector does"; BEH-QD-068 gains `useQuestions` and the grouped-registration note (ADR-QD-103, ADR-QD-053 amendment, INV-QD-105, CCR-QD-201)<br>3.2 (2026-10-06): `QadiAtoms.hydrate` takes `DehydratedDecisions` — `DehydratedPayload` is removed with the version-1 payload reader (ADR-QD-078 amendment, CCR-QD-182)<br>3.1 (2026-10-05): ARCH-14 — BEH-QD-066 gains `DecisionOutcome`/`outcomeOf`, a complete state table (`Initial` with `waiting: true`, a `Failure` being re-checked, and `previousSuccess` never read) and the requirement that every surface reads through `outcomeOf`; BEH-QD-307 added (a decision result reads as one of five outcomes); BEH-QD-068's `useCan` paragraph names `outcomeOf` (ADR-QD-093, INV-QD-094, CCR-QD-175)<br>3.0 (2026-10-04): ARCH-05 — `DecisionResult` and `currentDecision` hold a `ClientDecision` (the closed union of an evaluated or a seeded decision), `useDecisionSuspense` returns one, `DeniedNode`'s function takes `Deny | SeededDeny`, and `useProjected` projects through `permits`/`projectVisible`; `QadiAtoms` gains `hydrate`; the `subject` atom compares with `subjectEquivalence` (BEH-QD-066, BEH-QD-068, BEH-QD-065, BEH-QD-067, CCR-QD-156)<br>2.9 (2026-09-19): AC-02/EY-03 — the "depends on `effect` and `react` only" and `getServerSnapshot` paragraphs corrected for CCR-QD-150's `@effect/atom-react` reversal (2026-09-13), which this revision had missed; `useCan`'s "pending, denied and failed" corrected to the fourth state, a re-check, `hooks.ts`'s own doc comment already named<br>2.8 (2026-09-19): BEH-QD-067 — the subject-seeding requirement scoped to initial construction, and a requirement added for a later `subject` prop change: written in an effect, with an accepted one-frame stale-decision window (AC-03/EY-02)<br>2.7 (2026-09-08): The `Can` RECOMMENDED note corrected — `failure ?? fallback` could not distinguish an omitted `failure` from an explicit `failure={null}`; `Can` now renders `fallback` only when `failure` is omitted, and an explicit `null` opts out of it (issue #79, CCR-QD-138)<br>2.6 (2026-09-08): BEH-QD-065 — the `QadiAtoms` interface fence was missing `asked`, cross-referenced to its normative home at BEH-QD-198 (CCR-QD-126)<br>2.5 (2026-08-30): BEH-QD-068 — an already-settled decision MUST still resolve its suspense promise, and a re-checking one MUST still suspend (COMPAT-01, gap G-01-1)<br>2.4 (2026-08-23): BEH-QD-067 — `"use client"` per module, and the server-rendering guarantee (ADR-QD-042 companion work, CCR-QD-057)<br>2.3 (2026-08-23): BEH-QD-065 — `makeQadiAtoms` takes `QadiAtomsOptions` (ADR-QD-041, BEH-QD-152, CCR-QD-056)<br>2.2 (2026-08-23): BEH-QD-072 — a guard hands its denial to the node that replaces it (CCR-QD-054)<br>2.1 (2026-07-26): BEH-QD-071 corrected — atom keying is structural, not by reference (CCR-QD-013)<br>2.0 (2026-07-26): Rebuilt on `effect/reactivity` (CCR-QD-003)<br>1.0 (2026-07-25): Initial release (CCR-QD-001) |
 
 ---
 
@@ -331,9 +331,31 @@ subject" rather than a cache that compares deeply and an atom that compared
 shallowly.
 
 ```
-REQUIREMENT: Each provider MUST own its registry, and MUST NOT dispose it
-             across React's development-mode double mount.
+REQUIREMENT: Each provider MUST own one registry for its life, and MUST NOT
+             release it while any of its effects hold it.
 ```
+
+The registry is built in render and never cleared, and the provider hands the
+tree one object for as long as it lives
+([BEH-QD-747](#beh-qd-747-a-provider-holds-one-registry-for-its-life)). It is
+released by a recycle, never a disposal, one macrotask after the last release
+that no hold cancelled ([BEH-QD-748](#beh-qd-748-a-providers-registry-is-released-once-a-macrotask-after-its-last-release-unless-held-first),
+[ADR-QD-195](../decisions/195-a-providers-registry-has-one-owner-for-its-lifetime.md)),
+so React's development-mode double mount, a hide shorter than the macrotask and
+a StrictMode double effect each release nothing. Two limits are recorded
+because a recycle writes back the subject and nothing else
+([BEH-QD-750](#beh-qd-750-a-recycle-re-applies-neither-initialvalues-nor-a-hydration-seed)):
+a seeded gate under a provider with no subject, or whose resolver never answers,
+stays `Pending` after a long hide until the client answers, which fails closed
+because a seed is not an authority (`LT10`, `LT9`); and a subscription a host
+holds directly on the registry across a long hide, through `RegistryContext`, is
+detached by the recycle, where this package's own hooks have already
+unsubscribed (`LT15`).
+
+> **Amended 2026-11-25 (CCR-QD-474).** The requirement above does not speak of a
+> disposal: the provider holds one registry for its life and recycles it in place,
+> and the sentences after it state what a recycle costs a host. Its earlier form
+> required only that a development-mode double mount not dispose the registry.
 
 ### Server rendering
 
@@ -371,7 +393,8 @@ one that reaches a resolver cannot, however fast that resolver is, because
 ## BEH-QD-516: The subject stays in the registry for the provider's lifetime
 
 > **See:** [BEH-QD-067](#beh-qd-067-provider),
-> [ADR-QD-149](../decisions/149-a-seed-is-held-by-its-question.md)
+> [ADR-QD-149](../decisions/149-a-seed-is-held-by-its-question.md),
+> [ADR-QD-195](../decisions/195-a-providers-registry-has-one-owner-for-its-lifetime.md)
 
 ```
 REQUIREMENT: The subject, once seeded or written, MUST stay in the registry for
@@ -384,7 +407,8 @@ subject node is held only by the decisions that read it, so a gate under a
 hidden-then-shown `<Activity>`, a gate mounted a macrotask after the provider and
 a later subject change each found the subject gone and rendered `pending`, with the
 question still tracked. The `subject` atom is now `Atom.keepAlive`, so the node
-lasts until the provider's registry is disposed.
+lasts until the provider's registry is recycled, and the recycle writes the subject
+back ([BEH-QD-749](#beh-qd-749-a-recycle-writes-back-the-latest-committed-subject-before-a-consumer-reads-it)).
 
 Source: `packages/react/src/QadiAtoms.ts` (the `subject` atom).
 Tests: `packages/react/test/QadiProvider.subject.test.tsx` (SUBJ1 to SUBJ3) and the
@@ -1031,6 +1055,172 @@ registers that entry alone", "removing a key unregisters that entry alone and ke
 sibling", "reordering the keys notifies nothing and keeps the registration order", "an
 equal record rebuilt each render notifies nothing", "a changed resource in useQuestions
 re-registers that entry alone").
+
+## BEH-QD-740: `QadiContextValue` is the atoms, the registry and the gates, and instrumentation is the provider's prop
+
+> **Decision:** [ADR-QD-193](../decisions/193-the-highlight-lens-is-a-headless-session-the-dock-model-owns.md)
+> **See:** [ADR-QD-111](../decisions/111-a-gate-writer-is-resolved-once-by-its-provider.md)
+
+```
+REQUIREMENT: `QadiContextValue` MUST have the members `atoms`, `registry` and `gates`, and no other, and a
+             toggle of the provider's `instrument` prop MUST hand a consumer of the context no new value.
+REQUIREMENT: Instrumentation MUST stay the provider's `instrument` prop: a guard MUST register when it is
+             turned on and MUST unregister when it is turned off.
+```
+
+Whether a guard registers is decided by the writer the provider resolves once from `instrument` and hands through
+`GateScopeContext`, which stays off the public value on purpose
+([ADR-QD-111](../decisions/111-a-gate-writer-is-resolved-once-by-its-provider.md)), so the field the value once held
+for it was read by nothing. The value is memoised on `[atoms, registry, gates]`. A host that wants to know whether it
+instrumented reads the value it passed.
+
+Pinned by `packages/react/test/QadiProvider.tst.ts` ("the context value is the atoms, the registry and the gates"; "a
+consumer reads the gates from the context, and instrumentation is not a field of it") and
+`packages/react/test/InstrumentToggle.characterisation.test.tsx` ("a memoised consumer of the context does not render
+again when instrument is toggled"; "a Can registers when instrument is turned on and unregisters when it is turned
+off"). Specified in ADR-QD-193 (CCR-QD-472).
+
+## BEH-QD-746: A provider hidden longer than a macrotask and shown again throws nothing and renders the client's decision
+
+> **Invariant:** [INV-QD-409](../invariants.md#inv-qd-409-no-consumer-reaches-an-unusable-registry)
+> **Decision:** [ADR-QD-195](../decisions/195-a-providers-registry-has-one-owner-for-its-lifetime.md)
+> **See:** [BEH-QD-747](#beh-qd-747-a-provider-holds-one-registry-for-its-life), [BEH-QD-748](#beh-qd-748-a-providers-registry-is-released-once-a-macrotask-after-its-last-release-unless-held-first)
+
+```
+REQUIREMENT: A provider whose subtree an `<Activity>` hides for longer than one
+             macrotask and shows again MUST throw nothing, neither from a consumer's
+             subscription nor from the provider's own effects, and MUST render the
+             decision the client reaches.
+```
+
+React runs every effect cleanup under a hidden `<Activity>` and, on the reveal, every setup again with the last
+committed closure and no render, so a consumer subscribes again before the provider's own effects run. A registry
+disposed in the meantime would answer that first subscription with `registry is disposed`. The provider's registry
+stays usable, so the gate under a hidden-then-shown provider renders its decision, the subject probe reads the
+`subject` prop, an invalidation or a devtools feed after the reveal re-evaluates, and a StrictMode double effect
+followed by a long hide is survived.
+
+Pinned by `packages/react/test/QadiProvider.lifetime.test.tsx` ("LT1 a provider hidden past a macrotask and shown
+again throws nothing and renders the decision", "LT2 an invalidation after a long hide re-evaluates without
+throwing", "LT3 a devtools feed consumer survives a long hide", "LT4 under StrictMode the double effect recycles
+nothing and a long hide is survived", "LT6 a subject changed while hidden is read in the first frame of the reveal as the last committed one, then as the new one"). Specified in [ADR-QD-195](../decisions/195-a-providers-registry-has-one-owner-for-its-lifetime.md) (CCR-QD-474).
+
+## BEH-QD-747: A provider holds one registry for its life
+
+> **Invariant:** [INV-QD-410](../invariants.md#inv-qd-410-a-provider-holds-exactly-one-registry-for-its-life)
+> **Decision:** [ADR-QD-195](../decisions/195-a-providers-registry-has-one-owner-for-its-lifetime.md)
+> **See:** [BEH-QD-746](#beh-qd-746-a-provider-hidden-longer-than-a-macrotask-and-shown-again-throws-nothing-and-renders-the-clients-decision), [BEH-QD-067](#beh-qd-067-provider)
+
+```
+REQUIREMENT: A provider MUST build one registry, in render, and keep it for its life.
+             It MUST NOT build another for a re-render, a hide or a change of the
+             `atoms` prop, and a change of `atoms` MUST still be reported as
+             `AtomsReplaced`.
+```
+
+The registry is built in render, so a server render and the first client render have the subject with no pending
+frame. Nothing clears it: a re-render between a hide and a reveal reads the registry the first render built, which
+keeps every cached decision, and the context hands every consumer the same object for as long as the provider
+lives. A changed `atoms` prop keeps the registry and signals `AtomsReplaced` once; the atom set the earlier registry
+holds stays cached until the registry is recycled.
+
+Pinned by `packages/react/test/QadiProvider.lifetime.test.tsx` ("LT4 under StrictMode the double effect recycles
+nothing and a long hide is survived", "LT5 a hide shorter than a macrotask recycles nothing", "LT6 a subject changed while hidden is read in the first frame of the reveal as the last committed one, then as the new one", "LT7 a re-render while hidden past the release keeps
+one registry", "LT8 an atoms swap while hidden keeps the registry and is reported once", "LT13 a reveal committed
+with a re-render reads the subject in its first frame"), each of which counts the distinct registries its consumers
+were handed. Specified in [ADR-QD-195](../decisions/195-a-providers-registry-has-one-owner-for-its-lifetime.md) (CCR-QD-474).
+
+## BEH-QD-748: A provider's registry is released once, a macrotask after its last release, unless held first
+
+> **Invariant:** [INV-QD-409](../invariants.md#inv-qd-409-no-consumer-reaches-an-unusable-registry)
+> **Decision:** [ADR-QD-195](../decisions/195-a-providers-registry-has-one-owner-for-its-lifetime.md)
+> **See:** [BEH-QD-746](#beh-qd-746-a-provider-hidden-longer-than-a-macrotask-and-shown-again-throws-nothing-and-renders-the-clients-decision), [BEH-QD-749](#beh-qd-749-a-recycle-writes-back-the-latest-committed-subject-before-a-consumer-reads-it)
+
+```
+REQUIREMENT: A provider MUST recycle its registry once for each release that a hold
+             did not cancel, one macrotask after that release, and MUST NOT recycle
+             it for a release a hold followed within that macrotask. A recycle MUST
+             leave the registry usable.
+```
+
+The decision is `RegistryLease.ts`'s and nothing else's: the provider holds the lease in an effect and releases it in
+the cleanup, because React gives no sign whether a cleanup is a StrictMode double effect, a hide or an unmount. A hold
+inside the macrotask cancels the pending recycle, a second release while one is pending defers nothing more, and a
+release on a lease that was never held defers nothing. A recycle that throws leaves the lease usable, and a deferral
+that throws leaves it held. The recycle is `registry.reset()`, never `dispose()`, so a read that straggles in after
+the release recreates a node nothing holds, which idle removal takes a macrotask later, instead of throwing. After a
+true unmount a `keepAlive` host atom read through the registry the provider handed out reads its declared default.
+
+Pinned by `packages/react/test/RegistryLease.test.ts` (RL1 to RL10: "RL1 a hold, a release and a hold in one tick
+recycle nothing" through "RL10 a hold after a second release still cancels the one pending recycle", with RL9 on the
+default deferral and a real macrotask), `packages/react/test/QadiProvider.lifetime.test.tsx` ("LT5 a hide shorter
+than a macrotask recycles nothing", "LT14 a read straggling after an unmount throws nothing and leaves no node") and
+`packages/react/test/edges.test.tsx` ("releases its registry after it unmounts"). Specified in [ADR-QD-195](../decisions/195-a-providers-registry-has-one-owner-for-its-lifetime.md) (CCR-QD-474).
+
+## BEH-QD-749: A recycle writes back the latest committed subject before a consumer reads it
+
+> **Decision:** [ADR-QD-195](../decisions/195-a-providers-registry-has-one-owner-for-its-lifetime.md)
+> **See:** [BEH-QD-516](#beh-qd-516-the-subject-stays-in-the-registry-for-the-providers-lifetime), [BEH-QD-748](#beh-qd-748-a-providers-registry-is-released-once-a-macrotask-after-its-last-release-unless-held-first)
+
+```
+REQUIREMENT: A recycle MUST write back the subject of the latest commit whose
+             effects ran, in the same step as the reset and even when the reset
+             throws, and MUST NOT write one read during a render, or the one the
+             first closure held.
+```
+
+`reset()` clears the `keepAlive` subject node with the rest, so the recycle writes the subject again with the same
+public call the provider's subject effect makes. The subject and the atom set are held in a ref the provider writes in
+an effect on `[atoms, subject]`, so a render React discarded never reaches it, and with an `atoms` change the ref holds
+the current atom set's `subject` atom. A consumer that subscribes on the reveal therefore reads the subject the last
+commit whose effects ran held. A hidden tree renders with its new props and runs no effect, so a subject that changed
+while the tree was hidden is not that subject: the first frame after such a reveal reads the previous one, and the
+provider's own subject effect, which runs after every consumer has subscribed, writes the new one. That is the one-frame
+tradeoff [BEH-QD-067](#beh-qd-067-provider) records, not a gap in the recycle. A subject or an atom set committed while
+the tree was visible is the one written back, so the first frame reads it. A finalizer that makes the reset throw
+cannot skip the write: the nodes the reset had cleared would otherwise leave the consumers a subject nothing wrote, and
+the error then escapes from the deferral's timer with the lease still usable.
+
+Pinned by `packages/react/test/QadiProvider.lifetime.test.tsx` ("LT6 a subject changed while hidden is read in the
+first frame of the reveal as the last committed one, then as the new one", "LT13 a reveal committed with a re-render
+reads the subject in its first frame", "LT16 a subject committed while visible is the one a long hide's reveal reads in
+its first frame", "LT17 an atom set committed while visible is the one
+a long hide's reveal reads its subject from", "LT18 a recycle whose reset throws still writes the subject back before
+the reveal"). Specified in [ADR-QD-195](../decisions/195-a-providers-registry-has-one-owner-for-its-lifetime.md) (CCR-QD-474).
+
+## BEH-QD-750: A recycle re-applies neither `initialValues` nor a hydration seed
+
+> **Decision:** [ADR-QD-195](../decisions/195-a-providers-registry-has-one-owner-for-its-lifetime.md)
+> **See:** [BEH-QD-067](#beh-qd-067-provider), [ADR-QD-149](../decisions/149-a-seed-is-held-by-its-question.md), [ADR-QD-039](../decisions/039-a-seed-is-not-an-authority.md)
+
+```
+REQUIREMENT: A recycle MUST NOT re-apply the provider's `initialValues`, and MUST NOT
+             re-apply a hydration seed. After it a gate whose question the client
+             has not answered MUST render `Pending`, and then the client's own
+             answer.
+```
+
+`initialValues` seeds construction only. In this package it is `hydrateDecisions`' output, the seed grants of
+[ADR-QD-149](../decisions/149-a-seed-is-held-by-its-question.md), and a seed is not an authority
+([ADR-QD-039](../decisions/039-a-seed-is-not-an-authority.md)): writing a server's allow back after a hide would show
+it again while the client re-evaluates, and a client that had since answered with a denial would render the
+superseded allow. The losses are recorded, each one fail-closed:
+
+- a seeded gate whose resolver never answers renders `Pending` after a long hide, never the seed;
+- with `subject={undefined}` a seeded gate stays `Pending` after a long hide until a subject arrives;
+- a long hide with a re-render, where the client had replaced the seeded allow with its own denial, renders `Pending`
+  and then the denial and reports one hydration mismatch, where it painted the superseded allow and reported a second;
+- any other host atom in `initialValues` reads its declared default, and a subscription a host holds directly on the
+  registry (`registry.subscribe`, `mount`) across a long hide is detached by the recycle, while this package's own
+  hooks have already unsubscribed.
+
+An answered question never re-reads its seed, so the loss is the unanswered one only.
+
+Pinned by `packages/react/test/QadiProvider.lifetime.test.tsx` ("LT9 a seeded allow the client never answers is not
+shown again after a long hide", "LT10 a seeded allow with no subject stays pending after a long hide", "LT11 a long
+hide with a re-render shows no superseded allow and reports one mismatch", "LT15 a host subscription held across a
+long hide is detached by the recycle") and `packages/react/test/edges.test.tsx` ("releases its registry after it
+unmounts"). Specified in [ADR-QD-195](../decisions/195-a-providers-registry-has-one-owner-for-its-lifetime.md) (CCR-QD-474).
 
 ---
 

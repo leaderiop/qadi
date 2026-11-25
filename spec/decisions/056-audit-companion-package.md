@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-056                                   |
-> | Revision       | 1.15                                            |
+> | Revision       | 1.18                                            |
 > | Effective Date | 2026-10-08                                     |
-> | Status         | Accepted — narrows ADR-QD-016                  |
+> | Status         | Accepted — narrows ADR-QD-016; amended 2026-11-23 (ADR-QD-190) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.15 (2026-11-16): the amendment: describeEncodeRefusal may carry caller text, so it is for diagnosis, not a log line (ARCH-95, CCR-QD-439)<br>1.14 (2026-11-16): amended by ADR-QD-161: the audit refusal is core's SinkRecordNotEncodable; reason removed (ARCH-95, CCR-QD-439)<br>1.13 (2026-11-10): amended by ADR-QD-126 — the audit doubles answer from a per-call script; failWith, failStageWith and failCommitWith removed (ARCH-62, CCR-QD-404)<br>1.12 (2026-11-08): amendment — an archive's order, claim and sequence break are computed once, in ArchiveFacts.ts (ARCH-48, ADR-QD-110, CCR-QD-387)<br>1.11 (2026-10-08): amendment — a purge selects only rows an archive read back from storage holds, and the decommissioning checklist is retired (ARCH-38, CCR-QD-230)<br>1.10 (2026-10-08): an audit write's outcome is a value — every record has exactly one, and an entry not in the trail is witnessed; `onOutcome`, `writes_total{skipped_open}`, `qadi_audit_entries_lost_total`, the `qadi.audit.record` span (CCR-QD-204)<br>1.9 (2026-10-07): an encode refusal is witnessed by a log line naming its `evaluationId` (or `onRefused`) as well as the `encode_failed` counter (CCR-QD-193)<br>1.8 (2026-10-07): retention retains an entry of unknown age and refuses an impossible `now` or `maxAgeMs` (INV-QD-101, CCR-QD-186)<br>1.7 (2026-10-06): a persisted row is version-2 bytes only; a pre-0.10 (version-1) row is refused by `decodeAuditEntry` as `UnsupportedVersion` and migrated with 0.10.x (ADR-QD-096 amendment) (CCR-QD-182)<br>1.6 (2026-10-05): a persisted row is a closed union of wire versions, read back with `decodeAuditEntry`; `archiveVersion` unchanged (ADR-QD-096) (CCR-QD-180)<br>1.5 (2026-10-05): an audit row carries the encoded wire; `decodeAuditEntry` is the guarded reader (ADR-QD-095) (CCR-QD-179)<br>1.4 (2026-09-19): The no-tamper-evidence residual risk, previously distributed across `SequenceIntegrity.ts`/`AuditArchive.ts`/`DecommissioningChecklist.ts` doc comments only, recorded once under Consequences — Negative, alongside the previously-undocumented breaker-open drop window's own invisibility to the trail (AS-03/WD-07)<br>1.3 (2026-09-09): "a `resource` carrying a value with no safe durable representation" corrected — `policy`'s `HasCustom.params` is a second caller-supplied `unknown` a `SinkRecord` carries, and encoding now refuses on either (issue #104, CCR-QD-143)<br>1.2 (2026-09-06): `ChainIntegrity.ts`/`verifyChainIntegrity`/`ChainIntegrityError` renamed to `SequenceIntegrity.ts`/`verifySequenceIntegrity`/`SequenceIntegrityError` — the prior names read as cryptographic tamper-evidence to a compliance reviewer, and this ADR's own prose already called the capability "gap-and-duplicate detection" rather than that (CCR-QD-094)<br>1.1 (2026-08-25): INV-QD-051–055 and [33 — Audit Pipeline](../behaviors/33-audit-pipeline.md) close the formal-invariant gap this ADR's first revision named; mutation testing (`stryker.audit.mjs`, gate 20) closes the other — both real follow-ups, not recorded here as done until they were (CCR-QD-086)<br>1.0 (2026-08-25): Initial release (CCR-QD-085) |
+> | Change History | 1.18 (2026-11-24): amendment: the refusals are EntriesNotAList and EntryNotMadeByCodec (ADR-QD-190, CCR-QD-469)<br>1.17 (2026-11-24): amendment — planRetention and planPurge refuse an entry the codec did not make (ADR-QD-190, CCR-QD-469)<br>1.16 (2026-11-23): amendment — a row is made only by its codec; undated, SequenceNumberInvalid and the schema note are retired (ARCH-124, ADR-QD-190, CCR-QD-469)<br>1.15 (2026-11-16): the amendment: describeEncodeRefusal may carry caller text, so it is for diagnosis, not a log line (ARCH-95, CCR-QD-439)<br>1.14 (2026-11-16): amended by ADR-QD-161: the audit refusal is core's SinkRecordNotEncodable; reason removed (ARCH-95, CCR-QD-439)<br>1.13 (2026-11-10): amended by ADR-QD-126 — the audit doubles answer from a per-call script; failWith, failStageWith and failCommitWith removed (ARCH-62, CCR-QD-404)<br>1.12 (2026-11-08): amendment — an archive's order, claim and sequence break are computed once, in ArchiveFacts.ts (ARCH-48, ADR-QD-110, CCR-QD-387)<br>1.11 (2026-10-08): amendment — a purge selects only rows an archive read back from storage holds, and the decommissioning checklist is retired (ARCH-38, CCR-QD-230)<br>1.10 (2026-10-08): an audit write's outcome is a value — every record has exactly one, and an entry not in the trail is witnessed; `onOutcome`, `writes_total{skipped_open}`, `qadi_audit_entries_lost_total`, the `qadi.audit.record` span (CCR-QD-204)<br>1.9 (2026-10-07): an encode refusal is witnessed by a log line naming its `evaluationId` (or `onRefused`) as well as the `encode_failed` counter (CCR-QD-193)<br>1.8 (2026-10-07): retention retains an entry of unknown age and refuses an impossible `now` or `maxAgeMs` (INV-QD-101, CCR-QD-186)<br>1.7 (2026-10-06): a persisted row is version-2 bytes only; a pre-0.10 (version-1) row is refused by `decodeAuditEntry` as `UnsupportedVersion` and migrated with 0.10.x (ADR-QD-096 amendment) (CCR-QD-182)<br>1.6 (2026-10-05): a persisted row is a closed union of wire versions, read back with `decodeAuditEntry`; `archiveVersion` unchanged (ADR-QD-096) (CCR-QD-180)<br>1.5 (2026-10-05): an audit row carries the encoded wire; `decodeAuditEntry` is the guarded reader (ADR-QD-095) (CCR-QD-179)<br>1.4 (2026-09-19): The no-tamper-evidence residual risk, previously distributed across `SequenceIntegrity.ts`/`AuditArchive.ts`/`DecommissioningChecklist.ts` doc comments only, recorded once under Consequences — Negative, alongside the previously-undocumented breaker-open drop window's own invisibility to the trail (AS-03/WD-07)<br>1.3 (2026-09-09): "a `resource` carrying a value with no safe durable representation" corrected — `policy`'s `HasCustom.params` is a second caller-supplied `unknown` a `SinkRecord` carries, and encoding now refuses on either (issue #104, CCR-QD-143)<br>1.2 (2026-09-06): `ChainIntegrity.ts`/`verifyChainIntegrity`/`ChainIntegrityError` renamed to `SequenceIntegrity.ts`/`verifySequenceIntegrity`/`SequenceIntegrityError` — the prior names read as cryptographic tamper-evidence to a compliance reviewer, and this ADR's own prose already called the capability "gap-and-duplicate detection" rather than that (CCR-QD-094)<br>1.1 (2026-08-25): INV-QD-051–055 and [33 — Audit Pipeline](../behaviors/33-audit-pipeline.md) close the formal-invariant gap this ADR's first revision named; mutation testing (`stryker.audit.mjs`, gate 20) closes the other — both real follow-ups, not recorded here as done until they were (CCR-QD-086)<br>1.0 (2026-08-25): Initial release (CCR-QD-085) |
 
 ---
 
@@ -437,3 +437,37 @@ message and its annotations are unchanged, and the message stays this package's 
 earlier "own error" sentences was a misreading: ADR-QD-054 concerns compile-only dialect packages, and core declares the
 error. This ADR's seam, core's `DecisionSink`, is unchanged
 ([ADR-QD-161](./161-audit-reports-cores-refusal-and-decides-lost-once.md)).
+
+## Amendment (2026-11-23, ADR-QD-190, CCR-QD-469)
+
+**A row is made only by its codec.** `AuditEntry` is a module-local class exported as a type, and `encodeAuditEntry` and
+`decodeAuditEntry` are the only functions that construct one, so an object literal or a spread of the same shape is not a
+row and does not compile ([ADR-QD-190](190-an-audit-row-is-a-value-only-its-codec-makes.md)). Three passages above
+are read through it, each by its date.
+
+The 2026-10-07 amendment (CCR-QD-186) said a hand-built `AuditEntry` never passes through decode, so retention guards
+itself and reports an `at` that is not finite as `undated`. A hand-built row cannot exist, and an `AuditEntry`'s `at` is
+finite by construction: `encodeAuditEntry` refuses a non-finite `at` and `decodeAuditEntry` reads `at` as a finite
+number, which is what INV-QD-101 holds through the codec. The `undated` guard is retired, and `undated` is removed from
+`RetentionPlan`, `PurgePlan` and `planRetention`. The purge guarantee never depended on it: `planPurge` selects only
+rows the `VerifiedArchive` holds, and a row with a non-finite `at` cannot equal an archived one (INV-QD-130).
+`planRetention` still refuses a `now` that is not finite and a `maxAgeMs` that is `NaN` or negative as
+`RetentionInputInvalid`.
+
+The 2026-10-06 amendment (CCR-QD-182) called decoding a row with the `AuditEntry` schema alone "not a reader". The
+schema value is removed, so there is no such decode to mistake for one: `decodeAuditEntry` is the one reader of a stored
+row, and the one route a store's sequence number reaches a row. It reads the row's envelope first and the record
+second.
+
+The 2026-11-08 amendment (ADR-QD-110, CCR-QD-387) named `SequenceNumberInvalid`, re-exported by `SequenceIntegrity.ts`.
+It is retired: a row's `sequenceNumber` is a safe integer by construction, so neither `verifySequenceIntegrity` nor
+`archiveAuditTrail` has a number to refuse, and `SequenceIntegrity.ts` re-exports `verifySequenceIntegrity` and
+`SequenceIntegrityError` alone. `archiveAuditTrail` fails `ArchiveInputInvalid` for a `now` that is not finite, and
+writes each `keyMaterial` item as its declared fields.
+
+## Amendment (2026-11-24, ADR-QD-190, CCR-QD-469)
+
+This amendment adds one refusal to `planRetention` and so to `planPurge`: an entry the
+codec did not make, which a store client's `any` and a JavaScript caller can pass, fails `RetentionInputInvalid` with the
+refusal `EntryNotMadeByCodec` and the index of the first, and `entries` that is not a list fails it with `EntriesNotAList`,
+after the `now` and `maxAgeMs` checks. A row the codec made is unaffected.

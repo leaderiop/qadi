@@ -11,7 +11,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { Activity, useState } from "react";
-import { WiringRead, type DiagnosticsReading } from "../../src/model/DiagnosticsStore.ts";
+import { WiringRead, type DiagnosticsReading } from "../../src/model/Diagnostics.ts";
 import type { DiagnosticsOptions } from "../../src/react/index.ts";
 import type { PortActivity, WiringReport } from "../../src/model/Wiring.ts";
 import { DevtoolsDock } from "../../src/react/DevtoolsDock.tsx";

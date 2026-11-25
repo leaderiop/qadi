@@ -1,9 +1,12 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
 import * as Result from "effect/Result";
+import * as Tracer from "effect/Tracer";
 import { encodeAuditEntry } from "../src/AuditEntry.ts";
 import { archiveAuditTrail, readAuditArchive } from "../src/AuditArchive.ts";
-import { decisionRecord, failedWithCause, httpClientError } from "./helpers.ts";
+import { verifySequenceIntegrity } from "../src/SequenceIntegrity.ts";
+import { decisionRecord, failedWithCause, httpClientError, numbered } from "./helpers.ts";
 
 describe("archiveAuditTrail", () => {
   it.effect("bundles a chain-intact set of entries with metadata", () =>
@@ -11,8 +14,8 @@ describe("archiveAuditTrail", () => {
       const a = yield* encodeAuditEntry(decisionRecord({ evaluationId: "a" }));
       const b = yield* encodeAuditEntry(decisionRecord({ evaluationId: "b" }));
       const entries = [
-        { ...a, sequenceNumber: 1 },
-        { ...b, sequenceNumber: 2 },
+        numbered(a, 1),
+        numbered(b, 2),
       ];
 
       const archive = yield* archiveAuditTrail(entries, 5_000);
@@ -35,13 +38,51 @@ describe("archiveAuditTrail", () => {
       assert.deepStrictEqual(archive.keyMaterial, keyMaterial);
     }));
 
+  it.effect("archiving an entry opens a span named qadi.audit.archiveAuditTrail", () =>
+    Effect.gen(function* () {
+      const entry = yield* encodeAuditEntry(decisionRecord());
+      const names: Array<string> = [];
+      const tracer = Layer.succeed(
+        Tracer.Tracer,
+        Tracer.make({
+          span: (options) => {
+            names.push(options.name);
+            return new Tracer.NativeSpan(options);
+          },
+        }),
+      );
+
+      yield* archiveAuditTrail([entry], 0).pipe(Effect.provide(tracer));
+
+      assert.include(names, "qadi.audit.archiveAuditTrail");
+    }));
+
+  it.effect("verifying a sequence opens a span named qadi.audit.verifySequenceIntegrity", () =>
+    Effect.gen(function* () {
+      const entry = yield* encodeAuditEntry(decisionRecord());
+      const names: Array<string> = [];
+      const tracer = Layer.succeed(
+        Tracer.Tracer,
+        Tracer.make({
+          span: (options) => {
+            names.push(options.name);
+            return new Tracer.NativeSpan(options);
+          },
+        }),
+      );
+
+      yield* verifySequenceIntegrity([entry]).pipe(Effect.provide(tracer));
+
+      assert.deepStrictEqual(names, ["qadi.audit.verifySequenceIntegrity"]);
+    }));
+
   it.effect("refuses to archive a broken chain rather than archiving it anyway", () =>
     Effect.gen(function* () {
       const a = yield* encodeAuditEntry(decisionRecord({ evaluationId: "a" }));
       const b = yield* encodeAuditEntry(decisionRecord({ evaluationId: "b" }));
       const entries = [
-        { ...a, sequenceNumber: 1 },
-        { ...b, sequenceNumber: 3 },
+        numbered(a, 1),
+        numbered(b, 3),
       ];
 
       const result = yield* Effect.result(archiveAuditTrail(entries, 0));
@@ -61,9 +102,9 @@ describe("archiveAuditTrail", () => {
       // tolerates this; the stored archive must not just claim to be
       // verified, it must actually be ordered.
       const outOfOrder = [
-        { ...c, sequenceNumber: 3 },
-        { ...a, sequenceNumber: 1 },
-        { ...b, sequenceNumber: 2 },
+        numbered(c, 3),
+        numbered(a, 1),
+        numbered(b, 2),
       ];
 
       const archive = yield* archiveAuditTrail(outOfOrder, 0);
@@ -95,7 +136,7 @@ describe("archiveAuditTrail", () => {
       const s1 = yield* encodeAuditEntry(decisionRecord({ evaluationId: "s1", at: 150 }));
 
       const archive = yield* archiveAuditTrail(
-        [uLate, { ...s2, sequenceNumber: 2 }, uEarly, { ...s1, sequenceNumber: 1 }],
+        [uLate, numbered(s2, 2), uEarly, numbered(s1, 1)],
         0,
       );
 
@@ -112,7 +153,7 @@ describe("archiveAuditTrail", () => {
       const b = yield* encodeAuditEntry(decisionRecord({ evaluationId: "b" }));
       const c = yield* encodeAuditEntry(decisionRecord({ evaluationId: "c" }));
 
-      const archive = yield* archiveAuditTrail([a, b, { ...c, sequenceNumber: 7 }], 0);
+      const archive = yield* archiveAuditTrail([a, b, numbered(c, 7)], 0);
 
       assert.deepStrictEqual(
         archive.entries.map((e) => e.record.evaluationId),
@@ -144,7 +185,7 @@ describe("archiveAuditTrail", () => {
       const a = yield* encodeAuditEntry(decisionRecord({ evaluationId: "a" }));
       const b = yield* encodeAuditEntry(decisionRecord({ evaluationId: "b" }));
 
-      const archive = yield* archiveAuditTrail([{ ...a, sequenceNumber: 1 }, b], 0);
+      const archive = yield* archiveAuditTrail([numbered(a, 1), b], 0);
 
       assert.isFalse(archive.metadata.sequenceIntegrityVerified);
     }));
@@ -158,12 +199,97 @@ describe("archiveAuditTrail", () => {
       // A mix of sequenced and unsequenced entries — the two sequenced ones
       // are contiguous, which is enough to actually verify something.
       const archive = yield* archiveAuditTrail(
-        [{ ...a, sequenceNumber: 1 }, b, { ...c, sequenceNumber: 2 }],
+        [numbered(a, 1), b, numbered(c, 2)],
         0,
       );
 
       assert.isTrue(archive.metadata.sequenceIntegrityVerified);
     }));
+
+  describe("now", () => {
+    const refused = (now: number, entries: Parameters<typeof archiveAuditTrail>[0]) =>
+      Effect.gen(function* () {
+        const result = yield* Effect.result(archiveAuditTrail(entries, now));
+        if (!Result.isFailure(result)) return assert.fail("a non-finite now archived");
+        const failure = result.failure;
+        if (failure._tag !== "ArchiveInputInvalid") return assert.fail(failure._tag);
+        return failure;
+      });
+
+    it.effect("a now of NaN, +Infinity or -Infinity is ArchiveInputInvalid", () =>
+      Effect.gen(function* () {
+        const entry = yield* encodeAuditEntry(decisionRecord());
+        const nonFinite = [Number.NaN, Infinity, -Infinity];
+        for (const now of nonFinite) {
+          const failure = yield* refused(now, [entry]);
+          if (failure.refusal._tag !== "NowNotFinite") return assert.fail(failure.refusal._tag);
+          assert.isTrue(Object.is(failure.refusal.value, now));
+        }
+      }));
+
+    it.effect("a non-finite now is refused before a sequence break is looked for", () =>
+      Effect.gen(function* () {
+        const a = yield* encodeAuditEntry(decisionRecord({ evaluationId: "a" }));
+        const b = yield* encodeAuditEntry(decisionRecord({ evaluationId: "b" }));
+        const broken = [numbered(a, 1), numbered(b, 3)];
+
+        const failure = yield* refused(Number.NaN, broken);
+        assert.strictEqual(failure._tag, "ArchiveInputInvalid");
+
+        const sequenced = yield* Effect.result(archiveAuditTrail(broken, 0));
+        if (!Result.isFailure(sequenced)) return assert.fail("a broken chain archived");
+        assert.strictEqual(sequenced.failure._tag, "SequenceIntegrityError");
+      }));
+
+    it.effect("a finite now archives, negative zero and zero as createdAt 0", () =>
+      Effect.gen(function* () {
+        const entry = yield* encodeAuditEntry(decisionRecord());
+        for (const now of [-0, 0, 5_000, -5_000, Number.MAX_VALUE]) {
+          const archive = yield* archiveAuditTrail([entry], now);
+          const read = Result.getOrThrow(readAuditArchive(stored(archive)));
+          assert.strictEqual(read.createdAt, now);
+        }
+      }));
+  });
+
+  describe("keyMaterial", () => {
+    it.effect("an item with an extra key is written as its three declared fields", () =>
+      Effect.gen(function* () {
+        const entry = yield* encodeAuditEntry(decisionRecord());
+        const item = { keyId: "", algorithm: "a", publicKey: "p", extra: "secret" };
+
+        const archive = yield* archiveAuditTrail([entry], 0, { keyMaterial: [item] });
+
+        const written = archive.keyMaterial?.[0] ?? assert.fail("no keyMaterial");
+        assert.deepStrictEqual(written, { keyId: "", algorithm: "a", publicKey: "p" });
+        assert.deepStrictEqual(Object.keys(written), ["keyId", "algorithm", "publicKey"]);
+        assert.notInclude(JSON.stringify(archive), "secret");
+        const read = Result.getOrThrow(readAuditArchive(stored(archive)));
+        assert.deepStrictEqual(read.keyMaterial, [written]);
+      }));
+
+    it.effect("an item is carried unjudged, empty or odd values written as given", () =>
+      Effect.gen(function* () {
+        const entry = yield* encodeAuditEntry(decisionRecord());
+        const keyMaterial = [
+          { keyId: "", algorithm: "", publicKey: "" },
+          { keyId: "\uD800", algorithm: "not an algorithm", publicKey: "\u0000" },
+        ];
+
+        const archive = yield* archiveAuditTrail([entry], 0, { keyMaterial });
+
+        assert.deepStrictEqual(archive.keyMaterial, keyMaterial);
+      }));
+
+    it.effect("options without a keyMaterial leave the archive without a keyMaterial key", () =>
+      Effect.gen(function* () {
+        const entry = yield* encodeAuditEntry(decisionRecord());
+
+        const archive = yield* archiveAuditTrail([entry], 0, {});
+
+        assert.isFalse(Object.hasOwn(archive, "keyMaterial"));
+      }));
+  });
 });
 
 /** The bundle's JSON shape, entries left opaque so a test can corrupt them. */
@@ -184,11 +310,7 @@ const sequencedEntries = Effect.gen(function* () {
   const a = yield* encodeAuditEntry(decisionRecord({ evaluationId: "a" }));
   const b = yield* encodeAuditEntry(decisionRecord({ evaluationId: "b" }));
   const c = yield* encodeAuditEntry(decisionRecord({ evaluationId: "c" }));
-  return [
-    { ...a, sequenceNumber: 1 },
-    { ...b, sequenceNumber: 2 },
-    { ...c, sequenceNumber: 3 },
-  ];
+  return [numbered(a, 1), numbered(b, 2), numbered(c, 3)];
 });
 
 const refusalOf = (input: unknown) => {
@@ -210,7 +332,8 @@ describe("readAuditArchive", () => {
       assert.isTrue(read.sequenceIntegrityVerified);
       assert.isUndefined(read.keyMaterial);
       for (const entry of entries) assert.strictEqual(read.holds(entry), 1);
-      const renumbered = { ...(yield* encodeAuditEntry(decisionRecord({ evaluationId: "a" }))), sequenceNumber: 9 };
+      const again = yield* encodeAuditEntry(decisionRecord({ evaluationId: "a" }));
+      const renumbered = numbered(again, 9);
       assert.strictEqual(read.holds(renumbered), 0);
     }));
 

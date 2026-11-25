@@ -24,8 +24,9 @@ a `scheduler` peer.
 `makeQadiAtoms(layer)` builds one authorization context: a writable `subject`
 atom, an `Atom.family` of decisions keyed by policy (and a second keyed by
 policy *and* resource), and an `invalidate` function atom. `QadiProvider` owns
-an `AtomRegistry`, seeds the subject into it at construction, and disposes it
-on unmount. Every hook is a read of an atom.
+one `AtomRegistry` for its life, seeds the subject into it at construction, and
+recycles it in place a macrotask after its last cleanup. Every hook is a read of
+an atom.
 
 ```tsx
 import type { AuthSubject, Policy } from "@qadi/core";

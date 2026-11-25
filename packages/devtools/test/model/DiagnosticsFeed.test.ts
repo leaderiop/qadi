@@ -25,8 +25,9 @@ import {
   idleDiagnostics,
   isUnsampled,
 } from "../../src/model/DiagnosticsFeed.ts";
-import { noDiagnostics } from "../../src/model/DiagnosticsStore.ts";
+import { noDiagnostics } from "../../src/model/Diagnostics.ts";
 import type { PortCallCollector, PortCallLog } from "../../src/model/PortCalls.ts";
+import { diagnosticsFeedOf } from "../builtFeeds.ts";
 import { makeCollectorDouble } from "../collectorDouble.ts";
 import { hostile, hostileError, settleTurns, thrownBy } from "../helpers.ts";
 
@@ -109,12 +110,12 @@ describe("the diagnostics feed", () => {
 
   it.effect("F2 an empty options object samples the metric reads only and is Live once built", () =>
     Effect.gen(function* () {
-      const feed = yield* makeDiagnosticsFeed({});
+      const feed = yield* diagnosticsFeedOf({});
       const { status, reading } = feed.getSnapshot();
       assert.isTrue(DiagnosticsStatus.$is("Live")(status));
       assert.strictEqual(reading.wiring._tag, "NotHanded");
       assert.isUndefined(reading.portCalls);
-      assert.isUndefined(reading.questions);
+      assert.isFalse("questions" in reading);
       assert.isDefined(reading.hydration);
     }),
   );
@@ -122,7 +123,7 @@ describe("the diagnostics feed", () => {
   it.effect("F3 an asynchronous layer leaves Starting with nothing sampled after the build, then Live", () =>
     Effect.gen(function* () {
       const { layer } = slowLayer();
-      const feed = yield* makeDiagnosticsFeed({ layer });
+      const feed = yield* diagnosticsFeedOf({ layer });
       const early = feed.getSnapshot();
       assert.isTrue(DiagnosticsStatus.$is("Starting")(early.status));
       assert.strictEqual(early.reading, noDiagnostics);
@@ -140,7 +141,7 @@ describe("the diagnostics feed", () => {
       const { state, collector } = makeCollectorDouble(() => {
         throw new Error("first call blew up");
       });
-      const feed = yield* makeDiagnosticsFeed({ collector });
+      const feed = yield* diagnosticsFeedOf({ collector });
 
       const { status, reading } = feed.getSnapshot();
       if (!DiagnosticsStatus.$is("Stopped")(status)) return assert.fail("expected Stopped");
@@ -159,7 +160,7 @@ describe("the diagnostics feed", () => {
         const { collector } = makeCollectorDouble(() => {
           throw value;
         });
-        const feed = yield* makeDiagnosticsFeed({ collector });
+        const feed = yield* diagnosticsFeedOf({ collector });
 
         const { status } = feed.getSnapshot();
         if (!DiagnosticsStatus.$is("Stopped")(status)) return assert.fail("expected Stopped");
@@ -175,7 +176,7 @@ describe("the diagnostics feed", () => {
         if (call === 2) throw new Error("second call blew up");
         return logOf(0);
       });
-      const feed = yield* makeDiagnosticsFeed({ collector });
+      const feed = yield* diagnosticsFeedOf({ collector });
       const kept = feed.getSnapshot().reading;
       assert.isTrue(DiagnosticsStatus.$is("Live")(feed.getSnapshot().status));
 
@@ -197,7 +198,7 @@ describe("the diagnostics feed", () => {
       const broken = makeCollectorDouble(() => {
         throw new Error("blew up");
       });
-      const feed = yield* makeDiagnosticsFeed({ collector: broken.collector });
+      const feed = yield* diagnosticsFeedOf({ collector: broken.collector });
       assert.isTrue(DiagnosticsStatus.$is("Stopped")(feed.getSnapshot().status));
       const seen = recording(feed);
       const fixed = makeCollectorDouble();
@@ -216,7 +217,7 @@ describe("the diagnostics feed", () => {
         if (call === 2) throw new Error("blew up once");
         return logOf(0);
       });
-      const feed = yield* makeDiagnosticsFeed({ collector });
+      const feed = yield* diagnosticsFeedOf({ collector });
       yield* step("2 seconds");
       assert.isTrue(DiagnosticsStatus.$is("Stopped")(feed.getSnapshot().status));
       const seen = recording(feed);
@@ -233,7 +234,7 @@ describe("the diagnostics feed", () => {
     Effect.gen(function* () {
       const first = counted();
       const second = counted();
-      const feed = yield* makeDiagnosticsFeed({ layer: first.layer });
+      const feed = yield* diagnosticsFeedOf({ layer: first.layer });
       const seen = recording(feed);
 
       feed.configure({ layer: second.layer });
@@ -250,7 +251,7 @@ describe("the diagnostics feed", () => {
       const dying = Layer.effectDiscard(
         Effect.acquireRelease(Effect.void, () => Effect.die(new Error("release blew up"))),
       );
-      const feed = yield* makeDiagnosticsFeed({ layer: dying });
+      const feed = yield* diagnosticsFeedOf({ layer: dying });
       const seen = recording(feed);
 
       feed.configure({ layer: counted().layer });
@@ -265,7 +266,7 @@ describe("the diagnostics feed", () => {
     Effect.gen(function* () {
       const { counts, layer } = counted();
       const { state, collector } = makeCollectorDouble();
-      const feed = yield* makeDiagnosticsFeed({ layer, collector });
+      const feed = yield* diagnosticsFeedOf({ layer, collector });
       assert.strictEqual(state.calls, 1);
 
       feed.configure(undefined);
@@ -279,7 +280,7 @@ describe("the diagnostics feed", () => {
 
   it.effect("F11 handing options again after Off records Starting then Live with a fresh reading", () =>
     Effect.gen(function* () {
-      const feed = yield* makeDiagnosticsFeed({});
+      const feed = yield* diagnosticsFeedOf({});
       const before = feed.getSnapshot().reading;
       feed.configure(undefined);
       const seen = recording(feed);
@@ -297,7 +298,7 @@ describe("the diagnostics feed", () => {
     Effect.gen(function* () {
       const { counts, layer } = counted();
       const { collector } = makeCollectorDouble();
-      const feed = yield* makeDiagnosticsFeed({ layer, collector, intervalMillis: 5_000 });
+      const feed = yield* diagnosticsFeedOf({ layer, collector, intervalMillis: 5_000 });
       const seen = recording(feed);
 
       feed.configure({ layer, collector, intervalMillis: 5_000 });
@@ -320,7 +321,7 @@ describe("the diagnostics feed", () => {
         ["intervalMillis", { ...base, intervalMillis: 5_001 }],
       ];
       for (const [field, changed] of changes) {
-        const feed = yield* makeDiagnosticsFeed(base);
+        const feed = yield* diagnosticsFeedOf(base);
         const seen = recording(feed);
 
         feed.configure(changed);
@@ -333,7 +334,7 @@ describe("the diagnostics feed", () => {
   it.effect("F14 the default cadence takes one sample at 1999 ms and two at 2000 ms", () =>
     Effect.gen(function* () {
       const { state, collector } = makeCollectorDouble();
-      yield* makeDiagnosticsFeed({ collector });
+      yield* diagnosticsFeedOf({ collector });
       assert.strictEqual(state.calls, 1);
 
       yield* step("1999 millis");
@@ -347,7 +348,7 @@ describe("the diagnostics feed", () => {
   it.effect("F15 an interval of 500 takes one sample at 499 ms and two at 500 ms", () =>
     Effect.gen(function* () {
       const { state, collector } = makeCollectorDouble();
-      yield* makeDiagnosticsFeed({ collector, intervalMillis: 500 });
+      yield* diagnosticsFeedOf({ collector, intervalMillis: 500 });
       assert.strictEqual(state.calls, 1);
 
       yield* step("499 millis");
@@ -370,7 +371,7 @@ describe("the diagnostics feed", () => {
         }
         return call === 1 ? logOf(0) : b;
       });
-      const feed = yield* makeDiagnosticsFeed({ collector: restarting.collector });
+      const feed = yield* diagnosticsFeedOf({ collector: restarting.collector });
       feedRef.current = feed;
 
       yield* step("2 seconds");
@@ -386,7 +387,7 @@ describe("the diagnostics feed", () => {
       const { counts, layer } = counted();
       const { state, collector } = makeCollectorDouble();
       const scope = yield* Scope.make();
-      const feed = yield* Scope.provide(makeDiagnosticsFeed({ layer, collector }), scope);
+      const feed = yield* Scope.provide(diagnosticsFeedOf({ layer, collector }), scope);
       const seen = recording(feed);
 
       yield* Scope.close(scope, Exit.void);
@@ -404,7 +405,7 @@ describe("the diagnostics feed", () => {
         Effect.acquireRelease(Effect.void, () => Effect.die(new Error("release blew up"))),
       );
       const scope = yield* Scope.make();
-      const feed = yield* Scope.provide(makeDiagnosticsFeed({ layer: dying }), scope);
+      const feed = yield* Scope.provide(diagnosticsFeedOf({ layer: dying }), scope);
       const before = feed.getSnapshot();
       const seen = recording(feed);
 
@@ -420,7 +421,7 @@ describe("the diagnostics feed", () => {
     Effect.gen(function* () {
       const { state, collector } = makeCollectorDouble();
       const scope = yield* Scope.make();
-      const feed = yield* Scope.provide(makeDiagnosticsFeed({ collector }), scope);
+      const feed = yield* Scope.provide(diagnosticsFeedOf({ collector }), scope);
       const before = feed.getSnapshot();
       const seen = recording(feed);
       yield* Scope.close(scope, Exit.void);
@@ -440,7 +441,7 @@ describe("the diagnostics feed", () => {
   it.effect("F26 configure(undefined) over a feed that is already off changes and notifies nothing", () =>
     Effect.gen(function* () {
       const never = yield* makeDiagnosticsFeed();
-      const live = yield* makeDiagnosticsFeed({});
+      const live = yield* diagnosticsFeedOf({});
       live.configure(undefined);
       for (const feed of [never, live]) {
         const seen = recording(feed);
@@ -459,7 +460,7 @@ describe("the diagnostics feed", () => {
   it.effect("F27 restarting a feed that is still Starting publishes nothing, and the run's first sample is still Live", () =>
     Effect.gen(function* () {
       const { layer } = slowLayer();
-      const feed = yield* makeDiagnosticsFeed({ layer });
+      const feed = yield* diagnosticsFeedOf({ layer });
       const early = feed.getSnapshot();
       assert.isTrue(DiagnosticsStatus.$is("Starting")(early.status));
       const seen = recording(feed);
@@ -477,7 +478,7 @@ describe("the diagnostics feed", () => {
   it.effect("F18 a layer that fails to build reads wiring Failed in a Live feed, which samples again", () =>
     Effect.gen(function* () {
       const { state, collector } = makeCollectorDouble();
-      const feed = yield* makeDiagnosticsFeed({ layer: Layer.effectDiscard(Effect.fail("boom")), collector });
+      const feed = yield* diagnosticsFeedOf({ layer: Layer.effectDiscard(Effect.fail("boom")), collector });
 
       const { status, reading } = feed.getSnapshot();
       assert.isTrue(DiagnosticsStatus.$is("Live")(status));
@@ -491,7 +492,7 @@ describe("the diagnostics feed", () => {
 
   it.effect("F19 a sample equal to the last notifies nothing, and restart() over an unchanged world notifies twice", () =>
     Effect.gen(function* () {
-      const feed = yield* makeDiagnosticsFeed({});
+      const feed = yield* diagnosticsFeedOf({});
       const seen = recording(feed);
       const first = feed.getSnapshot();
 
@@ -537,7 +538,7 @@ describe("the diagnostics feed", () => {
     Effect.gen(function* () {
       const answer = logOf(1);
       const { collector } = makeCollectorDouble((call) => (call === 1 ? logOf(0) : answer));
-      const feed = yield* makeDiagnosticsFeed({ collector });
+      const feed = yield* diagnosticsFeedOf({ collector });
       const seen = recording(feed);
       const before = feed.getSnapshot();
 
@@ -552,14 +553,14 @@ describe("the diagnostics feed", () => {
 
   it.effect("F22 a handed collector is read into portCalls", () =>
     Effect.gen(function* () {
-      const feed = yield* makeDiagnosticsFeed({ collector: collectorOf() });
+      const feed = yield* diagnosticsFeedOf({ collector: collectorOf() });
       assert.deepStrictEqual(feed.getSnapshot().reading.portCalls, { calls: [], dropped: 0, capacity: 10 });
     }),
   );
 
   it.effect("F23 a stop after Off and a new start is unsampled, whatever the run before had sampled", () =>
     Effect.gen(function* () {
-      const feed = yield* makeDiagnosticsFeed({});
+      const feed = yield* diagnosticsFeedOf({});
       feed.configure(undefined);
 
       feed.configure({
@@ -616,7 +617,7 @@ describe("the diagnostics feed", () => {
 
   it.effect("F30 a listener that throws does not silence the next one, and configure rethrows what it threw", () =>
     Effect.gen(function* () {
-      const feed = yield* makeDiagnosticsFeed({});
+      const feed = yield* diagnosticsFeedOf({});
       yield* settleTurns;
       const boom = new Error("boom");
       const seen: Array<string> = [];
@@ -636,11 +637,11 @@ describe("the diagnostics feed", () => {
     }),
   );
 
-  it.effect("F31 a listener that throws on the Starting a configure publishes leaves the feed Starting, and no new poll starts", () =>
+  it.effect("F31 a listener that throws on the Starting a configure publishes is rethrown once the new poll has started", () =>
     Effect.gen(function* () {
       const a = makeCollectorDouble();
       const b = makeCollectorDouble();
-      const feed = yield* makeDiagnosticsFeed({ collector: a.collector });
+      const feed = yield* diagnosticsFeedOf({ collector: a.collector });
       yield* step("4 seconds");
       assert.isTrue(DiagnosticsStatus.$is("Live")(feed.getSnapshot().status));
       const boom = new Error("boom");
@@ -656,8 +657,8 @@ describe("the diagnostics feed", () => {
 
       assert.isTrue(outcome.threw);
       assert.strictEqual(outcome.thrown, boom);
-      assert.strictEqual(b.state.calls, 0);
-      assert.strictEqual(feed.getSnapshot().status._tag, "Starting");
+      assert.isAbove(b.state.calls, 0);
+      assert.strictEqual(feed.getSnapshot().status._tag, "Live");
     }),
   );
 
@@ -681,6 +682,35 @@ describe("the diagnostics feed", () => {
       const status = feed.getSnapshot().status;
       assert.strictEqual(status._tag, "Stopped");
       assert.isTrue(DiagnosticsStatus.$is("Stopped")(status) && status.sampled);
+    }),
+  );
+
+  it.effect("F33 a sample the superseded run takes on its way out is dropped, so the feed stays Starting until the newest run samples", () =>
+    Effect.gen(function* () {
+      const slow: PortCallCollector = {
+        layer: Layer.empty,
+        snapshot: Effect.sleep("1 second").pipe(Effect.as(logOf(2))),
+      };
+      const feed = yield* makeDiagnosticsFeed();
+      const seen = recording(feed);
+      const a = makeCollectorDouble((call) => {
+        if (call === 1) feed.configure({ collector: slow });
+        return logOf(1);
+      });
+
+      feed.configure({ collector: a.collector });
+      yield* settleTurns;
+
+      assert.strictEqual(a.state.calls, 1);
+      assert.deepStrictEqual(seen, ["Starting"]);
+      assert.strictEqual(feed.getSnapshot().status._tag, "Starting");
+      assert.strictEqual(feed.getSnapshot().reading, noDiagnostics);
+
+      yield* step("1 second");
+
+      const { status, reading } = feed.getSnapshot();
+      assert.isTrue(DiagnosticsStatus.$is("Live")(status));
+      assert.deepStrictEqual(reading.portCalls, logOf(2));
     }),
   );
 });

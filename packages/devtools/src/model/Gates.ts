@@ -36,9 +36,9 @@ import type { DisplayState } from "./Verdict.ts";
  * should not start for one type. A host passes `atoms.asked()` straight in.
  *
  * Declared in the model rather than beside the panel that renders it, because
- * `DiagnosticsStore` samples a thunk returning these and the model must not
- * import from `react/` (ADR-QD-037). `QuestionsPanel.tsx` re-exports it, so the
- * React entry point still names it.
+ * the gates feed reads a thunk returning these and the model must not
+ * import from `react/` (ADR-QD-037, ADR-QD-169). `QuestionsPanel.tsx` re-exports
+ * it, so the React entry point still names it.
  */
 export interface AskedQuestionLike {
   readonly policy: Policy;

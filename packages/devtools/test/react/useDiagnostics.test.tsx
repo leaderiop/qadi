@@ -3,7 +3,7 @@
  * unmount, and not restarting when a re-render changed nothing.
  *
  * What is sampled, how often, and what keeps its identity are the model's, and
- * are proved under `TestClock` in `test/model/DiagnosticsStore.test.ts`.
+ * are proved under `TestClock` in `test/model/Diagnostics.test.ts`.
  */
 import { assert, describe, it } from "@effect/vitest";
 import { vi } from "vitest";

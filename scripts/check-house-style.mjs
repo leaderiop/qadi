@@ -768,7 +768,7 @@ const NOT_CALLABLE_PIN_BUDGET = {
   "packages/core/test/Qadi.tst.ts": { callable: 4, constructable: 0 },
   "packages/core/test/UntrustedDecode.tst.ts": { callable: 9, constructable: 0 },
   "packages/core/test/WalkEnvironment.tst.ts": { callable: 2, constructable: 0 },
-  "packages/devtools/test/model/DiagnosticsStore.tst.ts": { callable: 3, constructable: 0 },
+  "packages/devtools/test/model/Diagnostics.tst.ts": { callable: 3, constructable: 0 },
   "packages/http/test/DecisionLogHttp.tst.ts": { callable: 1, constructable: 0 },
   "packages/http/test/DecisionStreamRoute.tst.ts": { callable: 4, constructable: 0 },
   "packages/http/test/DevtoolsRouteAddress.tst.ts": { callable: 6, constructable: 0 },

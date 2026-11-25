@@ -1,11 +1,11 @@
 /**
- * One timeline read, owned by a scope, behind a store that outlives a capacity change.
+ * One timeline read, owned by a scope, behind the one store a host holds.
  *
  * The dock model and the public `useTimeline` hook read a source the same way, so
- * the read lives here once. The store a host holds is stable across a capacity
- * change because a different bound is a different buffer, not a different review
- * session; the scope is the read's lifetime, so closing it interrupts the read and,
- * with an SSE source, closes its connection (ADR-QD-137).
+ * the read lives here once. The store is the feed's for its whole life, and a capacity
+ * change is that store's own `resize` (ADR-QD-191); the scope is the read's lifetime,
+ * so closing it interrupts the read and, with an SSE source, closes its connection
+ * (ADR-QD-137).
  *
  * Exported from the package root (ADR-QD-173): a shell builds it in a scope it owns.
  */
@@ -13,13 +13,18 @@ import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import type * as Scope from "effect/Scope";
 import { causeMessage } from "@qadi/core";
-import { makeExternalStore } from "./ExternalStore.ts";
+import { callAll, makeExternalStore, sameFields } from "./ExternalStore.ts";
 import { sourceFromRecords, type Source } from "./Source.ts";
 import { makeSupersedingRun } from "./SupersedingRun.ts";
 import { DEFAULT_TIMELINE_CAPACITY, emptyTimeline, type Timeline } from "./Timeline.ts";
 import { makeTimelineStore, runSource, type TimelineStore } from "./TimelineStore.ts";
 
-/** What a feed reads and how much it keeps. Each field is compared by identity when it is configured again. */
+/**
+ * What a feed reads and how much it keeps.
+ *
+ * The source is compared by identity when the feed is configured again, the capacity by
+ * the bound it means: an omitted one is `DEFAULT_TIMELINE_CAPACITY`.
+ */
 export interface TimelineFeedInputs {
   readonly capacity?: number | undefined;
   /** A new source (or capacity) supersedes the previous read. */
@@ -59,8 +64,8 @@ export interface TimelineStatusReadout {
    * Registers a listener, and returns the function that removes it. Every listener is
    * called, and then what they threw is rethrown out of whatever published: one value as
    * itself, several as one `AggregateError`. A throw on the `Reading` that `restart` or
-   * `configure` publishes over a `Stopped` escapes before the new read is started, so the
-   * status says `Reading` with nothing reading.
+   * `configure` publishes is rethrown once the new read has started, so the status never
+   * says `Reading` with nothing reading (ADR-QD-194).
    */
   readonly subscribe: (listener: () => void) => () => void;
   readonly getSnapshot: () => TimelineStatus;
@@ -69,31 +74,58 @@ export interface TimelineStatusReadout {
 
 export interface TimelineFeed {
   /**
-   * Stable across a capacity change: a different bound empties it, it does not replace it.
+   * The one store for the feed's life, never replaced: a capacity change is its `resize`,
+   * which empties it at the new bound.
    * Every listener on its `subscribe` is called, and it runs on every record; what they
    * threw is rethrown out of whatever published, and the rest of that call does not run,
-   * except that a capacity change goes on to start the read that refills it (see `configure`).
+   * except that a capacity change goes on to start the read that refills it, whose throw is
+   * rethrown after it (see `configure`).
    */
   readonly timeline: TimelineStore;
   /** Where the read stands. */
   readonly status: TimelineStatusReadout;
   /**
-   * Re-reads only when the capacity or the source moved. An omitted input reads as
-   * `undefined`. Does nothing once the feed's scope has closed. A capacity change publishes
+   * Re-reads only when the effective capacity or the source moved: a configure in which
+   * no field moved changes nothing. An omitted capacity and `DEFAULT_TIMELINE_CAPACITY`
+   * are one bound. A capacity the timeline refuses throws
+   * before anything moves and leaves the inputs, the timeline and the read as they were.
+   * Does nothing once the feed's scope has closed. A capacity change publishes
    * the emptied timeline and then starts the read that refills it, from the same source or
-   * a new one; what a listener throws on that publish is rethrown once the read has started,
-   * unless the feed was `Stopped` and a status listener throws on the `Reading` that read
-   * publishes: that throw escapes instead, replaces the timeline listener's, and no read is
-   * started (the window `status` describes).
+   * a new one. Its resize and its read both run, whatever a listener throws on either, and
+   * what they threw is rethrown after: one value as itself, both as one `AggregateError`,
+   * the resize's first (ADR-QD-194, ADR-QD-177).
    */
   readonly configure: (inputs: TimelineFeedInputs) => void;
 }
 
+/**
+ * The one normaliser of a timeline feed's inputs.
+ *
+ * An omitted field and one holding `undefined` become one field, the capacity is
+ * compared by the bound it means, and a refused bound throws here, before anything
+ * moves. The declared return type makes a new input a compile error until it is
+ * listed here (ADR-QD-192).
+ */
+export const completeTimelineInputs = (
+  inputs: TimelineFeedInputs,
+): Required<TimelineFeedInputs> & { readonly capacity: number } => ({
+  capacity: effectiveCapacity(inputs.capacity),
+  source: inputs.source,
+});
+
 /** What a feed that gave no source reads: nothing, which ends at once. */
 const NO_SOURCE: Source = sourceFromRecords([]);
 
-const bounded = (capacity: number | undefined): TimelineStore =>
-  makeTimelineStore({ capacity: capacity ?? DEFAULT_TIMELINE_CAPACITY });
+/**
+ * The bound a feed input means.
+ *
+ * An omitted capacity is `DEFAULT_TIMELINE_CAPACITY` and one the timeline refuses throws
+ * `emptyTimeline`'s error, so a caller that checks first moves nothing for a refused
+ * bound (ADR-QD-191).
+ */
+export function effectiveCapacity(capacity: number | undefined): number {
+  return emptyTimeline({ capacity: capacity ?? DEFAULT_TIMELINE_CAPACITY }).capacity;
+}
 
 const IDLE_TIMELINE: Timeline = emptyTimeline();
 
@@ -101,13 +133,14 @@ const IDLE_TIMELINE: Timeline = emptyTimeline();
  * The store a reader holds on the pass before its feed is built.
  *
  * Inert, so nothing can be fed into a store several components share: `accept`,
- * `clear` and `setPaused` do nothing, and it is never paused.
+ * `clear`, `resize` and `setPaused` change nothing, and it is never paused.
  */
 export const idleTimeline: TimelineStore = {
   subscribe: () => () => {},
   getSnapshot: () => IDLE_TIMELINE,
   accept: () => {},
   clear: () => {},
+  resize: () => false,
   setPaused: () => {},
   isPaused: () => false,
 };
@@ -119,27 +152,19 @@ export const idleTimelineStatus: TimelineStatusReadout = {
   restart: () => {},
 };
 
-/** Builds the feed in the caller's scope; closing it interrupts the read. */
-export const makeTimelineFeed = Effect.fn("qadi.devtools.makeTimelineFeed")(function* (
-  init?: TimelineFeedInputs,
-): Effect.fn.Return<TimelineFeed, never, Scope.Scope> {
-  let inputs: TimelineFeedInputs = init ?? {};
-  let inner = bounded(inputs.capacity);
-  // What the host subscribes to. It outlives every `inner`, so a capacity change is a new value, not a new store.
-  const view = makeExternalStore<Timeline>(inner.getSnapshot());
-
-  // A pause toggle changes the store's reading without moving the timeline, so it publishes too.
-  const push = () => view.publish(inner.getSnapshot());
-  inner.subscribe(push);
-
-  const timeline: TimelineStore = {
-    subscribe: view.subscribe,
-    getSnapshot: view.getSnapshot,
-    accept: (record) => inner.accept(record),
-    clear: () => inner.clear(),
-    setPaused: (paused) => inner.setPaused(paused),
-    isPaused: () => inner.isPaused(),
-  };
+/**
+ * Builds the feed bare in the caller's scope; closing it interrupts the read.
+ *
+ * The feed takes its inputs only through `configure` (ADR-QD-192), so a bare feed holds
+ * the default capacity and reads no source until it is handed one.
+ */
+export const makeTimelineFeed = Effect.fn("qadi.devtools.makeTimelineFeed")(function* (): Effect.fn.Return<
+  TimelineFeed,
+  never,
+  Scope.Scope
+> {
+  let held = completeTimelineInputs({});
+  const timeline = makeTimelineStore();
 
   const status = makeExternalStore<TimelineStatus>(READING);
   // One read at a time: a newer read supersedes and interrupts the one before it.
@@ -147,22 +172,25 @@ export const makeTimelineFeed = Effect.fn("qadi.devtools.makeTimelineFeed")(func
   // A source that went away is replaced by an empty one.
   const readSource = (source: Source | undefined) => {
     const token = reads.begin();
-    status.set(READING);
     const marking: Pick<TimelineStore, "accept"> = {
       accept: (record) => {
         if (!reads.isCurrent(token)) return;
         timeline.accept(record);
       },
     };
-    reads.fork(token, runSource(marking, source ?? NO_SOURCE), {
-      onFailure: (cause) => status.set(TimelineStatus.Stopped({ reason: causeMessage(cause) })),
-    });
+    // The publish comes first and the read starts whatever a listener throws on it.
+    try {
+      status.set(READING);
+    } finally {
+      reads.fork(token, runSource(marking, source ?? NO_SOURCE), {
+        onFailure: (cause) => status.set(TimelineStatus.Stopped({ reason: causeMessage(cause) })),
+      });
+    }
   };
-  readSource(inputs.source);
 
   // A restart on a closed feed would publish a state nothing follows.
   const restart = () => {
-    if (!reads.closed()) readSource(inputs.source);
+    if (!reads.closed()) readSource(held.source);
   };
 
   return {
@@ -171,23 +199,18 @@ export const makeTimelineFeed = Effect.fn("qadi.devtools.makeTimelineFeed")(func
     configure: (next) => {
       // A command on a closed feed would publish a state nothing follows.
       if (reads.closed()) return;
-      const before = inputs;
-      inputs = next;
-      const resized = next.capacity !== before.capacity;
-      if (resized) {
-        // The old store is dropped, not unsubscribed from: nothing can reach it again.
-        inner = bounded(next.capacity);
-        inner.subscribe(push);
-        // The emptied timeline is published first; what a listener throws there is
-        // rethrown once the read that refills it has started, unless a status listener's
-        // throw on that read's `Reading` escapes from the `finally` and replaces the
-        // timeline listener's.
-        try {
-          push();
-        } finally {
-          readSource(next.source);
-        }
-      } else if (next.source !== before.source) readSource(next.source);
+      // The normaliser refuses a bad bound before anything moves.
+      const wanted = completeTimelineInputs(next);
+      if (sameFields(held, wanted)) return;
+      held = wanted;
+      // Past the check an input moved, so the read starts again whichever one it was; both
+      // steps run whatever a listener throws on either, and `resize` throws only from its
+      // publish, after it has resized. Each step reads the held inputs when it runs, so a
+      // nested `configure` from a listener decides the capacity and the source.
+      callAll(
+        [() => timeline.resize(held.capacity), () => readSource(held.source)],
+        "More than one step of the timeline feed's configure threw.",
+      );
     },
   };
 });

@@ -563,7 +563,7 @@ an API.
 | `packages/core/test/Qadi.tst.ts` | 4 | 0 | `enforceLoaded`, `enforceProjected`, `enforceProjectedLoaded`, `guard`: plain return |
 | `packages/core/test/UntrustedDecode.tst.ts` | 9 | 0 | `untrustedDecoder`: plain return |
 | `packages/core/test/WalkEnvironment.tst.ts` | 2 | 0 | `admit`: plain return |
-| `packages/devtools/test/model/DiagnosticsStore.tst.ts` | 3 | 0 | `runDiagnostics` returns an `Effect`: refused through `Params<…>` |
+| `packages/devtools/test/model/Diagnostics.tst.ts` | 3 | 0 | `runDiagnostics` returns an `Effect`: refused through `Params<…>` |
 | `packages/http/test/DecisionLogHttp.tst.ts` | 1 | 0 | `decisionBacklogRoute`: plain return |
 | `packages/http/test/DecisionStreamRoute.tst.ts` | 4 | 0 | `decisionStreamRoute`, `sseText`: plain return |
 | `packages/http/test/DevtoolsRouteAddress.tst.ts` | 6 | 0 | `devtoolsPath`, `devtoolsRoutes`, `decisionStreamRoute`: plain return |

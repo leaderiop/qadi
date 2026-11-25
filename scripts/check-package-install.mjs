@@ -123,6 +123,7 @@ const TYPE_ONLY_PROBES = ["DecisionCacheShape", "GateInstanceLike", "GateRegistr
  */
 const REFUSED_SHAPE_PROBES = new Map([
   ["DecisionCacheShape", "getOrCompute"],
+  ["Diagnostics", "questions"],
   ["DiagnosticsOptions", "schedule"],
 ]);
 
@@ -499,6 +500,7 @@ import { makeQadi } from "@qadi/promise";
 import { qadiTestLayer } from "@qadi/testing";
 import { QadiProvider } from "@qadi/react";
 import {
+  type Diagnostics,
   type DiagnosticsOptions,
   emptyTimeline,
   type GateInstanceLike,
@@ -509,8 +511,9 @@ import {
   makeTimelineFeed,
   sourceFromRecords,
   verdictOf,
+  WiringRead,
 } from "@qadi/devtools";
-import { DevtoolsDock } from "@qadi/devtools/react";
+import { DevtoolsDock, type DevtoolsDockProps } from "@qadi/devtools/react";
 import { compileSql } from "@qadi/predicate-sql";
 import { compilePrismaWhere } from "@qadi/predicate-prisma";
 import { AuditDecisionSinkLive, AuditTrailPortTest } from "@qadi/audit";
@@ -650,7 +653,8 @@ expect("devtools dock", typeof DevtoolsDock, "function");
 const fed = await Effect.runPromise(
   Effect.scoped(
     Effect.gen(function* () {
-      const feed = yield* makeTimelineFeed({ source: sourceFromRecords([stored]) });
+      const feed = yield* makeTimelineFeed();
+      feed.configure({ source: sourceFromRecords([stored]) });
       for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
       return { status: feed.status.getSnapshot()._tag, entries: feed.timeline.getSnapshot().entries.length };
     }),
@@ -658,6 +662,16 @@ const fed = await Effect.runPromise(
 );
 expect("devtools feed", fed.status, "Reading");
 expect("devtools feed entries", fed.entries, 1);
+
+// A feed takes its inputs only through \`configure\`: each alias is \`true\` only when the packed constructor
+// has no parameter, so a constructor that takes one makes the \`true\` below a compile error.
+type TimelineFeedIsBare = [Parameters<typeof makeTimelineFeed>] extends [[]] ? true : false;
+type DiagnosticsFeedIsBare = [Parameters<typeof makeDiagnosticsFeed>] extends [[]] ? true : false;
+type GatesFeedIsBare = [Parameters<typeof makeGatesFeed>] extends [[]] ? true : false;
+const timelineFeedTakesNothing: TimelineFeedIsBare = true;
+const diagnosticsFeedTakesNothing: DiagnosticsFeedIsBare = true;
+const gatesFeedTakesNothing: GatesFeedIsBare = true;
+expect("devtools feeds take no parameter", timelineFeedTakesNothing && diagnosticsFeedTakesNothing && gatesFeedTakesNothing, true);
 
 // A feed built over a registry says what the registry holds, which is not what a feed over none says.
 // \`makeGatesFeed\` reads synchronously, so no turn is needed; the registry is a structural literal because
@@ -674,11 +688,28 @@ const gateRegistry: GateRegistryLike = {
     };
   },
 };
+
+// The dock's props are the dock model's inputs and the host's two. The literal names all ten, so the packed
+// declaration file must resolve the model's input type from an entry point whose map is closed.
+const dockProps: DevtoolsDockProps = {
+  source: sourceFromRecords([stored]),
+  capacity: 100,
+  catalogue: undefined,
+  diagnostics: {},
+  reading: undefined,
+  gates: gateRegistry,
+  questions: () => [],
+  ports: undefined,
+  unknownParents: [],
+  onInvalidate: () => {},
+};
+
 const gated = await Effect.runPromise(
   Effect.scoped(
     Effect.gen(function* () {
       const bare = yield* makeGatesFeed();
-      const feed = yield* makeGatesFeed({ gates: gateRegistry });
+      const feed = yield* makeGatesFeed();
+      feed.configure({ gates: gateRegistry });
       const read = feed.getSnapshot().registry;
       const watching = gateListeners.size;
       registered = [gate, { ...gate, id: "gate-2" }];
@@ -709,7 +740,8 @@ const diagnosed = await Effect.runPromise(
   Effect.scoped(
     Effect.gen(function* () {
       const off = yield* makeDiagnosticsFeed();
-      const feed = yield* makeDiagnosticsFeed({});
+      const feed = yield* makeDiagnosticsFeed();
+      feed.configure({});
       let turns = 0;
       while (!["Live", "Stopped"].includes(feed.getSnapshot().status._tag) && turns < LIVE_TURNS) {
         yield* Effect.yieldNow;
@@ -717,7 +749,7 @@ const diagnosed = await Effect.runPromise(
       }
       const after = feed.getSnapshot();
       const stopped = after.status._tag === "Stopped" ? after.status.reason : undefined;
-      return { off: off.getSnapshot().status._tag, after: after.status._tag, stopped, hydration: after.reading.hydration !== undefined, turns };
+      return { off: off.getSnapshot().status._tag, after: after.status._tag, stopped, hydration: after.reading.hydration !== undefined, questions: "questions" in after.reading, turns };
     }),
   ),
 );
@@ -726,11 +758,22 @@ console.log(\`consumer: the diagnostics feed was read for \${diagnosed.turns} of
 expect("diagnostics feed stop reason", diagnosed.stopped, undefined);
 expect("diagnostics feed reached Live", diagnosed.after, "Live");
 expect("diagnostics feed first read sets hydration", diagnosed.hydration, true);
+expect("diagnostics feed reading carries no questions", diagnosed.questions, false);
 
 // DiagnosticsOptions has a cadence in milliseconds and no \`schedule\`.
 const noSchedule: DiagnosticsOptions = {
   // @ts-expect-error schedule is not an option, a cadence is a number
   schedule: "immediate",
+};
+
+// Diagnostics is what the poll samples, so it has no \`questions\` field.
+const noQuestions: Diagnostics = {
+  wiring: WiringRead.NotHanded(),
+  activity: [],
+  hydration: undefined,
+  portCalls: undefined,
+  // @ts-expect-error questions is not a field: the poll does not sample them
+  questions: [],
 };
 
 // @qadi/core's DecisionCacheShape is type-only, so only the compiler reaches it. A host cache wraps

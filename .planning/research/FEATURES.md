@@ -1,576 +1,296 @@
-# Feature Research
+# Feature Research: v1.10 Arch Wave 15 (Phases 81-84, ARCH-128..131)
 
-**Domain:** Tech-debt resolution for an Effect-native authorization library (milestone v1.7 "Arch Wave 12", phases 62-68)
-**Researched:** 2026-11-20 at base `8b22bd66` (branch `arch-wave-12`)
-**Confidence:** HIGH for repo facts (each cited file:line; probes run read-only, files deleted, `git status` unchanged). MEDIUM where marked "unverified".
+**Domain:** internal architecture deepening of an Effect v4 authorization monorepo (`@qadi/devtools`, `@qadi/react`). No new product features: "features" here are observable behaviours that must hold after each phase.
+**Researched:** 2026-11-24, on `arch-wave-15` (HEAD `911aa37f`, source identical to `902d2128`).
+**Confidence:** HIGH for current behaviour (every claim read in source, the load-bearing ones also reproduced by a throwaway vitest run, deleted afterwards; `git status` shows no leftover file and no source edit). MEDIUM for the shape of the fixes (design is the planner's; constraints below are findings, not decisions).
 
-This milestone adds no product features. Each phase's outcome is treated as a "feature": a change a verifier can observe with a command, a test or a gate result. Decisions D1-D5 are locked and are not reopened here. Where research found that a premise in `_WAVE12-CONTEXT.md` is wrong or incomplete, it is listed in "Findings that change a requirement" so the requirements step can word the requirement correctly.
-
-## Findings that change a requirement (read first)
-
-| # | Finding | Evidence | Effect on requirements |
-|---|---------|----------|------------------------|
-| F1 | There are **81** `not.toBeCallableWith` call sites, not 86. The other 5 grep hits are comments (`DecisionCache.tst.ts:13`, `PortAccess.tst.ts:6` and `:35`, `PortSpan.tst.ts:5`, `Qadi.tst.ts:171`). The "81 failed when flipped" probe equals exactly the 81 real pins. | `grep -rn 'not\.toBeCallableWith' packages features scripts` = 86 lines; 5 are `*`/`//` lines. | The budget gate must count code tokens only, with comments stripped, or it will say 86 and never match. Use 81 (or 80 after Phase 62's rewrite) as the expected total. |
-| F2 | Only **one** pin is genuinely vacuous today: `packages/core/test/DecisionLog.tst.ts:30` (`makeDecisionLog` returns `Effect.Effect<DecisionLog>`). 12 more pins are Effect-returning subjects already wrapped in the `Params<F>` workaround (`DecisionCache.tst.ts` 3, `PortAccess.tst.ts` 6, `DiagnosticsStore.tst.ts` 3). The other 68 have non-Effect, non-Stream subjects. | Probe A (below) and the passing positive controls. Full list in the Phase 62 inventory. | Phase 62 is "rewrite 1 pin, add controls to 11, add a gate and a characterisation test", not "rewrite 81". |
-| F3 | The vacuity is exactly: subject returns `Effect` or `Stream`. `Layer`, `Result`, `Option`, `Promise`, plain values, functions, `Schema` and `Context` are all honest. | Probe A: 10 return types tried, only `Effect` and `Stream` let a negative pin pass with valid args. | The gate rule and the characterisation test should name Effect and Stream, not "Effect-returning" alone. |
-| F4 | **Root cause is the `floatingEffect` diagnostic** of `@effect/language-service`, reported on tstyche's synthesized call. With `"floatingEffect": "off"` in a tstyche-only tsconfig, valid-arg negative pins on Effect/Stream subjects fail as they should, and the whole suite still passes (65 real files). | Probe B: a temp `tsconfig.zzfeat62.json` extending `tsconfig.test.json` plus a temp `tstyche` config; deleted afterwards. | An alternative to per-pin rewriting exists (see Phase 62 differentiators). It is not a locked decision either way, so the planner must choose. |
-| F5 | `scripts/check-house-style.mjs` `collect()` **excludes `.tst.ts`** (line 889) and its per-line `strip()` skips block-comment lines only via a `*` prefix check inside the main loop (lines 1003-1021). A `.tst.ts` budget needs its own walk, as `[no-numbering-placeholder]` does (lines 2098-2127). | Source read. | Phase 62's gate is a new block, not an extra budget entry in an existing loop. |
-| F6 | `DiagnosticsOptions` has **no schedule**: it has `layer`, `collector`, `intervalMillis` (`DiagnosticsStore.ts:201-224`). The context's "diagnostics feed with an immediate schedule" must be read as "an `intervalMillis`, with the first sample read at once". | `runDiagnostics` reads once, then `Schedule.spaced(intervalMillis)` (`DiagnosticsStore.ts:251-254`). | Phase 63 probe states `makeDiagnosticsFeed({})` or `{ intervalMillis }`, then fixed `yieldNow` turns, then closes the scope. |
-| F7 | `DecisionCacheShape` has **three** members: `getOrCompute`, `size`, `clear` (`DecisionCache.ts:38-130`). A "typed host cache" must delegate all three, e.g. `{ ...inner, getOrCompute }`. | Source read. | Phase 63 fixture shape. |
-| F8 | A **private constructor alone does not stop forgery by object literal**: `const forged: A<"x"> = { source: "x", n: 1 }` compiles against a class with a private constructor; adding a `private` instance member makes it a compile error. | Probe C with `tsc 6.0.3 --strict` (scratch file, deleted). | Phase 65's goal "only `admit` can build an `Admitted`" is only true with a private instance member too. See Phase 65. |
-| F9 | `packages/audit/src/CircuitBreaker.ts:484` has an unrelated `new Admitted({ probe, generation, attempt })`. | grep. | Any Phase 65 grep or gate must be scoped to `packages/core/src/Admission.ts`. |
-| F10 | D3 says port cards derive "from the timeline feed". But `portCards(input: ServicesInput)` reads `wiring`, `activity`, `portCalls` and an `unsampled` flag (`PortCards.ts:28-35`), which are the **diagnostics** reading's fields (`DiagnosticsStore.ts:75-87`), not timeline data. `isUnsampled` is not exported. | Source read; `index.ts` grep. | The ADR-QD-173 amendment must name the diagnostics feed (`makeDiagnosticsFeed(...).getSnapshot().reading` plus `status`). Flag to the owner before wording it. A consumer also cannot reproduce the card wording, which stays private. |
-| F11 | A throw rethrown after the loop (D1) **still escapes whatever published**. So the README claim "it can leave a feed's status wrong with nothing running" stays true; only "later listeners are skipped" goes away. | `ExternalStore.ts:34-36`; `README.md:164-169`; `DiagnosticsFeed.ts:97`. | Phase 64 doc edits must remove "not isolated" and keep "a listener should not throw" in a weaker, accurate form. |
-| F12 | Phase 67's "iterate until both orderings were observed" would **cut coverage** if it stops at the first flip: today's sweep also runs gaps 39-48 and asserts no recompute on every run (`DecisionCache.test.ts:1250-1296`). | Test read. | Require a margin past the flip, or keep the full "no recompute" assertion per run. |
-| F13 | Over-width debt is wider than named: `SinkCodec.ts` has 27 lines over 100 columns, `decision-log.steps.test.ts` 15, ADR-QD-174 about 38. AGENTS.md section 17 gates nothing on width. | `awk 'length>100'`. | Out-of-scope line must say "the named lines only". |
-| F14 | Three Phase 68 items are already done or moved: `DecisionLog.ts` `ingest` doc already cites ADR-QD-171 (`DecisionLog.ts:129`); `QadiAtoms.test.ts:570` no longer says "Stamped by the sink"; the `DecisionLog.ts:215` line moved. | grep. | Done-state for those is "confirmed, no edit", recorded in the CCR. |
-
-## Feature Landscape
-
-Format per phase: observable done-state, table stakes, differentiators, anti-features, complexity, dependencies. "Gate" means a command in `pnpm check` (`package.json:41`).
+Conventions: `file:line` is relative to the repo root; `P/…` = `packages/…`. "Spec" = ADR/BEH/INV ids that govern the behaviour. Next free ids, from the highest seen (verify and reserve with `scripts/next-id.mjs` before writing any): ADR-QD-194, CCR-QD-473, BEH-QD-740, INV-QD-407.
 
 ---
 
-## Phase 62: Type pins that can fail (ARCH-109)
+## Phase 81: the dock model's `configure` applies every input whatever a listener throws (devtools, LIVE DEFECT)
 
-**Audit item:** 60b, upgraded. **Complexity:** MEDIUM (gate and characterisation) with a small rewrite. **Depends on:** nothing. Every later phase writes type pins, so this goes first.
+### 81.1 Every store and listener a host can subscribe to
 
-### Observable done-state
+The dock model has ten stores (BEH-QD-700, `spec/behaviors/28-devtools-screens.md:1087`; interface `P/devtools/src/model/DockModel.ts:216-247`, returned at `:433-450`): `timeline`, `dock`, `explorer`, `roles`, `simulation`, `diagnostics`, `timelineStatus`, `questions`, `services`, `lens`. `sightings` is a thunk, not a store. Each is built on `makeExternalStore` (`P/devtools/src/model/ExternalStore.ts:69-103`), whose `notify` calls every listener and rethrows what they threw (nothing / the value itself / one `AggregateError("More than one of the store's listeners threw.")`, `ExternalStore.ts:63-83`, ADR-QD-177, BEH-QD-656). `throwCollected` is module-private (`ExternalStore.ts:63`, not exported).
 
-1. `npx tstyche` (run as `pnpm test:tstyche`) is green, including a new characterisation file that pins the known-wrong behaviour: a negative `not.toBeCallableWith` on an `Effect`-returning and a `Stream`-returning function with **valid** arguments passes, and the `Params<F>` form with the same valid arguments fails. (If the root-cause option is taken, the same file instead asserts the positive form passes on both, which fails loudly if `floatingEffect` ever comes back.)
-2. `packages/core/test/DecisionLog.tst.ts:30` no longer uses `not.toBeCallableWith` on `makeDecisionLog`. It states "`environment` is required" through the parameter type, for example `expect<{ readonly capacity: number }>().type.not.toBeAssignableTo<Parameters<typeof makeDecisionLog>[0]>()` plus the positive `{ environment: string }`. Broken once by hand (make `environment` optional in `DecisionLog.ts:189`) it must go red; the break is reverted.
-3. `node scripts/check-house-style.mjs` (inside `pnpm lint`) fails if a `.tst.ts` file's count of `not.toBeCallableWith` code tokens differs from `NOT_CALLABLE_PIN_BUDGET[file]`, both directions, and for an unlisted file. The expected total after the rewrite is **80** in **26** files (`DecisionLog.tst.ts` drops out).
-4. AGENTS.md section 6 has a paragraph and table for the budget, and a `[not-callable-pin-table]` style check (like `[untrusted-decode-table]`, `check-house-style.mjs:1596-1606`) keeps table and budget equal.
-5. Every pin still using the bare form has a **positive control**: a `toBeCallableWith` on the same subject in the same `test` block that varies only the intended argument. Eleven pins lack one today (list below).
-6. `git diff <phase-base> --stat` shows only `*.tst.ts`, `scripts/check-house-style.mjs`, `AGENTS.md`, `spec/*` records. No `packages/*/src`, no changeset.
+Other host code reached from `configure`, all already guarded inside `GatesFeed` (`P/devtools/src/model/GatesFeed.ts:179-253`): the gate registry's `instances`/`subscribe`, the `questions` thunk, and the `Source` read (a fiber, not a listener). Nothing else a host owns is called synchronously.
 
-### Table stakes
+### 81.2 What `configure` does and what each step publishes (`DockModel.ts:403-431`)
 
-| Requirement | Why | Notes |
-|-------------|-----|-------|
-| Rewrite `DecisionLog.tst.ts:30` | The only unguarded vacuous pin | Pattern already in repo: `DecisionStream.tst.ts:49-56` (`Parameters<typeof f>[1]` and `not.toBeAssignableTo`), `PortAccess.tst.ts:33-37` (`Params<F>`). |
-| Characterisation `.tst.ts` | Makes the tool's wrong behaviour a tested fact, so an upgrade that fixes it is noticed | Pin both `Effect` and `Stream`; tstyche 7.2.5, TS 6.0.3. |
-| `NOT_CALLABLE_PIN_BUDGET` and AGENTS.md section 6 paragraph | Without a gate the next author repeats the mistake; the existing comments at `Qadi.tst.ts:171` and `DecisionStream.tst.ts:49` prove it was rediscovered at least three times | Own walk over `packages/*/test/**/*.tst.ts`; strip comments, including multi-line `/* */` and ` * ` lines. |
-| Positive control for the 11 uncontrolled pins | A negative pin can fail for an unintended reason (wrong first argument, missing import) and still look green | List below. |
-| Hand-break evidence | "Rewritten and broken once by hand to show it fails" is a stated requirement | Record the break and the red output in the phase SUMMARY; one rewritten pin, plus a sample of the bare pins if the planner wants stronger evidence. |
+| # | Line | Step | Publishes to (listener sets, in order) |
+|---|------|------|-------------------------------------------|
+| 0 | 405 | `completeDockInputs` | nothing. A capacity the timeline refuses throws here before anything moves (INV-QD-401, BEH-QD-728, M55 `DockModel.test.ts:455`). Must stay first and outside any collection. |
+| 1 | 409 | `held = wanted` | nothing |
+| 2 | 414 | `timelineFeed.configure` (`TimelineFeed.ts:195-209`): `resize` in a `try`, `readSource` in its `finally` | `timeline` store publish: the dock's own listener (`DockModel.ts:351-356`, subscribed first) runs `spread()` = `explorer.setSightings` (`ExplorerSession.ts:253-257`), `simulation.setSightings` (`SimulationSession.ts:501-506`), `dock.setTimeline` (`DockSession.ts:98-106`) in that order, then the host's `timeline` listeners. `timelineStatus` publishes only if it was `Stopped` (`TimelineFeed.ts:175`, `READING` is one constant). |
+| 3 | 416-419 | in `finally`: if the catalogue moved, `spread()` again, then `roles.setList` (`HeldChoice.ts:158-162`) | `explorer`, `simulation`, `dock`, then `roles` |
+| 4 | 421 | `simulation.setPorts` (`SimulationSession.ts:522-528`) | `simulation` |
+| 5 | 425 | `gatesFeed.configure` (`GatesFeed.ts:280-297`) | the gates store, whose derived `questions` store refreshes (`DockModel.ts:375`, parents `[gatesFeed, shownReading]`) then `questions` listeners |
+| 6 | 426 | `diagnosticsFeed.configure` (`DiagnosticsFeed.ts:213-221`; `start`/`off`) | the feed view, then `shownReading.refresh` (`DockModel.ts:360`) so `diagnostics`, then its children `questions` and `services` listeners |
+| 7 | 429 | `shownReading.refresh()` | same chain as 6, for a supplied-`reading` change (not a parent) |
 
-### Differentiators
+`lens` is never published by `configure` (INV-QD-390, ConfigureRule CR16-CR20/CR22). First-configure counts a reader subscribed to all ten stores hears (BEH-QD-735 `spec/behaviors/28-devtools-screens.md:3202`, pinned by CR22 `P/devtools/test/model/ConfigureRule.test.ts:895`): timeline 2, dock 2, explorer 3, simulation 3, roles 0, diagnostics 1, timelineStatus 0, questions 2, services 1, lens 0.
 
-| Feature | Value | Complexity | Notes |
-|---------|-------|------------|-------|
-| **Root-cause fix:** a tstyche-only tsconfig (for example `tsconfig.tstyche.json` extending `tsconfig.test.json`, with the same plugin block and `"diagnosticSeverity": { "unstableApiUsage": "off", "floatingEffect": "off" }`), wired in `tstyche.json` | Makes all 81 pins honest at once and retires the `Params<F>` workaround; `pnpm typecheck` keeps `floatingEffect` on for `.test.ts` files because `tsc -p tsconfig.test.json` is unchanged | LOW code, MEDIUM judgement | Probed: 65 of 65 real files stay green, "Suppressed: 55 matched" unchanged. Risk: `floatingEffect` is then off for `.tst.ts` only; a floating Effect inside a type test is not a real defect. Needs an owner or planner call, because the context specified a budget gate, not a config change. If chosen, the budget still has value as a guard that the config is not undone, but the characterisation file (positive control on an Effect function) already does that more cheaply. |
-| Pin 1 is exposed by an automated classifier | A reviewer can re-derive "which pins are vacuous" without reading 81 declarations | LOW | Flip each pin to the positive form; for a non-Effect subject the failure text is a TS argument error, for an Effect subject it is the floating-Effect diagnostic. Unverified that tstyche prints the diagnostic text; the positive-control oracle used below does not need it. |
-| One shared `Params<F>` helper | Three files copy the same one-line type (`DecisionCache.tst.ts:27`, `PortAccess.tst.ts:38`, `DiagnosticsStore.tst.ts:25`) | LOW | Test packages do not share a support module across packages; do not create a cross-package one just for this. Leave the three copies. |
+Also reachable outside `configure`: the same `spread()` runs from the timeline listener on **every record** (`DockModel.ts:351-356`), via `runSource` -> `timeline.accept`. The dock reaches `configure` from React through `useConfigured`'s layout effect (`P/devtools/src/react/useConfigured.ts:27-29`), so a throw from a later `configure` surfaces in a layout effect (error boundary), and `DevtoolsDock` hands a fresh rest record each render (`DevtoolsDock.tsx:86`).
 
-### Anti-features
+### 81.3 Current behaviour, confirmed by throwaway run (matrix: one throwing listener per store, `configure({capacity:5, catalogue(roles:[editor]), diagnostics:{}, questions, reading})` on a model that already held one record; then the identical `configure` again)
 
-| Anti-feature | Why requested | Why bad | Instead |
-|--------------|---------------|---------|---------|
-| Rewriting all 81 pins "to be safe" | Looks thorough | 68 are honest; churn hides the one real change and breaks 12 already-correct workarounds | Rewrite one, control eleven, gate the rest. |
-| Widening a subject's type to satisfy a pin | Makes a pin pass | Weakens the API under test | Fix the pin, never the source (the phase touches no `src`). |
-| `not.toBeConstructableWith` sweep | Same family of tool | `Decision.tst.ts` has 9 on plain data classes, which are honest; not in scope | Leave. Only note: a class whose instance is yieldable (a `Data.TaggedError`) could hit the same floating diagnostic; none is pinned today (unverified, no pin exists). |
-| Filing an upstream tstyche or language-service issue | Natural follow-up | It posts outside the repo; the owner has not approved it | Record the repro in the characterisation file's header and stop. |
-| Editing archived `61-scan.mjs` style scripts or old phase files | Convenience | Archived phases are history | Not touched in this phase. |
-| Counting `not.toBeCallableWith` with a plain `grep` | Simple | Counts 86, includes comments, and a multi-line pin is one token | Strip comments, then count the token. |
+| Throwing listener on | Observed after 1st configure | After identical 2nd configure |
+|----------------------|------------------------------|-------------------------------|
+| `explorer` | threw; **roles `[]`**, **simulation sightings !== explorer sightings**, **dock still shows 1 stale row** (timeline emptied to 0), diagnostics `Off`; listener called **twice** (once per spread) | roles still `[]`, sightings still differ, dock still stale; only feed-side steps heal (diag `Live`) because the feeds compare their own held inputs |
+| `simulation` | threw; roles `[]`, dock stale (1 row), diagnostics `Off` | unchanged except diag |
+| `roles` | threw; diagnostics `Off` (steps 5-7 skipped) | diag `Live` |
+| `questions` | threw; diagnostics `Off` | threw again |
+| `diagnostics` | threw; status `Starting` and stays (documented window, ADR-QD-177 decision 5, F31 `DiagnosticsFeed.test.ts:640`: no poll forked) | same |
+| `timeline`, `dock`, `services`, `timelineStatus` | everything applied (the throw is collected inside the store, and the redundant second `spread` masks the `dock` case) | same |
+| two listeners throwing (`timeline` and `roles`, distinct errors) | thrown value is the **roles** error, a plain `Error`: the timeline listener's error is lost, no `AggregateError` | same |
+| **record path** (no `configure`): `explorer` listener always throws, two records accepted | timeline holds 2 entries, **dock rows 0, simulation sightings 0**: `spread` aborts at `explorer`, so `simulation` and `dock` never see any record | n/a |
 
-### Phase 62 pin inventory (exact, 81 code pins in 27 files; 5 comment-only hits excluded)
+Root causes: (a) only step 2 is inside the `try`; the `finally` (steps 3-7, `DockModel.ts:415-430`) is a plain sequence, so any throw skips the rest and a throw in the `finally` replaces the `try`'s throw (JS semantics); (b) `spread` (`:342-347`) is three plain calls; (c) an identical configure cannot heal: the catalogue compare is against `before = held` which was already advanced (`:406-409`), and INV-QD-403/BEH-QD-732 require a no-move configure to reach no host code.
 
-Return family is read from the subject's declaration. "Pos" is a passing `toBeCallableWith` on the same subject in the same file, which proves the subject is not Effect/Stream (such a positive fails under the floating diagnostic; the full suite is green at this HEAD: 65 of 65 real files). "none" = no in-file positive.
+**Double `spread`** (confirmed): `catalogueOf` builds fresh sighting objects on each call (`P/devtools/src/model/Catalogue.ts:155-189`, `unseen.push({...})`), so `sameElements` (`ExternalStore.ts:112`) never treats two calls as equal and explorer/simulation publish twice. A capacity change publishes a new `Timeline` (`TimelineStore.ts` `resize`), which fires the listener's `spread`; with a catalogue change too, the `finally`'s `spread` (`:416-417`) repeats it. Measured: explorer heard 2 on one capacity+catalogue configure; CR22's 3/3 = resize spread + `finally` spread + the source's first record. Expect 2/2 after the fix (not yet run: LOW until it is).
 
-| File:line | Subject | Declared return | Pos |
-|-----------|---------|-----------------|-----|
-| `packages/audit/test/AuditPortReply.tst.ts:30` | `AuditPortReply.Fail` | plain (tagged-enum constructor) | 32 |
-| `packages/audit/test/AuditPortReply.tst.ts:31` | `AuditPortReply.Latch` | plain | **none** |
-| `packages/audit/test/AuditWriteOutcome.tst.ts:12` | `AuditWriteOutcome.Written` | plain | 13 |
-| `packages/audit/test/AuditWriteOutcome.tst.ts:17` | `AuditWriteOutcome.Skipped` | plain | 19 |
-| `packages/audit/test/AuditWriteOutcome.tst.ts:18` | `AuditWriteOutcome.WriteFailed` | plain | **none** (sibling `Skipped` takes the same payload, 19) |
-| `packages/audit/test/Retention.tst.ts:16` | `planPurge` | `Result` | 17 |
-| `packages/audit/test/Retention.tst.ts:21` | `planPurge` | `Result` | 17 |
-| `packages/audit/test/Retention.tst.ts:22` | `planPurge` | `Result` | 17 |
-| `packages/core/test/DecisionCache.tst.ts:44` | `Params<getOrCompute>` | Effect, already wrapped | 37-40 |
-| `packages/core/test/DecisionCache.tst.ts:45` | `Params<getOrCompute>` | Effect, already wrapped | 37-40 |
-| `packages/core/test/DecisionCache.tst.ts:46` | `Params<getOrCompute>` | Effect, already wrapped | 37-40 |
-| `packages/core/test/DecisionLog.tst.ts:30` | `makeDecisionLog` | **`Effect.Effect<DecisionLog>`, bare: VACUOUS** | **none** |
-| `packages/core/test/EvaluationEnvironment.tst.ts:47` | `evaluationEnvironment` | `Layer` | 65, 71 |
-| `packages/core/test/EvaluationEnvironment.tst.ts:48` | `evaluationEnvironment` | `Layer` | 65, 71 |
-| `packages/core/test/EvaluationEnvironment.tst.ts:49` | `evaluationEnvironment` | `Layer` | 65, 71 |
-| `packages/core/test/EvaluationEnvironment.tst.ts:55` | `evaluationEnvironment` | `Layer` | 65, 71 |
-| `packages/core/test/Explanation.tst.ts:35` | `foldExplanationCases` | `R` (generic result) | **none** |
-| `packages/core/test/Explanation.tst.ts:46` | `foldExplanationCases` | `R` | **none** |
-| `packages/core/test/HydrationMetrics.tst.ts:27` | `hydrationDropMeaning` | plain | 26 |
-| `packages/core/test/HydrationMetrics.tst.ts:28` | `hydrationDropMeaning` | plain | 26 |
-| `packages/core/test/Matcher.tst.ts:33` | `foldMatcherCases` | `R` | **none** |
-| `packages/core/test/Matcher.tst.ts:42` | `foldMatcherCases` | `R` | **none** |
-| `packages/core/test/Policy.tst.ts:102` | `foldPolicyCases` | `R` | 125 |
-| `packages/core/test/Policy.tst.ts:113` | `foldPolicyCases` | `R` | 125 |
-| `packages/core/test/PortAccess.tst.ts:41` | `Params<askSignature>` | Effect, already wrapped | 45 |
-| `packages/core/test/PortAccess.tst.ts:49` | `Params<askRelationship>` | Effect, already wrapped | 53 |
-| `packages/core/test/PortAccess.tst.ts:57` | `Params<askActed>` | Effect, already wrapped | 62, 63 |
-| `packages/core/test/PortAccess.tst.ts:58` | `Params<askActed>` | Effect, already wrapped | 62, 63 |
-| `packages/core/test/PortAccess.tst.ts:67` | `Params<readAttribute>` | Effect, already wrapped | 71, 72 |
-| `packages/core/test/PortAccess.tst.ts:76` | `Params<askCustom>` | Effect, already wrapped | 80 |
-| `packages/core/test/PortDefault.tst.ts:19` | `isPortDefault` | `boolean` | 12, 13, 15 |
-| `packages/core/test/Ports.tst.ts:69` | `portsLayer` | `Layer` | 67, 68 |
-| `packages/core/test/PortSpan.tst.ts:15` | `spanStruct` | plain object | 26 |
-| `packages/core/test/PortSpan.tst.ts:22` | `spanStruct` | plain object | 26 |
-| `packages/core/test/PortSpan.tst.ts:33` | `spanStruct` | plain object | 26 |
-| `packages/core/test/PortSpan.tst.ts:37` | `spanStruct` | plain object | 26 |
-| `packages/core/test/Qadi.tst.ts:115` | `enforceProjectedLoaded` | curried function | **none** |
-| `packages/core/test/Qadi.tst.ts:118` | `enforceLoaded` | curried function | 124 |
-| `packages/core/test/Qadi.tst.ts:120` | `enforceProjected` | curried function | 123 |
-| `packages/core/test/Qadi.tst.ts:164` | `guard` | curried function | 166, 167 |
-| `packages/core/test/UntrustedDecode.tst.ts:59` | `untrustedDecoder` | `UntrustedDecoder` object | 58, 70, 75, 88-91 |
-| `packages/core/test/UntrustedDecode.tst.ts:60` | `untrustedDecoder` | object | same |
-| `packages/core/test/UntrustedDecode.tst.ts:61` | `untrustedDecoder` | object | same |
-| `packages/core/test/UntrustedDecode.tst.ts:71` | `untrustedDecoder` | object | same |
-| `packages/core/test/UntrustedDecode.tst.ts:76` | `untrustedDecoder` | object | same |
-| `packages/core/test/UntrustedDecode.tst.ts:84` | `untrustedDecoder` | object | same |
-| `packages/core/test/UntrustedDecode.tst.ts:85` | `untrustedDecoder` | object | same |
-| `packages/core/test/UntrustedDecode.tst.ts:86` | `untrustedDecoder` | object | same |
-| `packages/core/test/UntrustedDecode.tst.ts:87` | `untrustedDecoder` | object | same |
-| `packages/core/test/WalkEnvironment.tst.ts:40` | `admit` | `Result` | **none** (calls at 36-37 compile, not a `toBeCallableWith`) |
-| `packages/core/test/WalkEnvironment.tst.ts:41` | `admit` | `Result` | **none** |
-| `packages/devtools/test/model/DiagnosticsStore.tst.ts:57` | `Params<runDiagnostics>` | Effect, already wrapped | 49 |
-| `packages/devtools/test/model/DiagnosticsStore.tst.ts:62` | `Params<runDiagnostics>` | Effect, already wrapped | 49 |
-| `packages/devtools/test/model/DiagnosticsStore.tst.ts:69` | `Params<runDiagnostics>` | Effect, already wrapped | 49 |
-| `packages/http/test/DecisionLogHttp.tst.ts:41` | `decisionBacklogRoute` | `Layer` | 29, 30, 36, 37 |
-| `packages/http/test/DecisionStreamRoute.tst.ts:25` | `decisionStreamRoute` | `Layer` | 20, 21 |
-| `packages/http/test/DecisionStreamRoute.tst.ts:35` | `sseText` | `string` | 32-34 |
-| `packages/http/test/DecisionStreamRoute.tst.ts:36` | `sseText` | `string` | 32-34 |
-| `packages/http/test/DecisionStreamRoute.tst.ts:37` | `sseText` | `string` | 32-34 |
-| `packages/http/test/DevtoolsRouteAddress.tst.ts:26` | `devtoolsPath` | template string | 30, 31 |
-| `packages/http/test/DevtoolsRouteAddress.tst.ts:32` | `devtoolsPath` | template string | 30, 31 |
-| `packages/http/test/DevtoolsRouteAddress.tst.ts:42` | `decisionStreamRoute` | `Layer` | 38 |
-| `packages/http/test/DevtoolsRouteAddress.tst.ts:48` | `devtoolsRoutes` | `Layer` | 46, 47 |
-| `packages/http/test/DevtoolsRouteAddress.tst.ts:49` | `devtoolsRoutes` | `Layer` | 46, 47 |
-| `packages/http/test/DevtoolsRouteAddress.tst.ts:53` | `devtoolsRoutes` | `Layer` | 46, 47 |
-| `packages/http/test/GuardApi.tst.ts:47` | `guardApi` | `Layer` | 35, 39 |
-| `packages/http/test/GuardApi.tst.ts:51` | `guardApi` | `Layer` | 35, 39 |
-| `packages/http/test/GuardApi.tst.ts:55` | `guardApi` | `Layer` | 35, 39 |
-| `packages/http/test/GuardRoute.tst.ts:133` | `addGuardedRoute(...)` result | function returning `Layer` | 136 |
-| `packages/http/test/RequirePermission.tst.ts:45` | `requiresPermission` | branded shape | 35 |
-| `packages/http/test/RequirePermission.tst.ts:49` | `requiresPermission` | branded shape | 35 |
-| `packages/http/test/RequirePermission.tst.ts:63` | `plainEndpoint.annotate` | endpoint | **none** |
-| `packages/promise/test/Facade.tst.ts:25` | `qadi.filter` | `Promise` | 43, 44 |
-| `packages/promise/test/Facade.tst.ts:28` | `qadi.filterProjected` | `Promise` | 45, 46 |
-| `packages/promise/test/Facade.tst.ts:33` | `qadi.filter` | `Promise` | 43, 44 |
-| `packages/promise/test/Facade.tst.ts:34` | `qadi.filterProjected` | `Promise` | 45, 46 |
-| `packages/promise/test/Facade.tst.ts:40` | `qadi.projected` | `Promise` | 49 |
-| `packages/react/test/DevtoolsFeed.tst.ts:23` | `useDevtoolsFeed` | feed object | 29-31 |
-| `packages/react/test/DevtoolsFeed.tst.ts:24` | `useDevtoolsFeed` | feed object | 29-31 |
-| `packages/react/test/DevtoolsFeed.tst.ts:25` | `useDevtoolsFeed` | feed object | 29-31 |
-| `packages/react/test/Hydration.tst.ts:52` | `isAllowed` | `boolean` | 53 |
+### 81.4 Required behaviour after
 
-Comment-only hits (not pins; strip before counting): `DecisionCache.tst.ts:13`, `PortAccess.tst.ts:6`, `PortAccess.tst.ts:35`, `PortSpan.tst.ts:5`, `Qadi.tst.ts:171`.
+**Table stakes (testable)**
 
-**Counts per file (the budget):**
+| ID | Requirement | Spec it extends |
+|----|-------------|-----------------|
+| 81-R1 | Past the capacity check, `configure` applies steps 2-7 whatever any listener throws; a throw in step *n* never skips step *n+1*. | ADR-QD-191 decision 11 (amend: today only step 2 is guarded), ADR-QD-177, BEH-QD-656 |
+| 81-R2 | It rethrows once, at the end: nothing when none threw, the thrown value itself when exactly one did (`undefined`/`null` included), one `AggregateError` of every thrown value in order when more than one did. A second throw never replaces the first. | ADR-QD-177 decisions 2-3 (an `AggregateError` a step throws stays one value, never flattened) |
+| 81-R3 | `spread` is total: `explorer`, `simulation` and `dock` are each updated whatever another's listener throws, on both paths (configure and the record-driven timeline listener). | BEH-QD-465 (`:915`), ADR-QD-047 |
+| 81-R4 | The first configure leaves the model complete (roles, one rail shared by explorer and simulation, dock on the shown timeline, ports, gates read, diagnostics started, shown reading merged); an identical second configure stays a no-op reaching no host code. | INV-QD-403, BEH-QD-732 |
+| 81-R5 | One `spread` per shown-timeline-or-catalogue change: a capacity-and-catalogue change notifies explorer and simulation once per distinct change. | BEH-QD-735 counts (`:3202`, "2, 2, 3, 3, 0, 1, 0, 2, 1 and 0") must be restated with CR22 |
+| 81-R6 | Unchanged: a refused capacity throws first with nothing moved (M55); the step order timeline -> catalogue/roles -> ports -> gates -> diagnostics -> refresh (BEH-QD-735, "fixed order" test `DockModel.characterisation.test.ts:327`); `lens` never published; M56 (`run.thrown === boom`, roles `["editor"]`, diagnostics not `Off`) and the characterisation "a throwing questions listener lets services and diagnostics move, then escapes" (`:296`) pass unedited. | ADR-QD-191, INV-QD-401, INV-QD-390 |
 
-| Package | File | Pins |
-|---------|------|------|
-| audit | `AuditPortReply.tst.ts` | 2 |
-| audit | `AuditWriteOutcome.tst.ts` | 3 |
-| audit | `Retention.tst.ts` | 3 |
-| core | `DecisionCache.tst.ts` | 3 |
-| core | `DecisionLog.tst.ts` | 1 (becomes 0) |
-| core | `EvaluationEnvironment.tst.ts` | 4 |
-| core | `Explanation.tst.ts` | 2 |
-| core | `HydrationMetrics.tst.ts` | 2 |
-| core | `Matcher.tst.ts` | 2 |
-| core | `Policy.tst.ts` | 2 |
-| core | `PortAccess.tst.ts` | 6 |
-| core | `PortDefault.tst.ts` | 1 |
-| core | `Ports.tst.ts` | 1 |
-| core | `PortSpan.tst.ts` | 4 |
-| core | `Qadi.tst.ts` | 4 |
-| core | `UntrustedDecode.tst.ts` | 9 |
-| core | `WalkEnvironment.tst.ts` | 2 |
-| devtools | `model/DiagnosticsStore.tst.ts` | 3 |
-| http | `DecisionLogHttp.tst.ts` | 1 |
-| http | `DecisionStreamRoute.tst.ts` | 4 |
-| http | `DevtoolsRouteAddress.tst.ts` | 6 |
-| http | `GuardApi.tst.ts` | 3 |
-| http | `GuardRoute.tst.ts` | 1 |
-| http | `RequirePermission.tst.ts` | 3 |
-| promise | `Facade.tst.ts` | 5 |
-| react | `DevtoolsFeed.tst.ts` | 3 |
-| react | `Hydration.tst.ts` | 1 |
-| | **Total** | **81** (core 43, audit 8, devtools 3, http 18, promise 5, react 4) |
+**Differentiators (cheap, in scope)**: export the collecting primitive from `ExternalStore.ts` (package-private, ADR-QD-099) so `notify`, the derived store's release loop (`ExternalStore.ts:203-216`) and `configure` share one `throwCollected`; a matrix test over all ten stores (like ConfigureRule's sweep) so a new store or step is a failing row, not a new bug.
 
-**Classification totals:** Effect/Stream-returning and unwrapped: **1** (`DecisionLog.tst.ts:30`). Effect-returning and already wrapped in `Params<F>`: **12**. Honest (non-Effect, non-Stream): **68**. Of the 81, **11 lack an in-file positive control**: `AuditPortReply.tst.ts:31`, `AuditWriteOutcome.tst.ts:18`, `DecisionLog.tst.ts:30` (rewritten anyway), `Explanation.tst.ts:35`, `:46`, `Matcher.tst.ts:33`, `:42`, `Qadi.tst.ts:115`, `WalkEnvironment.tst.ts:40`, `:41`, `RequirePermission.tst.ts:63`.
-
-Method used (so a verifier can repeat it): `grep -rn 'not\.toBeCallableWith' packages features scripts --include='*.ts' --include='*.tsx'` gives 86 lines; drop lines whose text starts with `*` or `//`; the full tstyche run is green (65 passing files at this HEAD) so every in-file positive is a passing control. Unverified: that no `.tst.tsx` or generated `.tst` file exists outside `packages/*/test` (the grep covered `packages`, `features`, `scripts`).
-
----
-
-## Phase 63: The packed-install gate probes every new public name (ARCH-110)
-
-**Audit item:** I-a. **Complexity:** MEDIUM. **Depends on:** nothing technically. Pair with 62 for the "protect what v1.6 ships" cut (`_WAVE12-CONTEXT.md:33-34`).
-
-### Observable done-state
-
-1. `pnpm spec:package` (`node scripts/check-package-install.mjs`, merge gate 14) is green and its consumer fixture compiles and runs `makeGatesFeed`, `makeDiagnosticsFeed` and a typed `DecisionCacheShape` host cache through the **packed** `exports` map.
-2. Deleting any one of those three probes from the `FIXTURE` string makes the script exit 1, either because the derived guard names the missing `make*Feed`, or because `tsc` fails on the dead `@ts-expect-error`. Record the three hand-removals and the red output in the SUMMARY (there are no unit tests for `scripts/*.mjs`).
-3. Adding a hypothetical fourth `make*Feed` root export to `@qadi/devtools` (simulated by hand) fails the gate until a probe exists. Reverted.
-4. `pnpm spec:gates` (DoD table) unchanged: same command. No changeset.
-
-### Inputs each probe needs (read from source)
-
-| Probe | Call | Inputs | Deterministic assertion |
-|-------|------|--------|-------------------------|
-| Gates feed | `makeGatesFeed(init?: GatesFeedInputs)` (`GatesFeed.ts:113-115`, returns `Effect<GatesFeed, never, Scope.Scope>`) | `{ gates?: GateRegistryLike, questions?: () => ReadonlyArray<AskedQuestionLike>, intervalMillis? }`. An empty registry is `{ instances: () => [], subscribe: () => () => {} }` (`GateRegistryLike`, `Gates.ts:247-250`). Leave `questions` out: with no thunk no cadence fiber is forked (`GatesFeed.ts:222-226`). | The snapshot is synchronous: `RegistryRead.$is("Read")(snap.registry)` with `instances.length === 0`, and `AskedRead.$is("Unhanded")(snap.asked)`. No `yieldNow` needed. Names `RegistryRead`, `AskedRead` are root exports (`index.ts:50`). |
-| Diagnostics feed | `makeDiagnosticsFeed(init?: DiagnosticsOptions)` (`DiagnosticsFeed.ts:130-132`) | `{}` or `{ intervalMillis }` forks the poll; no argument leaves it `Off`. There is **no `schedule`** option (F6). `layer` and `collector` are optional. | After the fixture's 20 `Effect.yieldNow` turns (`helpers.ts:174-176`, the same count the timeline probe uses, `check-package-install.mjs:507`), `getSnapshot().status._tag === "Live"`. Prefer a bounded loop "yield until `Live`, cap 200, fail if not reached" over a fixed count (unverified that 20 turns suffice for the first sample; the devtools suite uses 20 under `TestClock`). Close the scope, so the `Schedule.spaced` sleep (default `DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS` = 2000) is interrupted, never awaited. |
-| Host cache | `DecisionCacheShape` (type), `DecisionCache`, `decisionCacheLayer()` from `@qadi/core` (`DecisionCache.ts:38-130`, `215-218`; all re-exported by `export *`) | Members: `getOrCompute(question, options?)`, `size`, `clear`. Wrap with `Layer.effect(DecisionCache, Effect.gen(function* () { const inner = yield* DecisionCache; const shape: DecisionCacheShape = { ...inner, getOrCompute: (q, o) => { calls += 1; return inner.getOrCompute(q, o); } }; return shape; })).pipe(Layer.provide(decisionCacheLayer()))`. | Evaluate the fixture's `hasPermission(read)` twice under `Effect.provide(hostCache)` (the cache must wrap the unit of work, `DecisionCache.ts:167-186`): `calls === 2` shows `evaluate` goes through the host's shape; the second outcome is a `hit`. The pre-0.13 pin: a line with `// @ts-expect-error` assigning a function taking `(question, compute: Effect.Effect<…>)` to `DecisionCacheShape["getOrCompute"]`; `tsc` fails the gate if the shape ever loosens back. `CacheLookup` is exported too, so the wrong-shape line can give a correct return type and be refused for the argument alone. |
-
-Fixture pitfall: `FIXTURE` is a JS template literal (`check-package-install.mjs:396-593`), so backticks and `${` inside it are written `\`` and `\${`.
-
-### Table stakes
-
-| Requirement | Notes |
-|-------------|-------|
-| All three probes in the fixture | Type-only `DecisionCacheShape` is checked only by `tsc` (compile), the feeds also run. |
-| No wall clock | Fixed or bounded `yieldNow` turns, scope close; never `setTimeout`. |
-| Derived guard | Enumerate `make\w+Feed` from the **packed** `@qadi/devtools` (extend `probe.mjs`, `check-package-install.mjs:274-285`, to print names, not only counts), then require each as a call `name(` in the fixture with comments stripped. Fails with the missing names. |
-| Deliberate-removal evidence | As done-state 2. |
-
-### Differentiators
-
-| Feature | Value | Complexity |
-|---------|-------|------------|
-| Guard also covers `DecisionCache`-style type-only public names via a small named list in the script (`DecisionCacheShape`) that fails if the name leaves `@qadi/core`'s `.d.ts` | The type-only name has no runtime export to enumerate | LOW-MEDIUM |
-| Assert the host cache saw both calls and the second was a `hit` | Proves the shape is not just compiled but honoured by `evaluate` | LOW |
-
-### Anti-features
-
-| Anti-feature | Why bad | Instead |
+**Anti-features**
+| Anti-feature | Why not | Instead |
 |--------------|---------|---------|
-| Grepping the fixture for the bare name | A name in a comment satisfies it while the probe is gone | Match a call after stripping comments. |
-| Real timers or `Effect.sleep` in the fixture | Flaky, slow | `yieldNow` turns, scope close. |
-| Importing from `packages/*/src` in the fixture | Defeats the packed-artifact point | Only package names. |
-| Editing the DoD table or adding a new `pnpm` step | Context says "same command" | Extend the script. |
-| Probing `@qadi/devtools/react` more deeply | Out of scope; `DevtoolsDock` is already referenced | Leave. |
+| Catch and log/swallow a listener throw | ADR-QD-177 rejected it; devtools has no logger (AGENTS.md §6) | rethrow collected |
+| Flatten nested `AggregateError`s | ADR-QD-177 decision 3 | keep one value per step |
+| Decide by reading the error | ADR-QD-191 "Alternatives" | decide by position/step |
+| Roll back inputs on a throw | a throw is a listener fault, not a refused input | apply everything, rethrow |
+| Close the documented `Starting`/`Reading` window (no poll forked when a listener throws on `Starting`) | out of scope in ADR-QD-177 decision 5; widening it changes the feeds | leave, note in ADR |
+| Reorder steps or touch `lens` | BEH-QD-735 order, INV-QD-390 | keep |
 
-**Dependencies:** none upstream. Phase 64 later changes a feed's listener behaviour; this probe must not subscribe a throwing listener, so the two do not interact.
+### 81.5 Regression test to open with (must be RED on `911aa37f`)
 
----
+New in `P/devtools/test/model/DockModel.test.ts` after M56 (`:481`), titled e.g. `M57`: for each of `explorer`, `simulation`, `roles`, `questions` a listener that throws, one `configure` with capacity, catalogue (with a role), ports, gates, `diagnostics: {}`; assert roles list, `simulation.getSnapshot().sightings === explorer.getSnapshot().sightings`, `dock.getSnapshot().rows` empty after the resize, diagnostics not `Off`, thrown value `=== boom`. Companions: two distinct throwing listeners -> `AggregateError` with both errors (RED: only the last escapes); the record path (throwing `explorer` listener, accept two records, `dock.getSnapshot().rows.length === 2`; RED: 0); capacity+catalogue notifies explorer once (RED: 2). Evidence these fail: throwaway matrix above.
 
-## Phase 64: One throwing listener cannot silence the rest (ARCH-111)
+### 81.6 Sites
 
-**Audit item:** 60a. **Decision D1 (locked).** **Complexity:** LOW code, MEDIUM records (many texts). **Depends on:** 62 only for ordering (this phase adds no type pins). Touches the shared `ExternalStore`, so run it before 68's re-wrapping.
-
-### Observable done-state
-
-1. New tests in `packages/devtools/test/model/ExternalStore.test.ts` (today 5 tests, none about throws), RED on the base first: (a) L1 throws, L2 and L3 still called; (b) one throw is rethrown **as the same object** after the loop; (c) two throw: an `AggregateError` whose `.errors` hold both, in subscription order; (d) none throw: behaviour and call order unchanged; (e) a listener that unsubscribes itself or another during notify neither throws nor skips the survivors; (f) `set` still stores the new value before notifying, so a throwing listener cannot leave `getSnapshot()` stale.
-2. `pnpm vitest run --project <devtools project> < /dev/null` is green with the dock's `*.characterisation.test.tsx` files **unedited** (check with `git diff --stat -- 'packages/devtools/test/**/*.characterisation.test.tsx'` empty).
-3. The stated texts below no longer claim "not isolated" or that a later listener is skipped, and still say a throw escapes the publisher (F11).
-4. A `@qadi/devtools` patch changeset; a BEH amendment (BEH-QD-636 area, spec 28), a new INV (reserved 373-374), an ADR-QD-177 or an explicit "unused" in the CCR row; `pnpm spec:verify:strict`, `pnpm spec:examples`, `pnpm spec:claims`, `pnpm spec:api` stay green. No `export` added.
-
-### Every text that promises "a listener must not throw" or "not isolated" (complete grep)
-
-Searched `packages/devtools`, `packages/react/src`, `apps/website/src/content`, `spec/`, `README.md`, `packages/*/README.md`.
-
-| Where | Text (short) | Action |
-|-------|--------------|--------|
-| `packages/devtools/src/model/GatesFeed.ts:7-10` (module doc) | "A listener on the feed's own `subscribe` is not guarded: it is the caller's and must not throw. Its throw escapes whatever published ... and one thrown on a tick ends the questions cadence without a statement." | Rewrite: every listener is called, one error is rethrown, several as `AggregateError`; the throw still escapes the publisher and a tick throw still ends the cadence (F11). |
-| `GatesFeed.ts:77` (`subscribe` doc) | "A listener must not throw: it is not isolated." | Reword. |
-| `packages/devtools/src/model/TimelineFeed.ts:57` (`TimelineStatusReadout.subscribe`) | same | Reword. |
-| `TimelineFeed.ts:66` (`timeline` doc) | "A listener on its `subscribe` must not throw: it is not isolated, and it runs on every record." | Reword. |
-| `packages/devtools/src/model/DiagnosticsFeed.ts:97` (`DiagnosticsReadout.subscribe`) | "must not throw: it is not isolated, and a throw during a publish from the poll is stated as the poll's stop." | Keep the second clause (still true: the rethrow reaches the poll fiber and is `Stopped`), drop "not isolated". |
-| `packages/devtools/src/model/ExternalStore.ts:21-22` (`subscribe` doc, and the module doc) | no throw wording today | Add the new contract here; this is the single implementation. |
-| `packages/devtools/README.md:162-169` ("Without React: the feeds") | "A `subscribe` listener is yours and is not isolated: it must not throw. A throw escapes whatever published (...) and it can leave a feed's status wrong with nothing running: the gates feed's questions cadence ends, a diagnostics feed stays `Starting` with no poll, and a timeline restarted from `Stopped` says `Reading` with nothing reading." | Reword the first sentence; keep the consequences only if still true under rethrow (they are, F11). The README is the "a feed that stops says so" passage the context names. |
-| `spec/behaviors/28-devtools-screens.md:2547-2548` (a requirement block of the gates-feed BEH) | "A listener given to the feed's own `subscribe` is the caller's and is not guarded, so it MUST NOT throw (amended 2026-11-19, review iterations 2 and 3)." | Amend the requirement; bump revision via `pnpm spec:revise` (`scripts/spec-revise.mjs`); add a Change History row. |
-| `spec/behaviors/28-devtools-screens.md:1981-1982` (BEH-QD-584 block) | "MUST NOT throw out of the model, MUST NOT end the poll or skip another store's listeners" | **Read, probably no change**: it is about a throwing **registry**, not a listener, and stays true. Confirm, do not edit. |
-| `spec/behaviors/28-devtools-screens.md:2069` | "`@qadi/react`'s own registry swallows a listener's throw" | No change: this is about the React registry (`packages/react/src/GateRegistry.ts:78-92`), a different store. |
-| `spec/decisions/162-...md:124-128`, `169-...md:42` | Describe the registry's swallow and "nothing the host throws leaves the feed" | No change; they are about the host registry/thunk, not subscribe listeners. |
-| `packages/devtools/test/gateRegistryDouble.ts:11-18` | "a listener that throws is not swallowed, so an assertion made inside a subscriber fails the command that triggered it" | A **test double of the host registry**, not `ExternalStore`; unaffected. Note: tests that assert inside a feed subscriber still fail the command because a single throw is rethrown as the same object. A second throw in the same notify would now arrive as `AggregateError`, so a test that matches a message may need a look (unverified, none identified). |
-| `apps/website/src/content/docs/docs/packages/devtools.md`, `.../reference/upgrading.md` | **No** "must not throw" or "isolated" claim (grep found none; line 169 is about a thrown questions thunk, which is unaffected). | No change. Do not edit `apps/website/dist/` (build output). |
-| spec 28 fences at lines 455, 845, 1279, 2024, 2490, 2531 | Pure `subscribe: (listener: () => void) => () => void` signatures, no throw comments | No change; they are ` ```ts ` listings, not compiled. |
-| `spec/overview.md:914-915` | feed rows; no listener-throw wording | No change. |
-
-13 importers of `ExternalStore` confirmed: `TimelineFeed`, `GatesFeed`, `DiagnosticsFeed`, `DiagnosticsStore`, `DockModel`, `DockSession`, `SimulationSession`, `ExplorerSession`, `HeldChoice`, `TimelineStore`, `react/ServicesPanel`, `react/QuestionsPanel`, `react/useStoreSnapshot`. No other listener loop exists in `packages/devtools/src`; `@qadi/react`'s `GateRegistry.ts:86-92` is a separate, deliberately swallowing one.
-
-### Table stakes
-
-| Requirement | Notes |
-|-------------|-------|
-| Call every listener, in subscription order | Live `Set` iteration today: a listener removed mid-notify is not called, one added mid-notify is. Keep that behaviour or state a change; pin it (test e). |
-| Rethrow a single error as-is, several as one `AggregateError`, after the loop | `AggregateError` is not used anywhere else in the repo; `lib: ["ESNext"]` (`tsconfig.base.json:6`) covers it. |
-| State changed before notify | `set` assigns `current` first, as today. |
-| Docs and spec amended in the same change | AGENTS.md section 11. |
-
-### Differentiators
-
-| Feature | Value | Complexity |
-|---------|-------|------------|
-| A test through a real feed: a throwing listener on `makeGatesFeed` does not stop the dock's `useStoreSnapshot` subscriber | Proves the user-visible fix, not just the store | LOW-MEDIUM |
-| Property test: for any subset of throwing listeners, the set of called listeners equals all subscribed ones | Closes the ordering/edge space | LOW |
-
-### Anti-features
-
-| Anti-feature | Why bad | Instead |
-|--------------|---------|---------|
-| `try { listener() } catch {}` per listener | Swallows; explicitly refused by D1 and by AGENTS.md section 6's spirit | Collect, rethrow after the loop. |
-| Logging the error (`console.*`) | Forbidden outside `DeveloperSignals.ts` (`no-ambient-console`) | Rethrow. |
-| Making `@qadi/react`'s `GateRegistry` match | Changes another package's isolation policy | Leave it; note the difference in the BEH. |
-| Copying the listener set on every notify | Hot path for each feed publish; changes add-during-notify semantics | Keep live iteration unless the BEH decides otherwise. |
-| Wrapping a lone error in `AggregateError` | D1 says one error is rethrown as-is | One as-is, several aggregated. |
-| Editing the dock `*.characterisation.test.tsx` files | They are pinned behaviour | They must pass unedited. |
-
-**Dependencies:** none upstream. Before 68.
+Source: `DockModel.ts:342-347, 351-356, 403-431` (and doc comment `:17-20`); `ExternalStore.ts:63` (export), `:203-216`. Tests that move: `DockModel.test.ts:454-510` (M55/M56), `ConfigureRule.test.ts:895-933` (CR22 counts), `DockModel.characterisation.test.ts:274-355`. Spec to amend with the code (AGENTS.md §11): ADR-QD-191 decision 11 (+ its "What enforces it" `:M56`), ADR-QD-177 consequences, BEH-QD-465, BEH-QD-656, BEH-QD-728, BEH-QD-735 (counts), INV-QD-401/403 wording, `spec/README.md` CCR row, upgrade guide (`apps/website/src/content/docs/docs/reference/upgrading.md`, a "0.13" section) and a changeset (`.changeset/`, `@qadi/devtools`; a patch unless the thrown-value shape is deemed Breaking). Mutation floor: `DockModel.ts` score 1 (ADR-QD-191 "mutation floor": 70/70), `stryker.devtools.mjs` mutates `src/model/**`; a drop is answered with a test.
 
 ---
 
-## Phase 65: Only `admit` builds an `Admitted` (ARCH-112)
+## Phase 82: `QadiProvider`'s registry has one owner for its lifetime (react, LIVE DEFECT)
 
-**Audit items:** 59a, 59b. **Complexity:** MEDIUM (hot path, bench). **Depends on:** 62 (the construction pin must be `@ts-expect-error`, not a negative callable form). Touches `Walk.ts:878` only by leaving it unchanged.
+### 82.1 How the registry lives today (`P/react/src/QadiProvider.tsx`)
 
-### Observable done-state
+- Built lazily in render: `registryRef.current ??= AtomRegistry.make({initialValues:[[atoms.subject, subject], ...initialValues]})` (`:217-223`); the subject is seeded here on purpose (BEH-QD-067 "seeded when the registry is constructed", `spec/behaviors/09-react.md:246`).
+- Disposed by an effect cleanup: `setTimeout(() => { registry.dispose(); registryRef.current = undefined }, 0)` (`:285-299`); the effect's re-run clears a pending timer (`:289-292`). Deps `[registry]`.
+- The subject effect writes the prop into the registry (`:257-261`, deps `[registry, atoms, subject]`); `registry.get` there is the throw site.
+- `AtomRegistry.dispose()` = `disposed = true; reset()` (`node_modules/effect/dist/reactivity/AtomRegistry.js:438-441`); after it **any** atom access, even a `keepAlive` one, throws `Cannot access Atom …: registry is disposed` (`createNode`, `:329-331`). `reset()` also drops every node's finalizers, so never disposing would leak what `atoms.runtime` holds until GC (MEDIUM: `reset` read, not run).
+- Everything that reaches the registry reaches it through the context value fixed at last render: `@effect/atom-react` `useAtomValue` via `RegistryContext` (`QadiProvider.tsx:313`; `useSubject` `hooks.ts:23`, `useGate` `useGate.ts:214`), `useInvalidate` (`hooks.ts:155-160`: `registry.mount` in an effect, `registry.set` in the callback), `useDevtoolsFeed` (`P/react/src/DevtoolsFeed.ts:126-128`, `runtimeLayer(atoms, registry)` held by a consumer's scope).
 
-1. **59a.** `SUPPLIED` no longer reads `question.resource` and `question.action` a second time: the `supplied` flags are computed from the matcher context `admit` builds, so they agree by construction. Pins that must stay green and unedited: `LeafMatrix.test.ts`, the E1-E5 cases, `WalkEnvironment.test.ts`; INV-QD-364 (supplied is a function of row source and question) still holds, the "row" source still reports `resource: true`.
-2. **59b.** In `packages/core/src/Admission.ts` the `Admitted` constructor is `private`, `admit` is `Admitted`'s static method, and `export const admit = Admitted.admit` keeps `Walk.ts:878` (`admit(question, "asked")`) and `WalkEnvironment.tst.ts` unchanged.
-3. A `.tst.ts` pin: a `// @ts-expect-error` construction (`new Admitted(...)`) in `WalkEnvironment.tst.ts`, and a second pin that an **object literal** of the right shape is not assignable to `Admitted<"asked">` (this second one only holds with a private instance member, F8). The `keyof Admitted` pin at `WalkEnvironment.tst.ts:27-30` (instance keys `source | policy | subject | supplied | matcherContext | maxDepth`) stays green.
-4. Bench gate: Phase 59's harness (`Evaluate.bench.ts`, 35 workloads, `bench/ab.sh`), 3 + 3 interleaved against the phase base on committed source, decision statistic "median of per-run minima", band = `max(10%, base spread)`, `slower: 0` (`59-BENCH.md` in `.planning/milestones/v1.6-phases/QD-59-*`).
-5. ADR-QD-172 amendment and a new INV (reserved 375-376); no changeset (`Admitted` is package-private, ADR-QD-099). `pnpm check:pr` green; `UNTRACED_BUDGET`/`SWITCH_BUDGET` unchanged.
+### 82.2 Every way the registry is disposed and reached again (throwaway run, 6 scenarios)
 
-### Table stakes
+| Scenario | Today | Evidence |
+|----------|-------|----------|
+| **Unmount** | cleanup -> dispose after one macrotask; a later `registry.get` throws "registry is disposed". By design. | S6; test `edges.test.tsx:257` ("disposes its registry when unmounted") is **vacuous**: it asserts only that body text is empty, which is true after any unmount |
+| **StrictMode double effect** | cleanup sets the timer, the re-run clears it; one registry observed by a consumer | S3 (1 registry); pins `edges.test.tsx:243`, `GateRegistration.characterisation.test.tsx:283`, `QadiProvider.sweep.test.tsx` P3 |
+| **Activity hide < one macrotask**, shown | timer cleared by the effect re-run; fine | S1b; P4 (`QadiProvider.sweep.test.tsx:136`) only tests this and re-renders the provider |
+| **Activity hide > one macrotask, provider re-rendered on reveal** (new element) | registry was disposed and `registryRef` cleared, so render builds a **second registry**; consumers get the new context; every cached decision is lost and re-evaluated; seeds re-applied from `initialValues` | S2 (2 distinct registries, `allowed` shown) |
+| **Activity hide > one macrotask, stable children, provider not re-rendered** (parent state toggles Activity mode, provider element memoised) | on reveal React re-runs the effects with the **disposed** registry: `registry.get(atoms.subject)` at `QadiProvider.tsx:258` throws, and the consumer's `useAtomValue` throws too (two messages: one for a non-`keepAlive` decision atom, one for the `keepAlive` subject). With no error boundary React unmounts the root. | **S1 DEFECT** |
+| **Subject change while visible** | effect `:257-261` writes it (BEH-QD-067, one-frame window accepted, BEH-QD-516) | existing `QadiProvider.subject.test.tsx` SUBJ1-SUBJ3 |
+| **Subject change while hidden > a macrotask** (provider re-renders hidden) | render rebuilds the registry seeded with the new subject; on reveal `u2` is read | S4 |
+| **`atoms` prop change** | registry is **not** rebuilt (1 registry observed); `AtomsReplaced` signalled; the old atom set's decisions stay cached, the new `initialValues` are not seeded. Documented contract (header `:225-236`, `DeveloperSignals.ts:209`, BEH-QD-067) | S5 |
+| **`gates`/`instrument` change** | only the memoised `writer` changes (`:203-206`); registry untouched | read |
 
-| Requirement | Notes |
-|-------------|-------|
-| Derive `supplied` from the built matcher context | `asked`: `{ action: ctx.action !== undefined, resource: ctx.resource !== undefined }`; `row`: `{ action: ctx.action !== undefined, resource: true }`. The source-indexed return type `SuppliedBy[Source]` must survive without a cast (AGENTS.md section 6: no `as`). |
-| Private constructor plus static factory | As decided. |
-| `@ts-expect-error` pin, not `not.toBeConstructableWith` | Per context; also keeps Phase 62's concern out. |
-| Bench evidence committed | Same artefact shape as `59-BENCH.md`. |
+Existing tests put the Activity **below** the provider (`QadiProvider.subject.test.tsx:26` SUBJ1, `QadiProvider.seed.test.tsx` SD3) or re-render the provider (P4), so none exercises the defect. The error only needs `Activity` above a stable provider element (parent re-render still creates equal elements, so real apps hit it when only the Activity-owning parent's *state* changes).
 
-### Differentiators
+### 82.3 Required behaviour after
 
-| Feature | Value | Complexity |
-|---------|-------|------------|
-| A **private instance member** (for example `declare private readonly proof: true`, which emits nothing at runtime; unverified under this repo's tsconfig, the probe used a real field) so the class is nominal | Without it, `const forged: Admitted<"asked"> = { ...six fields }` compiles (probe C), so "holding one is the proof" (`Admission.ts` doc) is not enforced at the type level | LOW, but the planner must confirm no code constructs a literal `Admitted`-shaped object; `keyof` pins are unaffected because private members are excluded |
-| A property-style test that `supplied.resource === (matcherContext.resource !== undefined)` for `asked` over generated questions | Turns "agree by construction" into a checked invariant | LOW |
+**Table stakes**
 
-### Anti-features
+| ID | Requirement | Spec |
+|----|-------------|------|
+| 82-R1 | A provider hidden in `<Activity>` longer than a macrotask and shown again with stable children throws nothing from the provider or any consumer; gates settle to their decisions, `useSubject()` reads the prop, `useInvalidate()` still works. | BEH-QD-067, BEH-QD-516 |
+| 82-R2 | One owner for the registry's lifetime: no consumer ever holds a registry another path has disposed. Disposal happens once, only when the provider is really gone (unmount), never because an effect cycled. | BEH-QD-067 "MUST NOT dispose it across React's development-mode double mount" (`09-react.md:334`) restated and extended to Activity |
+| 82-R3 | Unmount still releases the registry (a probe's registry reads "disposed" after unmount plus a turn) and still logs/throws nothing with a consumer's run alive. | `edges.test.tsx:257` (strengthen), `DevtoolsFeed.test.tsx:277` |
+| 82-R4 | Unchanged: subject seeded at construction so the first render has it; SSR `renderToString`; `AtomsReplaced` keeps the registry; no `scheduleTask`/`defaultIdleTTL` (header `:10-22`, ADR-QD-014); sweep tests P1-P5; hydration seeds still reach the first render. | BEH-QD-067, BEH-QD-152, ADR-QD-148/149 |
 
-| Anti-feature | Why bad | Instead |
+**Constraint found (not a decision)**: React gives an effect cleanup no way to tell "hidden" from "gone", and on reveal children's effects run before the provider's, so a "rebuild on reveal" owner cannot beat a stable consumer to the swap (the consumer would subscribe to the disposed registry first). Candidates for the plan, all needing a spike: (a) dispose only when a liveness check says the provider is gone; (b) reset instead of dispose on hide (`registry.reset` is public, `AtomRegistry.d.ts:76`, keeps the registry usable but drops seeded nodes, so the subject effect and seeds must re-apply); (c) an owner that rebuilds and forces a provider re-render before children read it. `@qadi/devtools`' `useScoped` (`P/devtools/src/react/useScoped.ts`) solves the same problem by unmounting its children on hide (`setValue(undefined)`), which is **not acceptable here**: it would destroy children's React state and break SSR/first-render subject.
+
+**Anti-features**
+| Anti-feature | Why not | Instead |
 |--------------|---------|---------|
-| Private constructor only, claimed as "only `admit` can build one" | False for object literals (F8) | Add the private member or word the INV as "no `new`". |
-| `as Admitted<…>` anywhere | Forbidden; also would defeat the guarantee | Static factory is the only constructor. |
-| Moving the `Result`/depth check out of `admit` | Changes INV-QD-037 | Keep it. |
-| A grep gate on `new Admitted` repo-wide | `packages/audit/src/CircuitBreaker.ts:484` has an unrelated `Admitted` (F9) | Scope to `packages/core/src/Admission.ts` and the type pin. |
-| Running only 1 bench pair | The band is defined on 3 + 3 | Follow the harness. |
+| Unmount children while hidden (the `useScoped` pattern) | Activity exists to preserve state; breaks the first-render subject (BEH-QD-067) | keep children mounted |
+| Rebuild the registry when the `atoms` prop changes | contradicts the documented `AtomsReplaced` contract and loses caches | keep as is |
+| React state or a module `let` holding decisions or the registry | AGENTS.md §13 no React state for decisions; `MODULE_STATE_BUDGET` (§6) permits one `let` only in `DeveloperSignals.ts` | ref/WeakMap `const` |
+| `scheduleTask`/`defaultIdleTTL` | dropped a required render (header) | untouched |
+| New dependency | §13 | none |
 
-**Dependencies:** needs 62. Independent of 64, 66, 67. Touches core hot paths, so it keeps its own bench.
+### 82.4 Regression test to open with (RED on `911aa37f`)
+
+New `P/react/test/QadiProvider.lifetime.test.tsx` (or beside P4): a parent holding `mode` state and a `useMemo`'d `<QadiProvider><Can/></QadiProvider>` under `<Activity mode>`, an error boundary capturing messages; render, settle, hide, wait a real macrotask (`turn()` as in `QadiProvider.subject.test.tsx:23`, 50 ms), show, settle; assert no captured message, `allowed` rendered, and a `useSubject` probe reads the prop. Observed failure: two errors, the second from the `keepAlive` subject atom, body text `caught`. Companions: a hidden-then-shown `useInvalidate` call does not throw; a probe's registry is disposed after real unmount (the strengthened `edges.test.tsx:257`); StrictMode still yields one registry (S3); the hide-<-one-tick control (S1b) stays green.
+
+### 82.5 Sites
+
+Source: `QadiProvider.tsx:209-306`; consumers `hooks.ts:23, 155-160`, `useGate.ts:214`, `DevtoolsFeed.ts:126-128`. Tests: `QadiProvider.sweep.test.tsx:136` (P4), `QadiProvider.subject.test.tsx`, `QadiProvider.seed.test.tsx` (SD3/SD4), `QadiProvider.signals.test.tsx` (AtomsReplaced), `edges.test.tsx:243, 257`, `DevtoolsFeed.test.tsx:277`, `GateRegistration.characterisation.test.tsx:283`. Spec: BEH-QD-067 (add a lifetime requirement + Activity), BEH-QD-516, a new ADR (registry owner), `spec/README.md` CCR row, changeset (`@qadi/react` patch), upgrade guide only if an observable contract changes. `QadiProvider.tsx` is not in `stryker.react.mjs`'s `mutate` list (`DecisionOutcome`, `QuestionBook`, `HydrationEvent`, `SweepScheduler`, …): an extracted owner module should be added.
 
 ---
 
-## Phase 66: The decoder reads only what it declares; hydration's policy recorded (ARCH-113)
+## Phase 83: the diagnostics feed holds its reading as a value folded by a pure per-field rule (devtools; possibly Breaking)
 
-**Audit items:** 57a, 57b (the audit lists them as one item, "D-09 hydration ignore and review IN-01"). **Decisions D2 and D4 (locked).** **Complexity:** MEDIUM-HIGH (hot path, mutation sensitivity). **Depends on:** 62; independent of 65, but both touch core hot paths and each has its own bench.
+### 83.1 Current behaviour
 
-### Observable done-state
+Status and reading transitions of `makeDiagnosticsFeed` (`P/devtools/src/model/DiagnosticsFeed.ts:163-228`), publishing one `{status, reading}` value (`show`, `:177-182`, no-op when both identities are unchanged):
 
-1. **D4 (57b).** RED first: an in-process object (not `JSON.parse` output) with a throwing **undeclared** getter, decoded through a decoder built with `unknownKeys: "ignore"`, throws on the base and returns the same `Result` as the getter-free object after the fix. Run it through both `ignore` seams that exist today: `sinkWire` (`SinkCodec.ts:501`) and `storedWire` (`SinkCodec.ts:603`), plus a direct `untrustedDecoder` unit test in `UntrustedDecode.test.ts`. Also a counting getter on a **declared** key is read at most once per decode (unverified that this holds today; decide the requirement after measuring).
-2. The doc claim at `UntrustedDecode.ts:166` ("It reads no value, so it cannot recurse") and ADR-QD-170 D-19 are **true** after the change: `project` takes `Object.keys(input)` (names only, which never invoke a getter) and reads values only for kept keys, plus the one `_tag` read `keysOf` needs (`EnvelopeKeys.ts` `discriminantOf`, `TAG = "_tag"`). `keysOf` currently receives the full `entries` array (`UntrustedDecode.ts:171-173`), so its parameter changes to the tag value or key list.
-3. Hot path: `pnpm bench` on `UntrustedDecode.bench.ts` and `SinkCodec.bench.ts` (both exist), before and after, using the same interleaved method; no workload slower than its band.
-4. Stryker on `UntrustedDecode.ts` and `EnvelopeKeys.ts` does not drop (XC-05 procedure, `_SHARED-CONTEXT.md:56-60`). Pitfall from Phase 57 RESEARCH (`57-RESEARCH.md:544-545`): decoders are built at module scope so `ignoreStatic: true` marks their mutants `Ignored`; build decoders **inside `it` bodies** for the new cases, and produce a static-credit evidence run (`ignoreStatic: false`) outside the repo.
-5. `UNTRUSTED_DECODE_BUDGET` counts unchanged (`UntrustedDecode.ts` 5, `DecodeDepthGuard.ts` 1, `PortSpanEncode.ts` 2, `SinkCodec.ts` 1, `SimulationForm.ts` 1; AGENTS.md section 7a), because no `Schema.decode*`, `onExcessProperty`, `exceedsJsonDepth` or `JSON.parse` token moves. `pnpm lint` shows no `[untrusted-decode*]` failure.
-6. **D2 (57a).** `packages/react/src/HydrationEngine.ts:194` (and `:164`, `:209`) still say `unknownKeys: "refuse"`: `git diff` shows no change under `packages/react/src`. An ADR-QD-170 amendment (revision bump, Change History row) records why: the payload is same-build and version-checked, and strict refusal catches tampering. The D-09 report is marked resolved there.
-7. `@qadi/core` patch changeset (an in-process accessor is no longer invoked). New INV (reserved 377-378) and BEH amendment if one states the claim; ADR-QD-179 or an explicit "unused" in the CCR row.
+| Trigger | Status / reading published | Line |
+|---------|---------------------------|------|
+| build | `Off`, `noDiagnostics` (the constant `diagnosticsOff`) | `:172` |
+| `configure(undefined)` when already absent | nothing (`sameFieldsOrAbsent`) | `:217` |
+| `configure(options)` first or a moved field (layer, collector, interval) | `Starting` over the **store's last reading** (`noDiagnostics` after build/`off`, the previous reading after a restart or stop) | `:184-204`, `:188` |
+| first accepted sample of the current run | `Live` + new reading (marked in the wrapper because `accept` returns early for an unchanged reading) | `:192-199` |
+| later sample, every field `Equal.equals` | nothing | `DiagnosticsStore.ts:168-187` |
+| later sample, a field moved | same `Live`, reading with only the moved fields new references | `:171-176` |
+| run dies on a defect | `Stopped{reason: causeMessage, sampled}` over the kept reading; stated even if a listener throws (F32) | `:201-203` |
+| `restart()` | `Starting` over the kept reading; `sampled` unchanged; ignored when no options held or the scope is closed | `:223-225` |
+| `configure(undefined)` after on | `off()`: run stopped, **new store**, `sampled = false`, `diagnosticsOff` | `:206-211` |
+| layer fails to build | `WiringRead.Failed` inside a `Live` feed | `DiagnosticsStore.ts:268-281` |
+| interruption (restart, replaced field, scope close) | never `Stopped` | `:9-13` |
 
-### Table stakes
+Pinned by F1-F32 (`P/devtools/test/model/DiagnosticsFeed.test.ts:98-690`, including F6/F7 `Starting` then `Live`, F10/F11, F19 identity, F23 `sampled` after `Off`, F28/F29 re-entrancy, F30-F32 listener throws).
 
-| Requirement | Notes |
-|-------------|-------|
-| RED test with an undeclared throwing getter | The claim in the doc is the contract. |
-| Same output for plain data as before | The existing `UntrustedDecode.test.ts` and `SinkCodec` golden tests stay green unedited. |
-| ADR amendment for D2 with the reason | Not a code change. |
-| Patch changeset | Behaviour change for in-process objects. |
+Shape of the three-part machinery to collapse:
+- `DiagnosticsStore` (`DiagnosticsStore.ts:146-189`): an `ExternalStore` plus `accept`'s five-field `keep` fold (`Equal.equals`, `:161`) and a five-way `===` chain (`:177-183`). Its `subscribe` has **no production reader** since ADR-QD-173: the feed polls `store.getSnapshot()` after `accept` (`DiagnosticsFeed.ts:178`) and only `DiagnosticsStore.test.ts` subscribes.
+- `marking` (`DiagnosticsFeed.ts:189-200`): a `DiagnosticsStore` literal restating `subscribe` and `getSnapshot` and overriding `accept`, so `runDiagnostics(store: DiagnosticsStore, …)` (`DiagnosticsStore.ts:238-260`) can call one member. Compare `runSource(store: Pick<TimelineStore,"accept">, …)` (`TimelineStore.ts`, used by `TimelineFeed.ts:176-182`).
+- `off()` replaces the store (`:208`) only to reset the reading.
+- The `Diagnostics` field list is written four times: the type (`:76-88`), `noDiagnostics` (`:91-97`), `mergeReading` (`:139-143`), `accept` (`:170-183`), plus the sample's `{...reading, questions: undefined}` (`:252`).
 
-### Differentiators
+### 83.2 Who reads `Diagnostics.questions` (public field, `DiagnosticsStore.ts:87`)
 
-| Feature | Value | Complexity |
-|---------|-------|------------|
-| Also prove a **declared** getter is read once and an undeclared symbol-keyed or inherited accessor is never read | Closes the gap between "no undeclared accessor invoked" and "no surprise reads" | LOW |
-| A micro-bench note in the CCR with numbers | The context requires a before/after; recording it makes the cost of D4 explicit | LOW |
+- **Nobody reads it in source.** The poll never writes it (always `undefined`, `:252`; asserted by `DiagnosticsStore.test.ts:251` and `DiagnosticsFeed.test.ts:118`). The only code that produces a defined value is `mergeReading` copying a *supplied* `DiagnosticsReading.questions` (`:143`).
+- The dock join does **not** read it: `DockModel.ts:378` reads `held.reading?.questions`, the host's supplied reading, not the shown `Diagnostics`. `DevtoolsDock.tsx:115, 194, 271` reads only `shown.hydration`; `services` reads wiring/activity/portCalls (`DockModel.ts:392-399`).
+- Public surface that carries it: type `Diagnostics` (`P/devtools/src/index.ts:36-40`), `DiagnosticsSnapshot.reading` returned by `useDiagnostics` (`react/index.ts:20`), `mergeReading` (`index.ts:34`), `DiagnosticsReading.questions` (the supplied-input half, a live input). `makeDiagnosticsStore`, `runDiagnostics`, `noDiagnostics`, `DiagnosticsStore` are already **not exported** (`surface.tst.ts:240-265`, BEH-QD-640), so the store's removal is not Breaking; a removal of `Diagnostics.questions` is.
+- No example, README or docs page reads it. Docs that read `reading`: `apps/website/src/content/docs/docs/packages/devtools.md:195-210` (`reading.hydration`), `…/reference/upgrading.md:520-560` (`reading.hydration`) and `:921` ("`DiagnosticsReading.questions` is unchanged"); the packed consumer `scripts/check-package-install.mjs:739-749` reads `.reading.hydration` and `.status._tag` (compiled by gate 14).
+- Spec that states "kept, carried only by a supplied reading": ADR-QD-169 decision 10 (`spec/decisions/169-…md:68`), BEH-QD-617 (`28-devtools-screens.md:2447`), BEH-QD-323's listing (`:643-`), `spec/overview.md:916-919`.
 
-### Anti-features
+### 83.3 Required behaviour after
 
-| Anti-feature | Why bad | Instead |
+**Table stakes**
+
+| ID | Requirement | Spec |
+|----|-------------|------|
+| 83-R1 | The feed holds `reading` as a plain value updated by one pure per-field keep-if-equal function (previous reference kept per field when `Equal.equals`; the whole value kept when no field moved); `off` sets `noDiagnostics`. | amend ADR-QD-173 (`:49-53`), BEH-QD-323, BEH-QD-637 |
+| 83-R2 | `DiagnosticsStore.ts`'s `DiagnosticsStore`/`makeDiagnosticsStore`/`accept`/`subscribe` are gone; `runDiagnostics` takes an `accept` sink as `runSource` does (`Pick<…,"accept">`-style), keeping its span `qadi.devtools.runDiagnostics` (`DiagnosticsStore.test.ts:171`). | BEH-QD-640 |
+| 83-R3 | Every transition in the table above is unchanged: `Starting` over the kept reading, `Live` on the first accepted sample even when nothing changed, one publish per transition, stale-run samples dropped, `sampled` rules, F1-F32 pass unedited. | BEH-QD-506/507/637, INV-QD-373 |
+| 83-R4 | `Diagnostics`' field list is stated once (type-checked so a new field is a compile error, as INV-QD-404 does for inputs); `mergeReading` and the fold share it. | INV-QD-404, INV-QD-314 |
+| 83-R5 | `Diagnostics.questions` is resolved, one way: either removed (the poll's reading has four fields; the join keeps reading `held.reading?.questions`; `mergeReading` stops carrying questions; **Breaking** for `@qadi/devtools` readers of `reading.questions` / `mergeReading(...).questions`, upgrade guide + changeset) or kept and documented as supplied-only. Owner's standing instruction prefers the complete design: removal; the planner must still record the choice and amend ADR-QD-169 decision 10. | ADR-QD-169 d10, BEH-QD-617, overview rows 916-919 |
+
+**Differentiators**: derive the fold and `mergeReading` from one field table; a type test that the poll's reading has no `questions` (positive twin required by `[not-callable-control]`).
+
+**Anti-features**
+| Anti-feature | Why not | Instead |
 |--------------|---------|---------|
-| Rewording the doc to "reads only JSON data" (a wording-only fix) | D4 says the claim must become true, not softer | Change `project`. |
-| Switching HydrationEngine to `"ignore"` | D2 locked `"refuse"` | Record, do not change. |
-| `Object.entries` then filter, kept as is, with a try/catch around getters | Swallows; still invokes the getter | Read names first. |
-| Adding any `Schema.decode*`, `JSON.parse` or `onExcessProperty` token elsewhere | Trips `[untrusted-decode]` | Keep the recipe in `UntrustedDecode.ts`. |
-| `Record<string, unknown>` as the projection's widened type | Owner's standing rule | Type predicate or monomorphic helper. |
-| Editing archived Phase 57 evidence | History | Leave. |
+| Re-export `runDiagnostics`/`makeDiagnosticsStore` | ADR-QD-173 d2, BEH-QD-640 | stay package-private |
+| Let the poll sample `questions` | ADR-QD-169: a thunk throw would stop every tab | gates feed owns it |
+| Keep the store "for the tests" | its only subscriber is its own test | test the fold directly |
+| Make `Starting` clear the reading | BEH-QD-508/F6/F7 expect the kept reading | keep |
 
-**Dependencies:** needs 62. Unrelated to 64/67. Independent bench from 65.
+### 83.4 Regression test to open with
+
+This is a refactor, so open with a **characterisation** that is green on the base and must stay green: a table over (build, configure(options), first sample, unchanged sample, changed-one-field sample, defect, restart-after-stop, configure(undefined)) asserting `{status._tag, reading identity per field, publish count}`. Write the per-field-identity row first (`DiagnosticsStore.test.ts:86, 105, 226` already do it for the store: they must be re-pointed at the fold). If `Diagnostics.questions` is removed, add a RED type pin (`@ts-expect-error` access of `.questions` on the poll's reading) and a RED `mergeReading` test.
+
+### 83.5 Sites
+
+Source: `DiagnosticsStore.ts:76-97, 132-189, 238-260`; `DiagnosticsFeed.ts:163-228`; consumers `DockModel.ts:307-311, 360-367, 377-384, 389-401`, `DevtoolsDock.tsx:115-119, 271`, `useDiagnostics.ts`. Tests to migrate: `DiagnosticsStore.test.ts` (`makeDiagnosticsStore` at `:61-141`, `start(store…)` `:56-57`, `runDiagnostics` `:142-306`, `mergeReading` `:308-395`), `DiagnosticsStore.tst.ts` (3 negative pins, `scripts/check-house-style.mjs:771` and the AGENTS.md §6 table row must move with it; subject text changes if the first parameter type does), `DiagnosticsFeed.test.ts`, `DockModel.test.ts` (M18-M28), `DockModel.characterisation.test.ts:49-90`, `surface.tst.ts:240-265`, fixtures `dockModelFixtures.ts`, `DiagnosticsScreens.test.tsx`. Spec/docs: ADR-QD-173, ADR-QD-169 d10, BEH-QD-323, BEH-QD-617, BEH-QD-637, BEH-QD-640, INV-QD-314, INV-QD-366, `spec/overview.md:916-923`, upgrade guide, changeset. Mutation floor for `DiagnosticsStore.ts` (60/60 at ADR-QD-169, `:100`) and `DiagnosticsFeed.ts` must not drop.
 
 ---
 
-## Phase 67: No equivalent mutants, no magic race bound (ARCH-114)
+## Phase 84: `useConfigured` takes a value that has `configure`, plus four small finds (devtools)
 
-**Audit items:** 61a (two surviving mutants, one audit item), 61b (the `gap <= 48` bound). **Decision D5 (locked).** **Complexity:** MEDIUM. **Depends on:** 62 (no pins here, ordering only). No changeset unless behaviour changes (it must not).
+### 84.1 Current behaviour and sites
 
-### Observable done-state
+| Find | Where today | Observable behaviour to keep | Test sites |
+|------|-------------|------------------------------|------------|
+| `useConfigured(make, configure, inputs)` with an adapter | `react/useConfigured.ts:19-32`; three identical adapters `(v,i)=>v.configure(i)`: `useDockModel.ts:22-24` (call `:30`), `useTimeline.ts:44-46` (call `:71`), `useDiagnostics.ts:19-21` (call `:44`) | configure inside the scoped build before any reader commits; a new inputs record configures once more, the same record nothing more; a rebuild/Activity reveal uses the latest committed render's inputs; a first configure that throws closes the scope and reaches the boundary as itself (BEH-QD-734 `28-devtools-screens.md:3163`) | `test/react/useConfigured.test.tsx` (U1-U4; its double passes a `configure` *function*, so it must become an object with `configure`), `ConfigureFirstRender.characterisation.test.tsx` C1-C11, `DockRegistryReads.test.tsx`, `useTimeline.test.tsx`, `DiagnosticsLifetime.test.tsx`, `TimelineLifetime.test.tsx` |
+| `LensSession.move` restates `ExternalStore.set` | `model/LensSession.ts:149-152` (`if (next === getSnapshot()) return; publish(next)`), used by `toggle :160`, `hover :164`, `cancel :179`, `highlight :184`; `choose :167-175` does the same guard then `armed = …; publish` | a no-op publishes nothing and keeps the reference; a command run inside a listener sees the published snapshot; a listener told of a pick can take its reveal (arm **before** the publish) (BEH-QD-736 `:3242`, INV-QD-405/406, ADR-QD-193) | `test/model/LensSession.test.ts:229, 243, 304, 317, 378`, `ConfigureRule.test.ts` CR16-CR22 (lens silent), `DockModel.test.ts:1821` |
+| `useLens` takes the questions store **and** its snapshot `instances` | `react/useLens.ts:37-41`; render-time `instances` feed the draw effect (`:49-60`), event-time `questions.getSnapshot().instances` feeds hover/click (`:72, :80`); caller `QuestionsPanel.tsx:114-118` reads the store once and passes both | exactly one subscription to the questions store while mounted and none after (`Lens.adapter.test.tsx:160`); handlers read the guards when the event arrives so a guard registered while picking adds no listener (`useLens.ts:62-63`); picking exits on pick/Escape/unmount | `test/react/Lens.adapter.test.tsx:53` (`useLens(lens, questions, useStoreSnapshot(questions).instances)`), `Lens.dock.test.tsx`, `Lens.dock.characterisation.test.tsx`, `QuestionsPanel*.test.tsx` |
+| `DockFrame` writes the stop-ledger ref and memoised notice twice | `DevtoolsDock.tsx:115-127`: `useRef<StopLedger<…>>(noStops)` + `useMemo({status, onRestart, announced}, [status, model])` once for diagnostics, once for the timeline | once-per-stop alert semantics and notice identity stable while status and model are (BEH-QD-509 `:1501`, BEH-QD-520 `:1711`) | `DiagnosticsNotice.test.tsx`, `TimelineNotice.test.tsx`, `DevtoolsDock.test.tsx`, `useSimulationSession.test.tsx` (uses `DockFrame`/dock) |
+| `useTimeline` builds `{ source, capacity }` every render | `useTimeline.ts:71` (passed to `useConfigured`, whose layout effect re-runs each commit: `useConfigured.ts:27-29`) | `feed.configure` already no-ops for equal fields (CR1, BEH-QD-732), so this is cosmetic; `DevtoolsDock` has the same property by construction (`DevtoolsDock.tsx:86` rest spread) | `useTimeline.test.tsx`, `ConfigureRule.test.ts` CR1 |
 
-1. `packages/core/src/DecisionCache.ts:285-287`: no `if (Option.isSome(oldest))` guard remains, because the code no longer has an impossible-empty branch: restructure so eviction pops through a path whose empty case cannot be written (for example drive the loop from the queue, or pattern-match the `Chunk` head once with the empty arm absent by construction). The long justification comment at `:278-284` shrinks accordingly. FIFO order, capacity semantics and the `capacity` validation are unchanged (`DecisionCache.test.ts` FIFO cases green).
-2. `packages/core/src/SharedComputation.ts:305-319`: the `claimed` value is dispatched with `Match.tagsExhaustive` (or an equivalent closed dispatch) over `Hit | Claimed | Joined`, so the `"Claimed"` literal at `:319` is read. No new `switch`: `SharedComputation.ts` is not in `SWITCH_BUDGET` (`pnpm lint` stays green). Mind AGENTS.md section 5a: a per-call matcher on this path costs more than a hoisted one, and `makeSharedComputation`'s `run` is per ask. Measure with `DecisionCache.bench.ts` (exists) before choosing `Match` over a closed `if`/discriminated narrowing.
-3. `DecisionCache.test.ts:1250` loop: `for (let gap = 0; gap <= 48; gap++)` is replaced by a loop that stops when both orderings have been observed **at every budget**, capped at 512, and **asserts both were seen** (the existing `oneSided` assertion at `:1298-1301`, kept). The comment at `:1249` ("Measured coalesced to hit switch-over: gap 38/22/15/13 at budget 3/4/5/6 ... depends on walk's step count") is deleted because the dependency is gone.
-4. Stryker (XC-05): per-file scores at least `DecisionCache.ts` 0.977, `SharedComputation.ts` 0.986, `Lifecycle.ts` 1.000, and zero survivors on the two named mutants. No `// Stryker disable` appears (`git grep -n 'Stryker disable' packages/*/src` stays empty, D5).
-5. `pnpm test`/the core project green; `pnpm check:pr` green; CCR row only.
+### 84.2 Required behaviour after
 
-### Table stakes
+| ID | Requirement | Class |
+|----|-------------|-------|
+| 84-R1 | `useConfigured` takes `make` and `inputs` and calls `value.configure(inputs)`; `A extends { readonly configure: (inputs: I) => void }`; the three adapters are deleted; every BEH-QD-734 behaviour unchanged. Package-private (ADR-QD-099), not Breaking. | table stakes |
+| 84-R2 | `LensSession` holds one publishing rule: `move` and `choose` use `ExternalStore.set` (the two are the same operation; `choose` still arms before it and answers `false` on a no-op). | table stakes |
+| 84-R3 | `useLens` takes one source of the guard list and keeps one subscription; the event-time-freshness behaviour is either preserved (read the store in handlers) or consciously restated in BEH-QD-736/ADR-QD-193. | table stakes; MEDIUM risk (see pitfalls) |
+| 84-R4 | `DockFrame`'s two ledger/notice pairs come from one helper. | table stakes |
+| 84-R5 | `useTimeline` stops building a fresh inputs record per render (memoise on `[source, capacity]`, or hand the fields). | differentiator (low value) |
 
-| Requirement | Notes |
-|-------------|-------|
-| Restructure, not suppress | D5. |
-| Tag matters in the dispatch | The mutant `{ _tag: "Claimed", ... }` to `{ _tag: "", ... }` must now fail a test or a type error. |
-| Race test cannot pass without racing, and no magic constant | Cap 512 is a safety bound, not a tuned one; failing to see both orderings within it is a test failure, not a skip. |
-| No Stryker score drops | Compare with a script, not "the report exists" (`_SHARED-CONTEXT.md:59`). |
+**Anti-features**: making `useConfigured` decide whether an input moved (ADR-QD-192: the value's own rule decides; INV-QD-403); a `useRef` for the latest inputs (the hook relies on React running an effect with its latest closure, BEH-QD-734 text); moving DOM calls out of the adapter (`@qadi/react` calls no DOM API, `useLens` is the sanctioned place); a second subscription to `questions`.
 
-### Differentiators
+### 84.3 Regression test to open with
 
-| Feature | Value | Complexity |
-|---------|-------|------------|
-| Keep a margin after the first flip (for example 2-3 extra gaps) and keep the per-run "no recompute, FIFO exact" assertion on every run | The current sweep also checks gaps 39-48 (F12); stopping at the first flip would silently lose them | LOW |
-| The loop's per-budget result reported in the assertion message | A failure says which budget never raced | LOW |
-
-### Anti-features
-
-| Anti-feature | Why bad | Instead |
-|--------------|---------|---------|
-| `// Stryker disable next-line` | D5 forbids introducing the convention | Restructure. |
-| Raising the bound to 64 or 100 | Still magic, still depends on step count | Iterate until observed. |
-| `switch` on the tag | Violates AGENTS.md section 5a and `SWITCH_BUDGET` | `Match.tagsExhaustive` or narrowing. |
-| `Option.getOrThrow` or `!` to drop the guard | Introduces a throw in the evaluation path (AGENTS.md section 4: no defect in an authorization path) | Make the empty case unrepresentable. |
-| A new equivalent-mutant branch elsewhere in the rewrite | Repeats the debt | Run Stryker on the touched files. |
-
-**Dependencies:** needs 62 for ordering only. Shares `DecisionCache.ts` with Phase 63's host-cache probe at the API level only (no overlap in code).
-
----
-
-## Phase 68: Hygiene and recorded close-outs (ARCH-115)
-
-**Audit items:** 58a, 58b, 61c, 61d, I-b. **Decision D3 (defaulted, owner did not object).** **Complexity:** LOW-MEDIUM (many small edits, one ADR amendment). **Depends on:** all of 64-67 first, because it re-wraps lines they can shift.
-
-### Observable done-state, per item
-
-| Item | Done-state a verifier can run | Notes and scope line |
-|------|-------------------------------|----------------------|
-| **58a** over-width lines | `awk 'length>100' <file>` no longer lists the **content** of the three lines: `packages/core/src/SinkCodec.ts:616` (137 chars), `features/features/decision-log/decision-log.steps.test.ts:197` (135 chars), and the `DecisionLog.ts` line from 58-REVIEW IN-02. | The IN-02 line (`:215` then) has moved; the likely target is `DecisionLog.ts:220`, the `const entry: LogEntry = { cursor..., record: new StoredRecord({...}) }` line (108 chars) (inference, unverified). `DecisionLog.ts` has 5 lines over 100 today (8, 155, 220, 255, 262). Re-wrapping is free because Phase 58's mutant ids are archived; re-run Stryker on the touched `src` files (`SinkCodec.ts`, `DecisionLog.ts`) and compare scores. The steps file is not mutated. **Out of scope:** the other over-100 lines (SinkCodec 27, steps file 15) and any width gate (F13, AGENTS.md section 17). |
-| **58b** wording | `Source.test.ts:291` title no longer says "never stamped" (reads "never given a label"). `StoredEnvelope.test.ts` header (lines 1-14) and the `describe` title at `:228` ("RED on the base") no longer describe the phase's process, and the header no longer claims no row reads the in-memory shape while N1-N4 do. | `StoredEnvelope.test.ts` is a pinned characterisation file; this is its one recorded edit, so the CCR says so and the diff must be comments and titles only (compare with the transpile-and-compare method below). `DecisionLog.ts` `ingest` doc **already** names the uncontained defect path (`:128-129`, "a defect reaches that handler (ADR-QD-171)"): record "confirmed, no edit" (F14). `QadiAtoms.test.ts:570` is already clean (F14). Decide explicitly whether `Source.test.ts:306` ("becomes a stamped record") and `:186` ("stamping") are stale wording; the audit names only `:291`. |
-| **61c** ADR line 73 | `awk 'FNR==73 {print length}' spec/decisions/174-a-decision-cache-is-asked-the-question.md` is under the chosen width, and the file's Revision and Change History are bumped through `pnpm spec:revise` (`scripts/spec-revise.mjs`). | Lines 75 (168) and 94 (129) of the same file are also long; decide whether "line 73" means those too. The Change History row at `:13` (315 chars) is a table row and exempt. Gate 10 (Document ID equals the file number) must stay green. |
-| **61d** Simulator comments-only | A recorded, reproducible proof that `packages/devtools/test/react/Simulator.test.tsx`'s Phase 61 diff is comments-only, saved in the Phase 61 archive (a new file next to the other `61-*` files, not an edit of `61-scan.mjs`). | Robust method: transpile both revisions with `ts.transpileModule(src, { compilerOptions: { removeComments: true, jsx: "preserve", target: "esnext" } })` and compare outputs; a regex "strip comments" can mis-handle `//` inside JSX strings. State the two commits. The archived `61-scan.mjs` stays unedited (`git diff` empty for it). |
-| **I-b / D3** port cards | An ADR-QD-173 amendment (Revision bump, Change History row) records that `PortCards.ts` stays package-private and no export is added: `pnpm spec:api` count unchanged (939 at v1.6 close) and `git diff -- packages/devtools/src/index.ts` empty. | **Wording problem (F10):** D3 says "derive from the timeline feed", but `portCards`' inputs are the diagnostics reading's `wiring`, `activity`, `portCalls` plus an unsampled flag. Name the diagnostics feed, state that the card wording (`viewOf`, `describeCall`, tones) is not reachable, and do not promise the "same view". Confirm with the owner before writing. If the amendment contains a ` ```typescript ` fence it is compiled by `pnpm spec:examples`. |
-
-CCR row records each item, the unused reservations ("Unused: ..."), and the F14 no-op confirmations.
-
-### Table stakes
-
-| Requirement | Notes |
-|-------------|-------|
-| Only the named lines and titles change | Keeps the diff reviewable and the Stryker re-run bounded. |
-| Spec edits go through `spec:revise` | Gate 10 and `spec:verify:strict`. |
-| No source behaviour change | `pnpm test` and `pnpm check:pr` green; no changeset. |
-
-### Differentiators
-
-| Feature | Value | Complexity |
-|---------|-------|------------|
-| A re-runnable `.mjs` or markdown recipe stored with the Phase 61 archive for 61d | A future audit can re-run it | LOW |
-| Stryker before/after table for the two touched `src` files in the CCR | The mutant ids moved; the score must not | LOW (the run itself is the cost; the research agent did not run it) |
-
-### Anti-features
-
-| Anti-feature | Why bad | Instead |
-|--------------|---------|---------|
-| A line-width lint gate or running `oxfmt` over files | AGENTS.md section 17 settles that formatting is not gated; would reflow hundreds of lines | Re-wrap the named lines by hand. |
-| Editing `61-scan.mjs` (or any archived scan) to admit the comment-only file | History; the context forbids it | Add a new proof file. |
-| Exporting `portCards` | D3 | Amendment only. |
-| Rewording `StoredEnvelope.test.ts` beyond header and the one title | It is a pinned characterisation file | Header and title only. |
-| Touching `DecisionLog.ts` `ingest` doc when it already cites ADR-QD-171 | Needless edit | Record "confirmed". |
-
-**Dependencies:** needs 64, 65, 66, 67 done (line shifts). Needs 61's archive path for 61d.
+Characterisation, green on base, before any edit: (a) `useConfigured.test.tsx` U1-U4 re-expressed over a double that is an object with `configure` (it is the contract the generic type changes); (b) a lens test that a no-op command publishes nothing and that `choose` arms before its listeners run (exists at `LensSession.test.ts:304/378`: confirm it fails when `armed` is set after `publish`, i.e. mutation-check it); (c) `Lens.adapter.test.tsx:160` one-subscription pin stays. No defect, so no RED test; ADR/BEH edits are the BEH-QD-734 and BEH-QD-736 "pinned by" lists and a CCR row. Changeset: `@qadi/devtools` patch or none (internal), at the planner's reading of the repo's changeset rule.
 
 ---
 
 ## Feature Dependencies
 
 ```
-62 (honest pins, gate)
-  -> 63 (script probes; no pins, ordering only)
-  -> 64 (ExternalStore rethrow)           -> 68 (re-wrap, ADR-173 amendment)
-  -> 65 (Admitted; needs @ts-expect-error pins from 62)  -> 68
-  -> 66 (decoder reads only declared keys) -> 68
-  -> 67 (mutants, race bound)              -> 68
-63 + 62 together = the cut point for the v1.6 PR (owner's option)
-65, 66 each own a hot-path bench; run them one at a time (use_worktrees false)
+81 (configure total, one spread)  --same configure block-->  83 (diagnostics configure/feed value)
+81 --counts in BEH-QD-735/CR22-->  84 (hooks call configure; no count change)
+82 (provider registry owner)  independent of 81/83/84 (different package)
+83 --makes DiagnosticsFeed smaller--> 84 (no change needed, but useDiagnostics shares useConfigured)
 ```
 
-### Dependency notes
+- 81 before 83: both edit the `configure` tail (`DockModel.ts:425-429` calls `diagnosticsFeed.configure`); 83 must not re-introduce an unguarded step.
+- 84-R1 depends on nothing but should land after 81/83 so `useConfigured.test.tsx` does not churn twice.
+- 82 can be done in any order but is the second defect: keep the owner's plan order (strictly serial, brief).
 
-- **62 before 65 and 66:** both add type pins; 65's is a `@ts-expect-error`, 66's are positive controls. If Phase 62 takes the root-cause config, later phases may use the bare negative form honestly; otherwise they must use `Parameters<>` or `@ts-expect-error`.
-- **64, 65, 66, 67 before 68:** 68 re-wraps `SinkCodec.ts` and `DecisionLog.ts`, which 65-67 do not touch, but it edits spec files (`174`, `173`) that earlier phases' records also touch (the shared registers: `spec/README.md`, `spec/traceability.md`, `spec/decisions/index.yaml`, `spec/overview.md`).
-- **Conflicts:** none in code between 63 and 64 (the probe subscribes no listener).
+## MVP Recommendation (what each phase must ship to be "done")
 
-## MVP Definition
+1. **81**: RED matrix -> total `configure` + total `spread` + one spread + collected rethrow; amend ADR-QD-191/177, BEH-QD-465/656/735, CR22.
+2. **82**: RED Activity test -> a registry owner that no cycle of effects can invalidate under a held consumer; strengthen the vacuous unmount test.
+3. **83**: characterisation -> the pure fold, the sink, delete the store; resolve `Diagnostics.questions` (recommend removal, Breaking minor with upgrade-guide entry).
+4. **84**: `useConfigured` on `configure`; `set` in `LensSession`; the three small finds.
 
-### Must resolve (P1, the milestone's definition of done)
+Defer: closing the `Starting`/`Reading` publish windows of ADR-QD-177 d5; a mutation baseline for `QadiProvider.tsx` beyond whatever module 82 extracts.
 
-- [ ] Phase 62: rewrite `DecisionLog.tst.ts:30`, characterisation file, `NOT_CALLABLE_PIN_BUDGET` plus AGENTS.md paragraph (or the root-cause config plus characterisation).
-- [ ] Phase 63: three probes and the derived `make*Feed` guard.
-- [ ] Phase 64: every listener called, rethrow semantics, all listed texts amended.
-- [ ] Phase 65: 59a derivation, private constructor plus static `admit`, pins, bench.
-- [ ] Phase 66: `project` reads only declared keys, D2 amendment, bench, mutation.
-- [ ] Phase 67: two mutants restructured, race loop without magic bound.
-- [ ] Phase 68: five close-outs as recorded.
+## Prioritisation
 
-### Nice-to-have (P2, in-phase if cheap)
+| Item | Value | Cost | Priority |
+|------|-------|------|----------|
+| 81-R1..R4 | HIGH (live defect, permanent dock desync) | MEDIUM | P1 |
+| 82-R1..R3 | HIGH (live defect, crashes the tree) | MEDIUM-HIGH (design spike) | P1 |
+| 81-R5 double spread | MEDIUM (extra renders, count restatement) | LOW | P1 (same block) |
+| 83-R1..R4 | MEDIUM | MEDIUM | P2 |
+| 83-R5 questions | MEDIUM (Breaking) | LOW | P2 |
+| 84-R1, R2, R4 | LOW-MEDIUM | LOW | P3 |
+| 84-R3 | LOW | MEDIUM (staleness trade) | P3 |
+| 84-R5 | LOW | LOW | P3 |
 
-- [ ] Positive controls for the 11 uncontrolled pins (P1 for Phase 62's own done-state, listed here only for the six that are not rewritten).
-- [ ] Private instance member on `Admitted` (needs the planner's call).
-- [ ] Margin after the flip in Phase 67's loop.
+## Pitfalls specific to these phases (for the planner)
 
-### Deferred (explicitly not this milestone)
-
-- Upstream tstyche or language-service issue (needs owner OK).
-- Any width gate or `oxfmt` in `pnpm check` (AGENTS.md section 17).
-- Making `portCards` public; aligning `@qadi/react`'s swallowing registry with D1.
-- Releases and version PRs (standing instruction).
-
-## Feature Prioritization Matrix
-
-| Phase | Value | Cost | Priority | Risk |
-|-------|-------|------|----------|------|
-| 62 | HIGH (a pin that cannot fail is false assurance, and later phases rely on pins) | MEDIUM | P1 | Low; test and gate only |
-| 63 | HIGH (published-artifact coverage of three public names) | MEDIUM | P1 | Fixture flakiness if turns are fixed too low |
-| 64 | HIGH (user-visible: one bad subscriber silences the dock) | LOW-MEDIUM | P1 | Doc sprawl; `AggregateError` message matching in tests |
-| 65 | MEDIUM-HIGH (closes a proof-by-construction gap) | MEDIUM | P1 | Hot-path bench; object-literal forgery if no private member |
-| 66 | MEDIUM (a documented guarantee that is false) | MEDIUM-HIGH | P1 | Hot path; `ignoreStatic` mutation blind spots |
-| 67 | MEDIUM (test and mutation robustness) | MEDIUM | P1 | `Match` cost on a per-ask path |
-| 68 | LOW-MEDIUM (hygiene, recorded decisions) | LOW-MEDIUM | P1 (closes the 13 items) | D3 wording; scope creep on width |
-
-## Probes run (read-only, all temp files deleted, `git status` back to the starting state)
-
-| Probe | Method | Result |
-|-------|--------|--------|
-| A. Which return types make a negative pin vacuous | Temp `packages/core/test/zzprobe.tst.ts` with ten `declare const f…: (n: number) => X` and `not.toBeCallableWith(1)`; `npx tstyche <file> < /dev/null` | Only `Effect` and `Stream` passed (vacuous). `Layer`, `Result`, `Option`, `Promise`, `string`, a function, `Schema.Codec`, `Context` failed as an honest negative must. Confidence HIGH. |
-| B. Root cause and the config fix | Temp `tsconfig.zzfeat62.json` (extends `tsconfig.test.json`, plugin block copied, `floatingEffect: "off"`) and a temp tstyche config via `--config` | With the diagnostic on: positive on an Effect/Stream function fails, valid-arg negative passes. Off: positive passes, valid-arg negative fails. Whole suite: 65 of 65 real files green, "Suppressed: 55 matched". Confidence HIGH. |
-| C. Private constructor forgery | Scratch `.ts` with `tsc 6.0.3 --strict --target esnext` | Object literal assignable to a class with a private constructor only; refused once a `private` instance member exists. Confidence HIGH. |
-| D. Full tstyche run | `npx tstyche < /dev/null` | All real files pass at this HEAD, so every in-file positive control in the inventory is a passing one. (A foreign `ZzProbe1.tst.ts`, not mine, appeared and vanished during one run; ignored.) |
-
-Not run, by rule: Stryker, `pnpm check`, `pnpm check:pr`, `node scripts/next-id.mjs`, benches.
+1. **Fixing `spread` alone passes the explorer case and still loses a second throw**: both the timeline-listener path and the `finally` need the collector; test both.
+2. **Removing the redundant second spread unmasks the `dock` case** unless `spread` itself is total (currently the second spread hides a throw from `dock.setTimeline`).
+3. **CR22, BEH-QD-735's counts and ADR-QD-192's consequences change** when the double spread goes; they are asserted, not incidental.
+4. **A configure that throws from React's layout effect reaches the error boundary** (`useConfigured.ts:27-29`); BEH-QD-734 pins only the *first* configure. Do not change that contract, but do not claim "never throws" either.
+5. **82's cleanup/effect ordering**: children's effects run before the provider's; any "rebuild on reveal" is too late for stable consumers (finding above).
+6. **`edges.test.tsx:257` is vacuous**: a fix that never disposes would pass it.
+7. **`NOT_CALLABLE_PIN_BUDGET`** (`scripts/check-house-style.mjs:771`, AGENTS.md §6 table): changing `runDiagnostics`'s parameter type moves `DiagnosticsStore.tst.ts`'s three pins and their positive twins.
+8. **84's `useLens` single source**: the draw effect lags the store by a render, the handlers do not; collapsing to the render snapshot can make a hover resolve against guards the store has already dropped. Keep one subscription (`Lens.adapter.test.tsx:160`).
+9. **Docs gates**: `typescript` fences are compiled (`check-doc-examples.mjs`, `check-website-doc-examples.mjs`); the `0.12`/`0.13` upgrade sections read `reading.hydration` and must keep compiling.
 
 ## Sources
 
-- `.planning/phases/_WAVE12-CONTEXT.md`, `.planning/phases/_SHARED-CONTEXT.md`, `.planning/milestones/v1.6-MILESTONE-AUDIT.md` (13 items, frontmatter `tech_debt`).
-- Phase 62: `packages/*/test/**/*.tst.ts` (inventory above); `scripts/check-house-style.mjs:464-470` (`UNTRACED_BUDGET`), `:871-893` (`collect` excludes `.tst.ts`), `:990-1021` (comment handling), `:1267-1290` (two-direction budget check), `:2090-2127` (own-walk precedent); `AGENTS.md` sections 5, 6; `packages/core/test/PortAccess.tst.ts:33-38`, `DecisionStream.tst.ts:49-56`, `Qadi.tst.ts:171-175`, `DiagnosticsStore.tst.ts:19-25`; `tsconfig.base.json:60-74` (plugin block); `tstyche.json`.
-- Phase 63: `packages/devtools/src/model/GatesFeed.ts`, `DiagnosticsFeed.ts`, `DiagnosticsStore.ts:191-257`, `Gates.ts`, `packages/devtools/src/index.ts:13-14,25,50,130`; `packages/core/src/DecisionCache.ts:38-130,215-323`; `scripts/check-package-install.mjs:274-305,396-593,601-640`; `packages/devtools/test/helpers.ts:174-176`.
-- Phase 64: `packages/devtools/src/model/ExternalStore.ts`, `TimelineFeed.ts:57,66`, `GatesFeed.ts:7-10,77`, `DiagnosticsFeed.ts:97`; `packages/devtools/README.md:162-169`; `spec/behaviors/28-devtools-screens.md:1981-1982,2064-2069,2547-2548`; `spec/decisions/162-*.md:124-128`, `169-*.md:42-52`; `packages/react/src/GateRegistry.ts:78-92`; `packages/devtools/test/gateRegistryDouble.ts:11-18`; `apps/website/src/content/docs/docs/packages/devtools.md` (no claim found).
-- Phase 65: `packages/core/src/Admission.ts:60-122`; `packages/core/test/WalkEnvironment.tst.ts:25-50`; `packages/audit/src/CircuitBreaker.ts:484`; `.planning/milestones/v1.6-phases/QD-59-*/59-BENCH.md`.
-- Phase 66: `packages/core/src/UntrustedDecode.ts:128-203`, `EnvelopeKeys.ts`, `packages/react/src/HydrationEngine.ts:164,194,209`, `packages/core/src/SinkCodec.ts:501,603`; `packages/core/bench/UntrustedDecode.bench.ts`; `.planning/milestones/v1.6-phases/QD-57-*/57-RESEARCH.md:544-545,588,609`; AGENTS.md section 7a.
-- Phase 67: `packages/core/src/DecisionCache.ts:262-298`, `SharedComputation.ts:290-340`, `packages/core/test/DecisionCache.test.ts:1225-1305`; AGENTS.md section 5a.
-- Phase 68: `.planning/milestones/v1.6-phases/QD-58-*/58-REVIEW.md:67-84` and `58-REVIEW-DISPOSITION.md:10`; `packages/core/src/DecisionLog.ts:120-131,215-222`; `packages/devtools/test/model/Source.test.ts:186,291,306`; `packages/core/test/StoredEnvelope.test.ts:1-14,228`; `spec/decisions/174-*.md:73,75,94`; `packages/devtools/src/model/PortCards.ts:28-35,278`; `DiagnosticsStore.ts:75-87`; `spec/decisions/173-*.md`.
-
----
-*Feature research for: v1.7 Arch Wave 12 tech-debt resolution*
-*Researched: 2026-11-20*
+- Read in full: `P/devtools/src/model/{DockModel,ExternalStore,TimelineFeed,GatesFeed,DiagnosticsFeed,DiagnosticsStore,LensSession,Catalogue}.ts`, `P/devtools/src/react/{useConfigured,useScoped,useDockModel,useDiagnostics,useTimeline,useLens}.ts`, `DevtoolsDock.tsx`, `QuestionsPanel.tsx`, `P/react/src/QadiProvider.tsx`; `node_modules/effect/dist/reactivity/AtomRegistry.js`.
+- Spec: ADR-QD-191 (full), ADR-QD-177, ADR-QD-169 d10, ADR-QD-173; BEH-QD-067, 323, 465, 508, 516, 617, 637, 640, 656, 700, 728, 731-736; INV-QD-314, 366, 373, 390, 401-405; `spec/overview.md:916-923`.
+- Throwaway runs (deleted, no source change): `pnpm vitest run --project devtools|react <file>` from the repo root (running from a package dir fails with "reading 'config'"). Matrix of nine throwing listeners, record-path, two-throw and double-spread probes for 81; six scenarios (S1 stable-Activity defect, S1b short hide, S2 re-render rebuild, S3 StrictMode, S4 hidden subject change, S5 atoms replaced, S6 unmount) for 82.
+- Not run: any fix, the post-fix notification counts (81-R5), `AtomRegistry.reset` as an owner (82 candidate b), a StrictMode double-render registry leak (unmeasured).

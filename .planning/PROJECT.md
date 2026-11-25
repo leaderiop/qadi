@@ -1,4 +1,4 @@
-# Qadi — Architecture Waves (current: v1.8 Arch Wave 13)
+# Qadi — Architecture Waves (last: v1.10 Arch Wave 15)
 
 ## What This Is
 
@@ -12,6 +12,80 @@ module was a shallow pass-through.
 
 The review is at https://claude.ai/artifact/LH5dLGadz28NyzmZez9jcX, with a local copy at
 `/tmp/claude-1002/-home-yopu-Project-Perso-qadi/588341bb-9f42-4e6e-b1a3-ed991ed47acf/scratchpad/qadi-architecture-review.html`.
+
+## Previous Milestone: v1.10 Arch Wave 15 (completed 2026-11-25; not released)
+
+**Goal:** Resolve all four candidates of the 2026-11-24 architecture review. The two live defects go first, each opening
+with a regression test seen RED on its phase base, then the two devtools deepenings.
+
+**Target features (Phases 81–84, ARCH-128…131, strictly serial):**
+- 81: The dock model's `configure` applies every input whatever a listener throws, and rethrows what was collected once
+  at the end. Today only the timeline step is guarded: a throwing explorer, simulation, dock, roles, questions, services
+  or diagnostics listener skips every later step, a second throw replaces the first, and an identical `configure` does
+  not heal it (reproduced 2026-11-24). The double `spread` on a capacity-and-catalogue change goes with it (devtools;
+  live defect; extends ADR-QD-191 decision 11 and ADR-QD-177)
+- 82: `QadiProvider`'s registry has one owner for its lifetime. A provider hidden inside `<Activity>` longer than a
+  macrotask and shown again with stable children throws `registry is disposed` from its subject effect
+  (`QadiProvider.tsx:258`, reproduced 2026-11-24) (react; live defect)
+- 83: The diagnostics feed holds its reading as a value folded by a pure per-field rule; the package-private
+  `DiagnosticsStore` that nothing subscribes to goes, `runDiagnostics` takes an `accept` sink as `runSource` does,
+  and the never-written `Diagnostics.questions` path is resolved (devtools; possibly Breaking; amends ADR-QD-173)
+- 84: `useConfigured` takes a value that has `configure`, deleting its three identical adapters, with the review's
+  small finds: `LensSession`'s `move` restating `ExternalStore.set`, `useLens` taking one fact two ways, the
+  `DockFrame` stop-ledger written twice, and `useTimeline`'s per-render inputs record (devtools)
+
+**Source review:** `/private/tmp/claude-502/-Users-mohammadalmechkor-Projects-Perso-qadi/8b5d3789-bd5e-4ce2-bf7e-0b31a0ae4995/scratchpad/architecture-review-20261124.html`
+(session-scoped; `.planning/phases/_WAVE15-CONTEXT.md` holds everything a planner needs). Branch `arch-wave-15`, off
+`arch-wave-14` at `902d2128` (v1.9 not merged; stacked as v1.6 and v1.7 were). No merge, no release. Scope, order,
+branch and research were decided autonomously on 2026-11-24 under the owner's standing instruction of 2026-11-22.
+
+v1.10 Arch Wave 15 completed 2026-11-25 on branch `arch-wave-15` (226 commits; 91 files, +5,870 / −723 outside
+`.planning`): ARCH-128 to ARCH-131, ADR-QD-194 to ADR-QD-197, amendments to ADR-QD-014, 047, 148, 149, 169, 173, 177,
+185, 191, 192 and 193, and CCR-QD-473..476. All 4 phases `passed`, Nyquist-compliant and secured (0 open threats; 2 low accepted in Phase
+83). Each phase ran a three-iteration code review and re-took its mutation measurement after it. Every choice was decided
+autonomously under the owner's standing instruction (take the most complete, clean solution), including Phase 83's removal
+of `Diagnostics.questions` as a Breaking minor and Phase 84's recorded rejection of a memo for `useTimeline`'s inputs. The
+audit is `passed`: 27/27 requirements, 4/4 integration seams, 4/4 flows; it re-verified Phases 81 and 83, which later
+phases had made stale. `check:pr` exited 0 at the end of every phase and last at `ce02fbc7` (6638 tests, BDD 568).
+Four changesets: one Breaking minor (`@qadi/devtools`: `Diagnostics.questions` removed, 0.13 upgrade entry) and three
+patches (`@qadi/devtools` ×2: `configure` collects, the lens reads each fact once; `@qadi/react`: the registry lease).
+api-surface 942 exports throughout. **Not merged and not released.** Archive: `.planning/milestones/v1.10-ROADMAP.md`,
+`v1.10-REQUIREMENTS.md`, `v1.10-MILESTONE-AUDIT.md`.
+
+## Previous Milestone: v1.9 Arch Wave 14 (completed 2026-11-24; not released)
+
+**Goal:** Resolve all four candidates of the 2026-11-23 architecture review. The audit row goes first, because it may
+hide a live defect (the package can write an archive its own reader refuses), then the three devtools deepenings.
+
+**Target features (Phases 77–80, ARCH-124…127, strictly serial):**
+- 77: An audit row is a value only its codec makes. `AuditEntry` is branded, so archive, retention and the archive
+  facts trust a row without re-checking it. The row decodes envelope-first, as core's stored record does. Opens with a
+  RED test for the archive that cannot be read back (audit; possible live defect; Breaking; amends ADR-QD-110)
+- 78: `TimelineStore` owns its capacity through a resize command. `TimelineFeed`'s six-member forwarder, mirror store
+  and abandoned subscription are deleted (devtools; keeps ADR-QD-137)
+- 79: Each feed and the dock model take their inputs only through `configure`. One per-field identity rule decides a
+  restart, the one `makeDerivedStore` uses. One package-private hook does "scope, then configure", and the dock's input
+  type is stated once. Opens with a characterisation test of diagnostics' first-render sequence (devtools; Breaking;
+  amends ADR-QD-137/173)
+- 80: The highlight lens becomes a headless session owned by the dock model, and `useLens` shrinks to the DOM adapter.
+  The unread public `QadiContextValue.instrument` is removed, or the reason it stays is recorded (devtools, react)
+
+**Source review:** `/private/tmp/claude-502/-Users-mohammadalmechkor-Projects-Perso-qadi/8b5d3789-bd5e-4ce2-bf7e-0b31a0ae4995/scratchpad/architecture-review-20261123.html`
+(session-scoped; `.planning/phases/_WAVE14-CONTEXT.md` holds everything a planner needs). Branch `arch-wave-14`, based on
+`main` at `5784bbd6` (v1.8 merged as #164). No merge, no release.
+
+v1.9 Arch Wave 14 completed 2026-11-24 on branch `arch-wave-14` (285 commits; 98 files, +9,623 / −1,278 outside
+`.planning`): ARCH-124 to ARCH-127, ADR-QD-190 to ADR-QD-193, amendments to ADR-QD-047, 056, 110, 111, 137, 173 and 185,
+and CCR-QD-469..472. All 4 phases `passed`, Nyquist-compliant and secured (0 open threats). Each phase ran a
+three-iteration code review and re-closed its mutation measurement after it. Every choice was decided autonomously under
+the owner's standing instruction (take the most complete, clean solution), including Phase 80's removal of
+`QadiContextValue.instrument` (removed, the prop kept). The audit is `passed`: 28/28 requirements, 9/9 integration
+points, 4/4 flows; it re-verified Phases 78 and 79, which later phases had made stale. `check:pr` exited 0 at the end of
+every phase and last at `2eff29ae` (6550 tests). Five changesets: four Breaking minors (`@qadi/audit`: the codec-made
+row; `@qadi/devtools` ×2: `resize` replacing the feed's forwarder, and bare constructors with inputs only through
+`configure`; `@qadi/react`: `QadiContextValue` without `instrument`) and one `@qadi/devtools` patch (the headless lens),
+with 0.13 upgrade-guide sections. **Not merged and not released.** Archive: `.planning/milestones/v1.9-ROADMAP.md`,
+`v1.9-REQUIREMENTS.md`, `v1.9-MILESTONE-AUDIT.md`.
 
 ## Previous Milestone: v1.8 Arch Wave 13 (completed 2026-11-23; not released)
 
@@ -139,6 +213,30 @@ threshold that never opens, a failing user sink that loses records unlogged), th
 
 ## Current State
 
+v1.10 Arch Wave 15 completed 2026-11-25 on branch `arch-wave-15`, stacked on `arch-wave-14` (see the v1.10 entry above).
+All four candidates of the 2026-11-24 architecture review are resolved:
+- the dock model applies every input whatever a listener throws, through one package-private collect-and-rethrow rule
+  (`callAll`), and the sightings rail moves once per change;
+- `QadiProvider`'s registry has one owner for its lifetime: a headless lease recycles it in place, so a provider hidden
+  in `<Activity>` and shown again never reaches a disposed registry;
+- the diagnostics feed holds its reading only in its snapshot, folded by a pure `foldReading`, and `Diagnostics` carries
+  only what the poll samples;
+- `useConfigured` takes a value with its own `configure`, `LensSession` publishes through `ExternalStore.set`, `useLens`
+  reads each fact once, and the dock keeps one stop ledger per feed.
+
+Not merged and not released (neither is v1.9). The next milestone is not yet defined.
+
+v1.9 Arch Wave 14 completed 2026-11-24 on branch `arch-wave-14` (see the v1.9 entry above). All four candidates of the
+2026-11-23 architecture review are resolved:
+- an audit row is a value only its codec makes, so the package can no longer write an archive its own reader refuses;
+- `TimelineStore` owns its capacity through `resize`;
+- every devtools feed and the dock model are built bare and take inputs only through `configure`, under one per-field
+  identity rule;
+- the highlight lens is a headless session the dock model owns, `useLens` is its document adapter, and
+  `QadiContextValue` no longer carries the unread `instrument`.
+
+Not merged and not released. The next milestone is v1.10 Arch Wave 15, on `arch-wave-15` stacked on this branch.
+
 v1.8 Arch Wave 13 completed 2026-11-23 on branch `arch-wave-13` (see the v1.8 entry above). All eight candidates of the
 2026-11-22 architecture review are resolved:
 - every "never throws" function in core stays total for a hostile value, through one exported rule (`thrownMessage`,
@@ -152,7 +250,7 @@ v1.8 Arch Wave 13 completed 2026-11-23 on branch `arch-wave-13` (see the v1.8 en
 - whether a fixture row meets a signature or acted leaf is core's own answer, and a refused value fails typed wherever it
   is read.
 
-Nothing is merged or released, and the next milestone is not yet defined.
+Merged to `main` as #164 (`5784bbd6`); not released. The next milestone is v1.9 Arch Wave 14.
 
 v1.7 Arch Wave 12 completed 2026-11-22 on branch `arch-wave-12` (see the v1.7 entry above): every tech-debt item the
 v1.6 audit carried is resolved by a change or a recorded decision. Negative type pins can fail and are budgeted, gate 14
@@ -366,9 +464,19 @@ logged, counted or spanned.
 - ✓ ARCH-122 A declared span shape for the evaluate family (ESPN-01..05): `@qadi/core`'s package-private `EvaluationSpan.ts` declares every span of the family once — `qadi.evaluate`, `qadi.toPredicate`, `qadi.guardHealthCheck`, `qadi.decideSubject`, `qadi.decideSubjects`, `qadi.decideSubjectsStream` — with its name, question and answer built by `spanStruct`, and the denial log line as a log event no span-writing function accepts; a failed evaluate span carries its question (annotated before the lookup), and the outcome sits under one key, `qadi.outcome` (`Allow`/`Deny`/`Failed`), on every decided or typed-failure path, with `qadi.decision` removed (breaking, `@qadi/core` minor changeset, 0.13 upgrade section); an interrupted or defected evaluation carries its question and no outcome; the four writers hold no hand-typed key, and `[span-key-source]`/`[span-key-literal]` with `SPAN_KEY_LITERAL_BUDGET` keep test literals to budgeted goldens; 33-row contract held to its first commit by a script; cost +9.17% geometric mean (about 0.3–0.9 µs per call), recorded, not gated — v1.8, Phase 75 (ADR-QD-188, ADR-QD-051 and ADR-QD-109 amended, INV-QD-395/396, BEH-QD-711..715, CCR-QD-467)
 - ✓ ARCH-123 Remedies uses core's signature match (SIGM-01..05): whether a fixture row meets a `hasSignature` or `hasActed` leaf is `@qadi/core`'s answer — `signatureAnswerFromSignatures` and `actedAnswerFromEvents` share one lookup and one answer rule with the fixture port read, and `SignatureMatch.ts` stays package-private; devtools' remedy table asks core instead of restating the match, and runs every requirement through one guard so it skips with a sentence for any form value; the fixture lookups, both judgements and the port reads over them fail typed for any value (one guarded read in core, `readGuarded`/`readRows`, a total `brandOf`), with `SignatureHistoryUnavailable.subjectId` and `DecisionHistoryUnavailable.event` optional (breaking, `@qadi/core` and `@qadi/http` minor changesets, 0.13 upgrade section); `ActedEvent`, `ActedAnywhere` and `ActedAnywhereInput` removed; the custom-predicate refusal is one sentence, `NO_CUSTOM_PREDICATE_FIELD`; agreement tests (1184 signature, 144 acted cases) held to their first commit by a script; api-surface 940 — v1.8, Phase 76 (ADR-QD-189, ADR-QD-058 and ADR-QD-094 amended, INV-QD-397/398, BEH-QD-716..720, CCR-QD-468)
 
+- ✓ ARCH-124 An audit row is a value only its codec makes (AROW-01..06): `AuditEntry` is a nominal `Data.Class` exported type-only, made only by `encodeAuditEntry`/`decodeAuditEntry`, frozen one level, and recorded in a package-private `WeakSet` (`CodecMade.ts`) so `archiveAuditTrail`, `verifySequenceIntegrity`, `planRetention` and `planPurge` refuse a row the codec did not make at run time too (an `any`-typed or JavaScript caller included); the writer refuses a non-finite `now`, a bad or non-list `keyMaterial` (read once, projected to `{ keyId, algorithm, publicKey }`) and a non-list `entries`, so every archive it returns is read back by `readAuditArchive`; `decodeAuditEntry` reads the envelope first with `record` unwalked; `ArchiveInputInvalid`/`RetentionInputInvalid` carry closed `ArchiveInputRefusal`/`RetentionInputRefusal` tagged enums; `isSequenceNumber`, `SequenceNumberInvalid` and retention's `undated` removed; `scripts/check-api-surface.mjs` reads a local `export type { X }` list; breaking `@qadi/audit` minor changeset, 0.13 upgrade rows; api-surface 942 — v1.9, Phase 77 (ADR-QD-190 with three review amendments, ADR-QD-110 and ADR-QD-056 amended, INV-QD-399/400, BEH-QD-721/722, CCR-QD-469)
+- ✓ ARCH-125 `TimelineStore` owns its capacity (TRSZ-01..04): `TimelineStore` has a `resize(capacity)` command that validates through `emptyTimeline` before moving anything, does nothing for the same effective capacity, empties the timeline at the new bound, releases the pause and notifies once; `clear` empties at the store's current bound; `makeTimelineFeed` returns its one store, so the host's store keeps its identity across a capacity change and the six-member forwarder, the mirror `view` store, the `push` listener and the subscription left on a dropped store are deleted; `idleTimeline` gains `resize`; a refused capacity leaves the feed and the dock unchanged (the dock applies a capacity whole or not at all, and a listener's throw still applies the rest of the update before it rethrows, ADR-QD-177); `bound` returns the given timeline when the kept entries are the held ones, so a replayed or evicted record costs no render; `useTimelineStore` resizes its hand-fed store from a layout effect; breaking `@qadi/devtools` minor changeset, 0.13 upgrade section; api-surface 942 — v1.9, Phase 78 (ADR-QD-191, ADR-QD-137 amended, INV-QD-401/402, BEH-QD-726..730, CCR-QD-470)
+- ✓ ARCH-126 Feeds and the dock model take inputs only through `configure` (CONF-01..06): `makeTimelineFeed`, `makeDiagnosticsFeed`, `makeGatesFeed` and `makeDockModel` take no parameter, and `configure` is the only way inputs arrive (a bare build starts no read and shows what the empty input showed); one per-field identity rule, `ExternalStore`'s `sameFields`/`sameFieldsOrAbsent` over `Required<…>` normalisers, decides whether an input moved, so a new field cannot compile uncompared, and the gates feed's retry of a failed watch is the one stated exception (retried once per host commit, pinned); the dock has no guard of its own and hands its inputs to each feed through `feedInputsOf`; one package-private hook, `useConfigured`, builds in a scope and configures with the latest inputs, used by `useDockModel`, `useTimeline` and `useDiagnostics`; `UseDockModelInput` is gone and `DevtoolsDockProps extends DockModelInputs`; the dock's first-render sequence is held by a characterisation written on the base; gate 14 pins the bare constructors; breaking `@qadi/devtools` minor changeset, 0.13 upgrade section; api-surface 942 — v1.9, Phase 79 (ADR-QD-192, ADR-QD-137/173/185 amended, INV-QD-403/404, BEH-QD-731..735, CCR-QD-471)
+- ✓ ARCH-127 The highlight lens is a headless session; `QadiContextValue.instrument` resolved (LENS-01..05): a package-private `LensSession` in `model/` (a closed `Idle`/`Picking` snapshot, commands toggle, hover, choose, cancel, highlight and a one-shot `takeReveal`, no `clear`; a no-op publishes nothing) holds every lens rule under the mutation gate (52/52); the dock model owns it as its tenth store and no `configure` touches it; `useLens` is only the document adapter (three effects: draw, listeners added while picking and reading the guards at event time, an unmount exit that cancels), and the panel takes the lens as a required prop with one subscription to each store; the pick survives a tab round trip and reveals its row once, highlight while picking ends picking, a keyboard click is placed by its control, a click that made a pick stays swallowed when a subscriber throws; `QadiContextValue` is `atoms`, `registry` and `gates` (Breaking `@qadi/react` minor, 0.13 upgrade section), the provider's `instrument` prop unchanged — v1.9, Phase 80 (ADR-QD-193; ADR-QD-047/111/185 amended; BEH-QD-736..740, INV-QD-405/406, CCR-QD-472)
+- ✓ ARCH-128 The dock model applies every input whatever a listener throws (COLL-01..06): a package-private `callAll(calls, message)` in `ExternalStore.ts` is the one collect-and-rethrow rule (none thrown → return; one → rethrown as itself, `undefined` and `null` included; two or more → one `AggregateError` in call order, never flattened) and every multi-call command in the model runs on it: listener notification, the derived store's release, `TimelineFeed.configure` and `DockModel.configure` (seven steps, each reading the held inputs when it runs). The sightings rail is the dock model's fourth derived store, so the record path and a capacity-and-catalogue `configure` move it once; the timeline read, the diagnostics poll and the simulation run start whatever a listener throws on the status that announces them (`try { publish } finally { fork }`). ADR-QD-194, CCR-QD-473; `@qadi/devtools` patch — v1.10, Phase 81 (2026-11-25)
+- ✓ ARCH-129 `QadiProvider`'s registry has one owner for its lifetime (LEASE-01..05): a package-private `RegistryLease.ts` (a closed `Unheld | Held | Releasing(cancel)` lease with an injected defer, two `Match.tagsExhaustive` matchers built per lease) decides the provider registry's lifetime and is mutation-gated (28/28); `QadiProvider` keeps one registry for its whole life, never clears its ref, holds the lease in its last effect and, a macrotask after the last cleanup, recycles in place (`registry.reset()`, then the latest committed subject written in a `finally` from a ref written in an effect) instead of disposing, so a provider hidden in `<Activity>` longer than a macrotask and shown again never reaches a disposed registry; `initialValues` and hydration seeds seed construction only and are never re-applied; the reveal's first frame after a subject change made while hidden reads the last committed subject (LT6); a host subscription held on the registry is detached by a recycle; LT1..LT18, RL1..RL10. ADR-QD-195, ADR-QD-014/148/149 amended, BEH-QD-746..750, INV-QD-409/410, CCR-QD-474; `@qadi/react` patch — v1.10, Phase 82 (2026-11-25)
+- ✓ ARCH-130 The diagnostics feed folds its reading as a value (DIAG-01..04): the package-private diagnostics store is gone; the feed holds its reading only in its one published snapshot, folded through a pure `foldReading(previous, next)` in `Diagnostics.ts` (renamed from `DiagnosticsStore.ts`), one per-field keep-if-equal rule through `sameFields` that returns `previous` itself when nothing moved; `runDiagnostics(sink: DiagnosticsSink, options?)` takes a one-member `{ accept }` sink whose order is the `runs.isCurrent(token)` guard, the fold, `sampled = true`, then `Live`; `off()` stops the run and publishes the off state with no store replacement; `Diagnostics.questions` removed (the poll never sampled it) while `DiagnosticsReading.questions` and the dock's questions join are unchanged; `foldReading` and `DiagnosticsSink` stay off both barrels. Characterisation FC1..FC11 born before the change, SR1 (a superseded sample does not mark the feed sampled), MR1/MR2, the raw-sample four-field pin; mutation DiagnosticsFeed 59/59, Diagnostics 32/32, DockModel 65/65, no new Ignored. ADR-QD-196, ADR-QD-173/169/047 amended, BEH-QD-751..755, INV-QD-411/412, CCR-QD-475; `@qadi/devtools` Breaking minor — v1.10, Phase 83 (2026-11-25)
+
+- ✓ ARCH-131 `useConfigured` requires `configure`, and the review's small finds (ADPT-01..05): `useConfigured(make, inputs)` takes a value that has its own `configure`, through a package-private `Configurable<I>` whose `configure` is a function property (checked contravariantly), so the three identical adapters `configureDock`, `configureTimeline` and `configureDiagnostics` are deleted and the three hooks call it with no type argument; `useConfigured.tst.ts` pins the three values and four refusals, each beside its accepted twin, the fourth refused by the property form alone; `LensSession` publishes every command through `ExternalStore.set` (`move` deleted) and `choose` still arms its reveal before it publishes; `useLens(lens, questions): UseLens` subscribes the questions store first and the lens second, draws from its own subscription, reads the store at event time and writes no ref, and the panel makes the one call; the dock's two stop notices come from one `useStopNotice` hook and one `StopNoticeProps<S>`, one ledger per feed; `useTimeline`'s per-render inputs record is a recorded rejection (ADR-QD-197). Characterisations LQ1..LQ4, DS1..DS3, TI1..TI3 born on the base; mutation LensSession 52/52 -> 47/47 (the deleted `move`'s mutants), no new Ignored. ADR-QD-197, ADR-QD-192 and ADR-QD-193 amended, BEH-QD-756..760, INV-QD-413/414, CCR-QD-476; `@qadi/devtools` patch, no export changes — v1.10, Phase 84 (2026-11-25)
+
 ### Active
 
-(None. The next milestone is not yet defined.)
+(none: every v1.10 requirement is validated)
 
 ### Out of Scope
 
@@ -426,7 +534,28 @@ logged, counted or spanned.
 - **Hot spots** (churn over the last 15 commits): react `QadiAtoms`/`Hydration`/`hooks`; http
   `RequirePermission`/`DecisionStreamRoute`; core `SinkCodec`/`Evaluate`/`PortAccess`.
 
-### Known Issues (carried forward from v1.8)
+### Known Issues (carried forward from v1.10)
+
+- The v1.10 audit (`.planning/milestones/v1.10-MILESTONE-AUDIT.md`) is `passed`. It records what was left by decision:
+  - each phase's record scripts judge the tree against that phase's own base, so a later phase's committed change shows
+    in an earlier phase's `pinned-check` or `scan-forbidden` (all such reports at the close were traced and explained);
+  - `src/react` stays outside every Stryker config (Phase 84's hooks are held by component tests and coverage), and
+    `QadiProvider.tsx` is outside the react mutate list; QuestionBook keeps the base's two surviving mutants;
+  - Phase 83 accepted two low threats; no milestone-level Stryker run was made.
+
+### Known Issues (carried forward from v1.9) — unchanged in v1.10
+
+- The v1.9 audit (`.planning/milestones/v1.9-MILESTONE-AUDIT.md`) is `passed`. It records what was left by decision or
+  can only be checked by hand:
+  - where a keyboard click (Enter or Space on a focused guard) lands while picking is checked in happy-dom only; a
+    real-browser pass is manual;
+  - the React 19.2.4 peer floor is not exercised (the repo installs 19.3.1);
+  - `QadiProvider` keeps its `instrument` prop by decision (ADR-QD-193): the prop decides whether a guard registers,
+    and a component that needs the flag is passed the host's own;
+  - Phase 78's mutation record predates Phases 79 and 80's edits to `TimelineFeed.ts` and `DockModel.ts`; each file was
+    re-measured at the later phase's close, and no milestone-level Stryker run was made.
+
+### Known Issues (carried forward from v1.8) — unchanged in v1.9
 
 - The v1.8 audit (`.planning/milestones/v1.8-MILESTONE-AUDIT.md`) is `passed`. It records what no change can undo or what
   was left by decision:
@@ -614,8 +743,16 @@ logged, counted or spanned.
 | A computed dock store is a scoped derived store that owns its key comparison, stop-after-close and notify-once; a closed model's diagnostics store now stops too; a throwing parent release does not stop the others and the close rethrows | Three hand-built stores each restated a last key, a field-by-field compare and a closed flag, so a key field could be left out of a compare and the diagnostics store kept publishing after close | Accepted (Phase 72, ADR-QD-185; per-field identity over own enumerable string-keyed fields, the store list pinned in-test and compared as a set, and the ADR-QD-177 rethrow-after rule for releases decided autonomously 2026-11-22) |
 | Gate registration is one pure keyed `reconcile`; it handles no throw and relies on a stated writer contract that the real registry keeps and tests pin | The hook diffed state by hand with four refs and three effects over two arrays that had to line up by index, and the registry's equal-state check was a third place deciding the same thing | Accepted (Phase 73, ADR-QD-186; removing the unreachable rollback in favour of the writer contract, the two-effect reading of "one effect", and one-consumer test helpers living in their consumer decided autonomously 2026-11-22) |
 | The simulation session's policy choice is a pure seeded choice beside `HeldChoice.ts`; the session keeps one choice, its form and its runs, with one draft writer and one clear-the-run | The session restated the pin rule, the orphan rule and the menu order in several commands, cleared the run by hand in three places, and wrote the draft outside the one path its `edit` comment claimed | Accepted (Phase 74, ADR-QD-187; a no-op transition answering its input reference, keeping both staleness disjuncts to state BEH-QD-322, a script holding the characterisation to its first commit, and folding every copied devtools test helper onto the shared fixtures decided autonomously 2026-11-23) |
+| An audit row is a value only its codec makes, enforced by type and at run time | `archiveAuditTrail` wrote archives its own reader refused (a type-valid row with `at: NaN`, a `NaN` `now`, a `keyMaterial` extra key), and the brand alone could not stop an `any`-typed or JavaScript caller | Accepted (Phase 77, ADR-QD-190; the nominal `Data.Class` brand and envelope-first decode at discuss; the run-time `WeakSet` membership, row freezing, `keyMaterial` and non-list checks and the closed refusal enums added over three code-review rounds, each decided autonomously 2026-11-24; the per-copy registry limit recorded rather than lifted, because a `globalThis` registry lets a host forge membership) |
+| A timeline store owns its capacity through `resize`, and a feed hands the host its one store | A feed captured its capacity at construction, so a capacity change built a new store and the feed hid that behind a six-member forwarder, a mirror store, a `push` listener and a subscription left on the dropped store; a refused capacity could half-apply a feed or dock update | Accepted (Phase 78, ADR-QD-191; a resize that empties rather than truncates, the same-effective-capacity no-op, `clear` at the current bound, the dock applying a capacity whole or not at all, deleting the timeline store's redundant identity guard after the mutation close, and `bound` keeping the given timeline whenever the kept entries are unchanged (code review) decided autonomously 2026-11-24) |
+| Feeds and the dock model are built bare and take inputs only through `configure`, under one per-field identity rule | Each feed took inputs twice, at construction and through `configure`, with its own hand-written "did this move" check, so the two paths could disagree and the dock re-stated the comparison above its feeds; a reader could see an unconfigured model | Accepted (Phase 79, ADR-QD-192; `Required<…>` normalisers so a new field cannot compile uncompared, the dock with no guard of its own, the timeline feed's one decision, deleting the bare build's unobservable read after the mutation close, judging the by-hand mutation check against the base's Ignored set, keeping and pinning the per-commit retry of a failed subscribe, one normaliser per input (code review), and correcting the ADR to the shipped bare read decided autonomously 2026-11-24) |
+| The highlight lens is a headless session the dock model owns, and `useLens` is only its document adapter; `QadiContextValue` drops `instrument` | The lens's rules lived in a hook's DOM handlers, reachable only by rendering the dock, unmeasured by mutation and re-adding listeners on every guard change; the context published an `instrument` field nobody read | Accepted (Phase 80, ADR-QD-193; no `clear` command, the pick held by gate id after React was shown to give a remounted guard a new id, the reveal one-shot and dropped by cancel and highlight, `move` returning nothing after its unread boolean survived mutation, the click decision kept swallowed when a subscriber throws, keyboard clicks placed by their control, and one subscription per store (code review) decided autonomously 2026-11-24) |
 | The evaluate family's spans are declared once, a failed span says what was asked, and the outcome has one key, `qadi.outcome` | A failed `qadi.evaluate` span carried only its outcome and error tag, the outcome used two keys, and the same keys were hand-typed in four writers and over a hundred test strings, so a tracer filtering by evaluation id or outcome missed half the evaluations | Accepted (Phase 75, ADR-QD-188; one key with no dual write as the checkpoint decision, a family question held to `PoseOf`, a log event refused by every span-writing function, an interrupted evaluation carrying no outcome, a script holding the contract to its first commit, and measuring `PortSpanEncode.ts` only over the lines the phase added decided autonomously 2026-11-23) |
 | Whether a fixture row meets a signature or acted leaf is core's answer, and a refused value fails typed everywhere it is read | Remedies restated core's signature match and the fixture port's scoping inline, diverged from the port on 14 `Any`-scoped acted cases, and a refused fixture row or request died or was answered `NotActed` (an allow) | Accepted (Phase 76, ADR-QD-189; a change rather than a recorded rejection as the owner decision, the two judgements beside their fixture layers, the two error members made optional, the three unused classes removed, and the totality rule extended to every fixture read and to `remedyEdits` in code review, decided autonomously 2026-11-23) |
+| A run of calls applies every call whatever one throws, through one package-private `callAll`; a status that announces work starts that work whatever its listener throws | The dock model's `configure` guarded one step, so a throwing listener on any other store left roles empty, the explorer and simulation on different sightings and diagnostics off, and an identical second `configure` did not mend it; the record path had the same unguarded fan-out | Accepted (Phase 81, ADR-QD-194, CCR-QD-473) |
+| A provider's registry has one owner for its lifetime: a headless lease recycles it in place a macrotask after the last cleanup and never disposes it; seeds are not re-applied | A provider hidden in `<Activity>` longer than a macrotask disposed its registry, and the reveal rendered against it (`registry is disposed` from two consumers and the provider's own subject effect); the lifetime rule lived in a timer in the component, unmeasured | Accepted (Phase 82, ADR-QD-195, CCR-QD-474; recycle in place over rebuild, subject-only re-seed, the reveal's one-frame read of the last committed subject accepted and pinned, the re-seed in a `finally` and the review's tests decided autonomously 2026-11-25) |
+| The diagnostics feed's reading is a value folded into its one snapshot by a pure `foldReading`; `runDiagnostics` takes a one-member sink; `Diagnostics` carries only what the poll samples | The feed kept the reading in a package-private store beside its snapshot, replaced the store in `off()`, marked `Live` through a second path, folded with a five-clause `===` chain, and typed a `questions` field the poll never sampled, so a reader of a sampled reading's `questions` read `undefined` | Accepted (Phase 83, ADR-QD-196, CCR-QD-475; removing `Diagnostics.questions` as a Breaking minor over routing it through the shown reading, the pure rename first, the sink shape, SR1 in a new file over editing the held characterisation, and the declined IN-02/IN-03 decided autonomously 2026-11-25) |
+| A hook's value takes its own inputs through `configure`; the lens reads each fact once; one stop ledger per feed; `useTimeline`'s inputs record is not memoised | `useConfigured` took a value and a second adapter argument restated three times, `LensSession` restated the store's `set` as `move`, `useLens` was handed the guards beside a store it read anyway, `DockFrame` held two copies of the stop ledger and its memo | Accepted (Phase 84, ADR-QD-197, CCR-QD-476; the property-form constraint and its four pinned refusals, the memo recorded as a rejection, `useLens` returning both snapshots, `useStopNotice` keyed on the feed's `restart`, and the review's two added refusals decided autonomously 2026-11-25) |
 
 ## Evolution
 
@@ -635,4 +772,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-23 after the v1.8 milestone*
+*Last updated: 2026-11-25 after v1.10 milestone*

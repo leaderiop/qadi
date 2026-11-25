@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-185                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.7                                            |
 > | Effective Date | 2026-11-22                                     |
-> | Status         | Accepted — extends ADR-QD-168, amends ADR-QD-047, corrects ADR-QD-169 |
+> | Status         | Accepted — extends ADR-QD-168, amends ADR-QD-047, corrects ADR-QD-169; amended 2026-11-24 (sameFields is exported and applied by the feeds, and through them by the dock, ADR-QD-192); amended 2026-11-24 (the lens is the tenth store, and a store rather than a computed one, ADR-QD-193); amended 2026-11-24 (ADR-QD-194: the sightings rail is the fourth derived store) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-22): decision 7 states what a parent whose subscribe throws and a release that throws each do (CCR-QD-464)<br>1.1 (2026-11-22): correction — key equality is over own enumerable string-keyed fields, the finalizer is registered before the parents are subscribed, and the store-list test lists the model's members and is kept equal to BEH-QD-700 by review (CCR-QD-464)<br>1.0 (2026-11-22): new — the dock model's three computed stores are derived stores (ARCH-119, CCR-QD-464) |
+> | Change History | 1.7 (2026-11-24): the link to BEH-QD-699 follows its new title (CCR-QD-473)<br>1.6 (2026-11-24): amended by ADR-QD-194 (CCR-QD-473)<br>1.5 (2026-11-24): amended by ADR-QD-193 (CCR-QD-472)<br>1.4 (2026-11-24): the amendment says the dock applies sameFields through its feeds (ADR-QD-192, CCR-QD-471)<br>1.3 (2026-11-24): amended by ADR-QD-192 (CCR-QD-471)<br>1.2 (2026-11-22): decision 7 states what a parent whose subscribe throws and a release that throws each do (CCR-QD-464)<br>1.1 (2026-11-22): correction — key equality is over own enumerable string-keyed fields, the finalizer is registered before the parents are subscribed, and the store-list test lists the model's members and is kept equal to BEH-QD-700 by review (CCR-QD-464)<br>1.0 (2026-11-22): new — the dock model's three computed stores are derived stores (ARCH-119, CCR-QD-464) |
 
 ---
 
@@ -159,7 +159,36 @@ as a thunk (decision 1) rather than held in stores `configure` sets last.
 [BEH-QD-696](../behaviors/28-devtools-screens.md#beh-qd-696-a-derived-store-recomputes-exactly-when-a-field-of-its-key-changes-identity),
 [BEH-QD-697](../behaviors/28-devtools-screens.md#beh-qd-697-a-derived-store-notifies-once-per-change-before-the-listeners-added-after-it),
 [BEH-QD-698](../behaviors/28-devtools-screens.md#beh-qd-698-a-derived-store-does-nothing-after-its-scope-closes),
-[BEH-QD-699](../behaviors/28-devtools-screens.md#beh-qd-699-the-dock-models-three-computed-stores-are-derived-stores),
+[BEH-QD-699](../behaviors/28-devtools-screens.md#beh-qd-699-the-dock-models-four-computed-stores-are-derived-stores),
 [BEH-QD-700](../behaviors/28-devtools-screens.md#beh-qd-700-the-dock-models-stores-are-listed-once),
 [INV-QD-389](../invariants.md#inv-qd-389-a-derived-store-recomputes-exactly-when-its-key-changes-and-does-nothing-after-its-scope-closes),
 [INV-QD-390](../invariants.md#inv-qd-390-the-dock-models-computed-stores-are-derived-stores-and-their-count-is-stated-once).
+
+> **Amended 2026-11-24 (CCR-QD-471): `sameFields` is the rule the feeds apply, and the dock through them.**
+> Decision 2 called `sameFields` a module-private comparison. It is exported from `ExternalStore.ts`, still out of both
+> barrels, with `sameFieldsOrAbsent` beside it for an input that may be absent (absent equals only absent), and every feed
+> applies it to its inputs after one normaliser per input type has made them complete records, so a field left out and a
+> field holding `undefined` are one field, and the dock applies it through its feeds, with no comparison of its own beside
+> the catalogue's
+> ([ADR-QD-192](./192-feeds-and-the-dock-model-take-inputs-only-through-configure.md)). The comparison itself is unchanged:
+> own enumerable string-keyed fields, values by `===`, and a field on one side only is a change. Context and Alternatives
+> considered keep their history.
+
+> **Amended 2026-11-24 (CCR-QD-472): the lens is the tenth store, and a store rather than a computed one.**
+> The dock model has ten stores, listed once in
+> [BEH-QD-700](../behaviors/28-devtools-screens.md#beh-qd-700-the-dock-models-stores-are-listed-once). The tenth is `lens`, a
+> session `makeDockModel` builds with no input and no parent store: nothing computes it, so it is not a derived store and the
+> derived-store rule above does not reach it, and `configure` touches none of it
+> ([ADR-QD-193](./193-the-highlight-lens-is-a-headless-session-the-dock-model-owns.md)). The three computed stores stay the
+> shown reading, `questions` and `services`, and the counts and ordinals above keep their history.
+
+> **Amended 2026-11-24 (CCR-QD-473): the sightings rail is the fourth derived store.**
+> The model has four derived stores, not three: the sightings rail is built on `makeDerivedStore` beside the shown reading,
+> `questions` and `services`. Its parent is the timeline and its key is `{ shown, catalogue }`, the shown timeline and the
+> held catalogue, each compared by identity. It is built right after the timeline feed and before every other subscription,
+> so it moves first, and the explorer's and the simulation's `setSightings` are its two listeners, in that order. It is
+> internal: the model's stores are still the ten
+> [BEH-QD-700](../behaviors/28-devtools-screens.md#beh-qd-700-the-dock-models-stores-are-listed-once) lists, and `sightings`
+> is a thunk reading it, so a rail recompute is the rule above applied to one more key and not a new kind of store
+> ([ADR-QD-194](./194-a-run-of-calls-applies-every-call-whatever-one-throws.md)). The counts and ordinals above keep their
+> history.

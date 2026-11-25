@@ -5,12 +5,12 @@
 > | Property       | Value                                                                  |
 > | -------------- | ---------------------------------------------------------------------- |
 > | Document ID    | QADI-ADR-137                                                           |
-> | Revision       | 1.3                                                                    |
+> | Revision       | 1.5                                                                    |
 > | Effective Date | 2026-11-11                                                             |
-> | Status         | Accepted — supersedes ARCH-20 D-20-b (an amendment to ADR-QD-047)     |
+> | Status         | Accepted — supersedes ARCH-20 D-20-b (an amendment to ADR-QD-047); amended 2026-11-24 (the hooks configure inside the scoped build, ADR-QD-192) |
 > | Author         | Qadi Engineering                                                       |
 > | Classification | Architecture Decision Record                                           |
-> | Change History | 1.3 (2026-11-14): amendment: one module owns the run, and the stop is unconditional (ARCH-84, CCR-QD-428)<br>1.2 (2026-11-12): amendment — the timeline's read is scoped too; useRunningStore deleted (ARCH-82, CCR-QD-425)<br>1.1 (2026-11-11): useScoped clears its value on cleanup, so a hidden Activity never leaves a child on a closed session (WR-02)<br>1.0 (2026-11-11): Initial (ARCH-73, CCR-QD-415)                        |
+> | Change History | 1.5 (2026-11-24): amended by ADR-QD-192 (CCR-QD-471)<br>1.4 (2026-11-24): amendment: the timeline feed holds one store, and a capacity change is its resize (ARCH-125, CCR-QD-470)<br>1.3 (2026-11-14): amendment: one module owns the run, and the stop is unconditional (ARCH-84, CCR-QD-428)<br>1.2 (2026-11-12): amendment — the timeline's read is scoped too; useRunningStore deleted (ARCH-82, CCR-QD-425)<br>1.1 (2026-11-11): useScoped clears its value on cleanup, so a hidden Activity never leaves a child on a closed session (WR-02)<br>1.0 (2026-11-11): Initial (ARCH-73, CCR-QD-415)                        |
 
 ---
 
@@ -150,3 +150,21 @@ number rather than an amendment's paragraph.
 > module. The ordering consequence says that only the current run writes session state.
 > Context and Alternatives considered keep their history, and the generation they name is
 > the counter the module replaced.
+
+> **Amended 2026-11-24 (CCR-QD-470): the timeline's store is the feed's one store.**
+> Point 7 and the 2026-11-12 amendment stand: the timeline's read is scoped. What the host
+> holds is now the store that scoped read feeds, for the scope's whole life, because a
+> capacity change is that store's own `resize`
+> ([ADR-QD-191](./191-a-timeline-store-owns-its-capacity.md)). The code before ADR-QD-191
+> kept a second store that outlived each capacity's store and forwarded to it. Context and
+> Alternatives considered keep their history.
+
+> **Amended 2026-11-24 (CCR-QD-471): the hooks build and configure inside `useScoped`'s build.**
+> Decision 6 stands: React owns the scope through `useScoped`, which builds in a layout effect and closes the scope in that
+> effect's cleanup. Two sentences change ([ADR-QD-192](./192-feeds-and-the-dock-model-take-inputs-only-through-configure.md)).
+> The dock model, the timeline hook and the diagnostics hook are built through the package-private `useConfigured`, which
+> configures the value inside `useScoped`'s build, before `useScoped` publishes it, so no reader commits an unconfigured
+> value, and a throw from that first `configure` closes the scope and reaches the error boundary as the original error. And
+> the build runs once per mount, where `useScoped`'s comment said `make` was read once per mount: a StrictMode remount or an
+> `Activity` reveal runs it again with the latest committed render's closure, and the inputs reach that build through the
+> closure with no ref. Context and Alternatives considered keep their history.

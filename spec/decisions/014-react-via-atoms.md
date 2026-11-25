@@ -14,6 +14,7 @@
 > under Consequences (CCR-QD-150). `@effect/atom-react` is now a dependency of
 > `@qadi/react`.
 > **Amended:** 2026-11-12 by [ADR-QD-148](./148-the-atom-set-owns-its-eviction-sweep.md) — the atom set owns its eviction sweep: the provider no longer forks one, and idle-question growth is bounded without `scheduleTask` (CCR-QD-426).
+> **Amended:** 2026-11-25 by [ADR-QD-195](./195-a-providers-registry-has-one-owner-for-its-lifetime.md) — the provider's registry is kept for its life and recycled in place one macrotask after its last release, rather than disposed after a development-mode double mount (CCR-QD-474).
 
 ## Context
 
@@ -117,6 +118,13 @@ something, which is what replaced the predecessor's cloned hook factory.
   Hoist or `useMemo` for that reason, not for sharing.
 - The registry is a second lifetime to reason about alongside React's, which is
   why `QadiProvider` defers disposal past a development-mode double mount.
+
+  > **Amended 2026-11-25 ([ADR-QD-195](./195-a-providers-registry-has-one-owner-for-its-lifetime.md), CCR-QD-474).**
+  > The deferral is replaced by a lease. The provider disposes nothing: it keeps one registry for its life,
+  > and when every effect of the provider has been cleaned up and none runs again within a macrotask (an
+  > unmount, or an `<Activity>` hidden for longer than that, which React 19 runs as a cleanup and a later
+  > setup) the registry is recycled in place with `reset()` and the latest committed subject is written
+  > back. A double mount and a short hide recycle nothing.
 - A guard can be enumerated and located, but only when the host asks for it
   ([ADR-QD-053](./053-a-gate-can-be-found.md)). Off by default, and off means no
   registration and no marker element.

@@ -14,6 +14,7 @@ import {
   emptyTimeline,
   ingest,
   ingestAll,
+  type Timeline,
   type TimelineEntry,
 } from "../../src/model/Timeline.ts";
 import { decisionRecord, failedRecord, obligationRecord } from "../helpers.ts";
@@ -354,6 +355,59 @@ describe("capacity", () => {
   it("a capacity of zero keeps nothing and does not throw", () => {
     const timeline = fold([decisionRecord({ evaluationId: "a" })], 0);
     assert.deepStrictEqual(timeline.entries, []);
+  });
+
+  it("a record a zero-capacity timeline cannot keep returns the identical timeline", () => {
+    const empty = emptyTimeline({ capacity: 0 });
+
+    const decision = decisionRecord({ evaluationId: "a", at: 100 });
+    const orphan = obligationRecord({ evaluationId: "orphan", at: 100 });
+
+    assert.strictEqual(ingest(empty, decision), empty);
+    assert.strictEqual(ingest(empty, orphan), empty);
+  });
+
+  it("an older record a full timeline evicts at once returns the identical timeline", () => {
+    const full = fold(
+      [
+        decisionRecord({ evaluationId: "b", at: 200 }),
+        decisionRecord({ evaluationId: "c", at: 300 }),
+      ],
+      2,
+    );
+
+    const next = ingest(full, decisionRecord({ evaluationId: "a", at: 100 }));
+
+    assert.strictEqual(next, full);
+  });
+
+  it("a newer record a full timeline keeps returns a new timeline with the oldest dropped", () => {
+    const full = fold(
+      [
+        decisionRecord({ evaluationId: "b", at: 200 }),
+        decisionRecord({ evaluationId: "c", at: 300 }),
+      ],
+      2,
+    );
+
+    const next = ingest(full, decisionRecord({ evaluationId: "d", at: 400 }));
+
+    assert.notStrictEqual(next, full);
+    assert.deepStrictEqual(ids(next.entries), ["c", "d"]);
+  });
+
+  it("a timeline holding entries over a zero bound is emptied by the next record", () => {
+    const one = ingest(
+      emptyTimeline({ capacity: 1 }),
+      decisionRecord({ evaluationId: "a", at: 100 }),
+    );
+    const over: Timeline = { entries: one.entries, capacity: 0 };
+
+    const next = ingest(over, decisionRecord({ evaluationId: "b", at: 200 }));
+
+    assert.notStrictEqual(next, over);
+    assert.deepStrictEqual(next.entries, []);
+    assert.strictEqual(next.capacity, 0);
   });
 
   /**

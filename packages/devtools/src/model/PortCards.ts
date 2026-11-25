@@ -19,7 +19,7 @@ import * as Data from "effect/Data";
 import * as Match from "effect/Match";
 import { PORTS, tabulatePorts } from "@qadi/core";
 import type { PortName } from "@qadi/core";
-import type { WiringRead } from "./DiagnosticsStore.ts";
+import type { WiringRead } from "./Diagnostics.ts";
 import type { PortCall, PortCallInterpreter, PortCallLog } from "./PortCalls.ts";
 import { describeCall } from "./PortReading.ts";
 import type { PortActivity, PortReport, WiredServiceName } from "./Wiring.ts";

@@ -13,11 +13,11 @@
  * without a statement.
  *
  * The thunk has a cadence of its own because `asked()` has no change signal. Its first
- * tick is one interval after it starts, since the build and each `configure` that hands a
- * new thunk read it themselves. A tick whose answer equals the last, or whose failure has
- * the same key, reads nothing else and publishes nothing. Two failures compare by a key (an
- * error's name and message, else its rendering), because one throw reads the same from any
- * call path where its rendered stack does not.
+ * tick is one interval after it starts, since each `configure` that hands a new thunk
+ * reads it itself. A tick whose answer equals the last, or whose failure has the same key,
+ * reads nothing else and publishes nothing. Two failures compare by a key (an error's name
+ * and message, else its rendering), because one throw reads the same from any call path
+ * where its rendered stack does not.
  *
  * Exported from the package root (ADR-QD-173): a shell builds it in a scope it owns.
  */
@@ -28,8 +28,8 @@ import * as Equal from "effect/Equal";
 import * as Schedule from "effect/Schedule";
 import type * as Scope from "effect/Scope";
 import { causeMessage } from "@qadi/core";
-import { DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS } from "./DiagnosticsStore.ts";
-import { makeExternalStore } from "./ExternalStore.ts";
+import { DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS } from "./Diagnostics.ts";
+import { makeExternalStore, sameFields } from "./ExternalStore.ts";
 import type { AskedQuestionLike, GateInstanceLike, GateRegistryLike } from "./Gates.ts";
 import { makeSupersedingRun } from "./SupersedingRun.ts";
 
@@ -78,6 +78,19 @@ export interface GatesFeedInputs {
   readonly intervalMillis?: number | undefined;
 }
 
+/**
+ * The one normaliser of the gates feed's inputs.
+ *
+ * An omitted field and one holding `undefined` become one field, so the feed holds a complete
+ * record and compares it field by field. The declared return type makes a new input a compile
+ * error until it is listed here (ADR-QD-192).
+ */
+export const completeGatesInputs = (inputs: GatesFeedInputs): Required<GatesFeedInputs> => ({
+  gates: inputs.gates,
+  questions: inputs.questions,
+  intervalMillis: inputs.intervalMillis,
+});
+
 export interface GatesFeed {
   /**
    * Registers a listener, and returns the function that removes it. Every listener is
@@ -87,7 +100,11 @@ export interface GatesFeed {
    */
   readonly subscribe: (listener: () => void) => () => void;
   readonly getSnapshot: () => GatesSnapshot;
-  /** Re-reads the registry, re-subscribes when its identity moved or the last watch failed, reads a new thunk; publishes at most once. */
+  /**
+   * Re-reads the registry, re-subscribes when its identity moved or the last watch failed, reads a
+   * new thunk; publishes at most once. A configure in which no input moved and no watch failed
+   * reads nothing.
+   */
   readonly configure: (next: GatesFeedInputs) => void;
 }
 
@@ -124,12 +141,20 @@ const UNHANDED = AskedRead.Unhanded();
 
 const snapshotOf = (registry: RegistryRead, asked: AskedRead): GatesSnapshot => ({ registry, asked });
 
-/** Builds the feed in the caller's scope; closing it releases the subscription and interrupts the cadence. */
-export const makeGatesFeed = Effect.fn("qadi.devtools.makeGatesFeed")(function* (
-  init?: GatesFeedInputs,
-): Effect.fn.Return<GatesFeed, never, Scope.Scope> {
-  let inputs: GatesFeedInputs = init ?? {};
-  let registryNow = inputs.gates;
+/**
+ * Builds the feed bare in the caller's scope; closing it releases the subscription and
+ * interrupts the cadence.
+ *
+ * The feed takes its inputs only through `configure` (ADR-QD-192), so a bare feed reads
+ * as unwatched and unhanded until it is handed something.
+ */
+export const makeGatesFeed = Effect.fn("qadi.devtools.makeGatesFeed")(function* (): Effect.fn.Return<
+  GatesFeed,
+  never,
+  Scope.Scope
+> {
+  let held = completeGatesInputs({});
+  let registryNow = held.gates;
   let release = () => {};
   // Why `subscribe` threw, if it did: the registry's changes then may not reach the feed, until `configure` watches again.
   let watchFailure: Stated | undefined;
@@ -175,7 +200,7 @@ export const makeGatesFeed = Effect.fn("qadi.devtools.makeGatesFeed")(function* 
   };
 
   const readAsked = (): AskedRead => {
-    const thunk = inputs.questions;
+    const thunk = held.questions;
     const previous = store.getSnapshot().asked;
     const previousKey = askedKey;
     askedKey = undefined;
@@ -235,11 +260,11 @@ export const makeGatesFeed = Effect.fn("qadi.devtools.makeGatesFeed")(function* 
   };
 
   const cadence = () => {
-    if (inputs.questions === undefined) {
+    if (held.questions === undefined) {
       runs.stop();
       return;
     }
-    const interval = inputs.intervalMillis ?? DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS;
+    const interval = held.intervalMillis ?? DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS;
     runs.fork(
       runs.begin(),
       Effect.sleep(interval).pipe(
@@ -249,23 +274,22 @@ export const makeGatesFeed = Effect.fn("qadi.devtools.makeGatesFeed")(function* 
     );
   };
 
-  watch(registryNow);
-  publish(readRegistry(), readAsked());
-  cadence();
-
   return {
     subscribe: store.subscribe,
     getSnapshot: store.getSnapshot,
     configure: (next) => {
       if (runs.closed()) return;
-      const before = inputs;
-      inputs = next;
-      if (next.gates !== registryNow || watchFailure !== undefined) {
-        registryNow = next.gates;
+      const wanted = completeGatesInputs(next);
+      // A failed watch is retried by any configure: the rule's one stated exception.
+      if (sameFields(held, wanted) && watchFailure === undefined) return;
+      const before = held;
+      held = wanted;
+      if (wanted.gates !== registryNow || watchFailure !== undefined) {
+        registryNow = wanted.gates;
         watch(registryNow);
       }
       let asked = store.getSnapshot().asked;
-      if (next.questions !== before.questions || next.intervalMillis !== before.intervalMillis) {
+      if (wanted.questions !== before.questions || wanted.intervalMillis !== before.intervalMillis) {
         asked = readAsked();
         cadence();
       }

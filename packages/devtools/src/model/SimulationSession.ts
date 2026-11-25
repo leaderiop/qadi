@@ -444,10 +444,13 @@ export const makeSimulationSession = Effect.fn("qadi.devtools.makeSimulationSess
     const mine = runs.begin();
     const runClock = clock;
     run = { _tag: "Running", question };
-    commit();
-    // A subscriber notified by that commit may already have superseded this run, and
-    // `fork` refuses a token that is no longer current.
-    runs.fork(mine, land(mine, question, kind, prepared, runClock, pairs));
+    // The run starts whatever a listener throws on the commit. A subscriber notified by it
+    // may have superseded this run, and `fork` refuses a token that has been superseded.
+    try {
+      commit();
+    } finally {
+      runs.fork(mine, land(mine, question, kind, prepared, runClock, pairs));
+    }
   };
 
   /**

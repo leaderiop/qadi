@@ -12,26 +12,28 @@
  * weakens ARCH-38's evidence.
  *
  * The module is out of the barrel, so it is package-private (ADR-QD-099); the
- * three names that are public, `verifySequenceIntegrity`, `SequenceIntegrityError`
- * and `SequenceNumberInvalid`, reach the barrel through
- * [SequenceIntegrity.ts](./SequenceIntegrity.ts), which re-exports them. The check is gap-and-duplicate detection, not tamper-evidence
+ * two names that are public, `verifySequenceIntegrity` and `SequenceIntegrityError`,
+ * reach the barrel through [SequenceIntegrity.ts](./SequenceIntegrity.ts), which
+ * re-exports them. The check is gap-and-duplicate detection, not tamper-evidence
  * (see that file).
+ *
+ * A row's `sequenceNumber` is a safe integer here without being checked here: only
+ * `decodeAuditEntry` gives a row one, its codec states the rule once (`AuditEntry.ts`,
+ * ADR-QD-190), and {@link verifiedArchiveFacts} takes only a list of rows the codec
+ * made (`CodecMade.ts`), so a number outside the safe integers never reaches
+ * {@link firstBreakIn}, which never adds one past `2 ** 53`. The pure
+ * {@link archiveFacts} is the reader's, over rows it has just decoded.
  */
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
-import * as Schema from "effect/Schema";
 import type { AuditEntry } from "./AuditEntry.ts";
+import { rowsRefusal } from "./CodecMade.ts";
+import type { RowsRefusalCases } from "./CodecMade.ts";
 
 /** The first place a sorted run of sequence numbers is not `previous + 1`. */
 export interface SequenceBreak {
   readonly expectedSequence: number;
   readonly actualSequence: number;
-}
-
-/** The first entry, in the order given, whose `sequenceNumber` is not a safe integer. */
-export interface InvalidSequenceNumber {
-  readonly index: number;
-  readonly sequenceNumber: number;
 }
 
 /** What {@link archiveFacts} says about a list of entries. */
@@ -46,22 +48,7 @@ export interface ArchiveFacts {
   readonly sequenceBreak: SequenceBreak | undefined;
   /** The index, in the order given, of the first entry that sorts before its predecessor. */
   readonly outOfOrderAt: number | undefined;
-  /** The first sequence number outside the safe integers, if any. */
-  readonly invalidSequenceNumber: InvalidSequenceNumber | undefined;
 }
-
-/**
- * Whether `n` may be a sequence number: a safe integer.
- *
- * The same `Schema.Int` the `AuditEntry` codec declares `sequenceNumber` with
- * (`AuditEntry.ts`), so a number the writer accepts is one `decodeAuditEntry`
- * reads back. The TypeScript type is only `number`, so without this a writer
- * handed `1.5` or `2 ** 53` would archive what the reader refuses as
- * `EntryNotDecodable` (WR-01, ADR-QD-110). It also closes the one blind spot of
- * {@link firstBreakIn}: past `2 ** 53`, `n + 1 === n`, so a duplicate there is
- * not seen as one.
- */
-const isSequenceNumber = Schema.is(Schema.Int);
 
 /**
  * The archive order: sequenced entries by number, every unsequenced entry after
@@ -106,13 +93,8 @@ export const archiveFacts = (entries: ReadonlyArray<AuditEntry>): ArchiveFacts =
     .flatMap((entry) => (entry.sequenceNumber === undefined ? [] : [entry.sequenceNumber]))
     .toSorted((a, b) => a - b);
   let outOfOrderAt: number | undefined;
-  let invalidSequenceNumber: InvalidSequenceNumber | undefined;
   let previous: AuditEntry | undefined;
   for (const [index, entry] of entries.entries()) {
-    const { sequenceNumber } = entry;
-    if (invalidSequenceNumber === undefined && sequenceNumber !== undefined && !isSequenceNumber(sequenceNumber)) {
-      invalidSequenceNumber = { index, sequenceNumber };
-    }
     if (outOfOrderAt === undefined && previous !== undefined && archiveOrder(previous, entry) > 0) {
       outOfOrderAt = index;
     }
@@ -125,19 +107,56 @@ export const archiveFacts = (entries: ReadonlyArray<AuditEntry>): ArchiveFacts =
     sequenceIntegrityVerified: sequencedCount >= 2,
     sequenceBreak: firstBreakIn(sequenceNumbers),
     outOfOrderAt,
-    invalidSequenceNumber,
   };
 };
 
 /**
- * An entry's `sequenceNumber` is not a safe integer, so the bundle could not be
- * read back: the writer's refusal of what the reader would refuse as
- * `EntryNotDecodable` (WR-01, ADR-QD-110). `index` is the entry's position in the
- * list as given.
+ * Why an archive function refused its input, one member per case, as
+ * `ArchiveRefusal` is for a stored bundle.
+ *
+ * - `NowNotFinite`: `archiveAuditTrail`'s `now` is not a finite number, and `value` is the
+ *   value given (a caller the type does not bind can give a string). A non-finite
+ *   `createdAt` is a bundle `readAuditArchive` refuses as `Malformed`, so the writer
+ *   refuses it first rather than hand a store an archive that blocks every purge needing
+ *   it.
+ * - `KeyMaterialNotAList`: `archiveAuditTrail`'s `keyMaterial` is not a list, and `value` is
+ *   the value given.
+ * - `KeyMaterialItemRefused`: the item at `index`, the first, is not what the reader reads
+ *   (an object with a string `keyId`, `algorithm` and `publicKey`), so the writer would
+ *   archive a bundle the reader refuses as `Malformed`.
+ * - `EntriesNotAList`: `entries` is not a list, and `value` is the value given. A store
+ *   client's result and a JavaScript caller's argument can be anything.
+ * - `EntryNotMadeByCodec`: the entry at `index`, the first, is not a row the codec made
+ *   (`CodecMade.ts`). The compiler refuses such a row where it can, and `any` (a store
+ *   client's `JSON.parse`, an untyped ORM result) and JavaScript callers pass it. A row
+ *   the codec did not make may be one `readAuditArchive` refuses, so the writer and
+ *   `verifySequenceIntegrity` refuse it first (ADR-QD-190).
+ *
+ * `unknown` appears only where a member holds a value the caller gave, and `index` is
+ * always a number, so a handler narrows by `_tag` alone. The last two members are the
+ * ones `RetentionInputRefusal` (`Retention.ts`) has too, stated once in `CodecMade.ts`.
  */
-export class SequenceNumberInvalid extends Data.TaggedError("SequenceNumberInvalid")<{
-  readonly index: number;
-  readonly sequenceNumber: number;
+export type ArchiveInputRefusal = Data.TaggedEnum<
+  RowsRefusalCases & {
+    NowNotFinite: { readonly value: unknown };
+    KeyMaterialNotAList: { readonly value: unknown };
+    KeyMaterialItemRefused: { readonly index: number };
+  }
+>;
+
+/** Constructors and guards for {@link ArchiveInputRefusal}. */
+export const ArchiveInputRefusal = Data.taggedEnum<ArchiveInputRefusal>();
+
+/**
+ * `archiveAuditTrail` or `verifySequenceIntegrity` refused its input; `refusal` says which.
+ *
+ * A typed result, never thrown, and not a defect whatever the value given. Shaped like
+ * `ArchiveNotVerified` and `RetentionInputInvalid` (`Retention.ts`): a `refusal` that is a
+ * closed `Data.TaggedEnum`, read through `Match.tagsExhaustive`. A different error from
+ * `RetentionInputInvalid`, because the refusals differ by which call refused.
+ */
+export class ArchiveInputInvalid extends Data.TaggedError("ArchiveInputInvalid")<{
+  readonly refusal: ArchiveInputRefusal;
 }> {}
 
 export class SequenceIntegrityError extends Data.TaggedError("SequenceIntegrityError")<{
@@ -146,9 +165,9 @@ export class SequenceIntegrityError extends Data.TaggedError("SequenceIntegrityE
 }> {}
 
 /**
- * The facts of `entries`, or `SequenceNumberInvalid` at their first sequence
- * number outside the safe integers, or `SequenceIntegrityError` at their first gap
- * or duplicate: the writer's reading of them.
+ * The facts of `entries`, or `ArchiveInputInvalid` when it is not a list or holds an entry
+ * the codec did not make, or `SequenceIntegrityError` at their first gap or duplicate: the
+ * writer's reading of them.
  *
  * The Effect wrapper `archiveAuditTrail` needs, and the one place a break becomes
  * a failure (ARCH-48, ADR-QD-110). The span keeps the name it had before the facts
@@ -158,10 +177,11 @@ export class SequenceIntegrityError extends Data.TaggedError("SequenceIntegrityE
 export const verifiedArchiveFacts = Effect.fn("qadi.audit.verifySequenceIntegrity")(function* (
   entries: ReadonlyArray<AuditEntry>,
 ) {
-  const facts = archiveFacts(entries);
-  if (facts.invalidSequenceNumber !== undefined) {
-    return yield* Effect.fail(new SequenceNumberInvalid(facts.invalidSequenceNumber));
+  const refused = rowsRefusal(entries);
+  if (refused !== undefined) {
+    return yield* Effect.fail(new ArchiveInputInvalid({ refusal: refused }));
   }
+  const facts = archiveFacts(entries);
   if (facts.sequenceBreak !== undefined) {
     return yield* Effect.fail(new SequenceIntegrityError(facts.sequenceBreak));
   }
@@ -169,8 +189,10 @@ export const verifiedArchiveFacts = Effect.fn("qadi.audit.verifySequenceIntegrit
 });
 
 /**
- * Fails `SequenceNumberInvalid` for a `sequenceNumber` that is not a safe
- * integer, before looking for a gap or duplicate.
+ * Fails `SequenceIntegrityError` at the first gap or duplicate among the
+ * entries' sequence numbers, or `ArchiveInputInvalid` when `entries` is not a list
+ * (`EntriesNotAList`) or holds an entry the codec did not make (`EntryNotMadeByCodec`,
+ * with the index of the first).
  *
  * Entries with no `sequenceNumber` are ignored — sequencing is opt-in, and a
  * caller who never assigns one has nothing here to verify.

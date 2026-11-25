@@ -6,18 +6,23 @@
  * moved the writer's ({@link archiveAuditTrail}) and the reader's
  * ({@link readAuditArchive}) order, claim rule and sequence-break check into it
  * had to leave every behavior here unchanged; the file imports only the public
- * modules for that reason. The last property, over the whole `number` domain,
- * was added after code review found the writer archiving sequence numbers the
- * reader refuses (WR-01, ADR-QD-110).
+ * modules for that reason. The property over the whole `number` domain reads the
+ * safe-integer rule at the codec, where it is stated once, and the writer is held to
+ * the reader on every row the codec makes by the sequence-break property
+ * (ADR-QD-110, ADR-QD-190). The last two
+ * properties close the writer's domain (any entries, any finite `now`, any
+ * `keyMaterial`) and the codec's (any record, hostile values included) the same way.
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as Equal from "effect/Equal";
 import * as Result from "effect/Result";
 import * as FastCheck from "fast-check";
+import { MAX_DECODE_DEPTH } from "@qadi/core";
 import { ArchiveRefusal, archiveAuditTrail, readAuditArchive } from "../src/AuditArchive.ts";
-import { encodeAuditEntry } from "../src/AuditEntry.ts";
+import { decodeAuditEntry, encodeAuditEntry } from "../src/AuditEntry.ts";
 import type { AuditEntry } from "../src/AuditEntry.ts";
-import { decisionRecord } from "./helpers.ts";
+import { decisionRecord, numbered } from "./helpers.ts";
 
 /** Twelve structurally distinct rows, each encoded once: the evaluationIds differ. */
 const pool: ReadonlyArray<AuditEntry> = Array.from({ length: 12 }, (_, i) =>
@@ -50,7 +55,9 @@ const intactInput = FastCheck.tuple(
   FastCheck.integer({ min: 0, max: 6 }),
   FastCheck.integer({ min: 0, max: 6 }),
 ).chain(([start, k, u]) => {
-  const rows = pool.slice(0, k + u).map((entry, i) => (i < k ? { ...entry, sequenceNumber: start + i } : entry));
+  const rows = pool
+    .slice(0, k + u)
+    .map((entry, i) => (i < k ? numbered(entry, start + i) : entry));
   return FastCheck.shuffledSubarray(rows, { minLength: k + u, maxLength: k + u }).map((input) => ({
     start,
     k,
@@ -222,10 +229,22 @@ describe("PROPERTY: any reordering of a written bundle is refused at the first e
 });
 
 describe("PROPERTY: the writer refuses exactly the inputs the reader reports as SequenceBroken, with the same numbers", () => {
-  const maybeSequenced = FastCheck.array(
-    FastCheck.option(FastCheck.integer({ min: 0, max: 8 }), { nil: undefined }),
-    { maxLength: 12 },
+  // Small numbers make runs and breaks likely; the safe-integer bounds are the edge a
+  // number reaches a row at.
+  const sequenceNumber = FastCheck.oneof(
+    { weight: 8, arbitrary: FastCheck.integer({ min: 0, max: 8 }) },
+    {
+      weight: 1,
+      arbitrary: FastCheck.constantFrom(
+        Number.MAX_SAFE_INTEGER,
+        Number.MAX_SAFE_INTEGER - 1,
+        -Number.MAX_SAFE_INTEGER,
+      ),
+    },
   );
+  const maybeSequenced = FastCheck.array(FastCheck.option(sequenceNumber, { nil: undefined }), {
+    maxLength: 12,
+  });
 
   it("agrees on whether the sequence is broken, and on where", () => {
     FastCheck.assert(
@@ -233,7 +252,7 @@ describe("PROPERTY: the writer refuses exactly the inputs the reader reports as 
         const entries = numbers.flatMap((sequenceNumber, i) => {
           const entry = pool[i];
           if (entry === undefined) return [];
-          return [sequenceNumber === undefined ? entry : { ...entry, sequenceNumber }];
+          return [sequenceNumber === undefined ? entry : numbered(entry, sequenceNumber)];
         });
         const writer = Effect.runSync(Effect.result(archiveAuditTrail(entries, 0)));
         const read = readAuditArchive({
@@ -256,13 +275,15 @@ describe("PROPERTY: the writer refuses exactly the inputs the reader reports as 
   });
 });
 
-describe("PROPERTY: over any number, the writer refuses what the reader would refuse, and the reader accepts the rest", () => {
+describe("PROPERTY: over any number, the codec sets the domain", () => {
   // Small integers to make contiguous runs likely, and every kind of number the
   // TypeScript type admits but the AuditEntry codec does not.
   const anyNumber = FastCheck.oneof(
     FastCheck.integer({ min: 0, max: 4 }),
     FastCheck.double(),
     FastCheck.constantFrom(
+      Number.MAX_SAFE_INTEGER,
+      -Number.MAX_SAFE_INTEGER,
       2 ** 53,
       2 ** 53 + 2,
       -(2 ** 53),
@@ -274,34 +295,157 @@ describe("PROPERTY: over any number, the writer refuses what the reader would re
       1.5,
     ),
   );
-  const maybeNumbered = FastCheck.array(FastCheck.option(anyNumber, { nil: undefined }), { maxLength: 8 });
 
-  it("fails SequenceNumberInvalid at the first non-safe-integer, and otherwise writes only readable bundles", () => {
+  it("decodeAuditEntry reads a safe integer, and refuses any other as Malformed", () => {
+    const record = pool[0]?.record ?? assert.fail("the pool is empty");
     FastCheck.assert(
-      FastCheck.property(maybeNumbered, (numbers) => {
+      FastCheck.property(anyNumber, (sequenceNumber) => {
+        const decoded = decodeAuditEntry({ record, sequenceNumber });
+        if (Number.isSafeInteger(sequenceNumber)) {
+          assert.isTrue(Result.isSuccess(decoded));
+          return;
+        }
+        if (!Result.isFailure(decoded)) return assert.fail("an unsafe number was read");
+        assert.strictEqual(decoded.failure.refusal._tag, "Malformed");
+      }),
+      { numRuns: 500 },
+    );
+  });
+});
+
+describe("PROPERTY: every archive the writer returns is read back", () => {
+  const maybeNumbered = FastCheck.array(
+    FastCheck.option(FastCheck.integer({ min: 0, max: 4 }), { nil: undefined }),
+    { maxLength: 8 },
+  );
+  // Every finite number, negative zero included, which a JSON text writes as 0.
+  const finiteNow = FastCheck.oneof(
+    FastCheck.double({ noNaN: true, noDefaultInfinity: true }),
+    FastCheck.constant(-0),
+  );
+  const text = FastCheck.string({ unit: "binary" });
+  // An item with an optional extra key: the type admits it, the writer must not carry it.
+  const keyItem = FastCheck.record(
+    { keyId: text, algorithm: text, publicKey: text, extra: text },
+    { requiredKeys: ["keyId", "algorithm", "publicKey"] },
+  );
+  const keyMaterial = FastCheck.option(FastCheck.array(keyItem, { maxLength: 3 }), {
+    nil: undefined,
+  });
+
+  it("fails as the reader reads, or writes a bundle that reads back", () => {
+    FastCheck.assert(
+      FastCheck.property(maybeNumbered, finiteNow, keyMaterial, (numbers, now, items) => {
         const entries = numbers.flatMap((sequenceNumber, i) => {
           const entry = pool[i];
           if (entry === undefined) return [];
-          return [sequenceNumber === undefined ? entry : { ...entry, sequenceNumber }];
+          return [sequenceNumber === undefined ? entry : numbered(entry, sequenceNumber)];
         });
-        // The test's own oracle for the domain, stated independently of the source.
-        const firstInvalid = entries.findIndex(
-          (entry) => entry.sequenceNumber !== undefined && !Number.isSafeInteger(entry.sequenceNumber),
+        const options = items === undefined ? undefined : { keyMaterial: items };
+        const written = Effect.runSync(
+          Effect.result(archiveAuditTrail(entries, now, options)),
         );
-        const writer = Effect.runSync(Effect.result(archiveAuditTrail(entries, 0)));
+        if (Result.isFailure(written)) {
+          return assert.strictEqual(written.failure._tag, "SequenceIntegrityError");
+        }
 
-        if (firstInvalid !== -1) {
-          if (!Result.isFailure(writer)) return assert.fail("the writer archived a non-safe-integer sequence number");
-          if (writer.failure._tag !== "SequenceNumberInvalid") return assert.fail("expected SequenceNumberInvalid");
-          assert.strictEqual(writer.failure.index, firstInvalid);
-          assert.isTrue(Object.is(writer.failure.sequenceNumber, entries[firstInvalid]?.sequenceNumber));
-          return;
+        const read = readAuditArchive(stored(written.success));
+        if (!Result.isSuccess(read)) return assert.fail("the reader refused the writer");
+        assert.strictEqual(read.success.createdAt, now);
+        assert.strictEqual(read.success.entryCount, entries.length);
+        const declared = items?.map(({ keyId, algorithm, publicKey }) => ({
+          keyId,
+          algorithm,
+          publicKey,
+        }));
+        assert.deepStrictEqual(read.success.keyMaterial, declared);
+      }),
+      { numRuns: 500 },
+    );
+  });
+
+  it("refuses a now of NaN, +Infinity or -Infinity as ArchiveInputInvalid", () => {
+    for (const now of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      const written = Effect.runSync(
+        Effect.result(archiveAuditTrail(pool.slice(0, 3), now)),
+      );
+      if (!Result.isFailure(written)) return assert.fail("a non-finite now was archived");
+      const failure = written.failure;
+      if (failure._tag !== "ArchiveInputInvalid") return assert.fail(failure._tag);
+      if (failure.refusal._tag !== "NowNotFinite") return assert.fail(failure.refusal._tag);
+      assert.isTrue(Object.is(failure.refusal.value, now));
+    }
+  });
+});
+
+describe("PROPERTY: over any record, the codec refuses it or reads it back", () => {
+  /** A value a record can hold, and whether a JSON round trip keeps it as that value. */
+  interface Hostile {
+    readonly value: unknown;
+    readonly stable: boolean;
+  }
+
+  const nested = (levels: number): unknown => {
+    let value: unknown = { leaf: true };
+    for (let i = 0; i < levels; i++) value = { inner: value };
+    return value;
+  };
+  const holed: Array<number> = [];
+  holed[2] = 1;
+
+  const hostile: ReadonlyArray<Hostile> = [
+    { value: "plain", stable: true },
+    { value: 7, stable: true },
+    { value: "\uD800", stable: true },
+    { value: -0, stable: true },
+    { value: Number.NaN, stable: true },
+    { value: 1n, stable: true },
+    { value: holed, stable: true },
+    { value: nested(MAX_DECODE_DEPTH + 10), stable: true },
+    { value: new Date(0), stable: false },
+    { value: undefined, stable: false },
+  ];
+
+  const protoResource = JSON.parse('{"__proto__": {"id": 1}}');
+
+  // A record's resource, and whether every value in it survives a JSON round trip.
+  const resource = FastCheck.oneof(
+    FastCheck.dictionary(FastCheck.string(), FastCheck.constantFrom(...hostile)).map(
+      (fields) => ({
+        resource: Object.fromEntries(
+          Object.entries(fields).map(([key, { value }]) => [key, value]),
+        ),
+        stable: Object.values(fields).every(({ stable }) => stable),
+      }),
+    ),
+    FastCheck.constant({ resource: protoResource, stable: true }),
+    FastCheck.constant({ resource: undefined, stable: true }),
+  );
+  const at = FastCheck.oneof(
+    FastCheck.double(),
+    FastCheck.constantFrom(Number.NaN, Infinity, -Infinity, -0),
+  );
+
+  it("is refused as SinkRecordNotEncodable, or read back with its own bytes", () => {
+    FastCheck.assert(
+      FastCheck.property(at, resource, (at, { resource, stable }) => {
+        const withResource = resource === undefined ? {} : { resource };
+        const record = decisionRecord({ at, ...withResource });
+        const encoded = Effect.runSync(Effect.result(encodeAuditEntry(record)));
+        if (Result.isFailure(encoded)) {
+          return assert.strictEqual(encoded.failure._tag, "SinkRecordNotEncodable");
         }
-        if (Result.isFailure(writer)) {
-          assert.strictEqual(writer.failure._tag, "SequenceIntegrityError");
-          return;
-        }
-        assert.isTrue(Result.isSuccess(readAuditArchive(stored(writer.success))));
+
+        const entry = encoded.success;
+        const bytes = JSON.stringify(entry);
+        const read = decodeAuditEntry(JSON.parse(bytes));
+        if (!Result.isSuccess(read)) return assert.fail("the codec refused its row");
+        assert.strictEqual(JSON.stringify(read.success.entry), bytes);
+
+        const again = decodeAuditEntry(JSON.parse(JSON.stringify(read.success.entry)));
+        if (!Result.isSuccess(again)) return assert.fail("the codec refused a read-back");
+        assert.isTrue(Equal.equals(again.success.entry, read.success.entry));
+        if (stable) assert.isTrue(Equal.equals(read.success.entry, entry));
       }),
       { numRuns: 500 },
     );

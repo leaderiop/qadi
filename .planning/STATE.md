@@ -1,42 +1,42 @@
 ---
 gsd_state_version: "1.0"
-milestone: v1.8
-milestone_name: Arch Wave 13
+milestone: v1.10
 status: Awaiting next milestone
-stopped_at: Phase 76 complete — all phases complete
-last_updated: "2026-11-23T20:30:02.520Z"
-last_activity: 2026-11-23
-last_activity_desc: Milestone v1.8 completed and archived
-state_head: 26fdb4e8412fa975cdabb541ee60ac6df76de9ec
+stopped_at: Milestone v1.10 complete and archived
+last_updated: "2026-11-25T09:53:59.248Z"
+last_activity: 2026-11-25
+last_activity_desc: "Milestones v1.9 + v1.10 shipped as PR #165 (not merged, not released)"
+state_head: 4863133d1cc9a2fcbc791168d57b7b1246cace53
 progress:
-  total_phases: 8
-  completed_phases: 8
-  total_plans: 63
-  completed_plans: 63
+  total_phases: 4
+  completed_phases: 4
+  total_plans: 45
+  completed_plans: 45
   percent: 100
-current_phase: 76
+milestone_name: Arch Wave 15
+current_phase: 84
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-23)
+See: .planning/PROJECT.md (updated 2026-11-25)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Planning the next milestone (v1.8 Arch Wave 13 completed 2026-11-23 on branch `arch-wave-13`; not merged, not released)
+**Current focus:** Planning the next milestone (v1.10 Arch Wave 15 complete 2026-11-25; v1.9 and v1.10 not merged, not released)
 
 ## Current Position
 
-Phase: Milestone v1.8 complete
+Phase: Milestone v1.10 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-11-23 — Milestone v1.8 completed and archived
+Last activity: 2026-11-25 -- Milestones v1.9 + v1.10 shipped as PR #165 (not merged, not released)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 442
+- Total plans completed: 535
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -111,6 +111,14 @@ Last activity: 2026-11-23 — Milestone v1.8 completed and archived
 | 74 | 7 | - | - |
 | 75 | 9 | - | - |
 | 76 | 8 | - | - |
+| QD-77 | 7 | - | - |
+| QD-78 | 11 | - | - |
+| QD-79 | 17 | - | - |
+| QD-80 | 13 | - | - |
+| QD-81 | 11 | - | - |
+| 82 | 10 | - | - |
+| 83 | 11 | - | - |
+| 84 | 13 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -552,6 +560,94 @@ Last activity: 2026-11-23 — Milestone v1.8 completed and archived
 | Phase 76 P06 | 40 min | 3 tasks | 4 files |
 | Phase 76 P07 | 35 min | 3 tasks | 16 files |
 | Phase QD-76 P08 | 45 min | 2 tasks | 4 files |
+| Phase QD-77 P01 | 15 min | 2 tasks | 3 files |
+| Phase QD-77 P02 | 25 min | 3 tasks | 5 files |
+| Phase QD-77 P03 | 10 min | 3 tasks | 15 files |
+| Phase QD-77 P04 | 14 min | 3 tasks | 5 files |
+| Phase QD-77 P05 | 14min | 2 tasks | 6 files |
+| Phase QD-77 P06 | 36 min | 3 tasks | 8 files |
+| Phase 77 P07 | 70 min | 3 tasks | 5 files |
+| Phase QD-78 P01 | 25min | 2 tasks | 2 files |
+| Phase QD-78 P02 | 30min | 2 tasks | 6 files |
+| Phase QD-78 P78-03 | 20min | 2 tasks | 4 files |
+| Phase QD-78 P78-04 | 25min | 2 tasks | 5 files |
+| Phase QD-78 P05 | 30min | 2 tasks | 3 files |
+| Phase QD-78 P78-06 | 25min | 3 tasks | 4 files |
+| Phase QD-78 P78-07 | 25min | 2 tasks | 5 files |
+| Phase QD-78 P78-08 | 40min | 2 tasks | 5 files |
+| Phase QD-78 P10 | 35min | 2 tasks | 2 files |
+| Phase QD-79 P01 | 20 min | 2 tasks | 2 files |
+| Phase QD-79 P02 | 25min | 2 tasks | 3 files |
+| Phase QD-79 P79-03 | 35min | 3 tasks | 3 files |
+| Phase QD-79 P79-04 | 30min | 2 tasks | 2 files |
+| Phase QD-79 P05 | 15min | 2 tasks | 4 files |
+| Phase QD-79 P06 | 8min | 2 tasks | 2 files |
+| Phase QD-79 P07 | 35min | 3 tasks | 8 files |
+| Phase QD-79 P08 | 40min | 3 tasks | 5 files |
+| Phase QD-79 P09 | 25min | 2 tasks | 4 files |
+| Phase QD-79 P11 | 25min | 2 tasks | 6 files |
+| Phase QD-79 P13 | 50min | 2 tasks | 7 files |
+| Phase QD-79 P14 | 95min | 3 tasks | 9 files |
+| Phase QD-79 P15 | 35min | 2 tasks | 8 files |
+| Phase QD-79 P16 | 95min | 2 tasks | 8 files |
+| Phase QD-79 P17 | 25min | 2 tasks | 2 files |
+| Phase QD-80 P01 | 50min | 3 tasks | 4 files |
+| Phase QD-80 P02 | 35min | 2 tasks | 3 files |
+| Phase QD-80 P03 | 20min | 2 tasks | 4 files |
+| Phase QD-80 P04 | 25min | 2 tasks | 3 files |
+| Phase QD-80 P06 | 15min | 2 tasks | 4 files |
+| Phase QD-80 P07 | 25min | 2 tasks | 7 files |
+| Phase QD-80 P08 | 20min | 2 tasks | 4 files |
+| Phase QD-80 P09 | 55min | 2 tasks | 8 files |
+| Phase QD-80 P10 | 15min | 3 tasks | 9 files |
+| Phase QD-80 P11 | 20min | 2 tasks | 5 files |
+| Phase QD-80 P12 | 20min | 2 tasks | 2 files |
+| Phase QD-80 P13 | 45min | 2 tasks | 1 files |
+| Phase 81 P01 | 15 min | 3 tasks | 5 files |
+| Phase QD-81 P02 | 55 min | 3 tasks | 2 files |
+| Phase QD-81 P03 | 10 min | 3 tasks | 6 files |
+| Phase QD-81 P04 | 8 min | 2 tasks | 3 files |
+| Phase QD-81 P05 | 12 min | 2 tasks | 3 files |
+| Phase QD-81 P06 | 12 min | 3 tasks | 4 files |
+| Phase QD-81 P07 | 14min | 2 tasks | 8 files |
+| Phase 81 P08 | 35min | 2 tasks | 6 files |
+| Phase QD-81 P09 | 15 min | 2 tasks | 3 files |
+| Phase QD-81 P10 | 40 min | 2 tasks | 6 files |
+| Phase QD-81 P11 | 95min | 2 tasks | 3 files |
+| Phase QD-82 P01 | 15min | 3 tasks | 4 files |
+| Phase QD-82 P02 | 25 min | 3 tasks | 2 files |
+| Phase QD-82 P03 | 40 min | 3 tasks | 4 files |
+| Phase QD-82 P04 | 12 min | 2 tasks | 4 files |
+| Phase QD-82 P05 | 20 min | 3 tasks | 3 files |
+| Phase QD-82 P06 | 22 min | 2 tasks | 8 files |
+| Phase QD-82 P07 | 14 min | 2 tasks | 6 files |
+| Phase QD-82 P08 | 9 min | 2 tasks | 3 files |
+| Phase QD-82 P09 | 12 min | 2 tasks | 2 files |
+| Phase QD-82 P10 | 4min | 2 tasks | 2 files |
+| Phase QD-83 P01 | 25min | 3 tasks | 4 files |
+| Phase QD-83 P02 | 15min | 2 tasks | 3 files |
+| Phase QD-83 P03 | 15min | 2 tasks | 2 files |
+| Phase QD-83 P04 | 15min | 3 tasks | 38 files |
+| Phase QD-83 P05 | 25min | 3 tasks | 13 files |
+| Phase QD-83 P06 | 15min | 2 tasks | 4 files |
+| Phase QD-83 P07 | 12min | 2 tasks | 7 files |
+| Phase QD-83 P08 | 25min | 2 tasks | 7 files |
+| Phase QD-83 P09 | 40min | 3 tasks | 5 files |
+| Phase QD-83 P10 | 25min | 2 tasks | 2 files |
+| Phase QD-83 P11 | 40min | 2 tasks | 2 files |
+| Phase 84 P01 | 10min | 3 tasks | 4 files |
+| Phase 84 P02 | 12min | 2 tasks | 3 files |
+| Phase QD-84 P03 | 25min | 3 tasks | 2 files |
+| Phase QD-84 P04 | 10min | 2 tasks | 2 files |
+| Phase QD-84 P05 | 20min | 2 tasks | 3 files |
+| Phase QD-84 P06 | 25min | 2 tasks | 7 files |
+| Phase QD-84 P07 | 5min | 2 tasks | 2 files |
+| Phase QD-84 P08 | 20min | 3 tasks | 10 files |
+| Phase QD-84 P09 | 15min | 2 tasks | 7 files |
+| Phase 84 P10 | 15min | 2 tasks | 7 files |
+| Phase QD-84 P11 | 25min | 2 tasks | 5 files |
+| Phase QD-84 P12 | 10min | 2 tasks | 1 files |
+| Phase QD-84 P13 | 40min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -964,9 +1060,78 @@ Last activity: 2026-11-23 — Milestone v1.8 completed and archived
 - [Phase 76]: 76-07: BEH-QD-717 and INV-QD-398 cite the core conformance rows; the dated notes are additions and BEH-QD-410's older last paragraph is left as written
 - [Phase QD-76]: 76-08: a close scan found four over-wide added lines in QadiHttpError.test.ts; fixed and the whole mutation close re-measured on the new head rather than waived (WX-04, 90 columns)
 - [Phase QD-76]: 76-08: SIGM-01..05 marked complete by hand after check:pr exited 0 on 446f0b27; WX-01..07 stay Pending until the milestone closes
+- [Phase QD-77]: 77-02: the inconsistent-record matrix row uses an evaluationId that disagrees with the record's decision; a fifteenth writer-input test pins two rows from one record
+- [Phase QD-77]: AuditEntry is a module-local nominal Data.Class exported as a type; decodeAuditEntry reads the envelope first and the record second; the writer refuses a non-finite now (ArchiveInputInvalid) and projects keyMaterial; SequenceNumberInvalid and undated removed (77-03)
+- [Phase QD-77]: 77-04: the record-domain property is gutted with an encoder writing an unreadable record, not sequenceNumber 0, which round-trips
+- [Phase QD-77]: 77-04: planPurge doc states about 22 us per row for the whole call (15 warmed rounds), not the hash alone
+- [Phase QD-77]: ADR-QD-190 records the brand, envelope-first decode, writer-input table and measured purge cost; ADR-QD-170 applied unchanged; the Date/undefined finding recorded as a consequence (decided autonomously 2026-11-23)
+- [Phase QD-77]: 77-06: BEH-QD-723 to BEH-QD-725 are named only in the CCR-QD-469 unused list; BEH-QD-489 and BEH-QD-625 read and left unchanged; upgrade-guide fence is a compiled typescript example, 0.10 fence untouched
+- [Phase 77]: A by-hand static mutant the decoder's own construction guard refuses at import (RuntimeError, untrustedDecoder: unknownKeys must be) counts as detected in the close verify — No test turns a load-time refusal into Killed; the earlier hydration close decided the same. Decided autonomously.
+
+- [Phase 77]: Code review (77-REVIEW-DISPOSITION.md): three iterations, 0 open. Run-time brand added (package-private `CodecMade.ts` WeakSet filled only by the codec; rows frozen one level); `keyMaterial` read once and checked against `KeyMaterialSchema`; non-list `entries` refused by all four row functions; `ArchiveInputInvalid`/`RetentionInputInvalid` carry closed `ArchiveInputRefusal`/`RetentionInputRefusal` enums (api-surface 942). Verification passed 5/5 (3d58ac6e); `check:pr` exit 0 at 13c0b7c7.
+- [Phase QD-78]: 78-01: mutation base recorded as measured on phase_base de13eb7f (four groups; dock 70/70 not ADR-QD-168 145/145; store survivor at TimelineStore.ts:58 at base)
+- [Phase QD-78]: 78-02: TF30 reads RED at its second refusal and M55 at the later configure with held inputs; both are the defect, tests unedited
+- [Phase QD-78]: 78-03: TF33 pins the base identity comparison of an omitted and the default capacity; 78-04 changes exactly its assertions
+- [Phase QD-78]: 78-05: the dock checks the capacity through effectiveCapacity first and applies the rest in a finally; it reads no error to tell a refusal from a listener throw
+- [Phase QD-78]: 78-08: BEH-QD-726 to 730 and INV-QD-401/402 written from the shipped code; the refusal rule first, end to end; the doc 28 traceability row lists ids, not a range
+- [Phase QD-78]: 78-10: the base's equivalent survivor in TimelineStore.accept was closed by deleting the redundant identity guard (ExternalStore.set decides), decided autonomously
+- [Phase QD-79]: 79-01: the mutation base is recorded as measured on phase_base 910cb783 (five groups, dock 72/72, store 77/78 with one open mutant at ExternalStore.ts:113), committed alone and first
+- [Phase QD-79]: ADR-QD-192 records the feeds and the dock model taking inputs only through configure, with amendments of ADR-QD-137, ADR-QD-173 and ADR-QD-185 (CCR-QD-471)
+- [Phase QD-79]: 79-14: BEH-QD-731 to 735 and INV-QD-403 and 404 state the bare feeds and the one rule; the registry read counts of ADR-QD-192 are pinned by DockRegistryReads.test.tsx, shown failing once (orchestrator-decided)
+- [Phase QD-79]: 79-15: ADR-QD-192 decision 2 and ADR-QD-185's amendment say the dock applies the one rule through its feeds (orchestrator-decided, 2026-11-24)
+- [Phase QD-79]: A bare build applies no inputs: the build-time application of the always-empty record is deleted, not pinned (orchestrator-decided)
+- [Phase QD-79]: The by-hand clause of the 79-16 verify judges undetected static mutants against the base Ignored multiset by kind (orchestrator-decided)
+- [Phase QD-80]: 80-01: dock mutation base recorded as measured, 69/69 (plan-time 72/72 was wrong); instrument search uses git grep
+- [Phase QD-80]: 80-03: a remounted guard registers under a new id (useId branch new), so a pick held by gate id needs no retain(ids)
+- [Phase QD-80]: Decision index status strings record each ADR-QD-193 amendment (orchestrator-decided)
+- [Phase QD-80]: Plan 80-12: the lens session's move returns void (its boolean was read by no caller; two unkillable BooleanLiteral mutants), orchestrator-decided
+- [Phase 81]: The mutation base of the five model files is recorded as measured: SimulationSession.ts holds 6 Survived mutants on the phase base, its floor is 242/248
+- [Phase 81]: single-source judges the blanked text of src/model/** and adds two reasons beyond the plan's list so a tree with nothing to read cannot pass
+- [Phase QD-81]: 81-02: each listener row of the dock model runs from capacity 5 (moved to 3) and capacity 3 (left), because a moved capacity lets the dock's own timeline listener deliver the explorer and simulation notification first and the catalogue step mends it; decided autonomously
+- [Phase QD-81]: 81-02: the new source yields once before it answers so its records arrive after configure returns; decided autonomously
+- [Phase QD-81]: 81-03: G49 configures the gates feed with no thunk first, so the configure's own cadence fork is the only one observable (decided autonomously)
+- [Phase QD-81]: 81-03: the pinned check cuts an added test with its separating blank line, and counts a flip applied only when its block differs and the evidence has a flip line (decided autonomously)
+- [Phase QD-81]: Decided autonomously: callAll takes Iterable<() => void> and is walked with for-of, so the live listener Set is read as it stands and no copy is made
+- [Phase QD-81]: 81-05: try/finally, not callAll, at the three publish-then-fork sites (decided autonomously): only the publish can throw there, so a callAll message could never be read
+- [Phase QD-81]: 81-06: CR22 restated from measured counts (explorer and simulation 3 to 2 in both records); DL15 rail order corrected to newest first. Decided autonomously.
+- [Phase QD-81]: Plan 81-07: ADR-QD-194 and the amendments of ADR-QD-177, ADR-QD-185, ADR-QD-191 and ADR-QD-192 written; the CCR-QD-473 row was begun in the first commit because strict verification fails on a cited CCR with no register row (decided autonomously)
+- [Phase 81]: 81-08: BEH-QD-699 retitled to four computed stores and its anchors follow; INV-QD-296 and INV-QD-403 corrected for the deleted spread (decided autonomously)
+- [Phase QD-81]: 81-09: the README states the dock configure rule in the feeds section; CCR-QD-473 has no Unused number (decided autonomously)
+- [Phase QD-81]: 81-10: the one new survivor (DiagnosticsFeed accept stale-run guard) is closed by F33, never re-baselined; TF37 moved before TF36 so the archived 79-pinned check fails on TF29 alone
+- [Phase QD-81]: 81-11: the model close was re-measured on the head holding the reordered timeline tests, and ADR-194's merge-gate references name their commands (decided autonomously)
+- [Phase QD-82]: 82-01: the react mutation base is 147/150 on phase_base (QuestionBook.ts holds 3 survivors the compare rule passes); the lease group is judged absolutely and run with --disableBail (decided autonomously)
+- [Phase QD-82]: LT6 to LT8 are red on the base through a second registry (seen.size 2), not a thrown reveal, so their fixed outcome is one registry seen
+- [Phase QD-82]: Base commit order observed: setup children before provider, cleanup parent before children, the provider's passive setup last in a good reveal; on a long-hide reveal the provider's subject effect throws first and its passive setup never runs
+- [Phase QD-82]: 82-03: LT15's short hide is two synchronous act calls (flip) because the awaited pair of LT5 crosses a macrotask in a cold run
+- [Phase QD-82]: 82-03: LT11 clears its frame log just before the reveal so a render of the hidden tree is not read as a seen frame; LT9 clears before the hide because its element is hoisted
+- [Phase QD-82]: 82-04: the lease's two matchers are built once per lease inside makeRegistryLease, not hoisted, so no arm is an Ignored mutant under ignoreStatic (decided autonomously)
+- [Phase QD-82]: 82-05: the recycle is registry.reset() then the latest committed subject re-seeded from latestRef (written in an effect); initialValues and hydration seeds are never re-applied
+- [Phase QD-82]: 82-05: the one lease survivor (the Releasing arm of the release matcher) is closed by RL10 in the lease's own tests, decided autonomously; no disable comment, module unchanged
+- [Phase QD-82]: 82-06: ADR-QD-195 records the provider lifetime rule from the observed React 19.3.1 commit order; never releasing is rejected for retention (keepAlive nodes and seed grants), not leaked fibers. Decided autonomously.
+- [Phase QD-82]: 82-06: ADR-QD-148's amendment states the observed fact (live counts already zero from idle removal, reset forks nothing); ADR-QD-014, which has no revision table, is amended by a dated header line and note. Decided autonomously.
+- [Phase QD-82]: Decided autonomously: BEH-QD-067's amendment is a dated blockquote that states the change without quoting the replaced sentence; the two limits a recycle costs a host (a subjectless or unanswered seeded gate stays Pending, a host's own registry subscription is detached) are stated in BEH-QD-067's note and BEH-QD-750 with LT9, LT10, LT15
+- [Phase QD-82]: Decided autonomously: per-behaviour rows for BEH-QD-746 to BEH-QD-750 sit in a small table under traceability section 1's range table, since section 1 held none and the plan's verify needs them
+- [Phase QD-82]: 82-08: the CCR-QD-474 row lists documents in first-changed order and names the losses a host sees after a long hide (decided autonomously)
+- [Phase QD-82]: 82-09: the mutation close needed no new test; the three QuestionBook.ts survivors the base held are carried through, never re-baselined (decided autonomously)
+- [Phase QD-82]: Decided autonomously (82-10): the gate passed first time at 6d1fda56 so no fix commit and no mutation re-close; LEASE-01..05 marked by hand; WX-01..07 were already Complete
+- [Phase QD-83]: 83-01: the mutation scorer keys a base record by base paths and a close record by close paths (RENAMED maps close to base), so one group measures the diagnostics module across its rename; DiagnosticsFeed.ts and Diagnostics.ts are absolute at the close
+- [Phase QD-83]: The F2 flip (DiagnosticsFeed.test.ts reading.questions undefined becomes assert.isFalse("questions" in reading), title unchanged) is declared in the pinned check, the scratch copy of 81-pinned-check.mjs and the evidence
+- [Phase QD-83]: Barrel export groups for Diagnostics.ts moved ahead of DiagnosticsFeed.ts to satisfy the devtools-named-barrel order rule
+- [Phase QD-83]: 83-05: removal pins written and seen red on the base, landed with the removal so each commit is green
+- [Phase QD-83]: 83-06: foldReading is a function declaration exported from the module only; keep stays private and is called only inside it
+- [Phase QD-83]: 83-07: the feed's per-run sink keeps guard, fold, sampled flag, publish order; off() resets the reading by the diagnosticsOff constant
+- [Phase QD-83]: ADR-QD-196 records the diagnostics fold, snapshot, sink and removal; ADR-QD-173, ADR-QD-169 and ADR-QD-047 amended by dated paragraphs, past text kept
+- [Phase QD-83]: Restatements are dated blockquotes under the headings; BEH-QD-755's transition table is the rows of FC1 to FC10
+- [Phase QD-83]: 83-10: the close needed no survivor test; five characterisation rows no earlier edit failed were seen failing under restored scratch edits
+- [Phase 84]: Plan 84-01: the lens session's Stryker base is 52/52 killed with 22 Ignored and nothing open; 84-check.mjs enforces the fixed phase_base and the owner's one trailer
+- [Phase QD-84]: 84-06: Configurable<I> stays exported from useConfigured.ts for its type test only and is refused from both barrels
+- [Phase 84]: ADR-QD-197 records the useTimeline per-render memo as a rejection, with the four reasons; reason 4 is a reason not to make memoisation the hooks' rule (decided autonomously)
+- [Phase QD-84]: 84-11: BEH-QD-756 to 760 and INV-QD-413 and 414 written with exact-title pinned-by; CCR-QD-476 row complete, no reserved number left Unused
 
 ### Pending Todos
 
+- v1.10: strictly serial, 81 then 82 through 84; ids reserved (ADR-QD-194 to 197, CCR-QD-473 to 476, BEH-QD-741 to 760, INV-QD-407 to 414), never run `node scripts/next-id.mjs`. Phases 81 (`@qadi/devtools`) and 82 (`@qadi/react`) are live defects, each opening with a regression test seen RED on its phase base; Phase 81's first plan commits the `DockModel.ts` and `ExternalStore.ts` Stryker baselines alone and records how the archived `79-`/`80-pinned-check.mjs` run from a scratch copy; Phase 82 needs a pre-plan spike first (`/gsd-plan-phase --research-phase 82`); Phase 83 is Breaking only if `Diagnostics.questions` is removed; Phase 84 has no defect, so it opens on green characterisations. Every grey area is decided autonomously at its discuss step (`_WAVE15-CONTEXT.md`, `research/SUMMARY.md`).
+- v1.9: strictly serial, 77 then 78 through 80; ids reserved (ADR-QD-190 to 193, CCR-QD-469 to 472, BEH-QD-721 to 740, INV-QD-399 to 406), never run `node scripts/next-id.mjs`. Phase 77 (`@qadi/audit`, live defect, **Breaking**) opens with a RED regression test written without `as` on its phase base, and needs a pre-plan probe first (`/gsd-plan-phase --research-phase 77`: the brand form's `Equal`/`Hash`/`JSON.stringify`, and the whole-archive writer inputs `entries`, `now`, `keyMaterial`). Phase 78 (`TimelineStore.resize`) is standard, no research. Phase 79 (**Breaking**, `@qadi/devtools`) opens with a first-render characterisation test, plain and under StrictMode, and needs a render-sequence spike first (`/gsd-plan-phase --research-phase 79`); 78 hard-precedes 79. Phase 80 (`LensSession`, `instrument`) is standard, no research; its tab-switch persistence and `instrument` removal are decided once at the discuss step. Soft edge 79 to 80 (`DockModel.ts`, `DevtoolsDock.tsx`); the milestone close re-verifies 77 to 79. Evidence: `.planning/phases/_WAVE14-CONTEXT.md` and `.planning/research/`.
 - v1.8: Phases 69, 70 and 71 are live defects, each opening with a regression test seen RED on its phase base; Phase 70 asks its payload-path question at the discuss step; Phase 75 opens on a human checkpoint (the outcome key and whether the old keys stay; visible to tracers; `@qadi/core` changeset); Phase 76 is speculative and may end in a recorded rejection (ADR-QD-189 and CCR-QD-468, no code change); strictly serial, 69 then 70 through 76; ids reserved (ADR-QD-182 to 189, CCR-QD-461 to 468, BEH-QD-681 to 720, INV-QD-383 to 398), never run `node scripts/next-id.mjs`; soft edges 70 to 71 (`HydrationEngine.ts`), 71 to 73 (`GateRegistry.ts`), 72 to 74 (`DockModel.test.ts`). Evidence: `.planning/phases/_WAVE13-CONTEXT.md`.
 - v1.5: Phase 43 (`@qadi/core`) and Phase 48 (`@qadi/audit`) are **Breaking**; Phase 50 opens on a `pnpm bench` measurement and may end in a recorded rejection (ADR-QD-163); Phase 48's first plan checks ADR-QD-054 and ADR-QD-056 before any code; soft edges 45 → 48, 47 → 49 and 50 → 51 (same files; serial order covers them).
 - v1.4: research-phase before planning Phases 40 and 42 (37, 38, 39, 40, 41, 42 done) (`/gsd-plan-phase --research-phase <N>`); 38, 39 and 41 are standard. Phase 40 opens on the compatibility decision for `onMalformed`/`qadi.reason`; Phase 41 opens on RED first plus the non-JSON display decision; Phase 42 opens on a human checkpoint (evidence, then one `AskUserQuestion`).
@@ -1021,10 +1186,18 @@ Last activity: 2026-11-23 — Milestone v1.8 completed and archived
 - [v1.2] Phases 21, 22 and 23 report `verification.status: stale` (later phases touched covered files); re-run their verification gates (/gsd-execute-phase 21|22|23 resumes at the gates) after Phase 29, before the milestone audit. **Resolved 2026-11-12:** all three re-verified `passed` at HEAD.
 - [Phase 22] `phase.complete` cannot match REQUIREMENTS.md's grouped traceability table (one row per phase listing several IDs), so v1.2 rows stay `Pending`; update them by hand or reshape the table. **Resolved 2026-11-12:** rows updated by hand (now archived in `milestones/v1.2-REQUIREMENTS.md`).
 
+- [Phase 77] Review limits recorded, not gaps: the codec-made registry is one per loaded copy of `@qadi/audit` (a second copy refuses the first's rows as `EntryNotMadeByCodec`); a throwing getter or `Proxy` passed as an input still throws as the host's own throw (ADR-QD-190 amendment 3).
+- [Phase 81] Review (81-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations fixed 13 findings (iteration 1: README record-path claim, vacuous lens row, package-private dock model in the README, nested `AggregateError` wording, three info; iteration 2: spec records restated for DL1..DL20 and TF37, BEH-QD-656 gains the record/sample-throw requirement; iteration 3: direct pins in `TimelineFeed.listeners.test.ts` LF1..LF3, amendment banner). `pnpm check:pr` and `pnpm spec:package` green after the fixes at daf7cd45; mutation compare exit 0 (no src change since the close). Note: `TimelineFeed.configure` re-reads a source a nested `configure` already read (TF37 pins two reads; dedup makes it harmless) — recorded, not changed. The pinned check refused a TF38 addition; the direct pins went into a new file instead. `phase.complete` warnings about `spec/decisions/1xx-...md` are false positives (abbreviated paths; the files exist).
+- [Phase 82] Review (82-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations fixed 7 findings (iteration 1: BEH-QD-749/ADR claim that the reveal's first frame reads a subject changed while hidden corrected to the one-frame read and pinned in LT6, LT16/LT17 pin the committed re-seed, LT12 drives real pressure across the hide, `leaseRef` typed `RegistryLease`, the re-seed moved into a `finally` after `reset()` with LT18, LT14 made to depend on the release; iteration 2: LT18 hears the timer's throw through a cast-free `setTimeout` wrapper instead of swapping process listeners; iteration 3 clean). Mutation re-close: react 148/150 (QuestionBook.ts:109 now killed), lease 28/28, compare exit 0; `pnpm check:pr` and `pnpm spec:package` green at 4ec88995. Validation 12/12, security 29/29 (2 low accepted), verification passed 5/5. `phase.complete` warnings name a scratch test file, a command and $TMPDIR outputs a SUMMARY mentions; not missing artifacts.
+- [Phase 83] Review (83-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations, 7 findings: 5 fixed (WR-01 the four-field pin read the folded reading, now the raw sample; WR-02 nothing pinned that a superseded sample leaves `sampled` false, now SR1 in `DiagnosticsFeed.superseded.test.ts`, seen as the only failure with `sampled = true` above the guard; WR-03 the `DockModel.reading` doc; IN-01 the changeset/upgrade pointer to the questions store; IN-04 wraps), 2 declined (IN-02 the held characterisation header; IN-03 a behaviour change against FC11/MR2). The fixer's request to loosen `83-pinned-check.mjs` was refused by the classifier and not re-done by the orchestrator. Mutation re-taken (59/59, 32/32, 65/65), check:pr and spec:package green at 13763f9f; a missing trailer on the review-report commit fixed by rebuilding 12 local commits with `git commit-tree` and remapping cited hashes. Validate 11/11, secure 27/27 (2 low accepted), verify 4/4.
+- [Phase 84] Review (84-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations, 8 findings, all fixed (WR-01 BEH-QD-756 claimed three pinned refusals with one pinned, now pinned; WR-02/WR-03 the records named a "lens group" of `stryker.devtools.mjs`, now the real mutate glob; IN-01..IN-03 iteration 1 wraps, the `Configurable` doc and a `.ts` generic comma; iteration 2 IN-01 the type-test header and IN-02 the property-not-method choice, now pinned by a fourth refusal seen failing under a method signature). The ledger dropped the two iteration-1 IN ids reused in iteration 2; they are recorded in its "Findings dropped by id reuse" section. `LensSession.ts` unchanged since the close (47/47), check:pr and spec:package green at ce02fbc7 after the fixes. Validate 16/16, secure 31/31 (none accepted), verify 5/5.
 ### Roadmap Evolution
 
 - Phase 68.1 inserted after Phase 68: Address tech debt from the v1.7 audit (owner chose a cleanup phase before completing)
 - v1.8 roadmap created 2026-11-22: Phases 69-76, one per review candidate (ARCH-116 to ARCH-123), strictly serial; 47 of 47 requirements mapped (40 phase-specific, 7 cross-cutting WX-01 to WX-07 on every phase)
+- v1.9 roadmap created 2026-11-23: Phases 77-80, one per review candidate (ARCH-124 to ARCH-127), strictly serial (owner decision D2); 28 of 28 requirements mapped (21 phase-specific, 7 cross-cutting WX-01 to WX-07 on every phase); research flags on 77 and 79
+- v1.9 completed 2026-11-24: Phases 77-80 archived to `.planning/milestones/v1.9-phases/`; audit `passed` (28/28, 9/9, 4/4)
+- v1.10 roadmap created 2026-11-24: Phases 81-84, one per review candidate (ARCH-128 to ARCH-131), strictly serial (decision D2); 27 of 27 requirements mapped (20 phase-specific, 7 cross-cutting WX-01 to WX-07 on every phase); research flag on 82
 
 ## Deferred Items
 
@@ -1037,11 +1210,12 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-23T16:52:31.825Z
-Stopped at: Milestone v1.8 completed and archived
+Last session: 2026-11-25T08:54:16.486Z
+Stopped at: Phase 84 complete — all phases complete
 Resume file: None
 
 ## Operator Next Steps
 
-- Review and merge `arch-wave-13` when the owner chooses (not done here: no push, merge or release by owner instruction)
+
+
 - Start the next milestone with /gsd-new-milestone

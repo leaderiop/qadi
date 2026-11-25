@@ -207,4 +207,55 @@ describe("useTimelineStore", () => {
     assert.strictEqual(result.current.status, status);
     assert.strictEqual(result.current.timeline, timeline);
   });
+
+  it("UT4 a changed capacity empties the hand-fed store at the new bound and keeps the store", () => {
+    const { result, rerender } = renderHook(
+      ({ capacity }) => useTimelineStore({ capacity }),
+      { initialProps: { capacity: 5 } },
+    );
+    const { store } = result.current;
+    act(() => {
+      store.accept(decisionRecord({ evaluationId: "a", at: 100 }));
+      store.accept(decisionRecord({ evaluationId: "b", at: 200 }));
+    });
+    assert.strictEqual(result.current.timeline.entries.length, 2);
+
+    rerender({ capacity: 1 });
+
+    assert.strictEqual(result.current.store, store);
+    assert.strictEqual(result.current.timeline.capacity, 1);
+    assert.deepStrictEqual(result.current.timeline.entries, []);
+
+    act(() => {
+      store.accept(decisionRecord({ evaluationId: "c", at: 300 }));
+      store.accept(decisionRecord({ evaluationId: "d", at: 400 }));
+    });
+    assert.strictEqual(result.current.timeline.entries.length, 1);
+  });
+
+  it("UT5 a re-render with the same capacity, or with none after none, keeps the hand-fed entries", () => {
+    const sized = renderHook(({ capacity }) => useTimelineStore({ capacity }), {
+      initialProps: { capacity: 3 },
+    });
+    act(() => {
+      sized.result.current.store.accept(decisionRecord({ evaluationId: "a", at: 100 }));
+    });
+    const held = sized.result.current.timeline;
+
+    sized.rerender({ capacity: 3 });
+
+    assert.strictEqual(sized.result.current.timeline, held);
+    assert.strictEqual(sized.result.current.timeline.entries.length, 1);
+
+    const bare = renderHook(() => useTimelineStore());
+    act(() => {
+      bare.result.current.store.accept(decisionRecord({ evaluationId: "b", at: 100 }));
+    });
+    const heldBare = bare.result.current.timeline;
+
+    bare.rerender();
+
+    assert.strictEqual(bare.result.current.timeline, heldBare);
+    assert.strictEqual(bare.result.current.timeline.entries.length, 1);
+  });
 });

@@ -14,21 +14,10 @@
  * decisions are reachable at `/__decisions`; what renders them is not this.
  */
 import type { FC, ReactNode } from "react";
-import { useMemo, useRef } from "react";
-import type { Source } from "../model/Source.ts";
 import type { Verdict } from "../model/Verdict.ts";
-import type { Catalogue } from "../model/Catalogue.ts";
-import type { DiagnosticsStatus } from "../model/DiagnosticsFeed.ts";
-import type {
-  Diagnostics,
-  DiagnosticsOptions,
-  DiagnosticsReading,
-} from "../model/DiagnosticsStore.ts";
-import type { DockModel } from "../model/DockModel.ts";
+import type { Diagnostics } from "../model/Diagnostics.ts";
+import type { DockModel, DockModelInputs } from "../model/DockModel.ts";
 import type { DockSnapshot, TabId } from "../model/DockSession.ts";
-import type { AskedQuestionLike, GateRegistryLike } from "../model/Gates.ts";
-import type { EvaluationPortsLayer } from "../model/SimulationInput.ts";
-import type { TimelineStatus } from "../model/TimelineFeed.ts";
 import { DecisionLog } from "./DecisionLog.tsx";
 import type { DiagnosticsNoticeProps } from "./DiagnosticsNotice.tsx";
 import { focusRingProps } from "./focusRing.ts";
@@ -38,9 +27,9 @@ import { QuestionsPanel } from "./QuestionsPanel.tsx";
 import { RoleViewer } from "./RoleViewer.tsx";
 import { ServicesPanel } from "./ServicesPanel.tsx";
 import { Simulator } from "./Simulator.tsx";
-import { noStops, type StopLedger } from "./StoppedBox.tsx";
 import { TimelineNotice, type TimelineNoticeProps } from "./TimelineNotice.tsx";
 import { useDockModel } from "./useDockModel.ts";
+import { useStopNotice } from "./useStopNotice.ts";
 import { usePaused, useStoreSnapshot } from "./useStoreSnapshot.ts";
 import { body, button, colors, dock as dockStyle, font, input, muted, toolbar } from "./theme.ts";
 
@@ -77,94 +66,21 @@ const readsTimeline: Record<TabId, boolean> = {
 
 const VERDICTS: ReadonlyArray<Verdict> = ["Allow", "Deny", "Error", "Unknown"];
 
-export interface DevtoolsDockProps {
-  /** Where records come from. Omitted, the dock renders empty rather than throwing. */
-  readonly source?: Source;
-  /** How many rows to keep. Defaults to the timeline's own bound. */
-  readonly capacity?: number;
-  /**
-   * Policies and roles the application names.
-   *
-   * Optional because the policy rail is built from what the log has **seen** —
-   * every record carries its policy — so this adds only what has not run yet,
-   * plus the names. Roles are not observable at all and come only from here.
-   */
-  readonly catalogue?: Catalogue;
-  /**
-   * What to sample while the dock is mounted: the application's layer and the
-   * port-call collector, each optional.
-   *
-   * The way to keep the Services and React panels current without writing the
-   * loop: the dock samples on a schedule, keeps a reading's identity while it is
-   * unchanged, and releases the layer on unmount. Absent, nothing is sampled and
-   * the panels explain what they would need; `{}` samples the metric reads
-   * alone. Hold the fields at module scope, since the run restarts when one of
-   * them changes identity. The dock's model polls in its own scope, so a
-   * hidden-then-shown dock samples afresh, from its first sample.
-   *
-   * Gates and questions are not in it: the gates come from the registry the `gates`
-   * prop below hands over, and the questions from the `questions` prop after it,
-   * both read by the dock's model in its own scope.
-   */
-  readonly diagnostics?: DiagnosticsOptions;
-  /**
-   * A reading taken elsewhere, such as another process's or a fixture's.
-   *
-   * Each field it carries takes precedence over the same field of what
-   * `diagnostics` samples, and a field it omits falls through to the sample
-   * (`mergeReading`). It answers "what did another process see", which sampling
-   * this one cannot: for this process, hand over `diagnostics` instead. Its
-   * `wiring` is a `WiringRead`, so a reading from elsewhere can state a failed
-   * read as well as a report; its `portCalls` come from `collectPortCalls` and
-   * need the collector's tracer layer wired where evaluations ran; its
-   * `questions` are usually `atoms.asked()` from `@qadi/react`.
-   */
-  readonly reading?: DiagnosticsReading;
-  /**
-   * The registry of live guards, usually the feed's `gates` or `atoms.gates` from `@qadi/react`.
-   *
-   * Needs `instrument` on the `QadiProvider` to list anyone, so it is opt-in
-   * twice over — a host has to ask for the registry and then hand it here. The
-   * dock's model subscribes to it in its own scope, so the host does not
-   * re-render when a guard mounts or goes (ADR-QD-162).
-   */
-  readonly gates?: GateRegistryLike;
-  /**
-   * The questions asked so far, usually the feed's `questions` or `atoms.asked` from `@qadi/react`.
-   *
-   * Read by the dock's model on the diagnostics cadence, never by the poll: a throw is stated in
-   * the React panel while the poll keeps running (ADR-QD-169). Hold it at module scope or in a
-   * `useMemo`, since the model reads it again when its identity changes.
-   */
-  readonly questions?: () => ReadonlyArray<AskedQuestionLike>;
+/**
+ * What `DevtoolsDock` takes: the dock model's inputs, stated once on `DockModelInputs`, and
+ * the two the host hands its screens untouched.
+ */
+export interface DevtoolsDockProps extends DockModelInputs {
   /** Parent names `resolveRoleGraph` dropped. */
-  readonly unknownParents?: ReadonlyArray<string>;
+  readonly unknownParents?: ReadonlyArray<string> | undefined;
   /** Usually `useInvalidate()`. */
-  readonly onInvalidate?: () => void;
-  /**
-   * The application's own resolvers, for the simulator's `Live` source.
-   *
-   * The only way anything in this package performs I/O, so it is opt-in by the
-   * application author. Without it the simulator still works on fixtures, and
-   * the `Live` option is shown disabled with the reason.
-   */
-  readonly ports?: EvaluationPortsLayer;
+  readonly onInvalidate?: (() => void) | undefined;
 }
 
 /** What the dock hands its screens untouched: the host's own, not the model's. */
 type HostProps = Pick<DevtoolsDockProps, "unknownParents" | "onInvalidate">;
 
-export const DevtoolsDock: FC<DevtoolsDockProps> = ({
-  source,
-  capacity,
-  catalogue,
-  diagnostics,
-  reading,
-  ports,
-  gates,
-  questions,
-  ...host
-}) => {
+export const DevtoolsDock: FC<DevtoolsDockProps> = ({ unknownParents, onInvalidate, ...inputs }) => {
   /**
    * The model owns every store a screen reads, so leaving a tab is not a choice
    * the reviewer made by looking elsewhere and coming back (INV-QD-107), and the
@@ -175,9 +91,9 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({
    * It is built in a scope this component owns, so it does not exist on the first
    * pass, and the frame below, whose hooks read it once, is not rendered until it does.
    */
-  const model = useDockModel({ source, capacity, catalogue, ports, diagnostics, reading, gates, questions });
+  const model = useDockModel(inputs);
 
-  return model === undefined ? null : <DockFrame model={model} host={host} />;
+  return model === undefined ? null : <DockFrame model={model} host={{ unknownParents, onInvalidate }} />;
 };
 
 /**
@@ -194,19 +110,9 @@ const DockFrame: FC<{
   const view = useStoreSnapshot(dock);
   // Each field is the supplied reading's when it carries one, and the sample's otherwise: the model merges.
   const { status, reading: shown } = useStoreSnapshot(model.diagnostics);
-  // Records only which stops were announced, never what the reading says (AGENTS.md §13).
-  const announced = useRef<StopLedger<DiagnosticsStatus>>(noStops);
-  const notice = useMemo(
-    () => ({ status, onRestart: model.diagnostics.restart, announced }),
-    [status, model],
-  );
+  const notice = useStopNotice(status, model.diagnostics.restart);
   const timelineStatus = useStoreSnapshot(model.timelineStatus);
-  // Records only which stops were announced, never what the status says (AGENTS.md §13).
-  const timelineAnnounced = useRef<StopLedger<TimelineStatus>>(noStops);
-  const timelineNotice = useMemo(
-    () => ({ status: timelineStatus, onRestart: model.timelineStatus.restart, announced: timelineAnnounced }),
-    [timelineStatus, model],
-  );
+  const timelineNotice = useStopNotice(timelineStatus, model.timelineStatus.restart);
   const paused = usePaused(timeline);
 
   return (
@@ -348,6 +254,7 @@ const Screen: FC<{
     questions: () => (
       <QuestionsPanel
         questions={props.model.questions}
+        lens={props.model.lens}
         hydration={props.shown.hydration}
         onInvalidate={props.host.onInvalidate}
         diagnostics={notice}
