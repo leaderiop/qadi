@@ -178,6 +178,30 @@ Evidence:
   - `pnpm spec:verify:strict` passes.
   - The archived v1.9 checks and Phase 81's checks are re-run from scratch copies where they hold React files. 81 touched none, so expect no React-held test.
 
+### Refinements after the research spike (decided autonomously, 2026-11-25; `82-RESEARCH.md`)
+The spike confirmed the shape: the lease, `reset()` and a subject re-seed, one identity, and the sweep left untouched. These corrections apply. Where they differ from D-01..D-18, they win.
+- **D-19 — D-08's reason for rejecting "never release" is corrected.** On effect 4.1.2, idle removal already releases an unsubscribed `Atom.runtime` layer scope (probe `3e`). An unreleased registry retains only `keepAlive` nodes: the subject, seed grants, the runtime's layer atom and host `initialValues` atoms. So never releasing is rejected because it retains those nodes and grants past the provider's life, not because it leaks fibers.
+  - ADR-QD-195 says this, and corrects PITFALLS 82-D where it is cited.
+  - D-10's accepted trade is measured as no leak: a straggling read after a recycle re-acquires the layer, and idle removal releases it again.
+- **D-20 — D-15's observable is replaced.** A layer finalizer still fires when the release is skipped, so it cannot make `edges.test.tsx:257` fail. The test reads `RegistryContext`'s registry after the timer, using a `keepAlive` host atom seeded through `initialValues`:
+  - after a release it reads the atom's default;
+  - with the release skipped it reads the seed;
+  - under `dispose()` it throws.
+- **D-21 — D-12's pin uses an unanswered question.** It uses a resolver that never answers. An answered question never re-reads its seed: `announced` is keyed by registry and survives `reset()`. So a test on an answered question is vacuous.
+  - A second recorded loss: with `subject={undefined}` and a seed, the gate stays `Pending` after a long hide until a subject arrives. This is fail-closed and correct, because a seed is not an authority (ADR-QD-039). It is recorded in ADR-QD-195, BEH-QD-067's note and the changeset, and pinned by a test.
+  - Today's S2 paints the superseded allow and reports a second hydration mismatch. After the fix it paints `Pending` and reports once. The tests and the ADR state both.
+- **D-22 — `reset()` detaches a live subscriber.** A host that holds a `registry.mount` or `subscribe` across a hide is detached silently, because `reset()` clears live listeners (probe `3b2`). In `<Activity>` order every consumer has already unsubscribed before the timer fires, so Qadi's own hooks lose nothing. ADR-QD-195 states the limit for a host's own direct subscription, BEH-QD-067 documents it, and a test pins it.
+- **D-23 — The lease's shape as measured.**
+  - It is a closed union `Unheld | Held | Releasing` (carrying `cancel`), dispatched with a hoisted `Match.tagsExhaustive`.
+  - `cancel` is the only cancellation mechanism: no second guard inside the callback, which would make removing `cancel()` an equivalent mutant.
+  - One lease test runs on the default `setTimeout` defer with a real macrotask.
+  - The lease's own test file must kill every mutant by itself, even though the rendered tests also reach it under `perTest`.
+  - The re-seed is `registry.set(latest.atoms.subject, latest.subject)`, the same public call the provider's effect makes.
+- **D-24 — The RED test asserts on an error boundary's caught list and the captured `console.error`.** With a boundary, `act` does not throw. The observed commit order quoted in ADR-QD-195 is:
+  - Setup runs children before the provider, layout before passive, so the provider's `hold` runs last on reveal.
+  - Cleanup runs parent before children, layout before passive.
+  - `82-RED-EVIDENCE.md` re-records it at execution.
+
 ### Claude's Discretion
 - The lease's exact export names, and whether the recycle action is passed at build time or held by the provider.
 - Whether the release probe of D-15 is an `Atom.runtime` layer finalizer or a test-only registry wrapper. It must observe the real release.
