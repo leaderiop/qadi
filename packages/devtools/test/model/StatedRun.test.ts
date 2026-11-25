@@ -400,10 +400,62 @@ describe("the stated run", () => {
       assert.include(log, "B:interrupted");
       assert.deepStrictEqual(stops, []);
     }));
+
+  it.effect("ST18 an engine that throws while it is built is a stop of its run, and the run after it starts", () =>
+    Effect.gen(function* () {
+      const stops: Array<string> = [];
+      const run = yield* built(stops);
+      const log: Array<string> = [];
+
+      const { threw } = thrownBy(() =>
+        run.start({
+          starting: () => {
+            log.push("A:starting");
+          },
+          engine: () => {
+            throw new Error("build threw");
+          },
+        }),
+      );
+      yield* settleTurns;
+
+      assert.isFalse(threw);
+      assert.strictEqual(stops.length, 1);
+      assert.strictEqual(stops[0]?.split("\n")[0], "Error: build threw");
+
+      run.start(planOf(log, "B", Effect.void));
+      yield* settleTurns;
+      assert.deepStrictEqual(log, ["A:starting", "B:starting", "B:engine"]);
+      assert.strictEqual(stops.length, 1);
+    }));
+
+  it.effect("ST19 an engine that throws while it is built does not replace the listener's throw, and is stated all the same", () =>
+    Effect.gen(function* () {
+      const stops: Array<string> = [];
+      const run = yield* built(stops);
+      const listener = new Error("listener threw");
+
+      const { threw, thrown } = thrownBy(() =>
+        run.start({
+          starting: () => {
+            throw listener;
+          },
+          engine: () => {
+            throw new Error("build threw");
+          },
+        }),
+      );
+      yield* settleTurns;
+
+      assert.isTrue(threw);
+      assert.strictEqual(thrown, listener);
+      assert.strictEqual(stops.length, 1);
+      assert.strictEqual(stops[0]?.split("\n")[0], "Error: build threw");
+    }));
 });
 
 /**
- * ST1 to ST16 pin each rule on one hand-picked sequence. This states them together as a
+ * ST1 to ST16, ST18 and ST19 pin each rule on one hand-picked sequence. This states them together as a
  * model, and checks the module against it after every step of a random interleaving of
  * starts, stops and a close. Every engine but `Never` ends in the start's own synchronous
  * step, so the model needs no clock: a start supersedes the run before it, an engine that

@@ -25,8 +25,9 @@
  * a store publish between the two steps. A throw on the published state is the listeners' own:
  * every listener is called, and what they threw is rethrown out of `start` once the new run has
  * started, one value as itself and several as one `AggregateError`, so a status never says a run
- * is under way with nothing running. The engine is built after `starting` returns, so a plan can
- * read what the publish changed.
+ * is under way with nothing running. The engine is built inside the run's own fiber, after
+ * `starting` returns, so a plan can read what the publish changed, and an engine that throws as
+ * it is built is a defect of the run, stated like any other, which never replaces the listeners' throw.
  *
  * The scope owns the run: closing it interrupts the engine, and a `start` after the close does
  * nothing, so a restart on a closed store publishes no state that nothing follows.
@@ -52,7 +53,10 @@ export interface RunLive {
 export interface RunPlan {
   /** Publishes the state shown while the run starts; it may throw, and the engine starts all the same. */
   readonly starting: () => void;
-  /** The run itself, built after `starting` returns; a non-success exit of a current run is stated. */
+  /**
+   * The run itself, built in the run's fiber after `starting` returns, so a throw while building
+   * it is a defect of the run; a non-success exit of a current run is stated.
+   */
   readonly engine: (live: RunLive) => Effect.Effect<void, unknown>;
 }
 
@@ -87,7 +91,7 @@ export const makeStatedRun = Effect.fn(function* (
     } finally {
       runs.fork(
         token,
-        Effect.exit(plan.engine(live)).pipe(
+        Effect.exit(Effect.suspend(() => plan.engine(live))).pipe(
           Effect.flatMap((exit) =>
             Effect.sync(() => {
               if (runs.isCurrent(token) && Exit.isFailure(exit)) stopped(causeMessage(exit.cause));
