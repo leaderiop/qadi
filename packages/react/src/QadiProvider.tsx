@@ -57,6 +57,7 @@ import type { ProviderSignal, ProviderSignalReporter } from "./DeveloperSignals.
 import { MissingQadiProviderError } from "./MissingQadiProviderError.ts";
 import type { QadiAtoms } from "./QadiAtoms.ts";
 import { makeRegistryLease } from "./RegistryLease.ts";
+import type { RegistryLease } from "./RegistryLease.ts";
 import { GateScopeContext } from "./useGate.ts";
 
 export interface QadiContextValue {
@@ -261,8 +262,10 @@ export const QadiProvider = ({
     atomsIdentityRef.current = atoms;
   }, [atoms]);
 
-  // What the recycle re-seeds from: the atoms and subject of the last commit,
-  // written in an effect so a render React discards never reaches it.
+  // What the recycle re-seeds from: the atoms and subject of the last commit whose
+  // effects ran, written in an effect so a render React discards never reaches it. A
+  // hidden tree runs no effects, so a prop that changed while hidden is not in it
+  // until the reveal's subject effect writes it (the one-frame tradeoff recorded at the subject effect below).
   const latestRef = useRef({ atoms, subject });
   useEffect(() => {
     latestRef.current = { atoms, subject };
@@ -272,11 +275,16 @@ export const QadiProvider = ({
   // runtime's layer scope; the subject is then written back so a consumer
   // subscribing on reveal reads it. Neither `initialValues` nor a hydration seed
   // is written back: a seed is not an authority (ADR-QD-039), and a re-applied
-  // one could paint an allow the client has since replaced.
-  const leaseRef = useRef<ReturnType<typeof makeRegistryLease> | undefined>(undefined);
+  // one could paint an allow the client has since replaced. The write runs even when
+  // a finalizer makes the reset throw, because the reset has already cleared the
+  // nodes by then and a consumer would otherwise subscribe to an unset subject.
+  const leaseRef = useRef<RegistryLease | undefined>(undefined);
   const lease = (leaseRef.current ??= makeRegistryLease(() => {
-    registry.reset();
-    registry.set(latestRef.current.atoms.subject, latestRef.current.subject);
+    try {
+      registry.reset();
+    } finally {
+      registry.set(latestRef.current.atoms.subject, latestRef.current.subject);
+    }
   }));
 
   // Reverted from a render-phase write (ticket 34): that version reproducibly
