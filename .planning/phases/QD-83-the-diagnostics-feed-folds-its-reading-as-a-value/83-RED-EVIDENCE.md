@@ -155,3 +155,30 @@ How it was produced: one blank line appended to `packages/devtools/test/model/Co
 scratch directory), then `node <D>83-earlier-checks.mjs`; the scratch copy of `81-pinned-check.mjs` failed on it and the file
 was restored with `cp`. The scratch copy declares the rename's four import edits and the `F2` flip; `4 of 5 declared flips
 applied` is the `F2` flip not yet applied. Phase 81's directory and the archive are only read.
+
+## 83-03 the characterisation
+
+- characterisation green on the base: Tests  11 passed (11)
+- failed (no-guard): FC9 a sample the superseded run takes is dropped, so the feed stays Starting until the newest run samples
+  - expected [ { status: 'Starting', …(2) }, …(1) ] to deeply equal [ { status: 'Starting', …(2) } ]
+- failed (no-keep): FC2 configure with empty options publishes Starting over the empty reading, then Live with the first sample folded in
+  - expected [ { status: 'Starting', …(2) }, …(1) ] to deeply equal [ { status: 'Starting', …(2) }, …(1) ]
+- failed (no-keep): FC3 identical samples after the first Live publish nothing
+  - expected [ { status: 'Live', …(2) }, …(2) ] to deeply equal []
+- failed (no-keep): FC4 one field moving publishes once, and the other fields keep their references
+  - expected [ { status: 'Live', …(2) }, …(1) ] to deeply equal [ { status: 'Live', …(2) } ]
+- failed (no-keep): FC7 restart over an unchanged world publishes Starting then Live over the same reading object
+  - expected [ { status: 'Starting', …(2) }, …(1) ] to deeply equal [ { status: 'Starting', …(2) }, …(1) ]
+- failed (no-keep): FC8 configure undefined publishes Off by identity, and a stop before the next run's first sample is unsampled
+  - expected [ { status: 'Off', …(2) }, …(2) ] to deeply equal [ { status: 'Off', …(2) }, …(2) ]
+- failed (no-keep): FC9 a sample the superseded run takes is dropped, so the feed stays Starting until the newest run samples
+  - expected [ { status: 'Starting', …(2) }, …(1) ] to deeply equal [ { status: 'Starting', …(2) }, …(1) ]
+- failed (no-keep): FC10 a start after Off folds into the empty reading, not the reading shown before Off
+  - expected [ { status: 'Starting', …(2) }, …(1) ] to deeply equal [ { status: 'Starting', …(2) }, …(1) ]
+
+How it was produced: with the copies kept first in the scratch directory, line 191 of `packages/devtools/src/model/DiagnosticsFeed.ts`
+(the run guard, `if (!runs.isCurrent(token)) return;`) was deleted for the `no-guard` run, and for the `no-keep` run `keep` in
+`packages/devtools/src/model/DiagnosticsStore.ts` was made to return `next` unconditionally. Each file was restored with `cp` before
+the next edit and before the commit; `git diff --quiet HEAD -- packages scripts` held afterwards. The row FC9 is the only one the
+guard's removal fails (the stale run's sample publishes a `Live` the tape does not expect); the removal of the keep fails the
+rows that compare reading identity (FC2, FC3, FC4, FC7, FC8, FC9, FC10).
