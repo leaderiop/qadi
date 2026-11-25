@@ -193,3 +193,14 @@ on the base: LT1 to LT4 and LT6 to LT15 and the rewritten edges test.
   (`test/edges.test.tsx:282`): the `keepAlive` host atom seeded through `initialValues` read `seeded` while mounted, and a
   real 50 ms macrotask after the unmount the registry was disposed, where a release reads the atom's default. The rewritten
   test replaces `disposes its registry when unmounted`, which only asserted an empty body and passed whatever the provider did.
+
+## LT5 made order-independent (orchestrator, after 82-03)
+
+LT5's short hide was `await hide(); await show();`, two awaited async `act` calls; in a cold run a macrotask could fall between
+them, so run alone (`-t "LT5 "`) it failed in 5 of 6 runs (`deferred-items.md`). It now flips the mode in two synchronous `act`
+calls (`flip("hidden")`, `flip("visible")`), as LT15's short-hide control does. Still on the phase base:
+
+- passes run alone, 6 of 6 runs: `Tests  1 passed | 14 skipped (15)`
+- failed (scratch): LT5 a hide shorter than a macrotask recycles nothing — the same copy-backed scratch edit as above
+  (the cleanup disposes at once, no `setTimeout`): `AssertionError: expected [ …(3) ] to deeply equal []`; the file was
+  restored with `cp` and `git diff --quiet HEAD -- packages/react/src` held.

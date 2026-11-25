@@ -376,8 +376,8 @@ describe("a provider hidden past one macrotask and shown again", () => {
     r.mount(() => element);
     await settle();
 
-    await r.hide();
-    await r.show();
+    r.flip("hidden");
+    r.flip("visible");
     await pastTheRelease();
     await settle();
 

@@ -15,3 +15,6 @@ rig of the lifetime file, LT15).
 Left alone on purpose: 82-03 must keep LT1 to LT8 exactly as 82-02 committed them. A later plan that runs LT5 alone
 (a `-t "LT5 "` verify, or a mutation run that isolates it) should change its short hide to `flip("hidden")` then
 `flip("visible")` first, or run it with the file.
+
+**Resolved after 82-03 (orchestrator):** LT5 now uses `flip("hidden")` then `flip("visible")`; it passes run alone 6 of 6
+times and still fails under the synchronous-dispose scratch edit. Recorded in `82-RED-EVIDENCE.md`.
