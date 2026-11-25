@@ -54,6 +54,35 @@ created: "2026-11-25"
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
+### Per-task map (filled from the plans)
+
+| Task | Requirement | Automated verify (each task's `<verify>`) | Status |
+|------|-------------|--------------------------------------------|--------|
+| 88-01-T1 | WX-05 | base record judge, `88-mutation.mjs --self-test`, first-commit check | ⬜ |
+| 88-01-T2 | SBOX-01, WX-06 | vitest JSON over the dock file: ten A rows passing, each seen failing | ⬜ |
+| 88-01-T3 | SBOX-01, WX-06 | vitest JSON over both born files: fourteen rows, H1 to H3 and C1 seen failing; tsc | ⬜ |
+| 88-02-T1 | WX-04, WX-07 | `88-check.mjs --self-test` (incl. `commit` refusing the never-stage list), `base`, `scan-ids`, `scan-forbidden`, `trailers` | ⬜ |
+| 88-02-T2 | WX-02 | self-test; both shape modes exit 1 on the base; `records` both ways | ⬜ |
+| 88-02-T3 | WX-06 | twelve `check failed` lines; `commit` | ⬜ |
+| 88-03-T1 | SBOX-01 | `88-pinned-check.mjs` plain line; `--all-applied` exit 1 | ⬜ |
+| 88-03-T2 | WX-06 | self-test; five `check failed: pinned` lines; `commit` | ⬜ |
+| 88-04-T1 | WX-07 | `88-earlier-checks.mjs` on the tree; no earlier directory written | ⬜ |
+| 88-04-T2 | WX-06 | self-test; seen failing; `commit` | ⬜ |
+| 88-05-T1 | SBOX-03, WX-06 | table test on disk and uncommitted, module absent; `red before` entry with the current HEAD and the test blob | ⬜ |
+| 88-05-T2 | SBOX-03 | `suite --partial --passing` L1 to LAW3; three variant sections; tsc; one commit of test, module and evidence carrying the recorded blob, neither source file in its parent; pinned `3 of 3 born` | ⬜ |
+| 88-06-T1 | SBOX-02, SBOX-03 | whole-project `suite --green`; `box-keys-itself`; `ledger-module`; tsc; house style; pinned `4 of 5` | ⬜ |
+| 88-06-T2 | SBOX-02 | SB1 to SB4 passing; both Simulator style variants recorded | ⬜ |
+| 88-06-T3 | SBOX-04, WX-04 | twelve refusals; surface-refusal variant; pinned `--all-applied`; earlier checks; every mode | ⬜ |
+| 88-07-T1 | SBOX-04, WX-06 | V1 to V5 judged against the variant map | ⬜ |
+| 88-07-T2 | SBOX-04, WX-06 | V6 to V10, H3, VN1, VN2 judged; every `UNMEASURED` variant id proved | ⬜ |
+| 88-08-T1 | WX-05 | close record absolute; `compare`; probe seen failing; examined kinds | ⬜ |
+| 88-08-T2 | WX-03, WX-05 | one patch changeset; coverage; every phase check | ⬜ |
+| 88-09-T1 | WX-02 | ADR-QD-201 shape; index; CCR row; spec gates; `scan-ids` | ⬜ |
+| 88-09-T2 | SBOX-04, WX-02 | BEH-QD-776 to 780, INV-QD-421, 422 once each; `records`; spec gates | ⬜ |
+| 88-09-T3 | WX-02, WX-03 | `records --close`; spec gates; `spec:api`; unmoved docs | ⬜ |
+| 88-10-T1 | WX-01 | `pnpm check:pr` exit 0 on the recorded head | ⬜ |
+| 88-10-T2 | WX-07 | every phase check; no-release proofs; commit scope | ⬜ |
+
 ---
 
 ## Wave 0 Requirements

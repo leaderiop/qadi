@@ -633,7 +633,19 @@ Plans:
   4. ADR-QD-201 (or ADR-QD-197 amended with 201 named unused), BEH, INV and traceability record the change, the unmeasured React files are listed in the phase's `UNMEASURED`, and each is proved with a scratch variant (SBOX-04).
 
 **Planning notes**: Standard patterns (small; precedent ADR-QD-197). The discuss step decides to relocate the render-phase ref read into the wrapper (recommended; an opaque ledger closure) or remove it; a `WeakMap` is rejected because it changes what "announced" means for a never-mounted stop. Constraints that are findings: the ledger is never inside the box or a screen (every tab switch would re-announce); one ref per feed, not one for both; no memo keyed on `status` alone; no write during render (StrictMode loses the alert in dev and a discarded render would record a stop that never committed); no `role="alert"` added to a mounted element; no module-scope ledger (`MODULE_STATE_BUDGET`). Stryker: no config reaches `src/react`, so the one real decision (the ledger transition) goes into a pure function with a table test, ideally under `model/`, and the rest is `UNMEASURED` and proved with scratch variants.
-**Plans**: TBD
+**Plans**: 10 plans
+
+Plans:
+- [ ] 88-01 (W1): The phase base and the mutation base (nothing measured is touched, the ledger module born) recorded first; A1 to A5 through the dock, plain and StrictMode, and H1 to H3 and C1 through the hook, green on the base and each seen failing
+- [ ] 88-02 (W2): The phase check (`88-check.mjs`): ids and phrases, forbidden constructs, the exact trailer, vitest and the suite judge, two shape modes for the box and the ledger module, the records; each mode seen failing
+- [ ] 88-03 (W3): The pinned-test check: every devtools test held but five declared files changed inside named regions, the dock and both barrels held, three born files held from their adding commits; seen failing
+- [ ] 88-04 (W4): The earlier-phase checks (Phases 85, 86 and 87) from scratch copies against a measured ledger, 87's pinned report computed and explained by named 88 commits; seen failing
+- [ ] 88-05 (W5): `StopLedger.test.ts` (L1 to L6, LAW1 to LAW3) seen red before the module exists, the run recorded with the test blob; `model/StopLedger.ts` written to it; each law seen failing under a module variant; test and module committed together
+- [ ] 88-06 (W6): The box keys itself, decides at mount and records at commit through a per-feed `useReducer`; the notices hand it the notice whole; the declared test edits, the Simulator reason comparison and the surface refusals; every phase check green
+- [ ] 88-07 (W7): The scratch variants V1 to V10, H3, VN1 and VN2 over the unmeasured React files, each recorded with the rows it fails
+- [ ] 88-08 (W8): The Stryker close of `model/StopLedger.ts` (every mutant killed, static ones examined), coverage, the patch changeset, every phase check on the close head
+- [ ] 88-09 (W9): ADR-QD-201 with its audit table, BEH-QD-776 to 780, INV-QD-421 and 422, BEH-QD-759 restated and BEH-QD-509 linked, ADR-QD-197 amended (CCR-QD-480)
+- [ ] 88-10 (W10): `pnpm check:pr` green at the close, run alone; nothing released; every commit trailed and in scope
 
 **UI hint**: no (the announced alert and its test ids are unchanged; only where the key and ledger live moves)
 
