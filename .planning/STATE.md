@@ -5,16 +5,16 @@ milestone_name: Arch Wave 15
 current_phase: 83
 current_phase_name: The diagnostics feed folds its reading as a value
 status: executing
-stopped_at: Completed 83-01-PLAN.md
-last_updated: "2026-11-25T04:02:12.688Z"
+stopped_at: Completed QD-83-02-PLAN.md
+last_updated: "2026-11-25T04:06:33.959Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 82 complete, transitioned to Phase 83
-state_head: 626faa060ef90dfd4b9a16caab56a3d95c56c6b8
+state_head: 1a30742606f69d07ef79f9de67023cbd2e71fb67
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 32
-  completed_plans: 22
+  completed_plans: 23
   percent: 50
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-83 (The diagnostics feed folds its reading as a value) — READY TO EXECUTE
-Plan: 2 of 11
+Plan: 3 of 11
 Status: Ready to execute
 Last activity: 2026-11-25 — Phase 82 complete, transitioned to Phase 83
 
@@ -625,6 +625,7 @@ Last activity: 2026-11-25 — Phase 82 complete, transitioned to Phase 83
 | Phase QD-82 P09 | 12 min | 2 tasks | 2 files |
 | Phase QD-82 P10 | 4min | 2 tasks | 2 files |
 | Phase QD-83 P01 | 25min | 3 tasks | 4 files |
+| Phase QD-83 P02 | 15min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -1092,6 +1093,7 @@ Last activity: 2026-11-25 — Phase 82 complete, transitioned to Phase 83
 - [Phase QD-82]: 82-09: the mutation close needed no new test; the three QuestionBook.ts survivors the base held are carried through, never re-baselined (decided autonomously)
 - [Phase QD-82]: Decided autonomously (82-10): the gate passed first time at 6d1fda56 so no fix commit and no mutation re-close; LEASE-01..05 marked by hand; WX-01..07 were already Complete
 - [Phase QD-83]: 83-01: the mutation scorer keys a base record by base paths and a close record by close paths (RENAMED maps close to base), so one group measures the diagnostics module across its rename; DiagnosticsFeed.ts and Diagnostics.ts are absolute at the close
+- [Phase QD-83]: The F2 flip (DiagnosticsFeed.test.ts reading.questions undefined becomes assert.isFalse("questions" in reading), title unchanged) is declared in the pinned check, the scratch copy of 81-pinned-check.mjs and the evidence
 
 ### Pending Todos
 
@@ -1173,8 +1175,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T04:02:06.536Z
-Stopped at: Completed 83-01-PLAN.md
+Last session: 2026-11-25T04:06:33.902Z
+Stopped at: Completed QD-83-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
