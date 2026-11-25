@@ -31,6 +31,7 @@
  * The scope owns the run: closing it interrupts the engine, and a `start` after the close does
  * nothing, so a restart on a closed store publishes no state that nothing follows.
  *
+ * ADR-QD-200 is the decision for this module, applying ADR-QD-150's superseding run.
  * Package-private (ADR-QD-099).
  */
 import * as Effect from "effect/Effect";

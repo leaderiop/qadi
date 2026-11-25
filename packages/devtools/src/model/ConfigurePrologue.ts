@@ -14,7 +14,8 @@
  * written before the steps run, and the steps read it when they run, so a configure nested in
  * a step (a listener that configures again) decides, as ADR-QD-192 requires.
  *
- * Package-private (ADR-QD-099).
+ * ADR-QD-200 is the decision that gives the three feeds this one prologue, and ADR-QD-192 the
+ * order it keeps. Package-private (ADR-QD-099).
  */
 
 /** What differs between the feeds' configures: the held inputs, how they are normalised and when they are the same. */

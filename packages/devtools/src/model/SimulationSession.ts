@@ -32,7 +32,7 @@
  * `TimelineStore.ts` shares; commands are synchronous and notify once.
  *
  * **The session owns its runs.** It is built in a `Scope` and keeps one stated run
- * (`makeStatedRun`, ADR-QD-150): every run starts through it, so a newer run
+ * (`makeStatedRun`, ADR-QD-200 over ADR-QD-150's protocol): every run starts through it, so a newer run
  * or a superseding command interrupts the run in flight, and closing the scope
  * interrupts it too.
  * A host ends a session by closing its scope; nothing is reaped or disposed
