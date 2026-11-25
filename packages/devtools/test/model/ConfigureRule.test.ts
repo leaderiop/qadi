@@ -16,7 +16,7 @@ import type { StoredRecord } from "@qadi/core";
 import { PortReply, attributeResolverPort, hasPermission, permission, portsLayer, role, scriptedPort } from "@qadi/core";
 import { DiagnosticsStatus } from "../../src/index.ts";
 import { diagnosticsOff, makeDiagnosticsFeed, type DiagnosticsFeed } from "../../src/model/DiagnosticsFeed.ts";
-import type { DiagnosticsOptions } from "../../src/model/DiagnosticsStore.ts";
+import type { DiagnosticsOptions } from "../../src/model/Diagnostics.ts";
 import {
   completeDockInputs,
   feedInputsOf,

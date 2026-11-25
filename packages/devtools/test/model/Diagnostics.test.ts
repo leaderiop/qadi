@@ -26,7 +26,7 @@ import {
   type Diagnostics,
   type DiagnosticsOptions,
   type DiagnosticsStore,
-} from "../../src/model/DiagnosticsStore.ts";
+} from "../../src/model/Diagnostics.ts";
 import type { PortCallCollector, PortCallLog } from "../../src/model/PortCalls.ts";
 import { hostile, hostileError } from "../helpers.ts";
 

@@ -22,22 +22,22 @@
 export type { Answer, CapturedAnswers } from "./model/Capture.ts";
 export { catalogueOf } from "./model/Catalogue.ts";
 export type { Catalogue, PolicySighting } from "./model/Catalogue.ts";
+export {
+  DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS,
+  WiringRead,
+  mergeReading,
+} from "./model/Diagnostics.ts";
+export type {
+  Diagnostics,
+  DiagnosticsOptions,
+  DiagnosticsReading,
+} from "./model/Diagnostics.ts";
 export { DiagnosticsStatus, makeDiagnosticsFeed } from "./model/DiagnosticsFeed.ts";
 export type {
   DiagnosticsFeed,
   DiagnosticsReadout,
   DiagnosticsSnapshot,
 } from "./model/DiagnosticsFeed.ts";
-export {
-  DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS,
-  WiringRead,
-  mergeReading,
-} from "./model/DiagnosticsStore.ts";
-export type {
-  Diagnostics,
-  DiagnosticsOptions,
-  DiagnosticsReading,
-} from "./model/DiagnosticsStore.ts";
 export {
   applyFilters,
   environmentsOf,

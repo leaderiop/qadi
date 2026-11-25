@@ -9,7 +9,7 @@
 import * as Effect from "effect/Effect";
 import type * as Scope from "effect/Scope";
 import { makeDiagnosticsFeed, type DiagnosticsFeed } from "../src/model/DiagnosticsFeed.ts";
-import type { DiagnosticsOptions } from "../src/model/DiagnosticsStore.ts";
+import type { DiagnosticsOptions } from "../src/model/Diagnostics.ts";
 import { makeDockModel, type DockModel, type DockModelInputs } from "../src/model/DockModel.ts";
 import { makeGatesFeed, type GatesFeed, type GatesFeedInputs } from "../src/model/GatesFeed.ts";
 import { makeTimelineFeed, type TimelineFeed, type TimelineFeedInputs } from "../src/model/TimelineFeed.ts";

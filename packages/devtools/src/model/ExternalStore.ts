@@ -3,8 +3,8 @@
  * set, and the `subscribe` / `getSnapshot` pair `useSyncExternalStore` wants.
  *
  * Internal scaffolding, kept out of the barrel (AGENTS.md §9). `TimelineStore`,
- * `SimulationSession` and `DiagnosticsStore` each wrote the same ten lines, and
- * three copies of a contract is where one of them drifts. What stays in each
+ * `SimulationSession` and the diagnostics store in `Diagnostics.ts` each wrote the
+ * same ten lines, and three copies of a contract is where one of them drifts. What stays in each
  * store is its *policy*: the timeline's `ingest` identity, the session's
  * rebuild-per-command, the diagnostics' per-field `Equal.equals`. This file owns
  * the mechanics and the derived store built on them (ADR-QD-047's split, one level

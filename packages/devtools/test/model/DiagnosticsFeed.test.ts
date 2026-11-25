@@ -25,7 +25,7 @@ import {
   idleDiagnostics,
   isUnsampled,
 } from "../../src/model/DiagnosticsFeed.ts";
-import { noDiagnostics } from "../../src/model/DiagnosticsStore.ts";
+import { noDiagnostics } from "../../src/model/Diagnostics.ts";
 import type { PortCallCollector, PortCallLog } from "../../src/model/PortCalls.ts";
 import { diagnosticsFeedOf } from "../builtFeeds.ts";
 import { makeCollectorDouble } from "../collectorDouble.ts";

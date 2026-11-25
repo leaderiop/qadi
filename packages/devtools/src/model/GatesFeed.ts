@@ -28,7 +28,7 @@ import * as Equal from "effect/Equal";
 import * as Schedule from "effect/Schedule";
 import type * as Scope from "effect/Scope";
 import { causeMessage } from "@qadi/core";
-import { DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS } from "./DiagnosticsStore.ts";
+import { DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS } from "./Diagnostics.ts";
 import { makeExternalStore, sameFields } from "./ExternalStore.ts";
 import type { AskedQuestionLike, GateInstanceLike, GateRegistryLike } from "./Gates.ts";
 import { makeSupersedingRun } from "./SupersedingRun.ts";

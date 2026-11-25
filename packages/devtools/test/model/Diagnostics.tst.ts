@@ -14,7 +14,7 @@ import {
   type DiagnosticsReading,
   type DiagnosticsStore,
   type WiringRead,
-} from "../../src/model/DiagnosticsStore.ts";
+} from "../../src/model/Diagnostics.ts";
 import type { HydrationActivity } from "../../src/model/Hydration.ts";
 import type { WiringReport } from "../../src/model/Wiring.ts";
 

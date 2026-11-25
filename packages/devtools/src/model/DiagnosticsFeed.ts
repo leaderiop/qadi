@@ -30,7 +30,7 @@ import {
   type Diagnostics,
   type DiagnosticsOptions,
   type DiagnosticsStore,
-} from "./DiagnosticsStore.ts";
+} from "./Diagnostics.ts";
 import { makeExternalStore, sameFieldsOrAbsent } from "./ExternalStore.ts";
 import { makeSupersedingRun } from "./SupersedingRun.ts";
 
@@ -141,7 +141,7 @@ export const idleDiagnostics = (options: DiagnosticsOptions | undefined): Diagno
  *
  * An omitted field and one holding `undefined` become one field, so two options that
  * differ only in how they spell an absent field are one option. It sits here rather than
- * beside its type in `DiagnosticsStore.ts` so that it is in a file the mutation record
+ * beside its type in `Diagnostics.ts` so that it is in a file the mutation record
  * measures. The declared return type makes a new option a compile error until it is
  * listed here (ADR-QD-192).
  */

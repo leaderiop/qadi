@@ -15,7 +15,7 @@ import {
   attributeResolverRetrying,
   forEveryPort,
 } from "@qadi/core";
-import { WiringRead } from "../../src/model/DiagnosticsStore.ts";
+import { WiringRead } from "../../src/model/Diagnostics.ts";
 import { CallsView, ServicesView, activityByPort, callsByPort, isPortName, portCards } from "../../src/model/PortCards.ts";
 import type { PortCardRow, ServicesInput } from "../../src/model/PortCards.ts";
 import type { PortCall, PortCallLog } from "../../src/model/PortCalls.ts";

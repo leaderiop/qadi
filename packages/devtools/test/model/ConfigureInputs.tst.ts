@@ -15,7 +15,7 @@
 import { expect, test } from "tstyche";
 import type * as Layer from "effect/Layer";
 import type { Catalogue } from "../../src/model/Catalogue.ts";
-import type { DiagnosticsOptions, DiagnosticsReading } from "../../src/model/DiagnosticsStore.ts";
+import type { DiagnosticsOptions, DiagnosticsReading } from "../../src/model/Diagnostics.ts";
 import { completeDockInputs, feedInputsOf } from "../../src/model/DockModel.ts";
 import type { DockModelInputs } from "../../src/model/DockModel.ts";
 import type { EvaluationPortsLayer } from "../../src/model/SimulationInput.ts";

@@ -12,7 +12,7 @@ import {
   type DiagnosticsFeed,
   type DiagnosticsSnapshot,
 } from "../model/DiagnosticsFeed.ts";
-import type { DiagnosticsOptions } from "../model/DiagnosticsStore.ts";
+import type { DiagnosticsOptions } from "../model/Diagnostics.ts";
 import { useConfigured } from "./useConfigured.ts";
 import { useStoreSnapshot } from "./useStoreSnapshot.ts";
 

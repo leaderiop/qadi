@@ -38,7 +38,7 @@ import { DevtoolsDock } from "../../src/react/DevtoolsDock.tsx";
 import type { Catalogue } from "../../src/model/Catalogue.ts";
 import { sourceFromRecords } from "../../src/model/Source.ts";
 import type { PortCallCollector, PortCallLog } from "../../src/model/PortCalls.ts";
-import { WiringRead } from "../../src/model/DiagnosticsStore.ts";
+import { WiringRead } from "../../src/model/Diagnostics.ts";
 import type { WiringReport } from "../../src/model/Wiring.ts";
 import type { GateInstanceLike } from "../../src/model/Gates.ts";
 import { makeGateRegistryDouble } from "../gateRegistryDouble.ts";

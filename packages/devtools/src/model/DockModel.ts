@@ -53,7 +53,7 @@ import {
   mergeReading,
   type DiagnosticsOptions,
   type DiagnosticsReading,
-} from "./DiagnosticsStore.ts";
+} from "./Diagnostics.ts";
 import { makeDockSession, type DockSession } from "./DockSession.ts";
 import { makeExplorerSession, type ExplorerSession } from "./ExplorerSession.ts";
 import { callAll, makeDerivedStore, type ReadableStore } from "./ExternalStore.ts";

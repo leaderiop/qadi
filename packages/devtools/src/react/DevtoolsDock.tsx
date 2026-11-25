@@ -17,7 +17,7 @@ import type { FC, ReactNode } from "react";
 import { useMemo, useRef } from "react";
 import type { Verdict } from "../model/Verdict.ts";
 import type { DiagnosticsStatus } from "../model/DiagnosticsFeed.ts";
-import type { Diagnostics } from "../model/DiagnosticsStore.ts";
+import type { Diagnostics } from "../model/Diagnostics.ts";
 import type { DockModel, DockModelInputs } from "../model/DockModel.ts";
 import type { DockSnapshot, TabId } from "../model/DockSession.ts";
 import type { TimelineStatus } from "../model/TimelineFeed.ts";
