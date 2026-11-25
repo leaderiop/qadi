@@ -103,3 +103,12 @@ under it are the rest of that run's stderr. A test's failure lines use the `seen
   - AssertionError: expected 'alert' to equal 'none'
 - failed (swapped-restarts): DS3 after a hidden-then-shown dock, Restart on each notice restarts the rebuilt feed of its own kind
   - AssertionError: expected 2 to be above 2
+
+## 84-05 the timeline hook's per-render inputs
+
+- failed (no-same-fields): TI1 a re-render with a fresh options object holding the same capacity and source publishes nothing from either store
+  - Error: Maximum update depth exceeded (the feed re-reads and republishes on every render, so the hook re-renders without end)
+- failed (no-same-fields): TI2 a re-render with no options after no options publishes nothing from either store
+  - Error: Maximum update depth exceeded
+- failed (configure-ignored): TI3 a re-render with a moved capacity publishes from the timeline store and moves the status
+  - AssertionError: expected +0 to be above +0
