@@ -1,5 +1,5 @@
 /**
- * The diagnostics store and the loop that feeds it, under `TestClock`.
+ * The reading's laws and the loop that samples it, under `TestClock`.
  *
  * Cadence, identity and the layer's lifetime are properties of the model, so
  * they are proved here without a timer or a component; `test/react/
@@ -19,14 +19,13 @@ import {
 import {
   DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS,
   foldReading,
-  makeDiagnosticsStore,
   mergeReading,
   noDiagnostics,
   runDiagnostics,
   WiringRead,
   type Diagnostics,
   type DiagnosticsOptions,
-  type DiagnosticsStore,
+  type DiagnosticsSink,
 } from "../../src/model/Diagnostics.ts";
 import type { HydrationActivity } from "../../src/model/Hydration.ts";
 import type { PortCallCollector, PortCallLog } from "../../src/model/PortCalls.ts";
@@ -48,16 +47,24 @@ const scriptedCollector = () => {
   return { state, collector };
 };
 
-const counted = (store: { readonly subscribe: (l: () => void) => () => void }) => {
-  const seen = { notified: 0 };
-  store.subscribe(() => {
-    seen.notified += 1;
-  });
-  return seen;
+/**
+ * A sink that folds each sample into the reading it holds, as the feed does, and counts the
+ * samples that moved that reading's identity.
+ */
+const recording = () => {
+  const held = { reading: noDiagnostics, moves: 0 };
+  const sink: DiagnosticsSink = {
+    accept: (sample) => {
+      const next = foldReading(held.reading, sample);
+      if (next !== held.reading) held.moves += 1;
+      held.reading = next;
+    },
+  };
+  return { sink, reading: () => held.reading, folds: () => held.moves };
 };
 
-const start = (store: DiagnosticsStore, options?: DiagnosticsOptions) =>
-  Effect.forkChild(runDiagnostics(store, options), { startImmediately: true });
+const start = (sink: DiagnosticsSink, options?: DiagnosticsOptions) =>
+  Effect.forkChild(runDiagnostics(sink, options), { startImmediately: true });
 
 describe("foldReading", () => {
   const activityOf = (calls: number): ReadonlyArray<PortActivity> => [
@@ -153,7 +160,7 @@ describe("runDiagnostics", () => {
   it.effect("samples once at start and once per interval", () =>
     Effect.gen(function* () {
       const { state, collector } = scriptedCollector();
-      const fiber = yield* start(makeDiagnosticsStore(), { collector });
+      const fiber = yield* start(recording().sink, { collector });
       assert.strictEqual(state.reads, 1);
       yield* TestClock.adjust("1999 millis");
       assert.strictEqual(state.reads, 1);
@@ -174,7 +181,7 @@ describe("runDiagnostics", () => {
           return new Tracer.NativeSpan(options);
         },
       });
-      const fiber = yield* start(makeDiagnosticsStore()).pipe(
+      const fiber = yield* start(recording().sink).pipe(
         Effect.provideService(Tracer.Tracer, tracer),
       );
       yield* Fiber.interrupt(fiber);
@@ -186,7 +193,7 @@ describe("runDiagnostics", () => {
   it.effect("honours an interval override", () =>
     Effect.gen(function* () {
       const { state, collector } = scriptedCollector();
-      const fiber = yield* start(makeDiagnosticsStore(), {
+      const fiber = yield* start(recording().sink, {
         collector,
         intervalMillis: 500,
       });
@@ -210,7 +217,7 @@ describe("runDiagnostics", () => {
             }),
         ),
       );
-      const fiber = yield* start(makeDiagnosticsStore(), { layer });
+      const fiber = yield* start(recording().sink, { layer });
       yield* TestClock.adjust("20 seconds");
       assert.strictEqual(counts.builds, 1);
       assert.strictEqual(counts.releases, 0);
@@ -222,13 +229,13 @@ describe("runDiagnostics", () => {
   it.effect("a sample that changed nothing changes nothing", () =>
     Effect.gen(function* () {
       const { collector } = scriptedCollector();
-      const store = makeDiagnosticsStore();
-      const fiber = yield* start(store, { layer: decisionCacheLayer(), collector });
-      const seen = counted(store);
-      const first = store.getSnapshot();
+      const held = recording();
+      const fiber = yield* start(held.sink, { layer: decisionCacheLayer(), collector });
+      const first = held.reading();
+      const moved = held.folds();
       yield* TestClock.adjust("10 seconds");
-      assert.strictEqual(store.getSnapshot(), first);
-      assert.strictEqual(seen.notified, 0);
+      assert.strictEqual(held.reading(), first);
+      assert.strictEqual(held.folds(), moved);
       yield* Fiber.interrupt(fiber);
     }),
   );
@@ -236,12 +243,12 @@ describe("runDiagnostics", () => {
   it.effect("only the field that changed gets a new reference", () =>
     Effect.gen(function* () {
       const { state, collector } = scriptedCollector();
-      const store = makeDiagnosticsStore();
-      const fiber = yield* start(store, { layer: decisionCacheLayer(), collector });
-      const before = store.getSnapshot();
+      const held = recording();
+      const fiber = yield* start(held.sink, { layer: decisionCacheLayer(), collector });
+      const before = held.reading();
       state.log = { calls: [], dropped: 7, capacity: 10 };
       yield* TestClock.adjust("2 seconds");
-      const after = store.getSnapshot();
+      const after = held.reading();
       assert.notStrictEqual(after.portCalls, before.portCalls);
       assert.strictEqual(after.wiring, before.wiring);
       assert.strictEqual(after.activity, before.activity);
@@ -252,9 +259,9 @@ describe("runDiagnostics", () => {
 
   it.effect("reads NotHanded without a layer, and the metrics still sample", () =>
     Effect.gen(function* () {
-      const store = makeDiagnosticsStore();
-      const fiber = yield* start(store);
-      const reading = store.getSnapshot();
+      const held = recording();
+      const fiber = yield* start(held.sink);
+      const reading = held.reading();
       assert.strictEqual(reading.wiring._tag, "NotHanded");
       assert.isDefined(reading.hydration);
       assert.isUndefined(reading.portCalls);
@@ -264,9 +271,9 @@ describe("runDiagnostics", () => {
 
   it.effect("a sample carries exactly the four fields the poll reads", () =>
     Effect.gen(function* () {
-      const store = makeDiagnosticsStore();
-      const fiber = yield* start(store);
-      assert.deepStrictEqual(Object.keys(store.getSnapshot()).sort(), [
+      const held = recording();
+      const fiber = yield* start(held.sink);
+      assert.deepStrictEqual(Object.keys(held.reading()).sort(), [
         "activity",
         "hydration",
         "portCalls",
@@ -279,15 +286,15 @@ describe("runDiagnostics", () => {
   it.effect("a layer that fails to build reads Failed, and the other reads keep sampling", () =>
     Effect.gen(function* () {
       const { state, collector } = scriptedCollector();
-      const store = makeDiagnosticsStore();
+      const held = recording();
       const layer = Layer.effect(AttributeResolver, Effect.fail("boom"));
-      const fiber = yield* start(store, { layer, collector });
-      const reading = store.getSnapshot().wiring;
+      const fiber = yield* start(held.sink, { layer, collector });
+      const reading = held.reading().wiring;
       assert.strictEqual(reading._tag, "Failed");
       assert.isTrue(reading._tag === "Failed" && reading.reason.includes("boom"));
       yield* TestClock.adjust("4 seconds");
       assert.strictEqual(state.reads, 3);
-      assert.isDefined(store.getSnapshot().hydration);
+      assert.isDefined(held.reading().hydration);
       yield* Fiber.interrupt(fiber);
     }),
   );
@@ -296,10 +303,10 @@ describe("runDiagnostics", () => {
     Effect.gen(function* () {
       for (const value of [hostile, hostileError]) {
         const { collector } = scriptedCollector();
-        const store = makeDiagnosticsStore();
+        const held = recording();
         const layer = Layer.effect(AttributeResolver, Effect.fail(value));
-        const fiber = yield* start(store, { layer, collector });
-        const reading = store.getSnapshot().wiring;
+        const fiber = yield* start(held.sink, { layer, collector });
+        const reading = held.reading().wiring;
         if (reading._tag !== "Failed") return assert.fail("expected Failed");
         assert.strictEqual(reading.reason, "a value that could not be described");
         yield* Fiber.interrupt(fiber);
@@ -309,13 +316,13 @@ describe("runDiagnostics", () => {
 
   it.effect("the wiring read sees the services the layer built", () =>
     Effect.gen(function* () {
-      const store = makeDiagnosticsStore();
+      const held = recording();
       const layer = Layer.succeed(AttributeResolver, {
         name: "my-resolver",
         resolve: () => Effect.succeed(undefined),
       });
-      const fiber = yield* start(store, { layer });
-      const reading = store.getSnapshot().wiring;
+      const fiber = yield* start(held.sink, { layer });
+      const reading = held.reading().wiring;
       assert.strictEqual(reading._tag, "Read");
       const row =
         reading._tag === "Read"

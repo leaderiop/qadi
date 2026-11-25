@@ -12,7 +12,7 @@ import {
   type Diagnostics,
   type DiagnosticsOptions,
   type DiagnosticsReading,
-  type DiagnosticsStore,
+  type DiagnosticsSink,
   type WiringRead,
 } from "../../src/model/Diagnostics.ts";
 import type { HydrationActivity } from "../../src/model/Hydration.ts";
@@ -28,7 +28,7 @@ import type { WiringReport } from "../../src/model/Wiring.ts";
  */
 type Params<F> = F extends (...args: infer A) => unknown ? (...args: A) => void : never;
 
-declare const store: DiagnosticsStore;
+declare const sink: DiagnosticsSink;
 declare class MyError {
   readonly _tag: "MyError";
 }
@@ -44,19 +44,19 @@ declare const spaced: Schedule.Schedule<unknown>;
 declare const needs: Layer.Layer<Thing, never, Other>;
 
 test("a layer's typed failure is not the run's failure", () => {
-  expect(runDiagnostics(store, { layer })).type.toBe<Effect.Effect<void, never, never>>();
+  expect(runDiagnostics(sink, { layer })).type.toBe<Effect.Effect<void, never, never>>();
 });
 
 test("a valid call passes the parameter check, so the refusals below can fail", () => {
-  expect<Params<typeof runDiagnostics>>().type.toBeCallableWith(store, { intervalMillis: 500 });
+  expect<Params<typeof runDiagnostics>>().type.toBeCallableWith(sink, { intervalMillis: 500 });
 });
 
 test("a run with no options has nothing to fail with either", () => {
-  expect(runDiagnostics(store)).type.toBe<Effect.Effect<void, never, never>>();
+  expect(runDiagnostics(sink)).type.toBe<Effect.Effect<void, never, never>>();
 });
 
 test("the poll takes no questions thunk: the gates feed reads it", () => {
-  expect<Params<typeof runDiagnostics>>().type.not.toBeCallableWith(store, { questions: () => [] });
+  expect<Params<typeof runDiagnostics>>().type.not.toBeCallableWith(sink, { questions: () => [] });
   expect<DiagnosticsOptions>().type.not.toHaveProperty("questions");
 });
 
@@ -69,14 +69,14 @@ test("a supplied reading carries its questions", () => {
 });
 
 test("the poll takes an interval, not a schedule", () => {
-  expect<Params<typeof runDiagnostics>>().type.not.toBeCallableWith(store, { schedule: spaced });
-  expect(runDiagnostics(store, { intervalMillis: 500 })).type.toBe<
+  expect<Params<typeof runDiagnostics>>().type.not.toBeCallableWith(sink, { schedule: spaced });
+  expect(runDiagnostics(sink, { intervalMillis: 500 })).type.toBe<
     Effect.Effect<void, never, never>
   >();
 });
 
 test("a layer whose requirement is unmet is refused", () => {
-  expect<Params<typeof runDiagnostics>>().type.not.toBeCallableWith(store, { layer: needs });
+  expect<Params<typeof runDiagnostics>>().type.not.toBeCallableWith(sink, { layer: needs });
 });
 
 // Both arities: a reintroduced one-parameter generic fails the first line, a two-parameter one the second.

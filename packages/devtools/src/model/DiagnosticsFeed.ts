@@ -24,12 +24,12 @@ import * as Match from "effect/Match";
 import type * as Scope from "effect/Scope";
 import { causeMessage } from "@qadi/core";
 import {
-  makeDiagnosticsStore,
+  foldReading,
   noDiagnostics,
   runDiagnostics,
   type Diagnostics,
   type DiagnosticsOptions,
-  type DiagnosticsStore,
+  type DiagnosticsSink,
 } from "./Diagnostics.ts";
 import { makeExternalStore, sameFieldsOrAbsent } from "./ExternalStore.ts";
 import { makeSupersedingRun } from "./SupersedingRun.ts";
@@ -166,16 +166,15 @@ export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed"
   Scope.Scope
 > {
   let held: Required<DiagnosticsOptions> | undefined;
-  let store: DiagnosticsStore = makeDiagnosticsStore();
   // Whether the reading shown holds an accepted sample: reset only by `Off`.
   let sampled = false;
   const view = makeExternalStore<DiagnosticsSnapshot>(diagnosticsOff);
   // One run at a time: a newer start supersedes and interrupts the one before it.
   const runs = yield* makeSupersedingRun();
 
-  // One publish per transition, carrying status and reading together.
-  const show = (status: DiagnosticsStatus) => {
-    const reading = store.getSnapshot();
+  // One publish per transition, carrying status and reading together: the snapshot is the
+  // only place the reading lives. An unchanged pair publishes nothing.
+  const show = (status: DiagnosticsStatus, reading: Diagnostics) => {
     const current = view.getSnapshot();
     if (current.status === status && current.reading === reading) return;
     view.set({ status, reading });
@@ -183,33 +182,31 @@ export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed"
 
   const start = (next: DiagnosticsOptions) => {
     const token = runs.begin();
-    const target = store;
-    const marking: DiagnosticsStore = {
-      subscribe: target.subscribe,
-      getSnapshot: target.getSnapshot,
-      accept: (reading) => {
+    // The run guard comes first, so a superseded run's sample is neither read nor folded.
+    const sink: DiagnosticsSink = {
+      accept: (sample) => {
         if (!runs.isCurrent(token)) return;
-        target.accept(reading);
+        const current = view.getSnapshot();
+        const reading = foldReading(current.reading, sample);
         sampled = true;
-        // `accept` returns early on an unchanged reading, so Live is marked here, not by its notify.
-        const current = view.getSnapshot().status;
-        show(DiagnosticsStatus.$is("Live")(current) ? current : DiagnosticsStatus.Live());
+        // An unchanged sample folds to the same reading, so Live is marked here, not by a changed one.
+        show(DiagnosticsStatus.$is("Live")(current.status) ? current.status : DiagnosticsStatus.Live(), reading);
       },
     };
     // Before the fork: its synchronous prefix may already reach `Live` or `Stopped`. The one
     // `Starting` value, so `show` drops a repeat. The poll starts whatever a listener throws on it.
     try {
-      show(diagnosticsStarting.status);
+      show(diagnosticsStarting.status, view.getSnapshot().reading);
     } finally {
-      runs.fork(token, runDiagnostics(marking, next), {
-        onFailure: (cause) => show(DiagnosticsStatus.Stopped({ reason: causeMessage(cause), sampled })),
+      runs.fork(token, runDiagnostics(sink, next), {
+        onFailure: (cause) =>
+          show(DiagnosticsStatus.Stopped({ reason: causeMessage(cause), sampled }), view.getSnapshot().reading),
       });
     }
   };
 
   const off = () => {
     runs.stop();
-    store = makeDiagnosticsStore();
     sampled = false;
     view.set(diagnosticsOff);
   };

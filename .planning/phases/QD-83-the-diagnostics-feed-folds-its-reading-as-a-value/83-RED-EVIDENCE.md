@@ -267,3 +267,29 @@ The root's refusal of `foldReading`: with `foldReading` added to the `./model/Di
 printed nothing after), `pnpm exec tsc -p tsconfig.test.json --noEmit < /dev/null` failed on the unused directive.
 
 - check failed: surface foldReading: packages/devtools/test/surface.tst.ts(254,1): error TS2578: Unused '@ts-expect-error' directive.
+
+## 83-07 the sink
+
+On the tree where the type pins and the engine tests read a `DiagnosticsSink` and `Diagnostics.ts` does not declare it,
+`pnpm exec tsc -p tsconfig.test.json --noEmit < /dev/null` failed, and `pnpm test:tstyche
+packages/devtools/test/model/Diagnostics.tst.ts` failed in both passes: the whole file fails to compile, so each of the
+pins that read the sink is red.
+
+- check failed: typecheck: packages/devtools/test/model/Diagnostics.test.ts(28,8): error TS2724: '"../../src/model/Diagnostics.ts"' has no exported member named 'DiagnosticsSink'. Did you mean 'Diagnostics'?
+- red on the base: a layer's typed failure is not the run's failure
+- red on the base: a valid call passes the parameter check, so the refusals below can fail
+- red on the base: a run with no options has nothing to fail with either
+- red on the base: the poll takes no questions thunk: the gates feed reads it
+- red on the base: the poll takes an interval, not a schedule
+- red on the base: a layer whose requirement is unmet is refused
+
+After the change: the typecheck is clean, the devtools suite is 1955 passed, `pnpm test:tstyche packages/devtools/test`
+passes both passes, `83-check.mjs no-store` and `single-fold` pass, `83-pinned-check.mjs --all-applied` passes and house
+style is clean with `NOT_CALLABLE_PIN_BUDGET`'s `callable: 3` unchanged.
+
+- green after the change: a layer's typed failure is not the run's failure
+- green after the change: a valid call passes the parameter check, so the refusals below can fail
+- green after the change: a run with no options has nothing to fail with either
+- green after the change: the poll takes no questions thunk: the gates feed reads it
+- green after the change: the poll takes an interval, not a schedule
+- green after the change: a layer whose requirement is unmet is refused

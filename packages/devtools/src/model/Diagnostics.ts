@@ -1,5 +1,5 @@
 /**
- * The diagnostics the dock polls, polled once: a store, and the loop that feeds it.
+ * The diagnostics the dock polls, polled once: the reading, its laws, and the loop that samples it.
  *
  * Four reads keep a host's Services and React panels current: the wiring report
  * (which needs the application's layer), the port activity and the hydration
@@ -44,7 +44,7 @@ import * as Exit from "effect/Exit";
 import * as Layer from "effect/Layer";
 import * as Schedule from "effect/Schedule";
 import { causeMessage } from "@qadi/core";
-import { makeExternalStore, sameFields } from "./ExternalStore.ts";
+import { sameFields } from "./ExternalStore.ts";
 import type { AskedQuestionLike } from "./Gates.ts";
 import { hydrationActivity, type HydrationActivity } from "./Hydration.ts";
 import type { PortCallCollector, PortCallLog } from "./PortCalls.ts";
@@ -141,29 +141,14 @@ export const mergeReading = (
         portCalls: supplied.portCalls ?? sampled.portCalls,
       };
 
-export interface DiagnosticsStore {
-  /** Registers a listener, and returns the function that removes it. */
-  readonly subscribe: (listener: () => void) => () => void;
-  /**
-   * The latest reading.
-   *
-   * The same reference until some field changed, and a field that did not
-   * change keeps its own reference too, so a panel reading one field is not
-   * re-rendered by another's change.
-   */
-  readonly getSnapshot: () => Diagnostics;
-  /** Folds one reading in, keeping the reference of every field that is unchanged. */
-  readonly accept: (next: Diagnostics) => void;
-}
-
 const keep = <A>(previous: A, next: A): A => (Equal.equals(previous, next) ? previous : next);
 
 /**
  * Folds one sampled reading into the last one, keeping every field that did not change.
  *
  * Each field keeps `previous`'s reference while `Equal.equals` says it is unchanged, and the
- * result is `previous` itself when no field moved, so a quiet poll hands a store the value it
- * already holds. A pure function of its two arguments: it reads no clock, no store and no
+ * result is `previous` itself when no field moved, so a quiet poll hands the feed the value it
+ * already holds. A pure function of its two arguments: it reads no clock, no snapshot and no
  * closure.
  *
  * The result is typed `Diagnostics` and built as an object literal naming every field, so a
@@ -180,15 +165,6 @@ export function foldReading(previous: Diagnostics, next: Diagnostics): Diagnosti
   };
   return sameFields(folded, previous) ? previous : folded;
 }
-
-export const makeDiagnosticsStore = (): DiagnosticsStore => {
-  const store = makeExternalStore(noDiagnostics);
-  return {
-    subscribe: store.subscribe,
-    getSnapshot: store.getSnapshot,
-    accept: (next) => store.set(foldReading(store.getSnapshot(), next)),
-  };
-};
 
 /** How often the dock samples by default: a debug affordance's refresh rate. */
 export const DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS = 2_000;
@@ -229,16 +205,27 @@ export interface DiagnosticsOptions {
 }
 
 /**
- * Samples the diagnostics into a store until interrupted.
+ * Where a poll's samples go: one member, so the engine knows nothing of what holds the reading.
  *
- * Reads once at the start and then once per `intervalMillis`. The error channel is
+ * Each sample is handed over as the poll read it, fresh objects every time, and the receiver folds
+ * it into its reading with `foldReading`. Package-private (ADR-QD-099), the shape of `runSource`'s
+ * `Pick<TimelineStore, "accept">`; named because the feed and the type pins name it.
+ */
+export interface DiagnosticsSink {
+  readonly accept: (sample: Diagnostics) => void;
+}
+
+/**
+ * Samples the diagnostics into a sink until interrupted.
+ *
+ * Reads once at the start and then once per `intervalMillis`, handing each sample to `sink.accept`. The error channel is
  * `never`: a layer that fails to build is reported as `WiringRead.Failed` while
  * the other reads carry on, because a run that died would leave every panel
  * blank. A defect in a sample, such as a collector whose snapshot throws, ends the
  * run as it ends `runSource`.
  */
 export const runDiagnostics = Effect.fn("qadi.devtools.runDiagnostics")(function* (
-  store: DiagnosticsStore,
+  sink: DiagnosticsSink,
   options?: DiagnosticsOptions,
 ) {
   yield* Effect.scoped(
@@ -251,7 +238,7 @@ export const runDiagnostics = Effect.fn("qadi.devtools.runDiagnostics")(function
         activity: portActivity,
         hydration: hydrationActivity,
         portCalls,
-      }).pipe(Effect.tap((reading) => Effect.sync(() => store.accept(reading))));
+      }).pipe(Effect.tap((reading) => Effect.sync(() => sink.accept(reading))));
 
       yield* Effect.repeat(
         sample,

@@ -2,13 +2,13 @@
  * The mechanics every store in this package shares: a current value, a listener
  * set, and the `subscribe` / `getSnapshot` pair `useSyncExternalStore` wants.
  *
- * Internal scaffolding, kept out of the barrel (AGENTS.md §9). `TimelineStore`,
- * `SimulationSession` and the diagnostics store in `Diagnostics.ts` each wrote the
- * same ten lines, and three copies of a contract is where one of them drifts. What stays in each
- * store is its *policy*: the timeline's `ingest` identity, the session's
- * rebuild-per-command, the diagnostics' per-field `Equal.equals`. This file owns
- * the mechanics and the derived store built on them (ADR-QD-047's split, one level
- * down).
+ * Internal scaffolding, kept out of the barrel (AGENTS.md §9). `TimelineStore` and
+ * `SimulationSession` each wrote the same ten lines, and the diagnostics feed's snapshot is
+ * built on the same mechanics; three copies of a contract is where one of them drifts. What
+ * stays in each is its *policy*: the timeline's `ingest` identity, the session's
+ * rebuild-per-command, and the diagnostics reading's per-field `Equal.equals`, folded by
+ * `foldReading` in `Diagnostics.ts`. This file owns the mechanics and the derived store built
+ * on them (ADR-QD-047's split, one level down).
  *
  * **The identity contract.** `getSnapshot` returns the same reference until the
  * value changed, because `useSyncExternalStore` compares snapshots by identity
