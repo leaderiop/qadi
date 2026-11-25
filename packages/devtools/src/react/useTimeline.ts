@@ -19,8 +19,6 @@ import {
   idleTimeline,
   idleTimelineStatus,
   makeTimelineFeed,
-  type TimelineFeed,
-  type TimelineFeedInputs,
   type TimelineStatus,
 } from "../model/TimelineFeed.ts";
 import { makeTimelineStore, type TimelineStore } from "../model/TimelineStore.ts";
@@ -40,10 +38,6 @@ export interface UseTimeline {
   /** Reads the current source again; does nothing before the feed exists and for a hand-fed store. */
   readonly restart: () => void;
 }
-
-const configureTimeline = (feed: TimelineFeed, inputs: TimelineFeedInputs): void => {
-  feed.configure(inputs);
-};
 
 /**
  * Subscribes to a source and returns the timeline it produces.
@@ -68,7 +62,7 @@ export const useTimeline = (
   const capacity = options?.capacity;
   // The feed compares the source by identity and the capacity by the bound it means, so
   // a record rebuilt every render configures nothing.
-  const feed = useConfigured(makeTimelineFeed, configureTimeline, { source, capacity });
+  const feed = useConfigured(makeTimelineFeed, { source, capacity });
 
   const store = feed?.timeline ?? idleTimeline;
   const timeline = useStoreSnapshot(store);

@@ -57,7 +57,7 @@ const makeHarness = () => {
     return <span>read</span>;
   };
   const Owner = ({ inputs }: { readonly inputs: Inputs }) => {
-    const double = useConfigured(make, (double, inputs) => double.configure(inputs), inputs);
+    const double = useConfigured(make, inputs);
     return double === undefined ? null : <Reader double={double} />;
   };
   class Boundary extends Component<{ readonly children: ReactNode }, { readonly failed: boolean }> {

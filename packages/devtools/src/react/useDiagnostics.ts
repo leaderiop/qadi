@@ -9,16 +9,11 @@
 import {
   idleDiagnostics,
   makeDiagnosticsFeed,
-  type DiagnosticsFeed,
   type DiagnosticsSnapshot,
 } from "../model/DiagnosticsFeed.ts";
 import type { DiagnosticsOptions } from "../model/Diagnostics.ts";
 import { useConfigured } from "./useConfigured.ts";
 import { useStoreSnapshot } from "./useStoreSnapshot.ts";
-
-const configureDiagnostics = (feed: DiagnosticsFeed, options: DiagnosticsOptions | undefined): void => {
-  feed.configure(options);
-};
 
 /**
  * Samples the diagnostics while mounted, and returns the poll's status and its latest reading.
@@ -41,7 +36,7 @@ const configureDiagnostics = (feed: DiagnosticsFeed, options: DiagnosticsOptions
 export const useDiagnostics = (options?: DiagnosticsOptions): DiagnosticsSnapshot => {
   // The feed compares each field by identity, so an `options` object rebuilt every render
   // configures nothing.
-  const feed = useConfigured(makeDiagnosticsFeed, configureDiagnostics, options);
+  const feed = useConfigured(makeDiagnosticsFeed, options);
 
   return useStoreSnapshot(feed ?? idleDiagnostics(options));
 };

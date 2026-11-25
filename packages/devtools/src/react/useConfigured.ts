@@ -1,6 +1,6 @@
 "use client";
 /**
- * Builds a value in a scope and configures it with the latest inputs before anything reads it.
+ * Builds a value that has `configure` in a scope and configures it with the latest inputs before anything reads it.
  *
  * Internal scaffolding, kept out of the barrel (AGENTS.md §9). The value is configured
  * inside the scoped build, so a reader that commits on the render the value appears sees
@@ -16,16 +16,24 @@ import type * as Scope from "effect/Scope";
 import { useLayoutEffect } from "react";
 import { useScoped } from "./useScoped.ts";
 
-export const useConfigured = <A, I>(
+/**
+ * A value that takes its inputs through its own `configure`.
+ *
+ * Exported for `useConfigured.tst.ts` alone, and kept out of both barrels (AGENTS.md §9).
+ */
+export interface Configurable<I> {
+  readonly configure: (inputs: I) => void;
+}
+
+export const useConfigured = <A extends Configurable<I>, I>(
   make: () => Effect.Effect<A, never, Scope.Scope>,
-  configure: (value: A, inputs: I) => void,
   inputs: I,
 ): A | undefined => {
-  const value = useScoped(() => Effect.tap(make(), (built) => Effect.sync(() => configure(built, inputs))));
+  const value = useScoped(() => Effect.tap(make(), (built) => Effect.sync(() => built.configure(inputs))));
 
   // Runs again on the render the value appears, so an input changed in between still lands.
   useLayoutEffect(() => {
-    if (value !== undefined) configure(value, inputs);
+    if (value !== undefined) value.configure(inputs);
   }, [value, inputs]);
 
   return value;

@@ -19,12 +19,8 @@
 import { makeDockModel, type DockModel, type DockModelInputs } from "../model/DockModel.ts";
 import { useConfigured } from "./useConfigured.ts";
 
-const configureDock = (model: DockModel, inputs: DockModelInputs): void => {
-  model.configure(inputs);
-};
-
 export const useDockModel = (inputs: DockModelInputs): DockModel | undefined =>
   // One scope per mounted dock: unmounting closes it, which interrupts the source read
   // and a simulation run in flight. The model diffs each field by identity and re-reads
   // on a new source or capacity, so the record is handed over whenever it changes.
-  useConfigured(makeDockModel, configureDock, inputs);
+  useConfigured(makeDockModel, inputs);
