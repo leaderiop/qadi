@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 87
 current_phase_name: One scoped run that states its stop
 status: executing
-stopped_at: Completed 87-10-PLAN.md
-last_updated: "2026-11-25T20:49:17.813Z"
+stopped_at: Completed 87-11-PLAN.md
+last_updated: "2026-11-25T20:54:17.126Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 86 complete, transitioned to Phase 87
-state_head: 15ed2589f992df76fee12c88d39c23f66d596262
+state_head: 9bcddb76005c91a6f49477fd616de566d1a146c3
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 30
-  completed_plans: 29
+  completed_plans: 30
   percent: 29
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: 87 (One scoped run that states its stop) — READY TO EXECUTE
-Plan: 10 of 11
+Plan: 11 of 11
 Status: Ready to execute
 Last activity: 2026-11-25 — Phase 86 complete, transitioned to Phase 87
 
@@ -682,6 +682,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 87 P07 | 15min | 2 tasks | 4 files |
 | Phase QD-87 P08 | 20min | 2 tasks | 4 files |
 | Phase 87 P10 | 45min | 3 tasks | 7 files |
+| Phase 87 P11 | 10min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -1208,6 +1209,7 @@ Progress: [███░░░░░░░] 29%
 - [Phase 87]: 87-10: the session's live.current() guard in land is an EQUIVALENT mutant (no input reaches it: the older engine suspends before its exit read and a newer fork interrupts it there)
 - [Phase 87]: 87-10: the born modules are measured over their own killers file alone (narrowed vitest include via an untracked scratch config), because the full-suite invocation Timeouts mutants whose hang is in other files' tests
 - [Phase 87]: 87-10: a static mutant of a born file run by hand with ignoreStatic false and Killed is an EXAMINED allowance the absolute rule honours
+- [Phase 87]: 87-11: the merge gate (pnpm check:pr, 17 of 18 steps) passed on the phase head without a fix; nothing released, all 35 commits trailed and in scope
 
 ### Pending Todos
 
@@ -1295,8 +1297,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T20:49:17.760Z
-Stopped at: Completed 87-10-PLAN.md
+Last session: 2026-11-25T20:54:17.071Z
+Stopped at: Completed 87-11-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
