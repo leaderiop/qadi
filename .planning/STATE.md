@@ -5,16 +5,16 @@ milestone_name: Arch Wave 15
 current_phase: 83
 current_phase_name: The diagnostics feed folds its reading as a value
 status: executing
-stopped_at: Completed QD-83-09-PLAN.md
-last_updated: "2026-11-25T04:50:38.619Z"
+stopped_at: Completed 83-10-PLAN.md
+last_updated: "2026-11-25T04:59:26.755Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 82 complete, transitioned to Phase 83
-state_head: 658c5b03e1cd73f0a2dd543594d5530978fb2b46
+state_head: 108c01b16da27e8f2fcd600ecc9bd2e13375007f
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 32
-  completed_plans: 30
+  completed_plans: 31
   percent: 50
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-83 (The diagnostics feed folds its reading as a value) — READY TO EXECUTE
-Plan: 10 of 11
+Plan: 11 of 11
 Status: Ready to execute
 Last activity: 2026-11-25 — Phase 82 complete, transitioned to Phase 83
 
@@ -633,6 +633,7 @@ Last activity: 2026-11-25 — Phase 82 complete, transitioned to Phase 83
 | Phase QD-83 P07 | 12min | 2 tasks | 7 files |
 | Phase QD-83 P08 | 25min | 2 tasks | 7 files |
 | Phase QD-83 P09 | 40min | 3 tasks | 5 files |
+| Phase QD-83 P10 | 25min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -1107,6 +1108,7 @@ Last activity: 2026-11-25 — Phase 82 complete, transitioned to Phase 83
 - [Phase QD-83]: 83-07: the feed's per-run sink keeps guard, fold, sampled flag, publish order; off() resets the reading by the diagnosticsOff constant
 - [Phase QD-83]: ADR-QD-196 records the diagnostics fold, snapshot, sink and removal; ADR-QD-173, ADR-QD-169 and ADR-QD-047 amended by dated paragraphs, past text kept
 - [Phase QD-83]: Restatements are dated blockquotes under the headings; BEH-QD-755's transition table is the rows of FC1 to FC10
+- [Phase QD-83]: 83-10: the close needed no survivor test; five characterisation rows no earlier edit failed were seen failing under restored scratch edits
 
 ### Pending Todos
 
@@ -1188,8 +1190,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T04:50:33.035Z
-Stopped at: Completed QD-83-09-PLAN.md
+Last session: 2026-11-25T04:59:26.606Z
+Stopped at: Completed 83-10-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
