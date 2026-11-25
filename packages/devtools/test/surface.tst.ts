@@ -252,6 +252,9 @@ export { runDiagnostics } from "../src/index.ts";
 export { noDiagnostics } from "../src/index.ts";
 
 // @ts-expect-error no exported member
+export { foldReading } from "../src/index.ts";
+
+// @ts-expect-error no exported member
 export { idleTimeline } from "../src/index.ts";
 
 // @ts-expect-error no exported member

@@ -261,3 +261,9 @@ packages/devtools/test` (53 tests, both passes) are clean, `83-check.mjs single-
 - green after the change: changes identity once however many identical samples are folded in
 - green after the change: keeps the empty reading's fields for a first sample that equals them
 - green after the change: decides each field by structural equality, not by reference
+
+The root's refusal of `foldReading`: with `foldReading` added to the `./model/Diagnostics.ts` value export of
+`packages/devtools/src/index.ts` (a copy kept first, restored with `cp`; `git diff --quiet HEAD -- packages/devtools/src`
+printed nothing after), `pnpm exec tsc -p tsconfig.test.json --noEmit < /dev/null` failed on the unused directive.
+
+- check failed: surface foldReading: packages/devtools/test/surface.tst.ts(254,1): error TS2578: Unused '@ts-expect-error' directive.
