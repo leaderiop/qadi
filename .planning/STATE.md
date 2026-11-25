@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 87
 current_phase_name: One scoped run that states its stop
 status: executing
-stopped_at: Completed 87-07-PLAN.md
-last_updated: "2026-11-25T19:51:03.675Z"
+stopped_at: Completed 87-08-PLAN.md
+last_updated: "2026-11-25T19:56:18.556Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 86 complete, transitioned to Phase 87
-state_head: d7ac15fbc691292f65501ac2ae4eae9bf2e566ea
+state_head: c540f9c9c33a5eed344a6cf7d3c41a554be3a58c
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 30
-  completed_plans: 26
+  completed_plans: 27
   percent: 29
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: 87 (One scoped run that states its stop) — READY TO EXECUTE
-Plan: 8 of 11
+Plan: 9 of 11
 Status: Ready to execute
 Last activity: 2026-11-25 — Phase 86 complete, transitioned to Phase 87
 
@@ -680,6 +680,7 @@ Progress: [███░░░░░░░] 29%
 | Phase QD-87 P05 | 45 min | 3 tasks | 5 files |
 | Phase 87 P06 | 20min | 3 tasks | 3 files |
 | Phase 87 P07 | 15min | 2 tasks | 4 files |
+| Phase QD-87 P08 | 20min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -1202,6 +1203,7 @@ Progress: [███░░░░░░░] 29%
 - [Phase QD-87]: 87-05: ConfigurePrologue.makeConfigure reads closed, complete, held, same, hold, then steps; the identity gate is a parameter, no runtime import, out of both barrels — One order for the three feeds; gates feed's failed-watch retry is its same argument
 - [Phase 87]: 87-06: feed Stopped docs state the one rule (own work ended on anything but success, self-interruption included); rethrow prose lives once in StatedRun.ts
 - [Phase 87]: 87-07: the session's stated-run stop hook applies only while run is Running, so a landed result stays; reasonStyle lives in theme.ts shared by StoppedBox and the Simulator
+- [Phase QD-87]: 87-08: R3, R5, R6, R7 retitled to drop the words onFailure and hook (the shape check reads the protocol test for onFailure); configuredBy is module-private in builtFeeds.ts
 
 ### Pending Todos
 
@@ -1289,8 +1291,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T19:51:03.621Z
-Stopped at: Completed 87-07-PLAN.md
+Last session: 2026-11-25T19:56:08.816Z
+Stopped at: Completed 87-08-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
