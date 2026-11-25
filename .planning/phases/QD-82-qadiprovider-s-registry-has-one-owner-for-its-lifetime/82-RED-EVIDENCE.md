@@ -140,3 +140,31 @@ hide held), and the reveal after a real 50 ms hide met the disposed registry.
   `AssertionError: expected [ …(3) ] to deeply equal []` at `expect(caught).toEqual([])` (`expectNothingThrown`, called from
   `test/QadiProvider.lifetime.test.tsx:447`): three `registry is disposed` errors. The frame and `pending` assertions after
   it are the fixed outcome a lease must give: no rendered frame reads the superseded allow.
+
+`pnpm exec vitest run --project react --reporter=verbose packages/react/test/QadiProvider.lifetime.test.tsx -t "LT1[0-3] " < /dev/null`
+on the phase base: 4 failed. Each line is the title, then the assertion line vitest printed and the test file line it points at.
+
+- red on the base: LT10 a seeded allow with no subject stays pending after a long hide
+
+  `AssertionError: expected [ …(2) ] to deeply equal []` at `expect(caught).toEqual([])` (`expectNothingThrown`, called from
+  `test/QadiProvider.lifetime.test.tsx:490`): two `registry is disposed` errors, the reveal meeting the disposed registry.
+  Mounted, the gate rendered `allowed` from the seed alone (the assertion before the hide held).
+
+- red on the base: LT11 a long hide with a re-render shows no superseded allow and reports one mismatch
+
+  `AssertionError: expected [ true, false ] to not include true` at `expect(frames).not.toContain(true)`
+  (`test/QadiProvider.lifetime.test.tsx:520`): the reveal committed with the re-render built a second registry, and its
+  first frame read the server's allow before the client's deny replaced it. This is the superseded-allow frame, read by a
+  probe that records every render, not the settled text.
+
+- red on the base: LT12 across a long hide each pressure episode is one fork and one sweep
+
+  `TestingLibraryElementError: Unable to find an element with the text: allowed` at the `waitFor` after the reveal
+  (`test/QadiProvider.lifetime.test.tsx:543`): the reveal threw, the boundary rendered its marker, and the gate never
+  rendered again. The fork and sweep assertions after it are the rule a provider must keep across the hide.
+
+- red on the base: LT13 a reveal committed with a re-render reads the subject in its first frame
+
+  `AssertionError: expected 2 to be 1 // Object.is equality` at `expect(r.seen.size).toBe(1)`
+  (`test/QadiProvider.lifetime.test.tsx:582`): a second registry was handed to the tree. The reveal threw nothing and no
+  frame read `none` on the base; the fixed outcome is both of those held in one registry.

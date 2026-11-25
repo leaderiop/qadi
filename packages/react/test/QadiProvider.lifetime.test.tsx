@@ -30,7 +30,7 @@ import * as Layer from "effect/Layer";
 import * as Atom from "effect/reactivity/Atom";
 import type * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import { Activity, Component, StrictMode, useContext, useState, type ReactNode } from "react";
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   Can,
@@ -44,10 +44,13 @@ import {
   useSubject,
 } from "../src/index.ts";
 import type { DevtoolsFeed, ProviderSignal, QadiAtoms } from "../src/index.ts";
+import { withSweepFork } from "../src/SweepScheduler.ts";
 import { settle } from "./support/settle.ts";
+import { makeSweepCounter } from "./support/sweepCounter.ts";
 
 const canRead = hasPermission(permission("doc", "read"));
 const standing = hasAttribute("standing", eq(literal("good")));
+const extra = hasPermission(permission("doc", "extra"));
 const reader: AuthSubject = makeSubject({ id: "u1", permissions: ["doc:read"] });
 const otherReader: AuthSubject = makeSubject({ id: "u2", permissions: ["doc:read"] });
 
@@ -134,6 +137,22 @@ const FrameLog = ({ frames }: { readonly frames: Array<boolean> }) => {
   return null;
 };
 
+/** Pushes the subject id each render reads, `none` while the subject is unset. */
+const IdLog = ({ ids }: { readonly ids: Array<string> }) => {
+  ids.push(useSubject()?.id ?? "none");
+  return null;
+};
+
+/** A bounded atom set whose forks and sweeps are counted through the real sweep. */
+const countedAtoms = (maxTrackedQuestions: number) => {
+  const counter = makeSweepCounter();
+  const atoms = makeQadiAtoms(
+    EvaluationServicesNone,
+    withSweepFork({ maxTrackedQuestions }, counter.fork),
+  );
+  return { atoms, counter };
+};
+
 const SubjectProbe = () => {
   const subject = useSubject();
   return <span>{`subject:${subject?.id ?? "none"}`}</span>;
@@ -213,6 +232,7 @@ const rig = (atoms: QadiAtoms = makeQadiAtoms(EvaluationServicesNone)) => {
     host,
     atoms,
     body,
+    RegistryTap,
     mount,
     hide,
     show,
@@ -447,5 +467,118 @@ describe("a provider hidden past one macrotask and shown again", () => {
     r.expectNothingThrown();
     expect(frames).not.toContain(true);
     expect(screen.getByText("pending")).toBeDefined();
+  });
+
+  it("LT10 a seeded allow with no subject stays pending after a long hide", async () => {
+    const atoms = makeQadiAtoms(EvaluationServicesNone);
+    const r = rig(atoms);
+    const element = (
+      <QadiProvider atoms={atoms} subject={undefined} initialValues={seededAllow(atoms)}>
+        <Can policy={standing} pending="pending" fallback="denied">
+          allowed
+        </Can>
+      </QadiProvider>
+    );
+    r.mount(() => element);
+    await settle();
+    expect(screen.getByText("allowed")).toBeDefined();
+
+    await r.longHide();
+    await r.show();
+    await settle();
+
+    r.expectNothingThrown();
+    expect(screen.getByText("pending")).toBeDefined();
+  });
+
+  it("LT11 a long hide with a re-render shows no superseded allow and reports one mismatch", async () => {
+    const mismatches: Array<unknown> = [];
+    const atoms = atomsResolvingBy(() => Effect.sleep("1 millis").pipe(Effect.as("bad")), mismatches);
+    const r = rig(atoms);
+    const frames: Array<boolean> = [];
+    const initialValues = seededAllow(atoms);
+    r.mount((scene) => (
+      <QadiProvider atoms={scene.atoms} subject={scene.subject} initialValues={initialValues}>
+        <Can policy={standing} pending="pending" fallback="denied">
+          allowed
+        </Can>
+        <FrameLog frames={frames} />
+        <r.RegistryTap />
+      </QadiProvider>
+    ));
+    await waitFor(() => expect(screen.getByText("denied")).toBeDefined());
+    await settle();
+
+    await r.longHide();
+    await r.change({ tick: 1 });
+    frames.length = 0;
+    await r.show();
+    await waitFor(() => expect(screen.getByText("denied")).toBeDefined());
+    await settle();
+
+    r.expectNothingThrown();
+    expect(frames).not.toContain(true);
+    expect(mismatches).toHaveLength(1);
+  });
+
+  // The rule, not a step count: each pressure episode is one fork and one sweep, so after a
+  // settle the sweeps equal the forks and each fork saw exactly the sweeps before it. The
+  // gate's own question is kept through an episode that follows the reveal. A hidden gate's
+  // question may be evicted and admitted again while the tree is hidden, which this test
+  // does not count.
+  it("LT12 across a long hide each pressure episode is one fork and one sweep", async () => {
+    const { atoms, counter } = countedAtoms(1);
+    const r = rig(atoms);
+    const element = (
+      <QadiProvider atoms={atoms} subject={reader}>
+        <Can policy={canRead}>allowed</Can>
+      </QadiProvider>
+    );
+    r.mount(() => element);
+    await waitFor(() => expect(screen.getByText("allowed")).toBeDefined());
+    await settle();
+
+    await r.longHide();
+    await r.show();
+    await waitFor(() => expect(screen.getByText("allowed")).toBeDefined());
+    await settle();
+
+    r.expectNothingThrown();
+    const { counts } = counter;
+    expect(counts.sweeps).toBe(counts.forks);
+    expect(counts.sweepsAtFork).toEqual(Array.from({ length: counts.forks }, (_, i) => i));
+    expect(atoms.asked().filter((q) => q.policy === canRead)).toHaveLength(1);
+
+    counter.reset();
+    atoms.decision(extra);
+    expect(counts.forks).toBe(1);
+    expect(counts.sweeps).toBe(0);
+    await settle();
+    expect(counts.forks).toBe(1);
+    expect(counts.sweeps).toBe(1);
+    expect(atoms.asked().map((q) => q.policy)).toEqual([canRead]);
+  });
+
+  it("LT13 a reveal committed with a re-render reads the subject in its first frame", async () => {
+    const ids: Array<string> = [];
+    const r = rig();
+    r.mount((scene) => (
+      <QadiProvider atoms={scene.atoms} subject={scene.subject}>
+        <IdLog ids={ids} />
+        <r.RegistryTap />
+      </QadiProvider>
+    ));
+    await settle();
+    expect(ids.at(-1)).toBe("u1");
+
+    await r.longHide();
+    ids.length = 0;
+    await r.change({ mode: "visible", tick: 1 });
+    await settle();
+
+    r.expectNothingThrown();
+    expect(ids).not.toContain("none");
+    expect(ids.at(-1)).toBe("u1");
+    expect(r.seen.size).toBe(1);
   });
 });
