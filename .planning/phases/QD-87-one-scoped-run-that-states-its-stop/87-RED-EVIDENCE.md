@@ -140,3 +140,46 @@ Written on the base, before any file under `packages/*/src` moved. The check was
   (scratch edit: one byte in row R4 of `packages/devtools/test/model/SupersedingRun.test.ts`, a line outside every declared region; exit status 1)
 - check failed: 87-pinned-check.mjs: packages/devtools/test/builtFeeds.ts: no longer declares `export const timelineFeedOf`
   (scratch edit: `timelineFeedOf` renamed in `packages/devtools/test/builtFeeds.ts`, a dropped export; exit status 1)
+
+## 87-03 the phase check
+
+Written on the base, before any file under `packages/*/src` moved. Each mode of `87-check.mjs` was run once on a tree or an
+input it must refuse, with stdin closed, and its first stderr line is recorded; every scratch edit was made to a copy in
+the scratch directory or to a scratch file, and restored from the copy (`87-mutation-base.json`, `TimelineFeed.ts` and
+`28-devtools-screens.md` with `cp`, the scratch source file removed) before anything was committed. The seven shape modes fail
+on the tree because the code has not moved: that is their variant. `base` was first run with `phase_base` set to the parent
+of `cbe375bf` as the plan words it, and it passed, since `cbe375bf` changed only `.planning/`; the variant that fails sets
+`phase_base` to a commit forty before it, which does differ outside `.planning/`.
+
+- check failed: base: .changeset/react-registry-lifetime-has-an-owner.md differs between cbe375bf and phase_base outside .planning
+  (variant: phase_base set to 53848d85756a85f053dcedaf564a5041c4823b2d, the commit forty before cbe375bf)
+- check failed: commit: 0 commits since phase_base have the subject: chore(87-99): no such commit
+  (variant: a subject no commit has)
+- check failed: unchanged: packages/devtools/src/model/TimelineFeed.ts differs from phase_base
+  (variant: one byte appended to packages/devtools/src/model/TimelineFeed.ts)
+- check failed: seen-failing: no failure line in the evidence for: a title that has no line
+  (variant: a title that has no line in the evidence file)
+- check failed: scan-ids: packages/devtools/src/model/zz-scan87.ts:1 names a decision number: // D-12 says so
+  (variant: an untracked scratch file packages/devtools/src/model/zz-scan87.ts holding a decision number)
+- check failed: scan-forbidden: packages/devtools/src/model/zz-scan87.ts:2 uses switch: switch (x) {
+  (variant: the same scratch file holding a switch statement)
+- check failed: trailers --message: the message has 2 Co-Authored-By lines, not one
+  (variant: a message file holding two trailers)
+- check failed: suite: takes React as a peer, never as a dependency fails and is not red on the base
+  (variant: the Task 1 report with one passing row set to failed)
+- check failed: stated-run-shape: packages/devtools/src/model/StatedRun.ts is missing
+  (variant: the run on the tree today, because the code has not moved)
+- check failed: prologue-shape: packages/devtools/src/model/ConfigurePrologue.ts is missing
+  (variant: the run on the tree today, because the code has not moved)
+- check failed: feeds-supply-only-engine: packages/devtools/src/model/TimelineFeed.ts builds 0 stated runs, not one
+  (variant: the run on the tree today, because the code has not moved)
+- check failed: session-stop: packages/devtools/src/model/SimulationSession.ts does not import causeMessage from @qadi/core
+  (variant: the run on the tree today, because the code has not moved)
+- check failed: simulator-pre: packages/devtools/src/react/Simulator.tsx: the Broke box holds no pre
+  (variant: the run on the tree today, because the code has not moved)
+- check failed: onfailure-gone: packages/devtools/src/model/DiagnosticsFeed.ts names onFailure
+  (variant: the run on the tree today, because the code has not moved)
+- check failed: built-feeds-once: packages/devtools/test/builtFeeds.ts has 4 Effect.tap( calls, not 1
+  (variant: the run on the tree today, because the code has not moved)
+- check failed: records: BEH-QD-523 names row F99 for packages/devtools/test/model/DiagnosticsFeed.test.ts, which no title opens
+  (variant: BEH-QD-523's pinned-by paragraph names the row F99, which no title opens)
