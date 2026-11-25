@@ -289,3 +289,28 @@ the last effect of the provider; the release is a passive cleanup of the hidden 
 children's; the recycle runs once, a macrotask after the hide and before the reveal, so a consumer subscribes to a registry
 that is already reset and holds its subject. The provider's subject effect runs again on the reveal and finds the re-seeded
 subject equal, so it writes nothing.
+
+## the lease mutation probe
+
+`pnpm exec stryker run stryker.react.mjs --mutate packages/react/src/RegistryLease.ts --disableBail`, alone, stdin closed, then
+`node .planning/phases/QD-82-qadiprovider-s-registry-has-one-owner-for-its-lifetime/82-mutation.mjs probe lease`.
+
+First run, on the lease with RL1 to RL9 (commit 8cc55c1e): 27 of 28 killed, one survivor, and the probe exit 1:
+
+```
+Survived packages/react/src/RegistryLease.ts:74 ArrowFunction -> () => undefined
+```
+
+The mutant replaces the `Releasing` arm of the release matcher (`(releasing): LeaseState => releasing`) with one that returns
+nothing, so a second release while one is pending leaves the lease in no state. RL3 only counted defers after the second
+release and fired, so nothing observed the state it left. The rendered tests did not kill it either.
+
+Closed by a lease test, with no `Stryker disable` comment and no change to the module:
+
+- added `RL10 a hold after a second release still cancels the one pending recycle` to `RegistryLease.test.ts`: hold, release,
+  release, hold, then one cancel and no recycle on fire, then a release recycles once. Seen red under the mutant by a scratch
+  edit of the arm (only RL10 fails, `Tests  1 failed | 9 passed (10)`), the module restored with `cp` and
+  `git diff --quiet HEAD -- packages/react/src` held; committed as c9154405.
+
+Second run, after RL10: `Final mutation score of 100.00`, 28 of 28 killed, 0 survived, 0 no coverage, 0 ignored, 0 timeout; the
+probe printed `probe lease: the report passes as its close would judge it` and exited 0.
