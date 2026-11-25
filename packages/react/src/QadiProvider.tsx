@@ -242,8 +242,8 @@ export const QadiProvider = ({
   const registry = owner.registry;
 
   // `makeQadiAtoms`'s own doc comment says to call it once per context, at
-  // module scope — the registry above is built once, at mount, and never
-  // rebuilt for a later `atoms` prop. A caller who breaks that rule (an
+  // module scope — the owner above, and the registry it holds, are built once,
+  // at mount, and never rebuilt for a later `atoms` prop. A caller who breaks that rule (an
   // inline `makeQadiAtoms(...)` call, or a genuine tenant switch) gets a
   // context silently holding the NEW atoms inside the OLD registry: the new
   // `initialValues` are never seeded, and decisions evaluated against the

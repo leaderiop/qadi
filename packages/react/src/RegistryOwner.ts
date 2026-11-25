@@ -11,8 +11,8 @@
  * called; it writes back the latest committed subject, never a seed, because a seed is
  * not an authority (ADR-QD-039). The subject is written on every commit without reading
  * first: the subject atom ignores an equal write, and a write that does not read first
- * keeps the seed of a node nothing has read across a host `registry.refresh`
- * (ADR-QD-199).
+ * keeps the seed of a node nothing has read, before any recycle, across a host
+ * `registry.refresh` (ADR-QD-199).
  *
  * Out of the barrel (AGENTS.md §9): `QadiProvider.tsx` is its one caller, and the
  * package's own tests reach it directly.
@@ -31,6 +31,7 @@ export interface RegistryOwnerSeed {
   readonly initialValues: InitialValues | undefined;
 }
 
+/** What a provider keeps for its life: the registry, and the commit, hold and release it forwards. */
 export interface RegistryOwner {
   /** The one registry, for the provider's whole life; a recycle resets it in place. */
   readonly registry: AtomRegistry.AtomRegistry;
