@@ -185,3 +185,8 @@ the rest of its stderr is indented under that.
   (scratch edit: the services key calling isUnsampled(status) itself instead of the shared reader)
   packages/devtools/src/model/DockModel.ts:419 calls isUnsampled outside the guard and outside a module-scope function declaration
   packages/devtools/src/model/DockModel.ts:415 the services key does not call the shared reader shownInputOf
+
+## 85-06 the hydration store's identity
+
+- failed: M58: a poll whose reading equals the last publishes nothing from the hydration store, and a configure handing it other counts publishes it once
+  (scratch edit: the hydration key copied the counts, `{ ...reading.hydration }`, so an identical configure republished; expected 2 to equal 1)

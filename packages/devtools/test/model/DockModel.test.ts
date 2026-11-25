@@ -1807,6 +1807,39 @@ describe("the hydration store", () => {
   );
 });
 
+describe("the hydration store's identity", () => {
+  it.effect("M58: a poll whose reading equals the last publishes nothing from the hydration store, and a configure handing it other counts publishes it once", () =>
+    Effect.gen(function* () {
+      const { collector } = makeCollectorDouble();
+      const diagnostics = { collector };
+      const model = yield* dockModelOf({ diagnostics });
+      yield* settleTurns;
+      const before = model.hydration.getSnapshot();
+      const heard = heardOn(model.hydration);
+
+      yield* TestClock.adjust("10 seconds");
+      yield* settleTurns;
+
+      assert.strictEqual(heard.calls, 0);
+      assert.strictEqual(model.hydration.getSnapshot(), before);
+
+      model.configure({ diagnostics, reading: { hydration: suppliedHydration } });
+
+      assert.strictEqual(heard.calls, 1);
+      const view = model.hydration.getSnapshot();
+      assert.strictEqual(view._tag, "Counts");
+      if (view._tag === "Counts") {
+        assert.strictEqual(view.dehydrated, 2);
+        assert.strictEqual(view.seeded, 1);
+      }
+
+      model.configure({ diagnostics, reading: { hydration: suppliedHydration } });
+
+      assert.strictEqual(heard.calls, 1);
+    }),
+  );
+});
+
 describe("the stores of the model", () => {
   it.effect(
     "a built model's members with subscribe and getSnapshot are exactly this list",
