@@ -1,6 +1,7 @@
 "use client";
 /**
- * Builds a value that has `configure` in a scope and configures it with the latest inputs before anything reads it.
+ * Builds a value that has `configure` in a scope, and configures it with the latest
+ * inputs before anything reads it.
  *
  * Internal scaffolding, kept out of the barrel (AGENTS.md §9). The value is configured
  * inside the scoped build, so a reader that commits on the render the value appears sees
