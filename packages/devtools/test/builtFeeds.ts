@@ -5,6 +5,9 @@
  * inside the same build, so a test that builds the same way tests what ships. A
  * `configure` that throws (a refused capacity) becomes the build's defect, as a throw
  * from a constructor's body is.
+ *
+ * `configuredBy` is that one step for all four, and `react/useConfigured.ts` is the hook
+ * form of the same step. It is structural, so this file imports nothing from `src/react`.
  */
 import * as Effect from "effect/Effect";
 import type * as Scope from "effect/Scope";
@@ -14,16 +17,20 @@ import { makeDockModel, type DockModel, type DockModelInputs } from "../src/mode
 import { makeGatesFeed, type GatesFeed, type GatesFeedInputs } from "../src/model/GatesFeed.ts";
 import { makeTimelineFeed, type TimelineFeed, type TimelineFeedInputs } from "../src/model/TimelineFeed.ts";
 
+const configuredBy = <A extends { readonly configure: (inputs: I) => void }, I>(
+  make: () => Effect.Effect<A, never, Scope.Scope>,
+  inputs: I,
+): Effect.Effect<A, never, Scope.Scope> => Effect.tap(make(), (built) => Effect.sync(() => built.configure(inputs)));
+
 export const timelineFeedOf = (inputs: TimelineFeedInputs): Effect.Effect<TimelineFeed, never, Scope.Scope> =>
-  Effect.tap(makeTimelineFeed(), (built) => Effect.sync(() => built.configure(inputs)));
+  configuredBy(makeTimelineFeed, inputs);
 
 export const diagnosticsFeedOf = (
   options: DiagnosticsOptions | undefined,
-): Effect.Effect<DiagnosticsFeed, never, Scope.Scope> =>
-  Effect.tap(makeDiagnosticsFeed(), (built) => Effect.sync(() => built.configure(options)));
+): Effect.Effect<DiagnosticsFeed, never, Scope.Scope> => configuredBy(makeDiagnosticsFeed, options);
 
 export const gatesFeedOf = (inputs: GatesFeedInputs): Effect.Effect<GatesFeed, never, Scope.Scope> =>
-  Effect.tap(makeGatesFeed(), (built) => Effect.sync(() => built.configure(inputs)));
+  configuredBy(makeGatesFeed, inputs);
 
 export const dockModelOf = (inputs: DockModelInputs): Effect.Effect<DockModel, never, Scope.Scope> =>
-  Effect.tap(makeDockModel(), (built) => Effect.sync(() => built.configure(inputs)));
+  configuredBy(makeDockModel, inputs);
