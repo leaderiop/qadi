@@ -28,10 +28,10 @@ Every phase runs on branch `arch-wave-15` (off `arch-wave-14` at `902d2128`), st
 
 ### The diagnostics feed folds its reading as a value (Phase 83, ARCH-130, devtools; Breaking)
 
-- [ ] **DIAG-01**: A characterisation test written on the phase base, green there and after, pins every status and reading transition of the diagnostics feed (Off, Starting, Live, Stopped, the per-field identity kept when a sample repeats, the `isCurrent` token guard, the `sampled` flag), so the rewrite changes no observable behaviour except the one this phase names.
-- [ ] **DIAG-02**: The feed holds its reading as a value folded by one pure per-field keep-if-equal function with value tests; the package-private store nothing subscribes to, its `marking` wrapper and the store replacement in `off()` are gone. `runDiagnostics` takes an `accept` sink, as `runSource` does.
-- [ ] **DIAG-03**: `Diagnostics.questions`, which the poll never writes and nothing reads, is removed from the public `Diagnostics` type (kept on `DiagnosticsReading`, which the dock join reads), or the reason it stays is recorded. If removed: a `@qadi/devtools` changeset marked **Breaking** with a 0.13 upgrade-guide entry, `spec/overview.md`, gate 13 and gate 14 in the same plan.
-- [ ] **DIAG-04**: Renamed or moved modules and tests keep every register that names them in step (`spec/traceability.md`, AGENTS.md §6's `NOT_CALLABLE_PIN_BUDGET` table and `scripts/check-house-style.mjs`'s budget together). ADR-QD-196 records the change, amending ADR-QD-173.
+- [x] **DIAG-01**: A characterisation test written on the phase base, green there and after, pins every status and reading transition of the diagnostics feed (Off, Starting, Live, Stopped, the per-field identity kept when a sample repeats, the `isCurrent` token guard, the `sampled` flag), so the rewrite changes no observable behaviour except the one this phase names.
+- [x] **DIAG-02**: The feed holds its reading as a value folded by one pure per-field keep-if-equal function with value tests; the package-private store nothing subscribes to, its `marking` wrapper and the store replacement in `off()` are gone. `runDiagnostics` takes an `accept` sink, as `runSource` does.
+- [x] **DIAG-03**: `Diagnostics.questions`, which the poll never writes and nothing reads, is removed from the public `Diagnostics` type (kept on `DiagnosticsReading`, which the dock join reads), or the reason it stays is recorded. If removed: a `@qadi/devtools` changeset marked **Breaking** with a 0.13 upgrade-guide entry, `spec/overview.md`, gate 13 and gate 14 in the same plan.
+- [x] **DIAG-04**: Renamed or moved modules and tests keep every register that names them in step (`spec/traceability.md`, AGENTS.md §6's `NOT_CALLABLE_PIN_BUDGET` table and `scripts/check-house-style.mjs`'s budget together). ADR-QD-196 records the change, amending ADR-QD-173.
 
 ### `useConfigured` requires `configure`, and the review's small finds (Phase 84, ARCH-131, devtools)
 
@@ -84,10 +84,10 @@ Every phase runs on branch `arch-wave-15` (off `arch-wave-14` at `902d2128`), st
 | LEASE-03 | Phase 82 | Complete |
 | LEASE-04 | Phase 82 | Complete |
 | LEASE-05 | Phase 82 | Complete |
-| DIAG-01 | Phase 83 | Pending |
-| DIAG-02 | Phase 83 | Pending |
-| DIAG-03 | Phase 83 | Pending |
-| DIAG-04 | Phase 83 | Pending |
+| DIAG-01 | Phase 83 | Complete |
+| DIAG-02 | Phase 83 | Complete |
+| DIAG-03 | Phase 83 | Complete |
+| DIAG-04 | Phase 83 | Complete |
 | ADPT-01 | Phase 84 | Pending |
 | ADPT-02 | Phase 84 | Pending |
 | ADPT-03 | Phase 84 | Pending |
