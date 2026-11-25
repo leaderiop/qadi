@@ -5,16 +5,16 @@ milestone_name: Arch Wave 15
 current_phase: 83
 current_phase_name: The diagnostics feed folds its reading as a value
 status: executing
-stopped_at: Completed QD-83-04-PLAN.md
-last_updated: "2026-11-25T04:14:47.437Z"
+stopped_at: Completed 83-05-PLAN.md
+last_updated: "2026-11-25T04:20:25.067Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 82 complete, transitioned to Phase 83
-state_head: 77247c8f5cb6afac6d6bb6ca4c1d00695bad5b27
+state_head: 36f5abd37c44dcd1d7a548f2ffb2a784f62b0da4
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 32
-  completed_plans: 25
+  completed_plans: 26
   percent: 50
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-83 (The diagnostics feed folds its reading as a value) — READY TO EXECUTE
-Plan: 5 of 11
+Plan: 6 of 11
 Status: Ready to execute
 Last activity: 2026-11-25 — Phase 82 complete, transitioned to Phase 83
 
@@ -628,6 +628,7 @@ Last activity: 2026-11-25 — Phase 82 complete, transitioned to Phase 83
 | Phase QD-83 P02 | 15min | 2 tasks | 3 files |
 | Phase QD-83 P03 | 15min | 2 tasks | 2 files |
 | Phase QD-83 P04 | 15min | 3 tasks | 38 files |
+| Phase QD-83 P05 | 25min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -1097,6 +1098,7 @@ Last activity: 2026-11-25 — Phase 82 complete, transitioned to Phase 83
 - [Phase QD-83]: 83-01: the mutation scorer keys a base record by base paths and a close record by close paths (RENAMED maps close to base), so one group measures the diagnostics module across its rename; DiagnosticsFeed.ts and Diagnostics.ts are absolute at the close
 - [Phase QD-83]: The F2 flip (DiagnosticsFeed.test.ts reading.questions undefined becomes assert.isFalse("questions" in reading), title unchanged) is declared in the pinned check, the scratch copy of 81-pinned-check.mjs and the evidence
 - [Phase QD-83]: Barrel export groups for Diagnostics.ts moved ahead of DiagnosticsFeed.ts to satisfy the devtools-named-barrel order rule
+- [Phase QD-83]: 83-05: removal pins written and seen red on the base, landed with the removal so each commit is green
 
 ### Pending Todos
 
@@ -1178,8 +1180,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T04:14:47.331Z
-Stopped at: Completed QD-83-04-PLAN.md
+Last session: 2026-11-25T04:20:24.962Z
+Stopped at: Completed 83-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
