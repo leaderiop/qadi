@@ -5,16 +5,16 @@ milestone_name: Arch Wave 15
 current_phase: 84
 current_phase_name: "`useConfigured` requires `configure`, and the review's small finds"
 status: executing
-stopped_at: Completed QD-84-05-PLAN.md
-last_updated: "2026-11-25T08:02:22.945Z"
+stopped_at: Completed 84-06-PLAN.md
+last_updated: "2026-11-25T08:06:19.811Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 83 complete, transitioned to Phase 84
-state_head: f6e3e6ff4bd8cc776b4131d9404315690b50b1c8
+state_head: 1b2ad05af5b11fea7ca08d44a021ff3c63243640
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 45
-  completed_plans: 37
+  completed_plans: 38
   percent: 75
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: 84 (`useConfigured` requires `configure`, and the review's small finds) — READY TO EXECUTE
-Plan: 6 of 13
+Plan: 7 of 13
 Status: Ready to execute
 Last activity: 2026-11-25 — Phase 83 complete, transitioned to Phase 84
 
@@ -641,6 +641,7 @@ Last activity: 2026-11-25 — Phase 83 complete, transitioned to Phase 84
 | Phase QD-84 P03 | 25min | 3 tasks | 2 files |
 | Phase QD-84 P04 | 10min | 2 tasks | 2 files |
 | Phase QD-84 P05 | 20min | 2 tasks | 3 files |
+| Phase QD-84 P06 | 25min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -1117,6 +1118,7 @@ Last activity: 2026-11-25 — Phase 83 complete, transitioned to Phase 84
 - [Phase QD-83]: Restatements are dated blockquotes under the headings; BEH-QD-755's transition table is the rows of FC1 to FC10
 - [Phase QD-83]: 83-10: the close needed no survivor test; five characterisation rows no earlier edit failed were seen failing under restored scratch edits
 - [Phase 84]: Plan 84-01: the lens session's Stryker base is 52/52 killed with 22 Ignored and nothing open; 84-check.mjs enforces the fixed phase_base and the owner's one trailer
+- [Phase QD-84]: 84-06: Configurable<I> stays exported from useConfigured.ts for its type test only and is refused from both barrels
 
 ### Pending Todos
 
@@ -1199,8 +1201,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T08:02:22.840Z
-Stopped at: Completed QD-84-05-PLAN.md
+Last session: 2026-11-25T08:06:19.655Z
+Stopped at: Completed 84-06-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
