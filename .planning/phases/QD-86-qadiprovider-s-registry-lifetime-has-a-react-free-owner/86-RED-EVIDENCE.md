@@ -108,3 +108,14 @@ the rest of its stderr is indented under that. `records` passes on the base and 
   (a copy-backed scratch edit of spec/behaviors/09-react.md changing RL1 to RL10 to RL1 to RL99 in the Pinned by paragraph of BEH-QD-748, restored with cp)
   BEH-QD-748 names row RL12 for packages/react/test/RegistryLease.test.ts, which no title opens
   (and one such line for each of RL13 to RL99, 87 lines)
+
+## 86-03 the earlier-checks ledger
+
+The ledger passes on the tree. The line below is its first stderr line under a copy-backed scratch edit of
+`stryker.react.mjs` that drops `"packages/react/src/RegistryLease.ts",` from `mutate` (restored with `cp`, after which
+`git diff --quiet -- stryker.react.mjs` held and the ledger exited 0 again). The one run that changed is Phase 82's
+`single-owner`, which now prints exit 1 and `stryker.react.mjs does not mutate RegistryLease.ts`; every other row still
+matched.
+
+- check failed: 86-earlier-checks.mjs: 82-check.mjs single-owner: expected exit 0, got exit 1: stryker.react.mjs does not mutate RegistryLease.ts
+  (a scratch edit of stryker.react.mjs removing RegistryLease.ts from mutate; that was the only reason, and the exit status was 1)
