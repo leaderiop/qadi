@@ -74,3 +74,12 @@ The base is the one `88-mutation-base.json` records (`phase_base` 892c4d36bf0f63
 - check failed: box-keys-itself: packages/devtools/src/react/StoppedBox.tsx reads .current: no render reads a ref
 - check failed: ledger-module: packages/devtools/src/model/StopLedger.ts is missing
 - check failed: records: BEH-QD-759 names packages/devtools/test/react/NoSuchFile.test.tsx, which does not exist
+
+## 88-03 the pinned-test check
+
+- check failed: pinned held: packages/devtools/test/react/DiagnosticsNotice.test.tsx: differs from its base text after the region N12, at line 225
+- check failed: pinned born: packages/devtools/test/react/useStopNotice.test.tsx: differs from the commit that added it at line 79
+- check failed: pinned region: packages/devtools/test/react/TimelineNotice.test.tsx: differs from its base text between the regions ledger and TN14, at line 261
+- check failed: pinned held src: packages/devtools/src/react/DevtoolsDock.tsx: differs from its base text at line 268
+- check failed: pinned kept: packages/devtools/test/react/DiagnosticsNotice.test.tsx: the region N9 dropped a kept line: assert.isNull(silent.getAttribute("role"));
+- check failed: pinned all-applied: packages/devtools/test/helpers.ts: its declared edit is not applied
