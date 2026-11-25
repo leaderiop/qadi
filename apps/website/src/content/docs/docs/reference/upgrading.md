@@ -922,6 +922,41 @@ One behaviour changes with the move. A questions input that throws is now stated
 
 The decision is [ADR-QD-169](https://github.com/leaderiop/qadi/blob/main/spec/decisions/169-the-questions-panels-two-host-inputs-are-one-feed.md).
 
+## 0.13: Diagnostics has no questions field
+
+`@qadi/devtools`'s `Diagnostics`, one reading of what the poll samples, no longer has a `questions` field, so it is `wiring`, `activity`, `hydration` and `portCalls`. The poll never sampled questions, because the gates feed reads the questions the dock asks about, so the field was `undefined` on every sampled reading and held a list only where `mergeReading` copied one from a supplied `DiagnosticsReading`. The dock's questions join already reads that list from the supplied reading, beside the merged one.
+
+`DiagnosticsReading.questions` is unchanged, and so is the Questions tab: a list a reading supplies is still listed and still wins over the dock's `questions` input. Only a reader of `Diagnostics.questions` changes, and the compiler names each one.
+
+Before:
+
+```ts
+const merged = mergeReading(sampled, supplied);
+const asked = merged.questions;
+```
+
+After:
+
+```typescript
+import { mergeReading, WiringRead } from "@qadi/devtools";
+import type { Diagnostics, DiagnosticsReading } from "@qadi/devtools";
+
+const sampled: Diagnostics = {
+  wiring: WiringRead.NotHanded(),
+  activity: [],
+  hydration: undefined,
+  portCalls: undefined,
+};
+const supplied: DiagnosticsReading = { questions: [] };
+
+// The merged reading is what the poll samples, with the four supplied fields laid over it.
+export const merged: Diagnostics = mergeReading(sampled, supplied);
+// The questions are read from the reading that supplied them.
+export const asked = supplied.questions;
+```
+
+The decision is [ADR-QD-196](https://github.com/leaderiop/qadi/blob/main/spec/decisions/196-the-diagnostics-feed-folds-its-reading-as-a-value.md).
+
 ## 0.13: untrustedDecoder states the envelope's unknown-key policy
 
 `@qadi/core`'s `untrustedDecoder` now takes a required options object, and its `unknownKeys` is required: `UnknownKeyPolicy`, a new export, is `"refuse" | "ignore"`. It says what the decoder does with a top-level key its schema does not declare. A call that passed no options passes `{ unknownKeys: "refuse" }`, and a call that passed `unwalked` or `prepare` adds `unknownKeys: "refuse"` beside it. Both keep every answer they gave. Before:

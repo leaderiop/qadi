@@ -123,6 +123,7 @@ const TYPE_ONLY_PROBES = ["DecisionCacheShape", "GateInstanceLike", "GateRegistr
  */
 const REFUSED_SHAPE_PROBES = new Map([
   ["DecisionCacheShape", "getOrCompute"],
+  ["Diagnostics", "questions"],
   ["DiagnosticsOptions", "schedule"],
 ]);
 
@@ -499,6 +500,7 @@ import { makeQadi } from "@qadi/promise";
 import { qadiTestLayer } from "@qadi/testing";
 import { QadiProvider } from "@qadi/react";
 import {
+  type Diagnostics,
   type DiagnosticsOptions,
   emptyTimeline,
   type GateInstanceLike,
@@ -509,6 +511,7 @@ import {
   makeTimelineFeed,
   sourceFromRecords,
   verdictOf,
+  WiringRead,
 } from "@qadi/devtools";
 import { DevtoolsDock, type DevtoolsDockProps } from "@qadi/devtools/react";
 import { compileSql } from "@qadi/predicate-sql";
@@ -746,7 +749,7 @@ const diagnosed = await Effect.runPromise(
       }
       const after = feed.getSnapshot();
       const stopped = after.status._tag === "Stopped" ? after.status.reason : undefined;
-      return { off: off.getSnapshot().status._tag, after: after.status._tag, stopped, hydration: after.reading.hydration !== undefined, turns };
+      return { off: off.getSnapshot().status._tag, after: after.status._tag, stopped, hydration: after.reading.hydration !== undefined, questions: "questions" in after.reading, turns };
     }),
   ),
 );
@@ -755,11 +758,22 @@ console.log(\`consumer: the diagnostics feed was read for \${diagnosed.turns} of
 expect("diagnostics feed stop reason", diagnosed.stopped, undefined);
 expect("diagnostics feed reached Live", diagnosed.after, "Live");
 expect("diagnostics feed first read sets hydration", diagnosed.hydration, true);
+expect("diagnostics feed reading carries no questions", diagnosed.questions, false);
 
 // DiagnosticsOptions has a cadence in milliseconds and no \`schedule\`.
 const noSchedule: DiagnosticsOptions = {
   // @ts-expect-error schedule is not an option, a cadence is a number
   schedule: "immediate",
+};
+
+// Diagnostics is what the poll samples, so it has no \`questions\` field.
+const noQuestions: Diagnostics = {
+  wiring: WiringRead.NotHanded(),
+  activity: [],
+  hydration: undefined,
+  portCalls: undefined,
+  // @ts-expect-error questions is not a field: the poll does not sample them
+  questions: [],
 };
 
 // @qadi/core's DecisionCacheShape is type-only, so only the compiler reaches it. A host cache wraps

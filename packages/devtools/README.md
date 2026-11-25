@@ -153,10 +153,11 @@ cache, is two instances if the dock and your application each build the layer,
 and the dock reports its own. Build the context once and give
 that one value to both (the shared-context rule is in BEH-QD-323). The
 `reading` prop carries a reading taken elsewhere (another process's report, a
-fixture) as `{ wiring, activity, hydration, portCalls, questions }`: each field it
-carries wins over the sampled one, and a field it omits falls through to the
-sample. Its `wiring` is a `WiringRead`, so it can state a failed read as well as
-a report.
+fixture) as `{ wiring, activity, hydration, portCalls, questions }`: each of the
+first four it carries wins over the sampled one, and a field it omits falls
+through to the sample. Its `wiring` is a `WiringRead`, so it can state a failed
+read as well as a report. Its `questions` are the questions the dock lists, and
+win over the dock's `questions` input.
 
 ## Without React: the feeds
 
