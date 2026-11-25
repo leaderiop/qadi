@@ -123,3 +123,42 @@ the rest of its stderr is indented under that.
   (on the tree as it is, the declared edit not yet applied; the second reason is `QuestionsPanel.test.tsx: the region is not changed from the base`)
 - check failed: 85-earlier-checks.mjs: 84-check.mjs records: expected exit 0, got exit 1: BEH-QD-736 quotes "a title no test has" for packages/devtools/test/model/LensSession.test.ts, which holds no such test
   (a copy-backed scratch edit of the quoted title in BEH-QD-736's `Pinned by` paragraph in spec/behaviors/28-devtools-screens.md, restored with `cp`; `84-check.mjs records --close` failed the same way)
+
+## 85-04 the hydration view
+
+- red on the base: HydrationView.test.ts cannot import ../../src/model/HydrationView.ts
+  (vitest: Failed to resolve import "../../src/model/HydrationView.ts", no tests ran)
+- failed: V1 no counts and a sampled poll: the unwired advice
+  (scratch edit: Pending returned for both absent cases)
+- failed: V2 no counts and an unsampled poll: pending
+  (scratch edit: Unwired returned for both absent cases)
+- failed: V3 counts while unsampled: the counts win
+  (scratch edit: the precedence swapped: the poll's unsampled flag tested before the counts)
+- failed: V4 the four numbers pass through unchanged
+  (scratch edit: a number copied from the wrong field (seeded read from dehydrated))
+- failed: V5 nothing re-checked: no rate
+  (scratch edit: the rate rendered at rechecked 0)
+- failed: V6 one re-checked, one mismatched: the singular rate
+  (scratch edit: the rate's singular rule dropped (always the plural s))
+- failed: V7 four re-checked, one mismatched: the plural rate
+  (scratch edit: the rate's plural s dropped)
+- failed: V8 nine drops all at zero: nothing was dropped
+  (scratch edit: the all-clear counted the raised drops, not every reason (also moved by the filter taken at >= 0))
+- failed: V9 no drops listed: all 0 reasons
+  (scratch edit: the all-clear count printed as a fixed 9)
+- failed: V10 one raised drop beside a zero one: exactly the raised row
+  (scratch edit: zero drops no longer filtered out (>= 0; also V8, V11))
+- failed: V11 a drop at count 1 is raised and one at 0 is not
+  (scratch edit: a drop at count 1 no longer raised (the filter at > 1))
+- failed: V12 a foreign reason keeps its reason and meaning verbatim
+  (scratch edit: a raised row's reason altered on the way through)
+- failed: V13 dehydrated equals seeded: 0 dehydrated entries
+  (scratch edit: the y/ies rule swapped (also V14, V15, and the scope branches swapped))
+- failed: V14 a shortfall of 1: 1 dehydrated entry
+  (scratch edit: the y/ies rule swapped (also V13, V15))
+- failed: V15 a shortfall of 6: 6 dehydrated entries
+  (scratch edit: the y/ies rule swapped (also V13, V14))
+- failed: V16 seeded more than dehydrated: a client reading payloads
+  (scratch edit: the scope branches swapped (also V13, V14, V15))
+- failed: V17 the same reading twice gives equal views and leaves the input alone
+  (scratch edit: the input array reversed in place by the drop filter's source)
