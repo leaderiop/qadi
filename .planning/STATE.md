@@ -5,16 +5,16 @@ milestone_name: Arch Wave 15
 current_phase: 84
 current_phase_name: "`useConfigured` requires `configure`, and the review's small finds"
 status: executing
-stopped_at: Completed 84-10-PLAN.md
-last_updated: "2026-11-25T08:26:28.375Z"
+stopped_at: Completed 84-11-PLAN.md
+last_updated: "2026-11-25T08:37:51.224Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 83 complete, transitioned to Phase 84
-state_head: ed31899bf6633197d20094a9919625939d9bdab4
+state_head: efca3b710b258b5fe02715d8c6087380e89ca47f
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 45
-  completed_plans: 42
+  completed_plans: 43
   percent: 75
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: 84 (`useConfigured` requires `configure`, and the review's small finds) — READY TO EXECUTE
-Plan: 11 of 13
+Plan: 12 of 13
 Status: Ready to execute
 Last activity: 2026-11-25 — Phase 83 complete, transitioned to Phase 84
 
@@ -646,6 +646,7 @@ Last activity: 2026-11-25 — Phase 83 complete, transitioned to Phase 84
 | Phase QD-84 P08 | 20min | 3 tasks | 10 files |
 | Phase QD-84 P09 | 15min | 2 tasks | 7 files |
 | Phase 84 P10 | 15min | 2 tasks | 7 files |
+| Phase QD-84 P11 | 25min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -1124,6 +1125,7 @@ Last activity: 2026-11-25 — Phase 83 complete, transitioned to Phase 84
 - [Phase 84]: Plan 84-01: the lens session's Stryker base is 52/52 killed with 22 Ignored and nothing open; 84-check.mjs enforces the fixed phase_base and the owner's one trailer
 - [Phase QD-84]: 84-06: Configurable<I> stays exported from useConfigured.ts for its type test only and is refused from both barrels
 - [Phase 84]: ADR-QD-197 records the useTimeline per-render memo as a rejection, with the four reasons; reason 4 is a reason not to make memoisation the hooks' rule (decided autonomously)
+- [Phase QD-84]: 84-11: BEH-QD-756 to 760 and INV-QD-413 and 414 written with exact-title pinned-by; CCR-QD-476 row complete, no reserved number left Unused
 
 ### Pending Todos
 
@@ -1206,8 +1208,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T08:26:28.211Z
-Stopped at: Completed 84-10-PLAN.md
+Last session: 2026-11-25T08:37:50.944Z
+Stopped at: Completed 84-11-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
