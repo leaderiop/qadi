@@ -5,16 +5,16 @@ milestone_name: Arch Wave 15
 current_phase: 82
 current_phase_name: "`QadiProvider`'s registry has one owner for its lifetime"
 status: executing
-stopped_at: Completed QD-82-08-PLAN.md
-last_updated: "2026-11-25T02:01:01.349Z"
+stopped_at: Completed QD-82-09-PLAN.md
+last_updated: "2026-11-25T02:06:27.302Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase QD-82 execution started
-state_head: 47b019a58c290af6d6c1bb24a05ce070ef796398
+state_head: 0166e85bdd5c11f2e6e82490036e94e2502865fb
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 21
-  completed_plans: 19
+  completed_plans: 20
   percent: 25
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-82 (`QadiProvider`'s registry has one owner for its lifetime) — EXECUTING
-Plan: 9 of 10
+Plan: 10 of 10
 Status: Executing Phase QD-82
 Last activity: 2026-11-25 — Phase QD-82 execution started
 
@@ -621,6 +621,7 @@ Last activity: 2026-11-25 — Phase QD-82 execution started
 | Phase QD-82 P06 | 22 min | 2 tasks | 8 files |
 | Phase QD-82 P07 | 14 min | 2 tasks | 6 files |
 | Phase QD-82 P08 | 9 min | 2 tasks | 3 files |
+| Phase QD-82 P09 | 12 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -1085,6 +1086,7 @@ Last activity: 2026-11-25 — Phase QD-82 execution started
 - [Phase QD-82]: Decided autonomously: BEH-QD-067's amendment is a dated blockquote that states the change without quoting the replaced sentence; the two limits a recycle costs a host (a subjectless or unanswered seeded gate stays Pending, a host's own registry subscription is detached) are stated in BEH-QD-067's note and BEH-QD-750 with LT9, LT10, LT15
 - [Phase QD-82]: Decided autonomously: per-behaviour rows for BEH-QD-746 to BEH-QD-750 sit in a small table under traceability section 1's range table, since section 1 held none and the plan's verify needs them
 - [Phase QD-82]: 82-08: the CCR-QD-474 row lists documents in first-changed order and names the losses a host sees after a long hide (decided autonomously)
+- [Phase QD-82]: 82-09: the mutation close needed no new test; the three QuestionBook.ts survivors the base held are carried through, never re-baselined (decided autonomously)
 
 ### Pending Todos
 
@@ -1165,8 +1167,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T02:01:01.296Z
-Stopped at: Completed QD-82-08-PLAN.md
+Last session: 2026-11-25T02:06:27.246Z
+Stopped at: Completed QD-82-09-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
