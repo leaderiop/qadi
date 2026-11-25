@@ -196,3 +196,18 @@ the rest of its stderr is indented under that.
   (scratch edit: the key's unsampled was `hydration === undefined && isUnsampled(status)`, so the flip with counts handed published nothing; M60 failed under it too)
 - failed: DL22 when a services listener and a hydration listener both throw in one configure, the last step's aggregate holds the services error before the hydration error
   (scratch edit: the hydration store built before services, so the nested aggregate listed hydration first)
+
+## 85-07 the panel renders the view
+
+- failed: renders a view still waiting for its first sample as no counts read yet
+  (scratch edit: the pending and unwired test ids swapped; H10 and the held absent-gates cells failed under it too)
+- failed: renders an unwired view with the fix it names
+  (scratch edit: the pending and unwired test ids swapped)
+- failed: renders the four counts, the rate, each raised drop and the scope under their test ids
+  (scratch edit: the rate div dropped; H1, H2 and H4 to H7 failed under it too; also failed under the raised rows rendered as the no-drops div, with H8 and H9)
+- failed: renders a counts view with no rate as nothing dropped, without a rate line
+  (scratch edit: the rate div rendered whether or not the view carried a rate)
+- failed: renders each drop's reason as text
+  (scratch edit: the reason rendered as inner HTML in place of a text child; H9 failed under it too)
+- check failed: panel-decides-nothing: packages/devtools/src/react/QuestionsPanel.tsx:29 imports isUnsampled from ../model/DiagnosticsFeed.ts
+  (scratch edit: the status predicate imported and called in the panel again)
