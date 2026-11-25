@@ -35,11 +35,11 @@ Every phase runs on branch `arch-wave-15` (off `arch-wave-14` at `902d2128`), st
 
 ### `useConfigured` requires `configure`, and the review's small finds (Phase 84, ARCH-131, devtools)
 
-- [ ] **ADPT-01**: `useConfigured` takes a value that has `configure`; the three identical adapters in `useDockModel`, `useTimeline` and `useDiagnostics` are deleted and its test double is an object. A hidden `Activity` or a StrictMode rebuild still configures with the current inputs.
-- [ ] **ADPT-02**: `LensSession` publishes through `ExternalStore.set` (no restated `move`), and `choose` still arms its reveal before it publishes and still answers whether the click was consumed.
-- [ ] **ADPT-03**: `useLens` receives each fact once: the draw and the event handlers read the same questions snapshot path, the panel keeps exactly one subscription to each store (traceability row pin), and the handlers still read the guards at event time.
-- [ ] **ADPT-04**: `DockFrame`'s stop-ledger ref and memoised notice exist once, shared by the diagnostics and timeline notices.
-- [ ] **ADPT-05**: `useTimeline`'s per-render inputs record is either memoised or recorded as a rejection against ADR-QD-192 decision 8, with the gates feed's retry-on-configure (G43) unaffected. ADR-QD-197 records the phase or is named unused.
+- [x] **ADPT-01**: `useConfigured` takes a value that has `configure`; the three identical adapters in `useDockModel`, `useTimeline` and `useDiagnostics` are deleted and its test double is an object. A hidden `Activity` or a StrictMode rebuild still configures with the current inputs.
+- [x] **ADPT-02**: `LensSession` publishes through `ExternalStore.set` (no restated `move`), and `choose` still arms its reveal before it publishes and still answers whether the click was consumed.
+- [x] **ADPT-03**: `useLens` receives each fact once: the draw and the event handlers read the same questions snapshot path, the panel keeps exactly one subscription to each store (traceability row pin), and the handlers still read the guards at event time.
+- [x] **ADPT-04**: `DockFrame`'s stop-ledger ref and memoised notice exist once, shared by the diagnostics and timeline notices.
+- [x] **ADPT-05**: `useTimeline`'s per-render inputs record is either memoised or recorded as a rejection against ADR-QD-192 decision 8, with the gates feed's retry-on-configure (G43) unaffected. ADR-QD-197 records the phase or is named unused.
 
 ### Cross-cutting (every v1.10 phase)
 
@@ -88,11 +88,11 @@ Every phase runs on branch `arch-wave-15` (off `arch-wave-14` at `902d2128`), st
 | DIAG-02 | Phase 83 | Complete |
 | DIAG-03 | Phase 83 | Complete |
 | DIAG-04 | Phase 83 | Complete |
-| ADPT-01 | Phase 84 | Pending |
-| ADPT-02 | Phase 84 | Pending |
-| ADPT-03 | Phase 84 | Pending |
-| ADPT-04 | Phase 84 | Pending |
-| ADPT-05 | Phase 84 | Pending |
+| ADPT-01 | Phase 84 | Complete |
+| ADPT-02 | Phase 84 | Complete |
+| ADPT-03 | Phase 84 | Complete |
+| ADPT-04 | Phase 84 | Complete |
+| ADPT-05 | Phase 84 | Complete |
 | WX-01 | All v1.10 phases | Complete |
 | WX-02 | All v1.10 phases | Complete |
 | WX-03 | All v1.10 phases | Complete |
