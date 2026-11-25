@@ -36,7 +36,7 @@
  ],
  "groups": {
   "diagnostics": {
-   "head": "c067ab4bd431fbd86143cc38ff60b33f0553d456",
+   "head": "cac3004fe737187f34ec937a866c906babfe395e",
    "invocation": "pnpm exec stryker run stryker.devtools.mjs --mutate packages/devtools/src/model/DiagnosticsFeed.ts,packages/devtools/src/model/Diagnostics.ts,packages/devtools/src/model/DockModel.ts",
    "files": {
     "packages/devtools/src/model/DiagnosticsFeed.ts": {
@@ -217,84 +217,84 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 181,
+       "line": 183,
        "column": 35
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 209,
+       "line": 211,
        "column": 29
       },
       {
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 257,
-       "column": 24
-      },
-      {
-       "status": "Ignored",
-       "mutator": "ArrowFunction",
-       "replacement": "() => undefined",
-       "line": 258,
-       "column": 16
-      },
-      {
-       "status": "Ignored",
-       "mutator": "ArrowFunction",
-       "replacement": "() => undefined",
        "line": 259,
-       "column": 11
+       "column": 24
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
        "line": 260,
-       "column": 13
-      },
-      {
-       "status": "Ignored",
-       "mutator": "ObjectLiteral",
-       "replacement": "{}",
-       "line": 269,
-       "column": 24
+       "column": 16
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 270,
-       "column": 15
-      },
-      {
-       "status": "Ignored",
-       "mutator": "ArrowFunction",
-       "replacement": "() => undefined",
-       "line": 271,
+       "line": 261,
        "column": 11
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
+       "line": 262,
+       "column": 13
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 271,
+       "column": 24
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
        "line": 272,
+       "column": 15
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 273,
+       "column": 11
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 274,
        "column": 13
       },
       {
        "status": "Ignored",
        "mutator": "ArrayDeclaration",
        "replacement": "[\"Stryker was here\"]",
-       "line": 326,
+       "line": 328,
        "column": 39
       },
       {
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 335,
+       "line": 337,
        "column": 40
       }
      ]
