@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-185                                   |
-> | Revision       | 1.7                                            |
+> | Revision       | 1.8                                            |
 > | Effective Date | 2026-11-22                                     |
-> | Status         | Accepted — extends ADR-QD-168, amends ADR-QD-047, corrects ADR-QD-169; amended 2026-11-24 (sameFields is exported and applied by the feeds, and through them by the dock, ADR-QD-192); amended 2026-11-24 (the lens is the tenth store, and a store rather than a computed one, ADR-QD-193); amended 2026-11-24 (ADR-QD-194: the sightings rail is the fourth derived store) |
+> | Status         | Accepted — extends ADR-QD-168, amends ADR-QD-047, corrects ADR-QD-169; amended 2026-11-24 (sameFields is exported and applied by the feeds, and through them by the dock, ADR-QD-192); amended 2026-11-24 (the lens is the tenth store, and a store rather than a computed one, ADR-QD-193); amended 2026-11-24 (ADR-QD-194: the sightings rail is the fourth derived store); amended 2026-11-25 (ADR-QD-198: hydration is the eleventh store and the fifth derived store) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.7 (2026-11-24): the link to BEH-QD-699 follows its new title (CCR-QD-473)<br>1.6 (2026-11-24): amended by ADR-QD-194 (CCR-QD-473)<br>1.5 (2026-11-24): amended by ADR-QD-193 (CCR-QD-472)<br>1.4 (2026-11-24): the amendment says the dock applies sameFields through its feeds (ADR-QD-192, CCR-QD-471)<br>1.3 (2026-11-24): amended by ADR-QD-192 (CCR-QD-471)<br>1.2 (2026-11-22): decision 7 states what a parent whose subscribe throws and a release that throws each do (CCR-QD-464)<br>1.1 (2026-11-22): correction — key equality is over own enumerable string-keyed fields, the finalizer is registered before the parents are subscribed, and the store-list test lists the model's members and is kept equal to BEH-QD-700 by review (CCR-QD-464)<br>1.0 (2026-11-22): new — the dock model's three computed stores are derived stores (ARCH-119, CCR-QD-464) |
+> | Change History | 1.8 (2026-11-25): amended by ADR-QD-198: hydration is the eleventh store and the fifth derived store (CCR-QD-477)<br>1.7 (2026-11-24): the link to BEH-QD-699 follows its new title (CCR-QD-473)<br>1.6 (2026-11-24): amended by ADR-QD-194 (CCR-QD-473)<br>1.5 (2026-11-24): amended by ADR-QD-193 (CCR-QD-472)<br>1.4 (2026-11-24): the amendment says the dock applies sameFields through its feeds (ADR-QD-192, CCR-QD-471)<br>1.3 (2026-11-24): amended by ADR-QD-192 (CCR-QD-471)<br>1.2 (2026-11-22): decision 7 states what a parent whose subscribe throws and a release that throws each do (CCR-QD-464)<br>1.1 (2026-11-22): correction — key equality is over own enumerable string-keyed fields, the finalizer is registered before the parents are subscribed, and the store-list test lists the model's members and is kept equal to BEH-QD-700 by review (CCR-QD-464)<br>1.0 (2026-11-22): new — the dock model's three computed stores are derived stores (ARCH-119, CCR-QD-464) |
 
 ---
 
@@ -159,7 +159,7 @@ as a thunk (decision 1) rather than held in stores `configure` sets last.
 [BEH-QD-696](../behaviors/28-devtools-screens.md#beh-qd-696-a-derived-store-recomputes-exactly-when-a-field-of-its-key-changes-identity),
 [BEH-QD-697](../behaviors/28-devtools-screens.md#beh-qd-697-a-derived-store-notifies-once-per-change-before-the-listeners-added-after-it),
 [BEH-QD-698](../behaviors/28-devtools-screens.md#beh-qd-698-a-derived-store-does-nothing-after-its-scope-closes),
-[BEH-QD-699](../behaviors/28-devtools-screens.md#beh-qd-699-the-dock-models-four-computed-stores-are-derived-stores),
+[BEH-QD-699](../behaviors/28-devtools-screens.md#beh-qd-699-the-dock-models-five-computed-stores-are-derived-stores),
 [BEH-QD-700](../behaviors/28-devtools-screens.md#beh-qd-700-the-dock-models-stores-are-listed-once),
 [INV-QD-389](../invariants.md#inv-qd-389-a-derived-store-recomputes-exactly-when-its-key-changes-and-does-nothing-after-its-scope-closes),
 [INV-QD-390](../invariants.md#inv-qd-390-the-dock-models-computed-stores-are-derived-stores-and-their-count-is-stated-once).
@@ -192,3 +192,11 @@ as a thunk (decision 1) rather than held in stores `configure` sets last.
 > is a thunk reading it, so a rail recompute is the rule above applied to one more key and not a new kind of store
 > ([ADR-QD-194](./194-a-run-of-calls-applies-every-call-whatever-one-throws.md)). The counts and ordinals above keep their
 > history.
+
+> **Amended 2026-11-25 (CCR-QD-477): hydration is the eleventh store and the fifth derived store.**
+> The dock model has eleven stores, listed once in
+> [BEH-QD-700](../behaviors/28-devtools-screens.md#beh-qd-700-the-dock-models-stores-are-listed-once), and five derived stores.
+> The fifth is `hydration`, the questions tab's hydration block as a view of the shown reading, built on `makeDerivedStore` right
+> after `services` and before any host listener, keyed `{ hydration, unsampled }` by identity per field, with `configure` gaining
+> no step for it, so a throwing hydration listener lands in the seventh step's slot after a services listener's
+> ([ADR-QD-198](./198-the-hydration-block-is-a-model-row.md)). The counts and ordinals above keep their history.
