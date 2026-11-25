@@ -20,7 +20,8 @@ import { useScoped } from "./useScoped.ts";
 /**
  * A value that takes its inputs through its own `configure`.
  *
- * Exported for `useConfigured.tst.ts` alone, and kept out of both barrels (AGENTS.md §9).
+ * The constraint `useConfigured` asks of its value, pinned by `useConfigured.tst.ts`.
+ * Exported because the hook's signature names it; kept out of both barrels (AGENTS.md §9).
  */
 export interface Configurable<I> {
   readonly configure: (inputs: I) => void;
