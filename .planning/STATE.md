@@ -1151,6 +1151,7 @@ Last activity: 2026-11-25 — Phase 82 complete, transitioned to Phase 83
 
 - [Phase 77] Review limits recorded, not gaps: the codec-made registry is one per loaded copy of `@qadi/audit` (a second copy refuses the first's rows as `EntryNotMadeByCodec`); a throwing getter or `Proxy` passed as an input still throws as the host's own throw (ADR-QD-190 amendment 3).
 - [Phase 81] Review (81-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations fixed 13 findings (iteration 1: README record-path claim, vacuous lens row, package-private dock model in the README, nested `AggregateError` wording, three info; iteration 2: spec records restated for DL1..DL20 and TF37, BEH-QD-656 gains the record/sample-throw requirement; iteration 3: direct pins in `TimelineFeed.listeners.test.ts` LF1..LF3, amendment banner). `pnpm check:pr` and `pnpm spec:package` green after the fixes at daf7cd45; mutation compare exit 0 (no src change since the close). Note: `TimelineFeed.configure` re-reads a source a nested `configure` already read (TF37 pins two reads; dedup makes it harmless) — recorded, not changed. The pinned check refused a TF38 addition; the direct pins went into a new file instead. `phase.complete` warnings about `spec/decisions/1xx-...md` are false positives (abbreviated paths; the files exist).
+- [Phase 82] Review (82-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations fixed 7 findings (iteration 1: BEH-QD-749/ADR claim that the reveal's first frame reads a subject changed while hidden corrected to the one-frame read and pinned in LT6, LT16/LT17 pin the committed re-seed, LT12 drives real pressure across the hide, `leaseRef` typed `RegistryLease`, the re-seed moved into a `finally` after `reset()` with LT18, LT14 made to depend on the release; iteration 2: LT18 hears the timer's throw through a cast-free `setTimeout` wrapper instead of swapping process listeners; iteration 3 clean). Mutation re-close: react 148/150 (QuestionBook.ts:109 now killed), lease 28/28, compare exit 0; `pnpm check:pr` and `pnpm spec:package` green at 4ec88995. Validation 12/12, security 29/29 (2 low accepted), verification passed 5/5. `phase.complete` warnings name a scratch test file, a command and $TMPDIR outputs a SUMMARY mentions; not missing artifacts.
 ### Roadmap Evolution
 
 - Phase 68.1 inserted after Phase 68: Address tech debt from the v1.7 audit (owner chose a cleanup phase before completing)
@@ -1177,4 +1178,4 @@ Resume file: None
 ## Operator Next Steps
 
 
-- Phase 82: smart discuss (decided autonomously), then /gsd-plan-phase 82 and /gsd-execute-phase 82
+- Phase 83: smart discuss (decided autonomously), then /gsd-plan-phase 83 and /gsd-execute-phase 83
