@@ -5,16 +5,16 @@ milestone_name: Arch Wave 15
 current_phase: 83
 current_phase_name: The diagnostics feed folds its reading as a value
 status: executing
-stopped_at: Completed QD-83-07-PLAN.md
-last_updated: "2026-11-25T04:28:34.895Z"
+stopped_at: Completed 83-08-PLAN.md
+last_updated: "2026-11-25T04:39:48.330Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 82 complete, transitioned to Phase 83
-state_head: e265bc83719d48b08d59822ad1c32188d91a0f9c
+state_head: d8d9f3dd2464062faf717b6862a42b679aa35385
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 32
-  completed_plans: 28
+  completed_plans: 29
   percent: 50
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-83 (The diagnostics feed folds its reading as a value) — READY TO EXECUTE
-Plan: 8 of 11
+Plan: 9 of 11
 Status: Ready to execute
 Last activity: 2026-11-25 — Phase 82 complete, transitioned to Phase 83
 
@@ -631,6 +631,7 @@ Last activity: 2026-11-25 — Phase 82 complete, transitioned to Phase 83
 | Phase QD-83 P05 | 25min | 3 tasks | 13 files |
 | Phase QD-83 P06 | 15min | 2 tasks | 4 files |
 | Phase QD-83 P07 | 12min | 2 tasks | 7 files |
+| Phase QD-83 P08 | 25min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -1103,6 +1104,7 @@ Last activity: 2026-11-25 — Phase 82 complete, transitioned to Phase 83
 - [Phase QD-83]: 83-05: removal pins written and seen red on the base, landed with the removal so each commit is green
 - [Phase QD-83]: 83-06: foldReading is a function declaration exported from the module only; keep stays private and is called only inside it
 - [Phase QD-83]: 83-07: the feed's per-run sink keeps guard, fold, sampled flag, publish order; off() resets the reading by the diagnosticsOff constant
+- [Phase QD-83]: ADR-QD-196 records the diagnostics fold, snapshot, sink and removal; ADR-QD-173, ADR-QD-169 and ADR-QD-047 amended by dated paragraphs, past text kept
 
 ### Pending Todos
 
@@ -1184,8 +1186,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T04:28:34.794Z
-Stopped at: Completed QD-83-07-PLAN.md
+Last session: 2026-11-25T04:39:48.187Z
+Stopped at: Completed 83-08-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
