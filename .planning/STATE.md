@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 88
 current_phase_name: "`StoppedBox` keys itself and owns the announce-once rule"
 status: executing
-stopped_at: Phase 87 complete, ready to plan Phase 88
-last_updated: "2026-11-25T22:50:30.150Z"
+stopped_at: Completed QD-88-01-PLAN.md
+last_updated: "2026-11-25T22:59:14.100Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 87 complete, transitioned to Phase 88
-state_head: b9934f8c16dab9cafa9ea02703ebdf69ec83cded
+state_head: fb404767308664f5709b7e99b3a0b0514fe56d96
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 40
-  completed_plans: 30
+  completed_plans: 31
   percent: 43
 ---
 
@@ -684,6 +684,7 @@ Progress: [████░░░░░░] 43%
 | Phase QD-87 P08 | 20min | 2 tasks | 4 files |
 | Phase 87 P10 | 45min | 3 tasks | 7 files |
 | Phase 87 P11 | 10min | 2 tasks | 1 files |
+| Phase QD-88 P01 | 20min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -1211,6 +1212,8 @@ Progress: [████░░░░░░] 43%
 - [Phase 87]: 87-10: the born modules are measured over their own killers file alone (narrowed vitest include via an untracked scratch config), because the full-suite invocation Timeouts mutants whose hang is in other files' tests
 - [Phase 87]: 87-10: a static mutant of a born file run by hand with ignoreStatic false and Killed is an EXAMINED allowance the absolute rule honours
 - [Phase 87]: 87-11: the merge gate (pnpm check:pr, 17 of 18 steps) passed on the phase head without a fix; nothing released, all 35 commits trailed and in scope
+- [Phase QD-88]: 88-01: the base record lists the 43 model files at phase_base with their blobs and measures no group; compare proves no listed blob moved and StopLedger.ts is the only model file added, decided autonomously
+- [Phase QD-88]: 88-01: record base takes no group and record base ledger is a usage error; a request is parsed by one pure function the self-test drives, decided autonomously
 
 ### Pending Todos
 
@@ -1298,8 +1301,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T20:54:17.071Z
-Stopped at: Phase 87 complete, ready to plan Phase 88
+Last session: 2026-11-25T22:59:14.041Z
+Stopped at: Completed QD-88-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
