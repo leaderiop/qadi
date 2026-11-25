@@ -84,7 +84,7 @@ created: "2026-11-25"
 | LEASE-02 | COVERED | `RegistryLease.test.ts` RL1..RL10 (fake defer that really cancels, one test on the default defer); `82-check.mjs single-owner`; RegistryLease mutation 28/28 |
 | LEASE-03 | COVERED | LT4, LT5, LT7, LT8, LT14, LT15, `edges.test.tsx` "releases its registry after it unmounts" (host-atom observable, seen failing with the release skipped), LT18 (recycle `finally`) |
 | LEASE-04 | COVERED | LT6, LT13, LT16, LT17 (subject read in the first frame), LT9..LT11 (no superseded seed), LT12 (sweep bound under real pressure, ADR-QD-148); SweepScheduler 21/21, HydrationEvent 33/33 |
-| LEASE-05 | COVERED (docs) | ADR-QD-195, BEH-QD-746, INV records; strict traceability PASS 21 FAIL 0; patch changeset, no Breaking one; `pnpm spec:package` |
+| LEASE-05 | COVERED (docs) | ADR-QD-195 (1.3), amendments to ADR-QD-014, ADR-QD-148 and ADR-QD-149, BEH-QD-746..750 (BEH-QD-067 and BEH-QD-516 restated), INV-QD-409 and INV-QD-410, CCR-QD-474; strict traceability PASS 21 FAIL 0; patch changeset, no Breaking one; `pnpm spec:package` |
 | WX-01 | COVERED (process) | `pnpm check:pr < /dev/null` exit 0 at 4ec88995 |
 | WX-02 | COVERED (process) | reserved numbers only; `next-id.mjs` never run; strict traceability |
 | WX-03 | COVERED (process) | `check-api-surface.mjs` 942 exports, unchanged; `pnpm spec:package` green |
