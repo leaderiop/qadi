@@ -129,3 +129,34 @@ Each row was seen failing under one scratch edit of `packages/react/src/Registry
   (scratch edit: the recycle body emptied; 2 row(s) failed under it, RO2 and RO5)
 - failed: RO5 a long hide re-seeds from the latest commit before any read
   (scratch edit: the recycle writes seed.atoms.subject and seed.subject instead of the latest; 1 row(s) failed under it)
+
+- failed: RO1 a built owner defers nothing, and a commit and a hold defer nothing either
+  (scratch edit: the factory ends with lease.hold(); lease.release();; 4 row(s) failed under it, RO1, RO3, RO4 and RO15)
+- failed: RO3 commits and holds with no release leave the registry alone however often they run
+  (scratch edit: hold runs the lease hold and then its release; 4 row(s) failed under it, RO1, RO3, RO4 and RO15. The plan edit, a release at construction, left all 16 rows green because a release on an unheld lease does nothing, so it is the narrower edit that is recorded)
+- failed: RO4 a hold before the deferred run fires cancels the one recycle, and a later release defers again
+  (scratch edit: hold forwarded as a function that does nothing; 12 row(s) failed under it)
+- failed: RO6 a recycle whose reset throws still writes the latest subject back and the owner recycles again
+  (scratch edit: the try/finally replaced by two plain statements; 1 row(s) failed under it)
+- failed: RO7 a recycle returns neither an initial value nor the seed, only the latest commit
+  (scratch edit: the recycle re-applies seed.initialValues after the subject write; 6 row(s) failed under it)
+- failed: RO8 an atom set that is not the last committed one is reported once however often it is committed
+  (scratch edit: the condition replaced by true, by false and by === in three separate edits; RO8 and RO9 failed under each)
+- failed: RO9 the callback runs before the subject is written and a callback that throws writes nothing
+  (scratch edit: the subject write moved before the callback; 2 row(s) failed under it, RO9 and RO10)
+- failed: RO10 a commit whose write throws has already recorded the latest for a later recycle
+  (scratch edit: the record of the latest moved after the write; 1 row(s) failed under it)
+- failed: RO11 the subject is seeded first so an initial value for it wins, and the node count is the entries and the subject
+  (scratch edit: the seed order reversed, the host entries first and the subject last; 1 row(s) failed under it. The plan edit that replaces ?? [] by the subject entry left all 16 rows green because a duplicate entry for one atom adds no node, so the narrower edit that replaces ?? [] by one extra atom entry is the one that also fails RO11)
+- failed: RO12 a reset replaced on the registry after construction is the one a recycle calls
+  (scratch edit: the recycle calls a reset captured at construction; 3 row(s) failed under it)
+- failed: RO13 a subscription a host holds on the registry stops hearing after a recycle
+  (scratch edit: the recycle body emptied; 9 row(s) failed under it)
+- failed: RO14 one registry object is the one a commit, a hold, a release and a recycle all act on
+  (scratch edit: the returned registry is a second AtomRegistry.make; 15 row(s) failed under it)
+- failed: RO15 a defer that throws makes the release throw and leaves the owner usable and held
+  (scratch edit: release wrapped to swallow the throw; 1 row(s) failed under it)
+- failed: RO16 a host refresh of the subject atom after the first commit keeps the current subject
+  (scratch edit: the registry.get(atoms.subject) !== subject guard reinstated around the write; 1 row(s) failed under it)
+- twin: recycle body emptied: RO2 failed; RO1, RO3, RO4 passed
+  (the recycles-nothing rows RO1, RO3 and RO4 assert only what is deferred and what a fire leaves alone, so RO2 is their recycles-once twin; 9 rows failed under the edit in all: RO2, RO5, RO6, RO7, RO10, RO12, RO13, RO14 and RO15)
