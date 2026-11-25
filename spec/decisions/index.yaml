@@ -614,3 +614,7 @@ entries:
     file: "196-the-diagnostics-feed-folds-its-reading-as-a-value.md"
     title: "The diagnostics feed folds its reading as a value"
     status: "Accepted — amends ADR-QD-173, ADR-QD-169 and ADR-QD-047"
+  - id: "ADR-QD-197"
+    file: "197-a-configurable-value-one-questions-path-for-the-lens-and-one-stop-ledger.md"
+    title: "A configurable value, one questions path for the lens, and one stop ledger"
+    status: "Accepted — amends ADR-QD-192 and ADR-QD-193"
