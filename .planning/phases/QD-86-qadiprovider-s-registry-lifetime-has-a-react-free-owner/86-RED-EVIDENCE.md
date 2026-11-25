@@ -160,3 +160,16 @@ Each row was seen failing under one scratch edit of `packages/react/src/Registry
   (scratch edit: the registry.get(atoms.subject) !== subject guard reinstated around the write; 1 row(s) failed under it)
 - twin: recycle body emptied: RO2 failed; RO1, RO3, RO4 passed
   (the recycles-nothing rows RO1, RO3 and RO4 assert only what is deferred and what a fire leaves alone, so RO2 is their recycles-once twin; 9 rows failed under the edit in all: RO2, RO5, RO6, RO7, RO10, RO12, RO13, RO14 and RO15)
+
+## 86-05 the forwarding provider
+
+- check failed: provider-forwards-only: packages/react/src/QadiProvider.tsx: the first effect does not call owner.commit(
+  (scratch edit: the commit effect and the hold/release effect swapped in position; the check also named the dependency lists and the last effect)
+- check failed: provider-forwards-only: packages/react/src/QadiProvider.tsx names registry.get(, which the owner keeps
+  (scratch edit: registry.get(atoms.subject); added as the first statement of the commit effect)
+- check failed: provider-forwards-only: packages/react/src/QadiProvider.tsx has 4 useRef calls, not 3
+  (scratch edit: const atomsIdentityRef = useRef(atoms); added above the commit effect; the check also named atomsIdentityRef)
+- check failed: provider-forwards-only: packages/react/src/QadiProvider.tsx: the first effect holds if, a branch of lifetime logic
+  (scratch edit: the commit call wrapped in if (subject !== undefined) { ... })
+- order swap: no rendered test failed
+  (scratch edit: the commit effect and the hold/release effect swapped; the ten lifetime-adjacent files and the characterisation, 11 files and 97 tests, stayed green, so the commit-before-hold order is evidence only the check holds while nothing throws)
