@@ -26,3 +26,33 @@ because a failing run needs a plan commit with two trailers, which no commit of 
 - check failed: single-owner: QadiProvider.tsx clears registryRef
 - check failed: single-owner: QadiProvider.tsx does not build one lease
 - check failed: single-owner: QadiProvider.tsx does not hold and release the lease in one effect
+
+## the long-hide reveal on the base
+
+`pnpm exec vitest run --project react packages/react/test/QadiProvider.lifetime.test.tsx < /dev/null`, from the repository
+root, on the phase base (`packages/react/src` equals `phase_base`). The test hides a hoisted provider under an `<Activity>`
+past a real 50 ms macrotask, shows it again, and the boundary above it caught the errors below.
+
+- red on the base: LT1 a provider hidden past a macrotask and shown again throws nothing and renders the decision
+
+The assertion line vitest printed (`expect(caught).toEqual([])`, the first assertion after the reveal):
+
+```
+AssertionError: expected [ …(3) ] to deeply equal []
+ ❯ Object.expectNothingThrown test/QadiProvider.lifetime.test.tsx:158:20
+```
+
+Caught errors: 3 (one per consumer subscription, two consumers: the gate and the subject probe, plus the provider's subject
+effect). Each message is `Cannot access Atom {"_id":"Atom","keepAlive":<false|true>,"lazy":true,"label":undefined}: registry
+is disposed`. Stack heads, as printed by a temporary log of each caught error (removed before the commit):
+
+1. `registry is disposed` at `RegistryImpl.subscribe (AtomRegistry.js:268:23)` <- `subscribe (Hooks.js:63:36)` <-
+   `subscribeToStore (react-dom-client.development.js:8626:14)`: the gate's `useAtomValue` subscription (`keepAlive: false`).
+2. `registry is disposed` at `RegistryImpl.subscribe (AtomRegistry.js:268:23)` <- `subscribe (Hooks.js:63:36)` <-
+   `subscribeToStore (react-dom-client.development.js:8626:14)`: the subject probe's subscription (`keepAlive: true`).
+3. `registry is disposed` at `RegistryImpl.get (AtomRegistry.js:242:17)` <- `packages/react/src/QadiProvider.tsx:258:18`: the
+   provider's own subject effect (`registry.get(atoms.subject)`).
+
+The order is the one the research run recorded: the consumers' subscriptions first (`@effect/atom-react`'s `Hooks.js:63`),
+the provider's subject effect last (`QadiProvider.tsx:258`). After the reveal the boundary renders its marker in place of
+the subtree, and `act` does not throw because a boundary is above it.
