@@ -1,6 +1,6 @@
 ---
 phase: QD-83-the-diagnostics-feed-folds-its-reading-as-a-value
-verified: 2026-11-25T00:00:00Z
+verified: 2026-11-25T10:50:00Z
 status: passed
 score: 4/4 must-haves verified
 covered_files:
@@ -34,9 +34,15 @@ covered_files:
   - packages/devtools/test/model/Diagnostics.tst.ts
   - packages/devtools/test/surface.tst.ts
   - scripts/check-package-install.mjs
-covered_digest: "v4:sha256:db629eff5f60adb4f1a99cc0bd9839f3edf34091badbfeb7c33c61ae9afc5877"
+covered_digest: "v4:sha256:17a000e1e38b0ca0e40ccb3f6943f11bb72b8abfb667f844970ad4afbebafaf6"
 behavior_unverified: 0
 overrides_applied: 0
+re_verification:
+  previous_status: passed
+  previous_score: 4/4
+  gaps_closed: []
+  gaps_remaining: []
+  regressions: []
 ---
 
 # Phase 83: The diagnostics feed folds its reading as a value - Verification Report
@@ -44,7 +50,7 @@ overrides_applied: 0
 **Phase Goal:** The diagnostics feed holds its reading as a value folded by one pure per-field keep-if-equal function, so the package-private store nothing subscribes to, its `marking` wrapper and the store replacement in `off()` are gone, `runDiagnostics` takes an `accept` sink as `runSource` does, and the never-written `Diagnostics.questions` is resolved.
 **Verified:** 2026-11-25
 **Status:** passed
-**Re-verification:** No, initial verification
+**Re-verification:** Yes, at the v1.10 milestone close (initial report of 2026-11-25 kept; see "Re-verified at milestone close")
 
 ## Goal Achievement
 
@@ -159,7 +165,50 @@ Notes, none blocking:
 - The roadmap's plan note quotes the old store's mutation score as 60/60; this phase's own base record shows 57/57, and the close is 32/32 with no survivors for the smaller module.
 - Two info review findings (IN-02, IN-03) were skipped with recorded reasons.
 
+## Re-verified at milestone close
+
+**Why:** `verification.status` reported the initial report stale: Phase 84 changed one covered file, `packages/devtools/test/surface.tst.ts`. The roadmap anticipates it ("the milestone close re-verifies 81 to 83 and re-runs each phase's record scripts"). HEAD is `fcedaaff`. Everything below was run by me at HEAD, from the repository root with stdin closed; nothing was committed.
+
+**What changed in the covered inputs:** `git diff 6348a589 HEAD` (the last Phase 83 source commit) is empty for `Diagnostics.ts`, `DiagnosticsFeed.ts`, `DockModel.ts` and `src/index.ts`. `surface.tst.ts` gained 24 lines and lost none: eight `@ts-expect-error` refusals for `Configurable`, `UseLens`, `useStopNotice` and `StopNoticeProps` from the root and the React entry (Phase 84, commits `1b2ad05a`, `fde3a1d6`, `821a5aa3`). The Phase 83 refusals are all still present and unchanged: `foldReading` (line 255), `DiagnosticsSink` (line 273), `runDiagnostics`, `noDiagnostics`, `makeDiagnosticsStore`, `DiagnosticsStore`, and the `keyof Diagnostics` pin to exactly `activity | hydration | portCalls | wiring` (line 337).
+
+**Must-haves against HEAD (all hold):**
+
+| Must-have | Evidence at HEAD |
+|-----------|------------------|
+| `foldReading` is one pure per-field keep-if-equal, returns `previous` itself when nothing moved | `Diagnostics.ts`: object literal naming all four fields through `keep` (`Equal.equals`), `sameFields(folded, previous) ? previous : folded`; no clock, snapshot or closure read |
+| `DiagnosticsSink { accept }` and `runDiagnostics(sink, options?)` | `Diagnostics.ts`: `runDiagnostics` ends each sample in `Effect.tap(... sink.accept(reading))`, error channel `never` |
+| The feed's sink order | `DiagnosticsFeed.ts` `start`: `runs.isCurrent(token)` first, then `foldReading` against the snapshot's reading, `sampled = true`, then `show` marks `Live` even when the fold returned the same reading |
+| `off()` replaces nothing | `off = () => { runs.stop(); sampled = false; view.set(diagnosticsOff); }`; the reading lives only in the one `view` snapshot; no `DiagnosticsStore`, `makeDiagnosticsStore` or `marking` wrapper in `packages/*/src` (the only remaining hits, in `spec/traceability.md` change history and `upgrading.md`, are earlier-release history) |
+| `Diagnostics.questions` removed, `DiagnosticsReading.questions` kept | `Diagnostics` has the four fields; `DiagnosticsReading` keeps `questions?`; `DockModel.ts:386` still reads `held.reading?.questions` |
+| Both new names off the barrels | `foldReading` and `DiagnosticsSink` are not in `src/index.ts` or `src/react/index.ts`; refusals present in `surface.tst.ts` |
+| Changeset, upgrade entry, ADR | `.changeset/devtools-diagnostics-has-no-questions.md` (`minor`, **Breaking.**, unconsumed); `upgrading.md` section "0.13"; `spec/decisions/196-the-diagnostics-feed-folds-its-reading-as-a-value.md` |
+
+**Tests (named files, not the whole suite):**
+
+| Command | Result |
+|---------|--------|
+| `pnpm exec vitest run --project devtools` on `Diagnostics.test.ts` (foldReading value tests and the raw-sample pin), `DiagnosticsFeed.characterisation.test.ts` (FC1 to FC11), `DiagnosticsFeed.superseded.test.ts` (SR1), `DiagnosticsFeed.test.ts`, `DockModel.reading.test.ts` (MR1, MR2) | 5 files, 77 tests passed |
+| the same project on the `react/` `DiagnosticsScreens`, `DiagnosticsLifetime`, `ServicesPanel.reading`, `ConfigureFirstRender.characterisation` and `DevtoolsDock` tests (the dock reading tests) | 5 files, 100 tests passed |
+| `pnpm test:tstyche` | 78 files, 425 passed, 2 skipped by design (the tool-characterisation blocks); the initial run had 77 files and 419 tests, the growth is Phase 84's pins |
+| `pnpm exec tsc -p tsconfig.test.json --noEmit` | clean |
+
+**Record scripts, re-run read-only** (`TMPDIR` pointed at the session scratchpad, since `83-earlier-checks.mjs` copies the Phase 81 scripts under `$TMPDIR/qd83/p81`; no tracked file was written):
+
+| Script | Result |
+|--------|--------|
+| `83-check.mjs no-store`, `single-fold`, `stale-path`, `registers`, `scan-ids`, `trailers` | all exit 0 (`trailers`: 31 plan commits, each with one Claude trailer) |
+| `83-check.mjs scan-forbidden` | exit 1, one report: `packages/devtools/src/react/useStopNotice.ts:1 uses a module-scope string literal: "use client";` (see below) |
+| `83-pinned-check.mjs --all-applied` | exit 0: 6 files hold their base text, 2 of 2 born files held, 1 of 1 declared flips applied |
+| `83-earlier-checks.mjs` | exit 0: 81 and 80 checks exit 0; `79-pinned-check.mjs` exit 1 on `TF29` only, the flip that phase recorded and the script expects |
+| `83-mutation.mjs compare` | exit 0: `DiagnosticsFeed.ts` 60/60 to 59/59, `Diagnostics.ts` 57/57 to 32/32, `DockModel.ts` 65/65 to 65/65; survived 0, no coverage 0, no new Ignored |
+
+**The one report is Phase 84's, not a regression of a Phase 83 rule.** `useStopNotice.ts` is a new file that Phase 84 added (`821a5aa3`, plan 84-09); its first line is the `"use client";` directive that most `packages/devtools/src/react/*.tsx` files carry. `83-check.mjs scan-forbidden` scans every added line since Phase 83's base, so a Phase 84 file is inside its window, and Phase 83's judge predates the directive exemption. Phase 84's own record names it: plan 84-01 gave `84-check.mjs`'s `scan-forbidden` an exemption for a line that is exactly `"use client";` and nothing else (D-04, D-22), with both-direction self-tests. The directive is not module-scope state, and the file is outside everything Phase 83 changed. Phase 83's forbidden-form rule is unchanged and the same script reports nothing from `Diagnostics.ts`, `DiagnosticsFeed.ts` or any other Phase 83 file.
+
+**Not re-run:** `pnpm check:pr`, `pnpm spec:package` and Stryker itself (the initial report's accepted orchestrator facts at 13763f9f stand).
+
+**Result:** no gaps, no regressions. Status stays `passed`, score 4/4, the fingerprint regenerated with `verification.fingerprint` over the covered files above.
+
 ---
 
-_Verified: 2026-11-25_
+_Verified: 2026-11-25 (re-verified at the v1.10 milestone close)_
 _Verifier: Claude (gsd-verifier)_

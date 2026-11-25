@@ -1,6 +1,6 @@
 ---
 phase: QD-81-the-dock-model-applies-every-input-whatever-a-listener-throws
-verified: 2026-11-25T00:00:00Z
+verified: 2026-11-25T09:43:40Z
 status: passed
 score: 5/5 must-haves verified
 covered_files:
@@ -31,9 +31,16 @@ covered_files:
   - packages/devtools/src/model/ExternalStore.ts
   - packages/devtools/src/model/SimulationSession.ts
   - packages/devtools/src/model/TimelineFeed.ts
-covered_digest: "v4:sha256:f85db8896757ade2a06630b60f5dfd2a8f8ae2937f7933168961f8e6c0d75106"
+covered_digest: "v4:sha256:e65e78495d4cfced91df0ae6107faece88cb02c04dd81f0dbaf959a57eab0dab"
 behavior_unverified: 0
 overrides_applied: 0
+re_verification:
+  previous_status: passed
+  previous_score: 5/5
+  reason: "covered input fingerprint went stale: Phase 83 and Phase 84 changed DiagnosticsFeed.ts, DockModel.ts and ExternalStore.ts"
+  gaps_closed: []
+  gaps_remaining: []
+  regressions: []
 ---
 
 # Phase 81: The dock model applies every input whatever a listener throws - Verification Report
@@ -41,7 +48,48 @@ overrides_applied: 0
 **Phase Goal:** The dock model applies every input whatever a host listener throws, on the `configure` path and on the record path, and rethrows what it collected once at the end, so no listener can leave the model half-applied; the double `spread` on a capacity-and-catalogue change goes with it.
 **Verified:** 2026-11-25
 **Status:** passed
-**Re-verification:** No, initial verification
+**Re-verification:** Yes, at the v1.10 milestone close (the original initial verification of 2026-11-25 is kept below)
+
+## Re-verified at milestone close (HEAD fcedaaff)
+
+The previous report's fingerprint went stale because Phase 83 (the diagnostics fold, ADR-QD-196, CCR-QD-475) and Phase 84 (ADR-QD-197, CCR-QD-476) changed covered files after Phase 81 closed. Every Phase 81 must-have was re-checked against the code at HEAD, not against the close. Result: **passed, 5/5, no regression**.
+
+**What changed in the covered files since Phase 81's close (`daf7cd45..HEAD`):**
+
+| File | Change | Phase | Touches a Phase 81 rule? |
+|------|--------|-------|--------------------------|
+| `ExternalStore.ts` | doc comment only (`DiagnosticsStore` named as the diagnostics feed's snapshot, `foldReading` in `Diagnostics.ts`) | 83 | No. `callAll`, `notify` and the derived release are byte-identical. |
+| `DockModel.ts` | the import path (`DiagnosticsStore.ts` to `Diagnostics.ts`) and the doc of `DockModelInputs.reading` (its `questions` are not merged) | 83 | No. The rail, the seven `callAll` steps and the four derived stores are unchanged. |
+| `DiagnosticsFeed.ts` | rewritten: the feed's snapshot is the one place the reading lives; `accept` folds each sample with `foldReading`; `show(status, reading)` takes both | 83 | Rewritten around the window, not through it: see below. |
+| `Diagnostics.ts` (was `DiagnosticsStore.ts`) | rename, then `Diagnostics` carries only what the poll samples, then the pure fold | 83 | No. Not a Phase 81 covered file. |
+| `TimelineFeed.ts`, `SimulationSession.ts` | none | | |
+
+**Re-checks at HEAD (each read in the source, then run):**
+
+1. `callAll` is still the one collect-and-rethrow rule: `ExternalStore.ts:82` (try/catch per call, then `throwCollected` by count). Its callers are `notify` (`:98`, over the live listener `Set`), the derived release (`:222`), `DockModel.configure` (`DockModel.ts:416`) and `TimelineFeed.configure` (`TimelineFeed.ts:210`). `81-check.mjs single-source`: "one collect loop, in callAll". `callAll` is exported from no barrel.
+2. `DockModel.configure` still runs every step through it: `completeDockInputs(next)` outside the call (a refused capacity still throws first, M55), then the seven thunks in order (timeline, rail, roles, ports, gates, diagnostics, shown reading) under the message "More than one step of the dock's configure threw.", each reading `held` when it runs.
+3. The sightings rail is still a derived store (`makeDerivedStore`, parent `timeline`, key `{shown, catalogue}`); explorer and simulation are two listeners on it and the dock one on the timeline; no `spread` function exists.
+4. The `try { publish } finally { fork }` windows hold at all three sites: `TimelineFeed.ts:182-184`, `SimulationSession.ts:449-451`, and `DiagnosticsFeed.ts:202-204`. Phase 83's rewrite kept the window verbatim in shape: `try { show(diagnosticsStarting.status, view.getSnapshot().reading) } finally { runs.fork(token, runDiagnostics(sink, next), ...) }`, so a listener that throws on the announcing `Starting` still lets the poll start and the throw is rethrown once the fork has run. F31 pins it and passes; F33 (stale-run guard, in the sink's `accept` first line, `if (!runs.isCurrent(token)) return`) passes. `GatesFeed` still forks before it publishes (G49).
+5. Tests, from the repo root with stdin closed, at HEAD: the eleven Phase 81 files (`DockModel.listeners` DL1..DL20, `ExternalStore.callAll`, `ExternalStore`, `TimelineFeed` TF28/TF29/TF37, `TimelineFeed.listeners` LF1/LF2/LF3, `DiagnosticsFeed` F31/F33, `SimulationSession.runs` SR6, `GatesFeed` G49, `DockModel`, `DockModel.characterisation`, `ConfigureRule` CR22): 11 files, 287 tests passed, the same 287 as at the Phase 81 close. The whole devtools project (`packages/devtools/test`): 94 files, 1966 tests passed.
+6. `node scripts/check-house-style.mjs` (read-only): "617 file(s) clean". `git status` shows only `.planning/config.json` modified and untracked planning files; nothing under `packages/` or `scripts/` was written by this run.
+
+**Record scripts re-run (all read-only; none wrote):**
+
+| Script | Result | Explanation |
+|--------|--------|-------------|
+| `81-check.mjs single-source` | pass | |
+| `81-check.mjs scan-ids` | pass | |
+| `81-check.mjs trailers` | pass, 37 plan commits | |
+| `81-check.mjs base` | `e757ef37...` | |
+| `81-mutation.mjs compare` | exit 0, no new open or Ignored mutant in any of the five files | It compares the two recorded measurements, so it is the Phase 81 close judged against its own base; it did not re-measure HEAD. Phase 83 measured `DiagnosticsFeed.ts`, `Diagnostics.ts` and `DockModel.ts` again at its own close (`83-mutation-close.json`), and `ExternalStore.ts`, `TimelineFeed.ts`, `SimulationSession.ts` have no change since. Stryker was not re-run here. |
+| `81-check.mjs scan-forbidden` | **reports 3 lines, all explained, none a Phase 81 rule** | (a) "AGENTS.md differs from phase_base: no budget moves" and (b) "scripts/check-house-style.mjs differs from phase_base": both are one line each from `77247c8f` (83-04): the `NOT_CALLABLE_PIN_BUDGET` key and the AGENTS.md §6 table row renamed `DiagnosticsStore.tst.ts` to `Diagnostics.tst.ts`, counts unchanged at 3 and 0, recorded as CCR-QD-475. No budget moved; the house-style gate is clean at HEAD. (c) `packages/devtools/src/react/useStopNotice.ts:1 uses a module-scope string literal: "use client";`: a new file from Phase 84 (`821a5aa3`, 84-09, ADR-QD-197, CCR-QD-476). It is the framework's `"use client"` directive that 20 other files in `src/react` already carry; the judge's own header names that it does not tell a directive from a module-scope literal. It is a blind spot of the check, not a violation, and not in a Phase 81 file. |
+| `81-pinned-check.mjs` and `--all-applied` | **reports 3 files differing from the base text**, all explained | `DockModel.test.ts` (line 50), `ConfigureRule.test.ts` (line 19) and `DiagnosticsFeed.test.ts` (line 28 and one assertion) differ only by Phase 83: the import path `DiagnosticsStore.ts` to `Diagnostics.ts` (`77247c8f`, 83-04, in all three), and in `DiagnosticsFeed.test.ts` F2 one assertion `assert.isUndefined(reading.questions)` became `assert.isFalse("questions" in reading)` (`6cb3e499`, 83-05, which removed `Diagnostics.questions`, CCR-QD-475 and ADR-QD-196). `git diff daf7cd45 HEAD` over the Phase 81 test files shows no other line changed: no Phase 81 flip (TF28, TF29, F31) or addition was altered, and M55, M56, CR22 are untouched. The pinned check compares to the Phase 81 base, so it cannot accept a later phase's committed edit; it is expected to report these until its own base moves. |
+
+**Left for the orchestrator, not re-run here:** `pnpm check:pr` and `pnpm spec:package` (Phase 81's own gate runs, taken from the original report below). The Phase 83 and 84 verifications record them green at their closes, and the milestone-close run covers HEAD.
+
+**Fingerprint:** regenerated through `verification.fingerprint` over the five implementation files; `covered_files` and `covered_digest` above are its output verbatim.
+
+---
 
 ## Goal Achievement
 
