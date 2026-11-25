@@ -5,16 +5,16 @@ milestone_name: Arch Wave 15
 current_phase: 82
 current_phase_name: "`QadiProvider`'s registry has one owner for its lifetime"
 status: executing
-stopped_at: Completed QD-82-01-PLAN.md
-last_updated: "2026-11-25T01:09:55.942Z"
+stopped_at: Completed QD-82-02-PLAN.md
+last_updated: "2026-11-25T01:16:13.358Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase QD-82 execution started
-state_head: "0b92251f0428ccaef476e26e964e3c37b785ef11"
+state_head: 1f0092db69a3ad8da7aae928948d6a2129862e2a
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 21
-  completed_plans: 12
+  completed_plans: 13
   percent: 25
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-82 (`QadiProvider`'s registry has one owner for its lifetime) — EXECUTING
-Plan: 2 of 10
+Plan: 3 of 10
 Status: Executing Phase QD-82
 Last activity: 2026-11-25 — Phase QD-82 execution started
 
@@ -614,6 +614,7 @@ Last activity: 2026-11-25 — Phase QD-82 execution started
 | Phase QD-81 P10 | 40 min | 2 tasks | 6 files |
 | Phase QD-81 P11 | 95min | 2 tasks | 3 files |
 | Phase QD-82 P01 | 15min | 3 tasks | 4 files |
+| Phase QD-82 P02 | 25 min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -1066,6 +1067,8 @@ Last activity: 2026-11-25 — Phase QD-82 execution started
 - [Phase QD-81]: 81-10: the one new survivor (DiagnosticsFeed accept stale-run guard) is closed by F33, never re-baselined; TF37 moved before TF36 so the archived 79-pinned check fails on TF29 alone
 - [Phase QD-81]: 81-11: the model close was re-measured on the head holding the reordered timeline tests, and ADR-194's merge-gate references name their commands (decided autonomously)
 - [Phase QD-82]: 82-01: the react mutation base is 147/150 on phase_base (QuestionBook.ts holds 3 survivors the compare rule passes); the lease group is judged absolutely and run with --disableBail (decided autonomously)
+- [Phase QD-82]: LT6 to LT8 are red on the base through a second registry (seen.size 2), not a thrown reveal, so their fixed outcome is one registry seen
+- [Phase QD-82]: Base commit order observed: setup children before provider, cleanup parent before children, the provider's passive setup last in a good reveal; on a long-hide reveal the provider's subject effect throws first and its passive setup never runs
 
 ### Pending Todos
 
@@ -1146,8 +1149,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T01:09:55.715Z
-Stopped at: Completed QD-82-01-PLAN.md
+Last session: 2026-11-25T01:16:13.291Z
+Stopped at: Completed QD-82-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
