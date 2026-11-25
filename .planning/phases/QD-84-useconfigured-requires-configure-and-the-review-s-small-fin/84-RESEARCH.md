@@ -493,15 +493,23 @@ Documents named by CONTEXT as "checked and left unchanged": ADR-QD-137, ADR-QD-0
 | A4 | The `lens` base figure (52 killed, 22 ignored) from the v1.9 close is expected to repeat; this session did not run Stryker (instruction). | Stryker | If the base differs, the close compares to the re-measured base anyway (D-24). |
 | A5 | The trailer line in the executor's commit message follows the repo's existing `Opus 5.5` trailer (`83-check.mjs trailers` accepts any Claude trailer). | Gates and Changeset | A mismatch with a reminder-specified name is harmless to the check; flagged so the user can pick. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Does D-18's status-side check need a second hook route?**
    - What we know: `useTimeline` returns `store` and a status snapshot, not the status store (Pitfall 6).
    - What's unclear: whether the user wants the status store exposed for the test. Exposing it would change `UseTimeline`, a public type.
    - Recommendation: compare snapshot identity; do not touch the public type.
+   - **RESOLVED:** no second route. The status side is read by snapshot reference identity through `useTimeline`'s
+     own return, and `UseTimeline` is not widened. Decided by the orchestrator (planning decision 4), autonomously on
+     2026-11-25 under the owner's standing instruction. Carried by `84-05-PLAN.md` (TI1 to TI3, and its prohibition on
+     widening `UseTimeline` or adding an export to read the status store).
 2. **Whether the planner merges steps 3 to 6 of D-22.**
    - What we know: they are independent and each commit must be green; step 5 carries D-14's records.
    - Recommendation: keep four commits (smaller `commit`-mode and review surface); merge only if scripts make each its own plan awkward.
+   - **RESOLVED:** kept separate, one plan and one source commit each. Decided by the orchestrator (planning decision
+     5), autonomously on 2026-11-25 under the owner's standing instruction. Carried by `84-06-PLAN.md` (step 3,
+     `useConfigured`), `84-07-PLAN.md` (step 4, `LensSession`), `84-08-PLAN.md` (step 5, `useLens` with D-14's records
+     in the same commit) and `84-09-PLAN.md` (step 6, `useStopNotice`).
 
 ## Sources
 

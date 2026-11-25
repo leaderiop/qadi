@@ -4,18 +4,18 @@ milestone: v1.10
 milestone_name: Arch Wave 15
 current_phase: 84
 current_phase_name: "`useConfigured` requires `configure`, and the review's small finds"
-status: planning
+status: executing
 stopped_at: Phase 83 complete, ready to plan Phase 84
-last_updated: "2026-11-25T05:47:41.030Z"
+last_updated: "2026-11-25T07:37:43.535Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 83 complete, transitioned to Phase 84
-state_head: 1e6e1f2148ccc7c73f99982bdf5183c29ccbdd48
+state_head: e58552a70655bdad90fd0c1bbb97f123219d2c88
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 32
+  total_plans: 45
   completed_plans: 32
-  percent: 75
+  percent: 71
 ---
 
 # Project State
@@ -29,9 +29,9 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 
 ## Current Position
 
-Phase: 84 — `useConfigured` requires `configure`, and the review's small finds
+Phase: 84 (`useConfigured` requires `configure`, and the review's small finds) — READY TO EXECUTE
 Plan: Not started
-Status: Ready to plan
+Status: Ready to execute
 Last activity: 2026-11-25 — Phase 83 complete, transitioned to Phase 84
 
 
