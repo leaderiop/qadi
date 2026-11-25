@@ -630,3 +630,7 @@ entries:
     file: "200-one-scoped-run-that-states-its-stop.md"
     title: "One scoped run that states its stop"
     status: "Accepted — applies ADR-QD-150; extends and amends ADR-QD-182; amends ADR-QD-192 and ADR-QD-194"
+  - id: "ADR-QD-201"
+    file: "201-a-stop-notices-box-keys-itself-and-owns-the-announce-once-rule.md"
+    title: "A stop notice's box keys itself and owns the announce-once rule"
+    status: "Accepted — amends ADR-QD-197"
