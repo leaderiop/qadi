@@ -40,7 +40,7 @@ import { useSimulationSnapshot } from "./useSimulationSession.ts";
 import type { SimulationSessionView } from "./useSimulationSession.ts";
 import { VerdictTag } from "./VerdictTag.tsx";
 import { WhatIfTable } from "./WhatIfTable.tsx";
-import { button, chip, colors, font, heading, input, muted, panel } from "./theme.ts";
+import { button, chip, colors, font, heading, input, muted, panel, reasonStyle } from "./theme.ts";
 
 export interface SimulatorProps {
   /**
@@ -106,7 +106,9 @@ const RunView: FC<{ readonly state: RunState; readonly stale: boolean }> = ({ st
       Broke: (broke) => (
         <section style={{ ...panel, borderColor: colors.error }} data-testid="qadi-simulator-broke">
           <div style={{ ...heading, color: colors.error }}>the simulation itself failed</div>
-          <span>{broke.message}</span>
+          <pre role="group" aria-label="Why the simulation failed" tabIndex={0} style={reasonStyle}>
+            {broke.message}
+          </pre>
         </section>
       ),
       Refused: (refused) => <RefusedCard choice={refused.question.source} refusal={refused.refusal} />,

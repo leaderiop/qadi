@@ -166,6 +166,21 @@ export const chip: CSSProperties = {
   marginBottom: 4,
 };
 
+/** The style of a run's stop reason: a scrolling preformatted block, used by the stopped box and the Simulator's broken-run box. */
+export const reasonStyle: CSSProperties = {
+  margin: "8px 0 0",
+  padding: 8,
+  background: colors.surface,
+  border: `1px solid ${colors.border}`,
+  borderRadius: 4,
+  fontFamily: "inherit",
+  fontSize: font.sizeSmall,
+  whiteSpace: "pre-wrap",
+  overflowWrap: "anywhere",
+  maxHeight: 96,
+  overflow: "auto",
+};
+
 /** Keeps a long subject id or resource path from widening the whole table. */
 export const truncate: CSSProperties = {
   overflow: "hidden",

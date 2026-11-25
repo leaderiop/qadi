@@ -14,7 +14,7 @@
  */
 import type { CSSProperties, MouseEvent, ReactElement, RefObject } from "react";
 import { useLayoutEffect, useState } from "react";
-import { button, colors, font, panel, withAlpha } from "./theme.ts";
+import { button, colors, panel, reasonStyle, withAlpha } from "./theme.ts";
 
 /**
  * The last stop a box showed, and how many distinct stops boxes have shown.
@@ -90,20 +90,6 @@ const stoppedStyle: CSSProperties = {
   border: `1px solid ${colors.error}`,
   background: withAlpha(colors.error, 0.12),
   color: colors.text,
-};
-
-const reasonStyle: CSSProperties = {
-  margin: "8px 0 0",
-  padding: 8,
-  background: colors.surface,
-  border: `1px solid ${colors.border}`,
-  borderRadius: 4,
-  fontFamily: "inherit",
-  fontSize: font.sizeSmall,
-  whiteSpace: "pre-wrap",
-  overflowWrap: "anywhere",
-  maxHeight: 96,
-  overflow: "auto",
 };
 
 const restartStyle: CSSProperties = {
