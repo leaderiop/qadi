@@ -25,13 +25,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-25)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 87 — One scoped run that states its stop
+**Current focus:** Phase 88 — `StoppedBox` keys itself and owns the announce-once rule
 
 ## Current Position
 
-Phase: QD-88 (`StoppedBox` keys itself and owns the announce-once rule) — READY TO EXECUTE
-Plan: Not started
-Status: Ready to execute
+Phase: QD-88 (`StoppedBox` keys itself and owns the announce-once rule) — EXECUTING
+Plan: 2 of 10
+Status: Executing Phase 88
 Last activity: 2026-11-25 — Phase 87 complete, transitioned to Phase 88
 
 Progress: [████░░░░░░] 43%
