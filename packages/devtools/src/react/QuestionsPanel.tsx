@@ -26,7 +26,6 @@ import type { CSSProperties, FC, ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import type { Resource } from "@qadi/core";
 import { policyLabel } from "../model/Catalogue.ts";
-import { isUnsampled } from "../model/DiagnosticsFeed.ts";
 import type { ReadableStore } from "../model/ExternalStore.ts";
 import type {
   GateInstanceLike,
@@ -36,14 +35,14 @@ import type {
   QuestionsView,
 } from "../model/Gates.ts";
 import { displayOfGateState, isLocatable, locatableIds } from "../model/Gates.ts";
-import type { HydrationActivity } from "../model/Hydration.ts";
-import { unaccountedEntries } from "../model/Hydration.ts";
+import { HydrationDropsView, HydrationView } from "../model/HydrationView.ts";
 import type { LensSession, LensSnapshot } from "../model/LensSession.ts";
 import { isPicking, pickedOf } from "../model/LensSession.ts";
 import { DiagnosticsNotice, diagnosticsRootProps } from "./DiagnosticsNotice.tsx";
 import type { DiagnosticsNoticeProps } from "./DiagnosticsNotice.tsx";
 import { button, colors, font, muted } from "./theme.ts";
 import { useLens } from "./useLens.ts";
+import { useStoreSnapshot } from "./useStoreSnapshot.ts";
 import { treatmentOf } from "./VerdictTreatment.ts";
 
 export type { AskedQuestionLike } from "../model/Gates.ts";
@@ -68,14 +67,14 @@ export interface QuestionsPanelProps {
    */
   readonly lens: LensSession;
   /**
-   * Read with `hydrationActivity`, which needs no wiring at all.
+   * The dock model's hydration view, worked out from the reading and the poll's status.
    *
-   * `hydration.mismatched` is the verdict-disagreement count a host used to
-   * accumulate itself from `onHydrationMismatch`, before anything in
-   * `@qadi/react` counted: the metric is written whether or not a reporter is
-   * supplied.
+   * Absent, the block shows the unwired advice, which is what a dock with no counts and no
+   * poll shows. `mismatched` in the counts is the verdict-disagreement count a host used to
+   * accumulate itself from `onHydrationMismatch`, before anything in `@qadi/react` counted:
+   * the metric is written whether or not a reporter is supplied.
    */
-  readonly hydration?: HydrationActivity | undefined;
+  readonly hydration?: ReadableStore<HydrationView> | undefined;
   /** Wired to `useInvalidate`. Absent means the button is not shown. */
   readonly onInvalidate?: (() => void) | undefined;
   /**
@@ -88,6 +87,14 @@ export interface QuestionsPanelProps {
 
 /** What the hydration block reads before any sample was taken. */
 const NO_COUNTS_YET = "no counts read yet.";
+
+const UNWIRED: HydrationView = HydrationView.Unwired();
+
+/** The store of a panel rendered alone, outside the dock: one value, so its snapshot is stable. */
+const NO_HYDRATION: ReadableStore<HydrationView> = {
+  subscribe: () => () => {},
+  getSnapshot: () => UNWIRED,
+};
 
 const GATES_ABSENT_TEXT =
   "No live guards were handed to the dock. Pass gates — usually atoms.gates, from @qadi/react — to list who is asking.";
@@ -109,7 +116,7 @@ export const QuestionsPanel: FC<QuestionsPanelProps> = ({
   onInvalidate,
   diagnostics,
 }) => {
-  const unsampled = isUnsampled(diagnostics.status);
+  const shown = useStoreSnapshot(hydration ?? NO_HYDRATION);
   const read = useLens(lens, questions);
 
   const view: LensView = { session: lens, snapshot: read.lens };
@@ -131,7 +138,7 @@ export const QuestionsPanel: FC<QuestionsPanelProps> = ({
 
       {questionsBlock(read.questions.questions)(view)}
 
-      <Hydration activity={hydration} unsampled={unsampled} />
+      <Hydration view={shown} />
 
       {onInvalidate === undefined ? null : (
         <button
@@ -341,91 +348,91 @@ const heading: CSSProperties = {
  * `dehydrated` and `seeded` are **process-wide**, so the footer says so. On a
  * server they accumulate across every request; in a browser only `seeded` moves
  * at all, because nothing there built a payload. Subtracting one from the other
- * is a comparison a reader will attempt unprompted, so `unaccountedEntries`
+ * is a comparison a reader will attempt unprompted, so the view's scope note
  * refuses it where it would not mean anything.
  */
-const Hydration: FC<{
-  readonly activity: HydrationActivity | undefined;
-  readonly unsampled: boolean;
-}> = ({ activity, unsampled }) => (
+const Hydration: FC<{ readonly view: HydrationView }> = ({ view }) => (
   <div style={{ marginTop: 10 }} data-testid="qadi-hydration">
     <div style={heading}>hydration</div>
-    {activity === undefined ? (
-      unsampled ? (
-        // Advice to pass `diagnostics` would be wrong: it was passed, and nothing has been read yet.
-        <span style={muted} data-testid="qadi-hydration-pending">
-          {NO_COUNTS_YET}
-        </span>
-      ) : (
-        <span style={muted} data-testid="qadi-hydration-unwired">
-          no counts read. Pass <code>{"diagnostics={{}}"}</code> to sample them, or{" "}
-          <code>hydration</code> — the result of <code>hydrationActivity</code>,
-          which needs no wiring — to fill this in.
-        </span>
-      )
-    ) : (
-      <Counts activity={activity} />
-    )}
+    {hydrationBlock(view)}
   </div>
 );
 
-const Counts: FC<{ readonly activity: HydrationActivity }> = ({ activity }) => {
-  const unaccounted = unaccountedEntries(activity);
-  const raised = activity.drops.filter((drop) => drop.count > 0);
+/** The block for one view, built once; a new view is a compile error here. */
+const hydrationBlock: (view: HydrationView) => ReactNode = Match.type<HydrationView>().pipe(
+  Match.tagsExhaustive({
+    // Advice to pass `diagnostics` would be wrong: it was passed, and nothing has been read yet.
+    Pending: () => (
+      <span style={muted} data-testid="qadi-hydration-pending">
+        {NO_COUNTS_YET}
+      </span>
+    ),
+    Unwired: () => (
+      <span style={muted} data-testid="qadi-hydration-unwired">
+        no counts read. Pass <code>{"diagnostics={{}}"}</code> to sample them, or{" "}
+        <code>hydration</code> — the result of <code>hydrationActivity</code>,
+        which needs no wiring — to fill this in.
+      </span>
+    ),
+    Counts: (counts) => <Counts counts={counts} />,
+  }),
+);
 
-  return (
-    <>
-      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", padding: "2px 0" }}>
-        <Count label="dehydrated" value={activity.dehydrated} testId="qadi-hydration-dehydrated" />
-        <Count label="seeded" value={activity.seeded} testId="qadi-hydration-seeded" />
-        <Count label="re-checked" value={activity.rechecked} testId="qadi-hydration-rechecked" />
-        <Count
-          label="mismatched"
-          value={activity.mismatched}
-          testId="qadi-hydration-mismatched"
-        />
+/** The drops for one view, built once; a new view is a compile error here. */
+const dropsBlock: (drops: HydrationDropsView) => ReactNode = Match.type<HydrationDropsView>().pipe(
+  Match.tagsExhaustive({
+    None: ({ text }) => (
+      <div style={{ ...muted, fontSize: font.sizeSmall }} data-testid="qadi-hydration-no-drops">
+        {/* Said rather than left blank: every reason is watched for, and none
+            of them fired. An empty area would read as "not implemented". */}
+        {text}
       </div>
-
-      {activity.rechecked === 0 ? null : (
-        <div style={{ ...muted, fontSize: font.sizeSmall }} data-testid="qadi-hydration-rate">
-          {activity.mismatched} of {activity.rechecked} re-checked question
-          {activity.rechecked === 1 ? "" : "s"} disagreed with the server.
-        </div>
-      )}
-
-      {raised.length === 0 ? (
-        <div style={{ ...muted, fontSize: font.sizeSmall }} data-testid="qadi-hydration-no-drops">
-          {/* Said rather than left blank: every reason is watched for, and none
-              of them fired. An empty area would read as "not implemented". */}
-          Nothing was dropped. All {activity.drops.length} reasons are watched.
-        </div>
-      ) : (
-        <div style={{ marginTop: 4 }} data-testid="qadi-hydration-drops">
-          {raised.map((drop) => (
-            <div key={drop.reason} style={{ ...row, borderBottom: "none" }} data-testid="qadi-hydration-drop">
-              {/* `error`, not `denySolid`: a dropped entry is a fault to chase,
-                  not a refusal. Colouring it as a denial would file a wiring
-                  bug under the one thing the dock's palette reserves for a
-                  policy saying no. */}
-              <span style={{ color: colors.error }}>{drop.count}</span>
-              <span>{drop.reason}</span>
-              <span style={{ ...muted, fontSize: font.sizeSmall }}>— {drop.meaning}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div style={{ ...muted, fontSize: font.sizeSmall }} data-testid="qadi-hydration-scope">
-        {/* The reader will try to subtract one from the other, so the shape of
-            the numbers has to be stated before they do. */}
-        Process-wide totals, not this page&apos;s.{" "}
-        {unaccounted === undefined
-          ? "This process seeded more than it built, so it is a client reading payloads rendered elsewhere."
-          : `${unaccounted} dehydrated entr${unaccounted === 1 ? "y" : "ies"} have no seeding counted in this process.`}
+    ),
+    Raised: ({ rows }) => (
+      <div style={{ marginTop: 4 }} data-testid="qadi-hydration-drops">
+        {rows.map((drop) => (
+          <div key={drop.reason} style={{ ...row, borderBottom: "none" }} data-testid="qadi-hydration-drop">
+            {/* `error`, not `denySolid`: a dropped entry is a fault to chase,
+                not a refusal. Colouring it as a denial would file a wiring
+                bug under the one thing the dock's palette reserves for a
+                policy saying no. */}
+            <span style={{ color: colors.error }}>{drop.count}</span>
+            <span>{drop.reason}</span>
+            <span style={{ ...muted, fontSize: font.sizeSmall }}>— {drop.meaning}</span>
+          </div>
+        ))}
       </div>
-    </>
-  );
-};
+    ),
+  }),
+);
+
+/** The view the counts arm of `hydrationBlock` receives. */
+type CountsView = Extract<HydrationView, { readonly _tag: "Counts" }>;
+
+const Counts: FC<{ readonly counts: CountsView }> = ({ counts }) => (
+  <>
+    <div style={{ display: "flex", gap: 14, flexWrap: "wrap", padding: "2px 0" }}>
+      <Count label="dehydrated" value={counts.dehydrated} testId="qadi-hydration-dehydrated" />
+      <Count label="seeded" value={counts.seeded} testId="qadi-hydration-seeded" />
+      <Count label="re-checked" value={counts.rechecked} testId="qadi-hydration-rechecked" />
+      <Count label="mismatched" value={counts.mismatched} testId="qadi-hydration-mismatched" />
+    </div>
+
+    {counts.rate === undefined ? null : (
+      <div style={{ ...muted, fontSize: font.sizeSmall }} data-testid="qadi-hydration-rate">
+        {counts.rate}
+      </div>
+    )}
+
+    {dropsBlock(counts.drops)}
+
+    <div style={{ ...muted, fontSize: font.sizeSmall }} data-testid="qadi-hydration-scope">
+      {/* The reader will try to subtract one from the other, so the shape of
+          the numbers has to be stated before they do. */}
+      {counts.scope}
+    </div>
+  </>
+);
 
 const Count: FC<{
   readonly label: string;

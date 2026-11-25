@@ -255,7 +255,7 @@ const Screen: FC<{
       <QuestionsPanel
         questions={props.model.questions}
         lens={props.model.lens}
-        hydration={props.shown.hydration}
+        hydration={props.model.hydration}
         onInvalidate={props.host.onInvalidate}
         diagnostics={notice}
       />
