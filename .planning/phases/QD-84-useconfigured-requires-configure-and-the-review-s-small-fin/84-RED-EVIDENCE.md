@@ -94,3 +94,12 @@ under it are the rest of that run's stderr. A test's failure lines use the `seen
 
 - failed (arm-after-publish): a listener told of a pick can take its reveal
   - AssertionError: expected [ false ] to deeply equal [ true ]
+
+## 84-04 the dock's two stop notices
+
+- failed (shared-ledger): DS1 a diagnostics stop and a timeline stop are each announced once, across tab switches between their screens
+  - AssertionError: the timeline stop on Log, mounted again: expected 'alert' to equal 'none'
+- failed (shared-ledger): DS2 a second stop of one feed remounts only its own box, and the other stop is not announced again
+  - AssertionError: expected 'alert' to equal 'none'
+- failed (swapped-restarts): DS3 after a hidden-then-shown dock, Restart on each notice restarts the rebuilt feed of its own kind
+  - AssertionError: expected 2 to be above 2
