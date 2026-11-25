@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-197                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-25                                     |
 > | Status         | Accepted — amends ADR-QD-192 and ADR-QD-193 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-25): Initial (ARCH-131, CCR-QD-476) |
+> | Change History | 1.1 (2026-11-25): the behaviours and invariants that state it are linked (CCR-QD-476)<br>1.0 (2026-11-25): Initial (ARCH-131, CCR-QD-476) |
 
 ---
 
@@ -201,3 +201,10 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({ unknownParents, onInvalida
 - [BEH-QD-734](../behaviors/28-devtools-screens.md#beh-qd-734-the-hooks-configure-inside-the-scoped-build) — the hooks configure inside the scoped build
 - [BEH-QD-736](../behaviors/28-devtools-screens.md#beh-qd-736-the-lens-is-a-headless-session-and-a-no-op-publishes-nothing) — the lens is a headless session and a no-op publishes nothing
 - [BEH-QD-737](../behaviors/28-devtools-screens.md#beh-qd-737-a-click-is-consumed-only-by-a-pick-that-found-a-guard-decided-in-the-capture-listener) — a click is consumed only by a pick that found a guard
+- [BEH-QD-756](../behaviors/28-devtools-screens.md#beh-qd-756-a-hook-builds-a-value-that-has-configure-through-one-named-constraint) — a hook builds a value that has `configure`, through one named constraint
+- [BEH-QD-757](../behaviors/28-devtools-screens.md#beh-qd-757-the-lens-publishes-every-move-through-the-stores-set-and-a-pick-arms-its-reveal-before-it-is-published) — the lens publishes every move through the store's `set`, and a pick arms its reveal before it is published
+- [BEH-QD-758](../behaviors/28-devtools-screens.md#beh-qd-758-the-lens-adapter-takes-the-session-and-the-questions-store-subscribes-once-to-each-and-returns-both-snapshots) — the lens adapter takes the session and the questions store and subscribes once to each
+- [BEH-QD-759](../behaviors/28-devtools-screens.md#beh-qd-759-the-docks-two-stop-notices-come-from-one-hook-each-with-its-own-ledger-each-following-its-feeds-restart) — the dock's two stop notices come from one hook, each with its own ledger
+- [BEH-QD-760](../behaviors/28-devtools-screens.md#beh-qd-760-a-fresh-inputs-record-with-equal-fields-publishes-nothing-and-the-per-render-hand-over-is-kept) — a fresh inputs record with equal fields publishes nothing, and the per-render hand-over is kept
+- [INV-QD-413](../invariants.md#inv-qd-413-a-picks-reveal-is-armed-before-the-pick-is-published) — a pick's reveal is armed before the pick is published
+- [INV-QD-414](../invariants.md#inv-qd-414-the-lens-adapter-reads-the-listed-guards-only-from-the-one-questions-store-it-is-handed) — the lens adapter reads the listed guards only from the one questions store it is handed
