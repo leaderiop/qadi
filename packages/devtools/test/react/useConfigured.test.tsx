@@ -21,6 +21,7 @@ interface Inputs {
 
 interface Double {
   readonly configured: Array<string>;
+  readonly configure: (inputs: Inputs) => void;
   released: boolean;
 }
 
@@ -32,7 +33,15 @@ const makeHarness = () => {
   const make = () =>
     Effect.acquireRelease(
       Effect.sync(() => {
-        const double: Double = { configured: [], released: false };
+        const configured: Array<string> = [];
+        const double: Double = {
+          configured,
+          configure: (inputs) => {
+            if (inputs.fail === true) throw new Error(`refused ${inputs.label}`);
+            configured.push(inputs.label);
+          },
+          released: false,
+        };
         built.push(double);
         return double;
       }),
@@ -41,10 +50,6 @@ const makeHarness = () => {
           double.released = true;
         }),
     );
-  const configure = (double: Double, inputs: Inputs): void => {
-    if (inputs.fail === true) throw new Error(`refused ${inputs.label}`);
-    double.configured.push(inputs.label);
-  };
   const Reader = ({ double }: { readonly double: Double }) => {
     useLayoutEffect(() => {
       commits.push([...double.configured]);
@@ -52,7 +57,7 @@ const makeHarness = () => {
     return <span>read</span>;
   };
   const Owner = ({ inputs }: { readonly inputs: Inputs }) => {
-    const double = useConfigured(make, configure, inputs);
+    const double = useConfigured(make, (double, inputs) => double.configure(inputs), inputs);
     return double === undefined ? null : <Reader double={double} />;
   };
   class Boundary extends Component<{ readonly children: ReactNode }, { readonly failed: boolean }> {

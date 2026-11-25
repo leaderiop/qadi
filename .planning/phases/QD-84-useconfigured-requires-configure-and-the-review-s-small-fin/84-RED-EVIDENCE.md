@@ -112,3 +112,14 @@ under it are the rest of that run's stderr. A test's failure lines use the `seen
   - Error: Maximum update depth exceeded
 - failed (configure-ignored): TI3 a re-render with a moved capacity publishes from the timeline store and moves the status
   - AssertionError: expected +0 to be above +0
+
+## 84-05 the useConfigured double
+
+- failed (no-tap): U1 the first commit a child makes reads the value already configured with the first inputs
+  - AssertionError: expected [] to deeply equal [ 'first' ]
+- failed (swallowed-throw): U2 a configure that throws on the first build closes the scope and reaches the boundary as itself
+  - AssertionError: expected [ [] ] to deeply equal []
+- failed (value-only-key): U3 a new inputs record configures once more and the same record configures nothing more
+  - AssertionError: expected 2 to equal 3
+- failed (first-inputs): U4 a value hidden, handed new inputs and shown again is rebuilt configured with them, also under StrictMode
+  - AssertionError: expected 'first' to equal 'second'
