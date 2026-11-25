@@ -145,15 +145,17 @@ export interface DockModelInputs {
   /**
    * A reading taken elsewhere, such as another process's or a fixture's.
    *
-   * Each field it carries takes precedence over the same field of what
-   * `diagnostics` samples, and a field it omits falls through to the sample
-   * (`mergeReading`). It answers "what did another process see", which sampling
-   * this one cannot: for this process, hand over `diagnostics` instead. Its
-   * `wiring` is a `WiringRead`, so a reading from elsewhere can state a failed
-   * read as well as a report; its `portCalls` come from `collectPortCalls` and
-   * need the collector's tracer layer wired where evaluations ran; its
-   * `questions` are usually `atoms.asked()` from `@qadi/react`. A change
-   * recomputes the merge and never restarts the poll.
+   * Each of `wiring`, `activity`, `hydration` and `portCalls` it carries takes
+   * precedence over the same field of what `diagnostics` samples, and a field it
+   * omits falls through to the sample (`mergeReading`). It answers "what did
+   * another process see", which sampling this one cannot: for this process, hand
+   * over `diagnostics` instead. Its `wiring` is a `WiringRead`, so a reading from
+   * elsewhere can state a failed read as well as a report; its `portCalls` come
+   * from `collectPortCalls` and need the collector's tracer layer wired where
+   * evaluations ran. Its `questions`, usually `atoms.asked()` from `@qadi/react`,
+   * are not merged: the questions join reads them from this reading, and they
+   * win over the `questions` input. A change recomputes the merge and never
+   * restarts the poll.
    */
   readonly reading?: DiagnosticsReading | undefined;
   /**
