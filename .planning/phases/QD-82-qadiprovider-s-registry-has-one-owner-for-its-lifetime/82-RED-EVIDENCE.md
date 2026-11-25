@@ -230,3 +230,62 @@ Error: Failed to resolve import "../src/RegistryLease.ts" from "packages/react/t
 Semantic assessment: the failure is the missing module, not a fixture or syntax fault; the nine titles are the ones the file
 declares, so each is recorded red by that one cause. The tests assert the lease's transitions through a recording `recycle` and
 a defer that really cancels, so they can only pass once the module exists and decides as stated.
+
+## the fix's variants
+
+Each variant is a copy-backed scratch edit of the fixed `packages/react/src/QadiProvider.tsx` (commit 8cc55c1e), run with
+`pnpm exec vitest run --project react --reporter=verbose packages/react/test/QadiProvider.lifetime.test.tsx packages/react/test/edges.test.tsx < /dev/null`
+from the repository root, then restored with `cp`; `git diff --quiet HEAD -- packages/react/src` held after each.
+
+- `skip`: the hold and release effect returns no cleanup, so the release never runs.
+- variant skip failed: releases its registry after it unmounts
+- variant skip failed: LT9 a seeded allow the client never answers is not shown again after a long hide
+- variant skip failed: LT10 a seeded allow with no subject stays pending after a long hide
+- variant skip failed: LT15 a host subscription held across a long hide is detached by the recycle
+
+- `dispose`: the recycle calls `registry.dispose()` in place of `registry.reset()`.
+- variant dispose failed: releases its registry after it unmounts
+- variant dispose failed: LT1 a provider hidden past a macrotask and shown again throws nothing and renders the decision
+- variant dispose failed: LT2 an invalidation after a long hide re-evaluates without throwing
+- variant dispose failed: LT3 a devtools feed consumer survives a long hide
+- variant dispose failed: LT4 under StrictMode the double effect recycles nothing and a long hide is survived
+- variant dispose failed: LT6 a subject changed while hidden is the one the revealed provider answers with
+- variant dispose failed: LT7 a re-render while hidden past the release keeps one registry
+- variant dispose failed: LT8 an atoms swap while hidden keeps the registry and is reported once
+- variant dispose failed: LT9 a seeded allow the client never answers is not shown again after a long hide
+- variant dispose failed: LT10 a seeded allow with no subject stays pending after a long hide
+- variant dispose failed: LT11 a long hide with a re-render shows no superseded allow and reports one mismatch
+- variant dispose failed: LT12 across a long hide each pressure episode is one fork and one sweep
+- variant dispose failed: LT13 a reveal committed with a re-render reads the subject in its first frame
+- variant dispose failed: LT14 a read straggling after an unmount throws nothing and leaves no node
+- variant dispose failed: LT15 a host subscription held across a long hide is detached by the recycle
+
+- `noreseed`: the recycle calls `registry.reset()` only, with no write of the latest subject.
+- variant noreseed failed: LT13 a reveal committed with a re-render reads the subject in its first frame
+
+Each of the three expected titles named by the plan fails under its variant (skip: the edges unmount test, LT9, LT15; dispose:
+LT1, LT14; noreseed: LT13); none is blind, so no test was strengthened. The `skip` variant also fails LT10 and `dispose` fails
+most of the file, because a registry that is disposed or never recycled is read by every test that reveals after a hide.
+
+## observed commit order with the lease
+
+Observed with React 19.3.1, from an instrumented run: a copy-backed scratch edit of the fixed provider pushed `PROVIDER hold`
+and `PROVIDER release` into an array on `globalThis` from the hold and release effect, `recycle` before the lease's
+`registry.reset()`, and `PROVIDER subject effect` from the subject effect; a scratch harness
+(`packages/react/test/CommitOrder.scratch.test.tsx`) rendered, inside a toggled `<Activity>`, an `Outer` sibling before a hoisted
+provider whose `child` logged its own layout and passive setups and cleanups into the same array. Run alone with
+`pnpm exec vitest run --project react --silent=false` from the repository root, stdin closed, the long hide followed by a real
+20 ms wait before the reveal; the long hide line is the array after that wait (the harness printed the hide's own cleanups, then
+the lone `recycle` the wait added, and the line joins the two in the order the array held them). The provider was restored with `cp` and the harness deleted; `git status --porcelain -- packages`
+printed nothing and `git diff --quiet HEAD -- packages/react/src` held afterwards. Each line is what the run printed, entries
+separated by ` | `.
+
+ORDER mount: Outer layout setup | child layout setup | Outer passive setup | child passive setup | PROVIDER subject effect | PROVIDER hold
+ORDER long hide: Outer layout cleanup | child layout cleanup | Outer passive cleanup | PROVIDER release | child passive cleanup | recycle
+ORDER reveal: Outer layout setup | child layout setup | Outer passive setup | child passive setup | PROVIDER subject effect | PROVIDER hold
+
+The rule the lines show: on a reveal every consumer's passive setup (its subscription) runs before the provider's hold, which is
+the last effect of the provider; the release is a passive cleanup of the hidden tree, after the parent's and before the
+children's; the recycle runs once, a macrotask after the hide and before the reveal, so a consumer subscribes to a registry
+that is already reset and holds its subject. The provider's subject effect runs again on the reveal and finds the re-seeded
+subject equal, so it writes nothing.
