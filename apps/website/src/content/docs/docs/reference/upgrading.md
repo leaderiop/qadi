@@ -926,7 +926,7 @@ The decision is [ADR-QD-169](https://github.com/leaderiop/qadi/blob/main/spec/de
 
 `@qadi/devtools`'s `Diagnostics`, one reading of what the poll samples, no longer has a `questions` field, so it is `wiring`, `activity`, `hydration` and `portCalls`. The poll never sampled questions, because the gates feed reads the questions the dock asks about, so the field was `undefined` on every sampled reading and held a list only where `mergeReading` copied one from a supplied `DiagnosticsReading`. The dock's questions join already reads that list from the supplied reading, beside the merged one.
 
-`DiagnosticsReading.questions` is unchanged, and so is the Questions tab: a list a reading supplies is still listed and still wins over the dock's `questions` input. Only a reader of `Diagnostics.questions` changes, and the compiler names each one.
+`DiagnosticsReading.questions` is unchanged, and so is the Questions tab: a list a reading supplies is still listed and still wins over the dock's `questions` input. Only a reader of `Diagnostics.questions` changes, and the compiler names each one. A host that read `questions` off the reading the dock model's `diagnostics` readout holds reads them from the `DiagnosticsReading` it supplied or from the model's `questions` store.
 
 Before:
 
