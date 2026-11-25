@@ -1,4 +1,4 @@
-# Qadi — Architecture Waves (last: v1.10 Arch Wave 15)
+# Qadi — Architecture Waves (current: v1.11 Arch Wave 16)
 
 ## What This Is
 
@@ -12,6 +12,43 @@ module was a shallow pass-through.
 
 The review is at https://claude.ai/artifact/LH5dLGadz28NyzmZez9jcX, with a local copy at
 `/tmp/claude-1002/-home-yopu-Project-Perso-qadi/588341bb-9f42-4e6e-b1a3-ed991ed47acf/scratchpad/qadi-architecture-review.html`.
+
+## Current Milestone: v1.11 Arch Wave 16
+
+**Goal:** Resolve all seven candidates of the 2026-11-25 architecture review, in the order the review ranked them, with
+the house-rule change (named barrels) last so every earlier phase lands on the file layout it was reviewed against.
+
+**Target features (Phases 85–91, ARCH-132…138, strictly serial):**
+- 85: The dock's hydration block is a model row. A pure hydration view (Pending / Unwired / Counts, with the rate,
+  drops and scope text worked out) sits beside `portCards`, and the dock model serves it; the "unsampled" rule, applied
+  today at `DockModel.ts:391`, `:405` and `QuestionsPanel.tsx:112`, is decided once; `DockFrame` stops subscribing to
+  the whole reading to pass one field (devtools; amends ADR-QD-185 / BEH-QD-700 if a fifth derived store)
+- 86: `QadiProvider`'s registry lifetime has one React-free owner: create, seed (subject, `initialValues`), write the
+  subject, recycle and hold the lease, tested with an injected defer and no rendering. The component keeps one ref and
+  forwards hold, release and subject changes (react; keeps ADR-QD-195's hold/defer semantics)
+- 87: One "scoped run that states its stop" sits above `SupersedingRun`: held inputs and the `sameFields` gate,
+  publish-then-fork through a callback, failure → `Stopped(causeMessage)`, `restart`, the closed guard. `TimelineFeed`,
+  `DiagnosticsFeed` and `SimulationSession` supply only their engine and states; `GatesFeed` shares the prologue.
+  Opens with a RED test for `SimulationSession`'s `String(exit.cause)` (`SimulationSession.ts:418`) against ADR-QD-182
+  (devtools; new ADR answering ADR-QD-150 point 2)
+- 88: `StoppedBox` keys itself and owns the announce-once ledger; callers stop computing `stoppedKey` from a ref
+  during render (devtools react; amends ADR-QD-197)
+- 89: One admission step for a host's audit batch (`now`, rows, key material / max age), shared by
+  `archiveAuditTrail`, `planRetention`, `verifiedArchiveFacts` and `planPurge`; `NowNotFinite` stated once (audit;
+  keeps ADR-QD-190's `RowsRefusalCases`)
+- 90: The remaining per-port facts move onto the port description: span name, serving shape and fixture data type;
+  `PortName` derived; `readScoped` routes off the `LEAF_NEEDS` row so its `resourceId` column does real work (core;
+  amends ADR-QD-163 D-06, ADR-QD-094)
+- 91: `@qadi/core`, `@qadi/react` and `@qadi/audit` take named barrels, as `@qadi/devtools` does (ADR-QD-047), and the
+  visibility-only files fold into the module that owns their concept: the span-attribute files, `Hydration.ts` into
+  `HydrationEngine.ts`, `GateRegistry.ts` into `GateWriter.ts`, `SequenceIntegrity.ts` into `ArchiveFacts.ts`. An
+  ADR-QD-037 cycle-breaker folds only where the madge graph proves no cycle returns (house rule: AGENTS.md §9; amends
+  ADR-QD-037, ADR-QD-099)
+
+**Source review:** `/private/tmp/claude-502/-Users-mohammadalmechkor-Projects-Perso-qadi/b04729bd-9815-4720-957d-3637602848ac/scratchpad/architecture-review-20261125.html`
+(session-scoped; `.planning/phases/_WAVE16-CONTEXT.md` holds everything a planner needs). Branch `arch-wave-16`, off
+`main` at `ac7578f3` (v1.9 and v1.10 merged as #165). No merge, no release. Scope (all seven), the barrel treatment
+(fold, prove acyclic) and research (run) were chosen by the owner on 2026-11-25.
 
 ## Previous Milestone: v1.10 Arch Wave 15 (completed 2026-11-25; not released)
 
@@ -476,7 +513,7 @@ logged, counted or spanned.
 
 ### Active
 
-(none: every v1.10 requirement is validated)
+v1.11 Arch Wave 16 requirements: see `.planning/REQUIREMENTS.md` (Phases 85–91, ARCH-132…138).
 
 ### Out of Scope
 
@@ -772,4 +809,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-25 after v1.10 milestone*
+*Last updated: 2026-11-25 after starting v1.11 milestone*
