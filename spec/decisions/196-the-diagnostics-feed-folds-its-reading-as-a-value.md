@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-196                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-25                                     |
 > | Status         | Accepted — amends ADR-QD-173, ADR-QD-169 and ADR-QD-047 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-25): new (CCR-QD-475) |
+> | Change History | 1.1 (2026-11-25): its Related list links the behaviours and invariants that state it (CCR-QD-475)<br>1.0 (2026-11-25): new (CCR-QD-475) |
 
 ---
 
@@ -194,4 +194,10 @@
 - [ADR-QD-173](./173-the-devtools-headless-interface-is-its-feeds.md) — the engines' modules stay package-private; decisions 2 and 3 amended by this decision
 - [ADR-QD-192](./192-feeds-and-the-dock-model-take-inputs-only-through-configure.md) — `sameFields`, the one per-field rule the fold reuses
 - [ADR-QD-194](./194-a-run-of-calls-applies-every-call-whatever-one-throws.md) — `start()`'s `try`/`finally` and its guard, kept
-- The behaviours and invariants that state it: BEH-QD-751 to BEH-QD-755, INV-QD-411 and INV-QD-412, linked once those records exist
+- [BEH-QD-751](../behaviors/28-devtools-screens.md#beh-qd-751-a-sample-is-folded-into-the-last-reading-by-one-function-and-a-sample-that-changed-nothing-publishes-nothing) — a sample is folded into the last reading by one function, and a sample that changed nothing publishes nothing
+- [BEH-QD-752](../behaviors/28-devtools-screens.md#beh-qd-752-the-poll-hands-each-sample-to-a-sink-and-the-feeds-sink-drops-a-superseded-runs-sample-before-it-folds) — the poll hands each sample to a sink, and the feed's sink drops a superseded run's sample before it folds
+- [BEH-QD-753](../behaviors/28-devtools-screens.md#beh-qd-753-off-resets-the-reading-and-the-sampled-flag-by-the-empty-constant) — `Off` resets the reading and the sampled flag by the empty constant
+- [BEH-QD-754](../behaviors/28-devtools-screens.md#beh-qd-754-diagnostics-carries-only-what-the-poll-samples-and-a-supplied-readings-questions-reach-the-docks-join-beside-it) — `Diagnostics` carries only what the poll samples, and a supplied reading's questions reach the dock's join beside it
+- [BEH-QD-755](../behaviors/28-devtools-screens.md#beh-qd-755-the-diagnostics-feeds-status-and-reading-transitions-are-a-closed-table) — the feed's status and reading transitions are a closed table
+- [INV-QD-411](../invariants.md#inv-qd-411-the-diagnostics-reading-changes-identity-only-when-a-field-moved-and-an-equal-field-keeps-its-reference) — the reading changes identity only when a field moved, and an equal field keeps its reference
+- [INV-QD-412](../invariants.md#inv-qd-412-the-public-diagnostics-holds-exactly-the-fields-the-poll-samples) — the public `Diagnostics` holds exactly the fields the poll samples
