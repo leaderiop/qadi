@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 85
 current_phase_name: The dock's hydration block is a model row
 status: executing
-stopped_at: Completed 85-09-PLAN.md
-last_updated: "2026-11-25T14:15:30.302Z"
+stopped_at: Completed QD-85-10-PLAN.md
+last_updated: "2026-11-25T14:19:59.057Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase QD-85 execution started
-state_head: 89fe3ca44ddaa51e79c21da70681dcb508fb99b2
+state_head: 8b4073213e4c4584b743caa6fe3923d28153bc19
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 11
-  completed_plans: 9
+  completed_plans: 10
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-85 (The dock's hydration block is a model row) — EXECUTING
-Plan: 10 of 11
+Plan: 11 of 11
 Status: Executing Phase QD-85
 Last activity: 2026-11-25 — Phase QD-85 execution started
 
@@ -661,6 +661,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase QD-85 P07 | 12 min | 2 tasks | 4 files |
 | Phase QD-85 P08 | 15min | 2 tasks | 4 files |
 | Phase 85 P09 | 40min | 3 tasks | 9 files |
+| Phase QD-85 P10 | 15 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -1159,6 +1160,7 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase QD-85]: 85-08: DockFrame reads the poll status through useDiagnosticsStatus beside usePaused, one useSyncExternalStore call kept
 - [Phase 85]: Decided autonomously (85-09): the store count and DL pins the plan placed under BEH-QD-742 live in BEH-QD-741 and BEH-QD-743, so all three are restated and BEH-QD-742 gets the hydration listener's seventh-step sentence (DL22)
 - [Phase 85]: Decided autonomously (85-09): ADR-QD-198 states the mutation facts measured so far (HydrationView.ts 41 of 41 killed, no Ignored note owed) and DockModel.ts as a rule, since the close measurement belongs to 85-10
+- [Phase QD-85]: Decided autonomously: the CCR-QD-477 row is not edited to name the changeset; a changeset is a release note and no earlier CCR row names its own
 
 ### Pending Todos
 
@@ -1243,8 +1245,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T14:15:30.267Z
-Stopped at: Completed 85-09-PLAN.md
+Last session: 2026-11-25T14:19:59.022Z
+Stopped at: Completed QD-85-10-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
