@@ -162,3 +162,7 @@ the rest of its stderr is indented under that.
   (scratch edit: the scope branches swapped (also V13, V14, V15))
 - failed: V17 the same reading twice gives equal views and leaves the input alone
   (scratch edit: the input array reversed in place by the drop filter's source)
+- failed (tstyche): the view is exactly pending, unwired or counts
+  (scratch edit: a fourth tag `Hidden: {}` added to HydrationView; 1 test failed under it)
+- probe: HydrationView.ts killed 41, survived 0, noCoverage 0, ignored 0
+  (stryker.devtools.mjs --mutate packages/devtools/src/model/HydrationView.ts, 12 seconds; every mutant Killed, so the function-declaration shape needed no fallback; not the close record)
