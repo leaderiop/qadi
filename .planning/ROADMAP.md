@@ -565,7 +565,17 @@ Plans:
   4. ADR-QD-199 (or ADR-QD-195 amended with 199 named unused), BEH, INV and traceability record the owner, and the render suite shrinks to StrictMode, `<Activity>` and SSR smoke tests only where the owner's tests now hold the property (PREG-05).
 
 **Planning notes**: Standard patterns (precedent ADR-QD-195 and `RegistryLease`); add before deleting, and open with the characterisation. The discuss step decides one commit effect vs three ordered effects and where `AtomsReplaced` detection lives (tie-break: LT6, LT8, LT13 and LT16-LT18 stay green and unedited). Constraints that are findings: `reset`, never `dispose`; seeds and `initialValues` are not re-applied beyond what ADR-QD-195 says; no registry in state or an effect; no `scheduleTask`/`defaultIdleTTL` (AGENTS.md §13, ADR-QD-148); no module-scope `let` (`MODULE_STATE_BUDGET` stays 1); checks that cannot fail are the risk (a one-tick hide-and-show, a fake `defer` nobody asserts on), so every check names the scratch variant that turns it RED. Stryker: add the owner to `stryker.react.mjs` (update its header and covering-tests comment); `QadiProvider.tsx` stays unmeasured and branch-free; if `RegistryLease.ts` is renamed or folded, run `stryker.react.mjs` once (Stryker's behaviour on a missing explicit `mutate` path is unverified).
-**Plans**: TBD
+**Plans**: 8 plans
+
+Plans:
+- [ ] 86-01 (W1): The phase base and the mutation base of the registry lease recorded first; the provider registry characterised on the base, cells C1 to C9, each seen failing; every react test and the lease held by the pinned check
+- [ ] 86-02 (W2): The phase check helper (`86-check.mjs`): ids, forbidden constructs, the exact trailer, the owner's shape, a provider that only forwards, the records; each check seen failing
+- [ ] 86-03 (W3): The earlier-phase checks (Phase 82's `single-owner` with its recorded after-state, Phase 85's) against a measured ledger, seen failing
+- [ ] 86-04 (W4): `RegistryOwner.ts`, the React-free owner, in `stryker.react.mjs`; headless rows RO1 to RO16 (twins, the refresh difference) each seen failing; its Stryker probe clean
+- [ ] 86-05 (W5): `QadiProvider` forwards to the owner: one owner ref, the commit effect first, hold and release last; every test unedited and green; the forwarding check seen failing on the rewired provider
+- [ ] 86-06 (W6): ADR-QD-199 with the render-suite audit (0 removed), ADR-QD-195 amended, BEH-QD-766 and 767, INV-QD-417 and 418, the restated records and the registers, in one commit (CCR-QD-478)
+- [ ] 86-07 (W7): The Stryker close of the lease and the owner compared with the base, the react changeset, every phase check on the finished tree
+- [ ] 86-08 (W8): `pnpm check:pr` and `pnpm spec:package` green at the close, each alone; nothing released; no requirement ticked
 
 **UI hint**: no (behaviour only; the provider renders the same tree)
 
