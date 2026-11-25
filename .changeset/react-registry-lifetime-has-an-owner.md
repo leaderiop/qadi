@@ -2,4 +2,4 @@
 "@qadi/react": patch
 ---
 
-`QadiProvider`'s registry lifetime (building and seeding the registry, recording the latest committed atoms and subject, writing the subject, and the recycle) is kept by one internal module that imports no React, and the provider forwards each commit, hold and release to it. Nothing a host renders, receives or calls changes. No export changes.
+`QadiProvider`'s registry lifetime (building and seeding the registry, recording the latest committed atoms and subject, writing the subject, and the recycle) is kept by one internal module that imports no React, and the provider forwards each commit, hold and release to it. What a host renders and receives is unchanged. One edge differs: a host that calls `registry.refresh` on the subject atom, through `RegistryContext`, before anything has read it now keeps the current subject instead of resetting it to `undefined` (ADR-QD-199). No export changes.
