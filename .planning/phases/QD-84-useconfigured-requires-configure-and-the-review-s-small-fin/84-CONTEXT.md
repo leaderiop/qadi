@@ -91,14 +91,14 @@ Evidence:
   - `useConfigured(makeDiagnosticsFeed, options)` infers `DiagnosticsFeed` for `options: DiagnosticsOptions | undefined`.
   - Three calls were refused: a value with no `configure`, `makeDiagnosticsFeed` fed a timeline input, and `makeTimelineFeed` fed `{ source: 1 }`.
   - The three call sites lose their adapter and keep their comments, reworded where they name an adapter. They take no type argument.
-- **D-07: Type pins are positive only, in a new `packages/devtools/test/react/useConfigured.tst.ts`.**
+- **D-07: Type pins in a new `packages/devtools/test/react/useConfigured.tst.ts`: positive pins, plus one `@ts-expect-error` refusal with its accepted twin.**
   - The pins: `expect<DockModel>().type.toBeAssignableTo<Configurable<DockModelInputs>>()`, the same for `TimelineFeed` over `TimelineFeedInputs`, and the same for `DiagnosticsFeed` over `DiagnosticsOptions | undefined`.
   - Add a return-type pin per hook, so inference cannot widen silently (PITFALLS 84-A): `ReturnType<typeof useDockModel>` is `DockModel | undefined`, `useTimeline`'s is `UseTimeline`, and `useDiagnostics`'s is `DiagnosticsSnapshot`. No `.tst.ts` pins any of the three hooks at HEAD.
   - These are not `toBeCallableWith` pins, so `NOT_CALLABLE_PIN_BUDGET` and its AGENTS.md §6 table do not move.
   - **Note (evidence at HEAD):** a refusal written as a `@ts-expect-error`, with its message fragment checked by tstyche, also costs no budget row.
     - Precedent: `test/model/ConfigureInputs.tst.ts`, whose header states that pattern.
     - Such a refusal would fail if the constraint were loosened. Today only `useConfigured`'s body (`value.configure(inputs)`) refuses a loosened constraint.
-    - The fixed decision (positive only) stands. A `@ts-expect-error` refusal with its accepted twin is left to Claude's Discretion, provided no budget moves.
+    - **Decided (orchestrator, autonomously 2026-11-25, the more complete option):** the file also carries one `@ts-expect-error` refusal of a value with no `configure`, its message fragment checked by tstyche as `ConfigureInputs.tst.ts` does, beside an accepted twin that differs only in having `configure`. It is seen failing once with the constraint loosened in a scratch edit. It is not a `toBeCallableWith` pin, so no budget moves; the plan confirms the file is in tstyche's selection and that `[not-callable-pin]` counts nothing in it.
   - Rejected: a negative `not.toBeCallableWith` pin. It costs a counted row in a new file, and the edit to the budget and the AGENTS.md table together, for a refusal the compile already makes.
 - **D-08: `useConfigured.test.tsx`: the double carries `configure`, and U1..U4 are re-expressed over it.**
   - **Note (evidence at HEAD):** the double is already an object (`interface Double`, `:22-25`). What is passed as a function is the `configure` adapter (`:43-46`) beside it. "The double becomes an object" therefore means the double gains its own `configure`, carrying the same `fail` rule and the same `configured` log, and the free function goes.
@@ -307,7 +307,6 @@ Evidence:
 
 ### Claude's Discretion
 - The names `Configurable`, `UseLens`, `useStopNotice` and `StopNoticeProps` may change in planning if a clearer set emerges. Each must stay one named, package-private declaration, out of both barrels.
-- Whether `useConfigured.tst.ts` also carries a `@ts-expect-error` refusal of a value with no `configure`, with its accepted twin (D-07's note), provided no budget moves.
 - The characterisation files' names, row ids and fixtures, and whether D-18's pin lives in its own file or beside `TimelineLifetime.test.tsx` as a new file. Held files are never edited for it.
 - How plans group D-22's steps, provided steps 1 and 2 come first in that order and each commit is green.
 - The changeset's wording, provided it ends "No export changes." and claims no host-visible change.
