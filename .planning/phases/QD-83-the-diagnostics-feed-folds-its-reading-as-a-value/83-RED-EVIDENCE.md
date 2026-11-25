@@ -320,3 +320,18 @@ before the commit (`git diff --quiet HEAD -- packages scripts` held afterwards),
   - `AssertionError: expected +0 to equal 1`
 - failed (no-supplied): MR2 a supplied reading's questions reach the questions store on the configure that hands them
   - `AssertionError: expected +0 to equal 1`
+
+## Review fixes: the raw-sample pin and SR1
+
+The two tests the code review added (WR-01, WR-02) were seen failing again at the review-fixed head, each under one
+scratch edit of the model file named, a copy kept first in the scratch directory and restored with `cp` before the next
+edit (`git diff --quiet HEAD -- packages scripts` held afterwards), run as
+`pnpm exec vitest run --project devtools <file> < /dev/null`. The edits: `sampled-above-guard`: `DiagnosticsFeed.ts`'s
+sink sets `sampled = true` before its `runs.isCurrent(token)` guard; `fifth-field`: `Diagnostics.ts`'s poll adds
+`extra: portCalls` to the record it hands the sink. Under `sampled-above-guard` SR1 was the only failure of the three
+feed files (1 failed, 45 passed), so FC9 and F33 could not catch it.
+
+- failed (sampled-above-guard): SR1 a sample the superseded run takes does not mark the feed sampled, so a stop before the newest run's first sample says so
+  - `AssertionError: expected [ 'Starting', 'Stopped, sampled true' ] to deeply equal [ Array(2) ]`
+- failed (fifth-field): the sample the poll hands the sink carries exactly the four fields it reads
+  - `AssertionError: expected [ 'activity', 'extra', …(3) ] to deeply equal [ 'activity', 'hydration', …(2) ]`

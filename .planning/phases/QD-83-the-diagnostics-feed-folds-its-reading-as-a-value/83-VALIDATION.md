@@ -15,7 +15,7 @@ created: "2026-11-25"
 > - `pnpm check:pr < /dev/null` exit 0 (17 of 18 steps, mutation skipped by design; 6628 unit tests, BDD 568, examples 43; strict traceability PASS 21 FAIL 0; api-surface 942 exports), `pnpm spec:package` exit 0 (9 packages, 527 runtime exports). Cited, not re-run;
 > - `83-mutation.mjs compare` exit 0 on the re-taken close (DiagnosticsFeed 59/59 with 14 ignored, Diagnostics 32/32 with 6 ignored, DockModel 65/65 with 12 ignored; base DiagnosticsFeed 60/60/14, DiagnosticsStore 57/57/6, DockModel 65/65/12; the drops are killed mutants in deleted code). Stryker was not re-run here.
 >
-> The review fixes added the raw-sample test (WR-01, in `Diagnostics.test.ts`) and SR1 (WR-02, `DiagnosticsFeed.superseded.test.ts`); each was seen failing in `83-REVIEW-FIX.md`. No validation gap needed a new test, so no test file was added by this audit.
+> The review fixes added the raw-sample test (WR-01, in `Diagnostics.test.ts`) and SR1 (WR-02, `DiagnosticsFeed.superseded.test.ts`); each was seen failing under a scratch edit, recorded in `83-RED-EVIDENCE.md` § "Review fixes: the raw-sample pin and SR1" (`83-check.mjs seen-failing` passes for both). No validation gap needed a new test, so no test file was added by this audit.
 
 ## Test Infrastructure
 
@@ -67,7 +67,7 @@ created: "2026-11-25"
 | 83-RF-WR02 | DIAG-01 | `DiagnosticsFeed.superseded.test.ts` SR1 (commit `cd1e4d0a`); `83-pinned-check.mjs` still holds | green |
 | 83-RF-other | DIAG-03, WX-02 | WR-03 comment (`4de493c1`), IN-01 changeset/upgrade (`b5221c9f`), IN-04 wrap (`6348a589`), CCR row (`d01fae8c`), IN-01 iter 2 (`9f081401`); IN-02, IN-03 declined with reasons | green |
 
-*Status: green on every row. The red-first output for each new check and test is in `83-RED-EVIDENCE.md` or `83-REVIEW-FIX.md` (WX-06).*
+*Status: green on every row. The red-first output for each new check and test is in `83-RED-EVIDENCE.md` (WX-06).*
 
 ## Requirement coverage
 
@@ -82,7 +82,7 @@ created: "2026-11-25"
 | WX-03 | COVERED (process) | `check-api-surface.mjs` 942 exports; gate 14 probe in `scripts/check-package-install.mjs`; `pnpm spec:package` green |
 | WX-04 | COVERED (process) | house-style gate in `check:pr`; `83-check.mjs` scans |
 | WX-05 | COVERED | `83-mutation-close.json` against `83-mutation-base.json`, `compare` exit 0; devtools coverage gate inside `check:pr` |
-| WX-06 | COVERED | `83-RED-EVIDENCE.md` (every pin and check seen failing once); `83-REVIEW-FIX.md` for WR-01 and SR1 |
+| WX-06 | COVERED | `83-RED-EVIDENCE.md` (every pin and check seen failing once); including WR-01 and SR1 under "Review fixes" |
 | WX-07 | COVERED (process) | `83-check.mjs` id scans and trailers; nothing pushed, merged, tagged or released |
 
 ## Wave 0 Requirements
