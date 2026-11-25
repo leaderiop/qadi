@@ -299,3 +299,24 @@ The root's refusal of `DiagnosticsSink`: with `DiagnosticsSink` added to the `./
 printed nothing after), `pnpm exec tsc -p tsconfig.test.json --noEmit < /dev/null` failed on the unused directive.
 
 - check failed: surface DiagnosticsSink: packages/devtools/test/surface.tst.ts(272,1): error TS2578: Unused '@ts-expect-error' directive.
+
+## 83-10 the characterisation rows no earlier edit failed
+
+`83-check.mjs seen-failing` found no failure line for four characterisation rows and for `MR2`: each passes on the base,
+and the edits of plan 83-03 (`no-guard`, `no-keep`) do not touch what they pin. Each was seen failing under one scratch
+edit (`copy-view`: `DiagnosticsFeed.ts` builds its view over `{ ...diagnosticsOff }`; `sampled-false`: the sink's `sampled = true`
+becomes `sampled = false`; `sampled-true`: `let sampled = false` becomes `let sampled = true`; `no-supplied`: `DockModel.ts`'s join
+reads `const supplied = undefined`) of the model file named, a copy kept first in the scratch directory and restored with `cp` before the next edit and
+before the commit (`git diff --quiet HEAD -- packages scripts` held afterwards), run as
+`pnpm exec vitest run --project devtools <file> < /dev/null`.
+
+- failed (copy-view): FC1 a bare feed is Off by identity, and restart() publishes nothing
+  - `AssertionError: expected { status: { _tag: 'Off' }, …(1) } to equal { status: { _tag: 'Off' }, …(1) }`
+- failed (sampled-false): FC5 a stop after a sample is sampled and keeps the reading object
+  - `AssertionError: expected [ { status: 'Stopped', …(3) } ] to deeply equal [ { status: 'Stopped', …(3) } ]`
+- failed (sampled-true): FC6 a stop before any sample is unsampled and shows the empty reading itself
+  - `AssertionError: expected [ { status: 'Starting', …(2) }, …(1) ] to deeply equal [ { status: 'Starting', …(2) }, …(1) ]`
+- failed (no-supplied): FC11 one configure handing a reading with questions publishes the shown reading and the questions store once each, and lists the questions
+  - `AssertionError: expected +0 to equal 1`
+- failed (no-supplied): MR2 a supplied reading's questions reach the questions store on the configure that hands them
+  - `AssertionError: expected +0 to equal 1`
