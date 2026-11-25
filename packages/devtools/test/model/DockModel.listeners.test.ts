@@ -573,4 +573,29 @@ describe("a dock whose host listener throws", () => {
   it.effect("DL21 with a throwing hydration listener, a configure applies every input, rethrows what it threw, and an identical configure changes nothing", () =>
     throwingRow("hydration", { heard: true }),
   );
+
+  it.effect("DL22 when a services listener and a hydration listener both throw in one configure, the last step's aggregate holds the services error before the hydration error", () =>
+    Effect.gen(function* () {
+      const fx = fixtures();
+      const model = yield* setUp(5);
+      const timelineBoom = new Error("a timeline listener threw");
+      const servicesBoom = new Error("a services listener threw");
+      const hydrationBoom = new Error("a hydration listener threw");
+      throwOnce(model.timeline, timelineBoom);
+      throwOnce(model.services, servicesBoom);
+      throwOnce(model.hydration, hydrationBoom);
+
+      const run = thrownBy(() => model.configure(fx.wanted()));
+      yield* applied(model, fx, entriesFrom(5));
+
+      const { thrown } = run;
+      if (!(thrown instanceof AggregateError)) return assert.fail("expected an AggregateError");
+      assert.strictEqual(thrown.message, "More than one step of the dock's configure threw.");
+      assert.strictEqual(thrown.errors.length, 2);
+      assert.strictEqual(thrown.errors[0], timelineBoom);
+      const nested = thrown.errors[1];
+      if (!(nested instanceof AggregateError)) return assert.fail("expected a nested AggregateError");
+      assert.deepStrictEqual(nested.errors, [servicesBoom, hydrationBoom]);
+    }),
+  );
 });

@@ -190,3 +190,9 @@ the rest of its stderr is indented under that.
 
 - failed: M58: a poll whose reading equals the last publishes nothing from the hydration store, and a configure handing it other counts publishes it once
   (scratch edit: the hydration key copied the counts, `{ ...reading.hydration }`, so an identical configure republished; expected 2 to equal 1)
+- failed: M60: with counts handed to it, a poll that stops after a sample publishes nothing from the hydration store, and Off to Live passes through Starting, so the reference moves and both ends are equal
+  (scratch edit: the hydration key also carried the shown status object, so Live to a sampled Stopped republished)
+- failed: M59: with counts handed to it, the flip from Starting to Live publishes the hydration store once and the two views are equal, because its key compares the unsampled flag by identity
+  (scratch edit: the key's unsampled was `hydration === undefined && isUnsampled(status)`, so the flip with counts handed published nothing; M60 failed under it too)
+- failed: DL22 when a services listener and a hydration listener both throw in one configure, the last step's aggregate holds the services error before the hydration error
+  (scratch edit: the hydration store built before services, so the nested aggregate listed hydration first)
