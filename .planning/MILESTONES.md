@@ -1,5 +1,23 @@
 # Milestones
 
+## v1.10 Arch Wave 15 (Shipped: 2026-11-25)
+
+**Delivered:** all four candidates of the 2026-11-24 architecture review, on branch `arch-wave-15` (stacked on `arch-wave-14`). Not merged, not released.
+
+**Phases completed:** 4 phases (81–84), 45 plans. 226 commits; 91 files, +5,870 / −723 outside `.planning`.
+
+**Key accomplishments:**
+- 81: the dock model applies every input whatever a listener throws. One package-private `callAll` collects and rethrows once (one error as itself, two or more as one `AggregateError`); the sightings rail is a derived store that moves once; announced work starts whatever its listener throws (live defect, regression RED on the base; ADR-QD-194).
+- 82: `QadiProvider`'s registry has one owner for its lifetime. A headless, mutation-gated `RegistryLease` (28/28) recycles it in place a macrotask after the last cleanup, so a provider hidden in `<Activity>` and shown again never reaches a disposed registry; seeds are not re-applied (live defect, RED on the base; `@qadi/react` patch; ADR-QD-195).
+- 83: the diagnostics feed holds its reading only in its snapshot, folded by a pure per-field `foldReading`; the package-private store is gone, `runDiagnostics` takes a one-member sink, and the never-sampled `Diagnostics.questions` is removed (Breaking `@qadi/devtools` minor; ADR-QD-196).
+- 84: `useConfigured` takes a value with its own `configure` (three adapters deleted, four refusals pinned); `LensSession` publishes through `ExternalStore.set`; `useLens` reads each fact once; one `useStopNotice` ledger per feed; `useTimeline`'s inputs memo recorded as a rejection (`@qadi/devtools` patch; ADR-QD-197).
+
+**Quality:** each phase was code-reviewed in three iterations, mutation re-taken, secured (0 open threats; 2 low accepted in Phase 83) and Nyquist-validated. The audit is `passed` (27/27 requirements, 4/4 integration seams, 4/4 flows); it re-verified Phases 81 and 83, which later phases had made stale. `check:pr` was last green at `ce02fbc7` (6638 tests). Four changesets: one Breaking `@qadi/devtools` minor and three patches (`@qadi/devtools` ×2, `@qadi/react`); api-surface 942 exports throughout.
+
+**Known verification overrides:** none. The audit-open scan was clear, with 2 items acknowledged in an earlier milestone and still suppressed.
+
+---
+
 ## v1.9 Arch Wave 14 (Shipped: 2026-11-24)
 
 **Delivered:** all four candidates of the 2026-11-23 architecture review, on branch `arch-wave-14`. Not merged, not released.

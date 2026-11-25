@@ -2,19 +2,19 @@
 gsd_state_version: "1.0"
 milestone: v1.10
 milestone_name: Arch Wave 15
-current_phase: 84
-status: completed
-stopped_at: Phase 84 complete — all phases complete
-last_updated: "2026-11-25T09:39:51.049Z"
+status: Awaiting next milestone
+stopped_at: Milestone v1.10 complete and archived
+last_updated: "2026-11-25T09:46:56.856Z"
 last_activity: 2026-11-25
-last_activity_desc: Phase 84 complete
-state_head: 3f0960eb0e3231393b43cdc2ee691e47ec31bd1d
+last_activity_desc: Milestone v1.10 completed and archived
+state_head: 448bb787c95c306d8f85b4cd02030f0d4020d054
 progress:
   total_phases: 4
   completed_phases: 4
   total_plans: 45
   completed_plans: 45
   percent: 100
+current_phase: 84
 ---
 
 # Project State
@@ -24,15 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-25)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase QD-82 — `QadiProvider`'s registry has one owner for its lifetime
+**Current focus:** Planning the next milestone (v1.10 Arch Wave 15 complete 2026-11-25; v1.9 and v1.10 not merged, not released)
 
 ## Current Position
 
-Phase: 84
-Plan: Not started
-Status: All phases complete
-Last activity: 2026-11-25 — Phase 84 complete
-
+Phase: Milestone v1.10 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-11-25 — Milestone v1.10 completed and archived
 
 ## Performance Metrics
 
@@ -1218,4 +1217,5 @@ Resume file: None
 ## Operator Next Steps
 
 
-- All v1.10 phases complete: /gsd-audit-milestone v1.10, then /gsd-complete-milestone v1.10 (no tag, no push), then /gsd-cleanup
+
+- Start the next milestone with /gsd-new-milestone

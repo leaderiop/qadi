@@ -1,4 +1,4 @@
-# Qadi — Architecture Waves (current: v1.10 Arch Wave 15)
+# Qadi — Architecture Waves (last: v1.10 Arch Wave 15)
 
 ## What This Is
 
@@ -13,7 +13,7 @@ module was a shallow pass-through.
 The review is at https://claude.ai/artifact/LH5dLGadz28NyzmZez9jcX, with a local copy at
 `/tmp/claude-1002/-home-yopu-Project-Perso-qadi/588341bb-9f42-4e6e-b1a3-ed991ed47acf/scratchpad/qadi-architecture-review.html`.
 
-## Current Milestone: v1.10 Arch Wave 15
+## Previous Milestone: v1.10 Arch Wave 15 (completed 2026-11-25; not released)
 
 **Goal:** Resolve all four candidates of the 2026-11-24 architecture review. The two live defects go first, each opening
 with a regression test seen RED on its phase base, then the two devtools deepenings.
@@ -38,6 +38,19 @@ with a regression test seen RED on its phase base, then the two devtools deepeni
 (session-scoped; `.planning/phases/_WAVE15-CONTEXT.md` holds everything a planner needs). Branch `arch-wave-15`, off
 `arch-wave-14` at `902d2128` (v1.9 not merged; stacked as v1.6 and v1.7 were). No merge, no release. Scope, order,
 branch and research were decided autonomously on 2026-11-24 under the owner's standing instruction of 2026-11-22.
+
+v1.10 Arch Wave 15 completed 2026-11-25 on branch `arch-wave-15` (226 commits; 91 files, +5,870 / −723 outside
+`.planning`): ARCH-128 to ARCH-131, ADR-QD-194 to ADR-QD-197, amendments to ADR-QD-014, 047, 148, 149, 169, 173, 177,
+185, 191, 192 and 193, and CCR-QD-473..476. All 4 phases `passed`, Nyquist-compliant and secured (0 open threats; 2 low accepted in Phase
+83). Each phase ran a three-iteration code review and re-took its mutation measurement after it. Every choice was decided
+autonomously under the owner's standing instruction (take the most complete, clean solution), including Phase 83's removal
+of `Diagnostics.questions` as a Breaking minor and Phase 84's recorded rejection of a memo for `useTimeline`'s inputs. The
+audit is `passed`: 27/27 requirements, 4/4 integration seams, 4/4 flows; it re-verified Phases 81 and 83, which later
+phases had made stale. `check:pr` exited 0 at the end of every phase and last at `ce02fbc7` (6638 tests, BDD 568).
+Four changesets: one Breaking minor (`@qadi/devtools`: `Diagnostics.questions` removed, 0.13 upgrade entry) and three
+patches (`@qadi/devtools` ×2: `configure` collects, the lens reads each fact once; `@qadi/react`: the registry lease).
+api-surface 942 exports throughout. **Not merged and not released.** Archive: `.planning/milestones/v1.10-ROADMAP.md`,
+`v1.10-REQUIREMENTS.md`, `v1.10-MILESTONE-AUDIT.md`.
 
 ## Previous Milestone: v1.9 Arch Wave 14 (completed 2026-11-24; not released)
 
@@ -199,6 +212,19 @@ threshold that never opens, a failing user sink that loses records unlogged), th
 `arch-wave-9` at `ba0d0615` (v1.4 is not merged). No merge, no release.
 
 ## Current State
+
+v1.10 Arch Wave 15 completed 2026-11-25 on branch `arch-wave-15`, stacked on `arch-wave-14` (see the v1.10 entry above).
+All four candidates of the 2026-11-24 architecture review are resolved:
+- the dock model applies every input whatever a listener throws, through one package-private collect-and-rethrow rule
+  (`callAll`), and the sightings rail moves once per change;
+- `QadiProvider`'s registry has one owner for its lifetime: a headless lease recycles it in place, so a provider hidden
+  in `<Activity>` and shown again never reaches a disposed registry;
+- the diagnostics feed holds its reading only in its snapshot, folded by a pure `foldReading`, and `Diagnostics` carries
+  only what the poll samples;
+- `useConfigured` takes a value with its own `configure`, `LensSession` publishes through `ExternalStore.set`, `useLens`
+  reads each fact once, and the dock keeps one stop ledger per feed.
+
+Not merged and not released (neither is v1.9). The next milestone is not yet defined.
 
 v1.9 Arch Wave 14 completed 2026-11-24 on branch `arch-wave-14` (see the v1.9 entry above). All four candidates of the
 2026-11-23 architecture review are resolved:
@@ -508,7 +534,16 @@ logged, counted or spanned.
 - **Hot spots** (churn over the last 15 commits): react `QadiAtoms`/`Hydration`/`hooks`; http
   `RequirePermission`/`DecisionStreamRoute`; core `SinkCodec`/`Evaluate`/`PortAccess`.
 
-### Known Issues (carried forward from v1.9)
+### Known Issues (carried forward from v1.10)
+
+- The v1.10 audit (`.planning/milestones/v1.10-MILESTONE-AUDIT.md`) is `passed`. It records what was left by decision:
+  - each phase's record scripts judge the tree against that phase's own base, so a later phase's committed change shows
+    in an earlier phase's `pinned-check` or `scan-forbidden` (all such reports at the close were traced and explained);
+  - `src/react` stays outside every Stryker config (Phase 84's hooks are held by component tests and coverage), and
+    `QadiProvider.tsx` is outside the react mutate list; QuestionBook keeps the base's two surviving mutants;
+  - Phase 83 accepted two low threats; no milestone-level Stryker run was made.
+
+### Known Issues (carried forward from v1.9) — unchanged in v1.10
 
 - The v1.9 audit (`.planning/milestones/v1.9-MILESTONE-AUDIT.md`) is `passed`. It records what was left by decision or
   can only be checked by hand:
@@ -737,4 +772,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-25 after Phase 84*
+*Last updated: 2026-11-25 after v1.10 milestone*
