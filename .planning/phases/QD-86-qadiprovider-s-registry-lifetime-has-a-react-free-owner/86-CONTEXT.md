@@ -233,6 +233,25 @@ the researchers disagree"; ARCHITECTURE §Phase 86; FEATURES §86; PITFALLS 86-A
   the owner, its tests and the `stryker.react.mjs` edit land before the provider is rewired; and the records plan edits
   the spec registers once.
 
+### Addendum after research (2026-11-25, decided autonomously)
+- **D-10a (the guard's divergence is pinned, not only recorded):** research (86-RESEARCH.md Q1) probed effect 4.1.2
+  and found the guarded and unguarded writes notification- and re-evaluation-neutral, with one difference: on a
+  seeded `subject` node nothing has read before the first commit, the guard's `registry.get` built the node and cleared
+  `preserveInitialValueOnBuild`, so a later host `registry.refresh(atoms.subject)` reset the subject to `undefined`;
+  the unguarded write leaves the flag set, so the refresh keeps the current subject. Keeping the subject across a
+  refresh is the better behaviour, so D-10 stands (the guard is dropped). Unlike the research's recommendation
+  ("recorded, not pinned"), the difference is **pinned**: an owner test (headless, real `AtomRegistry`) asserts that a
+  host refresh after the first commit keeps the current subject, with the scratch variant "reinstate the
+  `registry.get(...) !== subject` guard" recorded red in `86-RED-EVIDENCE.md`. It is born on the owner, not on the base
+  (it differs by construction), and ADR-QD-199 plus the CCR-QD-478 row state it as a deliberate behaviour difference.
+  No unconditional `registry.get` is added.
+- **D-18 (trailer check):** `86-check.mjs trailers` keeps Phase 85's exact trailer,
+  `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`, which is the project's commit attribution; the research's
+  suggestion to switch to 82's generic regex came from the researcher's own model name and is not taken.
+- **D-19 (criterion 4):** the research's audit found no lifetime render test made redundant by an owner row (each keeps
+  a half only React gives), so the shrink set is empty; ADR-QD-199 carries the audit table and the verification states
+  the count (0). This meets criterion 4's conditional wording with D-14's zero deletions.
+
 </decisions>
 
 <code_context>
