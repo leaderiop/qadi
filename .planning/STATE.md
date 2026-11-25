@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 88
 current_phase_name: "`StoppedBox` keys itself and owns the announce-once rule"
 status: executing
-stopped_at: Completed 88-05-PLAN.md
-last_updated: "2026-11-25T23:32:24.503Z"
+stopped_at: Completed 88-06-PLAN.md
+last_updated: "2026-11-25T23:38:40.427Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 87 complete, transitioned to Phase 88
-state_head: ca9afeeb5282bedd9fe88461f1d3a34f1a84466b
+state_head: 590eeffb49155a50a0e2be26676d51b16229ddc2
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 40
-  completed_plans: 35
+  completed_plans: 36
   percent: 43
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-88 (`StoppedBox` keys itself and owns the announce-once rule) — EXECUTING
-Plan: 6 of 10
+Plan: 7 of 10
 Status: Ready to execute
 Last activity: 2026-11-25 — Phase 87 complete, transitioned to Phase 88
 
@@ -689,6 +689,7 @@ Progress: [████░░░░░░] 43%
 | Phase 88 P03 | 5min | 2 tasks | 3 files |
 | Phase 88 P04 | 5min | 2 tasks | 3 files |
 | Phase 88 P05 | 7min | 2 tasks | 4 files |
+| Phase 88 P06 | 35min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -1223,6 +1224,7 @@ Progress: [████░░░░░░] 43%
 - [Phase 88]: 88-03: the pinned check holds the text before the first region and shares one stretch of the file between adjacent regions for the kept-line count
 - [Phase 88]: 88-04: the earlier-phase checks row kinds are line, pattern, reasons set or computed; 87's pinned row is computed from EXPLAINED with the 88-06 commit subjects
 - [Phase 88]: 88-05: LAW3 draws stops with constantFrom over the three fixtures; the table test is committed with its module, tied to the red run by HEAD and test blob
+- [Phase 88]: 88-06: the stop ledger is React state per feed (useReducer); the box takes the notice whole and keys itself, deciding its alert at mount and recording at commit
 
 ### Pending Todos
 
@@ -1310,8 +1312,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T23:32:24.442Z
-Stopped at: Completed 88-05-PLAN.md
+Last session: 2026-11-25T23:38:40.323Z
+Stopped at: Completed 88-06-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
