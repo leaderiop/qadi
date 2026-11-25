@@ -5,16 +5,16 @@ milestone_name: Arch Wave 15
 current_phase: 84
 current_phase_name: "`useConfigured` requires `configure`, and the review's small finds"
 status: executing
-stopped_at: Completed 84-07-PLAN.md
-last_updated: "2026-11-25T08:07:55.230Z"
+stopped_at: Completed 84-08-PLAN.md
+last_updated: "2026-11-25T08:11:53.595Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 83 complete, transitioned to Phase 84
-state_head: 452d89c2441cb3e4e8751acbfc9eedd6f1e54ecb
+state_head: fde3a1d67667d14a5b5ef130c7be36e634aa4287
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 45
-  completed_plans: 39
+  completed_plans: 40
   percent: 75
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: 84 (`useConfigured` requires `configure`, and the review's small finds) — READY TO EXECUTE
-Plan: 8 of 13
+Plan: 9 of 13
 Status: Ready to execute
 Last activity: 2026-11-25 — Phase 83 complete, transitioned to Phase 84
 
@@ -643,6 +643,7 @@ Last activity: 2026-11-25 — Phase 83 complete, transitioned to Phase 84
 | Phase QD-84 P05 | 20min | 2 tasks | 3 files |
 | Phase QD-84 P06 | 25min | 2 tasks | 7 files |
 | Phase QD-84 P07 | 5min | 2 tasks | 2 files |
+| Phase QD-84 P08 | 20min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -1202,8 +1203,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T08:07:55.076Z
-Stopped at: Completed 84-07-PLAN.md
+Last session: 2026-11-25T08:11:53.437Z
+Stopped at: Completed 84-08-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
