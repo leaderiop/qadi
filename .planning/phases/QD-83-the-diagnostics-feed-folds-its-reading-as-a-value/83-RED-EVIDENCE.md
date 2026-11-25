@@ -130,3 +130,28 @@ spec/traceability.md:217 names an old path
 spec/traceability.md:596 names an old path
 spec/traceability.md:597 names an old path
 ```
+
+## 83-02 the pinned-test check
+
+- check failed: pinned: packages/devtools/test/model/DockModel.test.ts: differs from its base text at line 1833
+
+How it was produced: one blank line appended to `packages/devtools/test/model/DockModel.test.ts` (a copy kept first in the
+scratch directory), then `node <D>83-pinned-check.mjs`; the file was restored with `cp` and `git diff --quiet HEAD -- packages
+scripts` held. On the tree as it stands the check prints `pinned: 6 files hold their base text, 0 of 2 born files held, 0 of
+1 declared flips applied`, and `--all-applied` fails for the four reasons that are still true (the `F2` flip is unapplied and
+unrecorded, and both born files do not exist). The `F2` flip is declared here, in the scratch copy of `81-pinned-check.mjs`,
+and in the decision record: `DiagnosticsFeed.test.ts` `F2` asserts `reading.questions` is undefined, which stops compiling
+once the field is removed, so the phase rewrites that one assertion to `assert.isFalse("questions" in reading);`, the title
+unchanged. The `- flip F2: ` evidence line is written by the plan that applies it.
+
+## 83-02 the earlier checks
+
+- check failed: earlier: 81-pinned-check.mjs: exit 1: packages/devtools/test/model/ConfigureRule.test.ts: differs from its base text at line 919
+- earlier on the tree: 81-pinned-check.mjs: exit 0: pinned: 8 files hold their base text, 4 of 5 declared flips applied
+- earlier on the tree: 81-check.mjs single-source: exit 0: single-source: one collect loop, in callAll
+- earlier on the tree: 79-pinned-check.mjs: exit 1: packages/devtools/test/model/TimelineFeed.test.ts: TF29: an assertion or a line other than a construction changed (the one accepted failing line; the other four archived lines exit 0)
+
+How it was produced: one blank line appended to `packages/devtools/test/model/ConfigureRule.test.ts` (a copy kept first in the
+scratch directory), then `node <D>83-earlier-checks.mjs`; the scratch copy of `81-pinned-check.mjs` failed on it and the file
+was restored with `cp`. The scratch copy declares the rename's four import edits and the `F2` flip; `4 of 5 declared flips
+applied` is the `F2` flip not yet applied. Phase 81's directory and the archive are only read.
