@@ -705,17 +705,22 @@ describe("a provider hidden past one macrotask and shown again", () => {
       reset();
       throw new Error("a finalizer threw");
     });
-    // A bare timer callback has no caller to catch what it throws, so the process hears it.
-    const listeners = process.listeners("uncaughtException");
-    process.removeAllListeners("uncaughtException");
-    process.on("uncaughtException", (error) => thrown.push(error));
-    try {
-      await r.longHide();
-    } finally {
-      process.removeAllListeners("uncaughtException");
-      for (const listener of listeners) process.on("uncaughtException", listener);
-    }
+    // A bare timer callback has no caller to catch what it throws. The lease resolves
+    // `setTimeout` from the global when it defers, so wrapping it for this test hears the
+    // error without touching the process's own handlers; afterEach restores the spy.
+    const realSetTimeout = globalThis.setTimeout;
+    vi.spyOn(globalThis, "setTimeout").mockImplementation((run, ms) =>
+      realSetTimeout(() => {
+        try {
+          if (typeof run === "function") run();
+        } catch (error) {
+          thrown.push(error);
+        }
+      }, ms),
+    );
+    await r.longHide();
     expect(thrown).toHaveLength(1);
+    expect(thrown[0]).toMatchObject({ message: "a finalizer threw" });
     ids.length = 0;
     await r.show();
     await settle();

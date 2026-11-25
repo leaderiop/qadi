@@ -349,3 +349,13 @@ Why each is the failure it should be:
 
 The whole react project (678 tests), `tsc -p tsconfig.test.json --noEmit` and `oxlint` on the two files passed at the commits
 that carry these tests.
+
+### review fixes, iteration 2 (2026-11-25)
+
+LT18 now hears the timer's error through a `vi.spyOn(globalThis, "setTimeout")` wrapper (no process listener is touched, no cast) and
+asserts the captured error is the finalizer's own (`toMatchObject({ message: "a finalizer threw" })`). Re-run from the repository root with
+stdin closed against a copy-backed scratch edit, restored with `cp`; `git diff --quiet HEAD -- packages/react/src` held afterwards.
+
+| Scratch edit | Test seen failing | Failure line |
+| ------------ | ----------------- | ------------ |
+| `QadiProvider.tsx`: the `try`/`finally` around `registry.reset()` removed, the two calls in sequence | LT18 (the only failure, `Tests  1 failed \| 17 passed (18)`) | `AssertionError: expected [ 'none', 'u1' ] to not include 'none'` |
