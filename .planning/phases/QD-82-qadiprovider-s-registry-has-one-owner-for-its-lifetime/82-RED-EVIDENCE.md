@@ -314,3 +314,38 @@ Closed by a lease test, with no `Stryker disable` comment and no change to the m
 
 Second run, after RL10: `Final mutation score of 100.00`, 28 of 28 killed, 0 survived, 0 no coverage, 0 ignored, 0 timeout; the
 probe printed `probe lease: the report passes as its close would judge it` and exited 0.
+
+## review fixes (2026-11-25)
+
+Each new or strengthened lifetime test was run from the repository root with stdin closed
+(`pnpm exec vitest run --project react packages/react/test/QadiProvider.lifetime.test.tsx`) against a copy-backed scratch edit of
+the committed source (the file copied aside, edited, run, restored with `cp`); `git diff --quiet HEAD -- packages/react/src` held
+after the last restore, and nothing under `packages/react/src` was committed in a scratch state. Failure lines are what each run printed.
+
+| Scratch edit | Test seen failing | Failure line |
+| ------------ | ----------------- | ------------ |
+| `QadiProvider.tsx`: `latestRef.current = { atoms, subject };` written in render, after the `useRef` line | LT6 (the only failure) | `AssertionError: expected [ 'u2' ] to deeply equal [ 'u1', 'u2' ]` |
+| `QadiProvider.tsx`: the `latestRef` effect body replaced with `void atoms;` | LT16, LT17 | `expected [ 'u1', 'u2' ] to not include 'u1'`; `expected [ 'none', 'u1' ] to not include 'none'` |
+| `QadiProvider.tsx`: the `latestRef` effect writes `{ atoms: latestRef.current.atoms, subject }` (stale atom set) | LT17 (the only failure) | `expected [ 'none', 'u1' ] to not include 'none'` |
+| `QadiProvider.tsx`: the effect cleanup `() => lease.release()` replaced with `() => undefined` | LT14 (also LT9, LT10, LT15, LT18) | `expected 'seeded' to be 'default'` |
+| `QadiProvider.tsx`: the `try`/`finally` around `registry.reset()` removed, the two calls in sequence | LT18 (the only failure) | `expected [ 'none', 'u1' ] to not include 'none'` |
+| `SweepScheduler.ts`: `request` returns before it forks (`if (pending \|\| !pending) return;`) | LT12 (the only failure) | `expected +0 to be 1` |
+
+Why each is the failure it should be:
+
+- LT6 first draft changed the subject after the long hide, so the recycle had already run and the first frame read `u1` whatever the ref
+  held; the render-phase write did not fail it. The test now hides, changes the subject while hidden, waits past the release and reveals,
+  so the recycle runs with the tree's new props rendered and no effect run. Under the render-phase write the recycle writes `u2` and the
+  first frame is `u2`, which is the failure above; the settled `subject:u2` assertion was green throughout, which is why it was not a pin.
+- LT16 and LT17 commit a subject and an atom set while the tree is visible, so a ref that holds the last commit writes them back; with the
+  effect neutralised the recycle writes the first closure's, which a first frame shows as `u1` (LT16) or as an unset subject (LT17).
+- LT12 now begins a pressure episode while the tree is hidden (a second question past the bound of one) and asserts a fork and a sweep
+  before and after the reveal. The old test counted zero forks and zero sweeps across the hide (`0 === 0`), so it passed with the sweep
+  disabled; with the scheduler's request disabled the new test fails at its first fork count.
+- LT14 now seeds a host atom and reads it back at its default after the unmount, which only a recycle gives; the `registry.getNodes()` half
+  holds with the release skipped, so it is not the half that pins the release.
+- LT18 spies on the registry's `reset` (calling the real one, then throwing) and collects the timer's uncaught exception; without the
+  `finally` the recycle writes no subject and the reveal's first frame reads `none`.
+
+The whole react project (678 tests), `tsc -p tsconfig.test.json --noEmit` and `oxlint` on the two files passed at the commits
+that carry these tests.

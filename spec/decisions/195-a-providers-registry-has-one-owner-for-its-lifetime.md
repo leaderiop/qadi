@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-195                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-11-25                                     |
 > | Status         | Accepted — amends ADR-QD-014, ADR-QD-148 and ADR-QD-149 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-25): Related links INV-QD-409 and INV-QD-410 (CCR-QD-474)<br>1.1 (2026-11-25): Related links BEH-QD-746 to BEH-QD-750 (CCR-QD-474)<br>1.0 (2026-11-25): Initial (ARCH-129, CCR-QD-474) |
+> | Change History | 1.3 (2026-11-25): decision 4 states the first-frame tradeoff and the write in a finally; the table and the consequence name what LT6, LT12, LT14 and LT16 to LT18 pin (CCR-QD-474)<br>1.2 (2026-11-25): Related links INV-QD-409 and INV-QD-410 (CCR-QD-474)<br>1.1 (2026-11-25): Related links BEH-QD-746 to BEH-QD-750 (CCR-QD-474)<br>1.0 (2026-11-25): Initial (ARCH-129, CCR-QD-474) |
 
 ---
 
@@ -93,9 +93,16 @@ runs.
    its finalizers, which releases the runtime's layer scope and stops what was running, and the registry stays usable. The
    subject is then written with `registry.set(atoms.subject, subject)`, the same public call the provider's subject effect
    makes, from a ref the provider writes in an effect on `[atoms, subject]`: a render React discards never reaches it, and a
-   closure from the first commit is never the one read. The `subject` atom is `keepAlive` (BEH-QD-516), so the write
-   survives with no reader. With an `atoms` prop change the ref holds the current atom set's `subject`, and the provider's
-   `AtomsReplaced` signal is unchanged.
+   closure from the first commit is never the one read. The ref therefore holds the atoms and subject of the last commit
+   whose effects ran. A hidden tree renders with its new props and runs no effect, so a subject that changed while the tree
+   was hidden is not in it: the first frame of the reveal reads the previous subject, and the provider's own subject effect
+   writes the new one after every consumer has subscribed. That is the one-frame tradeoff the provider already records for a
+   subject change (ticket 34), accepted here and pinned (LT6); closing it would mean a write in render, which this
+   decision rejects below. The subject is written in a `finally`, so a finalizer that makes the reset throw cannot leave
+   the registry with its nodes cleared and no subject; the error then escapes from the deferral's timer, and the lease
+   stays usable (RL7). The `subject` atom is `keepAlive` (BEH-QD-516), so the write survives with no reader. With an
+   `atoms` prop change the ref holds the current atom set's `subject`, and the provider's `AtomsReplaced` signal is
+   unchanged.
 
 5. **Neither `initialValues` nor a hydration seed is written back.** In this package `initialValues` is
    `hydrateDecisions`' output, the seed grants of [ADR-QD-149](./149-a-seed-is-held-by-its-question.md), and `initialValues`
@@ -124,13 +131,15 @@ runs.
 | An invalidation, a devtools feed consumer, StrictMode, after a long hide | the same errors | nothing thrown | LT2, LT3, LT4 |
 | A hide shorter than a macrotask | recycled nothing | recycles nothing | LT5 |
 | A re-render while hidden past the release | a second registry, built by `??=` | one registry | LT7, LT13 |
-| A subject changed while hidden | answered by the second registry | the revealed provider answers with the new subject | LT6 |
+| A subject changed while hidden | answered by the second registry | the first frame of the reveal reads the previous subject, then the provider's effect writes the new one (the accepted one-frame tradeoff) | LT6 |
+| A subject, or an `atoms` set, committed while visible, then a long hide | the recycle would write the first closure's | the first frame of the reveal reads the committed one | LT16, LT17 |
+| A recycle whose reset throws | the subject write skipped after the nodes were cleared | the subject is still written back; the error escapes from the timer | LT18 |
 | An `atoms` swap while hidden | a second registry | one registry, reported once | LT8 |
 | A seeded allow the client never answers, after a long hide | threw on the reveal | `Pending`, never the superseded allow | LT9 |
 | A seeded allow with no subject, after a long hide | threw on the reveal | `Pending` until a subject arrives | LT10 |
 | A long hide with a re-render, the client's denial replacing a seeded allow | painted the superseded allow, reported a second hydration mismatch | renders `Pending`, then the denial, reports once | LT11 |
-| Pressure episodes across a long hide | the reveal threw | one fork and one sweep per episode | LT12 |
-| A read straggling after an unmount | threw `registry is disposed` | recreates a node nothing holds, removed a macrotask later | LT14 |
+| Pressure episodes across a long hide | the reveal threw | one fork and one sweep per episode, one begun while the tree is hidden and one after the reveal | LT12 |
+| A read straggling after an unmount | threw `registry is disposed` | the registry was recycled (a seeded host atom reads its default), and the read recreates a node nothing holds, removed a macrotask later | LT14 |
 | A host's own subscription held across a long hide | threw on the first write | detached | LT15 |
 | An unmount | disposed the registry after a macrotask | recycles it once after a macrotask | "releases its registry after it unmounts" |
 
@@ -184,7 +193,8 @@ runs.
   the registry is unreachable with the provider. Measured, no leak: a straggling read after a recycle re-acquires the runtime's
   layer scope and idle removal releases it again.
 - The sweep's bound holds across a long hide. A hidden gate's question may be evicted and re-admitted, and the lifetime test
-  asserts one fork and one sweep per pressure episode rather than a step count. The node-level dispose-then-reread window of
+  asserts one fork and one sweep per pressure episode rather than a step count, with an episode begun by a second question
+  while the tree is hidden and one begun after the reveal; it fails if no episode ran. The node-level dispose-then-reread window of
   [ADR-QD-148](./148-the-atom-set-owns-its-eviction-sweep.md) is unchanged: the provider disposes nothing now, and the window
   is the registry's own.
 - `AtomsReplaced` is unchanged: a changed `atoms` prop keeps the registry and signals once, and the atom set the earlier
@@ -201,10 +211,12 @@ runs.
   hold, a release and a hold in one tick; a release recycling once; a second release deferring nothing; a release never held; a
   hold cancelling exactly once; unheld after a recycle; a recycle that throws; a defer that throws; a hold after a second
   release still cancelling the one pending recycle), and the default defer on a real macrotask (RL9).
-- `packages/react/test/QadiProvider.lifetime.test.tsx`: LT1 to LT15, the long-hide reveal and its companions: invalidation,
-  a devtools feed consumer, StrictMode, the short hide, a subject changed while hidden, a re-render while hidden, an `atoms`
-  swap, the seeds not re-applied (LT9 to LT11), the sweep across a long hide, the first frame of a reveal committed with a
-  re-render, a straggling read after an unmount and a host subscription held across a hide.
+- `packages/react/test/QadiProvider.lifetime.test.tsx`: LT1 to LT18, the long-hide reveal and its companions: invalidation,
+  a devtools feed consumer, StrictMode, the short hide, a subject changed while hidden (its first frame pinned), a re-render
+  while hidden, an `atoms` swap, the seeds not re-applied (LT9 to LT11), the sweep across a long hide, the first frame of a
+  reveal committed with a re-render, a straggling read after an unmount (which reads a seeded host atom back at its default),
+  a host subscription held across a hide, a subject and an atom set committed while visible (LT16, LT17) and a recycle whose
+  reset throws (LT18).
 - `packages/react/test/edges.test.tsx`: `releases its registry after it unmounts`, which reads a `keepAlive` host atom seeded
   through `initialValues` after the macrotask: its default after a release, its seed with the release skipped, a throw under
   `dispose()`.
