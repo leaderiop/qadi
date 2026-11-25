@@ -211,3 +211,8 @@ the rest of its stderr is indented under that.
   (scratch edit: the reason rendered as inner HTML in place of a text child; H9 failed under it too)
 - check failed: panel-decides-nothing: packages/devtools/src/react/QuestionsPanel.tsx:29 imports isUnsampled from ../model/DiagnosticsFeed.ts
   (scratch edit: the status predicate imported and called in the panel again)
+
+## 85-08 the frame reads the status
+
+- red on the base: R1 a poll that moves only the reading, the status staying Live, commits nothing under the dock
+  (the frame subscribed to the whole snapshot: 6 commits at the end, 3 when the status settled on Live)

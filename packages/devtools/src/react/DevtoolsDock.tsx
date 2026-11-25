@@ -15,7 +15,6 @@
  */
 import type { FC, ReactNode } from "react";
 import type { Verdict } from "../model/Verdict.ts";
-import type { Diagnostics } from "../model/Diagnostics.ts";
 import type { DockModel, DockModelInputs } from "../model/DockModel.ts";
 import type { DockSnapshot, TabId } from "../model/DockSession.ts";
 import { DecisionLog } from "./DecisionLog.tsx";
@@ -30,7 +29,7 @@ import { Simulator } from "./Simulator.tsx";
 import { TimelineNotice, type TimelineNoticeProps } from "./TimelineNotice.tsx";
 import { useDockModel } from "./useDockModel.ts";
 import { useStopNotice } from "./useStopNotice.ts";
-import { usePaused, useStoreSnapshot } from "./useStoreSnapshot.ts";
+import { useDiagnosticsStatus, usePaused, useStoreSnapshot } from "./useStoreSnapshot.ts";
 import { body, button, colors, dock as dockStyle, font, input, muted, toolbar } from "./theme.ts";
 
 /**
@@ -108,8 +107,7 @@ const DockFrame: FC<{
 }> = ({ model, host }) => {
   const { dock, timeline } = model;
   const view = useStoreSnapshot(dock);
-  // Each field is the supplied reading's when it carries one, and the sample's otherwise: the model merges.
-  const { status, reading: shown } = useStoreSnapshot(model.diagnostics);
+  const status = useDiagnosticsStatus(model.diagnostics);
   const notice = useStopNotice(status, model.diagnostics.restart);
   const timelineStatus = useStoreSnapshot(model.timelineStatus);
   const timelineNotice = useStopNotice(timelineStatus, model.timelineStatus.restart);
@@ -178,7 +176,6 @@ const DockFrame: FC<{
         <Screen
           model={model}
           view={view}
-          shown={shown}
           notice={notice}
           timeline={timelineNotice}
           host={host}
@@ -226,7 +223,6 @@ const asVerdict = (value: string | undefined): Verdict | undefined =>
 const Screen: FC<{
   readonly model: DockModel;
   readonly view: DockSnapshot;
-  readonly shown: Diagnostics;
   readonly notice: DiagnosticsNoticeProps;
   readonly timeline: TimelineNoticeProps;
   readonly host: HostProps;
