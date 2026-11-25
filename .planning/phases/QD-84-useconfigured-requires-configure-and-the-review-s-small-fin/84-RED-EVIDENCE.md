@@ -89,3 +89,8 @@ under it are the rest of that run's stderr. A test's failure lines use the `seen
   - AssertionError: the guard registered while picking is hovered: expected [] to deeply equal [ 'g2' ]
 - failed (second-subscription): LQ4 the panel holds one subscription to each store across the publishes
   - AssertionError: after mount: expected [ 1, 2 ] to deeply equal [ 1, 1 ]
+
+## 84-03 the arm-before-publish pin on the base
+
+- failed (arm-after-publish): a listener told of a pick can take its reveal
+  - AssertionError: expected [ false ] to deeply equal [ true ]
