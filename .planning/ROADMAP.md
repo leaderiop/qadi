@@ -477,7 +477,7 @@ Order: the two live defects (81, 82), then the two devtools deepenings (83, 84).
 ### Phases
 
 - [x] **Phase 81: The dock model applies every input whatever a listener throws** - `configure` and the record path run every step and rethrow what was collected once; a catalogue-and-capacity change moves the sightings rail once (ARCH-128, devtools; live defect) (completed 2026-11-25)
-- [ ] **Phase 82: `QadiProvider`'s registry has one owner for its lifetime** - A provider hidden in `<Activity>` longer than a macrotask and shown again never reaches a disposed registry; the lifetime rule is one headless, mutation-gated module (ARCH-129, react; live defect)
+- [x] **Phase 82: `QadiProvider`'s registry has one owner for its lifetime** - A provider hidden in `<Activity>` longer than a macrotask and shown again never reaches a disposed registry; the lifetime rule is one headless, mutation-gated module (ARCH-129, react; live defect) (completed 2026-11-25)
 - [ ] **Phase 83: The diagnostics feed folds its reading as a value** - A pure per-field fold replaces the package-private store nothing subscribes to, `runDiagnostics` takes an `accept` sink, and the never-written `Diagnostics.questions` is resolved (ARCH-130, devtools; possibly Breaking)
 - [ ] **Phase 84: `useConfigured` requires `configure`, and the review's small finds** - Three identical adapters deleted, `LensSession` publishes through `ExternalStore.set`, `useLens` receives each fact once, `DockFrame`'s stop ledger exists once, and `useTimeline`'s inputs record is decided (ARCH-131, devtools)
 
@@ -537,7 +537,7 @@ Plans:
   5. ADR-QD-195, BEH, INV and traceability record the rule, and the ADR's claims about React's commit order come from the RED/GREEN observation; a `@qadi/react` patch changeset records the fix (and, if hydration seeds are no longer re-applied after a long hide, says so), with no Breaking changeset unless a public export changed.
 
 **Planning notes**: **Research flag: a pre-plan spike is required** (`/gsd-plan-phase --research-phase 82`); confidence in the fix's shape is MEDIUM until its RED test runs. Research recommends recycling in place: a pure, package-private, injected-timer lifetime module (the `SweepScheduler.ts` precedent, added to `stryker.react.mjs`) that keeps one registry identity for the provider's whole life and calls `reset()` plus a re-seed of the latest subject (from a ref written in an effect, never in render) in the deferred release instead of `dispose()`, never nulling the ref. Rejected with reasons: effect-time or state-held rebuild (too late on reveal), the `useScoped` shape (SSR and first-render subject), `scheduleTask`/`defaultIdleTTL` (ADR-QD-148), reading `registry.disposed`, never disposing. The RED test needs a stable provider element, a hide longer than a macrotask and a real consumer below (P4 passes on the defective code); companions cover `useInvalidate`, a `useDevtoolsFeed` consumer, StrictMode (one registry), a short-hide control and a subject change while hidden. The spike answers: does `reset()` plus a re-seed hold under StrictMode, two providers on one atom set and the sweep's pressure-episode forks after a long hide, and does a true unmount still release the `Atom.runtime` layer scope. The discuss step decides which seeds are re-applied (the subject only, as ARCHITECTURE recommends, or also `initialValues` and hydration seeds, as the context's complete answer suggests; re-applying server seeds could resurrect an answer the client superseded, ADR-QD-017) and records the accepted trade that a straggling read after a true unmount silently recreates a node instead of throwing. `MODULE_STATE_BUDGET` must not grow and AGENTS.md §13 holds (the module owns infrastructure, never a decision); `QadiProvider.tsx` stays `unmeasured` in the mutation record and the new module is close-only against an absolute bar of no open mutant.
-**Plans**: 10/10 plans executed
+**Plans**: 10/10 plans complete
 
 Plans:
 - [x] 82-01 (W1): Record the mutation base of the four react files first, the base facts and archived checks, and the phase check helpers with `single-owner` (D-03, D-16, D-18).
@@ -600,6 +600,6 @@ Phases execute in numeric order: 81 → 82 → 83 → 84
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 81. The dock model applies every input whatever a listener throws | 11/11 | Complete    | 2026-11-25 |
-| 82. `QadiProvider`'s registry has one owner for its lifetime | 10/10 | In Progress | - |
+| 82. `QadiProvider`'s registry has one owner for its lifetime | 10/10 | Complete    | 2026-11-25 |
 | 83. The diagnostics feed folds its reading as a value | 0/0 | Not started | - |
 | 84. `useConfigured` requires `configure`, and the review's small finds | 0/0 | Not started | - |
