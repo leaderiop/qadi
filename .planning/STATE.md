@@ -5,16 +5,16 @@ milestone_name: Arch Wave 15
 current_phase: 83
 current_phase_name: The diagnostics feed folds its reading as a value
 status: executing
-stopped_at: Completed 83-05-PLAN.md
-last_updated: "2026-11-25T04:20:25.067Z"
+stopped_at: Completed 83-06-PLAN.md
+last_updated: "2026-11-25T04:23:43.320Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 82 complete, transitioned to Phase 83
-state_head: 36f5abd37c44dcd1d7a548f2ffb2a784f62b0da4
+state_head: 972fa4a8652e35b873886e250c19e1b2f30b8c24
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 32
-  completed_plans: 26
+  completed_plans: 27
   percent: 50
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-83 (The diagnostics feed folds its reading as a value) — READY TO EXECUTE
-Plan: 6 of 11
+Plan: 7 of 11
 Status: Ready to execute
 Last activity: 2026-11-25 — Phase 82 complete, transitioned to Phase 83
 
@@ -629,6 +629,7 @@ Last activity: 2026-11-25 — Phase 82 complete, transitioned to Phase 83
 | Phase QD-83 P03 | 15min | 2 tasks | 2 files |
 | Phase QD-83 P04 | 15min | 3 tasks | 38 files |
 | Phase QD-83 P05 | 25min | 3 tasks | 13 files |
+| Phase QD-83 P06 | 15min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -1099,6 +1100,7 @@ Last activity: 2026-11-25 — Phase 82 complete, transitioned to Phase 83
 - [Phase QD-83]: The F2 flip (DiagnosticsFeed.test.ts reading.questions undefined becomes assert.isFalse("questions" in reading), title unchanged) is declared in the pinned check, the scratch copy of 81-pinned-check.mjs and the evidence
 - [Phase QD-83]: Barrel export groups for Diagnostics.ts moved ahead of DiagnosticsFeed.ts to satisfy the devtools-named-barrel order rule
 - [Phase QD-83]: 83-05: removal pins written and seen red on the base, landed with the removal so each commit is green
+- [Phase QD-83]: 83-06: foldReading is a function declaration exported from the module only; keep stays private and is called only inside it
 
 ### Pending Todos
 
@@ -1180,8 +1182,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T04:20:24.962Z
-Stopped at: Completed 83-05-PLAN.md
+Last session: 2026-11-25T04:23:43.209Z
+Stopped at: Completed 83-06-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
