@@ -310,3 +310,11 @@ The base is the one `88-mutation-base.json` records (`phase_base` 892c4d36bf0f63
   - failed: DS1 a diagnostics stop and a timeline stop are each announced once, across tab switches between their screens
   - failed: DS2 a second stop of one feed remounts only its own box, and the other stop is not announced again
   (9 row(s) failed)
+
+## 88-08 the mutation close
+
+- check failed: mutation probe: packages/devtools/src/model/StopLedger.ts:21 is new and Ignored: ObjectLiteral -> {}
+- examined: ObjectLiteral {} x1: Killed by StopLedger.test.ts L1 to L6, LAW1 and LAW3 (noStops, line 21, made {})
+- examined: ArrowFunction () => undefined x3: Killed by StopLedger.test.ts L1 to L6 (stoppedKey line 29, announcesStop line 37), and L1 to L6, LAW1 and LAW3 (recordStop line 45)
+- the hand run: stryker.devtools.mjs spread with `ignoreStatic: false` through an untracked scratch config, run with `--mutate packages/devtools/src/model/StopLedger.ts --disableBail`: 16 mutants, 16 Killed, 0 Survived, 0 NoCoverage, 0 Timeout (the four static ones above plus the twelve the close holds). A first hand run of the same config timed out once on the line 45 arrow (the whole suite under load, a mutant that makes recordStop return undefined); the settled re-run killed it. A scratch vitest config narrowing `include` to StopLedger.test.ts was tried for the second run, and Stryker's vitest runner did not narrow it (the dock and diagnostics rows ran as well and are among the killers), so the second run is a whole-suite run too. Both scratch configs were removed, with `.stryker-tmp/`, before the record.
+- the close run: the canonical invocation (`pnpm exec stryker run stryker.devtools.mjs --mutate packages/devtools/src/model/StopLedger.ts --disableBail`, stdin closed, alone): 12 Killed, 4 Ignored, 100 percent, 50 seconds.

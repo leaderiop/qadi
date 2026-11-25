@@ -51,7 +51,15 @@ const EQUIVALENT = [];
  * `ignoreStatic: false`, run with `--mutate <file>`. A born file has no base, so its allowance is the whole of what it holds. An
  * entry is added only when such a mutant was run by hand and seen Killed.
  */
-const EXAMINED = {};
+const EXAMINED = {
+  [LEDGER]: {
+    // noStops = {} (line 21): the empty ledger made `{}` is killed by StopLedger.test.ts L1 to L6, LAW1 and LAW3, which read its count and stop.
+    "ObjectLiteral {}": 1,
+    // stoppedKey, announcesStop and recordStop bodies (lines 29, 37, 45) made `() => undefined`: each is killed by StopLedger.test.ts L1 to L6
+    // (and LAW1 to LAW3 for recordStop), which read what each returns, and by the dock rows A1 and A2 and the diagnostics rows D4 and D7.
+    "ArrowFunction () => undefined": 3,
+  },
+};
 /** Why no Stryker config measures a file under `src/react`, then which rows pin it, then which scratch variants prove it. */
 const reactWhy = (pinned, variants) => `stryker.devtools.mjs mutates src/model/** only, so no mutant is made of this file; ${pinned}; the scratch variants ${variants} in 88-RED-EVIDENCE.md prove it`;
 /** Files the phase edits that no Stryker config reaches, written into every record so the gap is stated, not silent. */
@@ -362,7 +370,7 @@ const selfTest = () => {
   const report = (mutants, testFiles = { [K]: { tests: [{ id: "1" }] }, [R]: { tests: [{ id: "2" }] } }) => ({ files: { [O]: { source: "", mutants } }, testFiles });
   const verdict = (rep) => {
     const read = classify(rep, [O], K);
-    return read.bad.length > 0 ? read.bad : judgeNew({ close: { files: read.out } }, [O], () => {}, K, []);
+    return read.bad.length > 0 ? read.bad : judgeNew({ close: { files: read.out } }, [O], () => {}, K, [], {});
   };
   for (const [name, rep, want] of [
     ["a Killed mutant killed by a StopLedger.test.ts test passes", report([raw("Killed", 5, ["1"])]), 0],
