@@ -166,3 +166,22 @@ the rest of its stderr is indented under that.
   (scratch edit: a fourth tag `Hidden: {}` added to HydrationView; 1 test failed under it)
 - probe: HydrationView.ts killed 41, survived 0, noCoverage 0, ignored 0
   (stryker.devtools.mjs --mutate packages/devtools/src/model/HydrationView.ts, 12 seconds; every mutant Killed, so the function-declaration shape needed no fallback; not the close record)
+
+## 85-05 the hydration store
+
+- red on the base: M57: the hydration store holds Unwired on a bare model, Pending while the poll layer is still building, and the counts handed to it from the first snapshot
+  (vitest: TypeError: Cannot read properties of undefined (reading 'getSnapshot'); the member does not exist)
+- failed: M57: the hydration store holds Unwired on a bare model, Pending while the poll layer is still building, and the counts handed to it from the first snapshot
+  (scratch edit: the hydration store's compute returned Unwired for every input)
+- failed: CR22 a reader subscribed to every store of a bare dock before its first configure hears 2, 2, 2, 2, 0, 1, 0, 2, 1, 1 and 0 notifications while the poll layer is still building, and one more on four stores once it has built
+  (scratch edit: the hydration store's parents emptied, so it follows no reading; DL21 and M57 failed under it too)
+- failed: DL11 the rows above cover every store a built model exposes
+  (scratch edit: hydration left out of the returned model; 21 tests failed under it)
+- failed: a built model's members with subscribe and getSnapshot are exactly this list
+  (scratch edit: hydration left out of the returned model)
+- failed: DL21 with a throwing hydration listener, a configure applies every input, rethrows what it threw, and an identical configure changes nothing
+  (scratch edit: the hydration key returned one constant object, so the store never notifies; DL21 failed on heard)
+- check failed: three-predicates: packages/devtools/src/model/DockModel.ts: isUnsampled( is called 3 times, not twice
+  (scratch edit: the services key calling isUnsampled(status) itself instead of the shared reader)
+  packages/devtools/src/model/DockModel.ts:419 calls isUnsampled outside the guard and outside a module-scope function declaration
+  packages/devtools/src/model/DockModel.ts:415 the services key does not call the shared reader shownInputOf
