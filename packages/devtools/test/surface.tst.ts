@@ -269,6 +269,9 @@ export { isUnsampled } from "../src/index.ts";
 // @ts-expect-error no exported member
 export type { DiagnosticsStore } from "../src/index.ts";
 
+// @ts-expect-error no exported member
+export type { DiagnosticsSink } from "../src/index.ts";
+
 // One option shape, `DiagnosticsOptions`; the dock-only name is gone from both entries.
 // @ts-expect-error no exported member
 export type { DiagnosticsDockOptions } from "../src/index.ts";

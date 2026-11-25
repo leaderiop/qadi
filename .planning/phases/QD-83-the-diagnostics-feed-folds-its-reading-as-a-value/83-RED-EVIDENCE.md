@@ -293,3 +293,9 @@ style is clean with `NOT_CALLABLE_PIN_BUDGET`'s `callable: 3` unchanged.
 - green after the change: the poll takes no questions thunk: the gates feed reads it
 - green after the change: the poll takes an interval, not a schedule
 - green after the change: a layer whose requirement is unmet is refused
+
+The root's refusal of `DiagnosticsSink`: with `DiagnosticsSink` added to the `./model/Diagnostics.ts` type export of
+`packages/devtools/src/index.ts` (a copy kept first, restored with `cp`; `git diff --quiet HEAD -- packages/devtools/src`
+printed nothing after), `pnpm exec tsc -p tsconfig.test.json --noEmit < /dev/null` failed on the unused directive.
+
+- check failed: surface DiagnosticsSink: packages/devtools/test/surface.tst.ts(272,1): error TS2578: Unused '@ts-expect-error' directive.
