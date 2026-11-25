@@ -264,3 +264,14 @@ Each row is green on the module without the failure hook and was seen failing on
   (scratch edit: `stop` made a no-op (`stop: () => undefined`); 4 row(s) failed under it)
 - failed (scratch): R7 stop after a run completed changes nothing and opens no span
   (scratch edit: the narrower edit, `stop` forking its empty run under `Effect.withSpan("stop")`, because the row's own state-change assertions need a stop that re-forks a completed run, which the module has no path for; 2 row(s) failed under it)
+
+## 87-10 the mutation close
+
+The touched close (`pnpm exec stryker run stryker.devtools.mjs --mutate <the five files>`, 96.99) left eight new open mutants in `SimulationSession.ts`: the stop handed to the stated run (L365 to L368, five Survived and NoCoverage) and two on the lines the move changed (L419 `if (!live.current()) return;`, L441 `if (runs.closed()) return;`). Each row below was seen failing with its mutant applied by hand in a copy of the file, restored from it with `cp` and compared with `cmp` before the commit.
+
+- failed (mutant): SS1 a run that dies before it reads its own exit reads Broke with the first line of the error, published once
+  (mutant edits of `packages/devtools/src/model/SimulationSession.ts`, each run alone: L366 `if (run._tag !== "Running") return;` to `if (true) return;`, the body of the stop callback emptied, L367 `run = { _tag: "Broke", ... }` to `run = {}`, and L368 `commit();` removed; 1 row(s) failed under each)
+- failed (mutant): SS2 a run asked of a closed session publishes nothing, even a refusal
+  (mutant edit of `packages/devtools/src/model/SimulationSession.ts`: L441 `if (runs.closed()) return;` to `if (false) return;`; 1 row(s) failed under it)
+
+L419 `if (!live.current()) return;` (`ConditionalExpression -> false`) is recorded as `EQUIVALENT` in `87-mutation.mjs`, not killed. Two rows that would reach it were written and driven: a Live resolver that starts a newer run from inside the older run's turn (the log read `Running:alice Running:alice Running:bob Ran:bob`, so the older run never landed) and a tracer whose run-span creation, inside the older engine's synchronous prefix, starts a newer run (`Running:alice | Running:alice | Running:bob | resolve | Ran:bob`). Both logs were identical with the line replaced by `if (false) return;`, so no row could fail under that mutant; neither row was kept.

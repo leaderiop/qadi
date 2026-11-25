@@ -55,9 +55,18 @@ const baseOf = (file) => RENAMED[file] ?? file;
 /**
  * Survivors that no test can kill, each `{ file, mutatorName, replacement, lineText, reason }`: the line's text trimmed, and
  * the reason naming why no input reaches it. Empty at the base; an entry is added only when the close has looked at the
- * survivor and found no input that reaches it.
+ * survivor and found no input that reaches it. A stale entry (it matches no survivor of the close) fails `compare`.
  */
-const EQUIVALENT = [];
+const EQUIVALENT = [
+  {
+    file: `${MODEL}SimulationSession.ts`,
+    mutatorName: "ConditionalExpression",
+    replacement: "false",
+    lineText: "if (!live.current()) return;",
+    reason:
+      "land's own evaluation suspends before it reads its exit (the resolver of a Live run runs only after the run call has returned), and a newer run's fork interrupts the older fiber at that suspension, so a run that reaches this line is current. The one window in which an older run ends after a newer begin is the older engine's synchronous prefix inside `drain`, which the session's engine cannot stay inside: a newer run started from the resolver and from the run span's own creation were both driven, and the older run never landed with this line removed. The stated run's own guard, which the same window reaches for a synchronous engine, is pinned by ST14 and ST15.",
+  },
+];
 /** Why no Stryker config measures a file under `src/react`. */
 const REACT_WHY = "stryker.devtools.mjs mutates src/model only, so no mutant is made of a React file; its render is pinned by Simulator.broke.test.tsx and the held stopped-box tests";
 /** Files the phase edits that no Stryker config reaches, written into every record so the gap is stated, not silent. */
@@ -625,7 +634,7 @@ const selfTest = () => {
   passed++;
   if (Object.keys(RENAMED).length !== 0 || baseOf(F) !== F) fail(["self-test FAILED: RENAMED is not empty"]);
   passed++;
-  if (EQUIVALENT.length !== 0 || Object.keys(EXAMINED).length !== 0) fail(["self-test FAILED: EQUIVALENT or EXAMINED is not empty at the base"]);
+  if (Object.keys(EXAMINED).length !== 0 || EQUIVALENT.some((e) => !TOUCHED.includes(e.file) || [e.mutatorName, e.replacement, e.lineText, e.reason].some((v) => typeof v !== "string" || v.trim() === ""))) fail(["self-test FAILED: EXAMINED is not empty, or an EQUIVALENT entry is not of a touched file with its mutator, replacement, line text and reason"]);
   passed++;
   if (UNMEASURED.map((u) => u.file.split("/").pop()).join() !== "Simulator.tsx,StoppedBox.tsx,theme.ts" || UNMEASURED.some((u) => u.why.trim() === "")) fail(["self-test FAILED: UNMEASURED is not the three React files, each with a reason"]);
   passed++;
