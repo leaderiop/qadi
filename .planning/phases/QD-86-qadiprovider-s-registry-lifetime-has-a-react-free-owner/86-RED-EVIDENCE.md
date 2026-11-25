@@ -42,3 +42,69 @@ renamed file, a born file added by two commits and a born file that differs from
   (scratch edit: one newline appended to the held lifetime suite)
 - check failed: 86-pinned-check.mjs: packages/react/src/RegistryLease.ts is reported as M against its base, not unchanged
   (scratch edit: one newline appended to the held lease)
+
+## 86-02 the check helper
+
+Each line is a run of the mode seen now; the mode and the input that made it fail follow in the note under the line, and
+the rest of its stderr is indented under that. `records` passes on the base and the line for it is from the scratch edit.
+
+- check failed: commit: 0 commits since phase_base have the subject: chore(86-02): a subject nobody committed
+  (a wrong subject)
+- check failed: unchanged: packages/react/src/QadiProvider.tsx differs from phase_base
+  (a scratch edit of QadiProvider.tsx, a newline appended and restored with git checkout --)
+- check failed: seen-failing: no failure line in the evidence for: C0 a title with no failure line
+  (a title with no failure line)
+- check failed: scan-ids: packages/react/src/QadiProvider.tsx:360 names a plan id: // see 86-02
+  (a scratch line at the end of QadiProvider.tsx holding a plan id, restored with git checkout --)
+- check failed: scan-forbidden: packages/react/src/QadiProvider.tsx:360 uses an as cast: const planted = value as Planted;
+  (a scratch line at the end of QadiProvider.tsx holding an as cast, restored with git checkout --)
+- check failed: trailers: the message has 2 Co-Authored-By lines, not one
+  (trailers --message with two Co-Authored-By lines)
+- check failed: owner-shape: RegistryOwner.ts is missing
+  (on the base, where the owner does not exist and the Stryker list does not name it)
+  stryker.react.mjs does not mutate RegistryOwner.ts
+- check failed: provider-forwards-only: packages/react/src/QadiProvider.tsx has 6 useEffect calls, not 4
+  (on the base, where the provider holds six effects, six refs and the lease wiring)
+  packages/react/src/QadiProvider.tsx has 6 useRef calls, not 3
+  packages/react/src/QadiProvider.tsx does not build the owner once, as ownerRef.current ??= makeRegistryOwner(
+  packages/react/src/QadiProvider.tsx calls makeRegistryOwner( other than once
+  packages/react/src/QadiProvider.tsx names registryRef, which the owner keeps
+  packages/react/src/QadiProvider.tsx names atomsIdentityRef, which the owner keeps
+  packages/react/src/QadiProvider.tsx names latestRef, which the owner keeps
+  packages/react/src/QadiProvider.tsx names leaseRef, which the owner keeps
+  packages/react/src/QadiProvider.tsx names makeRegistryLease, which the owner keeps
+  packages/react/src/QadiProvider.tsx names RegistryLease, which the owner keeps
+  packages/react/src/QadiProvider.tsx names AtomRegistry.make, which the owner keeps
+  packages/react/src/QadiProvider.tsx names .reset(, which the owner keeps
+  packages/react/src/QadiProvider.tsx names registry.set(, which the owner keeps
+  packages/react/src/QadiProvider.tsx names registry.get(, which the owner keeps
+  packages/react/src/QadiProvider.tsx does not read owner.registry
+  packages/react/src/QadiProvider.tsx does not import AtomRegistry as a type only (import type * as AtomRegistry)
+  packages/react/src/QadiProvider.tsx does not import makeRegistryOwner from ./RegistryOwner.ts
+  packages/react/src/QadiProvider.tsx imports from RegistryLease.ts
+- check failed: records --close: BEH-QD-766 has no heading in spec/behaviors/09-react.md
+  (on the base, where no reserved record is written yet)
+  BEH-QD-766 has no row in spec/traceability.md §1
+  BEH-QD-767 has no heading in spec/behaviors/09-react.md
+  BEH-QD-767 has no row in spec/traceability.md §1
+  BEH-QD-747's Pinned by paragraph names packages/react/test/QadiProvider.lifetime.test.tsx first, not packages/react/test/RegistryOwner.test.ts
+  BEH-QD-748's Pinned by paragraph names packages/react/test/RegistryLease.test.ts first, not packages/react/test/RegistryOwner.test.ts
+  BEH-QD-749's Pinned by paragraph names packages/react/test/QadiProvider.lifetime.test.tsx first, not packages/react/test/RegistryOwner.test.ts
+  BEH-QD-750's Pinned by paragraph names packages/react/test/QadiProvider.lifetime.test.tsx first, not packages/react/test/RegistryOwner.test.ts
+  INV-QD-417 has no heading in spec/invariants.md
+  INV-QD-417 has no row in spec/traceability.md §2
+  INV-QD-418 has no heading in spec/invariants.md
+  INV-QD-418 has no row in spec/traceability.md §2
+  the **Source**: line of INV-QD-409 does not name RegistryOwner.ts
+  the **Source**: line of INV-QD-410 does not name RegistryOwner.ts
+  the **Source**: line of INV-QD-410 still names registryRef
+  spec/decisions/199-*.md does not exist
+  spec/decisions/index.yaml has no ADR-QD-199 entry
+  ADR-QD-199 has no row in spec/traceability.md §3
+  ADR-QD-195 is not at Revision 1.4
+  ADR-QD-195 does not name ADR-QD-199
+  spec/README.md has no CCR-QD-478 row
+- check failed: records: BEH-QD-748 names row RL11 for packages/react/test/RegistryLease.test.ts, which no title opens
+  (a copy-backed scratch edit of spec/behaviors/09-react.md changing RL1 to RL10 to RL1 to RL99 in the Pinned by paragraph of BEH-QD-748, restored with cp)
+  BEH-QD-748 names row RL12 for packages/react/test/RegistryLease.test.ts, which no title opens
+  (and one such line for each of RL13 to RL99, 87 lines)
