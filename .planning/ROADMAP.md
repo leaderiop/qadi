@@ -530,7 +530,20 @@ Order: the dock model's hydration row (85), the provider's lifetime owner (86), 
   5. ADR-QD-198 (or ADR-QD-185 amended with 198 named unused), BEH-QD-700, 699 and 735, INV-QD-390, BEH-QD-218's table and the store-name pins are restated in the same change (HYDV-05).
 
 **Planning notes**: Standard patterns (precedent ADR-QD-168 and ADR-QD-185); plan 1 is the characterisation, using the two HTML-string files and writing the cells they lack. The discuss step decides the view's home, `DockFrame`'s status read and the view's input shape (grey-area table), and the wave's changeset policy. Constraints that are findings: the derived key compares identity per field and the fold keeps references (never a fresh spread); the static Unwired advice stays a panel constant, so no JSX enters `model/`; the "0 dehydrated entries" plural is pinned, not fixed; no fourth "nothing hydrated" state; activity precedence is kept. If the view is the eleventh store, the "eleven" count, CR22 and the store-name sweeps move with it. Stryker: `stryker.devtools.mjs` measures the new view under `model/**` with its own bar; `QuestionsPanel.tsx` and `DockFrame` are unmeasured, so list them in `UNMEASURED` and prove them with scratch variants. Phase 88 edits the same `DevtoolsDock.tsx` lines, which is why 85 goes first.
-**Plans**: TBD
+**Plans**: 11 plans
+
+Plans:
+- [ ] 85-01 (W1): The phase base and the mutation base of the dock model recorded; the hydration block characterised on the base, cells H1 to H13, each seen failing
+- [ ] 85-02 (W2): The phase check helper (`85-check.mjs`): ids, forbidden constructs, trailers, no React in the model, the three predicates, the panel deciding nothing, the frame reading the status, the records; each check seen failing
+- [ ] 85-03 (W3): The pinned-test check (18 held files, the born characterisation, the one declared panel-test edit) and the earlier-phase checks against a measured ledger
+- [ ] 85-04 (W4): `HydrationView.ts`, the block as a pure closed view, tested as a table (V1 to V17) and pinned closed by type tests, with its own mutation probe
+- [ ] 85-05 (W5): The dock model serves the view as its eleventh store, keyed per field over the shown reading; the store-name pins (CR22, DL21, the member list) move with it
+- [ ] 85-06 (W6): The hydration store's identity (an identical poll publishes nothing, activity over status, status outside the key) and its place in the listener aggregate pinned, each seen failing
+- [ ] 85-07 (W7): `QuestionsPanel` renders the view's tag and decides nothing, every byte and test id held; the panel's hydration tests become one render test per tag
+- [ ] 85-08 (W8): `DockFrame` reads the poll's status alone through `useDiagnosticsStatus`; a reading-only poll commits nothing under the dock (R1 to R3)
+- [ ] 85-09 (W9): ADR-QD-198, BEH-QD-761 to 765, INV-QD-415 and 416, the restated store records and the three registers, in one commit (CCR-QD-477)
+- [ ] 85-10 (W10): The Stryker close of the dock model and the view compared with the base, the devtools changeset, every phase check on the finished tree
+- [ ] 85-11 (W11): `pnpm check:pr` and `pnpm spec:package` green at the close, each alone; HYDV-01 to HYDV-05 complete; nothing released
 
 **UI hint**: no (the panel renders the same markup, copy and test ids; the decision moves out of it)
 
