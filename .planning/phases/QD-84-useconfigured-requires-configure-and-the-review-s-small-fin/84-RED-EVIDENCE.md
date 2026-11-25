@@ -123,3 +123,14 @@ under it are the rest of that run's stderr. A test's failure lines use the `seen
   - AssertionError: expected 2 to equal 3
 - failed (first-inputs): U4 a value hidden, handed new inputs and shown again is rebuilt configured with them, also under StrictMode
   - AssertionError: expected 'first' to equal 'second'
+
+## 84-06 the configurable constraint
+
+- failed (configure-returns): the three values each have configure over their own inputs
+  - Error: Type 'DockModel' is not assignable to type 'Configurable<DockModelInputs>'.
+- failed (widened-return): the three hooks keep their return types
+  - Error: Type 'DockModel | null | undefined' is not the same as type 'DockModel | undefined'.
+- failed (loosened-constraint): a value with no configure is refused, and its twin with configure is accepted
+  - Error: Unused '@ts-expect-error' directive. ts(2578)
+- check failed: refusal Configurable: Unused '@ts-expect-error' directive. ts(2578)
+- check failed: refusal ReactConfigurable: Unused '@ts-expect-error' directive. ts(2578)

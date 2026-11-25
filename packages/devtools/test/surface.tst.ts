@@ -285,6 +285,12 @@ export { useStoreSnapshot } from "../src/react/index.ts";
 // @ts-expect-error no exported member
 export { DiagnosticsNotice } from "../src/react/index.ts";
 
+// @ts-expect-error no exported member
+export type { Configurable } from "../src/index.ts";
+
+// @ts-expect-error no exported member
+export type { Configurable as ReactConfigurable } from "../src/react/index.ts";
+
 test("the React entry's AskedQuestionLike is the model's", () => {
   expect<ReactAskedQuestionLike>().type.toBe<AskedQuestionLike>();
 });
