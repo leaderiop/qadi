@@ -119,3 +119,10 @@ The base is the one `88-mutation-base.json` records (`phase_base` 892c4d36bf0f63
   (scratch edit: the key is always ledger.count + 1; 4 row(s) failed under it)
 - failed (always-plus-one): LAW3 any sequence of stops: the count equals the number of changes and the key holds across each record
   (scratch edit: the key is always ledger.count + 1; 4 row(s) failed under it)
+
+## 88-06 the simulator reason comparison
+
+- failed (simulator style apart): SB4 the broken simulation pre has the stopped box reason style
+  (scratch edit: the Simulator broken-run pre takes style={{ ...reasonStyle, padding: 9 }}; 1 row(s) failed under it, SB1 passing)
+- failed (theme style moved): SB1 the stopped box shows its reason in a labelled focusable pre whose style is the reason style
+  (scratch edit: the shared reasonStyle in theme.ts has maxHeight 97 in place of 96; 1 row(s) failed under it, SB4 passing)

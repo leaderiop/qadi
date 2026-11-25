@@ -6,8 +6,10 @@
  * stopped box gives a feed's reason. The first row pins that block as the stopped box draws
  * it, so the other three can say the simulator draws the same one.
  *
- * These rows were written before the simulator took that block, and the file is held byte
- * for byte from the commit that adds it.
+ * The first row is the byte-identity golden of the move to the shared theme: its literal is the
+ * style the reason block had when it was drawn from a style of its own. The other rows compare the
+ * simulator with the stopped box rendered beside it, so they follow the shared style where it goes.
+ * The file is held as the commit that last edits it wrote it.
  */
 import { afterEach, assert, describe, it } from "@effect/vitest";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
@@ -23,9 +25,23 @@ import { noStops } from "../../src/model/StopLedger.ts";
 import { StoppedBox } from "../../src/react/StoppedBox.tsx";
 import { sighting } from "../simulationFixtures.ts";
 
+/** The stopped box the first and last rows render, so both read the one box. */
+const timelineBox = (reason: string) => (
+  <StoppedBox
+    notice={{ status: "stopped", onRestart: () => undefined, announced: { ledger: noStops, record: () => undefined } }}
+    reason={reason}
+    lead="Timeline stopped."
+    body="It stopped."
+    reasonLabel="Why the timeline stopped"
+    restartLabel="Restart timeline"
+    feed="timeline"
+  />
+);
+
 /**
- * The `style` attribute of the stopped box's reason block, measured before the style moved
- * to the shared theme.
+ * A deliberate golden: the `style` attribute of the stopped box's reason block, measured when the
+ * block was drawn from a style of its own and kept so the move to the shared theme is pinned to
+ * the byte. A change to the shared reason style is meant to fail the row that reads it.
  */
 const REASON_STYLE =
   "margin: 8px 0px 0px; padding: 8px; background: #14161a; border: 1px solid #2a2f39; border-radius: 4px; font-family: inherit; font-size: 11px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 96px; overflow: auto;";
@@ -74,17 +90,7 @@ const whyBroke = () =>
 describe("the stopped box reason", () => {
   it("SB1 the stopped box shows its reason in a labelled focusable pre whose style is the reason style", () => {
     const reason = "first line of the reason\nsecond line of the reason";
-    render(
-      <StoppedBox
-        notice={{ status: "stopped", onRestart: () => undefined, announced: { ledger: noStops, record: () => undefined } }}
-        reason={reason}
-        lead="Timeline stopped."
-        body="It stopped."
-        reasonLabel="Why the timeline stopped"
-        restartLabel="Restart timeline"
-        feed="timeline"
-      />,
-    );
+    render(timelineBox(reason));
 
     const block = screen.getByRole("group", { name: "Why the timeline stopped" });
     assert.strictEqual(block.tagName, "PRE");
@@ -117,7 +123,9 @@ describe("a broken simulation", () => {
 
   it("SB4 the broken simulation pre has the stopped box reason style", async () => {
     await broken();
+    render(timelineBox("x"));
 
-    assert.strictEqual(whyBroke().getAttribute("style"), REASON_STYLE);
+    const stoppedBox = screen.getByRole("group", { name: "Why the timeline stopped" });
+    assert.strictEqual(whyBroke().getAttribute("style"), stoppedBox.getAttribute("style"));
   });
 });
