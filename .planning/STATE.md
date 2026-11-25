@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 87
 current_phase_name: One scoped run that states its stop
 status: executing
-stopped_at: Completed 87-06-PLAN.md
-last_updated: "2026-11-25T19:48:12.259Z"
+stopped_at: Completed 87-07-PLAN.md
+last_updated: "2026-11-25T19:51:03.675Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 86 complete, transitioned to Phase 87
-state_head: 47b6b207a91245fa224e61b19dbe7bed217841a0
+state_head: d7ac15fbc691292f65501ac2ae4eae9bf2e566ea
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 30
-  completed_plans: 25
+  completed_plans: 26
   percent: 29
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: 87 (One scoped run that states its stop) — READY TO EXECUTE
-Plan: 7 of 11
+Plan: 8 of 11
 Status: Ready to execute
 Last activity: 2026-11-25 — Phase 86 complete, transitioned to Phase 87
 
@@ -679,6 +679,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 87 P04 | 20min | 2 tasks | 2 files |
 | Phase QD-87 P05 | 45 min | 3 tasks | 5 files |
 | Phase 87 P06 | 20min | 3 tasks | 3 files |
+| Phase 87 P07 | 15min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -1200,6 +1201,7 @@ Progress: [███░░░░░░░] 29%
 - [Phase QD-87]: 87-05: StatedRun states a stop for a current run whose own work ended on anything but success (an interruption the run gave itself included) and never reads hasInterruptsOnly; an outside interruption never resumes the forked body so it is never stated — Spike-confirmed; the current-run gate is reached only by the begin-window rows ST14, ST15 and ST17's Nest command
 - [Phase QD-87]: 87-05: ConfigurePrologue.makeConfigure reads closed, complete, held, same, hold, then steps; the identity gate is a parameter, no runtime import, out of both barrels — One order for the three feeds; gates feed's failed-watch retry is its same argument
 - [Phase 87]: 87-06: feed Stopped docs state the one rule (own work ended on anything but success, self-interruption included); rethrow prose lives once in StatedRun.ts
+- [Phase 87]: 87-07: the session's stated-run stop hook applies only while run is Running, so a landed result stays; reasonStyle lives in theme.ts shared by StoppedBox and the Simulator
 
 ### Pending Todos
 
@@ -1287,8 +1289,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T19:48:12.204Z
-Stopped at: Completed 87-06-PLAN.md
+Last session: 2026-11-25T19:51:03.621Z
+Stopped at: Completed 87-07-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
