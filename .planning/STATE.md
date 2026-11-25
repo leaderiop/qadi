@@ -5,16 +5,16 @@ milestone_name: Arch Wave 15
 current_phase: 82
 current_phase_name: "`QadiProvider`'s registry has one owner for its lifetime"
 status: executing
-stopped_at: Completed QD-82-04-PLAN.md
-last_updated: "2026-11-25T01:27:55.478Z"
+stopped_at: Completed QD-82-05-PLAN.md
+last_updated: "2026-11-25T01:38:01.199Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase QD-82 execution started
-state_head: 8418af153f4925c61c3d6fba8165ff1e5a080d83
+state_head: d3743420312d7c146c42eefe3ebe11aea3e5330e
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 21
-  completed_plans: 15
+  completed_plans: 16
   percent: 25
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-82 (`QadiProvider`'s registry has one owner for its lifetime) — EXECUTING
-Plan: 5 of 10
+Plan: 6 of 10
 Status: Executing Phase QD-82
 Last activity: 2026-11-25 — Phase QD-82 execution started
 
@@ -617,6 +617,7 @@ Last activity: 2026-11-25 — Phase QD-82 execution started
 | Phase QD-82 P02 | 25 min | 3 tasks | 2 files |
 | Phase QD-82 P03 | 40 min | 3 tasks | 4 files |
 | Phase QD-82 P04 | 12 min | 2 tasks | 4 files |
+| Phase QD-82 P05 | 20 min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -1074,6 +1075,8 @@ Last activity: 2026-11-25 — Phase QD-82 execution started
 - [Phase QD-82]: 82-03: LT15's short hide is two synchronous act calls (flip) because the awaited pair of LT5 crosses a macrotask in a cold run
 - [Phase QD-82]: 82-03: LT11 clears its frame log just before the reveal so a render of the hidden tree is not read as a seen frame; LT9 clears before the hide because its element is hoisted
 - [Phase QD-82]: 82-04: the lease's two matchers are built once per lease inside makeRegistryLease, not hoisted, so no arm is an Ignored mutant under ignoreStatic (decided autonomously)
+- [Phase QD-82]: 82-05: the recycle is registry.reset() then the latest committed subject re-seeded from latestRef (written in an effect); initialValues and hydration seeds are never re-applied
+- [Phase QD-82]: 82-05: the one lease survivor (the Releasing arm of the release matcher) is closed by RL10 in the lease's own tests, decided autonomously; no disable comment, module unchanged
 
 ### Pending Todos
 
@@ -1154,8 +1157,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T01:27:55.343Z
-Stopped at: Completed QD-82-04-PLAN.md
+Last session: 2026-11-25T01:38:01.130Z
+Stopped at: Completed QD-82-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
