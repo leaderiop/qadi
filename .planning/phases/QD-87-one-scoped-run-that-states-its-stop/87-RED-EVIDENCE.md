@@ -125,3 +125,18 @@ Written on the base, before any file under `packages/*/src` moved. Each cell is 
   (scratch edit: the `commit()` after the run lands skipped when the run is `Broke`; 1 row(s) failed under it)
 - failed (scratch): SC12 a configure after a feed scope closed reads and publishes nothing, a capacity the timeline refuses included
   (scratch edit: the closed guard of `TimelineFeed.ts` configure moved after `completeTimelineInputs` and the closed guards of `DiagnosticsFeed.ts` and `packages/devtools/src/model/GatesFeed.ts` configure removed; each of the three edits alone also failed this row; 1 row(s) failed under it)
+
+## 87-02 the pinned check
+
+Written on the base, before any file under `packages/*/src` moved. The check was run on a tree it passes on, then once per kind of change it must refuse, each made to a scratch copy of the file and restored with `cp` before anything was committed: a held test, the hook, a born file, a line outside a declared region and a dropped export of the declared whole file. The line is the first line the check printed on stderr.
+
+- check failed: 87-pinned-check.mjs: packages/devtools/test/model/TimelineFeed.test.ts: differs from its base text at line 4
+  (scratch edit: one byte in a held test, `packages/devtools/test/model/TimelineFeed.test.ts`; exit status 1)
+- check failed: 87-pinned-check.mjs: packages/devtools/src/react/useConfigured.ts: differs from its base text at line 15
+  (scratch edit: one byte in `packages/devtools/src/react/useConfigured.ts`; exit status 1)
+- check failed: 87-pinned-check.mjs: packages/devtools/test/model/TimelineFeed.stop.test.ts: differs from the commit that added it at line 2
+  (scratch edit: one byte in the born file `packages/devtools/test/model/TimelineFeed.stop.test.ts`; exit status 1)
+- check failed: 87-pinned-check.mjs: packages/devtools/test/model/SupersedingRun.test.ts: differs from its base text between the regions R3 and R5toR7, the line 127 of the base, "  it.effect(\"R4 after the scope closes, begin gives a token ", is missing or changed
+  (scratch edit: one byte in row R4 of `packages/devtools/test/model/SupersedingRun.test.ts`, a line outside every declared region; exit status 1)
+- check failed: 87-pinned-check.mjs: packages/devtools/test/builtFeeds.ts: no longer declares `export const timelineFeedOf`
+  (scratch edit: `timelineFeedOf` renamed in `packages/devtools/test/builtFeeds.ts`, a dropped export; exit status 1)
