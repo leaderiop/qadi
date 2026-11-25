@@ -16,8 +16,55 @@
   }
  ],
  "groups": {
+  "stated": {
+   "head": "d4e886a426630ba65d1d57892f2d30cbc29ef90d",
+   "invocation": "pnpm exec stryker run stryker.devtools.mjs --mutate packages/devtools/src/model/StatedRun.ts --disableBail",
+   "files": {
+    "packages/devtools/src/model/StatedRun.ts": {
+     "killed": 23,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 0,
+     "detected": 23,
+     "valid": 23,
+     "open": [],
+     "ignoredMutants": [],
+     "timeouts": [],
+     "outside": []
+    }
+   }
+  },
+  "prologue": {
+   "head": "d4e886a426630ba65d1d57892f2d30cbc29ef90d",
+   "invocation": "pnpm exec stryker run stryker.devtools.mjs --mutate packages/devtools/src/model/ConfigurePrologue.ts --disableBail",
+   "files": {
+    "packages/devtools/src/model/ConfigurePrologue.ts": {
+     "killed": 7,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 1,
+     "detected": 7,
+     "valid": 7,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 41,
+       "column": 3,
+       "lineText": "<Raw, Held>(rule: ConfigureRule<Raw, Held>, steps: (wanted: Held, before: Held) => void) =>"
+      }
+     ],
+     "timeouts": [],
+     "outside": []
+    }
+   }
+  },
   "touched": {
-   "head": "c49985c6553445d15f1ff306bd859b5e8fd00f46",
+   "head": "d4e886a426630ba65d1d57892f2d30cbc29ef90d",
    "invocation": "pnpm exec stryker run stryker.devtools.mjs --mutate packages/devtools/src/model/SupersedingRun.ts,packages/devtools/src/model/TimelineFeed.ts,packages/devtools/src/model/DiagnosticsFeed.ts,packages/devtools/src/model/SimulationSession.ts,packages/devtools/src/model/GatesFeed.ts",
    "files": {
     "packages/devtools/src/model/SupersedingRun.ts": {
@@ -31,18 +78,18 @@
      "open": [
       {
        "status": "Survived",
-       "mutator": "BooleanLiteral",
-       "replacement": "false",
-       "line": 86,
-       "column": 45,
-       "lineText": "const token: RunToken = { [tokenBrand]: true };"
-      },
-      {
-       "status": "Survived",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
        "line": 86,
        "column": 29,
+       "lineText": "const token: RunToken = { [tokenBrand]: true };"
+      },
+      {
+       "status": "Survived",
+       "mutator": "BooleanLiteral",
+       "replacement": "false",
+       "line": 86,
+       "column": 45,
        "lineText": "const token: RunToken = { [tokenBrand]: true };"
       }
      ],
@@ -62,7 +109,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 110,
+       "line": 113,
        "column": 39,
        "lineText": "export const completeTimelineInputs = ("
       },
@@ -70,7 +117,7 @@
        "status": "Ignored",
        "mutator": "ArrayDeclaration",
        "replacement": "[\"Stryker was here\"]",
-       "line": 118,
+       "line": 121,
        "column": 45,
        "lineText": "const NO_SOURCE: Source = sourceFromRecords([]);"
       },
@@ -78,7 +125,7 @@
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 139,
+       "line": 142,
        "column": 44,
        "lineText": "export const idleTimeline: TimelineStore = {"
       },
@@ -86,7 +133,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 140,
+       "line": 143,
        "column": 14,
        "lineText": "subscribe: () => () => {},"
       },
@@ -94,7 +141,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 141,
+       "line": 144,
        "column": 16,
        "lineText": "getSnapshot: () => IDLE_TIMELINE,"
       },
@@ -102,7 +149,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 144,
+       "line": 147,
        "column": 11,
        "lineText": "resize: () => false,"
       },
@@ -110,7 +157,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 146,
+       "line": 149,
        "column": 13,
        "lineText": "isPaused: () => false,"
       },
@@ -118,7 +165,7 @@
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 150,
+       "line": 153,
        "column": 58,
        "lineText": "export const idleTimelineStatus: TimelineStatusReadout = {"
       },
@@ -126,7 +173,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 151,
+       "line": 154,
        "column": 14,
        "lineText": "subscribe: () => () => {},"
       },
@@ -134,7 +181,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 152,
+       "line": 155,
        "column": 16,
        "lineText": "getSnapshot: () => READING,"
       },
@@ -142,7 +189,7 @@
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 162,
+       "line": 165,
        "column": 43,
        "lineText": "export const makeTimelineFeed = Effect.fn(\"qadi.devtools.makeTimelineFeed\")(function* (): Effect.fn.Return<"
       }
@@ -218,7 +265,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 120,
+       "line": 122,
        "column": 14,
        "lineText": "const idle = (snapshot: DiagnosticsSnapshot): DiagnosticsReadout => ({"
       },
@@ -226,7 +273,7 @@
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 120,
+       "line": 122,
        "column": 70,
        "lineText": "const idle = (snapshot: DiagnosticsSnapshot): DiagnosticsReadout => ({"
       },
@@ -234,7 +281,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 121,
+       "line": 123,
        "column": 14,
        "lineText": "subscribe: () => () => {},"
       },
@@ -242,7 +289,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 122,
+       "line": 124,
        "column": 16,
        "lineText": "getSnapshot: () => snapshot,"
       },
@@ -250,7 +297,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 134,
+       "line": 136,
        "column": 32,
        "lineText": "export const idleDiagnostics = (options: DiagnosticsOptions | undefined): DiagnosticsReadout =>"
       },
@@ -258,7 +305,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 146,
+       "line": 148,
        "column": 43,
        "lineText": "export const completeDiagnosticsOptions = ("
       },
@@ -266,7 +313,7 @@
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 161,
+       "line": 163,
        "column": 46,
        "lineText": "export const makeDiagnosticsFeed = Effect.fn(\"qadi.devtools.makeDiagnosticsFeed\")(function* (): Effect.fn.Return<"
       }
@@ -293,17 +340,17 @@
        "status": "Survived",
        "mutator": "ConditionalExpression",
        "replacement": "false",
-       "line": 326,
-       "column": 9,
-       "lineText": "question.seed !== seed);"
+       "line": 317,
+       "column": 17,
+       "lineText": "...(source === undefined ? {} : { source }),"
       },
       {
        "status": "Survived",
        "mutator": "ConditionalExpression",
        "replacement": "false",
-       "line": 317,
-       "column": 17,
-       "lineText": "...(source === undefined ? {} : { source }),"
+       "line": 326,
+       "column": 9,
+       "lineText": "question.seed !== seed);"
       },
       {
        "status": "Survived",
@@ -315,18 +362,18 @@
       },
       {
        "status": "Survived",
-       "mutator": "StringLiteral",
-       "replacement": "\"\"",
-       "line": 320,
-       "column": 35,
-       "lineText": "const question = run._tag === \"Idle\" ? undefined : run.question;"
-      },
-      {
-       "status": "Survived",
        "mutator": "ConditionalExpression",
        "replacement": "false",
        "line": 320,
        "column": 22,
+       "lineText": "const question = run._tag === \"Idle\" ? undefined : run.question;"
+      },
+      {
+       "status": "Survived",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 320,
+       "column": 35,
        "lineText": "const question = run._tag === \"Idle\" ? undefined : run.question;"
       }
      ],
@@ -408,53 +455,6 @@
        "lineText": "export const makeGatesFeed = Effect.fn(\"qadi.devtools.makeGatesFeed\")(function* (): Effect.fn.Return<"
       }
      ]
-    }
-   }
-  },
-  "stated": {
-   "head": "c49985c6553445d15f1ff306bd859b5e8fd00f46",
-   "invocation": "pnpm exec stryker run stryker.devtools.mjs --mutate packages/devtools/src/model/StatedRun.ts --disableBail",
-   "files": {
-    "packages/devtools/src/model/StatedRun.ts": {
-     "killed": 22,
-     "timeout": 0,
-     "survived": 0,
-     "noCoverage": 0,
-     "ignored": 0,
-     "detected": 22,
-     "valid": 22,
-     "open": [],
-     "ignoredMutants": [],
-     "timeouts": [],
-     "outside": []
-    }
-   }
-  },
-  "prologue": {
-   "head": "c49985c6553445d15f1ff306bd859b5e8fd00f46",
-   "invocation": "pnpm exec stryker run stryker.devtools.mjs --mutate packages/devtools/src/model/ConfigurePrologue.ts --disableBail",
-   "files": {
-    "packages/devtools/src/model/ConfigurePrologue.ts": {
-     "killed": 7,
-     "timeout": 0,
-     "survived": 0,
-     "noCoverage": 0,
-     "ignored": 1,
-     "detected": 7,
-     "valid": 7,
-     "open": [],
-     "ignoredMutants": [
-      {
-       "status": "Ignored",
-       "mutator": "ArrowFunction",
-       "replacement": "() => undefined",
-       "line": 40,
-       "column": 3,
-       "lineText": "<Raw, Held>(rule: ConfigureRule<Raw, Held>, steps: (wanted: Held, before: Held) => void) =>"
-      }
-     ],
-     "timeouts": [],
-     "outside": []
     }
    }
   }
