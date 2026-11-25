@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-169                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-11-18                                     |
 > | Status         | Accepted — amends ADR-QD-047; applies ADR-QD-137; keeps ADR-QD-162, ADR-QD-150; corrected 2026-11-22 (ADR-QD-185: the model keeps no closed flag and no last join) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-22): notes — the store is a derived store and the count is BEH-QD-700's (ARCH-119, CCR-QD-464)<br>1.1 (2026-11-19): amendment — makeGatesFeed is exported from the root (ARCH-107, ADR-QD-173, CCR-QD-451)<br>1.0 (2026-11-18): Initial release (ARCH-103, CCR-QD-447) |
+> | Change History | 1.3 (2026-11-25): amendment: Diagnostics.questions is removed (ARCH-130, ADR-QD-196, CCR-QD-475)<br>1.2 (2026-11-22): notes — the store is a derived store and the count is BEH-QD-700's (ARCH-119, CCR-QD-464)<br>1.1 (2026-11-19): amendment — makeGatesFeed is exported from the root (ARCH-107, ADR-QD-173, CCR-QD-451)<br>1.0 (2026-11-18): Initial release (ARCH-103, CCR-QD-447) |
 
 ---
 
@@ -116,6 +116,15 @@ from the React entry, so a headless shell reads the questions' two inputs with t
 other decision here is unchanged, and so is the consequence that `spec/overview.md` changes rows
 ([ADR-QD-173](./173-the-devtools-headless-interface-is-its-feeds.md)).
 
+## Amendment (2026-11-25, ARCH-130, CCR-QD-475): Diagnostics.questions is removed
+
+Decision 10 kept both `Diagnostics.questions` and `DiagnosticsReading.questions`. `Diagnostics.questions` is removed: the poll
+never sampled it, and the dock's join reads a supplied list from `held.reading?.questions`, beside the reading, at the moment
+it always did, so no value the join reads and no moment it reads it moves
+([ADR-QD-196](./196-the-diagnostics-feed-folds-its-reading-as-a-value.md)). `DiagnosticsReading.questions` is kept, for the reason decision 10 gave: a reading taken in another
+process still brings its own questions. A supplied list still wins over the thunk. The mutation table above records the
+diagnostics module under the name it had then, `DiagnosticsStore.ts`, which is now `Diagnostics.ts`.
+
 ## Consequences
 
 - The dock model's store count is unchanged: nine. `DockModel.ts` keeps its closed flag and its last join, and the watch's
@@ -138,3 +147,5 @@ other decision here is unchanged, and so is the consequence that `spec/overview.
 [ADR-QD-150](./150-a-scoped-run-that-a-newer-run-supersedes.md),
 [ADR-QD-162](./162-gates-are-the-dock-models-eighth-store-and-their-states-are-stated-once.md), INV-QD-343, INV-QD-357,
 INV-QD-358, BEH-QD-583..585, BEH-QD-616..620.
+
+[ADR-QD-196](./196-the-diagnostics-feed-folds-its-reading-as-a-value.md) — `Diagnostics.questions` is removed.
