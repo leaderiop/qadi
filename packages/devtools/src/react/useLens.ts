@@ -20,6 +20,16 @@ import { boxesOf, clearLens, drawLens, gateIdAt, gateIdOfClick } from "./Lens.ts
 import { useStoreSnapshot } from "./useStoreSnapshot.ts";
 
 /**
+ * Both snapshots the adapter read, so the panel holds one subscription to each store.
+ *
+ * Package-private: it stays out of both barrels.
+ */
+export interface UseLens {
+  readonly lens: LensSnapshot;
+  readonly questions: QuestionsSnapshot;
+}
+
+/**
  * Drives the highlight overlay and the pick interaction over the page.
  *
  * Picking stops on the pick, on `Escape`, and on unmount — three exits, because
@@ -28,18 +38,20 @@ import { useStoreSnapshot } from "./useStoreSnapshot.ts";
  * session alone: were it the listeners' cleanup, a highlight that ended picking
  * would run it and cancel the highlight it had just drawn.
  *
- * Returns the snapshot it read, so a panel that draws from the same session holds the
- * one subscription and not a second. The guards listed now are an argument for the same
- * reason: the caller reads the questions store to render, so the adapter does not
- * subscribe to it again, and it reads `questions` only when an event arrives. A caller
- * that does not render from the store reads it with `useStoreSnapshot`.
+ * Reads both stores and returns both snapshots, so a panel that draws from them holds
+ * one subscription to each and not a second. The overlay is drawn over the guards the
+ * hook's own subscription to the questions store read, and the handlers read the same
+ * store when an event arrives, so a guard that registers while picking adds no listener.
+ * The questions store is subscribed first and the lens second, the order the panel
+ * subscribed in before the adapter took both.
  */
 export const useLens = (
   lens: LensSession,
   questions: ReadableStore<QuestionsSnapshot>,
-  instances: QuestionsSnapshot["instances"],
-): LensSnapshot => {
+): UseLens => {
+  const read = useStoreSnapshot(questions);
   const snapshot = useStoreSnapshot(lens);
+  const instances = read.instances;
   const highlighted: ReadonlyArray<string> = snapshot.highlighted;
   const picking = isPicking(snapshot);
 
@@ -117,5 +129,5 @@ export const useLens = (
     [lens],
   );
 
-  return snapshot;
+  return { lens: snapshot, questions: read };
 };

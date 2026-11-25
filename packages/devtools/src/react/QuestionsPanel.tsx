@@ -44,7 +44,6 @@ import { DiagnosticsNotice, diagnosticsRootProps } from "./DiagnosticsNotice.tsx
 import type { DiagnosticsNoticeProps } from "./DiagnosticsNotice.tsx";
 import { button, colors, font, muted } from "./theme.ts";
 import { useLens } from "./useLens.ts";
-import { useStoreSnapshot } from "./useStoreSnapshot.ts";
 import { treatmentOf } from "./VerdictTreatment.ts";
 
 export type { AskedQuestionLike } from "../model/Gates.ts";
@@ -111,12 +110,9 @@ export const QuestionsPanel: FC<QuestionsPanelProps> = ({
   diagnostics,
 }) => {
   const unsampled = isUnsampled(diagnostics.status);
-  const snapshot = useStoreSnapshot(questions);
+  const read = useLens(lens, questions);
 
-  const view: LensView = {
-    session: lens,
-    snapshot: useLens(lens, questions, snapshot.instances),
-  };
+  const view: LensView = { session: lens, snapshot: read.lens };
 
   return (
     <div {...diagnosticsRootProps(diagnostics.status)} data-testid="qadi-questions">
@@ -131,9 +127,9 @@ export const QuestionsPanel: FC<QuestionsPanelProps> = ({
         the evaluator sees. The guards asking each question are listed underneath.
       </p>
 
-      {gatesBlock(snapshot.gates)(view)}
+      {gatesBlock(read.questions.gates)(view)}
 
-      {questionsBlock(snapshot.questions)(view)}
+      {questionsBlock(read.questions.questions)(view)}
 
       <Hydration activity={hydration} unsampled={unsampled} />
 

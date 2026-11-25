@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-193                                   |
-> | Revision       | 1.9                                            |
+> | Revision       | 1.10                                            |
 > | Effective Date | 2026-11-24                                     |
 > | Status         | Accepted — amends ADR-QD-185, ADR-QD-047 and ADR-QD-111 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.9 (2026-11-24): hover and choose from idle are reached only headlessly or by a script in the click's task, not by a user's pointer (CCR-QD-472)<br>1.8 (2026-11-24): the instrument-toggle test is quoted by its current title (CCR-QD-472)<br>1.7 (2026-11-24): useLens is handed the listed guards, so the panel holds one subscription to the questions store (CCR-QD-472)<br>1.6 (2026-11-24): the adapter does not catch a subscriber's failure; what the dispatch does with it is the DOM's (CCR-QD-472)<br>1.5 (2026-11-24): hover and choose from idle are reached by the adapter between a pick and its listeners coming off (CCR-QD-472)<br>1.4 (2026-11-24): a hover leaves the reveal and moves nothing from idle, the state between a pick and the listeners coming off (CCR-QD-472)<br>1.3 (2026-11-24): the reader-facing table lists seven interaction rows, the keyboard click and the dropped reveal included (CCR-QD-472)<br>1.2 (2026-11-24): the review's corrections: the reveal belongs to its pick, the click placed by its element and swallowed whatever a subscriber does, the capture wording (CCR-QD-472)<br>1.1 (2026-11-24): the behaviours and invariants that state it are linked (CCR-QD-472)<br>1.0 (2026-11-24): Initial (ARCH-127) |
+> | Change History | 1.10 (2026-11-25): decision 6 amended: useLens takes the session and the questions store and returns both snapshots (CCR-QD-476)<br>1.9 (2026-11-24): hover and choose from idle are reached only headlessly or by a script in the click's task, not by a user's pointer (CCR-QD-472)<br>1.8 (2026-11-24): the instrument-toggle test is quoted by its current title (CCR-QD-472)<br>1.7 (2026-11-24): useLens is handed the listed guards, so the panel holds one subscription to the questions store (CCR-QD-472)<br>1.6 (2026-11-24): the adapter does not catch a subscriber's failure; what the dispatch does with it is the DOM's (CCR-QD-472)<br>1.5 (2026-11-24): hover and choose from idle are reached by the adapter between a pick and its listeners coming off (CCR-QD-472)<br>1.4 (2026-11-24): a hover leaves the reveal and moves nothing from idle, the state between a pick and the listeners coming off (CCR-QD-472)<br>1.3 (2026-11-24): the reader-facing table lists seven interaction rows, the keyboard click and the dropped reveal included (CCR-QD-472)<br>1.2 (2026-11-24): the review's corrections: the reveal belongs to its pick, the click placed by its element and swallowed whatever a subscriber does, the capture wording (CCR-QD-472)<br>1.1 (2026-11-24): the behaviours and invariants that state it are linked (CCR-QD-472)<br>1.0 (2026-11-24): Initial (ARCH-127) |
 
 ---
 
@@ -281,3 +281,10 @@ fences, of which this record has none: its listing is a `ts` fence, because `Len
 - [INV-QD-107](../invariants.md#inv-qd-107-a-screen-never-changes-what-it-shows-without-the-reviewer) — leaving a screen and returning to it is not a choice
 - [INV-QD-390](../invariants.md#inv-qd-390-the-dock-models-computed-stores-are-derived-stores-and-their-count-is-stated-once) — the dock model's stores and their count
 - [INV-QD-405](../invariants.md#inv-qd-405-the-lens-snapshot-admits-no-pick-while-picking-and-at-most-one-drawn-guard-while-picking) and [INV-QD-406](../invariants.md#inv-qd-406-lens-mode-never-outlives-the-panels-listeners-and-no-overlay-outlives-the-panel) — the lens snapshot admits no pick while picking, and lens mode never outlives the panel's listeners
+
+## Amendment (2026-11-25, ARCH-131, CCR-QD-476): `useLens` takes the session and the questions store and returns both snapshots
+
+Decision 6's `useLens(lens, questions, instances)` is replaced by `useLens(lens, questions)`. It subscribes to the questions
+store and then to the lens and returns both snapshots. The draw reads the guards from that subscription and the handlers
+read the same store when an event arrives, so the panel holds one subscription to each store and every read of the listed
+guards goes to the one store it is handed. Decision 6's text above is kept as the record of what it said.

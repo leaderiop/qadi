@@ -17,7 +17,6 @@ import { joinQuestions, type GateInstanceLike } from "../../src/model/Gates.ts";
 import { makeLensSession, pickedOf, type LensSession } from "../../src/model/LensSession.ts";
 import { QuestionsPanel } from "../../src/react/QuestionsPanel.tsx";
 import { useLens } from "../../src/react/useLens.ts";
-import { useStoreSnapshot } from "../../src/react/useStoreSnapshot.ts";
 import { liveNotice } from "../helpers.ts";
 import { panelInput } from "./questionsPanelInput.ts";
 
@@ -50,7 +49,7 @@ const mount = (instances: ReadonlyArray<GateInstanceLike>) => {
     }),
   );
   const Probe = () => {
-    useLens(lens, questions, useStoreSnapshot(questions).instances);
+    useLens(lens, questions);
     return null;
   };
   render(<Probe />);

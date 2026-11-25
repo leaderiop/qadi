@@ -139,3 +139,8 @@ under it are the rest of that run's stderr. A test's failure lines use the `seen
 
 - failed (arm-after-set): a listener told of a pick can take its reveal
   - AssertionError: expected [ false ] to deeply equal [ true ]
+
+## 84-08 the lens adapter
+
+- check failed: refusal UseLens: Unused '@ts-expect-error' directive. ts(2578)
+- check failed: refusal ReactUseLens: Unused '@ts-expect-error' directive. ts(2578)
