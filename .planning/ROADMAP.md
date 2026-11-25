@@ -598,12 +598,12 @@ Plans:
   5. ADR-QD-200 applies, and does not reopen, ADR-QD-150 point 2 and extends ADR-QD-182 decision 10 to the session; ADR-QD-192, ADR-QD-194 and the `ThrownMessage.ts` doc are amended in the same change; the per-feed tests (TF21-23, TF28, F28-31, F33, SR5-6) stay unedited; a `@qadi/devtools` patch changeset records the Simulator text change (STOP-05).
 
 **Planning notes**: **Research flag: plan 1 is a spike plus the RED test** (`/gsd-plan-phase --research-phase 87`); several valid shapes exist and the self-interrupt behaviour must be characterised before a policy is chosen. Constraints that are findings: the session keeps `Effect.exit` in the run body (routing it through `onFailure` skips interrupt-only causes and leaves SR1 `Running` forever); `GatesFeed` forks before it publishes, so it shares only the prologue (three prologue rules exist: closed guard first; `sameFieldsOrAbsent` for diagnostics' absent options; `sameFields && watchFailure === undefined` for gates); `try { publish } finally { fork }` stays inside the shared helper; no named `Effect.fn` or `Effect.fnUntraced` on the factory (`UNTRACED_BUDGET`); `land` keeps `root: true`; `Broke` and `GatesSnapshot` shapes are unchanged. Add the row nobody has: a publish that throws and a superseding command from the same listener. Render `Broke.message` in the same `<pre>` treatment as `Stopped.reason` if the discuss step takes it. Stryker: `stryker.devtools.mjs` over `SupersedingRun`, the three feeds, `SimulationSession`, `GatesFeed` and the new module; re-take the base first.
-**Plans**: 2/11 plans executed
+**Plans**: 3/11 plans executed
 
 Plans:
 - [x] 87-01 (W1): The phase base and the touched files' mutation base recorded first; the spike re-run on the base; SX1 to SX3 and SB2 to SB4 (the broken simulation run) and TX1, TX2, DX1, DX2 (the feeds' self-interrupt) red on the base; SB1, TX3 to TX7 and DX3 to DX7 green and seen failing
 - [x] 87-02 (W2): Twelve stated-run cells SC1 to SC12 green on the base (the bare restart, the throw-and-supersede rows, the landed session result), each seen failing; the pinned-test check holding every devtools test but the two declared files; the base facts
-- [ ] 87-03 (W3): The phase check (`87-check.mjs`): ids, forbidden constructs, the exact trailer, the suite judge for the open red rows, seven shape modes for the moved code, the records; each mode seen failing
+- [x] 87-03 (W3): The phase check (`87-check.mjs`): ids, forbidden constructs, the exact trailer, the suite judge for the open red rows, seven shape modes for the moved code, the records; each mode seen failing
 - [ ] 87-04 (W4): The earlier-phase checks (Phase 85's and 86's) from scratch copies against a measured ledger, seen failing
 - [ ] 87-05 (W5): `StatedRun.ts` (publish-then-fork, the one stop rule, the closed and token guards) with ST1 to ST17, and `ConfigurePrologue.ts` with CP1 to CP8, each row seen failing
 - [ ] 87-06 (W6): The timeline and diagnostics feeds supply only their engine and states (TX1, TX2, DX1, DX2 green); all three feeds configure through the prologue, gates still forking before it publishes
@@ -715,7 +715,7 @@ Phases execute in numeric order: 85 → 86 → 87 → 88 → 89 → 90 → 91
 |-------|----------------|--------|-----------|
 | 85. The dock's hydration block is a model row | 11/11 | Complete    | 2026-11-25 |
 | 86. `QadiProvider`'s registry lifetime has a React-free owner | 8/8 | Complete    | 2026-11-25 |
-| 87. One scoped run that states its stop | 2/11 | In Progress | - |
+| 87. One scoped run that states its stop | 3/11 | In Progress | - |
 | 88. `StoppedBox` keys itself and owns the announce-once rule | 0/TBD | Not started | - |
 | 89. One admission step for a host's audit batch | 0/TBD | Not started | - |
 | 90. The remaining per-port facts live on the port description | 0/TBD | Not started | - |

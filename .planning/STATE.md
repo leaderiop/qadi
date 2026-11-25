@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 87
 current_phase_name: One scoped run that states its stop
 status: executing
-stopped_at: Completed 87-02-PLAN.md
-last_updated: "2026-11-25T19:10:25.481Z"
+stopped_at: Completed 87-03-PLAN.md
+last_updated: "2026-11-25T19:27:20.891Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 86 complete, transitioned to Phase 87
-state_head: 08ed2498e8d89970c4f3e0c28f6cb4e4e9d0ae74
+state_head: 805aaf73471d3d52928f85e882da10c0cf79f889
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 30
-  completed_plans: 21
+  completed_plans: 22
   percent: 29
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: 87 (One scoped run that states its stop) — READY TO EXECUTE
-Plan: 3 of 11
+Plan: 4 of 11
 Status: Ready to execute
 Last activity: 2026-11-25 — Phase 86 complete, transitioned to Phase 87
 
@@ -675,6 +675,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 86 P08 | 8min | 2 tasks | 1 files |
 | Phase 87 P01 | 15 min | 3 tasks | 7 files |
 | Phase 87 P02 | 13min | 2 tasks | 3 files |
+| Phase 87 P03 | 14min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -1189,6 +1190,8 @@ Progress: [███░░░░░░░] 29%
 - [Phase 87]: The touched mutation group runs without --disableBail and the born groups with it; a record reads the status of packages and the Stryker config — The touched base is the run the research measured and a close is one invocation against it; a base on a tree no commit names is refused
 - [Phase 87]: 87-02: the pinned check holds the property's kept law lines by trimmed text and count, so a re-indent passes and a reworded or dropped assertion fails
 - [Phase 87]: 87-02: the held set is computed from phase_base (123 base test files, less the two declared, plus useConfigured.ts = 122), never listed by hand
+- [Phase 87]: 87-03: a phrase judge reads 'publishes from now on' as a status tape's subscription time and still refuses every other 'from now on'
+- [Phase 87]: 87-03: the gates cadence rule is judged as cadence( before publish( in the one makeConfigure call plus a cadence that forks its own superseding run (INV-QD-408)
 
 ### Pending Todos
 
@@ -1276,8 +1279,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T19:10:25.426Z
-Stopped at: Completed 87-02-PLAN.md
+Last session: 2026-11-25T19:27:20.835Z
+Stopped at: Completed 87-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
