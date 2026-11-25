@@ -298,6 +298,71 @@ and §13.
 - The plan count and the wave split, as long as plan 1 is the characterisation (D-12) plus the mutation base (D-18),
   the table test is seen RED before `model/StopLedger.ts` exists, and the records plan comes last.
 
+### Addendum after research (2026-11-25, decided autonomously)
+Every bullet below was decided autonomously on 2026-11-25 under the owner's standing instruction of 2026-11-22. The
+evidence is the measured spike in `88-RESEARCH.md` §Spike evidence: D-06 was built on the real source files, and the
+devtools suite ran green against it (109 files, 2086 tests) with the declared test edits. `tsc`, house style,
+`pnpm circular`, `pnpm test:tstyche` and `oxlint` were clean. The tree was then restored. D-06 stands.
+- **D-06a (the cost, as measured):** `useReducer` has no eager bail-out, so ADR-QD-201's cost sentence says: "one
+  extra `DockFrame` pass per newly shown stop (2 parent renders and 2 commits, against 1 and 1 on the base); a remount
+  for a recorded stop, or an `Activity` show, costs one `DockFrame` function call and renders nothing below it". It
+  replaces D-06's "React bails out of a repeat record". The body keeps the same DOM node across its own record,
+  StrictMode keeps the alert, and `Activity` behaves as the ref version does. R1, R2, DS1-DS3, D7 and D8 stay green
+  unedited. Evidence: spikes S1c, S2 and S3.
+- **D-09a (typing):** `AnnouncedStops<S>.record` makes `StopNoticeProps<S>` invariant in `S`, so tests write
+  `useStopNotice<TimelineStatus>(…)` wherever a narrowed `const` status would otherwise fix `S`. No src change follows.
+- **D-11a (one more row):** the table test also carries a `fast-check` property row: the count equals the number of
+  changes, and the key is stable at every step. It is green, and it fails under V10.
+- **D-12a (a second born file):** the dock rows A1-A5 stay in `DockFrame.announce.characterisation.test.tsx`. Some
+  rows cannot be stated through `DevtoolsDock`, and they go in a second born file, `test/react/useStopNotice.test.tsx`:
+  - H1: a render that is thrown away announces nothing (an error boundary plus a throwing sibling);
+  - H2: a notice follows its feed's restart while the status stays the same stop;
+  - H3: the notice value is stable across a no-op re-render and new for a new stop;
+  - a commit-bound row: a newly shown stop adds at most one commit over a live source.
+
+  Plan 1 commits both files on the base **with the base `test/helpers.ts`**, because the edited `helpers.ts` imports
+  the new module and would break the born files on the base. Both are then held byte for byte.
+- **D-13a (a narrower declared set):** `freshRef` keeps its name and returns a fixed handle `{ ledger: noStops, record:
+  () => undefined }`. Held unedited: N4-N8, N11, N13, N15, `notice()` (60-62), TN11 and TN12. The declared edits are:
+  - `DiagnosticsNotice.test.tsx`: N9 and N12, through a `Held` harness over the real `useStopNotice`, plus imports.
+  - `TimelineNotice.test.tsx`: TN14, TN15 (an `Either` harness with two hook ledgers), `ledger()` and imports.
+  - `test/helpers.ts`: line 14 and `liveNotice` at 225.
+  - `Simulator.broke.test.tsx`: import 22, SB1's props, SB4 and the header (D-15).
+  - `surface.tst.ts`: six refusal pairs after line 310.
+
+  Without these edits, the prototype fails 15 rows. With them, all 2086 tests pass.
+- **D-14a (the variant map, corrected and measured):**
+  - V1 (drop the record) fails DS1 and D7, as stated.
+  - V2 (record during render) fails no dock row. Only H1 catches it.
+  - V3 (a constant key) fails N9, N12, DS2 and TN14.
+  - V4 (the reducer in the box) fails DS1, DS2, TN4, N9 and D7.
+  - V5 (one reducer for both feeds) fails DS1, DS2, A1, A2 and A4.
+  - V6 (the memo keyed without `onRestart`) fails not DS3 but H2.
+  - V7 (the alert decided per render) fails 28 rows, including N9 and D7.
+  - V8 (the effect keyed on the handle) is invisible in the DOM. Only the commit-bound row catches it.
+  - V9 (the memo without `ledger`) fails 13 rows.
+  - V10, added: a key that does not hold across the record (always `count + 1`) fails 33 rows, including A5, the
+    table laws and TN4.
+  - H3's variant (the notice value rebuilt every render) and the surface-refusal variant were not run in research.
+    The plans run them.
+- **D-15a (the Simulator header):** the header describes the file's history ("the first row is the byte-identity
+  golden of the move to the shared theme; the others compare to the stopped box's own rendered style"). It does not
+  name a commit hash, because a file cannot name the commit that adds its own text. `88-pinned-check.mjs` holds it
+  against the 88 commit. SB4 compares the block's `style` to the rendered stopped box's `style` (4 of 4 green).
+- **D-17a (the ledger and the scans):** 87's pinned check reports five files (`helpers.ts`,
+  `DiagnosticsNotice.test.tsx`, `TimelineNotice.test.tsx`, `surface.tst.ts`, `Simulator.broke.test.tsx`). The 85 and 86
+  pinned checks report nothing new. The 88 id scan adds `SBOX-0\d`, `88-\d{2}`, `QD-88` and `Phase 88`.
+- **D-18a (an `EXAMINED` allowance):** `model/StopLedger.ts` measures 12 Killed and 4 Ignored (static: the `noStops`
+  literal and three const-arrow bodies), a score of 100%. With `ignoreStatic: false` all 16 are Killed. `88-mutation.mjs`
+  records the four as `EXAMINED` by the 87 mechanism: a clean tree, run by hand, each seen Killed.
+- **D-19a (the ADR-QD-201 audit table):** rows are rewritten and none is removed (`Tests removed: 0`):
+  - N9 and N12 run through a `Held` harness, with the same assertions.
+  - TN14's `.current.count` read is re-homed to the table's identity law and to A3: a remount for the announced stop is
+    silent, and a re-render keeps the element.
+  - TN15 is re-homed to "a notice handed another feed's ledger records its stop there".
+  - SB1 takes the new props.
+  - SB4 compares to the rendered stopped box.
+
 </decisions>
 
 <canonical_refs>
