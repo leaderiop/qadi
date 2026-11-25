@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 88
 current_phase_name: "`StoppedBox` keys itself and owns the announce-once rule"
 status: executing
-stopped_at: Completed 88-02-PLAN.md
-last_updated: "2026-11-25T23:18:58.745Z"
+stopped_at: Completed 88-03-PLAN.md
+last_updated: "2026-11-25T23:23:49.502Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 87 complete, transitioned to Phase 88
-state_head: bef151c95af45946b1687841a4a6f08d65838267
+state_head: 1fe6e79f3e1a969a68d8b6ed8c829878e1ea3f6b
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 40
-  completed_plans: 32
+  completed_plans: 33
   percent: 43
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-88 (`StoppedBox` keys itself and owns the announce-once rule) — EXECUTING
-Plan: 3 of 10
+Plan: 4 of 10
 Status: Ready to execute
 Last activity: 2026-11-25 — Phase 87 complete, transitioned to Phase 88
 
@@ -686,6 +686,7 @@ Progress: [████░░░░░░] 43%
 | Phase 87 P11 | 10min | 2 tasks | 1 files |
 | Phase QD-88 P01 | 20min | 3 tasks | 5 files |
 | Phase QD-88 P02 | 14min | 3 tasks | 3 files |
+| Phase 88 P03 | 5min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -1217,6 +1218,7 @@ Progress: [████░░░░░░] 43%
 - [Phase QD-88]: 88-01: record base takes no group and record base ledger is a usage error; a request is parsed by one pure function the self-test drives, decided autonomously
 - [Phase QD-88]: 88-02: the shape modes read a layout effect keyed on a list ending record, status and a hook memo keyed on status, onRestart, ledger and record; records reads BEH-QD-509, 759 and 775 as kept behaviors and 776 to 780 once written
 - [Phase QD-88]: 88-02: the scans leave out the root README and assets (the owner's unrelated, never-staged changes); a revision one step above its base is the next minor number
+- [Phase 88]: 88-03: the pinned check holds the text before the first region and shares one stretch of the file between adjacent regions for the kept-line count
 
 ### Pending Todos
 
@@ -1304,8 +1306,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T23:18:58.684Z
-Stopped at: Completed 88-02-PLAN.md
+Last session: 2026-11-25T23:23:49.442Z
+Stopped at: Completed 88-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
