@@ -105,7 +105,9 @@ const RunView: FC<{ readonly state: RunState; readonly stale: boolean }> = ({ st
       Ran: (ran) => <ResultCard result={ran} stale={stale} />,
       Broke: (broke) => (
         <section style={{ ...panel, borderColor: colors.error }} data-testid="qadi-simulator-broke">
-          <div style={{ ...heading, color: colors.error }}>the simulation itself failed</div>
+          <div role="alert" style={{ ...heading, color: colors.error }}>
+            the simulation itself failed
+          </div>
           <pre role="group" aria-label="Why the simulation failed" tabIndex={0} style={reasonStyle}>
             {broke.message}
           </pre>
