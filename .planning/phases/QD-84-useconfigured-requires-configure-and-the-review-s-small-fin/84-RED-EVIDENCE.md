@@ -151,3 +151,12 @@ under it are the rest of that run's stderr. A test's failure lines use the `seen
 - check failed: refusal reactUseStopNotice: Unused '@ts-expect-error' directive. ts(2578)
 - check failed: refusal StopNoticeProps: Unused '@ts-expect-error' directive. ts(2578)
 - check failed: refusal ReactStopNoticeProps: Unused '@ts-expect-error' directive. ts(2578)
+
+## Review fixes
+
+Seen with the constraint `A extends Configurable<I>` of `useConfigured` loosened to `A extends { readonly configure: (inputs: any) => void }` in a copy-backed scratch edit, restored with `cp` (`git diff --quiet HEAD -- packages/devtools/src` clean afterwards).
+
+- failed (loosened-constraint): a build handed another value's inputs is refused, and its twin with its own inputs is accepted
+  - Error: Unused '@ts-expect-error' directive. ts(2578)
+- failed (loosened-constraint): a build handed a source that is not a source is refused, and its twin with a source is accepted
+  - Error: Unused '@ts-expect-error' directive. ts(2578)

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-197                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-25                                     |
 > | Status         | Accepted — amends ADR-QD-192 and ADR-QD-193 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-25): the behaviours and invariants that state it are linked (CCR-QD-476)<br>1.0 (2026-11-25): Initial (ARCH-131, CCR-QD-476) |
+> | Change History | 1.2 (2026-11-25): the three useConfigured refusals are pinned in useConfigured.tst.ts (CCR-QD-476)<br>1.1 (2026-11-25): the behaviours and invariants that state it are linked (CCR-QD-476)<br>1.0 (2026-11-25): Initial (ARCH-131, CCR-QD-476) |
 
 ---
 
@@ -55,8 +55,9 @@ None is a defect. Each is a statement made twice that could be made once, and th
      `8ff027e1` to the tree the check ran on. `useConfigured(makeDockModel, inputs)` infers `DockModel`;
      `useConfigured(makeTimelineFeed, { source, capacity })` infers `TimelineFeed`, with `capacity: number | undefined`
      accepted by `TimelineFeedInputs`' `capacity?: number | undefined`; `useConfigured(makeDiagnosticsFeed, options)` infers
-     `DiagnosticsFeed` for `options: DiagnosticsOptions | undefined`. Three calls were refused: a value with no `configure`,
-     `makeDiagnosticsFeed` fed a timeline input, and `makeTimelineFeed` fed `{ source: 1 }`.
+     `DiagnosticsFeed` for `options: DiagnosticsOptions | undefined`. Three calls are refused, each a `@ts-expect-error` in
+     `useConfigured.tst.ts` beside an accepted twin: a value with no `configure`, `makeDiagnosticsFeed` fed a timeline input,
+     and `makeTimelineFeed` fed `{ source: 1 }`.
    - The three call sites lose their adapter, take no type argument and keep their comments, reworded where they named an
      adapter.
 
@@ -134,8 +135,8 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({ unknownParents, onInvalida
 - **An inline `{ configure(inputs: I): void }` constraint.** Rejected: it is unnamed at the three call sites and in the type
   test, and it is a method signature, checked bivariantly.
 - **A negative `not.toBeCallableWith` pin for the refusal.** Rejected: it costs a counted row in a new file, and an edit to the
-  budget and AGENTS.md §6's table together, for a refusal the compile already makes. The refusal is one `@ts-expect-error`
-  with its message fragment checked, beside an accepted twin, and counts nothing.
+  budget and AGENTS.md §6's table together, for a refusal the compile already makes. Each of the three refusals is a
+  `@ts-expect-error` with its message fragment checked, beside an accepted twin, and counts nothing.
 - **Collapse `choose` to `store.set(next); return true`.** Rejected: it changes the consumed answer, which tells the page
   whether to see the click.
 - **Arm the reveal after the publish.** Rejected: a listener told of the pick would find nothing armed and the one-shot reveal
@@ -175,7 +176,9 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({ unknownParents, onInvalida
 
 - Decision 1: `packages/devtools/test/react/useConfigured.test.tsx` (U1 to U4, over a double that carries its own `configure`),
   `packages/devtools/test/react/useConfigured.tst.ts` ("the three values each have configure over their own inputs", "the
-  three hooks keep their return types", "a value with no configure is refused, and its twin with configure is accepted"),
+  three hooks keep their return types", "a value with no configure is refused, and its twin with configure is accepted",
+  "a build handed another value's inputs is refused, and its twin with its own inputs is accepted", "a build handed a source
+  that is not a source is refused, and its twin with a source is accepted"),
   `packages/devtools/test/react/ConfigureFirstRender.characterisation.test.tsx`, and `packages/devtools/test/surface.tst.ts`'s
   refusal of `Configurable` from both entries.
 - Decision 2: `packages/devtools/test/model/LensSession.test.ts` ("a listener told of a pick can take its reveal"; "a command
