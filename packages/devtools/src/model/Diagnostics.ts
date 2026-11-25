@@ -72,7 +72,7 @@ export type WiringRead = Data.TaggedEnum<{
 
 export const WiringRead = Data.taggedEnum<WiringRead>();
 
-/** One reading of everything the dock polls. */
+/** One reading of what the poll samples. */
 export interface Diagnostics {
   readonly wiring: WiringRead;
   readonly activity: ReadonlyArray<PortActivity>;
@@ -80,11 +80,6 @@ export interface Diagnostics {
   readonly hydration: HydrationActivity | undefined;
   /** `undefined` when no collector was handed over. */
   readonly portCalls: PortCallLog | undefined;
-  /**
-   * `undefined` unless a supplied reading carries questions: the poll samples none, since the
-   * gates feed reads the questions thunk (ADR-QD-169).
-   */
-  readonly questions: ReadonlyArray<AskedQuestionLike> | undefined;
 }
 
 /** The reading before anything has been sampled. A constant, so it keeps its identity. */
@@ -93,15 +88,16 @@ export const noDiagnostics: Diagnostics = {
   activity: [],
   hydration: undefined,
   portCalls: undefined,
-  questions: undefined,
 };
 
 /**
  * A reading taken elsewhere (another process, a fixture), field by field.
  *
- * Each field it carries wins over the sampled one; a field it omits falls
- * through to the sample. The fields are `Diagnostics`' own types, so a supplied
- * reading can state everything a sampled one can, `WiringRead.Failed` included.
+ * Each of the four sampled fields it carries wins over the sampled one; a field it
+ * omits falls through to the sample. The fields are `Diagnostics`' own types, so a
+ * supplied reading can state everything a sampled one can, `WiringRead.Failed` included.
+ * Its `questions` are not sampled: the dock's questions join reads them from the supplied
+ * reading, beside the merged one, and they win there over the questions input (ADR-QD-169).
  *
  * An explicit interface and not `Partial<Diagnostics>`: with
  * `exactOptionalPropertyTypes`, `Partial<Diagnostics>` would accept an explicit
@@ -113,6 +109,7 @@ export interface DiagnosticsReading {
   readonly activity?: ReadonlyArray<PortActivity>;
   readonly hydration?: HydrationActivity;
   readonly portCalls?: PortCallLog;
+  /** The questions the dock lists, read by its questions join and not part of the merged reading. */
   readonly questions?: ReadonlyArray<AskedQuestionLike>;
 }
 
@@ -124,7 +121,8 @@ export interface DiagnosticsReading {
  * with its own line of precedence and its own doc comment; ARCH-24's D-24-c
  * kept the rule and ARCH-44 moved it here, where it is tested without React.
  * An explicit empty list wins like any value: only an absent field falls
- * through.
+ * through. A supplied reading's `questions` is not part of the merged reading;
+ * the dock's questions join reads it from the supplied reading.
  *
  * With nothing supplied it returns `sampled` itself, so a dock reading from a
  * store keeps the store's snapshot identity and does not re-render for it.
@@ -140,7 +138,6 @@ export const mergeReading = (
         activity: supplied.activity ?? sampled.activity,
         hydration: supplied.hydration ?? sampled.hydration,
         portCalls: supplied.portCalls ?? sampled.portCalls,
-        questions: supplied.questions ?? sampled.questions,
       };
 
 export interface DiagnosticsStore {
@@ -172,14 +169,12 @@ export const makeDiagnosticsStore = (): DiagnosticsStore => {
         activity: keep(current.activity, next.activity),
         hydration: keep(current.hydration, next.hydration),
         portCalls: keep(current.portCalls, next.portCalls),
-        questions: keep(current.questions, next.questions),
       };
       if (
         merged.wiring === current.wiring &&
         merged.activity === current.activity &&
         merged.hydration === current.hydration &&
-        merged.portCalls === current.portCalls &&
-        merged.questions === current.questions
+        merged.portCalls === current.portCalls
       ) {
         return;
       }
@@ -249,7 +244,7 @@ export const runDiagnostics = Effect.fn("qadi.devtools.runDiagnostics")(function
         activity: portActivity,
         hydration: hydrationActivity,
         portCalls,
-      }).pipe(Effect.tap((reading) => Effect.sync(() => store.accept({ ...reading, questions: undefined }))));
+      }).pipe(Effect.tap((reading) => Effect.sync(() => store.accept(reading))));
 
       yield* Effect.repeat(
         sample,

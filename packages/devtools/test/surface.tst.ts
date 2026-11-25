@@ -15,8 +15,10 @@ import {
   makeGatesFeed,
   makeTimelineFeed,
   type AskedQuestionLike,
+  type Diagnostics,
   type DiagnosticsFeed,
   type DiagnosticsOptions,
+  type DiagnosticsReading,
   type DiagnosticsReadout,
   type GateInstanceLike,
   type GateRegistryLike,
@@ -298,6 +300,15 @@ test("DiagnosticsOptions is a layer, a collector and an interval, and nothing el
     readonly collector?: PortCallCollector | undefined;
     readonly intervalMillis?: number | undefined;
   }>();
+});
+
+test("the root's Diagnostics holds exactly the four sampled fields", () => {
+  expect<Diagnostics>().type.not.toHaveProperty("questions");
+  expect<keyof Diagnostics>().type.toBe<"activity" | "hydration" | "portCalls" | "wiring">();
+});
+
+test("the root's DiagnosticsReading carries questions", () => {
+  expect<DiagnosticsReading>().type.toHaveProperty("questions");
 });
 
 test("each feed is built in a scope and fails with nothing", () => {

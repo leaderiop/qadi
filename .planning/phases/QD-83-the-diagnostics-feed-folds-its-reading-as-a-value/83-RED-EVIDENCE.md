@@ -182,3 +182,59 @@ How it was produced: with the copies kept first in the scratch directory, line 1
 the next edit and before the commit; `git diff --quiet HEAD -- packages scripts` held afterwards. The row FC9 is the only one the
 guard's removal fails (the stale run's sample publishes a `Live` the tape does not expect); the removal of the keep fails the
 rows that compare reading identity (FC2, FC3, FC4, FC7, FC8, FC9, FC10).
+
+## 83-05 the removal pins
+
+Run on the renamed base (`packages/devtools/src` unchanged), the pins written first.
+
+- red on the base: the reading carries no questions field
+  - tstyche: `Type 'Diagnostics' has property 'questions'.` (`Diagnostics.tst.ts`, both passes)
+- red on the base: the root's Diagnostics holds exactly the four sampled fields
+  - tstyche: `Type 'Diagnostics' has property 'questions'.` and `Type 'keyof Diagnostics' is not the same as type '"wiring" | "activity" | "hydration" | "portCalls"'.` (`surface.tst.ts`, both passes)
+- red on the base: a supplied reading's questions are not part of the merged reading
+  - `AssertionError: expected true to be false` (`Diagnostics.test.ts`)
+- red on the base: a sample carries exactly the four fields the poll reads
+  - `expected [ 'activity', 'hydration', …(3) ] to deeply equal [ 'activity', 'hydration', …(2) ]` (`Diagnostics.test.ts`)
+- red on the base: F2 an empty options object samples the metric reads only and is Live once built
+  - `AssertionError: expected true to be false` (`DiagnosticsFeed.test.ts:118`)
+- red on the base: MR1 a supplied reading's questions are not part of the shown reading
+  - `AssertionError: expected true to be false` (`DockModel.reading.test.ts`)
+- green on the base: a supplied reading carries its questions (`Diagnostics.tst.ts`)
+- green on the base: the root's DiagnosticsReading carries questions (`surface.tst.ts`)
+- green on the base: MR2 a supplied reading's questions reach the questions store on the configure that hands them
+
+Flips (the two existing cases the removal changes; the pinned check accepts the `F2` one):
+
+- flip F2: `assert.isUndefined(reading.questions);` -> `assert.isFalse("questions" in reading);`
+- flip mergeReading: "supplied questions win" and "absent questions fall through to the sample" -> "a supplied reading's questions are not part of the merged reading"
+
+```ts
+// before (Diagnostics.test.ts, mergeReading)
+it("supplied questions win", () => {
+  assert.strictEqual(
+    mergeReading(sampled, { questions: suppliedQuestions }).questions,
+    suppliedQuestions,
+  );
+});
+it("absent questions fall through to the sample", () => {
+  assert.strictEqual(
+    mergeReading(sampled, { wiring: suppliedWiring }).questions,
+    sampledQuestions,
+  );
+});
+
+// after
+it("a supplied reading's questions are not part of the merged reading", () => {
+  assert.isFalse("questions" in mergeReading(sampled, { questions: suppliedQuestions }));
+});
+```
+
+After the removal (`Diagnostics.questions` and its three writes deleted): typecheck clean, devtools suite 1954 passed, tstyche 53 passed in both passes, house style clean.
+
+- green after the removal: the reading carries no questions field
+- green after the removal: the root's Diagnostics holds exactly the four sampled fields
+- green after the removal: a supplied reading's questions are not part of the merged reading
+- green after the removal: a sample carries exactly the four fields the poll reads
+- green after the removal: F2 an empty options object samples the metric reads only and is Live once built
+- green after the removal: MR1 a supplied reading's questions are not part of the shown reading
+- green after the removal: MR2 a supplied reading's questions reach the questions store on the configure that hands them

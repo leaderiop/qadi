@@ -60,6 +60,14 @@ test("the poll takes no questions thunk: the gates feed reads it", () => {
   expect<DiagnosticsOptions>().type.not.toHaveProperty("questions");
 });
 
+test("the reading carries no questions field", () => {
+  expect<Diagnostics>().type.not.toHaveProperty("questions");
+});
+
+test("a supplied reading carries its questions", () => {
+  expect<DiagnosticsReading>().type.toHaveProperty("questions");
+});
+
 test("the poll takes an interval, not a schedule", () => {
   expect<Params<typeof runDiagnostics>>().type.not.toBeCallableWith(store, { schedule: spaced });
   expect(runDiagnostics(store, { intervalMillis: 500 })).type.toBe<

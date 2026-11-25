@@ -115,7 +115,7 @@ describe("the diagnostics feed", () => {
       assert.isTrue(DiagnosticsStatus.$is("Live")(status));
       assert.strictEqual(reading.wiring._tag, "NotHanded");
       assert.isUndefined(reading.portCalls);
-      assert.isUndefined(reading.questions);
+      assert.isFalse("questions" in reading);
       assert.isDefined(reading.hydration);
     }),
   );

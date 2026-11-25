@@ -85,18 +85,15 @@ describe("makeDiagnosticsStore", () => {
 
   it("gives only the field that changed a new reference", () => {
     const store = makeDiagnosticsStore();
-    const asked = [{ policy: hasRole("Editor") }];
-    store.accept({ ...noDiagnostics, portCalls: emptyLog, questions: asked });
+    store.accept({ ...noDiagnostics, portCalls: emptyLog });
     const before = store.getSnapshot();
     store.accept({
       ...noDiagnostics,
       portCalls: { calls: [], dropped: 1, capacity: 10 },
-      questions: [{ policy: hasRole("Editor") }],
     });
     const after = store.getSnapshot();
     assert.notStrictEqual(after, before);
     assert.notStrictEqual(after.portCalls, before.portCalls);
-    assert.strictEqual(after.questions, before.questions);
     assert.strictEqual(after.wiring, before.wiring);
     assert.strictEqual(after.activity, before.activity);
     assert.strictEqual(after.hydration, before.hydration);
@@ -114,7 +111,6 @@ describe("makeDiagnosticsStore", () => {
         drops: [],
       },
       portCalls: emptyLog,
-      questions: [],
     };
     const variants: ReadonlyArray<[string, Diagnostics]> = [
       ["wiring", { ...first, wiring: WiringRead.Failed({ reason: "x" }) }],
@@ -127,7 +123,6 @@ describe("makeDiagnosticsStore", () => {
       ],
       ["hydration", { ...first, hydration: first.hydration && { ...first.hydration, seeded: 1 } }],
       ["portCalls", { ...first, portCalls: { ...emptyLog, dropped: 3 } }],
-      ["questions", { ...first, questions: [{ policy: hasRole("Editor") }] }],
     ];
     for (const [field, next] of variants) {
       const store = makeDiagnosticsStore();
@@ -248,7 +243,20 @@ describe("runDiagnostics", () => {
       assert.strictEqual(reading.wiring._tag, "NotHanded");
       assert.isDefined(reading.hydration);
       assert.isUndefined(reading.portCalls);
-      assert.isUndefined(reading.questions);
+      yield* Fiber.interrupt(fiber);
+    }),
+  );
+
+  it.effect("a sample carries exactly the four fields the poll reads", () =>
+    Effect.gen(function* () {
+      const store = makeDiagnosticsStore();
+      const fiber = yield* start(store);
+      assert.deepStrictEqual(Object.keys(store.getSnapshot()).sort(), [
+        "activity",
+        "hydration",
+        "portCalls",
+        "wiring",
+      ]);
       yield* Fiber.interrupt(fiber);
     }),
   );
@@ -312,14 +320,12 @@ describe("mergeReading", () => {
   ] as const;
   const sampledHydration = { dehydrated: 0, seeded: 1, rechecked: 0, mismatched: 0, drops: [] };
   const sampledCalls: PortCallLog = { calls: [], dropped: 0, capacity: 1 };
-  const sampledQuestions = [{ policy: hasRole("Reader") }];
 
   const sampled: Diagnostics = {
     wiring: sampledWiring,
     activity: sampledActivity,
     hydration: sampledHydration,
     portCalls: sampledCalls,
-    questions: sampledQuestions,
   };
 
   const suppliedWiring = WiringRead.Failed({ reason: "from the server" });
@@ -376,17 +382,8 @@ describe("mergeReading", () => {
     assert.strictEqual(mergeReading(sampled, { wiring: suppliedWiring }).portCalls, sampledCalls);
   });
 
-  it("supplied questions win", () => {
-    assert.strictEqual(
-      mergeReading(sampled, { questions: suppliedQuestions }).questions,
-      suppliedQuestions,
-    );
-  });
-  it("absent questions fall through to the sample", () => {
-    assert.strictEqual(
-      mergeReading(sampled, { wiring: suppliedWiring }).questions,
-      sampledQuestions,
-    );
+  it("a supplied reading's questions are not part of the merged reading", () => {
+    assert.isFalse("questions" in mergeReading(sampled, { questions: suppliedQuestions }));
   });
 
   it("supplies a field before the first sample has anything", () => {
