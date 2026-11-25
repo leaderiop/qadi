@@ -134,3 +134,8 @@ under it are the rest of that run's stderr. A test's failure lines use the `seen
   - Error: Unused '@ts-expect-error' directive. ts(2578)
 - check failed: refusal Configurable: Unused '@ts-expect-error' directive. ts(2578)
 - check failed: refusal ReactConfigurable: Unused '@ts-expect-error' directive. ts(2578)
+
+## 84-07 the arm-before-publish pin over set
+
+- failed (arm-after-set): a listener told of a pick can take its reveal
+  - AssertionError: expected [ false ] to deeply equal [ true ]
