@@ -78,3 +78,14 @@ under it are the rest of that run's stderr. A test's failure lines use the `seen
 - check failed: pinned --all-applied: packages/devtools/test/react/Lens.adapter.test.tsx: 0 of 2 declared edits applied, not all
 - check failed: pinned: packages/devtools/test/model/LensSession.test.ts: differs from its base text at line 399
 - check failed: earlier: 83-pinned-check.mjs --all-applied: expected exit 0, got exit 1: packages/devtools/test/model/DockModel.characterisation.test.ts: differs from its base text at line 386
+
+## 84-03 the lens over the questions store
+
+- failed (stale-draw): LQ1 a highlight follows a guard the questions store republishes with another element
+  - AssertionError: moved to the element the store now lists: expected [ '100' ] to deeply equal [ '300' ]
+- failed (stale-draw): LQ3 a guard dropped from the store while it is highlighted leaves no overlay
+  - AssertionError: gone once the store lists no guard: expected [ 'g1' ] to deeply equal []
+- failed (captured-guards): LQ2 a pointer move and a click while picking resolve against the current list of the store
+  - AssertionError: the guard registered while picking is hovered: expected [] to deeply equal [ 'g2' ]
+- failed (second-subscription): LQ4 the panel holds one subscription to each store across the publishes
+  - AssertionError: after mount: expected [ 1, 2 ] to deeply equal [ 1, 1 ]
