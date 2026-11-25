@@ -21,12 +21,14 @@
  * which never touches dispatch, notification or the scheduler at all, and this
  * provider forks none.
  *
- * **The registry's lifetime is decided in `RegistryLease.ts`, once.** The provider
- * builds one registry and keeps it for its life; when every effect of the provider
- * has been cleaned up and none re-runs within a macrotask (an unmount, or an
- * `<Activity>` hidden for longer), the registry is recycled in place with `reset()`
- * rather than disposed or replaced, so a consumer revealed later still reads a live
- * one (ADR-QD-195).
+ * **The registry's lifetime is decided in `RegistryOwner.ts` and `RegistryLease.ts`.**
+ * The owner builds, seeds, commits to and recycles the registry and imports no React;
+ * the lease decides when; the provider builds one owner and forwards its commits,
+ * holds and releases (ADR-QD-195, ADR-QD-199). The registry is kept for the provider's
+ * life; when every effect of the provider has been cleaned up and none re-runs within a
+ * macrotask (an unmount, or an `<Activity>` hidden for longer), it is recycled in place
+ * with `reset()` rather than disposed or replaced, so a consumer revealed later still
+ * reads a live one.
  * A recycle detaches any subscription a host holds directly on the registry
  * (`registry.subscribe`, or `mount`, reached through `RegistryContext`); this
  * package's own hooks have unsubscribed before it runs.
@@ -35,7 +37,7 @@ import type { AuthSubject } from "@qadi/core";
 import { useAtomValue as useLibraryAtomValue } from "@effect/atom-react/Hooks";
 import { RegistryContext } from "@effect/atom-react/RegistryContext";
 import type * as Atom from "effect/reactivity/Atom";
-import * as AtomRegistry from "effect/reactivity/AtomRegistry";
+import type * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import {
   createContext,
   useContext,
@@ -56,8 +58,8 @@ import {
 import type { ProviderSignal, ProviderSignalReporter } from "./DeveloperSignals.ts";
 import { MissingQadiProviderError } from "./MissingQadiProviderError.ts";
 import type { QadiAtoms } from "./QadiAtoms.ts";
-import { makeRegistryLease } from "./RegistryLease.ts";
-import type { RegistryLease } from "./RegistryLease.ts";
+import { makeRegistryOwner } from "./RegistryOwner.ts";
+import type { RegistryOwner } from "./RegistryOwner.ts";
 import { GateScopeContext } from "./useGate.ts";
 
 export interface QadiContextValue {
@@ -232,16 +234,12 @@ export const QadiProvider = ({
   };
   // The subject is seeded at registry construction rather than written in an
   // effect, so the first render already has it. Writing it afterwards would
-  // show every guarded control in its pending state for one frame. The registry
-  // is built once per provider and kept for its life; a release recycles it in
-  // place rather than replacing it, so `registryRef` is never cleared.
-  const registryRef = useRef<AtomRegistry.AtomRegistry | undefined>(undefined);
-  const registry = (registryRef.current ??= AtomRegistry.make({
-    initialValues: [
-      [atoms.subject, subject] as const,
-      ...(initialValues ?? []),
-    ],
-  }));
+  // show every guarded control in its pending state for one frame. The owner is
+  // built once per provider and kept for its life; a release recycles its registry
+  // in place rather than replacing it, so `ownerRef` is never cleared.
+  const ownerRef = useRef<RegistryOwner | undefined>(undefined);
+  const owner = (ownerRef.current ??= makeRegistryOwner({ atoms, subject, initialValues }));
+  const registry = owner.registry;
 
   // `makeQadiAtoms`'s own doc comment says to call it once per context, at
   // module scope — the registry above is built once, at mount, and never
@@ -256,37 +254,7 @@ export const QadiProvider = ({
   // nothing else here enforces (DA-06). Detected in any environment and
   // reported through `DeveloperSignals.ts`, whose default speaks only in
   // development while a supplied reporter hears it in production too.
-  const atomsIdentityRef = useRef(atoms);
-  useEffect(() => {
-    if (atomsIdentityRef.current !== atoms) report(providerSignals.atomsReplaced());
-    atomsIdentityRef.current = atoms;
-  }, [atoms]);
-
-  // What the recycle re-seeds from: the atoms and subject of the last commit whose
-  // effects ran, written in an effect so a render React discards never reaches it. A
-  // hidden tree runs no effects, so a prop that changed while hidden is not in it
-  // until the reveal's subject effect writes it (the one-frame tradeoff recorded at the subject effect below).
-  const latestRef = useRef({ atoms, subject });
-  useEffect(() => {
-    latestRef.current = { atoms, subject };
-  }, [atoms, subject]);
-
-  // The reset clears every node and runs its finalizers, which releases the
-  // runtime's layer scope; the subject is then written back so a consumer
-  // subscribing on reveal reads it. Neither `initialValues` nor a hydration seed
-  // is written back: a seed is not an authority (ADR-QD-039), and a re-applied
-  // one could paint an allow the client has since replaced. The write runs even when
-  // a finalizer makes the reset throw, because the reset has already cleared the
-  // nodes by then and a consumer would otherwise subscribe to an unset subject.
-  const leaseRef = useRef<RegistryLease | undefined>(undefined);
-  const lease = (leaseRef.current ??= makeRegistryLease(() => {
-    try {
-      registry.reset();
-    } finally {
-      registry.set(latestRef.current.atoms.subject, latestRef.current.subject);
-    }
-  }));
-
+  //
   // Reverted from a render-phase write (ticket 34): that version reproducibly
   // hung an in-flight re-check forever on a page where `subject` never
   // changes at all — `settled()`'s listener never delivered the final answer
@@ -302,10 +270,8 @@ export const QadiProvider = ({
   // genuine subject change (the real, narrower case ticket 34 was written
   // for) is the known tradeoff of reverting to this effect.
   useEffect(() => {
-    if (registry.get(atoms.subject) !== subject) {
-      registry.set(atoms.subject, subject);
-    }
-  }, [registry, atoms, subject]);
+    owner.commit(atoms, subject, () => report(providerSignals.atomsReplaced()));
+  }, [owner, atoms, subject]);
 
   // Told once per mount: the ref keeps a re-render, or `instrument` toggling off
   // and on, from telling a reporter twice. The console default is latched once
@@ -331,12 +297,12 @@ export const QadiProvider = ({
 
   // The last effect of the provider, so on a reveal it runs after every consumer
   // has subscribed. React runs the cleanup on a StrictMode double effect, on every
-  // hide of an `<Activity>` and on unmount, and gives no sign which: the lease
-  // waits one macrotask, and a hold in between cancels the recycle.
+  // hide of an `<Activity>` and on unmount, and gives no sign which: the owner's
+  // lease waits one macrotask, and a hold in between cancels the recycle.
   useEffect(() => {
-    lease.hold();
-    return () => lease.release();
-  }, [lease]);
+    owner.hold();
+    return () => owner.release();
+  }, [owner]);
 
   // Memoised, or every render of the provider gives every consumer a new
   // context value and re-renders the whole guarded subtree.
