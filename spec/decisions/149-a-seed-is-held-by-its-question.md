@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-149                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-12                                     |
 > | Status         | Accepted — amends ADR-QD-039, ADR-QD-103; reads ADR-QD-148 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-14): Amendment: a seeded question owns its computing atom, in SeededQuestion.ts (ADR-QD-155, CCR-QD-433)<br>1.0 (2026-11-12): Initial (CCR-QD-427)         |
+> | Change History | 1.2 (2026-11-25): amended by ADR-QD-195: a provider's registry is recycled in place, not disposed (CCR-QD-474)<br>1.1 (2026-11-14): Amendment: a seeded question owns its computing atom, in SeededQuestion.ts (ADR-QD-155, CCR-QD-433)<br>1.0 (2026-11-12): Initial (CCR-QD-427)         |
 
 ---
 
@@ -137,3 +137,18 @@ The seed slot, the grant, `seededIn` and the computing atom that reads the seed 
 `makeSeededQuestion` (`HydrationEngine.ts`), read `SeededQuestion.ts`. The decision itself is
 unchanged: a `WeakMap<SeedGrant, SeededDecision>` per question, a `keepAlive` grant node per
 verified entry, and a seed read through `getNodes()` and never `registry.get`.
+
+## Amendment (2026-11-25, ADR-QD-195, CCR-QD-474)
+
+The grant node and the subject node end with the registry's recycle, not its disposal: where this record says a grant
+node ends with `registry.dispose()`, or lasts until the registry is disposed, read until the registry is recycled
+([ADR-QD-195](./195-a-providers-registry-has-one-owner-for-its-lifetime.md)). `reset()` clears every node, the grant
+nodes with it, and the recycle writes back the latest committed subject and nothing else.
+
+A recycle does not re-apply a grant. A seed is not an authority ([ADR-QD-039](./039-a-seed-is-not-an-authority.md)), and
+showing a server's allow again after a long hide, while the client re-evaluates, could paint an allow the client has
+since replaced. So after a hide longer than a macrotask a question the client had not answered renders `Pending`, then
+the client's own answer; one whose subject is `undefined`, or whose resolver never answers, stays `Pending`,
+fail-closed. An answered question never re-reads its seed, so only the unanswered one loses it. The seed lasts from
+registry construction until the client answers or the atom set drops the question, or until a recycle, whichever is
+first.

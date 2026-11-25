@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-148                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-12                                     |
 > | Status         | Accepted — amends ADR-QD-014, ADR-QD-103       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-12): The sweep runs within a few macrotasks of the pressure, not one: after an unmount the registry removes its node a macrotask later and only then does the book signal (CCR-QD-426)<br>1.0 (2026-11-12): Initial (ARCH-83, CCR-QD-426) |
+> | Change History | 1.2 (2026-11-25): amended by ADR-QD-195: a provider's registry is recycled in place, not disposed (CCR-QD-474)<br>1.1 (2026-11-12): The sweep runs within a few macrotasks of the pressure, not one: after an unmount the registry removes its node a macrotask later and only then does the book signal (CCR-QD-426)<br>1.0 (2026-11-12): Initial (ARCH-83, CCR-QD-426) |
 
 ---
 
@@ -127,3 +127,18 @@ mechanism as candidate 1.
 [INV-QD-316](../invariants.md),
 [BEH-QD-198](../behaviors/25-inspection.md),
 [BEH-QD-065](../behaviors/09-react.md), CCR-QD-150, CCR-QD-426.
+
+## Amendment (2026-11-25, ADR-QD-195, CCR-QD-474)
+
+A provider does not dispose its registry. [ADR-QD-195](./195-a-providers-registry-has-one-owner-for-its-lifetime.md)
+keeps one registry for the provider's life and recycles it in place, one macrotask after its last release, with
+`reset()`. The sweep's rules hold across a recycle: by the time it runs, the book's live counts are already zero
+from idle removal, and `reset()` starts no pressure episode of its own and forks nothing. One atom set keeps its
+one sweeper, and no sweep runs inside the call that signalled or in the recycle's stack. The lifetime tests assert
+this across a long hide and reveal with `makeSweepCounter` and `withSweepFork`, as one fork and one sweep per
+pressure episode (LT12), rather than inferring it from a hide and a show in one tick. A hidden gate's question may be
+evicted under pressure and is re-admitted once on the reveal.
+
+The node-level dispose-then-reread window described above is unchanged: it is the registry's own idle removal of a
+node, and the provider takes no part in it. The consequence that the book returns to its bound after a provider
+unmounts now holds after the recycle that follows the unmount.
