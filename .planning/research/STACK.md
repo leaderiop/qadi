@@ -1,197 +1,207 @@
-# Stack Research — v1.10 Arch Wave 15 (Phases 81–84, ARCH-128..131)
+# Stack Research: v1.11 Arch Wave 16 (Phases 85-91, ARCH-132..138)
 
-**Domain:** internal architecture deepening of an Effect v4 authorization monorepo (devtools model/hooks, `@qadi/react` provider)
-**Researched:** 2026-11-24
-**Confidence:** HIGH. Every version was read from the installed `node_modules`, and every behavioural claim was either read in installed source or reproduced with a throwaway probe (deleted afterwards; no source or test file was changed).
+**Domain:** internal architecture deepening of an Effect v4 authorization monorepo (devtools model/dock, `@qadi/react` provider, `@qadi/audit` admission, `@qadi/core` port descriptions, named barrels)
+**Researched:** 2026-11-25
+**Confidence:** HIGH. Every version was read from `node_modules` or `pnpm-workspace.yaml`. Every behavioural claim was read in installed source or reproduced with a throwaway probe under the session scratchpad (`.../scratchpad/probe`, `ts2883`, `ts2883b`, `madge-*.json`). No repo file was changed. `scripts/next-id.mjs` was not run.
 
-**Verdict: no stack change. No new dependency, no version bump, no new config.** Everything the four phases need is already installed and already used in the repo. This file records the verified facts the planner needs, the exact APIs to reuse, and the traps found.
+**Verdict: no stack change. No new dependency, no version bump, no new config file.** All seven phases are TypeScript restructuring over APIs already installed and already used. What follows is the verified surface the planner needs, plus seven traps found while checking. The four that can silently break a phase are in **Traps that change a phase plan** below. Read those first.
 
-## Recommended Stack (installed, verified)
+## Installed versions (read, not remembered)
 
-### Core Technologies
+| Technology | Installed | Used by | Note |
+|------------|-----------|---------|------|
+| `effect` | 4.1.2 | all | Catalog is `latest`; `pnpm-lock.yaml` pins 4.1.2; peer range `^4.0.0` (`pnpm-workspace.yaml`). |
+| `@effect/atom-react` | 4.1.2 | 86 | Glue only. Not touched by 86 (the owner is React-free). |
+| `react` / `react-dom` | 19.3.1 | 86, 88 | `<Activity>` stable in this range. |
+| `typescript` | 7.0.2 (native `tsc`) | 91 | Classic `ts.*` JS API is gone; the parse API is `typescript/unstable/{sync,ast}` (used by `scripts/lib/module-state-scan.mjs`). |
+| `vitest` | 5.1.0 | all | Root `vitest.config.ts` has `projects: ["packages/*"]`. Run from the repo root with `--project`. |
+| `@effect/vitest` | 4.1.2 | all | `it.effect`, `TestClock`. |
+| `tstyche` | 7.2.5 | 91 | `tstyche.json` target `6.0.3`, compiles under `tsconfig.tstyche.json`. |
+| `madge` | 8.0.0 | 91 (also 90) | `pnpm circular` = `madge --circular --extensions ts,tsx packages/*/src`. Baseline today: 245 files, no cycle. |
+| `@stryker-mutator/core` / `vitest-runner` | 10.1.1 / 10.1.1 | all | `vitest-runner >= 10.1.1` is load-bearing (ADR-QD-074 amendment). |
+| `oxlint` | 1.92.0 | all | `.oxlintrc.json` has no react-hooks rules. Reading a ref during render is not a lint failure. |
 
-| Technology | Installed version | Purpose in Wave 15 | Why / note |
-|------------|-------------------|--------------------|------------|
-| `effect` | 4.1.2 | `Equal.equals` (83 per-field fold), `Effect.fn`, scopes; `AtomRegistry` (82) lives at `effect/reactivity/AtomRegistry` (the `unstable/` path does not exist in 4.1.2) | Catalog is `latest`; the lock pins 4.1.2. Peer range stays `^4.0.0`. |
-| `@effect/atom-react` | 4.1.2 | `RegistryContext`, `useAtomValue`; the registry glue for 82 | Already the declared glue (AGENTS.md §13). Its own `RegistryProvider` has the same dispose-on-cleanup shape as ours (see 82); there is no upstream fix to adopt. |
-| `react` / `react-dom` | 19.3.1 | `<Activity>` semantics (82), `useLayoutEffect`/`useRef` (82, 84) | Peer is `>=19.2.4`; `Activity` is stable in this range. |
-| `typescript` | 7.0.2 | Generic constraint for 84's `useConfigured<A extends { configure(i: I): void }, I>` | No new compiler feature needed. |
+## Per-phase stack facts
 
-### Supporting Libraries (all already installed, all test-only)
+### Phase 85: hydration as a dock-model row (devtools `src/model/`)
+- Pure TS over what already exists: `makeDerivedStore` / `makeExternalStore` / `sameFields` (`packages/devtools/src/model/ExternalStore.ts`, `sameFields` at `:153`), `Match.tagsExhaustive` for the Pending / Unwired / Counts view. Nothing to install.
+- Coverage: `packages/devtools/src/model/**` is held at **95%** (root `vitest.config.ts`), not 90%. A new pure view file needs its own tests at that bar.
+- Mutation: covered by `stryker.devtools.mjs` (`mutate: packages/devtools/src/model/**/*.ts`). `QuestionsPanel.tsx` is `src/react/` and is not mutated.
 
-| Library | Installed | Purpose | When to use |
-|---------|-----------|---------|-------------|
-| `vitest` | 5.1.0 | Phase RED tests, `vi.useFakeTimers` if a test must cross the `setTimeout(0)` | 81 (pure, no DOM), 82 (`happy-dom`), 83/84 (pure + hook tests) |
-| `@effect/vitest` | 4.1.2 | `it.effect`, `it.layer`, `TestClock` for the model tests | 81, 83 (the feed's run is an Effect) |
-| `happy-dom` | 21.0.4 | `environment: "happy-dom"` in `packages/react/vitest.config.ts` | 82 Activity test; `Activity` hide/reveal works under it (reproduced) |
-| `@testing-library/react` | 16.3.3 | `render`, `act` | 82; reveal must be inside `await act(async …)` |
-| `fast-check` | 4.10.2 | Property tests of the pure fold | 83: the per-field keep-if-equal function is a natural property (idempotent, identity-preserving) |
+### Phase 86: React-free registry owner (react)
+`AtomRegistry` as installed (`node_modules/effect/dist/reactivity/AtomRegistry.{d.ts,js}`; import path `effect/reactivity/AtomRegistry`; every declaration is `@stability unstable`):
 
-### Development Tools
+| API | Behaviour the owner can rely on | Source |
+|-----|---------------------------------|--------|
+| `make({ initialValues, scheduleTask?, timeoutResolution?, defaultIdleTTL? })` | `initialValues` is `Iterable<readonly [Atom, value, InitialValueOptions?]>`, **consumed once, in the constructor** (`RegistryImpl` constructor, `.js:212-231`). Pass an array, never a one-shot generator. No DOM needed: the default dispatcher uses `setImmediate`/microtask (`Scheduler.js:116-122`). | `.d.ts:119`, `.js:57` |
+| `reset()` | Clears every timeout bucket, marks all nodes `removed`, then `runAll(nodes, destroyNode)`. **A throwing finalizer does not stop the others; the first error is rethrown after all nodes are destroyed** (`.js:190-200`, `:422-433`). The registry stays usable. | `.js:422` |
+| `dispose()` | `this.disposed = true; this.reset()`. **Irreversible**: `createNode` throws `Cannot access Atom ...: registry is disposed` forever after (`.js:329-332`). This is the Wave 15 live defect. The owner must never call it on a registry it intends to recycle. | `.js:438` |
+| `set` / `get` / `update` / `modify` after `reset()` | `ensureNode` builds a fresh node. `atoms.subject` is `Atom.keepAlive` (`QadiAtoms.ts:240`), so the written subject survives the macrotask removal sweep. Any non-keepAlive atom written and not read is removed one dispatcher turn later (`scheduleAtomRemoval`, `.js:340-347`). | `.js:330-356` |
+| `ensureNode(atom).setInitialValue(v)` | Public on `Node`. The only in-place re-seed. ADR-QD-195 forbids re-seeding a hydration seed on recycle, so the owner must not use it for that. | `.d.ts:94-112` |
+| `subscribe` / `mount` | Returned unsubscribe schedules node removal when the node `canBeRemoved` (`.js:262-278`). A `reset()` detaches host subscriptions held directly on the registry (documented in `QadiProvider.tsx` header). | `.js:262` |
 
-| Tool | Purpose | Notes |
-|------|---------|-------|
-| `scripts/check-house-style.mjs` | Budgets that new code can trip | 81: the new collect helper must not use `Effect.orDie`/`as`/`any`. 83: deleting `DiagnosticsStore.ts` must keep `spec/overview.md` and `[module-state]`/barrel rules green (the store is package-private, so no export-surface gate fires, but `spec/` ADR-QD-173 prose must be amended). 84: `NOT_CALLABLE_PIN_BUDGET` applies if a `.tst.ts` pin is added for the `Configurable` constraint (use `Params<…>`/twin form per AGENTS.md §6). |
-| Stryker (`pnpm mutation`) | Per-phase mutation re-close (house practice) | `DockModel.ts` keeps a mutation score of 1 (ADR-QD-168); 81 adds branches there, so plan the re-close. |
+Owner shape that keeps ADR-QD-195: `makeRegistryLease(recycle, defer)` already exists and is React-free (`packages/react/src/RegistryLease.ts`, `LeaseDefer = (run) => cancel`, default `setTimeout(run, 0)`). The recycle closure (`try { registry.reset() } finally { registry.set(latest.atoms.subject, latest.subject) }`, `QadiProvider.tsx:200-206`) and the `latestRef` it reads are what move into the owner. **The `finally` is load-bearing**: `reset()` can throw from a finalizer after it has already cleared the nodes, and the subject must still be written back.
 
-## Verified facts the phases rely on
+- Test seam: the owner takes `defer` like the lease does, so `RegistryLease.test.ts`'s recording defer works unchanged. No `@testing-library/react`, no `happy-dom` needed for the owner's own tests.
+- **Mutation (action required):** `stryker.react.mjs` lists exactly five files in `mutate` (`DecisionOutcome`, `QuestionBook`, `HydrationEvent`, `SweepScheduler`, `RegistryLease`). A new owner module is **not measured until it is added to that list**. If `RegistryLease.ts` is folded into the owner, replace its entry. Update the file's header comment, which names each file and its ADR. `QadiProvider.tsx` is not mutated and need not be.
 
-### 81 — what `ExternalStore.ts` already offers (read at `packages/devtools/src/model/ExternalStore.ts`, 221 lines)
+### Phase 87: scoped run that states its stop (devtools `src/model/`)
+- **`Effect.fork` does not exist in effect 4.1.2.** The v4 names are `Effect.forkChild`, `forkScoped`, `forkIn`, `forkDetach` (`Effect.d.ts:17089-17255`). The "fork" in the milestone text is `SupersedingRun.fork` (`SupersedingRun.ts:100`), a store-level method, not an Effect API. The engine does not call any `Effect.fork*`: it installs through `FiberHandle.runtime(handle)<never>()` (`FiberHandle.d.ts:671`), which interrupts the previous fiber on each install. No new Effect API is needed.
+- APIs `SupersedingRun.ts` already uses, all present: `FiberHandle.make`/`runtime`, `Effect.addFinalizer`, `Effect.onExit`, `Exit.isFailure`, `Cause.hasInterruptsOnly` (`Cause.d.ts:620`).
+- `causeMessage(cause)` is exported by `@qadi/core` (`packages/core/src/ThrownMessage.ts:53`): `Cause.pretty`, falling back to `thrownMessage(Cause.squash(cause))` when pretty throws. Four devtools sites already use it (`TimelineFeed.ts:186`, `DiagnosticsFeed.ts:208`, `Diagnostics.ts:263`, `GatesFeed.ts`). `SimulationSession.ts:418` is the only `String(exit.cause)` left.
+- **Probe result for the RED test (reproduced on effect 4.1.2):**
 
-| Member | Exported? | Semantics (verified) | Use in 81/83/84 |
-|--------|-----------|----------------------|-----------------|
-| `makeExternalStore(initial)` | yes | `set` notifies only on a different reference; `publish` always notifies; `notify` runs every listener, collects throws, rethrows via `throwCollected` | 83 feed value store, 84 `LensSession` |
-| `throwCollected(thrown, message)` | **no** (module-private `function`, line 63) | 0 thrown: nothing; 1: the value itself (`undefined`/`null` included); >1: one `AggregateError(thrown, message)`; a thrown `AggregateError` is one value, never flattened (ADR-QD-177) | **81 needs it exported**, or better the loop around it (below) |
-| `sameElements` | yes | reference-equal element-wise | 81: skip the second `spread` when the rail did not move |
-| `sameFields(a, b)` | yes | own enumerable string-keyed fields, `===` per field, a field on one side only counts as moved | 83/84 per-field identity |
-| `sameFieldsOrAbsent(a, b)` | yes | `undefined` equals only `undefined` | `DiagnosticsFeed.configure` already uses it |
-| `makeDerivedStore` | yes | key-gated recompute; releases every parent even if one release throws, then `throwCollected` | already the dock's three derived stores |
+  | Cause | `String(cause)` | `Cause.pretty(cause)` | `causeMessage` |
+  |-------|-----------------|-----------------------|----------------|
+  | `die(new Error("boom"))` | `Cause([Die(Error: boom)])` | `Error: boom` + stack | the pretty text |
+  | `die(hostile)` (throwing `toString`/`message`) | `Cause([Die([toString threw])])` | **throws** | `thrownMessage` placeholder |
+  | `interrupt()` | `Cause([Interrupt(undefined)])` | `InterruptError: All fibers interrupted without error {...}` | the pretty text |
 
-**Recommendation for 81 (no new dependency):** the "run every step, collect throws, rethrow once" loop now exists twice in this file (`notify`, the derived store's finalizer) and the dock needs a third. Add one package-private export beside `throwCollected`, for example `runCollecting(steps: ReadonlyArray<() => void>, message: string): void`, and make all three call it. The dock's `configure` becomes: validate (`completeDockInputs`, still first and still allowed to throw before anything moves), assign `held`, then `runCollecting([timeline step, catalogue step, ports, gates, diagnostics, shownReading.refresh], "…")`. Keep it out of the devtools barrel (the barrels are named per module, AGENTS.md §9; `ExternalStore.ts` is already barrel-free). This reproduces the ADR-QD-177 rule at one more call site without a second implementation of it, and it fixes "a second throw replaces the first" by construction (`AggregateError` on two).
+  ADR-QD-182 decision 11 is correct: `String(cause)` **never throws**. The RED test therefore cannot assert a throw. It must assert the `Broke.message` **equals `causeMessage(cause)`** (or lacks the `Cause([` wrapper). The existing assertions (`SimulationSession.test.ts:1358` includes `"the layer exploded"`; `.runs.test.ts` SR1 includes `"Interrupt"`) still pass under `causeMessage`, because the pretty text of an interrupt contains `InterruptError`.
+- Mutation: `stryker.devtools.mjs` covers `SupersedingRun.ts`, the three feeds, `SimulationSession.ts` and `GatesFeed.ts`. Coverage bar 95%.
 
-**Order trap:** step order in `configure` is semantic, not incidental. The comments pin: `held` assigned before the timeline publishes; gates applied before `shownReading.refresh()`; the model's own timeline listener subscribed before any host listener. A collected-steps list must preserve exactly that order (`runCollecting` runs in array order).
+### Phase 88: `StoppedBox` keys itself (devtools `src/react/`)
+- `StoppedBox.tsx` (`useState(() => announced.current.stop !== status)` plus a `useLayoutEffect` ledger write) and `useStopNotice.ts` hold the logic. Both are under `src/react/`, which **no Stryker config reaches** (`stryker.devtools.mjs` is `model/**` only). The verify for 88 is tests plus the 90% coverage floor, not a mutation score. Say so in the phase's `UNMEASURED` list, as `83-mutation.mjs` does.
+- React 19.3.1 facts: the box is keyed by remounting (`key={n}`); a second stop is a new mount, which is how the alert role is "fixed at mount". The ledger must outlive a screen, so it cannot move into the box's own `useState` (a screen switch unmounts it and it would re-announce). It stays a dock-owned ref (AGENTS.md section 13: it records which stop was announced, never what the reading says). StrictMode double-invokes the `useState` initializer; the existing read is pure, so that is safe. No lint rule forbids a ref read in render.
+- Tests: `happy-dom` + `@testing-library/react`, as in `packages/devtools/vitest.config.ts` (environment is project-wide).
 
-**Double-spread trap:** the timeline listener (`DockModel.ts` ≈349–356) already calls `spread()` when `shown` moved; the catalogue branch then spreads again. `spread` is idempotent through the sessions' `sameElements` guards, so today's cost is wasted work, not wrong state. Skip the second spread by comparing the new `rail` with the one the listener produced (`sameElements`), not by adding a flag.
+### Phase 89: one admission step for an audit batch (audit)
+- Pure TS over `Data.TaggedEnum` / `Data.taggedEnum` (`Data.d.ts`), the pattern `CodecMade.ts:44-58` already uses: `RowsRefusalCases` is a type spread into two enums (`RowsRefusalCases & { NowNotFinite: ... }` in `ArchiveFacts.ts:151` and `Retention.ts:48`). `NowNotFinite` is declared twice today (`ArchiveFacts.ts:141`, `Retention.ts:51`) and checked twice (`AuditArchive.ts:184`, `Retention.ts:101`, both plain `Number.isFinite`). Add it to the shared cases the same way. No new Effect API.
+- Import graph (madge, base): `CodecMade` is a leaf; `ArchiveFacts -> {AuditEntry, CodecMade}`; `AuditArchive -> {ArchiveFacts, AuditEntry}`; `Retention -> {AuditArchive, AuditEntry, CodecMade}`; `SequenceIntegrity -> ArchiveFacts`. A shared admission module placed in or beside `CodecMade.ts` that imports only `AuditEntry`/`effect` adds no cycle.
+- Mutation: `stryker.audit.mjs` (`packages/audit/src/**/*.ts` minus `index.ts`). Coverage floor 90%.
 
-### 82 — React 19.3.1 `<Activity>` semantics (reproduced in `packages/react`, happy-dom)
+### Phase 90: port facts on the description (core)
+- Pure TS: mapped types over `PortTypes`, `PortSpans`, `PortName = keyof PortSpans` (`PortName.ts`), `PORTS` (`Ports.ts`), `LEAF_NEEDS` (`LeafNeeds.ts:166`). No library API involved.
+- **Madge trap:** `PortName.ts` is documented as "a leaf: no imports", and `PortMetrics.ts` and every port module import the name type from it. Deriving `PortName` as `keyof typeof PORTS` inside `Ports.ts` makes the port modules and `PortName.ts`'s consumers import `Ports.ts`, which imports every port module: a cycle that madge counts even when every edge is type-only (ADR-QD-037). Derive it from a leaf both sides can import (the description types), not from the registry.
+- Mutation: `stryker.config.mjs` (core, `packages/core/src/**/*.ts` minus `index.ts`). Coverage floor 95%. `readScoped`/`LEAF_NEEDS` changes touch the evaluator's hot path; `pnpm bench` is how AGENTS.md section 5a says to check it.
 
-Probe A: parent state toggles `<Activity mode>`; the child element is a hoisted constant (`stable`), so the child is **not** re-rendered.
+### Phase 91: named barrels for core, react, audit (see next section)
 
-```
-render 1
-layout-up  closureRender=1 ref=ref@render1
-passive-up closureRender=1 ref=ref@render1
---- hide
-layout-down  passive-down
---- show                      <- no "render N" line
-layout-up  closureRender=1 ref=ref@render1
-passive-up closureRender=1 ref=ref@render1
-```
+## Phase 91 tooling analysis
 
-Probe B (StrictMode, parent re-renders the child with new props while hidden):
+### What already works for a named barrel (no change needed)
+| Tool | Finding | Evidence |
+|------|---------|----------|
+| `check-api-surface.mjs` (gate 13) | Already parses `export { ... } from`, `export type { ... } from`, multi-line lists (`logicalLines`), `type` modifiers and `as` renames (`REEXPORT_FROM`, `REEXPORT_OPEN`, `REEXPORT_NAME`). `surfaceOf` treats an index with **zero** `export * from` lines as the implementation and reads its named lists, which is how `@qadi/devtools` works today. It maps `name -> index file` only; no module column is checked. | `scripts/check-api-surface.mjs:62-208, 236-250`. Baseline `api-surface: 942 export(s) documented across 9 package(s)`. |
+| gate 13 safety net | A name dropped from the barrel but still in `spec/overview.md` fails `[stale]`; a name added but undocumented fails `[missing]`. **The 942 count is a mechanical invariant**: run `node scripts/check-api-surface.mjs` before and after; the number must not change unless a Breaking removal is intended and recorded. | `:318-358` |
+| gate 14 (`check-package-install.mjs`) | Check 3b refuses every `lib/` module not in the `exports` map regardless of barrel form. Check 3 only requires `Object.keys(import).length > 0`. Check 4 compiles a consumer against the shipped `.d.ts`. A named barrel changes none of this. | `:370-420` |
+| `pnpm circular` (madge) | Counts `export { x } from` and `export type { X } from` as edges exactly as `export *`. A named barrel adds no edge to the graph (a barrel is a root, imported by no `src` module). Run `pnpm circular` after **each** fold, not at the end: it takes 2.6s. | probe: 245 files, 2.6s |
+| coverage / mutation | Every `packages/*/src/index.ts` is already in the coverage `exclude` list (`vitest.config.ts`), and core and audit exclude `index.ts` from `mutate`. Named barrels stay `index.ts`, so both stay inert. | `vitest.config.ts`, `stryker.config.mjs`, `stryker.audit.mjs` |
+| `verbatimModuleSyntax` | Types must be re-exported with `export type { ... }` (or an inline `type` modifier). The existing devtools barrel already groups `export { values }` then `export type { types }` per module path. | `packages/devtools/src/index.ts` |
 
-```
---- hide                      passive-down
---- tag->b while hidden       render 7, render 8   (hidden Activity still re-renders on prop change)
---- show                      render 9, render 10 (StrictMode double)   passive-up closureRender=10, ref=ref@render1
-```
+### Traps that change a phase plan
 
-| Question | Answer | Confidence |
-|----------|--------|------------|
-| Does hiding run effect cleanups (layout and passive)? | Yes, both, immediately; component state and refs are kept. | HIGH (reproduced) |
-| Does reveal re-run effects without re-rendering the component? | **Yes**, when the element is stable: both layout and passive effects run again, **dependencies ignored**. | HIGH (reproduced) |
-| With which closure? | The **last committed render's** closure (probe B: `closureRender=10` after a hidden re-render; probe A: the only one). Refs/`useState` survive hide/reveal. | HIGH (reproduced; matches the comment already in `useScoped.ts`) |
-| Is a hidden subtree re-rendered when its props change? | Yes (probe B). The reveal then commits that render. | HIGH |
+**1. A type left out of a named barrel silently produces a non-portable shipped `.d.ts` (the real meaning of TS2883 here).** Reproduced on `tsc` 7.0.2 with two composite projects and a `paths` mapping (scratchpad `ts2883b`): a package whose barrel names `make` but not `Hidden` (the interface `make` returns) makes a *dependent* package's unannotated export emit `import("../../a/src/priv").Hidden`, a path into the other package's `src/`, with **exit code 0 and no TS2883**. Naming `Hidden` in the barrel makes it emit `import("@x/a").Hidden`. Today `export *` makes every type nameable; a named barrel removes that guarantee for every type that appears in another package's inferred declarations. Real examples in the repo: `import("@qadi/core").Trace` in `packages/audit/lib` and `packages/react/lib`. A consumer built with `skipLibCheck` then sees an unresolved import as `any`, so gate 14's check 4 may not catch it.
+- **Required mitigation (add as a verify step, ideally as a gate-14 check):** after `pnpm typecheck`, no `packages/*/lib/**/*.d.ts` may contain a code specifier that escapes its package. Baseline today is clean:
+  `/usr/bin/grep -rEn --include='*.d.ts' 'import\("(\.\./){2,}|from "(\.\./){2,}' packages/*/lib` returns only doc-comment lines (verified: two hits, both in comments). The planner should make this a real check in `check-package-install.mjs` (AGENTS.md section 15: gated, not remembered), not a one-off.
+- AGENTS.md section 9's sentence "Re-export internal types explicitly where `.d.ts` emission needs to name them (TS2883)" becomes the barrel itself. The now-redundant `export type { ... }` lines whose only purpose was TS2883 (`Hydration.ts:36-45`, `QadiAtoms.ts`' `HydrationMismatch`, `QadiProvider.tsx:114-125`) can move into the barrel, keyed to the module that declares the name.
 
-**Mechanism of the 82 defect (reproduced against the real `QadiProvider`):** hide > one macrotask → the cleanup's `setTimeout(0)` fires `registry.dispose()` and nulls `registryRef`. Reveal re-runs the effect closure that captured the **disposed** `registry` (no re-render, so no new closure). `dispose()` is terminal.
+**2. `const X` + `type X` dual declarations must go in the value group.** The Policy/Matcher/Schema-first types are `export const ValueRef = Schema...; export type ValueRef = typeof ValueRef.Type` (AGENTS.md section 7), and `Context.Service` / `Data.TaggedClass` classes are value and type at once. `export type { ValueRef } from` exports **only the type meaning**, compiles at the barrel, and fails (or `any`s) at the consumer. gate 13 cannot tell value from type. Generate the lists mechanically instead of by hand:
+- Snapshot runtime keys before and after: audit works directly (`node -e 'import("./packages/audit/src/index.ts")'` gave 41 keys). Core does not strip (`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`) and react has `.tsx`, so snapshot `Object.keys(await import("<pkg>/lib/index.js"))` after `pnpm typecheck`. The before and after key sets must be identical.
+- To classify each declared name as value or type use the TS 7 parse API (`typescript/unstable/sync` + `unstable/ast`, as `scripts/lib/module-state-scan.mjs` does through `scripts/lib/typescript-server-child.mjs`). The classic `ts.*` API does not exist in 7.0.2. Do not commit the generator; the barrel is the artifact.
 
-**Trap found beyond the brief — the provider's own effect is not the only thrower.** With a `<Can>` child under the provider, the reveal throws an `AggregateError` of **two** `registry is disposed` errors: one from `QadiProvider.tsx:258` and one from the child's own atom subscription (`@effect/atom-react` `useAtomValue`, reached through the stale `RegistryContext` value). React runs child effects before parent effects in one commit, and a provider-built replacement cannot reach the child before it re-subscribes (the context value only changes on a re-render, which happens after that commit's effects). So a fix that **rebuilds a registry in the provider's effect or via state** (the `useScoped` shape) still fails: the revealed children subscribe to the old, disposed registry first. The registry a revealed child can still reach must be **usable**.
+**3. Two cycle-breakers are not foldable as listed; one is, with a type change.** From `madge --json` on the base tree:
 
-### 82 — what `AtomRegistry` (effect 4.1.2, `packages/effect/src/reactivity/AtomRegistry.ts`) offers
+| Planned fold | Edges (base) | Verdict |
+|--------------|--------------|---------|
+| react `Hydration.ts` into `HydrationEngine.ts` | `Hydration -> {DeveloperSignals, HydrationEngine, HydrationEvent, QadiAtoms (type), SeededDecision}`; **`QadiAtoms -> HydrationEngine`**; `HydrationEngine -> {DeveloperSignals, HydrationBuckets, HydrationEvent, SeededDecision, SeededQuestion}` | **Creates a cycle** `HydrationEngine -> QadiAtoms -> HydrationEngine`, because `Hydration.ts` imports the `QadiAtoms` type and madge counts type-only edges. Foldable only if the folded functions stop naming `QadiAtoms` (a structural parameter type declared in the engine), else keep the file. Needs the madge proof the milestone text asks for. |
+| react `GateRegistry.ts` into `GateWriter.ts` | `GateRegistry -> {DeveloperSignals, GateWriter}`; `GateWriter -> {}` (type import from core only); `DeveloperSignals -> {SeededDecision}` | Acyclic: `GateWriter` would gain `DeveloperSignals -> SeededDecision`, neither of which reaches it. |
+| audit `SequenceIntegrity.ts` into `ArchiveFacts.ts` | `SequenceIntegrity -> ArchiveFacts` only; `ArchiveFacts -> {AuditEntry, CodecMade}` | Acyclic. |
+| core `PortSpanDecode.ts` / `PortSpan.ts` into `PortSpanEncode.ts` | `PortSpan -> PortInterpreter`; `PortSpanEncode -> {PortInterpreter, PortSpan}`; `PortSpanDecode -> {PortSpan, PortSpanEncode}`; `PortInterpreter -> {}` | Acyclic (a chain). `PortSpanEncode` is imported by all five port modules, `PortAccess`, `PortDerivation`, `Predicate`, `SubjectSet`, `Lifecycle`, `GuardHealthCheck`. |
+| core `EvaluationSpan.ts` into the port span files | `EvaluationSpan -> {Decision, Policy, PortSpan, PortSpanEncode, Question}`; `Decision -> {..., Policy, ...}`; `Policy -> {Matcher, Obligation, Permission, PolicyArity, Signature, TreeFold, UntrustedDecode}` | **Risky.** The five port modules import `PortSpanEncode`; if `EvaluationSpan` (which imports `Decision` and `Policy`) merged into it, every port module would import `Decision`/`Policy`. Prove with `pnpm circular`; prefer keeping `EvaluationSpan` apart from the port-facing file. |
 
-| API | Behaviour (read at lines 472–750; probed) |
-|-----|-------------------------------------------|
-| `make({ initialValues, scheduleTask, timeoutResolution, defaultIdleTTL })` | seeds each `[atom, value]` through `ensureNode(target).setInitialValue` in the constructor |
-| `dispose()` (line 746) | `disposed = true; reset()`. **Terminal**: `createNode` (line 619) throws `Cannot access Atom …: registry is disposed` on any later `get`/`set`/`subscribe`; an unsubscribe function from before the dispose is still safe to call |
-| `reset()` (line 727) | clears timeout buckets and **all nodes** (each `node.remove()` runs its lifetime finalizers, so in-flight fibers are interrupted), but leaves `disposed` false: the registry stays **fully usable**. Seeds are lost (`get` returns the atom default until re-seeded); subscriptions to removed nodes are gone |
-| `ensureNode(atom).setInitialValue(v)` | public on the `AtomRegistry` and `Node` interfaces; after a `reset()` it restores a seed (probed: `reset` then `get` → default `0`, then `setInitialValue(7)` → `7`, then `set`/`subscribe` work) |
-| `registry.disposed` | a field of `RegistryImpl`, **not** on the `AtomRegistry` interface: do not read it |
-| `scheduleTask`, `defaultIdleTTL` | exist; **off limits** per AGENTS.md §13 (they reroute dispatch and dropped a required render; ADR-QD-148) |
+Fold one file per task and run `pnpm circular` after each (2.6s). Folding changes Stryker per-file scores and the `Document ID`-style per-file records: see section (d) below.
 
-`@effect/atom-react`'s own `RegistryProvider` (`src/RegistryContext.ts` lines 79–112) uses the identical pattern (ref-built registry, `setTimeout(500)` dispose in cleanup, cancelled on remount) and therefore has the same hide-then-reveal defect. There is nothing upstream to adopt or wait for.
+**4. `devtools-named-barrel` needs generalising, and `barrel-order` goes blind on the converted barrels.** `scripts/check-house-style.mjs:2171-2198` hard-codes `DEVTOOLS_BARRELS = [devtools/src/index.ts, devtools/src/react/index.ts]` and prints `[devtools-named-barrel]`. The §9 `barrel-order` rule (`:2125-2158`) only checks files that are *purely* `export * from` lines and silently `continue`s on anything else, so once core/react/audit convert, **only** the named-barrel rule orders them. Required edit:
+- Rename the rule `[named-barrel]` (tag text appears in `AGENTS.md`, `spec/README.md`, `spec/traceability.md`, `spec/decisions/047-*.md`, `099-*.md`; the script is the only code).
+- Make the list a table `NAMED_BARRELS` of the five files (devtools x2, core, react, audit). `http`, `testing`, `predicate-*` stay `export *` and stay under `barrel-order`; `promise`'s index is the implementation and is skipped by both.
+- Keep the two checks (no `export *`, `from` specifiers sorted in case-sensitive ASCII; the comparison is strict `>`, so a value group and a type group from the same module are both fine, as devtools shows). Core's order is plain filename order, e.g. `./Decision.ts` < `./DecisionCache.ts` because `.` < `C`.
+- One regex gap to close while there: `STAR_EXPORT` catches `export type *`; gate 13's `BARREL` and `UNSUPPORTED` do **not** (`export type * from` is silently invisible to gate 13). The generalised rule already refuses it in a named barrel, which is enough.
+- AGENTS.md section 9 must be rewritten in the same change (it says `@qadi/devtools` is "the one today"), and `spec/overview.md`'s Document ID/Change History, the ADR-QD-047/099 amendments and a CCR row move with it (AGENTS.md section 11).
 
-**Recommendation for 82, opinionated:** one owner for the lifetime means the provider never hands out a registry that a later effect re-run can find dead. With the facts above, the design that satisfies it without new state, a new dependency or a context change:
+**5. `QadiProvider.tsx` currently publishes names by accident.** `export * from "./QadiProvider.tsx"` also publishes `useQadiContext`, `QadiContextValue`, `useAtomValue` and the two `export type`/`export` re-exports at `:114-125`. `spec/overview.md:569` documents `useQadiContext` as public, so a named barrel must **keep** it (or be a recorded Breaking removal). Decide each re-export in that file deliberately: after the barrel names `MissingQadiProviderError` and the signal types from their declaring modules, the pass-through lines in `QadiProvider.tsx` are dead weight.
 
-1. Keep the render-phase, ref-held construction (first render and SSR need the registry and the seeded subject before any effect; AGENTS.md note at `QadiProvider.tsx:214`).
-2. In the deferred cleanup call `registry.reset()` **instead of** `registry.dispose()`, and re-apply the seeds in the same callback (`ensureNode(atoms.subject).setInitialValue(subject)` and each `initialValues` entry, read from the latest-committed props via a ref, as `signalRef` already does), so the registry a revealed child reaches is already seeded before any effect runs. Do not null `registryRef`.
-3. Delete the `registryRef.current = undefined` line: a nulled ref is the second half of the defect (a later render would build a different registry than the one in the committed context value).
-4. Pin it with a test that hides **longer than a macrotask** and reveals with stable children, with a `<Can>` child under the provider (the existing P4 hides and shows in one tick, so it cannot see the defect). Seen RED on the phase base.
+**6. Doc, website, BDD and example fences compile against the barrels.** `pnpm spec:examples`, `pnpm spec:website-examples`, `pnpm test:bdd` and `pnpm example` import from `@qadi/core`, `@qadi/react` and `@qadi/audit`. A dropped name fails there, which is the desired net; budget the run, do not skip it.
 
-The cost of `reset()` over `dispose()`: a straggling read after a true unmount silently recreates a node instead of throwing. That is the accepted trade, because React gives no signal separating "hidden" from "gone", and a registry nothing references is garbage. If the planner prefers keeping a terminal `dispose()` for true unmount, the only React-visible signal is the cleanup of an effect with no later re-run, which does not exist; do not simulate it with a longer timer.
+**7. The surface test is optional for names.** `packages/devtools/test/surface.test.ts` pins `Object.keys(Root)` as a third edit beside the barrel line and the overview row. Gate 13 already catches both drift directions for names across core, react and audit. The only thing it cannot see is value-vs-type (trap 2). Recommend a runtime-keys `surface.test.ts` for the three packages only if the planner wants that pinned permanently; otherwise the before/after key snapshot above is sufficient. Not required by any gate.
 
-**What not to do for 82:** no `useState` holding the registry (a rebuild lands after the children's effects, proven above, and the first-render/SSR seeding needs it in render); no `useScoped` (returns `undefined` on the first pass, which breaks SSR and the "no pending flash" requirement); no `useSyncExternalStore` or `useState` for decisions (AGENTS.md §13); no `AtomRegistry.make` options beyond today's.
+## (d) Stryker coverage per touched file
 
-### 83 — what exists for the fold (no new API needed)
+| Phase | Files touched | Config | Report written to | Gap |
+|-------|---------------|--------|-------------------|-----|
+| 85 | `model/PortCards.ts`, new pure hydration view, `model/DockModel.ts` | `stryker.devtools.mjs` | `reports/mutation-devtools/mutation.json` | `src/react/QuestionsPanel.tsx`, `DockFrame` unmeasured |
+| 86 | new owner module, `RegistryLease.ts` | `stryker.react.mjs` | `reports/mutation-react/mutation.json` | **New file must be added to `mutate`**; `QadiProvider.tsx` unmeasured |
+| 87 | `model/SupersedingRun.ts`, new run module, `TimelineFeed`, `DiagnosticsFeed`, `SimulationSession`, `GatesFeed` | `stryker.devtools.mjs` | same as 85 | none |
+| 88 | `react/StoppedBox.tsx`, `useStopNotice.ts`, `TimelineNotice.tsx`, `DiagnosticsNotice.tsx` | none | none | **All unmeasured**; declare in `UNMEASURED` |
+| 89 | `Retention.ts`, `AuditArchive.ts`, `ArchiveFacts.ts`, `CodecMade.ts`, `SequenceIntegrity.ts` | `stryker.audit.mjs` | `reports/mutation-audit/mutation.json` | none |
+| 90 | `PortDescription.ts`, `PortName.ts`, `Ports.ts`, `PortAccess.ts`, port modules, `LeafNeeds.ts`, `PortDerivation.ts` | `stryker.config.mjs` (core) | `reports/mutation/mutation.json` | none |
+| 91 | all of core/audit `src` (barrel excluded), react `HydrationEngine`, `GateWriter` | `stryker.config.mjs`, `stryker.audit.mjs` | as above | react folds target files **not in** `stryker.react.mjs`; fold into a listed file only if its score must be kept |
 
-| Need | Use | Where |
-|------|-----|-------|
-| Per-field keep-if-equal | the existing private `keep = (previous, next) => Equal.equals(previous, next) ? previous : next` over `effect/Equal` (already imported in `DiagnosticsStore.ts`) | becomes the body of one pure `foldReading(current, next): Diagnostics` that returns `current` itself when every field kept its reference |
-| Holding the value | `makeExternalStore<Diagnostics>` already used by `DiagnosticsFeed`'s `view`; the feed's `show(status)` already publishes status and reading together as one `DiagnosticsSnapshot` | the feed stores `reading` as a plain `let`/value and `view.set({ status, reading })`; `set`'s reference guard replaces the store's own early return |
-| `accept` sink | `runSource` takes `Pick<TimelineStore, "accept">`; mirror it as `Pick<…,"accept">`-shaped `(reading: Diagnostics) => void`, or a bare function | `runDiagnostics(accept, options)`; the `marking` wrapper (3 restated members) disappears because the feed passes its own closure |
-| Resetting on `off()` | assign `noDiagnostics` (constant, keeps identity) | replaces `store = makeDiagnosticsStore()` |
+- **The committed baseline reports are stale and must be re-taken at each phase's base commit.** `reports/mutation/mutation.json` is dated 2026-11-23 20:10, before `5784bbd6` (21:54) changed `packages/core/src`; `mutation-audit` is dated 11-24 04:18 and `mutation-react` 11-25 03:36, both before `ac7578f3` touched their sources. Use the established recipe from `.planning/milestones/v1.10-phases/QD-83-*/83-mutation.mjs`: `pnpm exec stryker run <config> --mutate <files>` from the repo root with stdin closed and nothing else running, record into `NN-mutation-base.json`, compare at close under the removed-mutant rule (a new Survived/NoCoverage/Ignored mutant never passes; a score that falls only because killed mutants were deleted does). `--mutate` on the CLI overrides the config's list, so a not-yet-listed file can be measured without editing the config first, but only the edit makes `pnpm mutation` keep measuring it.
+- A fold or rename (Phase 91, and 85 / 87 if a file is renamed) needs a `RENAMED` map in the phase's mutation script, as `83-mutation.mjs` did for `DiagnosticsStore.ts -> Diagnostics.ts`; `compare` carries mutants through `git diff -M -U0`.
+- `pnpm mutation` (all seven configs) runs only on release PRs and manual runs; `pnpm check:pr` skips it. Re-taking mutation scores is therefore a deliberate per-phase step, not something CI will do.
+- Thresholds in every config: `high 90, low 80, break 80`, `timeoutMS 20000`, `ignoreStatic: true`, `coverageAnalysis: "perTest"`, `tsconfigFile: "tsconfig.stryker-disabled.json"` (deliberately absent file; TypeScript 7 removed `ts.parseConfigFileTextToJson`).
 
-`Diagnostics.questions` is always `undefined` out of the poll (`runDiagnostics` writes `questions: undefined`) and is only ever filled by the **supplied** `DiagnosticsReading.questions`, read in the dock at `DockModel.ts ≈378` as `held.reading?.questions`, not through the feed. The resolution that needs no new type machinery: drop `questions` from `Diagnostics` (the polled shape) and keep it on `DiagnosticsReading` (the supplied shape) only, with `mergeReading`'s `questions` line deleted. That narrows a public type (`Diagnostics` is exported), hence the "possibly Breaking" tag in the roadmap: confirm with `spec/overview.md`/gate 13 and ship a Breaking changeset plus an upgrade-guide entry if it is exported from the barrel.
+## What NOT to add or use
 
-### 84 — what already exists
+| Avoid | Why | Use instead |
+|-------|-----|-------------|
+| `AtomRegistry.dispose()` on a registry the owner recycles | Sets `disposed = true` permanently; every later `createNode` throws (`AtomRegistry.js:329`). | `reset()` plus re-writing the subject, as ADR-QD-195 already does. |
+| `scheduleTask` / `defaultIdleTTL` on the provider's registry | Reroutes dispatch through React's scheduler and drops a required render (ADR-QD-014, AGENTS.md section 13). Unchanged by this wave. | Leave both unset; eviction stays the atom set's sweep (ADR-QD-148). |
+| `Effect.fork` | Does not exist in 4.1.2. | `Effect.forkChild` / `forkScoped` / `forkIn`, or (as `SupersedingRun` does) `FiberHandle.runtime`. |
+| `String(cause)` for a stop message | Never throws, but gives `Cause([Die(...)])` rather than the text a reader sees, unlike the other four devtools sites. | `causeMessage` from `@qadi/core`. |
+| `onFailure` as the only failure path for `SimulationSession` | See trap A below: it skips interrupt-only causes. | Keep reading the exit for the simulation, or give the shared run an explicit interrupt policy. |
+| `export type { X }` for a `const X` + `type X` pair | Drops the value silently (trap 2). | `export { X } from` in the value group. |
+| Deriving `PortName` from `Ports.ts` | madge cycle through every port module (ADR-QD-037). | Derive from the description types, a leaf. |
+| A new dependency (`ts-morph`, `dependency-cruiser`, `eslint-plugin-react-hooks`, `jscodeshift`) | Nothing in these phases needs one: madge, oxlint and the TS 7 parse API already installed cover them. | Existing tooling; throwaway scripts live in the scratchpad, not the repo. |
 
-| Change | API to use | Verified |
-|--------|-----------|----------|
-| `useConfigured` takes a value with `configure` | `<A extends { readonly configure: (inputs: I) => void }, I>(make, inputs)`; `DockModel`, `TimelineFeed`, `DiagnosticsFeed` already expose `configure(inputs)` with matching arity (`DockModel.ts:246`, `TimelineFeed.ts:98`, `DiagnosticsFeed.ts:119`); `GatesFeed.ts:108` too | the three callers' adapters are `(v, i) => v.configure(i)` verbatim |
-| `LensSession.move` | `store.set(next)` | `move` is `if (next === store.getSnapshot()) return; store.publish(next)`, which is `set`'s exact definition (`ExternalStore.ts:93–97`). `choose` arms `armed` after its own `next === current` early return, so `store.set(next)` there is equivalent too |
-| `useLens` one fact two ways | pass the snapshot `instances` or the store, not both | read-only change in `useLens.ts`/`QuestionsPanel.tsx:114–118` |
-| `DockFrame` stop-ledger twice | one local helper in `DevtoolsDock.tsx` | no API |
-| `useTimeline` per-render inputs record (`useTimeline.ts:70`) | `useMemo(() => ({ source, capacity }), [source, capacity])` | `useConfigured`'s layout effect depends on `[value, inputs]`, so a fresh record re-runs `configure` every render; it is a no-op today only because `sameFields` absorbs it. `useMemo` is already imported across the package |
+## Trap A (Phase 87): a shared run must not drop `SimulationSession`'s interrupt-as-`Broke`
+
+`SupersedingRun.fork`'s `onFailure` is suppressed for `Cause.hasInterruptsOnly(cause)` (`SupersedingRun.ts:106-109`), correctly for a run that was superseded or whose scope closed. `SimulationSession` does not use `onFailure`: it runs `Effect.exit(program(...))` **inside** the forked effect and maps every non-success exit of a *current* run to `Broke` (`SimulationSession.ts:~392-419`), and test SR1 (`SimulationSession.runs.test.ts:55`) pins that "a resolver that interrupts itself reads Broke, not Running". The Timeline and Diagnostics feeds, by contrast, want an interrupt-only cause ignored. A unified "scoped run that states its stop" that routes the simulation through `onFailure` would leave SR1's run on `Running` forever. Either keep the exit read inside the run body for the simulation, or give the shared module an explicit policy for a self-interrupt of a still-current run. Open the phase with SR1 green and keep it green.
 
 ## Installation
 
 ```bash
-# Nothing to install. Verify the lock still resolves what this file read:
-pnpm ls effect @effect/atom-react react react-dom vitest happy-dom --depth -1
+# Nothing to install. No dependency, catalog or lockfile change in any phase.
+# Per-phase verify (repo root; zsh aliases grep, so use /usr/bin/grep or bash -c):
+pnpm typecheck                      # also emits packages/*/lib, which the .d.ts portability grep reads
+pnpm circular                       # after every fold in Phase 91 (and Phase 90)
+node scripts/check-api-surface.mjs  # must keep printing: 942 export(s) documented across 9 package(s)
+pnpm lint                           # oxlint + scripts/check-house-style.mjs
+pnpm check:pr                       # the working gate; `pnpm check` adds mutation
 ```
 
-## Alternatives Considered
+## Alternatives considered
 
-| Recommended | Alternative | When the alternative is better |
-|-------------|-------------|--------------------------------|
-| 82: `reset()` + reseed in the deferred cleanup, one ref-held registry | `useScoped`-style state-held registry rebuilt on reveal | Never here: children's effects run first against the stale context (reproduced), and the first pass would be `undefined` (breaks SSR/hydration seeding) |
-| 82: `reset()` + reseed | Dispose only on the real unmount | Only if React ever exposes "hidden vs gone"; it does not in 19.3.1 |
-| 82: `reset()` + reseed | Drop the registry's disposal entirely (no reset) | If in-flight port reads on a hidden provider are acceptable; they are not (fibers would run for an invisible tree) |
-| 81: shared `runCollecting` in `ExternalStore.ts` | A fourth hand-written try/catch loop in `DockModel.ts` | Never: it restates ADR-QD-177's rule a third time, the drift this file's header already warns about |
-| 83: fold as a pure function + the feed's existing `view` store | Keep `DiagnosticsStore` and only trim `marking` | Only if an external subscriber of the store appears; none does (ADR-QD-173; only its own test subscribes) |
-| 84: `store.set` | Keep `move` | Never: it is `set` restated |
+| Recommended | Alternative | Why not |
+|-------------|-------------|---------|
+| Reuse `makeRegistryLease` inside the owner | A new timer abstraction | The lease already takes an injected `defer`, is React-free, has its own tests and a mutation entry. |
+| `causeMessage` in `SimulationSession` | A local `Cause.pretty` try/catch | A private guard is two rules for one thing (ADR-QD-182, rejected there). |
+| Generate named-barrel lists with the TS 7 `unstable` parse API in a throwaway script | Hand-write 600+ names | Value-vs-type mistakes are invisible to gate 13 (trap 2). |
+| Fold only where `pnpm circular` is green | Fold all listed files | `Hydration.ts` into `HydrationEngine.ts` introduces a cycle as written (trap 3). The milestone's own rule ("fold only where the madge graph proves no cycle returns") already says so. |
 
-## What NOT to Use
+## Confidence
 
-| Avoid | Why | Use instead |
-|-------|-----|-------------|
-| Any new npm dependency (state libs, `use-effect-event` shims, `immer`, an Activity polyfill) | Nothing in the four phases is missing; the quality gate is "no new dependency unless unavoidable" and none is | The installed set above |
-| `registry.dispose()` on a provider cleanup (82) | Terminal; React re-runs effects on reveal against the old closure and children subscribe to the old registry | `reset()` + reseed |
-| `registry.disposed`, `dispatcher`, `nodes` (82) | Not on the `AtomRegistry` interface; couples to `RegistryImpl` | `ensureNode`, `reset`, `subscribe` only |
-| `AtomRegistry.make` `scheduleTask` / `defaultIdleTTL` (82) | Off limits (AGENTS.md §13, ADR-QD-148): rerouted dispatch dropped a required render | today's `make({ initialValues })` |
-| `useState`/`useEffect` for decisions, or for the registry to rebuild it (82) | AGENTS.md §13 and the child-effect ordering above | the ref-held registry |
-| `Effect.orDie`, `as`, `any`, `switch (_tag)` in the new collect helper / fold | House rules §4–§6 | `Match.tagsExhaustive`, typed generics |
-| `Date.now()`, `new Date()`, `setTimeout` in the model code (81/83) | House rules §6; tests use `TestClock` | `Clock`, `TestClock`; the only `setTimeout` is the existing React cleanup deferral in `QadiProvider.tsx` |
-| `catchTags({…})` object form | House-style gate | array-form `Effect.catchTag([...], …)` |
-| Exporting `throwCollected`/`runCollecting`, `sameFields`, `DiagnosticsStore` from a barrel | `ExternalStore.ts` is deliberately barrel-free; `exports` map is closed (ADR-QD-099) | named import from `./ExternalStore.ts` inside the package |
-
-## Stack Patterns by Variant
-
-**If a phase's RED test is on a hidden/revealed React tree (82):**
-- Render a hoisted constant element inside `<Activity mode>` toggled by parent state, include a `<Can>` consumer, hide, wait **more than one macrotask** (real timers `await new Promise(r => setTimeout(r, 20))` or fake timers advanced), then `await act(async () => setMode("visible"))`.
-- Because a stable element gives no re-render on reveal, and an unstable one (re-created each parent render) re-renders and hides the defect. P4 in `QadiProvider.sweep.test.tsx:136` hides and shows in one tick, so it passes on the defective code.
-
-**If a phase touches the dock `configure` (81, then 83):**
-- Subscribe a throwing listener on each store (`explorer`, `simulation`, `dock`, `roles`, `questions`, `services`, `diagnostics`) in turn, `configure`, and assert (a) every later step ran, (b) the thrown value reaches the caller (one: itself; two: `AggregateError` in call order), (c) an identical `configure` does not need to heal.
-- 83 follows 81 and edits the same block, so land 81's `runCollecting` first (the roadmap's serial order is right, and nothing in this stack argues for relaxing it).
-
-## Version Compatibility
-
-| Package | Compatible with | Notes |
-|---------|-----------------|-------|
-| `effect@4.1.2` | `@effect/atom-react@4.1.2`, `@effect/vitest@4.1.2` | Same release train; `AtomRegistry` import path is `effect/reactivity/AtomRegistry` |
-| `react@19.3.1` | `react-dom@19.3.1`, `@types/react@19.3.0`, `@testing-library/react@16.3.3` | Peer floor `>=19.2.4`; `Activity` effect semantics above verified on 19.3.1 only. The behaviour that matters (cleanup on hide, effect re-run on reveal with the last committed closure) is the documented model of Activity, but is reproduced here only on 19.3.1: re-check if the floor is ever raised or the catalog moves |
-| `vitest@5.1.0` | `happy-dom@21.0.4`, `@vitest/coverage-v8@5.1.0` | `packages/react` runs `environment: "happy-dom"`; devtools model tests are DOM-free |
-| `typescript@7.0.2` | tstyche `.tst.ts` pins | Phase 84's constraint type is a candidate for a positive type pin; a negative one is budgeted (`NOT_CALLABLE_PIN_BUDGET`) |
+| Claim | Level | Basis |
+|-------|-------|-------|
+| `AtomRegistry` semantics (reset, dispose, make, set, runAll) | HIGH | Read in `AtomRegistry.js:190-441`. |
+| `Effect.fork` absent; `forkChild`/`FiberHandle.runtime` present | HIGH | `Effect.d.ts`, `FiberHandle.d.ts` grep. |
+| `String(cause)` vs `Cause.pretty` vs `causeMessage` table | HIGH | Reproduced with a probe on 4.1.2. |
+| Gate 13/14 handle named barrels | HIGH | Read the scripts; devtools already uses the form. |
+| TS2883 non-portable path with no diagnostic | HIGH for the reproduced shape (two composite projects, `paths`, tsc 7.0.2); MEDIUM for how often the repo's real graph hits it | Scratchpad `ts2883b`; the repo's actual `tsconfig.src.json` graph was not rebuilt. |
+| madge edge table | HIGH | `madge --json` on the base tree. |
+| Stryker file-to-config map | HIGH | Read all configs. |
+| Cycle outcome of folds not listed in the table (core span files other than the ones shown, react `QadiAtoms` types) | MEDIUM | Needs `pnpm circular` per fold. |
 
 ## Sources
 
-- `node_modules/effect/src/reactivity/AtomRegistry.ts` lines 133–160, 472–520, 605–630, 727–750 — `make`, `reset`, `dispose`, `createNode` (HIGH, installed 4.1.2)
-- `node_modules/@effect/atom-react/src/RegistryContext.ts` lines 47–112 — upstream `RegistryProvider` shares the dispose pattern (HIGH, installed 4.1.2)
-- `packages/devtools/src/model/ExternalStore.ts` — full read; `throwCollected` is module-private (HIGH)
-- `packages/devtools/src/model/DockModel.ts` 335–431, `DiagnosticsFeed.ts`, `DiagnosticsStore.ts`, `LensSession.ts` 140–180, `react/useConfigured.ts`, `useScoped.ts`, `useDockModel.ts`, `useDiagnostics.ts`, `useTimeline.ts`; `packages/react/src/QadiProvider.tsx` 190–320 (HIGH)
-- Probes, throwaway, deleted: (1) plain React Activity hide/reveal logging effect closures, stable and hidden-re-render variants, StrictMode on and off; (2) real `QadiProvider` + `<Can>` hidden past a macrotask then revealed, which yields an `AggregateError` of two disposed-registry errors, one at `QadiProvider.tsx:258`; (3) `AtomRegistry` `reset` then `ensureNode().setInitialValue`, and `dispose` then `get`/`subscribe`/unsubscribe (HIGH, first-hand reproduction)
-- `/private/tmp/claude-502/.../scratchpad/wave15-brief.md` — the four candidates and reproductions (HIGH, project-internal)
+- `node_modules/effect/dist/reactivity/AtomRegistry.{d.ts,js}`, `Scheduler.js`, `Effect.d.ts`, `FiberHandle.d.ts`, `Cause.d.ts`, `internal/effect.js` (installed 4.1.2): HIGH.
+- `packages/react/src/{QadiProvider.tsx,RegistryLease.ts,QadiAtoms.ts,Hydration.ts,HydrationEngine.ts}`, `packages/devtools/src/model/{SupersedingRun,TimelineFeed,DiagnosticsFeed,GatesFeed,SimulationSession,ExternalStore}.ts`, `packages/devtools/src/react/{StoppedBox.tsx,useStopNotice.ts}`, `packages/audit/src/{CodecMade,ArchiveFacts,Retention,AuditArchive}.ts`, `packages/core/src/{PortName,Ports,ThrownMessage}.ts`: HIGH.
+- `scripts/check-api-surface.mjs`, `scripts/check-package-install.mjs`, `scripts/check-house-style.mjs:2121-2198`, `stryker.{config,devtools,react,audit}.mjs`, `vitest.config.ts`, `package.json`, `pnpm-workspace.yaml`: HIGH.
+- `spec/decisions/{037,047,099,150,182,195,197}-*.md`, `AGENTS.md` sections 5-9, 13, 15; `.planning/milestones/v1.10-phases/QD-83-*/83-mutation.mjs`: HIGH.
+- Probes: scratchpad `probe/` (Cause rendering), `ts2883/` and `ts2883b/` (declaration emit), `madge-{react,audit,core}.json`: reproducible, deleted with the session.
+- No external web or Context7 lookup was needed: every question was about installed code and this repo's own tooling.
 
 ---
-*Stack research for: v1.10 Arch Wave 15 (internal; no stack change)*
-*Researched: 2026-11-24*
+*Stack research for: Qadi v1.11 Arch Wave 16*
+*Researched: 2026-11-25*
