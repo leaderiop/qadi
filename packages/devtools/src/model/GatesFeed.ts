@@ -28,6 +28,7 @@ import * as Equal from "effect/Equal";
 import * as Schedule from "effect/Schedule";
 import type * as Scope from "effect/Scope";
 import { causeMessage } from "@qadi/core";
+import { makeConfigure } from "./ConfigurePrologue.ts";
 import { DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS } from "./Diagnostics.ts";
 import { makeExternalStore, sameFields } from "./ExternalStore.ts";
 import type { AskedQuestionLike, GateInstanceLike, GateRegistryLike } from "./Gates.ts";
@@ -277,23 +278,29 @@ export const makeGatesFeed = Effect.fn("qadi.devtools.makeGatesFeed")(function* 
   return {
     subscribe: store.subscribe,
     getSnapshot: store.getSnapshot,
-    configure: (next) => {
-      if (runs.closed()) return;
-      const wanted = completeGatesInputs(next);
-      // A failed watch is retried by any configure: the rule's one stated exception.
-      if (sameFields(held, wanted) && watchFailure === undefined) return;
-      const before = held;
-      held = wanted;
-      if (wanted.gates !== registryNow || watchFailure !== undefined) {
-        registryNow = wanted.gates;
-        watch(registryNow);
-      }
-      let asked = store.getSnapshot().asked;
-      if (wanted.questions !== before.questions || wanted.intervalMillis !== before.intervalMillis) {
-        asked = readAsked();
-        cadence();
-      }
-      publish(readRegistry(), asked);
-    },
+    configure: makeConfigure(
+      {
+        closed: runs.closed,
+        complete: completeGatesInputs,
+        held: () => held,
+        // A failed watch is retried by any configure: the rule's one stated exception.
+        same: (a, b) => sameFields(a, b) && watchFailure === undefined,
+        hold: (wanted) => {
+          held = wanted;
+        },
+      },
+      (wanted, before) => {
+        if (wanted.gates !== registryNow || watchFailure !== undefined) {
+          registryNow = wanted.gates;
+          watch(registryNow);
+        }
+        let asked = store.getSnapshot().asked;
+        if (wanted.questions !== before.questions || wanted.intervalMillis !== before.intervalMillis) {
+          asked = readAsked();
+          cadence();
+        }
+        publish(readRegistry(), asked);
+      },
+    ),
   };
 });
