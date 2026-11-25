@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 87
 current_phase_name: One scoped run that states its stop
 status: executing
-stopped_at: Completed 87-08-PLAN.md
-last_updated: "2026-11-25T19:56:18.556Z"
+stopped_at: Completed 87-10-PLAN.md
+last_updated: "2026-11-25T20:49:17.813Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 86 complete, transitioned to Phase 87
-state_head: c540f9c9c33a5eed344a6cf7d3c41a554be3a58c
+state_head: 15ed2589f992df76fee12c88d39c23f66d596262
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 30
-  completed_plans: 27
+  completed_plans: 29
   percent: 29
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: 87 (One scoped run that states its stop) — READY TO EXECUTE
-Plan: 9 of 11
+Plan: 10 of 11
 Status: Ready to execute
 Last activity: 2026-11-25 — Phase 86 complete, transitioned to Phase 87
 
@@ -681,6 +681,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 87 P06 | 20min | 3 tasks | 3 files |
 | Phase 87 P07 | 15min | 2 tasks | 4 files |
 | Phase QD-87 P08 | 20min | 2 tasks | 4 files |
+| Phase 87 P10 | 45min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -1204,6 +1205,9 @@ Progress: [███░░░░░░░] 29%
 - [Phase 87]: 87-06: feed Stopped docs state the one rule (own work ended on anything but success, self-interruption included); rethrow prose lives once in StatedRun.ts
 - [Phase 87]: 87-07: the session's stated-run stop hook applies only while run is Running, so a landed result stays; reasonStyle lives in theme.ts shared by StoppedBox and the Simulator
 - [Phase QD-87]: 87-08: R3, R5, R6, R7 retitled to drop the words onFailure and hook (the shape check reads the protocol test for onFailure); configuredBy is module-private in builtFeeds.ts
+- [Phase 87]: 87-10: the session's live.current() guard in land is an EQUIVALENT mutant (no input reaches it: the older engine suspends before its exit read and a newer fork interrupts it there)
+- [Phase 87]: 87-10: the born modules are measured over their own killers file alone (narrowed vitest include via an untracked scratch config), because the full-suite invocation Timeouts mutants whose hang is in other files' tests
+- [Phase 87]: 87-10: a static mutant of a born file run by hand with ignoreStatic false and Killed is an EXAMINED allowance the absolute rule honours
 
 ### Pending Todos
 
@@ -1291,8 +1295,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T19:56:08.816Z
-Stopped at: Completed 87-08-PLAN.md
+Last session: 2026-11-25T20:49:17.760Z
+Stopped at: Completed 87-10-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
