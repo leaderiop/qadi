@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-197                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-11-25                                     |
 > | Status         | Accepted — amends ADR-QD-192 and ADR-QD-193 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-11-25): the mutation enforcement of the lens session names the devtools mutation run over src/model, not a lens group of stryker.devtools.mjs (CCR-QD-476)<br>1.2 (2026-11-25): the three useConfigured refusals are pinned in useConfigured.tst.ts (CCR-QD-476)<br>1.1 (2026-11-25): the behaviours and invariants that state it are linked (CCR-QD-476)<br>1.0 (2026-11-25): Initial (ARCH-131, CCR-QD-476) |
+> | Change History | 1.4 (2026-11-25): decision 1 states what each of the four pinned refusals of useConfigured refuses, and that only the fourth tells a function property from a method (CCR-QD-476)<br>1.3 (2026-11-25): the mutation enforcement of the lens session names the devtools mutation run over src/model, not a lens group of stryker.devtools.mjs (CCR-QD-476)<br>1.2 (2026-11-25): the three useConfigured refusals are pinned in useConfigured.tst.ts (CCR-QD-476)<br>1.1 (2026-11-25): the behaviours and invariants that state it are linked (CCR-QD-476)<br>1.0 (2026-11-25): Initial (ARCH-131, CCR-QD-476) |
 
 ---
 
@@ -47,17 +47,19 @@ None is a defect. Each is a statement made twice that could be made once, and th
    decision 8 put them, and removing either regresses the first render.
    - **The member is a function property, not a method signature.** It mirrors how the three values declare `configure`, and a
      property is checked contravariantly under `strictFunctionTypes` where a method is checked bivariantly. The scratch check
-     refused every mismatched call in both forms, because TypeScript's weak-type check caught them; the property form is the one
-     that does not rest on that check.
+     refused the first three calls below in both forms: a missing `configure` and a source that is a number are ordinary
+     mismatches, and a diagnostics build handed a timeline's inputs is refused by TypeScript's weak-type check, the message
+     "has no properties in common". Only the fourth call is refused by the property form alone, and the test that pins it was
+     seen failing with the member changed to a method signature.
    - **Inference was checked with no type argument at the three call sites, as they read at revision `8ff027e1`**:
      `useDockModel.ts:30` in the hook `useDockModel`, `useTimeline.ts:71` in `useTimeline` and `useDiagnostics.ts:44` in
      `useDiagnostics`. A scratch file replaced each three-argument call with the two-argument form, on source equal at
      `8ff027e1` to the tree the check ran on. `useConfigured(makeDockModel, inputs)` infers `DockModel`;
      `useConfigured(makeTimelineFeed, { source, capacity })` infers `TimelineFeed`, with `capacity: number | undefined`
      accepted by `TimelineFeedInputs`' `capacity?: number | undefined`; `useConfigured(makeDiagnosticsFeed, options)` infers
-     `DiagnosticsFeed` for `options: DiagnosticsOptions | undefined`. Three calls are refused, each a `@ts-expect-error` in
+     `DiagnosticsFeed` for `options: DiagnosticsOptions | undefined`. Four calls are refused, each a `@ts-expect-error` in
      `useConfigured.tst.ts` beside an accepted twin: a value with no `configure`, `makeDiagnosticsFeed` fed a timeline input,
-     and `makeTimelineFeed` fed `{ source: 1 }`.
+     `makeTimelineFeed` fed `{ source: 1 }`, and a value whose `configure` takes a `number` handed a `number | string`.
    - The three call sites lose their adapter, take no type argument and keep their comments, reworded where they named an
      adapter.
 
@@ -135,7 +137,7 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({ unknownParents, onInvalida
 - **An inline `{ configure(inputs: I): void }` constraint.** Rejected: it is unnamed at the three call sites and in the type
   test, and it is a method signature, checked bivariantly.
 - **A negative `not.toBeCallableWith` pin for the refusal.** Rejected: it costs a counted row in a new file, and an edit to the
-  budget and AGENTS.md §6's table together, for a refusal the compile already makes. Each of the three refusals is a
+  budget and AGENTS.md §6's table together, for a refusal the compile already makes. Each of the four refusals is a
   `@ts-expect-error` with its message fragment checked, beside an accepted twin, and counts nothing.
 - **Collapse `choose` to `store.set(next); return true`.** Rejected: it changes the consumed answer, which tells the page
   whether to see the click.
@@ -179,7 +181,7 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({ unknownParents, onInvalida
   `packages/devtools/test/react/useConfigured.tst.ts` ("the three values each have configure over their own inputs", "the
   three hooks keep their return types", "a value with no configure is refused, and its twin with configure is accepted",
   "a build handed another value's inputs is refused, and its twin with its own inputs is accepted", "a build handed a source
-  that is not a source is refused, and its twin with a source is accepted"),
+  that is not a source is refused, and its twin with a source is accepted", "a value whose configure takes narrower inputs than it is handed is refused, and its twin with its own inputs is accepted"),
   `packages/devtools/test/react/ConfigureFirstRender.characterisation.test.tsx`, and `packages/devtools/test/surface.tst.ts`'s
   refusal of `Configurable` from both entries.
 - Decision 2: `packages/devtools/test/model/LensSession.test.ts` ("a listener told of a pick can take its reveal"; "a command

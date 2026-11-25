@@ -160,3 +160,8 @@ Seen with the constraint `A extends Configurable<I>` of `useConfigured` loosened
   - Error: Unused '@ts-expect-error' directive. ts(2578)
 - failed (loosened-constraint): a build handed a source that is not a source is refused, and its twin with a source is accepted
   - Error: Unused '@ts-expect-error' directive. ts(2578)
+
+Seen with `Configurable`'s member changed from the property `readonly configure: (inputs: I) => void;` to the method `configure(inputs: I): void;` in a copy-backed scratch edit, restored with `cp` (`git diff --quiet HEAD -- packages` clean afterwards).
+
+- failed (method-signature): a value whose configure takes narrower inputs than it is handed is refused, and its twin with its own inputs is accepted
+  - Error: Unused '@ts-expect-error' directive. ts(2578)
