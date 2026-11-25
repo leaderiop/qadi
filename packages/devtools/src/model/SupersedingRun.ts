@@ -16,11 +16,11 @@
  * next `fork` or `stop`.
  *
  * The finalizer is registered after the handle, so on a close it runs first: the
- * run the handle then interrupts is no longer current, and a run that dies as its
- * scope closes is never reported. That order holds only under the default
- * `"sequential"` finalizer strategy; a `Scope.make("parallel")` forks its
- * finalizers and voids it. A `begin` after the close returns a token that is never
- * current.
+ * run the handle then interrupts is not current, so a store that checks
+ * `isCurrent` drops whatever that run lands as its scope closes. That order holds
+ * only under the default `"sequential"` finalizer strategy; a
+ * `Scope.make("parallel")` forks its finalizers and voids it. A `begin` after the
+ * close returns a token that is never current.
  *
  * A run's synchronous prefix runs inside `fork`, so a store sees the state a first
  * step reaches before `fork` returns. A fork requested while another fork's start
@@ -32,9 +32,7 @@
  *
  * Package-private (ADR-QD-099).
  */
-import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
-import * as Exit from "effect/Exit";
 import * as FiberHandle from "effect/FiberHandle";
 import type * as Scope from "effect/Scope";
 
@@ -45,12 +43,6 @@ export interface RunToken {
   readonly [tokenBrand]: true;
 }
 
-/** What `fork` does besides run the effect. */
-export interface ForkHooks {
-  /** Called for the current run's failure that is not an interruption; never for a run that was replaced, stopped or closed. */
-  readonly onFailure?: ((cause: Cause.Cause<unknown>) => void) | undefined;
-}
-
 /** One run at a time; a newer run supersedes and interrupts the one before it. */
 export interface SupersedingRun {
   /** Supersedes the current run and returns the token of the next one. */
@@ -59,7 +51,7 @@ export interface SupersedingRun {
    * Runs `run` while `token` is current; answers whether it did (it was started, or held to start).
    * A token is forked once: a second fork of the same token from inside a start overwrites the held one.
    */
-  readonly fork: (token: RunToken, run: Effect.Effect<void, unknown>, hooks?: ForkHooks) => boolean;
+  readonly fork: (token: RunToken, run: Effect.Effect<void, unknown>) => boolean;
   /** Whether `token` names the run that is current now. */
   readonly isCurrent: (token: RunToken) => boolean;
   /** Supersedes the current run and starts nothing; does nothing visible when no run is live. */
@@ -112,22 +104,13 @@ export const makeSupersedingRun = Effect.fn(function* (): Effect.fn.Return<Super
     }
   };
 
-  const fork = (token: RunToken, run: Effect.Effect<void, unknown>, hooks: ForkHooks = {}): boolean => {
+  const fork = (token: RunToken, run: Effect.Effect<void, unknown>): boolean => {
     if (!isCurrent(token)) return false;
-    const watched = run.pipe(
-      Effect.onExit((exit) =>
-        Effect.sync(() => {
-          if (isCurrent(token) && Exit.isFailure(exit) && !Cause.hasInterruptsOnly(exit.cause)) {
-            hooks.onFailure?.(exit.cause);
-          }
-        }),
-      ),
-    );
     if (starting) {
-      held = { token, run: watched };
+      held = { token, run };
       return true;
     }
-    drain({ token, run: watched });
+    drain({ token, run });
     return true;
   };
 

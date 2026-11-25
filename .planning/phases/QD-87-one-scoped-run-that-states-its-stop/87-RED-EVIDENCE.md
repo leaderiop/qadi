@@ -251,3 +251,16 @@ Each row is green on the new module (twice in a row) and was seen failing once u
   (scratch edit: `rule.hold(wanted)` of `packages/devtools/src/model/ConfigurePrologue.ts` moved after `steps(wanted, before)`; 5 row(s) failed under it)
 - failed (scratch): CP8 the calls run in the order closed, complete, held, same, hold, steps
   (scratch edit: the closed guard of `packages/devtools/src/model/ConfigurePrologue.ts` moved after `rule.complete(raw)`; 4 row(s) failed under it)
+
+## 87-08 the edited protocol rows
+
+Each row is green on the module without the failure hook and was seen failing once under a scratch edit of the module, restored from a copy with `cp` and compared with `cmp` before anything was committed. The failure-hook halves each row once held are held by the stated-run rows ST3, ST4, ST7 to ST12, ST14 and ST17.
+
+- failed (scratch): R3 closing the scope mid-run interrupts the run, even when its release dies
+  (scratch edit: the run installed by `Effect.runFork` in place of the fiber handle, so the scope close interrupts nothing; 13 row(s) failed under it)
+- failed (scratch): R5 stop before any run starts nothing and opens no span
+  (scratch edit: the narrower edit, `stop` forking its empty run under `Effect.withSpan("stop")`, because a stop that opens a span is the property the row states; 2 row(s) failed under it)
+- failed (scratch): R6 stop while a run is in flight interrupts it, and it never completes
+  (scratch edit: `stop` made a no-op (`stop: () => undefined`); 4 row(s) failed under it)
+- failed (scratch): R7 stop after a run completed changes nothing and opens no span
+  (scratch edit: the narrower edit, `stop` forking its empty run under `Effect.withSpan("stop")`, because the row's own state-change assertions need a stop that re-forks a completed run, which the module has no path for; 2 row(s) failed under it)
