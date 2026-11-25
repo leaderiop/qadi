@@ -269,11 +269,17 @@ describe("runDiagnostics", () => {
     }),
   );
 
-  it.effect("a sample carries exactly the four fields the poll reads", () =>
+  it.effect("the sample the poll hands the sink carries exactly the four fields it reads", () =>
     Effect.gen(function* () {
-      const held = recording();
-      const fiber = yield* start(held.sink);
-      assert.deepStrictEqual(Object.keys(held.reading()).sort(), [
+      // A sink that keeps the raw sample: folding would rebuild a four-field reading from any sample.
+      const samples: Array<Diagnostics> = [];
+      const fiber = yield* start({
+        accept: (sample) => {
+          samples.push(sample);
+        },
+      });
+      assert.strictEqual(samples.length, 1);
+      assert.deepStrictEqual(Object.keys(samples[0] ?? {}).sort(), [
         "activity",
         "hydration",
         "portCalls",

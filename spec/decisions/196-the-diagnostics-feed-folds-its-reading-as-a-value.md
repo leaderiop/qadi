@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-196                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-25                                     |
 > | Status         | Accepted — amends ADR-QD-173, ADR-QD-169 and ADR-QD-047 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-25): its Related list links the behaviours and invariants that state it (CCR-QD-475)<br>1.0 (2026-11-25): new (CCR-QD-475) |
+> | Change History | 1.2 (2026-11-25): the test that pins a sample's four fields reads the raw sample and is named for it (CCR-QD-475)<br>1.1 (2026-11-25): its Related list links the behaviours and invariants that state it (CCR-QD-475)<br>1.0 (2026-11-25): new (CCR-QD-475) |
 
 ---
 
@@ -115,7 +115,7 @@
 | A stop | `Stopped` over the kept reading, `sampled` from the flag | the same | FC5, FC6, F23 |
 | A superseded run's sample | dropped by `marking` before the store | dropped by the sink's guard before the fold | FC9, F33 |
 | The engine's parameter | the whole `DiagnosticsStore` | a `DiagnosticsSink`, whose one member is `accept` | `Diagnostics.tst.ts` "a layer's typed failure is not the run's failure", "a valid call passes the parameter check, so the refusals below can fail", "a run with no options has nothing to fail with either"; `Diagnostics.test.ts`'s `runDiagnostics` describe |
-| The poll's sample | the four reads plus `questions: undefined` | the four reads | `Diagnostics.test.ts` "a sample carries exactly the four fields the poll reads" |
+| The poll's sample | the four reads plus `questions: undefined` | the four reads | `Diagnostics.test.ts` "the sample the poll hands the sink carries exactly the four fields it reads" |
 | `Diagnostics.questions` | a public field the poll never wrote | removed | `Diagnostics.tst.ts` "the reading carries no questions field", `surface.tst.ts` "the root's Diagnostics holds exactly the four sampled fields" |
 | `DiagnosticsReading.questions` | kept | kept | `Diagnostics.tst.ts` "a supplied reading carries its questions", `surface.tst.ts` "the root's DiagnosticsReading carries questions" |
 | A supplied reading's questions in the merged reading | copied by `mergeReading` | not part of it | `Diagnostics.test.ts` "a supplied reading's questions are not part of the merged reading" (the flip above), MR1 |
