@@ -102,3 +102,28 @@ registry and cleared `registryRef` at once, with no `setTimeout`, instead of in 
 
   `AssertionError: expected [ …(3) ] to deeply equal []` at `expect(caught).toEqual([])` (`expectNothingThrown`): three
   `registry is disposed` errors, the short hide's reveal meeting the registry the cleanup had just disposed.
+
+## observed commit order on the base
+
+Observed on the phase base with React 19.3.1, from an instrumented run: a copy-backed scratch edit of
+`packages/react/src/QadiProvider.tsx` added a `useLayoutEffect` and a `useEffect` at the end of the provider body and a
+marker in the subject effect and before the deferred `registry.dispose()`, and a scratch harness rendered, inside a toggled
+`<Activity>`, an `Outer` sibling before a hoisted provider whose `child` logged its own layout and passive setups and
+cleanups into the same array. Run alone with `pnpm exec vitest run --project react --silent=false` from the repository
+root, stdin closed. The provider was restored with `cp` from the scratch directory and the harness deleted;
+`git status --porcelain -- packages` printed nothing and `packages/react/src` equals `phase_base` afterwards. Each line is
+what the run printed, entries separated by ` | `.
+
+ORDER mount: Outer layout setup | child layout setup | PROVIDER layout setup | Outer passive setup | child passive setup | PROVIDER subject effect (registry.get) | PROVIDER passive setup
+ORDER short hide and reveal: Outer layout cleanup | PROVIDER layout cleanup | child layout cleanup | Outer passive cleanup | PROVIDER passive cleanup | child passive cleanup | Outer layout setup | child layout setup | PROVIDER layout setup | Outer passive setup | child passive setup | PROVIDER subject effect (registry.get) | PROVIDER passive setup
+ORDER long hide and reveal: Outer layout setup | child layout setup | PROVIDER layout setup | Outer passive setup | child passive setup | PROVIDER subject effect (registry.get) | Outer layout cleanup | PROVIDER layout cleanup | child layout cleanup | Outer passive cleanup | child passive cleanup
+
+The long hide itself, before the reveal, printed: `Outer layout cleanup | PROVIDER layout cleanup | child layout cleanup | Outer
+passive cleanup | PROVIDER passive cleanup | child passive cleanup | registry.dispose()`: the cleanups, then the deferred
+dispose a macrotask later. The reveal threw an `AggregateError` (no boundary was above in this run).
+
+The rule the lines show: setup runs children before the provider, layout effects then passive effects, bottom-up; cleanup
+runs the parent before its children, layout then passive, top-down; the provider's passive setup is the last effect a
+reveal runs. The observation matches the research's prototype. One addition: on the base's long-hide reveal the provider's
+subject effect throws (`registry.get` on the disposed registry), so React unmounts the tree at once (the cleanups above)
+and the provider's passive setup, the last effect of a good reveal, never runs.
