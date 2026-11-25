@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-196                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-11-25                                     |
 > | Status         | Accepted — amends ADR-QD-173, ADR-QD-169 and ADR-QD-047 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-11-25): the new test file DiagnosticsFeed.superseded.test.ts is named where a superseded run's sample and the sampled flag are pinned (CCR-QD-475)<br>1.2 (2026-11-25): the test that pins a sample's four fields reads the raw sample and is named for it (CCR-QD-475)<br>1.1 (2026-11-25): its Related list links the behaviours and invariants that state it (CCR-QD-475)<br>1.0 (2026-11-25): new (CCR-QD-475) |
+> | Change History | 1.4 (2026-11-25): decision 4 amended by ADR-QD-200: the stated run's stop states Stopped (CCR-QD-479)<br>1.3 (2026-11-25): the new test file DiagnosticsFeed.superseded.test.ts is named where a superseded run's sample and the sampled flag are pinned (CCR-QD-475)<br>1.2 (2026-11-25): the test that pins a sample's four fields reads the raw sample and is named for it (CCR-QD-475)<br>1.1 (2026-11-25): its Related list links the behaviours and invariants that state it (CCR-QD-475)<br>1.0 (2026-11-25): new (CCR-QD-475) |
 
 ---
 
@@ -67,6 +67,11 @@
    marks `Live` and `restart()` over an unchanged world notifies twice (FC7, F19). `start()` keeps
    `try { show(Starting) } finally { runs.fork(…) }` ([ADR-QD-194](./194-a-run-of-calls-applies-every-call-whatever-one-throws.md)),
    so no unguarded step returns, and `onFailure` states `Stopped({ reason, sampled })` over the reading it holds.
+
+   > **Amended 2026-11-25 ([ADR-QD-200](./200-one-scoped-run-that-states-its-stop.md), CCR-QD-479).** The feed's `start` is the stated run's `start`, which holds the
+   > `try` and the fork, and the stop that states `Stopped({ reason, sampled })` over the reading the feed holds is the stated
+   > run's, for a current run whose own work ended on anything but success: a collector that interrupts itself is stopped too,
+   > and an interruption from outside never is. The hook is removed. The text above is left as written.
 
 5. **`Diagnostics.questions` is removed; `DiagnosticsReading.questions` is kept.** `Diagnostics` is exactly what the poll
    samples. `mergeReading` does not carry a supplied reading's questions, and its comment and the field's comment say that the

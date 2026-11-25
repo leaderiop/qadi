@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-192                                   |
-> | Revision       | 1.6                                            |
+> | Revision       | 1.7                                            |
 > | Effective Date | 2026-11-24                                     |
-> | Status         | Accepted — amends ADR-QD-137, ADR-QD-173 and ADR-QD-185; amended 2026-11-24 (ADR-QD-194: every step runs on every configure, and the dock's catalogue comparison is gone); amended 2026-11-25 (ADR-QD-197: useConfigured takes a value that has configure, and the per-render hand-over is kept) |
+> | Status         | Accepted — amends ADR-QD-137, ADR-QD-173 and ADR-QD-185; amended 2026-11-24 (ADR-QD-194: every step runs on every configure, and the dock's catalogue comparison is gone); amended 2026-11-25 (ADR-QD-197: useConfigured takes a value that has configure, and the per-render hand-over is kept); amended 2026-11-25 (ADR-QD-200: one configure prologue, closed guard first, its identity gate a parameter) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.6 (2026-11-25): decision 8 amended by ADR-QD-197 (CCR-QD-476)<br>1.5 (2026-11-24): amended by ADR-QD-194 (CCR-QD-473)<br>1.4 (2026-11-24): decision 1 and the alternatives: a bare timeline feed starts no read, and the skipped read is what shipped, unobservable (CCR-QD-471)<br>1.3 (2026-11-24): the retry of a failed watch on each host re-render is pinned by DockRegistryReads.test.tsx<br>1.2 (2026-11-24): decision 2: the dock applies the one rule through its feeds, with no comparison of its own beside the catalogue's<br>1.1 (2026-11-24): the behaviours and invariants that state it; DockRegistryReads.test.tsx pins the registry read counts<br>1.0 (2026-11-24): Initial (ARCH-126, CCR-QD-471) |
+> | Change History | 1.7 (2026-11-25): amended by ADR-QD-200: the configure prologue is one function (CCR-QD-479)<br>1.6 (2026-11-25): decision 8 amended by ADR-QD-197 (CCR-QD-476)<br>1.5 (2026-11-24): amended by ADR-QD-194 (CCR-QD-473)<br>1.4 (2026-11-24): decision 1 and the alternatives: a bare timeline feed starts no read, and the skipped read is what shipped, unobservable (CCR-QD-471)<br>1.3 (2026-11-24): the retry of a failed watch on each host re-render is pinned by DockRegistryReads.test.tsx<br>1.2 (2026-11-24): decision 2: the dock applies the one rule through its feeds, with no comparison of its own beside the catalogue's<br>1.1 (2026-11-24): the behaviours and invariants that state it; DockRegistryReads.test.tsx pins the registry read counts<br>1.0 (2026-11-24): Initial (ARCH-126, CCR-QD-471) |
 
 ---
 
@@ -316,3 +316,14 @@ the memo a no-op, the dock's and a host's records are fresh by construction, mem
 feed's retry of a failed watch depends on repeated calls, so memoisation is not made the hooks' rule. The evidence that the fresh record costs nothing
 is `useTimeline.inputs.characterisation.test.tsx` (TI1 to TI3), and the evidence that the retry is unaffected is G43 in `GatesFeed.test.ts` and
 `DockRegistryReads.test.tsx`, both held. Decision 8's text above is kept.
+
+## Amendment (2026-11-25, ARCH-134, CCR-QD-479): the configure prologue is one function
+
+Decision 5's early return on `sameFields(held, wanted) && watchFailure === undefined` and decision 7's guard on
+`sameFields(held, wanted)` before the timeline's two steps are the identity gate of one function, `makeConfigure(rule, steps)` in
+`ConfigurePrologue.ts` ([ADR-QD-200](./200-one-scoped-run-that-states-its-stop.md)). Its prologue is the closed guard, then the normaliser, then the held inputs, the identity gate, the
+hold and the steps, and the three feeds build their `configure` from it. The gates feed's exception is the rule's `same`
+argument, which answers false while a watch has failed, so any `configure` retries it; the timeline feed passes the per-field rule
+and the diagnostics feed the one that treats absent options as equal only to absent ones. Decision 7's body past the guard was already
+`callAll` over the resize and the read under [ADR-QD-194](./194-a-run-of-calls-applies-every-call-whatever-one-throws.md)
+decision 6, and it is the prologue's steps. Decisions 5 and 7 keep their history.

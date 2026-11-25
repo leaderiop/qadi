@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-194                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-11-24                                     |
-> | Status         | Accepted — amends ADR-QD-177, ADR-QD-185, ADR-QD-191 and ADR-QD-192 |
+> | Status         | Accepted — amends ADR-QD-177, ADR-QD-185, ADR-QD-191 and ADR-QD-192; amended 2026-11-25 (ADR-QD-200: the publish-then-fork ordering is stated once, in the stated run) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-11-25): the test list names TimelineFeed.listeners.test.ts (CCR-QD-473)<br>1.2 (2026-11-25): the change table, item 6 and the test list say what DL1 to DL20 and TF37 now assert (CCR-QD-473)<br>1.1 (2026-11-24): BEH-QD-741 to BEH-QD-745, INV-QD-407 and INV-QD-408 linked (CCR-QD-473)<br>1.0 (2026-11-24): Initial (ARCH-128, CCR-QD-473) |
+> | Change History | 1.4 (2026-11-25): decision 5 amended by ADR-QD-200: the ordering is stated once, in the stated run (CCR-QD-479)<br>1.3 (2026-11-25): the test list names TimelineFeed.listeners.test.ts (CCR-QD-473)<br>1.2 (2026-11-25): the change table, item 6 and the test list say what DL1 to DL20 and TF37 now assert (CCR-QD-473)<br>1.1 (2026-11-24): BEH-QD-741 to BEH-QD-745, INV-QD-407 and INV-QD-408 linked (CCR-QD-473)<br>1.0 (2026-11-24): Initial (ARCH-128, CCR-QD-473) |
 
 ---
 
@@ -131,6 +131,12 @@ repaired it. Six defects came out of that, each seen failing on the code before 
    already closed, and a test pins that (G49). `callAll` is used wherever two or more calls can throw: `notify`, the derived
    release, `DockModel.configure` and `TimelineFeed.configure`.
 
+   > **Amended 2026-11-25 ([ADR-QD-200](./200-one-scoped-run-that-states-its-stop.md), CCR-QD-479).** The order is stated once, in the stated run's `start`, which the
+   > timeline feed, the diagnostics feed and the simulation session start their runs through: the plan's starting state in a
+   > `try`, the engine forked in the `finally`, and what the publish threw rethrown after the fork. No store holds the pair,
+   > so the three sites above are one. The clause that says a run's failure is its exit "reported through `onFailure`" is
+   > superseded: the hook is removed, and the stated run reads the exit and states the stop. The text above is left as written.
+
 6. **A nested `configure` decides the end state.** A listener that calls `configure(second)` from inside a step runs a
    whole nested `configure`, and the outer call's remaining steps then read the nested inputs, so the model ends where a
    plain `configure(second)` on a fresh model ends (DL17). The same holds inside the timeline feed: its read step reads the
@@ -222,6 +228,7 @@ listeners account for the whole difference.
 - [ADR-QD-191](./191-a-timeline-store-owns-its-capacity.md) — a refused capacity throws before anything moves, and the `try`/`finally` of decisions 6 and 11 is `callAll`; amended by this decision
 - [ADR-QD-192](./192-feeds-and-the-dock-model-take-inputs-only-through-configure.md) — one per-field rule per feed, whose every step is a no-op on held inputs; the `try`/`finally` of decisions 3 and 7 is `callAll`; amended by this decision
 - [ADR-QD-099](./099-entry-points-are-a-closed-list.md) — `callAll` stays out of both barrels
+- [ADR-QD-200](./200-one-scoped-run-that-states-its-stop.md) — the ordering of decision 5 is stated once, in the stated run's `start`
 - [BEH-QD-741](../behaviors/28-devtools-screens.md#beh-qd-741-a-dock-configure-applies-every-input-whatever-a-listener-throws),
   [BEH-QD-742](../behaviors/28-devtools-screens.md#beh-qd-742-what-the-steps-of-a-configure-threw-surfaces-once-after-the-last-step),
   [BEH-QD-743](../behaviors/28-devtools-screens.md#beh-qd-743-the-sightings-rail-is-a-derived-store-so-a-record-moves-its-readers-whatever-a-listener-throws),
