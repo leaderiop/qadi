@@ -189,8 +189,12 @@ export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed"
         const current = view.getSnapshot();
         const reading = foldReading(current.reading, sample);
         sampled = true;
-        // An unchanged sample folds to the same reading, so Live is marked here, not by a changed one.
-        show(DiagnosticsStatus.$is("Live")(current.status) ? current.status : DiagnosticsStatus.Live(), reading);
+        // An unchanged sample folds to the same reading, so Live is marked here, not by a
+        // changed one.
+        show(
+          DiagnosticsStatus.$is("Live")(current.status) ? current.status : DiagnosticsStatus.Live(),
+          reading,
+        );
       },
     };
     // Before the fork: its synchronous prefix may already reach `Live` or `Stopped`. The one
@@ -200,7 +204,10 @@ export const makeDiagnosticsFeed = Effect.fn("qadi.devtools.makeDiagnosticsFeed"
     } finally {
       runs.fork(token, runDiagnostics(sink, next), {
         onFailure: (cause) =>
-          show(DiagnosticsStatus.Stopped({ reason: causeMessage(cause), sampled }), view.getSnapshot().reading),
+          show(
+            DiagnosticsStatus.Stopped({ reason: causeMessage(cause), sampled }),
+            view.getSnapshot().reading,
+          ),
       });
     }
   };

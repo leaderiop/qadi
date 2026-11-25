@@ -218,11 +218,11 @@ export interface DiagnosticsSink {
 /**
  * Samples the diagnostics into a sink until interrupted.
  *
- * Reads once at the start and then once per `intervalMillis`, handing each sample to `sink.accept`. The error channel is
- * `never`: a layer that fails to build is reported as `WiringRead.Failed` while
- * the other reads carry on, because a run that died would leave every panel
- * blank. A defect in a sample, such as a collector whose snapshot throws, ends the
- * run as it ends `runSource`.
+ * Reads once at the start and then once per `intervalMillis`, handing each sample to
+ * `sink.accept`. The error channel is `never`: a layer that fails to build is reported as
+ * `WiringRead.Failed` while the other reads carry on, because a run that died would leave
+ * every panel blank. A defect in a sample, such as a collector whose snapshot throws, ends
+ * the run as it ends `runSource`.
  */
 export const runDiagnostics = Effect.fn("qadi.devtools.runDiagnostics")(function* (
   sink: DiagnosticsSink,
