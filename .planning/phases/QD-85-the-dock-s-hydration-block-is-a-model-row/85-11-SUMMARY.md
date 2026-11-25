@@ -27,7 +27,7 @@ duration: 10min
 completed: 2026-11-25
 commits: 1
 plan_head_before: 7ebeb0c239d09ce3066e9514427bfd5f021a6eef
-plan_head_after: PENDING
+plan_head_after: 0193aeefe46638e1045a4f51c9b4c93c0efa0400
 actuals:
   tokens: 4000
   tasks: 2
@@ -134,7 +134,7 @@ A fix that touches neither file needs only step 3.
 | `git branch -r --contains a6372095` (the first commit after the base) | prints nothing: no remote branch holds a phase commit; `arch-wave-16` has no upstream |
 | `node 85-check.mjs scan-ids` | `scan-ids: no id or phase wording in added lines` |
 | `node 85-check.mjs trailers` (before this plan's commit) | `trailers: 31 plan commits, each with the one trailer` |
-| `node 85-check.mjs trailers` (after this plan's commit) | see Self-Check |
+| `node 85-check.mjs trailers` (after this plan's commit `0193aeef`) | `trailers: 32 plan commits, each with the one trailer` |
 
 No `changeset version`, push, merge, tag, publish or release was run.
 
@@ -177,4 +177,9 @@ None.
 None. No new network endpoint, auth path or file access; the threat register's T-85-20 and T-85-21 mitigations ran as
 the Release check above.
 
-## Self-Check: PENDING
+## Self-Check: PASSED
+
+- `85-11-SUMMARY.md` exists and `0193aeef` is on `arch-wave-16` with the one trailer.
+- `<S>/check-pr.exit` and `<S>/spec-package.exit` read `0`.
+- `.planning/REQUIREMENTS.md` is unmodified, by the run rules.
+- Nothing was pushed, tagged, versioned or released.
