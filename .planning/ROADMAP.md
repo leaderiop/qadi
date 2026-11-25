@@ -602,10 +602,10 @@ Plans:
   5. `useTimeline`'s per-render inputs record is either memoised or recorded as a rejection against ADR-QD-192 decision 8, with the gates feed's retry-on-configure (G43) unaffected, and ADR-QD-197 records the phase or is named unused in CCR-QD-476.
 
 **Planning notes**: Standard patterns, and no defect, so no RED: open with characterisations green on the base before any edit (`useConfigured.test.tsx` U1-U4 re-expressed over an object double, `LensSession.test.ts:304/378` mutation-checked so a publish-before-arm fails it, `Lens.adapter.test.tsx:160`'s one-subscription pin); `ConfigureFirstRender` and `Lens.dock` stay unedited. The discuss step decides the `useLens` shape (research recommends `useLens(lens, questions)` subscribing once and returning both snapshots, handlers reading `questions.getSnapshot()` at event time, never writing a ref during render; amend ADR-QD-193 and BEH-QD-737, and edit traceability row 661 in the same commit) and the `useTimeline` record (research recommends a recorded rejection: the value's own rule makes memoisation a no-op, `DevtoolsDock`'s rest spread is fresh per render by construction, and memoising one of three hooks makes them asymmetric; if it memoises, only `useTimeline`, never the dock's or the gates' records). Use positive type pins only for the `Configurable` constraint (`DockModel`, `TimelineFeed` and `DiagnosticsFeed` assignable), which costs no `NOT_CALLABLE_PIN_BUDGET` row; check `useConfigured<A, I>`'s inference. Re-measure `LensSession.ts` (52/52, no open mutant) and list the `src/react` hooks as `unmeasured`. Changeset: none, or a `@qadi/devtools` patch stating "no export changes".
-**Plans**: 13 plans
+**Plans**: 1/13 plans executed
 
 Plans:
-- [ ] 84-01 (W1): Record the mutation base of `LensSession.ts` first, the base facts, and the phase check helper with `no-adapter`, `no-restated-set`, `one-path`, `one-ledger` and `records` (D-21, D-23, D-24).
+- [x] 84-01 (W1): Record the mutation base of `LensSession.ts` first, the base facts, and the phase check helper with `no-adapter`, `no-restated-set`, `one-path`, `one-ledger` and `records` (D-21, D-23, D-24).
 - [ ] 84-02 (W2): The pinned-test check (sixteen held files, the adapter test's two edits, the re-expressed `useConfigured.test.tsx`, the eight refusals, three born files) and Phase 83's checks re-run from a scratch copy (D-20).
 - [ ] 84-03 (W3): `Lens.questions.characterisation.test.tsx` LQ1 to LQ4 on the base, each seen failing; the arm-before-publish pin seen failing on the base (D-10, D-19).
 - [ ] 84-04 (W4): `DockFrame.stops.characterisation.test.tsx` DS1 to DS3 on the base, each seen failing (D-19).
@@ -630,4 +630,4 @@ Phases execute in numeric order: 81 → 82 → 83 → 84
 | 81. The dock model applies every input whatever a listener throws | 11/11 | Complete    | 2026-11-25 |
 | 82. `QadiProvider`'s registry has one owner for its lifetime | 10/10 | Complete    | 2026-11-25 |
 | 83. The diagnostics feed folds its reading as a value | 11/11 | Complete    | 2026-11-25 |
-| 84. `useConfigured` requires `configure`, and the review's small finds | 0/0 | Not started | - |
+| 84. `useConfigured` requires `configure`, and the review's small finds | 1/13 | In Progress | - |
