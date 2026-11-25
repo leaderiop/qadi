@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-88 (`StoppedBox` keys itself and owns the announce-once rule) — EXECUTING
-Plan: 7 of 10
+Plan: 6 of 10
 Status: Ready to execute
 Last activity: 2026-11-25 — Phase 87 complete, transitioned to Phase 88
 
