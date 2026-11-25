@@ -188,3 +188,20 @@ of `cbe375bf` as the plan words it, and it passed, since `cbe375bf` changed only
 
 - check failed: 87-earlier-checks.mjs: 85-check.mjs trailers: expected the line "trailers: 34 plan commits, each with the one trailer", got "trailers: 33 plan commits, each with the one trailer"
   (variant: the ledger row of `85-check.mjs trailers` with its `line` changed from 33 to 34 plan commits)
+
+## 87-05 the stated run
+
+Each row is green on the new module (three runs in a row) and was seen failing once under a scratch edit of `packages/devtools/src/model/StatedRun.ts`, restored from a copy with `cp` and compared with `cmp` before anything was committed.
+
+- failed (scratch): ST1 start publishes the starting state before the engine runs, then runs the engine once
+  (scratch edit: `plan.starting()` moved after the `fork` and the `try`/`finally` removed; 2 row(s) failed under it)
+- failed (scratch): ST2 a starting state whose listener throws is rethrown once by identity after the engine has started
+  (scratch edit: the same edit, `starting()` after the fork; 2 row(s) failed under it)
+- failed (scratch): ST3 a current engine that dies states one stop in the cause text, its first line the error
+  (scratch edit: `causeMessage(exit.cause)` replaced by `String(exit.cause)`; 3 row(s) failed under it)
+- failed (scratch): ST4 a current engine that interrupts itself states one stop naming the interruption
+  (scratch edit: the stop condition given `&& !Cause.hasInterruptsOnly(exit.cause)`; 1 row(s) failed under it)
+- failed (scratch): ST5 a current engine that dies with a value that cannot be described states the one placeholder
+  (scratch edit: `causeMessage(exit.cause)` replaced by `String(exit.cause)`; 3 row(s) failed under it)
+- failed (scratch): ST6 an engine that succeeds states nothing
+  (scratch edit: the narrower edit, the stop condition `runs.isCurrent(token)` stating `Exit.isFailure(exit) ? causeMessage(exit.cause) : "ended"`, because the listed edit of the condition to `runs.isCurrent(token)` alone leaves ST6 green: `causeMessage` of a success exit throws inside the forked body before it states anything; 2 row(s) failed under it)
