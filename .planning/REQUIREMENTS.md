@@ -20,11 +20,11 @@ Every phase runs on branch `arch-wave-15` (off `arch-wave-14` at `902d2128`), st
 
 ### `QadiProvider`'s registry has one owner for its lifetime (Phase 82, ARCH-129, react; live defect)
 
-- [ ] **LEASE-01**: A regression test written on the phase base is RED there and GREEN after: a stable `QadiProvider` element with a real consumer (`<Can>`) below it, inside an `<Activity>` its parent toggles, hidden for longer than a macrotask and shown again, throws nothing (neither the provider's subject effect nor the consumer's subscription) and renders the decision.
-- [ ] **LEASE-02**: The registry's lifetime rule lives in one package-private, headless module that a test drives with an injected timer, and that module is under the React mutation gate. The provider holds no lifetime logic of its own beyond calling it.
-- [ ] **LEASE-03**: Every registry the provider builds is released exactly once on a real unmount, no registry is used after release, and none leaks (StrictMode double effects, a hide shorter and longer than a macrotask, a subject change while hidden, an `atoms` prop change, unmount). The vacuous "disposes its registry when unmounted" test asserts disposal.
-- [ ] **LEASE-04**: After a long hide the provider answers with the current subject and its seeds: whatever the registry recycling loses (subject, `initialValues`, hydration seeds) is restored before any consumer reads, or the loss is recorded and pinned. The sweep scheduler's bound (ADR-QD-148) holds across a long hide and reveal.
-- [ ] **LEASE-05**: ADR-QD-195 records the lifetime rule (amending ADR-QD-014/103/148 as needed); BEH/INV/traceability move with it. If no public export changes, no Breaking changeset; a `@qadi/react` patch changeset records the fix.
+- [x] **LEASE-01**: A regression test written on the phase base is RED there and GREEN after: a stable `QadiProvider` element with a real consumer (`<Can>`) below it, inside an `<Activity>` its parent toggles, hidden for longer than a macrotask and shown again, throws nothing (neither the provider's subject effect nor the consumer's subscription) and renders the decision.
+- [x] **LEASE-02**: The registry's lifetime rule lives in one package-private, headless module that a test drives with an injected timer, and that module is under the React mutation gate. The provider holds no lifetime logic of its own beyond calling it.
+- [x] **LEASE-03**: Every registry the provider builds is released exactly once on a real unmount, no registry is used after release, and none leaks (StrictMode double effects, a hide shorter and longer than a macrotask, a subject change while hidden, an `atoms` prop change, unmount). The vacuous "disposes its registry when unmounted" test asserts disposal.
+- [x] **LEASE-04**: After a long hide the provider answers with the current subject and its seeds: whatever the registry recycling loses (subject, `initialValues`, hydration seeds) is restored before any consumer reads, or the loss is recorded and pinned. The sweep scheduler's bound (ADR-QD-148) holds across a long hide and reveal.
+- [x] **LEASE-05**: ADR-QD-195 records the lifetime rule (amending ADR-QD-014/103/148 as needed); BEH/INV/traceability move with it. If no public export changes, no Breaking changeset; a `@qadi/react` patch changeset records the fix.
 
 ### The diagnostics feed folds its reading as a value (Phase 83, ARCH-130, devtools; Breaking)
 
@@ -79,11 +79,11 @@ Every phase runs on branch `arch-wave-15` (off `arch-wave-14` at `902d2128`), st
 | COLL-04 | Phase 81 | Complete |
 | COLL-05 | Phase 81 | Complete |
 | COLL-06 | Phase 81 | Complete |
-| LEASE-01 | Phase 82 | Pending |
-| LEASE-02 | Phase 82 | Pending |
-| LEASE-03 | Phase 82 | Pending |
-| LEASE-04 | Phase 82 | Pending |
-| LEASE-05 | Phase 82 | Pending |
+| LEASE-01 | Phase 82 | Complete |
+| LEASE-02 | Phase 82 | Complete |
+| LEASE-03 | Phase 82 | Complete |
+| LEASE-04 | Phase 82 | Complete |
+| LEASE-05 | Phase 82 | Complete |
 | DIAG-01 | Phase 83 | Pending |
 | DIAG-02 | Phase 83 | Pending |
 | DIAG-03 | Phase 83 | Pending |
