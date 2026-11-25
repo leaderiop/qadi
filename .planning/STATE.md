@@ -5,16 +5,16 @@ milestone_name: Arch Wave 15
 current_phase: 83
 current_phase_name: The diagnostics feed folds its reading as a value
 status: executing
-stopped_at: Completed 83-06-PLAN.md
-last_updated: "2026-11-25T04:23:43.320Z"
+stopped_at: Completed QD-83-07-PLAN.md
+last_updated: "2026-11-25T04:28:34.895Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 82 complete, transitioned to Phase 83
-state_head: 972fa4a8652e35b873886e250c19e1b2f30b8c24
+state_head: e265bc83719d48b08d59822ad1c32188d91a0f9c
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 32
-  completed_plans: 27
+  completed_plans: 28
   percent: 50
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-83 (The diagnostics feed folds its reading as a value) — READY TO EXECUTE
-Plan: 7 of 11
+Plan: 8 of 11
 Status: Ready to execute
 Last activity: 2026-11-25 — Phase 82 complete, transitioned to Phase 83
 
@@ -630,6 +630,7 @@ Last activity: 2026-11-25 — Phase 82 complete, transitioned to Phase 83
 | Phase QD-83 P04 | 15min | 3 tasks | 38 files |
 | Phase QD-83 P05 | 25min | 3 tasks | 13 files |
 | Phase QD-83 P06 | 15min | 2 tasks | 4 files |
+| Phase QD-83 P07 | 12min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -1101,6 +1102,7 @@ Last activity: 2026-11-25 — Phase 82 complete, transitioned to Phase 83
 - [Phase QD-83]: Barrel export groups for Diagnostics.ts moved ahead of DiagnosticsFeed.ts to satisfy the devtools-named-barrel order rule
 - [Phase QD-83]: 83-05: removal pins written and seen red on the base, landed with the removal so each commit is green
 - [Phase QD-83]: 83-06: foldReading is a function declaration exported from the module only; keep stays private and is called only inside it
+- [Phase QD-83]: 83-07: the feed's per-run sink keeps guard, fold, sampled flag, publish order; off() resets the reading by the diagnosticsOff constant
 
 ### Pending Todos
 
@@ -1182,8 +1184,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T04:23:43.209Z
-Stopped at: Completed 83-06-PLAN.md
+Last session: 2026-11-25T04:28:34.794Z
+Stopped at: Completed QD-83-07-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
