@@ -31,3 +31,14 @@ under it, and the other cells the same edit also moved are not listed. Each edit
   (scratch edit: the try/catch in contain removed in DeveloperSignals.ts; 1 cell(s) failed under it)
 - failed: C9 the first commit writes the prop subject over a seeded one with no reader of it
   (scratch edit: the subject-write effect body emptied; 6 cell(s) failed under it)
+
+## 86-01 the pinned check
+
+`86-pinned-check.mjs` was seen refusing a one-byte change (a trailing newline) to a held test and to the held lease, each
+restored with `cp` from a copy in the scratch directory; the self-test also plants a changed byte, a deleted file, a
+renamed file, a born file added by two commits and a born file that differs from its adding commit.
+
+- check failed: 86-pinned-check.mjs: packages/react/test/QadiProvider.lifetime.test.tsx is reported as M against its base, not unchanged
+  (scratch edit: one newline appended to the held lifetime suite)
+- check failed: 86-pinned-check.mjs: packages/react/src/RegistryLease.ts is reported as M against its base, not unchanged
+  (scratch edit: one newline appended to the held lease)
