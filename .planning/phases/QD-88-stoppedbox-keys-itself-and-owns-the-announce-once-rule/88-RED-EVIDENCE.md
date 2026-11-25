@@ -194,3 +194,119 @@ The base is the one `88-mutation-base.json` records (`phase_base` 892c4d36bf0f63
   - failed: DS1 a diagnostics stop and a timeline stop are each announced once, across tab switches between their screens
   - failed: DS2 a second stop of one feed remounts only its own box, and the other stop is not announced again
   (8 row(s) failed)
+- variant V6: useStopNotice.ts: the memo dependencies without onRestart (no dock row fails)
+  - failed: H2 a notice follows its feed restart while the status stays the same stop
+  (1 row(s) failed)
+- variant V7: StoppedBox.tsx: the alert computed on every render in place of the useState initializer
+  - failed: N9 a stop alerts once, again for a new stop, and a strict-mode first render still alerts
+  - failed: N12 a second stop on a mounted notice remounts it, so its alert is present on the new mount
+  - failed: D4 a stopped poll is stated on Services with its reason, and a restart brings the screen back
+  - failed: D7 a stop is alerted on the first screen that shows it and silent on every revisit
+  - failed: D8 a stop that happened on a screen with no notice alerts on the first visit to one
+  - failed: A1 [plain] each feed stop is announced once and silent on every revisit across tab switches
+  - failed: A1 [StrictMode] each feed stop is announced once and silent on every revisit across tab switches
+  - failed: A2 [plain] a second stop after Restart alerts again on its own feed only
+  - failed: A2 [StrictMode] a second stop after Restart alerts again on its own feed only
+  - failed: A3 [plain] a box mounted again for the announced stop is silent and kept by a re-render, and the next stop remounts it with the alert
+  - failed: A3 [StrictMode] a box mounted again for the announced stop is silent and kept by a re-render, and the next stop remounts it with the alert
+  - failed: A4 [plain] a stop that happened while no notice was mounted alerts on the first visit to a screen with one, for both feeds
+  - failed: A4 [StrictMode] a stop that happened while no notice was mounted alerts on the first visit to a screen with one, for both feeds
+  - failed: A5 [plain] the commit that records a stop does not mount its box again
+  - failed: A5 [StrictMode] the commit that records a stop does not mount its box again
+  - failed: DS1 a diagnostics stop and a timeline stop are each announced once, across tab switches between their screens
+  - failed: DS2 a second stop of one feed remounts only its own box, and the other stop is not announced again
+  - failed: DS3 after a hidden-then-shown dock, Restart on each notice restarts the rebuilt feed of its own kind
+  - failed: 6 thunk handed, stopped before a sample
+  - failed: 7 thunk handed, stopped after a sample
+  - failed: TN3 the notice says what stopped, why, and how to start it again
+  - failed: TN4 a stop alerts once, and a move between timeline tabs keeps the same notice
+  - failed: TN6 a second stop after a restart alerts again
+  - failed: TN7 a strict-mode first render still alerts
+  - failed: TN8 a stop first seen on services alerts at the first timeline tab visited
+  - failed: TN10 a hidden-then-shown dock rebuilds at Reading and alerts afresh on a new stop
+  - failed: TN14 a notice mounted again for the stop already announced does not count it twice
+  - failed: TN15 a notice handed the ledger of another feed records its stop there, and that stop is then silent on it
+  - failed: H1 a render that is thrown away announces nothing, so the stop alerts when it is first shown
+  (29 row(s) failed)
+- variant V8: StoppedBox.tsx: the record effect keyed on [announced, status] in place of [announced.record, status] (invisible in the DOM; caught by the commit-limit row)
+  - failed: C1 a newly shown stop adds at most one commit over a live source
+  (1 row(s) failed)
+- variant V9: useStopNotice.ts: the memo dependencies without ledger
+  - failed: D7 a stop is alerted on the first screen that shows it and silent on every revisit
+  - failed: A1 [plain] each feed stop is announced once and silent on every revisit across tab switches
+  - failed: A1 [StrictMode] each feed stop is announced once and silent on every revisit across tab switches
+  - failed: A2 [plain] a second stop after Restart alerts again on its own feed only
+  - failed: A2 [StrictMode] a second stop after Restart alerts again on its own feed only
+  - failed: A3 [plain] a box mounted again for the announced stop is silent and kept by a re-render, and the next stop remounts it with the alert
+  - failed: A3 [StrictMode] a box mounted again for the announced stop is silent and kept by a re-render, and the next stop remounts it with the alert
+  - failed: A4 [plain] a stop that happened while no notice was mounted alerts on the first visit to a screen with one, for both feeds
+  - failed: A4 [StrictMode] a stop that happened while no notice was mounted alerts on the first visit to a screen with one, for both feeds
+  - failed: DS1 a diagnostics stop and a timeline stop are each announced once, across tab switches between their screens
+  - failed: DS2 a second stop of one feed remounts only its own box, and the other stop is not announced again
+  - failed: TN4 a stop alerts once, and a move between timeline tabs keeps the same notice
+  (12 row(s) failed)
+- variant V10: model/StopLedger.ts: stoppedKey always ledger.count + 1
+  - failed: L2 the recorded stop again: the same key, silent, and recording returns the same ledger
+  - failed: L6 the last stop of a ledger of count three: key three, silent, the same ledger
+  - failed: LAW1 the key is the same before and after the stop is recorded, for every row
+  - failed: LAW3 any sequence of stops: the count equals the number of changes and the key holds across each record
+  - failed: N9 a stop alerts once, again for a new stop, and a strict-mode first render still alerts
+  - failed: N12 a second stop on a mounted notice remounts it, so its alert is present on the new mount
+  - failed: D4 a stopped poll is stated on Services with its reason, and a restart brings the screen back
+  - failed: D7 a stop is alerted on the first screen that shows it and silent on every revisit
+  - failed: D8 a stop that happened on a screen with no notice alerts on the first visit to one
+  - failed: A1 [plain] each feed stop is announced once and silent on every revisit across tab switches
+  - failed: A1 [StrictMode] each feed stop is announced once and silent on every revisit across tab switches
+  - failed: A2 [plain] a second stop after Restart alerts again on its own feed only
+  - failed: A2 [StrictMode] a second stop after Restart alerts again on its own feed only
+  - failed: A3 [plain] a box mounted again for the announced stop is silent and kept by a re-render, and the next stop remounts it with the alert
+  - failed: A3 [StrictMode] a box mounted again for the announced stop is silent and kept by a re-render, and the next stop remounts it with the alert
+  - failed: A4 [plain] a stop that happened while no notice was mounted alerts on the first visit to a screen with one, for both feeds
+  - failed: A4 [StrictMode] a stop that happened while no notice was mounted alerts on the first visit to a screen with one, for both feeds
+  - failed: A5 [plain] the commit that records a stop does not mount its box again
+  - failed: A5 [StrictMode] the commit that records a stop does not mount its box again
+  - failed: DS1 a diagnostics stop and a timeline stop are each announced once, across tab switches between their screens
+  - failed: DS2 a second stop of one feed remounts only its own box, and the other stop is not announced again
+  - failed: DS3 after a hidden-then-shown dock, Restart on each notice restarts the rebuilt feed of its own kind
+  - failed: 6 thunk handed, stopped before a sample
+  - failed: 7 thunk handed, stopped after a sample
+  - failed: TN3 the notice says what stopped, why, and how to start it again
+  - failed: TN4 a stop alerts once, and a move between timeline tabs keeps the same notice
+  - failed: TN6 a second stop after a restart alerts again
+  - failed: TN7 a strict-mode first render still alerts
+  - failed: TN8 a stop first seen on services alerts at the first timeline tab visited
+  - failed: TN10 a hidden-then-shown dock rebuilds at Reading and alerts afresh on a new stop
+  - failed: TN14 a notice mounted again for the stop already announced does not count it twice
+  - failed: TN15 a notice handed the ledger of another feed records its stop there, and that stop is then silent on it
+  - failed: H1 a render that is thrown away announces nothing, so the stop alerts when it is first shown
+  - failed: C1 a newly shown stop adds at most one commit over a live source
+  (34 row(s) failed)
+- variant H3: useStopNotice.ts: the useMemo removed, a new props object every render
+  - failed: H3 the notice is one value across a re-render that changes nothing it holds, and a new value for a new stop
+  (1 row(s) failed)
+- variant VN1: TimelineNotice.tsx: the Stopped arm hands the box a fixed ledger ({ ...notice, announced: { ledger: noStops, record: () => undefined } }) in place of the notice
+  - failed: A1 [plain] each feed stop is announced once and silent on every revisit across tab switches
+  - failed: A1 [StrictMode] each feed stop is announced once and silent on every revisit across tab switches
+  - failed: A2 [plain] a second stop after Restart alerts again on its own feed only
+  - failed: A2 [StrictMode] a second stop after Restart alerts again on its own feed only
+  - failed: A3 [plain] a box mounted again for the announced stop is silent and kept by a re-render, and the next stop remounts it with the alert
+  - failed: A3 [StrictMode] a box mounted again for the announced stop is silent and kept by a re-render, and the next stop remounts it with the alert
+  - failed: A4 [plain] a stop that happened while no notice was mounted alerts on the first visit to a screen with one, for both feeds
+  - failed: A4 [StrictMode] a stop that happened while no notice was mounted alerts on the first visit to a screen with one, for both feeds
+  - failed: DS1 a diagnostics stop and a timeline stop are each announced once, across tab switches between their screens
+  - failed: DS2 a second stop of one feed remounts only its own box, and the other stop is not announced again
+  - failed: TN4 a stop alerts once, and a move between timeline tabs keeps the same notice
+  - failed: TN14 a notice mounted again for the stop already announced does not count it twice
+  - failed: TN15 a notice handed the ledger of another feed records its stop there, and that stop is then silent on it
+  (13 row(s) failed)
+- variant VN2: DiagnosticsNotice.tsx: the same fixed ledger in the diagnostics arm
+  - failed: N9 a stop alerts once, again for a new stop, and a strict-mode first render still alerts
+  - failed: N12 a second stop on a mounted notice remounts it, so its alert is present on the new mount
+  - failed: D7 a stop is alerted on the first screen that shows it and silent on every revisit
+  - failed: A1 [plain] each feed stop is announced once and silent on every revisit across tab switches
+  - failed: A1 [StrictMode] each feed stop is announced once and silent on every revisit across tab switches
+  - failed: A2 [plain] a second stop after Restart alerts again on its own feed only
+  - failed: A2 [StrictMode] a second stop after Restart alerts again on its own feed only
+  - failed: DS1 a diagnostics stop and a timeline stop are each announced once, across tab switches between their screens
+  - failed: DS2 a second stop of one feed remounts only its own box, and the other stop is not announced again
+  (9 row(s) failed)
