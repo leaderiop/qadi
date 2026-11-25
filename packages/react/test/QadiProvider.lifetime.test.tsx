@@ -15,15 +15,26 @@ import type { AuthSubject } from "@qadi/core";
 import { RegistryContext } from "@effect/atom-react/RegistryContext";
 import * as Atom from "effect/reactivity/Atom";
 import type * as AtomRegistry from "effect/reactivity/AtomRegistry";
-import { Activity, Component, useContext, useState, type ReactNode } from "react";
+import { Activity, Component, StrictMode, useContext, useState, type ReactNode } from "react";
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Can, QadiProvider, makeQadiAtoms, useSubject } from "../src/index.ts";
-import type { QadiAtoms } from "../src/index.ts";
+import {
+  Can,
+  QadiProvider,
+  makeQadiAtoms,
+  useDevtoolsFeed,
+  useInvalidate,
+  useSubject,
+} from "../src/index.ts";
+import type { DevtoolsFeed, ProviderSignal, QadiAtoms } from "../src/index.ts";
 import { settle } from "./support/settle.ts";
 
 const canRead = hasPermission(permission("doc", "read"));
 const reader: AuthSubject = makeSubject({ id: "u1", permissions: ["doc:read"] });
+const otherReader: AuthSubject = makeSubject({ id: "u2", permissions: ["doc:read"] });
+
+/** Held at module scope: the feed keys its memo on the identity of the host's own fields. */
+const EMPTY_EXTRA = {};
 
 type Mode = "visible" | "hidden";
 
@@ -111,13 +122,13 @@ const rig = () => {
     </>
   );
 
-  const mount = (view: (scene: Scene) => ReactNode) => {
+  const mount = (view: (scene: Scene) => ReactNode, strict = false) => {
     const tree = (
       <Boundary sink={caught}>
         <Host initial={initial} control={control} view={view} />
       </Boundary>
     );
-    return render(tree);
+    return render(strict ? <StrictMode>{tree}</StrictMode> : tree);
   };
 
   const hide = () =>
@@ -187,6 +198,180 @@ describe("a provider hidden past one macrotask and shown again", () => {
 
     r.expectNothingThrown();
     expect(screen.getByText("allowed")).toBeDefined();
+    expect(screen.getByText("subject:u1")).toBeDefined();
+  });
+
+  it("LT2 an invalidation after a long hide re-evaluates without throwing", async () => {
+    const r = rig();
+    const handle: { invalidate: (() => void) | undefined } = { invalidate: undefined };
+    const Invalidator = () => {
+      handle.invalidate = useInvalidate();
+      return null;
+    };
+    const element = (
+      <QadiProvider atoms={r.atoms} subject={reader}>
+        {r.body}
+        <Invalidator />
+      </QadiProvider>
+    );
+    r.mount(() => element);
+    await settle();
+
+    await r.longHide();
+    await r.show();
+    await settle();
+    r.expectNothingThrown();
+
+    const { invalidate } = handle;
+    if (invalidate === undefined) throw new Error("the invalidator never rendered");
+    await act(async () => {
+      invalidate();
+    });
+    await settle();
+
+    r.expectNothingThrown();
+    expect(screen.getByText("allowed")).toBeDefined();
+  });
+
+  it("LT3 a devtools feed consumer survives a long hide", async () => {
+    const r = rig();
+    const handle: { feed: DevtoolsFeed<typeof EMPTY_EXTRA> | undefined } = { feed: undefined };
+    const FeedConsumer = () => {
+      handle.feed = useDevtoolsFeed(EMPTY_EXTRA);
+      return null;
+    };
+    const element = (
+      <QadiProvider atoms={r.atoms} subject={reader}>
+        {r.body}
+        <FeedConsumer />
+      </QadiProvider>
+    );
+    r.mount(() => element);
+    await settle();
+
+    await r.longHide();
+    await r.show();
+    await settle();
+    r.expectNothingThrown();
+
+    const { feed } = handle;
+    if (feed === undefined) throw new Error("the feed consumer never rendered");
+    await act(async () => {
+      feed.onInvalidate();
+    });
+    await settle();
+
+    r.expectNothingThrown();
+    expect(screen.getByText("allowed")).toBeDefined();
+  });
+
+  it("LT4 under StrictMode the double effect recycles nothing and a long hide is survived", async () => {
+    const r = rig();
+    const element = (
+      <QadiProvider atoms={r.atoms} subject={reader} initialValues={[[r.host, "seeded"]]}>
+        {r.body}
+      </QadiProvider>
+    );
+    r.mount(() => element, true);
+    await settle();
+    await pastTheRelease();
+
+    expect(r.hostValue()).toBe("seeded");
+    expect(r.seen.size).toBe(1);
+
+    await r.longHide();
+    await r.show();
+    await settle();
+
+    r.expectNothingThrown();
+    expect(r.seen.size).toBe(1);
+    expect(screen.getByText("allowed")).toBeDefined();
+  });
+
+  it("LT5 a hide shorter than a macrotask recycles nothing", async () => {
+    const r = rig();
+    const element = (
+      <QadiProvider atoms={r.atoms} subject={reader} initialValues={[[r.host, "seeded"]]}>
+        {r.body}
+      </QadiProvider>
+    );
+    r.mount(() => element);
+    await settle();
+
+    await r.hide();
+    await r.show();
+    await pastTheRelease();
+    await settle();
+
+    r.expectNothingThrown();
+    expect(r.hostValue()).toBe("seeded");
+    expect(r.seen.size).toBe(1);
+    expect(screen.getByText("allowed")).toBeDefined();
+  });
+
+  it("LT6 a subject changed while hidden is the one the revealed provider answers with", async () => {
+    const r = rig();
+    r.mount((scene) => (
+      <QadiProvider atoms={scene.atoms} subject={scene.subject}>
+        {r.body}
+      </QadiProvider>
+    ));
+    await settle();
+    expect(screen.getByText("subject:u1")).toBeDefined();
+
+    await r.longHide();
+    await r.change({ subject: otherReader });
+    await r.show();
+    await settle();
+
+    r.expectNothingThrown();
+    expect(r.seen.size).toBe(1);
+    expect(screen.getByText("subject:u2")).toBeDefined();
+  });
+
+  it("LT7 a re-render while hidden past the release keeps one registry", async () => {
+    const r = rig();
+    r.mount((scene) => (
+      <QadiProvider atoms={scene.atoms} subject={scene.subject}>
+        {r.body}
+      </QadiProvider>
+    ));
+    await settle();
+
+    await r.longHide();
+    await r.change({ tick: 1 });
+    await r.show();
+    await settle();
+
+    r.expectNothingThrown();
+    expect(r.seen.size).toBe(1);
+    expect(screen.getByText("allowed")).toBeDefined();
+  });
+
+  it("LT8 an atoms swap while hidden keeps the registry and is reported once", async () => {
+    const r = rig();
+    const tags: Array<ProviderSignal["_tag"]> = [];
+    const second = makeQadiAtoms(EvaluationServicesNone);
+    r.mount((scene) => (
+      <QadiProvider
+        atoms={scene.atoms}
+        subject={scene.subject}
+        onDeveloperSignal={(signal) => tags.push(signal._tag)}
+      >
+        {r.body}
+      </QadiProvider>
+    ));
+    await settle();
+    expect(tags).toEqual([]);
+
+    await r.longHide();
+    await r.change({ atoms: second });
+    await r.show();
+    await settle();
+
+    r.expectNothingThrown();
+    expect(r.seen.size).toBe(1);
+    expect(tags).toEqual(["AtomsReplaced"]);
     expect(screen.getByText("subject:u1")).toBeDefined();
   });
 });

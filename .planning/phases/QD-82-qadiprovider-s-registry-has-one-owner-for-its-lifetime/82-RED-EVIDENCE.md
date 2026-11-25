@@ -56,3 +56,49 @@ is disposed`. Stack heads, as printed by a temporary log of each caught error (r
 The order is the one the research run recorded: the consumers' subscriptions first (`@effect/atom-react`'s `Hooks.js:63`),
 the provider's subject effect last (`QadiProvider.tsx:258`). After the reveal the boundary renders its marker in place of
 the subtree, and `act` does not throw because a boundary is above it.
+
+## the scenario companions on the base
+
+`pnpm exec vitest run --project react --reporter=verbose packages/react/test/QadiProvider.lifetime.test.tsx < /dev/null` on
+the phase base: 1 passed (LT5), 7 failed (LT1 and the six below). Each line is the title, then the assertion line vitest
+printed and the test file line it points at.
+
+- red on the base: LT2 an invalidation after a long hide re-evaluates without throwing
+
+  `AssertionError: expected [ …(4) ] to deeply equal []` at `expect(caught).toEqual([])`: four `registry is disposed` errors
+  (the three of the first reveal and the `useInvalidate` effect's `registry.mount`).
+
+- red on the base: LT3 a devtools feed consumer survives a long hide
+
+  `AssertionError: expected [ …(4) ] to deeply equal []` at `expect(caught).toEqual([])`: four `registry is disposed` errors
+  (the feed consumer also calls `useInvalidate`).
+
+- red on the base: LT4 under StrictMode the double effect recycles nothing and a long hide is survived
+
+  `AssertionError: expected [ …(6) ] to deeply equal []` at `expect(caught).toEqual([])`: six `registry is disposed` errors
+  (StrictMode runs each reveal effect twice). The assertions before the long hide held on the base: the host atom read
+  `seeded` after the double effect and a real macrotask, and one registry was seen.
+
+- red on the base: LT6 a subject changed while hidden is the one the revealed provider answers with
+
+  `AssertionError: expected 2 to be 1 // Object.is equality` at `expect(r.seen.size).toBe(1)`: the re-render while hidden
+  past the release built a second registry, and the reveal threw nothing.
+
+- red on the base: LT7 a re-render while hidden past the release keeps one registry
+
+  `AssertionError: expected 2 to be 1 // Object.is equality` at `expect(r.seen.size).toBe(1)`.
+
+- red on the base: LT8 an atoms swap while hidden keeps the registry and is reported once
+
+  `AssertionError: expected 2 to be 1 // Object.is equality` at `expect(r.seen.size).toBe(1)`.
+
+LT5 passes on the base (`✓ ... LT5 a hide shorter than a macrotask recycles nothing`): a hide that ends before the
+provider's deferral recycles nothing. A passing control is shown able to fail, under a scratch edit of
+`packages/react/src/QadiProvider.tsx` made on a copy-backed file (`cp` to the scratch directory first, `cp` back after,
+`git diff --quiet HEAD -- packages/react/src` holding afterwards). The edit: the dispose effect's cleanup disposed the
+registry and cleared `registryRef` at once, with no `setTimeout`, instead of in the deferred callback. Run with `-t LT5`:
+
+- failed (scratch): LT5 a hide shorter than a macrotask recycles nothing
+
+  `AssertionError: expected [ …(3) ] to deeply equal []` at `expect(caught).toEqual([])` (`expectNothingThrown`): three
+  `registry is disposed` errors, the short hide's reveal meeting the registry the cleanup had just disposed.
