@@ -126,3 +126,8 @@ The base is the one `88-mutation-base.json` records (`phase_base` 892c4d36bf0f63
   (scratch edit: the Simulator broken-run pre takes style={{ ...reasonStyle, padding: 9 }}; 1 row(s) failed under it, SB1 passing)
 - failed (theme style moved): SB1 the stopped box shows its reason in a labelled focusable pre whose style is the reason style
   (scratch edit: the shared reasonStyle in theme.ts has maxHeight 97 in place of 96; 1 row(s) failed under it, SB4 passing)
+
+## 88-06 the surface refusals
+
+- variant surface-refusal: noStops exported from the root entry
+  - failed: packages/devtools/test/surface.tst.ts(318,1): error TS2578: Unused '@ts-expect-error' directive.
