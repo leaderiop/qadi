@@ -610,3 +610,7 @@ entries:
     file: "195-a-providers-registry-has-one-owner-for-its-lifetime.md"
     title: "A provider's registry has one owner for its lifetime"
     status: "Accepted — amends ADR-QD-014, ADR-QD-148 and ADR-QD-149"
+  - id: "ADR-QD-196"
+    file: "196-the-diagnostics-feed-folds-its-reading-as-a-value.md"
+    title: "The diagnostics feed folds its reading as a value"
+    status: "Accepted — amends ADR-QD-173, ADR-QD-169 and ADR-QD-047"
