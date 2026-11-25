@@ -271,7 +271,8 @@ describe("runDiagnostics", () => {
 
   it.effect("the sample the poll hands the sink carries exactly the four fields it reads", () =>
     Effect.gen(function* () {
-      // A sink that keeps the raw sample: folding would rebuild a four-field reading from any sample.
+      // A sink that keeps the raw sample: folding would rebuild a four-field reading
+      // from any sample.
       const samples: Array<Diagnostics> = [];
       const fiber = yield* start({
         accept: (sample) => {
