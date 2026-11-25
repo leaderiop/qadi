@@ -128,10 +128,14 @@ export const mapLine = (diffText) => {
 const kind = (m) => `${m.mutator} ${m.replacement}`;
 /**
  * Ignored mutants a close may hold beyond its base, per file and kind, each run by hand and Killed there: the group's
- * config spread with `ignoreStatic: false`, run with `--mutate <file>`. Empty at the base; an entry is added only when the
- * close has run such a mutant by hand and seen it Killed.
+ * config spread with `ignoreStatic: false`, run with `--mutate <file>`. A born file has no base, so its allowance is the whole
+ * of what it holds. Empty at the base; an entry is added only when the close has run such a mutant by hand and seen it Killed.
  */
-const EXAMINED = {};
+const EXAMINED = {
+  // `makeConfigure`'s own arrow, `() => undefined` in its place: a static mutant, because the arrow is built when the module
+  // loads. Run by hand with `ignoreStatic: false` it is Killed by eight rows of ConfigurePrologue.test.ts.
+  [PROLOGUE]: { "ArrowFunction () => undefined": 1 },
+};
 
 const key = (m, line = m.line) => [m.status, m.mutator, m.replacement, line, m.column].join("\u0000");
 /** A multiset of mutant keys: key -> count. */
@@ -269,10 +273,10 @@ export const judge = ({ base, close, diffs }, files, log = console.log, examined
 
 /**
  * Every reason a close-only file fails: it has no base, so it is judged absolutely. It may hold no open mutant (EQUIVALENT
- * explains a Survived one), no Ignored mutant and no Timeout, it holds at least one Killed mutant, and every Killed mutant
- * must have a killer among the tests of `killers`. Pure.
+ * explains a Survived one), no Ignored mutant beyond what EXAMINED records as run by hand and Killed, and no Timeout, it holds
+ * at least one Killed mutant, and every Killed mutant must have a killer among the tests of `killers`. Pure.
  */
-export const judgeNew = ({ close }, files, log = console.log, killers = GROUPS.stated.killers, equivalent = EQUIVALENT) => {
+export const judgeNew = ({ close }, files, log = console.log, killers = GROUPS.stated.killers, equivalent = EQUIVALENT, examined = EXAMINED) => {
   const bad = [];
   for (const file of files) {
     const c = close.files[file];
@@ -281,7 +285,11 @@ export const judgeNew = ({ close }, files, log = console.log, killers = GROUPS.s
       continue;
     }
     for (const m of unexplained(c.open, file, equivalent)) bad.push(`${file}:${m.line} is new and has a ${m.status} mutant: ${m.mutator} -> ${m.replacement}`);
-    for (const m of c.ignoredMutants) bad.push(`${file}:${m.line} is new and Ignored: ${m.mutator} -> ${m.replacement}`);
+    const allowed = new Map(Object.entries(examined[file] ?? {}));
+    for (const m of beyond(c.ignoredMutants, kind, allowed)) bad.push(`${file}:${m.line} is new and Ignored: ${m.mutator} -> ${m.replacement}`);
+    for (const [k, n] of Object.entries(examined[file] ?? {})) {
+      if (c.ignoredMutants.filter((x) => kind(x) === k).length < n) bad.push(`${file} no longer holds the ${n} examined Ignored ${k} mutant(s) EXAMINED allows: remove the entry`);
+    }
     for (const m of c.timeouts ?? []) bad.push(`${file}:${m.line} timed out: a test must kill it`);
     for (const m of c.outside ?? []) bad.push(`${file}:${m.line} is killed only by tests outside ${killers}`);
     if (c.killed === 0) bad.push(`${file} is new and holds no killed mutant`);
@@ -504,6 +512,17 @@ const selfTest = () => {
     if (got !== 0) fail([`self-test FAILED: a born survivor an equivalent entry explains passes: ${got} reasons`]);
     passed++;
   }
+  // An examined allowance admits exactly its count of Ignored mutants of its kind in a born file, and a stale one fails.
+  for (const [name, close, want] of [
+    ["a born Ignored mutant an examined allowance admits passes", ownerOf(file(10, 10, [], [m("Ignored", 3)])), 0],
+    ["a second born Ignored mutant of the kind fails", ownerOf(file(10, 10, [], [m("Ignored", 3), m("Ignored", 9)])), 1],
+    ["a born Ignored mutant of another kind fails, and leaves the allowance stale", ownerOf(file(10, 10, [], [{ ...m("Ignored", 3), mutator: "Other" }])), 2],
+    ["an examined allowance the born close no longer needs fails", ownerOf(file(10, 10)), 1],
+  ]) {
+    const got = judgeNew({ close }, [O], () => {}, GROUPS.stated.killers, [], { [O]: { [kind(m("Ignored", 3))]: 1 } }).length;
+    if (got !== want) fail([`self-test FAILED: ${name}: ${got} reasons, wanted ${want}`]);
+    passed++;
+  }
   // The base of a born file is refused with its reason, and every other record is not.
   for (const [name, got, want] of [
     ["a base of StatedRun.ts is refused as born in the phase", bornReasons("base", "stated").join(), "StatedRun.ts is born in the phase and has no base"],
@@ -634,7 +653,7 @@ const selfTest = () => {
   passed++;
   if (Object.keys(RENAMED).length !== 0 || baseOf(F) !== F) fail(["self-test FAILED: RENAMED is not empty"]);
   passed++;
-  if (Object.keys(EXAMINED).length !== 0 || EQUIVALENT.some((e) => !TOUCHED.includes(e.file) || [e.mutatorName, e.replacement, e.lineText, e.reason].some((v) => typeof v !== "string" || v.trim() === ""))) fail(["self-test FAILED: EXAMINED is not empty, or an EQUIVALENT entry is not of a touched file with its mutator, replacement, line text and reason"]);
+  if (Object.entries(EXAMINED).some(([file, kinds]) => !NEW_FILES.includes(file) || Object.values(kinds).some((n) => !Number.isInteger(n) || n < 1)) || EQUIVALENT.some((e) => !TOUCHED.includes(e.file) || [e.mutatorName, e.replacement, e.lineText, e.reason].some((v) => typeof v !== "string" || v.trim() === ""))) fail(["self-test FAILED: an EXAMINED allowance is not a positive count in a born file, or an EQUIVALENT entry is not of a touched file with its mutator, replacement, line text and reason"]);
   passed++;
   if (UNMEASURED.map((u) => u.file.split("/").pop()).join() !== "Simulator.tsx,StoppedBox.tsx,theme.ts" || UNMEASURED.some((u) => u.why.trim() === "")) fail(["self-test FAILED: UNMEASURED is not the three React files, each with a reason"]);
   passed++;
