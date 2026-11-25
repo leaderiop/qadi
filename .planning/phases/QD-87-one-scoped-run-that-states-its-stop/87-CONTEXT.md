@@ -176,6 +176,33 @@ PITFALLS 87-A..F, FEATURES §87.1-87.6, STACK §Phase 87 and Trap A); ADR-QD-150
 - Whether the prologue is a function in `StatedRun.ts` or a sibling module (D-10).
 - The `<pre>`'s accessible label text (D-13), as long as it is labelled and focusable like `StoppedBox`'s.
 - Plan count and wave split, as long as plan 1 is the spike plus RED and the tracer task is verified before expansion.
+### Addendum after research (2026-11-25, decided autonomously)
+- **D-08 holds (spike, 87-RESEARCH.md Q1):** no outside interruption (supersede, `stop`, a scope close, a new source,
+  no source, a capacity change, a dying release, diagnostics off) resumes the forked body, and a body that ends after
+  a newer `begin` reads non-current; only a self-interrupt reads a current interrupt-only failure. So the feeds change:
+  a timeline read or live stream that interrupts itself reads `Stopped` (today: tape `[]`, stays `Reading`), and a
+  collector whose `snapshot` interrupts itself reads `Stopped{ sampled: false }` (today: stays `Starting`). Both rows
+  are RED on the base.
+- **D-09 taken (remove `onFailure`):** after the move it has no `src` caller. Removing it makes R9 and model law 5
+  fail and leaves R3, R5, R6, R7 passing vacuously, so those rows are edited (their `onFailure` half moves to
+  `StatedRun.test.ts`) and named in ADR-QD-200's audit table with the test that now holds each property;
+  `SupersedingRun.test.ts` is the one held-set exception besides `test/builtFeeds.ts` (D-16).
+- **D-07a (shape):** `makeStatedRun(stopped)` returns `{ start(plan), stop, closed }`, a plan being
+  `{ starting, engine(live) }` with `live = { current, guard }`. The module holds no "last engine": each store's
+  `restart` calls `start` with the plan it would build, which keeps D-14 (a bare timeline `restart` forks an empty
+  read). This replaces D-07's "restart re-runs the last engine"; `restart`'s closed guard is the module's.
+- **D-10a:** the prologue is a sibling module, `model/ConfigurePrologue.ts` (`makeConfigure(rule, steps)`), because
+  `GatesFeed` has no run.
+- **D-11a (the session's stop is guarded):** the session's `stopped` hook applies only while `run._tag ===
+  "Running"`, so a listener that throws on the `Ran` publish cannot overwrite a landed result with `Broke` (today `Ran`
+  stays; pinned green on the base).
+- **D-17a:** the throw-plus-superseding-command row is green on the base: it is a characterisation, not a RED row.
+- **D-22 (out of scope, recorded):** `packages/audit/src/AuditWriteReport.ts:273` is a `String(cause)` site
+  ADR-QD-182 decision 11 never named. It is a sink report in another package, not a stop text; ADR-QD-200 names it
+  when it amends decision 11, and it is listed as a follow-up, not changed here.
+- **D-23:** `reports/mutation-devtools/mutation.json` (git-ignored) was overwritten by the research's base run; the
+  phase base record is taken again by plan 1 on a clean tree, so nothing depends on the overwritten report.
+
 </decisions>
 
 <code_context>
