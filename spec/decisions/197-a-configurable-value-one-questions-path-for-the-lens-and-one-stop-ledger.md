@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-197                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-11-25                                     |
 > | Status         | Accepted — amends ADR-QD-192 and ADR-QD-193 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-25): the three useConfigured refusals are pinned in useConfigured.tst.ts (CCR-QD-476)<br>1.1 (2026-11-25): the behaviours and invariants that state it are linked (CCR-QD-476)<br>1.0 (2026-11-25): Initial (ARCH-131, CCR-QD-476) |
+> | Change History | 1.3 (2026-11-25): the mutation enforcement of the lens session names the devtools mutation run over src/model, not a lens group of stryker.devtools.mjs (CCR-QD-476)<br>1.2 (2026-11-25): the three useConfigured refusals are pinned in useConfigured.tst.ts (CCR-QD-476)<br>1.1 (2026-11-25): the behaviours and invariants that state it are linked (CCR-QD-476)<br>1.0 (2026-11-25): Initial (ARCH-131, CCR-QD-476) |
 
 ---
 
@@ -141,8 +141,8 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({ unknownParents, onInvalida
   whether to see the click.
 - **Arm the reveal after the publish.** Rejected: a listener told of the pick would find nothing armed and the one-shot reveal
   would never fire.
-- **Keep `move`.** Rejected: it is a second statement of `set`, and it hosted the two survivors the lens group's mutation run
-  found on `move`'s unread boolean.
+- **Keep `move`.** Rejected: it is a second statement of `set`, and it hosted the two survivors the devtools mutation run
+  found on `move`'s unread boolean, in a run limited to `LensSession.ts`.
 - **`useLens` subscribing inside while the panel also subscribes.** Rejected: that is two subscriptions to the questions store.
 - **A second subscription in the adapter for the event-time read.** Rejected: the handlers read `getSnapshot()` when their
   event arrives, which needs no subscription.
@@ -168,9 +168,10 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({ unknownParents, onInvalida
   so: the change is the glue stating each fact once.
 - A later value joins `useConfigured` by having a `configure` over its inputs, with no adapter to write.
 - No budget moves: no `not.toBeCallableWith` pin, no `switch`, no `Effect.fnUntraced`, no module-scope `let` is added.
-- **The mutation record.** Only `LensSession.ts` is under the devtools mutation run's `mutate` glob; deleting `move` removes
-  killed mutants and adds none. The React hooks hold no rule of their own after this decision and are judged by their tests,
-  the held characterisations and the coverage threshold.
+- **The mutation record.** Of the files this decision edits, only `LensSession.ts` is under the devtools mutation run's
+  `mutate` glob (`packages/devtools/src/model/**/*.ts`); deleting `move` removes killed mutants and adds none. The React hooks
+  hold no rule of their own after this decision and are judged by their tests, the held characterisations and the coverage
+  threshold.
 
 ## What enforces it
 
@@ -182,7 +183,8 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({ unknownParents, onInvalida
   `packages/devtools/test/react/ConfigureFirstRender.characterisation.test.tsx`, and `packages/devtools/test/surface.tst.ts`'s
   refusal of `Configurable` from both entries.
 - Decision 2: `packages/devtools/test/model/LensSession.test.ts` ("a listener told of a pick can take its reveal"; "a command
-  publishes exactly when the snapshot changes") and the lens group's `stryker.devtools.mjs` run.
+  publishes exactly when the snapshot changes") and the devtools mutation run (`stryker.devtools.mjs`, which mutates `packages/devtools/src/model/**`, `LensSession.ts`
+  included).
 - Decision 3: `packages/devtools/test/react/Lens.adapter.test.tsx`'s two subscription pins ("the panel holds one subscription to
   the lens while it is mounted and none after"; "the panel holds one subscription to the questions store while it is mounted
   and none after") and `packages/devtools/test/react/Lens.questions.characterisation.test.tsx` (LQ1 to LQ4).
