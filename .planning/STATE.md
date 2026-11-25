@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 86
 current_phase_name: QadiProvider's registry lifetime has a React-free owner
 status: executing
-stopped_at: Completed 86-06-PLAN.md
-last_updated: "2026-11-25T16:52:36.520Z"
+stopped_at: Completed 86-07-PLAN.md
+last_updated: "2026-11-25T16:58:08.704Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 86 execution started
-state_head: f4525b44facaec0fd852b9481e1b2d901d20fa86
+state_head: f1f19c51b16583558499a6e4fbfc9389e2f3d203
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 19
-  completed_plans: 17
+  completed_plans: 18
   percent: 14
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: 86 (QadiProvider's registry lifetime has a React-free owner) — EXECUTING
-Plan: 7 of 8
+Plan: 8 of 8
 Status: Ready to execute
 Last activity: 2026-11-25 — Phase 86 execution started
 
@@ -670,6 +670,7 @@ Progress: [█░░░░░░░░░] 14%
 | Phase 86 P04 | 25min | 3 tasks | 5 files |
 | Phase 86 P05 | 15min | 2 tasks | 2 files |
 | Phase 86 P06 | 12min | 3 tasks | 7 files |
+| Phase 86 P07 | 12min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -1178,6 +1179,7 @@ Progress: [█░░░░░░░░░] 14%
 - [Phase 86]: RO10 pins the record-before-write order with a throwing listener, which escapes registry.set on effect 4.1.2
 - [Phase 86]: 86-05: atoms-identity and ticket-34 comments share one block above the commit effect
 - [Phase 86]: The refresh difference is stated as holding for a seeded subject node nothing has read before the first commit; effect order is quoted from react-dom 19.3.1 source and held by the provider's shape and review, not a merge gate (autonomous, plan 86-06)
+- [Phase 86]: 86-07: the lease and owner Stryker closes ran sequentially and alone, 28/28 and 19/19 killed with no timeout, compare passes (D-15, WX-05)
 
 ### Pending Todos
 
@@ -1264,8 +1266,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T16:52:36.472Z
-Stopped at: Completed 86-06-PLAN.md
+Last session: 2026-11-25T16:58:08.657Z
+Stopped at: Completed 86-07-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
