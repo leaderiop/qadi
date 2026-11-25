@@ -569,13 +569,13 @@ Plans:
   4. A renamed or moved module and its tests keep every register that names them in step (`spec/traceability.md`, AGENTS.md §6's `NOT_CALLABLE_PIN_BUDGET` table and `scripts/check-house-style.mjs`'s budget, edited together), gate 12 stays clean, and ADR-QD-196 records the change, amending ADR-QD-173.
 
 **Planning notes**: Standard patterns (it mirrors 81 and `runSource`), but the discuss step makes the three decisions in the grey-area table and confirms the Breaking changeset. Research recommends removing `Diagnostics.questions` (Breaking minor; the join keeps `held.reading?.questions`; keeping it and routing it through the shown reading would change when the join sees new questions), renaming `DiagnosticsStore.ts` to `Diagnostics.ts` as a pure rename commit first (green on its own, with the budget row, AGENTS.md table and traceability rows in the same commit; the three `Params<typeof runDiagnostics>` pins are rewritten to the sink parameter so `callable: 3` holds), a `{ accept }`-shaped sink and the span `qadi.devtools.runDiagnostics` unchanged. Constraints that are findings: the sink the feed builds keeps the `runs.isCurrent(token)` guard before the fold, `sampled`, and the `Live` mark on an unchanged sample; F1-F32 and the held `ConfigureFirstRender` characterisation pass unedited; change `builtFeeds.ts`'s `diagnosticsFeedOf`, not about 33 sites. If Phase 81 did not close the diagnostics `Starting` window, 83 rewrites `start()` and is the other defensible home. The `0.13` fences in `apps/website/src/content/docs/docs/reference/upgrading.md` are compiled, so the sections that read `reading.hydration` must keep compiling; gate 14 runs once at the close. Commit the Stryker baselines of `DiagnosticsFeed.ts`, `DiagnosticsStore.ts` (60/60 at ADR-QD-169) and `DockModel.ts` first; the new module keeps the old score.
-**Plans**: 3/11 plans executed
+**Plans**: 4/11 plans executed
 
 Plans:
 - [x] 83-01 (W1): Record the mutation base of the three diagnostics model files first, the base facts, and the phase check helper with `no-store`, `single-fold`, `stale-path` and `registers` (D-18, D-20, D-23).
 - [x] 83-02 (W2): The pinned-test check (the held files, the declared edits, the `F2` flip) and Phase 81's checks re-run from a scratch copy (D-16, D-20).
 - [x] 83-03 (W3): `DiagnosticsFeed.characterisation.test.ts` FC1 to FC11 on the base, green, each guard seen failing under a scratch edit (DIAG-01, D-15).
-- [ ] 83-04 (W4): The pure rename of `DiagnosticsStore.ts` and its two tests to `Diagnostics.ts`, every importer and register in the same commit; CCR-QD-475 begun (DIAG-04, D-17).
+- [x] 83-04 (W4): The pure rename of `DiagnosticsStore.ts` and its two tests to `Diagnostics.ts`, every importer and register in the same commit; CCR-QD-475 begun (DIAG-04, D-17).
 - [ ] 83-05 (W5): `Diagnostics.questions` removed: the pins seen red, the Breaking changeset, the `0.13` upgrade entry, the overview rows and gate 14's probe (DIAG-03, D-11 to D-14).
 - [ ] 83-06 (W6): `foldReading`, the one pure per-field keep-if-equal law, with its value tests, and the root refusing it (DIAG-02, D-05 to D-07).
 - [ ] 83-07 (W7): The feed folds each sample into its one snapshot through a `DiagnosticsSink`; the store, `marking` and the store replacement in `off()` removed (DIAG-02, D-08 to D-10, D-19).
@@ -614,5 +614,5 @@ Phases execute in numeric order: 81 → 82 → 83 → 84
 |-------|----------------|--------|-----------|
 | 81. The dock model applies every input whatever a listener throws | 11/11 | Complete    | 2026-11-25 |
 | 82. `QadiProvider`'s registry has one owner for its lifetime | 10/10 | Complete    | 2026-11-25 |
-| 83. The diagnostics feed folds its reading as a value | 3/11 | In Progress | - |
+| 83. The diagnostics feed folds its reading as a value | 4/11 | In Progress | - |
 | 84. `useConfigured` requires `configure`, and the review's small finds | 0/0 | Not started | - |
