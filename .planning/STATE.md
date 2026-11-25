@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 87
 current_phase_name: One scoped run that states its stop
 status: executing
-stopped_at: Completed 87-03-PLAN.md
-last_updated: "2026-11-25T19:27:20.891Z"
+stopped_at: Completed 87-04-PLAN.md
+last_updated: "2026-11-25T19:33:40.174Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 86 complete, transitioned to Phase 87
-state_head: 805aaf73471d3d52928f85e882da10c0cf79f889
+state_head: 5929ac295be8767c85c74c540d20ffac98dc19e3
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 30
-  completed_plans: 22
+  completed_plans: 23
   percent: 29
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: 87 (One scoped run that states its stop) — READY TO EXECUTE
-Plan: 4 of 11
+Plan: 5 of 11
 Status: Ready to execute
 Last activity: 2026-11-25 — Phase 86 complete, transitioned to Phase 87
 
@@ -676,6 +676,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 87 P01 | 15 min | 3 tasks | 7 files |
 | Phase 87 P02 | 13min | 2 tasks | 3 files |
 | Phase 87 P03 | 14min | 3 tasks | 2 files |
+| Phase 87 P04 | 20min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -1192,6 +1193,8 @@ Progress: [███░░░░░░░] 29%
 - [Phase 87]: 87-02: the held set is computed from phase_base (123 base test files, less the two declared, plus useConfigured.ts = 122), never listed by hand
 - [Phase 87]: 87-03: a phrase judge reads 'publishes from now on' as a status tape's subscription time and still refuses every other 'from now on'
 - [Phase 87]: 87-03: the gates cadence rule is judged as cadence( before publish( in the one makeConfigure call plus a cadence that forks its own superseding run (INV-QD-408)
+- [Phase 87]: 87-04: the earlier Phase 85 and 86 scan-ids rows are recorded at exit 1 (the five 'publishes from now on' tape comments of held born tests), not widened or fixed
+- [Phase 87]: 87-04: no ledger row of the earlier-phase checks carries a when; the moved files are read by no judge in a way the move changes
 
 ### Pending Todos
 
@@ -1279,8 +1282,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T19:27:20.835Z
-Stopped at: Completed 87-03-PLAN.md
+Last session: 2026-11-25T19:33:40.117Z
+Stopped at: Completed 87-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
