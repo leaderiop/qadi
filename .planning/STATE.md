@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 85
 current_phase_name: The dock's hydration block is a model row
 status: executing
-stopped_at: Completed 85-06-PLAN.md
-last_updated: "2026-11-25T13:46:31.271Z"
+stopped_at: Completed 85-07-PLAN.md
+last_updated: "2026-11-25T13:50:38.519Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase QD-85 execution started
-state_head: 5a772b5749260ce72237fb296ed0596e1ae88c52
+state_head: 994346e9a480b138c2045de1f82eacd50eef404b
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 11
-  completed_plans: 6
+  completed_plans: 7
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-85 (The dock's hydration block is a model row) — EXECUTING
-Plan: 7 of 11
+Plan: 8 of 11
 Status: Executing Phase QD-85
 Last activity: 2026-11-25 — Phase QD-85 execution started
 
@@ -658,6 +658,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase QD-85 P04 | 15 min | 2 tasks | 4 files |
 | Phase QD-85 P05 | 15min | 2 tasks | 5 files |
 | Phase QD-85 P06 | 15min | 2 tasks | 3 files |
+| Phase QD-85 P07 | 12 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -1150,6 +1151,8 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase QD-85]: 85-05: DockModel.hydration is the eleventh store; the services and hydration keys share one module-scope shownInputOf reader and the questions guard keeps its own isUnsampled call
 - [Phase QD-85]: 85-05: CR22 hydration counts are 1 while the poll layer builds and 2 once built (one more on four stores); DL21 is heard: true
 - [Phase QD-85]: 85-06: DL22 also throws a timeline listener (the DL19 shape) so the last step's nested aggregate [services, hydration] is read from the outer aggregate; decided autonomously
+- [Phase QD-85]: 85-07: the panel tests hand drops as tagged literals typed by HydrationView.Counts, since the declared import edit allows only the HydrationView import (decided autonomously)
+- [Phase QD-85]: 85-07: the panel keeps an optional hydration prop with a module-scope Unwired default store; the dock still passes shown to the frame until 85-08 (decided autonomously)
 
 ### Pending Todos
 
@@ -1234,8 +1237,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T13:46:31.128Z
-Stopped at: Completed 85-06-PLAN.md
+Last session: 2026-11-25T13:50:38.466Z
+Stopped at: Completed 85-07-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
