@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-195                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-25                                     |
 > | Status         | Accepted — amends ADR-QD-014, ADR-QD-148 and ADR-QD-149 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-25): Initial (ARCH-129, CCR-QD-474) |
+> | Change History | 1.1 (2026-11-25): Related links BEH-QD-746 to BEH-QD-750 (CCR-QD-474)<br>1.0 (2026-11-25): Initial (ARCH-129, CCR-QD-474) |
 
 ---
 
@@ -221,4 +221,9 @@ runs.
 - [ADR-QD-149](./149-a-seed-is-held-by-its-question.md) — a seed grant's node ends with the registry's recycle; amended by this decision
 - [BEH-QD-067](../behaviors/09-react.md#beh-qd-067-provider) and
   [BEH-QD-516](../behaviors/09-react.md#beh-qd-516-the-subject-stays-in-the-registry-for-the-providers-lifetime), which the
-  decision restates
+  decision restates;
+  [BEH-QD-746](../behaviors/09-react.md#beh-qd-746-a-provider-hidden-longer-than-a-macrotask-and-shown-again-throws-nothing-and-renders-the-clients-decision),
+  [BEH-QD-747](../behaviors/09-react.md#beh-qd-747-a-provider-holds-one-registry-for-its-life),
+  [BEH-QD-748](../behaviors/09-react.md#beh-qd-748-a-providers-registry-is-released-once-a-macrotask-after-its-last-release-unless-held-first),
+  [BEH-QD-749](../behaviors/09-react.md#beh-qd-749-a-recycle-writes-back-the-latest-committed-subject-before-a-consumer-reads-it) and
+  [BEH-QD-750](../behaviors/09-react.md#beh-qd-750-a-recycle-re-applies-neither-initialvalues-nor-a-hydration-seed), which state it
