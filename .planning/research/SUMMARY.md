@@ -1,199 +1,195 @@
 # Project Research Summary
 
-**Project:** Qadi (Effect-native authorization library), milestone v1.10 "Arch Wave 15"
-**Domain:** Internal architecture deepening of an Effect v4 monorepo (`@qadi/devtools`, `@qadi/react`); two live defects, two refactors; no new features, no new dependency
-**Researched:** 2026-11-24 (start commit `911aa37f`, branch `arch-wave-15`, source identical to `902d2128`)
-**Confidence:** HIGH on current behaviour (read at file:line, both defects reproduced with throwaway tests that are now deleted); MEDIUM on the shape of Phase 82's fix until its RED test runs
-
-Reserved ids (already in the reservation file; nobody runs `scripts/next-id.mjs`): ADR-QD-194..197, CCR-QD-473..476, BEH-QD-741..760, INV-QD-407..414. Per phase: 81 ADR 194 / CCR 473 / BEH 741-745 / INV 407-408; 82 ADR 195 / CCR 474 / BEH 746-750 / INV 409-410; 83 ADR 196 / CCR 475 / BEH 751-755 / INV 411-412; 84 ADR 197 (likely unused) / CCR 476 / BEH 756-760 / INV 413-414.
+**Project:** Qadi, milestone v1.11 "Arch Wave 16" (Phases 85-91, ARCH-132..138)
+**Domain:** internal architecture deepening of an Effect v4 authorization monorepo (devtools dock model, `@qadi/react` provider, `@qadi/audit` admission, `@qadi/core` port descriptions, named barrels)
+**Researched:** 2026-11-25 (branch `arch-wave-16` off `main` at `ac7578f3`; overwrites the v1.10 file)
+**Confidence:** HIGH for mechanics and current behaviour (all four researchers read source and ran madge, `check-api-surface` and `Cause` probes on this tree); MEDIUM for the exact shape of Phases 87, 90 and the 91 Hydration fold.
 
 ## Executive Summary
 
-Wave 15 is four strictly serial phases (81-84, ARCH-128..131). Two are live defects. In Phase 81 the dock model's `configure` guards one step, so a throwing listener on any store leaves the later inputs unapplied (roles `[]`, simulation and explorer sightings differ, diagnostics `Off`), a second throw replaces the first, and an identical second `configure` cannot heal. The same unguarded fan-out (`spread`) sits under the record path, where a throwing explorer listener leaves the dock with 0 rows. In Phase 82 a `QadiProvider` inside `<Activity>` hidden longer than a macrotask and revealed with stable children throws `registry is disposed`, from the provider's subject effect and, first, from every child's atom subscription. Phases 83 and 84 are refactors: the diagnostics feed holds its reading as a value folded by a pure per-field rule (the store goes), and `useConfigured` takes a value that has `configure`, plus four small finds. Nothing in STACK changes: `effect` 4.1.2, `@effect/atom-react` 4.1.2, `react` 19.3.1 and the test tooling are installed and sufficient.
+This is not a product build. It is seven strictly serial refactors of an existing codebase, each of which moves a rule that is written in several places into one place, with the observable behaviour pinned first. No phase adds a dependency or changes a version (effect 4.1.2, React 19.3.1, TypeScript 7.0.2, vitest 5.1.0, madge 8.0.0, Stryker 10.1.1 are all as installed). No phase is Breaking: gate 13 stays at 942 exports with names unchanged. Phase 87 is a patch-level text change (the Simulator's broken-run message). The proven way to do each phase is already in the repo: a pure view beside a derived store (85), an owner module with an injected `defer` composing the unchanged lease (86), publish-then-fork through a callback (87), decide-at-mount and record-at-commit (88), admission as a plain function ahead of the facts (89), facts stated once on a port description with the registry derived (90), and named barrels generalised from the devtools precedent (91).
 
-The recommended approach is the repo's own: state each rule once, in the module that owns it, and consume it by name. 81 states "run every step, collect throws, rethrow once" once in `ExternalStore.ts` (ADR-QD-177's rule, widened from listeners to a run of calls), and uses it for `notify`, the derived-store release loop and `configure`. 82 gives the registry one owner behind a pure, package-private lease module, `reset()` instead of `dispose()`, so no consumer can ever reach an unusable registry. 83 deletes `DiagnosticsStore`'s store machinery and removes the dead `Diagnostics.questions` (Breaking devtools minor, 0.13 upgrade-guide entry). 84 deletes three identical adapters and a restated `set`.
+The recommended approach is to keep the 85 -> 91 order and treat each phase as "characterise on the base first, move, prove nothing moved". The four researchers agree on every load-bearing point: Phase 87's `String(exit.cause)` never throws, so its RED test asserts equality with `causeMessage`'s text (an inconsistency, not a live defect), and ADR-QD-182 decision 10 and `ThrownMessage.ts` get amended; `SimulationSession` must keep its own `Effect.exit` so SR1's self-interrupt still reads `Broke`; `Hydration.ts` cannot fold into `HydrationEngine.ts` without a cycle unless `hydrateDecisions` takes a structural parameter; `PortName.ts` must stay a leaf; barrels must be converted before any fold and generated from compiler symbol flags, because gate 13 cannot see `export type` against a value.
 
-The key risks: (1) guarding `configure` the same incomplete way again, leaving `spread` and the diagnostics `Starting`-publish window unguarded, or collecting the capacity refusal, which must stay outside the collector (M55); (2) fixing Phase 82 in the provider's own effect, which is too late because React runs children's reveal effects first, or copying `useScoped`, which breaks SSR and the first-render subject; (3) checks that cannot fail: the P4 sweep test hides and shows in one tick, `edges.test.tsx:257` ("disposes its registry when unmounted") is vacuous, and a bare negative pin on an `Effect` passes whatever its arguments; (4) the mutation gate (`DockModel.ts` at score 1, 12 ignored) re-closed after review, and the archived v1.9 record scripts that hard-code old phase paths.
+The main risks are checks that cannot fail (a bare negative tstyche pin on an `Effect`, a one-tick hide-and-show test, a fake `defer` nobody asserts on, a RED test that cannot be RED), budgets that move in only one of their two tables (`UNTRUSTED_DECODE_BUDGET`, `SPAN_KEY_SHARED`, the named-barrel rule), and Stryker lists that name files by path (`stryker.react.mjs` needs the Phase 86 owner added; Phase 88 code is outside every Stryker config). Mitigations are in the per-phase flags below, plus one cross-cutting rule: every new test or record script names the scratch variant that must turn it RED and records the failing assertion.
 
 ## Key Findings
 
-### Recommended Stack (STACK.md)
+### Recommended Stack
 
-**Verdict: no stack change, no install, no version bump.** All facts verified in installed source or by probe.
+No stack change. All seven phases are TypeScript restructuring over APIs already installed. The facts the planner needs are version- and API-specific traps, not choices (full detail in STACK.md).
 
-- `effect` 4.1.2: `Equal.equals` (83 fold), `AtomRegistry` at `effect/reactivity/AtomRegistry` (the `unstable/` path does not exist). `registry.reset()` clears all nodes and runs finalizers but leaves the registry usable; `dispose()` is `disposed = true; reset()` and is terminal. `ensureNode(atom).setInitialValue(v)` restores a seed after a reset (probed). `registry.disposed` is not on the interface: do not read it.
-- `@effect/atom-react` 4.1.2: its own `RegistryProvider` has the same dispose-on-cleanup shape, so there is nothing upstream to adopt.
-- `react` 19.3.1: on `<Activity>` hide both effect kinds clean up immediately, state and refs are kept; on reveal both re-run **with dependencies ignored and the last committed render's closure**; a hidden Activity still re-renders on prop change. Reproduced on 19.3.1 only; re-check if the floor (`>=19.2.4`) moves.
-- `AtomRegistry.make` `scheduleTask` and `defaultIdleTTL` stay off limits (AGENTS.md §13, ADR-QD-148).
-- `ExternalStore.ts` already offers `sameElements`, `sameFields`, `sameFieldsOrAbsent`, `makeDerivedStore`; `throwCollected` is module-private (line 63).
-- Test tooling already installed: `vitest` 5.1.0, `@effect/vitest`, `happy-dom` 21, `@testing-library/react` 16.3.3, `fast-check` 4.10.2 (a natural property for the 83 fold).
+**Core technologies and what each phase relies on:**
+- `AtomRegistry` (effect 4.1.2): `reset()` clears nodes and rethrows the first finalizer error after all are destroyed; `dispose()` is irreversible (the Wave 15 defect); `initialValues` is consumed once in the constructor, so pass an array. The recycle's `try/finally` subject write-back is load-bearing. Phase 86.
+- `Effect.fork` does not exist in 4.1.2 (`forkChild`, `forkScoped`, `FiberHandle.runtime` do). The "fork" in the milestone text is `SupersedingRun.fork`. Phase 87.
+- `causeMessage` from `@qadi/core` is `Cause.pretty` with a `thrownMessage` fallback. `String(cause)` is `Cause([Die(...)])` and never throws (reproduced). Phase 87.
+- `madge` (`pnpm circular`, 245 files, clean today) counts type-only edges (ADR-QD-037); 2.6 s, so run after every fold. Phases 90 and 91.
+- `check-api-surface.mjs` already parses named barrels; the 942 count is a mechanical invariant. `check-package-install.mjs` (gate 14) changes nothing for a named barrel.
+- TypeScript 7 has no classic `ts.*` API; the parse API is `typescript/unstable/{sync,ast}` (used by `scripts/lib/module-state-scan.mjs`). Use it for the throwaway barrel generator; do not commit the generator.
+- Stryker: `stryker.devtools.mjs` mutates `src/model/**` only (not `src/react/`); `stryker.react.mjs` lists five files by name; `stryker.audit.mjs` and the core config use globs minus `index.ts`. Committed baseline reports are stale; re-take at each phase base.
 
-### Expected Features (FEATURES.md, each phase's observable done-state)
+### Expected Features
 
-**Must have (definition of done per phase):**
-- **81:** past the capacity check `configure` applies every step whatever any listener throws; one throw rethrows as itself (`undefined`/`null` included), two or more as one `AggregateError` in step order, never flattened; `spread` is total on both the configure and the record path; first configure leaves the model complete and an identical second one reaches no host code; one `spread` per change; M55 and M56 and the characterisation "a throwing questions listener lets services and diagnostics move, then escapes" pass unedited.
-- **82:** hide longer than a macrotask then reveal with stable children throws nothing from the provider or any consumer; gates settle, `useSubject()` reads the prop, `useInvalidate()` works; unmount still releases the registry; subject seeded at construction (SSR, first render), `AtomsReplaced` keeps the registry, sweep tests P1-P5 untouched.
-- **83:** the feed holds `reading` as a value updated by one pure keep-if-equal function (returns the previous value itself when no field moved); `DiagnosticsStore`/`makeDiagnosticsStore`/`marking` gone; `runDiagnostics` takes an accept sink as `runSource` does; every transition unchanged (F1-F32 unedited); `Diagnostics`' field list stated once; `Diagnostics.questions` resolved.
-- **84:** `useConfigured(make, inputs)` with `A extends { configure(inputs: I): void }`, three adapters deleted; `LensSession` uses `ExternalStore.set`; `useLens` has one source of the guard list and one subscription; `DockFrame`'s two ledger/notice pairs from one helper.
+"Features" here are the behaviours each deepening must keep or change.
 
-**Should have (cheap, in scope):** a ten-store throw matrix test so a new store is a failing row; a fast-check property for the fold; a type test that the poll's reading has no `questions` (positive twin).
+**Must have (table stakes, all phases):**
+- A characterisation committed and green on the phase base before the move (85: the two QuestionsPanel HTML-string files plus missing cells; 86: LT1-LT18 and RL1-RL10; 87: SR1, TF21-23, TF28, F28-31, F33, SR5-6; 88: TN14, D7; 89: a pair-fault table; 90: `tabulatePorts` golden plus metric snapshot; 91: surface diff).
+- Public surface unchanged (942). Every `data-testid`, span name, refusal tag and status value identity stays.
+- Spec edited in the same change: one ADR (dated amendments, never rewrites), one CCR, five BEH, two INV per phase, plus the traceability rows.
+- Phase 87: RED test that the session's `Broke.message` equals `causeMessage(cause)` plus a hostile-value placeholder case; new ADR that applies (does not reopen) ADR-QD-150 point 2 and extends ADR-QD-182 decision 10 to the session.
 
-**Defer / out:** closing the `Starting`-publish window is not required by FEATURES (see Disagreements); a mutation baseline for `QadiProvider.tsx` beyond whatever module 82 extracts; flatten, swallow or log of listener throws, rollback of inputs, reordering steps or touching `lens` (rejected by ADR-QD-177/191/INV-QD-390); unmounting children while hidden (the `useScoped` shape); rebuilding the registry on an `atoms` change.
+**Should have (differentiators worth taking):**
+- 85: `DockFrame` reads status only via a selector on `useStoreSnapshot`; `QuestionsPanel` reads the view store itself.
+- 86: owner also holds `latest` and the subject write, so the "write the subject" rule exists once with the recycle's write-back.
+- 87: record the feeds' self-interrupt policy deliberately; render `Broke.message` in the same `<pre>` treatment as `Stopped.reason` (it is multi-line now).
+- 89: a type pin that both refusal unions equal fragments plus own members.
+- 90: derive `PORT_NAMES_BY_NAME`, `PortFixtures` and `ScopedPort` from the same fact row; a fake-sixth-port compile-error test.
+- 91: a `surface.test.ts` for core and audit (devtools has one).
 
-### Architecture Approach (ARCHITECTURE.md)
+**Defer / anti-features (do not do):**
+- Merging the two audit refusal unions or error classes (Breaking, reopens ADR-QD-190); exporting the admission step.
+- A one-call `run(effect)`; routing `SimulationSession` through `onFailure` unchanged; forcing `GatesFeed` through publish-then-fork (INV-QD-408 says the gates feed forks first).
+- A fourth "nothing hydrated" hydration state; flattening the three `unsampled` predicates; fixing the "0 dehydrated entries" plural in passing.
+- `dispose()`, a registry in state or an effect, re-applying seeds or `initialValues` on recycle, any module-scope `let` (MODULE_STATE_BUDGET).
+- Any `export *` as a stepping stone in Phase 91; any public name added or removed; converting http, testing, predicate-* or promise barrels.
 
-Each phase edits one or two model/hook modules plus the same spec registers (ADR, BEH, INV, CCR row, `overview.md`, `traceability.md`, `spec-revise`), which is why execution is serial (`use_worktrees` false).
+### Architecture Approach
 
-**Major components and what changes:**
-1. `ExternalStore.ts` (devtools model): gains the one package-private collect-and-rethrow primitive; `notify` and the derived finalizer call it; barrel-free.
-2. `DockModel.ts`: `configure` becomes an ordered list of idempotent steps run under the collector; `spread` made total (by listeners or by a derived rail store); step order is behaviour and stays.
-3. `QadiProvider.tsx` plus a new pure `RegistryLease.ts` (the `SweepScheduler.ts` precedent: injected scheduler, no React, added to `stryker.react.mjs`'s `mutate` list): the registry's identity is stable for the provider's whole life; cleanup schedules `reset()` + re-seed, setup cancels it.
-4. `DiagnosticsStore.ts` / `DiagnosticsFeed.ts`: store and `marking` deleted, pure `foldReading`, `off()` assigns `noDiagnostics`.
-5. `useConfigured.ts` and callers, `LensSession.ts`, `useLens.ts`/`QuestionsPanel.tsx`, `DevtoolsDock.tsx` `DockFrame`: package-private edits, no export changes.
+Seven independent deepenings that share a gate surface, not a data flow. The only same-file overlaps are 85/88 (`DevtoolsDock.tsx` lines 110-115), 89/91 (`ArchiveFacts.ts`), 86/91 (`QadiProvider.tsx` imports), 90/91 (exported names), and each already has the earlier phase first.
 
-**Patterns to follow:** one rule stated once and consumed by name; a pure injected-timer module for a lifetime policy; idempotent steps (`HeldChoice.setList`, `sameFields`); derived stores for computed values (BEH-QD-696..698).
+**Major components (new or reshaped):**
+1. `devtools/src/model/HydrationView.ts` (85): pure closed `Data.TaggedEnum` (`Pending | Unwired | Counts{rate, drops, scope}`), served by a fifth derived store, the eleventh `DockModel` store.
+2. `react/src/ProviderRegistry.ts` (86): React-free owner (create, seed, commit, hold, release) composing the unchanged `RegistryLease.ts`; inert at construction; imports neither React nor the provider.
+3. `devtools/src/model/StatedRun.ts` (87): publish-then-fork through a callback above the unchanged `SupersedingRun`; configure prologue (`admit`) shared with `GatesFeed`; stop text via `causeMessage`.
+4. `StoppedBox` wrapper plus inner body (88): wrapper derives the key and writes the ledger; the ledger stays per feed in `useStopNotice`/`DockFrame` scope so it outlives screens.
+5. `audit/src/HostBatch.ts` (89): plain-function admission, a `NowRefusalCases` type fragment intersected into both enums as `RowsRefusalCases` is; `CodecMade.ts` stays a leaf.
+6. Port facts on the description (90): `PortName.ts` keeps one tuple and stays a leaf; everything else derives downwards from descriptions; `readScoped` routing reads `LEAF_NEEDS`.
+7. Three named barrels (91): generated, then folds one per commit, `pnpm circular` after each.
 
-### Critical Pitfalls (PITFALLS.md, top five of the set; A-H per phase plus X-1..X-7)
+**Fold verdicts (madge simulation; STACK and ARCHITECTURE agree):**
 
-1. **81-A/D/H: the collector must reach `spread`, must stay below the capacity check, and must keep step order.** A bigger `try` in `configure` fixes the brief's repro while `simulation.sightings !== explorer.sightings` persists on the timeline-listener path. `completeDockInputs` stays first and outside the collector (M55); step order (timeline, catalogue/roles, ports, gates, diagnostics, refresh) is observable in `AggregateError.errors`.
-2. **81-C/E/F: error identity, reentrancy, healing.** Decide by the count of collected values, never by what was thrown; a nested `AggregateError` is one value. A listener that calls `configure` again must not be overwritten by the outer call's stale entry-time locals: steps read `held` when they run. There is no "dirty" flag; idempotent steps are the heal.
-3. **82-A/B/C: the fix must make a disposed registry unreachable by any child at the moment its effects re-run.** The RED test needs a stable provider element, a hide longer than a macrotask, and a real consumer below; P4 passes on the defective code. Do not copy `useScoped` (SSR, first-render subject, Activity's state preservation).
-4. **83-C/D: `Diagnostics.questions` is a public type change and a join-timing question; the store file and its tests are cited in three gate places.** The dock join must keep reading `held.reading?.questions`; re-pointing it at the shown reading changes when the join sees new questions. `NOT_CALLABLE_PIN_BUDGET` row, AGENTS.md §6 table and `traceability.md:579-580` move together.
-5. **X-1/X-6: mutation re-close and archived record scripts.** Record the base before any edit; re-close after each review-fix round; keep new literals inside function scope (a module-scope literal adds an `Ignored` mutant); do not reformat measured files. `79-pinned-check.mjs` and `80-pinned-check.mjs` crash with ENOENT today because they hard-code `.planning/phases/QD-79-...`; run them from a scratch copy with `DIR` pointed at `.planning/milestones/v1.9-phases/`, never edit the archive, and write the invocations into `_WAVE15-CONTEXT.md`.
+| Fold | Verdict |
+|------|---------|
+| `PortSpanDecode` into `PortSpanEncode` | acyclic, do |
+| `PortInterpreter` into `PortSpan.ts` | acyclic, do (into `PortSpanEncode` is a cycle) |
+| `PortSpanDecode` into `PortSpan.ts` | cycle, no |
+| `GateRegistry` into `GateWriter` | acyclic, do |
+| `SequenceIntegrity` into `ArchiveFacts` | acyclic, do (after Phase 89) |
+| `Hydration.ts` into `HydrationEngine.ts` | cycle as written (`HydrationEngine -> QadiAtoms -> HydrationEngine`); folds only if `hydrateDecisions` takes a structural parameter declared in the engine |
+| `EvaluationSpan` into the port span files | risky; keep apart unless `pnpm circular` proves it |
+| `PortName` derived from `Ports.ts` | cycle, no |
 
-Others worth a plan row: 81-G (a did-spread flag skips heals and corrupts under nesting), 82-D/E (one timer per registry; never call the sweep, `scheduleTask` or `defaultIdleTTL`; assert sweeps with `makeSweepCounter`), 82-F (rebuild from the latest committed subject, not the first closure), 83-A (token guard before the fold, `Live` marked on an unchanged sample), 84-C (`choose` keeps its early return and arm-before-publish), 84-D (handlers read the store at event time), X-4 (`spec-revise.mjs` per document, README last, no `|` in entries), X-7 (executors marking requirements complete early; `String.replace` with `$` text; `grep` aliased to `ugrep`).
+### Critical Pitfalls
 
-## Disagreements and Contested Points (each names the decision a phase's discuss step must make)
-
-### Phase 81
-
-| Point | Positions | Recommendation |
-|-------|-----------|----------------|
-| Where the collect-and-rethrow helper lives | STACK: new `runCollecting(steps: ReadonlyArray<() => void>, message)`. ARCHITECTURE: `callAll(calls: Iterable<() => void>, message)`, with `throwCollected` private to it; `notify` must keep iterating the **live** `Set` (a listener added mid-pass is called in the same pass), so never a copied array. PITFALLS: export `throwCollected` and reuse it. FEATURES: export the primitive, share it across `notify`, the finalizer and `configure`. | One package-private export in `ExternalStore.ts`, taking an `Iterable` of thunks (ARCHITECTURE's shape, STACK's intent), used by all three call sites, `throwCollected` kept private to it. Name is the discuss step's: `callAll` vs `runCollecting`; it must not be in either barrel. The two existing messages stay byte-identical (BEH-QD-656) and `configure` gets a dock-specific message asserted exactly. |
-| Does `spread` become total, or does the rail become a fourth derived store | PITFALLS/FEATURES: make `spread` total (one collector used by both `spread` and `configure`). ARCHITECTURE 81-C: the rail (`catalogueOf(shown, catalogue)`) becomes the model's fourth derived store (parent: `timeline`), with `explorer.setSightings` and `simulation.setSightings` as its two listeners and `dock.setTimeline` a separate timeline listener, so the double spread disappears by construction and the `shown`/`rail` closures go. | Derived rail (81-C): it removes the double spread by construction and makes the three setters separate `notify`-protected listeners. Cost the discuss step must accept: ADR-QD-185 / BEH-QD-699 / INV-QD-390 wording moves from "three" to "four" computed stores (the rail is internal; BEH-QD-700's list of ten is unchanged), and the order "dock after the rail" must be pinned. If it rejects 81-C, `spread` must still be total on both paths and the double spread must be removed without a flag (81-G). |
-| Is the double `spread` a real notification cost? | ARCHITECTURE/PITFALLS: the second spread is idempotent and publishes nothing (guards via `sameElements`). FEATURES, measured: explorer heard **2** on one capacity+catalogue configure, because `catalogueOf` builds fresh sighting objects each call, so `sameElements` never matches; CR22's explorer/simulation 3/3 would become 2/2. | Trust FEATURES' measurement over the reading; the discuss step restates BEH-QD-735's counts ("2, 2, 3, 3, 0, 1, 0, 2, 1 and 0") and CR22 with the code, and the RED test counts publishes first. The post-fix 2/2 is unmeasured (LOW until run). |
-| The diagnostics `Starting`-publish window (ADR-QD-177 d5) | FEATURES: anti-feature, leave it, note in the ADR. ARCHITECTURE: out of scope, state the limit in ADR-QD-194 and the BEH. PITFALLS 81-B: decide in writing in discuss, either close it (`try { show(Starting) } finally { fork }`, the shape `TimelineFeed.configure` uses, then amend d5) in 81, or in 83 which rewrites that function, or declare it staying. Matrix rows for `diagnostics`, `services`, `questions` listeners end stuck `Starting` today and an identical configure does not heal. | The discuss step must pick one of three: close in 81, close in 83, or record as staying. Recommendation: **record as staying in 81** (state it in ADR-QD-194 / BEH-QD-741..), and make 83 the home if the owner wants it closed, since 83 rewrites that function. Either way the 81 matrix gives the three rows an explicit expected status; never let a row fail forever or pass by accident. Do not over-promise "every input applied" for those three positions. |
-| Reentrancy (a listener calling `configure`) | Only PITFALLS raises it (MEDIUM, not yet seen RED). ARCHITECTURE's sketch closes over `wanted`/`fed`, which is exactly the stale-tail shape. | Steps read `held` (and `feedInputsOf(held)`) at the time each step runs, not entry-time locals. Add one row: a first-publish listener calls `configure(second)` once; the end state equals a plain `configure(second)` on a fresh model. Check `TimelineFeed.configure`'s `readSource(wanted.source)` too; fix only if its row is RED. |
-| The record path (no `configure`) | FEATURES (run) and PITFALLS 81-A: a throwing explorer listener on plain `timeline.accept` leaves `dock` rows 0 and simulation sightings 0. ARCHITECTURE covers it only implicitly via the rail. | Explicit RED row on the record path in 81, whichever shape is chosen. |
-
-### Phase 82
-
-| Point | Positions | Recommendation |
-|-------|-----------|----------------|
-| Registry design | STACK and ARCHITECTURE converge: keep the render-phase, ref-held registry (SSR and first render need it), `reset()` plus re-seed in the deferred cleanup instead of `dispose()`, never null `registryRef`. ARCHITECTURE puts it in a pure package-private `RegistryLease.ts` (82-F) with `hold()`/release and an injected `defer`, added to `stryker.react.mjs`; STACK describes it inline in the provider (82-E in ARCHITECTURE's terms). FEATURES lists three candidates (liveness-gated dispose, reset, rebuild-and-rerender) and needs a spike. PITFALLS leans to "rebuild-before-reveal or never-dispose-while-hidden" and warns against skipping disposal. | **82-F `RegistryLease.ts` with `reset()` + re-seed.** It is the only shape consistent with the reproduced child-first order and is mutation-testable without React. Rejected with reasons: `useScoped`/state-held registry (SSR, first-render subject, too late on reveal), a registry proxy, dispose-only-on-unmount (React gives no hidden-vs-gone signal), never disposing. The discuss step records the accepted trade: a straggling read after a true unmount silently recreates a node instead of throwing. |
-| Are hydration seeds re-applied after a recycle? | STACK: re-apply the subject **and** each `initialValues` entry. ARCHITECTURE: only the subject; re-applying server seeds after a hide could resurrect an answer the client superseded (ADR-QD-017); today's re-render path (S2) does re-seed, so this is a recorded intentional change. PITFALLS 82-F: seed from the **latest** subject, not the first closure. | Subject only, from a ref written in an effect (never in render), as ARCHITECTURE says. The discuss step must make this explicit in ADR-QD-195 and BEH-QD-067 because it changes S2's behaviour. |
-| Effect-time rebuild | Rejected unanimously: children's effects run before the provider's on reveal, so a provider-built replacement cannot reach the child before it re-subscribes (reproduced: `AggregateError` of two disposed errors, the child's first). `useScoped` unusable (returns `undefined` on first pass; SSR). | Recorded as a rejected alternative with the reproduction. |
-| Strengthen `edges.test.tsx:257` | FEATURES/PITFALLS: it asserts only empty body text, true after any unmount; a never-dispose fix would pass it. ARCHITECTURE: rename it. | Replace the assertion: after unmount plus a turn, a probe's registry is empty (reset ran). Under the lease design there is no `dispose()` to count, so PITFALLS' "dispose counter" becomes a reset counter on the lease's injected hooks. |
-
-### Phase 83
-
-| Point | Positions | Recommendation |
-|-------|-----------|----------------|
-| Remove `Diagnostics.questions` or keep it | STACK, FEATURES, ARCHITECTURE (Q1): remove (poll never writes it; the join reads `held.reading?.questions`; `DiagnosticsReading.questions` stays as the supplied half). PITFALLS 83-C: choose deliberately; removal keeps one path, keeping it and routing through `shownReading` changes join timing and needs a RED publish-count row first. | **Remove (Q1)**, Breaking `@qadi/devtools` minor, `## 0.13` upgrade-guide entry, amend ADR-QD-169 d10, ADR-QD-173, BEH-QD-617/323, `overview.md:916-919`. The join keeps `held.reading?.questions`. Note the owner's standing preference for the complete design and that `Diagnostics` is exported. |
-| Rename `DiagnosticsStore.ts` to `Diagnostics.ts` | ARCHITECTURE: rename (the file holds no store; about 20 import lines, ~12 test files; `NOT_CALLABLE_PIN_BUDGET` row, AGENTS.md §6 line ~566, `check-house-style.mjs:771`, `traceability.md:579-580` move together; `callable: 3` holds if the three `Params<typeof runDiagnostics>` pins are rewritten to the sink parameter). PITFALLS: keep the file name, "not in this wave", delete only the store, because the file also holds the public types, `mergeReading` and `runDiagnostics`, and a missing cited test file fails `spec:verify:strict`. | The discuss step decides. Recommendation: rename, done as a pure rename commit first (green on its own), with the budget row, AGENTS.md table and traceability rows in the same commit, because a file named Store with no store is the drift this wave exists to remove. If the discuss step declines, record "kept name" in ADR-QD-196. |
-| `runDiagnostics` sink shape | ARCHITECTURE: `{ accept }` for symmetry with `runSource`'s `Pick<…,"accept">` (state in the ADR); bare `(reading) => void` equally small. | `{ accept }`-shaped, matching `runSource`. Keep the span `qadi.devtools.runDiagnostics`. |
-| `Starting` window | See Phase 81 row. 83 rewrites `start()`, so it is the other defensible home. | Follows the 81 decision. |
-
-Constraints that are findings, not choices: the sink built by the feed keeps the `runs.isCurrent(token)` guard before the fold, `sampled`, and the `Live` mark on an unchanged sample (83-A); the fold returns the previous reading object itself when nothing moved (83-B); F1-F32 and the held `ConfigureFirstRender` characterisation pass unedited (83-E); change `builtFeeds.ts`'s `diagnosticsFeedOf`, not ~33 sites.
-
-### Phase 84
-
-| Point | Positions | Recommendation |
-|-------|-----------|----------------|
-| `useLens` inputs | ARCHITECTURE (c): `useLens(lens, questions)` subscribes once and **returns both** snapshots; the panel reads from the return. STACK: pass the snapshot or the store, not both. PITFALLS 84-D: same as (c); never write a ref during render. FEATURES: keep one subscription (`Lens.adapter.test.tsx:160`) and the event-time read of the store in handlers. Rejected: two subscriptions; `instances` only plus a ref (stale handlers, listener churn). | `useLens(lens, questions)` subscribing once (ARCHITECTURE (c)); handlers still read `questions.getSnapshot()` at event time. Amend ADR-QD-193's adapter paragraph and BEH-QD-737; edit `traceability.md` row 661 in the same commit. |
-| `useTimeline` per-render inputs record | STACK and FEATURES: `useMemo` on `[source, capacity]` (low value). PITFALLS 84-B: memoise only `useTimeline`, never the dock's or the gates' records (G43: any configure retries a failed watch). ARCHITECTURE (c): record it as a rejection in ADR-QD-192's amendment, because the value's own rule makes it a no-op, `DevtoolsDock`'s rest spread is fresh per render by construction, and memoising one of three hooks makes them asymmetric. | Recorded rejection (ADR-QD-192 d8 amendment, CCR-QD-476 row), unless the discuss step values the fewer calls. If it memoises, only `useTimeline`, and its comment "a record rebuilt every render configures nothing" is rewritten. |
-| `choose` and `move` | All agree: delete `move`, call `store.set`; `choose` keeps its `next === current` early return, its boolean and **arms before publishing**. | Mutation-check that the `LensSession.test.ts:304/378` pin fails if `armed` is set after `publish`. |
-| Optional type pin for the `Configurable` constraint | STACK/ARCHITECTURE: a negative pin costs a `NOT_CALLABLE_PIN_BUDGET` row (new file; edit `check-house-style.mjs` and AGENTS.md §6 together). | Use **positive** pins only (no budget row): `DockModel`, `TimelineFeed`, `DiagnosticsFeed` assignable. Add a negative one only if the owner wants it, with its twin. |
-| ADR-QD-197 | ARCHITECTURE: no new ADR; amend ADR-QD-192 d8 and ADR-QD-193; leave 197 unused and say so. | Name it unused in the CCR row; do not renumber. |
+1. **A check that cannot fail (X-1).** Bare negative tstyche pins on `Effect`-returning functions pass for any args (use `Params<typeof f>` with a positive twin); one-tick hide-and-show tests never reach the recycle; a recording `defer` must assert never-run, cancel-once and run-after-cancel-recycles-nothing with a real `AtomRegistry`; Phase 87's RED cannot assert a throw. Prevention: name the scratch variant that turns each check RED and record the failing text in `NN-RED-EVIDENCE.md`; every record script gets a `--self-test`.
+2. **Budgets that move in one table only (X-2).** `UNTRACED_BUDGET` (no `fnUntraced` in 87/90), `SWITCH_BUDGET` (use hoisted `Match.type` for `LEAF_NEEDS.resourceId` routing), `MODULE_STATE_BUDGET` (closure state only in 86/88), `UNTRUSTED_DECODE_BUDGET` and AGENTS.md section 7a (row follows `PortSpanEncode.ts`), `SPAN_KEY_SHARED`/`SPAN_KEY_DECLARATION` (folding span files makes the declaration file spell `qadi.subject_id`), `NOT_CALLABLE_PIN_BUDGET` (a renamed `.tst.ts` changes a key), `devtools-named-barrel` (hard-coded to two devtools paths; `barrel-order` skips named barrels). Edit script, `_NAMES` guard and AGENTS.md table in one commit.
+3. **Phase 87 interrupt asymmetry.** `SupersedingRun.fork`'s `onFailure` skips interrupt-only causes; the session maps every non-success exit of a current run to `Broke` (SR1). Routing the session through `onFailure` leaves a self-interrupted run `Running` forever. Keep `Effect.exit` in the run body; keep `GatesFeed` forking first; keep `try { publish } finally { fork }` inside the helper (ADR-QD-194).
+4. **Phase 91 type/value and cycle traps.** `export type { X }` of a const+type pair or a class compiles, passes gate 13, and deletes the value (about 34 names in core, 1 in react, 7 in audit). A named barrel that omits a type makes a dependent package emit `import("../../a/src/priv")` with exit 0 and no TS2883. Prevention: compiler-generated barrels from symbol flags, a before/after `{name, flags}` surface diff with a planted-defect self-test run after each barrel commit; a `.d.ts` `../../` escape check (ideally in gate 14) after `pnpm typecheck`; `pnpm build` and `pnpm spec:package` after each barrel.
+5. **Phase 90 `PortName` and `readScoped`.** Deriving `PortName` from the registry closes a cycle and risks metric-key drift (ADR-QD-052); `ByScope` leaves (HasActed, HasNotActed, HasSignature) must require an id only for `Resource` scope, or scope-`Any` decisions are wrongly denied; `readScoped` stays a plain function (no new span); bench gate first (`pnpm bench`, 3+3 interleaved, median of per-run minima).
+6. **Stale or wrong baselines.** Committed mutation reports predate the last two commits; re-take at each phase base. Archived record scripts under `.planning/milestones/v1.*-phases/` hard-code moved paths (ENOENT is not a regression); only this milestone's own scripts run at phase close, with an expected-reports ledger. Never `git add -A` under `.planning/milestones` (untracked `*REVIEW*.iter*.md` backups exist). `gsd-tools query commit` writes no co-author trailer; amend and verify.
 
 ## Implications for Roadmap
 
-Four phases, strictly serial (81 -> 82 -> 83 -> 84), exactly the owner's order. The edges are file and register adjacency, not code dependency: 81 and 83 both edit the `configure` block in `DockModel.ts`, 83 renames or edits modules that `useDiagnostics.ts` and `DevtoolsDock.tsx` import and that 84 also edits, and 82 is independent in code but stays second to keep both live defects first (it can swap with 81 safely). Every phase edits the same registers, so no parallelism.
+Keep the strictly serial order 85 -> 91. Research found no overlap that forces a different order, and 91 must be last (it names every export 89 and 90 settle and edits `QadiProvider.tsx` imports after 86). Reserved ids per phase, in order: one ADR (198..204), one CCR (477..483), five BEH (761..795 in blocks of five), two INV (415..428 in pairs). Never run `scripts/next-id.mjs` during execution; write the reserved numbers into `_WAVE16-CONTEXT.md` in plan 1 of Phase 85 (it does not exist yet, and PROJECT.md has no reserved-numbers block). Where an id goes unused, record it in the phase SUMMARY; never renumber.
 
-### Phase 81: The dock's `configure` applies every input whatever a listener throws (ARCH-128, devtools, LIVE DEFECT)
-**Rationale:** First: it is a live defect and 83 edits the same block. 
-**Delivers:** the shared collect-and-rethrow in `ExternalStore.ts`; `configure` as ordered idempotent steps under it, reading `held` per step; total `spread` / derived rail (81-C) and one spread per change; the capacity refusal still first and uncollected.
-**Features:** 81-R1..R6. **Avoids:** 81-A, C, D, E, F, G, H; decides 81-B.
-**Opens with (RED on `911aa37f`):** `M57` after M56 (`DockModel.test.ts:481`): for each of `explorer`, `simulation`, `roles`, `questions`, one throwing listener, one `configure`, assert roles, `simulation.sightings === explorer.sightings`, dock rows after the resize, diagnostics not `Off`, thrown value `=== boom`; two distinct throwers give an `AggregateError` with both in step order (RED: only the last escapes); the record path (RED: 0 rows); capacity+catalogue notifies explorer once (RED: 2); a nested `configure` from a listener equals a plain `configure`; an identical second configure leaves every snapshot equal.
-**Spec:** ADR-QD-194 (amends 177, 191 d11, 192 d3, 185 if 81-C); BEH-QD-741..745 (amend 465, 656, 699, 728's pinned-by, 735's counts); INV-QD-407-408 (amend 373, 390); CCR-QD-473; `CR22` counts restated with the code. Changeset `@qadi/devtools` patch; no upgrade guide.
-**Gates and mutation:** `DockModel.ts` score 1 (69 killed, 12 ignored at v1.9 close) and `ExternalStore.ts` baselined before any edit; no new `Effect.fnUntraced`, `switch`, `any`, module-scope `let`; no public export change.
-**Setup in its first plan:** record how the archived `79-`/`80-pinned-check.mjs` run (scratch copy, repo root) and write it, with the id table, into `_WAVE15-CONTEXT.md`.
+### Phase 85: Hydration block as a dock-model row (ARCH-132)
+**Rationale:** Cheapest, oracle exists (two HTML-string characterisation files), and it must precede 88 because both edit `DevtoolsDock.tsx` lines 110-115.
+**Delivers:** pure `HydrationView`, fifth derived store (eleventh store; ADR-QD-185 amended, BEH-QD-700 "eleven", CR22 and DL sweeps, BEH-QD-699/735, INV-QD-390), `DockFrame` status-only selector, hydration row in BEH-QD-218's table.
+**Avoids:** flattening the three unsampled predicates (the view takes activity and status with activity precedence; questions key keeps `supplied === undefined &&`; services key stays unguarded); a derived key that spreads a fresh object (identity per field; `foldReading` keeps references); JSX in `model/` (static Unwired advice stays a panel constant); the "0 dehydrated entries" quirk (pin it).
+**Ids:** ADR-QD-198, CCR-QD-477, BEH-QD-761..765, INV-QD-415/416. **Stryker:** `stryker.devtools.mjs` (new view under `model/**`, own bar; `QuestionsPanel.tsx` and `DockFrame` unmeasured, declare in `UNMEASURED`).
 
-### Phase 82: A provider's registry has one owner for its lifetime (ARCH-129, react, LIVE DEFECT)
-**Rationale:** Second live defect; independent of devtools code.
-**Delivers:** `packages/react/src/RegistryLease.ts` (pure, injected `defer`, `hold()`/release), `QadiProvider.tsx` lines ~217-223 and ~285-299 replaced, `stryker.react.mjs` `mutate` gains the file; the lifetime paragraph in the provider header.
-**Features:** 82-R1..R4. **Avoids:** 82-A..H.
-**Opens with (RED on the phase base, which is 81's close commit):** `packages/react/test/QadiProvider.lifetime.test.tsx`: a parent with `mode` state, a hoisted/`useMemo`'d `<QadiProvider><Can/></QadiProvider>` under `<Activity mode>`, an error boundary; render, settle, hide, wait a real macrotask, show; assert no captured message, `allowed` rendered, a `useSubject` probe reads the prop (observed failure: two errors, body `caught`). Companions: hidden-then-shown `useInvalidate`, a `useDevtoolsFeed` consumer under hide/show, StrictMode (one registry), hide-short control (S1b), subject changed while hidden (S4), long-hide sweep expectations from ADR-QD-148 via `makeSweepCounter`/`withSweepFork` (not from P4), headless lease tests (hold/release/hold in one tick recycles nothing; release past the timer recycles once and re-seeds only the subject; unmount recycles). Strengthen `edges.test.tsx:257`. Write the ADR's claim about React's commit order from the RED/GREEN observation, not from reasoning.
-**Spec:** ADR-QD-195 (amends 014's consequence, 149, cites 148); BEH-QD-746..750 (amend BEH-QD-067 `09-react.md:334` and the SUBJ note :380-390, BEH-QD-516); INV-QD-409-410; `appendices/react-integration.md:140`; CCR-QD-474. Changeset `@qadi/react` patch (note that hydration seeds are no longer re-applied after a long hide); no upgrade guide.
-**Gates and mutation:** `MODULE_STATE_BUDGET` must not grow; §13 holds (the lease owns infrastructure, never a decision); the lease is new and close-only against an absolute bar of no open mutant; `QadiProvider.tsx` stays `unmeasured` in the record.
+### Phase 86: React-free provider registry owner (ARCH-133)
+**Rationale:** Independent of 85/87/88; must land before 91 so folds move files over a settled `QadiProvider.tsx`.
+**Delivers:** `ProviderRegistry.ts` composing unchanged `RegistryLease` (reasons: its own test seam and mutation entry, ADR-QD-195 d2/d7); owner tests with injected `defer` and a real `AtomRegistry`; render suite shrinks to StrictMode, `<Activity>` and SSR smoke; ADR-QD-195 amended (not reversed); `stryker.react.mjs` gets the new file.
+**Avoids:** construction that schedules anything (only `release` calls `defer`); changing effect order (the hold effect stays last, commit before hold); the rejected list in ADR-QD-195 (dispose, state, proxy, seed re-apply, render-phase write); `scheduleTask`/`defaultIdleTTL`; module-scope `let`; fake-`defer` and one-tick tests. LT1-LT18 and RL1-RL10 stay unedited and green; add before deleting.
+**Ids:** ADR-QD-199, CCR-QD-478, BEH-QD-766..770, INV-QD-417/418. **Stryker:** `stryker.react.mjs` (add owner; update header and covering-tests comment; `QadiProvider.tsx` stays unmeasured and branch-free).
 
-### Phase 83: The diagnostics feed holds its reading as a value (ARCH-130, devtools, possibly Breaking)
-**Rationale:** After 81 because both edit `configure`'s tail; before 84 because 84 edits the importers.
-**Delivers:** pure `foldReading`; `DiagnosticsFeed` holds the reading, `off()` assigns `noDiagnostics`; `runDiagnostics(sink, options)`; `marking`, store, `subscribe` deleted; `Diagnostics.questions` removed; field list stated once.
-**Features:** 83-R1..R5. **Avoids:** 83-A..E.
-**Opens with:** a characterisation green on the base and kept green (build, configure, first sample, unchanged sample, one-field-changed sample, defect, restart-after-stop, `configure(undefined)`: status tag, per-field identity, publish count), then a RED type pin that `Diagnostics` has no `questions` with its positive twin, and a RED `mergeReading` test; late sample after supersede, restart keeps the reading, off resets, `Live` on an unchanged sample, N identical samples publish nothing after the first.
-**Spec:** ADR-QD-196 (amends 173, 169 d10); BEH-QD-751..755 (amend 323, 617, 637, 639, 640, 699); INV-QD-411-412 (amend 314, 366); CCR-QD-475; `traceability.md:579-580`, `overview.md:916-923`, `surface.tst.ts:244-265`. **Breaking `@qadi/devtools` minor** changeset plus `## 0.13` entry in `apps/website/src/content/docs/docs/reference/upgrading.md` (fences are compiled; the `0.12`/`0.13` sections that read `reading.hydration` must keep compiling).
-**Gates and mutation:** `NOT_CALLABLE_PIN_BUDGET` row + AGENTS.md §6 + `check-house-style.mjs:771` edited together if the file is renamed; gate 14 run once at the phase close (it compiles `makeDiagnosticsFeed`); gate 12 clean (no new "no longer" prose outside a `>` blockquote); mutation base for `DiagnosticsFeed.ts`, `DiagnosticsStore.ts` (60/60 at ADR-QD-169) and `DockModel.ts`, new file keeps the old score.
+### Phase 87: Scoped run that states its stop (ARCH-134)
+**Rationale:** Highest-risk devtools phase; before 88 so one reviewer holds "what a stop is". `TimelineStatus`/`DiagnosticsStatus` keep their shape so 88 keys on identity.
+**Delivers:** `StatedRun.ts` (publish callback between `begin` and `fork`, shared configure prologue with parameterised gate, one stop rule via `causeMessage`, shared `Readout` doc); `SimulationSession` shares only publish-then-fork and the message rule and keeps `Effect.exit` in the run (SR1 stays Broke); `GatesFeed` shares only the configure prologue (three different prologue rules exist: closed guard first; `sameFieldsOrAbsent` for diagnostics' absent options; `sameFields && watchFailure === undefined` for gates); new ADR answers ADR-QD-150 point 2 as an application of 150 (dated note on 150; amend 182 d10, 192, 194 and `ThrownMessage.ts` in the same commit).
+**Avoids:** claiming a live defect (it is an inconsistency: `Cause([Die(...)])` versus a pretty trace); renaming `Broke` or changing `GatesSnapshot` (Breaking); named `Effect.fn` or `fnUntraced` on the factory; losing `root: true` on `land`. Open with SR1 green; TF21-23, TF28, F28-31, F33, SR5-6 held unedited; add the row nobody has (a publish that throws and a superseding command from the same listener).
+**Ids:** ADR-QD-200, CCR-QD-479, BEH-QD-771..775, INV-QD-419/420. **Stryker:** `stryker.devtools.mjs` over `SupersedingRun`, three feeds, `SimulationSession`, `GatesFeed` and the new module; patch changeset for the Simulator text.
 
-### Phase 84: `useConfigured` takes a value that has `configure`, plus four small finds (ARCH-131, devtools)
-**Rationale:** Last: smallest, no live defect, and it edits files 83 touches.
-**Delivers:** the three adapters deleted; `LensSession.move` deleted; `useLens(lens, questions)`; one `DockFrame` stop-notice helper (`useStopNotice` with one generic `StoppedNoticeProps<S>`, each use with its own `useRef`, memo deps `[status, model]`); the `useTimeline` record decision recorded.
-**Features:** 84-R1..R5. **Avoids:** 84-A..F.
-**Opens with:** characterisations green on the base before any edit: `useConfigured.test.tsx` U1-U4 re-expressed over an object double with `configure` (its double passes a function today), `LensSession.test.ts:304/378` mutation-checked, `Lens.adapter.test.tsx:160` one-subscription pin; `ConfigureFirstRender` and `Lens.dock` characterisations stay unedited. No RED (no defect).
-**Spec:** amend ADR-QD-192 (d8) and ADR-QD-193; BEH-QD-756..760 only for the hook and lens-return contract (amend 734, 737, 736's pinned-by lists); INV-QD-413-414 only if the lens return needs one; ADR-QD-197 named unused; CCR-QD-476. Changeset: none, or a `@qadi/devtools` patch stating "no export changes".
-**Gates and mutation:** `LensSession.ts` re-measured (52/52, no open mutant); `src/react` hooks are outside the devtools Stryker config, so list them `unmeasured`; positive pins avoid a budget row.
+### Phase 88: `StoppedBox` keys itself, owns the ledger rules (ARCH-135)
+**Rationale:** Smallest phase; after 85 and 87. The review rates it speculative; keep it narrow.
+**Delivers:** an outer `StoppedBox` that derives the key and writes the ledger, rendering a keyed inner body; callers stop calling `stoppedKey`; ledger made opaque; ADR-QD-197 d4 amended.
+**Avoids:** a ledger inside the box or a screen (it must outlive screens or every tab switch re-announces); one ref for both feeds; a memo keyed on `status` alone; writing the ledger during render (StrictMode loses the alert in dev; discarded renders record a stop that never committed): decide at mount, record at commit; adding `role="alert"` to a mounted element; a module-scope ledger.
+**Ids:** ADR-QD-201, CCR-QD-480, BEH-QD-776..780, INV-QD-421/422. **Stryker:** none reaches `src/react`; put the one real decision (the ledger transition, `nextKey`) in a pure function with a table test, ideally under `model/`, and list the rest in `UNMEASURED`. Prove with scratch variants.
 
-### Phase Ordering Rationale
+### Phase 89: One admission step for an audit batch (ARCH-136)
+**Rationale:** Independent but must precede 91, which folds `SequenceIntegrity.ts` into `ArchiveFacts.ts`; keep admission out of `ArchiveFacts.ts`.
+**Delivers:** `HostBatch.ts` (plain function, refusal or undefined, wrapped by `Effect.fail` or `Result.fail` per caller); `NowNotFinite` stated once as a type fragment intersected into both public enums, same members and tags; check order tested once; per-entry-point order characterised first on the base (pair-fault table); public refusal enums, error classes and spans unchanged; `CodecMade.ts` stays a leaf.
+**Avoids:** one flat "now, rows, then terms" order (key-material vs rows and max-age vs rows would change which refusal wins); an `Effect.fn` admission (adds a span and makes `planRetention` effectful); exporting the step (gate 13); `Number.isFinite` to `isFinite`, `-0`, `+Infinity` `maxAgeMs`, key material read once; SCHEMA_ERROR_BUDGET stays 12.
+**Ids:** ADR-QD-202, CCR-QD-481, BEH-QD-781..785, INV-QD-423/424. **Stryker:** `stryker.audit.mjs` (glob; new file under floor from day one; record the 89 post-review score as 91's base for `ArchiveFacts.ts`).
 
-- 81 before 83: same `configure` block; 83 must not re-introduce an unguarded step.
-- 82 anywhere in code terms; second by the owner's order so both live defects land first.
-- 83 before 84: 83 changes the module that `useDiagnostics.ts` and `DevtoolsDock.tsx` import, and 84 edits both; doing 84 first re-touches the import lines and churns `useConfigured.test.tsx` twice.
-- Every phase's last plan edits the same spec registers, so no phase runs in parallel.
-- Each defect phase opens with a RED test seen failing on the phase base for the named reason, with the output saved (`NN-RED-EVIDENCE.md`); each measured file gets a Stryker base before any edit and a re-close after the review rounds.
+### Phase 90: Per-port facts on the description (ARCH-137)
+**Rationale:** Before 91 (91 names `Ports.ts`/`PortServing.ts` exports). Highest uncertainty; a recorded subset is an acceptable outcome.
+**Delivers:** open with a `pnpm circular` spike; `PortName` stays a leaf with its own tuple and everything derives downwards (`PORT_NAMES_BY_NAME` read from the tuple, registry order preserved so ADR-QD-052 keys do not move); `readScoped` routing off `LEAF_NEEDS.resourceId` behind the bench gate; description gains fixture and serving facets as the spike allows; amend ADR-QD-163 D-06 and ADR-QD-094, plus a dated ADR-QD-114 note for `PortServing` (guarded by `PortServing.tst.ts` passing unedited); AGENTS.md section 3 prose updated.
+**Avoids:** `PortName.ts` importing `Ports.ts`; `ByScope` treated as always; a `switch` (hoisted `Match.type`); `Effect.fn` on `readScoped`; span-name literals in `PortAccess.ts`/`PortDerivation.ts`/`PortCalls.ts`; deleting the tying test without a replacement; metric ids or descriptions changing; wire or served-route bytes changing (golden them).
+**Ids:** ADR-QD-203, CCR-QD-482, BEH-QD-786..790, INV-QD-425/426. **Stryker:** core config; static description tables are invisible under `ignoreStatic`, so the proof is a `tabulatePorts` golden and a metric snapshot, not a score.
+
+### Phase 91: Named barrels for core, react, audit; folds (ARCH-138)
+**Rationale:** Last by design; biggest behaviour-free diff.
+**Delivers, in this plan order:** (1) surface-diff tool with self-test plus the three named barrels, zero file moves, one commit per barrel, no mixed `export *` state; (2) each fold, one per commit, `pnpm circular` after each, madge verdict recorded in the ADR-QD-037 amendment; (3) generalise `devtools-named-barrel` to a named-barrel table (rule renamed, five barrels, self-test with a planted `export *`), keep `barrel-order` for the rest; edit AGENTS.md section 9, section 16 text and CONTRIBUTING; (4) `SPAN_KEY_SHARED`, `UNTRUSTED_DECODE_BUDGET` row and AGENTS.md section 7a move together; (5) `SequenceIntegrity` disclaimer citations re-pointed (README, `spec/urs.md`, `spec/models/17-purpose.md`, ADR-QD-009); (6) stale sweep as the last plan, mutation as the very last. `Hydration.ts` folds only via a structural `hydrateDecisions` parameter; otherwise keep it and record the cycle in ADR-QD-204.
+**Avoids:** `export type { X }` of const+type pairs and classes; TS2883 non-portable `.d.ts` (the `../../` escape check); `GateWriter` stops being a zero-import leaf (update its wording); `QadiProvider.tsx` publishes names by accident today (`useQadiContext` is documented public and must stay).
+**Ids:** ADR-QD-204, CCR-QD-483, BEH-QD-791..795, INV-QD-427/428. **Stryker:** `stryker.config.mjs`, `stryker.audit.mjs`; compare folded files against the sum of their sources' latest post-review records with a `RENAMED` map; react folds target files not in `stryker.react.mjs`.
 
 ### Research Flags
 
-- **Phase 81: discuss-phase decisions, no external research.** Decide: helper name and shape (`callAll` vs `runCollecting`, `Iterable`, live `Set`), derived rail vs total `spread`, the `Starting` window (close in 81, close in 83, or stays), reentrancy (steps read `held`), and the restated BEH-QD-735/CR22 counts. Open the plan with a ten-store matrix plus the record path.
-- **Phase 82: needs `/gsd-plan-phase --research-phase 82` or a spike.** The RED test must be seen failing first on the phase base, and the ADR's claims about React's commit order must come from that observation. Open questions the spike answers: does `reset()` + subject re-seed hold under StrictMode, two providers on one atom set, and the sweep (pressure-episode forks) after a long hide; does `reset()` leave the `Atom.runtime` layer scope released at a true unmount.
-- **Phase 83: standard patterns** (mirrors 81/`runSource`), but its discuss step makes the three decisions in the table (questions removal, rename, `Starting` window) and confirms the Breaking changeset.
-- **Phase 84: standard patterns.** The discuss step decides `useLens` return shape and the `useTimeline` record; check type inference of `useConfigured<A, I>` with positive pins.
+Needs `/gsd-plan-phase --research-phase` (or a spike as plan 1):
+- **Phase 90:** unproven acyclic derivation; hot-path benchmark; wire and fixture surfaces only partly read (`PortServing.ts` and the remote wire were not read in full).
+- **Phase 87:** several valid shapes; characterise the feeds' self-interrupt behaviour before choosing a policy; reentrancy semantics (ADR-QD-150 d7-9).
+- **Phase 91:** the `Hydration.ts` decision and `EvaluationSpan` placement need a pre-fold madge simulation on the Phase 91 base; the barrel generator is new tooling.
+
+Standard patterns (characterisation plus discuss is enough):
+- **Phase 85** (precedent ADR-QD-168/185), **Phase 86** (precedent ADR-QD-195, lease), **Phase 88** (small, precedent ADR-QD-197), **Phase 89** (precedent ADR-QD-190 `RowsRefusalCases`).
+
+### Where the researchers disagree (open questions for each phase's discuss step)
+
+- **85, DockFrame status read:** ARCHITECTURE and FEATURES recommend an optional selector on `useStoreSnapshot` (precedent `usePaused`) and reject a status-only store; PITFALLS (85-B) allows "a status readout or a status store". Open: selector (recommended) versus store. Also the view input shape: ARCHITECTURE keys `{hydration, unsampled}` with plain `isUnsampled(status)`; PITFALLS wants the view to take `status` itself. Both keep activity precedence; decide which the BEH states. The store is exposed as `model.hydration` (eleventh), not internal.
+- **86, how many effects:** ARCHITECTURE collapses latest, subject write and atoms-replaced detection into one commit effect (before the last hold effect); PITFALLS (86-B) insists on three separate effects in fixed order with LT1-LT18 unedited. FEATURES keeps `AtomsReplaced` detection in the component; ARCHITECTURE moves detection into the owner (reporting stays in the component). Open: one commit effect or three; where identity detection lives. Tie-break: LT6, LT8, LT13, LT16-LT18 stay green unedited.
+- **87, interrupt policy for the feeds:** FEATURES wants an explicit decision (state a stop or state why not); ARCHITECTURE keeps current behaviour and characterises it; PITFALLS leaves it to discuss. Today feeds show `Reading`/`Live` with nothing running after a self-interrupt, and BEH-QD-519 is silent. Changing it is a behaviour change needing its own test and ADR line. Also open: whether `restart` on a bare timeline feed stays an empty read (recommended; characterise first). The session's exit read is settled: keep it.
+- **88, removing the render-phase ref read:** FEATURES lists "remove it, key from a React-held value" as a differentiator; ARCHITECTURE recommends centralising it (wrapper plus opaque ledger closure) and rejects a `WeakMap` because it changes what "announced" means for a never-mounted stop; PITFALLS adds that the ledger could be a per-feed model store. Open: relocate (recommended) or remove. Either way the ledger stays above the screens and the prop type names stay.
+- **89, span and brand:** ARCHITECTURE would return an admitted-rows brand and run admission before the `qadi.audit.verifySequenceIntegrity` span, so a refused public verify no longer opens that span (record and pin it); PITFALLS (89-B) wants a plain refusal-or-undefined function with spans unchanged and an ordered per-caller check list. Open: brand versus plain function, and whether the span change is acceptable. Tie-break: spans unchanged unless the owner accepts the pinned trace change.
+- **90, how much moves:** ARCHITECTURE deletes `PortSpans` and moves span, fixture and serving declaration onto descriptions (reversing ADR-QD-114; loses `PortSpanOf<N>`'s cross-check unless a pairwise-distinct type check is added); PITFALLS (90-A/C) wants to keep one closed table the types read from; FEATURES makes a madge spike the first plan and accepts "only `readScoped`/`resourceId` is feasible". Settled: `PortName` stays a leaf with its own tuple, derive downwards, `readScoped` stays plain. Open: which of span, serving, fixture move, decided by the spike.
+- **91, Hydration fold and changeset:** all agree the fold is blocked as written. ARCHITECTURE recommends the structural parameter (a public `.d.ts` parameter type change, with a changeset line); FEATURES and STACK say keep the file unless proven. Open: option (a) structural parameter versus (c) keep and record. Related disagreement on changesets: FEATURES says no changeset for package-private moves; PITFALLS (M-1) says a patch per public-package edit (v1.10's Phase 84 shipped one saying "no export changes"). Decide once in 85's discuss and apply across the wave. Also: the 942 baseline is the Phase 91 base figure (Phases 85-90 may legitimately change it), not a literal.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Every version read from installed `node_modules`; `AtomRegistry` `reset`/`dispose`/`setInitialValue` and Activity semantics probed on 19.3.1 (Activity semantics reproduced on that version only). |
-| Features | HIGH / MEDIUM | Current behaviour read at file:line and reproduced (ten-store matrix, six Activity scenarios). MEDIUM on post-fix counts: 81's 2/2, 82's `reset()` as owner, and the StrictMode registry-leak case were not run. |
-| Architecture | MEDIUM-HIGH | Code facts HIGH; candidate shapes are reasoned, not built. 82-F is MEDIUM until the RED test runs. |
-| Pitfalls | HIGH / MEDIUM | Repo mechanics, budgets and prior-wave failures HIGH; reentrancy (81-E) and the child-consumer-throws-first claim (82-A) are code-derived there, but 82-A was reproduced in STACK and ARCHITECTURE. |
+| Stack | HIGH | Versions read from `node_modules`; `AtomRegistry`, `Effect.fork` absence, `Cause` renderings reproduced; TS2883 portability reproduced on tsc 7.0.2 with a two-project probe (MEDIUM for how often the real graph hits it). |
+| Features | HIGH / MEDIUM | Current behaviour and surface read in source and spec; the shape of each fix is the planner's (MEDIUM). |
+| Architecture | HIGH / MEDIUM | Integration points, ADR quotes and the madge fold simulation are HIGH; Phases 87 and 90 shape is MEDIUM. |
+| Pitfalls | HIGH / MEDIUM | Repo mechanics and prior-wave records HIGH; unverified: Stryker behaviour on a missing explicit `mutate` path, `PortServing.ts` and the remote wire in full, `Equal.equals` on `HydrationActivity`. |
 
-**Overall confidence:** HIGH for 81, 83, 84; MEDIUM for 82's design until RED/GREEN.
+**Overall confidence:** HIGH that the wave is feasible with no stack change and no Breaking phase; MEDIUM on Phases 87, 90 and the 91 Hydration fold.
 
 ### Gaps to Address
 
-- **Double-spread notification cost:** FEATURES' measurement (explorer heard 2) contradicts ARCHITECTURE/PITFALLS' reading (second spread publishes nothing). Count publishes first in 81's RED.
-- **`Starting`-window disposition:** unresolved across the researchers; the 81 discuss step decides (see table), and three matrix rows depend on it.
-- **Reentrancy:** not yet seen RED; confirm during 81.
-- **82's accepted trade and S2 behaviour change:** a late read after unmount recreates a node silently; hydration seeds not re-applied after a long hide. Both need explicit ADR text and a changeset note; owner has not seen them.
-- **`QadiProvider.tsx` mutation:** not measured; only the lease module will be.
-- **Archived record scripts:** `79-pinned-check.mjs`/`80-pinned-check.mjs` hard-code old paths (ENOENT today); `79-`/`80-characterisation-check.mjs` pass. A scratch-copy invocation must be decided in 81's first plan; new wave scripts must take their directory from `import.meta.url`.
-- **Unrun in research:** any fix, the `reset()` owner in the real provider, `useConfigured` inference with positive pins, gate 14 after the 83 type change.
-- **Hygiene:** the untracked throwaway `packages/react/test/zzThrowaway82.test.tsx` that ARCHITECTURE cites is not present now (verified); no throwaway file may exist when a mutation base is recorded or at any commit.
+- `_WAVE16-CONTEXT.md` does not exist and PROJECT.md has no reserved-numbers block: write the reserved ids into it in Phase 85 plan 1.
+- Mutation baselines are stale (core 11-23, audit 11-24, react 11-25, all before recent source changes): re-take `NN-mutation-base.json` at each phase base with `83-mutation.mjs`'s recipe (stdin closed, quiet host, `RENAMED` map for folds). `pnpm check:pr` skips mutation, so this is a deliberate per-phase step.
+- Stryker on a missing explicit `mutate` path is unverified: run `stryker.react.mjs` once in Phase 86 if `RegistryLease.ts` is renamed or folded.
+- The `.d.ts` escape check is not yet a gate: add it to `check-package-install.mjs` in Phase 91 (AGENTS.md section 15). Baseline grep shows two hits, both comments.
+- The unmeasured React zones (`QadiProvider.tsx`, devtools `src/react/`, `QuestionsPanel`) stay unmeasured; list them in each phase's `UNMEASURED` and prove with scratch variants.
+- Archived record scripts will report on moved or deleted files (88, 91): write an expected-reports ledger per phase close; do not edit their path constants.
+- Tooling: `gsd-tools query commit` writes no co-author trailer (amend and read `%(trailers)`); `pnpm check:pr` needs `< /dev/null` and a quiet host; run vitest from the repo root with `--project`; use `/usr/bin/grep` or `bash -c` (zsh aliases grep); pass `--date` to `spec-revise.mjs`; do not release or approve a version-packages PR.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- `node_modules/effect/src/reactivity/AtomRegistry.ts` (`make`, `reset`, `dispose`, `createNode`), `node_modules/@effect/atom-react/src/RegistryContext.ts` (installed 4.1.2).
-- `packages/devtools/src/model/{DockModel,ExternalStore,TimelineFeed,GatesFeed,DiagnosticsFeed,DiagnosticsStore,LensSession,Catalogue}.ts`, `src/react/{useConfigured,useScoped,useDockModel,useDiagnostics,useTimeline,useLens}.ts`, `DevtoolsDock.tsx`, `QuestionsPanel.tsx`; `packages/react/src/{QadiProvider.tsx,SweepScheduler.ts}`; the existing tests M55/M56, CR22, P4, `edges.test.tsx:257`, `Lens.adapter.test.tsx:160`.
-- Spec: ADR-QD-014, 047, 148, 149, 169, 173, 177, 185, 191, 192, 193; BEH-QD-067, 323, 465, 516, 617, 637, 640, 656, 696-700, 728, 731-737; INV-QD-314, 366, 373, 390, 401-406; `AGENTS.md` §4-§6, §9, §13, §15-§17.
-- Throwaway runs (deleted): ten-store throw matrix, record path, two-throw and double-spread probes (81); six Activity scenarios S1-S6 and two React probes (82); `AtomRegistry` reset/dispose probe.
+- `node_modules/effect` 4.1.2 (`AtomRegistry`, `Effect`, `FiberHandle`, `Cause`) and the repo source named in STACK, FEATURES, ARCHITECTURE and PITFALLS (devtools model and react, `@qadi/react` provider, audit, core port modules).
+- `AGENTS.md` sections 3-9, 13, 15, 16; `spec/decisions` ADR-QD-037, 047, 080, 094, 099, 114, 134, 148, 150, 163, 168, 182, 185, 190, 192, 194, 195, 197; BEH-QD-218, 227, 445, 507, 509, 519, 699, 700, 722, 735, 746-750; INV-QD-313, 389, 390, 408-411.
+- `scripts/check-api-surface.mjs`, `check-package-install.mjs`, `check-house-style.mjs`, `stryker.{config,devtools,react,audit}.mjs`, `vitest.config.ts`, `package.json`.
+- Runs on this tree: `madge --json` per package and `pnpm circular` (245 files, clean), `node scripts/check-api-surface.mjs` (942 across 9 packages), `Cause` rendering probe, TS2883 probe.
 
 ### Secondary (MEDIUM confidence)
-- Prior-wave records for process pitfalls: `.planning/RETROSPECTIVE.md` (v1.8, v1.9), `.planning/milestones/v1.9-MILESTONE-AUDIT.md`, v1.9 phase record scripts and `80-mutation-close.json`, `.planning/phases/_WAVE14-CONTEXT.md`, `_SHARED-CONTEXT.md`.
-- `/private/tmp/claude-502/.../scratchpad/wave15-brief.md` (the four candidates; project-internal).
+- `.planning/RETROSPECTIVE.md`, `v1.10-MILESTONE-AUDIT.md`, `.planning/phases/_SHARED-CONTEXT.md` (prior-wave lessons).
+- Architecture review `architecture-review-20261125.html` (session scratchpad, read as text).
 
 ### Tertiary (LOW confidence)
-- Post-fix notification counts (81), `reset()` as owner in the real provider (82), StrictMode registry leak (unmeasured).
+- None. Items marked "not verified" under Gaps need a run before relying on them.
 
 ---
-*Research completed: 2026-11-24*
+*Research completed: 2026-11-25*
+*Ready for roadmap: yes*
