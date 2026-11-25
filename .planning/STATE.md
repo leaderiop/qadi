@@ -3,10 +3,10 @@ gsd_state_version: "1.0"
 milestone: v1.11
 milestone_name: Arch Wave 16
 status: planning
-last_updated: "2026-11-25T11:04:31.717Z"
+last_updated: "2026-11-25T11:42:24.000Z"
 last_activity: 2026-11-25
 progress:
-  total_phases: 0
+  total_phases: 7
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,14 +20,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-25)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Planning the next milestone (v1.10 Arch Wave 15 complete 2026-11-25; v1.9 and v1.10 not merged, not released)
+**Current focus:** Phase 85, The dock's hydration block is a model row (v1.11 Arch Wave 16, Phases 85-91; roadmap created 2026-11-25; v1.9 and v1.10 merged as #165, nothing released)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 85 of 91 (The dock's hydration block is a model row) — not started
 Plan: —
-Status: Defining requirements
-Last activity: 2026-11-25 — Milestone v1.11 started
+Status: Roadmap created; ready to discuss Phase 85
+Last activity: 2026-11-25 — Roadmap created for milestone v1.11 (Phases 85-91, ARCH-132…138; 41 of 41 requirements mapped)
+
+Progress: [░░░░░░░░░░] 0%
 
 
 ## Performance Metrics
@@ -1195,6 +1197,7 @@ Last activity: 2026-11-25 — Milestone v1.11 started
 - v1.9 roadmap created 2026-11-23: Phases 77-80, one per review candidate (ARCH-124 to ARCH-127), strictly serial (owner decision D2); 28 of 28 requirements mapped (21 phase-specific, 7 cross-cutting WX-01 to WX-07 on every phase); research flags on 77 and 79
 - v1.9 completed 2026-11-24: Phases 77-80 archived to `.planning/milestones/v1.9-phases/`; audit `passed` (28/28, 9/9, 4/4)
 - v1.10 roadmap created 2026-11-24: Phases 81-84, one per review candidate (ARCH-128 to ARCH-131), strictly serial (decision D2); 27 of 27 requirements mapped (20 phase-specific, 7 cross-cutting WX-01 to WX-07 on every phase); research flag on 82
+- v1.11 roadmap created 2026-11-25: Phases 85-91, one per review candidate (ARCH-132 to ARCH-138), strictly serial (decision D4); 41 of 41 requirements mapped (34 phase-specific, 7 cross-cutting WX-01 to WX-07 on every phase); research flags (spike or research as plan 1) on 87, 90 and 91
 
 ## Deferred Items
 
@@ -1208,11 +1211,11 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 ## Session Continuity
 
 Last session: 2026-11-25T08:54:16.486Z
-Stopped at: Phase 84 complete — all phases complete
+Stopped at: Roadmap created for v1.11 — next: discuss Phase 85
 Resume file: None
 
 ## Operator Next Steps
 
 
 
-- Start the next milestone with /gsd-new-milestone
+- Discuss Phase 85 with /gsd-discuss-phase 85, then /gsd-plan-phase 85

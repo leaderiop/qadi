@@ -13,6 +13,7 @@
 - ✅ **v1.8 Arch Wave 13** — Phases 69-76 (completed 2026-11-23; not released) — [archive](milestones/v1.8-ROADMAP.md)
 - ✅ **v1.9 Arch Wave 14** — Phases 77-80 (completed 2026-11-24; not released) — [archive](milestones/v1.9-ROADMAP.md)
 - ✅ **v1.10 Arch Wave 15** — Phases 81-84 (completed 2026-11-25; not released) — [archive](milestones/v1.10-ROADMAP.md)
+- 🚧 **v1.11 Arch Wave 16** — Phases 85-91 (in progress)
 
 ## Phases
 
@@ -434,3 +435,252 @@ Full details: [milestones/v1.10-ROADMAP.md](milestones/v1.10-ROADMAP.md) · requ
 [milestones/v1.10-MILESTONE-AUDIT.md](milestones/v1.10-MILESTONE-AUDIT.md)
 
 </details>
+
+## 🚧 v1.11 Arch Wave 16 (Phases 85-91)
+
+### Overview
+
+Wave 16 resolves the seven candidates of the 2026-11-25 architecture review, one phase each, strictly serial, in the order the review ranked them, and every candidate ends in a change or a recorded decision. There is no live defect in this wave and no phase is expected to be Breaking: each phase moves a rule that is written in several places into one place, with the observable behaviour pinned first by a characterisation that is green on the phase base (RED only where a change is named, which is Phase 87's one message inconsistency). Phases 85 and 88 deepen the devtools dock (the hydration block becomes a model row; `StoppedBox` owns the announce-once ledger), 86 gives `QadiProvider`'s registry lifetime a React-free owner, 87 factors the "scoped run that states its stop" out of the timeline, diagnostics and simulation feeds, 89 admits an audit host batch once, 90 moves the remaining per-port facts onto the port description, and **91 goes last by design**: `@qadi/core`, `@qadi/react` and `@qadi/audit` take named barrels as `@qadi/devtools` does (ADR-QD-047), and the visibility-only files fold into the modules that own their concepts, so every earlier phase lands on the file layout it was reviewed against. `.planning/phases/_WAVE16-CONTEXT.md` is authoritative for per-phase evidence (verified against `ac7578f3`), decisions and reserved ids; `.planning/research/` (STACK, FEATURES, ARCHITECTURE, PITFALLS, SUMMARY) is this wave's research and `SUMMARY.md` is the planner's primary input; the review HTML is session-scoped and may be gone. Branch `arch-wave-16`, off `main` at `ac7578f3` (v1.9 and v1.10 merged as #165). No dependency or version changes: every API the wave needs is installed (effect 4.1.2, React 19.3.1, TypeScript 7.0.2).
+
+**The seven phases and their order are fixed (2026-11-25).** Scope (all seven), the Phase 91 fold rule (fold, prove acyclic) and research (run) are the owner's decisions; nothing is added, merged, split or reordered, whatever the `fine` granularity setting would suggest: each review candidate is one phase (D1).
+
+**Standing direction (owner, unchanged):** the cleanest, most complete design wins, not the simplest, and the project is not in production, so compatibility is never the tiebreaker. Nobody is asked: each grey area is decided at its phase's discuss step and recorded there as decided, with the rejected options. No phase is expected to be Breaking (the public surface is 942 exports at the Phase 91 base and the same at its end); Phase 87 is a `@qadi/devtools` patch (the Simulator's broken-run text), and Phase 91 needs a changeset line only if `Hydration.ts` folds through a structural `hydrateDecisions` parameter. The wave-wide changeset policy (a patch per edited public package vs none for package-private moves) is decided once, at Phase 85's discuss step. Nothing is released or published, no version-packages PR is merged, and the branch is not merged and not pushed.
+
+Order: the dock model's hydration row (85), the provider's lifetime owner (86), the feeds' stated-stop run (87), the `StoppedBox` ledger (88), the audit admission step (89), the per-port facts (90), then the named barrels and folds (91). **Execution order: phases run strictly one at a time, in numeric order (85 → 91).** Every records plan edits the same spec registers (CCR tail, invariants, traceability, `index.yaml`, `overview.md`, behaviour docs) and `use_worktrees` is false, so each phase depends on the previous one. **Phases 87, 90 and 91 open with a spike or research plan** (SUMMARY "Research Flags").
+
+**Decisions** (`_WAVE16-CONTEXT.md`, all locked):
+
+| Decision | Phase | What it fixes |
+|----------|-------|---------------|
+| D1 | all | All seven review candidates become phases (owner, 2026-11-25) |
+| D2 | 91 | A visibility-only file folds, including an ADR-QD-037 cycle-breaker, only where `pnpm circular` proves no cycle returns; ADR-QD-037 is amended and the PROJECT.md Out of Scope line it supersedes is removed (owner) |
+| D3 | all | Research run; `.planning/research/` is this wave's research (owner) |
+| D4 | all | Order 85 → 91, strictly serial: 85 before 88 (both edit `DevtoolsDock.tsx` ≈110-115, 258); 87 before 88 (88 keys on the status identity 87 keeps); 86, 89 and 90 before 91 (91 edits `QadiProvider.tsx` imports, folds `SequenceIntegrity` into `ArchiveFacts`, and names every export 89 and 90 settle) |
+| D5 | all | Branch `arch-wave-16` off `main` at `ac7578f3`; no merge, no push, no release |
+| D6 | all | Every other choice is decided at its phase's discuss step under the standing instruction (a breaking change is fine with a **Breaking** changeset and an upgrade-guide entry) |
+
+**Grey areas each phase's discuss step decides** (researchers disagree or the spec is silent; `research/SUMMARY.md` "Where the researchers disagree" carries each recommendation):
+
+| Phase | Decided at the discuss step |
+|-------|-----------------------------|
+| 85 | The view's home (its own derived store, the model's eleventh, vs riding an existing one); `DockFrame`'s status read (an optional selector on `useStoreSnapshot`, precedent `usePaused`, vs a status store); the view's input shape (`{hydration, unsampled}` vs the view taking `status`; activity precedence either way). **Also the wave-wide changeset policy (WX-03)** |
+| 86 | One commit effect vs three ordered effects (tie-break: LT6, LT8, LT13, LT16-LT18 stay green unedited); where `AtomsReplaced` identity detection lives (reporting stays in the component) |
+| 87 | The feeds' self-interrupt policy (today a self-interrupted timeline or diagnostics run keeps `Reading`/`Live` with nothing running; BEH-QD-519 is silent), characterised first; whether `restart` on a bare timeline feed stays an empty read; rendering `Broke.message` in the `<pre>` treatment `Stopped.reason` has |
+| 88 | Relocate the render-phase ref read into the wrapper (recommended) vs remove it (key from a React-held value, or a per-feed model store) |
+| 89 | An admitted-rows brand with admission before the `qadi.audit.verifySequenceIntegrity` span vs a plain refusal-or-undefined function with spans unchanged (tie-break: spans unchanged unless the change is pinned and recorded) |
+| 90 | Which of span name, serving shape and fixture type move onto the description, decided by plan 1's spike; a pairwise-distinct span-name type check to replace `PortSpanOf<N>`'s cross-check |
+| 91 | `Hydration.ts`: a structural `hydrateDecisions` parameter declared in the engine (folds; a public `.d.ts` change with a changeset line) vs keep the file and record the cycle; `EvaluationSpan` stays apart unless `pnpm circular` proves the fold |
+
+**Every phase** carries the seven cross-cutting requirements (WX-01..07): `pnpm check:pr < /dev/null` green at the end of each phase; its ADR (or "Unused" in its CCR row), CCR, BEH/INV and traceability records using only its reserved numbers, never `node scripts/next-id.mjs`; `spec/overview.md` names every added export and drops every removed one (gate 13), and gate 14 probes every changed public signature; no new `as`, `!`, `any`, `switch`, `Effect.fnUntraced`, `async`/`await` in src, ambient `console`/`process.env`/clock, `Record<string, unknown>`, `// Stryker disable` or module-scope `let`, and a budget changes only together with its AGENTS.md table in one commit; coverage held (core at least 95 percent, the others at least 90) and the Stryker score of every touched file re-taken per phase in `NN-mutation-base.json` at the phase base and at close with the same invocation (a `RENAMED` map for folds), a drop closed with a test and never re-baselined, unmeasured React files listed per phase; a characterisation or regression test written on the phase base before any behaviour change (RED for a change, green for preserved behaviour) and every new check shown failing once, with its scratch variant and failing text recorded; no D-numbers, plan-local ids or phase numbers in shipped source, test titles or BDD scenarios, and nothing released, published, pushed or merged. House rules, verify-command hygiene and the Stryker procedure are in `.planning/phases/_SHARED-CONTEXT.md`, overridden where `_WAVE16-CONTEXT.md` says so. A record's plan is the phase's last plan.
+
+**Soft edges** (from `_WAVE16-CONTEXT.md`, `research/SUMMARY.md` and the files each phase edits; serial order covers all of them):
+
+| Edge | Strength | Reason |
+|------|----------|--------|
+| 85 → 88 | hard | both edit `DevtoolsDock.tsx` (≈110-115 and 258); 85 removes `DockFrame`'s whole-reading subscription before 88 touches the same notice wiring |
+| 87 → 88 | hard | `TimelineStatus` and `DiagnosticsStatus` keep their shape through 87 so 88 keys the announce-once ledger on status identity; one reviewer holds "what a stop is" |
+| 86 → 91 | ordering | 91 edits `QadiProvider.tsx` imports (and `Hydration.ts`, `GateRegistry.ts`) over the settled provider |
+| 89 → 91 | hard | 91 folds `SequenceIntegrity.ts` into `ArchiveFacts.ts`; admission stays out of `ArchiveFacts.ts` and 89's post-review score is 91's mutation base for that file |
+| 90 → 91 | hard | 91 names the `Ports.ts` and `PortServing.ts` exports 90 settles |
+| 91 last | by design | the biggest behaviour-free diff; it generates barrels from the exports 85-90 leave, so the 942 baseline is the Phase 91 base figure, not a literal |
+| all → close | re-verify | later phases make earlier ones stale (85 and 88 share files; 91 moves files 86, 89 and 90 edit), so the milestone close re-verifies and re-runs each phase's record scripts |
+
+**Numbering reserved for v1.11** (the whole block is held in the shared reservation file, `$(git rev-parse --git-common-dir)/qadi-reserved-ids.json`, set to CCR 483, ADR 204, BEH 795, INV 428 on 2026-11-25; never run `node scripts/next-id.mjs` while executing these phases, because every call writes a reservation; name an unused reservation "Unused:" in the phase's CCR row; an amendment of an existing ADR leaves its new ADR number unused and says so; pass `--date 2026-11-25`, or the real date of the edit, to `spec-revise`). Next free on `ac7578f3`: ADR-QD-198, CCR-QD-477, BEH-QD-761, INV-QD-415. Highest ARCH is ARCH-131; ARCH ids below 132 are never reused. ADR Document IDs equal the file number (gate 10).
+
+| Phase | ARCH | ADR-QD | CCR-QD | BEH-QD | INV-QD |
+|---|---|---|---|---|---|
+| 85 | 132 | 198 | 477 | 761–765 | 415–416 |
+| 86 | 133 | 199 | 478 | 766–770 | 417–418 |
+| 87 | 134 | 200 | 479 | 771–775 | 419–420 |
+| 88 | 135 | 201 | 480 | 776–780 | 421–422 |
+| 89 | 136 | 202 | 481 | 781–785 | 423–424 |
+| 90 | 137 | 203 | 482 | 786–790 | 425–426 |
+| 91 | 138 | 204 | 483 | 791–795 | 427–428 |
+
+**Out of scope** (recorded, not planned): a one-call `run(effect)` for the feeds (ADR-QD-150 rejected it; Phase 87's callback keeps the publish gap); routing `SimulationSession` through `SupersedingRun`'s `onFailure` (it skips interrupt-only causes, so SR1's self-interrupt would sit `Running` forever); merging the two audit refusal unions or error classes (Breaking, and ADR-QD-190 rejected restating the row refusals); deriving `PortName` from `Ports.ts` (closes a madge cycle through every port module, ADR-QD-037); converting the http, testing, predicate-sql, predicate-prisma or promise barrels (not in the review); `export *` as a stepping stone in Phase 91 (makes folded internals public and is invisible to gate 13); a shared child-walk driver for Walk/Predicate (ADR-QD-073); upgrading any dependency; formatting with `oxfmt` (AGENTS.md §17); merge, release or publish. Carried forward as future work: aligning `@qadi/react`'s swallowing gate registry with ADR-QD-177's rethrow contract; structural (deep) identity for feed inputs; exporting the lens session from `@qadi/devtools`' barrel; the upstream `@effect/atom-react` `RegistryProvider`, which has the same dispose-in-cleanup shape as the defect v1.10 Phase 82 fixed; `HydrationEngine`'s tests consolidated onto the public seam.
+
+### Phases
+
+- [ ] **Phase 85: The dock's hydration block is a model row** - A pure hydration view (Pending / Unwired / Counts, text worked out) is served by the dock model, `QuestionsPanel` renders its tag and decides nothing, and `DockFrame` stops subscribing to the whole reading to pass one field (ARCH-132, devtools)
+- [ ] **Phase 86: `QadiProvider`'s registry lifetime has a React-free owner** - Create, seed, subject write, recycle and the lease live in one headless module tested with an injected defer; the component keeps one ref and forwards (ARCH-133, react)
+- [ ] **Phase 87: One scoped run that states its stop** - Publish-then-fork, the stop rule, `restart`, the closed guard and the configure prologue are stated once above `SupersedingRun`; a dying simulation run reports the same stop text as the feeds (ARCH-134, devtools; opens with a RED test and a spike)
+- [ ] **Phase 88: `StoppedBox` keys itself and owns the announce-once rule** - Callers stop computing `stoppedKey` from a ref during render; the ledger transition is a pure function, decided at mount and recorded at commit (ARCH-135, devtools react)
+- [ ] **Phase 89: One admission step for a host's audit batch** - `now`, rows and the caller's terms are checked once for `archiveAuditTrail`, `planRetention`, `verifiedArchiveFacts` and `planPurge`; `NowNotFinite` is stated once (ARCH-136, audit)
+- [ ] **Phase 90: The remaining per-port facts live on the port description** - Span name, serving shape and fixture data type move onto the description as a spike allows, `PortName` stays a leaf, and `readScoped` routes off the `LEAF_NEEDS` row (ARCH-137, core; opens with a spike)
+- [ ] **Phase 91: Named barrels, and visibility-only files folded away** - `@qadi/core`, `@qadi/react` and `@qadi/audit` name their exports per module, and each visibility-only file folds into its owner only where `pnpm circular` proves no cycle returns (ARCH-138, core / react / audit; opens with a surface-diff tool and a madge simulation)
+
+### Phase Details
+
+### Phase 85: The dock's hydration block is a model row
+
+**Goal**: The dock model serves the hydration block as one pure view, so the Pending / Unwired / Counts decision and each "unsampled" decision are made in one place, `QuestionsPanel` renders the view's tag and decides nothing, and `DockFrame` no longer subscribes to the whole merged reading to pass one field along.
+**Live defect**: no.
+**Breaking**: no (`@qadi/devtools`; the dock model is package-private and no export is expected to change; the changeset policy for the wave is decided here). Amends ADR-QD-185 if the view is a fifth derived store.
+**Depends on**: Nothing in v1.11 (first phase; serial order).
+**Requirements**: HYDV-01, HYDV-02, HYDV-03, HYDV-04, HYDV-05. Cross-cutting: WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Packages**: `@qadi/devtools` (a new `model/HydrationView.ts` beside `PortCards.ts`, `model/DockModel.ts`, `react/QuestionsPanel.tsx`, `react/DevtoolsDock.tsx`'s `DockFrame`, the two `QuestionsPanel` HTML-string tests, `ConfigureRule.test.ts` and `DockModel.listeners.test.ts` store-name pins, `spec/behaviors`, a changeset per the policy)
+**Records**: ARCH-132; ADR-QD-198 (new, or ADR-QD-185 amended and 198 named unused); CCR-QD-477; BEH-QD-761 to 765 (BEH-QD-700, 699 and 735 restated, BEH-QD-218's table gains a hydration row); INV-QD-415 to 416 (INV-QD-390 amended)
+**Evidence** (`_WAVE16-CONTEXT.md`, at `ac7578f3`): `QuestionsPanel.tsx:112` calls `isUnsampled(diagnostics.status)`, and `Hydration` (346-368) and `Counts` (371-420) decide Pending, Unwired and Counts and work out the rate sentence, the raised-drops filter and the unaccounted scope text in the component. `DockModel.ts` 383-409: the questions store keys `unsampled: supplied === undefined && isUnsampled(status)` (≈391) and the services store keys `unsampled: isUnsampled(status)` (≈405). `DevtoolsDock.tsx:112` subscribes `DockFrame` to the merged diagnostics snapshot and `:258` passes `shown.hydration` to one tab; INV-QD-411 keeps the reading's identity when nothing moved. Precedent: `PortCards.ts` and ADR-QD-168. Store-name pins: `ConfigureRule.test.ts:583`, `DockModel.listeners.test.ts:64`.
+
+**Success Criteria** (what must be TRUE):
+  1. A characterisation written on the phase base is green there and after: it pins every state of the hydration block the panel renders today (Pending, Unwired, Counts with its rate sentence, the raised-drops filter, the unaccounted scope text, activity over status, and the "0 dehydrated entries" wording), with the two `QuestionsPanel` HTML-string files as the byte oracle, and every `data-testid` is unchanged (HYDV-01, HYDV-04).
+  2. A pure hydration view returns a closed tagged union (Pending / Unwired / Counts, the text worked out) beside `portCards`, is tested as a table under `src/model/` and the devtools mutation gate, and no JSX enters `model/` (HYDV-02).
+  3. The dock model serves the view keyed per field, so a repeated identical reading publishes nothing; the three distinct "unsampled" predicates (questions with `supplied === undefined`, services unguarded, hydration with activity precedence) each stay as they are, stated once each and not flattened into one (HYDV-03).
+  4. `QuestionsPanel` renders the view's tag and decides nothing, and `DockFrame` no longer subscribes to the whole merged reading to pass `hydration` along: it keeps only what its notice needs, the status (HYDV-04).
+  5. ADR-QD-198 (or ADR-QD-185 amended with 198 named unused), BEH-QD-700, 699 and 735, INV-QD-390, BEH-QD-218's table and the store-name pins are restated in the same change (HYDV-05).
+
+**Planning notes**: Standard patterns (precedent ADR-QD-168 and ADR-QD-185); plan 1 is the characterisation, using the two HTML-string files and writing the cells they lack. The discuss step decides the view's home, `DockFrame`'s status read and the view's input shape (grey-area table), and the wave's changeset policy. Constraints that are findings: the derived key compares identity per field and the fold keeps references (never a fresh spread); the static Unwired advice stays a panel constant, so no JSX enters `model/`; the "0 dehydrated entries" plural is pinned, not fixed; no fourth "nothing hydrated" state; activity precedence is kept. If the view is the eleventh store, the "eleven" count, CR22 and the store-name sweeps move with it. Stryker: `stryker.devtools.mjs` measures the new view under `model/**` with its own bar; `QuestionsPanel.tsx` and `DockFrame` are unmeasured, so list them in `UNMEASURED` and prove them with scratch variants. Phase 88 edits the same `DevtoolsDock.tsx` lines, which is why 85 goes first.
+**Plans**: TBD
+
+**UI hint**: no (the panel renders the same markup, copy and test ids; the decision moves out of it)
+
+### Phase 86: `QadiProvider`'s registry lifetime has a React-free owner
+
+**Goal**: One package-private, React-free owner holds the registry's lifetime (create, seed the subject and `initialValues`, write the subject, recycle, hold and release the lease), tested with an injected `defer` and no rendering, while `QadiProvider` keeps one ref and forwards hold, release and subject changes.
+**Live defect**: no (Phase 82 fixed the live defect; this moves the wiring that hid it out of the component).
+**Breaking**: no (`@qadi/react`; no public export changes; the changeset follows the wave's policy). Amends ADR-QD-195, keeping its hold/defer semantics.
+**Depends on**: Phase 85 (serial order only; `@qadi/react` and `@qadi/devtools` share no source).
+**Requirements**: PREG-01, PREG-02, PREG-03, PREG-04, PREG-05. Cross-cutting: WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Packages**: `@qadi/react` (`QadiProvider.tsx`, a new package-private owner beside `RegistryLease.ts`, `stryker.react.mjs`, `packages/react/test`, `spec/behaviors/09-react.md`, `appendices/react-integration.md`, a changeset per the policy)
+**Records**: ARCH-133; ADR-QD-199 (new, or ADR-QD-195 amended and 199 named unused); CCR-QD-478; BEH-QD-766 to 770; INV-QD-417 to 418
+**Evidence** (`_WAVE16-CONTEXT.md`, at `ac7578f3`): `QadiProvider.tsx` is 359 lines with seven effect hooks and refs at ≈228, 259, 269 and 314; `RegistryLease.ts` is 85 lines, pure, takes an injected `defer` and is already in `stryker.react.mjs`. ADR-QD-195's context lists the bugs that lived in the wiring (a second registry built while hidden; a disposed registry on reveal), so the wiring is where the lifetime rule's risk sits.
+
+**Success Criteria** (what must be TRUE):
+  1. The existing lifetime suites (LT1-LT18, RL1-RL10 and the `QadiProvider.*.test.tsx` files) pass unedited across the phase, and a characterisation of create, seed, subject write, recycle and atoms-replaced was written on the base before anything moved (PREG-01).
+  2. The owner has no React import, is inert at construction (only `release` calls `defer`) and is in `stryker.react.mjs`; tested without rendering against a real `AtomRegistry` and an injected `defer`, it never runs a recycle it did not schedule, cancels once, recycles nothing when a run follows a cancel, and recycles exactly once on a long hide and re-seeds from the latest props before any read, each "recycles nothing" test with a "recycles once" twin that fails if the recycle is removed (PREG-02, PREG-03).
+  3. `QadiProvider` keeps one lifetime ref, forwards hold, release and subject changes, holds no branch of lifetime logic and keeps its effect order (commit before hold, hold last): a provider hidden in `<Activity>` past a macrotask and shown again still renders its decision with no disposed-registry throw, and every alternative ADR-QD-195 rejected stays rejected (PREG-04).
+  4. ADR-QD-199 (or ADR-QD-195 amended with 199 named unused), BEH, INV and traceability record the owner, and the render suite shrinks to StrictMode, `<Activity>` and SSR smoke tests only where the owner's tests now hold the property (PREG-05).
+
+**Planning notes**: Standard patterns (precedent ADR-QD-195 and `RegistryLease`); add before deleting, and open with the characterisation. The discuss step decides one commit effect vs three ordered effects and where `AtomsReplaced` detection lives (tie-break: LT6, LT8, LT13 and LT16-LT18 stay green and unedited). Constraints that are findings: `reset`, never `dispose`; seeds and `initialValues` are not re-applied beyond what ADR-QD-195 says; no registry in state or an effect; no `scheduleTask`/`defaultIdleTTL` (AGENTS.md §13, ADR-QD-148); no module-scope `let` (`MODULE_STATE_BUDGET` stays 1); checks that cannot fail are the risk (a one-tick hide-and-show, a fake `defer` nobody asserts on), so every check names the scratch variant that turns it RED. Stryker: add the owner to `stryker.react.mjs` (update its header and covering-tests comment); `QadiProvider.tsx` stays unmeasured and branch-free; if `RegistryLease.ts` is renamed or folded, run `stryker.react.mjs` once (Stryker's behaviour on a missing explicit `mutate` path is unverified).
+**Plans**: TBD
+
+**UI hint**: no (behaviour only; the provider renders the same tree)
+
+### Phase 87: One scoped run that states its stop
+
+**Goal**: One package-private "scoped run that states its stop" sits above `SupersedingRun` and owns publish-then-fork through a callback, failure to `Stopped(causeMessage)`, `restart`, the closed guard and the token-guarded sink; `TimelineFeed`, `DiagnosticsFeed` and `SimulationSession` supply only their engine and states, and `GatesFeed` shares the configure prologue.
+**Live defect**: no. `String(exit.cause)` never throws; the session's message (`Cause([Die(...)])`) is an inconsistency with the feeds' `causeMessage` text, not a defect.
+**Breaking**: no (`@qadi/devtools` patch: the Simulator's broken-run message text changes). Answers ADR-QD-150 point 2 as an application of it, not a reversal.
+**Depends on**: Phase 86 (serial order only; `@qadi/react` and `@qadi/devtools` share no source).
+**Requirements**: STOP-01, STOP-02, STOP-03, STOP-04, STOP-05. Cross-cutting: WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Packages**: `@qadi/devtools` (`model/SupersedingRun.ts` unchanged, a new module above it, `model/TimelineFeed.ts`, `model/DiagnosticsFeed.ts`, `model/GatesFeed.ts`, `model/SimulationSession.ts`, `test/builtFeeds.ts`, their tests, `spec/behaviors`, a `@qadi/devtools` patch changeset); `@qadi/core`'s `ThrownMessage.ts` doc is amended
+**Records**: ARCH-134; ADR-QD-200 (new; applies ADR-QD-150 point 2, extends ADR-QD-182 decision 10 to the session, amends ADR-QD-192 and 194 and the `ThrownMessage.ts` doc); CCR-QD-479; BEH-QD-771 to 775; INV-QD-419 to 420
+**Evidence** (`_WAVE16-CONTEXT.md`, at `ac7578f3`): near-copies across the feeds: the status union with `Stopped{causeMessage}` (TimelineFeed 39-51, DiagnosticsFeed 44-61), the readout and the ADR-QD-194 rethrow paragraph (TF 62-73, DF 97-111), the idle readouts (TF 138-153, DF 122-137), the token-guarded sink (TF 175-180, DF 186-199), publish-then-fork (TF 182-188, DF 202-212, `SimulationSession` 446-453), the closed-guarded restart (TF 192-194, DF 231-233) and the configure prologue (TF 199-205, DF 221-226, `GatesFeed` 280-286). `SimulationSession.ts:418` sets `message: String(exit.cause)`. Build-then-configure is written five times (`test/builtFeeds.ts` 16-28 ×4 and `useConfigured.ts:34`). `Effect.fork` does not exist in effect 4.1.2: the "fork" is `SupersedingRun.fork`.
+
+**Success Criteria** (what must be TRUE):
+  1. A test written on the phase base is RED there and GREEN after: a `SimulationSession` run that dies reports `Broke.message` equal to `causeMessage(cause)` (today `String(exit.cause)`), with a hostile-value case; and a characterisation pins each feed's current status sequence, including what a self-interrupt does today (the session reads `Broke`, SR1) (STOP-01).
+  2. One module above `SupersedingRun` owns publish-then-fork through a callback (a listener's throw on the start-up publish is rethrown after the new run has started, ADR-QD-194), failure to stopped with `causeMessage`, `restart`, the closed guard and the token-guarded sink, and `TimelineFeed` and `DiagnosticsFeed` supply only their engine and states (STOP-02).
+  3. The configure prologue (closed guard, normaliser, identity gate) is stated once with a parameterised gate, used by the timeline, diagnostics (`sameFieldsOrAbsent`) and gates (`watchFailure` retry) feeds, and `GatesFeed` still forks before it publishes (INV-QD-408) (STOP-03).
+  4. `SimulationSession` shares publish-then-fork and the stop-message rule and keeps its own exit read, so a self-interrupted run still reads `Broke`; the feeds' self-interrupt behaviour is decided and pinned (kept or changed, with its own test and ADR line) (STOP-04).
+  5. ADR-QD-200 applies, and does not reopen, ADR-QD-150 point 2 and extends ADR-QD-182 decision 10 to the session; ADR-QD-192, ADR-QD-194 and the `ThrownMessage.ts` doc are amended in the same change; the per-feed tests (TF21-23, TF28, F28-31, F33, SR5-6) stay unedited; a `@qadi/devtools` patch changeset records the Simulator text change (STOP-05).
+
+**Planning notes**: **Research flag: plan 1 is a spike plus the RED test** (`/gsd-plan-phase --research-phase 87`); several valid shapes exist and the self-interrupt behaviour must be characterised before a policy is chosen. Constraints that are findings: the session keeps `Effect.exit` in the run body (routing it through `onFailure` skips interrupt-only causes and leaves SR1 `Running` forever); `GatesFeed` forks before it publishes, so it shares only the prologue (three prologue rules exist: closed guard first; `sameFieldsOrAbsent` for diagnostics' absent options; `sameFields && watchFailure === undefined` for gates); `try { publish } finally { fork }` stays inside the shared helper; no named `Effect.fn` or `Effect.fnUntraced` on the factory (`UNTRACED_BUDGET`); `land` keeps `root: true`; `Broke` and `GatesSnapshot` shapes are unchanged. Add the row nobody has: a publish that throws and a superseding command from the same listener. Render `Broke.message` in the same `<pre>` treatment as `Stopped.reason` if the discuss step takes it. Stryker: `stryker.devtools.mjs` over `SupersedingRun`, the three feeds, `SimulationSession`, `GatesFeed` and the new module; re-take the base first.
+**Plans**: TBD
+
+**UI hint**: no (headless run; the Simulator's broken-run text changes, with no markup or style change)
+
+### Phase 88: `StoppedBox` keys itself and owns the announce-once rule
+
+**Goal**: `StoppedBox` derives its own key and owns the announce-once ledger, so callers stop computing `stoppedKey` from a ref during render and stop threading the ledger through private bindings, while a stop is still announced once per stop.
+**Live defect**: no.
+**Breaking**: no (`@qadi/devtools`; the prop type names stay; the changeset follows the wave's policy). Amends ADR-QD-197.
+**Depends on**: Phase 87 (hard: 88 keys on the status identity 87 keeps; 85 also edits `DevtoolsDock.tsx`).
+**Requirements**: SBOX-01, SBOX-02, SBOX-03, SBOX-04. Cross-cutting: WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Packages**: `@qadi/devtools` (`react/StoppedBox.tsx`, `react/TimelineNotice.tsx`, `react/DiagnosticsNotice.tsx`, `react/useStopNotice.ts`, `react/DevtoolsDock.tsx`'s `DockFrame`, a pure ledger function under `model/` if the discuss step takes it, their tests, `spec/behaviors`)
+**Records**: ARCH-135; ADR-QD-201 (new, or ADR-QD-197 amended and 201 named unused); CCR-QD-480; BEH-QD-776 to 780; INV-QD-421 to 422
+**Evidence** (`_WAVE16-CONTEXT.md`, at `ac7578f3`): `StoppedBox.tsx` has `stoppedKey` (48-50) and writes the ledger in its layout effect (130-134); the callers are `TimelineNotice.tsx:33` and `DiagnosticsNotice.tsx:85`, the ref lives in `useStopNotice.ts`, and both notices thread `announced` through a private `Binding`. The review rates this candidate speculative, so the phase stays narrow.
+
+**Success Criteria** (what must be TRUE):
+  1. A characterisation written on the phase base pins the announce-once behaviour: a stop is announced once per stop, not again on a tab switch and not lost under StrictMode, including TN14, D7 and the `DockFrame` stop characterisation (SBOX-01).
+  2. `StoppedBox` derives its own key and writes the ledger (an outer keyed wrapper over an inner body), so callers no longer call `stoppedKey` or thread the ledger ref through private bindings, and the ledger stays above the screens, one per feed, so it outlives tab switches (SBOX-02).
+  3. The ledger transition is a pure function with a table test; the alert is decided at mount and recorded at commit, never written during render, and no ledger lives at module scope (SBOX-03).
+  4. ADR-QD-201 (or ADR-QD-197 amended with 201 named unused), BEH, INV and traceability record the change, the unmeasured React files are listed in the phase's `UNMEASURED`, and each is proved with a scratch variant (SBOX-04).
+
+**Planning notes**: Standard patterns (small; precedent ADR-QD-197). The discuss step decides to relocate the render-phase ref read into the wrapper (recommended; an opaque ledger closure) or remove it; a `WeakMap` is rejected because it changes what "announced" means for a never-mounted stop. Constraints that are findings: the ledger is never inside the box or a screen (every tab switch would re-announce); one ref per feed, not one for both; no memo keyed on `status` alone; no write during render (StrictMode loses the alert in dev and a discarded render would record a stop that never committed); no `role="alert"` added to a mounted element; no module-scope ledger (`MODULE_STATE_BUDGET`). Stryker: no config reaches `src/react`, so the one real decision (the ledger transition) goes into a pure function with a table test, ideally under `model/`, and the rest is `UNMEASURED` and proved with scratch variants.
+**Plans**: TBD
+
+**UI hint**: no (the announced alert and its test ids are unchanged; only where the key and ledger live moves)
+
+### Phase 89: One admission step for a host's audit batch
+
+**Goal**: A host's audit batch (`now`, rows, key material or max age) is admitted by one package-private step shared by `archiveAuditTrail`, `planRetention`, `verifiedArchiveFacts` and `planPurge`, and `NowNotFinite` is stated once.
+**Live defect**: no.
+**Breaking**: no (`@qadi/audit`; both public refusal unions, both error classes and every tag and member are unchanged, and `SCHEMA_ERROR_BUDGET` stays 12). Keeps ADR-QD-190's `RowsRefusalCases`.
+**Depends on**: Phase 88 (serial order only; `@qadi/audit` shares no source with `@qadi/devtools`).
+**Requirements**: ADMIT-01, ADMIT-02, ADMIT-03, ADMIT-04, ADMIT-05. Cross-cutting: WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Packages**: `@qadi/audit` (a new package-private admission module beside `ArchiveFacts.ts`, `Retention.ts`, `AuditArchive.ts`, `CodecMade.ts` unchanged as an import-free leaf, `test/ForeignRows.test.ts`, a type pin, `spec/behaviors`, a changeset per the policy)
+**Records**: ARCH-136; ADR-QD-202 (new, or ADR-QD-190 amended and 202 named unused); CCR-QD-481; BEH-QD-781 to 785 (BEH-QD-722 restated); INV-QD-423 to 424
+**Evidence** (`_WAVE16-CONTEXT.md`, at `ac7578f3`): `ArchiveFacts.ts:139` holds `ArchiveInputRefusal.NowNotFinite`, `Retention.ts:49` holds `RetentionInputRefusal`, and `AuditArchive.ts:185` checks its own batch; `test/ForeignRows.test.ts` (468 lines) re-tests the check order per entry point. The check order is BEH-QD-722; row refusals are already shared through `RowsRefusalCases` (ADR-QD-190).
+
+**Success Criteria** (what must be TRUE):
+  1. A characterisation written on the phase base pins, for each entry point (`archiveAuditTrail`, `planRetention`, `planPurge`, `verifiedArchiveFacts` and the public verify), which refusal wins for every pair of faults, and the spans each opens on a refusal (ADMIT-01).
+  2. One package-private admission step checks a host batch in the order the characterisation pins, every entry point calls it first, it is a plain function with no new span, and `CodecMade.ts` stays an import-free leaf (ADMIT-02).
+  3. `NowNotFinite` is stated once, as a fragment shared into both public refusal unions as `RowsRefusalCases` is, and both unions, both error classes, every tag and every member are unchanged; a type pin that can fail proves each union equals its fragments plus its own members (ADMIT-03).
+  4. The check order is tested once, at the admission step, and `ForeignRows.test.ts` keeps one case per entry point proving it calls the step rather than re-testing the order (ADMIT-04).
+  5. ADR-QD-202 (or ADR-QD-190 amended with 202 named unused), BEH-QD-722 and the invariant and traceability rows record the step (ADMIT-05).
+
+**Planning notes**: Standard patterns (precedent ADR-QD-190's `RowsRefusalCases`). The discuss step decides a brand (admission before the `qadi.audit.verifySequenceIntegrity` span, so a refused public verify no longer opens it) vs a plain refusal-or-undefined function with spans unchanged; the tie-break is spans unchanged unless the change is pinned and recorded. Constraints that are findings: the order is per entry point, not one flat "now, rows, then terms" (key material against rows and max age against rows would change which refusal wins); no `Effect.fn` admission (it adds a span and makes `planRetention` effectful); the step is not exported (gate 13); keep `Number.isFinite` (not `isFinite`), `-0`, `+Infinity` `maxAgeMs` and key material read once; admission stays out of `ArchiveFacts.ts`, which Phase 91 folds `SequenceIntegrity.ts` into. Stryker: `stryker.audit.mjs` (a glob); the new file is under the floor from day one; record 89's post-review score as 91's base for `ArchiveFacts.ts`.
+**Plans**: TBD
+
+**UI hint**: no (library behaviour only)
+
+### Phase 90: The remaining per-port facts live on the port description
+
+**Goal**: The per-port facts that are still tables outside the port description (span name, serving shape and fixture data type, as the spike allows) move onto it, `PortName` stays an import-free leaf holding one tuple with everything else derived from the descriptions, and `readScoped` routes off the `LEAF_NEEDS` row so its `resourceId` column does real work.
+**Live defect**: no.
+**Breaking**: no (`@qadi/core`; served and wire bytes, metric ids and descriptions, and span names are unchanged; the changeset follows the wave's policy). Amends ADR-QD-163 D-06 and ADR-QD-094.
+**Depends on**: Phase 89 (serial order only; `@qadi/core` and `@qadi/audit` share no source).
+**Requirements**: PFACT-01, PFACT-02, PFACT-03, PFACT-04, PFACT-05. Cross-cutting: WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Packages**: `@qadi/core` (`PortName.ts`, `Ports.ts`, `PortServing.ts`, `PortMetrics.ts`, `PortAccess.ts`, the five port modules' descriptions, `LeafNeeds.test.ts`, `PortServing.tst.ts`, `spec/behaviors`, AGENTS.md §3 prose, a changeset per the policy)
+**Records**: ARCH-137; ADR-QD-203 (new; amends ADR-QD-163 D-06 and ADR-QD-094, with a dated ADR-QD-114 note if `PortServing` stops being hand-written); CCR-QD-482; BEH-QD-786 to 790 (BEH-QD-445's annotate-before-fail order held); INV-QD-425 to 426
+**Evidence** (`_WAVE16-CONTEXT.md`, at `ac7578f3`): per-port tables sit in `PortName.ts` (`PortSpans`), `Ports.ts` (`PortTypes`, `PORTS`, `PortFixtureData`, `PORT_FIXTURES`), `PortServing.ts` and `PortMetrics.ts` (`PredicatePortName`); `PortAccess.ts` ≈222-247 holds `ScopedPort` and `completeRequest`, and ≈397 and ≈496 choose `isResourceScoped(leaf) ? readScoped : readPort`. `LEAF_NEEDS.resourceId` is read only by `LeafNeeds.test.ts:137` (ADR-QD-163 D-06). `PortName` derived from `Ports.ts` closes a madge cycle through every port module (ADR-QD-037).
+
+**Success Criteria** (what must be TRUE):
+  1. Plan 1 is a spike on the phase base: a `pnpm circular` simulation of each proposed derivation and the benchmark gate for routing `readScoped` off `LEAF_NEEDS`; its verdict decides which facts move, a recorded subset is an acceptable outcome and a cycle is not (PFACT-01).
+  2. `PortName.ts` stays an import-free leaf holding one tuple, and every other per-port table the spike clears (span names, fixture data type, serving shape, `PORT_NAMES_BY_NAME`, `ScopedPort`) is derived from the descriptions or the tuple, with registry order preserved so no metric key moves (ADR-QD-052) (PFACT-02).
+  3. `readScoped` routes off the `LEAF_NEEDS` row: an id is required only where the row says so (a by-scope leaf only at `Resource` scope, so a scope-`Any` decision is not wrongly denied), it stays a plain function with no new span, dispatches with a hoisted `Match` and never a `switch`, and holds the annotate-before-fail order (BEH-QD-445); the tying test is replaced, not deleted (PFACT-03).
+  4. A golden of `tabulatePorts`, a metric snapshot and the served and wire bytes are pinned on the base and unchanged after, `PortServing.tst.ts` passes unedited, and a fake sixth port without its facts is a compile error (PFACT-04).
+  5. ADR-QD-203 records the change, amending ADR-QD-163 D-06 and ADR-QD-094 (with a dated ADR-QD-114 note if `PortServing` stops being hand-written), and AGENTS.md §3 prose, BEH, INV and traceability move with it (PFACT-05).
+
+**Planning notes**: **Research flag: plan 1 is a spike** (`/gsd-plan-phase --research-phase 90`); the derivation is unproven acyclic, the benchmark gate (`pnpm bench`, 3+3 interleaved, median of per-run minima) must run before `readScoped` changes, and `PortServing.ts` and the remote wire were not read in full by research. Constraints that are findings: `PortName.ts` never imports `Ports.ts`; `ByScope` leaves (HasActed, HasNotActed, HasSignature) require an id only for `Resource` scope; `readScoped` stays a plain function (no `Effect.fn`, no new span); no span-name literals in `PortAccess.ts`, `PortDerivation.ts` or `PortCalls.ts`; metric ids and descriptions do not change. The discuss step decides which of span, serving and fixture move, and whether a pairwise-distinct span-name type check replaces `PortSpanOf<N>`'s cross-check. Stryker: static description tables are invisible under `ignoreStatic`, so the proof is the `tabulatePorts` golden and a metric snapshot, not a score; re-take the core base first.
+**Plans**: TBD
+
+**UI hint**: no (library internals only)
+
+### Phase 91: Named barrels, and visibility-only files folded away
+
+**Goal**: `@qadi/core`, `@qadi/react` and `@qadi/audit` take named barrels, as `@qadi/devtools` does (ADR-QD-047), and each visibility-only file folds into the module that owns its concept only where `pnpm circular` proves no cycle returns, with the public surface identical at the end.
+**Live defect**: no.
+**Breaking**: no (the public surface at the phase base is the baseline and is identical at the end; a changeset line only if `hydrateDecisions` takes a structural parameter, a public `.d.ts` change). Amends ADR-QD-037, 047 and 099 (house rule: AGENTS.md §9).
+**Depends on**: Phase 90 (hard: 91 names the exports 89 and 90 settle, folds `SequenceIntegrity.ts` into `ArchiveFacts.ts` after 89, and edits `QadiProvider.tsx` imports after 86).
+**Requirements**: BARL-01, BARL-02, BARL-03, BARL-04, BARL-05. Cross-cutting: WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
+**Packages**: `@qadi/core`, `@qadi/react`, `@qadi/audit` (their `index.ts` barrels and the folded files), `scripts/check-house-style.mjs` (`devtools-named-barrel` becomes a named-barrel rule, `SPAN_KEY_SHARED`, `UNTRUSTED_DECODE_BUDGET`), `scripts/check-package-install.mjs` (a `../../` escape check), a committed surface-diff tool, AGENTS.md §7a, §9 and §16, `CONTRIBUTING.md`, `spec/overview.md`, a changeset per the policy
+**Records**: ARCH-138; ADR-QD-204 (new; the barrel rule and the folds, amending ADR-QD-037, 047 and 099 and removing the PROJECT.md Out of Scope line the folds supersede); CCR-QD-483; BEH-QD-791 to 795; INV-QD-427 to 428
+**Evidence** (`_WAVE16-CONTEXT.md`, at `ac7578f3`; SUMMARY's fold-verdict table): the visibility-only files are core `PortSpanDecode.ts` (26 lines) and `PortInterpreter.ts` (21), react `Hydration.ts` (95, forwards to `dehydrateWith` and `atoms.hydrate`) and `GateRegistry.ts` (60, wraps `buildGateRegistry`), and audit `SequenceIntegrity.ts` (26, re-exports from `ArchiveFacts.ts`). Madge verdicts on this tree: `PortSpanDecode` into `PortSpanEncode` is acyclic; `PortInterpreter` into `PortSpan.ts` is acyclic (into `PortSpanEncode` is a cycle); `GateRegistry` into `GateWriter` and `SequenceIntegrity` into `ArchiveFacts` are acyclic; `Hydration.ts` into `HydrationEngine.ts` is a cycle as written (`HydrationEngine -> QadiAtoms -> HydrationEngine`) and folds only through a structural `hydrateDecisions` parameter; `EvaluationSpan` stays apart unless proven. Gate couplings: the `devtools-named-barrel` rule (≈2171-2198), `SPAN_KEY_SHARED`, `UNTRUSTED_DECODE_BUDGET` (the `PortSpanEncode.ts` row), AGENTS.md §7a, §9 and §16.
+
+**Success Criteria** (what must be TRUE):
+  1. A surface-diff tool (`{name, value-or-type}` per package, from the built `lib/` and the compiler, with a planted-defect self-test) is committed before any barrel changes; the public surface at the phase base is the baseline and is identical at the end, both gate 13's count and every name's kind (BARL-01).
+  2. The `@qadi/core`, `@qadi/react` and `@qadi/audit` barrels name their exports per module, generated from compiler symbol flags and never hand-typed, one commit per barrel with no mixed `export *` state; `useQadiContext` stays public, and no dependent package's `.d.ts` reaches into another's `src` (a `../../` escape check added to gate 14) (BARL-02).
+  3. Each visibility-only file folds into the module that owns its concept, one fold per commit with `pnpm circular` clean after each (`PortSpanDecode` into `PortSpanEncode`, `PortInterpreter` into `PortSpan`, `GateRegistry` into `GateWriter`, `SequenceIntegrity` into `ArchiveFacts` with its "not tamper-evident" disclaimer and four citations re-pointed); `Hydration.ts` folds only if `hydrateDecisions` takes a structural parameter that removes the cycle, otherwise it stays and the cycle is recorded, and every fold madge refuses is recorded with its verdict (BARL-03).
+  4. The house-style rule `devtools-named-barrel` becomes a named-barrel rule over all five named barrels with a self-test that plants an `export *`; `SPAN_KEY_SHARED`, the `UNTRUSTED_DECODE_BUDGET` row and AGENTS.md §7a follow the folded span file in the same commit, and AGENTS.md §9, §16 and `CONTRIBUTING.md` are rewritten for the new rule (BARL-04).
+  5. ADR-QD-204 records the barrel rule and the folds, amending ADR-QD-037, 047 and 099 and removing the PROJECT.md Out of Scope line the folds supersede; `spec/overview.md` names each export at its new home; a changeset records any public declaration change (BARL-05).
+
+**Planning notes**: **Research flag: plan 1 is the surface-diff tool and a pre-fold madge simulation on the Phase 91 base** (`/gsd-plan-phase --research-phase 91`); the barrel generator is new tooling (TypeScript 7 has no classic `ts.*` API, so use `typescript/unstable/{sync,ast}` as `scripts/lib/module-state-scan.mjs` does, and do not commit the generator). Plan order: (1) the tool with its self-test, then the three named barrels, zero file moves, one commit per barrel; (2) each fold, one per commit, `pnpm circular` after each, verdicts recorded for the ADR-QD-037 amendment; (3) generalise the house-style rule (rename it, five barrels, self-test) and rewrite AGENTS.md §9, §16 and CONTRIBUTING; (4) `SPAN_KEY_SHARED`, the `UNTRUSTED_DECODE_BUDGET` row and AGENTS.md §7a together; (5) re-point the `SequenceIntegrity` disclaimer citations (README, `spec/urs.md`, `spec/models/17-purpose.md`, ADR-QD-009); (6) the stale sweep as the last plan, mutation as the very last. Constraints that are findings: `export type { X }` of a const-and-type pair or a class compiles, passes gate 13 and deletes the value (about 34 names in core, 1 in react, 7 in audit), so generate from symbol flags; a barrel that omits a type makes a dependent `.d.ts` emit `import("../../a/src/priv")` with exit 0 and no TS2883; `GateWriter` stops being a zero-import leaf (reword it); `QadiProvider.tsx` publishes names by accident today. Run `pnpm build` and `pnpm spec:package` after each barrel. Stryker: `stryker.config.mjs` and `stryker.audit.mjs`; compare a folded file with the sum of its sources' latest post-review records through a `RENAMED` map; the react folds target files not in `stryker.react.mjs`.
+**Plans**: TBD
+
+**UI hint**: no (module layout and build gates only)
+
+### Progress (v1.11)
+
+**Execution Order:**
+Phases execute in numeric order: 85 → 86 → 87 → 88 → 89 → 90 → 91
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 85. The dock's hydration block is a model row | 0/TBD | Not started | - |
+| 86. `QadiProvider`'s registry lifetime has a React-free owner | 0/TBD | Not started | - |
+| 87. One scoped run that states its stop | 0/TBD | Not started | - |
+| 88. `StoppedBox` keys itself and owns the announce-once rule | 0/TBD | Not started | - |
+| 89. One admission step for a host's audit batch | 0/TBD | Not started | - |
+| 90. The remaining per-port facts live on the port description | 0/TBD | Not started | - |
+| 91. Named barrels, and visibility-only files folded away | 0/TBD | Not started | - |

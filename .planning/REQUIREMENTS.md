@@ -97,15 +97,57 @@
 
 ## Traceability
 
-Which phases cover which requirements. Filled in by the roadmap.
+Which phases cover which requirements. Each phase-specific requirement maps to exactly one of Phases 85 to 91; the seven cross-cutting requirements (WX-01..07) apply to every phase and are listed under each phase in the roadmap as "Cross-cutting".
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
+| HYDV-01 | Phase 85 | Pending |
+| HYDV-02 | Phase 85 | Pending |
+| HYDV-03 | Phase 85 | Pending |
+| HYDV-04 | Phase 85 | Pending |
+| HYDV-05 | Phase 85 | Pending |
+| PREG-01 | Phase 86 | Pending |
+| PREG-02 | Phase 86 | Pending |
+| PREG-03 | Phase 86 | Pending |
+| PREG-04 | Phase 86 | Pending |
+| PREG-05 | Phase 86 | Pending |
+| STOP-01 | Phase 87 | Pending |
+| STOP-02 | Phase 87 | Pending |
+| STOP-03 | Phase 87 | Pending |
+| STOP-04 | Phase 87 | Pending |
+| STOP-05 | Phase 87 | Pending |
+| SBOX-01 | Phase 88 | Pending |
+| SBOX-02 | Phase 88 | Pending |
+| SBOX-03 | Phase 88 | Pending |
+| SBOX-04 | Phase 88 | Pending |
+| ADMIT-01 | Phase 89 | Pending |
+| ADMIT-02 | Phase 89 | Pending |
+| ADMIT-03 | Phase 89 | Pending |
+| ADMIT-04 | Phase 89 | Pending |
+| ADMIT-05 | Phase 89 | Pending |
+| PFACT-01 | Phase 90 | Pending |
+| PFACT-02 | Phase 90 | Pending |
+| PFACT-03 | Phase 90 | Pending |
+| PFACT-04 | Phase 90 | Pending |
+| PFACT-05 | Phase 90 | Pending |
+| BARL-01 | Phase 91 | Pending |
+| BARL-02 | Phase 91 | Pending |
+| BARL-03 | Phase 91 | Pending |
+| BARL-04 | Phase 91 | Pending |
+| BARL-05 | Phase 91 | Pending |
+| WX-01 | Phases 85–91 (every phase) | Pending |
+| WX-02 | Phases 85–91 (every phase) | Pending |
+| WX-03 | Phases 85–91 (every phase) | Pending |
+| WX-04 | Phases 85–91 (every phase) | Pending |
+| WX-05 | Phases 85–91 (every phase) | Pending |
+| WX-06 | Phases 85–91 (every phase) | Pending |
+| WX-07 | Phases 85–91 (every phase) | Pending |
 
 **Coverage:**
-- v1.11 requirements: 41 total (34 phase + 7 cross-cutting)
-- Mapped to phases: 0 (roadmap pending)
+- v1.11 requirements: 41 total (34 phase-specific + 7 cross-cutting)
+- Mapped to phases: 41 (34 phase-specific, each to exactly one of Phases 85 to 91: Phase 85 5, Phase 86 5, Phase 87 5, Phase 88 4, Phase 89 5, Phase 90 5, Phase 91 5; 7 cross-cutting, each applying to all seven)
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-11-25*
-*Last updated: 2026-11-25 after initial definition*
+*Last updated: 2026-11-25 after roadmap creation (traceability filled)*

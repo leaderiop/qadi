@@ -20,8 +20,8 @@ the house-rule change (named barrels) last so every earlier phase lands on the f
 
 **Target features (Phases 85–91, ARCH-132…138, strictly serial):**
 - 85: The dock's hydration block is a model row. A pure hydration view (Pending / Unwired / Counts, with the rate,
-  drops and scope text worked out) sits beside `portCards`, and the dock model serves it; the "unsampled" rule, applied
-  today at `DockModel.ts:391`, `:405` and `QuestionsPanel.tsx:112`, is decided once; `DockFrame` stops subscribing to
+  drops and scope text worked out) sits beside `portCards`, and the dock model serves it; the three distinct
+  "unsampled" predicates (`DockModel.ts:391`, `:405`, `QuestionsPanel.tsx:112`) are each stated once, not flattened; `DockFrame` stops subscribing to
   the whole reading to pass one field (devtools; amends ADR-QD-185 / BEH-QD-700 if a fifth derived store)
 - 86: `QadiProvider`'s registry lifetime has one React-free owner: create, seed (subject, `initialValues`), write the
   subject, recycle and hold the lease, tested with an injected defer and no rendering. The component keeps one ref and
