@@ -586,7 +586,7 @@ Plans:
 **Breaking**: no (`@qadi/devtools` patch: the Simulator's broken-run message text changes). Answers ADR-QD-150 point 2 as an application of it, not a reversal.
 **Depends on**: Phase 86 (serial order only; `@qadi/react` and `@qadi/devtools` share no source).
 **Requirements**: STOP-01, STOP-02, STOP-03, STOP-04, STOP-05. Cross-cutting: WX-01, WX-02, WX-03, WX-04, WX-05, WX-06, WX-07
-**Packages**: `@qadi/devtools` (`model/SupersedingRun.ts` unchanged, a new module above it, `model/TimelineFeed.ts`, `model/DiagnosticsFeed.ts`, `model/GatesFeed.ts`, `model/SimulationSession.ts`, `test/builtFeeds.ts`, their tests, `spec/behaviors`, a `@qadi/devtools` patch changeset); `@qadi/core`'s `ThrownMessage.ts` doc is amended
+**Packages**: `@qadi/devtools` (`model/SupersedingRun.ts` loses only `ForkHooks.onFailure`, which has no caller after the move (decided after research, 87-CONTEXT D-09); a new module above it, `model/TimelineFeed.ts`, `model/DiagnosticsFeed.ts`, `model/GatesFeed.ts`, `model/SimulationSession.ts`, `test/builtFeeds.ts`, their tests, `spec/behaviors`, a `@qadi/devtools` patch changeset); `@qadi/core`'s `ThrownMessage.ts` doc is amended
 **Records**: ARCH-134; ADR-QD-200 (new; applies ADR-QD-150 point 2, extends ADR-QD-182 decision 10 to the session, amends ADR-QD-192 and 194 and the `ThrownMessage.ts` doc); CCR-QD-479; BEH-QD-771 to 775; INV-QD-419 to 420
 **Evidence** (`_WAVE16-CONTEXT.md`, at `ac7578f3`): near-copies across the feeds: the status union with `Stopped{causeMessage}` (TimelineFeed 39-51, DiagnosticsFeed 44-61), the readout and the ADR-QD-194 rethrow paragraph (TF 62-73, DF 97-111), the idle readouts (TF 138-153, DF 122-137), the token-guarded sink (TF 175-180, DF 186-199), publish-then-fork (TF 182-188, DF 202-212, `SimulationSession` 446-453), the closed-guarded restart (TF 192-194, DF 231-233) and the configure prologue (TF 199-205, DF 221-226, `GatesFeed` 280-286). `SimulationSession.ts:418` sets `message: String(exit.cause)`. Build-then-configure is written five times (`test/builtFeeds.ts` 16-28 ×4 and `useConfigured.ts:34`). `Effect.fork` does not exist in effect 4.1.2: the "fork" is `SupersedingRun.fork`.
 
@@ -598,7 +598,20 @@ Plans:
   5. ADR-QD-200 applies, and does not reopen, ADR-QD-150 point 2 and extends ADR-QD-182 decision 10 to the session; ADR-QD-192, ADR-QD-194 and the `ThrownMessage.ts` doc are amended in the same change; the per-feed tests (TF21-23, TF28, F28-31, F33, SR5-6) stay unedited; a `@qadi/devtools` patch changeset records the Simulator text change (STOP-05).
 
 **Planning notes**: **Research flag: plan 1 is a spike plus the RED test** (`/gsd-plan-phase --research-phase 87`); several valid shapes exist and the self-interrupt behaviour must be characterised before a policy is chosen. Constraints that are findings: the session keeps `Effect.exit` in the run body (routing it through `onFailure` skips interrupt-only causes and leaves SR1 `Running` forever); `GatesFeed` forks before it publishes, so it shares only the prologue (three prologue rules exist: closed guard first; `sameFieldsOrAbsent` for diagnostics' absent options; `sameFields && watchFailure === undefined` for gates); `try { publish } finally { fork }` stays inside the shared helper; no named `Effect.fn` or `Effect.fnUntraced` on the factory (`UNTRACED_BUDGET`); `land` keeps `root: true`; `Broke` and `GatesSnapshot` shapes are unchanged. Add the row nobody has: a publish that throws and a superseding command from the same listener. Render `Broke.message` in the same `<pre>` treatment as `Stopped.reason` if the discuss step takes it. Stryker: `stryker.devtools.mjs` over `SupersedingRun`, the three feeds, `SimulationSession`, `GatesFeed` and the new module; re-take the base first.
-**Plans**: TBD
+**Plans**: 11 plans
+
+Plans:
+- [ ] 87-01 (W1): The phase base and the touched files' mutation base recorded first; the spike re-run on the base; SX1 to SX3 and SB2 to SB4 (the broken simulation run) and TX1, TX2, DX1, DX2 (the feeds' self-interrupt) red on the base; SB1, TX3 to TX7 and DX3 to DX7 green and seen failing
+- [ ] 87-02 (W2): Twelve stated-run cells SC1 to SC12 green on the base (the bare restart, the throw-and-supersede rows, the landed session result), each seen failing; the pinned-test check holding every devtools test but the two declared files; the base facts
+- [ ] 87-03 (W3): The phase check (`87-check.mjs`): ids, forbidden constructs, the exact trailer, the suite judge for the open red rows, seven shape modes for the moved code, the records; each mode seen failing
+- [ ] 87-04 (W4): The earlier-phase checks (Phase 85's and 86's) from scratch copies against a measured ledger, seen failing
+- [ ] 87-05 (W5): `StatedRun.ts` (publish-then-fork, the one stop rule, the closed and token guards) with ST1 to ST17, and `ConfigurePrologue.ts` with CP1 to CP8, each row seen failing
+- [ ] 87-06 (W6): The timeline and diagnostics feeds supply only their engine and states (TX1, TX2, DX1, DX2 green); all three feeds configure through the prologue, gates still forking before it publishes
+- [ ] 87-07 (W7): The session on the stated run, `Broke.message` in `causeMessage` text with its `Running` guard (SX green); the Simulator's labelled `<pre>` with the reason style moved to the theme (SB green); the suite green
+- [ ] 87-08 (W8): `ForkHooks.onFailure` removed with the audited protocol rows (R9 removed; R3, R5 to R7 edited and seen failing); one build-then-configure helper; both declared edits applied
+- [ ] 87-09 (W9): ADR-QD-200 with the audit table, BEH-QD-771 to 775, INV-QD-419 and 420, the restated records and the moved INV-QD-313 anchor, ADR-QD-047/150/182/192/194/196 and the `ThrownMessage.ts` doc amended (CCR-QD-479)
+- [ ] 87-10 (W10): The Stryker close of the touched files and the two born modules compared with the base, coverage, the two patch changesets, every phase check on the close head
+- [ ] 87-11 (W11): `pnpm check:pr` green at the close, run alone; nothing released; every commit trailed and in scope
 
 **UI hint**: no (headless run; the Simulator's broken-run text changes, with no markup or style change)
 
