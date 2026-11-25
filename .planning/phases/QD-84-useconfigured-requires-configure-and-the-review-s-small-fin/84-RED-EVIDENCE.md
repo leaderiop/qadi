@@ -72,3 +72,9 @@ under it are the rest of that run's stderr. A test's failure lines use the `seen
   - spec/traceability.md §4 holds 0 rows for packages/devtools/test/react/useTimeline.inputs.characterisation.test.tsx, not one
   - spec/traceability.md §4 holds 0 rows for packages/devtools/test/react/useConfigured.tst.ts, not one
   - spec/README.md has no CCR-QD-476 row
+
+## 84-02 the pinned-test check and the earlier-phase re-run
+
+- check failed: pinned --all-applied: packages/devtools/test/react/Lens.adapter.test.tsx: 0 of 2 declared edits applied, not all
+- check failed: pinned: packages/devtools/test/model/LensSession.test.ts: differs from its base text at line 399
+- check failed: earlier: 83-pinned-check.mjs --all-applied: expected exit 0, got exit 1: packages/devtools/test/model/DockModel.characterisation.test.ts: differs from its base text at line 386
