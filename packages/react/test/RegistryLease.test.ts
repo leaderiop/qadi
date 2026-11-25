@@ -204,6 +204,24 @@ describe("makeRegistryLease", () => {
     expect(recycles.count).toBe(1);
   });
 
+  it("RL10 a hold after a second release still cancels the one pending recycle", () => {
+    const { counts, defer, fire } = fakeDefer();
+    const { recycle, recycles } = counting();
+    const lease = makeRegistryLease(recycle, defer);
+
+    lease.hold();
+    lease.release();
+    lease.release();
+    lease.hold();
+    expect(counts).toEqual({ defers: 1, cancels: 1 });
+    fire();
+    expect(recycles.count).toBe(0);
+
+    lease.release();
+    fire();
+    expect(recycles.count).toBe(1);
+  });
+
   it("RL9 the default defer recycles after a real macrotask and a hold before it cancels", async () => {
     const { recycle, recycles } = counting();
     const lease = makeRegistryLease(recycle);
