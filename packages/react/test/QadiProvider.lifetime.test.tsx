@@ -10,9 +10,23 @@
  * faked clock would hide the commit order the defect lives in. Each test states the
  * outcome a provider must give, never the failure of a provider that does not.
  */
-import { EvaluationServicesNone, hasPermission, makeSubject, permission } from "@qadi/core";
+import {
+  Allow,
+  AttributeResolver,
+  EvaluationIdLive,
+  EvaluationServicesNone,
+  eq,
+  hasAttribute,
+  hasPermission,
+  literal,
+  makeSubject,
+  makeSubjectId,
+  permission,
+} from "@qadi/core";
 import type { AuthSubject } from "@qadi/core";
 import { RegistryContext } from "@effect/atom-react/RegistryContext";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
 import * as Atom from "effect/reactivity/Atom";
 import type * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import { Activity, Component, StrictMode, useContext, useState, type ReactNode } from "react";
@@ -21,7 +35,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   Can,
   QadiProvider,
+  dehydrateDecisions,
+  hydrateDecisions,
   makeQadiAtoms,
+  useCan,
   useDevtoolsFeed,
   useInvalidate,
   useSubject,
@@ -30,8 +47,34 @@ import type { DevtoolsFeed, ProviderSignal, QadiAtoms } from "../src/index.ts";
 import { settle } from "./support/settle.ts";
 
 const canRead = hasPermission(permission("doc", "read"));
+const standing = hasAttribute("standing", eq(literal("good")));
 const reader: AuthSubject = makeSubject({ id: "u1", permissions: ["doc:read"] });
 const otherReader: AuthSubject = makeSubject({ id: "u2", permissions: ["doc:read"] });
+
+/** What a server decided for `standing`, before this client answered. */
+const serverAllow = new Allow({
+  evaluationId: "eval-allow",
+  subjectId: makeSubjectId("u1"),
+  durationMillis: 2,
+  trace: { policyTag: "HasAttribute", allowed: true, children: [], obligations: [] },
+});
+
+/** An atom set whose attribute resolver answers by `resolve`, reporting each hydration mismatch. */
+const atomsResolvingBy = (
+  resolve: () => Effect.Effect<unknown>,
+  mismatches: Array<unknown> = [],
+): QadiAtoms =>
+  makeQadiAtoms(
+    Layer.merge(
+      Layer.merge(EvaluationServicesNone, Layer.succeed(AttributeResolver, { resolve })),
+      EvaluationIdLive,
+    ),
+    { onHydrationMismatch: (mismatch) => mismatches.push(mismatch) },
+  );
+
+/** The seed a server page embeds for `standing`, as the provider's `initialValues`. */
+const seededAllow = (atoms: QadiAtoms) =>
+  hydrateDecisions(atoms, dehydrateDecisions([{ policy: standing, decision: serverAllow }]), reader);
 
 /** Held at module scope: the feed keys its memo on the identity of the host's own fields. */
 const EMPTY_EXTRA = {};
@@ -85,6 +128,12 @@ const Host = ({
   return <Activity mode={scene.mode}>{view(scene)}</Activity>;
 };
 
+/** Pushes what `standing` reads in every render, so a single superseded frame is seen. */
+const FrameLog = ({ frames }: { readonly frames: Array<boolean> }) => {
+  frames.push(useCan(standing));
+  return null;
+};
+
 const SubjectProbe = () => {
   const subject = useSubject();
   return <span>{`subject:${subject?.id ?? "none"}`}</span>;
@@ -94,14 +143,13 @@ const SubjectProbe = () => {
 const pastTheRelease = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 50));
 
 /** Everything one test needs, built per test so no state crosses tests. */
-const rig = () => {
+const rig = (atoms: QadiAtoms = makeQadiAtoms(EvaluationServicesNone)) => {
   const caught: Array<unknown> = [];
   const errors = vi.spyOn(console, "error").mockImplementation(() => {});
   const seen = new Set<AtomRegistry.AtomRegistry>();
   const latest: { registry: AtomRegistry.AtomRegistry | undefined } = { registry: undefined };
   const control: Control = { set: () => {} };
   const host = Atom.make("default").pipe(Atom.keepAlive);
-  const atoms = makeQadiAtoms(EvaluationServicesNone);
   const initial: Scene = { mode: "visible", subject: reader, atoms, tick: 0 };
 
   const RegistryTap = () => {
@@ -373,5 +421,31 @@ describe("a provider hidden past one macrotask and shown again", () => {
     expect(r.seen.size).toBe(1);
     expect(tags).toEqual(["AtomsReplaced"]);
     expect(screen.getByText("subject:u1")).toBeDefined();
+  });
+
+  it("LT9 a seeded allow the client never answers is not shown again after a long hide", async () => {
+    const atoms = atomsResolvingBy(() => Effect.never);
+    const r = rig(atoms);
+    const frames: Array<boolean> = [];
+    const element = (
+      <QadiProvider atoms={atoms} subject={reader} initialValues={seededAllow(atoms)}>
+        <Can policy={standing} pending="pending" fallback="denied">
+          allowed
+        </Can>
+        <FrameLog frames={frames} />
+      </QadiProvider>
+    );
+    r.mount(() => element);
+    await settle();
+    expect(screen.getByText("allowed")).toBeDefined();
+
+    frames.length = 0;
+    await r.longHide();
+    await r.show();
+    await settle();
+
+    r.expectNothingThrown();
+    expect(frames).not.toContain(true);
+    expect(screen.getByText("pending")).toBeDefined();
   });
 });

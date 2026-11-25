@@ -127,3 +127,16 @@ runs the parent before its children, layout then passive, top-down; the provider
 reveal runs. The observation matches the research's prototype. One addition: on the base's long-hide reveal the provider's
 subject effect throws (`registry.get` on the disposed registry), so React unmounts the tree at once (the cleanups above)
 and the provider's passive setup, the last effect of a good reveal, never runs.
+
+## what a recycle restores, on the base
+
+`pnpm exec vitest run --project react packages/react/test/QadiProvider.lifetime.test.tsx -t "LT9 " < /dev/null` from the
+repository root, stdin closed, on the phase base (`packages/react/src` equals `phase_base`). The resolver never answers, so
+the server's allow is the only thing the gate could read: it rendered `allowed` while mounted (the assertion before the
+hide held), and the reveal after a real 50 ms hide met the disposed registry.
+
+- red on the base: LT9 a seeded allow the client never answers is not shown again after a long hide
+
+  `AssertionError: expected [ …(3) ] to deeply equal []` at `expect(caught).toEqual([])` (`expectNothingThrown`, called from
+  `test/QadiProvider.lifetime.test.tsx:447`): three `registry is disposed` errors. The frame and `pending` assertions after
+  it are the fixed outcome a lease must give: no rendered frame reads the superseded allow.
