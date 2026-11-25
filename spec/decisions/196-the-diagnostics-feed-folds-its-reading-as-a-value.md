@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-196                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-11-25                                     |
 > | Status         | Accepted — amends ADR-QD-173, ADR-QD-169 and ADR-QD-047 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-25): the test that pins a sample's four fields reads the raw sample and is named for it (CCR-QD-475)<br>1.1 (2026-11-25): its Related list links the behaviours and invariants that state it (CCR-QD-475)<br>1.0 (2026-11-25): new (CCR-QD-475) |
+> | Change History | 1.3 (2026-11-25): the new test file DiagnosticsFeed.superseded.test.ts is named where a superseded run's sample and the sampled flag are pinned (CCR-QD-475)<br>1.2 (2026-11-25): the test that pins a sample's four fields reads the raw sample and is named for it (CCR-QD-475)<br>1.1 (2026-11-25): its Related list links the behaviours and invariants that state it (CCR-QD-475)<br>1.0 (2026-11-25): new (CCR-QD-475) |
 
 ---
 
@@ -113,7 +113,7 @@
 | `Off` | the store replaced by a fresh one | the constant `diagnosticsOff`, so the reading resets by identity | FC8 |
 | A start after `Off` | folded into the fresh store's empty reading | folds into `noDiagnostics`, not the reading shown before `Off` | FC10 |
 | A stop | `Stopped` over the kept reading, `sampled` from the flag | the same | FC5, FC6, F23 |
-| A superseded run's sample | dropped by `marking` before the store | dropped by the sink's guard before the fold | FC9, F33 |
+| A superseded run's sample | dropped by `marking` before the store | dropped by the sink's guard before the fold, and before the `sampled` flag is set | FC9, F33, SR1 (`DiagnosticsFeed.superseded.test.ts`) |
 | The engine's parameter | the whole `DiagnosticsStore` | a `DiagnosticsSink`, whose one member is `accept` | `Diagnostics.tst.ts` "a layer's typed failure is not the run's failure", "a valid call passes the parameter check, so the refusals below can fail", "a run with no options has nothing to fail with either"; `Diagnostics.test.ts`'s `runDiagnostics` describe |
 | The poll's sample | the four reads plus `questions: undefined` | the four reads | `Diagnostics.test.ts` "the sample the poll hands the sink carries exactly the four fields it reads" |
 | `Diagnostics.questions` | a public field the poll never wrote | removed | `Diagnostics.tst.ts` "the reading carries no questions field", `surface.tst.ts` "the root's Diagnostics holds exactly the four sampled fields" |
