@@ -119,3 +119,13 @@ matched.
 
 - check failed: 86-earlier-checks.mjs: 82-check.mjs single-owner: expected exit 0, got exit 1: stryker.react.mjs does not mutate RegistryLease.ts
   (a scratch edit of stryker.react.mjs removing RegistryLease.ts from mutate; that was the only reason, and the exit status was 1)
+
+## 86-04 the registry owner
+
+Each row was seen failing under one scratch edit of `packages/react/src/RegistryOwner.ts`, a copy-backed edit restored with
+`cp` from a copy in the scratch directory (`git diff -- packages/react/src` was empty afterwards); the edit follows its row.
+
+- failed: RO2 a release recycles once when its deferred run fires
+  (scratch edit: the recycle body emptied; 2 row(s) failed under it, RO2 and RO5)
+- failed: RO5 a long hide re-seeds from the latest commit before any read
+  (scratch edit: the recycle writes seed.atoms.subject and seed.subject instead of the latest; 1 row(s) failed under it)
