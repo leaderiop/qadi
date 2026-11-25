@@ -8,7 +8,7 @@
  ],
  "groups": {
   "react": {
-   "head": "04c19a2eeb8853cbd4d307936ec5920fe3c86731",
+   "head": "56fd5e5717a9ead559353884091f9780b6e1b99d",
    "invocation": "pnpm exec stryker run stryker.react.mjs --mutate packages/react/src/DecisionOutcome.ts,packages/react/src/QuestionBook.ts,packages/react/src/HydrationEvent.ts,packages/react/src/SweepScheduler.ts",
    "files": {
     "packages/react/src/DecisionOutcome.ts": {
@@ -101,32 +101,25 @@
      ]
     },
     "packages/react/src/QuestionBook.ts": {
-     "killed": 85,
-     "timeout": 0,
-     "survived": 3,
+     "killed": 84,
+     "timeout": 2,
+     "survived": 2,
      "noCoverage": 0,
      "ignored": 0,
-     "detected": 85,
+     "detected": 86,
      "valid": 88,
      "open": [
       {
        "status": "Survived",
-       "mutator": "BooleanLiteral",
+       "mutator": "ConditionalExpression",
        "replacement": "false",
-       "line": 109,
-       "column": 12
-      },
-      {
-       "status": "Survived",
-       "mutator": "EqualityOperator",
-       "replacement": "excess < 0",
        "line": 170,
        "column": 9
       },
       {
        "status": "Survived",
-       "mutator": "ConditionalExpression",
-       "replacement": "false",
+       "mutator": "EqualityOperator",
+       "replacement": "excess < 0",
        "line": 170,
        "column": 9
       }
@@ -230,7 +223,7 @@
    }
   },
   "lease": {
-   "head": "04c19a2eeb8853cbd4d307936ec5920fe3c86731",
+   "head": "56fd5e5717a9ead559353884091f9780b6e1b99d",
    "invocation": "pnpm exec stryker run stryker.react.mjs --mutate packages/react/src/RegistryLease.ts --disableBail",
    "files": {
     "packages/react/src/RegistryLease.ts": {
