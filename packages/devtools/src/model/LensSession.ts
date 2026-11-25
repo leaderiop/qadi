@@ -6,8 +6,9 @@
  * a page, so none of them fell under the model's tests or its mutation gate (the code
  * before ADR-QD-193). Here each is a plain call: picking and a pick cannot be held at
  * once, a pick while picking draws at most the one guard under the pointer, and a
- * command that moves nothing publishes nothing and keeps the snapshot reference, so a
- * reader of the store does not render for it.
+ * command that moves nothing publishes nothing and keeps the snapshot reference, because
+ * every command publishes through the store's `set`, so a reader of the store does not
+ * render for it.
  *
  * `choose` answers whether the click it was given is consumed, which is what decides
  * whether the page sees it. A pick arms a one-shot reveal for its guard; `takeReveal`
@@ -145,23 +146,17 @@ export const makeLensSession = (): LensSession => {
 
   const store = makeExternalStore<LensSnapshot>(IDLE);
 
-  /** Publishes `next` when it is not the snapshot held, so a no-op publishes nothing. */
-  const move = (next: LensSnapshot): void => {
-    if (next === store.getSnapshot()) return;
-    store.publish(next);
-  };
-
   return {
     subscribe: store.subscribe,
     getSnapshot: store.getSnapshot,
 
     toggle: () => {
       armed = undefined;
-      move(toggled(store.getSnapshot()));
+      store.set(toggled(store.getSnapshot()));
     },
 
     hover: (id) => {
-      move(hovered(store.getSnapshot())(id));
+      store.set(hovered(store.getSnapshot())(id));
     },
 
     choose: (id) => {
@@ -170,18 +165,18 @@ export const makeLensSession = (): LensSession => {
       if (next === current) return false;
       // Armed before the publish, so a listener told of the pick can take its reveal.
       armed = pickedOf(next);
-      store.publish(next);
+      store.set(next);
       return true;
     },
 
     cancel: () => {
       armed = undefined;
-      move(cancelled(store.getSnapshot()));
+      store.set(cancelled(store.getSnapshot()));
     },
 
     highlight: (ids) => {
       armed = undefined;
-      move(highlighted(store.getSnapshot())(ids));
+      store.set(highlighted(store.getSnapshot())(ids));
     },
 
     takeReveal: (id) => {
