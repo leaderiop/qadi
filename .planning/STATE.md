@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 87
 current_phase_name: One scoped run that states its stop
 status: executing
-stopped_at: Phase 86 complete, ready to plan Phase 87
-last_updated: "2026-11-25T18:46:31.208Z"
+stopped_at: Completed 87-01-PLAN.md
+last_updated: "2026-11-25T18:57:25.880Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 86 complete, transitioned to Phase 87
-state_head: f40a4ee69e20a5d40789e16eac6cbbe53a0ef7d1
+state_head: 092b4ae79373b82b10807c410a69ee9f37361501
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 30
-  completed_plans: 19
+  completed_plans: 20
   percent: 29
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: 87 (One scoped run that states its stop) — READY TO EXECUTE
-Plan: Not started
+Plan: 2 of 11
 Status: Ready to execute
 Last activity: 2026-11-25 — Phase 86 complete, transitioned to Phase 87
 
@@ -673,6 +673,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 86 P06 | 12min | 3 tasks | 7 files |
 | Phase 86 P07 | 12min | 3 tasks | 2 files |
 | Phase 86 P08 | 8min | 2 tasks | 1 files |
+| Phase 87 P01 | 15 min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -1183,6 +1184,8 @@ Progress: [███░░░░░░░] 29%
 - [Phase 86]: The refresh difference is stated as holding for a seeded subject node nothing has read before the first commit; effect order is quoted from react-dom 19.3.1 source and held by the provider's shape and review, not a merge gate (autonomous, plan 86-06)
 - [Phase 86]: 86-07: the lease and owner Stryker closes ran sequentially and alone, 28/28 and 19/19 killed with no timeout, compare passes (D-15, WX-05)
 - [Phase 86]: 86-08: the phase gate ran check:pr then spec:package alone, both green at base counts; no fix needed, nothing released, no WX requirement ticked (decided autonomously)
+- [Phase 87]: The protocol spike holds on the base: an outside interruption never resumes the forked body and a self-interrupt resumes it current, so D-08 stands and the feeds state a self-interrupt — Run on the real makeSupersedingRun, eight outside paths with and without an engine that swallows its interruption; lines in 87-RED-EVIDENCE.md
+- [Phase 87]: The touched mutation group runs without --disableBail and the born groups with it; a record reads the status of packages and the Stryker config — The touched base is the run the research measured and a close is one invocation against it; a base on a tree no commit names is refused
 
 ### Pending Todos
 
@@ -1270,8 +1273,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T17:04:51.767Z
-Stopped at: Phase 86 complete, ready to plan Phase 87
+Last session: 2026-11-25T18:57:16.969Z
+Stopped at: Completed 87-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
