@@ -1787,6 +1787,26 @@ describe("the services store", () => {
   );
 });
 
+describe("the hydration store", () => {
+  it.effect("M57: the hydration store holds Unwired on a bare model, Pending while the poll layer is still building, and the counts handed to it from the first snapshot", () =>
+    Effect.gen(function* () {
+      const bare = yield* makeDockModel();
+      assert.strictEqual(bare.hydration.getSnapshot()._tag, "Unwired");
+
+      const starting = yield* dockModelOf({ diagnostics: { layer: Layer.effectDiscard(Effect.never) } });
+      assert.strictEqual(starting.hydration.getSnapshot()._tag, "Pending");
+
+      const supplied = yield* dockModelOf({ reading: { hydration: suppliedHydration } });
+      const view = supplied.hydration.getSnapshot();
+      assert.strictEqual(view._tag, "Counts");
+      if (view._tag === "Counts") {
+        assert.strictEqual(view.dehydrated, 2);
+        assert.strictEqual(view.seeded, 1);
+      }
+    }),
+  );
+});
+
 describe("the stores of the model", () => {
   it.effect(
     "a built model's members with subscribe and getSnapshot are exactly this list",
@@ -1813,6 +1833,7 @@ describe("the stores of the model", () => {
           "timelineStatus",
           "questions",
           "services",
+          "hydration",
           "lens",
         ]);
       }),

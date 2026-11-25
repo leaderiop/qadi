@@ -580,7 +580,7 @@ const otherPorts = portsLayer({
   AttributeResolver: scriptedPort(attributeResolverPort, () => PortReply.fail("also down"), "broken").layer,
 });
 
-/** The ten stores of a dock, by the names the model gives them. */
+/** The eleven stores of a dock, by the names the model gives them. */
 const storesOf = (model: DockModel) => ({
   timeline: model.timeline,
   dock: model.dock,
@@ -591,6 +591,7 @@ const storesOf = (model: DockModel) => ({
   timelineStatus: model.timelineStatus,
   questions: model.questions,
   services: model.services,
+  hydration: model.hydration,
   lens: model.lens,
 });
 type StoreName = keyof ReturnType<typeof storesOf>;
@@ -604,6 +605,7 @@ const storeNames: ReadonlyArray<StoreName> = [
   "timelineStatus",
   "questions",
   "services",
+  "hydration",
   "lens",
 ];
 
@@ -619,6 +621,7 @@ const snapshotsOf = (model: DockModel) => {
     timelineStatus: stores.timelineStatus.getSnapshot(),
     questions: stores.questions.getSnapshot(),
     services: stores.services.getSnapshot(),
+    hydration: stores.hydration.getSnapshot(),
     lens: stores.lens.getSnapshot(),
   };
 };
@@ -628,7 +631,7 @@ type Snapshots = ReturnType<typeof snapshotsOf>;
 const moved = (before: Snapshots, after: Snapshots): ReadonlyArray<StoreName> =>
   storeNames.filter((name) => before[name] !== after[name]);
 
-/** One listener on each of the ten stores, counting what each hears. */
+/** One listener on each of the eleven stores, counting what each hears. */
 const heardOnEach = (model: DockModel) => {
   const stores = storesOf(model);
   const heard = {
@@ -641,6 +644,7 @@ const heardOnEach = (model: DockModel) => {
     timelineStatus: heardOn(stores.timelineStatus),
     questions: heardOn(stores.questions),
     services: heardOn(stores.services),
+    hydration: heardOn(stores.hydration),
     lens: heardOn(stores.lens),
   };
   return () => ({
@@ -653,6 +657,7 @@ const heardOnEach = (model: DockModel) => {
     timelineStatus: heard.timelineStatus.calls,
     questions: heard.questions.calls,
     services: heard.services.calls,
+    hydration: heard.hydration.calls,
     lens: heard.lens.calls,
   });
 };
@@ -667,6 +672,7 @@ const silent = {
   timelineStatus: 0,
   questions: 0,
   services: 0,
+  hydration: 0,
   lens: 0,
 };
 
@@ -892,7 +898,7 @@ describe("the dock model", () => {
     });
   };
 
-  it.effect("CR22 a reader subscribed to every store of a bare dock before its first configure hears 2, 2, 2, 2, 0, 1, 0, 2, 1 and 0 notifications while the poll layer is still building, and one more on three stores once it has built", () =>
+  it.effect("CR22 a reader subscribed to every store of a bare dock before its first configure hears 2, 2, 2, 2, 0, 1, 0, 2, 1, 1 and 0 notifications while the poll layer is still building, and one more on four stores once it has built", () =>
     Effect.gen(function* () {
       const building = yield* makeDockModel();
       const buildingCalls = heardOnEach(building);
@@ -909,6 +915,7 @@ describe("the dock model", () => {
         timelineStatus: 0,
         questions: 2,
         services: 1,
+        hydration: 1,
         lens: 0,
       });
 
@@ -927,6 +934,7 @@ describe("the dock model", () => {
         timelineStatus: 0,
         questions: 3,
         services: 2,
+        hydration: 2,
         lens: 0,
       });
     }),

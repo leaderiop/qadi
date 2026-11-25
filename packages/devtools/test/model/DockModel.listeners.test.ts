@@ -61,7 +61,7 @@ const asking = (calls: { count: number }, policy: Policy) => (): ReadonlyArray<A
   return [{ policy }];
 };
 
-/** The ten stores of a dock, by the names the model gives them. */
+/** The eleven stores of a dock, by the names the model gives them. */
 const storesOf = (model: DockModel): Record<StoreName, ReadableStore<unknown>> => ({
   timeline: model.timeline,
   dock: model.dock,
@@ -72,6 +72,7 @@ const storesOf = (model: DockModel): Record<StoreName, ReadableStore<unknown>> =
   timelineStatus: model.timelineStatus,
   questions: model.questions,
   services: model.services,
+  hydration: model.hydration,
   lens: model.lens,
 });
 
@@ -85,6 +86,7 @@ const storeNames = [
   "timelineStatus",
   "questions",
   "services",
+  "hydration",
   "lens",
 ] as const;
 type StoreName = (typeof storeNames)[number];
@@ -98,7 +100,7 @@ const snapshotsOf = (model: DockModel): ReadonlyArray<unknown> => {
 const movedBetween = (before: ReadonlyArray<unknown>, after: ReadonlyArray<unknown>): ReadonlyArray<StoreName> =>
   storeNames.filter((_, index) => before[index] !== after[index]);
 
-/** One listener on each of the ten stores, counting what each hears. */
+/** One listener on each of the eleven stores, counting what each hears. */
 const heardOnEach = (model: DockModel) => {
   const stores = storesOf(model);
   const heard = storeNames.map((name) => [name, heardOn(stores[name])] as const);
@@ -128,7 +130,7 @@ const throwOnceThen = (store: ReadableStore<unknown>, run: () => void) => {
   });
 };
 
-/** What each of the ten stores holds that an input sets, as plain values two models can be compared by. */
+/** What each of the eleven stores holds that an input sets, as plain values two models can be compared by. */
 const stateOf = (model: DockModel) => {
   const timeline = model.timeline.getSnapshot();
   const simulation = model.simulation.getSnapshot();
@@ -148,6 +150,7 @@ const stateOf = (model: DockModel) => {
     poll: shown.status._tag,
     reading: { wiring: shown.reading.wiring, activity: shown.reading.activity, portCalls: shown.reading.portCalls },
     services: rowOf(model),
+    hydration: model.hydration.getSnapshot(),
     lens: model.lens.getSnapshot(),
   };
 };
@@ -454,6 +457,7 @@ describe("a dock whose host listener throws", () => {
         timelineStatus: 0,
         questions: 0,
         services: 0,
+        hydration: 0,
         lens: 0,
       });
     }),
@@ -564,5 +568,9 @@ describe("a dock whose host listener throws", () => {
         ["r1"],
       );
     }),
+  );
+
+  it.effect("DL21 with a throwing hydration listener, a configure applies every input, rethrows what it threw, and an identical configure changes nothing", () =>
+    throwingRow("hydration", { heard: true }),
   );
 });
