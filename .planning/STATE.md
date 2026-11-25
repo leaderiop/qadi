@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 85
 current_phase_name: The dock's hydration block is a model row
 status: executing
-stopped_at: Completed QD-85-01-PLAN.md
-last_updated: "2026-11-25T13:10:32.201Z"
+stopped_at: Completed 85-02-PLAN.md
+last_updated: "2026-11-25T13:21:08.205Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase QD-85 execution started
-state_head: 31d0227ec251d43fe1483191a47b6cbb4f5ecbaa
+state_head: 15839b81a0c1d2b822d0be8f9d74b5fc1ebf8336
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 11
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-85 (The dock's hydration block is a model row) — EXECUTING
-Plan: 2 of 11
+Plan: 3 of 11
 Status: Executing Phase QD-85
 Last activity: 2026-11-25 — Phase QD-85 execution started
 
@@ -653,6 +653,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase QD-84 P12 | 10min | 2 tasks | 1 files |
 | Phase QD-84 P13 | 40min | 2 tasks | 2 files |
 | Phase QD-85 P01 | 10 min | 3 tasks | 4 files |
+| Phase QD-85 P02 | 25 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -1134,6 +1135,11 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase QD-84]: 84-11: BEH-QD-756 to 760 and INV-QD-413 and 414 written with exact-title pinned-by; CCR-QD-476 row complete, no reserved number left Unused
 - [Phase QD-85]: H10 pins an all-zero reading (decided autonomously): a bare drops: [] rendered the same bytes as H6 and no scratch edit could tell them apart
 - [Phase QD-85]: H13 seen-failing edit is in Diagnostics.ts mergeReading (decided autonomously): the panel is handed one merged reading
+- [Phase QD-85]: Decided autonomously: a module-scope function declaration is read as ending at the next lone closing brace in column zero; a declaration whose block body is also its return type literal is reworded, never a judge weakened
+- [Phase QD-85]: Decided autonomously: three-predicates accepts any module-scope function declaration as the shared key reader, so plan 85-05 names it
+- [Phase QD-85]: Decided autonomously: panel-decides-nothing accepts a hydration store read through any useStoreSnapshot call whose argument names hydration
+- [Phase QD-85]: Decided autonomously: records reads describe titles too and fails a kept behavior that loses its heading or names no test file
+- [Phase QD-85]: Decided autonomously: no-react-in-model requires exactly two Data.taggedEnum constants in the view
 
 ### Pending Todos
 
@@ -1218,8 +1224,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T13:10:32.167Z
-Stopped at: Completed QD-85-01-PLAN.md
+Last session: 2026-11-25T13:21:08.169Z
+Stopped at: Completed 85-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
