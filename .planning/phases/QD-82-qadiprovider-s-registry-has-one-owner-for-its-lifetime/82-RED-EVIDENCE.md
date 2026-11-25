@@ -168,3 +168,28 @@ on the phase base: 4 failed. Each line is the title, then the assertion line vit
   `AssertionError: expected 2 to be 1 // Object.is equality` at `expect(r.seen.size).toBe(1)`
   (`test/QadiProvider.lifetime.test.tsx:582`): a second registry was handed to the tree. The reveal threw nothing and no
   frame read `none` on the base; the fixed outcome is both of those held in one registry.
+
+`pnpm exec vitest run --project react --reporter=verbose packages/react/test/QadiProvider.lifetime.test.tsx packages/react/test/edges.test.tsx -t "LT14 |LT15 |releases its registry" < /dev/null`
+on the phase base: 3 failed. Each reads a registry the base disposed. The full react project reads `15 failed | 650 passed (665)`
+on the base: LT1 to LT4 and LT6 to LT15 and the rewritten edges test.
+
+- red on the base: LT14 a read straggling after an unmount throws nothing and leaves no node
+
+  `AssertionError: expected [Function] to not throw an error but 'Error: Cannot access Atom {…}: registry is disposed' was
+  thrown` at `expect(() => registry.get(decision)).not.toThrow()` (`test/QadiProvider.lifetime.test.tsx:603`): the base
+  disposes the registry a macrotask after the unmount, so the straggling read throws where the fixed outcome is a node that
+  is recreated silently and removed a macrotask later.
+
+- red on the base: LT15 a host subscription held across a long hide is detached by the recycle
+
+  `Error: Cannot access Atom {…}: registry is disposed` at `registry.set(r.host, "after")`
+  (`test/QadiProvider.lifetime.test.tsx:642`), the first step after the long hide. The steps before it held on the base: the
+  subscription heard `before` and, across a short hide made of two synchronous acts, `short`, so the short-hide control is
+  inside the test and passes on the base.
+
+- red on the base: releases its registry after it unmounts
+
+  `Error: Cannot access Atom {…}: registry is disposed` at `expect(registry.get(host)).toBe("default")`
+  (`test/edges.test.tsx:282`): the `keepAlive` host atom seeded through `initialValues` read `seeded` while mounted, and a
+  real 50 ms macrotask after the unmount the registry was disposed, where a release reads the atom's default. The rewritten
+  test replaces `disposes its registry when unmounted`, which only asserted an empty body and passed whatever the provider did.

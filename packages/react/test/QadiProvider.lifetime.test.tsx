@@ -206,6 +206,12 @@ const rig = (atoms: QadiAtoms = makeQadiAtoms(EvaluationServicesNone)) => {
     act(async () => {
       control.set({ mode: "visible" });
     });
+  /** A hide and a show that each flush synchronously, so no macrotask can fall between them. */
+  const flip = (mode: Mode) => {
+    act(() => {
+      control.set({ mode });
+    });
+  };
   const change = (patch: Partial<Scene>) =>
     act(async () => {
       control.set(patch);
@@ -215,12 +221,14 @@ const rig = (atoms: QadiAtoms = makeQadiAtoms(EvaluationServicesNone)) => {
     await hide();
     await pastTheRelease();
   };
-  /** What the host atom reads in the registry the tap was handed. */
-  const hostValue = (): string => {
-    const registry = latest.registry;
-    if (registry === undefined) throw new Error("no registry was handed to the tap");
-    return registry.get(host);
+  /** The registry the tap was last handed. */
+  const registry = (): AtomRegistry.AtomRegistry => {
+    const handed = latest.registry;
+    if (handed === undefined) throw new Error("no registry was handed to the tap");
+    return handed;
   };
+  /** What the host atom reads in the registry the tap was handed. */
+  const hostValue = (): string => registry().get(host);
   const expectNothingThrown = () => {
     expect(caught).toEqual([]);
     expect(errors).not.toHaveBeenCalled();
@@ -236,8 +244,10 @@ const rig = (atoms: QadiAtoms = makeQadiAtoms(EvaluationServicesNone)) => {
     mount,
     hide,
     show,
+    flip,
     change,
     longHide,
+    registry,
     hostValue,
     expectNothingThrown,
   };
@@ -580,5 +590,60 @@ describe("a provider hidden past one macrotask and shown again", () => {
     expect(ids).not.toContain("none");
     expect(ids.at(-1)).toBe("u1");
     expect(r.seen.size).toBe(1);
+  });
+
+  it("LT14 a read straggling after an unmount throws nothing and leaves no node", async () => {
+    const r = rig();
+    const element = (
+      <QadiProvider atoms={r.atoms} subject={reader}>
+        {r.body}
+      </QadiProvider>
+    );
+    const { unmount } = r.mount(() => element);
+    await settle();
+    const registry = r.registry();
+    const decision = r.atoms.decision(canRead);
+
+    unmount();
+    await pastTheRelease();
+
+    expect(() => registry.get(decision)).not.toThrow();
+    await pastTheRelease();
+    expect(registry.getNodes().has(decision)).toBe(false);
+  });
+
+  // A limit a host must know: a subscription it holds directly on the provider's registry
+  // does not survive a recycle, while every hook of this package has already unsubscribed
+  // by the time the recycle runs. A hide that ends before the recycle detaches nothing.
+  it("LT15 a host subscription held across a long hide is detached by the recycle", async () => {
+    const r = rig();
+    const element = (
+      <QadiProvider atoms={r.atoms} subject={reader} initialValues={[[r.host, "seeded"]]}>
+        {r.body}
+      </QadiProvider>
+    );
+    r.mount(() => element);
+    await settle();
+    const registry = r.registry();
+    const heard = { count: 0 };
+    registry.subscribe(r.host, () => {
+      heard.count += 1;
+    });
+
+    registry.set(r.host, "before");
+    expect(heard.count).toBe(1);
+
+    r.flip("hidden");
+    r.flip("visible");
+    registry.set(r.host, "short");
+    expect(heard.count).toBe(2);
+
+    await r.longHide();
+    registry.set(r.host, "after");
+    expect(heard.count).toBe(2);
+
+    await r.show();
+    await settle();
+    r.expectNothingThrown();
   });
 });
