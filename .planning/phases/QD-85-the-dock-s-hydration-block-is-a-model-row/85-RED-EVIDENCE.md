@@ -114,3 +114,12 @@ the rest of its stderr is indented under that.
   BEH-QD-699's heading does not say five computed stores
   BEH-QD-700 does not name `hydration`
   BEH-QD-218's table has no hydration row
+
+## 85-03 the pinned and earlier checks
+
+- check failed: 85-pinned-check.mjs: packages/devtools/test/react/QuestionsPanel.feed.characterisation.test.tsx: differs from its base text at line 375
+  (a copy-backed scratch edit appending one newline to the held file, restored with `cp`)
+- check failed: 85-pinned-check.mjs --all-applied: packages/devtools/test/react/QuestionsPanel.test.tsx: 0 of 1 declared edits applied, not all
+  (on the tree as it is, the declared edit not yet applied; the second reason is `QuestionsPanel.test.tsx: the region is not changed from the base`)
+- check failed: 85-earlier-checks.mjs: 84-check.mjs records: expected exit 0, got exit 1: BEH-QD-736 quotes "a title no test has" for packages/devtools/test/model/LensSession.test.ts, which holds no such test
+  (a copy-backed scratch edit of the quoted title in BEH-QD-736's `Pinned by` paragraph in spec/behaviors/28-devtools-screens.md, restored with `cp`; `84-check.mjs records --close` failed the same way)
