@@ -5,16 +5,16 @@ milestone_name: Arch Wave 15
 current_phase: 82
 current_phase_name: "`QadiProvider`'s registry has one owner for its lifetime"
 status: executing
-stopped_at: Completed QD-82-05-PLAN.md
-last_updated: "2026-11-25T01:38:01.199Z"
+stopped_at: Completed QD-82-06-PLAN.md
+last_updated: "2026-11-25T01:45:26.585Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase QD-82 execution started
-state_head: d3743420312d7c146c42eefe3ebe11aea3e5330e
+state_head: 4b19b30c3a33ea0173972aadda66363b34a8c431
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 21
-  completed_plans: 16
+  completed_plans: 17
   percent: 25
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-82 (`QadiProvider`'s registry has one owner for its lifetime) — EXECUTING
-Plan: 6 of 10
+Plan: 7 of 10
 Status: Executing Phase QD-82
 Last activity: 2026-11-25 — Phase QD-82 execution started
 
@@ -618,6 +618,7 @@ Last activity: 2026-11-25 — Phase QD-82 execution started
 | Phase QD-82 P03 | 40 min | 3 tasks | 4 files |
 | Phase QD-82 P04 | 12 min | 2 tasks | 4 files |
 | Phase QD-82 P05 | 20 min | 3 tasks | 3 files |
+| Phase QD-82 P06 | 22 min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -1077,6 +1078,8 @@ Last activity: 2026-11-25 — Phase QD-82 execution started
 - [Phase QD-82]: 82-04: the lease's two matchers are built once per lease inside makeRegistryLease, not hoisted, so no arm is an Ignored mutant under ignoreStatic (decided autonomously)
 - [Phase QD-82]: 82-05: the recycle is registry.reset() then the latest committed subject re-seeded from latestRef (written in an effect); initialValues and hydration seeds are never re-applied
 - [Phase QD-82]: 82-05: the one lease survivor (the Releasing arm of the release matcher) is closed by RL10 in the lease's own tests, decided autonomously; no disable comment, module unchanged
+- [Phase QD-82]: 82-06: ADR-QD-195 records the provider lifetime rule from the observed React 19.3.1 commit order; never releasing is rejected for retention (keepAlive nodes and seed grants), not leaked fibers. Decided autonomously.
+- [Phase QD-82]: 82-06: ADR-QD-148's amendment states the observed fact (live counts already zero from idle removal, reset forks nothing); ADR-QD-014, which has no revision table, is amended by a dated header line and note. Decided autonomously.
 
 ### Pending Todos
 
@@ -1157,8 +1160,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T01:38:01.130Z
-Stopped at: Completed QD-82-05-PLAN.md
+Last session: 2026-11-25T01:45:26.542Z
+Stopped at: Completed QD-82-06-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
