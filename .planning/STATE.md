@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 87
 current_phase_name: One scoped run that states its stop
 status: executing
-stopped_at: Completed 87-01-PLAN.md
-last_updated: "2026-11-25T18:57:25.880Z"
+stopped_at: Completed 87-02-PLAN.md
+last_updated: "2026-11-25T19:10:25.481Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 86 complete, transitioned to Phase 87
-state_head: 092b4ae79373b82b10807c410a69ee9f37361501
+state_head: 08ed2498e8d89970c4f3e0c28f6cb4e4e9d0ae74
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 30
-  completed_plans: 20
+  completed_plans: 21
   percent: 29
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: 87 (One scoped run that states its stop) — READY TO EXECUTE
-Plan: 2 of 11
+Plan: 3 of 11
 Status: Ready to execute
 Last activity: 2026-11-25 — Phase 86 complete, transitioned to Phase 87
 
@@ -674,6 +674,7 @@ Progress: [███░░░░░░░] 29%
 | Phase 86 P07 | 12min | 3 tasks | 2 files |
 | Phase 86 P08 | 8min | 2 tasks | 1 files |
 | Phase 87 P01 | 15 min | 3 tasks | 7 files |
+| Phase 87 P02 | 13min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -1186,6 +1187,8 @@ Progress: [███░░░░░░░] 29%
 - [Phase 86]: 86-08: the phase gate ran check:pr then spec:package alone, both green at base counts; no fix needed, nothing released, no WX requirement ticked (decided autonomously)
 - [Phase 87]: The protocol spike holds on the base: an outside interruption never resumes the forked body and a self-interrupt resumes it current, so D-08 stands and the feeds state a self-interrupt — Run on the real makeSupersedingRun, eight outside paths with and without an engine that swallows its interruption; lines in 87-RED-EVIDENCE.md
 - [Phase 87]: The touched mutation group runs without --disableBail and the born groups with it; a record reads the status of packages and the Stryker config — The touched base is the run the research measured and a close is one invocation against it; a base on a tree no commit names is refused
+- [Phase 87]: 87-02: the pinned check holds the property's kept law lines by trimmed text and count, so a re-indent passes and a reworded or dropped assertion fails
+- [Phase 87]: 87-02: the held set is computed from phase_base (123 base test files, less the two declared, plus useConfigured.ts = 122), never listed by hand
 
 ### Pending Todos
 
@@ -1273,8 +1276,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T18:57:16.969Z
-Stopped at: Completed 87-01-PLAN.md
+Last session: 2026-11-25T19:10:25.426Z
+Stopped at: Completed 87-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
