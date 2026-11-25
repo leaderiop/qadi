@@ -12,7 +12,7 @@
 import { useMemo, useRef } from "react";
 import { noStops, type StopLedger, type StopNoticeProps } from "./StoppedBox.tsx";
 
-export const useStopNotice = <S,>(status: S, onRestart: () => void): StopNoticeProps<S> => {
+export const useStopNotice = <S>(status: S, onRestart: () => void): StopNoticeProps<S> => {
   // Records only which stop was announced, never what the status says (AGENTS.md §13).
   const announced = useRef<StopLedger<S>>(noStops);
   return useMemo(() => ({ status, onRestart, announced }), [status, onRestart]);
