@@ -16,7 +16,7 @@ status: complete
 completed: 2026-11-25
 commits: 1
 plan_head_before: 2123c9c1db68c6e9aa5c5579d14721373c6330e1
-plan_head_after: pending-the-docs-commit
+plan_head_after: 219cb81bf98a59d3f4f96ee846906328ea4378d1
 actuals:
   tokens: 9000
   tasks: 2
@@ -104,3 +104,12 @@ fix touches, run `pnpm check:pr < /dev/null` and then `pnpm spec:package < /dev/
 ## Known Stubs
 
 None.
+
+## Commits
+
+- 219cb81b: docs(84-13): ADPT-01 to ADPT-05 complete
+
+## Self-Check: PASSED
+
+The two gate outputs and exit files, the commit, the five checked requirement lines and rows, and the release facts above were
+each read back from disk or git after they were written.
