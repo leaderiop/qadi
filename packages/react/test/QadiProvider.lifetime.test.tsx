@@ -387,23 +387,32 @@ describe("a provider hidden past one macrotask and shown again", () => {
     expect(screen.getByText("allowed")).toBeDefined();
   });
 
-  it("LT6 a subject changed while hidden is the one the revealed provider answers with", async () => {
+  // The tradeoff the provider's subject effect records: what a recycle writes back is the
+  // subject of the last commit whose effects ran, and a hidden tree runs none, so the first
+  // frame of a reveal reads the subject before the change and the provider's own effect then
+  // writes the new one. Both frames are pinned so the one-frame cost is a recorded limit.
+  it("LT6 a subject changed while hidden is read in the first frame of the reveal as the last committed one, then as the new one", async () => {
+    const ids: Array<string> = [];
     const r = rig();
     r.mount((scene) => (
       <QadiProvider atoms={scene.atoms} subject={scene.subject}>
+        <IdLog ids={ids} />
         {r.body}
       </QadiProvider>
     ));
     await settle();
     expect(screen.getByText("subject:u1")).toBeDefined();
 
-    await r.longHide();
+    await r.hide();
     await r.change({ subject: otherReader });
+    await pastTheRelease();
+    ids.length = 0;
     await r.show();
     await settle();
 
     r.expectNothingThrown();
     expect(r.seen.size).toBe(1);
+    expect(ids).toEqual(["u1", "u2"]);
     expect(screen.getByText("subject:u2")).toBeDefined();
   });
 
@@ -533,9 +542,9 @@ describe("a provider hidden past one macrotask and shown again", () => {
 
   // The rule, not a step count: each pressure episode is one fork and one sweep, so after a
   // settle the sweeps equal the forks and each fork saw exactly the sweeps before it. The
-  // gate's own question is kept through an episode that follows the reveal. A hidden gate's
-  // question may be evicted and admitted again while the tree is hidden, which this test
-  // does not count.
+  // question the hidden tree asks is tracked past the bound while it is hidden, so an episode
+  // begins across the hide; the gate's own question is kept through a second one that follows
+  // the reveal.
   it("LT12 across a long hide each pressure episode is one fork and one sweep", async () => {
     const { atoms, counter } = countedAtoms(1);
     const r = rig(atoms);
@@ -547,14 +556,23 @@ describe("a provider hidden past one macrotask and shown again", () => {
     r.mount(() => element);
     await waitFor(() => expect(screen.getByText("allowed")).toBeDefined());
     await settle();
+    const { counts } = counter;
+    expect(counts.forks).toBe(0);
 
-    await r.longHide();
+    await r.hide();
+    atoms.decision(extra);
+    expect(counts.forks).toBe(1);
+    await pastTheRelease();
+    await settle();
+    expect(counts.forks).toBe(1);
+    expect(counts.sweeps).toBe(1);
+
     await r.show();
     await waitFor(() => expect(screen.getByText("allowed")).toBeDefined());
     await settle();
 
     r.expectNothingThrown();
-    const { counts } = counter;
+    expect(counts.forks).toBeGreaterThan(0);
     expect(counts.sweeps).toBe(counts.forks);
     expect(counts.sweepsAtFork).toEqual(Array.from({ length: counts.forks }, (_, i) => i));
     expect(atoms.asked().filter((q) => q.policy === canRead)).toHaveLength(1);
@@ -595,7 +613,7 @@ describe("a provider hidden past one macrotask and shown again", () => {
   it("LT14 a read straggling after an unmount throws nothing and leaves no node", async () => {
     const r = rig();
     const element = (
-      <QadiProvider atoms={r.atoms} subject={reader}>
+      <QadiProvider atoms={r.atoms} subject={reader} initialValues={[[r.host, "seeded"]]}>
         {r.body}
       </QadiProvider>
     );
@@ -603,13 +621,107 @@ describe("a provider hidden past one macrotask and shown again", () => {
     await settle();
     const registry = r.registry();
     const decision = r.atoms.decision(canRead);
+    expect(registry.get(r.host)).toBe("seeded");
 
     unmount();
     await pastTheRelease();
 
+    expect(registry.get(r.host)).toBe("default");
     expect(() => registry.get(decision)).not.toThrow();
     await pastTheRelease();
     expect(registry.getNodes().has(decision)).toBe(false);
+  });
+
+  it("LT16 a subject committed while visible is the one a long hide's reveal reads in its first frame", async () => {
+    const ids: Array<string> = [];
+    const r = rig();
+    r.mount((scene) => (
+      <QadiProvider atoms={scene.atoms} subject={scene.subject}>
+        <IdLog ids={ids} />
+        <r.RegistryTap />
+      </QadiProvider>
+    ));
+    await settle();
+    await r.change({ subject: otherReader });
+    await settle();
+    expect(ids.at(-1)).toBe("u2");
+
+    await r.longHide();
+    ids.length = 0;
+    await r.change({ mode: "visible", tick: 1 });
+    await settle();
+
+    r.expectNothingThrown();
+    expect(ids).not.toContain("none");
+    expect(ids).not.toContain("u1");
+    expect(ids.at(-1)).toBe("u2");
+    expect(r.seen.size).toBe(1);
+  });
+
+  it("LT17 an atom set committed while visible is the one a long hide's reveal reads its subject from", async () => {
+    const ids: Array<string> = [];
+    const second = makeQadiAtoms(EvaluationServicesNone);
+    const r = rig();
+    r.mount((scene) => (
+      <QadiProvider
+        atoms={scene.atoms}
+        subject={scene.subject}
+        onDeveloperSignal={() => undefined}
+      >
+        <IdLog ids={ids} />
+        <r.RegistryTap />
+      </QadiProvider>
+    ));
+    await settle();
+    await r.change({ atoms: second });
+    await settle();
+    expect(ids.at(-1)).toBe("u1");
+
+    await r.longHide();
+    ids.length = 0;
+    await r.change({ mode: "visible", tick: 1 });
+    await settle();
+
+    r.expectNothingThrown();
+    expect(ids).not.toContain("none");
+    expect(ids.at(-1)).toBe("u1");
+    expect(r.seen.size).toBe(1);
+  });
+
+  it("LT18 a recycle whose reset throws still writes the subject back before the reveal", async () => {
+    const ids: Array<string> = [];
+    const r = rig();
+    r.mount(() => (
+      <QadiProvider atoms={r.atoms} subject={reader}>
+        <IdLog ids={ids} />
+        <r.RegistryTap />
+      </QadiProvider>
+    ));
+    await settle();
+    const registry = r.registry();
+    const reset = registry.reset.bind(registry);
+    const thrown: Array<unknown> = [];
+    vi.spyOn(registry, "reset").mockImplementation(() => {
+      reset();
+      throw new Error("a finalizer threw");
+    });
+    // A bare timer callback has no caller to catch what it throws, so the process hears it.
+    const listeners = process.listeners("uncaughtException");
+    process.removeAllListeners("uncaughtException");
+    process.on("uncaughtException", (error) => thrown.push(error));
+    try {
+      await r.longHide();
+    } finally {
+      process.removeAllListeners("uncaughtException");
+      for (const listener of listeners) process.on("uncaughtException", listener);
+    }
+    expect(thrown).toHaveLength(1);
+    ids.length = 0;
+    await r.show();
+    await settle();
+
+    expect(ids).not.toContain("none");
+    expect(ids.at(-1)).toBe("u1");
   });
 
   // A limit a host must know: a subscription it holds directly on the provider's registry
