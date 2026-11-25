@@ -49,6 +49,33 @@ To be filled by the planner per task. These are the requirement-level rows from 
 | LEASE-05 | Records match the code | spec gates | `pnpm spec:verify:strict`, `pnpm spec:package` | ✅ | ⬜ pending |
 | WX-01..07 | Gate green, reserved ids, no export change, house style, mutation, RED-first, no plan-local ids | gate / process | `pnpm check:pr < /dev/null`; `82-check.mjs`; `82-mutation.mjs` | ❌ W0 | ⬜ pending |
 
+Per task (each `<verify><automated>` is a committed script call or a vitest run from the repo root; `<D>` is the phase
+directory):
+
+| Task | Requirement | Automated command (core) | Expected at HEAD before the task |
+|------|-------------|--------------------------|----------------------------------|
+| 82-01 T1 | WX-05, WX-06 | `node <D>82-mutation.mjs --self-test`; the react Stryker base run; `record base react` | fails: no `phase_base` |
+| 82-01 T2 | WX-05, WX-06 | gate lines compared with fresh runs; `81-archived-checks.mjs` compared | fails: no `base-facts.txt` |
+| 82-01 T3 | LEASE-02, WX-04, WX-07 | `node <D>82-check.mjs --self-test`; `single-owner` fails with its seven reasons | fails: no `82-check.mjs` |
+| 82-02 T1 | LEASE-01 | `pnpm exec vitest run --project react packages/react/test/QadiProvider.lifetime.test.tsx` red; `seen-failing` | fails: no lifetime file |
+| 82-02 T2 | LEASE-03, WX-06 | the same run, LT2 to LT8 red, LT5 green and failing under scratch | fails: LT2 missing |
+| 82-02 T3 | LEASE-01 | the ORDER lines in `82-RED-EVIDENCE.md`; harness absent | fails: no order section |
+| 82-03 T1 | LEASE-04 | `-t "LT9 "` red; `seen-failing` | fails: LT9 missing |
+| 82-03 T2 | LEASE-04 | `-t "LT1[0-3] "` red | fails: LT10 missing |
+| 82-03 T3 | LEASE-03 | LT14, LT15 and `edges.test.tsx` "releases its registry after it unmounts" red | fails: LT14 missing |
+| 82-04 T1 | LEASE-02 | `pnpm exec vitest run --project react packages/react/test/RegistryLease.test.ts` (9 passed after, red before) | fails: no lease |
+| 82-04 T2 | LEASE-02, WX-05 | `stryker.react.mjs` mutate list; `single-owner` leaves five reasons | fails: lease not mutated |
+| 82-05 T1 | LEASE-01, LEASE-03, LEASE-04 | `pnpm exec vitest run --project react`; `single-owner` passes; typecheck | fails: `single-owner` reasons |
+| 82-05 T2 | WX-06 | the three variants' failing titles recorded | fails: no variants section |
+| 82-05 T3 | LEASE-02 | lease-only Stryker run; `82-mutation.mjs probe lease` exits 0 | fails: no probe log |
+| 82-06 T1-T2 | LEASE-05, WX-02 | `node scripts/spec-revise.mjs --check`; `bash spec/scripts/verify-traceability.sh --strict` (`FAIL: 0`) | fails: no ADR-QD-195 |
+| 82-07 T1-T2 | LEASE-05, WX-02 | the same, plus `node scripts/check-doc-examples.mjs` | fails: BEH-QD-746 missing |
+| 82-08 T1-T2 | LEASE-05, WX-02, WX-03 | `node scripts/check-api-surface.mjs` equal to the base; the CCR row names every changed doc | fails: no changeset |
+| 82-09 T1 | WX-05 | two Stryker close runs alone; `node <D>82-mutation.mjs compare` | fails: no close logs |
+| 82-09 T2 | WX-04, WX-06, WX-07 | the four `82-check.mjs` scans; archived checks equal; ancestry | fails: no close facts |
+| 82-10 T1 | WX-01, WX-03 | `pnpm check:pr < /dev/null` exit 0, then `pnpm spec:package` exit 0 | fails: not run |
+| 82-10 T2 | LEASE-01..05, WX-07 | the REQUIREMENTS checkboxes and rows; no tag, CHANGELOG or version change; `trailers` | fails: unchecked |
+
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
 ---
