@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-192                                   |
-> | Revision       | 1.5                                            |
+> | Revision       | 1.6                                            |
 > | Effective Date | 2026-11-24                                     |
-> | Status         | Accepted — amends ADR-QD-137, ADR-QD-173 and ADR-QD-185; amended 2026-11-24 (ADR-QD-194: every step runs on every configure, and the dock's catalogue comparison is gone) |
+> | Status         | Accepted — amends ADR-QD-137, ADR-QD-173 and ADR-QD-185; amended 2026-11-24 (ADR-QD-194: every step runs on every configure, and the dock's catalogue comparison is gone); amended 2026-11-25 (ADR-QD-197: useConfigured takes a value that has configure, and the per-render hand-over is kept) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.5 (2026-11-24): amended by ADR-QD-194 (CCR-QD-473)<br>1.4 (2026-11-24): decision 1 and the alternatives: a bare timeline feed starts no read, and the skipped read is what shipped, unobservable (CCR-QD-471)<br>1.3 (2026-11-24): the retry of a failed watch on each host re-render is pinned by DockRegistryReads.test.tsx<br>1.2 (2026-11-24): decision 2: the dock applies the one rule through its feeds, with no comparison of its own beside the catalogue's<br>1.1 (2026-11-24): the behaviours and invariants that state it; DockRegistryReads.test.tsx pins the registry read counts<br>1.0 (2026-11-24): Initial (ARCH-126, CCR-QD-471) |
+> | Change History | 1.6 (2026-11-25): decision 8 amended by ADR-QD-197 (CCR-QD-476)<br>1.5 (2026-11-24): amended by ADR-QD-194 (CCR-QD-473)<br>1.4 (2026-11-24): decision 1 and the alternatives: a bare timeline feed starts no read, and the skipped read is what shipped, unobservable (CCR-QD-471)<br>1.3 (2026-11-24): the retry of a failed watch on each host re-render is pinned by DockRegistryReads.test.tsx<br>1.2 (2026-11-24): decision 2: the dock applies the one rule through its feeds, with no comparison of its own beside the catalogue's<br>1.1 (2026-11-24): the behaviours and invariants that state it; DockRegistryReads.test.tsx pins the registry read counts<br>1.0 (2026-11-24): Initial (ARCH-126, CCR-QD-471) |
 
 ---
 
@@ -279,6 +279,7 @@ fence above, and `scripts/check-house-style.mjs` holds its budgets unmoved.
 - [ADR-QD-177](./177-one-throwing-listener-cannot-silence-the-rest.md) — every listener is called and what they threw is rethrown, which the dock's `finally` keeps
 - [ADR-QD-185](./185-the-dock-models-computed-stores-are-derived-stores.md) — `sameFields` is the rule a derived store's key already used; decision 2 is amended by this decision
 - [ADR-QD-191](./191-a-timeline-store-owns-its-capacity.md) — the capacity is checked first and the dock applies it whole or not at all, which the normalisers keep
+- [ADR-QD-197](./197-a-configurable-value-one-questions-path-for-the-lens-and-one-stop-ledger.md) — decision 8's `useConfigured` takes a value that has `configure`, and the per-render hand-over is kept by a recorded rejection of a memo; amends this decision
 - [BEH-QD-731](../behaviors/28-devtools-screens.md#beh-qd-731-the-feeds-and-the-dock-model-are-built-with-no-inputs) — the four constructors take no argument and a bare build equals the empty build
 - [BEH-QD-732](../behaviors/28-devtools-screens.md#beh-qd-732-a-configure-in-which-no-input-moved-changes-nothing) — a `configure` in which no input moved publishes nothing and reads no host code
 - [BEH-QD-733](../behaviors/28-devtools-screens.md#beh-qd-733-a-failed-watch-is-retried-by-any-configure-and-a-quiet-mend-waits-for-a-moved-input) — the retry of a failed watch, and a quiet mend read by a moved input
@@ -300,3 +301,18 @@ guarded by their own target. Decision 10's counts for the explorer and the simul
 the sightings rail is a derived store that recomputes once per change: the counts read timeline 2, dock 2, explorer 2,
 simulation 2, roles 0, diagnostics 1, timeline status 0, questions 2 and services 1 while the diagnostics layer is still
 building, and 2, 3 and 2 for diagnostics, questions and services once it has built. The decisions keep their history.
+
+## Amendment (2026-11-25, ARCH-131, CCR-QD-476): `useConfigured` takes a value that has `configure`, and the per-render hand-over is kept
+
+Decision 8's hook takes `make` and the inputs, and requires the value to have `configure`: `useConfigured<A extends Configurable<I>, I>(make, inputs)`,
+with `Configurable<I>` the package-private `{ readonly configure: (inputs: I) => void }`
+([ADR-QD-197](./197-a-configurable-value-one-questions-path-for-the-lens-and-one-stop-ledger.md) decision 1). The three hooks pass no
+adapter that calls the value's own `configure`. The two `configure` calls stay where decision 8 put them, one tapped onto the scoped build and one in
+the layout effect keyed on the value and the inputs record, and the hook still decides nothing about whether an input moved.
+
+A hook keeps handing over a fresh inputs record each render, by recorded rejection of a memo
+([ADR-QD-197](./197-a-configurable-value-one-questions-path-for-the-lens-and-one-stop-ledger.md) decision 5). The value's own `sameFields` rule makes
+the memo a no-op, the dock's and a host's records are fresh by construction, memoising one of three hooks makes them asymmetric, and the gates
+feed's retry of a failed watch depends on repeated calls, so memoisation is not made the hooks' rule. The evidence that the fresh record costs nothing
+is `useTimeline.inputs.characterisation.test.tsx` (TI1 to TI3), and the evidence that the retry is unaffected is G43 in `GatesFeed.test.ts` and
+`DockRegistryReads.test.tsx`, both held. Decision 8's text above is kept.
