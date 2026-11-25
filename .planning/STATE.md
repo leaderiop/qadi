@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 86
 current_phase_name: QadiProvider's registry lifetime has a React-free owner
 status: executing
-stopped_at: Phase QD-85 complete, ready to plan Phase 86
-last_updated: "2026-11-25T15:50:20.801Z"
+stopped_at: Completed 86-01-PLAN.md
+last_updated: "2026-11-25T16:06:56.597Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 86 execution started
-state_head: 75a0d17b727148b7c5af6791ea2af0fd10aab2c1
+state_head: eb2ba2e44203db23021620ac64bdd4de3ba87888
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 19
-  completed_plans: 11
+  completed_plans: 12
   percent: 14
 ---
 
@@ -30,8 +30,8 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: 86 (QadiProvider's registry lifetime has a React-free owner) — EXECUTING
-Plan: 1 of 8
-Status: Executing Phase 86
+Plan: 2 of 8
+Status: Ready to execute
 Last activity: 2026-11-25 — Phase 86 execution started
 
 Progress: [█░░░░░░░░░] 14%
@@ -664,6 +664,7 @@ Progress: [█░░░░░░░░░] 14%
 | Phase 85 P09 | 40min | 3 tasks | 9 files |
 | Phase QD-85 P10 | 15 min | 2 tasks | 2 files |
 | Phase QD-85 P11 | 10min | 2 tasks | 1 files |
+| Phase 86 P01 | 14 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -1164,6 +1165,8 @@ Progress: [█░░░░░░░░░] 14%
 - [Phase 85]: Decided autonomously (85-09): ADR-QD-198 states the mutation facts measured so far (HydrationView.ts 41 of 41 killed, no Ignored note owed) and DockModel.ts as a rule, since the close measurement belongs to 85-10
 - [Phase QD-85]: Decided autonomously: the CCR-QD-477 row is not edited to name the changeset; a changeset is a release note and no earlier CCR row names its own
 - [Phase QD-85]: 85-11: HYDV-01..05 left unticked in REQUIREMENTS.md per the run rules (orchestrator marks them at verification); spec:package consumer line is not printed on success, exit 0 and the package-install line are the evidence
+- [Phase 86]: 86-01: the lease's mutation base is the quiet-host run (28 killed, 0 timeout); a first run under load with 11 Timeout mutants was discarded and not recorded
+- [Phase 86]: 86-01: the pinned-test held set is computed with git ls-tree from phase_base (59 files with the lease), with no declared edit
 
 ### Pending Todos
 
@@ -1250,8 +1253,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T14:25:34.803Z
-Stopped at: Phase QD-85 complete, ready to plan Phase 86
+Last session: 2026-11-25T16:06:56.529Z
+Stopped at: Completed 86-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
