@@ -2,20 +2,20 @@
 gsd_state_version: "1.0"
 milestone: v1.10
 milestone_name: Arch Wave 15
-current_phase: 83
-current_phase_name: The diagnostics feed folds its reading as a value
-status: verifying
-stopped_at: Completed QD-83-11-PLAN.md
-last_updated: "2026-11-25T05:04:12.309Z"
+current_phase: 84
+current_phase_name: "`useConfigured` requires `configure`, and the review's small finds"
+status: planning
+stopped_at: Phase 83 complete, ready to plan Phase 84
+last_updated: "2026-11-25T05:47:41.030Z"
 last_activity: 2026-11-25
-last_activity_desc: Phase 82 complete, transitioned to Phase 83
-state_head: da589000eec0fbf7f95c575285758f04b5d37a50
+last_activity_desc: Phase 83 complete, transitioned to Phase 84
+state_head: 1e6e1f2148ccc7c73f99982bdf5183c29ccbdd48
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 32
   completed_plans: 32
-  percent: 50
+  percent: 75
 ---
 
 # Project State
@@ -29,16 +29,16 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 
 ## Current Position
 
-Phase: QD-83 (The diagnostics feed folds its reading as a value) — READY TO EXECUTE
-Plan: 11 of 11
-Status: Phase complete — ready for verification
-Last activity: 2026-11-25 — Phase 82 complete, transitioned to Phase 83
+Phase: 84 — `useConfigured` requires `configure`, and the review's small finds
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-11-25 — Phase 83 complete, transitioned to Phase 84
 
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 511
+- Total plans completed: 522
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -119,6 +119,7 @@ Last activity: 2026-11-25 — Phase 82 complete, transitioned to Phase 83
 | QD-80 | 13 | - | - |
 | QD-81 | 11 | - | - |
 | 82 | 10 | - | - |
+| 83 | 11 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -1172,6 +1173,7 @@ Last activity: 2026-11-25 — Phase 82 complete, transitioned to Phase 83
 - [Phase 77] Review limits recorded, not gaps: the codec-made registry is one per loaded copy of `@qadi/audit` (a second copy refuses the first's rows as `EntryNotMadeByCodec`); a throwing getter or `Proxy` passed as an input still throws as the host's own throw (ADR-QD-190 amendment 3).
 - [Phase 81] Review (81-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations fixed 13 findings (iteration 1: README record-path claim, vacuous lens row, package-private dock model in the README, nested `AggregateError` wording, three info; iteration 2: spec records restated for DL1..DL20 and TF37, BEH-QD-656 gains the record/sample-throw requirement; iteration 3: direct pins in `TimelineFeed.listeners.test.ts` LF1..LF3, amendment banner). `pnpm check:pr` and `pnpm spec:package` green after the fixes at daf7cd45; mutation compare exit 0 (no src change since the close). Note: `TimelineFeed.configure` re-reads a source a nested `configure` already read (TF37 pins two reads; dedup makes it harmless) — recorded, not changed. The pinned check refused a TF38 addition; the direct pins went into a new file instead. `phase.complete` warnings about `spec/decisions/1xx-...md` are false positives (abbreviated paths; the files exist).
 - [Phase 82] Review (82-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations fixed 7 findings (iteration 1: BEH-QD-749/ADR claim that the reveal's first frame reads a subject changed while hidden corrected to the one-frame read and pinned in LT6, LT16/LT17 pin the committed re-seed, LT12 drives real pressure across the hide, `leaseRef` typed `RegistryLease`, the re-seed moved into a `finally` after `reset()` with LT18, LT14 made to depend on the release; iteration 2: LT18 hears the timer's throw through a cast-free `setTimeout` wrapper instead of swapping process listeners; iteration 3 clean). Mutation re-close: react 148/150 (QuestionBook.ts:109 now killed), lease 28/28, compare exit 0; `pnpm check:pr` and `pnpm spec:package` green at 4ec88995. Validation 12/12, security 29/29 (2 low accepted), verification passed 5/5. `phase.complete` warnings name a scratch test file, a command and $TMPDIR outputs a SUMMARY mentions; not missing artifacts.
+- [Phase 83] Review (83-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations, 7 findings: 5 fixed (WR-01 the four-field pin read the folded reading, now the raw sample; WR-02 nothing pinned that a superseded sample leaves `sampled` false, now SR1 in `DiagnosticsFeed.superseded.test.ts`, seen as the only failure with `sampled = true` above the guard; WR-03 the `DockModel.reading` doc; IN-01 the changeset/upgrade pointer to the questions store; IN-04 wraps), 2 declined (IN-02 the held characterisation header; IN-03 a behaviour change against FC11/MR2). The fixer's request to loosen `83-pinned-check.mjs` was refused by the classifier and not re-done by the orchestrator. Mutation re-taken (59/59, 32/32, 65/65), check:pr and spec:package green at 13763f9f; a missing trailer on the review-report commit fixed by rebuilding 12 local commits with `git commit-tree` and remapping cited hashes. Validate 11/11, secure 27/27 (2 low accepted), verify 4/4.
 ### Roadmap Evolution
 
 - Phase 68.1 inserted after Phase 68: Address tech debt from the v1.7 audit (owner chose a cleanup phase before completing)
@@ -1192,10 +1194,10 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 ## Session Continuity
 
 Last session: 2026-11-25T05:04:12.202Z
-Stopped at: Completed QD-83-11-PLAN.md
+Stopped at: Phase 83 complete, ready to plan Phase 84
 Resume file: None
 
 ## Operator Next Steps
 
 
-- Phase 83: smart discuss (decided autonomously), then /gsd-plan-phase 83 and /gsd-execute-phase 83
+- Phase 84: smart discuss (decided autonomously), then /gsd-plan-phase 84 and /gsd-execute-phase 84
