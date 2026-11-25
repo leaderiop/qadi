@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 86
 current_phase_name: QadiProvider's registry lifetime has a React-free owner
 status: executing
-stopped_at: Completed 86-01-PLAN.md
-last_updated: "2026-11-25T16:06:56.597Z"
+stopped_at: Completed 86-02-PLAN.md
+last_updated: "2026-11-25T16:16:48.063Z"
 last_activity: 2026-11-25
 last_activity_desc: Phase 86 execution started
-state_head: eb2ba2e44203db23021620ac64bdd4de3ba87888
+state_head: b4f68d6db3d88834d789ef481c1874e554a0ff11
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 19
-  completed_plans: 12
+  completed_plans: 13
   percent: 14
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: 86 (QadiProvider's registry lifetime has a React-free owner) — EXECUTING
-Plan: 2 of 8
+Plan: 3 of 8
 Status: Ready to execute
 Last activity: 2026-11-25 — Phase 86 execution started
 
@@ -665,6 +665,7 @@ Progress: [█░░░░░░░░░] 14%
 | Phase QD-85 P10 | 15 min | 2 tasks | 2 files |
 | Phase QD-85 P11 | 10min | 2 tasks | 1 files |
 | Phase 86 P01 | 14 min | 3 tasks | 5 files |
+| Phase 86 P02 | 40min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -1167,6 +1168,7 @@ Progress: [█░░░░░░░░░] 14%
 - [Phase QD-85]: 85-11: HYDV-01..05 left unticked in REQUIREMENTS.md per the run rules (orchestrator marks them at verification); spec:package consumer line is not printed on success, exit 0 and the package-install line are the evidence
 - [Phase 86]: 86-01: the lease's mutation base is the quiet-host run (28 killed, 0 timeout); a first run under load with 11 Timeout mutants was discarded and not recorded
 - [Phase 86]: 86-01: the pinned-test held set is computed with git ls-tree from phase_base (59 files with the lease), with no declared edit
+- [Phase 86]: 86-02: the check's trailer is the exact owner line (D-18); owner-shape reads module scope as statements; provider-forwards-only reads each effect's call text with its dependency list split off
 
 ### Pending Todos
 
@@ -1253,8 +1255,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T16:06:56.529Z
-Stopped at: Completed 86-01-PLAN.md
+Last session: 2026-11-25T16:16:47.991Z
+Stopped at: Completed 86-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
