@@ -177,3 +177,15 @@ None.
 - FOUND: `.planning/phases/QD-86-qadiprovider-s-registry-lifetime-has-a-react-free-owner/86-mutation-close.json`
 - FOUND: `.changeset/react-registry-lifetime-has-an-owner.md`
 - FOUND commits: `2255ce8a`, `f1f19c51`
+
+## Post-plan correction (orchestrator, 2026-11-25)
+
+After this plan closed, the orchestrator corrected the changeset's wording in `fd1d035f`
+(`docs(86): the react changeset names the one host-visible edge`). The text committed here said
+"Nothing a host renders, receives or calls changes", which overstates: CONTEXT D-10a's unguarded
+subject write is host-visible through `RegistryContext` (a `registry.refresh` of an unread seeded
+subject atom now keeps the subject; ADR-QD-199, pinned by RO16). The changeset is still one
+`@qadi/react` patch ending `No export changes.`. Consequence for re-runs: Task 2's verify asserts
+that the last commit touching the changeset is `chore(86-07): add the react changeset`, so run
+after `fd1d035f` it prints `the changeset is not committed`. That is this correction, not a
+missing changeset; every other condition of that verify still holds.
