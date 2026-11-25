@@ -204,3 +204,29 @@ calls (`flip("hidden")`, `flip("visible")`), as LT15's short-hide control does. 
 - failed (scratch): LT5 a hide shorter than a macrotask recycles nothing — the same copy-backed scratch edit as above
   (the cleanup disposes at once, no `setTimeout`): `AssertionError: expected [ …(3) ] to deeply equal []`; the file was
   restored with `cp` and `git diff --quiet HEAD -- packages/react/src` held.
+
+## the registry lease, before it exists
+
+`pnpm exec vitest run --project react packages/react/test/RegistryLease.test.ts < /dev/null`, from the repository root, with
+`packages/react/src/RegistryLease.ts` absent. The module is the thing under test, so the whole file fails to load and every
+test is red for the same stated reason: the lease does not exist yet. The line vitest printed:
+
+```
+Error: Failed to resolve import "../src/RegistryLease.ts" from "packages/react/test/RegistryLease.test.ts". Does the file exist?
+ Test Files  1 failed (1)
+      Tests  no tests
+```
+
+- red on the base: RL1 a hold, a release and a hold in one tick recycle nothing
+- red on the base: RL2 a release recycles once when its deferred run fires
+- red on the base: RL3 a second release while one is pending defers nothing more
+- red on the base: RL4 a release on a lease never held defers nothing
+- red on the base: RL5 a hold while a release is pending cancels it exactly once
+- red on the base: RL6 after a recycle the lease is unheld until it is held again
+- red on the base: RL7 a recycle that throws leaves the lease usable
+- red on the base: RL8 a defer that throws leaves the lease held
+- red on the base: RL9 the default defer recycles after a real macrotask and a hold before it cancels
+
+Semantic assessment: the failure is the missing module, not a fixture or syntax fault; the nine titles are the ones the file
+declares, so each is recorded red by that one cause. The tests assert the lease's transitions through a recording `recycle` and
+a defer that really cancels, so they can only pass once the module exists and decides as stated.
