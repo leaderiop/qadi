@@ -511,6 +511,8 @@ logged, counted or spanned.
 
 - ✓ ARCH-131 `useConfigured` requires `configure`, and the review's small finds (ADPT-01..05): `useConfigured(make, inputs)` takes a value that has its own `configure`, through a package-private `Configurable<I>` whose `configure` is a function property (checked contravariantly), so the three identical adapters `configureDock`, `configureTimeline` and `configureDiagnostics` are deleted and the three hooks call it with no type argument; `useConfigured.tst.ts` pins the three values and four refusals, each beside its accepted twin, the fourth refused by the property form alone; `LensSession` publishes every command through `ExternalStore.set` (`move` deleted) and `choose` still arms its reveal before it publishes; `useLens(lens, questions): UseLens` subscribes the questions store first and the lens second, draws from its own subscription, reads the store at event time and writes no ref, and the panel makes the one call; the dock's two stop notices come from one `useStopNotice` hook and one `StopNoticeProps<S>`, one ledger per feed; `useTimeline`'s per-render inputs record is a recorded rejection (ADR-QD-197). Characterisations LQ1..LQ4, DS1..DS3, TI1..TI3 born on the base; mutation LensSession 52/52 -> 47/47 (the deleted `move`'s mutants), no new Ignored. ADR-QD-197, ADR-QD-192 and ADR-QD-193 amended, BEH-QD-756..760, INV-QD-413/414, CCR-QD-476; `@qadi/devtools` patch, no export changes — v1.10, Phase 84 (2026-11-25)
 
+- ✓ ARCH-132 The dock's hydration block is a model row (HYDV-01..05): a pure, package-private `HydrationView.ts` (`hydrationView`, a closed `Pending | Unwired | Counts` `Data.TaggedEnum` with a closed `None | Raised` drops union and every sentence worked out) is served as `DockModel.hydration`, the eleventh store and fifth derived store, built after `services` from the shown reading and keyed by identity on `{ hydration, unsampled }`; one module-scope `shownInputOf` computes `unsampled` for services and hydration while the questions guard keeps its own; `QuestionsPanel` renders the view through hoisted `Match.tagsExhaustive` matchers and imports neither `isUnsampled` nor `unaccountedEntries`; `DockFrame` reads only the poll's status through `useDiagnosticsStatus` beside `usePaused`, and `Screen` lost `shown`, so a counts-only poll commits nothing under the dock (R1, with R2 as control). Characterisations H1..H13 born on the base and held byte for byte; V1..V17, M57..M60, DL21/DL22, CR22. Mutation DockModel 65/65 -> 72/72, HydrationView 41/41, no new Ignored. ADR-QD-198, ADR-QD-185/168 noted, BEH-QD-761..765, INV-QD-415/416, CCR-QD-477; `@qadi/devtools` patch, no export changes — v1.11, Phase 85 (2026-11-25)
+
 ### Active
 
 v1.11 Arch Wave 16 requirements: see `.planning/REQUIREMENTS.md` (Phases 85–91, ARCH-132…138).
@@ -570,6 +572,10 @@ v1.11 Arch Wave 16 requirements: see `.planning/REQUIREMENTS.md` (Phases 85–91
   - ADR Document IDs must equal the file number (`verify-traceability.sh`, gate 10).
 - **Hot spots** (churn over the last 15 commits): react `QadiAtoms`/`Hydration`/`hooks`; http
   `RequirePermission`/`DecisionStreamRoute`; core `SinkCodec`/`Evaluate`/`PortAccess`.
+
+### Known Issues (v1.11, open)
+
+- Phase 85 review IN-01 and IN-02 are deferred (`85-REVIEW-DISPOSITION.md`): `QuestionsPanel`'s optional `hydration` prop has a fallback only tests reach (a required prop would edit held characterisations); the hydration block's "1 dehydrated entry have" and "All 1 reasons" wording predates the phase and is pinned by the byte oracle.
 
 ### Known Issues (carried forward from v1.10)
 
@@ -790,6 +796,7 @@ v1.11 Arch Wave 16 requirements: see `.planning/REQUIREMENTS.md` (Phases 85–91
 | A provider's registry has one owner for its lifetime: a headless lease recycles it in place a macrotask after the last cleanup and never disposes it; seeds are not re-applied | A provider hidden in `<Activity>` longer than a macrotask disposed its registry, and the reveal rendered against it (`registry is disposed` from two consumers and the provider's own subject effect); the lifetime rule lived in a timer in the component, unmeasured | Accepted (Phase 82, ADR-QD-195, CCR-QD-474; recycle in place over rebuild, subject-only re-seed, the reveal's one-frame read of the last committed subject accepted and pinned, the re-seed in a `finally` and the review's tests decided autonomously 2026-11-25) |
 | The diagnostics feed's reading is a value folded into its one snapshot by a pure `foldReading`; `runDiagnostics` takes a one-member sink; `Diagnostics` carries only what the poll samples | The feed kept the reading in a package-private store beside its snapshot, replaced the store in `off()`, marked `Live` through a second path, folded with a five-clause `===` chain, and typed a `questions` field the poll never sampled, so a reader of a sampled reading's `questions` read `undefined` | Accepted (Phase 83, ADR-QD-196, CCR-QD-475; removing `Diagnostics.questions` as a Breaking minor over routing it through the shown reading, the pure rename first, the sink shape, SR1 in a new file over editing the held characterisation, and the declined IN-02/IN-03 decided autonomously 2026-11-25) |
 | A hook's value takes its own inputs through `configure`; the lens reads each fact once; one stop ledger per feed; `useTimeline`'s inputs record is not memoised | `useConfigured` took a value and a second adapter argument restated three times, `LensSession` restated the store's `set` as `move`, `useLens` was handed the guards beside a store it read anyway, `DockFrame` held two copies of the stop ledger and its memo | Accepted (Phase 84, ADR-QD-197, CCR-QD-476; the property-form constraint and its four pinned refusals, the memo recorded as a rejection, `useLens` returning both snapshots, `useStopNotice` keyed on the feed's `restart`, and the review's two added refusals decided autonomously 2026-11-25) |
+| The dock's hydration block is a derived model store keyed `{ hydration, unsampled }`; `DockFrame` reads status through a `usePaused`-shaped hook; one changeset patch per edited public package across the wave (decided autonomously, Phase 85 D-04..D-10) | The panel decided Pending/Unwired/Counts and worked out its sentences, and the frame subscribed to the whole merged reading to pass one field along | Accepted; shipped (Phase 85, ADR-QD-198) |
 
 ## Evolution
 
@@ -809,4 +816,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-25 after starting v1.11 milestone*
+*Last updated: 2026-11-25 after Phase 85*
