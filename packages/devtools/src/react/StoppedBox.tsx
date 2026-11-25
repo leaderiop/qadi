@@ -30,6 +30,21 @@ export interface StopLedger<S> {
 /** A ledger with no stop in it: what a dock starts from. */
 export const noStops: StopLedger<never> = { stop: undefined, count: 0 };
 
+/** What the dock hands a feed's stop notice. */
+export interface StopNoticeProps<S> {
+  /** The feed's status, read once by the dock. */
+  readonly status: S;
+  /** Starts the feed again; it leaves its stop, so the notice is replaced. */
+  readonly onRestart: () => void;
+  /**
+   * The stops the notice has shown, owned by the dock so it outlives every screen.
+   *
+   * It records only which stop was announced and how many there have been, never what
+   * the status or the reading says (AGENTS.md §13).
+   */
+  readonly announced: RefObject<StopLedger<S>>;
+}
+
 /** One key per stop, so a second stop remounts the box and its alert is announced as it arrives. */
 export const stoppedKey = <S,>(ledger: StopLedger<S>, status: S): number =>
   ledger.stop === status ? ledger.count : ledger.count + 1;

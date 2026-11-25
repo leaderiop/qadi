@@ -144,3 +144,10 @@ under it are the rest of that run's stderr. A test's failure lines use the `seen
 
 - check failed: refusal UseLens: Unused '@ts-expect-error' directive. ts(2578)
 - check failed: refusal ReactUseLens: Unused '@ts-expect-error' directive. ts(2578)
+
+## 84-09 the stop notices
+
+- check failed: refusal useStopNotice: Unused '@ts-expect-error' directive. ts(2578)
+- check failed: refusal reactUseStopNotice: Unused '@ts-expect-error' directive. ts(2578)
+- check failed: refusal StopNoticeProps: Unused '@ts-expect-error' directive. ts(2578)
+- check failed: refusal ReactStopNoticeProps: Unused '@ts-expect-error' directive. ts(2578)

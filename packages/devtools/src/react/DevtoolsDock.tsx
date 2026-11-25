@@ -14,13 +14,10 @@
  * decisions are reachable at `/__decisions`; what renders them is not this.
  */
 import type { FC, ReactNode } from "react";
-import { useMemo, useRef } from "react";
 import type { Verdict } from "../model/Verdict.ts";
-import type { DiagnosticsStatus } from "../model/DiagnosticsFeed.ts";
 import type { Diagnostics } from "../model/Diagnostics.ts";
 import type { DockModel, DockModelInputs } from "../model/DockModel.ts";
 import type { DockSnapshot, TabId } from "../model/DockSession.ts";
-import type { TimelineStatus } from "../model/TimelineFeed.ts";
 import { DecisionLog } from "./DecisionLog.tsx";
 import type { DiagnosticsNoticeProps } from "./DiagnosticsNotice.tsx";
 import { focusRingProps } from "./focusRing.ts";
@@ -30,9 +27,9 @@ import { QuestionsPanel } from "./QuestionsPanel.tsx";
 import { RoleViewer } from "./RoleViewer.tsx";
 import { ServicesPanel } from "./ServicesPanel.tsx";
 import { Simulator } from "./Simulator.tsx";
-import { noStops, type StopLedger } from "./StoppedBox.tsx";
 import { TimelineNotice, type TimelineNoticeProps } from "./TimelineNotice.tsx";
 import { useDockModel } from "./useDockModel.ts";
+import { useStopNotice } from "./useStopNotice.ts";
 import { usePaused, useStoreSnapshot } from "./useStoreSnapshot.ts";
 import { body, button, colors, dock as dockStyle, font, input, muted, toolbar } from "./theme.ts";
 
@@ -113,19 +110,9 @@ const DockFrame: FC<{
   const view = useStoreSnapshot(dock);
   // Each field is the supplied reading's when it carries one, and the sample's otherwise: the model merges.
   const { status, reading: shown } = useStoreSnapshot(model.diagnostics);
-  // Records only which stops were announced, never what the reading says (AGENTS.md §13).
-  const announced = useRef<StopLedger<DiagnosticsStatus>>(noStops);
-  const notice = useMemo(
-    () => ({ status, onRestart: model.diagnostics.restart, announced }),
-    [status, model],
-  );
+  const notice = useStopNotice(status, model.diagnostics.restart);
   const timelineStatus = useStoreSnapshot(model.timelineStatus);
-  // Records only which stops were announced, never what the status says (AGENTS.md §13).
-  const timelineAnnounced = useRef<StopLedger<TimelineStatus>>(noStops);
-  const timelineNotice = useMemo(
-    () => ({ status: timelineStatus, onRestart: model.timelineStatus.restart, announced: timelineAnnounced }),
-    [timelineStatus, model],
-  );
+  const timelineNotice = useStopNotice(timelineStatus, model.timelineStatus.restart);
   const paused = usePaused(timeline);
 
   return (
