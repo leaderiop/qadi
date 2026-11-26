@@ -21,7 +21,7 @@
  ],
  "groups": {
   "ledger": {
-   "head": "5951ac7780f0a183a7ee62dfce3372067af9f58e",
+   "head": "4148848ec836e44910673bbece13821cb93b7060",
    "invocation": "pnpm exec stryker run stryker.devtools.mjs --mutate packages/devtools/src/model/StopLedger.ts --disableBail",
    "files": {
     "packages/devtools/src/model/StopLedger.ts": {
@@ -38,7 +38,7 @@
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 21,
+       "line": 23,
        "column": 43,
        "lineText": "export const noStops: StopLedger<never> = { stop: undefined, count: 0 };"
       },
@@ -46,7 +46,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 29,
+       "line": 31,
        "column": 27,
        "lineText": "export const stoppedKey = <S>(ledger: StopLedger<S>, status: S): number =>"
       },
@@ -54,15 +54,15 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 37,
+       "line": 39,
        "column": 30,
-       "lineText": "export const announcesStop = <S>(ledger: StopLedger<S>, status: S): boolean => ledger.stop !== status;"
+       "lineText": "export const announcesStop = <S>(ledger: StopLedger<S>, status: S): boolean =>"
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 45,
+       "line": 49,
        "column": 27,
        "lineText": "export const recordStop = <S>(ledger: StopLedger<S>, status: S): StopLedger<S> =>"
       }
