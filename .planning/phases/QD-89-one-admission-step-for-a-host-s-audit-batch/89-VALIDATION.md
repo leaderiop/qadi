@@ -2,9 +2,9 @@
 phase: "89"
 slug: "one-admission-step-for-a-host-s-audit-batch"
 # status lifecycle: draft (seeded by plan-phase) → validated (set by validate-phase §6)
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: validated
+nyquist_compliant: true
+wave_0_complete: true
 created: "2026-11-26"
 ---
 
@@ -42,14 +42,17 @@ created: "2026-11-26"
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| (planner fills) | | | ADMIT-01 | — | winner and spans on every fault pair; laziness | unit + property | `pnpm exec vitest run --project audit packages/audit/test/AdmissionOrder.characterisation.test.ts` | ❌ W0 | ⬜ pending |
-| (planner fills) | | | ADMIT-02 | — | one order, terms called once, rows read once into a fresh array | unit | `pnpm exec vitest run --project audit packages/audit/test/HostBatch.test.ts` | ❌ W0 | ⬜ pending |
-| (planner fills) | | | ADMIT-02 | — | every entry point calls the step first | check script | `node <phase dir>/89-check.mjs entry-points-first` and `admission-step` | ❌ W0 | ⬜ pending |
-| (planner fills) | | | ADMIT-03 | — | enums are fragments plus own members; brand is nominal | type | `pnpm test:tstyche packages/audit/test/HostBatch.tst.ts` | ❌ W0 | ⬜ pending |
-| (planner fills) | | | ADMIT-04 | — | each entry point refuses what the step refuses | unit | `pnpm exec vitest run --project audit packages/audit/test/ForeignRows.test.ts` | ✅ (declared edit) | ⬜ pending |
-| (planner fills) | | | ADMIT-05 | — | records, revisions, ids | check script | `node <phase dir>/89-check.mjs records --close` and `pnpm spec:verify:strict` | ❌ W0 | ⬜ pending |
-| (planner fills) | | | WX-05 | — | no touched file's score falls; HostBatch.ts all killed or recorded | mutation + coverage | `node <phase dir>/89-mutation.mjs …` | ❌ W0 | ⬜ pending |
-| (planner fills) | | | WX-06 | — | every new check seen failing | scratch variants | recorded in `89-RED-EVIDENCE.md` via `89-check.mjs seen-failing` | ❌ W0 | ⬜ pending |
+| 89-01-T2/T3 | 01 | 0 | ADMIT-01 | — | winner and spans on every fault pair; laziness; batch-read defects | unit + property | `pnpm vitest run packages/audit/test/AdmissionOrder.characterisation.test.ts packages/audit/test/BatchReadOnce.test.ts` | ✅ | ✅ green |
+| 89-05-T1 | 05 | 2 | ADMIT-02 | — | one order, terms called once, rows read once into a fresh array | unit | `pnpm vitest run packages/audit/test/HostBatch.test.ts` | ✅ | ✅ green |
+| 89-05/06 | 05–06 | 2–3 | ADMIT-02 | — | every entry point calls the step first; step is plain and package-private | check script | `node 89-check.mjs entry-points-first` and `admission-step` | ✅ | ✅ green |
+| 89-07-T2 | 07 | 4 | ADMIT-03 | — | enums are fragments plus own members; brand is nominal | type | `pnpm test:tstyche packages/audit/test/HostBatch.tst.ts` (5 tests, 13 assertions) | ✅ | ✅ green |
+| 89-08-T1/T2 | 08 | 5 | ADMIT-04 | — | each entry point refuses what the step refuses; order rows removed | unit | `pnpm vitest run packages/audit/test/ForeignRows.test.ts packages/audit/test/Retention.test.ts` | ✅ | ✅ green |
+| 89-10-T1..T3 | 10 | 7 | ADMIT-05 / WX-02 | — | ADR-QD-202/190/110, BEH-QD-781..785, INV-QD-423/424, traceability | check script | `node 89-check.mjs records --close` and `pnpm spec:verify:strict` (21 pass) | ✅ | ✅ green |
+| 89-09-T2 | 09 | 6 | WX-05 | — | no touched file's score falls; HostBatch.ts 21/22, `taken.filter` survivor equivalent; coverage 100% | mutation + coverage | `node 89-mutation.mjs …` (`89-mutation-close.json`) | ✅ | ✅ green |
+| 89-09-T1 | 09 | 6 | WX-06 | — | every new check seen failing | scratch variants | `89-RED-EVIDENCE.md` via `89-check.mjs seen-failing` | ✅ | ✅ green |
+| 89-09-T3 | 09 | 6 | WX-03 | — | patch changeset for @qadi/audit; no export added | changeset | `.changeset/audit-batch-admitted-once.md`; gate 13 in `pnpm check:pr` | ✅ | ✅ green |
+| all | — | — | WX-04 / WX-07 | — | no forbidden form, no plan ids in added lines | check script | `node 89-check.mjs scan-forbidden` and `scan-ids` | ✅ | ✅ green |
+| 89-11 | 11 | 8 | WX-01 | — | merge gate green | full suite | `pnpm check:pr < /dev/null` (exit 0 at 1ad87644, per close) | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -57,12 +60,12 @@ created: "2026-11-26"
 
 ## Wave 0 Requirements
 
-- [ ] `packages/audit/test/AdmissionOrder.characterisation.test.ts` — ADMIT-01 (green on the base; declared regions)
-- [ ] `packages/audit/test/HostBatch.test.ts` — ADMIT-02/04 (seen RED: module not found)
-- [ ] `packages/audit/test/HostBatch.tst.ts` — ADMIT-03 (seen failing on V1 to V4, V6)
-- [ ] `packages/audit/test/hostBatchFaults.ts` — the shared fault table
-- [ ] `89-mutation-base.json` — taken on the phase base
-- [ ] `89-check.mjs`, `89-pinned-check.mjs`, `89-mutation.mjs`, `89-earlier-checks.mjs` with `--self-test`; `89-RED-EVIDENCE.md`
+- [x] `packages/audit/test/AdmissionOrder.characterisation.test.ts` — ADMIT-01 (green on the base; declared regions)
+- [x] `packages/audit/test/HostBatch.test.ts` — ADMIT-02/04 (seen RED: module not found)
+- [x] `packages/audit/test/HostBatch.tst.ts` — ADMIT-03 (seen failing on V1 to V4, V6)
+- [x] `packages/audit/test/hostBatchFaults.ts` — the shared fault table
+- [x] `89-mutation-base.json` — taken on the phase base
+- [x] `89-check.mjs`, `89-pinned-check.mjs`, `89-mutation.mjs`, `89-earlier-checks.mjs` with `--self-test`; `89-RED-EVIDENCE.md`
 
 No framework install.
 
@@ -76,11 +79,21 @@ All phase behaviors have automated verification.
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 30s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 30s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved 2026-11-26 (Nyquist audit, autonomous)
+
+## Validation Audit 2026-11-26
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+
+Re-run at audit: the five audit test files (172 rows), `HostBatch.tst.ts`, `entry-points-first`, `admission-step`, `records --close`, `scan-ids`, `scan-forbidden`, `spec:verify:strict`, and `89-pinned-check.mjs --all-applied` all green. `pnpm check:pr` not re-run; exit 0 at HEAD per the close plan.
