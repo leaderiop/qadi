@@ -529,7 +529,7 @@ REQUIREMENT: `readScoped` MUST remain the one point that enforces it: it records
              ([BEH-QD-445](#beh-qd-445-a-missing-resource-id-fails-the-same-way-on-every-scoped-port)).
 ```
 
-The table is the statement and `readScoped` reads it, so the question is on the span
+The table is the statement and `readScoped` routes on it through each port's need, so the question is on the span
 before the failure, which a check in the leaf's arm would have lost.
 `LeafNeeds.test.ts` holds the route equal to the rows and to the judgements, and
 `LeafNeedOf` ties the row to the leaf's tag: a row's `resourceId` comes from closed
@@ -659,7 +659,10 @@ Pinned by `packages/core/test/PortFacts.tst.ts` ("PortFixtureData is the five me
 
 ```
 REQUIREMENT: Every read of a scoped port MUST go through `readScoped`, which
-             MUST read the leaf's `LEAF_NEEDS` row. A `HasRelationship` read
+             MUST route on the port's need, read from its leaves' `LEAF_NEEDS`
+             rows by type: `"Always"` when every scoped leaf the port asks is
+             `"Always"`, `"ByScope"` when every one is `"ByScope"`. A port whose
+             scoped leaves mix the two MUST NOT compile. A `HasRelationship` read
              MUST require a resource id. A `HasActed`, `HasNotActed` or
              `HasSignature` read MUST require one only when its scope is
              `Resource`, so a read whose scope is `Any` MUST NOT be refused for a
@@ -672,15 +675,17 @@ REQUIREMENT: A refused read MUST leave the port's own span, with its question
 ```
 
 `readActed`, `askRelationship` and `askSignature` call `readScoped` and route nothing
-themselves. The row's value picks the arm of one `Match` built once at module scope and
-closed with `Match.exhaustive`: `"Always"` needs an id, and `"ByScope"` needs one when the
-leaf's scope names a resource, through `isResourceScoped`, the one scope test the request's
-id shares. A read that needs no id is `readPort` over the leaf's id-free call, with no
-generator allocated, and for `RelationshipResolver`, whose every leaf is `"Always"`, that
-call is typed `undefined`, so the id-free branch is unreachable by type. `readScoped` is a
-plain function, neither an `Effect.fn` nor an `Effect.fnUntraced`. The routing was
-measured against the base over every workload of `Evaluate.bench.ts`, with two scoped-heavy
-workloads added for it, before it landed
+themselves. Each scoped port's row in `scopedCall` states its need as a closed union whose
+member the leaves' rows choose by type: an `"Always"` row has only the call that completes
+the request with its id, and a `"ByScope"` row also has the id-free call and
+`isResourceScoped`, the one scope test the request's id shares. `readScoped` narrows on the
+row's `need`, so the id-free read is taken only by a `"ByScope"` port whose leaf names no
+resource, and every other read runs the id check. `RelationshipResolver`, whose every leaf
+is `"Always"`, has no id-free call to take, and a leaf is typed by the port it reads, so a
+leaf of another port does not compile there. No row is read at run time, no matcher is
+built, and `readScoped` is a plain function, neither an `Effect.fn` nor an
+`Effect.fnUntraced`. Each routing was measured on every workload of `Evaluate.bench.ts`,
+with two scoped-heavy workloads added for it, before it landed
 ([ADR-QD-203](../decisions/203-the-remaining-per-port-facts-live-on-the-port-description.md)).
 
 Pinned by `packages/core/test/LeafNeeds.test.ts` ("a scoped read requires an id exactly where its leaf's row says", "a read is refused for a missing id exactly when its row and scope ask for one", "a ByScope leaf's judgement refuses exactly when its read does"), `packages/core/test/PortFacts.characterisation.test.ts` ("a scoped read at every site") and `packages/core/test/PortAccess.test.ts`.

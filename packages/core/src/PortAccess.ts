@@ -16,10 +16,10 @@
  * policy leaf it answers and builds its request through the port's description
  * (`asks`, the one statement of what a leaf asks, ARCH-70), then runs `readPort`
  * (ADR-QD-109), a plain function that opens no span of its own, or `readScoped`
- * for a port whose question can be about one resource, which reads the leaf's
- * `LEAF_NEEDS` row to decide whether it needs an id. A host answering another process
- * (`servePortRead`) runs the same body under the port's span, so a served span
- * is a local one of the same request apart from `qadi.interpreter`.
+ * for a port whose question can be about one resource, which routes on its
+ * port's need, the type its leaves' `LEAF_NEEDS` rows compute. A host answering
+ * another process (`servePortRead`) runs the same body under the port's span, so
+ * a served span is a local one of the same request apart from `qadi.interpreter`.
  *
  * Deliberately out of the barrel (AGENTS.md §9): scaffolding shared by the two
  * interpreters, like `PortDerivation.ts`, and not importable from outside
@@ -45,7 +45,7 @@ import { decisionHistoryPort } from "./DecisionHistory.ts";
 import type { AttributeResolveError, DecisionHistoryUnavailable } from "./Errors.ts";
 import type { MissingResourceId } from "./Errors.ts";
 import type { ResourceId } from "./Identity.ts";
-import { LEAF_NEEDS } from "./LeafNeeds.ts";
+import type { LEAF_NEEDS } from "./LeafNeeds.ts";
 import { isOwnKey, ownValue } from "./Operand.ts";
 import type { LeafOf } from "./PortDescription.ts";
 import { portCallsTotal, predicatePortCallsTotal, servedPortCallsTotal } from "./PortMetrics.ts";
@@ -248,71 +248,97 @@ type ScopedPort = {
 type ScopedRequest<K extends ScopedPort> = AskedOf<PortTypes[K]> &
   readonly [{ readonly resourceId: ResourceId | undefined }];
 
+/** The scoped leaf tags port `K` reads: the tags its `asks` lists whose row is not `"Never"`. */
+type ScopedLeafTagOf<K extends ScopedPort> = keyof PortTypes[K]["asks"] & ScopedLeafTag;
+
+/** The scoped leaves port `K` reads, so a read is handed only a leaf of its own port. */
+type ScopedLeafOf<K extends ScopedPort> = LeafOf[ScopedLeafTagOf<K>];
+
 /** The row of the scoped leaf `T`: `"Always"` or `"ByScope"`, never `"Never"`. */
 type NeedOf<T extends ScopedLeafTag> = (typeof LEAF_NEEDS)[T]["resourceId"];
 
 /** What the scoped leaves of port `K` need, as the union of their rows. */
-type PortNeed<K extends ScopedPort> = NeedOf<keyof PortTypes[K]["asks"] & ScopedLeafTag>;
+type PortNeed<K extends ScopedPort> = NeedOf<ScopedLeafTagOf<K>>;
 
-/**
- * A scoped port's request as a call that carries no resource id: a function
- * when some leaf of the port can be read without one (a row that is not
- * `"Always"`), and `undefined` when every leaf of the port needs it.
- *
- * So for a port whose leaves are all `"Always"` the read has no id-free branch
- * to take, and reclassifying one of its rows is a compile error where the port's
- * entry in {@link scopedCall} is written.
- */
-type BareOf<K extends ScopedPort> = [PortNeed<K>] extends ["Always"]
-  ? undefined
-  : (request: AskedOf<PortTypes[K]>) => ArgsOf<PortTypes[K]>;
-
-/** How one scoped port's request becomes its call, with a resource id and without. */
-interface ScopedCall<K extends ScopedPort> {
-  /** The request once it is known to have an id: for the relationship port, whose call cannot hold a missing id, the same request with the id the read just checked. */
+/** The call of a port whose every scoped leaf's row is `"Always"`: it has no id-free call. */
+interface AlwaysCall<K extends ScopedPort> {
+  readonly need: "Always";
+  /**
+   * The request once it is known to have an id.
+   *
+   * For the relationship port, whose call cannot hold a missing id, it is the
+   * same request with the id the read just checked written in.
+   */
   readonly withId: (request: AskedOf<PortTypes[K]>, resourceId: ResourceId) => ArgsOf<PortTypes[K]>;
-  /** The request of a leaf that asks about the subject alone, which is already the call. */
-  readonly bare: BareOf<K>;
 }
 
-/** The two calls of each scoped port, keyed by the derived {@link ScopedPort} so a new one asks for its entry. */
+/** The call of a port whose every scoped leaf's row is `"ByScope"`: with an id, and without one. */
+interface ByScopeCall<K extends ScopedPort> {
+  readonly need: "ByScope";
+  /** The request once it is known to have an id, which it already carries. */
+  readonly withId: (request: AskedOf<PortTypes[K]>, resourceId: ResourceId) => ArgsOf<PortTypes[K]>;
+  /** The request of a leaf that asks about the subject alone, which is already the call. */
+  readonly bare: (request: AskedOf<PortTypes[K]>) => ArgsOf<PortTypes[K]>;
+  /**
+   * Whether one of the port's own leaves asks about one resource: the shared
+   * scope test, `isResourceScoped`.
+   *
+   * Typed over the port's own leaves, so a `"ByScope"` port one of whose leaves
+   * carries no `scope` is a compile error where its row is written, rather than a
+   * read that cannot tell the leaf's scope and skips the id check.
+   */
+  readonly resourceScoped: (leaf: ScopedLeafOf<K>) => boolean;
+}
+
+/**
+ * How one scoped port's request becomes its call, as its leaves' rows decide:
+ * {@link AlwaysCall} when every row is `"Always"`, {@link ByScopeCall} when
+ * every row is `"ByScope"`.
+ *
+ * A port whose leaves mix the two rows has no call (`never`), so the row written
+ * for it does not compile, and a reclassified row is a compile error where its
+ * port's entry in {@link scopedCall} is written.
+ */
+type ScopedCall<K extends ScopedPort> = [PortNeed<K>] extends ["Always"]
+  ? AlwaysCall<K>
+  : [PortNeed<K>] extends ["ByScope"]
+    ? ByScopeCall<K>
+    : never;
+
+/** The call of each scoped port, keyed by the derived {@link ScopedPort} so a new one asks for its entry. */
 const scopedCall: { readonly [K in ScopedPort]: ScopedCall<K> } = {
-  DecisionHistory: { withId: (request) => request, bare: (request) => request },
-  RelationshipResolver: {
-    withId: ([request], resourceId) => [{ ...request, resourceId }],
-    bare: undefined,
+  DecisionHistory: {
+    need: "ByScope",
+    withId: (request) => request,
+    bare: (request) => request,
+    resourceScoped: isResourceScoped,
   },
-  SignatureHistory: { withId: (request) => request, bare: (request) => request },
+  RelationshipResolver: {
+    need: "Always",
+    withId: ([request], resourceId) => [{ ...request, resourceId }],
+  },
+  SignatureHistory: {
+    need: "ByScope",
+    withId: (request) => request,
+    bare: (request) => request,
+    resourceScoped: isResourceScoped,
+  },
 };
 
 /** What `readScoped` asks `requireResourceId` about: a leaf always about one resource. */
 const RESOURCE_SCOPED = { scope: "Resource" } as const;
 
 /**
- * Whether a scoped leaf's read needs a resource id, from its row.
- *
- * Hoisted `Match.type` (§5a): `"Always"` needs one whatever the leaf says, and
- * `"ByScope"` needs one when the leaf's `scope` names a resource, through the one
- * shared scope test (`isResourceScoped`). Total over the two rows a scoped leaf
- * can have, so a third is a compile error here.
- */
-const needsResourceId: (need: "Always" | "ByScope") => (leaf: LeafOf[ScopedLeafTag]) => boolean =
-  Match.type<"Always" | "ByScope">().pipe(
-    Match.when("Always", () => () => true),
-    Match.when(
-      "ByScope",
-      () => (leaf: LeafOf[ScopedLeafTag]) => "scope" in leaf && isResourceScoped(leaf),
-    ),
-    Match.exhaustive,
-  );
-
-/**
  * The one read of a port whose question is about one resource: a request with
  * no resource id fails with `MissingResourceId` on the port's own span, where
  * the leaf's row says it needs one.
  *
- * The leaf's `LEAF_NEEDS` row decides (`LeafNeeds.ts`): `"Always"` needs an id,
- * and `"ByScope"` needs one only when the leaf's `scope` is `"Resource"`. A leaf
+ * The leaf's `LEAF_NEEDS` row decides (`LeafNeeds.ts`), through the type of its
+ * port's entry in {@link scopedCall}, which the rows of the port's leaves compute:
+ * an `"Always"` port's call has no id-free branch, and a `"ByScope"` port's reads
+ * a leaf without an id only when its `scope` is not `"Resource"` (`resourceScoped`,
+ * the shared `isResourceScoped`). No row is looked up per read: the compiler reads
+ * it where the entry is written, and the read narrows on the entry's `need`. A leaf
  * that needs none is `readPort` alone, asked about the subject alone. A missing id
  * leaves the port's span, its question and the failure, and nothing else: no
  * other span opens, the port is not called and no call is counted.
@@ -334,7 +360,7 @@ const needsResourceId: (need: "Always" | "ByScope") => (leaf: LeafOf[ScopedLeafT
 const readScoped = <K extends ScopedPort>(
   d: DescriptionOf<K>,
   interpreter: Interpreter,
-  leaf: LeafOf[ScopedLeafTag],
+  leaf: ScopedLeafOf<K>,
   request: ScopedRequest<K>,
   relation: string,
 ): Effect.Effect<
@@ -342,10 +368,9 @@ const readScoped = <K extends ScopedPort>(
   ErrorOf<PortTypes[K]> | MissingResourceId,
   ServiceOf<PortTypes[K]>
 > => {
-  const call = scopedCall[d.port];
-  const bare: ((request: AskedOf<PortTypes[K]>) => ArgsOf<PortTypes[K]>) | undefined = call.bare;
-  if (bare !== undefined && !needsResourceId(LEAF_NEEDS[leaf._tag].resourceId)(leaf)) {
-    return readPort(d, interpreter, bare(request));
+  const call: AlwaysCall<K> | ByScopeCall<K> = scopedCall[d.port];
+  if (call.need === "ByScope" && !call.resourceScoped(leaf)) {
+    return readPort(d, interpreter, call.bare(request));
   }
   return Effect.gen(function* () {
     const [{ resourceId }] = request;

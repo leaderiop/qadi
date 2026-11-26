@@ -44,8 +44,9 @@ export interface LeafNeed {
   /**
    * Whether it asks a port about one resource: `"Always"` needs an id, `"ByScope"`
    * needs one when the leaf's `scope` names a resource, `"Never"` asks no port
-   * about one. `readScoped` (`PortAccess.ts`) reads this column to decide whether
-   * a read needs an id, and the type ties it to the leaf's tag.
+   * about one. `PortAccess.ts` reads this column by type: the rows of a port's
+   * leaves compute its entry's `need`, which `readScoped` narrows on, and the type
+   * ties the row to the leaf's tag.
    */
   readonly resourceId: "Never" | "Always" | "ByScope";
 }

@@ -305,9 +305,9 @@ Decision 3's `readScoped` is still the one point that records the question on th
 ## Amendment (2026-11-26, ADR-QD-203, CCR-QD-482)
 
 [ADR-QD-203](./203-the-remaining-per-port-facts-live-on-the-port-description.md): decision 3's table **routes**. `readScoped`
-reads the leaf's `LEAF_NEEDS` row and routes every scoped read off it, through one hoisted `Match`: `"Always"` needs a resource
-id, and `"ByScope"` needs one when `isResourceScoped(leaf)`, so the `resourceId` column is read by the code and not only by
-a test. `readScoped` remains the one place the id check runs and its failure is built: it records the question on the port's
+routes every scoped read on its port's need, which the port's leaves' `LEAF_NEEDS` rows choose by type: `"Always"` needs a
+resource id, and `"ByScope"` needs one when `isResourceScoped(leaf)`, so the `resourceId` column decides the route and is not
+only read by a test. `readScoped` remains the one place the id check runs and its failure is built: it records the question on the port's
 own span first and then fails with the `MissingResourceId` that `requireResourceId` builds, so a missing id still leaves the
 port's span and nothing else. "A test ties each row's `resourceId` to what `readScoped` does" becomes a test that holds the
 route equal to the rows and to the fixture judgements (`LeafNeeds.test.ts`). The routing is on a hot path, so a bench gate

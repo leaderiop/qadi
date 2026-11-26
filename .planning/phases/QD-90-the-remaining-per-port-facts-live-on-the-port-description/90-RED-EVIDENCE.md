@@ -1385,3 +1385,24 @@ row must catch. Each block below is written by `90-check.mjs variant`.
 - exit: 1
 - seen failing: a bounded port's refused construction names the permits it was given, for every count that is not a positive integer
 - failing text: AssertionError: expected undefined to equal +0
+
+## route-mixed-port
+- scratch: rv-route at 18345c74f2
+- edit: on the routing on each port's need (the three routed files copied from the tree): HasNotActed moved to AsksAlways with its row set to Always, so DecisionHistory asks one Always leaf and one ByScope leaf
+- diff: f16e18eb83473836c308d09c9ecaf49fa207fbffd3a3ff2a19784897edcadddd (3 files, +85 -59)
+- run: tsc-src
+- exit: 2
+- failing text: packages/core/src/PortAccess.ts(310,3): error TS2322: Type '{ need: string; withId: (request: any) => any; bare: (request: any) => any; resourceScoped: (leaf: ScopedLeaf) => boolean; }' is not assignable to type 'never'.
+- failing text: packages/core/src/PortAccess.ts(312,14): error TS7006: Parameter 'request' implicitly has an 'any' type.
+- failing text: packages/core/src/PortAccess.ts(313,12): error TS7006: Parameter 'request' implicitly has an 'any' type.
+- tsc: packages/core/src/PortAccess.ts TS2322 x1
+- tsc: packages/core/src/PortAccess.ts TS7006 x2
+
+## route-leaf-of-another-port
+- scratch: rv-route at 18345c74f2
+- edit: on the routing on each port's need (the three routed files copied from the tree): askSignature hands readScoped a HasActed leaf, a DecisionHistory leaf (a module-scope declare const), with signatureHistoryPort
+- diff: d769f3decd01f19a06cfd1dca344a6c0029c20b9a38c47d67c8fe58fa3a194ce (3 files, +84 -57)
+- run: tsc-src
+- exit: 2
+- failing text: packages/core/src/PortAccess.ts(601,74): error TS2741: Property 'meaning' is missing in type '{ readonly _tag: "HasActed"; readonly event: string & Brand<"EventName">; readonly scope: "Any" | "Resource"; readonly fields?: readonly string[] | undefined; }' but required in type '{ readonly _tag: "HasSignature"; readonly meaning: string; readonly signerRole?: string | undefined; readonly scope: "Any" | "Resource"; readonly fields?: readonly string[] | undefined; }'.
+- tsc: packages/core/src/PortAccess.ts TS2741 x1

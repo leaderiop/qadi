@@ -96,6 +96,11 @@ const DECLARED = [
         subject: "fix(90-review): kill the base survivors that a test can reach",
         regions: [{ first: 223, last: 226, top: "  const need = LEAF_NEEDS[leaf._tag];", bottom: "  }" }],
       },
+      {
+        // The resourceId column's doc says how PortAccess.ts reads it: by type, through each port's need.
+        subject: "fix(90-review): route each scoped read on its port's need",
+        regions: [{ first: 47, last: 48, top: "   * about one. `readScoped` (`PortAccess.ts`) reads this column", bottom: "   * a read needs an id, and the type ties it" }],
+      },
     ],
   },
   {
@@ -103,6 +108,13 @@ const DECLARED = [
     subject: "refactor(90-12): route every scoped read off its leaf row",
     source: true,
     regions: [{ first: 8, last: 19, top: " * `DecisionHistory` and `SignatureHistory` leave `resourceId` optional in their", bottom: " * port modules would close a cycle through them." }],
+    amendments: [
+      {
+        // The route's doc names each port's ByScope need, not a matcher arm.
+        subject: "fix(90-review): route each scoped read on its port's need",
+        regions: [{ first: 11, last: 14, top: " * `asks` reads the id through {@link scopedResourceIdOf} and the read routes on", bottom: " * leaf's `scope` (INV-QD-288, ADR-QD-134)." }],
+      },
+    ],
   },
 ];
 
@@ -785,7 +797,7 @@ const selfTest = () => {
   check("the declared regions are the ones the phase fixes", DECLARED.map((d) => d.regions.map((r) => `${r.first}-${r.last}`).join(",")).join(" ") === "9-43,133-160 1-8,10-12,32-39 121-120 44-48 8-19");
   check("the declared files are five, each once, two of them source", new Set(DECLARED.map((d) => d.file)).size === 5 && DECLARED.filter((d) => d.source === true).length === 2);
   check("only the two source files carry amendments, each from the review round", DECLARED.filter((d) => d.amendments !== undefined).every((d) => d.source === true && d.amendments.every((a) => a.subject.startsWith("fix(90-review): ") && judgeRegionShapes(d.file, a.regions).length === 0)));
-  check("the amendment regions are the ones the review round fixes", DECLARED.map((d) => (d.amendments ?? []).map((a) => a.regions.map((r) => `${r.first}-${r.last}`).join(",")).join(";")).join(" ") === "   223-226 ");
+  check("the amendment regions are the ones the review round fixes", DECLARED.map((d) => (d.amendments ?? []).map((a) => a.regions.map((r) => `${r.first}-${r.last}`).join(",")).join(";")).join(" ") === "   223-226;47-48 11-14");
   check("the only insertion is the fixed fixture line", DECLARED.flatMap((d) => d.regions).filter((r) => r.lines !== undefined).length === 1 && DECLARED[2].regions[0].lines.join() === "  fixture: () => named(undefined, 0),");
   check("the born files are the phase's three, with the import regions the plans recorded, then the review round's, whole", BORN.length === 5 && BORN[0].imports.first === 24 && BORN[0].imports.last === 61 && BORN[1].imports.first === 11 && BORN[1].imports.last === 20 && BORN.slice(2).every((b) => b.imports === undefined));
   check("each review-round born file is added whole by one commit of that round", BORN.slice(3).every((b) => b.adds === true && b.subject.startsWith("fix(90-review): ") && b.appended === undefined));

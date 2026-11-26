@@ -908,77 +908,106 @@ export const judgePortFacts = (files, src, sections) => {
 
 // ---- the shape of the scoped read ----
 
-/** The argument ranges `[from, to)` of the call whose `(` is at `open` in blanked code. */
-const argRanges = (code, open) => {
-  const close = closeOf(code, open);
-  if (close < 0) return [];
-  const out = [];
-  let depth = 0;
-  let from = open + 1;
-  for (let i = open + 1; i < close - 1; i++) {
-    const c = code[i];
-    if ("([{".includes(c)) depth++;
-    else if (")]}".includes(c)) depth--;
-    else if (c === "," && depth === 0) {
-      out.push([from, i]);
-      from = i + 1;
-    }
-  }
-  out.push([from, close - 1]);
-  return out;
-};
-/** Reasons `PortAccess.ts` does not derive its scoped ports from the leaf rows (D-14). */
+/** Reasons `PortAccess.ts` does not derive its scoped ports from the leaf rows (D-14): a literal anywhere in `ScopedPort`'s body is a hand list. */
 export const judgeScopedDerived = (text) => {
   if (text === undefined) return [`${ACCESS_FILE} does not exist`];
   const bad = [];
   const code = blank(text, true);
-  const leaf = importsOf(code).find((i) => i.spec === "./LeafNeeds.ts" && !i.typeOnly && i.names.includes("LEAF_NEEDS"));
-  if (leaf === undefined) bad.push(`${ACCESS_FILE} does not import LEAF_NEEDS as a value from ./LeafNeeds.ts`);
+  const leaf = importsOf(code).find((i) => i.spec === "./LeafNeeds.ts" && i.names.includes("LEAF_NEEDS"));
+  if (leaf === undefined) bad.push(`${ACCESS_FILE} does not import LEAF_NEEDS from ./LeafNeeds.ts`);
+  const tag = /\btype\s+ScopedLeafTag\b[^=;]*=\s*([^;]+);/.exec(code);
+  if (tag === null) bad.push(`${ACCESS_FILE} declares no type ScopedLeafTag`);
+  else if (!/\btypeof\s+LEAF_NEEDS\b/.test(tag[1])) bad.push(`${ACCESS_FILE} type ScopedLeafTag is not read from typeof LEAF_NEEDS`);
+  else if (/["'`]/.test(tag[1].replace(/\[\s*["']resourceId["']\s*\]/g, "").replace(/["']Never["']/g, ""))) bad.push(`${ACCESS_FILE} type ScopedLeafTag names a literal other than "Never" and the resourceId column`);
   const scoped = /\btype\s+ScopedPort\b[^=;]*=\s*([^;]+);/.exec(code);
   if (scoped === null) bad.push(`${ACCESS_FILE} declares no type ScopedPort`);
-  else if (/^\s*\|?\s*["'][^"']*["'](?:\s*\|\s*["'][^"']*["'])*\s*$/.test(scoped[1])) bad.push(`${ACCESS_FILE} type ScopedPort is a hand union of string literals`);
+  else if (/["'`]/.test(scoped[1])) bad.push(`${ACCESS_FILE} type ScopedPort names a string literal, a hand list of ports`);
+  else if (!/\bScopedLeafTag\b/.test(scoped[1])) bad.push(`${ACCESS_FILE} type ScopedPort is not read from ScopedLeafTag`);
   return bad;
 };
-/** Reasons the one read route is not the hoisted matcher's `ByScope` arm and nowhere else (D-15, D-16). */
+/** The rows of an object literal whose `{` is at `open` in `code`: each `{ name, text, at }` of a `name: { … }` entry at depth one, `at` its `{`. */
+const rowsAt = (code, open) => {
+  const close = closeOf(code, open);
+  if (close < 0) return [];
+  const rows = [];
+  let depth = 0;
+  for (let i = open + 1; i < close - 1; i++) {
+    const c = code[i];
+    if ("([{".includes(c)) depth++;
+    else if (")]}".includes(c)) depth--;
+    else if (depth === 0) {
+      const m = /^([A-Za-z_$][\w$]*)\s*:\s*\{/.exec(code.slice(i));
+      if (m !== null && !/[\w$]/.test(code[i - 1] ?? "")) {
+        const at = i + m[0].length - 1;
+        const end = closeOf(code, at);
+        rows.push({ name: m[1], text: code.slice(at, end), at });
+        i = end - 1;
+      }
+    }
+  }
+  return rows;
+};
+/**
+ * Reasons the one read route is not each scoped port's need, stated by its row's type and narrowed on in `readScoped`: the
+ * table typed by `ScopedCall`, which is `never` for a port mixing the two rows; each row's `need`; a `ByScope` row's `bare` and
+ * `resourceScoped: isResourceScoped`, the only places the scope test is named; `readScoped` a plain function that narrows on
+ * `need` and reads no row, no matcher and no `in` at run time; no `needsResourceId`, no route matcher, no switch.
+ */
 export const judgeScopedRoute = (text) => {
   if (text === undefined) return [`${ACCESS_FILE} does not exist`];
   const bad = [];
   const plain = blank(text);
   const code = blank(text, true);
-  const imports = [...code.matchAll(/^[ \t]*import\b[\s\S]*?(?:\bfrom\s*["'`][^"'`]*["'`]|;)/gm)].map((m) => [m.index, m.index + m[0].length]);
+  const imports = [...plain.matchAll(/^[ \t]*import\b[\s\S]*?(?:\bfrom\s*|;)/gm)].map((m) => [m.index, m.index + m[0].length]);
   const outside = (i) => !imports.some(([a, b]) => i >= a && i < b);
-  const occurrences = [...plain.matchAll(/(?<![\w$])isResourceScoped(?![\w$])/g)].filter((m) => outside(m.index));
-  if (occurrences.length !== 1) bad.push(`${ACCESS_FILE} names isResourceScoped ${occurrences.length} times outside its import, not once`);
-  const arms = [...code.matchAll(/\bMatch\.when\s*\(/g)]
-    .map((m) => ({ open: m.index + m[0].length - 1 }))
-    .map(({ open }) => ({ open, args: argRanges(code, open) }))
-    .filter(({ args }) => args.length >= 2 && /^["']ByScope["']$/.test(code.slice(...args[0]).trim()))
-    .map(({ args }) => ({ from: args[1][0], to: args[1][1] }));
-  const inArm = (i) => arms.some(({ from, to }) => i >= from && i < to);
   const statements = topLevel(code);
-  const matchers = statements.filter((s) => /\bMatch\.type\b/.test(plain.slice(s.index, s.end)) && /\bMatch\.when\s*\(\s*["']ByScope["']/.test(s.text));
-  if (matchers.length !== 1) bad.push(`${ACCESS_FILE} has ${matchers.length} module-scope Match.type matchers with a "ByScope" arm, not one`);
-  if (occurrences.length === 1) {
-    const at = occurrences[0].index;
-    if (!/^\s*\(/.test(plain.slice(at + "isResourceScoped".length))) bad.push(`${ACCESS_FILE} names isResourceScoped without calling it`);
-    else if (!inArm(at)) {
-      const holder = statements.find((s) => at >= s.index && at < s.end);
-      const declared = holder === undefined ? null : /^(?:export\s+)?const\s+([\w$]+)/.exec(holder.text);
-      if (declared === null || matchers.includes(holder)) bad.push(`${ACCESS_FILE} calls isResourceScoped( from outside the "ByScope" arm of the route matcher`);
-      else {
-        const named = [...plain.matchAll(new RegExp(`(?<![\\w$])${escapeRe(declared[1])}(?![\\w$])`, "g"))].filter((m) => m.index < holder.index || m.index >= holder.end);
-        if (named.length !== 1) bad.push(`${ACCESS_FILE} names the predicate ${declared[1]} ${named.length} times outside its declaration, not once`);
-        else if (!inArm(named[0].index)) bad.push(`${ACCESS_FILE} does not name the predicate ${declared[1]} inside the "ByScope" arm`);
+  const named = (re) => statements.find((s) => re.test(s.text));
+  const call = named(/^type\s+ScopedCall\b/);
+  if (call === undefined) bad.push(`${ACCESS_FILE} declares no type ScopedCall`);
+  else {
+    const body = collapse(call.text);
+    if (!/\[\s*PortNeed\s*<\s*K\s*>\s*\]\s*extends\s*\[\s*"Always"\s*\]/.test(body) || !/\[\s*PortNeed\s*<\s*K\s*>\s*\]\s*extends\s*\[\s*"ByScope"\s*\]/.test(body)) bad.push(`${ACCESS_FILE} type ScopedCall does not test the port's need against ["Always"] and ["ByScope"]`);
+    if (!/:\s*never\s*;?\s*$/.test(body)) bad.push(`${ACCESS_FILE} type ScopedCall does not end in never, so a port mixing the two rows has a call`);
+  }
+  const table = named(/^(?:export\s+)?const\s+scopedCall\b/);
+  let byScope = 0;
+  const allowed = [];
+  if (table === undefined) bad.push(`${ACCESS_FILE} does not declare scopedCall`);
+  else {
+    if (!/^const\s+scopedCall\s*:\s*\{\s*readonly\s*\[\s*K\s+in\s+ScopedPort\s*\]\s*:\s*ScopedCall\s*<\s*K\s*>\s*;?\s*\}\s*=\s*\{/.test(table.text)) bad.push(`${ACCESS_FILE} scopedCall is not typed { readonly [K in ScopedPort]: ScopedCall<K> }`);
+    const open = table.index + table.text.search(/=\s*\{/) + table.text.slice(table.text.search(/=\s*\{/)).indexOf("{");
+    const rows = rowsAt(code, open);
+    if (rows.length === 0) bad.push(`${ACCESS_FILE} scopedCall has no row`);
+    for (const row of rows) {
+      const need = /\bneed\s*:\s*"(Always|ByScope)"/.exec(row.text)?.[1];
+      if (need === undefined) bad.push(`${ACCESS_FILE} the ${row.name} row of scopedCall states no need "Always" or "ByScope"`);
+      else if (need === "Always" && /\b(?:bare|resourceScoped)\s*:/.test(row.text)) bad.push(`${ACCESS_FILE} the Always row ${row.name} has an id-free call`);
+      else if (need === "ByScope") {
+        byScope++;
+        if (!/\bbare\s*:/.test(row.text)) bad.push(`${ACCESS_FILE} the ByScope row ${row.name} has no bare call`);
+        const scope = /\bresourceScoped\s*:\s*isResourceScoped\s*(?=[,}\s])/.exec(row.text);
+        if (scope === null) bad.push(`${ACCESS_FILE} the ByScope row ${row.name} does not state resourceScoped: isResourceScoped`);
+        else allowed.push(row.at + scope.index + scope[0].indexOf("isResourceScoped"));
       }
     }
   }
-  const read = statements.find((s) => /^(?:export\s+)?(?:const|function)\s+readScoped\b/.test(s.text));
+  const occurrences = [...plain.matchAll(/(?<![\w$])isResourceScoped(?![\w$])/g)].filter((m) => outside(m.index)).map((m) => m.index);
+  for (const at of occurrences) if (!allowed.includes(at)) bad.push(`${ACCESS_FILE} names isResourceScoped at line ${lineAt(code, at)}, outside a ByScope row's resourceScoped`);
+  if (byScope === 0 && table !== undefined) bad.push(`${ACCESS_FILE} scopedCall has no ByScope row`);
+  const read = named(/^(?:export\s+)?(?:const|function)\s+readScoped\b/);
   if (read === undefined) bad.push(`${ACCESS_FILE} does not declare readScoped`);
   else {
-    if (/\bEffect\.fn(?:Untraced)?\s*[(<]/.test(plain.slice(read.index, read.end))) bad.push(`${ACCESS_FILE} readScoped is wrapped in Effect.fn or Effect.fnUntraced`);
-    const matcher = matchers.length === 1 ? /^(?:export\s+)?const\s+([\w$]+)/.exec(matchers[0].text)?.[1] : undefined;
-    if (matcher !== undefined && !new RegExp(`(?<![\\w$])${escapeRe(matcher)}(?![\\w$])`).test(plain.slice(read.index, read.end))) bad.push(`${ACCESS_FILE} readScoped does not read the route matcher ${matcher}`);
+    const body = code.slice(read.index, read.end);
+    const bare = plain.slice(read.index, read.end);
+    if (/\bEffect\.fn(?:Untraced)?\s*[(<]/.test(bare)) bad.push(`${ACCESS_FILE} readScoped is wrapped in Effect.fn or Effect.fnUntraced`);
+    if (!/\bscopedCall\s*\[/.test(bare)) bad.push(`${ACCESS_FILE} readScoped does not read scopedCall`);
+    if (!/\.need\s*===\s*"ByScope"/.test(body)) bad.push(`${ACCESS_FILE} readScoped does not narrow on the row's need === "ByScope"`);
+    if (/\bLEAF_NEEDS\s*\[/.test(bare)) bad.push(`${ACCESS_FILE} readScoped reads a LEAF_NEEDS row at run time`);
+    if (/\bMatch\./.test(bare)) bad.push(`${ACCESS_FILE} readScoped runs a Match`);
+    if (/\bin\s+[\w$]+\s*[)&|?]/.test(body)) bad.push(`${ACCESS_FILE} readScoped tests a member with in`);
   }
+  if (/(?<![\w$])needsResourceId(?![\w$])/.test(plain)) bad.push(`${ACCESS_FILE} still names needsResourceId`);
+  if (statements.some((s) => /\bMatch\.type\b/.test(plain.slice(s.index, s.end)) && /\bMatch\.when\s*\(\s*["']ByScope["']/.test(s.text))) bad.push(`${ACCESS_FILE} has a module-scope Match.type matcher with a "ByScope" arm`);
   if (/\bswitch\s*\(/.test(plain)) bad.push(`${ACCESS_FILE} holds a switch`);
   return bad;
 };
@@ -1126,8 +1155,16 @@ export const judgeRerun = (chain, recorded, fresh) => {
 
 // ---- the bench gate ----
 
-const FIX_SUBJECTS = { "routing.patch": "docs(90-06): fix the routing patch before its bench", "routing-hoisted.patch": "docs(90-06): fix the hoisted routing patch before its bench" };
+const FIX_SUBJECTS = {
+  "routing.patch": "docs(90-06): fix the routing patch before its bench",
+  "routing-hoisted.patch": "docs(90-06): fix the hoisted routing patch before its bench",
+  "routing-review.patch": "chore(90-review): fix the review routing patch before its bench",
+};
 const RECORD_SUBJECT = "docs(90-06): record the bench gate";
+/** The review round's patch of record: the routing on each port's need, measured against the landed routing. */
+const REVIEW_PATCH = "routing-review.patch";
+/** The commit that records each measured patch's run; a fixing commit must precede its own. */
+const RECORD_SUBJECTS = { "routing.patch": RECORD_SUBJECT, "routing-hoisted.patch": RECORD_SUBJECT, [REVIEW_PATCH]: "docs(90-review): record the review routing bench gate" };
 const BENCH_ADD_SUBJECT = "test(90-06): add the scoped-heavy bench workloads";
 const WORKLOAD_KEYS = ["evaluate :: scoped-heavy — allOf of 8 resource-scoped port leaves, id present", "evaluate :: scoped-heavy — allOf of 8 Any-scoped port leaves"];
 /** The last `# gate: <verdict>` of a text, or undefined. */
@@ -1177,7 +1214,7 @@ export const judgeBench = (facts, pass) => {
     else {
       const [fix] = p.fixes;
       if (sorted(fix.paths).join() !== sorted(want).join()) bad.push(`the commit fixing ${p.name} holds ${sorted(fix.paths).join(", ")}, not exactly ${want.join(", ")}`);
-      if (!p.ancestor) bad.push(`the commit fixing ${p.name} is not an ancestor of the commit ${RECORD_SUBJECT}`);
+      if (!p.ancestor) bad.push(`the commit fixing ${p.name} is not an ancestor of the commit ${RECORD_SUBJECTS[p.name]}`);
       const meta = metaOf(p.meta);
       if (meta.head !== fix.sha) bad.push(`${p.name}'s meta.txt says head ${meta.head}, not the fixing commit ${fix.sha}`);
       const sidecar = /^([0-9a-f]{64})\b/.exec(p.sidecar ?? "")?.[1];
@@ -1189,11 +1226,14 @@ export const judgeBench = (facts, pass) => {
       }
     }
   }
-  const record = facts.patches.find((p) => p.name === facts.record.name);
-  if (facts.md !== undefined && record !== undefined) {
-    if (!facts.md.includes(facts.record.name)) bad.push(`${BENCH_MD} does not name the patch of record ${facts.record.name}`);
-    const sidecar = /^([0-9a-f]{64})\b/.exec(record.sidecar ?? "")?.[1];
-    if (sidecar !== undefined && !facts.md.includes(sidecar)) bad.push(`${BENCH_MD} does not state the sha256 of ${facts.record.name}`);
+  if (facts.md !== undefined) {
+    if (facts.patches.find((p) => p.name === facts.record.name) === undefined) bad.push(`the patch of record ${facts.record.name} was not measured`);
+    // Every measured patch stays named in the record with its hash: a later gate keeps the earlier one as history.
+    for (const p of facts.patches) {
+      if (!facts.md.includes(p.name)) bad.push(`${BENCH_MD} does not name the measured patch ${p.name}`);
+      const sidecar = /^([0-9a-f]{64})\b/.exec(p.sidecar ?? "")?.[1];
+      if (sidecar !== undefined && !facts.md.includes(sidecar)) bad.push(`${BENCH_MD} does not state the sha256 of ${p.name}`);
+    }
   }
   const analysed = lastGate(facts.record.analysis);
   if (analysed === undefined) bad.push(`the analysis of ${facts.record.name} has no # gate: line`);
@@ -1210,9 +1250,13 @@ export const judgeBench = (facts, pass) => {
 /** Text without comments, whitespace runs collapsed: what two sources are compared by. */
 export const comparable = (text) => collapse(blank(text, true));
 /**
- * Reasons the routing did not land as the gate of record says. `facts` is `{ gate, commits, atCommit, atHead, expected,
- * accessAtHead }`: the verdict, the commits since phase_base with the routing subject, each file's text at that commit and at
- * HEAD (path to text) and the text the base's files give with the patch of record applied (path to text).
+ * Reasons the routing did not land as the gates of record say. `facts` is `{ gate, commits, atCommit, atHead, expected,
+ * accessAtHead, review }`: the first gate's verdict, the commits since phase_base with the routing subject, each file's text
+ * at that commit and at HEAD (path to text), the text the base's files give with the first patch of record applied (path to
+ * text), and `review`, undefined until the review patch is fixed, else `{ gate, fixes, commits, atCommit, expected }`: the
+ * review gate's verdict, the commits that fixed its patch, the commits with the review routing subject, each file's text at
+ * that commit, and the text the fixing commit's files give with the review patch applied. The first landing is history once
+ * the review patch is fixed: HEAD is then held to the review landing, never to the first.
  */
 export const judgeRouting = (facts) => {
   if (facts.gate === undefined) return { bad: [`no gate of record: ${BENCH_DIR} holds no analysis with a # gate: line`], line: undefined };
@@ -1223,13 +1267,26 @@ export const judgeRouting = (facts) => {
     return { bad, line: "routing-landed: not landed; the gate of record failed" };
   }
   const bad = [];
-  if (facts.commits.length !== 1) bad.push(`${facts.commits.length} commits since phase_base have the subject refactor(90-12): route every scoped read off its leaf row`);
+  if (facts.commits.length !== 1) bad.push(`${facts.commits.length} commits since phase_base have the subject ${ROUTING_SUBJECT}`);
+  const review = facts.review;
   for (const [path, want] of Object.entries(facts.expected)) {
-    for (const [where, text] of [["at the routing commit", facts.atCommit[path]], ["at HEAD", facts.atHead[path]]]) {
-      if (text === undefined || comparable(text) !== comparable(want)) bad.push(`${path} ${where} is not the base with the patch of record applied`);
+    const wheres = review === undefined ? [["at the routing commit", facts.atCommit[path]], ["at HEAD", facts.atHead[path]]] : [["at the routing commit", facts.atCommit[path]]];
+    for (const [where, text] of wheres) if (text === undefined || comparable(text) !== comparable(want)) bad.push(`${path} ${where} is not the base with the patch of record applied`);
+  }
+  if (review === undefined) return { bad, line: "routing-landed: the routing equals the patch of record" };
+  if (review.fixes.length !== 1) bad.push(`${review.fixes.length} commits since phase_base have the subject ${FIX_SUBJECTS[REVIEW_PATCH]}`);
+  if (review.gate === undefined) bad.push(`the review patch ${REVIEW_PATCH} is fixed and has no analysis with a # gate: line`);
+  if (review.gate !== "pass") {
+    if (review.commits.length > 0) bad.push(`the review routing commit exists although the review gate is ${review.gate ?? "unstated"}`);
+    return { bad, line: "routing-landed: the first routing landed as its patch of record; the review routing did not land" };
+  }
+  if (review.commits.length !== 1) bad.push(`${review.commits.length} commits since phase_base have the subject ${REVIEW_ROUTING_SUBJECT}`);
+  for (const [path, want] of Object.entries(review.expected)) {
+    for (const [where, text] of [["at the review routing commit", review.atCommit[path]], ["at HEAD", facts.atHead[path]]]) {
+      if (text === undefined || comparable(text) !== comparable(want)) bad.push(`${path} ${where} is not the fixing commit's text with ${REVIEW_PATCH} applied`);
     }
   }
-  return { bad, line: "routing-landed: the routing equals the patch of record" };
+  return { bad, line: "routing-landed: the first routing equals its patch of record at its commit, and the review routing equals its patch at its commit and at HEAD" };
 };
 
 // ---- close ----
@@ -1532,20 +1589,24 @@ const spikeMode = (args) => {
   done(bad, `spike: ${CHAINS.length} chains, each patch hashed and each verdict agreeing with its recorded outputs${args.length === 1 ? ", each re-applied and re-measured on the base" : ""}`);
 };
 
-/** The patch of record and its analysis, from the files the bench leaves: the hoisted patch when it was measured. */
-const recordOf = () => {
+/** The first gate's patch of record and its analysis, from the files the bench leaves: the hoisted patch when it was measured. */
+const firstRecordOf = () => {
   const hoisted = existsSync(`${BENCH_DIR}routing-hoisted.meta.txt`) || existsSync(`${BENCH_DIR}routing-hoisted.patch`);
   return { name: hoisted ? "routing-hoisted.patch" : "routing.patch", analysis: maybe(`${BENCH_DIR}${hoisted ? "analysis-hoisted.txt" : "analysis.txt"}`) };
 };
+/** The review gate's patch of record and its analysis, or undefined when the review patch was never fixed. */
+const reviewRecordOf = () => (existsSync(`${BENCH_DIR}${REVIEW_PATCH}`) ? { name: REVIEW_PATCH, analysis: maybe(`${BENCH_DIR}analysis-review.txt`) } : undefined);
+/** The gate of record: the review gate once its patch is fixed, else the first. */
+const recordOf = () => reviewRecordOf() ?? firstRecordOf();
 const benchFacts = () => {
   const base = readBase();
   const commits = commitsSince(base);
-  const recordCommit = commits.find((c) => c.subject === RECORD_SUBJECT);
   const record = recordOf();
   const patches = Object.keys(FIX_SUBJECTS)
-    .filter((name) => existsSync(`${BENCH_DIR}${name.replace(".patch", ".meta.txt")}`) || (name === "routing.patch" ? true : existsSync(`${BENCH_DIR}${name}`)))
+    .filter((name) => existsSync(`${BENCH_DIR}${name.replace(".patch", ".meta.txt")}`) || name === "routing.patch" || existsSync(`${BENCH_DIR}${name}`))
     .map((name) => {
       const fixes = commits.filter((c) => c.subject === FIX_SUBJECTS[name]);
+      const recordCommit = commits.find((c) => c.subject === RECORD_SUBJECTS[name]);
       const ancestor = fixes.length === 1 && recordCommit !== undefined && run(["git", "merge-base", "--is-ancestor", fixes[0].sha, recordCommit.sha]).code === 0;
       return {
         name,
@@ -1579,28 +1640,48 @@ const benchMode = (args) => {
   return done(judgeBench(facts, args[0] === "--pass"), `bench: the patch of record ${facts.record.name} was fixed before its run, hashes alike in its record, its run and the tree, and the verdict is the analysis's: ${lastGate(facts.record.analysis)}`);
 };
 const ROUTING_SUBJECT = "refactor(90-12): route every scoped read off its leaf row";
+const REVIEW_ROUTING_SUBJECT = "fix(90-review): route each scoped read on its port's need";
 const ROUTED = [`${CORE}PortAccess.ts`, `${CORE}LeafNeeds.ts`, `${CORE}ScopedLeaf.ts`];
+/** The three routed files as `rev`'s text with `patch` applied, in the scratch directory `name`, or the reason it does not apply. */
+const appliedAt = (name, rev, patch) => {
+  const dir = join(scratchRoot(), name);
+  rmSync(dir, { recursive: true, force: true });
+  for (const p of ROUTED) {
+    mkdirSync(dirname(join(dir, p)), { recursive: true });
+    writeFileSync(join(dir, p), showAt(rev, p) ?? "");
+  }
+  const applied = run(["git", "apply", ...ROUTED.map((p) => `--include=${p}`), join(process.cwd(), `${BENCH_DIR}${patch}`)], dir);
+  if (applied.code !== 0) return { bad: `${patch} does not apply to the files of ${rev}: ${failingLines(applied.err).join(" ")}` };
+  return { files: Object.fromEntries(ROUTED.map((p) => [p, readText(join(dir, p))])) };
+};
 const routingMode = () => {
   const base = readBase();
-  const record = recordOf();
-  const gate = lastGate(record.analysis);
-  const commits = commitsSince(base).filter((c) => c.subject === ROUTING_SUBJECT);
+  const first = firstRecordOf();
+  const gate = lastGate(first.analysis);
+  const since = commitsSince(base);
+  const commits = since.filter((c) => c.subject === ROUTING_SUBJECT);
   const atCommit = Object.fromEntries(ROUTED.map((p) => [p, commits.length === 1 ? showAt(commits[0].sha, p) : undefined]));
   const atHead = Object.fromEntries(ROUTED.map((p) => [p, maybe(p)]));
-  const expected = {};
+  let expected = {};
   if (gate === "pass") {
-    const root = scratchRoot();
-    const dir = join(root, "routing-landed");
-    rmSync(dir, { recursive: true, force: true });
-    for (const p of ROUTED) {
-      mkdirSync(dirname(join(dir, p)), { recursive: true });
-      writeFileSync(join(dir, p), showAt(base, p) ?? "");
-    }
-    const applied = run(["git", "apply", ...ROUTED.map((p) => `--include=${p}`), join(process.cwd(), `${BENCH_DIR}${record.name}`)], dir);
-    if (applied.code !== 0) return fail([`${record.name} does not apply to the base's files: ${failingLines(applied.err).join(" ")}`]);
-    for (const p of ROUTED) expected[p] = readText(join(dir, p));
+    const got = appliedAt("routing-landed", base, first.name);
+    if (got.bad !== undefined) return fail([got.bad]);
+    expected = got.files;
   }
-  const { bad, line } = judgeRouting({ gate, commits, atCommit, atHead, expected, accessAtHead: atHead[ROUTED[0]] ?? "" });
+  let review;
+  const second = reviewRecordOf();
+  if (second !== undefined) {
+    const fixes = since.filter((c) => c.subject === FIX_SUBJECTS[REVIEW_PATCH]);
+    const landed = since.filter((c) => c.subject === REVIEW_ROUTING_SUBJECT);
+    let reviewExpected = {};
+    if (fixes.length === 1) {
+      const got = appliedAt("routing-landed-review", fixes[0].sha, REVIEW_PATCH);
+      if (got.bad !== undefined) return fail([got.bad]);
+      reviewExpected = got.files;
+    }
+    review = { gate: lastGate(second.analysis), fixes, commits: landed, atCommit: Object.fromEntries(ROUTED.map((p) => [p, landed.length === 1 ? showAt(landed[0].sha, p) : undefined])), expected: reviewExpected };
+  }
+  const { bad, line } = judgeRouting({ gate, commits, atCommit, atHead, expected, accessAtHead: atHead[ROUTED[0]] ?? "", review });
   return done(bad, line);
 };
 
@@ -1647,7 +1728,7 @@ const recordsMode = (args) => {
     ? (() => {
         const base = readBase();
         const adr203 = readdirSync("spec/decisions").find((f) => /^203-.*[.]md$/.test(f));
-        const rejected = lastGate(recordOf().analysis) !== "pass";
+        const rejected = lastGate(firstRecordOf().analysis) !== "pass";
         const pair = (file) => ({ file, base: showAt(base, file) ?? "", now: readText(file) });
         const revised = REVISED_DOCUMENTS.filter((f) => !(rejected && f === ADR163)).map(pair);
         return {
@@ -1687,7 +1768,7 @@ const scopedMode = (args) => {
   if (args.some((a) => !SCOPED_SECTIONS.includes(a))) return fail([`usage: scoped-route [${SCOPED_SECTIONS.join("|")}]...`]);
   const sections = args.length === 0 ? SCOPED_SECTIONS : args;
   const files = Object.fromEntries([ACCESS_FILE, ...LITERAL_FREE].map((p) => [p, maybe(p)]));
-  return done(judgeScoped(files, sections), `scoped-route ${sections.join(" ")}: the scoped read is derived from the leaf rows and routed by the one matcher`);
+  return done(judgeScoped(files, sections), `scoped-route ${sections.join(" ")}: the scoped read is derived from the leaf rows and routed on each port's need`);
 };
 
 const MODES = {
@@ -2212,43 +2293,56 @@ it("has \\"quotes\\"", () => {});`;
   // scoped-route.
   const routeFile = (over = {}) => {
     const parts = {
-      imports: 'import { LEAF_NEEDS } from "./LeafNeeds.ts";\nimport { isResourceScoped, requireResourceId } from "./ScopedLeaf.ts";\n',
-      scoped: 'type ScopedPort = Extract<PortName, keyof Asked>;\n',
-      pre: "",
-      matcher: 'const route: (need: "Always" | "ByScope") => (leaf: Leaf) => boolean = Match.type<"Always" | "ByScope">().pipe(\n  Match.when("Always", () => () => true),\n  Match.when("ByScope", () => (leaf: Leaf) => isResourceScoped(leaf)),\n  Match.exhaustive,\n);\n',
+      imports: 'import type { LEAF_NEEDS } from "./LeafNeeds.ts";\nimport { isResourceScoped, requireResourceId } from "./ScopedLeaf.ts";\n',
+      tag: 'type ScopedLeafTag = {\n  readonly [T in keyof typeof LEAF_NEEDS]: (typeof LEAF_NEEDS)[T]["resourceId"] extends "Never" ? never : T;\n}[keyof typeof LEAF_NEEDS];\n',
+      scoped: "type ScopedPort = {\n  readonly [K in PortName]: [keyof Asks[K] & ScopedLeafTag] extends [never] ? never : K;\n}[PortName];\n",
+      call: 'type ScopedCall<K extends ScopedPort> = [PortNeed<K>] extends ["Always"]\n  ? AlwaysCall<K>\n  : [PortNeed<K>] extends ["ByScope"]\n    ? ByScopeCall<K>\n    : never;\n',
+      table: 'const scopedCall: { readonly [K in ScopedPort]: ScopedCall<K> } = {\n  A: { need: "ByScope", withId: (r) => r, bare: (r) => r, resourceScoped: isResourceScoped },\n  R: { need: "Always", withId: ([r], id) => [{ ...r, id }] },\n  S: {\n    need: "ByScope",\n    withId: (r) => r,\n    bare: (r) => r,\n    resourceScoped: isResourceScoped,\n  },\n};\n',
       count: 'const countFor = Match.type<PortInterpreter>().pipe(Match.when("evaluate", () => 1), Match.exhaustive);\n',
-      read: "const readScoped = (leaf: Leaf) => (route(LEAF_NEEDS[leaf._tag].resourceId)(leaf) ? 1 : 2);\n",
+      read: 'const readScoped = <K extends ScopedPort>(d: D<K>, leaf: ScopedLeafOf<K>, request: Q<K>) => {\n  const call: AlwaysCall<K> | ByScopeCall<K> = scopedCall[d.port];\n  if (call.need === "ByScope" && !call.resourceScoped(leaf)) {\n    return readPort(d, call.bare(request));\n  }\n  return requireResourceId(request);\n};\n',
       rest: "",
       ...over,
     };
-    return parts.imports + parts.scoped + parts.pre + parts.matcher + parts.count + parts.read + parts.rest;
+    return parts.imports + parts.tag + parts.scoped + parts.call + parts.table + parts.count + parts.read + parts.rest;
   };
   const routeBad = (over) => judgeScopedRoute(routeFile(over));
-  eq("the inline form passes", routeBad(), []);
-  eq("the hoisted form passes", routeBad({ pre: "const byScope = (leaf: Leaf) => isResourceScoped(leaf);\n", matcher: 'const route = Match.type<"Always" | "ByScope">().pipe(\n  Match.when("Always", () => () => true),\n  Match.when("ByScope", () => byScope),\n  Match.exhaustive,\n);\n' }), []);
-  has("inline with the call in the Always arm fails", routeBad({ matcher: 'const route = Match.type<"Always" | "ByScope">().pipe(\n  Match.when("Always", () => (leaf: Leaf) => isResourceScoped(leaf)),\n  Match.when("ByScope", () => () => true),\n  Match.exhaustive,\n);\n' }), "from outside the \"ByScope\" arm");
-  has("inline with a second call in readActed fails", routeBad({ rest: "const readActed = (leaf: Leaf) => (isResourceScoped(leaf) ? 1 : 2);\n" }), "names isResourceScoped 2 times");
-  const hoistedMatcher = (always, byScope) => `const route = Match.type<"Always" | "ByScope">().pipe(\n  Match.when("Always", () => ${always}),\n  Match.when("ByScope", () => ${byScope}),\n  Match.exhaustive,\n);\n`;
-  has("hoisted with the predicate also named in the Always arm fails", routeBad({ pre: "const byScope = (leaf: Leaf) => isResourceScoped(leaf);\n", matcher: hoistedMatcher("byScope", "byScope") }), "names the predicate byScope 2 times");
-  has("hoisted with the predicate never named in the ByScope arm fails", routeBad({ pre: "const byScope = (leaf: Leaf) => isResourceScoped(leaf);\n", matcher: hoistedMatcher("() => true", "() => true") }), "names the predicate byScope 0 times");
-  has("hoisted with the predicate named only in the Always arm fails", routeBad({ pre: "const byScope = (leaf: Leaf) => isResourceScoped(leaf);\n", matcher: hoistedMatcher("byScope", "() => true") }), "does not name the predicate byScope inside the \"ByScope\" arm");
-  has("a bare alias of the predicate fails", routeBad({ pre: "const p = isResourceScoped;\n", matcher: hoistedMatcher("() => true", "p") }).concat(routeBad({ pre: "const p = isResourceScoped;\n" })), "without calling it");
-  has("an import of the predicate alone is not an occurrence", routeBad({ matcher: hoistedMatcher("() => true", "() => true") }), "names isResourceScoped 0 times");
-  eq("a call named in a comment or a string is not read", routeBad({ rest: '// isResourceScoped(leaf)\nconst s = "isResourceScoped(x)";\n' }), []);
-  has("a second route matcher fails", routeBad({ rest: 'const other = Match.type<"Always" | "ByScope">().pipe(Match.when("ByScope", () => 1), Match.exhaustive);\n' }), "2 module-scope Match.type matchers");
-  has("no route matcher fails", routeBad({ matcher: "" }), "0 module-scope Match.type matchers");
-  has("readScoped inside Effect.fn fails", routeBad({ read: 'const readScoped = Effect.fn("x")(function* (leaf: Leaf) {\n  return route(LEAF_NEEDS[leaf._tag].resourceId)(leaf);\n});\n' }), "wrapped in Effect.fn or Effect.fnUntraced");
-  has("readScoped inside Effect.fnUntraced fails", routeBad({ read: "const readScoped = Effect.fnUntraced(function* (leaf: Leaf) {\n  return route(leaf);\n});\n" }), "wrapped in Effect.fn");
-  has("a readScoped that does not read the matcher fails", routeBad({ read: "const readScoped = (leaf: Leaf) => 1;\n" }), "does not read the route matcher route");
+  const routeFileTable = () => /const scopedCall[\s\S]*?\n\};\n/.exec(routeFile())[0];
+  const withTable = (from, to) => ({ table: routeFileTable().replace(from, to) });
+  const withRead = (from, to) => ({ read: /const readScoped[\s\S]*?\n\};\n/.exec(routeFile())[0].replace(from, to) });
+  eq("the need-discriminated form passes", routeBad(), []);
+  has("a ScopedCall that does not end in never fails", routeBad({ call: 'type ScopedCall<K extends ScopedPort> = [PortNeed<K>] extends ["Always"] ? AlwaysCall<K> : [PortNeed<K>] extends ["ByScope"] ? ByScopeCall<K> : ByScopeCall<K>;\n' }), "does not end in never");
+  has("a ScopedCall that tests no ByScope need fails", routeBad({ call: 'type ScopedCall<K extends ScopedPort> = [PortNeed<K>] extends ["Always"] ? AlwaysCall<K> : never;\n' }), 'does not test the port\'s need against ["Always"] and ["ByScope"]');
+  has("no ScopedCall fails", routeBad({ call: "" }), "declares no type ScopedCall");
+  has("a table typed otherwise fails", routeBad(withTable("{ readonly [K in ScopedPort]: ScopedCall<K> }", "Calls")), "is not typed { readonly [K in ScopedPort]: ScopedCall<K> }");
+  has("a row that states no need fails", routeBad(withTable('R: { need: "Always", ', "R: { ")), "the R row of scopedCall states no need");
+  has("an Always row with an id-free call fails", routeBad(withTable('R: { need: "Always", ', 'R: { need: "Always", bare: (r) => r, ')), "the Always row R has an id-free call");
+  has("a ByScope row with no bare call fails", routeBad(withTable("withId: (r) => r, bare: (r) => r, resourceScoped", "withId: (r) => r, resourceScoped")), "the ByScope row A has no bare call");
+  has("a ByScope row with its scope test written inline fails", routeBad(withTable("bare: (r) => r, resourceScoped: isResourceScoped }", "bare: (r) => r, resourceScoped: (l) => isResourceScoped(l) }")), "does not state resourceScoped: isResourceScoped");
+  has("a ByScope row whose scope test always answers true fails", routeBad(withTable("bare: (r) => r, resourceScoped: isResourceScoped }", "bare: (r) => r, resourceScoped: () => true }")), "the ByScope row A does not state resourceScoped: isResourceScoped");
+  has("no table fails", routeBad({ table: "" }), "does not declare scopedCall");
+  has("a table with no ByScope row fails", routeBad({ table: 'const scopedCall: { readonly [K in ScopedPort]: ScopedCall<K> } = {\n  R: { need: "Always", withId: ([r], id) => [{ ...r, id }] },\n};\n' }), "scopedCall has no ByScope row");
+  has("the scope test named in readScoped fails", routeBad(withRead("!call.resourceScoped(leaf)", "!isResourceScoped(leaf)")), "outside a ByScope row's resourceScoped");
+  has("readScoped inside Effect.fn fails", routeBad(withRead("const readScoped = <K extends ScopedPort>(d: D<K>, leaf: ScopedLeafOf<K>, request: Q<K>) => {", 'const readScoped = Effect.fn("x")(function* (d: D<K>, leaf: ScopedLeafOf<K>, request: Q<K>) {')), "wrapped in Effect.fn or Effect.fnUntraced");
+  has("readScoped reading a row at run time fails", routeBad(withRead("!call.resourceScoped(leaf)", "!call.resourceScoped(leaf) && LEAF_NEEDS[leaf._tag].resourceId !== \"Always\"")), "reads a LEAF_NEEDS row at run time");
+  has("readScoped running a Match fails", routeBad(withRead("!call.resourceScoped(leaf)", "!Match.value(leaf).pipe(Match.orElse(() => false))")), "runs a Match");
+  has("readScoped testing a member with in fails", routeBad(withRead("!call.resourceScoped(leaf)", "\"scope\" in leaf && !call.resourceScoped(leaf)")), "tests a member with in");
+  has("readScoped that does not narrow on need fails", routeBad(withRead('call.need === "ByScope" && ', "")), 'does not narrow on the row\'s need === "ByScope"');
+  has("readScoped that does not read the table fails", routeBad(withRead("scopedCall[d.port]", "calls[d.port]")), "does not read scopedCall");
   has("no readScoped fails", routeBad({ read: "" }), "does not declare readScoped");
+  eq("readScoped as a plain function passes", routeBad({ read: 'function readScoped<K extends ScopedPort>(d: D<K>, leaf: ScopedLeafOf<K>, request: Q<K>) {\n  const call: AlwaysCall<K> | ByScopeCall<K> = scopedCall[d.port];\n  if (call.need === "ByScope" && !call.resourceScoped(leaf)) return readPort(d, call.bare(request));\n  return requireResourceId(request);\n}\n' }), []);
+  has("a needsResourceId left over fails", routeBad({ rest: "const needsResourceId = (leaf: Leaf) => true;\n" }), "still names needsResourceId");
+  has("a route matcher with a ByScope arm fails", routeBad({ rest: 'const route = Match.type<"Always" | "ByScope">().pipe(Match.when("ByScope", () => 1), Match.exhaustive);\n' }), 'Match.type matcher with a "ByScope" arm');
   has("a switch fails", routeBad({ rest: "function f() {\n  switch (x) {\n  }\n}\n" }), "holds a switch");
-  eq("a switch in a comment is not read", routeBad({ rest: "// switch (x) {}\n" }), []);
-  eq("readScoped as a plain function passes", routeBad({ read: "function readScoped(leaf: Leaf) {\n  return route(LEAF_NEEDS[leaf._tag].resourceId)(leaf);\n}\n" }), []);
+  eq("names in a comment or a string are not read", routeBad({ rest: '// isResourceScoped(leaf) needsResourceId switch (x) {}\nconst s = "isResourceScoped(x) needsResourceId";\n' }), []);
   const derived = (over) => judgeScopedDerived(routeFile(over));
-  eq("a derived ScopedPort passes", derived(), []);
-  has("a hand union ScopedPort fails", derived({ scoped: 'type ScopedPort = "DecisionHistory" | "RelationshipResolver" | "SignatureHistory";\n' }), "hand union of string literals");
-  has("a type-only import of the leaf rows fails", derived({ imports: 'import type { LEAF_NEEDS } from "./LeafNeeds.ts";\nimport { isResourceScoped } from "./ScopedLeaf.ts";\n' }), "does not import LEAF_NEEDS as a value");
-  has("no import of the leaf rows fails", derived({ imports: 'import { isResourceScoped } from "./ScopedLeaf.ts";\n' }), "does not import LEAF_NEEDS as a value");
+  eq("a derived ScopedPort passes, the rows imported by type", derived(), []);
+  eq("a value import of the rows passes too", derived({ imports: 'import { LEAF_NEEDS } from "./LeafNeeds.ts";\nimport { isResourceScoped } from "./ScopedLeaf.ts";\n' }), []);
+  has("a hand union ScopedPort fails", derived({ scoped: 'type ScopedPort = "DecisionHistory" | "RelationshipResolver" | "SignatureHistory";\n' }), "names a string literal, a hand list of ports");
+  has("a ScopedPort extracted from a hand list fails", derived({ scoped: 'type ScopedPort = Extract<PortName, "DecisionHistory" | "RelationshipResolver" | "SignatureHistory">;\n' }), "names a string literal, a hand list of ports");
+  has("a ScopedPort that does not read ScopedLeafTag fails", derived({ scoped: "type ScopedPort = Extract<PortName, keyof Scoped>;\n" }), "is not read from ScopedLeafTag");
+  has("a ScopedLeafTag not read from the rows fails", derived({ tag: 'type ScopedLeafTag = "HasRelationship" | "HasActed";\n' }), "is not read from typeof LEAF_NEEDS");
+  has("a ScopedLeafTag that names a tag beside the rows fails", derived({ tag: 'type ScopedLeafTag = { readonly [T in keyof typeof LEAF_NEEDS]: (typeof LEAF_NEEDS)[T]["resourceId"] extends "Never" ? never : T }[keyof typeof LEAF_NEEDS] | "HasCustom";\n' }), 'names a literal other than "Never" and the resourceId column');
+  has("no import of the leaf rows fails", derived({ imports: 'import { isResourceScoped } from "./ScopedLeaf.ts";\n' }), "does not import LEAF_NEEDS");
   has("no ScopedPort fails", derived({ scoped: "" }), "declares no type ScopedPort");
   eq("a missing PortAccess.ts is refused", [judgeScopedRoute(undefined).length, judgeScopedDerived(undefined).length], [1, 1]);
   eq("the literal-free files are judged with the route", judgeScoped({ [ACCESS_FILE]: routeFile(), [DERIVATION_FILE]: 'const s = "qadi.acted";' }, ["route"]).length, 1);
@@ -2361,7 +2455,7 @@ it("has \\"quotes\\"", () => {});`;
   has("a fixing commit after the record commit fails", bench1((f) => (f.patches[0].ancestor = false)), "is not an ancestor");
   has("a sidecar with no hash fails", bench1((f) => (f.patches[0].sidecar = "nope")), "holds no sha256");
   has("a record that does not state the patch hash fails", bench1((f) => (f.md = f.md.replace(patchSha, "x"))), "does not state the sha256");
-  has("a record that does not name the patch fails", bench1((f) => (f.md = f.md.replace("routing.patch", "other"))), "does not name the patch of record");
+  has("a record that does not name the patch fails", bench1((f) => (f.md = f.md.replace("routing.patch", "other"))), "does not name the measured patch routing.patch");
   has("a stated verdict that disagrees with the analysis fails", bench1((f) => (f.md = f.md.replace("# gate: pass", "# gate: fail"))), "states the verdict fail, the analysis says pass");
   has("an analysis with no gate line fails", bench1((f) => (f.record.analysis = "x\n")), "has no # gate: line");
   has("--pass over a failed gate fails", bench1((f) => { f.md = f.md.replace("# gate: pass", "# gate: fail"); f.record.analysis = "# gate: fail\n"; }, true), "is fail, not pass");
@@ -2379,6 +2473,21 @@ it("has \\"quotes\\"", () => {});`;
   has("a declared key the file does not name fails", judgeWorkloads(`${WORKLOAD_KEYS.join("\n")}\n`, [...WORKLOAD_KEYS, "x :: y"]), "which workloads.txt does not name");
   has("a key declared twice fails", judgeWorkloads(`${WORKLOAD_KEYS.join("\n")}\n`, [...WORKLOAD_KEYS, WORKLOAD_KEYS[0]]), "declares");
   has("a missing workloads file fails", judgeWorkloads(undefined, []), "workloads.txt does not exist");
+  const reviewText = "diff review\n";
+  const reviewSha = sha256(reviewText);
+  const reviewFix = "e".repeat(40);
+  const withReview = (over = {}) => {
+    const f = benchFix();
+    f.patches.push({ name: REVIEW_PATCH, fixes: [{ sha: reviewFix, paths: [`${BENCH_DIR}${REVIEW_PATCH}`, `${BENCH_DIR}${REVIEW_PATCH}.sha256`] }], ancestor: true, sidecar: `${reviewSha}  ${REVIEW_PATCH}\n`, atFix: reviewText, atHead: reviewText, meta: `head: ${reviewFix}\npatch_sha256: ${reviewSha}\n`, ...over });
+    f.record = { name: REVIEW_PATCH, analysis: "y\n# gate: pass\n" };
+    f.md = `${f.md}\n## Review gate\n\nPatch of record: ${REVIEW_PATCH} ${reviewSha}\n\n# gate: pass\n`;
+    return f;
+  };
+  eq("a review gate of record beside the first, both named and hashed, passes with --pass", judgeBench(withReview(), true), []);
+  has("a review record that drops the first patch's hash fails", judgeBench(((f) => ((f.md = f.md.replace(patchSha, "x")), f))(withReview()), true), "does not state the sha256 of routing.patch");
+  has("a review record that does not hash its own patch fails", judgeBench(((f) => ((f.md = f.md.replace(reviewSha, "x")), f))(withReview()), true), `does not state the sha256 of ${REVIEW_PATCH}`);
+  has("a review patch fixed after its record commit fails", judgeBench(withReview({ ancestor: false }), true), `is not an ancestor of the commit ${RECORD_SUBJECTS[REVIEW_PATCH]}`);
+  has("a review gate that failed fails --pass", judgeBench(((f) => ((f.record.analysis = "# gate: fail\n"), (f.md = f.md.replace(/# gate: pass\n$/, "# gate: fail\n")), f))(withReview()), true), "is fail, not pass");
 
   // routing-landed.
   const baseAccess = "const a = isResourceScoped(leaf) ? 1 : 2;\n// c\nconst b = isResourceScoped(leaf) ? 3 : 4;\n";
@@ -2391,6 +2500,17 @@ it("has \\"quotes\\"", () => {});`;
   eq("a failed gate with both ternaries and no commit is not landed", judgeRouting({ gate: "fail", commits: [], accessAtHead: baseAccess }), { bad: [], line: "routing-landed: not landed; the gate of record failed" });
   has("a failed gate with a routing commit fails", judgeRouting({ gate: "fail", commits: [{}], accessAtHead: baseAccess }).bad, "exists although the gate");
   has("a failed gate with a ternary gone fails", judgeRouting({ gate: "fail", commits: [], accessAtHead: routed }).bad, "no longer holds both");
+  const needs = "const a = readScoped(leaf); // need\n";
+  const reviewFacts = (over = {}, top = {}) => landedFacts({ atHead: { [ACCESS_FILE]: needs }, review: { gate: "pass", fixes: [{ sha: "f" }], commits: [{ sha: "r" }], atCommit: { [ACCESS_FILE]: needs }, expected: { [ACCESS_FILE]: "const a = readScoped(leaf);\n" }, ...over }, ...top });
+  eq("a review routing equal to its patch at its commit and at HEAD passes, the first landing judged at its commit only", judgeRouting(reviewFacts()), { bad: [], line: "routing-landed: the first routing equals its patch of record at its commit, and the review routing equals its patch at its commit and at HEAD" });
+  has("a review routing that differs at its commit fails", judgeRouting(reviewFacts({ atCommit: { [ACCESS_FILE]: "x" } })).bad, "at the review routing commit is not the fixing commit's text");
+  has("a review routing that differs at HEAD fails", judgeRouting(reviewFacts({}, { atHead: { [ACCESS_FILE]: "x" } })).bad, "at HEAD is not the fixing commit's text");
+  has("a review gate with no review routing commit fails", judgeRouting(reviewFacts({ commits: [] })).bad, `0 commits since phase_base have the subject ${REVIEW_ROUTING_SUBJECT}`);
+  has("a review patch fixed by two commits fails", judgeRouting(reviewFacts({ fixes: [{}, {}] })).bad, "2 commits since phase_base have the subject chore(90-review)");
+  has("the first landing that differs at its commit still fails beside a review", judgeRouting(reviewFacts({}, { atCommit: { [ACCESS_FILE]: "x" } })).bad, "at the routing commit is not the base");
+  eq("a failed review gate with no review commit leaves the first landing", judgeRouting(reviewFacts({ gate: "fail", commits: [] })).line, "routing-landed: the first routing landed as its patch of record; the review routing did not land");
+  has("a failed review gate with a review commit fails", judgeRouting(reviewFacts({ gate: "fail" })).bad, "exists although the review gate is fail");
+  has("a fixed review patch with no analysis fails", judgeRouting(reviewFacts({ gate: undefined, commits: [] })).bad, "has no analysis with a # gate: line");
   has("no gate of record fails", judgeRouting({ gate: undefined }).bad, "no gate of record");
 
   // close.

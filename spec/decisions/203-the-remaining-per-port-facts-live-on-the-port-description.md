@@ -101,17 +101,21 @@ error named, and a hand list could be widened by a side effect.
 
 7. **One route, and the row decides.** `readScoped` keeps its name and is the one function every read of a scoped port calls:
    `readActed`, `askRelationship` and `askSignature` call `readScoped(d, interpreter, leaf, request, relation)` and route
-   nothing themselves. It reads `LEAF_NEEDS[leaf._tag].resourceId`; for a scoped tag that is exactly `"Always"` or
-   `"ByScope"`, and one hoisted `Match.type<"Always" | "ByScope">()`, built once at module scope and closed with
-   `Match.exhaustive`, answers whether the read needs an id. `"Always"` needs one, and `"ByScope"` needs one when
-   `isResourceScoped(leaf)`, which stays the one scope test, so the request's id and the route share it. A read that needs no
-   id is `readPort` over the leaf's id-free call, with no generator allocated. A read that needs one runs
+   nothing themselves. Each scoped port's row in `scopedCall` states the port's need, and the type of the row is chosen by
+   the `LEAF_NEEDS` rows of the scoped leaves the port asks: `{ need: "Always", withId }` when every one is `"Always"`,
+   `{ need: "ByScope", withId, bare, resourceScoped }` when every one is `"ByScope"`, and `never` for a port that mixes the
+   two, so that port does not compile where its row is written. A `ByScope` row's `resourceScoped` is `isResourceScoped`,
+   which stays the one scope test, so the request's id and the route share it. `readScoped` takes a leaf typed by the port
+   it reads and narrows on the row's `need`: the read needs no id only when the need is `"ByScope"` and the leaf names no
+   resource, and that read is `readPort` over the row's id-free call, with no generator allocated. Every other read runs the
+   id check, so there is no arm that no input reaches and no guard whose mutant changes nothing. No row is read at run time
+   and no matcher is built. A read that needs one runs
    `requireResourceId`, annotates the question on the port's own span on a miss and then fails with `MissingResourceId`, and
    on a hit completes the request and calls `readPort`: the order and the trace of
    [BEH-QD-445](../behaviors/30-port-calls.md#beh-qd-445-a-missing-resource-id-fails-the-same-way-on-every-scoped-port),
    unchanged. `readScoped` stays a plain function, neither an `Effect.fn` nor an `Effect.fnUntraced`, so no span opens and
-   `UNTRACED_BUDGET` does not move. For `RelationshipResolver` every leaf is `"Always"`, so the id-free call is typed
-   `undefined` (`BareOf`) and the not-needed branch is unreachable by type. The two fixture judgements keep calling
+   `UNTRACED_BUDGET` does not move. For `RelationshipResolver` every leaf is `"Always"`, so its row has no id-free call and a
+   read of it cannot skip the check by type. The two fixture judgements keep calling
    `requireResourceId`: they live in port modules, which cannot import `LeafNeeds.ts` without a cycle, and a test holds
    their answer equal to the route's.
 
@@ -173,9 +177,35 @@ The analysis ended with its verdict, copied here and not judged:
 # gate: pass
 ```
 
-The routing lands as measured, in the per-call-closure form of the `ByScope` arm. The hoisted-predicate variant was
-not measured, because the first form passed. A re-measure is one `ab.sh` run of the patch; this record does not read the
-two scoped deltas as zero cost, and the routing adds about 1% to 2.4% to an evaluation whose eight leaves all take the read.
+The routing landed as measured, in the per-call-closure form of a hoisted `Match`'s `ByScope` arm. The hoisted-predicate
+variant was not measured, because the first form passed. This record does not read the two scoped deltas as zero cost:
+that routing added about 1% to 2.4% to an evaluation whose eight leaves all take the read.
+
+### The review gate, the gate of record
+
+The code review found that form's `Always` arm reached by no input and its guard's mutant changing no outcome, so the
+routing was restated as decision 7 describes: each port's need typed from its leaves' rows, `readScoped` narrowing on it,
+and no matcher and no per-call closure. That form was fixed as a second patch and measured once against the landed routing,
+in the same band and with the same harness, nothing else running.
+
+- Patch of record: `routing-review.patch`, SHA-256 `11e3b2bea1621fd37adcab20738c94abc7cafae97400d2316370923e832fdb09`,
+  fixed in a commit of its own, `17aeb9ad`, that precedes the run.
+- Invocations: `scripts/bench/ab.sh <patch> <out> 4 landed review packages/core/bench/Evaluate.bench.ts .`, then
+  `node scripts/bench/analyze.mjs <out> landed review <workloads>`.
+- The two scoped-heavy workloads: -0.5% and -0.3%, inside reference spreads of 2.1% and 2.3%, so no measurable change. The
+  other 35 run from -3.3% to +3.8%, the largest slowdown on a workload that reads no scoped port.
+
+```text
+# workloads: 37
+# slower: 0
+# geomean_d_min_pct: 0.09
+# max_slowdown_pct: 5.0
+# max_geomean_pct: 2.0
+# worst_d_min: 3.8 evaluate :: matcher-heavy — 3 refs
+# gate: pass
+```
+
+The routing on each port's need lands as measured. A re-measure is one `ab.sh` run of `routing-review.patch`.
 
 ## The two earlier rejections, answered
 
@@ -225,9 +255,13 @@ interpreter, so the move is judged by the same rows before and after.
 ## Alternatives considered
 
 - **A `switch` on the row.** Rejected: `SWITCH_BUDGET` is an exact count, and the routing is not one of its three entries.
+- **A hoisted `Match` on the row, read at run time.** Landed first and measured, then replaced: its `Always` arm was
+  reached by no input, because the one `Always` leaf's port has no id-free call, and its guard on that call changed no
+  outcome when mutated, so the route held code no test could hold. The port's need, typed from the rows, states the same
+  decision with no unreachable arm.
 - **The table form of [AGENTS.md](../../AGENTS.md) section 5a.** Rejected: that form is for a tag the code itself wrote,
-  while the row's value is data read from a table, and a hoisted `Match` states the same dispatch with its exhaustiveness
-  checked by the compiler.
+  while the need is a fact the rows already state, and the closed union of each port's row states it with its
+  exhaustiveness checked by the compiler.
 - **`Match.value` per call.** Rejected: it rebuilds the matcher on a per-read path, which section 5a measures as the
   slowest of the dispatch forms.
 - **Reading the row in each caller.** Rejected: that is three copies of the route, which is what one `readScoped` replaces.
@@ -277,7 +311,7 @@ interpreter, so the move is judged by the same rows before and after.
   `bare !== undefined` changes no outcome for the same reason. This record does not claim a full score for that file.
   Core coverage is 99.86 lines, 99.70 functions, 98.33 branches and 99.58 statements, against 99.89, 99.78, 98.33 and 99.63
   before.
-- **Reopening the routing needs a new measurement.** The bench gate of record is one run of one patch.
+- **Reopening the routing needs a new measurement.** The bench gate of record is one run of `routing-review.patch`.
 
 ## What enforces it
 
@@ -294,7 +328,8 @@ What `pnpm check` runs, by command:
   read), `packages/core/test/LeafNeeds.test.ts` (the route equal to the rows and to the judgements) and the held
   `packages/core/test/PortAccess.test.ts` and `packages/core/test/Ports.test.ts`.
 - `pnpm typecheck`: a port added to `PORT_NAMES` without its registry entry, a leaf reclassified without its `scopedCall` row,
-  and a relationship read given an id-free call do not compile.
+  an `Always` row given an id-free call, a port whose scoped leaves mix `Always` and `ByScope`, a leaf read through another
+  port's description, and a direct read of a scoped port through `readUnscoped` do not compile.
 - `pnpm circular`: `PortName.ts` importing the registry, or `PortServing.ts` derived from it, closes a cycle and fails.
 - `pnpm lint`, whose second half is `node scripts/check-house-style.mjs`: a `switch` on the row exceeds `SWITCH_BUDGET`, and a
   span literal in `PortAccess.ts`, `PortDerivation.ts` or `PortCalls.ts` is refused by `no-port-span-key-literals`.
@@ -306,7 +341,9 @@ What is phase-local, kept with the change's planning, and not run by `pnpm check
 
 - The phase check's judges, `port-facts` and `scoped-route`: each span literal is spelled once, `PortMetrics.ts` holds no
   `Record<PortName, true>`, `PortServing.ts` is byte-identical, `ScopedPort` is not a union of string literals,
-  `isResourceScoped(` appears once in `PortAccess.ts`, and one module-scope `Match.type` feeds `readScoped`. They judge shape,
+  `ScopedPort` names no string literal (so an `Extract<PortName, …>` hand list fails too), `scopedCall` is typed by
+  `ScopedCall`, which ends in `never`, its `ByScope` rows alone carry the id-free call and `resourceScoped:
+  isResourceScoped`, and `readScoped` narrows on `need` with no matcher, no row read and no `needsResourceId`. They judge shape,
   and the committed proof of each property is the type pins and the characterisation above.
 - The sixth-port scratch run: its (file, code) sets are recorded and compared, and it is evidence for the consequence above,
   not a gate. Its committed proof is the type pins.
