@@ -1293,3 +1293,42 @@ Each block below is one run of a phase check or a held mutation mode on a scratc
 - exit: 2
 - failing text: packages/core/src/PortAccess.ts(277,7): error TS2741: Property 'CustomPredicate' is missing in type '{ DecisionHistory: { withId: (request: [query: ActedQuery]) => [query: ActedQuery]; bare: (request: [query: ActedQuery]) => [query: ActedQuery]; }; RelationshipResolver: { withId: ([request]: [request: PendingRelationshipCheck], resourceId: ResourceId) => [{ subjectId: SubjectId; relation: string; depth: number | undefined; resourceId: ResourceId; }]; bare: undefined; }; SignatureHistory: { withId: (request: [query: SignatureQuery]) => [query: SignatureQuery]; bare: (request: [query: SignatureQuery]) => [query: SignatureQuery]; }; }' but required in type '{ readonly CustomPredicate: ScopedCall<"CustomPredicate">; readonly DecisionHistory: ScopedCall<"DecisionHistory">; readonly RelationshipResolver: ScopedCall<"RelationshipResolver">; readonly SignatureHistory: ScopedCall<"SignatureHistory">; }'.
 - tsc: packages/core/src/PortAccess.ts TS2741 x1
+
+## sixth-port close
+- scratch: sixth-close at 1dcbac5651
+- edit: "FakePort" appended to PORT_NAMES
+- tsc: packages/core/src/PortAccess.ts TS2345 x1
+- tsc: packages/core/src/PortAccess.ts TS2536 x10
+- tsc: packages/core/src/PortRemote.ts TS2345 x1
+- tsc: packages/core/src/PortRemote.ts TS2536 x4
+- tsc: packages/core/src/PortServing.ts TS2344 x1
+- tsc: packages/core/src/PortServing.ts TS2536 x1
+- tsc: packages/core/src/Ports.ts TS2344 x1
+- tsc: packages/core/src/Ports.ts TS2379 x1
+- tsc: packages/core/src/Ports.ts TS2536 x20
+- tsc: packages/core/src/Ports.ts TS2741 x1
+- tsc: packages/core/src/Ports.ts TS2769 x1
+- tsc: packages/core/src/Ports.ts TS377004 x1
+- tsc: packages/devtools/src/model/Capture.ts TS2345 x1
+- tsc: packages/devtools/src/model/Capture.ts TS2536 x2
+- tsc: packages/devtools/src/model/PortCalls.ts TS2322 x1
+- tsc: packages/devtools/src/model/PortCalls.ts TS2741 x1
+- tsc: packages/devtools/src/model/PortCards.ts TS2345 x1
+- tsc: packages/devtools/src/model/PortReading.ts TS2741 x1
+- tsc: packages/devtools/src/model/SimulationFields.ts TS2741 x1
+- tsc: packages/devtools/src/model/SimulationSource.ts TS2741 x1
+- tsc: packages/http/src/PortRoutes.ts TS2322 x1
+- tsc: packages/http/src/PortRoutes.ts TS2345 x1
+- tsc: packages/http/src/PortRoutes.ts TS2536 x1
+- tsc: packages/http/src/PortRoutes.ts TS377004 x1
+- tsc: packages/testing/src/QadiReviewLayer.ts TS2536 x1
+- errors: 57
+- groups: 25
+
+## sixth-port-close-group-missing
+- scratch: sixth-close-seen at 1dcbac5651
+- edit: the recorded close set without its first group
+- diff: eded0218d52ff7fbbb46f9fc04587d9b301dd86c4a96cfee6faf0a803214c22a (1 files, +30 -0)
+- run: script 90-check.mjs sixth-port close
+- exit: 1
+- failing text: a group the record lacks: packages/core/src/PortAccess.ts TS2345
