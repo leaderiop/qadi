@@ -53,9 +53,9 @@ const EQUIVALENT = [];
  */
 const EXAMINED = {
   [LEDGER]: {
-    // noStops = {} (line 21): the empty ledger made `{}` is killed by StopLedger.test.ts L1 to L6, LAW1 and LAW3, which read its count and stop.
+    // noStops = {} (line 23): the empty ledger made `{}` is killed by StopLedger.test.ts L1 to L6, LAW1 and LAW3, which read its count and stop.
     "ObjectLiteral {}": 1,
-    // stoppedKey, announcesStop and recordStop bodies (lines 29, 37, 45) made `() => undefined`: each is killed by StopLedger.test.ts L1 to L6
+    // stoppedKey, announcesStop and recordStop bodies (lines 31, 39, 49) made `() => undefined`: each is killed by StopLedger.test.ts L1 to L6
     // (and LAW1 to LAW3 for recordStop), which read what each returns, and by the dock rows A1 and A2 and the diagnostics rows D4 and D7.
     "ArrowFunction () => undefined": 3,
   },
