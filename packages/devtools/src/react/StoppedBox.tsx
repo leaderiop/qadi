@@ -106,7 +106,9 @@ const StoppedBody = <S,>({
   const { hooks, focusTarget } = FEEDS[feed];
   // Decided at mount: a new stop is a new mount (see `stoppedKey`), so a role is never added to a mounted element.
   const [alert] = useState(() => announcesStop(announced.ledger, status));
-  useLayoutEffect(() => announced.record(status), [announced.record, status]);
+  useLayoutEffect(() => {
+    announced.record(status);
+  }, [announced.record, status]);
 
   // Puts focus back inside the screen, because the button that had it leaves the DOM.
   const restart = (event: MouseEvent<HTMLButtonElement>) => {

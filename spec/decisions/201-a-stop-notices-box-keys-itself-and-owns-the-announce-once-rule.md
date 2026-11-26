@@ -68,8 +68,8 @@ written, so the rule that nothing is announced twice held because of how the ref
 
 4. **The alert is decided at mount and the stop is recorded at commit.** The body decides
    `const [alert] = useState(() => announcesStop(announced.ledger, status))`, a decision made at mount from a prop, and records
-   in `useLayoutEffect(() => announced.record(status), [announced.record, status])`. The layout timing lands the record's
-   re-render before paint. The effect is keyed on `record` and not on the handle: the record's own re-render builds a new
+   in `useLayoutEffect(() => { announced.record(status); }, [announced.record, status])`, a block body, so whatever `record`
+   returns is never taken for the effect's cleanup. The layout timing lands the record's re-render before paint. The effect is keyed on `record` and not on the handle: the record's own re-render builds a new
    handle and re-runs nothing, and a box handed another feed's ledger, which carries another `record`, records there. Nothing is
    written during render, so a render that is thrown away, or a doubled one, records nothing and the alert is kept. No
    `role="alert"` is ever added to or removed from a mounted element, and the role, `data-announce`, `data-sampled`, the test ids,
