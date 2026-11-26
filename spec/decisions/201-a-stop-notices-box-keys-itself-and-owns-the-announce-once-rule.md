@@ -63,8 +63,11 @@ written, so the rule that nothing is announced twice held because of how the ref
 
 3. **The box derives its own key.** A component cannot set its own `key`, so `StoppedBox` is a wrapper rendering
    `<StoppedBody key={stoppedKey(notice.announced.ledger, notice.status)} … />`, and `StoppedBody` is module-private. The two
-   notices pass no key and have no `Binding`: each notice's arm takes the notice props whole, the memoised value the hook
-   returns, and hands them to the box as one `notice` prop in place of `status`, `onRestart` and `announced`.
+   notices pass no key and have no `Binding`: each notice's arm takes the notice props whole, the fields of the memoised value
+   the hook returns with its `announced` handle by identity, and hands them to the box as one `notice` prop in place of
+   `status`, `onRestart` and `announced`. The props object is not the memoised value: the dock spreads that value into each
+   notice, so every render builds a new one, and nothing keys on it. What holds across a render that changes nothing is the
+   `announced` handle, its `record` and its ledger, which is what decision 4's effect is keyed on.
 
 4. **The alert is decided at mount and the stop is recorded at commit.** The body decides
    `const [alert] = useState(() => announcesStop(announced.ledger, status))`, a decision made at mount from a prop, and records
@@ -194,7 +197,7 @@ ledgers.
 - [BEH-QD-776](../behaviors/28-devtools-screens.md#beh-qd-776-a-stop-notices-box-derives-its-own-key-and-a-notice-passes-none),
   [BEH-QD-777](../behaviors/28-devtools-screens.md#beh-qd-777-a-box-decides-its-alert-as-it-mounts-from-the-committed-ledger-and-records-its-stop-at-commit-never-during-render),
   [BEH-QD-778](../behaviors/28-devtools-screens.md#beh-qd-778-the-ledger-transition-is-one-pure-function-a-new-stop-counts-once-and-a-recorded-stop-returns-the-same-ledger),
-  [BEH-QD-779](../behaviors/28-devtools-screens.md#beh-qd-779-each-feeds-ledger-is-react-state-held-above-the-screens-and-handed-from-the-hook-to-the-notice-to-the-box-as-one-value)
+  [BEH-QD-779](../behaviors/28-devtools-screens.md#beh-qd-779-each-feeds-ledger-is-react-state-held-above-the-screens-and-the-box-receives-the-hooks-announced-handle-by-identity)
   and [BEH-QD-780](../behaviors/28-devtools-screens.md#beh-qd-780-a-stop-no-box-has-shown-is-not-announced-and-it-alerts-on-the-first-screen-that-shows-it),
   which state it
 - [INV-QD-421](../invariants.md#inv-qd-421-a-stops-key-is-the-same-before-and-after-it-is-recorded-and-recording-a-recorded-stop-returns-the-same-ledger) and

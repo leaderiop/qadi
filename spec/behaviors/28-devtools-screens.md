@@ -4444,8 +4444,8 @@ REQUIREMENT: A notice MUST hand the box the notice props it was given, whole, an
 
 A component cannot set its own `key`, so `StoppedBox` is a wrapper that renders a module-private body keyed on
 `stoppedKey(notice.announced.ledger, notice.status)`, and the body holds everything else. The two notices
-(`TimelineNotice`, `DiagnosticsNotice`) read the ledger through no ref and hold no `Binding`: each arm takes the notice props
-the dock's hook returned and hands them on as the box's one `notice` prop, with the copy and the feed. A stop the ledger has
+(`TimelineNotice`, `DiagnosticsNotice`) read the ledger through no ref and hold no `Binding`: each arm takes the notice's props,
+the fields of the value the dock's hook returned, and hands them on as the box's one `notice` prop, with the copy and the feed. A stop the ledger has
 not recorded is keyed one above the ledger's count, and a recorded stop is keyed by the count it was recorded at, so the key
 moves only when the stop does ([INV-QD-421](../invariants.md#inv-qd-421-a-stops-key-is-the-same-before-and-after-it-is-recorded-and-recording-a-recorded-stop-returns-the-same-ledger)).
 `StopNoticeProps` keeps its name, and the two notices' prop types stay its aliases
@@ -4529,7 +4529,7 @@ is the same across the record, recording a recorded stop returns the same ledger
 and `packages/devtools/test/surface.tst.ts`, which refuses the ledger's names from both entries. Specified in ADR-QD-201
 (CCR-QD-480).
 
-## BEH-QD-779: Each feed's ledger is React state held above the screens, and handed from the hook to the notice to the box as one value
+## BEH-QD-779: Each feed's ledger is React state held above the screens, and the box receives the hook's announced handle by identity
 
 > **Decision:** [ADR-QD-201](../decisions/201-a-stop-notices-box-keys-itself-and-owns-the-announce-once-rule.md) ·
 > **Scope:** [ADR-QD-197](../decisions/197-a-configurable-value-one-questions-path-for-the-lens-and-one-stop-ledger.md) ·
@@ -4543,13 +4543,17 @@ const useStopNotice: <S>(status: S, onRestart: () => void) => StopNoticeProps<S>
 REQUIREMENT: Each feed's stop ledger MUST be held by React state the dock's frame owns, one per feed, so it outlives every
              screen, and a second stop of one feed MUST announce only its own notice again.
 REQUIREMENT: The ledger MUST be read and written through no ref and held at no module scope.
-REQUIREMENT: The hook, the notice and the box MUST share one value: the props the hook returns, whole, which MUST be the same
-             value across a render that changes nothing it holds and a new value for a new stop or a new restart.
+REQUIREMENT: The hook MUST return one value across a render that changes nothing it holds, and a new value for a new
+             stop or a new restart; the notice MUST hand the box the fields it was given, whole, and the box MUST
+             receive the hook's `announced` handle by identity.
 ```
 
 `useStopNotice` holds `useReducer(recordStop, noStops)` and returns a `useMemo` of `{ status, onRestart, announced: { ledger,
 record } }` keyed on the status, the feed's `restart`, the ledger and `record`. The box reads `announced.ledger` as a prop and
-calls `announced.record(status)` from its layout effect. The ledger is never inside a box or a screen, because every tab switch
+calls `announced.record(status)` from its layout effect. The props object itself is not that value: the dock spreads the
+hook's value into each notice, so the notice and the box receive a props object built for that render, and nothing keys on
+it. What holds across a render that changes nothing is the `announced` handle the box receives, its `record` and its ledger,
+and the box's effect is keyed on `record` and the status, never on the props object. The ledger is never inside a box or a screen, because every tab switch
 would announce again, and it is one per feed and never one for both. It records which stop was announced and never what a status
 says, so it is not a decision held outside an atom (AGENTS.md §13). The cost is one extra `DockFrame` pass per newly shown stop
 ([ADR-QD-201](../decisions/201-a-stop-notices-box-keys-itself-and-owns-the-announce-once-rule.md)).
