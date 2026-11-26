@@ -1,0 +1,12 @@
+
+> qadi-monorepo@0.4.0 circular /private/var/folders/vn/44p0pxgs4z98v7cl11l4_r4c0000gp/T/qd91/spike-b-double-prime
+> madge --circular --extensions ts,tsx packages/*/src
+
+Processed 250 files (872ms) (68 warnings)
+
+1) core/src/PortSpan.ts > core/src/PortSpanEncode.ts
+
+ ELIFECYCLE  Command failed with exit code 1.
+- Finding files
+✖ Found 1 circular dependency!
+exit: 1

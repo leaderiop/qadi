@@ -1,0 +1,22 @@
+
+exit: 0
+house-style:
+node:fs:624
+    return binding.readFileUtf8(path, stringToFlags(options.flag));
+                   ^
+
+Error: ENOENT: no such file or directory, open '/private/var/folders/vn/44p0pxgs4z98v7cl11l4_r4c0000gp/T/qd91/spike-f/packages/core/src/EvaluationSpan.ts'
+    at readFileSync (node:fs:624:20)
+    at read (file:///private/var/folders/vn/44p0pxgs4z98v7cl11l4_r4c0000gp/T/qd91/spike-f/scripts/check-house-style.mjs:2499:25)
+    at file:///private/var/folders/vn/44p0pxgs4z98v7cl11l4_r4c0000gp/T/qd91/spike-f/scripts/check-house-style.mjs:2500:3
+    at ModuleJob.run (node:internal/modules/esm/module_job:569:25)
+    at async node:internal/modules/esm/loader:650:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:105:5) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/private/var/folders/vn/44p0pxgs4z98v7cl11l4_r4c0000gp/T/qd91/spike-f/packages/core/src/EvaluationSpan.ts'
+}
+
+Node.js v26.13.0
+exit: 1
