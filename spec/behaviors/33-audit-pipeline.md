@@ -1525,6 +1525,13 @@ which is the discipline ADR-QD-190 gave the rows. The step's refusal is a union 
 to the caller's enum with no mapping. Neither enum nor either error class changes a tag, a member or a field, so the
 change is not Breaking.
 
+What holds which requirement. The member set, every tag and every field type are pinned by the type tests below, and a
+member that moves fails them. That `NowNotFinite` is declared once is not something a type pin can see, because
+`Data.TaggedEnum` maps the keys of the intersection and a second declaration with the same field type gives the
+identical union. It holds by construction, both unions being built from `NowRefusalCases`, and the change's own
+`admission-step` check (`89-check.mjs`, kept with its planning, not run by `pnpm check`) judges that the member key is
+declared in exactly one `packages/audit/src` file; past the change, a review keeps it.
+
 Pinned by `packages/audit/test/HostBatch.tst.ts`, which spells each union's members out independently of the source, asks
 for each union as its fragments plus its own members, asks the shared members to be one type, and asks that the
 `AdmittedRows` of the step is nominal, with a positive anchor (its `entries` are a list of rows) so that a collapse to

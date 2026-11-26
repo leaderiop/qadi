@@ -223,9 +223,10 @@ two of the direct rows, which assert that `verifiedArchiveFacts` never runs on r
   `SCHEMA_ERROR_BUDGET` is unmoved, no export is added or removed, and `spec/overview.md` and `AGENTS.md` are unchanged.
   The change is a `@qadi/audit` patch.
 - **`maxAgeMs` is read once.** The count was one read to check it plus one per row, and two for a refused value, and is one.
-- `HostBatch.ts` is inside `stryker.audit.mjs`'s glob. Its one surviving mutant, the `filter` over rows the check has
-  already refused holes from, is equivalent and recorded with its reason, and its one static mutant was examined by
-  hand with static mutants on and killed.
+- `HostBatch.ts` is inside `stryker.audit.mjs`'s glob. The change's own close run detected every valid mutant of it
+  (38 of 38, none surviving), and its one static mutant, the arrow of the row-type guard, and `CodecMade.ts`'s one, the
+  arrow of `isCodecMade`, were each run by hand with static mutants on and killed. That record is the change's, kept
+  with its planning, not a merge gate: `pnpm mutation` breaks only when the audit package as a whole scores below 80%.
 - **Deferred.** A `planPurge` `archive` that is not a `VerifiedArchive`, from a JavaScript caller, reaches
   `archive.holds` and throws when a row has expired. Refusing it needs a new `RetentionInputRefusal` member, which is
   Breaking, so it is left for a later audit of the Breaking changes.
@@ -253,9 +254,15 @@ two of the direct rows, which assert that `verifiedArchiveFacts` never runs on r
     step refuses`, one case per entry point.
   - `packages/audit/test/AuditArchive.test.ts`, held: the two success spans.
 - `pnpm test:tstyche`, `packages/audit/test/HostBatch.tst.ts`: each refusal union is its spelled members and its
-  fragments plus its own members, the shared members are one type, and `AdmittedRows` is nominal.
-- `pnpm mutation` (`stryker.audit.mjs`): `HostBatch.ts` has no open mutant but the recorded equivalent one, and no
-  touched file's score falls.
+  fragments plus its own members, the shared members are one type, and `AdmittedRows` is nominal. The pins hold the
+  member set, the tags and the field types. They do not hold that `NowNotFinite` is stated once: `Data.TaggedEnum`
+  maps the keys of the intersection, so a second declaration with the same field type gives the identical union and
+  passes every pin. That decision 6 holds by construction, because both unions are built from `NowRefusalCases`, and
+  it is judged by the change's own `admission-step` check (`89-check.mjs`, kept with its planning), which `pnpm check`
+  does not run; past the change, it is a rule a review keeps.
+- `pnpm mutation` (`stryker.audit.mjs`): the gate is the audit package's break threshold, 80% of its valid mutants as a
+  whole, not a floor per file. The change's close measured `HostBatch.ts` at 38 of 38 detected and every file it
+  touched at 100%, which is its own record, not what the gate checks.
 - `pnpm circular`, which finds no cycle from `HostBatch.ts`, `pnpm spec:api`, which finds no export moved, and
   `node scripts/check-house-style.mjs`.
 - The merge gate by command (`pnpm check`), never by number.
