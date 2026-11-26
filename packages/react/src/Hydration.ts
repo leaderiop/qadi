@@ -25,11 +25,11 @@ import type {
   DehydrateOptions,
   DehydratedDecisions,
   HydrateOptions,
+  HydrationTarget,
   InitialValues,
 } from "./HydrationEngine.ts";
 import { dehydrateWith } from "./HydrationEngine.ts";
 import type { DecisionEntry } from "./HydrationEvent.ts";
-import type { QadiAtoms } from "./QadiAtoms.ts";
 
 // Named explicitly rather than reached through the barrel: `DeveloperSignals.ts`
 // and `HydrationEngine.ts` stay out of it (AGENTS.md §9), and `.d.ts` emission has
@@ -82,13 +82,13 @@ export const dehydrateDecisions = (
  * earlier wrote, read until 0.11.0), is dropped whole as
  * `UnsupportedPayloadVersion` (ADR-QD-078).
  *
- * Delegates to {@link QadiAtoms.hydrate}, the capability the atom set closes over
- * its own seed atoms. An atom set that merely forwards `decision`
+ * Delegates to the target's `hydrate`, the capability an atom set closes over
+ * its own seed atoms. A target that merely forwards `decision` and `hydrate`
  * — a spread copy, a wrapper — therefore seeds the same questions its inner one
  * does, which is correct: its decision atoms are the real ones.
  */
 export const hydrateDecisions = (
-  atoms: QadiAtoms,
+  atoms: HydrationTarget,
   dehydrated: DehydratedDecisions,
   subject: AuthSubject,
   options?: HydrateOptions,

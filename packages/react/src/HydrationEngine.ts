@@ -539,6 +539,37 @@ export interface HydrateOptions {
   readonly onDropped?: HydrationDropReporter<unknown>;
 }
 
+/**
+ * Any value that can seed an atom set's questions: the capability
+ * `hydrateDecisions` calls.
+ *
+ * `QadiAtoms` extends it, so the signature is stated once. An atom set that
+ * forwards `hydrate` (a spread copy, a wrapper) is a target too. Package-private:
+ * the barrel names no seed slot (ADR-QD-039).
+ */
+export interface HydrationTarget {
+  /**
+   * Seeds this atom set from a server's dehydrated payload.
+   *
+   * The capability `hydrateDecisions` calls — **prefer `hydrateDecisions`**, which
+   * is the documented entry point and checks the payload the same way. It lives on
+   * the atom set because the seed atoms do: each is private to this closure,
+   * reachable by neither reflection nor import, which is what ADR-QD-039 actually
+   * requires (a consumer holding a seed atom could write an authorization decision
+   * straight into a registry, bypassing the subject check and the evaluator).
+   *
+   * Never throws, and drops what it cannot verify — see `hydrateDecisions`. A
+   * wrapper that forwards `decision` can forward this too, and a
+   * hand-built test double supplies its own: that is the caller's code, not a
+   * trust crossing.
+   */
+  readonly hydrate: (
+    dehydrated: DehydratedDecisions,
+    subject: AuthSubject,
+    options?: HydrateOptions,
+  ) => InitialValues;
+}
+
 /** What a hydration seeds, and the events it implies. */
 interface HydrationPlan {
   readonly initialValues: InitialValues;
