@@ -603,3 +603,101 @@ Each block below is written by `91-check.mjs variant`: the check ran inside a sc
 - seen failing: a value without hydrate is not a hydrate target
 - failing text: Error: Type '{ readonly decision: unknown; }' is assignable to type 'HydrationTarget | { readonly decision: unknown; }'.
 - failing text: Error: Type '{ readonly decision: unknown; }' is assignable to type 'HydrationTarget | { readonly decision: unknown; }'.
+
+## hydrate-probe-refusal
+- scratch: hydrate-widen at 3d38da3608
+- edit: hydrateDecisions' first parameter widened from HydrationTarget to object, its body casting to HydrationTarget
+- diff: 7030a58549c59e4074383436d31716cfeb8ac1e6306913ca2753be1383909852 (1 files, +2 -2)
+- run: package
+- exit: 1
+- failing text:   the consumer does not type-check against the shipped .d.ts:
+- failing text: .package-check/consumer.ts(152,3): error TS2578: Unused '@ts-expect-error' directive.
+- failing text: package-install: 1 failure(s) across 9 package(s).
+
+## hydrate-wrong-subject
+- scratch: hydrate-wrong-subject at 3d38da3608
+- edit: hydrateDecisions forwards a different subject id to the target's hydrate
+- diff: 93233336e2b045978b7af6966aeb2fb6c4d1ccbc37fb6cad8b20b021e4e002f4 (1 files, +1 -1)
+- run: vitest packages/react/test/Hydration.test.ts packages/react/test/HydrationPayload.test.ts packages/react/test/HydrationCounts.test.ts
+- exit: 1
+- seen failing: hydrateDecisions reports a malformed non-policy field under its own reason
+- seen failing: hydrateDecisions refuses an entry carrying an excess, unrecognized field rather than silently accepting it
+- seen failing: hydrateDecisions refuses a policy carrying an excess, unrecognized field rather than silently accepting it
+- seen failing: hydrateDecisions drops an entry nested past MAX_DECODE_DEPTH rather than raising a raw RangeError
+- seen failing: hydrateDecisions still seeds a policy nested well within MAX_DECODE_DEPTH
+- seen failing: hydrateDecisions a spread copy of the atom set seeds the real questions
+- seen failing: hydrateDecisions keeps a seed across a collection that lands before the first read
+- seen failing: hydrateDecisions still covers the window before this client can answer
+- seen failing: hydrateDecisions keeps the server's evaluation id, for correlation
+- seen failing: hydrateDecisions uses the disclosed trace when one was shipped
+- seen failing: hydrateDecisions seeds an allow that restricts nothing
+- seen failing: hydrateDecisions tolerates a hand-crafted payload missing everything optional
+- seen failing: hydrateDecisions drops a hand-crafted allow missing its obligations, which version 2 requires
+- seen failing: hydration mismatch REPORTS a server allow this client denies
+- seen failing: hydration mismatch carries the client's reason, which is the diagnosis
+- seen failing: hydration mismatch reports the reverse direction too, with no reason to give
+- seen failing: hydration mismatch reports ONCE PER QUESTION, not once per re-evaluation
+- seen failing: hydration mismatch reports once per REGISTRY, not once per atom set (tickets 140, 142)
+- seen failing: hydration mismatch warns on the console when no reporter is supplied
+- seen failing: hydration mismatch an explicit reporter still runs in a production build
+- seen failing: hydration mismatch reports a resource-scoped disagreement with its resource
+- seen failing: a re-check continues the server's evaluation carries the seeded evaluation id into the client's own answer
+- seen failing: a re-check that settles asynchronously REPORTS a server allow this client denies
+- seen failing: counting what crosses the network counts the entries a client seeds
+- seen failing: counting what crosses the network ACCOUNTS FOR EVERY ENTRY IN A PAYLOAD hydrateDecisions IS HANDED
+- seen failing: a payload that seeds nothing says so announces entries whose policy did not decode
+- seen failing: a payload that seeds nothing says so still seeds the entries that did decode
+- seen failing: a payload that seeds nothing says so counts each refusal against its own reason
+- seen failing: a payload that seeds nothing says so counts an entry nested past the structural depth guard against its own reason
+- seen failing: a payload that seeds nothing says so warns on the console when no reporter is supplied
+- seen failing: a payload that seeds nothing says so a refused payload says the payload was refused, not that zero decisions were lost
+- seen failing: a payload that seeds nothing says so counts a refusal even where nothing reports it
+- seen failing: counting re-checks counts a seeded question this client answers for itself
+- seen failing: counting re-checks counts a disagreement against both counters, so the pair is a rate
+- seen failing: counting re-checks counts an agreement as a re-check and not as a mismatch
+- seen failing: counting re-checks counts once per question, however often it is read
+- seen failing: counting re-checks counts with no mismatch reporter wired
+- seen failing: what a seed carries is what the server decided HasPermission survives dehydrate, JSON and hydrate
+- seen failing: what a seed carries is what the server decided HasPermission with fields survives dehydrate, JSON and hydrate
+- seen failing: what a seed carries is what the server decided HasRole (denied) survives dehydrate, JSON and hydrate
+- seen failing: what a seed carries is what the server decided AllOf survives dehydrate, JSON and hydrate
+- seen failing: what a seed carries is what the server decided AnyOf survives dehydrate, JSON and hydrate
+- seen failing: what a seed carries is what the server decided Not survives dehydrate, JSON and hydrate
+- seen failing: what a seed carries is what the server decided Labeled survives dehydrate, JSON and hydrate
+- seen failing: what a seed carries is what the server decided Obliged survives dehydrate, JSON and hydrate
+- seen failing: what a seed carries is what the server decided a Disclosed trace naming another root than the entry's policy is dropped as malformed
+- seen failing: a Disclosed seed that contradicts its own trace is dropped (ARCH-32) H1 an Allow whose Disclosed trace says allowed:false
+- seen failing: a Disclosed seed that contradicts its own trace is dropped (ARCH-32) H2 an Allow showing every field whose Disclosed trace restricts to [title]
+- seen failing: a Disclosed seed that contradicts its own trace is dropped (ARCH-32) H3 a Deny whose Disclosed trace says allowed:true
+- seen failing: a Disclosed seed that contradicts its own trace is dropped (ARCH-32) H4 a Deny whose Disclosed reason is not the trace's
+- seen failing: a Disclosed seed that contradicts its own trace is dropped (ARCH-32) an evaluated, disclosed entry whose trace root is changed in one duplicated field is dropped
+- seen failing: a Disclosed seed that contradicts its own trace is dropped (ARCH-32) an evaluated decision, disclosed, still seeds (the control)
+- failing text: AssertionError: expected "vi.fn()" to be called with arguments: [ ObjectContaining{…} ]
+- failing text: AssertionError: expected "vi.fn()" to be called with arguments: [ ObjectContaining{…} ]
+- failing text: AssertionError: expected "vi.fn()" to be called with arguments: [ ObjectContaining{…} ]
+
+## dehydrate-drops-options
+- scratch: dehydrate-drops-options at 3d38da3608
+- edit: dehydrateDecisions calls dehydrateWith(entries) without its options
+- diff: 9a82abb0c382d514a74fda448418940ff743b694e53465a86178fab61c1bd71d (1 files, +1 -1)
+- run: vitest packages/react/test/Hydration.test.ts packages/react/test/HydrationPayload.test.ts packages/react/test/HydrationCounts.test.ts packages/react/test/DecisionOutcome.test.ts
+- exit: 1
+- seen failing: dehydrateDecisions discloses the trace only when asked
+- seen failing: dehydrateDecisions SAYS WHAT IT DROPPED, rather than shipping a short payload in silence
+- seen failing: dehydrateDecisions says nothing in a production build unless a reporter was supplied
+- seen failing: hydrateDecisions uses the disclosed trace when one was shipped
+- seen failing: what a seed carries is what the server decided HasPermission survives dehydrate, JSON and hydrate
+- seen failing: what a seed carries is what the server decided HasPermission with fields survives dehydrate, JSON and hydrate
+- seen failing: what a seed carries is what the server decided HasRole (denied) survives dehydrate, JSON and hydrate
+- seen failing: what a seed carries is what the server decided AllOf survives dehydrate, JSON and hydrate
+- seen failing: what a seed carries is what the server decided AnyOf survives dehydrate, JSON and hydrate
+- seen failing: what a seed carries is what the server decided Not survives dehydrate, JSON and hydrate
+- seen failing: what a seed carries is what the server decided Labeled survives dehydrate, JSON and hydrate
+- seen failing: what a seed carries is what the server decided Obliged survives dehydrate, JSON and hydrate
+- seen failing: what a seed carries is what the server decided a Disclosed trace naming another root than the entry's policy is dropped as malformed
+- seen failing: a Disclosed seed that contradicts its own trace is dropped (ARCH-32) an evaluated, disclosed entry whose trace root is changed in one duplicated field is dropped
+- seen failing: dehydrateDecisions' output is pinned byte for byte (ARCH-51) withholds the trace and the reason by default
+- seen failing: dehydrateDecisions' output is pinned byte for byte (ARCH-51) discloses the trace and the reason under includeTrace
+- failing text: AssertionError: expected 'Withheld' to be 'Disclosed' // Object.is equality
+- failing text: AssertionError: expected [] to have a length of 1 but got +0
+- failing text: AssertionError: expected [] to have a length of 1 but got +0
