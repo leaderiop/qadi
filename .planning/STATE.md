@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 91
 current_phase_name: Named barrels, and visibility-only files folded away
 status: executing
-stopped_at: Completed 91-14-PLAN.md
-last_updated: "2026-11-26T19:38:58.584Z"
+stopped_at: Completed 91-15-PLAN.md
+last_updated: "2026-11-26T19:47:34.831Z"
 last_activity: 2026-11-26
 last_activity_desc: Phase 90 complete, transitioned to Phase 91
-state_head: 4b2fbffbabc0b5212fc8060d11ab21a28096bbfd
+state_head: 3870cf5a3eae5baaca48663612c490de31b488a0
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 88
-  completed_plans: 81
+  completed_plans: 82
   percent: 86
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-91 (Named barrels, and visibility-only files folded away) — EXECUTING
-Plan: 15 of 21
+Plan: 16 of 21
 Status: Ready to execute
 Last activity: 2026-11-26 — Phase 90 complete, transitioned to Phase 91
 
@@ -737,6 +737,7 @@ Progress: [█████████░] 86%
 | Phase QD-91 P12 | 30 min | 3 tasks | 10 files |
 | Phase QD-91 P13 | 60 min | 3 tasks | 15 files |
 | Phase QD-91 P14 | 25 min | 2 tasks | 2 files |
+| Phase QD-91 P15 | 40 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -1321,6 +1322,7 @@ Progress: [█████████░] 86%
 - [Phase QD-91]: 91-12: the sequence check's disclaimer is verifySequenceIntegrity's doc in ArchiveFacts.ts; the audit barrel names the two public names there
 - [Phase QD-91]: Plan 13: hydrateDecisions takes a package-private HydrationTarget that QadiAtoms extends, so hydrate's signature is stated once and Hydration.ts folds into HydrationEngine.ts without a cycle
 - [Phase QD-91]: 91-14: the hydrate probe is plain consumer statements in gate 14's fixture; the probe guard reads only the three probe lists, so no list entry was added
+- [Phase QD-91]: 91-15: a named-barrel group counts as inside the package when its specifier starts with ./ or ../ (the devtools react barrel re-exports from ../model); an unlisted index with a relative named group is refused as an unlisted or mixed named barrel; decided autonomously
 
 ### Pending Todos
 
@@ -1408,8 +1410,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-26T19:38:58.288Z
-Stopped at: Completed 91-14-PLAN.md
+Last session: 2026-11-26T19:47:34.535Z
+Stopped at: Completed 91-15-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
