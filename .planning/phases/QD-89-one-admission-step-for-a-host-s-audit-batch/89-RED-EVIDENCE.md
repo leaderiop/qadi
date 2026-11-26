@@ -446,3 +446,14 @@ The base is the one `89-mutation-base.json` records (`phase_base` 8ee14f6f703f31
   - failed: verifiedArchiveFacts takes only admitted rows
 - variant V6: `declare private readonly nominal: never` removed from `AdmittedRows`
   - failed: admitted rows are nominal
+
+## 89-08 the per-entry-point rows
+
+- failed (writer-rows-first): archiveAuditTrail refuses each batch as the admission step refuses it
+  (scratch edit: archiveAuditTrail calls admitRows(entries) and fails on its refusal before admitBatch; 4 row(s) failed under it)
+- failed (verify-skips-holes): verifySequenceIntegrity refuses each rows list as the admission step refuses it
+  (scratch edit: verifySequenceIntegrity admits entries with the holes filtered out first; 1 row(s) failed under it)
+- failed (retention-maxage-first): planRetention refuses each batch as the admission step refuses it
+  (scratch edit: planRetention checks maxAgeOf(policy) and fails on it before admitBatch; 1 row(s) failed under it)
+- failed (purge-maxage-first): planPurge refuses each batch as the admission step refuses it
+  (scratch edit: planPurge checks maxAgeOf(policy) and fails on it before admitBatch; 1 row(s) failed under it)

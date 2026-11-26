@@ -22,9 +22,11 @@ import { ArchiveInputRefusal, archiveAuditTrail, readAuditArchive } from "../src
 import type { ArchivalOptions, KeyMaterial } from "../src/AuditArchive.ts";
 import { decodeAuditEntry, encodeAuditEntry } from "../src/AuditEntry.ts";
 import type { AuditEntry } from "../src/AuditEntry.ts";
+import { admitBatch, admitRows } from "../src/HostBatch.ts";
 import { RetentionInputRefusal, planPurge, planRetention } from "../src/Retention.ts";
 import { verifySequenceIntegrity } from "../src/SequenceIntegrity.ts";
 import { decisionRecord } from "./helpers.ts";
+import { planBatches, rowsLists, writerBatches } from "./hostBatchFaults.ts";
 
 const codecRow = (evaluationId: string): AuditEntry =>
   Effect.runSync(encodeAuditEntry(decisionRecord({ evaluationId })));
@@ -418,6 +420,58 @@ describe("archiveAuditTrail refuses a keyMaterial its reader would refuse", () =
       const stored = JSON.parse(JSON.stringify(archive));
       const read = Result.getOrThrow(readAuditArchive(stored));
       assert.deepStrictEqual(read.keyMaterial, keyMaterial.map(() => key));
+    }
+  });
+});
+
+describe("each function that takes a batch refuses what the admission step refuses", () => {
+  /** A refusal as its members, so two refusals are equal when they say the same thing. */
+  const members = (refusal: object) => ({ ...refusal });
+  const archive = Result.getOrThrow(
+    readAuditArchive(JSON.parse(JSON.stringify(Effect.runSync(archiveAuditTrail([good], 0))))),
+  );
+
+  it("archiveAuditTrail refuses each batch as the admission step refuses it", () => {
+    for (const { name, now, keyMaterial, terms, entries } of writerBatches) {
+      const stepped = admitBatch({ now, terms: () => terms, entries });
+      const written = Effect.runSync(
+        Effect.result(archiveAuditTrail(entries, now, keyMaterial === undefined ? undefined : { keyMaterial })),
+      );
+      const refusal =
+        Result.isFailure(written) && written.failure._tag === "ArchiveInputInvalid"
+          ? members(written.failure.refusal)
+          : undefined;
+      assert.deepStrictEqual(refusal, Result.isFailure(stepped) ? members(stepped.failure) : undefined, name);
+    }
+  });
+
+  it("verifySequenceIntegrity refuses each rows list as the admission step refuses it", () => {
+    for (const { name, entries } of rowsLists) {
+      const stepped = admitRows(entries);
+      const verified = Effect.runSync(Effect.result(verifySequenceIntegrity(entries)));
+      const refusal =
+        Result.isFailure(verified) && verified.failure._tag === "ArchiveInputInvalid"
+          ? members(verified.failure.refusal)
+          : undefined;
+      assert.deepStrictEqual(refusal, Result.isFailure(stepped) ? members(stepped.failure) : undefined, name);
+    }
+  });
+
+  it("planRetention refuses each batch as the admission step refuses it", () => {
+    for (const { name, now, policy, terms, entries } of planBatches) {
+      const stepped = admitBatch({ now, terms: () => terms, entries });
+      const planned = planRetention(entries, policy, now);
+      const refusal = Result.isFailure(planned) ? members(planned.failure.refusal) : undefined;
+      assert.deepStrictEqual(refusal, Result.isFailure(stepped) ? members(stepped.failure) : undefined, name);
+    }
+  });
+
+  it("planPurge refuses each batch as the admission step refuses it", () => {
+    for (const { name, now, policy, terms, entries } of planBatches) {
+      const stepped = admitBatch({ now, terms: () => terms, entries });
+      const planned = planPurge(entries, policy, now, archive);
+      const refusal = Result.isFailure(planned) ? members(planned.failure.refusal) : undefined;
+      assert.deepStrictEqual(refusal, Result.isFailure(stepped) ? members(stepped.failure) : undefined, name);
     }
   });
 });
