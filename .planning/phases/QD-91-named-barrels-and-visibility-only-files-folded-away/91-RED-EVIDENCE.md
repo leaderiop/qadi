@@ -543,3 +543,20 @@ Each block below is written by `91-check.mjs variant`: the check ran inside a sc
 - failing text: packages/core/src/PortSpanEncode.ts:273  [span-key-source] mentions the span key `qadi.subject_id`; read it through EvaluationSpan.ts (ADR-QD-188).
 - failing text:     ...{ subjectId: "qadi.subject_id" },
 - failing text: 1 house-style violation(s). See AGENTS.md.
+
+## gate-collision-ignored
+- scratch: gate-collision at 45e366ac6d
+- edit: makeGateRegistry in packages/react/src/GateWriter.ts passes undefined to buildGateRegistry instead of the reporter resolved under onIdCollision
+- diff: a2a819becbf9977ea87018ed06cc6d4b3b8f1249681b532f5d998d42f5f64e3f (1 files, +1 -3)
+- run: vitest packages/react/test/DeveloperSignals.test.ts packages/react/test/GateRegistry.store.test.ts packages/react/test/GateWriter.reconcile.test.ts packages/react/test/DeveloperSignalReporters.test.tsx
+- exit: 1
+- seen failing: makeGateRegistry: onIdCollision three registrations of one id with no reporter warn once in development, in the exact words
+- seen failing: when each reporter is resolved a registry built in development keeps its console default after the environment turns to production
+- seen failing: scope and collisions disambiguates a colliding id and reports it once per id
+- seen failing: scope and collisions a registry built with no options warns once per colliding id in development
+- seen failing: scope and collisions says nothing in production unless onIdCollision is supplied
+- seen failing: a throwing collision reporter is named by the option it was passed through a throwing onIdCollision on makeGateRegistry is named onIdCollision in development
+- seen failing: a throwing collision reporter is named by the option it was passed through a throwing onIdCollision on makeGateRegistry is named onIdCollision in production
+- failing text: AssertionError: expected [] to deeply equal [ Array(1) ]
+- failing text: AssertionError: expected [] to deeply equal [ Array(1) ]
+- failing text: AssertionError: expected [] to deeply equal [ 'x' ]
