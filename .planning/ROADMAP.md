@@ -505,7 +505,7 @@ Order: the dock model's hydration row (85), the provider's lifetime owner (86), 
 - [x] **Phase 86: `QadiProvider`'s registry lifetime has a React-free owner** - Create, seed, subject write, recycle and the lease live in one headless module tested with an injected defer; the component keeps one ref and forwards (ARCH-133, react) (completed 2026-11-25)
 - [x] **Phase 87: One scoped run that states its stop** - Publish-then-fork, the stop rule, `restart`, the closed guard and the configure prologue are stated once above `SupersedingRun`; a dying simulation run reports the same stop text as the feeds (ARCH-134, devtools; opens with a RED test and a spike) (completed 2026-11-25)
 - [x] **Phase 88: `StoppedBox` keys itself and owns the announce-once rule** - Callers stop computing `stoppedKey` from a ref during render; the ledger transition is a pure function, decided at mount and recorded at commit (ARCH-135, devtools react) (completed 2026-11-26)
-- [ ] **Phase 89: One admission step for a host's audit batch** - `now`, rows and the caller's terms are checked once for `archiveAuditTrail`, `planRetention`, `verifiedArchiveFacts` and `planPurge`; `NowNotFinite` is stated once (ARCH-136, audit)
+- [x] **Phase 89: One admission step for a host's audit batch** - `now`, rows and the caller's terms are checked once for `archiveAuditTrail`, `planRetention`, `verifiedArchiveFacts` and `planPurge`; `NowNotFinite` is stated once (ARCH-136, audit) (completed 2026-11-26)
 - [ ] **Phase 90: The remaining per-port facts live on the port description** - Span name, serving shape and fixture data type move onto the description as a spike allows, `PortName` stays a leaf, and `readScoped` routes off the `LEAF_NEEDS` row (ARCH-137, core; opens with a spike)
 - [ ] **Phase 91: Named barrels, and visibility-only files folded away** - `@qadi/core`, `@qadi/react` and `@qadi/audit` name their exports per module, and each visibility-only file folds into its owner only where `pnpm circular` proves no cycle returns (ARCH-138, core / react / audit; opens with a surface-diff tool and a madge simulation)
 
@@ -668,7 +668,7 @@ Plans:
   5. ADR-QD-202 (or ADR-QD-190 amended with 202 named unused), BEH-QD-722 and the invariant and traceability rows record the step (ADMIT-05).
 
 **Planning notes**: Standard patterns (precedent ADR-QD-190's `RowsRefusalCases`). The discuss step decides a brand (admission before the `qadi.audit.verifySequenceIntegrity` span, so a refused public verify no longer opens it) vs a plain refusal-or-undefined function with spans unchanged; the tie-break is spans unchanged unless the change is pinned and recorded. Constraints that are findings: the order is per entry point, not one flat "now, rows, then terms" (key material against rows and max age against rows would change which refusal wins); no `Effect.fn` admission (it adds a span and makes `planRetention` effectful); the step is not exported (gate 13); keep `Number.isFinite` (not `isFinite`), `-0`, `+Infinity` `maxAgeMs` and key material read once; admission stays out of `ArchiveFacts.ts`, which Phase 91 folds `SequenceIntegrity.ts` into. Stryker: `stryker.audit.mjs` (a glob); the new file is under the floor from day one; record 89's post-review score as 91's base for `ArchiveFacts.ts`.
-**Plans**: 11/11 plans executed
+**Plans**: 11/11 plans complete
 
 Plans:
 - [x] 89-01 (W1): The phase base and the audit mutation base recorded first; the characterisation of which refusal wins, the spans each outcome opens and what a refusal leaves unread, green on the base; the read-once defects (a flipping row list, `maxAgeMs` read more than once, a `null` or `undefined` policy) committed as rows that fail on the base
@@ -742,6 +742,6 @@ Phases execute in numeric order: 85 → 86 → 87 → 88 → 89 → 90 → 91
 | 86. `QadiProvider`'s registry lifetime has a React-free owner | 8/8 | Complete    | 2026-11-25 |
 | 87. One scoped run that states its stop | 11/11 | Complete    | 2026-11-25 |
 | 88. `StoppedBox` keys itself and owns the announce-once rule | 10/10 | Complete    | 2026-11-26 |
-| 89. One admission step for a host's audit batch | 11/11 | In Progress | - |
+| 89. One admission step for a host's audit batch | 11/11 | Complete    | 2026-11-26 |
 | 90. The remaining per-port facts live on the port description | 0/TBD | Not started | - |
 | 91. Named barrels, and visibility-only files folded away | 0/TBD | Not started | - |

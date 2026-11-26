@@ -40,11 +40,11 @@
 
 ### One admission step for a host's audit batch (Phase 89, ARCH-136, audit)
 
-- [ ] **ADMIT-01**: A characterisation written on the base pins, for each entry point (`archiveAuditTrail`, `planRetention`, `planPurge`, `verifiedArchiveFacts`, the public verify), which refusal wins for every pair of faults, and the spans each opens on a refusal.
-- [ ] **ADMIT-02**: One package-private admission step checks a host batch (`now`, rows, the terms each caller adds) in the order the characterisation pins, and every entry point calls it first. It is a plain function (no new span); `CodecMade.ts` stays an import-free leaf.
-- [ ] **ADMIT-03**: `NowNotFinite` is stated once (a fragment shared into both public refusal unions, as `RowsRefusalCases` is); both unions, both error classes, every tag and member are unchanged (no Breaking change, `SCHEMA_ERROR_BUDGET` stays 12), and a type pin proves each union equals its fragments plus its own members.
-- [ ] **ADMIT-04**: The check order is tested once at the admission step; `ForeignRows.test.ts` keeps one case per entry point proving it calls the step, rather than re-testing the order.
-- [ ] **ADMIT-05**: ADR-QD-202 records the step (or ADR-QD-190 is amended and 202 named unused); BEH-QD-722 and INV/traceability move with it.
+- [x] **ADMIT-01**: A characterisation written on the base pins, for each entry point (`archiveAuditTrail`, `planRetention`, `planPurge`, `verifiedArchiveFacts`, the public verify), which refusal wins for every pair of faults, and the spans each opens on a refusal.
+- [x] **ADMIT-02**: One package-private admission step checks a host batch (`now`, rows, the terms each caller adds) in the order the characterisation pins, and every entry point calls it first. It is a plain function (no new span); `CodecMade.ts` stays an import-free leaf.
+- [x] **ADMIT-03**: `NowNotFinite` is stated once (a fragment shared into both public refusal unions, as `RowsRefusalCases` is); both unions, both error classes, every tag and member are unchanged (no Breaking change, `SCHEMA_ERROR_BUDGET` stays 12), and a type pin proves each union equals its fragments plus its own members.
+- [x] **ADMIT-04**: The check order is tested once at the admission step; `ForeignRows.test.ts` keeps one case per entry point proving it calls the step, rather than re-testing the order.
+- [x] **ADMIT-05**: ADR-QD-202 records the step (or ADR-QD-190 is amended and 202 named unused); BEH-QD-722 and INV/traceability move with it.
 
 ### The remaining per-port facts live on the port description (Phase 90, ARCH-137, core)
 
@@ -120,11 +120,11 @@ Which phases cover which requirements. Each phase-specific requirement maps to e
 | SBOX-02 | Phase 88 | Complete |
 | SBOX-03 | Phase 88 | Complete |
 | SBOX-04 | Phase 88 | Complete |
-| ADMIT-01 | Phase 89 | Pending |
-| ADMIT-02 | Phase 89 | Pending |
-| ADMIT-03 | Phase 89 | Pending |
-| ADMIT-04 | Phase 89 | Pending |
-| ADMIT-05 | Phase 89 | Pending |
+| ADMIT-01 | Phase 89 | Complete |
+| ADMIT-02 | Phase 89 | Complete |
+| ADMIT-03 | Phase 89 | Complete |
+| ADMIT-04 | Phase 89 | Complete |
+| ADMIT-05 | Phase 89 | Complete |
 | PFACT-01 | Phase 90 | Pending |
 | PFACT-02 | Phase 90 | Pending |
 | PFACT-03 | Phase 90 | Pending |

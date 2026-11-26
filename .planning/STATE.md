@@ -2,20 +2,20 @@
 gsd_state_version: "1.0"
 milestone: v1.11
 milestone_name: Arch Wave 16
-current_phase: 89
-current_phase_name: One admission step for a host's audit batch
-status: verifying
-stopped_at: Completed QD-89-11-PLAN.md
-last_updated: "2026-11-26T04:18:18.402Z"
+current_phase: 90
+current_phase_name: The remaining per-port facts live on the port description
+status: planning
+stopped_at: Phase 89 complete, ready to plan Phase 90
+last_updated: "2026-11-26T05:21:18.022Z"
 last_activity: 2026-11-26
-last_activity_desc: Phase 88 complete, transitioned to Phase 89
-state_head: 5b734b657d8729a067c14c762d9fff94b7e7568b
+last_activity_desc: Phase 89 complete, transitioned to Phase 90
+state_head: ddab6ff2d8df3cfd8bd7c12c1f7cfe88a17a3a52
 progress:
   total_phases: 7
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 51
   completed_plans: 51
-  percent: 57
+  percent: 71
 ---
 
 # Project State
@@ -25,22 +25,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-25)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 89 — One admission step for a host's audit batch
+**Current focus:** Phase 90 — The remaining per-port facts live on the port description
 
 ## Current Position
 
-Phase: 89 (One admission step for a host's audit batch) — EXECUTING
-Plan: 11 of 11
-Status: Phase complete — ready for verification
-Last activity: 2026-11-26 — Phase 88 complete, transitioned to Phase 89
+Phase: 90 — The remaining per-port facts live on the port description
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-11-26 — Phase 89 complete, transitioned to Phase 90
 
-Progress: [██████░░░░] 57%
+Progress: [███████░░░] 71%
 
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 575
+- Total plans completed: 586
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -127,6 +127,7 @@ Progress: [██████░░░░] 57%
 | 86 | 8 | - | - |
 | 87 | 11 | - | - |
 | 88 | 10 | - | - |
+| 89 | 11 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -1343,7 +1344,7 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 ## Session Continuity
 
 Last session: 2026-11-26T04:18:18.282Z
-Stopped at: Completed QD-89-11-PLAN.md
+Stopped at: Phase 89 complete, ready to plan Phase 90
 Resume file: None
 
 ## Operator Next Steps
