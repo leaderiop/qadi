@@ -25,8 +25,9 @@ import * as Option from "effect/Option";
 import * as Result from "effect/Result";
 import type { VerifiedArchive } from "./AuditArchive.ts";
 import type { AuditEntry } from "./AuditEntry.ts";
-import { rowsRefusal } from "./CodecMade.ts";
 import type { RowsRefusalCases } from "./CodecMade.ts";
+import { admitBatch } from "./HostBatch.ts";
+import type { AdmittedBatch, NowRefusalCases } from "./HostBatch.ts";
 
 export interface RetentionPolicy {
   /** An entry older than this, relative to `now`, is past its age. */
@@ -36,7 +37,8 @@ export interface RetentionPolicy {
 /**
  * Why `planRetention` or `planPurge` refused its input, one member per case.
  *
- * - `NowNotFinite`: `now` is not a finite number, and `value` is the value given.
+ * - `NowNotFinite`: `now` is not a finite number, and `value` is the value given
+ *   (`HostBatch.ts`, the one step that admits a batch).
  * - `MaxAgeInvalid`: `maxAgeMs` is `NaN` or negative, and `value` is the value given.
  * - `EntriesNotAList`: `entries` is not a list, and `value` is the value given.
  * - `EntryNotMadeByCodec`: the entry at `index`, the first, is not a row the codec made
@@ -44,13 +46,14 @@ export interface RetentionPolicy {
  *
  * `unknown` appears only where a member holds a value the caller gave, and `index` is
  * always a number. The last two members are the ones `ArchiveInputRefusal`
- * (`ArchiveFacts.ts`) has too, stated once in `CodecMade.ts`.
+ * (`ArchiveFacts.ts`) has too, stated once in `CodecMade.ts`, and `NowNotFinite` is the
+ * fragment `ArchiveInputRefusal` shares, stated once in `HostBatch.ts`.
  */
 export type RetentionInputRefusal = Data.TaggedEnum<
-  RowsRefusalCases & {
-    NowNotFinite: { readonly value: unknown };
-    MaxAgeInvalid: { readonly value: unknown };
-  }
+  RowsRefusalCases &
+    NowRefusalCases & {
+      MaxAgeInvalid: { readonly value: unknown };
+    }
 >;
 
 /** Constructors and guards for {@link RetentionInputRefusal}. */
@@ -81,16 +84,48 @@ export interface RetentionPlan {
 }
 
 /**
+ * Reads the policy's age limit once, and refuses one that is not a number from zero up.
+ *
+ * `+Infinity`, `0` and `-0` are valid. A `null` or `undefined` policy, and one with no limit, is refused with
+ * `value` `undefined`, so a host's missing policy is a typed refusal rather than a thrown read.
+ */
+const maxAgeOf = (
+  policy: RetentionPolicy,
+): Result.Result<number, ReturnType<typeof RetentionInputRefusal.MaxAgeInvalid>> => {
+  const value = policy?.maxAgeMs;
+  return value >= 0
+    ? Result.succeed(value)
+    : Result.fail(RetentionInputRefusal.MaxAgeInvalid({ value }));
+};
+
+/**
+ * Splits an admitted batch by the age rule: a row with `now - at > maxAgeMs` is expired, the rest are retained.
+ *
+ * The limit is the number the terms check admitted, never the policy read a second time.
+ */
+const ageRule = (batch: AdmittedBatch<number>): RetentionPlan => {
+  const retained: Array<AuditEntry> = [];
+  const expired: Array<AuditEntry> = [];
+  for (const entry of batch.rows.entries) {
+    if (batch.now - entry.record.at > batch.terms) {
+      expired.push(entry);
+    } else {
+      retained.push(entry);
+    }
+  }
+  return { retained, expired };
+};
+
+/**
  * The one age rule: which rows are past `policy`'s limit.
  *
- * Refuses `RetentionInputInvalid` when `now` is not finite (`NowNotFinite`) or `maxAgeMs`
- * is `NaN` or negative (`MaxAgeInvalid`; `+Infinity` is valid and means "retain
- * forever"), and then when `entries` is not a list (`EntriesNotAList`) or an entry is not
- * a row the codec made (`EntryNotMadeByCodec`, the index of the first). A store client's
- * `any` and a JavaScript caller's literal pass the type; a row of unknown shape has no
- * age to read. Otherwise one pass: a row with
- * `now - at > maxAgeMs` is expired and the rest are retained. Use it to see what
- * would expire before an archive exists; to select rows for deletion use
+ * The step in `HostBatch.ts` admits the batch first and each input is read once, so the plan reads the number the
+ * limit check admitted and the rows it checked. Refuses `RetentionInputInvalid` when `now` is not finite
+ * (`NowNotFinite`), `maxAgeMs` is `NaN` or negative or absent (`MaxAgeInvalid`; `+Infinity` is valid and means
+ * "retain forever"), `entries` is not a list (`EntriesNotAList`) or an entry is not a row the codec made
+ * (`EntryNotMadeByCodec`, the index of the first). A store client's `any` and a JavaScript caller's literal pass the
+ * type; a row of unknown shape has no age to read. Otherwise one pass: a row with `now - at > maxAgeMs` is expired and
+ * the rest are retained. Use it to see what would expire before an archive exists; to select rows for deletion use
  * {@link planPurge}, which needs the archive.
  */
 export const planRetention = (
@@ -98,28 +133,11 @@ export const planRetention = (
   policy: RetentionPolicy,
   now: number,
 ): Result.Result<RetentionPlan, RetentionInputInvalid> => {
-  if (!Number.isFinite(now)) {
-    const refusal = RetentionInputRefusal.NowNotFinite({ value: now });
-    return Result.fail(new RetentionInputInvalid({ refusal }));
+  const admitted = admitBatch({ now, terms: () => maxAgeOf(policy), entries });
+  if (Result.isFailure(admitted)) {
+    return Result.fail(new RetentionInputInvalid({ refusal: admitted.failure }));
   }
-  if (!(policy.maxAgeMs >= 0)) {
-    const refusal = RetentionInputRefusal.MaxAgeInvalid({ value: policy.maxAgeMs });
-    return Result.fail(new RetentionInputInvalid({ refusal }));
-  }
-  const refusal = rowsRefusal(entries);
-  if (refusal !== undefined) {
-    return Result.fail(new RetentionInputInvalid({ refusal }));
-  }
-  const retained: Array<AuditEntry> = [];
-  const expired: Array<AuditEntry> = [];
-  for (const entry of entries) {
-    if (now - entry.record.at > policy.maxAgeMs) {
-      expired.push(entry);
-    } else {
-      retained.push(entry);
-    }
-  }
-  return Result.succeed({ retained, expired });
+  return Result.succeed(ageRule(admitted.success));
 };
 
 /**
