@@ -378,3 +378,32 @@ Each block below is written by `91-check.mjs variant`: the check ran inside a sc
 - failing text: spec/process/definitions-of-done.md  [missing] `pnpm check` runs `node scripts/surface-diff.mjs --self-test` as step 27 and the table stops at 26.
 - failing text: README.md  [count] says "all twenty-six gates" and `pnpm check` runs 27.
 - failing text: 2 merge-gate drift(s). `pnpm check` and spec/process/definitions-of-done.md are one thing described twice.
+
+## values-core-type-only
+- scratch: v-core at 02009ea482
+- edit: packages/core/src/index.ts: export * from "./Errors.ts" replaced by a named list of its values without AccessDenied, and export type { AccessDenied } from "./Errors.ts"
+- diff: 9bacb86091e2e4ca796cc87ea3a29075646fd8ac1d80a0637fd90132d215c39f (1 files, +2 -1)
+- run: vitest packages/core/test/surface.test.ts
+- exit: 1
+- seen failing: @qadi/core's root exports exactly these runtime values
+- failing text: AssertionError: expected [ 'AccessDeniedPublic', …(340) ] to deeply equal [ 'AccessDenied', …(341) ]
+
+## values-react-type-only
+- scratch: v-react at 02009ea482
+- edit: packages/react/src/index.ts: export * from "./QadiProvider.tsx" replaced by a named list of its values without useQadiContext, and export type { useQadiContext } from "./QadiProvider.tsx"
+- diff: 9f40718322a091937d8948c03a9dc43d406aa7bad6db8316c69f626e07fb8860 (1 files, +2 -1)
+- run: vitest packages/react/test/surface.test.ts
+- exit: 1
+- seen failing: @qadi/react's root exports exactly these runtime values
+- seen failing: @qadi/react's root reaches useQadiContext from the package root
+- failing text: AssertionError: expected [ 'Can', 'Cannot', …(25) ] to deeply equal [ 'Can', 'Cannot', …(26) ]
+- failing text: AssertionError: expected 'undefined' to equal 'function'
+
+## values-audit-type-only
+- scratch: v-audit at 02009ea482
+- edit: packages/audit/src/index.ts: export * from "./SequenceIntegrity.ts" replaced by export { SequenceIntegrityError } and export type { verifySequenceIntegrity } from "./SequenceIntegrity.ts"
+- diff: 05a917acc8849b88d78409338f5a9ec094643737612a2bf49276c9525fd40267 (1 files, +2 -1)
+- run: vitest packages/audit/test/surface.test.ts
+- exit: 1
+- seen failing: @qadi/audit's root exports exactly these runtime values
+- failing text: AssertionError: expected [ 'ArchiveInputInvalid', …(39) ] to deeply equal [ 'ArchiveInputInvalid', …(40) ]
