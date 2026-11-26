@@ -27,7 +27,7 @@ export const dehydrateDecisions: (
 ) => DehydratedDecisions;
 
 export const hydrateDecisions: (
-  atoms: QadiAtoms,
+  atoms: { readonly hydrate: QadiAtoms["hydrate"] }, // an atom set, or anything that forwards its `hydrate`
   dehydrated: DehydratedDecisions,
   subject: AuthSubject,
   options?: HydrateOptions,
@@ -42,7 +42,9 @@ REQUIREMENT: Both functions MUST be synchronous and free of React imports.
 
 Seeding through `initialValues` rather than an effect after mount is the whole
 point: a value written after mount shows the pending state for a frame, which is
-the problem being solved.
+the problem being solved. `hydrateDecisions` reads only the `hydrate` capability of
+its first argument
+([BEH-QD-792](#beh-qd-792-the-hydration-entry-points-live-in-the-hydration-engine-and-hydratedecisions-takes-any-value-with-the-hydrate-capability)).
 
 ## BEH-QD-146: A payload is bound to one subject, and fails closed
 

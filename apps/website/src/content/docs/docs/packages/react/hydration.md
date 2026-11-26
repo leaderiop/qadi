@@ -21,7 +21,7 @@ export const dehydrateDecisions: (
 ) => DehydratedDecisions;
 
 export const hydrateDecisions: (
-  atoms: QadiAtoms,
+  atoms: { readonly hydrate: QadiAtoms["hydrate"] }, // an atom set, or anything that forwards its `hydrate`
   dehydrated: DehydratedDecisions,
   subject: AuthSubject,
   options?: HydrateOptions,
@@ -38,8 +38,9 @@ does not (see [Upgrading to 0.11](/docs/reference/upgrading/#hydration-payloads-
 A payload nested past the decode bound outside its entries is dropped as
 `PayloadTooDeep`, not `MalformedPayload`.
 
-`hydrateDecisions`'s result is assignable to `QadiProvider`'s
-`initialValues` prop directly. Seeding through that prop, rather than through
+`hydrateDecisions` reads only the `hydrate` method of its first argument, so an
+atom set, a spread copy of one or a wrapper that forwards `hydrate` all work.
+Its result is assignable to `QadiProvider`'s `initialValues` prop directly. Seeding through that prop, rather than through
 an effect that runs after mount, is the whole point — a value written after
 mount still shows the pending state for a frame, which is the problem being
 solved.
