@@ -1409,8 +1409,9 @@ const runKind = (dir, kind, args) => {
   if (kind === "circular") {
     const r = run(["pnpm", "circular"], dir);
     const bad = judgeCircular(r.code, `${r.out}\n${r.err}`);
-    const lines = `${r.out}\n${r.err}`.split("\n").filter((l) => /circular|\d+\) /i.test(l));
-    return { failed: bad.length > 0, exit: r.code, run: "circular", titles: [], text: failingLines(lines.join("\n")), groups: [] };
+    const all = `${r.out}\n${r.err}`.split("\n");
+    const cycles = all.filter((l) => /^\d+\) /.test(l));
+    return { failed: bad.length > 0, exit: r.code, run: "circular", titles: [], text: failingLines((cycles.length > 0 ? cycles : all.filter((l) => /circular|error/i.test(l) && !l.startsWith(">"))).join("\n")), groups: [] };
   }
   const [script, ...rest] = args;
   if (script === undefined || script.includes("/") || !existsSync(join(dir, D, script))) return fail([`usage: variant ... script <a script of ${D}> [args...]`]);
