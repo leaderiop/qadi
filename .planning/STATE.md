@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 89
 current_phase_name: One admission step for a host's audit batch
 status: executing
-stopped_at: Completed 89-06-PLAN.md
-last_updated: "2026-11-26T03:23:11.422Z"
+stopped_at: Completed 89-07-PLAN.md
+last_updated: "2026-11-26T03:29:18.201Z"
 last_activity: 2026-11-26
 last_activity_desc: Phase 88 complete, transitioned to Phase 89
-state_head: c141f446e480025bb69cb6f4c4139f92cb857f54
+state_head: 36881b468f21e66cf3bdf38ac234d73fc526d000
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 51
-  completed_plans: 46
+  completed_plans: 47
   percent: 57
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: 89 (One admission step for a host's audit batch) — EXECUTING
-Plan: 7 of 11
+Plan: 8 of 11
 Status: Ready to execute
 Last activity: 2026-11-26 — Phase 88 complete, transitioned to Phase 89
 
@@ -700,6 +700,7 @@ Progress: [██████░░░░] 57%
 | Phase 89 P04 | 15 min | 3 tasks | 3 files |
 | Phase 89 P05 | 14 min | 2 tasks | 4 files |
 | Phase 89 P06 | 10 min | 2 tasks | 1 files |
+| Phase 89 P07 | 35 min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -1246,6 +1247,7 @@ Progress: [██████░░░░] 57%
 - [Phase 89]: NowRefusalCases lives in HostBatch.ts beside the Number.isFinite check that answers it; the step builds its refusal with its own Data.taggedEnum constructor and no entry point restates it. — A now is refused in one place and by one reading of finite, as a rows list is in CodecMade.ts.
 - [Phase 89]: admitRows keeps a run-time Array.isArray guard behind a ReadonlyArray<AuditEntry> parameter and copies a list once with Array.from over a length. — A value that is not a list reaches rowsRefusal unread and is named in the refusal; what is checked is the copy that is admitted.
 - [Phase 89]: 89-06: planPurge runs the shared age rule over its own admitted batch and does not call planRetention; a null or undefined policy is read as policy?.maxAgeMs and refused as MaxAgeInvalid { value: undefined }
+- [Phase 89]: Plan 89-07: the pinned check declares the rewritten direct rows as a block keeping only its own describe line and the helper that handed verifiedArchiveFacts a list as a declared removal, because the plan fixes new F titles and an AdmittedRows parameter the checker as written could not hold (decided autonomously).
 
 ### Pending Todos
 
@@ -1333,8 +1335,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-26T03:23:11.303Z
-Stopped at: Completed 89-06-PLAN.md
+Last session: 2026-11-26T03:29:18.079Z
+Stopped at: Completed 89-07-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
