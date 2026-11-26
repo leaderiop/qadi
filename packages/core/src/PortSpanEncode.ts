@@ -35,7 +35,7 @@
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
-import { portInterpreter } from "./PortInterpreter.ts";
+import { portInterpreter } from "./PortSpan.ts";
 import type {
   PortSpanAttributes,
   PortSpanRow,
