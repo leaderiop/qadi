@@ -12,12 +12,13 @@
  * `now - at > maxAgeMs` (the age rule, in {@link planRetention}); and a
  * {@link VerifiedArchive} read back from storage holds the row
  * ({@link planPurge}). A row's `at` is finite because only the codec makes a
- * row and its decode refuses any other (ADR-QD-190), and {@link planRetention}
- * refuses a list holding a row the codec did not make, so the rule has no case
- * for an unknown age. Fail-closed for a deletion selector means retaining,
- * never expiring: a wrong retain keeps a row too long, a wrong purge destroys
- * evidence that may never have been archived. {@link planPurge} is the only
- * function here that returns rows to delete (INV-QD-101, INV-QD-130).
+ * row and its decode refuses any other (ADR-QD-190), and the step in
+ * `HostBatch.ts` admits each batch first, refusing a list holding a row the
+ * codec did not make, so the rule has no case for an unknown age. Fail-closed
+ * for a deletion selector means retaining, never expiring: a wrong retain keeps
+ * a row too long, a wrong purge destroys evidence that may never have been
+ * archived. {@link planPurge} is the only function here that returns rows to
+ * delete (INV-QD-101, INV-QD-130).
  */
 import * as Data from "effect/Data";
 import * as MutableHashMap from "effect/MutableHashMap";
@@ -160,56 +161,56 @@ export interface PurgePlan {
 /**
  * Which rows may be deleted: past their age, and held by `archive`.
  *
- * Runs {@link planRetention}'s age rule, then takes each expired row's
- * counterpart out of the archive, in input order: a row `archive` holds goes
- * to `purge` and uses up one archived copy (two identical rows need two), a
- * row it does not hold stays in `retain` and is listed in `unarchived`. Rows
- * are compared structurally, so a row read back from a store matches the
- * archived one, and a row edited after archiving does not.
+ * The step in `HostBatch.ts` admits this call's own batch first and each input is read once, so the archive is never
+ * asked about a refused batch and the pass below reads the rows the step checked, not the list given. It then runs
+ * the age rule {@link planRetention} runs, and takes each expired row's counterpart out of the archive, in input
+ * order: a row `archive` holds goes to `purge` and uses up one archived copy (two identical rows need two), a row it
+ * does not hold stays in `retain` and is listed in `unarchived`. Rows are compared structurally, so a row read back
+ * from a store matches the archived one, and a row edited after archiving does not.
  *
- * A row the codec did not make is refused by that age rule, and the archive
- * would not hold it in any case: `holds` counts by structural equality with the
- * archived rows, which are all codec-made class instances, so a plain object
- * with the same fields has no copy there.
+ * A row the codec did not make is refused when the batch is admitted, and the archive would not hold it in any case:
+ * `holds` counts by structural equality with the archived rows, which are all codec-made class instances, so a plain
+ * object with the same fields has no copy there.
  *
- * `archive` is a {@link VerifiedArchive}: it can only come from
- * `readAuditArchive` over bytes the store returned, so the archive-before-purge
- * order is a property of the types rather than a duty. What that proves, and
- * what it does not (durability, tamper-evidence), is on its own doc. Selects
- * only; `@qadi/audit` deletes nothing. Cost is one structural hash per row (the
- * whole call measured about 22 µs per row, ADR-QD-190), so a million-row run is a
- * batch job.
+ * `archive` is a {@link VerifiedArchive}: it can only come from `readAuditArchive` over bytes the store returned, so
+ * the archive-before-purge order is a property of the types rather than a duty. What that proves, and what it does
+ * not (durability, tamper-evidence), is on its own doc. Selects only; `@qadi/audit` deletes nothing. Cost is one
+ * structural hash per row (the whole call measured about 22 µs per row, ADR-QD-190), so a million-row run is a batch
+ * job.
  */
 export const planPurge = (
   entries: ReadonlyArray<AuditEntry>,
   policy: RetentionPolicy,
   now: number,
   archive: VerifiedArchive,
-): Result.Result<PurgePlan, RetentionInputInvalid> =>
-  Result.map(planRetention(entries, policy, now), (age) => {
-    const expired = new Set(age.expired);
-    const consumed = MutableHashMap.empty<AuditEntry, number>();
-    const purge: Array<AuditEntry> = [];
-    const retain: Array<AuditEntry> = [];
-    const unarchived: Array<AuditEntry> = [];
-    for (const entry of entries) {
-      if (!expired.has(entry)) {
-        retain.push(entry);
-        continue;
-      }
-      const used = Option.getOrElse(MutableHashMap.get(consumed, entry), () => 0);
-      if (used < archive.holds(entry)) {
-        MutableHashMap.set(consumed, entry, used + 1);
-        purge.push(entry);
-      } else {
-        retain.push(entry);
-        unarchived.push(entry);
-      }
+): Result.Result<PurgePlan, RetentionInputInvalid> => {
+  const admitted = admitBatch({ now, terms: () => maxAgeOf(policy), entries });
+  if (Result.isFailure(admitted)) {
+    return Result.fail(new RetentionInputInvalid({ refusal: admitted.failure }));
+  }
+  const expired = new Set(ageRule(admitted.success).expired);
+  const consumed = MutableHashMap.empty<AuditEntry, number>();
+  const purge: Array<AuditEntry> = [];
+  const retain: Array<AuditEntry> = [];
+  const unarchived: Array<AuditEntry> = [];
+  for (const entry of admitted.success.rows.entries) {
+    if (!expired.has(entry)) {
+      retain.push(entry);
+      continue;
     }
-    return {
-      purge,
-      retain,
-      unarchived,
-      sequenceIntegrityVerified: archive.sequenceIntegrityVerified,
-    };
+    const used = Option.getOrElse(MutableHashMap.get(consumed, entry), () => 0);
+    if (used < archive.holds(entry)) {
+      MutableHashMap.set(consumed, entry, used + 1);
+      purge.push(entry);
+    } else {
+      retain.push(entry);
+      unarchived.push(entry);
+    }
+  }
+  return Result.succeed({
+    purge,
+    retain,
+    unarchived,
+    sequenceIntegrityVerified: archive.sequenceIntegrityVerified,
   });
+};
