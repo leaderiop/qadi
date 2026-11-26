@@ -111,6 +111,7 @@ const SUBJECT = {
   decisionNotes: "docs(91-18): note the folds on the decisions they touch",
   changesets: "chore(91-18): add the core, react and audit patch changesets",
   lease: "docs(91-19): name the registry lease's one caller",
+  sweep: "docs(91-19): sweep the deleted paths and the old rule name",
 };
 const USED_SUBJECTS = Object.values(SUBJECT);
 
@@ -147,6 +148,7 @@ const PINNED_86 = [
   ...GATE_FILES_86.map((path) => after(MOVED_86(path), SUBJECT.gateFold)),
   ...HYDRATION_FILES_86.map((path) => after(MOVED_86(path), SUBJECT.hydrationFold)),
   after(MOVED_86("packages/react/src/RegistryLease.ts"), SUBJECT.lease),
+  after(MOVED_86("packages/react/test/ServerRender.test.tsx"), SUBJECT.sweep),
 ];
 /** What `89-pinned-check.mjs` prints for the audit files the sequence check's fold edits, each with a line number it states as `<n>`. */
 const PINNED_89 = [
@@ -437,6 +439,7 @@ const MOVES_BY_SUBJECT = {
   decisionNotes: ["89-check.mjs records --close"],
   changesets: ["88-check.mjs records --close", "89-check.mjs records --close", "90-check.mjs records --close"],
   lease: ["86-pinned-check.mjs"],
+  sweep: ["86-pinned-check.mjs"],
 };
 
 const selfTest = () => {
@@ -513,8 +516,8 @@ const selfTest = () => {
     ["a subject in the table passes, and one that is not names itself", judgeSubjects(["docs(91-01): record the mutation base"], tableSubjects(plannedTable), []).length === 0 && judgeSubjects(["docs(91-01): record the mutation base."], tableSubjects(plannedTable), []).join() === "the subject is not in the table of 91-01-PLAN.md: docs(91-01): record the mutation base."],
     ["an empty table fails", judgeSubjects([], [], []).join() === "the subject table of 91-01-PLAN.md holds no row"],
     ["a subject that two commits carry fails, naming the count, and one that one commit or none carries passes", judgeSubjects(["refactor(91-11): a b"], tableSubjects(plannedTable), ["refactor(91-11): a b", "x", "refactor(91-11): a b"]).join() === "2 commits carry the subject: refactor(91-11): a b" && judgeSubjects(["refactor(91-11): a b"], tableSubjects(plannedTable), ["refactor(91-11): a b"]).length === 0 && judgeSubjects(["refactor(91-11): a b"], tableSubjects(plannedTable), []).length === 0],
-    ["every subject is a plan commit of this phase, written once, and the ledger names no other", USED_SUBJECTS.every((s) => /^[a-z]+[(]91-[0-9]{2}[)]!?: /.test(s)) && new Set(USED_SUBJECTS).size === USED_SUBJECTS.length && USED_SUBJECTS.length === 13],
-    ["the subjects are the exact strings of the commit subject table", SUBJECT.gateFold === "refactor(91-11): fold the gate registry constructor into the gate writer" && SUBJECT.hydrationFold === "refactor(91-13): fold the hydration entry points into the hydration engine" && SUBJECT.lease === "docs(91-19): name the registry lease's one caller" && SUBJECT.auditFold === "refactor(91-12): fold the sequence check's public home into the archive facts" && SUBJECT.auditBarrel === "refactor(91-09): name the audit barrel's exports per module" && SUBJECT.decoderFold === "refactor(91-10): fold the port span decoder into the span machinery" && SUBJECT.surface === "feat(91-03): add the surface-diff tool and run its self-test in the merge gate" && SUBJECT.decision === "docs(91-16): record the named barrels decision" && SUBJECT.behaviours === "docs(91-17): state the folded behaviours and the surface invariants" && SUBJECT.overview === "docs(91-17): name each folded export at its new home" && SUBJECT.decisionNotes === "docs(91-18): note the folds on the decisions they touch" && SUBJECT.changesets === "chore(91-18): add the core, react and audit patch changesets"],
+    ["every subject is a plan commit of this phase, written once, and the ledger names no other", USED_SUBJECTS.every((s) => /^[a-z]+[(]91-[0-9]{2}[)]!?: /.test(s)) && new Set(USED_SUBJECTS).size === USED_SUBJECTS.length && USED_SUBJECTS.length === 14],
+    ["the subjects are the exact strings of the commit subject table", SUBJECT.gateFold === "refactor(91-11): fold the gate registry constructor into the gate writer" && SUBJECT.hydrationFold === "refactor(91-13): fold the hydration entry points into the hydration engine" && SUBJECT.lease === "docs(91-19): name the registry lease's one caller" && SUBJECT.sweep === "docs(91-19): sweep the deleted paths and the old rule name" && SUBJECT.auditFold === "refactor(91-12): fold the sequence check's public home into the archive facts" && SUBJECT.auditBarrel === "refactor(91-09): name the audit barrel's exports per module" && SUBJECT.decoderFold === "refactor(91-10): fold the port span decoder into the span machinery" && SUBJECT.surface === "feat(91-03): add the surface-diff tool and run its self-test in the merge gate" && SUBJECT.decision === "docs(91-16): record the named barrels decision" && SUBJECT.behaviours === "docs(91-17): state the folded behaviours and the surface invariants" && SUBJECT.overview === "docs(91-17): name each folded export at its new home" && SUBJECT.decisionNotes === "docs(91-18): note the folds on the decisions they touch" && SUBJECT.changesets === "chore(91-18): add the core, react and audit patch changesets"],
     // The shape of the ledger.
     ["every run names a copy the script makes", RUNS.every((r) => Object.hasOwn(COPIED, r.copy) && COPIED[r.copy].includes(r.file))],
     ["every run has one row and every row one run, under the same label, in the same order", RUNS.length === LEDGER.length && RUNS.every((r, i) => r.label === LEDGER[i].label) && new Set(RUNS.map((r) => r.label)).size === RUNS.length],
@@ -530,10 +533,10 @@ const selfTest = () => {
     ["with no subject each computed row is its measured one", exitAt(label, none) === 0 && rowAt(label, none).line === "pinned: 59 files hold their base text, 1 of 1 born files held" && exitAt("89-pinned-check.mjs", none) === 0 && exitAt("90-pinned-check.mjs", none) === 0 && exitAt("90-check.mjs scan-forbidden", none) === 0 && exitAt("90-check.mjs records --close", none) === 0],
     // 86's pinned row.
     ["the gate subject moves 86's pinned row to the ten gate files, no more", exitAt(label, [SUBJECT.gateFold]) === 1 && rowAt(label, [SUBJECT.gateFold]).set.length === 10 && rowAt(label, [SUBJECT.gateFold]).set.every((l) => /^packages\/react\/test\/.* is reported as M against its base, not unchanged$/.test(l))],
-    ["the hydration subject moves it to the eight hydration files, and the lease subject to the lease alone", rowAt(label, [SUBJECT.hydrationFold]).set.length === 8 && setAt(label, [SUBJECT.lease]) === "packages/react/src/RegistryLease.ts is reported as M against its base, not unchanged"],
-    ["with the three subjects 86's pinned row holds nineteen distinct files", rowAt(label, [SUBJECT.gateFold, SUBJECT.hydrationFold, SUBJECT.lease]).set.length === 19 && new Set(rowAt(label, every).set).size === 19],
+    ["the hydration subject moves it to the eight hydration files, the lease subject to the lease alone, and the sweep subject to the one test it corrects", rowAt(label, [SUBJECT.hydrationFold]).set.length === 8 && setAt(label, [SUBJECT.lease]) === "packages/react/src/RegistryLease.ts is reported as M against its base, not unchanged" && setAt(label, [SUBJECT.sweep]) === "packages/react/test/ServerRender.test.tsx is reported as M against its base, not unchanged"],
+    ["with the four subjects 86's pinned row holds twenty distinct files", rowAt(label, [SUBJECT.gateFold, SUBJECT.hydrationFold, SUBJECT.lease, SUBJECT.sweep]).set.length === 20 && new Set(rowAt(label, every).set).size === 20],
     ["86's pinned row run before its subject, judged after it, fails in both directions, and the reverse fails too", about(judgedAt(none, [SUBJECT.gateFold]), label).length === 1 && about(judgedAt([SUBJECT.gateFold], none), label).length === 1],
-    ["86's pinned row passes in each of its states", [none, [SUBJECT.gateFold], [SUBJECT.hydrationFold], [SUBJECT.lease], every].every((have) => about(judgedAt(have, have), label).length === 0)],
+    ["86's pinned row passes in each of its states", [none, [SUBJECT.gateFold], [SUBJECT.hydrationFold], [SUBJECT.lease], [SUBJECT.sweep], every].every((have) => about(judgedAt(have, have), label).length === 0)],
     ["86's pinned row, with the gate subject, fails when a gate file is missing from the run, naming it", about(judgeLedger(at([SUBJECT.gateFold]).map((r) => (r.label === label ? { ...toRun(r), set: toRun(r).set.slice(1) } : toRun(r))), at([SUBJECT.gateFold])), label).join() === `${label}: missing reason "${rowAt(label, [SUBJECT.gateFold]).set[0]}"`],
     // 89's pinned row.
     ["the audit barrel subject moves 89's pinned row to the barrel line alone", setAt("89-pinned-check.mjs", [SUBJECT.auditBarrel]) === "packages/audit/src/index.ts: differs from its base text at line <n>"],
