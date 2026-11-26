@@ -11,14 +11,18 @@
 //             by `lines`). Each region also names the text its first and last base line start with, so a wrong constant fails
 //             here instead of passing. A declared file is judged in two steps: the commit that declares it (found by its exact
 //             subject, one commit since the base) holds the base text on every line outside the regions, and the file at HEAD
-//             equals that commit's text byte for byte. Before the commit exists the file is held, as a base file. The two
+//             equals that commit's text byte for byte, or, when the entry lists `amendments`, the last amendment's text: each
+//             amendment is one later commit, found by its exact subject, that holds the text before it on every line outside
+//             its own regions (numbered in that earlier text, anchored the same way), in the listed order. An amendment whose
+//             commit does not exist yet ends the chain there (with `--all-applied`, that is a reason). Before the commit exists the file is held, as a base file. The two
 //             source declarations (`LeafNeeds.ts`, `ScopedLeaf.ts`) apply only when `90-BENCH.md`'s gate of record passed; when
 //             it failed they are held and no declared edit is expected of them.
 //   born      files written by a commit of this phase, each held against the text that commit gave it:
 //               - the characterisation, outside its import region;
 //               - the type pins, outside their import region, with lines appended after the born text allowed;
 //               - the bench file, whole;
-//               - the review round's type pins (`PortFacts.review.tst.ts`), whole, added by one commit of that round;
+//               - the review round's type pins and its test rows (`PortFacts.review.tst.ts`, `PortFacts.review.test.ts`), each
+//                 whole, added by one commit of that round;
 //               - the mutation test file, whole, only when it exists: one commit since the base adds it, under the one subject
 //                 that may, and holds exactly it.
 //             An import region is a constant range of the born text, checked to be the span of that text's top-level import
@@ -86,6 +90,13 @@ const DECLARED = [
     subject: "refactor(90-12): route every scoped read off its leaf row",
     source: true,
     regions: [{ first: 44, last: 48, top: "  /**", bottom: "   */" }],
+    amendments: [
+      {
+        // absenceOf's own-action test is `isActionLeaf` alone; its unreachable `MISSING_ACTION` arm is gone.
+        subject: "fix(90-review): kill the base survivors that a test can reach",
+        regions: [{ first: 223, last: 226, top: "  const need = LEAF_NEEDS[leaf._tag];", bottom: "  }" }],
+      },
+    ],
   },
   {
     file: `${CORE_SRC}/ScopedLeaf.ts`,
@@ -101,6 +112,7 @@ const BORN = [
   { file: `${CORE_TEST}/PortFacts.tst.ts`, subject: "test(90-04): pin the moved port types on the base", adds: true, imports: { first: 11, last: 20 }, appended: true },
   { file: "packages/core/bench/Evaluate.bench.ts", subject: "test(90-06): add the scoped-heavy bench workloads", adds: false },
   { file: `${CORE_TEST}/PortFacts.review.tst.ts`, subject: "fix(90-review): refuse a union span name at the registry", adds: true },
+  { file: `${CORE_TEST}/PortFacts.review.test.ts`, subject: "fix(90-review): kill the base survivors that a test can reach", adds: true },
 ];
 
 /** The one born file that may exist later, whole, added by one commit under one subject. */
@@ -245,10 +257,35 @@ const judgeRegions = (file, regions, base, current) => {
 };
 
 /**
- * The reasons a declared file is not as the phase fixes it, and whether its edit is applied. `commit` is the declaring commit's
- * text for the file (`undefined`: no commit yet, so the file is held), `changed` whether that commit changes the file at all.
+ * The reasons a declared file's amendments are not each the text before them outside their regions, and the text the chain
+ * ends on. `from` is the declaring commit's text; `steps` are the amendments in order, each `{ subject, regions, text,
+ * changed }`, `text` the amending commit's text for the file (`undefined`: no such commit yet, which ends the chain).
  */
-const judgeDeclared = (spec, base, commit, changed, current, allApplied) => {
+const judgeAmendments = (file, from, steps, allApplied) => {
+  let last = from;
+  const reasons = [];
+  for (const [k, step] of steps.entries()) {
+    const which = `amendment ${k + 1} (${step.subject})`;
+    if (step.text === undefined) {
+      if (allApplied) reasons.push(`${file}: ${which} is not applied`);
+      return { reasons, last };
+    }
+    const shapes = [...judgeRegionShapes(file, step.regions), ...judgeRegionAnchors(file, step.regions, last.split("\n"))];
+    if (shapes.length > 0) return { reasons: [...reasons, ...shapes.map((r) => `${r}, in ${which}`)], last };
+    if (!step.changed) reasons.push(`${file}: the commit of ${which} does not change it`);
+    reasons.push(...judgeRegions(file, step.regions, last, step.text).map((r) => `${r}, in ${which}`));
+    if (reasons.length > 0) return { reasons, last };
+    last = step.text;
+  }
+  return { reasons, last };
+};
+
+/**
+ * The reasons a declared file is not as the phase fixes it, and whether its edit is applied. `commit` is the declaring commit's
+ * text for the file (`undefined`: no commit yet, so the file is held), `changed` whether that commit changes the file at all,
+ * and `steps` its amendments as `judgeAmendments` takes them.
+ */
+const judgeDeclared = (spec, base, commit, changed, current, allApplied, steps = []) => {
   const { file, regions } = spec;
   if (current === undefined) return { reasons: [`${file} does not exist`], applied: false };
   if (commit === undefined) {
@@ -259,8 +296,10 @@ const judgeDeclared = (spec, base, commit, changed, current, allApplied) => {
   if (!changed) reasons.push(`${file}: the commit that declares it does not change it`);
   reasons.push(...judgeRegions(file, regions, base, commit));
   if (reasons.length > 0) return { reasons, applied: false };
-  const same = judgeBorn(file, commit, current);
-  if (same.length > 0) return { reasons: [...same, ...judgeRegions(file, regions, base, current)], applied: false };
+  const chain = judgeAmendments(file, commit, steps, allApplied);
+  if (chain.reasons.length > 0) return { reasons: chain.reasons, applied: false };
+  const same = judgeBorn(file, chain.last, current);
+  if (same.length > 0) return { reasons: steps.length === 0 ? [...same, ...judgeRegions(file, regions, base, current)] : same, applied: false };
   return { reasons: [], applied: true };
 };
 
@@ -499,7 +538,13 @@ const run = (allApplied) => {
       continue;
     }
     const changed = hashes.length === 1 && pathsOf(hashes[0]).includes(spec.file);
-    const verdict = judgeDeclared(spec, baseText, commit, changed, textOf(spec.file), allApplied);
+    const steps = [];
+    for (const amendment of spec.amendments ?? []) {
+      const found = bySubject(amendment.subject);
+      reasons.push(...judgeSubject(amendment.subject, found.length));
+      steps.push({ ...amendment, text: found.length === 1 ? showAt(found[0], spec.file) : undefined, changed: found.length === 1 && pathsOf(found[0]).includes(spec.file) });
+    }
+    const verdict = judgeDeclared(spec, baseText, commit, changed, textOf(spec.file), allApplied, steps);
     reasons.push(...verdict.reasons);
     if (verdict.applied) appliedCount += 1;
   }
@@ -648,6 +693,18 @@ const selfTest = () => {
   const insideNow = declaredWith(["one", "TWO", "again", "four", "five", "inserted", "six", "seven", ""].join("\n"));
   check("a file edited inside its regions after its commit fails the commit's text only", insideNow.reasons.length === 1 && insideNow.reasons[0].startsWith("d.ts: differs from the commit that added it"));
   eq("a declared file that is gone fails", judgeDeclared(spec, text, commit, true, undefined, false).reasons, ["d.ts does not exist"]);
+  // amendments: one later commit replaces the declaring commit's line 4 ("extra") with "amended"
+  const amendment = { subject: "fix(x): amend", regions: [{ first: 4, last: 4, top: "extra", bottom: "extra" }] };
+  const amendedText = commit.replace("extra", "amended");
+  const stepOf = (t, changed = true) => [{ ...amendment, text: t, changed }];
+  eq("a declared file equal to its amendment passes and is applied", judgeDeclared(spec, text, commit, true, amendedText, false, stepOf(amendedText)), { reasons: [], applied: true });
+  eq("an amendment not yet committed leaves the file at its declaring commit's text", judgeDeclared(spec, text, commit, true, commit, false, stepOf(undefined)), { reasons: [], applied: true });
+  eq("with every edit required, an amendment not committed fails", judgeDeclared(spec, text, commit, true, commit, true, stepOf(undefined)).reasons, ["d.ts: amendment 1 (fix(x): amend) is not applied"]);
+  has("an amendment that changes a line outside its regions fails", judgeDeclared(spec, text, commit, true, amendedText.replace("five", "FIVE"), false, stepOf(amendedText.replace("five", "FIVE"))).reasons, "differs outside its declared lines at line 6, in amendment 1");
+  has("an amendment whose commit does not change the file fails", judgeDeclared(spec, text, commit, true, commit, false, stepOf(commit, false)).reasons, "the commit of amendment 1 (fix(x): amend) does not change it");
+  has("an amendment whose region anchors miss the text before it fails", judgeDeclared(spec, text, commit, true, amendedText, false, [{ ...amendment, regions: [{ first: 4, last: 4, top: "four", bottom: "four" }], text: amendedText, changed: true }]).reasons, "base line 4 (the top of region 1) does not start with");
+  has("a file changed after its last amendment fails", judgeDeclared(spec, text, commit, true, `${amendedText}later()\n`, false, stepOf(amendedText)).reasons, "differs from the commit that added it");
+  eq("two amendments apply in order", judgeAmendments("d.ts", commit, [...stepOf(amendedText), { subject: "fix(y): again", regions: [{ first: 4, last: 4, top: "amended", bottom: "amended" }], text: amendedText.replace("amended", "twice"), changed: true }], false), { reasons: [], last: amendedText.replace("amended", "twice") });
   const long = [...Array.from({ length: 10 }, (_, i) => `line ${i + 1}`), ""].join("\n");
   const longRegions = [
     { first: 2, last: 3, top: "line 2", bottom: "line 3" },
@@ -727,8 +784,10 @@ const selfTest = () => {
   check("the declared regions are well formed and each file names its commit", DECLARED.every((d) => judgeRegionShapes(d.file, d.regions).length === 0 && d.subject !== "" && d.regions.length > 0));
   check("the declared regions are the ones the phase fixes", DECLARED.map((d) => d.regions.map((r) => `${r.first}-${r.last}`).join(",")).join(" ") === "9-43,133-160 1-8,10-12,32-39 121-120 44-48 8-19");
   check("the declared files are five, each once, two of them source", new Set(DECLARED.map((d) => d.file)).size === 5 && DECLARED.filter((d) => d.source === true).length === 2);
+  check("only the two source files carry amendments, each from the review round", DECLARED.filter((d) => d.amendments !== undefined).every((d) => d.source === true && d.amendments.every((a) => a.subject.startsWith("fix(90-review): ") && judgeRegionShapes(d.file, a.regions).length === 0)));
+  check("the amendment regions are the ones the review round fixes", DECLARED.map((d) => (d.amendments ?? []).map((a) => a.regions.map((r) => `${r.first}-${r.last}`).join(",")).join(";")).join(" ") === "   223-226 ");
   check("the only insertion is the fixed fixture line", DECLARED.flatMap((d) => d.regions).filter((r) => r.lines !== undefined).length === 1 && DECLARED[2].regions[0].lines.join() === "  fixture: () => named(undefined, 0),");
-  check("the born files are the phase's three, with the import regions the plans recorded, then the review round's, whole", BORN.length === 4 && BORN[0].imports.first === 24 && BORN[0].imports.last === 61 && BORN[1].imports.first === 11 && BORN[1].imports.last === 20 && BORN.slice(2).every((b) => b.imports === undefined));
+  check("the born files are the phase's three, with the import regions the plans recorded, then the review round's, whole", BORN.length === 5 && BORN[0].imports.first === 24 && BORN[0].imports.last === 61 && BORN[1].imports.first === 11 && BORN[1].imports.last === 20 && BORN.slice(2).every((b) => b.imports === undefined));
   check("each review-round born file is added whole by one commit of that round", BORN.slice(3).every((b) => b.adds === true && b.subject.startsWith("fix(90-review): ") && b.appended === undefined));
   check("only the type pins may be appended to", BORN.filter((b) => b.appended === true).map((b) => b.file).join() === `${CORE_TEST}/PortFacts.tst.ts`);
   check("the held directories are the five", PREFIXES.length === 5 && HELD_SOURCE.join() === `${CORE_SRC}/PortServing.ts`);

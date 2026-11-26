@@ -1376,3 +1376,12 @@ row must catch. Each block below is written by `90-check.mjs variant`.
 - tsc: packages/core/src/PortAccess.ts TS2375 x1
 - tsc: packages/core/src/PortAccess.ts TS377003 x1
 - tsc: packages/core/src/PortAccess.ts TS377004 x1
+
+## bounded-permits-dropped
+- scratch: rv-permits at 50377f435b
+- edit: PortFacts.review.test.ts written in, and boundedPermits planted with the surviving mutant: new InvalidBoundedPermits({}) in place of ({ permits })
+- diff: 08d8322d148b672b9dadac7538a161a3de16611535229f458158984b2bdc0d9a (2 files, +37 -1)
+- run: vitest packages/core/test/PortFacts.review.test.ts
+- exit: 1
+- seen failing: a bounded port's refused construction names the permits it was given, for every count that is not a positive integer
+- failing text: AssertionError: expected undefined to equal +0

@@ -1607,7 +1607,7 @@ const routingMode = () => {
 // ---- the close runner ----
 
 /** The test files the review round adds, each of whose titles the close requires seen failing in the evidence. */
-const REVIEW_TESTS = ["packages/core/test/PortFacts.review.tst.ts"];
+const REVIEW_TESTS = ["packages/core/test/PortFacts.review.tst.ts", "packages/core/test/PortFacts.review.test.ts"];
 const closeChildren = (gatePass) => [
   { label: `node ${D}90-pinned-check.mjs --all-applied`, argv: ["node", `${D}90-pinned-check.mjs`, "--all-applied"] },
   { label: `node ${D}90-earlier-checks.mjs`, argv: ["node", `${D}90-earlier-checks.mjs`] },

@@ -88,6 +88,14 @@ const EQUIVALENT = [
   },
   { file: "packages/core/src/PortAccess.ts", mutatorName: "ArrowFunction", replacement: "() => undefined", lineText: SCOPED_READ_ARM, status: "NoCoverage", reason: ALWAYS_ARM_WHY },
   { file: "packages/core/src/PortAccess.ts", mutatorName: "BooleanLiteral", replacement: "false", lineText: SCOPED_READ_ARM, status: "NoCoverage", reason: ALWAYS_ARM_WHY },
+  {
+    file: "packages/core/src/SignatureHistory.ts",
+    mutatorName: "ConditionalExpression",
+    replacement: "false",
+    lineText: "row.resourceId === undefined ? undefined : makeResourceId(row.resourceId),",
+    reason:
+      "the false branch is `makeResourceId(row.resourceId)`, and `makeResourceId` is `Brand.nominal<ResourceId>()` (`Identity.ts`), the identity at run time, so for an undefined `row.resourceId` it returns undefined, the value the true branch gives; the two branches differ only in type",
+  },
 ];
 /**
  * Ignored mutants a close may hold beyond its base, per file and kind, each run by hand and Killed: the config spread with

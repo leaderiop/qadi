@@ -220,10 +220,8 @@ export function absenceOf(
   leaf: LeafPolicy,
   supplied: Supplied,
 ): ActionAbsence | ResourceAbsence | undefined {
+  if (isActionLeaf(leaf) && !supplied.action) return { _tag: "Action", expected: leaf.action };
   const need = LEAF_NEEDS[leaf._tag];
-  if (need.own === "Action" && !supplied.action) {
-    return isActionLeaf(leaf) ? { _tag: "Action", expected: leaf.action } : MISSING_ACTION;
-  }
   if (isMatcherLeaf(leaf)) {
     if (need.own === "Resource" && !supplied.resource) {
       return { _tag: "Resource", attribute: leaf.attribute };
