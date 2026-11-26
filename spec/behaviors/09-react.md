@@ -1376,7 +1376,7 @@ names the package's types (`@qadi/devtools`' `test/surface.tst.ts`). The five ba
 wholly public, stay pure `export *`, and the roots of `@qadi/promise` and the two predicate packages are their
 implementation, not a barrel ([ADR-QD-204](../decisions/204-named-barrels-and-visibility-only-files-folded-away.md)).
 
-Pinned by `packages/react/test/surface.test.ts` ("exports exactly these runtime values", "reaches useQadiContext from the package root"), `packages/core/test/surface.test.ts` ("exports exactly these runtime values") and `packages/audit/test/surface.test.ts` ("exports exactly these runtime values"); the form of each barrel is `node scripts/check-house-style.mjs`'s `named-barrel` rule, and the names and kinds are `node scripts/surface-diff.mjs`'s.
+Pinned by `packages/react/test/surface.test.ts` ("exports exactly these runtime values", "reaches useQadiContext from the package root"), `packages/core/test/surface.test.ts` ("exports exactly these runtime values") and `packages/audit/test/surface.test.ts` ("exports exactly these runtime values"); `packages/devtools/test/surface.test.ts` holds the devtools roots' values the same way; the form of each barrel is `node scripts/check-house-style.mjs`'s `named-barrel` rule, the names are gate 13's (`node scripts/check-api-surface.mjs`), and the kinds against the recorded baseline are `node scripts/surface-diff.mjs compare`'s, run by hand or by a phase and no merge step.
 
 ---
 
