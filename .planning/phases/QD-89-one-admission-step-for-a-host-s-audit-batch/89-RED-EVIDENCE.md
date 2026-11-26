@@ -546,3 +546,5 @@ Each row below was run against HEAD 76d38f52 (the source the review read) with o
   (scratch edit: verifySequenceIntegrity admits inside `Effect.withSpan(..., "qadi.audit.verifySequenceIntegrity")`; 6 row(s) failed under it)
 - failed (variant verify-admits-in-span): F4 a row admitRows refuses, with a break among the rest, keeps the verify and the writer from running verifiedArchiveFacts
   (scratch edit: verifySequenceIntegrity admits inside `Effect.withSpan(..., "qadi.audit.verifySequenceIntegrity")`; 6 row(s) failed under it)
+- check failed: pinned: packages/audit/test/AdmissionOrder.characterisation.test.ts: region direct is not the lines it becomes
+  (scratch edit: a row `F6 an appended row` added after F5; under the `kept` form the region held only its describe line and passed it)

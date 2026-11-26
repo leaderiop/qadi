@@ -5,8 +5,9 @@
  * The winners and the span lists are written out literally, one row each, so no abstraction under test can make a row
  * pass by construction: a table that computed its winner from an order list would agree with whatever order the code
  * under test has. Only the three property rows derive a first fault, and each states the order it derives from. The file
- * is held byte for byte from the commit that adds it, except the refused-rows span block, the direct
- * `verifiedArchiveFacts` block and that block's import line, which the type change of `verifiedArchiveFacts` rewrites.
+ * is held byte for byte from the commit that adds it, except six declared regions, each rewritten by the type change of
+ * `verifiedArchiveFacts` or by review: this header, the direct block's import, the impossible pairs beside `outcomeOf`,
+ * the list helper the direct rows dropped, the refused-rows span block and the direct `verifiedArchiveFacts` block.
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";

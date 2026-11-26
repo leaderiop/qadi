@@ -169,9 +169,12 @@ Tests removed: 6.
 No property is lost. The rows the audit leaves in those two files, the refusal of each value that is not a list by
 each of the four calls, the rows refused before a sequence break, the purge failing before the archive is asked and
 every positive twin, keep their bodies. The characterisation file `AdmissionOrder.characterisation.test.ts` was
-written on the code before the change and holds literally which refusal wins for each pair of faults per entry point;
-two declared regions of it moved with the change, the four span rows of decision 7 and the rows that call
-`verifiedArchiveFacts` directly, which take only admitted rows.
+written on the code before the change and holds literally which refusal wins for each pair of faults per entry point.
+Six declared regions of it moved, each held as its exact lines. With the change: the import of the direct rows, the
+list helper they dropped, the four span rows of decision 7 and the rows that call `verifiedArchiveFacts` directly, which
+take only admitted rows. With the review of the change: the file's header, which names the six, the impossible fault
+pairs, a comment where an unread export was, the titles of the four span rows, which state the trace each asserts, and
+two of the direct rows, which assert that `verifiedArchiveFacts` never runs on refused rows.
 
 ## Alternatives considered
 

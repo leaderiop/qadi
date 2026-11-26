@@ -104,6 +104,17 @@ const FOREIGN_REGIONS = [
 const RETENTION_REGIONS = [{ name: "nowBeforeMaxAge", from: '  it("checks now before maxAgeMs", () => {', lead: 1, lines: 3, becomes: [] }];
 
 const ORDER_REGIONS = [
+  // The header names the declared regions, and the review of the phase added three to them (IN-02).
+  {
+    name: "header",
+    from: " * is held byte for byte from the commit that adds it, except the refused-rows span block, the direct",
+    lines: 2,
+    becomes: [
+      " * is held byte for byte from the commit that adds it, except six declared regions, each rewritten by the type change of",
+      " * `verifiedArchiveFacts` or by review: this header, the direct block's import, the impossible pairs beside `outcomeOf`,",
+      " * the list helper the direct rows dropped, the refused-rows span block and the direct `verifiedArchiveFacts` block.",
+    ],
+  },
   {
     name: "import",
     from: 'import { verifiedArchiveFacts } from "../src/ArchiveFacts.ts";',
@@ -162,8 +173,55 @@ const ORDER_REGIONS = [
       "",
     ],
   },
-  // The rows are rewritten over admitted rows with new titles, so only the block's own line is kept.
-  { name: "direct", from: 'describe("verifiedArchiveFacts called directly", () => {', to: null, kept: ['describe("verifiedArchiveFacts called directly", () => {'] },
+  // The rows are rewritten over admitted rows with new titles, and the review of the phase made F3 and F4 assert that
+  // `verifiedArchiveFacts` never runs on refused rows (IN-04); the whole block is its exact lines (IN-02), so no F row can
+  // be dropped, changed or followed by another.
+  {
+    name: "direct",
+    from: 'describe("verifiedArchiveFacts called directly", () => {',
+    to: null,
+    becomes: [
+      "describe(\"verifiedArchiveFacts called directly\", () => {",
+      "  const admitted = (entries: ReadonlyArray<AuditEntry>) => Result.getOrThrow(admitRows(entries));",
+      "  const factsOf = (entries: ReadonlyArray<AuditEntry>) =>",
+      "    failureOf(Effect.runSync(Effect.result(verifiedArchiveFacts(admitted(entries)))));",
+      "  /** What the verify and the writer each answer over `rows`, and whether `verifiedArchiveFacts` ran under it: its span opened. */",
+      "  const factsReached = (rows: ReadonlyArray<AuditEntry>) =>",
+      "    [spansOf(verifySequenceIntegrity(rows)), spansOf(archiveAuditTrail(rows, 1_000))].map(({ result, names }) => ({",
+      "      outcome: outcomeOf(result),",
+      "      reached: names.includes(\"qadi.audit.verifySequenceIntegrity\"),",
+      "    }));",
+      "  const neverReached = [",
+      "    { outcome: \"ArchiveInputInvalid\", reached: false },",
+      "    { outcome: \"ArchiveInputInvalid\", reached: false },",
+      "  ];",
+      "",
+      "  it(\"F1 verifiedArchiveFacts over rows admitRows admitted fails SequenceIntegrityError on a break\", () => {",
+      "    assert.deepStrictEqual(factsOf(breakRows), breakFailure);",
+      "  });",
+      "  it(\"F2 verifiedArchiveFacts over admitted rows with no break returns their facts\", () => {",
+      "    const facts = Effect.runSync(verifiedArchiveFacts(admitted([numbered(a, 1), numbered(b, 2)])));",
+      "    assert.deepStrictEqual(",
+      "      { ordered: facts.ordered, sequencedCount: facts.sequencedCount, sequenceIntegrityVerified: facts.sequenceIntegrityVerified },",
+      "      { ordered: [numbered(a, 1), numbered(b, 2)], sequencedCount: 2, sequenceIntegrityVerified: true },",
+      "    );",
+      "  });",
+      "  it(\"F3 rows that are not a list are refused by admitRows, and neither the verify nor the writer runs verifiedArchiveFacts on them\", () => {",
+      "    assert.deepStrictEqual(admitRows(rowsNotList), Result.fail(rowsNotListRefused));",
+      "    assert.deepStrictEqual(factsReached(rowsNotList), neverReached);",
+      "  });",
+      "  it(\"F4 a row admitRows refuses, with a break among the rest, keeps the verify and the writer from running verifiedArchiveFacts\", () => {",
+      "    assert.deepStrictEqual(admitRows(rowItemBreak), Result.fail(rowItemRefused));",
+      "    assert.deepStrictEqual(factsReached(rowItemBreak), neverReached);",
+      "  });",
+      "  it(\"F5 verifiedArchiveFacts opens exactly its own span\", () => {",
+      "    const opened = [[good], breakRows].map((rows) => spansOf(verifiedArchiveFacts(admitted(rows))).names);",
+      "    assert.deepStrictEqual(opened, Array.from({ length: 2 }, () => [\"qadi.audit.verifySequenceIntegrity\"]));",
+      "  });",
+      "});",
+      "",
+    ],
+  },
 ];
 
 /**
@@ -530,8 +588,9 @@ const selfTest = () => {
     ["a region that ends before it starts fails", reversed.some((r) => r.includes("does not start before it ends"))],
     ["two regions that overlap at the base fail", overlap.some((r) => r.includes("overlaps the one before it"))],
     ["each declared file names its regions once and reads from a text its adding commit or the base holds", real && DECLARED.length === 4 && DECLARED.every((d) => d.from === "base" || BORN.includes(d.file))],
-    ["the declared forms are the ones the phase fixes: seven, one, five and three regions, the block with four titles", FOREIGN_REGIONS.length === 7 && RETENTION_REGIONS.length === 1 && ORDER_REGIONS.length === 5 && CODEC_REGIONS.length === 3 && ADMITS_TITLES.length === 4 && FOREIGN_REGIONS.filter((r) => r.becomes?.length === 0).length === 4],
+    ["the declared forms are the ones the phase fixes: seven, one, six and three regions, the block with four titles", FOREIGN_REGIONS.length === 7 && RETENTION_REGIONS.length === 1 && ORDER_REGIONS.length === 6 && CODEC_REGIONS.length === 3 && ADMITS_TITLES.length === 4 && FOREIGN_REGIONS.filter((r) => r.becomes?.length === 0).length === 4],
     ["every region of the codec leaf is a fixed becomes", CODEC_REGIONS.every((r) => Array.isArray(r.becomes))],
+    ["every region of the characterisation is a fixed becomes, so no row there is held only by its title", ORDER_REGIONS.every((r) => Array.isArray(r.becomes))],
     ["each declared region has exactly one of the forms becomes, kept and insert", oneForm],
   ];
   const failed = cases.filter(([, passed]) => !passed).map(([name]) => name);
