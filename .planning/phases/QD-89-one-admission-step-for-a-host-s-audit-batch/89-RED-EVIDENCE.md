@@ -540,3 +540,5 @@ Each row below was run against HEAD 76d38f52 (the source the review read) with o
   (scratch edit: `// edit` appended to the `codecMade` WeakSet line, outside the declared regions)
 - check failed: pinned: packages/audit/src/CodecMade.ts: region rowsRefusal is not the lines it becomes
   (scratch edit: `// edit` appended to the `isCodecMade` declaration line, inside the region)
+- check failed: pinned: packages/audit/test/AdmissionOrder.characterisation.test.ts: region spanFlips is not the lines it becomes
+  (scratch edit: the SF3 title put back to its base wording, "opens only the sequence span")

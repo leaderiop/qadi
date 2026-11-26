@@ -451,22 +451,22 @@ describe("the spans each outcome opens", () => {
   });
 });
 
-describe("the sequence span on refused rows", () => {
+describe("no sequence span on refused rows", () => {
   const WRITER = "qadi.audit.archiveAuditTrail";
 
-  it("SF1 the writer refused for rows that are not a list opens its span and the sequence span", () => {
+  it("SF1 the writer refused for rows that are not a list opens only its own span, not the sequence span", () => {
     const { result, names } = spansOf(archiveAuditTrail(rowsNotList, 1_000));
     assert.deepStrictEqual({ outcome: outcomeOf(result), names }, { outcome: "ArchiveInputInvalid", names: [WRITER] });
   });
-  it("SF2 the writer refused for a row the codec did not make opens its span and the sequence span", () => {
+  it("SF2 the writer refused for a row the codec did not make opens only its own span, not the sequence span", () => {
     const { result, names } = spansOf(archiveAuditTrail(rowItem, 1_000));
     assert.deepStrictEqual({ outcome: outcomeOf(result), names }, { outcome: "ArchiveInputInvalid", names: [WRITER] });
   });
-  it("SF3 the verify refused for rows that are not a list opens only the sequence span", () => {
+  it("SF3 the verify refused for rows that are not a list opens no span", () => {
     const { result, names } = spansOf(verifySequenceIntegrity(rowsNotList));
     assert.deepStrictEqual({ outcome: outcomeOf(result), names }, { outcome: "ArchiveInputInvalid", names: [] });
   });
-  it("SF4 the verify refused for a row the codec did not make opens only the sequence span", () => {
+  it("SF4 the verify refused for a row the codec did not make opens no span", () => {
     const { result, names } = spansOf(verifySequenceIntegrity(rowItem));
     assert.deepStrictEqual({ outcome: outcomeOf(result), names }, { outcome: "ArchiveInputInvalid", names: [] });
   });

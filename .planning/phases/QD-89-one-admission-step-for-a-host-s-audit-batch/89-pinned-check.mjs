@@ -112,11 +112,35 @@ const ORDER_REGIONS = [
   },
   // `verifiedArchiveFacts` takes admitted rows, so the helper that handed it a list goes with the rewritten direct rows.
   { name: "factsFailure", from: "const factsFailure = (entries: ReadonlyArray<AuditEntry>) =>", lines: 2, lead: 1, becomes: [] },
+  // The four rows flip their spans with the change, and the review of the phase retitled them and their block to the
+  // trace each asserts (WR-01): the whole block is its exact lines.
   {
     name: "spanFlips",
     from: 'describe("the sequence span on refused rows", () => {',
     to: 'describe("what a refusal leaves unread", () => {',
-    kept: [/^it(?:\.effect)?\("SF[1-4] /],
+    becomes: [
+      "describe(\"no sequence span on refused rows\", () => {",
+      "  const WRITER = \"qadi.audit.archiveAuditTrail\";",
+      "",
+      "  it(\"SF1 the writer refused for rows that are not a list opens only its own span, not the sequence span\", () => {",
+      "    const { result, names } = spansOf(archiveAuditTrail(rowsNotList, 1_000));",
+      "    assert.deepStrictEqual({ outcome: outcomeOf(result), names }, { outcome: \"ArchiveInputInvalid\", names: [WRITER] });",
+      "  });",
+      "  it(\"SF2 the writer refused for a row the codec did not make opens only its own span, not the sequence span\", () => {",
+      "    const { result, names } = spansOf(archiveAuditTrail(rowItem, 1_000));",
+      "    assert.deepStrictEqual({ outcome: outcomeOf(result), names }, { outcome: \"ArchiveInputInvalid\", names: [WRITER] });",
+      "  });",
+      "  it(\"SF3 the verify refused for rows that are not a list opens no span\", () => {",
+      "    const { result, names } = spansOf(verifySequenceIntegrity(rowsNotList));",
+      "    assert.deepStrictEqual({ outcome: outcomeOf(result), names }, { outcome: \"ArchiveInputInvalid\", names: [] });",
+      "  });",
+      "  it(\"SF4 the verify refused for a row the codec did not make opens no span\", () => {",
+      "    const { result, names } = spansOf(verifySequenceIntegrity(rowItem));",
+      "    assert.deepStrictEqual({ outcome: outcomeOf(result), names }, { outcome: \"ArchiveInputInvalid\", names: [] });",
+      "  });",
+      "});",
+      "",
+    ],
   },
   // The rows are rewritten over admitted rows with new titles, so only the block's own line is kept.
   { name: "direct", from: 'describe("verifiedArchiveFacts called directly", () => {', to: null, kept: ['describe("verifiedArchiveFacts called directly", () => {'] },
