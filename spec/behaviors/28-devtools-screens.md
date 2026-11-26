@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-28                                    |
-> | Revision       | 1.82                                           |
+> | Revision       | 1.83                                           |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.82 (2026-11-25): BEH-QD-771 to BEH-QD-773 new; BEH-QD-507, BEH-QD-519 and BEH-QD-637 split an interruption from outside from a run that interrupts itself; BEH-QD-521 to BEH-QD-525, BEH-QD-636, BEH-QD-742, BEH-QD-744 and BEH-QD-745 name the stated run and the prologue in their text or pins; the INV-QD-313 links move (CCR-QD-479)<br>1.81 (2026-11-25): BEH-QD-761 to BEH-QD-765 new; BEH-QD-699 renamed to five computed stores with its links; BEH-QD-700, BEH-QD-735, BEH-QD-741, BEH-QD-742, BEH-QD-743 and BEH-QD-218 restated for the hydration store (CCR-QD-477)<br>1.80 (2026-11-25): BEH-QD-756 states what each of the four pinned refusals of useConfigured refuses, and that only the fourth tells a function property from a method (CCR-QD-476)<br>1.79 (2026-11-25): the mutation enforcement of the lens session names the devtools mutation run over src/model, not a lens group of stryker.devtools.mjs (CCR-QD-476)<br>1.78 (2026-11-25): BEH-QD-756 states the three pinned refusals of useConfigured, each a @ts-expect-error beside an accepted twin (CCR-QD-476)<br>1.77 (2026-11-25): BEH-QD-756 to BEH-QD-760, and BEH-QD-734 and BEH-QD-736 re-pinned (CCR-QD-476)<br>1.76 (2026-11-25): BEH-QD-737 pinned-by: the two subscription titles and the lens questions characterisation (CCR-QD-476)<br>1.75 (2026-11-25): the new test file DiagnosticsFeed.superseded.test.ts is named where a superseded run's sample and the sampled flag are pinned (CCR-QD-475)<br>1.74 (2026-11-25): the test that pins a sample's four fields reads the raw sample and is named for it (CCR-QD-475)<br>1.73 (2026-11-25): BEH-QD-323, BEH-QD-617, BEH-QD-637, BEH-QD-639, BEH-QD-640 and BEH-QD-699 restated; the Invariant lines of BEH-QD-751 to BEH-QD-755 link INV-QD-411 and INV-QD-412 (CCR-QD-475)<br>1.72 (2026-11-25): BEH-QD-751 to BEH-QD-755: the diagnostics fold, its sink, Off by the constant, the reading's fields and the transition table (CCR-QD-475)<br>1.71 (2026-11-25): the module and its two test files are renamed from DiagnosticsStore to Diagnostics (CCR-QD-475)<br>1.70 (2026-11-25): BEH-QD-656 carries the Amended 2026-11-25 banner for the requirement that a listener's throw on a record or a sample ends the read or poll; its Pinned by and BEH-QD-742's name LF1 to LF3 (CCR-QD-473)<br>1.69 (2026-11-25): BEH-QD-656 gains the requirement that a listener's throw on a record or a sample ends the read or poll and says Stopped; the Pinned by of BEH-QD-656, BEH-QD-728, BEH-QD-741, BEH-QD-742 and BEH-QD-745 name DL1 to DL9 and the lens DL10, DL18 to DL20, F32 and TF37's two reads (CCR-QD-473)<br>1.68 (2026-11-24): BEH-QD-742 to BEH-QD-745 new; BEH-QD-465, BEH-QD-656, BEH-QD-699, BEH-QD-700, BEH-QD-728 and BEH-QD-735 restated (CCR-QD-473)<br>1.67 (2026-11-24): BEH-QD-741 (CCR-QD-473)<br>1.66 (2026-11-24): BEH-QD-736, BEH-QD-739: hover and choose from idle are reached only headlessly or by a script in the click's task (CCR-QD-472)<br>1.65 (2026-11-24): BEH-QD-737: the adapter does not catch a subscriber's failure, replacing 'reaches the dispatch' (CCR-QD-472)<br>1.64 (2026-11-24): BEH-QD-736: hover and choose from idle are reached by the adapter between a pick and its listeners coming off (CCR-QD-472)<br>1.63 (2026-11-24): BEH-QD-739: a hover leaves the reveal and moves nothing from idle (CCR-QD-472)<br>1.62 (2026-11-24): BEH-QD-737 and BEH-QD-739 restated: the swallowed click's default action, the click placed by its element when it reports no pointer, the capture wording, and the reveal dropped by cancel and highlight (ADR-QD-193, CCR-QD-472)<br>1.61 (2026-11-24): BEH-QD-737 to BEH-QD-739 new; BEH-QD-234, BEH-QD-700 and BEH-QD-735 restated (ADR-QD-193, CCR-QD-472)<br>1.60 (2026-11-24): BEH-QD-736: the lens is a headless session, and a no-op publishes nothing (ADR-QD-193, CCR-QD-472)<br>1.59 (2026-11-24): BEH-QD-731: a bare timeline feed starts no read and shows what the empty source showed (ADR-QD-192, CCR-QD-471)<br>1.58 (2026-11-24): BEH-QD-731 to BEH-QD-735 new; BEH-QD-465, BEH-QD-584, BEH-QD-619 and BEH-QD-636 to BEH-QD-639 restated (ADR-QD-192, CCR-QD-471)<br>1.57 (2026-11-24): the feeds and the dock model are built bare (ADR-QD-192, CCR-QD-471)<br>1.56 (2026-11-24): the compiled diagnostics fence builds bare and configures (ADR-QD-192, CCR-QD-471)<br>1.55 (2026-11-24): DiagnosticsOptions accepts undefined per field (ADR-QD-192, CCR-QD-471)<br>1.54 (2026-11-24): BEH-QD-726, BEH-QD-727 and BEH-QD-730 new; BEH-QD-636 and BEH-QD-656 restated for the one store and the bound a capacity means (ADR-QD-191, CCR-QD-470)<br>1.53 (2026-11-24): BEH-QD-728 and INV-QD-401: a capacity the timeline refuses changes nothing in configure (ADR-QD-191, CCR-QD-470)<br>1.52 (2026-11-23): BEH-QD-466: the simulation session holds a SeededChoice (ADR-QD-187, CCR-QD-466)<br>1.51 (2026-11-22): BEH-QD-696: the inherited, non-enumerable and symbol-keyed cases are pinned by one test of a key whose such fields differ (CCR-QD-464)<br>1.50 (2026-11-22): BEH-QD-615 and BEH-QD-699: the questions and services store tests are titled for what they hold, once per key field (CCR-QD-464)<br>1.49 (2026-11-22): BEH-QD-698: the two release tests' titles are shortened (CCR-QD-464)<br>1.48 (2026-11-22): BEH-QD-700: the store-list test compares names as a set and the section claims no order (CCR-QD-464)<br>1.47 (2026-11-22): BEH-QD-698: a build whose parent subscribe throws, and a close whose release throws, are stated; its pinned-by paragraph is wrapped (CCR-QD-464)<br>1.46 (2026-11-22): BEH-QD-696 to BEH-QD-700: own enumerable string-keyed key fields, a parent whose subscribe throws, the derived stores named, the ordinal history in a dated note, and what the store-list test holds (CCR-QD-464)<br>1.45 (2026-11-22): BEH-QD-700 cites ADR-QD-185 and the change register only (CCR-QD-464)<br>1.44 (2026-11-22): BEH-QD-696 to BEH-QD-700: a derived store behind the dock model's stores; BEH-QD-465, BEH-QD-583 and BEH-QD-656 amended (ARCH-119, CCR-QD-464)<br>1.43 (2026-11-22): BEH-QD-615 drops the ordinal and is pinned by the per-store test<br>1.42 (2026-11-22): BEH-QD-616: the model holds no gate-watch state; its join is a derived store<br>1.41 (2026-11-22): BEH-QD-465 and BEH-QD-583 name the read half of a store ReadableStore (ARCH-119, CCR-QD-464)<br>1.40 (2026-11-22): BEH-QD-692: a throwing reporter is named by the option the caller passed (ARCH-118, ADR-QD-184, CCR-QD-463)<br>1.39 (2026-11-22): BEH-QD-507, BEH-QD-519 and BEH-QD-637 amended: a stopped reason is causeMessage's text of the cause (ADR-QD-182, CCR-QD-461)<br>1.38 (2026-11-21): BEH-QD-656: a capacity change's publish stops no read, and the diagnostics poll's Stopped is held (ARCH-115, CCR-QD-459)<br>1.37 (2026-11-20): BEH-QD-656 new; BEH-QD-638 amended: every listener is called, and what they threw is rethrown (ARCH-111, ADR-QD-177, CCR-QD-455)<br>1.36 (2026-11-19): BEH-QD-638 says a release that throws is swallowed, not stated (BEH-QD-584) (review iteration 3)<br>1.35 (2026-11-19): BEH-QD-638 narrows its no-escape rule to the registry and the thunk; a feed subscribe listener must not throw; BEH-QD-636's pin names TF24 (review iteration 2)<br>1.34 (2026-11-19): BEH-QD-636: a configure after the scope closed reads and publishes nothing (Phase 60 review WR-02)<br>1.33 (2026-11-19): BEH-QD-636..640; BEH-QD-323, 465, 506, 510 amended (ARCH-107, CCR-QD-451)<br>1.32 (2026-11-18): BEH-QD-616..620; BEH-QD-323, 465, 506, 507, 583, 584, 585 amended (ARCH-103, CCR-QD-447)<br>1.31 (2026-11-18): BEH-QD-611..615; BEH-QD-465, 573, 575, 216 amended (ARCH-102, CCR-QD-446)<br>1.30 (2026-11-16): BEH-QD-583: pinned by M38 and M45, M46 (review iteration 3 IN-04, IN-06; ARCH-96, CCR-QD-440)<br>1.29 (2026-11-16): BEH-QD-584: an unsubscribe that throws is not stated; configure swaps the registry before it re-merges; the same registry is not subscribed again after a watch that worked; an unrenderable throw is a fixed sentence (review iteration 3 IN-01, IN-02, IN-05; ARCH-96, CCR-QD-440)<br>1.28 (2026-11-16): BEH-QD-584: a configure after a failed subscribe subscribes again, with the same registry or another; a silent mend stays Failed until read (review iteration 2 IN-03; ARCH-96, CCR-QD-440)<br>1.27 (2026-11-16): BEH-QD-583: the same failure is the same name and message, not the stack (review iteration 2 IN-02; ARCH-96, CCR-QD-440)<br>1.26 (2026-11-16): BEH-QD-584: an unsubscribe that throws is stated and never repeated (review iteration 2 WR-01; ARCH-96, CCR-QD-440)<br>1.25 (2026-11-16): BEH-QD-583 and BEH-QD-584: a registry that throws is stated as the Failed gates view and its rows make no claim; Listed carries nothing; a closed model reads no registry (review WR-01, IN-02, IN-03; ARCH-96, CCR-QD-440)<br>1.24 (2026-11-16): BEH-QD-581 to 585; BEH-QD-465 amended and BEH-QD-217 corrected: the gate registry is the dock model's eighth store (ARCH-96, CCR-QD-440)<br>1.23 (2026-11-16): BEH-QD-215: a defaulted port with no name reads 'defaulted — unnamed' (ARCH-94 review WR-01)<br>1.22 (2026-11-16): BEH-QD-573 and BEH-QD-575 new; BEH-QD-215's defaulted is read from isPortDefault, not a name (ARCH-94, CCR-QD-438)<br>1.21 (2026-11-14): BEH-QD-521 to BEH-QD-525 new: one module owns a run a newer run supersedes (CCR-QD-428)<br>1.20 (2026-11-12): BEH-QD-519 and BEH-QD-520 new: the timeline states a stop and restarts; BEH-QD-465 (eight readouts), BEH-QD-509 and BEH-QD-510 restated (CCR-QD-427)<br>1.19 (2026-11-12): review fixes: a closed feed and a repeated command publish nothing; the notice keeps a persistent status region, alerts once per stop and shows its focus (ARCH-82, BEH-QD-507, BEH-QD-509, INV-QD-313, CCR-QD-425)<br>1.18 (2026-11-12): BEH-QD-465 restated (seven stores) and BEH-QD-323 restated (the model polls; useDiagnostics returns { status, reading }); BEH-QD-506..510 new (ARCH-82, CCR-QD-425)<br>1.17 (2026-11-11): The one internal hook, useGates, is in useGate.ts (ARCH-76, CCR-QD-418, ADR-QD-140)<br>1.16 (2026-11-11): BEH-QD-465 — the dock is one model (makeDockModel owns the six stores and pushes the rail, one configure, the model reads its source in its own scope); BEH-QD-466 — a choice from a list has one shape (HeldChoice's three arms, one cell in both sessions); BEH-QD-389's note names the dock model, not the owned hook (ARCH-74, ADR-QD-047 amendment, CCR-QD-416)<br>1.15 (2026-11-10): BEH-QD-429 (every panel shows a verdict through one treatment) and BEH-QD-430 (a record's outcome and obligation are read once) (ARCH-67, CCR-QD-409)<br>1.14 (2026-11-10): BEH-QD-399 added: the role tree is the role walk as flat rows, keyed by identity, stack-safe at 20,000 deep, a repeated role a leaf pointing at its first occurrence; BEH-QD-214's diamond requirement amended to match (ADR-QD-128, ARCH-64, CCR-QD-406)<br>1.13 (2026-11-10): BEH-QD-389 — the dock's tab, filters, selection and replay are a session the dock owns: pair the whole timeline then filter, count the whole timeline, select opens the inspector, replay opens the simulator and re-seeds (ARCH-63, ADR-QD-047, CCR-QD-405)<br>1.12 (2026-11-09): BEH-QD-337 — what the explorer shows is a session the dock owns; BEH-QD-211 and BEH-QD-213 gain a sentence each (ARCH-58, ADR-QD-047, CCR-QD-394)<br>1.11 (2026-11-08): BEH-QD-233 — every surface registers through one internal useGates over a writer the provider resolves once (ARCH-49, ADR-QD-111, CCR-QD-388)<br>1.10 (2026-10-08): the screens' mechanics (`policiesSeen`, `PolicyTree`, the lens) are package-private; specified here because the dock relies on them (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.9 (2026-10-08): BEH-QD-323 — a reading supplied to the dock is one `reading` prop of `DiagnosticsReading`, merged field by field by `mergeReading`, replacing the five props `wiring`, `activity`, `portCalls`, `questions` and `hydration`; the superseded `hydrationMismatches` is removed from the dock and `QuestionsPanel` (**breaking**, ARCH-44, reverses the layout half of ARCH-24's D-24-c, CCR-QD-241)<br>1.8 (2026-10-08): BEH-QD-323 — under a `QadiProvider` the shared build comes from `useDevtoolsFeed()`'s layer, the provider's own build, rather than a hoisted context (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.7 (2026-10-08): BEH-QD-233 — a registry built by `makeGateRegistry` reports a colliding id by default (ARCH-43, CCR-QD-250)<br>1.6 (2026-10-08): BEH-QD-211 — two structurally equal *declared* policies are one entry under the first declared name, and the explorer and the role viewer keep what they show when their list moves (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.5 (2026-10-07): BEH-QD-233 — a hook that asks several questions (`usePolicies`, `useQuestions`) lists one instance per question, each under `<useId>/<name>`; the panel shows the new kind strings as they are (ARCH-23, ADR-QD-103, CCR-QD-201)<br>1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
+> | Change History | 1.83 (2026-11-26): BEH-QD-776 to BEH-QD-780 new; BEH-QD-759 restated for the reducer, with the three new test files in its Pinned by and its Decision line naming ADR-QD-201; BEH-QD-509 links BEH-QD-776 and BEH-QD-777 (CCR-QD-480)<br>1.82 (2026-11-25): BEH-QD-771 to BEH-QD-773 new; BEH-QD-507, BEH-QD-519 and BEH-QD-637 split an interruption from outside from a run that interrupts itself; BEH-QD-521 to BEH-QD-525, BEH-QD-636, BEH-QD-742, BEH-QD-744 and BEH-QD-745 name the stated run and the prologue in their text or pins; the INV-QD-313 links move (CCR-QD-479)<br>1.81 (2026-11-25): BEH-QD-761 to BEH-QD-765 new; BEH-QD-699 renamed to five computed stores with its links; BEH-QD-700, BEH-QD-735, BEH-QD-741, BEH-QD-742, BEH-QD-743 and BEH-QD-218 restated for the hydration store (CCR-QD-477)<br>1.80 (2026-11-25): BEH-QD-756 states what each of the four pinned refusals of useConfigured refuses, and that only the fourth tells a function property from a method (CCR-QD-476)<br>1.79 (2026-11-25): the mutation enforcement of the lens session names the devtools mutation run over src/model, not a lens group of stryker.devtools.mjs (CCR-QD-476)<br>1.78 (2026-11-25): BEH-QD-756 states the three pinned refusals of useConfigured, each a @ts-expect-error beside an accepted twin (CCR-QD-476)<br>1.77 (2026-11-25): BEH-QD-756 to BEH-QD-760, and BEH-QD-734 and BEH-QD-736 re-pinned (CCR-QD-476)<br>1.76 (2026-11-25): BEH-QD-737 pinned-by: the two subscription titles and the lens questions characterisation (CCR-QD-476)<br>1.75 (2026-11-25): the new test file DiagnosticsFeed.superseded.test.ts is named where a superseded run's sample and the sampled flag are pinned (CCR-QD-475)<br>1.74 (2026-11-25): the test that pins a sample's four fields reads the raw sample and is named for it (CCR-QD-475)<br>1.73 (2026-11-25): BEH-QD-323, BEH-QD-617, BEH-QD-637, BEH-QD-639, BEH-QD-640 and BEH-QD-699 restated; the Invariant lines of BEH-QD-751 to BEH-QD-755 link INV-QD-411 and INV-QD-412 (CCR-QD-475)<br>1.72 (2026-11-25): BEH-QD-751 to BEH-QD-755: the diagnostics fold, its sink, Off by the constant, the reading's fields and the transition table (CCR-QD-475)<br>1.71 (2026-11-25): the module and its two test files are renamed from DiagnosticsStore to Diagnostics (CCR-QD-475)<br>1.70 (2026-11-25): BEH-QD-656 carries the Amended 2026-11-25 banner for the requirement that a listener's throw on a record or a sample ends the read or poll; its Pinned by and BEH-QD-742's name LF1 to LF3 (CCR-QD-473)<br>1.69 (2026-11-25): BEH-QD-656 gains the requirement that a listener's throw on a record or a sample ends the read or poll and says Stopped; the Pinned by of BEH-QD-656, BEH-QD-728, BEH-QD-741, BEH-QD-742 and BEH-QD-745 name DL1 to DL9 and the lens DL10, DL18 to DL20, F32 and TF37's two reads (CCR-QD-473)<br>1.68 (2026-11-24): BEH-QD-742 to BEH-QD-745 new; BEH-QD-465, BEH-QD-656, BEH-QD-699, BEH-QD-700, BEH-QD-728 and BEH-QD-735 restated (CCR-QD-473)<br>1.67 (2026-11-24): BEH-QD-741 (CCR-QD-473)<br>1.66 (2026-11-24): BEH-QD-736, BEH-QD-739: hover and choose from idle are reached only headlessly or by a script in the click's task (CCR-QD-472)<br>1.65 (2026-11-24): BEH-QD-737: the adapter does not catch a subscriber's failure, replacing 'reaches the dispatch' (CCR-QD-472)<br>1.64 (2026-11-24): BEH-QD-736: hover and choose from idle are reached by the adapter between a pick and its listeners coming off (CCR-QD-472)<br>1.63 (2026-11-24): BEH-QD-739: a hover leaves the reveal and moves nothing from idle (CCR-QD-472)<br>1.62 (2026-11-24): BEH-QD-737 and BEH-QD-739 restated: the swallowed click's default action, the click placed by its element when it reports no pointer, the capture wording, and the reveal dropped by cancel and highlight (ADR-QD-193, CCR-QD-472)<br>1.61 (2026-11-24): BEH-QD-737 to BEH-QD-739 new; BEH-QD-234, BEH-QD-700 and BEH-QD-735 restated (ADR-QD-193, CCR-QD-472)<br>1.60 (2026-11-24): BEH-QD-736: the lens is a headless session, and a no-op publishes nothing (ADR-QD-193, CCR-QD-472)<br>1.59 (2026-11-24): BEH-QD-731: a bare timeline feed starts no read and shows what the empty source showed (ADR-QD-192, CCR-QD-471)<br>1.58 (2026-11-24): BEH-QD-731 to BEH-QD-735 new; BEH-QD-465, BEH-QD-584, BEH-QD-619 and BEH-QD-636 to BEH-QD-639 restated (ADR-QD-192, CCR-QD-471)<br>1.57 (2026-11-24): the feeds and the dock model are built bare (ADR-QD-192, CCR-QD-471)<br>1.56 (2026-11-24): the compiled diagnostics fence builds bare and configures (ADR-QD-192, CCR-QD-471)<br>1.55 (2026-11-24): DiagnosticsOptions accepts undefined per field (ADR-QD-192, CCR-QD-471)<br>1.54 (2026-11-24): BEH-QD-726, BEH-QD-727 and BEH-QD-730 new; BEH-QD-636 and BEH-QD-656 restated for the one store and the bound a capacity means (ADR-QD-191, CCR-QD-470)<br>1.53 (2026-11-24): BEH-QD-728 and INV-QD-401: a capacity the timeline refuses changes nothing in configure (ADR-QD-191, CCR-QD-470)<br>1.52 (2026-11-23): BEH-QD-466: the simulation session holds a SeededChoice (ADR-QD-187, CCR-QD-466)<br>1.51 (2026-11-22): BEH-QD-696: the inherited, non-enumerable and symbol-keyed cases are pinned by one test of a key whose such fields differ (CCR-QD-464)<br>1.50 (2026-11-22): BEH-QD-615 and BEH-QD-699: the questions and services store tests are titled for what they hold, once per key field (CCR-QD-464)<br>1.49 (2026-11-22): BEH-QD-698: the two release tests' titles are shortened (CCR-QD-464)<br>1.48 (2026-11-22): BEH-QD-700: the store-list test compares names as a set and the section claims no order (CCR-QD-464)<br>1.47 (2026-11-22): BEH-QD-698: a build whose parent subscribe throws, and a close whose release throws, are stated; its pinned-by paragraph is wrapped (CCR-QD-464)<br>1.46 (2026-11-22): BEH-QD-696 to BEH-QD-700: own enumerable string-keyed key fields, a parent whose subscribe throws, the derived stores named, the ordinal history in a dated note, and what the store-list test holds (CCR-QD-464)<br>1.45 (2026-11-22): BEH-QD-700 cites ADR-QD-185 and the change register only (CCR-QD-464)<br>1.44 (2026-11-22): BEH-QD-696 to BEH-QD-700: a derived store behind the dock model's stores; BEH-QD-465, BEH-QD-583 and BEH-QD-656 amended (ARCH-119, CCR-QD-464)<br>1.43 (2026-11-22): BEH-QD-615 drops the ordinal and is pinned by the per-store test<br>1.42 (2026-11-22): BEH-QD-616: the model holds no gate-watch state; its join is a derived store<br>1.41 (2026-11-22): BEH-QD-465 and BEH-QD-583 name the read half of a store ReadableStore (ARCH-119, CCR-QD-464)<br>1.40 (2026-11-22): BEH-QD-692: a throwing reporter is named by the option the caller passed (ARCH-118, ADR-QD-184, CCR-QD-463)<br>1.39 (2026-11-22): BEH-QD-507, BEH-QD-519 and BEH-QD-637 amended: a stopped reason is causeMessage's text of the cause (ADR-QD-182, CCR-QD-461)<br>1.38 (2026-11-21): BEH-QD-656: a capacity change's publish stops no read, and the diagnostics poll's Stopped is held (ARCH-115, CCR-QD-459)<br>1.37 (2026-11-20): BEH-QD-656 new; BEH-QD-638 amended: every listener is called, and what they threw is rethrown (ARCH-111, ADR-QD-177, CCR-QD-455)<br>1.36 (2026-11-19): BEH-QD-638 says a release that throws is swallowed, not stated (BEH-QD-584) (review iteration 3)<br>1.35 (2026-11-19): BEH-QD-638 narrows its no-escape rule to the registry and the thunk; a feed subscribe listener must not throw; BEH-QD-636's pin names TF24 (review iteration 2)<br>1.34 (2026-11-19): BEH-QD-636: a configure after the scope closed reads and publishes nothing (Phase 60 review WR-02)<br>1.33 (2026-11-19): BEH-QD-636..640; BEH-QD-323, 465, 506, 510 amended (ARCH-107, CCR-QD-451)<br>1.32 (2026-11-18): BEH-QD-616..620; BEH-QD-323, 465, 506, 507, 583, 584, 585 amended (ARCH-103, CCR-QD-447)<br>1.31 (2026-11-18): BEH-QD-611..615; BEH-QD-465, 573, 575, 216 amended (ARCH-102, CCR-QD-446)<br>1.30 (2026-11-16): BEH-QD-583: pinned by M38 and M45, M46 (review iteration 3 IN-04, IN-06; ARCH-96, CCR-QD-440)<br>1.29 (2026-11-16): BEH-QD-584: an unsubscribe that throws is not stated; configure swaps the registry before it re-merges; the same registry is not subscribed again after a watch that worked; an unrenderable throw is a fixed sentence (review iteration 3 IN-01, IN-02, IN-05; ARCH-96, CCR-QD-440)<br>1.28 (2026-11-16): BEH-QD-584: a configure after a failed subscribe subscribes again, with the same registry or another; a silent mend stays Failed until read (review iteration 2 IN-03; ARCH-96, CCR-QD-440)<br>1.27 (2026-11-16): BEH-QD-583: the same failure is the same name and message, not the stack (review iteration 2 IN-02; ARCH-96, CCR-QD-440)<br>1.26 (2026-11-16): BEH-QD-584: an unsubscribe that throws is stated and never repeated (review iteration 2 WR-01; ARCH-96, CCR-QD-440)<br>1.25 (2026-11-16): BEH-QD-583 and BEH-QD-584: a registry that throws is stated as the Failed gates view and its rows make no claim; Listed carries nothing; a closed model reads no registry (review WR-01, IN-02, IN-03; ARCH-96, CCR-QD-440)<br>1.24 (2026-11-16): BEH-QD-581 to 585; BEH-QD-465 amended and BEH-QD-217 corrected: the gate registry is the dock model's eighth store (ARCH-96, CCR-QD-440)<br>1.23 (2026-11-16): BEH-QD-215: a defaulted port with no name reads 'defaulted — unnamed' (ARCH-94 review WR-01)<br>1.22 (2026-11-16): BEH-QD-573 and BEH-QD-575 new; BEH-QD-215's defaulted is read from isPortDefault, not a name (ARCH-94, CCR-QD-438)<br>1.21 (2026-11-14): BEH-QD-521 to BEH-QD-525 new: one module owns a run a newer run supersedes (CCR-QD-428)<br>1.20 (2026-11-12): BEH-QD-519 and BEH-QD-520 new: the timeline states a stop and restarts; BEH-QD-465 (eight readouts), BEH-QD-509 and BEH-QD-510 restated (CCR-QD-427)<br>1.19 (2026-11-12): review fixes: a closed feed and a repeated command publish nothing; the notice keeps a persistent status region, alerts once per stop and shows its focus (ARCH-82, BEH-QD-507, BEH-QD-509, INV-QD-313, CCR-QD-425)<br>1.18 (2026-11-12): BEH-QD-465 restated (seven stores) and BEH-QD-323 restated (the model polls; useDiagnostics returns { status, reading }); BEH-QD-506..510 new (ARCH-82, CCR-QD-425)<br>1.17 (2026-11-11): The one internal hook, useGates, is in useGate.ts (ARCH-76, CCR-QD-418, ADR-QD-140)<br>1.16 (2026-11-11): BEH-QD-465 — the dock is one model (makeDockModel owns the six stores and pushes the rail, one configure, the model reads its source in its own scope); BEH-QD-466 — a choice from a list has one shape (HeldChoice's three arms, one cell in both sessions); BEH-QD-389's note names the dock model, not the owned hook (ARCH-74, ADR-QD-047 amendment, CCR-QD-416)<br>1.15 (2026-11-10): BEH-QD-429 (every panel shows a verdict through one treatment) and BEH-QD-430 (a record's outcome and obligation are read once) (ARCH-67, CCR-QD-409)<br>1.14 (2026-11-10): BEH-QD-399 added: the role tree is the role walk as flat rows, keyed by identity, stack-safe at 20,000 deep, a repeated role a leaf pointing at its first occurrence; BEH-QD-214's diamond requirement amended to match (ADR-QD-128, ARCH-64, CCR-QD-406)<br>1.13 (2026-11-10): BEH-QD-389 — the dock's tab, filters, selection and replay are a session the dock owns: pair the whole timeline then filter, count the whole timeline, select opens the inspector, replay opens the simulator and re-seeds (ARCH-63, ADR-QD-047, CCR-QD-405)<br>1.12 (2026-11-09): BEH-QD-337 — what the explorer shows is a session the dock owns; BEH-QD-211 and BEH-QD-213 gain a sentence each (ARCH-58, ADR-QD-047, CCR-QD-394)<br>1.11 (2026-11-08): BEH-QD-233 — every surface registers through one internal useGates over a writer the provider resolves once (ARCH-49, ADR-QD-111, CCR-QD-388)<br>1.10 (2026-10-08): the screens' mechanics (`policiesSeen`, `PolicyTree`, the lens) are package-private; specified here because the dock relies on them (ARCH-40, ADR-QD-047, CCR-QD-321)<br>1.9 (2026-10-08): BEH-QD-323 — a reading supplied to the dock is one `reading` prop of `DiagnosticsReading`, merged field by field by `mergeReading`, replacing the five props `wiring`, `activity`, `portCalls`, `questions` and `hydration`; the superseded `hydrationMismatches` is removed from the dock and `QuestionsPanel` (**breaking**, ARCH-44, reverses the layout half of ARCH-24's D-24-c, CCR-QD-241)<br>1.8 (2026-10-08): BEH-QD-323 — under a `QadiProvider` the shared build comes from `useDevtoolsFeed()`'s layer, the provider's own build, rather than a hoisted context (ARCH-34, BEH-QD-327, CCR-QD-240)<br>1.7 (2026-10-08): BEH-QD-233 — a registry built by `makeGateRegistry` reports a colliding id by default (ARCH-43, CCR-QD-250)<br>1.6 (2026-10-08): BEH-QD-211 — two structurally equal *declared* policies are one entry under the first declared name, and the explorer and the role viewer keep what they show when their list moves (ARCH-33, INV-QD-107, CCR-QD-206)<br>1.5 (2026-10-07): BEH-QD-233 — a hook that asks several questions (`usePolicies`, `useQuestions`) lists one instance per question, each under `<useId>/<name>`; the panel shows the new kind strings as they are (ARCH-23, ADR-QD-103, CCR-QD-201)<br>1.4 (2026-10-07): BEH-QD-323 — diagnostics are sampled by the model, and a sample that changed nothing changes nothing; BEH-QD-218's table says what the dock can obtain for itself when handed `diagnostics` (ARCH-24, CCR-QD-200)<br>1.3 (2026-10-07): BEH-QD-215 — all seven required services are listed (`CustomPredicate` and `SignatureHistory` were missing); the five port rows are the registry's, in its order, and each says whether it is the description's fail-closed default, or a wrapper around it (`PortReport.defaulted`) (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-05): BEH-QD-216 names a decision log's `clear` rather than the removed `decisionSinkRing`'s (CCR-QD-181)<br>1.1 (2026-08-24): BEH-QD-233, BEH-QD-234 — a guard may record that it exists, and the lens points at one; BEH-QD-217's per-instance prohibition withdrawn and its keying requirement restated; its hydration-counts requirement superseded by BEH-QD-231 (CCR-QD-072, CCR-QD-073)<br>1.0 (2026-08-24): Initial release (CCR-QD-068) |
 
 _Previous: [27 — The Devtools Timeline](./27-devtools-timeline.md)_
 
@@ -1553,7 +1553,9 @@ REQUIREMENT: The alert MUST hold the lead and the body only, and a second stop M
 
 The reason is a stack trace, so it follows the alert inside the notice and a screen reader
 does not read it aloud. A role added to an element already in the tree is generally not
-announced, so every new stop is a new mount and its alert is decided as it mounts.
+announced, so every new stop is a new mount and its alert is decided as it mounts
+([BEH-QD-776](#beh-qd-776-a-stop-notices-box-derives-its-own-key-and-a-notice-passes-none) states the key,
+[BEH-QD-777](#beh-qd-777-a-box-decides-its-alert-as-it-mounts-from-the-committed-ledger-and-records-its-stop-at-commit-never-during-render) the decision at mount and the record at commit).
 
 ```
 REQUIREMENT: The polite status region MUST exist before its text arrives, and MUST stay
@@ -4045,7 +4047,7 @@ no overlay; LQ4, one subscription to each store across the publishes) and `packa
 
 ## BEH-QD-759: The dock's two stop notices come from one hook, each with its own ledger, each following its feed's restart
 
-> **Decision:** [ADR-QD-197](../decisions/197-a-configurable-value-one-questions-path-for-the-lens-and-one-stop-ledger.md) ·
+> **Decision:** [ADR-QD-197](../decisions/197-a-configurable-value-one-questions-path-for-the-lens-and-one-stop-ledger.md) (amended by [ADR-QD-201](../decisions/201-a-stop-notices-box-keys-itself-and-owns-the-announce-once-rule.md)) ·
 > **Scope:** [ADR-QD-047](../decisions/047-a-headless-devtools-model.md)
 
 ```ts
@@ -4069,14 +4071,18 @@ The notices say a stop the same way on every screen that reads the feed
 screens mount the notice and under StrictMode. That is a property of the ledger, and a ledger shared by the two feeds would
 make one feed's second stop swallow or repeat the other's. The memo follows the feed's `restart` and not the model: each
 feed's `restart` is one closure per feed, so it is the identity that moves when a feed is rebuilt. A hook and not a plain
-helper, because the ledger is a `useRef` and the props a `useMemo`, which a function that is not a hook cannot own.
+helper, because the ledger is a `useReducer` over `recordStop` and the props a `useMemo`, which a function that is not a hook cannot own. The reducer is the pure transition of `model/StopLedger.ts` ([BEH-QD-778](#beh-qd-778-the-ledger-transition-is-one-pure-function-a-new-stop-counts-once-and-a-recorded-stop-returns-the-same-ledger)) and the box derives its own key ([BEH-QD-776](#beh-qd-776-a-stop-notices-box-derives-its-own-key-and-a-notice-passes-none)).
 `useStopNotice` and `StopNoticeProps` are package-private and in neither barrel
 ([ADR-QD-099](../decisions/099-entry-points-are-a-closed-list.md)).
 
 Pinned by `packages/devtools/test/react/DockFrame.stops.characterisation.test.tsx` (DS1 to DS3, each stop announced once
 across tab switches, a second stop remounting only its own box, and Restart restarting the rebuilt feed of its own kind),
-`packages/devtools/test/react/TimelineNotice.test.tsx` (TN1 to TN15) and
-`packages/devtools/test/react/DiagnosticsNotice.test.tsx` (N1 to N15). Specified in ADR-QD-197 (CCR-QD-476).
+`packages/devtools/test/react/TimelineNotice.test.tsx` (TN1 to TN15),
+`packages/devtools/test/react/DiagnosticsNotice.test.tsx` (N1 to N15), `packages/devtools/test/model/StopLedger.test.ts` (L1 to L6, LAW1 to LAW3, the ledger
+transition as a table),
+`packages/devtools/test/react/DockFrame.announce.characterisation.test.tsx` (A1 to A5, each stop announced once through the dock) and
+`packages/devtools/test/react/useStopNotice.test.tsx` (H1 to H3, C1, the hook alone). Specified in ADR-QD-197 (CCR-QD-476), amended by ADR-QD-201
+(CCR-QD-480).
 
 ## BEH-QD-760: A fresh inputs record with equal fields publishes nothing, and the per-render hand-over is kept
 
@@ -4407,3 +4413,173 @@ Pinned by `packages/devtools/test/model/ConfigurePrologue.test.ts` (CP1 to CP8: 
 hold, a nested configure, the gate's argument order, a step that throws and the order of the calls) and
 `packages/devtools/test/model/StatedRun.characterisation.test.ts` (SC12, a configure after a feed's scope closed reads and
 publishes nothing, a capacity the timeline refuses included). Specified in ADR-QD-200 (CCR-QD-479).
+
+## BEH-QD-776: A stop notice's box derives its own key, and a notice passes none
+
+> **Decision:** [ADR-QD-201](../decisions/201-a-stop-notices-box-keys-itself-and-owns-the-announce-once-rule.md) ·
+> **Scope:** [ADR-QD-197](../decisions/197-a-configurable-value-one-questions-path-for-the-lens-and-one-stop-ledger.md) ·
+> **Invariant:** [INV-QD-421](../invariants.md#inv-qd-421-a-stops-key-is-the-same-before-and-after-it-is-recorded-and-recording-a-recorded-stop-returns-the-same-ledger)
+
+```ts
+const stoppedKey: <S>(ledger: StopLedger<S>, status: S) => number;
+
+interface StoppedBoxProps<S> {
+  readonly notice: StopNoticeProps<S>;
+  readonly reason: string;
+  readonly lead: string;
+  readonly body: string;
+  readonly reasonLabel: string;
+  readonly restartLabel: string;
+  readonly feed: "diagnostics" | "timeline";
+  readonly sampled?: boolean | undefined;
+}
+```
+
+```
+REQUIREMENT: The stopped box MUST derive its own key from the stop it is shown and the ledger it is handed, so a second
+             stop is a new mount, and a notice MUST pass the box no key.
+REQUIREMENT: A notice MUST hand the box the notice props it was given, whole, and MUST keep no private binding of the
+             ledger.
+```
+
+A component cannot set its own `key`, so `StoppedBox` is a wrapper that renders a module-private body keyed on
+`stoppedKey(notice.announced.ledger, notice.status)`, and the body holds everything else. The two notices
+(`TimelineNotice`, `DiagnosticsNotice`) read the ledger through no ref and hold no `Binding`: each arm takes the notice props
+the dock's hook returned and hands them on as the box's one `notice` prop, with the copy and the feed. A stop the ledger has
+not recorded is keyed one above the ledger's count, and a recorded stop is keyed by the count it was recorded at, so the key
+moves only when the stop does ([INV-QD-421](../invariants.md#inv-qd-421-a-stops-key-is-the-same-before-and-after-it-is-recorded-and-recording-a-recorded-stop-returns-the-same-ledger)).
+`StopNoticeProps` keeps its name, and the two notices' prop types stay its aliases
+([BEH-QD-759](#beh-qd-759-the-docks-two-stop-notices-come-from-one-hook-each-with-its-own-ledger-each-following-its-feeds-restart)).
+
+Pinned by `packages/devtools/test/model/StopLedger.test.ts` (L1 to L6, the key of a first, a recorded, a second and an equal-field
+stop), `packages/devtools/test/react/DockFrame.announce.characterisation.test.tsx` (A2, a second stop remounts its own box;
+A5, the commit that records a stop does not), `packages/devtools/test/react/DiagnosticsNotice.test.tsx` (N12, a second stop on a
+mounted notice remounts it) and `packages/devtools/test/react/Simulator.broke.test.tsx` (SB1, the stopped box built from the
+notice props whole). Specified in ADR-QD-201 (CCR-QD-480).
+
+## BEH-QD-777: A box decides its alert as it mounts, from the committed ledger, and records its stop at commit, never during render
+
+> **Decision:** [ADR-QD-201](../decisions/201-a-stop-notices-box-keys-itself-and-owns-the-announce-once-rule.md) ·
+> **Scope:** [ADR-QD-197](../decisions/197-a-configurable-value-one-questions-path-for-the-lens-and-one-stop-ledger.md) ·
+> **Invariant:** [INV-QD-422](../invariants.md#inv-qd-422-the-stop-ledger-is-written-only-by-a-box-at-commit-never-during-render-or-at-module-scope-and-the-alert-role-is-never-added-to-or-removed-from-a-mounted-element)
+
+```ts
+const announcesStop: <S>(ledger: StopLedger<S>, status: S) => boolean;
+
+interface AnnouncedStops<S> {
+  readonly ledger: StopLedger<S>;
+  readonly record: (status: S) => void;
+}
+```
+
+```
+REQUIREMENT: A stopped box MUST decide whether its alert is present once, as it mounts, from the ledger it is handed, and
+             MUST NOT add the alert role to or remove it from an element that is mounted.
+REQUIREMENT: A stopped box MUST record its stop in a layout effect, after it commits, and MUST write nothing during render.
+REQUIREMENT: A render that is thrown away, and a render React does twice, MUST record nothing, so the alert is still decided
+             from an unrecorded ledger.
+```
+
+The alert is decided by `announcesStop(announced.ledger, status)` in the body's `useState` initializer, a decision read from a
+prop at mount, and the stop is recorded by `announced.record(status)` in a `useLayoutEffect` keyed on `record` and the status.
+The effect is keyed on the call and not on the handle, so the re-render the record causes builds a new handle and re-runs
+nothing, and a box handed another feed's ledger records there. The layout timing lands the record's re-render before paint.
+Under StrictMode the doubled render reads the same unrecorded ledger twice and the alert is kept
+([BEH-QD-509](#beh-qd-509-every-screen-that-reads-the-diagnostics-states-its-status-the-same-way),
+[BEH-QD-520](#beh-qd-520-every-screen-that-reads-the-timeline-states-a-stop-the-same-way)).
+
+Pinned by `packages/devtools/test/react/useStopNotice.test.tsx` (H1, a render that is thrown away announces nothing; C1, a newly
+shown stop adds at most one commit), `packages/devtools/test/react/DockFrame.announce.characterisation.test.tsx` (A1, each stop
+announced once and silent on every revisit; A3, a box mounted again for the announced stop is silent and kept by a re-render),
+`packages/devtools/test/react/DiagnosticsNotice.test.tsx` (N9, a stop alerts once and a strict-mode first render still alerts),
+`packages/devtools/test/react/TimelineNotice.test.tsx` (TN7, a strict-mode first render still alerts; TN14, a notice mounted
+again for the announced stop does not count it twice) and `packages/devtools/test/react/DiagnosticsScreens.test.tsx` (D7, a stop
+is alerted on the first screen that shows it and silent on every revisit). Specified in ADR-QD-201 (CCR-QD-480).
+
+## BEH-QD-778: The ledger transition is one pure function: a new stop counts once, and a recorded stop returns the same ledger
+
+> **Decision:** [ADR-QD-201](../decisions/201-a-stop-notices-box-keys-itself-and-owns-the-announce-once-rule.md) ·
+> **Scope:** [ADR-QD-099](../decisions/099-entry-points-are-a-closed-list.md) ·
+> **Invariant:** [INV-QD-421](../invariants.md#inv-qd-421-a-stops-key-is-the-same-before-and-after-it-is-recorded-and-recording-a-recorded-stop-returns-the-same-ledger)
+
+```ts
+interface StopLedger<S> {
+  readonly stop: S | undefined;
+  readonly count: number;
+}
+
+const noStops: StopLedger<never>;
+const recordStop: <S>(ledger: StopLedger<S>, status: S) => StopLedger<S>;
+```
+
+```
+REQUIREMENT: Recording a stop the ledger does not hold MUST return a ledger holding that stop with a count one higher.
+REQUIREMENT: Recording the stop the ledger holds MUST return the same ledger, by identity.
+REQUIREMENT: A stop MUST be its identity: an equal-field value that is another object MUST be a new stop.
+REQUIREMENT: The ledger module MUST import no React, hold no JSX and stay out of both barrels.
+```
+
+`recordStop` is the reducer, and `stoppedKey` and `announcesStop` are the two reads over the same value: one transition and two
+questions, never one function returning both, because the key is read on every render and the alert once, at mount. The module
+is `model/StopLedger.ts`, where the mutation run measures it, and only the box and the hook import it
+([ADR-QD-099](../decisions/099-entry-points-are-a-closed-list.md)).
+
+Pinned by `packages/devtools/test/model/StopLedger.test.ts` (L1 to L6, the table over a ledger and a status; LAW1 to LAW3, the key
+is the same across the record, recording a recorded stop returns the same ledger, and any sequence of stops counts its changes)
+and `packages/devtools/test/surface.tst.ts`, which refuses the ledger's names from both entries. Specified in ADR-QD-201
+(CCR-QD-480).
+
+## BEH-QD-779: Each feed's ledger is React state held above the screens, and handed from the hook to the notice to the box as one value
+
+> **Decision:** [ADR-QD-201](../decisions/201-a-stop-notices-box-keys-itself-and-owns-the-announce-once-rule.md) ·
+> **Scope:** [ADR-QD-197](../decisions/197-a-configurable-value-one-questions-path-for-the-lens-and-one-stop-ledger.md) ·
+> **Invariant:** [INV-QD-422](../invariants.md#inv-qd-422-the-stop-ledger-is-written-only-by-a-box-at-commit-never-during-render-or-at-module-scope-and-the-alert-role-is-never-added-to-or-removed-from-a-mounted-element)
+
+```ts
+const useStopNotice: <S>(status: S, onRestart: () => void) => StopNoticeProps<S>;
+```
+
+```
+REQUIREMENT: Each feed's stop ledger MUST be held by React state the dock's frame owns, one per feed, so it outlives every
+             screen, and a second stop of one feed MUST announce only its own notice again.
+REQUIREMENT: The ledger MUST be read and written through no ref and held at no module scope.
+REQUIREMENT: The hook, the notice and the box MUST share one value: the props the hook returns, whole, which MUST be the same
+             value across a render that changes nothing it holds and a new value for a new stop or a new restart.
+```
+
+`useStopNotice` holds `useReducer(recordStop, noStops)` and returns a `useMemo` of `{ status, onRestart, announced: { ledger,
+record } }` keyed on the status, the feed's `restart`, the ledger and `record`. The box reads `announced.ledger` as a prop and
+calls `announced.record(status)` from its layout effect. The ledger is never inside a box or a screen, because every tab switch
+would announce again, and it is one per feed and never one for both. It records which stop was announced and never what a status
+says, so it is not a decision held outside an atom (AGENTS.md §13). The cost is one extra `DockFrame` pass per newly shown stop
+([ADR-QD-201](../decisions/201-a-stop-notices-box-keys-itself-and-owns-the-announce-once-rule.md)).
+
+Pinned by `packages/devtools/test/react/useStopNotice.test.tsx` (H2, a notice follows its feed's restart; H3, the notice is one
+value across a re-render that changes nothing), `packages/devtools/test/react/DockFrame.stops.characterisation.test.tsx` (DS1 to
+DS3), `packages/devtools/test/react/DockFrame.announce.characterisation.test.tsx` (A1 to A4 across tab switches, restarts and
+StrictMode) and `packages/devtools/test/react/TimelineNotice.test.tsx` (TN15, a notice handed another feed's ledger records its
+stop there). Specified in ADR-QD-201 (CCR-QD-480).
+
+## BEH-QD-780: A stop no box has shown is not announced, and it alerts on the first screen that shows it
+
+> **Decision:** [ADR-QD-201](../decisions/201-a-stop-notices-box-keys-itself-and-owns-the-announce-once-rule.md) ·
+> **Scope:** [ADR-QD-197](../decisions/197-a-configurable-value-one-questions-path-for-the-lens-and-one-stop-ledger.md) ·
+> **Invariant:** [INV-QD-422](../invariants.md#inv-qd-422-the-stop-ledger-is-written-only-by-a-box-at-commit-never-during-render-or-at-module-scope-and-the-alert-role-is-never-added-to-or-removed-from-a-mounted-element)
+
+```
+REQUIREMENT: A stop MUST be recorded only when a box for it commits, so a stop that happened while no notice was mounted
+             MUST NOT count as announced.
+REQUIREMENT: The first screen that shows such a stop MUST mount its box with the alert present, for each of the two feeds.
+```
+
+A stop is announced when a reviewer can be told of it, and a stop that happened on a screen with no notice has told no one.
+Recording at commit is what states that: the ledger knows only the stops a box has shown, so the first box to show a stop finds
+it new and alerts, and a box mounted again for a stop already shown is silent
+([BEH-QD-509](#beh-qd-509-every-screen-that-reads-the-diagnostics-states-its-status-the-same-way),
+[BEH-QD-520](#beh-qd-520-every-screen-that-reads-the-timeline-states-a-stop-the-same-way)).
+
+Pinned by `packages/devtools/test/react/DockFrame.announce.characterisation.test.tsx` (A4, a stop that happened while no notice
+was mounted alerts on the first visit to a screen with one, for both feeds),
+`packages/devtools/test/react/DiagnosticsScreens.test.tsx` (D8, a stop that happened on a screen with no notice alerts on the
+first visit to one) and `packages/devtools/test/react/TimelineNotice.test.tsx` (TN8, a stop first seen on services alerts at the
+first timeline tab visited). Specified in ADR-QD-201 (CCR-QD-480).
