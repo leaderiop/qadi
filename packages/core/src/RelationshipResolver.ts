@@ -257,6 +257,38 @@ const relationshipServing: PortServingFacet<
   declare: ({ names }) => ({ RelationshipResolver: { relations: names } }),
 };
 
+/**
+ * Resolves against a static edge list.
+ *
+ * Direct edges only — `depth` is ignored, since a flat list has no graph to
+ * traverse. Suitable for tests and small fixed policies.
+ *
+ * A closed world: an edge not listed is `"Unrelated"` rather than `"Unknown"`,
+ * because this layer *is* the store and it does know — the same distinction
+ * `decisionHistoryFromEvents` draws.
+ */
+export const relationshipResolverFromEdges = (
+  edges: ReadonlyArray<RelationshipEdgeInput>,
+): Layer.Layer<RelationshipResolver> => {
+  const index = HashSet.fromIterable(edges.map((edge) => new RelationshipEdge(edge)));
+  return Layer.succeed(RelationshipResolver, {
+    name: "relationshipResolverFromEdges",
+    check: (request) =>
+      Effect.succeed(
+        HashSet.has(
+          index,
+          new RelationshipEdge({
+            subjectId: request.subjectId,
+            relation: request.relation,
+            resourceId: request.resourceId,
+          }),
+        )
+          ? "Related"
+          : "Unrelated",
+      ),
+  });
+};
+
 /** The span a read of this port opens; `PortSpanOf` (`Ports.ts`) reads it back. */
 const relationshipSpanName = "qadi.hasRelationship";
 
@@ -281,7 +313,8 @@ export const relationshipResolverPort: PortDescription<
   [request: PendingRelationshipCheck],
   typeof relationshipSpan,
   typeof relationshipAsks,
-  typeof relationshipSpanName
+  typeof relationshipSpanName,
+  ReadonlyArray<RelationshipEdgeInput>
 > = makePortDescription({
   port: "RelationshipResolver",
   method: "check",
@@ -333,6 +366,7 @@ export const relationshipResolverPort: PortDescription<
       cause,
     }),
   none: { name: "RelationshipResolverNever", answer: "Unknown" },
+  fixture: relationshipResolverFromEdges,
 });
 
 /**
@@ -383,38 +417,6 @@ export interface RelationshipEdgeInput {
  * area (key-collision avoidance) a real bug once lived.
  */
 export class RelationshipEdge extends Data.Class<RelationshipEdgeInput> {}
-
-/**
- * Resolves against a static edge list.
- *
- * Direct edges only — `depth` is ignored, since a flat list has no graph to
- * traverse. Suitable for tests and small fixed policies.
- *
- * A closed world: an edge not listed is `"Unrelated"` rather than `"Unknown"`,
- * because this layer *is* the store and it does know — the same distinction
- * `decisionHistoryFromEvents` draws.
- */
-export const relationshipResolverFromEdges = (
-  edges: ReadonlyArray<RelationshipEdgeInput>,
-): Layer.Layer<RelationshipResolver> => {
-  const index = HashSet.fromIterable(edges.map((edge) => new RelationshipEdge(edge)));
-  return Layer.succeed(RelationshipResolver, {
-    name: "relationshipResolverFromEdges",
-    check: (request) =>
-      Effect.succeed(
-        HashSet.has(
-          index,
-          new RelationshipEdge({
-            subjectId: request.subjectId,
-            relation: request.relation,
-            resourceId: request.resourceId,
-          }),
-        )
-          ? "Related"
-          : "Unrelated",
-      ),
-  });
-};
 
 /**
  * Wraps a resolver layer so every `check` call retries on

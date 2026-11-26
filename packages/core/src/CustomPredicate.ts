@@ -15,6 +15,7 @@ import * as Context from "effect/Context";
 import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Record from "effect/Record";
 import * as Result from "effect/Result";
 import type * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
@@ -214,7 +215,8 @@ export const customPredicatePort: PortDescription<
   [name: string, subject: AuthSubject, resource: Resource | undefined, params: unknown],
   typeof customSpan,
   typeof customAsks,
-  typeof customSpanName
+  typeof customSpanName,
+  Readonly<Record<string, boolean>>
 > = {
   port: "CustomPredicate",
   method: "evaluate",
@@ -242,6 +244,8 @@ export const customPredicatePort: PortDescription<
       },
     ]),
   none: { name: "CustomPredicateNone", answer: false },
+  fixture: (answers) =>
+    customPredicateFromRecord(Record.map(answers, (answer) => () => Effect.succeed(answer))),
 };
 
 /**

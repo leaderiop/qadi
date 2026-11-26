@@ -90,18 +90,19 @@ export const makePortDescription = <
   Span extends PortSpanAttributesLike,
   Asks extends LeafRequests<P>,
   SpanName extends PortDescription<N, Self, Shape, Args, A, E, P, Span, Asks>["span"],
+  FixtureData,
   Q extends { readonly subjectId: SubjectId },
   QE,
   W,
   WE,
 >(
   spec: Omit<
-    PortDescription<N, Self, Shape, Args, A, E, P, Span, Asks, SpanName>,
+    PortDescription<N, Self, Shape, Args, A, E, P, Span, Asks, SpanName, FixtureData>,
     "wire" | "key" | "defect"
   > & {
     readonly wire: DerivedWireSpec<Args, A, Q, QE, W, WE>;
   },
-): PortDescription<N, Self, Shape, Args, A, E, P, Span, Asks, SpanName> => {
+): PortDescription<N, Self, Shape, Args, A, E, P, Span, Asks, SpanName, FixtureData> => {
   const { wire, ...rest } = spec;
   return {
     ...rest,

@@ -8,10 +8,14 @@
  * `tsconfig.test.json` compiles every `*.tst.ts`, and no negative callable pin does,
  * so the negative-pin budget stays where it is.
  */
+import type * as Layer from "effect/Layer";
 import { expect, test } from "tstyche";
-import { PORT_NAMES } from "../src/index.ts";
+import { PORT_FIXTURES, PORT_NAMES } from "../src/index.ts";
 import type {
   ActedEventInput,
+  AttributeResolver,
+  CustomPredicate,
+  DecisionHistory,
   DescriptionOf,
   PortFixtureData,
   PortName,
@@ -19,6 +23,8 @@ import type {
   PortSpanOf,
   PortTypes,
   RelationshipEdgeInput,
+  RelationshipResolver,
+  SignatureHistory,
   SignatureInput,
 } from "../src/index.ts";
 import type { DistinctSpanNames } from "../src/PortDerivation.ts";
@@ -109,7 +115,7 @@ test("no two ports share a span name, and each names one literal", () => {
   expect<DistinctSpanNames<Claim>>().type.toBe<never>();
 });
 
-test("span is a required member of a description", () => {
+test("span and fixture are required members of a description", () => {
   expect<PortTypes["AttributeResolver"]>().type.toBeAssignableTo<DescriptionOf<"AttributeResolver">>();
   expect<PortTypes["DecisionHistory"]>().type.toBeAssignableTo<DescriptionOf<"DecisionHistory">>();
   expect<PortTypes["RelationshipResolver"]>().type.toBeAssignableTo<
@@ -132,4 +138,35 @@ test("span is a required member of a description", () => {
   expect<Omit<PortTypes["SignatureHistory"], "span">>().type.not.toBeAssignableTo<
     DescriptionOf<"SignatureHistory">
   >();
+  expect<Omit<PortTypes["AttributeResolver"], "fixture">>().type.not.toBeAssignableTo<
+    DescriptionOf<"AttributeResolver">
+  >();
+  expect<Omit<PortTypes["DecisionHistory"], "fixture">>().type.not.toBeAssignableTo<
+    DescriptionOf<"DecisionHistory">
+  >();
+  expect<Omit<PortTypes["RelationshipResolver"], "fixture">>().type.not.toBeAssignableTo<
+    DescriptionOf<"RelationshipResolver">
+  >();
+  expect<Omit<PortTypes["CustomPredicate"], "fixture">>().type.not.toBeAssignableTo<
+    DescriptionOf<"CustomPredicate">
+  >();
+  expect<Omit<PortTypes["SignatureHistory"], "fixture">>().type.not.toBeAssignableTo<
+    DescriptionOf<"SignatureHistory">
+  >();
+});
+
+test("PORT_FIXTURES is one builder per port, from its own data to its own service", () => {
+  expect(PORT_FIXTURES).type.toBe<{
+    readonly AttributeResolver: (
+      data: { readonly [key: string]: unknown },
+    ) => Layer.Layer<AttributeResolver>;
+    readonly DecisionHistory: (data: ReadonlyArray<ActedEventInput>) => Layer.Layer<DecisionHistory>;
+    readonly RelationshipResolver: (
+      data: ReadonlyArray<RelationshipEdgeInput>,
+    ) => Layer.Layer<RelationshipResolver>;
+    readonly CustomPredicate: (
+      data: Readonly<Record<string, boolean>>,
+    ) => Layer.Layer<CustomPredicate>;
+    readonly SignatureHistory: (data: ReadonlyArray<SignatureInput>) => Layer.Layer<SignatureHistory>;
+  }>();
 });

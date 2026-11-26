@@ -179,6 +179,34 @@ const actedServing: PortServingFacet<"DecisionHistory", [query: ActedQuery]> = {
 
 const isEvent = Schema.is(Schema.String);
 
+/**
+ * Resolves against a static event list.
+ *
+ * A closed world: anything not listed is `"NotActed"` rather than `"Unknown"`,
+ * because this layer *is* the store and it does know. Suitable for tests and
+ * small fixed policies.
+ *
+ * A row or a query with no key fails closed: a refused entry fails every read, and
+ * a refused query fails its own, with `DecisionHistoryUnavailable` carrying the
+ * refusal's sentence, never `"NotActed"`, which `hasNotActed` would read as an
+ * allow. No typed row or query is refused, so that branch is reached only by an
+ * untyped caller.
+ */
+export const decisionHistoryFromEvents = (
+  events: ReadonlyArray<ActedEventInput>,
+): Layer.Layer<DecisionHistory> => {
+  const lookup = actedLookup(events);
+  return Layer.succeed(DecisionHistory, {
+    name: "decisionHistoryFromEvents",
+    hasActed: (query) =>
+      Result.match(lookup(query), {
+        onSuccess: Effect.succeed,
+        onFailure: (refusal) =>
+          Effect.fail(decisionHistoryPort.failure([query], describeKeyRefusal(refusal))),
+      }),
+  });
+};
+
 /** The span a read of this port opens; `PortSpanOf` (`Ports.ts`) reads it back. */
 const actedSpanName = "qadi.acted";
 
@@ -200,7 +228,8 @@ export const decisionHistoryPort: PortDescription<
   [query: ActedQuery],
   typeof actedSpan,
   typeof actedAsks,
-  typeof actedSpanName
+  typeof actedSpanName,
+  ReadonlyArray<ActedEventInput>
 > = makePortDescription({
   port: "DecisionHistory",
   method: "hasActed",
@@ -242,6 +271,7 @@ export const decisionHistoryPort: PortDescription<
       cause,
     }),
   none: { name: "DecisionHistoryUnknown", answer: "Unknown" },
+  fixture: decisionHistoryFromEvents,
 });
 
 /**
@@ -323,34 +353,6 @@ const actedLookup = (
         keys.has(key) ? "Acted" : "NotActed",
       ),
     );
-};
-
-/**
- * Resolves against a static event list.
- *
- * A closed world: anything not listed is `"NotActed"` rather than `"Unknown"`,
- * because this layer *is* the store and it does know. Suitable for tests and
- * small fixed policies.
- *
- * A row or a query with no key fails closed: a refused entry fails every read, and
- * a refused query fails its own, with `DecisionHistoryUnavailable` carrying the
- * refusal's sentence, never `"NotActed"`, which `hasNotActed` would read as an
- * allow. No typed row or query is refused, so that branch is reached only by an
- * untyped caller.
- */
-export const decisionHistoryFromEvents = (
-  events: ReadonlyArray<ActedEventInput>,
-): Layer.Layer<DecisionHistory> => {
-  const lookup = actedLookup(events);
-  return Layer.succeed(DecisionHistory, {
-    name: "decisionHistoryFromEvents",
-    hasActed: (query) =>
-      Result.match(lookup(query), {
-        onSuccess: Effect.succeed,
-        onFailure: (refusal) =>
-          Effect.fail(decisionHistoryPort.failure([query], describeKeyRefusal(refusal))),
-      }),
-  });
 };
 
 /**

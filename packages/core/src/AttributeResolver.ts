@@ -153,6 +153,20 @@ const attributeServing: PortServingFacet<
   declare: ({ names }) => ({ AttributeResolver: { attributes: names } }),
 };
 
+/**
+ * Resolves from a static table. Useful for tests and fixed configuration.
+ *
+ * A name the table does not own, including an inherited `Object.prototype`
+ * member, answers undefined.
+ */
+export const attributeResolverFromRecord = (
+  table: { readonly [key: string]: unknown },
+): Layer.Layer<AttributeResolver> =>
+  Layer.succeed(AttributeResolver, {
+    name: "attributeResolverFromRecord",
+    resolve: (_subjectId, attribute) => Effect.succeed(ownValue(table, attribute)),
+  });
+
 /** The span a read of this port opens; `PortSpanOf` (`Ports.ts`) reads it back. */
 const attributeSpanName = "qadi.attribute";
 
@@ -174,7 +188,8 @@ export const attributeResolverPort: PortDescription<
   [subjectId: SubjectId, attribute: string],
   typeof attributeSpan,
   typeof attributeAsks,
-  typeof attributeSpanName
+  typeof attributeSpanName,
+  { readonly [key: string]: unknown }
 > = makePortDescription({
   port: "AttributeResolver",
   method: "resolve",
@@ -211,6 +226,7 @@ export const attributeResolverPort: PortDescription<
   make: (name, call) => ({ name, resolve: call }),
   failure: ([, attribute], cause) => new AttributeResolveError({ attribute, cause }),
   none: { name: "AttributeResolverNone", answer: undefined },
+  fixture: attributeResolverFromRecord,
 });
 
 /**
@@ -222,20 +238,6 @@ export const attributeResolverPort: PortDescription<
  * `undefined` to every request.
  */
 export const AttributeResolverNone: Layer.Layer<AttributeResolver> = nonePort(attributeResolverPort);
-
-/**
- * Resolves from a static table. Useful for tests and fixed configuration.
- *
- * A name the table does not own, including an inherited `Object.prototype`
- * member, answers undefined.
- */
-export const attributeResolverFromRecord = (
-  table: Readonly<Record<string, unknown>>,
-): Layer.Layer<AttributeResolver> =>
-  Layer.succeed(AttributeResolver, {
-    name: "attributeResolverFromRecord",
-    resolve: (_subjectId, attribute) => Effect.succeed(ownValue(table, attribute)),
-  });
 
 /**
  * Wraps a resolver layer so every `resolve` call retries on
