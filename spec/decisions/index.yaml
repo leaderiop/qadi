@@ -642,3 +642,7 @@ entries:
     file: "203-the-remaining-per-port-facts-live-on-the-port-description.md"
     title: "The remaining per-port facts live on the port description"
     status: "Accepted — amends ADR-QD-094, ADR-QD-163 and ADR-QD-134"
+  - id: "ADR-QD-204"
+    file: "204-named-barrels-and-visibility-only-files-folded-away.md"
+    title: "Named barrels, and visibility-only files folded away"
+    status: "Accepted — amends ADR-QD-037, ADR-QD-047, ADR-QD-099"
