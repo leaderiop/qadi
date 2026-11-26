@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 89
 current_phase_name: One admission step for a host's audit batch
 status: executing
-stopped_at: Phase 88 complete, ready to plan Phase 89
-last_updated: "2026-11-26T02:27:26.152Z"
+stopped_at: Completed 89-01-PLAN.md
+last_updated: "2026-11-26T02:41:57.899Z"
 last_activity: 2026-11-26
 last_activity_desc: Phase 88 complete, transitioned to Phase 89
-state_head: c2ffd374b354c270066290b16e81041feaa84c11
+state_head: 940583c3fafcdf9aea058c48ab4b18153fbcdeac
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 51
-  completed_plans: 40
+  completed_plans: 41
   percent: 57
 ---
 
@@ -30,8 +30,8 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: 89 (One admission step for a host's audit batch) — EXECUTING
-Plan: 1 of 11
-Status: Executing Phase 89
+Plan: 2 of 11
+Status: Ready to execute
 Last activity: 2026-11-26 — Phase 88 complete, transitioned to Phase 89
 
 Progress: [██████░░░░] 57%
@@ -694,6 +694,7 @@ Progress: [██████░░░░] 57%
 | Phase 88 P07 | 25 min | 2 tasks | 1 files |
 | Phase 88 P08 | 12 min | 2 tasks | 4 files |
 | Phase QD-88 P10 | 15 min | 2 tasks | 1 files |
+| Phase 89 P01 | 17 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -1232,6 +1233,8 @@ Progress: [██████░░░░] 57%
 - [Phase 88]: 88-07: V2 (record during render) is caught by exactly the hook rows H1 and C1 and by no dock row; V6 by H2 and V8 by C1 alone; V10 and V7 also fail H1 and C1
 - [Phase 88]: The four static Ignored mutants of StopLedger.ts are admitted through EXAMINED after a hand run with ignoreStatic false saw all 16 mutants Killed; StopLedger.test.ts rows are their killers, so no new killing row was needed
 - [Phase QD-88]: 88-10: pnpm check:pr green on head b1f6616f run alone (17 of 18 steps), every phase check passes, nothing released
+- [Phase 89]: 89-01: the scorer's judgeNew has no killers clause and reads a Timeout from the file's own count; SequenceIntegrity.ts, which holds no mutant, is the one file a base report may omit and is recorded with zero counts — a bailed run names one killer per mutant so the clause cannot be read, and Stryker lists no file that holds no mutant
+- [Phase 89]: 89-01: the three property rows derive the first fault from a stated order; every other characterisation row writes its expected refusal or span list literally — a table computed from an order list would agree with whatever order the code under test has
 
 ### Pending Todos
 
@@ -1319,8 +1322,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-26T00:12:13.575Z
-Stopped at: Phase 88 complete, ready to plan Phase 89
+Last session: 2026-11-26T02:41:57.779Z
+Stopped at: Completed 89-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
