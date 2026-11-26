@@ -105,7 +105,14 @@ const UNMEASURED_WHY = {
  * by a test, never listed here.
  */
 const EQUIVALENT = [];
-/** Ignored mutants a close may hold beyond its base, per file and kind, each run by hand with `ignoreStatic: false` and Killed. */
+/**
+ * Ignored mutants a close may hold beyond its base, per file and kind, each run by hand with `ignoreStatic: false` and Killed.
+ * Empty at the close, and checked: `portInterpreter`'s four literal mutants (`PortSpan.ts` line 93: three `""` for the three
+ * members and one `[]` for the list) were run by hand through a config spreading `stryker.config.mjs` with `ignoreStatic: false`,
+ * and all four are Killed by `PortSpanFold.mutation.test.ts` "reads each of the three interpreters as itself". They are the four
+ * Ignored mutants `PortInterpreter.ts` held at the base, so `PortSpan.ts` holds no Ignored mutant beyond its base side and an
+ * entry here would fail `compare` as an allowance no close needs.
+ */
 const EXAMINED = {};
 /** Static code `ignoreStatic` hides from the score, each `{ file, mutator, replacement, count, proof }`; `proof` is a test title. */
 const STATIC_PROVEN = [];
