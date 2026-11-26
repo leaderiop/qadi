@@ -730,11 +730,18 @@ name the wrong file or count.
 
 ## 9. Barrels
 
-`export * from "./File.ts"`, alphabetical. A package whose interface is narrower
-than its modules names its exports per module (`export { … } from`, `export type
-{ … } from`), grouped by module path; `@qadi/devtools` is the one today (ARCH-40,
-ADR-QD-047), and the `devtools-named-barrel` house-style rule refuses an `export *`
-in its two barrels. Shared scaffolding stays **out** of
+`export * from "./File.ts"`, alphabetical. A package whose root names modules that
+are only partly public names its exports per module (`export { … } from`, `export
+type { … } from`), grouped by module path in case-sensitive ASCII order: `@qadi/core`,
+`@qadi/react`, `@qadi/audit` and `@qadi/devtools` (its two barrels) are those
+(ARCH-40, ADR-QD-047, ADR-QD-204). The `named-barrel` house-style rule refuses an
+`export *` in each of them, a group from outside the package, groups out of order,
+and its own list drifting: an index off `NAMED_BARRELS` that names a group, or mixes
+one with an `export *`, fails too, and every run plants an `export *` into each
+listed barrel to see the rule refuse it. The pure barrels (`@qadi/http`,
+`@qadi/testing`) stay pure because each of their modules is wholly public. Adding a
+public name is three edits: a line in the barrel, a row in `spec/overview.md`, and a
+line in that package's `test/surface.test.ts`. Shared scaffolding stays **out** of
 the barrel — exporting internal helpers leaks generic names into the flat
 namespace. Re-export internal types explicitly where `.d.ts` emission needs to
 name them (TS2883).
@@ -742,7 +749,8 @@ name them (TS2883).
 **Out of the barrel means not importable** (ADR-QD-099). A package's `exports`
 map is a closed list: the root `.` and the subpaths `spec/overview.md`'s "Entry
 points" table names, each with a reason. There is no `./*` wildcard, so a module
-kept out of the barrel is package-private and free to change. Gate 13
+kept out of the barrel is package-private and free to change, and so is a
+part-public module's every other name, by the same rule. Gate 13
 (`check-api-surface.mjs`, `ENTRY`) checks the manifest and gate 14
 (`check-package-install.mjs`, check 3b) checks the packed artifact. The only
 non-root entry point is `@qadi/devtools/react`; adding one is an edit to that
@@ -959,6 +967,10 @@ published `exports` map. Its consumer also calls every `make*Feed` the packed
 `@qadi/devtools` root exports and compiles a host cache typed by `DecisionCacheShape`, and
 the script fails if a feed export is left uncalled. Two rules come out of it, and both are
 checked rather than remembered.
+
+The script also refuses a packed declaration file that names a path outside its own
+package or into a `src/` tree (check 3c): such a path resolves against whatever sits
+beside the package once installed, and the tarball ships `src/`.
 
 **`pnpm publish`, never `npm publish`.** Dependencies use pnpm's workspace-time
 protocols — `"effect": "catalog:"` in `devDependencies` and `"effect": "catalog:peer"` in

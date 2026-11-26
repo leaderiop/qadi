@@ -93,7 +93,7 @@
  *     and `apps/website` by `node scripts/check-website-build.mjs` (step 24) —
  *     both hold it to its own toolchain's rules, not this library's.
  */
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { RAW_DECISION_READ } from "./lib/raw-decision-read.mjs";
@@ -2158,42 +2158,102 @@ for (const rel of sources
 }
 
 // ---------------------------------------------------------------------------
-// §9 — `@qadi/devtools`' barrels name their exports (ARCH-40, ADR-QD-047's
-// amendment). Its interface is narrower than its modules, so a screen's
-// mechanics stay package-private (ADR-QD-099: out of the barrel means not
-// importable). An `export *` would silently re-widen it to every name a module
-// declares, and `barrel-order` above cannot see these barrels because they are
-// not pure `export *` lists. So the two devtools barrels carry no `export *`, and
-// their named groups run in module-path order (case-sensitive ASCII), the same
-// order `barrel-order` asks of every other barrel. Zero exceptions.
+// §9 — the named barrels (ARCH-40, ADR-QD-047's amendment, ADR-QD-099, ADR-QD-204).
+// A package whose root names modules that are only partly public names its
+// exports per module, so a module's other names stay package-private (out of the
+// barrel means not importable). An `export *` would silently re-widen the root
+// to every name a module declares, and `barrel-order` above cannot see these
+// barrels because they are not pure `export *` lists. NAMED_BARRELS is the
+// record of which barrels are named, checked both ways: a listed barrel holds no
+// `export *`, no group from outside the package and its groups run in
+// module-path order (case-sensitive ASCII, the order `barrel-order` asks of every
+// other barrel); an index outside the list holding a relative named group is a
+// named barrel nobody listed, and one mixing that with an `export *` is refused
+// too. The same mixed shape is loud at `node scripts/check-api-surface.mjs`, so
+// this is the second line behind it. `namedBarrelProblems` is a pure function of
+// the path and the text, and every run plants an `export *` into a copy of each
+// listed barrel to see it refused: a function that stopped matching would
+// otherwise pass the real tree in silence.
 // ---------------------------------------------------------------------------
 
-const DEVTOOLS_BARRELS = ["packages/devtools/src/index.ts", "packages/devtools/src/react/index.ts"];
+const NAMED_BARRELS = [
+  "packages/audit/src/index.ts",
+  "packages/core/src/index.ts",
+  "packages/devtools/src/index.ts",
+  "packages/devtools/src/react/index.ts",
+  "packages/react/src/index.ts",
+];
 const STAR_EXPORT = /^\s*export\s+(?:type\s+)?\*/m;
 const NAMED_EXPORT = /export\s+(?:type\s+)?\{[^}]*\}\s*from\s*["']([^"']+)["']/g;
+const IN_PACKAGE = /^\.{1,2}\//;
 
-for (const rel of DEVTOOLS_BARRELS) {
+/**
+ * The reasons `text`, the content of the index at `rel`, breaks the named-barrel rule.
+ * Empty when it holds, which includes an index that is not a named barrel at all.
+ */
+const namedBarrelProblems = (rel, text) => {
   // Comments are not exports, and these barrels' header comments say "export".
-  const code = readFileSync(join(ROOT, rel), "utf8")
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/^\s*\/\/.*$/gm, "");
-  if (STAR_EXPORT.test(code)) {
-    failures += 1;
-    console.error(
-      `${rel}  [devtools-named-barrel] \`export *\` re-widens the interface to every ` +
-        "name a module declares. Name the exports per module (ARCH-40, ADR-QD-047).",
+  const code = text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const star = STAR_EXPORT.test(code);
+  const specifiers = [...code.matchAll(NAMED_EXPORT)].map((m) => m[1]);
+  const problems = [];
+  if (!NAMED_BARRELS.includes(rel)) {
+    if (specifiers.some((s) => IN_PACKAGE.test(s))) {
+      problems.push(
+        star
+          ? "mixes `export *` with a named group: name every export of the root, or none of them"
+          : "is a named barrel that NAMED_BARRELS does not list: add it there, or export `*`",
+      );
+    }
+    return problems;
+  }
+  if (star) {
+    problems.push(
+      "`export *` re-widens the interface to every name a module declares: name the exports per module",
     );
   }
-  const specifiers = [...code.matchAll(NAMED_EXPORT)].map((m) => m[1]);
+  if (specifiers.length === 0) problems.push("holds no named group");
+  const outside = specifiers.find((s) => !IN_PACKAGE.test(s));
+  if (outside !== undefined) {
+    problems.push(`re-exports "${outside}", which is not a module of this package`);
+  }
   for (let i = 1; i < specifiers.length; i += 1) {
     if (specifiers[i - 1] > specifiers[i]) {
-      failures += 1;
-      console.error(
-        `${rel}  [devtools-named-barrel] "${specifiers[i]}" sorts before "${specifiers[i - 1]}" — ` +
-          "keep the named groups in module-path order (ARCH-40, ADR-QD-047).",
+      problems.push(
+        `"${specifiers[i]}" sorts before "${specifiers[i - 1]}": keep the named groups in module-path order`,
       );
       break;
     }
+  }
+  return problems;
+};
+
+const namedBarrelRels = new Set([
+  ...NAMED_BARRELS,
+  ...sources
+    .map((file) => relative(ROOT, file))
+    .filter((rel) => /^packages\/[^/]+\/src\/(?:.+\/)?index\.tsx?$/.test(rel)),
+]);
+
+for (const rel of [...namedBarrelRels].sort()) {
+  if (!existsSync(join(ROOT, rel))) {
+    failures += 1;
+    console.error(`${rel}  [named-barrel] is listed in NAMED_BARRELS and does not exist.`);
+    continue;
+  }
+  const text = readFileSync(join(ROOT, rel), "utf8");
+  for (const problem of namedBarrelProblems(rel, text)) {
+    failures += 1;
+    console.error(`${rel}  [named-barrel] ${problem} (AGENTS.md §9).`);
+  }
+  if (
+    NAMED_BARRELS.includes(rel) &&
+    !namedBarrelProblems(rel, `${text}\nexport * from "./X.ts";\n`).some((p) =>
+      p.startsWith("`export *`"),
+    )
+  ) {
+    failures += 1;
+    console.error(`${rel}  [named-barrel-self-test] a planted export * was not refused.`);
   }
 }
 
