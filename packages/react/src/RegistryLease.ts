@@ -9,7 +9,7 @@
  * `recycle` does, and a recycle runs at most once per release however many cleanups
  * ran. The decision is ADR-QD-195.
  *
- * Out of the barrel (AGENTS.md §9): `QadiProvider.tsx` is its one caller, and the
+ * Out of the barrel (AGENTS.md §9): `RegistryOwner.ts` is its one caller, and the
  * package's own tests reach it directly.
  */
 import * as Match from "effect/Match";

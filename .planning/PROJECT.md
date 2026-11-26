@@ -583,7 +583,6 @@ v1.11 Arch Wave 16 requirements: see `.planning/REQUIREMENTS.md` (Phases 85–91
 
 - Phase 88: STATE.md lacks 88-09's metric and decision lines (that plan's five state commands were denied by the permission check and not re-run); the decision is recorded in `88-09-SUMMARY.md` and ADR-QD-201.
 - Phase 87: `SimulationSession.ts`'s `land` guard (`if (!live.current()) return;`) is held by argument, its mutant recorded EQUIVALENT in `87-mutation.mjs`; the stale-write property is pinned at the stated run (ST14, ST15).
-- Phase 86 review IN-02 is deferred (`86-REVIEW-DISPOSITION.md`): `RegistryLease.ts`'s header still names `QadiProvider.tsx` as its one caller; the file was held byte for byte through the phase. Natural fix point: Phase 91, which edits the provider.
 - Phase 86: the commit-first, hold-last effect order in `QadiProvider.tsx` is held by the phase check `provider-forwards-only` and review, not by a merge gate (ADR-QD-199); a later phase that rewrites the provider re-runs it by hand (re-run in Phase 91 through the earlier-phase checks).
 - Phase 85 review IN-01 and IN-02 are deferred (`85-REVIEW-DISPOSITION.md`): `QuestionsPanel`'s optional `hydration` prop has a fallback only tests reach (a required prop would edit held characterisations); the hydration block's "1 dehydrated entry have" and "All 1 reasons" wording predates the phase and is pinned by the byte oracle.
 
