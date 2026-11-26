@@ -6,6 +6,10 @@ workloads added by `c4349bf6`, `test(90-06): add the scoped-heavy bench workload
 `packages/core/bench/Evaluate.bench.ts`, on `scripts/bench/ab.sh`, 4 + 4 rounds with the arm order alternating by
 round. The run was not repeated, whatever the gate said.
 
+The code review changed the routing's form (WR-01, WR-02, IN-03, SEC-OBS-1, WX-05), so the new form was fixed as a
+second patch of record and measured once against the landed routing: **the review gate below is the gate of record**,
+and the first gate is kept as history, unedited apart from its verdict heading.
+
 ## The patch of record
 
 - Patch of record: `routing.patch` (`bench/routing.patch`), the diff of `spike/f.patch` then `spike/g.patch` on HEAD
@@ -114,9 +118,120 @@ a7a4f305aa101c5c12f7360b9df48f71a4fe111e893571485decb90e0b6cc9a4  routing-1.json
 8001d28c78391bc010914170f236f84269cffdc16a3c1e57a50990cbccf2cb63  routing-4.json
 ```
 
-## Verdict
+## Verdict of the first gate
 
 # gate: pass
 
 The routing may land (plan 12). The bench file is held byte for byte from `c4349bf6`; a re-measure is one `ab.sh` run
 of `bench/routing.patch`.
+
+# The review gate (the gate of record)
+
+One run, made once, on a quiet host, of the routing on each port's need against the landed routing, over the same 37
+workloads, `scripts/bench/ab.sh`, 4 + 4 rounds with the arm order alternating by round. Nothing else ran during it.
+
+## The review patch of record
+
+- Patch of record: `routing-review.patch` (`bench/routing-review.patch`), the diff from the landed routing, with the review
+  round's earlier edits, to the routing on each port's need (`packages/core/src/LeafNeeds.ts`, `PortAccess.ts`,
+  `ScopedLeaf.ts`): `scopedCall`'s rows typed as the closed union of the port's need, `readScoped` narrowing on `need` and
+  taking a leaf typed by its port, `needsResourceId`'s `Match` and its per-call closure removed.
+- SHA-256: `11e3b2bea1621fd37adcab20738c94abc7cafae97400d2316370923e832fdb09` (equal to
+  `bench/routing-review.patch.sha256` and to the `patch_sha256:` of the run's `meta.txt`).
+- Fixing commit: `17aeb9ad635d656e79009b413777752a97939280`, `chore(90-review): fix the review routing patch before its
+  bench`, which holds exactly the patch and its `.sha256` and precedes the run. The run's `meta.txt` says `head:` that
+  commit.
+
+## The gate, fixed before the run
+
+The first gate's band, unchanged: no workload more than 5% slower on the median of the per-run minima, a geometric mean of
+the deltas no worse than +2%, and the verdict is the analysis's last `# gate:` line.
+
+## Invocations
+
+```text
+scripts/bench/ab.sh .planning/phases/QD-90-the-remaining-per-port-facts-live-on-the-port-description/bench/routing-review.patch <S>/bench-review 4 landed review packages/core/bench/Evaluate.bench.ts .
+node scripts/bench/analyze.mjs <S>/bench-review landed review .planning/phases/QD-90-the-remaining-per-port-facts-live-on-the-port-description/bench/workloads.txt
+```
+
+`ab.sh` exited 0, started with `quiet: load 5.00 on 12 cpus, top process at 26%`, and left `packages/` clean.
+
+## Meta (`bench/routing-review.meta.txt`, verbatim)
+
+```text
+head: 17aeb9ad635d656e79009b413777752a97939280
+patch: /Users/mohammadalmechkor/Projects/Perso/qadi/.planning/phases/QD-90-the-remaining-per-port-facts-live-on-the-port-description/bench/routing-review.patch
+patch_sha256: 11e3b2bea1621fd37adcab20738c94abc7cafae97400d2316370923e832fdb09
+head_label: landed
+patched_label: review
+rounds: 4
+order: landed-1 review-1 review-2 landed-2 landed-3 review-3 review-4 landed-4
+bench_file: packages/core/bench/Evaluate.bench.ts
+pattern: .
+host: quiet: load 5.00 on 12 cpus, top process at 26%
+node: v26.13.0
+cpu: Apple M3 Pro
+start: 2026-11-26T10:54:38Z
+```
+
+## The two scoped-heavy workloads
+
+| workload | landed min (ns) | review min (ns) | delta of minima | landed spread | verdict |
+| -------- | --------------- | --------------- | --------------- | ------------- | ------- |
+| `scoped-heavy — allOf of 8 resource-scoped port leaves, id present` | 67104 | 66792 | -0.5% | 2.1% | ok |
+| `scoped-heavy — allOf of 8 Any-scoped port leaves` | 55354 | 55187 | -0.3% | 2.3% | ok |
+
+Both deltas are inside their reference spread: this record reads them as no measurable change, not as a speed-up. The
+other 35 run from -3.3% to +3.8%; the largest slowdown, +3.8%, is `evaluate :: matcher-heavy — 3 refs` (reference spread
+2.6%), which reads no scoped port, and the largest speed-up, -3.3%, is `evaluate :: field-heavy — allOf of 8 under
+Intersection`, whose reference spread is 9.2%.
+
+## Analysis summary (`bench/analysis-review.txt`, the `#` lines verbatim)
+
+```text
+# workloads: 37
+# slower: 0
+# geomean_d_min_pct: 0.09
+# max_slowdown_pct: 5.0
+# max_geomean_pct: 2.0
+# worst_d_min: 3.8 evaluate :: matcher-heavy — 3 refs
+# gate: pass
+```
+
+All 37 workloads read `ok`; the per-workload table is `bench/analysis-review.txt`.
+
+## Run-to-run noise
+
+The reference arm's per-workload spread over the 37 workloads: minimum 0.5%, median 2.4%, maximum 9.2%.
+
+## Host load (`uptime` 1-minute load average, 12 CPUs, before each run)
+
+| run | load |
+| --- | ---- |
+| landed-1 | 5.00 |
+| review-1 | 4.05 |
+| review-2 | 3.66 |
+| landed-2 | 3.45 |
+| landed-3 | 3.41 |
+| review-3 | 2.91 |
+| review-4 | 2.72 |
+| landed-4 | 2.84 |
+
+## Raw run files (SHA-256, left in `<S>/bench-review`)
+
+```text
+a4e156d0bd1770c8a89d4e0644c28b9b826247d5e38b1fd82325a25a6ca97aed  landed-1.json
+848819767d74573dc30a06ec7b0e16c9e7eb7d6e7cb91ffd122b3fee402f7cdf  landed-2.json
+e54fbc8ef7667105ba19634eaca1ffe07501a42dc4a8d8588f14faaf406e110b  landed-3.json
+5f087cda6a1ad029cf497eaa68867780dadcffe663c3296b0bf7c18d173df2f4  landed-4.json
+0fee4c5e825d7ff122e2aa55e7a7fb587ba452ef0ec444e151f69210ade39055  review-1.json
+1a0fa410e4dc687f7fb99a46b3fceef926d843c5a163e2e23a4ab90e8ec2f679  review-2.json
+6036a5c18199ac9b3b13eb8e1cfe2dc2aec4c5d4fbfb531e93d3b077ac7e715a  review-3.json
+91a639d07db187a0d17f93e29594e05647f74389da6bd5190b686f06f714da47  review-4.json
+```
+
+## Verdict of the review gate
+
+The routing on each port's need may land, in the form of `routing-review.patch`; a re-measure is one `ab.sh` run of it.
+
+# gate: pass

@@ -1,0 +1,45 @@
+workload	ref_min_ns	cand_min_ns	d_min_pct	ref_min_spread_pct	band_pct	verdict	ref_p50_ns	cand_p50_ns	d_p50_pct	ref_mean_ns	cand_mean_ns	d_mean_pct
+evaluate :: one node	6125	6270	2.4	2.0	5.0	ok	6812	6979	2.4	6977	7075	1.4
+evaluate :: rules DenyOverrides — 8 permits	7895	7979	1.1	1.6	5.0	ok	8834	8916	0.9	9032	9068	0.4
+evaluate :: anyOf Union — 8	8291	8313	0.3	2.5	5.0	ok	9166	9250	0.9	9309	9448	1.5
+evaluate :: rules FirstApplicable — 8, last applies	8229	8187	-0.5	1.5	5.0	ok	9104	9187	0.9	9268	9347	0.8
+evaluate :: anyOf First — 8, last allows	8188	8312	1.5	1.0	5.0	ok	9125	9209	0.9	9267	9390	1.3
+evaluate :: wide — allOf of 8	8124	8312	2.3	1.0	5.0	ok	9000	9083	0.9	9083	9239	1.7
+evaluate :: wrapper-heavy — 10 nested labeled/not/obliged	8646	8750	1.2	0.5	5.0	ok	9625	9729	1.1	9820	9933	1.2
+evaluate :: field-heavy — anyOf of 8 under Union	8937	8958	0.2	0.5	5.0	ok	9875	10001	1.3	10049	10148	1.0
+evaluate :: rules PermitOverrides — 8 denies	9187	9229	0.5	2.3	5.0	ok	10125	10292	1.6	10295	10460	1.6
+evaluate :: leaf-heavy — allOf of 8, matchers reference action and resource	9729	9833	1.1	3.0	5.0	ok	10834	10958	1.2	11058	11098	0.4
+evaluate :: leaf-heavy — allOf of 8, matchers reference neither	9833	9916	0.8	2.1	5.0	ok	10896	11021	1.1	11042	11145	0.9
+evaluate :: deep rules — 10 nested	10396	10458	0.6	2.4	5.0	ok	11521	11583	0.5	11741	11787	0.4
+evaluate :: deep — 10 levels	10541	10500	-0.4	3.2	5.0	ok	11583	11729	1.3	11739	11891	1.3
+evaluate :: matcher-heavy — 3 refs	11438	11875	3.8	2.6	5.0	ok	12646	12959	2.5	12862	13235	2.9
+evaluate :: resolver miss — one port call	11792	11854	0.5	1.4	5.0	ok	13125	13125	-0.0	13308	13506	1.5
+evaluate :: obligation-heavy — allOf of 8 distinct obligations	12667	12625	-0.3	3.3	5.0	ok	13833	13937	0.8	13919	14180	1.9
+evaluate :: field-heavy — allOf of 8 under Intersection	17687	17104	-3.3	9.2	5.0	ok	19021	18917	-0.5	19366	19336	-0.2
+evaluate :: scoped-heavy — allOf of 8 resource-scoped port leaves, id present	67104	66792	-0.5	2.1	5.0	ok	73792	74083	0.4	76421	77156	1.0
+evaluate :: scoped-heavy — allOf of 8 Any-scoped port leaves	55354	55187	-0.3	2.3	5.0	ok	61250	60521	-1.2	62978	62806	-0.3
+filter — 500 items :: hasPermission	4269625	4309729	0.9	5.8	5.0	ok	4422354	4391813	-0.7	4444178	4421574	-0.5
+decideSubjects — 500 subjects :: hasPermission	5336063	5289646	-0.9	2.7	5.0	ok	5710115	5682636	-0.5	5699574	5709797	0.2
+evaluate — depth scaling :: depth 5	11667	11750	0.7	3.2	5.0	ok	12917	12875	-0.3	13135	13204	0.5
+evaluate — depth scaling :: depth 10	16124	15958	-1.0	3.9	5.0	ok	17687	17646	-0.2	18009	18004	-0.0
+evaluate — depth scaling :: depth 20	24833	24626	-0.8	3.5	5.0	ok	27187	27042	-0.5	27767	27565	-0.7
+evaluate — depth scaling :: depth 40	41645	41646	0.0	6.5	5.0	ok	46125	45562	-1.2	47046	46826	-0.5
+evaluate — width scaling :: width 4	8917	8896	-0.2	0.5	5.0	ok	9937	9855	-0.8	10303	10047	-2.5
+evaluate — width scaling :: width 8	10750	10750	-0.0	6.6	5.0	ok	11875	11770	-0.9	12182	11976	-1.7
+evaluate — width scaling :: width 16	14354	14022	-2.3	2.0	5.0	ok	15812	15584	-1.4	16192	15997	-1.2
+evaluate — width scaling :: width 32	21416	20938	-2.2	2.5	5.0	ok	23667	22959	-3.0	24308	23404	-3.7
+evaluate — wide, concurrency :: sequential (default)	8041	7854	-2.3	2.6	5.0	ok	8917	8813	-1.2	9992	8965	-10.3
+evaluate — wide, concurrency :: concurrency: unbounded	8271	8229	-0.5	2.5	5.0	ok	9270	9104	-1.8	9409	9315	-1.0
+evaluate — anyOf Union 8, concurrency :: sequential (default)	8083	8000	-1.0	1.5	5.0	ok	9020	8895	-1.4	9162	9046	-1.3
+evaluate — anyOf Union 8, concurrency :: concurrency: unbounded	8375	8270	-1.2	1.5	5.0	ok	9334	9166	-1.8	9571	9362	-2.2
+evaluate — rules DenyOverrides 8, concurrency :: sequential (default)	7750	7666	-1.1	2.7	5.0	ok	8541	8583	0.5	8708	8693	-0.2
+evaluate — rules DenyOverrides 8, concurrency :: concurrency: unbounded	9937	10021	0.8	1.3	5.0	ok	11021	11062	0.4	11216	11247	0.3
+filter — 500 items, concurrency :: sequential (default)	4278354	4382792	2.4	6.5	5.0	ok	4492188	4485709	-0.1	4511931	4585445	1.6
+filter — 500 items, concurrency :: concurrency: unbounded	4357250	4429771	1.7	2.0	5.0	ok	4539094	4521906	-0.4	4590870	4580033	-0.2
+# workloads: 37
+# slower: 0
+# geomean_d_min_pct: 0.09
+# max_slowdown_pct: 5.0
+# max_geomean_pct: 2.0
+# worst_d_min: 3.8 evaluate :: matcher-heavy — 3 refs
+# gate: pass
