@@ -58,8 +58,9 @@ written, so the rule that nothing is announced twice held because of how the ref
      `{ stop: status, count: ledger.count + 1 }`. It is the reducer.
 
    A stop is its identity (`===`): an equal-field value that is another object is a new stop. The module contains no JSX and
-   imports no React, is in neither barrel ([ADR-QD-099](./099-entry-points-are-a-closed-list.md)), and only `StoppedBox.tsx` and
-   `useStopNotice.ts` import it. It sits under `model/**`, so the mutation run measures it.
+   imports no React, is in neither barrel ([ADR-QD-099](./099-entry-points-are-a-closed-list.md)), and in
+   `packages/devtools/src` only `StoppedBox.tsx` and `useStopNotice.ts` import it; tests import it too. It sits under
+   `model/**`, so the mutation run measures it.
 
 3. **The box derives its own key.** A component cannot set its own `key`, so `StoppedBox` is a wrapper rendering
    `<StoppedBody key={stoppedKey(notice.announced.ledger, notice.status)} … />`, and `StoppedBody` is module-private. The two
@@ -134,7 +135,7 @@ ledgers.
   is the pure function itself.
 - **Keeping the three props and the `Binding`.** Rejected: they restate the hand-off the notice prop removes.
 - **A class with private fields for the handle.** Rejected: it is ceremony for an immutable value; opacity is held by the import
-  rule, only the box and the hook import the module.
+  rule, in `packages/devtools/src` only the box and the hook import the module.
 - **Folding the key and the alert into one function returning both.** Rejected: the key is read on every render and the alert
   only at mount, and one return shape would blur the two moments.
 - **Keeping the functions in `StoppedBox.tsx`.** Rejected: nothing measures `src/react`, so the decision would stay unmeasured.

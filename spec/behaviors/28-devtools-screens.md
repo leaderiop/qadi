@@ -4521,8 +4521,8 @@ REQUIREMENT: The ledger module MUST import no React, hold no JSX and stay out of
 
 `recordStop` is the reducer, and `stoppedKey` and `announcesStop` are the two reads over the same value: one transition and two
 questions, never one function returning both, because the key is read on every render and the alert once, at mount. The module
-is `model/StopLedger.ts`, where the mutation run measures it, and only the box and the hook import it
-([ADR-QD-099](../decisions/099-entry-points-are-a-closed-list.md)).
+is `model/StopLedger.ts`, where the mutation run measures it, and in `packages/devtools/src` only the box and the hook import
+it ([ADR-QD-099](../decisions/099-entry-points-are-a-closed-list.md)); its tests and the notices' test fixtures import it too.
 
 Pinned by `packages/devtools/test/model/StopLedger.test.ts` (L1 to L6, the table over a ledger and a status; LAW1 to LAW3, the key
 is the same across the record, recording a recorded stop returns the same ledger, and any sequence of stops counts its changes)
