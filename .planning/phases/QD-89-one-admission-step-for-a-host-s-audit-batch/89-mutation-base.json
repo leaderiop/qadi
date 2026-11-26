@@ -1,0 +1,253 @@
+{
+ "phase": "89",
+ "phase_base": "8ee14f6f703f3121d44d15a1515d02eff62ca63f",
+ "born": [
+  "packages/audit/src/HostBatch.ts"
+ ],
+ "moved": [
+  {
+   "code": "the now check of archiveAuditTrail",
+   "from": "packages/audit/src/AuditArchive.ts",
+   "to": "packages/audit/src/HostBatch.ts admitBatch"
+  },
+  {
+   "code": "the now check of planRetention",
+   "from": "packages/audit/src/Retention.ts",
+   "to": "packages/audit/src/HostBatch.ts admitBatch"
+  },
+  {
+   "code": "the rows wrap of verifiedArchiveFacts and of planRetention",
+   "from": "packages/audit/src/ArchiveFacts.ts and packages/audit/src/Retention.ts",
+   "to": "packages/audit/src/HostBatch.ts admitRows"
+  }
+ ],
+ "unmeasured": [],
+ "unmeasured_why": "every file the phase edits is under packages/audit/src/**/*.ts minus index.ts, the glob stryker.audit.mjs mutates, so no edited file escapes a run",
+ "close_invocation": "pnpm exec stryker run stryker.audit.mjs --mutate packages/audit/src/AuditArchive.ts,packages/audit/src/ArchiveFacts.ts,packages/audit/src/Retention.ts,packages/audit/src/CodecMade.ts,packages/audit/src/SequenceIntegrity.ts,packages/audit/src/HostBatch.ts",
+ "groups": {
+  "audit": {
+   "head": "8ee14f6f703f3121d44d15a1515d02eff62ca63f",
+   "invocation": "pnpm exec stryker run stryker.audit.mjs --mutate packages/audit/src/AuditArchive.ts,packages/audit/src/ArchiveFacts.ts,packages/audit/src/Retention.ts,packages/audit/src/CodecMade.ts,packages/audit/src/SequenceIntegrity.ts",
+   "files": {
+    "packages/audit/src/AuditArchive.ts": {
+     "killed": 82,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 14,
+     "detected": 82,
+     "valid": 82,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 54,
+       "column": 41,
+       "lineText": "const KeyMaterialSchema = Schema.Struct({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 136,
+       "column": 25,
+       "lineText": "const ARCHIVE_VERSION = \"1\";"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 179,
+       "column": 44,
+       "lineText": "export const archiveAuditTrail = Effect.fn(\"qadi.audit.archiveAuditTrail\")(function* ("
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 254,
+       "column": 58,
+       "lineText": "export class ArchiveNotVerified extends Data.TaggedError(\"ArchiveNotVerified\")<{"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 321,
+       "column": 39,
+       "lineText": "const ArchiveEnvelope = Schema.Struct({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 323,
+       "column": 27,
+       "lineText": "metadata: Schema.Struct({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 332,
+       "column": 58,
+       "lineText": "const decodeEnvelope = untrustedDecoder(ArchiveEnvelope, { unknownKeys: \"refuse\", unwalked: [\"entries\"] }).decode;"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 332,
+       "column": 73,
+       "lineText": "const decodeEnvelope = untrustedDecoder(ArchiveEnvelope, { unknownKeys: \"refuse\", unwalked: [\"entries\"] }).decode;"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrayDeclaration",
+       "replacement": "[]",
+       "line": 332,
+       "column": 93,
+       "lineText": "const decodeEnvelope = untrustedDecoder(ArchiveEnvelope, { unknownKeys: \"refuse\", unwalked: [\"entries\"] }).decode;"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 332,
+       "column": 94,
+       "lineText": "const decodeEnvelope = untrustedDecoder(ArchiveEnvelope, { unknownKeys: \"refuse\", unwalked: [\"entries\"] }).decode;"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 335,
+       "column": 24,
+       "lineText": "Match.tagsExhaustive({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 336,
+       "column": 14,
+       "lineText": "TooDeep: ({ maxDepth }) => ArchiveRefusal.TooDeep({ maxDepth }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 337,
+       "column": 16,
+       "lineText": "Malformed: ({ message }) => ArchiveRefusal.Malformed({ message }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 341,
+       "column": 16,
+       "lineText": "const refuse = (refusal: ArchiveRefusal) => Result.fail(new ArchiveNotVerified({ refusal }));"
+      }
+     ]
+    },
+    "packages/audit/src/ArchiveFacts.ts": {
+     "killed": 55,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 4,
+     "detected": 55,
+     "valid": 55,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 61,
+       "column": 22,
+       "lineText": "const archiveOrder = (a: AuditEntry, b: AuditEntry): number =>"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 158,
+       "column": 59,
+       "lineText": "export class ArchiveInputInvalid extends Data.TaggedError(\"ArchiveInputInvalid\")<{"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 162,
+       "column": 62,
+       "lineText": "export class SequenceIntegrityError extends Data.TaggedError(\"SequenceIntegrityError\")<{"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 177,
+       "column": 47,
+       "lineText": "export const verifiedArchiveFacts = Effect.fn(\"qadi.audit.verifySequenceIntegrity\")(function* ("
+      }
+     ]
+    },
+    "packages/audit/src/Retention.ts": {
+     "killed": 57,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 2,
+     "detected": 57,
+     "valid": 57,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 66,
+       "column": 61,
+       "lineText": "export class RetentionInputInvalid extends Data.TaggedError(\"RetentionInputInvalid\")<{"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 165,
+       "column": 26,
+       "lineText": "export const planPurge = ("
+      }
+     ]
+    },
+    "packages/audit/src/CodecMade.ts": {
+     "killed": 18,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 0,
+     "detected": 18,
+     "valid": 18,
+     "open": [],
+     "ignoredMutants": []
+    },
+    "packages/audit/src/SequenceIntegrity.ts": {
+     "killed": 0,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 0,
+     "detected": 0,
+     "valid": 0,
+     "open": [],
+     "ignoredMutants": []
+    }
+   }
+  }
+ }
+}
