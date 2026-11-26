@@ -33,10 +33,10 @@
 
 ### `StoppedBox` keys itself and owns the announce-once rule (Phase 88, ARCH-135, devtools)
 
-- [ ] **SBOX-01**: A characterisation written on the base pins the announce-once behaviour (a stop is announced once per stop, not again on a tab switch, not lost under StrictMode), including TN14 and D7 and the `DockFrame` stop characterisation.
-- [ ] **SBOX-02**: `StoppedBox` derives its own key and writes the ledger (an outer keyed wrapper over an inner body): callers stop calling `stoppedKey` and stop threading the ledger ref through private bindings. The ledger stays above the screens (per feed), so it outlives tab switches.
-- [ ] **SBOX-03**: The ledger transition is a pure function with a table test; the alert is decided at mount and recorded at commit, never written during render. No module-scope ledger.
-- [ ] **SBOX-04**: ADR-QD-201 records the change (or ADR-QD-197 is amended and 201 named unused); BEH/INV/traceability move with it; the unmeasured React files are listed in the phase's `UNMEASURED` and proved with scratch variants.
+- [x] **SBOX-01**: A characterisation written on the base pins the announce-once behaviour (a stop is announced once per stop, not again on a tab switch, not lost under StrictMode), including TN14 and D7 and the `DockFrame` stop characterisation.
+- [x] **SBOX-02**: `StoppedBox` derives its own key and writes the ledger (an outer keyed wrapper over an inner body): callers stop calling `stoppedKey` and stop threading the ledger ref through private bindings. The ledger stays above the screens (per feed), so it outlives tab switches.
+- [x] **SBOX-03**: The ledger transition is a pure function with a table test; the alert is decided at mount and recorded at commit, never written during render. No module-scope ledger.
+- [x] **SBOX-04**: ADR-QD-201 records the change (or ADR-QD-197 is amended and 201 named unused); BEH/INV/traceability move with it; the unmeasured React files are listed in the phase's `UNMEASURED` and proved with scratch variants.
 
 ### One admission step for a host's audit batch (Phase 89, ARCH-136, audit)
 
@@ -116,10 +116,10 @@ Which phases cover which requirements. Each phase-specific requirement maps to e
 | STOP-03 | Phase 87 | Complete |
 | STOP-04 | Phase 87 | Complete |
 | STOP-05 | Phase 87 | Complete |
-| SBOX-01 | Phase 88 | Pending |
-| SBOX-02 | Phase 88 | Pending |
-| SBOX-03 | Phase 88 | Pending |
-| SBOX-04 | Phase 88 | Pending |
+| SBOX-01 | Phase 88 | Complete |
+| SBOX-02 | Phase 88 | Complete |
+| SBOX-03 | Phase 88 | Complete |
+| SBOX-04 | Phase 88 | Complete |
 | ADMIT-01 | Phase 89 | Pending |
 | ADMIT-02 | Phase 89 | Pending |
 | ADMIT-03 | Phase 89 | Pending |

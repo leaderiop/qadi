@@ -504,7 +504,7 @@ Order: the dock model's hydration row (85), the provider's lifetime owner (86), 
 - [x] **Phase 85: The dock's hydration block is a model row** - A pure hydration view (Pending / Unwired / Counts, text worked out) is served by the dock model, `QuestionsPanel` renders its tag and decides nothing, and `DockFrame` stops subscribing to the whole reading to pass one field (ARCH-132, devtools) (completed 2026-11-25)
 - [x] **Phase 86: `QadiProvider`'s registry lifetime has a React-free owner** - Create, seed, subject write, recycle and the lease live in one headless module tested with an injected defer; the component keeps one ref and forwards (ARCH-133, react) (completed 2026-11-25)
 - [x] **Phase 87: One scoped run that states its stop** - Publish-then-fork, the stop rule, `restart`, the closed guard and the configure prologue are stated once above `SupersedingRun`; a dying simulation run reports the same stop text as the feeds (ARCH-134, devtools; opens with a RED test and a spike) (completed 2026-11-25)
-- [ ] **Phase 88: `StoppedBox` keys itself and owns the announce-once rule** - Callers stop computing `stoppedKey` from a ref during render; the ledger transition is a pure function, decided at mount and recorded at commit (ARCH-135, devtools react)
+- [x] **Phase 88: `StoppedBox` keys itself and owns the announce-once rule** - Callers stop computing `stoppedKey` from a ref during render; the ledger transition is a pure function, decided at mount and recorded at commit (ARCH-135, devtools react) (completed 2026-11-26)
 - [ ] **Phase 89: One admission step for a host's audit batch** - `now`, rows and the caller's terms are checked once for `archiveAuditTrail`, `planRetention`, `verifiedArchiveFacts` and `planPurge`; `NowNotFinite` is stated once (ARCH-136, audit)
 - [ ] **Phase 90: The remaining per-port facts live on the port description** - Span name, serving shape and fixture data type move onto the description as a spike allows, `PortName` stays a leaf, and `readScoped` routes off the `LEAF_NEEDS` row (ARCH-137, core; opens with a spike)
 - [ ] **Phase 91: Named barrels, and visibility-only files folded away** - `@qadi/core`, `@qadi/react` and `@qadi/audit` name their exports per module, and each visibility-only file folds into its owner only where `pnpm circular` proves no cycle returns (ARCH-138, core / react / audit; opens with a surface-diff tool and a madge simulation)
@@ -633,7 +633,7 @@ Plans:
   4. ADR-QD-201 (or ADR-QD-197 amended with 201 named unused), BEH, INV and traceability record the change, the unmeasured React files are listed in the phase's `UNMEASURED`, and each is proved with a scratch variant (SBOX-04).
 
 **Planning notes**: Standard patterns (small; precedent ADR-QD-197). The discuss step decides to relocate the render-phase ref read into the wrapper (recommended; an opaque ledger closure) or remove it; a `WeakMap` is rejected because it changes what "announced" means for a never-mounted stop. Constraints that are findings: the ledger is never inside the box or a screen (every tab switch would re-announce); one ref per feed, not one for both; no memo keyed on `status` alone; no write during render (StrictMode loses the alert in dev and a discarded render would record a stop that never committed); no `role="alert"` added to a mounted element; no module-scope ledger (`MODULE_STATE_BUDGET`). Stryker: no config reaches `src/react`, so the one real decision (the ledger transition) goes into a pure function with a table test, ideally under `model/`, and the rest is `UNMEASURED` and proved with scratch variants.
-**Plans**: 10/10 plans executed
+**Plans**: 10/10 plans complete
 
 Plans:
 - [x] 88-01 (W1): The phase base and the mutation base (nothing measured is touched, the ledger module born) recorded first; A1 to A5 through the dock, plain and StrictMode, and H1 to H3 and C1 through the hook, green on the base and each seen failing
@@ -728,7 +728,7 @@ Phases execute in numeric order: 85 → 86 → 87 → 88 → 89 → 90 → 91
 | 85. The dock's hydration block is a model row | 11/11 | Complete    | 2026-11-25 |
 | 86. `QadiProvider`'s registry lifetime has a React-free owner | 8/8 | Complete    | 2026-11-25 |
 | 87. One scoped run that states its stop | 11/11 | Complete    | 2026-11-25 |
-| 88. `StoppedBox` keys itself and owns the announce-once rule | 10/10 | In Progress | - |
+| 88. `StoppedBox` keys itself and owns the announce-once rule | 10/10 | Complete    | 2026-11-26 |
 | 89. One admission step for a host's audit batch | 0/TBD | Not started | - |
 | 90. The remaining per-port facts live on the port description | 0/TBD | Not started | - |
 | 91. Named barrels, and visibility-only files folded away | 0/TBD | Not started | - |
