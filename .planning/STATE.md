@@ -29,9 +29,9 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 
 ## Current Position
 
-Phase: QD-91 (Named barrels, and visibility-only files folded away) — READY TO EXECUTE
-Plan: Not started
-Status: Ready to execute
+Phase: QD-91 (Named barrels, and visibility-only files folded away) — EXECUTING
+Plan: 1 of 21
+Status: Executing Phase 91
 Last activity: 2026-11-26 — Phase 90 complete, transitioned to Phase 91
 
 Progress: [████████░░] 76%
