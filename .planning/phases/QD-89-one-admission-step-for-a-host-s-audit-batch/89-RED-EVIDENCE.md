@@ -419,3 +419,14 @@ The base is the one `89-mutation-base.json` records (`phase_base` 8ee14f6f703f31
 - variant rows-unchecked: a refused rows list is not a refusal (a narrower variant: no variant above turned H5 red)
   - failed: H4 admitted terms then a rows list that is not a list is EntriesNotAList
   - failed: H5 admitted terms then a refused row is EntryNotMadeByCodec
+
+## 89-07 the archive wiring
+
+- red before: SF1 the writer refused for rows that are not a list opens its span and the sequence span
+  - failed on: AssertionError: expected { Object (outcome, names) } to deeply equal { Object (outcome, names) }
+- red before: SF2 the writer refused for a row the codec did not make opens its span and the sequence span
+  - failed on: AssertionError: expected { Object (outcome, names) } to deeply equal { Object (outcome, names) }
+- red before: SF3 the verify refused for rows that are not a list opens only the sequence span
+  - failed on: AssertionError: expected { Object (outcome, names) } to deeply equal { Object (outcome, names) }
+- red before: SF4 the verify refused for a row the codec did not make opens only the sequence span
+  - failed on: AssertionError: expected { Object (outcome, names) } to deeply equal { Object (outcome, names) }
