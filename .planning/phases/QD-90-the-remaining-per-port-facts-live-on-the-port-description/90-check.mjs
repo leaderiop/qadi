@@ -908,7 +908,7 @@ export const judgePortFacts = (files, src, sections) => {
 
 // ---- the shape of the scoped read ----
 
-/** Reasons `PortAccess.ts` does not derive its scoped ports from the leaf rows (D-14): a literal anywhere in `ScopedPort`'s body is a hand list. */
+/** Reasons `PortAccess.ts` does not derive its scoped ports from the leaf rows (D-14): a literal in `ScopedPort`'s body other than the `["asks"]` member is a hand list. */
 export const judgeScopedDerived = (text) => {
   if (text === undefined) return [`${ACCESS_FILE} does not exist`];
   const bad = [];
@@ -921,7 +921,7 @@ export const judgeScopedDerived = (text) => {
   else if (/["'`]/.test(tag[1].replace(/\[\s*["']resourceId["']\s*\]/g, "").replace(/["']Never["']/g, ""))) bad.push(`${ACCESS_FILE} type ScopedLeafTag names a literal other than "Never" and the resourceId column`);
   const scoped = /\btype\s+ScopedPort\b[^=;]*=\s*([^;]+);/.exec(code);
   if (scoped === null) bad.push(`${ACCESS_FILE} declares no type ScopedPort`);
-  else if (/["'`]/.test(scoped[1])) bad.push(`${ACCESS_FILE} type ScopedPort names a string literal, a hand list of ports`);
+  else if (/["'`]/.test(scoped[1].replace(/\[\s*["']asks["']\s*\]/g, ""))) bad.push(`${ACCESS_FILE} type ScopedPort names a string literal other than the asks member, a hand list of ports`);
   else if (!/\bScopedLeafTag\b/.test(scoped[1])) bad.push(`${ACCESS_FILE} type ScopedPort is not read from ScopedLeafTag`);
   return bad;
 };
@@ -2295,7 +2295,7 @@ it("has \\"quotes\\"", () => {});`;
     const parts = {
       imports: 'import type { LEAF_NEEDS } from "./LeafNeeds.ts";\nimport { isResourceScoped, requireResourceId } from "./ScopedLeaf.ts";\n',
       tag: 'type ScopedLeafTag = {\n  readonly [T in keyof typeof LEAF_NEEDS]: (typeof LEAF_NEEDS)[T]["resourceId"] extends "Never" ? never : T;\n}[keyof typeof LEAF_NEEDS];\n',
-      scoped: "type ScopedPort = {\n  readonly [K in PortName]: [keyof Asks[K] & ScopedLeafTag] extends [never] ? never : K;\n}[PortName];\n",
+      scoped: 'type ScopedPort = {\n  readonly [K in PortName]: [keyof PortTypes[K]["asks"] & ScopedLeafTag] extends [never] ? never : K;\n}[PortName];\n',
       call: 'type ScopedCall<K extends ScopedPort> = [PortNeed<K>] extends ["Always"]\n  ? AlwaysCall<K>\n  : [PortNeed<K>] extends ["ByScope"]\n    ? ByScopeCall<K>\n    : never;\n',
       table: 'const scopedCall: { readonly [K in ScopedPort]: ScopedCall<K> } = {\n  A: { need: "ByScope", withId: (r) => r, bare: (r) => r, resourceScoped: isResourceScoped },\n  R: { need: "Always", withId: ([r], id) => [{ ...r, id }] },\n  S: {\n    need: "ByScope",\n    withId: (r) => r,\n    bare: (r) => r,\n    resourceScoped: isResourceScoped,\n  },\n};\n',
       count: 'const countFor = Match.type<PortInterpreter>().pipe(Match.when("evaluate", () => 1), Match.exhaustive);\n',
@@ -2337,8 +2337,9 @@ it("has \\"quotes\\"", () => {});`;
   const derived = (over) => judgeScopedDerived(routeFile(over));
   eq("a derived ScopedPort passes, the rows imported by type", derived(), []);
   eq("a value import of the rows passes too", derived({ imports: 'import { LEAF_NEEDS } from "./LeafNeeds.ts";\nimport { isResourceScoped } from "./ScopedLeaf.ts";\n' }), []);
-  has("a hand union ScopedPort fails", derived({ scoped: 'type ScopedPort = "DecisionHistory" | "RelationshipResolver" | "SignatureHistory";\n' }), "names a string literal, a hand list of ports");
-  has("a ScopedPort extracted from a hand list fails", derived({ scoped: 'type ScopedPort = Extract<PortName, "DecisionHistory" | "RelationshipResolver" | "SignatureHistory">;\n' }), "names a string literal, a hand list of ports");
+  has("a hand union ScopedPort fails", derived({ scoped: 'type ScopedPort = "DecisionHistory" | "RelationshipResolver" | "SignatureHistory";\n' }), "a hand list of ports");
+  has("a ScopedPort extracted from a hand list fails", derived({ scoped: 'type ScopedPort = Extract<PortName, "DecisionHistory" | "RelationshipResolver" | "SignatureHistory">;\n' }), "a hand list of ports");
+  has("a ScopedPort that indexes PortTypes by a port name fails", derived({ scoped: 'type ScopedPort = {\n  readonly [K in PortName]: [keyof PortTypes["DecisionHistory"]["asks"] & ScopedLeafTag] extends [never] ? never : K;\n}[PortName];\n' }), "a hand list of ports");
   has("a ScopedPort that does not read ScopedLeafTag fails", derived({ scoped: "type ScopedPort = Extract<PortName, keyof Scoped>;\n" }), "is not read from ScopedLeafTag");
   has("a ScopedLeafTag not read from the rows fails", derived({ tag: 'type ScopedLeafTag = "HasRelationship" | "HasActed";\n' }), "is not read from typeof LEAF_NEEDS");
   has("a ScopedLeafTag that names a tag beside the rows fails", derived({ tag: 'type ScopedLeafTag = { readonly [T in keyof typeof LEAF_NEEDS]: (typeof LEAF_NEEDS)[T]["resourceId"] extends "Never" ? never : T }[keyof typeof LEAF_NEEDS] | "HasCustom";\n' }), 'names a literal other than "Never" and the resourceId column');
