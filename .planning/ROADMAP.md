@@ -668,7 +668,7 @@ Plans:
   5. ADR-QD-202 (or ADR-QD-190 amended with 202 named unused), BEH-QD-722 and the invariant and traceability rows record the step (ADMIT-05).
 
 **Planning notes**: Standard patterns (precedent ADR-QD-190's `RowsRefusalCases`). The discuss step decides a brand (admission before the `qadi.audit.verifySequenceIntegrity` span, so a refused public verify no longer opens it) vs a plain refusal-or-undefined function with spans unchanged; the tie-break is spans unchanged unless the change is pinned and recorded. Constraints that are findings: the order is per entry point, not one flat "now, rows, then terms" (key material against rows and max age against rows would change which refusal wins); no `Effect.fn` admission (it adds a span and makes `planRetention` effectful); the step is not exported (gate 13); keep `Number.isFinite` (not `isFinite`), `-0`, `+Infinity` `maxAgeMs` and key material read once; admission stays out of `ArchiveFacts.ts`, which Phase 91 folds `SequenceIntegrity.ts` into. Stryker: `stryker.audit.mjs` (a glob); the new file is under the floor from day one; record 89's post-review score as 91's base for `ArchiveFacts.ts`.
-**Plans**: 10/11 plans executed
+**Plans**: 11/11 plans executed
 
 Plans:
 - [x] 89-01 (W1): The phase base and the audit mutation base recorded first; the characterisation of which refusal wins, the spans each outcome opens and what a refusal leaves unread, green on the base; the read-once defects (a flipping row list, `maxAgeMs` read more than once, a `null` or `undefined` policy) committed as rows that fail on the base
@@ -681,7 +681,7 @@ Plans:
 - [x] 89-08 (W8): The shared fault table and one comparison row per entry point in `ForeignRows.test.ts`; the six order rows removed; every declared edit applied
 - [x] 89-09 (W9): The remaining variants and judge clauses seen failing, the audit mutation close (`HostBatch.ts` included, Phase 91's base written), coverage, and the one patch changeset
 - [x] 89-10 (W10): ADR-QD-202 with its audit table, BEH-QD-781 to 785, INV-QD-423 and 424, ADR-QD-190 and ADR-QD-110 amended, the index, traceability and CCR-QD-481 rows
-- [ ] 89-11 (W11): `pnpm check:pr` green at the close, every phase check re-run there; nothing released; every commit trailed and in scope
+- [x] 89-11 (W11): `pnpm check:pr` green at the close, every phase check re-run there; nothing released; every commit trailed and in scope
 
 **UI hint**: no (library behaviour only)
 
@@ -742,6 +742,6 @@ Phases execute in numeric order: 85 → 86 → 87 → 88 → 89 → 90 → 91
 | 86. `QadiProvider`'s registry lifetime has a React-free owner | 8/8 | Complete    | 2026-11-25 |
 | 87. One scoped run that states its stop | 11/11 | Complete    | 2026-11-25 |
 | 88. `StoppedBox` keys itself and owns the announce-once rule | 10/10 | Complete    | 2026-11-26 |
-| 89. One admission step for a host's audit batch | 10/11 | In Progress | - |
+| 89. One admission step for a host's audit batch | 11/11 | In Progress | - |
 | 90. The remaining per-port facts live on the port description | 0/TBD | Not started | - |
 | 91. Named barrels, and visibility-only files folded away | 0/TBD | Not started | - |
