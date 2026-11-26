@@ -298,19 +298,29 @@ interpreter, so the move is judged by the same rows before and after.
   characterisation and the held tests.
 - **A new port is a description (span, wire, serving facet, fixture), a `PORT_NAMES` entry, its registry lines and its
   `PortServing` row.** That is two fewer per-port statements than the span table and the fixture table needed. The sixth-port
-  run, a fake `"FakePort"` added to `PORT_NAMES` alone, is 57 errors in 25 (file, code) groups across `@qadi/core`,
+  run, a fake `"FakePort"` added to `PORT_NAMES` alone, is 61 errors in 25 (file, code) groups across `@qadi/core`,
   `@qadi/devtools`, `@qadi/http` and `@qadi/testing`, against 53 in 22 groups for a sixth `PortSpans` row, and
-  `PortMetrics.ts` is not among them, because its domain follows the tuple. A description that omits `span`,
+  `PortMetrics.ts` is not among them, because its domain follows the tuple. The groups are the ones first recorded at 57
+  errors; the four more are all in `PortAccess.ts`'s `TS2536` group, the spelled signature of `readUnscoped`, the direct
+  read typed to refuse every scoped port, which indexes `PortTypes` by the new name as `readPort` does. A description that omits `span`,
   `fixture` or `serving` is an error naming that member.
 - **The scoped read's id test is stated at the table.** A leaf reclassified in `LeafNeeds.ts` changes the route and the set of
   scoped ports together, and a test holds the route equal to the rows and to the judgements.
-- **Mutation and coverage.** The close run used the base invocation over the thirteen files this change touches. Every file's
-  score is at its base or above except `PortAccess.ts`, at 54 of 57 detected, whose three open mutants are equivalent and
-  not killable: the `Always` arm of `readScoped`'s matcher is unreachable today, because the only leaf whose row is `Always`,
-  `HasRelationship`, reads a port with no id-free call, so the arm is consulted by no input, and a mutant of the guard
-  `bare !== undefined` changes no outcome for the same reason. This record does not claim a full score for that file.
-  Core coverage is 99.86 lines, 99.70 functions, 98.33 branches and 99.58 statements, against 99.89, 99.78, 98.33 and 99.63
-  before.
+- **Mutation and coverage.** The close was taken after every source change, alone, with the base invocation over the
+  thirteen files this change touches: 469 of 470 mutants detected. `PortAccess.ts` is 51 of 51, `PortDerivation.ts` 47 of
+  47, `CustomPredicate.ts` 33 of 33, `LeafNeeds.ts` 73 of 73, `DecisionHistory.ts` 64 of 64, `RelationshipResolver.ts` 29
+  of 29, `AttributeResolver.ts` 22 of 22, `PortDescription.ts` 16 of 16, `Ports.ts` 14 of 14 and `ScopedLeaf.ts` 11 of 11;
+  `PortName.ts` and `PortMetrics.ts` hold no scored mutant. The one open mutant is in `SignatureHistory.ts`, 109 of 110, at
+  its base: a ternary on `row.resourceId === undefined` read as false gives `makeResourceId(undefined)`, and
+  `makeResourceId` is `Brand.nominal`, the identity at run time, so both branches return `undefined` and no test can tell
+  them apart. Static code `ignoreStatic` hides from the score is not in those counts. In `PortAccess.ts` the three
+  `scopedCall` row objects, the two `"ByScope"` need literals and `servePortRead`'s arrow were run by hand with
+  `ignoreStatic: false` and each was killed; the `"Always"` need literal survives there, because `readScoped` compares a
+  need only with `"ByScope"`, so any other string routes as `"Always"` does, to the id check, and the literal's work is to
+  choose the row's member of `ScopedCall` at compile time. What it stands for, that a relationship read demands an id, is
+  held by the characterisation row "HasRelationship, absent resource, under evaluate". Core coverage is 99.89 lines, 99.78
+  functions, 98.40 branches and 99.64 statements, against 99.89, 99.78, 98.33 and 99.63 at the base, and every one of the
+  thirteen files is at its base or above.
 - **Reopening the routing needs a new measurement.** The bench gate of record is one run of `routing-review.patch`.
 
 ## What enforces it

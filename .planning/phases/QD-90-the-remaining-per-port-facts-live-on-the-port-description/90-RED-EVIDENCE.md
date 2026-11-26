@@ -1406,3 +1406,34 @@ row must catch. Each block below is written by `90-check.mjs variant`.
 - exit: 2
 - failing text: packages/core/src/PortAccess.ts(601,74): error TS2741: Property 'meaning' is missing in type '{ readonly _tag: "HasActed"; readonly event: string & Brand<"EventName">; readonly scope: "Any" | "Resource"; readonly fields?: readonly string[] | undefined; }' but required in type '{ readonly _tag: "HasSignature"; readonly meaning: string; readonly signerRole?: string | undefined; readonly scope: "Any" | "Resource"; readonly fields?: readonly string[] | undefined; }'.
 - tsc: packages/core/src/PortAccess.ts TS2741 x1
+
+## sixth-port close
+- scratch: sixth-close at 6a613f9ae2
+- edit: "FakePort" appended to PORT_NAMES
+- tsc: packages/core/src/PortAccess.ts TS2345 x1
+- tsc: packages/core/src/PortAccess.ts TS2536 x14
+- tsc: packages/core/src/PortRemote.ts TS2345 x1
+- tsc: packages/core/src/PortRemote.ts TS2536 x4
+- tsc: packages/core/src/PortServing.ts TS2344 x1
+- tsc: packages/core/src/PortServing.ts TS2536 x1
+- tsc: packages/core/src/Ports.ts TS2344 x1
+- tsc: packages/core/src/Ports.ts TS2379 x1
+- tsc: packages/core/src/Ports.ts TS2536 x20
+- tsc: packages/core/src/Ports.ts TS2741 x1
+- tsc: packages/core/src/Ports.ts TS2769 x1
+- tsc: packages/core/src/Ports.ts TS377004 x1
+- tsc: packages/devtools/src/model/Capture.ts TS2345 x1
+- tsc: packages/devtools/src/model/Capture.ts TS2536 x2
+- tsc: packages/devtools/src/model/PortCalls.ts TS2322 x1
+- tsc: packages/devtools/src/model/PortCalls.ts TS2741 x1
+- tsc: packages/devtools/src/model/PortCards.ts TS2345 x1
+- tsc: packages/devtools/src/model/PortReading.ts TS2741 x1
+- tsc: packages/devtools/src/model/SimulationFields.ts TS2741 x1
+- tsc: packages/devtools/src/model/SimulationSource.ts TS2741 x1
+- tsc: packages/http/src/PortRoutes.ts TS2322 x1
+- tsc: packages/http/src/PortRoutes.ts TS2345 x1
+- tsc: packages/http/src/PortRoutes.ts TS2536 x1
+- tsc: packages/http/src/PortRoutes.ts TS377004 x1
+- tsc: packages/testing/src/QadiReviewLayer.ts TS2536 x1
+- errors: 61
+- groups: 25
