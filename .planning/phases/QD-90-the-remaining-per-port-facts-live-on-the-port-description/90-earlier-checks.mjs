@@ -27,11 +27,14 @@
 //   computed   the rows this phase moves, each keyed on the exact subject of the commit that moves it, written here before the
 //              commit exists, so a row expects the unmoved lines while its commit does not exist and the moved line once it does:
 //                close88   `88-check.mjs records --close` prints four lines at this phase's base (Phase 89's revisions and changeset
-//                          count). Phase 90's spec edits move three of them and its changeset moves the fourth, each at the commit
-//                          that makes it: the line stays, and is replaced by its moved line once the subject exists.
+//                          count). Phase 90's spec edits move three of them, each at the commit that makes it: the line stays, and is
+//                          replaced by its moved line once the subject exists. The fourth is the changeset count, the base's two plus
+//                          what each changeset subject that exists adds: one for the core changeset, two for the http and testing
+//                          patches the verification gaps added.
 //                close89   `89-check.mjs records --close` is clean at the base. It names a spec register once Phase 90 bumps it, by the
-//                          same mechanism that moved 88's row, and the changeset count once Phase 90 adds its own: clean while no
-//                          subject exists, and otherwise exactly the lines whose subject exists.
+//                          same mechanism that moved 88's row, and the changeset count once Phase 90 adds its own, counted the same
+//                          way from the base's one: clean while no subject exists, and otherwise exactly the lines whose subject
+//                          exists, the count line whenever the count is not one.
 //                guard     the five `scan-forbidden` rows of 85 to 89 hold `AGENTS.md` byte for byte against their own `phase_base`
 //                          (`<file> differs from phase_base: no budget moves`), so the one commit of this phase that edits AGENTS.md
 //                          section 3 moves all five to exit 1 with exactly that one line. This is a finding the research did not list.
@@ -100,28 +103,47 @@ const DECISION = "docs(90-14): record the port facts decision";
 const REGISTERS = "docs(90-14): state the port facts in the behaviors and invariants";
 const CHANGESET = "chore(90-15): add the breaking minor changeset";
 const HOUSE_RULES = "docs(90-15): state a new port's facts in the house rules";
+/**
+ * The commit subject that adds the `@qadi/http` and `@qadi/testing` patch changesets the phase verification found missing,
+ * written here before the commit exists and binding on it.
+ */
+const PATCHES = "chore(90-gaps): add the http and testing patch changesets";
+
+/** The commit subjects that add changesets since this phase's base, each with how many it adds. */
+const CHANGESET_SUBJECTS = [
+  { subject: CHANGESET, adds: 1 },
+  { subject: PATCHES, adds: 2 },
+];
+
+/** The changesets Phase 88's and Phase 89's closes count at this phase's base: Phase 89's two since 88's base, and its one since its own. */
+const COUNT_AT_BASE = { close88: 2, close89: 1 };
+
+/** The changeset count a close reads when exactly `subjects` exist: its count at the base plus what each existing subject adds. */
+const changesetCount = (close, subjects) =>
+  CHANGESET_SUBJECTS.filter(({ subject }) => subjects.includes(subject)).reduce((count, { adds }) => count + adds, COUNT_AT_BASE[close]);
+
+/** The line a close prints for `count` changesets: none at the one it wants. */
+const countLines = (count) => (count === 1 ? [] : [`${count} changesets are added since phase_base, not one`]);
 
 /**
- * The lines `88-check.mjs records --close` prints, each with the line it prints at this phase's base (`base`: Phase 89's revision or
- * changeset count) and the line it prints once the one commit of this phase that moves it exists. Phase 88's close wants each revised
- * spec document exactly one revision above 88's base and one changeset since it, so Phase 89's edits already put each register one
- * above and the changeset count at two, and Phase 90's put each register a second one above (README and traceability at the decision,
- * invariants at the behaviors and invariants) and the count at three.
+ * The register lines `88-check.mjs records --close` prints, each with the line it prints at this phase's base (`base`: Phase 89's
+ * revision) and the line it prints once the one commit of this phase that moves it exists. Phase 88's close wants each revised spec
+ * document exactly one revision above 88's base and one changeset since it, so Phase 89's edits already put each register one above
+ * and the changeset count at two, and Phase 90's put each register a second one above (README and traceability at the decision,
+ * invariants at the behaviors and invariants). The count is `changesetCount`'s, not a row here.
  */
 const EXPLAINING_88 = [
-  { base: "2 changesets are added since phase_base, not one", line: "3 changesets are added since phase_base, not one", subject: CHANGESET },
   { base: "spec/README.md is at Revision 1.415, not 1.414", line: "spec/README.md is at Revision 1.416, not 1.414", subject: DECISION },
   { base: "spec/traceability.md is at Revision 1.334, not 1.333", line: "spec/traceability.md is at Revision 1.335, not 1.333", subject: DECISION },
   { base: "spec/invariants.md is at Revision 1.234, not 1.233", line: "spec/invariants.md is at Revision 1.235, not 1.233", subject: REGISTERS },
 ];
 
 /**
- * The lines `89-check.mjs records --close` prints once Phase 90 has moved what it judges, each with the one commit subject that moves
- * it. Phase 89's close wants each revised spec document exactly one revision above 89's base and one changeset since it, so Phase
- * 90's edits to the three registers each put one at two above, and its changeset makes the count two.
+ * The register lines `89-check.mjs records --close` prints once Phase 90 has moved what it judges, each with the one commit subject
+ * that moves it. Phase 89's close wants each revised spec document exactly one revision above 89's base and one changeset since it,
+ * so Phase 90's edits to the three registers each put one at two above. The count is `changesetCount`'s, not a row here.
  */
 const EXPLAINING_89 = [
-  { line: "2 changesets are added since phase_base, not one", subject: CHANGESET },
   { line: "spec/README.md is at Revision 1.416, not 1.415", subject: DECISION },
   { line: "spec/traceability.md is at Revision 1.335, not 1.334", subject: DECISION },
   { line: "spec/invariants.md is at Revision 1.235, not 1.234", subject: REGISTERS },
@@ -133,12 +155,16 @@ const EXPLAINING_GUARDS = [{ line: "AGENTS.md differs from phase_base: no budget
 /** The lines of `table` whose subject is among `subjects`. */
 const movedBy = (table, subjects) => table.filter(({ subject }) => subjects.includes(subject)).map(({ line }) => line);
 
-/** What 88's close expects: exit 1 always, with each line replaced by its moved line once the subject exists. */
-const close88Expectation = (subjects) => ({ exit: 1, reasons: true, set: EXPLAINING_88.map((row) => (subjects.includes(row.subject) ? row.line : row.base)) });
+/** What 88's close expects: exit 1 always, the count line, and each register line replaced by its moved line once the subject exists. */
+const close88Expectation = (subjects) => ({
+  exit: 1,
+  reasons: true,
+  set: [...countLines(changesetCount("close88", subjects)), ...EXPLAINING_88.map((row) => (subjects.includes(row.subject) ? row.line : row.base))],
+});
 
 /** What 89's close expects: exit 0 and the clean line while none of the subjects exists, otherwise exit 1 and exactly the lines whose subject does. */
 const close89Expectation = (subjects) => {
-  const set = movedBy(EXPLAINING_89, subjects);
+  const set = [...countLines(changesetCount("close89", subjects)), ...movedBy(EXPLAINING_89, subjects)];
   return set.length === 0 ? { exit: 0, line: CLOSE_CLEAN } : { exit: 1, reasons: true, set };
 };
 
@@ -399,7 +425,8 @@ const selfTest = () => {
   const none = [];
   const afterDecision = [DECISION];
   const afterRegisters = [DECISION, REGISTERS];
-  const every = [...new Set([...EXPLAINING_88, ...EXPLAINING_89, ...EXPLAINING_GUARDS].map(({ subject }) => subject))];
+  const every = [...new Set([...CHANGESET_SUBJECTS, ...EXPLAINING_88, ...EXPLAINING_89, ...EXPLAINING_GUARDS].map(({ subject }) => subject))];
+  const count = (n) => `${n} changesets are added since phase_base, not one`;
   /** The runs a tree at `printed` subjects shows, judged by the ledger a tree at `judged` subjects expects. */
   const judgedAt = (printed, judged) => judgeLedger(at(printed).map(toRun), at(judged));
   /** The reasons naming `label`, so a case reads one row and not the whole table. */
@@ -408,7 +435,7 @@ const selfTest = () => {
   const setAt = (label, subjects) => rowAt(label, subjects).set.join("|");
   const exitAt = (label, subjects) => rowAt(label, subjects).exit;
   const moved88 = (subject) => EXPLAINING_88.filter((r) => r.subject === subject).map((r) => r.line);
-  const unmoved88 = EXPLAINING_88.map((r) => r.base);
+  const unmoved88 = [count(2), ...EXPLAINING_88.map((r) => r.base)];
   const cases = [
     ["a matching set of runs passes", judgeLedger(ok, ledger).length === 0],
     ["a matching exit with another line fails, naming both lines", judgeLedger(swap(0, { line: "changed" }), ledger).join() === `${ledger[0].label}: expected the line "${ledger[0].line}", got "changed"`],
@@ -451,30 +478,39 @@ const selfTest = () => {
     ["the pinned reasons row fails when a file is missing from the run, naming it", ledger[pinned].set.length > 0 && judgeLedger(swap(pinned, { set: ledger[pinned].set.slice(1) }), ledger).join() === `87-pinned-check.mjs: missing reason "${ledger[pinned].set[0]}"`],
     ["the pinned reasons row fails when a file is added, and when the run exits 0", judgeLedger(swap(pinned, { set: [...ledger[pinned].set, "packages/devtools/test/Other.test.ts: differs from its base text at line 2"] }), ledger).length === 1 && judgeLedger(swap(pinned, { status: 0 }), ledger).length === 1],
     ["each pinned reason names one of the five files Phase 88 edited, once", ledger[pinned].set.length === 5 && new Set(ledger[pinned].set.map((r) => r.split(":")[0])).size === 5 && ledger[pinned].set.every((r) => /^packages\/devtools\/test\/(helpers[.]ts|react\/(DiagnosticsNotice|TimelineNotice)[.]test[.]tsx|react\/Simulator[.]broke[.]test[.]tsx|surface[.]tst[.]ts): differs from /.test(r))],
-    ["the explaining subjects are the four of plans 14 and 15, verbatim", every.length === 4 && every.every((subject) => [DECISION, REGISTERS, CHANGESET, HOUSE_RULES].includes(subject)) && DECISION === "docs(90-14): record the port facts decision" && REGISTERS === "docs(90-14): state the port facts in the behaviors and invariants" && CHANGESET === "chore(90-15): add the breaking minor changeset" && HOUSE_RULES === "docs(90-15): state a new port's facts in the house rules"],
-    ["every family's line is stated once with its subject", EXPLAINING_88.length === 4 && EXPLAINING_89.length === 4 && EXPLAINING_GUARDS.length === 1 && [...EXPLAINING_88, ...EXPLAINING_89, ...EXPLAINING_GUARDS].every(({ line, subject }) => line.length > 0 && subject.length > 0) && new Set(EXPLAINING_88.map((r) => r.line)).size === 4 && EXPLAINING_88.every((r) => r.base !== r.line)],
+    ["the explaining subjects are the four of plans 14 and 15 and the gaps' changeset subject, verbatim", every.length === 5 && every.every((subject) => [DECISION, REGISTERS, CHANGESET, HOUSE_RULES, PATCHES].includes(subject)) && DECISION === "docs(90-14): record the port facts decision" && REGISTERS === "docs(90-14): state the port facts in the behaviors and invariants" && CHANGESET === "chore(90-15): add the breaking minor changeset" && HOUSE_RULES === "docs(90-15): state a new port's facts in the house rules" && PATCHES === "chore(90-gaps): add the http and testing patch changesets"],
+    ["every family's line is stated once with its subject", EXPLAINING_88.length === 3 && EXPLAINING_89.length === 3 && EXPLAINING_GUARDS.length === 1 && [...EXPLAINING_88, ...EXPLAINING_89, ...EXPLAINING_GUARDS].every(({ line, subject }) => line.length > 0 && subject.length > 0) && new Set(EXPLAINING_88.map((r) => r.line)).size === 3 && EXPLAINING_88.every((r) => r.base !== r.line)],
+    ["the changeset subjects add one and two, and no register row names one", CHANGESET_SUBJECTS.map(({ subject, adds }) => `${subject}:${adds}`).join() === `${CHANGESET}:1,${PATCHES}:2` && [...EXPLAINING_88, ...EXPLAINING_89].every(({ subject }) => subject !== CHANGESET && subject !== PATCHES)],
+    ["the count reads its base and each existing subject once", changesetCount("close88", none) === 2 && changesetCount("close88", [CHANGESET]) === 3 && changesetCount("close88", [PATCHES]) === 4 && changesetCount("close88", [CHANGESET, PATCHES, PATCHES]) === 5 && changesetCount("close89", none) === 1 && changesetCount("close89", every) === 4],
+    ["a count of one prints no line and any other count prints its own", countLines(1).length === 0 && countLines(0).join() === count(0) && countLines(5).join() === count(5)],
     // 88's close: four lines at the base, each replaced by its moved line at its own subject.
     ["with no explaining subject 88's close expects exit 1 and the four unmoved lines", exitAt(CLOSE_88_LABEL, none) === 1 && setAt(CLOSE_88_LABEL, none) === unmoved88.join("|")],
     ["with the decision subject 88's close moves README and traceability and leaves the other two", exitAt(CLOSE_88_LABEL, afterDecision) === 1 && setAt(CLOSE_88_LABEL, afterDecision) === [unmoved88[0], ...moved88(DECISION), unmoved88[3]].join("|")],
     ["with the registers subject as well 88's close moves the invariants line too, and only the changeset count stays", setAt(CLOSE_88_LABEL, afterRegisters) === [unmoved88[0], ...moved88(DECISION), ...moved88(REGISTERS)].join("|")],
-    ["with every subject 88's close prints exactly the four moved lines", setAt(CLOSE_88_LABEL, every) === EXPLAINING_88.map((r) => r.line).join("|") && ["spec/README.md is at Revision 1.416, not 1.414", "spec/traceability.md is at Revision 1.335, not 1.333", "spec/invariants.md is at Revision 1.235, not 1.233", "3 changesets are added since phase_base, not one"].every((line) => rowAt(CLOSE_88_LABEL, every).set.includes(line))],
-    ["88's close at the changeset subject alone moves the count and no register", setAt(CLOSE_88_LABEL, [CHANGESET]) === [moved88(CHANGESET)[0], ...unmoved88.slice(1)].join("|")],
+    ["with every subject 88's close prints exactly the four moved lines", setAt(CLOSE_88_LABEL, every) === [count(5), ...EXPLAINING_88.map((r) => r.line)].join("|") && ["spec/README.md is at Revision 1.416, not 1.414", "spec/traceability.md is at Revision 1.335, not 1.333", "spec/invariants.md is at Revision 1.235, not 1.233", "5 changesets are added since phase_base, not one"].every((line) => rowAt(CLOSE_88_LABEL, every).set.includes(line))],
+    ["88's close at the changeset subject alone moves the count to three and no register", setAt(CLOSE_88_LABEL, [CHANGESET]) === [count(3), ...unmoved88.slice(1)].join("|")],
+    ["88's close at the gaps' subject alone moves the count by two and no register", setAt(CLOSE_88_LABEL, [PATCHES]) === [count(4), ...unmoved88.slice(1)].join("|")],
+    ["88's close at both changeset subjects moves the count to five and no register", setAt(CLOSE_88_LABEL, [CHANGESET, PATCHES]) === [count(5), ...unmoved88.slice(1)].join("|")],
+    ["88's close at three changesets, judged at five, fails in both directions on the count line alone", about(judgedAt([CHANGESET], [CHANGESET, PATCHES]), CLOSE_88_LABEL).join() === `${CLOSE_88_LABEL}: missing reason "${count(5)}",${CLOSE_88_LABEL}: unexpected reason "${count(3)}"`],
     ["88's close run before a subject, judged after it, fails in both directions, naming the moved lines", about(judgedAt(none, every), CLOSE_88_LABEL).length === 8 && about(judgedAt(none, afterDecision), CLOSE_88_LABEL).length === 4],
     ["88's close run after a subject, judged before it, fails too", about(judgedAt(every, none), CLOSE_88_LABEL).length === 8],
-    ["88's close at the unmoved lines passes only its own state", [none, afterDecision, afterRegisters, every].every((subjects) => judgedAt(subjects, subjects).length === 0)],
+    ["88's close at the unmoved lines passes only its own state", [none, afterDecision, afterRegisters, [PATCHES], every].every((subjects) => judgedAt(subjects, subjects).length === 0)],
     // 89's close: clean until a subject exists, then exactly the lines whose subject exists.
     ["with no explaining subject 89's close expects exit 0 and the clean line", exitAt(CLOSE_89_LABEL, none) === 0 && rowAt(CLOSE_89_LABEL, none).line === CLOSE_CLEAN && close89Expectation(["chore(90-02): add the phase check", "docs(90-14): other"]).exit === 0],
     ["with the decision subject 89's close expects exit 1 and the README and traceability lines", exitAt(CLOSE_89_LABEL, afterDecision) === 1 && setAt(CLOSE_89_LABEL, afterDecision) === "spec/README.md is at Revision 1.416, not 1.415|spec/traceability.md is at Revision 1.335, not 1.334"],
     ["with the registers subject as well 89's close adds the invariants line", setAt(CLOSE_89_LABEL, afterRegisters) === "spec/README.md is at Revision 1.416, not 1.415|spec/traceability.md is at Revision 1.335, not 1.334|spec/invariants.md is at Revision 1.235, not 1.234"],
     ["with only the changeset subject 89's close expects the one changeset line", setAt(CLOSE_89_LABEL, [CHANGESET]) === "2 changesets are added since phase_base, not one"],
-    ["with every subject 89's close prints the four lines, each once", rowAt(CLOSE_89_LABEL, every).set.length === 4 && new Set(rowAt(CLOSE_89_LABEL, every).set).size === 4],
+    ["with only the gaps' subject 89's close expects three changesets", exitAt(CLOSE_89_LABEL, [PATCHES]) === 1 && setAt(CLOSE_89_LABEL, [PATCHES]) === count(3)],
+    ["with both changeset subjects 89's close expects four changesets", setAt(CLOSE_89_LABEL, [CHANGESET, PATCHES]) === count(4)],
+    ["with every subject 89's close prints the four lines, each once, the count at four", rowAt(CLOSE_89_LABEL, every).set.length === 4 && new Set(rowAt(CLOSE_89_LABEL, every).set).size === 4 && rowAt(CLOSE_89_LABEL, every).set.includes(count(4))],
+    ["89's close at two changesets, judged at four, fails in both directions on the count line alone", about(judgedAt([CHANGESET], [CHANGESET, PATCHES]), CLOSE_89_LABEL).join() === `${CLOSE_89_LABEL}: missing reason "${count(4)}",${CLOSE_89_LABEL}: unexpected reason "${count(2)}"`],
     ["89's close run clean while a subject exists fails, naming the exit and the clean line", judgedAt(none, afterDecision).filter((r) => r.startsWith(`${CLOSE_89_LABEL}: expected exit 1, got exit 0`)).length === 1],
     ["89's close printing a line whose subject does not exist fails, naming it", about(judgedAt(every, none), CLOSE_89_LABEL).join() === `${CLOSE_89_LABEL}: expected exit 0, got exit 1: ${rowAt(CLOSE_89_LABEL, every).set[0]}`],
     ["89's close between two subjects reads the missing and the extra line in both directions", about(judgedAt(afterDecision, afterRegisters), CLOSE_89_LABEL).join() === `${CLOSE_89_LABEL}: missing reason "spec/invariants.md is at Revision 1.235, not 1.234"` && about(judgedAt(afterRegisters, afterDecision), CLOSE_89_LABEL).join() === `${CLOSE_89_LABEL}: unexpected reason "spec/invariants.md is at Revision 1.235, not 1.234"`],
-    ["89's close passes in each of its states", [none, afterDecision, afterRegisters, every].every((subjects) => about(judgedAt(subjects, subjects), CLOSE_89_LABEL).length === 0)],
+    ["89's close passes in each of its states", [none, afterDecision, afterRegisters, [PATCHES], every].every((subjects) => about(judgedAt(subjects, subjects), CLOSE_89_LABEL).length === 0)],
     // The five scan-forbidden rows: clean until the house-rules commit, then exactly the one guard line.
     ["with no house-rules subject each scan-forbidden row expects exit 0 and the clean line", guards.every((label) => exitAt(label, none) === 0 && rowAt(label, none).line === FORBIDDEN_CLEAN)],
-    ["a subject of plans 14 and 15 other than the house rules leaves each scan-forbidden row clean", guards.every((label) => exitAt(label, [DECISION, REGISTERS, CHANGESET]) === 0)],
+    ["a subject of plans 14 and 15 other than the house rules leaves each scan-forbidden row clean", guards.every((label) => exitAt(label, [DECISION, REGISTERS, CHANGESET, PATCHES]) === 0)],
     ["with the house-rules subject each scan-forbidden row expects exit 1 and exactly the AGENTS.md line", guards.every((label) => exitAt(label, [HOUSE_RULES]) === 1 && setAt(label, [HOUSE_RULES]) === "AGENTS.md differs from phase_base: no budget moves")],
     ["a guard row whose subject exists but whose run is clean fails, one reason for each of the five rows", guards.every((label) => about(judgedAt(none, [HOUSE_RULES]), label).join() === `${label}: expected exit 1, got exit 0: ${FORBIDDEN_CLEAN}`)],
     ["a guard row whose run fails with no subject to explain it fails, naming the line", guards.every((label) => about(judgedAt([HOUSE_RULES], none), label).join() === `${label}: expected exit 0, got exit 1: AGENTS.md differs from phase_base: no budget moves`)],

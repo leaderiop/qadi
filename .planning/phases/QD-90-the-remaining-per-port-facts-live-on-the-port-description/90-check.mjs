@@ -596,6 +596,11 @@ const INVARIANT_SOURCES = { 425: ["PortName.ts", "Ports.ts"], 426: ["PortAccess.
 const BASE_588_SENTENCE = "`readScoped` does not read the column.";
 const CHANGESET = ".changeset/core-port-facts-on-the-description.md";
 const CHANGESET_HEAD = '---\n"@qadi/core": minor\n---\n\n**Breaking.**';
+const HTTP_CHANGESET = ".changeset/http-port-names-from-core.md";
+const HTTP_CHANGESET_HEAD = '---\n"@qadi/http": patch\n---\n\n';
+const TESTING_CHANGESET = ".changeset/testing-review-layer-fixture-doc.md";
+const TESTING_CHANGESET_HEAD = '---\n"@qadi/testing": patch\n---\n\n';
+const NO_EXPORT_CHANGES = "No export changes.";
 const CHANGESET_SENTENCES = [
   "Each port's description states its span name and its fixture.",
   "`PortDescription` gains a span-name type parameter and a required `fixture` member.",
@@ -604,6 +609,17 @@ const CHANGESET_SENTENCES = [
   "Metric ids, descriptions, span names and served and wire bytes are unchanged.",
   "Two ports sharing a span name is now a compile error.",
   "See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.",
+];
+/**
+ * The changesets the close expects, one per public package whose src the phase edits (Phase 85 D-04): `@qadi/core`'s
+ * Breaking minor, and a patch with no export change for each of `@qadi/http` (its served port routes read core's
+ * `PORT_NAMES`) and `@qadi/testing` (its review layer's doc comment), whose src the review round edited. A head ends
+ * after the one package line, so a second package fails it.
+ */
+const CHANGESETS = [
+  { file: CHANGESET, head: CHANGESET_HEAD, kind: "a Breaking minor changeset for @qadi/core alone", sentences: CHANGESET_SENTENCES },
+  { file: HTTP_CHANGESET, head: HTTP_CHANGESET_HEAD, kind: "a patch changeset for @qadi/http alone", sentences: [NO_EXPORT_CHANGES] },
+  { file: TESTING_CHANGESET, head: TESTING_CHANGESET_HEAD, kind: "a patch changeset for @qadi/testing alone", sentences: [NO_EXPORT_CHANGES] },
 ];
 const AGENTS_SENTENCE = "A new port is a description (span, wire, serving facet, fixture), a `PORT_NAMES` entry, its registry lines and its `PortServing` row.";
 const UPGRADE_FILE = "apps/website/src/content/docs/docs/reference/upgrading.md";
@@ -698,6 +714,10 @@ const adrChecks = (adr, routing) => {
  * and of the readme, the `{ file, base, now }` text of each document that must be one revision above phase_base and the
  * ADR-QD-114 pair that must be byte-identical, the `{ file, text }` of each changeset added since phase_base, the text of
  * AGENTS.md and of the upgrade guide, and phase_base's text of BEH-QD-588's section and of ADR-QD-163. Pure.
+ *
+ * The changesets added since phase_base are exactly the three `CHANGESETS` names: `@qadi/core`'s Breaking minor with its
+ * sentences, and a patch for `@qadi/http` alone and one for `@qadi/testing` alone, each holding "No export changes.". A
+ * missing one, a fourth, a wrong package or a wrong bump fails.
  */
 const judgeClosed = ({ trace, doc }, close) => {
   const bad = [];
@@ -761,13 +781,17 @@ const judgeClosed = ({ trace, doc }, close) => {
     else if (is === undefined) bad.push(`${file} has no Revision`);
     else if (is.major !== was.major || is.minor !== was.minor + 1) bad.push(`${file} is at Revision ${is.text}, not ${was.major}.${was.minor + 1}`);
   }
-  if (close.changesets.length !== 1) bad.push(`${close.changesets.length} changesets are added since phase_base, not one`);
-  else {
-    const [changeset] = close.changesets;
-    if (changeset.file !== CHANGESET) bad.push(`${changeset.file} is not ${CHANGESET}`);
-    if (!changeset.text.startsWith(CHANGESET_HEAD)) bad.push(`${changeset.file} is not a Breaking minor changeset for @qadi/core alone`);
+  if (close.changesets.length !== CHANGESETS.length) bad.push(`${close.changesets.length} changesets are added since phase_base, not ${CHANGESETS.length}`);
+  for (const { file } of close.changesets) if (!CHANGESETS.some((want) => want.file === file)) bad.push(`${file} is not one of ${CHANGESETS.map((want) => want.file).join(", ")}`);
+  for (const want of CHANGESETS) {
+    const changeset = close.changesets.find(({ file }) => file === want.file);
+    if (changeset === undefined) {
+      bad.push(`${want.file} is not added since phase_base`);
+      continue;
+    }
+    if (!changeset.text.startsWith(want.head)) bad.push(`${want.file} is not ${want.kind}`);
     const flat = collapse(changeset.text);
-    for (const sentence of CHANGESET_SENTENCES) if (!flat.includes(sentence)) bad.push(`${changeset.file} does not hold: ${sentence}`);
+    for (const sentence of want.sentences) if (!flat.includes(sentence)) bad.push(`${want.file} does not hold: ${sentence}`);
   }
   if (!collapse(close.agents).includes(AGENTS_SENTENCE)) bad.push("AGENTS.md section 3 does not hold the new-port sentence");
   if (!new RegExp(`^${escapeRe(UPGRADE_HEADING)}$`, "m").test(close.upgrade)) bad.push(`${UPGRADE_FILE} has no heading ${UPGRADE_HEADING}`);
@@ -2153,7 +2177,11 @@ it("has \\"quotes\\"", () => {});`;
       index: ["094", "134", "163"].map((n) => `  - id: "ADR-QD-${n}"\n    status: "Accepted; amended (ADR-QD-203)"\n`).join("") + '  - id: "ADR-QD-203"\n    file: "203-x.md"\n',
       readme: "| CCR-QD-482 | 2026-11-26 | ARCH-137 the facts. Unused: none |\n",
       revised: REVISED_DOCUMENTS.filter((f) => !(routing === "rejected" && f === ADR163)).map((file) => ({ file, base: "> | Revision       | 1.4   |\n", now: "> | Revision       | 1.5   |\n" })),
-      changesets: [{ file: CHANGESET, text: `${CHANGESET_HEAD} ${CHANGESET_SENTENCES.join(" ")}\n` }],
+      changesets: [
+        { file: CHANGESET, text: `${CHANGESET_HEAD} ${CHANGESET_SENTENCES.join(" ")}\n` },
+        { file: HTTP_CHANGESET, text: `${HTTP_CHANGESET_HEAD}The routes read core's list. ${NO_EXPORT_CHANGES}\n` },
+        { file: TESTING_CHANGESET, text: `${TESTING_CHANGESET_HEAD}The doc says what reads what. ${NO_EXPORT_CHANGES}\n` },
+      ],
       agents: `## 3. Layers\n\n${AGENTS_SENTENCE}\n`,
       upgrade: `${UPGRADE_HEADING}\n\nbody\n`,
       base588: "BEH-QD-588: base heading\n\nThe base says `readScoped` does not read the column.\n\n",
@@ -2221,9 +2249,24 @@ it("has \\"quotes\\"", () => {});`;
   closedHas("each of the eight revised documents is judged", (f) => f.close.revised.forEach((r) => (r.now = r.base)), `${ADR134} is at Revision 1.4, not 1.5`);
   eq("the landed form judges eight documents and the rejected form seven", [fix("landed").close.revised.length, fix("rejected").close.revised.length], [8, 7]);
   eq("the revision is read from the control table", revisionOf("> | Revision       | 1.413     |\n"), { major: 1, minor: 413, text: "1.413" });
-  closedHas("a second changeset fails", (f) => f.close.changesets.push({ file: ".changeset/b.md", text: "x" }), "2 changesets are added since phase_base, not one");
-  closedHas("no changeset fails", (f) => (f.close.changesets = []), "0 changesets are added since phase_base, not one");
-  closedHas("a changeset under another name fails", (f) => (f.close.changesets[0].file = ".changeset/other.md"), `.changeset/other.md is not ${CHANGESET}`);
+  eq("the three changesets pass", rec().filter((r) => r.includes(".changeset/") || r.includes("changesets")), []);
+  closedHas("a fourth changeset fails", (f) => f.close.changesets.push({ file: ".changeset/b.md", text: "x" }), "4 changesets are added since phase_base, not 3");
+  closedHas("a fourth changeset is named", (f) => f.close.changesets.push({ file: ".changeset/b.md", text: "x" }), ".changeset/b.md is not one of");
+  closedHas("no changeset fails", (f) => (f.close.changesets = []), "0 changesets are added since phase_base, not 3");
+  for (const [index, file] of [CHANGESET, HTTP_CHANGESET, TESTING_CHANGESET].entries()) {
+    closedHas(`a missing ${file} fails`, (f) => f.close.changesets.splice(index, 1), `${file} is not added since phase_base`);
+    closedHas(`a missing ${file} fails the count`, (f) => f.close.changesets.splice(index, 1), "2 changesets are added since phase_base, not 3");
+  }
+  closedHas("a changeset under another name fails", (f) => (f.close.changesets[0].file = ".changeset/other.md"), `.changeset/other.md is not one of ${CHANGESET}`);
+  for (const [index, file, pkg] of [[1, HTTP_CHANGESET, "@qadi/http"], [2, TESTING_CHANGESET, "@qadi/testing"]]) {
+    closedHas(`${file} as a minor fails`, (f) => (f.close.changesets[index].text = f.close.changesets[index].text.replace("patch", "minor")), `${file} is not a patch changeset for ${pkg} alone`);
+    closedHas(`${file} as a major fails`, (f) => (f.close.changesets[index].text = f.close.changesets[index].text.replace("patch", "major")), `${file} is not a patch changeset for ${pkg} alone`);
+    closedHas(`${file} for another package fails`, (f) => (f.close.changesets[index].text = f.close.changesets[index].text.replace(pkg, "@qadi/audit")), `${file} is not a patch changeset for ${pkg} alone`);
+    closedHas(`${file} naming a second package fails`, (f) => (f.close.changesets[index].text = f.close.changesets[index].text.replace(`"${pkg}": patch\n`, `"${pkg}": patch\n"@qadi/core": patch\n`)), `${file} is not a patch changeset for ${pkg} alone`);
+    closedHas(`${file} without "${NO_EXPORT_CHANGES}" fails`, (f) => (f.close.changesets[index].text = f.close.changesets[index].text.replace(NO_EXPORT_CHANGES, "x")), `${file} does not hold: ${NO_EXPORT_CHANGES}`);
+    closedHas(`${file} swapped with another file name fails`, (f) => (f.close.changesets[index].file = CHANGESET), `${file} is not added since phase_base`);
+  }
+  closedHas("the core changeset naming a second package fails", (f) => (f.close.changesets[0].text = f.close.changesets[0].text.replace('"@qadi/core": minor\n', '"@qadi/core": minor\n"@qadi/http": patch\n')), "is not a Breaking minor changeset for @qadi/core alone");
   closedHas("a changeset that is a patch fails", (f) => (f.close.changesets[0].text = f.close.changesets[0].text.replace("minor", "patch")), "is not a Breaking minor changeset for @qadi/core alone");
   closedHas("a changeset for another package fails", (f) => (f.close.changesets[0].text = f.close.changesets[0].text.replace("@qadi/core", "@qadi/audit")), "is not a Breaking minor changeset");
   for (const sentence of CHANGESET_SENTENCES) closedHas(`a changeset without "${sentence}" fails`, (f) => (f.close.changesets[0].text = f.close.changesets[0].text.replace(sentence, "x")), `does not hold: ${sentence}`);

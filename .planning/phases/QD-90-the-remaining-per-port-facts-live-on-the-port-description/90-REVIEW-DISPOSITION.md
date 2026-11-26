@@ -119,3 +119,10 @@ Coverage re-taken (`6a613f9a`): lines 99.89, functions 99.78, branches 98.40, st
 Script declarations changed, each named: `90-check.mjs` (`bench` per patch record, `routing-landed`, `scoped-route route` and `derived`, review test files in the close; self-test 522), `90-pinned-check.mjs` (amendment chains, regions LeafNeeds 47-48 and 223-226, ScopedLeaf 11-14, born `PortFacts.review.test.ts` and `PortFacts.review.tst.ts`), `90-mutation.mjs` (`closeOfRecord`, EXAMINED / STATIC_PROVEN rewritten, stale EQUIVALENT entries removed, the SignatureHistory one added; self-test 105).
 
 `pnpm check:pr` exited 0 after the fixes (17 of 18 steps; mutation skipped by definition), on head `e7bd64d5`. Public API 943 exports, unchanged.
+
+## Verification gaps
+
+`90-VERIFICATION.md` found two WX-03 gaps, both closed autonomously 2026-11-26 under the owner's rule.
+
+- Changeset policy (Phase 85 D-04): the review round edited `@qadi/http` src (`f9b6efb2`) and `@qadi/testing` src (`bb4ef25d`) with no changeset. Added `.changeset/http-port-names-from-core.md` and `.changeset/testing-review-layer-fixture-doc.md`, each a `patch` for its package alone holding "No export changes.", after the Phase 87 precedent `.changeset/core-cause-text-doc.md`. Declarations changed, each named: `90-check.mjs` close expects exactly the three changesets (`CHANGESETS`: core Breaking minor with its sentences, http patch, testing patch); a missing one, a fourth, a wrong package, a second package or a wrong bump fails (self-test 543). `90-earlier-checks.mjs` reads Phase 88's and 89's changeset count as the base count plus what each changeset subject adds (`chore(90-15): add the breaking minor changeset` one, `chore(90-gaps): add the http and testing patch changesets` two), so 88's close prints `5 changesets are added since phase_base, not one` and 89's `4 …`, and the register rows are unchanged (self-test 77).
+- Gate 14's probes: see `90-RED-EVIDENCE.md`, "90 verification gaps".
