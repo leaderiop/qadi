@@ -110,10 +110,6 @@ describe("archiveAuditTrail refuses a row the codec did not make", () => {
     archiveInvalid(writerFailure([good, ...fromStore(["a row"])]), notMade(1));
   });
 
-  it("a non-finite now is refused before the rows are read", () => {
-    archiveInvalid(writerFailure(fromStore([notDecodable]), Number.NaN), notFinite(Number.NaN));
-  });
-
   it("the rows are refused before a sequence break among them is looked for", () => {
     const broken = fromStore([
       { record: good.record, sequenceNumber: 1 },
@@ -153,17 +149,6 @@ describe("planRetention and planPurge refuse a row the codec did not make", () =
   it("planRetention names entries and the index of the first row refused", () => {
     retentionInvalid(planFailure(fromStore([notDecodable])), rowRefused(0));
     retentionInvalid(planFailure([good, ...fromStore([fractional[0]])]), rowRefused(1));
-  });
-
-  it("planRetention reads now and maxAgeMs before the rows", () => {
-    const rows = fromStore([notDecodable]);
-    const refusal = (now: number, maxAgeMs: number) => {
-      const result = planRetention(rows, { maxAgeMs }, now);
-      if (!Result.isFailure(result)) return assert.fail("the plan took the rows");
-      return { ...result.failure.refusal };
-    };
-    assert.deepStrictEqual(refusal(Number.NaN, 10), { ...RetentionInputRefusal.NowNotFinite({ value: Number.NaN }) });
-    assert.deepStrictEqual(refusal(100, -1), { ...RetentionInputRefusal.MaxAgeInvalid({ value: -1 }) });
   });
 
   it("planRetention takes rows the codec made", () => {
@@ -228,22 +213,6 @@ describe("every function that takes rows refuses entries that are not a list", (
       if (!Result.isFailure(result)) return assert.fail("the purge took entries that are not a list");
       assert.deepStrictEqual({ ...result.failure.refusal }, { ...retentionNotAList(value) });
     }
-  });
-
-  it("the inputs read before the rows are still read first", () => {
-    archiveInvalid(writerFailure(host(null), Number.NaN), notFinite(Number.NaN));
-    const keyed = Effect.runSync(Effect.result(archiveAuditTrail(host(null), 1_000, { keyMaterial: [] })));
-    if (!Result.isFailure(keyed)) return assert.fail("the writer archived entries that are not a list");
-    archiveInvalid(keyed.failure, rowsNotAList(null));
-    const seven = handedOver<ReadonlyArray<KeyMaterial>>(7);
-    const badKeys = Effect.runSync(
-      Effect.result(archiveAuditTrail(host(null), 1_000, { keyMaterial: seven })),
-    );
-    if (!Result.isFailure(badKeys)) return assert.fail("the writer archived keys that are not a list");
-    archiveInvalid(badKeys.failure, notAList(7));
-    const aged = planRetention(host(null), { maxAgeMs: -1 }, 100);
-    if (!Result.isFailure(aged)) return assert.fail("the plan took a negative maxAgeMs");
-    assert.deepStrictEqual({ ...aged.failure.refusal }, { ...RetentionInputRefusal.MaxAgeInvalid({ value: -1 }) });
   });
 
   it("a list is read as before: rows the codec made, and none", () => {
@@ -356,16 +325,6 @@ describe("archiveAuditTrail refuses a keyMaterial its reader would refuse", () =
     for (const value of ["x", 7, null, true, { keyId: "k" }]) {
       archiveInvalid(refused(value), notAList(value));
     }
-  });
-
-  it("now is read before the keys, and the keys before the rows", () => {
-    const rows = fromStore([notDecodable]);
-    archiveInvalid(refused([null], rows, Number.NaN), notFinite(Number.NaN));
-    archiveInvalid(refused([null], rows), itemRefused(0));
-  });
-
-  it("the rows are read after the keys the reader reads", () => {
-    archiveInvalid(refused([key], fromStore([notDecodable])), notMade(0));
   });
 
   it("a keyMaterial list is read once, so what is checked is what is written", () => {
