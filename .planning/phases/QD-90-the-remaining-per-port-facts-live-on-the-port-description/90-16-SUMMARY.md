@@ -7,7 +7,7 @@ tags: [close, merge-gate, requirements]
 
 phase_base: 46174873c60e85bcd0c6702867c602cad8460310
 plan_head_before: e987c9fd8b418d13db326f1dc15819a83a90a370
-plan_head_after: PENDING
+plan_head_after: df6068de36f69cbf093b607b18fef8b6456d60c6
 
 requires:
   - phase: QD-90-the-remaining-per-port-facts-live-on-the-port-description
