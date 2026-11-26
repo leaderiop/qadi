@@ -9,7 +9,7 @@
  *
  * **A row is selected for deletion only with a finite age past a valid limit
  * and only when its archive holds it.** `now` is finite, `maxAgeMs` is a number `>= 0`, and
- * `now - at > maxAgeMs` (the age rule, in {@link planRetention}); and a
+ * `now - at > maxAgeMs` (the age rule both plans run); and a
  * {@link VerifiedArchive} read back from storage holds the row
  * ({@link planPurge}). A row's `at` is finite because only the codec makes a
  * row and its decode refuses any other (ADR-QD-190), and the step in
@@ -122,16 +122,17 @@ const ageRule = (batch: AdmittedBatch<number>): RetentionPlan => {
 };
 
 /**
- * The one age rule: which rows are past `policy`'s limit.
+ * Which rows are past `policy`'s limit: a {@link RetentionPlan} of the rows retained and the rows expired, or
+ * `RetentionInputInvalid`.
  *
  * The step in `HostBatch.ts` admits the batch first and each input is read once, so the plan reads the number the
  * limit check admitted and the rows it checked. Refuses `RetentionInputInvalid` when `now` is not finite
- * (`NowNotFinite`), `maxAgeMs` is not a number from zero up or is absent (`MaxAgeInvalid`; `+Infinity` is valid and means
- * "retain forever"), `entries` is not a list (`EntriesNotAList`) or an entry is not a row the codec made
+ * (`NowNotFinite`), `maxAgeMs` is not a number from zero up or is absent (`MaxAgeInvalid`; `+Infinity` is valid and
+ * means "retain forever"), `entries` is not a list (`EntriesNotAList`) or an entry is not a row the codec made
  * (`EntryNotMadeByCodec`, the index of the first). A store client's `any` and a JavaScript caller's literal pass the
- * type; a row of unknown shape has no age to read. Otherwise one pass: a row with `now - at > maxAgeMs` is expired and
- * the rest are retained. Use it to see what would expire before an archive exists; to select rows for deletion use
- * {@link planPurge}, which needs the archive.
+ * type; a row of unknown shape has no age to read. Otherwise one pass: a row with `now - at > maxAgeMs` is expired
+ * and the rest are retained. Use it to see what would expire before an archive exists; to select rows for deletion
+ * use {@link planPurge}, which needs the archive. The rule itself is the module-private age rule both plans run.
  */
 export const planRetention = (
   entries: ReadonlyArray<AuditEntry>,

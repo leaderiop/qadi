@@ -56,18 +56,19 @@ Each call restated the check, and the restatement had three costs.
    It is the shape of the admission in `@qadi/core`'s `Admission.ts`.
 
    ```ts
-   export interface DatedBatch<Terms, Refused> {
+   // HostBatch.ts, package-private: out of the barrel, so none of these is a package export
+   interface DatedBatch<Terms, Refused> {
      readonly now: number;
      readonly terms: () => Result.Result<Terms, Refused>;
      readonly entries: unknown;
    }
-   export interface AdmittedBatch<Terms> {
+   interface AdmittedBatch<Terms> {
      readonly now: number;
      readonly terms: Terms;
      readonly rows: AdmittedRows;
    }
-   export const admitRows: (entries: unknown) => Result.Result<AdmittedRows, RowsRefusal>;
-   export const admitBatch: <Terms, Refused>(
+   const admitRows: (entries: unknown) => Result.Result<AdmittedRows, RowsRefusal>;
+   const admitBatch: <Terms, Refused>(
      batch: DatedBatch<Terms, Refused>,
    ) => Result.Result<AdmittedBatch<Terms>, NowRefusal | Refused | RowsRefusal>;
    ```

@@ -144,9 +144,9 @@ const ARCHIVE_VERSION = "1";
  * (`NowNotFinite`, `KeyMaterialNotAList`, `KeyMaterialItemRefused` with the index of the
  * first item, `EntriesNotAList`, `EntryNotMadeByCodec` with the index of the first
  * entry), before any fact is computed; otherwise only with `SequenceIntegrityError`,
- * rather than archiving a set of rows already known to have a gap or a duplicate. An archive exists to be trusted later, so it refuses
- * to be built on a foundation this package can already tell is broken, or one its
- * own reader would refuse.
+ * rather than archiving a set of rows already known to have a gap or a duplicate. An
+ * archive exists to be trusted later, so it refuses to be built on a foundation this
+ * package can already tell is broken, or one its own reader would refuse.
  *
  * The rows are made by the codec, so each is one `readAuditArchive` decodes back
  * (ADR-QD-190). The type says so for a typed caller; a row a store client returned

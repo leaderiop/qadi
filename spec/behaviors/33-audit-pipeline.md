@@ -1216,15 +1216,18 @@ twin are one row), `AuditEntryDifferential.test.ts` and `UntrustedSeams.test.ts`
 > **See:** [ADR-QD-190](../decisions/190-an-audit-row-is-a-value-only-its-codec-makes.md), [ADR-QD-110](../decisions/110-an-archives-facts-are-computed-once.md)
 
 ```ts
-export type NowRefusalCases = {
+// HostBatch.ts, package-private: out of the barrel, not a package export
+type NowRefusalCases = {
   readonly NowNotFinite: { readonly value: unknown };
 };
 
-export type RowsRefusalCases = {
+// CodecMade.ts, package-private: out of the barrel, not a package export
+type RowsRefusalCases = {
   readonly EntriesNotAList: { readonly value: unknown };
   readonly EntryNotMadeByCodec: { readonly index: number };
 };
 
+// public: exported from the package
 export type ArchiveInputRefusal = Data.TaggedEnum<
   RowsRefusalCases &
     NowRefusalCases & {
@@ -1345,21 +1348,22 @@ declared-fields projection) and `ArchiveRoundTrip.test.ts` (the property over fi
 > [INV-QD-424](../invariants.md#inv-qd-424-each-input-of-a-hosts-batch-is-read-once-what-was-checked-is-what-is-used-and-no-input-is-a-defect)
 
 ```ts
-export interface DatedBatch<Terms, Refused> {
+// HostBatch.ts, package-private: out of the barrel, so none of these is a package export
+interface DatedBatch<Terms, Refused> {
   readonly now: number;
   readonly terms: () => Result.Result<Terms, Refused>;
   readonly entries: unknown;
 }
 
-export interface AdmittedBatch<Terms> {
+interface AdmittedBatch<Terms> {
   readonly now: number;
   readonly terms: Terms;
   readonly rows: AdmittedRows;
 }
 
-export const admitRows: (entries: unknown) => Result.Result<AdmittedRows, RowsRefusal>;
+const admitRows: (entries: unknown) => Result.Result<AdmittedRows, RowsRefusal>;
 
-export const admitBatch: <Terms, Refused>(
+const admitBatch: <Terms, Refused>(
   batch: DatedBatch<Terms, Refused>,
 ) => Result.Result<AdmittedBatch<Terms>, NowRefusal | Refused | RowsRefusal>;
 ```
@@ -1479,10 +1483,12 @@ its span) and
 > **Invariant:** [INV-QD-423](../invariants.md#inv-qd-423-no-fact-plan-or-sequence-check-is-computed-from-host-rows-the-admission-step-did-not-admit)
 
 ```ts
-export type NowRefusalCases = {
+// HostBatch.ts, package-private: out of the barrel, not a package export
+type NowRefusalCases = {
   readonly NowNotFinite: { readonly value: unknown };
 };
 
+// public: exported from the package
 export type ArchiveInputRefusal = Data.TaggedEnum<
   RowsRefusalCases &
     NowRefusalCases & {
