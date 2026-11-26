@@ -362,6 +362,24 @@ const readScoped = <K extends ScopedPort>(
   });
 };
 
+/**
+ * The read of a port whose question is never about one resource: `readPort`,
+ * typed to refuse every {@link ScopedPort}.
+ *
+ * It is `readPort` itself, not a wrapper, so it costs nothing at run time. A
+ * direct read names this and not `readPort`, so a leaf reclassified in
+ * `LeafNeeds.ts` to need a resource id makes its port scoped, and the read that
+ * still goes straight to the port is a compile error here until it routes
+ * through {@link readScoped}. `readScoped` and `servePortRead` keep `readPort`'s
+ * own signature: the first is the scoped route, and the second answers a remote
+ * asker's already-routed question.
+ */
+const readUnscoped: <K extends Exclude<PortName, ScopedPort>>(
+  d: DescriptionOf<K>,
+  interpreter: Interpreter,
+  args: ArgsOf<PortTypes[K]>,
+) => Effect.Effect<AnswerOf<PortTypes[K]>, ErrorOf<PortTypes[K]>, ServiceOf<PortTypes[K]>> = readPort;
+
 // ---------------------------------------------------------------------------
 // The reads. Each is a named `Effect.fn`, because each owns a span (ADR-QD-051:
 // a span says what was asked, and a tracer is what reads it back). That is why
@@ -369,7 +387,8 @@ const readScoped = <K extends ScopedPort>(
 // `evaluateAllOf`/`evaluateAnyOf`/`evaluateRules` do, and the port call under
 // them is the expensive part. Each takes the leaf it answers, builds its request
 // through the port's description, `<port>Port.asks.<Tag>(leaf, { subject,
-// resource })`, and hands the rest to `readPort`, the one body (ADR-QD-109), or
+// resource })`, and hands the rest to `readUnscoped`, the one body (`readPort`,
+// ADR-QD-109) typed for a port whose question is about no one resource, or
 // to `readScoped` for a leaf of a scoped port; the signature match is the
 // one thing a read does after. That call is all a read does with a description's
 // statement of what is served: serving work never runs on the evaluation path.
@@ -396,7 +415,7 @@ const resolveAttribute = Effect.fn(attributeResolverPort.span)(function* (
   interpreter: Interpreter,
   request: ArgsOf<PortTypes["AttributeResolver"]>,
 ) {
-  return yield* readPort(attributeResolverPort, interpreter, request);
+  return yield* readUnscoped(attributeResolverPort, interpreter, request);
 });
 
 /**
@@ -526,7 +545,7 @@ export const askCustom = Effect.fn(customPredicatePort.span)(function* (
   leaf: LeafOf["HasCustom"],
   resource: Resource | undefined,
 ) {
-  return yield* readPort(
+  return yield* readUnscoped(
     customPredicatePort,
     "evaluate",
     customPredicatePort.asks.HasCustom(leaf, { subject, resource }),

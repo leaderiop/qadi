@@ -1362,3 +1362,17 @@ row must catch. Each block below is written by `90-check.mjs variant`.
 - failing text: Error: The type argument cannot be of the 'never' type.
 - failing text: Error: The type argument cannot be of the 'never' type.
 - failing text: Error: The type argument cannot be of the 'never' type.
+
+## unscoped-read-reclassified
+- scratch: rv-unscoped at bf40eceb8d
+- edit: on the fix: HasAttribute moved to AsksAlways with its row set to Always, and the AttributeResolver scopedCall row the compiler asks for added (withId the request, bare undefined)
+- diff: 08ad8b22f5011b0bdea260fe8d0f88f12a8163fe7167fa60468a0ceddc3129f4 (2 files, +25 -6)
+- run: tsc-src
+- exit: 2
+- failing text: packages/core/src/PortAccess.ts(419,30): error TS2345: Argument of type 'PortDescription<"AttributeResolver", AttributeResolver, AttributeResolverShape, [subjectId: SubjectId, attribute: string], unknown, AttributeResolveError, [subjectId: SubjectId, attribute: string], { readonly question: SpanStruct<{ readonly subjectId: optionalKey<String>; readonly interpreter: optionalKey<Literals<readonly ["evaluate", "toPredicate", "remote"]>>; readonly attribute: optionalKey<String>; }>; readonly answer: SpanStruct<{ readonly resolved: optionalKey<Boolean>; }>; readonly pose: (args: [subjectId: SubjectId, attribute: string]) => { readonly attribute: string | undefined; readonly subjectId: string | undefined; }; readonly disclose: (outcome: unknown, args: [subjectId: SubjectId, attribute: string]) => { resolved: boolean; }; }, { HasAttribute: (leaf: { readonly _tag: "HasAttribute"; readonly attribute: string; readonly matcher: Matcher; readonly fields?: readonly string[] | undefined; }, site: ReadSite) => [subjectId: SubjectId, attribute: string]; }, "qadi.attribute", Readonly<Record<string, unknown>>>' is not assignable to parameter of type 'DescriptionOf<"CustomPredicate">'.
+- failing text: packages/core/src/PortAccess.ts(442,7): error TS2375: Type 'Effect<boolean, CustomPredicateError, CustomPredicate>' is not assignable to type 'Effect<unknown, AttributeResolveError, AttributeResolver>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+- failing text: packages/core/src/PortAccess.ts(442,7): error TS377003: Missing errors CustomPredicateError in the expected Effect type. effect(missingEffectError)
+- tsc: packages/core/src/PortAccess.ts TS2345 x1
+- tsc: packages/core/src/PortAccess.ts TS2375 x1
+- tsc: packages/core/src/PortAccess.ts TS377003 x1
+- tsc: packages/core/src/PortAccess.ts TS377004 x1

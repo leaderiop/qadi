@@ -701,12 +701,16 @@ REQUIREMENT: The leaf tags that ask about one resource MUST be every tag whose
 REQUIREMENT: A leaf newly stated as asking about one resource MUST make its port
              scoped, and the compiler MUST then ask for that port's entry in the
              table that says how its request becomes a call with an id and
-             without one.
+             without one. A read of that port that does not go through
+             `readScoped` MUST NOT compile.
 ```
 
 Today the tags are `HasRelationship`, `HasActed`, `HasNotActed` and `HasSignature`, and the
 ports are `DecisionHistory`, `RelationshipResolver` and `SignatureHistory`. A fourth port is
 a decision made where the closed tag lists of `LeafNeeds.ts` already force it, and no second
-list is widened by a side effect.
+list is widened by a side effect. The direct reads of the two unscoped ports, the attribute
+read and the custom predicate read, go through `readUnscoped`, which is `readPort` typed to
+refuse every scoped port, so a reclassified leaf whose read still goes straight to its port
+is a compile error at that read.
 
-Pinned by `packages/core/test/LeafNeeds.test.ts` ("the leaf tags that ask about one resource are exactly four") and `packages/core/test/PortFacts.characterisation.test.ts` ("a scoped read at every site"); the second requirement is the compiler's, over `PortAccess.ts`'s table, and `pnpm typecheck` holds it.
+Pinned by `packages/core/test/LeafNeeds.test.ts` ("the leaf tags that ask about one resource are exactly four") and `packages/core/test/PortFacts.characterisation.test.ts` ("a scoped read at every site"); the second requirement is the compiler's, over `PortAccess.ts`'s table and its `readUnscoped` reads, and `pnpm typecheck` holds it.
