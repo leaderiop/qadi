@@ -701,3 +701,105 @@ Each block below is written by `91-check.mjs variant`: the check ran inside a sc
 - failing text: AssertionError: expected 'Withheld' to be 'Disclosed' // Object.is equality
 - failing text: AssertionError: expected [] to have a length of 1 but got +0
 - failing text: AssertionError: expected [] to have a length of 1 but got +0
+
+## named-barrel-star-core
+- scratch: named-barrel-star-core at da1e5f4ad7
+- edit: an export * from "./Policy.ts"; appended to packages/core/src/index.ts
+- diff: 2660a839d83e9b4768aabaed726ae9782b7e128b7addbf506aeab5eff0f60534 (1 files, +1 -0)
+- run: house-style
+- exit: 1
+- failing text: packages/core/src/index.ts  [named-barrel] `export *` re-widens the interface to every name a module declares: name the exports per module (AGENTS.md §9).
+- failing text: 1 house-style violation(s). See AGENTS.md.
+
+## named-barrel-star-react
+- scratch: named-barrel-star-react at da1e5f4ad7
+- edit: an export * from "./QadiAtoms.ts"; appended to packages/react/src/index.ts
+- diff: dc56406fc02611b9cc42cbb8fe73e6032ed2e20ffee5970c83418a19cfd98de5 (1 files, +1 -0)
+- run: house-style
+- exit: 1
+- failing text: packages/react/src/index.ts  [named-barrel] `export *` re-widens the interface to every name a module declares: name the exports per module (AGENTS.md §9).
+- failing text: 1 house-style violation(s). See AGENTS.md.
+
+## named-barrel-star-audit
+- scratch: named-barrel-star-audit at da1e5f4ad7
+- edit: an export * from "./AuditArchive.ts"; appended to packages/audit/src/index.ts
+- diff: 7a26fc3d323e215601cf94d45275c59d41ffe926b9f3d9fd6e9b3bc500d9b57b (1 files, +1 -0)
+- run: house-style
+- exit: 1
+- failing text: packages/audit/src/index.ts  [named-barrel] `export *` re-widens the interface to every name a module declares: name the exports per module (AGENTS.md §9).
+- failing text: 1 house-style violation(s). See AGENTS.md.
+
+## named-barrel-star-devtools
+- scratch: named-barrel-star-devtools at da1e5f4ad7
+- edit: an export * from "./model/Diagnostics.ts"; appended to packages/devtools/src/index.ts
+- diff: 275e9509c6091b3e958f2e859eca60ff21f5c16cae3ff3bf8411aa8de0cfd99d (1 files, +1 -0)
+- run: house-style
+- exit: 1
+- failing text: packages/devtools/src/index.ts  [named-barrel] `export *` re-widens the interface to every name a module declares: name the exports per module (AGENTS.md §9).
+- failing text: 1 house-style violation(s). See AGENTS.md.
+
+## named-barrel-star-devtools-react
+- scratch: named-barrel-star-devtools-react at da1e5f4ad7
+- edit: an export * from "../react/DecisionLog.tsx"; appended to packages/devtools/src/react/index.ts
+- diff: 4fbbfadf2d12768b81fbfc98c6582f271d5c9473bebe6d3c5c7841cbe8c5e617 (1 files, +1 -0)
+- run: house-style
+- exit: 1
+- failing text: packages/devtools/src/react/index.ts  [named-barrel] `export *` re-widens the interface to every name a module declares: name the exports per module (AGENTS.md §9).
+- failing text: 1 house-style violation(s). See AGENTS.md.
+
+## named-barrel-mixed
+- scratch: named-barrel-mixed at da1e5f4ad7
+- edit: one export { ... } from group added to packages/testing/src/index.ts, which is a pure export * barrel
+- diff: c72c31c36406cbc3e87bc7833fdee1aa0d138dcd6164c65aa0b192d091c366f6 (1 files, +1 -0)
+- run: house-style
+- exit: 1
+- failing text: packages/testing/src/index.ts  [named-barrel] mixes `export *` with a named group: name every export of the root, or none of them (AGENTS.md §9).
+- failing text: 1 house-style violation(s). See AGENTS.md.
+
+## named-barrel-self-test
+- scratch: named-barrel-self-test at da1e5f4ad7
+- edit: namedBarrelProblems made to ignore export * (star fixed to false), so the real tree passes and only the planted check can see it
+- diff: 36dfc62b8e5b89cca169a64cf660e617d05b93ab073b2bb2838c6466a7cab3f1 (1 files, +1 -1)
+- run: house-style
+- exit: 1
+- failing text: packages/audit/src/index.ts  [named-barrel-self-test] a planted export * was not refused.
+- failing text: packages/core/src/index.ts  [named-barrel-self-test] a planted export * was not refused.
+- failing text: packages/devtools/src/index.ts  [named-barrel-self-test] a planted export * was not refused.
+
+## span-untrusted-decode-after-folds
+- scratch: span-untrusted-decode-after-folds at da1e5f4ad7
+- edit: a JSON.parse call planted in packages/core/src/PortSpanEncode.ts
+- diff: 9c39b88913d995e46c26a311742c4cb36eb248e4cb2798b744dc1d3dd697d4f8 (1 files, +1 -0)
+- run: house-style
+- exit: 1
+- failing text: packages/core/src/PortSpanEncode.ts  [untrusted-decode] declares 2 untrusted-decode token(s), found 3 at line(s) 71, 74, 274.
+- failing text:     Update UNTRUSTED_DECODE_BUDGET in scripts/check-house-style.mjs and AGENTS.md section 7a's table, with the reason, so they agree.
+- failing text: 1 house-style violation(s). See AGENTS.md.
+
+## span-key-source-after-folds
+- scratch: span-key-source-after-folds at da1e5f4ad7
+- edit: a second "qadi.subject_id" literal planted in packages/core/src/PortSpanEncode.ts
+- diff: d0c7af154efa61994de04ad58f2c3300173ba88ff7f8fc3b3351c614da16e481 (1 files, +1 -0)
+- run: house-style
+- exit: 1
+- failing text: packages/core/src/PortSpanEncode.ts:274  [span-key-source] mentions the span key `qadi.subject_id`; read it through EvaluationSpan.ts (ADR-QD-188).
+- failing text:     export const plantedKey = "qadi.subject_id";
+- failing text: 1 house-style violation(s). See AGENTS.md.
+
+## named-barrel-order
+- scratch: named-barrel-order at da1e5f4ad7
+- edit: the first named group of packages/core/src/index.ts swapped with the next group of another module
+- diff: 61f116f964e4d6e4575984d30edb0a69c2a54fb697bbd0914c4eee3c4df3cf4b (1 files, +8 -8)
+- run: house-style
+- exit: 1
+- failing text: packages/core/src/index.ts  [named-barrel] "./AttributeResolver.ts" sorts before "./AuthSubject.ts": keep the named groups in module-path order (AGENTS.md §9).
+- failing text: 1 house-style violation(s). See AGENTS.md.
+
+## named-barrel-unlisted
+- scratch: named-barrel-unlisted at da1e5f4ad7
+- edit: every export * line of packages/http/src/index.ts turned into an export { ... } group of that module, so it is a named barrel off the list
+- diff: ae7aa16e7570b49f823d123b14a6b1b3de667984e49187569951005440dae466 (1 files, +14 -14)
+- run: house-style
+- exit: 1
+- failing text: packages/http/src/index.ts  [named-barrel] is a named barrel that NAMED_BARRELS does not list: add it there, or export `*` (AGENTS.md §9).
+- failing text: 1 house-style violation(s). See AGENTS.md.
