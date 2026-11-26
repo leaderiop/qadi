@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-110                                   |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-11-08                                     |
 > | Status         | Accepted — amends ADR-QD-056; amended 2026-11-23 (ADR-QD-190); amended 2026-11-26 (ADR-QD-202) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.4 (2026-11-26): amendment: the span keeps its name and opens only for admitted rows; the refusals are made by the admission step (ADR-QD-202, CCR-QD-481)<br>1.3 (2026-11-24): amendment: the refusals are EntriesNotAList and EntryNotMadeByCodec (ADR-QD-190, CCR-QD-469)<br>1.2 (2026-11-24): amendment — verifySequenceIntegrity and archiveAuditTrail also fail ArchiveInputInvalid for an entry the codec did not make (ADR-QD-190, CCR-QD-469)<br>1.1 (2026-11-23): amendment — an archive's facts are computed over rows only the codec makes; SequenceNumberInvalid and invalidSequenceNumber are retired (ARCH-124, ADR-QD-190, CCR-QD-469)<br>1.0 (2026-11-08): Initial (ARCH-48, CCR-QD-387) |
+> | Change History | 1.5 (2026-11-26): note: the sequence check is declared and published from ArchiveFacts.ts with its disclaimer (ADR-QD-204, CCR-QD-483)<br>1.4 (2026-11-26): amendment: the span keeps its name and opens only for admitted rows; the refusals are made by the admission step (ADR-QD-202, CCR-QD-481)<br>1.3 (2026-11-24): amendment: the refusals are EntriesNotAList and EntryNotMadeByCodec (ADR-QD-190, CCR-QD-469)<br>1.2 (2026-11-24): amendment — verifySequenceIntegrity and archiveAuditTrail also fail ArchiveInputInvalid for an entry the codec did not make (ADR-QD-190, CCR-QD-469)<br>1.1 (2026-11-23): amendment — an archive's facts are computed over rows only the codec makes; SequenceNumberInvalid and invalidSequenceNumber are retired (ARCH-124, ADR-QD-190, CCR-QD-469)<br>1.0 (2026-11-08): Initial (ARCH-48, CCR-QD-387) |
 
 ---
 
@@ -149,3 +149,8 @@ computes any fact ([ADR-QD-190](190-an-audit-row-is-a-value-only-its-codec-makes
 > **Amended 2026-11-26 ([ADR-QD-202](202-one-admission-step-for-a-hosts-audit-batch.md)).** The admission step in
 > `HostBatch.ts` refuses those rows before `verifiedArchiveFacts` runs, once, over the copy of the list it read, and
 > `verifiedArchiveFacts` takes the rows the step admitted. The refusals and their members are as written here.
+
+> **Note (2026-11-26, ADR-QD-204, CCR-QD-483).** The sequence check is declared and published from
+> `ArchiveFacts.ts`, with its not-tamper-evident disclaimer, so the re-export the Decision above
+> describes is the declaration itself. `verifySequenceIntegrity` and `SequenceIntegrityError` are the
+> only names the barrel takes from the module ([ADR-QD-204](204-named-barrels-and-visibility-only-files-folded-away.md)).
