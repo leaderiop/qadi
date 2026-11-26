@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 90
 current_phase_name: The remaining per-port facts live on the port description
 status: executing
-stopped_at: Completed 90-06-PLAN.md
-last_updated: "2026-11-26T08:54:26.735Z"
+stopped_at: Completed 90-07-PLAN.md
+last_updated: "2026-11-26T09:04:49.867Z"
 last_activity: 2026-11-26
 last_activity_desc: Phase 89 complete, transitioned to Phase 90
-state_head: e28d64ee84d2c7b7c3c658222eac90f7701aec1a
+state_head: ecf335b53ebef5b91238ca73d0b1350901b27540
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 67
-  completed_plans: 57
+  completed_plans: 58
   percent: 71
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-90 (The remaining per-port facts live on the port description) — EXECUTING
-Plan: 7 of 16
+Plan: 8 of 16
 Status: Ready to execute
 Last activity: 2026-11-26 — Phase 89 complete, transitioned to Phase 90
 
@@ -712,6 +712,7 @@ Progress: [███████░░░] 71%
 | Phase 90 P04 | 25min | 3 tasks | 3 files |
 | Phase 90 P05 | 12min | 2 tasks | 33 files |
 | Phase QD-90 P06 | 25min | 2 tasks | 7 files |
+| Phase QD-90 P07 | 35min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -1268,6 +1269,7 @@ Progress: [███████░░░] 71%
 - [Phase 90]: 90-04: the moved port types are pinned through the barrel with toBe only (no negative pin), and the scoped read is held by one describe stating the read, the history judgements and the leaf rows equal over every fixture and shape (decided autonomously)
 - [Phase 90]: Plan 05 spike: PortServing stays hand-written (deriving it closes 16 cycles and fails tsc); the span is typeof a module-private const in each of the five port modules; PORT_FIXTURES derives through a third tabulatePorts overload with unexported helper types; the attribute fixture data is written as an index signature to avoid Record<string, unknown>
 - [Phase QD-90]: 90-06: the routing (f)+(g) with the per-call closure in the ByScope arm passes the bench gate (37 workloads, 4+4 rounds, none slower than 5%, geometric mean +0.75%); the hoisted-predicate fallback was not measured
+- [Phase QD-90]: 90-07: the pinned-test check reads import regions from typescript 7's sync API over a temporary project and anchors every declared region on its first and last base line text
 
 ### Pending Todos
 
@@ -1355,8 +1357,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-26T08:54:26.605Z
-Stopped at: Completed 90-06-PLAN.md
+Last session: 2026-11-26T09:04:49.742Z
+Stopped at: Completed 90-07-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
