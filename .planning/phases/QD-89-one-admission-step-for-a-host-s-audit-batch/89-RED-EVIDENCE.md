@@ -340,3 +340,12 @@ The base is the one `89-mutation-base.json` records (`phase_base` 8ee14f6f703f31
 - check failed: records: BEH-QD-781 has no heading in spec/behaviors/33-audit-pipeline.md
 - check failed: admission-step: packages/audit/src/HostBatch.ts does not exist
 - check failed: entry-points-first: archiveAuditTrail: the first statement of its body does not call admitBatch or admitRows: if (!Number.isFinite(now)) { const refusal = ArchiveInputRefusal.NowNotFinite({ 
+
+## 89-03 the pinned-test check
+
+- check failed: pinned-held: packages/audit/test/helpers.ts: differs from its base text at line 123
+- check failed: pinned-extra: packages/audit/src/CodecMade.ts: differs from its base text at line 73
+- check failed: pinned-born: packages/audit/test/BatchReadOnce.test.ts: differs from the commit that added it at line 203
+- check failed: pinned-region: packages/audit/test/ForeignRows.test.ts: region planOrder is not the lines it becomes
+- check failed: pinned-between: packages/audit/test/ForeignRows.test.ts: the text between regions differs from its base text at line 115 of the base, "  it(\"the rows are refused before a sequence break among the" is missing or changed (between nowBeforeRows and planOrder)
+- check failed: pinned-all-applied: packages/audit/test/ForeignRows.test.ts: its declared edit is not applied
