@@ -296,3 +296,32 @@ The base is the one `89-mutation-base.json` records (`phase_base` 8ee14f6f703f31
   (scratch edit: the span of verifiedArchiveFacts renamed qadi.audit.facts; 9 row(s) failed under it)
 - failed (base facts-renamed): F5 any call opens exactly the sequence span
   (scratch edit: the span of verifiedArchiveFacts renamed qadi.audit.facts; 9 row(s) failed under it)
+
+## 89-01 the batch reads
+
+- red before: B1 planRetention reads maxAgeMs once over two rows
+  - failed on: AssertionError: expected 3 to equal 1
+- red before: B2 planPurge reads maxAgeMs once over two rows
+  - failed on: AssertionError: expected 3 to equal 1
+- red before: B3 a refused maxAgeMs is read once by each plan
+  - failed on: AssertionError: expected { retention: 2, purge: 2 } to deeply equal { retention: 1, purge: 1 }
+- red before: B4 a null or undefined policy is MaxAgeInvalid with value undefined in each plan
+  - failed on: TypeError: Cannot read properties of null (reading 'maxAgeMs')
+- red before: B6 the writer archives the row that was checked when the list answers differently on a second read, and its reader reads the bundle back
+  - failed on: AssertionError: expected { …(2) } to equal AuditEntry{ record: { …(7) }, …(1) }
+- red before: B7 the sequence check judges the rows that were checked when the list answers differently on a second read
+  - failed on: AssertionError: expected 'SequenceIntegrityError' to equal 'success'
+- red before: B8 planRetention plans the row that was checked when the list answers differently on a second read
+  - failed on: AssertionError: expected +0 to equal 1
+- red before: B9 planPurge plans the row that was checked when the list answers differently on a second read
+  - failed on: AssertionError: expected +0 to equal 1
+- red before: B10 the writer reads the rows list as its length once and each index once
+  - failed on: AssertionError: expected [ [ '0', 4 ], [ '1', 4 ], …(7) ] to deeply equal [ [ '0', 1 ], [ '1', 1 ], …(2) ]
+- red before: B11 the sequence check reads the rows list as its length once and each index once
+  - failed on: AssertionError: expected [ [ '0', 4 ], [ '1', 4 ], …(7) ] to deeply equal [ [ '0', 1 ], [ '1', 1 ], …(2) ]
+- red before: B12 planRetention reads the rows list as its length once and each index once
+  - failed on: AssertionError: expected [ [ '0', 2 ], [ '1', 2 ], …(4) ] to deeply equal [ [ '0', 1 ], [ '1', 1 ], …(2) ]
+- red before: B13 planPurge reads the rows list as its length once and each index once
+  - failed on: AssertionError: expected [ [ '0', 3 ], [ '1', 3 ], …(4) ] to deeply equal [ [ '0', 1 ], [ '1', 1 ], …(2) ]
+- failed (base policy-value): B5 a policy that is a number, a string or an empty object is MaxAgeInvalid with value undefined in each plan
+  (scratch edit: planRetention refuses with MaxAgeInvalid({ value: policy }); 12 row(s) failed under it)
