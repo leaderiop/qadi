@@ -407,3 +407,23 @@ Each block below is written by `91-check.mjs variant`: the check ran inside a sc
 - exit: 1
 - seen failing: @qadi/audit's root exports exactly these runtime values
 - failing text: AssertionError: expected [ 'ArchiveInputInvalid', …(39) ] to deeply equal [ 'ArchiveInputInvalid', …(40) ]
+
+## escape-self-check
+- scratch: escape-self at 242282311c
+- edit: scripts/lib/declaration-escape.mjs: the /src/ rule of declarationEscapes disabled (if (false) in place of the segment test), so the planted cases that expect a src/ reason are judged short
+- diff: 472ae31b7b8f8fea0b5c75721b456e74a1aa5d4ae5cc239a450868c628b57b01 (1 files, +1 -1)
+- run: package
+- exit: 1
+- failing text:   [escape-self-check] planted case "an escape outside the package" was not judged as planted (9 cases)
+- failing text:   [escape-self-check] planted case "a path into src inside the package" was not judged as planted (9 cases)
+- failing text:   [escape-self-check] planted case "an escape after a string holding //" was not judged as planted (9 cases)
+
+## escape-layout
+- scratch: escape-layout at 242282311c
+- edit: packages/react/node_modules replaced by a real directory linking every entry of the main tree's except @qadi/core (react resolves @qadi/core through tsconfig.base.json paths only); packages/core/src/index.ts: export * from "./Decision.ts" replaced by an export { 16 values } and an export type { 9 types } group naming every name of that module except Trace; pnpm build exited 2 on the unrelated devtools TS2305 (Inspect.ts, Trace) after emitting react's lib
+- diff: 554a5dd3a1b52e3c06453088f07f2860e9c1642597f6b0cf9fe1458448c84b38 (1 files, +2 -1)
+- run: script 91-check.mjs escape-scan packages/react/lib
+- exit: 1
+- failing text: lib/HydrationEngine.d.ts: names a src/ path: ../../core/src/Decision.ts
+- failing text: lib/HydrationEngine.d.ts: resolves outside its package: ../../core/src/Decision.ts
+- failing text: lib/SeededDecision.d.ts: names a src/ path: ../../core/src/Decision
