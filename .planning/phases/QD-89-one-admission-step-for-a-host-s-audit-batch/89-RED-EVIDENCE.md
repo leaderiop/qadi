@@ -457,3 +457,46 @@ The base is the one `89-mutation-base.json` records (`phase_base` 8ee14f6f703f31
   (scratch edit: planRetention checks maxAgeOf(policy) and fails on it before admitBatch; 1 row(s) failed under it)
 - failed (purge-maxage-first): planPurge refuses each batch as the admission step refuses it
   (scratch edit: planPurge checks maxAgeOf(policy) and fails on it before admitBatch; 1 row(s) failed under it)
+
+## 89-09 the entry-point variants
+
+- variant verify-span-first: the public verify opens the span named qadi.audit.verifySequenceIntegrity around its own admission
+  - failed: S6 the verify failing on a break opens only the sequence span
+  - failed: S7 the verify succeeding opens only the sequence span
+  - failed: SF3 the verify refused for rows that are not a list opens only the sequence span
+  - failed: SF4 the verify refused for a row the codec did not make opens only the sequence span
+  - failed: verifying a sequence opens a span named qadi.audit.verifySequenceIntegrity
+  (5 failing row(s) of 724 in the audit project)
+- variant purge-maps-retention: planPurge maps planRetention over the list given and iterates that list, not the admitted rows
+  - failed: B2 planPurge reads maxAgeMs once over two rows
+  - failed: B9 planPurge plans the row that was checked when the list answers differently on a second read
+  - failed: B13 planPurge reads the rows list as its length once and each index once
+  (3 failing row(s) of 724 in the audit project)
+- variant age-rereads-policy: the age rule takes the policy and compares with policy.maxAgeMs again, not the limit the terms check admitted
+  - failed: B1 planRetention reads maxAgeMs once over two rows
+  - failed: B2 planPurge reads maxAgeMs once over two rows
+  (2 failing row(s) of 724 in the audit project)
+- variant now-restated: RetentionInputRefusal states NowNotFinite: { readonly value: unknown } itself instead of taking NowRefusalCases
+  - check failed: admission-step: NowNotFinite: is a member key in 2 files of packages/audit/src, not one: packages/audit/src/Retention.ts, packages/audit/src/HostBatch.ts
+  (0 failing row(s) of 724 in the audit project)
+
+## 89-09 the judge clauses
+
+- variant second-rowsrefusal: ArchiveFacts.ts calls rowsRefusal(entries) a second time
+  - check failed: admission-step: packages/audit/src/ArchiveFacts.ts calls rowsRefusal(; only HostBatch.ts may
+- variant effect-in-step: HostBatch.ts holds an Effect.succeed(0) constant
+  - check failed: admission-step: HostBatch.ts uses Effect: Effect.succeed
+- variant bare-isfinite: HostBatch.ts also asks the global isFinite(batch.now)
+  - check failed: admission-step: HostBatch.ts calls a bare isFinite(
+- variant step-in-barrel: index.ts exports HostBatch.ts
+  - check failed: admission-step: packages/audit/src/HostBatch.ts is reached from packages/audit/src/index.ts:11
+- variant back-edge: HostBatch.ts imports a type from ArchiveFacts.ts
+  - check failed: admission-step: HostBatch.ts imports ./ArchiveFacts.ts, ./AuditEntry.ts (type), ./CodecMade.ts, effect/Data, effect/Predicate, effect/Result, not effect/Data, effect/Predicate, effect/Result, ./AuditEntry.ts (type), ./CodecMade.ts
+- variant codecmade-changed: a blank line appended to CodecMade.ts
+  - check failed: admission-step: packages/audit/src/CodecMade.ts differs from phase_base
+- variant purge-calls-retention: planPurge calls planRetention after its own admission
+  - check failed: entry-points-first: planPurge calls planRetention
+- variant first-not-step: archiveAuditTrail opens with const unused = now; before the step
+  - check failed: entry-points-first: archiveAuditTrail: the first statement of its body does not call admitBatch or admitRows: const unused = now;
+- variant facts-take-list: verifiedArchiveFacts is typed with ReadonlyArray<AuditEntry> and reads the list
+  - check failed: entry-points-first: verifiedArchiveFacts takes ReadonlyArray<AuditEntry>, not AdmittedRows
