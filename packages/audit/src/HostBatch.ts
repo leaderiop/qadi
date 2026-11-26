@@ -9,10 +9,9 @@
  * states the question it asks of the rows.
  */
 import * as Data from "effect/Data";
-import * as Predicate from "effect/Predicate";
 import * as Result from "effect/Result";
 import type { AuditEntry } from "./AuditEntry.ts";
-import { rowsRefusal } from "./CodecMade.ts";
+import { isCodecMade } from "./CodecMade.ts";
 import type { RowsRefusalCases } from "./CodecMade.ts";
 
 /**
@@ -29,6 +28,7 @@ export type NowRefusalCases = {
 type NowRefusal = Data.TaggedEnum<NowRefusalCases>;
 type RowsRefusal = Data.TaggedEnum<RowsRefusalCases>;
 const { NowNotFinite } = Data.taggedEnum<NowRefusal>();
+const { EntriesNotAList, EntryNotMadeByCodec } = Data.taggedEnum<RowsRefusal>();
 
 /**
  * Rows this step admitted: a list of rows the codec made, held as a fresh array nothing the host holds can change.
@@ -46,11 +46,16 @@ class AdmittedRows {
 
 export type { AdmittedRows };
 
-/** What a host hands over: a `now`, the caller's terms as a read that can be refused, and the rows. */
+/**
+ * What a host hands over: a `now`, the caller's terms as a read that can be refused, and the rows.
+ *
+ * `entries` is `unknown` because the step reads it as a host's value whatever the caller's own parameter says: a store
+ * client's `any` and a JavaScript caller reach every entry point.
+ */
 export interface DatedBatch<Terms, Refused> {
   readonly now: number;
   readonly terms: () => Result.Result<Terms, Refused>;
-  readonly entries: ReadonlyArray<AuditEntry>;
+  readonly entries: unknown;
 }
 
 /** What the step admitted: the `now` as given, the terms its caller read, and the rows. */
@@ -61,29 +66,42 @@ export interface AdmittedBatch<Terms> {
 }
 
 /**
- * Copies `list` with one read of `length` and one read of each index, using nothing the host's object can override.
+ * Whether `entry` is a row the codec made, read as the row type: the question the step asks of each entry.
  *
- * `Array.from` over `{ length }` calls no method and no iterator of `list`, and a hole reads as `undefined`, which the
- * check refuses. `noUncheckedIndexedAccess` is why the element type holds `undefined`.
+ * `CodecMade.ts` records only the rows the codec makes, and the codec makes only `AuditEntry`s, so membership is the
+ * evidence for the narrowing. The guard is here, not beside the record, because the record cannot name the row type:
+ * `AuditEntry.ts` imports it to fill it.
  */
-const takeRows = (list: ReadonlyArray<AuditEntry>): Array<AuditEntry | undefined> =>
-  Array.from({ length: list.length }, (_, index) => list[index]);
+const isCodecMadeRow = (entry: unknown): entry is AuditEntry => isCodecMade(entry);
 
 /**
- * Admits `entries` as rows the codec made, or says why not.
+ * Admits `entries` as rows the codec made, or says why not, checking each entry as it reads it.
  *
- * A value that is not a list is passed on unread, so the refusal can name it; a list is copied once and the copy is
- * what is checked and what is admitted.
+ * A value that is not a list, or a list whose `length` is not a number (only a proxy can answer one), is refused as
+ * `EntriesNotAList` with the value given, and no index is read. A list is read as its `length` once and each index
+ * once, in order, calling no method and no iterator the host's object can override; the read stops at the first entry
+ * that is not a row the codec made, which is refused as `EntryNotMadeByCodec` with its index, and a hole reads as
+ * `undefined` and is refused there too. Each row admitted is pushed into a fresh array, and that array is what is
+ * admitted, so what was checked is what is used. A list is never copied whole before it is checked, and a `length` past
+ * any array's is read only as far as its first refused index, so no length is a `RangeError`.
  */
-export const admitRows = (
-  entries: ReadonlyArray<AuditEntry>,
-): Result.Result<AdmittedRows, RowsRefusal> => {
-  const taken = Array.isArray(entries) ? takeRows(entries) : entries;
-  const refusal = rowsRefusal(taken);
-  if (refusal !== undefined) {
-    return Result.fail(refusal);
+export const admitRows = (entries: unknown): Result.Result<AdmittedRows, RowsRefusal> => {
+  if (!Array.isArray(entries)) {
+    return Result.fail(EntriesNotAList({ value: entries }));
   }
-  return Result.succeed(new AdmittedRows(taken.filter(Predicate.isNotUndefined)));
+  const length: unknown = entries.length;
+  if (typeof length !== "number") {
+    return Result.fail(EntriesNotAList({ value: entries }));
+  }
+  const taken: Array<AuditEntry> = [];
+  for (let index = 0; index < length; index += 1) {
+    const entry: unknown = entries[index];
+    if (!isCodecMadeRow(entry)) {
+      return Result.fail(EntryNotMadeByCodec({ index }));
+    }
+    taken.push(entry);
+  }
+  return Result.succeed(new AdmittedRows(taken));
 };
 
 /**

@@ -405,6 +405,12 @@ the defect this record set out to close, reached through the input the second am
    and the identity check are one question asked in one place, and the four functions cannot disagree about it. It
    is asked first of the rows, after the inputs that precede them (`now`, `maxAgeMs`, `keyMaterial`). A throwing
    accessor or a hostile proxy on an input is the host's own throw, not a value the check reads, and is outside it.
+
+   > **Amended 2026-11-26 ([ADR-QD-202](202-one-admission-step-for-a-hosts-audit-batch.md)).** `rowsRefusal` is replaced
+   > by the admission step's `admitRows` (`HostBatch.ts`), which asks `Array.isArray`, reads the list's `length` once and
+   > asks `CodecMade.ts`'s `isCodecMade` of each entry as it reads it, stopping at the first it refuses. The list check
+   > and the identity check are still one question asked in one place, and the four functions still cannot disagree
+   > about it.
 4. **A refusal is a member of a closed `Data.TaggedEnum`, not a `field` and an overloaded `value`.** The second
    amendment widened `ArchiveInputInvalid.value` to `unknown` so one slot could hold an index for `entries`, an index
    or the value given for `keyMaterial`, and the value given for `now`. The type could not say which, so a handler
@@ -429,6 +435,10 @@ the defect this record set out to close, reached through the input the second am
    construction. Rejected: repeating the two members in each enum with a mapping from one to the other, which is a
    second statement of the case that can drift, and a `Schema.TaggedError` (outside the twelve of section 4 of
    `AGENTS.md`).
+
+   > **Amended 2026-11-26 ([ADR-QD-202](202-one-admission-step-for-a-hosts-audit-batch.md)).** The two members are
+   > still stated once, as `RowsRefusalCases` in `CodecMade.ts`. The question that answers them is `admitRows` in
+   > `HostBatch.ts`, which builds both, and its answer is still assignable to each enum with no mapping.
 6. **Breaking, in the release this record already marks Breaking.** `RetentionInputInvalid` and `ArchiveInputInvalid`
    gain `refusal` and lose `field` and `value`, and `ArchiveInputRefusal` and `RetentionInputRefusal` are two new
    exports, each a type and its constructors. `RetentionInputInvalid` is older than the release and its shape changes
@@ -447,13 +457,14 @@ the writer asked the codec's question about its rows twice. [ADR-QD-202](202-one
 gives the batch one step, `HostBatch.ts`, and this record's decisions follow it.
 
 1. **`NowNotFinite` is stated once.** `NowRefusalCases` is declared in `HostBatch.ts`, beside the `Number.isFinite` check that
-   answers it, as `RowsRefusalCases` is declared beside `rowsRefusal`. `ArchiveInputRefusal` is `RowsRefusalCases &
+   answers it, as `RowsRefusalCases` is declared beside the codec's record. `ArchiveInputRefusal` is `RowsRefusalCases &
    NowRefusalCases & { KeyMaterialNotAList; KeyMaterialItemRefused }` and `RetentionInputRefusal` is `RowsRefusalCases &
    NowRefusalCases & { MaxAgeInvalid }`, each with its own `Data.taggedEnum` constructors, and both enums and both error
    classes keep every tag, member and field. Decision 5 of the third amendment still stands: the step's refusal is assignable
    to each enum with no mapping.
-2. **The rows are asked once.** `admitRows` asks `rowsRefusal` over a copy it reads from the list, one read of `length` and one
-   of each index, and admits that copy as `AdmittedRows`, a nominal type only the step mints. `verifiedArchiveFacts` takes
+2. **The rows are asked once.** `admitRows` reads the list, one read of `length` and one of each index, asks `isCodecMade` of
+   each entry as it reads it and stops at the first it refuses, and admits the fresh array of the entries it read as
+   `AdmittedRows`, a nominal type only the step mints. `verifiedArchiveFacts` takes
    `AdmittedRows` and asks nothing, so a fact is never computed from rows the step did not admit, the writer asks the codec
    once, and a list that answers differently on a second read is judged and archived as the one copy that was checked.
 3. **The order is the step's.** `now`, then the caller's terms, then the rows, which is the order the second and third

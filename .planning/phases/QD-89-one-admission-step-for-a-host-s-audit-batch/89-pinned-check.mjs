@@ -2,11 +2,13 @@
 //
 // Each file is compared with its text at `phase_base` (the field of `89-mutation-base.json` in this directory). Three kinds:
 //   held      every path `git ls-tree -r --name-only <phase_base> -- packages/audit/test` lists, except the declared files that
-//             start from the base, and `CodecMade.ts`, `SequenceIntegrity.ts`, `index.ts`, `package.json` and `stryker.audit.mjs`,
-//             byte for byte, line endings included. The set is computed from the base and never listed here, so a test the base
-//             holds cannot be left out by omission. The leaf, the barrel and the `exports` map stay as they are because those
-//             files do not change.
-//   declared  three files, each changed only where the phase says it changes them. A region runs from a line starting with its
+//             start from the base, and `SequenceIntegrity.ts`, `index.ts`, `package.json` and `stryker.audit.mjs`, byte for
+//             byte, line endings included. The set is computed from the base and never listed here, so a test the base holds
+//             cannot be left out by omission. The barrel and the `exports` map stay as they are because those files do not
+//             change. `CodecMade.ts` was held here too until the review of the phase replaced its `rowsRefusal` with the
+//             per-entry question `isCodecMade`, which the step asks as it reads each index (the review's WR-02 and IN-03, and
+//             the security audit's Observation 1); it is a declared file since, changed only in its three regions.
+//   declared  four files, each changed only where the phase says it changes them. A region runs from a line starting with its
 //             `from` text (inclusive) to the line starting with its `to` text (exclusive), or for `lines: n` the `n` base lines
 //             from the anchor; `from: null` is the file start and `to: null` its end; `lead: n` also covers the `n` lines before
 //             the anchor, each blank at the base. Each anchor occurs once at the base. The text before the first region, between
@@ -36,9 +38,8 @@ import { fileURLToPath } from "node:url";
 const DIR = dirname(fileURLToPath(import.meta.url));
 const TEST_DIR = "packages/audit/test";
 
-/** Source files held beside the tests: the codec leaf, the sequence check, the barrel, the manifest and the mutation config. */
+/** Source files held beside the tests: the sequence check, the barrel, the manifest and the mutation config. */
 const HELD_EXTRA = [
-  "packages/audit/src/CodecMade.ts",
   "packages/audit/src/SequenceIntegrity.ts",
   "packages/audit/src/index.ts",
   "packages/audit/package.json",
@@ -55,6 +56,7 @@ const BORN = [
 ];
 
 const FOREIGN = `${TEST_DIR}/ForeignRows.test.ts`;
+const CODEC = "packages/audit/src/CodecMade.ts";
 const RETENTION = `${TEST_DIR}/Retention.test.ts`;
 const ORDER = BORN[0];
 
@@ -120,11 +122,51 @@ const ORDER_REGIONS = [
   { name: "direct", from: 'describe("verifiedArchiveFacts called directly", () => {', to: null, kept: ['describe("verifiedArchiveFacts called directly", () => {'] },
 ];
 
+/**
+ * The regions of `CodecMade.ts`, declared by the review of the phase. Its module doc names the per-entry question in place
+ * of `rowsRefusal`, the `Data` import goes with the constructors that moved to the step, and `rowsRefusal` (a list check
+ * that answered a refusal or `undefined`) becomes `isCodecMade` (the question asked of one entry). The record, its writer
+ * `markCodecMade` and `RowsRefusalCases` keep their text.
+ */
+const CODEC_REGIONS = [
+  {
+    name: "moduleDoc",
+    from: " * archive writer. The codec records each row it makes here, and a function that takes a",
+    lines: 4,
+    becomes: [
+      " * archive writer. The codec records each row it makes here, and the admission step",
+      " * (`HostBatch.ts`) asks {@link isCodecMade} of each entry of a host's rows, as it reads",
+      " * it, before any fact is computed from them.",
+    ],
+  },
+  { name: "dataImport", from: 'import * as Data from "effect/Data";', lines: 1, becomes: [] },
+  {
+    name: "rowsRefusal",
+    from: "type RowsRefusal = Data.TaggedEnum<RowsRefusalCases>;",
+    to: null,
+    becomes: [
+      "/**",
+      " * Whether `entry` is a row the codec made: the question the admission step asks of each",
+      " * entry of a host's rows.",
+      " *",
+      " * An entry that is not an object, `null` and a hole's `undefined` included, is not a row",
+      " * the codec made. The record holds only what the codec made, so `HostBatch.ts` reads a",
+      " * `true` as the row type; the type is not named here because `AuditEntry.ts` imports this",
+      " * module to fill the record, and naming it back would close a cycle.",
+      " */",
+      "export const isCodecMade = (entry: unknown): boolean =>",
+      "  Predicate.isObjectKeyword(entry) && codecMade.has(entry);",
+      "",
+    ],
+  },
+];
+
 /** Each declared file with its regions, and the text its regions are read from: `base` is `phase_base`, `born` the adding commit. */
 const DECLARED = [
   { file: FOREIGN, regions: FOREIGN_REGIONS, from: "base" },
   { file: RETENTION, regions: RETENTION_REGIONS, from: "base" },
   { file: ORDER, regions: ORDER_REGIONS, from: "born" },
+  { file: CODEC, regions: CODEC_REGIONS, from: "base" },
 ];
 
 /** The 1-based number of the first line two texts disagree on, or 0 when they do not. */
@@ -328,6 +370,7 @@ const selfTest = () => {
   const space = judgeHeld("x.test.ts", base, base.replace("two()", "two() "));
   const crlf = judgeHeld("x.test.ts", base, base.replaceAll("\n", "\r\n"));
   const extra = judgeHeld(HELD_EXTRA[0], base, `${base}// edit\n`);
+  const declaredFiles0 = DECLARED.map((d) => d.file);
   const first = "line a\nline b\n";
   const second = "line a\nline B\n";
   const status = "M\ta.ts\nR087\tx.test.ts\ty.test.ts\nD\tz.ts\nA\tn.ts\nM\tother.ts\nA\tx.test.ts";
@@ -388,7 +431,7 @@ const selfTest = () => {
   const noKept = reasonsOf([{ name: "tail", from: 'describe("tail"', to: null, kept: ["law 9:"] }], text);
   const noLead = reasonsOf([{ name: "R3", from: '  it("R3 ', lead: 1, lines: 1, becomes: [] }], text);
   const real = DECLARED.every((d) => new Set(d.regions.map((r) => r.name)).size === d.regions.length);
-  const oneForm = [...FOREIGN_REGIONS, ...RETENTION_REGIONS, ...ORDER_REGIONS].every((r) => [r.becomes !== undefined, r.kept !== undefined, r.after !== undefined || r.before !== undefined].filter(Boolean).length === 1);
+  const oneForm = [...FOREIGN_REGIONS, ...RETENTION_REGIONS, ...ORDER_REGIONS, ...CODEC_REGIONS].every((r) => [r.becomes !== undefined, r.kept !== undefined, r.after !== undefined || r.before !== undefined].filter(Boolean).length === 1);
   const cases = [
     ["a held file that equals its base passes", equal.length === 0],
     ["a held file with one changed byte fails, naming the file and the line", byte.join() === "x.test.ts: differs from its base text at line 2"],
@@ -408,7 +451,8 @@ const selfTest = () => {
     ["a born file no commit adds passes plain and fails when everything is applied", judgeBorn("b.ts", undefined, "t", false).length === 0 && judgeBorn("b.ts", undefined, "t", true).join() === "b.ts: no commit adds it"],
     ["a born file added by two commits fails", judgeAdders("b.ts", 2).join() === "b.ts: 2 commits add it, not one"],
     ["a born file added by one commit, or none, passes", judgeAdders("b.ts", 1).length === 0 && judgeAdders("b.ts", 0).length === 0],
-    ["the phase holds five born files and five held source files, each once", BORN.length === 5 && new Set(BORN).size === 5 && new Set(HELD_EXTRA).size === 5],
+    ["the phase holds five born files and four held source files, each once", BORN.length === 5 && new Set(BORN).size === 5 && HELD_EXTRA.length === 4 && new Set(HELD_EXTRA).size === 4],
+    ["the codec leaf is declared, from the base, and not held", declaredFiles0.includes(CODEC) && !HELD_EXTRA.includes(CODEC) && DECLARED.find((d) => d.file === CODEC)?.from === "base"],
     ["a declared file equal to its base passes and is not applied", verdict(combo, text).reasons.length === 0 && !verdict(combo, text).applied],
     ["a declared file with every region edited passes and is applied", verdict(combo, comboEdited).reasons.length === 0 && verdict(combo, comboEdited).applied],
     ["a removal region that is gone passes and reads as applied", verdict(removal, removed).reasons.length === 0 && verdict(removal, removed).applied],
@@ -441,8 +485,9 @@ const selfTest = () => {
     ["a region anchor occurring more than once at the base fails", twice.some((r) => r.includes("anchor of region dup occurs 4 times"))],
     ["a region that ends before it starts fails", reversed.some((r) => r.includes("does not start before it ends"))],
     ["two regions that overlap at the base fail", overlap.some((r) => r.includes("overlaps the one before it"))],
-    ["each declared file names its regions once and reads from a text its adding commit or the base holds", real && DECLARED.length === 3 && DECLARED.every((d) => d.from === "base" || BORN.includes(d.file))],
-    ["the declared forms are the ones the phase fixes: seven, one and four regions, the block with four titles", FOREIGN_REGIONS.length === 7 && RETENTION_REGIONS.length === 1 && ORDER_REGIONS.length === 4 && ADMITS_TITLES.length === 4 && FOREIGN_REGIONS.filter((r) => r.becomes?.length === 0).length === 4],
+    ["each declared file names its regions once and reads from a text its adding commit or the base holds", real && DECLARED.length === 4 && DECLARED.every((d) => d.from === "base" || BORN.includes(d.file))],
+    ["the declared forms are the ones the phase fixes: seven, one, four and three regions, the block with four titles", FOREIGN_REGIONS.length === 7 && RETENTION_REGIONS.length === 1 && ORDER_REGIONS.length === 4 && CODEC_REGIONS.length === 3 && ADMITS_TITLES.length === 4 && FOREIGN_REGIONS.filter((r) => r.becomes?.length === 0).length === 4],
+    ["every region of the codec leaf is a fixed becomes", CODEC_REGIONS.every((r) => Array.isArray(r.becomes))],
     ["each declared region has exactly one of the forms becomes, kept and insert", oneForm],
   ];
   const failed = cases.filter(([, passed]) => !passed).map(([name]) => name);
@@ -487,7 +532,7 @@ const run = (allApplied) => {
     process.stderr.write(`${base} lists no file under ${TEST_DIR}: the held set is empty\n`);
     process.exit(1);
   }
-  const moves = judgeMoves([...held, ...declared, ...BORN], git("diff", "-M", "--name-status", base, "--", TEST_DIR, ...HELD_EXTRA));
+  const moves = judgeMoves([...held, ...declared, ...BORN], git("diff", "-M", "--name-status", base, "--", TEST_DIR, ...HELD_EXTRA, CODEC));
   reasons.push(...moves.map(({ reason }) => reason));
   const gone = new Set(moves.map(({ file }) => file));
   for (const file of held) {

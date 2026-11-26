@@ -1321,10 +1321,10 @@ differently, so the archive could hold a `keyId` the check never saw.
 `entries` is the fourth, and the first thing asked of it is that it is a list: a
 store client's result and a JavaScript caller's argument can be `undefined`, `null`
 or an object, and `findIndex` on one would be a defect where a typed failure belongs.
-The admission step asks the one question (`CodecMade.ts`'s `rowsRefusal`) for every
-function that takes rows, once, over a copy it reads from the list one index at a time,
-so none of the four is a defect, whatever the value given, and the rows that were checked
-are the rows that are used.
+The admission step asks it for every function that takes rows, and then asks the codec's
+question (`CodecMade.ts`'s `isCodecMade`) of each entry as it reads the list, one index at a
+time, stopping at the first entry it refuses, so none of the four is a defect, whatever the
+value given, and the rows that were checked are the rows that are used.
 
 Pinned by `ForeignRows.test.ts` (each entry the codec did not make, refused by index by the writer,
 `verifySequenceIntegrity` and `planRetention`, `entries` that is not a list refused with the value given by the writer,
@@ -1348,7 +1348,7 @@ declared-fields projection) and `ArchiveRoundTrip.test.ts` (the property over fi
 export interface DatedBatch<Terms, Refused> {
   readonly now: number;
   readonly terms: () => Result.Result<Terms, Refused>;
-  readonly entries: ReadonlyArray<AuditEntry>;
+  readonly entries: unknown;
 }
 
 export interface AdmittedBatch<Terms> {
@@ -1357,7 +1357,7 @@ export interface AdmittedBatch<Terms> {
   readonly rows: AdmittedRows;
 }
 
-export const admitRows: (entries: ReadonlyArray<AuditEntry>) => Result.Result<AdmittedRows, RowsRefusal>;
+export const admitRows: (entries: unknown) => Result.Result<AdmittedRows, RowsRefusal>;
 
 export const admitBatch: <Terms, Refused>(
   batch: DatedBatch<Terms, Refused>,
@@ -1381,6 +1381,13 @@ REQUIREMENT: `archiveAuditTrail` MUST admit `{ now, key material, rows }`,
              statement of its body, before any fact, plan or span of its own work.
              `planPurge` MUST admit its own batch and MUST NOT call `planRetention`,
              so the archive is asked only for an admitted batch.
+REQUIREMENT: The rows MUST be read as their `length` once and each index once, in
+             order, each entry checked as it is read, and the read MUST stop at the
+             first entry that is not a row the codec made. A `length` that is not a
+             number MUST be refused as `EntriesNotAList` with the list given, and a
+             `length` past any array's (`2 ** 32`, `Infinity`) MUST be read only as
+             far as its first refused index, so no list is copied whole before it
+             is checked and no length is a `RangeError`.
 ```
 
 Every call that takes a host's rows took the same three inputs in the same order, and the order was written once per
@@ -1398,7 +1405,10 @@ Pinned by `packages/audit/test/HostBatch.test.ts` (H2 to H12, which refusal wins
 terms, rows that are not a list and a refused row; H13 to H14, the terms called once and never for a refused `now`, and the
 rows unread for refused terms; H15 to H16, the `now` boundary) and `packages/audit/test/AdmissionOrder.characterisation.test.ts`
 (W1 to W18, R1 to R13, P1 to P13 and V1 to V4, which refusal wins for each pair of faults per entry point, written out
-literally; O1 to O3, the first fault of any set; L1 to L5, what a refusal leaves unread).
+literally; O1 to O3, the first fault of any set; L1 to L5, what a refusal leaves unread) and
+`packages/audit/test/RowListAdmission.test.ts` (X1 to X5: a list whose `length` reads past any array's refused at index 0
+by the step and by each entry point with no `RangeError`, a long sparse list and a long list with a foreign entry
+stopped at index 1 having read two indexes, and a `length` that is not a number refused as `EntriesNotAList`).
 
 ## BEH-QD-782: Each entry point refuses exactly what the step refuses for the same batch
 

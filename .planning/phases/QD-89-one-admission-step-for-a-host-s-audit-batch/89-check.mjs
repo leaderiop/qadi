@@ -623,18 +623,23 @@ const titleIdsOf = (line, titles) =>
 /** The entry of `id` in the decision index: its lines up to the next entry, or undefined. */
 const indexEntryOf = (index, id) => new RegExp(`^\\s*-\\s*id:\\s*"${id}"[\\s\\S]*?(?=^\\s*-\\s*id:|(?![\\s\\S]))`, "m").exec(index)?.[0];
 
-const HOST_IMPORTS = ["effect/Data", "effect/Predicate", "effect/Result", "./AuditEntry.ts (type)", "./CodecMade.ts"];
+// The review of the phase replaced `rowsRefusal` in `CodecMade.ts` with the per-entry question `isCodecMade`, which the
+// step asks as it reads each index; the step stopped importing `effect/Predicate`, and `CodecMade.ts` is no longer held
+// byte for byte against phase_base. It is judged by shape instead: still a leaf, declaring `isCodecMade` and no
+// `rowsRefusal`, and the step is the one module that calls `isCodecMade(`.
+const HOST_IMPORTS = ["effect/Data", "effect/Result", "./AuditEntry.ts (type)", "./CodecMade.ts"];
 /** The entry-point modules, which the step is below: it may import none of them (no back edge). */
 const ENTRY_MODULES = ["./ArchiveFacts.ts", "./AuditArchive.ts", "./Retention.ts"];
 
 /**
  * Reasons `HostBatch.ts` is not the one plain, package-private admission step. `facts` is `{ host, barrel, manifest,
- * siblings, codecSame }`: the module's text or undefined, the barrel's text, the package manifest's text, every other
- * `{ file, text }` of `packages/audit/src` and whether `CodecMade.ts` is the base's. With `moduleOnly` the two rules that
+ * siblings, codec }`: the module's text or undefined, the barrel's text, the package manifest's text, every other
+ * `{ file, text }` of `packages/audit/src` and the text of `CodecMade.ts` or undefined, which must stay a leaf (no `./`
+ * import, a type-only one included), declare `isCodecMade` and declare no `rowsRefusal`. With `moduleOnly` the two rules that
  * need the entry points wired are not judged: the one place `NowNotFinite` is a member key, and the one module that asks
  * the rows and the finiteness of `now`. Pure.
  */
-export const judgeAdmissionStep = ({ host, barrel, manifest, siblings, codecSame }, moduleOnly) => {
+export const judgeAdmissionStep = ({ host, barrel, manifest, siblings, codec }, moduleOnly) => {
   if (host === undefined) return [`${HOST} does not exist`];
   const bad = [];
   barrel.split("\n").forEach((line, i) => {
@@ -659,13 +664,20 @@ export const judgeAdmissionStep = ({ host, barrel, manifest, siblings, codecSame
   if (effect !== null) bad.push(`HostBatch.ts uses Effect: ${effect[0]}`);
   if (!/\bNumber\.isFinite\s*\(/.test(code)) bad.push("HostBatch.ts does not call Number.isFinite");
   if (/(?<![\w.$])isFinite\s*\(/.test(code)) bad.push("HostBatch.ts calls a bare isFinite(");
-  if (!codecSame) bad.push(`${CODEC} differs from phase_base`);
+  if (codec === undefined) bad.push(`${CODEC} does not exist`);
+  else {
+    const leafImports = importsOf(blank(codec, true)).filter((i) => !i.spec.startsWith("effect/"));
+    if (leafImports.length > 0) bad.push(`${CODEC} is not a leaf: it imports ${leafImports.map((i) => i.spec).join(", ")}`);
+    const codecCode = blank(codec);
+    if (!/^export\s+const\s+isCodecMade\b/m.test(codecCode)) bad.push(`${CODEC} does not declare isCodecMade`);
+    if (/\browsRefusal\b/.test(codecCode)) bad.push(`${CODEC} still declares rowsRefusal`);
+  }
   if (!moduleOnly) {
     const holders = [...siblings, { file: HOST, text: host }].filter(({ text }) => /(?:^|[{;,]|\breadonly)\s*NowNotFinite\s*:/m.test(blank(text))).map((f) => f.file);
     if (holders.length !== 1 || holders[0] !== HOST) bad.push(`NowNotFinite: is a member key in ${holders.length} files of ${AUDIT_SRC}, not one: ${holders.join(", ")}`);
     for (const { file, text } of siblings) {
       const sibling = blank(text);
-      if (/\browsRefusal\s*\(/.test(sibling)) bad.push(`${file} calls rowsRefusal(; only HostBatch.ts may`);
+      if (/\bisCodecMade\s*\(/.test(sibling)) bad.push(`${file} calls isCodecMade(; only HostBatch.ts may`);
       if (/\bNumber\.isFinite\s*\(/.test(sibling)) bad.push(`${file} calls Number.isFinite(; only HostBatch.ts may`);
     }
   }
@@ -1022,11 +1034,10 @@ const MODES = {
     const moduleOnly = args.length === 1;
     const base = readBase();
     const siblings = sourceFiles().filter(({ file }) => file.startsWith(`${AUDIT_SRC}/`) && file !== HOST);
-    const codecSame = git("diff", "--name-only", base, "--", CODEC).trim() === "" && git("ls-files", "--others", "--exclude-standard", "--", CODEC).trim() === "";
-    const facts = { host: maybe(HOST), barrel: readText(BARREL), manifest: readText(MANIFEST), siblings, codecSame };
+    const facts = { host: maybe(HOST), barrel: readText(BARREL), manifest: readText(MANIFEST), siblings, codec: maybe(CODEC) };
     const ok = moduleOnly
-      ? "admission-step: HostBatch.ts is a plain, package-private step with its five imports"
-      : "admission-step: HostBatch.ts is the one plain, package-private admission step; NowNotFinite is stated once and rowsRefusal and Number.isFinite are asked only there";
+      ? "admission-step: HostBatch.ts is a plain, package-private step with its four imports"
+      : "admission-step: HostBatch.ts is the one plain, package-private admission step; NowNotFinite is stated once and isCodecMade and Number.isFinite are asked only there";
     return done(judgeAdmissionStep(facts, moduleOnly), ok);
   },
   "entry-points-first": (names) => {
@@ -1316,24 +1327,24 @@ it("has \\"quotes\\"", () => {});`;
   // admission-step.
   const hostOk = [
     'import * as Data from "effect/Data";',
-    'import * as Predicate from "effect/Predicate";',
     'import * as Result from "effect/Result";',
     'import type { AuditEntry } from "./AuditEntry.ts";',
-    'import { rowsRefusal } from "./CodecMade.ts";',
+    'import { isCodecMade } from "./CodecMade.ts";',
     'import type { RowsRefusalCases } from "./CodecMade.ts";',
     "/** A comment may say Effect.fn, withSpan, isFinite( and NowNotFinite: here. */",
     "export type NowRefusalCases = { readonly NowNotFinite: { readonly value: unknown } };",
-    'const note = "Effect.fn and rowsRefusal( in a string";',
-    "export const admitRows = (entries: ReadonlyArray<AuditEntry>) => (Number.isFinite(1) ? rowsRefusal(entries) : entries);",
+    'const note = "Effect.fn and isCodecMade( in a string";',
+    "export const admitRows = (entries: unknown) => (Number.isFinite(1) ? isCodecMade(entries) : entries);",
     "",
   ].join("\n");
   const sib = (name, text) => ({ file: `${AUDIT_SRC}/${name}`, text });
   const siblingsOk = [
     sib("Retention.ts", "export type RetentionInputRefusal = Data.TaggedEnum<\n  RowsRefusalCases & NowRefusalCases & {\n    MaxAgeInvalid: { readonly value: unknown };\n  }\n>;\n// NowNotFinite: in a comment\n"),
-    sib("CodecMade.ts", "export const rowsRefusal = (entries: unknown) => entries;\n"),
+    sib("CodecMade.ts", "export const isCodecMade = (entry: unknown): boolean => true;\n"),
     sib("SinkOptionChecks.ts", "const ok = (d) => Duration.isFinite(d);\n"),
   ];
-  const factsOk = { host: hostOk, barrel: 'export * from "./AuditArchive.ts";\n', manifest: '{"exports":{".":{"types":"./lib/index.d.ts"}}}', siblings: siblingsOk, codecSame: true };
+  const codecOk = 'import * as Predicate from "effect/Predicate";\n/** rowsRefusal in a comment. */\nexport const isCodecMade = (entry: unknown): boolean => Predicate.isObjectKeyword(entry);\n';
+  const factsOk = { host: hostOk, barrel: 'export * from "./AuditArchive.ts";\n', manifest: '{"exports":{".":{"types":"./lib/index.d.ts"}}}', siblings: siblingsOk, codec: codecOk };
   const step = (over = {}, moduleOnly = false) => judgeAdmissionStep({ ...factsOk, ...over }, moduleOnly);
   const stepHas = (over, part, moduleOnly = false) => step(over, moduleOnly).some((r) => r.includes(part));
   eq("a host module of the right shape passes, whole and module only", [step(), step({}, true)], [[], []]);
@@ -1342,8 +1353,9 @@ it("has \\"quotes\\"", () => {});`;
   eq("an exports key naming the module fails", stepHas({ manifest: '{"exports":{"./HostBatch":"./src/HostBatch.ts"}}' }, "is reached from the exports key ./HostBatch"), true);
   eq("an exports value naming the module fails", stepHas({ manifest: '{"exports":{"./x":{"import":"./lib/HostBatch.js"}}}' }, "is reached from the exports key ./x"), true);
   eq("a manifest that is not JSON fails", stepHas({ manifest: "nope" }, "is not JSON"), true);
-  eq("an extra import fails with the list found", step({ host: `import * as Effect from "effect/Effect";\n${hostOk}` }).some((r) => r.startsWith("HostBatch.ts imports ./AuditEntry.ts (type), ./CodecMade.ts, effect/Data, effect/Effect, effect/Predicate, effect/Result, not effect/Data")), true);
-  eq("a missing import fails", stepHas({ host: hostOk.replace('import * as Predicate from "effect/Predicate";\n', "") }, "HostBatch.ts imports ./AuditEntry.ts (type), ./CodecMade.ts, effect/Data, effect/Result, not "), true);
+  eq("an extra import fails with the list found", step({ host: `import * as Effect from "effect/Effect";\n${hostOk}` }).some((r) => r.startsWith("HostBatch.ts imports ./AuditEntry.ts (type), ./CodecMade.ts, effect/Data, effect/Effect, effect/Result, not effect/Data")), true);
+  eq("a missing import fails", stepHas({ host: hostOk.replace('import * as Result from "effect/Result";\n', "") }, "HostBatch.ts imports ./AuditEntry.ts (type), ./CodecMade.ts, effect/Data, not "), true);
+  eq("the Predicate import the step used to have fails", stepHas({ host: `import * as Predicate from "effect/Predicate";\n${hostOk}` }, "HostBatch.ts imports ./AuditEntry.ts (type), ./CodecMade.ts, effect/Data, effect/Predicate, effect/Result, not "), true);
   eq("a value import of AuditEntry fails", stepHas({ host: hostOk.replace("import type { AuditEntry }", "import { AuditEntry }") }, "./AuditEntry.ts (value)"), true);
   eq("a module with no import fails", stepHas({ host: "export const a = 1;\n" }, "HostBatch.ts imports nothing, not "), true);
   for (const spec of ENTRY_MODULES) {
@@ -1354,16 +1366,19 @@ it("has \\"quotes\\"", () => {});`;
   eq("a missing Number.isFinite fails", stepHas({ host: hostOk.replace("Number.isFinite(1)", "true") }, "HostBatch.ts does not call Number.isFinite"), true);
   eq("a bare isFinite fails", stepHas({ host: `${hostOk}export const h = (x) => isFinite(x);\n` }, "HostBatch.ts calls a bare isFinite("), true);
   eq("Number.isFinite alone is not a bare isFinite", stepHas({}, "bare isFinite"), false);
-  eq("a CodecMade that moved fails", stepHas({ codecSame: false }, `${CODEC} differs from phase_base`), true);
+  eq("a missing CodecMade fails", stepHas({ codec: undefined }, `${CODEC} does not exist`), true);
+  eq("a CodecMade that imports the row type fails", stepHas({ codec: `import type { AuditEntry } from "./AuditEntry.ts";\n${codecOk}` }, `${CODEC} is not a leaf: it imports ./AuditEntry.ts`), true);
+  eq("a CodecMade without isCodecMade fails", stepHas({ codec: codecOk.replace("export const isCodecMade", "export const isMade") }, `${CODEC} does not declare isCodecMade`), true);
+  eq("a CodecMade that still declares rowsRefusal fails", stepHas({ codec: `${codecOk}export const rowsRefusal = (entries: unknown) => undefined;\n` }, `${CODEC} still declares rowsRefusal`), true);
   const restated = [...siblingsOk, sib("ArchiveFacts.ts", "export type R = Data.TaggedEnum<{\n  NowNotFinite: { readonly value: unknown };\n}>;\n")];
   eq("NowNotFinite restated in a sibling fails the whole form", stepHas({ siblings: restated }, "NowNotFinite: is a member key in 2 files of packages/audit/src, not one: packages/audit/src/ArchiveFacts.ts, packages/audit/src/HostBatch.ts"), true);
   eq("NowNotFinite restated in a sibling passes the module-only form", stepHas({ siblings: restated }, "NowNotFinite", true), false);
   eq("NowNotFinite stated only in a sibling fails", stepHas({ host: hostOk.replace("NowNotFinite: {", "NowFinite: {"), siblings: restated }, "is a member key in 1 files of packages/audit/src, not one: packages/audit/src/ArchiveFacts.ts"), true);
   eq("NowNotFinite stated nowhere fails", stepHas({ host: hostOk.replace("NowNotFinite: {", "NowFinite: {") }, "is a member key in 0 files of packages/audit/src, not one: "), true);
-  eq("a rowsRefusal call in a sibling fails", stepHas({ siblings: [...siblingsOk, sib("ArchiveFacts.ts", "const r = rowsRefusal(entries);\n")] }, "packages/audit/src/ArchiveFacts.ts calls rowsRefusal(; only HostBatch.ts may"), true);
+  eq("an isCodecMade call in a sibling fails", stepHas({ siblings: [...siblingsOk, sib("ArchiveFacts.ts", "const r = isCodecMade(entry);\n")] }, "packages/audit/src/ArchiveFacts.ts calls isCodecMade(; only HostBatch.ts may"), true);
   eq("a Number.isFinite call in a sibling fails", stepHas({ siblings: [...siblingsOk, sib("AuditArchive.ts", "if (!Number.isFinite(now)) {}\n")] }, "packages/audit/src/AuditArchive.ts calls Number.isFinite(; only HostBatch.ts may"), true);
-  eq("a sibling's calls are not judged in the module-only form", step({ siblings: [...siblingsOk, sib("Retention.ts", "rowsRefusal(entries); Number.isFinite(now);\n")] }, true), []);
-  eq("a Duration.isFinite call and a comment are not Number.isFinite", stepHas({ siblings: [...siblingsOk, sib("Other.ts", "// Number.isFinite( and rowsRefusal(\n")] }, "only HostBatch.ts may"), false);
+  eq("a sibling's calls are not judged in the module-only form", step({ siblings: [...siblingsOk, sib("Retention.ts", "isCodecMade(entry); Number.isFinite(now);\n")] }, true), []);
+  eq("a Duration.isFinite call and a comment are not Number.isFinite", stepHas({ siblings: [...siblingsOk, sib("Other.ts", "// Number.isFinite( and isCodecMade(\n")] }, "only HostBatch.ts may"), false);
 
   // entry-points-first.
   const arch = [

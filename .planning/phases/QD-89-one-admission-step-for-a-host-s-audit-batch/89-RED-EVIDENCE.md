@@ -522,3 +522,21 @@ Each row below was run against HEAD 76d38f52 (the source the review read) with o
   - failed on: AssertionError: the plan admitted the limit
 - red before: M4 a Symbol and an object with no prototype are MaxAgeInvalid with the value given in each plan, and neither throws
   - failed on: TypeError: Cannot convert a Symbol value to a number
+- red before: X1 admitRows refuses a list whose length reads past any array's at index 0, having read the length and that index once
+  - failed on: RangeError: Invalid array length
+- red before: X2 each entry point refuses a list whose length reads past any array's at index 0, with no RangeError
+  - failed on: RangeError: Invalid array length
+- red before: X3 admitRows stops a long sparse list at its first hole, and a long list at its first foreign entry, having read two indexes
+  - failed on: AssertionError: expected [ [ '0', 1 ], [ '1', 1 ], …(99999) ] to deeply equal [ [ '0', 1 ], [ '1', 1 ], …(1) ]
+- red before: X4 each entry point stops a long sparse list at its first hole, and a long list at its first foreign entry, having read two indexes
+  - failed on: AssertionError: expected { archived: { at: 1, …(1) }, …(3) } to deeply equal { archived: { at: 1, …(1) }, …(3) }
+- red before: X5 admitRows refuses a list whose length reads as a string or an object as EntriesNotAList with the list given, reading no index
+  - failed on: AssertionError: expected 'admitted' to equal [ AuditEntry{ …(2) },  ]
+- check failed: admission-step: packages/audit/src/CodecMade.ts is not a leaf: it imports ./AuditEntry.ts
+  (scratch edit: `import type { AuditEntry } from "./AuditEntry.ts";` added to CodecMade.ts; `pnpm circular` refuses the same edit: 1) audit/src/AuditEntry.ts > audit/src/CodecMade.ts)
+- check failed: admission-step: packages/audit/src/ArchiveFacts.ts calls isCodecMade(; only HostBatch.ts may
+  (scratch edit: `export const probeRow = (entry: unknown) => isCodecMade(entry);` appended to ArchiveFacts.ts)
+- check failed: pinned: packages/audit/src/CodecMade.ts: the text between regions differs from its base text at line 27 (between dataImport and rowsRefusal)
+  (scratch edit: `// edit` appended to the `codecMade` WeakSet line, outside the declared regions)
+- check failed: pinned: packages/audit/src/CodecMade.ts: region rowsRefusal is not the lines it becomes
+  (scratch edit: `// edit` appended to the `isCodecMade` declaration line, inside the region)

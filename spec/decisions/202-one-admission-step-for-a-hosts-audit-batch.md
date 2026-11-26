@@ -43,9 +43,12 @@ Each call restated the check, and the restatement had three costs.
 
 1. **One package-private module admits a batch.** `packages/audit/src/HostBatch.ts` is out of the barrel and not
    importable ([ADR-QD-099](./099-entry-points-are-a-closed-list.md)). It imports only `effect/Data`,
-   `effect/Predicate`, `effect/Result`, `AuditEntry.ts` as a type and `CodecMade.ts`, and no entry-point module imports
-   back, so the module graph has no cycle. `CodecMade.ts` is unchanged: it answers one question, which rows the codec
-   made, and the step is its consumer.
+   `effect/Result`, `AuditEntry.ts` as a type and `CodecMade.ts`, and no entry-point module imports back, so the module
+   graph has no cycle. `CodecMade.ts` answers one question, whether an entry is a row the codec made, as
+   `isCodecMade(entry)`, and the step is its consumer: it asks the list question itself, asks `isCodecMade` of each
+   entry as it reads it, and builds both row refusals. `CodecMade.ts` stays a leaf, so the guard that reads its answer
+   as the row type, `entry is AuditEntry`, is the step's: the record cannot name the row type, because `AuditEntry.ts`
+   imports the record to fill it, and a type-only import back is a cycle `pnpm circular` refuses.
 
 2. **The step is a plain function returning a `Result`.** It has no `Effect` and opens no span, so each caller keeps
    the span of its own and wraps the step's answer once: the writer and the verify with
@@ -56,21 +59,23 @@ Each call restated the check, and the restatement had three costs.
    export interface DatedBatch<Terms, Refused> {
      readonly now: number;
      readonly terms: () => Result.Result<Terms, Refused>;
-     readonly entries: ReadonlyArray<AuditEntry>;
+     readonly entries: unknown;
    }
    export interface AdmittedBatch<Terms> {
      readonly now: number;
      readonly terms: Terms;
      readonly rows: AdmittedRows;
    }
-   export const admitRows: (entries: ReadonlyArray<AuditEntry>) => Result.Result<AdmittedRows, RowsRefusal>;
+   export const admitRows: (entries: unknown) => Result.Result<AdmittedRows, RowsRefusal>;
    export const admitBatch: <Terms, Refused>(
      batch: DatedBatch<Terms, Refused>,
    ) => Result.Result<AdmittedBatch<Terms>, NowRefusal | Refused | RowsRefusal>;
    ```
 
    The two batch shapes are closed. A call with no `now` and no terms, the public verify, is `admitRows` alone. The
-   rejected shapes are in the alternatives below.
+   rows are `unknown` to the step whatever each caller's own parameter says, because a store client's `any` and a
+   JavaScript caller reach every entry point, so the step's type states what it is handed. The rejected shapes are in
+   the alternatives below.
 
 3. **There is one order: `now`, then the terms, then the rows.** `now` is asked with `Number.isFinite`, never the
    coercing global, so `NaN`, both infinities, a string, `undefined`, `null` and a `bigint` are refused with the value
@@ -87,10 +92,14 @@ Each call restated the check, and the restatement had three costs.
    made, and a reader that admitted rows it made itself would restate the question.
 
 5. **Each input is read once, and what was checked is what is used.** `admitRows` reads the list's `length` once and
-   each index once, into a fresh array, by `Array.from({ length }, (_, index) => list[index])`. It calls no method and
-   no iterator the host's object can override. The rows are checked over that array, and the admitted rows are that
-   array, so every later read, the facts, the age rule and the purge pass, reads what was checked. A hole reads as
-   `undefined` and is refused at its index. The key material is read once by the writer's own terms
+   each index once, in order, and asks `isCodecMade` of each entry as it reads it. It calls no method and no iterator
+   the host's object can override. The read stops at the first entry that is not a row the codec made, refused as
+   `EntryNotMadeByCodec` with its index, and each entry admitted is pushed into a fresh array, which is the admitted
+   rows, so every later read, the facts, the age rule and the purge pass, reads what was checked. A hole reads as
+   `undefined` and is refused at its index. Because each entry is checked as it is read, no list is copied whole before
+   it is checked: a proxy whose `length` reads `2 ** 32` or `Infinity` is refused at index `0` and a long sparse list at
+   its first hole, with no `RangeError`, and a `length` that is not a number (only a proxy answers one) is refused as
+   `EntriesNotAList` with the list given, so no comparison converts it. The key material is read once by the writer's own terms
    (`snapshotKeyMaterial`, [ADR-QD-190](./190-an-audit-row-is-a-value-only-its-codec-makes.md) third amendment). The
    retention terms read `policy?.maxAgeMs` once, admit it only when it is a number (`typeof value === "number"`) from
    zero up, refuse anything else as `MaxAgeInvalid { value }` without converting it, and return the number, and the
@@ -101,7 +110,7 @@ Each call restated the check, and the restatement had three costs.
    the refusal `{}` gets, so it is a typed failure and no new member joins the closed enum.
 
 6. **`NowNotFinite` is stated once.** `NowRefusalCases` is declared in `HostBatch.ts` beside the check that answers it,
-   as `RowsRefusalCases` is declared beside `rowsRefusal`, and each public enum is its fragments plus its own members:
+   as `RowsRefusalCases` is declared beside the codec's record in `CodecMade.ts`, and each public enum is its fragments plus its own members:
    `ArchiveInputRefusal` is `RowsRefusalCases & NowRefusalCases & { KeyMaterialNotAList; KeyMaterialItemRefused }` and
    `RetentionInputRefusal` is `RowsRefusalCases & NowRefusalCases & { MaxAgeInvalid }`. Each keeps its own
    `Data.taggedEnum` constructors, so `ArchiveInputRefusal.NowNotFinite(…)` and `RetentionInputRefusal.NowNotFinite(…)`
@@ -230,6 +239,9 @@ two declared regions of it moved with the change, the four span rows of decision
     `verifiedArchiveFacts` over admitted rows.
   - `packages/audit/test/BatchReadOnce.test.ts`: B1 to B5, `maxAgeMs` read once and a policy that is not an object
     refused, and B6 to B13, what was checked is what is used and the rows list is read once.
+  - `packages/audit/test/RowListAdmission.test.ts`: X1 to X5, a rows list checked as it is read: a `length` past any
+    array's refused at index 0 by the step and by each entry point with no `RangeError`, a long sparse list and a long
+    list with a foreign entry stopped at index 1 having read two indexes, and a `length` that is not a number refused.
   - `packages/audit/test/MaxAgeAdmission.test.ts`: M1 to M4, a `maxAgeMs` that is not a number refused by each plan
     as `MaxAgeInvalid` with the value given, never converted and never thrown.
   - `packages/audit/test/ForeignRows.test.ts`: the describe `each function that takes a batch refuses what the admission

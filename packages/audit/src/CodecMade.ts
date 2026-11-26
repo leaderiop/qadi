@@ -5,10 +5,9 @@
  * The type refuses a literal or a spread of a row, but a store client returns rows as
  * `any` (`JSON.parse`, a raw SQL row, an untyped ORM result) and a JavaScript caller has
  * no compiler, so the type alone cannot keep a row the codec never made out of the
- * archive writer. The codec records each row it makes here, and a function that takes a
- * host's rows asks {@link rowsRefusal} before it computes a fact from them. The same
- * caller can pass something that is not a list at all, so the list is the first thing
- * asked.
+ * archive writer. The codec records each row it makes here, and the admission step
+ * (`HostBatch.ts`) asks {@link isCodecMade} of each entry of a host's rows, as it reads
+ * it, before any fact is computed from them.
  *
  * Membership is identity, which a class check is not: `instanceof` is answered by a
  * prototype, and `Object.create` gives any object a row's. A `WeakSet` holds no row
@@ -23,7 +22,6 @@
  * and let any host record a row of its own, which defeats the check, so the limit stays
  * and a second copy is a configuration to fix: install one.
  */
-import * as Data from "effect/Data";
 import * as Predicate from "effect/Predicate";
 
 const codecMade = new WeakSet<object>();
@@ -48,24 +46,14 @@ export type RowsRefusalCases = {
   readonly EntryNotMadeByCodec: { readonly index: number };
 };
 
-type RowsRefusal = Data.TaggedEnum<RowsRefusalCases>;
-const { EntriesNotAList, EntryNotMadeByCodec } = Data.taggedEnum<RowsRefusal>();
-
 /**
- * Why `entries` is not a list of rows the codec made, or `undefined` when it is one (an
- * empty list included).
+ * Whether `entry` is a row the codec made: the question the admission step asks of each
+ * entry of a host's rows.
  *
- * `EntriesNotAList` carries what was given, so the host that passed `undefined`, `null` or
- * an object for the list can see it. `EntryNotMadeByCodec` carries the index of the first
- * entry the codec did not make; an entry that is not an object, `null` included, is not a
- * row the codec made.
+ * An entry that is not an object, `null` and a hole's `undefined` included, is not a row
+ * the codec made. The record holds only what the codec made, so `HostBatch.ts` reads a
+ * `true` as the row type; the type is not named here because `AuditEntry.ts` imports this
+ * module to fill the record, and naming it back would close a cycle.
  */
-export const rowsRefusal = (entries: unknown): RowsRefusal | undefined => {
-  if (!Array.isArray(entries)) {
-    return EntriesNotAList({ value: entries });
-  }
-  const index = entries.findIndex(
-    (entry) => !(Predicate.isObjectKeyword(entry) && codecMade.has(entry)),
-  );
-  return index === -1 ? undefined : EntryNotMadeByCodec({ index });
-};
+export const isCodecMade = (entry: unknown): boolean =>
+  Predicate.isObjectKeyword(entry) && codecMade.has(entry);
