@@ -19,16 +19,19 @@
  *
  * A row's `sequenceNumber` is a safe integer here without being checked here: only
  * `decodeAuditEntry` gives a row one, its codec states the rule once (`AuditEntry.ts`,
- * ADR-QD-190), and {@link verifiedArchiveFacts} takes only a list of rows the codec
- * made (`CodecMade.ts`), so a number outside the safe integers never reaches
- * {@link firstBreakIn}, which never adds one past `2 ** 53`. The pure
- * {@link archiveFacts} is the reader's, over rows it has just decoded.
+ * ADR-QD-190), and {@link verifiedArchiveFacts} takes only rows the admission step of
+ * `HostBatch.ts` admitted, which are rows the codec made (`CodecMade.ts`), so a number
+ * outside the safe integers never reaches {@link firstBreakIn}, which never adds one
+ * past `2 ** 53`. The pure {@link archiveFacts} is the reader's, over rows it has just
+ * decoded.
  */
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
+import * as Result from "effect/Result";
 import type { AuditEntry } from "./AuditEntry.ts";
-import { rowsRefusal } from "./CodecMade.ts";
 import type { RowsRefusalCases } from "./CodecMade.ts";
+import { admitRows } from "./HostBatch.ts";
+import type { AdmittedRows, NowRefusalCases } from "./HostBatch.ts";
 
 /** The first place a sorted run of sequence numbers is not `previous + 1`. */
 export interface SequenceBreak {
@@ -118,7 +121,7 @@ export const archiveFacts = (entries: ReadonlyArray<AuditEntry>): ArchiveFacts =
  *   value given (a caller the type does not bind can give a string). A non-finite
  *   `createdAt` is a bundle `readAuditArchive` refuses as `Malformed`, so the writer
  *   refuses it first rather than hand a store an archive that blocks every purge needing
- *   it.
+ *   it. It is the member `HostBatch.ts` states once for every function that takes a `now`.
  * - `KeyMaterialNotAList`: `archiveAuditTrail`'s `keyMaterial` is not a list, and `value` is
  *   the value given.
  * - `KeyMaterialItemRefused`: the item at `index`, the first, is not what the reader reads
@@ -133,15 +136,17 @@ export const archiveFacts = (entries: ReadonlyArray<AuditEntry>): ArchiveFacts =
  *   `verifySequenceIntegrity` refuse it first (ADR-QD-190).
  *
  * `unknown` appears only where a member holds a value the caller gave, and `index` is
- * always a number, so a handler narrows by `_tag` alone. The last two members are the
- * ones `RetentionInputRefusal` (`Retention.ts`) has too, stated once in `CodecMade.ts`.
+ * always a number, so a handler narrows by `_tag` alone. The union is the rows fragment
+ * (`CodecMade.ts`) and the `now` fragment (`HostBatch.ts`), each shared with
+ * `RetentionInputRefusal` (`Retention.ts`), and the two key-material members, which only
+ * this module has.
  */
 export type ArchiveInputRefusal = Data.TaggedEnum<
-  RowsRefusalCases & {
-    NowNotFinite: { readonly value: unknown };
-    KeyMaterialNotAList: { readonly value: unknown };
-    KeyMaterialItemRefused: { readonly index: number };
-  }
+  RowsRefusalCases &
+    NowRefusalCases & {
+      KeyMaterialNotAList: { readonly value: unknown };
+      KeyMaterialItemRefused: { readonly index: number };
+    }
 >;
 
 /** Constructors and guards for {@link ArchiveInputRefusal}. */
@@ -165,23 +170,19 @@ export class SequenceIntegrityError extends Data.TaggedError("SequenceIntegrityE
 }> {}
 
 /**
- * The facts of `entries`, or `ArchiveInputInvalid` when it is not a list or holds an entry
- * the codec did not make, or `SequenceIntegrityError` at their first gap or duplicate: the
- * writer's reading of them.
+ * The facts of rows the admission step admitted, or `SequenceIntegrityError` at their first
+ * gap or duplicate: the writer's reading of them.
  *
- * The Effect wrapper `archiveAuditTrail` needs, and the one place a break becomes
- * a failure (ARCH-48, ADR-QD-110). The span keeps the name it had before the facts
- * were gathered here, so a trace shows the same span under `archiveAuditTrail` and
+ * It takes only `AdmittedRows`, so a fact is never computed from rows `HostBatch.ts` did not
+ * admit, and its one failure is the break. The Effect wrapper `archiveAuditTrail` needs, and
+ * the one place a break becomes a failure (ARCH-48, ADR-QD-110). The span keeps its name and
+ * opens only for admitted rows, so a trace shows the same span under `archiveAuditTrail` and
  * under the public check.
  */
 export const verifiedArchiveFacts = Effect.fn("qadi.audit.verifySequenceIntegrity")(function* (
-  entries: ReadonlyArray<AuditEntry>,
+  rows: AdmittedRows,
 ) {
-  const refused = rowsRefusal(entries);
-  if (refused !== undefined) {
-    return yield* Effect.fail(new ArchiveInputInvalid({ refusal: refused }));
-  }
-  const facts = archiveFacts(entries);
+  const facts = archiveFacts(rows.entries);
   if (facts.sequenceBreak !== undefined) {
     return yield* Effect.fail(new SequenceIntegrityError(facts.sequenceBreak));
   }
@@ -202,9 +203,13 @@ export const verifiedArchiveFacts = Effect.fn("qadi.audit.verifySequenceIntegrit
  * catches both, since a duplicate's `actual` is never equal to
  * `expected = previous + 1`.
  *
- * Unnamed on purpose: the span is `verifiedArchiveFacts`'s, so a call opens
- * exactly one.
+ * Admits `entries` first, so a refusal opens no span; it is unnamed on purpose, the span
+ * is `verifiedArchiveFacts`'s, so a call on admitted rows opens exactly one.
  */
 export const verifySequenceIntegrity = Effect.fn(function* (entries: ReadonlyArray<AuditEntry>) {
-  yield* verifiedArchiveFacts(entries);
+  const rows = admitRows(entries);
+  if (Result.isFailure(rows)) {
+    return yield* Effect.fail(new ArchiveInputInvalid({ refusal: rows.failure }));
+  }
+  yield* verifiedArchiveFacts(rows.success);
 });

@@ -22,6 +22,7 @@ import { RetentionInputRefusal, planPurge, planRetention } from "../src/Retentio
 import type { RetentionPolicy } from "../src/Retention.ts";
 import { verifySequenceIntegrity } from "../src/SequenceIntegrity.ts";
 import { verifiedArchiveFacts } from "../src/ArchiveFacts.ts";
+import { admitRows } from "../src/HostBatch.ts";
 import { decisionRecord, numbered } from "./helpers.ts";
 
 const codecRow = (evaluationId: string): AuditEntry =>
@@ -122,9 +123,6 @@ const writerFailure = (entries: ReadonlyArray<AuditEntry>, now: number, options?
 
 const verifyFailure = (entries: ReadonlyArray<AuditEntry>) =>
   failureOf(Effect.runSync(Effect.result(verifySequenceIntegrity(entries))));
-
-const factsFailure = (entries: ReadonlyArray<AuditEntry>) =>
-  failureOf(Effect.runSync(Effect.result(verifiedArchiveFacts(entries))));
 
 const storedArchive = () =>
   Result.getOrThrow(
@@ -455,7 +453,6 @@ describe("the spans each outcome opens", () => {
 
 describe("the sequence span on refused rows", () => {
   const WRITER = "qadi.audit.archiveAuditTrail";
-  const SEQUENCE = "qadi.audit.verifySequenceIntegrity";
 
   it("SF1 the writer refused for rows that are not a list opens its span and the sequence span", () => {
     const { result, names } = spansOf(archiveAuditTrail(rowsNotList, 1_000));
@@ -533,20 +530,28 @@ describe("what a refusal leaves unread", () => {
 });
 
 describe("verifiedArchiveFacts called directly", () => {
-  it("F1 rows that are not a list: EntriesNotAList", () => {
-    assert.deepStrictEqual(factsFailure(rowsNotList), archiveInvalid(rowsNotListRefused));
+  const admitted = (entries: ReadonlyArray<AuditEntry>) => Result.getOrThrow(admitRows(entries));
+  const factsOf = (entries: ReadonlyArray<AuditEntry>) =>
+    failureOf(Effect.runSync(Effect.result(verifiedArchiveFacts(admitted(entries)))));
+
+  it("F1 verifiedArchiveFacts over rows admitRows admitted fails SequenceIntegrityError on a break", () => {
+    assert.deepStrictEqual(factsOf(breakRows), breakFailure);
   });
-  it("F2 a row the codec did not make: EntryNotMadeByCodec", () => {
-    assert.deepStrictEqual(factsFailure(rowItem), archiveInvalid(rowItemRefused));
+  it("F2 verifiedArchiveFacts over admitted rows with no break returns their facts", () => {
+    const facts = Effect.runSync(verifiedArchiveFacts(admitted([numbered(a, 1), numbered(b, 2)])));
+    assert.deepStrictEqual(
+      { ordered: facts.ordered, sequencedCount: facts.sequencedCount, sequenceIntegrityVerified: facts.sequenceIntegrityVerified },
+      { ordered: [numbered(a, 1), numbered(b, 2)], sequencedCount: 2, sequenceIntegrityVerified: true },
+    );
   });
-  it("F3 a sequence break: SequenceIntegrityError", () => {
-    assert.deepStrictEqual(factsFailure(breakRows), breakFailure);
+  it("F3 rows that are not a list are refused by admitRows and never reach verifiedArchiveFacts", () => {
+    assert.deepStrictEqual(admitRows(rowsNotList), Result.fail(rowsNotListRefused));
   });
-  it("F4 a row the codec did not make with a sequence break: EntryNotMadeByCodec wins", () => {
-    assert.deepStrictEqual(factsFailure(rowItemBreak), archiveInvalid(rowItemRefused));
+  it("F4 a row admitRows refuses never reaches verifiedArchiveFacts, even with a break among the rest", () => {
+    assert.deepStrictEqual(admitRows(rowItemBreak), Result.fail(rowItemRefused));
   });
-  it("F5 any call opens exactly the sequence span", () => {
-    const opened = [[good], rowsNotList, rowItem, breakRows, rowItemBreak].map((rows) => spansOf(verifiedArchiveFacts(rows)).names);
-    assert.deepStrictEqual(opened, Array.from({ length: 5 }, () => ["qadi.audit.verifySequenceIntegrity"]));
+  it("F5 verifiedArchiveFacts opens exactly its own span", () => {
+    const opened = [[good], breakRows].map((rows) => spansOf(verifiedArchiveFacts(admitted(rows))).names);
+    assert.deepStrictEqual(opened, Array.from({ length: 2 }, () => ["qadi.audit.verifySequenceIntegrity"]));
   });
 });

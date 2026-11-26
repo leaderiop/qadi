@@ -27,6 +27,7 @@ import {
 } from "./ArchiveFacts.ts";
 import { decodeAuditEntry } from "./AuditEntry.ts";
 import type { AuditEntry } from "./AuditEntry.ts";
+import { admitBatch } from "./HostBatch.ts";
 
 /**
  * Opaque pass-through metadata `@qadi/audit` never validates or interprets —
@@ -136,15 +137,14 @@ export interface AuditArchive {
 const ARCHIVE_VERSION = "1";
 
 /**
- * Builds the bundle from the entries' facts (`archiveFacts`, ADR-QD-110). Fails
- * with `ArchiveInputInvalid` for a `now` that is not finite (`NowNotFinite`), before
- * anything else is read; for a `keyMaterial` that is not a list (`KeyMaterialNotAList`)
- * or holds an item without three string fields (`KeyMaterialItemRefused`, the index of
- * the first), before the entries are read; and for `entries` that is not a list
- * (`EntriesNotAList`) or holds an entry the codec did not make (`EntryNotMadeByCodec`,
- * the index of the first), before any fact is computed from it; otherwise only with
- * `SequenceIntegrityError`, rather than archiving a set of rows already known to
- * have a gap or a duplicate. An archive exists to be trusted later, so it refuses
+ * Builds the bundle from the entries' facts (`archiveFacts`, ADR-QD-110). Its first
+ * statement is the admission step of `HostBatch.ts`, which checks the `now`, the
+ * `keyMaterial` and the `entries` and reads each once, so the bundle is built from what
+ * was checked. Fails with `ArchiveInputInvalid` when the step refuses one of them
+ * (`NowNotFinite`, `KeyMaterialNotAList`, `KeyMaterialItemRefused` with the index of the
+ * first item, `EntriesNotAList`, `EntryNotMadeByCodec` with the index of the first
+ * entry), before any fact is computed; otherwise only with `SequenceIntegrityError`,
+ * rather than archiving a set of rows already known to have a gap or a duplicate. An archive exists to be trusted later, so it refuses
  * to be built on a foundation this package can already tell is broken, or one its
  * own reader would refuse.
  *
@@ -181,23 +181,19 @@ export const archiveAuditTrail = Effect.fn("qadi.audit.archiveAuditTrail")(funct
   now: number,
   options?: ArchivalOptions,
 ) {
-  if (!Number.isFinite(now)) {
-    const refusal = ArchiveInputRefusal.NowNotFinite({ value: now });
-    return yield* Effect.fail(new ArchiveInputInvalid({ refusal }));
-  }
   // What a store client or a JavaScript caller hands over is not what the type says, and
   // `options` is read once: what is checked is what is written.
-  const snapshot = snapshotKeyMaterial(options?.keyMaterial);
-  if (Result.isFailure(snapshot)) {
-    return yield* Effect.fail(new ArchiveInputInvalid({ refusal: snapshot.failure }));
+  const admitted = admitBatch({ now, terms: () => snapshotKeyMaterial(options?.keyMaterial), entries });
+  if (Result.isFailure(admitted)) {
+    return yield* Effect.fail(new ArchiveInputInvalid({ refusal: admitted.failure }));
   }
-  const keyMaterial = snapshot.success;
-  const facts = yield* verifiedArchiveFacts(entries);
+  const { now: createdAt, terms: keyMaterial, rows } = admitted.success;
+  const facts = yield* verifiedArchiveFacts(rows);
 
   const archive: AuditArchive = {
     archiveVersion: ARCHIVE_VERSION,
     metadata: {
-      createdAt: now,
+      createdAt,
       entryCount: facts.ordered.length,
       sequenceIntegrityVerified: facts.sequenceIntegrityVerified,
     },
