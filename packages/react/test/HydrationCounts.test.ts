@@ -30,8 +30,9 @@ import type { HydrationDropReason } from "@qadi/core";
 import * as Context from "effect/Context";
 import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import { describe, expect, it, vi } from "vitest";
-import type { DehydratedDecisions, HydrationDrop } from "../src/Hydration.ts";
-import { dehydrateDecisions, hydrateDecisions } from "../src/Hydration.ts";
+import type { HydrationDrop } from "../src/DeveloperSignals.ts";
+import type { DehydratedDecisions } from "../src/HydrationEngine.ts";
+import { dehydrateDecisions, hydrateDecisions } from "../src/HydrationEngine.ts";
 import { currentDecision } from "../src/DecisionOutcome.ts";
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 

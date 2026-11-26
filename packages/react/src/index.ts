@@ -16,6 +16,7 @@
  */
 export { DecisionOutcome, currentDecision, outcomeOf } from "./DecisionOutcome.ts";
 export type { DecisionResult } from "./DecisionOutcome.ts";
+export type { HydrationDrop, HydrationDropReporter } from "./DeveloperSignals.ts";
 export { runtimeLayer, useDevtoolsFeed } from "./DevtoolsFeed.ts";
 export type { DevtoolsDiagnosticsFeed, DevtoolsFeed } from "./DevtoolsFeed.ts";
 export { makeGateRegistry } from "./GateWriter.ts";
@@ -26,27 +27,14 @@ export type {
   GateRegistryOptions,
   GateRenderState,
 } from "./GateWriter.ts";
-export {
-  SeededAllow,
-  SeededDeny,
-  dehydrateDecisions,
-  hydrateDecisions,
-  isSeeded,
-  permits,
-} from "./Hydration.ts";
+export { dehydrateDecisions, hydrateDecisions } from "./HydrationEngine.ts";
 export type {
-  AllowDisclosure,
-  ClientDecision,
-  DecisionEntry,
   DehydrateOptions,
   DehydratedDecisions,
   DehydratedEntry,
-  DenyDisclosure,
   HydrateOptions,
-  HydrationDrop,
-  HydrationDropReporter,
-  SeededDecision,
-} from "./Hydration.ts";
+} from "./HydrationEngine.ts";
+export type { DecisionEntry } from "./HydrationEvent.ts";
 export { makeQadiAtoms } from "./QadiAtoms.ts";
 export type {
   AskedQuestion,
@@ -70,6 +58,13 @@ export type {
   QadiContextValue,
   QadiProviderProps,
 } from "./QadiProvider.tsx";
+export { SeededAllow, SeededDeny, isSeeded, permits } from "./SeededDecision.ts";
+export type {
+  AllowDisclosure,
+  ClientDecision,
+  DenyDisclosure,
+  SeededDecision,
+} from "./SeededDecision.ts";
 export { Can, Cannot } from "./components.tsx";
 export type { CanProps, CannotProps, DeniedNode } from "./components.tsx";
 export {

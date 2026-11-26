@@ -1040,7 +1040,7 @@ const AUDIT_HAND_LAYER = /\bLayer\.(succeed|sync|effect)\(\s*Audit(Trail|Staging
 // from "..."` renaming, where a multi-line named-import list can put the
 // rename on a continuation line the start-of-statement regex never sees on
 // its own — is real too (`Policy as PolicySchema` in
-// `packages/react/src/Hydration.ts`), just far less visible than the first.
+// `packages/react/src/HydrationEngine.ts`), just far less visible than the first.
 // So this is tracked as a small span, like the block-comment state below:
 // once a line opens an import or re-export-from clause, every line up to and
 // including the one closing it is exempt from no-type-assertion specifically

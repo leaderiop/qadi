@@ -6,8 +6,8 @@
  */
 import { EvaluationServicesNone, MAX_DECODE_DEPTH, makeSubject } from "@qadi/core";
 import { describe, expect, it } from "vitest";
-import { hydrateDecisions } from "../src/Hydration.ts";
-import type { HydrationDrop } from "../src/Hydration.ts";
+import type { HydrationDrop } from "../src/DeveloperSignals.ts";
+import { hydrateDecisions } from "../src/HydrationEngine.ts";
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 
 const alice = makeSubject({ id: "u1", permissions: ["doc:read"] });

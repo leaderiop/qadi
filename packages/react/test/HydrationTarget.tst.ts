@@ -9,7 +9,7 @@
 import { expect, test } from "tstyche";
 import type { AuthSubject } from "@qadi/core";
 import type { DehydratedDecisions, HydrateOptions, InitialValues } from "../src/HydrationEngine.ts";
-import { hydrateDecisions } from "../src/Hydration.ts";
+import { hydrateDecisions } from "../src/HydrationEngine.ts";
 import type { QadiAtoms } from "../src/QadiAtoms.ts";
 
 type Written = (

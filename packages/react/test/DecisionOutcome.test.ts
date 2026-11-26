@@ -39,7 +39,7 @@ import * as FastCheck from "fast-check";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DecisionOutcome, DecisionResult } from "../src/DecisionOutcome.ts";
 import { currentDecision, outcomeOf } from "../src/DecisionOutcome.ts";
-import { dehydrateDecisions, hydrateDecisions } from "../src/Hydration.ts";
+import { dehydrateDecisions, hydrateDecisions } from "../src/HydrationEngine.ts";
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 import type { ClientDecision } from "../src/SeededDecision.ts";
 import { SeededAllow, SeededDeny, permits } from "../src/SeededDecision.ts";

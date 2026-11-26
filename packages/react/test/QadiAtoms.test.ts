@@ -27,7 +27,7 @@ import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as Atom from "effect/reactivity/Atom";
 import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { dehydrateDecisions } from "../src/Hydration.ts";
+import { dehydrateDecisions } from "../src/HydrationEngine.ts";
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 import { permits } from "../src/SeededDecision.ts";
 import { collect } from "./support/collect.ts";
