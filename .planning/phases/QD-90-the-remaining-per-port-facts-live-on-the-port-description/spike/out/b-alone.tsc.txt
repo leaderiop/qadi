@@ -1,0 +1,3 @@
+# exit 2
+packages/core/src/index.ts(42,1): error TS2308: Module "./PortName.ts" has already exported a member named 'PortSpanName'. Consider explicitly re-exporting to resolve the ambiguity.
+packages/core/src/index.ts(42,1): error TS2308: Module "./PortName.ts" has already exported a member named 'PortSpanOf'. Consider explicitly re-exporting to resolve the ambiguity.

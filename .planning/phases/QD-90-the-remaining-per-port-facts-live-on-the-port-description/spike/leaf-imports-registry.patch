@@ -1,0 +1,16 @@
+diff --git a/packages/core/src/PortName.ts b/packages/core/src/PortName.ts
+index 78b0fa56..d70d647c 100644
+--- a/packages/core/src/PortName.ts
++++ b/packages/core/src/PortName.ts
+@@ -16,6 +16,11 @@
+  * here, never the reverse, so a metric's registry key (ADR-QD-052) cannot move
+  * with a port's identity.
+  */
++import type { PortTypes } from "./Ports.ts";
++
++/** The registry's keys: the form a leaf must not take. */
++export type RegistryPortName = keyof PortTypes;
++
+ interface PortSpans {
+   readonly AttributeResolver: "qadi.attribute";
+   readonly DecisionHistory: "qadi.acted";

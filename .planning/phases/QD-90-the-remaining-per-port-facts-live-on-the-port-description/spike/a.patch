@@ -1,0 +1,121 @@
+diff --git a/packages/core/src/PortMetrics.ts b/packages/core/src/PortMetrics.ts
+index e3392bb9..a4b9fe5a 100644
+--- a/packages/core/src/PortMetrics.ts
++++ b/packages/core/src/PortMetrics.ts
+@@ -45,27 +45,9 @@
+  * only guard. Every `qadi_*` metric is declared once (ADR-QD-123).
+  */
+ import * as Metric from "effect/Metric";
+-import * as Record from "effect/Record";
++import { PORT_NAMES } from "./PortName.ts";
+ import type { PortName } from "./PortName.ts";
+ 
+-/**
+- * Every port's name, as the `Record<PortName, true>` idiom the policy tag list
+- * used before it was derived: TypeScript requires every key of `PortName`
+- * (`PortName.ts`) to be present (TS2741 otherwise), so a sixth port added to
+- * the evaluator without a matching entry here is a compile error rather than an
+- * unregistered word silently missing from a snapshot.
+- */
+-const PORT_NAMES_BY_NAME: Record<PortName, true> = {
+-  AttributeResolver: true,
+-  DecisionHistory: true,
+-  RelationshipResolver: true,
+-  CustomPredicate: true,
+-  SignatureHistory: true,
+-};
+-
+-/** `PORT_NAMES_BY_NAME`'s keys, in the array form `preregisteredWords` takes. */
+-const PORT_NAMES: ReadonlyArray<PortName> = Record.keys(PORT_NAMES_BY_NAME);
+-
+ /**
+  * Every call the evaluator made into a port, by which port.
+  *
+@@ -144,16 +126,13 @@ export const servedPortCallsTotal = Metric.frequency("qadi_port_served_calls_tot
+  * `PortAccess.ts`'s signatures, rather than a word silently missing from this
+  * metric.
+  */
+-export type PredicatePortName = "AttributeResolver" | "DecisionHistory";
+-
+-const PREDICATE_PORT_NAMES_BY_NAME: Record<PredicatePortName, true> = {
+-  AttributeResolver: true,
+-  DecisionHistory: true,
+-};
++export type PredicatePortName = (typeof PREDICATE_PORT_NAMES)[number];
+ 
+-const PREDICATE_PORT_NAMES: ReadonlyArray<PredicatePortName> = Record.keys(
+-  PREDICATE_PORT_NAMES_BY_NAME,
+-);
++/** {@link PredicatePortName}'s names, in the order {@link predicatePortCallsTotal} preregisters them. */
++const PREDICATE_PORT_NAMES = [
++  "AttributeResolver",
++  "DecisionHistory",
++] as const satisfies ReadonlyArray<PortName>;
+ 
+ /**
+  * Every call `toPredicate` made into a port, by which port.
+diff --git a/packages/core/src/PortName.ts b/packages/core/src/PortName.ts
+index 78b0fa56..1a4c7f59 100644
+--- a/packages/core/src/PortName.ts
++++ b/packages/core/src/PortName.ts
+@@ -1,10 +1,11 @@
+ /**
+- * A port's identity: its name and the span its read opens, stated once.
++ * A port's identity: its name and the span its read opens, each stated once.
+  *
+- * Both unions were declared in `PortMetrics.ts`, so every port module imported
+- * what a port *is* from the module that counts what it *did* (ARCH-77). They
+- * are read from one table here instead: a sixth port is one row, and its name
+- * and its span cannot be added separately and drift apart.
++ * The names are one tuple, {@link PORT_NAMES}, and {@link PortName} is its
++ * element type, so the list a metric preregisters (`PortMetrics.ts`) and the
++ * union every registry-indexed type reads cannot disagree. Both were declared
++ * in `PortMetrics.ts` before, so every port module imported what a port *is*
++ * from the module that counts what it *did* (ARCH-77).
+  *
+  * `PortSpans` is not exported, so no other module can augment it and the union
+  * stays closed. `PortDescription.span` is {@link PortSpanOf}, so a description
+@@ -12,9 +13,9 @@
+  * {@link PortSpanName} union, and `attributeResolverPort` could have claimed
+  * `"qadi.acted"` and compiled.
+  *
+- * A leaf: no imports, no metric. `PortMetrics.ts` imports the name type from
+- * here, never the reverse, so a metric's registry key (ADR-QD-052) cannot move
+- * with a port's identity.
++ * A leaf: no imports, no metric. `PortMetrics.ts` imports the tuple from here,
++ * never the reverse, so a metric's registry key (ADR-QD-052) cannot move with a
++ * port's identity.
+  */
+ interface PortSpans {
+   readonly AttributeResolver: "qadi.attribute";
+@@ -26,14 +27,24 @@ interface PortSpans {
+ 
+ /**
+  * Every port the evaluator's walk (`Walk.ts`, through `PortAccess.ts`) can call
+- * into: the closed domain of `portCallsTotal`, `portRetriesTotal` and
+- * `portTimeoutsTotal`.
++ * into, in the order the registry and its tables list them: the closed domain
++ * of `portCallsTotal`, `portRetriesTotal` and `portTimeoutsTotal`.
+  *
+- * `PORT_NAMES_BY_NAME` (`PortMetrics.ts`) is a `Record<PortName, true>`, so a
+- * sixth port added here without a matching entry there is a compile error
+- * (TS2741) rather than an unregistered word silently missing from a snapshot.
++ * A tuple and not a record, so a sixth name is one edit here and the metric
++ * domain follows it. A registry-indexed type (`PortTypes`, `PortSpans`) then
++ * has no entry for it, which is a compile error at each place a port's fact
++ * is still missing.
+  */
+-export type PortName = keyof PortSpans;
++export const PORT_NAMES = [
++  "AttributeResolver",
++  "DecisionHistory",
++  "RelationshipResolver",
++  "CustomPredicate",
++  "SignatureHistory",
++] as const;
++
++/** One port's name: an element of {@link PORT_NAMES}. */
++export type PortName = (typeof PORT_NAMES)[number];
+ 
+ /**
+  * The span port `N`'s read opens: one per port, and no other port's.

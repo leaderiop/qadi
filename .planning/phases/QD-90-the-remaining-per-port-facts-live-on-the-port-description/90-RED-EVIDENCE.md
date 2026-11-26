@@ -785,3 +785,80 @@ Each block below is one run of a phase check or a held mutation mode on a scratc
 - exit: 1
 - seen failing: a scoped read requires an id exactly where its leaf's row says a ByScope leaf's judgement refuses exactly when its read does
 - failing text: AssertionError: HasSignature[Resource] none: expected false to equal true
+
+## registry-leaf-imports-registry
+- scratch: spike-leaf-imports-registry at 8ae31ae12e
+- edit: PortName.ts imports ./Ports.ts
+- diff: 0b8dee53b5903fb932783ae6d051ea6281d80c72ad5370dd31a3235034f91569 (1 files, +5 -0)
+- run: circular
+- exit: 1
+- failing text: 1) core/src/PortDerivation.ts > core/src/PortDefault.ts > core/src/PortName.ts > core/src/Ports.ts > core/src/AttributeResolver.ts
+- failing text: 2) core/src/PortDefault.ts > core/src/PortName.ts > core/src/Ports.ts > core/src/AttributeResolver.ts > core/src/PortDescription.ts
+- failing text: 3) core/src/PortName.ts > core/src/Ports.ts > core/src/AttributeResolver.ts > core/src/PortDescription.ts
+
+## sixth-port base
+- scratch: sixth-base at 46174873c6
+- edit: a sixth PortSpans row FakePort: "qadi.fake"
+- tsc: packages/core/src/PortAccess.ts TS2536 x8
+- tsc: packages/core/src/PortMetrics.ts TS2741 x1
+- tsc: packages/core/src/PortRemote.ts TS2536 x4
+- tsc: packages/core/src/PortServing.ts TS2344 x1
+- tsc: packages/core/src/PortServing.ts TS2536 x1
+- tsc: packages/core/src/Ports.ts TS2379 x1
+- tsc: packages/core/src/Ports.ts TS2536 x17
+- tsc: packages/core/src/Ports.ts TS2741 x2
+- tsc: packages/core/src/Ports.ts TS377004 x1
+- tsc: packages/devtools/src/model/Capture.ts TS2536 x2
+- tsc: packages/devtools/src/model/PortCalls.ts TS2741 x1
+- tsc: packages/devtools/src/model/PortCards.ts TS2345 x1
+- tsc: packages/devtools/src/model/PortReading.ts TS2741 x1
+- tsc: packages/devtools/src/model/SimulationFields.ts TS2536 x2
+- tsc: packages/devtools/src/model/SimulationFields.ts TS2741 x1
+- tsc: packages/devtools/src/model/SimulationSource.ts TS2536 x2
+- tsc: packages/devtools/src/model/SimulationSource.ts TS2741 x1
+- tsc: packages/http/src/PortRoutes.ts TS2322 x1
+- tsc: packages/http/src/PortRoutes.ts TS2345 x1
+- tsc: packages/http/src/PortRoutes.ts TS2536 x1
+- tsc: packages/http/src/PortRoutes.ts TS377004 x1
+- tsc: packages/testing/src/QadiReviewLayer.ts TS2536 x2
+- errors: 53
+- groups: 22
+
+## sixth-port close (spike: end)
+- scratch: sixth-close-spike at 8ae31ae12e
+- edit: "FakePort" appended to PORT_NAMES
+- tsc: packages/core/src/PortAccess.ts TS2345 x1
+- tsc: packages/core/src/PortAccess.ts TS2536 x10
+- tsc: packages/core/src/PortRemote.ts TS2345 x1
+- tsc: packages/core/src/PortRemote.ts TS2536 x4
+- tsc: packages/core/src/PortServing.ts TS2344 x1
+- tsc: packages/core/src/PortServing.ts TS2536 x1
+- tsc: packages/core/src/Ports.ts TS2344 x1
+- tsc: packages/core/src/Ports.ts TS2379 x1
+- tsc: packages/core/src/Ports.ts TS2536 x20
+- tsc: packages/core/src/Ports.ts TS2741 x1
+- tsc: packages/core/src/Ports.ts TS2769 x1
+- tsc: packages/core/src/Ports.ts TS377004 x1
+- tsc: packages/devtools/src/model/Capture.ts TS2345 x1
+- tsc: packages/devtools/src/model/Capture.ts TS2536 x2
+- tsc: packages/devtools/src/model/PortCalls.ts TS2322 x1
+- tsc: packages/devtools/src/model/PortCalls.ts TS2741 x1
+- tsc: packages/devtools/src/model/PortCards.ts TS2345 x1
+- tsc: packages/devtools/src/model/PortReading.ts TS2741 x1
+- tsc: packages/devtools/src/model/SimulationFields.ts TS2741 x1
+- tsc: packages/devtools/src/model/SimulationSource.ts TS2741 x1
+- tsc: packages/http/src/PortRoutes.ts TS2322 x1
+- tsc: packages/http/src/PortRoutes.ts TS2345 x1
+- tsc: packages/http/src/PortRoutes.ts TS2536 x1
+- tsc: packages/http/src/PortRoutes.ts TS377004 x1
+- tsc: packages/testing/src/QadiReviewLayer.ts TS2536 x1
+- errors: 57
+- groups: 25
+
+## sixth-port-base-group-missing
+- scratch: sixth-seen at 8ae31ae12e
+- edit: the recorded base set without its PortMetrics.ts group
+- diff: 5dcac5386def967f6996c3ea2c2d2200d61ece653ad2692b37636b9a9d6d4da0 (1 files, +68 -0)
+- run: script 90-check.mjs sixth-port base
+- exit: 1
+- failing text: a group the record lacks: packages/core/src/PortMetrics.ts TS2741

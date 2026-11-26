@@ -1,0 +1,29 @@
+diff --git a/packages/core/src/PortServing.ts b/packages/core/src/PortServing.ts
+index 36987d7e..a07a6e35 100644
+--- a/packages/core/src/PortServing.ts
++++ b/packages/core/src/PortServing.ts
+@@ -27,6 +27,7 @@
+  * cycle.
+  */
+ import type { PortName } from "./PortName.ts";
++import type { PortTypes } from "./Ports.ts";
+ 
+ /**
+  * What a host agrees to answer, port by port.
+@@ -40,13 +41,9 @@ import type { PortName } from "./PortName.ts";
+  * (INV-QD-044). The signature port answers full `Signature` records — more than
+  * evaluation reads — so serving it is an explicit one-member opt-in.
+  */
+-export interface PortServing {
+-  readonly AttributeResolver?: { readonly attributes: ReadonlyArray<string> } | undefined;
+-  readonly RelationshipResolver?: { readonly relations?: ReadonlyArray<string> | undefined } | undefined;
+-  readonly DecisionHistory?: { readonly events?: ReadonlyArray<string> | undefined } | undefined;
+-  readonly CustomPredicate?: { readonly names: ReadonlyArray<string> } | undefined;
+-  readonly SignatureHistory?: { readonly signatures: "own-records" } | undefined;
+-}
++export type PortServing = {
++  readonly [K in PortName]?: Parameters<PortTypes[K]["serving"]["admitted"]>[0] | undefined;
++};
+ 
+ /** The serving declaration of the one port named `K`. */
+ export type PortServingOf<K extends PortName> = NonNullable<PortServing[K]>;

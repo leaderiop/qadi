@@ -1,0 +1,10 @@
+# exit 0
+
+> qadi-monorepo@0.4.0 circular /private/var/folders/vn/44p0pxgs4z98v7cl11l4_r4c0000gp/T/qd90/spike-abcd
+> madge --circular --extensions ts,tsx packages/*/src
+
+- Finding files
+Processed 251 files (824ms) (68 warnings)
+
+✔ No circular dependency found!
+

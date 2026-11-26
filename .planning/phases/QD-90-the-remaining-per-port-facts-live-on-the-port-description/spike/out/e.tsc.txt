@@ -1,0 +1,6 @@
+# exit 2
+packages/core/src/PortRemote.ts(60,82): error TS2315: Type 'PortServingOf' is not generic.
+packages/core/src/PortServing.ts(49,13): error TS2456: Type alias 'PortServingOf' circularly references itself.
+packages/core/src/PortServing.ts(86,35): error TS2315: Type 'PortServingOf' is not generic.
+packages/core/src/PortServing.ts(98,23): error TS2502: 'declaration' is referenced directly or indirectly in its own type annotation.
+packages/core/src/PortServing.ts(98,36): error TS2315: Type 'PortServingOf' is not generic.
