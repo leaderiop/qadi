@@ -14,7 +14,7 @@
  * publishable with exactly one of the two tools, and nothing recorded which
  * (ADR-QD-033).
  *
- * Six checks, in order of what they would catch:
+ * Seven checks, in order of what they would catch:
  *
  *   0. build    — every public package is referenced by `tsconfig.build.json`,
  *                 *and* by the root `tsconfig.json` (the typecheck graph)
@@ -23,8 +23,15 @@
  *   3. runtime  — each entry point imports through that map and has exports
  *   3b. closed  — no wildcard subpath; every declared subpath imports and every
  *                 other `lib/` module is refused with ERR_PACKAGE_PATH_NOT_EXPORTED
+ *   3c. escape  — no packed .d.ts names a path outside its package or into src/
  *   4. consumer — a TypeScript consumer type-checks against the shipped
  *                 `.d.ts` and then authorizes correctly when run
+ *
+ * Check 3c reads the packed declarations, not the sources: a dependent's inferred type can name a path
+ * (`import("../../core/src/Decision.ts").Trace`) that installs and then resolves into whatever sits beside the
+ * package. It strips comments before it looks, because built declarations carry `../../` in doc comments, and keeps
+ * `/// <reference>` lines, which are directives; the rule and its planted self-check are in
+ * `scripts/lib/declaration-escape.mjs`.
  *
  * Check 0 looks redundant beside check 2 and is not, which is why it is first.
  * `tsconfig.build.json` omitted `packages/promise` from the day the facade
@@ -79,6 +86,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { declarationEscapes, ESCAPE_SELF_CHECK, runEscapeSelfCheck } from "./lib/declaration-escape.mjs";
 import {
   failureCause,
   installedTypescriptVersion,
@@ -471,6 +479,42 @@ try {
   for (const problem of JSON.parse(output.trim().split("\n").at(-1) ?? "[]")) fail(problem);
 } catch (error) {
   fail(`probing the entry-point list failed:\n${why(error)}`);
+}
+
+// ---------------------------------------------------------------------------
+// Check 3c — no packed declaration escapes its package.
+//
+// The function judges the text; its planted cases run first, every time, so a
+// rule that stopped matching cannot pass a clean tree by finding nothing.
+// ---------------------------------------------------------------------------
+
+for (const label of runEscapeSelfCheck()) {
+  fail(`[escape-self-check] planted case "${label}" was not judged as planted (${ESCAPE_SELF_CHECK.length} cases)`);
+}
+
+const declarationFiles = (root, rel = "") =>
+  readdirSync(join(root, rel), { withFileTypes: true }).flatMap((entry) => {
+    const next = rel === "" ? entry.name : `${rel}/${entry.name}`;
+    if (entry.isDirectory()) return entry.name === "node_modules" ? [] : declarationFiles(root, next);
+    return entry.name.endsWith(".d.ts") ? [next] : [];
+  });
+
+let declarationsRead = 0;
+let escapes = 0;
+for (const { name, target } of installed) {
+  for (const rel of declarationFiles(target)) {
+    declarationsRead += 1;
+    for (const reason of declarationEscapes(target, rel, readFileSync(join(target, rel), "utf8"))) {
+      escapes += 1;
+      fail(`${name}/${rel}: ${reason}`);
+    }
+  }
+}
+if (declarationsRead === 0) fail("declaration escape check read no packed .d.ts file");
+else if (escapes === 0) {
+  console.log(
+    `declaration escape check: ${declarationsRead} packed .d.ts file(s), none names a path outside its package or into src/`,
+  );
 }
 
 // ---------------------------------------------------------------------------
