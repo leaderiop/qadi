@@ -1871,9 +1871,11 @@ const ruleMode = () => {
   return done(bad, "rule: the named-barrel rule governs the five barrels and no live old rule name remains");
 };
 
+/** The pathspecs of what edits a public package: a file under `src/` (a trailing `/*`, because a glob pathspec does not take a directory's contents), its README or its manifest. */
+export const EDITED_PATHSPECS = ["packages/*/src/*", "packages/*/README.md", "packages/*/package.json"];
 const editedPublicPackages = (base) => {
   const names = new Set();
-  const paths = git("diff", "--name-only", base, "HEAD", "--", "packages/*/src", "packages/*/README.md", "packages/*/package.json").split("\n").filter((p) => p !== "");
+  const paths = git("diff", "--name-only", base, "HEAD", "--", ...EDITED_PATHSPECS).split("\n").filter((p) => p !== "");
   for (const dir of new Set(paths.map((p) => p.split("/")[1]))) {
     const manifest = maybe(`packages/${dir}/package.json`);
     if (manifest === undefined) continue;
@@ -2317,6 +2319,23 @@ it("has \\"quotes\\"", () => {});`;
     variantAt(clone, ev, "L-fail2", "script", ["fail.mjs"], "again");
     const later = readText(ev);
     eq("a later block is appended after the earlier one, which stays byte for byte", [later.startsWith(text), later.indexOf("## L-fail2") > later.indexOf("## L-fail")], [true, true]);
+    // The pathspecs that say which packages a range edited, over a planted repository with a nested source file.
+    const edits = join(tmp, "edits");
+    mkdirSync(join(edits, "packages", "core", "src", "deep"), { recursive: true });
+    mkdirSync(join(edits, "packages", "http", "test"), { recursive: true });
+    const e = (...a) => gitIn(edits, ...a);
+    e("init", "-q");
+    e("config", "user.email", "t@example.com");
+    e("config", "user.name", "t");
+    writeFileSync(join(edits, "packages", "http", "test", "a.ts"), "a\n");
+    e("add", ".");
+    e("-c", "commit.gpgsign=false", "commit", "-q", "-m", "init");
+    const editsBase = e("rev-parse", "HEAD").trim();
+    writeFileSync(join(edits, "packages", "core", "src", "deep", "b.ts"), "b\n");
+    writeFileSync(join(edits, "packages", "http", "test", "a.ts"), "a2\n");
+    e("add", ".");
+    e("-c", "commit.gpgsign=false", "commit", "-q", "-m", "edit");
+    eq("a nested source file edits its package, and a test file does not", e("diff", "--name-only", editsBase, "HEAD", "--", ...EDITED_PATHSPECS).split("\n").filter((p) => p !== ""), ["packages/core/src/deep/b.ts"]);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
