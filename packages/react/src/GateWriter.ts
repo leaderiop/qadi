@@ -116,11 +116,36 @@ export interface GateWriter {
 }
 
 /**
- * The read side of a gate registry.
+ * The read side of a gate registry: every live guard under one atom set, while
+ * instrumentation is on.
  *
  * Both members are plain functions with stable identity, safe to pass straight
  * to `useSyncExternalStore`. The write side is not on this interface: only
  * `@qadi/react` can reach it.
+ *
+ * This is the thing [BEH-QD-217](../../../spec/behaviors/28-devtools-screens.md)
+ * said could not exist, and the reasoning it gave was sound as far as it went:
+ * `Atom.family` keys **structurally**, so ten `<Can policy={isAdmin}>` in
+ * different places share one atom, and a panel counting atoms cannot tell them
+ * apart. What that argument establishes is that the *atom layer* cannot see
+ * instances, not that nothing can. A component knows perfectly well that it
+ * exists; nothing was asking it.
+ *
+ * So the two views are different questions rather than rival answers:
+ * `QadiAtoms.asked()` says what has been **asked**, and `QadiAtoms.gates` says
+ * who is **asking**. Both belong to the atom set, so they share one scope and one
+ * lifetime ([ADR-QD-080](../../../spec/decisions/080-a-gate-registry-belongs-to-its-atom-set.md),
+ * which moved this out of module scope).
+ *
+ * **No React state, and no decisions here.** A registration is a `useEffect` call
+ * on a handle into closure state — nothing re-renders because a guard registered,
+ * and nothing in this file can affect what a guard renders (AGENTS.md §13). The
+ * registry is plain closure state, never an `Atom` in an `AtomRegistry`, so it
+ * stays away from the scheduler knobs ADR-QD-014 fences off.
+ *
+ * **Off by default, and off means absent.** `QadiProvider` takes `instrument`,
+ * and without it no guard registers, no marker element is rendered, and a
+ * registry stays empty for the life of its atom set.
  */
 export interface GateRegistry {
   /** Every instance currently mounted, in registration order. Same reference until a change. */
@@ -371,39 +396,7 @@ export const reconcile = (
 // The public constructor
 // ---------------------------------------------------------------------------
 
-/*
- * Every live guard under one atom set, while instrumentation is on.
- *
- * This is the thing [BEH-QD-217](../../../spec/behaviors/28-devtools-screens.md)
- * said could not exist, and the reasoning it gave was sound as far as it went:
- * `Atom.family` keys **structurally**, so ten `<Can policy={isAdmin}>` in
- * different places share one atom, and a panel counting atoms cannot tell them
- * apart. What that argument establishes is that the *atom layer* cannot see
- * instances, not that nothing can. A component knows perfectly well that it
- * exists; nothing was asking it.
- *
- * So the two views are different questions rather than rival answers:
- * `QadiAtoms.asked()` says what has been **asked**, and `QadiAtoms.gates` says
- * who is **asking**. Both belong to the atom set, so they share one scope and one
- * lifetime ([ADR-QD-080](../../../spec/decisions/080-a-gate-registry-belongs-to-its-atom-set.md),
- * which moved this out of module scope).
- *
- * **No React state, and no decisions here.** A registration is a `useEffect` call
- * on a handle into closure state — nothing re-renders because a guard registered,
- * and nothing in this file can affect what a guard renders (AGENTS.md §13). The
- * registry is plain closure state, never an `Atom` in an `AtomRegistry`, so it
- * stays away from the scheduler knobs ADR-QD-014 fences off.
- *
- * **Off by default, and off means absent.** `QadiProvider` takes `instrument`,
- * and without it no guard registers, no marker element is rendered, and a
- * registry stays empty for the life of its atom set.
- *
- * The store itself is `buildGateRegistry`, above, which is where its contract lives
- * (ordering, synchrony, how a colliding id is disambiguated). `makeGateRegistry` hands
- * it a collision reporter resolved under `onIdCollision`, and an atom set hands it one
- * resolved under its own option, so each names the option its caller passes.
- */
-
+/** What {@link makeGateRegistry} takes: how a colliding id is reported. */
 export interface GateRegistryOptions {
   /**
    * Told once per id when two live registrations minted the same one.
@@ -421,6 +414,11 @@ export interface GateRegistryOptions {
  * Every atom set builds its own (`QadiAtoms.gates`); call this directly only to
  * hand `QadiProvider` one registry for several atom sets, and build it once, at
  * module scope, like `makeQadiAtoms`.
+ *
+ * The store itself is `buildGateRegistry`, which is where its contract lives
+ * (ordering, synchrony, how a colliding id is disambiguated). This hands it a
+ * collision reporter resolved under `onIdCollision`, and an atom set hands it one
+ * resolved under its own option, so each names the option its caller passes.
  */
 export const makeGateRegistry = (options?: GateRegistryOptions): GateRegistry =>
   buildGateRegistry(
