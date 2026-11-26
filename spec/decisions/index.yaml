@@ -634,3 +634,7 @@ entries:
     file: "201-a-stop-notices-box-keys-itself-and-owns-the-announce-once-rule.md"
     title: "A stop notice's box keys itself and owns the announce-once rule"
     status: "Accepted — amends ADR-QD-197"
+  - id: "ADR-QD-202"
+    file: "202-one-admission-step-for-a-hosts-audit-batch.md"
+    title: "One admission step for a host's audit batch"
+    status: "Accepted — amends ADR-QD-190 and ADR-QD-110"
