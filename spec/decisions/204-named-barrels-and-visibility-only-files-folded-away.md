@@ -159,7 +159,7 @@ react's built declaration. It landed before any barrel was rewritten, because a 
 
 ## What enforces it
 
-In `pnpm check`:
+These run in `pnpm check`:
 
 - `named-barrel` and `[named-barrel-self-test]`, through `node scripts/check-house-style.mjs`: one rule over the five barrels
   `packages/audit/src/index.ts`, `packages/core/src/index.ts`, `packages/devtools/src/index.ts`,
@@ -178,7 +178,7 @@ In `pnpm check`:
 - `node scripts/surface-diff.mjs --self-test`, as `surface:self-test`: the surface tool refuses each defect it exists to see.
 - `pnpm circular`: no fold left a cycle.
 
-Phase-local, run while the change was made and not part of `pnpm check`: the phase's own check judges (each barrel's shape
+These are phase-local, run while the change was made and not part of `pnpm check`: the phase's own check judges (each barrel's shape
 and every name's home and group, each fold as its commit with its structural block, the surface against the baseline, the
 changesets), the fold spike and its recorded patches, and the evidence of each check seen failing.
 
