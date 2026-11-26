@@ -12,7 +12,8 @@
  * `DeveloperSignals.ts` (whose `HydrationMismatch` names a `SeededDecision`):
  * declaring these in the engine would make the warning module import it back,
  * and madge counts that type-only edge as a cycle (ADR-QD-037). Not in the
- * barrel; `Hydration.ts` re-exports by name what a consumer may hold.
+ * barrel but for the names the root lists from it, which are what a consumer
+ * may hold.
  *
  * No `"use client"`: this must also run under a server render.
  */

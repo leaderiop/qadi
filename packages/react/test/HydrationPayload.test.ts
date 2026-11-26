@@ -30,11 +30,12 @@ import * as Effect from "effect/Effect";
 import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import * as FastCheck from "fast-check";
 import { describe, expect, it } from "vitest";
-import { dehydrateDecisions, hydrateDecisions, isSeeded, permits } from "../src/Hydration.ts";
-import type { HydrateOptions } from "../src/Hydration.ts";
-import type { DecisionEntry, HydrationDrop } from "../src/Hydration.ts";
+import type { HydrationDrop } from "../src/DeveloperSignals.ts";
+import type { HydrateOptions } from "../src/HydrationEngine.ts";
+import type { DecisionEntry } from "../src/HydrationEvent.ts";
+import { isSeeded, permits } from "../src/SeededDecision.ts";
 import { currentDecision } from "../src/DecisionOutcome.ts";
-import { PAYLOAD_PRODUCERS } from "../src/HydrationEngine.ts";
+import { PAYLOAD_PRODUCERS, dehydrateDecisions, hydrateDecisions } from "../src/HydrationEngine.ts";
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
 
 const read = hasPermission(permission("doc", "read"));

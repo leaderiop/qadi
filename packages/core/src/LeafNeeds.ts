@@ -42,9 +42,11 @@ export interface LeafNeed {
   /** Whether its matcher is asked what it references; checked after `own`. */
   readonly matcher: boolean;
   /**
-   * Whether it asks a port about one resource. Declarative: `readScoped` enforces
-   * the need and does not read this column; the type ties it to the leaf's tag and
-   * `LeafNeeds.test.ts` ties it to what `readScoped` does.
+   * Whether it asks a port about one resource: `"Always"` needs an id, `"ByScope"`
+   * needs one when the leaf's `scope` names a resource, `"Never"` asks no port
+   * about one. `PortAccess.ts` reads this column by type: the rows of a port's
+   * leaves compute its entry's `need`, which `readScoped` narrows on, and the type
+   * ties the row to the leaf's tag.
    */
   readonly resourceId: "Never" | "Always" | "ByScope";
 }
@@ -219,10 +221,8 @@ export function absenceOf(
   leaf: LeafPolicy,
   supplied: Supplied,
 ): ActionAbsence | ResourceAbsence | undefined {
+  if (isActionLeaf(leaf) && !supplied.action) return { _tag: "Action", expected: leaf.action };
   const need = LEAF_NEEDS[leaf._tag];
-  if (need.own === "Action" && !supplied.action) {
-    return isActionLeaf(leaf) ? { _tag: "Action", expected: leaf.action } : MISSING_ACTION;
-  }
   if (isMatcherLeaf(leaf)) {
     if (need.own === "Resource" && !supplied.resource) {
       return { _tag: "Resource", attribute: leaf.attribute };

@@ -1,0 +1,1 @@
+No external API integration: an internal refactor of `@qadi/react` that moves the provider registry's lifetime into a package-private module over the already-installed `effect/reactivity` `AtomRegistry`; no third-party API, SDK, service or package is added (the detector over the ROADMAP entry and 86-CONTEXT.md returned `detected: false`).

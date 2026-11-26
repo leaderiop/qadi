@@ -13,7 +13,8 @@
 import { assert, describe, it } from "@effect/vitest";
 import { act, render, screen } from "@testing-library/react";
 import { hasPermission, hasRole } from "@qadi/core";
-import type { HydrationActivity } from "../../src/model/Hydration.ts";
+import { HydrationView } from "../../src/model/HydrationView.ts";
+import type { ReadableStore } from "../../src/model/ExternalStore.ts";
 import { QuestionsPanel } from "../../src/react/QuestionsPanel.tsx";
 import type { AskedQuestionLike } from "../../src/react/QuestionsPanel.tsx";
 import { liveNotice, read } from "../helpers.ts";
@@ -100,98 +101,132 @@ describe("the questions panel", () => {
     });
   });
 
-  describe("hydration, read from the metrics", () => {
-    const reading = (fields: Partial<HydrationActivity>): HydrationActivity => ({
-      dehydrated: 0,
-      seeded: 0,
-      rechecked: 0,
-      mismatched: 0,
-      drops: [],
-      ...fields,
+  describe("hydration, rendered from its view", () => {
+    // The view is written out by hand, as `questionsPanelInput.ts` writes out its snapshot: a
+    // panel test that built it with `hydrationView` would take a defect there as input. The
+    // drops are tagged literals for the same reason, and `HydrationView.Counts` types them.
+    const storeOf = (view: HydrationView): ReadableStore<HydrationView> => ({
+      subscribe: () => () => {},
+      getSnapshot: () => view,
     });
 
-    it("shows all four counts", () => {
+    it("renders a view still waiting for its first sample as no counts read yet", () => {
       render(
         <QuestionsPanel diagnostics={liveNotice}
           {...panelInput({ questions: [] })}
-          hydration={reading({ dehydrated: 12, seeded: 10, rechecked: 8, mismatched: 1 })}
+          hydration={storeOf(HydrationView.Pending())}
         />,
       );
 
-      assert.include(screen.getByTestId("qadi-hydration-dehydrated").textContent ?? "", "12");
-      assert.include(screen.getByTestId("qadi-hydration-seeded").textContent ?? "", "10");
-      assert.include(screen.getByTestId("qadi-hydration-rechecked").textContent ?? "", "8");
-      assert.include(screen.getByTestId("qadi-hydration-mismatched").textContent ?? "", "1");
+      assert.strictEqual(screen.getByTestId("qadi-hydration-pending").textContent, "no counts read yet.");
+      assert.isNull(screen.queryByTestId("qadi-hydration-unwired"));
     });
 
-    it("states the rate where anything was re-checked", () => {
-      render(<QuestionsPanel diagnostics={liveNotice} {...panelInput({ questions: [] })} hydration={reading({ rechecked: 4, mismatched: 1 })} />);
-      assert.include(screen.getByTestId("qadi-hydration-rate").textContent ?? "", "1 of 4");
+    it("renders an unwired view with the fix it names", () => {
+      render(
+        <QuestionsPanel diagnostics={liveNotice}
+          {...panelInput({ questions: [] })}
+          hydration={storeOf(HydrationView.Unwired())}
+        />,
+      );
+
+      assert.strictEqual(
+        screen.getByTestId("qadi-hydration-unwired").textContent,
+        "no counts read. Pass diagnostics={{}} to sample them, or hydration — the result of hydrationActivity, which needs no wiring — to fill this in.",
+      );
+      assert.isNull(screen.queryByTestId("qadi-hydration-pending"));
     });
 
-    it("offers no rate where nothing was re-checked", () => {
-      // "0 of 0 disagreed" is a sentence about nothing.
-      render(<QuestionsPanel diagnostics={liveNotice} {...panelInput({ questions: [] })} hydration={reading({ seeded: 3 })} />);
+    it("renders the four counts, the rate, each raised drop and the scope under their test ids", () => {
+      render(
+        <QuestionsPanel diagnostics={liveNotice}
+          {...panelInput({ questions: [] })}
+          hydration={storeOf(
+            HydrationView.Counts({
+              dehydrated: 12,
+              seeded: 10,
+              rechecked: 8,
+              mismatched: 1,
+              rate: "1 of 8 re-checked questions disagreed with the server.",
+              drops: {
+                _tag: "Raised",
+                rows: [{ reason: "UndecodablePolicy", count: 2, meaning: "usually version skew" }],
+              },
+              scope: "Process-wide totals, not this page's. 2 dehydrated entries have no seeding counted in this process.",
+            }),
+          )}
+        />,
+      );
+
+      assert.strictEqual(screen.getByTestId("qadi-hydration-dehydrated").textContent, "12dehydrated");
+      assert.strictEqual(screen.getByTestId("qadi-hydration-seeded").textContent, "10seeded");
+      assert.strictEqual(screen.getByTestId("qadi-hydration-rechecked").textContent, "8re-checked");
+      assert.strictEqual(screen.getByTestId("qadi-hydration-mismatched").textContent, "1mismatched");
+      assert.strictEqual(
+        screen.getByTestId("qadi-hydration-rate").textContent,
+        "1 of 8 re-checked questions disagreed with the server.",
+      );
+      assert.deepStrictEqual(
+        screen.getAllByTestId("qadi-hydration-drop").map((drop) => drop.textContent),
+        ["2UndecodablePolicy— usually version skew"],
+      );
+      assert.isNull(screen.queryByTestId("qadi-hydration-no-drops"));
+      assert.strictEqual(
+        screen.getByTestId("qadi-hydration-scope").textContent,
+        "Process-wide totals, not this page's. 2 dehydrated entries have no seeding counted in this process.",
+      );
+    });
+
+    it("renders a counts view with no rate as nothing dropped, without a rate line", () => {
+      render(
+        <QuestionsPanel diagnostics={liveNotice}
+          {...panelInput({ questions: [] })}
+          hydration={storeOf(
+            HydrationView.Counts({
+              dehydrated: 0,
+              seeded: 3,
+              rechecked: 0,
+              mismatched: 0,
+              rate: undefined,
+              drops: { _tag: "None", text: "Nothing was dropped. All 1 reasons are watched." },
+              scope: "Process-wide totals, not this page's. This process seeded more than it built, so it is a client reading payloads rendered elsewhere.",
+            }),
+          )}
+        />,
+      );
+
       assert.isNull(screen.queryByTestId("qadi-hydration-rate"));
-    });
-
-    it("says nothing was dropped, rather than leaving it blank", () => {
-      render(
-        <QuestionsPanel diagnostics={liveNotice}
-          {...panelInput({ questions: [] })}
-          hydration={reading({
-            seeded: 3,
-            drops: [{ reason: "ForeignSubject", count: 0, meaning: "mixed payload" }],
-          })}
-        />,
-      );
-      // An empty area reads as "not implemented"; this reads as "watched, and
-      // clean", which is the finding.
-      assert.include(screen.getByTestId("qadi-hydration-no-drops").textContent ?? "", "Nothing was dropped");
       assert.isNull(screen.queryByTestId("qadi-hydration-drops"));
+      assert.strictEqual(
+        screen.getByTestId("qadi-hydration-no-drops").textContent,
+        "Nothing was dropped. All 1 reasons are watched.",
+      );
     });
 
-    it("lists only the reasons that fired, with what each means", () => {
+    it("renders each drop's reason as text", () => {
       render(
         <QuestionsPanel diagnostics={liveNotice}
           {...panelInput({ questions: [] })}
-          hydration={reading({
-            drops: [
-              { reason: "ForeignSubject", count: 0, meaning: "mixed payload" },
-              { reason: "UndecodablePolicy", count: 2, meaning: "usually version skew" },
-            ],
-          })}
+          hydration={storeOf(
+            HydrationView.Counts({
+              dehydrated: 0,
+              seeded: 0,
+              rechecked: 0,
+              mismatched: 0,
+              rate: undefined,
+              drops: {
+                _tag: "Raised",
+                rows: [{ reason: "<b>bold</b>", count: 1, meaning: "<i>meaning</i>" }],
+              },
+              scope: "",
+            }),
+          )}
         />,
       );
 
-      const rows = screen.getAllByTestId("qadi-hydration-drop").map((row) => row.textContent ?? "");
-      assert.strictEqual(rows.length, 1);
-      assert.include(rows[0] ?? "", "UndecodablePolicy");
-      // The meaning, not just the count — a number alone is not a diagnosis.
-      assert.include(rows[0] ?? "", "version skew");
-    });
-
-    it("says the totals are process-wide before a reader subtracts them", () => {
-      render(<QuestionsPanel diagnostics={liveNotice} {...panelInput({ questions: [] })} hydration={reading({ dehydrated: 10, seeded: 4 })} />);
-      const scope = screen.getByTestId("qadi-hydration-scope").textContent ?? "";
-
-      assert.include(scope, "Process-wide");
-      assert.include(scope, "6 dehydrated entries");
-    });
-
-    it("does not report a negative shortfall in a browser", () => {
-      // A client seeds from payloads it did not build, so this is the ordinary
-      // case there rather than a fault to hunt.
-      render(<QuestionsPanel diagnostics={liveNotice} {...panelInput({ questions: [] })} hydration={reading({ dehydrated: 0, seeded: 4 })} />);
-      const scope = screen.getByTestId("qadi-hydration-scope").textContent ?? "";
-
-      assert.include(scope, "seeded more than it built");
-      assert.notInclude(scope, "-4");
-    });
-
-    it("reads naturally for a shortfall of one", () => {
-      render(<QuestionsPanel diagnostics={liveNotice} {...panelInput({ questions: [] })} hydration={reading({ dehydrated: 1, seeded: 0 })} />);
-      assert.include(screen.getByTestId("qadi-hydration-scope").textContent ?? "", "1 dehydrated entry ");
+      const drop = screen.getByTestId("qadi-hydration-drop");
+      assert.strictEqual(drop.textContent, "1<b>bold</b>— <i>meaning</i>");
+      assert.strictEqual(drop.querySelector("b, i"), null);
     });
   });
 

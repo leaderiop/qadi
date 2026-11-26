@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-163                                   |
-> | Revision       | 1.10                                            |
+> | Revision       | 1.11                                            |
 > | Effective Date | 2026-11-16                                     |
-> | Status         | Accepted — reads ADR-QD-024, ADR-QD-100, ADR-QD-134; applies ADR-QD-152; keeps ADR-QD-034, ADR-QD-073; amended 2026-11-19 (ADR-QD-172), 2026-11-23 (ADR-QD-189) |
+> | Status         | Accepted — reads ADR-QD-024, ADR-QD-100, ADR-QD-134; applies ADR-QD-152; keeps ADR-QD-034, ADR-QD-073; amended 2026-11-19 (ADR-QD-172), 2026-11-23 (ADR-QD-189), 2026-11-26 (ADR-QD-203) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.10 (2026-11-23): amended: ResourceIdAbsence is gone; readScoped builds MissingResourceId through requireResourceId (ADR-QD-189, CCR-QD-468)<br>1.9 (2026-11-19): amended: supplied is built once by admit from the row source (ADR-QD-172, ARCH-106, CCR-QD-450)<br>1.8 (2026-11-18): the verdict rows extend this ADR (ARCH-101, CCR-QD-445)<br>1.7 (2026-11-16): the leafHeavyPlain comment was corrected, comment-only (review iteration 2 IN-01)<br>1.6 (2026-11-16): a row's resourceId is classified by tag like its own, an unlisted tag gets never (review iteration 2 IN-02)<br>1.5 (2026-11-16): a leaf no own classification names has no row that compiles (review iteration 2 WR-01)<br>1.4 (2026-11-16): the leaf-heavy pair measures the table read on the present-inputs path, not a matcher-reference walk (review IN-04)<br>1.3 (2026-11-16): Context: the base's action test built MissingAction({}), its resource test MissingResource (review IN-01)<br>1.2 (2026-11-16): HasAttribute's outcome on a request missing both inputs depends on what its matcher references (review WR-03)<br>1.1 (2026-11-16): a row's own and matcher are derived from its leaf's variant (review WR-01)<br>1.0 (2026-11-16): Initial release (ARCH-97, CCR-QD-441) |
+> | Change History | 1.11 (2026-11-26): amended: the leaf-needs table routes the scoped read and a test holds the route equal to the rows and the judgements (ADR-QD-203, ARCH-137, CCR-QD-482)<br>1.10 (2026-11-23): amended: ResourceIdAbsence is gone; readScoped builds MissingResourceId through requireResourceId (ADR-QD-189, CCR-QD-468)<br>1.9 (2026-11-19): amended: supplied is built once by admit from the row source (ADR-QD-172, ARCH-106, CCR-QD-450)<br>1.8 (2026-11-18): the verdict rows extend this ADR (ARCH-101, CCR-QD-445)<br>1.7 (2026-11-16): the leafHeavyPlain comment was corrected, comment-only (review iteration 2 IN-01)<br>1.6 (2026-11-16): a row's resourceId is classified by tag like its own, an unlisted tag gets never (review iteration 2 IN-02)<br>1.5 (2026-11-16): a leaf no own classification names has no row that compiles (review iteration 2 WR-01)<br>1.4 (2026-11-16): the leaf-heavy pair measures the table read on the present-inputs path, not a matcher-reference walk (review IN-04)<br>1.3 (2026-11-16): Context: the base's action test built MissingAction({}), its resource test MissingResource (review IN-01)<br>1.2 (2026-11-16): HasAttribute's outcome on a request missing both inputs depends on what its matcher references (review WR-03)<br>1.1 (2026-11-16): a row's own and matcher are derived from its leaf's variant (review WR-01)<br>1.0 (2026-11-16): Initial release (ARCH-97, CCR-QD-441) |
 
 ---
 
@@ -301,3 +301,14 @@ through `requireResourceId` (`ScopedLeaf.ts`), the one check that a resource-sco
 fixture judgements call as well, and it could not be `errorOf`: `LeafNeeds.ts` imports the port modules' types, so a
 judgement importing it would close a cycle. Decision 2's `Absence` union is now `ActionAbsence | ResourceAbsence`, and
 Decision 3's `readScoped` is still the one point that records the question on the port's span before it fails.
+
+## Amendment (2026-11-26, ADR-QD-203, CCR-QD-482)
+
+[ADR-QD-203](./203-the-remaining-per-port-facts-live-on-the-port-description.md): decision 3's table **routes**. `readScoped`
+routes every scoped read on its port's need, which the port's leaves' `LEAF_NEEDS` rows choose by type: `"Always"` needs a
+resource id, and `"ByScope"` needs one when `isResourceScoped(leaf)`, so the `resourceId` column decides the route and is not
+only read by a test. `readScoped` remains the one place the id check runs and its failure is built: it records the question on the port's
+own span first and then fails with the `MissingResourceId` that `requireResourceId` builds, so a missing id still leaves the
+port's span and nothing else. "A test ties each row's `resourceId` to what `readScoped` does" becomes a test that holds the
+route equal to the rows and to the fixture judgements (`LeafNeeds.test.ts`). The routing is on a hot path, so a bench gate
+passed before it landed, recorded in ADR-QD-203. The table's rows are unchanged.

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-190                                   |
-> | Revision       | 1.6                                            |
+> | Revision       | 1.8                                            |
 > | Effective Date | 2026-11-23                                     |
-> | Status         | Accepted — amends ADR-QD-110 and ADR-QD-056; amended 2026-11-24 |
+> | Status         | Accepted — amends ADR-QD-110 and ADR-QD-056; amended 2026-11-24; amended 2026-11-26 (ADR-QD-202) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.6 (2026-11-24): third amendment: entries that is not a list is refused, and a refusal is a closed enum (code review WR-02, WR-03, IN-01, CCR-QD-469)<br>1.5 (2026-11-24): third amendment: the writer reads keyMaterial once and writes what it checked (code review WR-01, CCR-QD-469)<br>1.4 (2026-11-24): second amendment: the codec freezes each row it makes and its record, one level, so INV-QD-400 holds for the life of the row (code review IN-02, CCR-QD-469)<br>1.3 (2026-11-24): second amendment: the record of what the codec made is per loaded copy of the module, and the limit is recorded (code review IN-01, CCR-QD-469)<br>1.2 (2026-11-24): second amendment: archiveAuditTrail holds keyMaterial to the reader's schema; ArchiveInputInvalid gains the field keyMaterial and its value is unknown (code review, CCR-QD-469)<br>1.1 (2026-11-24): amendment — a row is also checked at run time, through a package-private record of what the codec made; ArchiveInputInvalid and RetentionInputInvalid gain the field entries (code review WR-01, CCR-QD-469)<br>1.0 (2026-11-23): Initial (ARCH-124, CCR-QD-469) |
+> | Change History | 1.8 (2026-11-26): a dated note says `SequenceIntegrity.ts` is folded into `ArchiveFacts.ts` (ARCH-138, CCR-QD-483)<br>1.7 (2026-11-26): fourth amendment: NowNotFinite joins the discipline of RowsRefusalCases as NowRefusalCases in HostBatch.ts, and the rows are asked once, by the admission step; notes under decisions 2 and 3 (ADR-QD-202, CCR-QD-481)<br>1.6 (2026-11-24): third amendment: entries that is not a list is refused, and a refusal is a closed enum (code review WR-02, WR-03, IN-01, CCR-QD-469)<br>1.5 (2026-11-24): third amendment: the writer reads keyMaterial once and writes what it checked (code review WR-01, CCR-QD-469)<br>1.4 (2026-11-24): second amendment: the codec freezes each row it makes and its record, one level, so INV-QD-400 holds for the life of the row (code review IN-02, CCR-QD-469)<br>1.3 (2026-11-24): second amendment: the record of what the codec made is per loaded copy of the module, and the limit is recorded (code review IN-01, CCR-QD-469)<br>1.2 (2026-11-24): second amendment: archiveAuditTrail holds keyMaterial to the reader's schema; ArchiveInputInvalid gains the field keyMaterial and its value is unknown (code review, CCR-QD-469)<br>1.1 (2026-11-24): amendment — a row is also checked at run time, through a package-private record of what the codec made; ArchiveInputInvalid and RetentionInputInvalid gain the field entries (code review WR-01, CCR-QD-469)<br>1.0 (2026-11-23): Initial (ARCH-124, CCR-QD-469) |
 
 ---
 
@@ -252,6 +252,7 @@ decode order, the brand, and an encoder that writes a record its codec cannot re
 
 - [ADR-QD-056](056-audit-companion-package.md) — the companion package; amended by this decision
 - [ADR-QD-110](110-an-archives-facts-are-computed-once.md) — an archive's facts are computed once; amended by this decision
+- [ADR-QD-202](202-one-admission-step-for-a-hosts-audit-batch.md) — one admission step for a host's audit batch; amends this decision
 - [ADR-QD-135](135-sink-record-fields-stated-once.md) — the record's fields stated once, and why a validating class constructor was rejected
 - [ADR-QD-143](143-untrusted-json-is-decoded-through-one-module.md) — untrusted JSON is decoded through one module
 - [ADR-QD-153](153-core-owns-describing-a-decode-refusal.md) — core owns describing a decode refusal
@@ -279,6 +280,10 @@ Both were written as tests first (`ForeignRows.test.ts`) and were red on the cod
    and `verifySequenceIntegrity` do, and `planRetention` does, so `planPurge` does. The pure `archiveFacts` is the
    reader's, over rows `readAuditArchive` has just decoded, and asks nothing. The check follows the `now` and `maxAgeMs`
    checks and precedes every fact, so a refused list is never read.
+
+   > **Amended 2026-11-26 ([ADR-QD-202](202-one-admission-step-for-a-hosts-audit-batch.md)).** The rows are refused by the
+   > admission step in `HostBatch.ts`, before any fact is computed. `verifiedArchiveFacts` takes the rows the step admitted
+   > and asks nothing itself, and the plans reach their age rule only through the step.
 3. **The refusal is the closed shape the input already had** (superseded by the third amendment: the shape is a closed
    `refusal` enum, not a `field` and a `value`). `ArchiveInputInvalid.field` is `"now" | "entries"`, and
    `RetentionInputInvalid.field` is `"now" | "maxAgeMs" | "entries"`. For `entries`, `value` is the index of the first
@@ -286,6 +291,10 @@ Both were written as tests first (`ForeignRows.test.ts`) and were red on the cod
    one input failure two ways. `ArchiveInputInvalid` is declared in `ArchiveFacts.ts`, which `verifiedArchiveFacts`
    needs, and re-exported by `AuditArchive.ts` for the barrel; declared in `AuditArchive.ts` it would make the two
    modules import each other. So `verifySequenceIntegrity` fails `SequenceIntegrityError | ArchiveInputInvalid`.
+
+   > **Amended 2026-11-26 ([ADR-QD-202](202-one-admission-step-for-a-hosts-audit-batch.md)).** `ArchiveInputInvalid` is
+   > still declared in `ArchiveFacts.ts`. Its `NowNotFinite` member is the fragment `NowRefusalCases` of `HostBatch.ts`, which
+   > the enum intersects with `RowsRefusalCases` and its own members, and the refusal the step answers is that member.
 4. **`planPurge` is safe on its own account too.** `holds` counts by structural equality with the archived rows, which
    are all codec-made class instances, and a plain object never equals a class instance, so an archive holds no copy of
    a row the codec did not make. `planPurge` refuses through `planRetention` and keeps that second reason.
@@ -396,6 +405,12 @@ the defect this record set out to close, reached through the input the second am
    and the identity check are one question asked in one place, and the four functions cannot disagree about it. It
    is asked first of the rows, after the inputs that precede them (`now`, `maxAgeMs`, `keyMaterial`). A throwing
    accessor or a hostile proxy on an input is the host's own throw, not a value the check reads, and is outside it.
+
+   > **Amended 2026-11-26 ([ADR-QD-202](202-one-admission-step-for-a-hosts-audit-batch.md)).** `rowsRefusal` is replaced
+   > by the admission step's `admitRows` (`HostBatch.ts`), which asks `Array.isArray`, reads the list's `length` once and
+   > asks `CodecMade.ts`'s `isCodecMade` of each entry as it reads it, stopping at the first it refuses. The list check
+   > and the identity check are still one question asked in one place, and the four functions still cannot disagree
+   > about it.
 4. **A refusal is a member of a closed `Data.TaggedEnum`, not a `field` and an overloaded `value`.** The second
    amendment widened `ArchiveInputInvalid.value` to `unknown` so one slot could hold an index for `entries`, an index
    or the value given for `keyMaterial`, and the value given for `now`. The type could not say which, so a handler
@@ -420,6 +435,10 @@ the defect this record set out to close, reached through the input the second am
    construction. Rejected: repeating the two members in each enum with a mapping from one to the other, which is a
    second statement of the case that can drift, and a `Schema.TaggedError` (outside the twelve of section 4 of
    `AGENTS.md`).
+
+   > **Amended 2026-11-26 ([ADR-QD-202](202-one-admission-step-for-a-hosts-audit-batch.md)).** The two members are
+   > still stated once, as `RowsRefusalCases` in `CodecMade.ts`. The question that answers them is `admitRows` in
+   > `HostBatch.ts`, which builds both, and its answer is still assignable to each enum with no mapping.
 6. **Breaking, in the release this record already marks Breaking.** `RetentionInputInvalid` and `ArchiveInputInvalid`
    gain `refusal` and lose `field` and `value`, and `ArchiveInputRefusal` and `RetentionInputRefusal` are two new
    exports, each a type and its constructors. `RetentionInputInvalid` is older than the release and its shape changes
@@ -429,3 +448,32 @@ the defect this record set out to close, reached through the input the second am
    as a value.
 7. **Decided autonomously on 2026-11-24**, under the owner's standing instruction of 2026-11-22 to take the most complete
    and clean solution and not ask.
+
+## Fourth amendment (2026-11-26, ADR-QD-202, CCR-QD-481)
+
+**`NowNotFinite` joins the discipline of `RowsRefusalCases` as `NowRefusalCases`, and the rows are asked once, by the admission
+step.** Four calls took a host's batch and each checked it: `now` was refused in both public enums by a check of its own, and
+the writer asked the codec's question about its rows twice. [ADR-QD-202](202-one-admission-step-for-a-hosts-audit-batch.md)
+gives the batch one step, `HostBatch.ts`, and this record's decisions follow it.
+
+1. **`NowNotFinite` is stated once.** `NowRefusalCases` is declared in `HostBatch.ts`, beside the `Number.isFinite` check that
+   answers it, as `RowsRefusalCases` is declared beside the codec's record. `ArchiveInputRefusal` is `RowsRefusalCases &
+   NowRefusalCases & { KeyMaterialNotAList; KeyMaterialItemRefused }` and `RetentionInputRefusal` is `RowsRefusalCases &
+   NowRefusalCases & { MaxAgeInvalid }`, each with its own `Data.taggedEnum` constructors, and both enums and both error
+   classes keep every tag, member and field. Decision 5 of the third amendment still stands: the step's refusal is assignable
+   to each enum with no mapping.
+2. **The rows are asked once.** `admitRows` reads the list, one read of `length` and one of each index, asks `isCodecMade` of
+   each entry as it reads it and stops at the first it refuses, and admits the fresh array of the entries it read as
+   `AdmittedRows`, a nominal type only the step mints. `verifiedArchiveFacts` takes
+   `AdmittedRows` and asks nothing, so a fact is never computed from rows the step did not admit, the writer asks the codec
+   once, and a list that answers differently on a second read is judged and archived as the one copy that was checked.
+3. **The order is the step's.** `now`, then the caller's terms, then the rows, which is the order the second and third
+   amendments gave the writer and the plans.
+4. **Not Breaking.** No public name, type, tag, member or field moves. A refused archive opens only its own span and a refused
+   `verifySequenceIntegrity` opens none, which [ADR-QD-110](110-an-archives-facts-are-computed-once.md) notes.
+5. **Decided autonomously on 2026-11-26**, under the owner's standing instruction of 2026-11-22 to take the most complete
+   and clean solution and not ask.
+
+> **Note (2026-11-26, ADR-QD-204, CCR-QD-483).** `verifySequenceIntegrity` and
+> `SequenceIntegrityError` are declared in `ArchiveFacts.ts`, so where the Decision says `SequenceIntegrity.ts`
+> re-exports two names, read `ArchiveFacts.ts`, which declares them ([ADR-QD-204](204-named-barrels-and-visibility-only-files-folded-away.md)).

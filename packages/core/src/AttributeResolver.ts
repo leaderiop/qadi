@@ -14,6 +14,7 @@ import * as Layer from "effect/Layer";
 import * as Result from "effect/Result";
 import type * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
+import type { AuthSubject } from "./AuthSubject.ts";
 import { AttributeResolveError } from "./Errors.ts";
 import type { InvalidBoundedPermits } from "./Errors.ts";
 import { SubjectIdSchema } from "./Identity.ts";
@@ -154,6 +155,25 @@ const attributeServing: PortServingFacet<
 };
 
 /**
+ * Resolves from a static table. Useful for tests and fixed configuration.
+ *
+ * A name the table does not own, including an inherited `Object.prototype`
+ * member, answers undefined. The table is typed as a subject's own attributes
+ * (`AuthSubject["attributes"]`), the one statement of what an attribute table is,
+ * and the description's fixture data is the same type.
+ */
+export const attributeResolverFromRecord = (
+  table: AuthSubject["attributes"],
+): Layer.Layer<AttributeResolver> =>
+  Layer.succeed(AttributeResolver, {
+    name: "attributeResolverFromRecord",
+    resolve: (_subjectId, attribute) => Effect.succeed(ownValue(table, attribute)),
+  });
+
+/** The span a read of this port opens; `PortSpanOf` (`Ports.ts`) reads it back. */
+const attributeSpanName = "qadi.attribute";
+
+/**
  * The attribute port, described once (`PortDescription.ts`): the wrappers and
  * the default below, `PortAccess.ts`'s defect mapping and span, the doubles
  * (`PortDoubles.ts`) and `@qadi/devtools`' capture/replay all read it.
@@ -170,11 +190,13 @@ export const attributeResolverPort: PortDescription<
   AttributeResolveError,
   [subjectId: SubjectId, attribute: string],
   typeof attributeSpan,
-  typeof attributeAsks
+  typeof attributeAsks,
+  typeof attributeSpanName,
+  AuthSubject["attributes"]
 > = makePortDescription({
   port: "AttributeResolver",
   method: "resolve",
-  span: "qadi.attribute",
+  span: attributeSpanName,
   attributes: attributeSpan,
   asks: attributeAsks,
   /**
@@ -207,6 +229,7 @@ export const attributeResolverPort: PortDescription<
   make: (name, call) => ({ name, resolve: call }),
   failure: ([, attribute], cause) => new AttributeResolveError({ attribute, cause }),
   none: { name: "AttributeResolverNone", answer: undefined },
+  fixture: attributeResolverFromRecord,
 });
 
 /**
@@ -218,20 +241,6 @@ export const attributeResolverPort: PortDescription<
  * `undefined` to every request.
  */
 export const AttributeResolverNone: Layer.Layer<AttributeResolver> = nonePort(attributeResolverPort);
-
-/**
- * Resolves from a static table. Useful for tests and fixed configuration.
- *
- * A name the table does not own, including an inherited `Object.prototype`
- * member, answers undefined.
- */
-export const attributeResolverFromRecord = (
-  table: Readonly<Record<string, unknown>>,
-): Layer.Layer<AttributeResolver> =>
-  Layer.succeed(AttributeResolver, {
-    name: "attributeResolverFromRecord",
-    resolve: (_subjectId, attribute) => Effect.succeed(ownValue(table, attribute)),
-  });
 
 /**
  * Wraps a resolver layer so every `resolve` call retries on

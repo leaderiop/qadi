@@ -15,6 +15,7 @@ import * as Context from "effect/Context";
 import type * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Record from "effect/Record";
 import * as Result from "effect/Result";
 import type * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
@@ -182,6 +183,43 @@ const customServing: PortServingFacet<
 };
 
 /**
+ * Resolves from a static table of named predicate functions.
+ *
+ * A name absent from `table` **fails** rather than denies: unlike
+ * `CustomPredicateNone`'s blanket absence, a populated table missing one
+ * entry is a wiring mistake — most likely a typo in `hasCustom`'s `name` —
+ * and "failure is not denial" applies to a misconfigured registry exactly as
+ * it does to a broken attribute lookup. A name the table does not own, an
+ * inherited `Object.prototype` member included, is unregistered.
+ */
+export const customPredicateFromRecord = (
+  table: {
+    readonly [name: string]: (
+      subject: AuthSubject,
+      resource: Resource | undefined,
+      params: unknown,
+    ) => Effect.Effect<boolean, CustomPredicateError>;
+  },
+): Layer.Layer<CustomPredicate> =>
+  Layer.succeed(CustomPredicate, {
+    name: "customPredicateFromRecord",
+    evaluate: (name, subject, resource, params) => {
+      const registered = ownValue(table, name);
+      return registered === undefined
+        ? Effect.fail(
+            new CustomPredicateError({
+              name,
+              reason: "no predicate is registered under this name",
+            }),
+          )
+        : registered(subject, resource, params);
+    },
+  });
+
+/** The span a read of this port opens; `PortSpanOf` (`Ports.ts`) reads it back. */
+const customSpanName = "qadi.hasCustom";
+
+/**
  * The custom-predicate port, described once (`PortDescription.ts`).
  *
  * **The one port that states its own `key` and `defect`.** The other four are
@@ -210,11 +248,13 @@ export const customPredicatePort: PortDescription<
   CustomPredicateError,
   [name: string, subject: AuthSubject, resource: Resource | undefined, params: unknown],
   typeof customSpan,
-  typeof customAsks
+  typeof customAsks,
+  typeof customSpanName,
+  { readonly [name: string]: boolean }
 > = {
   port: "CustomPredicate",
   method: "evaluate",
-  span: "qadi.hasCustom",
+  span: customSpanName,
   attributes: customSpan,
   asks: customAsks,
   wire: customWire,
@@ -238,6 +278,8 @@ export const customPredicatePort: PortDescription<
       },
     ]),
   none: { name: "CustomPredicateNone", answer: false },
+  fixture: (answers) =>
+    customPredicateFromRecord(Record.map(answers, (answer) => () => Effect.succeed(answer))),
 };
 
 /**
@@ -250,43 +292,6 @@ export const customPredicatePort: PortDescription<
  * {@link customPredicatePort}'s `none` (ADR-QD-040).
  */
 export const CustomPredicateNone: Layer.Layer<CustomPredicate> = nonePort(customPredicatePort);
-
-/**
- * Resolves from a static table of named predicate functions.
- *
- * A name absent from `table` **fails** rather than denies: unlike
- * `CustomPredicateNone`'s blanket absence, a populated table missing one
- * entry is a wiring mistake — most likely a typo in `hasCustom`'s `name` —
- * and "failure is not denial" applies to a misconfigured registry exactly as
- * it does to a broken attribute lookup. A name the table does not own, an
- * inherited `Object.prototype` member included, is unregistered.
- */
-export const customPredicateFromRecord = (
-  table: Readonly<
-    Record<
-      string,
-      (
-        subject: AuthSubject,
-        resource: Resource | undefined,
-        params: unknown,
-      ) => Effect.Effect<boolean, CustomPredicateError>
-    >
-  >,
-): Layer.Layer<CustomPredicate> =>
-  Layer.succeed(CustomPredicate, {
-    name: "customPredicateFromRecord",
-    evaluate: (name, subject, resource, params) => {
-      const registered = ownValue(table, name);
-      return registered === undefined
-        ? Effect.fail(
-            new CustomPredicateError({
-              name,
-              reason: "no predicate is registered under this name",
-            }),
-          )
-        : registered(subject, resource, params);
-    },
-  });
 
 /**
  * Wraps a registry layer so every `evaluate` call retries on

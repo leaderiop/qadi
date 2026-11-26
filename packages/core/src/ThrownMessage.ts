@@ -19,7 +19,9 @@ const UNDESCRIBABLE = "a value that could not be described";
  * Three reads stay outside it, each safe for its own stated reason: a `JSON.parse`
  * catch (`UntrustedDecode`, `SimulationForm`), because `JSON.parse` throws only its
  * own `SyntaxError`; a read of a thrown value's name alone (devtools' `Source`),
- * which is guarded on its own; and `String` of an Effect `Cause`, which Effect guards.
+ * which is guarded on its own; and `String` of an Effect `Cause`, which Effect guards
+ * and which the core report sites that log a cause use. The devtools model
+ * renders every run's cause with `causeMessage` and has no such call (ADR-QD-182).
  */
 export const thrownMessage = (thrown: unknown): string => {
   try {
@@ -47,8 +49,10 @@ export const thrownMessage = (thrown: unknown): string => {
  * returns, which is the failed or died value itself, so the fallback is the same rule
  * as for a caught value. Every place that renders a cause with `Cause.pretty` reads
  * through it (core's custom predicate defect and `@qadi/devtools`' feeds), so a
- * defect the caller's code raised cannot become a defect of ours. `String` of a
- * `Cause` is the one other rendering, and Effect guards it itself (ADR-QD-182).
+ * defect the caller's code raised cannot become a defect of ours, the simulation
+ * session's broken run included. `String` of a `Cause` stands in the core report
+ * sites that log one and in `@qadi/audit`'s write report, and Effect guards it itself
+ * (ADR-QD-182).
  */
 export const causeMessage = (cause: Cause.Cause<unknown>): string => {
   try {

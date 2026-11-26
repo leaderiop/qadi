@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-33                                    |
-> | Revision       | 1.32                                           |
+> | Revision       | 1.34                                           |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.32 (2026-11-24): BEH-QD-253, BEH-QD-254 and BEH-QD-722: a refusal is a closed tagged enum, and entries that is not a list is refused; keyMaterial is read once (ADR-QD-190, CCR-QD-469)<br>1.31 (2026-11-24): BEH-QD-254 and BEH-QD-722: the writer refuses a keyMaterial its reader would refuse (ADR-QD-190, CCR-QD-469)<br>1.30 (2026-11-24): BEH-QD-253, BEH-QD-254 and BEH-QD-722 state the run-time refusal of an entry the codec did not make (ADR-QD-190, CCR-QD-469)<br>1.29 (2026-11-23): BEH-QD-250's listing declares AuditEntry as the codec-made type; BEH-QD-312 states the envelope-first order; BEH-QD-253 drops undated; BEH-QD-254 names ArchiveInputInvalid and drops SequenceNumberInvalid (ADR-QD-190, CCR-QD-469)<br>1.28 (2026-11-23): BEH-QD-721 and BEH-QD-722 new: a stored row is read envelope first, and the archive writer refuses a non-finite now and writes key material as declared (ADR-QD-190, CCR-QD-469)<br>1.27 (2026-11-19): the archive's time order is sinkRecordOrder (ARCH-105, CCR-QD-449)<br>1.26 (2026-11-19): BEH-QD-625, a deep unknown key inside an audit row's record is ignored (ADR-QD-170)<br>1.25 (2026-11-16): BEH-QD-577: encodeRefusalAnnotations carries no value from the record, but qadi.path names its keys (INV-QD-104, CCR-QD-439)<br>1.24 (2026-11-16): BEH-QD-578: the unwritten line's wording reads the row too (ARCH-95, CCR-QD-439)<br>1.23 (2026-11-16): BEH-QD-577: describeEncodeRefusal may carry caller text, so it is for diagnosis, not a log line (ARCH-95, CCR-QD-439)<br>1.22 (2026-11-16): BEH-QD-576 to 580 new; BEH-QD-249 and 250 restated, the audit refusal is core's SinkRecordNotEncodable and carries no reason; BEH-QD-252 note (ARCH-95, ADR-QD-161, CCR-QD-439)<br>1.21 (2026-11-15): BEH-QD-561 — a failureThreshold is a positive safe integer; a resetTimeoutMs is whole and within the safe integers, a raw non-whole number refused (ARCH-92, CCR-QD-436)<br>1.20 (2026-11-15): BEH-QD-561 new — an option that cannot work is refused when built; BEH-QD-249 the layer's error; BEH-QD-251 one transition function; BEH-QD-379 a zero deadline is refused (ARCH-92, CCR-QD-436)<br>1.19 (2026-11-12): BEH-QD-254 lists ArchiveRefusal.TooDeep; BEH-QD-312 reads a row through untrustedDecoder; BEH-QD-489 new (ARCH-78, CCR-QD-421)<br>1.18 (2026-11-10): BEH-QD-249 gains storeCallTimeout; BEH-QD-251 — the sink's own deadline is a failure, a caller's interruption still is not; BEH-QD-379 (a store call is bounded; Duration.zero pinned; an uninterruptible adapter is not bounded) and BEH-QD-380 (the doubles' script; failWith, failStageWith and failCommitWith removed) added (ARCH-62, ADR-QD-126, CCR-QD-404)<br>1.17 (2026-11-10): BEH-QD-256 — a resource with no string id refuses the discharge before capture. BEH-QD-326 — the ledger is a keyed store read through ledgerKeyOf; a foreign row fails the read; scope "Any" reads subject-wide rows. BEH-QD-339 added — a ledger adapter can be checked (ARCH-59, ADR-QD-117, INV-QD-120, CCR-QD-395)<br>1.16 (2026-11-08): BEH-QD-254 — the writer and the reader compute an archive's order, claim and sequence break once, and the reader accepts every bundle the writer writes; a sequence number outside the safe integers fails `SequenceNumberInvalid` at the writer (code review WR-01) (ARCH-48, ADR-QD-110, CCR-QD-387)<br>1.15 (2026-10-08): BEH-QD-312 — a stored row whose record contradicts its own trace is refused as `Inconsistent` (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.14 (2026-10-08): BEH-QD-256 — the capture request is derived from the discharged question (signer, `resourceId`, `action`, `resource`, `evaluationId`), not the ambient subject, and a capture that returns a signature for a different signer or meaning fails the discharge. BEH-QD-255 — a ledger is a store, not a capture. BEH-QD-326 — a signature captured for a discharged question answers that question's `hasSignature`, and no other (`SignatureLedger`; INV-QD-120, ADR-QD-105, CCR-QD-220)<br>1.13 (2026-10-08): BEH-QD-253 — a purge selects only rows a `VerifiedArchive` holds (`planPurge`); `planRetention` reports `expired`; `getPurgeableEntries` and `enforceRetention` removed. BEH-QD-254 — `readAuditArchive` reads a stored bundle back, each failure its own `ArchiveRefusal` (ARCH-38, CCR-QD-230)<br>1.12 (2026-10-08): BEH-QD-249 gains `AuditDecisionSinkOptions.onOutcome`. BEH-QD-251 — an entry neither written nor staged is reported by a warning naming its evaluation id, including after a failed trail write; `qadi_audit_writes_total` counts every record received exactly once, breaker-refused ones as `skipped_open`. BEH-QD-252 — a staged entry that was not written is reported at info; the eleven outcomes are tabled; `qadi_audit_entries_lost_total` (INV-QD-106, ADR-QD-056, CCR-QD-204)<br>1.11 (2026-10-07): BEH-QD-250 — a refused record is reported (`AuditDecisionSinkOptions.onRefused`, else a warning naming the refusal, its path and the evaluation id), never dropped silently, and a hook that throws never fails the record; `AuditEntryNotEncodable` carries `evaluationId` and its `reason` is core's `describeEncodeRefusal`. BEH-QD-249's signature fence gains `onRefused` and its `resetTimeoutMs` is `Duration.Input` as the code has it (CCR-QD-193)<br>1.10 (2026-10-07): BEH-QD-253 — retention is `planRetention`, which purges only with a finite age past a valid limit and refuses an impossible `now` or `maxAgeMs`; a non-finite `at` is retained and reported `undated`. BEH-QD-312 — a non-finite `at` and a non-integer `sequenceNumber` are `Malformed` (INV-QD-101, ADR-QD-095 amendment, CCR-QD-186)<br>1.9 (2026-10-07): BEH-QD-254 — entries carrying no `sequenceNumber` follow every sequenced entry in the order given, and are never ordered by `at` (pins what `archiveAuditTrail` already did; CCR-QD-185)<br>1.8 (2026-10-06): BEH-QD-312 — `decodeAuditEntry` reads wire version 2 only: a pre-0.10 row is refused as `UnsupportedVersion`, reported, never upgraded, and migrated with 0.10.x; `AuditEntry.record` is version-2 bytes (ADR-QD-096 amendment, CCR-QD-182)<br>1.7 (2026-10-05): BEH-QD-312 — `decodeAuditEntry` applies every check `decodeSinkRecord` applies, and reads rows of both wire versions; the row schema alone is not a reader. BEH-QD-250 — rows are written as wire version 2 (ADR-QD-096, CCR-QD-180)<br>1.6 (2026-10-05): BEH-QD-250 restated — a row's `record` is `encodeSinkRecord`'s encoded wire, byte-identical to the stream and forwarding; the refusal carries core's `EncodeRefusal`; a `cause` is never a reason to refuse. BEH-QD-312 — `decodeAuditEntry`, the guarded reader (ADR-QD-095, CCR-QD-179)<br>1.5 (2026-10-05): BEH-QD-250 widened — the guard walks the outcome as well: a resolver error's `cause` carrying a reference cycle or a `BigInt` used to pass it and then throw at the store's `JSON.stringify`, which counted as a write failure and could trip the breaker; `Map`/`Set`/`RegExp`/binary data are refused rather than persisted as `{}` (CCR-QD-178)<br>1.4 (2026-10-04): BEH-QD-251 — the half-open probe claim is released on every exit including interruption during staging; a failure settling on an already-`Open` breaker is a no-op; outcomes count only toward the window that admitted them; the interruption prose corrected (`Effect.exit` folds a typed failure, a defect and an adapter's self-interruption, not a caller's interruption) (CCR-QD-154)<br>1.3 (2026-09-09): BEH-QD-250 widened — `encodeAuditEntry` guarded only `resource` via `isJsonSafe`, not the whole record; `policy`'s `HasCustom.params` (ADR-QD-055's escape hatch) is a second caller-supplied `unknown` a `SinkRecord` can carry, and a circular or `BigInt`-valued one sailed past the narrow guard uncaught. Now guarded via `isRecordJsonSafe` (`SinkCodec.ts`), which walks `resource` **and** `policy` (issue #104)<br>1.2 (2026-09-07): BEH-QD-250 and BEH-QD-251 widened — `isJsonSafe` walks iteratively so a merely-deep (non-cyclic) value no longer risks the same stack exhaustion the circular-reference case was already guarded against; `stage()`/`write()` now run under `Effect.exit` rather than `Effect.result`, so a defect or interruption from either — not just a typed `AuditWriteError`/`AuditStagingError` — reaches the breaker and the metrics the same way a typed failure already did (CCR-QD-113)<br>1.1 (2026-09-06): BEH-QD-254 renamed — `verifyChainIntegrity`/`ChainIntegrityError` read as cryptographic tamper-evidence to a compliance reviewer and are not; renamed to `verifySequenceIntegrity`/`SequenceIntegrityError` (CCR-QD-094)<br>1.0 (2026-08-25): Initial release (CCR-QD-086) |
+> | Change History | 1.34 (2026-11-26): BEH-QD-794 new: verifySequenceIntegrity and SequenceIntegrityError are declared with the archive facts that compute the check, and BEH-QD-254's note names ArchiveFacts.ts (ARCH-138, ADR-QD-204, CCR-QD-483)<br>1.33 (2026-11-26): BEH-QD-781 to BEH-QD-785 new: one admission step, each entry point refuses what it refuses, the sequence check's span opens only for admitted rows, NowNotFinite shared by both refusal enums, maxAgeMs read once; BEH-QD-722 restated; BEH-QD-253 and BEH-QD-254 link BEH-QD-781 (ADR-QD-202, ARCH-136, CCR-QD-481)<br>1.32 (2026-11-24): BEH-QD-253, BEH-QD-254 and BEH-QD-722: a refusal is a closed tagged enum, and entries that is not a list is refused; keyMaterial is read once (ADR-QD-190, CCR-QD-469)<br>1.31 (2026-11-24): BEH-QD-254 and BEH-QD-722: the writer refuses a keyMaterial its reader would refuse (ADR-QD-190, CCR-QD-469)<br>1.30 (2026-11-24): BEH-QD-253, BEH-QD-254 and BEH-QD-722 state the run-time refusal of an entry the codec did not make (ADR-QD-190, CCR-QD-469)<br>1.29 (2026-11-23): BEH-QD-250's listing declares AuditEntry as the codec-made type; BEH-QD-312 states the envelope-first order; BEH-QD-253 drops undated; BEH-QD-254 names ArchiveInputInvalid and drops SequenceNumberInvalid (ADR-QD-190, CCR-QD-469)<br>1.28 (2026-11-23): BEH-QD-721 and BEH-QD-722 new: a stored row is read envelope first, and the archive writer refuses a non-finite now and writes key material as declared (ADR-QD-190, CCR-QD-469)<br>1.27 (2026-11-19): the archive's time order is sinkRecordOrder (ARCH-105, CCR-QD-449)<br>1.26 (2026-11-19): BEH-QD-625, a deep unknown key inside an audit row's record is ignored (ADR-QD-170)<br>1.25 (2026-11-16): BEH-QD-577: encodeRefusalAnnotations carries no value from the record, but qadi.path names its keys (INV-QD-104, CCR-QD-439)<br>1.24 (2026-11-16): BEH-QD-578: the unwritten line's wording reads the row too (ARCH-95, CCR-QD-439)<br>1.23 (2026-11-16): BEH-QD-577: describeEncodeRefusal may carry caller text, so it is for diagnosis, not a log line (ARCH-95, CCR-QD-439)<br>1.22 (2026-11-16): BEH-QD-576 to 580 new; BEH-QD-249 and 250 restated, the audit refusal is core's SinkRecordNotEncodable and carries no reason; BEH-QD-252 note (ARCH-95, ADR-QD-161, CCR-QD-439)<br>1.21 (2026-11-15): BEH-QD-561 — a failureThreshold is a positive safe integer; a resetTimeoutMs is whole and within the safe integers, a raw non-whole number refused (ARCH-92, CCR-QD-436)<br>1.20 (2026-11-15): BEH-QD-561 new — an option that cannot work is refused when built; BEH-QD-249 the layer's error; BEH-QD-251 one transition function; BEH-QD-379 a zero deadline is refused (ARCH-92, CCR-QD-436)<br>1.19 (2026-11-12): BEH-QD-254 lists ArchiveRefusal.TooDeep; BEH-QD-312 reads a row through untrustedDecoder; BEH-QD-489 new (ARCH-78, CCR-QD-421)<br>1.18 (2026-11-10): BEH-QD-249 gains storeCallTimeout; BEH-QD-251 — the sink's own deadline is a failure, a caller's interruption still is not; BEH-QD-379 (a store call is bounded; Duration.zero pinned; an uninterruptible adapter is not bounded) and BEH-QD-380 (the doubles' script; failWith, failStageWith and failCommitWith removed) added (ARCH-62, ADR-QD-126, CCR-QD-404)<br>1.17 (2026-11-10): BEH-QD-256 — a resource with no string id refuses the discharge before capture. BEH-QD-326 — the ledger is a keyed store read through ledgerKeyOf; a foreign row fails the read; scope "Any" reads subject-wide rows. BEH-QD-339 added — a ledger adapter can be checked (ARCH-59, ADR-QD-117, INV-QD-120, CCR-QD-395)<br>1.16 (2026-11-08): BEH-QD-254 — the writer and the reader compute an archive's order, claim and sequence break once, and the reader accepts every bundle the writer writes; a sequence number outside the safe integers fails `SequenceNumberInvalid` at the writer (code review WR-01) (ARCH-48, ADR-QD-110, CCR-QD-387)<br>1.15 (2026-10-08): BEH-QD-312 — a stored row whose record contradicts its own trace is refused as `Inconsistent` (ADR-QD-106, INV-QD-170, CCR-QD-301)<br>1.14 (2026-10-08): BEH-QD-256 — the capture request is derived from the discharged question (signer, `resourceId`, `action`, `resource`, `evaluationId`), not the ambient subject, and a capture that returns a signature for a different signer or meaning fails the discharge. BEH-QD-255 — a ledger is a store, not a capture. BEH-QD-326 — a signature captured for a discharged question answers that question's `hasSignature`, and no other (`SignatureLedger`; INV-QD-120, ADR-QD-105, CCR-QD-220)<br>1.13 (2026-10-08): BEH-QD-253 — a purge selects only rows a `VerifiedArchive` holds (`planPurge`); `planRetention` reports `expired`; `getPurgeableEntries` and `enforceRetention` removed. BEH-QD-254 — `readAuditArchive` reads a stored bundle back, each failure its own `ArchiveRefusal` (ARCH-38, CCR-QD-230)<br>1.12 (2026-10-08): BEH-QD-249 gains `AuditDecisionSinkOptions.onOutcome`. BEH-QD-251 — an entry neither written nor staged is reported by a warning naming its evaluation id, including after a failed trail write; `qadi_audit_writes_total` counts every record received exactly once, breaker-refused ones as `skipped_open`. BEH-QD-252 — a staged entry that was not written is reported at info; the eleven outcomes are tabled; `qadi_audit_entries_lost_total` (INV-QD-106, ADR-QD-056, CCR-QD-204)<br>1.11 (2026-10-07): BEH-QD-250 — a refused record is reported (`AuditDecisionSinkOptions.onRefused`, else a warning naming the refusal, its path and the evaluation id), never dropped silently, and a hook that throws never fails the record; `AuditEntryNotEncodable` carries `evaluationId` and its `reason` is core's `describeEncodeRefusal`. BEH-QD-249's signature fence gains `onRefused` and its `resetTimeoutMs` is `Duration.Input` as the code has it (CCR-QD-193)<br>1.10 (2026-10-07): BEH-QD-253 — retention is `planRetention`, which purges only with a finite age past a valid limit and refuses an impossible `now` or `maxAgeMs`; a non-finite `at` is retained and reported `undated`. BEH-QD-312 — a non-finite `at` and a non-integer `sequenceNumber` are `Malformed` (INV-QD-101, ADR-QD-095 amendment, CCR-QD-186)<br>1.9 (2026-10-07): BEH-QD-254 — entries carrying no `sequenceNumber` follow every sequenced entry in the order given, and are never ordered by `at` (pins what `archiveAuditTrail` already did; CCR-QD-185)<br>1.8 (2026-10-06): BEH-QD-312 — `decodeAuditEntry` reads wire version 2 only: a pre-0.10 row is refused as `UnsupportedVersion`, reported, never upgraded, and migrated with 0.10.x; `AuditEntry.record` is version-2 bytes (ADR-QD-096 amendment, CCR-QD-182)<br>1.7 (2026-10-05): BEH-QD-312 — `decodeAuditEntry` applies every check `decodeSinkRecord` applies, and reads rows of both wire versions; the row schema alone is not a reader. BEH-QD-250 — rows are written as wire version 2 (ADR-QD-096, CCR-QD-180)<br>1.6 (2026-10-05): BEH-QD-250 restated — a row's `record` is `encodeSinkRecord`'s encoded wire, byte-identical to the stream and forwarding; the refusal carries core's `EncodeRefusal`; a `cause` is never a reason to refuse. BEH-QD-312 — `decodeAuditEntry`, the guarded reader (ADR-QD-095, CCR-QD-179)<br>1.5 (2026-10-05): BEH-QD-250 widened — the guard walks the outcome as well: a resolver error's `cause` carrying a reference cycle or a `BigInt` used to pass it and then throw at the store's `JSON.stringify`, which counted as a write failure and could trip the breaker; `Map`/`Set`/`RegExp`/binary data are refused rather than persisted as `{}` (CCR-QD-178)<br>1.4 (2026-10-04): BEH-QD-251 — the half-open probe claim is released on every exit including interruption during staging; a failure settling on an already-`Open` breaker is a no-op; outcomes count only toward the window that admitted them; the interruption prose corrected (`Effect.exit` folds a typed failure, a defect and an adapter's self-interruption, not a caller's interruption) (CCR-QD-154)<br>1.3 (2026-09-09): BEH-QD-250 widened — `encodeAuditEntry` guarded only `resource` via `isJsonSafe`, not the whole record; `policy`'s `HasCustom.params` (ADR-QD-055's escape hatch) is a second caller-supplied `unknown` a `SinkRecord` can carry, and a circular or `BigInt`-valued one sailed past the narrow guard uncaught. Now guarded via `isRecordJsonSafe` (`SinkCodec.ts`), which walks `resource` **and** `policy` (issue #104)<br>1.2 (2026-09-07): BEH-QD-250 and BEH-QD-251 widened — `isJsonSafe` walks iteratively so a merely-deep (non-cyclic) value no longer risks the same stack exhaustion the circular-reference case was already guarded against; `stage()`/`write()` now run under `Effect.exit` rather than `Effect.result`, so a defect or interruption from either — not just a typed `AuditWriteError`/`AuditStagingError` — reaches the breaker and the metrics the same way a typed failure already did (CCR-QD-113)<br>1.1 (2026-09-06): BEH-QD-254 renamed — `verifyChainIntegrity`/`ChainIntegrityError` read as cryptographic tamper-evidence to a compliance reviewer and are not; renamed to `verifySequenceIntegrity`/`SequenceIntegrityError` (CCR-QD-094)<br>1.0 (2026-08-25): Initial release (CCR-QD-086) |
 
 _Previous: [32 — Custom Predicates](./32-custom-predicates.md)_
 
@@ -715,6 +715,7 @@ staging keys) and `AuditWriteOutcome.test.ts` (the path per leaf).
 > so a plan holds `retained` and `expired` alone. A list holding a value the codec did not make, which a
 > store client's `any` and a JavaScript caller can pass, is refused as `RetentionInputInvalid` with the refusal
 > `EntryNotMadeByCodec`, and `entries` that is not a list with `EntriesNotAList` (2026-11-24).
+> The step that refuses them, and the order `now`, `maxAgeMs`, rows, are [BEH-QD-781](#beh-qd-781-one-admission-step-checks-a-hosts-batch-in-one-order-and-every-entry-point-calls-it-before-any-work-of-its-own).
 
 ```
 REQUIREMENT: For any entries, RetentionPolicy and now, the sets
@@ -726,13 +727,16 @@ REQUIREMENT: For any entries, RetentionPolicy and now, the sets
 
 ```
 REQUIREMENT: An entry MUST be expired (and so purgeable) only if its `at` and
-             `now` are finite, `maxAgeMs >= 0`, and `now - at > maxAgeMs`. A
+             `now` are finite, `maxAgeMs` is a number `>= 0`, and
+             `now - at > maxAgeMs`. A
              row's `at` is finite because only the codec makes a row
              (INV-QD-400).
 REQUIREMENT: planRetention(entries, policy, now) MUST return
              `RetentionInputInvalid` with the refusal `NowNotFinite { value }`
              for a `now` that is not finite or `MaxAgeInvalid { value }` for a
-             `maxAgeMs` that is `NaN` or negative (`value` the value given),
+             `maxAgeMs` that is not a number from zero up: `NaN`, a negative
+             number, or a value that is not a number at all, which is never
+             converted (`value` the value given),
              then `EntriesNotAList { value }` for `entries` that is not a list
              (`value` the value given), then
              `EntryNotMadeByCodec { index }`, `index` the index of the first
@@ -780,7 +784,8 @@ that the bytes are untampered, or that the retention period is adequate;
 > ([BEH-QD-722](#beh-qd-722-the-archive-writer-refuses-a-non-finite-now-and-writes-key-material-as-declared)).
 > `entries` that is not a list is refused as `ArchiveInputInvalid` with the refusal `EntriesNotAList`, and an entry
 > the codec did not make with `EntryNotMadeByCodec` and its index, by the writer and by `verifySequenceIntegrity`
-> alike (2026-11-24).
+> alike (2026-11-24). Both are refused by the admission step before any sequence fact is computed
+> ([BEH-QD-781](#beh-qd-781-one-admission-step-checks-a-hosts-batch-in-one-order-and-every-entry-point-calls-it-before-any-work-of-its-own)).
 
 ```
 REQUIREMENT: verifySequenceIntegrity MUST fail SequenceIntegrityError for any
@@ -842,7 +847,8 @@ The writer and the reader used to state the order (a comparator, and a loop)
 and the claim each on their own. Both now read them from one computation
 ([ADR-QD-110](../decisions/110-an-archives-facts-are-computed-once.md)).
 `verifySequenceIntegrity` and `SequenceIntegrityError` keep their names and
-are re-exported through `SequenceIntegrity.ts`.
+are declared in `ArchiveFacts.ts`, with the facts that compute the check
+([BEH-QD-794](#beh-qd-794-verifysequenceintegrity-and-sequenceintegrityerror-are-declared-with-the-archive-facts-that-compute-the-check)).
 
 `AuditEntry.sequenceNumber` is a `number` in TypeScript, and the codec reads
 only a safe integer (`Schema.Int`, CCR-QD-186). A row is made only by the codec
@@ -1211,13 +1217,25 @@ twin are one row), `AuditEntryDifferential.test.ts` and `UntrustedSeams.test.ts`
 > **See:** [ADR-QD-190](../decisions/190-an-audit-row-is-a-value-only-its-codec-makes.md), [ADR-QD-110](../decisions/110-an-archives-facts-are-computed-once.md)
 
 ```ts
-export type ArchiveInputRefusal = Data.TaggedEnum<{
-  NowNotFinite: { readonly value: unknown };
-  KeyMaterialNotAList: { readonly value: unknown };
-  KeyMaterialItemRefused: { readonly index: number };
-  EntriesNotAList: { readonly value: unknown };
-  EntryNotMadeByCodec: { readonly index: number };
-}>;
+// HostBatch.ts, package-private: out of the barrel, not a package export
+type NowRefusalCases = {
+  readonly NowNotFinite: { readonly value: unknown };
+};
+
+// CodecMade.ts, package-private: out of the barrel, not a package export
+type RowsRefusalCases = {
+  readonly EntriesNotAList: { readonly value: unknown };
+  readonly EntryNotMadeByCodec: { readonly index: number };
+};
+
+// public: exported from the package
+export type ArchiveInputRefusal = Data.TaggedEnum<
+  RowsRefusalCases &
+    NowRefusalCases & {
+      KeyMaterialNotAList: { readonly value: unknown };
+      KeyMaterialItemRefused: { readonly index: number };
+    }
+>;
 
 export class ArchiveInputInvalid extends Data.TaggedError("ArchiveInputInvalid")<{
   readonly refusal: ArchiveInputRefusal;
@@ -1228,15 +1246,16 @@ export class ArchiveInputInvalid extends Data.TaggedError("ArchiveInputInvalid")
 REQUIREMENT: archiveAuditTrail MUST fail `ArchiveInputInvalid` with the
              refusal `NowNotFinite { value }` for a `now` that is `NaN`,
              `+Infinity` or `-Infinity` (`value` the value given), before it
-             looks at the sequence facts, so a non-finite `now` on entries with
-             a sequence break fails `ArchiveInputInvalid`. A finite `now`, `-0`
-             included, is archived.
+             reads the key material, the entries or any fact, so a non-finite
+             `now` on entries with a sequence break fails `ArchiveInputInvalid`.
+             A finite `now`, `-0` included, is archived. The order of the
+             checks is the admission step's ([BEH-QD-781](#beh-qd-781-one-admission-step-checks-a-hosts-batch-in-one-order-and-every-entry-point-calls-it-before-any-work-of-its-own)).
 REQUIREMENT: archiveAuditTrail MUST fail `ArchiveInputInvalid` with the
              refusal `KeyMaterialNotAList { value }` for a `keyMaterial` that
              is not a list (`value` the value given), and
              `KeyMaterialItemRefused { index }` for the first item
              `readAuditArchive` would not read, after the `now` check and
-             before it reads the entries. An item is read when it is an object
+             before the entries are read ([BEH-QD-781](#beh-qd-781-one-admission-step-checks-a-hosts-batch-in-one-order-and-every-entry-point-calls-it-before-any-work-of-its-own)). An item is read when it is an object
              with a string `keyId`, `algorithm` and `publicKey`, whatever else
              it carries; `null`, a primitive, a missing field, a field that is
              not a string and a hole are each an item that is not read. An
@@ -1246,7 +1265,7 @@ REQUIREMENT: archiveAuditTrail MUST fail `ArchiveInputInvalid` with the
              list (`value` the value given), and `EntryNotMadeByCodec { index }`
              for the first entry the codec did not make, after the
              `keyMaterial` check and before it computes any fact from the
-             entries. An entry the codec did not make is any
+             entries ([BEH-QD-781](#beh-qd-781-one-admission-step-checks-a-hosts-batch-in-one-order-and-every-entry-point-calls-it-before-any-work-of-its-own)). An entry the codec did not make is any
              value `encodeAuditEntry` and `decodeAuditEntry` did not return: a
              parsed row, a plain object with a row's fields, an object with a
              row's prototype, `null` or a primitive. An empty list is archived.
@@ -1259,6 +1278,11 @@ REQUIREMENT: archiveAuditTrail MUST write each `keyMaterial` item as a fresh
 REQUIREMENT: Every bundle archiveAuditTrail returns MUST be read back by
              readAuditArchive from its JSON text, and archiveAuditTrail MUST
              otherwise fail `SequenceIntegrityError`.
+REQUIREMENT: archiveAuditTrail MUST read the entries once, as one read of the
+             list's length and one read of each index, and MUST build the bundle
+             from the entries it checked, so a list that answers differently on a
+             second read never makes it return a bundle its reader refuses
+             ([INV-QD-424](../invariants.md#inv-qd-424-each-input-of-a-hosts-batch-is-read-once-what-was-checked-is-what-is-used-and-no-input-is-a-defect)).
 ```
 
 The type refuses a row built by hand, and `any` passes it: a store client's
@@ -1292,7 +1316,8 @@ then refused by the reader as `Malformed`, and a `null` item or a value that is 
 a list killed the fiber with a `TypeError`, a defect where a typed failure belongs.
 The writer holds each item to the reader's own schema (`Schema.is` of the one
 `KeyMaterialSchema`), so the shape is stated once. The check follows `now` and
-precedes the rows, in the order the inputs are read. The list and each item's fields
+precedes the rows: the admission step asks the inputs in that order
+([BEH-QD-781](#beh-qd-781-one-admission-step-checks-a-hosts-batch-in-one-order-and-every-entry-point-calls-it-before-any-work-of-its-own)). The list and each item's fields
 are read once: the check that read `options.keyMaterial` and then read it, and each
 item, again to build the projection was a second read an accessor can answer
 differently, so the archive could hold a `keyId` the check never saw.
@@ -1300,18 +1325,286 @@ differently, so the archive could hold a `keyId` the check never saw.
 `entries` is the fourth, and the first thing asked of it is that it is a list: a
 store client's result and a JavaScript caller's argument can be `undefined`, `null`
 or an object, and `findIndex` on one would be a defect where a typed failure belongs.
-Every function that takes rows asks the one question (`CodecMade.ts`'s `rowsRefusal`),
-so none of the four is a defect, whatever the value given.
+The admission step asks it for every function that takes rows, and then asks the codec's
+question (`CodecMade.ts`'s `isCodecMade`) of each entry as it reads the list, one index at a
+time, stopping at the first entry it refuses, so none of the four is a defect, whatever the
+value given, and the rows that were checked are the rows that are used.
 
-Pinned by `ForeignRows.test.ts` (each entry the codec did not make, refused by index
-by the writer, `verifySequenceIntegrity` and `planRetention`, `entries` that is not
-a list refused with the value given by the writer, `verifySequenceIntegrity`,
-`planRetention` and `planPurge`, each `keyMaterial` the reader would refuse, refused
-by index or by value, with the order of the checks, a list getter and an item getter
-read once, and each refusal read through `Match.tagsExhaustive`), `ArchiveWriterInputs.test.ts`
-(each writer input the type admits, as what the reader makes of the bundle), `AuditArchive.test.ts` (the exact
-`ArchiveInputInvalid` and the declared-fields projection) and
-`ArchiveRoundTrip.test.ts` (the property over finite `now` and any `keyMaterial`).
+Pinned by `ForeignRows.test.ts` (each entry the codec did not make, refused by index by the writer,
+`verifySequenceIntegrity` and `planRetention`, `entries` that is not a list refused with the value given by the writer,
+`verifySequenceIntegrity`, `planRetention` and `planPurge`, each `keyMaterial` the reader would refuse, refused by index
+or by value, a list getter and an item getter read once, each refusal read through `Match.tagsExhaustive`, and one
+comparison case per entry point that it refuses what the admission step refuses), `AdmissionOrder.characterisation.test.ts`
+(W1 to W18, which refusal wins for each pair of the writer's faults, written out literally, and S1 to S5, the spans the
+writer opens), `HostBatch.test.ts` (H2 to H12, the order of the checks, asserted once at the step), `HostBatch.tst.ts`
+(the refusal union as its fragments plus its own members), `ArchiveWriterInputs.test.ts` (each writer input the type
+admits, as what the reader makes of the bundle), `AuditArchive.test.ts` (the exact `ArchiveInputInvalid` and the
+declared-fields projection) and `ArchiveRoundTrip.test.ts` (the property over finite `now` and any `keyMaterial`).
+
+## BEH-QD-781: One admission step checks a host's batch in one order, and every entry point calls it before any work of its own
+
+> **Decision:** [ADR-QD-202](../decisions/202-one-admission-step-for-a-hosts-audit-batch.md) ·
+> **Scope:** [ADR-QD-190](../decisions/190-an-audit-row-is-a-value-only-its-codec-makes.md) ·
+> **Invariant:** [INV-QD-423](../invariants.md#inv-qd-423-no-fact-plan-or-sequence-check-is-computed-from-host-rows-the-admission-step-did-not-admit),
+> [INV-QD-424](../invariants.md#inv-qd-424-each-input-of-a-hosts-batch-is-read-once-what-was-checked-is-what-is-used-and-no-input-is-a-defect)
+
+```ts
+// HostBatch.ts, package-private: out of the barrel, so none of these is a package export
+interface DatedBatch<Terms, Refused> {
+  readonly now: number;
+  readonly terms: () => Result.Result<Terms, Refused>;
+  readonly entries: unknown;
+}
+
+interface AdmittedBatch<Terms> {
+  readonly now: number;
+  readonly terms: Terms;
+  readonly rows: AdmittedRows;
+}
+
+const admitRows: (entries: unknown) => Result.Result<AdmittedRows, RowsRefusal>;
+
+const admitBatch: <Terms, Refused>(
+  batch: DatedBatch<Terms, Refused>,
+) => Result.Result<AdmittedBatch<Terms>, NowRefusal | Refused | RowsRefusal>;
+```
+
+```
+REQUIREMENT: The step MUST refuse a batch for its first fault in the order `now`,
+             then the caller's terms, then the rows, so a refusal of an earlier
+             input hides every later one. `now` is refused by `Number.isFinite`,
+             never the coercing global, so `NaN`, both infinities, a string,
+             `undefined`, `null` and a `bigint` are `NowNotFinite { value }` with
+             the value given, and `0`, `-0` and `1` are admitted.
+REQUIREMENT: The terms MUST be asked at most once, and MUST NOT be asked for a `now`
+             that is refused. The rows MUST NOT be read for a `now` or terms that
+             are refused. The step MUST be a plain function returning a `Result`,
+             with no `Effect` and no span.
+REQUIREMENT: `archiveAuditTrail` MUST admit `{ now, key material, rows }`,
+             `planRetention` and `planPurge` MUST each admit `{ now, maxAgeMs, rows }`
+             and `verifySequenceIntegrity` MUST admit its rows, each as the first
+             statement of its body, before any fact, plan or span of its own work.
+             `planPurge` MUST admit its own batch and MUST NOT call `planRetention`,
+             so the archive is asked only for an admitted batch.
+REQUIREMENT: The rows MUST be read as their `length` once and each index once, in
+             order, each entry checked as it is read, and the read MUST stop at the
+             first entry that is not a row the codec made. A `length` that is not a
+             number MUST be refused as `EntriesNotAList` with the list given, and a
+             `length` past any array's (`2 ** 32`, `Infinity`) MUST be read only as
+             far as its first refused index, so no list is copied whole before it
+             is checked and no length is a `RangeError`.
+```
+
+Every call that takes a host's rows took the same three inputs in the same order, and the order was written once per
+call and asserted once per call. The step states it once, and the calls differ only in the terms they pass: the writer
+its key material, retention and purge their `maxAgeMs`, and the verify none, which makes it `admitRows` alone. The
+terms are a thunk, so a refused `now` never reads the host's options or policy, and refused terms never read the
+rows. Each caller wraps the step's refusal once, as `ArchiveInputInvalid` or `RetentionInputInvalid`, and the refusal
+is the caller's own member with no mapping ([BEH-QD-784](#beh-qd-784-nownotfinite-is-one-case-shared-by-both-refusal-enums-and-both-enums-keep-every-member-tag-and-field)).
+The order is the one [BEH-QD-722](#beh-qd-722-the-archive-writer-refuses-a-non-finite-now-and-writes-key-material-as-declared),
+[BEH-QD-253](#beh-qd-253-retention-partitions-entries-by-construction) and
+[BEH-QD-254](#beh-qd-254-sequence-integrity-verification-detects-a-gap-or-a-duplicate-and-trusts-neither-write-order)
+state for their own calls.
+
+Pinned by `packages/audit/test/HostBatch.test.ts` (H2 to H12, which refusal wins for every subset of a bad `now`, refused
+terms, rows that are not a list and a refused row; H13 to H14, the terms called once and never for a refused `now`, and the
+rows unread for refused terms; H15 to H16, the `now` boundary) and `packages/audit/test/AdmissionOrder.characterisation.test.ts`
+(W1 to W18, R1 to R13, P1 to P13 and V1 to V4, which refusal wins for each pair of faults per entry point, written out
+literally; O1 to O3, the first fault of any set; L1 to L5, what a refusal leaves unread) and
+`packages/audit/test/RowListAdmission.test.ts` (X1 to X5: a list whose `length` reads past any array's refused at index 0
+by the step and by each entry point with no `RangeError`, a long sparse list and a long list with a foreign entry
+stopped at index 1 having read two indexes, and a `length` that is not a number refused as `EntriesNotAList`).
+
+## BEH-QD-782: Each entry point refuses exactly what the step refuses for the same batch
+
+> **Decision:** [ADR-QD-202](../decisions/202-one-admission-step-for-a-hosts-audit-batch.md) ·
+> **Scope:** [BEH-QD-781](#beh-qd-781-one-admission-step-checks-a-hosts-batch-in-one-order-and-every-entry-point-calls-it-before-any-work-of-its-own) ·
+> **Invariant:** [INV-QD-423](../invariants.md#inv-qd-423-no-fact-plan-or-sequence-check-is-computed-from-host-rows-the-admission-step-did-not-admit)
+
+```
+REQUIREMENT: `archiveAuditTrail` MUST fail `ArchiveInputInvalid` with the refusal the
+             step gives for the same `now`, key material and rows, and
+             `verifySequenceIntegrity` MUST fail it with the refusal `admitRows` gives
+             for the same rows.
+REQUIREMENT: `planRetention` and `planPurge` MUST each return `RetentionInputInvalid`
+             with the refusal the step gives for the same `now`, `maxAgeMs` and rows.
+REQUIREMENT: A batch the step admits MUST NOT be refused by an entry point for its
+             inputs. What an entry point does after admission, a sequence break or
+             an archive that does not hold a row, is its own failure and its own
+             result.
+```
+
+The entry points do not restate which refusal wins, because the step does. A test that wants to know an entry point
+admits the batch runs one table of faults through the entry point and through the step and asks that the two refusals
+are equal, so a call that checked in an order of its own, or skipped a check, differs from the step on some row of the
+table.
+
+Pinned by `packages/audit/test/ForeignRows.test.ts` ("archiveAuditTrail refuses each batch as the admission step refuses it",
+"verifySequenceIntegrity refuses each rows list as the admission step refuses it", "planRetention refuses each batch as the
+admission step refuses it" and "planPurge refuses each batch as the admission step refuses it", each over the fault table
+of `hostBatchFaults.ts`).
+
+## BEH-QD-783: The sequence check's span opens only for admitted rows
+
+> **Decision:** [ADR-QD-202](../decisions/202-one-admission-step-for-a-hosts-audit-batch.md) ·
+> **Scope:** [ADR-QD-110](../decisions/110-an-archives-facts-are-computed-once.md) ·
+> **Invariant:** [INV-QD-423](../invariants.md#inv-qd-423-no-fact-plan-or-sequence-check-is-computed-from-host-rows-the-admission-step-did-not-admit)
+
+```
+REQUIREMENT: The span `qadi.audit.verifySequenceIntegrity` MUST open only when the
+             sequence check runs, on rows the step admitted.
+REQUIREMENT: `archiveAuditTrail` refused for its `now`, its key material or its rows
+             MUST open only `qadi.audit.archiveAuditTrail` and fail inside it, and
+             `verifySequenceIntegrity` refused for its rows MUST open no span.
+REQUIREMENT: For an admitted batch the traces MUST be unchanged: `archiveAuditTrail`
+             opens `qadi.audit.archiveAuditTrail` with the child
+             `qadi.audit.verifySequenceIntegrity`, `verifySequenceIntegrity` opens
+             exactly one span, `qadi.audit.verifySequenceIntegrity`, and
+             `planRetention` and `planPurge` open none, refused or admitted.
+```
+
+A refused input was never checked, and a span says what was asked
+([ADR-QD-051](../decisions/051-a-span-says-what-was-asked.md)). Admission runs before the span-opening step of each
+call's own work, so a refused archive fails inside its own span and a refused verify is a typed failure in the host's
+own span. The public `verifySequenceIntegrity` stays an unnamed `Effect.fn` that delegates, so a call opens exactly one
+span, and `verifiedArchiveFacts`, which takes only admitted rows, keeps the span name and fails only
+`SequenceIntegrityError`. The span names do not change, and a span is not part of a public type.
+
+Pinned by `packages/audit/test/AdmissionOrder.characterisation.test.ts` (S1 to S8, the spans each outcome opens; SF1 to SF4,
+no sequence span on refused rows: the writer opens only its own and the verify none; F1, F2 and F5,
+`verifiedArchiveFacts` over admitted rows; F3 and F4, a refused list over which neither the verify nor the writer opens
+its span) and
+`packages/audit/test/AuditArchive.test.ts` ("archiving an entry opens a span named qadi.audit.archiveAuditTrail" and
+"verifying a sequence opens a span named qadi.audit.verifySequenceIntegrity", the success traces).
+
+## BEH-QD-784: NowNotFinite is one case shared by both refusal enums, and both enums keep every member, tag and field
+
+> **Decision:** [ADR-QD-202](../decisions/202-one-admission-step-for-a-hosts-audit-batch.md) ·
+> **Scope:** [ADR-QD-190](../decisions/190-an-audit-row-is-a-value-only-its-codec-makes.md) ·
+> **Invariant:** [INV-QD-423](../invariants.md#inv-qd-423-no-fact-plan-or-sequence-check-is-computed-from-host-rows-the-admission-step-did-not-admit)
+
+```ts
+// HostBatch.ts, package-private: out of the barrel, not a package export
+type NowRefusalCases = {
+  readonly NowNotFinite: { readonly value: unknown };
+};
+
+// public: exported from the package
+export type ArchiveInputRefusal = Data.TaggedEnum<
+  RowsRefusalCases &
+    NowRefusalCases & {
+      KeyMaterialNotAList: { readonly value: unknown };
+      KeyMaterialItemRefused: { readonly index: number };
+    }
+>;
+
+export type RetentionInputRefusal = Data.TaggedEnum<
+  RowsRefusalCases &
+    NowRefusalCases & {
+      MaxAgeInvalid: { readonly value: unknown };
+    }
+>;
+```
+
+```
+REQUIREMENT: `NowNotFinite { value }` MUST be declared once, as `NowRefusalCases`
+             beside the check that answers it, and `ArchiveInputRefusal` and
+             `RetentionInputRefusal` MUST each be the fragments `RowsRefusalCases` and
+             `NowRefusalCases` plus their own members, so the member is one type in
+             both.
+REQUIREMENT: `ArchiveInputRefusal` MUST hold exactly `NowNotFinite`,
+             `KeyMaterialNotAList`, `KeyMaterialItemRefused`, `EntriesNotAList` and
+             `EntryNotMadeByCodec`, and `RetentionInputRefusal` exactly
+             `NowNotFinite`, `MaxAgeInvalid`, `EntriesNotAList` and
+             `EntryNotMadeByCodec`, each with the fields it had, and each enum MUST
+             keep its own constructors.
+REQUIREMENT: `NowRefusalCases` MUST NOT be exported from the package.
+```
+
+The two row members are stated once beside the row check and `NowNotFinite` is stated once beside the `now` check,
+which is the discipline ADR-QD-190 gave the rows. The step's refusal is a union of those members, so each is assignable
+to the caller's enum with no mapping. Neither enum nor either error class changes a tag, a member or a field, so the
+change is not Breaking.
+
+What holds which requirement. The member set, every tag and every field type are pinned by the type tests below, and a
+member that moves fails them. That `NowNotFinite` is declared once is not something a type pin can see, because
+`Data.TaggedEnum` maps the keys of the intersection and a second declaration with the same field type gives the
+identical union. It holds by construction, both unions being built from `NowRefusalCases`, and the change's own
+`admission-step` check (`89-check.mjs`, kept with its planning, not run by `pnpm check`) judges that the member key is
+declared in exactly one `packages/audit/src` file; past the change, a review keeps it.
+
+Pinned by `packages/audit/test/HostBatch.tst.ts`, which spells each union's members out independently of the source, asks
+for each union as its fragments plus its own members, asks the shared members to be one type, and asks that the
+`AdmittedRows` of the step is nominal, with a positive anchor (its `entries` are a list of rows) so that a collapse to
+`never` or to another shape fails the nominal pins rather than passing them.
+
+## BEH-QD-785: A policy's maxAgeMs is read once, and a policy that is not an object is MaxAgeInvalid
+
+> **Decision:** [ADR-QD-202](../decisions/202-one-admission-step-for-a-hosts-audit-batch.md) ·
+> **Scope:** [BEH-QD-253](#beh-qd-253-retention-partitions-entries-by-construction) ·
+> **Invariant:** [INV-QD-424](../invariants.md#inv-qd-424-each-input-of-a-hosts-batch-is-read-once-what-was-checked-is-what-is-used-and-no-input-is-a-defect)
+
+```
+REQUIREMENT: `planRetention` and `planPurge` MUST read `policy.maxAgeMs` once, however
+             many rows there are, admit it only when it is a number (`typeof`
+             `"number"`) from zero up, refuse anything else as
+             `MaxAgeInvalid { value }`, and compare each row with the number they
+             admitted, never with the policy read again.
+REQUIREMENT: A `maxAgeMs` that is not a number (`null`, a boolean, a string, a list,
+             a boxed number, an object with its own `valueOf`, a Symbol or an
+             object with no prototype) MUST be refused as `MaxAgeInvalid` with the
+             value given, MUST NOT be converted to a number, and MUST NOT throw.
+REQUIREMENT: A `policy` that is `null`, `undefined`, a primitive or an object with no
+             `maxAgeMs` MUST be refused as `MaxAgeInvalid { value: undefined }`, and
+             MUST NOT throw. `NaN` and a negative number are refused with the value
+             given, and `+Infinity`, `0` and `-0` are valid.
+```
+
+The policy is an input a host hands over, and the type does not bind it: a JavaScript caller's missing policy was a
+`TypeError` where a typed failure belongs, and a policy that is a getter or a proxy answers each read separately, so a
+limit that passed the check could be compared with a different one. The terms of retention read the limit once and
+return it. A `MaxAgeInvalid` that already existed for `{}` answers for the policy that is not an object, so the enum
+gains no member. A relational check converts what it compares: `null`, `false`, `""` and `[]` compare as `0`, so a
+host whose config gives `maxAgeMs: null` for "no limit" would have every archived row selected for purge, an object
+would be converted through its own `valueOf` once for the check and again for every row, and a Symbol throws. The
+terms admit only a primitive number, so the value compared is the value checked, and for a deletion selector a value
+that is not a limit retains.
+
+Pinned by `packages/audit/test/BatchReadOnce.test.ts` (B1 to B5, the limit read once by each plan over two rows and over a
+refused value, and a policy that is not an object refused as `MaxAgeInvalid` with the value `undefined` by each plan),
+`packages/audit/test/MaxAgeAdmission.test.ts` (M1 to M4, a `maxAgeMs` that is not a number refused by each plan as
+`MaxAgeInvalid` with the value given, never converted and never thrown) and
+`packages/audit/test/Retention.test.ts` ("refuses a maxAgeMs that is NaN or negative, naming the member and the value").
+
+## BEH-QD-794: verifySequenceIntegrity and SequenceIntegrityError are declared with the archive facts that compute the check
+
+> **Decision:** [ADR-QD-204](../decisions/204-named-barrels-and-visibility-only-files-folded-away.md) ·
+> **Scope:** [ADR-QD-110](../decisions/110-an-archives-facts-are-computed-once.md), [ADR-QD-056](../decisions/056-audit-companion-package.md) ·
+> **Invariant:** [INV-QD-428](../invariants.md#inv-qd-428-no-module-exists-only-to-publish-names-a-fold-leaves-no-import-cycle-and-a-part-public-modules-other-names-stay-unimportable), [INV-QD-427](../invariants.md#inv-qd-427-a-public-root-names-each-export-once-at-one-module-and-no-packed-declaration-escapes-its-package), [INV-QD-054](../invariants.md#inv-qd-054-verifysequenceintegrity-detects-every-gap-and-duplicate-sequence-number)
+
+```
+REQUIREMENT: `verifySequenceIntegrity` and `SequenceIntegrityError` MUST be declared in
+             `ArchiveFacts.ts`, with the archive facts that compute the same check,
+             and MUST keep their names. The barrel MUST name an exact list of the
+             module's names, and the names it lists are public: those two, named
+             there, and `ArchiveInputInvalid` and `ArchiveInputRefusal`, named
+             through `AuditArchive.ts`'s re-export. Every name of the module the
+             barrel does not list MUST stay package-private.
+
+REQUIREMENT: Their documentation MUST say that the check is gap-and-duplicate
+             detection and is not tamper-evident: it catches accidental loss or
+             duplication in the caller's own store, no grouping key is checked, and
+             whoever can modify stored rows can renumber them.
+```
+
+The check is the one `archiveAuditTrail` and `readAuditArchive` compute from the archive facts
+([BEH-QD-254](#beh-qd-254-sequence-integrity-verification-detects-a-gap-or-a-duplicate-and-trusts-neither-write-order)),
+so the public function and its error sit with them and no file exists to publish the two names. The disclaimer is the
+function's own documentation, and the package README, the requirements document, the purpose model and
+[ADR-QD-009](../decisions/009-observability-via-effect.md) cite it, so a reader who looks for what the check does not
+prove finds it where the check is declared.
+
+Pinned by `packages/audit/test/SequenceIntegrity.test.ts` ("a gap fails with the expected and actual sequence numbers", "a duplicate sequence number fails too", "an unsequenced entry sitting between two sequenced ones does not hide the gap between them") and `packages/audit/test/surface.test.ts` ("exports exactly these runtime values"); no test reads a doc comment, so the disclaimer is held by the citations above and by review.
 
 ---
 

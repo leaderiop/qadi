@@ -1,0 +1,178 @@
+diff --git a/packages/react/src/DevtoolsFeed.ts b/packages/react/src/DevtoolsFeed.ts
+index e4ddb53e..a5b63257 100644
+--- a/packages/react/src/DevtoolsFeed.ts
++++ b/packages/react/src/DevtoolsFeed.ts
+@@ -41,7 +41,7 @@ import * as Effect from "effect/Effect";
+ import * as Layer from "effect/Layer";
+ import * as AtomRegistry from "effect/reactivity/AtomRegistry";
+ import { useMemo } from "react";
+-import type { GateRegistry } from "./GateRegistry.ts";
++import type { GateRegistry } from "./GateWriter.ts";
+ import { useInvalidate } from "./hooks.ts";
+ import { useQadiContext } from "./QadiProvider.tsx";
+ import type { QadiAtoms, QadiRuntimeServices } from "./QadiAtoms.ts";
+diff --git a/packages/react/src/GateRegistry.ts b/packages/react/src/GateRegistry.ts
+deleted file mode 100644
+index 1b7aa7ec..00000000
+--- a/packages/react/src/GateRegistry.ts
++++ /dev/null
+@@ -1,60 +0,0 @@
+-/**
+- * Every live guard under one atom set, while instrumentation is on.
+- *
+- * This is the thing [BEH-QD-217](../../../spec/behaviors/28-devtools-screens.md)
+- * said could not exist, and the reasoning it gave was sound as far as it went:
+- * `Atom.family` keys **structurally**, so ten `<Can policy={isAdmin}>` in
+- * different places share one atom, and a panel counting atoms cannot tell them
+- * apart. What that argument establishes is that the *atom layer* cannot see
+- * instances, not that nothing can. A component knows perfectly well that it
+- * exists; nothing was asking it.
+- *
+- * So the two views are different questions rather than rival answers:
+- * `QadiAtoms.asked()` says what has been **asked**, and `QadiAtoms.gates` says
+- * who is **asking**. Both belong to the atom set, so they share one scope and one
+- * lifetime ([ADR-QD-080](../../../spec/decisions/080-a-gate-registry-belongs-to-its-atom-set.md),
+- * which moved this out of module scope).
+- *
+- * **No React state, and no decisions here.** A registration is a `useEffect` call
+- * on a handle into closure state — nothing re-renders because a guard registered,
+- * and nothing in this file can affect what a guard renders (AGENTS.md §13). The
+- * registry is plain closure state, never an `Atom` in an `AtomRegistry`, so it
+- * stays away from the scheduler knobs ADR-QD-014 fences off.
+- *
+- * **Off by default, and off means absent.** `QadiProvider` takes `instrument`,
+- * and without it no guard registers, no marker element is rendered, and a
+- * registry stays empty for the life of its atom set.
+- *
+- * The store itself is `buildGateRegistry` in `GateWriter.ts`, which is where its contract
+- * lives (ordering, synchrony, how a colliding id is disambiguated). `makeGateRegistry` hands
+- * it a collision reporter resolved under `onIdCollision`, and an atom set hands it one
+- * resolved under its own option, so each names the option its caller passed.
+- */
+-import { reporterFor, SIGNALS } from "./DeveloperSignals.ts";
+-import { buildGateRegistry } from "./GateWriter.ts";
+-import type { GateRegistry } from "./GateWriter.ts";
+-
+-export type { GateInstance, GateKind, GateRegistry, GateRenderState } from "./GateWriter.ts";
+-
+-export interface GateRegistryOptions {
+-  /**
+-   * Told once per id when two live registrations minted the same one.
+-   *
+-   * Defaults to a development-mode warning, like an atom set's own registry
+-   * (`DeveloperSignals.ts`, the one confinement point, ADR-QD-041). A supplied
+-   * callback replaces the warning outright and runs in production too.
+-   */
+-  readonly onIdCollision?: (id: string) => void;
+-}
+-
+-/**
+- * Builds an empty gate registry.
+- *
+- * Every atom set builds its own (`QadiAtoms.gates`); call this directly only to
+- * hand `QadiProvider` one registry for several atom sets, and build it once, at
+- * module scope, like `makeQadiAtoms`.
+- */
+-export const makeGateRegistry = (options?: GateRegistryOptions): GateRegistry =>
+-  buildGateRegistry(
+-    reporterFor(SIGNALS.GateIdCollision, "makeGateRegistry", options?.onIdCollision),
+-  );
+diff --git a/packages/react/src/GateWriter.ts b/packages/react/src/GateWriter.ts
+index 7a80a9ca..d25571bb 100644
+--- a/packages/react/src/GateWriter.ts
++++ b/packages/react/src/GateWriter.ts
+@@ -23,6 +23,7 @@
+  * read and register through it are in `useGate.ts` (ARCH-76, ADR-QD-140).
+  */
+ import type { GateState, Policy, Resource } from "@qadi/core";
++import { reporterFor, SIGNALS } from "./DeveloperSignals.ts";
+ 
+ /** Which surface the instance is. */
+ export type GateKind =
+@@ -362,3 +363,26 @@ export const reconcile = (
+   }
+   return next;
+ };
++
++export interface GateRegistryOptions {
++  /**
++   * Told once per id when two live registrations minted the same one.
++   *
++   * Defaults to a development-mode warning, like an atom set's own registry
++   * (`DeveloperSignals.ts`, the one confinement point, ADR-QD-041). A supplied
++   * callback replaces the warning outright and runs in production too.
++   */
++  readonly onIdCollision?: (id: string) => void;
++}
++
++/**
++ * Builds an empty gate registry.
++ *
++ * Every atom set builds its own (`QadiAtoms.gates`); call this directly only to
++ * hand `QadiProvider` one registry for several atom sets, and build it once, at
++ * module scope, like `makeQadiAtoms`.
++ */
++export const makeGateRegistry = (options?: GateRegistryOptions): GateRegistry =>
++  buildGateRegistry(
++    reporterFor(SIGNALS.GateIdCollision, "makeGateRegistry", options?.onIdCollision),
++  );
+diff --git a/packages/react/src/QadiAtoms.ts b/packages/react/src/QadiAtoms.ts
+index e3b5a245..48405d63 100644
+--- a/packages/react/src/QadiAtoms.ts
++++ b/packages/react/src/QadiAtoms.ts
+@@ -29,8 +29,8 @@ import {
+   hydrateWith,
+ } from "./HydrationEngine.ts";
+ import { reporterFor, SIGNALS } from "./DeveloperSignals.ts";
+-import type { GateRegistry } from "./GateRegistry.ts";
+ import { buildGateRegistry } from "./GateWriter.ts";
++import type { GateRegistry } from "./GateWriter.ts";
+ import type { DecisionResult } from "./DecisionOutcome.ts";
+ import type { AskedQuestion } from "./QuestionBook.ts";
+ import { makeQuestionBook } from "./QuestionBook.ts";
+diff --git a/packages/react/src/QadiProvider.tsx b/packages/react/src/QadiProvider.tsx
+index 0e440403..99b1d78b 100644
+--- a/packages/react/src/QadiProvider.tsx
++++ b/packages/react/src/QadiProvider.tsx
+@@ -46,8 +46,8 @@ import {
+   useRef,
+   type ReactNode,
+ } from "react";
+-import type { GateRegistry } from "./GateRegistry.ts";
+ import { gateWriterFor } from "./GateWriter.ts";
++import type { GateRegistry } from "./GateWriter.ts";
+ import type { InitialValues } from "./HydrationEngine.ts";
+ import {
+   holdsHere,
+diff --git a/packages/react/src/hooks.ts b/packages/react/src/hooks.ts
+index 38bc5d85..0d4148b6 100644
+--- a/packages/react/src/hooks.ts
++++ b/packages/react/src/hooks.ts
+@@ -10,7 +10,7 @@ import type { AuthSubject, Policy, Resource } from "@qadi/core";
+ import { projectVisible } from "@qadi/core";
+ import { useAtomSuspense } from "@effect/atom-react/Hooks";
+ import { useCallback, useEffect, useSyncExternalStore } from "react";
+-import type { GateInstance } from "./GateRegistry.ts";
++import type { GateInstance } from "./GateWriter.ts";
+ import type { DecisionResult } from "./DecisionOutcome.ts";
+ import type { AskedQuestion } from "./QuestionBook.ts";
+ import { useAtomValue, useQadiContext } from "./QadiProvider.tsx";
+diff --git a/packages/react/src/index.ts b/packages/react/src/index.ts
+index 01e4dc1c..01c8389c 100644
+--- a/packages/react/src/index.ts
++++ b/packages/react/src/index.ts
+@@ -1,6 +1,13 @@
+ export * from "./DecisionOutcome.ts";
+ export * from "./DevtoolsFeed.ts";
+-export * from "./GateRegistry.ts";
++export { makeGateRegistry } from "./GateWriter.ts";
++export type {
++  GateInstance,
++  GateKind,
++  GateRegistry,
++  GateRegistryOptions,
++  GateRenderState,
++} from "./GateWriter.ts";
+ export * from "./Hydration.ts";
+ export * from "./QadiAtoms.ts";
+ export * from "./QadiProvider.tsx";

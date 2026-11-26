@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-053                                   |
-> | Revision       | 1.7                                            |
+> | Revision       | 1.8                                            |
 > | Effective Date | 2026-10-07                                     |
 > | Status         | Accepted — amended by ADR-QD-080, ADR-QD-093, ADR-QD-103, ADR-QD-111, ADR-QD-140; amended 2026-10-08 (the devtools feed); amended 2026-11-16 (the dock subscribes, ADR-QD-162) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.7 (2026-11-16): Amended: the dock's model subscribes to the registry, and the feed hands it over (ADR-QD-162, CCR-QD-440)<br>1.6 (2026-11-12): Amendment: useGates moved from GateWriter.ts to useGate.ts (ADR-QD-140, CCR-QD-427)<br>1.5 (2026-11-08): Amended by ADR-QD-111 — registration goes through one internal useGates over a writer the provider resolves once (ARCH-49, CCR-QD-388)<br>1.4 (2026-10-08): amendment — `@qadi/react` produces the devtools feed, built runtime included; devtools still consumes it structurally (BEH-QD-327, CCR-QD-240)<br>1.3 (2026-10-07): `GateKind` gains `usePolicies` and `useQuestions`; a hook asking several questions registers one instance per question (ADR-QD-103, CCR-QD-201)<br>1.2 (2026-10-05): `GateRenderState` is derived from `DecisionOutcome`'s tag, not restated; amended by ADR-QD-093 (CCR-QD-175)<br>1.1 (2026-10-04): the registry is no longer module-scope; amended by ADR-QD-080 (CCR-QD-160)<br>1.0 (2026-08-24): Initial release (CCR-QD-073) |
+> | Change History | 1.8 (2026-11-26): a dated note says GateRegistry.ts is folded into GateWriter.ts (ARCH-138, CCR-QD-483)<br>1.7 (2026-11-16): Amended: the dock's model subscribes to the registry, and the feed hands it over (ADR-QD-162, CCR-QD-440)<br>1.6 (2026-11-12): Amendment: useGates moved from GateWriter.ts to useGate.ts (ADR-QD-140, CCR-QD-427)<br>1.5 (2026-11-08): Amended by ADR-QD-111 — registration goes through one internal useGates over a writer the provider resolves once (ARCH-49, CCR-QD-388)<br>1.4 (2026-10-08): amendment — `@qadi/react` produces the devtools feed, built runtime included; devtools still consumes it structurally (BEH-QD-327, CCR-QD-240)<br>1.3 (2026-10-07): `GateKind` gains `usePolicies` and `useQuestions`; a hook asking several questions registers one instance per question (ADR-QD-103, CCR-QD-201)<br>1.2 (2026-10-05): `GateRenderState` is derived from `DecisionOutcome`'s tag, not restated; amended by ADR-QD-093 (CCR-QD-175)<br>1.1 (2026-10-04): the registry is no longer module-scope; amended by ADR-QD-080 (CCR-QD-160)<br>1.0 (2026-08-24): Initial release (CCR-QD-073) |
 
 ---
 
@@ -171,6 +171,11 @@ nothing re-renders because a guard registered. The React glue is still **one**
 > inside the provider, or `useSyncExternalStore(atoms.gates.subscribe,
 > atoms.gates.instances, atoms.gates.instances)` outside it. The module-scope
 > `subscribeGates`/`gateInstances` pair no longer exists.
+
+> **Note (2026-11-26, ADR-QD-204, CCR-QD-483).** `GateRegistry.ts` is folded into `GateWriter.ts`, in
+> `@qadi/react`: `makeGateRegistry` and the gate types are declared there, beside the store `buildGateRegistry`.
+> Where this record names `GateRegistry.ts`, read `GateWriter.ts`
+> ([ADR-QD-204](./204-named-barrels-and-visibility-only-files-folded-away.md)).
 
 **Enumerable is not the same as locatable.** A hook has no node of its own, so it
 appears in the list and its highlight is disabled with the reason on it. A panel

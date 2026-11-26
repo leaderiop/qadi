@@ -118,6 +118,7 @@ const probePort: PortDescription<
   defect: ([, what], cause) => new ProbeError({ what, cause: Cause.squash(cause) }),
   key: ([who, what]) => canonicalKey([who, what]),
   none: { name: "ProbeNone", answer: undefined },
+  fixture: () => named(undefined, 0),
 };
 
 const named = (name: string | undefined, answer: number): Layer.Layer<ProbePort> =>

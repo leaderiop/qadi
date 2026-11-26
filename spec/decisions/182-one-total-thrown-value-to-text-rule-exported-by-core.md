@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-182                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-22                                     |
-> | Status         | Accepted — reads ADR-QD-154, ADR-QD-099        |
+> | Status         | Accepted — reads ADR-QD-154, ADR-QD-099; amended 2026-11-25 (ADR-QD-200: decision 10 extends to the simulation session and decision 11's list of String sites is amended) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-22): A `null` cause is captured as `null`, a field being absent only when `undefined`; the reads outside the rule are named (code review WR-03, IN-02, CCR-QD-461)<br>1.0 (2026-11-22): Initial release (ARCH-116, CCR-QD-461) |
+> | Change History | 1.2 (2026-11-25): decision 10 extends to the simulation session and decision 11's sentence is amended by ADR-QD-200 (CCR-QD-479)<br>1.1 (2026-11-22): A `null` cause is captured as `null`, a field being absent only when `undefined`; the reads outside the rule are named (code review WR-03, IN-02, CCR-QD-461)<br>1.0 (2026-11-22): Initial release (ARCH-116, CCR-QD-461) |
 
 ---
 
@@ -59,9 +59,18 @@ the predicate's name, so a replay carried a name where the port had reported a r
    port reported.
 10. The devtools timeline feed, diagnostics feed, diagnostics wiring read and policy explorer render a run's cause with
     `causeMessage`, and the gates feed does too, in place of its own guard.
+
+    > **Amended 2026-11-25 ([ADR-QD-200](./200-one-scoped-run-that-states-its-stop.md), CCR-QD-479).** The simulation session renders its run's cause with
+    > `causeMessage` too: `Broke.message` is `causeMessage`'s text, as a stopped feed's reason is, and the stated run's one stop is
+    > where the timeline feed, the diagnostics feed and the session state it.
 11. The `String(cause)` calls on an Effect `Cause` (`DecisionSinkForwarding.ts`, `EncodeRefusalReport.ts`,
     `SinkReport.ts`) were checked and are left alone: Effect already guards that string form, and `String(Cause.die(hostile))`
     returns `Cause([Die([toString threw])])`.
+
+    > **Amended 2026-11-25 ([ADR-QD-200](./200-one-scoped-run-that-states-its-stop.md), CCR-QD-479).** The list was not complete. The simulation session's
+    > `String(exit.cause)` was a site it never named, and the session reads `causeMessage` instead; the devtools model has none.
+    > `packages/audit/src/AuditWriteReport.ts` is another site it never named, a sink report that stringifies a cause, and it is
+    > left as it is, a follow-up. The three core sites named above and the `v4-api-smoke` canary stand.
 12. Two more reads stay outside the rule, and each is safe for its own reason: the `JSON.parse` catches in
     `UntrustedDecode.decodeText` and `SimulationForm.parseJson`, because `JSON.parse` throws only its own
     `SyntaxError`, and devtools' `Source.thrownName`, which reads a thrown value's name alone, inside its own guard.
@@ -105,4 +114,5 @@ complete, clean option: the cause renderer as a second public export (decision 4
 ## Related
 
 [ADR-QD-154](./154-one-value-to-text-function-exported-by-core.md), [ADR-QD-099](./099-entry-points-are-a-closed-list.md),
-BEH-QD-230, BEH-QD-507, BEH-QD-519, BEH-QD-637, BEH-QD-681 to BEH-QD-685, INV-QD-383, INV-QD-384.
+BEH-QD-230, BEH-QD-507, BEH-QD-519, BEH-QD-637, BEH-QD-681 to BEH-QD-685, INV-QD-383, INV-QD-384,
+[ADR-QD-200](./200-one-scoped-run-that-states-its-stop.md).

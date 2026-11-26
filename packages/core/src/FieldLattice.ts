@@ -68,7 +68,7 @@ import type { FieldStrategy } from "./Policy.ts";
  * the two record types whose fields flow through them (`Trace.visibleFields`,
  * `Allow.visibleFields`) — the same "field-visibility merge logic" this item
  * was scoped to — rather than swept through `Policy.ts`'s builder options,
- * `Explanation.ts`, `TraceDiff.ts`, `@qadi/react`'s `Hydration.ts` and
+ * `Explanation.ts`, `TraceDiff.ts`, `@qadi/react`'s `HydrationEngine.ts` and
  * `@qadi/devtools`'s `Inspect.ts`, which describe the identical shape for a
  * related but distinct purpose (a policy-authoring input, an explanation
  * rendering, a diff, a wire payload, a devtools projection) in five other

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-039                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-10-04                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.2 (2026-11-12): Amendment: the seed is held by its question and reached through a grant (ADR-QD-149, CCR-QD-427)<br>1.1 (2026-10-04): The seed lives in `HydrationEngine.ts`, and the lookup is a closure capability of the atom set (`QadiAtoms.hydrate`) rather than a module-scope `WeakMap`; `HydrationSeed.ts` is removed (ADR-QD-078, CCR-QD-156)<br>1.0 (2026-08-23): Initial release (CCR-QD-052) |
+> | Change History | 1.3 (2026-11-26): note: hydrateDecisions is declared in the part-public HydrationEngine.ts and is structural over the hydrate capability (ADR-QD-204, CCR-QD-483)<br>1.2 (2026-11-12): Amendment: the seed is held by its question and reached through a grant (ADR-QD-149, CCR-QD-427)<br>1.1 (2026-10-04): The seed lives in `HydrationEngine.ts`, and the lookup is a closure capability of the atom set (`QadiAtoms.hydrate`) rather than a module-scope `WeakMap`; `HydrationSeed.ts` is removed (ADR-QD-078, CCR-QD-156)<br>1.0 (2026-08-23): Initial release (CCR-QD-052) |
 
 _Amends: [ADR-QD-028](./028-decision-hydration.md), which decided the payload and
 said nothing about what happens to a seed once the client answers._
@@ -146,3 +146,10 @@ deletes the feature ADR-QD-028 exists for, and does not fix the discard.
   amended to say where the guarantee applies.
 - (–) There are now two atoms per question instead of one. They are created
   together and keyed together, so nothing a consumer touches changes shape.
+
+> **Note (2026-11-26, ADR-QD-204, CCR-QD-483).** `hydrateDecisions` is declared in
+> `HydrationEngine.ts`, a part-public module: the barrel names an exact list of its names, those are public
+> (the two entry points and the payload and option types, and `InitialValues`, `HydrationMismatch` and
+> `HydrationMismatchReporter` through the re-exports of `QadiProvider.tsx` and `QadiAtoms.ts`), and every name
+> it does not list is package-private. It takes any value with a `hydrate` method of `QadiAtoms`'s signature. The capability to seed is still a closure
+> the atom set owns, and a seed is still not an authority ([ADR-QD-204](204-named-barrels-and-visibility-only-files-folded-away.md)).

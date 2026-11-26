@@ -13,14 +13,16 @@
  * The question and the answer are two structs, not one, because BEH-QD-227
  * requires a span to carry its question even when the port failed.
  * `qadi.attempts` is written between them by a different module, the retrying
- * wrappers, and is decoded (`PortSpanDecode.ts`) for every port.
+ * wrappers, and is decoded (`decodePortSpan`, in `PortSpanEncode.ts`) for every
+ * port.
  *
  * Every field is a {@link SpanValue}, which is INV-QD-044 as a type: a field
  * that could hold arbitrary data does not compile. The machinery that builds a
  * struct is internal (`PortSpanEncode.ts`); only the types a description names
- * live here, and the decoder is `PortSpanDecode.ts`.
+ * live here, with the one closed set they need, `portInterpreter`. The decoder,
+ * `decodePortSpan`, is declared beside that machinery.
  */
-import type * as Schema from "effect/Schema";
+import * as Schema from "effect/Schema";
 
 /**
  * A value a span attribute may hold.
@@ -73,11 +75,24 @@ export interface SpanStruct<Fields extends SpanFields> {
 }
 
 /**
- * Which interpreter is asking — `qadi.interpreter` on every port span: the
- * evaluator, the translator, or a host answering a remote asker (ARCH-31).
- * Stated once, in `PortInterpreter.ts`.
+ * Who is asking a port: the closed set `qadi.interpreter` is annotated with.
+ *
+ * Stated once, here, as a schema, with the type derived (AGENTS.md §7): the
+ * span's question field (`PortSpanEncode.ts`) decodes through it. It was stated
+ * twice — a type and a literal list — until the third member was added
+ * (ARCH-31, ADR-QD-051).
+ *
+ * - `evaluate` — the evaluator, reading a port while it walks a policy.
+ * - `toPredicate` — the translator, reading the ports it can fold.
+ * - `remote` — a host answering another process's question
+ *   (`servePortRead`), which counts in its own sibling metric,
+ *   `qadi_port_served_calls_total`.
+ *
+ * Package-private as a schema: core's barrel names the type, not this value.
  */
-export type { PortInterpreter } from "./PortInterpreter.ts";
+export const portInterpreter = Schema.Literals(["evaluate", "toPredicate", "remote"]);
+
+export type PortInterpreter = typeof portInterpreter.Type;
 
 /**
  * One port's span attributes: its question, its answer, and the two projections

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-037                                   |
-> | Revision       | 1.7                                             |
+> | Revision       | 1.8                                             |
 > | Effective Date | 2026-09-19                                     |
-> | Status         | Accepted                                       |
+> | Status         | Accepted; amended 2026-11-26 (the cycle-breakers that remain and the five folded, ADR-QD-204) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architectural Decision                         |
-> | Change History | 1.7 (2026-11-20): amendment: tstyche compiles under tsconfig.tstyche.json and runs twice (ADR-QD-175, CCR-QD-453)<br>1.6 (2026-11-14): amendment: tstyche checks a ts-expect-error fragment, replacing toRaiseError (ADR-QD-152, CCR-QD-430)<br>1.5 (2026-11-12): Revision note: the Lifecycle copy the cycle rule forced is gone (ARCH-80, CCR-QD-423)<br>1.4 (2026-11-11): Test-table row for `GuardRoute.tst.ts` now names `addGuardedRoute`, the one bare-route seam, instead of the removed `guardRoute` (ARCH-75, CCR-QD-417; phase 27 review WR-01)<br>1.3 (2026-09-19): The `"rc"` channel named by 1.2's re-check tried, not just named — `npx tstyche --target rc` fails outright (`ERR_MODULE_NOT_FOUND: .../typescript@7.0.1-rc/lib/typescript.js`), because that build is the `typescript-go`/`tsgo` native-compiler preview, which ships `dist/api/*` and no classic `lib/typescript.js` at all — a different package shape than `tstyche`'s type tester is written against, not merely a pre-release version of the shape it expects. So the gap isn't only "no stable TS 7 target yet"; the one pre-release target that exists doesn't run under this `tstyche`. Confirms 1.2's conclusion more strongly than 1.2 itself established it (100-lens audit, second batch, .issues/medium/sebastian-mckenzie-SM-01.md, .issues/medium/nathan-shively-sanders-NS-02.md, .issues/low/titian-cernicova-dragomir-TC-03.md, .issues/info/joel-spolsky-JS-07.md)<br>1.2 (2026-09-19): Dated re-check added to the TypeScript-7 revisit note — `tstyche@^7.2.5` is now installed, but `--list` shows TypeScript 7 is still pre-release (`rc`/`next` channels only), so `tstyche.json`'s `6.0.3` target remains the newest stable version and the revisit condition has not fired (100-lens audit, MO-03/OT-02/RC-03)<br>1.1 (2026-09-07): "`pnpm check` steps 5 and 6" now names `madge`/`tstyche` in the same sentence — extending `scripts/check-dod-table.mjs`'s reference check to plural forms ("steps 5 and 6", not just "step 11") turned this line's un-named pair into a real finding rather than a silent gap (CCR-QD-111)<br>1.0 (2026-08-22): Initial release (CCR-QD-048) |
+> | Change History | 1.8 (2026-11-26): amendment: the cycle-breakers that remain and the five folded, with the measured verdicts (ADR-QD-204, CCR-QD-483)<br>1.7 (2026-11-20): amendment: tstyche compiles under tsconfig.tstyche.json and runs twice (ADR-QD-175, CCR-QD-453)<br>1.6 (2026-11-14): amendment: tstyche checks a ts-expect-error fragment, replacing toRaiseError (ADR-QD-152, CCR-QD-430)<br>1.5 (2026-11-12): Revision note: the Lifecycle copy the cycle rule forced is gone (ARCH-80, CCR-QD-423)<br>1.4 (2026-11-11): Test-table row for `GuardRoute.tst.ts` now names `addGuardedRoute`, the one bare-route seam, instead of the removed `guardRoute` (ARCH-75, CCR-QD-417; phase 27 review WR-01)<br>1.3 (2026-09-19): The `"rc"` channel named by 1.2's re-check tried, not just named — `npx tstyche --target rc` fails outright (`ERR_MODULE_NOT_FOUND: .../typescript@7.0.1-rc/lib/typescript.js`), because that build is the `typescript-go`/`tsgo` native-compiler preview, which ships `dist/api/*` and no classic `lib/typescript.js` at all — a different package shape than `tstyche`'s type tester is written against, not merely a pre-release version of the shape it expects. So the gap isn't only "no stable TS 7 target yet"; the one pre-release target that exists doesn't run under this `tstyche`. Confirms 1.2's conclusion more strongly than 1.2 itself established it (100-lens audit, second batch, .issues/medium/sebastian-mckenzie-SM-01.md, .issues/medium/nathan-shively-sanders-NS-02.md, .issues/low/titian-cernicova-dragomir-TC-03.md, .issues/info/joel-spolsky-JS-07.md)<br>1.2 (2026-09-19): Dated re-check added to the TypeScript-7 revisit note — `tstyche@^7.2.5` is now installed, but `--list` shows TypeScript 7 is still pre-release (`rc`/`next` channels only), so `tstyche.json`'s `6.0.3` target remains the newest stable version and the revisit condition has not fired (100-lens audit, MO-03/OT-02/RC-03)<br>1.1 (2026-09-07): "`pnpm check` steps 5 and 6" now names `madge`/`tstyche` in the same sentence — extending `scripts/check-dod-table.mjs`'s reference check to plural forms ("steps 5 and 6", not just "step 11") turned this line's un-named pair into a real finding rather than a silent gap (CCR-QD-111)<br>1.0 (2026-08-22): Initial release (CCR-QD-048) |
 
 ---
 
@@ -71,6 +71,14 @@ most likely to accumulate a provider/hook/component cycle.
 Run once against the current tree: **clean, no circular dependency found**.
 This gate is therefore a regression check from day one, not a backlog of
 existing cycles nobody has looked at — the good case for adding a gate.
+
+> **Amended (2026-11-26, ADR-QD-204, CCR-QD-483): five files that kept a name public are folded, and the cycle-breakers
+> that remain are named.** `PortSpanEncode.ts`, `PortKey.ts`, `SinkWire.ts`, `JsonRefusal.ts` and
+> `SinkRecordFields.ts` (core), and `QuestionBook.ts` and `MissingQadiProviderError.ts` (react) stay: each is a leaf, or
+> a file the other side of an edge imports, that the cycle rule keeps apart. `PortSpanDecode.ts`, `PortInterpreter.ts`,
+> `GateRegistry.ts`, `SequenceIntegrity.ts` and react's `Hydration.ts` were not cycle-breakers; each existed to keep one or
+> two names public while its siblings stayed out of the barrel, and each is folded into the module that declares its
+> concept. See the amendment at the end of this document.
 
 `madge` declares a peer dependency on `typescript@^5.4.4` and this workspace
 runs `typescript@^7.0.0` (`catalog:`); `pnpm install` reports the mismatch
@@ -243,6 +251,34 @@ arguments were. `pnpm test:tstyche` runs `scripts/run-tstyche.mjs`, which runs t
 that config and again under `tsconfig.test.json` with the rule on, and a budget in
 `scripts/check-house-style.mjs` counts the negative pins
 ([ADR-QD-175](./175-a-negative-type-pin-can-fail.md)).
+
+## Amendment (2026-11-26, ADR-QD-204, CCR-QD-483)
+
+The rule is met by where a declaration lives, and a file kept apart for another reason is not a cycle-breaker. The planning
+record had read five Port-family and hydration files as cycle-breakers; they were files that existed to keep names public
+from a barrel that could not state a part-public module. The barrels of `@qadi/core`, `@qadi/react` and `@qadi/audit`
+name their exports per module, and each candidate fold was measured on a scratch clone with `pnpm circular` and
+`tsc -b tsconfig.build.json` before any was made.
+
+**Folded, each acyclic with `tsc` clean:** `PortSpanDecode.ts` into `PortSpanEncode.ts`; `PortInterpreter.ts` into
+`PortSpan.ts`; `GateRegistry.ts` into `GateWriter.ts`; `SequenceIntegrity.ts` into `ArchiveFacts.ts`; and react's
+`Hydration.ts` into `HydrationEngine.ts`, after `hydrateDecisions` took a package-private structural `HydrationTarget`
+where it had taken `QadiAtoms`. The files madge reads go from 251 to 246, and `pnpm circular` was clean at each fold.
+
+**Refused, each a cycle:** `PortInterpreter.ts` into `PortSpanEncode.ts` and `PortSpanDecode.ts` into `PortSpan.ts` close the
+one edge between `PortSpan.ts` and `PortSpanEncode.ts` from its two directions (types flow one way and machinery the
+other, so the interpreter set sits with the types and the decoder with the machinery); `Hydration.ts` into
+`HydrationEngine.ts` as written closes `QadiAtoms.ts` and `HydrationEngine.ts`.
+
+**Kept:** `PortSpanEncode.ts`, `PortKey.ts`, `SinkWire.ts`, `JsonRefusal.ts`, `SinkRecordFields.ts`, `QuestionBook.ts` and
+`MissingQadiProviderError.ts`, each for the reason its header states. `EvaluationSpan.ts` also stays apart, for a different
+reason: it is the span-key declaration the house-style check reads, and folding it into `PortSpanEncode.ts` is acyclic but
+leaves that check without its file.
+
+The out-of-scope line the planning record held for splitting these files is removed: the files it named are folded or kept
+with their reasons, here.
+
+See [ADR-QD-204](204-named-barrels-and-visibility-only-files-folded-away.md).
 
 ---
 

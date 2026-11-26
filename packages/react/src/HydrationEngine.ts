@@ -1,7 +1,8 @@
 /**
- * The hydration payload codec, in both directions.
+ * The hydration payload codec, in both directions, and the two entry points over it.
  *
- * That is `dehydrateWith` and `hydrateWith`. Each direction is a module-private
+ * That is `dehydrateWith` and `hydrateWith`, then `dehydrateDecisions` and
+ * `hydrateDecisions`, which a consumer calls. Each direction is a module-private
  * planner returning the `HydrationEvent`s a call implies, and `HydrationEvent.ts`
  * is the one place those become counts and reports (ARCH-60). The seed slot a
  * question keeps its seeds in, the rule that the client's own answer wins
@@ -10,14 +11,28 @@
  * module fills a slot through {@link HydrationSeedLookup} and does nothing else
  * with a seed.
  *
- * Private, and out of the barrel on purpose (AGENTS.md §9,
- * [ADR-QD-039](../../../spec/decisions/039-a-seed-is-not-an-authority.md)): a
- * consumer that could reach a seed slot could write an authorization decision
- * straight into the registry, bypassing the subject check and the evaluator.
- * `Hydration.ts` is the public interface over this module and re-exports by name
- * only what a consumer may hold. This file imports nothing from `Hydration.ts`,
- * `QadiAtoms.ts` or `QadiProvider.tsx`, so no cycle (counting `import type`
- * edges, ADR-QD-037) can form through it.
+ * Both entry points are **pure and synchronous**. Nothing here touches React; the
+ * output of `hydrateDecisions` is `QadiProviderProps.initialValues`.
+ *
+ * The security shape of this module is the point, and it is
+ * [ADR-QD-028](../../../spec/decisions/028-decision-hydration.md): a payload is
+ * authorization state crossing a network, so it is **bound to a subject id**, it
+ * **carries no trace** by default, and every entry it cannot verify is
+ * **dropped** rather than trusted.
+ *
+ * The barrel names an exact list of this module's names, and those are public:
+ * the two entry points and the payload and option types, which it names here, and
+ * `InitialValues`, `HydrationMismatch` and `HydrationMismatchReporter`, which it
+ * names through the re-exports of `QadiProvider.tsx` and `QadiAtoms.ts` (the last
+ * two are declared in `DeveloperSignals.ts` and re-exported here). Every name it
+ * does not list is package-private (AGENTS.md §9). A consumer that could reach a
+ * seed slot could write an authorization decision straight into the registry,
+ * bypassing the subject check and the evaluator
+ * ([ADR-QD-039](../../../spec/decisions/039-a-seed-is-not-an-authority.md)). The
+ * entry points sit with the codec because the structural target removed the cycle
+ * that kept them apart (ADR-QD-204). This file imports nothing from `QadiAtoms.ts`
+ * or `QadiProvider.tsx`, so no cycle (counting `import type` edges, ADR-QD-037)
+ * can form through it.
  *
  * **A seed is not a `Decision`**: `SeededDecision.ts` holds the closed types
  * that say so, and this module rebuilds one from a payload without inventing a
@@ -539,6 +554,36 @@ export interface HydrateOptions {
   readonly onDropped?: HydrationDropReporter<unknown>;
 }
 
+/**
+ * Any value that can seed an atom set's questions: the capability
+ * `hydrateDecisions` calls.
+ *
+ * `QadiAtoms` extends it, so the signature is stated once. An atom set that
+ * forwards `hydrate` (a spread copy, a wrapper) is a target too. Kept out of the
+ * root so the public surface does not grow (ADR-QD-204): a consumer that needs
+ * the type names it as `Parameters<typeof hydrateDecisions>[0]`. It holds only
+ * the public `hydrate` member, never a seed slot.
+ */
+export interface HydrationTarget {
+  /**
+   * Seeds the target's questions from a server's dehydrated payload.
+   *
+   * The capability `hydrateDecisions` calls — **prefer `hydrateDecisions`**, which
+   * is the documented entry point and checks the payload the same way. On an atom
+   * set it writes the seed atoms that atom set keeps private (`QadiAtoms`).
+   *
+   * Never throws, and drops what it cannot verify — see `hydrateDecisions`. A
+   * wrapper that forwards `decision` can forward this too, and a
+   * hand-built test double supplies its own: that is the caller's code, not a
+   * trust crossing.
+   */
+  readonly hydrate: (
+    dehydrated: DehydratedDecisions,
+    subject: AuthSubject,
+    options?: HydrateOptions,
+  ) => InitialValues;
+}
+
 /** What a hydration seeds, and the events it implies. */
 interface HydrationPlan {
   readonly initialValues: InitialValues;
@@ -674,3 +719,58 @@ export const hydrateWith = (
 
 /** Finds the slot standing behind one decision. Closure-private to an atom set. */
 export type HydrationSeedLookup = (policy: Policy, resource: Resource | undefined) => SeedSlot;
+
+// ---------------------------------------------------------------------------
+// The entry points
+// ---------------------------------------------------------------------------
+
+/**
+ * Projects decisions into a payload safe to embed in a server-rendered page.
+ *
+ * Every entry must belong to the same subject; the first one's `subjectId` names
+ * the payload and any entry disagreeing with it is **dropped**, because a payload
+ * mixing subjects is a bug whose only safe reading is to trust none of it.
+ * Every entry left out — for another subject, or for a policy the schema cannot
+ * carry — is counted and reported to `onDropped` as a `HydrationDrop`, once per
+ * reason.
+ */
+export const dehydrateDecisions = (
+  entries: ReadonlyArray<DecisionEntry>,
+  options?: DehydrateOptions,
+): DehydratedDecisions => dehydrateWith(entries, options);
+
+/**
+ * Turns a payload into `initialValues` for `QadiProvider`.
+ *
+ * **Drops** every entry whose `subjectId` is not this subject's, and every entry
+ * whose shape or policy this client cannot verify. A dropped entry leaves its atom
+ * `Initial`, so the client asks the question properly — the page flashes, which is
+ * exactly what would have happened without hydration and is the correct outcome
+ * for a payload that cannot be verified.
+ *
+ * Not throwing is deliberate, **whatever the payload is**: it arrives as JSON in
+ * a page, and `JSON.parse` yields `any`, so a value that is not even an envelope
+ * is dropped and counted like any other. A cache serving one user's page to
+ * another is a misconfiguration, and turning it into a blank page would be a
+ * worse outcome than re-deciding. Trusting it would be a breach.
+ *
+ * Every one of those exits is **announced and counted**. They were all silent,
+ * which made a page that re-decided everything from scratch indistinguishable
+ * from one that had nothing to hydrate.
+ *
+ * Reads `version: 2` payloads only — what `dehydrateDecisions` has written
+ * since 0.10. A payload with any other `version`, or none (the format 0.9 and
+ * earlier wrote, read until 0.11.0), is dropped whole as
+ * `UnsupportedPayloadVersion` (ADR-QD-078).
+ *
+ * Delegates to the target's `hydrate`, the capability an atom set closes over
+ * its own seed atoms. A target that merely forwards `decision` and `hydrate`
+ * — a spread copy, a wrapper — therefore seeds the same questions its inner one
+ * does, which is correct: its decision atoms are the real ones.
+ */
+export const hydrateDecisions = (
+  atoms: HydrationTarget,
+  dehydrated: DehydratedDecisions,
+  subject: AuthSubject,
+  options?: HydrateOptions,
+): InitialValues => atoms.hydrate(dehydrated, subject, options);

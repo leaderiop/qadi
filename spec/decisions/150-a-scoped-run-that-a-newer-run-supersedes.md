@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-150                                   |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-11-14                                     |
-> | Status         | Accepted — amends ADR-QD-137                   |
+> | Status         | Accepted — amends ADR-QD-137; amended 2026-11-25 (ADR-QD-200: the failure hook is removed and the stop rule is the stated run's) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.0 (2026-11-14): Initial (ARCH-84, CCR-QD-428) |
+> | Change History | 1.1 (2026-11-25): amended by ADR-QD-200: the failure hook is removed and the stop rule is the stated run's; point 2 is applied (CCR-QD-479)<br>1.0 (2026-11-14): Initial (ARCH-84, CCR-QD-428) |
 
 ---
 
@@ -78,6 +78,13 @@ that lands.** (ARCH-84, CCR-QD-428.)
    closed. The two feeds use it for their `Stopped` state. The session passes none: its `land`
    keeps mapping every non-success exit of a current run to `Broke`, a self-interrupt included,
    because an interruption must never read as `Stopped` (INV-QD-313).
+
+   > **Amended 2026-11-25 ([ADR-QD-200](./200-one-scoped-run-that-states-its-stop.md), CCR-QD-479).** The hook is removed: once the stated run stated every stop
+   > no store called it, so `fork` takes the token and the run and nothing else. The stop rule is the stated run's: a current run
+   > whose own work ended on anything but success is stopped, an interruption the run gave itself included, so the clause
+   > "because an interruption must never read as `Stopped`" holds of an interruption from outside, and so does the sentence of
+   > the Consequences that says the same. Point 2 is applied and not reversed: the callback is what lets a store publish
+   > between `begin` and `fork`. The text above is left as written.
 7. **`fork` re-checks the token before it forks.** The two feeds gain the check only the session
    had, so a subscriber that restarts a store inside its `Starting` or `Reading` notification
    leaves the newest run live.
@@ -148,6 +155,7 @@ that lands.** (ARCH-84, CCR-QD-428.)
 [ADR-QD-137](./137-a-devtools-session-owns-its-runs-through-a-scope.md),
 [ADR-QD-047](./047-a-headless-devtools-model.md),
 [INV-QD-313](../invariants.md),
+[ADR-QD-200](./200-one-scoped-run-that-states-its-stop.md),
 [BEH-QD-461](../behaviors/29-devtools-simulator.md#beh-qd-461-a-session-owns-its-runs),
 [BEH-QD-322](../behaviors/29-devtools-simulator.md#beh-qd-322-a-simulation-is-a-session),
 CCR-QD-428.

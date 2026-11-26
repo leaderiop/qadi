@@ -16,8 +16,10 @@
  * timeline readings ADR-QD-047 lists. The feeds' engines and a screen's
  * mechanics (form codecs, sweep planning, remedies, capture, replay, role trees,
  * gate grouping) are reachable inside the package only: out of the barrel means
- * not importable (ADR-QD-099, ADR-QD-173). Adding a name is a line here, a row in
- * `spec/overview.md` and a line in `test/surface.test.ts`, which is deliberate.
+ * not importable (ADR-QD-099, ADR-QD-173). Adding a value is a line here, a row in
+ * `spec/overview.md` and a line in `test/surface.test.ts`'s value list; adding a
+ * type is a line here, a row in `spec/overview.md` and a line in
+ * `test/surface.tst.ts` (AGENTS.md §9).
  */
 export type { Answer, CapturedAnswers } from "./model/Capture.ts";
 export { catalogueOf } from "./model/Catalogue.ts";

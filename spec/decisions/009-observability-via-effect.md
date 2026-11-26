@@ -42,7 +42,11 @@ worse than not shipping one.
 > now optionally exists: `@qadi/audit`'s `AuditTrailPort` under `DecisionSink`,
 > narrowing ADR-QD-016 the same way. It closes the *durability* half of the
 > Negative consequence above, but not the *tamper-evident* half — nothing in
-> it hash-chains or signs an entry; `SequenceIntegrity.ts`'s sequence-gap
+> it hash-chains or signs an entry; `ArchiveFacts.ts`'s sequence-gap
 > detection checks a caller-assigned number, not cryptographic
 > tamper-evidence. "Tamper-evident audit trail" in this ADR's original text
 > describes what remained out of reach in 2026-07-25 and still does today.
+
+> **Note (2026-11-26, ADR-QD-204, CCR-QD-483).** The sequence check is declared and
+> published from `ArchiveFacts.ts`, beside the facts it reads, with the same
+> disclaimer ([ADR-QD-204](204-named-barrels-and-visibility-only-files-folded-away.md)).

@@ -1,0 +1,91 @@
+diff --git a/packages/core/src/PortDerivation.ts b/packages/core/src/PortDerivation.ts
+index 8a45528f..c3ebb8f1 100644
+--- a/packages/core/src/PortDerivation.ts
++++ b/packages/core/src/PortDerivation.ts
+@@ -119,6 +119,34 @@ export const makePortDescription = <
+   };
+ };
+ 
++/** Whether a span name is a pattern (`string`, `` `qadi.${string}` ``) and not one literal. */
++type IsPattern<S extends string> = {} extends Record<S, 1> ? true : false;
++
++/** The registry entries whose span is not one literal, or is another entry's. */
++type SpanOffenders<R extends { readonly [K in keyof R]: { readonly span: string } }> = {
++  readonly [K in keyof R]: IsPattern<R[K]["span"]> extends true
++    ? K
++    : [R[K]["span"]] extends [R[Exclude<keyof R, K>]["span"]]
++      ? K
++      : never;
++}[keyof R];
++
++/**
++ * `unknown` when every entry of the registry `R` names one literal span and no
++ * two entries name the same, `never` otherwise.
++ *
++ * A registry applies it as `{ … } satisfies DistinctSpanNames<Registry>`, so a
++ * second port claiming another's span, or a span left as a pattern, is a
++ * compile error where the registry is written. It lives here and not in
++ * `PortDescription.ts` because the only module that sees every description is
++ * `Ports.ts`, which sits above it.
++ */
++export type DistinctSpanNames<R extends { readonly [K in keyof R]: { readonly span: string } }> = [
++  SpanOffenders<R>,
++] extends [never]
++  ? unknown
++  : never;
++
+ /** Rebuilds `layer`'s service through `wrap`, once, when the returned layer itself builds. */
+ export const wrapService = <Self, Shape>(
+   service: Context.Key<Self, Shape>,
+diff --git a/packages/core/src/PortDescription.ts b/packages/core/src/PortDescription.ts
+index 0918736e..44375c97 100644
+--- a/packages/core/src/PortDescription.ts
++++ b/packages/core/src/PortDescription.ts
+@@ -168,9 +168,10 @@ export type LeafRequests<P extends ReadonlyArray<unknown>> = {
+  * - `SpanName` — the span `PortAccess.ts` opens around a read of this port, as
+  *   the one literal its module states (`typeof` a module-private constant).
+  *   The registry reads it back (`PortSpanOf`, `Ports.ts`), so the union of the
+- *   five is derived from the descriptions and no table beside them restates it.
+- *   Defaulted to the pattern every span name matches, which is all generic code
+- *   needs.
++ *   five is derived from the descriptions and no table beside them restates it,
++ *   and `DistinctSpanNames` (`PortDerivation.ts`) refuses two ports that share
++ *   one. Defaulted to the pattern every span name matches, which is all generic
++ *   code needs.
+  */
+ export interface PortDescription<
+   N extends PortName,
+diff --git a/packages/core/src/Ports.ts b/packages/core/src/Ports.ts
+index 29aeaa77..7dc6cfdd 100644
+--- a/packages/core/src/Ports.ts
++++ b/packages/core/src/Ports.ts
+@@ -28,6 +28,7 @@ import { decisionHistoryFromEvents, decisionHistoryPort } from "./DecisionHistor
+ import type { ActedEventInput } from "./DecisionHistory.ts";
+ import { carryDefault } from "./PortDefault.ts";
+ import { nonePort } from "./PortDerivation.ts";
++import type { DistinctSpanNames } from "./PortDerivation.ts";
+ import type { LeafRequests, PortDescription, PortShape } from "./PortDescription.ts";
+ import type { PortName } from "./PortName.ts";
+ import type { PortSpanAttributesLike } from "./PortSpan.ts";
+@@ -49,14 +50,19 @@ export interface PortTypes {
+   readonly SignatureHistory: typeof signatureHistoryPort;
+ }
+ 
+-/** The registry: every port's description, by name. */
++/**
++ * The registry: every port's description, by name.
++ *
++ * Two ports claiming one span, or a port whose span is a pattern and not one
++ * literal, is a compile error here (`DistinctSpanNames`, `PortDerivation.ts`).
++ */
+ export const PORTS: PortTypes = {
+   AttributeResolver: attributeResolverPort,
+   DecisionHistory: decisionHistoryPort,
+   RelationshipResolver: relationshipResolverPort,
+   CustomPredicate: customPredicatePort,
+   SignatureHistory: signatureHistoryPort,
+-};
++} satisfies DistinctSpanNames<PortTypes>;
+ 
+ /** A description's service (the `Context.Service` class). */
+ export type ServiceOf<D> = D extends { readonly service: Context.Key<infer S, infer _Shape> }

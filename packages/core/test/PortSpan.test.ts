@@ -16,9 +16,9 @@ import { customPredicatePort } from "../src/CustomPredicate.ts";
 import { decisionHistoryPort } from "../src/DecisionHistory.ts";
 import { makeResourceId, makeSubjectId } from "../src/Identity.ts";
 import type { PortSpanAttributes, SpanFields, SpanStruct, SpanType } from "../src/PortSpan.ts";
-import { decodePortSpan } from "../src/PortSpanDecode.ts";
 import {
   attemptsStruct,
+  decodePortSpan,
   decodeSpan,
   encodeSpan,
   sharedQuestionFields,

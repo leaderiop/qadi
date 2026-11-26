@@ -1,0 +1,86 @@
+diff --git a/packages/core/src/PortSpanDecode.ts b/packages/core/src/PortSpanDecode.ts
+deleted file mode 100644
+index 1eb4312c..00000000
+--- a/packages/core/src/PortSpanDecode.ts
++++ /dev/null
+@@ -1,26 +0,0 @@
+-/**
+- * The one decoder of a port span's attributes.
+- *
+- * `@qadi/devtools` reads every port span through it, and core never decodes its
+- * own spans in `src`. Split from `PortSpan.ts` (the types a description names)
+- * so the public types and the internal machinery that builds them form no
+- * import cycle: types, then machinery, then this.
+- */
+-import type { PortSpanAttributes, PortSpanRow, SpanFields } from "./PortSpan.ts";
+-import { attemptsStruct, decodeSpan } from "./PortSpanEncode.ts";
+-
+-/**
+- * Reads one port span's attributes through its description.
+- *
+- * Each field is decoded on its own, so a value of the wrong type, or outside a
+- * literal union, reads as absent while the other fields are kept (BEH-QD-228);
+- * a `qadi.*` key the description does not name is ignored.
+- */
+-export const decodePortSpan = <Q extends SpanFields, Ans extends SpanFields, O>(
+-  d: { readonly attributes: PortSpanAttributes<Q, Ans, O> },
+-  attributes: ReadonlyMap<string, unknown>,
+-): PortSpanRow<Q, Ans> => ({
+-  ...decodeSpan(attemptsStruct, attributes),
+-  ...decodeSpan(d.attributes.question, attributes),
+-  ...decodeSpan(d.attributes.answer, attributes),
+-});
+diff --git a/packages/core/src/PortSpanEncode.ts b/packages/core/src/PortSpanEncode.ts
+index 95c2fd83..9785ed6d 100644
+--- a/packages/core/src/PortSpanEncode.ts
++++ b/packages/core/src/PortSpanEncode.ts
+@@ -33,7 +33,15 @@ import * as Effect from "effect/Effect";
+ import * as Option from "effect/Option";
+ import * as Schema from "effect/Schema";
+ import { portInterpreter } from "./PortInterpreter.ts";
+-import type { SpanFields, SpanKey, SpanStruct, SpanType, SpanValue } from "./PortSpan.ts";
++import type {
++  PortSpanAttributes,
++  PortSpanRow,
++  SpanFields,
++  SpanKey,
++  SpanStruct,
++  SpanType,
++  SpanValue,
++} from "./PortSpan.ts";
+ 
+ /**
+  * Builds a span struct from its fields and their keys.
+@@ -244,3 +252,19 @@ export const attemptsStruct = spanStruct(
+   { attempts: Schema.optionalKey(Schema.Number) },
+   { attempts: "qadi.attempts" },
+ );
++
++/**
++ * Reads one port span's attributes through its description.
++ *
++ * Each field is decoded on its own, so a value of the wrong type, or outside a
++ * literal union, reads as absent while the other fields are kept (BEH-QD-228);
++ * a `qadi.*` key the description does not name is ignored.
++ */
++export const decodePortSpan = <Q extends SpanFields, Ans extends SpanFields, O>(
++  d: { readonly attributes: PortSpanAttributes<Q, Ans, O> },
++  attributes: ReadonlyMap<string, unknown>,
++): PortSpanRow<Q, Ans> => ({
++  ...decodeSpan(attemptsStruct, attributes),
++  ...decodeSpan(d.attributes.question, attributes),
++  ...decodeSpan(d.attributes.answer, attributes),
++});
+diff --git a/packages/core/src/index.ts b/packages/core/src/index.ts
+index 057894a6..6bc33abd 100644
+--- a/packages/core/src/index.ts
++++ b/packages/core/src/index.ts
+@@ -37,7 +37,7 @@ export * from "./PortName.ts";
+ export * from "./PortRemote.ts";
+ export * from "./PortServing.ts";
+ export * from "./PortSpan.ts";
+-export * from "./PortSpanDecode.ts";
++export { decodePortSpan } from "./PortSpanEncode.ts";
+ export * from "./PortWire.ts";
+ export * from "./Ports.ts";
+ export * from "./Predicate.ts";

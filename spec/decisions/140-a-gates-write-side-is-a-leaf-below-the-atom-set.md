@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-140                                   |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-11-11                                     |
 > | Status         | Accepted — amends ADR-QD-111, ADR-QD-080; amended 2026-11-22 (ADR-QD-186) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.4 (2026-11-22): Amendment item 2: reconcile relies on the writer's contract and handles no throw of its own (ADR-QD-186, CCR-QD-465)<br>1.3 (2026-11-22): Amendment: reconcile is keyed by gate id and updates each kept handle; the hook registers from one effect beside its teardown (ADR-QD-186, CCR-QD-465)<br>1.2 (2026-11-14): Amendment: the atom set's import edges gain SeededQuestion.ts and SweepScheduler.ts (ADR-QD-155, CCR-QD-433)<br>1.1 (2026-11-12): Consequences amended: the test-edit count describes the split alone (CCR-QD-427)<br>1.0 (2026-11-11): Initial (ARCH-76, CCR-QD-418) |
+> | Change History | 1.5 (2026-11-26): note: the leaf imports DeveloperSignals.ts only and stays below the atom set (ADR-QD-204, CCR-QD-483)<br>1.4 (2026-11-22): Amendment item 2: reconcile relies on the writer's contract and handles no throw of its own (ADR-QD-186, CCR-QD-465)<br>1.3 (2026-11-22): Amendment: reconcile is keyed by gate id and updates each kept handle; the hook registers from one effect beside its teardown (ADR-QD-186, CCR-QD-465)<br>1.2 (2026-11-14): Amendment: the atom set's import edges gain SeededQuestion.ts and SweepScheduler.ts (ADR-QD-155, CCR-QD-433)<br>1.1 (2026-11-12): Consequences amended: the test-edit count describes the split alone (CCR-QD-427)<br>1.0 (2026-11-11): Initial (ARCH-76, CCR-QD-418) |
 
 ---
 
@@ -164,3 +164,7 @@ follows now.
 - **Item 3.** `useGateRegistrations(writer, wanted)` keeps one ref and calls `reconcile`
   from one registration effect, beside the teardown keyed on `writer`; the state diff
   that was a third effect is gone.
+
+> **Note (2026-11-26, ADR-QD-204, CCR-QD-483).** `makeGateRegistry` is declared in `GateWriter.ts`, so
+> where this record says `GateRegistry.ts`, read `GateWriter.ts`. The leaf's one local import is
+> `DeveloperSignals.ts`; it stays below the atom set and React-free ([ADR-QD-204](204-named-barrels-and-visibility-only-files-folded-away.md)).

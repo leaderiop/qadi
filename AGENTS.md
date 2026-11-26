@@ -126,16 +126,17 @@ same shape repeats in each of the five port modules (`RelationshipResolver.ts`,
 **A port's wrappers and default are derived from its description, not written
 by hand** (ADR-QD-094). The description states the port's facts once — name,
 method, span, the attributes that span carries, a lens onto its one method, its
-typed-error constructors, the request each policy leaf asks it (`asks`, ADR-QD-134)
-and its fail-closed answer; four of the five derive
+typed-error constructors, the request each policy leaf asks it (`asks`, ADR-QD-134),
+its fixture and its fail-closed answer; four of the five derive
 their request key and defect from their wire question and failure
 (`makePortDescription`, ADR-QD-133), and `CustomPredicate` states its own — and each
 exported layer is a one-line derivation: `export const decisionHistoryRetrying = retryingPort(decisionHistoryPort)`,
 `export const DecisionHistoryUnknown = nonePort(decisionHistoryPort)`. The
 derivations live in `PortDerivation.ts` (package-private; it absorbed the old
 `RetryingLayer.ts`), the doubles in `PortDoubles.ts`, and the closed registry
-of all five in `Ports.ts`. A new port is a description, a `PortName` member and
-its registry lines; the compiler asks for the rest. A test that needs a broken
+of all five in `Ports.ts`. A new port is a description (span, wire, serving facet,
+fixture), a `PORT_NAMES` entry, its registry lines and its `PortServing` row. The
+compiler asks for the rest. A test that needs a broken
 port scripts it (`scriptedPort`) rather than hand-writing a failing layer — see
 §6's `PORT_DOUBLE_BUDGET`.
 
@@ -703,7 +704,7 @@ makes of an input.
 | -------- | ----- | --- |
 | `packages/core/src/UntrustedDecode.ts` | 5 | The decoder itself: the depth-guard import and call, the strict option, its one `Schema.decodeUnknownResult`, and `decodeText`'s `JSON.parse`. |
 | `packages/core/src/DecodeDepthGuard.ts` | 1 | The depth walk's declaration, package-private and reached only from the decoder. |
-| `packages/core/src/PortSpanEncode.ts` | 2 | `spanStruct` reads only its own named keys, and every leaf is a `SpanValue` primitive (INV-QD-044), so there is no nesting or excess key for a guard to bound; not an untrusted seam regardless of who supplies the map. |
+| `packages/core/src/PortSpanEncode.ts` | 2 | `spanStruct` reads only its own named keys, and every leaf is a `SpanValue` primitive (INV-QD-044), so there is no nesting or excess key for a guard to bound; not an untrusted seam regardless of who supplies the map; the public `decodePortSpan` reads through the same per-field struct decode, with no counted token. |
 | `packages/core/src/SinkCodec.ts` | 1 | `SinkRecordWithJson`'s `Schema.decodeTo` is the transformation that gives `decodeSinkRecordWithJson` the record and its JSON form from one strict decode, run only through `untrustedDecoder` (ADR-QD-153); the stored envelope is read by `untrustedDecoder` itself (ADR-QD-170). |
 | `packages/devtools/src/model/SimulationForm.ts` | 1 | `parseJson` parses the simulation form's own typed text for the form's own validation; nothing crosses a trust boundary. |
 
@@ -729,11 +730,31 @@ name the wrong file or count.
 
 ## 9. Barrels
 
-`export * from "./File.ts"`, alphabetical. A package whose interface is narrower
-than its modules names its exports per module (`export { … } from`, `export type
-{ … } from`), grouped by module path; `@qadi/devtools` is the one today (ARCH-40,
-ADR-QD-047), and the `devtools-named-barrel` house-style rule refuses an `export *`
-in its two barrels. Shared scaffolding stays **out** of
+`export * from "./File.ts"`, alphabetical. A package whose root names modules that
+are only partly public names its exports per module (`export { … } from`, `export
+type { … } from`): at most one value group and then at most one type group per
+module, no inline `type` inside a value group, the groups in module-path order and
+the names inside each group in name order, both case-sensitive ASCII, and nothing
+else in the file. `@qadi/core`, `@qadi/react`, `@qadi/audit` and `@qadi/devtools`
+(its two barrels) are those (ARCH-40, ADR-QD-047, ADR-QD-204). The `named-barrel`
+house-style rule reads each through TypeScript's parse and refuses there an `export
+*`, any statement that is not such a group (a declaration, an import, an `export { …
+}` with no `from`), a group whose module is outside the package's own `src/`, a
+second value or type group for one module, a type group before its value group, an
+inline `type` in a value group, and groups or names out of order. It refuses its own
+list drifting too: an index off `NAMED_BARRELS` that names a relative group, or mixes
+any group with an `export *`, fails. Every run plants one violation of each kind into
+a copy of each listed barrel to see the rule refuse it. The pure barrels (`@qadi/http`,
+`@qadi/testing`) stay pure because each of their modules is wholly public; the roots
+of `@qadi/promise` and the two predicate packages are their implementation, not a
+barrel. Adding a public name is a line in the package root (a barrel line, or the
+export itself where the root is the implementation) and a row in `spec/overview.md`,
+which gate 13 (`check-api-surface.mjs`) reads. A value name is a third edit in the
+four packages that have a `test/surface.test.ts` (`@qadi/audit`, `@qadi/core`,
+`@qadi/devtools`, `@qadi/react`): a line in its value list, which catches a value
+turned type-only. A type name has no line there, because a type is not a runtime
+key; it gets a line in a type pin only where one names the package's types
+(`@qadi/devtools`' `test/surface.tst.ts`). Shared scaffolding stays **out** of
 the barrel — exporting internal helpers leaks generic names into the flat
 namespace. Re-export internal types explicitly where `.d.ts` emission needs to
 name them (TS2883).
@@ -741,7 +762,8 @@ name them (TS2883).
 **Out of the barrel means not importable** (ADR-QD-099). A package's `exports`
 map is a closed list: the root `.` and the subpaths `spec/overview.md`'s "Entry
 points" table names, each with a reason. There is no `./*` wildcard, so a module
-kept out of the barrel is package-private and free to change. Gate 13
+kept out of the barrel is package-private and free to change, and so is a
+part-public module's every other name, by the same rule. Gate 13
 (`check-api-surface.mjs`, `ENTRY`) checks the manifest and gate 14
 (`check-package-install.mjs`, check 3b) checks the packed artifact. The only
 non-root entry point is `@qadi/devtools/react`; adding one is an edit to that
@@ -958,6 +980,12 @@ published `exports` map. Its consumer also calls every `make*Feed` the packed
 `@qadi/devtools` root exports and compiles a host cache typed by `DecisionCacheShape`, and
 the script fails if a feed export is left uncalled. Two rules come out of it, and both are
 checked rather than remembered.
+
+The script also refuses a packed declaration file that names a path outside its own
+package or into a `src/` tree (check 3c): such a path resolves against whatever sits
+beside the package once installed, and the tarball ships `src/`. It refuses a bare
+`@qadi/<pkg>/<subpath>` that no installed manifest's `exports` map declares as well,
+which a consumer cannot reach.
 
 **`pnpm publish`, never `npm publish`.** Dependencies use pnpm's workspace-time
 protocols — `"effect": "catalog:"` in `devDependencies` and `"effect": "catalog:peer"` in

@@ -11,7 +11,7 @@
 import * as Effect from "effect/Effect";
 import * as TestClock from "effect/testing/TestClock";
 import { DiagnosticsStatus } from "../src/model/DiagnosticsFeed.ts";
-import { noStops } from "../src/react/StoppedBox.tsx";
+import { noStops } from "../src/model/StopLedger.ts";
 import type { Parent } from "../src/model/ExternalStore.ts";
 import type { GateInstanceLike } from "../src/model/Gates.ts";
 import type { DiagnosticsNoticeProps } from "../src/react/DiagnosticsNotice.tsx";
@@ -222,7 +222,7 @@ export const thrownBy = (run: () => void): { readonly threw: boolean; readonly t
 export const liveNotice: DiagnosticsNoticeProps = {
   status: DiagnosticsStatus.Live(),
   onRestart: () => undefined,
-  announced: { current: noStops },
+  announced: { ledger: noStops, record: () => undefined },
 };
 
 /**

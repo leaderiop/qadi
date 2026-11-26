@@ -186,8 +186,8 @@ describe("server rendering", () => {
   });
 
   it("dehydrateDecisions runs with no React involved", () => {
-    // `Hydration.ts` carries no "use client" directive precisely so a Server
-    // Component can call this. Renders nothing, imports nothing from React.
+    // `HydrationEngine.ts` carries no "use client" directive precisely so a
+    // Server Component can call this. Renders nothing, imports nothing from React.
     const payload = dehydrateDecisions([{ policy: canRead, decision: serverAllow("HasPermission") }]);
     expect(payload.subjectId).toBe("u1");
     expect(payload.entries).toHaveLength(1);

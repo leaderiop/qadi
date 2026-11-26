@@ -1,42 +1,43 @@
 ---
 gsd_state_version: "1.0"
-milestone: v1.10
+milestone: v1.11
 status: Awaiting next milestone
-stopped_at: Milestone v1.10 complete and archived
-last_updated: "2026-11-25T09:53:59.248Z"
-last_activity: 2026-11-25
-last_activity_desc: "Milestones v1.9 + v1.10 shipped as PR #165 (not merged, not released)"
-state_head: 4863133d1cc9a2fcbc791168d57b7b1246cace53
+stopped_at: Phase 91 complete — all phases complete
+last_updated: "2026-11-26T23:48:26.327Z"
+last_activity: 2026-11-27
+last_activity_desc: "Milestone v1.11 shipped as PR #166"
+state_head: 67f1c660f9f1293de9432a9e9d0c03d38e11fbb3
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 45
-  completed_plans: 45
+  total_phases: 7
+  completed_phases: 7
+  total_plans: 88
+  completed_plans: 88
   percent: 100
-milestone_name: Arch Wave 15
-current_phase: 84
+milestone_name: Arch Wave 16
+current_phase: 91
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-25)
+See: .planning/PROJECT.md (updated 2026-11-27)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Planning the next milestone (v1.10 Arch Wave 15 complete 2026-11-25; v1.9 and v1.10 not merged, not released)
+**Current focus:** Planning next milestone (v1.11 Arch Wave 16 completed and archived 2026-11-27; not merged, not released)
 
 ## Current Position
 
-Phase: Milestone v1.10 complete
+Phase: Milestone v1.11 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-11-25 -- Milestones v1.9 + v1.10 shipped as PR #165 (not merged, not released)
+Last activity: 2026-11-27 -- Milestone v1.11 shipped as PR #166
+
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 535
+- Total plans completed: 623
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -119,6 +120,13 @@ Last activity: 2026-11-25 -- Milestones v1.9 + v1.10 shipped as PR #165 (not mer
 | 82 | 10 | - | - |
 | 83 | 11 | - | - |
 | 84 | 13 | - | - |
+| QD-85 | 11 | - | - |
+| 86 | 8 | - | - |
+| 87 | 11 | - | - |
+| 88 | 10 | - | - |
+| 89 | 11 | - | - |
+| 90 | 16 | - | - |
+| 91 | 21 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -648,6 +656,92 @@ Last activity: 2026-11-25 -- Milestones v1.9 + v1.10 shipped as PR #165 (not mer
 | Phase QD-84 P11 | 25min | 2 tasks | 5 files |
 | Phase QD-84 P12 | 10min | 2 tasks | 1 files |
 | Phase QD-84 P13 | 40min | 2 tasks | 2 files |
+| Phase QD-85 P01 | 10 min | 3 tasks | 4 files |
+| Phase QD-85 P02 | 25 min | 2 tasks | 2 files |
+| Phase QD-85 P03 | 20min | 2 tasks | 3 files |
+| Phase QD-85 P04 | 15 min | 2 tasks | 4 files |
+| Phase QD-85 P05 | 15min | 2 tasks | 5 files |
+| Phase QD-85 P06 | 15min | 2 tasks | 3 files |
+| Phase QD-85 P07 | 12 min | 2 tasks | 4 files |
+| Phase QD-85 P08 | 15min | 2 tasks | 4 files |
+| Phase 85 P09 | 40min | 3 tasks | 9 files |
+| Phase QD-85 P10 | 15 min | 2 tasks | 2 files |
+| Phase QD-85 P11 | 10min | 2 tasks | 1 files |
+| Phase 86 P01 | 14 min | 3 tasks | 5 files |
+| Phase 86 P02 | 40min | 2 tasks | 2 files |
+| Phase QD-86 P03 | 10min | 2 tasks | 2 files |
+| Phase 86 P04 | 25min | 3 tasks | 5 files |
+| Phase 86 P05 | 15min | 2 tasks | 2 files |
+| Phase 86 P06 | 12min | 3 tasks | 7 files |
+| Phase 86 P07 | 12min | 3 tasks | 2 files |
+| Phase 86 P08 | 8min | 2 tasks | 1 files |
+| Phase 87 P01 | 15 min | 3 tasks | 7 files |
+| Phase 87 P02 | 13min | 2 tasks | 3 files |
+| Phase 87 P03 | 14min | 3 tasks | 2 files |
+| Phase 87 P04 | 20min | 2 tasks | 2 files |
+| Phase QD-87 P05 | 45 min | 3 tasks | 5 files |
+| Phase 87 P06 | 20min | 3 tasks | 3 files |
+| Phase 87 P07 | 15min | 2 tasks | 4 files |
+| Phase QD-87 P08 | 20min | 2 tasks | 4 files |
+| Phase 87 P10 | 45min | 3 tasks | 7 files |
+| Phase 87 P11 | 10min | 2 tasks | 1 files |
+| Phase QD-88 P01 | 20min | 3 tasks | 5 files |
+| Phase QD-88 P02 | 14min | 3 tasks | 3 files |
+| Phase 88 P03 | 5min | 2 tasks | 3 files |
+| Phase 88 P04 | 5min | 2 tasks | 3 files |
+| Phase 88 P05 | 7min | 2 tasks | 4 files |
+| Phase 88 P06 | 35min | 3 tasks | 10 files |
+| Phase 88 P07 | 25 min | 2 tasks | 1 files |
+| Phase 88 P08 | 12 min | 2 tasks | 4 files |
+| Phase QD-88 P10 | 15 min | 2 tasks | 1 files |
+| Phase 89 P01 | 17 min | 3 tasks | 5 files |
+| Phase 89 P02 | about 20min | 3 tasks | 3 files |
+| Phase 89 P03 | 35min | 3 tasks | 3 files |
+| Phase 89 P04 | 15 min | 3 tasks | 3 files |
+| Phase 89 P05 | 14 min | 2 tasks | 4 files |
+| Phase 89 P06 | 10 min | 2 tasks | 1 files |
+| Phase 89 P07 | 35 min | 2 tasks | 7 files |
+| Phase 89 P08 | 12min | 2 tasks | 5 files |
+| Phase 89 P09 | 21 min | 3 tasks | 4 files |
+| Phase 89 P10 | 17 min | 3 tasks | 8 files |
+| Phase QD-89 P11 | 20min | 2 tasks | 1 files |
+| Phase 90 P01 | 20min | 2 tasks | 3 files |
+| Phase 90 P02 | 3h | 3 tasks | 2 files |
+| Phase 90 P03 | 45min | 3 tasks | 2 files |
+| Phase 90 P04 | 25min | 3 tasks | 3 files |
+| Phase 90 P05 | 12min | 2 tasks | 33 files |
+| Phase QD-90 P06 | 25min | 2 tasks | 7 files |
+| Phase QD-90 P07 | 35min | 2 tasks | 2 files |
+| Phase 90 P08 | 20min | 2 tasks | 2 files |
+| Phase 90 P09 | 15min | 2 tasks | 5 files |
+| Phase 90 P10 | 30min | 2 tasks | 12 files |
+| Phase 90 P11 | 25min | 2 tasks | 11 files |
+| Phase 90 P12 | 40min | 3 tasks | 4 files |
+| Phase 90 P13 | 25 min | 3 tasks | 4 files |
+| Phase 90 P14 | 70min | 3 tasks | 9 files |
+| Phase 90 P15 | 25min | 3 tasks | 5 files |
+| Phase 90 P16 | 20min | 3 tasks | 1 files |
+| Phase 91 P01 | 25min | 2 tasks | 3 files |
+| Phase 91 P02 | 180min | 3 tasks | 2 files |
+| Phase QD-91 P03 | 45min | 3 tasks | 8 files |
+| Phase 91 P04 | 25min | 2 tasks | 4 files |
+| Phase 91 P05 | 30min | 2 tasks | 4 files |
+| Phase 91 P06 | 90min | 2 tasks | 2 files |
+| Phase QD-91 P07 | 150min | 2 tasks | 2 files |
+| Phase 91 P08 | 8 min | 2 tasks | 33 files |
+| Phase 91 P09 | 45min | 3 tasks | 4 files |
+| Phase 91 P10 | 11min | 3 tasks | 10 files |
+| Phase 91 P11 | 25min | 3 tasks | 18 files |
+| Phase QD-91 P12 | 30 min | 3 tasks | 10 files |
+| Phase QD-91 P13 | 60 min | 3 tasks | 15 files |
+| Phase QD-91 P14 | 25 min | 2 tasks | 2 files |
+| Phase QD-91 P15 | 40 min | 2 tasks | 5 files |
+| Phase QD-91 P16 | 75min | 3 tasks | 8 files |
+| Phase QD-91 P17 | 70 min | 2 tasks | 9 files |
+| Phase 91 P18 | 40 min | 3 tasks | 13 files |
+| Phase 91 P19 | 60 min | 3 tasks | 21 files |
+| Phase 91 P20 | 25min | 2 tasks | 1 files |
+| Phase QD-91 P21 | 30min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -1127,6 +1221,121 @@ Last activity: 2026-11-25 -- Milestones v1.9 + v1.10 shipped as PR #165 (not mer
 - [Phase QD-84]: 84-06: Configurable<I> stays exported from useConfigured.ts for its type test only and is refused from both barrels
 - [Phase 84]: ADR-QD-197 records the useTimeline per-render memo as a rejection, with the four reasons; reason 4 is a reason not to make memoisation the hooks' rule (decided autonomously)
 - [Phase QD-84]: 84-11: BEH-QD-756 to 760 and INV-QD-413 and 414 written with exact-title pinned-by; CCR-QD-476 row complete, no reserved number left Unused
+- [Phase QD-85]: H10 pins an all-zero reading (decided autonomously): a bare drops: [] rendered the same bytes as H6 and no scratch edit could tell them apart
+- [Phase QD-85]: H13 seen-failing edit is in Diagnostics.ts mergeReading (decided autonomously): the panel is handed one merged reading
+- [Phase QD-85]: Decided autonomously: a module-scope function declaration is read as ending at the next lone closing brace in column zero; a declaration whose block body is also its return type literal is reworded, never a judge weakened
+- [Phase QD-85]: Decided autonomously: three-predicates accepts any module-scope function declaration as the shared key reader, so plan 85-05 names it
+- [Phase QD-85]: Decided autonomously: panel-decides-nothing accepts a hydration store read through any useStoreSnapshot call whose argument names hydration
+- [Phase QD-85]: Decided autonomously: records reads describe titles too and fails a kept behavior that loses its heading or names no test file
+- [Phase QD-85]: Decided autonomously: no-react-in-model requires exactly two Data.taggedEnum constants in the view
+- [Phase QD-85]: 85-03: the declared QuestionsPanel.test.tsx region is held as a prefix and a suffix of the file, so it may be rewritten or emptied whole, its opening line included (decided autonomously)
+- [Phase QD-85]: 85-03: the earlier-phase ledger compares the first plain stderr line (not blank, not indented, not node:-prefixed); the Phase 80 row is its missing-module line, not an ancestry failure (decided autonomously)
+- [Phase QD-85]: 85-04: hydrationView's Counts carries rate, drops (None { text } | Raised { rows }) and scope as ready strings and rows; decided autonomously, the scope note is one field because the panel's text nodes join to one sentence
+- [Phase QD-85]: 85-05: DockModel.hydration is the eleventh store; the services and hydration keys share one module-scope shownInputOf reader and the questions guard keeps its own isUnsampled call
+- [Phase QD-85]: 85-05: CR22 hydration counts are 1 while the poll layer builds and 2 once built (one more on four stores); DL21 is heard: true
+- [Phase QD-85]: 85-06: DL22 also throws a timeline listener (the DL19 shape) so the last step's nested aggregate [services, hydration] is read from the outer aggregate; decided autonomously
+- [Phase QD-85]: 85-07: the panel tests hand drops as tagged literals typed by HydrationView.Counts, since the declared import edit allows only the HydrationView import (decided autonomously)
+- [Phase QD-85]: 85-07: the panel keeps an optional hydration prop with a module-scope Unwired default store; the dock still passes shown to the frame until 85-08 (decided autonomously)
+- [Phase QD-85]: 85-08: render counts wait with Testing Library waitFor outside act and settle relative to the poll, decided autonomously
+- [Phase QD-85]: 85-08: DockFrame reads the poll status through useDiagnosticsStatus beside usePaused, one useSyncExternalStore call kept
+- [Phase 85]: Decided autonomously (85-09): the store count and DL pins the plan placed under BEH-QD-742 live in BEH-QD-741 and BEH-QD-743, so all three are restated and BEH-QD-742 gets the hydration listener's seventh-step sentence (DL22)
+- [Phase 85]: Decided autonomously (85-09): ADR-QD-198 states the mutation facts measured so far (HydrationView.ts 41 of 41 killed, no Ignored note owed) and DockModel.ts as a rule, since the close measurement belongs to 85-10
+- [Phase QD-85]: Decided autonomously: the CCR-QD-477 row is not edited to name the changeset; a changeset is a release note and no earlier CCR row names its own
+- [Phase QD-85]: 85-11: HYDV-01..05 left unticked in REQUIREMENTS.md per the run rules (orchestrator marks them at verification); spec:package consumer line is not printed on success, exit 0 and the package-install line are the evidence
+- [Phase 86]: 86-01: the lease's mutation base is the quiet-host run (28 killed, 0 timeout); a first run under load with 11 Timeout mutants was discarded and not recorded
+- [Phase 86]: 86-01: the pinned-test held set is computed with git ls-tree from phase_base (59 files with the lease), with no declared edit
+- [Phase 86]: 86-02: the check's trailer is the exact owner line (D-18); owner-shape reads module scope as statements; provider-forwards-only reads each effect's call text with its dependency list split off
+- [Phase QD-86]: 86-03: the 82 single-owner ledger row is chosen by the provider text against phase_base, never by what the run printed; the 82 base row is the measured exit 0
+- [Phase 86]: RO1, RO3 and RO4 end on what was deferred, with RO2 as the recycles-once twin, so emptying the recycle body fails RO2 and leaves them green
+- [Phase 86]: RO10 pins the record-before-write order with a throwing listener, which escapes registry.set on effect 4.1.2
+- [Phase 86]: 86-05: atoms-identity and ticket-34 comments share one block above the commit effect
+- [Phase 86]: The refresh difference is stated as holding for a seeded subject node nothing has read before the first commit; effect order is quoted from react-dom 19.3.1 source and held by the provider's shape and review, not a merge gate (autonomous, plan 86-06)
+- [Phase 86]: 86-07: the lease and owner Stryker closes ran sequentially and alone, 28/28 and 19/19 killed with no timeout, compare passes (D-15, WX-05)
+- [Phase 86]: 86-08: the phase gate ran check:pr then spec:package alone, both green at base counts; no fix needed, nothing released, no WX requirement ticked (decided autonomously)
+- [Phase 87]: The protocol spike holds on the base: an outside interruption never resumes the forked body and a self-interrupt resumes it current, so D-08 stands and the feeds state a self-interrupt — Run on the real makeSupersedingRun, eight outside paths with and without an engine that swallows its interruption; lines in 87-RED-EVIDENCE.md
+- [Phase 87]: The touched mutation group runs without --disableBail and the born groups with it; a record reads the status of packages and the Stryker config — The touched base is the run the research measured and a close is one invocation against it; a base on a tree no commit names is refused
+- [Phase 87]: 87-02: the pinned check holds the property's kept law lines by trimmed text and count, so a re-indent passes and a reworded or dropped assertion fails
+- [Phase 87]: 87-02: the held set is computed from phase_base (123 base test files, less the two declared, plus useConfigured.ts = 122), never listed by hand
+- [Phase 87]: 87-03: a phrase judge reads 'publishes from now on' as a status tape's subscription time and still refuses every other 'from now on'
+- [Phase 87]: 87-03: the gates cadence rule is judged as cadence( before publish( in the one makeConfigure call plus a cadence that forks its own superseding run (INV-QD-408)
+- [Phase 87]: 87-04: the earlier Phase 85 and 86 scan-ids rows are recorded at exit 1 (the five 'publishes from now on' tape comments of held born tests), not widened or fixed
+- [Phase 87]: 87-04: no ledger row of the earlier-phase checks carries a when; the moved files are read by no judge in a way the move changes
+- [Phase QD-87]: 87-05: StatedRun states a stop for a current run whose own work ended on anything but success (an interruption the run gave itself included) and never reads hasInterruptsOnly; an outside interruption never resumes the forked body so it is never stated — Spike-confirmed; the current-run gate is reached only by the begin-window rows ST14, ST15 and ST17's Nest command
+- [Phase QD-87]: 87-05: ConfigurePrologue.makeConfigure reads closed, complete, held, same, hold, then steps; the identity gate is a parameter, no runtime import, out of both barrels — One order for the three feeds; gates feed's failed-watch retry is its same argument
+- [Phase 87]: 87-06: feed Stopped docs state the one rule (own work ended on anything but success, self-interruption included); rethrow prose lives once in StatedRun.ts
+- [Phase 87]: 87-07: the session's stated-run stop hook applies only while run is Running, so a landed result stays; reasonStyle lives in theme.ts shared by StoppedBox and the Simulator
+- [Phase QD-87]: 87-08: R3, R5, R6, R7 retitled to drop the words onFailure and hook (the shape check reads the protocol test for onFailure); configuredBy is module-private in builtFeeds.ts
+- [Phase 87]: 87-10: the session's live.current() guard in land is an EQUIVALENT mutant (no input reaches it: the older engine suspends before its exit read and a newer fork interrupts it there)
+- [Phase 87]: 87-10: the born modules are measured over their own killers file alone (narrowed vitest include via an untracked scratch config), because the full-suite invocation Timeouts mutants whose hang is in other files' tests
+- [Phase 87]: 87-10: a static mutant of a born file run by hand with ignoreStatic false and Killed is an EXAMINED allowance the absolute rule honours
+- [Phase 87]: 87-11: the merge gate (pnpm check:pr, 17 of 18 steps) passed on the phase head without a fix; nothing released, all 35 commits trailed and in scope
+- [Phase QD-88]: 88-01: the base record lists the 43 model files at phase_base with their blobs and measures no group; compare proves no listed blob moved and StopLedger.ts is the only model file added, decided autonomously
+- [Phase QD-88]: 88-01: record base takes no group and record base ledger is a usage error; a request is parsed by one pure function the self-test drives, decided autonomously
+- [Phase QD-88]: 88-02: the shape modes read a layout effect keyed on a list ending record, status and a hook memo keyed on status, onRestart, ledger and record; records reads BEH-QD-509, 759 and 775 as kept behaviors and 776 to 780 once written
+- [Phase QD-88]: 88-02: the scans leave out the root README and assets (the owner's unrelated, never-staged changes); a revision one step above its base is the next minor number
+- [Phase 88]: 88-03: the pinned check holds the text before the first region and shares one stretch of the file between adjacent regions for the kept-line count
+- [Phase 88]: 88-04: the earlier-phase checks row kinds are line, pattern, reasons set or computed; 87's pinned row is computed from EXPLAINED with the 88-06 commit subjects
+- [Phase 88]: 88-05: LAW3 draws stops with constantFrom over the three fixtures; the table test is committed with its module, tied to the red run by HEAD and test blob
+- [Phase 88]: 88-06: the stop ledger is React state per feed (useReducer); the box takes the notice whole and keys itself, deciding its alert at mount and recording at commit
+- [Phase 88]: 88-07: V2 (record during render) is caught by exactly the hook rows H1 and C1 and by no dock row; V6 by H2 and V8 by C1 alone; V10 and V7 also fail H1 and C1
+- [Phase 88]: The four static Ignored mutants of StopLedger.ts are admitted through EXAMINED after a hand run with ignoreStatic false saw all 16 mutants Killed; StopLedger.test.ts rows are their killers, so no new killing row was needed
+- [Phase QD-88]: 88-10: pnpm check:pr green on head b1f6616f run alone (17 of 18 steps), every phase check passes, nothing released
+- [Phase 89]: 89-01: the scorer's judgeNew has no killers clause and reads a Timeout from the file's own count; SequenceIntegrity.ts, which holds no mutant, is the one file a base report may omit and is recorded with zero counts — a bailed run names one killer per mutant so the clause cannot be read, and Stryker lists no file that holds no mutant
+- [Phase 89]: 89-01: the three property rows derive the first fault from a stated order; every other characterisation row writes its expected refusal or span list literally — a table computed from an order list would agree with whatever order the code under test has
+- [Phase 89]: 89-02: records requires the heading of BEH-QD-253, 254 and 722 and a pinned-by paragraph only for 722 and BEH-QD-781..785 (the base has none for 253 or 254); the check derives its one stageable phase directory from its own location
+- [Phase 89]: A becomes region reads as its base text or its fixed lines and an insert region as empty or its fixed form, so the pinned check passes on the base tree and on the finished tree and refuses every state between (decided autonomously)
+- [Phase 89]: 89-04: 87-pinned-check.mjs is a fixed reasons row in the earlier-checks ledger (Phase 88's commits precede this base); 88's records --close is computed from four fixed 89 commit subjects; RUNS and LEDGER are separate tables so an unexpected run is reachable
+- [Phase 89]: NowRefusalCases lives in HostBatch.ts beside the Number.isFinite check that answers it; the step builds its refusal with its own Data.taggedEnum constructor and no entry point restates it. — A now is refused in one place and by one reading of finite, as a rows list is in CodecMade.ts.
+- [Phase 89]: admitRows keeps a run-time Array.isArray guard behind a ReadonlyArray<AuditEntry> parameter and copies a list once with Array.from over a length. — A value that is not a list reaches rowsRefusal unread and is named in the refusal; what is checked is the copy that is admitted.
+- [Phase 89]: 89-06: planPurge runs the shared age rule over its own admitted batch and does not call planRetention; a null or undefined policy is read as policy?.maxAgeMs and refused as MaxAgeInvalid { value: undefined }
+- [Phase 89]: Plan 89-07: the pinned check declares the rewritten direct rows as a block keeping only its own describe line and the helper that handed verifiedArchiveFacts a list as a declared removal, because the plan fixes new F titles and an AdmittedRows parameter the checker as written could not hold (decided autonomously).
+- [Phase 89]: 89-08: the per-entry-point comparison asserts refusal-or-nothing on both sides of one fault table, so no test restates which refusal wins
+- [Phase 89]: 89-09: the filter mutant in HostBatch.ts admitRows is EQUIVALENT (a hole is refused before the line) and the static takeRows arrow is EXAMINED after a hand run with ignoreStatic false; phase91_base is ArchiveFacts.ts at 54 of 54; audit coverage is measured with a path filter because --project audit measures no file
+- [Phase 89]: 89-10: ADR-QD-202 states the span rule as one table of every call and outcome, and the audit table names each removed row with the HostBatch.test.ts rows and the ForeignRows.test.ts comparison row that hold it (Tests removed: 6); INV-QD-399 and INV-QD-400 are restated beyond their Source lines because their enforcement text named the order the removed rows asserted
+- [Phase 90]: Plan 01: the core mutation base holds four open Survived mutants (PortDerivation, CustomPredicate, SignatureHistory, LeafNeeds) and the coverage base record's head is phase_base, checked against the tree outside .planning
+- [Phase 90]: 90-check.mjs reads shapes from blanked text with bracket matching, since TypeScript 7 has no in-process parser; the SPIKE and BENCH table formats are fixed by the script's self-test
+- [Phase 90]: 90-03: the port facts characterisation reads span names unfiltered (a read opens only the port span) and decodes each question through the port's own span struct; the type-only span edit in PortName.ts cannot fail a vitest row, so the span variant edits each description's value
+- [Phase 90]: 90-04: the moved port types are pinned through the barrel with toBe only (no negative pin), and the scoped read is held by one describe stating the read, the history judgements and the leaf rows equal over every fixture and shape (decided autonomously)
+- [Phase 90]: Plan 05 spike: PortServing stays hand-written (deriving it closes 16 cycles and fails tsc); the span is typeof a module-private const in each of the five port modules; PORT_FIXTURES derives through a third tabulatePorts overload with unexported helper types; the attribute fixture data is written as an index signature to avoid Record<string, unknown>
+- [Phase QD-90]: 90-06: the routing (f)+(g) with the per-call closure in the ByScope arm passes the bench gate (37 workloads, 4+4 rounds, none slower than 5%, geometric mean +0.75%); the hoisted-predicate fallback was not measured
+- [Phase QD-90]: 90-07: the pinned-test check reads import regions from typescript 7's sync API over a temporary project and anchors every declared region on its first and last base line text
+- [Phase 90]: 90-08: the earlier-phase ledger's computed rows are keyed on the four exact subjects of plans 14 and 15; the five AGENTS.md scan-forbidden guard rows move on the house-rules commit alone
+- [Phase 90]: 90-09: PORT_NAMES is one public tuple in the import-free PortName.ts; PortName is its element type, PREDICATE_PORT_NAMES must satisfy PortName.
+- [Phase 90]: 90-10: makePortDescription's SpanName bound is the description's own span member type, so PortDerivation.ts holds no span literal
+- [Phase 90]: 90-11: FixtureDataOf, FixtureBuilders and FixtureVisitor stay unexported so the API surface stays at 943; the fixture is a required description member (D-11, D-11a)
+- [Phase 90]: 90-12: the measured per-call-closure routing patch landed as measured (hoisted fallback never measured, unused); the Always arm of the route matcher is unobservable by type (only HasRelationship is Always and its port has bare undefined)
+- [Phase 90]: 90-13: the dead Always arm of readScoped's matcher is held EQUIVALENT through a NoCoverage-status entry, not a blocker; no mutation-kill test file was needed
+- [Phase 90]: Plan 14: the audit count is tests removed 2 (two test blocks whose title is gone, plus one assertion row); the bench gate is recorded as the bench record states it (5% per workload, +2% geometric mean), decided autonomously
+- [Phase 90]: Plan 15: the upgrade guide's hand-built description is an object literal typed PortDescription, since makePortDescription is package-private (decided autonomously)
+- [Phase 90]: Plan 90-16: the bench gate of record passed, so PFACT-03 is reported met and scoped-route route ran (decided autonomously).
+- [Phase 91]: Plan 01: each Stryker group reads the report its own config writes; a folded file's close is judged against the summed base side of its sources
+- [Phase 91]: 91-02: variant kind script accepts a phase-directory script or an existing repo-relative scripts/*.mjs file, so later plans' surface-diff variants use the same kind
+- [Phase 91]: 91-02: the coverage floor is seen failing through coverage close on a clone with the core tests deleted and committed; coverage base is seen failing separately on a committed source edit
+- [Phase QD-91]: [91-03] The surface snapshot stays a phase-local working file and never a gate; the surface-diff tool's self-test is the last pnpm check step (step 27)
+- [Phase 91]: [Phase 91-04]: A root's runtime value list is read from the base roots by a throwaway scratch test and cross-checked against the surface snapshot's value and both names; the type-only trap is planted by replacing a module's export * line with its named values minus one plus export type of it (an appended export type is erased and changes nothing under export *)
+- [Phase 91]: Plan 91-05: gate 14 check 3c refuses a packed declaration with a /src/ segment or a path resolving outside its package, with a planted self-check run every gate run
+- [Phase 91]: Plan 06: HydrationTarget.tst.ts's import region is derived from the born text's own import span (the file does not exist when the pinned check is written); decided autonomously
+- [Phase 91]: Plan 06: a born or optional file present with no adding commit since the base is a pinned-check reason; decided autonomously
+- [Phase QD-91]: 91-07: the earlier-phase ledger is measured on a clone at phase_base; every row this phase moves is computed and keyed on the exact subject that moves it, rehearsed on planted commits at twelve states (decided autonomously)
+- [Phase QD-91]: 91-07: Phase 90's scripts run from a repository-shaped copy (phase directory, scripts/lib, node_modules link, git init); the modes that clone, compile, run pnpm or key on the script's own git path are not run (decided autonomously)
+- [Phase 91]: 91-08: the ten fold candidates were measured on scratch clones of phase_base and every verdict equals the expected one (a, b, c, d, e-prime, e-prime-fold, f acyclic; b-prime, b-double-prime, e cycle); f is not folded
+- [Phase 91]: 91-08: the scratch mode links packages/*/node_modules as whole directories, so the spike built real directories of links in each clone; spike --rerun with the scratch layout agreed on all ten
+- [Phase 91]: Plan 09: each named barrel's header is one doc comment in the devtools model; react's absorbs the components.tsx and hooks.ts note as a paragraph
+- [Phase 91]: Plan 10: the interpreter fold leaves core's barrel byte-identical, so that commit holds three paths and the phase table row drops index.ts (decided autonomously)
+- [Phase 91]: 91-11: the gate registry's collision report needs no born test; the existing suite fails the ignored-onIdCollision variant on seven tests
+- [Phase QD-91]: 91-12: the sequence check's disclaimer is verifySequenceIntegrity's doc in ArchiveFacts.ts; the audit barrel names the two public names there
+- [Phase QD-91]: Plan 13: hydrateDecisions takes a package-private HydrationTarget that QadiAtoms extends, so hydrate's signature is stated once and Hydration.ts folds into HydrationEngine.ts without a cycle
+- [Phase QD-91]: 91-14: the hydrate probe is plain consumer statements in gate 14's fixture; the probe guard reads only the three probe lists, so no list entry was added
+- [Phase QD-91]: 91-15: a named-barrel group counts as inside the package when its specifier starts with ./ or ../ (the devtools react barrel re-exports from ../model); an unlisted index with a relative named group is refused as an unlisted or mixed named barrel; decided autonomously
+- [Phase QD-91]: ADR-QD-204 records the barrel and home rules, the ten-candidate fold verdicts with each fold commit, the structural HydrationTarget and EvaluationSpan.ts not folded; ADR-QD-037, 047 and 099 amended
+- [Phase QD-91]: BEH-QD-795 lives in 09-react.md: the document already states react's barrel requirement and holds the provider (decided autonomously, recorded in the CCR-QD-483 row)
+- [Phase QD-91]: The records check reads an overview row by its first cell naming the name alone or among others, so the one row of dehydrateDecisions and hydrateDecisions needs no split (plan defect, commit 685e7b4d)
+- [Phase 91]: 91-18: ADR-QD-009 takes its re-pointed citation and note with no revision row (no Document Control block); notes are appended after each decision's last amendment; the react changeset holds the structural hydrateDecisions sentence (Hydration.ts is gone)
+- [Phase 91]: A decision body naming a folded module is history and takes a dated note; only a present-tense inventory line is edited (decided autonomously)
+- [Phase 91]: The one held test comment naming react's Hydration.ts is fixed under a comment kind of declared region in the pinned check (decided autonomously)
+- [Phase 91]: 91-20: the records close judge reads a required phrase with whitespace collapsed, because the documents it reads wrap by hand (decided autonomously)
+- [Phase QD-91]: 21-mutation-close: every base survivor of PortSpanEncode.ts killed by three rows in PortSpanFold.mutation.test.ts, none labelled equivalent (decided autonomously)
+- [Phase QD-91]: 91-21: EXAMINED stays empty because the four portInterpreter literal mutants sit inside the base side of PortSpan.ts; the examined run is recorded as a comment and in the summary (decided autonomously)
 
 ### Pending Todos
 
@@ -1191,6 +1400,9 @@ Last activity: 2026-11-25 -- Milestones v1.9 + v1.10 shipped as PR #165 (not mer
 - [Phase 82] Review (82-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations fixed 7 findings (iteration 1: BEH-QD-749/ADR claim that the reveal's first frame reads a subject changed while hidden corrected to the one-frame read and pinned in LT6, LT16/LT17 pin the committed re-seed, LT12 drives real pressure across the hide, `leaseRef` typed `RegistryLease`, the re-seed moved into a `finally` after `reset()` with LT18, LT14 made to depend on the release; iteration 2: LT18 hears the timer's throw through a cast-free `setTimeout` wrapper instead of swapping process listeners; iteration 3 clean). Mutation re-close: react 148/150 (QuestionBook.ts:109 now killed), lease 28/28, compare exit 0; `pnpm check:pr` and `pnpm spec:package` green at 4ec88995. Validation 12/12, security 29/29 (2 low accepted), verification passed 5/5. `phase.complete` warnings name a scratch test file, a command and $TMPDIR outputs a SUMMARY mentions; not missing artifacts.
 - [Phase 83] Review (83-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations, 7 findings: 5 fixed (WR-01 the four-field pin read the folded reading, now the raw sample; WR-02 nothing pinned that a superseded sample leaves `sampled` false, now SR1 in `DiagnosticsFeed.superseded.test.ts`, seen as the only failure with `sampled = true` above the guard; WR-03 the `DockModel.reading` doc; IN-01 the changeset/upgrade pointer to the questions store; IN-04 wraps), 2 declined (IN-02 the held characterisation header; IN-03 a behaviour change against FC11/MR2). The fixer's request to loosen `83-pinned-check.mjs` was refused by the classifier and not re-done by the orchestrator. Mutation re-taken (59/59, 32/32, 65/65), check:pr and spec:package green at 13763f9f; a missing trailer on the review-report commit fixed by rebuilding 12 local commits with `git commit-tree` and remapping cited hashes. Validate 11/11, secure 27/27 (2 low accepted), verify 4/4.
 - [Phase 84] Review (84-REVIEW-DISPOSITION.md): 0 critical, 0 open; three iterations, 8 findings, all fixed (WR-01 BEH-QD-756 claimed three pinned refusals with one pinned, now pinned; WR-02/WR-03 the records named a "lens group" of `stryker.devtools.mjs`, now the real mutate glob; IN-01..IN-03 iteration 1 wraps, the `Configurable` doc and a `.ts` generic comma; iteration 2 IN-01 the type-test header and IN-02 the property-not-method choice, now pinned by a fourth refusal seen failing under a method signature). The ledger dropped the two iteration-1 IN ids reused in iteration 2; they are recorded in its "Findings dropped by id reuse" section. `LensSession.ts` unchanged since the close (47/47), check:pr and spec:package green at ce02fbc7 after the fixes. Validate 16/16, secure 31/31 (none accepted), verify 5/5.
+- [Phase 85] Review (85-REVIEW-DISPOSITION.md): 0 critical, 0 warning; IN-01 (optional `hydration` prop, fallback reached by tests only) and IN-02 ("1 dehydrated entry have", "All 1 reasons" wording, predates the phase) deferred with reasons. Verification passed 7/7; VALIDATION validated; SECURITY 22/22 closed. `phase.complete` ticks WX-01..07 on every phase close: return them to Pending until the wave ends.
+- [Phase 86] Review (86-REVIEW-DISPOSITION.md): 0 critical, 0 warning; IN-01, IN-03, IN-04, IN-05 fixed in e435ee33 (owner interface doc, provider comment, test defer honours an in-batch cancel, refresh edge scoped in the changeset and owner header); IN-02 (`RegistryLease.ts` header names the provider) deferred, the file held byte for byte. Verification passed 9/9; VALIDATION validated; SECURITY 24/24 closed; `check:pr` green on f51b72b5. `phase.complete` left PREG-05 unticked (ticked by hand) and ticked WX-01..07 (returned to Pending).
+
 ### Roadmap Evolution
 
 - Phase 68.1 inserted after Phase 68: Address tech debt from the v1.7 audit (owner chose a cleanup phase before completing)
@@ -1198,6 +1410,7 @@ Last activity: 2026-11-25 -- Milestones v1.9 + v1.10 shipped as PR #165 (not mer
 - v1.9 roadmap created 2026-11-23: Phases 77-80, one per review candidate (ARCH-124 to ARCH-127), strictly serial (owner decision D2); 28 of 28 requirements mapped (21 phase-specific, 7 cross-cutting WX-01 to WX-07 on every phase); research flags on 77 and 79
 - v1.9 completed 2026-11-24: Phases 77-80 archived to `.planning/milestones/v1.9-phases/`; audit `passed` (28/28, 9/9, 4/4)
 - v1.10 roadmap created 2026-11-24: Phases 81-84, one per review candidate (ARCH-128 to ARCH-131), strictly serial (decision D2); 27 of 27 requirements mapped (20 phase-specific, 7 cross-cutting WX-01 to WX-07 on every phase); research flag on 82
+- v1.11 roadmap created 2026-11-25: Phases 85-91, one per review candidate (ARCH-132 to ARCH-138), strictly serial (decision D4); 41 of 41 requirements mapped (34 phase-specific, 7 cross-cutting WX-01 to WX-07 on every phase); research flags (spike or research as plan 1) on 87, 90 and 91
 
 ## Deferred Items
 
@@ -1210,11 +1423,12 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-25T08:54:16.486Z
-Stopped at: Phase 84 complete — all phases complete
+Last session: 2026-11-26T21:31:31.792Z
+Stopped at: Phase 91 complete — all phases complete
 Resume file: None
 
 ## Operator Next Steps
+
 
 
 

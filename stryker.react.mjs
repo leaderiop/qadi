@@ -1,7 +1,7 @@
 /**
  * Mutation testing for `@qadi/react`'s **decision read**, its **question
  * book**, its **hydration event projection**, its **sweep scheduler** and its
- * **registry lease**, and nothing else in that package.
+ * **registry lease** and its **registry owner**, and nothing else in that package.
  *
  * `stryker.config.mjs` keeps `@qadi/react` out of the core run because the
  * package is "a thin binding over `effect/reactivity` plus render code" — and
@@ -18,13 +18,16 @@
  * runs, runs inside the call that signalled, or runs twice (ADR-QD-148).
  * `RegistryLease.ts` is the one place a provider's registry is recycled, so a surviving
  * mutant there is a registry released twice, never released, or released while held (ADR-QD-195).
+ * `RegistryOwner.ts` is the one place a provider's registry is built, committed to and recycled, so a
+ * surviving mutant there is a registry seeded wrongly, a subject written from the wrong commit, or an
+ * atom-set swap that goes unreported (ADR-QD-199).
  *
  * A separate configuration for the `vitest.dir` reason every per-package config
  * here gives: `stryker.config.mjs` pins `vitest.dir` to `packages/core`, so a
  * mutant in this package would have no covering test there. The covering tests
  * are `packages/react/test/DecisionOutcome.test.ts`, `QuestionBook.test.ts`,
- * `HydrationEvent.test.ts`, `SweepScheduler.test.ts` and `RegistryLease.test.ts`
- * (no rendering, fast), plus whatever else in the package reaches the module —
+ * `HydrationEvent.test.ts`, `SweepScheduler.test.ts`, `RegistryLease.test.ts` and
+ * `RegistryOwner.test.ts` (no rendering, fast), plus whatever else in the package reaches the module —
  * `perTest` coverage analysis runs only those.
  *
  * @type {import('@stryker-mutator/api/core').PartialStrykerOptions}
@@ -60,6 +63,7 @@ export default {
     "packages/react/src/HydrationEvent.ts",
     "packages/react/src/SweepScheduler.ts",
     "packages/react/src/RegistryLease.ts",
+    "packages/react/src/RegistryOwner.ts",
   ],
 
   thresholds: { high: 90, low: 80, break: 80 },

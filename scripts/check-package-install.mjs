@@ -14,7 +14,7 @@
  * publishable with exactly one of the two tools, and nothing recorded which
  * (ADR-QD-033).
  *
- * Six checks, in order of what they would catch:
+ * Seven checks, in order of what they would catch:
  *
  *   0. build    — every public package is referenced by `tsconfig.build.json`,
  *                 *and* by the root `tsconfig.json` (the typecheck graph)
@@ -23,8 +23,17 @@
  *   3. runtime  — each entry point imports through that map and has exports
  *   3b. closed  — no wildcard subpath; every declared subpath imports and every
  *                 other `lib/` module is refused with ERR_PACKAGE_PATH_NOT_EXPORTED
+ *   3c. escape  — no packed .d.ts names a path outside its package, into src/,
+ *                 or to a @qadi subpath no packed manifest declares
  *   4. consumer — a TypeScript consumer type-checks against the shipped
  *                 `.d.ts` and then authorizes correctly when run
+ *
+ * Check 3c reads the packed declarations, not the sources: a dependent's inferred type can name a path
+ * (`import("../../core/src/Decision.ts").Trace`) that installs and then resolves into whatever sits beside the
+ * package. It strips comments before it looks, because built declarations carry `../../` in doc comments, and keeps
+ * `/// <reference>` lines, which are directives. It also refuses a bare `@qadi/<pkg>/<subpath>` that no installed
+ * manifest's `exports` map declares, which a consumer could not reach either. The rule and its planted self-check are
+ * in `scripts/lib/declaration-escape.mjs`.
  *
  * Check 0 looks redundant beside check 2 and is not, which is why it is first.
  * `tsconfig.build.json` omitted `packages/promise` from the day the facade
@@ -59,6 +68,8 @@
  *
  * Check 4 then reads its own fixture. Every `make*Feed` the installed
  * `@qadi/devtools` root exports must be called when the consumer runs, every
+ * name on `RUNTIME_PROBES` must be called or read from the installed
+ * `@qadi/core` when it runs, every
  * name on `TYPE_ONLY_PROBES` must annotate a value declared in it, and every key
  * of `REFUSED_SHAPE_PROBES` must annotate a literal there whose property named by
  * the member paired with it carries a `@ts-expect-error`. So a public name the
@@ -66,7 +77,7 @@
  * together with its directive.
  * The feed set comes from the artifact, so a new feed is caught without editing
  * this file, and the run counts the calls through a module hook that wraps each
- * feed, so a call written but never run does not count. TypeScript's parse
+ * feed and each runtime probe, so a call written but never run does not count. TypeScript's parse
  * (`typescript/unstable/*`) decides what annotates a value and what is a refusal, so a
  * comment, a string, an import, an alias or `typeof` does not count. It runs in a child
  * process, `scripts/lib/probe-guard-parse.mjs`, started through
@@ -77,6 +88,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { declarationEscapes, entryPointsOf, ESCAPE_SELF_CHECK, runEscapeSelfCheck } from "./lib/declaration-escape.mjs";
 import {
   failureCause,
   installedTypescriptVersion,
@@ -109,7 +121,50 @@ const why = (error) => failureCause(error, CHILD_TIMEOUT_MS);
  * otherwise leave the gate green, and so would deleting only the typed literals
  * of the gates probe.
  */
-const TYPE_ONLY_PROBES = ["DecisionCacheShape", "GateInstanceLike", "GateRegistryLike"];
+const TYPE_ONLY_PROBES = [
+  "DecisionCacheShape",
+  "GateInstanceLike",
+  "GateRegistryLike",
+  "PortDescription",
+  "PortFixtureData",
+  "PortSpanName",
+];
+
+/**
+ * The `@qadi/core` runtime values check 4's consumer must use when it runs.
+ *
+ * Unlike the feeds, these share no name pattern, so they cannot be read from
+ * the artifact and are written out. The module hook hands the consumer each one
+ * wrapped: a function counts when the run calls it, any other value when the run
+ * reads a property of it, so deleting the probe, or leaving it in code that
+ * never runs, fails the gate.
+ */
+const RUNTIME_PROBES = ["PORT_NAMES", "tabulatePorts"];
+
+/**
+ * The `@qadi/react` calls check 4's consumer must make when it runs, each a function name
+ * and the shape of its first argument after a colon.
+ *
+ * `hydrateDecisions` takes any value with the atom set's `hydrate` capability
+ * (ADR-QD-204), so the consumer hydrates through the atom set (`atoms`: a value with
+ * `hydrate` and more) and through a value holding `hydrate` alone (`capability`). The module
+ * hook records the shape of each call's first argument, so deleting either call, or
+ * leaving it in code that never runs, fails the gate.
+ */
+const REACT_RUNTIME_PROBES = ["hydrateDecisions:atoms", "hydrateDecisions:capability"];
+
+/**
+ * The calls check 4's consumer must refuse, each a function name paired with the member its
+ * first argument lacks.
+ *
+ * A refusal is a call of that name whose first argument is an object literal with no
+ * property of that name, led by a `@ts-expect-error`: the consumer refuses
+ * `hydrateDecisions({}, …)`, a value without `hydrate`, which is how the packed declaration
+ * holds the structural parameter's lower edge. The compiler fails an unused directive, but
+ * nothing else keeps the call, so deleting it with its directive would otherwise leave the
+ * gate green.
+ */
+const REFUSED_CALL_PROBES = new Map([["hydrateDecisions", "hydrate"]]);
 
 /**
  * The type names check 4's consumer must refuse an old shape against, each
@@ -120,11 +175,18 @@ const TYPE_ONLY_PROBES = ["DecisionCacheShape", "GateInstanceLike", "GateRegistr
  * one. The compiler fails an unused directive, but nothing else keeps the
  * literal, so deleting it together with its directive would otherwise leave the
  * gate green.
+ *
+ * A required member a shape gained is refused through that member stated
+ * `undefined`: a literal that leaves it out is an error on the declaration,
+ * where no property of that name exists for the directive to lead, so the
+ * guard could not tell it from a declaration with no refusal at all.
+ * `PortDescription`'s `fixture` is refused this way.
  */
 const REFUSED_SHAPE_PROBES = new Map([
   ["DecisionCacheShape", "getOrCompute"],
   ["Diagnostics", "questions"],
   ["DiagnosticsOptions", "schedule"],
+  ["PortDescription", "fixture"],
 ]);
 
 /** Workspace-time protocols. Valid in a manifest, meaningless in a tarball. */
@@ -447,6 +509,46 @@ try {
 }
 
 // ---------------------------------------------------------------------------
+// Check 3c — no packed declaration escapes its package.
+//
+// The function judges the text; its planted cases run first, every time, so a
+// rule that stopped matching cannot pass a clean tree by finding nothing.
+// ---------------------------------------------------------------------------
+
+for (const label of runEscapeSelfCheck()) {
+  fail(`[escape-self-check] planted case "${label}" was not judged as planted (${ESCAPE_SELF_CHECK.length} cases)`);
+}
+
+const declarationFiles = (root, rel = "") =>
+  readdirSync(join(root, rel), { withFileTypes: true }).flatMap((entry) => {
+    const next = rel === "" ? entry.name : `${rel}/${entry.name}`;
+    if (entry.isDirectory()) return entry.name === "node_modules" ? [] : declarationFiles(root, next);
+    return entry.name.endsWith(".d.ts") ? [next] : [];
+  });
+
+// The entry points a bare `@qadi/<pkg>/<subpath>` may name: the installed manifests' `exports` maps, never a hand list.
+const entryPoints = entryPointsOf(
+  installed.map(({ target }) => JSON.parse(readFileSync(join(target, "package.json"), "utf8"))),
+);
+let declarationsRead = 0;
+let escapes = 0;
+for (const { name, target } of installed) {
+  for (const rel of declarationFiles(target)) {
+    declarationsRead += 1;
+    for (const reason of declarationEscapes(target, rel, readFileSync(join(target, rel), "utf8"), entryPoints)) {
+      escapes += 1;
+      fail(`${name}/${rel}: ${reason}`);
+    }
+  }
+}
+if (declarationsRead === 0) fail("declaration escape check read no packed .d.ts file");
+else if (escapes === 0) {
+  console.log(
+    `declaration escape check: ${declarationsRead} packed .d.ts file(s), none names a path outside its package, into src/ or to an undeclared entry point`,
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Check 4 — a TypeScript consumer type-checks against the shipped .d.ts and
 // then authorizes correctly.
 //
@@ -468,6 +570,9 @@ import * as HttpRouter from "effect/http/HttpRouter";
 import * as HttpServer from "effect/http/HttpServer";
 import {
   actedAnswerFromEvents,
+  type AnswerOf,
+  type ArgsOf,
+  type AskedOf,
   AttributeResolver,
   AttributeResolverNone,
   causeMessage,
@@ -479,26 +584,46 @@ import {
   type DecisionCacheShape,
   DecisionHistoryUnknown,
   DecisionRecord,
+  type ErrorOf,
   evaluate,
   EvaluationIdLive,
+  EvaluationServicesNone,
   fromRoles,
   gte,
   hasActed,
   hasAttribute,
   hasPermission,
   hasSignature,
+  type LeafRequests,
   permission,
+  PORT_FIXTURES,
+  PORT_NAMES,
+  type PortDescription,
+  type PortFixtureData,
+  PORTS,
+  type PortSpanName,
+  type PortSpanOf,
   RelationshipResolverNever,
   role,
+  type ServiceOf,
+  type ShapeOf,
   signatureAnswerFromSignatures,
   SignatureHistoryNone,
+  type SpanOf,
   StoredRecord,
+  tabulatePorts,
   thrownMessage,
   toPredicate,
 } from "@qadi/core";
 import { makeQadi } from "@qadi/promise";
 import { qadiTestLayer } from "@qadi/testing";
-import { QadiProvider } from "@qadi/react";
+import {
+  dehydrateDecisions,
+  type DehydratedDecisions,
+  hydrateDecisions,
+  makeQadiAtoms,
+  QadiProvider,
+} from "@qadi/react";
 import {
   type Diagnostics,
   type DiagnosticsOptions,
@@ -568,6 +693,24 @@ await qadi.dispose();
 // declaration file in any of them is a compile error here.
 expect("testing layer", typeof qadiTestLayer, "function");
 expect("react provider", typeof QadiProvider, "function");
+
+// hydrateDecisions takes the atom set or any value with its hydrate capability, and refuses one without. The payload
+// crosses as the JSON text a page embeds, so both hydrations read the decoded payload, not the in-memory object.
+const hydrationAtoms = makeQadiAtoms(EvaluationServicesNone);
+const hydrationSent = dehydrateDecisions([
+  { policy: hasPermission(read), decision: await decide(hasPermission(read)) },
+  { policy: hasPermission(write), decision: await decide(hasPermission(write)) },
+]);
+const hydrationPayload: DehydratedDecisions = JSON.parse(JSON.stringify(hydrationSent));
+const seededByAtoms = [...hydrateDecisions(hydrationAtoms, hydrationPayload, alice)];
+const seededByCapability = [...hydrateDecisions({ hydrate: hydrationAtoms.hydrate }, hydrationPayload, alice)];
+expect("hydration payload carries entries", hydrationPayload.entries.length > 0, true);
+expect("hydration seeds every entry through the atom set", seededByAtoms.length, hydrationPayload.entries.length);
+expect("hydration seeds every entry through the capability alone", seededByCapability.length, hydrationPayload.entries.length);
+expect("hydration seeds the same atoms either way", seededByAtoms.every(([atom], at) => atom === seededByCapability[at]?.[0]), true);
+const refusedHydrationTarget = () =>
+  // @ts-expect-error a value without hydrate is not a hydrate target
+  hydrateDecisions({}, hydrationPayload, alice);
 // The two new public names answer in the packed artifact.
 expect("thrown message of an Error", thrownMessage(new Error("boom")), "boom");
 expect("thrown message of a value that cannot be described", thrownMessage({ toString: () => { throw new Error("no"); } }), "a value that could not be described");
@@ -824,6 +967,81 @@ expect("host cache lookups", cacheOutcomes.join(), "miss,hit");
 expect("host cache walked once", resolverCalls, 1);
 expect("host cache holds one entry", cached.size, 1);
 
+// @qadi/core's port registry. Each description states its span and its fixture, so one built from the shipped
+// AttributeResolver description is typed by the whole PortDescription, its last two type arguments the port's span
+// literal and fixture data.
+type AttributePort = (typeof PORTS)["AttributeResolver"];
+const { fixture: shippedAttributeFixture, ...attributeFacts } = PORTS.AttributeResolver;
+const attributeDescription: PortDescription<
+  "AttributeResolver",
+  ServiceOf<AttributePort>,
+  ShapeOf<AttributePort>,
+  ArgsOf<AttributePort>,
+  AnswerOf<AttributePort>,
+  ErrorOf<AttributePort>,
+  AskedOf<AttributePort>,
+  SpanOf<AttributePort>,
+  LeafRequests<AskedOf<AttributePort>>,
+  PortSpanOf<"AttributeResolver">,
+  PortFixtureData["AttributeResolver"]
+> = { ...attributeFacts, fixture: shippedAttributeFixture };
+
+// The pre-0.13 shape, every member but \`fixture\`, is refused. Leaving \`fixture\` out is TS2741 on the declaration,
+// which the probe guard cannot read as a refusal, so the literal states it \`undefined\`.
+const preFixture: PortDescription<
+  "AttributeResolver",
+  ServiceOf<AttributePort>,
+  ShapeOf<AttributePort>,
+  ArgsOf<AttributePort>,
+  AnswerOf<AttributePort>,
+  ErrorOf<AttributePort>,
+  AskedOf<AttributePort>,
+  SpanOf<AttributePort>,
+  LeafRequests<AskedOf<AttributePort>>,
+  PortSpanOf<"AttributeResolver">,
+  PortFixtureData["AttributeResolver"]
+> = {
+  ...attributeFacts,
+  // @ts-expect-error fixture is required: a description states how a test or a simulation fills its port
+  fixture: undefined,
+};
+
+const attributeSpan: PortSpanName = attributeDescription.span;
+expect("attribute port span", attributeSpan, "qadi.attribute");
+expect("port names in registry order", PORT_NAMES.join(), Object.keys(PORTS).join());
+expect("each port opens its own span", new Set(PORT_NAMES.map((name) => PORTS[name].span)).size, PORT_NAMES.length);
+
+// The fixture overload of tabulatePorts: one builder per port, each from that port's own data, which only that
+// overload types, so each call below compiles only through it.
+const builders = tabulatePorts((d) => d.fixture);
+expect("fixture builders in registry order", Object.keys(builders).join(), PORT_NAMES.join());
+expect("fixture builders are the shipped table", PORT_NAMES.every((name) => builders[name] === PORT_FIXTURES[name]), true);
+const fixtureData: PortFixtureData = {
+  AttributeResolver: { clearance: 5 },
+  DecisionHistory: [],
+  RelationshipResolver: [],
+  CustomPredicate: {},
+  SignatureHistory: [],
+};
+const decideFixed = (policy: Parameters<typeof evaluate>[0], attributes: Layer.Layer<AttributeResolver>) =>
+  Effect.runPromise(
+    evaluate(policy).pipe(
+      Effect.provide(currentSubjectLayer(alice)),
+      Effect.provide(
+        Layer.mergeAll(
+          attributes,
+          builders.DecisionHistory(fixtureData.DecisionHistory),
+          builders.RelationshipResolver(fixtureData.RelationshipResolver),
+          builders.CustomPredicate(fixtureData.CustomPredicate),
+          builders.SignatureHistory(fixtureData.SignatureHistory),
+          EvaluationIdLive,
+        ),
+      ),
+    ),
+  );
+expect("fixture overload's attribute builder answers", (await decideFixed(needsLookup, builders.AttributeResolver(fixtureData.AttributeResolver)))._tag, "Allow");
+expect("description's own fixture answers", (await decideFixed(needsLookup, attributeDescription.fixture({ clearance: 0 })))._tag, "Deny");
+
 // The pre-0.13 shape took the computation and stored its result under the question. It is refused: the
 // second parameter is now the options, so running it as an Effect is TS2345.
 const preThirteen: DecisionCacheShape = {
@@ -945,29 +1163,47 @@ if (failures.length === 0) {
 }
 
 // The consumer runs under a module hook that hands it `@qadi/devtools` with each make*Feed wrapped
-// to record its name when called, so the probe guard below reads the calls the run made rather
-// than the calls the fixture spells. The hook reads the feed names from the module it wraps.
-const FEED_CALLS = join(SANDBOX, "feed-calls.txt");
+// to record its name when called, `@qadi/core` with each `RUNTIME_PROBES` name wrapped to record
+// its name when called or read, and `@qadi/react` with each `REACT_RUNTIME_PROBES` function wrapped
+// to record its name and the shape of its first argument when called, so the probe guard below
+// reads what the run used rather than what the fixture spells. The hook reads the feed names from
+// the module it wraps.
+const PROBE_CALLS = join(SANDBOX, "probe-calls.txt");
 writeFileSync(
-  join(SANDBOX, "feed-hooks.mjs"),
-  `const SCHEME = "qadi-feed-calls:";
+  join(SANDBOX, "probe-hooks.mjs"),
+  `const SCHEMES = { "@qadi/devtools": "qadi-feed-calls:", "@qadi/core": "qadi-core-reads:", "@qadi/react": "qadi-react-calls:" };
+const RUNTIME_PROBES = ${JSON.stringify(RUNTIME_PROBES)};
+const REACT_FUNCTIONS = ${JSON.stringify([...new Set(REACT_RUNTIME_PROBES.map((probe) => probe.split(":")[0]))])};
 const OUT = ${JSON.stringify(new URL(`file://${join(SANDBOX, "out")}/`).href)};
 export const resolve = async (specifier, context, next) => {
-  if (specifier !== "@qadi/devtools" || !context.parentURL?.startsWith(OUT)) return next(specifier, context);
+  if (!Object.hasOwn(SCHEMES, specifier) || !context.parentURL?.startsWith(OUT)) return next(specifier, context);
   const real = await next(specifier, context);
-  return { url: SCHEME + encodeURIComponent(real.url), shortCircuit: true };
+  return { url: SCHEMES[specifier] + encodeURIComponent(real.url), shortCircuit: true };
 };
 export const load = async (url, context, next) => {
-  if (!url.startsWith(SCHEME)) return next(url, context);
-  const real = decodeURIComponent(url.slice(SCHEME.length));
-  const feeds = Object.keys(await import(real)).filter((key) => /^make\\w*Feed$/.test(key));
+  const scheme = Object.values(SCHEMES).find((prefix) => url.startsWith(prefix));
+  if (scheme === undefined) return next(url, context);
+  const real = decodeURIComponent(url.slice(scheme.length));
+  const keys = Object.keys(await import(real));
+  const names =
+    scheme === SCHEMES["@qadi/devtools"]
+      ? keys.filter((key) => /^make\\w*Feed$/.test(key))
+      : scheme === SCHEMES["@qadi/react"]
+        ? REACT_FUNCTIONS.filter((name) => keys.includes(name))
+        : RUNTIME_PROBES.filter((name) => keys.includes(name));
+  // A first argument holding hydrate alone is the capability; one holding hydrate and more is the atom set.
+  const shape = \`(first) => first !== null && typeof first === "object" && "hydrate" in first ? (Object.keys(first).length === 1 ? "capability" : "atoms") : "other"\`;
   const source = [
     \`import * as real from \${JSON.stringify(real)};\`,
     \`import { appendFileSync } from "node:fs";\`,
     \`export * from \${JSON.stringify(real)};\`,
-    ...feeds.map(
-      (name) =>
-        \`export const \${name} = (...args) => { appendFileSync(\${JSON.stringify(${JSON.stringify(FEED_CALLS)})}, "\${name}\\\\n"); return real.\${name}(...args); };\`,
+    \`const recorded = new Set();\`,
+    \`const record = (name) => { if (!recorded.has(name)) { recorded.add(name); appendFileSync(\${JSON.stringify(${JSON.stringify(PROBE_CALLS)})}, name + "\\\\n"); } };\`,
+    \`const shapeOf = \${shape};\`,
+    ...names.map((name) =>
+      scheme === SCHEMES["@qadi/react"]
+        ? \`export const \${name} = (...args) => { record("\${name}:" + shapeOf(args[0])); return real.\${name}(...args); };\`
+        : \`export const \${name} = typeof real.\${name} === "function" ? (...args) => { record("\${name}"); return real.\${name}(...args); } : new Proxy(real.\${name}, { get: (target, key, receiver) => { record("\${name}"); return Reflect.get(target, key, receiver); } });\`,
     ),
   ].join("\\n");
   return { format: "module", source, shortCircuit: true };
@@ -975,22 +1211,22 @@ export const load = async (url, context, next) => {
 `,
 );
 writeFileSync(
-  join(SANDBOX, "feed-calls.mjs"),
-  'import { register } from "node:module";\nregister("./feed-hooks.mjs", import.meta.url);\n',
+  join(SANDBOX, "probe-calls.mjs"),
+  'import { register } from "node:module";\nregister("./probe-hooks.mjs", import.meta.url);\n',
 );
 
-/** The make*Feed names the consumer's run called, or undefined when it did not complete. */
+/** The make*Feed and runtime probe names the consumer's run used, or undefined when it did not complete. */
 let called;
 if (failures.length === 0) {
   try {
-    rmSync(FEED_CALLS, { force: true });
-    execFileSync("node", ["--import", "./feed-calls.mjs", "out/consumer.js"], {
+    rmSync(PROBE_CALLS, { force: true });
+    execFileSync("node", ["--import", "./probe-calls.mjs", "out/consumer.js"], {
       cwd: SANDBOX,
       encoding: "utf8",
       stdio: "pipe",
       timeout: CHILD_TIMEOUT_MS,
     });
-    called = new Set(existsSync(FEED_CALLS) ? readFileSync(FEED_CALLS, "utf8").split("\n").filter(Boolean) : []);
+    called = new Set(existsSync(PROBE_CALLS) ? readFileSync(PROBE_CALLS, "utf8").split("\n").filter(Boolean) : []);
   } catch (error) {
     fail(`the consumer failed at runtime:\n${why(error)}`);
   }
@@ -1007,23 +1243,37 @@ if (consumerReady) {
   try {
     const output = execFileSync(
       "node",
-      ["--input-type=module", "-e", 'console.log(JSON.stringify(Object.keys(await import("@qadi/devtools"))))'],
+      [
+        "--input-type=module",
+        "-e",
+        'console.log(JSON.stringify({ devtools: Object.keys(await import("@qadi/devtools")), core: Object.keys(await import("@qadi/core")), react: Object.keys(await import("@qadi/react")) }))',
+      ],
       { cwd: SANDBOX, encoding: "utf8", stdio: "pipe", timeout: CHILD_TIMEOUT_MS },
     );
-    feeds = JSON.parse(output.trim().split("\n").at(-1) ?? "[]").filter((key) => /^make\w*Feed$/.test(key));
+    const packed = JSON.parse(output.trim().split("\n").at(-1) ?? "{}");
+    feeds = (packed.devtools ?? []).filter((key) => /^make\w*Feed$/.test(key));
     if (feeds.length === 0) {
       fail("the packed @qadi/devtools root exports no make*Feed; the probe guard would be vacuous");
     }
+    const absent = RUNTIME_PROBES.filter((name) => !(packed.core ?? []).includes(name));
+    if (absent.length > 0) {
+      fail(`the packed @qadi/core root does not export ${absent.join(", ")}; its runtime probe would be vacuous`);
+    }
+    const reactFunctions = [...new Set([...REACT_RUNTIME_PROBES.map((probe) => probe.split(":")[0]), ...REFUSED_CALL_PROBES.keys()])];
+    const reactAbsent = reactFunctions.filter((name) => !(packed.react ?? []).includes(name));
+    if (reactAbsent.length > 0) {
+      fail(`the packed @qadi/react root does not export ${reactAbsent.join(", ")}; its probe would be vacuous`);
+    }
   } catch (error) {
     feeds = undefined;
-    fail(`reading the packed @qadi/devtools exports failed:\n${why(error)}`);
+    fail(`reading the packed @qadi/devtools, @qadi/core and @qadi/react exports failed:\n${why(error)}`);
   }
 
   let seen;
   try {
     const output = runTypescriptChild(
       join(ROOT, "scripts", "lib", "probe-guard-parse.mjs"),
-      [SANDBOX, JSON.stringify([...REFUSED_SHAPE_PROBES])],
+      [SANDBOX, JSON.stringify([...REFUSED_SHAPE_PROBES]), JSON.stringify([...REFUSED_CALL_PROBES])],
       { cwd: ROOT, timeoutMs: CHILD_TIMEOUT_MS },
     );
     let parsed;
@@ -1033,7 +1283,9 @@ if (consumerReady) {
       fail(`the probe guard's parse printed something other than one line of JSON:\n${output}`);
     }
     if (parsed === null) fail("the probe guard could not read consumer.ts from the sandbox project");
-    else if (parsed !== undefined) seen = { typed: new Set(parsed.typed), refused: new Set(parsed.refused) };
+    else if (parsed !== undefined) {
+      seen = { typed: new Set(parsed.typed), refused: new Set(parsed.refused), refusedCalls: new Set(parsed.refusedCalls) };
+    }
   } catch (error) {
     const version = installedTypescriptVersion(ROOT);
     fail(
@@ -1050,6 +1302,18 @@ if (consumerReady) {
         `the consumer fixture never calls ${unprobed.join(", ")}: every make*Feed the packed @qadi/devtools root exports must be probed`,
       );
     }
+    const unused = RUNTIME_PROBES.filter((name) => !called.has(name));
+    if (unused.length > 0) {
+      fail(
+        `the consumer fixture never uses ${unused.join(", ")} when it runs: every runtime probe of the packed @qadi/core root must be called, or read, by the run`,
+      );
+    }
+    const uncalled = REACT_RUNTIME_PROBES.filter((probe) => !called.has(probe));
+    if (uncalled.length > 0) {
+      fail(
+        `the consumer fixture never makes the call ${uncalled.join(", ")} when it runs: hydrateDecisions of the packed @qadi/react root must be called through the atom set and through a value holding only hydrate`,
+      );
+    }
   }
 
   // No comparison runs against a parse that did not produce the fixture.
@@ -1064,6 +1328,12 @@ if (consumerReady) {
     if (unrefused.length > 0) {
       fail(
         `the consumer fixture never refuses a literal typed ${unrefused.join(", ")}: every refused-shape probe name must annotate a literal whose property named by its refused member carries a @ts-expect-error`,
+      );
+    }
+    const unrefusedCalls = [...REFUSED_CALL_PROBES].filter(([name]) => !seen.refusedCalls.has(name));
+    if (unrefusedCalls.length > 0) {
+      fail(
+        `the consumer fixture never refuses ${unrefusedCalls.map(([name, member]) => `${name} on a value without ${member}`).join(", ")}: every refused-call probe must be a call whose first argument is an object literal with no property of that name, led by a @ts-expect-error`,
       );
     }
   }

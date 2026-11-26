@@ -1,4 +1,4 @@
-# Qadi — Architecture Waves (last: v1.10 Arch Wave 15)
+# Qadi — Architecture Waves (latest: v1.11 Arch Wave 16)
 
 ## What This Is
 
@@ -12,6 +12,56 @@ module was a shallow pass-through.
 
 The review is at https://claude.ai/artifact/LH5dLGadz28NyzmZez9jcX, with a local copy at
 `/tmp/claude-1002/-home-yopu-Project-Perso-qadi/588341bb-9f42-4e6e-b1a3-ed991ed47acf/scratchpad/qadi-architecture-review.html`.
+
+## Previous Milestone: v1.11 Arch Wave 16 (completed 2026-11-27; not released)
+
+**Goal:** Resolve all seven candidates of the 2026-11-25 architecture review, in the order the review ranked them, with
+the house-rule change (named barrels) last so every earlier phase lands on the file layout it was reviewed against.
+
+**Target features (Phases 85–91, ARCH-132…138, strictly serial):**
+- 85: The dock's hydration block is a model row. A pure hydration view (Pending / Unwired / Counts, with the rate,
+  drops and scope text worked out) sits beside `portCards`, and the dock model serves it; the three distinct
+  "unsampled" predicates (`DockModel.ts:391`, `:405`, `QuestionsPanel.tsx:112`) are each stated once, not flattened; `DockFrame` stops subscribing to
+  the whole reading to pass one field (devtools; amends ADR-QD-185 / BEH-QD-700 if a fifth derived store)
+- 86: `QadiProvider`'s registry lifetime has one React-free owner: create, seed (subject, `initialValues`), write the
+  subject, recycle and hold the lease, tested with an injected defer and no rendering. The component keeps one ref and
+  forwards hold, release and subject changes (react; keeps ADR-QD-195's hold/defer semantics)
+- 87: One "scoped run that states its stop" sits above `SupersedingRun`: held inputs and the `sameFields` gate,
+  publish-then-fork through a callback, failure → `Stopped(causeMessage)`, `restart`, the closed guard. `TimelineFeed`,
+  `DiagnosticsFeed` and `SimulationSession` supply only their engine and states; `GatesFeed` shares the prologue.
+  Opens with a RED test for `SimulationSession`'s `String(exit.cause)` (`SimulationSession.ts:418`) against ADR-QD-182
+  (devtools; new ADR answering ADR-QD-150 point 2)
+- 88: `StoppedBox` keys itself and owns the announce-once ledger; callers stop computing `stoppedKey` from a ref
+  during render (devtools react; amends ADR-QD-197)
+- 89: One admission step for a host's audit batch (`now`, rows, key material / max age), shared by
+  `archiveAuditTrail`, `planRetention`, `verifiedArchiveFacts` and `planPurge`; `NowNotFinite` stated once (audit;
+  keeps ADR-QD-190's `RowsRefusalCases`)
+- 90: The remaining per-port facts move onto the port description: span name, serving shape and fixture data type;
+  `PortName` derived; `readScoped` routes off the `LEAF_NEEDS` row so its `resourceId` column does real work (core;
+  amends ADR-QD-163 D-06, ADR-QD-094)
+- 91: `@qadi/core`, `@qadi/react` and `@qadi/audit` take named barrels, as `@qadi/devtools` does (ADR-QD-047), and the
+  visibility-only files fold into the module that owns their concept: the span-attribute files, `Hydration.ts` into
+  `HydrationEngine.ts`, `GateRegistry.ts` into `GateWriter.ts`, `SequenceIntegrity.ts` into `ArchiveFacts.ts`. An
+  ADR-QD-037 cycle-breaker folds only where the madge graph proves no cycle returns (house rule: AGENTS.md §9; amends
+  ADR-QD-037, ADR-QD-099)
+
+**Source review:** `/private/tmp/claude-502/-Users-mohammadalmechkor-Projects-Perso-qadi/b04729bd-9815-4720-957d-3637602848ac/scratchpad/architecture-review-20261125.html`
+(session-scoped; `.planning/phases/_WAVE16-CONTEXT.md` holds everything a planner needs). Branch `arch-wave-16`, off
+`main` at `ac7578f3` (v1.9 and v1.10 merged as #165). No merge, no release. Scope (all seven), the barrel treatment
+(fold, prove acyclic) and research (run) were chosen by the owner on 2026-11-25.
+
+v1.11 Arch Wave 16 completed 2026-11-27 on branch `arch-wave-16` (455 commits; 221 files, +16,071 / −2,160 outside
+`.planning`): ARCH-132 to ARCH-138, ADR-QD-198 to ADR-QD-204 with their amendments and dated notes, CCR-QD-477..483,
+BEH-QD-761..795, INV-QD-415..428. All 7 phases `passed`, Nyquist-compliant and secured (0 open threats). Each phase ran
+a review with one fix round, decided autonomously under the owner's standing instruction (take the most complete, clean
+solution), and re-took its mutation measurement; no touched file's score fell (a drop was closed by a test, never
+labelled EQUIVALENT). The audit is `passed`: 41/41 requirements, 6/6 integration seams, 4/4 flows; it re-verified Phases
+86, 87, 89 and 90, which later phases had made stale. `check:pr` exited 0 at the end of every phase and last at
+`32f9c3ff` (6981 tests). Thirteen changesets: one Breaking minor (`@qadi/core`: `PortDescription` gains `FixtureData`,
+with an upgrade guide) and twelve patches (`@qadi/devtools` ×4, `@qadi/core` ×2, `@qadi/react` ×2, `@qadi/audit` ×2,
+`@qadi/http`, `@qadi/testing`). api-surface 942 → 943 exports (Phase 90's `PORT_NAMES`), identical through the barrel
+change. **Not merged and not released.** Archive: `.planning/milestones/v1.11-ROADMAP.md`, `v1.11-REQUIREMENTS.md`,
+`v1.11-MILESTONE-AUDIT.md`.
 
 ## Previous Milestone: v1.10 Arch Wave 15 (completed 2026-11-25; not released)
 
@@ -212,6 +262,21 @@ threshold that never opens, a failing user sink that loses records unlogged), th
 `arch-wave-9` at `ba0d0615` (v1.4 is not merged). No merge, no release.
 
 ## Current State
+
+v1.11 Arch Wave 16 completed 2026-11-27 on branch `arch-wave-16`, off `main` at `ac7578f3` (see the v1.11 entry above).
+All seven candidates of the 2026-11-25 architecture review are resolved:
+- the dock's hydration block is a model row worked out by a pure view, and the dock frame no longer subscribes to the
+  whole reading;
+- `QadiProvider`'s registry lifetime has a React-free owner the provider only forwards to;
+- one stated run above `SupersedingRun` owns publish-then-fork and one stop rule for the timeline, diagnostics and
+  simulation feeds, with one configure prologue shared with the gates feed;
+- `StoppedBox` keys itself from a pure stop ledger, with no ref read during render;
+- a host's audit batch passes one admission step, each input read once, before any of the four entry points uses it;
+- each port's span, fixture and scoped need live on its description or are computed from its leaves' rows;
+- `@qadi/core`, `@qadi/react` and `@qadi/audit` take named barrels, and five visibility-only files fold into the
+  modules that own their concepts, with the public surface identical.
+
+Not merged and not released. The next milestone is not yet defined.
 
 v1.10 Arch Wave 15 completed 2026-11-25 on branch `arch-wave-15`, stacked on `arch-wave-14` (see the v1.10 entry above).
 All four candidates of the 2026-11-24 architecture review are resolved:
@@ -474,9 +539,20 @@ logged, counted or spanned.
 
 - ✓ ARCH-131 `useConfigured` requires `configure`, and the review's small finds (ADPT-01..05): `useConfigured(make, inputs)` takes a value that has its own `configure`, through a package-private `Configurable<I>` whose `configure` is a function property (checked contravariantly), so the three identical adapters `configureDock`, `configureTimeline` and `configureDiagnostics` are deleted and the three hooks call it with no type argument; `useConfigured.tst.ts` pins the three values and four refusals, each beside its accepted twin, the fourth refused by the property form alone; `LensSession` publishes every command through `ExternalStore.set` (`move` deleted) and `choose` still arms its reveal before it publishes; `useLens(lens, questions): UseLens` subscribes the questions store first and the lens second, draws from its own subscription, reads the store at event time and writes no ref, and the panel makes the one call; the dock's two stop notices come from one `useStopNotice` hook and one `StopNoticeProps<S>`, one ledger per feed; `useTimeline`'s per-render inputs record is a recorded rejection (ADR-QD-197). Characterisations LQ1..LQ4, DS1..DS3, TI1..TI3 born on the base; mutation LensSession 52/52 -> 47/47 (the deleted `move`'s mutants), no new Ignored. ADR-QD-197, ADR-QD-192 and ADR-QD-193 amended, BEH-QD-756..760, INV-QD-413/414, CCR-QD-476; `@qadi/devtools` patch, no export changes — v1.10, Phase 84 (2026-11-25)
 
+- ✓ ARCH-132 The dock's hydration block is a model row (HYDV-01..05): a pure, package-private `HydrationView.ts` (`hydrationView`, a closed `Pending | Unwired | Counts` `Data.TaggedEnum` with a closed `None | Raised` drops union and every sentence worked out) is served as `DockModel.hydration`, the eleventh store and fifth derived store, built after `services` from the shown reading and keyed by identity on `{ hydration, unsampled }`; one module-scope `shownInputOf` computes `unsampled` for services and hydration while the questions guard keeps its own; `QuestionsPanel` renders the view through hoisted `Match.tagsExhaustive` matchers and imports neither `isUnsampled` nor `unaccountedEntries`; `DockFrame` reads only the poll's status through `useDiagnosticsStatus` beside `usePaused`, and `Screen` lost `shown`, so a counts-only poll commits nothing under the dock (R1, with R2 as control). Characterisations H1..H13 born on the base and held byte for byte; V1..V17, M57..M60, DL21/DL22, CR22. Mutation DockModel 65/65 -> 72/72, HydrationView 41/41, no new Ignored. ADR-QD-198, ADR-QD-185/168 noted, BEH-QD-761..765, INV-QD-415/416, CCR-QD-477; `@qadi/devtools` patch, no export changes — v1.11, Phase 85 (2026-11-25)
+
+- ✓ ARCH-133 `QadiProvider`'s registry lifetime has a React-free owner (PREG-01..05): a package-private `RegistryOwner.ts` (`makeRegistryOwner`, no React import) builds and seeds the one registry, records the latest committed atoms and subject, writes the subject on every commit without reading first, and recycles through the unchanged `RegistryLease` with `reset` then, in a `finally`, the latest subject (never a seed or `initialValues`); building it schedules nothing. It is tested headlessly against a real `AtomRegistry` and an injected `defer` (RO1–RO16, recycles-nothing/recycles-once twins) and measured by Stryker (19/19 killed; the lease stays 28/28). `QadiProvider` keeps one lifetime ref (`ownerRef ??=`), four effects (commit first, hold/release last) and forwards only. ADR-QD-199 (ADR-QD-195 Rev 1.4), BEH-QD-766/767, INV-QD-417/418, CCR-QD-478; render-suite audit kept every test (0 removed). One host-visible edge: a `registry.refresh` on an unread subject atom after the first commit and before any recycle keeps the subject (pinned RO16, patch changeset).
+
+- ✓ ARCH-134 One scoped run that states its stop (STOP-01..05): a package-private `StatedRun.ts` (`makeStatedRun`, an unnamed `Effect.fn` over the unchanged `makeSupersedingRun`) owns publish-then-fork (`try { starting } finally { fork }`, a listener's throw rethrown once after the new run has started), the closed guard, the token-guarded write and one stop rule: a current run whose own work ends on anything but success is stated with `causeMessage`, a self-interrupt included, and an outside interruption never is; the engine is built lazily in the run's fiber, so a throw while building it is a stated stop. A package-private `ConfigurePrologue.ts` (`makeConfigure`) states closed, normaliser, identity gate, hold, steps once for the timeline, diagnostics (`sameFieldsOrAbsent`) and gates (`watchFailure` retry, still forking before it publishes) feeds. `SimulationSession` starts through the stated run, keeps its own exit read and `root: true` span, guards its stop on `Running`, and reports `Broke.message` as `causeMessage` (no more `Cause([Die(...)])`); the Simulator shows it in `StoppedBox`'s labelled, focusable `<pre>` treatment (`reasonStyle` moved to `theme.ts`) under an announced heading. `ForkHooks.onFailure` removed (audit: 1 test removed, R3/R5–R7 retitled and seen failing). Ten rows red on the base turned green; mutation StatedRun 23/23, ConfigurePrologue 7/7, moved code 509/518 -> 520/528. ADR-QD-200 (ADR-QD-150/182/192/194/196/047 amended), BEH-QD-771..775, INV-QD-419/420 (INV-QD-313 retitled), CCR-QD-479; `@qadi/devtools` and `@qadi/core` patches, no export changes — v1.11, Phase 87 (2026-11-25)
+
+- ✓ ARCH-135 `StoppedBox` keys itself and owns the announce-once rule (SBOX-01..04): a pure, package-private `model/StopLedger.ts` (`StopLedger` = `{ stop, count }`, `noStops`, `stoppedKey`, `announcesStop`, `recordStop`; no React, in no barrel) holds the one transition; `useStopNotice` keeps each feed's ledger as `useReducer(recordStop, noStops)` in `DockFrame`, so nothing reads a ref during render (both render-phase reads removed, not relocated). `StoppedBox` is an outer wrapper that keys a module-private `StoppedBody` with `stoppedKey`; the body decides its alert once at mount and records in a layout effect keyed on `[record, status]`; the notices hand it `notice` whole and the `Binding` types are gone. Measured cost: a newly shown stop is 2 parent renders and 2 commits (1 and 1 on the base). Pinned on the base by A1–A5 through `DevtoolsDock` (plain and StrictMode) and H1–H3 plus the commit-limit row C1; the four React files are unmeasured and held by 13 recorded scratch variants; `StopLedger.ts` 12/12 mutants killed (4 static examined). Phase 87's IN-04 closed (the Simulator's reason block compared with the rendered box). ADR-QD-201 (ADR-QD-197 Rev 1.5), BEH-QD-776..780, INV-QD-421/422, CCR-QD-480; audit: 0 tests removed; one `@qadi/devtools` patch, no export changes — v1.11, Phase 88 (2026-11-26)
+- ✓ ARCH-136 One admission step for a host's audit batch (ADMIT-01..05): a package-private, span-free `packages/audit/src/HostBatch.ts` (`admitBatch`, `admitRows`, the type-only nominal `AdmittedRows`, the shared `NowRefusalCases` fragment) checks `now` (`Number.isFinite`), then the caller's terms (read once), then the rows (`length` read once, each index read once and checked as it is read, stopping at the first refused index), and `archiveAuditTrail`, `verifySequenceIntegrity`, `planRetention` and `planPurge` each call it first; `verifiedArchiveFacts` takes only `AdmittedRows`; `planPurge` runs the module-private age rule over its own admitted rows. Fixes a live defect (a row list answering differently on a second read slipped a row past the codec check, so the writer archived a row its own reader refused, INV-QD-399), a `null`/`undefined` retention policy throwing a `TypeError`, and (review CR-01) a non-number `maxAgeMs` read as 0 and purging every archived row. `CodecMade.ts`'s `rowsRefusal` became the leaf predicate `isCodecMade` (overriding D-06 under the owner rule). Both public refusal unions keep their case sets; two refusal traces change on purpose. Characterisation 73 rows; 6 order tests removed (ADR-QD-202 audit); mutation 100% on every touched file, `HostBatch.ts` 38/38; audit 733 tests; `check:pr` green. ADR-QD-202, CCR-QD-481, BEH-QD-781..785, INV-QD-423/424; ADR-QD-190 Rev 1.7, ADR-QD-110 Rev 1.4. One `@qadi/audit` patch changeset. — Phase 89
+- ✓ ARCH-137 The remaining per-port facts live on the port description (PFACT-01..05): a base spike (`pnpm circular` per chain, bench gate) cleared span names, fixture data, `PORT_FIXTURES`, `ScopedPort` and routing, and kept `PortServing` hand-written (deriving it made 16 cycles). `PortName.ts` is an import-free leaf holding the public `PORT_NAMES` tuple (943 exports; `PORT_NAMES_BY_NAME` deleted). Each description states its span as its `SpanName` type parameter and its `fixture` builder (`PortDescription` gains `FixtureData`; Breaking minor with an upgrade guide); `PORTS` is checked by the package-private `DistinctSpanNames` (refuses shared, pattern and union spans); `PORT_FIXTURES` is the one fixture table `fixturePortsLayer` reads. `readScoped` takes each port's `need` from a closed union its leaves' `LEAF_NEEDS` rows compute (a mixed port is `never`, a leaf of another port TS2741) and narrows with one `===`; the direct reads go through `readUnscoped`, constrained to unscoped ports, so reclassifying a leaf without routing it is a compile error. The hoisted `Match` named in PFACT-03 was replaced by that type in the review round (override accepted autonomously). Bench gates of record pass (review gate: geometric mean +0.09%, scoped-heavy −0.5%/−0.3%); mutation 469/470 (`PortAccess.ts` 51/51, the one survivor EQUIVALENT); coverage 99.89/99.78/98.40/99.64; sixth port fails in 25 groups; gate 14 probes `PortDescription`, `PortFixtureData`, `PortSpanName`, `PORT_NAMES` and `tabulatePorts`. ADR-QD-203 (ADR-QD-094, -163, -134 amended), CCR-QD-482, BEH-QD-786..790, INV-QD-425/426. A `@qadi/core` Breaking minor plus `@qadi/http` and `@qadi/testing` patches. — Phase 90
+- ✓ ARCH-138 Named barrels, and visibility-only files folded away (BARL-01..05): `scripts/surface-diff.mjs` (with `scripts/lib/surface-scan.mjs`, its self-test merge step 27) took the base surface before any barrel moved (948 exports over 10 entries; gate 13 943) and the surface is identical at the end, every name's kind included. `@qadi/core`, `@qadi/react` and `@qadi/audit` name their exports per module, generated from compiler symbol flags, one commit per barrel; each package with a `surface.test.ts` pins its runtime values as a literal list. Five folds, one per commit, `pnpm circular` clean after each (madge 251 → 246 files): `PortSpanDecode` → `PortSpanEncode`, `PortInterpreter` → `PortSpan`, `GateRegistry` → `GateWriter`, `SequenceIntegrity` → `ArchiveFacts` (its not-tamper-evident disclaimer and four citations re-pointed), and react's `Hydration.ts` → `HydrationEngine.ts` once `hydrateDecisions` took the structural, package-private `HydrationTarget` (a value with `hydrate`). The `named-barrel` rule reads the five named barrels through the TypeScript parser and refuses every form AGENTS.md §9 names, with a self-test planting each; gate 14 gains check 3c (a packed declaration naming a path outside its package, into `src/` or to an undeclared entry point) and a guarded `hydrateDecisions` probe. Review round: 23 findings, all fixed or accepted (rule widened to the parser, probe guard, subpath escapes, spec claims corrected, barrel headers). Mutation `PortSpanEncode.ts` 17/21 → 23/23, `ArchiveFacts.ts` 54/54, `RegistryLease.ts` 28/28, no EQUIVALENT; coverage equal to base; security 38/38 closed; verification 12/12. ADR-QD-204 (ADR-QD-037, -047, -099 amended; dated notes on twelve more), CCR-QD-483, BEH-QD-791..795, INV-QD-427/428. Patch changesets for `@qadi/core`, `@qadi/react` (the structural `hydrateDecisions` parameter), `@qadi/audit` and `@qadi/devtools`. — Phase 91
+
 ### Active
 
-(none: every v1.10 requirement is validated)
+Next milestone not yet defined (`/gsd-new-milestone`). v1.11's requirements are archived in `.planning/milestones/v1.11-REQUIREMENTS.md`.
 
 ### Out of Scope
 
@@ -486,8 +562,6 @@ logged, counted or spanned.
   HAS_CUSTOM_BUDGET, DECISION_READ_BUDGET. Each needs a benchmark or an ADR. A phase that
   changes a budgeted count updates the table and the budget together, in the same plan.
 - Formatting with `oxfmt` (AGENTS.md §17).
-- Splitting the Port* family files that exist to break madge import cycles (ADR-QD-037), i.e.
-  PortInterpreter, PortSpanDecode, PortSpanEncode and PortKey.
 - The audit `*PortTest` doubles. Core's PortDoubles registry is closed, so they stay
   hand-written. (Revisited in v1.1 Phase 14: scripted, still not registry ports.)
 
@@ -533,6 +607,15 @@ logged, counted or spanned.
   - ADR Document IDs must equal the file number (`verify-traceability.sh`, gate 10).
 - **Hot spots** (churn over the last 15 commits): react `QadiAtoms`/`Hydration`/`hooks`; http
   `RequirePermission`/`DecisionStreamRoute`; core `SinkCodec`/`Evaluate`/`PortAccess`.
+
+### Known Issues (carried forward from v1.11)
+
+- The v1.11 audit (`.planning/milestones/v1.11-MILESTONE-AUDIT.md`) is `passed`. It records what was left by decision: each phase's record scripts judge the tree against that phase's own base, so a later phase's committed change shows in an earlier phase's checks (every such line at the close is a computed row in `91-earlier-checks.mjs`); plan SUMMARYs from Phase 88 on leave `requirements-completed` empty by brief (requirements were cross-checked by hand); Phase 90 truth 3 carries an override accepted autonomously; no milestone-level Stryker run was made.
+
+- Phase 88: STATE.md lacks 88-09's metric and decision lines (that plan's five state commands were denied by the permission check and not re-run); the decision is recorded in `88-09-SUMMARY.md` and ADR-QD-201.
+- Phase 87: `SimulationSession.ts`'s `land` guard (`if (!live.current()) return;`) is held by argument, its mutant recorded EQUIVALENT in `87-mutation.mjs`; the stale-write property is pinned at the stated run (ST14, ST15).
+- Phase 86: the commit-first, hold-last effect order in `QadiProvider.tsx` is held by the phase check `provider-forwards-only` and review, not by a merge gate (ADR-QD-199); a later phase that rewrites the provider re-runs it by hand (re-run in Phase 91 through the earlier-phase checks).
+- Phase 85 review IN-01 and IN-02 are deferred (`85-REVIEW-DISPOSITION.md`): `QuestionsPanel`'s optional `hydration` prop has a fallback only tests reach (a required prop would edit held characterisations); the hydration block's "1 dehydrated entry have" and "All 1 reasons" wording predates the phase and is pinned by the byte oracle.
 
 ### Known Issues (carried forward from v1.10)
 
@@ -753,6 +836,13 @@ logged, counted or spanned.
 | A provider's registry has one owner for its lifetime: a headless lease recycles it in place a macrotask after the last cleanup and never disposes it; seeds are not re-applied | A provider hidden in `<Activity>` longer than a macrotask disposed its registry, and the reveal rendered against it (`registry is disposed` from two consumers and the provider's own subject effect); the lifetime rule lived in a timer in the component, unmeasured | Accepted (Phase 82, ADR-QD-195, CCR-QD-474; recycle in place over rebuild, subject-only re-seed, the reveal's one-frame read of the last committed subject accepted and pinned, the re-seed in a `finally` and the review's tests decided autonomously 2026-11-25) |
 | The diagnostics feed's reading is a value folded into its one snapshot by a pure `foldReading`; `runDiagnostics` takes a one-member sink; `Diagnostics` carries only what the poll samples | The feed kept the reading in a package-private store beside its snapshot, replaced the store in `off()`, marked `Live` through a second path, folded with a five-clause `===` chain, and typed a `questions` field the poll never sampled, so a reader of a sampled reading's `questions` read `undefined` | Accepted (Phase 83, ADR-QD-196, CCR-QD-475; removing `Diagnostics.questions` as a Breaking minor over routing it through the shown reading, the pure rename first, the sink shape, SR1 in a new file over editing the held characterisation, and the declined IN-02/IN-03 decided autonomously 2026-11-25) |
 | A hook's value takes its own inputs through `configure`; the lens reads each fact once; one stop ledger per feed; `useTimeline`'s inputs record is not memoised | `useConfigured` took a value and a second adapter argument restated three times, `LensSession` restated the store's `set` as `move`, `useLens` was handed the guards beside a store it read anyway, `DockFrame` held two copies of the stop ledger and its memo | Accepted (Phase 84, ADR-QD-197, CCR-QD-476; the property-form constraint and its four pinned refusals, the memo recorded as a rejection, `useLens` returning both snapshots, `useStopNotice` keyed on the feed's `restart`, and the review's two added refusals decided autonomously 2026-11-25) |
+| The dock's hydration block is a derived model store keyed `{ hydration, unsampled }`; `DockFrame` reads status through a `usePaused`-shaped hook; one changeset patch per edited public package across the wave (decided autonomously, Phase 85 D-04..D-10) | The panel decided Pending/Unwired/Counts and worked out its sentences, and the frame subscribed to the whole merged reading to pass one field along | Accepted; shipped (Phase 85, ADR-QD-198) |
+| A provider's registry lifetime is kept by a React-free `RegistryOwner` over the unchanged lease; the subject write is unguarded; zero render tests removed (decided autonomously, Phase 86 D-01..D-19, D-10a) | The lifetime rules lived in `QadiProvider`'s six effects and six refs where no headless test or mutant could reach them; the read-then-write guard was dropped because the subject atom ignores an equal write, and its one difference (refresh on an unread node) is pinned and stated | ✓ Good — ADR-QD-199, owner 19/19 mutants |
+| Every store's run goes through one `StatedRun` with one stop rule (a current run's non-success exit, self-interrupt included, is stated with `causeMessage`); one configure prologue with a parameterised gate; `ForkHooks.onFailure` removed (decided autonomously, Phase 87 D-01..D-23, D-07a..D-11a) | Three stores each decided by hand what a run's end meant and decided differently: two skipped a self-interrupt and left a status reading live with nothing running, the session stringified the cause | ✓ Good — ADR-QD-200, StatedRun 23/23 mutants, ten base-red rows green |
+| A stop notice's box keys itself from a pure ledger held as React state per feed; the alert is decided at mount and recorded at commit; the render-phase ref reads are removed, not relocated (decided autonomously, Phase 88 D-01..D-20, D-06a..D-19a) | Callers computed the box's key from a ref read during render and threaded the ledger through private bindings, so the announce-once rule lived in three places no mutant could reach | ✓ Good — ADR-QD-201, StopLedger 12/12 mutants, 13 recorded React variants, 0 tests removed |
+| A host's audit batch is admitted by one package-private step, in one order (now, terms, rows), each input read once and each row checked as it is read; facts take only rows the step minted (decided autonomously, Phase 89 D-01..D-24, D-06a..D-25; review fixes override D-06) | The four entry points each restated the order and read the rows twice, so a host list could change between the check and the use and the writer archived a row its own reader refused | ✓ Good — Phase 89 |
+| Each port's span, fixture and scoped need are stated on its description or computed from its leaves' rows; `PortName` stays an import-free tuple and `PortServing` stays hand-written (decided autonomously, Phase 90 D-01..D-27, D-09a..D-24a; review round replaced the hoisted `Match` with a per-port `need` union) | Span names, fixture types, route rows and the scoped port list were tables beside the descriptions, so a new port meant editing five places and a reclassified leaf could skip its id check while compiling | ✓ Good — ADR-QD-203, PortAccess 51/51 mutants, bench gate passed |
+| Each part-public package root names its exports per module, generated from compiler symbol flags; a visibility-only file folds into the module owning its concept, one fold per commit with the surface identical; react's hydration cycle is broken by a structural `hydrateDecisions` parameter (decided autonomously, Phase 91 D-01..D-33, D-06a..D-32a; review round widened the barrel rule to the parser) | An `export *` root published every name a module declared, so five files existed only to hide names, and nothing but a hand list caught a value turned type-only | ✓ Good — ADR-QD-204, surface 948/948, PortSpanEncode 23/23 mutants |
 
 ## Evolution
 
@@ -772,4 +862,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-25 after v1.10 milestone*
+*Last updated: 2026-11-27 after v1.11 milestone*

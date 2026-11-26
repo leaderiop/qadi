@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-051                                   |
-> | Revision       | 1.6                                            |
+> | Revision       | 1.7                                            |
 > | Effective Date | 2026-10-04                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.6 (2026-11-23): The 2026-11-23 amendment scopes the outcome to a path that ends in a decision or a typed failure (code review, ADR-QD-188, CCR-QD-467)<br>1.5 (2026-11-23): amendment — the rule covers the evaluate family's own spans, a failed span carries its question and the outcome key is qadi.outcome (ARCH-122, ADR-QD-188, CCR-QD-467)<br>1.4 (2026-10-08): amendment — `qadi.interpreter` gains `"remote"` and a third sibling metric, `qadi_port_served_calls_total`, counts a served read (ARCH-31, ADR-QD-107, CCR-QD-382)<br>1.3 (2026-10-07): amendment — the annotation table is stated by the five port descriptions (`attributes`), not by prose and two hand-written spellings; INV-QD-044 has a type-level floor and one home (`disclose`); `qadi.attempts` is a decoded field of every row (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-04): amendment — port spans are emitted by both interpreters, distinguished by `qadi.interpreter`, and the span code moved to `PortAccess.ts`; the metric for translation is a sibling, not `portCallsTotal` (ADR-QD-077, CCR-QD-153)<br>1.1 (2026-09-07): The "three closed values" quote corrected to match `PortMetrics.ts`'s current five, `CustomPredicate` and `SignatureHistory` having joined `portCallsTotal` after this ADR was written (issue 45, CCR-QD-114)<br>1.0 (2026-08-24): Initial release (CCR-QD-071) |
+> | Change History | 1.7 (2026-11-26): note: PortInterpreter is stated once in PortSpan.ts (ADR-QD-204, CCR-QD-483)<br>1.6 (2026-11-23): The 2026-11-23 amendment scopes the outcome to a path that ends in a decision or a typed failure (code review, ADR-QD-188, CCR-QD-467)<br>1.5 (2026-11-23): amendment — the rule covers the evaluate family's own spans, a failed span carries its question and the outcome key is qadi.outcome (ARCH-122, ADR-QD-188, CCR-QD-467)<br>1.4 (2026-10-08): amendment — `qadi.interpreter` gains `"remote"` and a third sibling metric, `qadi_port_served_calls_total`, counts a served read (ARCH-31, ADR-QD-107, CCR-QD-382)<br>1.3 (2026-10-07): amendment — the annotation table is stated by the five port descriptions (`attributes`), not by prose and two hand-written spellings; INV-QD-044 has a type-level floor and one home (`disclose`); `qadi.attempts` is a decoded field of every row (ARCH-21, CCR-QD-198)<br>1.2 (2026-10-04): amendment — port spans are emitted by both interpreters, distinguished by `qadi.interpreter`, and the span code moved to `PortAccess.ts`; the metric for translation is a sibling, not `portCallsTotal` (ADR-QD-077, CCR-QD-153)<br>1.1 (2026-09-07): The "three closed values" quote corrected to match `PortMetrics.ts`'s current five, `CustomPredicate` and `SignatureHistory` having joined `portCallsTotal` after this ADR was written (issue 45, CCR-QD-114)<br>1.0 (2026-08-24): Initial release (CCR-QD-071) |
 
 ---
 
@@ -221,3 +221,7 @@ status says why. `qadi.decision` is gone.
 See [ADR-QD-188](./188-the-evaluate-familys-spans-are-declared-once-and-a-failed-span-says-what-was-asked.md),
 [BEH-QD-711](../behaviors/30-port-calls.md#beh-qd-711-the-evaluate-span-carries-its-question-on-every-path)
 and [INV-QD-395](../invariants.md#inv-qd-395-a-span-of-the-evaluate-family-carries-its-question-on-every-path-that-reaches-its-work).
+
+> **Note (2026-11-26, ADR-QD-204, CCR-QD-483).** `PortInterpreter` is stated once in `PortSpan.ts`:
+> the schema is declared there and is package-private, and the barrel names the derived type. Where the
+> 2026-10-08 amendment says `PortInterpreter.ts`, read `PortSpan.ts` ([ADR-QD-204](204-named-barrels-and-visibility-only-files-folded-away.md)).

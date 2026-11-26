@@ -1,0 +1,13 @@
+head: 17aeb9ad635d656e79009b413777752a97939280
+patch: /Users/mohammadalmechkor/Projects/Perso/qadi/.planning/phases/QD-90-the-remaining-per-port-facts-live-on-the-port-description/bench/routing-review.patch
+patch_sha256: 11e3b2bea1621fd37adcab20738c94abc7cafae97400d2316370923e832fdb09
+head_label: landed
+patched_label: review
+rounds: 4
+order: landed-1 review-1 review-2 landed-2 landed-3 review-3 review-4 landed-4
+bench_file: packages/core/bench/Evaluate.bench.ts
+pattern: .
+host: quiet: load 5.00 on 12 cpus, top process at 26%
+node: v26.13.0
+cpu: Apple M3 Pro
+start: 2026-11-26T10:54:38Z

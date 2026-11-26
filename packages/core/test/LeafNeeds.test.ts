@@ -10,9 +10,11 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
+import * as Result from "effect/Result";
 import * as Core from "../src/index.ts";
 import { MissingAction, MissingResource, MissingResourceId } from "../src/Errors.ts";
 import { holds } from "../src/Compare.ts";
+import { actedAnswerFromEvents } from "../src/DecisionHistory.ts";
 import { evaluate } from "../src/Evaluate.ts";
 import { makeSubjectId } from "../src/Identity.ts";
 import {
@@ -30,6 +32,10 @@ import * as M from "../src/Matcher.ts";
 import type { MatcherContext, Verdict } from "../src/Matcher.ts";
 import { permission } from "../src/Permission.ts";
 import * as P from "../src/Policy.ts";
+import type { LeafPolicy } from "../src/Policy.ts";
+import type { Resource } from "../src/Resource.ts";
+import { signatureAnswerFromSignatures } from "../src/SignatureHistory.ts";
+import type { Fixture } from "./LeafFixtures.ts";
 import {
   FIXTURES,
   SHAPES,
@@ -130,8 +136,36 @@ describe("absenceOf", () => {
   });
 });
 
-describe("a row's resourceId is what readScoped does (D-06)", () => {
-  it.effect("Never / Always / ByScope", () =>
+describe("a scoped read requires an id exactly where its leaf's row says", () => {
+  // One read of a fixture at a shape, through `evaluate`: whether it was refused for a
+  // missing resource id. A request that an earlier absence refuses never reaches the id.
+  const refusedByRead = (f: Fixture, resource: Resource | undefined) =>
+    Effect.gen(function* () {
+      if (absenceOf(f.policy, { action: true, resource: resource !== undefined }) !== undefined) {
+        return undefined;
+      }
+      const exit = yield* Effect.exit(
+        evaluate(f.policy, { action: "read", ...(resource === undefined ? {} : { resource }) }),
+      ).pipe(Effect.provide(leafLayer));
+      return Exit.isFailure(exit) && Cause.squash(exit.cause) instanceof MissingResourceId;
+    });
+
+  // A history leaf's judgement over empty data. `HasNotActed` asks the same request as
+  // `HasActed`, so the `HasActed` leaf with its event and scope stands in for it.
+  const judgementRefuses = (policy: LeafPolicy, resource: Resource | undefined) => {
+    const site = { subject: leafSubject, resource };
+    const refuses = (answer: Result.Result<unknown, unknown>) =>
+      Result.isFailure(answer) && answer.failure instanceof MissingResourceId;
+    if (policy._tag === "HasActed" || policy._tag === "HasNotActed") {
+      return refuses(actedAnswerFromEvents([], { ...policy, _tag: "HasActed" }, site));
+    }
+    if (policy._tag === "HasSignature") {
+      return refuses(signatureAnswerFromSignatures([], policy, site));
+    }
+    return undefined;
+  };
+
+  it.effect("a read is refused for a missing id exactly when its row and scope ask for one", () =>
     Effect.gen(function* () {
       for (const f of ALL) {
         const need = LEAF_NEEDS[f.policy._tag].resourceId;
@@ -139,24 +173,42 @@ describe("a row's resourceId is what readScoped does (D-06)", () => {
         if (need === "Always") assert.isTrue(f.scoped, f.label);
         const claimed = need === "Always" || (need === "ByScope" && f.scoped);
         for (const { shape, resource } of SHAPES) {
-          // The resource id is the last thing asked: only a request that no
-          // earlier absence refuses reaches it.
-          if (absenceOf(f.policy, { action: true, resource: resource !== undefined }) !== undefined) {
-            continue;
-          }
-          const exit = yield* Effect.exit(
-            evaluate(f.policy, {
-              action: "read",
-              ...(resource === undefined ? {} : { resource }),
-            }),
-          ).pipe(Effect.provide(leafLayer));
-          const refused =
-            Exit.isFailure(exit) && Cause.squash(exit.cause) instanceof MissingResourceId;
+          const refused = yield* refusedByRead(f, resource);
+          if (refused === undefined) continue;
           assert.strictEqual(refused, claimed && shape !== "id", `${f.label} ${shape}`);
         }
       }
     }),
   );
+
+  it.effect("a ByScope leaf's judgement refuses exactly when its read does", () =>
+    Effect.gen(function* () {
+      let judged = 0;
+      for (const f of ALL) {
+        if (LEAF_NEEDS[f.policy._tag].resourceId !== "ByScope") continue;
+        for (const { shape, resource } of SHAPES) {
+          const read = yield* refusedByRead(f, resource);
+          assert.isDefined(read, `${f.label} ${shape}: the read was skipped`);
+          const judgement = judgementRefuses(f.policy, resource);
+          assert.isDefined(judgement, `${f.label}: no judgement for its port`);
+          assert.strictEqual(judgement, read, `${f.label} ${shape}`);
+          judged++;
+        }
+      }
+      // Three leaf tags at both scopes, over three shapes.
+      assert.strictEqual(judged, 6 * SHAPES.length);
+    }),
+  );
+
+  it("the leaf tags that ask about one resource are exactly four", () => {
+    assert.deepStrictEqual(
+      Object.entries(LEAF_NEEDS)
+        .filter(([, row]) => row.resourceId !== "Never")
+        .map(([tag]) => tag)
+        .sort(),
+      ["HasActed", "HasNotActed", "HasRelationship", "HasSignature"],
+    );
+  });
 });
 
 describe("errorOf", () => {

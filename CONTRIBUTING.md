@@ -35,12 +35,12 @@ and save the full gate for before you push:
   not the gate.
 
 None of these replaces `pnpm check` — coverage thresholds, mutation
-testing, spec traceability, and the rest of the twenty-six steps only run
+testing, spec traceability, and the rest of the twenty-seven steps only run
 there — but for the common loop (edit one package, check it typechecks and
 its tests pass) they are what to reach for, and `pnpm check` is what to run
 once, before you push.
 
-Seven of those twenty-six steps are independent Stryker mutation runs,
+Seven of those twenty-seven steps are independent Stryker mutation runs,
 chained by `&&` in the `mutation` script (`package.json`). They run one after
 another by decision now, not by default: ADR-QD-098 measured where the time
 goes on the 4-vCPU CI runner and found mutation testing already CPU-bound
@@ -86,7 +86,8 @@ and these do not surface there:
 | The Next.js example | `examples/nextjs-newsroom/README.md` — it consumes the packages as a stranger does, and is step 15 of `pnpm check` |
 | A test | `AGENTS.md` §10; coverage thresholds are gated, not advisory |
 | Anything in `spec/` | `spec/README.md` is the index; `spec/process/definitions-of-done.md` explains the gates |
-| A public export | `spec/overview.md` must list it — `scripts/check-api-surface.mjs` fails otherwise |
+| A public export | A line in the package root (a barrel line, or the export itself where the root is the implementation) and a row in `spec/overview.md` (`scripts/check-api-surface.mjs` fails without it). A value is also a line in the value list of that package's `test/surface.test.ts` where it has one (`@qadi/audit`, `@qadi/core`, `@qadi/devtools`, `@qadi/react`); a type is not, and gets a line in a type pin only where one names the package's types (`@qadi/devtools`' `test/surface.tst.ts`) — `AGENTS.md` §9 |
+| A change to a package root's barrel | Snapshot with `node scripts/surface-diff.mjs snapshot <file>` before and after, then `node scripts/surface-diff.mjs compare <before> <after>`: it reports a name added, removed or turned type-only, which `scripts/check-api-surface.mjs` cannot see |
 | A claim that something is absent, in `spec/devtools-spec/` | Register it in that folder's "Claims of absence" table with the reason — `scripts/check-devtools-claims.mjs` fails otherwise |
 | A merge gate | `pnpm check` and `spec/process/definitions-of-done.md` together — `scripts/check-dod-table.mjs` fails otherwise. Name the script beside any "gate N" |
 | A new CCR, INV, BEH or ADR number | `pnpm spec:next-id <CCR, INV, BEH or ADR>` — it reads every worktree and reserves the number it prints, so parallel branches cannot pick the same one. Then `pnpm spec:revise <doc> "<entry>"` for each document you change, after merging rather than while implementing in parallel |

@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-168                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-11-18                                     |
-> | Status         | Accepted — amends ADR-QD-047; follows ADR-QD-162; keeps ADR-QD-160; amended 2026-11-22 (ADR-QD-185: `services` is a derived store; the count is BEH-QD-700's) |
+> | Status         | Accepted — amends ADR-QD-047; follows ADR-QD-162; keeps ADR-QD-160; amended 2026-11-22 (ADR-QD-185: `services` is a derived store; the count is BEH-QD-700's); amended 2026-11-25 (ADR-QD-198: the hydration block is the second model row of its kind) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-22): note — the 2026-11-22 note says what the store-list test holds (CCR-QD-464)<br>1.1 (2026-11-22): notes — the store is a derived store and the count is BEH-QD-700's (ARCH-119, CCR-QD-464)<br>1.0 (2026-11-18): Initial release (ARCH-102, CCR-QD-446) |
+> | Change History | 1.3 (2026-11-25): noted: the hydration block is the second model row of its kind (CCR-QD-477)<br>1.2 (2026-11-22): note — the 2026-11-22 note says what the store-list test holds (CCR-QD-464)<br>1.1 (2026-11-22): notes — the store is a derived store and the count is BEH-QD-700's (ARCH-119, CCR-QD-464)<br>1.0 (2026-11-18): Initial release (ARCH-102, CCR-QD-446) |
 
 ---
 
@@ -173,3 +173,8 @@ for this phase.
   [BEH-QD-614](../behaviors/28-devtools-screens.md#beh-qd-614-port-activity-reads-one-entry-per-registry-port),
   [BEH-QD-615](../behaviors/28-devtools-screens.md#beh-qd-615-the-services-store-is-one-moment-and-keeps-its-reference-when-nothing-moved)
 - ARCH-102, CCR-QD-446
+
+> **Noted 2026-11-25 (CCR-QD-477).** The hydration block of the Questions tab is the second model row of this kind: a pure
+> function of the shown reading in `HydrationView.ts`, served as the model's own derived store and rendered by a panel that
+> computes nothing, with its rate, drops and scope sentences composed in the model and the fixed advice left beside the markup,
+> as this decision leaves the Services tab's fixed labels in the view ([ADR-QD-198](./198-the-hydration-block-is-a-model-row.md)).

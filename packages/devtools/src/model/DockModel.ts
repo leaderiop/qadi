@@ -30,9 +30,9 @@
  *
  * **Its stores.** The stores are listed once, in BEH-QD-700. A test of a built model
  * lists its members that have `subscribe` and `getSnapshot` and fails when one is added
- * or removed, and review keeps that list equal to BEH-QD-700's. The model has four
- * derived stores (ADR-QD-185): the sightings rail, the shown reading, `questions` and
- * `services`, each recomputed from its key when a field of it changes identity and
+ * or removed, and review keeps that list equal to BEH-QD-700's. The model has five
+ * derived stores (ADR-QD-185): the sightings rail, the shown reading, `questions`,
+ * `services` and `hydration`, each recomputed from its key when a field of it changes identity and
  * stopped with the model's scope. The rail is not a member: `sightings` is a thunk
  * reading it, and not a store.
  *
@@ -51,6 +51,7 @@ import {
 } from "./DiagnosticsFeed.ts";
 import {
   mergeReading,
+  type Diagnostics,
   type DiagnosticsOptions,
   type DiagnosticsReading,
 } from "./Diagnostics.ts";
@@ -72,6 +73,7 @@ import {
   type RegistryRead,
 } from "./GatesFeed.ts";
 import { makeHeldChoiceStore, type HeldChoiceStore } from "./HeldChoice.ts";
+import { hydrationView, type HydrationInput, type HydrationView } from "./HydrationView.ts";
 import { makeLensSession, type LensSession } from "./LensSession.ts";
 import { portCards, type ServicesInput, type ServicesView } from "./PortCards.ts";
 import { sameRole } from "./RoleTree.ts";
@@ -239,6 +241,11 @@ export interface DockModel {
   /** The Services tab's port cards of the shown reading, recomputed only when one of its four inputs changes identity. */
   readonly services: ReadableStore<ServicesView>;
   /**
+   * The questions tab's hydration block as a view of the shown reading, recomputed only when the
+   * reading's counts or the unsampled flag change identity.
+   */
+  readonly hydration: ReadableStore<HydrationView>;
+  /**
    * The rail's snapshot: `catalogueOf` of the shown timeline and the held catalogue, recomputed
    * when either changes identity, once per change.
    */
@@ -316,6 +323,17 @@ function mergedOf(key: MergeKey): DiagnosticsSnapshot {
   const merged = mergeReading(key.fed.reading, key.supplied);
   if (merged === key.fed.reading) return key.fed;
   return { status: key.fed.status, reading: merged };
+}
+
+/** What the services and hydration keys read of the shown snapshot: the reading and whether the poll has not sampled. */
+interface ShownInput {
+  readonly reading: Diagnostics;
+  readonly unsampled: boolean;
+}
+
+/** The one place a key turns the shown snapshot's status into the unsampled flag the cards and the hydration block read. */
+function shownInputOf(snapshot: DiagnosticsSnapshot): ShownInput {
+  return { reading: snapshot.reading, unsampled: isUnsampled(snapshot.status) };
 }
 
 /** The two things the sightings rail is computed from, compared by identity. */
@@ -397,15 +415,24 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
   const services = yield* makeDerivedStore({
     parents: [shownReading],
     key: (): ServicesInput => {
-      const { status, reading } = shownReading.getSnapshot();
+      const { reading, unsampled } = shownInputOf(shownReading.getSnapshot());
       return {
         wiring: reading.wiring,
         activity: reading.activity,
         portCalls: reading.portCalls,
-        unsampled: isUnsampled(status),
+        unsampled,
       };
     },
     compute: portCards,
+  });
+  // The hydration block follows the shown reading as the cards do and reads no host code, so nothing here is guarded.
+  const hydration = yield* makeDerivedStore({
+    parents: [shownReading],
+    key: (): HydrationInput => {
+      const { reading, unsampled } = shownInputOf(shownReading.getSnapshot());
+      return { hydration: reading.hydration, unsampled };
+    },
+    compute: hydrationView,
   });
 
   const configure = (next: DockModelInputs) => {
@@ -447,6 +474,7 @@ export const makeDockModel = Effect.fn("qadi.devtools.makeDockModel")(function* 
     timelineStatus: timelineFeed.status,
     questions: { subscribe: questions.subscribe, getSnapshot: questions.getSnapshot },
     services: { subscribe: services.subscribe, getSnapshot: services.getSnapshot },
+    hydration: { subscribe: hydration.subscribe, getSnapshot: hydration.getSnapshot },
     sightings: () => rail.getSnapshot(),
     configure,
   };

@@ -208,6 +208,46 @@ const isSubjectId = Schema.is(SubjectIdSchema);
 const isResourceId = Schema.is(ResourceIdSchema);
 
 /**
+ * Resolves against a static signature list.
+ *
+ * A closed world: a `(subjectId, resourceId)` pair not listed answers `[]`,
+ * because this layer *is* the store and it does know — the same distinction
+ * `decisionHistoryFromEvents` draws. A resource-scoped query only ever sees
+ * rows stored with that same `resourceId`, and a subject-global query
+ * (`resourceId` absent) only ever sees rows stored with none. Both fixtures key
+ * a pair or a request by their port's key text; this one groups a list per pair
+ * because its answer is a list of signatures rather than one membership bit.
+ *
+ * A pair with no key fails closed: a refused fixture entry fails every read,
+ * and a refused query fails its own, with `SignatureHistoryUnavailable` carrying
+ * the refusal's sentence, never an empty list, which would grant under
+ * `not(hasSignature(...))`. No typed `SubjectId`/`ResourceId` pair is refused
+ * (both are strings), so that branch is reached only by an untyped caller. The
+ * error carries the request's subject id and resource id only where they are a
+ * `SubjectId` and a `ResourceId`.
+ */
+export const signatureHistoryFromSignatures = (
+  signatures: ReadonlyArray<SignatureInput>,
+): Layer.Layer<SignatureHistory> => {
+  const lookup = signatureLookup(signatures);
+  return Layer.succeed(SignatureHistory, {
+    name: "signatureHistoryFromSignatures",
+    // A copy per query, not the live array `groups` holds: handing out the
+    // internal reference would let a caller's push/splice on the returned
+    // list corrupt every future answer for that same key.
+    signaturesFor: (query) =>
+      Result.match(lookup(query), {
+        onSuccess: Effect.succeed,
+        onFailure: (refusal) =>
+          Effect.fail(signatureHistoryPort.failure([query], describeKeyRefusal(refusal))),
+      }),
+  });
+};
+
+/** The span a read of this port opens; `PortSpanOf` (`Ports.ts`) reads it back. */
+const signatureSpanName = "qadi.hasSignature";
+
+/**
  * The signature-history port, described once (`PortDescription.ts`).
  *
  * A request is keyed as its wire question, `{ subjectId, resourceId, meaning,
@@ -235,11 +275,13 @@ export const signatureHistoryPort: PortDescription<
   SignatureHistoryUnavailable,
   [query: SignatureQuery],
   typeof signatureSpan,
-  typeof signatureAsks
+  typeof signatureAsks,
+  typeof signatureSpanName,
+  ReadonlyArray<SignatureInput>
 > = makePortDescription({
   port: "SignatureHistory",
   method: "signaturesFor",
-  span: "qadi.hasSignature",
+  span: signatureSpanName,
   attributes: signatureSpan,
   asks: signatureAsks,
   /**
@@ -295,6 +337,7 @@ export const signatureHistoryPort: PortDescription<
       cause,
     }),
   none: { name: "SignatureHistoryNone", answer: NO_SIGNATURES },
+  fixture: signatureHistoryFromSignatures,
 });
 
 /**
@@ -411,43 +454,6 @@ const signatureLookup = (
         ...(groups.get(key) ?? []),
       ]),
     );
-};
-
-/**
- * Resolves against a static signature list.
- *
- * A closed world: a `(subjectId, resourceId)` pair not listed answers `[]`,
- * because this layer *is* the store and it does know — the same distinction
- * `decisionHistoryFromEvents` draws. A resource-scoped query only ever sees
- * rows stored with that same `resourceId`, and a subject-global query
- * (`resourceId` absent) only ever sees rows stored with none. Both fixtures key
- * a pair or a request by their port's key text; this one groups a list per pair
- * because its answer is a list of signatures rather than one membership bit.
- *
- * A pair with no key fails closed: a refused fixture entry fails every read,
- * and a refused query fails its own, with `SignatureHistoryUnavailable` carrying
- * the refusal's sentence, never an empty list, which would grant under
- * `not(hasSignature(...))`. No typed `SubjectId`/`ResourceId` pair is refused
- * (both are strings), so that branch is reached only by an untyped caller. The
- * error carries the request's subject id and resource id only where they are a
- * `SubjectId` and a `ResourceId`.
- */
-export const signatureHistoryFromSignatures = (
-  signatures: ReadonlyArray<SignatureInput>,
-): Layer.Layer<SignatureHistory> => {
-  const lookup = signatureLookup(signatures);
-  return Layer.succeed(SignatureHistory, {
-    name: "signatureHistoryFromSignatures",
-    // A copy per query, not the live array `groups` holds: handing out the
-    // internal reference would let a caller's push/splice on the returned
-    // list corrupt every future answer for that same key.
-    signaturesFor: (query) =>
-      Result.match(lookup(query), {
-        onSuccess: Effect.succeed,
-        onFailure: (refusal) =>
-          Effect.fail(signatureHistoryPort.failure([query], describeKeyRefusal(refusal))),
-      }),
-  });
 };
 
 /**

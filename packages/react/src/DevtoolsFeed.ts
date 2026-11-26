@@ -41,7 +41,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import { useMemo } from "react";
-import type { GateRegistry } from "./GateRegistry.ts";
+import type { GateRegistry } from "./GateWriter.ts";
 import { useInvalidate } from "./hooks.ts";
 import { useQadiContext } from "./QadiProvider.tsx";
 import type { QadiAtoms, QadiRuntimeServices } from "./QadiAtoms.ts";

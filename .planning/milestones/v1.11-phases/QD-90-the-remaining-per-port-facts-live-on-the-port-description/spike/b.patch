@@ -1,0 +1,324 @@
+diff --git a/packages/core/src/AttributeResolver.ts b/packages/core/src/AttributeResolver.ts
+index 52282cd9..8724f6f6 100644
+--- a/packages/core/src/AttributeResolver.ts
++++ b/packages/core/src/AttributeResolver.ts
+@@ -153,6 +153,9 @@ const attributeServing: PortServingFacet<
+   declare: ({ names }) => ({ AttributeResolver: { attributes: names } }),
+ };
+ 
++/** The span a read of this port opens; `PortSpanOf` (`Ports.ts`) reads it back. */
++const attributeSpanName = "qadi.attribute";
++
+ /**
+  * The attribute port, described once (`PortDescription.ts`): the wrappers and
+  * the default below, `PortAccess.ts`'s defect mapping and span, the doubles
+@@ -170,11 +173,12 @@ export const attributeResolverPort: PortDescription<
+   AttributeResolveError,
+   [subjectId: SubjectId, attribute: string],
+   typeof attributeSpan,
+-  typeof attributeAsks
++  typeof attributeAsks,
++  typeof attributeSpanName
+ > = makePortDescription({
+   port: "AttributeResolver",
+   method: "resolve",
+-  span: "qadi.attribute",
++  span: attributeSpanName,
+   attributes: attributeSpan,
+   asks: attributeAsks,
+   /**
+diff --git a/packages/core/src/CustomPredicate.ts b/packages/core/src/CustomPredicate.ts
+index 23be43ba..b238f4c8 100644
+--- a/packages/core/src/CustomPredicate.ts
++++ b/packages/core/src/CustomPredicate.ts
+@@ -181,6 +181,9 @@ const customServing: PortServingFacet<
+   declare: ({ names }) => ({ CustomPredicate: { names } }),
+ };
+ 
++/** The span a read of this port opens; `PortSpanOf` (`Ports.ts`) reads it back. */
++const customSpanName = "qadi.hasCustom";
++
+ /**
+  * The custom-predicate port, described once (`PortDescription.ts`).
+  *
+@@ -210,11 +213,12 @@ export const customPredicatePort: PortDescription<
+   CustomPredicateError,
+   [name: string, subject: AuthSubject, resource: Resource | undefined, params: unknown],
+   typeof customSpan,
+-  typeof customAsks
++  typeof customAsks,
++  typeof customSpanName
+ > = {
+   port: "CustomPredicate",
+   method: "evaluate",
+-  span: "qadi.hasCustom",
++  span: customSpanName,
+   attributes: customSpan,
+   asks: customAsks,
+   wire: customWire,
+diff --git a/packages/core/src/DecisionHistory.ts b/packages/core/src/DecisionHistory.ts
+index 7b12098a..3caf67c8 100644
+--- a/packages/core/src/DecisionHistory.ts
++++ b/packages/core/src/DecisionHistory.ts
+@@ -179,6 +179,9 @@ const actedServing: PortServingFacet<"DecisionHistory", [query: ActedQuery]> = {
+ 
+ const isEvent = Schema.is(Schema.String);
+ 
++/** The span a read of this port opens; `PortSpanOf` (`Ports.ts`) reads it back. */
++const actedSpanName = "qadi.acted";
++
+ /**
+  * The decision-history port, described once (`PortDescription.ts`).
+  *
+@@ -196,11 +199,12 @@ export const decisionHistoryPort: PortDescription<
+   DecisionHistoryUnavailable,
+   [query: ActedQuery],
+   typeof actedSpan,
+-  typeof actedAsks
++  typeof actedAsks,
++  typeof actedSpanName
+ > = makePortDescription({
+   port: "DecisionHistory",
+   method: "hasActed",
+-  span: "qadi.acted",
++  span: actedSpanName,
+   attributes: actedSpan,
+   asks: actedAsks,
+   /**
+diff --git a/packages/core/src/PortDerivation.ts b/packages/core/src/PortDerivation.ts
+index 64c5fbbb..8a45528f 100644
+--- a/packages/core/src/PortDerivation.ts
++++ b/packages/core/src/PortDerivation.ts
+@@ -89,15 +89,19 @@ export const makePortDescription = <
+   P extends ReadonlyArray<unknown>,
+   Span extends PortSpanAttributesLike,
+   Asks extends LeafRequests<P>,
++  SpanName extends `qadi.${string}`,
+   Q extends { readonly subjectId: SubjectId },
+   QE,
+   W,
+   WE,
+ >(
+-  spec: Omit<PortDescription<N, Self, Shape, Args, A, E, P, Span, Asks>, "wire" | "key" | "defect"> & {
++  spec: Omit<
++    PortDescription<N, Self, Shape, Args, A, E, P, Span, Asks, SpanName>,
++    "wire" | "key" | "defect"
++  > & {
+     readonly wire: DerivedWireSpec<Args, A, Q, QE, W, WE>;
+   },
+-): PortDescription<N, Self, Shape, Args, A, E, P, Span, Asks> => {
++): PortDescription<N, Self, Shape, Args, A, E, P, Span, Asks, SpanName> => {
+   const { wire, ...rest } = spec;
+   return {
+     ...rest,
+diff --git a/packages/core/src/PortDescription.ts b/packages/core/src/PortDescription.ts
+index fc3ddc3c..0918736e 100644
+--- a/packages/core/src/PortDescription.ts
++++ b/packages/core/src/PortDescription.ts
+@@ -32,7 +32,7 @@ import type { AuthSubject } from "./AuthSubject.ts";
+ import type { WirePath } from "./JsonRefusal.ts";
+ import type { Policy } from "./Policy.ts";
+ import { isMarkedDefault } from "./PortDefault.ts";
+-import type { PortName, PortSpanOf } from "./PortName.ts";
++import type { PortName } from "./PortName.ts";
+ import type { PortSpanAttributesLike, SpanFields, SpanStruct, SpanType } from "./PortSpan.ts";
+ import type { PortServingFacet } from "./PortServing.ts";
+ import type { PortWire } from "./PortWire.ts";
+@@ -165,6 +165,12 @@ export type LeafRequests<P extends ReadonlyArray<unknown>> = {
+  * - `Asks` — the leaves that read the port, exactly typed per port, so a read
+  *   can call the entry for its own tag without asking whether there is one.
+  *   Defaulted to the structural bound at `P`, which is all generic code needs.
++ * - `SpanName` — the span `PortAccess.ts` opens around a read of this port, as
++ *   the one literal its module states (`typeof` a module-private constant).
++ *   The registry reads it back (`PortSpanOf`, `Ports.ts`), so the union of the
++ *   five is derived from the descriptions and no table beside them restates it.
++ *   Defaulted to the pattern every span name matches, which is all generic code
++ *   needs.
+  */
+ export interface PortDescription<
+   N extends PortName,
+@@ -176,6 +182,7 @@ export interface PortDescription<
+   P extends ReadonlyArray<unknown> = Args,
+   Span extends PortSpanAttributesLike = PortSpanAttributesLike,
+   Asks extends LeafRequests<P> = LeafRequests<P>,
++  SpanName extends `qadi.${string}` = `qadi.${string}`,
+ > {
+   /** The port's name — the word its metrics are keyed by. */
+   readonly port: N;
+@@ -186,7 +193,7 @@ export interface PortDescription<
+    */
+   readonly method: string;
+   /** The span `PortAccess.ts` opens around a read of this port (BEH-QD-227). */
+-  readonly span: PortSpanOf<N>;
++  readonly span: SpanName;
+   /**
+    * What that span says: the question annotated before the call, the answer
+    * annotated after it, and the two projections that fill them, `pose` from a
+diff --git a/packages/core/src/PortName.ts b/packages/core/src/PortName.ts
+index 1a4c7f59..d00041b8 100644
+--- a/packages/core/src/PortName.ts
++++ b/packages/core/src/PortName.ts
+@@ -1,5 +1,5 @@
+ /**
+- * A port's identity: its name and the span its read opens, each stated once.
++ * A port's identity: its name, stated once.
+  *
+  * The names are one tuple, {@link PORT_NAMES}, and {@link PortName} is its
+  * element type, so the list a metric preregisters (`PortMetrics.ts`) and the
+@@ -7,23 +7,11 @@
+  * in `PortMetrics.ts` before, so every port module imported what a port *is*
+  * from the module that counts what it *did* (ARCH-77).
+  *
+- * `PortSpans` is not exported, so no other module can augment it and the union
+- * stays closed. `PortDescription.span` is {@link PortSpanOf}, so a description
+- * can name only its own port's span; before this it was the whole
+- * {@link PortSpanName} union, and `attributeResolverPort` could have claimed
+- * `"qadi.acted"` and compiled.
+- *
+  * A leaf: no imports, no metric. `PortMetrics.ts` imports the tuple from here,
+  * never the reverse, so a metric's registry key (ADR-QD-052) cannot move with a
+- * port's identity.
++ * port's identity. The span each port's read opens is the port's own fact and
++ * lives on its description (`PortDescription.ts`), not here.
+  */
+-interface PortSpans {
+-  readonly AttributeResolver: "qadi.attribute";
+-  readonly DecisionHistory: "qadi.acted";
+-  readonly RelationshipResolver: "qadi.hasRelationship";
+-  readonly CustomPredicate: "qadi.hasCustom";
+-  readonly SignatureHistory: "qadi.hasSignature";
+-}
+ 
+ /**
+  * Every port the evaluator's walk (`Walk.ts`, through `PortAccess.ts`) can call
+@@ -31,9 +19,9 @@ interface PortSpans {
+  * of `portCallsTotal`, `portRetriesTotal` and `portTimeoutsTotal`.
+  *
+  * A tuple and not a record, so a sixth name is one edit here and the metric
+- * domain follows it. A registry-indexed type (`PortTypes`, `PortSpans`) then
+- * has no entry for it, which is a compile error at each place a port's fact
+- * is still missing.
++ * domain follows it. `PortTypes` (`Ports.ts`) is indexed by it, so a name with
++ * no registry entry is a compile error at each place a port's fact is still
++ * missing.
+  */
+ export const PORT_NAMES = [
+   "AttributeResolver",
+@@ -45,20 +33,3 @@ export const PORT_NAMES = [
+ 
+ /** One port's name: an element of {@link PORT_NAMES}. */
+ export type PortName = (typeof PORT_NAMES)[number];
+-
+-/**
+- * The span port `N`'s read opens: one per port, and no other port's.
+- *
+- * Each port's description (`PortDescription.ts`) names its own, and both
+- * readers take it from there.
+- */
+-export type PortSpanOf<N extends PortName> = PortSpans[N];
+-
+-/**
+- * The span each port's read opens, as one closed union: one per port.
+- *
+- * `PortAccess.ts` opens these spans and `@qadi/devtools` decodes them
+- * (BEH-QD-227), so the set is a closed union rather than five string literals
+- * kept in step by hand.
+- */
+-export type PortSpanName = PortSpans[PortName];
+diff --git a/packages/core/src/Ports.ts b/packages/core/src/Ports.ts
+index 18590668..29aeaa77 100644
+--- a/packages/core/src/Ports.ts
++++ b/packages/core/src/Ports.ts
+@@ -92,6 +92,23 @@ export type SpanOf<D> = D extends { readonly attributes: infer Span extends Port
+   ? Span
+   : never;
+ 
++/**
++ * The span port `N`'s read opens: one per port, and no other port's.
++ *
++ * Read from the port's own description, which states it once (`PortDescription`'s
++ * `SpanName`), so there is no table of spans beside the registry.
++ */
++export type PortSpanOf<N extends PortName> = PortTypes[N]["span"];
++
++/**
++ * The span each port's read opens, as one closed union: one per port.
++ *
++ * `PortAccess.ts` opens these spans and `@qadi/devtools` decodes them
++ * (BEH-QD-227), so the set is a closed union rather than five string literals
++ * kept in step by hand.
++ */
++export type PortSpanName = PortSpanOf<PortName>;
++
+ /** A description's typed error. */
+ export type ErrorOf<D> = D extends { readonly failure: (args: never, cause: unknown) => infer E }
+   ? E
+@@ -114,7 +131,9 @@ export type DescriptionOf<K extends PortName> = PortDescription<
+   AnswerOf<PortTypes[K]>,
+   ErrorOf<PortTypes[K]>,
+   AskedOf<PortTypes[K]>,
+-  SpanOf<PortTypes[K]>
++  SpanOf<PortTypes[K]>,
++  LeafRequests<AskedOf<PortTypes[K]>>,
++  PortSpanOf<K>
+ >;
+ 
+ /**
+diff --git a/packages/core/src/RelationshipResolver.ts b/packages/core/src/RelationshipResolver.ts
+index b2ad0394..5e7d1041 100644
+--- a/packages/core/src/RelationshipResolver.ts
++++ b/packages/core/src/RelationshipResolver.ts
+@@ -257,6 +257,9 @@ const relationshipServing: PortServingFacet<
+   declare: ({ names }) => ({ RelationshipResolver: { relations: names } }),
+ };
+ 
++/** The span a read of this port opens; `PortSpanOf` (`Ports.ts`) reads it back. */
++const relationshipSpanName = "qadi.hasRelationship";
++
+ /**
+  * The relationship port, described once (`PortDescription.ts`).
+  *
+@@ -277,11 +280,12 @@ export const relationshipResolverPort: PortDescription<
+   RelationshipResolveError,
+   [request: PendingRelationshipCheck],
+   typeof relationshipSpan,
+-  typeof relationshipAsks
++  typeof relationshipAsks,
++  typeof relationshipSpanName
+ > = makePortDescription({
+   port: "RelationshipResolver",
+   method: "check",
+-  span: "qadi.hasRelationship",
++  span: relationshipSpanName,
+   attributes: relationshipSpan,
+   asks: relationshipAsks,
+   /**
+diff --git a/packages/core/src/SignatureHistory.ts b/packages/core/src/SignatureHistory.ts
+index 1363d18b..9a030981 100644
+--- a/packages/core/src/SignatureHistory.ts
++++ b/packages/core/src/SignatureHistory.ts
+@@ -207,6 +207,9 @@ const signatureServing: PortServingFacet<"SignatureHistory", [query: SignatureQu
+ const isSubjectId = Schema.is(SubjectIdSchema);
+ const isResourceId = Schema.is(ResourceIdSchema);
+ 
++/** The span a read of this port opens; `PortSpanOf` (`Ports.ts`) reads it back. */
++const signatureSpanName = "qadi.hasSignature";
++
+ /**
+  * The signature-history port, described once (`PortDescription.ts`).
+  *
+@@ -235,11 +238,12 @@ export const signatureHistoryPort: PortDescription<
+   SignatureHistoryUnavailable,
+   [query: SignatureQuery],
+   typeof signatureSpan,
+-  typeof signatureAsks
++  typeof signatureAsks,
++  typeof signatureSpanName
+ > = makePortDescription({
+   port: "SignatureHistory",
+   method: "signaturesFor",
+-  span: "qadi.hasSignature",
++  span: signatureSpanName,
+   attributes: signatureSpan,
+   asks: signatureAsks,
+   /**

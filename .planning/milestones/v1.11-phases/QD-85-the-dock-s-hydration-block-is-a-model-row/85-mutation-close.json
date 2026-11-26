@@ -1,0 +1,138 @@
+{
+ "phase": "85",
+ "unmeasured": [
+  {
+   "file": "packages/devtools/src/react/QuestionsPanel.tsx",
+   "why": "no Stryker config reaches src/react (stryker.devtools.mjs mutates src/model only); held by its tests, the characterisations and the 90% coverage threshold"
+  },
+  {
+   "file": "packages/devtools/src/react/DevtoolsDock.tsx",
+   "why": "no Stryker config reaches src/react (stryker.devtools.mjs mutates src/model only); held by its tests, the characterisations and the 90% coverage threshold"
+  },
+  {
+   "file": "packages/devtools/src/react/useStoreSnapshot.ts",
+   "why": "no Stryker config reaches src/react (stryker.devtools.mjs mutates src/model only); held by its tests, the characterisations and the 90% coverage threshold"
+  }
+ ],
+ "groups": {
+  "dock": {
+   "head": "eed28f3c5cb0ff58e3ea0ee068cb78d8d1c37dc6",
+   "invocation": "pnpm exec stryker run stryker.devtools.mjs --mutate packages/devtools/src/model/DockModel.ts",
+   "files": {
+    "packages/devtools/src/model/DockModel.ts": {
+     "killed": 72,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 12,
+     "detected": 72,
+     "valid": 72,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 185,
+       "column": 35
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 213,
+       "column": 29
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 266,
+       "column": 24
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 267,
+       "column": 16
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 268,
+       "column": 11
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 269,
+       "column": 13
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 278,
+       "column": 24
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 279,
+       "column": 15
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 280,
+       "column": 11
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 281,
+       "column": 13
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrayDeclaration",
+       "replacement": "[\"Stryker was here\"]",
+       "line": 346,
+       "column": 39
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 355,
+       "column": 40
+      }
+     ]
+    }
+   }
+  },
+  "hydration": {
+   "head": "eed28f3c5cb0ff58e3ea0ee068cb78d8d1c37dc6",
+   "invocation": "pnpm exec stryker run stryker.devtools.mjs --mutate packages/devtools/src/model/HydrationView.ts",
+   "files": {
+    "packages/devtools/src/model/HydrationView.ts": {
+     "killed": 41,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 0,
+     "detected": 41,
+     "valid": 41,
+     "open": [],
+     "ignoredMutants": []
+    }
+   }
+  }
+ }
+}

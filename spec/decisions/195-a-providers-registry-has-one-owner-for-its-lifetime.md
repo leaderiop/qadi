@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-195                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-11-25                                     |
-> | Status         | Accepted — amends ADR-QD-014, ADR-QD-148 and ADR-QD-149 |
+> | Status         | Accepted — amends ADR-QD-014, ADR-QD-148 and ADR-QD-149; amended 2026-11-25 (ADR-QD-199: a React-free owner builds, commits to and recycles the registry the lease times) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-11-25): decision 4 states the first-frame tradeoff and the write in a finally; the table and the consequence name what LT6, LT12, LT14 and LT16 to LT18 pin (CCR-QD-474)<br>1.2 (2026-11-25): Related links INV-QD-409 and INV-QD-410 (CCR-QD-474)<br>1.1 (2026-11-25): Related links BEH-QD-746 to BEH-QD-750 (CCR-QD-474)<br>1.0 (2026-11-25): Initial (ARCH-129, CCR-QD-474) |
+> | Change History | 1.4 (2026-11-25): the Decision opens with a dated note that extends decisions 2, 3 and 4 to the owner; What enforces it and the mutation record add RegistryOwner.test.ts and the owner's mutate entry; Related links ADR-QD-199; the status records the amendment (CCR-QD-478)<br>1.3 (2026-11-25): decision 4 states the first-frame tradeoff and the write in a finally; the table and the consequence name what LT6, LT12, LT14 and LT16 to LT18 pin (CCR-QD-474)<br>1.2 (2026-11-25): Related links INV-QD-409 and INV-QD-410 (CCR-QD-474)<br>1.1 (2026-11-25): Related links BEH-QD-746 to BEH-QD-750 (CCR-QD-474)<br>1.0 (2026-11-25): Initial (ARCH-129, CCR-QD-474) |
 
 ---
 
@@ -56,6 +56,14 @@ context holds, and the context cannot hold a registry that is about to be replac
 runs.
 
 ## Decision
+
+> **Amended 2026-11-25 ([ADR-QD-199](./199-a-providers-registry-lifetime-has-a-react-free-owner.md), CCR-QD-478).** What a
+> construction, a commit and a recycle do is decided in `RegistryOwner.ts`, a package-private module that imports no React and
+> composes the lease, so decisions 2, 3 and 4 extend to it. Decision 2's "imports neither React nor the provider" holds of the
+> owner as it does of the lease. In decision 3 the provider holds and releases through the owner, and the commit that precedes
+> the hold is the owner's `commit`, made from one effect declared first. In decision 4 the record the recycle reads is the
+> owner's own, written by `commit`, and the subject is written on every commit without a read first. The text below is left as
+> written.
 
 1. **One registry per provider, built in render, kept for the provider's life.** It is built lazily in a ref exactly as
    before, with the subject and `initialValues` as its `initialValues`, so a server render and the first client render have
@@ -202,6 +210,11 @@ runs.
 - **The mutation record.** `RegistryLease.ts` is in `stryker.react.mjs`'s `mutate` list with no surviving, no-coverage or
   ignored mutant. `QadiProvider.tsx` stays outside it: it renders, and its lifetime logic is the lease. A surviving mutant in the
   lease would mean a registry released twice, never released, or released while held.
+
+  > **Amended 2026-11-25 ([ADR-QD-199](./199-a-providers-registry-lifetime-has-a-react-free-owner.md), CCR-QD-478).**
+  > `RegistryOwner.ts` is in the same `mutate` list, killed by `packages/react/test/RegistryOwner.test.ts` with no surviving,
+  > no-coverage or ignored mutant, and what the provider does with a registry is the owner's, so `QadiProvider.tsx` holds no
+  > lifetime logic of its own to leave unmeasured.
 - Hiding a provider for longer than a macrotask costs one reset and a re-evaluation of every decision its subtree reads when
   it is shown again. A host that cannot afford the re-evaluation keeps the subtree visible or shows it before a macrotask passes.
 
@@ -220,6 +233,8 @@ runs.
 - `packages/react/test/edges.test.tsx`: `releases its registry after it unmounts`, which reads a `keepAlive` host atom seeded
   through `initialValues` after the macrotask: its default after a release, its seed with the release skipped, a throw under
   `dispose()`.
+- `packages/react/test/RegistryOwner.test.ts`: RO1 to RO16, the owner's own rows with no React, a real registry and a recording
+  defer, and the owner's entry in `stryker.react.mjs`'s `mutate` list ([ADR-QD-199](./199-a-providers-registry-lifetime-has-a-react-free-owner.md)).
 - The lease in `stryker.react.mjs`'s `mutate` list, and the merge gate by command (`pnpm check`), never by number.
 
 ## Related
@@ -231,6 +246,7 @@ runs.
 - [ADR-QD-103](./103-a-question-is-opened-once.md) — read: it states no registry disposal, so it is not amended
 - [ADR-QD-148](./148-the-atom-set-owns-its-eviction-sweep.md) — the sweep the lease never touches; amended by this decision
 - [ADR-QD-149](./149-a-seed-is-held-by-its-question.md) — a seed grant's node ends with the registry's recycle; amended by this decision
+- [ADR-QD-199](./199-a-providers-registry-lifetime-has-a-react-free-owner.md) — the owner that builds, commits to and recycles the registry this lease times; amends this decision
 - [BEH-QD-067](../behaviors/09-react.md#beh-qd-067-provider) and
   [BEH-QD-516](../behaviors/09-react.md#beh-qd-516-the-subject-stays-in-the-registry-for-the-providers-lifetime), which the
   decision restates;

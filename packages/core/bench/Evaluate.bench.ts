@@ -47,6 +47,11 @@
  *                     reference neither — the checks the `HasAttribute`,
  *                     `HasResourceAttribute` and `HasAction` arms make before
  *                     they read anything (ARCH-97, ADR-QD-163)
+ *   scoped-heavy      `allOf` of 8 port leaves that ask a history, a
+ *                     relationship or a signature port, once with the
+ *                     resource's id present and once at `scope: "Any"` with no
+ *                     resource — the read every scoped leaf takes before its
+ *                     port is asked (ADR-QD-163, ADR-QD-203)
  *
  * The last six exist because `allOf` was the only combinator measured on its
  * own: `anyOf` appeared only inside `deep`, always `First` with two children,
@@ -95,10 +100,14 @@ import {
   allOf,
   anyOf,
   denyWhen,
+  hasActed,
   hasAction,
   hasAttribute,
+  hasNotActed,
   hasPermission,
+  hasRelationship,
   hasResourceAttribute,
+  hasSignature,
   labeled,
   not,
   obliged,
@@ -106,7 +115,7 @@ import {
   rules,
 } from "../src/Policy.ts";
 import type { Policy } from "../src/Policy.ts";
-import { portsLayer } from "../src/Ports.ts";
+import { fixturePortsLayer, portsLayer } from "../src/Ports.ts";
 import { filter } from "../src/Qadi.ts";
 import { decideSubjects } from "../src/SubjectSet.ts";
 // `RelationshipResolver.ts` used to contain literal NUL bytes as a key
@@ -156,6 +165,41 @@ const resolving = Layer.mergeAll(
  */
 const runtime = ManagedRuntime.make(services);
 const resolvingRuntime = ManagedRuntime.make(resolving);
+
+/**
+ * The same environment with the three scoped ports answering from data, so a
+ * scoped leaf asks a port that holds something rather than one at its
+ * fail-closed default.
+ *
+ * `alice` owns and may read `doc-1`, has raised and viewed it and signed it
+ * `approved`, and has not approved it. The last signature row names no resource:
+ * it is the one an `Any`-scoped signature leaf finds.
+ */
+const scopedFixtures = Layer.mergeAll(
+  fixturePortsLayer({
+    RelationshipResolver: {
+      answers: [
+        { subjectId: "alice", relation: "owner", resourceId: "doc-1" },
+        { subjectId: "alice", relation: "reader", resourceId: "doc-1" },
+      ],
+    },
+    DecisionHistory: {
+      answers: [
+        { subjectId: "alice", event: "raised", resourceId: "doc-1" },
+        { subjectId: "alice", event: "viewed", resourceId: "doc-1" },
+      ],
+    },
+    SignatureHistory: {
+      answers: [
+        { subjectId: "alice", resourceId: "doc-1", meaning: "approved" },
+        { subjectId: "alice", meaning: "approved" },
+      ],
+    },
+  }),
+  EvaluationIdLive,
+  currentSubjectLayer(alice),
+);
+const scopedRuntime = ManagedRuntime.make(scopedFixtures);
 
 const run = (policy: Policy): void => {
   runtime.runSync(evaluate(policy));
@@ -374,6 +418,45 @@ const leafRequest = {
   resource: { id: "doc-1", department: "cardiology", owner: "alice" },
 } as const;
 
+/**
+ * What the read every scoped leaf takes costs (ADR-QD-163, ADR-QD-203): the
+ * history, relationship and signature leaves, whose port is asked only after the
+ * leaf's own row says whether a resource id is needed. Every workload above is
+ * built from leaves that ask no port, so none reaches it.
+ *
+ * Eight resource-scoped leaves over the three ports, and every one holds so the
+ * whole fold runs; the request supplies the resource's id.
+ */
+const scopedHeavy = allOf([
+  hasActed("raised"),
+  hasActed("viewed"),
+  hasNotActed("approved"),
+  hasRelationship("owner"),
+  hasRelationship("reader"),
+  hasSignature("approved"),
+  hasActed("raised"),
+  hasRelationship("owner"),
+]);
+
+/** The request `scopedHeavy` evaluates against. */
+const scopedRequest = { resource: { id: "doc-1" } } as const;
+
+/**
+ * Eight leaves at `scope: "Any"` over the two ports that take one, so no leaf
+ * needs a resource id and the request supplies none: the other arm of the row the
+ * read consults.
+ */
+const scopedHeavyAny = allOf([
+  hasActed("raised", { scope: "Any" }),
+  hasActed("viewed", { scope: "Any" }),
+  hasNotActed("approved", { scope: "Any" }),
+  hasSignature("approved", { scope: "Any" }),
+  hasActed("raised", { scope: "Any" }),
+  hasActed("viewed", { scope: "Any" }),
+  hasNotActed("approved", { scope: "Any" }),
+  hasSignature("approved", { scope: "Any" }),
+]);
+
 const items = Array.from({ length: 500 }, (_, index) => ({
   id: `doc-${index}`,
   ownerId: index % 2 === 0 ? "alice" : "bob",
@@ -395,6 +478,14 @@ test("evaluate", async ({ bench }) => {
   assert(
     isAllowed(runtime.runSync(evaluate(leafHeavyPlain, leafRequest))),
     "leaf-heavy (neither) must decide Allow",
+  );
+  assert(
+    isAllowed(scopedRuntime.runSync(evaluate(scopedHeavy, scopedRequest))),
+    "scoped-heavy (resource-scoped) must decide Allow",
+  );
+  assert(
+    isAllowed(scopedRuntime.runSync(evaluate(scopedHeavyAny))),
+    "scoped-heavy (Any-scoped) must decide Allow",
   );
   await bench.compare(
     bench("one node", () => run(one)),
@@ -419,6 +510,12 @@ test("evaluate", async ({ bench }) => {
     }),
     bench("leaf-heavy — allOf of 8, matchers reference neither", () => {
       runtime.runSync(evaluate(leafHeavyPlain, leafRequest));
+    }),
+    bench("scoped-heavy — allOf of 8 resource-scoped port leaves, id present", () => {
+      scopedRuntime.runSync(evaluate(scopedHeavy, scopedRequest));
+    }),
+    bench("scoped-heavy — allOf of 8 Any-scoped port leaves", () => {
+      scopedRuntime.runSync(evaluate(scopedHeavyAny));
     }),
     options,
   );

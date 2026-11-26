@@ -1,0 +1,78 @@
+{
+ "phase": "88",
+ "phase_base": "892c4d36bf0f639a5219c53e7c39563533ea8b7e",
+ "invocation": "pnpm exec stryker run stryker.devtools.mjs --mutate packages/devtools/src/model/StopLedger.ts --disableBail",
+ "base_run": "none: no file this phase measures exists at phase_base",
+ "unmeasured": [
+  {
+   "file": "packages/devtools/src/react/StoppedBox.tsx",
+   "why": "stryker.devtools.mjs mutates src/model/** only, so no mutant is made of this file; the wrapper keys the body from the ledger, the body decides the alert at mount and records at commit, and the announce rows A1 to A5, H1, C1 and the notice rows pin it; the scratch variants V1, V2, V3, V7, V8 and V10 in 88-RED-EVIDENCE.md prove it"
+  },
+  {
+   "file": "packages/devtools/src/react/useStopNotice.ts",
+   "why": "stryker.devtools.mjs mutates src/model/** only, so no mutant is made of this file; it holds one reducer and one memo per feed, and H2, H3, DS1 to DS3, A1 and A2 pin it; the scratch variants V4, V5, V6, V9 and H3 in 88-RED-EVIDENCE.md prove it"
+  },
+  {
+   "file": "packages/devtools/src/react/TimelineNotice.tsx",
+   "why": "stryker.devtools.mjs mutates src/model/** only, so no mutant is made of this file; it hands the box the notice whole and passes no key, and the TN rows and N rows pin it; the scratch variants VN1 in 88-RED-EVIDENCE.md prove it"
+  },
+  {
+   "file": "packages/devtools/src/react/DiagnosticsNotice.tsx",
+   "why": "stryker.devtools.mjs mutates src/model/** only, so no mutant is made of this file; it hands the box the notice whole and passes no key, and the TN rows and N rows pin it; the scratch variants VN2 in 88-RED-EVIDENCE.md prove it"
+  }
+ ],
+ "measured": {
+  "config": "stryker.devtools.mjs",
+  "mutate": "packages/devtools/src/model/**/*.ts",
+  "files": {
+   "packages/devtools/src/model/Capture.ts": "cb3ed1230c2432c2f321d48b9c3fb7a9af868e09",
+   "packages/devtools/src/model/Catalogue.ts": "a634d98134209d1ea8aa1af280c9cc9f230e8acb",
+   "packages/devtools/src/model/ConfigurePrologue.ts": "7284d31473ac616a11711b7ce97073b4753dff24",
+   "packages/devtools/src/model/Diagnostics.ts": "f1fbb90076fd6658c89d48ec23756a30e90b1cf7",
+   "packages/devtools/src/model/DiagnosticsFeed.ts": "d9258c0c858bfc887b6bbfa6c22ed22bcafbe10c",
+   "packages/devtools/src/model/DockModel.ts": "2a8aad99eb347e316f2fa95fb343e883ec9b1cda",
+   "packages/devtools/src/model/DockSession.ts": "10377a137c1d73f8a0a18c0362387e06177911d4",
+   "packages/devtools/src/model/Edits.ts": "23e0ad763298fdae6659664013ec771f9cb4ff28",
+   "packages/devtools/src/model/ExplorerSession.ts": "55208f98b8ab68f4bbf00a0b64a56b5ee79076d9",
+   "packages/devtools/src/model/ExternalStore.ts": "89e9e479a7871fd5d3ce7f18cadcfd4abf06d1dd",
+   "packages/devtools/src/model/Filters.ts": "ff276585521e318d4b51f734f60ae0db8961367f",
+   "packages/devtools/src/model/Gates.ts": "1ebd3054c715799e6bebe32b05ff124456b3f03d",
+   "packages/devtools/src/model/GatesFeed.ts": "cba37266dfe8950f2db3a23f9e131d13cb17d5dd",
+   "packages/devtools/src/model/HeldChoice.ts": "3735b944344f3b3dbfa4531768130ff71cf092f7",
+   "packages/devtools/src/model/Hydration.ts": "e3fc64e8ac313ee871a2782bcabafce46c873072",
+   "packages/devtools/src/model/HydrationView.ts": "beef230054262346639fe17e0ba7401fc8f50355",
+   "packages/devtools/src/model/Inspect.ts": "d4d01cea476f8b3a3086bfec7936fa499264cdaa",
+   "packages/devtools/src/model/LensSession.ts": "8ecdc668cf25630b1c905c0a8da0c325c9ac41bc",
+   "packages/devtools/src/model/Pairing.ts": "298c3a9fa91d33bc3f2c0933edfea70d3e88d2e7",
+   "packages/devtools/src/model/PortCalls.ts": "adc73f7397c742f7f3648674d20a9abfc14fa0d0",
+   "packages/devtools/src/model/PortCards.ts": "5f5408c4f5da8d898d30fdc8c09863c1c9420d02",
+   "packages/devtools/src/model/PortReading.ts": "bdf9e169d460b835330e3580ecc914d01a10e388",
+   "packages/devtools/src/model/Remedies.ts": "ce53c2f0d9c91ab3f962cc2a8af0974b179883c9",
+   "packages/devtools/src/model/Replay.ts": "2959862380f2bd1c6ae4e9674dfe40f46179c42d",
+   "packages/devtools/src/model/RoleTree.ts": "b6075d6337c8ca08178224a8fdcb8920a4d59f81",
+   "packages/devtools/src/model/SeededChoice.ts": "b571e5272ba0ec4cb368badc14e1d6e16d0240c1",
+   "packages/devtools/src/model/Selection.ts": "00477311d0f1ca160a65a53860c7b484338b63d3",
+   "packages/devtools/src/model/Simulation.ts": "21683b1d20124fb3a13e5d0148376a6f9f516b6a",
+   "packages/devtools/src/model/SimulationEdit.ts": "e8d17bc052babba8be81997ea124e3ff9ebecd78",
+   "packages/devtools/src/model/SimulationFields.ts": "50ddae3c4879913dab0dd93bac36102d7522b810",
+   "packages/devtools/src/model/SimulationForm.ts": "f229b37d46b1146f901f7728be9154722b9433ae",
+   "packages/devtools/src/model/SimulationInput.ts": "e90337fc78ed8596aea93f13f81a21d5cf0e3431",
+   "packages/devtools/src/model/SimulationSession.ts": "004e7418175351021b2e59f60b1f91f3e3fb91dc",
+   "packages/devtools/src/model/SimulationSource.ts": "7ce7aa545b51bc32d4f5b9922d48296ce823b041",
+   "packages/devtools/src/model/Source.ts": "db7fb827c4a8b0e752766499ba3c9ba1d03c60ec",
+   "packages/devtools/src/model/StatedRun.ts": "e84f6202f06b4c3af0a429cf58a55e2bdca91ff0",
+   "packages/devtools/src/model/SupersedingRun.ts": "43e4611b24960f8d03d3f47fe8b79044308299af",
+   "packages/devtools/src/model/Timeline.ts": "ed02c6ce931da1ce7d98f4c8b8246f3e870c6659",
+   "packages/devtools/src/model/TimelineFeed.ts": "5f1b6c0ddf6ba36a94e456987326c60b5d812ecc",
+   "packages/devtools/src/model/TimelineStore.ts": "a9ff10df71ec04ee8c03d8a0449ee06c27efe13d",
+   "packages/devtools/src/model/Verdict.ts": "363cb81d783a07abb866d840d00177314d9ad958",
+   "packages/devtools/src/model/WhatIf.ts": "b9952d20da47c494c0e754f21488adaad5d5d375",
+   "packages/devtools/src/model/Wiring.ts": "173509b603c16bee9a5b203c9582264460c9a4f6"
+  }
+ },
+ "touched": [],
+ "born": [
+  "packages/devtools/src/model/StopLedger.ts"
+ ],
+ "groups": {}
+}

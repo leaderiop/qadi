@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-078                                   |
-> | Revision       | 1.5                                            |
+> | Revision       | 1.6                                            |
 > | Effective Date | 2026-10-08                                     |
 > | Status         | Accepted — amends ADR-QD-028, ADR-QD-039, ADR-QD-041, ADR-QD-052; amended 2026-10-06 (version-1 reader removed); amended 2026-11-08 (both directions in the engine); revision note 2026-11-10 (dehydration is total); amended 2026-11-15 (a seed's fields are the wire's, ADR-QD-157) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.5 (2026-11-15): amended — a seed's fields are the wire's, stated once in SeededDecision.ts; rebuild spreads (ARCH-91, CCR-QD-435)<br>1.4 (2026-11-10): revision note — dehydrateWith is total (UnencodablePolicy), outcomes are HydrationEvents, DehydrateOptions.onDropped takes a HydrationDrop (ARCH-60, CCR-QD-398)<br>1.3 (2026-11-08): amended — the engine owns both directions of the payload: dehydrateWith beside hydrateWith, private payload builders, no identity wrapper (ARCH-51, CCR-QD-390)<br>1.2 (2026-10-08): amended — a `Disclosed` seed must agree with its own trace as well as name its own policy (ADR-QD-106, CCR-QD-301)<br>1.1 (2026-10-06): amended — the version-1 payload reader removed in 0.11.0, as scheduled; `DehydratedDecisionsV1`, `DehydratedEntryV1` and `DehydratedPayload` removed (CCR-QD-182)<br>1.0 (2026-10-04): Initial release (CCR-QD-156) |
+> | Change History | 1.6 (2026-11-26): a dated note says `Hydration.ts` is folded into `HydrationEngine.ts` (ARCH-138, CCR-QD-483)<br>1.5 (2026-11-15): amended — a seed's fields are the wire's, stated once in SeededDecision.ts; rebuild spreads (ARCH-91, CCR-QD-435)<br>1.4 (2026-11-10): revision note — dehydrateWith is total (UnencodablePolicy), outcomes are HydrationEvents, DehydrateOptions.onDropped takes a HydrationDrop (ARCH-60, CCR-QD-398)<br>1.3 (2026-11-08): amended — the engine owns both directions of the payload: dehydrateWith beside hydrateWith, private payload builders, no identity wrapper (ARCH-51, CCR-QD-390)<br>1.2 (2026-10-08): amended — a `Disclosed` seed must agree with its own trace as well as name its own policy (ADR-QD-106, CCR-QD-301)<br>1.1 (2026-10-06): amended — the version-1 payload reader removed in 0.11.0, as scheduled; `DehydratedDecisionsV1`, `DehydratedEntryV1` and `DehydratedPayload` removed (CCR-QD-182)<br>1.0 (2026-10-04): Initial release (CCR-QD-156) |
 
 ---
 
@@ -185,6 +185,14 @@ its version and the seed types are unchanged.
 ## Amendment (2026-11-15, ADR-QD-157, CCR-QD-435)
 
 **A seed's fields are the wire's, stated once.** The Decision derived the payload entry from `DecisionWire`, but the seed wrote its fields out and `rebuild` copied them by name, so a wire field reached the payload and was dropped on the client. Each verdict's fields are now one `Schema.Struct` in `SeededDecision.ts`; the classes stay `Data.TaggedClass`es with their own `_tag`, typed by those fields plus `subjectId`; the entry is the same fields under the wire's tag and `rebuild` is a spread. A seed is still its own type, and the payload's version and bytes do not change. An allow's `visibleFields` is absent rather than `undefined` when the server sent none (**Breaking** for `@qadi/react`). See [ADR-QD-157](./157-a-seeds-fields-are-the-wires-stated-once.md).
+
+> **Note (2026-11-26, ADR-QD-204, CCR-QD-483).** `Hydration.ts` is folded into `HydrationEngine.ts`, a
+> part-public module: it owns the payload codec and the two entry points, and the seed slot and the precedence stay
+> `SeededQuestion.ts`'s (ADR-QD-155). The barrel names an exact list of its names, and those are public:
+> `dehydrateDecisions`, `hydrateDecisions` and the payload's option and entry types, named there, and
+> `InitialValues`, `HydrationMismatch` and `HydrationMismatchReporter`, named through the re-exports of
+> `QadiProvider.tsx` and `QadiAtoms.ts`. Every name it does not list is package-private. Where this record says `Hydration.ts` is the public interface, read `HydrationEngine.ts`
+> ([ADR-QD-204](./204-named-barrels-and-visibility-only-files-folded-away.md)).
 
 ---
 

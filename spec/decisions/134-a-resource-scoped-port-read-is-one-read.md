@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-134                                   |
-> | Revision       | 1.1                                            |
+> | Revision       | 1.2                                            |
 > | Effective Date | 2026-11-11                                     |
-> | Status         | Accepted — amends ADR-QD-077, ADR-QD-094, ADR-QD-109, ADR-QD-114; reads ADR-QD-051, ADR-QD-073 |
+> | Status         | Accepted — amends ADR-QD-077, ADR-QD-094, ADR-QD-109, ADR-QD-114; reads ADR-QD-051, ADR-QD-073; amended 2026-11-26 (ADR-QD-203) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.1 (2026-11-11): D-01 names the one scope test the acted and signature reads share with their asks (ARCH-70, CCR-QD-412)<br>1.0 (2026-11-11): Initial (ARCH-70, CCR-QD-412) |
+> | Change History | 1.2 (2026-11-26): amended: the scoped ports are derived from the rows and readScoped routes every scoped read (ADR-QD-203, ARCH-137, CCR-QD-482)<br>1.1 (2026-11-11): D-01 names the one scope test the acted and signature reads share with their asks (ARCH-70, CCR-QD-412)<br>1.0 (2026-11-11): Initial (ARCH-70, CCR-QD-412) |
 
 ---
 
@@ -93,6 +93,13 @@ For `DecisionHistory` and `SignatureHistory`, whose request type leaves `resourc
 `Resource`-scoped leaf is kept from reaching the port without an id by one test, not two: `asks` reads the id
 through `scopedResourceIdOf` and the read routes on `isResourceScoped`, both in `ScopedLeaf.ts` and the second
 the first's own test, so the request and the route cannot disagree on the leaf's `scope`.
+
+> **Amended (2026-11-26, ADR-QD-203, CCR-QD-482): the scoped ports are derived, and `readScoped` routes every scoped read.**
+> `ScopedPort` is every port whose description's `asks` names a leaf whose `LEAF_NEEDS` row is not `"Never"`, and the table
+> that completes a request is a mapped type over that set, so a leaf the leaf-needs table newly says asks about one
+> resource makes its port scoped and the compiler asks for its entry, where the written-out union was a second list.
+> `readScoped` takes the leaf and decides from its row, so `readActed`, `askRelationship` and `askSignature` call it and
+> route nothing themselves. The missing-id test, the annotation order and the trace below are unchanged.
 
 ### D-02. No nested span
 

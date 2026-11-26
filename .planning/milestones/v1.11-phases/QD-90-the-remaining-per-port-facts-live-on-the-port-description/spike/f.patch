@@ -1,0 +1,43 @@
+diff --git a/packages/core/src/PortAccess.ts b/packages/core/src/PortAccess.ts
+index 30808d1b..eaf4d45a 100644
+--- a/packages/core/src/PortAccess.ts
++++ b/packages/core/src/PortAccess.ts
+@@ -44,6 +44,7 @@ import { decisionHistoryPort } from "./DecisionHistory.ts";
+ import type { AttributeResolveError, DecisionHistoryUnavailable } from "./Errors.ts";
+ import type { MissingResourceId } from "./Errors.ts";
+ import type { ResourceId } from "./Identity.ts";
++import type { LEAF_NEEDS } from "./LeafNeeds.ts";
+ import { isOwnKey, ownValue } from "./Operand.ts";
+ import type { LeafOf } from "./PortDescription.ts";
+ import { portCallsTotal, predicatePortCallsTotal, servedPortCallsTotal } from "./PortMetrics.ts";
+@@ -216,10 +217,27 @@ const readPort = <K extends PortName>(
+   });
+ 
+ /**
+- * The ports whose question is about one resource, written out so a fourth is a
+- * decision and not a side effect.
++ * The leaf tags that ask a port about one resource: every tag whose
++ * `LEAF_NEEDS` row says `resourceId` is `"Always"` or `"ByScope"`, so a leaf
++ * reclassified there changes this set and nothing here restates it.
+  */
+-type ScopedPort = "DecisionHistory" | "RelationshipResolver" | "SignatureHistory";
++type ScopedLeafTag = {
++  readonly [T in keyof typeof LEAF_NEEDS]: (typeof LEAF_NEEDS)[T]["resourceId"] extends "Never"
++    ? never
++    : T;
++}[keyof typeof LEAF_NEEDS];
++
++/**
++ * The ports whose question is about one resource: every port that reads a
++ * {@link ScopedLeafTag}, from the leaves its description's `asks` lists.
++ *
++ * Derived, so a port that starts reading a scoped leaf joins the set and the
++ * tables keyed by it ask for its entry (TS2741) instead of a hand-written union
++ * being widened by a side effect.
++ */
++type ScopedPort = {
++  readonly [K in PortName]: [keyof PortTypes[K]["asks"] & ScopedLeafTag] extends [never] ? never : K;
++}[PortName];
+ 
+ /**
+  * A scoped port's request, as far as the site supplied it: what its `asks`

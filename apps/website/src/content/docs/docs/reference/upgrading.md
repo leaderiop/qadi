@@ -1419,3 +1419,47 @@ export const App = (props: { readonly instrumented: boolean }) => (
 ```
 
 The decision is [ADR-QD-193](https://github.com/leaderiop/qadi/blob/main/spec/decisions/193-the-highlight-lens-is-a-headless-session-the-dock-model-owns.md).
+
+## 0.13: a port states its span name and its fixture
+
+A port's description stated its span, and the data a fixture builds its layer from sat in a table in `Ports.ts`, so adding a port meant a description and a fixture row in another file, and a span a second port already used compiled. Each description now states both, and the registry reads them back.
+
+| Change | Before | After |
+| ------ | ------ | ----- |
+| `PortDescription` type parameters | nine, the ninth typing `asks`; `span` was typed `PortSpanOf<N>` | eleven: the tenth, `SpanName`, is the one literal `span` the description states, and the eleventh, `FixtureData`, is the plain data `fixture` builds the layer from |
+| `PortDescription.fixture` | absent; each port's builder was a row of `PORT_FIXTURES` | a required member, `(data) => Layer` |
+| `PORT_FIXTURES`, `PortFixtureData`, `fixturePortsLayer` | the table, and the types read from it | the same names and shapes, read from each description's `fixture` |
+| `PortSpanName`, `PortSpanOf` | declared in `PortName.ts` | declared in `Ports.ts`, read from the descriptions; the same names and shapes |
+| `PORT_NAMES` | absent; `PortName` was a union written out | the five names in registry order, and `PortName` is its element type |
+| two ports with one span name | compiled | a compile error where the registry is built |
+
+Metric ids, descriptions, span names and served and wire bytes are unchanged. A host that only reads a span, builds an environment from `ports` setups or serves ports changes nothing.
+
+A description built by hand is a description of one of the five ports, because `PortName` is closed and no other name compiles. The one edit it needs is `fixture`, the builder from the port's data to a layer of its own service:
+
+```typescript
+import { attributeResolverFromRecord, attributeResolverPort, type DescriptionOf } from "@qadi/core";
+
+export const attributePort: DescriptionOf<"AttributeResolver"> = {
+  ...attributeResolverPort,
+  fixture: (table) => attributeResolverFromRecord(table),
+};
+```
+
+A description that spreads the library's own takes its `fixture` with it and needs no edit; one written member by member adds the `fixture` line. `PortDescription`'s two new type parameters have defaults: the tenth, `SpanName`, defaults to `` `qadi.${string}` ``, and the eleventh, `FixtureData`, to `never`. A literal that passes the eight or nine type arguments it passed before compiles once it has a `fixture`; its `span` is then typed as the pattern, and its `fixture` takes `never`, so it can be called with no data. Pass the span literal as `SpanName` only where code reads `span` as that literal, and the data's type as `FixtureData` where the builder takes data.
+
+Code that names `PortDescription<K, …>` to read `span` uses `DescriptionOf<K>` or `PortSpanOf<K>`, which are the registry's own reading of the description and need no parameter list:
+
+```typescript
+import { PORT_NAMES, type DescriptionOf, type PortName, type PortSpanOf } from "@qadi/core";
+
+export type HistorySpan = PortSpanOf<"DecisionHistory">;
+
+export const sameSpan = (span: DescriptionOf<"DecisionHistory">["span"]): HistorySpan => span;
+
+export const names: ReadonlyArray<PortName> = PORT_NAMES;
+```
+
+A port added to the registry whose span overlaps another port's, or whose span is not one literal (a pattern or a union of names), is a compile error where the registry is built. A description without `fixture` does not compile, as a registry row without a fixture row did.
+
+The decision is [ADR-QD-203](https://github.com/leaderiop/qadi/blob/main/spec/decisions/203-the-remaining-per-port-facts-live-on-the-port-description.md).

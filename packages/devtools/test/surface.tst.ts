@@ -309,6 +309,42 @@ export type { StopNoticeProps } from "../src/index.ts";
 // @ts-expect-error no exported member
 export type { StopNoticeProps as ReactStopNoticeProps } from "../src/react/index.ts";
 
+// @ts-expect-error no exported member
+export type { StopLedger } from "../src/index.ts";
+
+// @ts-expect-error no exported member
+export type { StopLedger as ReactStopLedger } from "../src/react/index.ts";
+
+// @ts-expect-error no exported member
+export { noStops } from "../src/index.ts";
+
+// @ts-expect-error no exported member
+export { noStops as reactNoStops } from "../src/react/index.ts";
+
+// @ts-expect-error no exported member
+export { stoppedKey } from "../src/index.ts";
+
+// @ts-expect-error no exported member
+export { stoppedKey as reactStoppedKey } from "../src/react/index.ts";
+
+// @ts-expect-error no exported member
+export { announcesStop } from "../src/index.ts";
+
+// @ts-expect-error no exported member
+export { announcesStop as reactAnnouncesStop } from "../src/react/index.ts";
+
+// @ts-expect-error no exported member
+export { recordStop } from "../src/index.ts";
+
+// @ts-expect-error no exported member
+export { recordStop as reactRecordStop } from "../src/react/index.ts";
+
+// @ts-expect-error no exported member
+export type { AnnouncedStops } from "../src/index.ts";
+
+// @ts-expect-error no exported member
+export type { AnnouncedStops as ReactAnnouncedStops } from "../src/react/index.ts";
+
 test("the React entry's AskedQuestionLike is the model's", () => {
   expect<ReactAskedQuestionLike>().type.toBe<AskedQuestionLike>();
 });

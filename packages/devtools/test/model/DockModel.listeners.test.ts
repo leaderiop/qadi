@@ -61,7 +61,7 @@ const asking = (calls: { count: number }, policy: Policy) => (): ReadonlyArray<A
   return [{ policy }];
 };
 
-/** The ten stores of a dock, by the names the model gives them. */
+/** The eleven stores of a dock, by the names the model gives them. */
 const storesOf = (model: DockModel): Record<StoreName, ReadableStore<unknown>> => ({
   timeline: model.timeline,
   dock: model.dock,
@@ -72,6 +72,7 @@ const storesOf = (model: DockModel): Record<StoreName, ReadableStore<unknown>> =
   timelineStatus: model.timelineStatus,
   questions: model.questions,
   services: model.services,
+  hydration: model.hydration,
   lens: model.lens,
 });
 
@@ -85,6 +86,7 @@ const storeNames = [
   "timelineStatus",
   "questions",
   "services",
+  "hydration",
   "lens",
 ] as const;
 type StoreName = (typeof storeNames)[number];
@@ -98,7 +100,7 @@ const snapshotsOf = (model: DockModel): ReadonlyArray<unknown> => {
 const movedBetween = (before: ReadonlyArray<unknown>, after: ReadonlyArray<unknown>): ReadonlyArray<StoreName> =>
   storeNames.filter((_, index) => before[index] !== after[index]);
 
-/** One listener on each of the ten stores, counting what each hears. */
+/** One listener on each of the eleven stores, counting what each hears. */
 const heardOnEach = (model: DockModel) => {
   const stores = storesOf(model);
   const heard = storeNames.map((name) => [name, heardOn(stores[name])] as const);
@@ -128,7 +130,7 @@ const throwOnceThen = (store: ReadableStore<unknown>, run: () => void) => {
   });
 };
 
-/** What each of the ten stores holds that an input sets, as plain values two models can be compared by. */
+/** What each of the eleven stores holds that an input sets, as plain values two models can be compared by. */
 const stateOf = (model: DockModel) => {
   const timeline = model.timeline.getSnapshot();
   const simulation = model.simulation.getSnapshot();
@@ -148,6 +150,7 @@ const stateOf = (model: DockModel) => {
     poll: shown.status._tag,
     reading: { wiring: shown.reading.wiring, activity: shown.reading.activity, portCalls: shown.reading.portCalls },
     services: rowOf(model),
+    hydration: model.hydration.getSnapshot(),
     lens: model.lens.getSnapshot(),
   };
 };
@@ -454,6 +457,7 @@ describe("a dock whose host listener throws", () => {
         timelineStatus: 0,
         questions: 0,
         services: 0,
+        hydration: 0,
         lens: 0,
       });
     }),
@@ -563,6 +567,35 @@ describe("a dock whose host listener throws", () => {
         model.timeline.getSnapshot().entries.map((entry) => entry.evaluationId),
         ["r1"],
       );
+    }),
+  );
+
+  it.effect("DL21 with a throwing hydration listener, a configure applies every input, rethrows what it threw, and an identical configure changes nothing", () =>
+    throwingRow("hydration", { heard: true }),
+  );
+
+  it.effect("DL22 when a services listener and a hydration listener both throw in one configure, the last step's aggregate holds the services error before the hydration error", () =>
+    Effect.gen(function* () {
+      const fx = fixtures();
+      const model = yield* setUp(5);
+      const timelineBoom = new Error("a timeline listener threw");
+      const servicesBoom = new Error("a services listener threw");
+      const hydrationBoom = new Error("a hydration listener threw");
+      throwOnce(model.timeline, timelineBoom);
+      throwOnce(model.services, servicesBoom);
+      throwOnce(model.hydration, hydrationBoom);
+
+      const run = thrownBy(() => model.configure(fx.wanted()));
+      yield* applied(model, fx, entriesFrom(5));
+
+      const { thrown } = run;
+      if (!(thrown instanceof AggregateError)) return assert.fail("expected an AggregateError");
+      assert.strictEqual(thrown.message, "More than one step of the dock's configure threw.");
+      assert.strictEqual(thrown.errors.length, 2);
+      assert.strictEqual(thrown.errors[0], timelineBoom);
+      const nested = thrown.errors[1];
+      if (!(nested instanceof AggregateError)) return assert.fail("expected a nested AggregateError");
+      assert.deepStrictEqual(nested.errors, [servicesBoom, hydrationBoom]);
     }),
   );
 });

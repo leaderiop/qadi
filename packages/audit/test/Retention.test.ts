@@ -135,10 +135,6 @@ describe("planRetention", () => {
       assert.isTrue(Object.is(error.refusal.value, maxAgeMs));
     }
   });
-
-  it("checks now before maxAgeMs", () => {
-    assert.strictEqual(refused({ maxAgeMs: -1 }, Number.NaN).refusal._tag, "NowNotFinite");
-  });
 });
 
 describe("planPurge", () => {

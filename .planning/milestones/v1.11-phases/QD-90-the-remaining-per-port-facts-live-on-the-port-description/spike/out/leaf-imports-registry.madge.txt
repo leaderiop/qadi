@@ -1,0 +1,23 @@
+# exit 1
+
+> qadi-monorepo@0.4.0 circular /private/var/folders/vn/44p0pxgs4z98v7cl11l4_r4c0000gp/T/qd90/spike-leaf-imports-registry
+> madge --circular --extensions ts,tsx packages/*/src
+
+- Finding files
+Processed 251 files (824ms) (68 warnings)
+
+✖ Found 11 circular dependencies!
+
+1) core/src/PortDerivation.ts > core/src/PortDefault.ts > core/src/PortName.ts > core/src/Ports.ts > core/src/AttributeResolver.ts
+2) core/src/PortDefault.ts > core/src/PortName.ts > core/src/Ports.ts > core/src/AttributeResolver.ts > core/src/PortDescription.ts
+3) core/src/PortName.ts > core/src/Ports.ts > core/src/AttributeResolver.ts > core/src/PortDescription.ts
+4) core/src/PortName.ts > core/src/Ports.ts > core/src/AttributeResolver.ts > core/src/PortDescription.ts > core/src/PortServing.ts
+5) core/src/PortDerivation.ts > core/src/PortDefault.ts > core/src/PortName.ts > core/src/Ports.ts > core/src/CustomPredicate.ts
+6) core/src/DecisionHistory.ts > core/src/PortDerivation.ts > core/src/PortDefault.ts > core/src/PortName.ts > core/src/Ports.ts
+7) core/src/PortDefault.ts > core/src/PortName.ts > core/src/Ports.ts
+8) core/src/PortDerivation.ts > core/src/PortDefault.ts > core/src/PortName.ts > core/src/Ports.ts
+9) core/src/PortName.ts > core/src/Ports.ts
+10) core/src/PortDerivation.ts > core/src/PortDefault.ts > core/src/PortName.ts > core/src/Ports.ts > core/src/RelationshipResolver.ts
+11) core/src/PortDerivation.ts > core/src/PortDefault.ts > core/src/PortName.ts > core/src/Ports.ts > core/src/SignatureHistory.ts
+
+ ELIFECYCLE  Command failed with exit code 1.

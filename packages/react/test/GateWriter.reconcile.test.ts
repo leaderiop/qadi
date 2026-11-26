@@ -10,15 +10,14 @@
  */
 import { hasPermission, permission } from "@qadi/core";
 import { describe, expect, it } from "vitest";
-import { gateWriterFor, reconcile } from "../src/GateWriter.ts";
+import { gateWriterFor, makeGateRegistry, reconcile } from "../src/GateWriter.ts";
 import type {
   GateIdentity,
+  GateRenderState,
   GateWanted,
   GateWriter,
   Registered,
 } from "../src/GateWriter.ts";
-import { makeGateRegistry } from "../src/GateRegistry.ts";
-import type { GateRenderState } from "../src/GateRegistry.ts";
 import { newCanRead, notificationsOf } from "./support/gates.ts";
 
 /** A new `doc:write` policy on every call, as `newCanRead`. */

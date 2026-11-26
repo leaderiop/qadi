@@ -89,15 +89,20 @@ export const makePortDescription = <
   P extends ReadonlyArray<unknown>,
   Span extends PortSpanAttributesLike,
   Asks extends LeafRequests<P>,
+  SpanName extends PortDescription<N, Self, Shape, Args, A, E, P, Span, Asks>["span"],
+  FixtureData,
   Q extends { readonly subjectId: SubjectId },
   QE,
   W,
   WE,
 >(
-  spec: Omit<PortDescription<N, Self, Shape, Args, A, E, P, Span, Asks>, "wire" | "key" | "defect"> & {
+  spec: Omit<
+    PortDescription<N, Self, Shape, Args, A, E, P, Span, Asks, SpanName, FixtureData>,
+    "wire" | "key" | "defect"
+  > & {
     readonly wire: DerivedWireSpec<Args, A, Q, QE, W, WE>;
   },
-): PortDescription<N, Self, Shape, Args, A, E, P, Span, Asks> => {
+): PortDescription<N, Self, Shape, Args, A, E, P, Span, Asks, SpanName, FixtureData> => {
   const { wire, ...rest } = spec;
   return {
     ...rest,
@@ -114,6 +119,62 @@ export const makePortDescription = <
     defect: (args, cause) => spec.failure(args, Cause.squash(cause)),
   };
 };
+
+/** Whether a span name is a pattern (`string`, `` `qadi.${string}` ``) and not one literal. */
+type IsPattern<S extends string> = {} extends Record<S, 1> ? true : false;
+
+/**
+ * Whether a span name is a union of two or more names: `true` for
+ * `"qadi.a" | "qadi.b"`, `false` for one literal.
+ *
+ * Distributes over `S` and compares each member with the whole, so a member
+ * that is not the whole union answers `true`.
+ */
+type IsUnion<S, U = S> = S extends unknown ? ([U] extends [S] ? false : true) : never;
+
+/**
+ * The registry entries whose span is not one literal (a pattern, a union of
+ * literals or a union holding a pattern), or shares a name with another entry's.
+ *
+ * The sharing test is the overlap of the two spans (`Extract`), not containment,
+ * so two unions that share one member are refused as well as two equal literals.
+ */
+type SpanOffenders<R extends { readonly [K in keyof R]: { readonly span: string } }> = {
+  readonly [K in keyof R]: IsPattern<R[K]["span"]> extends true
+    ? K
+    : true extends IsUnion<R[K]["span"]>
+      ? K
+      : [Extract<R[K]["span"], R[Exclude<keyof R, K>]["span"]>] extends [never]
+        ? never
+        : K;
+}[keyof R];
+
+/**
+ * `unknown` when every entry of the registry `R` names one literal span and no
+ * two entries name the same, `never` otherwise.
+ *
+ * A registry applies it as `{ … } satisfies DistinctSpanNames<Registry>`, so a
+ * second port claiming another's span, or a span left as a pattern or a union,
+ * is a compile error where the registry is written. It refuses sharing,
+ * patterns and unions, not renaming: a port that moves to a new literal of its
+ * own still compiles, and the span pins and the facts golden are what catch it.
+ * It compares the ports' spans with each other only. The other `qadi.` span
+ * names (`qadi.evaluate`, `qadi.port.answerRemotely` and the rest) are each
+ * spelled in their own module as an `Effect.fn` or `declareSpan` name, and no
+ * type collects them, so there is no set to compare a port's span with.
+ *
+ * It is a type over any registry-shaped record, not over `PortTypes`, so a test
+ * can apply it to a registry the library does not have. The module that applies
+ * it is `Ports.ts`, the one module that sees every description, and it cannot
+ * live there: `PortDescription.ts` sits below `Ports.ts`, and this module is the
+ * package-private one both the derivations and `Ports.ts` already import, where
+ * a type with no runtime cost adds no import edge.
+ */
+export type DistinctSpanNames<R extends { readonly [K in keyof R]: { readonly span: string } }> = [
+  SpanOffenders<R>,
+] extends [never]
+  ? unknown
+  : never;
 
 /** Rebuilds `layer`'s service through `wrap`, once, when the returned layer itself builds. */
 export const wrapService = <Self, Shape>(

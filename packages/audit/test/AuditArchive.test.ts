@@ -5,7 +5,7 @@ import * as Result from "effect/Result";
 import * as Tracer from "effect/Tracer";
 import { encodeAuditEntry } from "../src/AuditEntry.ts";
 import { archiveAuditTrail, readAuditArchive } from "../src/AuditArchive.ts";
-import { verifySequenceIntegrity } from "../src/SequenceIntegrity.ts";
+import { verifySequenceIntegrity } from "../src/ArchiveFacts.ts";
 import { decisionRecord, failedWithCause, httpClientError, numbered } from "./helpers.ts";
 
 describe("archiveAuditTrail", () => {

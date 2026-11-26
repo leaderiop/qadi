@@ -22,19 +22,17 @@ import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Record from "effect/Record";
-import { attributeResolverFromRecord, attributeResolverPort } from "./AttributeResolver.ts";
-import { customPredicateFromRecord, customPredicatePort } from "./CustomPredicate.ts";
-import { decisionHistoryFromEvents, decisionHistoryPort } from "./DecisionHistory.ts";
-import type { ActedEventInput } from "./DecisionHistory.ts";
+import { attributeResolverPort } from "./AttributeResolver.ts";
+import { customPredicatePort } from "./CustomPredicate.ts";
+import { decisionHistoryPort } from "./DecisionHistory.ts";
 import { carryDefault } from "./PortDefault.ts";
 import { nonePort } from "./PortDerivation.ts";
+import type { DistinctSpanNames } from "./PortDerivation.ts";
 import type { LeafRequests, PortDescription, PortShape } from "./PortDescription.ts";
 import type { PortName } from "./PortName.ts";
 import type { PortSpanAttributesLike } from "./PortSpan.ts";
-import { relationshipResolverFromEdges, relationshipResolverPort } from "./RelationshipResolver.ts";
-import type { RelationshipEdgeInput } from "./RelationshipResolver.ts";
-import { signatureHistoryFromSignatures, signatureHistoryPort } from "./SignatureHistory.ts";
-import type { SignatureInput } from "./SignatureHistory.ts";
+import { relationshipResolverPort } from "./RelationshipResolver.ts";
+import { signatureHistoryPort } from "./SignatureHistory.ts";
 
 /**
  * The registry's type: each port's name to its description's exact type.
@@ -49,14 +47,20 @@ export interface PortTypes {
   readonly SignatureHistory: typeof signatureHistoryPort;
 }
 
-/** The registry: every port's description, by name. */
+/**
+ * The registry: every port's description, by name.
+ *
+ * Two ports whose spans overlap, or a port whose span is not one literal (a
+ * pattern or a union), is a compile error here (`DistinctSpanNames`,
+ * `PortDerivation.ts`).
+ */
 export const PORTS: PortTypes = {
   AttributeResolver: attributeResolverPort,
   DecisionHistory: decisionHistoryPort,
   RelationshipResolver: relationshipResolverPort,
   CustomPredicate: customPredicatePort,
   SignatureHistory: signatureHistoryPort,
-};
+} satisfies DistinctSpanNames<PortTypes>;
 
 /** A description's service (the `Context.Service` class). */
 export type ServiceOf<D> = D extends { readonly service: Context.Key<infer S, infer _Shape> }
@@ -92,6 +96,23 @@ export type SpanOf<D> = D extends { readonly attributes: infer Span extends Port
   ? Span
   : never;
 
+/**
+ * The span port `N`'s read opens: one per port, and no other port's.
+ *
+ * Read from the port's own description, which states it once (`PortDescription`'s
+ * `SpanName`), so there is no table of spans beside the registry.
+ */
+export type PortSpanOf<N extends PortName> = PortTypes[N]["span"];
+
+/**
+ * The span each port's read opens, as one closed union: one per port.
+ *
+ * `PortAccess.ts` opens these spans and `@qadi/devtools` decodes them
+ * (BEH-QD-227), so the set is a closed union rather than five string literals
+ * kept in step by hand.
+ */
+export type PortSpanName = PortSpanOf<PortName>;
+
 /** A description's typed error. */
 export type ErrorOf<D> = D extends { readonly failure: (args: never, cause: unknown) => infer E }
   ? E
@@ -114,7 +135,10 @@ export type DescriptionOf<K extends PortName> = PortDescription<
   AnswerOf<PortTypes[K]>,
   ErrorOf<PortTypes[K]>,
   AskedOf<PortTypes[K]>,
-  SpanOf<PortTypes[K]>
+  SpanOf<PortTypes[K]>,
+  LeafRequests<AskedOf<PortTypes[K]>>,
+  PortSpanOf<K>,
+  PortFixtureData[K]
 >;
 
 /**
@@ -173,15 +197,17 @@ export interface PortDecorator {
  * label): `tabulatePorts<CapturedAnswers>(() => new Map())`, with `F` always
  * passed explicitly.
  *
- * Two signatures over one body because TypeScript reads `F[K]` as a return
+ * Three signatures over one body because TypeScript reads `F[K]` as a return
  * target to be the intersection of every slot (TS #30769), so a value that
  * depends on the port's own types cannot be checked through `F`. The layer
- * overload states that correlation directly. The wider implementation signature
- * is invisible to callers, as with `createPermissionGroup` (`Permission.ts`), and
- * the body is the five rows and nothing else, so it cannot place one port's value
- * in another's slot.
+ * overload and the fixture overload each state that correlation directly: a
+ * layer of the port's own service, and a builder from the port's own data to
+ * one. The wider implementation signature is invisible to callers, as with
+ * `createPermissionGroup` (`Permission.ts`), and the body is the five rows and
+ * nothing else, so it cannot place one port's value in another's slot.
  */
 export function tabulatePorts(f: PortLayerVisitor): PortLayers;
+export function tabulatePorts(f: FixtureVisitor): FixtureBuilders;
 export function tabulatePorts<F extends { readonly [K in PortName]: unknown }>(
   f: <K extends PortName>(d: DescriptionOf<K>) => F[K],
 ): { readonly [K in PortName]: F[K] };
@@ -228,44 +254,50 @@ const NONE: PortLayers = tabulatePorts(nonePort);
 export const portsLayer = (overrides: PortOverrides = {}): Layer.Layer<PortServices> =>
   mergePorts(tabulatePorts((d) => overrides[d.port] ?? NONE[d.port]));
 
+/** A description's fixture data: what its `fixture` builds a layer from. */
+type FixtureDataOf<D> = D extends { readonly fixture: (data: infer F) => unknown } ? F : never;
+
 /**
  * The plain data a test or a simulation can state for each port — the shape
  * {@link PORT_FIXTURES} turns into that port's layer.
  *
  * Data only, never a layer: devtools' Fixtures mode is sealed (ADR-QD-050) and
- * takes data, and a value that is not serializable could not cross into it.
+ * takes data. The type does not enforce it (a description's `FixtureData` is not
+ * bounded), so review keeps each member a table or a list of rows.
  * `CustomPredicate` is answers (`name` to a fixed verdict), not functions; a
  * predicate that reads the subject or resource is a layer, supplied as an
- * override.
+ * override. Read from each port's own description (`fixture`), so a port's data
+ * is stated once, beside the builder that consumes it.
  */
-export interface PortFixtureData {
-  readonly AttributeResolver: Readonly<Record<string, unknown>>;
-  readonly RelationshipResolver: ReadonlyArray<RelationshipEdgeInput>;
-  readonly DecisionHistory: ReadonlyArray<ActedEventInput>;
-  readonly SignatureHistory: ReadonlyArray<SignatureInput>;
-  readonly CustomPredicate: Readonly<Record<string, boolean>>;
+export type PortFixtureData = { readonly [K in PortName]: FixtureDataOf<PortTypes[K]> };
+
+/** One fixture builder per port, each from that port's own data to a layer of its own service. */
+type FixtureBuilders = {
+  readonly [K in PortName]: (data: PortFixtureData[K]) => Layer.Layer<ServiceOf<PortTypes[K]>>;
+};
+
+/** A function from any port's description to that port's fixture builder. */
+interface FixtureVisitor {
+  <K extends PortName>(
+    d: DescriptionOf<K>,
+  ): (data: PortFixtureData[K]) => Layer.Layer<ServiceOf<PortTypes[K]>>;
 }
 
 /**
- * Each port's fixture builder, closed over `PortName`: a port added to the
- * registry without a row here is TS2741 (ADR-QD-094).
+ * Each port's fixture builder, closed over `PortName`, read from its
+ * description's `fixture`.
  *
- * This is the one place the data-to-layer mapping is written. `@qadi/testing`'s
- * review layer and `@qadi/devtools`' Fixtures simulation both go through
- * {@link fixturePortsLayer}; before it each kept its own copy, and devtools
- * cannot depend on `@qadi/testing` (no test fixtures in a production bundle),
- * so only core could hold it.
+ * The description's `fixture` is the one statement of a port's data-to-layer
+ * mapping, and a port described without one is a compile error where it is
+ * described (`PortDescription`). This table is its projection by port name, and
+ * {@link fixturePortsLayer} reads each port's builder through it, so the
+ * fixture overload of {@link tabulatePorts} types the one table both read.
+ * `@qadi/testing`'s review layer and `@qadi/devtools`' Fixtures simulation both
+ * go through {@link fixturePortsLayer}; devtools cannot depend on
+ * `@qadi/testing` (no test fixtures in a production bundle), so only core could
+ * hold it.
  */
-export const PORT_FIXTURES: {
-  readonly [K in PortName]: (data: PortFixtureData[K]) => Layer.Layer<ServiceOf<PortTypes[K]>>;
-} = {
-  AttributeResolver: attributeResolverFromRecord,
-  DecisionHistory: decisionHistoryFromEvents,
-  RelationshipResolver: relationshipResolverFromEdges,
-  CustomPredicate: (answers) =>
-    customPredicateFromRecord(Record.map(answers, (answer) => () => Effect.succeed(answer))),
-  SignatureHistory: signatureHistoryFromSignatures,
-};
+export const PORT_FIXTURES: FixtureBuilders = tabulatePorts((d) => d.fixture);
 
 /**
  * Any subset of the ports, each set up by `answers` (that port's
@@ -296,7 +328,7 @@ const fixtureLayer = <D, S>(
 
 /**
  * Every port, each set up by its entry in `setups`: its layer, else its
- * fixture answers, else its fail-closed default.
+ * fixture answers through {@link PORT_FIXTURES}, else its fail-closed default.
  *
  * Names no port. Each slot is derived from the registry, so a port added there
  * is here at its default without an edit here (ADR-QD-094). A layer wins over

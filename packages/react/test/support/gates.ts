@@ -7,7 +7,7 @@
  * reads them the same way.
  */
 import { hasPermission, permission } from "@qadi/core";
-import type { GateRegistry } from "../../src/GateRegistry.ts";
+import type { GateRegistry } from "../../src/GateWriter.ts";
 
 /** What one subscription to a registry has heard, and the way to end it. */
 interface Notifications {

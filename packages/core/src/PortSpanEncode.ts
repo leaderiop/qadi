@@ -16,10 +16,13 @@
  * `disclose` as the only path from a resolved value to a span, and it returns
  * `{ resolved: boolean }`.
  *
- * Deliberately out of the barrel (AGENTS.md §9, ADR-QD-077): writing port spans
- * is core's job alone, and a host has no port to describe — the registry is
- * closed. The public half is `PortSpan.ts` (the types a description names) and
- * `PortSpanDecode.ts` (the decoder).
+ * Package-private (AGENTS.md §9, ADR-QD-077): writing port spans is core's job
+ * alone, and a host has no port to describe — the registry is closed. Core's
+ * barrel names only the decoder, `decodePortSpan`, which `@qadi/devtools` reads
+ * every port span through (ADR-QD-204); the types a description names are in
+ * `PortSpan.ts`. The decoder is declared here, with the machinery it calls,
+ * because the types module stays free of it: types, then machinery, so the two
+ * form no import cycle.
  *
  * The evaluate family builds its spans with the same machinery, in
  * `EvaluationSpan.ts`, and writes them through the same functions (ADR-QD-188).
@@ -32,8 +35,16 @@
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
-import { portInterpreter } from "./PortInterpreter.ts";
-import type { SpanFields, SpanKey, SpanStruct, SpanType, SpanValue } from "./PortSpan.ts";
+import { portInterpreter } from "./PortSpan.ts";
+import type {
+  PortSpanAttributes,
+  PortSpanRow,
+  SpanFields,
+  SpanKey,
+  SpanStruct,
+  SpanType,
+  SpanValue,
+} from "./PortSpan.ts";
 
 /**
  * Builds a span struct from its fields and their keys.
@@ -244,3 +255,19 @@ export const attemptsStruct = spanStruct(
   { attempts: Schema.optionalKey(Schema.Number) },
   { attempts: "qadi.attempts" },
 );
+
+/**
+ * Reads one port span's attributes through its description.
+ *
+ * Each field is decoded on its own, so a value of the wrong type, or outside a
+ * literal union, reads as absent while the other fields are kept (BEH-QD-228);
+ * a `qadi.*` key the description does not name is ignored.
+ */
+export const decodePortSpan = <Q extends SpanFields, Ans extends SpanFields, O>(
+  d: { readonly attributes: PortSpanAttributes<Q, Ans, O> },
+  attributes: ReadonlyMap<string, unknown>,
+): PortSpanRow<Q, Ans> => ({
+  ...decodeSpan(attemptsStruct, attributes),
+  ...decodeSpan(d.attributes.question, attributes),
+  ...decodeSpan(d.attributes.answer, attributes),
+});

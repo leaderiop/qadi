@@ -25,7 +25,7 @@ import { renderToString } from "react-dom/server";
 import { StrictMode } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { Can, Cannot } from "../src/components.tsx";
-import { makeGateRegistry } from "../src/GateRegistry.ts";
+import { makeGateRegistry } from "../src/GateWriter.ts";
 import {
   useCan,
   useDecision,

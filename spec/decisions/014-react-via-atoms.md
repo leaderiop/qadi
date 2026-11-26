@@ -207,8 +207,8 @@ library's registry options.
 `stryker.devtools.mjs` draws a render-vs-decide line inside `@qadi/devtools` —
 mutation-test the model, skip the render code — and `@qadi/react` has the same
 split internally: `QadiAtoms.ts` (atom-family keying and decision staleness,
-ADR-QD-017/AGENTS.md §13), `GateRegistry.ts` (ADR-QD-053's guard-existence
-registry) and `Hydration.ts`/`HydrationWarning.ts` (ADR-QD-041/052's
+ADR-QD-017/AGENTS.md §13), `GateWriter.ts` (ADR-QD-053's guard-existence
+registry) and `HydrationEngine.ts`/`HydrationWarning.ts` (ADR-QD-041/052's
 mismatch-announcement logic) are non-rendering and invariant-bearing, same as
 `@qadi/devtools`'s `src/model/`. The line is not drawn here for a different
 reason than devtools's: this package is small enough, and thin enough over
@@ -217,3 +217,7 @@ judged not worth its cost against the 90% line-coverage floor already held —
 not a claim that a mutant here would be uninteresting. Revisit if the
 non-rendering modules grow past what `v4-reactivity-smoke.test.ts` and
 `QadiAtoms.test.ts`'s no-DOM suite can keep pinned by inspection.
+
+> **Note (2026-11-26, ADR-QD-204, CCR-QD-483).** The guard-existence registry is
+> declared in `GateWriter.ts` and the hydration entry points in `HydrationEngine.ts`, so where this
+> record says `GateRegistry.ts`, read `GateWriter.ts` ([ADR-QD-204](./204-named-barrels-and-visibility-only-files-folded-away.md)).

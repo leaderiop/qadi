@@ -13,6 +13,7 @@
 - ✅ **v1.8 Arch Wave 13** — Phases 69-76 (completed 2026-11-23; not released) — [archive](milestones/v1.8-ROADMAP.md)
 - ✅ **v1.9 Arch Wave 14** — Phases 77-80 (completed 2026-11-24; not released) — [archive](milestones/v1.9-ROADMAP.md)
 - ✅ **v1.10 Arch Wave 15** — Phases 81-84 (completed 2026-11-25; not released) — [archive](milestones/v1.10-ROADMAP.md)
+- ✅ **v1.11 Arch Wave 16** — Phases 85-91 (completed 2026-11-27; not released) — [archive](milestones/v1.11-ROADMAP.md)
 
 ## Phases
 
@@ -432,5 +433,22 @@ Full details: [milestones/v1.9-ROADMAP.md](milestones/v1.9-ROADMAP.md) · requir
 Full details: [milestones/v1.10-ROADMAP.md](milestones/v1.10-ROADMAP.md) · requirements:
 [milestones/v1.10-REQUIREMENTS.md](milestones/v1.10-REQUIREMENTS.md) · audit:
 [milestones/v1.10-MILESTONE-AUDIT.md](milestones/v1.10-MILESTONE-AUDIT.md)
+
+</details>
+
+<details>
+<summary>✅ v1.11 Arch Wave 16 (Phases 85-91) — COMPLETED 2026-11-27 (not released)</summary>
+
+- [x] Phase 85: The dock's hydration block is a model row, ARCH-132 (devtools patch) (11/11 plans) — completed 2026-11-25
+- [x] Phase 86: `QadiProvider`'s registry lifetime has a React-free owner, ARCH-133 (react patch) (8/8 plans) — completed 2026-11-25
+- [x] Phase 87: One scoped run that states its stop, ARCH-134 (devtools and core patches) (11/11 plans) — completed 2026-11-25
+- [x] Phase 88: `StoppedBox` keys itself and owns the announce-once rule, ARCH-135 (devtools patch) (10/10 plans) — completed 2026-11-26
+- [x] Phase 89: One admission step for a host's audit batch, ARCH-136 (audit patch) (11/11 plans) — completed 2026-11-26
+- [x] Phase 90: The remaining per-port facts live on the port description, ARCH-137 (core minor, Breaking) (16/16 plans) — completed 2026-11-26
+- [x] Phase 91: Named barrels, and visibility-only files folded away, ARCH-138 (core, react, audit, devtools patches) (21/21 plans) — completed 2026-11-27
+
+Full details: [milestones/v1.11-ROADMAP.md](milestones/v1.11-ROADMAP.md) · requirements:
+[milestones/v1.11-REQUIREMENTS.md](milestones/v1.11-REQUIREMENTS.md) · audit:
+[milestones/v1.11-MILESTONE-AUDIT.md](milestones/v1.11-MILESTONE-AUDIT.md)
 
 </details>

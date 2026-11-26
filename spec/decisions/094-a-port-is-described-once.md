@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-094                                   |
-> | Revision       | 1.12                                            |
+> | Revision       | 1.13                                            |
 > | Effective Date | 2026-10-08                                     |
-> | Status         | Accepted — amends ADR-QD-010, ADR-QD-040, ADR-QD-051, ADR-QD-077; amended 2026-10-07 (CCR-QD-198), 2026-10-08 (CCR-QD-270), 2026-10-08 (ADR-QD-107), 2026-11-08 (ADR-QD-109), 2026-11-08 (ADR-QD-114), 2026-11-08 (CCR-QD-392), 2026-11-12 (CCR-QD-419), 2026-11-23 (ADR-QD-189) |
+> | Status         | Accepted — amends ADR-QD-010, ADR-QD-040, ADR-QD-051, ADR-QD-077; amended 2026-10-07 (CCR-QD-198), 2026-10-08 (CCR-QD-270), 2026-10-08 (ADR-QD-107), 2026-11-08 (ADR-QD-109), 2026-11-08 (ADR-QD-114), 2026-11-08 (CCR-QD-392), 2026-11-12 (CCR-QD-419), 2026-11-23 (ADR-QD-189), 2026-11-26 (ADR-QD-203) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.12 (2026-11-23): amendment — a fixture's layer and its pure judgement read one lookup keyed by the port's key, and a description's failure is total (ARCH-123, ADR-QD-189, CCR-QD-468)<br>1.11 (2026-11-12): amendment — a port's name and span are stated once, in PortName.ts; a description's span is its own port's (ARCH-77, CCR-QD-419)<br>1.10 (2026-11-11): amendment — ARCH-70: a description also states the request each policy leaf asks (asks), and the facet loses leaves (ADR-QD-134, CCR-QD-412)<br>1.9 (2026-11-11): amendment — a derived port's key is canonicalKey over its wire question and its defect is failure of the squashed cause, built by makePortDescription; CustomPredicate states its own (ARCH-69, ADR-QD-133, CCR-QD-411)<br>1.8 (2026-11-10): amendment — the key law's equality is Equal.equals over PortKey's domain; a value outside it is a typed KeyRefusal and key returns a Result (ARCH-65, CCR-QD-407)<br>1.7 (2026-11-08): amendment — one per-port table builder; fixture setups pass through to a registry-derived fixturePortsLayer (ARCH-53, CCR-QD-392)<br>1.6 (2026-11-08): amendment — a description also states what it serves, PortDescription.serving (ARCH-53, ADR-QD-114, CCR-QD-392)<br>1.5 (2026-11-08): amendment — a description's span attributes state the question projection, pose, beside disclose; the signature key covers the requirement (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.4 (2026-10-08): amendment — a description also states its wire, `PortDescription.wire`, and the registry makes a missing wire a compile error (ARCH-31, ADR-QD-107, CCR-QD-382)<br>1.3 (2026-10-08): amendment — each port's fixture builder is listed in `PORT_FIXTURES`, closed over `PortName`, beside its description (ARCH-42, CCR-QD-270)<br>1.2 (2026-10-08): amended: a request key is injective over every argument the port receives; the relationship and custom-predicate keys are corrected (ARCH-45 I1, CCR-QD-263)<br>1.1 (2026-10-07): amendment — a description also states its span's attributes (`attributes`: question, answer, `disclose`), so the row decoder stays per-port in its *fields* and is no longer restated in `@qadi/devtools`; `wiringReport` derives its port rows from the registry and says which are defaulted; the Document ID corrected from `QADI-ADR-901` (ARCH-21, CCR-QD-198)<br>1.0 (2026-10-05): Initial release (CCR-QD-177) |
+> | Change History | 1.13 (2026-11-26): amendment: a description states its span and its fixture, the two earlier rejections are reversed with their reasons, and a new port's facts are listed (ADR-QD-203, ARCH-137, CCR-QD-482)<br>1.12 (2026-11-23): amendment — a fixture's layer and its pure judgement read one lookup keyed by the port's key, and a description's failure is total (ARCH-123, ADR-QD-189, CCR-QD-468)<br>1.11 (2026-11-12): amendment — a port's name and span are stated once, in PortName.ts; a description's span is its own port's (ARCH-77, CCR-QD-419)<br>1.10 (2026-11-11): amendment — ARCH-70: a description also states the request each policy leaf asks (asks), and the facet loses leaves (ADR-QD-134, CCR-QD-412)<br>1.9 (2026-11-11): amendment — a derived port's key is canonicalKey over its wire question and its defect is failure of the squashed cause, built by makePortDescription; CustomPredicate states its own (ARCH-69, ADR-QD-133, CCR-QD-411)<br>1.8 (2026-11-10): amendment — the key law's equality is Equal.equals over PortKey's domain; a value outside it is a typed KeyRefusal and key returns a Result (ARCH-65, CCR-QD-407)<br>1.7 (2026-11-08): amendment — one per-port table builder; fixture setups pass through to a registry-derived fixturePortsLayer (ARCH-53, CCR-QD-392)<br>1.6 (2026-11-08): amendment — a description also states what it serves, PortDescription.serving (ARCH-53, ADR-QD-114, CCR-QD-392)<br>1.5 (2026-11-08): amendment — a description's span attributes state the question projection, pose, beside disclose; the signature key covers the requirement (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.4 (2026-10-08): amendment — a description also states its wire, `PortDescription.wire`, and the registry makes a missing wire a compile error (ARCH-31, ADR-QD-107, CCR-QD-382)<br>1.3 (2026-10-08): amendment — each port's fixture builder is listed in `PORT_FIXTURES`, closed over `PortName`, beside its description (ARCH-42, CCR-QD-270)<br>1.2 (2026-10-08): amended: a request key is injective over every argument the port receives; the relationship and custom-predicate keys are corrected (ARCH-45 I1, CCR-QD-263)<br>1.1 (2026-10-07): amendment — a description also states its span's attributes (`attributes`: question, answer, `disclose`), so the row decoder stays per-port in its *fields* and is no longer restated in `@qadi/devtools`; `wiringReport` derives its port rows from the registry and says which are defaulted; the Document ID corrected from `QADI-ADR-901` (ARCH-21, CCR-QD-198)<br>1.0 (2026-10-05): Initial release (CCR-QD-177) |
 
 ---
 
@@ -71,6 +71,10 @@ and the environment builders are derived from the descriptions.** The Shapes
 | D-10-j — a ratchet | `PORT_DOUBLE_BUDGET`, the only test-scope house-style budget: test files that construct a port's error by hand, by exact count and reason |
 | D-10-k — span names | In the description (`span: PortSpanName`); `PortAccess.ts` and devtools' collector read them there |
 | D-10-l — reply kinds | `PortReply = Answer \| Fail \| Die \| Throw`, closed and tagged; `undefined` from a script falls through to the fail-closed answer |
+
+> **Amended (2026-11-26, ADR-QD-203, CCR-QD-482): the span is the description's own type argument.** The literal is
+> spelled once in its port module and passed as `SpanName`, `PortSpanName` and `PortSpanOf` are read from the registry,
+> and `DistinctSpanNames` refuses two ports that share one. See the amendment at the end of this record.
 
 ### The description
 
@@ -395,3 +399,31 @@ that member's schema admits the request's value (`Schema.is`), so a request the 
 error and never as a defect. `SignatureHistoryUnavailable.subjectId` and `DecisionHistoryUnavailable.event` are
 optional for that reason. See
 [ADR-QD-189](189-remedies-asks-core-whether-a-fixture-row-meets-a-signature-or-acted-leaf.md).
+
+## Amendment (2026-11-26, ADR-QD-203, CCR-QD-482)
+
+A description states its **span** and its **fixture**, two facts that were tables beside it. `PortDescription` takes a
+`SpanName` type parameter, the port's own literal, spelled once in its port module as a constant whose `typeof` is the
+argument, and a last `FixtureData` parameter, and `fixture: (data: FixtureData) => Layer.Layer<Self>` is a required member,
+each port's own builder. `PortSpanOf` and `PortSpanName` are read from the registry in `Ports.ts`, `PortFixtureData` is a
+mapped type over it and `PORT_FIXTURES` is `tabulatePorts((d) => d.fixture)`. `DistinctSpanNames`, applied at `PORTS`,
+refuses two ports whose spans overlap and a span that is not one literal (a pattern or a union). **Breaking** for anything
+that builds a `PortDescription` by hand, because the interface shipped in a release; in this repository that is the five
+port modules and one test probe. The names are one tuple, `PORT_NAMES`, in the leaf `PortName.ts`, and `PortName` is its element type.
+`PortServing` stays hand-written, and [ADR-QD-114](114-a-port-states-what-it-serves.md) holds.
+
+Two rejections above are reversed, each for the reason it does not hold now.
+
+- **The CCR-QD-270 amendment rejected a `fixture` field** because it would put a test-data shape into every production
+  description and break every literal. Each builder already ships in the same module as its description, and `@qadi/devtools`'
+  Fixtures simulation, a production feature, builds its ports with `fixturePortsLayer`, which reads each builder through
+  `PORT_FIXTURES` ([ADR-QD-050](050-a-simulation-is-sealed.md)), so the member is one reference per port and no new
+  production dependency. The registry is closed, so the literals it breaks are the five modules and the probe, which is the
+  **Breaking** note above.
+- **The CCR-QD-419 amendment rejected deriving the span union from the descriptions** because each description is
+  annotated, so its `span` type is the whole union, and the only module that sees every description sits above
+  `PortDescription.ts`. The annotation passes the port's own literal as a type argument, so a description's `span` is
+  exact, and the module that sees every description is where the union is read and where `DistinctSpanNames` is applied.
+
+A new port is a description (span, wire, serving facet, fixture), a `PORT_NAMES` entry, its registry lines and its `PortServing` row.
+See [ADR-QD-203](203-the-remaining-per-port-facts-live-on-the-port-description.md).

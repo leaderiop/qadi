@@ -22,14 +22,12 @@ import * as Atom from "effect/reactivity/Atom";
 import type * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import * as Reactivity from "effect/reactivity/Reactivity";
 import {
-  type DehydratedDecisions,
-  type HydrateOptions,
   type HydrationMismatchReporter,
-  type InitialValues,
+  type HydrationTarget,
   hydrateWith,
 } from "./HydrationEngine.ts";
 import { reporterFor, SIGNALS } from "./DeveloperSignals.ts";
-import type { GateRegistry } from "./GateRegistry.ts";
+import type { GateRegistry } from "./GateWriter.ts";
 import { buildGateRegistry } from "./GateWriter.ts";
 import type { DecisionResult } from "./DecisionOutcome.ts";
 import type { AskedQuestion } from "./QuestionBook.ts";
@@ -67,7 +65,17 @@ export type QadiLayer = Layer.Layer<
   AtomRegistry.AtomRegistry | Reactivity.Reactivity
 >;
 
-export interface QadiAtoms {
+/**
+ * An atom set: the runtime, the subject and every question one provider tree asks.
+ *
+ * It states `hydrate` through {@link HydrationTarget}, so the signature is written
+ * once. `hydrate` lives on the atom set because the seed atoms do: each is private
+ * to the closure `makeQadiAtoms` builds, reachable by neither reflection nor import,
+ * which is what ADR-QD-039 requires (a consumer holding a seed atom could write an
+ * authorization decision straight into a registry, bypassing the subject check and
+ * the evaluator).
+ */
+export interface QadiAtoms extends HydrationTarget {
   /** The runtime the decision atoms evaluate in. */
   readonly runtime: Atom.AtomRuntime<QadiRuntimeServices>;
   /** The subject under authorization. `undefined` means "not known yet". */
@@ -133,26 +141,6 @@ export interface QadiAtoms {
    * the atom set's life when nothing is instrumented.
    */
   readonly gates: GateRegistry;
-  /**
-   * Seeds this atom set from a server's dehydrated payload.
-   *
-   * The capability `hydrateDecisions` calls — **prefer `hydrateDecisions`**, which
-   * is the documented entry point and checks the payload the same way. It lives on
-   * the atom set because the seed atoms do: each is private to this closure,
-   * reachable by neither reflection nor import, which is what ADR-QD-039 actually
-   * requires (a consumer holding a seed atom could write an authorization decision
-   * straight into a registry, bypassing the subject check and the evaluator).
-   *
-   * Never throws, and drops what it cannot verify — see `hydrateDecisions`. A
-   * wrapper that forwards `decision` can forward this too, and a
-   * hand-built test double supplies its own: that is the caller's code, not a
-   * trust crossing.
-   */
-  readonly hydrate: (
-    dehydrated: DehydratedDecisions,
-    subject: AuthSubject,
-    options?: HydrateOptions,
-  ) => InitialValues;
 }
 
 /**

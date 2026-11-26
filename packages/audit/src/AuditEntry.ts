@@ -89,7 +89,7 @@ const SequenceNumber = Schema.optional(Schema.Int);
  * twin. A number reaches a row only through `decodeAuditEntry({ record,
  * sequenceNumber })`, once the caller has assigned it (an autoincrement column,
  * their own counter) and read the rows back for `verifySequenceIntegrity`
- * ([SequenceIntegrity.ts](./SequenceIntegrity.ts)).
+ * ([ArchiveFacts.ts](./ArchiveFacts.ts)).
  */
 class AuditEntry extends Data.Class<{
   readonly record: SinkRecordJson;

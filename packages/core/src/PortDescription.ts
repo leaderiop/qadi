@@ -26,13 +26,14 @@ import type * as Cause from "effect/Cause";
 import type * as Context from "effect/Context";
 import * as Data from "effect/Data";
 import type * as Effect from "effect/Effect";
+import type * as Layer from "effect/Layer";
 import * as Match from "effect/Match";
 import type * as Result from "effect/Result";
 import type { AuthSubject } from "./AuthSubject.ts";
 import type { WirePath } from "./JsonRefusal.ts";
 import type { Policy } from "./Policy.ts";
 import { isMarkedDefault } from "./PortDefault.ts";
-import type { PortName, PortSpanOf } from "./PortName.ts";
+import type { PortName } from "./PortName.ts";
 import type { PortSpanAttributesLike, SpanFields, SpanStruct, SpanType } from "./PortSpan.ts";
 import type { PortServingFacet } from "./PortServing.ts";
 import type { PortWire } from "./PortWire.ts";
@@ -165,6 +166,19 @@ export type LeafRequests<P extends ReadonlyArray<unknown>> = {
  * - `Asks` — the leaves that read the port, exactly typed per port, so a read
  *   can call the entry for its own tag without asking whether there is one.
  *   Defaulted to the structural bound at `P`, which is all generic code needs.
+ * - `SpanName` — the span `PortAccess.ts` opens around a read of this port, as
+ *   the one literal its module states (`typeof` a module-private constant).
+ *   The registry reads it back (`PortSpanOf`, `Ports.ts`), so the union of the
+ *   five is derived from the descriptions and no table beside them restates it,
+ *   and `DistinctSpanNames` (`PortDerivation.ts`) refuses two registry entries
+ *   whose spans overlap and a span that is not one literal. Defaulted to the pattern every span name matches, which is all generic
+ *   code needs.
+ * - `FixtureData` — the plain data {@link PortDescription.fixture} builds the
+ *   port's layer from. Plain by convention: the parameter is not bounded, so a
+ *   function or a `Layer` type would compile here, and review is what keeps
+ *   each port's data a table or a list of rows. Defaulted to `never`, so
+ *   generic code can only name the builder, and a call with data has to be
+ *   written against one port's own type.
  */
 export interface PortDescription<
   N extends PortName,
@@ -176,6 +190,8 @@ export interface PortDescription<
   P extends ReadonlyArray<unknown> = Args,
   Span extends PortSpanAttributesLike = PortSpanAttributesLike,
   Asks extends LeafRequests<P> = LeafRequests<P>,
+  SpanName extends `qadi.${string}` = `qadi.${string}`,
+  FixtureData = never,
 > {
   /** The port's name — the word its metrics are keyed by. */
   readonly port: N;
@@ -185,8 +201,14 @@ export interface PortDescription<
    * configured deadline"`.
    */
   readonly method: string;
-  /** The span `PortAccess.ts` opens around a read of this port (BEH-QD-227). */
-  readonly span: PortSpanOf<N>;
+  /**
+   * The span `PortAccess.ts` opens around a read of this port (BEH-QD-227): the
+   * port's own literal, given as the `SpanName` type argument. Two registry
+   * entries cannot share one (`DistinctSpanNames`, `PortDerivation.ts`, applied
+   * at `PORTS`); a description outside the registry is not checked, and its span
+   * can be any `qadi.` name.
+   */
+  readonly span: SpanName;
   /**
    * What that span says: the question annotated before the call, the answer
    * annotated after it, and the two projections that fill them, `pose` from a
@@ -308,6 +330,20 @@ export interface PortDescription<
    * all read it here.
    */
   readonly none: { readonly name: string; readonly answer: A };
+  /**
+   * Builds this port's layer from plain data: a static table, a list of rows or
+   * a map of fixed answers.
+   *
+   * The one place the data-to-layer mapping is written: `PORT_FIXTURES`
+   * (`Ports.ts`) projects it by port name, and `fixturePortsLayer`, which
+   * `@qadi/testing`'s review layer and `@qadi/devtools`' Fixtures simulation
+   * build with, reads it there. The data is meant to be data, never a layer,
+   * because devtools' Fixtures mode is sealed and takes data; `FixtureData` is
+   * not bounded, so that is a convention review checks, not one the type
+   * enforces. Required, so a port cannot be described without saying how a test
+   * or a simulation fills it.
+   */
+  readonly fixture: (data: FixtureData) => Layer.Layer<Self>;
 }
 
 /**

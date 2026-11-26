@@ -1787,6 +1787,112 @@ describe("the services store", () => {
   );
 });
 
+describe("the hydration store", () => {
+  it.effect("M57: the hydration store holds Unwired on a bare model, Pending while the poll layer is still building, and the counts handed to it from the first snapshot", () =>
+    Effect.gen(function* () {
+      const bare = yield* makeDockModel();
+      assert.strictEqual(bare.hydration.getSnapshot()._tag, "Unwired");
+
+      const starting = yield* dockModelOf({ diagnostics: { layer: Layer.effectDiscard(Effect.never) } });
+      assert.strictEqual(starting.hydration.getSnapshot()._tag, "Pending");
+
+      const supplied = yield* dockModelOf({ reading: { hydration: suppliedHydration } });
+      const view = supplied.hydration.getSnapshot();
+      assert.strictEqual(view._tag, "Counts");
+      if (view._tag === "Counts") {
+        assert.strictEqual(view.dehydrated, 2);
+        assert.strictEqual(view.seeded, 1);
+      }
+    }),
+  );
+});
+
+describe("the hydration store's identity", () => {
+  it.effect("M58: a poll whose reading equals the last publishes nothing from the hydration store, and a configure handing it other counts publishes it once", () =>
+    Effect.gen(function* () {
+      const { collector } = makeCollectorDouble();
+      const diagnostics = { collector };
+      const model = yield* dockModelOf({ diagnostics });
+      yield* settleTurns;
+      const before = model.hydration.getSnapshot();
+      const heard = heardOn(model.hydration);
+
+      yield* TestClock.adjust("10 seconds");
+      yield* settleTurns;
+
+      assert.strictEqual(heard.calls, 0);
+      assert.strictEqual(model.hydration.getSnapshot(), before);
+
+      model.configure({ diagnostics, reading: { hydration: suppliedHydration } });
+
+      assert.strictEqual(heard.calls, 1);
+      const view = model.hydration.getSnapshot();
+      assert.strictEqual(view._tag, "Counts");
+      if (view._tag === "Counts") {
+        assert.strictEqual(view.dehydrated, 2);
+        assert.strictEqual(view.seeded, 1);
+      }
+
+      model.configure({ diagnostics, reading: { hydration: suppliedHydration } });
+
+      assert.strictEqual(heard.calls, 1);
+    }),
+  );
+
+  it.effect("M59: with counts handed to it, the flip from Starting to Live publishes the hydration store once and the two views are equal, because its key compares the unsampled flag by identity", () =>
+    Effect.gen(function* () {
+      const layer = Layer.effectDiscard(Effect.sleep("1 second"));
+      const model = yield* dockModelOf({ diagnostics: { layer }, reading: { hydration: suppliedHydration } });
+      assert.isTrue(DiagnosticsStatus.$is("Starting")(model.diagnostics.getSnapshot().status));
+      const before = model.hydration.getSnapshot();
+      const heard = heardOn(model.hydration);
+
+      yield* settleTurns;
+      yield* TestClock.adjust("1 second");
+      yield* settleTurns;
+
+      assert.isTrue(DiagnosticsStatus.$is("Live")(model.diagnostics.getSnapshot().status));
+      const after = model.hydration.getSnapshot();
+      assert.strictEqual(heard.calls, 1);
+      assert.notStrictEqual(after, before);
+      assert.isTrue(Equal.equals(before, after));
+    }),
+  );
+
+  it.effect("M60: with counts handed to it, a poll that stops after a sample publishes nothing from the hydration store, and Off to Live passes through Starting, so the reference moves and both ends are equal", () =>
+    Effect.gen(function* () {
+      let fail = false;
+      const { collector } = makeCollectorDouble(() => {
+        if (fail) throw new Error("the collector blew up");
+        return { calls: [], dropped: 0, capacity: 10 };
+      });
+      const reading = { hydration: suppliedHydration };
+      const model = yield* dockModelOf({ diagnostics: { collector }, reading });
+      const before = model.hydration.getSnapshot();
+      const heard = heardOn(model.hydration);
+
+      fail = true;
+      yield* TestClock.adjust("2 seconds");
+
+      const { status } = model.diagnostics.getSnapshot();
+      if (!DiagnosticsStatus.$is("Stopped")(status)) return assert.fail("expected Stopped");
+      assert.isTrue(status.sampled);
+      assert.strictEqual(model.hydration.getSnapshot(), before);
+      assert.strictEqual(heard.calls, 0);
+
+      // Off to Live passes through Starting, where the flag is set, so the reference moves; both ends read alike.
+      const off = yield* dockModelOf({ reading });
+      assert.isTrue(DiagnosticsStatus.$is("Off")(off.diagnostics.getSnapshot().status));
+      const offView = off.hydration.getSnapshot();
+      off.configure({ diagnostics: {}, reading });
+      assert.isTrue(DiagnosticsStatus.$is("Live")(off.diagnostics.getSnapshot().status));
+      const onView = off.hydration.getSnapshot();
+      assert.notStrictEqual(onView, offView);
+      assert.isTrue(Equal.equals(offView, onView));
+    }),
+  );
+});
+
 describe("the stores of the model", () => {
   it.effect(
     "a built model's members with subscribe and getSnapshot are exactly this list",
@@ -1813,6 +1919,7 @@ describe("the stores of the model", () => {
           "timelineStatus",
           "questions",
           "services",
+          "hydration",
           "lens",
         ]);
       }),

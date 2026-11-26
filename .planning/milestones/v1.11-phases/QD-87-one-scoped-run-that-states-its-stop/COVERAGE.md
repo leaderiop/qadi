@@ -1,0 +1,1 @@
+No external API integration: an internal refactor of `@qadi/devtools`' model (a package-private stated run above the existing `SupersedingRun`, one configure prologue, the Simulator's broken-run text) over the already-installed effect 4.1.2; no third-party API, SDK, service or package is added (the detector over the ROADMAP entry and 87-CONTEXT.md returned `detected: false`).

@@ -420,6 +420,51 @@
 
 ---
 
+## Milestone: v1.11 — Arch Wave 16
+
+**Shipped:** 2026-11-27 (completed; not merged, not released; off `main` at `ac7578f3`)
+**Phases:** 7 (85–91) | **Plans:** 88 | **Sessions:** one autonomous run (`/gsd-autonomous`), with context compactions
+
+### What Was Built
+- ARCH-132: the dock's hydration block is a model row worked out by a pure `hydrationView`; the dock frame reads only the poll's status.
+- ARCH-133: `QadiProvider`'s registry lifetime has a React-free owner (`makeRegistryOwner`); the provider only forwards.
+- ARCH-134: one stated run (`makeStatedRun`) owns publish-then-fork and one stop rule for three feeds, with one configure prologue shared with gates; `ForkHooks.onFailure` removed.
+- ARCH-135: `StoppedBox` keys itself from a pure `StopLedger`; no ref is read during render.
+- ARCH-136: a host's audit batch passes one admission step, each input read once, before any of the four entry points uses it.
+- ARCH-137: each port's span and fixture live on its description and `ScopedPort` is derived from the leaf rows (Breaking `@qadi/core` minor).
+- ARCH-138: core, react and audit take parser-checked named barrels; five visibility-only files fold into their concept's module, each proven acyclic; `surface-diff.mjs` holds the public surface identical.
+
+### What Worked
+- Phase 91 measured all ten fold candidates on scratch clones before moving anything: seven acyclic, three cycles, every verdict matching research, so no fold was attempted and backed out.
+- A surface diff read from the built declarations (name and kind per export) made "the barrel change moved nothing" a checked fact rather than a claim, and it now runs as a merge step.
+- The earlier-checks ledger, keyed on exact commit subjects, re-ran six phases' checks (87 runs) at the last close and named every expected move.
+- Mutation drops were always closed with a test: `PortSpanEncode.ts` went from 17/21 at the base to 23/23 after the fold.
+- The milestone audit re-verified the four phases later work had made stale (86, 87, 89, 90) in parallel, and found no break.
+
+### What Was Inefficient
+- Executor briefs forbade marking requirements, so plan SUMMARYs carry `requirements-completed: []`, and the audit had to cross-check 41 requirements by hand against each VERIFICATION table.
+- Phase 90's validation record went stale after its own review round closed gaps; the audit caught it and fixed it in a separate commit.
+- The Phase 91 fix round missed the barrel header comments (old three-edit wording) on its first pass; a second fixer pass and a fourth changeset were needed.
+- `milestone.complete` wrote a MILESTONES entry of 88 SUMMARY one-liners; it was rewritten by hand into the curated shape.
+- Re-verifiers wrote temporary files into the orchestrator's scratchpad against their brief (cleaned up, nothing lost).
+
+### Patterns Established
+- A house rule over file shape (a named barrel) is checked through the TypeScript parser, and every run plants one violation of each kind to see the rule refuse it.
+- A fold that would add an import cycle is broken with a package-private structural type (`HydrationTarget`) rather than left as a separate visibility-only file.
+- A packed declaration file is refused if it names a path outside its package or into `src/` (gate 14, check 3c).
+
+### Key Lessons
+1. Let executors mark the requirements their plan completes; withholding it moves the work to the audit and makes it manual.
+2. A phase's validation record must be updated in the same round that closes its gaps, or the audit inherits a stale record.
+3. Measure every structural move on a scratch clone before the real tree changes; it turns a risky refactor into replaying verdicts already seen.
+
+### Cost Observations
+- Model mix: opus for the orchestrator; sonnet for executors, fixers, checkers, verifiers, auditors and the integration check.
+- Sessions: one long autonomous run across several context compactions.
+- Notable: 455 commits over three days. Outside `.planning`, 221 files changed (+16,071 / −2,160). Thirteen changesets, one of them a Breaking minor.
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -436,6 +481,7 @@
 | v1.8 | 1 (autonomous) | 8 | Review-driven totality; first-commit contract and agreement checks; post-review mutation re-close per phase; close sweep re-runs each phase's record checks |
 | v1.9 | 1 (autonomous) | 4 | Base-held characterisations with declared flips; headless sessions under the mutation gate; earlier phases' record scripts re-run at each phase close |
 | v1.10 | 1 (autonomous) | 4 | Two live defects RED on base with load-bearing scratch variants; audit, integration and re-verifications run in parallel; review choices pinned by type refusals |
+| v1.11 | 1 (autonomous) | 7 | Every structural move measured on scratch clones first; a declared-surface diff as a merge step; parser-checked named barrels; four stale phases re-verified in parallel at the audit |
 
 ### Cumulative Quality
 
@@ -451,9 +497,10 @@
 | v1.8 | vitest 255 files / 6363 tests, BDD 568, type tests 43, e2e 30, tstyche 863 of 869 assertions passed (both passes) | core ≥95%, others ≥90% (enforced); every phase's mutation compare passes after review (one recorded equivalent survivor) | 0 |
 | v1.9 | vitest 6550 tests, BDD 568, examples 43, tstyche 77 files / 415 tests | 99.67% statements / 99.83% lines overall; every phase's mutation compare passes after review, the new LensSession at 52/52 | 0 |
 | v1.10 | vitest 280 files / 6638 tests, BDD 568, examples 43, tstyche 78 files / 425 tests | 99.67% statements / 99.83% lines overall; every phase's mutation compare passes after review (LensSession 47/47, RegistryLease 28/28) | 0 |
+| v1.11 | vitest 6981 tests (`check:pr` at `32f9c3ff`) | core ≥95%, others ≥90% (enforced); no touched file's mutation score fell (PortSpanEncode 23/23, ArchiveFacts 54/54, RegistryLease 28/28, StopLedger 12/12) | 0 |
 
 ### Top Lessons (Verified Across Milestones)
 
-1. Re-verify at close: a later phase that touches shared files makes earlier verification stale (v1.0: 4 phases; v1.2: 3 phases; v1.3: 6 phases; v1.4: 3 phases; v1.5: 5 phases). v1.6 relied on each phase's own verifier plus the milestone integration check (2649 core and 1647 devtools tests at the audit head) instead of per-phase re-verification. v1.7 made it mechanical: a staleness script names the stale phases and a driver re-verifies them (63, 67, 68 and 68.1 after the final fixes). v1.8: six of eight phases went stale at the close (69–72, 74, 75), and re-verification found one real break, a phase's record check failing because a later phase edited a shared test helper. v1.9: two of four went stale (78, 79), only through line moves; no break, because each phase close re-ran the earlier phases' record scripts. v1.10: two of four went stale (81, 83), through later phases' real edits to shared files; no break, and every earlier-script report traced to a later phase's record.
+1. Re-verify at close: a later phase that touches shared files makes earlier verification stale (v1.0: 4 phases; v1.2: 3 phases; v1.3: 6 phases; v1.4: 3 phases; v1.5: 5 phases). v1.6 relied on each phase's own verifier plus the milestone integration check (2649 core and 1647 devtools tests at the audit head) instead of per-phase re-verification. v1.7 made it mechanical: a staleness script names the stale phases and a driver re-verifies them (63, 67, 68 and 68.1 after the final fixes). v1.8: six of eight phases went stale at the close (69–72, 74, 75), and re-verification found one real break, a phase's record check failing because a later phase edited a shared test helper. v1.9: two of four went stale (78, 79), only through line moves; no break, because each phase close re-ran the earlier phases' record scripts. v1.10: two of four went stale (81, 83), through later phases' real edits to shared files; no break, and every earlier-script report traced to a later phase's record. v1.11: four of seven went stale (86, 87, 89, 90); re-verified in parallel at the audit, no break.
 2. Run review → fix after verification passes: it found warnings verification missed in every milestone.
 3. Shape tooling inputs so tools can read them: v1.0's requirement ranges and v1.2's grouped traceability rows both forced hand edits.

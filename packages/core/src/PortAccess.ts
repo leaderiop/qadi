@@ -16,9 +16,10 @@
  * policy leaf it answers and builds its request through the port's description
  * (`asks`, the one statement of what a leaf asks, ARCH-70), then runs `readPort`
  * (ADR-QD-109), a plain function that opens no span of its own, or `readScoped`
- * where the question is about one resource. A host answering another process
- * (`servePortRead`) runs the same body under the port's span, so a served span
- * is a local one of the same request apart from `qadi.interpreter`.
+ * for a port whose question can be about one resource, which routes on its
+ * port's need, the type its leaves' `LEAF_NEEDS` rows compute. A host answering
+ * another process (`servePortRead`) runs the same body under the port's span, so
+ * a served span is a local one of the same request apart from `qadi.interpreter`.
  *
  * Deliberately out of the barrel (AGENTS.md §9): scaffolding shared by the two
  * interpreters, like `PortDerivation.ts`, and not importable from outside
@@ -44,6 +45,7 @@ import { decisionHistoryPort } from "./DecisionHistory.ts";
 import type { AttributeResolveError, DecisionHistoryUnavailable } from "./Errors.ts";
 import type { MissingResourceId } from "./Errors.ts";
 import type { ResourceId } from "./Identity.ts";
+import type { LEAF_NEEDS } from "./LeafNeeds.ts";
 import { isOwnKey, ownValue } from "./Operand.ts";
 import type { LeafOf } from "./PortDescription.ts";
 import { portCallsTotal, predicatePortCallsTotal, servedPortCallsTotal } from "./PortMetrics.ts";
@@ -216,10 +218,27 @@ const readPort = <K extends PortName>(
   });
 
 /**
- * The ports whose question is about one resource, written out so a fourth is a
- * decision and not a side effect.
+ * The leaf tags that ask a port about one resource: every tag whose
+ * `LEAF_NEEDS` row says `resourceId` is `"Always"` or `"ByScope"`, so a leaf
+ * reclassified there changes this set and nothing here restates it.
  */
-type ScopedPort = "DecisionHistory" | "RelationshipResolver" | "SignatureHistory";
+type ScopedLeafTag = {
+  readonly [T in keyof typeof LEAF_NEEDS]: (typeof LEAF_NEEDS)[T]["resourceId"] extends "Never"
+    ? never
+    : T;
+}[keyof typeof LEAF_NEEDS];
+
+/**
+ * The ports whose question is about one resource: every port that reads a
+ * {@link ScopedLeafTag}, from the leaves its description's `asks` lists.
+ *
+ * Derived, so a port that starts reading a scoped leaf joins the set and the
+ * tables keyed by it ask for its entry (TS2741) instead of a hand-written union
+ * being widened by a side effect.
+ */
+type ScopedPort = {
+  readonly [K in PortName]: [keyof PortTypes[K]["asks"] & ScopedLeafTag] extends [never] ? never : K;
+}[PortName];
 
 /**
  * A scoped port's request, as far as the site supplied it: what its `asks`
@@ -229,21 +248,81 @@ type ScopedPort = "DecisionHistory" | "RelationshipResolver" | "SignatureHistory
 type ScopedRequest<K extends ScopedPort> = AskedOf<PortTypes[K]> &
   readonly [{ readonly resourceId: ResourceId | undefined }];
 
+/** The scoped leaf tags port `K` reads: the tags its `asks` lists whose row is not `"Never"`. */
+type ScopedLeafTagOf<K extends ScopedPort> = keyof PortTypes[K]["asks"] & ScopedLeafTag;
+
+/** The scoped leaves port `K` reads, so a read is handed only a leaf of its own port. */
+type ScopedLeafOf<K extends ScopedPort> = LeafOf[ScopedLeafTagOf<K>];
+
+/** The row of the scoped leaf `T`: `"Always"` or `"ByScope"`, never `"Never"`. */
+type NeedOf<T extends ScopedLeafTag> = (typeof LEAF_NEEDS)[T]["resourceId"];
+
+/** What the scoped leaves of port `K` need, as the union of their rows. */
+type PortNeed<K extends ScopedPort> = NeedOf<ScopedLeafTagOf<K>>;
+
+/** The call of a port whose every scoped leaf's row is `"Always"`: it has no id-free call. */
+interface AlwaysCall<K extends ScopedPort> {
+  readonly need: "Always";
+  /**
+   * The request once it is known to have an id.
+   *
+   * For the relationship port, whose call cannot hold a missing id, it is the
+   * same request with the id the read just checked written in.
+   */
+  readonly withId: (request: AskedOf<PortTypes[K]>, resourceId: ResourceId) => ArgsOf<PortTypes[K]>;
+}
+
+/** The call of a port whose every scoped leaf's row is `"ByScope"`: with an id, and without one. */
+interface ByScopeCall<K extends ScopedPort> {
+  readonly need: "ByScope";
+  /** The request once it is known to have an id, which it already carries. */
+  readonly withId: (request: AskedOf<PortTypes[K]>, resourceId: ResourceId) => ArgsOf<PortTypes[K]>;
+  /** The request of a leaf that asks about the subject alone, which is already the call. */
+  readonly bare: (request: AskedOf<PortTypes[K]>) => ArgsOf<PortTypes[K]>;
+  /**
+   * Whether one of the port's own leaves asks about one resource: the shared
+   * scope test, `isResourceScoped`.
+   *
+   * Typed over the port's own leaves, so a `"ByScope"` port one of whose leaves
+   * carries no `scope` is a compile error where its row is written, rather than a
+   * read that cannot tell the leaf's scope and skips the id check.
+   */
+  readonly resourceScoped: (leaf: ScopedLeafOf<K>) => boolean;
+}
+
 /**
- * How a scoped port's request, once it is known to have a resource id, becomes
- * the call: for two ports it already is the call, and for the relationship port,
- * whose call cannot hold a missing id, it is the same request with the id the
- * read just checked.
+ * How one scoped port's request becomes its call, as its leaves' rows decide:
+ * {@link AlwaysCall} when every row is `"Always"`, {@link ByScopeCall} when
+ * every row is `"ByScope"`.
+ *
+ * A port whose leaves mix the two rows has no call (`never`), so the row written
+ * for it does not compile, and a reclassified row is a compile error where its
+ * port's entry in {@link scopedCall} is written.
  */
-const completeRequest: {
-  readonly [K in ScopedPort]: (
-    request: AskedOf<PortTypes[K]>,
-    resourceId: ResourceId,
-  ) => ArgsOf<PortTypes[K]>;
-} = {
-  DecisionHistory: (request) => request,
-  RelationshipResolver: ([request], resourceId) => [{ ...request, resourceId }],
-  SignatureHistory: (request) => request,
+type ScopedCall<K extends ScopedPort> = [PortNeed<K>] extends ["Always"]
+  ? AlwaysCall<K>
+  : [PortNeed<K>] extends ["ByScope"]
+    ? ByScopeCall<K>
+    : never;
+
+/** The call of each scoped port, keyed by the derived {@link ScopedPort} so a new one asks for its entry. */
+const scopedCall: { readonly [K in ScopedPort]: ScopedCall<K> } = {
+  DecisionHistory: {
+    need: "ByScope",
+    withId: (request) => request,
+    bare: (request) => request,
+    resourceScoped: isResourceScoped,
+  },
+  RelationshipResolver: {
+    need: "Always",
+    withId: ([request], resourceId) => [{ ...request, resourceId }],
+  },
+  SignatureHistory: {
+    need: "ByScope",
+    withId: (request) => request,
+    bare: (request) => request,
+    resourceScoped: isResourceScoped,
+  },
 };
 
 /** What `readScoped` asks `requireResourceId` about: a leaf always about one resource. */
@@ -251,20 +330,24 @@ const RESOURCE_SCOPED = { scope: "Resource" } as const;
 
 /**
  * The one read of a port whose question is about one resource: a request with
- * no resource id fails with `MissingResourceId` on the port's own span.
+ * no resource id fails with `MissingResourceId` on the port's own span, where
+ * the leaf's row says it needs one.
  *
- * Before it the check was written three times and the failure's trace depended
- * on the copy: two reads opened a nested helper span and the third inlined the
- * check to avoid it (ARCH-70, ADR-QD-134). Now a missing id leaves the port's
- * span, its question and the failure, and nothing else: no other span opens,
- * the port is not called and no call is counted. Annotate-before-validate is
- * still ADR-QD-077's rule, so a span that records a wiring error names what it
- * was asked: the question is the description's `pose`
- * of the request as far as it is known, with `scope` the read's own fact (an
- * absent id still makes this a `Resource` question, and `pose` would say `Any`;
- * a span with no `scope` drops it). A present id is `readPort` alone, which
- * annotates the question once; ADR-QD-109's second, agreeing annotation is
- * retired with the early one.
+ * The leaf's `LEAF_NEEDS` row decides (`LeafNeeds.ts`), through the type of its
+ * port's entry in {@link scopedCall}, which the rows of the port's leaves compute:
+ * an `"Always"` port's call has no id-free branch, and a `"ByScope"` port's reads
+ * a leaf without an id only when its `scope` is not `"Resource"` (`resourceScoped`,
+ * the shared `isResourceScoped`). No row is looked up per read: the compiler reads
+ * it where the entry is written, and the read narrows on the entry's `need`. A leaf
+ * that needs none is `readPort` alone, asked about the subject alone. A missing id
+ * leaves the port's span, its question and the failure, and nothing else: no
+ * other span opens, the port is not called and no call is counted.
+ * Annotate-before-validate is ADR-QD-077's rule, so a span that records a wiring
+ * error names what it was asked: the question is the description's `pose` of the
+ * request as far as it is known, with `scope` the read's own fact (an absent id
+ * still makes this a `Resource` question, and `pose` would say `Any`; a span with
+ * no `scope` drops it). A present id is `readPort` alone, which annotates the
+ * question once.
  *
  * `relation` is what `MissingResourceId` names: the event, the relation or the
  * meaning the leaf asks. A plain function, like `readPort`: it runs under the
@@ -272,20 +355,24 @@ const RESOURCE_SCOPED = { scope: "Resource" } as const;
  * `UNTRACED_BUDGET`. The one id test is `requireResourceId` (`ScopedLeaf.ts`),
  * which the fixture judgements call too, over the request `asks` built, whose
  * `resourceId` is `resourceIdOf` (`Resource.ts`), the writer's rule and the
- * reader's. The caller has routed on the leaf's scope, so this read asks it as a
- * leaf that is always about one resource, which is also what `hasRelationship` is.
+ * reader's.
  */
 const readScoped = <K extends ScopedPort>(
   d: DescriptionOf<K>,
   interpreter: Interpreter,
+  leaf: ScopedLeafOf<K>,
   request: ScopedRequest<K>,
   relation: string,
 ): Effect.Effect<
   AnswerOf<PortTypes[K]>,
   ErrorOf<PortTypes[K]> | MissingResourceId,
   ServiceOf<PortTypes[K]>
-> =>
-  Effect.gen(function* () {
+> => {
+  const call: AlwaysCall<K> | ByScopeCall<K> = scopedCall[d.port];
+  if (call.need === "ByScope" && !call.resourceScoped(leaf)) {
+    return readPort(d, interpreter, call.bare(request));
+  }
+  return Effect.gen(function* () {
     const [{ resourceId }] = request;
     const found = requireResourceId(RESOURCE_SCOPED, resourceId, relation);
     if (Result.isFailure(found)) {
@@ -296,9 +383,27 @@ const readScoped = <K extends ScopedPort>(
       });
       return yield* Effect.fail(found.failure);
     }
-    const args = completeRequest[d.port](request, found.success);
-    return yield* readPort(d, interpreter, args);
+    return yield* readPort(d, interpreter, call.withId(request, found.success));
   });
+};
+
+/**
+ * The read of a port whose question is never about one resource: `readPort`,
+ * typed to refuse every {@link ScopedPort}.
+ *
+ * It is `readPort` itself, not a wrapper, so it costs nothing at run time. A
+ * direct read names this and not `readPort`, so a leaf reclassified in
+ * `LeafNeeds.ts` to need a resource id makes its port scoped, and the read that
+ * still goes straight to the port is a compile error here until it routes
+ * through {@link readScoped}. `readScoped` and `servePortRead` keep `readPort`'s
+ * own signature: the first is the scoped route, and the second answers a remote
+ * asker's already-routed question.
+ */
+const readUnscoped: <K extends Exclude<PortName, ScopedPort>>(
+  d: DescriptionOf<K>,
+  interpreter: Interpreter,
+  args: ArgsOf<PortTypes[K]>,
+) => Effect.Effect<AnswerOf<PortTypes[K]>, ErrorOf<PortTypes[K]>, ServiceOf<PortTypes[K]>> = readPort;
 
 // ---------------------------------------------------------------------------
 // The reads. Each is a named `Effect.fn`, because each owns a span (ADR-QD-051:
@@ -307,8 +412,9 @@ const readScoped = <K extends ScopedPort>(
 // `evaluateAllOf`/`evaluateAnyOf`/`evaluateRules` do, and the port call under
 // them is the expensive part. Each takes the leaf it answers, builds its request
 // through the port's description, `<port>Port.asks.<Tag>(leaf, { subject,
-// resource })`, and hands the rest to `readPort`, the one body (ADR-QD-109), or
-// to `readScoped` for a question about one resource; the signature match is the
+// resource })`, and hands the rest to `readUnscoped`, the one body (`readPort`,
+// ADR-QD-109) typed for a port whose question is about no one resource, or
+// to `readScoped` for a leaf of a scoped port; the signature match is the
 // one thing a read does after. That call is all a read does with a description's
 // statement of what is served: serving work never runs on the evaluation path.
 // ---------------------------------------------------------------------------
@@ -334,7 +440,7 @@ const resolveAttribute = Effect.fn(attributeResolverPort.span)(function* (
   interpreter: Interpreter,
   request: ArgsOf<PortTypes["AttributeResolver"]>,
 ) {
-  return yield* readPort(attributeResolverPort, interpreter, request);
+  return yield* readUnscoped(attributeResolverPort, interpreter, request);
 });
 
 /**
@@ -381,11 +487,12 @@ export const isAnyActedLeaf = (leaf: ActedLeaf): leaf is AnyActedLeaf => leaf.sc
  * Reads the decision history for an acted leaf, of either scope, under the
  * `qadi.acted` span.
  *
- * The one body behind {@link askActed}, which only narrows its type. A
- * `Resource`-scoped leaf goes through `readScoped`, so a missing resource id is
- * the port's own span and a `MissingResourceId`; an `Any`-scoped one asks about
- * the subject alone. The leaf's scope decides both the request and the route
- * through the one shared test (`isResourceScoped`, INV-QD-288).
+ * The one body behind {@link askActed}, which only narrows its type. Both
+ * scopes go through `readScoped`: a `Resource`-scoped leaf with no resource id
+ * is the port's own span and a `MissingResourceId`, and an `Any`-scoped one
+ * asks about the subject alone. The leaf's scope decides the request (`asks`)
+ * and, through its `ByScope` row, whether the read needs an id, by the one
+ * shared test (`isResourceScoped`, INV-QD-288).
  */
 const readActed = Effect.fn(decisionHistoryPort.span)(function* (
   interpreter: Interpreter,
@@ -394,9 +501,7 @@ const readActed = Effect.fn(decisionHistoryPort.span)(function* (
   resource: Resource | undefined,
 ) {
   const request = decisionHistoryPort.asks[leaf._tag](leaf, { subject, resource });
-  return isResourceScoped(leaf)
-    ? yield* readScoped(decisionHistoryPort, interpreter, request, leaf.event)
-    : yield* readPort(decisionHistoryPort, interpreter, request);
+  return yield* readScoped(decisionHistoryPort, interpreter, leaf, request, leaf.event);
 });
 
 /**
@@ -450,7 +555,7 @@ export const askRelationship = Effect.fn(relationshipResolverPort.span)(function
   resource: Resource | undefined,
 ) {
   const request = relationshipResolverPort.asks.HasRelationship(leaf, { subject, resource });
-  return yield* readScoped(relationshipResolverPort, "evaluate", request, leaf.relation);
+  return yield* readScoped(relationshipResolverPort, "evaluate", leaf, request, leaf.relation);
 });
 
 /**
@@ -465,7 +570,7 @@ export const askCustom = Effect.fn(customPredicatePort.span)(function* (
   leaf: LeafOf["HasCustom"],
   resource: Resource | undefined,
 ) {
-  return yield* readPort(
+  return yield* readUnscoped(
     customPredicatePort,
     "evaluate",
     customPredicatePort.asks.HasCustom(leaf, { subject, resource }),
@@ -492,10 +597,7 @@ export const askSignature = Effect.fn(signatureHistoryPort.span)(function* (
   resource: Resource | undefined,
 ) {
   const request = signatureHistoryPort.asks.HasSignature(leaf, { subject, resource });
-  const signatures =
-    isResourceScoped(leaf)
-      ? yield* readScoped(signatureHistoryPort, "evaluate", request, leaf.meaning)
-      : yield* readPort(signatureHistoryPort, "evaluate", request);
+  const signatures = yield* readScoped(signatureHistoryPort, "evaluate", leaf, request, leaf.meaning);
   const answer: SignatureAnswer = signatureAnswerOf(
     signatures,
     leaf.meaning,

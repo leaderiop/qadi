@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-077                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-10-04                                     |
 > | Status         | Accepted                                       |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-11-11): amendment — ARCH-70: every read takes its leaf and builds its request through asks; the resource-id check is readScoped, not requireResourceId (ADR-QD-134, CCR-QD-412)<br>1.2 (2026-11-08): amendment — every port read, local or served, is one body, readPort (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.1 (2026-10-07): addendum — a pure short-circuit stepper both interpreters would call was not adopted; the benchmark gate could not be met on a loaded machine (ARCH-26, CCR-QD-192)<br>1.0 (2026-10-04): Initial release (CCR-QD-153) |
+> | Change History | 1.4 (2026-11-26): note: decodePortSpan is declared in PortSpanEncode.ts beside the encoder (ADR-QD-204, CCR-QD-483)<br>1.3 (2026-11-11): amendment — ARCH-70: every read takes its leaf and builds its request through asks; the resource-id check is readScoped, not requireResourceId (ADR-QD-134, CCR-QD-412)<br>1.2 (2026-11-08): amendment — every port read, local or served, is one body, readPort (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.1 (2026-10-07): addendum — a pure short-circuit stepper both interpreters would call was not adopted; the benchmark gate could not be met on a loaded machine (ARCH-26, CCR-QD-192)<br>1.0 (2026-10-04): Initial release (CCR-QD-153) |
 
 ---
 
@@ -238,3 +238,7 @@ annotate sequence. See [ADR-QD-109](109-a-ports-span-is-projected-once-and-every
 > span, annotates the question first and fails `MissingResourceId`, so a missing id leaves the port's
 > span and nothing else. Annotate-before-validate is unchanged. See
 > [ADR-QD-134](134-a-resource-scoped-port-read-is-one-read.md).
+
+> **Note (2026-11-26, ADR-QD-204, CCR-QD-483).** `decodePortSpan` is declared in `PortSpanEncode.ts`,
+> beside the encoder whose fields it reads back, and is that module's only public name; the rest of
+> the module is package-private ([ADR-QD-204](204-named-barrels-and-visibility-only-files-folded-away.md)).

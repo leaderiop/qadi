@@ -1,5 +1,26 @@
 # Milestones
 
+## v1.11 Arch Wave 16 (Shipped: 2026-11-27)
+
+**Delivered:** all seven candidates of the 2026-11-25 architecture review, on branch `arch-wave-16` (off `main` at `ac7578f3`). Not merged, not released.
+
+**Phases completed:** 7 phases (85–91), 88 plans, 115 tasks. 455 commits; 221 files, +16,071 / −2,160 outside `.planning`.
+
+**Key accomplishments:**
+- 85: the dock's hydration block is a model row. A pure, package-private `hydrationView` (a closed `Pending | Unwired | Counts` union) is served as `DockModel.hydration`, the fifth derived store; `DockFrame` reads only the poll's status, so a counts-only poll commits nothing under the dock (`@qadi/devtools` patch; ADR-QD-198).
+- 86: `QadiProvider`'s registry lifetime has a React-free owner. `makeRegistryOwner` builds, seeds, writes the subject and recycles through the unchanged lease (19/19 mutants killed); the provider only forwards, commit first and hold last (`@qadi/react` patch; ADR-QD-199).
+- 87: one scoped run that states its stop. `makeStatedRun` owns publish-then-fork and one stop rule (a current run's non-success exit is stated with `causeMessage`) for the timeline, diagnostics and simulation feeds; `makeConfigure` is the one configure prologue, shared with the gates feed; `ForkHooks.onFailure` removed (`@qadi/devtools` and `@qadi/core` patches; ADR-QD-200).
+- 88: `StoppedBox` keys itself and owns announce-once through a pure `StopLedger` and one `useReducer` per feed; no stop-path file reads a ref during render (`@qadi/devtools` patch; ADR-QD-201).
+- 89: one admission step for a host's audit batch: `now`, rows and key material are each read once and refused in one order before `archiveAuditTrail`, `planRetention`, `verifiedArchiveFacts` or `planPurge` uses them (`@qadi/audit` patch; ADR-QD-202).
+- 90: each port's span name and fixture live on its description and `ScopedPort` is derived from the leaf rows; `readScoped` routes off its row; a sixth port fails to compile without its facts (Breaking `@qadi/core` minor with an upgrade guide; `@qadi/http` patch; ADR-QD-203).
+- 91: `@qadi/core`, `@qadi/react` and `@qadi/audit` take named barrels under a parser-based `named-barrel` rule, and five visibility-only files fold into the modules that own their concepts, each proven acyclic by madge; `surface-diff.mjs` (merge step 27) holds the public surface identical; gate 14 refuses a declaration that escapes its package (patches to core, react, audit and devtools; ADR-QD-204).
+
+**Quality:** every phase was code-reviewed with one fix round, mutation re-taken (no touched file's score fell; drops were closed by tests, never labelled EQUIVALENT), secured (0 open threats) and Nyquist-validated. The audit is `passed` (41/41 requirements, 6/6 integration seams, 4/4 flows); it re-verified Phases 86, 87, 89 and 90, which later phases had made stale. `check:pr` was last green at `32f9c3ff` (6981 tests). Thirteen changesets: one Breaking `@qadi/core` minor and twelve patches; api-surface 942 → 943 exports.
+
+**Known verification overrides:** none newly acknowledged. The audit-open scan was clear, with 2 items acknowledged in an earlier milestone and still suppressed. Phase 90 truth 3 carries a verifier override accepted autonomously (recorded in `90-VERIFICATION.md`).
+
+---
+
 ## v1.10 Arch Wave 15 (Shipped: 2026-11-25)
 
 **Delivered:** all four candidates of the 2026-11-24 architecture review, on branch `arch-wave-15` (stacked on `arch-wave-14`). Not merged, not released.
