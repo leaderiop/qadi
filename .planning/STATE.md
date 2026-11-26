@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 91
 current_phase_name: Named barrels, and visibility-only files folded away
 status: executing
-stopped_at: Completed 91-16-PLAN.md
-last_updated: "2026-11-26T20:05:19.832Z"
+stopped_at: Completed 91-17-PLAN.md
+last_updated: "2026-11-26T20:21:16.277Z"
 last_activity: 2026-11-26
 last_activity_desc: Phase 90 complete, transitioned to Phase 91
-state_head: dde9c676cbd0f897d7bb9fd670ae523ad91b1d59
+state_head: e1e46d456c918b86ab2cac7815b4ff4b5f78b5d1
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 88
-  completed_plans: 83
+  completed_plans: 84
   percent: 86
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-91 (Named barrels, and visibility-only files folded away) — EXECUTING
-Plan: 17 of 21
+Plan: 18 of 21
 Status: Ready to execute
 Last activity: 2026-11-26 — Phase 90 complete, transitioned to Phase 91
 
@@ -739,6 +739,7 @@ Progress: [█████████░] 86%
 | Phase QD-91 P14 | 25 min | 2 tasks | 2 files |
 | Phase QD-91 P15 | 40 min | 2 tasks | 5 files |
 | Phase QD-91 P16 | 75min | 3 tasks | 8 files |
+| Phase QD-91 P17 | 70 min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -1325,6 +1326,8 @@ Progress: [█████████░] 86%
 - [Phase QD-91]: 91-14: the hydrate probe is plain consumer statements in gate 14's fixture; the probe guard reads only the three probe lists, so no list entry was added
 - [Phase QD-91]: 91-15: a named-barrel group counts as inside the package when its specifier starts with ./ or ../ (the devtools react barrel re-exports from ../model); an unlisted index with a relative named group is refused as an unlisted or mixed named barrel; decided autonomously
 - [Phase QD-91]: ADR-QD-204 records the barrel and home rules, the ten-candidate fold verdicts with each fold commit, the structural HydrationTarget and EvaluationSpan.ts not folded; ADR-QD-037, 047 and 099 amended
+- [Phase QD-91]: BEH-QD-795 lives in 09-react.md: the document already states react's barrel requirement and holds the provider (decided autonomously, recorded in the CCR-QD-483 row)
+- [Phase QD-91]: The records check reads an overview row by its first cell naming the name alone or among others, so the one row of dehydrateDecisions and hydrateDecisions needs no split (plan defect, commit 685e7b4d)
 
 ### Pending Todos
 
@@ -1412,8 +1415,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-26T20:05:19.533Z
-Stopped at: Completed 91-16-PLAN.md
+Last session: 2026-11-26T20:21:15.591Z
+Stopped at: Completed 91-17-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
