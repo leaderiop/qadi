@@ -533,6 +533,16 @@ describe("verifiedArchiveFacts called directly", () => {
   const admitted = (entries: ReadonlyArray<AuditEntry>) => Result.getOrThrow(admitRows(entries));
   const factsOf = (entries: ReadonlyArray<AuditEntry>) =>
     failureOf(Effect.runSync(Effect.result(verifiedArchiveFacts(admitted(entries)))));
+  /** What the verify and the writer each answer over `rows`, and whether `verifiedArchiveFacts` ran under it: its span opened. */
+  const factsReached = (rows: ReadonlyArray<AuditEntry>) =>
+    [spansOf(verifySequenceIntegrity(rows)), spansOf(archiveAuditTrail(rows, 1_000))].map(({ result, names }) => ({
+      outcome: outcomeOf(result),
+      reached: names.includes("qadi.audit.verifySequenceIntegrity"),
+    }));
+  const neverReached = [
+    { outcome: "ArchiveInputInvalid", reached: false },
+    { outcome: "ArchiveInputInvalid", reached: false },
+  ];
 
   it("F1 verifiedArchiveFacts over rows admitRows admitted fails SequenceIntegrityError on a break", () => {
     assert.deepStrictEqual(factsOf(breakRows), breakFailure);
@@ -544,11 +554,13 @@ describe("verifiedArchiveFacts called directly", () => {
       { ordered: [numbered(a, 1), numbered(b, 2)], sequencedCount: 2, sequenceIntegrityVerified: true },
     );
   });
-  it("F3 rows that are not a list are refused by admitRows and never reach verifiedArchiveFacts", () => {
+  it("F3 rows that are not a list are refused by admitRows, and neither the verify nor the writer runs verifiedArchiveFacts on them", () => {
     assert.deepStrictEqual(admitRows(rowsNotList), Result.fail(rowsNotListRefused));
+    assert.deepStrictEqual(factsReached(rowsNotList), neverReached);
   });
-  it("F4 a row admitRows refuses never reaches verifiedArchiveFacts, even with a break among the rest", () => {
+  it("F4 a row admitRows refuses, with a break among the rest, keeps the verify and the writer from running verifiedArchiveFacts", () => {
     assert.deepStrictEqual(admitRows(rowItemBreak), Result.fail(rowItemRefused));
+    assert.deepStrictEqual(factsReached(rowItemBreak), neverReached);
   });
   it("F5 verifiedArchiveFacts opens exactly its own span", () => {
     const opened = [[good], breakRows].map((rows) => spansOf(verifiedArchiveFacts(admitted(rows))).names);

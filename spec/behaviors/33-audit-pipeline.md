@@ -1466,7 +1466,9 @@ span, and `verifiedArchiveFacts`, which takes only admitted rows, keeps the span
 `SequenceIntegrityError`. The span names do not change, and a span is not part of a public type.
 
 Pinned by `packages/audit/test/AdmissionOrder.characterisation.test.ts` (S1 to S8, the spans each outcome opens; SF1 to SF4,
-no sequence span on refused rows: the writer opens only its own and the verify none; F1 to F5, `verifiedArchiveFacts` over admitted rows) and
+no sequence span on refused rows: the writer opens only its own and the verify none; F1, F2 and F5,
+`verifiedArchiveFacts` over admitted rows; F3 and F4, a refused list over which neither the verify nor the writer opens
+its span) and
 `packages/audit/test/AuditArchive.test.ts` ("archiving an entry opens a span named qadi.audit.archiveAuditTrail" and
 "verifying a sequence opens a span named qadi.audit.verifySequenceIntegrity", the success traces).
 

@@ -235,8 +235,9 @@ two declared regions of it moved with the change, the four span rows of decision
     second read, one read of the length and of each index, the empty list and the fresh array (H17 to H22).
   - `packages/audit/test/AdmissionOrder.characterisation.test.ts`: W1 to W18, R1 to R13, P1 to P13 and V1 to V4, which
     refusal wins for each pair of faults per entry point, written out literally; O1 to O3, the first fault of any set;
-    S1 to S8 and SF1 to SF4, the spans each outcome opens; L1 to L5, what a refusal leaves unread; F1 to F5,
-    `verifiedArchiveFacts` over admitted rows.
+    S1 to S8 and SF1 to SF4, the spans each outcome opens; L1 to L5, what a refusal leaves unread; F1, F2 and F5,
+    `verifiedArchiveFacts` over admitted rows; F3 and F4, a list `admitRows` refuses, over which neither the verify
+    nor the writer opens the span of `verifiedArchiveFacts`.
   - `packages/audit/test/BatchReadOnce.test.ts`: B1 to B5, `maxAgeMs` read once and a policy that is not an object
     refused, and B6 to B13, what was checked is what is used and the rows list is read once.
   - `packages/audit/test/RowListAdmission.test.ts`: X1 to X5, a rows list checked as it is read: a `length` past any
