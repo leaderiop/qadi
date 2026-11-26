@@ -201,8 +201,10 @@ export interface PortDescription<
   readonly method: string;
   /**
    * The span `PortAccess.ts` opens around a read of this port (BEH-QD-227): the
-   * port's own literal, given as the `SpanName` type argument. Two ports cannot
-   * share one (`DistinctSpanNames`, `PortDerivation.ts`, applied at the registry).
+   * port's own literal, given as the `SpanName` type argument. Two registry
+   * entries cannot share one (`DistinctSpanNames`, `PortDerivation.ts`, applied
+   * at `PORTS`); a description outside the registry is not checked, and its span
+   * can be any `qadi.` name.
    */
   readonly span: SpanName;
   /**
