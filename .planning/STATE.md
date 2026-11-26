@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 90
 current_phase_name: The remaining per-port facts live on the port description
 status: executing
-stopped_at: Completed 90-11-PLAN.md
-last_updated: "2026-11-26T09:25:30.451Z"
+stopped_at: Completed 90-12-PLAN.md
+last_updated: "2026-11-26T09:32:14.203Z"
 last_activity: 2026-11-26
 last_activity_desc: Phase 89 complete, transitioned to Phase 90
-state_head: 49909ec157cd7154fdddd89cd4e484c2043e7465
+state_head: bf39a49035b074039b62fd440d9b75a77d0f4442
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 67
-  completed_plans: 62
+  completed_plans: 63
   percent: 71
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-90 (The remaining per-port facts live on the port description) — EXECUTING
-Plan: 12 of 16
+Plan: 13 of 16
 Status: Ready to execute
 Last activity: 2026-11-26 — Phase 89 complete, transitioned to Phase 90
 
@@ -717,6 +717,7 @@ Progress: [███████░░░] 71%
 | Phase 90 P09 | 15min | 2 tasks | 5 files |
 | Phase 90 P10 | 30min | 2 tasks | 12 files |
 | Phase 90 P11 | 25min | 2 tasks | 11 files |
+| Phase 90 P12 | 40min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -1278,6 +1279,7 @@ Progress: [███████░░░] 71%
 - [Phase 90]: 90-09: PORT_NAMES is one public tuple in the import-free PortName.ts; PortName is its element type, PREDICATE_PORT_NAMES must satisfy PortName.
 - [Phase 90]: 90-10: makePortDescription's SpanName bound is the description's own span member type, so PortDerivation.ts holds no span literal
 - [Phase 90]: 90-11: FixtureDataOf, FixtureBuilders and FixtureVisitor stay unexported so the API surface stays at 943; the fixture is a required description member (D-11, D-11a)
+- [Phase 90]: 90-12: the measured per-call-closure routing patch landed as measured (hoisted fallback never measured, unused); the Always arm of the route matcher is unobservable by type (only HasRelationship is Always and its port has bare undefined)
 
 ### Pending Todos
 
@@ -1365,8 +1367,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-26T09:25:30.334Z
-Stopped at: Completed 90-11-PLAN.md
+Last session: 2026-11-26T09:32:14.083Z
+Stopped at: Completed 90-12-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
