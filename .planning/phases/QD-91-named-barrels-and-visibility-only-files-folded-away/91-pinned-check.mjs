@@ -24,6 +24,9 @@
 //             this script is written). Three optional born kinds are held whole when they exist: the gate registry's collision
 //             test and the hydration entry points' test, each added by one commit under its one subject holding only it, and any
 //             test file the mutation close adds, under its one subject, in a commit holding only test files and the evidence.
+//             The code review changes two born files, each by one commit under its exact subject: `HydrationTarget.tst.ts`
+//             anywhere, from the text its amendment left, and the mutation close's test, renamed from the text it was added
+//             with; each is held at the text that commit gave it.
 //   earlier   files a previous phase's pinned check holds that this phase edits, each with the exact subjects that may change
 //             it: every commit since the base touching such a file must carry one of them.
 // A held, declared or born file that `git diff -M --name-status <phase_base>` reports as moved or deleted fails, naming both
@@ -92,6 +95,9 @@ const MUTATION_TEST_SUBJECT = "test(91-21): kill the new open mutants of the fol
 const LEASE_SUBJECT = "docs(91-19): name the registry lease's one caller";
 const SWEEP_SUBJECT = "docs(91-19): sweep the deleted paths and the old rule name";
 const AUDIT_BARREL_SUBJECT = "refactor(91-09): name the audit barrel's exports per module";
+/** The code review's two commits that change a born file: the target pins re-stated, and the mutation test renamed. */
+const TARGET_REVIEW_SUBJECT = "fix(91-review): state why the hydrate target stays out of the root and pin what it refuses";
+const RENAME_SUBJECT = "fix(91-review): name the span read test for its behaviour and check its interpreters against the closed set";
 
 /**
  * The declared files, the exact base lines of each region, and the one commit subject that declares each. `source`: not a
@@ -292,22 +298,31 @@ const DECLARED = [
   },
 ];
 
-/** The born files whole, and the one that a later commit amends in its import region. `adds`: the commit adds the file. */
+/**
+ * The born files whole, and the one that a later commit amends in its import region. `review`: the one commit, by its exact
+ * subject, that may then change the file anywhere, starting from the text the chain leaves; the file is held at its text after.
+ */
 const BORN = [
   { file: `${CORE_TEST}/surface.test.ts`, subject: SURFACE_SUBJECT },
   { file: `${REACT_TEST}/surface.test.ts`, subject: SURFACE_SUBJECT },
   { file: `${AUDIT_TEST}/surface.test.ts`, subject: SURFACE_SUBJECT },
-  { file: `${REACT_TEST}/HydrationTarget.tst.ts`, subject: TARGET_SUBJECT, amendments: [HYDRATION_SUBJECT] },
+  { file: `${REACT_TEST}/HydrationTarget.tst.ts`, subject: TARGET_SUBJECT, amendments: [HYDRATION_SUBJECT], review: TARGET_REVIEW_SUBJECT },
 ];
 
 /**
  * The born files that may exist later, whole. `file`: exactly that file, added by one commit with its subject holding only it.
- * `anyTest`: every test file the commits with the subject add, in commits holding only such files and the evidence file.
+ * `anyTest`: every test file the commits with the subject add, in commits holding only such files and the evidence file;
+ * `renames`: an added file one commit, by its exact subject, moves to `to`, from the text it was added with, and the moved
+ * file is held at the text that commit gave it.
  */
 const OPTIONAL_BORN = [
   { file: `${REACT_TEST}/GateRegistryFold.test.ts`, subject: GATE_FOLD_TEST_SUBJECT },
   { file: `${REACT_TEST}/HydrationFold.test.ts`, subject: HYDRATION_FOLD_TEST_SUBJECT },
-  { subject: MUTATION_TEST_SUBJECT, anyTest: true },
+  {
+    subject: MUTATION_TEST_SUBJECT,
+    anyTest: true,
+    renames: [{ from: `${CORE_TEST}/PortSpanFold.mutation.test.ts`, to: `${CORE_TEST}/PortSpanRead.test.ts`, subject: RENAME_SUBJECT }],
+  },
 ];
 /** The test files a mutation commit may add. */
 const MUTATION_TEST_PATH = /^packages\/(?:core|react|audit)\/test\/[^/]+\.test\.tsx?$/;
@@ -597,9 +612,12 @@ const judgeBornImports = (file, region, born, head, appended) => {
  * The reasons a born file that later commits amend in its import region is not as the chain leaves it. `born` is the adding
  * commit's text, `steps` the amendments in order, each `{ subject, text, changed }` (`text` undefined: no such commit yet, which
  * ends the chain there; with `allApplied` that is a reason). The region is the span of the born text's import declarations, and
- * each step holds the text before it outside that span; the file at HEAD equals the last text of the chain.
+ * each step holds the text before it outside that span; the file at HEAD equals the last text of the chain. `review`, when the
+ * spec names one, is `{ subject, text, parentText, changed }`: the review commit's text of the file and its parent's (`text`
+ * undefined: no such commit yet, a reason with `allApplied`); its parent must hold the text the chain leaves, and it then
+ * becomes the last text.
  */
-const judgeBornChain = (file, born, steps, current, allApplied, parse) => {
+const judgeBornChain = (file, born, steps, current, allApplied, parse, review) => {
   const wanted = [born, ...steps.flatMap((s) => (s.text === undefined ? [] : [s.text]))];
   const summaries = parse(wanted);
   const syntaxOf = new Map(wanted.map((t, i) => [t, summaries[i]]));
@@ -618,7 +636,21 @@ const judgeBornChain = (file, born, steps, current, allApplied, parse) => {
     if (found.length > 0) return found.map((r) => `${r}, in ${which}`);
     last = step.text;
   }
-  return judgeBorn(file, last, current);
+  const step = judgeReviewStep(file, last, allApplied, review);
+  return step.reason !== undefined ? [step.reason] : judgeBorn(file, step.text, current);
+};
+
+/**
+ * A born file's review step: `{ text }`, the text the file holds after it (`last`, the text before it, when there is no step to
+ * take), or `{ reason }` when the step cannot be taken.
+ */
+const judgeReviewStep = (file, last, allApplied, review) => {
+  if (review === undefined) return { text: last };
+  const which = `the review (${review.subject})`;
+  if (review.text === undefined) return allApplied ? { reason: `${file}: ${which} is not applied` } : { text: last };
+  if (!review.changed) return { reason: `${file}: the commit of ${which} does not change it` };
+  if (review.parentText !== last) return { reason: `${file}: the commit of ${which} starts from a text the commits before it do not leave` };
+  return { text: review.text };
 };
 
 /** The reasons a born file's adding commits are not the one that may add it; `hash` names that commit when there is one. */
@@ -640,19 +672,33 @@ const judgeOptionalFile = (spec, adders, born, current) => {
 
 /**
  * The reasons the test files a mutation close adds are not as they may be. `commits` are those with the subject, each
- * `{ subject, entries: [{ status, path }] }`; `bornOf` and `currentOf` read a path's text at its commit and now.
+ * `{ subject, entries: [{ status, path }] }`; `bornOf` and `currentOf` read a path's text at its commit and now. `renameOf(path)`
+ * is undefined for a path no rename row names and no commit renames, and otherwise `{ to, subject, count, fromBefore, fromAfter,
+ * toText }`: how many commits carry the rename subject, and, for the one that does, the added path's text at its parent and at
+ * it, and the moved file's text at it.
  */
-const judgeAnyTest = (spec, commits, bornOf, currentOf) => {
+const judgeAnyTest = (spec, commits, bornOf, currentOf, renameOf = () => undefined) => {
   const reasons = judgeSubject(spec.subject, commits.length);
   if (reasons.length > 0) return reasons;
   for (const { entries } of commits) {
     for (const { status, path } of entries) {
       if (path === EVIDENCE) continue;
       if (status !== "A" || !MUTATION_TEST_PATH.test(path)) reasons.push(`${path}: the commit with the subject ${spec.subject} holds it, and it is not a test file that commit adds`);
-      else reasons.push(...judgeBorn(path, bornOf(path), currentOf(path)));
+      else reasons.push(...judgeRenamed(path, bornOf(path), currentOf, renameOf(path)));
     }
   }
   return reasons;
+};
+
+/** The reasons an added test file is not its born text, or, when a rename row names it, not as its one rename commit leaves it. */
+const judgeRenamed = (path, born, currentOf, rename) => {
+  if (rename === undefined || rename.count === 0) return judgeBorn(path, born, currentOf(path));
+  const which = `the rename (${rename.subject})`;
+  if (rename.count > 1) return [`${rename.count} commits have the subject: ${rename.subject}`];
+  if (rename.fromBefore !== born) return [`${path}: the commit of ${which} starts from a text other than the commit that added it`];
+  if (rename.fromAfter !== undefined) return [`${path}: the commit of ${which} does not remove it`];
+  if (currentOf(path) !== undefined) return [`${path}: exists again after ${which}`];
+  return judgeBorn(rename.to, rename.toText, currentOf(rename.to));
 };
 
 /** The reasons a file an earlier phase holds was changed by a commit other than the ones that may. `commits`: `{ hash, subject }`. */
@@ -891,12 +937,19 @@ const run = (allApplied) => {
       reasons.push(...judgeSubject(subject, hashes.length));
       return { subject, text: hashes.length === 1 ? showAt(hashes[0], spec.file) : undefined, changed: hashes.length === 1 && entriesOf(hashes[0]).some((e) => e.path === spec.file) };
     });
-    bornJobs.push({ spec, born: showAt(found.hash, spec.file), steps, current });
+    const review = (() => {
+      if (spec.review === undefined) return undefined;
+      const hashes = bySubject(spec.review);
+      reasons.push(...judgeSubject(spec.review, hashes.length));
+      if (hashes.length !== 1) return { subject: spec.review, text: undefined };
+      return { subject: spec.review, text: showAt(hashes[0], spec.file), parentText: showAt(`${hashes[0]}^`, spec.file), changed: entriesOf(hashes[0]).some((e) => e.path === spec.file) };
+    })();
+    bornJobs.push({ spec, born: showAt(found.hash, spec.file), steps, current, review });
   }
 
   const judged = withParsed((parse) => ({
     declared: declaredJobs.map((j) => judgeDeclared(j.spec, j.baseText, j.commit, j.changed, j.current, allApplied, parse)),
-    born: bornJobs.map((j) => (j.steps.length === 0 ? judgeBorn(j.spec.file, j.born, j.current) : judgeBornChain(j.spec.file, j.born, j.steps, j.current, allApplied, parse))),
+    born: bornJobs.map((j) => (j.steps.length === 0 && j.review === undefined ? judgeBorn(j.spec.file, j.born, j.current) : judgeBornChain(j.spec.file, j.born, j.steps, j.current, allApplied, parse, j.review))),
   }));
   let appliedCount = 0;
   for (const verdict of judged.declared) {
@@ -914,7 +967,14 @@ const run = (allApplied) => {
     if (spec.anyTest === true) {
       const commits = since.filter((c) => c.subject === spec.subject).map((c) => ({ ...c, entries: entriesOf(c.hash) }));
       const bornOf = (path) => showAt(commits[0].hash, path);
-      const found = judgeAnyTest(spec, commits, bornOf, textOf);
+      const renameOf = (path) => {
+        const row = (spec.renames ?? []).find((r) => r.from === path);
+        if (row === undefined) return undefined;
+        const hashes = bySubject(row.subject);
+        if (hashes.length !== 1) return { ...row, count: hashes.length };
+        return { ...row, count: 1, fromBefore: showAt(`${hashes[0]}^`, row.from), fromAfter: showAt(hashes[0], row.from), toText: showAt(hashes[0], row.to) };
+      };
+      const found = judgeAnyTest(spec, commits, bornOf, textOf, renameOf);
       reasons.push(...found);
       if (found.length === 0) bornHeld += commits.flatMap((c) => c.entries).filter((e) => e.path !== EVIDENCE).length;
       continue;
@@ -1073,6 +1133,8 @@ const selfTest = () => {
   const beforeAdded = ["/** header */", "// a line", ...header.slice(1)].join("\n");
   const appendedLine = `${moved}const later = 1;\n`;
   const step = (text, changed = true) => [{ subject: "fix(x): amend", text, changed }];
+  const reviewed = moved.replace('describe("x", () => {});', 'describe("y", () => {});');
+  const review = (text, parentText, changed = true) => ({ subject: "fix(x): review", text, parentText, changed });
   const chainCases = [
     ["a born file equal to its born text passes with no amendment", (p) => judgeBornChain("b.ts", bornText, step(undefined), bornText, false, p), []],
     ["with every edit required, an amendment not committed fails", (p) => judgeBornChain("b.ts", bornText, step(undefined), bornText, true, p), ["b.ts: amendment 1 (fix(x): amend) is not applied"]],
@@ -1085,6 +1147,13 @@ const selfTest = () => {
     ["an amendment whose commit does not change the file fails", (p) => judgeBornChain("b.ts", bornText, step(bornText, false), bornText, false, p), ["b.ts: the commit of amendment 1 (fix(x): amend) does not change it"]],
     ["a file changed after its last amendment fails", (p) => judgeBornChain("b.ts", bornText, step(moved), `${moved}x\n`, false, p), ["b.ts: differs from the commit that added it at line 11"]],
     ["a born text with no import declaration fails", (p) => judgeBornChain("b.ts", "const x = 1;\n", [], "const x = 1;\n", false, p), ["b.ts: has no import declaration in the commit that added it"]],
+    ["a review that changes the body from the chain's last text passes, and HEAD equals it", (p) => judgeBornChain("b.ts", bornText, step(moved), reviewed, true, p, review(reviewed, moved)), []],
+    ["a review straight after the born text passes", (p) => judgeBornChain("b.ts", bornText, [], bodyChanged, true, p, review(bodyChanged, bornText)), []],
+    ["with every edit required, a review not committed fails", (p) => judgeBornChain("b.ts", bornText, step(moved), moved, true, p, review(undefined)), ["b.ts: the review (fix(x): review) is not applied"]],
+    ["before every edit is required, a review not committed holds the chain's last text", (p) => judgeBornChain("b.ts", bornText, step(moved), moved, false, p, review(undefined)), []],
+    ["a review whose commit does not change the file fails", (p) => judgeBornChain("b.ts", bornText, step(moved), moved, true, p, review(moved, moved, false)), ["b.ts: the commit of the review (fix(x): review) does not change it"]],
+    ["a review whose parent is not the chain's last text fails", (p) => judgeBornChain("b.ts", bornText, step(moved), reviewed, true, p, review(reviewed, bodyChanged)), ["b.ts: the commit of the review (fix(x): review) starts from a text the commits before it do not leave"]],
+    ["a file changed after its review fails", (p) => judgeBornChain("b.ts", bornText, step(moved), `${reviewed}x\n`, true, p, review(reviewed, moved)), ["b.ts: differs from the commit that added it at line 11"]],
   ];
 
   const results = withParsed((parse) => ({
@@ -1131,6 +1200,18 @@ const selfTest = () => {
   has("a commit that adds a test outside the three packages fails", judgeAnyTest(any, mutation([{ status: "A", path: "packages/http/test/X.test.ts" }]), bornOf, (p) => texts[p]), "is not a test file that commit adds");
   has("an added mutation test edited later fails", judgeAnyTest(any, mutation([{ status: "A", path: T }]), bornOf, () => "u\n"), "differs from the commit that added it at line 1");
   has("two commits with the mutation subject fail", judgeAnyTest(any, [...mutation([]), ...mutation([])], bornOf, (p) => texts[p]), "2 commits have the subject");
+  const R = "packages/core/test/PortSpanRead.test.ts";
+  const rename = (over = {}) => () => ({ from: T, to: R, subject: "fix(x): rename", count: 1, fromBefore: "t\n", fromAfter: undefined, toText: "r\n", ...over });
+  const afterRename = (over = {}) => (p) => ({ [R]: "r\n", ...over })[p];
+  const added = mutation([{ status: "A", path: T }]);
+  eq("an added test its one rename commit moves, held at the text that commit gave it, passes", judgeAnyTest(any, added, bornOf, afterRename(), rename()), []);
+  has("an added test moved with no rename commit fails", judgeAnyTest(any, added, bornOf, afterRename(), rename({ count: 0 })), "moved or deleted after the commit that added it");
+  has("two commits with the rename subject fail", judgeAnyTest(any, added, bornOf, afterRename(), rename({ count: 2 })), "2 commits have the subject: fix(x): rename");
+  has("a rename from a text other than the added one fails", judgeAnyTest(any, added, bornOf, afterRename(), rename({ fromBefore: "u\n" })), "starts from a text other than the commit that added it");
+  has("a rename commit that keeps the old path fails", judgeAnyTest(any, added, bornOf, afterRename(), rename({ fromAfter: "t\n" })), "does not remove it");
+  has("an old path written again after its rename fails", judgeAnyTest(any, added, bornOf, afterRename({ [T]: "t\n" }), rename()), "exists again after the rename");
+  has("a moved test edited after its rename fails", judgeAnyTest(any, added, bornOf, afterRename({ [R]: "s\n" }), rename()), `${R}: differs from the commit that added it at line 1`);
+  has("a moved test deleted after its rename fails", judgeAnyTest(any, added, bornOf, afterRename({ [R]: undefined }), rename()), `${R} was moved or deleted after the commit that added it`);
 
   // the earlier phases' held files
   const row = { phase: "86", file: "packages/react/src/RegistryLease.ts", subjects: ["docs(x): the one", "docs(x): the other"] };
