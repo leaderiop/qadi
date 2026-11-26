@@ -334,3 +334,47 @@ Each block below is written by `91-check.mjs variant`: the check ran inside a sc
 - failing text: ERROR: Coverage for lines (0.27%) does not meet global threshold (90%)
 - failing text: ERROR: Coverage for functions (0.07%) does not meet global threshold (90%)
 - failing text: ERROR: Coverage for statements (0.23%) does not meet global threshold (90%)
+
+## surface-type-only-class
+- scratch: s-typeonly at e958e84400
+- edit: append export type { AccessDenied } from "./Errors.ts"; to packages/core/src/index.ts: an explicit export shadows the star export and turns a class into a type-only name
+- diff: 1f480cc973a09a710bf5f7ab0f9500bab75edfb26eef1a96a54a8cac9cfdf9fd (1 files, +1 -0)
+- run: surface
+- exit: 1
+- failing text: surface-diff compare exited 1: KIND @qadi/core AccessDenied both -> type | surface-diff: 1 difference(s)
+
+## surface-dropped-name
+- scratch: s-dropped at e958e84400
+- edit: delete the export * from "./Retention.ts"; line of packages/audit/src/index.ts (no package depends on audit)
+- diff: b57c3554df13c0fb6d3ade4687482178fbf8222437bfc24b02015a4f309bfa05 (1 files, +0 -1)
+- run: surface
+- exit: 1
+- failing text: surface-diff compare exited 1: REMOVED @qadi/audit PurgePlan (type) | REMOVED @qadi/audit RetentionInputInvalid (both) | REMOVED @qadi/audit RetentionInputRefusal (both)
+
+## surface-missing-lib
+- scratch: s-nolib at e958e84400
+- edit: none: a fresh clone with no build, so every packages/*/lib is absent
+- diff: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (0 files, +0 -0)
+- run: script scripts/surface-diff.mjs snapshot /private/var/folders/vn/44p0pxgs4z98v7cl11l4_r4c0000gp/T/qd91/x.json
+- exit: 1
+- failing text: surface-diff: @qadi/audit .: packages/audit/lib/index.d.ts is missing; run pnpm build
+
+## surface-self-test-classifier
+- scratch: s-classifier at e958e84400
+- edit: scripts/lib/surface-scan.mjs: the node.parent?.parent?.isTypeOnly clause removed from typeOnlyHop
+- diff: a106bb5eb5aa64518e0c94f9fbe9e19a86ad1aa94422b96f5729357220d2c5fd (1 files, +1 -2)
+- run: script scripts/surface-diff.mjs --self-test
+- exit: 1
+- failing text: surface-diff self-test: a class, a pair, a dropped name and an added name are each named: got ["ADDED @scratch/pkg Extra (type)","REMOVED @scratch/pkg Plain (type)"], wanted ["KIND @scratch/pkg Err both -> type","ADDED @scratch/pkg Extra (type)","KIND @scratch/pkg Pair both -> type","REMOVED @scratch/pkg Plain (type)"]
+- failing text: surface-diff self-test: compare of different snapshots exits 1 naming each difference: ADDED @scratch/pkg Extra (type)
+- failing text: REMOVED @scratch/pkg Plain (type)
+
+## dod-step-27
+- scratch: s-dod at e958e84400
+- edit: spec/process/definitions-of-done.md: row 27 removed from the table
+- diff: 3e38fd99af1f3f4ef5fc0b1cf8e8a9651fa0b19900d1b6a32ea2f343dc4fe66b (1 files, +0 -1)
+- run: script scripts/check-dod-table.mjs
+- exit: 1
+- failing text: spec/process/definitions-of-done.md  [missing] `pnpm check` runs `node scripts/surface-diff.mjs --self-test` as step 27 and the table stops at 26.
+- failing text: README.md  [count] says "all twenty-six gates" and `pnpm check` runs 27.
+- failing text: 2 merge-gate drift(s). `pnpm check` and spec/process/definitions-of-done.md are one thing described twice.
