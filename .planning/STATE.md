@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 89
 current_phase_name: One admission step for a host's audit batch
 status: executing
-stopped_at: Completed 89-04-PLAN.md
-last_updated: "2026-11-26T03:12:52.725Z"
+stopped_at: Completed 89-05-PLAN.md
+last_updated: "2026-11-26T03:20:01.952Z"
 last_activity: 2026-11-26
 last_activity_desc: Phase 88 complete, transitioned to Phase 89
-state_head: d870dcdfc59c4c15def49009a487ae1d15a94ef7
+state_head: 0644c721116115eb5266c015311f01c5896a15b3
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 51
-  completed_plans: 44
+  completed_plans: 45
   percent: 57
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: 89 (One admission step for a host's audit batch) — EXECUTING
-Plan: 5 of 11
+Plan: 6 of 11
 Status: Ready to execute
 Last activity: 2026-11-26 — Phase 88 complete, transitioned to Phase 89
 
@@ -698,6 +698,7 @@ Progress: [██████░░░░] 57%
 | Phase 89 P02 | about 20min | 3 tasks | 3 files |
 | Phase 89 P03 | 35min | 3 tasks | 3 files |
 | Phase 89 P04 | 15 min | 3 tasks | 3 files |
+| Phase 89 P05 | 14 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -1241,6 +1242,8 @@ Progress: [██████░░░░] 57%
 - [Phase 89]: 89-02: records requires the heading of BEH-QD-253, 254 and 722 and a pinned-by paragraph only for 722 and BEH-QD-781..785 (the base has none for 253 or 254); the check derives its one stageable phase directory from its own location
 - [Phase 89]: A becomes region reads as its base text or its fixed lines and an insert region as empty or its fixed form, so the pinned check passes on the base tree and on the finished tree and refuses every state between (decided autonomously)
 - [Phase 89]: 89-04: 87-pinned-check.mjs is a fixed reasons row in the earlier-checks ledger (Phase 88's commits precede this base); 88's records --close is computed from four fixed 89 commit subjects; RUNS and LEDGER are separate tables so an unexpected run is reachable
+- [Phase 89]: NowRefusalCases lives in HostBatch.ts beside the Number.isFinite check that answers it; the step builds its refusal with its own Data.taggedEnum constructor and no entry point restates it. — A now is refused in one place and by one reading of finite, as a rows list is in CodecMade.ts.
+- [Phase 89]: admitRows keeps a run-time Array.isArray guard behind a ReadonlyArray<AuditEntry> parameter and copies a list once with Array.from over a length. — A value that is not a list reaches rowsRefusal unread and is named in the refusal; what is checked is the copy that is admitted.
 
 ### Pending Todos
 
@@ -1328,8 +1331,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-26T03:12:52.602Z
-Stopped at: Completed 89-04-PLAN.md
+Last session: 2026-11-26T03:20:01.836Z
+Stopped at: Completed 89-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
