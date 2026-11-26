@@ -493,3 +493,33 @@ Each block below is written by `91-check.mjs variant`: the check ran inside a sc
 - failing text: packages/react/test/HydrationTarget.tst.ts: no commit adds it
 - failing text: packages/react/test/DecisionOutcome.tst.ts: its declared edit is not applied
 - failing text: packages/react/test/DeveloperSignalReporters.test.tsx: its declared edit is not applied
+
+## earlier-unexplained
+- scratch: earlier-unexplained at 781503092b
+- edit: a scratch commit chore(91-99): touch swaps two import lines of packages/react/test/GateWriter.test.tsx: the 86 pinned row gains a path no existing subject explains
+- diff: a31b8b77a1b8920e9ef04bd04145f3448eaffb71542a070c290ce91be1a5cae0 (1 files, +1 -1)
+- run: script 91-earlier-checks.mjs
+- exit: 1
+- failing text: 86-pinned-check.mjs: expected exit 0, got exit 1: packages/react/test/GateWriter.test.tsx is reported as M against its base, not unchanged
+- failing text: 85-check.mjs base: exit 0: 2741584f50d176281038b478d0350dc35f174cc2
+- failing text: 85-check.mjs scan-ids: exit 1: packages/devtools/test/model/DiagnosticsFeed.stop.test.ts:35 has phase-relative wording: /** The status tag of every notification a feed publishes from now on, in order. */
+
+## earlier-unmoved
+- scratch: earlier-unmoved at 27fcf35e53
+- edit: a scratch commit with the exact decoder-fold subject touches only 91-SURFACE.md under .planning: the 90 pinned row's expected move, and the six scan-forbidden moves, are missing
+- diff: 8c3b114962bb661440e842f5d0c626730a91006ca39df8fb62f4e7f1e5f53990 (1 files, +1 -0)
+- run: script 91-earlier-checks.mjs
+- exit: 1
+- failing text: 85-check.mjs scan-forbidden: missing reason "scripts/check-house-style.mjs differs from phase_base: no budget moves"
+- failing text: 86-check.mjs scan-forbidden: missing reason "scripts/check-house-style.mjs differs from phase_base: no budget moves"
+- failing text: 87-check.mjs scan-forbidden: missing reason "scripts/check-house-style.mjs differs from phase_base: no budget moves"
+
+## earlier-row-without-run
+- scratch: earlier-row-without-run at 2e8089e1cf
+- edit: the clone's copy of the script has the RUNS entry for 86-check.mjs records --close deleted, so a row has no run
+- diff: 9e4d855d85525cf6d40a875d6882e2fcf90bcb5e0ae0dba251e7ddc68b82ab13 (1 files, +0 -1)
+- run: script 91-earlier-checks.mjs
+- exit: 1
+- failing text: missing run: 86-check.mjs records --close
+- failing text: 85-check.mjs base: exit 0: 2741584f50d176281038b478d0350dc35f174cc2
+- failing text: 85-check.mjs scan-ids: exit 1: packages/devtools/test/model/DiagnosticsFeed.stop.test.ts:35 has phase-relative wording: /** The status tag of every notification a feed publishes from now on, in order. */
