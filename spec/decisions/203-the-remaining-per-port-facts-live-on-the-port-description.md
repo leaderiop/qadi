@@ -318,3 +318,12 @@ What is phase-local, kept with the change's planning, and not run by `pnpm check
   hand-written
 - [ADR-QD-037](./037-circular-imports-and-type-level-tests-are-gates.md) — the leaf rule is a gate
 - [ADR-QD-052](./052-hydration-is-counted-where-both-ends-can-see-it.md) — no metric key moves
+- [BEH-QD-786](../behaviors/30-port-calls.md#beh-qd-786-the-port-names-are-one-tuple-in-a-module-with-no-imports-and-every-port-metric-preregisters-exactly-those-names-in-that-order),
+  [BEH-QD-787](../behaviors/30-port-calls.md#beh-qd-787-each-ports-description-states-its-own-span-name-and-two-ports-sharing-a-span-or-a-span-that-is-a-pattern-do-not-compile),
+  [BEH-QD-788](../behaviors/30-port-calls.md#beh-qd-788-each-ports-description-states-its-fixture-and-the-fixture-tables-are-read-from-the-registry),
+  [BEH-QD-789](../behaviors/30-port-calls.md#beh-qd-789-every-read-of-a-scoped-port-is-routed-by-its-leafs-row-in-the-leaf-needs-table)
+  and [BEH-QD-790](../behaviors/30-port-calls.md#beh-qd-790-the-scoped-ports-are-derived-from-the-rows-and-the-descriptions-asks-and-a-leaf-newly-stated-as-asking-about-one-resource-makes-its-port-scoped),
+  which state it, with [BEH-QD-588](../behaviors/30-port-calls.md#beh-qd-588-the-leaf-needs-table-states-which-leaves-ask-about-one-resource-and-readscoped-routes-on-it) restated
+- [INV-QD-425](../invariants.md#inv-qd-425-each-per-port-fact-is-stated-once) and
+  [INV-QD-426](../invariants.md#inv-qd-426-a-scoped-port-read-requires-a-resource-id-exactly-where-its-leafs-row-says),
+  the two invariants it adds

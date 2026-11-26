@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-BEH-30                                    |
-> | Revision       | 1.25                                            |
+> | Revision       | 1.26                                            |
 > | Effective Date | 2026-10-05                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Functional Specification                       |
-> | Change History | 1.25 (2026-11-23): BEH-QD-445: the paragraph on the check names requireResourceId as the one check and readScoped as the one route that calls it (code review iteration 3 IN-03, ADR-QD-189, CCR-QD-468)<br>1.24 (2026-11-23): BEH-QD-445: the paragraph on the check reads as it did, with a dated note that requireResourceId is the one decision and the fixture judgements call it too (code review iteration 2 IN-04, ADR-QD-189, CCR-QD-468)<br>1.23 (2026-11-23): BEH-QD-588: the MissingResourceId is built by requireResourceId, not by errorOf (code review iteration 2 WR-03, ADR-QD-189, CCR-QD-468)<br>1.22 (2026-11-23): BEH-QD-445: the missing-id check is requireResourceId, which the fixture judgements call too (code review WR-03, ADR-QD-189, CCR-QD-468)<br>1.21 (2026-11-23): BEH-QD-715 cites the pins of each span's public name and of the log event's runtime marker (code review, ADR-QD-188, CCR-QD-467)<br>1.20 (2026-11-23): BEH-QD-711 to BEH-QD-714 state what holds rather than what changed; BEH-QD-712's title is scoped to a decided or failed path (code review, ADR-QD-188, CCR-QD-467)<br>1.19 (2026-11-23): BEH-QD-715's listing names batchAskedOf, the batch writers' one projection (code review, ADR-QD-188, CCR-QD-467)<br>1.18 (2026-11-23): BEH-QD-715 cites the pin that annotateAsked refuses the denial event (code review, ADR-QD-188, CCR-QD-467)<br>1.17 (2026-11-23): BEH-QD-715: every span-writing function refuses a log event, logAnnotations builds the denial line's annotations, and a raw span write or an upcast is kept by review (code review, ADR-QD-188, CCR-QD-467)<br>1.16 (2026-11-23): BEH-QD-711 cites a cache-hit row that also reads the record's cache outcome (code review, ADR-QD-188, CCR-QD-467)<br>1.15 (2026-11-23): BEH-QD-715 names every write form, and the denial event is a log event the span annotators refuse (code review, ADR-QD-188, CCR-QD-467)<br>1.14 (2026-11-23): BEH-QD-715's listing: the annotators live beside encodeSpan in PortSpanEncode.ts, one body for port and family spans, and askedOf is listed (code review, ADR-QD-188, CCR-QD-467)<br>1.13 (2026-11-23): BEH-QD-714 and BEH-QD-715's listings name decideSubjectSpan, declared in EvaluationSpan.ts (code review, ADR-QD-188, CCR-QD-467)<br>1.12 (2026-11-23): BEH-QD-712: the outcome is written on every path that ends in a decision or a typed failure, and an interrupted or defected evaluation carries its question and no outcome (code review, ADR-QD-188, CCR-QD-467)<br>1.11 (2026-11-23): BEH-QD-711 to BEH-QD-715 new: the evaluate family's spans carry their question on every path, the outcome is one key, and every key is declared once; the intro covers the spans around a question (ARCH-122, ADR-QD-188, CCR-QD-467)<br>1.10 (2026-11-16): a row's resourceId is classified by tag like its own, an unlisted tag gets never (review iteration 2 IN-02)<br>1.9 (2026-11-16): BEH-QD-588 new: the leaf-needs table states which leaves ask about one resource, and readScoped enforces it (ARCH-97, CCR-QD-441)<br>1.8 (2026-11-16): BEH-QD-574 new: one checked row builder, PortCall derived from the registry; BEH-QD-228's listing shows the derived form (ARCH-94, CCR-QD-438)<br>1.7 (2026-11-11): BEH-QD-227 — a missing resource id leaves the port's span and nothing else; BEH-QD-445 (a missing resource id fails the same way on every scoped port) (ARCH-70, ADR-QD-134, CCR-QD-412)<br>1.6 (2026-11-08): BEH-QD-227 — a span's question is the description's pose and its answer disclose, written by one read body; a local and a served span agree apart from the interpreter; onFile is on neither (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.5 (2026-10-08): BEH-QD-227 — `qadi.interpreter` gains `"remote"` for a served read; `PortCall.interpreter` follows (ARCH-31, CCR-QD-382)<br>1.4 (2026-10-07): BEH-QD-227 — each span's attributes are stated once, by its port's description (`attributes`: a question annotated before the call, an answer annotated after, and `disclose`), and `PortAccess.ts` writes through that statement; `qadi.attempts` joins the listing; the list of ports whose answers are closed is corrected (four, not two); BEH-QD-228 — `@qadi/devtools` reads a span through the same description (`decodePortSpan`), a value outside a field's closed union reads as absent, and a row carries `attempts`, and a signature row its `scope` and `resourceId` (ARCH-21, CCR-QD-198)<br>1.3 (2026-10-05): BEH-QD-227 — each span's name is read from its port's description (`span`, `PortSpanName`) by both `PortAccess.ts` and `@qadi/devtools`' collector; BEH-QD-229 — the Services screen shows timeouts beside retries (ADR-QD-094, CCR-QD-177)<br>1.2 (2026-10-04): BEH-QD-227/BEH-QD-228 — the spans move to `PortAccess.ts` and gain `qadi.interpreter`; BEH-QD-267 — `toPredicate`'s port reads are spans too (CCR-QD-153, ADR-QD-077)<br>1.1 (2026-09-08): BEH-QD-227/BEH-QD-228 — add the two missing port-touching leaves, `qadi.hasCustom`/`qadi.hasSignature`, and widen `PortCall` to the real five-member union (CCR-QD-131)<br>1.0 (2026-08-24): Initial release (CCR-QD-071) |
+> | Change History | 1.26 (2026-11-26): BEH-QD-786 to BEH-QD-790 new: the port names are one tuple, each description states its span and its fixture, every scoped read is routed by its leaf's row, and the scoped ports are derived; BEH-QD-588 restated (the table states which leaves ask about one resource and readScoped routes on it); BEH-QD-445 names LEAF_NEEDS (ARCH-137, ADR-QD-203, CCR-QD-482)<br>1.25 (2026-11-23): BEH-QD-445: the paragraph on the check names requireResourceId as the one check and readScoped as the one route that calls it (code review iteration 3 IN-03, ADR-QD-189, CCR-QD-468)<br>1.24 (2026-11-23): BEH-QD-445: the paragraph on the check reads as it did, with a dated note that requireResourceId is the one decision and the fixture judgements call it too (code review iteration 2 IN-04, ADR-QD-189, CCR-QD-468)<br>1.23 (2026-11-23): BEH-QD-588: the MissingResourceId is built by requireResourceId, not by errorOf (code review iteration 2 WR-03, ADR-QD-189, CCR-QD-468)<br>1.22 (2026-11-23): BEH-QD-445: the missing-id check is requireResourceId, which the fixture judgements call too (code review WR-03, ADR-QD-189, CCR-QD-468)<br>1.21 (2026-11-23): BEH-QD-715 cites the pins of each span's public name and of the log event's runtime marker (code review, ADR-QD-188, CCR-QD-467)<br>1.20 (2026-11-23): BEH-QD-711 to BEH-QD-714 state what holds rather than what changed; BEH-QD-712's title is scoped to a decided or failed path (code review, ADR-QD-188, CCR-QD-467)<br>1.19 (2026-11-23): BEH-QD-715's listing names batchAskedOf, the batch writers' one projection (code review, ADR-QD-188, CCR-QD-467)<br>1.18 (2026-11-23): BEH-QD-715 cites the pin that annotateAsked refuses the denial event (code review, ADR-QD-188, CCR-QD-467)<br>1.17 (2026-11-23): BEH-QD-715: every span-writing function refuses a log event, logAnnotations builds the denial line's annotations, and a raw span write or an upcast is kept by review (code review, ADR-QD-188, CCR-QD-467)<br>1.16 (2026-11-23): BEH-QD-711 cites a cache-hit row that also reads the record's cache outcome (code review, ADR-QD-188, CCR-QD-467)<br>1.15 (2026-11-23): BEH-QD-715 names every write form, and the denial event is a log event the span annotators refuse (code review, ADR-QD-188, CCR-QD-467)<br>1.14 (2026-11-23): BEH-QD-715's listing: the annotators live beside encodeSpan in PortSpanEncode.ts, one body for port and family spans, and askedOf is listed (code review, ADR-QD-188, CCR-QD-467)<br>1.13 (2026-11-23): BEH-QD-714 and BEH-QD-715's listings name decideSubjectSpan, declared in EvaluationSpan.ts (code review, ADR-QD-188, CCR-QD-467)<br>1.12 (2026-11-23): BEH-QD-712: the outcome is written on every path that ends in a decision or a typed failure, and an interrupted or defected evaluation carries its question and no outcome (code review, ADR-QD-188, CCR-QD-467)<br>1.11 (2026-11-23): BEH-QD-711 to BEH-QD-715 new: the evaluate family's spans carry their question on every path, the outcome is one key, and every key is declared once; the intro covers the spans around a question (ARCH-122, ADR-QD-188, CCR-QD-467)<br>1.10 (2026-11-16): a row's resourceId is classified by tag like its own, an unlisted tag gets never (review iteration 2 IN-02)<br>1.9 (2026-11-16): BEH-QD-588 new: the leaf-needs table states which leaves ask about one resource, and readScoped enforces it (ARCH-97, CCR-QD-441)<br>1.8 (2026-11-16): BEH-QD-574 new: one checked row builder, PortCall derived from the registry; BEH-QD-228's listing shows the derived form (ARCH-94, CCR-QD-438)<br>1.7 (2026-11-11): BEH-QD-227 — a missing resource id leaves the port's span and nothing else; BEH-QD-445 (a missing resource id fails the same way on every scoped port) (ARCH-70, ADR-QD-134, CCR-QD-412)<br>1.6 (2026-11-08): BEH-QD-227 — a span's question is the description's pose and its answer disclose, written by one read body; a local and a served span agree apart from the interpreter; onFile is on neither (ARCH-47, ADR-QD-109, CCR-QD-386)<br>1.5 (2026-10-08): BEH-QD-227 — `qadi.interpreter` gains `"remote"` for a served read; `PortCall.interpreter` follows (ARCH-31, CCR-QD-382)<br>1.4 (2026-10-07): BEH-QD-227 — each span's attributes are stated once, by its port's description (`attributes`: a question annotated before the call, an answer annotated after, and `disclose`), and `PortAccess.ts` writes through that statement; `qadi.attempts` joins the listing; the list of ports whose answers are closed is corrected (four, not two); BEH-QD-228 — `@qadi/devtools` reads a span through the same description (`decodePortSpan`), a value outside a field's closed union reads as absent, and a row carries `attempts`, and a signature row its `scope` and `resourceId` (ARCH-21, CCR-QD-198)<br>1.3 (2026-10-05): BEH-QD-227 — each span's name is read from its port's description (`span`, `PortSpanName`) by both `PortAccess.ts` and `@qadi/devtools`' collector; BEH-QD-229 — the Services screen shows timeouts beside retries (ADR-QD-094, CCR-QD-177)<br>1.2 (2026-10-04): BEH-QD-227/BEH-QD-228 — the spans move to `PortAccess.ts` and gain `qadi.interpreter`; BEH-QD-267 — `toPredicate`'s port reads are spans too (CCR-QD-153, ADR-QD-077)<br>1.1 (2026-09-08): BEH-QD-227/BEH-QD-228 — add the two missing port-touching leaves, `qadi.hasCustom`/`qadi.hasSignature`, and widen `PortCall` to the real five-member union (CCR-QD-131)<br>1.0 (2026-08-24): Initial release (CCR-QD-071) |
 
 _Previous: [29 — The Subject Simulator](./29-devtools-simulator.md)_
 
@@ -343,6 +343,14 @@ check to avoid it. `PortAccess.test.ts` checks the span list, the
 question and `MissingResourceId.relation` for every scoped port in one table closed
 over the three scoped ports, written out as a union so a fourth is a decision and not a side effect.
 
+Which reads require the id is `LEAF_NEEDS` (`LeafNeeds.ts`), the leaf-needs table, and `readScoped` reads that
+row to route every scoped read
+([BEH-QD-588](#beh-qd-588-the-leaf-needs-table-states-which-leaves-ask-about-one-resource-and-readscoped-routes-on-it)).
+The ports that count as scoped are derived from the rows and from each description's `asks`, so a leaf the table
+newly says asks about one resource makes its port scoped
+([BEH-QD-790](#beh-qd-790-the-scoped-ports-are-derived-from-the-rows-and-the-descriptions-asks-and-a-leaf-newly-stated-as-asking-about-one-resource-makes-its-port-scoped)).
+The trace above is the same on every route.
+
 > **Note (2026-11-23, ADR-QD-189):** the two fixture judgements call `requireResourceId`
 > too
 > ([BEH-QD-716](06-services.md#beh-qd-716-a-fixture-judgement-answers-what-the-port-read-answers)),
@@ -497,20 +505,22 @@ REQUIREMENT: A port's card MUST show its timeouts (`qadi_port_timeouts_total`)
 With every port able to carry a deadline, a timeout is the signal that tells a
 slow store from a down one; until ARCH-10 nothing read the metric at all.
 
-## BEH-QD-588: The leaf-needs table states which leaves ask about one resource; readScoped enforces it
+## BEH-QD-588: The leaf-needs table states which leaves ask about one resource, and `readScoped` routes on it
 
 > **See:** [ADR-QD-163](../decisions/163-what-a-leaf-needs-from-the-request-is-stated-once.md),
-> [ADR-QD-134](../decisions/134-a-resource-scoped-port-read-is-one-read.md)
+> [ADR-QD-134](../decisions/134-a-resource-scoped-port-read-is-one-read.md),
+> [ADR-QD-203](../decisions/203-the-remaining-per-port-facts-live-on-the-port-description.md)
 >
-> **Invariant:** [INV-QD-288](../invariants.md#inv-qd-288-a-scoped-port-read-never-reaches-its-port-without-a-resource-id)
+> **Invariant:** [INV-QD-288](../invariants.md#inv-qd-288-a-scoped-port-read-never-reaches-its-port-without-a-resource-id),
+> [INV-QD-426](../invariants.md#inv-qd-426-a-scoped-port-read-requires-a-resource-id-exactly-where-its-leafs-row-says)
 
 ```
 REQUIREMENT: `LEAF_NEEDS` MUST state, per leaf, whether it asks a port about one
              resource: `HasRelationship` always, `HasActed`, `HasNotActed` and
              `HasSignature` when their scope is Resource, no other leaf. A leaf
              the table says asks about one resource MUST fail with
-             `MissingResourceId` when its resource has no id, as
-             `readScoped` decides.
+             `MissingResourceId` when its resource has no id, and `readScoped`
+             MUST route on that row.
 
 REQUIREMENT: `readScoped` MUST remain the one point that enforces it: it records
              the question on the port's own span first, then fails with the
@@ -519,10 +529,177 @@ REQUIREMENT: `readScoped` MUST remain the one point that enforces it: it records
              ([BEH-QD-445](#beh-qd-445-a-missing-resource-id-fails-the-same-way-on-every-scoped-port)).
 ```
 
-The table is the statement and `readScoped` is the enforcement, so the question
-is on the span before the failure, which a check in the leaf's arm would have
-lost. `LeafNeeds.test.ts` ties each row's `resourceId` to what `readScoped` does,
-and `LeafNeedOf` ties it to the leaf's tag: a row's `resourceId` comes from closed
+The table is the statement and `readScoped` reads it, so the question is on the span
+before the failure, which a check in the leaf's arm would have lost.
+`LeafNeeds.test.ts` holds the route equal to the rows and to the judgements, and
+`LeafNeedOf` ties the row to the leaf's tag: a row's `resourceId` comes from closed
 tag lists in which an unlisted tag gets `never`, so a row that states the wrong
-one, or a leaf no list names, does not compile (`LeafNeeds.tst.ts`). `readScoped`
-does not read the column.
+one, or a leaf no list names, does not compile (`LeafNeeds.tst.ts`). The route
+itself is [BEH-QD-789](#beh-qd-789-every-read-of-a-scoped-port-is-routed-by-its-leafs-row-in-the-leaf-needs-table).
+
+## BEH-QD-786: The port names are one tuple in a module with no imports, and every port metric preregisters exactly those names in that order
+
+> **See:** [ADR-QD-203](../decisions/203-the-remaining-per-port-facts-live-on-the-port-description.md),
+> [ADR-QD-052](../decisions/052-hydration-is-counted-where-both-ends-can-see-it.md)
+>
+> **Invariant:** [INV-QD-425](../invariants.md#inv-qd-425-each-per-port-fact-is-stated-once)
+
+```
+REQUIREMENT: `PORT_NAMES` (`PortName.ts`) MUST be the one statement of the
+             port names, in registry order, in a module that imports nothing,
+             and `PortName` MUST be its element type.
+
+REQUIREMENT: `portCallsTotal`, `portRetriesTotal`, `portTimeoutsTotal` and
+             `servedPortCallsTotal` MUST each preregister exactly the names of
+             `PORT_NAMES`, in that order, and `predicatePortCallsTotal` the two
+             ports `toPredicate` reads. No metric id or description MAY change.
+```
+
+```ts
+// packages/core/src/PortName.ts: a leaf, no import
+export const PORT_NAMES = [
+  "AttributeResolver",
+  "DecisionHistory",
+  "RelationshipResolver",
+  "CustomPredicate",
+  "SignatureHistory",
+] as const;
+export type PortName = (typeof PORT_NAMES)[number];
+```
+
+`PortName` is not read from the registry (`keyof PortTypes`), because `PortMetrics.ts`
+is imported by `PortDerivation.ts` and the registry sits above both: that would close a
+cycle, and `pnpm circular` refuses it. `PortMetrics.ts` reads the tuple as a value, and
+its translator domain, `PredicatePortName`, is a tuple checked with
+`satisfies ReadonlyArray<PortName>`, so a misspelt member does not compile. A metric's
+registry key includes its description, so none of them moves
+([ADR-QD-052](../decisions/052-hydration-is-counted-where-both-ends-can-see-it.md)).
+
+Pinned by `packages/core/test/PortFacts.characterisation.test.ts` ("the registry lists the ports in one order", "each port metric preregisters its words"), `packages/core/test/PortFacts.tst.ts` ("PortName is the five ports", "PORT_NAMES is the five names, in the registry's order") and `packages/core/test/Ports.test.ts` ("the descriptions are pinned, because the description is part of the registry key").
+
+## BEH-QD-787: Each port's description states its own span name, and two ports sharing a span, or a span that is a pattern, do not compile
+
+> **See:** [ADR-QD-203](../decisions/203-the-remaining-per-port-facts-live-on-the-port-description.md),
+> [ADR-QD-094](../decisions/094-a-port-is-described-once.md)
+>
+> **Invariant:** [INV-QD-425](../invariants.md#inv-qd-425-each-per-port-fact-is-stated-once)
+
+```
+REQUIREMENT: Each port's description MUST state its span as one literal, given
+             as its `SpanName` type argument and spelled once in its port
+             module. `PortSpanName` and `PortSpanOf<N>` MUST be read from the
+             registry, under the names they had.
+
+REQUIREMENT: A registry in which two ports name one span, or a port's span is a
+             pattern and not one literal, MUST NOT compile.
+```
+
+```ts
+// packages/core/src/PortDerivation.ts: package-private, out of the barrel.
+// `unknown` when every entry names one literal and no two share it, `never` otherwise.
+type DistinctSpanNames<R extends { readonly [K in keyof R]: { readonly span: string } }> =
+  [SpanOffenders<R>] extends [never] ? unknown : never;
+
+// packages/core/src/Ports.ts
+const PORTS: PortTypes = {
+  /* the five descriptions */
+} satisfies DistinctSpanNames<PortTypes>;
+type PortSpanOf<N extends PortName> = PortTypes[N]["span"];
+```
+
+The check refuses sharing and patterns. It does not refuse a port moving to a new literal of
+its own, which the span pins and the facts golden catch. `attributeResolverPort` claiming
+another port's span leaves two ports with one, so the property the cross-check of a
+description's `span` against its own port's name stood for is the check's. No span literal
+enters `PortAccess.ts`, `PortDerivation.ts` or devtools' `PortCalls.ts`.
+
+Pinned by `packages/core/test/PortFacts.tst.ts` ("PortSpanName is the five span names", "PortSpanOf is each port's own span", "no two ports share a span name, and each names one literal", "span and fixture are required members of a description"), `packages/core/test/PortName.tst.ts` ("a description's span is its own port's") and `packages/core/test/PortFacts.characterisation.test.ts` ("each port states its own facts").
+
+## BEH-QD-788: Each port's description states its fixture, and the fixture tables are read from the registry
+
+> **See:** [ADR-QD-203](../decisions/203-the-remaining-per-port-facts-live-on-the-port-description.md),
+> [ADR-QD-094](../decisions/094-a-port-is-described-once.md)
+>
+> **Invariant:** [INV-QD-425](../invariants.md#inv-qd-425-each-per-port-fact-is-stated-once)
+
+```
+REQUIREMENT: Each port's description MUST state a required `fixture`, a builder
+             from plain data to a layer of the port's own service.
+             `PortFixtureData` and `PORT_FIXTURES` MUST be read from the
+             registry with the names and shapes they had, and
+             `fixturePortsLayer` MUST answer as it did.
+
+REQUIREMENT: A description without a `fixture` MUST NOT compile.
+```
+
+`PortFixtureData` is a mapped type over the registry and `PORT_FIXTURES` is
+`tabulatePorts((d) => d.fixture)`, so a port's data shape is stated beside the builder that
+consumes it and the fixture table has no row of its own to forget. The data stays plain and
+serializable, because `@qadi/devtools`' Fixtures simulation is sealed and takes data. The
+builders keep their public names and signatures, and `CustomPredicate`'s fixture, fixed
+verdicts by name, is built in its own description.
+
+Pinned by `packages/core/test/PortFacts.tst.ts` ("PortFixtureData is the five members a host states", "PORT_FIXTURES is one builder per port, from its own data to its own service", "span and fixture are required members of a description"), `packages/core/test/Ports.test.ts` ("has a fixture for every port in the registry, and a sample for each", "each port answers from its data: the sampled question allows, a missing one denies") and `packages/core/test/PortFacts.characterisation.test.ts` ("each port states its own facts").
+
+## BEH-QD-789: Every read of a scoped port is routed by its leaf's row in the leaf-needs table
+
+> **See:** [ADR-QD-203](../decisions/203-the-remaining-per-port-facts-live-on-the-port-description.md),
+> [ADR-QD-163](../decisions/163-what-a-leaf-needs-from-the-request-is-stated-once.md),
+> [ADR-QD-134](../decisions/134-a-resource-scoped-port-read-is-one-read.md)
+>
+> **Invariant:** [INV-QD-426](../invariants.md#inv-qd-426-a-scoped-port-read-requires-a-resource-id-exactly-where-its-leafs-row-says),
+> [INV-QD-288](../invariants.md#inv-qd-288-a-scoped-port-read-never-reaches-its-port-without-a-resource-id)
+
+```
+REQUIREMENT: Every read of a scoped port MUST go through `readScoped`, which
+             MUST read the leaf's `LEAF_NEEDS` row. A `HasRelationship` read
+             MUST require a resource id. A `HasActed`, `HasNotActed` or
+             `HasSignature` read MUST require one only when its scope is
+             `Resource`, so a read whose scope is `Any` MUST NOT be refused for a
+             missing id.
+
+REQUIREMENT: A refused read MUST leave the port's own span, with its question
+             and the failure, and nothing else, and `readScoped` MUST open no
+             span of its own
+             ([BEH-QD-445](#beh-qd-445-a-missing-resource-id-fails-the-same-way-on-every-scoped-port)).
+```
+
+`readActed`, `askRelationship` and `askSignature` call `readScoped` and route nothing
+themselves. The row's value picks the arm of one `Match` built once at module scope and
+closed with `Match.exhaustive`: `"Always"` needs an id, and `"ByScope"` needs one when the
+leaf's scope names a resource, through `isResourceScoped`, the one scope test the request's
+id shares. A read that needs no id is `readPort` over the leaf's id-free call, with no
+generator allocated, and for `RelationshipResolver`, whose every leaf is `"Always"`, that
+call is typed `undefined`, so the id-free branch is unreachable by type. `readScoped` is a
+plain function, neither an `Effect.fn` nor an `Effect.fnUntraced`. The routing was
+measured against the base over every workload of `Evaluate.bench.ts`, with two scoped-heavy
+workloads added for it, before it landed
+([ADR-QD-203](../decisions/203-the-remaining-per-port-facts-live-on-the-port-description.md)).
+
+Pinned by `packages/core/test/LeafNeeds.test.ts` ("a scoped read requires an id exactly where its leaf's row says", "a read is refused for a missing id exactly when its row and scope ask for one", "a ByScope leaf's judgement refuses exactly when its read does"), `packages/core/test/PortFacts.characterisation.test.ts` ("a scoped read at every site") and `packages/core/test/PortAccess.test.ts`.
+
+## BEH-QD-790: The scoped ports are derived from the rows and the descriptions' asks, and a leaf newly stated as asking about one resource makes its port scoped
+
+> **See:** [ADR-QD-203](../decisions/203-the-remaining-per-port-facts-live-on-the-port-description.md),
+> [ADR-QD-134](../decisions/134-a-resource-scoped-port-read-is-one-read.md)
+>
+> **Invariant:** [INV-QD-426](../invariants.md#inv-qd-426-a-scoped-port-read-requires-a-resource-id-exactly-where-its-leafs-row-says)
+
+```
+REQUIREMENT: The leaf tags that ask about one resource MUST be every tag whose
+             `LEAF_NEEDS` row's `resourceId` is not `"Never"`, and the scoped
+             ports MUST be every port whose description's `asks` names one of
+             them. No list of scoped ports MAY be written by hand.
+
+REQUIREMENT: A leaf newly stated as asking about one resource MUST make its port
+             scoped, and the compiler MUST then ask for that port's entry in the
+             table that says how its request becomes a call with an id and
+             without one.
+```
+
+Today the tags are `HasRelationship`, `HasActed`, `HasNotActed` and `HasSignature`, and the
+ports are `DecisionHistory`, `RelationshipResolver` and `SignatureHistory`. A fourth port is
+a decision made where the closed tag lists of `LeafNeeds.ts` already force it, and no second
+list is widened by a side effect.
+
+Pinned by `packages/core/test/LeafNeeds.test.ts` ("the leaf tags that ask about one resource are exactly four") and `packages/core/test/PortFacts.characterisation.test.ts` ("a scoped read at every site"); the second requirement is the compiler's, over `PortAccess.ts`'s table, and `pnpm typecheck` holds it.
