@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-90 (The remaining per-port facts live on the port description) — EXECUTING
-Plan: 12 of 16
+Plan: 11 of 16
 Status: Ready to execute
 Last activity: 2026-11-26 — Phase 89 complete, transitioned to Phase 90
 
