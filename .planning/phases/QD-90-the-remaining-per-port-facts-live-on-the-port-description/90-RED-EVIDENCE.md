@@ -973,3 +973,46 @@ Each block below is one run of a phase check or a held mutation mode on a scratc
 - failing text: 88-check.mjs records --close: missing reason "spec/README.md is at Revision 1.416, not 1.414"
 - failing text: 88-check.mjs records --close: missing reason "spec/traceability.md is at Revision 1.335, not 1.333"
 - failing text: 88-check.mjs records --close: unexpected reason "spec/README.md is at Revision 1.415, not 1.414"
+
+## port-names-swap-vitest
+- scratch: names-swap-vitest at 61ff69b836
+- edit: PORT_NAMES with AttributeResolver and DecisionHistory swapped
+- diff: 2477bbc35b40886eb963d28357a86c05d32dd8d6204636c4db3a67dab395595d (1 files, +1 -1)
+- run: vitest packages/core/test/PortFacts.characterisation.test.ts
+- exit: 1
+- seen failing: each port metric preregisters its words portCallsTotal preregisters the five ports, in order
+- seen failing: each port metric preregisters its words portRetriesTotal preregisters the five ports, in order
+- seen failing: each port metric preregisters its words portTimeoutsTotal preregisters the five ports, in order
+- seen failing: each port metric preregisters its words servedPortCallsTotal preregisters the five ports, in order
+- failing text: AssertionError: expected [ [ 'DecisionHistory', +0 ], …(4) ] to deeply equal [ [ 'AttributeResolver', +0 ], …(4) ]
+- failing text: AssertionError: expected [ [ 'DecisionHistory', +0 ], …(4) ] to deeply equal [ [ 'AttributeResolver', +0 ], …(4) ]
+- failing text: AssertionError: expected [ [ 'DecisionHistory', +0 ], …(4) ] to deeply equal [ [ 'AttributeResolver', +0 ], …(4) ]
+
+## port-names-swap-tstyche
+- scratch: names-swap-tstyche at 61ff69b836
+- edit: PORT_NAMES with AttributeResolver and DecisionHistory swapped
+- diff: 2477bbc35b40886eb963d28357a86c05d32dd8d6204636c4db3a67dab395595d (1 files, +1 -1)
+- run: tstyche packages/core/test/PortFacts.tst.ts
+- exit: 1
+- seen failing: PORT_NAMES is the five names, in the registry's order
+- failing text: Error: Type 'readonly ["DecisionHistory", "AttributeResolver", "RelationshipResolver", "CustomPredicate", "SignatureHistory"]' is not the same as type 'readonly ["AttributeResolver", "DecisionHistory", "RelationshipResolver", "CustomPredicate", "SignatureHistory"]'.
+- failing text: Error: Type 'readonly ["DecisionHistory", "AttributeResolver", "RelationshipResolver", "CustomPredicate", "SignatureHistory"]' is not the same as type 'readonly ["AttributeResolver", "DecisionHistory", "RelationshipResolver", "CustomPredicate", "SignatureHistory"]'.
+
+## port-names-predicate-misspelt
+- scratch: names-misspelt at 61ff69b836
+- edit: PREDICATE_PORT_NAMES holding "AttributeResolvr"
+- diff: 976a36ceb6b499d354137f9d1d0e92755918d5e2d5f443c1173e8f37e257fe5c (1 files, +1 -1)
+- run: tsc-src
+- exit: 2
+- failing text: packages/core/src/PortMetrics.ts(135,3): error TS2820: Type '"AttributeResolvr"' is not assignable to type '"AttributeResolver" | "CustomPredicate" | "DecisionHistory" | "RelationshipResolver" | "SignatureHistory"'. Did you mean '"AttributeResolver"'?
+- tsc: packages/core/src/PortMetrics.ts TS2820 x1
+
+## port-names-imports-ports
+- scratch: names-cycle at 61ff69b836
+- edit: PortName.ts importing ./Ports.ts
+- diff: e115d5ce18dd37431c75bda7be0917239b2ab554f769c728d29529d229e710aa (1 files, +3 -0)
+- run: circular
+- exit: 1
+- failing text: 1) core/src/PortDerivation.ts > core/src/PortDefault.ts > core/src/PortName.ts > core/src/Ports.ts > core/src/AttributeResolver.ts
+- failing text: 2) core/src/PortDefault.ts > core/src/PortName.ts > core/src/Ports.ts > core/src/AttributeResolver.ts > core/src/PortDescription.ts
+- failing text: 3) core/src/PortName.ts > core/src/Ports.ts > core/src/AttributeResolver.ts > core/src/PortDescription.ts
