@@ -22,23 +22,26 @@ const REASON_LABEL = "Why the timeline stopped";
 /** What the dock hands the timeline notice. */
 export type TimelineNoticeProps = StopNoticeProps<TimelineStatus>;
 
-const noticeOf: (self: TimelineStatus) => (notice: TimelineNoticeProps) => ReactNode = Match.type<TimelineStatus>().pipe(
-  Match.tagsExhaustive({
-    Reading: () => () => null,
-    Stopped: (status) => (notice: TimelineNoticeProps) => (
-      <div data-testid="qadi-timeline-notice-slot" style={{ padding: "12px 12px 0" }}>
-        <StoppedBox<TimelineStatus>
-          notice={notice}
-          reason={status.reason}
-          lead={STOPPED_LEAD}
-          body={STOPPED_BODY}
-          reasonLabel={REASON_LABEL}
-          restartLabel={RESTART_LABEL}
-          feed="timeline"
-        />
-      </div>
-    ),
-  }),
-);
+const noticeOf: (self: TimelineStatus) => (notice: TimelineNoticeProps) => ReactNode =
+  Match.type<TimelineStatus>().pipe(
+    Match.tagsExhaustive({
+      Reading: () => () => null,
+      Stopped: (status) => (notice: TimelineNoticeProps) => (
+        <div data-testid="qadi-timeline-notice-slot" style={{ padding: "12px 12px 0" }}>
+          <StoppedBox<TimelineStatus>
+            notice={notice}
+            reason={status.reason}
+            lead={STOPPED_LEAD}
+            body={STOPPED_BODY}
+            reasonLabel={REASON_LABEL}
+            restartLabel={RESTART_LABEL}
+            feed="timeline"
+          />
+        </div>
+      ),
+    }),
+  );
 
-export const TimelineNotice: FC<TimelineNoticeProps> = (notice) => <>{noticeOf(notice.status)(notice)}</>;
+export const TimelineNotice: FC<TimelineNoticeProps> = (notice) => (
+  <>{noticeOf(notice.status)(notice)}</>
+);

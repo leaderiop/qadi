@@ -13,7 +13,7 @@
  * away announces nothing. The stack-trace reason after the alert is never part of it.
  *
  * The ledger and the three functions over it are `model/StopLedger.ts` (ADR-QD-201).
- * Package-private: it is in no barrel and so not importable (AGENTS.md section 9, ADR-QD-099).
+ * Package-private: it is in no barrel and so not importable (AGENTS.md §9, ADR-QD-099).
  */
 import type { CSSProperties, MouseEvent, ReactElement } from "react";
 import { useLayoutEffect, useState } from "react";
@@ -24,7 +24,8 @@ import { button, colors, panel, reasonStyle, withAlpha } from "./theme.ts";
  * The ledger a feed's notice reads, and the call that records a stop in it.
  *
  * Both come from one reducer the dock's frame holds per feed, so the ledger outlives every
- * screen. It records only which stop was announced, never what the reading says (AGENTS.md section 13).
+ * screen. It records only which stop was announced, never what the reading says
+ * (AGENTS.md §13).
  */
 export interface AnnouncedStops<S> {
   readonly ledger: StopLedger<S>;
@@ -90,7 +91,10 @@ const restartStyle: CSSProperties = {
 };
 
 export const StoppedBox = <S,>(props: StoppedBoxProps<S>): ReactElement => (
-  <StoppedBody key={stoppedKey(props.notice.announced.ledger, props.notice.status)} {...props} />
+  <StoppedBody
+    key={stoppedKey(props.notice.announced.ledger, props.notice.status)}
+    {...props}
+  />
 );
 
 const StoppedBody = <S,>({
@@ -104,7 +108,8 @@ const StoppedBody = <S,>({
   sampled,
 }: StoppedBoxProps<S>): ReactElement => {
   const { hooks, focusTarget } = FEEDS[feed];
-  // Decided at mount: a new stop is a new mount (see `stoppedKey`), so a role is never added to a mounted element.
+  // Decided at mount: a new stop is a new mount (see `stoppedKey`), so a role is never
+  // added to a mounted element.
   const [alert] = useState(() => announcesStop(announced.ledger, status));
   useLayoutEffect(() => {
     announced.record(status);

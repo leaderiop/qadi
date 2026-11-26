@@ -69,11 +69,12 @@ written, so the rule that nothing is announced twice held because of how the ref
 4. **The alert is decided at mount and the stop is recorded at commit.** The body decides
    `const [alert] = useState(() => announcesStop(announced.ledger, status))`, a decision made at mount from a prop, and records
    in `useLayoutEffect(() => { announced.record(status); }, [announced.record, status])`, a block body, so whatever `record`
-   returns is never taken for the effect's cleanup. The layout timing lands the record's re-render before paint. The effect is keyed on `record` and not on the handle: the record's own re-render builds a new
-   handle and re-runs nothing, and a box handed another feed's ledger, which carries another `record`, records there. Nothing is
-   written during render, so a render that is thrown away, or a doubled one, records nothing and the alert is kept. No
-   `role="alert"` is ever added to or removed from a mounted element, and the role, `data-announce`, `data-sampled`, the test ids,
-   the focus target and the copy are what they were.
+   returns is never taken for the effect's cleanup. The layout timing lands the record's re-render before paint. The effect
+   is keyed on `record` and not on the handle: the record's own re-render builds a new handle and re-runs nothing, and a box
+   handed another feed's ledger, which carries another `record`, records there. Nothing is written during render, so a render
+   that is thrown away, or a doubled one, records nothing and the alert is kept. No `role="alert"` is ever added to or removed
+   from a mounted element, and the role, `data-announce`, `data-sampled`, the test ids, the focus target and the copy are what
+   they were.
 
 5. **The key is stable across the record.** The key of a stop is the same before and after it is recorded, so the re-render the
    record causes keeps the box mounted and its alert stays on the same element
@@ -85,8 +86,9 @@ written, so the rule that nothing is announced twice held because of how the ref
    screen with no notice alerts on the first screen that shows it
    ([BEH-QD-780](../behaviors/28-devtools-screens.md#beh-qd-780-a-stop-no-box-has-shown-is-not-announced-and-it-alerts-on-the-first-screen-that-shows-it)).
 
-7. **The cost, measured.** One extra `DockFrame` pass per newly shown stop (2 parent renders and 2 commits, against 1 and 1 on the base); a remount for a recorded stop, or an `Activity` show, costs one `DockFrame` function call and renders nothing below it.
-   The base is the ledger as a ref. `useReducer` has no eager bail-out, so a record always schedules the second pass, from a layout
+7. **The cost, measured.** One extra `DockFrame` pass per newly shown stop
+   (2 parent renders and 2 commits, against 1 and 1 on the base); a remount for a recorded stop, or an `Activity` show, costs
+   one `DockFrame` function call and renders nothing below it. The base is the ledger as a ref. `useReducer` has no eager bail-out, so a record always schedules the second pass, from a layout
    effect and before paint; a feed with no stop adds none, and no `configure` re-runs, because the model's hand-over is in
    `DevtoolsDock`, above `DockFrame`.
 

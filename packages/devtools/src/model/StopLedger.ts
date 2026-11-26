@@ -11,7 +11,7 @@
  *
  * It holds one stop and never a set: recording A, then B, then A counts three changes.
  *
- * It records only which stop was announced, never what the reading says (AGENTS.md section 13),
+ * It records only which stop was announced, never what the reading says (AGENTS.md §13),
  * so it holds an identity and a count and nothing else.
  */
 export interface StopLedger<S> {
@@ -36,7 +36,8 @@ export const stoppedKey = <S>(ledger: StopLedger<S>, status: S): number =>
  *
  * A stop is its identity: an equal-field value that is another object is a new stop.
  */
-export const announcesStop = <S>(ledger: StopLedger<S>, status: S): boolean => ledger.stop !== status;
+export const announcesStop = <S>(ledger: StopLedger<S>, status: S): boolean =>
+  ledger.stop !== status;
 
 /**
  * The ledger after a stop is recorded.

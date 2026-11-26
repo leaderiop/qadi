@@ -71,28 +71,29 @@ interface Parts {
 
 const NOTHING: Parts = { region: null, stopped: null };
 
-const noticeOf: (self: DiagnosticsStatus) => (notice: DiagnosticsNoticeProps) => Parts = Match.type<DiagnosticsStatus>().pipe(
-  Match.tagsExhaustive({
-    Off: () => () => NOTHING,
-    Starting: () => () => ({ region: <StartingNotice />, stopped: null }),
-    Live: () => () => NOTHING,
-    Stopped: (status) => (notice: DiagnosticsNoticeProps) => ({
-      region: null,
-      stopped: (
-        <StoppedBox<DiagnosticsStatus>
-          notice={notice}
-          reason={status.reason}
-          lead={STOPPED_LEAD}
-          body={status.sampled ? STOPPED_BODY_SAMPLED : STOPPED_BODY_UNSAMPLED}
-          reasonLabel={REASON_LABEL}
-          restartLabel={RESTART_LABEL}
-          feed="diagnostics"
-          sampled={status.sampled}
-        />
-      ),
+const noticeOf: (self: DiagnosticsStatus) => (notice: DiagnosticsNoticeProps) => Parts =
+  Match.type<DiagnosticsStatus>().pipe(
+    Match.tagsExhaustive({
+      Off: () => () => NOTHING,
+      Starting: () => () => ({ region: <StartingNotice />, stopped: null }),
+      Live: () => () => NOTHING,
+      Stopped: (status) => (notice: DiagnosticsNoticeProps) => ({
+        region: null,
+        stopped: (
+          <StoppedBox<DiagnosticsStatus>
+            notice={notice}
+            reason={status.reason}
+            lead={STOPPED_LEAD}
+            body={status.sampled ? STOPPED_BODY_SAMPLED : STOPPED_BODY_UNSAMPLED}
+            reasonLabel={REASON_LABEL}
+            restartLabel={RESTART_LABEL}
+            feed="diagnostics"
+            sampled={status.sampled}
+          />
+        ),
+      }),
     }),
-  }),
-);
+  );
 
 export const DiagnosticsNotice: FC<DiagnosticsNoticeProps> = (notice) => {
   const { region, stopped } = noticeOf(notice.status)(notice);
