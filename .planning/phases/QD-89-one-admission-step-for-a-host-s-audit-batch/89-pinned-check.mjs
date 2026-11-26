@@ -108,13 +108,16 @@ const ORDER_REGIONS = [
     to: 'import { decisionRecord, numbered } from "./helpers.ts";',
     becomes: ['import { verifiedArchiveFacts } from "../src/ArchiveFacts.ts";', 'import { admitRows } from "../src/HostBatch.ts";'],
   },
+  // `verifiedArchiveFacts` takes admitted rows, so the helper that handed it a list goes with the rewritten direct rows.
+  { name: "factsFailure", from: "const factsFailure = (entries: ReadonlyArray<AuditEntry>) =>", lines: 2, lead: 1, becomes: [] },
   {
     name: "spanFlips",
     from: 'describe("the sequence span on refused rows", () => {',
     to: 'describe("what a refusal leaves unread", () => {',
     kept: [/^it(?:\.effect)?\("SF[1-4] /],
   },
-  { name: "direct", from: 'describe("verifiedArchiveFacts called directly", () => {', to: null, kept: [/^it(?:\.effect)?\("F[1-5] /] },
+  // The rows are rewritten over admitted rows with new titles, so only the block's own line is kept.
+  { name: "direct", from: 'describe("verifiedArchiveFacts called directly", () => {', to: null, kept: ['describe("verifiedArchiveFacts called directly", () => {'] },
 ];
 
 /** Each declared file with its regions, and the text its regions are read from: `base` is `phase_base`, `born` the adding commit. */
@@ -439,7 +442,7 @@ const selfTest = () => {
     ["a region that ends before it starts fails", reversed.some((r) => r.includes("does not start before it ends"))],
     ["two regions that overlap at the base fail", overlap.some((r) => r.includes("overlaps the one before it"))],
     ["each declared file names its regions once and reads from a text its adding commit or the base holds", real && DECLARED.length === 3 && DECLARED.every((d) => d.from === "base" || BORN.includes(d.file))],
-    ["the declared forms are the ones the phase fixes: seven, one and three regions, the block with four titles", FOREIGN_REGIONS.length === 7 && RETENTION_REGIONS.length === 1 && ORDER_REGIONS.length === 3 && ADMITS_TITLES.length === 4 && FOREIGN_REGIONS.filter((r) => r.becomes?.length === 0).length === 4],
+    ["the declared forms are the ones the phase fixes: seven, one and four regions, the block with four titles", FOREIGN_REGIONS.length === 7 && RETENTION_REGIONS.length === 1 && ORDER_REGIONS.length === 4 && ADMITS_TITLES.length === 4 && FOREIGN_REGIONS.filter((r) => r.becomes?.length === 0).length === 4],
     ["each declared region has exactly one of the forms becomes, kept and insert", oneForm],
   ];
   const failed = cases.filter(([, passed]) => !passed).map(([name]) => name);
