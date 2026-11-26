@@ -54,7 +54,7 @@ import type {
   QadiProviderProps,
 } from "../src/index.ts";
 import { gateWriterFor } from "../src/GateWriter.ts";
-import type { GateInstance, GateRenderState } from "../src/GateRegistry.ts";
+import type { GateInstance, GateRenderState } from "../src/GateWriter.ts";
 import { environments, inEnvironment, said } from "./support/environment.ts";
 import type { Environment } from "./support/environment.ts";
 import { threw } from "./support/reporterThrew.ts";

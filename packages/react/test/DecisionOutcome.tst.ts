@@ -11,7 +11,7 @@ import type { Allow, Deny, EvaluationError, GateState } from "@qadi/core";
 import type * as AsyncResult from "effect/reactivity/AsyncResult";
 import type { DecisionOutcome, DecisionResult } from "../src/DecisionOutcome.ts";
 import { currentDecision, outcomeOf } from "../src/DecisionOutcome.ts";
-import type { GateRenderState } from "../src/GateRegistry.ts";
+import type { GateRenderState } from "../src/GateWriter.ts";
 import type { ClientDecision, SeededAllow, SeededDeny } from "../src/SeededDecision.ts";
 
 type Case<Tag extends DecisionOutcome["_tag"]> = Extract<DecisionOutcome, { readonly _tag: Tag }>;

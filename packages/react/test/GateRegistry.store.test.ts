@@ -8,9 +8,9 @@
 import { EvaluationServicesNone, hasPermission, permission } from "@qadi/core";
 import * as FastCheck from "fast-check";
 import { describe, expect, it, vi } from "vitest";
-import { makeGateRegistry } from "../src/GateRegistry.ts";
+import { makeGateRegistry } from "../src/GateWriter.ts";
 import { makeQadiAtoms } from "../src/QadiAtoms.ts";
-import type { GateInstance, GateRenderState } from "../src/GateRegistry.ts";
+import type { GateInstance, GateRenderState } from "../src/GateWriter.ts";
 import { gateWriterFor } from "../src/GateWriter.ts";
 import { inEnvironment, said } from "./support/environment.ts";
 import type { Environment } from "./support/environment.ts";

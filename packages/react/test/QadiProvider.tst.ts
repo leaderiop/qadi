@@ -8,7 +8,7 @@
  */
 import { expect, test } from "tstyche";
 import type { QadiContextValue } from "../src/QadiProvider.tsx";
-import type { GateRegistry } from "../src/GateRegistry.ts";
+import type { GateRegistry } from "../src/GateWriter.ts";
 
 test("the context value is the atoms, the registry and the gates", () => {
   expect<keyof QadiContextValue>().type.toBe<"atoms" | "registry" | "gates">();

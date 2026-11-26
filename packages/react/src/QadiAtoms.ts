@@ -29,7 +29,7 @@ import {
   hydrateWith,
 } from "./HydrationEngine.ts";
 import { reporterFor, SIGNALS } from "./DeveloperSignals.ts";
-import type { GateRegistry } from "./GateRegistry.ts";
+import type { GateRegistry } from "./GateWriter.ts";
 import { buildGateRegistry } from "./GateWriter.ts";
 import type { DecisionResult } from "./DecisionOutcome.ts";
 import type { AskedQuestion } from "./QuestionBook.ts";

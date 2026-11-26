@@ -18,14 +18,14 @@ export { DecisionOutcome, currentDecision, outcomeOf } from "./DecisionOutcome.t
 export type { DecisionResult } from "./DecisionOutcome.ts";
 export { runtimeLayer, useDevtoolsFeed } from "./DevtoolsFeed.ts";
 export type { DevtoolsDiagnosticsFeed, DevtoolsFeed } from "./DevtoolsFeed.ts";
-export { makeGateRegistry } from "./GateRegistry.ts";
+export { makeGateRegistry } from "./GateWriter.ts";
 export type {
   GateInstance,
   GateKind,
   GateRegistry,
   GateRegistryOptions,
   GateRenderState,
-} from "./GateRegistry.ts";
+} from "./GateWriter.ts";
 export {
   SeededAllow,
   SeededDeny,

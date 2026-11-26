@@ -7,11 +7,14 @@
 import { renderHook } from "@testing-library/react";
 import { createRef, StrictMode } from "react";
 import { describe, expect, it } from "vitest";
-import { makeGateRegistry } from "../src/GateRegistry.ts";
-import type { GateRenderState } from "../src/GateRegistry.ts";
-import { gateWriterFor } from "../src/GateWriter.ts";
+import { gateWriterFor, makeGateRegistry } from "../src/GateWriter.ts";
 import { useGateRegistrations } from "../src/useGate.ts";
-import type { GateIdentity, GateWanted, GateWriter } from "../src/GateWriter.ts";
+import type {
+  GateIdentity,
+  GateRenderState,
+  GateWanted,
+  GateWriter,
+} from "../src/GateWriter.ts";
 import { newCanRead, notificationsOf } from "./support/gates.ts";
 
 // One marker ref per hook instance, as `useGate` has: a fresh ref per render

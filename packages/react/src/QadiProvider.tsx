@@ -46,7 +46,7 @@ import {
   useRef,
   type ReactNode,
 } from "react";
-import type { GateRegistry } from "./GateRegistry.ts";
+import type { GateRegistry } from "./GateWriter.ts";
 import { gateWriterFor } from "./GateWriter.ts";
 import type { InitialValues } from "./HydrationEngine.ts";
 import {

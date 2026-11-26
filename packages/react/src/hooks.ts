@@ -10,7 +10,7 @@ import type { AuthSubject, Policy, Resource } from "@qadi/core";
 import { projectVisible } from "@qadi/core";
 import { useAtomSuspense } from "@effect/atom-react/Hooks";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
-import type { GateInstance } from "./GateRegistry.ts";
+import type { GateInstance } from "./GateWriter.ts";
 import type { DecisionResult } from "./DecisionOutcome.ts";
 import type { AskedQuestion } from "./QuestionBook.ts";
 import { useAtomValue, useQadiContext } from "./QadiProvider.tsx";

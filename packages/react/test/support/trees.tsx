@@ -17,7 +17,7 @@ import {
 } from "@qadi/core";
 import { StrictMode } from "react";
 import type { ReactElement, ReactNode } from "react";
-import type { GateRegistry } from "../../src/GateRegistry.ts";
+import type { GateRegistry } from "../../src/GateWriter.ts";
 import { usePolicies } from "../../src/hooks.ts";
 import { makeQadiAtoms } from "../../src/QadiAtoms.ts";
 import type { QadiAtoms } from "../../src/QadiAtoms.ts";
