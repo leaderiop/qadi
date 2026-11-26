@@ -862,3 +862,94 @@ Each block below is one run of a phase check or a held mutation mode on a scratc
 - run: script 90-check.mjs sixth-port base
 - exit: 1
 - failing text: a group the record lacks: packages/core/src/PortMetrics.ts TS2741
+
+## pinned-held-core
+- scratch: pinned-held-core at 501710b22a
+- edit: a comment line appended to the held core test Ports.test.ts
+- diff: 107aadd3c95c136d4050f0145c34f1c30b221db1e6b783b78b01d520648fa74a (1 files, +2 -0)
+- run: script 90-pinned-check.mjs
+- exit: 1
+- failing text: packages/core/test/Ports.test.ts: differs from its base text at line 642
+
+## pinned-held-devtools
+- scratch: pinned-held-devtools at 501710b22a
+- edit: a comment line appended to the held devtools test support file builtFeeds.ts
+- diff: 27446275b58e865e3e00543d9f5ba0b81663f6d110c29288b4dae063e2d1404d (1 files, +2 -0)
+- run: script 90-pinned-check.mjs
+- exit: 1
+- failing text: packages/devtools/test/builtFeeds.ts: differs from its base text at line 38
+
+## pinned-held-features
+- scratch: pinned-held-features at 501710b22a
+- edit: a comment line appended to the held features file step-definitions/CustomPredicateWhenSteps.ts
+- diff: 259ff49187d69c3522e258256f530c43256424cc576a34c9c78bce4f00e74a0e (1 files, +2 -0)
+- run: script 90-pinned-check.mjs
+- exit: 1
+- failing text: features/step-definitions/CustomPredicateWhenSteps.ts: differs from its base text at line 12
+
+## pinned-portserving
+- scratch: pinned-portserving at 501710b22a
+- edit: a comment line appended to the held source file PortServing.ts
+- diff: 4cee3bc03aac20dece042b4e17314949651791c27cff82178543ae7d68ffc6b7 (1 files, +2 -0)
+- run: script 90-pinned-check.mjs
+- exit: 1
+- failing text: packages/core/src/PortServing.ts: differs from its base text at line 115
+
+## pinned-leafneeds-outside
+- scratch: pinned-leafneeds-outside at 501710b22a
+- edit: one row title of LeafNeeds.test.ts changed outside its declared regions (line 56)
+- diff: 29d0f54cff32766f3c4778514035df5dc25d21e1c701acd96820c2a1da28998d (1 files, +1 -1)
+- run: script 90-pinned-check.mjs
+- exit: 1
+- failing text: packages/core/test/LeafNeeds.test.ts: differs from the commit that added it at line 54
+- failing text: packages/core/test/LeafNeeds.test.ts: differs outside its declared lines at line 54
+
+## pinned-char-outside
+- scratch: pinned-char-outside at 501710b22a
+- edit: a comment line appended to the characterisation outside its import block
+- diff: 6b4471854b7713b07cadff18b228b42ba3ec5048bcf7c23571884347deb3fdc4 (1 files, +2 -0)
+- run: script 90-pinned-check.mjs
+- exit: 1
+- failing text: packages/core/test/PortFacts.characterisation.test.ts: differs from the commit that added it at line 698
+
+## pinned-char-const
+- scratch: pinned-char-const at 501710b22a
+- edit: a const inserted among the imports of the characterisation (line 31)
+- diff: 8d3d8f49b69767d1cf9c7cc7e477175ffc7560cd1d34470413c1f5e627f33800 (1 files, +1 -0)
+- run: script 90-pinned-check.mjs
+- exit: 1
+- failing text: packages/core/test/PortFacts.characterisation.test.ts: line 31 inside its import region is not an import declaration
+
+## pinned-tst-born
+- scratch: pinned-tst-born at 501710b22a
+- edit: a member type of PortFacts.tst.ts changed inside its born text
+- diff: b16b78b97b8f331e2065b72c995244c0af29c0d774da002a28c922717d9698f8 (1 files, +1 -1)
+- run: script 90-pinned-check.mjs
+- exit: 1
+- failing text: packages/core/test/PortFacts.tst.ts: differs from the commit that added it at line 24
+
+## pinned-bench
+- scratch: pinned-bench at 501710b22a
+- edit: a comment line appended to the bench file Evaluate.bench.ts
+- diff: 5158d429bf30fe79d6a46b7ab939c43bbbb86c42ed0faafd80dd911be9ce187f (1 files, +2 -0)
+- run: script 90-pinned-check.mjs
+- exit: 1
+- failing text: packages/core/bench/Evaluate.bench.ts: differs from the commit that added it at line 623
+
+## pinned-mutation-commit
+- scratch: pinned-mutation-commit at b61125457b
+- edit: packages/core/test/PortFacts.mutation.test.ts added in a scratch commit under the subject test(90-99): scratch only
+- diff: 60461c76e7ead16c010c1dd643f36c13d64547b6a3d272fff2c0d48d1a03547a (1 files, +1 -0)
+- run: script 90-pinned-check.mjs
+- exit: 1
+- failing text: packages/core/test/PortFacts.mutation.test.ts: added by a commit other than the one that may add it
+
+## pinned-all-applied
+- scratch: pinned-all-applied at 501710b22a
+- edit: none: the unedited clone with --all-applied, the declared commits missing
+- diff: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (0 files, +0 -0)
+- run: script 90-pinned-check.mjs --all-applied
+- exit: 1
+- failing text: packages/core/test/PortName.tst.ts: its declared edit is not applied
+- failing text: packages/core/test/PortDescription.test.ts: its declared edit is not applied
+- failing text: packages/core/src/LeafNeeds.ts: its declared edit is not applied
