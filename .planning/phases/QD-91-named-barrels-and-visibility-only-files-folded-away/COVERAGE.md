@@ -1,0 +1,1 @@
+No external API integration: the phase rearranges barrels and module layout inside the monorepo's own packages (`@qadi/core`, `@qadi/react`, `@qadi/audit`) and its own gate scripts, and calls, adds or changes no external API.
