@@ -8,7 +8,7 @@
  * (AGENTS.md §6), so a caller decides when and how often retention runs.
  *
  * **A row is selected for deletion only with a finite age past a valid limit
- * and only when its archive holds it.** `now` is finite, `maxAgeMs >= 0`, and
+ * and only when its archive holds it.** `now` is finite, `maxAgeMs` is a number `>= 0`, and
  * `now - at > maxAgeMs` (the age rule, in {@link planRetention}); and a
  * {@link VerifiedArchive} read back from storage holds the row
  * ({@link planPurge}). A row's `at` is finite because only the codec makes a
@@ -40,7 +40,8 @@ export interface RetentionPolicy {
  *
  * - `NowNotFinite`: `now` is not a finite number, and `value` is the value given
  *   (`HostBatch.ts`, the one step that admits a batch).
- * - `MaxAgeInvalid`: `maxAgeMs` is `NaN` or negative, and `value` is the value given.
+ * - `MaxAgeInvalid`: `maxAgeMs` is not a number from zero up (`NaN`, negative, or not a number at all), and `value`
+ *   is the value given.
  * - `EntriesNotAList`: `entries` is not a list, and `value` is the value given.
  * - `EntryNotMadeByCodec`: the entry at `index`, the first, is not a row the codec made
  *   (`CodecMade.ts`, ADR-QD-190).
@@ -87,14 +88,17 @@ export interface RetentionPlan {
 /**
  * Reads the policy's age limit once, and refuses one that is not a number from zero up.
  *
- * `+Infinity`, `0` and `-0` are valid. A `null` or `undefined` policy, and one with no limit, is refused with
- * `value` `undefined`, so a host's missing policy is a typed refusal rather than a thrown read.
+ * `+Infinity`, `0` and `-0` are valid. Only a primitive number is compared, so nothing is converted: `null`, a
+ * boolean, a string, a list, a boxed number, an object with its own `valueOf`, a Symbol and an object with no
+ * prototype are each refused with the value given, and none of them is read as `0` or throws. A `null` or
+ * `undefined` policy, and one with no limit, is refused with `value` `undefined`, so a host's missing policy is a
+ * typed refusal rather than a thrown read.
  */
 const maxAgeOf = (
   policy: RetentionPolicy,
 ): Result.Result<number, ReturnType<typeof RetentionInputRefusal.MaxAgeInvalid>> => {
-  const value = policy?.maxAgeMs;
-  return value >= 0
+  const value: unknown = policy?.maxAgeMs;
+  return typeof value === "number" && value >= 0
     ? Result.succeed(value)
     : Result.fail(RetentionInputRefusal.MaxAgeInvalid({ value }));
 };
@@ -122,7 +126,7 @@ const ageRule = (batch: AdmittedBatch<number>): RetentionPlan => {
  *
  * The step in `HostBatch.ts` admits the batch first and each input is read once, so the plan reads the number the
  * limit check admitted and the rows it checked. Refuses `RetentionInputInvalid` when `now` is not finite
- * (`NowNotFinite`), `maxAgeMs` is `NaN` or negative or absent (`MaxAgeInvalid`; `+Infinity` is valid and means
+ * (`NowNotFinite`), `maxAgeMs` is not a number from zero up or is absent (`MaxAgeInvalid`; `+Infinity` is valid and means
  * "retain forever"), `entries` is not a list (`EntriesNotAList`) or an entry is not a row the codec made
  * (`EntryNotMadeByCodec`, the index of the first). A store client's `any` and a JavaScript caller's literal pass the
  * type; a row of unknown shape has no age to read. Otherwise one pass: a row with `now - at > maxAgeMs` is expired and

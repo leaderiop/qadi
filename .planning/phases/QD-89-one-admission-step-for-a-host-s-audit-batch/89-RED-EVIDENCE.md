@@ -509,3 +509,16 @@ The base is the one `89-mutation-base.json` records (`phase_base` 8ee14f6f703f31
 - equivalent: packages/audit/src/HostBatch.ts MethodExpression taken: a hole is refused before the line, so no element is undefined and the filter only narrows the type
 - hand run: `pnpm exec stryker run <scratch config spreading stryker.audit.mjs with ignoreStatic: false, reports to the scratch directory> --mutate packages/audit/src/HostBatch.ts`, 12 seconds: 23 mutants, 22 Killed (the static ones among them), the one Survived mutant is the equivalent filter above
 - examined: packages/audit/src/HostBatch.ts ArrowFunction () => undefined: Killed
+
+## 89 review fixes
+
+Each row below was run against HEAD 76d38f52 (the source the review read) with only the new test file added, stdin closed, before its fix was written.
+
+- red before: M1 null, false, an empty string and an empty list, which compare as 0, are MaxAgeInvalid with the value given in each plan
+  - failed on: AssertionError: the plan admitted the limit
+- red before: M2 a numeric string and true are MaxAgeInvalid with the value given in each plan
+  - failed on: AssertionError: the plan admitted the limit
+- red before: M3 a boxed number and an object with its own valueOf are MaxAgeInvalid with the value given in each plan, and valueOf is never called
+  - failed on: AssertionError: the plan admitted the limit
+- red before: M4 a Symbol and an object with no prototype are MaxAgeInvalid with the value given in each plan, and neither throws
+  - failed on: TypeError: Cannot convert a Symbol value to a number

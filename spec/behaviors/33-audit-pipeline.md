@@ -727,13 +727,16 @@ REQUIREMENT: For any entries, RetentionPolicy and now, the sets
 
 ```
 REQUIREMENT: An entry MUST be expired (and so purgeable) only if its `at` and
-             `now` are finite, `maxAgeMs >= 0`, and `now - at > maxAgeMs`. A
+             `now` are finite, `maxAgeMs` is a number `>= 0`, and
+             `now - at > maxAgeMs`. A
              row's `at` is finite because only the codec makes a row
              (INV-QD-400).
 REQUIREMENT: planRetention(entries, policy, now) MUST return
              `RetentionInputInvalid` with the refusal `NowNotFinite { value }`
              for a `now` that is not finite or `MaxAgeInvalid { value }` for a
-             `maxAgeMs` that is `NaN` or negative (`value` the value given),
+             `maxAgeMs` that is not a number from zero up: `NaN`, a negative
+             number, or a value that is not a number at all, which is never
+             converted (`value` the value given),
              then `EntriesNotAList { value }` for `entries` that is not a list
              (`value` the value given), then
              `EntryNotMadeByCodec { index }`, `index` the index of the first
@@ -1516,9 +1519,14 @@ for each union as its fragments plus its own members, asks the shared members to
 
 ```
 REQUIREMENT: `planRetention` and `planPurge` MUST read `policy.maxAgeMs` once, however
-             many rows there are, refuse a value that is not `>= 0` as
+             many rows there are, admit it only when it is a number (`typeof`
+             `"number"`) from zero up, refuse anything else as
              `MaxAgeInvalid { value }`, and compare each row with the number they
-             checked, never with the policy read again.
+             admitted, never with the policy read again.
+REQUIREMENT: A `maxAgeMs` that is not a number (`null`, a boolean, a string, a list,
+             a boxed number, an object with its own `valueOf`, a Symbol or an
+             object with no prototype) MUST be refused as `MaxAgeInvalid` with the
+             value given, MUST NOT be converted to a number, and MUST NOT throw.
 REQUIREMENT: A `policy` that is `null`, `undefined`, a primitive or an object with no
              `maxAgeMs` MUST be refused as `MaxAgeInvalid { value: undefined }`, and
              MUST NOT throw. `NaN` and a negative number are refused with the value
@@ -1529,10 +1537,16 @@ The policy is an input a host hands over, and the type does not bind it: a JavaS
 `TypeError` where a typed failure belongs, and a policy that is a getter or a proxy answers each read separately, so a
 limit that passed the check could be compared with a different one. The terms of retention read the limit once and
 return it. A `MaxAgeInvalid` that already existed for `{}` answers for the policy that is not an object, so the enum
-gains no member.
+gains no member. A relational check converts what it compares: `null`, `false`, `""` and `[]` compare as `0`, so a
+host whose config gives `maxAgeMs: null` for "no limit" would have every archived row selected for purge, an object
+would be converted through its own `valueOf` once for the check and again for every row, and a Symbol throws. The
+terms admit only a primitive number, so the value compared is the value checked, and for a deletion selector a value
+that is not a limit retains.
 
 Pinned by `packages/audit/test/BatchReadOnce.test.ts` (B1 to B5, the limit read once by each plan over two rows and over a
-refused value, and a policy that is not an object refused as `MaxAgeInvalid` with the value `undefined` by each plan) and
+refused value, and a policy that is not an object refused as `MaxAgeInvalid` with the value `undefined` by each plan),
+`packages/audit/test/MaxAgeAdmission.test.ts` (M1 to M4, a `maxAgeMs` that is not a number refused by each plan as
+`MaxAgeInvalid` with the value given, never converted and never thrown) and
 `packages/audit/test/Retention.test.ts` ("refuses a maxAgeMs that is NaN or negative, naming the member and the value").
 
 ---

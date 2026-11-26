@@ -92,10 +92,13 @@ Each call restated the check, and the restatement had three costs.
    array, so every later read, the facts, the age rule and the purge pass, reads what was checked. A hole reads as
    `undefined` and is refused at its index. The key material is read once by the writer's own terms
    (`snapshotKeyMaterial`, [ADR-QD-190](./190-an-audit-row-is-a-value-only-its-codec-makes.md) third amendment). The
-   retention terms read `policy?.maxAgeMs` once, refuse a value that is not `>= 0` as `MaxAgeInvalid { value }`, and
-   return the number, and the age rule compares with that number and never reads the policy again. A policy that is
-   `null` or `undefined` reads as `MaxAgeInvalid { value: undefined }`, the refusal `{}` gets, so it is a typed
-   failure and no new member joins the closed enum.
+   retention terms read `policy?.maxAgeMs` once, admit it only when it is a number (`typeof value === "number"`) from
+   zero up, refuse anything else as `MaxAgeInvalid { value }` without converting it, and return the number, and the
+   age rule compares with that number and never reads the policy again. `null`, a boolean, a string, a list, a boxed
+   number, an object with its own `valueOf`, a Symbol and an object with no prototype are each refused with the value
+   given: a relational check alone would read the first four as `0` and expire every row, convert an object once per
+   row, and throw on a Symbol. A policy that is `null` or `undefined` reads as `MaxAgeInvalid { value: undefined }`,
+   the refusal `{}` gets, so it is a typed failure and no new member joins the closed enum.
 
 6. **`NowNotFinite` is stated once.** `NowRefusalCases` is declared in `HostBatch.ts` beside the check that answers it,
    as `RowsRefusalCases` is declared beside `rowsRefusal`, and each public enum is its fragments plus its own members:
@@ -173,7 +176,7 @@ two declared regions of it moved with the change, the four span rows of decision
   successful verify would open two spans, which breaks the held success-span row, and a name stated twice is the drift
   [ADR-QD-110](./110-an-archives-facts-are-computed-once.md) removed.
 - **Folding this record into a fourth amendment of ADR-QD-190.** Rejected: the change adds a module and a brand,
-  moves two traces, fixes two defects and carries its own rejected alternatives and audit table, and folded in it
+  moves two traces, fixes three defects and carries its own rejected alternatives and audit table, and folded in it
   would bury the span rule. ADR-QD-190 and ADR-QD-110 each take a dated amendment that points here.
 - **A new refusal member for a policy that is not an object.** Rejected: a new member of `RetentionInputRefusal` is a
   Breaking change. `MaxAgeInvalid { value: undefined }` is the refusal `{}` already gets.
@@ -197,10 +200,12 @@ two declared regions of it moved with the change, the four span rows of decision
 
 - **Two refusal traces change, and are pinned.** A refused `archiveAuditTrail` opens only its own span, and a refused
   `verifySequenceIntegrity` opens none. Every success trace and every span name is unchanged.
-- **Two defects are fixed.** The rows are read once and the admitted array is what the facts, the bundle and the age
+- **Three defects are fixed.** The rows are read once and the admitted array is what the facts, the bundle and the age
   rule use, so a list that answers differently on a second read cannot make the writer return a bundle its
   reader refuses ([INV-QD-399](../invariants.md#inv-qd-399-every-archive-the-writer-returns-is-read-back-by-its-reader)).
-  A `null` or `undefined` policy is the typed refusal `MaxAgeInvalid { value: undefined }` and not a `TypeError`.
+  A `null` or `undefined` policy is the typed refusal `MaxAgeInvalid { value: undefined }` and not a `TypeError`. A
+  `maxAgeMs` that is not a number is `MaxAgeInvalid` with the value given, where `null`, `false`, `""` and `[]` were
+  read as a limit of `0` and selected every archived row for purge.
 - **Nothing public moves.** Both refusal enums, both error classes and every tag, member and field are as they were;
   `SCHEMA_ERROR_BUDGET` is unmoved, no export is added or removed, and `spec/overview.md` and `AGENTS.md` are unchanged.
   The change is a `@qadi/audit` patch.
@@ -225,6 +230,8 @@ two declared regions of it moved with the change, the four span rows of decision
     `verifiedArchiveFacts` over admitted rows.
   - `packages/audit/test/BatchReadOnce.test.ts`: B1 to B5, `maxAgeMs` read once and a policy that is not an object
     refused, and B6 to B13, what was checked is what is used and the rows list is read once.
+  - `packages/audit/test/MaxAgeAdmission.test.ts`: M1 to M4, a `maxAgeMs` that is not a number refused by each plan
+    as `MaxAgeInvalid` with the value given, never converted and never thrown.
   - `packages/audit/test/ForeignRows.test.ts`: the describe `each function that takes a batch refuses what the admission
     step refuses`, one case per entry point.
   - `packages/audit/test/AuditArchive.test.ts`, held: the two success spans.
