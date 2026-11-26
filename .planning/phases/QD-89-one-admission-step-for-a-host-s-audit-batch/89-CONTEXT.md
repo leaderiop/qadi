@@ -525,3 +525,22 @@ core's `Admission.ts` (the admission-as-a-plain-`Result` precedent); BEH-QD-253,
 - **Folding `SequenceIntegrity.ts` into `ArchiveFacts.ts`** is Phase 91's (D2), with 89's post-review mutation score
   as its base.
 </deferred>
+
+<addendum>
+## Addendum after research
+
+Added 2026-11-26 after `89-RESEARCH.md` measured the base (probes A and B, the D-09/D-11/D-12 spikes under tsc and tstyche, the mutation base, the earlier-checks ledger). Each entry is decided autonomously under the owner's standing instruction of 2026-11-22. Where an entry and an earlier decision disagree, the entry wins. Evidence for each: the matching section of `89-RESEARCH.md`.
+
+
+- **D-06a (the value import):** `ArchiveFacts.ts` imports `admitRows` as a value and `AdmittedRows`, `NowRefusalCases` as types. D-06's "only as a type" clause and the `89-check.mjs` `admission-step` clause "`ArchiveFacts.ts` imports `./HostBatch.ts` only with `import type`" are replaced by "`HostBatch.ts` imports nothing from `ArchiveFacts.ts`, `AuditArchive.ts` or `Retention.ts`" (no back edge; `pnpm circular` clean). Reason: the public verify lives in `ArchiveFacts.ts` and calls `admitRows` first (D-13).
+- **D-07a (the typed parameter):** `admitRows(entries: ReadonlyArray<AuditEntry>)`, not `unknown`. The run-time guard `Array.isArray(entries) ? takeRows(entries) : entries` stays, so a non-list reaches `rowsRefusal` and is refused with the value given. The list question is asked in one place (`CodecMade.ts`).
+- **D-12a (the read):** `takeRows = (list) => Array.from({ length: list.length }, (_, index) => list[index])`, then `rowsRefusal(taken)`, then `new AdmittedRows(taken.filter(Predicate.isNotUndefined))`. Measured: one `length` read, one read per index, no method or iterator read. The `filter` mutant is one `EQUIVALENT` entry; the `takeRows` arrow is one `EXAMINED` entry.
+- **D-12b (probe verdicts):** Probe A is confirmed (writer, verify and both plans): the changeset names the INV-QD-399 fix. Probe B is confirmed for `null` and `undefined` only; a primitive policy already answers `MaxAgeInvalid` (preserved row, green on the base). The `maxAgeMs` read count on the base is `1 + n` (valid) and `2` (refused).
+- **D-14a (impossible pairs and the table):** only `kmNotList × kmItem`, `maxAgeMs NaN × maxAgeMs -1`, `rowsNotList × rowItem` and `rowsNotList × break` are impossible. `rowItem × break` is a real pair (winner `EntryNotMadeByCodec`). The writer table has 12 pairs, the plan table 8, the verify and the direct `verifiedArchiveFacts` one each.
+- **D-17a (the pin):** drop "or `readonly`" from the claim. The pin fails if a member, a tag or a field type moves (seen failing on V1 to V4 and V6). Add the nominal twin `OtherAdmittedRows` (a structurally identical class in another module) to the brand pin so it proves nominal and not structural typing.
+- **D-18a (RED rows):** `maxAgeMs` is read exactly once for at least two rows (RED: 3 reads on the base) and once on a refused policy (RED: 2 on the base); a policy of `null` or `undefined` is `MaxAgeInvalid { value: undefined }` (RED: `TypeError`); a flipping list is admitted as the row that was checked (RED: the writer archives the flipped row and the reader refuses the bundle).
+- **D-20a (the earlier-checks ledger):** not empty. It holds 85's and 86's one `scan-ids` line, 87-pinned's one line (as 88 recorded), and 88's `records --close` three revision lines, each tagged with the 89 commit that explains it. The `admission-step` judge is the one in D-06a.
+- **D-21a (mutation):** the base invocation is `pnpm exec stryker run stryker.audit.mjs --mutate <AuditArchive, ArchiveFacts, Retention, CodecMade, SequenceIntegrity>` (212 mutants, all killed; 232 with 20 Ignored static). `SequenceIntegrity.ts` has no mutants. The close adds `HostBatch.ts`.
+- **D-22a (spec places that become false):** besides the amendments D-22 names, edit `INV-QD-399` and `INV-QD-400` **Source** lines (they say `verifiedArchiveFacts` refuses the row), and add dated `>` notes under ADR-QD-190 decision 2 and 3 (lines 278, 286) and ADR-QD-110 line 136.
+- **D-25 (tests removed: 6):** the audit table in ADR-QD-202 states "Tests removed: 6", names the six rows above and the row that now holds each property.
+</addendum>
