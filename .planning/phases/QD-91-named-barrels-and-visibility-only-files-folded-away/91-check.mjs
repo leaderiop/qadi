@@ -1533,8 +1533,8 @@ export const judgePinnedExist = (docs, resolve, exists) => {
   }
   return bad;
 };
-/** The text of one numbered row of the overview whose first cell is `name`. */
-const overviewRows = (text, name) => text.split("\n").filter((l) => l.startsWith(`| \`${name}\` |`));
+/** The rows of the overview whose first cell names `name`, alone or among others (`a`, `b`). */
+const overviewRows = (text, name) => text.split("\n").filter((l) => l.startsWith("|") && (l.split("|")[1] ?? "").split(",").some((cell) => cell.trim() === `\`${name}\``));
 
 /**
  * Reasons a record the phase writes is missing or wrong. `ctx` is `{ read, readBase, changed, resolve, exists, shas }`: a reader
@@ -2579,7 +2579,7 @@ it("has \\"quotes\\"", () => {});`;
     }
     files.set("spec/decisions/index.yaml", ['- id: "ADR-QD-037"', "  status: amended by ADR-QD-204", '- id: "ADR-QD-047"', "  status: amended by ADR-QD-204", '- id: "ADR-QD-099"', "  status: amended by ADR-QD-204", '- id: "ADR-QD-204"', "  file: 204-named-barrels-and-visibility-only-files-folded-away.md", ""].join("\n"));
     doc("spec/traceability.md", `${[...RESERVED, ...SURFACE_TESTS, "packages/react/test/HydrationTarget.tst.ts", "scripts/surface-diff.mjs"].map((x) => `| ${x} | row |`).join("\n")}\n`);
-    doc("spec/overview.md", `${Object.entries(OVERVIEW_SOURCES).map(([n, f]) => `| \`${n}\` | function | \`${f}\` — x |`).join("\n")}\n\n## Entry points\n\npackage-private\n`);
+    doc("spec/overview.md", `${Object.entries(OVERVIEW_SOURCES).map(([n, f]) => `| \`${n}\`${n === "dehydrateDecisions" ? ", `hydrateDecisions`" : ""} | function | \`${f}\` — x |`).join("\n")}\n\n## Entry points\n\npackage-private\n`);
     files.set(".planning/PROJECT.md", "- Phase 86: the commit-first, hold-last effect order (re-run in Phase 91 through the earlier-phase checks).\n");
     files.set("AGENTS.md", "## 7a. U\n\n| `packages/core/src/PortSpanEncode.ts` | 2 | `decodePortSpan` x |\n\n## 8. N\n\nn\n\n## 9. B\n\nnamed-barrel @qadi/core @qadi/react @qadi/audit @qadi/devtools test/surface.test.ts\n\n## 16. P\n\ncheck-package-install.mjs src/ outside its own package\n\n## 17. F\n\nf\n");
     files.set("CONTRIBUTING.md", "| A public export | test/surface.test.ts |\n| A surface change | scripts/surface-diff.mjs |\n");
@@ -2623,6 +2623,7 @@ it("has \\"quotes\\"", () => {});`;
     ["a deleted file named in the overview", sub("spec/overview.md", "\n\n## Entry points", " PortInterpreter.ts\n\n## Entry points"), "names a deleted file"],
     ["a react Hydration.ts named in the overview", sub("spec/overview.md", "## Entry points", "`Hydration.ts`\n\n## Entry points"), "names a deleted file"],
     ["a wrong Source cell", sub("spec/overview.md", "`HydrationEngine.ts` —", "`Hydration.ts` —"), "dehydrateDecisions row"],
+    ["a name that only another row's description holds", sub("spec/overview.md", "| `makeGateRegistry` | function |", "| `other` | function | `GateWriter.ts` — see `makeGateRegistry` | x |\n| `makeGateRegistryAgain` | function |"), "has no row for makeGateRegistry"],
     ["an overview without package-private", sub("spec/overview.md", "package-private", "private"), "Entry points section of spec/overview.md does not hold package-private"],
     ["a document revised twice", sub(ADR_AMENDED["037"], "| Revision | 1.5 |", "| Revision | 1.6 |"), "not one minor above 1.4"],
     ["a document not revised", (files) => files.set("spec/invariants.md", files.get("spec/invariants.md").replace("1.5", "1.4")), "not one minor above"],
