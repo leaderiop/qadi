@@ -7,7 +7,7 @@
 //             byte, line endings included. The set is computed from the base and never listed here, so a test the base holds
 //             cannot be left out by omission. A file added under those directories later is not held: new tests are the
 //             phase's own. A held file that is moved or missing is a reason.
-//   declared  twenty-five test files and `QadiProvider.tsx`, each changed only on the base lines its regions name. A region is
+//   declared  twenty-six test files and `QadiProvider.tsx`, each changed only on the base lines its regions name. A region is
 //             the exact range `[first, last]` of base lines (1-based, inclusive) holding the top-level import declarations that
 //             name a deleted module or a module its names move to; a file whose such declarations are not contiguous has one
 //             region per run. Each region also names the text its first and last base line start with, so a wrong constant
@@ -15,8 +15,9 @@
 //             exact subject, at most one commit since the base) holds the base text on every line outside the regions, and
 //             what replaces a region is top-level import declarations only, read from the syntax tree (a statement, a comment
 //             or a blank line there is a reason), and the file at HEAD equals that commit's text byte for byte. A replacement
-//             may be longer or shorter than its region: one import line may become several. Before the commit exists the file
-//             is held, as a base file.
+//             may be longer or shorter than its region: one import line may become several. A region with `comment: true` holds a
+//             `//` line comment instead (the one test comment the stale-sweep corrects): what replaces it is one or more `//` line
+//             comments and nothing else. Before the commit exists the file is held, as a base file.
 //   born      files written by a commit of this phase, each held against the text that commit gave it: the three `surface.test.ts`
 //             whole, and `HydrationTarget.tst.ts`, which a later commit amends in its import region only. That region is the span
 //             of the born text's top-level import declarations, read from the syntax tree (the file does not exist yet when
@@ -89,6 +90,7 @@ const GATE_FOLD_TEST_SUBJECT = "test(91-11): hold the gate registry's collision 
 const HYDRATION_FOLD_TEST_SUBJECT = "test(91-14): hold the folded hydration entry points";
 const MUTATION_TEST_SUBJECT = "test(91-21): kill the new open mutants of the folded files";
 const LEASE_SUBJECT = "docs(91-19): name the registry lease's one caller";
+const SWEEP_SUBJECT = "docs(91-19): sweep the deleted paths and the old rule name";
 const AUDIT_BARREL_SUBJECT = "refactor(91-09): name the audit barrel's exports per module";
 
 /**
@@ -282,6 +284,11 @@ const DECLARED = [
     subject: GATE_SUBJECT,
     source: true,
     regions: [{ first: 49, last: 49, top: 'import type { GateRegistry } from "./GateRegistry.ts";', bottom: 'import type { GateRegistry } from "./GateRegistry.ts";' }],
+  },
+  {
+    file: `${REACT_TEST}/ServerRender.test.tsx`,
+    subject: SWEEP_SUBJECT,
+    regions: [{ first: 189, last: 190, comment: true, top: "    // `Hydration.ts` carries no", bottom: "    // Component can call this." }],
   },
 ];
 
@@ -515,6 +522,19 @@ const judgeImportGaps = (file, gaps, parse) => {
 };
 
 /**
+ * The reasons what replaces a comment region is not `//` line comments only. `regions` and `gaps` are the declared regions and
+ * the lines that replace each; only a region with `comment: true` is judged here, and an empty gap fails: a comment is
+ * corrected, not dropped.
+ */
+const judgeCommentGaps = (file, regions, gaps) =>
+  regions.flatMap((region, k) => {
+    if (region.comment !== true) return [];
+    const gap = gaps[k] ?? [];
+    if (gap.length === 0) return [`${file}: what replaces comment region ${k + 1} is empty`];
+    return gap.flatMap((line, i) => (line.trim().startsWith("//") ? [] : [`${file}: line ${i + 1} of what replaces comment region ${k + 1} is not a line comment`]));
+  });
+
+/**
  * The reasons a declared file is not as the phase fixes it, and whether its edit is applied. `commit` is the declaring commit's
  * text for the file (`undefined`: no commit yet, so the file is held) and `changed` whether that commit changes the file at all.
  */
@@ -529,7 +549,10 @@ const judgeDeclared = (spec, base, commit, changed, current, allApplied, parse) 
   if (!changed) reasons.push(`${file}: the commit that declares it does not change it`);
   const atCommit = regionGaps(file, regions, base, commit);
   reasons.push(...atCommit.reasons);
-  if (atCommit.reasons.length === 0) reasons.push(...judgeImportGaps(file, atCommit.gaps, parse));
+  if (atCommit.reasons.length === 0) {
+    reasons.push(...judgeImportGaps(file, atCommit.gaps.map((gap, k) => (regions[k].comment === true ? [] : gap)), parse));
+    reasons.push(...judgeCommentGaps(file, regions, atCommit.gaps));
+  }
   if (reasons.length > 0) return { reasons, applied: false };
   const same = judgeBorn(file, commit, current);
   if (same.length > 0) return { reasons: [...same, ...regionGaps(file, regions, base, current).reasons], applied: false };
@@ -989,6 +1012,20 @@ const selfTest = () => {
   const afterwards = `${good}later()\n`;
   const insideNow = good.replace(imp("c2"), imp("c3"));
   const multi = edit([`import {\n  a2,\n  b2,\n} from "./x.ts";`], [imp("c2")]);
+  // a comment region: lines 2 and 3 of c.ts are a two-line comment
+  const cText = ["head", "// old one", "// old two", "body", ""].join("\n");
+  const cSpec = { file: "c.ts", subject: "s", regions: [{ first: 2, last: 3, comment: true, top: "// old one", bottom: "// old two" }] };
+  const cEdit = (...lines) => ["head", ...lines, "body", ""].join("\n");
+  const cGood = cEdit("// new one", "// new two");
+  const cLonger = cEdit("// new one", "// new two", "// new three");
+  const cStatement = cEdit("// new one", "const z = 1;");
+  const cBlock = cEdit("/* new one */", "// new two");
+  const cEmpty = cEdit();
+  const cOutside = cGood.replace("head", "HEAD");
+  // a comment region after an import region: the import region is still judged as imports
+  const mText = [imp("a"), "mid", "// old one", "body", ""].join("\n");
+  const mSpec = { file: "m.ts", subject: "s", regions: [{ first: 1, last: 1, top: "import", bottom: "import" }, { first: 3, last: 3, comment: true, top: "// old one", bottom: "// old one" }] };
+  const mBad = ["const z = 1;", "mid", "// new one", "body", ""].join("\n");
   const declaredCases = [
     ["a declared file equal to its declaring commit passes and is applied", (p) => declaredWith(p, good), { reasons: [], applied: true }],
     ["a region that grows into several imports, one that becomes a multi-line import, and one dropped, pass", (p) => [declaredWith(p, multi).applied, declaredWith(p, dropped).applied], [true, true]],
@@ -1008,6 +1045,12 @@ const selfTest = () => {
     ["a file edited inside its regions after its commit fails the commit's text only", (p) => declaredWith(p, insideNow, good).reasons.length, 1],
     ["a file edited outside its regions after its commit fails twice", (p) => declaredWith(p, good.replace("head", "HEAD"), good).reasons.length, 2],
     ["a declared file that is gone fails", (p) => judgeDeclared(spec, dText, good, true, undefined, false, p).reasons, ["d.ts does not exist"]],
+    ["a comment region replaced by line comments passes, longer or shorter", (p) => [judgeDeclared(cSpec, cText, cGood, true, cGood, false, p).applied, judgeDeclared(cSpec, cText, cLonger, true, cLonger, false, p).applied], [true, true]],
+    ["a comment region replaced by a statement fails, naming the line", (p) => judgeDeclared(cSpec, cText, cStatement, true, cStatement, false, p).reasons, ["c.ts: line 2 of what replaces comment region 1 is not a line comment"]],
+    ["a comment region replaced by a block comment fails", (p) => judgeDeclared(cSpec, cText, cBlock, true, cBlock, false, p).reasons, ["c.ts: line 1 of what replaces comment region 1 is not a line comment"]],
+    ["a comment region replaced by nothing fails", (p) => judgeDeclared(cSpec, cText, cEmpty, true, cEmpty, false, p).reasons, ["c.ts: what replaces comment region 1 is empty"]],
+    ["a comment region's neighbour line changed fails, naming the line", (p) => judgeDeclared(cSpec, cText, cOutside, true, cOutside, false, p).reasons, ["c.ts: differs outside its declared lines at line 1"]],
+    ["a comment region leaves an import region beside it judged as imports", (p) => judgeDeclared(mSpec, mText, mBad, true, mBad, false, p).reasons, ["m.ts: line 1 of what replaces region 1 is not an import declaration"]],
   ];
   // import-only judgement of loose gaps
   const gapCases = [
