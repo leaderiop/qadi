@@ -1,13 +1,13 @@
 {
  "phase_base": "46174873c60e85bcd0c6702867c602cad8460310",
- "head": "79f26130e973f65cf75ea7ac710488cd4a4ca527",
+ "head": "3267c025e7e66955ad095ebf4596022e6a7479f6",
  "command": "pnpm exec vitest run packages/core/test --coverage.enabled --coverage.include=packages/core/src/** --coverage.exclude=packages/core/src/index.ts --coverage.reporter=json-summary --coverage.reportsDirectory=/private/var/folders/vn/44p0pxgs4z98v7cl11l4_r4c0000gp/T/qd90/coverage-close",
  "files": 94,
  "totals": {
-  "lines": 99.86,
-  "functions": 99.7,
-  "branches": 98.33,
-  "statements": 99.58
+  "lines": 99.89,
+  "functions": 99.78,
+  "branches": 98.4,
+  "statements": 99.64
  },
  "thirteen": {
   "packages/core/src/PortName.ts": {
@@ -29,10 +29,10 @@
    "statements": 100
   },
   "packages/core/src/PortAccess.ts": {
-   "lines": 98.41,
-   "functions": 96.77,
+   "lines": 100,
+   "functions": 100,
    "branches": 100,
-   "statements": 97.18
+   "statements": 100
   },
   "packages/core/src/PortDescription.ts": {
    "lines": 100,
@@ -79,7 +79,7 @@
   "packages/core/src/LeafNeeds.ts": {
    "lines": 100,
    "functions": 100,
-   "branches": 97.05,
+   "branches": 100,
    "statements": 100
   },
   "packages/core/src/ScopedLeaf.ts": {
