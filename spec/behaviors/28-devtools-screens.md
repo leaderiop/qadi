@@ -4493,7 +4493,7 @@ shown stop adds at most one commit), `packages/devtools/test/react/DockFrame.ann
 announced once and silent on every revisit; A3, a box mounted again for the announced stop is silent and kept by a re-render),
 `packages/devtools/test/react/DiagnosticsNotice.test.tsx` (N9, a stop alerts once and a strict-mode first render still alerts),
 `packages/devtools/test/react/TimelineNotice.test.tsx` (TN7, a strict-mode first render still alerts; TN14, a notice mounted
-again for the announced stop does not count it twice) and `packages/devtools/test/react/DiagnosticsScreens.test.tsx` (D7, a stop
+again for the announced stop is silent and kept by a re-render, and a new stop alerts on a new element) and `packages/devtools/test/react/DiagnosticsScreens.test.tsx` (D7, a stop
 is alerted on the first screen that shows it and silent on every revisit). Specified in ADR-QD-201 (CCR-QD-480).
 
 ## BEH-QD-778: The ledger transition is one pure function: a new stop counts once, and a recorded stop returns the same ledger

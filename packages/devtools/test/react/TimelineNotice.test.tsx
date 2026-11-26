@@ -293,7 +293,7 @@ describe("the timeline notice", () => {
     assert.strictEqual(body.style.outlineOffset, "");
   });
 
-  it("TN14 a notice mounted again for the stop already announced does not count it twice", async () => {
+  it("TN14 a notice mounted again for the stop already announced is silent and kept by a re-render, and a new stop alerts on a new element", async () => {
     const status = TimelineStatus.Stopped({ reason: "boom" });
     const view = render(<Held status={status} show />);
     await settle();

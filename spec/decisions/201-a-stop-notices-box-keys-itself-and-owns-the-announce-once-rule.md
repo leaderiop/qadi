@@ -103,13 +103,14 @@ written, so the rule that nothing is announced twice held because of how the ref
 ## Audit of the rows this decision edits
 
 Six rows of existing test files are edited because the old ledger was a ref a test could hold, and each property a row pinned is
-held after the edit. Every other row of those files is untouched.
+held after the edit. Every other row of those files keeps its body and its assertions, but some read a shared fixture whose
+meaning changed, named after the table.
 
 | Row | What it pinned | Change | Held by |
 | --- | -------------- | ------ | ------- |
 | N9 | a stop alerts once, again for a new stop, and a strict-mode first render still alerts | edited: the notice is built through a `Held` harness that calls the real `useStopNotice`; the assertions are the same | N9, A1, A2 |
 | N12 | a second stop on a mounted notice remounts it, so its alert is present on the new mount | edited: through the same `Held` harness; the assertions are the same | N12, A2 |
-| TN14 | a notice mounted again for the stop already announced does not count it twice, which the row read as the ledger's count | edited: the count is a value inside the hook, so the property is stated by the element, a remount for the announced stop is silent and a re-render keeps its element | LAW2, A3 |
+| TN14 | a notice mounted again for the stop already announced does not count it twice, which the row read as the ledger's count | edited: the count is a value inside the hook, so the property is stated by the element, a remount for the announced stop is silent and a re-render keeps its element; retitled to say so, since it reads no count | LAW2, A3 |
 | TN15 | a notice handed the ledger of another feed records its stop there, and that stop is then silent on it | edited: an `Either` harness holds two hook ledgers and the box records into the one it is handed | TN15 (restated) |
 | SB1 | the stopped box shows its reason in a labelled focusable `pre` in the reason style | edited: it renders `StoppedBox` with the notice props whole; the literal reason style stays as the golden of the move to the shared theme | SB1 |
 | SB4 | the broken simulation's `pre` has the stopped box's reason style | edited: it compares the block's `style` attribute to the style of a rendered stopped box, in place of the literal | SB4 |
@@ -119,6 +120,14 @@ Tests removed: 0.
 Each row is rewritten and none is removed. The rows that read a ledger internal, TN14's count and TN15's stop, are the two whose
 property moved: TN14's to the table test's identity law and the dock's element row, TN15's to a harness that holds two real
 ledgers.
+
+Three shared fixtures changed meaning under rows the table does not list, and none of those rows is rewritten.
+`freshRef()` in `DiagnosticsNotice.test.tsx`, with the `notice()` builder that defaults to it, `ledger()` in
+`TimelineNotice.test.tsx` and `liveNotice` in `test/helpers.ts` each held or returned a ref the box wrote its stop into; each
+returns a fixed handle whose ledger is `noStops` and whose `record` keeps nothing. The rows that read them, N1 to N8, N11,
+N13, N15, TN11, TN12 and the panel rows that render `liveNotice`, assert copy, focus and style and never a revisit, so no
+property they pinned depended on the record being kept; every revisit is asserted through the real hook (N9, N12, TN14, TN15,
+A1 to A5).
 
 ## Alternatives considered
 
