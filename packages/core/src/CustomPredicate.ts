@@ -193,16 +193,13 @@ const customServing: PortServingFacet<
  * inherited `Object.prototype` member included, is unregistered.
  */
 export const customPredicateFromRecord = (
-  table: Readonly<
-    Record<
-      string,
-      (
-        subject: AuthSubject,
-        resource: Resource | undefined,
-        params: unknown,
-      ) => Effect.Effect<boolean, CustomPredicateError>
-    >
-  >,
+  table: {
+    readonly [name: string]: (
+      subject: AuthSubject,
+      resource: Resource | undefined,
+      params: unknown,
+    ) => Effect.Effect<boolean, CustomPredicateError>;
+  },
 ): Layer.Layer<CustomPredicate> =>
   Layer.succeed(CustomPredicate, {
     name: "customPredicateFromRecord",
@@ -253,7 +250,7 @@ export const customPredicatePort: PortDescription<
   typeof customSpan,
   typeof customAsks,
   typeof customSpanName,
-  Readonly<Record<string, boolean>>
+  { readonly [name: string]: boolean }
 > = {
   port: "CustomPredicate",
   method: "evaluate",

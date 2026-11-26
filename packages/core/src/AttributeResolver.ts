@@ -14,6 +14,7 @@ import * as Layer from "effect/Layer";
 import * as Result from "effect/Result";
 import type * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
+import type { AuthSubject } from "./AuthSubject.ts";
 import { AttributeResolveError } from "./Errors.ts";
 import type { InvalidBoundedPermits } from "./Errors.ts";
 import { SubjectIdSchema } from "./Identity.ts";
@@ -157,10 +158,12 @@ const attributeServing: PortServingFacet<
  * Resolves from a static table. Useful for tests and fixed configuration.
  *
  * A name the table does not own, including an inherited `Object.prototype`
- * member, answers undefined.
+ * member, answers undefined. The table is typed as a subject's own attributes
+ * (`AuthSubject["attributes"]`), the one statement of what an attribute table is,
+ * and the description's fixture data is the same type.
  */
 export const attributeResolverFromRecord = (
-  table: { readonly [key: string]: unknown },
+  table: AuthSubject["attributes"],
 ): Layer.Layer<AttributeResolver> =>
   Layer.succeed(AttributeResolver, {
     name: "attributeResolverFromRecord",
@@ -189,7 +192,7 @@ export const attributeResolverPort: PortDescription<
   typeof attributeSpan,
   typeof attributeAsks,
   typeof attributeSpanName,
-  { readonly [key: string]: unknown }
+  AuthSubject["attributes"]
 > = makePortDescription({
   port: "AttributeResolver",
   method: "resolve",
