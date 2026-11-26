@@ -690,4 +690,57 @@ ADR-QD-037, ADR-QD-052; BEH-QD-227, 445, 588; INV-QD-288, 345.
   (`ScopedLeaf.ts` header). Agreement is held by D-20's test.
 - **Phase 91** names every export this phase settles (`PORT_NAMES` included) when it converts core's barrel, and folds
   `PortSpanDecode.ts`/`PortInterpreter.ts`. It must re-run `pnpm circular` on 90's end, not on the research numbers.
+
+## Addendum after research
+
+Appended by the phase researcher on 2026-11-26. Each entry is decided autonomously 2026-11-26 under the owner's standing
+instruction, with the measured evidence in `90-RESEARCH.md` (probe ids in brackets). An entry corrects or sharpens a
+decision above; it never reopens one. Where an entry and a decision disagree, the entry holds.
+
+- **D-16a (the real bench band; corrects D-16).** `scripts/bench/analyze.mjs` does not use `max(10%, the base's spread)`.
+  A workload is SLOWER when its median-of-per-run-minima delta is strictly greater than a **fixed 5%** (`MAX_SLOWDOWN =
+  0.05`; the reference arm's spread is recorded and decides nothing), and the gate passes only when no workload is slower
+  **and the geometric mean of the deltas is at most +2%** (`MAX_GEOMEAN_PCT = 2`). The verdict is still the last line,
+  `# gate: pass`. `analyze.mjs` takes a fourth argument, a **workloads file** naming the gate's workloads before any run,
+  one `<test title> :: <bench name>` key per line; a run missing a named workload or holding another is refused. Plan 1
+  commits that file beside the two new workloads. `ab.sh` takes
+  `<patch> <outdir> <rounds> <head-label> <patched-label> <bench-file> <test-name-pattern>`, refuses an odd or sub-4
+  round count, and refuses a bench file that is not tracked. [P6]
+- **D-15a (the not-needed branch is unreachable by type, and `RESOURCE_SCOPED` survives).** The row-derived table
+  `ScopedCall<K> = { withId; bare: BareOf<K> }` replaces `completeRequest`. `BareOf<K>` is `undefined` when every scoped
+  leaf of the port has the row `Always` and a function otherwise, so `RelationshipResolver`'s `bare` can only be
+  `undefined`. Reclassifying `HasRelationship` to `ByScope` fails to compile (TS2322 at the table row), which is the
+  compiler asking for the decision. The runtime test `bare !== undefined` is dead for that port by construction, and its
+  mutant is an `EQUIVALENT` entry. `RESOURCE_SCOPED` stays: `requireResourceId`'s first overload wants
+  `{ scope: "Resource" }`. [P1 (g), P6]
+- **D-11a (a third `tabulatePorts` overload, and `FixtureDataOf` stays private).** `PORT_FIXTURES` cannot derive through
+  the existing generic overload (TS #30769, TS2322); a third overload `(f: FixtureVisitor): FixtureBuilders` compiles.
+  `FixtureDataOf`, `FixtureBuilders` and `FixtureVisitor` are **not exported** and the d.ts still emits (no TS2883), so
+  gate 13 closes at **943** (`PORT_NAMES` only), as D-07 says. Builders are taken by reference after moving each builder
+  above its port description; using one before its declaration is TS2448/TS2454 and a load-time `ReferenceError`. [P5]
+- **D-09a (the span form: `typeof` a module-private const, for all five).** Inference through `makePortDescription`
+  works for `AttributeResolver` and **fails for `CustomPredicate`**, whose description is an object literal (TS7006 on
+  every callback). The `typeof <prefix>SpanName` form compiles for all five and the d.ts reads `typeof attributeSpanName`.
+  [P2]
+- **D-23a (the span-literal count is not one for `qadi.attribute`).** `"qadi.attribute"` is also the span attribute key of
+  the question (`AttributeResolver.ts:113`, `{ attribute: "qadi.attribute", ...sharedQuestionKeys }`). `90-check.mjs
+  port-facts` therefore counts the **declaration** of each span name (`const <x>SpanName = "…"`), exactly once per port
+  module, and does not count bare occurrences: after the change `qadi.attribute` occurs twice in `packages/core/src` (the
+  key at 113 and the declaration) and the other four occur once each. [P2, P11]
+- **D-22a (the sixth-port error set is wider than D-22 expects).** Measured on scratch: adding `"FakePort"` to the base's
+  `PortSpans` is **53 errors in 22 (file, code) groups across four packages** (core, devtools, http, testing), and adding
+  it to `PORT_NAMES` after the change is **57 errors in 25 groups**. `PortMetrics.ts` is in the base set and **not** in
+  the close set, as D-22 says. The close set also holds `PortAccess.ts`, `PortRemote.ts`, devtools' `Capture.ts`,
+  `PortCalls.ts`, `PortCards.ts`, `PortReading.ts`, `SimulationFields.ts` and `SimulationSource.ts`, http's `PortRoutes.ts`
+  and testing's `QadiReviewLayer.ts`. The judge compares (file, code) groups with the recorded set, never a hand list. [P8]
+- **D-20a (the hand-built `probePort` needs only `fixture`).** With the span as a type argument inferred from a
+  `"qadi.attribute"` literal, `PortDescription.test.ts:83` fails with exactly one error, TS2741 (`fixture` missing); it
+  needs no span annotation. `PortName.tst.ts` fails with TS2724 and TS2305 until its import moves to `../src/Ports.ts`. [P7]
+- **D-12a (the `PortServing` cycle, measured).** Candidate (e) gives **16 cycles** (the first is
+  `PortDerivation.ts > PortDescription.ts > PortServing.ts > Ports.ts > AttributeResolver.ts`) and TS2456, TS2502 and
+  TS2315 in `PortServing.ts`. D-12 stands. [P1 (e)]
+- **D-24a (ledger rows that move on this phase).** The only rows of Phases 85-89's checks that move are
+  `88-check.mjs records --close` (its three revision lines and its changeset count) and, by the same mechanism, the
+  earlier close rows that judge a spec register at "the next revision". `trailers` rows are patterns. No pinned list of
+  Phases 85-89 names a file this phase edits. [P9]
 </deferred>
