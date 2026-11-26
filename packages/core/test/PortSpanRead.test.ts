@@ -3,11 +3,13 @@
  * struct names but has no field for, an attribute that is absent for a field that would accept
  * `undefined`, and every interpreter a port question can carry.
  *
- * Each is a property of `PortSpanEncode.ts`'s `decode`, held here because core's mutation run
- * executes core's tests only.
+ * Each is a property of `PortSpanEncode.ts`'s `decodeSpan`, held here because core's mutation
+ * run executes core's tests only. The interpreter row writes the closed set out and checks it
+ * against `portInterpreter`, so a fourth interpreter fails here until a row reads it.
  */
 import { assert, describe, it } from "@effect/vitest";
 import * as Schema from "effect/Schema";
+import { portInterpreter } from "../src/PortSpan.ts";
 import { decodeSpan, sharedQuestionFields, sharedQuestionKeys, spanStruct } from "../src/PortSpanEncode.ts";
 
 const attributesOf = (...entries: ReadonlyArray<readonly [string, unknown]>): ReadonlyMap<string, unknown> =>
@@ -32,7 +34,9 @@ describe("decodeSpan: a port question's interpreter", () => {
   const question = spanStruct(sharedQuestionFields, sharedQuestionKeys);
 
   it("reads each of the three interpreters as itself", () => {
-    for (const interpreter of ["evaluate", "toPredicate", "remote"] as const) {
+    const interpreters = ["evaluate", "toPredicate", "remote"] as const;
+    assert.deepStrictEqual(portInterpreter.literals, interpreters);
+    for (const interpreter of interpreters) {
       assert.deepStrictEqual(decodeSpan(question, attributesOf(["qadi.interpreter", interpreter])), { interpreter });
     }
   });
