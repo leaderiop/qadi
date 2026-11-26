@@ -5,17 +5,17 @@ milestone_name: Arch Wave 16
 current_phase: 91
 current_phase_name: Named barrels, and visibility-only files folded away
 status: executing
-stopped_at: Completed QD-91-03-PLAN.md
-last_updated: "2026-11-26T17:04:43.505Z"
+stopped_at: Completed 91-04-PLAN.md
+last_updated: "2026-11-26T17:09:43.748Z"
 last_activity: 2026-11-26
 last_activity_desc: Phase 90 complete, transitioned to Phase 91
-state_head: 1be6db3249a3ba2a9f239fb6cf117cdadb5c52b6
+state_head: db2e6fd19e1246e5554a1ecaf1405459ef561187
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 88
-  completed_plans: 70
-  percent: 80
+  completed_plans: 71
+  percent: 81
 ---
 
 # Project State
@@ -30,11 +30,11 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-91 (Named barrels, and visibility-only files folded away) — EXECUTING
-Plan: 4 of 21
+Plan: 5 of 21
 Status: Ready to execute
 Last activity: 2026-11-26 — Phase 90 complete, transitioned to Phase 91
 
-Progress: [████████░░] 80%
+Progress: [████████░░] 81%
 
 
 ## Performance Metrics
@@ -726,6 +726,7 @@ Progress: [████████░░] 80%
 | Phase 91 P01 | 25min | 2 tasks | 3 files |
 | Phase 91 P02 | 180min | 3 tasks | 2 files |
 | Phase QD-91 P03 | 45min | 3 tasks | 8 files |
+| Phase 91 P04 | 25min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -1296,6 +1297,7 @@ Progress: [████████░░] 80%
 - [Phase 91]: 91-02: variant kind script accepts a phase-directory script or an existing repo-relative scripts/*.mjs file, so later plans' surface-diff variants use the same kind
 - [Phase 91]: 91-02: the coverage floor is seen failing through coverage close on a clone with the core tests deleted and committed; coverage base is seen failing separately on a committed source edit
 - [Phase QD-91]: [91-03] The surface snapshot stays a phase-local working file and never a gate; the surface-diff tool's self-test is the last pnpm check step (step 27)
+- [Phase 91]: [Phase 91-04]: A root's runtime value list is read from the base roots by a throwaway scratch test and cross-checked against the surface snapshot's value and both names; the type-only trap is planted by replacing a module's export * line with its named values minus one plus export type of it (an appended export type is erased and changes nothing under export *)
 
 ### Pending Todos
 
@@ -1383,8 +1385,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-26T17:04:43.299Z
-Stopped at: Completed QD-91-03-PLAN.md
+Last session: 2026-11-26T17:09:43.452Z
+Stopped at: Completed 91-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
