@@ -38,8 +38,9 @@ says out of the barrel means not importable, and `@qadi/devtools` already states
 ### The barrel rule
 
 A part-public package root **names its exports per module**: `export { … } from "./X.ts"` for the values, then
-`export type { … } from "./X.ts"` for the types, one value group and one type group per module, modules in module-path
-order (case-sensitive ASCII). The barrels this covers are the five in the table of "What enforces it": `@qadi/core`,
+`export type { … } from "./X.ts"` for the types, at most one value group and then at most one type group per module, no
+inline `type` inside a value group, modules in module-path order and names inside each group in name order (both
+case-sensitive ASCII), and nothing else in the file. The barrels this covers are the five in the table of "What enforces it": `@qadi/core`,
 `@qadi/react`, `@qadi/audit`, and `@qadi/devtools`' two. A barrel that re-exports modules every name of which is public
 stays pure `export *` (`@qadi/http`, `@qadi/testing`, `@qadi/promise` and the two predicate packages), because each of their
 modules is wholly public, and a rule that named every name there would be a second list with nothing to check against.
@@ -163,10 +164,14 @@ These run in `pnpm check`:
 
 - `named-barrel` and `[named-barrel-self-test]`, through `node scripts/check-house-style.mjs`: one rule over the five barrels
   `packages/audit/src/index.ts`, `packages/core/src/index.ts`, `packages/devtools/src/index.ts`,
-  `packages/devtools/src/react/index.ts` and `packages/react/src/index.ts`. It refuses an `export *` in a listed barrel, a
-  group whose specifier is not relative, groups out of module-path order, and a listed barrel with no named group; it refuses
-  an unlisted `index.ts` that carries a relative named group, so the list is its own record, checked in both directions; and
-  on every run it plants an `export *` into each listed barrel and fails if one is not refused. The rule is the one
+  `packages/devtools/src/react/index.ts` and `packages/react/src/index.ts`. It reads each through TypeScript's parse
+  (`scripts/lib/barrel-scan.mjs`) and refuses, in a listed barrel, an `export *`, any statement that is not a module group (a
+  declaration, an import, an `export { … }` with no `from`), a group whose module is outside the package's own `src/`, a
+  second value or type group for one module, a type group before its value group, an inline `type` in a value group, groups
+  or names out of order, and a barrel with no named group; it refuses an unlisted `index.ts` that carries a relative named
+  group, and one that mixes any named group with an `export *`, so the list is its own record, checked in both directions;
+  and on every run it plants one violation of each kind into a copy of each listed barrel, with an unlisted named barrel, a
+  mixed index and two indexes it must leave alone, and fails if a plant is not judged as planted. The rule is the one
   `@qadi/devtools`' two barrels had under the name `devtools-named-barrel`.
 - `packages/core/test/surface.test.ts`, `packages/react/test/surface.test.ts` and `packages/audit/test/surface.test.ts`: each
   holds a literal, sorted list of the runtime value names its root's `Object.keys` must equal, so a value turned type-only

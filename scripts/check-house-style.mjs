@@ -93,8 +93,9 @@
  *     and `apps/website` by `node scripts/check-website-build.mjs` (step 24) —
  *     both hold it to its own toolchain's rules, not this library's.
  */
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, posix, relative } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { RAW_DECISION_READ } from "./lib/raw-decision-read.mjs";
 import { CHARACTERISATION, walkTypeTests } from "./lib/type-tests.mjs";
@@ -2164,15 +2165,26 @@ for (const rel of sources
 // barrel means not importable). An `export *` would silently re-widen the root
 // to every name a module declares, and `barrel-order` above cannot see these
 // barrels because they are not pure `export *` lists. NAMED_BARRELS is the
-// record of which barrels are named, checked both ways: a listed barrel holds no
-// `export *`, no group from outside the package and its groups run in
-// module-path order (case-sensitive ASCII, the order `barrel-order` asks of every
-// other barrel); an index outside the list holding a relative named group is a
-// named barrel nobody listed, and one mixing that with an `export *` is refused
-// too. The same mixed shape is loud at `node scripts/check-api-surface.mjs`, so
-// this is the second line behind it. `namedBarrelProblems` is a pure function of
-// the path and the text, and every run plants an `export *` into a copy of each
-// listed barrel to see it refused: a function that stopped matching would
+// record of which barrels are named, checked both ways. A listed barrel holds
+// nothing but module groups, `export { … } from "./…"` and
+// `export type { … } from "./…"`: no `export *`, no declaration, import or
+// `export { … }` without a `from`, and no group whose module is outside the
+// package's own `src/`. Each module has at most one value group and then at most
+// one type group, a value group carries no inline `type` modifier, the groups run
+// in module-path order and the names inside a group in name order (both
+// case-sensitive ASCII, the order `barrel-order` asks of every other barrel). An
+// index outside the list holding a relative named group is a named barrel nobody
+// listed, and one mixing any named group with an `export *` is refused too. The
+// same mixed shape is loud at `node scripts/check-api-surface.mjs`, so this is
+// the second line behind it.
+//
+// Each index is read with TypeScript's own parse (`scripts/lib/barrel-scan.mjs`),
+// not with a line pattern, so a statement after another on one line, a comment
+// that says "export", or a group wrapped over many lines reads as what it is.
+// `namedBarrelProblems` is a pure function of the path and the parsed statements,
+// and every run plants one violation per reason into a copy of each listed barrel
+// (and an unlisted named barrel, a mixed index, and two indexes the rule must
+// leave alone) to see each refused: a reason that stopped matching would
 // otherwise pass the real tree in silence.
 // ---------------------------------------------------------------------------
 
@@ -2183,50 +2195,116 @@ const NAMED_BARRELS = [
   "packages/devtools/src/react/index.ts",
   "packages/react/src/index.ts",
 ];
-const STAR_EXPORT = /^\s*export\s+(?:type\s+)?\*/m;
-const NAMED_EXPORT = /export\s+(?:type\s+)?\{[^}]*\}\s*from\s*["']([^"']+)["']/g;
-const IN_PACKAGE = /^\.{1,2}\//;
 
 /**
- * The reasons `text`, the content of the index at `rel`, breaks the named-barrel rule.
- * Empty when it holds, which includes an index that is not a named barrel at all.
+ * The parse of the barrels, and how long it may take: the TypeScript server behind it has no
+ * timeout of its own, so a call that never returns is killed here, with that server, and fails
+ * the check (`scripts/lib/typescript-server-child.mjs`).
  */
-const namedBarrelProblems = (rel, text) => {
-  // Comments are not exports, and these barrels' header comments say "export".
-  const code = text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-  const star = STAR_EXPORT.test(code);
-  const specifiers = [...code.matchAll(NAMED_EXPORT)].map((m) => m[1]);
+const BARREL_SCAN = join(ROOT, "scripts", "lib", "barrel-scan.mjs");
+const BARREL_SCAN_TIMEOUT_MS = 120_000;
+
+/** Case-sensitive ASCII order, the order every barrel's lists run in. */
+const byAscii = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+
+/** Whether `specifier`, written in the index at `rel`, names a module under that package's own `src/`. */
+const inOwnSource = (rel, specifier) => {
+  const src = /^packages\/[^/]+\/src\//.exec(rel)?.[0];
+  if (src === undefined || !/^\.{1,2}\//.test(specifier)) return false;
+  return posix.normalize(posix.join(posix.dirname(rel), specifier)).startsWith(src);
+};
+
+/**
+ * The reasons the index at `rel`, read as `statements` (`scripts/lib/barrel-scan.mjs`), breaks
+ * the named-barrel rule. Empty when it holds, which includes an index that is not a named barrel
+ * at all.
+ */
+const namedBarrelProblems = (rel, statements) => {
+  const groups = statements.filter((s) => s.form === "group");
+  const stars = statements.filter((s) => s.form === "star");
   const problems = [];
   if (!NAMED_BARRELS.includes(rel)) {
-    if (specifiers.some((s) => IN_PACKAGE.test(s))) {
-      problems.push(
-        star
-          ? "mixes `export *` with a named group: name every export of the root, or none of them"
-          : "is a named barrel that NAMED_BARRELS does not list: add it there, or export `*`",
-      );
+    if (stars.length > 0 && groups.length > 0) {
+      problems.push("mixes `export *` with a named group: name every export of the root, or none of them");
+    } else if (groups.some((g) => /^\.{1,2}\//.test(g.specifier))) {
+      problems.push("is a named barrel that NAMED_BARRELS does not list: add it there, or export `*`");
     }
     return problems;
   }
-  if (star) {
+  for (const star of stars) {
     problems.push(
-      "`export *` re-widens the interface to every name a module declares: name the exports per module",
+      `line ${star.line}: \`export *\` re-widens the interface to every name a module declares: name the exports per module`,
     );
   }
-  if (specifiers.length === 0) problems.push("holds no named group");
-  const outside = specifiers.find((s) => !IN_PACKAGE.test(s));
-  if (outside !== undefined) {
-    problems.push(`re-exports "${outside}", which is not a module of this package`);
+  for (const other of statements.filter((s) => s.form === "other")) {
+    problems.push(
+      `line ${other.line}: ${other.what} is not a module group: a named barrel holds only ` +
+        "`export { … } from` and `export type { … } from` groups",
+    );
   }
-  for (let i = 1; i < specifiers.length; i += 1) {
-    if (specifiers[i - 1] > specifiers[i]) {
-      problems.push(
-        `"${specifiers[i]}" sorts before "${specifiers[i - 1]}": keep the named groups in module-path order`,
-      );
-      break;
+  if (groups.length === 0) problems.push("holds no named group");
+  /** The value and type groups seen so far for each module. */
+  const kinds = new Map();
+  groups.forEach((group, i) => {
+    const at = `line ${group.line}: "${group.specifier}"`;
+    if (!inOwnSource(rel, group.specifier)) {
+      problems.push(`line ${group.line}: re-exports "${group.specifier}", which is not a module of this package`);
     }
-  }
+    const seen = kinds.get(group.specifier) ?? { value: 0, type: 0 };
+    if (group.typeOnly) seen.type += 1;
+    else {
+      if (seen.type > 0) problems.push(`${at}: its type group comes before its value group: one value group, then one type group`);
+      seen.value += 1;
+      const inline = group.names.find((n) => n.typeOnly);
+      if (inline !== undefined) {
+        problems.push(`${at}: \`type ${inline.name}\` inside a value group: name it in the module's \`export type { … }\` group`);
+      }
+    }
+    kinds.set(group.specifier, seen);
+    if (seen.value > 1 || seen.type > 1) {
+      problems.push(`${at}: more than one ${group.typeOnly ? "type" : "value"} group: one value group, then one type group, per module`);
+    }
+    for (let j = 1; j < group.names.length; j += 1) {
+      if (byAscii(group.names[j - 1].name, group.names[j].name) >= 0) {
+        problems.push(`${at}: ${group.names[j].name} sorts before ${group.names[j - 1].name} or repeats it: keep a group's names in name order`);
+        break;
+      }
+    }
+    const previous = groups[i - 1];
+    if (previous !== undefined && byAscii(previous.specifier, group.specifier) > 0) {
+      problems.push(`${at} sorts before "${previous.specifier}": keep the named groups in module-path order`);
+    }
+  });
   return problems;
 };
+
+/**
+ * One planted violation per reason, appended to a listed barrel's text: `{ what, text, expect }`,
+ * where every string of `expect` must be in one of the reasons the plant is refused with.
+ */
+const namedBarrelPlants = (text) => [
+  { what: "`export *` after another statement on its line", text: `${text}\nexport { zz } from "./zz.ts"; export * from "./zz.ts";\n`, expect: ["`export *` re-widens"] },
+  { what: "group out of module-path order", text: `${text}\nexport { a } from "./!.ts";\n`, expect: ["module-path order"] },
+  { what: "group from another package", text: `${text}\nexport { zz } from "@qadi/zz";\n`, expect: ["not a module of this package"] },
+  { what: "relative group outside the package's source", text: `${text}\nexport { zz } from "../../zz/src/zz.ts";\n`, expect: ["not a module of this package"] },
+  { what: "second value group for one module", text: `${text}\nexport { zy } from "./zz.ts";\nexport { zz } from "./zz.ts";\n`, expect: ["more than one value group"] },
+  { what: "second type group for one module", text: `${text}\nexport type { Zy } from "./zz.ts";\nexport type { Zz } from "./zz.ts";\n`, expect: ["more than one type group"] },
+  { what: "type group before its module's value group", text: `${text}\nexport type { Zz } from "./zz.ts";\nexport { zz } from "./zz.ts";\n`, expect: ["comes before its value group"] },
+  { what: "inline type inside a value group", text: `${text}\nexport { type Zz, zz } from "./zz.ts";\n`, expect: ["inside a value group"] },
+  { what: "group whose names are out of order", text: `${text}\nexport { zz, zy } from "./zz.ts";\n`, expect: ["keep a group's names in name order"] },
+  { what: "declaration in the barrel", text: `${text}\nexport const leaked = 1;\n`, expect: ["a declaration or statement of its own is not a module group"] },
+  { what: "name imported and re-exported with no from clause", text: `${text}\nimport { z } from "@qadi/core";\nexport { z };\n`, expect: ["an import declaration is not a module group", "an export with no from clause is not a module group"] },
+  { what: "barrel with no group", text: "// nothing is named here\n", expect: ["holds no named group"] },
+];
+
+/** Indexes off the list: two the rule refuses, and two it must leave alone (a pure barrel, an implementation that re-exports a dependency's name). */
+const UNLISTED_INDEX = "packages/zz/src/index.ts";
+const namedBarrelUnlisted = [
+  { what: "unlisted named barrel", text: 'export { a } from "./A.ts";\n', expect: ["NAMED_BARRELS does not list"] },
+  { what: "index mixing `export *` with a group from another package", text: 'export * from "./A.ts";\nexport { x } from "@qadi/core";\n', expect: ["mixes `export *`"] },
+  { what: "pure barrel", text: 'export * from "./A.ts";\nexport * from "./B.ts";\n', expect: [] },
+  { what: "implementation re-exporting a dependency's name", text: 'export { PredicateNotRenderable } from "@qadi/core";\nexport const x = 1;\n', expect: [] },
+];
 
 const namedBarrelRels = new Set([
   ...NAMED_BARRELS,
@@ -2235,25 +2313,65 @@ const namedBarrelRels = new Set([
     .filter((rel) => /^packages\/[^/]+\/src\/(?:.+\/)?index\.tsx?$/.test(rel)),
 ]);
 
-for (const rel of [...namedBarrelRels].sort()) {
-  if (!existsSync(join(ROOT, rel))) {
-    failures += 1;
-    console.error(`${rel}  [named-barrel] is listed in NAMED_BARRELS and does not exist.`);
-    continue;
+{
+  /** Every text the rule reads in this run: `{ rel, text, what?, expect? }`, a plant carrying what it plants. */
+  const jobs = [];
+  for (const rel of [...namedBarrelRels].sort()) {
+    if (!existsSync(join(ROOT, rel))) {
+      failures += 1;
+      console.error(`${rel}  [named-barrel] is listed in NAMED_BARRELS and does not exist.`);
+      continue;
+    }
+    const text = readFileSync(join(ROOT, rel), "utf8");
+    jobs.push({ rel, text });
+    if (NAMED_BARRELS.includes(rel)) {
+      for (const plant of namedBarrelPlants(text)) jobs.push({ rel, ...plant });
+    }
   }
-  const text = readFileSync(join(ROOT, rel), "utf8");
-  for (const problem of namedBarrelProblems(rel, text)) {
+  for (const plant of namedBarrelUnlisted) jobs.push({ rel: UNLISTED_INDEX, ...plant });
+
+  const scratch = mkdtempSync(join(tmpdir(), "named-barrel-"));
+  try {
+    const names = jobs.map((job, i) => `f${i}${job.rel.endsWith(".tsx") ? ".tsx" : ".ts"}`);
+    jobs.forEach((job, i) => writeFileSync(join(scratch, names[i]), job.text));
+    writeFileSync(
+      join(scratch, "tsconfig.json"),
+      JSON.stringify({
+        compilerOptions: { noEmit: true, noResolve: true, types: [], jsx: "preserve", allowImportingTsExtensions: true },
+        files: names,
+      }),
+    );
+    const parsed = JSON.parse(
+      runTypescriptChild(BARREL_SCAN, [scratch, ...names], { timeoutMs: BARREL_SCAN_TIMEOUT_MS }),
+    );
+    jobs.forEach((job, i) => {
+      const problems = namedBarrelProblems(job.rel, parsed[i]);
+      if (job.expect === undefined) {
+        for (const problem of problems) {
+          failures += 1;
+          console.error(`${job.rel}  [named-barrel] ${problem} (AGENTS.md §9).`);
+        }
+        return;
+      }
+      const missed = job.expect.filter((want) => !problems.some((p) => p.includes(want)));
+      if (missed.length > 0 || (job.expect.length === 0 && problems.length > 0)) {
+        failures += 1;
+        console.error(
+          job.expect.length === 0
+            ? `${job.rel}  [named-barrel-self-test] a planted ${job.what} was refused: ${problems.join("; ")}`
+            : `${job.rel}  [named-barrel-self-test] a planted ${job.what} was not refused as: ${missed.join("; ")}`,
+        );
+      }
+    });
+  } catch (error) {
     failures += 1;
-    console.error(`${rel}  [named-barrel] ${problem} (AGENTS.md §9).`);
-  }
-  if (
-    NAMED_BARRELS.includes(rel) &&
-    !namedBarrelProblems(rel, `${text}\nexport * from "./X.ts";\n`).some((p) =>
-      p.startsWith("`export *`"),
-    )
-  ) {
-    failures += 1;
-    console.error(`${rel}  [named-barrel-self-test] a planted export * was not refused.`);
+    console.error(
+      `scripts/lib/barrel-scan.mjs  [named-barrel] could not read the barrels with ` +
+        `typescript@${installedTypescriptVersion(ROOT)}'s unstable API, which a TypeScript ` +
+        `upgrade can move: ${failureCause(error, BARREL_SCAN_TIMEOUT_MS)}`,
+    );
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
   }
 }
 

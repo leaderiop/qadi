@@ -1346,12 +1346,16 @@ Pinned by `packages/react/test/GateRegistry.store.test.ts` ("disambiguates a col
 ```
 REQUIREMENT: The root of each part-public package MUST name its exports per module:
              `export { … } from "./X.ts"` for the values and
-             `export type { … } from "./X.ts"` for the types, one group of each kind
-             per module, the modules in path order, and MUST carry no `export *`.
+             `export type { … } from "./X.ts"` for the types, at most one group of
+             each kind per module with the value group first, no inline `type`
+             inside a value group, the modules in path order and the names inside
+             each group in name order (both case-sensitive ASCII), and MUST hold no
+             other statement and no `export *`.
 
 REQUIREMENT: A name MUST be named at one module, the one that declares it or the one
              whose own re-export is its documented public home, and a group MUST
-             carry no package specifier.
+             carry no package specifier and name a module of the package's own
+             `src/`.
 
 REQUIREMENT: A consumer MUST reach every name the root lists from the package root,
              `useQadiContext` and `QadiProvider` included, each with the kind it has:

@@ -732,13 +732,19 @@ name the wrong file or count.
 
 `export * from "./File.ts"`, alphabetical. A package whose root names modules that
 are only partly public names its exports per module (`export { … } from`, `export
-type { … } from`), grouped by module path in case-sensitive ASCII order: `@qadi/core`,
-`@qadi/react`, `@qadi/audit` and `@qadi/devtools` (its two barrels) are those
-(ARCH-40, ADR-QD-047, ADR-QD-204). The `named-barrel` house-style rule refuses an
-`export *` in each of them, a group from outside the package, groups out of order,
-and its own list drifting: an index off `NAMED_BARRELS` that names a group, or mixes
-one with an `export *`, fails too, and every run plants an `export *` into each
-listed barrel to see the rule refuse it. The pure barrels (`@qadi/http`,
+type { … } from`): at most one value group and then at most one type group per
+module, no inline `type` inside a value group, the groups in module-path order and
+the names inside each group in name order, both case-sensitive ASCII, and nothing
+else in the file. `@qadi/core`, `@qadi/react`, `@qadi/audit` and `@qadi/devtools`
+(its two barrels) are those (ARCH-40, ADR-QD-047, ADR-QD-204). The `named-barrel`
+house-style rule reads each through TypeScript's parse and refuses there an `export
+*`, any statement that is not such a group (a declaration, an import, an `export { …
+}` with no `from`), a group whose module is outside the package's own `src/`, a
+second value or type group for one module, a type group before its value group, an
+inline `type` in a value group, and groups or names out of order. It refuses its own
+list drifting too: an index off `NAMED_BARRELS` that names a relative group, or mixes
+any group with an `export *`, fails. Every run plants one violation of each kind into
+a copy of each listed barrel to see the rule refuse it. The pure barrels (`@qadi/http`,
 `@qadi/testing`) stay pure because each of their modules is wholly public. Adding a
 public name is three edits: a line in the barrel, a row in `spec/overview.md`, and a
 line in that package's `test/surface.test.ts`. Shared scaffolding stays **out** of
