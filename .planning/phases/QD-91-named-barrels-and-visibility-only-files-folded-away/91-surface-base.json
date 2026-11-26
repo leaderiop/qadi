@@ -1,0 +1,3859 @@
+{
+  "entries": {
+    "@qadi/audit": {
+      "both": 22,
+      "count": 72,
+      "names": [
+        {
+          "kind": "type",
+          "name": "ArchivalOptions"
+        },
+        {
+          "kind": "both",
+          "name": "ArchiveInputInvalid"
+        },
+        {
+          "kind": "both",
+          "name": "ArchiveInputRefusal"
+        },
+        {
+          "kind": "both",
+          "name": "ArchiveNotVerified"
+        },
+        {
+          "kind": "both",
+          "name": "ArchiveRefusal"
+        },
+        {
+          "kind": "type",
+          "name": "AuditArchive"
+        },
+        {
+          "kind": "type",
+          "name": "AuditCommitScript"
+        },
+        {
+          "kind": "value",
+          "name": "AuditDecisionSinkLive"
+        },
+        {
+          "kind": "type",
+          "name": "AuditDecisionSinkOptions"
+        },
+        {
+          "kind": "type",
+          "name": "AuditEntry"
+        },
+        {
+          "kind": "both",
+          "name": "AuditPortReply"
+        },
+        {
+          "kind": "type",
+          "name": "AuditStageScript"
+        },
+        {
+          "kind": "both",
+          "name": "AuditStagingError"
+        },
+        {
+          "kind": "type",
+          "name": "AuditStagingHandle"
+        },
+        {
+          "kind": "both",
+          "name": "AuditStagingPort"
+        },
+        {
+          "kind": "type",
+          "name": "AuditStagingPortShape"
+        },
+        {
+          "kind": "value",
+          "name": "AuditStagingPortTest"
+        },
+        {
+          "kind": "type",
+          "name": "AuditStagingPortTestHandle"
+        },
+        {
+          "kind": "type",
+          "name": "AuditStagingPortTestOptions"
+        },
+        {
+          "kind": "both",
+          "name": "AuditTrailPort"
+        },
+        {
+          "kind": "type",
+          "name": "AuditTrailPortShape"
+        },
+        {
+          "kind": "value",
+          "name": "AuditTrailPortTest"
+        },
+        {
+          "kind": "type",
+          "name": "AuditTrailPortTestHandle"
+        },
+        {
+          "kind": "type",
+          "name": "AuditTrailPortTestOptions"
+        },
+        {
+          "kind": "type",
+          "name": "AuditTrailScript"
+        },
+        {
+          "kind": "both",
+          "name": "AuditWriteError"
+        },
+        {
+          "kind": "both",
+          "name": "AuditWriteOutcome"
+        },
+        {
+          "kind": "type",
+          "name": "Durability"
+        },
+        {
+          "kind": "both",
+          "name": "InvalidAuditSinkOption"
+        },
+        {
+          "kind": "type",
+          "name": "KeyMaterial"
+        },
+        {
+          "kind": "type",
+          "name": "LedgerConformanceOptions"
+        },
+        {
+          "kind": "both",
+          "name": "LedgerConformanceViolation"
+        },
+        {
+          "kind": "type",
+          "name": "LedgerKeySource"
+        },
+        {
+          "kind": "type",
+          "name": "LedgerPair"
+        },
+        {
+          "kind": "type",
+          "name": "PurgePlan"
+        },
+        {
+          "kind": "both",
+          "name": "RetentionInputInvalid"
+        },
+        {
+          "kind": "both",
+          "name": "RetentionInputRefusal"
+        },
+        {
+          "kind": "type",
+          "name": "RetentionPlan"
+        },
+        {
+          "kind": "type",
+          "name": "RetentionPolicy"
+        },
+        {
+          "kind": "value",
+          "name": "SIGNATURE_MEANINGS"
+        },
+        {
+          "kind": "both",
+          "name": "SequenceIntegrityError"
+        },
+        {
+          "kind": "both",
+          "name": "SignatureCaptureError"
+        },
+        {
+          "kind": "both",
+          "name": "SignatureCapturePort"
+        },
+        {
+          "kind": "type",
+          "name": "SignatureCapturePortShape"
+        },
+        {
+          "kind": "type",
+          "name": "SignatureCaptureRequest"
+        },
+        {
+          "kind": "both",
+          "name": "SignatureLedger"
+        },
+        {
+          "kind": "type",
+          "name": "SignatureLedgerEntry"
+        },
+        {
+          "kind": "both",
+          "name": "SignatureLedgerError"
+        },
+        {
+          "kind": "type",
+          "name": "SignatureLedgerKey"
+        },
+        {
+          "kind": "both",
+          "name": "SignatureLedgerReadError"
+        },
+        {
+          "kind": "type",
+          "name": "SignatureLedgerShape"
+        },
+        {
+          "kind": "value",
+          "name": "SignatureLedgerTest"
+        },
+        {
+          "kind": "type",
+          "name": "SignatureLedgerTestHandle"
+        },
+        {
+          "kind": "type",
+          "name": "SignatureMeaning"
+        },
+        {
+          "kind": "type",
+          "name": "SignatureValidationResult"
+        },
+        {
+          "kind": "both",
+          "name": "UnwrittenStaging"
+        },
+        {
+          "kind": "type",
+          "name": "VerifiedArchive"
+        },
+        {
+          "kind": "both",
+          "name": "WrittenStaging"
+        },
+        {
+          "kind": "value",
+          "name": "archiveAuditTrail"
+        },
+        {
+          "kind": "value",
+          "name": "checkSignatureHistoryScoping"
+        },
+        {
+          "kind": "value",
+          "name": "checkSignatureLedger"
+        },
+        {
+          "kind": "value",
+          "name": "decodeAuditEntry"
+        },
+        {
+          "kind": "value",
+          "name": "durabilityOf"
+        },
+        {
+          "kind": "value",
+          "name": "encodeAuditEntry"
+        },
+        {
+          "kind": "value",
+          "name": "ledgerEntryOf"
+        },
+        {
+          "kind": "value",
+          "name": "ledgerKeyOf"
+        },
+        {
+          "kind": "value",
+          "name": "planPurge"
+        },
+        {
+          "kind": "value",
+          "name": "planRetention"
+        },
+        {
+          "kind": "value",
+          "name": "readAuditArchive"
+        },
+        {
+          "kind": "value",
+          "name": "signatureHistoryFromLedger"
+        },
+        {
+          "kind": "value",
+          "name": "signatureObligationHandler"
+        },
+        {
+          "kind": "value",
+          "name": "verifySequenceIntegrity"
+        }
+      ]
+    },
+    "@qadi/core": {
+      "both": 72,
+      "count": 545,
+      "names": [
+        {
+          "kind": "both",
+          "name": "AccessDenied"
+        },
+        {
+          "kind": "both",
+          "name": "AccessDeniedPublic"
+        },
+        {
+          "kind": "type",
+          "name": "ActedEventInput"
+        },
+        {
+          "kind": "type",
+          "name": "ActedQuery"
+        },
+        {
+          "kind": "both",
+          "name": "ActedResult"
+        },
+        {
+          "kind": "both",
+          "name": "ActionName"
+        },
+        {
+          "kind": "type",
+          "name": "AlignedNode"
+        },
+        {
+          "kind": "type",
+          "name": "All"
+        },
+        {
+          "kind": "both",
+          "name": "Allow"
+        },
+        {
+          "kind": "type",
+          "name": "AllowingTrace"
+        },
+        {
+          "kind": "type",
+          "name": "AnswerOf"
+        },
+        {
+          "kind": "type",
+          "name": "Any"
+        },
+        {
+          "kind": "type",
+          "name": "ArgsOf"
+        },
+        {
+          "kind": "type",
+          "name": "AskedOf"
+        },
+        {
+          "kind": "both",
+          "name": "AttributeResolveError"
+        },
+        {
+          "kind": "both",
+          "name": "AttributeResolver"
+        },
+        {
+          "kind": "value",
+          "name": "AttributeResolverNone"
+        },
+        {
+          "kind": "type",
+          "name": "AttributeResolverShape"
+        },
+        {
+          "kind": "type",
+          "name": "AuthSubject"
+        },
+        {
+          "kind": "type",
+          "name": "Authorized"
+        },
+        {
+          "kind": "type",
+          "name": "CacheLookup"
+        },
+        {
+          "kind": "type",
+          "name": "CacheOutcome"
+        },
+        {
+          "kind": "type",
+          "name": "ChildCountChanged"
+        },
+        {
+          "kind": "both",
+          "name": "CircularRoleInheritance"
+        },
+        {
+          "kind": "type",
+          "name": "ClientHydrationDropReason"
+        },
+        {
+          "kind": "type",
+          "name": "ColumnFiniteness"
+        },
+        {
+          "kind": "type",
+          "name": "ColumnNullability"
+        },
+        {
+          "kind": "type",
+          "name": "CombinatorOptions"
+        },
+        {
+          "kind": "both",
+          "name": "Combining"
+        },
+        {
+          "kind": "type",
+          "name": "CompareOp"
+        },
+        {
+          "kind": "type",
+          "name": "CompileOutcomes"
+        },
+        {
+          "kind": "type",
+          "name": "CompilePredicateOptions"
+        },
+        {
+          "kind": "both",
+          "name": "CurrentSubject"
+        },
+        {
+          "kind": "value",
+          "name": "CurrentSubjectAnonymous"
+        },
+        {
+          "kind": "both",
+          "name": "CustomPredicate"
+        },
+        {
+          "kind": "both",
+          "name": "CustomPredicateError"
+        },
+        {
+          "kind": "value",
+          "name": "CustomPredicateNone"
+        },
+        {
+          "kind": "type",
+          "name": "CustomPredicateShape"
+        },
+        {
+          "kind": "value",
+          "name": "DEFAULT_LOG_CAPACITY"
+        },
+        {
+          "kind": "value",
+          "name": "DEFAULT_MAX_DEPTH"
+        },
+        {
+          "kind": "value",
+          "name": "DEFAULT_MAX_IN_VALUES"
+        },
+        {
+          "kind": "both",
+          "name": "Decided"
+        },
+        {
+          "kind": "type",
+          "name": "Decision"
+        },
+        {
+          "kind": "both",
+          "name": "DecisionCache"
+        },
+        {
+          "kind": "type",
+          "name": "DecisionCacheShape"
+        },
+        {
+          "kind": "type",
+          "name": "DecisionClaim"
+        },
+        {
+          "kind": "type",
+          "name": "DecisionDisagreement"
+        },
+        {
+          "kind": "both",
+          "name": "DecisionHistory"
+        },
+        {
+          "kind": "type",
+          "name": "DecisionHistoryShape"
+        },
+        {
+          "kind": "both",
+          "name": "DecisionHistoryUnavailable"
+        },
+        {
+          "kind": "value",
+          "name": "DecisionHistoryUnknown"
+        },
+        {
+          "kind": "type",
+          "name": "DecisionLog"
+        },
+        {
+          "kind": "type",
+          "name": "DecisionLogEntries"
+        },
+        {
+          "kind": "type",
+          "name": "DecisionLogRead"
+        },
+        {
+          "kind": "type",
+          "name": "DecisionLogReader"
+        },
+        {
+          "kind": "type",
+          "name": "DecisionOutcome"
+        },
+        {
+          "kind": "both",
+          "name": "DecisionRecord"
+        },
+        {
+          "kind": "type",
+          "name": "DecisionRecordEvent"
+        },
+        {
+          "kind": "both",
+          "name": "DecisionSink"
+        },
+        {
+          "kind": "type",
+          "name": "DecisionSinkShape"
+        },
+        {
+          "kind": "type",
+          "name": "DecisionStamp"
+        },
+        {
+          "kind": "both",
+          "name": "DecisionStreamEvent"
+        },
+        {
+          "kind": "type",
+          "name": "DecisionStreamFrame"
+        },
+        {
+          "kind": "type",
+          "name": "DecisionStreamRead"
+        },
+        {
+          "kind": "both",
+          "name": "DecisionStreamSynced"
+        },
+        {
+          "kind": "both",
+          "name": "DecisionWire"
+        },
+        {
+          "kind": "value",
+          "name": "DecisionWireAllow"
+        },
+        {
+          "kind": "value",
+          "name": "DecisionWireDeny"
+        },
+        {
+          "kind": "both",
+          "name": "DecodeRefusal"
+        },
+        {
+          "kind": "type",
+          "name": "DecodeRefusalAnnotations"
+        },
+        {
+          "kind": "type",
+          "name": "DecodedQuestion"
+        },
+        {
+          "kind": "type",
+          "name": "DecodedSinkRecord"
+        },
+        {
+          "kind": "type",
+          "name": "DehydrationDropReason"
+        },
+        {
+          "kind": "both",
+          "name": "Deny"
+        },
+        {
+          "kind": "type",
+          "name": "DenyingTrace"
+        },
+        {
+          "kind": "type",
+          "name": "DescriptionOf"
+        },
+        {
+          "kind": "both",
+          "name": "DuplicateRoleDefinition"
+        },
+        {
+          "kind": "value",
+          "name": "ENFORCEMENT_DENIAL_TAGS"
+        },
+        {
+          "kind": "value",
+          "name": "ENFORCEMENT_ERROR_CLASSES"
+        },
+        {
+          "kind": "value",
+          "name": "ENFORCEMENT_ERROR_TAGS"
+        },
+        {
+          "kind": "value",
+          "name": "ERROR_CODES"
+        },
+        {
+          "kind": "type",
+          "name": "EncodeDecisionStreamOptions"
+        },
+        {
+          "kind": "both",
+          "name": "EncodeRefusal"
+        },
+        {
+          "kind": "type",
+          "name": "EncodeRefusalAnnotations"
+        },
+        {
+          "kind": "type",
+          "name": "EnforceOptions"
+        },
+        {
+          "kind": "type",
+          "name": "EnforcementDenial"
+        },
+        {
+          "kind": "type",
+          "name": "EnforcementError"
+        },
+        {
+          "kind": "type",
+          "name": "EnforcementErrorClass"
+        },
+        {
+          "kind": "type",
+          "name": "EnforcementErrorClassTable"
+        },
+        {
+          "kind": "type",
+          "name": "EnforcementErrorTagOf"
+        },
+        {
+          "kind": "type",
+          "name": "EqualityLiteral"
+        },
+        {
+          "kind": "type",
+          "name": "ErrorOf"
+        },
+        {
+          "kind": "type",
+          "name": "EvaluateOptions"
+        },
+        {
+          "kind": "type",
+          "name": "EvaluationClock"
+        },
+        {
+          "kind": "type",
+          "name": "EvaluationEnvironmentOptions"
+        },
+        {
+          "kind": "type",
+          "name": "EvaluationError"
+        },
+        {
+          "kind": "both",
+          "name": "EvaluationId"
+        },
+        {
+          "kind": "value",
+          "name": "EvaluationIdLive"
+        },
+        {
+          "kind": "type",
+          "name": "EvaluationIdShape"
+        },
+        {
+          "kind": "type",
+          "name": "EvaluationServices"
+        },
+        {
+          "kind": "value",
+          "name": "EvaluationServicesNone"
+        },
+        {
+          "kind": "type",
+          "name": "EvaluationShadowing"
+        },
+        {
+          "kind": "both",
+          "name": "EventName"
+        },
+        {
+          "kind": "type",
+          "name": "Explanation"
+        },
+        {
+          "kind": "type",
+          "name": "ExplanationCases"
+        },
+        {
+          "kind": "both",
+          "name": "Failed"
+        },
+        {
+          "kind": "type",
+          "name": "FieldOptions"
+        },
+        {
+          "kind": "both",
+          "name": "FieldStrategy"
+        },
+        {
+          "kind": "type",
+          "name": "FieldsChanged"
+        },
+        {
+          "kind": "both",
+          "name": "FilteredSubjectOutcome"
+        },
+        {
+          "kind": "type",
+          "name": "FilteredSubjects"
+        },
+        {
+          "kind": "type",
+          "name": "FiniteExclusion"
+        },
+        {
+          "kind": "type",
+          "name": "FiniteGuard"
+        },
+        {
+          "kind": "type",
+          "name": "GateState"
+        },
+        {
+          "kind": "type",
+          "name": "GuardHealthCheckResult"
+        },
+        {
+          "kind": "type",
+          "name": "HandoverOptions"
+        },
+        {
+          "kind": "type",
+          "name": "HistoryOptions"
+        },
+        {
+          "kind": "both",
+          "name": "HistoryScope"
+        },
+        {
+          "kind": "type",
+          "name": "HydrationDropMeaning"
+        },
+        {
+          "kind": "type",
+          "name": "HydrationDropReason"
+        },
+        {
+          "kind": "type",
+          "name": "HydrationDropReasonOf"
+        },
+        {
+          "kind": "type",
+          "name": "HydrationDropRow"
+        },
+        {
+          "kind": "type",
+          "name": "IdentifierRule"
+        },
+        {
+          "kind": "type",
+          "name": "InferAction"
+        },
+        {
+          "kind": "type",
+          "name": "InferKey"
+        },
+        {
+          "kind": "type",
+          "name": "InferResource"
+        },
+        {
+          "kind": "both",
+          "name": "InvalidBoundedPermits"
+        },
+        {
+          "kind": "both",
+          "name": "InvalidPermissionSegment"
+        },
+        {
+          "kind": "both",
+          "name": "KeyRefusal"
+        },
+        {
+          "kind": "type",
+          "name": "LabelChanged"
+        },
+        {
+          "kind": "both",
+          "name": "LabelName"
+        },
+        {
+          "kind": "type",
+          "name": "LabelOrdering"
+        },
+        {
+          "kind": "type",
+          "name": "LeafMatcher"
+        },
+        {
+          "kind": "type",
+          "name": "LeafOf"
+        },
+        {
+          "kind": "type",
+          "name": "LeafPolicy"
+        },
+        {
+          "kind": "type",
+          "name": "LeafRequests"
+        },
+        {
+          "kind": "type",
+          "name": "LogCursor"
+        },
+        {
+          "kind": "type",
+          "name": "LogEntry"
+        },
+        {
+          "kind": "value",
+          "name": "MAX_DECODE_DEPTH"
+        },
+        {
+          "kind": "both",
+          "name": "Matcher"
+        },
+        {
+          "kind": "type",
+          "name": "MatcherCases"
+        },
+        {
+          "kind": "type",
+          "name": "MatcherContext"
+        },
+        {
+          "kind": "both",
+          "name": "MissingAction"
+        },
+        {
+          "kind": "both",
+          "name": "MissingResource"
+        },
+        {
+          "kind": "both",
+          "name": "MissingResourceId"
+        },
+        {
+          "kind": "type",
+          "name": "Named"
+        },
+        {
+          "kind": "type",
+          "name": "Negated"
+        },
+        {
+          "kind": "type",
+          "name": "Negation"
+        },
+        {
+          "kind": "type",
+          "name": "NullGuard"
+        },
+        {
+          "kind": "both",
+          "name": "Obligation"
+        },
+        {
+          "kind": "type",
+          "name": "ObligationDischarge"
+        },
+        {
+          "kind": "type",
+          "name": "ObligationHandler"
+        },
+        {
+          "kind": "type",
+          "name": "ObligationOptions"
+        },
+        {
+          "kind": "type",
+          "name": "ObligationOutcome"
+        },
+        {
+          "kind": "both",
+          "name": "ObligationRecord"
+        },
+        {
+          "kind": "type",
+          "name": "ObligationsChanged"
+        },
+        {
+          "kind": "type",
+          "name": "OpaqueKind"
+        },
+        {
+          "kind": "type",
+          "name": "Owing"
+        },
+        {
+          "kind": "value",
+          "name": "POLICY_TAGS"
+        },
+        {
+          "kind": "value",
+          "name": "PORTS"
+        },
+        {
+          "kind": "value",
+          "name": "PORT_FIXTURES"
+        },
+        {
+          "kind": "value",
+          "name": "PORT_NAMES"
+        },
+        {
+          "kind": "type",
+          "name": "Permission"
+        },
+        {
+          "kind": "type",
+          "name": "PermissionGrant"
+        },
+        {
+          "kind": "type",
+          "name": "PermissionGroup"
+        },
+        {
+          "kind": "type",
+          "name": "PermissionKey"
+        },
+        {
+          "kind": "value",
+          "name": "PermissionSchema"
+        },
+        {
+          "kind": "both",
+          "name": "Policy"
+        },
+        {
+          "kind": "type",
+          "name": "PolicyCases"
+        },
+        {
+          "kind": "both",
+          "name": "PolicyDecodeTooDeep"
+        },
+        {
+          "kind": "type",
+          "name": "PolicyEncoded"
+        },
+        {
+          "kind": "both",
+          "name": "PolicyNotJson"
+        },
+        {
+          "kind": "both",
+          "name": "PolicyNotTranslatable"
+        },
+        {
+          "kind": "type",
+          "name": "PolicyTagChanged"
+        },
+        {
+          "kind": "both",
+          "name": "PolicyTooDeep"
+        },
+        {
+          "kind": "type",
+          "name": "PortDecorator"
+        },
+        {
+          "kind": "type",
+          "name": "PortDescription"
+        },
+        {
+          "kind": "type",
+          "name": "PortDouble"
+        },
+        {
+          "kind": "type",
+          "name": "PortFixtureData"
+        },
+        {
+          "kind": "type",
+          "name": "PortFixtures"
+        },
+        {
+          "kind": "type",
+          "name": "PortInterpreter"
+        },
+        {
+          "kind": "type",
+          "name": "PortLayerVisitor"
+        },
+        {
+          "kind": "type",
+          "name": "PortLayers"
+        },
+        {
+          "kind": "type",
+          "name": "PortName"
+        },
+        {
+          "kind": "type",
+          "name": "PortOverrides"
+        },
+        {
+          "kind": "both",
+          "name": "PortReply"
+        },
+        {
+          "kind": "type",
+          "name": "PortScript"
+        },
+        {
+          "kind": "type",
+          "name": "PortServices"
+        },
+        {
+          "kind": "type",
+          "name": "PortServing"
+        },
+        {
+          "kind": "type",
+          "name": "PortServingFacet"
+        },
+        {
+          "kind": "type",
+          "name": "PortServingOf"
+        },
+        {
+          "kind": "type",
+          "name": "PortShape"
+        },
+        {
+          "kind": "type",
+          "name": "PortSpanAttributes"
+        },
+        {
+          "kind": "type",
+          "name": "PortSpanAttributesLike"
+        },
+        {
+          "kind": "type",
+          "name": "PortSpanName"
+        },
+        {
+          "kind": "type",
+          "name": "PortSpanOf"
+        },
+        {
+          "kind": "type",
+          "name": "PortSpanRow"
+        },
+        {
+          "kind": "type",
+          "name": "PortSpanRowOf"
+        },
+        {
+          "kind": "type",
+          "name": "PortTypes"
+        },
+        {
+          "kind": "type",
+          "name": "PortVisitor"
+        },
+        {
+          "kind": "type",
+          "name": "PortWire"
+        },
+        {
+          "kind": "both",
+          "name": "PortWireRefusal"
+        },
+        {
+          "kind": "both",
+          "name": "PortWireReply"
+        },
+        {
+          "kind": "type",
+          "name": "Predicate"
+        },
+        {
+          "kind": "both",
+          "name": "PredicateNotRenderable"
+        },
+        {
+          "kind": "type",
+          "name": "PredicateOptions"
+        },
+        {
+          "kind": "type",
+          "name": "PredicatePortName"
+        },
+        {
+          "kind": "type",
+          "name": "PredicateServices"
+        },
+        {
+          "kind": "type",
+          "name": "QadiError"
+        },
+        {
+          "kind": "type",
+          "name": "Question"
+        },
+        {
+          "kind": "type",
+          "name": "QuestionOptions"
+        },
+        {
+          "kind": "type",
+          "name": "ReadSite"
+        },
+        {
+          "kind": "type",
+          "name": "ReasonChanged"
+        },
+        {
+          "kind": "type",
+          "name": "ReceivedFrame"
+        },
+        {
+          "kind": "both",
+          "name": "RelatedResult"
+        },
+        {
+          "kind": "both",
+          "name": "RelationName"
+        },
+        {
+          "kind": "type",
+          "name": "RelationshipCheck"
+        },
+        {
+          "kind": "value",
+          "name": "RelationshipDepth"
+        },
+        {
+          "kind": "both",
+          "name": "RelationshipEdge"
+        },
+        {
+          "kind": "type",
+          "name": "RelationshipEdgeInput"
+        },
+        {
+          "kind": "both",
+          "name": "RelationshipResolveError"
+        },
+        {
+          "kind": "both",
+          "name": "RelationshipResolver"
+        },
+        {
+          "kind": "value",
+          "name": "RelationshipResolverNever"
+        },
+        {
+          "kind": "type",
+          "name": "RelationshipResolverShape"
+        },
+        {
+          "kind": "both",
+          "name": "RemotePortError"
+        },
+        {
+          "kind": "both",
+          "name": "RemotePortFailure"
+        },
+        {
+          "kind": "type",
+          "name": "RenderOptions"
+        },
+        {
+          "kind": "type",
+          "name": "RenderRefusal"
+        },
+        {
+          "kind": "type",
+          "name": "RenderRules"
+        },
+        {
+          "kind": "type",
+          "name": "RenderTraceOptions"
+        },
+        {
+          "kind": "type",
+          "name": "RenderableNode"
+        },
+        {
+          "kind": "type",
+          "name": "Requirement"
+        },
+        {
+          "kind": "type",
+          "name": "RequirementKind"
+        },
+        {
+          "kind": "type",
+          "name": "Resource"
+        },
+        {
+          "kind": "type",
+          "name": "ResourceId"
+        },
+        {
+          "kind": "value",
+          "name": "ResourceIdSchema"
+        },
+        {
+          "kind": "type",
+          "name": "Role"
+        },
+        {
+          "kind": "type",
+          "name": "RoleDefinition"
+        },
+        {
+          "kind": "both",
+          "name": "RoleName"
+        },
+        {
+          "kind": "both",
+          "name": "RoleStep"
+        },
+        {
+          "kind": "type",
+          "name": "Row"
+        },
+        {
+          "kind": "type",
+          "name": "RowResult"
+        },
+        {
+          "kind": "type",
+          "name": "Rule"
+        },
+        {
+          "kind": "both",
+          "name": "RuleEffect"
+        },
+        {
+          "kind": "type",
+          "name": "RuleEncoded"
+        },
+        {
+          "kind": "type",
+          "name": "RuleResult"
+        },
+        {
+          "kind": "value",
+          "name": "SEGMENT_PATTERN"
+        },
+        {
+          "kind": "value",
+          "name": "SIGNATURE_MEANINGS"
+        },
+        {
+          "kind": "value",
+          "name": "SUBJECT_ID_TAG"
+        },
+        {
+          "kind": "type",
+          "name": "SafeLiteral"
+        },
+        {
+          "kind": "type",
+          "name": "SecurityLabel"
+        },
+        {
+          "kind": "type",
+          "name": "ServiceOf"
+        },
+        {
+          "kind": "type",
+          "name": "ShapeOf"
+        },
+        {
+          "kind": "both",
+          "name": "Signature"
+        },
+        {
+          "kind": "type",
+          "name": "SignatureAnswer"
+        },
+        {
+          "kind": "both",
+          "name": "SignatureHistory"
+        },
+        {
+          "kind": "value",
+          "name": "SignatureHistoryNone"
+        },
+        {
+          "kind": "type",
+          "name": "SignatureHistoryShape"
+        },
+        {
+          "kind": "both",
+          "name": "SignatureHistoryUnavailable"
+        },
+        {
+          "kind": "type",
+          "name": "SignatureInput"
+        },
+        {
+          "kind": "type",
+          "name": "SignatureMeaning"
+        },
+        {
+          "kind": "type",
+          "name": "SignatureOptions"
+        },
+        {
+          "kind": "type",
+          "name": "SignatureQuery"
+        },
+        {
+          "kind": "type",
+          "name": "SinkRecord"
+        },
+        {
+          "kind": "both",
+          "name": "SinkRecordJson"
+        },
+        {
+          "kind": "both",
+          "name": "SinkRecordNotDecodable"
+        },
+        {
+          "kind": "both",
+          "name": "SinkRecordNotEncodable"
+        },
+        {
+          "kind": "type",
+          "name": "SinkRecordTag"
+        },
+        {
+          "kind": "type",
+          "name": "SpanFields"
+        },
+        {
+          "kind": "type",
+          "name": "SpanKey"
+        },
+        {
+          "kind": "type",
+          "name": "SpanOf"
+        },
+        {
+          "kind": "type",
+          "name": "SpanStruct"
+        },
+        {
+          "kind": "type",
+          "name": "SpanType"
+        },
+        {
+          "kind": "type",
+          "name": "SpanValue"
+        },
+        {
+          "kind": "type",
+          "name": "StandingEvaluationServices"
+        },
+        {
+          "kind": "both",
+          "name": "StoredRecord"
+        },
+        {
+          "kind": "both",
+          "name": "StoredRecordJson"
+        },
+        {
+          "kind": "type",
+          "name": "SubjectDecision"
+        },
+        {
+          "kind": "type",
+          "name": "SubjectEvaluationFailure"
+        },
+        {
+          "kind": "type",
+          "name": "SubjectId"
+        },
+        {
+          "kind": "value",
+          "name": "SubjectIdSchema"
+        },
+        {
+          "kind": "both",
+          "name": "SubjectOutcome"
+        },
+        {
+          "kind": "type",
+          "name": "SubjectSetOutcome"
+        },
+        {
+          "kind": "type",
+          "name": "SubjectSetServices"
+        },
+        {
+          "kind": "type",
+          "name": "Table"
+        },
+        {
+          "kind": "type",
+          "name": "Trace"
+        },
+        {
+          "kind": "type",
+          "name": "TraceCases"
+        },
+        {
+          "kind": "type",
+          "name": "TraceDifference"
+        },
+        {
+          "kind": "type",
+          "name": "TracePath"
+        },
+        {
+          "kind": "value",
+          "name": "TraceSchema"
+        },
+        {
+          "kind": "both",
+          "name": "UndischargedObligation"
+        },
+        {
+          "kind": "type",
+          "name": "UnkeyableKind"
+        },
+        {
+          "kind": "type",
+          "name": "UnknownKeyPolicy"
+        },
+        {
+          "kind": "type",
+          "name": "UnrepresentableKind"
+        },
+        {
+          "kind": "type",
+          "name": "UntrustedDecoder"
+        },
+        {
+          "kind": "type",
+          "name": "UntrustedDecoderOptions"
+        },
+        {
+          "kind": "both",
+          "name": "UntrustedRefusal"
+        },
+        {
+          "kind": "type",
+          "name": "UntrustedValueRefusal"
+        },
+        {
+          "kind": "type",
+          "name": "UnwalkedKey"
+        },
+        {
+          "kind": "both",
+          "name": "ValueRef"
+        },
+        {
+          "kind": "type",
+          "name": "Verdict"
+        },
+        {
+          "kind": "type",
+          "name": "VerdictChanged"
+        },
+        {
+          "kind": "type",
+          "name": "VisibleFields"
+        },
+        {
+          "kind": "value",
+          "name": "WIRE_VERSION"
+        },
+        {
+          "kind": "value",
+          "name": "WIRE_VERSIONS"
+        },
+        {
+          "kind": "type",
+          "name": "WirePath"
+        },
+        {
+          "kind": "type",
+          "name": "WireVersion"
+        },
+        {
+          "kind": "value",
+          "name": "actedAnswerFromEvents"
+        },
+        {
+          "kind": "value",
+          "name": "action"
+        },
+        {
+          "kind": "value",
+          "name": "allOf"
+        },
+        {
+          "kind": "value",
+          "name": "allOfRoles"
+        },
+        {
+          "kind": "value",
+          "name": "anonymous"
+        },
+        {
+          "kind": "value",
+          "name": "answerRemotely"
+        },
+        {
+          "kind": "value",
+          "name": "anyOf"
+        },
+        {
+          "kind": "value",
+          "name": "anyOfRoles"
+        },
+        {
+          "kind": "value",
+          "name": "askRemotely"
+        },
+        {
+          "kind": "value",
+          "name": "assert"
+        },
+        {
+          "kind": "value",
+          "name": "attributeResolverBounded"
+        },
+        {
+          "kind": "value",
+          "name": "attributeResolverFromRecord"
+        },
+        {
+          "kind": "value",
+          "name": "attributeResolverPort"
+        },
+        {
+          "kind": "value",
+          "name": "attributeResolverRetrying"
+        },
+        {
+          "kind": "value",
+          "name": "attributeResolverTimingOut"
+        },
+        {
+          "kind": "value",
+          "name": "bindingObligations"
+        },
+        {
+          "kind": "value",
+          "name": "causeMessage"
+        },
+        {
+          "kind": "value",
+          "name": "check"
+        },
+        {
+          "kind": "value",
+          "name": "childrenOf"
+        },
+        {
+          "kind": "value",
+          "name": "classifyEnforcementError"
+        },
+        {
+          "kind": "value",
+          "name": "compareLabels"
+        },
+        {
+          "kind": "value",
+          "name": "compilePredicate"
+        },
+        {
+          "kind": "value",
+          "name": "contains"
+        },
+        {
+          "kind": "value",
+          "name": "createGuardHealthCheck"
+        },
+        {
+          "kind": "value",
+          "name": "createPermissionGroup"
+        },
+        {
+          "kind": "value",
+          "name": "currentSubjectLayer"
+        },
+        {
+          "kind": "value",
+          "name": "customPredicateBounded"
+        },
+        {
+          "kind": "value",
+          "name": "customPredicateFromRecord"
+        },
+        {
+          "kind": "value",
+          "name": "customPredicatePort"
+        },
+        {
+          "kind": "value",
+          "name": "customPredicateRetrying"
+        },
+        {
+          "kind": "value",
+          "name": "customPredicateTimingOut"
+        },
+        {
+          "kind": "value",
+          "name": "decide"
+        },
+        {
+          "kind": "value",
+          "name": "decideSubject"
+        },
+        {
+          "kind": "value",
+          "name": "decideSubjects"
+        },
+        {
+          "kind": "value",
+          "name": "decideSubjectsStream"
+        },
+        {
+          "kind": "value",
+          "name": "decisionCacheLayer"
+        },
+        {
+          "kind": "value",
+          "name": "decisionCacheLookupsTotal"
+        },
+        {
+          "kind": "value",
+          "name": "decisionDisagreement"
+        },
+        {
+          "kind": "value",
+          "name": "decisionHistoryBounded"
+        },
+        {
+          "kind": "value",
+          "name": "decisionHistoryFromEvents"
+        },
+        {
+          "kind": "value",
+          "name": "decisionHistoryPort"
+        },
+        {
+          "kind": "value",
+          "name": "decisionHistoryRetrying"
+        },
+        {
+          "kind": "value",
+          "name": "decisionHistoryTimingOut"
+        },
+        {
+          "kind": "value",
+          "name": "decisionSinkAll"
+        },
+        {
+          "kind": "value",
+          "name": "decisionSinkForwarding"
+        },
+        {
+          "kind": "value",
+          "name": "decisionsTotal"
+        },
+        {
+          "kind": "value",
+          "name": "decodeDecision"
+        },
+        {
+          "kind": "value",
+          "name": "decodeDecisionStream"
+        },
+        {
+          "kind": "value",
+          "name": "decodePortSpan"
+        },
+        {
+          "kind": "value",
+          "name": "decodeRefusalAnnotations"
+        },
+        {
+          "kind": "value",
+          "name": "decodeRefusalOf"
+        },
+        {
+          "kind": "value",
+          "name": "decodeSinkRecord"
+        },
+        {
+          "kind": "value",
+          "name": "decodeSinkRecordString"
+        },
+        {
+          "kind": "value",
+          "name": "decodeSinkRecordWithJson"
+        },
+        {
+          "kind": "value",
+          "name": "decodeStoredRecord"
+        },
+        {
+          "kind": "value",
+          "name": "decodeStoredRecordString"
+        },
+        {
+          "kind": "value",
+          "name": "decoratePorts"
+        },
+        {
+          "kind": "value",
+          "name": "defaultFieldStrategy"
+        },
+        {
+          "kind": "value",
+          "name": "denialsByPolicyTagTotal"
+        },
+        {
+          "kind": "value",
+          "name": "denyWhen"
+        },
+        {
+          "kind": "value",
+          "name": "describeDecodeRefusal"
+        },
+        {
+          "kind": "value",
+          "name": "describeEncodeRefusal"
+        },
+        {
+          "kind": "value",
+          "name": "describeKeyRefusal"
+        },
+        {
+          "kind": "value",
+          "name": "describeRemotePortFailure"
+        },
+        {
+          "kind": "value",
+          "name": "diffTraces"
+        },
+        {
+          "kind": "value",
+          "name": "dominates"
+        },
+        {
+          "kind": "value",
+          "name": "encodeDecision"
+        },
+        {
+          "kind": "value",
+          "name": "encodeDecisionStream"
+        },
+        {
+          "kind": "value",
+          "name": "encodeRefusalAnnotations"
+        },
+        {
+          "kind": "value",
+          "name": "encodeRefusalPath"
+        },
+        {
+          "kind": "value",
+          "name": "encodeSinkRecord"
+        },
+        {
+          "kind": "value",
+          "name": "encodeSinkRecordString"
+        },
+        {
+          "kind": "value",
+          "name": "encodeStoredRecord"
+        },
+        {
+          "kind": "value",
+          "name": "encodeStoredRecordString"
+        },
+        {
+          "kind": "value",
+          "name": "enforce"
+        },
+        {
+          "kind": "value",
+          "name": "enforceLoaded"
+        },
+        {
+          "kind": "value",
+          "name": "enforceProjected"
+        },
+        {
+          "kind": "value",
+          "name": "enforceProjectedLoaded"
+        },
+        {
+          "kind": "value",
+          "name": "eq"
+        },
+        {
+          "kind": "value",
+          "name": "errorCode"
+        },
+        {
+          "kind": "value",
+          "name": "evaluate"
+        },
+        {
+          "kind": "value",
+          "name": "evaluateMatcher"
+        },
+        {
+          "kind": "value",
+          "name": "evaluatePredicate"
+        },
+        {
+          "kind": "value",
+          "name": "evaluationDurationMillis"
+        },
+        {
+          "kind": "value",
+          "name": "evaluationEnvironment"
+        },
+        {
+          "kind": "value",
+          "name": "evaluationErrorsTotal"
+        },
+        {
+          "kind": "value",
+          "name": "evaluationIdSequential"
+        },
+        {
+          "kind": "value",
+          "name": "everyMatch"
+        },
+        {
+          "kind": "value",
+          "name": "exists"
+        },
+        {
+          "kind": "value",
+          "name": "explain"
+        },
+        {
+          "kind": "value",
+          "name": "fieldMatch"
+        },
+        {
+          "kind": "value",
+          "name": "fieldsOf"
+        },
+        {
+          "kind": "value",
+          "name": "filter"
+        },
+        {
+          "kind": "value",
+          "name": "filterProjected"
+        },
+        {
+          "kind": "value",
+          "name": "filterStream"
+        },
+        {
+          "kind": "value",
+          "name": "filterStreamProjected"
+        },
+        {
+          "kind": "value",
+          "name": "filterSubjects"
+        },
+        {
+          "kind": "value",
+          "name": "filterSubjectsStream"
+        },
+        {
+          "kind": "value",
+          "name": "fixturePortsLayer"
+        },
+        {
+          "kind": "value",
+          "name": "flattenAll"
+        },
+        {
+          "kind": "value",
+          "name": "flattenPermissions"
+        },
+        {
+          "kind": "value",
+          "name": "flippedAt"
+        },
+        {
+          "kind": "value",
+          "name": "foldAligned"
+        },
+        {
+          "kind": "value",
+          "name": "foldExplanation"
+        },
+        {
+          "kind": "value",
+          "name": "foldExplanationCases"
+        },
+        {
+          "kind": "value",
+          "name": "foldMatcher"
+        },
+        {
+          "kind": "value",
+          "name": "foldMatcherCases"
+        },
+        {
+          "kind": "value",
+          "name": "foldPolicy"
+        },
+        {
+          "kind": "value",
+          "name": "foldPolicyCases"
+        },
+        {
+          "kind": "value",
+          "name": "foldTrace"
+        },
+        {
+          "kind": "value",
+          "name": "forEveryPort"
+        },
+        {
+          "kind": "value",
+          "name": "formatLogCursor"
+        },
+        {
+          "kind": "value",
+          "name": "fromJson"
+        },
+        {
+          "kind": "value",
+          "name": "fromJsonValue"
+        },
+        {
+          "kind": "value",
+          "name": "fromRoles"
+        },
+        {
+          "kind": "value",
+          "name": "gateStates"
+        },
+        {
+          "kind": "value",
+          "name": "getByPath"
+        },
+        {
+          "kind": "value",
+          "name": "gte"
+        },
+        {
+          "kind": "value",
+          "name": "guard"
+        },
+        {
+          "kind": "value",
+          "name": "hasActed"
+        },
+        {
+          "kind": "value",
+          "name": "hasAction"
+        },
+        {
+          "kind": "value",
+          "name": "hasAttribute"
+        },
+        {
+          "kind": "value",
+          "name": "hasCustom"
+        },
+        {
+          "kind": "value",
+          "name": "hasNotActed"
+        },
+        {
+          "kind": "value",
+          "name": "hasPermission"
+        },
+        {
+          "kind": "value",
+          "name": "hasRelationship"
+        },
+        {
+          "kind": "value",
+          "name": "hasResourceAttribute"
+        },
+        {
+          "kind": "value",
+          "name": "hasRole"
+        },
+        {
+          "kind": "value",
+          "name": "hasSignature"
+        },
+        {
+          "kind": "value",
+          "name": "hydrationDehydratedTotal"
+        },
+        {
+          "kind": "value",
+          "name": "hydrationDropMeaning"
+        },
+        {
+          "kind": "value",
+          "name": "hydrationDropReasons"
+        },
+        {
+          "kind": "value",
+          "name": "hydrationDroppedTotal"
+        },
+        {
+          "kind": "value",
+          "name": "hydrationMismatchesTotal"
+        },
+        {
+          "kind": "value",
+          "name": "hydrationRechecksTotal"
+        },
+        {
+          "kind": "value",
+          "name": "hydrationSeededTotal"
+        },
+        {
+          "kind": "value",
+          "name": "inArray"
+        },
+        {
+          "kind": "value",
+          "name": "intersectFields"
+        },
+        {
+          "kind": "value",
+          "name": "isAllowed"
+        },
+        {
+          "kind": "value",
+          "name": "isAllowingTrace"
+        },
+        {
+          "kind": "value",
+          "name": "isDenyingTrace"
+        },
+        {
+          "kind": "value",
+          "name": "isGateState"
+        },
+        {
+          "kind": "value",
+          "name": "isHydrationDropReason"
+        },
+        {
+          "kind": "value",
+          "name": "isPortDefault"
+        },
+        {
+          "kind": "value",
+          "name": "isRangeBound"
+        },
+        {
+          "kind": "value",
+          "name": "isRenderableIdentifier"
+        },
+        {
+          "kind": "value",
+          "name": "isSafeLiteral"
+        },
+        {
+          "kind": "value",
+          "name": "isSecurityLabel"
+        },
+        {
+          "kind": "value",
+          "name": "isValidSegment"
+        },
+        {
+          "kind": "value",
+          "name": "join"
+        },
+        {
+          "kind": "value",
+          "name": "judgeMatcher"
+        },
+        {
+          "kind": "value",
+          "name": "labelDominates"
+        },
+        {
+          "kind": "value",
+          "name": "labeled"
+        },
+        {
+          "kind": "value",
+          "name": "leafCases"
+        },
+        {
+          "kind": "value",
+          "name": "leafMatcherCases"
+        },
+        {
+          "kind": "value",
+          "name": "literal"
+        },
+        {
+          "kind": "value",
+          "name": "lt"
+        },
+        {
+          "kind": "value",
+          "name": "makeDecision"
+        },
+        {
+          "kind": "value",
+          "name": "makeDecisionLog"
+        },
+        {
+          "kind": "value",
+          "name": "makeResourceId"
+        },
+        {
+          "kind": "value",
+          "name": "makeRoleName"
+        },
+        {
+          "kind": "value",
+          "name": "makeSubject"
+        },
+        {
+          "kind": "value",
+          "name": "makeSubjectId"
+        },
+        {
+          "kind": "value",
+          "name": "matcherDepth"
+        },
+        {
+          "kind": "value",
+          "name": "meet"
+        },
+        {
+          "kind": "value",
+          "name": "mergeFields"
+        },
+        {
+          "kind": "value",
+          "name": "mergePorts"
+        },
+        {
+          "kind": "value",
+          "name": "neq"
+        },
+        {
+          "kind": "value",
+          "name": "not"
+        },
+        {
+          "kind": "value",
+          "name": "obligation"
+        },
+        {
+          "kind": "value",
+          "name": "obliged"
+        },
+        {
+          "kind": "value",
+          "name": "parseLogCursor"
+        },
+        {
+          "kind": "value",
+          "name": "permission"
+        },
+        {
+          "kind": "value",
+          "name": "permissionKey"
+        },
+        {
+          "kind": "value",
+          "name": "permissionProvenance"
+        },
+        {
+          "kind": "value",
+          "name": "permitWhen"
+        },
+        {
+          "kind": "value",
+          "name": "policyDepth"
+        },
+        {
+          "kind": "value",
+          "name": "portCallsTotal"
+        },
+        {
+          "kind": "value",
+          "name": "portRetriesTotal"
+        },
+        {
+          "kind": "value",
+          "name": "portTimeoutsTotal"
+        },
+        {
+          "kind": "value",
+          "name": "portsLayer"
+        },
+        {
+          "kind": "value",
+          "name": "predicatePortCallsTotal"
+        },
+        {
+          "kind": "value",
+          "name": "predicatesTranslatedTotal"
+        },
+        {
+          "kind": "value",
+          "name": "project"
+        },
+        {
+          "kind": "value",
+          "name": "projectVisible"
+        },
+        {
+          "kind": "value",
+          "name": "questionOf"
+        },
+        {
+          "kind": "value",
+          "name": "recordingPort"
+        },
+        {
+          "kind": "value",
+          "name": "referencesAction"
+        },
+        {
+          "kind": "value",
+          "name": "referencesResource"
+        },
+        {
+          "kind": "value",
+          "name": "relationshipResolverBounded"
+        },
+        {
+          "kind": "value",
+          "name": "relationshipResolverFromEdges"
+        },
+        {
+          "kind": "value",
+          "name": "relationshipResolverPort"
+        },
+        {
+          "kind": "value",
+          "name": "relationshipResolverRetrying"
+        },
+        {
+          "kind": "value",
+          "name": "relationshipResolverTimingOut"
+        },
+        {
+          "kind": "value",
+          "name": "remotePorts"
+        },
+        {
+          "kind": "value",
+          "name": "renderExplanation"
+        },
+        {
+          "kind": "value",
+          "name": "renderTrace"
+        },
+        {
+          "kind": "value",
+          "name": "replyTable"
+        },
+        {
+          "kind": "value",
+          "name": "reportEncodeRefusal"
+        },
+        {
+          "kind": "value",
+          "name": "resolveRoleGraph"
+        },
+        {
+          "kind": "value",
+          "name": "resource"
+        },
+        {
+          "kind": "value",
+          "name": "resourceIdOf"
+        },
+        {
+          "kind": "value",
+          "name": "role"
+        },
+        {
+          "kind": "value",
+          "name": "roleNames"
+        },
+        {
+          "kind": "value",
+          "name": "roleWalk"
+        },
+        {
+          "kind": "value",
+          "name": "rules"
+        },
+        {
+          "kind": "value",
+          "name": "sameVisibleFields"
+        },
+        {
+          "kind": "value",
+          "name": "scriptedPort"
+        },
+        {
+          "kind": "value",
+          "name": "servedPortCallsTotal"
+        },
+        {
+          "kind": "value",
+          "name": "servingFor"
+        },
+        {
+          "kind": "value",
+          "name": "signatureAnswerFromSignatures"
+        },
+        {
+          "kind": "value",
+          "name": "signatureHistoryBounded"
+        },
+        {
+          "kind": "value",
+          "name": "signatureHistoryFromSignatures"
+        },
+        {
+          "kind": "value",
+          "name": "signatureHistoryPort"
+        },
+        {
+          "kind": "value",
+          "name": "signatureHistoryRetrying"
+        },
+        {
+          "kind": "value",
+          "name": "signatureHistoryTimingOut"
+        },
+        {
+          "kind": "value",
+          "name": "simplify"
+        },
+        {
+          "kind": "value",
+          "name": "sinkRecordOrder"
+        },
+        {
+          "kind": "value",
+          "name": "size"
+        },
+        {
+          "kind": "value",
+          "name": "someMatch"
+        },
+        {
+          "kind": "value",
+          "name": "storedRecordOrder"
+        },
+        {
+          "kind": "value",
+          "name": "subject"
+        },
+        {
+          "kind": "value",
+          "name": "subjectEquivalence"
+        },
+        {
+          "kind": "value",
+          "name": "subjectId"
+        },
+        {
+          "kind": "value",
+          "name": "tabulatePorts"
+        },
+        {
+          "kind": "value",
+          "name": "thrownMessage"
+        },
+        {
+          "kind": "value",
+          "name": "toAccessDeniedPublic"
+        },
+        {
+          "kind": "value",
+          "name": "toJson"
+        },
+        {
+          "kind": "value",
+          "name": "toJsonValue"
+        },
+        {
+          "kind": "value",
+          "name": "toPredicate"
+        },
+        {
+          "kind": "value",
+          "name": "toRenderable"
+        },
+        {
+          "kind": "value",
+          "name": "tracePathKey"
+        },
+        {
+          "kind": "value",
+          "name": "unionFields"
+        },
+        {
+          "kind": "value",
+          "name": "unionObligations"
+        },
+        {
+          "kind": "value",
+          "name": "untrustedDecoder"
+        },
+        {
+          "kind": "value",
+          "name": "valueLabel"
+        },
+        {
+          "kind": "value",
+          "name": "valueText"
+        },
+        {
+          "kind": "value",
+          "name": "withAttributes"
+        }
+      ]
+    },
+    "@qadi/devtools": {
+      "both": 10,
+      "count": 142,
+      "names": [
+        {
+          "kind": "type",
+          "name": "ActedCall"
+        },
+        {
+          "kind": "type",
+          "name": "Answer"
+        },
+        {
+          "kind": "type",
+          "name": "AskedQuestionLike"
+        },
+        {
+          "kind": "both",
+          "name": "AskedRead"
+        },
+        {
+          "kind": "type",
+          "name": "AttributeCall"
+        },
+        {
+          "kind": "type",
+          "name": "Baseline"
+        },
+        {
+          "kind": "type",
+          "name": "BaselineCaveat"
+        },
+        {
+          "kind": "type",
+          "name": "BaselineReading"
+        },
+        {
+          "kind": "type",
+          "name": "BecameError"
+        },
+        {
+          "kind": "type",
+          "name": "CacheReport"
+        },
+        {
+          "kind": "type",
+          "name": "CapturedAnswers"
+        },
+        {
+          "kind": "type",
+          "name": "Catalogue"
+        },
+        {
+          "kind": "type",
+          "name": "ChipAdded"
+        },
+        {
+          "kind": "type",
+          "name": "ChipView"
+        },
+        {
+          "kind": "type",
+          "name": "Compared"
+        },
+        {
+          "kind": "type",
+          "name": "Comparison"
+        },
+        {
+          "kind": "type",
+          "name": "Counts"
+        },
+        {
+          "kind": "type",
+          "name": "CustomPredicateCall"
+        },
+        {
+          "kind": "value",
+          "name": "DEFAULT_DIAGNOSTICS_INTERVAL_MILLIS"
+        },
+        {
+          "kind": "value",
+          "name": "DEFAULT_PORT_CALL_CAPACITY"
+        },
+        {
+          "kind": "value",
+          "name": "DEFAULT_TIMELINE_CAPACITY"
+        },
+        {
+          "kind": "type",
+          "name": "DecisionEventSource"
+        },
+        {
+          "kind": "type",
+          "name": "Diagnostics"
+        },
+        {
+          "kind": "type",
+          "name": "DiagnosticsFeed"
+        },
+        {
+          "kind": "type",
+          "name": "DiagnosticsOptions"
+        },
+        {
+          "kind": "type",
+          "name": "DiagnosticsReading"
+        },
+        {
+          "kind": "type",
+          "name": "DiagnosticsReadout"
+        },
+        {
+          "kind": "type",
+          "name": "DiagnosticsSnapshot"
+        },
+        {
+          "kind": "both",
+          "name": "DiagnosticsStatus"
+        },
+        {
+          "kind": "type",
+          "name": "EditDirection"
+        },
+        {
+          "kind": "type",
+          "name": "EditKind"
+        },
+        {
+          "kind": "type",
+          "name": "EvaluationPorts"
+        },
+        {
+          "kind": "type",
+          "name": "EvaluationPortsLayer"
+        },
+        {
+          "kind": "both",
+          "name": "Evicted"
+        },
+        {
+          "kind": "type",
+          "name": "FieldView"
+        },
+        {
+          "kind": "type",
+          "name": "Filters"
+        },
+        {
+          "kind": "type",
+          "name": "GateInstanceLike"
+        },
+        {
+          "kind": "type",
+          "name": "GateRegistryLike"
+        },
+        {
+          "kind": "type",
+          "name": "GatesFeed"
+        },
+        {
+          "kind": "type",
+          "name": "GatesFeedInputs"
+        },
+        {
+          "kind": "type",
+          "name": "GatesSnapshot"
+        },
+        {
+          "kind": "type",
+          "name": "HeldChoice"
+        },
+        {
+          "kind": "type",
+          "name": "HydrationActivity"
+        },
+        {
+          "kind": "type",
+          "name": "HydrationDrops"
+        },
+        {
+          "kind": "type",
+          "name": "InspectKind"
+        },
+        {
+          "kind": "type",
+          "name": "InspectNode"
+        },
+        {
+          "kind": "both",
+          "name": "NoSelection"
+        },
+        {
+          "kind": "type",
+          "name": "NodeStatus"
+        },
+        {
+          "kind": "type",
+          "name": "ObligationState"
+        },
+        {
+          "kind": "type",
+          "name": "PairRole"
+        },
+        {
+          "kind": "type",
+          "name": "PairedEntry"
+        },
+        {
+          "kind": "type",
+          "name": "PolicyChoice"
+        },
+        {
+          "kind": "type",
+          "name": "PolicyMenu"
+        },
+        {
+          "kind": "type",
+          "name": "PolicyMenuOption"
+        },
+        {
+          "kind": "type",
+          "name": "PolicySighting"
+        },
+        {
+          "kind": "type",
+          "name": "PortActivity"
+        },
+        {
+          "kind": "type",
+          "name": "PortCall"
+        },
+        {
+          "kind": "type",
+          "name": "PortCallCollector"
+        },
+        {
+          "kind": "type",
+          "name": "PortCallInterpreter"
+        },
+        {
+          "kind": "type",
+          "name": "PortCallLog"
+        },
+        {
+          "kind": "type",
+          "name": "PortCallOf"
+        },
+        {
+          "kind": "type",
+          "name": "PortCallPort"
+        },
+        {
+          "kind": "type",
+          "name": "PortReport"
+        },
+        {
+          "kind": "type",
+          "name": "RecordOutcome"
+        },
+        {
+          "kind": "type",
+          "name": "Recovered"
+        },
+        {
+          "kind": "both",
+          "name": "RegistryRead"
+        },
+        {
+          "kind": "type",
+          "name": "RelationshipCall"
+        },
+        {
+          "kind": "type",
+          "name": "ResourceText"
+        },
+        {
+          "kind": "type",
+          "name": "RunKind"
+        },
+        {
+          "kind": "type",
+          "name": "RunState"
+        },
+        {
+          "kind": "both",
+          "name": "Selected"
+        },
+        {
+          "kind": "type",
+          "name": "Selection"
+        },
+        {
+          "kind": "type",
+          "name": "SignatureHistoryCall"
+        },
+        {
+          "kind": "type",
+          "name": "SimulatedSubject"
+        },
+        {
+          "kind": "type",
+          "name": "SimulationEdit"
+        },
+        {
+          "kind": "type",
+          "name": "SimulationField"
+        },
+        {
+          "kind": "type",
+          "name": "SimulationInput"
+        },
+        {
+          "kind": "type",
+          "name": "SimulationQuestion"
+        },
+        {
+          "kind": "type",
+          "name": "SimulationSession"
+        },
+        {
+          "kind": "type",
+          "name": "SimulationSessionInit"
+        },
+        {
+          "kind": "type",
+          "name": "SimulationSnapshot"
+        },
+        {
+          "kind": "type",
+          "name": "SkippedRemedy"
+        },
+        {
+          "kind": "type",
+          "name": "Source"
+        },
+        {
+          "kind": "type",
+          "name": "SourceChoice"
+        },
+        {
+          "kind": "type",
+          "name": "SourceOption"
+        },
+        {
+          "kind": "type",
+          "name": "SourceRead"
+        },
+        {
+          "kind": "type",
+          "name": "SourceRefusal"
+        },
+        {
+          "kind": "type",
+          "name": "StillFailed"
+        },
+        {
+          "kind": "type",
+          "name": "SweepCost"
+        },
+        {
+          "kind": "type",
+          "name": "SweepPlan"
+        },
+        {
+          "kind": "type",
+          "name": "Timeline"
+        },
+        {
+          "kind": "both",
+          "name": "TimelineDecision"
+        },
+        {
+          "kind": "type",
+          "name": "TimelineEntry"
+        },
+        {
+          "kind": "type",
+          "name": "TimelineFeed"
+        },
+        {
+          "kind": "type",
+          "name": "TimelineFeedInputs"
+        },
+        {
+          "kind": "both",
+          "name": "TimelineOrphan"
+        },
+        {
+          "kind": "both",
+          "name": "TimelineStatus"
+        },
+        {
+          "kind": "type",
+          "name": "TimelineStatusReadout"
+        },
+        {
+          "kind": "type",
+          "name": "TimelineStore"
+        },
+        {
+          "kind": "type",
+          "name": "UnseededField"
+        },
+        {
+          "kind": "type",
+          "name": "Verdict"
+        },
+        {
+          "kind": "type",
+          "name": "WhatIfReport"
+        },
+        {
+          "kind": "type",
+          "name": "WhatIfRow"
+        },
+        {
+          "kind": "type",
+          "name": "WiredServiceName"
+        },
+        {
+          "kind": "both",
+          "name": "WiringRead"
+        },
+        {
+          "kind": "type",
+          "name": "WiringReport"
+        },
+        {
+          "kind": "value",
+          "name": "applyFilters"
+        },
+        {
+          "kind": "value",
+          "name": "catalogueOf"
+        },
+        {
+          "kind": "value",
+          "name": "collectPortCalls"
+        },
+        {
+          "kind": "value",
+          "name": "countsOf"
+        },
+        {
+          "kind": "value",
+          "name": "describeTracePath"
+        },
+        {
+          "kind": "value",
+          "name": "emptyTimeline"
+        },
+        {
+          "kind": "value",
+          "name": "entryKey"
+        },
+        {
+          "kind": "value",
+          "name": "environmentsOf"
+        },
+        {
+          "kind": "value",
+          "name": "flattenTree"
+        },
+        {
+          "kind": "value",
+          "name": "hasHydrated"
+        },
+        {
+          "kind": "value",
+          "name": "hydrationActivity"
+        },
+        {
+          "kind": "value",
+          "name": "ingest"
+        },
+        {
+          "kind": "value",
+          "name": "ingestAll"
+        },
+        {
+          "kind": "value",
+          "name": "inspect"
+        },
+        {
+          "kind": "value",
+          "name": "inspectEntry"
+        },
+        {
+          "kind": "value",
+          "name": "isNeverResolved"
+        },
+        {
+          "kind": "value",
+          "name": "isTruncated"
+        },
+        {
+          "kind": "value",
+          "name": "isUnfiltered"
+        },
+        {
+          "kind": "value",
+          "name": "makeDiagnosticsFeed"
+        },
+        {
+          "kind": "value",
+          "name": "makeGatesFeed"
+        },
+        {
+          "kind": "value",
+          "name": "makeSimulationSession"
+        },
+        {
+          "kind": "value",
+          "name": "makeTimelineFeed"
+        },
+        {
+          "kind": "value",
+          "name": "mergeReading"
+        },
+        {
+          "kind": "value",
+          "name": "mergeSources"
+        },
+        {
+          "kind": "value",
+          "name": "noFilters"
+        },
+        {
+          "kind": "value",
+          "name": "pairedEntries"
+        },
+        {
+          "kind": "value",
+          "name": "pairsOf"
+        },
+        {
+          "kind": "value",
+          "name": "portActivity"
+        },
+        {
+          "kind": "value",
+          "name": "searchTextOf"
+        },
+        {
+          "kind": "value",
+          "name": "selectionOf"
+        },
+        {
+          "kind": "value",
+          "name": "sourceFromEventSource"
+        },
+        {
+          "kind": "value",
+          "name": "sourceFromRecords"
+        },
+        {
+          "kind": "value",
+          "name": "unaccountedEntries"
+        },
+        {
+          "kind": "value",
+          "name": "verdictOf"
+        },
+        {
+          "kind": "value",
+          "name": "verdictOfOutcome"
+        },
+        {
+          "kind": "value",
+          "name": "wiringReport"
+        }
+      ]
+    },
+    "@qadi/devtools/react": {
+      "both": 2,
+      "count": 15,
+      "names": [
+        {
+          "kind": "type",
+          "name": "AskedQuestionLike"
+        },
+        {
+          "kind": "value",
+          "name": "DevtoolsDock"
+        },
+        {
+          "kind": "type",
+          "name": "DevtoolsDockProps"
+        },
+        {
+          "kind": "type",
+          "name": "DiagnosticsOptions"
+        },
+        {
+          "kind": "type",
+          "name": "DiagnosticsSnapshot"
+        },
+        {
+          "kind": "both",
+          "name": "DiagnosticsStatus"
+        },
+        {
+          "kind": "type",
+          "name": "SimulationSessionView"
+        },
+        {
+          "kind": "both",
+          "name": "TimelineStatus"
+        },
+        {
+          "kind": "type",
+          "name": "UseSimulationSessionInput"
+        },
+        {
+          "kind": "type",
+          "name": "UseTimeline"
+        },
+        {
+          "kind": "value",
+          "name": "useDiagnostics"
+        },
+        {
+          "kind": "value",
+          "name": "useSimulationSession"
+        },
+        {
+          "kind": "value",
+          "name": "useSimulationSnapshot"
+        },
+        {
+          "kind": "value",
+          "name": "useTimeline"
+        },
+        {
+          "kind": "value",
+          "name": "useTimelineStore"
+        }
+      ]
+    },
+    "@qadi/http": {
+      "both": 9,
+      "count": 75,
+      "names": [
+        {
+          "kind": "type",
+          "name": "AccessDeclarationKey"
+        },
+        {
+          "kind": "value",
+          "name": "AccessDeniedRefused"
+        },
+        {
+          "kind": "both",
+          "name": "AccessNotDeclared"
+        },
+        {
+          "kind": "type",
+          "name": "AnnotatedEndpoint"
+        },
+        {
+          "kind": "type",
+          "name": "ApiGuardRefusal"
+        },
+        {
+          "kind": "value",
+          "name": "AttributeResolveErrorResponse"
+        },
+        {
+          "kind": "type",
+          "name": "AuthorizedRequest"
+        },
+        {
+          "kind": "type",
+          "name": "ClientErrorOf"
+        },
+        {
+          "kind": "value",
+          "name": "CustomPredicateErrorResponse"
+        },
+        {
+          "kind": "type",
+          "name": "DecisionBacklogOptions"
+        },
+        {
+          "kind": "value",
+          "name": "DecisionHistoryUnavailableResponse"
+        },
+        {
+          "kind": "type",
+          "name": "DecisionStreamOptions"
+        },
+        {
+          "kind": "type",
+          "name": "DevtoolsRoute"
+        },
+        {
+          "kind": "type",
+          "name": "DevtoolsRouteOptions"
+        },
+        {
+          "kind": "type",
+          "name": "DevtoolsRoutesOptions"
+        },
+        {
+          "kind": "value",
+          "name": "ENFORCEMENT_ERROR_WIRE"
+        },
+        {
+          "kind": "type",
+          "name": "EndpointDescriptor"
+        },
+        {
+          "kind": "type",
+          "name": "EnforcementErrorWire"
+        },
+        {
+          "kind": "type",
+          "name": "EnforcementErrorWireTable"
+        },
+        {
+          "kind": "type",
+          "name": "EveryEndpointGuarded"
+        },
+        {
+          "kind": "value",
+          "name": "HTTP_ENFORCEMENT_ERROR_SCHEMAS"
+        },
+        {
+          "kind": "value",
+          "name": "HTTP_ENFORCEMENT_TAGS"
+        },
+        {
+          "kind": "value",
+          "name": "HTTP_STATUS_BY_CLASS"
+        },
+        {
+          "kind": "type",
+          "name": "HttpEnforcementFailure"
+        },
+        {
+          "kind": "type",
+          "name": "HttpEnforcementTag"
+        },
+        {
+          "kind": "both",
+          "name": "MisplacedAccessDeclaration"
+        },
+        {
+          "kind": "value",
+          "name": "MissingActionResponse"
+        },
+        {
+          "kind": "value",
+          "name": "MissingResourceIdResponse"
+        },
+        {
+          "kind": "value",
+          "name": "MissingResourceResponse"
+        },
+        {
+          "kind": "value",
+          "name": "NO_RESOURCE"
+        },
+        {
+          "kind": "value",
+          "name": "PORT_REPLY_STATUS"
+        },
+        {
+          "kind": "both",
+          "name": "PermissionRegistry"
+        },
+        {
+          "kind": "type",
+          "name": "PermissionRegistryData"
+        },
+        {
+          "kind": "value",
+          "name": "PermissionRegistryLive"
+        },
+        {
+          "kind": "type",
+          "name": "PermissionRegistryShape"
+        },
+        {
+          "kind": "type",
+          "name": "PermissionRequirement"
+        },
+        {
+          "kind": "value",
+          "name": "PolicyTooDeepResponse"
+        },
+        {
+          "kind": "type",
+          "name": "PortRoutesOptions"
+        },
+        {
+          "kind": "type",
+          "name": "PublicDeclaration"
+        },
+        {
+          "kind": "both",
+          "name": "PublicEndpoint"
+        },
+        {
+          "kind": "value",
+          "name": "RelationshipResolveErrorResponse"
+        },
+        {
+          "kind": "type",
+          "name": "RemotePortsOptions"
+        },
+        {
+          "kind": "both",
+          "name": "RequirePermission"
+        },
+        {
+          "kind": "type",
+          "name": "RequirePermissionClientError"
+        },
+        {
+          "kind": "both",
+          "name": "RequirePermissionNotAttached"
+        },
+        {
+          "kind": "both",
+          "name": "RequiredPermission"
+        },
+        {
+          "kind": "type",
+          "name": "RequiredPermissionShape"
+        },
+        {
+          "kind": "value",
+          "name": "SignatureHistoryUnavailableResponse"
+        },
+        {
+          "kind": "both",
+          "name": "SubjectExtractionFailed"
+        },
+        {
+          "kind": "value",
+          "name": "SubjectExtractionRefused"
+        },
+        {
+          "kind": "both",
+          "name": "SubjectExtractor"
+        },
+        {
+          "kind": "type",
+          "name": "SubjectExtractorShape"
+        },
+        {
+          "kind": "value",
+          "name": "UndischargedObligationRefused"
+        },
+        {
+          "kind": "type",
+          "name": "UnguardedEndpoints"
+        },
+        {
+          "kind": "value",
+          "name": "addGuardedRoute"
+        },
+        {
+          "kind": "value",
+          "name": "authorizeRequest"
+        },
+        {
+          "kind": "value",
+          "name": "classifyHttpEnforcementFailure"
+        },
+        {
+          "kind": "value",
+          "name": "decisionBacklogRoute"
+        },
+        {
+          "kind": "value",
+          "name": "decisionStreamRoute"
+        },
+        {
+          "kind": "value",
+          "name": "devtoolsPath"
+        },
+        {
+          "kind": "value",
+          "name": "devtoolsRoutes"
+        },
+        {
+          "kind": "value",
+          "name": "guardApi"
+        },
+        {
+          "kind": "value",
+          "name": "logDenial"
+        },
+        {
+          "kind": "value",
+          "name": "logSubjectExtractionFailed"
+        },
+        {
+          "kind": "value",
+          "name": "passthroughClientLayer"
+        },
+        {
+          "kind": "value",
+          "name": "permissionRegistryRoute"
+        },
+        {
+          "kind": "value",
+          "name": "permissionRegistryRouteUnguarded"
+        },
+        {
+          "kind": "value",
+          "name": "portRoutes"
+        },
+        {
+          "kind": "value",
+          "name": "portRoutesUnguarded"
+        },
+        {
+          "kind": "value",
+          "name": "projectHttpEnforcementFailure"
+        },
+        {
+          "kind": "value",
+          "name": "publicEndpoint"
+        },
+        {
+          "kind": "value",
+          "name": "remotePortsLayer"
+        },
+        {
+          "kind": "value",
+          "name": "requiresPermission"
+        },
+        {
+          "kind": "value",
+          "name": "subjectExtractorBearer"
+        },
+        {
+          "kind": "value",
+          "name": "toResponse"
+        }
+      ]
+    },
+    "@qadi/predicate-prisma": {
+      "both": 1,
+      "count": 10,
+      "names": [
+        {
+          "kind": "type",
+          "name": "CompilePrismaWhereOptions"
+        },
+        {
+          "kind": "both",
+          "name": "PredicateNotRenderable"
+        },
+        {
+          "kind": "type",
+          "name": "PrismaFieldLike"
+        },
+        {
+          "kind": "type",
+          "name": "PrismaModelLike"
+        },
+        {
+          "kind": "type",
+          "name": "PrismaTypedFieldLike"
+        },
+        {
+          "kind": "type",
+          "name": "PrismaTypedModelLike"
+        },
+        {
+          "kind": "type",
+          "name": "PrismaWhereInput"
+        },
+        {
+          "kind": "value",
+          "name": "compilePrismaWhere"
+        },
+        {
+          "kind": "value",
+          "name": "floatingFieldsOf"
+        },
+        {
+          "kind": "value",
+          "name": "nullableFieldsOf"
+        }
+      ]
+    },
+    "@qadi/predicate-sql": {
+      "both": 1,
+      "count": 6,
+      "names": [
+        {
+          "kind": "type",
+          "name": "CompileSqlOptions"
+        },
+        {
+          "kind": "both",
+          "name": "PredicateNotRenderable"
+        },
+        {
+          "kind": "type",
+          "name": "SqlDialect"
+        },
+        {
+          "kind": "type",
+          "name": "SqlFragment"
+        },
+        {
+          "kind": "type",
+          "name": "SqlSafeValue"
+        },
+        {
+          "kind": "value",
+          "name": "compileSql"
+        }
+      ]
+    },
+    "@qadi/promise": {
+      "both": 0,
+      "count": 4,
+      "names": [
+        {
+          "kind": "type",
+          "name": "FacadeOptions"
+        },
+        {
+          "kind": "type",
+          "name": "Qadi"
+        },
+        {
+          "kind": "type",
+          "name": "QadiLayer"
+        },
+        {
+          "kind": "value",
+          "name": "makeQadi"
+        }
+      ]
+    },
+    "@qadi/react": {
+      "both": 4,
+      "count": 62,
+      "names": [
+        {
+          "kind": "type",
+          "name": "AllowDisclosure"
+        },
+        {
+          "kind": "type",
+          "name": "AskedQuestion"
+        },
+        {
+          "kind": "value",
+          "name": "Can"
+        },
+        {
+          "kind": "type",
+          "name": "CanProps"
+        },
+        {
+          "kind": "value",
+          "name": "Cannot"
+        },
+        {
+          "kind": "type",
+          "name": "CannotProps"
+        },
+        {
+          "kind": "type",
+          "name": "ClientDecision"
+        },
+        {
+          "kind": "type",
+          "name": "DecisionEntry"
+        },
+        {
+          "kind": "both",
+          "name": "DecisionOutcome"
+        },
+        {
+          "kind": "type",
+          "name": "DecisionResult"
+        },
+        {
+          "kind": "type",
+          "name": "DehydrateOptions"
+        },
+        {
+          "kind": "type",
+          "name": "DehydratedDecisions"
+        },
+        {
+          "kind": "type",
+          "name": "DehydratedEntry"
+        },
+        {
+          "kind": "type",
+          "name": "DeniedNode"
+        },
+        {
+          "kind": "type",
+          "name": "DenyDisclosure"
+        },
+        {
+          "kind": "type",
+          "name": "DevtoolsDiagnosticsFeed"
+        },
+        {
+          "kind": "type",
+          "name": "DevtoolsFeed"
+        },
+        {
+          "kind": "type",
+          "name": "GateInstance"
+        },
+        {
+          "kind": "type",
+          "name": "GateKind"
+        },
+        {
+          "kind": "type",
+          "name": "GateRegistry"
+        },
+        {
+          "kind": "type",
+          "name": "GateRegistryOptions"
+        },
+        {
+          "kind": "type",
+          "name": "GateRenderState"
+        },
+        {
+          "kind": "type",
+          "name": "HydrateOptions"
+        },
+        {
+          "kind": "type",
+          "name": "HydrationDrop"
+        },
+        {
+          "kind": "type",
+          "name": "HydrationDropReporter"
+        },
+        {
+          "kind": "type",
+          "name": "HydrationMismatch"
+        },
+        {
+          "kind": "type",
+          "name": "HydrationMismatchReporter"
+        },
+        {
+          "kind": "type",
+          "name": "InitialValues"
+        },
+        {
+          "kind": "both",
+          "name": "MissingQadiProviderError"
+        },
+        {
+          "kind": "type",
+          "name": "ProviderSignal"
+        },
+        {
+          "kind": "type",
+          "name": "ProviderSignalReporter"
+        },
+        {
+          "kind": "type",
+          "name": "QadiAtoms"
+        },
+        {
+          "kind": "type",
+          "name": "QadiAtomsOptions"
+        },
+        {
+          "kind": "type",
+          "name": "QadiContextValue"
+        },
+        {
+          "kind": "type",
+          "name": "QadiLayer"
+        },
+        {
+          "kind": "value",
+          "name": "QadiProvider"
+        },
+        {
+          "kind": "type",
+          "name": "QadiProviderProps"
+        },
+        {
+          "kind": "type",
+          "name": "QadiRuntimeServices"
+        },
+        {
+          "kind": "both",
+          "name": "SeededAllow"
+        },
+        {
+          "kind": "type",
+          "name": "SeededDecision"
+        },
+        {
+          "kind": "both",
+          "name": "SeededDeny"
+        },
+        {
+          "kind": "value",
+          "name": "currentDecision"
+        },
+        {
+          "kind": "value",
+          "name": "dehydrateDecisions"
+        },
+        {
+          "kind": "value",
+          "name": "hydrateDecisions"
+        },
+        {
+          "kind": "value",
+          "name": "isSeeded"
+        },
+        {
+          "kind": "value",
+          "name": "makeGateRegistry"
+        },
+        {
+          "kind": "value",
+          "name": "makeQadiAtoms"
+        },
+        {
+          "kind": "value",
+          "name": "outcomeOf"
+        },
+        {
+          "kind": "value",
+          "name": "permits"
+        },
+        {
+          "kind": "value",
+          "name": "runtimeLayer"
+        },
+        {
+          "kind": "value",
+          "name": "useAtomValue"
+        },
+        {
+          "kind": "value",
+          "name": "useCan"
+        },
+        {
+          "kind": "value",
+          "name": "useDecision"
+        },
+        {
+          "kind": "value",
+          "name": "useDecisionSuspense"
+        },
+        {
+          "kind": "value",
+          "name": "useDevtoolsFeed"
+        },
+        {
+          "kind": "value",
+          "name": "useGateInstances"
+        },
+        {
+          "kind": "value",
+          "name": "useInvalidate"
+        },
+        {
+          "kind": "value",
+          "name": "usePolicies"
+        },
+        {
+          "kind": "value",
+          "name": "useProjected"
+        },
+        {
+          "kind": "value",
+          "name": "useQadiContext"
+        },
+        {
+          "kind": "value",
+          "name": "useQuestions"
+        },
+        {
+          "kind": "value",
+          "name": "useSubject"
+        }
+      ]
+    },
+    "@qadi/testing": {
+      "both": 0,
+      "count": 17,
+      "names": [
+        {
+          "kind": "type",
+          "name": "CapturedLog"
+        },
+        {
+          "kind": "type",
+          "name": "PortSetup"
+        },
+        {
+          "kind": "type",
+          "name": "PortSetups"
+        },
+        {
+          "kind": "type",
+          "name": "QadiTestServices"
+        },
+        {
+          "kind": "type",
+          "name": "TestLayerOptions"
+        },
+        {
+          "kind": "value",
+          "name": "administrator"
+        },
+        {
+          "kind": "value",
+          "name": "collectingLogger"
+        },
+        {
+          "kind": "value",
+          "name": "collectingTracer"
+        },
+        {
+          "kind": "value",
+          "name": "isolatedMetrics"
+        },
+        {
+          "kind": "value",
+          "name": "nobody"
+        },
+        {
+          "kind": "value",
+          "name": "permissions"
+        },
+        {
+          "kind": "value",
+          "name": "policies"
+        },
+        {
+          "kind": "value",
+          "name": "qadiReviewLayer"
+        },
+        {
+          "kind": "value",
+          "name": "qadiTestLayer"
+        },
+        {
+          "kind": "value",
+          "name": "roles"
+        },
+        {
+          "kind": "value",
+          "name": "subjectWith"
+        },
+        {
+          "kind": "value",
+          "name": "viewer"
+        }
+      ]
+    }
+  },
+  "head": "e0c321d163fb1e19cc367b1d16082eafed9c87c5",
+  "phase_base": "69e5247d205949df7396dfacb0a29bc96a02f321",
+  "total": 948
+}
