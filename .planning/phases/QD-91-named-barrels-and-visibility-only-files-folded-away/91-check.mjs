@@ -1014,15 +1014,17 @@ const CORE_SENTENCE = "No export changes. The barrel names its exports per modul
 const REACT_SENTENCE = "The barrel names its exports per module. `hydrateDecisions` takes any value with a `hydrate` method of the same signature (`QadiAtoms` still satisfies it, and `QadiAtoms` states that method through it); no call site changes. No export is added or removed.";
 const REACT_FALLBACK = "No export changes. The barrel names its exports per module.";
 const AUDIT_SENTENCE = "No export changes. The barrel names its exports per module; the sequence check is declared in the archive facts module.";
+const DEVTOOLS_SENTENCE = "No export changes. The headers of both entry points say what adding a public name takes: a value is listed in `test/surface.test.ts`, a type in `test/surface.tst.ts`.";
 /**
  * The changesets the close expects, one patch per edited public package; the file, its package and the sentence each holds
  * (whitespace collapsed). Grown by name, each added entry a `No export changes.` patch, when the stale sweep edits another
- * public package.
+ * public package. The code review's barrel-header fix edits `@qadi/devtools`' two barrels (comment lines only), so it has one.
  */
 export const CHANGESETS = [
   { file: ".changeset/core-named-barrel.md", pkg: "@qadi/core", sentences: [CORE_SENTENCE] },
   { file: ".changeset/react-named-barrel.md", pkg: "@qadi/react", sentences: [REACT_SENTENCE], fallback: [REACT_FALLBACK] },
   { file: ".changeset/audit-named-barrel.md", pkg: "@qadi/audit", sentences: [AUDIT_SENTENCE] },
+  { file: ".changeset/devtools-named-barrel-headers.md", pkg: "@qadi/devtools", sentences: [DEVTOOLS_SENTENCE] },
 ];
 /**
  * Reasons the changesets are not the expected set. `ctx` is `{ added, edited, hydrationExists }`: the `{ file, text }` of each
@@ -2502,8 +2504,10 @@ it("has \\"quotes\\"", () => {});`;
   const csText = (pkg, sentence, bump = "patch") => `---\n"@qadi/${pkg}": ${bump}\n---\n\n${sentence}\n`;
   const csAdded = (over = {}) => CHANGESETS.map((w) => ({ file: w.file, text: csText(w.pkg.slice(6), w.sentences[0]), ...over[w.file] }));
   const csCtx = (over = {}) => ({ added: csAdded(), edited: CHANGESETS.map((w) => w.pkg), hydrationExists: false, ...over });
-  eq("the three changesets, one per edited package, pass", judgeChangesets(csCtx()), []);
-  eq("the changeset set names core, react and audit", CHANGESETS.map((w) => w.pkg), ["@qadi/core", "@qadi/react", "@qadi/audit"]);
+  eq("the four changesets, one per edited package, pass", judgeChangesets(csCtx()), []);
+  eq("the changeset set names core, react, audit and devtools", CHANGESETS.map((w) => w.pkg), ["@qadi/core", "@qadi/react", "@qadi/audit", "@qadi/devtools"]);
+  has("the devtools changeset missing while its barrels are edited fails", judgeChangesets(csCtx({ added: csAdded().filter((c) => c.file !== ".changeset/devtools-named-barrel-headers.md") })), ".changeset/devtools-named-barrel-headers.md is not added since phase_base");
+  has("the devtools changeset with no export change claimed fails", judgeChangesets(csCtx({ added: csAdded({ ".changeset/devtools-named-barrel-headers.md": { text: csText("devtools", "The headers changed.") } }) })), "does not hold: No export changes.");
   has("a missing changeset fails", judgeChangesets(csCtx({ added: csAdded().slice(1) })), "is not added since phase_base");
   has("a fourth changeset fails", judgeChangesets(csCtx({ added: [...csAdded(), { file: ".changeset/other.md", text: csText("http", "x") }] })), "is not one of");
   has("a minor bump fails", judgeChangesets(csCtx({ added: csAdded({ ".changeset/core-named-barrel.md": { text: csText("core", CHANGESETS[0].sentences[0], "minor") } }) })), "is not a patch changeset for @qadi/core alone");
