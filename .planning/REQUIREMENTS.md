@@ -56,11 +56,11 @@
 
 ### Named barrels, and visibility-only files folded away (Phase 91, ARCH-138, core / react / audit)
 
-- [ ] **BARL-01**: A surface-diff tool (`{name, value-or-type}` per package, from the built `lib/` and the compiler, with a planted-defect self-test) is committed before any barrel changes; the public surface at the phase base is the baseline and is identical at the end (gate 13 count and every name's kind).
-- [ ] **BARL-02**: `@qadi/core`, `@qadi/react` and `@qadi/audit` barrels name their exports per module (generated from compiler symbol flags, never hand-typed), one commit per barrel, with no mixed `export *` state; `useQadiContext` stays public; no dependent package's `.d.ts` reaches into another's `src` (a `../../` escape check added to gate 14).
-- [ ] **BARL-03**: Each visibility-only file folds into the module that owns its concept, one fold per commit, `pnpm circular` clean after each: `PortSpanDecode` into `PortSpanEncode`, `PortInterpreter` into `PortSpan`, `GateRegistry` into `GateWriter`, `SequenceIntegrity` into `ArchiveFacts` (its "not tamper-evident" disclaimer and its four citations re-pointed). `Hydration.ts` folds only if `hydrateDecisions` takes a structural parameter that removes the cycle; otherwise it stays and the cycle is recorded. Every fold madge refuses is recorded with its verdict.
-- [ ] **BARL-04**: The house-style rule `devtools-named-barrel` becomes a named-barrel rule over all five named barrels (with a self-test planting an `export *`); `SPAN_KEY_SHARED`, the `UNTRUSTED_DECODE_BUDGET` row and AGENTS.md §7a follow the folded span file in the same commit; AGENTS.md §9, §16 and CONTRIBUTING.md are rewritten for the new rule.
-- [ ] **BARL-05**: ADR-QD-204 records the barrel rule and the folds, amending ADR-QD-037, 047 and 099 and removing the PROJECT.md Out of Scope line the folds supersede; `spec/overview.md` names each export at its new home; a changeset records any public declaration change (the structural `hydrateDecisions` parameter, if taken).
+- [x] **BARL-01**: A surface-diff tool (`{name, value-or-type}` per package, from the built `lib/` and the compiler, with a planted-defect self-test) is committed before any barrel changes; the public surface at the phase base is the baseline and is identical at the end (gate 13 count and every name's kind).
+- [x] **BARL-02**: `@qadi/core`, `@qadi/react` and `@qadi/audit` barrels name their exports per module (generated from compiler symbol flags, never hand-typed), one commit per barrel, with no mixed `export *` state; `useQadiContext` stays public; no dependent package's `.d.ts` reaches into another's `src` (a `../../` escape check added to gate 14).
+- [x] **BARL-03**: Each visibility-only file folds into the module that owns its concept, one fold per commit, `pnpm circular` clean after each: `PortSpanDecode` into `PortSpanEncode`, `PortInterpreter` into `PortSpan`, `GateRegistry` into `GateWriter`, `SequenceIntegrity` into `ArchiveFacts` (its "not tamper-evident" disclaimer and its four citations re-pointed). `Hydration.ts` folds only if `hydrateDecisions` takes a structural parameter that removes the cycle; otherwise it stays and the cycle is recorded. Every fold madge refuses is recorded with its verdict.
+- [x] **BARL-04**: The house-style rule `devtools-named-barrel` becomes a named-barrel rule over all five named barrels (with a self-test planting an `export *`); `SPAN_KEY_SHARED`, the `UNTRUSTED_DECODE_BUDGET` row and AGENTS.md §7a follow the folded span file in the same commit; AGENTS.md §9, §16 and CONTRIBUTING.md are rewritten for the new rule.
+- [x] **BARL-05**: ADR-QD-204 records the barrel rule and the folds, amending ADR-QD-037, 047 and 099 and removing the PROJECT.md Out of Scope line the folds supersede; `spec/overview.md` names each export at its new home; a changeset records any public declaration change (the structural `hydrateDecisions` parameter, if taken).
 
 ### Cross-cutting (every v1.11 phase)
 
@@ -130,11 +130,11 @@ Which phases cover which requirements. Each phase-specific requirement maps to e
 | PFACT-03 | Phase 90 | Complete |
 | PFACT-04 | Phase 90 | Complete |
 | PFACT-05 | Phase 90 | Complete |
-| BARL-01 | Phase 91 | Pending |
-| BARL-02 | Phase 91 | Pending |
-| BARL-03 | Phase 91 | Pending |
-| BARL-04 | Phase 91 | Pending |
-| BARL-05 | Phase 91 | Pending |
+| BARL-01 | Phase 91 | Complete |
+| BARL-02 | Phase 91 | Complete |
+| BARL-03 | Phase 91 | Complete |
+| BARL-04 | Phase 91 | Complete |
+| BARL-05 | Phase 91 | Complete |
 | WX-01 | Phases 85–91 (every phase) | Pending |
 | WX-02 | Phases 85–91 (every phase) | Pending |
 | WX-03 | Phases 85–91 (every phase) | Pending |
