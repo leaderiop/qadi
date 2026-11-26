@@ -1,0 +1,2550 @@
+{
+ "phase": "90",
+ "phase_base": "46174873c60e85bcd0c6702867c602cad8460310",
+ "moved": [
+  {
+   "code": "the fixture arrow of the custom predicate port",
+   "from": "packages/core/src/Ports.ts",
+   "to": "packages/core/src/CustomPredicate.ts"
+  },
+  {
+   "code": "the route ternary of readActed",
+   "from": "packages/core/src/PortAccess.ts readActed",
+   "to": "packages/core/src/PortAccess.ts readScoped"
+  },
+  {
+   "code": "the route ternary of askSignature",
+   "from": "packages/core/src/PortAccess.ts askSignature",
+   "to": "packages/core/src/PortAccess.ts readScoped"
+  }
+ ],
+ "unmeasured": [],
+ "groups": {
+  "core": {
+   "head": "4e63bbb923310a9fd1b36ab8c8d70a77575cf6dd",
+   "invocation": "pnpm exec stryker run stryker.config.mjs --mutate packages/core/src/PortName.ts,packages/core/src/Ports.ts,packages/core/src/PortMetrics.ts,packages/core/src/PortAccess.ts,packages/core/src/PortDescription.ts,packages/core/src/PortDerivation.ts,packages/core/src/AttributeResolver.ts,packages/core/src/RelationshipResolver.ts,packages/core/src/CustomPredicate.ts,packages/core/src/DecisionHistory.ts,packages/core/src/SignatureHistory.ts,packages/core/src/LeafNeeds.ts,packages/core/src/ScopedLeaf.ts",
+   "files": {
+    "packages/core/src/PortName.ts": {
+     "killed": 0,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 0,
+     "detected": 0,
+     "valid": 0,
+     "open": [],
+     "ignoredMutants": [],
+     "absent": true
+    },
+    "packages/core/src/Ports.ts": {
+     "killed": 14,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 8,
+     "detected": 14,
+     "valid": 14,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 56,
+       "column": 33,
+       "lineText": "export const PORTS: PortTypes = {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 229,
+       "column": 29,
+       "lineText": "export const forEveryPort = <R>(f: PortVisitor<R>): ReadonlyArray<R> =>"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 233,
+       "column": 27,
+       "lineText": "export const mergePorts = (layers: PortLayers): Layer.Layer<PortServices> =>"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 253,
+       "column": 27,
+       "lineText": "export const portsLayer = (overrides: PortOverrides = {}): Layer.Layer<PortServices> =>"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 294,
+       "column": 61,
+       "lineText": "export const PORT_FIXTURES: FixtureBuilders = tabulatePorts((d) => d.fixture);"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 318,
+       "column": 22,
+       "lineText": "const fixtureLayer = <D, S>("
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 332,
+       "column": 34,
+       "lineText": "export const fixturePortsLayer = (setups: PortFixtures = {}): Layer.Layer<PortServices> =>"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 354,
+       "column": 30,
+       "lineText": "export const decoratePorts = ("
+      }
+     ]
+    },
+    "packages/core/src/PortMetrics.ts": {
+     "killed": 0,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 19,
+     "detected": 0,
+     "valid": 0,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 66,
+       "column": 48,
+       "lineText": "export const portCallsTotal = Metric.frequency(\"qadi_port_calls_total\", {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 66,
+       "column": 73,
+       "lineText": "export const portCallsTotal = Metric.frequency(\"qadi_port_calls_total\", {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 68,
+       "column": 5,
+       "lineText": "\"Calls the evaluator made into a resolver or history port, by port. \" +"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 69,
+       "column": 5,
+       "lineText": "\"Scoped to the evaluator only — toPredicate reaches the same ports via a \" +"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 70,
+       "column": 5,
+       "lineText": "\"second interpreter and counts them in qadi_predicate_port_calls_total.\","
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 85,
+       "column": 50,
+       "lineText": "export const portRetriesTotal = Metric.frequency(\"qadi_port_retries_total\", {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 85,
+       "column": 77,
+       "lineText": "export const portRetriesTotal = Metric.frequency(\"qadi_port_retries_total\", {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 86,
+       "column": 16,
+       "lineText": "description: \"Failed port attempts inside a retrying wrapper, by port.\","
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 99,
+       "column": 51,
+       "lineText": "export const portTimeoutsTotal = Metric.frequency(\"qadi_port_timeouts_total\", {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 99,
+       "column": 79,
+       "lineText": "export const portTimeoutsTotal = Metric.frequency(\"qadi_port_timeouts_total\", {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 100,
+       "column": 16,
+       "lineText": "description: \"Port calls that hit their deadline inside a timing-out wrapper, by port.\","
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 115,
+       "column": 54,
+       "lineText": "export const servedPortCallsTotal = Metric.frequency(\"qadi_port_served_calls_total\", {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 115,
+       "column": 86,
+       "lineText": "export const servedPortCallsTotal = Metric.frequency(\"qadi_port_served_calls_total\", {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 117,
+       "column": 5,
+       "lineText": "\"Reads a host made into a port to answer a remote asker, by port. \" +"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 118,
+       "column": 5,
+       "lineText": "\"The evaluator's calls are qadi_port_calls_total.\","
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 148,
+       "column": 57,
+       "lineText": "export const predicatePortCallsTotal = Metric.frequency(\"qadi_predicate_port_calls_total\", {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 148,
+       "column": 92,
+       "lineText": "export const predicatePortCallsTotal = Metric.frequency(\"qadi_predicate_port_calls_total\", {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 150,
+       "column": 5,
+       "lineText": "\"Calls toPredicate made into a resolver or history port while folding a policy, by port. \" +"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 151,
+       "column": 5,
+       "lineText": "\"The evaluator's calls are qadi_port_calls_total.\","
+      }
+     ]
+    },
+    "packages/core/src/PortAccess.ts": {
+     "killed": 54,
+     "timeout": 0,
+     "survived": 1,
+     "noCoverage": 2,
+     "ignored": 25,
+     "detected": 54,
+     "valid": 57,
+     "open": [
+      {
+       "status": "NoCoverage",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 301,
+       "column": 32,
+       "lineText": "Match.when(\"Always\", () => () => true),"
+      },
+      {
+       "status": "NoCoverage",
+       "mutator": "BooleanLiteral",
+       "replacement": "false",
+       "line": 301,
+       "column": 38,
+       "lineText": "Match.when(\"Always\", () => () => true),"
+      },
+      {
+       "status": "Survived",
+       "mutator": "ConditionalExpression",
+       "replacement": "true",
+       "line": 347,
+       "column": 7,
+       "lineText": "if (bare !== undefined && !needsResourceId(LEAF_NEEDS[leaf._tag].resourceId)(leaf)) {"
+      }
+     ],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 95,
+       "column": 26,
+       "lineText": "const annotateQuestion = <Q extends SpanFields>("
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 110,
+       "column": 24,
+       "lineText": "const annotateAnswer = <Ans extends SpanFields>("
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 147,
+       "column": 3,
+       "lineText": "<E>(onDefect: (cause: Cause.Cause<E>) => E) =>"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 167,
+       "column": 16,
+       "lineText": "Match.when(\"evaluate\", () => (port: PortName) => Metric.update(portCallsTotal, port)),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 167,
+       "column": 28,
+       "lineText": "Match.when(\"evaluate\", () => (port: PortName) => Metric.update(portCallsTotal, port)),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 168,
+       "column": 16,
+       "lineText": "Match.when(\"toPredicate\", () => (port: PortName) => Metric.update(predicatePortCallsTotal, port)),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 168,
+       "column": 31,
+       "lineText": "Match.when(\"toPredicate\", () => (port: PortName) => Metric.update(predicatePortCallsTotal, port)),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 169,
+       "column": 16,
+       "lineText": "Match.when(\"remote\", () => (port: PortName) => Metric.update(servedPortCallsTotal, port)),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 169,
+       "column": 26,
+       "lineText": "Match.when(\"remote\", () => (port: PortName) => Metric.update(servedPortCallsTotal, port)),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 199,
+       "column": 18,
+       "lineText": "const readPort = <K extends PortName>("
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 279,
+       "column": 67,
+       "lineText": "const scopedCall: { readonly [K in ScopedPort]: ScopedCall<K> } = {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 280,
+       "column": 20,
+       "lineText": "DecisionHistory: { withId: (request) => request, bare: (request) => request },"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 280,
+       "column": 30,
+       "lineText": "DecisionHistory: { withId: (request) => request, bare: (request) => request },"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 280,
+       "column": 58,
+       "lineText": "DecisionHistory: { withId: (request) => request, bare: (request) => request },"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 281,
+       "column": 25,
+       "lineText": "RelationshipResolver: {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 282,
+       "column": 13,
+       "lineText": "withId: ([request], resourceId) => [{ ...request, resourceId }],"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 285,
+       "column": 21,
+       "lineText": "SignatureHistory: { withId: (request) => request, bare: (request) => request },"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 285,
+       "column": 31,
+       "lineText": "SignatureHistory: { withId: (request) => request, bare: (request) => request },"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 285,
+       "column": 59,
+       "lineText": "SignatureHistory: { withId: (request) => request, bare: (request) => request },"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 301,
+       "column": 16,
+       "lineText": "Match.when(\"Always\", () => () => true),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 301,
+       "column": 26,
+       "lineText": "Match.when(\"Always\", () => () => true),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 303,
+       "column": 7,
+       "lineText": "\"ByScope\","
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 304,
+       "column": 7,
+       "lineText": "() => (leaf: LeafOf[ScopedLeafTag]) => \"scope\" in leaf && isResourceScoped(leaf),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 440,
+       "column": 31,
+       "lineText": "export const isAnyActedLeaf = (leaf: ActedLeaf): leaf is AnyActedLeaf => leaf.scope === \"Any\";"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 584,
+       "column": 30,
+       "lineText": "export const servePortRead = <K extends PortName>("
+      }
+     ]
+    },
+    "packages/core/src/PortDescription.ts": {
+     "killed": 16,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 11,
+     "detected": 16,
+     "valid": 16,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 95,
+       "column": 15,
+       "lineText": "const where = (path: WirePath): string => (path.length === 0 ? \"the request\" : path.join(\".\"));"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 105,
+       "column": 24,
+       "lineText": "Match.tagsExhaustive({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 106,
+       "column": 15,
+       "lineText": "Circular: (refusal) => `${where(refusal.path)}: a circular reference has no request key`,"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 107,
+       "column": 16,
+       "lineText": "Unkeyable: (refusal) => `${where(refusal.path)}: an unkeyable ${refusal.kind} (${refusal.brand}) has no request key`,"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 108,
+       "column": 17,
+       "lineText": "Unreadable: (refusal) => `${where(refusal.path)}: reading it threw: ${refusal.message}`,"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 359,
+       "column": 26,
+       "lineText": "export const PortReply = {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 360,
+       "column": 11,
+       "lineText": "answer: <A>(value: A): PortReply<A> => ({ _tag: \"Answer\", value }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 361,
+       "column": 9,
+       "lineText": "fail: (cause: unknown): PortReply<never> => ({ _tag: \"Fail\", cause }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 362,
+       "column": 8,
+       "lineText": "die: (defect: unknown): PortReply<never> => ({ _tag: \"Die\", defect }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 363,
+       "column": 10,
+       "lineText": "throw: (error: unknown): PortReply<never> => ({ _tag: \"Throw\", error }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 385,
+       "column": 30,
+       "lineText": "export const isPortDefault = (d: { readonly port: PortName }, service: unknown): boolean =>"
+      }
+     ]
+    },
+    "packages/core/src/PortDerivation.ts": {
+     "killed": 46,
+     "timeout": 0,
+     "survived": 1,
+     "noCoverage": 0,
+     "ignored": 14,
+     "detected": 46,
+     "valid": 47,
+     "open": [
+      {
+       "status": "Survived",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 202,
+       "column": 45,
+       "lineText": ": Effect.fail(new InvalidBoundedPermits({ permits }));"
+      }
+     ],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "BlockStatement",
+       "replacement": "{}",
+       "line": 105,
+       "column": 89,
+       "lineText": "): PortDescription<N, Self, Shape, Args, A, E, P, Span, Asks, SpanName, FixtureData> => {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 107,
+       "column": 10,
+       "lineText": "return {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 109,
+       "column": 20,
+       "lineText": "wire: portWire({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 111,
+       "column": 19,
+       "lineText": "toQuestion: (args) => Result.succeed(wire.toQuestion(args)),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 115,
+       "column": 10,
+       "lineText": "key: (args) =>"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 119,
+       "column": 13,
+       "lineText": "defect: (args, cause) => spec.failure(args, Cause.squash(cause)),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 154,
+       "column": 28,
+       "lineText": "export const wrapService = <Self, Shape>("
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 175,
+       "column": 34,
+       "lineText": "export const wrapServiceEffect = <Self, Shape, E>("
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 197,
+       "column": 31,
+       "lineText": "export const boundedPermits = ("
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 229,
+       "column": 38,
+       "lineText": "export const retryCountingAttempts = <A, E>("
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 254,
+       "column": 25,
+       "lineText": "export const wrapPort = <"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 284,
+       "column": 3,
+       "lineText": "<"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 319,
+       "column": 3,
+       "lineText": "<"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 361,
+       "column": 3,
+       "lineText": "<"
+      }
+     ]
+    },
+    "packages/core/src/AttributeResolver.ts": {
+     "killed": 22,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 35,
+     "detected": 22,
+     "valid": 22,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 92,
+       "column": 5,
+       "lineText": ">()(\"qadi/AttributeResolver\") {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 94,
+       "column": 29,
+       "lineText": "static readonly resolve = (subjectId: SubjectId, attribute: string) =>"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 110,
+       "column": 32,
+       "lineText": "const attributeSpan = portSpan({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 112,
+       "column": 5,
+       "lineText": "{ attribute: Schema.optionalKey(Schema.String), ...sharedQuestionFields },"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 113,
+       "column": 5,
+       "lineText": "{ attribute: \"qadi.attribute\", ...sharedQuestionKeys },"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 113,
+       "column": 18,
+       "lineText": "{ attribute: \"qadi.attribute\", ...sharedQuestionKeys },"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 115,
+       "column": 22,
+       "lineText": "answer: spanStruct({ resolved: Schema.optionalKey(Schema.Boolean) }, { resolved: \"qadi.resolved\" }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 115,
+       "column": 72,
+       "lineText": "answer: spanStruct({ resolved: Schema.optionalKey(Schema.Boolean) }, { resolved: \"qadi.resolved\" }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 115,
+       "column": 84,
+       "lineText": "answer: spanStruct({ resolved: Schema.optionalKey(Schema.Boolean) }, { resolved: \"qadi.resolved\" }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 116,
+       "column": 9,
+       "lineText": "pose: ([subjectId, attribute]: [subjectId: SubjectId, attribute: string]) => ({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 120,
+       "column": 13,
+       "lineText": "disclose: (value: unknown) => ({ resolved: value !== undefined }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 131,
+       "column": 23,
+       "lineText": "const attributeAsks = {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 132,
+       "column": 17,
+       "lineText": "HasAttribute: ("
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 149,
+       "column": 5,
+       "lineText": "> = {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 150,
+       "column": 14,
+       "lineText": "allowlist: \"required\","
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 151,
+       "column": 10,
+       "lineText": "asked: ([, attribute]) => attribute,"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 152,
+       "column": 13,
+       "lineText": "admitted: (declaration) => declaration.attributes,"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 153,
+       "column": 12,
+       "lineText": "declare: ({ names }) => ({ AttributeResolver: { attributes: names } }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 162,
+       "column": 44,
+       "lineText": "export const attributeResolverFromRecord = ("
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 171,
+       "column": 27,
+       "lineText": "const attributeSpanName = \"qadi.attribute\";"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 193,
+       "column": 25,
+       "lineText": "> = makePortDescription({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 194,
+       "column": 9,
+       "lineText": "port: \"AttributeResolver\","
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 195,
+       "column": 11,
+       "lineText": "method: \"resolve\","
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 209,
+       "column": 9,
+       "lineText": "wire: {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 210,
+       "column": 29,
+       "lineText": "question: Schema.Struct({ subjectId: SubjectIdSchema, attribute: Schema.String }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 211,
+       "column": 27,
+       "lineText": "answer: Schema.Struct({ value: Schema.optionalKey(Schema.Json) }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 212,
+       "column": 17,
+       "lineText": "toQuestion: ([subjectId, attribute]) => ({ subjectId, attribute }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 213,
+       "column": 19,
+       "lineText": "fromQuestion: (question, subject): [subjectId: SubjectId, attribute: string] => ["
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 217,
+       "column": 15,
+       "lineText": "toAnswer: (value: unknown): Result.Result<{ readonly value?: Schema.Json }, EncodeRefusal> =>"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 221,
+       "column": 17,
+       "lineText": "fromAnswer: (wire): unknown => wire.value,"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 225,
+       "column": 11,
+       "lineText": "invoke: (shape) => (subjectId, attribute) => shape.resolve(subjectId, attribute),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 226,
+       "column": 9,
+       "lineText": "make: (name, call) => ({ name, resolve: call }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 227,
+       "column": 12,
+       "lineText": "failure: ([, attribute], cause) => new AttributeResolveError({ attribute, cause }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 228,
+       "column": 9,
+       "lineText": "none: { name: \"AttributeResolverNone\", answer: undefined },"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 228,
+       "column": 17,
+       "lineText": "none: { name: \"AttributeResolverNone\", answer: undefined },"
+      }
+     ]
+    },
+    "packages/core/src/RelationshipResolver.ts": {
+     "killed": 29,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 38,
+     "detected": 29,
+     "valid": 29,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ArrayDeclaration",
+       "replacement": "[]",
+       "line": 98,
+       "column": 46,
+       "lineText": "export const RelatedResult = Schema.Literals([\"Related\", \"Unrelated\", \"Unknown\"]);"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 98,
+       "column": 47,
+       "lineText": "export const RelatedResult = Schema.Literals([\"Related\", \"Unrelated\", \"Unknown\"]);"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 98,
+       "column": 58,
+       "lineText": "export const RelatedResult = Schema.Literals([\"Related\", \"Unrelated\", \"Unknown\"]);"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 98,
+       "column": 71,
+       "lineText": "export const RelatedResult = Schema.Literals([\"Related\", \"Unrelated\", \"Unknown\"]);"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 130,
+       "column": 5,
+       "lineText": ">()(\"qadi/RelationshipResolver\") {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 131,
+       "column": 27,
+       "lineText": "static readonly check = (request: RelationshipCheck) =>"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 150,
+       "column": 35,
+       "lineText": "const relationshipSpan = portSpan({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 152,
+       "column": 5,
+       "lineText": "{"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 158,
+       "column": 5,
+       "lineText": "{"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 159,
+       "column": 17,
+       "lineText": "relation: \"qadi.relation\","
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 160,
+       "column": 19,
+       "lineText": "resourceId: \"qadi.resource_id\","
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 161,
+       "column": 14,
+       "lineText": "depth: \"qadi.depth\","
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 165,
+       "column": 22,
+       "lineText": "answer: spanStruct({ answer: Schema.optionalKey(RelatedResult) }, { answer: \"qadi.answer\" }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 165,
+       "column": 69,
+       "lineText": "answer: spanStruct({ answer: Schema.optionalKey(RelatedResult) }, { answer: \"qadi.answer\" }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 165,
+       "column": 79,
+       "lineText": "answer: spanStruct({ answer: Schema.optionalKey(RelatedResult) }, { answer: \"qadi.answer\" }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 168,
+       "column": 9,
+       "lineText": "pose: ([request]: [request: PendingRelationshipCheck]) => ({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 174,
+       "column": 13,
+       "lineText": "disclose: (answer: RelatedResult) => ({ answer }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 228,
+       "column": 26,
+       "lineText": "const relationshipAsks = {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 229,
+       "column": 20,
+       "lineText": "HasRelationship: ("
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 253,
+       "column": 5,
+       "lineText": "> = {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 254,
+       "column": 14,
+       "lineText": "allowlist: \"open\","
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 255,
+       "column": 10,
+       "lineText": "asked: ([request]) => request.relation,"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 256,
+       "column": 13,
+       "lineText": "admitted: (declaration) => declaration.relations,"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 257,
+       "column": 12,
+       "lineText": "declare: ({ names }) => ({ RelationshipResolver: { relations: names } }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 293,
+       "column": 30,
+       "lineText": "const relationshipSpanName = \"qadi.hasRelationship\";"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 318,
+       "column": 25,
+       "lineText": "> = makePortDescription({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 319,
+       "column": 9,
+       "lineText": "port: \"RelationshipResolver\","
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 320,
+       "column": 11,
+       "lineText": "method: \"check\","
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 334,
+       "column": 9,
+       "lineText": "wire: {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 335,
+       "column": 29,
+       "lineText": "question: Schema.Struct({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 342,
+       "column": 17,
+       "lineText": "toQuestion: ([request]) => ({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 348,
+       "column": 19,
+       "lineText": "fromQuestion: (question, subject): [request: RelationshipCheck] => ["
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 360,
+       "column": 11,
+       "lineText": "invoke: (shape) => (request) => shape.check(request),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 361,
+       "column": 9,
+       "lineText": "make: (name, call) => ({ name, check: call }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 362,
+       "column": 12,
+       "lineText": "failure: ([request], cause) =>"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 368,
+       "column": 9,
+       "lineText": "none: { name: \"RelationshipResolverNever\", answer: \"Unknown\" },"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 368,
+       "column": 17,
+       "lineText": "none: { name: \"RelationshipResolverNever\", answer: \"Unknown\" },"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 368,
+       "column": 54,
+       "lineText": "none: { name: \"RelationshipResolverNever\", answer: \"Unknown\" },"
+      }
+     ]
+    },
+    "packages/core/src/CustomPredicate.ts": {
+     "killed": 33,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 35,
+     "detected": 33,
+     "valid": 33,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 75,
+       "column": 5,
+       "lineText": ">()(\"qadi/CustomPredicate\") {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 77,
+       "column": 30,
+       "lineText": "static readonly evaluate = ("
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 97,
+       "column": 29,
+       "lineText": "const customSpan = portSpan({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 99,
+       "column": 5,
+       "lineText": "{ name: Schema.optionalKey(Schema.String), ...sharedQuestionFields },"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 100,
+       "column": 5,
+       "lineText": "{ name: \"qadi.custom_predicate\", ...sharedQuestionKeys },"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 100,
+       "column": 13,
+       "lineText": "{ name: \"qadi.custom_predicate\", ...sharedQuestionKeys },"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 102,
+       "column": 22,
+       "lineText": "answer: spanStruct({ answer: Schema.optionalKey(Schema.Boolean) }, { answer: \"qadi.answer\" }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 102,
+       "column": 70,
+       "lineText": "answer: spanStruct({ answer: Schema.optionalKey(Schema.Boolean) }, { answer: \"qadi.answer\" }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 102,
+       "column": 80,
+       "lineText": "answer: spanStruct({ answer: Schema.optionalKey(Schema.Boolean) }, { answer: \"qadi.answer\" }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 103,
+       "column": 9,
+       "lineText": "pose: ([name, subject]: CustomArgs) => ({ name, subjectId: subject.id }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 104,
+       "column": 13,
+       "lineText": "disclose: (answer: boolean) => ({ answer }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 117,
+       "column": 29,
+       "lineText": "const customWire = portWire({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 118,
+       "column": 27,
+       "lineText": "question: Schema.Struct({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 140,
+       "column": 17,
+       "lineText": "fromQuestion: (question, subject): CustomArgs => ["
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 156,
+       "column": 20,
+       "lineText": "const customAsks = {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 157,
+       "column": 14,
+       "lineText": "HasCustom: ("
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 178,
+       "column": 5,
+       "lineText": "> = {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 179,
+       "column": 14,
+       "lineText": "allowlist: \"required\","
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 180,
+       "column": 10,
+       "lineText": "asked: ([name]) => name,"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 181,
+       "column": 13,
+       "lineText": "admitted: (declaration) => declaration.names,"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 182,
+       "column": 12,
+       "lineText": "declare: ({ names }) => ({ CustomPredicate: { names } }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 186,
+       "column": 24,
+       "lineText": "const customSpanName = \"qadi.hasCustom\";"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 220,
+       "column": 5,
+       "lineText": "> = {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 221,
+       "column": 9,
+       "lineText": "port: \"CustomPredicate\","
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 222,
+       "column": 11,
+       "lineText": "method: \"evaluate\","
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 229,
+       "column": 11,
+       "lineText": "invoke: (shape) => (name, subject, resource, params) =>"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 231,
+       "column": 9,
+       "lineText": "make: (name, call) => ({ name, evaluate: call }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 232,
+       "column": 12,
+       "lineText": "failure: ([name], cause) => new CustomPredicateError({ name, reason: thrownMessage(cause) }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 233,
+       "column": 11,
+       "lineText": "defect: ([name], cause) => new CustomPredicateError({ name, reason: causeMessage(cause) }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 234,
+       "column": 8,
+       "lineText": "key: ([name, subject, resource, params]) =>"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 246,
+       "column": 9,
+       "lineText": "none: { name: \"CustomPredicateNone\", answer: false },"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 246,
+       "column": 17,
+       "lineText": "none: { name: \"CustomPredicateNone\", answer: false },"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "BooleanLiteral",
+       "replacement": "true",
+       "line": 246,
+       "column": 48,
+       "lineText": "none: { name: \"CustomPredicateNone\", answer: false },"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 247,
+       "column": 12,
+       "lineText": "fixture: (answers) =>"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 272,
+       "column": 42,
+       "lineText": "export const customPredicateFromRecord = ("
+      }
+     ]
+    },
+    "packages/core/src/DecisionHistory.ts": {
+     "killed": 64,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 42,
+     "detected": 64,
+     "valid": 64,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ArrayDeclaration",
+       "replacement": "[]",
+       "line": 64,
+       "column": 44,
+       "lineText": "export const ActedResult = Schema.Literals([\"Acted\", \"NotActed\", \"Unknown\"]);"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 64,
+       "column": 45,
+       "lineText": "export const ActedResult = Schema.Literals([\"Acted\", \"NotActed\", \"Unknown\"]);"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 64,
+       "column": 54,
+       "lineText": "export const ActedResult = Schema.Literals([\"Acted\", \"NotActed\", \"Unknown\"]);"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 64,
+       "column": 66,
+       "lineText": "export const ActedResult = Schema.Literals([\"Acted\", \"NotActed\", \"Unknown\"]);"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 101,
+       "column": 5,
+       "lineText": ">()(\"qadi/DecisionHistory\") {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 102,
+       "column": 30,
+       "lineText": "static readonly hasActed = (query: ActedQuery) =>"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 111,
+       "column": 3,
+       "lineText": "{"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrayDeclaration",
+       "replacement": "[]",
+       "line": 113,
+       "column": 47,
+       "lineText": "scope: Schema.optionalKey(Schema.Literals([\"Any\", \"Resource\"])),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 113,
+       "column": 48,
+       "lineText": "scope: Schema.optionalKey(Schema.Literals([\"Any\", \"Resource\"])),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 113,
+       "column": 55,
+       "lineText": "scope: Schema.optionalKey(Schema.Literals([\"Any\", \"Resource\"])),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 117,
+       "column": 3,
+       "lineText": "{"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 118,
+       "column": 12,
+       "lineText": "event: \"qadi.event\","
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 119,
+       "column": 12,
+       "lineText": "scope: \"qadi.scope\","
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 120,
+       "column": 17,
+       "lineText": "resourceId: \"qadi.resource_id\","
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 125,
+       "column": 28,
+       "lineText": "const actedSpan = portSpan({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 127,
+       "column": 22,
+       "lineText": "answer: spanStruct({ answer: Schema.optionalKey(ActedResult) }, { answer: \"qadi.answer\" }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 127,
+       "column": 67,
+       "lineText": "answer: spanStruct({ answer: Schema.optionalKey(ActedResult) }, { answer: \"qadi.answer\" }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 127,
+       "column": 77,
+       "lineText": "answer: spanStruct({ answer: Schema.optionalKey(ActedResult) }, { answer: \"qadi.answer\" }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 128,
+       "column": 9,
+       "lineText": "pose: ([query]: [query: ActedQuery]) => ({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 134,
+       "column": 13,
+       "lineText": "disclose: (answer: ActedResult) => ({ answer }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 148,
+       "column": 20,
+       "lineText": "const askedActed = ("
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 164,
+       "column": 19,
+       "lineText": "const actedAsks = { HasActed: askedActed, HasNotActed: askedActed };"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 173,
+       "column": 80,
+       "lineText": "const actedServing: PortServingFacet<\"DecisionHistory\", [query: ActedQuery]> = {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 174,
+       "column": 14,
+       "lineText": "allowlist: \"open\","
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 175,
+       "column": 10,
+       "lineText": "asked: ([query]) => query.event,"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 176,
+       "column": 13,
+       "lineText": "admitted: (declaration) => declaration.events,"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 177,
+       "column": 12,
+       "lineText": "declare: ({ names }) => ({ DecisionHistory: { events: names } }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 211,
+       "column": 23,
+       "lineText": "const actedSpanName = \"qadi.acted\";"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 233,
+       "column": 25,
+       "lineText": "> = makePortDescription({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 234,
+       "column": 9,
+       "lineText": "port: \"DecisionHistory\","
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 235,
+       "column": 11,
+       "lineText": "method: \"hasActed\","
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 245,
+       "column": 9,
+       "lineText": "wire: {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 246,
+       "column": 29,
+       "lineText": "question: Schema.Struct({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 252,
+       "column": 17,
+       "lineText": "toQuestion: ([query]) => ({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 257,
+       "column": 19,
+       "lineText": "fromQuestion: (question, subject): [query: ActedQuery] => ["
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 264,
+       "column": 11,
+       "lineText": "invoke: (shape) => (query) => shape.hasActed(query),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 265,
+       "column": 9,
+       "lineText": "make: (name, call) => ({ name, hasActed: call }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 268,
+       "column": 12,
+       "lineText": "failure: ([query], cause) =>"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 273,
+       "column": 9,
+       "lineText": "none: { name: \"DecisionHistoryUnknown\", answer: \"Unknown\" },"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 273,
+       "column": 17,
+       "lineText": "none: { name: \"DecisionHistoryUnknown\", answer: \"Unknown\" },"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 273,
+       "column": 51,
+       "lineText": "none: { name: \"DecisionHistoryUnknown\", answer: \"Unknown\" },"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 380,
+       "column": 38,
+       "lineText": "export const actedAnswerFromEvents = ("
+      }
+     ]
+    },
+    "packages/core/src/SignatureHistory.ts": {
+     "killed": 109,
+     "timeout": 0,
+     "survived": 1,
+     "noCoverage": 0,
+     "ignored": 37,
+     "detected": 109,
+     "valid": 110,
+     "open": [
+      {
+       "status": "Survived",
+       "mutator": "ConditionalExpression",
+       "replacement": "false",
+       "line": 423,
+       "column": 17,
+       "lineText": "row.resourceId === undefined ? undefined : makeResourceId(row.resourceId),"
+      }
+     ],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 95,
+       "column": 5,
+       "lineText": ">()(\"qadi/SignatureHistory\") {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 96,
+       "column": 35,
+       "lineText": "static readonly signaturesFor = (query: SignatureQuery) =>"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrayDeclaration",
+       "replacement": "[\"Stryker was here\"]",
+       "line": 105,
+       "column": 63,
+       "lineText": "const NO_SIGNATURES: ReadonlyArray<Signature> = Object.freeze([]);"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 134,
+       "column": 3,
+       "lineText": "{"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrayDeclaration",
+       "replacement": "[]",
+       "line": 136,
+       "column": 47,
+       "lineText": "scope: Schema.optionalKey(Schema.Literals([\"Any\", \"Resource\"])),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 136,
+       "column": 48,
+       "lineText": "scope: Schema.optionalKey(Schema.Literals([\"Any\", \"Resource\"])),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 136,
+       "column": 55,
+       "lineText": "scope: Schema.optionalKey(Schema.Literals([\"Any\", \"Resource\"])),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 141,
+       "column": 3,
+       "lineText": "{"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 142,
+       "column": 14,
+       "lineText": "meaning: \"qadi.meaning\","
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 143,
+       "column": 12,
+       "lineText": "scope: \"qadi.scope\","
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 144,
+       "column": 17,
+       "lineText": "signerRole: \"qadi.signer_role\","
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 145,
+       "column": 17,
+       "lineText": "resourceId: \"qadi.resource_id\","
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 150,
+       "column": 32,
+       "lineText": "const signatureSpan = portSpan({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 152,
+       "column": 22,
+       "lineText": "answer: spanStruct({ matched: Schema.optionalKey(Schema.Boolean) }, { matched: \"qadi.matched\" }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 152,
+       "column": 71,
+       "lineText": "answer: spanStruct({ matched: Schema.optionalKey(Schema.Boolean) }, { matched: \"qadi.matched\" }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 152,
+       "column": 82,
+       "lineText": "answer: spanStruct({ matched: Schema.optionalKey(Schema.Boolean) }, { matched: \"qadi.matched\" }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 153,
+       "column": 9,
+       "lineText": "pose: ([query]: [query: SignatureQuery]) => ({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 160,
+       "column": 13,
+       "lineText": "disclose: ("
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 180,
+       "column": 23,
+       "lineText": "const signatureAsks = {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 181,
+       "column": 17,
+       "lineText": "HasSignature: (leaf: LeafOf[\"HasSignature\"], site: ReadSite): [query: SignatureQuery] => ["
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 200,
+       "column": 89,
+       "lineText": "const signatureServing: PortServingFacet<\"SignatureHistory\", [query: SignatureQuery]> = {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 201,
+       "column": 14,
+       "lineText": "allowlist: \"opt-in\","
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 204,
+       "column": 12,
+       "lineText": "declare: ({ asked }) => (asked ? { SignatureHistory: { signatures: \"own-records\" } } : {}),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 248,
+       "column": 27,
+       "lineText": "const signatureSpanName = \"qadi.hasSignature\";"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 281,
+       "column": 25,
+       "lineText": "> = makePortDescription({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 282,
+       "column": 9,
+       "lineText": "port: \"SignatureHistory\","
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 283,
+       "column": 11,
+       "lineText": "method: \"signaturesFor\","
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 303,
+       "column": 9,
+       "lineText": "wire: {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 304,
+       "column": 29,
+       "lineText": "question: Schema.Struct({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 311,
+       "column": 17,
+       "lineText": "toQuestion: ([query]) => ({"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 317,
+       "column": 19,
+       "lineText": "fromQuestion: (question, subject): [query: SignatureQuery] => ["
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 329,
+       "column": 11,
+       "lineText": "invoke: (shape) => (query) => shape.signaturesFor(query),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 330,
+       "column": 9,
+       "lineText": "make: (name, call) => ({ name, signaturesFor: call }),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 333,
+       "column": 12,
+       "lineText": "failure: ([query], cause) =>"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 339,
+       "column": 9,
+       "lineText": "none: { name: \"SignatureHistoryNone\", answer: NO_SIGNATURES },"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 339,
+       "column": 17,
+       "lineText": "none: { name: \"SignatureHistoryNone\", answer: NO_SIGNATURES },"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 480,
+       "column": 46,
+       "lineText": "export const signatureAnswerFromSignatures = ("
+      }
+     ]
+    },
+    "packages/core/src/LeafNeeds.ts": {
+     "killed": 76,
+     "timeout": 0,
+     "survived": 1,
+     "noCoverage": 0,
+     "ignored": 23,
+     "detected": 76,
+     "valid": 77,
+     "open": [
+      {
+       "status": "Survived",
+       "mutator": "ConditionalExpression",
+       "replacement": "true",
+       "line": 204,
+       "column": 64,
+       "lineText": "const isActionLeaf = (leaf: LeafPolicy): leaf is ActionLeaf => LEAF_NEEDS[leaf._tag].own === \"Action\";"
+      }
+     ],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 202,
+       "column": 23,
+       "lineText": "const isMatcherLeaf = (leaf: LeafPolicy): leaf is MatcherLeaf => LEAF_NEEDS[leaf._tag].matcher;"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 204,
+       "column": 22,
+       "lineText": "const isActionLeaf = (leaf: LeafPolicy): leaf is ActionLeaf => LEAF_NEEDS[leaf._tag].own === \"Action\";"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 206,
+       "column": 39,
+       "lineText": "const MISSING_ACTION: ActionAbsence = { _tag: \"Action\" };"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 206,
+       "column": 47,
+       "lineText": "const MISSING_ACTION: ActionAbsence = { _tag: \"Action\" };"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 252,
+       "column": 26,
+       "lineText": "export const holdsRole = ("
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 258,
+       "column": 32,
+       "lineText": "export const holdsPermission = ("
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 264,
+       "column": 28,
+       "lineText": "export const holdsAction = (leaf: ActionLeaf, action: string | undefined): boolean =>"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 302,
+       "column": 23,
+       "lineText": "export const isHeld = (outcome: LeafOutcome): outcome is \"Held\" => outcome === \"Held\";"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 304,
+       "column": 16,
+       "lineText": "const binary = (held: boolean): BinaryOutcome => (held ? \"Held\" : \"NotHeld\");"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "BlockStatement",
+       "replacement": "{}",
+       "line": 317,
+       "column": 3,
+       "lineText": ") {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 318,
+       "column": 10,
+       "lineText": "return (answer: ActedResult): ActedOutcome =>"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 377,
+       "column": 30,
+       "lineText": "export const LEAF_VERDICTS = {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 378,
+       "column": 18,
+       "lineText": "HasPermission: (leaf, subject) => binary(holdsPermission(subject, leaf)),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 379,
+       "column": 12,
+       "lineText": "HasRole: (leaf, subject) => binary(holdsRole(subject, leaf)),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 380,
+       "column": 17,
+       "lineText": "HasAttribute: (leaf, value, context) => judgeMatcher(leaf.matcher, value, context),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 381,
+       "column": 25,
+       "lineText": "HasResourceAttribute: (leaf, value, context) => judgeMatcher(leaf.matcher, value, context),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 382,
+       "column": 20,
+       "lineText": "HasRelationship: (related) => (related === \"Related\" ? \"Held\" : related),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 383,
+       "column": 14,
+       "lineText": "HasAction: (leaf, action) => binary(holdsAction(leaf, action)),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 384,
+       "column": 22,
+       "lineText": "HasActed: actedRow(\"Acted\", \"NotPerformed\"),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 384,
+       "column": 31,
+       "lineText": "HasActed: actedRow(\"Acted\", \"NotPerformed\"),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 385,
+       "column": 25,
+       "lineText": "HasNotActed: actedRow(\"NotActed\", \"Performed\"),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 385,
+       "column": 37,
+       "lineText": "HasNotActed: actedRow(\"NotActed\", \"Performed\"),"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 387,
+       "column": 17,
+       "lineText": "HasSignature: ({ matched, onFile }) =>"
+      }
+     ]
+    },
+    "packages/core/src/ScopedLeaf.ts": {
+     "killed": 11,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 2,
+     "detected": 11,
+     "valid": 11,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 37,
+       "column": 33,
+       "lineText": "export const isResourceScoped = (leaf: ScopedLeaf): boolean => leaf.scope === \"Resource\";"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 44,
+       "column": 35,
+       "lineText": "export const scopedResourceIdOf = ("
+      }
+     ]
+    }
+   }
+  }
+ }
+}

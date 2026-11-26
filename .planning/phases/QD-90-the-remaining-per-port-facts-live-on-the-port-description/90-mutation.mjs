@@ -17,7 +17,8 @@
 // number carried through `git diff -U0 <base head> <close head>`, never by the text of its line, and every comparison counts
 // mutants as a multiset, so a second copy of one is a new one. A Survived mutant that matches an entry of EQUIVALENT (file,
 // mutator, replacement, the trimmed text of its line, the reason) is explained, never new; an entry that matches no survivor, or
-// states no reason, fails. EXAMINED: an Ignored (static) mutant run by hand with the config spread to `ignoreStatic: false` and
+// states no reason, fails. An entry may state `status: "NoCoverage"` for code no input reaches, which no test covers at all; it
+// then explains a NoCoverage mutant and never a Survived one, and an entry with no `status` explains a Survived one only. EXAMINED: an Ignored (static) mutant run by hand with the config spread to `ignoreStatic: false` and
 // seen Killed, by file, kind and count. STATIC_PROVEN: static code `ignoreStatic` hides from the score, by file, kind and count,
 // with `proof`, the exact title of the characterisation row or type pin that holds it; `compare` checks the title exists. An
 // allowance a close does not need, or an Ignored mutant beyond it, fails.
@@ -69,17 +70,52 @@ const MOVED = [
 ];
 const UNMEASURED_WHY = "every file the phase edits is under packages/core/src/**/*.ts minus index.ts, the glob stryker.config.mjs mutates, so no edited file escapes a run";
 /**
- * Survivors that no test can kill, each `{ file, mutatorName, replacement, lineText, reason }`: the line's text trimmed, and the
- * reason naming why no input reaches it. A stale entry (it matches no survivor of the close) fails `compare`.
+ * Survivors that no test can kill, each `{ file, mutatorName, replacement, lineText, reason, status? }`: the line's text trimmed,
+ * and the reason naming why no input reaches it; `status` is `"NoCoverage"` for a mutant no test covers, and absent for a
+ * Survived one. A stale entry (it matches no open mutant of the close) fails `compare`.
  */
-const EQUIVALENT = [];
-/** Ignored mutants a close may hold beyond its base, per file and kind, each run by hand with `ignoreStatic: false` and Killed. */
-const EXAMINED = {};
+const SCOPED_READ_ARM = 'Match.when("Always", () => () => true),';
+const ALWAYS_ARM_WHY =
+  "the Always arm of the hoisted needsResourceId matcher is consulted only for a port whose scopedCall row has a bare call, and the one leaf whose LEAF_NEEDS row is Always is HasRelationship, whose port has none (`bare: undefined`, `BareOf<\"RelationshipResolver\">` is `undefined`, a compile-time fact), so no input reaches the arm";
+const EQUIVALENT = [
+  {
+    file: "packages/core/src/PortAccess.ts",
+    mutatorName: "ConditionalExpression",
+    replacement: "true",
+    lineText: "if (bare !== undefined && !needsResourceId(LEAF_NEEDS[leaf._tag].resourceId)(leaf)) {",
+    reason:
+      "`bare !== undefined` read as true changes nothing: `bare` is undefined only for the relationship port, every leaf of which has the Always row, so `!needsResourceId(Always)(leaf)` is false and the read takes the generator route exactly as the guard sends it; no port has an undefined `bare` together with a row that is not Always",
+  },
+  { file: "packages/core/src/PortAccess.ts", mutatorName: "ArrowFunction", replacement: "() => undefined", lineText: SCOPED_READ_ARM, status: "NoCoverage", reason: ALWAYS_ARM_WHY },
+  { file: "packages/core/src/PortAccess.ts", mutatorName: "BooleanLiteral", replacement: "false", lineText: SCOPED_READ_ARM, status: "NoCoverage", reason: ALWAYS_ARM_WHY },
+];
+/**
+ * Ignored mutants a close may hold beyond its base, per file and kind, each run by hand and Killed: the config spread with
+ * `ignoreStatic: false`, run with `--mutate <file>`.
+ */
+const EXAMINED = {
+  "packages/core/src/PortAccess.ts": {
+    // The scopedCall table (279) and its three port rows (280, 281, 285): each `{}` is Killed, as is the `ByScope` literal
+    // (303) and the arrows of the table rows and of the ByScope arm (280, 282, 285, 304).
+    'ObjectLiteral {}': 3,
+    'StringLiteral ""': 1,
+    "ArrowFunction () => undefined": 2,
+  },
+  "packages/core/src/CustomPredicate.ts": {
+    // The fixture arrow the custom predicate port now states itself (247), Killed.
+    "ArrowFunction () => undefined": 1,
+  },
+};
 /**
  * Static code `ignoreStatic` hides from the score, each `{ file, mutator, replacement, count, proof }`; `proof` is the exact
  * title of the characterisation row or type pin that holds the code.
  */
-const STATIC_PROVEN = [];
+const STATIC_PROVEN = [
+  // The Always arm's literal and arrow (301): run by hand with `ignoreStatic: false` they Survive, for the reason in
+  // ALWAYS_ARM_WHY. The row below holds the property the arm stands for, that a relationship read demands a resource id.
+  { file: "packages/core/src/PortAccess.ts", mutator: "StringLiteral", replacement: '""', count: 1, proof: "HasRelationship, absent resource, under evaluate" },
+  { file: "packages/core/src/PortAccess.ts", mutator: "ArrowFunction", replacement: "() => undefined", count: 1, proof: "HasRelationship, absent resource, under evaluate" },
+];
 /** Where a `proof` title is looked for: the vitest titles of the first file and the `test("…")` titles of the second. */
 const PROOF_ROW_FILE = `${TEST}PortFacts.characterisation.test.ts`;
 const PROOF_PIN_FILE = `${TEST}PortFacts.tst.ts`;
@@ -181,8 +217,8 @@ export const allowance = (file, examined = EXAMINED, staticProven = STATIC_PROVE
   return out;
 };
 
-/** Whether `entry` explains the Survived mutant `m` of `file`: same mutation on a line of the same text. */
-const explains = (entry, file, m) => entry.file === file && m.status === "Survived" && entry.mutatorName === m.mutator && entry.replacement === m.replacement && entry.lineText === m.lineText;
+/** Whether `entry` explains the open mutant `m` of `file`: the entry's status (Survived unless it says NoCoverage), same mutation, a line of the same text. */
+const explains = (entry, file, m) => entry.file === file && m.status === (entry.status ?? "Survived") && entry.mutatorName === m.mutator && entry.replacement === m.replacement && entry.lineText === m.lineText;
 /** The open mutants of `file` that no EQUIVALENT entry explains. Pure. */
 export const unexplained = (open, file, equivalent = EQUIVALENT) => open.filter((m) => !equivalent.some((entry) => explains(entry, file, m)));
 /** Why an EQUIVALENT entry fails: it states no reason, or it matches no survivor of the close (`closeFiles`: file -> counts). Pure. */
@@ -596,6 +632,10 @@ const selfTest = () => {
       ["an entry for another mutator does not explain it", run(plain, survivor, { [F]: "" }, {}, [{ ...entry, mutatorName: "ObjectLiteral" }], []), 2],
       ["an entry for another file does not explain it", run(plain, survivor, { [F]: "" }, {}, [{ ...entry, file: THIRTEEN[1] }], []), 2],
       ["an entry explains a Survived mutant, never a NoCoverage one", run(plain, { files: { [F]: file(42, 43, [m("NoCoverage", 30)]) } }, { [F]: "" }, {}, [entry], []), 2],
+      ["a NoCoverage entry explains a NoCoverage mutant", run(plain, { files: { [F]: file(42, 43, [m("NoCoverage", 30)]) } }, { [F]: "" }, {}, [{ ...entry, status: "NoCoverage" }], []), 0],
+      ["a NoCoverage entry never explains a Survived mutant", run(plain, survivor, { [F]: "" }, {}, [{ ...entry, status: "NoCoverage" }], []), 2],
+      ["a NoCoverage entry matching a NoCoverage mutant of the close is not stale", equivalentReasons([{ ...entry, status: "NoCoverage" }], { [F]: file(42, 43, [m("NoCoverage", 30)]) }).length, 0],
+      ["a NoCoverage entry matching only a Survived mutant is stale", equivalentReasons([{ ...entry, status: "NoCoverage" }], { [F]: file(42, 43, [m("Survived", 30)]) }).length, 1],
       ["an entry that matches a survivor of the close is not stale", equivalentReasons([entry], { [F]: file(42, 43, [m("Survived", 30)]) }).length, 0],
       ["an entry that matches no survivor of the close is stale", equivalentReasons([entry], { [F]: file(42, 42) }).length, 1],
       ["an entry for a file the close does not hold is stale", equivalentReasons([entry], {}).length, 1],
