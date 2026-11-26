@@ -852,3 +852,393 @@ Each block below is written by `91-check.mjs variant`: the check ran inside a sc
 - exit: 1
 - seen failing: decodeSpan: what a key without an attribute or a field reads as skips a key the struct names but declares no field for, and keeps the other fields
 - failing text: TypeError: Cannot read properties of undefined (reading 'ast')
+
+## surface-diff-null-entries
+- scratch: rv-in07 at 264dc155c5
+- edit: validated() as before the fix (the typeof guard that lets a null entries, entry or name through), with the new self-test rows kept
+- diff: 1eecf48329055aa6d81b7f7e23273f6511a2607ce978c8bcbae6b5639dc38ee1 (1 files, +4 -8)
+- run: script scripts/surface-diff.mjs --self-test
+- exit: 1
+- failing text: surface-diff self-test: a snapshot whose entries are null is refused by name: Cannot convert undefined or null to object
+- failing text: surface-diff self-test: an entry that is null is refused by name: Cannot read properties of null (reading 'names')
+- failing text: surface-diff self-test: a null name in a list is refused by name: Cannot read properties of null (reading 'kind')
+
+## named-barrel-review-star-after-statement
+- scratch: rv-wr01 at 5fc4f5d6cc
+- edit: an `export *` after another statement on the same line of the core barrel
+- diff: ac6e6366e24a43b1c4a752d9cc953141c1a9c04d2002bf4a1e4e155136875dea (1 files, +2 -0)
+- run: house-style
+- exit: 1
+- failing text: packages/core/src/index.ts  [named-barrel] line 642: `export *` re-widens the interface to every name a module declares: name the exports per module (AGENTS.md §9).
+- failing text: 1 house-style violation(s). See AGENTS.md.
+
+## named-barrel-review-group-order
+- scratch: rv-wr01 at 5fc4f5d6cc
+- edit: a group out of module-path order appended to the core barrel
+- diff: e3e6f141616f64eeac36275f5700dfde6ac92e65906e4248d58aa176ddbcb520 (1 files, +2 -0)
+- run: house-style
+- exit: 1
+- failing text: packages/core/src/index.ts  [named-barrel] line 642: "./!.ts" sorts before "./ValueText.ts": keep the named groups in module-path order (AGENTS.md §9).
+- failing text: 1 house-style violation(s). See AGENTS.md.
+
+## named-barrel-review-foreign-group
+- scratch: rv-wr01 at 5fc4f5d6cc
+- edit: a group from another package appended to the core barrel
+- diff: b7e69183671c46e6b23727e4855ce35a7e263f7e7dcb79fad167131e0b99a4c8 (1 files, +2 -0)
+- run: house-style
+- exit: 1
+- failing text: packages/core/src/index.ts  [named-barrel] line 642: re-exports "@qadi/zz", which is not a module of this package (AGENTS.md §9).
+- failing text: 1 house-style violation(s). See AGENTS.md.
+
+## named-barrel-review-relative-outside
+- scratch: rv-wr01 at 5fc4f5d6cc
+- edit: a relative group whose module is outside the package source, appended to the core barrel
+- diff: 9fa2914a97c09946034b41996a572ab3dcbe6561ca9ff5cd22fe412a0fac0732 (1 files, +2 -0)
+- run: house-style
+- exit: 1
+- failing text: packages/core/src/index.ts  [named-barrel] line 642: re-exports "../../zz/src/zz.ts", which is not a module of this package (AGENTS.md §9).
+- failing text: packages/core/src/index.ts  [named-barrel] line 642: "../../zz/src/zz.ts" sorts before "./ValueText.ts": keep the named groups in module-path order (AGENTS.md §9).
+- failing text: 2 house-style violation(s). See AGENTS.md.
+
+## named-barrel-review-two-value-groups
+- scratch: rv-wr01 at 5fc4f5d6cc
+- edit: two value groups for one module appended to the core barrel
+- diff: 47286d64230516727d2c9c7a91dc440142b3469be18582cf354f16c1aaaa19e2 (1 files, +3 -0)
+- run: house-style
+- exit: 1
+- failing text: packages/core/src/index.ts  [named-barrel] line 643: "./zz.ts": more than one value group: one value group, then one type group, per module (AGENTS.md §9).
+- failing text: 1 house-style violation(s). See AGENTS.md.
+
+## named-barrel-review-two-type-groups
+- scratch: rv-wr01 at 5fc4f5d6cc
+- edit: two type groups for one module appended to the core barrel
+- diff: 5892823b9001c0f2bec0f1cd79bc92417f71809060f2d2d98054bb23aa989b90 (1 files, +3 -0)
+- run: house-style
+- exit: 1
+- failing text: packages/core/src/index.ts  [named-barrel] line 643: "./zz.ts": more than one type group: one value group, then one type group, per module (AGENTS.md §9).
+- failing text: 1 house-style violation(s). See AGENTS.md.
+
+## named-barrel-review-type-before-value
+- scratch: rv-wr01 at 5fc4f5d6cc
+- edit: a module's type group before its value group, appended to the core barrel
+- diff: 18e2d20a18228f8024c6012dd1ad9ca056a956653eb3639db017648f510bbfe9 (1 files, +3 -0)
+- run: house-style
+- exit: 1
+- failing text: packages/core/src/index.ts  [named-barrel] line 643: "./zz.ts": its type group comes before its value group: one value group, then one type group (AGENTS.md §9).
+- failing text: 1 house-style violation(s). See AGENTS.md.
+
+## named-barrel-review-inline-type
+- scratch: rv-wr01 at 5fc4f5d6cc
+- edit: an inline type inside a value group appended to the core barrel
+- diff: 6f0938f979b533dad64a1785fd337061ba84916c87eb9c89a3f56420c3053e61 (1 files, +2 -0)
+- run: house-style
+- exit: 1
+- failing text: packages/core/src/index.ts  [named-barrel] line 642: "./zz.ts": `type Zz` inside a value group: name it in the module's `export type { … }` group (AGENTS.md §9).
+- failing text: 1 house-style violation(s). See AGENTS.md.
+
+## named-barrel-review-names-order
+- scratch: rv-wr01 at 5fc4f5d6cc
+- edit: a group whose names are out of order appended to the core barrel
+- diff: dfe4f85c46e0df4d5faafc8612641c3154c03db3fafdb05c47569447e910160d (1 files, +2 -0)
+- run: house-style
+- exit: 1
+- failing text: packages/core/src/index.ts  [named-barrel] line 642: "./zz.ts": zy sorts before zz or repeats it: keep a group's names in name order (AGENTS.md §9).
+- failing text: 1 house-style violation(s). See AGENTS.md.
+
+## named-barrel-review-declaration
+- scratch: rv-wr01 at 5fc4f5d6cc
+- edit: a local declaration appended to the core barrel
+- diff: dd405e6a6749aecf9df00a04eb7848cd142a7f1f4d7caa3b850a6284dc9f8ad2 (1 files, +2 -0)
+- run: house-style
+- exit: 1
+- failing text: packages/core/src/index.ts  [named-barrel] line 642: a declaration or statement of its own is not a module group: a named barrel holds only `export { … } from` and `export type { … } from` groups (AGENTS.md §9).
+- failing text: 1 house-style violation(s). See AGENTS.md.
+
+## named-barrel-review-import-reexport
+- scratch: rv-wr01 at 5fc4f5d6cc
+- edit: an import re-exported with no from clause, appended to the core barrel
+- diff: d96eba65c0ae979ff3bf6c212223dfd26d8f101d61e31c3ec5e620e3c460082c (1 files, +3 -0)
+- run: house-style
+- exit: 1
+- failing text: packages/core/src/index.ts  [named-barrel] line 642: an import declaration is not a module group: a named barrel holds only `export { … } from` and `export type { … } from` groups (AGENTS.md §9).
+- failing text: packages/core/src/index.ts  [named-barrel] line 643: an export with no from clause is not a module group: a named barrel holds only `export { … } from` and `export type { … } from` groups (AGENTS.md §9).
+- failing text: 2 house-style violation(s). See AGENTS.md.
+
+## named-barrel-review-empty
+- scratch: rv-wr01 at 5fc4f5d6cc
+- edit: the core barrel emptied to one comment
+- diff: f02575fc2acb0f8bdde117ed79e8fc0fa6c1b7e73c703513eb0c4652425bf7d4 (1 files, +1 -640)
+- run: house-style
+- exit: 1
+- failing text: packages/core/src/index.ts  [named-barrel] holds no named group (AGENTS.md §9).
+- failing text: packages/core/src/index.ts  [named-barrel-self-test] a planted group out of module-path order was not refused as: module-path order
+- failing text: 2 house-style violation(s). See AGENTS.md.
+
+## named-barrel-review-unlisted
+- scratch: rv-wr01 at 5fc4f5d6cc
+- edit: a sixth index.ts holding a relative named group, off NAMED_BARRELS (packages/http/src/zz/index.ts)
+- diff: d2c5bc975fe0f6a5568007eaad48613a6428e2683ed239ec0b867d87a50adc70 (1 files, +1 -0)
+- run: house-style
+- exit: 1
+- failing text: packages/http/src/zz/index.ts  [named-barrel] is a named barrel that NAMED_BARRELS does not list: add it there, or export `*` (AGENTS.md §9).
+- failing text: 1 house-style violation(s). See AGENTS.md.
+
+## named-barrel-review-mixed
+- scratch: rv-wr01 at 5fc4f5d6cc
+- edit: a named group from another package appended to http's pure export * barrel
+- diff: 0f6b9dd80a10cc2b99c9e17217aba8ff8b619330227a72b63379f4c2ba36d25c (2 files, +1 -0)
+- run: house-style
+- exit: 1
+- failing text: packages/http/src/index.ts  [named-barrel] mixes `export *` with a named group: name every export of the root, or none of them (AGENTS.md §9).
+- failing text: 1 house-style violation(s). See AGENTS.md.
+
+## named-barrel-review-self-test-star
+- scratch: rv-wr01 at 5fc4f5d6cc
+- edit: scripts/check-house-style.mjs with the export * refusal neutralised; the barrels unchanged
+- diff: 98eeb2aa9d55ae2241a06c16d32f14ce11c3d943d022568a1f2c513a3c136f5e (2 files, +1 -1)
+- run: house-style
+- exit: 1
+- failing text: packages/audit/src/index.ts  [named-barrel-self-test] a planted `export *` after another statement on its line was not refused as: `export *` re-widens
+- failing text: packages/core/src/index.ts  [named-barrel-self-test] a planted `export *` after another statement on its line was not refused as: `export *` re-widens
+- failing text: packages/devtools/src/index.ts  [named-barrel-self-test] a planted `export *` after another statement on its line was not refused as: `export *` re-widens
+
+## named-barrel-review-self-test-other
+- scratch: rv-wr01 at 5fc4f5d6cc
+- edit: scripts/check-house-style.mjs with the not-a-module-group refusal neutralised; the barrels unchanged
+- diff: 2b702e4fa0894f89eb05d526995e372fa0ae0266f31a45e34671caee58b98bc2 (2 files, +1 -1)
+- run: house-style
+- exit: 1
+- failing text: packages/audit/src/index.ts  [named-barrel-self-test] a planted declaration in the barrel was not refused as: a declaration or statement of its own is not a module group
+- failing text: packages/audit/src/index.ts  [named-barrel-self-test] a planted name imported and re-exported with no from clause was not refused as: an import declaration is not a module group; an export with no from clause is not a module group
+- failing text: packages/core/src/index.ts  [named-barrel-self-test] a planted declaration in the barrel was not refused as: a declaration or statement of its own is not a module group
+
+## named-barrel-review-self-test-empty
+- scratch: rv-wr01 at 5fc4f5d6cc
+- edit: scripts/check-house-style.mjs with the no-named-group refusal neutralised; the barrels unchanged
+- diff: 9731ea53a8fa2bcd0808dd043e80ba5adf5d12f1e747fab7dc7ccceb7fff0e60 (2 files, +1 -1)
+- run: house-style
+- exit: 1
+- failing text: packages/audit/src/index.ts  [named-barrel-self-test] a planted barrel with no group was not refused as: holds no named group
+- failing text: packages/core/src/index.ts  [named-barrel-self-test] a planted barrel with no group was not refused as: holds no named group
+- failing text: packages/devtools/src/index.ts  [named-barrel-self-test] a planted barrel with no group was not refused as: holds no named group
+
+## named-barrel-review-self-test-outside
+- scratch: rv-wr01 at 5fc4f5d6cc
+- edit: scripts/check-house-style.mjs with the outside-the-package refusal neutralised; the barrels unchanged
+- diff: f9db114b290c56871c60cc2290c762bddb5ea14db05bf1972bcf74f7d0d673de (2 files, +1 -1)
+- run: house-style
+- exit: 1
+- failing text: packages/audit/src/index.ts  [named-barrel-self-test] a planted group from another package was not refused as: not a module of this package
+- failing text: packages/audit/src/index.ts  [named-barrel-self-test] a planted relative group outside the package's source was not refused as: not a module of this package
+- failing text: packages/core/src/index.ts  [named-barrel-self-test] a planted group from another package was not refused as: not a module of this package
+
+## named-barrel-review-self-test-type-before-value
+- scratch: rv-wr01 at 5fc4f5d6cc
+- edit: scripts/check-house-style.mjs with the type-before-value refusal neutralised; the barrels unchanged
+- diff: 29f2f8936c4d82ce68b38d16c00b1d7d9e2edd7ffe1b41f02f7a8c890952798c (2 files, +1 -1)
+- run: house-style
+- exit: 1
+- failing text: packages/audit/src/index.ts  [named-barrel-self-test] a planted type group before its module's value group was not refused as: comes before its value group
+- failing text: packages/core/src/index.ts  [named-barrel-self-test] a planted type group before its module's value group was not refused as: comes before its value group
+- failing text: packages/devtools/src/index.ts  [named-barrel-self-test] a planted type group before its module's value group was not refused as: comes before its value group
+
+## named-barrel-review-self-test-inline-type
+- scratch: rv-wr01 at 5fc4f5d6cc
+- edit: scripts/check-house-style.mjs with the inline-type refusal neutralised; the barrels unchanged
+- diff: 391e69de8d0194bd1dd0520ecd79d2c6a32be6e0f4af3629fa7aa09196200a0a (2 files, +1 -1)
+- run: house-style
+- exit: 1
+- failing text: packages/audit/src/index.ts  [named-barrel-self-test] a planted inline type inside a value group was not refused as: inside a value group
+- failing text: packages/core/src/index.ts  [named-barrel-self-test] a planted inline type inside a value group was not refused as: inside a value group
+- failing text: packages/devtools/src/index.ts  [named-barrel-self-test] a planted inline type inside a value group was not refused as: inside a value group
+
+## named-barrel-review-self-test-second-group
+- scratch: rv-wr01 at 5fc4f5d6cc
+- edit: scripts/check-house-style.mjs with the second-group refusal neutralised; the barrels unchanged
+- diff: 16c3c7863c874c0f19da07ffbe5923b6f733eeb962205fd6b2373f74292c8f04 (2 files, +1 -1)
+- run: house-style
+- exit: 1
+- failing text: packages/audit/src/index.ts  [named-barrel-self-test] a planted second value group for one module was not refused as: more than one value group
+- failing text: packages/audit/src/index.ts  [named-barrel-self-test] a planted second type group for one module was not refused as: more than one type group
+- failing text: packages/core/src/index.ts  [named-barrel-self-test] a planted second value group for one module was not refused as: more than one value group
+
+## named-barrel-review-self-test-names-order
+- scratch: rv-wr01 at 5fc4f5d6cc
+- edit: scripts/check-house-style.mjs with the name-order refusal neutralised; the barrels unchanged
+- diff: 4cde2ae23a116f1aae679409a1b9c88a05cc05c4d25eba89923df738cbd4920d (2 files, +1 -1)
+- run: house-style
+- exit: 1
+- failing text: packages/audit/src/index.ts  [named-barrel-self-test] a planted group whose names are out of order was not refused as: keep a group's names in name order
+- failing text: packages/core/src/index.ts  [named-barrel-self-test] a planted group whose names are out of order was not refused as: keep a group's names in name order
+- failing text: packages/devtools/src/index.ts  [named-barrel-self-test] a planted group whose names are out of order was not refused as: keep a group's names in name order
+
+## named-barrel-review-self-test-group-order
+- scratch: rv-wr01 at 5fc4f5d6cc
+- edit: scripts/check-house-style.mjs with the module-path-order refusal neutralised; the barrels unchanged
+- diff: da06f3cd5cb3a8e4f31fbc2f6c3286f8fd2beb6944744b4e101baa4e31d5006d (2 files, +1 -1)
+- run: house-style
+- exit: 1
+- failing text: packages/audit/src/index.ts  [named-barrel-self-test] a planted group out of module-path order was not refused as: module-path order
+- failing text: packages/core/src/index.ts  [named-barrel-self-test] a planted group out of module-path order was not refused as: module-path order
+- failing text: packages/devtools/src/index.ts  [named-barrel-self-test] a planted group out of module-path order was not refused as: module-path order
+
+## named-barrel-review-self-test-mixed
+- scratch: rv-wr01 at 5fc4f5d6cc
+- edit: scripts/check-house-style.mjs with the mixed-index refusal neutralised; the barrels unchanged
+- diff: 02aa9df486ceefb7a613e90d45f52d8644e20aa51126a6cbb39049323bda216b (2 files, +1 -1)
+- run: house-style
+- exit: 1
+- failing text: packages/zz/src/index.ts  [named-barrel-self-test] a planted index mixing `export *` with a group from another package was not refused as: mixes `export *`
+- failing text: 1 house-style violation(s). See AGENTS.md.
+
+## named-barrel-review-self-test-unlisted
+- scratch: rv-wr01 at 5fc4f5d6cc
+- edit: scripts/check-house-style.mjs with the unlisted-barrel refusal neutralised; the barrels unchanged
+- diff: 496a8a17b9dec776f10885f106c434869359b58c82c17f6fe3fe9c2293d84161 (2 files, +1 -1)
+- run: house-style
+- exit: 1
+- failing text: packages/zz/src/index.ts  [named-barrel-self-test] a planted unlisted named barrel was not refused as: NAMED_BARRELS does not list
+- failing text: 1 house-style violation(s). See AGENTS.md.
+
+## named-barrel-review-self-test-control
+- scratch: rv-wr01 at 5fc4f5d6cc
+- edit: scripts/check-house-style.mjs with an index off the list judged as a listed barrel, so the pure barrel and the implementation index plants are refused; the barrels unchanged
+- diff: 774c21e443e8bce78f580fabc92dc04714d1da53f01fe19c8e5ae8a9fd39cc7f (2 files, +1 -1)
+- run: house-style
+- exit: 1
+- failing text: packages/http/src/index.ts  [named-barrel] line 6: `export *` re-widens the interface to every name a module declares: name the exports per module (AGENTS.md §9).
+- failing text: packages/http/src/index.ts  [named-barrel] line 7: `export *` re-widens the interface to every name a module declares: name the exports per module (AGENTS.md §9).
+- failing text: packages/http/src/index.ts  [named-barrel] line 8: `export *` re-widens the interface to every name a module declares: name the exports per module (AGENTS.md §9).
+
+## named-barrel-review-group-order
+- scratch: rv-wr01 at ddba1c3661
+- edit: a group out of module-path order appended to the core barrel
+- diff: e3e6f141616f64eeac36275f5700dfde6ac92e65906e4248d58aa176ddbcb520 (1 files, +2 -0)
+- run: house-style
+- exit: 1
+- failing text: packages/core/src/index.ts  [named-barrel] line 642: "./!.ts" sorts before "./ValueText.ts": keep the named groups in module-path order (AGENTS.md §9).
+- failing text: 1 house-style violation(s). See AGENTS.md.
+
+## named-barrel-review-empty
+- scratch: rv-wr01 at ddba1c3661
+- edit: the core barrel emptied to one comment
+- diff: f02575fc2acb0f8bdde117ed79e8fc0fa6c1b7e73c703513eb0c4652425bf7d4 (1 files, +1 -640)
+- run: house-style
+- exit: 1
+- failing text: packages/core/src/index.ts  [named-barrel] holds no named group (AGENTS.md §9).
+- failing text: 1 house-style violation(s). See AGENTS.md.
+
+## named-barrel-review-self-test-group-order
+- scratch: rv-wr01 at ddba1c3661
+- edit: scripts/check-house-style.mjs with the module-path-order refusal neutralised; the barrels unchanged
+- diff: 7a8c87b56626aebb05c49c70942a3733196a270ce21eec85b4b0fb23b3266207 (1 files, +1 -1)
+- run: house-style
+- exit: 1
+- failing text: packages/audit/src/index.ts  [named-barrel-self-test] a planted group out of module-path order was not refused as: module-path order
+- failing text: packages/core/src/index.ts  [named-barrel-self-test] a planted group out of module-path order was not refused as: module-path order
+- failing text: packages/devtools/src/index.ts  [named-barrel-self-test] a planted group out of module-path order was not refused as: module-path order
+
+## hydrate-probe-deleted
+- scratch: rv-wr02 at ff3a8994a8
+- edit: the consumer's whole hydrate probe deleted (the two hydrations, their expects and the refusal), with the imports only it used
+- diff: 4ebae8c19f33fdaabf9de1b21a9dbf701d5297611ac029cba5419165a4b1f23d (1 files, +0 -22)
+- run: package
+- exit: 1
+- failing text:   the consumer fixture never makes the call hydrateDecisions:atoms, hydrateDecisions:capability when it runs: hydrateDecisions of the packed @qadi/react root must be called through the atom set and through a value holding only hydrate
+- failing text:   the consumer fixture never refuses hydrateDecisions on a value without hydrate: every refused-call probe must be a call whose first argument is an object literal with no property of that name, led by a @ts-expect-error
+- failing text: package-install: 2 failure(s) across 9 package(s).
+
+## hydrate-probe-capability-deleted
+- scratch: rv-wr02 at ff3a8994a8
+- edit: the consumer's hydration through { hydrate } alone deleted, with the two expects that read it
+- diff: e8bfa339e60dcd2471387c4464d1875fe424d88a28b91e14e74ea9ccb6c18dd2 (1 files, +0 -3)
+- run: package
+- exit: 1
+- failing text:   the consumer fixture never makes the call hydrateDecisions:capability when it runs: hydrateDecisions of the packed @qadi/react root must be called through the atom set and through a value holding only hydrate
+- failing text: package-install: 1 failure(s) across 9 package(s).
+- failing text: Sandbox kept in .package-check/ for inspection.
+
+## hydrate-probe-refusal-deleted
+- scratch: rv-wr02 at ff3a8994a8
+- edit: the consumer's @ts-expect-error refusal of hydrateDecisions({}, …) deleted with its call
+- diff: 934ee113a0ca784ceb106aba5c6f21943c9d2586e88e624f18f5808d619c8701 (1 files, +0 -3)
+- run: package
+- exit: 1
+- failing text:   the consumer fixture never refuses hydrateDecisions on a value without hydrate: every refused-call probe must be a call whose first argument is an object literal with no property of that name, led by a @ts-expect-error
+- failing text: package-install: 1 failure(s) across 9 package(s).
+- failing text: Sandbox kept in .package-check/ for inspection.
+
+## hydrate-probe-never-run
+- scratch: rv-wr02 at ff3a8994a8
+- edit: the consumer's hydration through { hydrate } alone left in a function the run never calls
+- diff: 7f223065dd48ec2c0449266df35cbc49d116364691fed1adc75ba111634c2a0c (1 files, +2 -1)
+- run: package
+- exit: 1
+- failing text:   the consumer fixture never makes the call hydrateDecisions:capability when it runs: hydrateDecisions of the packed @qadi/react root must be called through the atom set and through a value holding only hydrate
+- failing text: package-install: 1 failure(s) across 9 package(s).
+- failing text: Sandbox kept in .package-check/ for inspection.
+
+## escape-undeclared-subpath
+- scratch: rv-sec4 at 9e37862527
+- edit: a react source whose built declaration names import("@qadi/core/lib/Decision.js"), its compile error silenced so the declaration is emitted
+- diff: b5a7c8251ac89e056452f8be94d7ffb8e4deac5343be58dfd6304b21bed9095e (1 files, +2 -0)
+- run: package
+- exit: 1
+- failing text:   @qadi/react/lib/DeepSubpath.d.ts: names a subpath no package declares as an entry point: @qadi/core/lib/Decision.js
+- failing text: package-install: 1 failure(s) across 9 package(s).
+- failing text: Sandbox kept in .package-check/ for inspection.
+
+## escape-self-check-subpath
+- scratch: rv-sec4 at 9e37862527
+- edit: the undeclared-subpath refusal in scripts/lib/declaration-escape.mjs neutralised; the packages unchanged
+- diff: 2037570e0e9262bc6293a106a2e2b001294d36540c0f2d9b61100bcb60fe3e12 (2 files, +1 -1)
+- run: package
+- exit: 1
+- failing text:   [escape-self-check] planted case "a deep import into a package's lib" was not judged as planted (13 cases)
+- failing text:   [escape-self-check] planted case "a subpath of a package that declares other subpaths" was not judged as planted (13 cases)
+- failing text:   [escape-self-check] planted case "a bare src path of another package" was not judged as planted (13 cases)
+
+## hydrate-target-review-atoms-lack-hydrate
+- scratch: rv-in02 at cc9e5b769e
+- edit: QadiAtoms does not extend HydrationTarget, so it has no hydrate member
+- diff: a1298b6cb93e46d08a0e4f66dcdf42d6db1234fcdda45b8e9ddab1462ce39ac8 (1 files, +1 -1)
+- run: tstyche packages/react/test/HydrationTarget.tst.ts
+- exit: 1
+- seen failing: an atom set is a hydrate target
+- seen failing: the atom set's hydrate is the written-out signature
+- failing text: Error: Type 'QadiAtoms' is not assignable to type 'HydrationTarget'.
+- failing text: Error: Property 'hydrate' does not exist on type 'QadiAtoms'. ts(2339)
+- failing text: Error: Type 'QadiAtoms' is not assignable to type 'HydrationTarget'.
+
+## hydrate-target-review-second-member
+- scratch: rv-in02 at cc9e5b769e
+- edit: HydrationTarget gains a second required member, runtime, so hydrate alone no longer satisfies it
+- diff: ab70498fdd10ddb9d4748845f5ad856d58c64ca5eb3e9163d85b7db99f7b6291 (1 files, +1 -0)
+- run: tstyche packages/react/test/HydrationTarget.tst.ts
+- exit: 1
+- seen failing: hydrateDecisions accepts any value that has the hydrate capability
+- seen failing: a value holding the written-out hydrate alone is a hydrate target
+- failing text: Error: Expression is not callable with the given arguments.
+- failing text: Error: Type '{ readonly hydrate: Written; }' is not assignable to type 'HydrationTarget'.
+- failing text: Error: Expression is not callable with the given arguments.
+
+## hydrate-target-review-any-payload
+- scratch: rv-in02 at cc9e5b769e
+- edit: HydrationTarget's hydrate takes its payload as any, so a hydrate reading another payload satisfies it
+- diff: 48301e77bb850290b51f6e1017b1374da0be408fa7f3d1b6cfa5e2d38bf7a574 (1 files, +1 -1)
+- run: tstyche packages/react/test/HydrationTarget.tst.ts
+- exit: 1
+- seen failing: the atom set's hydrate is the written-out signature
+- seen failing: a value whose hydrate reads another payload is not a hydrate target
+- failing text: Error: Type '(dehydrated: any, subject: AuthSubject, options?: HydrateOptions | undefined) => InitialValues' is not the same as type 'Written'.
+- failing text: Error: Type '{ readonly hydrate: (dehydrated: string, subject: AuthSubject) => InitialValues; }' is assignable to type 'HydrationTarget'.
+- failing text: Error: Type '(dehydrated: any, subject: AuthSubject, options?: HydrateOptions | undefined) => InitialValues' is not the same as type 'Written'.
+
+## port-span-read-fourth-interpreter
+- scratch: rv-in04 at e461853f46
+- edit: portInterpreter gains a fourth member, batch, that no row of the span read test writes out
+- diff: 1dc7ba23f0fa52bec684b4497153a2caed08e6b8231c65b03f3eda62f7211e04 (1 files, +1 -1)
+- run: vitest packages/core/test/PortSpanRead.test.ts
+- exit: 1
+- seen failing: decodeSpan: a port question's interpreter reads each of the three interpreters as itself
+- failing text: AssertionError: expected [ 'evaluate', 'toPredicate', …(2) ] to deeply equal [ 'evaluate', 'toPredicate', 'remote' ]
