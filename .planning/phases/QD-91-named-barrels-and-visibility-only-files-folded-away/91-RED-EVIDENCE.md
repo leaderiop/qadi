@@ -427,3 +427,69 @@ Each block below is written by `91-check.mjs variant`: the check ran inside a sc
 - failing text: lib/HydrationEngine.d.ts: names a src/ path: ../../core/src/Decision.ts
 - failing text: lib/HydrationEngine.d.ts: resolves outside its package: ../../core/src/Decision.ts
 - failing text: lib/SeededDecision.d.ts: names a src/ path: ../../core/src/Decision
+
+## pinned-held-body
+- scratch: p-held-body at 46432b6dfd
+- edit: packages/core/test/PortSpan.test.ts: the expected value of the assertion on line 79 changed from {} to { x: 1 }, outside the declared import region
+- diff: 25acdd7be8ea047fc80101e94c97d914bf884ba49a7f910596656d25e103a175 (1 files, +1 -1)
+- run: script 91-pinned-check.mjs
+- exit: 1
+- failing text: packages/core/test/PortSpan.test.ts: differs from its base text at line 79
+
+## pinned-held-moved
+- scratch: p-held-moved at 46432b6dfd
+- edit: packages/http/test/accessPlan.test.ts renamed to accessPlanMoved.test.ts (git mv, staged)
+- diff: 21381c4092e559825e8561d721573086b21a17675027d36e83e6bb6b7963a37f (1 files, +0 -0)
+- run: script 91-pinned-check.mjs
+- exit: 1
+- failing text: packages/http/test/accessPlan.test.ts moved to packages/http/test/accessPlanMoved.test.ts
+
+## pinned-declared-outside
+- scratch: p-declared-outside at d6e82e755e
+- edit: a scratch commit with the decoder-fold subject re-points line 19 of packages/core/test/PortSpan.test.ts and also changes the assertion on line 79
+- diff: 068c51eacaccce897bbf3decce697f34395dfb27044894246bef9d6161f83a73 (1 files, +2 -2)
+- run: script 91-pinned-check.mjs
+- exit: 1
+- failing text: packages/core/test/PortSpan.test.ts: differs outside its declared lines at line 79
+
+## pinned-declared-non-import
+- scratch: p-declared-non-import at a87805dc14
+- edit: a scratch commit with the decoder-fold subject replaces line 19 of packages/core/test/PortSpan.test.ts by an import and a const statement
+- diff: 271055e6956b47ed84cfc89a11890a77212472601f283f3a807e9d610fbdaaf0 (1 files, +2 -1)
+- run: script 91-pinned-check.mjs
+- exit: 1
+- failing text: packages/core/test/PortSpan.test.ts: line 2 of what replaces region 1 is not an import declaration
+
+## pinned-held-source
+- scratch: p-held-source at 46432b6dfd
+- edit: packages/react/src/QadiProvider.tsx line 50 (the gateWriterFor import, outside the declared line 49) edited
+- diff: c3e38e6f03a4ea169fe87e65217903ac81ecbfc32fe785339786ec215ddf86f4 (1 files, +1 -1)
+- run: script 91-pinned-check.mjs
+- exit: 1
+- failing text: packages/react/src/QadiProvider.tsx: differs from its base text at line 50
+
+## pinned-earlier-held
+- scratch: p-earlier-held at cd9185ff59
+- edit: a scratch commit chore(91-99): touch edits a comment line (line 2) of packages/react/src/RegistryLease.ts
+- diff: 5232a15e31381603e52e527ad411fa20637e7b43123760b717eafd19f3c52daf (1 files, +1 -1)
+- run: script 91-pinned-check.mjs
+- exit: 1
+- failing text: packages/react/src/RegistryLease.ts: changed by cd9185ff59 "chore(91-99): touch", and phase 86's pinned check holds it (only "docs(91-19): name the registry lease's one caller" may)
+
+## pinned-born
+- scratch: p-born at 46432b6dfd
+- edit: line 1 of packages/audit/test/surface.test.ts replaced by a comment
+- diff: 55c07e761525cde757f6357008e0b433b0afd123f178f22bb1ddb5ee94fd57b1 (1 files, +1 -1)
+- run: script 91-pinned-check.mjs
+- exit: 1
+- failing text: packages/audit/test/surface.test.ts: differs from the commit that added it at line 1
+
+## pinned-all-applied
+- scratch: p-all-applied at 46432b6dfd
+- edit: none: the unedited clone, run with --all-applied (no fold has landed)
+- diff: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (0 files, +0 -0)
+- run: script 91-pinned-check.mjs --all-applied
+- exit: 1
+- failing text: packages/react/test/HydrationTarget.tst.ts: no commit adds it
+- failing text: packages/react/test/DecisionOutcome.tst.ts: its declared edit is not applied
+- failing text: packages/react/test/DeveloperSignalReporters.test.tsx: its declared edit is not applied
