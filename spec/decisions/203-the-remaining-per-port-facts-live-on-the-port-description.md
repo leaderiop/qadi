@@ -344,6 +344,12 @@ What `pnpm check` runs, by command:
 - `pnpm lint`, whose second half is `node scripts/check-house-style.mjs`: a `switch` on the row exceeds `SWITCH_BUDGET`, and a
   span literal in `PortAccess.ts`, `PortDerivation.ts` or `PortCalls.ts` is refused by `no-port-span-key-literals`.
 - `pnpm spec:api`: `PORT_NAMES` is named in `spec/overview.md`.
+- `node scripts/check-package-install.mjs`: the packed consumer types a description built from the shipped `AttributeResolver`
+  one, its `fixture` stated, by the whole `PortDescription`, and refuses one whose `fixture` is `undefined` (a literal that
+  leaves `fixture` out is TS2741 on the declaration, which the probe guard cannot read as a refusal); it types a
+  `PortFixtureData` and a `PortSpanName`, reads `PORT_NAMES` against the registry's order and builds every port through the
+  fixture overload of `tabulatePorts`. The probe guard fails if a type stops annotating a value, the refusal is deleted, or
+  the run never reads `PORT_NAMES` or calls `tabulatePorts`.
 - `pnpm mutation`: the core run's break threshold is the package's score as a whole, not a floor per file.
 - The merge gate by command (`pnpm check`), never by number.
 

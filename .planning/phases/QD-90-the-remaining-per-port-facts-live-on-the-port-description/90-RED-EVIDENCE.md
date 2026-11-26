@@ -1437,3 +1437,107 @@ row must catch. Each block below is written by `90-check.mjs variant`.
 - tsc: packages/testing/src/QadiReviewLayer.ts TS2536 x1
 - errors: 61
 - groups: 25
+
+## 90 verification gaps
+
+Gate 14 (`node scripts/check-package-install.mjs`) probes the port description shape the phase changed. Added to the
+consumer and the guard lists: `PortDescription`, `PortFixtureData` and `PortSpanName` on `TYPE_ONLY_PROBES`;
+`PortDescription` paired with `fixture` on `REFUSED_SHAPE_PROBES`; and a new `RUNTIME_PROBES` list, `PORT_NAMES` and
+`tabulatePorts`, which the module hook wraps in the packed `@qadi/core` it hands the consumer, so the run must read the one
+and call the other. The refusal states `fixture: undefined` because the guard reads a refusal as the refused member's own
+property led by the directive: a literal that leaves `fixture` out is TS2741 on the declaration (block `fixture-dropped`
+below), with no property for a directive to lead.
+
+Each probe was seen failing once: a scratch edit of the gate (or, for the last block, of `packages/core/src/PortName.ts`)
+was applied, the gate run, its failure lines kept, and the file restored byte for byte from a copy (the core file with
+`git checkout --`). The gate is green with every edit undone. Each block is the scratch edit's label, the gate's exit status
+and its failure lines.
+
+### typed-PortDescription: exit 1
+
+```text
+  the consumer fixture never declares a value typed PortDescription: every type-only probe name must annotate a declared value outside a refused literal
+package-install: 1 failure(s) across 9 package(s).
+```
+
+### typed-PortFixtureData: exit 1
+
+```text
+  the consumer fixture never declares a value typed PortFixtureData: every type-only probe name must annotate a declared value outside a refused literal
+package-install: 1 failure(s) across 9 package(s).
+```
+
+### typed-PortSpanName: exit 1
+
+```text
+  the consumer fixture never declares a value typed PortSpanName: every type-only probe name must annotate a declared value outside a refused literal
+package-install: 1 failure(s) across 9 package(s).
+```
+
+### refused-literal-deleted: exit 1
+
+```text
+  the consumer fixture never refuses a literal typed PortDescription: every refused-shape probe name must annotate a literal whose property named by its refused member carries a @ts-expect-error
+package-install: 1 failure(s) across 9 package(s).
+```
+
+### refused-directive-deleted: exit 1
+
+```text
+  the consumer does not type-check against the shipped .d.ts:
+.package-check/consumer.ts(420,3): error TS2322: Type 'undefined' is not assignable to type '(data: Readonly<Record<string, unknown>>) => Layer<AttributeResolver, never, never>'.
+  the consumer fixture never refuses a literal typed PortDescription: every refused-shape probe name must annotate a literal whose property named by its refused member carries a @ts-expect-error
+package-install: 2 failure(s) across 9 package(s).
+```
+
+### fixture-dropped: exit 1
+
+```text
+  the consumer does not type-check against the shipped .d.ts:
+.package-check/consumer.ts(390,7): error TS2741: Property 'fixture' is missing in type '{ port: "AttributeResolver"; method: string; span: "qadi.attribute"; attributes: { readonly question: import("@qadi/core").SpanStruct<{ readonly subjectId: optionalKey<String>; readonly interpreter: optionalKey<Literals<readonly ["evaluate", "toPredicate", "remote"]>>; readonly attribute: optionalKey<String>; }>; re...' but required in type 'PortDescription<"AttributeResolver", AttributeResolver, AttributeResolverShape, [subjectId: SubjectId, attribute: string], unknown, AttributeResolveError, ... 4 more ..., Readonly<...>>'.
+package-install: 1 failure(s) across 9 package(s).
+```
+
+### PORT_NAMES-deleted: exit 1
+
+```text
+  the consumer fixture never uses PORT_NAMES when it runs: every runtime probe of the packed @qadi/core root must be called, or read, by the run
+package-install: 1 failure(s) across 9 package(s).
+```
+
+### PORT_NAMES-never-run: exit 1
+
+```text
+  the consumer fixture never uses PORT_NAMES when it runs: every runtime probe of the packed @qadi/core root must be called, or read, by the run
+package-install: 1 failure(s) across 9 package(s).
+```
+
+### tabulatePorts-deleted: exit 1
+
+```text
+  the consumer fixture never uses tabulatePorts when it runs: every runtime probe of the packed @qadi/core root must be called, or read, by the run
+package-install: 1 failure(s) across 9 package(s).
+```
+
+### fixture-overload-bypassed: exit 1
+
+```text
+  the consumer does not type-check against the shipped .d.ts:
+.package-check/consumer.ts(443,5): error TS2345: Argument of type 'Effect<Decision, any, any>' is not assignable to parameter of type 'Effect<Decision, any, never>'.
+.package-check/consumer.ts(448,11): error TS18046: 'builders.DecisionHistory' is of type 'unknown'.
+.package-check/consumer.ts(449,11): error TS18046: 'builders.RelationshipResolver' is of type 'unknown'.
+.package-check/consumer.ts(450,11): error TS18046: 'builders.CustomPredicate' is of type 'unknown'.
+.package-check/consumer.ts(451,11): error TS18046: 'builders.SignatureHistory' is of type 'unknown'.
+.package-check/consumer.ts(457,88): error TS18046: 'builders.AttributeResolver' is of type 'unknown'.
+package-install: 1 failure(s) across 9 package(s).
+```
+
+### artifact-PORT_NAMES-reordered: exit 1
+
+```text
+  the consumer failed at runtime:
+consumer: the diagnostics feed was read for 0 of at most 200 turns
+        throw new Error(`consumer: ${label} was ${String(actual)}, wanted ${String(wanted)}`);
+Error: consumer: port names in registry order was DecisionHistory,AttributeResolver,RelationshipResolver,CustomPredicate,SignatureHistory, wanted AttributeResolver,DecisionHistory,RelationshipResolver,CustomPredicate,SignatureHistory
+package-install: 1 failure(s) across 9 package(s).
+```
