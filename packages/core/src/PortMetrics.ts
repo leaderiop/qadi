@@ -24,7 +24,9 @@
  * `portRetriesTotal` and `portTimeoutsTotal` all carry the same five:
  * `AttributeResolver`, `DecisionHistory`, `RelationshipResolver`,
  * `CustomPredicate` and `SignatureHistory` — one per port the evaluator can
- * call into. Every port has every wrapper, each derived from its description
+ * call into. Each preregisters `PORT_NAMES` (`PortName.ts`) in that order, and
+ * `PREDICATE_PORT_NAMES` below is checked against `PortName`, so a misspelt
+ * member is a compile error. Every port has every wrapper, each derived from its description
  * (`PortDerivation.ts`), so the two wrapper metrics need no narrower domain:
  * until ARCH-10 each had a narrower closed type of its own (three ports for
  * retries, two for timeouts), which existed only because the wrapper set was
@@ -45,26 +47,8 @@
  * only guard. Every `qadi_*` metric is declared once (ADR-QD-123).
  */
 import * as Metric from "effect/Metric";
-import * as Record from "effect/Record";
+import { PORT_NAMES } from "./PortName.ts";
 import type { PortName } from "./PortName.ts";
-
-/**
- * Every port's name, as the `Record<PortName, true>` idiom the policy tag list
- * used before it was derived: TypeScript requires every key of `PortName`
- * (`PortName.ts`) to be present (TS2741 otherwise), so a sixth port added to
- * the evaluator without a matching entry here is a compile error rather than an
- * unregistered word silently missing from a snapshot.
- */
-const PORT_NAMES_BY_NAME: Record<PortName, true> = {
-  AttributeResolver: true,
-  DecisionHistory: true,
-  RelationshipResolver: true,
-  CustomPredicate: true,
-  SignatureHistory: true,
-};
-
-/** `PORT_NAMES_BY_NAME`'s keys, in the array form `preregisteredWords` takes. */
-const PORT_NAMES: ReadonlyArray<PortName> = Record.keys(PORT_NAMES_BY_NAME);
 
 /**
  * Every call the evaluator made into a port, by which port.
@@ -144,16 +128,13 @@ export const servedPortCallsTotal = Metric.frequency("qadi_port_served_calls_tot
  * `PortAccess.ts`'s signatures, rather than a word silently missing from this
  * metric.
  */
-export type PredicatePortName = "AttributeResolver" | "DecisionHistory";
+export type PredicatePortName = (typeof PREDICATE_PORT_NAMES)[number];
 
-const PREDICATE_PORT_NAMES_BY_NAME: Record<PredicatePortName, true> = {
-  AttributeResolver: true,
-  DecisionHistory: true,
-};
-
-const PREDICATE_PORT_NAMES: ReadonlyArray<PredicatePortName> = Record.keys(
-  PREDICATE_PORT_NAMES_BY_NAME,
-);
+/** {@link PredicatePortName}'s names, in the order {@link predicatePortCallsTotal} preregisters them. */
+const PREDICATE_PORT_NAMES = [
+  "AttributeResolver",
+  "DecisionHistory",
+] as const satisfies ReadonlyArray<PortName>;
 
 /**
  * Every call `toPredicate` made into a port, by which port.

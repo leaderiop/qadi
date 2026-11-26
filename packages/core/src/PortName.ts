@@ -1,20 +1,21 @@
 /**
- * A port's identity: its name and the span its read opens, stated once.
+ * A port's identity: its name and the span its read opens, each stated once.
  *
- * Both unions were declared in `PortMetrics.ts`, so every port module imported
- * what a port *is* from the module that counts what it *did* (ARCH-77). They
- * are read from one table here instead: a sixth port is one row, and its name
- * and its span cannot be added separately and drift apart.
+ * The names are one tuple, {@link PORT_NAMES}, and {@link PortName} is its
+ * element type, so the list a metric preregisters (`PortMetrics.ts`) and the
+ * union every registry-indexed type reads cannot disagree. A port module
+ * imports what a port *is* from here, not from the module that counts what it
+ * *did*.
  *
- * `PortSpans` is not exported, so no other module can augment it and the union
+ * `PortSpans`, the span table keyed by those names, is not exported, so no other module can augment it and the union
  * stays closed. `PortDescription.span` is {@link PortSpanOf}, so a description
  * can name only its own port's span; before this it was the whole
  * {@link PortSpanName} union, and `attributeResolverPort` could have claimed
  * `"qadi.acted"` and compiled.
  *
- * A leaf: no imports, no metric. `PortMetrics.ts` imports the name type from
- * here, never the reverse, so a metric's registry key (ADR-QD-052) cannot move
- * with a port's identity.
+ * A leaf: no imports, no metric. `PortMetrics.ts` imports the tuple from here,
+ * never the reverse, so a metric's registry key (ADR-QD-052) cannot move with a
+ * port's identity.
  */
 interface PortSpans {
   readonly AttributeResolver: "qadi.attribute";
@@ -26,14 +27,24 @@ interface PortSpans {
 
 /**
  * Every port the evaluator's walk (`Walk.ts`, through `PortAccess.ts`) can call
- * into: the closed domain of `portCallsTotal`, `portRetriesTotal` and
- * `portTimeoutsTotal`.
+ * into, in the order the registry and its tables list them: the closed domain
+ * of `portCallsTotal`, `portRetriesTotal` and `portTimeoutsTotal`.
  *
- * `PORT_NAMES_BY_NAME` (`PortMetrics.ts`) is a `Record<PortName, true>`, so a
- * sixth port added here without a matching entry there is a compile error
- * (TS2741) rather than an unregistered word silently missing from a snapshot.
+ * A tuple and not a record, so a sixth name is one edit here and the metric
+ * domain follows it. A registry-indexed type (`PortTypes`, `PortSpans`) then
+ * has no entry for it, which is a compile error at each place a port's fact
+ * is still missing.
  */
-export type PortName = keyof PortSpans;
+export const PORT_NAMES = [
+  "AttributeResolver",
+  "DecisionHistory",
+  "RelationshipResolver",
+  "CustomPredicate",
+  "SignatureHistory",
+] as const;
+
+/** One port's name: an element of {@link PORT_NAMES}. */
+export type PortName = (typeof PORT_NAMES)[number];
 
 /**
  * The span port `N`'s read opens: one per port, and no other port's.

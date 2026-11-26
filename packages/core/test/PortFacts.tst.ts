@@ -9,6 +9,7 @@
  * so the negative-pin budget stays where it is.
  */
 import { expect, test } from "tstyche";
+import { PORT_NAMES } from "../src/index.ts";
 import type {
   ActedEventInput,
   PortFixtureData,
@@ -50,5 +51,17 @@ test("PortName is the five ports", () => {
     | "RelationshipResolver"
     | "CustomPredicate"
     | "SignatureHistory"
+  >();
+});
+
+test("PORT_NAMES is the five names, in the registry's order", () => {
+  expect(PORT_NAMES).type.toBe<
+    readonly [
+      "AttributeResolver",
+      "DecisionHistory",
+      "RelationshipResolver",
+      "CustomPredicate",
+      "SignatureHistory",
+    ]
   >();
 });
