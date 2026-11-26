@@ -349,3 +349,9 @@ The base is the one `89-mutation-base.json` records (`phase_base` 8ee14f6f703f31
 - check failed: pinned-region: packages/audit/test/ForeignRows.test.ts: region planOrder is not the lines it becomes
 - check failed: pinned-between: packages/audit/test/ForeignRows.test.ts: the text between regions differs from its base text at line 115 of the base, "  it(\"the rows are refused before a sequence break among the" is missing or changed (between nowBeforeRows and planOrder)
 - check failed: pinned-all-applied: packages/audit/test/ForeignRows.test.ts: its declared edit is not applied
+
+## 89-04 the earlier-phase checks
+
+- check failed: earlier-fixed: 85-check.mjs scan-forbidden: expected the line "scan-forbidden: no forbidden form in added line", got "scan-forbidden: no forbidden form in added lines"
+- check failed: earlier-unexpected: unexpected run: 85-check.mjs scan-forbidden
+- check failed: earlier-computed: 88-check.mjs records --close: expected exit 1, got exit 0: records: the pinned-by lists name tests that exist, and every reserved record is written
