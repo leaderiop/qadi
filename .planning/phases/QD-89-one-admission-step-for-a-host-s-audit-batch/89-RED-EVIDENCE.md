@@ -550,3 +550,9 @@ Each row below was run against HEAD 76d38f52 (the source the review read) with o
   (scratch edit: a row `F6 an appended row` added after F5; under the `kept` form the region held only its describe line and passed it)
 - failed (variant entries-unknown): HostBatch.tst.ts admitted rows are nominal
   (scratch edit: `AdmittedRows.entries` typed `ReadonlyArray<unknown>`; tstyche: "Type 'readonly unknown[]' is not the same as type 'readonly AuditEntry[]'" and "Type 'AdmittedRows' is not assignable to type '{ readonly entries: readonly AuditEntry[]; }'", 2 assertions failed while the three nominal refusals passed)
+- close run: `pnpm exec stryker run stryker.audit.mjs --mutate` over the five base files and `HostBatch.ts`, alone on a clean tree at 01f7ec14 with stdin closed, 42 seconds: AuditArchive.ts 78/78, ArchiveFacts.ts 54/54, Retention.ts 61/61, CodecMade.ts 5/5 (one Ignored), HostBatch.ts 38/38 (one Ignored), no Survived, NoCoverage or Timeout mutant; SequenceIntegrity.ts holds no mutant
+- check failed: mutation probe: packages/audit/src/CodecMade.ts:58 has a new Ignored mutant: ArrowFunction -> () => undefined
+- check failed: mutation probe: the equivalent entry for packages/audit/src/HostBatch.ts (MethodExpression -> taken) matches no survivor: remove it
+- hand run: `pnpm exec stryker run <scratch config spreading stryker.audit.mjs with ignoreStatic: false, reports to the scratch directory> --mutate packages/audit/src/HostBatch.ts,packages/audit/src/CodecMade.ts`, 15 seconds: 45 mutants, 44 Killed and 1 Timeout, none Survived
+- examined: packages/audit/src/HostBatch.ts ArrowFunction () => undefined (isCodecMadeRow, line 75): Killed
+- examined: packages/audit/src/CodecMade.ts ArrowFunction () => undefined (isCodecMade, line 58): Killed

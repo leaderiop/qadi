@@ -21,7 +21,7 @@
  "unmeasured": [],
  "groups": {
   "audit": {
-   "head": "bd039183ef30bcda841460ceee3b8d1efbe81797",
+   "head": "01f7ec14e5ad4544574e1bdc38dab4823d4a518e",
    "invocation": "pnpm exec stryker run stryker.audit.mjs --mutate packages/audit/src/AuditArchive.ts,packages/audit/src/ArchiveFacts.ts,packages/audit/src/Retention.ts,packages/audit/src/CodecMade.ts,packages/audit/src/SequenceIntegrity.ts,packages/audit/src/HostBatch.ts",
    "files": {
     "packages/audit/src/AuditArchive.ts": {
@@ -193,35 +193,44 @@
      ]
     },
     "packages/audit/src/Retention.ts": {
-     "killed": 56,
+     "killed": 61,
      "timeout": 0,
      "survived": 0,
      "noCoverage": 0,
      "ignored": 1,
-     "detected": 56,
-     "valid": 56,
+     "detected": 61,
+     "valid": 61,
      "open": [],
      "ignoredMutants": [
       {
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 70,
+       "line": 71,
        "column": 61,
        "lineText": "export class RetentionInputInvalid extends Data.TaggedError(\"RetentionInputInvalid\")<{"
       }
      ]
     },
     "packages/audit/src/CodecMade.ts": {
-     "killed": 18,
+     "killed": 5,
      "timeout": 0,
      "survived": 0,
      "noCoverage": 0,
-     "ignored": 0,
-     "detected": 18,
-     "valid": 18,
+     "ignored": 1,
+     "detected": 5,
+     "valid": 5,
      "open": [],
-     "ignoredMutants": []
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 58,
+       "column": 28,
+       "lineText": "export const isCodecMade = (entry: unknown): boolean =>"
+      }
+     ]
     },
     "packages/audit/src/SequenceIntegrity.ts": {
      "killed": 0,
@@ -235,31 +244,22 @@
      "ignoredMutants": []
     },
     "packages/audit/src/HostBatch.ts": {
-     "killed": 21,
+     "killed": 38,
      "timeout": 0,
-     "survived": 1,
+     "survived": 0,
      "noCoverage": 0,
      "ignored": 1,
-     "detected": 21,
-     "valid": 22,
-     "open": [
-      {
-       "status": "Survived",
-       "mutator": "MethodExpression",
-       "replacement": "taken",
-       "line": 86,
-       "column": 42,
-       "lineText": "return Result.succeed(new AdmittedRows(taken.filter(Predicate.isNotUndefined)));"
-      }
-     ],
+     "detected": 38,
+     "valid": 38,
+     "open": [],
      "ignoredMutants": [
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 69,
-       "column": 18,
-       "lineText": "const takeRows = (list: ReadonlyArray<AuditEntry>): Array<AuditEntry | undefined> =>"
+       "line": 75,
+       "column": 24,
+       "lineText": "const isCodecMadeRow = (entry: unknown): entry is AuditEntry => isCodecMade(entry);"
       }
      ]
     }
@@ -268,7 +268,7 @@
  },
  "phase91_base": {
   "file": "packages/audit/src/ArchiveFacts.ts",
-  "head": "bd039183ef30bcda841460ceee3b8d1efbe81797",
+  "head": "01f7ec14e5ad4544574e1bdc38dab4823d4a518e",
   "detected": 54,
   "valid": 54,
   "score": 100

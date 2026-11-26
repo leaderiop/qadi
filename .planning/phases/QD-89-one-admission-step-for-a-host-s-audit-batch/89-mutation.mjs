@@ -68,15 +68,10 @@ const UNMEASURED_WHY = "every file the phase edits is under packages/audit/src/*
  * reason naming why no input reaches it. An entry is added only when the close has looked at the survivor and found no input
  * that reaches it. A stale entry (it matches no survivor of the close) fails `compare`.
  */
-const EQUIVALENT = [
-  {
-    file: "packages/audit/src/HostBatch.ts",
-    mutatorName: "MethodExpression",
-    replacement: "taken",
-    lineText: "return Result.succeed(new AdmittedRows(taken.filter(Predicate.isNotUndefined)));",
-    reason: "a hole is refused before this line, so no element is undefined and the filter only narrows the type: the mutant admits the same elements in the same order",
-  },
-];
+// Empty since the review of the phase: its one entry was the `filter` over rows the check had already refused holes
+// from (`MethodExpression -> taken`), and `admitRows` checks each entry as it reads it and pushes only admitted rows, so
+// the filter and its equivalent survivor are gone (WR-02).
+const EQUIVALENT = [];
 /**
  * Ignored mutants a close may hold beyond its base, per file and kind, each run by hand and Killed there: the config spread
  * with `ignoreStatic: false`, run with `--mutate <file>`. A born file has no base, so its allowance is the whole of what it
@@ -84,7 +79,13 @@ const EQUIVALENT = [
  */
 const EXAMINED = {
   "packages/audit/src/HostBatch.ts": {
-    // takeRows: the arrow that reads one index of the host's list; run by hand with ignoreStatic false, it is Killed.
+    // isCodecMadeRow: the guard that reads the codec's answer as the row type (the review of the phase replaced the
+    // takeRows arrow this entry first named); run by hand with ignoreStatic false, it is Killed.
+    "ArrowFunction () => undefined": 1,
+  },
+  "packages/audit/src/CodecMade.ts": {
+    // isCodecMade: the per-entry question that replaced rowsRefusal in the review of the phase; run by hand with
+    // ignoreStatic false and `--mutate packages/audit/src/HostBatch.ts,packages/audit/src/CodecMade.ts`, it is Killed.
     "ArrowFunction () => undefined": 1,
   },
 };
