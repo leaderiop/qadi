@@ -1,0 +1,298 @@
+# Phase 89 RED evidence
+
+The base is the one `89-mutation-base.json` records (`phase_base` 8ee14f6f703f3121d44d15a1515d02eff62ca63f). Every line below comes from a real run with stdin closed, each scratch edit made on a file backed up into the scratch directory first and restored with `cp`. The line forms: `- red before: <title or file>` followed by an indented `  - failed on: <the first failing text as vitest printed it>` and, for a file run before the module it imports exists, an indented `  (scratch state: <module> absent at HEAD <sha>; test blob <sha>)`; `- failed (<tag>): <title>` followed by an indented `  (scratch edit: <the edit>; <n> row(s) failed under it)`; `- variant <id>: <what it changes>` followed by indented `  - failed: <title>` lines; `- check failed: <mode>: <first stderr line>`. The trailer value every commit of the phase carries is `Claude Opus 5.5` (the phase decision, not any other model name).
+
+## 89-01 the admission order and spans
+
+- failed (base writer-keys-first): W7 a NaN now with key material that is not a list: NowNotFinite wins
+  (scratch edit: the key-material block moved above the now check; 4 row(s) failed under it)
+- failed (base writer-keys-first): W8 a NaN now with a key-material item that is refused: NowNotFinite wins
+  (scratch edit: the key-material block moved above the now check; 4 row(s) failed under it)
+- failed (base writer-keys-first): O1 the writer refuses the first fault of now, then key material, then rows, or archives
+  (scratch edit: the key-material block moved above the now check; 4 row(s) failed under it)
+- failed (base writer-keys-first): L1 a refused now reads options.keyMaterial zero times and an admitted now reads it once
+  (scratch edit: the key-material block moved above the now check; 4 row(s) failed under it)
+- failed (base writer-rows-first): W9 a NaN now with rows that are not a list: NowNotFinite wins
+  (scratch edit: verifiedArchiveFacts(entries) yielded before the now check; 15 row(s) failed under it)
+- failed (base writer-rows-first): W10 a NaN now with a row the codec did not make: NowNotFinite wins
+  (scratch edit: verifiedArchiveFacts(entries) yielded before the now check; 15 row(s) failed under it)
+- failed (base writer-rows-first): W11 a NaN now with a sequence break: NowNotFinite wins
+  (scratch edit: verifiedArchiveFacts(entries) yielded before the now check; 15 row(s) failed under it)
+- failed (base writer-rows-first): W12 key material that is not a list with rows that are not a list: KeyMaterialNotAList wins
+  (scratch edit: verifiedArchiveFacts(entries) yielded before the now check; 15 row(s) failed under it)
+- failed (base writer-rows-first): W13 key material that is not a list with a row the codec did not make: KeyMaterialNotAList wins
+  (scratch edit: verifiedArchiveFacts(entries) yielded before the now check; 15 row(s) failed under it)
+- failed (base writer-rows-first): W14 key material that is not a list with a sequence break: KeyMaterialNotAList wins
+  (scratch edit: verifiedArchiveFacts(entries) yielded before the now check; 15 row(s) failed under it)
+- failed (base writer-rows-first): W15 a key-material item that is refused with rows that are not a list: KeyMaterialItemRefused wins
+  (scratch edit: verifiedArchiveFacts(entries) yielded before the now check; 15 row(s) failed under it)
+- failed (base writer-rows-first): W16 a key-material item that is refused with a row the codec did not make: KeyMaterialItemRefused wins
+  (scratch edit: verifiedArchiveFacts(entries) yielded before the now check; 15 row(s) failed under it)
+- failed (base writer-rows-first): W17 a key-material item that is refused with a sequence break: KeyMaterialItemRefused wins
+  (scratch edit: verifiedArchiveFacts(entries) yielded before the now check; 15 row(s) failed under it)
+- failed (base writer-rows-first): O1 the writer refuses the first fault of now, then key material, then rows, or archives
+  (scratch edit: verifiedArchiveFacts(entries) yielded before the now check; 15 row(s) failed under it)
+- failed (base writer-rows-first): S1 the writer refused for now opens only its own span
+  (scratch edit: verifiedArchiveFacts(entries) yielded before the now check; 15 row(s) failed under it)
+- failed (base writer-rows-first): S2 the writer refused for key material that is not a list opens only its own span
+  (scratch edit: verifiedArchiveFacts(entries) yielded before the now check; 15 row(s) failed under it)
+- failed (base writer-rows-first): S3 the writer refused for a key-material item opens only its own span
+  (scratch edit: verifiedArchiveFacts(entries) yielded before the now check; 15 row(s) failed under it)
+- failed (base writer-rows-first): L2 refused key material reads no property of the rows
+  (scratch edit: verifiedArchiveFacts(entries) yielded before the now check; 15 row(s) failed under it)
+- failed (base writer-rows-first): L3 a refused now reads no property of the rows
+  (scratch edit: verifiedArchiveFacts(entries) yielded before the now check; 15 row(s) failed under it)
+- failed (base writer-no-now): W1 a NaN now alone: NowNotFinite
+  (scratch edit: the writer now check deleted; 10 row(s) failed under it)
+- failed (base writer-no-now): W7 a NaN now with key material that is not a list: NowNotFinite wins
+  (scratch edit: the writer now check deleted; 10 row(s) failed under it)
+- failed (base writer-no-now): W8 a NaN now with a key-material item that is refused: NowNotFinite wins
+  (scratch edit: the writer now check deleted; 10 row(s) failed under it)
+- failed (base writer-no-now): W9 a NaN now with rows that are not a list: NowNotFinite wins
+  (scratch edit: the writer now check deleted; 10 row(s) failed under it)
+- failed (base writer-no-now): W10 a NaN now with a row the codec did not make: NowNotFinite wins
+  (scratch edit: the writer now check deleted; 10 row(s) failed under it)
+- failed (base writer-no-now): W11 a NaN now with a sequence break: NowNotFinite wins
+  (scratch edit: the writer now check deleted; 10 row(s) failed under it)
+- failed (base writer-no-now): O1 the writer refuses the first fault of now, then key material, then rows, or archives
+  (scratch edit: the writer now check deleted; 10 row(s) failed under it)
+- failed (base writer-no-now): S1 the writer refused for now opens only its own span
+  (scratch edit: the writer now check deleted; 10 row(s) failed under it)
+- failed (base writer-no-now): L1 a refused now reads options.keyMaterial zero times and an admitted now reads it once
+  (scratch edit: the writer now check deleted; 10 row(s) failed under it)
+- failed (base writer-no-now): L3 a refused now reads no property of the rows
+  (scratch edit: the writer now check deleted; 10 row(s) failed under it)
+- failed (base writer-no-keys): W2 key material that is not a list alone: KeyMaterialNotAList
+  (scratch edit: the key-material snapshot replaced by Result.succeed(undefined); 13 row(s) failed under it)
+- failed (base writer-no-keys): W3 a key-material item that is refused alone: KeyMaterialItemRefused
+  (scratch edit: the key-material snapshot replaced by Result.succeed(undefined); 13 row(s) failed under it)
+- failed (base writer-no-keys): W12 key material that is not a list with rows that are not a list: KeyMaterialNotAList wins
+  (scratch edit: the key-material snapshot replaced by Result.succeed(undefined); 13 row(s) failed under it)
+- failed (base writer-no-keys): W13 key material that is not a list with a row the codec did not make: KeyMaterialNotAList wins
+  (scratch edit: the key-material snapshot replaced by Result.succeed(undefined); 13 row(s) failed under it)
+- failed (base writer-no-keys): W14 key material that is not a list with a sequence break: KeyMaterialNotAList wins
+  (scratch edit: the key-material snapshot replaced by Result.succeed(undefined); 13 row(s) failed under it)
+- failed (base writer-no-keys): W15 a key-material item that is refused with rows that are not a list: KeyMaterialItemRefused wins
+  (scratch edit: the key-material snapshot replaced by Result.succeed(undefined); 13 row(s) failed under it)
+- failed (base writer-no-keys): W16 a key-material item that is refused with a row the codec did not make: KeyMaterialItemRefused wins
+  (scratch edit: the key-material snapshot replaced by Result.succeed(undefined); 13 row(s) failed under it)
+- failed (base writer-no-keys): W17 a key-material item that is refused with a sequence break: KeyMaterialItemRefused wins
+  (scratch edit: the key-material snapshot replaced by Result.succeed(undefined); 13 row(s) failed under it)
+- failed (base writer-no-keys): O1 the writer refuses the first fault of now, then key material, then rows, or archives
+  (scratch edit: the key-material snapshot replaced by Result.succeed(undefined); 13 row(s) failed under it)
+- failed (base writer-no-keys): S2 the writer refused for key material that is not a list opens only its own span
+  (scratch edit: the key-material snapshot replaced by Result.succeed(undefined); 13 row(s) failed under it)
+- failed (base writer-no-keys): S3 the writer refused for a key-material item opens only its own span
+  (scratch edit: the key-material snapshot replaced by Result.succeed(undefined); 13 row(s) failed under it)
+- failed (base writer-no-keys): L1 a refused now reads options.keyMaterial zero times and an admitted now reads it once
+  (scratch edit: the key-material snapshot replaced by Result.succeed(undefined); 13 row(s) failed under it)
+- failed (base writer-no-keys): L2 refused key material reads no property of the rows
+  (scratch edit: the key-material snapshot replaced by Result.succeed(undefined); 13 row(s) failed under it)
+- failed (base facts-no-rows): W4 rows that are not a list alone: EntriesNotAList
+  (scratch edit: the rowsRefusal block of verifiedArchiveFacts deleted; 16 row(s) failed under it)
+- failed (base facts-no-rows): W5 a row the codec did not make alone: EntryNotMadeByCodec
+  (scratch edit: the rowsRefusal block of verifiedArchiveFacts deleted; 16 row(s) failed under it)
+- failed (base facts-no-rows): W18 a row the codec did not make with a sequence break: EntryNotMadeByCodec wins
+  (scratch edit: the rowsRefusal block of verifiedArchiveFacts deleted; 16 row(s) failed under it)
+- failed (base facts-no-rows): V1 rows that are not a list: EntriesNotAList
+  (scratch edit: the rowsRefusal block of verifiedArchiveFacts deleted; 16 row(s) failed under it)
+- failed (base facts-no-rows): V2 a row the codec did not make: EntryNotMadeByCodec
+  (scratch edit: the rowsRefusal block of verifiedArchiveFacts deleted; 16 row(s) failed under it)
+- failed (base facts-no-rows): V4 a row the codec did not make with a sequence break: EntryNotMadeByCodec wins
+  (scratch edit: the rowsRefusal block of verifiedArchiveFacts deleted; 16 row(s) failed under it)
+- failed (base facts-no-rows): O1 the writer refuses the first fault of now, then key material, then rows, or archives
+  (scratch edit: the rowsRefusal block of verifiedArchiveFacts deleted; 16 row(s) failed under it)
+- failed (base facts-no-rows): O3 the verify refuses the first fault of the list, then a row, then the break, or passes
+  (scratch edit: the rowsRefusal block of verifiedArchiveFacts deleted; 16 row(s) failed under it)
+- failed (base facts-no-rows): SF1 the writer refused for rows that are not a list opens its span and the sequence span
+  (scratch edit: the rowsRefusal block of verifiedArchiveFacts deleted; 16 row(s) failed under it)
+- failed (base facts-no-rows): SF2 the writer refused for a row the codec did not make opens its span and the sequence span
+  (scratch edit: the rowsRefusal block of verifiedArchiveFacts deleted; 16 row(s) failed under it)
+- failed (base facts-no-rows): SF3 the verify refused for rows that are not a list opens only the sequence span
+  (scratch edit: the rowsRefusal block of verifiedArchiveFacts deleted; 16 row(s) failed under it)
+- failed (base facts-no-rows): SF4 the verify refused for a row the codec did not make opens only the sequence span
+  (scratch edit: the rowsRefusal block of verifiedArchiveFacts deleted; 16 row(s) failed under it)
+- failed (base facts-no-rows): F1 rows that are not a list: EntriesNotAList
+  (scratch edit: the rowsRefusal block of verifiedArchiveFacts deleted; 16 row(s) failed under it)
+- failed (base facts-no-rows): F2 a row the codec did not make: EntryNotMadeByCodec
+  (scratch edit: the rowsRefusal block of verifiedArchiveFacts deleted; 16 row(s) failed under it)
+- failed (base facts-no-rows): F4 a row the codec did not make with a sequence break: EntryNotMadeByCodec wins
+  (scratch edit: the rowsRefusal block of verifiedArchiveFacts deleted; 16 row(s) failed under it)
+- failed (base facts-no-rows): F5 any call opens exactly the sequence span
+  (scratch edit: the rowsRefusal block of verifiedArchiveFacts deleted; 16 row(s) failed under it)
+- failed (base facts-no-break): W6 a sequence break alone: SequenceIntegrityError
+  (scratch edit: the break failure of verifiedArchiveFacts deleted; 7 row(s) failed under it)
+- failed (base facts-no-break): V3 a sequence break: SequenceIntegrityError
+  (scratch edit: the break failure of verifiedArchiveFacts deleted; 7 row(s) failed under it)
+- failed (base facts-no-break): O1 the writer refuses the first fault of now, then key material, then rows, or archives
+  (scratch edit: the break failure of verifiedArchiveFacts deleted; 7 row(s) failed under it)
+- failed (base facts-no-break): O3 the verify refuses the first fault of the list, then a row, then the break, or passes
+  (scratch edit: the break failure of verifiedArchiveFacts deleted; 7 row(s) failed under it)
+- failed (base facts-no-break): S4 the writer failing on a break opens its span and the sequence span
+  (scratch edit: the break failure of verifiedArchiveFacts deleted; 7 row(s) failed under it)
+- failed (base facts-no-break): S6 the verify failing on a break opens only the sequence span
+  (scratch edit: the break failure of verifiedArchiveFacts deleted; 7 row(s) failed under it)
+- failed (base facts-no-break): F3 a sequence break: SequenceIntegrityError
+  (scratch edit: the break failure of verifiedArchiveFacts deleted; 7 row(s) failed under it)
+- failed (base facts-break-first): W4 rows that are not a list alone: EntriesNotAList
+  (scratch edit: the facts and break check of verifiedArchiveFacts moved above rowsRefusal; 11 row(s) failed under it)
+- failed (base facts-break-first): W18 a row the codec did not make with a sequence break: EntryNotMadeByCodec wins
+  (scratch edit: the facts and break check of verifiedArchiveFacts moved above rowsRefusal; 11 row(s) failed under it)
+- failed (base facts-break-first): V1 rows that are not a list: EntriesNotAList
+  (scratch edit: the facts and break check of verifiedArchiveFacts moved above rowsRefusal; 11 row(s) failed under it)
+- failed (base facts-break-first): V4 a row the codec did not make with a sequence break: EntryNotMadeByCodec wins
+  (scratch edit: the facts and break check of verifiedArchiveFacts moved above rowsRefusal; 11 row(s) failed under it)
+- failed (base facts-break-first): O1 the writer refuses the first fault of now, then key material, then rows, or archives
+  (scratch edit: the facts and break check of verifiedArchiveFacts moved above rowsRefusal; 11 row(s) failed under it)
+- failed (base facts-break-first): O3 the verify refuses the first fault of the list, then a row, then the break, or passes
+  (scratch edit: the facts and break check of verifiedArchiveFacts moved above rowsRefusal; 11 row(s) failed under it)
+- failed (base facts-break-first): SF1 the writer refused for rows that are not a list opens its span and the sequence span
+  (scratch edit: the facts and break check of verifiedArchiveFacts moved above rowsRefusal; 11 row(s) failed under it)
+- failed (base facts-break-first): SF3 the verify refused for rows that are not a list opens only the sequence span
+  (scratch edit: the facts and break check of verifiedArchiveFacts moved above rowsRefusal; 11 row(s) failed under it)
+- failed (base facts-break-first): F1 rows that are not a list: EntriesNotAList
+  (scratch edit: the facts and break check of verifiedArchiveFacts moved above rowsRefusal; 11 row(s) failed under it)
+- failed (base facts-break-first): F4 a row the codec did not make with a sequence break: EntryNotMadeByCodec wins
+  (scratch edit: the facts and break check of verifiedArchiveFacts moved above rowsRefusal; 11 row(s) failed under it)
+- failed (base facts-break-first): F5 any call opens exactly the sequence span
+  (scratch edit: the facts and break check of verifiedArchiveFacts moved above rowsRefusal; 11 row(s) failed under it)
+- failed (base plan-maxage-first): R6 a NaN now with a NaN maxAgeMs: planRetention answers NowNotFinite
+  (scratch edit: the now and maxAgeMs checks of planRetention swapped; 6 row(s) failed under it)
+- failed (base plan-maxage-first): R7 a NaN now with a maxAgeMs of -1: planRetention answers NowNotFinite
+  (scratch edit: the now and maxAgeMs checks of planRetention swapped; 6 row(s) failed under it)
+- failed (base plan-maxage-first): P6 a NaN now with a NaN maxAgeMs: planPurge answers NowNotFinite
+  (scratch edit: the now and maxAgeMs checks of planRetention swapped; 6 row(s) failed under it)
+- failed (base plan-maxage-first): P7 a NaN now with a maxAgeMs of -1: planPurge answers NowNotFinite
+  (scratch edit: the now and maxAgeMs checks of planRetention swapped; 6 row(s) failed under it)
+- failed (base plan-maxage-first): O2 both plans refuse the first fault of now, then maxAgeMs, then rows, or plan
+  (scratch edit: the now and maxAgeMs checks of planRetention swapped; 6 row(s) failed under it)
+- failed (base plan-maxage-first): L4 each plan refused for now reads maxAgeMs zero times and no row
+  (scratch edit: the now and maxAgeMs checks of planRetention swapped; 6 row(s) failed under it)
+- failed (base plan-rows-first): R8 a NaN now with rows that are not a list: planRetention answers NowNotFinite
+  (scratch edit: rowsRefusal moved above the now check of planRetention; 15 row(s) failed under it)
+- failed (base plan-rows-first): R9 a NaN now with a row the codec did not make: planRetention answers NowNotFinite
+  (scratch edit: rowsRefusal moved above the now check of planRetention; 15 row(s) failed under it)
+- failed (base plan-rows-first): R10 a NaN maxAgeMs with rows that are not a list: planRetention answers MaxAgeInvalid
+  (scratch edit: rowsRefusal moved above the now check of planRetention; 15 row(s) failed under it)
+- failed (base plan-rows-first): R11 a NaN maxAgeMs with a row the codec did not make: planRetention answers MaxAgeInvalid
+  (scratch edit: rowsRefusal moved above the now check of planRetention; 15 row(s) failed under it)
+- failed (base plan-rows-first): R12 a maxAgeMs of -1 with rows that are not a list: planRetention answers MaxAgeInvalid
+  (scratch edit: rowsRefusal moved above the now check of planRetention; 15 row(s) failed under it)
+- failed (base plan-rows-first): R13 a maxAgeMs of -1 with a row the codec did not make: planRetention answers MaxAgeInvalid
+  (scratch edit: rowsRefusal moved above the now check of planRetention; 15 row(s) failed under it)
+- failed (base plan-rows-first): P8 a NaN now with rows that are not a list: planPurge answers NowNotFinite
+  (scratch edit: rowsRefusal moved above the now check of planRetention; 15 row(s) failed under it)
+- failed (base plan-rows-first): P9 a NaN now with a row the codec did not make: planPurge answers NowNotFinite
+  (scratch edit: rowsRefusal moved above the now check of planRetention; 15 row(s) failed under it)
+- failed (base plan-rows-first): P10 a NaN maxAgeMs with rows that are not a list: planPurge answers MaxAgeInvalid
+  (scratch edit: rowsRefusal moved above the now check of planRetention; 15 row(s) failed under it)
+- failed (base plan-rows-first): P11 a NaN maxAgeMs with a row the codec did not make: planPurge answers MaxAgeInvalid
+  (scratch edit: rowsRefusal moved above the now check of planRetention; 15 row(s) failed under it)
+- failed (base plan-rows-first): P12 a maxAgeMs of -1 with rows that are not a list: planPurge answers MaxAgeInvalid
+  (scratch edit: rowsRefusal moved above the now check of planRetention; 15 row(s) failed under it)
+- failed (base plan-rows-first): P13 a maxAgeMs of -1 with a row the codec did not make: planPurge answers MaxAgeInvalid
+  (scratch edit: rowsRefusal moved above the now check of planRetention; 15 row(s) failed under it)
+- failed (base plan-rows-first): O2 both plans refuse the first fault of now, then maxAgeMs, then rows, or plan
+  (scratch edit: rowsRefusal moved above the now check of planRetention; 15 row(s) failed under it)
+- failed (base plan-rows-first): L4 each plan refused for now reads maxAgeMs zero times and no row
+  (scratch edit: rowsRefusal moved above the now check of planRetention; 15 row(s) failed under it)
+- failed (base plan-rows-first): L5 each plan refused for maxAgeMs reads no row
+  (scratch edit: rowsRefusal moved above the now check of planRetention; 15 row(s) failed under it)
+- failed (base plan-no-checks): R1 a NaN now alone: planRetention answers NowNotFinite
+  (scratch edit: the three checks of planRetention deleted; 30 row(s) failed under it)
+- failed (base plan-no-checks): R2 a NaN maxAgeMs alone: planRetention answers MaxAgeInvalid
+  (scratch edit: the three checks of planRetention deleted; 30 row(s) failed under it)
+- failed (base plan-no-checks): R3 a maxAgeMs of -1 alone: planRetention answers MaxAgeInvalid
+  (scratch edit: the three checks of planRetention deleted; 30 row(s) failed under it)
+- failed (base plan-no-checks): R4 rows that are not a list alone: planRetention answers EntriesNotAList
+  (scratch edit: the three checks of planRetention deleted; 30 row(s) failed under it)
+- failed (base plan-no-checks): R5 a row the codec did not make alone: planRetention answers EntryNotMadeByCodec
+  (scratch edit: the three checks of planRetention deleted; 30 row(s) failed under it)
+- failed (base plan-no-checks): R6 a NaN now with a NaN maxAgeMs: planRetention answers NowNotFinite
+  (scratch edit: the three checks of planRetention deleted; 30 row(s) failed under it)
+- failed (base plan-no-checks): R7 a NaN now with a maxAgeMs of -1: planRetention answers NowNotFinite
+  (scratch edit: the three checks of planRetention deleted; 30 row(s) failed under it)
+- failed (base plan-no-checks): R8 a NaN now with rows that are not a list: planRetention answers NowNotFinite
+  (scratch edit: the three checks of planRetention deleted; 30 row(s) failed under it)
+- failed (base plan-no-checks): R9 a NaN now with a row the codec did not make: planRetention answers NowNotFinite
+  (scratch edit: the three checks of planRetention deleted; 30 row(s) failed under it)
+- failed (base plan-no-checks): R10 a NaN maxAgeMs with rows that are not a list: planRetention answers MaxAgeInvalid
+  (scratch edit: the three checks of planRetention deleted; 30 row(s) failed under it)
+- failed (base plan-no-checks): R11 a NaN maxAgeMs with a row the codec did not make: planRetention answers MaxAgeInvalid
+  (scratch edit: the three checks of planRetention deleted; 30 row(s) failed under it)
+- failed (base plan-no-checks): R12 a maxAgeMs of -1 with rows that are not a list: planRetention answers MaxAgeInvalid
+  (scratch edit: the three checks of planRetention deleted; 30 row(s) failed under it)
+- failed (base plan-no-checks): R13 a maxAgeMs of -1 with a row the codec did not make: planRetention answers MaxAgeInvalid
+  (scratch edit: the three checks of planRetention deleted; 30 row(s) failed under it)
+- failed (base plan-no-checks): P1 a NaN now alone: planPurge answers NowNotFinite
+  (scratch edit: the three checks of planRetention deleted; 30 row(s) failed under it)
+- failed (base plan-no-checks): P2 a NaN maxAgeMs alone: planPurge answers MaxAgeInvalid
+  (scratch edit: the three checks of planRetention deleted; 30 row(s) failed under it)
+- failed (base plan-no-checks): P3 a maxAgeMs of -1 alone: planPurge answers MaxAgeInvalid
+  (scratch edit: the three checks of planRetention deleted; 30 row(s) failed under it)
+- failed (base plan-no-checks): P4 rows that are not a list alone: planPurge answers EntriesNotAList
+  (scratch edit: the three checks of planRetention deleted; 30 row(s) failed under it)
+- failed (base plan-no-checks): P5 a row the codec did not make alone: planPurge answers EntryNotMadeByCodec
+  (scratch edit: the three checks of planRetention deleted; 30 row(s) failed under it)
+- failed (base plan-no-checks): P6 a NaN now with a NaN maxAgeMs: planPurge answers NowNotFinite
+  (scratch edit: the three checks of planRetention deleted; 30 row(s) failed under it)
+- failed (base plan-no-checks): P7 a NaN now with a maxAgeMs of -1: planPurge answers NowNotFinite
+  (scratch edit: the three checks of planRetention deleted; 30 row(s) failed under it)
+- failed (base plan-no-checks): P8 a NaN now with rows that are not a list: planPurge answers NowNotFinite
+  (scratch edit: the three checks of planRetention deleted; 30 row(s) failed under it)
+- failed (base plan-no-checks): P9 a NaN now with a row the codec did not make: planPurge answers NowNotFinite
+  (scratch edit: the three checks of planRetention deleted; 30 row(s) failed under it)
+- failed (base plan-no-checks): P10 a NaN maxAgeMs with rows that are not a list: planPurge answers MaxAgeInvalid
+  (scratch edit: the three checks of planRetention deleted; 30 row(s) failed under it)
+- failed (base plan-no-checks): P11 a NaN maxAgeMs with a row the codec did not make: planPurge answers MaxAgeInvalid
+  (scratch edit: the three checks of planRetention deleted; 30 row(s) failed under it)
+- failed (base plan-no-checks): P12 a maxAgeMs of -1 with rows that are not a list: planPurge answers MaxAgeInvalid
+  (scratch edit: the three checks of planRetention deleted; 30 row(s) failed under it)
+- failed (base plan-no-checks): P13 a maxAgeMs of -1 with a row the codec did not make: planPurge answers MaxAgeInvalid
+  (scratch edit: the three checks of planRetention deleted; 30 row(s) failed under it)
+- failed (base plan-no-checks): O2 both plans refuse the first fault of now, then maxAgeMs, then rows, or plan
+  (scratch edit: the three checks of planRetention deleted; 30 row(s) failed under it)
+- failed (base plan-no-checks): S8 both plans open no span, refused or admitted, called inside Effect.sync
+  (scratch edit: the three checks of planRetention deleted; 30 row(s) failed under it)
+- failed (base plan-no-checks): L4 each plan refused for now reads maxAgeMs zero times and no row
+  (scratch edit: the three checks of planRetention deleted; 30 row(s) failed under it)
+- failed (base plan-no-checks): L5 each plan refused for maxAgeMs reads no row
+  (scratch edit: the three checks of planRetention deleted; 30 row(s) failed under it)
+- failed (base plan-as-effect): O2 both plans refuse the first fault of now, then maxAgeMs, then rows, or plan
+  (scratch edit: planRetention returning its result inside Effect.succeed; 2 row(s) failed under it)
+- failed (base plan-as-effect): S8 both plans open no span, refused or admitted, called inside Effect.sync
+  (scratch edit: planRetention returning its result inside Effect.succeed; 2 row(s) failed under it)
+- failed (base verify-named): S6 the verify failing on a break opens only the sequence span
+  (scratch edit: the public verify given its own span name qadi.audit.verify; 4 row(s) failed under it)
+- failed (base verify-named): S7 the verify succeeding opens only the sequence span
+  (scratch edit: the public verify given its own span name qadi.audit.verify; 4 row(s) failed under it)
+- failed (base verify-named): SF3 the verify refused for rows that are not a list opens only the sequence span
+  (scratch edit: the public verify given its own span name qadi.audit.verify; 4 row(s) failed under it)
+- failed (base verify-named): SF4 the verify refused for a row the codec did not make opens only the sequence span
+  (scratch edit: the public verify given its own span name qadi.audit.verify; 4 row(s) failed under it)
+- failed (base writer-inline-facts): S4 the writer failing on a break opens its span and the sequence span
+  (scratch edit: the writer doing the row and break checks inline instead of yielding verifiedArchiveFacts; 4 row(s) failed under it)
+- failed (base writer-inline-facts): S5 the writer succeeding opens its span and the sequence span
+  (scratch edit: the writer doing the row and break checks inline instead of yielding verifiedArchiveFacts; 4 row(s) failed under it)
+- failed (base writer-inline-facts): SF1 the writer refused for rows that are not a list opens its span and the sequence span
+  (scratch edit: the writer doing the row and break checks inline instead of yielding verifiedArchiveFacts; 4 row(s) failed under it)
+- failed (base writer-inline-facts): SF2 the writer refused for a row the codec did not make opens its span and the sequence span
+  (scratch edit: the writer doing the row and break checks inline instead of yielding verifiedArchiveFacts; 4 row(s) failed under it)
+- failed (base facts-renamed): S4 the writer failing on a break opens its span and the sequence span
+  (scratch edit: the span of verifiedArchiveFacts renamed qadi.audit.facts; 9 row(s) failed under it)
+- failed (base facts-renamed): S5 the writer succeeding opens its span and the sequence span
+  (scratch edit: the span of verifiedArchiveFacts renamed qadi.audit.facts; 9 row(s) failed under it)
+- failed (base facts-renamed): S6 the verify failing on a break opens only the sequence span
+  (scratch edit: the span of verifiedArchiveFacts renamed qadi.audit.facts; 9 row(s) failed under it)
+- failed (base facts-renamed): S7 the verify succeeding opens only the sequence span
+  (scratch edit: the span of verifiedArchiveFacts renamed qadi.audit.facts; 9 row(s) failed under it)
+- failed (base facts-renamed): SF1 the writer refused for rows that are not a list opens its span and the sequence span
+  (scratch edit: the span of verifiedArchiveFacts renamed qadi.audit.facts; 9 row(s) failed under it)
+- failed (base facts-renamed): SF2 the writer refused for a row the codec did not make opens its span and the sequence span
+  (scratch edit: the span of verifiedArchiveFacts renamed qadi.audit.facts; 9 row(s) failed under it)
+- failed (base facts-renamed): SF3 the verify refused for rows that are not a list opens only the sequence span
+  (scratch edit: the span of verifiedArchiveFacts renamed qadi.audit.facts; 9 row(s) failed under it)
+- failed (base facts-renamed): SF4 the verify refused for a row the codec did not make opens only the sequence span
+  (scratch edit: the span of verifiedArchiveFacts renamed qadi.audit.facts; 9 row(s) failed under it)
+- failed (base facts-renamed): F5 any call opens exactly the sequence span
+  (scratch edit: the span of verifiedArchiveFacts renamed qadi.audit.facts; 9 row(s) failed under it)
