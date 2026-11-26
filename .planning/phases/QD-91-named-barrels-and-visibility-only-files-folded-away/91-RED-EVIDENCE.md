@@ -803,3 +803,52 @@ Each block below is written by `91-check.mjs variant`: the check ran inside a sc
 - exit: 1
 - failing text: packages/http/src/index.ts  [named-barrel] is a named barrel that NAMED_BARRELS does not list: add it there, or export `*` (AGENTS.md §9).
 - failing text: 1 house-style violation(s). See AGENTS.md.
+
+## fold-if-false
+- scratch: mut21 at 84727bb9ea
+- edit: the decoder's skip condition replaced by false
+- diff: 854cd9dfabbfe83cab31a7a1d5417750f2895edc5a743a7e9a4d056fd44b2829 (2 files, +40 -1)
+- run: vitest packages/core/test/PortSpanFold.mutation.test.ts
+- exit: 1
+- seen failing: decodeSpan: what a key without an attribute or a field reads as skips a key the struct names but declares no field for, and keeps the other fields
+- seen failing: decodeSpan: what a key without an attribute or a field reads as reads a key with no attribute as absent, even for a field that would accept undefined
+- failing text: TypeError: Cannot read properties of undefined (reading 'ast')
+- failing text: AssertionError: expected { loose: undefined } to deeply equal {}
+
+## fold-and
+- scratch: mut21 at 84727bb9ea
+- edit: the skip condition joined with && instead of ||
+- diff: c5abfcc74c8b28c92cc5076f1c8e055c4b5f6bd413d09890c28aa2ba5fedb745 (2 files, +40 -1)
+- run: vitest packages/core/test/PortSpanFold.mutation.test.ts
+- exit: 1
+- seen failing: decodeSpan: what a key without an attribute or a field reads as skips a key the struct names but declares no field for, and keeps the other fields
+- seen failing: decodeSpan: what a key without an attribute or a field reads as reads a key with no attribute as absent, even for a field that would accept undefined
+- failing text: TypeError: Cannot read properties of undefined (reading 'ast')
+- failing text: AssertionError: expected { loose: undefined } to deeply equal {}
+
+## fold-remote-literal
+- scratch: mut21 at 84727bb9ea
+- edit: the remote literal of the interpreter union replaced by an empty string
+- diff: 5323ecc64348a976cd22263aa5e3fa8b25f1733fe7396bb341adc02655acaad0 (2 files, +40 -1)
+- run: vitest packages/core/test/PortSpanFold.mutation.test.ts
+- exit: 1
+- seen failing: decodeSpan: a port question's interpreter reads each of the three interpreters as itself
+- failing text: AssertionError: expected {} to deeply equal { interpreter: 'remote' }
+
+## fold-raw-false
+- scratch: mut21 at 84727bb9ea
+- edit: the raw-attribute-absent operand replaced by false
+- diff: 56d70f740d1242f0c84ce2ddd8a445b2a6406f04b981cfe39f13dc0fb905ddce (2 files, +40 -1)
+- run: vitest packages/core/test/PortSpanFold.mutation.test.ts
+- exit: 1
+- seen failing: decodeSpan: what a key without an attribute or a field reads as reads a key with no attribute as absent, even for a field that would accept undefined
+- failing text: AssertionError: expected { loose: undefined } to deeply equal {}
+
+## fold-field-false
+- scratch: mut21 at 84727bb9ea
+- edit: the field-absent operand replaced by false
+- diff: 963f61c9efc6c77cc56b82b15b2b85967fc76af0a008df5ce4bd6366d83ba46d (2 files, +40 -1)
+- run: vitest packages/core/test/PortSpanFold.mutation.test.ts
+- exit: 1
+- seen failing: decodeSpan: what a key without an attribute or a field reads as skips a key the struct names but declares no field for, and keeps the other fields
+- failing text: TypeError: Cannot read properties of undefined (reading 'ast')
