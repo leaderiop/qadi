@@ -5,17 +5,17 @@ milestone_name: Arch Wave 16
 current_phase: 91
 current_phase_name: Named barrels, and visibility-only files folded away
 status: executing
-stopped_at: Completed 91-01-PLAN.md
-last_updated: "2026-11-26T16:26:56.770Z"
+stopped_at: Completed 91-02-PLAN.md
+last_updated: "2026-11-26T16:56:00.719Z"
 last_activity: 2026-11-26
 last_activity_desc: Phase 90 complete, transitioned to Phase 91
-state_head: 1aacd98a93edb0989edbc597a32de303c9ceb94e
+state_head: f6719e7ffe08df4b5a95bfac6e56cb2da1204134
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 88
-  completed_plans: 68
-  percent: 77
+  completed_plans: 69
+  percent: 78
 ---
 
 # Project State
@@ -30,11 +30,11 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-91 (Named barrels, and visibility-only files folded away) — EXECUTING
-Plan: 2 of 21
+Plan: 3 of 21
 Status: Ready to execute
 Last activity: 2026-11-26 — Phase 90 complete, transitioned to Phase 91
 
-Progress: [████████░░] 77%
+Progress: [████████░░] 78%
 
 
 ## Performance Metrics
@@ -724,6 +724,7 @@ Progress: [████████░░] 77%
 | Phase 90 P15 | 25min | 3 tasks | 5 files |
 | Phase 90 P16 | 20min | 3 tasks | 1 files |
 | Phase 91 P01 | 25min | 2 tasks | 3 files |
+| Phase 91 P02 | 180min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -1291,6 +1292,8 @@ Progress: [████████░░] 77%
 - [Phase 90]: Plan 15: the upgrade guide's hand-built description is an object literal typed PortDescription, since makePortDescription is package-private (decided autonomously)
 - [Phase 90]: Plan 90-16: the bench gate of record passed, so PFACT-03 is reported met and scoped-route route ran (decided autonomously).
 - [Phase 91]: Plan 01: each Stryker group reads the report its own config writes; a folded file's close is judged against the summed base side of its sources
+- [Phase 91]: 91-02: variant kind script accepts a phase-directory script or an existing repo-relative scripts/*.mjs file, so later plans' surface-diff variants use the same kind
+- [Phase 91]: 91-02: the coverage floor is seen failing through coverage close on a clone with the core tests deleted and committed; coverage base is seen failing separately on a committed source edit
 
 ### Pending Todos
 
@@ -1378,8 +1381,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-26T16:26:56.620Z
-Stopped at: Completed 91-01-PLAN.md
+Last session: 2026-11-26T16:56:00.464Z
+Stopped at: Completed 91-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
