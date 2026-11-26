@@ -29,3 +29,13 @@
 - node .planning/phases/QD-91-named-barrels-and-visibility-only-files-folded-away/91-check.mjs surface: exit 0: surface: equal to the base, 948 exports
 - pnpm spec:package: exit 0: package-install: 9 package(s) pack, resolve and authorize (528 runtime export(s))
 - node scripts/check-house-style.mjs: exit 0: house-style: 649 file(s) clean (3 declared switch(es), 82 type-test file(s))
+
+## refactor(91-12): fold the sequence check's public home into the archive facts
+- head: 8eadbc5516065318f80c26d5648c0c0f9c34aef1
+- madge files: 247
+- pnpm circular: exit 0: Processed 247 files (775ms) (68 warnings)
+- pnpm build: exit 0: > tsc -b tsconfig.build.json
+- pnpm typecheck: exit 0: > tsc -b tsconfig.json && tsc -p tsconfig.test.json
+- node .planning/phases/QD-91-named-barrels-and-visibility-only-files-folded-away/91-check.mjs surface: exit 0: surface: equal to the base, 948 exports
+- pnpm spec:package: exit 0: package-install: 9 package(s) pack, resolve and authorize (528 runtime export(s))
+- node scripts/check-house-style.mjs: exit 0: house-style: 648 file(s) clean (3 declared switch(es), 82 type-test file(s))

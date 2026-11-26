@@ -560,3 +560,12 @@ Each block below is written by `91-check.mjs variant`: the check ran inside a sc
 - failing text: AssertionError: expected [] to deeply equal [ Array(1) ]
 - failing text: AssertionError: expected [] to deeply equal [ Array(1) ]
 - failing text: AssertionError: expected [] to deeply equal [ 'x' ]
+
+## sequence-check-type-only
+- scratch: sequence-type-only at 8eadbc5516
+- edit: packages/audit/src/index.ts: the sequence check's names exported type-only from ./ArchiveFacts.ts
+- diff: dc03caaeb05d475734602c1905cae19ad77ce3f34ca15900f5456fea12a7d54a (1 files, +1 -1)
+- run: vitest packages/audit/test/surface.test.ts
+- exit: 1
+- seen failing: @qadi/audit's root exports exactly these runtime values
+- failing text: AssertionError: expected [ 'ArchiveInputInvalid', …(38) ] to deeply equal [ 'ArchiveInputInvalid', …(40) ]
