@@ -37,7 +37,8 @@
 //              the subject table of `91-01-PLAN.md` (read when the script starts, so a paraphrase fails before any run). A computed
 //              row expects the unmoved lines while its subject does not exist, and the moved line once exactly one commit since
 //              `phase_base` has that subject; a moved line before its subject exists, or an unmoved line after, is a finding.
-//              A subject that two commits carry is a finding of its own.
+//              A subject that two commits carry is a finding of its own. The code review's subjects (`REVIEW_SUBJECT`) are keyed
+//              the same way, but are not plan commits and so are not in that table; each must still be carried by one commit at most.
 // The line compared is the last stdout line when the run exits 0, and otherwise the first stderr line that is not blank, not
 // indented and does not begin `node:` (Node's own stack header); a `reasons` row compares every such stderr line.
 //
@@ -115,6 +116,15 @@ const SUBJECT = {
 };
 const USED_SUBJECTS = Object.values(SUBJECT);
 
+/** The code review's commit subjects that move a row: not plan commits, so not in the table of `91-01-PLAN.md`. */
+const REVIEW_SUBJECT = {
+  barrelHeaders: "fix(91-review): state the edits a public name needs in each barrel's header",
+};
+const USED_REVIEW_SUBJECTS = Object.values(REVIEW_SUBJECT);
+/** The reasons a review subject is carried by more than one commit. */
+const judgeReviewSubjects = (wanted, log) =>
+  wanted.filter((s) => log.filter((l) => l === s).length > 1).map((s) => `${log.filter((l) => l === s).length} commits carry the subject: ${s}`);
+
 /** The subject column of the table of `91-01-PLAN.md`: the text in the backticks of the second cell of each row. */
 const tableSubjects = (text) => text.split("\n").flatMap((line) => /^\| [0-9]{2} \| `([^`]+)`/.exec(line)?.slice(1) ?? []);
 
@@ -160,6 +170,8 @@ const PINNED_89 = [
   after("packages/audit/test/AdmissionOrder.characterisation.test.ts: the text between regions differs from its base text at line <n> (between header and import)", SUBJECT.auditFold),
   after("packages/audit/test/BatchReadOnce.test.ts: differs from the commit that added it at line <n>", SUBJECT.auditFold),
 ];
+/** What `88-pinned-check.mjs` prints once the review rewords the two devtools barrels' headers, which it holds at its base. */
+const PINNED_88 = ["packages/devtools/src/index.ts", "packages/devtools/src/react/index.ts"].map((path) => after(`${path}: differs from its base text at line <n>`, REVIEW_SUBJECT.barrelHeaders));
 /** What `90-pinned-check.mjs` prints once the decoder's import line moves. */
 const PINNED_90 = [after("packages/core/test/PortSpan.test.ts: differs from its base text at line <n>", SUBJECT.decoderFold)];
 
@@ -219,6 +231,7 @@ const CLOSE_90 = [
 /** The computations a `computed` row names: the row each expects of the subjects that exist. */
 const COMPUTED = {
   pinned86: (have) => rowOf({ exit: 0, line: "pinned: 59 files hold their base text, 1 of 1 born files held" }, PINNED_86, have),
+  pinned88: (have) => rowOf({ exit: 0, line: "pinned: 130 files hold their base text, 3 of 3 born files held, 5 of 5 declared edits applied" }, PINNED_88, have),
   pinned89: (have) => rowOf({ exit: 0, line: "pinned: 46 files hold their base text, 5 of 5 born files held, 5 of 5 declared edits applied" }, PINNED_89, have),
   pinned90: (have) => rowOf({ exit: 0, line: "90-pinned-check.mjs: pinned: 408 files hold their base text, 5 of 5 born files held, 5 of 5 declared edits applied" }, PINNED_90, have),
   guard: (have) => rowOf({ exit: 0, line: "scan-forbidden: no forbidden form in added lines" }, GUARD_85_TO_89, have),
@@ -326,7 +339,7 @@ const LEDGER = [
   { label: "88-check.mjs ledger-module", exit: 0, line: "ledger-module: the stop ledger is one React-free module holding stop and count, imported in src only by the box and the hook" },
   { label: "88-check.mjs records", exit: 0, line: "records: the pinned-by lists name tests that exist" },
   { label: "88-check.mjs records --close", computed: "close88" },
-  { label: "88-pinned-check.mjs", exit: 0, line: "pinned: 130 files hold their base text, 3 of 3 born files held, 5 of 5 declared edits applied" },
+  { label: "88-pinned-check.mjs", computed: "pinned88" },
   { label: "88-check.mjs --self-test", exit: 0, line: "self-test: 302 passed" },
   { label: "88-pinned-check.mjs --self-test", exit: 0, line: "self-test: 38 passed" },
   { label: "88-mutation.mjs --self-test", exit: 0, line: "self-test: 68 passed" },
@@ -525,7 +538,7 @@ const selfTest = () => {
     ["the runs number at least eighty, Phase 90's among them", RUNS.length >= 80 && RUNS.filter((r) => r.copy === "p90").length === 15 && RUNS.filter((r) => r.copy === "p90" && r.args.includes("--self-test")).length === 4],
     ["every row states its judge once: a line, a pattern, a reason set or a computation", LEDGER.every((r) => [r.line, r.pattern, r.reasons === true ? r.set : undefined, r.computed].filter((x) => x !== undefined).length === 1)],
     ["every computed row names a computation the script has, and every computation is named", LEDGER.filter((r) => r.computed !== undefined).every((r) => Object.hasOwn(COMPUTED, r.computed)) && Object.keys(COMPUTED).every((name) => LEDGER.some((r) => r.computed === name))],
-    ["the computed rows are the six scan-forbidden rows, the three pinned rows of 86, 89 and 90, and the four records --close rows", LEDGER.filter((r) => r.computed !== undefined).map((r) => r.label).join() === "85-check.mjs scan-forbidden,86-check.mjs scan-forbidden,86-pinned-check.mjs,87-check.mjs scan-forbidden,87-check.mjs records --close,88-check.mjs scan-forbidden,88-check.mjs records --close,89-check.mjs scan-forbidden,89-check.mjs records --close,89-pinned-check.mjs,90-check.mjs scan-forbidden,90-check.mjs records --close,90-pinned-check.mjs,90-pinned-check.mjs --all-applied"],
+    ["the computed rows are the six scan-forbidden rows, the pinned rows of 86, 88, 89 and 90, and the four records --close rows", LEDGER.filter((r) => r.computed !== undefined).map((r) => r.label).join() === "85-check.mjs scan-forbidden,86-check.mjs scan-forbidden,86-pinned-check.mjs,87-check.mjs scan-forbidden,87-check.mjs records --close,88-check.mjs scan-forbidden,88-check.mjs records --close,88-pinned-check.mjs,89-check.mjs scan-forbidden,89-check.mjs records --close,89-pinned-check.mjs,90-check.mjs scan-forbidden,90-check.mjs records --close,90-pinned-check.mjs,90-pinned-check.mjs --all-applied"],
     ["the provider judge is a fixed exit 0 row with no computed move", provider !== undefined && provider.exit === 0 && provider.computed === undefined && provider.line === "provider-forwards-only: the provider builds the owner once and only forwards to it" && every.every((s) => JSON.stringify(rowAt(provider.label, [s])) === JSON.stringify(provider))],
     ["every label is unique, and with no subject the rows at exit 1 are the two scan-ids rows, 87's pinned row, the five scan-forbidden rows of 85 to 89 and the two closes of 88 and 89", new Set(LEDGER.map((r) => r.label)).size === LEDGER.length && ledger.filter((r) => r.exit === 1).map((r) => r.label).join() === "85-check.mjs scan-ids,85-check.mjs scan-forbidden,86-check.mjs scan-ids,86-check.mjs scan-forbidden,87-check.mjs scan-forbidden,87-pinned-check.mjs,88-check.mjs scan-forbidden,88-check.mjs records --close,89-check.mjs scan-forbidden,89-check.mjs records --close"],
     ["the rows read in the order RUNS lists in every state, so two runs on one tree print the same text", [none, [SUBJECT.surface], every].every((have) => at(have).map((r) => r.label).join() === RUNS.map((r) => r.label).join())],
@@ -539,6 +552,12 @@ const selfTest = () => {
     ["86's pinned row run before its subject, judged after it, fails in both directions, and the reverse fails too", about(judgedAt(none, [SUBJECT.gateFold]), label).length === 1 && about(judgedAt([SUBJECT.gateFold], none), label).length === 1],
     ["86's pinned row passes in each of its states", [none, [SUBJECT.gateFold], [SUBJECT.hydrationFold], [SUBJECT.lease], [SUBJECT.sweep], every].every((have) => about(judgedAt(have, have), label).length === 0)],
     ["86's pinned row, with the gate subject, fails when a gate file is missing from the run, naming it", about(judgeLedger(at([SUBJECT.gateFold]).map((r) => (r.label === label ? { ...toRun(r), set: toRun(r).set.slice(1) } : toRun(r))), at([SUBJECT.gateFold])), label).join() === `${label}: missing reason "${rowAt(label, [SUBJECT.gateFold]).set[0]}"`],
+    // 88's pinned row, which the review's barrel-header subject moves.
+    ["the barrel-header review subject moves 88's pinned row, and only it, to the two devtools barrel lines", moved(REVIEW_SUBJECT.barrelHeaders).join() === "88-pinned-check.mjs" && setAt("88-pinned-check.mjs", [REVIEW_SUBJECT.barrelHeaders]) === ["packages/devtools/src/index.ts: differs from its base text at line <n>", "packages/devtools/src/react/index.ts: differs from its base text at line <n>"].sort().join("|")],
+    ["with no subject 88's pinned row is its measured clean line", exitAt("88-pinned-check.mjs", none) === 0 && rowAt("88-pinned-check.mjs", none).line === "pinned: 130 files hold their base text, 3 of 3 born files held, 5 of 5 declared edits applied" && every.every((s) => exitAt("88-pinned-check.mjs", [s]) === 0)],
+    ["88's pinned row passes in each of its states, and run after the review subject, judged before it, fails, and the reverse fails too", [none, [REVIEW_SUBJECT.barrelHeaders]].every((have) => about(judgedAt(have, have), "88-pinned-check.mjs").length === 0) && about(judgedAt([REVIEW_SUBJECT.barrelHeaders], none), "88-pinned-check.mjs").length === 1 && about(judgedAt(none, [REVIEW_SUBJECT.barrelHeaders]), "88-pinned-check.mjs").length === 1],
+    ["88's pinned row, after the review subject, fails when one barrel line is missing from the run", about(judgeLedger(at([REVIEW_SUBJECT.barrelHeaders]).map((r) => (r.label === "88-pinned-check.mjs" ? { ...toRun(r), set: toRun(r).set.slice(1) } : toRun(r))), at([REVIEW_SUBJECT.barrelHeaders])), "88-pinned-check.mjs").length >= 1],
+    ["a review subject is no plan subject, one commit carrying it passes and two fail, naming the count", USED_REVIEW_SUBJECTS.every((s) => s.startsWith("fix(91-review): ") && !USED_SUBJECTS.includes(s)) && judgeReviewSubjects(USED_REVIEW_SUBJECTS, [REVIEW_SUBJECT.barrelHeaders]).length === 0 && judgeReviewSubjects(USED_REVIEW_SUBJECTS, [REVIEW_SUBJECT.barrelHeaders, "x", REVIEW_SUBJECT.barrelHeaders]).join() === `2 commits carry the subject: ${REVIEW_SUBJECT.barrelHeaders}`],
     // 89's pinned row.
     ["the audit barrel subject moves 89's pinned row to the barrel line alone", setAt("89-pinned-check.mjs", [SUBJECT.auditBarrel]) === "packages/audit/src/index.ts: differs from its base text at line <n>"],
     ["the audit fold subject moves it to seven lines, the barrel line among them once, with the barrel subject as well", rowAt("89-pinned-check.mjs", [SUBJECT.auditFold]).set.length === 7 && rowAt("89-pinned-check.mjs", [SUBJECT.auditBarrel, SUBJECT.auditFold]).set.length === 7 && rowAt("89-pinned-check.mjs", [SUBJECT.auditFold]).set.includes("packages/audit/src/SequenceIntegrity.ts was deleted")],
@@ -624,7 +643,7 @@ const run = () => {
   const table = tableSubjects(readFileSync(join(here, "91-01-PLAN.md"), "utf8"));
   const base = JSON.parse(readFileSync(join(here, "91-mutation-base.json"), "utf8")).phase_base;
   const subjects = execFileSync("git", ["log", "--format=%s", `${base}..HEAD`], { cwd: root, encoding: "utf8", maxBuffer: 1 << 26, stdio: ["ignore", "pipe", "ignore"] }).split("\n").filter((s) => s !== "");
-  const early = judgeSubjects(USED_SUBJECTS, table, subjects);
+  const early = [...judgeSubjects(USED_SUBJECTS, table, subjects), ...judgeReviewSubjects(USED_REVIEW_SUBJECTS, subjects)];
   if (early.length > 0) fail(early);
   makeCopies(root);
   const runs = runAll(root, (r) => console.log(`${r.label}: exit ${r.status}: ${r.line}`));
