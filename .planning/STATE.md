@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 89
 current_phase_name: One admission step for a host's audit batch
 status: executing
-stopped_at: Completed 89-01-PLAN.md
-last_updated: "2026-11-26T02:41:57.899Z"
+stopped_at: Completed 89-02-PLAN.md
+last_updated: "2026-11-26T02:54:59.997Z"
 last_activity: 2026-11-26
 last_activity_desc: Phase 88 complete, transitioned to Phase 89
-state_head: 940583c3fafcdf9aea058c48ab4b18153fbcdeac
+state_head: c8c4a2ec0a5a6dbc47df8317a83a9fb3634cedf9
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 51
-  completed_plans: 41
+  completed_plans: 42
   percent: 57
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: 89 (One admission step for a host's audit batch) — EXECUTING
-Plan: 2 of 11
+Plan: 3 of 11
 Status: Ready to execute
 Last activity: 2026-11-26 — Phase 88 complete, transitioned to Phase 89
 
@@ -695,6 +695,7 @@ Progress: [██████░░░░] 57%
 | Phase 88 P08 | 12 min | 2 tasks | 4 files |
 | Phase QD-88 P10 | 15 min | 2 tasks | 1 files |
 | Phase 89 P01 | 17 min | 3 tasks | 5 files |
+| Phase 89 P02 | about 20min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -1235,6 +1236,7 @@ Progress: [██████░░░░] 57%
 - [Phase QD-88]: 88-10: pnpm check:pr green on head b1f6616f run alone (17 of 18 steps), every phase check passes, nothing released
 - [Phase 89]: 89-01: the scorer's judgeNew has no killers clause and reads a Timeout from the file's own count; SequenceIntegrity.ts, which holds no mutant, is the one file a base report may omit and is recorded with zero counts — a bailed run names one killer per mutant so the clause cannot be read, and Stryker lists no file that holds no mutant
 - [Phase 89]: 89-01: the three property rows derive the first fault from a stated order; every other characterisation row writes its expected refusal or span list literally — a table computed from an order list would agree with whatever order the code under test has
+- [Phase 89]: 89-02: records requires the heading of BEH-QD-253, 254 and 722 and a pinned-by paragraph only for 722 and BEH-QD-781..785 (the base has none for 253 or 254); the check derives its one stageable phase directory from its own location
 
 ### Pending Todos
 
@@ -1322,8 +1324,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-26T02:41:57.779Z
-Stopped at: Completed 89-01-PLAN.md
+Last session: 2026-11-26T02:54:59.883Z
+Stopped at: Completed 89-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
