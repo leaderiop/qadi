@@ -1,0 +1,224 @@
+{
+ "phase_base": "69e5247d205949df7396dfacb0a29bc96a02f321",
+ "head": "98d4c1f41b44d5b8526526ba934cf7689ddab84f",
+ "commands": {
+  "core": "pnpm exec vitest run packages/core/test --coverage.enabled --coverage.include=packages/core/src/** --coverage.exclude=packages/core/src/index.ts --coverage.reporter=json-summary --coverage.reportsDirectory=/private/var/folders/vn/44p0pxgs4z98v7cl11l4_r4c0000gp/T/qd91/coverage-close-core",
+  "react": "pnpm exec vitest run packages/react/test --coverage.enabled --coverage.include=packages/react/src/** --coverage.exclude=packages/react/src/index.ts --coverage.reporter=json-summary --coverage.reportsDirectory=/private/var/folders/vn/44p0pxgs4z98v7cl11l4_r4c0000gp/T/qd91/coverage-close-react",
+  "audit": "pnpm exec vitest run packages/audit/test --coverage.enabled --coverage.include=packages/audit/src/** --coverage.exclude=packages/audit/src/index.ts --coverage.reporter=json-summary --coverage.reportsDirectory=/private/var/folders/vn/44p0pxgs4z98v7cl11l4_r4c0000gp/T/qd91/coverage-close-audit"
+ },
+ "packages": {
+  "core": {
+   "files": 92,
+   "totals": {
+    "lines": 99.89,
+    "functions": 99.78,
+    "branches": 98.4,
+    "statements": 99.64
+   },
+   "touched": {
+    "packages/core/src/PortSpanEncode.ts": {
+     "lines": {
+      "covered": 39,
+      "total": 39
+     },
+     "functions": {
+      "covered": 10,
+      "total": 10
+     },
+     "branches": {
+      "covered": 10,
+      "total": 10
+     },
+     "statements": {
+      "covered": 42,
+      "total": 42
+     }
+    },
+    "packages/core/src/PortSpan.ts": {
+     "lines": {
+      "covered": 1,
+      "total": 1
+     },
+     "functions": {
+      "covered": 0,
+      "total": 0
+     },
+     "branches": {
+      "covered": 0,
+      "total": 0
+     },
+     "statements": {
+      "covered": 1,
+      "total": 1
+     }
+    }
+   }
+  },
+  "react": {
+   "files": 19,
+   "totals": {
+    "lines": 99.5,
+    "functions": 98.68,
+    "branches": 99.04,
+    "statements": 99.54
+   },
+   "touched": {
+    "packages/react/src/GateWriter.ts": {
+     "lines": {
+      "covered": 58,
+      "total": 58
+     },
+     "functions": {
+      "covered": 14,
+      "total": 14
+     },
+     "branches": {
+      "covered": 26,
+      "total": 26
+     },
+     "statements": {
+      "covered": 61,
+      "total": 61
+     }
+    },
+    "packages/react/src/HydrationEngine.ts": {
+     "lines": {
+      "covered": 100,
+      "total": 100
+     },
+     "functions": {
+      "covered": 29,
+      "total": 29
+     },
+     "branches": {
+      "covered": 37,
+      "total": 37
+     },
+     "statements": {
+      "covered": 108,
+      "total": 108
+     }
+    },
+    "packages/react/src/QadiAtoms.ts": {
+     "lines": {
+      "covered": 29,
+      "total": 29
+     },
+     "functions": {
+      "covered": 11,
+      "total": 11
+     },
+     "branches": {
+      "covered": 8,
+      "total": 8
+     },
+     "statements": {
+      "covered": 31,
+      "total": 31
+     }
+    },
+    "packages/react/src/QadiProvider.tsx": {
+     "lines": {
+      "covered": 35,
+      "total": 35
+     },
+     "functions": {
+      "covered": 12,
+      "total": 12
+     },
+     "branches": {
+      "covered": 16,
+      "total": 16
+     },
+     "statements": {
+      "covered": 39,
+      "total": 39
+     }
+    },
+    "packages/react/src/DevtoolsFeed.ts": {
+     "lines": {
+      "covered": 12,
+      "total": 12
+     },
+     "functions": {
+      "covered": 5,
+      "total": 5
+     },
+     "branches": {
+      "covered": 0,
+      "total": 0
+     },
+     "statements": {
+      "covered": 14,
+      "total": 14
+     }
+    },
+    "packages/react/src/hooks.ts": {
+     "lines": {
+      "covered": 30,
+      "total": 30
+     },
+     "functions": {
+      "covered": 12,
+      "total": 12
+     },
+     "branches": {
+      "covered": 2,
+      "total": 2
+     },
+     "statements": {
+      "covered": 32,
+      "total": 32
+     }
+    },
+    "packages/react/src/RegistryLease.ts": {
+     "lines": {
+      "covered": 21,
+      "total": 21
+     },
+     "functions": {
+      "covered": 12,
+      "total": 12
+     },
+     "branches": {
+      "covered": 1,
+      "total": 1
+     },
+     "statements": {
+      "covered": 21,
+      "total": 21
+     }
+    }
+   }
+  },
+  "audit": {
+   "files": 23,
+   "totals": {
+    "lines": 100,
+    "functions": 100,
+    "branches": 100,
+    "statements": 100
+   },
+   "touched": {
+    "packages/audit/src/ArchiveFacts.ts": {
+     "lines": {
+      "covered": 28,
+      "total": 28
+     },
+     "functions": {
+      "covered": 7,
+      "total": 7
+     },
+     "branches": {
+      "covered": 19,
+      "total": 19
+     },
+     "statements": {
+      "covered": 29,
+      "total": 29
+     }
+    }
+   }
+  }
+ }
+}
