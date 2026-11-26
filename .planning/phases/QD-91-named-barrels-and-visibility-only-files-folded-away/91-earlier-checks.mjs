@@ -39,6 +39,7 @@
 //              `phase_base` has that subject; a moved line before its subject exists, or an unmoved line after, is a finding.
 //              A subject that two commits carry is a finding of its own. The code review's subjects (`REVIEW_SUBJECT`) are keyed
 //              the same way, but are not plan commits and so are not in that table; each must still be carried by one commit at most.
+//              The barrel-header subject moves Phase 88's pinned row, and the devtools changeset subject each counting close.
 // The line compared is the last stdout line when the run exits 0, and otherwise the first stderr line that is not blank, not
 // indented and does not begin `node:` (Node's own stack header); a `reasons` row compares every such stderr line.
 //
@@ -119,6 +120,7 @@ const USED_SUBJECTS = Object.values(SUBJECT);
 /** The code review's commit subjects that move a row: not plan commits, so not in the table of `91-01-PLAN.md`. */
 const REVIEW_SUBJECT = {
   barrelHeaders: "fix(91-review): state the edits a public name needs in each barrel's header",
+  devtoolsChangeset: "fix(91-review): add the devtools patch changeset for its reworded barrel headers",
 };
 const USED_REVIEW_SUBJECTS = Object.values(REVIEW_SUBJECT);
 /** The reasons a review subject is carried by more than one commit. */
@@ -189,12 +191,16 @@ const TRACEABILITY = "spec/traceability.md";
 const INVARIANTS = "spec/invariants.md";
 /** What each changeset subject adds, and how a close words a count that is not the one it wants. */
 const CHANGESETS_ADDED = 3;
+/** What the review's devtools changeset adds. */
+const REVIEW_CHANGESETS_ADDED = 1;
 const COUNT = (n, wanted) => `${n} changesets are added since phase_base, not ${wanted}`;
-/** A count line: the base's (none when it is what the close wants) until the changeset subject exists, then the base's plus what it adds. */
-const counted = (at, wanted) => [
-  ...(at === wanted ? [] : [until(COUNT(at, wanted === 1 ? "one" : wanted), SUBJECT.changesets)]),
-  ...(at + CHANGESETS_ADDED === wanted ? [] : [after(COUNT(at + CHANGESETS_ADDED, wanted === 1 ? "one" : wanted), SUBJECT.changesets)]),
-];
+/** How many changesets the subjects that exist add. */
+const addedBy = (have) => (have.includes(SUBJECT.changesets) ? CHANGESETS_ADDED : 0) + (have.includes(REVIEW_SUBJECT.devtoolsChangeset) ? REVIEW_CHANGESETS_ADDED : 0);
+/** A count line: the base's count plus what the subjects that exist add, absent when that is the count the close wants. */
+const counted = (at, wanted) =>
+  [0, REVIEW_CHANGESETS_ADDED, CHANGESETS_ADDED, CHANGESETS_ADDED + REVIEW_CHANGESETS_ADDED]
+    .filter((k) => at + k !== wanted)
+    .map((k) => ({ line: COUNT(at + k, wanted === 1 ? "one" : wanted), present: (have) => addedBy(have) === k }));
 const CLEAN_CLOSE = { exit: 0, line: "records: the pinned-by lists name tests that exist, and every reserved record is written" };
 /** `88-check.mjs records --close`: Phase 90's edits already put each register one above and the count at five; this phase bumps each once more. */
 const CLOSE_88 = [
@@ -226,6 +232,7 @@ const CLOSE_90 = [
   ...bumped(REVISION("spec/overview.md", "1.148", "1.147"), SUBJECT.overview),
   ...counted(3, 3),
   ...["audit", "core", "react"].map((package_) => after(`.changeset/${package_}-named-barrel.md is not one of ${EXPECTED_90}`, SUBJECT.changesets)),
+  after(`.changeset/devtools-named-barrel-headers.md is not one of ${EXPECTED_90}`, REVIEW_SUBJECT.devtoolsChangeset),
 ];
 
 /** The computations a `computed` row names: the row each expects of the subjects that exist. */
@@ -558,6 +565,9 @@ const selfTest = () => {
     ["88's pinned row passes in each of its states, and run after the review subject, judged before it, fails, and the reverse fails too", [none, [REVIEW_SUBJECT.barrelHeaders]].every((have) => about(judgedAt(have, have), "88-pinned-check.mjs").length === 0) && about(judgedAt([REVIEW_SUBJECT.barrelHeaders], none), "88-pinned-check.mjs").length === 1 && about(judgedAt(none, [REVIEW_SUBJECT.barrelHeaders]), "88-pinned-check.mjs").length === 1],
     ["88's pinned row, after the review subject, fails when one barrel line is missing from the run", about(judgeLedger(at([REVIEW_SUBJECT.barrelHeaders]).map((r) => (r.label === "88-pinned-check.mjs" ? { ...toRun(r), set: toRun(r).set.slice(1) } : toRun(r))), at([REVIEW_SUBJECT.barrelHeaders])), "88-pinned-check.mjs").length >= 1],
     ["a review subject is no plan subject, one commit carrying it passes and two fail, naming the count", USED_REVIEW_SUBJECTS.every((s) => s.startsWith("fix(91-review): ") && !USED_SUBJECTS.includes(s)) && judgeReviewSubjects(USED_REVIEW_SUBJECTS, [REVIEW_SUBJECT.barrelHeaders]).length === 0 && judgeReviewSubjects(USED_REVIEW_SUBJECTS, [REVIEW_SUBJECT.barrelHeaders, "x", REVIEW_SUBJECT.barrelHeaders]).join() === `2 commits carry the subject: ${REVIEW_SUBJECT.barrelHeaders}`],
+    ["the devtools changeset subject moves the three counting closes by one, and 90's by its file line, and no other row", moved(REVIEW_SUBJECT.devtoolsChangeset).join() === "88-check.mjs records --close,89-check.mjs records --close,90-check.mjs records --close" && setAt("88-check.mjs records --close", [...every, REVIEW_SUBJECT.devtoolsChangeset]).includes(COUNT(9, "one")) && setAt("89-check.mjs records --close", [...every, REVIEW_SUBJECT.devtoolsChangeset]).includes(COUNT(8, "one")) && setAt("90-check.mjs records --close", [...every, REVIEW_SUBJECT.devtoolsChangeset]).includes(COUNT(7, 3)) && setAt("90-check.mjs records --close", [...every, REVIEW_SUBJECT.devtoolsChangeset]).includes(".changeset/devtools-named-barrel-headers.md is not one of")],
+    ["with every subject and the devtools changeset, each close counts once, at the base's count plus four", ["88", "89", "90"].every((n) => rowAt(`${n}-check.mjs records --close`, [...every, REVIEW_SUBJECT.devtoolsChangeset]).set.filter((l) => l.includes(" changesets are added since phase_base")).length === 1)],
+    ["a close run before the devtools changeset, judged after it, fails, and the reverse fails too", about(judgedAt(every, [...every, REVIEW_SUBJECT.devtoolsChangeset]), "89-check.mjs records --close").length >= 1 && about(judgedAt([...every, REVIEW_SUBJECT.devtoolsChangeset], every), "89-check.mjs records --close").length >= 1 && about(judgedAt([...every, REVIEW_SUBJECT.devtoolsChangeset], [...every, REVIEW_SUBJECT.devtoolsChangeset]), "89-check.mjs records --close").length === 0],
     // 89's pinned row.
     ["the audit barrel subject moves 89's pinned row to the barrel line alone", setAt("89-pinned-check.mjs", [SUBJECT.auditBarrel]) === "packages/audit/src/index.ts: differs from its base text at line <n>"],
     ["the audit fold subject moves it to seven lines, the barrel line among them once, with the barrel subject as well", rowAt("89-pinned-check.mjs", [SUBJECT.auditFold]).set.length === 7 && rowAt("89-pinned-check.mjs", [SUBJECT.auditBarrel, SUBJECT.auditFold]).set.length === 7 && rowAt("89-pinned-check.mjs", [SUBJECT.auditFold]).set.includes("packages/audit/src/SequenceIntegrity.ts was deleted")],
