@@ -5,17 +5,17 @@ milestone_name: Arch Wave 16
 current_phase: 91
 current_phase_name: Named barrels, and visibility-only files folded away
 status: executing
-stopped_at: Phase 90 complete, ready to plan Phase 91
-last_updated: "2026-11-26T16:15:31.160Z"
+stopped_at: Completed 91-01-PLAN.md
+last_updated: "2026-11-26T16:26:56.770Z"
 last_activity: 2026-11-26
 last_activity_desc: Phase 90 complete, transitioned to Phase 91
-state_head: e89f89ce8a30fb56ddd9d92baef673d7ee8a2440
+state_head: 1aacd98a93edb0989edbc597a32de303c9ceb94e
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 88
-  completed_plans: 67
-  percent: 76
+  completed_plans: 68
+  percent: 77
 ---
 
 # Project State
@@ -30,11 +30,11 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-91 (Named barrels, and visibility-only files folded away) — EXECUTING
-Plan: 1 of 21
-Status: Executing Phase 91
+Plan: 2 of 21
+Status: Ready to execute
 Last activity: 2026-11-26 — Phase 90 complete, transitioned to Phase 91
 
-Progress: [████████░░] 76%
+Progress: [████████░░] 77%
 
 
 ## Performance Metrics
@@ -723,6 +723,7 @@ Progress: [████████░░] 76%
 | Phase 90 P14 | 70min | 3 tasks | 9 files |
 | Phase 90 P15 | 25min | 3 tasks | 5 files |
 | Phase 90 P16 | 20min | 3 tasks | 1 files |
+| Phase 91 P01 | 25min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -1289,6 +1290,7 @@ Progress: [████████░░] 76%
 - [Phase 90]: Plan 14: the audit count is tests removed 2 (two test blocks whose title is gone, plus one assertion row); the bench gate is recorded as the bench record states it (5% per workload, +2% geometric mean), decided autonomously
 - [Phase 90]: Plan 15: the upgrade guide's hand-built description is an object literal typed PortDescription, since makePortDescription is package-private (decided autonomously)
 - [Phase 90]: Plan 90-16: the bench gate of record passed, so PFACT-03 is reported met and scoped-route route ran (decided autonomously).
+- [Phase 91]: Plan 01: each Stryker group reads the report its own config writes; a folded file's close is judged against the summed base side of its sources
 
 ### Pending Todos
 
@@ -1376,8 +1378,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-26T10:11:46.798Z
-Stopped at: Phase 90 complete, ready to plan Phase 91
+Last session: 2026-11-26T16:26:56.620Z
+Stopped at: Completed 91-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
