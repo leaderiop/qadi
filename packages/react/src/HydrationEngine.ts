@@ -20,8 +20,12 @@
  * **carries no trace** by default, and every entry it cannot verify is
  * **dropped** rather than trusted.
  *
- * Package-private except the names the barrel names here: the two entry points
- * and the payload and option types (AGENTS.md §9). A consumer that could reach a
+ * The barrel names an exact list of this module's names, and those are public:
+ * the two entry points and the payload and option types, which it names here, and
+ * `InitialValues`, `HydrationMismatch` and `HydrationMismatchReporter`, which it
+ * names through the re-exports of `QadiProvider.tsx` and `QadiAtoms.ts` (the last
+ * two are declared in `DeveloperSignals.ts` and re-exported here). Every name it
+ * does not list is package-private (AGENTS.md §9). A consumer that could reach a
  * seed slot could write an authorization decision straight into the registry,
  * bypassing the subject check and the evaluator
  * ([ADR-QD-039](../../../spec/decisions/039-a-seed-is-not-an-authority.md)). The

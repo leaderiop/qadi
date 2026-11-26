@@ -1227,8 +1227,13 @@ resolution with a written-out table and so detects a row changed without review.
 ```
 REQUIREMENT: `dehydrateDecisions` and `hydrateDecisions` MUST be declared in
              `HydrationEngine.ts`, beside the codec they call, and the barrel MUST
-             name them there. Every other name of the module MUST stay
-             package-private.
+             name them there. The barrel MUST name an exact list of the module's
+             names, and the names it lists are public: the two entry points,
+             `DehydrateOptions`, `DehydratedDecisions`, `DehydratedEntry` and
+             `HydrateOptions`, named there, and `InitialValues`, `HydrationMismatch`
+             and `HydrationMismatchReporter`, named through the re-exports of
+             `QadiProvider.tsx` and `QadiAtoms.ts`. Every name of the module the
+             barrel does not list MUST stay package-private.
 
 REQUIREMENT: `hydrateDecisions` MUST accept any value with the `hydrate` capability
              of `QadiAtoms`: an atom set, or a copy of one that forwards `hydrate`.

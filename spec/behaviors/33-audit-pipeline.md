@@ -1585,8 +1585,11 @@ refused value, and a policy that is not an object refused as `MaxAgeInvalid` wit
 ```
 REQUIREMENT: `verifySequenceIntegrity` and `SequenceIntegrityError` MUST be declared in
              `ArchiveFacts.ts`, with the archive facts that compute the same check,
-             and MUST keep their names. Every other name of the module MUST stay
-             package-private.
+             and MUST keep their names. The barrel MUST name an exact list of the
+             module's names, and the names it lists are public: those two, named
+             there, and `ArchiveInputInvalid` and `ArchiveInputRefusal`, named
+             through `AuditArchive.ts`'s re-export. Every name of the module the
+             barrel does not list MUST stay package-private.
 
 REQUIREMENT: Their documentation MUST say that the check is gap-and-duplicate
              detection and is not tamper-evident: it catches accidental loss or

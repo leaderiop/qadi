@@ -11,10 +11,12 @@
  * this package wrote, which blocks a purge, or accept ones it did not, which
  * weakens ARCH-38's evidence.
  *
- * The module is package-private (ADR-QD-099) except `verifySequenceIntegrity` and
- * `SequenceIntegrityError`, which the barrel names here. The named barrel names a name at the
- * module that declares it (ADR-QD-204), so those two live with the facts that compute the check
- * and every other name here stays unreachable from outside the package. The check is
+ * The barrel names an exact list of this module's names, and those are public:
+ * `verifySequenceIntegrity` and `SequenceIntegrityError`, which it names here, and
+ * `ArchiveInputInvalid` and `ArchiveInputRefusal`, which it names through `AuditArchive.ts`'s
+ * re-export. Every name it does not list is package-private (ADR-QD-099). The named barrel names
+ * a folded name at the module that declares it (ADR-QD-204), so the first two live with the facts
+ * that compute the check. The check is
  * gap-and-duplicate detection, not tamper-evidence (see {@link verifySequenceIntegrity}'s doc);
  * the package README, `spec/urs.md`, `spec/models/17-purpose.md` and ADR-QD-009 cite that
  * disclaimer (ADR-QD-110).

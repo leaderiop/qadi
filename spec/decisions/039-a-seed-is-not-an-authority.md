@@ -148,6 +148,8 @@ deletes the feature ADR-QD-028 exists for, and does not fix the discard.
   together and keyed together, so nothing a consumer touches changes shape.
 
 > **Note (2026-11-26, ADR-QD-204, CCR-QD-483).** `hydrateDecisions` is declared in
-> `HydrationEngine.ts`, a part-public module whose other names are package-private, and takes any
-> value with a `hydrate` method of `QadiAtoms`'s signature. The capability to seed is still a closure
+> `HydrationEngine.ts`, a part-public module: the barrel names an exact list of its names, those are public
+> (the two entry points and the payload and option types, and `InitialValues`, `HydrationMismatch` and
+> `HydrationMismatchReporter` through the re-exports of `QadiProvider.tsx` and `QadiAtoms.ts`), and every name
+> it does not list is package-private. It takes any value with a `hydrate` method of `QadiAtoms`'s signature. The capability to seed is still a closure
 > the atom set owns, and a seed is still not an authority ([ADR-QD-204](204-named-barrels-and-visibility-only-files-folded-away.md)).

@@ -187,9 +187,11 @@ its version and the seed types are unchanged.
 **A seed's fields are the wire's, stated once.** The Decision derived the payload entry from `DecisionWire`, but the seed wrote its fields out and `rebuild` copied them by name, so a wire field reached the payload and was dropped on the client. Each verdict's fields are now one `Schema.Struct` in `SeededDecision.ts`; the classes stay `Data.TaggedClass`es with their own `_tag`, typed by those fields plus `subjectId`; the entry is the same fields under the wire's tag and `rebuild` is a spread. A seed is still its own type, and the payload's version and bytes do not change. An allow's `visibleFields` is absent rather than `undefined` when the server sent none (**Breaking** for `@qadi/react`). See [ADR-QD-157](./157-a-seeds-fields-are-the-wires-stated-once.md).
 
 > **Note (2026-11-26, ADR-QD-204, CCR-QD-483).** `Hydration.ts` is folded into `HydrationEngine.ts`, a
-> part-public module whose other names are package-private: it owns the payload codec, the seed atoms and the
-> precedence, and the barrel names `dehydrateDecisions`, `hydrateDecisions` and the payload's option and entry types
-> from it. Where this record says `Hydration.ts` is the public interface, read `HydrationEngine.ts`
+> part-public module: it owns the payload codec and the two entry points, and the seed slot and the precedence stay
+> `SeededQuestion.ts`'s (ADR-QD-155). The barrel names an exact list of its names, and those are public:
+> `dehydrateDecisions`, `hydrateDecisions` and the payload's option and entry types, named there, and
+> `InitialValues`, `HydrationMismatch` and `HydrationMismatchReporter`, named through the re-exports of
+> `QadiProvider.tsx` and `QadiAtoms.ts`. Every name it does not list is package-private. Where this record says `Hydration.ts` is the public interface, read `HydrationEngine.ts`
 > ([ADR-QD-204](./204-named-barrels-and-visibility-only-files-folded-away.md)).
 
 ---
