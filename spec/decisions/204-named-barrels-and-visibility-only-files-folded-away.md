@@ -156,10 +156,11 @@ cannot hold for it.
 `node scripts/check-package-install.mjs` gains check 3c, a pure function over every packed `.d.ts` of every public package
 (`scripts/lib/declaration-escape.mjs`). It strips comments first, because 46 built declarations carry `../../` in doc
 comments, keeps `/// <reference` lines, collects each module specifier (`import("…")`, `from "…"`, a side-effect import,
-`require("…")`, a reference path), and refuses a specifier holding a `/src/` segment and a relative or absolute one that
-resolves outside its package root. It runs nine planted texts on every run, so a check that stops matching fails instead of
-passing with nothing to find, and it prints `declaration escape check: <n> packed .d.ts file(s), none names a path outside its
-package or into src/`. It was seen failing on its self-check and on a real `import("../../core/src/Decision.ts").Trace` in
+`require("…")`, a reference path), and refuses a specifier holding a `/src/` segment, a relative or absolute one that
+resolves outside its package root, and a bare `@qadi/<pkg>/<subpath>` that is not an entry point the installed manifests'
+`exports` maps declare (read from the manifests, never listed). It runs thirteen planted texts on every run, so a check that
+stops matching fails instead of passing with nothing to find, and it prints `declaration escape check: <n> packed .d.ts
+file(s), none names a path outside its package, into src/ or to an undeclared entry point`. It was seen failing on its self-check and on a real `import("../../core/src/Decision.ts").Trace` in
 react's built declaration. It landed before any barrel was rewritten, because a missed type is where that import appears.
 
 ## What enforces it

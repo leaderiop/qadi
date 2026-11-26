@@ -23,15 +23,17 @@
  *   3. runtime  — each entry point imports through that map and has exports
  *   3b. closed  — no wildcard subpath; every declared subpath imports and every
  *                 other `lib/` module is refused with ERR_PACKAGE_PATH_NOT_EXPORTED
- *   3c. escape  — no packed .d.ts names a path outside its package or into src/
+ *   3c. escape  — no packed .d.ts names a path outside its package, into src/,
+ *                 or to a @qadi subpath no packed manifest declares
  *   4. consumer — a TypeScript consumer type-checks against the shipped
  *                 `.d.ts` and then authorizes correctly when run
  *
  * Check 3c reads the packed declarations, not the sources: a dependent's inferred type can name a path
  * (`import("../../core/src/Decision.ts").Trace`) that installs and then resolves into whatever sits beside the
  * package. It strips comments before it looks, because built declarations carry `../../` in doc comments, and keeps
- * `/// <reference>` lines, which are directives; the rule and its planted self-check are in
- * `scripts/lib/declaration-escape.mjs`.
+ * `/// <reference>` lines, which are directives. It also refuses a bare `@qadi/<pkg>/<subpath>` that no installed
+ * manifest's `exports` map declares, which a consumer could not reach either. The rule and its planted self-check are
+ * in `scripts/lib/declaration-escape.mjs`.
  *
  * Check 0 looks redundant beside check 2 and is not, which is why it is first.
  * `tsconfig.build.json` omitted `packages/promise` from the day the facade
@@ -86,7 +88,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { declarationEscapes, ESCAPE_SELF_CHECK, runEscapeSelfCheck } from "./lib/declaration-escape.mjs";
+import { declarationEscapes, entryPointsOf, ESCAPE_SELF_CHECK, runEscapeSelfCheck } from "./lib/declaration-escape.mjs";
 import {
   failureCause,
   installedTypescriptVersion,
@@ -524,12 +526,16 @@ const declarationFiles = (root, rel = "") =>
     return entry.name.endsWith(".d.ts") ? [next] : [];
   });
 
+// The entry points a bare `@qadi/<pkg>/<subpath>` may name: the installed manifests' `exports` maps, never a hand list.
+const entryPoints = entryPointsOf(
+  installed.map(({ target }) => JSON.parse(readFileSync(join(target, "package.json"), "utf8"))),
+);
 let declarationsRead = 0;
 let escapes = 0;
 for (const { name, target } of installed) {
   for (const rel of declarationFiles(target)) {
     declarationsRead += 1;
-    for (const reason of declarationEscapes(target, rel, readFileSync(join(target, rel), "utf8"))) {
+    for (const reason of declarationEscapes(target, rel, readFileSync(join(target, rel), "utf8"), entryPoints)) {
       escapes += 1;
       fail(`${name}/${rel}: ${reason}`);
     }
@@ -538,7 +544,7 @@ for (const { name, target } of installed) {
 if (declarationsRead === 0) fail("declaration escape check read no packed .d.ts file");
 else if (escapes === 0) {
   console.log(
-    `declaration escape check: ${declarationsRead} packed .d.ts file(s), none names a path outside its package or into src/`,
+    `declaration escape check: ${declarationsRead} packed .d.ts file(s), none names a path outside its package, into src/ or to an undeclared entry point`,
   );
 }
 

@@ -976,7 +976,9 @@ checked rather than remembered.
 
 The script also refuses a packed declaration file that names a path outside its own
 package or into a `src/` tree (check 3c): such a path resolves against whatever sits
-beside the package once installed, and the tarball ships `src/`.
+beside the package once installed, and the tarball ships `src/`. It refuses a bare
+`@qadi/<pkg>/<subpath>` that no installed manifest's `exports` map declares as well,
+which a consumer cannot reach.
 
 **`pnpm publish`, never `npm publish`.** Dependencies use pnpm's workspace-time
 protocols — `"effect": "catalog:"` in `devDependencies` and `"effect": "catalog:peer"` in
