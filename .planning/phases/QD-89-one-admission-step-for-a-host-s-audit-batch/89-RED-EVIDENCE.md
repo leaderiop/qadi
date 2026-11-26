@@ -325,3 +325,18 @@ The base is the one `89-mutation-base.json` records (`phase_base` 8ee14f6f703f31
   - failed on: AssertionError: expected [ [ '0', 3 ], [ '1', 3 ], …(4) ] to deeply equal [ [ '0', 1 ], [ '1', 1 ], …(2) ]
 - failed (base policy-value): B5 a policy that is a number, a string or an empty object is MaxAgeInvalid with value undefined in each plan
   (scratch edit: planRetention refuses with MaxAgeInvalid({ value: policy }); 12 row(s) failed under it)
+
+## 89-02 the phase check
+
+- check failed: base: phase_base is not an ancestor of HEAD
+- check failed: commit: the commit holds .planning/phases/QD-89-one-admission-step-for-a-host-s-audit-batch/89-mutation-base.json, .planning/phases/QD-89-one-admission-step-for-a-host-s-audit-batch/89-mutation.mjs, not .planning/phases/QD-89-one-admission-step-for-a-host-s-audit-batch/89-mutation-base.json
+- check failed: unchanged: packages/audit/test/AdmissionOrder.characterisation.test.ts differs from phase_base
+- check failed: seen-failing: no failure line in the evidence for: no such title
+- check failed: vitest: the report names no test file
+- check failed: suite: B1 planRetention reads maxAgeMs once over two rows fails
+- check failed: scan-ids: packages/audit/test/scratch-ids.ts:1 names a decision number: // D-12
+- check failed: scan-forbidden: packages/audit/test/scratch-forbidden.ts:1 uses an as cast: export const x = (y: unknown) => y as string;
+- check failed: trailers: the message has 0 Co-Authored-By lines, not one
+- check failed: records: BEH-QD-781 has no heading in spec/behaviors/33-audit-pipeline.md
+- check failed: admission-step: packages/audit/src/HostBatch.ts does not exist
+- check failed: entry-points-first: archiveAuditTrail: the first statement of its body does not call admitBatch or admitRows: if (!Number.isFinite(now)) { const refusal = ArchiveInputRefusal.NowNotFinite({ 
