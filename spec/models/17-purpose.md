@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-MOD-17                                    |
-> | Revision       | 1.0                                            |
+> | Revision       | 1.1                                            |
 > | Effective Date | 2026-07-26                                     |
 > | Status         | Effective                                      |
 > | Author         | Qadi Engineering                               |
 > | Classification | Planning — Model Adoption                      |
-> | Change History | 1.0 (2026-07-26): Initial release (CCR-QD-007) |
+> | Change History | 1.1 (2026-11-26): the sequence check is cited at ArchiveFacts.ts (ARCH-138, CCR-QD-483)<br>1.0 (2026-07-26): Initial release (CCR-QD-007) |
 
 ---
 
@@ -237,7 +237,7 @@ exclude it, narrowed since by [ADR-QD-056](../decisions/056-audit-companion-pack
 the optional `@qadi/audit` companion package can durably record every purpose
 declared and every decision made against it, through a caller-supplied
 `AuditTrailPort`, but offers no hash chain or signature over the result —
-`SequenceIntegrity.ts`'s sequence-gap detection checks a caller-assigned
+`ArchiveFacts.ts`'s sequence-gap detection checks a caller-assigned
 number, not tamper-evidence. A regulated deployment of purpose limitation
 needs a non-repudiable record, not merely a retained one. Qadi will not
 provide that half, and will not provide a port pretending to. The predecessor

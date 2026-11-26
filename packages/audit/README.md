@@ -112,7 +112,7 @@ export const Unbounded = AuditDecisionSinkLive({ storeCallTimeout: Duration.infi
 
 **The audit trail this package produces is not cryptographically
 tamper-evident, and archiving it does not make it so.** `verifySequenceIntegrity`
-(see `SequenceIntegrity.ts`) catches a gap or a duplicate in a caller-assigned
+(see `ArchiveFacts.ts`) catches a gap or a duplicate in a caller-assigned
 sequence number — accidental loss or reordering in the caller's own store — not
 deliberate tampering: there is no per-entry hash, nothing links one entry to
 the next, and an attacker who can modify stored rows can renumber them and
@@ -125,7 +125,7 @@ and verified outside this library; nothing here provides it or claims to.
 ## Structurally outside the pipeline
 
 Retention, archival, sequence-integrity verification (gap-and-duplicate
-detection — not cryptographic tamper-evidence, see `SequenceIntegrity.ts`) are
+detection — not cryptographic tamper-evidence, see `ArchiveFacts.ts`) are
 pure functions and data — caller-invoked, caller-scheduled, since this package
 has no scheduler of its own. E-signature capture is wired through `Qadi.ts`'s
 `ObligationHandler`, not `DecisionSink`.
