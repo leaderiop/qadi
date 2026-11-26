@@ -1516,8 +1516,10 @@ const noteBlock = (text, start, tokens) => {
   while (end < lines.length && lines[end].startsWith(">") && !lines[end].startsWith(start)) end++;
   return lines.slice(at, end).join(" ");
 };
+/** Whether `text` holds each token, reading a hand-wrapped line break or a run of spaces as one space, as a reader does. */
 const needAll = (bad, label, text, tokens) => {
-  for (const t of tokens) if (!text.includes(t)) bad.push(`${label} does not name ${t}`);
+  const flat = collapse(text);
+  for (const t of tokens) if (!flat.includes(collapse(t))) bad.push(`${label} does not name ${t}`);
 };
 /** Reasons the pinned-by lists of the behaviors documents name a test file that does not exist. `read(path)` is a text or undefined. */
 export const judgePinnedExist = (docs, resolve, exists) => {
@@ -2659,6 +2661,8 @@ it("has \\"quotes\\"", () => {});`;
     ["a lease header still claiming the provider", sub("packages/react/src/RegistryLease.ts", "`RegistryOwner.ts` is its one caller", "`RegistryOwner.ts`, and `QadiProvider.tsx` is its one caller"), "still claims QadiProvider.tsx"],
     ["a document that does not exist", (files) => files.delete("CONTRIBUTING.md"), "CONTRIBUTING.md does not exist"],
   ]) has(`${what} fails`, closeBad(edit), part);
+  eq("a phrase the document wraps across a line is still named", closeBad(sub("AGENTS.md", "outside its own package", "outside its own\npackage")), []);
+  has("a phrase with a word dropped by a line wrap still fails", closeBad(sub("AGENTS.md", "outside its own package", "outside its\npackage")), "does not name outside its own package");
   const unusedEdit = (files) => {
     files.set("spec/README.md", files.get("spec/README.md").replace(" BEH-QD-794 ", " ").replace("INV-QD-428 ADR-QD-204 |\n", "INV-QD-428 ADR-QD-204 Unused: BEH-QD-794 |\n"));
     files.set(BEH_HOMES[794], files.get(BEH_HOMES[794]).replace("## BEH-QD-794:", "## BEH-QD-7x4:"));
