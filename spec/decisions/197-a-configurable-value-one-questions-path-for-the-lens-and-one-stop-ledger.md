@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-197                                   |
-> | Revision       | 1.4                                            |
+> | Revision       | 1.5                                            |
 > | Effective Date | 2026-11-25                                     |
 > | Status         | Accepted — amends ADR-QD-192 and ADR-QD-193 |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.4 (2026-11-25): decision 1 states what each of the four pinned refusals of useConfigured refuses, and that only the fourth tells a function property from a method (CCR-QD-476)<br>1.3 (2026-11-25): the mutation enforcement of the lens session names the devtools mutation run over src/model, not a lens group of stryker.devtools.mjs (CCR-QD-476)<br>1.2 (2026-11-25): the three useConfigured refusals are pinned in useConfigured.tst.ts (CCR-QD-476)<br>1.1 (2026-11-25): the behaviours and invariants that state it are linked (CCR-QD-476)<br>1.0 (2026-11-25): Initial (ARCH-131, CCR-QD-476) |
+> | Change History | 1.5 (2026-11-26): decision 4 is amended: the stop ledger is held by useReducer over StopLedger.ts's recordStop and the box derives its key; the amendment is linked to ADR-QD-201 (CCR-QD-480)<br>1.4 (2026-11-25): decision 1 states what each of the four pinned refusals of useConfigured refuses, and that only the fourth tells a function property from a method (CCR-QD-476)<br>1.3 (2026-11-25): the mutation enforcement of the lens session names the devtools mutation run over src/model, not a lens group of stryker.devtools.mjs (CCR-QD-476)<br>1.2 (2026-11-25): the three useConfigured refusals are pinned in useConfigured.tst.ts (CCR-QD-476)<br>1.1 (2026-11-25): the behaviours and invariants that state it are linked (CCR-QD-476)<br>1.0 (2026-11-25): Initial (ARCH-131, CCR-QD-476) |
 
 ---
 
@@ -89,6 +89,13 @@ None is a defect. Each is a statement made twice that could be made once, and th
    `StoppedBox.tsx` beside `StopLedger<S>`, and `DiagnosticsNoticeProps` and `TimelineNoticeProps` are aliases of it, so the
    notices, their tests and `test/helpers.ts` keep their names. A hook and not a plain helper, because the pair is a `useRef`
    and a `useMemo` that a function that is not a hook cannot own.
+
+   **Amended 2026-11-26 ([ADR-QD-201](./201-a-stop-notices-box-keys-itself-and-owns-the-announce-once-rule.md)).** The ledger is held by `useReducer` over
+   `model/StopLedger.ts`'s `recordStop`, and the box derives its own key, so the hook holds no ref and returns a `useMemo` of
+   `{ status, onRestart, announced: { ledger, record } }` keyed on `[status, onRestart, ledger, record]`. The reason "a hook and
+   not a plain helper" stands, with a reducer and a memo in place of the ref and the memo. The two alternatives rejected below,
+   one ledger for both feeds and a memo keyed on `status` alone, still apply, reading ledger for ref. The rest of this decision
+   is as it was written.
 
 5. **`useTimeline` keeps building its inputs record every render, and the memo is a recorded rejection.** Both records below
    are quoted as they read at revision `8ff027e1`, before the adapter was removed, so the claim that the records are fresh by
@@ -191,7 +198,10 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({ unknownParents, onInvalida
   the lens while it is mounted and none after"; "the panel holds one subscription to the questions store while it is mounted
   and none after") and `packages/devtools/test/react/Lens.questions.characterisation.test.tsx` (LQ1 to LQ4).
 - Decision 4: `packages/devtools/test/react/DockFrame.stops.characterisation.test.tsx` (DS1 to DS3),
-  `packages/devtools/test/react/TimelineNotice.test.tsx` and `packages/devtools/test/react/DiagnosticsNotice.test.tsx`, held.
+  `packages/devtools/test/react/TimelineNotice.test.tsx` and `packages/devtools/test/react/DiagnosticsNotice.test.tsx`, held except the
+  rows the audit of [ADR-QD-201](./201-a-stop-notices-box-keys-itself-and-owns-the-announce-once-rule.md) names, and, for the amendment, `packages/devtools/test/model/StopLedger.test.ts` (L1 to L6, LAW1 to LAW3),
+  `packages/devtools/test/react/DockFrame.announce.characterisation.test.tsx` (A1 to A5) and `packages/devtools/test/react/useStopNotice.test.tsx`
+  (H1 to H3, C1).
 - Decision 5: `packages/devtools/test/react/useTimeline.inputs.characterisation.test.tsx` (TI1 to TI3),
   `packages/devtools/test/model/GatesFeed.test.ts` (G43) and `packages/devtools/test/react/DockRegistryReads.test.tsx`, both
   held, which is how the gates feed's retry is shown unaffected.
@@ -205,6 +215,7 @@ export const DevtoolsDock: FC<DevtoolsDockProps> = ({ unknownParents, onInvalida
 - [ADR-QD-177](./177-one-throwing-listener-cannot-silence-the-rest.md) — every listener is called, which the lens keeps by publishing through `set` and not through a second statement of it
 - [ADR-QD-192](./192-feeds-and-the-dock-model-take-inputs-only-through-configure.md) — decision 8's `useConfigured` takes a value that has `configure`, and the per-render hand-over is kept; amended by this decision
 - [ADR-QD-193](./193-the-highlight-lens-is-a-headless-session-the-dock-model-owns.md) — decision 6's `useLens` takes the session and the questions store; amended by this decision
+- [ADR-QD-201](./201-a-stop-notices-box-keys-itself-and-owns-the-announce-once-rule.md) — decision 4 is amended: the stop ledger is a reducer over a pure transition and the box derives its key
 - [BEH-QD-734](../behaviors/28-devtools-screens.md#beh-qd-734-the-hooks-configure-inside-the-scoped-build) — the hooks configure inside the scoped build
 - [BEH-QD-736](../behaviors/28-devtools-screens.md#beh-qd-736-the-lens-is-a-headless-session-and-a-no-op-publishes-nothing) — the lens is a headless session and a no-op publishes nothing
 - [BEH-QD-737](../behaviors/28-devtools-screens.md#beh-qd-737-a-click-is-consumed-only-by-a-pick-that-found-a-guard-decided-in-the-capture-listener) — a click is consumed only by a pick that found a guard
