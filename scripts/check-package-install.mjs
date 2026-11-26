@@ -140,6 +140,31 @@ const TYPE_ONLY_PROBES = [
 const RUNTIME_PROBES = ["PORT_NAMES", "tabulatePorts"];
 
 /**
+ * The `@qadi/react` calls check 4's consumer must make when it runs, each a function name
+ * and the shape of its first argument after a colon.
+ *
+ * `hydrateDecisions` takes any value with the atom set's `hydrate` capability
+ * (ADR-QD-204), so the consumer hydrates through the atom set (`atoms`: a value with
+ * `hydrate` and more) and through a value holding `hydrate` alone (`capability`). The module
+ * hook records the shape of each call's first argument, so deleting either call, or
+ * leaving it in code that never runs, fails the gate.
+ */
+const REACT_RUNTIME_PROBES = ["hydrateDecisions:atoms", "hydrateDecisions:capability"];
+
+/**
+ * The calls check 4's consumer must refuse, each a function name paired with the member its
+ * first argument lacks.
+ *
+ * A refusal is a call of that name whose first argument is an object literal with no
+ * property of that name, led by a `@ts-expect-error`: the consumer refuses
+ * `hydrateDecisions({}, …)`, a value without `hydrate`, which is how the packed declaration
+ * holds the structural parameter's lower edge. The compiler fails an unused directive, but
+ * nothing else keeps the call, so deleting it with its directive would otherwise leave the
+ * gate green.
+ */
+const REFUSED_CALL_PROBES = new Map([["hydrateDecisions", "hydrate"]]);
+
+/**
  * The type names check 4's consumer must refuse an old shape against, each
  * paired with the member of that shape its directive must name.
  *
@@ -1132,14 +1157,17 @@ if (failures.length === 0) {
 }
 
 // The consumer runs under a module hook that hands it `@qadi/devtools` with each make*Feed wrapped
-// to record its name when called, and `@qadi/core` with each `RUNTIME_PROBES` name wrapped to record
-// its name when called or read, so the probe guard below reads what the run used rather than what
-// the fixture spells. The hook reads the feed names from the module it wraps.
+// to record its name when called, `@qadi/core` with each `RUNTIME_PROBES` name wrapped to record
+// its name when called or read, and `@qadi/react` with each `REACT_RUNTIME_PROBES` function wrapped
+// to record its name and the shape of its first argument when called, so the probe guard below
+// reads what the run used rather than what the fixture spells. The hook reads the feed names from
+// the module it wraps.
 const PROBE_CALLS = join(SANDBOX, "probe-calls.txt");
 writeFileSync(
   join(SANDBOX, "probe-hooks.mjs"),
-  `const SCHEMES = { "@qadi/devtools": "qadi-feed-calls:", "@qadi/core": "qadi-core-reads:" };
+  `const SCHEMES = { "@qadi/devtools": "qadi-feed-calls:", "@qadi/core": "qadi-core-reads:", "@qadi/react": "qadi-react-calls:" };
 const RUNTIME_PROBES = ${JSON.stringify(RUNTIME_PROBES)};
+const REACT_FUNCTIONS = ${JSON.stringify([...new Set(REACT_RUNTIME_PROBES.map((probe) => probe.split(":")[0]))])};
 const OUT = ${JSON.stringify(new URL(`file://${join(SANDBOX, "out")}/`).href)};
 export const resolve = async (specifier, context, next) => {
   if (!Object.hasOwn(SCHEMES, specifier) || !context.parentURL?.startsWith(OUT)) return next(specifier, context);
@@ -1154,16 +1182,22 @@ export const load = async (url, context, next) => {
   const names =
     scheme === SCHEMES["@qadi/devtools"]
       ? keys.filter((key) => /^make\\w*Feed$/.test(key))
-      : RUNTIME_PROBES.filter((name) => keys.includes(name));
+      : scheme === SCHEMES["@qadi/react"]
+        ? REACT_FUNCTIONS.filter((name) => keys.includes(name))
+        : RUNTIME_PROBES.filter((name) => keys.includes(name));
+  // A first argument holding hydrate alone is the capability; one holding hydrate and more is the atom set.
+  const shape = \`(first) => first !== null && typeof first === "object" && "hydrate" in first ? (Object.keys(first).length === 1 ? "capability" : "atoms") : "other"\`;
   const source = [
     \`import * as real from \${JSON.stringify(real)};\`,
     \`import { appendFileSync } from "node:fs";\`,
     \`export * from \${JSON.stringify(real)};\`,
     \`const recorded = new Set();\`,
     \`const record = (name) => { if (!recorded.has(name)) { recorded.add(name); appendFileSync(\${JSON.stringify(${JSON.stringify(PROBE_CALLS)})}, name + "\\\\n"); } };\`,
-    ...names.map(
-      (name) =>
-        \`export const \${name} = typeof real.\${name} === "function" ? (...args) => { record("\${name}"); return real.\${name}(...args); } : new Proxy(real.\${name}, { get: (target, key, receiver) => { record("\${name}"); return Reflect.get(target, key, receiver); } });\`,
+    \`const shapeOf = \${shape};\`,
+    ...names.map((name) =>
+      scheme === SCHEMES["@qadi/react"]
+        ? \`export const \${name} = (...args) => { record("\${name}:" + shapeOf(args[0])); return real.\${name}(...args); };\`
+        : \`export const \${name} = typeof real.\${name} === "function" ? (...args) => { record("\${name}"); return real.\${name}(...args); } : new Proxy(real.\${name}, { get: (target, key, receiver) => { record("\${name}"); return Reflect.get(target, key, receiver); } });\`,
     ),
   ].join("\\n");
   return { format: "module", source, shortCircuit: true };
@@ -1206,7 +1240,7 @@ if (consumerReady) {
       [
         "--input-type=module",
         "-e",
-        'console.log(JSON.stringify({ devtools: Object.keys(await import("@qadi/devtools")), core: Object.keys(await import("@qadi/core")) }))',
+        'console.log(JSON.stringify({ devtools: Object.keys(await import("@qadi/devtools")), core: Object.keys(await import("@qadi/core")), react: Object.keys(await import("@qadi/react")) }))',
       ],
       { cwd: SANDBOX, encoding: "utf8", stdio: "pipe", timeout: CHILD_TIMEOUT_MS },
     );
@@ -1219,16 +1253,21 @@ if (consumerReady) {
     if (absent.length > 0) {
       fail(`the packed @qadi/core root does not export ${absent.join(", ")}; its runtime probe would be vacuous`);
     }
+    const reactFunctions = [...new Set([...REACT_RUNTIME_PROBES.map((probe) => probe.split(":")[0]), ...REFUSED_CALL_PROBES.keys()])];
+    const reactAbsent = reactFunctions.filter((name) => !(packed.react ?? []).includes(name));
+    if (reactAbsent.length > 0) {
+      fail(`the packed @qadi/react root does not export ${reactAbsent.join(", ")}; its probe would be vacuous`);
+    }
   } catch (error) {
     feeds = undefined;
-    fail(`reading the packed @qadi/devtools and @qadi/core exports failed:\n${why(error)}`);
+    fail(`reading the packed @qadi/devtools, @qadi/core and @qadi/react exports failed:\n${why(error)}`);
   }
 
   let seen;
   try {
     const output = runTypescriptChild(
       join(ROOT, "scripts", "lib", "probe-guard-parse.mjs"),
-      [SANDBOX, JSON.stringify([...REFUSED_SHAPE_PROBES])],
+      [SANDBOX, JSON.stringify([...REFUSED_SHAPE_PROBES]), JSON.stringify([...REFUSED_CALL_PROBES])],
       { cwd: ROOT, timeoutMs: CHILD_TIMEOUT_MS },
     );
     let parsed;
@@ -1238,7 +1277,9 @@ if (consumerReady) {
       fail(`the probe guard's parse printed something other than one line of JSON:\n${output}`);
     }
     if (parsed === null) fail("the probe guard could not read consumer.ts from the sandbox project");
-    else if (parsed !== undefined) seen = { typed: new Set(parsed.typed), refused: new Set(parsed.refused) };
+    else if (parsed !== undefined) {
+      seen = { typed: new Set(parsed.typed), refused: new Set(parsed.refused), refusedCalls: new Set(parsed.refusedCalls) };
+    }
   } catch (error) {
     const version = installedTypescriptVersion(ROOT);
     fail(
@@ -1261,6 +1302,12 @@ if (consumerReady) {
         `the consumer fixture never uses ${unused.join(", ")} when it runs: every runtime probe of the packed @qadi/core root must be called, or read, by the run`,
       );
     }
+    const uncalled = REACT_RUNTIME_PROBES.filter((probe) => !called.has(probe));
+    if (uncalled.length > 0) {
+      fail(
+        `the consumer fixture never makes the call ${uncalled.join(", ")} when it runs: hydrateDecisions of the packed @qadi/react root must be called through the atom set and through a value holding only hydrate`,
+      );
+    }
   }
 
   // No comparison runs against a parse that did not produce the fixture.
@@ -1275,6 +1322,12 @@ if (consumerReady) {
     if (unrefused.length > 0) {
       fail(
         `the consumer fixture never refuses a literal typed ${unrefused.join(", ")}: every refused-shape probe name must annotate a literal whose property named by its refused member carries a @ts-expect-error`,
+      );
+    }
+    const unrefusedCalls = [...REFUSED_CALL_PROBES].filter(([name]) => !seen.refusedCalls.has(name));
+    if (unrefusedCalls.length > 0) {
+      fail(
+        `the consumer fixture never refuses ${unrefusedCalls.map(([name, member]) => `${name} on a value without ${member}`).join(", ")}: every refused-call probe must be a call whose first argument is an object literal with no property of that name, led by a @ts-expect-error`,
       );
     }
   }

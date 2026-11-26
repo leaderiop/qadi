@@ -2,16 +2,18 @@
  * The probe guard's parse for `scripts/check-package-install.mjs`, run as a child process
  * of it.
  *
- *   node scripts/lib/probe-guard-parse.mjs <sandbox> <refused-shape probes, as JSON entries>
+ *   node scripts/lib/probe-guard-parse.mjs <sandbox> <refused-shape probes, as JSON entries> <refused-call probes, as JSON entries>
  *
  * The parent starts this through `scripts/lib/typescript-server-child.mjs` under the same
  * timeout as every other child it starts, because the TypeScript server behind
  * `typescript/unstable/sync`'s `API` has no timeout of its own: a call that never returns
  * blocks this process, and the parent kills it at the timeout and fails, naming the cause.
  * It opens the sandbox's project, reads `consumer.ts` with TypeScript's parse and prints
- * one line of JSON, `{"typed":[…],"refused":[…]}`: the probe names that annotate a declared
- * value outside a refused literal, and the shapes whose literal leads the member paired
- * with them with a `@ts-expect-error`. It prints `null` when the project holds no
+ * one line of JSON, `{"typed":[…],"refused":[…],"refusedCalls":[…]}`: the probe names that
+ * annotate a declared value outside a refused literal, the shapes whose literal leads the
+ * member paired with them with a `@ts-expect-error`, and the functions called with an object
+ * literal lacking the member paired with them as the first argument, the call led by a
+ * `@ts-expect-error`. It prints `null` when the project holds no
  * `consumer.ts`. It writes `server pids: <pid>…` to stderr once the `API` has started its
  * server (`nameServerPids`). A failure to read its arguments, or to load or run the parse,
  * writes the error to stderr and exits 1; the parent reports it naming the installed
@@ -20,12 +22,14 @@
 import { join } from "node:path";
 import { nameServerPids } from "./typescript-server-child.mjs";
 
-const [sandbox, probes] = process.argv.slice(2);
+const [sandbox, probes, calls] = process.argv.slice(2);
 
 try {
   const REFUSED_SHAPE_PROBES = new Map(JSON.parse(probes));
+  const REFUSED_CALL_PROBES = new Map(JSON.parse(calls));
   const { API } = await import("typescript/unstable/sync");
   const {
+    isCallExpression,
     isIdentifier,
     isObjectLiteralExpression,
     isPropertyAssignment,
@@ -41,6 +45,21 @@ try {
     const text = file.text;
     const typed = new Set();
     const refused = new Set();
+    const refusedCalls = new Set();
+
+    // True when the call's first argument is an object literal with no property named `member`,
+    // and the call is led by the directive.
+    const refusesCall = (call, member) => {
+      const [first] = call.arguments;
+      return (
+        first !== undefined &&
+        isObjectLiteralExpression(first) &&
+        !first.properties.some(
+          (property) => property.name !== undefined && isIdentifier(property.name) && property.name.text === member,
+        ) &&
+        (getLeadingCommentRanges(text, call.pos) ?? []).some((range) => DIRECTIVE.test(text.slice(range.pos, range.end)))
+      );
+    };
 
     // True when the declaration's object literal has a property named `member` led by the directive.
     const holdsDirective = (declaration, member) =>
@@ -71,13 +90,17 @@ try {
           inner = true;
         } else if (!inRefusal && node.initializer !== undefined) typed.add(name);
       }
+      if (isCallExpression(node) && isIdentifier(node.expression)) {
+        const member = REFUSED_CALL_PROBES.get(node.expression.text);
+        if (member !== undefined && refusesCall(node, member)) refusedCalls.add(node.expression.text);
+      }
       node.forEachChild((child) => {
         visit(child, inner);
       });
     };
 
     visit(file, false);
-    return { typed: [...typed], refused: [...refused] };
+    return { typed: [...typed], refused: [...refused], refusedCalls: [...refusedCalls] };
   };
 
   const api = new API({ cwd: sandbox });
