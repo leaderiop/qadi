@@ -668,13 +668,13 @@ Plans:
   5. ADR-QD-202 (or ADR-QD-190 amended with 202 named unused), BEH-QD-722 and the invariant and traceability rows record the step (ADMIT-05).
 
 **Planning notes**: Standard patterns (precedent ADR-QD-190's `RowsRefusalCases`). The discuss step decides a brand (admission before the `qadi.audit.verifySequenceIntegrity` span, so a refused public verify no longer opens it) vs a plain refusal-or-undefined function with spans unchanged; the tie-break is spans unchanged unless the change is pinned and recorded. Constraints that are findings: the order is per entry point, not one flat "now, rows, then terms" (key material against rows and max age against rows would change which refusal wins); no `Effect.fn` admission (it adds a span and makes `planRetention` effectful); the step is not exported (gate 13); keep `Number.isFinite` (not `isFinite`), `-0`, `+Infinity` `maxAgeMs` and key material read once; admission stays out of `ArchiveFacts.ts`, which Phase 91 folds `SequenceIntegrity.ts` into. Stryker: `stryker.audit.mjs` (a glob); the new file is under the floor from day one; record 89's post-review score as 91's base for `ArchiveFacts.ts`.
-**Plans**: 3/11 plans executed
+**Plans**: 4/11 plans executed
 
 Plans:
 - [x] 89-01 (W1): The phase base and the audit mutation base recorded first; the characterisation of which refusal wins, the spans each outcome opens and what a refusal leaves unread, green on the base; the read-once defects (a flipping row list, `maxAgeMs` read more than once, a `null` or `undefined` policy) committed as rows that fail on the base
 - [x] 89-02 (W2): The phase check (`89-check.mjs`): the shared modes plus the `admission-step`, `entry-points-first` and `records --close` judges, each seen failing
 - [x] 89-03 (W3): The pinned-test check (`89-pinned-check.mjs`): the files held as at the base, the born files, and the declared test edits; seen failing
-- [ ] 89-04 (W4): The earlier-phase checks (Phases 85 to 88) from scratch copies against a measured ledger, 88's `records --close` row computed and explained by named 89 commits; seen failing
+- [x] 89-04 (W4): The earlier-phase checks (Phases 85 to 88) from scratch copies against a measured ledger, 88's `records --close` row computed and explained by named 89 commits; seen failing
 - [ ] 89-05 (W5): `HostBatch.test.ts` seen red before the module exists; `HostBatch.ts` written to it (one order, terms called once, rows read once into a fresh array); the step's scratch variants each seen failing
 - [ ] 89-06 (W6): Retention through the step: the shared refusal fragments, `maxAgeOf` reading the policy once, one age rule, and both plans admitting first (`planPurge` over the admitted rows)
 - [ ] 89-07 (W7): The archive through the step: the span flips committed failing first, then the brand on `verifiedArchiveFacts` and the writer and verify admitting first; the type pin `HostBatch.tst.ts` seen failing on V1 to V4 and V6
@@ -742,6 +742,6 @@ Phases execute in numeric order: 85 → 86 → 87 → 88 → 89 → 90 → 91
 | 86. `QadiProvider`'s registry lifetime has a React-free owner | 8/8 | Complete    | 2026-11-25 |
 | 87. One scoped run that states its stop | 11/11 | Complete    | 2026-11-25 |
 | 88. `StoppedBox` keys itself and owns the announce-once rule | 10/10 | Complete    | 2026-11-26 |
-| 89. One admission step for a host's audit batch | 3/11 | In Progress | - |
+| 89. One admission step for a host's audit batch | 4/11 | In Progress | - |
 | 90. The remaining per-port facts live on the port description | 0/TBD | Not started | - |
 | 91. Named barrels, and visibility-only files folded away | 0/TBD | Not started | - |

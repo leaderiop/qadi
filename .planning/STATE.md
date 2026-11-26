@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 89
 current_phase_name: One admission step for a host's audit batch
 status: executing
-stopped_at: Completed 89-03-PLAN.md
-last_updated: "2026-11-26T03:01:59.453Z"
+stopped_at: Completed 89-04-PLAN.md
+last_updated: "2026-11-26T03:12:52.725Z"
 last_activity: 2026-11-26
 last_activity_desc: Phase 88 complete, transitioned to Phase 89
-state_head: 93ef45c9f49880d96dc222713b864b03e890600a
+state_head: d870dcdfc59c4c15def49009a487ae1d15a94ef7
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 51
-  completed_plans: 43
+  completed_plans: 44
   percent: 57
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: 89 (One admission step for a host's audit batch) — EXECUTING
-Plan: 4 of 11
+Plan: 5 of 11
 Status: Ready to execute
 Last activity: 2026-11-26 — Phase 88 complete, transitioned to Phase 89
 
@@ -697,6 +697,7 @@ Progress: [██████░░░░] 57%
 | Phase 89 P01 | 17 min | 3 tasks | 5 files |
 | Phase 89 P02 | about 20min | 3 tasks | 3 files |
 | Phase 89 P03 | 35min | 3 tasks | 3 files |
+| Phase 89 P04 | 15 min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -1239,6 +1240,7 @@ Progress: [██████░░░░] 57%
 - [Phase 89]: 89-01: the three property rows derive the first fault from a stated order; every other characterisation row writes its expected refusal or span list literally — a table computed from an order list would agree with whatever order the code under test has
 - [Phase 89]: 89-02: records requires the heading of BEH-QD-253, 254 and 722 and a pinned-by paragraph only for 722 and BEH-QD-781..785 (the base has none for 253 or 254); the check derives its one stageable phase directory from its own location
 - [Phase 89]: A becomes region reads as its base text or its fixed lines and an insert region as empty or its fixed form, so the pinned check passes on the base tree and on the finished tree and refuses every state between (decided autonomously)
+- [Phase 89]: 89-04: 87-pinned-check.mjs is a fixed reasons row in the earlier-checks ledger (Phase 88's commits precede this base); 88's records --close is computed from four fixed 89 commit subjects; RUNS and LEDGER are separate tables so an unexpected run is reachable
 
 ### Pending Todos
 
@@ -1326,8 +1328,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-26T03:01:59.339Z
-Stopped at: Completed 89-03-PLAN.md
+Last session: 2026-11-26T03:12:52.602Z
+Stopped at: Completed 89-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
