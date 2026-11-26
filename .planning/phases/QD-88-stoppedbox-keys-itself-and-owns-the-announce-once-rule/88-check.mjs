@@ -22,7 +22,7 @@
 //                                            fails without a commit
 //   box-keys-itself                          the stopped box keys itself, decides its alert at mount and records at commit; the
 //                                            hook holds the ledger in a reducer; the notices hand the box the notice whole
-//   ledger-module                            the stop ledger is one React-free module only the box and the hook import
+//   ledger-module                            the stop ledger is one React-free module holding stop and count, imported in src only by the box and the hook
 //   records [--close]                        the pinned-by lists name tests that exist; --close also needs every reserved
 //                                            record written and every amended record at its next revision
 //   --self-test                              drives every judge with planted text
@@ -580,10 +580,52 @@ export const judgeBoxKeysItself = (texts) => {
   return bad;
 };
 
+/** The two fields a stop ledger holds, sorted: an identity and a count, and nothing that says what a status reads. */
+const LEDGER_FIELDS = ["count", "stop"];
+
 /**
- * Reasons the stop ledger is not one React-free module only the box and the hook import. `ledger` is its text or
- * undefined, `importers` every `{ file, text }` under `packages/*\/src`, `barrels` the two barrels, `touched` the stop-path
- * files and the module. Pure.
+ * The members of the blanked module's `StopLedger` declaration, or a reason it cannot be read. An interface or an object
+ * type alias is read; its body is split at the top level on `;`, `,` and line ends, so a member whose type holds braces,
+ * brackets or angle brackets is one member. A member is named by its key, an index signature `[index]` and a call or
+ * construct signature `(call)`, so neither passes for a field. An `extends` clause, or an alias that is not one object
+ * type, is refused: either can add a field the body does not show. Pure.
+ */
+export const ledgerFieldsOf = (code) => {
+  const head = /\b(?:export\s+)?(?:interface\s+StopLedger\b\s*(?:<[^{]*?>)?\s*(extends\b[^{]*)?\{|type\s+StopLedger\b\s*(?:<[^=]*?>)?\s*=\s*)/.exec(code);
+  if (head === null) return { bad: "declares no StopLedger interface or type" };
+  if (head[1] !== undefined) return { bad: `declares StopLedger with ${collapse(head[1])}: a parent can add a field` };
+  const open = head[0].endsWith("{") ? head.index + head[0].length - 1 : code.indexOf("{", head.index + head[0].length);
+  if (open < 0 || (!head[0].endsWith("{") && code.slice(head.index + head[0].length, open).trim() !== "")) return { bad: "declares StopLedger as a type that is not one object type" };
+  const end = closeOf(code, open);
+  if (end < 0) return { bad: "declares StopLedger with a body that never closes" };
+  if (!head[0].endsWith("{") && !/^\s*;?\s*(?:$|\n)/.test(code.slice(end))) return { bad: "declares StopLedger as a type that is not one object type" };
+  const body = code.slice(open + 1, end - 1);
+  const members = [];
+  let depth = 0;
+  let from = 0;
+  for (let i = 0; i <= body.length; i++) {
+    const c = body[i];
+    if (c !== undefined && "([{<".includes(c)) depth++;
+    else if (c !== undefined && (")]}".includes(c) || (c === ">" && body[i - 1] !== "="))) depth--;
+    else if (c === undefined || (depth === 0 && (c === ";" || c === "," || c === "\n"))) {
+      const member = body.slice(from, i).trim();
+      if (member !== "") members.push(member);
+      from = i + 1;
+    }
+  }
+  const names = members.map((m) => {
+    const bare = m.replace(/^(?:readonly\s+|-readonly\s+|\+readonly\s+)/, "");
+    if (bare.startsWith("[")) return "[index]";
+    if (/^(?:new\s*)?[(<]/.test(bare)) return "(call)";
+    return /^([\w$]+)\s*[?:(<-]?/.exec(bare)?.[1] ?? bare;
+  });
+  return { names };
+};
+
+/**
+ * Reasons the stop ledger is not one React-free module only the box and the hook import in `packages/*\/src`, holding
+ * `stop` and `count` and no other field. `ledger` is its text or undefined, `importers` every `{ file, text }` under
+ * `packages/*\/src`, `barrels` the two barrels, `touched` the stop-path files and the module. Pure.
  */
 export const judgeLedgerModule = ({ ledger, importers, barrels, touched }) => {
   const bad = barrels.filter(({ text }) => LEDGER_NAMES.test(blank(text, true))).map((b) => `${b.file} names the stop ledger: ${LEDGER} stays out of the barrel`);
@@ -598,6 +640,13 @@ export const judgeLedgerModule = ({ ledger, importers, barrels, touched }) => {
     const names = exportsOf(code);
     for (const name of new Set(names)) if (!LEDGER_EXPORTS.includes(name)) bad.push(`${LEDGER} exports ${name}, which is not one of ${LEDGER_EXPORTS.join(", ")}`);
     for (const name of LEDGER_EXPORTS) if (!names.includes(name)) bad.push(`${LEDGER} does not export ${name}`);
+    const fields = ledgerFieldsOf(code);
+    if (fields.bad !== undefined) bad.push(`${LEDGER} ${fields.bad}`);
+    else {
+      for (const name of fields.names) if (!LEDGER_FIELDS.includes(name)) bad.push(`${LEDGER}: StopLedger holds ${name}, which is not one of ${LEDGER_FIELDS.join(", ")}`);
+      for (const name of LEDGER_FIELDS) if (!fields.names.includes(name)) bad.push(`${LEDGER}: StopLedger does not hold ${name}`);
+      for (const name of new Set(fields.names)) if (fields.names.filter((n) => n === name).length > 1) bad.push(`${LEDGER}: StopLedger declares ${name} twice`);
+    }
   }
   const importing = importers.filter(({ file, text }) => file !== LEDGER && importsOf(blank(text, true)).some((i) => /(?:^|\/)StopLedger\.ts$/.test(i.spec))).map((f) => f.file);
   for (const file of importing) if (file !== BOX && file !== HOOK) bad.push(`${file} imports ${LEDGER}: only the box and the hook do`);
@@ -1006,7 +1055,7 @@ const MODES = {
         barrels: BARRELS.map((file) => ({ file, text: readText(file) })),
         touched: [LEDGER, ...STOP_PATH].filter((file) => existsSync(file)).map((file) => ({ file, text: readText(file) })),
       }),
-      "ledger-module: the stop ledger is one React-free module only the box and the hook import",
+      "ledger-module: the stop ledger is one React-free module holding stop and count, imported in src only by the box and the hook",
     ),
   records: (args) => {
     const close = args[0] === "--close";
@@ -1404,6 +1453,24 @@ it("has \\"quotes\\"", () => {});`;
   eq("a barrel naming the module fails", mentions(ledgerJudged({ barrels: [{ file: BARRELS[0], text: 'export { noStops } from "./model/StopLedger.ts";\n' }, barrelsOk[1]] }), "stays out of the barrel"), true);
   eq("a module-scope let in a touched file fails", mentions(ledgerJudged({ touched: [{ file: BOX, text: "let a = 1;\n" }] }), "declares a module-scope let or var"), true);
   eq("a let inside a function passes", ledgerJudged({ touched: [{ file: BOX, text: "const f = () => {\n  let a = 1;\n  return a;\n};\n" }] }), []);
+  // ledger-module: the two fields.
+  const withField = (line) => ledgerOk.replace("  readonly count: number;\n", `  readonly count: number;\n${line}\n`);
+  eq("the real ledger's fields are read as stop and count", ledgerFieldsOf(blank(ledgerOk)), { names: ["stop", "count"] });
+  eq("a third field fails", ledgerJudged({ ledger: withField("  readonly reading: string;") }), [`${LEDGER}: StopLedger holds reading, which is not one of count, stop`]);
+  eq("an optional third field fails", mentions(ledgerJudged({ ledger: withField("  readonly reason?: string | undefined;") }), "StopLedger holds reason"), true);
+  eq("a field whose type holds braces, brackets and generics is one field", ledgerJudged({ ledger: withField("  readonly seen: ReadonlyMap<S, { at: number; tags: [string, number] }>;") }), [`${LEDGER}: StopLedger holds seen, which is not one of count, stop`]);
+  eq("a method fails", mentions(ledgerJudged({ ledger: withField("  describe(): string;") }), "StopLedger holds describe"), true);
+  eq("an index signature fails", mentions(ledgerJudged({ ledger: withField("  readonly [key: string]: unknown;") }), "StopLedger holds [index]"), true);
+  eq("a call signature fails", mentions(ledgerJudged({ ledger: withField("  (status: S): boolean;") }), "StopLedger holds (call)"), true);
+  eq("two fields on one line are both read", mentions(ledgerJudged({ ledger: ledgerOk.replace("  readonly count: number;\n", "  readonly count: number; readonly extra: number;\n") }), "StopLedger holds extra"), true);
+  eq("a missing field fails", ledgerJudged({ ledger: ledgerOk.replace("  readonly count: number;\n", "") }), [`${LEDGER}: StopLedger does not hold count`]);
+  eq("a field declared twice fails", mentions(ledgerJudged({ ledger: withField("  readonly stop: S | undefined;") }), "StopLedger declares stop twice"), true);
+  eq("an extends clause fails", mentions(ledgerJudged({ ledger: ledgerOk.replace("export interface StopLedger<S> {", "export interface StopLedger<S> extends Reading {") }), "declares StopLedger with extends Reading"), true);
+  eq("a type alias of one object type is read", ledgerJudged({ ledger: ledgerOk.replace("export interface StopLedger<S> {", "export type StopLedger<S> = {").replace("  readonly count: number;\n}", "  readonly count: number;\n};") }), []);
+  eq("a type alias widened by an intersection fails", mentions(ledgerJudged({ ledger: ledgerOk.replace("export interface StopLedger<S> {", "export type StopLedger<S> = {").replace("  readonly count: number;\n}", "  readonly count: number;\n} & Reading;") }), "a type that is not one object type"), true);
+  eq("a type alias of another type fails", mentions(ledgerJudged({ ledger: ledgerOk.replace(/export interface StopLedger<S> \{[\s\S]*?\n\}\n/, "export type StopLedger<S> = Ledger<S>;\n") }), "a type that is not one object type"), true);
+  eq("a module with no StopLedger declaration fails", mentions(ledgerJudged({ ledger: ledgerOk.replace("export interface StopLedger<S> {", "export interface Other<S> {") }), "declares no StopLedger interface or type"), true);
+  eq("a field named in a comment is not a field", ledgerJudged({ ledger: withField("  // readonly reading: string;") }), []);
 
   // records.
   const rTest = 'it("a title", () => {});\nit("N1 row", () => {});\n';
