@@ -1,0 +1,356 @@
+{
+ "phase": "91",
+ "phase_base": "69e5247d205949df7396dfacb0a29bc96a02f321",
+ "renamed": {
+  "packages/core/src/PortSpanEncode.ts": [
+   "packages/core/src/PortSpanEncode.ts",
+   "packages/core/src/PortSpanDecode.ts"
+  ],
+  "packages/core/src/PortSpan.ts": [
+   "packages/core/src/PortSpan.ts",
+   "packages/core/src/PortInterpreter.ts"
+  ],
+  "packages/audit/src/ArchiveFacts.ts": [
+   "packages/audit/src/ArchiveFacts.ts",
+   "packages/audit/src/SequenceIntegrity.ts"
+  ]
+ },
+ "unmeasured_why": {
+  "packages/react/src/HydrationEngine.ts": "outside the explicit list of stryker.react.mjs, so no Stryker run reaches it",
+  "packages/react/src/GateWriter.ts": "outside the explicit list of stryker.react.mjs, so no Stryker run reaches it",
+  "packages/react/src/Hydration.ts": "outside the explicit list of stryker.react.mjs, so no Stryker run reaches it",
+  "packages/react/src/GateRegistry.ts": "outside the explicit list of stryker.react.mjs, so no Stryker run reaches it",
+  "packages/react/src/QadiAtoms.ts": "outside the explicit list of stryker.react.mjs, so no Stryker run reaches it",
+  "packages/react/src/QadiProvider.tsx": "outside the explicit list of stryker.react.mjs, so no Stryker run reaches it",
+  "packages/react/src/DevtoolsFeed.ts": "outside the explicit list of stryker.react.mjs, so no Stryker run reaches it",
+  "packages/react/src/hooks.ts": "outside the explicit list of stryker.react.mjs, so no Stryker run reaches it",
+  "packages/core/src/index.ts": "a barrel, excluded by every Stryker configuration",
+  "packages/react/src/index.ts": "a barrel, excluded by every Stryker configuration",
+  "packages/audit/src/index.ts": "a barrel, excluded by every Stryker configuration"
+ },
+ "close_invocations": {
+  "core": "pnpm exec stryker run stryker.config.mjs --mutate packages/core/src/PortSpanEncode.ts,packages/core/src/PortSpan.ts",
+  "audit": "pnpm exec stryker run stryker.audit.mjs --mutate packages/audit/src/ArchiveFacts.ts",
+  "react": "pnpm exec stryker run stryker.react.mjs --mutate packages/react/src/RegistryLease.ts"
+ },
+ "groups": {
+  "core": {
+   "head": "69e5247d205949df7396dfacb0a29bc96a02f321",
+   "invocation": "pnpm exec stryker run stryker.config.mjs --mutate packages/core/src/PortSpanEncode.ts,packages/core/src/PortSpan.ts,packages/core/src/PortSpanDecode.ts,packages/core/src/PortInterpreter.ts",
+   "files": {
+    "packages/core/src/PortSpanEncode.ts": {
+     "killed": 16,
+     "timeout": 0,
+     "survived": 4,
+     "noCoverage": 0,
+     "ignored": 14,
+     "detected": 16,
+     "valid": 20,
+     "open": [
+      {
+       "status": "Survived",
+       "mutator": "LogicalOperator",
+       "replacement": "raw === undefined && field === undefined",
+       "line": 59,
+       "column": 13,
+       "lineText": "if (raw === undefined || field === undefined) continue;"
+      },
+      {
+       "status": "Survived",
+       "mutator": "ConditionalExpression",
+       "replacement": "false",
+       "line": 59,
+       "column": 34,
+       "lineText": "if (raw === undefined || field === undefined) continue;"
+      },
+      {
+       "status": "Survived",
+       "mutator": "ConditionalExpression",
+       "replacement": "false",
+       "line": 59,
+       "column": 13,
+       "lineText": "if (raw === undefined || field === undefined) continue;"
+      },
+      {
+       "status": "Survived",
+       "mutator": "ConditionalExpression",
+       "replacement": "false",
+       "line": 59,
+       "column": 13,
+       "lineText": "if (raw === undefined || field === undefined) continue;"
+      }
+     ],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "BlockStatement",
+       "replacement": "{}",
+       "line": 47,
+       "column": 26,
+       "lineText": "): SpanStruct<Fields> => {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 51,
+       "column": 10,
+       "lineText": "return {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 106,
+       "column": 31,
+       "lineText": "export const logEventStruct = <const Fields extends SpanFields>("
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 109,
+       "column": 31,
+       "lineText": "): LogEventStruct<Fields> => ({ ...spanStruct(fields, keys), logEvent: true });"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "BooleanLiteral",
+       "replacement": "false",
+       "line": 109,
+       "column": 72,
+       "lineText": "): LogEventStruct<Fields> => ({ ...spanStruct(fields, keys), logEvent: true });"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 152,
+       "column": 29,
+       "lineText": "export const annotateSpan = <Fields extends SpanFields>("
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 183,
+       "column": 30,
+       "lineText": "export const annotateAsked = <Fields extends SpanFields>("
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 196,
+       "column": 32,
+       "lineText": "export const askedAttributes = <Fields extends SpanFields>("
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 208,
+       "column": 25,
+       "lineText": "export const portSpan = <"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 222,
+       "column": 27,
+       "lineText": "export const decodeSpan = <Fields extends SpanFields>("
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 228,
+       "column": 37,
+       "lineText": "export const sharedQuestionFields = {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 244,
+       "column": 3,
+       "lineText": "{ attempts: Schema.optionalKey(Schema.Number) },"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "ObjectLiteral",
+       "replacement": "{}",
+       "line": 245,
+       "column": 3,
+       "lineText": "{ attempts: \"qadi.attempts\" },"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 245,
+       "column": 15,
+       "lineText": "{ attempts: \"qadi.attempts\" },"
+      }
+     ]
+    },
+    "packages/core/src/PortSpan.ts": {
+     "killed": 0,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 0,
+     "detected": 0,
+     "valid": 0,
+     "open": [],
+     "ignoredMutants": [],
+     "absent": true
+    },
+    "packages/core/src/PortSpanDecode.ts": {
+     "killed": 1,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 1,
+     "detected": 1,
+     "valid": 1,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 19,
+       "column": 31,
+       "lineText": "export const decodePortSpan = <Q extends SpanFields, Ans extends SpanFields, O>("
+      }
+     ]
+    },
+    "packages/core/src/PortInterpreter.ts": {
+     "killed": 0,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 4,
+     "detected": 0,
+     "valid": 0,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ArrayDeclaration",
+       "replacement": "[]",
+       "line": 19,
+       "column": 48,
+       "lineText": "export const portInterpreter = Schema.Literals([\"evaluate\", \"toPredicate\", \"remote\"]);"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 19,
+       "column": 49,
+       "lineText": "export const portInterpreter = Schema.Literals([\"evaluate\", \"toPredicate\", \"remote\"]);"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 19,
+       "column": 61,
+       "lineText": "export const portInterpreter = Schema.Literals([\"evaluate\", \"toPredicate\", \"remote\"]);"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 19,
+       "column": 76,
+       "lineText": "export const portInterpreter = Schema.Literals([\"evaluate\", \"toPredicate\", \"remote\"]);"
+      }
+     ]
+    }
+   }
+  },
+  "audit": {
+   "head": "69e5247d205949df7396dfacb0a29bc96a02f321",
+   "invocation": "pnpm exec stryker run stryker.audit.mjs --mutate packages/audit/src/ArchiveFacts.ts,packages/audit/src/SequenceIntegrity.ts",
+   "files": {
+    "packages/audit/src/ArchiveFacts.ts": {
+     "killed": 54,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 4,
+     "detected": 54,
+     "valid": 54,
+     "open": [],
+     "ignoredMutants": [
+      {
+       "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 64,
+       "column": 22,
+       "lineText": "const archiveOrder = (a: AuditEntry, b: AuditEntry): number =>"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 163,
+       "column": 59,
+       "lineText": "export class ArchiveInputInvalid extends Data.TaggedError(\"ArchiveInputInvalid\")<{"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 167,
+       "column": 62,
+       "lineText": "export class SequenceIntegrityError extends Data.TaggedError(\"SequenceIntegrityError\")<{"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 182,
+       "column": 47,
+       "lineText": "export const verifiedArchiveFacts = Effect.fn(\"qadi.audit.verifySequenceIntegrity\")(function* ("
+      }
+     ]
+    },
+    "packages/audit/src/SequenceIntegrity.ts": {
+     "killed": 0,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 0,
+     "detected": 0,
+     "valid": 0,
+     "open": [],
+     "ignoredMutants": [],
+     "absent": true
+    }
+   }
+  },
+  "react": {
+   "head": "69e5247d205949df7396dfacb0a29bc96a02f321",
+   "invocation": "pnpm exec stryker run stryker.react.mjs --mutate packages/react/src/RegistryLease.ts",
+   "files": {
+    "packages/react/src/RegistryLease.ts": {
+     "killed": 28,
+     "timeout": 0,
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 0,
+     "detected": 28,
+     "valid": 28,
+     "open": [],
+     "ignoredMutants": []
+    }
+   }
+  }
+ }
+}
