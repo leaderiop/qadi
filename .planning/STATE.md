@@ -5,17 +5,17 @@ milestone_name: Arch Wave 16
 current_phase: 91
 current_phase_name: Named barrels, and visibility-only files folded away
 status: executing
-stopped_at: Completed 91-05-PLAN.md
-last_updated: "2026-11-26T17:13:20.375Z"
+stopped_at: Completed 91-06-PLAN.md
+last_updated: "2026-11-26T17:25:19.350Z"
 last_activity: 2026-11-26
 last_activity_desc: Phase 90 complete, transitioned to Phase 91
-state_head: 5ce96c01152ecda0d000984f301494e9ec656525
+state_head: 0d1a0b4689d27c2e6c81fc9226e4c63a93804288
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 88
-  completed_plans: 72
-  percent: 82
+  completed_plans: 73
+  percent: 83
 ---
 
 # Project State
@@ -30,11 +30,11 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-91 (Named barrels, and visibility-only files folded away) — EXECUTING
-Plan: 6 of 21
+Plan: 7 of 21
 Status: Ready to execute
 Last activity: 2026-11-26 — Phase 90 complete, transitioned to Phase 91
 
-Progress: [████████░░] 82%
+Progress: [████████░░] 83%
 
 
 ## Performance Metrics
@@ -728,6 +728,7 @@ Progress: [████████░░] 82%
 | Phase QD-91 P03 | 45min | 3 tasks | 8 files |
 | Phase 91 P04 | 25min | 2 tasks | 4 files |
 | Phase 91 P05 | 30min | 2 tasks | 4 files |
+| Phase 91 P06 | 90min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -1300,6 +1301,8 @@ Progress: [████████░░] 82%
 - [Phase QD-91]: [91-03] The surface snapshot stays a phase-local working file and never a gate; the surface-diff tool's self-test is the last pnpm check step (step 27)
 - [Phase 91]: [Phase 91-04]: A root's runtime value list is read from the base roots by a throwaway scratch test and cross-checked against the surface snapshot's value and both names; the type-only trap is planted by replacing a module's export * line with its named values minus one plus export type of it (an appended export type is erased and changes nothing under export *)
 - [Phase 91]: Plan 91-05: gate 14 check 3c refuses a packed declaration with a /src/ segment or a path resolving outside its package, with a planted self-check run every gate run
+- [Phase 91]: Plan 06: HydrationTarget.tst.ts's import region is derived from the born text's own import span (the file does not exist when the pinned check is written); decided autonomously
+- [Phase 91]: Plan 06: a born or optional file present with no adding commit since the base is a pinned-check reason; decided autonomously
 
 ### Pending Todos
 
@@ -1387,8 +1390,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-26T17:13:20.180Z
-Stopped at: Completed 91-05-PLAN.md
+Last session: 2026-11-26T17:25:19.137Z
+Stopped at: Completed 91-06-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

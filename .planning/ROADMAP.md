@@ -743,13 +743,13 @@ Plans:
   5. ADR-QD-204 records the barrel rule and the folds, amending ADR-QD-037, 047 and 099 and removing the PROJECT.md Out of Scope line the folds supersede; `spec/overview.md` names each export at its new home; a changeset records any public declaration change (BARL-05).
 
 **Planning notes**: **Research flag: plan 1 is the surface-diff tool and a pre-fold madge simulation on the Phase 91 base** (`/gsd-plan-phase --research-phase 91`); the barrel generator is new tooling (TypeScript 7 has no classic `ts.*` API, so use `typescript/unstable/{sync,ast}` as `scripts/lib/module-state-scan.mjs` does, and do not commit the generator). Plan order: (1) the tool with its self-test, then the three named barrels, zero file moves, one commit per barrel; (2) each fold, one per commit, `pnpm circular` after each, verdicts recorded for the ADR-QD-037 amendment; (3) generalise the house-style rule (rename it, five barrels, self-test) and rewrite AGENTS.md §9, §16 and CONTRIBUTING; (4) `SPAN_KEY_SHARED`, the `UNTRUSTED_DECODE_BUDGET` row and AGENTS.md §7a together; (5) re-point the `SequenceIntegrity` disclaimer citations (README, `spec/urs.md`, `spec/models/17-purpose.md`, ADR-QD-009); (6) the stale sweep as the last plan, mutation as the very last. Constraints that are findings: `export type { X }` of a const-and-type pair or a class compiles, passes gate 13 and deletes the value (about 34 names in core, 1 in react, 7 in audit), so generate from symbol flags; a barrel that omits a type makes a dependent `.d.ts` emit `import("../../a/src/priv")` with exit 0 and no TS2883; `GateWriter` stops being a zero-import leaf (reword it); `QadiProvider.tsx` publishes names by accident today. Run `pnpm build` and `pnpm spec:package` after each barrel. Stryker: `stryker.config.mjs` and `stryker.audit.mjs`; compare a folded file with the sum of its sources' latest post-review records through a `RENAMED` map; the react folds target files not in `stryker.react.mjs`.
-**Plans**: 5/21 plans executed
+**Plans**: 6/21 plans executed
 - [x] 91-01-PLAN.md
 - [x] 91-02-PLAN.md
 - [x] 91-03-PLAN.md
 - [x] 91-04-PLAN.md
 - [x] 91-05-PLAN.md
-- [ ] 91-06-PLAN.md
+- [x] 91-06-PLAN.md
 - [ ] 91-07-PLAN.md
 - [ ] 91-08-PLAN.md
 - [ ] 91-09-PLAN.md
@@ -781,4 +781,4 @@ Phases execute in numeric order: 85 → 86 → 87 → 88 → 89 → 90 → 91
 | 88. `StoppedBox` keys itself and owns the announce-once rule | 10/10 | Complete    | 2026-11-26 |
 | 89. One admission step for a host's audit batch | 11/11 | Complete    | 2026-11-26 |
 | 90. The remaining per-port facts live on the port description | 16/16 | Complete    | 2026-11-26 |
-| 91. Named barrels, and visibility-only files folded away | 5/21 | In Progress | - |
+| 91. Named barrels, and visibility-only files folded away | 6/21 | In Progress | - |
