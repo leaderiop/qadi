@@ -200,6 +200,7 @@ const CLOSE_89 = [
   ...bumped(REVISION(INVARIANTS, "1.236", "1.234"), SUBJECT.behaviours, REVISION(INVARIANTS, "1.235", "1.234")),
   ...bumped(REVISION("spec/behaviors/33-audit-pipeline.md", "1.34", "1.33"), SUBJECT.behaviours),
   ...bumped(REVISION("spec/decisions/110-an-archives-facts-are-computed-once.md", "1.5", "1.4"), SUBJECT.decisionNotes),
+  ...bumped(REVISION("spec/decisions/190-an-audit-row-is-a-value-only-its-codec-makes.md", "1.8", "1.7"), SUBJECT.sweep),
   ...counted(4, 1),
 ];
 /** The three changesets Phase 90 expects, as its close lists them when it refuses another. */
@@ -439,7 +440,7 @@ const MOVES_BY_SUBJECT = {
   decisionNotes: ["89-check.mjs records --close"],
   changesets: ["88-check.mjs records --close", "89-check.mjs records --close", "90-check.mjs records --close"],
   lease: ["86-pinned-check.mjs"],
-  sweep: ["86-pinned-check.mjs"],
+  sweep: ["86-pinned-check.mjs", "89-check.mjs records --close"],
 };
 
 const selfTest = () => {
@@ -558,8 +559,9 @@ const selfTest = () => {
     ["the decision subject moves each close's traceability line, and the behaviours subject its invariants line", setAt("90-check.mjs records --close", [SUBJECT.decision]) === REVISION(TRACEABILITY, "1.336", "1.335") && setAt("89-check.mjs records --close", [SUBJECT.behaviours]).includes(REVISION("spec/behaviors/33-audit-pipeline.md", "1.34", "1.33")) && setAt("88-check.mjs records --close", [SUBJECT.behaviours]).includes(REVISION(INVARIANTS, "1.236", "1.233"))],
     ["the behaviours subject moves 90's close to the invariants and the port-calls lines, the overview subject to the overview line alone", setAt("90-check.mjs records --close", [SUBJECT.behaviours]) === [REVISION(INVARIANTS, "1.236", "1.235"), REVISION("spec/behaviors/30-port-calls.md", "1.27", "1.26")].sort().join("|") && setAt("90-check.mjs records --close", [SUBJECT.overview]) === REVISION("spec/overview.md", "1.148", "1.147")],
     ["the decision notes subject moves 89's close to the decision line, and no other close", setAt("89-check.mjs records --close", [SUBJECT.decisionNotes]).includes(REVISION("spec/decisions/110-an-archives-facts-are-computed-once.md", "1.5", "1.4")) && moved(SUBJECT.decisionNotes).join() === "89-check.mjs records --close"],
+    ["the sweep subject moves 89's close to the audit row decision's revision line, and 86's pinned row", setAt("89-check.mjs records --close", [SUBJECT.sweep]).includes(REVISION("spec/decisions/190-an-audit-row-is-a-value-only-its-codec-makes.md", "1.8", "1.7")) && moved(SUBJECT.sweep).join("|") === "86-pinned-check.mjs|89-check.mjs records --close"],
     ["the changeset subject moves each close's count by three, and 90's by three more lines naming each new file", setAt("88-check.mjs records --close", [SUBJECT.changesets]).includes(COUNT(8, "one")) && !setAt("88-check.mjs records --close", [SUBJECT.changesets]).includes(COUNT(5, "one")) && setAt("89-check.mjs records --close", [SUBJECT.changesets]).includes(COUNT(7, "one")) && rowAt("90-check.mjs records --close", [SUBJECT.changesets]).set.length === 4 && rowAt("90-check.mjs records --close", [SUBJECT.changesets]).set.includes(COUNT(6, 3)) && rowAt("90-check.mjs records --close", [SUBJECT.changesets]).set.filter((l) => l.includes("-named-barrel.md is not one of")).length === 3],
-    ["with every subject 88's close holds the four moved lines, 89's six and 90's nine", rowAt("88-check.mjs records --close", every).set.length === 4 && rowAt("89-check.mjs records --close", every).set.length === 6 && rowAt("90-check.mjs records --close", every).set.length === 9 && new Set(rowAt("90-check.mjs records --close", every).set).size === 9],
+    ["with every subject 88's close holds the four moved lines, 89's seven and 90's nine", rowAt("88-check.mjs records --close", every).set.length === 4 && rowAt("89-check.mjs records --close", every).set.length === 7 && rowAt("90-check.mjs records --close", every).set.length === 9 && new Set(rowAt("90-check.mjs records --close", every).set).size === 9],
     ["a close run at three changesets, judged at six, fails in both directions on the count line alone", about(judgedAt(none, [SUBJECT.changesets]), "89-check.mjs records --close").length === 2 && about(judgedAt([SUBJECT.changesets], none), "89-check.mjs records --close").length === 2],
     ["a close passes in each of its states", [none, [SUBJECT.surface], [SUBJECT.decision], [SUBJECT.amendments], [SUBJECT.behaviours], [SUBJECT.overview], [SUBJECT.decisionNotes], [SUBJECT.changesets], every].every((have) => ["87", "88", "89", "90"].every((n) => about(judgedAt(have, have), `${n}-check.mjs records --close`).length === 0))],
     ["a register line whose subject does not exist yet fails, naming the exit of a clean 90 close", about(judgedAt([SUBJECT.surface], none), "90-check.mjs records --close").join() === `90-check.mjs records --close: expected exit 0, got exit 1: ${REVISION(README, "1.417", "1.416")}`],
