@@ -161,7 +161,13 @@ const fail = (lines) => {
   console.error(lines.join("\n"));
   process.exit(1);
 };
-const readJson = (file) => JSON.parse(readFileSync(file, "utf8"));
+/** Why a record or report cannot be read: the file is absent, so the mode that reads it names what to run first, not a raw ENOENT. Pure. */
+export const absentReasons = (file, exists) => (exists(file) ? [] : [`${file} does not exist: run the group's Stryker invocation and \`record close\` before this mode`]);
+const readJson = (file) => {
+  const bad = absentReasons(file, existsSync);
+  if (bad.length > 0) fail(bad);
+  return JSON.parse(readFileSync(file, "utf8"));
+};
 const git = (...args) => execFileSync("git", args, { encoding: "utf8", maxBuffer: 1 << 26, stdio: ["ignore", "pipe", "pipe"] });
 const gitOk = (...args) => {
   try {
@@ -964,6 +970,10 @@ const selfTest = () => {
   check("the status a record reads covers packages and every Stryker configuration", statusPaths().join(), `packages,${CONFIGS.join(",")}`);
   check("the status reader reads the paths a record reads", gitStatus.toString(), '() => git("status", "--porcelain", "--", ...statusPaths())');
   check("the four plan subjects are plan subjects", Object.values(SUBJECTS).every((s) => PLAN_SUBJECT.test(s)), true);
+  // An absent record or report is refused with a message naming the file, by the one reader every mode shares.
+  check("a present file is not refused", absentReasons(`${D}91-mutation-base.json`, () => true), []);
+  check("an absent file is refused, naming it", absentReasons("reports/none/mutation.json", () => false).map((line) => line.startsWith("reports/none/mutation.json does not exist")), [true]);
+  check("every mode reads a file through the refusing reader", readJson.toString().includes("absentReasons(file, existsSync)") && !readJson.toString().includes("ENOENT"), true);
   console.log(`self-test: ${passed} passed`);
 };
 
