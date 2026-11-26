@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-110                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-11-08                                     |
-> | Status         | Accepted — amends ADR-QD-056; amended 2026-11-23 (ADR-QD-190) |
+> | Status         | Accepted — amends ADR-QD-056; amended 2026-11-23 (ADR-QD-190); amended 2026-11-26 (ADR-QD-202) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-11-24): amendment: the refusals are EntriesNotAList and EntryNotMadeByCodec (ADR-QD-190, CCR-QD-469)<br>1.2 (2026-11-24): amendment — verifySequenceIntegrity and archiveAuditTrail also fail ArchiveInputInvalid for an entry the codec did not make (ADR-QD-190, CCR-QD-469)<br>1.1 (2026-11-23): amendment — an archive's facts are computed over rows only the codec makes; SequenceNumberInvalid and invalidSequenceNumber are retired (ARCH-124, ADR-QD-190, CCR-QD-469)<br>1.0 (2026-11-08): Initial (ARCH-48, CCR-QD-387) |
+> | Change History | 1.4 (2026-11-26): amendment: the span keeps its name and opens only for admitted rows; the refusals are made by the admission step (ADR-QD-202, CCR-QD-481)<br>1.3 (2026-11-24): amendment: the refusals are EntriesNotAList and EntryNotMadeByCodec (ADR-QD-190, CCR-QD-469)<br>1.2 (2026-11-24): amendment — verifySequenceIntegrity and archiveAuditTrail also fail ArchiveInputInvalid for an entry the codec did not make (ADR-QD-190, CCR-QD-469)<br>1.1 (2026-11-23): amendment — an archive's facts are computed over rows only the codec makes; SequenceNumberInvalid and invalidSequenceNumber are retired (ARCH-124, ADR-QD-190, CCR-QD-469)<br>1.0 (2026-11-08): Initial (ARCH-48, CCR-QD-387) |
 
 ---
 
@@ -36,6 +36,11 @@ reader accepts what the writer writes.
   always reported.
 - The writer builds from the facts through `verifiedArchiveFacts`, which fails `SequenceIntegrityError`
   and keeps the span `qadi.audit.verifySequenceIntegrity`.
+
+  > **Amended 2026-11-26 ([ADR-QD-202](202-one-admission-step-for-a-hosts-audit-batch.md)).** The span keeps its name,
+  > `qadi.audit.verifySequenceIntegrity`, and opens only for rows the admission step admitted: a refused
+  > `archiveAuditTrail` opens only `qadi.audit.archiveAuditTrail`, a refused public `verifySequenceIntegrity` opens no
+  > span, and every success trace is as it was.
 - The reader recomputes the facts on the decoded entries and compares them with the bundle's claims, in
   the unchanged check order, and never sorts.
 - `SequenceBreak.ts` is removed. `SequenceIntegrity.ts` re-exports `verifySequenceIntegrity` and
@@ -103,6 +108,7 @@ check would still pass a duplicate past `2 ** 53`.
 ## See also
 
 - [ADR-QD-056](056-audit-companion-package.md)
+- [ADR-QD-202](202-one-admission-step-for-a-hosts-audit-batch.md)
 - [BEH-QD-254](../behaviors/33-audit-pipeline.md#beh-qd-254-sequence-integrity-verification-detects-a-gap-or-a-duplicate-and-trusts-neither-write-order)
 - [INV-QD-054](../invariants.md#inv-qd-054-verifysequenceintegrity-detects-every-gap-and-duplicate-sequence-number)
 - [INV-QD-130](../invariants.md#inv-qd-130-a-purge-never-selects-a-row-its-archive-does-not-hold)
@@ -139,3 +145,7 @@ first, and `entries` that is not a list as the refusal `EntriesNotAList`, before
 computes any fact ([ADR-QD-190](190-an-audit-row-is-a-value-only-its-codec-makes.md), its amendment of 2026-11-24). So
 `verifySequenceIntegrity` and `archiveAuditTrail` fail `ArchiveInputInvalid | SequenceIntegrityError`. The pure
 `archiveFacts`, which `readAuditArchive` runs over rows it has just decoded, checks nothing.
+
+> **Amended 2026-11-26 ([ADR-QD-202](202-one-admission-step-for-a-hosts-audit-batch.md)).** The admission step in
+> `HostBatch.ts` refuses those rows before `verifiedArchiveFacts` runs, once, over the copy of the list it read, and
+> `verifiedArchiveFacts` takes the rows the step admitted. The refusals and their members are as written here.
