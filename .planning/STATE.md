@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 91
 current_phase_name: Named barrels, and visibility-only files folded away
 status: executing
-stopped_at: Completed 91-09-PLAN.md
-last_updated: "2026-11-26T18:29:04.504Z"
+stopped_at: Completed 91-10-PLAN.md
+last_updated: "2026-11-26T18:43:01.871Z"
 last_activity: 2026-11-26
 last_activity_desc: Phase 90 complete, transitioned to Phase 91
-state_head: 22e83755424151b5da083ce6d92f76777861e0b6
+state_head: 89bbb14649d8756eb991797c071f104da098ebe9
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 88
-  completed_plans: 76
+  completed_plans: 77
   percent: 86
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-91 (Named barrels, and visibility-only files folded away) — EXECUTING
-Plan: 10 of 21
+Plan: 11 of 21
 Status: Ready to execute
 Last activity: 2026-11-26 — Phase 90 complete, transitioned to Phase 91
 
@@ -732,6 +732,7 @@ Progress: [█████████░] 86%
 | Phase QD-91 P07 | 150min | 2 tasks | 2 files |
 | Phase 91 P08 | 8 min | 2 tasks | 33 files |
 | Phase 91 P09 | 45min | 3 tasks | 4 files |
+| Phase 91 P10 | 11min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -1311,6 +1312,7 @@ Progress: [█████████░] 86%
 - [Phase 91]: 91-08: the ten fold candidates were measured on scratch clones of phase_base and every verdict equals the expected one (a, b, c, d, e-prime, e-prime-fold, f acyclic; b-prime, b-double-prime, e cycle); f is not folded
 - [Phase 91]: 91-08: the scratch mode links packages/*/node_modules as whole directories, so the spike built real directories of links in each clone; spike --rerun with the scratch layout agreed on all ten
 - [Phase 91]: Plan 09: each named barrel's header is one doc comment in the devtools model; react's absorbs the components.tsx and hooks.ts note as a paragraph
+- [Phase 91]: Plan 10: the interpreter fold leaves core's barrel byte-identical, so that commit holds three paths and the phase table row drops index.ts (decided autonomously)
 
 ### Pending Todos
 
@@ -1398,8 +1400,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-26T18:29:04.292Z
-Stopped at: Completed 91-09-PLAN.md
+Last session: 2026-11-26T18:43:01.652Z
+Stopped at: Completed 91-10-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
