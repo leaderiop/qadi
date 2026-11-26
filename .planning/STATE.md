@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 91
 current_phase_name: Named barrels, and visibility-only files folded away
 status: executing
-stopped_at: Completed 91-19-PLAN.md
-last_updated: "2026-11-26T20:55:30.284Z"
+stopped_at: Completed 91-20-PLAN.md
+last_updated: "2026-11-26T21:09:59.921Z"
 last_activity: 2026-11-26
 last_activity_desc: Phase 90 complete, transitioned to Phase 91
-state_head: c6ab1351e742b71d67d939cc851164cebdc48777
+state_head: 3191f5d32c4e80e45e8c85b57c3e8f54de670ae1
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 88
-  completed_plans: 86
+  completed_plans: 87
   percent: 86
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-91 (Named barrels, and visibility-only files folded away) — EXECUTING
-Plan: 20 of 21
+Plan: 21 of 21
 Status: Ready to execute
 Last activity: 2026-11-26 — Phase 90 complete, transitioned to Phase 91
 
@@ -742,6 +742,7 @@ Progress: [█████████░] 86%
 | Phase QD-91 P17 | 70 min | 2 tasks | 9 files |
 | Phase 91 P18 | 40 min | 3 tasks | 13 files |
 | Phase 91 P19 | 60 min | 3 tasks | 21 files |
+| Phase 91 P20 | 25min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -1333,6 +1334,7 @@ Progress: [█████████░] 86%
 - [Phase 91]: 91-18: ADR-QD-009 takes its re-pointed citation and note with no revision row (no Document Control block); notes are appended after each decision's last amendment; the react changeset holds the structural hydrateDecisions sentence (Hydration.ts is gone)
 - [Phase 91]: A decision body naming a folded module is history and takes a dated note; only a present-tense inventory line is edited (decided autonomously)
 - [Phase 91]: The one held test comment naming react's Hydration.ts is fixed under a comment kind of declared region in the pinned check (decided autonomously)
+- [Phase 91]: 91-20: the records close judge reads a required phrase with whitespace collapsed, because the documents it reads wrap by hand (decided autonomously)
 
 ### Pending Todos
 
@@ -1420,8 +1422,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-26T20:55:29.450Z
-Stopped at: Completed 91-19-PLAN.md
+Last session: 2026-11-26T21:09:59.582Z
+Stopped at: Completed 91-20-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
