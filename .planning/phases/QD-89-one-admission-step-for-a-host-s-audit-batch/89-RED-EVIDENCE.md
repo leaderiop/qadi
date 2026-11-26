@@ -430,3 +430,19 @@ The base is the one `89-mutation-base.json` records (`phase_base` 8ee14f6f703f31
   - failed on: AssertionError: expected { Object (outcome, names) } to deeply equal { Object (outcome, names) }
 - red before: SF4 the verify refused for a row the codec did not make opens only the sequence span
   - failed on: AssertionError: expected { Object (outcome, names) } to deeply equal { Object (outcome, names) }
+
+## 89-07 the type pin
+
+- variant V1: `value: number` in `NowRefusalCases`
+  - failed: each public refusal union is its members spelled out
+- variant V2: `KeyMaterialItemRefused` dropped from the archive own cases
+  - failed: each public refusal union is its members spelled out
+  - failed: each public refusal union is its two fragments plus its own members
+- variant V3: `NowNotFinite` restated in the retention own cases with `value: string`
+  - failed: each public refusal union is its members spelled out
+  - failed: each public refusal union is its two fragments plus its own members
+  - failed: the shared members are one type in both unions
+- variant V4: `verifiedArchiveFacts` taking `{ entries }`
+  - failed: verifiedArchiveFacts takes only admitted rows
+- variant V6: `declare private readonly nominal: never` removed from `AdmittedRows`
+  - failed: admitted rows are nominal
