@@ -74,20 +74,7 @@ const UNMEASURED_WHY = "every file the phase edits is under packages/core/src/**
  * and the reason naming why no input reaches it; `status` is `"NoCoverage"` for a mutant no test covers, and absent for a
  * Survived one. A stale entry (it matches no open mutant of the close) fails `compare`.
  */
-const SCOPED_READ_ARM = 'Match.when("Always", () => () => true),';
-const ALWAYS_ARM_WHY =
-  "the Always arm of the hoisted needsResourceId matcher is consulted only for a port whose scopedCall row has a bare call, and the one leaf whose LEAF_NEEDS row is Always is HasRelationship, whose port has none (`bare: undefined`, `BareOf<\"RelationshipResolver\">` is `undefined`, a compile-time fact), so no input reaches the arm";
 const EQUIVALENT = [
-  {
-    file: "packages/core/src/PortAccess.ts",
-    mutatorName: "ConditionalExpression",
-    replacement: "true",
-    lineText: "if (bare !== undefined && !needsResourceId(LEAF_NEEDS[leaf._tag].resourceId)(leaf)) {",
-    reason:
-      "`bare !== undefined` read as true changes nothing: `bare` is undefined only for the relationship port, every leaf of which has the Always row, so `!needsResourceId(Always)(leaf)` is false and the read takes the generator route exactly as the guard sends it; no port has an undefined `bare` together with a row that is not Always",
-  },
-  { file: "packages/core/src/PortAccess.ts", mutatorName: "ArrowFunction", replacement: "() => undefined", lineText: SCOPED_READ_ARM, status: "NoCoverage", reason: ALWAYS_ARM_WHY },
-  { file: "packages/core/src/PortAccess.ts", mutatorName: "BooleanLiteral", replacement: "false", lineText: SCOPED_READ_ARM, status: "NoCoverage", reason: ALWAYS_ARM_WHY },
   {
     file: "packages/core/src/SignatureHistory.ts",
     mutatorName: "ConditionalExpression",
@@ -103,11 +90,11 @@ const EQUIVALENT = [
  */
 const EXAMINED = {
   "packages/core/src/PortAccess.ts": {
-    // The scopedCall table (279) and its three port rows (280, 281, 285): each `{}` is Killed, as is the `ByScope` literal
-    // (303) and the arrows of the table rows and of the ByScope arm (280, 282, 285, 304).
+    // Run by hand with `ignoreStatic: false` (the review re-close), each Killed: the three scopedCall rows' `{}` (310, 316,
+    // 320), the two ByScope rows' `need` literal (311, 321), and servePortRead's arrow (628).
     'ObjectLiteral {}': 3,
-    'StringLiteral ""': 1,
-    "ArrowFunction () => undefined": 2,
+    'StringLiteral ""': 2,
+    "ArrowFunction () => undefined": 1,
   },
   "packages/core/src/CustomPredicate.ts": {
     // The fixture arrow the custom predicate port now states itself (247), Killed.
@@ -119,10 +106,10 @@ const EXAMINED = {
  * title of the characterisation row or type pin that holds the code.
  */
 const STATIC_PROVEN = [
-  // The Always arm's literal and arrow (301): run by hand with `ignoreStatic: false` they Survive, for the reason in
-  // ALWAYS_ARM_WHY. The row below holds the property the arm stands for, that a relationship read demands a resource id.
+  // The Always row's `need` literal (317): run by hand with `ignoreStatic: false` it Survives. readScoped compares `need` only
+  // with "ByScope", so any other string routes as "Always" does, to the id check; the literal's work is to choose the row's
+  // member of ScopedCall at compile time. The row below holds what it stands for, that a relationship read demands an id.
   { file: "packages/core/src/PortAccess.ts", mutator: "StringLiteral", replacement: '""', count: 1, proof: "HasRelationship, absent resource, under evaluate" },
-  { file: "packages/core/src/PortAccess.ts", mutator: "ArrowFunction", replacement: "() => undefined", count: 1, proof: "HasRelationship, absent resource, under evaluate" },
 ];
 /** Where a `proof` title is looked for: the vitest titles of the first file and the `test("…")` titles of the second. */
 const PROOF_ROW_FILE = `${TEST}PortFacts.characterisation.test.ts`;
@@ -137,6 +124,20 @@ const SUBJECTS = {
   "coverage-base": "docs(90-01): record the coverage base",
   close: "docs(90-13): record the mutation close",
   "coverage-close": "docs(90-13): record the coverage close",
+};
+/**
+ * The review round's re-take of each close. Once its commit exists it is the close of record, held to the record files and
+ * to its own parent; the 90-13 commit stays as history, held to its subject, its trailer and the paths it committed.
+ */
+const RECLOSE = { close: "docs(90-review): record the mutation close", "coverage-close": "docs(90-review): record the coverage close" };
+/** The commit since `phaseBase` that records `what`: the review re-take when one exists, else the plan commit, and why not one. */
+export const closeOfRecord = (plan, review, what) => {
+  const original = plan.filter((c) => c.subject === SUBJECTS[what]);
+  const again = review.filter((c) => c.subject === RECLOSE[what]);
+  const bad = [];
+  if (original.length !== 1) bad.push(`exactly one commit must be ${JSON.stringify(SUBJECTS[what])}, found ${original.length}`);
+  if (again.length > 1) bad.push(`at most one commit may be ${JSON.stringify(RECLOSE[what])}, found ${again.length}`);
+  return { history: again.length === 1 ? original[0] : undefined, current: again.length === 1 ? again[0] : original[0], bad };
 };
 const record = (name) => `${D}90-mutation-${name}.json`;
 const coverageFile = (name) => `${D}90-coverage-${name}.json`;
@@ -465,12 +466,14 @@ const planCommits = (phaseBase) =>
     .filter((line) => line !== "")
     .map((line) => ({ sha: line.slice(0, line.indexOf("\t")), subject: line.slice(line.indexOf("\t") + 1) }))
     .filter((c) => PLAN_SUBJECT.test(c.subject));
+/** The review round's commits since `phaseBase`, oldest first, each `{ sha, subject }`. */
+const reviewCommits = (phaseBase) =>
+  git("log", "--reverse", "--format=%H%x09%s", `${phaseBase}..HEAD`)
+    .split("\n")
+    .filter((line) => line !== "")
+    .map((line) => ({ sha: line.slice(0, line.indexOf("\t")), subject: line.slice(line.indexOf("\t") + 1) }))
+    .filter((c) => c.subject.startsWith("docs(90-review): "));
 const commitOf = (sha) => ({ subject: git("log", "-1", "--format=%s", sha).trim(), parents: git("log", "-1", "--format=%P", sha).trim().split(" ").filter(Boolean), files: git("show", "--name-only", "--format=", sha).split("\n").filter(Boolean), body: git("log", "-1", "--format=%B", sha) });
-/** The one commit with `subject` since `phaseBase`, and why there is not exactly one. */
-const commitNamed = (phaseBase, subject) => {
-  const found = planCommits(phaseBase).filter((c) => c.subject === subject);
-  return found.length === 1 ? { sha: found[0].sha, bad: [] } : { sha: undefined, bad: [`exactly one commit since ${phaseBase} must be ${JSON.stringify(subject)}, found ${found.length}`] };
-};
 
 const landed = (what) => {
   const subject = SUBJECTS[what];
@@ -516,12 +519,16 @@ const landed = (what) => {
       }
     }
   } else {
-    const found = commitNamed(phaseBase, subject);
-    bad.push(...found.bad);
+    const chosen = closeOfRecord(plan, reviewCommits(phaseBase), what);
+    bad.push(...chosen.bad);
+    const files = what === "close" ? [`${D}90-mutation.mjs`, record("close")] : [coverageFile("close")];
+    if (chosen.history !== undefined) bad.push(...commitReasons(commitOf(chosen.history.sha), { subject, files }));
+    const found = { sha: chosen.bad.length === 0 ? chosen.current?.sha : undefined };
+    const current = chosen.current?.subject ?? subject;
     if (found.sha !== undefined) {
       const parent = git("rev-parse", `${found.sha}^`).trim();
       if (what === "close") {
-        check(found, { subject, files: [`${D}90-mutation.mjs`, record("close")] });
+        check(found, { subject: current, files });
         const closeRecord = existsSync(record("close")) ? readJson(record("close")) : undefined;
         if (closeRecord === undefined) bad.push(`${record("close")} does not exist`);
         else {
@@ -534,7 +541,7 @@ const landed = (what) => {
           bad.push("compare exits non-zero");
         }
       } else {
-        check(found, { subject, files: [coverageFile("close")] });
+        check(found, { subject: current, files });
         const cov = existsSync(coverageFile("close")) ? readJson(coverageFile("close")) : undefined;
         if (cov === undefined) bad.push(`${coverageFile("close")} does not exist`);
         else {
@@ -754,6 +761,15 @@ const selfTest = () => {
   check("MOVED names the fixture arrow and the two route ternaries", MOVED.length === 3 && MOVED.every((x) => x.code !== "" && x.from !== "" && x.to !== ""), true);
   check("UNMEASURED_WHY is stated", UNMEASURED_WHY.trim() !== "", true);
   check("the four landed subjects are plan subjects", Object.values(SUBJECTS).every((s) => PLAN_SUBJECT.test(s)), true);
+  {
+    const plan = [{ sha: "a", subject: SUBJECTS.close }, { sha: "b", subject: SUBJECTS["coverage-close"] }];
+    const pick = (review, what) => { const r = closeOfRecord(plan, review, what); return [r.history?.sha, r.current?.sha, r.bad.length]; };
+    check("with no re-take the plan commit is the close of record", pick([], "close").join(), ",a,0");
+    check("a re-take is the close of record and the plan commit its history", pick([{ sha: "c", subject: RECLOSE.close }], "close").join(), "a,c,0");
+    check("a coverage re-take does not stand for the mutation close", pick([{ sha: "c", subject: RECLOSE["coverage-close"] }], "close").join(), ",a,0");
+    check("two re-takes fail", pick([{ sha: "c", subject: RECLOSE.close }, { sha: "d", subject: RECLOSE.close }], "close")[2], 1);
+    check("a missing plan commit fails beside a re-take", closeOfRecord([], [{ sha: "c", subject: RECLOSE.close }], "close").bad.length, 1);
+  }
   console.log(`self-test: ${passed} passed`);
 };
 

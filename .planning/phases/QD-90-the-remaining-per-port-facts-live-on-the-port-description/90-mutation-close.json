@@ -21,7 +21,7 @@
  "unmeasured": [],
  "groups": {
   "core": {
-   "head": "4e63bbb923310a9fd1b36ab8c8d70a77575cf6dd",
+   "head": "760654ce2171b16f016cdb9d7f6f4445803a9fcd",
    "invocation": "pnpm exec stryker run stryker.config.mjs --mutate packages/core/src/PortName.ts,packages/core/src/Ports.ts,packages/core/src/PortMetrics.ts,packages/core/src/PortAccess.ts,packages/core/src/PortDescription.ts,packages/core/src/PortDerivation.ts,packages/core/src/AttributeResolver.ts,packages/core/src/RelationshipResolver.ts,packages/core/src/CustomPredicate.ts,packages/core/src/DecisionHistory.ts,packages/core/src/SignatureHistory.ts,packages/core/src/LeafNeeds.ts,packages/core/src/ScopedLeaf.ts",
    "files": {
     "packages/core/src/PortName.ts": {
@@ -50,7 +50,7 @@
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 56,
+       "line": 57,
        "column": 33,
        "lineText": "export const PORTS: PortTypes = {"
       },
@@ -58,7 +58,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 229,
+       "line": 230,
        "column": 29,
        "lineText": "export const forEveryPort = <R>(f: PortVisitor<R>): ReadonlyArray<R> =>"
       },
@@ -66,7 +66,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 233,
+       "line": 234,
        "column": 27,
        "lineText": "export const mergePorts = (layers: PortLayers): Layer.Layer<PortServices> =>"
       },
@@ -74,7 +74,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 253,
+       "line": 254,
        "column": 27,
        "lineText": "export const portsLayer = (overrides: PortOverrides = {}): Layer.Layer<PortServices> =>"
       },
@@ -82,7 +82,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 294,
+       "line": 300,
        "column": 61,
        "lineText": "export const PORT_FIXTURES: FixtureBuilders = tabulatePorts((d) => d.fixture);"
       },
@@ -90,7 +90,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 318,
+       "line": 324,
        "column": 22,
        "lineText": "const fixtureLayer = <D, S>("
       },
@@ -98,7 +98,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 332,
+       "line": 338,
        "column": 34,
        "lineText": "export const fixturePortsLayer = (setups: PortFixtures = {}): Layer.Layer<PortServices> =>"
       },
@@ -106,7 +106,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 354,
+       "line": 360,
        "column": 30,
        "lineText": "export const decoratePorts = ("
       }
@@ -277,39 +277,14 @@
      ]
     },
     "packages/core/src/PortAccess.ts": {
-     "killed": 54,
+     "killed": 51,
      "timeout": 0,
-     "survived": 1,
-     "noCoverage": 2,
-     "ignored": 25,
-     "detected": 54,
-     "valid": 57,
-     "open": [
-      {
-       "status": "NoCoverage",
-       "mutator": "ArrowFunction",
-       "replacement": "() => undefined",
-       "line": 301,
-       "column": 32,
-       "lineText": "Match.when(\"Always\", () => () => true),"
-      },
-      {
-       "status": "NoCoverage",
-       "mutator": "BooleanLiteral",
-       "replacement": "false",
-       "line": 301,
-       "column": 38,
-       "lineText": "Match.when(\"Always\", () => () => true),"
-      },
-      {
-       "status": "Survived",
-       "mutator": "ConditionalExpression",
-       "replacement": "true",
-       "line": 347,
-       "column": 7,
-       "lineText": "if (bare !== undefined && !needsResourceId(LEAF_NEEDS[leaf._tag].resourceId)(leaf)) {"
-      }
-     ],
+     "survived": 0,
+     "noCoverage": 0,
+     "ignored": 24,
+     "detected": 51,
+     "valid": 51,
+     "open": [],
      "ignoredMutants": [
       {
        "status": "Ignored",
@@ -395,7 +370,7 @@
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 279,
+       "line": 309,
        "column": 67,
        "lineText": "const scopedCall: { readonly [K in ScopedPort]: ScopedCall<K> } = {"
       },
@@ -403,39 +378,55 @@
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 280,
+       "line": 310,
        "column": 20,
-       "lineText": "DecisionHistory: { withId: (request) => request, bare: (request) => request },"
+       "lineText": "DecisionHistory: {"
+      },
+      {
+       "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 311,
+       "column": 11,
+       "lineText": "need: \"ByScope\","
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 280,
-       "column": 30,
-       "lineText": "DecisionHistory: { withId: (request) => request, bare: (request) => request },"
+       "line": 312,
+       "column": 13,
+       "lineText": "withId: (request) => request,"
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 280,
-       "column": 58,
-       "lineText": "DecisionHistory: { withId: (request) => request, bare: (request) => request },"
+       "line": 313,
+       "column": 11,
+       "lineText": "bare: (request) => request,"
       },
       {
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 281,
+       "line": 316,
        "column": 25,
        "lineText": "RelationshipResolver: {"
       },
       {
        "status": "Ignored",
+       "mutator": "StringLiteral",
+       "replacement": "\"\"",
+       "line": 317,
+       "column": 11,
+       "lineText": "need: \"Always\","
+      },
+      {
+       "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 282,
+       "line": 318,
        "column": 13,
        "lineText": "withId: ([request], resourceId) => [{ ...request, resourceId }],"
       },
@@ -443,63 +434,39 @@
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 285,
+       "line": 320,
        "column": 21,
-       "lineText": "SignatureHistory: { withId: (request) => request, bare: (request) => request },"
-      },
-      {
-       "status": "Ignored",
-       "mutator": "ArrowFunction",
-       "replacement": "() => undefined",
-       "line": 285,
-       "column": 31,
-       "lineText": "SignatureHistory: { withId: (request) => request, bare: (request) => request },"
-      },
-      {
-       "status": "Ignored",
-       "mutator": "ArrowFunction",
-       "replacement": "() => undefined",
-       "line": 285,
-       "column": 59,
-       "lineText": "SignatureHistory: { withId: (request) => request, bare: (request) => request },"
+       "lineText": "SignatureHistory: {"
       },
       {
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 301,
-       "column": 16,
-       "lineText": "Match.when(\"Always\", () => () => true),"
+       "line": 321,
+       "column": 11,
+       "lineText": "need: \"ByScope\","
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 301,
-       "column": 26,
-       "lineText": "Match.when(\"Always\", () => () => true),"
-      },
-      {
-       "status": "Ignored",
-       "mutator": "StringLiteral",
-       "replacement": "\"\"",
-       "line": 303,
-       "column": 7,
-       "lineText": "\"ByScope\","
+       "line": 322,
+       "column": 13,
+       "lineText": "withId: (request) => request,"
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 304,
-       "column": 7,
-       "lineText": "() => (leaf: LeafOf[ScopedLeafTag]) => \"scope\" in leaf && isResourceScoped(leaf),"
+       "line": 323,
+       "column": 11,
+       "lineText": "bare: (request) => request,"
       },
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 440,
+       "line": 484,
        "column": 31,
        "lineText": "export const isAnyActedLeaf = (leaf: ActedLeaf): leaf is AnyActedLeaf => leaf.scope === \"Any\";"
       },
@@ -507,7 +474,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 584,
+       "line": 628,
        "column": 30,
        "lineText": "export const servePortRead = <K extends PortName>("
       }
@@ -567,7 +534,7 @@
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 359,
+       "line": 365,
        "column": 26,
        "lineText": "export const PortReply = {"
       },
@@ -575,7 +542,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 360,
+       "line": 366,
        "column": 11,
        "lineText": "answer: <A>(value: A): PortReply<A> => ({ _tag: \"Answer\", value }),"
       },
@@ -583,7 +550,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 361,
+       "line": 367,
        "column": 9,
        "lineText": "fail: (cause: unknown): PortReply<never> => ({ _tag: \"Fail\", cause }),"
       },
@@ -591,7 +558,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 362,
+       "line": 368,
        "column": 8,
        "lineText": "die: (defect: unknown): PortReply<never> => ({ _tag: \"Die\", defect }),"
       },
@@ -599,7 +566,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 363,
+       "line": 369,
        "column": 10,
        "lineText": "throw: (error: unknown): PortReply<never> => ({ _tag: \"Throw\", error }),"
       },
@@ -607,30 +574,21 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 385,
+       "line": 391,
        "column": 30,
        "lineText": "export const isPortDefault = (d: { readonly port: PortName }, service: unknown): boolean =>"
       }
      ]
     },
     "packages/core/src/PortDerivation.ts": {
-     "killed": 46,
+     "killed": 47,
      "timeout": 0,
-     "survived": 1,
+     "survived": 0,
      "noCoverage": 0,
      "ignored": 14,
-     "detected": 46,
+     "detected": 47,
      "valid": 47,
-     "open": [
-      {
-       "status": "Survived",
-       "mutator": "ObjectLiteral",
-       "replacement": "{}",
-       "line": 202,
-       "column": 45,
-       "lineText": ": Effect.fail(new InvalidBoundedPermits({ permits }));"
-      }
-     ],
+     "open": [],
      "ignoredMutants": [
       {
        "status": "Ignored",
@@ -684,7 +642,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 154,
+       "line": 180,
        "column": 28,
        "lineText": "export const wrapService = <Self, Shape>("
       },
@@ -692,7 +650,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 175,
+       "line": 201,
        "column": 34,
        "lineText": "export const wrapServiceEffect = <Self, Shape, E>("
       },
@@ -700,7 +658,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 197,
+       "line": 223,
        "column": 31,
        "lineText": "export const boundedPermits = ("
       },
@@ -708,7 +666,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 229,
+       "line": 255,
        "column": 38,
        "lineText": "export const retryCountingAttempts = <A, E>("
       },
@@ -716,7 +674,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 254,
+       "line": 280,
        "column": 25,
        "lineText": "export const wrapPort = <"
       },
@@ -724,7 +682,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 284,
+       "line": 310,
        "column": 3,
        "lineText": "<"
       },
@@ -732,7 +690,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 319,
+       "line": 345,
        "column": 3,
        "lineText": "<"
       },
@@ -740,7 +698,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 361,
+       "line": 387,
        "column": 3,
        "lineText": "<"
       }
@@ -760,7 +718,7 @@
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 92,
+       "line": 93,
        "column": 5,
        "lineText": ">()(\"qadi/AttributeResolver\") {"
       },
@@ -768,7 +726,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 94,
+       "line": 95,
        "column": 29,
        "lineText": "static readonly resolve = (subjectId: SubjectId, attribute: string) =>"
       },
@@ -776,7 +734,7 @@
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 110,
+       "line": 111,
        "column": 32,
        "lineText": "const attributeSpan = portSpan({"
       },
@@ -784,7 +742,7 @@
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 112,
+       "line": 113,
        "column": 5,
        "lineText": "{ attribute: Schema.optionalKey(Schema.String), ...sharedQuestionFields },"
       },
@@ -792,7 +750,7 @@
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 113,
+       "line": 114,
        "column": 5,
        "lineText": "{ attribute: \"qadi.attribute\", ...sharedQuestionKeys },"
       },
@@ -800,7 +758,7 @@
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 113,
+       "line": 114,
        "column": 18,
        "lineText": "{ attribute: \"qadi.attribute\", ...sharedQuestionKeys },"
       },
@@ -808,7 +766,7 @@
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 115,
+       "line": 116,
        "column": 22,
        "lineText": "answer: spanStruct({ resolved: Schema.optionalKey(Schema.Boolean) }, { resolved: \"qadi.resolved\" }),"
       },
@@ -816,7 +774,7 @@
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 115,
+       "line": 116,
        "column": 72,
        "lineText": "answer: spanStruct({ resolved: Schema.optionalKey(Schema.Boolean) }, { resolved: \"qadi.resolved\" }),"
       },
@@ -824,7 +782,7 @@
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 115,
+       "line": 116,
        "column": 84,
        "lineText": "answer: spanStruct({ resolved: Schema.optionalKey(Schema.Boolean) }, { resolved: \"qadi.resolved\" }),"
       },
@@ -832,7 +790,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 116,
+       "line": 117,
        "column": 9,
        "lineText": "pose: ([subjectId, attribute]: [subjectId: SubjectId, attribute: string]) => ({"
       },
@@ -840,7 +798,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 120,
+       "line": 121,
        "column": 13,
        "lineText": "disclose: (value: unknown) => ({ resolved: value !== undefined }),"
       },
@@ -848,7 +806,7 @@
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 131,
+       "line": 132,
        "column": 23,
        "lineText": "const attributeAsks = {"
       },
@@ -856,7 +814,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 132,
+       "line": 133,
        "column": 17,
        "lineText": "HasAttribute: ("
       },
@@ -864,7 +822,7 @@
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 149,
+       "line": 150,
        "column": 5,
        "lineText": "> = {"
       },
@@ -872,7 +830,7 @@
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 150,
+       "line": 151,
        "column": 14,
        "lineText": "allowlist: \"required\","
       },
@@ -880,7 +838,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 151,
+       "line": 152,
        "column": 10,
        "lineText": "asked: ([, attribute]) => attribute,"
       },
@@ -888,7 +846,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 152,
+       "line": 153,
        "column": 13,
        "lineText": "admitted: (declaration) => declaration.attributes,"
       },
@@ -896,7 +854,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 153,
+       "line": 154,
        "column": 12,
        "lineText": "declare: ({ names }) => ({ AttributeResolver: { attributes: names } }),"
       },
@@ -904,7 +862,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 162,
+       "line": 165,
        "column": 44,
        "lineText": "export const attributeResolverFromRecord = ("
       },
@@ -912,7 +870,7 @@
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 171,
+       "line": 174,
        "column": 27,
        "lineText": "const attributeSpanName = \"qadi.attribute\";"
       },
@@ -920,7 +878,7 @@
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 193,
+       "line": 196,
        "column": 25,
        "lineText": "> = makePortDescription({"
       },
@@ -928,7 +886,7 @@
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 194,
+       "line": 197,
        "column": 9,
        "lineText": "port: \"AttributeResolver\","
       },
@@ -936,7 +894,7 @@
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 195,
+       "line": 198,
        "column": 11,
        "lineText": "method: \"resolve\","
       },
@@ -944,7 +902,7 @@
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 209,
+       "line": 212,
        "column": 9,
        "lineText": "wire: {"
       },
@@ -952,7 +910,7 @@
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 210,
+       "line": 213,
        "column": 29,
        "lineText": "question: Schema.Struct({ subjectId: SubjectIdSchema, attribute: Schema.String }),"
       },
@@ -960,7 +918,7 @@
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 211,
+       "line": 214,
        "column": 27,
        "lineText": "answer: Schema.Struct({ value: Schema.optionalKey(Schema.Json) }),"
       },
@@ -968,7 +926,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 212,
+       "line": 215,
        "column": 17,
        "lineText": "toQuestion: ([subjectId, attribute]) => ({ subjectId, attribute }),"
       },
@@ -976,7 +934,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 213,
+       "line": 216,
        "column": 19,
        "lineText": "fromQuestion: (question, subject): [subjectId: SubjectId, attribute: string] => ["
       },
@@ -984,7 +942,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 217,
+       "line": 220,
        "column": 15,
        "lineText": "toAnswer: (value: unknown): Result.Result<{ readonly value?: Schema.Json }, EncodeRefusal> =>"
       },
@@ -992,7 +950,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 221,
+       "line": 224,
        "column": 17,
        "lineText": "fromAnswer: (wire): unknown => wire.value,"
       },
@@ -1000,7 +958,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 225,
+       "line": 228,
        "column": 11,
        "lineText": "invoke: (shape) => (subjectId, attribute) => shape.resolve(subjectId, attribute),"
       },
@@ -1008,7 +966,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 226,
+       "line": 229,
        "column": 9,
        "lineText": "make: (name, call) => ({ name, resolve: call }),"
       },
@@ -1016,7 +974,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 227,
+       "line": 230,
        "column": 12,
        "lineText": "failure: ([, attribute], cause) => new AttributeResolveError({ attribute, cause }),"
       },
@@ -1024,7 +982,7 @@
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 228,
+       "line": 231,
        "column": 9,
        "lineText": "none: { name: \"AttributeResolverNone\", answer: undefined },"
       },
@@ -1032,7 +990,7 @@
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 228,
+       "line": 231,
        "column": 17,
        "lineText": "none: { name: \"AttributeResolverNone\", answer: undefined },"
       }
@@ -1534,9 +1492,17 @@
       },
       {
        "status": "Ignored",
+       "mutator": "ArrowFunction",
+       "replacement": "() => undefined",
+       "line": 195,
+       "column": 42,
+       "lineText": "export const customPredicateFromRecord = ("
+      },
+      {
+       "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 186,
+       "line": 220,
        "column": 24,
        "lineText": "const customSpanName = \"qadi.hasCustom\";"
       },
@@ -1544,7 +1510,7 @@
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 220,
+       "line": 254,
        "column": 5,
        "lineText": "> = {"
       },
@@ -1552,7 +1518,7 @@
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 221,
+       "line": 255,
        "column": 9,
        "lineText": "port: \"CustomPredicate\","
       },
@@ -1560,7 +1526,7 @@
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 222,
+       "line": 256,
        "column": 11,
        "lineText": "method: \"evaluate\","
       },
@@ -1568,7 +1534,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 229,
+       "line": 263,
        "column": 11,
        "lineText": "invoke: (shape) => (name, subject, resource, params) =>"
       },
@@ -1576,7 +1542,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 231,
+       "line": 265,
        "column": 9,
        "lineText": "make: (name, call) => ({ name, evaluate: call }),"
       },
@@ -1584,7 +1550,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 232,
+       "line": 266,
        "column": 12,
        "lineText": "failure: ([name], cause) => new CustomPredicateError({ name, reason: thrownMessage(cause) }),"
       },
@@ -1592,7 +1558,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 233,
+       "line": 267,
        "column": 11,
        "lineText": "defect: ([name], cause) => new CustomPredicateError({ name, reason: causeMessage(cause) }),"
       },
@@ -1600,7 +1566,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 234,
+       "line": 268,
        "column": 8,
        "lineText": "key: ([name, subject, resource, params]) =>"
       },
@@ -1608,7 +1574,7 @@
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 246,
+       "line": 280,
        "column": 9,
        "lineText": "none: { name: \"CustomPredicateNone\", answer: false },"
       },
@@ -1616,7 +1582,7 @@
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 246,
+       "line": 280,
        "column": 17,
        "lineText": "none: { name: \"CustomPredicateNone\", answer: false },"
       },
@@ -1624,7 +1590,7 @@
        "status": "Ignored",
        "mutator": "BooleanLiteral",
        "replacement": "true",
-       "line": 246,
+       "line": 280,
        "column": 48,
        "lineText": "none: { name: \"CustomPredicateNone\", answer: false },"
       },
@@ -1632,17 +1598,9 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 247,
+       "line": 281,
        "column": 12,
        "lineText": "fixture: (answers) =>"
-      },
-      {
-       "status": "Ignored",
-       "mutator": "ArrowFunction",
-       "replacement": "() => undefined",
-       "line": 272,
-       "column": 42,
-       "lineText": "export const customPredicateFromRecord = ("
       }
      ]
     },
@@ -2312,29 +2270,20 @@
      ]
     },
     "packages/core/src/LeafNeeds.ts": {
-     "killed": 76,
+     "killed": 73,
      "timeout": 0,
-     "survived": 1,
+     "survived": 0,
      "noCoverage": 0,
      "ignored": 23,
-     "detected": 76,
-     "valid": 77,
-     "open": [
-      {
-       "status": "Survived",
-       "mutator": "ConditionalExpression",
-       "replacement": "true",
-       "line": 204,
-       "column": 64,
-       "lineText": "const isActionLeaf = (leaf: LeafPolicy): leaf is ActionLeaf => LEAF_NEEDS[leaf._tag].own === \"Action\";"
-      }
-     ],
+     "detected": 73,
+     "valid": 73,
+     "open": [],
      "ignoredMutants": [
       {
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 202,
+       "line": 203,
        "column": 23,
        "lineText": "const isMatcherLeaf = (leaf: LeafPolicy): leaf is MatcherLeaf => LEAF_NEEDS[leaf._tag].matcher;"
       },
@@ -2342,7 +2291,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 204,
+       "line": 205,
        "column": 22,
        "lineText": "const isActionLeaf = (leaf: LeafPolicy): leaf is ActionLeaf => LEAF_NEEDS[leaf._tag].own === \"Action\";"
       },
@@ -2350,7 +2299,7 @@
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 206,
+       "line": 207,
        "column": 39,
        "lineText": "const MISSING_ACTION: ActionAbsence = { _tag: \"Action\" };"
       },
@@ -2358,7 +2307,7 @@
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 206,
+       "line": 207,
        "column": 47,
        "lineText": "const MISSING_ACTION: ActionAbsence = { _tag: \"Action\" };"
       },
@@ -2366,7 +2315,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 252,
+       "line": 251,
        "column": 26,
        "lineText": "export const holdsRole = ("
       },
@@ -2374,7 +2323,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 258,
+       "line": 257,
        "column": 32,
        "lineText": "export const holdsPermission = ("
       },
@@ -2382,7 +2331,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 264,
+       "line": 263,
        "column": 28,
        "lineText": "export const holdsAction = (leaf: ActionLeaf, action: string | undefined): boolean =>"
       },
@@ -2390,7 +2339,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 302,
+       "line": 301,
        "column": 23,
        "lineText": "export const isHeld = (outcome: LeafOutcome): outcome is \"Held\" => outcome === \"Held\";"
       },
@@ -2398,7 +2347,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 304,
+       "line": 303,
        "column": 16,
        "lineText": "const binary = (held: boolean): BinaryOutcome => (held ? \"Held\" : \"NotHeld\");"
       },
@@ -2406,7 +2355,7 @@
        "status": "Ignored",
        "mutator": "BlockStatement",
        "replacement": "{}",
-       "line": 317,
+       "line": 316,
        "column": 3,
        "lineText": ") {"
       },
@@ -2414,7 +2363,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 318,
+       "line": 317,
        "column": 10,
        "lineText": "return (answer: ActedResult): ActedOutcome =>"
       },
@@ -2422,7 +2371,7 @@
        "status": "Ignored",
        "mutator": "ObjectLiteral",
        "replacement": "{}",
-       "line": 377,
+       "line": 376,
        "column": 30,
        "lineText": "export const LEAF_VERDICTS = {"
       },
@@ -2430,7 +2379,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 378,
+       "line": 377,
        "column": 18,
        "lineText": "HasPermission: (leaf, subject) => binary(holdsPermission(subject, leaf)),"
       },
@@ -2438,7 +2387,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 379,
+       "line": 378,
        "column": 12,
        "lineText": "HasRole: (leaf, subject) => binary(holdsRole(subject, leaf)),"
       },
@@ -2446,7 +2395,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 380,
+       "line": 379,
        "column": 17,
        "lineText": "HasAttribute: (leaf, value, context) => judgeMatcher(leaf.matcher, value, context),"
       },
@@ -2454,7 +2403,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 381,
+       "line": 380,
        "column": 25,
        "lineText": "HasResourceAttribute: (leaf, value, context) => judgeMatcher(leaf.matcher, value, context),"
       },
@@ -2462,7 +2411,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 382,
+       "line": 381,
        "column": 20,
        "lineText": "HasRelationship: (related) => (related === \"Related\" ? \"Held\" : related),"
       },
@@ -2470,7 +2419,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 383,
+       "line": 382,
        "column": 14,
        "lineText": "HasAction: (leaf, action) => binary(holdsAction(leaf, action)),"
       },
@@ -2478,7 +2427,7 @@
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 384,
+       "line": 383,
        "column": 22,
        "lineText": "HasActed: actedRow(\"Acted\", \"NotPerformed\"),"
       },
@@ -2486,7 +2435,7 @@
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 384,
+       "line": 383,
        "column": 31,
        "lineText": "HasActed: actedRow(\"Acted\", \"NotPerformed\"),"
       },
@@ -2494,7 +2443,7 @@
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 385,
+       "line": 384,
        "column": 25,
        "lineText": "HasNotActed: actedRow(\"NotActed\", \"Performed\"),"
       },
@@ -2502,7 +2451,7 @@
        "status": "Ignored",
        "mutator": "StringLiteral",
        "replacement": "\"\"",
-       "line": 385,
+       "line": 384,
        "column": 37,
        "lineText": "HasNotActed: actedRow(\"NotActed\", \"Performed\"),"
       },
@@ -2510,7 +2459,7 @@
        "status": "Ignored",
        "mutator": "ArrowFunction",
        "replacement": "() => undefined",
-       "line": 387,
+       "line": 386,
        "column": 17,
        "lineText": "HasSignature: ({ matched, onFile }) =>"
       }
