@@ -1,0 +1,1 @@
+No external API integration: an internal refactor of `@qadi/audit` (one package-private admission step, `HostBatch.ts`, admits a host's batch in one order and reads each input once; `NowNotFinite` is stated once as a fragment) over the already-installed effect, vitest, fast-check and tstyche; no third-party API, SDK, service or package is added.
