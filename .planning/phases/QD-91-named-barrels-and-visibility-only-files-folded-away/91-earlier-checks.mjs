@@ -105,6 +105,7 @@ const SUBJECT = {
   auditFold: "refactor(91-12): fold the sequence check's public home into the archive facts",
   hydrationFold: "refactor(91-13): fold the hydration entry points into the hydration engine",
   decision: "docs(91-16): record the named barrels decision",
+  amendments: "docs(91-16): amend the cycle, devtools-model and entry-points decisions",
   behaviours: "docs(91-17): state the folded behaviours and the surface invariants",
   overview: "docs(91-17): name each folded export at its new home",
   decisionNotes: "docs(91-18): note the folds on the decisions they touch",
@@ -188,6 +189,8 @@ const CLOSE_88 = [
   ...bumped(REVISION(INVARIANTS, "1.236", "1.233"), SUBJECT.behaviours, REVISION(INVARIANTS, "1.235", "1.233")),
   ...counted(5, 1),
 ];
+/** `87-check.mjs records --close` pins the devtools-model decision at its Phase 87 revision, which the amendment to it moves one minor above. */
+const CLOSE_87 = [after("ADR-QD-047 is not at Revision 1.24", SUBJECT.amendments)];
 /** `89-check.mjs records --close`: the same three registers, the audit behaviours document and the decision that notes the archive's facts, and the count at four. */
 const CLOSE_89 = [
   ...bumped(REVISION(README, "1.417", "1.415"), SUBJECT.surface, REVISION(README, "1.416", "1.415")),
@@ -217,6 +220,7 @@ const COMPUTED = {
   pinned90: (have) => rowOf({ exit: 0, line: "90-pinned-check.mjs: pinned: 408 files hold their base text, 5 of 5 born files held, 5 of 5 declared edits applied" }, PINNED_90, have),
   guard: (have) => rowOf({ exit: 0, line: "scan-forbidden: no forbidden form in added lines" }, GUARD_85_TO_89, have),
   guard90: (have) => rowOf({ exit: 0, line: "scan-forbidden: no forbidden form in added lines" }, GUARD_90, have),
+  close87: (have) => rowOf(CLEAN_CLOSE, CLOSE_87, have),
   close88: (have) => rowOf(CLEAN_CLOSE, CLOSE_88, have),
   close89: (have) => rowOf(CLEAN_CLOSE, CLOSE_89, have),
   close90: (have) => rowOf(CLEAN_CLOSE, CLOSE_90, have),
@@ -305,7 +309,7 @@ const LEDGER = [
   { label: "87-check.mjs onfailure-gone", exit: 0, line: "onfailure-gone: no failure hook remains" },
   { label: "87-check.mjs built-feeds-once", exit: 0, line: "built-feeds-once: test/builtFeeds.ts builds and configures through one helper" },
   { label: "87-check.mjs records", exit: 0, line: "records: the pinned-by lists name tests that exist" },
-  { label: "87-check.mjs records --close", exit: 0, line: "records: the pinned-by lists name tests that exist, and every reserved record is written" },
+  { label: "87-check.mjs records --close", computed: "close87" },
   { label: "87-pinned-check.mjs", exit: 1, reasons: true, set: PINNED_87 },
   { label: "87-check.mjs --self-test", exit: 0, line: "self-test: 301 passed" },
   { label: "87-pinned-check.mjs --self-test", exit: 0, line: "self-test: 35 passed" },
@@ -427,6 +431,7 @@ const MOVES_BY_SUBJECT = {
   auditFold: ["89-pinned-check.mjs"],
   hydrationFold: ["86-pinned-check.mjs"],
   decision: ["88-check.mjs records --close", "89-check.mjs records --close", "90-check.mjs records --close"],
+  amendments: ["87-check.mjs records --close"],
   behaviours: ["88-check.mjs records --close", "89-check.mjs records --close", "90-check.mjs records --close"],
   overview: ["90-check.mjs records --close"],
   decisionNotes: ["89-check.mjs records --close"],
@@ -508,7 +513,7 @@ const selfTest = () => {
     ["a subject in the table passes, and one that is not names itself", judgeSubjects(["docs(91-01): record the mutation base"], tableSubjects(plannedTable), []).length === 0 && judgeSubjects(["docs(91-01): record the mutation base."], tableSubjects(plannedTable), []).join() === "the subject is not in the table of 91-01-PLAN.md: docs(91-01): record the mutation base."],
     ["an empty table fails", judgeSubjects([], [], []).join() === "the subject table of 91-01-PLAN.md holds no row"],
     ["a subject that two commits carry fails, naming the count, and one that one commit or none carries passes", judgeSubjects(["refactor(91-11): a b"], tableSubjects(plannedTable), ["refactor(91-11): a b", "x", "refactor(91-11): a b"]).join() === "2 commits carry the subject: refactor(91-11): a b" && judgeSubjects(["refactor(91-11): a b"], tableSubjects(plannedTable), ["refactor(91-11): a b"]).length === 0 && judgeSubjects(["refactor(91-11): a b"], tableSubjects(plannedTable), []).length === 0],
-    ["every subject is a plan commit of this phase, written once, and the ledger names no other", USED_SUBJECTS.every((s) => /^[a-z]+[(]91-[0-9]{2}[)]!?: /.test(s)) && new Set(USED_SUBJECTS).size === USED_SUBJECTS.length && USED_SUBJECTS.length === 12],
+    ["every subject is a plan commit of this phase, written once, and the ledger names no other", USED_SUBJECTS.every((s) => /^[a-z]+[(]91-[0-9]{2}[)]!?: /.test(s)) && new Set(USED_SUBJECTS).size === USED_SUBJECTS.length && USED_SUBJECTS.length === 13],
     ["the subjects are the exact strings of the commit subject table", SUBJECT.gateFold === "refactor(91-11): fold the gate registry constructor into the gate writer" && SUBJECT.hydrationFold === "refactor(91-13): fold the hydration entry points into the hydration engine" && SUBJECT.lease === "docs(91-19): name the registry lease's one caller" && SUBJECT.auditFold === "refactor(91-12): fold the sequence check's public home into the archive facts" && SUBJECT.auditBarrel === "refactor(91-09): name the audit barrel's exports per module" && SUBJECT.decoderFold === "refactor(91-10): fold the port span decoder into the span machinery" && SUBJECT.surface === "feat(91-03): add the surface-diff tool and run its self-test in the merge gate" && SUBJECT.decision === "docs(91-16): record the named barrels decision" && SUBJECT.behaviours === "docs(91-17): state the folded behaviours and the surface invariants" && SUBJECT.overview === "docs(91-17): name each folded export at its new home" && SUBJECT.decisionNotes === "docs(91-18): note the folds on the decisions they touch" && SUBJECT.changesets === "chore(91-18): add the core, react and audit patch changesets"],
     // The shape of the ledger.
     ["every run names a copy the script makes", RUNS.every((r) => Object.hasOwn(COPIED, r.copy) && COPIED[r.copy].includes(r.file))],
@@ -516,7 +521,7 @@ const selfTest = () => {
     ["the runs number at least eighty, Phase 90's among them", RUNS.length >= 80 && RUNS.filter((r) => r.copy === "p90").length === 15 && RUNS.filter((r) => r.copy === "p90" && r.args.includes("--self-test")).length === 4],
     ["every row states its judge once: a line, a pattern, a reason set or a computation", LEDGER.every((r) => [r.line, r.pattern, r.reasons === true ? r.set : undefined, r.computed].filter((x) => x !== undefined).length === 1)],
     ["every computed row names a computation the script has, and every computation is named", LEDGER.filter((r) => r.computed !== undefined).every((r) => Object.hasOwn(COMPUTED, r.computed)) && Object.keys(COMPUTED).every((name) => LEDGER.some((r) => r.computed === name))],
-    ["the computed rows are the six scan-forbidden rows, the three pinned rows of 86, 89 and 90, and the three records --close rows", LEDGER.filter((r) => r.computed !== undefined).map((r) => r.label).join() === "85-check.mjs scan-forbidden,86-check.mjs scan-forbidden,86-pinned-check.mjs,87-check.mjs scan-forbidden,88-check.mjs scan-forbidden,88-check.mjs records --close,89-check.mjs scan-forbidden,89-check.mjs records --close,89-pinned-check.mjs,90-check.mjs scan-forbidden,90-check.mjs records --close,90-pinned-check.mjs,90-pinned-check.mjs --all-applied"],
+    ["the computed rows are the six scan-forbidden rows, the three pinned rows of 86, 89 and 90, and the four records --close rows", LEDGER.filter((r) => r.computed !== undefined).map((r) => r.label).join() === "85-check.mjs scan-forbidden,86-check.mjs scan-forbidden,86-pinned-check.mjs,87-check.mjs scan-forbidden,87-check.mjs records --close,88-check.mjs scan-forbidden,88-check.mjs records --close,89-check.mjs scan-forbidden,89-check.mjs records --close,89-pinned-check.mjs,90-check.mjs scan-forbidden,90-check.mjs records --close,90-pinned-check.mjs,90-pinned-check.mjs --all-applied"],
     ["the provider judge is a fixed exit 0 row with no computed move", provider !== undefined && provider.exit === 0 && provider.computed === undefined && provider.line === "provider-forwards-only: the provider builds the owner once and only forwards to it" && every.every((s) => JSON.stringify(rowAt(provider.label, [s])) === JSON.stringify(provider))],
     ["every label is unique, and with no subject the rows at exit 1 are the two scan-ids rows, 87's pinned row, the five scan-forbidden rows of 85 to 89 and the two closes of 88 and 89", new Set(LEDGER.map((r) => r.label)).size === LEDGER.length && ledger.filter((r) => r.exit === 1).map((r) => r.label).join() === "85-check.mjs scan-ids,85-check.mjs scan-forbidden,86-check.mjs scan-ids,86-check.mjs scan-forbidden,87-check.mjs scan-forbidden,87-pinned-check.mjs,88-check.mjs scan-forbidden,88-check.mjs records --close,89-check.mjs scan-forbidden,89-check.mjs records --close"],
     ["the rows read in the order RUNS lists in every state, so two runs on one tree print the same text", [none, [SUBJECT.surface], every].every((have) => at(have).map((r) => r.label).join() === RUNS.map((r) => r.label).join())],
@@ -553,7 +558,7 @@ const selfTest = () => {
     ["the changeset subject moves each close's count by three, and 90's by three more lines naming each new file", setAt("88-check.mjs records --close", [SUBJECT.changesets]).includes(COUNT(8, "one")) && !setAt("88-check.mjs records --close", [SUBJECT.changesets]).includes(COUNT(5, "one")) && setAt("89-check.mjs records --close", [SUBJECT.changesets]).includes(COUNT(7, "one")) && rowAt("90-check.mjs records --close", [SUBJECT.changesets]).set.length === 4 && rowAt("90-check.mjs records --close", [SUBJECT.changesets]).set.includes(COUNT(6, 3)) && rowAt("90-check.mjs records --close", [SUBJECT.changesets]).set.filter((l) => l.includes("-named-barrel.md is not one of")).length === 3],
     ["with every subject 88's close holds the four moved lines, 89's six and 90's nine", rowAt("88-check.mjs records --close", every).set.length === 4 && rowAt("89-check.mjs records --close", every).set.length === 6 && rowAt("90-check.mjs records --close", every).set.length === 9 && new Set(rowAt("90-check.mjs records --close", every).set).size === 9],
     ["a close run at three changesets, judged at six, fails in both directions on the count line alone", about(judgedAt(none, [SUBJECT.changesets]), "89-check.mjs records --close").length === 2 && about(judgedAt([SUBJECT.changesets], none), "89-check.mjs records --close").length === 2],
-    ["a close passes in each of its states", [none, [SUBJECT.surface], [SUBJECT.decision], [SUBJECT.behaviours], [SUBJECT.overview], [SUBJECT.decisionNotes], [SUBJECT.changesets], every].every((have) => ["88", "89", "90"].every((n) => about(judgedAt(have, have), `${n}-check.mjs records --close`).length === 0))],
+    ["a close passes in each of its states", [none, [SUBJECT.surface], [SUBJECT.decision], [SUBJECT.amendments], [SUBJECT.behaviours], [SUBJECT.overview], [SUBJECT.decisionNotes], [SUBJECT.changesets], every].every((have) => ["87", "88", "89", "90"].every((n) => about(judgedAt(have, have), `${n}-check.mjs records --close`).length === 0))],
     ["a register line whose subject does not exist yet fails, naming the exit of a clean 90 close", about(judgedAt([SUBJECT.surface], none), "90-check.mjs records --close").join() === `90-check.mjs records --close: expected exit 0, got exit 1: ${REVISION(README, "1.417", "1.416")}`],
     ["a bump to a register one step too far fails, in both directions", about(judgeLedger(at([SUBJECT.decision]).map((r) => (r.label === "90-check.mjs records --close" ? { ...toRun(r), set: [REVISION(TRACEABILITY, "1.337", "1.335")] } : toRun(r))), at([SUBJECT.decision])), "90-check.mjs records --close").length === 2],
   ];
