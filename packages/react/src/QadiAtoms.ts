@@ -65,6 +65,16 @@ export type QadiLayer = Layer.Layer<
   AtomRegistry.AtomRegistry | Reactivity.Reactivity
 >;
 
+/**
+ * An atom set: the runtime, the subject and every question one provider tree asks.
+ *
+ * It states `hydrate` through {@link HydrationTarget}, so the signature is written
+ * once. `hydrate` lives on the atom set because the seed atoms do: each is private
+ * to the closure `makeQadiAtoms` builds, reachable by neither reflection nor import,
+ * which is what ADR-QD-039 requires (a consumer holding a seed atom could write an
+ * authorization decision straight into a registry, bypassing the subject check and
+ * the evaluator).
+ */
 export interface QadiAtoms extends HydrationTarget {
   /** The runtime the decision atoms evaluate in. */
   readonly runtime: Atom.AtomRuntime<QadiRuntimeServices>;

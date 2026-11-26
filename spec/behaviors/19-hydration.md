@@ -1250,7 +1250,7 @@ the capability returns `InitialValues` and takes no slot as a parameter
 ([BEH-QD-146](#beh-qd-146-a-payload-is-bound-to-one-subject-and-fails-closed)), and the two functions are pure and
 synchronous ([BEH-QD-145](#beh-qd-145-two-pure-functions-no-react)).
 
-Pinned by `packages/react/test/HydrationTarget.tst.ts` ("hydrateDecisions accepts any value that has the hydrate capability", "an atom set is a hydrate target", "the atom set states hydrate through the one signature", "a value without hydrate is not a hydrate target"), `packages/react/test/Hydration.test.ts` ("a spread copy of the atom set seeds the real questions", "seeds a decision the first render can already read", "REFUSES A PAYLOAD MADE FOR ANOTHER SUBJECT, and does not throw") and `packages/react/test/surface.test.ts` ("exports exactly these runtime values").
+Pinned by `packages/react/test/HydrationTarget.tst.ts` ("hydrateDecisions accepts any value that has the hydrate capability", "an atom set is a hydrate target", "the atom set's hydrate is the written-out signature", "a value holding the written-out hydrate alone is a hydrate target", "a value without hydrate is not a hydrate target", "a value whose hydrate reads another payload is not a hydrate target"), `packages/react/test/Hydration.test.ts` ("a spread copy of the atom set seeds the real questions", "seeds a decision the first render can already read", "REFUSES A PAYLOAD MADE FOR ANOTHER SUBJECT, and does not throw") and `packages/react/test/surface.test.ts` ("exports exactly these runtime values").
 
 ---
 

@@ -116,14 +116,17 @@ parameter, and `{ hydrate }` alone does too. No export is added or removed, beca
 own `HydrationEngine.d.ts` and `QadiAtoms.d.ts` and in no dependent's declaration, so neither TS2883 nor the escape check
 below arises.
 
-It is held by `packages/react/test/HydrationTarget.tst.ts` (a forwarding object is accepted, `QadiAtoms` is assignable to
-the parameter, `QadiAtoms["hydrate"]` is its written-out signature; positive pins and `not.toBeAssignableTo` only, so the
-negative-pin budget does not move) and probed in the packed consumer: it hydrates a payload that crossed as JSON text into the
-atom set and through `{ hydrate: atoms.hydrate }` alone, and a `@ts-expect-error` refuses `hydrateDecisions({}, …)`. The probe
+It is held by `packages/react/test/HydrationTarget.tst.ts` (a forwarding object is accepted, `QadiAtoms` and a value holding
+the written-out `hydrate` alone are assignable to the parameter, `QadiAtoms["hydrate"]` is its written-out signature, and a
+value without `hydrate`, or whose `hydrate` reads another payload, is not; positive pins and `not.toBeAssignableTo` only, so
+the negative-pin budget does not move), and it is probed in the packed consumer: it hydrates a payload that crossed as JSON
+text into the atom set and through `{ hydrate: atoms.hydrate }` alone, and a `@ts-expect-error` refuses `hydrateDecisions({}, …)`. The probe
 guard of `node scripts/check-package-install.mjs` holds the probe itself: its module hook records the shape of each
 `hydrateDecisions` call's first argument, so the run must call it through the atom set and through a value holding `hydrate`
 alone (`REACT_RUNTIME_PROBES`), and its parse requires a call on an object literal without `hydrate` led by the directive
-(`REFUSED_CALL_PROBES`). A deleted call or refusal fails the gate with a reason naming it.
+(`REFUSED_CALL_PROBES`). A deleted call or refusal fails the gate with a reason naming it. That `QadiAtoms` states `hydrate` through `extends
+HydrationTarget` rather than a copy of the signature is the source's shape, which no type pin can tell from an identical
+redeclaration, so no check claims it.
 
 ### The `EvaluationSpan.ts` verdict: not folded
 

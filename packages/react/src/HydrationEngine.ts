@@ -555,19 +555,18 @@ export interface HydrateOptions {
  * `hydrateDecisions` calls.
  *
  * `QadiAtoms` extends it, so the signature is stated once. An atom set that
- * forwards `hydrate` (a spread copy, a wrapper) is a target too. Package-private:
- * the barrel names no seed slot (ADR-QD-039).
+ * forwards `hydrate` (a spread copy, a wrapper) is a target too. Kept out of the
+ * root so the public surface does not grow (ADR-QD-204): a consumer that needs
+ * the type names it as `Parameters<typeof hydrateDecisions>[0]`. It holds only
+ * the public `hydrate` member, never a seed slot.
  */
 export interface HydrationTarget {
   /**
-   * Seeds this atom set from a server's dehydrated payload.
+   * Seeds the target's questions from a server's dehydrated payload.
    *
    * The capability `hydrateDecisions` calls — **prefer `hydrateDecisions`**, which
-   * is the documented entry point and checks the payload the same way. It lives on
-   * the atom set because the seed atoms do: each is private to this closure,
-   * reachable by neither reflection nor import, which is what ADR-QD-039 actually
-   * requires (a consumer holding a seed atom could write an authorization decision
-   * straight into a registry, bypassing the subject check and the evaluator).
+   * is the documented entry point and checks the payload the same way. On an atom
+   * set it writes the seed atoms that atom set keeps private (`QadiAtoms`).
    *
    * Never throws, and drops what it cannot verify — see `hydrateDecisions`. A
    * wrapper that forwards `decision` can forward this too, and a
