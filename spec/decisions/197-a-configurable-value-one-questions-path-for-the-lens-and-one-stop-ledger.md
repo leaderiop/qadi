@@ -90,12 +90,16 @@ None is a defect. Each is a statement made twice that could be made once, and th
    notices, their tests and `test/helpers.ts` keep their names. A hook and not a plain helper, because the pair is a `useRef`
    and a `useMemo` that a function that is not a hook cannot own.
 
-   **Amended 2026-11-26 ([ADR-QD-201](./201-a-stop-notices-box-keys-itself-and-owns-the-announce-once-rule.md)).** The ledger is held by `useReducer` over
-   `model/StopLedger.ts`'s `recordStop`, and the box derives its own key, so the hook holds no ref and returns a `useMemo` of
-   `{ status, onRestart, announced: { ledger, record } }` keyed on `[status, onRestart, ledger, record]`. The reason "a hook and
-   not a plain helper" stands, with a reducer and a memo in place of the ref and the memo. The two alternatives rejected below,
-   one ledger for both feeds and a memo keyed on `status` alone, still apply, reading ledger for ref. The rest of this decision
-   is as it was written.
+   **Amended 2026-11-26 ([ADR-QD-201](./201-a-stop-notices-box-keys-itself-and-owns-the-announce-once-rule.md)).** The
+   ledger is held by `useReducer` over `model/StopLedger.ts`'s `recordStop`, and the box derives its own key, so the hook
+   holds no ref and returns a `useMemo` of `{ status, onRestart, announced: { ledger, record } }` keyed on
+   `[status, onRestart, ledger, record]`. `StopLedger<S>` and `noStops` moved from `StoppedBox.tsx` to `model/StopLedger.ts`,
+   and the type declared beside `StopNoticeProps<S>` in `StoppedBox.tsx` is `AnnouncedStops<S>`, the ledger and its `record`,
+   so the sentence above that places `StopNoticeProps<S>` beside `StopLedger<S>` reads `AnnouncedStops<S>` for
+   `StopLedger<S>`. The reason "a hook and not a plain helper" stands, with a reducer and a memo in place of the ref and the
+   memo. The two alternatives rejected below, one ledger for both feeds and a memo keyed on `status` alone, still apply,
+   reading ledger for ref. The rest of this decision, the per-feed call from `DockFrame`, the memo following the feed's
+   `restart` and the two alias names, is as it was written.
 
 5. **`useTimeline` keeps building its inputs record every render, and the memo is a recorded rejection.** Both records below
    are quoted as they read at revision `8ff027e1`, before the adapter was removed, so the claim that the records are fresh by
