@@ -112,6 +112,7 @@ named below is in `91-RED-EVIDENCE.md` (`e929195d`).
 | SEC-OBS-4 | info | fixed | `9e378625`: check 3c also refuses a bare `@qadi/<pkg>/<subpath>` no installed manifest's `exports` map declares; `entryPointsOf` reads the entry points from the manifests (fail-closed with none given). Four planted cases added (thirteen in all). Seen failing: `escape-undeclared-subpath` (a react declaration naming `@qadi/core/lib/Decision.js`, gate 14 exit 1) and `escape-self-check-subpath` (the refusal neutralised, the self-check names the three planted cases). AGENTS.md §16, ADR-QD-204 and INV-QD-427 say so; gate 14 prints `… none names a path outside its package, into src/ or to an undeclared entry point`. |
 | WR-03 | warning | fixed | `a6f86b9e`: BEH-QD-792 and BEH-QD-794 REQUIREMENT 1, the module docs of `HydrationEngine.ts` and `ArchiveFacts.ts`, and the ADR-QD-039 and ADR-QD-078 notes say the barrel names an exact list of the module's names, those are public (`InitialValues`, `HydrationMismatch`, `HydrationMismatchReporter` through `QadiProvider.tsx` and `QadiAtoms.ts`; `ArchiveInputInvalid`, `ArchiveInputRefusal` through `AuditArchive.ts`), and every name it does not list is package-private. Comment-only in source, so no mutation re-take. |
 | WR-04 | warning | fixed | `10ba6dbe`: AGENTS.md §9, CONTRIBUTING.md, ADR-QD-204, BEH-QD-795 and ADR-QD-047: a public name is a root line and an overview row (gate 13); a value is also a line in the value list of `test/surface.test.ts` in the four packages that have one (`@qadi/audit`, `@qadi/core`, `@qadi/devtools`, `@qadi/react`); a type has no line there and gets one in a type pin only where one exists (`@qadi/devtools`' `surface.tst.ts`). |
+| WR-04 (barrel headers) | warning | fixed | `b9dccc9a`: the header comments of the five named barrels (core, react and audit `index.ts`, devtools `index.ts` and `react/index.ts`) say what AGENTS.md §9 says: a value is a root line, an overview row and a line in `test/surface.test.ts`'s value list; a type is a root line and an overview row, plus a line in devtools' `test/surface.tst.ts` where that type pin exists. Comment lines only; `named-barrel` stays green. Declarations: `f8ea4654` (the devtools barrels move from held source to declared files whose only regions are doc-comment lines under that one subject), `1d91324f` (phase 88's pinned row is computed on that subject). Because `@qadi/devtools` now has a `src` edit, it gets a patch changeset saying no export changes (`3089d7fb`); `8aa52fa6` adds it to `91-check.mjs changesets`, `c574d649` counts it in the closes of phases 88, 89 and 90, and `32f9c3ff` records it in ADR-QD-204 and the CCR-QD-483 row. Seen failing (`49de3342`): `barrel-header-outside-region`, `barrel-header-statement-in-region`. |
 | WR-05 | warning | fixed | `5ca0ca79`: BEH-QD-145's listing and the website hydration page type the first parameter as `{ readonly hydrate: QadiAtoms["hydrate"] }`; BEH-QD-145 links BEH-QD-792. `check-doc-examples` (122 blocks) and `check-website-doc-examples` (79 blocks) compile. |
 | WR-06 | warning | fixed | `fd3459c0`: INV-QD-427 says what each check holds: values and their runtime presence by each `surface.test.ts` (audit, core, devtools, react), names by gate 13, export kinds and the 948-name baseline by `node scripts/surface-diff.mjs compare`, run by hand or by a phase and no merge step, with only its self-test in `pnpm check`. BEH-QD-795 and BEH-QD-791 say the same. No committed-baseline gate added. |
 | WR-07 | warning | fixed | `151ac752`: the redundant `mkdirSync` in `scripts/lib/surface-scan.mjs` deleted. |
@@ -126,10 +127,8 @@ named below is in `91-RED-EVIDENCE.md` (`e929195d`).
 | SEC-OBS-3, SEC-OBS-6, SEC-OBS-8 | info | accepted | 3: the structural target adds no capability; base `QadiAtoms` was already structural. 6: `surface-diff compare` stays a phase tool by design (ADR-QD-204); INV-QD-427 says so. 8: release facts unchanged. |
 | SEC-OBS-7 | info | no change | a separate `import type` beside a value import is the house pattern. |
 
-Not done, recorded: the header comments of the four part-public barrels (`packages/{core,react,audit,devtools}/src/index.ts`
-and `packages/devtools/src/react/index.ts`) still say "a line here, a row in `spec/overview.md` and a line in
-`test/surface.test.ts`". The finding named five other places; the devtools barrels are held source and the three others are
-declared files of `91-pinned-check.mjs`, so an edit there would move a pinned file outside its declared regions.
+The barrel header comments, first recorded here as not done, were fixed on the orchestrator's decision (see the WR-04
+(barrel headers) row).
 
 Script declarations changed, each named:
 
@@ -143,23 +142,36 @@ Script declarations changed, each named:
   runs `seen-failing packages/core/test/PortSpanRead.test.ts`; `MUTATION_TESTS` keeps the born name, with a note. Five
   self-test rows (480 in all).
 - `91-mutation.mjs` (`a6636e0f`): the `EXAMINED` note names the renamed test. Self-test 125.
-- `91-earlier-checks.mjs`: unchanged; its 87 runs match their rows.
+- `91-pinned-check.mjs` (`f8ea4654`): a declared region may be `docComment: true`, replaced only by ` * ` continuation lines
+  that do not close the block; `packages/devtools/src/index.ts` (base lines 19-20) and `packages/devtools/src/react/index.ts`
+  (16-17) leave `HELD_SOURCE` for `DECLARED` with one such region each, under `fix(91-review): state the edits a public name
+  needs in each barrel's header`; the phase-89 earlier-held row of the audit barrel admits that subject. Eight self-test
+  rows (120 in all).
+- `91-earlier-checks.mjs` (`1d91324f`): `REVIEW_SUBJECT` (not a plan subject, carried by one commit at most) and the computed
+  row `pinned88`: Phase 88's pinned check names the two devtools barrels once that subject exists. Five self-test rows (81 in
+  all); its 87 runs match their rows. `c574d649`: the devtools changeset subject, counted by `addedBy`, moves the
+  changeset count of the closes of 88, 89 and 90 by one, and adds the file line to 90's close. Three self-test rows (84 in all).
+- `91-check.mjs` (`8aa52fa6`): `CHANGESETS` names the fourth, `.changeset/devtools-named-barrel-headers.md`, a
+  `No export changes.` patch. Two self-test rows (482 in all).
 
 Spec edits, all in place within this phase's unreleased revisions except one bump: ADR-QD-053 Rev 1.8 (`spec-revise.mjs`,
 2026-11-26). Edited in place: ADR-QD-204, ADR-QD-047, ADR-QD-039, ADR-QD-078, `spec/invariants.md` (INV-QD-427,
 INV-QD-428), `spec/traceability.md`, `spec/behaviors/09-react.md` (BEH-QD-795), `19-hydration.md` (BEH-QD-145, BEH-QD-792),
 `30-port-calls.md` (BEH-QD-791), `33-audit-pipeline.md` (BEH-QD-794), and `spec/README.md`'s CCR-QD-483 row, which names
 ADR-QD-053 and the review's other edits. Outside `spec/`: AGENTS.md §9 and §16, CONTRIBUTING.md, the website hydration page.
-No new changeset: the source edits are comments in `@qadi/react` and `@qadi/audit`, both already covered.
+The first round's source edits are comments in `@qadi/react` and `@qadi/audit`, which already had changesets. The barrel-header
+fix edits `@qadi/devtools`' `src` (comments only), so it adds one patch changeset for it (`3089d7fb`).
 
-Final checks, at code head `e929195d`:
+Final checks, at code head `32f9c3ff` (after the barrel-header fix):
 
-- `91-check.mjs close`: exit 0, 25 checks and the no-release facts pass (pinned `--all-applied`: 515 held, 27 declared and
+- `91-check.mjs close`: exit 0, 25 checks and the no-release facts pass (pinned `--all-applied`: 513 held, 29 declared and
   applied, 5 born, 27 earlier-held, clean; `91-earlier-checks.mjs`: 87 runs, all match their rows; `records --close`: exit 0;
-  `91-mutation.mjs compare`, `landed close`, `landed coverage-close`: ok; `escape`: clean).
-- `--self-test`: `91-check` 480, `91-pinned-check` 112, `91-earlier-checks` 76, `91-mutation` 125, all passed.
+  `changesets`: 4 patch changesets, one per edited public package; mutation `compare`, `landed close` and
+  `landed coverage-close`: ok; `escape`: clean).
+- `--self-test`: `91-check` 482, `91-pinned-check` 120, `91-earlier-checks` 84, `91-mutation` 125, all passed.
+- `node scripts/check-house-style.mjs`: 648 files clean.
 - `pnpm check:pr`: exit 0, 18 of 19 steps (`pnpm mutation` skipped, as for every non-release PR): 308 test files and 6981
-  tests, coverage 99.68 / 98.75 / 99.61 / 99.84, house-style 648 files clean, gate 14 nine packages and 528 runtime exports,
-  `surface:self-test` 25 passed.
-- `91-check.mjs scratch-clean` and `scratch-clean --check`: `$TMPDIR/qd91` removed (the auditor's `earlier` included).
+  tests, coverage 99.68 / 98.75 / 99.61 / 99.84, gate 14 nine packages and 528 runtime exports, `surface:self-test` 25 passed.
+- `91-check.mjs scratch-clean` and `scratch-clean --check`: `$TMPDIR/qd91` removed.
 
+The first round's checks, at `e929195d`, passed the same way (close 25 checks, `check:pr` exit 0).
