@@ -707,3 +707,81 @@ Each block below is one run of a phase check or a held mutation mode on a scratc
 - failing text: AssertionError: expected [ [ 'DecisionHistory', 1 ] ] to deeply equal []
 - failing text: AssertionError: expected [ [ 'DecisionHistory', 1 ] ] to deeply equal []
 - failing text: AssertionError: expected [ [ 'DecisionHistory', 1 ] ] to deeply equal []
+
+## port-facts-04-span-literal
+- scratch: pf-t4-span-literal at f6bc8f4aca
+- edit: the AttributeResolver row of PortSpans reads qadi.attributeX
+- diff: 1efe6698958d80b3516515aec9eec90b1aac65682851a796732d096875f1b795 (1 files, +1 -1)
+- run: tstyche packages/core/test/PortFacts.tst.ts
+- exit: 1
+- seen failing: PortSpanName is the five span names
+- seen failing: PortSpanOf is each port's own span
+- failing text: Error: Type 'PortSpanName' is not the same as type '"qadi.acted" | "qadi.hasRelationship" | "qadi.hasCustom" | "qadi.hasSignature" | "qadi.attribute"'.
+- failing text: Error: Type '"qadi.attributeX"' is not the same as type '"qadi.attribute"'.
+- failing text: Error: Type 'PortSpanName' is not the same as type '"qadi.acted" | "qadi.hasRelationship" | "qadi.hasCustom" | "qadi.hasSignature" | "qadi.attribute"'.
+
+## port-facts-04-span-key
+- scratch: pf-t4-span-key at f6bc8f4aca
+- edit: the AttributeResolver key of PortSpans renamed to AttributeResolverX
+- diff: afa5e2f63a6dd0dac11c2ab1e7c4780aa0ae90ab56df9adec5c8126138f5dfc9 (1 files, +1 -1)
+- run: tstyche packages/core/test/PortFacts.tst.ts
+- exit: 1
+- seen failing: PortSpanOf is each port's own span
+- seen failing: PortName is the five ports
+- failing text: Error: Type '"AttributeResolver"' does not satisfy the constraint 'keyof PortSpans'. ts(2344)
+- failing text: Error: Type 'keyof PortSpans' is not the same as type '"DecisionHistory" | "RelationshipResolver" | "CustomPredicate" | "SignatureHistory" | "AttributeResolver"'.
+- failing text: Error: Type '"AttributeResolver"' does not satisfy the constraint 'keyof PortSpans'. ts(2344)
+
+## port-facts-04-fixture-member
+- scratch: pf-t4-fixture-member at f6bc8f4aca
+- edit: PortFixtureData's DecisionHistory member holds SignatureInput rows
+- diff: 0ba475a66f2571812248ea66bf37f1b1360956a5b1cef1ee51d5c4acc3040b0e (1 files, +1 -1)
+- run: tstyche packages/core/test/PortFacts.tst.ts
+- exit: 1
+- seen failing: PortFixtureData is the five members a host states
+- failing text: Error: Type 'PortFixtureData' is not the same as type '{ readonly AttributeResolver: { readonly [key: string]: unknown; }; readonly RelationshipResolver: readonly RelationshipEdgeInput[]; readonly DecisionHistory: readonly ActedEventInput[]; readonly SignatureHistory: readonly SignatureInput[]; readonly CustomPredicate: { readonly [key: string]: boolean; }; }'.
+- failing text: Error: Type 'PortFixtureData' is not the same as type '{ readonly AttributeResolver: { readonly [key: string]: unknown; }; readonly RelationshipResolver: readonly RelationshipEdgeInput[]; readonly DecisionHistory: readonly ActedEventInput[]; readonly SignatureHistory: readonly SignatureInput[]; readonly CustomPredicate: { readonly [key: string]: boolean; }; }'.
+
+## port-facts-04-acted-bare-read
+- scratch: pf-t4-acted-bare-read at f6bc8f4aca
+- edit: readActed reads the bare port for every scope, never readScoped
+- diff: 7b981fb2768d3262d6a3a766251d267abd08dceba849f2a992f54288010399f8 (1 files, +1 -3)
+- run: vitest packages/core/test/LeafNeeds.test.ts
+- exit: 1
+- seen failing: a scoped read requires an id exactly where its leaf's row says a read is refused for a missing id exactly when its row and scope ask for one
+- seen failing: a scoped read requires an id exactly where its leaf's row says a ByScope leaf's judgement refuses exactly when its read does
+- failing text: AssertionError: HasActed[Resource] none: expected false to equal true
+- failing text: AssertionError: HasActed[Resource] none: expected true to equal false
+
+## port-facts-04-signature-row-always
+- scratch: pf-t4-signature-row-always at f6bc8f4aca
+- edit: LEAF_NEEDS HasSignature row says Always
+- diff: f69d1215fc6e438cc6b8d92423ac6c1d56970ed0d4a95315646cb3a24bfea746 (1 files, +1 -1)
+- run: vitest packages/core/test/LeafNeeds.test.ts
+- exit: 1
+- seen failing: a scoped read requires an id exactly where its leaf's row says a read is refused for a missing id exactly when its row and scope ask for one
+- seen failing: a scoped read requires an id exactly where its leaf's row says a ByScope leaf's judgement refuses exactly when its read does
+- failing text: AssertionError: HasSignature[Any]: expected false to be true
+- failing text: AssertionError: expected 12 to equal 18
+
+## port-facts-04-signature-row-never
+- scratch: pf-t4-signature-row-never at f6bc8f4aca
+- edit: LEAF_NEEDS HasSignature row says Never
+- diff: 1c5c7dda3bbe2d4a1541d0b82f73bca09eafcacd743d0250e25886ccb37a2680 (1 files, +1 -1)
+- run: vitest packages/core/test/LeafNeeds.test.ts
+- exit: 1
+- seen failing: a scoped read requires an id exactly where its leaf's row says a read is refused for a missing id exactly when its row and scope ask for one
+- seen failing: a scoped read requires an id exactly where its leaf's row says a ByScope leaf's judgement refuses exactly when its read does
+- seen failing: a scoped read requires an id exactly where its leaf's row says the leaf tags that ask about one resource are exactly four
+- failing text: AssertionError: HasSignature[Resource]: expected true to be false
+- failing text: AssertionError: expected 12 to equal 18
+- failing text: AssertionError: expected [ 'HasActed', 'HasNotActed', …(1) ] to deeply equal [ 'HasActed', 'HasNotActed', …(2) ]
+
+## port-facts-04-signature-judgement-inverted
+- scratch: pf-t4-signature-judgement-inverted at f6bc8f4aca
+- edit: the signature judgement tests the opposite scope for its resource id
+- diff: 8ab8c483087edf111bb3c128dbadcf65349d8de715776d6eaa2abaaca2fbad81 (1 files, +1 -1)
+- run: vitest packages/core/test/LeafNeeds.test.ts
+- exit: 1
+- seen failing: a scoped read requires an id exactly where its leaf's row says a ByScope leaf's judgement refuses exactly when its read does
+- failing text: AssertionError: HasSignature[Resource] none: expected false to equal true
