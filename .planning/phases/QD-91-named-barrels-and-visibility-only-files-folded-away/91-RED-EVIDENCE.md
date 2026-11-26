@@ -1242,3 +1242,20 @@ Each block below is written by `91-check.mjs variant`: the check ran inside a sc
 - exit: 1
 - seen failing: decodeSpan: a port question's interpreter reads each of the three interpreters as itself
 - failing text: AssertionError: expected [ 'evaluate', 'toPredicate', …(2) ] to deeply equal [ 'evaluate', 'toPredicate', 'remote' ]
+
+## barrel-header-outside-region
+- scratch: rv-hdr at 1d91324fce
+- edit: a header line of the devtools barrel outside its declared doc-comment region reworded
+- diff: ab4c5154e85cf9dcb4b2d3fbbb4b230acf623e96de37f789a944cb0b969d8b98 (1 files, +1 -1)
+- run: script 91-pinned-check.mjs
+- exit: 1
+- failing text: packages/devtools/src/index.ts: differs from the commit that added it at line 18
+- failing text: packages/devtools/src/index.ts: differs outside its declared lines at line 18
+
+## barrel-header-statement-in-region
+- scratch: rv-hdr at 1d91324fce
+- edit: a statement written among the doc-comment lines the review declares in the devtools react barrel
+- diff: e3a685870d9747b2bd8ba2ffa5c025b09f677883e50783f9ab97f1917c4a50a3 (1 files, +3 -0)
+- run: script 91-pinned-check.mjs
+- exit: 1
+- failing text: packages/devtools/src/react/index.ts: differs from the commit that added it at line 18
