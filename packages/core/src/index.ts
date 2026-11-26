@@ -6,9 +6,10 @@
  * **The list below is the interface** (ADR-QD-047's amendment, ADR-QD-204): each
  * module's exports are named, modules in path order and, within a module, values
  * before types. A module's other names are reachable inside the package only: out
- * of the barrel means not importable (ADR-QD-099). Adding a name is a line here,
- * a row in `spec/overview.md` and a line in `test/surface.test.ts`, which is
- * deliberate.
+ * of the barrel means not importable (ADR-QD-099). Adding a value is a line here,
+ * a row in `spec/overview.md` and a line in `test/surface.test.ts`'s value list;
+ * adding a type is a line here and a row in `spec/overview.md`, because a type is
+ * not a runtime key (AGENTS.md §9).
  */
 export {
   AttributeResolver,

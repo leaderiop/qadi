@@ -13,8 +13,9 @@
  * `useDiagnostics` with its options, status and snapshot, the simulation
  * session's hooks). The panels the dock composes and the pick-gesture lens are
  * package-private, and `theme.ts` is internal scaffolding as before (AGENTS.md §9).
- * Adding a name is a line here, a row in `spec/overview.md` and a line in
- * `test/surface.test.ts`.
+ * Adding a value is a line here, a row in `spec/overview.md` and a line in
+ * `test/surface.test.ts`'s value list; adding a type is a line here, a row in
+ * `spec/overview.md` and a line in `test/surface.tst.ts` (AGENTS.md §9).
  */
 export type { DiagnosticsOptions } from "../model/Diagnostics.ts";
 export { DiagnosticsStatus } from "../model/DiagnosticsFeed.ts";
