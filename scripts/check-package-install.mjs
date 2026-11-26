@@ -556,6 +556,7 @@ import {
   type ErrorOf,
   evaluate,
   EvaluationIdLive,
+  EvaluationServicesNone,
   fromRoles,
   gte,
   hasActed,
@@ -585,7 +586,13 @@ import {
 } from "@qadi/core";
 import { makeQadi } from "@qadi/promise";
 import { qadiTestLayer } from "@qadi/testing";
-import { QadiProvider } from "@qadi/react";
+import {
+  dehydrateDecisions,
+  type DehydratedDecisions,
+  hydrateDecisions,
+  makeQadiAtoms,
+  QadiProvider,
+} from "@qadi/react";
 import {
   type Diagnostics,
   type DiagnosticsOptions,
@@ -655,6 +662,24 @@ await qadi.dispose();
 // declaration file in any of them is a compile error here.
 expect("testing layer", typeof qadiTestLayer, "function");
 expect("react provider", typeof QadiProvider, "function");
+
+// hydrateDecisions takes the atom set or any value with its hydrate capability, and refuses one without. The payload
+// crosses as the JSON text a page embeds, so both hydrations read the decoded payload, not the in-memory object.
+const hydrationAtoms = makeQadiAtoms(EvaluationServicesNone);
+const hydrationSent = dehydrateDecisions([
+  { policy: hasPermission(read), decision: await decide(hasPermission(read)) },
+  { policy: hasPermission(write), decision: await decide(hasPermission(write)) },
+]);
+const hydrationPayload: DehydratedDecisions = JSON.parse(JSON.stringify(hydrationSent));
+const seededByAtoms = [...hydrateDecisions(hydrationAtoms, hydrationPayload, alice)];
+const seededByCapability = [...hydrateDecisions({ hydrate: hydrationAtoms.hydrate }, hydrationPayload, alice)];
+expect("hydration payload carries entries", hydrationPayload.entries.length > 0, true);
+expect("hydration seeds every entry through the atom set", seededByAtoms.length, hydrationPayload.entries.length);
+expect("hydration seeds every entry through the capability alone", seededByCapability.length, hydrationPayload.entries.length);
+expect("hydration seeds the same atoms either way", seededByAtoms.every(([atom], at) => atom === seededByCapability[at]?.[0]), true);
+const refusedHydrationTarget = () =>
+  // @ts-expect-error a value without hydrate is not a hydrate target
+  hydrateDecisions({}, hydrationPayload, alice);
 // The two new public names answer in the packed artifact.
 expect("thrown message of an Error", thrownMessage(new Error("boom")), "boom");
 expect("thrown message of a value that cannot be described", thrownMessage({ toString: () => { throw new Error("no"); } }), "a value that could not be described");
