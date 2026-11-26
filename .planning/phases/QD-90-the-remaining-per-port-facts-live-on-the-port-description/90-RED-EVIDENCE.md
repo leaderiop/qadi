@@ -301,3 +301,409 @@ Each block below is one run of a phase check or a held mutation mode on a scratc
 - failing text: node .planning/phases/QD-90-the-remaining-per-port-facts-live-on-the-port-description/90-pinned-check.mjs --all-applied exited 1
 - failing text: node .planning/phases/QD-90-the-remaining-per-port-facts-live-on-the-port-description/90-earlier-checks.mjs exited 1
 - failing text: 90-check.mjs records --close exited 1
+
+## port-facts-spans
+- scratch: pf-spans at 8e04476105
+- edit: each port description's span value gets an X suffix in its port module
+- diff: e658a001185826ad20eb8848c439cc81d2ff63ae2f98ab3d4a50713162cfa1f8 (5 files, +5 -5)
+- run: vitest packages/core/test/PortFacts.characterisation.test.ts
+- exit: 1
+- seen failing: each port states its own facts AttributeResolver states its facts
+- seen failing: each port states its own facts DecisionHistory states its facts
+- seen failing: each port states its own facts RelationshipResolver states its facts
+- seen failing: each port states its own facts CustomPredicate states its facts
+- seen failing: each port states its own facts SignatureHistory states its facts
+- seen failing: a scoped read at every site HasRelationship, absent resource, under evaluate
+- seen failing: a scoped read at every site HasRelationship, resource without id, under evaluate
+- seen failing: a scoped read at every site HasRelationship, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasRelationship, resource with usable id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, absent resource, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource without id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource with usable id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Any, absent resource, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Any, resource without id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Any, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Any, resource with usable id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, absent resource, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource without id, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource with non-string id, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource with usable id, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Any, absent resource, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Any, resource without id, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Any, resource with non-string id, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Any, resource with usable id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, absent resource, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource without id, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource with usable id, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Any, absent resource, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Any, resource without id, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Any, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Any, resource with usable id, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, absent resource, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource without id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource with non-string id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource with usable id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Any, absent resource, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Any, resource without id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Any, resource with non-string id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Any, resource with usable id, under toPredicate
+- seen failing: a scoped read at every site HasSignature, scope Resource, absent resource, under evaluate
+- seen failing: a scoped read at every site HasSignature, scope Resource, resource without id, under evaluate
+- seen failing: a scoped read at every site HasSignature, scope Resource, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasSignature, scope Resource, resource with usable id, under evaluate
+- seen failing: a scoped read at every site HasSignature, scope Any, absent resource, under evaluate
+- seen failing: a scoped read at every site HasSignature, scope Any, resource without id, under evaluate
+- seen failing: a scoped read at every site HasSignature, scope Any, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasSignature, scope Any, resource with usable id, under evaluate
+- failing text: AssertionError: expected { port: 'AttributeResolver', …(5) } to deeply equal { port: 'AttributeResolver', …(5) }
+- failing text: AssertionError: expected { port: 'DecisionHistory', …(5) } to deeply equal { port: 'DecisionHistory', …(5) }
+- failing text: AssertionError: expected { port: 'RelationshipResolver', …(5) } to deeply equal { port: 'RelationshipResolver', …(5) }
+
+## port-facts-methods
+- scratch: pf-methods at 8e04476105
+- edit: each description's method string gets an X suffix
+- diff: f3740b26065d06c4fa8e83df9a08fd8aca82fb03064a051dfc3f0a1e099bde12 (5 files, +5 -5)
+- run: vitest packages/core/test/PortFacts.characterisation.test.ts
+- exit: 1
+- seen failing: each port states its own facts AttributeResolver states its facts
+- seen failing: each port states its own facts DecisionHistory states its facts
+- seen failing: each port states its own facts RelationshipResolver states its facts
+- seen failing: each port states its own facts CustomPredicate states its facts
+- seen failing: each port states its own facts SignatureHistory states its facts
+- failing text: AssertionError: expected { port: 'AttributeResolver', …(5) } to deeply equal { port: 'AttributeResolver', …(5) }
+- failing text: AssertionError: expected { port: 'DecisionHistory', …(5) } to deeply equal { port: 'DecisionHistory', …(5) }
+- failing text: AssertionError: expected { port: 'RelationshipResolver', …(5) } to deeply equal { port: 'RelationshipResolver', …(5) }
+
+## port-facts-allowlists
+- scratch: pf-allowlists at 8e04476105
+- edit: each description's serving allowlist term is changed to another term
+- diff: 2668588f62a3cb075f6c4b33a28e4db50fb7ac065fa62f3e355fdfbe56021a17 (5 files, +5 -5)
+- run: vitest packages/core/test/PortFacts.characterisation.test.ts
+- exit: 1
+- seen failing: each port states its own facts AttributeResolver states its facts
+- seen failing: each port states its own facts DecisionHistory states its facts
+- seen failing: each port states its own facts RelationshipResolver states its facts
+- seen failing: each port states its own facts CustomPredicate states its facts
+- seen failing: each port states its own facts SignatureHistory states its facts
+- seen failing: a host answers one fixed question per port SignatureHistory answers once its records are opted in
+- failing text: AssertionError: expected { port: 'AttributeResolver', …(5) } to deeply equal { port: 'AttributeResolver', …(5) }
+- failing text: AssertionError: expected { port: 'DecisionHistory', …(5) } to deeply equal { port: 'DecisionHistory', …(5) }
+- failing text: AssertionError: expected { port: 'RelationshipResolver', …(5) } to deeply equal { port: 'RelationshipResolver', …(5) }
+
+## port-facts-fixture-names
+- scratch: pf-fixture-names at 8e04476105
+- edit: each fixture builder's shape name gets an X suffix
+- diff: eeda283a162e447b56a9e113b2baebe0313b587efe05db5045b3826cae12c4e1 (5 files, +5 -5)
+- run: vitest packages/core/test/PortFacts.characterisation.test.ts
+- exit: 1
+- seen failing: each port states its own facts AttributeResolver states its facts
+- seen failing: each port states its own facts DecisionHistory states its facts
+- seen failing: each port states its own facts RelationshipResolver states its facts
+- seen failing: each port states its own facts CustomPredicate states its facts
+- seen failing: each port states its own facts SignatureHistory states its facts
+- failing text: AssertionError: expected { port: 'AttributeResolver', …(5) } to deeply equal { port: 'AttributeResolver', …(5) }
+- failing text: AssertionError: expected { port: 'DecisionHistory', …(5) } to deeply equal { port: 'DecisionHistory', …(5) }
+- failing text: AssertionError: expected { port: 'RelationshipResolver', …(5) } to deeply equal { port: 'RelationshipResolver', …(5) }
+
+## port-facts-tabulate-swap
+- scratch: pf-tabulate-swap at 8e04476105
+- edit: tabulatePorts: the AttributeResolver and DecisionHistory rows swap places in Ports.ts
+- diff: c8a050ad199eace7fa9eaea863281f0dec9533d0acd5e0ada0b2b8457809dfef (1 files, +1 -1)
+- run: vitest packages/core/test/PortFacts.characterisation.test.ts
+- exit: 1
+- seen failing: the registry lists the ports in one order forEveryPort visits the five ports in registry order
+- seen failing: the registry lists the ports in one order tabulatePorts keys its rows in registry order
+- seen failing: a host answers one fixed question per port servingFor declares what one policy per port asks
+- failing text: AssertionError: expected [ 'DecisionHistory', …(4) ] to deeply equal [ 'AttributeResolver', …(4) ]
+- failing text: AssertionError: expected [ 'DecisionHistory', …(4) ] to deeply equal [ 'AttributeResolver', …(4) ]
+- failing text: AssertionError: expected '{"DecisionHistory":{"events":["approv…' to equal '{"AttributeResolver":{"attributes":["…'
+
+## port-facts-metric-names-swap
+- scratch: pf-metric-names-swap at 8e04476105
+- edit: PORT_NAMES_BY_NAME: AttributeResolver and DecisionHistory swap places in PortMetrics.ts
+- diff: 5e43dd9cb9517bcee38203315f12c4b2e1dbd120c6e4cb80a4df38a65291367f (1 files, +1 -1)
+- run: vitest packages/core/test/PortFacts.characterisation.test.ts
+- exit: 1
+- seen failing: each port metric preregisters its words portCallsTotal preregisters the five ports, in order
+- seen failing: each port metric preregisters its words portRetriesTotal preregisters the five ports, in order
+- seen failing: each port metric preregisters its words portTimeoutsTotal preregisters the five ports, in order
+- seen failing: each port metric preregisters its words servedPortCallsTotal preregisters the five ports, in order
+- failing text: AssertionError: expected [ [ 'DecisionHistory', +0 ], …(4) ] to deeply equal [ [ 'AttributeResolver', +0 ], …(4) ]
+- failing text: AssertionError: expected [ [ 'DecisionHistory', +0 ], …(4) ] to deeply equal [ [ 'AttributeResolver', +0 ], …(4) ]
+- failing text: AssertionError: expected [ [ 'DecisionHistory', +0 ], …(4) ] to deeply equal [ [ 'AttributeResolver', +0 ], …(4) ]
+
+## port-facts-predicate-names-swap
+- scratch: pf-predicate-names-swap at 8e04476105
+- edit: PREDICATE_PORT_NAMES_BY_NAME: AttributeResolver and DecisionHistory swap places in PortMetrics.ts
+- diff: ed0114a5c2fbd284909f21b6d9ab96c66e9a46b799c8d3516f6d4b61c85b1e97 (1 files, +1 -1)
+- run: vitest packages/core/test/PortFacts.characterisation.test.ts
+- exit: 1
+- seen failing: each port metric preregisters its words predicatePortCallsTotal preregisters the two ports toPredicate reads, in order
+- failing text: AssertionError: expected [ [ 'DecisionHistory', +0 ], …(1) ] to deeply equal [ [ 'AttributeResolver', +0 ], …(1) ]
+
+## port-facts-none-names
+- scratch: pf-none-names at 8e04476105
+- edit: each description's fail-closed default name gets an X suffix
+- diff: 6dd2925da8fb3efdfeeb26cfcb31e8773d79a1e645d8ab61b3b69278ed9c650d (5 files, +5 -5)
+- run: vitest packages/core/test/PortFacts.characterisation.test.ts
+- exit: 1
+- seen failing: each port states its own facts AttributeResolver states its facts
+- seen failing: each port states its own facts DecisionHistory states its facts
+- seen failing: each port states its own facts RelationshipResolver states its facts
+- seen failing: each port states its own facts CustomPredicate states its facts
+- seen failing: each port states its own facts SignatureHistory states its facts
+- failing text: AssertionError: expected { port: 'AttributeResolver', …(5) } to deeply equal { port: 'AttributeResolver', …(5) }
+- failing text: AssertionError: expected { port: 'DecisionHistory', …(5) } to deeply equal { port: 'DecisionHistory', …(5) }
+- failing text: AssertionError: expected { port: 'RelationshipResolver', …(5) } to deeply equal { port: 'RelationshipResolver', …(5) }
+
+## port-facts-wire-question-rename
+- scratch: pf-wire-question-rename at 8e04476105
+- edit: the wire question's field is renamed in each port module (struct, toQuestion, fromQuestion)
+- diff: 50b1097378820cbaacfeab09323b038f73f296cc96e8f529f32e917ac79c29aa (5 files, +15 -15)
+- run: vitest packages/core/test/PortFacts.characterisation.test.ts
+- exit: 1
+- seen failing: each port's question and answer travel as one fixed text AttributeResolver's question
+- seen failing: each port's question and answer travel as one fixed text DecisionHistory's question
+- seen failing: each port's question and answer travel as one fixed text RelationshipResolver's question
+- seen failing: each port's question and answer travel as one fixed text CustomPredicate's question
+- seen failing: each port's question and answer travel as one fixed text SignatureHistory's question
+- seen failing: a host answers one fixed question per port AttributeResolver answers a served attribute
+- seen failing: a host answers one fixed question per port DecisionHistory answers a served event
+- seen failing: a host answers one fixed question per port RelationshipResolver answers a served relation
+- seen failing: a host answers one fixed question per port CustomPredicate answers a served predicate
+- seen failing: a host answers one fixed question per port SignatureHistory answers once its records are opted in
+- failing text: AssertionError: expected '{"subjectId":"alice","attr":"clearanc…' to equal '{"subjectId":"alice","attribute":"cle…'
+- failing text: AssertionError: expected '{"subjectId":"alice","evt":"approved"…' to equal '{"subjectId":"alice","event":"approve…'
+- failing text: AssertionError: expected '{"subjectId":"alice","rel":"owner","r…' to equal '{"subjectId":"alice","relation":"owne…'
+
+## port-facts-wire-answer-wrap
+- scratch: pf-wire-answer-wrap at 8e04476105
+- edit: the shared wire encodeAnswer wraps its JSON in an array
+- diff: 250800150c6665a559d22a8b79d5d48e727a69ecc3eafb9cdb85c545ab0810d7 (1 files, +1 -1)
+- run: vitest packages/core/test/PortFacts.characterisation.test.ts
+- exit: 1
+- seen failing: each port's question and answer travel as one fixed text AttributeResolver's answer
+- seen failing: each port's question and answer travel as one fixed text DecisionHistory's answer
+- seen failing: each port's question and answer travel as one fixed text RelationshipResolver's answer
+- seen failing: each port's question and answer travel as one fixed text CustomPredicate's answer
+- seen failing: each port's question and answer travel as one fixed text SignatureHistory's answer
+- seen failing: a host answers one fixed question per port AttributeResolver answers a served attribute
+- seen failing: a host answers one fixed question per port DecisionHistory answers a served event
+- seen failing: a host answers one fixed question per port RelationshipResolver answers a served relation
+- seen failing: a host answers one fixed question per port CustomPredicate answers a served predicate
+- seen failing: a host answers one fixed question per port SignatureHistory answers once its records are opted in
+- failing text: AssertionError: expected '[{"value":5}]' to equal '{"value":5}'
+- failing text: AssertionError: expected '["Acted"]' to equal '"Acted"'
+- failing text: AssertionError: expected '["Related"]' to equal '"Related"'
+
+## port-facts-serving-for-reversed
+- scratch: pf-serving-for-reversed at 8e04476105
+- edit: servingFor reverses the ports' declaration members before merging them
+- diff: c2ec3f8a1885e79593ae97e4af8ff46254a5801ebda6e6db9bb88221548b6fc6 (1 files, +1 -1)
+- run: vitest packages/core/test/PortFacts.characterisation.test.ts
+- exit: 1
+- seen failing: a host answers one fixed question per port servingFor declares what one policy per port asks
+- failing text: AssertionError: expected '{"SignatureHistory":{"signatures":"ow…' to equal '{"AttributeResolver":{"attributes":["…'
+
+## port-facts-acted-bare
+- scratch: pf-acted-bare at 8e04476105
+- edit: readActed's route is forced to the bare read
+- diff: 82701142577b5c1049f8624a133ef227ee3f69effbec0991271bf60a4ffed958 (1 files, +1 -1)
+- run: vitest packages/core/test/PortFacts.characterisation.test.ts
+- exit: 1
+- seen failing: a scoped read at every site HasActed, scope Resource, absent resource, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource without id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, absent resource, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource without id, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource with non-string id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, absent resource, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource without id, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, absent resource, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource without id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource with non-string id, under toPredicate
+- failing text: AssertionError: expected false to be true
+- failing text: AssertionError: expected false to be true
+- failing text: AssertionError: expected false to be true
+
+## port-facts-acted-scoped
+- scratch: pf-acted-scoped at 8e04476105
+- edit: readActed's route is forced to the scoped read
+- diff: f75afcea47ea2ab75250a4b08b94c7eec4f5821534e244bc0d67134e25409167 (1 files, +1 -1)
+- run: vitest packages/core/test/PortFacts.characterisation.test.ts
+- exit: 1
+- seen failing: a scoped read at every site HasActed, scope Any, absent resource, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Any, resource without id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Any, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Any, resource with usable id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Any, absent resource, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Any, resource without id, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Any, resource with non-string id, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Any, resource with usable id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Any, absent resource, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Any, resource without id, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Any, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Any, resource with usable id, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Any, absent resource, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Any, resource without id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Any, resource with non-string id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Any, resource with usable id, under toPredicate
+- failing text: AssertionError: expected false to be true
+- failing text: AssertionError: expected false to be true
+- failing text: AssertionError: expected false to be true
+
+## port-facts-signature-bare
+- scratch: pf-signature-bare at 8e04476105
+- edit: askSignature's route is forced to the bare read
+- diff: 940e6718fb2de9f8840f12311636ae133a853882fed732a5dc644ce283eb7297 (1 files, +1 -1)
+- run: vitest packages/core/test/PortFacts.characterisation.test.ts
+- exit: 1
+- seen failing: a scoped read at every site HasSignature, scope Resource, absent resource, under evaluate
+- seen failing: a scoped read at every site HasSignature, scope Resource, resource without id, under evaluate
+- seen failing: a scoped read at every site HasSignature, scope Resource, resource with non-string id, under evaluate
+- failing text: AssertionError: expected false to be true
+- failing text: AssertionError: expected false to be true
+- failing text: AssertionError: expected false to be true
+
+## port-facts-signature-scoped
+- scratch: pf-signature-scoped at 8e04476105
+- edit: askSignature's route is forced to the scoped read
+- diff: e1c98c4bb762750c4d87a3276a6fc6d3d61b81eaebeff7dcfa33145d8f9e2466 (1 files, +1 -1)
+- run: vitest packages/core/test/PortFacts.characterisation.test.ts
+- exit: 1
+- seen failing: a scoped read at every site HasSignature, scope Any, absent resource, under evaluate
+- seen failing: a scoped read at every site HasSignature, scope Any, resource without id, under evaluate
+- seen failing: a scoped read at every site HasSignature, scope Any, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasSignature, scope Any, resource with usable id, under evaluate
+- failing text: AssertionError: expected false to be true
+- failing text: AssertionError: expected false to be true
+- failing text: AssertionError: expected false to be true
+
+## port-facts-id-check-skipped
+- scratch: pf-id-check-skipped at 8e04476105
+- edit: readScoped skips the resource id check
+- diff: 996eee869b256594a64fd3853a55bfff43769c083107bcd395ac0e318c45115e (1 files, +1 -1)
+- run: vitest packages/core/test/PortFacts.characterisation.test.ts
+- exit: 1
+- seen failing: a scoped read at every site HasRelationship, absent resource, under evaluate
+- seen failing: a scoped read at every site HasRelationship, resource without id, under evaluate
+- seen failing: a scoped read at every site HasRelationship, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, absent resource, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource without id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, absent resource, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource without id, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource with non-string id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, absent resource, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource without id, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, absent resource, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource without id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource with non-string id, under toPredicate
+- seen failing: a scoped read at every site HasSignature, scope Resource, absent resource, under evaluate
+- seen failing: a scoped read at every site HasSignature, scope Resource, resource without id, under evaluate
+- seen failing: a scoped read at every site HasSignature, scope Resource, resource with non-string id, under evaluate
+- failing text: AssertionError: expected false to be true
+- failing text: AssertionError: expected false to be true
+- failing text: AssertionError: expected false to be true
+
+## port-facts-annotation-removed
+- scratch: pf-annotation-removed at 8e04476105
+- edit: readScoped's miss branch no longer annotates the question
+- diff: 16cc3b9f172e482a8167d4f52ccb72013100be1cfabfc5b53b90d33eea1b1ae4 (1 files, +0 -5)
+- run: vitest packages/core/test/PortFacts.characterisation.test.ts
+- exit: 1
+- seen failing: a scoped read at every site HasRelationship, absent resource, under evaluate
+- seen failing: a scoped read at every site HasRelationship, resource without id, under evaluate
+- seen failing: a scoped read at every site HasRelationship, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, absent resource, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource without id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, absent resource, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource without id, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource with non-string id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, absent resource, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource without id, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, absent resource, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource without id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource with non-string id, under toPredicate
+- seen failing: a scoped read at every site HasSignature, scope Resource, absent resource, under evaluate
+- seen failing: a scoped read at every site HasSignature, scope Resource, resource without id, under evaluate
+- seen failing: a scoped read at every site HasSignature, scope Resource, resource with non-string id, under evaluate
+- failing text: AssertionError: expected { relation: undefined, …(1) } to deeply equal { relation: 'owner', …(1) }
+- failing text: AssertionError: expected { relation: undefined, …(1) } to deeply equal { relation: 'owner', …(1) }
+- failing text: AssertionError: expected { relation: undefined, …(1) } to deeply equal { relation: 'owner', …(1) }
+
+## port-facts-scoped-wrong-interpreter
+- scratch: pf-scoped-wrong-interpreter at 8e04476105
+- edit: readScoped's hit branch reads as the remote interpreter
+- diff: e277c125703dba50ef9613b1b1459185310d1dc60561235e640379baefc79962 (1 files, +1 -1)
+- run: vitest packages/core/test/PortFacts.characterisation.test.ts
+- exit: 1
+- seen failing: a scoped read at every site HasRelationship, resource with usable id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource with usable id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource with usable id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource with usable id, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource with usable id, under toPredicate
+- seen failing: a scoped read at every site HasSignature, scope Resource, resource with usable id, under evaluate
+- failing text: AssertionError: expected [] to deeply equal [ [ 'RelationshipResolver', 1 ] ]
+- failing text: AssertionError: expected [] to deeply equal [ [ 'DecisionHistory', 1 ] ]
+- failing text: AssertionError: expected [] to deeply equal [ [ 'DecisionHistory', 1 ] ]
+
+## port-facts-scoped-effect-fn
+- scratch: pf-scoped-effect-fn at 8e04476105
+- edit: readScoped is wrapped in Effect.fn
+- diff: 9a0e805ca3b40dd232ea1ba8c2734c436630653fae13571cc33916d2e3b317f0 (1 files, +2 -2)
+- run: vitest packages/core/test/PortFacts.characterisation.test.ts
+- exit: 1
+- seen failing: a scoped read at every site HasRelationship, absent resource, under evaluate
+- seen failing: a scoped read at every site HasRelationship, resource without id, under evaluate
+- seen failing: a scoped read at every site HasRelationship, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasRelationship, resource with usable id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, absent resource, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource without id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource with usable id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, absent resource, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource without id, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource with non-string id, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource with usable id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, absent resource, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource without id, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource with usable id, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, absent resource, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource without id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource with non-string id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource with usable id, under toPredicate
+- seen failing: a scoped read at every site HasSignature, scope Resource, absent resource, under evaluate
+- seen failing: a scoped read at every site HasSignature, scope Resource, resource without id, under evaluate
+- seen failing: a scoped read at every site HasSignature, scope Resource, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasSignature, scope Resource, resource with usable id, under evaluate
+- failing text: AssertionError: expected [ Array(2) ] to deeply equal [ 'qadi.hasRelationship' ]
+- failing text: AssertionError: expected [ Array(2) ] to deeply equal [ 'qadi.hasRelationship' ]
+- failing text: AssertionError: expected [ Array(2) ] to deeply equal [ 'qadi.hasRelationship' ]
+
+## port-facts-predicate-counted-as-evaluator
+- scratch: pf-predicate-counted-as-evaluator at 8e04476105
+- edit: countFor counts toPredicate reads in the evaluator's series
+- diff: 9dc07f2a1f653a954bd545f4f8cbdbb0c1f8cca263da40d2e52d7e25017f5d67 (1 files, +1 -1)
+- run: vitest packages/core/test/PortFacts.characterisation.test.ts
+- exit: 1
+- seen failing: a scoped read at every site HasActed, scope Resource, resource with usable id, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Any, absent resource, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Any, resource without id, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Any, resource with non-string id, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Any, resource with usable id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource with usable id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Any, absent resource, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Any, resource without id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Any, resource with non-string id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Any, resource with usable id, under toPredicate
+- failing text: AssertionError: expected [ [ 'DecisionHistory', 1 ] ] to deeply equal []
+- failing text: AssertionError: expected [ [ 'DecisionHistory', 1 ] ] to deeply equal []
+- failing text: AssertionError: expected [ [ 'DecisionHistory', 1 ] ] to deeply equal []
