@@ -22,7 +22,7 @@
  * server, which this process names on stderr once it has started. A failure to read its
  * argument, or to load or run the scan, writes the error to stderr and exits 1.
  */
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { nameServerPids } from "./typescript-server-child.mjs";
@@ -38,7 +38,6 @@ try {
   const { SyntaxKind } = await import("typescript/unstable/ast");
 
   const tsconfig = join(scratch, "tsconfig.json");
-  mkdirSync(scratch, { recursive: true });
   writeFileSync(
     tsconfig,
     JSON.stringify({
