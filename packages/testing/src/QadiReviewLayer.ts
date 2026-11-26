@@ -143,8 +143,9 @@ export type PortSetups = {
  * Built on `@qadi/core`'s `fixturePortsLayer`, as `@qadi/devtools`' Fixtures
  * simulation is. The `ports` option crosses to it as it is, so neither package
  * lists the ports or zips per-port records: a port added to the registry is
- * here, at its fail-closed default, without an edit, and its fixture is one row
- * in core's `PORT_FIXTURES`.
+ * here, at its fail-closed default, without an edit, and its fixture is the
+ * `fixture` member of its description, which `fixturePortsLayer` reads through
+ * core's `PORT_FIXTURES`.
  *
  * It does not shadow the decision sink or the decision cache, so a test that
  * wraps it in a recording sink or a cache sees every record and every lookup. That

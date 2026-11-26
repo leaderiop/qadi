@@ -282,14 +282,18 @@ interface FixtureVisitor {
 }
 
 /**
- * Each port's fixture builder, closed over `PortName`: a port described without
- * a `fixture` is a compile error where it is described (`PortDescription`).
+ * Each port's fixture builder, closed over `PortName`, read from its
+ * description's `fixture`.
  *
- * This is the one place the data-to-layer mapping is read from. `@qadi/testing`'s
- * review layer and `@qadi/devtools`' Fixtures simulation both go through
- * {@link fixturePortsLayer}; before it each kept its own copy, and devtools
- * cannot depend on `@qadi/testing` (no test fixtures in a production bundle),
- * so only core could hold it.
+ * The description's `fixture` is the one statement of a port's data-to-layer
+ * mapping, and a port described without one is a compile error where it is
+ * described (`PortDescription`). This table is its projection by port name, and
+ * {@link fixturePortsLayer} reads each port's builder through it, so the
+ * fixture overload of {@link tabulatePorts} types the one table both read.
+ * `@qadi/testing`'s review layer and `@qadi/devtools`' Fixtures simulation both
+ * go through {@link fixturePortsLayer}; devtools cannot depend on
+ * `@qadi/testing` (no test fixtures in a production bundle), so only core could
+ * hold it.
  */
 export const PORT_FIXTURES: FixtureBuilders = tabulatePorts((d) => d.fixture);
 
@@ -322,7 +326,7 @@ const fixtureLayer = <D, S>(
 
 /**
  * Every port, each set up by its entry in `setups`: its layer, else its
- * fixture answers, else its fail-closed default.
+ * fixture answers through {@link PORT_FIXTURES}, else its fail-closed default.
  *
  * Names no port. Each slot is derived from the registry, so a port added there
  * is here at its default without an edit here (ADR-QD-094). A layer wins over
@@ -333,7 +337,7 @@ export const fixturePortsLayer = (setups: PortFixtures = {}): Layer.Layer<PortSe
   mergePorts(
     tabulatePorts((d) => {
       const setup = setups[d.port];
-      return setup?.layer ?? fixtureLayer(d.fixture, setup?.answers) ?? NONE[d.port];
+      return setup?.layer ?? fixtureLayer(PORT_FIXTURES[d.port], setup?.answers) ?? NONE[d.port];
     }),
   );
 

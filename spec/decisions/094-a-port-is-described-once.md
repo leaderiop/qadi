@@ -416,9 +416,10 @@ Two rejections above are reversed, each for the reason it does not hold now.
 
 - **The CCR-QD-270 amendment rejected a `fixture` field** because it would put a test-data shape into every production
   description and break every literal. Each builder already ships in the same module as its description, and `@qadi/devtools`'
-  Fixtures simulation, a production feature, reads `PORT_FIXTURES` ([ADR-QD-050](050-a-simulation-is-sealed.md)), so the
-  member is one reference per port and no new production dependency. The registry is closed, so the literals it breaks are
-  the five modules and the probe, which is the **Breaking** note above.
+  Fixtures simulation, a production feature, builds its ports with `fixturePortsLayer`, which reads each builder through
+  `PORT_FIXTURES` ([ADR-QD-050](050-a-simulation-is-sealed.md)), so the member is one reference per port and no new
+  production dependency. The registry is closed, so the literals it breaks are the five modules and the probe, which is the
+  **Breaking** note above.
 - **The CCR-QD-419 amendment rejected deriving the span union from the descriptions** because each description is
   annotated, so its `span` type is the whole union, and the only module that sees every description sits above
   `PortDescription.ts`. The annotation passes the port's own literal as a type argument, so a description's `span` is
