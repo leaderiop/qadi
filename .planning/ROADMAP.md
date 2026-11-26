@@ -704,7 +704,7 @@ Plans:
   5. ADR-QD-203 records the change, amending ADR-QD-163 D-06 and ADR-QD-094 (with a dated ADR-QD-114 note if `PortServing` stops being hand-written), and AGENTS.md §3 prose, BEH, INV and traceability move with it (PFACT-05).
 
 **Planning notes**: **Research flag: plan 1 is a spike** (`/gsd-plan-phase --research-phase 90`); the derivation is unproven acyclic, the benchmark gate (`pnpm bench`, 3+3 interleaved, median of per-run minima) must run before `readScoped` changes, and `PortServing.ts` and the remote wire were not read in full by research. Constraints that are findings: `PortName.ts` never imports `Ports.ts`; `ByScope` leaves (HasActed, HasNotActed, HasSignature) require an id only for `Resource` scope; `readScoped` stays a plain function (no `Effect.fn`, no new span); no span-name literals in `PortAccess.ts`, `PortDerivation.ts` or `PortCalls.ts`; metric ids and descriptions do not change. The discuss step decides which of span, serving and fixture move, and whether a pairwise-distinct span-name type check replaces `PortSpanOf<N>`'s cross-check. Stryker: static description tables are invisible under `ignoreStatic`, so the proof is the `tabulatePorts` golden and a metric snapshot, not a score; re-take the core base first.
-**Plans**: 12/16 plans executed
+**Plans**: 13/16 plans executed
 - [x] 90-01-PLAN.md
 - [x] 90-02-PLAN.md
 - [x] 90-03-PLAN.md
@@ -717,7 +717,7 @@ Plans:
 - [x] 90-10-PLAN.md
 - [x] 90-11-PLAN.md
 - [x] 90-12-PLAN.md
-- [ ] 90-13-PLAN.md
+- [x] 90-13-PLAN.md
 - [ ] 90-14-PLAN.md
 - [ ] 90-15-PLAN.md
 - [ ] 90-16-PLAN.md
@@ -759,5 +759,5 @@ Phases execute in numeric order: 85 → 86 → 87 → 88 → 89 → 90 → 91
 | 87. One scoped run that states its stop | 11/11 | Complete    | 2026-11-25 |
 | 88. `StoppedBox` keys itself and owns the announce-once rule | 10/10 | Complete    | 2026-11-26 |
 | 89. One admission step for a host's audit batch | 11/11 | Complete    | 2026-11-26 |
-| 90. The remaining per-port facts live on the port description | 12/16 | In Progress | - |
+| 90. The remaining per-port facts live on the port description | 13/16 | In Progress | - |
 | 91. Named barrels, and visibility-only files folded away | 0/TBD | Not started | - |
