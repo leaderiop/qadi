@@ -1,4 +1,4 @@
-# Qadi — Architecture Waves (current: v1.11 Arch Wave 16)
+# Qadi — Architecture Waves (latest: v1.11 Arch Wave 16)
 
 ## What This Is
 
@@ -13,7 +13,7 @@ module was a shallow pass-through.
 The review is at https://claude.ai/artifact/LH5dLGadz28NyzmZez9jcX, with a local copy at
 `/tmp/claude-1002/-home-yopu-Project-Perso-qadi/588341bb-9f42-4e6e-b1a3-ed991ed47acf/scratchpad/qadi-architecture-review.html`.
 
-## Current Milestone: v1.11 Arch Wave 16
+## Previous Milestone: v1.11 Arch Wave 16 (completed 2026-11-27; not released)
 
 **Goal:** Resolve all seven candidates of the 2026-11-25 architecture review, in the order the review ranked them, with
 the house-rule change (named barrels) last so every earlier phase lands on the file layout it was reviewed against.
@@ -49,6 +49,19 @@ the house-rule change (named barrels) last so every earlier phase lands on the f
 (session-scoped; `.planning/phases/_WAVE16-CONTEXT.md` holds everything a planner needs). Branch `arch-wave-16`, off
 `main` at `ac7578f3` (v1.9 and v1.10 merged as #165). No merge, no release. Scope (all seven), the barrel treatment
 (fold, prove acyclic) and research (run) were chosen by the owner on 2026-11-25.
+
+v1.11 Arch Wave 16 completed 2026-11-27 on branch `arch-wave-16` (455 commits; 221 files, +16,071 / −2,160 outside
+`.planning`): ARCH-132 to ARCH-138, ADR-QD-198 to ADR-QD-204 with their amendments and dated notes, CCR-QD-477..483,
+BEH-QD-761..795, INV-QD-415..428. All 7 phases `passed`, Nyquist-compliant and secured (0 open threats). Each phase ran
+a review with one fix round, decided autonomously under the owner's standing instruction (take the most complete, clean
+solution), and re-took its mutation measurement; no touched file's score fell (a drop was closed by a test, never
+labelled EQUIVALENT). The audit is `passed`: 41/41 requirements, 6/6 integration seams, 4/4 flows; it re-verified Phases
+86, 87, 89 and 90, which later phases had made stale. `check:pr` exited 0 at the end of every phase and last at
+`32f9c3ff` (6981 tests). Thirteen changesets: one Breaking minor (`@qadi/core`: `PortDescription` gains `FixtureData`,
+with an upgrade guide) and twelve patches (`@qadi/devtools` ×4, `@qadi/core` ×2, `@qadi/react` ×2, `@qadi/audit` ×2,
+`@qadi/http`, `@qadi/testing`). api-surface 942 → 943 exports (Phase 90's `PORT_NAMES`), identical through the barrel
+change. **Not merged and not released.** Archive: `.planning/milestones/v1.11-ROADMAP.md`, `v1.11-REQUIREMENTS.md`,
+`v1.11-MILESTONE-AUDIT.md`.
 
 ## Previous Milestone: v1.10 Arch Wave 15 (completed 2026-11-25; not released)
 
@@ -249,6 +262,21 @@ threshold that never opens, a failing user sink that loses records unlogged), th
 `arch-wave-9` at `ba0d0615` (v1.4 is not merged). No merge, no release.
 
 ## Current State
+
+v1.11 Arch Wave 16 completed 2026-11-27 on branch `arch-wave-16`, off `main` at `ac7578f3` (see the v1.11 entry above).
+All seven candidates of the 2026-11-25 architecture review are resolved:
+- the dock's hydration block is a model row worked out by a pure view, and the dock frame no longer subscribes to the
+  whole reading;
+- `QadiProvider`'s registry lifetime has a React-free owner the provider only forwards to;
+- one stated run above `SupersedingRun` owns publish-then-fork and one stop rule for the timeline, diagnostics and
+  simulation feeds, with one configure prologue shared with the gates feed;
+- `StoppedBox` keys itself from a pure stop ledger, with no ref read during render;
+- a host's audit batch passes one admission step, each input read once, before any of the four entry points uses it;
+- each port's span, fixture and scoped need live on its description or are computed from its leaves' rows;
+- `@qadi/core`, `@qadi/react` and `@qadi/audit` take named barrels, and five visibility-only files fold into the
+  modules that own their concepts, with the public surface identical.
+
+Not merged and not released. The next milestone is not yet defined.
 
 v1.10 Arch Wave 15 completed 2026-11-25 on branch `arch-wave-15`, stacked on `arch-wave-14` (see the v1.10 entry above).
 All four candidates of the 2026-11-24 architecture review are resolved:
@@ -524,7 +552,7 @@ logged, counted or spanned.
 
 ### Active
 
-v1.11 Arch Wave 16 requirements: see `.planning/REQUIREMENTS.md` (Phases 85–91, ARCH-132…138).
+Next milestone not yet defined (`/gsd-new-milestone`). v1.11's requirements are archived in `.planning/milestones/v1.11-REQUIREMENTS.md`.
 
 ### Out of Scope
 
@@ -580,7 +608,9 @@ v1.11 Arch Wave 16 requirements: see `.planning/REQUIREMENTS.md` (Phases 85–91
 - **Hot spots** (churn over the last 15 commits): react `QadiAtoms`/`Hydration`/`hooks`; http
   `RequirePermission`/`DecisionStreamRoute`; core `SinkCodec`/`Evaluate`/`PortAccess`.
 
-### Known Issues (v1.11, open)
+### Known Issues (carried forward from v1.11)
+
+- The v1.11 audit (`.planning/milestones/v1.11-MILESTONE-AUDIT.md`) is `passed`. It records what was left by decision: each phase's record scripts judge the tree against that phase's own base, so a later phase's committed change shows in an earlier phase's checks (every such line at the close is a computed row in `91-earlier-checks.mjs`); plan SUMMARYs from Phase 88 on leave `requirements-completed` empty by brief (requirements were cross-checked by hand); Phase 90 truth 3 carries an override accepted autonomously; no milestone-level Stryker run was made.
 
 - Phase 88: STATE.md lacks 88-09's metric and decision lines (that plan's five state commands were denied by the permission check and not re-run); the decision is recorded in `88-09-SUMMARY.md` and ADR-QD-201.
 - Phase 87: `SimulationSession.ts`'s `land` guard (`if (!live.current()) return;`) is held by argument, its mutant recorded EQUIVALENT in `87-mutation.mjs`; the stale-write property is pinned at the stated run (ST14, ST15).
@@ -832,4 +862,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-27 after Phase 91*
+*Last updated: 2026-11-27 after v1.11 milestone*
