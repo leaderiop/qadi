@@ -2284,7 +2284,7 @@ const namedBarrelProblems = (rel, statements) => {
  */
 const namedBarrelPlants = (text) => [
   { what: "`export *` after another statement on its line", text: `${text}\nexport { zz } from "./zz.ts"; export * from "./zz.ts";\n`, expect: ["`export *` re-widens"] },
-  { what: "group out of module-path order", text: `${text}\nexport { a } from "./!.ts";\n`, expect: ["module-path order"] },
+  { what: "group out of module-path order", text: `${text}\nexport { zz } from "./zz.ts";\nexport { a } from "./!.ts";\n`, expect: ["module-path order"] },
   { what: "group from another package", text: `${text}\nexport { zz } from "@qadi/zz";\n`, expect: ["not a module of this package"] },
   { what: "relative group outside the package's source", text: `${text}\nexport { zz } from "../../zz/src/zz.ts";\n`, expect: ["not a module of this package"] },
   { what: "second value group for one module", text: `${text}\nexport { zy } from "./zz.ts";\nexport { zz } from "./zz.ts";\n`, expect: ["more than one value group"] },
