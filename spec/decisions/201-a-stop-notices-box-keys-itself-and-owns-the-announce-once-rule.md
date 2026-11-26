@@ -80,7 +80,7 @@ written, so the rule that nothing is announced twice held because of how the ref
    record causes keeps the box mounted and its alert stays on the same element
    ([INV-QD-421](../invariants.md#inv-qd-421-a-stops-key-is-the-same-before-and-after-it-is-recorded-and-recording-a-recorded-stop-returns-the-same-ledger)).
    `recordStop` returns the same ledger for a stop already recorded, so a repeat record (StrictMode's re-run effect, a remount for
-   the announced stop after a tab switch) makes no new state.
+   the announced stop after a tab switch) makes no new state; it still costs the one `DockFrame` call of decision 7.
 
 6. **A stop no box has shown is not announced.** A stop is recorded only when a box for it commits, so a stop that happened on a
    screen with no notice alerts on the first screen that shows it
