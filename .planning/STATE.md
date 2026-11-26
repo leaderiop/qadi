@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 90
 current_phase_name: The remaining per-port facts live on the port description
 status: executing
-stopped_at: Completed 90-14-PLAN.md
-last_updated: "2026-11-26T09:58:38.560Z"
+stopped_at: Completed 90-15-PLAN.md
+last_updated: "2026-11-26T10:05:55.102Z"
 last_activity: 2026-11-26
 last_activity_desc: Phase 89 complete, transitioned to Phase 90
-state_head: 3f441810f7b98e237e7518b7cf9fa794dae624cc
+state_head: ca3dbdb2678f3d8edf145ef1b70fe63fa3046956
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 67
-  completed_plans: 65
+  completed_plans: 66
   percent: 71
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-90 (The remaining per-port facts live on the port description) — EXECUTING
-Plan: 15 of 16
+Plan: 16 of 16
 Status: Ready to execute
 Last activity: 2026-11-26 — Phase 89 complete, transitioned to Phase 90
 
@@ -720,6 +720,7 @@ Progress: [███████░░░] 71%
 | Phase 90 P12 | 40min | 3 tasks | 4 files |
 | Phase 90 P13 | 25 min | 3 tasks | 4 files |
 | Phase 90 P14 | 70min | 3 tasks | 9 files |
+| Phase 90 P15 | 25min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -1284,6 +1285,7 @@ Progress: [███████░░░] 71%
 - [Phase 90]: 90-12: the measured per-call-closure routing patch landed as measured (hoisted fallback never measured, unused); the Always arm of the route matcher is unobservable by type (only HasRelationship is Always and its port has bare undefined)
 - [Phase 90]: 90-13: the dead Always arm of readScoped's matcher is held EQUIVALENT through a NoCoverage-status entry, not a blocker; no mutation-kill test file was needed
 - [Phase 90]: Plan 14: the audit count is tests removed 2 (two test blocks whose title is gone, plus one assertion row); the bench gate is recorded as the bench record states it (5% per workload, +2% geometric mean), decided autonomously
+- [Phase 90]: Plan 15: the upgrade guide's hand-built description is an object literal typed PortDescription, since makePortDescription is package-private (decided autonomously)
 
 ### Pending Todos
 
@@ -1371,8 +1373,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-26T09:58:38.443Z
-Stopped at: Completed 90-14-PLAN.md
+Last session: 2026-11-26T10:05:54.975Z
+Stopped at: Completed 90-15-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
