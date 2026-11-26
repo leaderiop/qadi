@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 90
 current_phase_name: The remaining per-port facts live on the port description
 status: executing
-stopped_at: Phase 89 complete, ready to plan Phase 90
-last_updated: "2026-11-26T07:37:18.804Z"
+stopped_at: Completed 90-01-PLAN.md
+last_updated: "2026-11-26T07:46:18.008Z"
 last_activity: 2026-11-26
 last_activity_desc: Phase 89 complete, transitioned to Phase 90
-state_head: 83e7bf6bf70bec700762358d6cc812f603d1b2c1
+state_head: 2d9e1ab4638f26d65ba99b98d84e7378102690e3
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 67
-  completed_plans: 51
+  completed_plans: 52
   percent: 71
 ---
 
@@ -30,8 +30,8 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-90 (The remaining per-port facts live on the port description) — EXECUTING
-Plan: 1 of 16
-Status: Executing Phase 90
+Plan: 2 of 16
+Status: Ready to execute
 Last activity: 2026-11-26 — Phase 89 complete, transitioned to Phase 90
 
 Progress: [███████░░░] 71%
@@ -706,6 +706,7 @@ Progress: [███████░░░] 71%
 | Phase 89 P09 | 21 min | 3 tasks | 4 files |
 | Phase 89 P10 | 17 min | 3 tasks | 8 files |
 | Phase QD-89 P11 | 20min | 2 tasks | 1 files |
+| Phase 90 P01 | 20min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -1256,6 +1257,7 @@ Progress: [███████░░░] 71%
 - [Phase 89]: 89-08: the per-entry-point comparison asserts refusal-or-nothing on both sides of one fault table, so no test restates which refusal wins
 - [Phase 89]: 89-09: the filter mutant in HostBatch.ts admitRows is EQUIVALENT (a hole is refused before the line) and the static takeRows arrow is EXAMINED after a hand run with ignoreStatic false; phase91_base is ArchiveFacts.ts at 54 of 54; audit coverage is measured with a path filter because --project audit measures no file
 - [Phase 89]: 89-10: ADR-QD-202 states the span rule as one table of every call and outcome, and the audit table names each removed row with the HostBatch.test.ts rows and the ForeignRows.test.ts comparison row that hold it (Tests removed: 6); INV-QD-399 and INV-QD-400 are restated beyond their Source lines because their enforcement text named the order the removed rows asserted
+- [Phase 90]: Plan 01: the core mutation base holds four open Survived mutants (PortDerivation, CustomPredicate, SignatureHistory, LeafNeeds) and the coverage base record's head is phase_base, checked against the tree outside .planning
 
 ### Pending Todos
 
@@ -1343,8 +1345,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-26T04:18:18.282Z
-Stopped at: Phase 89 complete, ready to plan Phase 90
+Last session: 2026-11-26T07:46:17.465Z
+Stopped at: Completed 90-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
