@@ -5,16 +5,16 @@ milestone_name: Arch Wave 16
 current_phase: 91
 current_phase_name: Named barrels, and visibility-only files folded away
 status: executing
-stopped_at: Completed 91-11-PLAN.md
-last_updated: "2026-11-26T18:57:18.406Z"
+stopped_at: Completed QD-91-12-PLAN.md
+last_updated: "2026-11-26T19:12:47.981Z"
 last_activity: 2026-11-26
 last_activity_desc: Phase 90 complete, transitioned to Phase 91
-state_head: f50552ac76c8483f4487f5fcfe241d052dce3dfe
+state_head: af405df29fb13bddc969a550784fde094044f8ab
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 88
-  completed_plans: 78
+  completed_plans: 79
   percent: 86
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-91 (Named barrels, and visibility-only files folded away) — EXECUTING
-Plan: 12 of 21
+Plan: 13 of 21
 Status: Ready to execute
 Last activity: 2026-11-26 — Phase 90 complete, transitioned to Phase 91
 
@@ -734,6 +734,7 @@ Progress: [█████████░] 86%
 | Phase 91 P09 | 45min | 3 tasks | 4 files |
 | Phase 91 P10 | 11min | 3 tasks | 10 files |
 | Phase 91 P11 | 25min | 3 tasks | 18 files |
+| Phase QD-91 P12 | 30 min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -1315,6 +1316,7 @@ Progress: [█████████░] 86%
 - [Phase 91]: Plan 09: each named barrel's header is one doc comment in the devtools model; react's absorbs the components.tsx and hooks.ts note as a paragraph
 - [Phase 91]: Plan 10: the interpreter fold leaves core's barrel byte-identical, so that commit holds three paths and the phase table row drops index.ts (decided autonomously)
 - [Phase 91]: 91-11: the gate registry's collision report needs no born test; the existing suite fails the ignored-onIdCollision variant on seven tests
+- [Phase QD-91]: 91-12: the sequence check's disclaimer is verifySequenceIntegrity's doc in ArchiveFacts.ts; the audit barrel names the two public names there
 
 ### Pending Todos
 
@@ -1402,8 +1404,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-26T18:57:18.164Z
-Stopped at: Completed 91-11-PLAN.md
+Last session: 2026-11-26T19:12:47.669Z
+Stopped at: Completed QD-91-12-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
