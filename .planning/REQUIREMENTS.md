@@ -48,11 +48,11 @@
 
 ### The remaining per-port facts live on the port description (Phase 90, ARCH-137, core)
 
-- [ ] **PFACT-01**: Plan 1 is a spike on the base: a `pnpm circular` simulation of each proposed derivation and the benchmark gate for routing `readScoped` off `LEAF_NEEDS`. Its verdict decides which facts move; a recorded subset is an acceptable outcome, a cycle is not.
-- [ ] **PFACT-02**: `PortName.ts` stays an import-free leaf holding one tuple; every other per-port table the spike clears (span names, fixture data type, serving shape, `PORT_NAMES_BY_NAME`, `ScopedPort`) is derived from the descriptions or the tuple, with registry order preserved so no metric key moves (ADR-QD-052).
-- [ ] **PFACT-03**: `readScoped` routes off the `LEAF_NEEDS` row: an id is required only where the row says so (a by-scope leaf only at `Resource` scope), it stays a plain function with no new span, it dispatches with a hoisted `Match` (no `switch`), and the annotate-before-fail order (BEH-QD-445) holds. The tying test is replaced, not deleted.
-- [ ] **PFACT-04**: A golden of `tabulatePorts`, a metric snapshot and the served/wire bytes are pinned on the base and unchanged after; `PortServing.tst.ts` passes unedited; a fake sixth port without its facts is a compile error.
-- [ ] **PFACT-05**: ADR-QD-203 records the change, amending ADR-QD-163 D-06 and ADR-QD-094, with a dated ADR-QD-114 note if `PortServing` stops being hand-written; AGENTS.md §3 prose and BEH/INV/traceability move with it.
+- [x] **PFACT-01**: Plan 1 is a spike on the base: a `pnpm circular` simulation of each proposed derivation and the benchmark gate for routing `readScoped` off `LEAF_NEEDS`. Its verdict decides which facts move; a recorded subset is an acceptable outcome, a cycle is not.
+- [x] **PFACT-02**: `PortName.ts` stays an import-free leaf holding one tuple; every other per-port table the spike clears (span names, fixture data type, serving shape, `PORT_NAMES_BY_NAME`, `ScopedPort`) is derived from the descriptions or the tuple, with registry order preserved so no metric key moves (ADR-QD-052).
+- [x] **PFACT-03**: `readScoped` routes off the `LEAF_NEEDS` row: an id is required only where the row says so (a by-scope leaf only at `Resource` scope), it stays a plain function with no new span, it dispatches with a hoisted `Match` (no `switch`), and the annotate-before-fail order (BEH-QD-445) holds. The tying test is replaced, not deleted.
+- [x] **PFACT-04**: A golden of `tabulatePorts`, a metric snapshot and the served/wire bytes are pinned on the base and unchanged after; `PortServing.tst.ts` passes unedited; a fake sixth port without its facts is a compile error.
+- [x] **PFACT-05**: ADR-QD-203 records the change, amending ADR-QD-163 D-06 and ADR-QD-094, with a dated ADR-QD-114 note if `PortServing` stops being hand-written; AGENTS.md §3 prose and BEH/INV/traceability move with it.
 
 ### Named barrels, and visibility-only files folded away (Phase 91, ARCH-138, core / react / audit)
 
@@ -125,11 +125,11 @@ Which phases cover which requirements. Each phase-specific requirement maps to e
 | ADMIT-03 | Phase 89 | Complete |
 | ADMIT-04 | Phase 89 | Complete |
 | ADMIT-05 | Phase 89 | Complete |
-| PFACT-01 | Phase 90 | Pending |
-| PFACT-02 | Phase 90 | Pending |
-| PFACT-03 | Phase 90 | Pending |
-| PFACT-04 | Phase 90 | Pending |
-| PFACT-05 | Phase 90 | Pending |
+| PFACT-01 | Phase 90 | Complete |
+| PFACT-02 | Phase 90 | Complete |
+| PFACT-03 | Phase 90 | Complete |
+| PFACT-04 | Phase 90 | Complete |
+| PFACT-05 | Phase 90 | Complete |
 | BARL-01 | Phase 91 | Pending |
 | BARL-02 | Phase 91 | Pending |
 | BARL-03 | Phase 91 | Pending |

@@ -2,20 +2,20 @@
 gsd_state_version: "1.0"
 milestone: v1.11
 milestone_name: Arch Wave 16
-current_phase: 90
-current_phase_name: The remaining per-port facts live on the port description
-status: verifying
-stopped_at: Completed 90-16-PLAN.md
-last_updated: "2026-11-26T10:11:46.919Z"
+current_phase: 91
+current_phase_name: Named barrels, and visibility-only files folded away
+status: planning
+stopped_at: Phase 90 complete, ready to plan Phase 91
+last_updated: "2026-11-26T12:06:52.957Z"
 last_activity: 2026-11-26
-last_activity_desc: Phase 89 complete, transitioned to Phase 90
-state_head: df6068de36f69cbf093b607b18fef8b6456d60c6
+last_activity_desc: Phase 90 complete, transitioned to Phase 91
+state_head: 3b79f5ae315de57fbdb49e5714038164fd6cbf5e
 progress:
   total_phases: 7
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 67
   completed_plans: 67
-  percent: 71
+  percent: 86
 ---
 
 # Project State
@@ -25,22 +25,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-25)
 
 **Core value:** An authorization decision is never wrong and never silent.
-**Current focus:** Phase 90 — The remaining per-port facts live on the port description
+**Current focus:** Phase 91 — Named barrels, and visibility-only files folded away
 
 ## Current Position
 
-Phase: QD-90 (The remaining per-port facts live on the port description) — EXECUTING
-Plan: 16 of 16
-Status: Phase complete — ready for verification
-Last activity: 2026-11-26 — Phase 89 complete, transitioned to Phase 90
+Phase: 91 — Named barrels, and visibility-only files folded away
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-11-26 — Phase 90 complete, transitioned to Phase 91
 
-Progress: [███████░░░] 71%
+Progress: [█████████░] 86%
 
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 586
+- Total plans completed: 602
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -128,6 +128,7 @@ Progress: [███████░░░] 71%
 | 87 | 11 | - | - |
 | 88 | 10 | - | - |
 | 89 | 11 | - | - |
+| 90 | 16 | - | - |
 **Per-Plan Metrics:**
 
 | Plan | Duration | Tasks | Files |
@@ -1376,7 +1377,7 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 ## Session Continuity
 
 Last session: 2026-11-26T10:11:46.798Z
-Stopped at: Completed 90-16-PLAN.md
+Stopped at: Phase 90 complete, ready to plan Phase 91
 Resume file: None
 
 ## Operator Next Steps

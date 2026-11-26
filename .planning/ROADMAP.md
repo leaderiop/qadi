@@ -506,7 +506,7 @@ Order: the dock model's hydration row (85), the provider's lifetime owner (86), 
 - [x] **Phase 87: One scoped run that states its stop** - Publish-then-fork, the stop rule, `restart`, the closed guard and the configure prologue are stated once above `SupersedingRun`; a dying simulation run reports the same stop text as the feeds (ARCH-134, devtools; opens with a RED test and a spike) (completed 2026-11-25)
 - [x] **Phase 88: `StoppedBox` keys itself and owns the announce-once rule** - Callers stop computing `stoppedKey` from a ref during render; the ledger transition is a pure function, decided at mount and recorded at commit (ARCH-135, devtools react) (completed 2026-11-26)
 - [x] **Phase 89: One admission step for a host's audit batch** - `now`, rows and the caller's terms are checked once for `archiveAuditTrail`, `planRetention`, `verifiedArchiveFacts` and `planPurge`; `NowNotFinite` is stated once (ARCH-136, audit) (completed 2026-11-26)
-- [ ] **Phase 90: The remaining per-port facts live on the port description** - Span name, serving shape and fixture data type move onto the description as a spike allows, `PortName` stays a leaf, and `readScoped` routes off the `LEAF_NEEDS` row (ARCH-137, core; opens with a spike)
+- [x] **Phase 90: The remaining per-port facts live on the port description** - Span name, serving shape and fixture data type move onto the description as a spike allows, `PortName` stays a leaf, and `readScoped` routes off the `LEAF_NEEDS` row (ARCH-137, core; opens with a spike) (completed 2026-11-26)
 - [ ] **Phase 91: Named barrels, and visibility-only files folded away** - `@qadi/core`, `@qadi/react` and `@qadi/audit` name their exports per module, and each visibility-only file folds into its owner only where `pnpm circular` proves no cycle returns (ARCH-138, core / react / audit; opens with a surface-diff tool and a madge simulation)
 
 ### Phase Details
@@ -704,7 +704,7 @@ Plans:
   5. ADR-QD-203 records the change, amending ADR-QD-163 D-06 and ADR-QD-094 (with a dated ADR-QD-114 note if `PortServing` stops being hand-written), and AGENTS.md §3 prose, BEH, INV and traceability move with it (PFACT-05).
 
 **Planning notes**: **Research flag: plan 1 is a spike** (`/gsd-plan-phase --research-phase 90`); the derivation is unproven acyclic, the benchmark gate (`pnpm bench`, 3+3 interleaved, median of per-run minima) must run before `readScoped` changes, and `PortServing.ts` and the remote wire were not read in full by research. Constraints that are findings: `PortName.ts` never imports `Ports.ts`; `ByScope` leaves (HasActed, HasNotActed, HasSignature) require an id only for `Resource` scope; `readScoped` stays a plain function (no `Effect.fn`, no new span); no span-name literals in `PortAccess.ts`, `PortDerivation.ts` or `PortCalls.ts`; metric ids and descriptions do not change. The discuss step decides which of span, serving and fixture move, and whether a pairwise-distinct span-name type check replaces `PortSpanOf<N>`'s cross-check. Stryker: static description tables are invisible under `ignoreStatic`, so the proof is the `tabulatePorts` golden and a metric snapshot, not a score; re-take the core base first.
-**Plans**: 16/16 plans executed
+**Plans**: 16/16 plans complete
 - [x] 90-01-PLAN.md
 - [x] 90-02-PLAN.md
 - [x] 90-03-PLAN.md
@@ -759,5 +759,5 @@ Phases execute in numeric order: 85 → 86 → 87 → 88 → 89 → 90 → 91
 | 87. One scoped run that states its stop | 11/11 | Complete    | 2026-11-25 |
 | 88. `StoppedBox` keys itself and owns the announce-once rule | 10/10 | Complete    | 2026-11-26 |
 | 89. One admission step for a host's audit batch | 11/11 | Complete    | 2026-11-26 |
-| 90. The remaining per-port facts live on the port description | 16/16 | In Progress | - |
+| 90. The remaining per-port facts live on the port description | 16/16 | Complete    | 2026-11-26 |
 | 91. Named barrels, and visibility-only files folded away | 0/TBD | Not started | - |
