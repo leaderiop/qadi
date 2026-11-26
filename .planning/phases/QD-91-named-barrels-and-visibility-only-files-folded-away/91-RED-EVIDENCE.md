@@ -569,3 +569,37 @@ Each block below is written by `91-check.mjs variant`: the check ran inside a sc
 - exit: 1
 - seen failing: @qadi/audit's root exports exactly these runtime values
 - failing text: AssertionError: expected [ 'ArchiveInputInvalid', …(38) ] to deeply equal [ 'ArchiveInputInvalid', …(40) ]
+
+## hydrate-target-red
+- scratch: hydration-red at 57b8cd1f92
+- edit: the born pin file added, no source change
+- diff: 6a03f3eaad74f019f22fe820f6231b0bb17ceb2ca5887abb65ee5dc754c04472 (1 files, +41 -0)
+- run: tstyche packages/react/test/HydrationTarget.tst.ts
+- exit: 1
+- seen failing: hydrateDecisions accepts any value that has the hydrate capability
+- failing text: Error: Expression is not callable with the given arguments.
+- failing text: Error: Expression is not callable with the given arguments.
+- failing text: Argument of type '{ readonly hydrate: Written; }' is not assignable to parameter of type 'QadiAtoms'.
+- failing text: Type '{ readonly hydrate: Written; }' is missing the following properties from type 'QadiAtoms': runtime, subject, decision, decisions, and 3 more.
+
+## hydrate-target-atoms-lack-hydrate
+- scratch: hydrate-target-neg at 0d8c82e866
+- edit: QadiAtoms no longer extends HydrationTarget, so it has no hydrate member
+- diff: ccaba2362b56546debaf11ca89176cc7dfd50ad6d4615698f29830fd57ec54c0 (1 files, +1 -1)
+- run: tstyche packages/react/test/HydrationTarget.tst.ts
+- exit: 1
+- seen failing: an atom set is a hydrate target
+- seen failing: the atom set states hydrate through the one signature
+- failing text: Error: Type 'QadiAtoms' is not assignable to type 'HydrationTarget'.
+- failing text: Error: Property 'hydrate' does not exist on type 'QadiAtoms'. ts(2339)
+- failing text: Error: Type 'QadiAtoms' is not assignable to type 'HydrationTarget'.
+
+## hydrate-target-accepts-anything
+- scratch: hydrate-target-neg at 0d8c82e866
+- edit: hydrateDecisions' first parameter also accepts a value that has only a decision member
+- diff: a2ed9ef819b267aa9049763142fc494b9dd6c31710626ac963c25e53924d6598 (1 files, +1 -1)
+- run: tstyche packages/react/test/HydrationTarget.tst.ts
+- exit: 1
+- seen failing: a value without hydrate is not a hydrate target
+- failing text: Error: Type '{ readonly decision: unknown; }' is assignable to type 'HydrationTarget | { readonly decision: unknown; }'.
+- failing text: Error: Type '{ readonly decision: unknown; }' is assignable to type 'HydrationTarget | { readonly decision: unknown; }'.
