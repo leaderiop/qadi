@@ -143,7 +143,7 @@ Auditor: gsd-nyquist-auditor, at HEAD e083c5be (base 69e5247d). No tests written
 | WX-04 | `91-check scan-forbidden`, `scan-ids` | phase close | scan-forbidden *, scan-ids | green |
 | WX-05 | `91-mutation.mjs compare`, coverage close | phase close | 91-mutation compare/landed-*, coverage-close-floor | green |
 | WX-06 | `91-check seen-failing` | phase close | seen-failing | green |
-| WX-07 | `91-check close` no-release facts, `trailers` | phase close | trailers | green: no tag contains 69e5247d, no package version or CHANGELOG change, no upstream branch, exactly three new changesets |
+| WX-07 | `91-check close` no-release facts, `trailers` | phase close | trailers | green: no tag contains 69e5247d, no package version or CHANGELOG change, no upstream branch, exactly three new changesets at the audit; four after the review fix round added the `@qadi/devtools` patch for its reworded barrel headers (`3089d7fb`, see 91-REVIEW-DISPOSITION.md) |
 | BEH-QD-791 | PortSpan.test.ts, PortSpanFold.mutation.test.ts, core surface.test.ts | yes | fold-if-false/-and/-remote-literal/-raw-false/-field-false | green |
 | BEH-QD-792 | Hydration.test.ts, HydrationTarget.tst.ts, react surface.test.ts | yes | hydrate-target-*, hydrate-wrong-subject, dehydrate-drops-options | green |
 | BEH-QD-793 | GateRegistry.store.test.ts, DeveloperSignalReporters.test.tsx | yes | gate-collision-ignored | green |
