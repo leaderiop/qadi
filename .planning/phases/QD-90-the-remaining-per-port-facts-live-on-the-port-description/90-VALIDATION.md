@@ -4,7 +4,7 @@ slug: "the-remaining-per-port-facts-live-on-the-port-description"
 # status lifecycle: draft (seeded by plan-phase) → validated (set by validate-phase §6)
 # audit-milestone §5.5 distinguishes NOT-VALIDATED (draft) from PARTIAL (validated + nyquist_compliant: false) (#2117)
 status: validated
-nyquist_compliant: false
+nyquist_compliant: true
 wave_0_complete: true
 created: "2026-11-26"
 ---
@@ -94,9 +94,9 @@ All phase behaviors have automated verification except PFACT-01's per-candidate 
 - [x] Wave 0 covers all MISSING references
 - [x] No watch-mode flags
 - [x] Feedback latency < 30s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** not compliant — see the audit below (WX-05 partial, PFACT-01 evidence-only).
+**Approval:** compliant after the review fix round — see "Re-audit at the milestone audit" below.
 
 ---
 
@@ -138,3 +138,15 @@ bench (`# gate: pass`), Stryker base/close.
    Not a regression; a kill test for each would raise the floor. Advisory.
 3. **PFACT-01.** No automated re-run of the spike's per-candidate madge/tsc verdicts; acceptable as evidence-only
    (spike evidence is by nature a record). Manual-only.
+
+## Re-audit at the milestone audit (2026-11-27)
+
+The gaps above were closed by the Phase 90 review fix round (`90-REVIEW-DISPOSITION.md`, rows WR-02, IN-05 and VAL-WX-05); this file was not updated at the time. Re-checked from the recorded close with `node 90-mutation.mjs compare` (exit 0: "no file has an open or Ignored mutant its base did not have, and every score that fell lost only killed mutants"):
+
+| Gap | Status | Evidence |
+|---|---|---|
+| 1. WX-05, `PortAccess.ts` | resolved | the dead `Always` arm was deleted (`760654ce`); `PortAccess.ts` 43/43 → 51/51, nothing closed by equivalence |
+| 2. base survivors (advisory) | resolved | `PortDerivation.ts` 46/47 → 47/47 (`d3811c4f`, test kills `permits`); `LeafNeeds.ts` 76/77 → 73/73 (the unreachable arm removed); `SignatureHistory.ts` 109/110 unchanged, its one base survivor recorded EQUIVALENT (`makeResourceId` is `Brand.nominal`, the identity at runtime) |
+| 3. PFACT-01 spike | manual-only, accepted | the spike verdict is evidence by nature; its outcome (no cycle, `pnpm circular`) is re-checked by `90-check.mjs circular` and by every later phase's `pnpm circular` in `pnpm check:pr` |
+
+WX-05 and PFACT-01 move to COVERED (PFACT-01 with its manual-only spike record). `nyquist_compliant: true`.
