@@ -203,6 +203,8 @@ changesets), the fold spike and its recorded patches, and the evidence of each c
 
 - **A module can be part-public**, and five files that existed only to publish a name are gone: 251 files to 246. The count
   of exports does not move, nor does any name's kind; each of the three packages ships one patch changeset saying so.
+  `@qadi/devtools` ships a fourth: the headers of its two barrels state the edits a public name needs, comment lines only,
+  and its changeset says no export changes.
 - **The barrel is the interface, in one reviewable file per package**, and a new public name is the edits the three-edit rule
   states, each read by a gate or a test.
 - **A value turned type-only fails a test**, which `node scripts/check-api-surface.mjs` could not see.
