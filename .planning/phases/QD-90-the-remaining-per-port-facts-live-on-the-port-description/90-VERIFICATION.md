@@ -1,6 +1,6 @@
 ---
 phase: QD-90-the-remaining-per-port-facts-live-on-the-port-description
-verified: 2026-11-26T12:04:51Z
+verified: 2026-11-26T23:30:00Z
 status: passed
 score: 12/12 must-haves verified
 covered_files:
@@ -75,7 +75,7 @@ covered_files:
   - spec/invariants.md
   - spec/overview.md
   - spec/traceability.md
-covered_digest: "v4:sha256:c1586b476f7ec98dc9804d2a3c949f8690618116ea2d625d63287d1da08a2f00"
+covered_digest: "v4:sha256:c58f7eb8b8927cef79b154354c849e167adc57753176026d09d11ec396d9db1d"
 behavior_unverified: 0
 overrides_applied: 1
 overrides:
@@ -227,4 +227,55 @@ Every check run at `5b9a5466` passes.
 ---
 
 _Verified: 2026-11-26T12:04:51Z_
+_Verifier: Claude (gsd-verifier)_
+
+## Re-verified at the milestone audit (2026-11-27)
+
+**At:** HEAD `94b6aa01` (branch `arch-wave-16`). The previous verification commit was `3b79f5ae`.
+**Why:** `verification.status` read `stale`. Phase 91 changed eight covered files after `3b79f5ae`.
+**Result:** every truth still holds. **Status: passed**, 12/12, with one override (truth 3, unchanged).
+
+### What changed, and what did not
+
+None of Phase 90's product files changed since `3b79f5ae`: `git diff --stat 3b79f5ae..HEAD` is empty for all thirteen
+covered `packages/core/src` modules, `packages/http/src/PortRoutes.ts` and `packages/testing/src/QadiReviewLayer.ts`.
+None of its tests changed either. The covered files that did change:
+
+| Covered file | Phase 91 commits | Why the Phase 90 truths still hold |
+| ------------ | ---------------- | ---------------------------------- |
+| `AGENTS.md` | `136830bf` (span decoder fold), `da1e5f4a`, `5fc4f5d6`, `9e378625`, `10ba6dbe` (named barrels, §9, gate 14 check 3c) | §3's port-description paragraph (derived wrappers, `PORT_NAMES` entry, registry lines, `PortServing` row) is still there. The edits are in §7a, §9 and §16. |
+| `scripts/check-package-install.mjs` | `24228231`, `9e378625` (check 3c, the declaration escape), `3d38da36`, `ff3a8994` (the react hydrate probe and its guard) | All of Phase 90's probes are still present: `TYPE_ONLY_PROBES` has `PortDescription`, `PortFixtureData` and `PortSpanName` (lines 128-130). `RUNTIME_PROBES = ["PORT_NAMES", "tabulatePorts"]` (142). `REFUSED_SHAPE_PROBES` has `["PortDescription", "fixture"]` (189). The guards still fail a probe that is not run or not refused: `absent` 1258, `unused` 1305, `unrefused` 1327. The only removed line that mentions them is a comment, reworded to add `@qadi/react`. **Ran here:** exit 0, "9 package(s) pack, resolve and authorize (528 runtime export(s))". |
+| `spec/README.md` | `e0c321d1`, `6bda9c04`, `feb8264e`, `a2ddaa5e`, `e1e46d45`, `fb1e1e4d`, `7fceb163`, `743f6f85`, `90a19755`, `32f9c3ff` | Revision and change rows for the named barrels and the folds. Nothing withdrawn from ADR-QD-203 or its amendments. `90-check.mjs records` exit 0: the pinned-by lists name tests that exist. |
+| `spec/behaviors/30-port-calls.md` | `a2ddaa5e`, `fd3459c0` | The folded span read (PortInterpreter into PortSpan, PortSpanDecode into PortSpanEncode) is stated at its new home. The per-port span, serving and fixture facts are unchanged. |
+| `spec/decisions/index.yaml` | `6bda9c04`, `feb8264e` | Adds the named-barrels decision and amends three others. ADR-QD-203's entry is untouched. |
+| `spec/invariants.md` | `a2ddaa5e`, `5fc4f5d6`, `9e378625`, `cc9e5b76`, `fd3459c0` | New surface, barrel and hydrate invariants. Phase 90's invariants are not edited away. |
+| `spec/overview.md` | `e1e46d45` | Each folded export is named at its new home. `PORT_NAMES`, `PortDescription`, `PortFixtureData`, `PortSpanName`, `PORT_FIXTURES`, `fixturePortsLayer` and `tabulatePorts` are still in the core barrel, which is now named (`packages/core/src/index.ts`, lines 392-460). |
+| `spec/traceability.md` | `6bda9c04`, `a2ddaa5e`, `5fc4f5d6`, `cc9e5b76`, `e461853f` | New rows for the barrel, hydrate and span-read tests. Phase 90's rows still resolve (`records` exit 0). |
+
+### Truths re-checked at HEAD
+
+| # | Truth | Status | Evidence at HEAD |
+|---|-------|--------|------------------|
+| 1 | SC1 / PFACT-01: spike verdicts | ✓ VERIFIED | `90-SPIKE.md` unchanged. No product file moved. |
+| 2 | SC2 / PFACT-02: `PortName.ts` is an import-free leaf tuple, and the tables are derived | ✓ VERIFIED | `PortName.ts:26-35`, no import. The spans live on each description (`AttributeResolver.ts:174` `attributeSpanName`, `DecisionHistory.ts:211` `actedSpanName`, …). `PortSpanOf<N> = PortTypes[N]["span"]` (`Ports.ts:105`). `DistinctSpanNames` (`PortDerivation.ts:173`) is applied as `satisfies DistinctSpanNames<PortTypes>` (`Ports.ts:63`). `PORT_FIXTURES = tabulatePorts((d) => d.fixture)` (`Ports.ts:300`) and `fixturePortsLayer` reads `PORT_FIXTURES[d.port]` (`Ports.ts:338-342`). `@qadi/testing`'s `QadiReviewLayer.ts:159` is built on it, and `@qadi/http`'s `PortRoutes.ts:32,123,171` maps `PORT_NAMES` from core. `90-check.mjs port-facts` exit 0. |
+| 3 | SC3 / PFACT-03: `readScoped` routes off the `LEAF_NEEDS` row | ✓ PASSED (override, unchanged) | Each per-port entry has a `need` (`PortAccess.ts:260-321`). `readScoped` narrows once with `call.need === "ByScope"` (`:372`). Unscoped ports go through `readUnscoped` (`:402`). There is no `switch`. `90-check.mjs scoped-route derived` and `scoped-route route` both exit 0. |
+| 4 | SC4 / PFACT-04: goldens unchanged, `PortServing.tst.ts` unedited, a fake sixth port does not compile | ✓ VERIFIED | `PortServing.tst.ts` passes in tstyche (below). Its file and the port files are unchanged since `3b79f5ae`. `sixth-port` was not re-run, because it clones and compiles in a scratch root; its inputs did not move. |
+| 5 | SC5 / PFACT-05: records | ✓ VERIFIED | `90-check.mjs records` exit 0. `records --close` lines are all predicted (below). |
+| 6-12 | WX-01 to WX-07 | ✓ VERIFIED | WX-01: `pnpm check:pr` was last green at `32f9c3ff`; `git log 32f9c3ff..HEAD -- scripts packages` is empty. WX-03: gate 14 was re-run, exit 0. WX-07: `90-check.mjs scan-ids` exit 0. The rest rest on unchanged code. |
+
+### Checks run (read-only)
+
+| Check | Result |
+| ----- | ------ |
+| `pnpm vitest run` on `LeafNeeds`, `PortDescription`, `PortFacts.characterisation` and `PortFacts.review` | 4 files, 128 tests passed |
+| `node scripts/run-tstyche.mjs` on `PortFacts.review.tst.ts`, `PortFacts.tst.ts`, `PortName.tst.ts` and `PortServing.tst.ts` | 4 files, 19 tests, 51 assertions passed |
+| `node scripts/check-package-install.mjs` | exit 0; declaration escape check clean (246 `.d.ts`) |
+| `90-check.mjs port-facts`, `scoped-route derived`, `scoped-route route`, `scan-ids`, `records` | all exit 0 |
+| `90-check.mjs scan-forbidden` | exit 1, predicted: `AGENTS.md differs … outside its section 3` and `scripts/check-house-style.mjs differs …`. These are `GUARD_90` in `91-earlier-checks.mjs`, after the decoder-fold subject. |
+| `90-check.mjs records --close` | exit 1, predicted: five registers one revision above (README 1.417, traceability 1.336, invariants 1.236, 30-port-calls 1.27, overview 1.148), "7 changesets … not 3", and the four Phase 91 changesets named. Each line is a `CLOSE_90` row. |
+| `90-pinned-check.mjs --all-applied` | exit 1, predicted: `packages/core/test/PortSpan.test.ts: differs from its base text at line 19`. This is `PINNED_90`; the diff is only `decodePortSpan`'s import moving from `PortSpanDecode.ts` into the `PortSpan.ts` import list. |
+
+Not run: Stryker, `pnpm check:pr`, and the cloning modes (`sixth-port`, `routing-landed`, `bench`, `circular`).
+
+_Re-verified: 2026-11-26T23:30:00Z (2026-11-27 local)_
 _Verifier: Claude (gsd-verifier)_

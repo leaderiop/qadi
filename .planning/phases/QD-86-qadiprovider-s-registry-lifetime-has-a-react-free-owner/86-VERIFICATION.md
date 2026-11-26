@@ -29,9 +29,16 @@ covered_files:
   - packages/react/test/support/recordingDefer.ts
   - spec/decisions/199-a-providers-registry-lifetime-has-a-react-free-owner.md
   - stryker.react.mjs
-covered_digest: "v4:sha256:28fff0b9d8f8abeec0976bfa54eb045dad5086b80a4ab044a554fee688498f2a"
+covered_digest: "v4:sha256:6c007b33b98b9d073565de708fa7965c1b2fd6e3428435c4ee9dc9de1f067fb8"
 behavior_unverified: 0
 overrides_applied: 0
+re_verification:
+  previous_status: passed
+  previous_score: 9/9
+  reason: "milestone audit 2026-11-27: covered files QadiProvider.tsx and RegistryLease.ts changed by Phase 91 (45e366ac, 0a7abe7e)"
+  gaps_closed: []
+  gaps_remaining: []
+  regressions: []
 ---
 
 # Phase 86: QadiProvider's registry lifetime has a React-free owner — Verification Report
@@ -143,6 +150,31 @@ None. The lifetime is covered by headless owner rows, the base characterisation 
 ### Gaps Summary
 
 No gaps. The registry's lifetime (build, seed in the order subject then `initialValues`, the commit's ordered detect/record/write, the recycle that resets in place and writes the latest subject back in a `finally`, hold and release over the unchanged lease) lives in `RegistryOwner.ts`, which imports no React, is inert at construction, is mutation-measured at 19/19 and is driven headless with twinned "recycles nothing"/"recycles once" rows. `QadiProvider` holds one lifetime ref, four effects in the required order and no lifetime branch. Every existing lifetime test and the lease are byte for byte unchanged and pass, and the phase's one behaviour difference is recorded, pinned and shipped in the changeset.
+
+## Re-verified at the milestone audit (2026-11-27)
+
+HEAD `94b6aa01`. `verification.status` read this report as stale because two covered files changed after `98a3d414` (this report's commit). Both changes are Phase 91's, and neither touches behaviour.
+
+| Changed covered file | Later commit | What changed | Why the truths still hold |
+|----------------------|--------------|--------------|---------------------------|
+| `packages/react/src/QadiProvider.tsx` | `45e366ac` refactor(91-11): fold the gate registry constructor into the gate writer | One line: `import type { GateRegistry } from "./GateRegistry.ts"` became `from "./GateWriter.ts"`. `GateRegistry.ts` no longer exists; `GateWriter.ts:150` declares `export interface GateRegistry`. | A type-only import path. Truths 6 and 7 re-read at HEAD: one lifetime ref (`ownerRef.current ??= makeRegistryOwner(...)`, line 241), refs `signalRef`, `ownerRef`, `reportedInstrumented` only, four `useEffect`s in order: commit `[owner, atoms, subject]` (line 272), the two instrumentation effects, hold/release `[owner]` last (line 302). `86-check.mjs provider-forwards-only` passes. |
+| `packages/react/src/RegistryLease.ts` | `0a7abe7e` docs(91-19): name the registry lease's one caller | One header comment line: "`QadiProvider.tsx` is its one caller" became "`RegistryOwner.ts` is its one caller". This closes this phase's Info finding IN-02. | Comment only. The claim is true: the only `src` import of `RegistryLease.ts` is `RegistryOwner.ts:24-25`, and `QadiProvider.tsx:61` imports only `makeRegistryOwner`. Truth 1's promise that the lease is byte for byte unchanged now holds for its code, not its header: `86-pinned-check.mjs` reports `RegistryLease.ts` as M. `91-earlier-checks.mjs` (`PINNED_86`) predicts exactly that line, keyed on this commit subject. `RegistryLease.test.ts` (RL1–RL10) and `QadiProvider.lifetime.test.tsx` (LT1–LT18) have no commit since `98a3d414`, so they are still unedited. |
+
+The other covered files (`RegistryOwner.ts`, the characterisation, `RegistryOwner.test.ts`, `support/recordingDefer.ts`, `stryker.react.mjs`, ADR-QD-199, the changeset) have no commit since `98a3d414`. `packages/react/src/index.ts` changed (`400d27f0`, `45e366ac`, `b06f18ce`, `b9dccc9a`), but it still names neither `RegistryOwner` nor `RegistryLease`, so the owner stays out of the barrel (truth 6). The owner's imports are unchanged (truth 3: no React). It is still in `stryker.react.mjs` `mutate` (line 66). Its code is unchanged since the close record, so the 19/19 mutation figure still stands (truth 4). Stryker was not re-run.
+
+Checks run at HEAD, in my own process:
+
+| Check | Result |
+|-------|--------|
+| `npx vitest run packages/react/test/RegistryOwner …/RegistryLease …/QadiProvider …/ServerRender …/edges` | 12 files, 113 tests passed (same count as at close) |
+| `node scripts/run-tstyche.mjs packages/react/test/QadiProvider.tst.ts` | 1 file, 2 tests passed |
+| `86-check.mjs owner-shape`, `provider-forwards-only`, `trailers`, `records`, `records --close` | exit 0, same lines as at close (22 plan commits) |
+| `86-check.mjs --self-test`; `86-pinned-check.mjs`, `86-mutation.mjs`, `86-earlier-checks.mjs --self-test` | 262, 18, 64, 21 passed |
+| `86-check.mjs scan-ids` | exit 1: the five Phase 87 phase-relative lines that `91-earlier-checks.mjs` predicts (`PHASE_RELATIVE`) |
+| `86-check.mjs scan-forbidden` | exit 1: "AGENTS.md / scripts/check-house-style.mjs differs from phase_base: no budget moves", predicted by `GUARD_85_TO_89` |
+| `86-pinned-check.mjs` | exit 1: 20 files reported M. These are exactly the 10 gate-fold files, the 8 hydration-fold files, `RegistryLease.ts` and `ServerRender.test.tsx` that `91-earlier-checks.mjs` `PINNED_86` predicts, each keyed on a Phase 91 commit subject. None of them is this phase's lifetime pins (RL, LT) or born files. |
+
+Every one of the 9 truths still holds at HEAD. Status stays passed.
 
 ---
 

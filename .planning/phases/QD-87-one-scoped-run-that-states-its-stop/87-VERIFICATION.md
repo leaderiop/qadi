@@ -1,6 +1,6 @@
 ---
 phase: QD-87-one-scoped-run-that-states-its-stop
-verified: 2026-11-25T22:30:00Z
+verified: 2026-11-26T23:30:00Z
 status: passed
 score: 12/12 must-haves verified
 covered_files:
@@ -40,7 +40,7 @@ covered_files:
   - packages/devtools/src/react/StoppedBox.tsx
   - packages/devtools/src/react/theme.ts
   - spec/decisions/200-one-scoped-run-that-states-its-stop.md
-covered_digest: "v4:sha256:258fc8cc8da1dc94c15c6e48491c2b8689c0ac2ed23692bd35f1b673dd463b1a"
+covered_digest: "v4:sha256:4f5cc8bb7f934de2de8de52d20b925e67b4d083de15e3721b372da404fdb5f81"
 behavior_unverified: 0
 overrides_applied: 0
 ---
@@ -159,6 +159,50 @@ None. The Simulator's `<pre>` has no markup or style change beyond the reuse of 
 None. Every success criterion and requirement is delivered in the code at HEAD, the behavior-dependent truths (stop for a current run only, outside interruption never stated, publish-then-fork order, fork-before-publish for gates) each have a named test that passes, and the evidence reproduces in my own process.
 
 Residual notes, not gaps: REQUIREMENTS.md still shows STOP-01..05 and WX rows as Pending (the close step ticks them); IN-04 (hex values in two born test rows) is deferred with a stated trigger; `pnpm check:pr` was not re-run, resting on the fixer's exit 0 at `f3d933fa` plus a planning-only diff since.
+
+
+## Re-verified at the milestone audit (2026-11-27)
+
+At HEAD `94b6aa01` (branch `arch-wave-16`), `verification.status` read this report as **stale** on one covered file. Every other covered implementation file (`ThrownMessage.ts`, `ConfigurePrologue.ts`, `DiagnosticsFeed.ts`, `GatesFeed.ts`, `SimulationSession.ts`, `StatedRun.ts`, `SupersedingRun.ts`, `TimelineFeed.ts`, `Simulator.tsx`, `theme.ts`, ADR-QD-200) has no commit since `13962ed7` (`git log 13962ed7..HEAD -- <files>` is empty).
+
+### Changed covered file
+
+`packages/devtools/src/react/StoppedBox.tsx`, changed by Phase 88 (ARCH-135, ADR-QD-201):
+
+- `e0a5c709` refactor(88-06): the stopped box keys itself and records its stop through the feed ledger
+- `d276d397` fix(88): IN-03 say the stop ledger counts changes and holds only the last stop
+- `617a5b26` fix(88): IN-01 give the stop record's layout effect a block body
+- `0769da68` fix(88): IN-06 wrap the stop path to the house width and cite AGENTS.md by section sign
+
+What moved: `StopLedger`, `noStops` and `stoppedKey` went to `model/StopLedger.ts` (with `announcesStop`); `StoppedBox` became a wrapper keying `StoppedBody` on the stop; props became `notice: StopNoticeProps<S>` carrying `{ ledger, record }` instead of a `RefObject`. The test `Simulator.broke.test.tsx` was edited by `e0a5c709` and `25dd8551` (test(88-06): compare the simulator reason block with the rendered stopped box) to build the box with the new props and compare the simulator block against a rendered box; its `REASON_STYLE` byte golden is unchanged.
+
+### Why each truth still holds
+
+| # | Truth | Re-check at HEAD |
+|---|-------|------------------|
+| 1 | Session `Broke.message === causeMessage(cause)` | `SimulationSession.ts` untouched since 87; SX1 to SX3 pass |
+| 2 | Characterisation pins each feed's status sequence | `StatedRun.characterisation.test.ts`, TX/DX rows pass; `87-pinned-check.mjs` exits 1 with exactly the five reasons `91-earlier-checks.mjs` predicts in `PINNED_87` (Phase 88's edits to `helpers.ts`, `DiagnosticsNotice.test.tsx`, `TimelineNotice.test.tsx`, `surface.tst.ts`, `Simulator.broke.test.tsx`); no other held file moved |
+| 3 | One package-private stated run above `SupersedingRun` | `StatedRun.ts` untouched; `87-check.mjs stated-run-shape` exit 0 |
+| 4 | Timeline and diagnostics supply only engine and states | untouched; `feeds-supply-only-engine` exit 0 |
+| 5 | One configure prologue, parameterised gate | untouched; `prologue-shape` exit 0 |
+| 6 | Gates fork before publish, no status | untouched; GatesFeed tests pass |
+| 7 | Session shares the stated run, keeps its exit read | untouched; `session-stop` exit 0 |
+| 8 | Feed self-interrupt decided and pinned | TX1/TX2/DX1/DX2 and TX3-7/DX3-7 pass |
+| 9 | `ForkHooks.onFailure` gone | `onfailure-gone` exit 0 |
+| 10 | Simulator `<pre>` uses `reasonStyle` from `theme.ts`; `StoppedBox` shares it | `StoppedBox.tsx:21` still imports `reasonStyle` from `./theme.ts` and `:136` renders the reason `<pre role="group" aria-label={reasonLabel} tabIndex={0} style={reasonStyle}>`; `Simulator.tsx:43,111` unchanged; `theme.ts:170` unchanged; SB1 (byte golden `REASON_STYLE`) to SB4 and SA1 pass; `simulator-pre` exit 0. The Phase 88 rework changed how the box keys and records its stop, not its reason treatment |
+| 11 | ADR-QD-200 and the records | `records` exit 0; `records --close` exits 1 with exactly `ADR-QD-047 is not at Revision 1.24`, the line `91-earlier-checks.mjs` predicts (`CLOSE_87`, a later amendment moved ADR-QD-047 one minor above) |
+| 12 | Changesets, no release, trailers | `trailers` exit 0 (364 commits, each one trailer); `scan-ids` exit 0; `scan-forbidden` exits 1 with exactly `AGENTS.md differs from phase_base: no budget moves` and `scripts/check-house-style.mjs differs from phase_base: no budget moves`, the two lines `91-earlier-checks.mjs` predicts (`GUARD_85_TO_89`: later phases' budget edits, held against this phase's base) |
+
+### Checks run
+
+| Check | Result |
+|-------|--------|
+| `pnpm exec vitest run --project devtools` on the phase's eleven touched test files plus `TimelineNotice`, `DiagnosticsNotice` and the Gates/Session/Timeline/Diagnostics feed tests | 21 files, 354 tests passed |
+| `87-check.mjs` base, scan-ids, trailers, stated-run-shape, prologue-shape, feeds-supply-only-engine, session-stop, simulator-pre, onfailure-gone, built-feeds-once, records | all exit 0 |
+| `87-check.mjs scan-forbidden`, `records --close`, `87-pinned-check.mjs` | exit 1 with exactly the predicted lines above |
+| tstyche | not run: Phase 87 added or edited no type test (`surface.tst.ts` is Phase 88's edit) |
+
+Stryker and `pnpm check:pr` not run (last green at `32f9c3ff`; only `.planning` commits since). Every truth still holds; status stays **passed**, score 12/12.
 
 ---
 

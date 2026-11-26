@@ -44,7 +44,7 @@ covered_files:
   - spec/decisions/110-an-archives-facts-are-computed-once.md
   - spec/decisions/190-an-audit-row-is-a-value-only-its-codec-makes.md
   - spec/decisions/202-one-admission-step-for-a-hosts-audit-batch.md
-covered_digest: "v4:sha256:ab917fa82abe4fe4cb99e53b85c299e1aba84bc98a13064e72d45ed13c3c2db8"
+covered_digest: "v4:sha256:2515491a0949ef31a8369b63281cb41ea92ed3ea905dda44e0faf50874d59c5e"
 behavior_unverified: 0
 overrides_applied: 0
 ---
@@ -183,6 +183,41 @@ input once; all four public entry points call it first and `verifiedArchiveFacts
 order is asserted once at the step, `ForeignRows.test.ts` holds one comparison case per entry point, and the spec
 records match the code after the review fix round. All phase checks, the audit suite, the spec gate and the type tests
 pass on HEAD, and nothing was released.
+
+
+## Re-verified at the milestone audit (2026-11-27)
+
+Re-run at HEAD `94b6aa01` because `verification.status` read **stale**: Phase 91 (named barrels, visibility-only files
+folded away) changed eight covered files after this report (`ddab6ff2`, phase verified at `235fa6fc`). Each change and
+why every truth above still holds:
+
+| Changed covered file | Later commit(s) | What changed | Why the truths hold |
+|----------------------|-----------------|--------------|---------------------|
+| `packages/audit/src/ArchiveFacts.ts` | `8eadbc55` (91-12), `a6f86b9e` (91-review) | `SequenceIntegrity.ts` deleted; `verifySequenceIntegrity` and `SequenceIntegrityError` are now declared here, with the gap-and-duplicate disclaimer moved onto their doc; the module header re-worded to say which names the barrel lists | Code unchanged apart from doc comments: `verifySequenceIntegrity` (`ArchiveFacts.ts:234-240`) is still an unnamed `Effect.fn` whose first statement is `admitRows(entries)`, failing `ArchiveInputInvalid` before any span, then `verifiedArchiveFacts(rows.success)`; `verifiedArchiveFacts` (191) still takes `AdmittedRows` and keeps the span name `qadi.audit.verifySequenceIntegrity`; the union at 148-154 is still `RowsRefusalCases & NowRefusalCases & {...}`. Truths 2, 3, 5, 7 |
+| `packages/audit/src/AuditArchive.ts` | `743f6f85` (91-19) | one doc-comment path `SequenceIntegrity.ts` -> `ArchiveFacts.ts` | `archiveAuditTrail` still admits first (`AuditArchive.ts:186` `admitBatch`, then `verifiedArchiveFacts(rows)` at 191). Truth 3 |
+| `test/AdmissionOrder.characterisation.test.ts`, `BatchReadOnce.test.ts`, `ForeignRows.test.ts`, `RowListAdmission.test.ts` | `8eadbc55` | import line only: `verifySequenceIntegrity` from `../src/ArchiveFacts.ts` | No assertion changed; all rows green (below). Truths 1, 6, 8 |
+| `spec/decisions/110-…md` | `7fceb163` (91-18) | Revision 1.5, a dated note that the sequence check is declared and published from `ArchiveFacts.ts` | ADR-QD-110's ADR-QD-202 amendment note is intact. Truth 9 |
+| `spec/decisions/190-…md` | `743f6f85` (91-19) | Revision 1.8, a dated note re-pointing `SequenceIntegrity.ts` to `ArchiveFacts.ts` | The ADR-QD-202 notes under decisions 3 and 5 are intact. Truth 9 |
+
+`NowNotFinite:` is still stated only at `HostBatch.ts:25`; `HostBatch.ts`, `CodecMade.ts` and `Retention.ts` are
+untouched since this report (`planRetention`/`planPurge` admit at `Retention.ts:142`, `:192`); the barrel
+(`index.ts:14`) names the two sequence-check exports at `./ArchiveFacts.ts` and still not `HostBatch.ts`, so the public
+surface is the same names (truth 10).
+
+Checks run at HEAD:
+
+| Check | Result |
+|-------|--------|
+| `pnpm exec vitest run` on `AdmissionOrder.characterisation`, `BatchReadOnce`, `ForeignRows`, `RowListAdmission`, `HostBatch`, `MaxAgeAdmission`, `Retention`, `AuditArchive`, `SequenceIntegrity` tests | 9 files, 225 tests passed |
+| `node scripts/run-tstyche.mjs packages/audit/test/HostBatch.tst.ts` | 5 tests, 15 assertions passed |
+| `89-check.mjs admission-step` / `entry-points-first` / `records` | exit 0 each, same lines as at close |
+| `89-check.mjs scan-forbidden` | exit 1: `AGENTS.md` and `scripts/check-house-style.mjs` differ from `phase_base`, "no budget moves" — predicted by `91-earlier-checks.mjs` (`GUARD_85_TO_89`, decoder-fold subject) |
+| `89-check.mjs records --close` | exit 1: register revisions moved, ADR-110 at 1.5, ADR-190 at 1.8, 8 changesets since `phase_base` — each predicted by `91-earlier-checks.mjs` (`CLOSE_89`: surface, behaviours, decision-notes, sweep, changesets subjects) |
+| `89-pinned-check.mjs --all-applied` | exit 1, seven lines: `SequenceIntegrity.ts` deleted, the barrel line, and the import line in five test files — exactly the seven `PINNED_89` lines of the audit-fold and audit-barrel subjects |
+| `node .planning/phases/QD-91-…/91-earlier-checks.mjs` | exit 0: "87 runs, all match their rows" (every 89 row included) |
+
+No truth changed status: 11/11 verified, status stays `passed`. The coverage fingerprint was regenerated over the same
+40 covered files. Its `$TMPDIR/qd91` scratch, made by the earlier-checks run, was removed.
 
 ---
 
