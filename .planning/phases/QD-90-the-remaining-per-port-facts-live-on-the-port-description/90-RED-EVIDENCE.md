@@ -1148,3 +1148,148 @@ Each block below is one run of a phase check or a held mutation mode on a scratc
 - failing text: AssertionError: expected '{"_tag":"Answered","answer":false}' to equal '{"_tag":"Answered","answer":true}'
 - failing text: AssertionError: expected 'deny,allow' to deeply equal 'allow,deny'
 - failing text: AssertionError: expected false to be true
+
+## route-byscope-true
+- scratch: r-byscope at 9c12b14ad3
+- edit: the ByScope arm of the route matcher answering true for every leaf
+- diff: 858267b2e79da99c258d136cb00061e299330ddc1fd2e1332c9a9defb1ff4ba2 (1 files, +1 -1)
+- run: vitest packages/core/test/PortFacts.characterisation.test.ts packages/core/test/LeafNeeds.test.ts
+- exit: 1
+- seen failing: a scoped read requires an id exactly where its leaf's row says a read is refused for a missing id exactly when its row and scope ask for one
+- seen failing: a scoped read requires an id exactly where its leaf's row says a ByScope leaf's judgement refuses exactly when its read does
+- seen failing: evaluate and toPredicate agree where both apply (D-11) an allow is a True constant and a deny a False one, and an absence is the same
+- seen failing: a scoped read at every site HasActed, scope Any, absent resource, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Any, resource without id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Any, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Any, resource with usable id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Any, absent resource, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Any, resource without id, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Any, resource with non-string id, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Any, resource with usable id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Any, absent resource, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Any, resource without id, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Any, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Any, resource with usable id, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Any, absent resource, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Any, resource without id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Any, resource with non-string id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Any, resource with usable id, under toPredicate
+- seen failing: a scoped read at every site HasSignature, scope Any, absent resource, under evaluate
+- seen failing: a scoped read at every site HasSignature, scope Any, resource without id, under evaluate
+- seen failing: a scoped read at every site HasSignature, scope Any, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasSignature, scope Any, resource with usable id, under evaluate
+- failing text: AssertionError: HasActed[Any] none: expected true to equal false
+- failing text: AssertionError: HasActed[Any] none: expected false to equal true
+- failing text: AssertionError: expected 14 to equal 18
+
+## route-annotation-after-failure
+- scratch: r-order at 9c12b14ad3
+- edit: the question annotation moved after the failing return in readScoped
+- diff: c4a4da3899ad0f948435a37b191343f9465b96d6623abb48458ee61e5adcb5c4 (1 files, +1 -1)
+- run: vitest packages/core/test/PortFacts.characterisation.test.ts packages/core/test/PortAccess.test.ts
+- exit: 1
+- seen failing: a missing resource id still leaves its question on the span (D-07) askActed
+- seen failing: a missing resource id still leaves its question on the span (D-07) askRelationship
+- seen failing: a missing resource id still leaves its question on the span (D-07) askSignature
+- seen failing: a scoped read at every site HasRelationship, absent resource, under evaluate
+- seen failing: a scoped read at every site HasRelationship, resource without id, under evaluate
+- seen failing: a scoped read at every site HasRelationship, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, absent resource, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource without id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, absent resource, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource without id, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource with non-string id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, absent resource, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource without id, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, absent resource, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource without id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource with non-string id, under toPredicate
+- seen failing: a scoped read at every site HasSignature, scope Resource, absent resource, under evaluate
+- seen failing: a scoped read at every site HasSignature, scope Resource, resource without id, under evaluate
+- seen failing: a scoped read at every site HasSignature, scope Resource, resource with non-string id, under evaluate
+- failing text: AssertionError: expected {} to deeply equal { 'qadi.subject_id': 'alice', …(3) }
+- failing text: AssertionError: expected {} to deeply equal { 'qadi.subject_id': 'alice', …(3) }
+- failing text: AssertionError: expected {} to deeply equal { 'qadi.subject_id': 'alice', …(4) }
+
+## route-effect-fn
+- scratch: r-fn at 9c12b14ad3
+- edit: readScoped's generator wrapped in Effect.fn("qadi.readScoped")
+- diff: 805cac8625c2a8505c062ebfae872910d534e52d7fd03a809bfd9b7b775fe263 (1 files, +2 -2)
+- run: vitest packages/core/test/PortFacts.characterisation.test.ts packages/core/test/PortAccess.test.ts
+- exit: 1
+- seen failing: a read is one body, locally and served (ARCH-47) a signature question leaves equal local and served spans, apart from the interpreter
+- seen failing: a read is one body, locally and served (ARCH-47) the signature answer keys are the struct's, and onFile is recorded on neither span
+- seen failing: a local read equals a served read, port by port (ARCH-47) DecisionHistory askActed, scope Resource leaves equal spans, apart from the interpreter, when answered
+- seen failing: a local read equals a served read, port by port (ARCH-47) DecisionHistory askActed, scope Resource a store that fails is the port's typed error on both, with the same question
+- seen failing: a local read equals a served read, port by port (ARCH-47) DecisionHistory askActed, scope Resource a store that dies is the port's typed error on both, never a defect
+- seen failing: a local read equals a served read, port by port (ARCH-47) DecisionHistory askActed, scope Resource a store that throws is the port's typed error on both, never a defect
+- seen failing: a local read equals a served read, port by port (ARCH-47) RelationshipResolver askRelationship leaves equal spans, apart from the interpreter, when answered
+- seen failing: a local read equals a served read, port by port (ARCH-47) RelationshipResolver askRelationship a store that fails is the port's typed error on both, with the same question
+- seen failing: a local read equals a served read, port by port (ARCH-47) RelationshipResolver askRelationship a store that dies is the port's typed error on both, never a defect
+- seen failing: a local read equals a served read, port by port (ARCH-47) RelationshipResolver askRelationship a store that throws is the port's typed error on both, never a defect
+- seen failing: a local read equals a served read, port by port (ARCH-47) SignatureHistory askSignature, scope Resource leaves equal spans, apart from the interpreter, when answered
+- seen failing: a local read equals a served read, port by port (ARCH-47) SignatureHistory askSignature, scope Resource a store that fails is the port's typed error on both, with the same question
+- seen failing: a local read equals a served read, port by port (ARCH-47) SignatureHistory askSignature, scope Resource a store that dies is the port's typed error on both, never a defect
+- seen failing: a local read equals a served read, port by port (ARCH-47) SignatureHistory askSignature, scope Resource a store that throws is the port's typed error on both, never a defect
+- seen failing: a missing resource id still leaves its question on the span (D-07) askActed
+- seen failing: a missing resource id still leaves its question on the span (D-07) askRelationship
+- seen failing: a missing resource id still leaves its question on the span (D-07) askSignature
+- seen failing: a scoped read at every site HasRelationship, absent resource, under evaluate
+- seen failing: a scoped read at every site HasRelationship, resource without id, under evaluate
+- seen failing: a scoped read at every site HasRelationship, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasRelationship, resource with usable id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, absent resource, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource without id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource with usable id, under evaluate
+- seen failing: a scoped read at every site HasActed, scope Resource, absent resource, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource without id, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource with non-string id, under toPredicate
+- seen failing: a scoped read at every site HasActed, scope Resource, resource with usable id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, absent resource, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource without id, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource with usable id, under evaluate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, absent resource, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource without id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource with non-string id, under toPredicate
+- seen failing: a scoped read at every site HasNotActed, scope Resource, resource with usable id, under toPredicate
+- seen failing: a scoped read at every site HasSignature, scope Resource, absent resource, under evaluate
+- seen failing: a scoped read at every site HasSignature, scope Resource, resource without id, under evaluate
+- seen failing: a scoped read at every site HasSignature, scope Resource, resource with non-string id, under evaluate
+- seen failing: a scoped read at every site HasSignature, scope Resource, resource with usable id, under evaluate
+- failing text: AssertionError: expected undefined to equal 'evaluate'
+- failing text: AssertionError: expected [] to deeply equal [ 'qadi.matched' ]
+- failing text: AssertionError: expected undefined to equal 'evaluate'
+
+## route-switch
+- scratch: r-switch at 9c12b14ad3
+- edit: a switch on the leaf's LEAF_NEEDS resourceId row inside readScoped
+- diff: 3c6bef1a1026fc9066ca71e13a89420565b03955e8d5e2818fe38f01da5fa4ed (1 files, +7 -2)
+- run: house-style
+- exit: 1
+- failing text: packages/core/src/PortAccess.ts:348  [no-switch] Dispatch with effect/Match, not switch — AGENTS.md §5a.
+- failing text:     A hot path that genuinely needs one is declared in SWITCH_BUDGET with its reason.
+- failing text: 1 house-style violation(s). See AGENTS.md.
+
+## route-relationship-bare
+- scratch: r-bare at 9c12b14ad3
+- edit: the relationship port given a bare call that carries no resource id
+- diff: e9e6bc5f3be2f9411c9e7368c12a67e05944e05c5c1c768f85fb83834a5b9b6e (1 files, +1 -1)
+- run: tsc-src
+- exit: 2
+- failing text: packages/core/src/PortAccess.ts(283,5): error TS2322: Type '([request]: [any]) => any[]' is not assignable to type 'undefined'.
+- failing text: packages/core/src/PortAccess.ts(283,13): error TS7031: Binding element 'request' implicitly has an 'any' type.
+- tsc: packages/core/src/PortAccess.ts TS2322 x1
+- tsc: packages/core/src/PortAccess.ts TS7031 x1
+
+## scoped-port-hand-union
+- scratch: r-hand at 9c12b14ad3
+- edit: ScopedPort written back as a hand union with CustomPredicate added
+- diff: d8fee28024274d6923aa37aa092758aea6c256a6866f507da4b1d733fdd89c91 (1 files, +1 -3)
+- run: tsc-src
+- exit: 2
+- failing text: packages/core/src/PortAccess.ts(277,7): error TS2741: Property 'CustomPredicate' is missing in type '{ DecisionHistory: { withId: (request: [query: ActedQuery]) => [query: ActedQuery]; bare: (request: [query: ActedQuery]) => [query: ActedQuery]; }; RelationshipResolver: { withId: ([request]: [request: PendingRelationshipCheck], resourceId: ResourceId) => [{ subjectId: SubjectId; relation: string; depth: number | undefined; resourceId: ResourceId; }]; bare: undefined; }; SignatureHistory: { withId: (request: [query: SignatureQuery]) => [query: SignatureQuery]; bare: (request: [query: SignatureQuery]) => [query: SignatureQuery]; }; }' but required in type '{ readonly CustomPredicate: ScopedCall<"CustomPredicate">; readonly DecisionHistory: ScopedCall<"DecisionHistory">; readonly RelationshipResolver: ScopedCall<"RelationshipResolver">; readonly SignatureHistory: ScopedCall<"SignatureHistory">; }'.
+- tsc: packages/core/src/PortAccess.ts TS2741 x1
