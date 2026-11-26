@@ -126,16 +126,17 @@ same shape repeats in each of the five port modules (`RelationshipResolver.ts`,
 **A port's wrappers and default are derived from its description, not written
 by hand** (ADR-QD-094). The description states the port's facts once — name,
 method, span, the attributes that span carries, a lens onto its one method, its
-typed-error constructors, the request each policy leaf asks it (`asks`, ADR-QD-134)
-and its fail-closed answer; four of the five derive
+typed-error constructors, the request each policy leaf asks it (`asks`, ADR-QD-134),
+its fixture and its fail-closed answer; four of the five derive
 their request key and defect from their wire question and failure
 (`makePortDescription`, ADR-QD-133), and `CustomPredicate` states its own — and each
 exported layer is a one-line derivation: `export const decisionHistoryRetrying = retryingPort(decisionHistoryPort)`,
 `export const DecisionHistoryUnknown = nonePort(decisionHistoryPort)`. The
 derivations live in `PortDerivation.ts` (package-private; it absorbed the old
 `RetryingLayer.ts`), the doubles in `PortDoubles.ts`, and the closed registry
-of all five in `Ports.ts`. A new port is a description, a `PortName` member and
-its registry lines; the compiler asks for the rest. A test that needs a broken
+of all five in `Ports.ts`. A new port is a description (span, wire, serving facet,
+fixture), a `PORT_NAMES` entry, its registry lines and its `PortServing` row. The
+compiler asks for the rest. A test that needs a broken
 port scripts it (`scriptedPort`) rather than hand-writing a failing layer — see
 §6's `PORT_DOUBLE_BUDGET`.
 
