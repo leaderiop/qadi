@@ -639,8 +639,10 @@ REQUIREMENT: A description without a `fixture` MUST NOT compile.
 
 `PortFixtureData` is a mapped type over the registry and `PORT_FIXTURES` is
 `tabulatePorts((d) => d.fixture)`, so a port's data shape is stated beside the builder that
-consumes it and the fixture table has no row of its own to forget. The data stays plain and
-serializable, because `@qadi/devtools`' Fixtures simulation is sealed and takes data. The
+consumes it and the fixture table has no row of its own to forget. The data stays plain, a
+table or a list of rows, because `@qadi/devtools`' Fixtures simulation is sealed and takes
+data; `FixtureData` is not bounded, so that is a convention review checks and not one the
+type enforces. The
 builders keep their public names and signatures, and `CustomPredicate`'s fixture, fixed
 verdicts by name, is built in its own description.
 

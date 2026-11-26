@@ -174,7 +174,9 @@ export type LeafRequests<P extends ReadonlyArray<unknown>> = {
  *   whose spans overlap and a span that is not one literal. Defaulted to the pattern every span name matches, which is all generic
  *   code needs.
  * - `FixtureData` — the plain data {@link PortDescription.fixture} builds the
- *   port's layer from: serializable, never a layer. Defaulted to `never`, so
+ *   port's layer from. Plain by convention: the parameter is not bounded, so a
+ *   function or a `Layer` type would compile here, and review is what keeps
+ *   each port's data a table or a list of rows. Defaulted to `never`, so
  *   generic code can only name the builder, and a call with data has to be
  *   written against one port's own type.
  */
@@ -330,14 +332,16 @@ export interface PortDescription<
   readonly none: { readonly name: string; readonly answer: A };
   /**
    * Builds this port's layer from plain data: a static table, a list of rows or
-   * a map of fixed answers. The one place the data-to-layer mapping is written,
-   * so `fixturePortsLayer` (`Ports.ts`), `@qadi/testing`'s review layer and
-   * `@qadi/devtools`' Fixtures simulation all read it here.
+   * a map of fixed answers.
    *
-   * Data only, never a layer: devtools' Fixtures mode is sealed and takes data,
-   * and a value that is not serializable could not cross into it. Required, so
-   * a port cannot be described without saying how a test or a simulation fills
-   * it.
+   * The one place the data-to-layer mapping is written: `PORT_FIXTURES`
+   * (`Ports.ts`) projects it by port name, and `fixturePortsLayer`, which
+   * `@qadi/testing`'s review layer and `@qadi/devtools`' Fixtures simulation
+   * build with, reads it there. The data is meant to be data, never a layer,
+   * because devtools' Fixtures mode is sealed and takes data; `FixtureData` is
+   * not bounded, so that is a convention review checks, not one the type
+   * enforces. Required, so a port cannot be described without saying how a test
+   * or a simulation fills it.
    */
   readonly fixture: (data: FixtureData) => Layer.Layer<Self>;
 }

@@ -262,7 +262,8 @@ type FixtureDataOf<D> = D extends { readonly fixture: (data: infer F) => unknown
  * {@link PORT_FIXTURES} turns into that port's layer.
  *
  * Data only, never a layer: devtools' Fixtures mode is sealed (ADR-QD-050) and
- * takes data, and a value that is not serializable could not cross into it.
+ * takes data. The type does not enforce it (a description's `FixtureData` is not
+ * bounded), so review keeps each member a table or a list of rows.
  * `CustomPredicate` is answers (`name` to a fixed verdict), not functions; a
  * predicate that reads the subject or resource is a layer, supplied as an
  * override. Read from each port's own description (`fixture`), so a port's data

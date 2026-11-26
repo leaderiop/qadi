@@ -74,7 +74,8 @@ error named, and a hand list could be widened by a side effect.
    name and is `tabulatePorts((d) => d.fixture)` through a third overload, and `fixturePortsLayer` reads each port's builder
    through it, so the description's `fixture` is the one statement, `PORT_FIXTURES` is its one projection by port name, and
    the overload and its two helper types stay because they type that table, which both `fixturePortsLayer` and a host
-   read. The data stays plain and serializable ([ADR-QD-050](./050-a-simulation-is-sealed.md)). `FixtureDataOf`, `FixtureBuilders` and
+   read. The data stays plain, a table or a list of rows ([ADR-QD-050](./050-a-simulation-is-sealed.md)); `FixtureData`
+   is not bounded, so that is a convention review checks, not one the type enforces. `FixtureDataOf`, `FixtureBuilders` and
    `FixtureVisitor` stay unexported, so the one export this change adds is `PORT_NAMES`.
 
 4. **The serving shape stays hand-written, and [ADR-QD-114](./114-a-port-states-what-it-serves.md) holds.** `PortServing`,
@@ -187,7 +188,8 @@ production description and break every literal.
 - A test-data shape in every production description: each builder already ships in the same module as its description, and
   `@qadi/devtools`' Fixtures simulation, a production feature, already builds its ports with `fixturePortsLayer`, which
   reads each builder through `PORT_FIXTURES` ([ADR-QD-050](./050-a-simulation-is-sealed.md)). The member is one reference
-  per port and no new production dependency, and the data is plain and serializable as before.
+  per port and no new production dependency, and the data is plain as before (by convention: `FixtureData` is not
+  bounded).
 - Break every literal: `PortName` is closed, so only the five port modules and one test probe build a description. The break
   is real, and it is **Breaking** for a hand-built description, as the CCR-QD-382 amendment's own `wire` member was.
 
