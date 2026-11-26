@@ -355,3 +355,9 @@ The base is the one `89-mutation-base.json` records (`phase_base` 8ee14f6f703f31
 - check failed: earlier-fixed: 85-check.mjs scan-forbidden: expected the line "scan-forbidden: no forbidden form in added line", got "scan-forbidden: no forbidden form in added lines"
 - check failed: earlier-unexpected: unexpected run: 85-check.mjs scan-forbidden
 - check failed: earlier-computed: 88-check.mjs records --close: expected exit 1, got exit 0: records: the pinned-by lists name tests that exist, and every reserved record is written
+
+## 89-05 the admission step
+
+- red before: packages/audit/test/HostBatch.test.ts
+  - failed on: Error: Cannot find module '../src/HostBatch.ts' imported from <root>/packages/audit/test/HostBatch.test.ts
+  (scratch state: packages/audit/src/HostBatch.ts absent at HEAD d34819c63936c3327415300b51c03dd974561c5a; test blob a6eff7b41516a242bf179b594d4e464eedd9b6ba)
