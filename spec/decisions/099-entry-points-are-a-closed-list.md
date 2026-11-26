@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-099                                   |
-> | Revision       | 1.2                                            |
+> | Revision       | 1.3                                            |
 > | Effective Date | 2026-10-07                                     |
-> | Status         | Accepted — amends ADR-QD-033, ADR-QD-090, ADR-QD-091; amended 2026-10-08 (a barrel may name its exports) |
+> | Status         | Accepted — amends ADR-QD-033, ADR-QD-090, ADR-QD-091; amended 2026-10-08 (a barrel may name its exports); amended 2026-11-19 (the devtools root's named list carries the feeds); amended 2026-11-26 (the named-barrel form covers core, react and audit, ADR-QD-204) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.2 (2026-11-19): amendment — the devtools root's named list carries the feeds (ARCH-107, ADR-QD-173, CCR-QD-451)<br>1.1 (2026-10-08): amendment — a barrel may name its exports when a package's interface is narrower than its modules (ARCH-40, CCR-QD-321)<br>1.0 (2026-10-07): Initial (CCR-QD-188) |
+> | Change History | 1.3 (2026-11-26): amendment: the named-barrel form covers core, react and audit, and a part-public module's other names are package-private (ADR-QD-204, CCR-QD-483)<br>1.2 (2026-11-19): amendment — the devtools root's named list carries the feeds (ARCH-107, ADR-QD-173, CCR-QD-451)<br>1.1 (2026-10-08): amendment — a barrel may name its exports when a package's interface is narrower than its modules (ARCH-40, CCR-QD-321)<br>1.0 (2026-10-07): Initial (CCR-QD-188) |
 
 ---
 
@@ -85,6 +85,13 @@ one today (ADR-QD-047's 2026-10-08 amendment). Gate 13 (`scripts/check-api-surfa
 lines as well as on one, and the house-style rule `devtools-named-barrel` forbids `export *`
 in those two barrels and keeps their groups in module-path order. This adds no entry point
 and no row to the "Entry points" table.
+
+> **Amended (2026-11-26, ADR-QD-204, CCR-QD-483): the named-barrel form covers core, react and audit too.** The 2026-10-08
+> amendment's barrel that names its exports, when a package's interface is narrower than its modules, is the form of
+> `@qadi/core`, `@qadi/react` and `@qadi/audit` as well as `@qadi/devtools`, under the house-style rule `named-barrel`.
+> A part-public module's other names are package-private by the same rule: out of the barrel means not importable, and the
+> packed check in `scripts/check-package-install.mjs` refuses them. This adds no entry point and no row to the "Entry
+> points" table. Every other word stands ([ADR-QD-204](./204-named-barrels-and-visibility-only-files-folded-away.md)).
 
 ## Amendment (2026-11-19, CCR-QD-451): the devtools root's named list carries the feeds
 
