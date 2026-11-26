@@ -37,7 +37,7 @@ export interface StopNoticeProps<S> {
   readonly status: S;
   /** Starts the feed again; it leaves its stop, so the notice is replaced. */
   readonly onRestart: () => void;
-  /** The stops the notice has shown, and the call that records one. */
+  /** The last stop a box of this feed showed, and the call that records one. */
   readonly announced: AnnouncedStops<S>;
 }
 

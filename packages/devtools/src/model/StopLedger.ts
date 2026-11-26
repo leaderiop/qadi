@@ -7,7 +7,9 @@
  */
 
 /**
- * The last stop a box showed, and how many distinct stops boxes have shown.
+ * The last stop a box showed, and how many times the shown stop has changed.
+ *
+ * It holds one stop and never a set: recording A, then B, then A counts three changes.
  *
  * It records only which stop was announced, never what the reading says (AGENTS.md section 13),
  * so it holds an identity and a count and nothing else.
