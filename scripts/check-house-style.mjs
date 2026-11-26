@@ -658,7 +658,7 @@ const UNTRUSTED_DECODE_BUDGET = {
   "packages/core/src/UntrustedDecode.ts": 5,
   // The depth walk's declaration: package-private, reached only from the untrusted decoder.
   "packages/core/src/DecodeDepthGuard.ts": 1,
-  // `spanStruct` reads only its own named keys, and every leaf is a SpanValue primitive (INV-QD-044), so there is no nesting or excess key for a guard to bound; not an untrusted seam regardless of who supplies the map.
+  // `spanStruct` reads only its own named keys, and every leaf is a SpanValue primitive (INV-QD-044), so there is no nesting or excess key for a guard to bound; not an untrusted seam regardless of who supplies the map; the public `decodePortSpan` reads through the same per-field struct decode, with no counted token.
   "packages/core/src/PortSpanEncode.ts": 2,
   // `SinkRecordWithJson`'s `Schema.decodeTo` is the transformation that gives `decodeSinkRecordWithJson` the record and its JSON form from one strict decode, run only through `untrustedDecoder` (ADR-QD-153); the stored envelope is read by `untrustedDecoder` itself (ADR-QD-170).
   "packages/core/src/SinkCodec.ts": 1,

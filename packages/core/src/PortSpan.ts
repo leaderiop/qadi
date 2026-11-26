@@ -13,12 +13,13 @@
  * The question and the answer are two structs, not one, because BEH-QD-227
  * requires a span to carry its question even when the port failed.
  * `qadi.attempts` is written between them by a different module, the retrying
- * wrappers, and is decoded (`PortSpanDecode.ts`) for every port.
+ * wrappers, and is decoded (`decodePortSpan`, in `PortSpanEncode.ts`) for every
+ * port.
  *
  * Every field is a {@link SpanValue}, which is INV-QD-044 as a type: a field
  * that could hold arbitrary data does not compile. The machinery that builds a
  * struct is internal (`PortSpanEncode.ts`); only the types a description names
- * live here, and the decoder is `PortSpanDecode.ts`.
+ * live here, and the decoder, `decodePortSpan`, is declared beside that machinery.
  */
 import type * as Schema from "effect/Schema";
 

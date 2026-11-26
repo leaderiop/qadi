@@ -424,7 +424,7 @@ export type {
   SpanType,
   SpanValue,
 } from "./PortSpan.ts";
-export { decodePortSpan } from "./PortSpanDecode.ts";
+export { decodePortSpan } from "./PortSpanEncode.ts";
 export {
   PortWireRefusal,
   PortWireReply,
