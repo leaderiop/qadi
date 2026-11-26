@@ -82,7 +82,7 @@ is only one way to write one. A package whose interface is *narrower than its mo
 module path. The list is then the interface, in one reviewable file, and a module's other
 names are package-private by the same rule as an unbarreled module. `@qadi/devtools` is the
 one today (ADR-QD-047's 2026-10-08 amendment). Gate 13 (`scripts/check-api-surface.mjs`) reads the form, wrapped over several
-lines as well as on one, and the house-style rule `devtools-named-barrel` forbids `export *`
+lines as well as on one, and the house-style rule `named-barrel` forbids `export *`
 in those two barrels and keeps their groups in module-path order. This adds no entry point
 and no row to the "Entry points" table.
 

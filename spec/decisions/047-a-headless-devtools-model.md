@@ -221,7 +221,7 @@ a prop fed by the host's subscription ([ADR-QD-080](./080-a-gate-registry-belong
 > a host drives is `makeSimulationSession`, not `simulate` and `whatIf`, which the
 > acceptance suite now reflects: it tests what ships. The barrels *name* their exports
 > (ADR-QD-099's amendment), `test/surface.test.ts` and `surface.tst.ts` pin the list,
-> and the house-style rule `devtools-named-barrel` refuses an `export *` there.
+> and the house-style rule `named-barrel` refuses an `export *` there.
 > **Breaking** for `@qadi/devtools`: 87 names released in 0.11.0 are no longer
 > importable (56 from the root, 31 from `@qadi/devtools/react`), and 24 more were never
 > released. The Decision's list is unchanged; only its reachability is.

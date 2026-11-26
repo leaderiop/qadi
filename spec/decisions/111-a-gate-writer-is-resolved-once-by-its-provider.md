@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-111                                   |
-> | Revision       | 1.3                                            |
+> | Revision       | 1.4                                            |
 > | Effective Date | 2026-11-08                                     |
 > | Status         | Accepted — amends ADR-QD-053, ADR-QD-080; amended by ADR-QD-140; amended 2026-11-22 (ADR-QD-186); amended 2026-11-24 (ADR-QD-193) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.3 (2026-11-24): amended by ADR-QD-193 (CCR-QD-472)<br>1.2 (2026-11-22): Amendment: a guard passes its wanted registrations keyed by gate id (ADR-QD-186, CCR-QD-465)<br>1.1 (2026-11-11): Amendment (ARCH-76, CCR-QD-418): the hooks moved to useGate.ts; amended by ADR-QD-140<br>1.0 (2026-11-08): Initial (ARCH-49, CCR-QD-388) |
+> | Change History | 1.4 (2026-11-26): a dated note says `GateRegistry.ts` is folded into `GateWriter.ts` (ARCH-138, CCR-QD-483)<br>1.3 (2026-11-24): amended by ADR-QD-193 (CCR-QD-472)<br>1.2 (2026-11-22): Amendment: a guard passes its wanted registrations keyed by gate id (ADR-QD-186, CCR-QD-465)<br>1.1 (2026-11-11): Amendment (ARCH-76, CCR-QD-418): the hooks moved to useGate.ts; amended by ADR-QD-140<br>1.0 (2026-11-08): Initial (ARCH-49, CCR-QD-388) |
 
 ---
 
@@ -171,3 +171,8 @@ toggle of the provider's `instrument` prop hands a consumer of the context no ne
 stays off the value as decided here: `QadiProvider` still resolves `instrument ? gateWriterFor(gates) : undefined` once and
 hands it through `GateScopeContext`, so whether a guard registers is decided there and a host that wants to know whether it
 instrumented reads the value it passed.
+
+> **Note (2026-11-26, ADR-QD-204, CCR-QD-483).** `makeGateRegistry` is declared in
+> `GateWriter.ts`, so where this record says `GateRegistry.ts`, read `GateWriter.ts`: it now holds the registry as
+> well as the write side, and it still imports neither `QadiAtoms.ts` nor the provider
+> ([ADR-QD-204](204-named-barrels-and-visibility-only-files-folded-away.md)).

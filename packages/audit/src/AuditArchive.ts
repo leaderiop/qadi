@@ -109,7 +109,7 @@ export interface AuditArchive {
     /**
      * No gap or duplicate found in the caller-assigned `sequenceNumber`s at
      * archive time. Not cryptographic tamper-evidence — see
-     * `SequenceIntegrity.ts` — and not a claim about `keyMaterial` below,
+     * `ArchiveFacts.ts` — and not a claim about `keyMaterial` below,
      * which this package carries but never uses to sign or verify anything.
      *
      * `false` when fewer than two entries carry a `sequenceNumber`:

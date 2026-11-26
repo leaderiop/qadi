@@ -20,8 +20,8 @@
  * Deliberately out of the barrel (AGENTS.md §9), same as `HydrationEngine.ts`
  * and `DeveloperSignals.ts`: this is the write side of an internal metric, not
  * something a consumer should be updating directly. `DecisionEntry` is public
- * and re-exported **by name** from `Hydration.ts`; it lives here because the
- * dehydrate event speaks about it and this file imports nothing from the engine.
+ * and the root names it from here; it lives here because the dehydrate event
+ * speaks about it and this file imports nothing from the engine.
  *
  * Every function here is **synchronous and total**, because its callers are.
  * `dehydrateDecisions` and `hydrateDecisions` are documented as pure and

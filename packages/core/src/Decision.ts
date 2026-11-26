@@ -66,7 +66,7 @@ export interface Trace {
  *
  * Lives beside `Trace` itself rather than beside whichever boundary first
  * needed it: `SinkCodec.ts`'s wire form of a `Decision`, `@qadi/react`'s
- * `Hydration.ts` (a `Trace` crosses a trust boundary there too), and now
+ * `HydrationEngine.ts` (a `Trace` crosses a trust boundary there too), and now
  * `Errors.ts`'s `AccessDenied` (ADR-QD-072) all import this one definition
  * rather than each describing `Trace`'s shape again — duplicating
  * the tag list or this recursion in a second file is exactly the drift

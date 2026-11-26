@@ -5,12 +5,12 @@
 > | Property       | Value                                          |
 > | -------------- | ---------------------------------------------- |
 > | Document ID    | QADI-ADR-190                                   |
-> | Revision       | 1.7                                            |
+> | Revision       | 1.8                                            |
 > | Effective Date | 2026-11-23                                     |
 > | Status         | Accepted — amends ADR-QD-110 and ADR-QD-056; amended 2026-11-24; amended 2026-11-26 (ADR-QD-202) |
 > | Author         | Qadi Engineering                               |
 > | Classification | Architecture Decision Record                   |
-> | Change History | 1.7 (2026-11-26): fourth amendment: NowNotFinite joins the discipline of RowsRefusalCases as NowRefusalCases in HostBatch.ts, and the rows are asked once, by the admission step; notes under decisions 2 and 3 (ADR-QD-202, CCR-QD-481)<br>1.6 (2026-11-24): third amendment: entries that is not a list is refused, and a refusal is a closed enum (code review WR-02, WR-03, IN-01, CCR-QD-469)<br>1.5 (2026-11-24): third amendment: the writer reads keyMaterial once and writes what it checked (code review WR-01, CCR-QD-469)<br>1.4 (2026-11-24): second amendment: the codec freezes each row it makes and its record, one level, so INV-QD-400 holds for the life of the row (code review IN-02, CCR-QD-469)<br>1.3 (2026-11-24): second amendment: the record of what the codec made is per loaded copy of the module, and the limit is recorded (code review IN-01, CCR-QD-469)<br>1.2 (2026-11-24): second amendment: archiveAuditTrail holds keyMaterial to the reader's schema; ArchiveInputInvalid gains the field keyMaterial and its value is unknown (code review, CCR-QD-469)<br>1.1 (2026-11-24): amendment — a row is also checked at run time, through a package-private record of what the codec made; ArchiveInputInvalid and RetentionInputInvalid gain the field entries (code review WR-01, CCR-QD-469)<br>1.0 (2026-11-23): Initial (ARCH-124, CCR-QD-469) |
+> | Change History | 1.8 (2026-11-26): a dated note says `SequenceIntegrity.ts` is folded into `ArchiveFacts.ts` (ARCH-138, CCR-QD-483)<br>1.7 (2026-11-26): fourth amendment: NowNotFinite joins the discipline of RowsRefusalCases as NowRefusalCases in HostBatch.ts, and the rows are asked once, by the admission step; notes under decisions 2 and 3 (ADR-QD-202, CCR-QD-481)<br>1.6 (2026-11-24): third amendment: entries that is not a list is refused, and a refusal is a closed enum (code review WR-02, WR-03, IN-01, CCR-QD-469)<br>1.5 (2026-11-24): third amendment: the writer reads keyMaterial once and writes what it checked (code review WR-01, CCR-QD-469)<br>1.4 (2026-11-24): second amendment: the codec freezes each row it makes and its record, one level, so INV-QD-400 holds for the life of the row (code review IN-02, CCR-QD-469)<br>1.3 (2026-11-24): second amendment: the record of what the codec made is per loaded copy of the module, and the limit is recorded (code review IN-01, CCR-QD-469)<br>1.2 (2026-11-24): second amendment: archiveAuditTrail holds keyMaterial to the reader's schema; ArchiveInputInvalid gains the field keyMaterial and its value is unknown (code review, CCR-QD-469)<br>1.1 (2026-11-24): amendment — a row is also checked at run time, through a package-private record of what the codec made; ArchiveInputInvalid and RetentionInputInvalid gain the field entries (code review WR-01, CCR-QD-469)<br>1.0 (2026-11-23): Initial (ARCH-124, CCR-QD-469) |
 
 ---
 
@@ -473,3 +473,7 @@ gives the batch one step, `HostBatch.ts`, and this record's decisions follow it.
    `verifySequenceIntegrity` opens none, which [ADR-QD-110](110-an-archives-facts-are-computed-once.md) notes.
 5. **Decided autonomously on 2026-11-26**, under the owner's standing instruction of 2026-11-22 to take the most complete
    and clean solution and not ask.
+
+> **Note (2026-11-26, ADR-QD-204, CCR-QD-483).** `verifySequenceIntegrity` and
+> `SequenceIntegrityError` are declared in `ArchiveFacts.ts`, so where the Decision says `SequenceIntegrity.ts`
+> re-exports two names, read `ArchiveFacts.ts`, which declares them ([ADR-QD-204](204-named-barrels-and-visibility-only-files-folded-away.md)).

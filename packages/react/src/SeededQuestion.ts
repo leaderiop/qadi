@@ -14,9 +14,9 @@
  * [ADR-QD-039](../../../spec/decisions/039-a-seed-is-not-an-authority.md)'s
  * reason: a consumer that could reach a seed slot could write an authorization
  * decision straight into the registry, bypassing the subject check and the
- * evaluator. This file imports nothing from `HydrationEngine.ts`, `QadiAtoms.ts`,
- * `QadiProvider.tsx` or `Hydration.ts`, so no cycle (counting `import type`
- * edges, ADR-QD-037) can form through it.
+ * evaluator. This file imports nothing from `HydrationEngine.ts`, `QadiAtoms.ts` or
+ * `QadiProvider.tsx`, so no cycle (counting `import type` edges, ADR-QD-037)
+ * can form through it.
  *
  * No `"use client"`: this must also run under a server render.
  */

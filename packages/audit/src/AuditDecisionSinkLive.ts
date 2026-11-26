@@ -13,7 +13,7 @@
  * fix.
  *
  * Retention and archival ([Retention.ts](./Retention.ts),
- * [SequenceIntegrity.ts](./SequenceIntegrity.ts), [AuditArchive.ts](./AuditArchive.ts)) and
+ * [ArchiveFacts.ts](./ArchiveFacts.ts), [AuditArchive.ts](./AuditArchive.ts)) and
  * e-signature capture ([SignatureCapturePort.ts](./SignatureCapturePort.ts))
  * are deliberately **not** part of this pipeline — the former is a
  * caller-invoked, caller-scheduled batch surface, the latter is wired through
