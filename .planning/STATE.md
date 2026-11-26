@@ -4,17 +4,17 @@ milestone: v1.11
 milestone_name: Arch Wave 16
 current_phase: 91
 current_phase_name: Named barrels, and visibility-only files folded away
-status: executing
-stopped_at: Completed 91-20-PLAN.md
-last_updated: "2026-11-26T21:09:59.921Z"
+status: verifying
+stopped_at: Completed QD-91-21-PLAN.md
+last_updated: "2026-11-26T21:31:32.127Z"
 last_activity: 2026-11-26
 last_activity_desc: Phase 90 complete, transitioned to Phase 91
-state_head: 3191f5d32c4e80e45e8c85b57c3e8f54de670ae1
+state_head: 8b8fd980e0957fea47081d9d1277951d5ad15027
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 88
-  completed_plans: 87
+  completed_plans: 88
   percent: 86
 ---
 
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 
 Phase: QD-91 (Named barrels, and visibility-only files folded away) — EXECUTING
 Plan: 21 of 21
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-26 — Phase 90 complete, transitioned to Phase 91
 
 Progress: [█████████░] 86%
@@ -743,6 +743,7 @@ Progress: [█████████░] 86%
 | Phase 91 P18 | 40 min | 3 tasks | 13 files |
 | Phase 91 P19 | 60 min | 3 tasks | 21 files |
 | Phase 91 P20 | 25min | 2 tasks | 1 files |
+| Phase QD-91 P21 | 30min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -1335,6 +1336,8 @@ Progress: [█████████░] 86%
 - [Phase 91]: A decision body naming a folded module is history and takes a dated note; only a present-tense inventory line is edited (decided autonomously)
 - [Phase 91]: The one held test comment naming react's Hydration.ts is fixed under a comment kind of declared region in the pinned check (decided autonomously)
 - [Phase 91]: 91-20: the records close judge reads a required phrase with whitespace collapsed, because the documents it reads wrap by hand (decided autonomously)
+- [Phase QD-91]: 21-mutation-close: every base survivor of PortSpanEncode.ts killed by three rows in PortSpanFold.mutation.test.ts, none labelled equivalent (decided autonomously)
+- [Phase QD-91]: 91-21: EXAMINED stays empty because the four portInterpreter literal mutants sit inside the base side of PortSpan.ts; the examined run is recorded as a comment and in the summary (decided autonomously)
 
 ### Pending Todos
 
@@ -1422,8 +1425,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-26T21:09:59.582Z
-Stopped at: Completed 91-20-PLAN.md
+Last session: 2026-11-26T21:31:31.792Z
+Stopped at: Completed QD-91-21-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
