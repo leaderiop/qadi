@@ -42,8 +42,9 @@ A part-public package root **names its exports per module**: `export { … } fro
 inline `type` inside a value group, modules in module-path order and names inside each group in name order (both
 case-sensitive ASCII), and nothing else in the file. The barrels this covers are the five in the table of "What enforces it": `@qadi/core`,
 `@qadi/react`, `@qadi/audit`, and `@qadi/devtools`' two. A barrel that re-exports modules every name of which is public
-stays pure `export *` (`@qadi/http`, `@qadi/testing`, `@qadi/promise` and the two predicate packages), because each of their
-modules is wholly public, and a rule that named every name there would be a second list with nothing to check against.
+stays pure `export *` (`@qadi/http` and `@qadi/testing`), because each of their modules is wholly public, and a rule that
+named every name there would be a second list with nothing to check against. The roots of `@qadi/promise` and the two
+predicate packages are their implementation, not a barrel.
 
 The three barrels were **generated, never hand-typed**, from the built declarations of the unchanged tree: each name's group
 is its kind there (`value` or `both` in the value group, `type` in the type group), so a name keeps the kind it had and a
@@ -57,9 +58,12 @@ re-exports core's). A name whose file was folded is named at the module that dec
 `./GateWriter.ts`, `verifySequenceIntegrity` and `SequenceIntegrityError` at `./ArchiveFacts.ts`, `dehydrateDecisions` and
 `hydrateDecisions` at `./HydrationEngine.ts`. No group carries a package specifier.
 
-**The three-edit rule.** A new public export is three edits: its line in the barrel, its row in `spec/overview.md`, and its
-name in that package's `test/surface.test.ts`. The first two are what `node scripts/check-api-surface.mjs` reads; the third
-is what catches a value turned type-only, which the first two cannot.
+**The three-edit rule.** A new public name is its line in the package root (a barrel line, or the export itself where the
+root is the implementation) and its row in `spec/overview.md`, which `node scripts/check-api-surface.mjs` reads. A new value
+is a third edit in the four packages that have a `test/surface.test.ts` (`@qadi/audit`, `@qadi/core`, `@qadi/devtools`,
+`@qadi/react`): its name in that test's value list, which catches a value turned type-only and which the first two cannot. A
+new type has no line there, because a type is not a runtime key; it gets a line in a type pin only where one names the
+package's types (`@qadi/devtools`' `test/surface.tst.ts`).
 
 **Out of the barrel means not importable**, as before. A module that is part-public has its other names unimportable by the
 same rule as a module no barrel names: the `exports` map is a closed list and `node scripts/check-package-install.mjs`
@@ -199,8 +203,8 @@ changesets), the fold spike and its recorded patches, and the evidence of each c
 
 - **A module can be part-public**, and five files that existed only to publish a name are gone: 251 files to 246. The count
   of exports does not move, nor does any name's kind; each of the three packages ships one patch changeset saying so.
-- **The barrel is the interface, in one reviewable file per package**, and a new public name is three edits that the gates
-  read.
+- **The barrel is the interface, in one reviewable file per package**, and a new public name is the edits the three-edit rule
+  states, each read by a gate or a test.
 - **A value turned type-only fails a test**, which `node scripts/check-api-surface.mjs` could not see.
 - **A packed declaration cannot reach a source path** without `node scripts/check-package-install.mjs` failing.
 - **Cycle-breaking files that remain are named**, with the reason each stays, in the amendment to

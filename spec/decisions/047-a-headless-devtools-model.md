@@ -553,6 +553,8 @@ a prop fed by the host's subscription ([ADR-QD-080](./080-a-gate-registry-belong
 > amendment's barrels that *name* their exports, and its `test/surface.test.ts` and `surface.tst.ts`, are the form for
 > every part-public package root: `@qadi/core`, `@qadi/react` and `@qadi/audit` name theirs per module as this package's
 > two barrels do, and the one house-style rule, `named-barrel`, covers all five, with its list of barrels checked in both
-> directions. A new public export is three edits: its line in the barrel, its row in `spec/overview.md`, and its name in that
-> package's `test/surface.test.ts`. This package's `surface.test.ts` is one of four. Every other word stands
+> directions. A new public name is its line in the barrel and its row in `spec/overview.md`; a new value is also its name in
+> the value list of that package's `test/surface.test.ts`, which four packages have (`@qadi/audit`, `@qadi/core`, this one
+> and `@qadi/react`), and a new type has no line there but gets one in this package's `test/surface.tst.ts`, the one type
+> pin that names a package's types. Every other word stands
 > ([ADR-QD-204](./204-named-barrels-and-visibility-only-files-folded-away.md)).

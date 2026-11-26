@@ -1366,12 +1366,15 @@ REQUIREMENT: A module a barrel names only in part MUST keep its other names
              unimportable: out of the barrel means not importable.
 ```
 
-The barrel is the interface, in one reviewable file per package, and a new public name is three edits: its line in the
-barrel, its row in `spec/overview.md` and its name in the package's `test/surface.test.ts`. The first two are what
-`node scripts/check-api-surface.mjs` reads; the third catches a value turned type-only, which keeps its name and its count
-while a consumer's `new` or call stops compiling. The five barrels are those of `@qadi/core`, `@qadi/react`, `@qadi/audit`
-and the two of `@qadi/devtools`; the packages whose every module is wholly public stay pure `export *`
-([ADR-QD-204](../decisions/204-named-barrels-and-visibility-only-files-folded-away.md)).
+The barrel is the interface, in one reviewable file per package. A new public name is its line in the barrel and its row in
+`spec/overview.md`, which `node scripts/check-api-surface.mjs` reads. A new value is a third edit in the four packages that
+have a `test/surface.test.ts` (`@qadi/audit`, `@qadi/core`, `@qadi/devtools`, `@qadi/react`): its name in that test's value
+list, which catches a value turned type-only, one that keeps its name and its count while a consumer's `new` or call stops
+compiling. A new type has no line there, because a type is not a runtime key; it gets a line in a type pin only where one
+names the package's types (`@qadi/devtools`' `test/surface.tst.ts`). The five barrels are those of `@qadi/core`,
+`@qadi/react`, `@qadi/audit` and the two of `@qadi/devtools`; `@qadi/http` and `@qadi/testing`, whose every module is
+wholly public, stay pure `export *`, and the roots of `@qadi/promise` and the two predicate packages are their
+implementation, not a barrel ([ADR-QD-204](../decisions/204-named-barrels-and-visibility-only-files-folded-away.md)).
 
 Pinned by `packages/react/test/surface.test.ts` ("exports exactly these runtime values", "reaches useQadiContext from the package root"), `packages/core/test/surface.test.ts` ("exports exactly these runtime values") and `packages/audit/test/surface.test.ts` ("exports exactly these runtime values"); the form of each barrel is `node scripts/check-house-style.mjs`'s `named-barrel` rule, and the names and kinds are `node scripts/surface-diff.mjs`'s.
 

@@ -745,9 +745,16 @@ inline `type` in a value group, and groups or names out of order. It refuses its
 list drifting too: an index off `NAMED_BARRELS` that names a relative group, or mixes
 any group with an `export *`, fails. Every run plants one violation of each kind into
 a copy of each listed barrel to see the rule refuse it. The pure barrels (`@qadi/http`,
-`@qadi/testing`) stay pure because each of their modules is wholly public. Adding a
-public name is three edits: a line in the barrel, a row in `spec/overview.md`, and a
-line in that package's `test/surface.test.ts`. Shared scaffolding stays **out** of
+`@qadi/testing`) stay pure because each of their modules is wholly public; the roots
+of `@qadi/promise` and the two predicate packages are their implementation, not a
+barrel. Adding a public name is a line in the package root (a barrel line, or the
+export itself where the root is the implementation) and a row in `spec/overview.md`,
+which gate 13 (`check-api-surface.mjs`) reads. A value name is a third edit in the
+four packages that have a `test/surface.test.ts` (`@qadi/audit`, `@qadi/core`,
+`@qadi/devtools`, `@qadi/react`): a line in its value list, which catches a value
+turned type-only. A type name has no line there, because a type is not a runtime
+key; it gets a line in a type pin only where one names the package's types
+(`@qadi/devtools`' `test/surface.tst.ts`). Shared scaffolding stays **out** of
 the barrel — exporting internal helpers leaks generic names into the flat
 namespace. Re-export internal types explicitly where `.d.ts` emission needs to
 name them (TS2883).
