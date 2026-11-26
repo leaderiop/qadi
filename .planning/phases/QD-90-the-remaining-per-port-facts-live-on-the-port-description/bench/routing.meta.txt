@@ -1,0 +1,13 @@
+head: 77a2209f2f867c018b5e457633066591541cb77f
+patch: /Users/mohammadalmechkor/Projects/Perso/qadi/.planning/phases/QD-90-the-remaining-per-port-facts-live-on-the-port-description/bench/routing.patch
+patch_sha256: fedbbea7e812b446f6c6c26b79472606d2bca8143d0782b16c43b2c2d6b04e84
+head_label: base
+patched_label: routing
+rounds: 4
+order: base-1 routing-1 routing-2 base-2 base-3 routing-3 routing-4 base-4
+bench_file: packages/core/bench/Evaluate.bench.ts
+pattern: .
+host: quiet: load 3.47 on 12 cpus, top process at 27.7%
+node: v26.13.0
+cpu: Apple M3 Pro
+start: 2026-11-26T08:46:22Z
