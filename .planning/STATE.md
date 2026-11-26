@@ -5,17 +5,17 @@ milestone_name: Arch Wave 16
 current_phase: 91
 current_phase_name: Named barrels, and visibility-only files folded away
 status: executing
-stopped_at: Completed 91-06-PLAN.md
-last_updated: "2026-11-26T17:25:19.350Z"
+stopped_at: Completed 91-07-PLAN.md
+last_updated: "2026-11-26T17:57:16.464Z"
 last_activity: 2026-11-26
 last_activity_desc: Phase 90 complete, transitioned to Phase 91
-state_head: 0d1a0b4689d27c2e6c81fc9226e4c63a93804288
+state_head: 0cd6fc7c153ad79a491331bf1b5b2d8b84cd924e
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 88
-  completed_plans: 73
-  percent: 83
+  completed_plans: 74
+  percent: 84
 ---
 
 # Project State
@@ -30,11 +30,11 @@ See: .planning/PROJECT.md (updated 2026-11-25)
 ## Current Position
 
 Phase: QD-91 (Named barrels, and visibility-only files folded away) — EXECUTING
-Plan: 7 of 21
+Plan: 8 of 21
 Status: Ready to execute
 Last activity: 2026-11-26 — Phase 90 complete, transitioned to Phase 91
 
-Progress: [████████░░] 83%
+Progress: [████████░░] 84%
 
 
 ## Performance Metrics
@@ -729,6 +729,7 @@ Progress: [████████░░] 83%
 | Phase 91 P04 | 25min | 2 tasks | 4 files |
 | Phase 91 P05 | 30min | 2 tasks | 4 files |
 | Phase 91 P06 | 90min | 2 tasks | 2 files |
+| Phase QD-91 P07 | 150min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -1303,6 +1304,8 @@ Progress: [████████░░] 83%
 - [Phase 91]: Plan 91-05: gate 14 check 3c refuses a packed declaration with a /src/ segment or a path resolving outside its package, with a planted self-check run every gate run
 - [Phase 91]: Plan 06: HydrationTarget.tst.ts's import region is derived from the born text's own import span (the file does not exist when the pinned check is written); decided autonomously
 - [Phase 91]: Plan 06: a born or optional file present with no adding commit since the base is a pinned-check reason; decided autonomously
+- [Phase QD-91]: 91-07: the earlier-phase ledger is measured on a clone at phase_base; every row this phase moves is computed and keyed on the exact subject that moves it, rehearsed on planted commits at twelve states (decided autonomously)
+- [Phase QD-91]: 91-07: Phase 90's scripts run from a repository-shaped copy (phase directory, scripts/lib, node_modules link, git init); the modes that clone, compile, run pnpm or key on the script's own git path are not run (decided autonomously)
 
 ### Pending Todos
 
@@ -1390,8 +1393,8 @@ Acknowledged at the v1.2 close (2026-11-12, `audit-open acknowledge`; closeout_t
 
 ## Session Continuity
 
-Last session: 2026-11-26T17:25:19.137Z
-Stopped at: Completed 91-06-PLAN.md
+Last session: 2026-11-26T17:57:16.253Z
+Stopped at: Completed 91-07-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
