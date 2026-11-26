@@ -361,3 +361,61 @@ The base is the one `89-mutation-base.json` records (`phase_base` 8ee14f6f703f31
 - red before: packages/audit/test/HostBatch.test.ts
   - failed on: Error: Cannot find module '../src/HostBatch.ts' imported from <root>/packages/audit/test/HostBatch.test.ts
   (scratch state: packages/audit/src/HostBatch.ts absent at HEAD d34819c63936c3327415300b51c03dd974561c5a; test blob a6eff7b41516a242bf179b594d4e464eedd9b6ba)
+
+## 89-05 the step variants
+
+- variant now-terms: terms called and checked before now
+  - failed: H6 a bad now with refused terms is NowNotFinite
+  - failed: H11 a bad now with refused terms and rows that are not a list is NowNotFinite
+  - failed: H12 a bad now with refused terms and a refused row is NowNotFinite
+  - failed: H13 the terms are called once for an admitted now and never for a refused now
+- variant rows-terms: rows admitted before terms
+  - failed: H9 refused terms with rows that are not a list is the terms refusal
+  - failed: H10 refused terms with a refused row is the terms refusal
+  - failed: H14 the rows are not read when the now or the terms are refused
+- variant isfinite: isFinite(batch.now) for Number.isFinite
+  - failed: H15 a now of NaN, both infinities, the string 1, undefined, null or 1n is NowNotFinite with the value given
+- variant terms-on-refused-now: terms called before the now check, its result used after
+  - failed: H13 the terms are called once for an admitted now and never for a refused now
+- variant no-snapshot: rowsRefusal(entries) and new AdmittedRows(entries) on the list given
+  - failed: H19 admitRows admits the row that was checked when the list answers differently on a second read
+  - failed: H20 admitRows reads the length once and each index once
+  - failed: H22 the admitted rows are a fresh array the list given cannot change
+- variant no-list-guard: takeRows(entries) with no Array.isArray
+  - failed: H4 admitted terms then a rows list that is not a list is EntriesNotAList
+  - failed: H17 admitRows refuses each of the seven values that are not a list with the value given
+- variant filter-first: rowsRefusal asked of the filtered array
+  - failed: H18 admitRows refuses a hole at its index
+- variant positive-now: batch.now > 0 for the finite check
+  - failed: H15 a now of NaN, both infinities, the string 1, undefined, null or 1n is NowNotFinite with the value given
+  - failed: H16 a now of 0, -0 or 1 is admitted as given
+- variant empty-refused: an empty list refused as EntriesNotAList
+  - failed: H21 admitRows admits an empty list as no rows
+- variant terms-dropped: the admitted batch carries terms: undefined
+  - failed: H1 an admitted batch passes the now, the terms and the rows through
+- variant now-unchecked: the now is never checked (a narrower variant: no variant above turned H2 red)
+  - failed: H2 a bad now alone is NowNotFinite
+  - failed: H6 a bad now with refused terms is NowNotFinite
+  - failed: H7 a bad now with rows that are not a list is NowNotFinite
+  - failed: H8 a bad now with a refused row is NowNotFinite
+  - failed: H11 a bad now with refused terms and rows that are not a list is NowNotFinite
+  - failed: H12 a bad now with refused terms and a refused row is NowNotFinite
+  - failed: H13 the terms are called once for an admitted now and never for a refused now
+  - failed: H14 the rows are not read when the now or the terms are refused
+  - failed: H15 a now of NaN, both infinities, the string 1, undefined, null or 1n is NowNotFinite with the value given
+- variant now-last: the now checked after the terms and the rows (a narrower variant: no variant above turned H7 and H8 red)
+  - failed: H6 a bad now with refused terms is NowNotFinite
+  - failed: H7 a bad now with rows that are not a list is NowNotFinite
+  - failed: H8 a bad now with a refused row is NowNotFinite
+  - failed: H11 a bad now with refused terms and rows that are not a list is NowNotFinite
+  - failed: H12 a bad now with refused terms and a refused row is NowNotFinite
+  - failed: H13 the terms are called once for an admitted now and never for a refused now
+  - failed: H14 the rows are not read when the now or the terms are refused
+- variant terms-ignored: a refused terms read is not a refusal (a narrower variant: no variant above turned H3 red)
+  - failed: H3 refused terms alone is the terms refusal
+  - failed: H9 refused terms with rows that are not a list is the terms refusal
+  - failed: H10 refused terms with a refused row is the terms refusal
+  - failed: H14 the rows are not read when the now or the terms are refused
+- variant rows-unchecked: a refused rows list is not a refusal (a narrower variant: no variant above turned H5 red)
+  - failed: H4 admitted terms then a rows list that is not a list is EntriesNotAList
+  - failed: H5 admitted terms then a refused row is EntryNotMadeByCodec
