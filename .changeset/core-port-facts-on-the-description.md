@@ -10,4 +10,4 @@
 
 Two ports sharing a span name is now a compile error.
 
-Upgrading: a description built by hand adds `fixture` and passes its span literal as the new type argument; code that names `PortDescription<K, …>` to read `span` uses `DescriptionOf<K>` or `PortSpanOf<K>`. See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.
+Upgrading: a description built by hand adds `fixture`. The two new type parameters have defaults, `SpanName` the pattern `` `qadi.${string}` `` and `FixtureData` `never`, so a description that passes the eight or nine type arguments it passed before compiles with `fixture` added; pass the span literal as `SpanName` only where code reads `span` as that literal. Code that names `PortDescription<K, …>` to read `span` uses `DescriptionOf<K>` or `PortSpanOf<K>`. See the 0.13 section of the upgrade guide, `/docs/reference/upgrading/`.

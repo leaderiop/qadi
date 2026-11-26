@@ -1435,52 +1435,18 @@ A port's description stated its span, and the data a fixture builds its layer fr
 
 Metric ids, descriptions, span names and served and wire bytes are unchanged. A host that only reads a span, builds an environment from `ports` setups or serves ports changes nothing.
 
-A description built by hand adds `fixture` and passes its span literal as the new type argument. Before:
+A description built by hand is a description of one of the five ports, because `PortName` is closed and no other name compiles. The one edit it needs is `fixture`, the builder from the port's data to a layer of its own service:
 
-```ts
-export const noticeBoardPort: PortDescription<
-  "NoticeBoard",
-  NoticeBoard,
-  NoticeBoardShape,
-  [topic: string],
-  ReadonlyArray<string>,
-  NoticeBoardUnavailable,
-  [topic: string],
-  typeof noticeSpan,
-  typeof noticeAsks
-> = {
-  port: "NoticeBoard",
-  method: "notices",
-  span: "qadi.notices",
-  // …attributes, asks, wire, serving, none
+```typescript
+import { attributeResolverFromRecord, attributeResolverPort, type DescriptionOf } from "@qadi/core";
+
+export const attributePort: DescriptionOf<"AttributeResolver"> = {
+  ...attributeResolverPort,
+  fixture: (table) => attributeResolverFromRecord(table),
 };
 ```
 
-After, the span is one module-private literal, named by `typeof` as the tenth argument and given as `span`, and the eleventh argument is the data `fixture` takes:
-
-```ts
-const noticeSpanName = "qadi.notices" as const;
-
-export const noticeBoardPort: PortDescription<
-  "NoticeBoard",
-  NoticeBoard,
-  NoticeBoardShape,
-  [topic: string],
-  ReadonlyArray<string>,
-  NoticeBoardUnavailable,
-  [topic: string],
-  typeof noticeSpan,
-  typeof noticeAsks,
-  typeof noticeSpanName,
-  Readonly<Record<string, ReadonlyArray<string>>>
-> = {
-  port: "NoticeBoard",
-  method: "notices",
-  span: noticeSpanName,
-  fixture: (notices) => noticeBoardFromRecord(notices),
-  // …attributes, asks, wire, serving, none
-};
-```
+A description that spreads the library's own takes its `fixture` with it and needs no edit; one written member by member adds the `fixture` line. `PortDescription`'s two new type parameters have defaults: the tenth, `SpanName`, defaults to `` `qadi.${string}` ``, and the eleventh, `FixtureData`, to `never`. A literal that passes the eight or nine type arguments it passed before compiles once it has a `fixture`; its `span` is then typed as the pattern, and its `fixture` takes `never`, so it can be called with no data. Pass the span literal as `SpanName` only where code reads `span` as that literal, and the data's type as `FixtureData` where the builder takes data.
 
 Code that names `PortDescription<K, …>` to read `span` uses `DescriptionOf<K>` or `PortSpanOf<K>`, which are the registry's own reading of the description and need no parameter list:
 
@@ -1494,6 +1460,6 @@ export const sameSpan = (span: DescriptionOf<"DecisionHistory">["span"]): Histor
 export const names: ReadonlyArray<PortName> = PORT_NAMES;
 ```
 
-A port added to the registry whose span another port already states, or whose span is a pattern and not one literal, is a compile error where the registry is built. A description without `fixture` does not compile, as a registry row without a fixture row did.
+A port added to the registry whose span overlaps another port's, or whose span is not one literal (a pattern or a union of names), is a compile error where the registry is built. A description without `fixture` does not compile, as a registry row without a fixture row did.
 
 The decision is [ADR-QD-203](https://github.com/leaderiop/qadi/blob/main/spec/decisions/203-the-remaining-per-port-facts-live-on-the-port-description.md).
