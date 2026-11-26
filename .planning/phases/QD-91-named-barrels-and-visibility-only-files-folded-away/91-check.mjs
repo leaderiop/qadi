@@ -93,6 +93,11 @@ const d = (name) => `${D}${name}`;
 const REACT_GATE_TESTS = ["DecisionOutcome.tst.ts", "DeveloperSignalReporters.test.tsx", "GateRegistration.characterisation.test.tsx", "GateRegistry.store.test.ts", "GateRegistry.test.tsx", "GateWriter.reconcile.test.ts", "GateWriter.test.tsx", "QadiProvider.tst.ts", "support/gates.ts", "support/trees.tsx"].map((n) => `packages/react/test/${n}`);
 const AUDIT_SEQUENCE_TESTS = ["AdmissionOrder.characterisation.test.ts", "AuditArchive.test.ts", "BatchReadOnce.test.ts", "ForeignRows.test.ts", "RowListAdmission.test.ts", "SequenceIntegrity.test.ts"].map((n) => `packages/audit/test/${n}`);
 const REACT_HYDRATION_TESTS = ["DecisionOutcome.test.ts", "Hydration.lifetime.test.ts", "Hydration.test.ts", "Hydration.tst.ts", "HydrationCounts.test.ts", "HydrationPayload.test.ts", "QadiAtoms.test.ts", "UntrustedSeams.test.ts"].map((n) => `packages/react/test/${n}`);
+/**
+ * The test files the mutation close may add, by the names its commit gave them. The code review renames the core one to
+ * `PORT_SPAN_READ_TEST` (the rename is held by `91-pinned-check.mjs`), so the commit is judged by this list and the close reads
+ * the renamed file.
+ */
 const MUTATION_TESTS = ["packages/core/test/PortSpanFold.mutation.test.ts", "packages/react/test/RegistryLeaseFold.mutation.test.ts", "packages/audit/test/ArchiveFactsFold.mutation.test.ts"];
 
 /**
@@ -942,17 +947,17 @@ export const judgeFolds = (ctx) => {
 export const judgeEscapeModule = (moduleText, installText) => {
   if (moduleText === undefined) return ["scripts/lib/declaration-escape.mjs does not exist"];
   const bad = [];
-  for (const name of ["declarationEscapes", "ESCAPE_SELF_CHECK"]) if (!declares(moduleText, name)) bad.push(`scripts/lib/declaration-escape.mjs does not export ${name}`);
+  for (const name of ["declarationEscapes", "entryPointsOf", "ESCAPE_SELF_CHECK"]) if (!declares(moduleText, name)) bad.push(`scripts/lib/declaration-escape.mjs does not export ${name}`);
   if (installText === undefined) return [...bad, "scripts/check-package-install.mjs does not exist"];
   const imported = importsOf(blank(installText, true)).find((i) => i.spec.endsWith("declaration-escape.mjs"));
-  for (const name of ["declarationEscapes", "ESCAPE_SELF_CHECK"]) if (imported === undefined || !imported.names.includes(name)) bad.push(`scripts/check-package-install.mjs does not import ${name} from the escape module`);
+  for (const name of ["declarationEscapes", "entryPointsOf", "ESCAPE_SELF_CHECK"]) if (imported === undefined || !imported.names.includes(name)) bad.push(`scripts/check-package-install.mjs does not import ${name} from the escape module`);
   if (!/^\s*(?:\/\/|\*)?\s*3c\./m.test(installText)) bad.push("the header of scripts/check-package-install.mjs does not name check 3c");
   return bad;
 };
 /** Reasons gate 14's run is not a clean escape check over packed files: its exit, and the line it prints. */
 export const judgeEscapeRun = (code, output) => [
   ...(code === 0 ? [] : [`scripts/check-package-install.mjs exited ${code}: ${failingLines(output).join(" | ")}`]),
-  ...(/^declaration escape check: [1-9]\d* packed \.d\.ts file\(s\), none names a path outside its package or into src\/$/m.test(output) ? [] : ["gate 14 did not print `declaration escape check: <n> packed .d.ts file(s), none names a path outside its package or into src/` with n above zero"]),
+  ...(/^declaration escape check: [1-9]\d* packed \.d\.ts file\(s\), none names a path outside its package, into src\/ or to an undeclared entry point$/m.test(output) ? [] : ["gate 14 did not print `declaration escape check: <n> packed .d.ts file(s), none names a path outside its package, into src/ or to an undeclared entry point` with n above zero"]),
 ];
 
 export const NAMED_BARREL_PATHS = ["packages/audit/src/index.ts", "packages/core/src/index.ts", "packages/devtools/src/index.ts", "packages/devtools/src/react/index.ts", "packages/react/src/index.ts"];
@@ -1681,11 +1686,12 @@ export const judgeRecordsPlain = (docs, resolve, exists, reviseCode, reviseOut) 
 
 const GUARDED = ["AGENTS.md", "scripts/check-house-style.mjs", ".oxlintrc.json"];
 const HYDRATION_TEST = "packages/react/test/HydrationTarget.tst.ts";
+const PORT_SPAN_READ_TEST = "packages/core/test/PortSpanRead.test.ts";
 /** The children the close runs, in order: `{ label, argv }`. */
 export const closeChildren = () => [
   { label: `node ${D}91-pinned-check.mjs --all-applied`, argv: ["node", `${D}91-pinned-check.mjs`, "--all-applied"] },
   { label: `node ${D}91-earlier-checks.mjs`, argv: ["node", `${D}91-earlier-checks.mjs`] },
-  ...["records --close", "scan-ids", "scan-forbidden", "trailers", "barrels", "homes", "folds", "rule", "changesets", "spike", "circular", `vitest ${SURFACE_TESTS.join(" ")}`, ...[...SURFACE_TESTS, HYDRATION_TEST].map((f) => `seen-failing ${f}`), "seen-failing packages/react/test/HydrationFold.test.ts --if-present", "seen-failing packages/react/test/GateRegistryFold.test.ts --if-present"].map((m) => ({ label: `91-check.mjs ${m}`, argv: ["node", SELF, ...m.split(" ")] })),
+  ...["records --close", "scan-ids", "scan-forbidden", "trailers", "barrels", "homes", "folds", "rule", "changesets", "spike", "circular", `vitest ${SURFACE_TESTS.join(" ")}`, ...[...SURFACE_TESTS, HYDRATION_TEST, PORT_SPAN_READ_TEST].map((f) => `seen-failing ${f}`), "seen-failing packages/react/test/HydrationFold.test.ts --if-present", "seen-failing packages/react/test/GateRegistryFold.test.ts --if-present"].map((m) => ({ label: `91-check.mjs ${m}`, argv: ["node", SELF, ...m.split(" ")] })),
   ...["compare", "landed close", "landed coverage-close"].map((m) => ({ label: `91-mutation.mjs ${m}`, argv: ["node", `${D}91-mutation.mjs`, ...m.split(" ")] })),
   { label: "91-check.mjs escape", argv: ["node", SELF, "escape"] },
 ];
@@ -1850,11 +1856,13 @@ const escapeScanMode = async (args) => {
   if (args.length !== 1) return fail(["usage: escape-scan <lib-dir>"]);
   const module = resolve("scripts/lib/declaration-escape.mjs");
   if (!existsSync(module)) return fail(["scripts/lib/declaration-escape.mjs does not exist"]);
-  const { declarationEscapes } = await import(pathToFileURL(module).href);
+  const { declarationEscapes, entryPointsOf } = await import(pathToFileURL(module).href);
   const lib = resolve(args[0]);
   const root = dirname(lib);
   const files = dtsFiles(lib).map((file) => ({ file: relative(root, file), text: readText(file) }));
-  return done(judgeEscapeScan(files, (file, text) => declarationEscapes(root, file, text)), `escape-scan: ${files.length} declaration files under ${args[0]} stay inside their package`);
+  // The entry points a bare `@qadi/<pkg>/<subpath>` may name, from the workspace manifests, as gate 14 reads the packed ones.
+  const entryPoints = entryPointsOf(git("ls-files", "--", "packages/*/package.json").split("\n").filter((f) => f !== "").map((f) => JSON.parse(readText(f))));
+  return done(judgeEscapeScan(files, (file, text) => declarationEscapes(root, file, text, entryPoints)), `escape-scan: ${files.length} declaration files under ${args[0]} stay inside their package`);
 };
 
 const ruleMode = () => {
@@ -2451,19 +2459,22 @@ it("has \\"quotes\\"", () => {});`;
   eq("a comment, a package specifier and another file are not a hit", importer("packages/core/src/A.ts", '// import "./PortSpanDecode.ts"\nimport "effect/Effect";\nimport "./PortSpanEncode.ts";\n'), []);
 
   // The escape check, the rule, the changesets.
-  const escMod = "export const declarationEscapes = () => [];\nexport const ESCAPE_SELF_CHECK = [];\n";
-  const escInstall = ' * Seven checks:\n *   3c. escape  — no packed .d.ts names a path outside its package\nimport { declarationEscapes, ESCAPE_SELF_CHECK } from "./lib/declaration-escape.mjs";\n';
+  const escMod = "export const declarationEscapes = () => [];\nexport const entryPointsOf = () => new Set();\nexport const ESCAPE_SELF_CHECK = [];\n";
+  const escInstall = ' * Seven checks:\n *   3c. escape  — no packed .d.ts names a path outside its package\nimport { declarationEscapes, entryPointsOf, ESCAPE_SELF_CHECK } from "./lib/declaration-escape.mjs";\n';
   eq("the escape module and its import pass", judgeEscapeModule(escMod, escInstall), []);
   eq("a missing escape module fails", judgeEscapeModule(undefined, escInstall), ["scripts/lib/declaration-escape.mjs does not exist"]);
   has("an escape module without the planted self-check fails", judgeEscapeModule("export const declarationEscapes = () => [];\n", escInstall), "does not export ESCAPE_SELF_CHECK");
   has("an install script that imports only one name fails", judgeEscapeModule(escMod, escInstall.replace("declarationEscapes, ", "")), "does not import declarationEscapes");
+  has("an escape module that does not read the entry points from manifests fails", judgeEscapeModule(escMod.replace("export const entryPointsOf = () => new Set();\n", ""), escInstall), "does not export entryPointsOf");
+  has("an install script that does not take the entry points from the module fails", judgeEscapeModule(escMod, escInstall.replace("entryPointsOf, ", "")), "does not import entryPointsOf");
   has("an install script that does not import the module fails", judgeEscapeModule(escMod, " *   3c. escape\n"), "does not import declarationEscapes");
   has("an install header that omits check 3c fails", judgeEscapeModule(escMod, escInstall.replace("3c.", "3d.")), "does not name check 3c");
-  const escLine = "declaration escape check: 12 packed .d.ts file(s), none names a path outside its package or into src/";
+  const escLine = "declaration escape check: 12 packed .d.ts file(s), none names a path outside its package, into src/ or to an undeclared entry point";
   eq("a clean gate 14 run passes", judgeEscapeRun(0, `x\n${escLine}\n`), []);
   has("a gate 14 run that exits non-zero fails", judgeEscapeRun(1, `${escLine}\n`), "exited 1");
   has("a gate 14 run printing zero files fails", judgeEscapeRun(0, escLine.replace("12", "0")), "did not print");
   has("a gate 14 run printing no escape line fails", judgeEscapeRun(0, "all fine\n"), "did not print");
+  has("a gate 14 run whose escape line does not cover the entry points fails", judgeEscapeRun(0, "declaration escape check: 12 packed .d.ts file(s), none names a path outside its package or into src/\n"), "did not print");
   eq("a scan over no files fails", judgeEscapeScan([], () => []), ["no .d.ts file was found: nothing was scanned"]);
   eq("a scan prints one line per refusal", judgeEscapeScan([{ file: "lib/A.d.ts", text: "x" }], () => ["outside the package", "src segment"]), ["lib/A.d.ts: outside the package", "lib/A.d.ts: src segment"]);
   eq("a clean scan passes", judgeEscapeScan([{ file: "lib/A.d.ts", text: "x" }], () => []), []);
@@ -2684,7 +2695,7 @@ it("has \\"quotes\\"", () => {});`;
   const labels = closeChildren().map((c) => c.label);
   eq("the child list names the phase's checks in order, the escape check last", [labels.length > 0, labels[0].includes("91-pinned-check.mjs --all-applied"), labels[1].includes("91-earlier-checks.mjs"), labels.at(-1), labels.indexOf("91-check.mjs records --close") === 2], [true, true, true, "91-check.mjs escape", true]);
   eq("the close runs every shape judge once", ["barrels", "homes", "folds", "rule", "changesets", "spike", "circular"].map((m) => labels.filter((l) => l === `91-check.mjs ${m}`).length), [1, 1, 1, 1, 1, 1, 1]);
-  eq("the close requires the three surface tests and the type test seen failing, and the optional ones if present", [...SURFACE_TESTS, HYDRATION_TEST].every((f) => labels.includes(`91-check.mjs seen-failing ${f}`)) && labels.includes("91-check.mjs seen-failing packages/react/test/HydrationFold.test.ts --if-present") && labels.includes("91-check.mjs seen-failing packages/react/test/GateRegistryFold.test.ts --if-present"), true);
+  eq("the close requires the three surface tests, the type test and the span read test seen failing, and the optional ones if present", [...SURFACE_TESTS, HYDRATION_TEST, PORT_SPAN_READ_TEST].every((f) => labels.includes(`91-check.mjs seen-failing ${f}`)) && labels.includes("91-check.mjs seen-failing packages/react/test/HydrationFold.test.ts --if-present") && labels.includes("91-check.mjs seen-failing packages/react/test/GateRegistryFold.test.ts --if-present"), true);
   eq("the close runs the scorer's three checks", ["compare", "landed close", "landed coverage-close"].map((m) => labels.includes(`91-mutation.mjs ${m}`)), [true, true, true]);
   eq("the no-release facts at their base pass", judgeNoRelease({ versions: [{ file: "p", base: "1", now: "1" }], changelogs: [], tags: [], milestones: [] }), []);
   eq("a moved version fails", judgeNoRelease({ versions: [{ file: "p", base: "1", now: "2" }], changelogs: [], tags: [], milestones: [] }).length, 1);
