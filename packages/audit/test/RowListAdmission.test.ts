@@ -16,7 +16,7 @@ import type { AuditEntry } from "../src/AuditEntry.ts";
 import { admitRows } from "../src/HostBatch.ts";
 import { planPurge, planRetention } from "../src/Retention.ts";
 import type { RetentionInputRefusal } from "../src/Retention.ts";
-import { verifySequenceIntegrity } from "../src/SequenceIntegrity.ts";
+import { verifySequenceIntegrity } from "../src/ArchiveFacts.ts";
 import { decisionRecord } from "./helpers.ts";
 
 const codecRow = (evaluationId: string): AuditEntry =>

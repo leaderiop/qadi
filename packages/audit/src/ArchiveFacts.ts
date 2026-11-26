@@ -11,11 +11,13 @@
  * this package wrote, which blocks a purge, or accept ones it did not, which
  * weakens ARCH-38's evidence.
  *
- * The module is out of the barrel, so it is package-private (ADR-QD-099); the
- * two names that are public, `verifySequenceIntegrity` and `SequenceIntegrityError`,
- * reach the barrel through [SequenceIntegrity.ts](./SequenceIntegrity.ts), which
- * re-exports them. The check is gap-and-duplicate detection, not tamper-evidence
- * (see that file).
+ * The module is package-private (ADR-QD-099) except `verifySequenceIntegrity` and
+ * `SequenceIntegrityError`, which the barrel names here. The named barrel names a name at the
+ * module that declares it (ADR-QD-204), so those two live with the facts that compute the check
+ * and every other name here stays unreachable from outside the package. The check is
+ * gap-and-duplicate detection, not tamper-evidence (see {@link verifySequenceIntegrity}'s doc);
+ * the package README, `spec/urs.md`, `spec/models/17-purpose.md` and ADR-QD-009 cite that
+ * disclaimer (ADR-QD-110).
  *
  * A row's `sequenceNumber` is a safe integer here without being checked here: only
  * `decodeAuditEntry` gives a row one, its codec states the rule once (`AuditEntry.ts`,
@@ -164,6 +166,11 @@ export class ArchiveInputInvalid extends Data.TaggedError("ArchiveInputInvalid")
   readonly refusal: ArchiveInputRefusal;
 }> {}
 
+/**
+ * The first gap or duplicate in a run of sequence numbers: what {@link verifySequenceIntegrity}
+ * fails with, `expectedSequence` the number that should have come next and `actualSequence` the
+ * one found. Gap-and-duplicate detection only, not tamper-evidence: see the check's doc.
+ */
 export class SequenceIntegrityError extends Data.TaggedError("SequenceIntegrityError")<{
   readonly expectedSequence: number;
   readonly actualSequence: number;
@@ -194,6 +201,22 @@ export const verifiedArchiveFacts = Effect.fn("qadi.audit.verifySequenceIntegrit
  * entries' sequence numbers, or `ArchiveInputInvalid` when `entries` is not a list
  * (`EntriesNotAList`) or holds an entry the codec did not make (`EntryNotMadeByCodec`,
  * with the index of the first).
+ *
+ * Named for what this actually checks — a caller-assigned sequence number has
+ * no gap or duplicate — not for what it does not: there is no per-entry hash,
+ * nothing links one entry to the next, and nothing here is cryptographically
+ * verified, so the sequence is not tamper-evident. An attacker who can modify
+ * stored rows can also renumber them, defeating this check entirely; it catches
+ * accidental loss or duplication in the caller's own store, not deliberate
+ * tampering. `ADR-QD-056` scopes this capability as "gap-and-duplicate detection"
+ * for the same reason. (Renamed from `ChainIntegrity`/`verifyChainIntegrity`/
+ * `ChainIntegrityError`, which read as tamper-evidence to a compliance reviewer
+ * and were not.)
+ *
+ * No grouping key — HexDi groups by `scopeId`; Qadi has no such concept, ruled
+ * out during the Retention ticket's resolution. Sequencing here is a single
+ * flat, global sequence: whatever `sequenceNumber`s the caller's own store
+ * assigned at write time, read back and checked for gaps.
  *
  * Entries with no `sequenceNumber` are ignored — sequencing is opt-in, and a
  * caller who never assigns one has nothing here to verify.

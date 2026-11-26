@@ -10,6 +10,7 @@
  * a row in `spec/overview.md` and a line in `test/surface.test.ts`, which is
  * deliberate.
  */
+export { SequenceIntegrityError, verifySequenceIntegrity } from "./ArchiveFacts.ts";
 export {
   ArchiveInputInvalid,
   ArchiveInputRefusal,
@@ -63,7 +64,6 @@ export {
   planRetention,
 } from "./Retention.ts";
 export type { PurgePlan, RetentionPlan, RetentionPolicy } from "./Retention.ts";
-export { SequenceIntegrityError, verifySequenceIntegrity } from "./SequenceIntegrity.ts";
 export {
   SIGNATURE_MEANINGS,
   SignatureCaptureError,

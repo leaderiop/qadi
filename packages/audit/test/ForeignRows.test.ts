@@ -24,7 +24,7 @@ import { decodeAuditEntry, encodeAuditEntry } from "../src/AuditEntry.ts";
 import type { AuditEntry } from "../src/AuditEntry.ts";
 import { admitBatch, admitRows } from "../src/HostBatch.ts";
 import { RetentionInputRefusal, planPurge, planRetention } from "../src/Retention.ts";
-import { verifySequenceIntegrity } from "../src/SequenceIntegrity.ts";
+import { verifySequenceIntegrity } from "../src/ArchiveFacts.ts";
 import { decisionRecord } from "./helpers.ts";
 import { planBatches, rowsLists, writerBatches } from "./hostBatchFaults.ts";
 

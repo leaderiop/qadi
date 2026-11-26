@@ -21,8 +21,7 @@ import { encodeAuditEntry } from "../src/AuditEntry.ts";
 import type { AuditEntry } from "../src/AuditEntry.ts";
 import { RetentionInputRefusal, planPurge, planRetention } from "../src/Retention.ts";
 import type { RetentionPolicy } from "../src/Retention.ts";
-import { verifySequenceIntegrity } from "../src/SequenceIntegrity.ts";
-import { verifiedArchiveFacts } from "../src/ArchiveFacts.ts";
+import { verifiedArchiveFacts, verifySequenceIntegrity } from "../src/ArchiveFacts.ts";
 import { admitRows } from "../src/HostBatch.ts";
 import { decisionRecord, numbered } from "./helpers.ts";
 
