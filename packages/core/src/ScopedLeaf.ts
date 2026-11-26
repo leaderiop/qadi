@@ -9,8 +9,9 @@
  * request (an `Any`-scoped question has none), so nothing in the types stops a
  * `Resource`-scoped request reaching the port without one. What does is that
  * `asks` reads the id through {@link scopedResourceIdOf} and the read routes on
- * {@link isResourceScoped}, which the first calls: the request's id and the
- * route cannot disagree on the leaf's `scope` (INV-QD-288, ADR-QD-134).
+ * the leaf's `LEAF_NEEDS` row, whose `ByScope` arm is {@link isResourceScoped},
+ * which the first calls: the request's id and the route cannot disagree on the
+ * leaf's `scope` (INV-QD-288, ADR-QD-134).
  * {@link requireResourceId} is the check that a resource-scoped request has its id:
  * `readScoped` (`PortAccess.ts`) and both judgements (`actedAnswerFromEvents`,
  * `signatureAnswerFromSignatures`) call it, so the three cannot disagree on when a
