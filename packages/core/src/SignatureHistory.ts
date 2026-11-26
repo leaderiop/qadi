@@ -207,6 +207,9 @@ const signatureServing: PortServingFacet<"SignatureHistory", [query: SignatureQu
 const isSubjectId = Schema.is(SubjectIdSchema);
 const isResourceId = Schema.is(ResourceIdSchema);
 
+/** The span a read of this port opens; `PortSpanOf` (`Ports.ts`) reads it back. */
+const signatureSpanName = "qadi.hasSignature";
+
 /**
  * The signature-history port, described once (`PortDescription.ts`).
  *
@@ -235,11 +238,12 @@ export const signatureHistoryPort: PortDescription<
   SignatureHistoryUnavailable,
   [query: SignatureQuery],
   typeof signatureSpan,
-  typeof signatureAsks
+  typeof signatureAsks,
+  typeof signatureSpanName
 > = makePortDescription({
   port: "SignatureHistory",
   method: "signaturesFor",
-  span: "qadi.hasSignature",
+  span: signatureSpanName,
   attributes: signatureSpan,
   asks: signatureAsks,
   /**

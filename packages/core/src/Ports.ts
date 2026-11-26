@@ -28,6 +28,7 @@ import { decisionHistoryFromEvents, decisionHistoryPort } from "./DecisionHistor
 import type { ActedEventInput } from "./DecisionHistory.ts";
 import { carryDefault } from "./PortDefault.ts";
 import { nonePort } from "./PortDerivation.ts";
+import type { DistinctSpanNames } from "./PortDerivation.ts";
 import type { LeafRequests, PortDescription, PortShape } from "./PortDescription.ts";
 import type { PortName } from "./PortName.ts";
 import type { PortSpanAttributesLike } from "./PortSpan.ts";
@@ -49,14 +50,19 @@ export interface PortTypes {
   readonly SignatureHistory: typeof signatureHistoryPort;
 }
 
-/** The registry: every port's description, by name. */
+/**
+ * The registry: every port's description, by name.
+ *
+ * Two ports claiming one span, or a port whose span is a pattern and not one
+ * literal, is a compile error here (`DistinctSpanNames`, `PortDerivation.ts`).
+ */
 export const PORTS: PortTypes = {
   AttributeResolver: attributeResolverPort,
   DecisionHistory: decisionHistoryPort,
   RelationshipResolver: relationshipResolverPort,
   CustomPredicate: customPredicatePort,
   SignatureHistory: signatureHistoryPort,
-};
+} satisfies DistinctSpanNames<PortTypes>;
 
 /** A description's service (the `Context.Service` class). */
 export type ServiceOf<D> = D extends { readonly service: Context.Key<infer S, infer _Shape> }
@@ -92,6 +98,23 @@ export type SpanOf<D> = D extends { readonly attributes: infer Span extends Port
   ? Span
   : never;
 
+/**
+ * The span port `N`'s read opens: one per port, and no other port's.
+ *
+ * Read from the port's own description, which states it once (`PortDescription`'s
+ * `SpanName`), so there is no table of spans beside the registry.
+ */
+export type PortSpanOf<N extends PortName> = PortTypes[N]["span"];
+
+/**
+ * The span each port's read opens, as one closed union: one per port.
+ *
+ * `PortAccess.ts` opens these spans and `@qadi/devtools` decodes them
+ * (BEH-QD-227), so the set is a closed union rather than five string literals
+ * kept in step by hand.
+ */
+export type PortSpanName = PortSpanOf<PortName>;
+
 /** A description's typed error. */
 export type ErrorOf<D> = D extends { readonly failure: (args: never, cause: unknown) => infer E }
   ? E
@@ -114,7 +137,9 @@ export type DescriptionOf<K extends PortName> = PortDescription<
   AnswerOf<PortTypes[K]>,
   ErrorOf<PortTypes[K]>,
   AskedOf<PortTypes[K]>,
-  SpanOf<PortTypes[K]>
+  SpanOf<PortTypes[K]>,
+  LeafRequests<AskedOf<PortTypes[K]>>,
+  PortSpanOf<K>
 >;
 
 /**

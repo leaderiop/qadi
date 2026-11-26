@@ -181,6 +181,9 @@ const customServing: PortServingFacet<
   declare: ({ names }) => ({ CustomPredicate: { names } }),
 };
 
+/** The span a read of this port opens; `PortSpanOf` (`Ports.ts`) reads it back. */
+const customSpanName = "qadi.hasCustom";
+
 /**
  * The custom-predicate port, described once (`PortDescription.ts`).
  *
@@ -210,11 +213,12 @@ export const customPredicatePort: PortDescription<
   CustomPredicateError,
   [name: string, subject: AuthSubject, resource: Resource | undefined, params: unknown],
   typeof customSpan,
-  typeof customAsks
+  typeof customAsks,
+  typeof customSpanName
 > = {
   port: "CustomPredicate",
   method: "evaluate",
-  span: "qadi.hasCustom",
+  span: customSpanName,
   attributes: customSpan,
   asks: customAsks,
   wire: customWire,

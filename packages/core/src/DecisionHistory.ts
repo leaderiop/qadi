@@ -179,6 +179,9 @@ const actedServing: PortServingFacet<"DecisionHistory", [query: ActedQuery]> = {
 
 const isEvent = Schema.is(Schema.String);
 
+/** The span a read of this port opens; `PortSpanOf` (`Ports.ts`) reads it back. */
+const actedSpanName = "qadi.acted";
+
 /**
  * The decision-history port, described once (`PortDescription.ts`).
  *
@@ -196,11 +199,12 @@ export const decisionHistoryPort: PortDescription<
   DecisionHistoryUnavailable,
   [query: ActedQuery],
   typeof actedSpan,
-  typeof actedAsks
+  typeof actedAsks,
+  typeof actedSpanName
 > = makePortDescription({
   port: "DecisionHistory",
   method: "hasActed",
-  span: "qadi.acted",
+  span: actedSpanName,
   attributes: actedSpan,
   asks: actedAsks,
   /**

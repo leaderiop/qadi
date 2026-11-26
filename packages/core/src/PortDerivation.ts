@@ -89,15 +89,19 @@ export const makePortDescription = <
   P extends ReadonlyArray<unknown>,
   Span extends PortSpanAttributesLike,
   Asks extends LeafRequests<P>,
+  SpanName extends PortDescription<N, Self, Shape, Args, A, E, P, Span, Asks>["span"],
   Q extends { readonly subjectId: SubjectId },
   QE,
   W,
   WE,
 >(
-  spec: Omit<PortDescription<N, Self, Shape, Args, A, E, P, Span, Asks>, "wire" | "key" | "defect"> & {
+  spec: Omit<
+    PortDescription<N, Self, Shape, Args, A, E, P, Span, Asks, SpanName>,
+    "wire" | "key" | "defect"
+  > & {
     readonly wire: DerivedWireSpec<Args, A, Q, QE, W, WE>;
   },
-): PortDescription<N, Self, Shape, Args, A, E, P, Span, Asks> => {
+): PortDescription<N, Self, Shape, Args, A, E, P, Span, Asks, SpanName> => {
   const { wire, ...rest } = spec;
   return {
     ...rest,
@@ -114,6 +118,36 @@ export const makePortDescription = <
     defect: (args, cause) => spec.failure(args, Cause.squash(cause)),
   };
 };
+
+/** Whether a span name is a pattern (`string`, `` `qadi.${string}` ``) and not one literal. */
+type IsPattern<S extends string> = {} extends Record<S, 1> ? true : false;
+
+/** The registry entries whose span is not one literal, or is another entry's. */
+type SpanOffenders<R extends { readonly [K in keyof R]: { readonly span: string } }> = {
+  readonly [K in keyof R]: IsPattern<R[K]["span"]> extends true
+    ? K
+    : [R[K]["span"]] extends [R[Exclude<keyof R, K>]["span"]]
+      ? K
+      : never;
+}[keyof R];
+
+/**
+ * `unknown` when every entry of the registry `R` names one literal span and no
+ * two entries name the same, `never` otherwise.
+ *
+ * A registry applies it as `{ … } satisfies DistinctSpanNames<Registry>`, so a
+ * second port claiming another's span, or a span left as a pattern, is a
+ * compile error where the registry is written. It refuses sharing and
+ * patterns, not renaming: a port that moves to a new literal of its own still
+ * compiles, and the span pins and the facts golden are what catch it. It lives
+ * here and not in `PortDescription.ts` because the only module that sees every
+ * description is `Ports.ts`, which sits above it.
+ */
+export type DistinctSpanNames<R extends { readonly [K in keyof R]: { readonly span: string } }> = [
+  SpanOffenders<R>,
+] extends [never]
+  ? unknown
+  : never;
 
 /** Rebuilds `layer`'s service through `wrap`, once, when the returned layer itself builds. */
 export const wrapService = <Self, Shape>(

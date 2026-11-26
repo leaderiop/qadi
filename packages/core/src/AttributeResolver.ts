@@ -153,6 +153,9 @@ const attributeServing: PortServingFacet<
   declare: ({ names }) => ({ AttributeResolver: { attributes: names } }),
 };
 
+/** The span a read of this port opens; `PortSpanOf` (`Ports.ts`) reads it back. */
+const attributeSpanName = "qadi.attribute";
+
 /**
  * The attribute port, described once (`PortDescription.ts`): the wrappers and
  * the default below, `PortAccess.ts`'s defect mapping and span, the doubles
@@ -170,11 +173,12 @@ export const attributeResolverPort: PortDescription<
   AttributeResolveError,
   [subjectId: SubjectId, attribute: string],
   typeof attributeSpan,
-  typeof attributeAsks
+  typeof attributeAsks,
+  typeof attributeSpanName
 > = makePortDescription({
   port: "AttributeResolver",
   method: "resolve",
-  span: "qadi.attribute",
+  span: attributeSpanName,
   attributes: attributeSpan,
   asks: attributeAsks,
   /**

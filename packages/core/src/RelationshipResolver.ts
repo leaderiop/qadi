@@ -257,6 +257,9 @@ const relationshipServing: PortServingFacet<
   declare: ({ names }) => ({ RelationshipResolver: { relations: names } }),
 };
 
+/** The span a read of this port opens; `PortSpanOf` (`Ports.ts`) reads it back. */
+const relationshipSpanName = "qadi.hasRelationship";
+
 /**
  * The relationship port, described once (`PortDescription.ts`).
  *
@@ -277,11 +280,12 @@ export const relationshipResolverPort: PortDescription<
   RelationshipResolveError,
   [request: PendingRelationshipCheck],
   typeof relationshipSpan,
-  typeof relationshipAsks
+  typeof relationshipAsks,
+  typeof relationshipSpanName
 > = makePortDescription({
   port: "RelationshipResolver",
   method: "check",
-  span: "qadi.hasRelationship",
+  span: relationshipSpanName,
   attributes: relationshipSpan,
   asks: relationshipAsks,
   /**

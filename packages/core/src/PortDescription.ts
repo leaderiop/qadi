@@ -32,7 +32,7 @@ import type { AuthSubject } from "./AuthSubject.ts";
 import type { WirePath } from "./JsonRefusal.ts";
 import type { Policy } from "./Policy.ts";
 import { isMarkedDefault } from "./PortDefault.ts";
-import type { PortName, PortSpanOf } from "./PortName.ts";
+import type { PortName } from "./PortName.ts";
 import type { PortSpanAttributesLike, SpanFields, SpanStruct, SpanType } from "./PortSpan.ts";
 import type { PortServingFacet } from "./PortServing.ts";
 import type { PortWire } from "./PortWire.ts";
@@ -165,6 +165,13 @@ export type LeafRequests<P extends ReadonlyArray<unknown>> = {
  * - `Asks` — the leaves that read the port, exactly typed per port, so a read
  *   can call the entry for its own tag without asking whether there is one.
  *   Defaulted to the structural bound at `P`, which is all generic code needs.
+ * - `SpanName` — the span `PortAccess.ts` opens around a read of this port, as
+ *   the one literal its module states (`typeof` a module-private constant).
+ *   The registry reads it back (`PortSpanOf`, `Ports.ts`), so the union of the
+ *   five is derived from the descriptions and no table beside them restates it,
+ *   and `DistinctSpanNames` (`PortDerivation.ts`) refuses two ports that share
+ *   one. Defaulted to the pattern every span name matches, which is all generic
+ *   code needs.
  */
 export interface PortDescription<
   N extends PortName,
@@ -176,6 +183,7 @@ export interface PortDescription<
   P extends ReadonlyArray<unknown> = Args,
   Span extends PortSpanAttributesLike = PortSpanAttributesLike,
   Asks extends LeafRequests<P> = LeafRequests<P>,
+  SpanName extends `qadi.${string}` = `qadi.${string}`,
 > {
   /** The port's name — the word its metrics are keyed by. */
   readonly port: N;
@@ -185,8 +193,12 @@ export interface PortDescription<
    * configured deadline"`.
    */
   readonly method: string;
-  /** The span `PortAccess.ts` opens around a read of this port (BEH-QD-227). */
-  readonly span: PortSpanOf<N>;
+  /**
+   * The span `PortAccess.ts` opens around a read of this port (BEH-QD-227): the
+   * port's own literal, given as the `SpanName` type argument. Two ports cannot
+   * share one (`DistinctSpanNames`, `PortDerivation.ts`, applied at the registry).
+   */
+  readonly span: SpanName;
   /**
    * What that span says: the question annotated before the call, the answer
    * annotated after it, and the two projections that fill them, `pose` from a
