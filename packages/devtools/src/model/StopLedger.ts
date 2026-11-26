@@ -39,8 +39,9 @@ export const announcesStop = <S>(ledger: StopLedger<S>, status: S): boolean => l
 /**
  * The ledger after a stop is recorded.
  *
- * It returns the same ledger for a known stop, so a repeated record makes no new state and
- * no render follows it.
+ * It returns the same ledger for a known stop, so a repeated record makes no new state. It is
+ * still not free: `useReducer` has no eager bail-out, so the component that holds the ledger
+ * is called once more and React renders nothing below it (ADR-QD-201, decision 7).
  */
 export const recordStop = <S>(ledger: StopLedger<S>, status: S): StopLedger<S> =>
   ledger.stop === status ? ledger : { stop: status, count: ledger.count + 1 };
