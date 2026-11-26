@@ -3,11 +3,12 @@
 // Each file is compared with its text at `phase_base` (the field of `91-mutation-base.json` in this directory). Five kinds:
 //   held      every path `git ls-tree -r` lists at the base under `packages/core/test`, `packages/react/test`,
 //             `packages/audit/test`, `packages/devtools/test`, `packages/http/test`, `packages/testing/test`,
-//             `packages/core/bench` and `features`, except the declared test files, and the five files of HELD_SOURCE, byte for
+//             `packages/core/bench` and `features`, except the declared test files, and the three files of HELD_SOURCE, byte for
 //             byte, line endings included. The set is computed from the base and never listed here, so a test the base holds
 //             cannot be left out by omission. A file added under those directories later is not held: new tests are the
 //             phase's own. A held file that is moved or missing is a reason.
-//   declared  twenty-six test files and `QadiProvider.tsx`, each changed only on the base lines its regions name. A region is
+//   declared  twenty-six test files, `QadiProvider.tsx` and the two devtools barrels, each changed only on the base lines its
+//             regions name. A region is
 //             the exact range `[first, last]` of base lines (1-based, inclusive) holding the top-level import declarations that
 //             name a deleted module or a module its names move to; a file whose such declarations are not contiguous has one
 //             region per run. Each region also names the text its first and last base line start with, so a wrong constant
@@ -17,7 +18,9 @@
 //             or a blank line there is a reason), and the file at HEAD equals that commit's text byte for byte. A replacement
 //             may be longer or shorter than its region: one import line may become several. A region with `comment: true` holds a
 //             `//` line comment instead (the one test comment the stale-sweep corrects): what replaces it is one or more `//` line
-//             comments and nothing else. Before the commit exists the file is held, as a base file.
+//             comments and nothing else. A region with `docComment: true` holds lines inside a `/** … */` block (the code review
+//             rewords the devtools barrels' headers): what replaces it is one or more ` * ` continuation lines, none closing the
+//             block, and nothing else. Before the commit exists the file is held, as a base file.
 //   born      files written by a commit of this phase, each held against the text that commit gave it: the three `surface.test.ts`
 //             whole, and `HydrationTarget.tst.ts`, which a later commit amends in its import region only. That region is the span
 //             of the born text's top-level import declarations, read from the syntax tree (the file does not exist yet when
@@ -64,10 +67,11 @@ const PREFIXES = [
   "packages/core/bench",
   "features",
 ];
-/** Source held beside the tests: the devtools barrels, the serving declaration, the registry owner and the span declaration. */
+/**
+ * Source held beside the tests: the serving declaration, the registry owner and the span declaration. The devtools barrels,
+ * held here before the code review, are declared files: the review rewords their headers' comment lines and nothing else.
+ */
 const HELD_SOURCE = [
-  "packages/devtools/src/index.ts",
-  "packages/devtools/src/react/index.ts",
   "packages/core/src/PortServing.ts",
   "packages/react/src/RegistryOwner.ts",
   "packages/core/src/EvaluationSpan.ts",
@@ -97,6 +101,9 @@ const SWEEP_SUBJECT = "docs(91-19): sweep the deleted paths and the old rule nam
 const AUDIT_BARREL_SUBJECT = "refactor(91-09): name the audit barrel's exports per module";
 /** The code review's two commits that change a born file: the target pins re-stated, and the mutation test renamed. */
 const TARGET_REVIEW_SUBJECT = "fix(91-review): state why the hydrate target stays out of the root and pin what it refuses";
+const BARREL_HEADER_SUBJECT = "fix(91-review): state the edits a public name needs in each barrel's header";
+const DEVTOOLS_INDEX = "packages/devtools/src/index.ts";
+const DEVTOOLS_REACT_INDEX = "packages/devtools/src/react/index.ts";
 const RENAME_SUBJECT = "fix(91-review): name the span read test for its behaviour and check its interpreters against the closed set";
 
 /**
@@ -296,6 +303,18 @@ const DECLARED = [
     subject: SWEEP_SUBJECT,
     regions: [{ first: 189, last: 190, comment: true, top: "    // `Hydration.ts` carries no", bottom: "    // Component can call this." }],
   },
+  {
+    file: DEVTOOLS_INDEX,
+    subject: BARREL_HEADER_SUBJECT,
+    source: true,
+    regions: [{ first: 19, last: 20, docComment: true, top: " * not importable (ADR-QD-099, ADR-QD-173). Adding a name", bottom: " * `spec/overview.md` and a line in `test/surface.test.ts`" }],
+  },
+  {
+    file: DEVTOOLS_REACT_INDEX,
+    subject: BARREL_HEADER_SUBJECT,
+    source: true,
+    regions: [{ first: 16, last: 17, docComment: true, top: " * Adding a name is a line here", bottom: " * `test/surface.test.ts`." }],
+  },
 ];
 
 /**
@@ -364,7 +383,7 @@ const EARLIER_HELD = [
     "ForeignRows.test.ts",
     "SequenceIntegrity.test.ts",
   ].map((name) => ({ phase: "89", file: `${AUDIT_TEST}/${name}`, subjects: [AUDIT_SUBJECT] })),
-  { phase: "89", file: AUDIT_INDEX, subjects: [AUDIT_BARREL_SUBJECT, AUDIT_SUBJECT] },
+  { phase: "89", file: AUDIT_INDEX, subjects: [AUDIT_BARREL_SUBJECT, AUDIT_SUBJECT, BARREL_HEADER_SUBJECT] },
   { phase: "90", file: `${CORE_TEST}/PortSpan.test.ts`, subjects: [DECODER_SUBJECT] },
 ];
 
@@ -543,9 +562,12 @@ const judgeImportGaps = (file, gaps, parse) => {
  */
 const judgeCommentGaps = (file, regions, gaps) =>
   regions.flatMap((region, k) => {
-    if (region.comment !== true) return [];
+    if (region.comment !== true && region.docComment !== true) return [];
     const gap = gaps[k] ?? [];
     if (gap.length === 0) return [`${file}: what replaces comment region ${k + 1} is empty`];
+    if (region.docComment === true) {
+      return gap.flatMap((line, i) => (/^\s*\*(?: |$)/.test(line) && !line.includes("*/") ? [] : [`${file}: line ${i + 1} of what replaces comment region ${k + 1} is not a doc-comment line`]));
+    }
     return gap.flatMap((line, i) => (line.trim().startsWith("//") ? [] : [`${file}: line ${i + 1} of what replaces comment region ${k + 1} is not a line comment`]));
   });
 
@@ -565,7 +587,7 @@ const judgeDeclared = (spec, base, commit, changed, current, allApplied, parse) 
   const atCommit = regionGaps(file, regions, base, commit);
   reasons.push(...atCommit.reasons);
   if (atCommit.reasons.length === 0) {
-    reasons.push(...judgeImportGaps(file, atCommit.gaps.map((gap, k) => (regions[k].comment === true ? [] : gap)), parse));
+    reasons.push(...judgeImportGaps(file, atCommit.gaps.map((gap, k) => (regions[k].comment === true || regions[k].docComment === true ? [] : gap)), parse));
     reasons.push(...judgeCommentGaps(file, regions, atCommit.gaps));
   }
   if (reasons.length > 0) return { reasons, applied: false };
@@ -1082,6 +1104,16 @@ const selfTest = () => {
   const cBlock = cEdit("/* new one */", "// new two");
   const cEmpty = cEdit();
   const cOutside = cGood.replace("head", "HEAD");
+  // a doc-comment region: lines 3 and 4 of k.ts are inside a block comment
+  const kText = ["/**", " * head", " * old one", " * old two", " */", "export {};", ""].join("\n");
+  const kSpec = { file: "k.ts", subject: "s", regions: [{ first: 3, last: 4, docComment: true, top: " * old one", bottom: " * old two" }] };
+  const kEdit = (...lines) => ["/**", " * head", ...lines, " */", "export {};", ""].join("\n");
+  const kGood = kEdit(" * new one", " * new two", " * new three", " *");
+  const kStatement = kEdit(" * new one", "export const z = 1;");
+  const kClosing = kEdit(" * new one */", "export const z = 1;", "/**");
+  const kLine = kEdit(" * new one", "// new two");
+  const kEmpty = kEdit();
+  const kOutside = kGood.replace(" * head", " * HEAD");
   // a comment region after an import region: the import region is still judged as imports
   const mText = [imp("a"), "mid", "// old one", "body", ""].join("\n");
   const mSpec = { file: "m.ts", subject: "s", regions: [{ first: 1, last: 1, top: "import", bottom: "import" }, { first: 3, last: 3, comment: true, top: "// old one", bottom: "// old one" }] };
@@ -1110,6 +1142,13 @@ const selfTest = () => {
     ["a comment region replaced by a block comment fails", (p) => judgeDeclared(cSpec, cText, cBlock, true, cBlock, false, p).reasons, ["c.ts: line 1 of what replaces comment region 1 is not a line comment"]],
     ["a comment region replaced by nothing fails", (p) => judgeDeclared(cSpec, cText, cEmpty, true, cEmpty, false, p).reasons, ["c.ts: what replaces comment region 1 is empty"]],
     ["a comment region's neighbour line changed fails, naming the line", (p) => judgeDeclared(cSpec, cText, cOutside, true, cOutside, false, p).reasons, ["c.ts: differs outside its declared lines at line 1"]],
+    ["a doc-comment region replaced by continuation lines passes, longer and with a bare one", (p) => judgeDeclared(kSpec, kText, kGood, true, kGood, true, p), { reasons: [], applied: true }],
+    ["a doc-comment region replaced by a statement fails, naming the line", (p) => judgeDeclared(kSpec, kText, kStatement, true, kStatement, false, p).reasons, ["k.ts: line 2 of what replaces comment region 1 is not a doc-comment line"]],
+    ["a doc-comment region whose replacement closes the block fails", (p) => judgeDeclared(kSpec, kText, kClosing, true, kClosing, false, p).reasons, ["k.ts: line 1 of what replaces comment region 1 is not a doc-comment line", "k.ts: line 2 of what replaces comment region 1 is not a doc-comment line", "k.ts: line 3 of what replaces comment region 1 is not a doc-comment line"]],
+    ["a doc-comment region replaced by a line comment fails", (p) => judgeDeclared(kSpec, kText, kLine, true, kLine, false, p).reasons, ["k.ts: line 2 of what replaces comment region 1 is not a doc-comment line"]],
+    ["a doc-comment region replaced by nothing fails", (p) => judgeDeclared(kSpec, kText, kEmpty, true, kEmpty, false, p).reasons, ["k.ts: what replaces comment region 1 is empty"]],
+    ["a doc-comment region's neighbour line changed fails", (p) => judgeDeclared(kSpec, kText, kOutside, true, kOutside, false, p).reasons, ["k.ts: differs outside its declared lines at line 2"]],
+    ["a doc-comment file changed after its declaring commit fails", (p) => judgeDeclared(kSpec, kText, kGood, true, `${kGood}x\n`, false, p).reasons.length > 0, true],
     ["a comment region leaves an import region beside it judged as imports", (p) => judgeDeclared(mSpec, mText, mBad, true, mBad, false, p).reasons, ["m.ts: line 1 of what replaces region 1 is not an import declaration"]],
   ];
   // import-only judgement of loose gaps
@@ -1213,6 +1252,14 @@ const selfTest = () => {
   has("a moved test edited after its rename fails", judgeAnyTest(any, added, bornOf, afterRename({ [R]: "s\n" }), rename()), `${R}: differs from the commit that added it at line 1`);
   has("a moved test deleted after its rename fails", judgeAnyTest(any, added, bornOf, afterRename({ [R]: undefined }), rename()), `${R} was moved or deleted after the commit that added it`);
 
+  // the devtools barrels: declared, never held source, and changed only on doc-comment lines under the one review subject
+  check(
+    "the devtools barrels are declared with doc-comment regions only, under the one review subject, and are not held source",
+    [DEVTOOLS_INDEX, DEVTOOLS_REACT_INDEX].every((file) => {
+      const spec = DECLARED.find((d) => d.file === file);
+      return !HELD_SOURCE.includes(file) && spec !== undefined && spec.subject === BARREL_HEADER_SUBJECT && spec.source === true && spec.regions.every((r) => r.docComment === true && r.comment !== true);
+    }),
+  );
   // the earlier phases' held files
   const row = { phase: "86", file: "packages/react/src/RegistryLease.ts", subjects: ["docs(x): the one", "docs(x): the other"] };
   eq("a file no commit touches passes", judgeEarlierHeld(row, []), []);
