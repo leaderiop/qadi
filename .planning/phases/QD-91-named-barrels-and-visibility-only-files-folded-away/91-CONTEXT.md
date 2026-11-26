@@ -763,3 +763,67 @@ PITFALLS X-2, X-3, 91-A..91-I, M-1; STACK §4); ADR-QD-037, 047 (CCR-QD-321 amen
   `@qadi/react`'s gate registry with ADR-QD-177's rethrow contract; the upstream `RegistryProvider` dispose shape;
   structural identity for feed inputs.
 </deferred>
+
+## Addendum after research (2026-11-26)
+
+Appended by the phase researcher on 2026-11-26. Each entry is decided autonomously 2026-11-26 under the owner's standing
+instruction, with the measured evidence in `91-RESEARCH.md` (probe ids in brackets). An entry corrects or sharpens a
+decision above; it never reopens one. Where an entry and a decision disagree, the entry holds.
+
+- **D-11a (the generator pins each name's kind from the base snapshot; corrects D-11's "symbol with any value meaning gets
+  `export { … }`").** A generator that reads value meaning from the declaring module widens a name the base exports
+  `export type`: `AllowDisclosure` and `DenyDisclosure` (react, const-and-type pairs) became runtime values and the
+  runtime keys differed (audit `AuditEntry`, a class, and devtools `ObligationState` and `RecordOutcome` are the other
+  hidden-value names). The generator takes `91-surface-base.json` and keeps any name the base exports type-only as
+  `export type`. D-13's home table carries each name's kind, and `AllowDisclosure`/`DenyDisclosure` stay
+  `export type … from "./SeededDecision.ts"`. [P3]
+- **D-09a (the escape is loud in the intact layout; how it is seen failing; the `/src/` rule matters).** Omitting a name a
+  dependent's declaration needs gives TS2883 and no emitted `.d.ts` (fifteen names tried, none exited 0 with an escape),
+  so D-09's "seen failing" cannot come from a plain omission. The silent `import("../../core/src/…")` appears only when
+  the dependent resolves `@qadi/core` through `tsconfig.base.json` `paths` alone (the per-package `node_modules/@qadi/core`
+  link removed) and `Trace` is omitted. The seen-failing record has two variants: a planted `.d.ts` text through the pure
+  function, and that scratch layout. The check strips comments (46 `lib` `.d.ts` files carry `../../` in doc comments) and
+  keeps `/// <reference path>` lines, and refuses any `/src/` segment because the tarball ships `src/`. [P2]
+- **D-10a (corrected figures; (f) recorded).** madge counts are 251 files at HEAD (CONTEXT said 245), 246 after the five
+  folds (CONTEXT said 240), by commit 251, 250, 249, 248, 247, 247, 246. All verdicts equal D-10's expectations.
+  (f) `EvaluationSpan` into `PortSpanEncode` is acyclic and `tsc`-clean but `check-house-style.mjs` then crashes ENOENT
+  because `SPAN_KEY_DECLARATION` is gone; D-22 stands, and ADR-QD-204 records it with that reason. [P1]
+- **D-21a (commit A must tidy `QadiAtoms.ts` imports; fallback (c) is not needed).** Removing `hydrate` from `QadiAtoms`
+  leaves `DehydratedDecisions`, `HydrateOptions` and `InitialValues` unused (TS6133 under `noUnusedLocals`); commit A
+  removes those imports. After commit A `HydrationTarget` appears only in react's own `lib/HydrationEngine.d.ts` and
+  `lib/QadiAtoms.d.ts`, in no dependent's declaration, so no TS2883 or escape arises and fallback (c) does not apply.
+  The first pin is RED on the pre-commit-A state with `Argument of type '{ readonly hydrate: Written; }' is not
+  assignable to parameter of type 'QadiAtoms'. … missing the following properties … runtime, subject, decision,
+  decisions, and 3 more`, not literally TS2345. The born pin file imports `hydrateDecisions` from `Hydration.ts` in
+  commit A and its one import line is a declared edit re-pointed in commit B. [P1 e′, P5]
+- **D-24a (a mixed barrel is loud at gate 13, and invisible to house-style today).** Appending an `export *` to a named
+  barrel makes gate 13 report `[stale]` rows (495 drift lines); house-style stays clean because `barrel-order` skips a
+  non-pure barrel and `devtools-named-barrel` checks only two paths. `named-barrel`'s "mixed" check is therefore a second
+  line of defence behind gate 13, and the rule must not fire on http, testing (pure), nor on promise, predicate-sql,
+  predicate-prisma (no relative named group, implementation-as-index). A prototype over `(rel, text)` passed the five
+  clean barrels and failed both an `export *` plant and a group-order swap. [P4]
+- **D-06a (surface tool mechanics).** One `API` instance per entry point (reusing one raises "getNodeId requires a
+  RemoteNode"); a temporary tsconfig outside the repo (`files: [entry]`, `module`/`moduleResolution` `nodenext`,
+  `skipLibCheck`, `types: []`) opens each built `lib` entry; a symbol that is `isUnknownSymbol` after the alias walk is a
+  thrown refusal; a hop is type-only when the specifier, its `parent.parent` (the declaration, for `export type { C }
+  from`) or an import clause says so. The tool's per-entry total is 948 over 10 entries and gate 13's 943 is the same
+  names with devtools' root and `/react` sharing 5; `91-SURFACE.md` records both. [P3]
+- **D-09b (gate 14's printed runtime-export figure is not pinned).** It printed 528 and 527 in the `AccessDenied` variant, but
+  pinning it would be a second source of truth beside `surface.test.ts`'s value lists (D-08), which already fail at once.
+  It is recorded in `91-SURFACE.md` and not compared. [P2]
+- **D-31a (the earlier-checks ledger).** The code-only rehearsal moves three rows, not two: `86-pinned-check.mjs` (18
+  react test files reported M, and `RegistryLease.ts` once IN-02 lands), `89-pinned-check.mjs` (seven lines: the deleted
+  `SequenceIntegrity.ts`, six edited audit files) and `90-pinned-check.mjs` (one line, `packages/core/test/PortSpan.test.ts`
+  import line 19). Every other row of `90-earlier-checks.mjs` is unchanged. Because a first-differing-line number depends
+  on the exact edit, 91's rows for these three match each reason by path with any line number, keyed on the exact commit
+  subject. Phase 90's own scripts (`90-check.mjs` records/scan rows, `90-pinned-check.mjs`) join `RUNS`; `90-check.mjs`
+  refuses a detached branch, so a scratch clone creates a branch named `arch-wave-16`. [P10]
+- **D-32a (mutation facts).** `ArchiveFacts.ts` is 54 detected of 54 valid (4 ignored) in `89-mutation-close.json`, whose
+  `phase91_base` field already stores that figure; `SequenceIntegrity.ts` has 0 valid mutants (a re-export line), so the
+  audit fold moves no executable code and `RENAMED` is N/A on that side; `RegistryLease.ts` is 28 of 28. Core has no
+  record for the four core files (the base re-take stands). `--mutate` with a comma list of paths has precedent
+  (`90-mutation.mjs:117`). Base coverage measured here: audit 100/100/100/100 over 24 files, react 99.5/98.68/99.04/99.54
+  over 21 files. [P11]
+- **D-30a (a stale comment the sweep must catch).** `scripts/check-house-style.mjs:1043` names `packages/react/src/Hydration.ts`
+  as the real example of a `Policy as PolicySchema` rename in a multi-line import; the file is deleted by the Hydration
+  fold, so the comment is re-pointed in that commit (the D-30 sweep searches `scripts`). [P9]
